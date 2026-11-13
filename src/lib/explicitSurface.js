@@ -266,6 +266,8 @@ export function thinPlateLoo(u, v, w) {
   }
   return e;
 }
+// TASKS.csv #2921 — the distance from a point to a polygon's outline (for 'stop at the inputs' outline plus the margin')
+const distToPoly = (x, y, poly) => { let d = Infinity; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [ax, ay] = poly[j], [bx, by] = poly[i], ex = bx - ax, ey = by - ay, l2 = ex * ex + ey * ey; const t = l2 ? Math.max(0, Math.min(1, ((x - ax) * ex + (y - ay) * ey) / l2)) : 0; const dd = Math.hypot(x - ax - t * ex, y - ay - t * ey); if (dd < d) d = dd; } return d; };
 const pointInPoly = (x, y, poly) => { let inside = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside; } return inside; };
 
 // Thin-plate spline through (u, v, w) exactly. Coordinates are scaled to about unit size first (conditioning).
@@ -330,7 +332,9 @@ export function trendInPlane(trend, F) {
   return { a: (u, v) => (u * mu + v * mv) / ratio, b: (u, v) => -u * mv + v * mu, ratio, azimuthDeg: az };
 }
 
-export function fitExplicitSurface(points, { margin = null, marginBasis = "short", resolution = 80, groundAt = null, mergeTol = 0.5, frame = "auto", trend = null } = {}) {
+// extent (TASKS.csv #2921): "box" (the inputs' extent plus the margin, a rectangle: 66-70 % of a seeded top on the WA iron block was
+// extrapolation) or "hull" (the inputs' outline plus the margin: the mesh is cut there, and the extrapolated share counts only what is kept)
+export function fitExplicitSurface(points, { margin = null, marginBasis = "short", resolution = 80, groundAt = null, mergeTol = 0.5, frame = "auto", trend = null, extent = "box" } = {}) {
   const warnings = [];
   const pts = [];
   for (const p of points) if (!pts.some((q) => dist3(p, q) < mergeTol)) pts.push(p); // a repeated pick is one constraint
@@ -405,15 +409,18 @@ export function fitExplicitSurface(points, { margin = null, marginBasis = "short
   // how well each input is predicted by the others; (c) how much of the surface lies outside the inputs' hull
   // (extrapolated) and how far its furthest point is from any input.
   const quality = { overshootM: 0, overshootAt: null, beyondPct: 0, furthestM: 0, looRmsM: null, looMaxM: null, looWorst: null, looSkipped: U.length > LOO_MAX_POINTS };
-  let supportHull = null; // TASKS.csv #977 — the inputs' hull in the frame, for shading the extrapolated part (explicitSupport.js)
+  let hull = null, supportHull = null; // TASKS.csv #977 — the inputs' hull in the frame, for shading the extrapolated part (explicitSupport.js)
   {
-    const hull = U.length >= 3 ? new Delaunay(Float64Array.from(uvw.flatMap((q) => [q[0], q[1]]))).hullPolygon() : null;
+    hull = U.length >= 3 ? new Delaunay(Float64Array.from(uvw.flatMap((q) => [q[0], q[1]]))).hullPolygon() : null;
     if (hull) supportHull = { origin: F.origin.slice(), e1: F.e1.slice(), e2: F.e2.slice(), uv: hull.flat() };
     const wmin = Math.min(...W), wmax = Math.max(...W);
     const nGrid = node2.length / 2 - U.length;
-    let outside = 0;
+    let outside = 0, kept = 0;
+    const toHull = extent === "hull" && hull; // #2921
     for (let k = 0; k < nGrid; k++) {
       const u = node2[2 * k], v = node2[2 * k + 1], w = nodeW[k];
+      if (toHull && !pointInPoly(u, v, hull) && distToPoly(u, v, hull) > m) continue; // cut away below: not part of the surface
+      kept++;
       let dmin = Infinity;
       for (let q = 0; q < U.length; q++) { const d = (U[q] - u) ** 2 + (V[q] - v) ** 2; if (d < dmin) dmin = d; }
       quality.furthestM = Math.max(quality.furthestM, Math.sqrt(dmin));
@@ -422,7 +429,7 @@ export function fitExplicitSurface(points, { margin = null, marginBasis = "short
         if (over > quality.overshootM) { quality.overshootM = over; quality.overshootAt = fromF(u, v, w); }
       } else outside++;
     }
-    quality.beyondPct = nGrid ? (100 * outside) / nGrid : 0;
+    quality.beyondPct = kept ? (100 * outside) / kept : 0;
     if (quality.overshootM > Math.max(10, 0.2 * (wmax - wmin))) {
       const [x, y] = quality.overshootAt;
       warnings.push(tr("Between the inputs the surface swings {d} m beyond them (near E {e}, N {n}): usually two inputs that disagree, such as a pick and a section line, or a pick on the wrong contact. Check the inputs there; the leave-one-out figure names the worst one.", { d: quality.overshootM.toFixed(0), e: x.toFixed(0), n: y.toFixed(0) }));
@@ -448,9 +455,17 @@ export function fitExplicitSurface(points, { margin = null, marginBasis = "short
   let faces = [];
   const T = del.triangles;
   for (let t = 0; t < T.length; t += 3) faces.push([T[t], T[t + 1], T[t + 2]]);
-  let verts = world, groundCut = 0;
+  let verts = world, groundCut = 0, hullCut = 0;
+  if (extent === "hull" && hull) { // TASKS.csv #2921 — cut at the inputs' outline plus the margin (exactly, by clipMesh), unused vertices dropped
+    const c = clipMesh(world, faces, (p) => { const d = [p.x - F.origin[0], p.y - F.origin[1], p.z - F.origin[2]], u = dot(d, F.e1), v = dot(d, F.e2); return !pointInPoly(u, v, hull) && distToPoly(u, v, hull) > m + 1e-6; });
+    hullCut = c.removed + c.split;
+    const remap = new Int32Array(c.verts.length).fill(-1);
+    const vv = [];
+    faces = c.faces.map((fc) => fc.map((k) => { if (remap[k] < 0) { remap[k] = vv.length; vv.push(c.verts[k]); } return remap[k]; }));
+    verts = vv;
+  }
   if (groundAt) {
-    const c = clipMesh(world, faces, (p) => { const g = groundAt(p.x, p.y); return Number.isFinite(g) && p.z > g; });
+    const c = clipMesh(verts, faces, (p) => { const g = groundAt(p.x, p.y); return Number.isFinite(g) && p.z > g; });
     groundCut = c.removed + c.split;
     if (!c.faces.length) throw new Error(tr("The whole explicit surface lies above the terrain."));
     // clipMesh keeps every input vertex; drop the ones no triangle uses any more (they are above the ground)
@@ -468,5 +483,5 @@ export function fitExplicitSurface(points, { margin = null, marginBasis = "short
     const flip = dot(nn, F.n) < 0;
     indices[3 * k] = a; indices[3 * k + 1] = flip ? c : b; indices[3 * k + 2] = flip ? b : c;
   });
-  return { positions, indices, n: used.length, frame: F, residualMax, warnings, groundCut, cell: Math.min(du, dv), margin: m, quality, supportHull, trend: an ? { ratio: an.ratio, azimuthDeg: an.azimuthDeg } : null };
+  return { positions, indices, n: used.length, frame: F, residualMax, warnings, groundCut, hullCut, extent: extent === "hull" && hull ? "hull" : "box", cell: Math.min(du, dv), margin: m, quality, supportHull, trend: an ? { ratio: an.ratio, azimuthDeg: an.azimuthDeg } : null };
 }

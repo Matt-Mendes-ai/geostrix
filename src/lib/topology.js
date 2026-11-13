@@ -229,7 +229,8 @@ export function sidednessCheck(a, b, expected, opts = {}) {
       const aH = ha[Math.floor(ha.length / 2)];
       const bH = hb[Math.floor(hb.length / 2)];
       compared++;
-      const ok = expected === "below" ? aH <= bH : aH >= bH;
+      const tol = opts.tolM || 0; // TASKS.csv #2921 — touching surfaces: a gap under it is a touch
+      const ok = expected === "below" ? aH <= bH + tol : aH >= bH - tol;
       if (!ok) {
         wrong++;
         const gap = Math.abs(aH - bH);
@@ -289,6 +290,9 @@ export function inversionCheck(mesh, opts = {}) {
 // terminates_against, cuts) describes a relationship where an intersection is EXPECTED and therefore
 // has nothing to violate — those are skipped rather than guessed at, and the caller is told how many
 // were skipped so "0 violations" can't be read as "everything was checked".
+// TASKS.csv #2921 — two tops held together where a unit is missing meet only at the mesh vertices: between them the two triangle
+// meshes miss each other by centimetres (0.1 m on the WA iron block). Under this gap a mayTouch pair is touching, not out of order.
+const TOUCH_TOL_M = 0.5;
 const NO_CROSS_RELATIONS = new Set(["must_not_cross", "below", "above"]);
 const ORDER_RELATIONS = { below: "below", above: "above" };
 
@@ -332,7 +336,9 @@ export function checkTopology(surfaces, opts = {}) {
       if (!b) { skipped++; continue; }
       if (!NO_CROSS_RELATIONS.has(rel.relation)) { skipped++; continue; }
       checked++;
-      const cross = meshesCross(
+      // TASKS.csv #2921 — mayTouch: the order of two tops of one pile, taken from the holes by the Explicit surface pane. Where a unit
+      // is missing its top lies ON the next one (zero thickness), so the meshes meet there: only the side is checked
+      const cross = rel.mayTouch ? { crosses: false } : meshesCross(
         { ...a, query: q(a), edges: eg(a) },
         { ...b, query: q(b), edges: eg(b) },
         opts
@@ -348,7 +354,7 @@ export function checkTopology(surfaces, opts = {}) {
       const expected = ORDER_RELATIONS[rel.relation];
       if (expected) {
         const side = sidednessCheck(
-          { ...a, query: q(a) }, { ...b, query: q(b) }, expected, { up, grid: opts.grid }
+          { ...a, query: q(a) }, { ...b, query: q(b) }, expected, { up, grid: opts.grid, tolM: rel.mayTouch ? TOUCH_TOL_M : 0 }
         );
         if (side.compared && side.fraction > 0.02) {
           violations.push({

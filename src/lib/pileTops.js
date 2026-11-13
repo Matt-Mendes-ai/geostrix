@@ -1,0 +1,131 @@
+// TASKS.csv #2921 (review #2876, WA bedded iron) — explicit tops of one pile were each fitted alone: Top of ONAM lay above Top of SONAM
+// under 85 of 215 holes, 'Check relationships' said 'Nothing to check', a unit missing from a hole told the fit nothing, and the
+// Solid blocks found the tops crossing in 2,356 of 7,770 columns. The holes already know the order (the Strat. stack's check,
+// #2382); these helpers take it from them, for the Explicit surface pane:
+//  - pileFromRuns / pileRelation: which of two units the holes put above the other, and in how many of the holes logging both;
+//  - absentTops: where a unit is missing from a hole that passes from a younger unit straight into an older one, its top is that
+//    contact (zero thickness there), for 'Add the logged tops' to offer as picks;
+//  - upperNeighbour: the next top up among the pane's other explicit tops;
+//  - meshHeightLookup / clampUnder / orderAgainst: hold a surface at or under that top, or count where it lies above it.
+// Pure: no React, no three.js.
+import { stackOrderFromHoles } from "./stackOrderFromHoles.js";
+
+// runs: modellingCodes.codedRuns' runs ({ hole_id, code, from, ... }); inPile(code) -> true for the codes of the pile (stratigraphic)
+// -> { codes, kOf: Map(code -> index), above: n x n counts (holes where code a first starts above code b) }
+export function pileFromRuns(runs, inPile = () => true) {
+  const codes = [...new Set((runs || []).map((r) => r.code).filter((c) => c != null && c !== "" && inPile(c)))];
+  const kOf = new Map(codes.map((c, i) => [c, i]));
+  const rows = (runs || []).filter((r) => kOf.has(r.code)).map((r) => ({ hole_id: r.hole_id, from: r.from, value: r.code }));
+  const { above } = stackOrderFromHoles(rows, kOf, codes.length);
+  return { codes, kOf, above };
+}
+
+// -> { order: 1 (the holes put a above b), -1 (b above a), 0 (not decided), agree, of }: decided when at least `minHoles` holes log
+// both and `share` of them agree (the Strat. stack's own rule, #2382)
+export function pileRelation(pile, a, b, { minHoles = 3, share = 2 / 3 } = {}) {
+  const i = pile?.kOf?.get(a), j = pile?.kOf?.get(b);
+  if (i === undefined || j === undefined || i === j) return { order: 0, agree: 0, of: 0 };
+  const ab = pile.above[i][j], ba = pile.above[j][i], of = ab + ba;
+  if (of < minHoles) return { order: 0, agree: Math.max(ab, ba), of };
+  if (ab >= share * of) return { order: 1, agree: ab, of };
+  if (ba >= share * of) return { order: -1, agree: ba, of };
+  return { order: 0, agree: Math.max(ab, ba), of };
+}
+
+// Where `unit` is missing from a hole: down the hole, the first run of a unit the holes put under `unit`, when the run right above it
+// touches it (no gap, not a hole start) and is a unit the holes put above `unit`. That contact is where `unit` would start: its top,
+// at zero thickness. A hole that logs `unit` anywhere is left to the logged tops. -> { tops: [{ hole_id, md, above, below, absent }],
+// holes: the holes missing `unit` that pass through its place }
+export function absentTops(runs, unit, pile, opts = {}) {
+  const logs = new Set();
+  for (const r of runs || []) if (r.code === unit) logs.add(r.hole_id);
+  const rel = new Map(); // code -> pileRelation(unit, code).order, cached
+  const order = (c) => { if (!rel.has(c)) rel.set(c, pileRelation(pile, unit, c, opts).order); return rel.get(c); };
+  const tops = [], done = new Set();
+  for (const r of runs || []) { // codedRuns lists each hole's runs top-down
+    if (logs.has(r.hole_id) || done.has(r.hole_id)) continue;
+    if (order(r.code) !== 1) continue; // not a unit under `unit`
+    done.add(r.hole_id); // only the first older run of the hole
+    if (!r.above || r.holeStart) continue;
+    if (order(r.above.code) !== -1) continue; // what lies on it is not a unit above `unit`
+    tops.push({ hole_id: r.hole_id, md: r.from, above: r.above.code, below: r.code, absent: true });
+  }
+  return { tops, holes: tops.length };
+}
+
+// The next top up: among `candidates` ([{ unit, ... }], the pane's other explicit tops), those the holes put above `unit`, and of
+// them the one the holes put under the most others (the closest above). -> { ...candidate, rel } or null
+export function upperNeighbour(pile, unit, candidates, opts = {}) {
+  const ups = [];
+  for (const c of candidates || []) {
+    if (!c || c.unit === unit) continue;
+    const rel = pileRelation(pile, c.unit, unit, opts);
+    if (rel.order === 1) ups.push({ ...c, rel });
+  }
+  if (!ups.length) return null;
+  const under = ups.map((c) => ups.reduce((k, d) => k + (d !== c && pileRelation(pile, d.unit, c.unit, opts).order === 1 ? 1 : 0), 0));
+  let best = 0;
+  for (let i = 1; i < ups.length; i++) if (under[i] > under[best] || (under[i] === under[best] && ups[i].rel.agree > ups[best].rel.agree)) best = i;
+  return ups[best];
+}
+
+// The elevation of a triangle mesh (positions: x, y map, z elevation triples) at a map point: the highest crossing, NaN off it. A
+// bucket grid of the triangles' plan boxes, about `perCell` triangles a bucket.
+export function meshHeightLookup(positions, indices, { perCell = 4 } = {}) {
+  const P = positions, nT = Math.floor((indices?.length || 0) / 3);
+  if (!nT) return () => NaN;
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (let i = 0; i < P.length; i += 3) { const x = P[i], y = P[i + 1]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  const side = Math.max(1, Math.round(Math.sqrt(nT / perCell)));
+  const cw = (x1 - x0) / side || 1, ch = (y1 - y0) / side || 1;
+  const buckets = Array.from({ length: side * side }, () => []);
+  const cx = (x) => Math.min(side - 1, Math.max(0, Math.floor((x - x0) / cw))), cy = (y) => Math.min(side - 1, Math.max(0, Math.floor((y - y0) / ch)));
+  for (let t = 0; t < nT; t++) {
+    const a = indices[3 * t] * 3, b = indices[3 * t + 1] * 3, c = indices[3 * t + 2] * 3;
+    const i0 = cx(Math.min(P[a], P[b], P[c])), i1 = cx(Math.max(P[a], P[b], P[c])), j0 = cy(Math.min(P[a + 1], P[b + 1], P[c + 1])), j1 = cy(Math.max(P[a + 1], P[b + 1], P[c + 1]));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) buckets[j * side + i].push(t);
+  }
+  return (x, y) => {
+    if (!(x >= x0 && x <= x1 && y >= y0 && y <= y1)) return NaN;
+    let z = NaN;
+    for (const t of buckets[cy(y) * side + cx(x)]) {
+      const a = indices[3 * t] * 3, b = indices[3 * t + 1] * 3, c = indices[3 * t + 2] * 3;
+      const ax = P[a], ay = P[a + 1], bx = P[b], by = P[b + 1], qx = P[c], qy = P[c + 1];
+      const det = (by - qy) * (ax - qx) + (qx - bx) * (ay - qy);
+      if (Math.abs(det) < 1e-12) continue;
+      const l1 = ((by - qy) * (x - qx) + (qx - bx) * (y - qy)) / det, l2 = ((qy - ay) * (x - qx) + (ax - qx) * (y - qy)) / det, l3 = 1 - l1 - l2;
+      if (l1 < -1e-9 || l2 < -1e-9 || l3 < -1e-9) continue;
+      const zz = l1 * P[a + 2] + l2 * P[b + 2] + l3 * P[c + 2];
+      if (!(z >= zz)) z = zz;
+    }
+    return z;
+  };
+}
+
+// Lower every vertex that lies above the upper surface onto it (zero thickness between the two there). positions are changed in place.
+// -> { moved, maxM, compared (vertices under the upper surface's footprint) }
+export function clampUnder(positions, upperAt) {
+  let moved = 0, maxM = 0, compared = 0;
+  for (let i = 0; i < positions.length; i += 3) {
+    const zu = upperAt(positions[i], positions[i + 1]);
+    if (!Number.isFinite(zu)) continue;
+    compared++;
+    const d = positions[i + 2] - zu;
+    if (d > 1e-6) { positions[i + 2] = zu; moved++; if (d > maxM) maxM = d; }
+  }
+  return { moved, maxM, compared };
+}
+
+// Where a surface lies above the upper one (the order check, without changing anything). points: [{ x, y, z }] or positions triples.
+// tolM: a crossing under it is a touch, not out of order. -> { compared, above, worstM, worstAt: { x, y } | null }
+export function orderAgainst(positions, upperAt, { tolM = 0.05 } = {}) {
+  let compared = 0, above = 0, worstM = 0, worstAt = null;
+  for (let i = 0; i < positions.length; i += 3) {
+    const zu = upperAt(positions[i], positions[i + 1]);
+    if (!Number.isFinite(zu)) continue;
+    compared++;
+    const d = positions[i + 2] - zu;
+    if (d > tolM) { above++; if (d > worstM) { worstM = d; worstAt = { x: positions[i], y: positions[i + 1] }; } }
+  }
+  return { compared, above, worstM, worstAt };
+}

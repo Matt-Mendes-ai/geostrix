@@ -63,6 +63,7 @@ export default [
       { name: "Set card (counts by type)", what: "Each set shows its measurements counted by type, how many there are, and MN or TN when they were measured from magnetic or true north.", choose: "Check the counts against your notebook; a type column with unusual words lands in Other." },
       { name: "Export…", what: "Writes the set as GeoPackage, KML (Google Earth) or CSV, with dip, dip direction and right-hand-rule strike in grid and true north.", choose: "KML for a field check on a phone; GeoPackage for QGIS." },
       { name: "Symbol size", what: "The length of each symbol's strike line in metres; the tick, triangles and dip number scale with it.", choose: "Big enough to read at your usual viewing distance, small enough that neighbouring outcrops do not overlap." },
+      { name: "Line thickness", what: "The width of the symbols' lines, as a multiple of the USGS standard's line weight (× 1). It applies in the 3D view, the Google Earth icons, the legends and the Layout.", choose: "× 1 for the standard's look; raise it when large symbols read too thin, or for a printed map seen from afar." },
       { name: "Sit every measurement on the terrain", what: "Places every symbol on the terrain surface. Off: rows with a recorded elevation use it.", choose: "Keep it on: handheld GPS elevations are often tens of metres off the terrain. Turn it off only for surveyed elevations." },
     ],
     warnings: [

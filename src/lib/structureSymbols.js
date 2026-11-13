@@ -10,6 +10,8 @@
 // All line weights 0.2 mm in the standard (lineMm); the strike line is 5.0 mm.
 
 export const LINE_MM = 0.2;
+// TASKS.csv #3091 — a set's line thickness (set.lineScale: a factor on the standard's strokes; 1 = as the standard), within 0.25-6
+export const lineScaleOf = (set) => { const v = Number(set?.lineScale); return Number.isFinite(v) && v > 0 ? Math.min(6, Math.max(0.25, v)) : 1; };
 const S = 2.5; // half the 5.0 mm strike line
 
 const strike = (dash) => ({ t: "line", p: [[-S, 0], [S, 0]], ...(dash ? { dash } : {}) });
@@ -151,11 +153,14 @@ export function symbolFrame(dipDirDeg) {
 
 // An SVG of a symbol (for the legend and the list): width / height in px, the symbol turned so its strike runs left to right (dip toward
 // the bottom, as a map shows a 090° strike). Lines in `color`; fills too.
-export function symbolSvg(symbol, { px = 22, color = "#222", rotateDeg = 0, label = null } = {}) {
+// lineScale: TASKS.csv #3091 — the set's line thickness, a factor on every stroke
+export function symbolSvg(symbol, { px = 22, color = "#222", rotateDeg = 0, label = null, lineScale = 1 } = {}) {
   const k = px / 6.5, cx = px / 2, cy = px / 2;
   const rot = (rotateDeg * Math.PI) / 180, cr = Math.cos(rot), sr = Math.sin(rot);
   const P = ([u, v]) => { const x = u * cr - v * sr, y = u * sr + v * cr; return [(cx + x * k).toFixed(2), (cy + y * k).toFixed(2)]; };
-  const swOf = (part) => Math.max(1, (part.w || LINE_MM) * k * 4).toFixed(2); // line weights: .2 mm, a fault's .375 mm
+  // line weights: .2 mm, a fault's .375 mm (drawn 4x for a small icon). #3091 — the set's thickness by its square root, capped at 1.2 mm of
+  // symbol, so an 18-22 px legend or panel icon keeps its shape (a 1 mm tick under a 4 px stroke is a blot)
+  const swOf = (part) => Math.min(lineScale > 1 ? 1.2 * k : Infinity, Math.max(1, (part.w || LINE_MM) * k * 4) * Math.sqrt(lineScale)).toFixed(2);
   const out = [];
   for (const part of symbol.parts) {
     if (part.t === "line") out.push(`<polyline points="${part.p.map((q) => P(q).join(",")).join(" ")}" fill="none" stroke="${color}" stroke-width="${swOf(part)}"${part.dash ? ` stroke-dasharray="${part.dash.map((d) => (d * k).toFixed(2)).join(" ")}"` : ""}/>`);
@@ -176,27 +181,42 @@ export function arcPoints(part, n = 12) {
 
 // A symbol as line segments and filled triangles in its own (u, v) mm frame, for the 3D view and the PNG renderer:
 // -> { segments: [[u1, v1, u2, v2], ...], triangles: [[u1, v1, u2, v2, u3, v3], ...] } (dashes cut into segments; circles as 24-gons)
+// widths: TASKS.csv #3091 — each segment's line weight in mm (the part's own, else the standard's 0.2 mm), parallel to segments
 export function symbolGeometry(symbol) {
-  const segments = [], triangles = [];
-  const addPolyline = (pts, dash) => {
+  const segments = [], triangles = [], widths = [];
+  const addPolyline = (pts, dash, w) => {
     for (let i = 1; i < pts.length; i++) {
       const [a, b] = [pts[i - 1], pts[i]];
-      if (!dash) { segments.push([a[0], a[1], b[0], b[1]]); continue; }
+      if (!dash) { segments.push([a[0], a[1], b[0], b[1]]); widths.push(w); continue; }
       const L = Math.hypot(b[0] - a[0], b[1] - a[1]), [on, off] = dash;
-      for (let s = 0; s < L; s += on + off) { const e = Math.min(L, s + on); segments.push([a[0] + ((b[0] - a[0]) * s) / L, a[1] + ((b[1] - a[1]) * s) / L, a[0] + ((b[0] - a[0]) * e) / L, a[1] + ((b[1] - a[1]) * e) / L]); }
+      for (let s = 0; s < L; s += on + off) { const e = Math.min(L, s + on); segments.push([a[0] + ((b[0] - a[0]) * s) / L, a[1] + ((b[1] - a[1]) * s) / L, a[0] + ((b[0] - a[0]) * e) / L, a[1] + ((b[1] - a[1]) * e) / L]); widths.push(w); }
     }
   };
   for (const part of symbol.parts) {
-    if (part.t === "line") addPolyline(part.p, part.dash);
-    else if (part.t === "arc") addPolyline(arcPoints(part));
+    const w = part.w || LINE_MM;
+    if (part.t === "line") addPolyline(part.p, part.dash, w);
+    else if (part.t === "arc") addPolyline(arcPoints(part), null, w);
     else if (part.t === "circle") {
       const pts = Array.from({ length: 25 }, (_, i) => { const a = (i * 2 * Math.PI) / 24; return [part.c[0] + part.r * Math.cos(a), part.c[1] + part.r * Math.sin(a)]; });
-      if (part.fill) for (let i = 0; i < 24; i++) triangles.push([part.c[0], part.c[1], ...pts[i], ...pts[i + 1]]); else addPolyline(pts);
+      if (part.fill) for (let i = 0; i < 24; i++) triangles.push([part.c[0], part.c[1], ...pts[i], ...pts[i + 1]]); else addPolyline(pts, null, w);
     } else if (part.t === "poly") {
       const pts = [...part.p, part.p[0]];
       if (part.fill) for (let i = 1; i < part.p.length - 1; i++) triangles.push([...part.p[0], ...part.p[i], ...part.p[i + 1]]);
-      addPolyline(pts);
+      addPolyline(pts, null, w);
     }
   }
-  return { segments, triangles };
+  return { segments, triangles, widths };
+}
+
+// TASKS.csv #3091 — the strokes as filled ribbons (two triangles a segment, in the symbol's own mm frame), `scale` x each segment's weight
+// wide, squared off half a width past each end so the joints close. For drawing that has no line width (WebGL lines are always 1 px).
+export function strokeTriangles(geo, scale = 1) {
+  const out = [];
+  geo.segments.forEach(([u1, v1, u2, v2], i) => {
+    const L = Math.hypot(u2 - u1, v2 - v1); if (!(L > 0)) return;
+    const h = ((geo.widths?.[i] ?? LINE_MM) * scale) / 2, du = ((u2 - u1) / L) * h, dv = ((v2 - v1) / L) * h; // along, a half width long
+    const a = [u1 - du - dv, v1 - dv + du], b = [u1 - du + dv, v1 - dv - du], c = [u2 + du + dv, v2 + dv - du], d = [u2 + du - dv, v2 + dv + du];
+    out.push([...a, ...b, ...c], [...a, ...c, ...d]);
+  });
+  return out;
 }

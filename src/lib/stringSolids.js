@@ -59,11 +59,13 @@ export function solidTonnage(positions, indices, cells, density, { cutoff = -Inf
   const q = buildMeshQuery(positions, indices);
   if (!q) return null;
   let blocks = 0, volume = 0, tonnes = 0, metalU = 0, above = 0;
+  const aM = [], aT = []; // TASKS.csv #3084 — other grades of the same blocks (c.also: lib/pitShell.js joinAlso), over the tonnes that have one
   for (const c of cells || []) {
     if (!isPointInsideMesh(q, { x: c.x, y: c.y, z: c.z })) continue;
     const vol = blockVolume(c), t = vol * density;
     blocks++; volume += vol; tonnes += t;
     if (Number.isFinite(c.value)) { metalU += t * c.value; if (c.value >= cutoff) above += t; }
+    if (c.also) c.also.forEach((g, k) => { if (Number.isFinite(g)) { aM[k] = (aM[k] || 0) + t * g; aT[k] = (aT[k] || 0) + t; } });
   }
-  return { blocks, volumeM3: volume, tonnes, meanGrade: tonnes > 0 ? metalU / tonnes : null, metalU, tonnesAboveCutoff: above };
+  return { blocks, volumeM3: volume, tonnes, meanGrade: tonnes > 0 ? metalU / tonnes : null, metalU, tonnesAboveCutoff: above, alsoGrades: Array.from(aT, (t, k) => (t > 0 ? aM[k] / t : null)) };
 }

@@ -852,6 +852,7 @@ export function runPitSeries(inputs, rfs, { groundAt = null, collars = null, rat
   let cells = inputs.cells;
   if (inputs.by) { const j = joinByProduct(cells, inputs.byCells); if (!j.matched) return { failed: "by-grid" }; cells = j.cells; } // #1917
   if (inputs.priceBasis === "product" && inputs.penaltyCells?.length) cells = joinAlso(cells, inputs.penaltyCells, "pen").cells; // #2986 part 2
+  if (inputs.alsoCells?.length) cells = joinAlso(cells, inputs.alsoCells).cells; // #3084 — the shell's other grades: each run's summary carries them (also)
   const list = [...new Set(rfs.filter((r) => Number.isFinite(r) && r > 0))].sort((a, b) => a - b);
   if (!list.length) return { failed: "factors" };
   if (!groundAt && collars?.length) { const ug = collarsLookUnderground(collars); if (ug.underground) return { failed: "underground", underground: ug }; } // #2276

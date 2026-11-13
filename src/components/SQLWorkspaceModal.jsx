@@ -18,6 +18,8 @@ import { leadFor } from "../lib/useLeadCommodity.js"; // TASKS.csv #2360
 // queries; this is just the editor/results UI, same modal chrome as GradeStatistics.jsx/QAQCPanel.jsx.
 // TASKS.csv #2034 / #2360 — the opening query is built in lib/sqlDefaults.js: the lead element, highest first, from / to quoted
 
+// #2916 — close quietly: a database already closed (or never opened) has nothing to free
+function closeDb(db) { try { db?.close?.(); } catch { /* already closed */ } }
 export default function SQLWorkspaceModal({ collars, survey, layers, assays, assayElements, boundaries, surfaceSamples = [], surfaceElements = [], customLayers = [], onClose }) { // surface*: TASKS.csv #1799; customLayers: #1516
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
@@ -28,16 +30,19 @@ export default function SQLWorkspaceModal({ collars, survey, layers, assays, ass
   const [queryError, setQueryError] = useState(null);
   const [running, setRunning] = useState(false);
 
+  // TASKS.csv #2916 (review #2876, WA iron) — the database is closed when the dialog closes (or when it closes before the build ends): an open
+  // sql.js database keeps its pages in the WebAssembly heap, and each visit to the workspace kept about 60 MB more
   useEffect(() => {
-    let cancelled = false;
+    let cancelled = false, built = null;
     buildWorkspaceDatabase({ collars, survey, layers, assays, assayElements, boundaries, surfaceSamples, surfaceElements, customLayers }, (p) => { if (!cancelled) setProgress(p); }) // #1516
       .then(({ db, tables }) => {
-        if (cancelled) return;
+        if (cancelled) { closeDb(db); return; }
+        built = db;
         setState({ status: "ready", db, tables });
         setSql(defaultQueryFor(tables, leadFor(assays, assayElements))); // #2360 — the project's lead commodity
       })
       .catch((err) => { if (!cancelled) setState({ status: "error", message: err.message }); });
-    return () => { cancelled = true; };
+    return () => { cancelled = true; if (built) closeDb(built); built = null; };
   }, []);
 
   const run = () => {

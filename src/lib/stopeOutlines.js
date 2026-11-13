@@ -54,6 +54,9 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
   const k = Math.max(1, Math.ceil(minWidth / Math.min(dx, dy) - 1e-9)), rS = Math.max(0, Math.round(skin / Math.min(dx, dy)));
   const area = dx * dy, levels = [];
   const totals = { tonnes: 0, metalU: 0, oreTonnes: 0, oreMetalU: 0, stopes: 0 };
+  // TASKS.csv #3084 — other grades of the same blocks (c.also, joined by centre: lib/pitShell.js joinAlso), over each stope's tonnes that have one
+  const nAlso = (model?.cells || []).find((c) => Array.isArray(c?.also))?.also.length || 0;
+  const totAM = new Float64Array(nAlso), totAT = new Float64Array(nAlso);
   let oreColumns = 0, unbuilt = 0, pitShut = 0, pitSkin = 0, groundShut = 0, groundSkin = 0; // #1964; ground: #2438
   const pil = fin(pillar) && pillar > 0 ? pillar : 0;
   const colTop = new Float64Array(ceilingAt ? N : 0).fill(-Infinity); // #1964 — the top of each column's blocks
@@ -85,6 +88,7 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
     // cut-off' used to sum whole ore columns (a column whose mean passed brought its 2,805 ppm blocks along at a 3,000 ppm cut-off),
     // so with no skin it equalled the diluted tonnes and dilution read 0 %
     const tA = new Float64Array(N), mA = new Float64Array(N);
+    const aM = Array.from({ length: nAlso }, () => new Float64Array(N)), aT = Array.from({ length: nAlso }, () => new Float64Array(N)); // #3084
     for (const c of cells) {
       const q = col(c); if (q < 0) continue;
       const h = Math.min(c.z + c.dz / 2, top) - Math.max(c.z - c.dz / 2, rl);
@@ -92,6 +96,7 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
       const tt = h * area * (fin(c.coverage) ? c.coverage : 1) * density;
       t[q] += tt; if (fin(c.value)) m[q] += tt * c.value; cover[q] += h;
       if (fin(c.value) && c.value >= cutoff) { tA[q] += tt; mA[q] += tt * c.value; } // #2107
+      for (let k = 0; k < nAlso; k++) { const g = c.also?.[k]; if (fin(g)) { aM[k][q] += tt * g; aT[k][q] += tt; } } // #3084
     }
     let mask = new Uint8Array(N);
     const slabH = top - rl;
@@ -122,6 +127,7 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
     const stopes = [];
     for (const members of patches) {
       let i0 = Infinity, i1 = -Infinity, j0 = Infinity, j1 = -Infinity, tonnes = 0, metalU = 0, oreT = 0, oreM = 0, unestT = 0;
+      const sAM = new Float64Array(nAlso), sAT = new Float64Array(nAlso); // #3084
       for (const q of members) {
         const j = Math.floor(q / nx), i = q - j * nx;
         if (i < i0) i0 = i; if (i > i1) i1 = i; if (j < j0) j0 = j; if (j > j1) j1 = j;
@@ -130,6 +136,7 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
         // outline): Stope 811 m #1 was 28,000 m3 but 71,010 t (27 of 28 blocks), not 73,640 t at 2.63
         const miss = Math.max(0, (top - rl) - cover[q]) * area * density, tt = t[q] + miss;
         unestT += miss; tonnes += tt; metalU += m[q]; oreT += tA[q]; oreM += mA[q]; // #2107 — the blocks at or above the cut-off, wherever they sit in the stope
+        for (let k = 0; k < nAlso; k++) { sAM[k] += aM[k][q]; sAT[k] += aT[k][q]; } // #3084
       }
       const extent = Math.max((i1 - i0 + 1) * dx, (j1 - j0 + 1) * dy);
       if (extent < minLength) continue;
@@ -148,14 +155,16 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
         }
       } catch { solid = null; }
       if (!solid) unbuilt++;
-      stopes.push({ unestimatedTonnes: unestT /* #2118 */, outline, positions: solid?.positions || null, indices: solid?.indices || null, volume: solid?.volume ?? null, tonnes, metalU, grade: tonnes > 0 ? metalU / tonnes : null, oreTonnes: oreT, oreGrade: oreT > 0 ? oreM / oreT : null, columns: members.length, holesFilled: loops.length - 1 });
+      for (let k = 0; k < nAlso; k++) { totAM[k] += sAM[k]; totAT[k] += sAT[k]; } // #3084
+      stopes.push({ alsoGrades: Array.from(sAT, (t, k) => (t > 0 ? sAM[k] / t : null)), alsoM: Array.from(sAM), alsoT: Array.from(sAT) /* #3084 */, unestimatedTonnes: unestT /* #2118 */, outline, positions: solid?.positions || null, indices: solid?.indices || null, volume: solid?.volume ?? null, tonnes, metalU, grade: tonnes > 0 ? metalU / tonnes : null, oreTonnes: oreT, oreGrade: oreT > 0 ? oreM / oreT : null, columns: members.length, holesFilled: loops.length - 1 });
       totals.unestimatedTonnes = (totals.unestimatedTonnes || 0) + unestT; // #2118
       totals.tonnes += tonnes; totals.metalU += metalU; totals.oreTonnes += oreT; totals.oreMetalU += oreM; totals.stopes++;
     }
     const lt = stopes.reduce((a, s) => a + s.tonnes, 0), lm = stopes.reduce((a, s) => a + s.metalU, 0), lo = stopes.reduce((a, s) => a + s.oreTonnes, 0), lom = stopes.reduce((a, s) => a + (s.oreGrade == null ? 0 : s.oreGrade * s.oreTonnes), 0);
-    levels.push({ rl, top, stopes, tonnes: lt, grade: lt > 0 ? lm / lt : null, oreTonnes: lo, oreGrade: lo > 0 ? lom / lo : null });
+    levels.push({ rl, top, stopes, tonnes: lt, grade: lt > 0 ? lm / lt : null, oreTonnes: lo, oreGrade: lo > 0 ? lom / lo : null, alsoGrades: Array.from({ length: nAlso }, (_, k) => { let am = 0, at = 0; for (const st of stopes) { am += st.alsoM[k]; at += st.alsoT[k]; } return at > 0 ? am / at : null; }) /* #3084 */ });
   }
   totals.grade = totals.tonnes > 0 ? totals.metalU / totals.tonnes : null;
+  totals.alsoGrades = Array.from(totAT, (t, k) => (t > 0 ? totAM[k] / t : null)); // #3084
   totals.oreGrade = totals.oreTonnes > 0 ? totals.oreMetalU / totals.oreTonnes : null;
   totals.dilutionPct = totals.oreTonnes > 0 ? ((totals.tonnes - totals.oreTonnes) / totals.oreTonnes) * 100 : null;
   return { levels, totals, cell: [dx, dy], grid: [nx, ny], from, to, widthCols: k, skinCols: rS, blockH: med("dz"), oreColumns, unbuilt, pit: ceilingAt ? { shut: pitShut, skinShut: pitSkin, pillar: pil } : null /* #1964 */, ground: groundAt ? { shut: groundShut, skinShut: groundSkin, crown: cr } : null /* #2438 */,
@@ -218,8 +227,8 @@ function simplifyCollinear(pts) {
   return out;
 }
 
-export function stopeRows(result, unit) {
+export function stopeRows(result, unit, alsoLabels = []) { // alsoLabels: #3084
   const out = [];
-  result.levels.forEach((l) => l.stopes.forEach((s, i) => out.push({ level_rl: l.rl, stope: i + 1, columns: s.columns, tonnes: Math.round(s.tonnes), [`grade_${String(unit || "").replace("%", "pct")}`]: s.grade == null ? "" : +s.grade.toPrecision(4), ore_tonnes: Math.round(s.oreTonnes), ore_grade: s.oreGrade == null ? "" : +s.oreGrade.toPrecision(4), volume_m3: s.volume == null ? "" : Math.round(s.volume), holes_filled: s.holesFilled, min_x: +Math.min(...s.outline.map((p) => p[0])).toFixed(1), max_x: +Math.max(...s.outline.map((p) => p[0])).toFixed(1), min_y: +Math.min(...s.outline.map((p) => p[1])).toFixed(1), max_y: +Math.max(...s.outline.map((p) => p[1])).toFixed(1) })));
+  result.levels.forEach((l) => l.stopes.forEach((s, i) => out.push({ level_rl: l.rl, stope: i + 1, columns: s.columns, tonnes: Math.round(s.tonnes), [`grade_${String(unit || "").replace("%", "pct")}`]: s.grade == null ? "" : +s.grade.toPrecision(4), ...Object.fromEntries((alsoLabels || []).map((lab, k) => [`mean_${lab}`, s.alsoGrades?.[k] == null ? "" : +s.alsoGrades[k].toPrecision(4)])), ore_tonnes: Math.round(s.oreTonnes), ore_grade: s.oreGrade == null ? "" : +s.oreGrade.toPrecision(4), volume_m3: s.volume == null ? "" : Math.round(s.volume), holes_filled: s.holesFilled, min_x: +Math.min(...s.outline.map((p) => p[0])).toFixed(1), max_x: +Math.max(...s.outline.map((p) => p[0])).toFixed(1), min_y: +Math.min(...s.outline.map((p) => p[1])).toFixed(1), max_y: +Math.max(...s.outline.map((p) => p[1])).toFixed(1) })));
   return out;
 }

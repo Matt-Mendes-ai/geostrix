@@ -47,7 +47,7 @@ test("an unbinned log: plain means, readings = n; every code is in the table, th
 test("the pane: common codes first in the box plot and the sentence, the table with a minimum count, copy and the unit", () => {
   const p = readFileSync(new URL("../src/components/DownholeLogsPane.jsx", import.meta.url), "utf8");
   assert.match(p, /useKeptState\(keptScope, "dhlogs\.minCount", "30"\)/);
-  assert.match(p, /<BoxPlots fit groups=\{ranked\.all\}/);
+  assert.match(p, /<BoxPlots fit groups=\{boxes\.groups\}/); // #2953 — ranked.all, with whiskers at P2-P98
   assert.match(p, /\(ranked\.common\.length \? ranked\.common : groups\)\.slice\(0, 8\)/);
   assert.match(p, /<CodeTable rows=\{table\} order=\{ranked\.all\.map\(\(g\) => g\.key\)\} minCount=\{minCount\} unit=\{unitOf\(source\.unit\)\} binned=\{!!source\?\.binM\} keptScope=\{keptScope\} \/>/);
   assert.match(p, /navigator\.clipboard\.writeText\(\[head, \.\.\.body\]\.join\("\\n"\)\)/);

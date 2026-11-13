@@ -26,5 +26,5 @@ test("the Lithology / Weathering envelope takes Closed body's automatic rule; th
   assert.match(m, /const loggedBody = isCode \|\| sourceKey === "litho" \|\| sourceKey === "weath";/);
   assert.match(m, /const autoB = loggedBody \? autoBodyParams\(/);
   assert.match(m, /closed \(about \{volumeM3\} m³\)", \{ volumeM3: roundVolume\(vol\.volumeM3\)/);
-  assert.match(m, /loggedVolumeCheck\(codeRuns, auto\.spacing\)/);
+  assert.match(m, /loggedVolumeCheck\(codeRuns, auto\.spacing(, aph)?\)/); // aph (the area each hole stands for): #2919
 });

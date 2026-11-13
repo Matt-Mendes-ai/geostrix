@@ -4,6 +4,7 @@
 // classes, and block models (classes as swatches, continuous models as a ramp from lib/legendScale.js).
 // Pure: callers pass their state (live viewer state, or a saved theme).
 import { SYMBOLS, FAMILIES, familyFor, projectSymbolChoices, symbolSvg, typeKey } from "./structureSymbols.js"; // TASKS.csv #3066
+import { lineScaleOf } from "./structureSymbols.js"; // TASKS.csv #3091
 import { LAYER_META, CATEGORICAL_SAFE_COLORS, colorForMedium } from "./layers.js";
 import { STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS } from "./mapLayers.js"; // TASKS.csv #1437
 import { legendScale } from "./legendScale.js";
@@ -167,13 +168,13 @@ export function boundaryLegendGroups(boundaries) {
 export function outcropLegendGroup({ surfaceStructures = [], visible = true } = {}) {
   if (!visible) return null;
   const choices = projectSymbolChoices(surfaceStructures), types = new Map();
-  for (const s of surfaceStructures || []) { if (s?.visible === false) continue; for (const r of s.rows || []) { const cls = r.cls || "other", k = typeKey(r.type || cls); if (!types.has(k)) types.set(k, { label: String(r.type || "").trim() || STRUCTURE_CLASS_LABELS[cls] || cls, type: r.type || cls, cls }); } }
+  for (const s of surfaceStructures || []) { if (s?.visible === false) continue; for (const r of s.rows || []) { const cls = r.cls || "other", k = typeKey(r.type || cls); if (!types.has(k)) types.set(k, { label: String(r.type || "").trim() || STRUCTURE_CLASS_LABELS[cls] || cls, type: r.type || cls, cls, lineScale: lineScaleOf(s) /* #3091 — the first set's */ }); } }
   if (!types.size) return null;
   const order = Object.keys(STRUCTURE_CLASS_COLORS);
   const rank = (c) => { const i = order.indexOf(c); return i < 0 ? order.length : i; }; // a class the colours do not know goes last
   const items = [...types.values()].sort((a, b) => rank(a.cls) - rank(b.cls) || a.label.localeCompare(b.label)).map((t) => {
     const color = STRUCTURE_CLASS_COLORS[t.cls] || STRUCTURE_CLASS_COLORS.other, sym = SYMBOLS[FAMILIES[familyFor(t.type, t.cls, choices)].inclined];
-    return [t.label, color, { kind: "point", svg: symbolSvg(sym, { px: 18, color }), fgdc: sym.fgdc }];
+    return [t.label, color, { kind: "point", svg: symbolSvg(sym, { px: 18, color, lineScale: t.lineScale }), fgdc: sym.fgdc }];
   });
   return { key: "outcrop_structures", label: "Outcrop structures", items };
 }

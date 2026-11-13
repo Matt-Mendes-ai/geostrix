@@ -35,6 +35,7 @@ export function symbolPixels(symbol, size = 64, { strokePx = null } = {}) {
   }
   return { width: size, height: size, rgba };
 }
-export function symbolPng(symbol, size = 64) { const p = symbolPixels(symbol, size); return rgbaToPng(p.width, p.height, p.rgba); }
+// strokeScale: TASKS.csv #3091 — the set's line thickness, a factor on the default stroke
+export function symbolPng(symbol, size = 64, { strokeScale = 1 } = {}) { const p = symbolPixels(symbol, size, { strokePx: Math.max(1.5, size / 32) * strokeScale }); return rgbaToPng(p.width, p.height, p.rgba); }
 // the icon's path inside the KMZ, one per symbol: "files/fgdc_6_2.png"
 export const symbolIconPath = (symbol) => `files/fgdc_${String(symbol.fgdc).replace(/[^0-9a-z]+/gi, "_")}.png`;

@@ -6,7 +6,8 @@
 // the same dependencies. No React here, so they run in Node with three (test/sceneBuilders693.test.mjs).
 import * as THREE from "three";
 import { t as tr } from "../i18n.js"; // TASKS.csv #2958
-import { symbolForReading, symbolFrame, symbolGeometry, projectSymbolChoices } from "../structureSymbols.js"; // TASKS.csv #3066
+import { symbolForReading, symbolFrame, symbolGeometry, projectSymbolChoices, strokeTriangles } from "../structureSymbols.js"; // TASKS.csv #3066; strokeTriangles: #3091
+import { lineScaleOf } from "../structureSymbols.js"; // TASKS.csv #3091
 import { sampleTerrainElevation, terrainGroundAt } from "./geomath.js"; // terrainGroundAt: #2753 — NaN off the terrain / over its gaps
 import { drawMapLayer, mapStyleSignature, mapTextureSize, STRUCTURE_CLASS_COLORS, layerCategoryValue } from "../mapLayers.js"; // featureCategoryValue: #1601
 import { decodeNoDataMask, isNoData } from "../demFill.js"; // TASKS.csv #421
@@ -449,6 +450,9 @@ export function syncSurfaceStructures(group, cache, surfaceStructures, { origin,
     const rows = set.rows || [];
     if (!rows.length) return;
     const size = set.size ?? 25, perMm = size / 5; // the 5.0 mm strike line is `size` metres
+    // TASKS.csv #3091 (Matt: "the option to adjust the thickness of lines of symbols") — the strokes are also drawn as ribbons on the ground,
+    // the standard's weight x the set's Line thickness wide; the 1 px lines stay under them, so a symbol far off never thins to nothing
+    const lineScale = lineScaleOf(set);
     const g = new THREE.Group();
     const pick = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.5, 0.5, 0.06, 20), new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }), rows.length);
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sc = new THREE.Vector3(size, size, size), col = new THREE.Color();
@@ -462,7 +466,7 @@ export function syncSurfaceStructures(group, cache, surfaceStructures, { origin,
       const { symbol } = symbolForReading(r, choices), frame = symbolFrame(Number.isFinite(r.dipDir) ? r.dipDir : 0), geo = symbolGeometry(symbol);
       const at = (u, v) => { const [e, n] = frame(u, v); return [r.x - ox + e * perMm, y, -(r.y - oy + n * perMm)]; };
       for (const [u1, v1, u2, v2] of geo.segments) { lines.push(...at(u1, v1), ...at(u2, v2)); lineCol.push(col.r, col.g, col.b, col.r, col.g, col.b); }
-      for (const [u1, v1, u2, v2, u3, v3] of geo.triangles) { tris.push(...at(u1, v1), ...at(u2, v2), ...at(u3, v3)); for (let k = 0; k < 3; k++) triCol.push(col.r, col.g, col.b); }
+      for (const [u1, v1, u2, v2, u3, v3] of [...geo.triangles, ...strokeTriangles(geo, lineScale)]) { tris.push(...at(u1, v1), ...at(u2, v2), ...at(u3, v3)); for (let k = 0; k < 3; k++) triCol.push(col.r, col.g, col.b); } // the ribbons: #3091
     });
     pick.instanceMatrix.needsUpdate = true;
     pick.computeBoundingSphere();
