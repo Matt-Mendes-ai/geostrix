@@ -10,7 +10,7 @@
 // TASKS.csv #697 — the run functions themselves have since moved to ./modellingRuns.js (loaded on the first run);
 // this hook keeps the synchronous parts (intercepts table, fault candidates, stack editor) and thin run wrappers.
 import { useCallback, useMemo, useRef } from "react";
-import { errorNotice, notice } from "../../lib/notices.js";
+import { errorNotice } from "../../lib/notices.js";
 import { boundaryIntercepts } from "../../lib/viewer/boundaryIntercepts.js"; // TASKS.csv #2931
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { faultLikeName } from "../../lib/layers.js"; // TASKS.csv #1549
@@ -23,7 +23,6 @@ export function useModelling(ctx) {
     modellingCodes, // TASKS.csv #599
     originRef,
     sceneToApi,
-    setNotices,
     setStackUnits,
     stackUnits,
     tracesRef,
@@ -66,9 +65,7 @@ export function useModelling(ctx) {
   }, [layers.structure]);
   const addStackUnit = useCallback((u) => {
     if (!u || stackUnits.includes(u)) return;
-    // Matches the sidecar's own surfaces[] cap (python-sidecar/app/main.py, max_length=12) — capping
-    // here too gives a clear notice instead of a raw validation error back from the sidecar.
-    if (stackUnits.length >= 12) { setNotices((p) => [...p, notice("Stacks are capped at 12 units (matches the sidecar's own limit) — remove one before adding another.")]); return; }
+    // TASKS.csv #3162 — no cap here: the Layer-cake method has no unit limit, and a GemPy run checks its own before it starts (modellingRuns)
     setStackUnits((p) => [...p, u]);
   }, [stackUnits]);
   const removeStackUnit = useCallback((u) => setStackUnits((p) => p.filter((x) => x !== u)), []);

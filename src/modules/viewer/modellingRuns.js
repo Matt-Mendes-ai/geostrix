@@ -50,6 +50,7 @@ import { terrainGrid, unitRaster, mapAgreement } from "../../lib/predictedMap.js
 import { sectionGrid, pickSections, packUnits, sectionZRange } from "../../lib/modelSection.js"; // TASKS.csv #759
 import { smoothClusteredSpec } from "../../lib/contactSmoothing.js"; // TASKS.csv #761
 import { pickReport } from "../../lib/pickDiagnostics.js"; // TASKS.csv #762
+import { gempyLimitCheck, mapContactStep, MAP_CONTACT_STEP_M, plainEngineError } from "../../lib/gempyLimits.js"; // TASKS.csv #3162
 import { findOnTraceWorld, findOnTrace, traceOfHole /* #2931 */, interceptId, SOFT_NUGGET, MODEL_EXTENT_PAD_M, guessSurfaceType, pointInDomain } from "../../lib/viewer/modelHelpers.js";
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { capFieldAtGround, meanInsideShell } from "../../lib/groundCap.js"; // TASKS.csv #803
@@ -216,6 +217,18 @@ export function createModellingRuns(ctx, mcRef) {
       if (!orientations.length && !cakeRun) { setNotices((p) => [...p, notice("\"{label}\": no usable orientations left after removing invalid ones — skipped.", { label: spec.label })]); return; } // #2905: a layer-cake needs none
       specs.push({ ...spec, points, orientations });
     });
+    // TASKS.csv #3162 — more units or faults than the engine takes in one model: said before the run, with what can be done here, instead
+    // of the engine's validation text after it (a 13-unit Model from map stack on Mount Raymond). The layer-cake has no such limit.
+    const overLimit = cakeRun ? null : gempyLimitCheck(specs);
+    if (overLimit) {
+      const parts = [];
+      if (overLimit.overSurfaces) parts.push(stackOpts.fromMap
+        ? tr("GemPy takes at most {max} units in one model, and this order has {n} in the stratigraphic role. Set the role of the units you can spare to 'other (left out)', or build two models over parts of the order.", { max: overLimit.maxSurfaces, n: overLimit.surfaces })
+        : tr("GemPy takes at most {max} units in one model, and this stack has {n}. Merge neighbouring units into one with Litho groups, take units out of the stack, or build it with the Layer-cake method (Stack method), which has no such limit; it needs the units logged in holes and takes no faults.", { max: overLimit.maxSurfaces, n: overLimit.surfaces }));
+      if (overLimit.overFaults) parts.push(tr("GemPy takes at most {max} faults in one model, and this run has {n}: leave out the ones that offset the units least.", { max: overLimit.maxFaults, n: overLimit.faults }));
+      setNotices((p) => [...p, errorNotice(tr("Not run: {why}", { why: parts.join(" ") }))]);
+      return;
+    }
     // TASKS.csv #2918 (review #2876, WA iron) — two collars at elevation 0 on a 440 m plateau made the whole-field box 1,063 m tall (cells
     // of 212 m) and their contacts sat 440 m under the rest. Holes whose collar elevation is suspect (#3004's rule: 0 m on raised ground,
     // or a stray far from every other collar) are left out of the run, contacts and drilled column, and named before the solve.
@@ -446,7 +459,7 @@ export function createModellingRuns(ctx, mcRef) {
     modelAbortControllerRef.current = null;
     if (!res.ok) {
       setTaskProgress?.(null);
-      if (!res.cancelled) setNotices((p) => [...p, errorNotice(tr("{label} failed: {error}", { label, error: res.error }))]);
+      if (!res.cancelled) setNotices((p) => [...p, errorNotice(tr("{label} failed: {error}", { label, error: plainEngineError(res.error) }))]); // plainEngineError: #3162
       return;
     }
     // TASKS.csv #466 — the model came back after a switch to another project (tab change, Open, New). Its
@@ -1634,14 +1647,24 @@ export function createModellingRuns(ctx, mcRef) {
     // TASKS.csv #1309 — unconformities the geologist marked, as indices into the order; the last unit has nothing below it
     const breaks = new Set((p.breaks || []).map((u) => rank.get(u)).filter((i) => i !== undefined && i < order.length - 1));
     let offTerrain = 0, unused = 0;
+    const topsOfContact = (ry, ro) => (breaks.size ? [order[contactSurface(ry, ro, breaks)]] : mapRelation === "erode" ? order.slice(ry + 1, ro + 1) : [order[ro]]); // #1030; #1309
+    // TASKS.csv #3162 — the sampling step: 25 m, or longer on a big map so the points stay within GemPy's means (lib/gempyLimits.js)
+    let usedM = 0;
+    for (const c of contacts) {
+      const [a, b] = c.units;
+      if (!rank.has(a) || !rank.has(b)) continue;
+      const n = topsOfContact(Math.min(rank.get(a), rank.get(b)), Math.max(rank.get(a), rank.get(b))).length;
+      for (const line of c.lines) for (let i = 1; i < line.length; i++) usedM += n * Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1]);
+    }
+    const stepM = mapContactStep(usedM);
     for (const c of contacts) {
       const [a, b] = c.units;
       if (!rank.has(a) || !rank.has(b)) { unused++; continue; }
       const ry = Math.min(rank.get(a), rank.get(b)), ro = Math.max(rank.get(a), rank.get(b));
-      const tops = breaks.size ? [order[contactSurface(ry, ro, breaks)]] : mapRelation === "erode" ? order.slice(ry + 1, ro + 1) : [order[ro]]; // #1030; #1309
+      const tops = topsOfContact(ry, ro);
       if (!breaks.size && ro > ry + 1) tops.slice(0, -1).forEach((u) => pinched.add(u));
       if (!breaks.size && ro > ry + 1 && mapRelation !== "erode") order.slice(ry + 1, ro).forEach((u) => unpinched.add(u));
-      for (const line of c.lines) for (const [x, y] of thin(line, 25)) {
+      for (const line of c.lines) for (const [x, y] of thin(line, stepM)) { // stepM: #3162
         const z = ground(x, y);
         if (!Number.isFinite(z)) { offTerrain++; continue; }
         for (const surface of tops) pointsOf.get(surface).push({ ...api(x, y, z), srcCode: `${a}|${b}` });
@@ -1722,8 +1745,9 @@ export function createModellingRuns(ctx, mcRef) {
       + (holeExcluded ? tr(" {g} logged contact(s) excluded in the Boundary intercepts table.", { g: holeExcluded }) : "")
       + (holeOutside ? tr(" {g} logged contact(s) in holes collared outside the map's area were left out: the model stands on the map.", { g: holeOutside }) : "") /* #3045 */
       + (holeNoTrace ? tr(" {g} logged contact(s) on holes with no trace were skipped.", { g: holeNoTrace }) : "")
+      + (stepM > MAP_CONTACT_STEP_M ? tr(" The map's contacts were sampled every {s} m, not every {s0} m, to keep about {n} points: GemPy's memory grows with the square of the points ({n0} at {s0} m).", { s: stepM, s0: MAP_CONTACT_STEP_M, n: Math.round(usedM / stepM).toLocaleString(), n0: Math.round(usedM / MAP_CONTACT_STEP_M).toLocaleString() }) : "") // #3162
       + (offTerrain ? tr(" {k} contact point(s) beyond the terrain were skipped.", { k: offTerrain }) : "") + (onPlan ? tr(" {k} contact point(s) and measurement(s) where the terrain has no data were placed at the map layer's elevation (RL {z}); the surfaces are cut there at that elevation too.", { k: onPlan, z: Math.round(planZ) }) : "") /* #2410 */ + (unused ? tr(" {k} contact(s) involve units outside the order.", { k: unused }) : ""))]); // appendNotice: #821
-    await runSurfaceStack([...faultSpecs, ...specs], { relation: breaks.size ? "erode" : p.relation || stackRelation, aboveUnit: order[0], packages: new Set(specs.map((s) => s.package)).size, ...(planZ != null ? { groundFallbackZ: planZ } : {}) }); // #2410 // #1309
+    await runSurfaceStack([...faultSpecs, ...specs], { fromMap: true /* #3162 */, relation: breaks.size ? "erode" : p.relation || stackRelation, aboveUnit: order[0], packages: new Set(specs.map((s) => s.package)).size, ...(planZ != null ? { groundFallbackZ: planZ } : {}) }); // #2410 // #1309
   };
 
   const gatherFaultSpec = (key, traces) => {
