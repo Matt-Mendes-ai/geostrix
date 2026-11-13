@@ -115,6 +115,7 @@
   "Inversion": "النمذجة العكسية",
   "Lab certificates": "شهادات المختبر",
   "Legend": "مفتاح الرموز",
+  "Drawing {n} samples…": "جارٍ رسم {n} عينة…",
   "{label}: the {kept} commonest of {n} codes, the rest as \"other\"": "{label}: الرموز الـ{kept} الأكثر شيوعًا من {n}، والباقي بوصفه \"other\"",
   "{symbol} as {oxide}": "{symbol} بصيغة {oxide}",
   "Oxide names work too, in % through the import's factors: {list}.": "تعمل أسماء الأكاسيد أيضًا، بالنسبة المئوية عبر معاملات الاستيراد: {list}.",

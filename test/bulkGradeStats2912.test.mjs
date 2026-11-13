@@ -74,7 +74,7 @@ test("cut-offs: typed text read leniently; the defaults are the data's median, Q
 
 test("Grade stats wiring: the plot follows the histogram's scale, the break is a cap only when skewed and above the median, the table", () => {
   const g = readFileSync(new URL("../src/components/GradeStatistics.jsx", import.meta.url), "utf8");
-  assert.match(g, /weightedProbPoints\(rs\.map\(\(r\) => r\.value\), weightingActive \? rs\.map\(\(r\) => r\.weight\) : null, \{ log: logScale \}\)/);
+  assert.match(g, /weightedProbPoints\(one \? allValues : rs\.map\(\(r\) => r\.value\), one \? allWeights : weightingActive \? rs\.map\(\(r\) => r\.weight\) : null, \{ log: logScale \}\)/); // #2910: the panel's own arrays for one group
   assert.match(g, /const brkAsCap = prob\.brk > 0 && prob\.log && overallStats && prob\.brk > overallStats\.median;/);
   assert.match(g, /\{brkAsCap && <button type="button" onClick=\{\(\) => setCapTest/);
   assert.match(g, /aboveCutoffRows\(allValues, rows\.map\(\(r\) => r\.weight\), cutoffs, \{ weighted: weightingActive, also \}\)/);
