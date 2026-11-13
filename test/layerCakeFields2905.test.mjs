@@ -49,5 +49,5 @@ test("the field: a spline up to 600 observations, exact at each; the local field
   const mid = g(20.5, 20.5);
   assert.ok(mid > 290 && mid < 310, "between picks: a weighted mean of the nearest");
   assert.equal(fieldThrough([{ x: 0, y: 0, v: 5 }, { x: 1, y: 1, v: 7 }])(50, 50), 6);
-  assert.match(readFileSync(new URL("../src/lib/layerCake.js", import.meta.url), "utf8"), /, above = topsAt\(P\.map\(\(p\) => p\.x\), P\.map\(\(p\) => p\.y\), k - 1\)\[k - 1\];/, "the thickness from the modelled top above");
+  assert.match(readFileSync(new URL("../src/lib/layerCake.js", import.meta.url), "utf8"), / above = topsAt\(P\.map\(\(p\) => p\.x\), P\.map\(\(p\) => p\.y\), k - 1\)\[k - 1\];/, "the thickness from the modelled top above");
 });

@@ -110,16 +110,16 @@ test("tops by hole, the grid and its lookup, and the flat-pile check", () => {
   assert.equal(stackIsFlat([{ points: [] }]), null);
 });
 
-test("wiring: the stack run builds a layer-cake in place of the GemPy solve, refuses faults, offers it on a flat thin pile; the pane's Method", async () => {
+test("wiring: the stack run builds a layer-cake in place of the GemPy solve, with its faults (#3086), offers it on a flat thin pile; the pane's Method", async () => {
   const fs = await import("node:fs");
   const r = fs.readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
   assert.match(r, /const cakeRun = stackOpts\.engine === "layercake";/);
-  assert.match(r, /const r = await runLayerCake\(specs\.filter\(\(sp\) => !sp\.fault\), extent, resolution, \{ evalPts, onProgress:/); // #3085 — in a worker
+  assert.match(r, /const r = await runLayerCake\(specs\.filter\(\(sp\) => !sp\.fault\), extent, resolution, \{ evalPts, faults: specs\.filter\(\(sp\) => sp\.fault\), onProgress:/); // #3085 — in a worker; faults: #3086
   assert.match(r, /return r\.error \? \{ ok: false, error: r\.error \} : \{ ok: true, surfaces: r\.surfaces, block: r\.block, evaluated: r\.evaluated, cake: r \};/);
-  assert.match(r, /if \(cake && stackFaults\.length\) \{ setNotices/);
+  assert.doesNotMatch(r, /if \(cake && stackFaults\.length\) \{ setNotices/, "faults are no longer refused (#3086)");
   assert.match(r, /if \(flat\?\.flat\) \{/);
   assert.match(r, /return runSurfaceStack\(rawSpecs, \{ \.\.\.stackOpts, engine: "layercake", offerCake: false \}\);/);
-  assert.match(r, /\.\.\.\(cake \? \{ engine: "layercake" \} : \{ offerCake: !faultSpecs\.length, pinchFor \}\)/);
+  assert.match(r, /\.\.\.\(cake \? \{ engine: "layercake" \} : \{ offerCake: true \/\* #3086: the cake takes faults \*\/, pinchFor \}\)/);
   assert.match(r, /tool: cakeRun \? "stratigraphic stack \(layer-cake\)"/);
   const p = fs.readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
   assert.match(p, /onClick=\{\(\) => runStackModel\(stackUnits, \{ method: stackMethod \}\)\}/);
