@@ -33,7 +33,7 @@ test("#2963 a blank elevation is still skipped (waits on #3004); the pane asks b
   assert.deepEqual(plannedHolesFromRows(...sheet("Hole,Easting,Northing,RL,Azimuth,Dip,Depth", ["A,1,2,,0,-90,52"])).skipped, [{ row: 2, why: "z" }]);
   const p = fs.readFileSync(new URL("../src/components/PlannedHoleParts.jsx", import.meta.url), "utf8");
   assert.ok(p.includes('window.confirm(tr("{f} has no azimuth or dip column. Add every hole at the form\'s Az {a}° / Dip {d}°?"'));
-  assert.ok(p.includes("r = plannedHolesFromRows(rows, headers, { fallback: { azimuth: az, dip: d } });"));
+  assert.ok(p.includes("r = plannedHolesFromRows(rows, headers, { fallback: { azimuth: az, dip: d }, groundAt: groundForZ });")); // groundAt: the blank-Elev part, after #3004
   assert.ok(p.includes("Every hole takes the form's Az {a}° / Dip {d}° (the file has no azimuth or dip column)."));
   assert.ok(p.includes("{n} vertical row(s) with a blank azimuth read as azimuth 0."));
 });

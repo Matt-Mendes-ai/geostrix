@@ -11414,5 +11414,9 @@
   "over": "فوق",
   "penalties: {list}": "الغرامات: {list}",
   "{t} t at a mass yield of {y} %": "{t} طن بمردود كتلي {y} %",
-  "— model —": "— النموذج —"
+  "— model —": "— النموذج —",
+  "{n} row(s) with a blank Elev took the terrain under the hole.": "أخذ {n} صف (صفوف) بمنسوب فارغ التضاريس تحت الثقب.",
+  "{n} row(s) with a blank Elev took the ground interpolated between the nearest collars (no terrain).": "أخذ {n} صف (صفوف) بمنسوب فارغ الأرض المستوفاة بين أقرب الفوهات (دون تضاريس).",
+  "{n} collar(s) left out of the ground between the collars, their elevation not being ground (assumed at import, or suspect: 0 m among collars far from 0, or a stray): {list}.": "استُبعدت {n} فوهة (فوهات) من الأرض بين الفوهات لأن منسوبها ليس أرضًا (مفترض عند الاستيراد، أو مشكوك فيه: 0 م بين فوهات بعيدة عن 0، أو شاذ): {list}.",
+  "Left out: {list}.": "المستبعدة: {list}."
 }

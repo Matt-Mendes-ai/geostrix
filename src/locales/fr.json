@@ -11414,5 +11414,9 @@
   "over": "au-dessus de",
   "penalties: {list}": "pénalités : {list}",
   "{t} t at a mass yield of {y} %": "{t} t à un rendement massique de {y} %",
-  "— model —": "— modèle —"
+  "— model —": "— modèle —",
+  "{n} row(s) with a blank Elev took the terrain under the hole.": "{n} ligne(s) à l'altitude vide ont pris le terrain sous le sondage.",
+  "{n} row(s) with a blank Elev took the ground interpolated between the nearest collars (no terrain).": "{n} ligne(s) à l'altitude vide ont pris le sol interpolé entre les collets les plus proches (pas de terrain).",
+  "{n} collar(s) left out of the ground between the collars, their elevation not being ground (assumed at import, or suspect: 0 m among collars far from 0, or a stray): {list}.": "{n} collet(s) laissé(s) hors du sol entre les collets, leur altitude n'étant pas le sol (supposée à l'import, ou suspecte : 0 m parmi des collets loin de 0, ou isolée) : {list}.",
+  "Left out: {list}.": "Laissés hors : {list}."
 }
