@@ -11908,5 +11908,7 @@
   "{n} chosen, all hidden (the eye)": "{n} elegido(s), todos ocultos (el ojo)",
   "Filter holes… ({examples})": "Filtrar sondajes… ({examples})",
   "Off to start with above {n} pierce points: hover a pierce point for its hole id": "Desactivado al inicio con más de {n} puntos de perforación: pase el cursor sobre un punto para ver su sondaje",
-  "Azimuth {v}° · looking {look} · {v2}{v3} · elevation in m": "Azimut {v}° · mirando hacia {look} · {v2}{v3} · elevación en m"
+  "Azimuth {v}° · looking {look} · {v2}{v3} · elevation in m": "Azimut {v}° · mirando hacia {look} · {v2}{v3} · elevación en m",
+  "No value here: {n} pierce point (hollow ring)": "Sin valor aquí: {n} punto de perforación (anillo hueco)",
+  "No value here: {n} pierce points (hollow ring)": "Sin valor aquí: {n} puntos de perforación (anillo hueco)"
 }

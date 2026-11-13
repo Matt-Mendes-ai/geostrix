@@ -11908,5 +11908,7 @@
   "{n} chosen, all hidden (the eye)": "{n} مختار، جميعها مخفية (العين)",
   "Filter holes… ({examples})": "تصفية الثقوب… ({examples})",
   "Off to start with above {n} pierce points: hover a pierce point for its hole id": "معطّل في البداية فوق {n} نقطة اختراق: مرّر المؤشر فوق نقطة لترى معرّف ثقبها",
-  "Azimuth {v}° · looking {look} · {v2}{v3} · elevation in m": "السمت {v}° · النظر نحو {look} · {v2}{v3} · الارتفاع بالمتر"
+  "Azimuth {v}° · looking {look} · {v2}{v3} · elevation in m": "السمت {v}° · النظر نحو {look} · {v2}{v3} · الارتفاع بالمتر",
+  "No value here: {n} pierce point (hollow ring)": "لا قيمة هنا: {n} نقطة اختراق (حلقة مجوفة)",
+  "No value here: {n} pierce points (hollow ring)": "لا قيمة هنا: {n} نقاط اختراق (حلقة مجوفة)"
 }
