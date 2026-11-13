@@ -11788,5 +11788,22 @@
   "Building the plan…": "جارٍ بناء المخطط…",
   "Nothing was under the click (no terrain, hole or model there), so the point was put on the flat reference level of the view. Load terrain or click on a surface to measure the ground.": "لم يكن هناك شيء تحت النقرة (لا تضاريس ولا ثقب حفر ولا نموذج)، فوُضعت النقطة على المستوى المرجعي المسطح للعرض. حمّل التضاريس أو انقر على سطح لقياس الأرض.",
   "{n} point is on the reference level at {z} m (no ground under the click): its elevation is that level's": "{n} نقطة على المستوى المرجعي عند {z} م (لا أرض تحت النقرة): منسوبها هو منسوب ذلك المستوى",
-  "{n} points are on the reference level at {z} m (no ground under the click): their elevations are that level's": "{n} نقاط على المستوى المرجعي عند {z} م (لا أرض تحت النقرة): مناسيبها هي منسوب ذلك المستوى"
+  "{n} points are on the reference level at {z} m (no ground under the click): their elevations are that level's": "{n} نقاط على المستوى المرجعي عند {z} م (لا أرض تحت النقرة): مناسيبها هي منسوب ذلك المستوى",
+  "below {top}, to the box floor at RL {rl}": "أسفل {top}، حتى أرضية الصندوق عند المنسوب {rl}",
+  "below {top}, to the box floor": "أسفل {top}، حتى أرضية الصندوق",
+  "{unit} has no modelled base: its solid would be everything {where}, not the unit's own body. Build it too?": "ليس لـ {unit} قاعدة منمذجة: سيكون مجسّمها كل ما هو {where}، لا جسم الوحدة نفسها. هل يُبنى أيضًا؟",
+  "{label} {v} Mm³ ({where})": "{label} {v} مليون م³ ({where})",
+  "{unit} was left out: no base is modelled, so its solid would be everything {where}. Model the surface under it to close it, or choose to build it the next time.": "تُركت {unit} جانبًا: لا قاعدة منمذجة، فسيكون مجسّمها كل ما هو {where}. نمذج السطح الذي تحتها لإغلاقه، أو اختر بناءه في المرة القادمة.",
+  "Export GeoJSON (WGS 84)…": "تصدير GeoJSON (WGS 84)…",
+  "Exported {features} feature(s) from \"{label}\" as GeoJSON (WGS84 longitude / latitude).": "تم تصدير {features} معلم/معالم من \"{label}\" بصيغة GeoJSON (خط الطول / خط العرض WGS84).",
+  "GeoJSON export failed: {message}": "فشل تصدير GeoJSON: {message}",
+  " · inside \"{solid}\"": " · داخل \"{solid}\"",
+  "Trend: {trend}": "الاتجاه: {trend}",
+  "Inside the solid \"{solid}\"": "داخل المجسّم \"{solid}\"",
+  "Domain: {domain}": "النطاق: {domain}",
+  "Samples from: {area}": "العينات من: {area}",
+  "{n} vertex(es) repeated at the same place: weld them (to 1 mm) and the seams they open close": "{n} رأس/رؤوس مكررة في المكان نفسه: ادمجها (ضمن 1 مم) فتنغلق الدروز التي تفتحها",
+  "Checked as a solid: {list}. Its volume and the inside test can be off there.": "فُحص كمجسّم: {list}. قد يختل حجمه واختبار الداخل هناك.",
+  "{n} chosen, all hidden (the eye)": "{n} مختار، جميعها مخفية (العين)",
+  "Filter holes… ({examples})": "تصفية الثقوب… ({examples})"
 }

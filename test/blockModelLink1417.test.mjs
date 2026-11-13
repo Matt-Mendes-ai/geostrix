@@ -9,7 +9,7 @@ const geo = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.m
 
 test("the row's link and its menu item ask for that model's card", () => {
   assert.equal(vm.split('requestModuleAction("edit-block-model", { id: v.id })').length - 1, 2);
-  assert.match(vm, /<span title=\{v\.name\}/);
+  assert.match(vm, /<span title=\{modelTip\(v\.name, v\.params\)/); // #2783: the name, then what bounded the run
 });
 
 test("Geophysics opens Block models and scrolls to the visible card of that id", () => {

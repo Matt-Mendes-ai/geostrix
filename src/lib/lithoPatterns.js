@@ -75,22 +75,36 @@ export function patternForUnit(code, name = "", description = "") {
   return byText(n) ?? byText(description);
 }
 
-// rows (litho intervals: { value, description? }), nameOf(code), override ({ code: { pattern } }) -> { code: FGDC code | null }
-export function lithoPatternMap(rows, nameOf = (v) => v, override = null) {
-  const desc = new Map();
+// TASKS.csv #2215 (review #2174, WA gold) — a code's description is what it means only when it is logged on most of its intervals: the WA
+// export's GeolComments are notes on a few rows ('GRAVEL IS QTZ VN MATERIAL' on 1 of 6 TGVL, 3 of 121 SCP rows with any), and one note
+// printed a pattern as if the rock had been logged as it (SCP -> Quartz, ISY -> Igneous rock). -> Map code -> its most frequent
+// description, kept when at least half of the code's intervals carry a description and that one is the most frequent
+export function codeDescriptions(rows) {
+  const desc = new Map(), total = new Map();
   for (const r of rows || []) {
+    total.set(r?.value, (total.get(r?.value) || 0) + 1);
     if (!r?.description) continue;
     const m = desc.get(r.value) || new Map();
     m.set(r.description, (m.get(r.description) || 0) + 1);
     desc.set(r.value, m);
   }
+  const out = new Map();
+  for (const [v, m] of desc) {
+    let n = 0; for (const c of m.values()) n += c;
+    if (2 * n < (total.get(v) || 0)) continue; // a comment on a few rows, not the code's meaning
+    out.set(v, [...m.entries()].sort((a, b) => b[1] - a[1])[0][0]);
+  }
+  return out;
+}
+
+// rows (litho intervals: { value, description? }), nameOf(code), override ({ code: { pattern } }) -> { code: FGDC code | null }
+export function lithoPatternMap(rows, nameOf = (v) => v, override = null) {
+  const desc = codeDescriptions(rows); // #2215
   const out = {};
   for (const v of new Set((rows || []).map((r) => r.value))) {
     const o = override?.[v]?.pattern;
     if (o !== undefined && o !== null) { out[v] = o === "" ? null : Number(o); continue; }
-    const d = desc.get(v);
-    const top = d ? [...d.entries()].sort((a, b) => b[1] - a[1])[0][0] : "";
-    out[v] = patternForUnit(v, nameOf(v), top);
+    out[v] = patternForUnit(v, nameOf(v), desc.get(v) || "");
   }
   return out;
 }

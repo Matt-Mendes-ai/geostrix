@@ -11788,5 +11788,22 @@
   "Building the plan…": "Construindo a planta…",
   "Nothing was under the click (no terrain, hole or model there), so the point was put on the flat reference level of the view. Load terrain or click on a surface to measure the ground.": "Não havia nada sob o clique (nem terreno, nem furo, nem modelo), então o ponto foi colocado no nível de referência plano da vista. Carregue um terreno ou clique numa superfície para medir o terreno.",
   "{n} point is on the reference level at {z} m (no ground under the click): its elevation is that level's": "{n} ponto está no nível de referência a {z} m (sem terreno sob o clique): sua cota é a desse nível",
-  "{n} points are on the reference level at {z} m (no ground under the click): their elevations are that level's": "{n} pontos estão no nível de referência a {z} m (sem terreno sob o clique): suas cotas são as desse nível"
+  "{n} points are on the reference level at {z} m (no ground under the click): their elevations are that level's": "{n} pontos estão no nível de referência a {z} m (sem terreno sob o clique): suas cotas são as desse nível",
+  "below {top}, to the box floor at RL {rl}": "abaixo de {top}, até o piso da caixa na cota {rl}",
+  "below {top}, to the box floor": "abaixo de {top}, até o piso da caixa",
+  "{unit} has no modelled base: its solid would be everything {where}, not the unit's own body. Build it too?": "{unit} não tem base modelada: seu sólido seria tudo o que está {where}, não o corpo da própria unidade. Construí-lo também?",
+  "{label} {v} Mm³ ({where})": "{label} {v} Mm³ ({where})",
+  "{unit} was left out: no base is modelled, so its solid would be everything {where}. Model the surface under it to close it, or choose to build it the next time.": "{unit} ficou de fora: nenhuma base está modelada, então seu sólido seria tudo o que está {where}. Modele a superfície abaixo dela para fechá-lo, ou escolha construí-lo da próxima vez.",
+  "Export GeoJSON (WGS 84)…": "Exportar GeoJSON (WGS 84)…",
+  "Exported {features} feature(s) from \"{label}\" as GeoJSON (WGS84 longitude / latitude).": "{features} feição(ões) de \"{label}\" exportada(s) como GeoJSON (longitude / latitude WGS84).",
+  "GeoJSON export failed: {message}": "Falha na exportação GeoJSON: {message}",
+  " · inside \"{solid}\"": " · dentro de \"{solid}\"",
+  "Trend: {trend}": "Tendência: {trend}",
+  "Inside the solid \"{solid}\"": "Dentro do sólido \"{solid}\"",
+  "Domain: {domain}": "Domínio: {domain}",
+  "Samples from: {area}": "Amostras de: {area}",
+  "{n} vertex(es) repeated at the same place: weld them (to 1 mm) and the seams they open close": "{n} vértice(s) repetido(s) no mesmo lugar: solde-os (a 1 mm) e as costuras que abrem se fecham",
+  "Checked as a solid: {list}. Its volume and the inside test can be off there.": "Verificado como sólido: {list}. O volume e o teste de interior podem falhar ali.",
+  "{n} chosen, all hidden (the eye)": "{n} escolhido(s), todos ocultos (o olho)",
+  "Filter holes… ({examples})": "Filtrar furos… ({examples})"
 }
