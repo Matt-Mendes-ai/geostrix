@@ -370,8 +370,10 @@ export default function LayoutModule() {
         const el = elements.find((e) => e.id === img.replaceElementId);
         const aspect = img.naturalW && img.naturalH ? img.naturalW / img.naturalH : el.aspect;
         const world = img.worldWidthAtCaptureM ?? el.worldWidthAtCaptureM, denom = sectionScaleDenom(el);
-        const w = denom && world ? Math.round(sectionWidthForScale({ worldWidthAtCaptureM: world }, denom)) : el.w;
-        const upd = { ...el, src: img.src, naturalW: img.naturalW, naturalH: img.naturalH, aspect, w, h: Math.round(w / aspect), textFactor: img.textFactor || 1, legendItems: img.legendItems || el.legendItems, worldWidthAtCaptureM: world };
+        // TASKS.csv #3022 (review #2876) — not rounded to whole pixels: the scale is read back from the width, and a rounded width turned a
+        // picked 1 : 5,000 into '1 : 5,002 along the section'
+        const w = denom && world ? sectionWidthForScale({ worldWidthAtCaptureM: world }, denom) : el.w;
+        const upd = { ...el, src: img.src, naturalW: img.naturalW, naturalH: img.naturalH, aspect, w, h: w / aspect, textFactor: img.textFactor || 1, legendItems: img.legendItems || el.legendItems, worldWidthAtCaptureM: world };
         next.set(el.id, upd);
         const pt = sectionTextPt(upd), round = Number(img.resnapRound) || 0;
         if (pt != null && Math.abs(pt - 7) > 0.7 && round < 3 && upd.sectionTabId) { sendSectionResnap({ tabId: upd.sectionTabId, elementId: upd.id, textFactor: +((upd.textFactor * 7) / pt).toFixed(3), round: round + 1 }); again++; }
@@ -538,7 +540,11 @@ export default function LayoutModule() {
   // the way the viewport's last capture looked (its azimuth), centred on that data, then a refresh at that scale and
   // centre. The check is in plan: for an oblique view the vertical extent is not a map distance, so it is approximate
   // there and exact for a top-down view.
-  const fitViewport = async (sel) => {
+  // TASKS.csv #3018 (review #2876, WA iron) — Fit rotates the holes by the LAST capture's camera azimuth, but the capture it starts is taken with
+  // the current camera: after a turn to Top the first press said '1:500,000, they run the other way' and the second '1:250,000'. Fit now
+  // records the azimuth it used (fitAzimuth, fitFrom: the capture it follows); when the capture comes back at another azimuth, the effect
+  // below fits once more with that one, so a single press gives the answer two presses gave. pass: 2 on that second fit.
+  const fitViewport = async (sel, { pass = 1 } = {}) => {
     const pts = [];
     // TASKS.csv #2304 (review #2174) — the points of the holes drawn as assumed verticals (no survey, no azimuth / dip) kept apart too, so
     // the note blames them only when they do widen the frame (on the WA project they sit inside the fans)
@@ -579,9 +585,19 @@ export default function LayoutModule() {
     // 1:500,000 with the 10 drilled holes as specks, and nothing said why. (A notice would be cleared by the refresh re-selecting the frame.)
     const nHoles = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y)).length;
     const assumed = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y) && assumedIds.has(c.hole_id)).length;
-    updateSelected({ fixedScale: scale, trueScale: true, fitInfo: nHoles ? { scale, holes: nHoles, assumed, ...(assumed && scaleDrilled < scale ? { drilledScale: scaleDrilled } : {}), ...(turnedScale < scale ? { turnedScale } : {}) } : null }); // drilledScale: #2304; turnedScale: #2737
+    const patch = { fixedScale: scale, trueScale: true, fitInfo: nHoles ? { scale, holes: nHoles, assumed, ...(assumed && scaleDrilled < scale ? { drilledScale: scaleDrilled } : {}), ...(turnedScale < scale ? { turnedScale } : {}) } : null, fitAzimuth: sel.cameraAzimuthDeg || 0, fitFrom: sel.capturedAt || 0, fitPass: pass }; // drilledScale: #2304; turnedScale: #2737; fit*: #3018
+    setElements((els) => els.map((el) => (el.id === sel.id ? { ...el, ...patch } : el))); // by id: a second fit may run while another element is selected (#3018)
     startViewportRender(sel.themeId, sel.id, true, { fixedScale: scale, elementW: sel.w, elementH: sel.h, centreWorld });
   };
+  // #3018 — a fitted capture came back: at the azimuth Fit assumed, the fit stands; at another one (the camera was turned since the last
+  // capture), fit once more with the azimuth the capture was taken at. Once only: the flags are cleared either way.
+  useEffect(() => {
+    const due = elements.filter((el) => el.type === "viewport" && el.fitAzimuth != null && (el.capturedAt || 0) !== el.fitFrom);
+    if (!due.length) return;
+    const turn = (a, b) => { const d = Math.abs(((((a || 0) - (b || 0)) % 360) + 540) % 360 - 180); return d; };
+    setElements((els) => els.map((el) => (due.some((d) => d.id === el.id) ? { ...el, fitAzimuth: undefined, fitFrom: undefined, fitPass: undefined } : el)));
+    for (const el of due) if ((el.fitPass || 1) < 2 && turn(el.cameraAzimuthDeg, el.fitAzimuth) > 0.5) fitViewport({ ...el, fitAzimuth: undefined }, { pass: 2 });
+  }, [elements]); // fitViewport reads the project data of this render
   // TASKS.csv #906 — a resize handle was pressed (see Handles / the resize branch of the drag effect above)
   const onResizeStart = (e, el, handle) => {
     setSelected(el.id);
@@ -2465,7 +2481,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     const px = Math.max(2, Math.round((el.meters || 100) * (el.pxPerMeter || DEFAULT_PX_PER_METER))); // #920 — no 20 px floor: the bar is as long as its label says
     return (
       <div style={wrap} onMouseDown={onDown} data-el-id={el.id} {...kb}>
-        <svg width={px + 4} height={el.viewPlane ? 44 : 34} style={{ overflow: "visible" }}>
+        <svg width={px + 4} height={el.viewPlane || el.horizontalVe > 1 ? 44 : 34} style={{ overflow: "visible" }}>
           <rect x="2" y="4" width={px / 2} height="10" fill="#1a2028" />
           <rect x={2 + px / 2} y="4" width={px / 2} height="10" fill="#fbfbf8" stroke="#1a2028" />
           <rect x="2" y="4" width={px} height="10" fill="none" stroke="#1a2028" />
@@ -2473,6 +2489,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
           <text x={px + 2} y="28" fontSize={printPx(printPt.small)} textAnchor="end" fill="#1a2028" fontFamily={FONT}>{scaleBarLabel(el.meters || 100) /* #2140 — '5 km', not '5000 m' */}</text>
           {scaleBarMidLabel(el.meters || 100, px) && <text x={2 + px / 2} y="28" fontSize={printPx(printPt.small)} textAnchor="middle" fill="#1a2028" fontFamily={FONT}>{scaleBarMidLabel(el.meters || 100, px)}</text>}{/* #2140 — the half-way tick */}
           {el.viewPlane && <text x="2" y="40" fontSize={printPx(printPt.small)} fill="#1a2028" fontFamily={FONT}>{tr("in the view plane (oblique view)")}</text>}
+          {el.horizontalVe > 1 && <text x="2" y="40" fontSize={printPx(printPt.small)} fill="#1a2028" fontFamily={FONT}>{tr("horizontal scale ({ve}x vertical exaggeration)", { ve: el.horizontalVe })}</text>}{/* #3022 */}
         </svg>
       </div>
     );

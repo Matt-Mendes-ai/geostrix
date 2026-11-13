@@ -115,6 +115,7 @@
   "Inversion": "Inversão",
   "Lab certificates": "Certificados de lab.",
   "Legend": "Legenda",
+  "horizontal scale ({ve}x vertical exaggeration)": "escala horizontal (exagero vertical {ve}x)",
   "Codes per layer": "Códigos por camada",
   "The commonest codes of each layer are listed; the rest are counted on one line. A long key flows into columns to fit the sheet.": "Os códigos mais comuns de cada camada são listados; o restante é contado em uma linha. Uma legenda longa se distribui em colunas para caber na folha.",
   "‡ Elevation not in the collar file: filled at import ({how}): {ids}.": "‡ Cota ausente no arquivo de colares: preenchida na importação ({how}): {ids}.",

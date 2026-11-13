@@ -34,9 +34,9 @@ test("the count line: intercepts and holes", () => {
 
 test("wired: the plan's place and rows, the grade x length column, the count line", () => {
   const b = readFileSync(new URL("../src/components/BestIntercepts.jsx", import.meta.url), "utf8");
-  assert.match(b, /const plan = interceptTablePlan\(layoutElements, pagePx\(pageFormatOf\(layoutPages\.find/);
+  assert.match(b, /let plan = interceptTablePlan\(layoutElements, pageSize, \{ total: results\.length, w: tableW \}\);/); // #3019: the page size and the widened table
   assert.match(b, /tr\("Grade × length \(\{unit\} × m\)", \{ unit: dispUnit \}\)/);
-  assert.match(b, /String\(\+dg\(interceptGradeLength\(r\)\)\.toPrecision\(5\)\) \/\* #2479 \*\//);
+  assert.match(b, /fGT\(dg\(interceptGradeLength\(r\)\)\) \/\* #2479; fixed decimals: #3019 \*\//); // #3019: one number of decimals per column
   assert.match(b, /x: plan\.x, y: plan\.y/);
   assert.doesNotMatch(b, /results\.slice\(0, 60\)/);
   assert.match(b, /interceptCount\(results\)/);

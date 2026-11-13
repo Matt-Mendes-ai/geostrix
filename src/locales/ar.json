@@ -115,6 +115,7 @@
   "Inversion": "النمذجة العكسية",
   "Lab certificates": "شهادات المختبر",
   "Legend": "مفتاح الرموز",
+  "horizontal scale ({ve}x vertical exaggeration)": "المقياس الأفقي (مبالغة رأسية {ve}x)",
   "Codes per layer": "الرموز لكل طبقة",
   "The commonest codes of each layer are listed; the rest are counted on one line. A long key flows into columns to fit the sheet.": "تُدرج الرموز الأكثر شيوعًا في كل طبقة؛ ويُحصى الباقي في سطر واحد. يتوزع المفتاح الطويل على أعمدة ليتسع في الورقة.",
   "‡ Elevation not in the collar file: filled at import ({how}): {ids}.": "‡ منسوب غير موجود في ملف الفوهات: مُلئ عند الاستيراد ({how}): {ids}.",
