@@ -17,6 +17,7 @@
 // the scene, so that path DOES reproject automatically when it can.
 import { inflateCapped, MB } from "./inflate.js"; // TASKS.csv #1347
 import { decodeGrd } from "./grdFormats.js"; // TASKS.csv #1347
+import { unreadableFormatAdvice } from "./unreadableFormats.js"; // TASKS.csv #2847
 import GeoTIFF, { fromArrayBuffer } from "geotiff"; // GeoTIFF.fromSource: #1351
 import { writeGeoTiff } from "./geotiffWrite.js"; // TASKS.csv #1038 — geotiff.js header, one loop for the pixels
 import { f32ToB64, b64ToF32 } from "./inversion.js"; // TASKS.csv #326 — compact grid values
@@ -311,6 +312,8 @@ export function isTiffHeader(b) {
 export async function parseGeoTIFF(file, { bandFn = null, samples = null, maxSide = MAX_TEXTURE_SIZE, worldFile = null } = {}) { // maxSide: #838; worldFile: #1855
   let tiff, image;
   if (typeof file?.slice === "function" && !isTiffHeader(new Uint8Array(await file.slice(0, 4).arrayBuffer()))) {
+    const advice = unreadableFormatAdvice(file.name); // TASKS.csv #2847 — a .gdb (or .ecw ...) given to the GeoTIFF input: what it is and the way out
+    if (advice) throw new Error(advice);
     throw new Error(/\.(csv|txt|xlsx?|tsv)$/i.test(file.name || "")
       ? tr("\"{name}\" is not a TIFF, .gxf or .grd: a table goes to Geochem (surface samples) or the 3D View (collars and logs).", { name: file.name })
       : tr("\"{name}\" is not a TIFF, .gxf or .grd file (its first bytes are not a TIFF header).", { name: file.name }));

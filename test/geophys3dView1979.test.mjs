@@ -21,7 +21,7 @@ test("bare: no ribbon, no sidebar, no drop import; the viewport sits after the G
   assert.ok((v.match(/show=\{visible && !bare\}/g) || []).length >= 5);
   assert.match(v, /order: bare \? 1 : 0/);
   assert.match(v, /display: bare \? "none" : "flex"/);
-  assert.match(v, /onDrop=\{bare \? undefined : handleDrop\}/);
+  assert.match(v, /onDrop=\{bare \? \(e\) => \{ e\.preventDefault\(\); requestModuleAction\("geophysics-drop"/); // #2848: bare forwards its drops to the Geophysics tab
 });
 
 test("Geophysics: the 3D view unless a pane put results in the area, or nothing is loaded; never when embedded in Maps", () => {

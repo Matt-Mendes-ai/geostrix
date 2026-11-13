@@ -10,8 +10,10 @@ test("the gridding notice says where the raster is drawn and why", () => {
   // #2239: the stations' own median elevation comes before the collar-median basis when the gridded points have z
   assert.match(g, /const where = terrain \? tr\(" Draped on the terrain\."\) : ptsZ != null \? tr\(" Drawn flat at \{z\} m, the stations' median elevation \(there is no terrain to drape it on\)\.", \{ z: Math\.round\(ptsZ\)\.toLocaleString\(\) \}\) : tr\(" Drawn flat at \{z\} m \(\{basis\}\), not on the ground: there is no terrain\./);
   assert.match(g, /drapeAt\.source === "collars" \? tr\("the collars' median elevation"\)/);
-  assert.match(g, /\) \+ where \}\); \/\/ where: #2075/); // #2557: the notice has a variant for radiometric / EM grids
+  assert.match(g, /text: kept \+ howText \+ where \}\); \/\/ where: #2075/); // #2846: the method's sentence before it // #2557: the notice has a variant for radiometric / EM grids
 });
 test("the 3D legend ramps only the points that are drawn (with a z)", () => {
-  assert.match(v, /const gpts = \(layers\?\.geophys_pts \|\| \[\]\)\.filter\(\(r\) => Number\.isFinite\(r\.z\)\);/);
+  // #2878: the 3D and Layout legends share lib/legendGroups.js geophysLegendGroups, which keeps the drawn points only
+  assert.match(v, /groups\.push\(\.\.\.geophysLegendGroups\(\{ rows: layers\?\.geophys_pts, visible: !!layerVisible\.geophys_pts/);
+  assert.match(rd("../src/lib/legendGroups.js"),/const pts = \(rows \|\| \[\]\)\.filter\(\(r\) => Number\.isFinite\(r\.z\) &&/);
 });

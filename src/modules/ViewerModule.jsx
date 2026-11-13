@@ -14,7 +14,7 @@ import React, { useRef, useEffect, useState, useCallback, useMemo, Suspense } fr
 import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565; requestModuleAction: #1417
 import { isPxrfRow } from "../lib/qaqc.js"; // TASKS.csv #1695
 import { describeDbImport } from "../lib/dbImports.js"; // TASKS.csv #1963
-import { metresPerPixel, minSymbolRadiusM, needsSymbolRebuild } from "../lib/viewer/symbolScale.js"; // TASKS.csv #1597
+import { metresPerPixel, minSymbolRadiusM, needsSymbolRebuild, GEOPHYS_MIN_PX } from "../lib/viewer/symbolScale.js"; // TASKS.csv #1597; GEOPHYS_MIN_PX: #2849
 import { lazyModal } from "../lib/lazyModal.jsx"; // TASKS.csv #301
 import * as THREE from "three";
 import { setVerticalExaggeration, veOf } from "./viewer/verticalExaggeration.js"; // TASKS.csv #2628
@@ -109,7 +109,7 @@ const toExportCsv = async (rows, opts) => (await import("../lib/tabular.js")).to
 const FenceDiagramModal = lazyModal(() => import("../components/FenceDiagramModal.jsx")); // TASKS.csv #139  // TASKS.csv #301
 const CoreOrientationCalculator = lazyModal(() => import("../components/CoreOrientationCalculator.jsx"));  // TASKS.csv #301
 import { codesInUse, connectIntervals, effectiveCode, codeInfo } from "../lib/modellingCodes.js"; // TASKS.csv #599
-import { outcropLegendGroup /* TASKS.csv #1437 */, ASSAY_ELEMENT_COLORS, assayColorFor, categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, scaleLegendGroup, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, surfaceSampleLegendGroup , numericLayerLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #725; map / boundary / samples: #948
+import { outcropLegendGroup /* TASKS.csv #1437 */, ASSAY_ELEMENT_COLORS, assayColorFor, categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, surfaceSampleLegendGroup , numericLayerLegendGroups, geophysLegendGroups /* #2878 */ } from "../lib/legendGroups.js"; // TASKS.csv #725; map / boundary / samples: #948
 // TASKS.csv #843 — the anomaly map (lib/anomalyMap.js + lib/thresholds.js) and its controls load only when used: off the startup bundle
 const SurfaceAnomalyControls = React.lazy(() => import("../components/SurfaceAnomalyControls.jsx"));
 const EvidenceOverlayPane = React.lazy(() => import("../components/EvidenceOverlayPane.jsx"));
@@ -1609,19 +1609,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     if (outcrop) groups.push({ ...outcrop, label: tr(outcrop.label), items: outcrop.items.map(([l, c, o]) => [tr(l), c, o]) });
     groups.push(...mapLayerLegendGroups(mapLayers), ...boundaryLegendGroups(boundaries));
     { const hg = holeColourLegendGroup(holeScheme, tr("Holes by {field}", { field: holeColourBy }), tr("(no value)")); if (hg) groups.unshift(hg); } // #1504
-    const pushScale = (key, label, model, lo, hi) => groups.push(scaleLegendGroup(key, label, model, lo, hi));
-    const gpts = (layers?.geophys_pts || []).filter((r) => Number.isFinite(r.z)); // #2075 — only the drawn points (no z: not drawn)
-    if (layerVisible.geophys_pts && gpts.length) {
-      const vals = gpts.map((r) => r.value).filter((v) => typeof v === "number" && Number.isFinite(v));
-      if (vals.length) {
-        // TASKS.csv #451 — one ramp per survey when several are loaded (each is coloured on its own range)
-        const colorer = makeSurveyColorer(gpts.filter((r) => Number.isFinite(r.value)), { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax }, geophysSurveys); // geophysSurveys: #1587
-        for (const [key, model] of colorer.models) {
-          const units = geophysSurveys?.[key]?.units;
-          pushScale(`geophys_pts_${key}`, colorer.perSurvey ? `${key}${units ? ` (${units})` : ""}` : `${LAYER_META.geophys_pts?.label || "Geophysics points"}${units ? ` (${units})` : ""}`, model, model.min, model.max);
-        }
-      }
-    }
+    // TASKS.csv #451 / #2075 — one ramp per survey, the drawn points only; the builder is shared with the Layout legend since #2878
+    groups.push(...geophysLegendGroups({ rows: layers?.geophys_pts, visible: !!layerVisible.geophys_pts, surveys: geophysSurveys, stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax, label: LAYER_META.geophys_pts?.label || "Geophysics points" }));
     return groups;
   }, [rasters, sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, numericLayerColor, isRowVisible, collars, customLayers, customVisible, holeScheme, holeColourBy, surfaceStructures]); // #1398; collars: #1813; holeScheme: #1504; surfaceStructures: #3092
 
@@ -2290,12 +2279,15 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
         for (const name of ["outcrop_labels", "sample_labels"]) { const lg = layerGroupsRef.current?.[name]; if (lg?.visible && lg.children.length) { fitScreenLabels(lg, camera, mount.clientHeight); declutterHoleLabels(lg, camera, mount.clientWidth, mount.clientHeight); } } // #1443
         { // TASKS.csv #1597 — surface-sample symbols are sized for the zoom they were built at: once the camera has settled (400 ms) a
           // factor of two away from it, they are rebuilt at the new size (never per frame, never mid-orbit)
-          const sg = layerGroupsRef.current?.surface_samples;
-          if (sg?.visible && sg.children.length) {
+          // TASKS.csv #2849 — and the survey points, where their floor matters (a regional survey; a 2 km grid keeps its 1.4-4.2 m symbols)
+          for (const [name, builtRef, zoomRef, buildRef, floored] of [["surface_samples", surfaceSymbolMppRef, surfaceZoomRef, buildSurfaceSamplesRef, () => true],
+            ["geophys_pts", geophysSymbolMppRef, geophysZoomRef, buildGeophysPtsRef, (a, b) => Math.max(minSymbolRadiusM(a, GEOPHYS_MIN_PX), minSymbolRadiusM(b, GEOPHYS_MIN_PX)) > 1.4]]) {
+            const sg = layerGroupsRef.current?.[name];
+            if (!(sg?.visible && sg.children.length)) continue;
             const now = Date.now(), mpp = metresPerPixel(camera, camState.current?.radius, mount.clientHeight), key = Math.round(Math.log2(mpp || 1) * 8);
-            const zr = surfaceZoomRef.current;
+            const zr = zoomRef.current;
             if (key !== zr.key) { zr.key = key; zr.at = now; }
-            else if (now - zr.at > 400 && needsSymbolRebuild(surfaceSymbolMppRef.current, mpp)) { zr.at = Infinity; buildSurfaceSamplesRef.current(); }
+            else if (now - zr.at > 400 && needsSymbolRebuild(builtRef.current, mpp) && floored(builtRef.current, mpp)) { zr.at = Infinity; buildRef.current(); }
           }
         }
         if (gridGroupRef.current?.userData.labels) fitScreenLabels(gridGroupRef.current.userData.labels, camera, mount.clientHeight); // #2211
@@ -4217,12 +4209,17 @@ ${+a.from.toFixed(2)}–${+a.to.toFixed(2)} m`)); // #1500; #2365 as stored
     const errors = [];
     const st = resolveLayerStyle(layerStyles.geophys_pts, "point"); // TASKS.csv #635
     const proto = st.shape === "sphere" ? PROTO_SPHERE_8 : POINT_PROTO[st.shape];
+    // TASKS.csv #2849 (GSC review B16) — 1.4-4.2 m symbols: 15,620 Blake River stations over 94 x 50 km were a few grey specks at Fit. A floor of
+    // 5 px across at the zoom the build is for (as the surface samples, #1597), rebuilt from the render loop when the zoom settles elsewhere
+    const mpp = metresPerPixel(cameraRef.current, camState.current?.radius, mountRef.current?.clientHeight);
+    geophysSymbolMppRef.current = mpp;
+    const minR = minSymbolRadiusM(mpp, GEOPHYS_MIN_PX);
     rows.forEach((row) => {
       try {
         const { color: c0, t } = colorer.colorOf(row);
         const color = st.color || c0;
         const mesh = new PickStandIn(proto, { color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // #312; #1994 — a stand-in (#1500): 83,000 lidar points, first frame 1.4 s as Meshes, 0.75 s so
-        mesh.scale.setScalar((1.4 + 2.8 * t) * st.size);
+        mesh.scale.setScalar(Math.max(1.4 + 2.8 * t, minR * (1 + t)) * st.size); // minR: #2849 (the bigger value still drawn bigger)
         mesh.position.set(row.x - ox, row.z - oz, -(row.y - oy));
         mesh.userData = { row, tip: `${row._src || "Geophysics point"}${row.line != null ? ` · line ${row.line}` : ""}${row.fid != null ? ` · fid ${row.fid}` : ""}\n${row.label || "value"}: ${row.value}${geophysSurveys?.[row._src]?.units ? ` ${geophysSurveys[row._src].units}` : ""}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z` };
         g.add(mesh);
@@ -4231,6 +4228,8 @@ ${+a.from.toFixed(2)}–${+a.to.toFixed(2)} m`)); // #1500; #2365 as stored
     buildLayerBatches(g);
     if (errors.length) setNotices((pv) => [...pv, errorNotice(tr("{errors} geophysics point(s) failed to render: {v}", { errors: errors.length, v: errors.slice(0, 3).join(" · ") }))]);
   };
+  const geophysSymbolMppRef = useRef(NaN); // TASKS.csv #2849 — the metres-per-pixel the survey points were sized for
+  const geophysZoomRef = useRef({ key: null, at: 0 });
   const buildGeophysPtsRef = useRef(buildGeophysPts);
   buildGeophysPtsRef.current = buildGeophysPts;
 
@@ -6414,7 +6413,7 @@ ${+a.from.toFixed(2)}–${+a.to.toFixed(2)} m`)); // #1500; #2365 as stored
           </RibbonGroup>
         </Ribbon>
       )}
-      <div className="ge-body" style={{ width: "100%" }} onDragOver={(e) => { if (bare) return; e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={bare ? undefined : handleDrop}>
+      <div className="ge-body" style={{ width: "100%" }} onDragOver={(e) => { e.preventDefault(); if (!bare) setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={bare ? (e) => { e.preventDefault(); requestModuleAction("geophysics-drop", { files: Array.from(e.dataTransfer.files || []) }); } /* #2848 — the Geophysics tab's viewport: its tab imports the drop */ : handleDrop}>
       <div className="ge-panel-outer" style={{ width: sidebarWidth, flexShrink: 0, display: bare ? "none" : "flex", flexDirection: "column", minHeight: 0, background: "var(--color-bg)", borderRight: "1px solid var(--color-border)" }}>
       <div className="ge-panel" ref={panelScrollRef} style={{ padding: "16px 14px", border: "none", width: "100%", flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
         {sidebarTab === "home" && (<>
