@@ -31,7 +31,19 @@ test("mainTraces keeps the order and drops only the strays; the 3D slice's exten
   const kept = mainTraces(ts, (t) => t.z);
   assert.equal(kept.length, 299);
   assert.ok(!kept.some((t) => t.id === 7));
-  assert.equal(mainTraces(ts.slice(0, 10), (t) => t.z).length, 10);
+  assert.equal(mainTraces(ts.slice(0, 10), (t) => t.z).length, 9, "#3004: the 0 m collar is suspect on a small project too (the gap test alone kept it)");
   const v = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(v, /const ts = mainTraces\(tracesRef\.current, \(t\) => t\.pts\?\.\[0\]\?\.y\);/);
+  assert.match(v, /const ts = mainTraces\(tracesRef\.current, \(t\) => t\.wz\?\.\[0\]\);/); // #3004 — world z (the 0 m test)
+});
+
+test("#3004 — the default ranges follow the shared collar rule: a 0 m collar on a small project is left out too (the gap test needs 20 holes)", async () => {
+  const { mainTraces, levelPlanZRange } = await import("../src/lib/viewer/levelPlanRange.js");
+  const tr = (id, z) => ({ hole_id: id, wz: [z, z - 50], pts: [{ y: z }] });
+  const small = [tr("A", 440), tr("B", 452), tr("C", 461), tr("D", 0), tr("E", 447)];
+  assert.deepEqual(mainTraces(small, (t) => t.wz[0]).map((t) => t.hole_id), ["A", "B", "C", "E"]);
+  assert.deepEqual(levelPlanZRange(small, []), [390, 461], "the RL range from the trusted holes");
+  const lowland = [tr("A", 5), tr("B", 12), tr("C", 0), tr("D", 8)];
+  assert.equal(mainTraces(lowland, (t) => t.wz[0]).length, 4, "0 m beside collars near 0 is real");
+  const assumed = [tr("A", 440), tr("B", 452), { ...tr("C", 0), zAssumed: true }, tr("D", 447)];
+  assert.equal(mainTraces(assumed, (t) => t.wz[0]).length, 4, "an assumed elevation is said as assumed, not dropped here");
 });

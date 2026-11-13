@@ -41,14 +41,15 @@ export function capBlockAtGround(block, groundAt, toWorld) {
   const [xmin, xmax, ymin, ymax, zmin, zmax] = block.extent;
   const [nx, ny, nz] = block.resolution;
   const cx = (xmax - xmin) / nx, cy = (ymax - ymin) / ny, cz = (zmax - zmin) / nz;
-  let ids = null, cut = 0;
+  let ids = null, cut = 0, lx = NaN, ly = NaN, lg = NaN;
   const p = { x: 0, y: 0, z: 0 };
   for (let ix = 0; ix < nx; ix++) for (let iy = 0; iy < ny; iy++) for (let iz = 0; iz < nz; iz++) {
     const i = ix * ny * nz + iy * nz + iz;
     if (block.ids[i] === 0) continue;
     p.x = xmin + (ix + 0.5) * cx; p.y = ymin + (iy + 0.5) * cy; p.z = zmin + (iz + 0.5) * cz;
     const w = toWorld(p);
-    const g = groundAt(w.x, w.y);
+    // TASKS.csv #2905 — a column's cells share their ground (the collar surface is a 4-nearest search: 3.7 s for 46,000 cells on WA iron)
+    const g = w.x === lx && w.y === ly ? lg : ((lx = w.x), (ly = w.y), (lg = groundAt(w.x, w.y)));
     if (!(Number.isFinite(g) && w.z > g)) continue;
     if (!ids) ids = Int32Array.from(block.ids);
     ids[i] = 0; cut++;
