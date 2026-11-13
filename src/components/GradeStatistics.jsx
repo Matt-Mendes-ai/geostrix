@@ -39,7 +39,7 @@ import { logClasses, logClassRank, NO_READING } from "../lib/logClasses.js"; // 
 import { overlapMeans, aboveCutoffRows, parseCutoffs, defaultCutoffs, gradeStatsCsvRows } from "../lib/cutoffTable.js"; // TASKS.csv #2912; csv: #3069
 import { interceptCutoffFor } from "../lib/interceptCutoff.js"; // TASKS.csv #3069
 import { drillThresholdOffers } from "../lib/thresholds.js"; // TASKS.csv #3069 — the saved drill thresholds, offered as in Best intercepts
-import { censoringFloor, zeroResults } from "../lib/qaqc.js"; // TASKS.csv #2913 — Thresholds' censoring rule
+import { fileCensoring } from "../lib/qaqc.js"; // TASKS.csv #2913 — Thresholds' censoring rule; #3083: found on the file's results, as Thresholds does
 
 // Sample statistics (n-1 denominator for variance/stdev, the standard convention for a sample rather
 // than a full population — grade data is always a sample of the deposit, never the whole thing).
@@ -185,7 +185,8 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   const weightingActive = source === "assays" && lengthWeighted && rows.length > 0 && rows.every((r) => r.weight > 0);
   // TASKS.csv #2913 (review #2876) — one '<DL' count across tools: a value on the #1520 censoring floor (half the limit substituted in the
   // file) is below detection here too, as in Thresholds; zeros below the minimum make it the reporting step instead, in both
-  const ltFloor = useMemo(() => censoringFloor(rows.filter((r) => !r.lt).map((r) => r.value), { zeros: zeroResults(source === "surface" ? surfaceSamples : statsAssays, symbol, { flaggedOnly: true }) }), [rows, source, surfaceSamples, statsAssays, symbol]);
+  // #3083 — on the file's results, not on the resolved segments (an average of a '<' row and a result fell below the floor and hid it)
+  const ltFloor = useMemo(() => (source === "surface" ? fileCensoring(surfaceSamples, symbol, surfaceElementUnits[symbol] || "ppm", surfaceElementUnits) : fileCensoring(statsAssays, symbol, elementUnits[symbol] || "ppm", elementUnits)).floor, [source, surfaceSamples, statsAssays, symbol, elementUnits, surfaceElementUnits]);
   const isLt = (r) => r.lt || (ltFloor != null && Math.abs(r.value - ltFloor.floor) <= ltFloor.floor * 1e-9);
   // TASKS.csv #2508 (review #2486) — 'Hole + lithology' on 2,248 holes: 5,938 groups, a table row and a box plot each, froze the window 1.6-3.8 s.
   // The table, the box plots and the probability plot show the first SHOWN_MAX groups (the largest, or the first holes by id); the CSV has all
@@ -201,7 +202,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
       byDomain.get(key).push(r);
     });
     return Array.from(byDomain.entries())
-      .map(([key, rs]) => ({ key, stats: byDomain.size === 1 ? computeStats(allValues, allWeights) /* #2910 — the one group is every row */ : computeStats(rs.map((r) => r.value), weightingActive ? rs.map((r) => r.weight) : null), ltN: rs.reduce((k, r) => k + (isLt(r) ? 1 : 0), 0) })) // ltN: #2505; isLt: #2913
+      .map(([key, rs]) => ({ key, stats: byDomain.size === 1 ? computeStats(allValues, allWeights) /* #2910 — the one group is every row */ : computeStats(rs.map((r) => r.value), weightingActive ? rs.map((r) => r.weight) : null), ltN: rs.reduce((k, r) => k + (isLt(r) ? 1 : 0), 0), zeroN: rs.reduce((k, r) => k + (r.value === 0 ? 1 : 0), 0) })) // ltN: #2505; isLt: #2913; zeroN: #3083
       .filter((g) => g.stats)
       .sort(byHole ? (a, b) => String(a.key).localeCompare(String(b.key), undefined, { numeric: true }) : covLog ? (a, b) => logClassRank(a.key) - logClassRank(b.key) /* #2672 — low to high */ : (a, b) => b.stats.n - a.stats.n); // #2029 — holes in id order
   }, [rows, weightingActive, byHole, covLog, ltFloor, allValues, allWeights]); // covLog: #2672; ltFloor: #2913; all*: #2910
@@ -416,7 +417,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                       <tr key={g.key}>
                         <td style={td}>{domainLabel(g.key)}</td>
                         <td style={td}>{g.stats.n}</td>
-                        <td style={{ ...td, ...(g.stats.n && g.ltN / g.stats.n > 0.5 ? { color: "var(--color-warn-text)", fontWeight: 600 } : {}) }}>{g.stats.n ? Math.round((100 * g.ltN) / g.stats.n) : "—"}</td>{/* #2505 */}
+                        <td style={{ ...td, ...(g.stats.n && g.ltN / g.stats.n > 0.5 ? { color: "var(--color-warn-text)", fontWeight: 600 } : {}) }}>{g.stats.n ? (g.zeroN ? <span title={tr("{n} of these results are reported as 0 (below detection or not analysed: the file does not say). They are in n and in the statistics, at 0.", { n: g.zeroN.toLocaleString() })}>{tr("{pct} ({n} at 0)", { pct: Math.round((100 * g.ltN) / g.stats.n), n: g.zeroN.toLocaleString() })}</span> : Math.round((100 * g.ltN) / g.stats.n)) : "—"}</td>{/* #2505; zeros: #3083, as Thresholds' '+N at 0' */}
                         <td style={td}>{gradeText(g.stats.mean)}</td>
                         <td style={td}>{gradeText(g.stats.median)}</td>
                         <td style={td}>{gradeText(g.stats.stdev)}</td>

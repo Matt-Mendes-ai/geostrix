@@ -121,6 +121,8 @@
   "Inversion": "Inversión",
   "Lab certificates": "Certificados de lab.",
   "Legend": "Leyenda",
+  "{n} of these results are reported as 0 (below detection or not analysed: the file does not say). They are in n and in the statistics, at 0.": "{n} de estos resultados se informan como 0 (bajo el límite de detección o no analizados: el archivo no lo dice). Están en n y en las estadísticas, en 0.",
+  "{pct} ({n} at 0)": "{pct} ({n} en 0)",
   "Log scale and the log rules": "Escala logarítmica y las reglas logarítmicas",
   "{symbol} reads as a major element here: per cent of the rock, not skewed like a trace element. The plots are arithmetic and the log rules (Mean + 2 SD, Median + 2 MAD, Tukey, the probability-plot break) are not offered: they assume a log-normal population. A major is usually read by its cut-offs (Grade stats, Above cut-off).": "{symbol} se lee aquí como un elemento mayor: por ciento de la roca, sin el sesgo de un elemento traza. Los gráficos son aritméticos y no se ofrecen las reglas logarítmicas (Media + 2 DE, Mediana + 2 MAD, Tukey, el quiebre del gráfico de probabilidad): suponen una población lognormal. Un elemento mayor suele leerse por sus leyes de corte (Estadística de leyes, Sobre la ley de corte).",
   "Arithmetic scale: the log rules are not offered.": "Escala aritmética: no se ofrecen las reglas logarítmicas.",

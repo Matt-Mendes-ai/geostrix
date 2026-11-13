@@ -10,7 +10,7 @@ import { X, Download } from "./icons.js";
 import { valueIn } from "../lib/geochem.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #2902 — no Math.min / max(...spread) over a population (#371)
 import { THRESHOLD_METHODS, MIN_N_BREAKS, MIN_N_ROBUST, candidateThresholds, groupOptions, groupKeyFn, populations, normalQuantile, hasMixedSources, intervalLength, DRILL_DOMAINS, drillDomainKeyFn } from "../lib/thresholds.js"; import { thresholdUnreachable, usableDefaultMethod, LOG_RULES, thresholdScale } from "../lib/thresholds.js"; import { linTicks } from "./GeochemPlot.jsx"; // LOG_RULES, thresholdScale, linTicks: #3070 // drill: TASKS.csv #2196
-import { censoringFloor, formatLimit, reportedStep, zeroResults } from "../lib/qaqc.js"; // TASKS.csv #1520; formatLimit: #2503; reportedStep / zeroResults: #2913
+import { formatLimit, fileCensoring } from "../lib/qaqc.js"; // fileCensoring: #3083 (censoringFloor / reportedStep / zeroResults through it) // TASKS.csv #1520; formatLimit: #2503; reportedStep / zeroResults: #2913
 import { attributeDomainOptions, attributeDomainLabel } from "../lib/customDomains.js"; // #2504
 import { useStore } from "../lib/store.jsx"; // #2504 — the collars
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -66,7 +66,7 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
   // #1520 runs only on the unflagged values, for files that arrive with half the limit already substituted
   const flaggedLt = (s) => !!s.bdl?.includes(symbol) || s.qualifiers?.[symbol] === "<";
   // #2913 — with the zeros the file holds: zeros below the minimum make it the reporting step, not half a limit (no floor, no <DL)
-  const { floor, step } = useMemo(() => { const vals = data.filter((s) => !flaggedLt(s)).map((s) => valueIn(s, symbol, unit, units)), zeros = zeroResults(data, symbol, { flaggedOnly: true }); return { floor: censoringFloor(vals, { zeros }), step: reportedStep(vals, { zeros }) }; }, [data, symbol, unit, units]); // flaggedLt reads symbol only
+  const { floor, step } = useMemo(() => fileCensoring(data, symbol, unit, units), [data, symbol, unit, units]); // #3083 — the one rule Grade stats uses too (flaggedLt's test)
   const keyOfNow = () => (drill ? drillDomainKeyFn(groupBy, domainLayers) /* #2504: + attribute domains */ : groupKeyFn(groupBy, mapLayers, surfaceSamples)); // samples: #1796 — split by medium; drill: #2196
   const pops = useMemo(() => {
     const keyOf = keyOfNow();

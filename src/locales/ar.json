@@ -121,6 +121,8 @@
   "Inversion": "النمذجة العكسية",
   "Lab certificates": "شهادات المختبر",
   "Legend": "مفتاح الرموز",
+  "{n} of these results are reported as 0 (below detection or not analysed: the file does not say). They are in n and in the statistics, at 0.": "{n} من هذه النتائج مُبلَّغ عنها بقيمة 0 (دون حد الكشف أو غير محللة: الملف لا يحدد). وهي ضمن n وضمن الإحصاءات بقيمة 0.",
+  "{pct} ({n} at 0)": "{pct} ({n} عند 0)",
   "Log scale and the log rules": "المقياس اللوغاريتمي والقواعد اللوغاريتمية",
   "{symbol} reads as a major element here: per cent of the rock, not skewed like a trace element. The plots are arithmetic and the log rules (Mean + 2 SD, Median + 2 MAD, Tukey, the probability-plot break) are not offered: they assume a log-normal population. A major is usually read by its cut-offs (Grade stats, Above cut-off).": "يُقرأ {symbol} هنا عنصراً رئيسياً: نسبة مئوية من الصخر، بلا التواء عنصر نزر. الرسوم حسابية ولا تُعرض القواعد اللوغاريتمية (المتوسط + 2 انحراف معياري، الوسيط + 2 MAD، توكي، انكسار مخطط الاحتمال): فهي تفترض مجتمعاً لوغاريتمياً طبيعياً. يُقرأ العنصر الرئيسي عادةً بحدود القطع (إحصاءات المحتوى، فوق حد القطع).",
   "Arithmetic scale: the log rules are not offered.": "مقياس حسابي: لا تُعرض القواعد اللوغاريتمية.",
