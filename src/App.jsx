@@ -403,7 +403,7 @@ export default function App() {
       else if (action === "about") setShortcutsTab("about");
       else if (action === "report-problem") openReportProblem(); // #598
       else if (action === "licenses") setLicensesOpen(true); // #639
-      else if (typeof action === "string" && action.startsWith("sample:")) { const which = action.slice(7); requestSampleProject(which); setActive(which === "perk" ? "surface" : "viewer"); } // #1120
+      else if (typeof action === "string" && action.startsWith("sample:")) { const which = action.slice(7); requestSampleProject(which); setActive(which === "perk" || which === "mount_raymond" ? "surface" : "viewer"); } // #1120
       else if (action === "undo") undoSay();
       else if (action === "redo") redoSay();
     });

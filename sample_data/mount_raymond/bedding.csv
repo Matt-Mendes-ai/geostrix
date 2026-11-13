@@ -1,0 +1,120 @@
+station,measurement_id,easting,northing,type,dip_direction,strike,dip,attitude,younging,method,comment
+10TLA-ET-19-6,10TLA-ET-19-6A01,439364.3,7350702.1,bedding,71,341,40,"inclined, upright","younging known, stratigraphic order",measured at station,"1 m sandstone at base of exposure, fine-grained, coarse chert grains; rest is platy black shale"
+10LHA118,10LHA118A01,441169.0,7359800.0,bedding,260,170,60,"inclined, upright","younging known, sedimentary structure",measured at station,sandstone; load casts indicate right way up
+NC1962-116I08-74-HE3,NC19620103-3,443939.0,7362570.0,bedding,245,155,30,"inclined, upright","younging inferred, stratigraphic order",estimated remotely,
+2009LHA017,2009LHA017A01,433820.0,7370046.0,bedding,87,357,89,"inclined, overturned < 180","younging known, sedimentary structure",measured at station,"west limb of anticline, overturned"
+2009LHA086,2009LHA086A01,446041.4,7369630.7,bedding,261,171,36,"inclined, upright","younging known, sedimentary structure",measured at station,typical of east half of exposure
+12HRB059,12HRB59A1,453078.0,7354480.0,bedding,305,215,18,"inclined, upright","younging inferred, stratigraphic order",measured at station,"minor open fold and thrust faults also in outcrop, fold appears to have south vergence"
+2009LHA027,2009LHA027A01,433959.0,7363681.0,bedding,295,205,48,"inclined, upright","younging inferred, stratigraphic order",measured at station,appears typical
+2009LHA010,2009LHA010B01,436525.0,7355519.0,bedding,227,137,49,"inclined, upright","younging known, sedimentary structure",measured at station,east limb of syncline
+2009LHA009,2009LHA009A01,436542.0,7356182.0,bedding,160,70,14,"inclined, upright","younging known, sedimentary structure",measured at station,"black, dark grey laminations"
+2009LHA075-B,2009LHA075-B-A1,438379.9,7364196.3,bedding,260,170,65,"inclined, upright",no younging evidence,estimated remotely,"sandstone-shale succession dipping 60-65 degrees west, estimated from helicopter, see field photos DSC_0742"
+10LHA136,10LHA136A01,438750.0,7361860.0,bedding,260,170,60,"inclined, upright","younging known, stratigraphic order",estimated remotely,Strike uncertain from the air.  Beds dip 60 deg west (downstream)
+10TLA-ET-19-4,10TLA-ET-19-4A01,439932.7,7350650.8,bedding,70,340,25,"inclined, upright","younging known, stratigraphic order",measured at station,"black, platy shale, resistant weathering, plant impressions"
+10TLA-ET-19-3A,10TLA-ET-19-3A-A01,440261.8,7350770.9,bedding,60,330,46,"inclined, upright","younging known, stratigraphic order",measured at station,"black, platy shale, resistant weathering, plant impressions"
+2009LHA056,2009LHA056B01,441400.0,7355651.0,bedding,246,156,63,"inclined, upright","younging known, sedimentary structure",measured at station,uniform in outcrop
+2009LHA047,2009LHA047B02,443549.0,7355516.0,bedding,260,170,20,"inclined, upright","younging known, sedimentary structure",measured at station,"strike approximate, east end of outcrop"
+10TLA-RICH-09-6,10TLA-RICH-09-6A01,444611.6,7356939.9,bedding,233,143,35,"inclined, upright","younging known, stratigraphic order",measured at station,"siltstone, black shale, tenaculites?"
+NC1962-116I08-74,NC1962-116-13,443379.0,7366230.0,bedding,50,320,75,"inclined, overturned < 180","younging known, stratigraphic order",measured at station,Overturned
+2009LHA089,2009LHA089A01,445294.0,7370286.0,bedding,290,200,30,"inclined, upright","younging known, sedimentary structure",measured at station,
+2009LHA083,2009LHA083A01,446709.0,7368779.0,bedding,269,179,74,"inclined, upright","younging known, sedimentary structure",measured at station,
+2009LHA014,2009LHA014B01,435918.0,7354397.0,bedding,35,305,85,"inclined, overturned < 180","younging known, sedimentary structure",measured at station,graded bedding gives overturned sense; monoclinal anticline just to east
+NC1962-116I08-64-HE6,NC19620101-1,436724.0,7359880.0,bedding,150,60,50,"inclined, upright","younging inferred, stratigraphic order",estimated remotely,Bedding estimated from the air.
+10TLA-ET-19-11,10TLA-ET-19-11A01,437585.2,7352911.9,bedding,93,3,27,"inclined, upright","younging known, stratigraphic order",measured at station,"black, platy shale, resistant weathering"
+2009LHA045,2009LHA045B01,443885.0,7355501.0,bedding,65,335,53,"inclined, upright","younging known, sedimentary structure",measured at station,thin silt bed averaged over 3m
+10TLA-RICH-09-3,10TLA-RICH-09-3A01,445304.0,7356761.3,bedding,258,168,48,"inclined, upright","younging known, stratigraphic order",measured at station,black wafery shale and buff reistant bands
+12HRB061,12HRB061A1,451320.0,7353779.0,bedding,282,192,22,"inclined, upright","younging inferred, stratigraphic order",measured at station,limestone
+10LHA104,10LHA104A01,434569.0,7369107.0,bedding,268,178,32,"inclined, upright","younging known, stratigraphic order",measured at station,Outcrop across river has equivalent bedding
+2009LHA016,2009LHA016A01,436091.9,7370884.1,bedding,75,345,38,"inclined, upright","younging known, sedimentary structure",measured at station,graded beds -right way up
+2009LHA092,2009LHA092B02,443365.0,7370343.0,bedding,262,172,23,"inclined, upright","younging known, sedimentary structure",measured at station,
+2009LHA091,2009LHA091B01,443886.0,7370519.0,bedding,250,160,29,"inclined, upright","younging known, sedimentary structure",measured at station,
+10TLA-ET-19-12,10TLA-ET-19-12A01,437462.1,7353308.3,bedding,66,336,39,"inclined, upright","younging known, stratigraphic order",measured at station,"black, platy shale"
+10TLA-ET-19-10,10TLA-ET-19-10A01,437712.0,7352596.9,bedding,65,335,30,"inclined, upright","younging known, stratigraphic order",measured at station,"1 m sst at base of exposure, overlain by black shale"
+2009LHA055,2009LHA055B01,441609.0,7355634.0,bedding,70,340,80,"inclined, overturned < 180","younging known, sedimentary structure",measured at station,lower steep overturned limb
+2009LHA046,2009LHA046A01,443698.0,7355497.0,bedding,234,144,30,"inclined, upright","younging known, sedimentary structure",measured at station,crossed anticline since previous station within 50m upstream from station
+10TLA-RICH-09-9,10TLA-RICH-09-9A01,443865.0,7357102.0,bedding,242,152,37,"inclined, upright","younging known, stratigraphic order",measured at station,"rusty weathered grey mudstone, rusty nodules"
+2009LHA044,2009LHA044A01,444179.0,7355548.0,bedding,246,156,35,"inclined, upright","younging known, sedimentary structure",measured at station,concreting layer parallel to bedding
+2009LHA042,2009LHA042A02,444570.0,7355666.0,bedding,213,123,35,"inclined, upright","younging known, sedimentary structure",measured at station,more reliable -10m downstream
+NC1962-116I08-75,NC1962-116-17,446928.0,7353960.0,bedding,80,350,75,"inclined, overturned < 180","younging known, stratigraphic order",measured at station,may be slumped
+10LHA102,10LHA102B01,436127.0,7368565.0,bedding,256,166,44,"inclined, upright","younging known, sedimentary structure",measured at station,sheared
+2009LHA027,2009LHA027A02,433959.0,7363681.0,bedding,295,205,48,"inclined, upright","younging inferred, stratigraphic order",measured at station,modifier: shear
+10TLA-ET-19-9,10TLA-ET-19-9A01,438162.3,7352113.1,bedding,99,9,54,"inclined, upright","younging known, stratigraphic order",measured at station,"black, platy shale"
+2009LHA075,2009LHA075A1,438065.3,7364215.1,bedding,80,350,10,"inclined, upright","younging inferred, stratigraphic order",estimated remotely,no landing- observation from air. Shallow east dip estimated from field photo DSC_0745.
+10LHA138,10LHA138A01,439530.0,7361820.0,bedding,0,360,0,horizontal,"younging known, stratigraphic order",estimated remotely,"air observation, bedding is essentially flat here"
+10TLA-ET-19-3,10TLA-ET-19-3A02,440305.2,7350845.8,bedding,66,336,64,"inclined, upright","younging inferred, stratigraphic order",measured at station,"shale/mudstone, 5-10% slt/vf sst, rusty weathered, parallel laminated"
+10LHA117,10LHA117B03,441484.0,7360044.0,bedding,70,340,60,"inclined, overturned < 180","younging inferred, stratigraphic order",measured at station,
+2009LHA054,2009LHA054B01,442030.0,7355551.0,bedding,262,172,55,"inclined, upright","younging known, sedimentary structure",measured at station,
+2009LHA050,2009LHA050B02,443022.0,7355513.0,bedding,15,285,32,"inclined, upright","younging known, sedimentary structure",measured at station,
+10TLA-RICH-09-10,10TLA-RICH-09-10A01,443604.8,7357238.7,bedding,246,156,50,"inclined, upright","younging known, stratigraphic order",measured at station,"rusty weathered grey mudstone, rusty nodules"
+10TLA-RICH-09-8,10TLA-RICH-09-8A01,443993.7,7357127.3,bedding,235,145,35,"inclined, upright","younging known, stratigraphic order",measured at station,platy black shale
+2009LHA042,2009LHA042A01,444570.0,7355666.0,bedding,154,64,28,"inclined, upright","younging known, sedimentary structure",measured at station,
+10TLA-ET-19-13,10TLA-ET-19-13A01,436540.5,7353300.0,bedding,210,120,25,"inclined, upright","younging known, stratigraphic order",measured at station,"rotten outcrop, rusty weathered bands, 15 cm thick, clay-rich mudstone"
+10LHA137,10LHA137B01,439170.0,7361800.0,bedding,280,190,70,"inclined, upright","younging known, stratigraphic order",estimated remotely,"air observation, beds dip 70 deg downstream, strike uncertain"
+10LHA139,10LHA139B01,439850.0,7362020.0,bedding,75,345,20,"inclined, upright","younging known, stratigraphic order",estimated remotely,"air observation of exposure on south bank, dips become shallower toward the west"
+10TLA-RICH-09-5,10TLA-RICH-09-5A01,445073.3,7356719.0,bedding,248,158,62,"inclined, upright","younging known, stratigraphic order",measured at station,"limestone, black siltstone"
+10TLA-RICH-09-4,10TLA-RICH-09-4A01,445104.3,7356698.3,bedding,251,161,46,"inclined, upright","younging known, stratigraphic order",measured at station,"shale, chert, limestone"
+10TLA-RICH-09-1,10TLA-RICH-09-1A01,445901.5,7356438.7,bedding,260,170,52,"inclined, upright","younging known, stratigraphic order",measured at station,siltstone and vf sandstone
+2009LHA028,2009LHA028C01,436679.0,7371660.0,bedding,51,321,29,"inclined, upright","younging known, sedimentary structure",measured at station,typical
+2009LHA029,2009LHA029A01,438162.0,7373364.0,bedding,246,156,19,"inclined, upright","younging known, sedimentary structure",measured at station,
+2009LHA092,2009LHA092B01,443365.0,7370343.0,bedding,279,189,23,"inclined, upright","younging known, sedimentary structure",measured at station,
+2009LHA086,2009LHA086A04,446041.4,7369630.7,bedding,96,6,82,"inclined, overturned < 180","younging known, sedimentary structure",measured at station,"overturned, short limb of fold"
+2009LHA082,2009LHA082A02,446989.0,7368611.0,bedding,283,193,14,"inclined, upright","younging known, sedimentary structure",measured at station,
+12HRB056,12HRB056A1,449681.0,7373716.0,bedding,250,160,45,"inclined, upright","younging inferred, stratigraphic order",measured at station,"limestone with minor siliciclastics, chert bands and nodules"
+2009LHA025,2009LHA025A03,434326.0,7363506.0,bedding,78,348,67,inclined,no younging evidence,measured at station,sheared and striated
+2009LHA011,2009LHA011A01,436389.0,7354897.0,bedding,58,328,35,"inclined, upright","younging known, sedimentary structure",measured at station,approximately in place probably
+10TLA-ET-19-2,10TLA-ET-19-2A01,440408.3,7350455.6,bedding,47,317,45,"inclined, upright","younging known, stratigraphic order",measured at station,"siltstone, shale, mudstone, vf sst (10%)"
+10TLA-ET-19-1,10TLA-ET-19-1A01,440507.0,7350304.0,bedding,50,320,42,"inclined, upright","younging known, stratigraphic order",measured at station,"siltstone, shale, mudstone, vf sst (10%)"
+2009LHA053,2009LHA053B01,442148.0,7355512.0,bedding,248,158,48,"inclined, upright","younging known, sedimentary structure",measured at station,
+2009LHA052,2009LHA052B01,442672.0,7355506.0,bedding,59,329,18,"inclined, upright","younging known, sedimentary structure",measured at station,
+2009LHA051,2009LHA051B01,442885.0,7355526.0,bedding,282,192,34,"inclined, upright","younging known, sedimentary structure",measured at station,
+2009LHA048,2009LHA048A02,443284.0,7355506.0,bedding,317,227,4,"inclined, upright","younging known, sedimentary structure",measured at station,approximate coarse patterns and concretions long diameter
+10TLA-RICH-09-7,10TLA-RICH-09-7A01,444437.7,7357097.2,bedding,240,150,34,"inclined, upright","younging known, stratigraphic order",measured at station,"basal calcareous nodule unit, chert, shale, NiMo zone"
+NC1962-116I08-75-HE1,NC19620104-4,445308.0,7358980.0,bedding,250,160,35,"inclined, upright","younging inferred, stratigraphic order",estimated remotely,
+10TLA-RICH-09-2,10TLA-RICH-09-2A01,445477.0,7356803.7,bedding,260,170,25,"inclined, upright","younging known, stratigraphic order",measured at station,"black, wafery shale"
+NC1973-116I08-1166HE1,73NC1166HE1A1,446398.0,7350740.0,bedding,265,175,65,"inclined, upright",no younging evidence,estimated remotely,
+12HRB060,12HRB060A1,451422.0,7353824.0,bedding,300,210,22,"inclined, upright","younging inferred, stratigraphic order",measured at station,
+2009LHA015,2009LHA015A03,435918.0,7370867.0,bedding,250,160,75,"inclined, upright","younging known, sedimentary structure",measured at station,"measured in more intact place, use this one"
+2009LHA028,2009LHA028C02,436679.0,7371660.0,bedding,51,321,29,"inclined, upright","younging known, sedimentary structure",measured at station,typical
+2009LHA068,2009LHA068B01,444583.0,7370406.0,bedding,285,195,86,"inclined, upright","younging known, sedimentary structure",measured at station,
+NC1962-116I08-74-HE1,NC19620102-2,444649.0,7369520.0,bedding,280,190,45,"inclined, upright","younging inferred, stratigraphic order",estimated remotely,
+2009LHA090,2009LHA090A01,444972.0,7370422.0,bedding,120,30,57,"inclined, upright","younging known, sedimentary structure",measured at station,
+2009LHA088,2009LHA088A01,445695.0,7370297.0,bedding,230,140,16,"inclined, upright","younging known, sedimentary structure",measured at station,
+2009LHA085,2009LHA085A01,446347.0,7369364.0,bedding,250,160,32,"inclined, upright","younging known, sedimentary structure",measured at station,
+12HRB057,12HRB057A1,446463.0,7374110.0,bedding,272,182,75,"inclined, upright","younging inferred, stratigraphic order",measured at station,"shale and siltstone, calcareous"
+12HRB058,12HRB58A1,453152.0,7361990.0,bedding,270,180,32,"inclined, upright","younging inferred, stratigraphic order",measured at station,minor metre-scale open syncline in outcrop
+12HRB055,12HRB055A1,453769.0,7370647.0,bedding,275,185,22,"inclined, upright","younging inferred, stratigraphic order",measured at station,
+2009LHA026,2009LHA026A03,434275.0,7363343.0,bedding,80,350,30,"inclined, upright","younging known, sedimentary structure",measured at station,crude parting likely approximates bedding
+NC1962-116I08-64,NC1962-116-15,437518.0,7353020.0,bedding,50,320,10,"inclined, upright","younging known, sedimentary structure",measured at station,may be slumped
+10LHA120,10LHA120C02,440167.0,7359380.0,bedding,243,153,70,"inclined, upright","younging known, sedimentary structure",measured at station,more typical sandstone bedding
+10LHA140,10LHA140A01,441269.8,7354050.1,bedding,240,150,40,"inclined, upright",no younging evidence,estimated remotely,"attitude approximate, estimated from the air."
+10LHA119,10LHA119B01,440937.0,7359716.0,bedding,328,238,5,"inclined, upright","younging known, sedimentary structure",measured at station,
+10LHA114,10LHA114A01,442263.0,7360811.0,bedding,217,127,38,"inclined, upright","younging known, sedimentary structure",measured at station,
+2009LHA043,2009LHA043A01,444386.0,7355556.0,bedding,245,155,74,"inclined, upright","younging known, sedimentary structure",measured at station,dominant parting possibly bedding; treat as bedding
+10LHA103,10LHA103A01,435036.2,7368892.5,bedding,265,175,28,"inclined, upright","younging known, sedimentary structure",measured at station,Flute casts seen in outcrop indicate southward paleoflow.
+2009LHA084,2009LHA084A01,446595.0,7369059.0,bedding,260,170,58,"inclined, upright","younging known, sedimentary structure",measured at station,
+2009LHA082,2009LHA082A01,446989.0,7368611.0,bedding,265,175,79,"inclined, upright","younging known, sedimentary structure",measured at station,dominant orientation (west end)
+2009LHA076,2009LHA076B01,439128.0,7364240.0,bedding,250,160,80,inclined,"younging inferred, stratigraphic order",estimated remotely,"estimated from air at station, strike estimated from regional trend and airphotos field photo DSC_0748"
+2010LHA169HE,2010LHA169HE-A1,454402.9,7349160.6,bedding,250,160,20,"inclined, upright","younging inferred, stratigraphic order",estimated remotely,"Quartzite bedding, estimated from air, see outcrop photo DSC_3340"
+12HRB074,12HRB074A001,449470.0,7371902.0,bedding,284,194,42,"inclined, upright","younging inferred, stratigraphic order",measured at station,limestone bedding
+10LHA099,10LHA099C01,437412.0,7367778.0,bedding,87,357,37,"inclined, upright","younging known, sedimentary structure",measured at station,typical bedding orientation for outcrop; flute casts trend 008
+2009LHA087,2009LHA087A03,445915.0,7369798.0,fracture,100,10,79,,younging evidence not applicable,measured at station,shear; local measurement on fault
+NC1973-116I08-1166,1166NC-1,446338.0,7353930.0,bedding,270,180,60,"inclined, upright","younging known, stratigraphic order",measured at station,non-calcareous platy siltstone in two resistant ribs
+10LHA101,10LHA101A01,436385.0,7368498.0,bedding,128,38,23,"inclined, upright","younging known, sedimentary structure",measured at station,approximately in place
+10LHA113,10LHA113A02,442452.0,7360883.0,bedding,245,155,31,"inclined, upright","younging known, sedimentary structure",measured at station,
+2009LHA087,2009LHA087A04,445915.0,7369798.0,fracture,238,148,58,,younging evidence not applicable,measured at station,extension; related to fault
+2009LHA087,2009LHA087A02,445915.0,7369798.0,"fault plane, unknown sense",106,16,77,"inclined, upright",younging evidence not applicable,measured at station,small fault
+10LHA113,10LHA113A01,442452.0,7360883.0,bedding,230,140,29,"inclined, upright","younging known, sedimentary structure",measured at station,
+10LHA112,10LHA112A01,442673.0,7361939.0,bedding,215,125,23,"inclined, upright","younging known, sedimentary structure",measured at station,approximately in place; south end of hilltop
+10LHA105,10LHA105A01,433565.0,7369430.0,bedding,350,260,11,"inclined, upright","younging known, stratigraphic order",measured at station,Orientation approximate
+10LHA112,10LHA112A02,442673.0,7361939.0,bedding,252,162,36,"inclined, upright","younging known, sedimentary structure",measured at station,in place; north end of hill
+10LHA115,10LHA115A03,442140.0,7360539.0,bedding,280,190,27,"inclined, upright","younging known, sedimentary structure",measured at station,
+10LHA115,10LHA115A01,442140.0,7360539.0,bedding,264,174,37,"inclined, upright","younging known, sedimentary structure",measured at station,
+2009LHA087,2009LHA087B06,445915.0,7369798.0,"cleavage, slaty",78,348,75,,younging evidence not applicable,measured at station,west-limb
+10LHA116,10LHA116B01,441700.0,7360352.0,bedding,251,161,74,"inclined, upright","younging known, sedimentary structure",measured at station,
+10LHA115,10LHA115A02,442140.0,7360539.0,bedding,236,146,40,"inclined, upright","younging known, sedimentary structure",measured at station,
+2009LHA049,2009LHA049A01,443115.0,7355507.0,cleavage,72,342,86,vertical,younging evidence not applicable,measured at station,subvertical cleavage
+10LHA099,10LHA099C02,437412.0,7367778.0,bedding,104,14,13,"inclined, upright","younging known, sedimentary structure",measured at station,atypical because beds shallow upstream
+2009LHA087,2009LHA087A05,445915.0,7369798.0,bedding,99,9,51,"inclined, upright","younging known, sedimentary structure",measured at station,west-limb
+2009LHA076,2009LHA076B03,439128.0,7364240.0,bedding,260,170,70,"inclined, upright","younging inferred, stratigraphic order",estimated remotely,Aerial observation of 70 degree west dips  230 m SW from station
+2009LHA076,2009LHA076B02,439128.0,7364240.0,bedding,80,350,20,"inclined, upright","younging inferred, stratigraphic order",estimated remotely,"Imperial Fm  middle mbr, beds dipping 20 degrees east, south bank good exposure, located 400m east of station, photo 747"
+2009LHA087,2009LHA087A01,445915.0,7369798.0,bedding,273,183,57,"inclined, upright","younging known, sedimentary structure",measured at station,east limb

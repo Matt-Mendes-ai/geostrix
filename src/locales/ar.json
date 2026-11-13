@@ -11456,5 +11456,13 @@
   "{n} row(s) with a blank Elev took the ground interpolated between the nearest collars (no terrain).": "أخذ {n} صف (صفوف) بمنسوب فارغ الأرض المستوفاة بين أقرب الفوهات (دون تضاريس).",
   "{n} collar(s) left out of the ground between the collars, their elevation not being ground (assumed at import, or suspect: 0 m among collars far from 0, or a stray): {list}.": "استُبعدت {n} فوهة (فوهات) من الأرض بين الفوهات لأن منسوبها ليس أرضًا (مفترض عند الاستيراد، أو مشكوك فيه: 0 م بين فوهات بعيدة عن 0، أو شاذ): {list}.",
   "Left out: {list}.": "المستبعدة: {list}.",
-  "Zoom to {name}": "تكبير إلى {name}"
+  "Zoom to {name}": "تكبير إلى {name}",
+  "Sample: Mount Raymond mapping (Yukon, no holes)": "مثال: خريطة Mount Raymond (يوكون، بلا ثقوب)",
+  "Load the bundled Mount Raymond sample — a Geological Survey of Canada 1:50 000 bedrock map of the northern Yukon (map units, faults, folds and 119 planar measurements, on a Canadian Digital Elevation Model terrain), no drillholes: try 3D Modelling > Model from map": "تحميل مثال Mount Raymond المرفق: خريطة جيولوجية لصخور الأساس بمقياس 1:50 000 لشمال يوكون من هيئة المسح الجيولوجي الكندية (وحدات الخريطة والصدوع والطيات و119 قياساً مستوياً، على تضاريس من نموذج الارتفاع الرقمي الكندي)، بلا ثقوب حفر: جرّب النمذجة ثلاثية الأبعاد > النمذجة من الخريطة",
+  "Mount Raymond (Geological Survey of Canada, Canadian Geoscience Map 71, northern Yukon): 1:50 000 bedrock mapping only — map units, faults, folds and 119 planar measurements on a terrain — to model from the map, nothing synthesized.": "Mount Raymond (هيئة المسح الجيولوجي الكندية، Canadian Geoscience Map 71، شمال يوكون): خريطة صخور الأساس بمقياس 1:50 000 فقط (وحدات الخريطة والصدوع والطيات و119 قياساً مستوياً على تضاريس) للنمذجة من الخريطة؛ لا شيء مُصطنع.",
+  "Terrain (Canadian Digital Elevation Model, 90 m)": "التضاريس (نموذج الارتفاع الرقمي الكندي، 90 م)",
+  "The Mount Raymond terrain could not be loaded: {message}": "تعذّر تحميل تضاريس Mount Raymond: {message}",
+  "The Mount Raymond layer {name} could not be loaded: {message}": "تعذّر تحميل الطبقة {name} من Mount Raymond: {message}",
+  "The Mount Raymond measurements could not be loaded: {message}": "تعذّر تحميل قياسات Mount Raymond: {message}",
+  "Loaded the Mount Raymond sample (Geological Survey of Canada, Canadian Geoscience Map 71, northern Yukon; 1:50 000 bedrock mapping, no drillholes): {layers} map layer(s), {n} planar measurement(s), mostly bedding, and a terrain from the Canadian Digital Elevation Model. Try 3D Modelling > Model from map. See sample_data/mount_raymond/README.md for the source and the licence.": "تم تحميل مثال Mount Raymond (هيئة المسح الجيولوجي الكندية، Canadian Geoscience Map 71، شمال يوكون؛ خريطة صخور الأساس بمقياس 1:50 000، بلا ثقوب حفر): {layers} طبقة خريطة، و{n} قياساً مستوياً معظمها تطبّق، وتضاريس من نموذج الارتفاع الرقمي الكندي. جرّب النمذجة ثلاثية الأبعاد > النمذجة من الخريطة. انظر sample_data/mount_raymond/README.md للمصدر والترخيص."
 }
