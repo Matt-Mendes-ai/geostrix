@@ -11918,5 +11918,10 @@
   "Not imported: converting {list} to the project's unit would put readings over 100 %, so these columns are probably not in the unit the dialog says. Set their unit in the dialog (the project has them in {units}) and import again.": "Não importado: converter {list} para a unidade do projeto daria leituras acima de 100 %, então estas colunas provavelmente não estão na unidade que o diálogo indica. Defina a unidade delas no diálogo (o projeto as tem em {units}) e importe de novo.",
   "{header} ({n} value(s), up to {max} {unit})": "{header} ({n} valor(es), até {max} {unit})",
   "Converting {list} would put readings over 100 %: set their unit to the one the column is in, or Import will refuse them.": "Converter {list} daria leituras acima de 100 %: defina a unidade delas como a da coluna, ou Importar as recusará.",
-  "As last time in this project: {list}. Change any of them in the list below.": "Como da última vez neste projeto: {list}. Altere qualquer um deles na lista abaixo."
+  "As last time in this project: {list}. Change any of them in the list below.": "Como da última vez neste projeto: {list}. Altere qualquer um deles na lista abaixo.",
+  "Label the parts (3D view and Maps plan)": "Rotular as partes (vista 3D e planta de Mapas)",
+  "Part of the boundary": "Parte do limite",
+  "Every part": "Todas as partes",
+  " Kept 1 in {n} of the file's {seen} readings.": " Mantida 1 a cada {n} das {seen} leituras do arquivo.",
+  "Every reading is one point in the 3D view, and hundreds of thousands make it slow and the project file large. Thinning keeps the map of the survey, but a short anomaly between kept readings can be lost.": "Cada leitura é um ponto na vista 3D, e centenas de milhares a deixam lenta e aumentam o arquivo do projeto. Reduzi-las mantém o mapa do levantamento, mas uma anomalia curta entre leituras mantidas pode se perder."
 }

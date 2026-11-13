@@ -13,8 +13,11 @@ import { t as tr } from "./i18n.js"; // TASKS.csv #1637
 // section's ribbonOrder) name each interval group's ribbon in its heading, so the parallel ribbons can be told apart in print.
 export const LONG_VALUE = 40;
 export function groupSectionLegend(items, ribbons = null) {
-  const rows = (items || []).filter((it) => it && it[0] != null);
-  if (rows.some((it) => it[2])) return rows;
+  const all = (items || []).filter((it) => it && it[0] != null);
+  // TASKS.csv #2669 — a ramp row (a numeric custom layer's) becomes its own group after the others: a heading and five value swatches (rampRows),
+  // which the window's key, its export and Layout's legend all draw; any other row with options means the list was grouped already
+  const ramps = all.filter((it) => it[2]?.ramp), rows = all.filter((it) => !it[2]?.ramp);
+  if (rows.some((it) => it[2])) return all;
   const groups = new Map(), long = new Map();
   for (const [label, color, , pattern] of rows) {
     const s = String(label), i = s.indexOf(": ");
@@ -32,6 +35,7 @@ export function groupSectionLegend(items, ribbons = null) {
     out.push(...list);
     if (long.get(g)) out.push([tr("+ {n} longer description(s) not listed (over {c} characters)", { n: long.get(g), c: LONG_VALUE }), null, { note: true }]);
   }
+  for (const [label, , opt] of ramps) { const rr = rampRows(opt.ramp); if (rr.length) out.push([label, null, { heading: true }], ...rr); }
   return out;
 }
 

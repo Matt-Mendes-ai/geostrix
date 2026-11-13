@@ -129,3 +129,14 @@ export function customLegendGroups(customLayers, customVisible = {}, layerStyles
   }
   return out;
 }
+
+// TASKS.csv #2669 (handed back by side 4) — a section snapshot's legend listed Lithology and the assay classes only: a 'Strat unit' ribbon and the
+// gamma ramp drawn on the section got no key. The section legend's items for the custom layers ON the section (ids): a category layer's
+// classes as 'Layer: class' rows (the section legend groups them under the layer, #1128), a numeric layer as one ramp row, as the 3D legend has them.
+export function sectionCustomLegendItems(customLayers, ids, layerStyles = {}) {
+  const on = (customLayers || []).filter((L) => ids?.has(String(L.id)));
+  return customLegendGroups(on, {}, layerStyles).flatMap((g) => (g.ramp
+    ? [[g.label, null, { ramp: { colors: g.ramp.colors, min: g.ramp.min, max: g.ramp.max, minLabel: g.ramp.minLabel, maxLabel: g.ramp.maxLabel, log: !!g.ramp.log } }]]
+    : g.items.filter(([, c]) => c).map(([n, c]) => [`${g.label}: ${n}`, c])));
+}
+

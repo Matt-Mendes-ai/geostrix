@@ -11918,5 +11918,10 @@
   "Not imported: converting {list} to the project's unit would put readings over 100 %, so these columns are probably not in the unit the dialog says. Set their unit in the dialog (the project has them in {units}) and import again.": "Non importé : convertir {list} dans l'unité du projet donnerait des lectures au-dessus de 100 %, donc ces colonnes ne sont probablement pas dans l'unité indiquée par la boîte de dialogue. Réglez leur unité dans la boîte de dialogue (le projet les a en {units}) et importez de nouveau.",
   "{header} ({n} value(s), up to {max} {unit})": "{header} ({n} valeur(s), jusqu'à {max} {unit})",
   "Converting {list} would put readings over 100 %: set their unit to the one the column is in, or Import will refuse them.": "Convertir {list} donnerait des lectures au-dessus de 100 % : réglez leur unité sur celle de la colonne, sinon Importer les refusera.",
-  "As last time in this project: {list}. Change any of them in the list below.": "Comme la dernière fois dans ce projet : {list}. Modifiez-en un dans la liste ci-dessous."
+  "As last time in this project: {list}. Change any of them in the list below.": "Comme la dernière fois dans ce projet : {list}. Modifiez-en un dans la liste ci-dessous.",
+  "Label the parts (3D view and Maps plan)": "Étiqueter les parties (vue 3D et plan de Cartes)",
+  "Part of the boundary": "Partie de la limite",
+  "Every part": "Toutes les parties",
+  " Kept 1 in {n} of the file's {seen} readings.": " 1 lecture sur {n} conservée parmi les {seen} du fichier.",
+  "Every reading is one point in the 3D view, and hundreds of thousands make it slow and the project file large. Thinning keeps the map of the survey, but a short anomaly between kept readings can be lost.": "Chaque lecture est un point dans la vue 3D, et des centaines de milliers la ralentissent et alourdissent le fichier du projet. Les réduire garde la carte du levé, mais une anomalie courte entre deux lectures conservées peut être perdue."
 }

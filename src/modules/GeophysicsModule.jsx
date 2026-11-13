@@ -4,6 +4,7 @@ import { exportCrs, terrainToWorld, tiedExportNote } from "../lib/tiedExport.js"
 import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565; requestModuleAction: #1152
 import { askAdoptCrs, projectEpsgChooser, medianLonLat } from "../lib/adoptCrs.js"; // TASKS.csv #607; medianLonLat: #2833
 import { gemHeaderEpsg, KEEP_CHOICES, suggestKeepEvery, everyNth, batchSurveyName, pairGpsFile } from "../lib/xyzBatch.js"; // TASKS.csv #1329
+const THIN_FROM_ROWS = 100000; // TASKS.csv #3208 — a file read whole over this many readings offers thinning
 import BlockModelMappingModal from "../components/BlockModelMappingModal.jsx"; // TASKS.csv #410
 import { guessBlockModelMapping, numericColumns, importBlockModelAttrs } from "../lib/blockModelCsv.js"; // importBlockModelAttrs: #1671 (in a worker)
 import { parseTableFile, toExportCsv, skipPreamble } from "../lib/tabular.js"; // TASKS.csv #444; toExportCsv: #1094; skipPreamble: #1666
@@ -44,7 +45,7 @@ import { geosoftHeaderEpsg, xyLookLikeDegrees } from "../lib/stationDegrees.js";
 import { omfToProjectObjectsAsync } from "../lib/omfImport.js"; // TASKS.csv #637; #1280
 import { isDcip2dMeshText } from "../lib/ubc2d.js"; // TASKS.csv #1348
 import { parseUBCMesh, isUBCMeshText, parseUBCModelStream, maskAirCells, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel, coarsenRecord, wantsLogMean, MEAN_RULE } from "../lib/voxel.js"; // coarsenRecord: #1095
-import { parsePLYBoundary, parseXYZ, guessXyzChannels } from "../lib/geosoft.js";
+import { parsePLYBoundary, parseXYZ, guessXyzChannels, onlyValueLeft /* #3208 */ } from "../lib/geosoft.js";
 import { gridPairs, stationPlacer, nearestStationZ, looksLikeLocalGrid } from "../lib/gridFromStations.js"; // TASKS.csv #1326
 import { parseStationFile } from "../lib/dcipStations.js";
 import { gemHeaderInfo, fileNameDate, parseBaseStation, diurnalCorrect, batchDiurnalPlan } from "../lib/diurnal.js"; // fileNameDate…: TASKS.csv #1585
@@ -1302,14 +1303,17 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const text = await file.text();
       const { columns, rows: parsedRows } = parseXYZ(text);
       const g = guessXyzChannels(columns, parsedRows); // #600 — first guesses; the picker still shows every column
+      const gx = guessColumn(columns, XY_NAME_HINTS.x), gy = guessColumn(columns, XY_NAME_HINTS.y);
       setXyzPending({
         fileName: file.name,
         columns,
         rows: parsedRows,
-        xCol: guessColumn(columns, XY_NAME_HINTS.x),
-        yCol: guessColumn(columns, XY_NAME_HINTS.y),
+        xCol: gx,
+        yCol: gy,
         zCol: g.z,
-        valueCol: g.value,
+        valueCol: g.value || onlyValueLeft(columns, [gx, gy, g.z].filter(Boolean), parsedRows), // #3208 — the one column left
+        // TASKS.csv #3208 — over 100,000 readings read whole: the same 'Keep 1 in n' as a streamed file (#1351); 245,066 IP points froze the app ~6 s
+        ...(parsedRows.length > THIN_FROM_ROWS ? { thin: { total: parsedRows.length, keepEvery: suggestKeepEvery(parsedRows.length, undefined, (layers.geophys_pts || []).length) } } : {}),
         header: gemHeaderInfo(text), // #610 — survey date / UTC offset, for matching base-station files
         headerEpsg: gemHeaderEpsg(text) || geosoftHeaderEpsg(text), // #1329; a Geosoft header: #2832
         ...cleaningDefaults(columns), // #1583
@@ -1479,7 +1483,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (xyzPending.batch) { confirmBatchXYZ(); return; } // #1329
     if (xyzPending.stream && !Array.isArray(streamedRows)) { confirmStreamed(); return; } // #1351 — read the whole file first, thinned
     const { fileName, xCol, yCol, zCol, valueCol } = xyzPending;
-    const parsedRows = Array.isArray(streamedRows) ? streamedRows : xyzPending.rows;
+    const thinBy = !Array.isArray(streamedRows) && xyzPending.thin?.keepEvery > 1 ? xyzPending.thin.keepEvery : 1; // #3208
+    const parsedRows = Array.isArray(streamedRows) ? streamedRows : everyNth(xyzPending.rows, thinBy);
+    if (thinBy > 1) streamNote = `${streamNote || ""}${tr(" Kept 1 in {n} of the file's {seen} readings.", { n: thinBy, seen: xyzPending.rows.length.toLocaleString() })}`;
     if (!xCol || !yCol || !valueCol) {
       setXyzError({ info: false, text: tr("Pick an X, Y, and Value column before importing.") });
       return;
@@ -2019,6 +2025,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               <input type="checkbox" checked={!!xyzPending.despike} onChange={(e) => setXyzPending((p) => ({ ...p, despike: e.target.checked }))} />
               <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("drop readings more than 6 MAD from the running median along their line")}</span>
             </label>
+            {xyzPending.thin && !xyzPending.stream && ( /* TASKS.csv #3208 — a big file read whole: how many readings to keep */
+              <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: "var(--font-size-sm)" }} title={tr("Every reading is one point in the 3D view, and hundreds of thousands make it slow and the project file large. Thinning keeps the map of the survey, but a short anomaly between kept readings can be lost.")}>
+                <span style={{ color: "var(--color-text-faint)", width: 140, flexShrink: 0 }}>{tr("Keep")}</span>
+                <select value={xyzPending.thin.keepEvery} aria-label={tr("How many readings to keep")} onChange={(e) => setXyzPending((p) => ({ ...p, thin: { ...p.thin, keepEvery: Number(e.target.value) } }))} style={{ flex: 1, minWidth: 0 }}>
+                  {KEEP_CHOICES.map((n) => <option key={n} value={n}>{n === 1 ? tr("Every reading (about {rows} points)", { rows: xyzPending.thin.total.toLocaleString() }) : tr("1 in {n} (about {rows} points)", { n, rows: Math.round(xyzPending.thin.total / n).toLocaleString() })}</option>)}
+                </select>
+              </label>
+            )}
             {xyzPending.stream && ( /* TASKS.csv #1351 — how many readings of the big file to keep */
               <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: "var(--font-size-sm)" }} title={tr("Every reading is one point in the 3D view, and hundreds of thousands make it slow and the project file large. Thinning keeps the map of the survey, but a short anomaly between kept readings is lost.")}>
                 <span style={{ color: "var(--color-text-faint)", width: 140, flexShrink: 0 }}>{tr("Keep")}</span>
@@ -2580,7 +2594,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             </div>
             {b.partNames?.some(Boolean) && ( /* TASKS.csv #2673 — the parts' names as labels in the 3D view (hovering a part names it anyway) */
               <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5, cursor: "pointer", color: "var(--color-text-caption)", fontSize: "var(--font-size-sm)" }}>
-                <input type="checkbox" checked={!!b.partLabels} onChange={(e) => updateBoundary(b.id, { partLabels: e.target.checked })} />{tr("Label the parts in the 3D view")}
+                <input type="checkbox" checked={!!b.partLabels} onChange={(e) => updateBoundary(b.id, { partLabels: e.target.checked })} />{tr("Label the parts (3D view and Maps plan)")}
               </label>
             )}
             {b.partNames?.some(Boolean) && ( /* TASKS.csv #1767 — the parts' own names, from the file */
