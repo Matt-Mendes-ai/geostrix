@@ -11498,5 +11498,6 @@
   "Zoom to {name}": "تكبير إلى {name}",
   "This block model was estimated from the checked holes by an earlier version, which counted every unchecked hole as drilling with no sample: some of these flags may be wrong. Estimate it again to refresh them.": "قُدِّر نموذج الكتل هذا من ثقوب الحفر المحددة بإصدار سابق كان يعدّ كل ثقب غير محدد حفرًا بلا عينة: قد يكون بعض هذه العلامات خاطئًا. قدِّره مرة أخرى لتحديثها.",
   "Line thickness": "سماكة الخط",
-  "The width of the symbols' lines, as a multiple of the USGS standard's line weight; in the 3D view, the Google Earth icons, the legends and the Layout": "عرض خطوط الرموز، كمضاعف لسماكة الخط في معيار USGS؛ في العرض ثلاثي الأبعاد وأيقونات Google Earth ووسائل الإيضاح والتخطيط"
+  "The width of the symbols' lines, as a multiple of the USGS standard's line weight; in the 3D view, the Google Earth icons, the legends and the Layout": "عرض خطوط الرموز، كمضاعف لسماكة الخط في معيار USGS؛ في العرض ثلاثي الأبعاد وأيقونات Google Earth ووسائل الإيضاح والتخطيط",
+  "Of the time, loading the engine took {a} s (each run starts it afresh), the fit {b} s and the grid {c} s.": "من هذا الوقت، استغرق تحميل المحرك {a} ث (كل تشغيل يبدؤه من جديد)، والملاءمة {b} ث، والشبكة {c} ث."
 }

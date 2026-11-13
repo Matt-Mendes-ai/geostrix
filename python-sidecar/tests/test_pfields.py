@@ -56,8 +56,13 @@ def check_eqs():
     req = {"x": x.tolist(), "y": y.tolist(), "z": z.tolist(), "value": v.tolist(), "cell": 50.0, "elevation": 150.0,
            "region": [500100.0, 501900.0, 6000100.0, 6001900.0], "blank": 150.0}
     t = time.perf_counter()
-    out = eqs(req, lambda ev: None)
+    events = []
+    out = eqs(req, events.append)
     ms = (time.perf_counter() - t) * 1000
+    # TASKS.csv #2955 — the engine load is said first and timed, the fit and the grid timed, all in the result
+    assert events[0]["stage"] == "loading" and events[0]["message"].startswith("Loading the gridding engine"), events[0]
+    assert "engine loaded in" in events[1]["message"] and events[1]["stage"] == "fitting"
+    assert set(out["timings"]) == {"load", "fit", "grid"} and all(v >= 0 for v in out["timings"].values()), out["timings"]
     vals = np.frombuffer(base64.b64decode(out["values"]), dtype="<f4").reshape(out["ny"], out["nx"])  # row 0 north
     e = out["x0"] + out["dx"] * np.arange(out["nx"])
     nn = out["yTop"] - out["dy"] * np.arange(out["ny"])

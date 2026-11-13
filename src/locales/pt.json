@@ -11498,5 +11498,6 @@
   "Zoom to {name}": "Aproximar de {name}",
   "This block model was estimated from the checked holes by an earlier version, which counted every unchecked hole as drilling with no sample: some of these flags may be wrong. Estimate it again to refresh them.": "Este modelo de blocos foi estimado a partir dos furos marcados por uma versão anterior, que contava cada furo não marcado como perfuração sem amostra: algumas destas marcações podem estar erradas. Estime-o novamente para atualizá-las.",
   "Line thickness": "Espessura da linha",
-  "The width of the symbols' lines, as a multiple of the USGS standard's line weight; in the 3D view, the Google Earth icons, the legends and the Layout": "A largura das linhas dos símbolos, como múltiplo da espessura de linha do padrão USGS; na vista 3D, nos ícones do Google Earth, nas legendas e no Layout"
+  "The width of the symbols' lines, as a multiple of the USGS standard's line weight; in the 3D view, the Google Earth icons, the legends and the Layout": "A largura das linhas dos símbolos, como múltiplo da espessura de linha do padrão USGS; na vista 3D, nos ícones do Google Earth, nas legendas e no Layout",
+  "Of the time, loading the engine took {a} s (each run starts it afresh), the fit {b} s and the grid {c} s.": "Do tempo, carregar o motor levou {a} s (cada execução o inicia de novo), o ajuste {b} s e a grade {c} s."
 }

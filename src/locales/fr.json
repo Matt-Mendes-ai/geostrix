@@ -11498,5 +11498,6 @@
   "Zoom to {name}": "Zoomer sur {name}",
   "This block model was estimated from the checked holes by an earlier version, which counted every unchecked hole as drilling with no sample: some of these flags may be wrong. Estimate it again to refresh them.": "Ce modèle de blocs a été estimé à partir des sondages cochés par une version antérieure, qui comptait chaque sondage non coché comme du forage sans échantillon : certains de ces indicateurs peuvent être faux. Estimez-le de nouveau pour les mettre à jour.",
   "Line thickness": "Épaisseur des traits",
-  "The width of the symbols' lines, as a multiple of the USGS standard's line weight; in the 3D view, the Google Earth icons, the legends and the Layout": "La largeur des traits des symboles, en multiple de l'épaisseur de trait de la norme USGS ; dans la vue 3D, les icônes Google Earth, les légendes et la mise en page"
+  "The width of the symbols' lines, as a multiple of the USGS standard's line weight; in the 3D view, the Google Earth icons, the legends and the Layout": "La largeur des traits des symboles, en multiple de l'épaisseur de trait de la norme USGS ; dans la vue 3D, les icônes Google Earth, les légendes et la mise en page",
+  "Of the time, loading the engine took {a} s (each run starts it afresh), the fit {b} s and the grid {c} s.": "Sur ce temps, le chargement du moteur a pris {a} s (chaque calcul le relance), l'ajustement {b} s et la grille {c} s."
 }
