@@ -11460,5 +11460,6 @@
   "{n} row(s) with a blank Elev took the ground interpolated between the nearest collars (no terrain).": "{n} fila(s) con la cota en blanco tomaron el terreno interpolado entre los collares más cercanos (sin terreno).",
   "{n} collar(s) left out of the ground between the collars, their elevation not being ground (assumed at import, or suspect: 0 m among collars far from 0, or a stray): {list}.": "{n} collar(es) quedaron fuera del terreno entre los collares, porque su cota no es terreno (asumida al importar, o sospechosa: 0 m entre collares lejos de 0, o aislada): {list}.",
   "Left out: {list}.": "Quedaron fuera: {list}.",
-  "Zoom to {name}": "Acercar a {name}"
+  "Zoom to {name}": "Acercar a {name}",
+  "This block model was estimated from the checked holes by an earlier version, which counted every unchecked hole as drilling with no sample: some of these flags may be wrong. Estimate it again to refresh them.": "Este modelo de bloques se estimó a partir de los sondajes marcados con una versión anterior, que contaba cada sondaje no marcado como perforación sin muestra: algunas de estas marcas pueden ser erróneas. Estímelo de nuevo para actualizarlas."
 }

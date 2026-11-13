@@ -54,7 +54,7 @@ test("on a dipping layered body, pairs below the contact vary far less than leve
 test("the Variogram offers the generated surfaces as the plane and pairs the flattened composites", () => {
   const m = readFileSync(new URL("../src/components/VariogramModal.jsx", import.meta.url), "utf8");
   assert.match(m, /<optgroup label=\{tr\("Below a generated surface \(flattened\)"\)\}>/);
-  assert.match(m, /const fl = flattenOnSurface\(tPoints, surfaceElevation\(usePlane\.surface\.vertices, usePlane\.surface\.indices\)\);/);
+  assert.match(m, /flattenOnSurface\(tPoints, surfaceElevation\(usePlane\.surface\.vertices, usePlane\.surface\.indices\)\)/); // kept between Computes since #3061
   assert.match(m, /(experimentalVariogram|vgClient\.current\.variogram)\(vgPoints, /); // in the worker since #3009
   assert.match(m, /lastRun\.current = \{ points: vgPoints, /, "the direction table pairs the same points");
   assert.match(m, /tr\("\{n\} composites lie outside the surface's footprint and are left out\."/);

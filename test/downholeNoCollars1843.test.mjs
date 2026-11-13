@@ -30,6 +30,6 @@ test("a downhole variogram runs on them, with pairs from the first lag", () => {
 test("the dialog places them only for Downhole only, and says so", () => {
   const m = readFileSync(new URL("../src/components/VariogramModal.jsx", import.meta.url), "utf8");
   assert.match(m, /const byDepth = holeMode === "downhole" \? downholeLinePoints\(intervals, new Set\(placed3d\.map\(\(p\) => p\.hole_id\)\)\) : \{ points: \[\], holes: 0 \};/);
-  assert.match(m, /const dropped = Math\.max\(0, dropped3d - byDepth\.points\.length\);/);
+  assert.match(m, /dropped: Math\.max\(0, dropped3d - byDepth\.points\.length\)/); // in the kept composites since #3061
   assert.match(m, /result\.byDepthHoles > 0 && <div/);
 });

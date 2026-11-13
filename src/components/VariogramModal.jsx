@@ -8,6 +8,7 @@ import { excludeQAQC, labAssays } from "../lib/qaqc.js"; // TASKS.csv #266 — s
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #2552
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2552
 import { samplePointsFromIntervals } from "../lib/estimation.js";
+import { makeRunCache } from "../lib/runCache.js"; // TASKS.csv #3061
 import { desurveyHole } from "../lib/desurvey.js";
 import {
   fitVariogramModel, /* experimentalVariogram, directionRow: in the worker since #3009 */ variogramModelValue, VARIOGRAM_MODELS, verticalShare /* #3015 */,
@@ -87,6 +88,10 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
   const [transform, setTransform] = useState("none");
   const [estimator, setEstimator] = useState("matheron"); // TASKS.csv #1996
   const lastRun = React.useRef(null); // #1996 — the last run's points and settings, for the direction table
+  // TASKS.csv #3061 — the composites (and the points the variogram pairs) kept between Compute presses while what makes them is the same:
+  // the same points array also goes to the worker only once (lib/variogramClient.js names it by identity)
+  const compCache = React.useRef(null), pointCache = React.useRef(null), flatCache = React.useRef(null);
+  if (!compCache.current) { compCache.current = makeRunCache(); pointCache.current = makeRunCache(); flatCache.current = makeRunCache(); }
   const [dirTable, setDirTable] = useState(null); // { rows, done } while it fills
   const [capPercentile, setCapPercentile] = useState(98);
 
@@ -144,32 +149,41 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
     // forever (the exact bug TASKS.csv #258's verification found in GradeEstimationModal).
     setTimeout(async () => {
       try {
-        const filled = uns.apply(srcAssays); // #2417 / #2542 — barren: the unsampled metres filled at the typed value
-        const intervals = compositeDownhole(filled.assays, symbol, unit, elementUnits, {
-          length: compositeLength, minCoverage,
-          domainRows: domainChoice ? domainChoice.rows : null, // #1571
-        });
+        // TASKS.csv #3061 — composited and placed once per element / length / coverage / domain layer / unsampled reading / hole mode
+        const comp = compCache.current.get([srcAssays, uns.ready, uns.mode, uns.value, uns.logKey, uns.logFactor, uns.alsoUnassayed, layers, customLayers, symbol, unit, elementUnits, compositeLength, minCoverage, domainChoice ? domainChoice.rows : null, collars, survey, desurveyMethod, holeMode], () => {
+          const filled = uns.apply(srcAssays); // #2417 / #2542 — barren: the unsampled metres filled at the typed value
+          const intervals = compositeDownhole(filled.assays, symbol, unit, elementUnits, {
+            length: compositeLength, minCoverage,
+            domainRows: domainChoice ? domainChoice.rows : null, // #1571
+          });
+          if (!intervals.length) return { filled, intervals };
+          const { points: placed3d, dropped: dropped3d } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole, desurveyMethod); // #135
+          // TASKS.csv #1843 — Downhole only needs depths: the holes that could not be placed in 3D are placed by depth along the hole
+          const byDepth = holeMode === "downhole" ? downholeLinePoints(intervals, new Set(placed3d.map((p) => p.hole_id))) : { points: [], holes: 0 };
+          return { filled, intervals, byDepth, allPoints: byDepth.points.length ? [...placed3d, ...byDepth.points] : placed3d, dropped: Math.max(0, dropped3d - byDepth.points.length) };
+        }).value;
+        const { filled, intervals, byDepth, allPoints, dropped } = comp;
         if (!intervals.length) { setError(tr("Compositing produced no intervals — check the element and composite length.")); setRunning(false); return; }
-        const { points: placed3d, dropped: dropped3d } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole, desurveyMethod); // #135
-        // TASKS.csv #1843 — Downhole only needs depths: the holes that could not be placed in 3D are placed by depth along the hole
-        const byDepth = holeMode === "downhole" ? downholeLinePoints(intervals, new Set(placed3d.map((p) => p.hole_id))) : { points: [], holes: 0 };
-        const allPoints = byDepth.points.length ? [...placed3d, ...byDepth.points] : placed3d;
-        const dropped = Math.max(0, dropped3d - byDepth.points.length);
         if (!allPoints.length) { setError(collars.length ? tr("No composite could be placed in 3D — check that holes have collars and (ideally) survey data.") : noCollarsNotice(tr("the variogram"), layers, srcAssays).text); setRunning(false); return; } // #1841 — no collars at all: say what is waiting
 
-        let points = allPoints;
-        let domainLabel = null;
-        if (domainKey && domainValue !== "__all__") {
-          const grouped = groupPointsByDomain(allPoints);
-          points = grouped.get(domainValue === "__none__" ? null : domainValue) || [];
-          domainLabel = domainValue === "__none__" ? "(no domain)" : domainValue;
+        // #3061 — the domain's points and their transform, kept with the composites they come from
+        const pick = pointCache.current.get([allPoints, domainKey, domainValue, transform, capPercentile], () => {
+          let points = allPoints, domainLabel = null;
+          if (domainKey && domainValue !== "__all__") {
+            points = groupPointsByDomain(allPoints).get(domainValue === "__none__" ? null : domainValue) || [];
+            domainLabel = domainValue === "__none__" ? "(no domain)" : domainValue;
+          }
+          return { points, domainLabel, tf: points.length >= 20 || !domainLabel ? applyValueTransform(points, transform, capPercentile) : null }; // p95 / floor: #1746
+        }).value;
+        const { points, domainLabel } = pick;
+        if (domainLabel) {
           if (points.length < 20) {
             setError(tr("Domain \"{domainLabel}\" has only {points} composites — too few for a variogram worth reading (a lag bin needs ~30 pairs to mean anything).", { domainLabel, points: points.length }));
             setRunning(false); return;
           }
         }
 
-        const { points: tPoints, capValue, p95: tP95 = null, floor: tFloor = null } = applyValueTransform(points, transform, capPercentile); // p95 / floor: #1746
+        const { points: tPoints, capValue, p95: tP95 = null, floor: tFloor = null } = pick.tf; // p95 / floor: #1746; kept: #3061
         // TASKS.csv #1027 — downhole pairs: the downhole spacing; all / between-hole pairs: the spacing between holes
         const between = holeMode === "downhole" ? null : suggestBetweenHoleLag(tPoints);
         // TASKS.csv #2221 — the drill sites of the holes in this run (collars within 25 m are one site)
@@ -197,7 +211,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
         // TASKS.csv #2710 — below a surface: each composite's elevation becomes its depth below it, then the pairs are level within ± half
         let vgPoints = tPoints, flatOutside = 0;
         if (usePlane?.surface) {
-          const fl = flattenOnSurface(tPoints, surfaceElevation(usePlane.surface.vertices, usePlane.surface.indices));
+          const fl = flatCache.current.get([tPoints, usePlane.surface], () => flattenOnSurface(tPoints, surfaceElevation(usePlane.surface.vertices, usePlane.surface.indices))).value; // #3061 — kept too
           vgPoints = fl.points; flatOutside = fl.outside;
           if (vgPoints.length < 20) { setError(tr("Only {n} composites lie over \"{name}\": too few to pair below it.", { n: vgPoints.length, name: flatLabels.get(usePlane.surface.id) ?? usePlane.surface.name })); setRunning(false); return; }
         }
