@@ -32,6 +32,7 @@ import { qcRecordFromFileRow, emptySurfaceQc, looksLikeQcTypeColumn, mergeQcReco
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
 import { detectLongAssay, pivotLongAssays, longAssayNote } from "../lib/longAssays.js"; // TASKS.csv #623
 import { isSurfaceSampleTable, surfaceXYColumns } from "../lib/viewer/importHelpers.js"; // TASKS.csv #975; surfaceXYColumns: #2564
+import { seedFromProject, projectImportChoices, importChoicesOf, conversionsOver100 } from "../lib/assayReimport.js"; // TASKS.csv #3217
 import { assayFileSummary, removeAssayFile, removeAssayElement, carbonateShare, VOLCANIC_DIAGRAMS, LOI, isLoiHeader, readLoiCell, projectKeepsOxide, unitBasis, oxideAliases } from "../lib/geochem.js"; // oxideAliases: #2914; // LOI: #2734; // TASKS.csv #624; carbonateShare: #1392
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #624
 import ElementBasisSelect from "../components/ElementBasisSelect.jsx"; // TASKS.csv #2627
@@ -440,7 +441,7 @@ export default function GeochemModule() {
       const methods = methodCol ? Array.from(new Set(data.map((r) => r[methodCol]).filter(Boolean))) : [];
       const analytes = Array.from(new Set(data.map((r) => r[analyteCol]).filter(Boolean)));
       const elements = analytes.filter(isElementColumn).map((sym) => ({ symbol: sym, header: sym, unit: inferUnit(sym, sym), checked: true }));
-      setAssayModal({ file, fileName: file.name, format: "long", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol, analyte: analyteCol, value: valueCol, method: methodCol }, qc: qcColumns(headers), methods, selectedMethod: methods[0] || null, elements, ...preset });
+      setAssayModal({ file, fileName: file.name, format: "long", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol, analyte: analyteCol, value: valueCol, method: methodCol }, qc: qcColumns(headers), methods, selectedMethod: methods[0] || null, elements, ...projectImportChoices(assayElements, elements.map((e) => e.symbol)) /* #3217 */, ...preset });
     } else {
       // TASKS.csv #210 — a single lab export can carry more than one column for the same element
       // (e.g. this session's real pXRF sample data has "Ag_XRF_Corrected_ppm_D", "Ag_pXRF_ppm", AND
@@ -456,8 +457,11 @@ export default function GeochemModule() {
       // TASKS.csv #2164 — a big table's element columns are counted in one chunked pass (status-bar progress) before the dialog opens: one
       // pass per column on the main thread froze the window (0.85 s on 590,000 rows x 30 elements)
       const openWide = (stats) => {
-        const elements = pickElementColumns(headers, data, stats).map((e) => ({ ...e, mainHeader: e.header, checked: e.n > 0 })); // #1389 — a column with no value in any row stays unticked
-        setAssayModal({ file, fileName: file.name, format: "wide", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol }, qc: qcColumns(headers), methods: [], selectedMethod: null, elements, ...preset });
+        const picked = pickElementColumns(headers, data, stats).map((e) => ({ ...e, mainHeader: e.header, checked: e.n > 0 })); // #1389 — a column with no value in any row stays unticked
+        // TASKS.csv #3217 — headers the project already holds open with last time's column, unit and choices (a re-import multiplied seven
+        // elements set to ppm by hand by 10,000), and the columns added by hand then are offered again
+        const { elements } = seedFromProject(picked, assayElements, headers);
+        setAssayModal({ file, fileName: file.name, format: "wide", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol }, qc: qcColumns(headers), methods: [], selectedMethod: null, elements, ...projectImportChoices(assayElements, elements.map((e) => e.symbol)), ...preset });
       };
       if (data.length < ELEMENT_SCAN_CHUNKED_ROWS) { openWide(null); return; }
       const scanLabel = tr("Checking the element columns of {name}…", { name: file.name });
@@ -580,6 +584,13 @@ export default function GeochemModule() {
     const existingUnit = Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit]));
     const chosenBySymbol = new Map(chosen.map((e) => [e.symbol, e]));
     const converted = chosen.filter((e) => existingUnit[e.symbol] && existingUnit[e.symbol] !== importStoreUnit(e)); // #2487: the stored unit
+    // TASKS.csv #3217 — a conversion that would put readings over 100 % is refused, not applied and then reported: the column is not in the
+    // unit the dialog says (ppm under a _pct name), and converting it would damage the project's earlier, correct values. The dialog stays open.
+    const badConv = format === "wide" ? conversionsOver100(allRows, converted) : [];
+    if (badConv.length) {
+      setNotices((p) => [...p, errorNotice(tr("Not imported: converting {list} to the project's unit would put readings over 100 %, so these columns are probably not in the unit the dialog says. Set their unit in the dialog (the project has them in {units}) and import again.", { list: badConv.map((b) => tr("{header} ({n} value(s), up to {max} {unit})", { header: b.header, n: b.n.toLocaleString(), max: b.max.toLocaleString(), unit: b.unit })).join(", "), units: [...new Set(badConv.map((b) => existingUnit[b.symbol]))].join(", ") }))]);
+      return;
+    }
     // TASKS.csv #333 — negative lab/database codes resolved at import (see readAssayCell).
     const negativeMode = modal.negativeMode || "bdl";
     let negBdl = 0, negMissing = 0, negOver = 0;
@@ -788,7 +799,7 @@ export default function GeochemModule() {
     const { merged: mergedCount, repeatedInFile } = mergeRes;
     setAssays((prev) => (prev === assays ? mergeRes.rows : mergeAssayRows(replaceHoles.length ? dropHoleAssays(prev, replaceHoles) : prev, rows).rows));
     // Existing elements keep their unit (#334); only new symbols add an entry.
-    setAssayElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (merged.has(e.symbol) && e.methods) { const m = merged.get(e.symbol); merged.set(e.symbol, { ...m, methods: [...new Set([...(m.methods || []), ...e.methods])] }); } /* #1518 */ if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: importStoreUnit(e) } : e); }); return Array.from(merged.values()); }); // #403: oxide-sourced elements are stored in % (#2157: or the ppm / ppb the header says; #2487: or as the oxide, "% Li2O")
+    setAssayElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (merged.has(e.symbol) && e.methods) { const m = merged.get(e.symbol); merged.set(e.symbol, { ...m, methods: [...new Set([...(m.methods || []), ...e.methods])] }); } /* #1518 */ if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: importStoreUnit(e) } : e); }); const last = importChoicesOf(modal); chosen.forEach((e) => { const m = merged.get(e.symbol); if (m) merged.set(e.symbol, { ...m, lastImport: last }); }); /* #3217 — the next import of these opens with them */ return Array.from(merged.values()); }); // #403: oxide-sourced elements are stored in % (#2157: or the ppm / ppb the header says; #2487: or as the oxide, "% Li2O")
     if (!colorElement && chosen.length) setColorElement((chosen.find((e) => e.symbol === "Au") || chosen[0]).symbol);
     const more = (list, k) => list.slice(0, k).map((h) => h.hole_id).join(", ") + (list.length > k ? ", …" : "");
     const extra = [

@@ -2,6 +2,7 @@ import { QC_COLUMN_KEYS } from "../lib/assayQcColumns.js"; // TASKS.csv #1184
 import React, { useEffect, useMemo, useState } from "react";
 import { X } from "./icons.js";
 import { percentColumnsReadingPpm } from "../lib/percentAsPpm.js"; // TASKS.csv #3197
+import { conversionsOver100 } from "../lib/assayReimport.js"; // TASKS.csv #3217
 import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, UNIT_ONLY_SYMBOLS, unitAssumed, repeatColumns, numberedRepeatCandidates, oxideOfHeader, keepsOxide, importStoreUnit, oxidesOver100, LOI } from "../lib/geochem.js"; // LOI: #2887; // importStoreUnit, oxidesOver100: #2490 // numberedRepeatCandidates: #2350 // repeatColumns: #2194; oxide basis: #2487
 import { scanAssayColumns, negativeSummary, zeroCount, blankCount } from "../lib/assayColumnScan.js"; // TASKS.csv #2164
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -47,6 +48,10 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
   // TASKS.csv #334 — elements already in the project under a different unit get converted on import.
   // #2490 — against the unit the import will actually store (an oxide column's own basis), not the box's raw text
   const unitClashes = modal.elements.filter((e) => e.checked && existingUnits[e.symbol] && existingUnits[e.symbol] !== importStoreUnit(e));
+  // TASKS.csv #3217 — a conversion that would put readings over 100 %: refused at Import, said here first
+  const clashKey = unitClashes.map((e) => `${e.symbol}:${e.header}:${e.unit}`).join("|");
+  const clashOver = useMemo(() => (modal.format === "wide" ? conversionsOver100(modal.allRows || [], modal.elements.filter((e) => e.checked && existingUnits[e.symbol] && existingUnits[e.symbol] !== importStoreUnit(e))) : []), [modal.format, modal.allRows, clashKey]); // clashKey stands for the clashes
+  const lastTime = modal.elements.filter((e) => e.checked && e.asLastTime); // #3217 — seeded from the project
   // TASKS.csv #3197 — per-cent columns whose values run far past 100 (median over 100: ppm under a _pct name), said here, where the unit menu is
   const pctAsPpm = useMemo(() => (modal.format === "wide" ? percentColumnsReadingPpm(modal.allRows || [], modal.elements.filter((e) => e.checked)) : []), [modal.format, modal.allRows, modal.elements]);
   const over100 = useMemo(() => (modal.format === "wide" ? oxidesOver100(modal.allRows || [], modal.elements.filter((e) => e.checked), modal.mapping || {}) : []), [modal.format, modal.allRows, modal.elements, modal.mapping]); // #2490
@@ -65,8 +70,8 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
   const checkedKey = modal.elements.filter((e) => e.checked).map((e) => `${e.symbol}:${e.header}`).join("|");
   const numbered = useMemo(() => (modal.format === "long" ? [] : numberedRepeatCandidates(modal.headers || [], modal.allRows || [], modal.elements.filter((e) => e.checked))), [modal.format, modal.headers, modal.allRows, checkedKey]);
   const toggleEl = (sym) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, checked: !e.checked } : e) });
-  const setUnit = (sym, unit) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, unit, unitChosen: true } : e) }); // unitChosen: #718
-  const setUnits = (syms, unit) => onChange({ ...modal, elements: modal.elements.map((e) => syms.includes(e.symbol) ? { ...e, unit, unitChosen: true } : e) }); // #3197
+  const setUnit = (sym, unit) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, unit, unitChosen: true, asLastTime: e.asLastTime && e.unit === unit } : e) }); // unitChosen: #718; asLastTime: #3217 (a change is the user's, not last time's)
+  const setUnits = (syms, unit) => onChange({ ...modal, elements: modal.elements.map((e) => syms.includes(e.symbol) ? { ...e, unit, unitChosen: true, asLastTime: e.asLastTime && e.unit === unit } : e) }); // #3197
   const setKeepOxide = (sym, keep) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, keepOxide: keep } : e) }); // #2487
   const setAllOxide = (keep) => onChange({ ...modal, elements: modal.elements.map((e) => (oxideOfHeader(e.header) ? { ...e, keepOxide: keep } : e)) }); // #2888 — every oxide column at once
   // TASKS.csv #2487 — the oxide columns and the basis each will be stored in, said before the commit
@@ -78,7 +83,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
   // DIFFERENT raw column, e.g. when a file has both "Ag_XRF_Corrected_ppm_D" and "Ag_pXRF_ppm" and
   // the auto-picked one isn't the one they want. commitAssayImport already reads `values[e.symbol]`
   // from `r[e.header]`, so changing header here is the entire fix — no other wiring needed.
-  const setHeader = (sym, header) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, header } : e) });
+  const setHeader = (sym, header) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, header, asLastTime: e.asLastTime && e.header === header } : e) }); // asLastTime: #3217
   const removeEl = (sym) => onChange({ ...modal, elements: modal.elements.filter((e) => e.symbol !== sym) });
   const addElement = () => {
     const sym = addSymbol.trim();
@@ -170,6 +175,9 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
           {modal.elements.filter((e) => e.unitFromValues && !e.unitChosen && e.header === e.mainHeader).map((e) => (
             <div key={`ppb${e.symbol}`} role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "4px 0" }}>{tr("{symbol}: \"{header}\" does not say its unit, and its values (median {median}, up to {max}) read as ppb, not ppm: ppb is chosen. Check it against the lab certificate.", { symbol: e.symbol, header: e.header, median: +e.unitFromValues.median.toFixed(2), max: e.unitFromValues.max.toLocaleString() })}</div>
           ))}
+          {lastTime.length > 0 && ( /* TASKS.csv #3217 — the project's own choices for these headers, said */
+            <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "4px 0", lineHeight: 1.45 }}>{tr("As last time in this project: {list}. Change any of them in the list below.", { list: lastTime.slice(0, 12).map((e) => `${e.symbol} ${e.header} (${e.unit})`).join(", ") + (lastTime.length > 12 ? ", …" : "") })}</div>
+          )}
           {/* TASKS.csv #3197 — a per-cent column holding ppm: said while the unit menu is in reach, ppm offered, nothing converted until chosen */}
           {pctAsPpm.length > 0 && (
             <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "4px 0", lineHeight: 1.45 }}>
@@ -307,7 +315,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
               </div>
             )}
             {negatives.sentinels > 0 && <div>{tr("{sentinels} value(s) will be treated as not assayed: {list}. They are -99 / -999 / -9999 codes or bigger than anything else in their column, so they are no-data codes, not grades.", { sentinels: negatives.sentinels, list: (negatives.sentinelCols || []).join("; ") })}</div>}{/* #2336 — the codes found, not an example */}
-            {unitClashes.length > 0 && <div>{tr("Already in this project in another unit: {v}. These values will be converted to the project's unit so earlier assays keep their meaning.", { v: unitClashes.map((e) => tr("{symbol} (file {unit}, project {projectUnit})", { symbol: e.symbol, unit: importStoreUnit(e), projectUnit: existingUnits[e.symbol] })).join(", ") })}{unitClashes.some((e) => oxideOfHeader(e.header)) && " " + tr("To store an element as its oxide (or as the element) in this project, change its basis in Geochem under Imported files & elements: the assays already in the project are converted with it.")}</div>}{/* the way out: #2888 */}
+            {unitClashes.length > 0 && <div>{tr("Already in this project in another unit: {v}. These values will be converted to the project's unit so earlier assays keep their meaning.", { v: unitClashes.map((e) => tr("{symbol} (file {unit}, project {projectUnit})", { symbol: e.symbol, unit: importStoreUnit(e), projectUnit: existingUnits[e.symbol] })).join(", ") })}{clashOver.length > 0 && <div style={{ color: "var(--color-danger-text)", marginTop: 4 }}>{tr("Converting {list} would put readings over 100 %: set their unit to the one the column is in, or Import will refuse them.", { list: clashOver.map((b) => `${b.header} (${b.unit})`).join(", ") })}</div>}{/* #3217 */}{unitClashes.some((e) => oxideOfHeader(e.header)) && " " + tr("To store an element as its oxide (or as the element) in this project, change its basis in Geochem under Imported files & elements: the assays already in the project are converted with it.")}</div>}{/* the way out: #2888 */}
           </div>
         )}
 
