@@ -79,7 +79,7 @@ export default function MapsModule() {
     <div className="ge-body" style={{ width: "100%" }}>
       <Ribbon label="Map tools">
         <RibbonGroup label="Imagery & terrain">
-          <RibbonButton icon={Image} label="GeoTIFF / GXF" tone="data" title="Import a georeferenced GeoTIFF or Geosoft .gxf grid and manage the raster drapes" {...btn("raster", "import-raster")} active={pane === "raster"} />
+          <RibbonButton icon={Image} label="GeoTIFF / GXF" tone="data" title="Import a georeferenced GeoTIFF, Geosoft .gxf or Geosoft / Surfer .grd grid and manage the raster drapes" {...btn("raster", "import-raster")} active={pane === "raster"} />
           <RibbonButton icon={Satellite} label="Satellite" tone="data" title="Free Sentinel-2 imagery (no account): the latest clear scene over an area you draw" {...btn("raster", "raster-satellite")} active={false} />
           <RibbonButton icon={Mountain} label="Terrain" tone="data" title="Terrain: fetch SRTM elevation or import a DEM" {...btn("terrain")} />
           {/* TASKS.csv #1861 (review #1646, Kodiak) — on the Simple ribbon: a report's plan maps with no GeoKeys are placed only here */}

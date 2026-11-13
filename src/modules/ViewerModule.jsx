@@ -223,6 +223,7 @@ import { useModellingSimple } from "./viewer/useModellingSimple.js"; // TASKS.cs
 import CollarSizeControl from "./viewer/CollarSizeControl.jsx"; // #2823 — Matt: the size beside the Collars switch
 import { useBuildDefer } from "../lib/viewer/buildDefer.js"; // #1500
 import { lazyTip } from "../lib/viewer/lazyTip.js"; // #1500
+import MiddleName from "../components/MiddleName.jsx"; // #2852
 const IdentifyPanel = React.lazy(() => import("../components/IdentifyPanel.jsx"));
 const UnitPolygonPane = React.lazy(() => import("../components/UnitPolygonPane.jsx")); // TASKS.csv #1439
 const SurfaceElementBasis = React.lazy(() => import("./viewer/SurfaceElementBasis.jsx")); // TASKS.csv #2627 / #2641
@@ -6690,7 +6691,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   {r.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
                 <Image size={14} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
-                <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</span>
+                <MiddleName name={r.name} style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)" }} />{/* #2852 */}
                 <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToObject(rasterMeshesRef.current[r.id]), tr("Zoom to \"{name}\"", { name: r.name }))} />{/* #2080 */}
                 <input
                   type="range" min={0.1} max={1} step={0.05} value={r.opacity ?? 0.85}

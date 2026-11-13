@@ -77,3 +77,7 @@ export function rasterColourFields(values, nx, ny, style) {
   ctx.putImageData(img, 0, 0);
   return { dataUrl: canvas.toDataURL("image/png"), colourStyle: style, colourRange: [lo, hi], colourStops: rasterStops(style, lo, hi, log) };
 }
+
+// TASKS.csv #2866 (review GSC geophysics) — a range value at 4 significant figures: Number(v.toPrecision(4)).toLocaleString() then cut it to
+// 3 decimals (0.000478 read '0', 0.000574 '0.001'; the import notice and the Layout legend gave 0.000478)
+export const rangeValueText = (v) => (v == null || !Number.isFinite(v) ? "—" : v === 0 ? "0" : v.toLocaleString(undefined, { maximumSignificantDigits: 4 }));

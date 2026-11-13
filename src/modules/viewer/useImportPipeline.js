@@ -174,7 +174,7 @@ export function useImportPipeline(ctx) {
         const live = importStateRef.current;
         const chooseProjectEpsg = (src, cur) => adoptCrsIfEmpty(src, file.name) || cur; // #607
         const { raster, msg } = await (await loadRaster()).buildRasterImport(file, { epsg: projectTargetEpsg(live.project || project), defaultElevation, chooseProjectEpsg });
-        const drape = rasterDrapeElevation({ collars: live.collars || collars, voxelModels: live.voxelModels || [], surfaceSamples: live.surfaceSamples || [], bbox: raster.bbox, rasters: live.rasters || [], fileName: file.name }); // #1505
+        const drape = rasterDrapeElevation({ collars: live.collars || collars, voxelModels: live.voxelModels || [], surfaceSamples: live.surfaceSamples || [], bbox: raster.bbox, rasters: live.rasters || [], fileName: file.name, stations: live.layers?.geophys_pts /* #2868 */ }); // #1505
         addRaster({ ...raster, elevation: drape.z });
         setNotices((p) => [...p, notice("{msg} {v} Set its opacity (or a Source CRS, if it landed in the wrong place) on the Maps tab.", { msg, v: drapeElevationNote(drape) })]);
       } catch (err) { setNotices((p) => [...p, errorNotice(`${file.name}: ${err.message}`)]); } // #739

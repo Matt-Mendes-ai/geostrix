@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { RASTER_RAMPS, DEFAULT_RASTER_STYLE, rasterColourFields, rasterRange, decadesSpanned, signedGridHint, LOG_NONPOSITIVE_MAX } from "../lib/rasterColour.js"; // signedGridHint: #2555
+import { RASTER_RAMPS, DEFAULT_RASTER_STYLE, rasterColourFields, rasterRange, decadesSpanned, signedGridHint, LOG_NONPOSITIVE_MAX, rangeValueText } from "../lib/rasterColour.js"; // rangeValueText: #2866 // signedGridHint: #2555
 import { b64ToF32 } from "../lib/inversion.js";
 import { PALETTES, paletteShortName } from "../lib/layers.js"; // paletteShortName: #1859
 import { t as tr } from "../lib/i18n.js";
@@ -9,7 +9,7 @@ import { guessRasterMethod } from "../lib/rasterMethod.js"; // TASKS.csv #2835 /
 import { SURVEY_METHODS, SURVEY_METHOD_GROUPS } from "../lib/geophysSurveys.js"; // TASKS.csv #2835 / #2842
 
 // TASKS.csv #1236 — ramp, stretch, typed range and inverted ramp for a raster that kept its values, and a bar with the value range
-const fmt = (v) => (v == null || !Number.isFinite(v) ? "—" : Number(v.toPrecision(4)).toLocaleString());
+const fmt = rangeValueText; // #2866 — 4 significant figures (was cut to 3 decimals)
 export default function RasterColourControls({ raster: r, onUpdate, inputStyle }) {
   const style = r.colourStyle || DEFAULT_RASTER_STYLE;
   const values = useMemo(() => b64ToF32(r.grid.values), [r.grid.values]);

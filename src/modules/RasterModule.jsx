@@ -6,7 +6,7 @@ import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import { runPfieldsJob } from "../lib/desktop.js"; // TASKS.csv #1985
 import { terrainElevationAt } from "../lib/inversion.js"; // TASKS.csv #1985 — Euler solutions under the terrain
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react"; // useEffect: #2865
 import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned, ScatterChart, SlidersHorizontal, Rainbow, Download, Crosshair } from "../components/icons.js"; // Crosshair: #2657
 import { requestPlanZoom } from "../lib/planZoom.js"; // TASKS.csv #2657
 import SpectralIndexModal from "../components/SpectralIndexModal.jsx"; // TASKS.csv #783
@@ -43,7 +43,8 @@ import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 
 import { rasterLevelM, filteredLevelM, placeEulerSolutions, filteredPlacement } from "../lib/eulerPlace.js"; // TASKS.csv #2553; filteredPlacement: #2560
 import { rasterMethodOf, filterBlockedBy, ternaryChoices, fieldFilterNeedsMethod, rasterUnitOf } from "../lib/rasterMethod.js"; // TASKS.csv #2557; fieldFilterNeedsMethod: #2835; rasterUnitOf: #2837
 import { SURVEY_METHODS } from "../lib/geophysSurveys.js"; // TASKS.csv #2557 — the method's label
-import { defaultFilterKind } from "../lib/filterDefault.js"; // TASKS.csv #1863
+import MiddleName from "../components/MiddleName.jsx"; // TASKS.csv #2852
+import { defaultFilterKind, magneticsFromName /* #2862 */ } from "../lib/filterDefault.js"; // TASKS.csv #1863
 
 // TASKS.csv — split out of the Geophysics module into its own tab (user request: "let's make a
 // separate Module for Raster, not within geophysics"). Geophysics had accumulated point-cloud/UBC
@@ -92,7 +93,7 @@ function SpectrumPanel({ spectrum, onSplit }) {
 }
 
 export default function RasterModule({ embedded = false } = {}) {
-  const { rasters, addRaster, updateRaster, removeRaster, terrain, project, collars, survey = [] /* #2126 */, boundaries, setLayers, projectIsEmpty, setEpsg, surfaceSamples = [], voxelModels = [], updateGeophysSurvey, geophysSurveys = {} } = useStore(); // voxelModels: #1856 // projectIsEmpty/setEpsg: #607; updateGeophysSurvey: #1985
+  const { rasters, addRaster, updateRaster, removeRaster, terrain, project, collars, survey = [] /* #2126 */, boundaries, setLayers, projectIsEmpty, setEpsg, surfaceSamples = [], voxelModels = [], updateGeophysSurvey, geophysSurveys = {}, layers = {} /* #2868 — the survey stations */ } = useStore(); // voxelModels: #1856 // projectIsEmpty/setEpsg: #607; updateGeophysSurvey: #1985
   // TASKS.csv #326 — a data grid's nodes as survey points (Geophysics -> Point cloud / Inversion). Replaces
   // any earlier points made from the same grid, so doing it twice does not double the survey.
   // TASKS.csv #373 — potential-field filters on a grid's kept values; each result is a new raster
@@ -416,7 +417,9 @@ export default function RasterModule({ embedded = false } = {}) {
   // ONLY way to correct a .gxf (no CRS tag exists in that format) or a GeoTIFF whose embedded tag is
   // wrong/absent. Session state, not project state — it describes the file being imported, not the
   // project (same reasoning as the import modal's own Source CRS field).
-  const [sourceEpsg, setSourceEpsg] = useState("");
+  // TASKS.csv #2865 — kept for the session: a tab change put it back to 'From the file's own tag' (wrong for a .grd in another zone)
+  const [sourceEpsg, setSourceEpsg] = useState(() => keptSourceEpsg);
+  useEffect(() => { keptSourceEpsg = sourceEpsg; }, [sourceEpsg]);
   // TASKS.csv #2744 (follow-up of #2648) — the Source CRS line says what a local grid does with a file's tag: a grid tied to a CRS brings the
   // file in through its tie (#2587), an untied one takes its numbers as the grid's (it read 'The project CRS — not chosen yet' for both)
   const rasterTie = tieOf(project);
@@ -451,7 +454,9 @@ export default function RasterModule({ embedded = false } = {}) {
       const sideCrs = xc ? { epsg: xc.epsg, from: xml.name } : null;
       const chooseProjectEpsg = projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: file.name }); // #607
       const { raster, msg } = await buildRasterImport(file, { epsg: projectTargetEpsg(project), defaultElevation, sourceEpsg, chooseProjectEpsg, keepDetail, worldFile, tie: tieOf(project), collarZ: collarZRange(collars), mineSource: mineSourceOf(project), sideCrs }); // tie: #2587; collarZ: #2129; mineSource: #2684; sideCrs: #2830
-      const drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox, rasters, fileName: file.name }); // #1856 — the ground under this raster; #1505 — above the collars, stacked, or at the name's depth
+      const drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox, rasters, fileName: file.name, stations: layers?.geophys_pts }); // stations: #2868; #1856 — the ground under this raster; #1505 — above the collars, stacked, or at the name's depth
+      // TASKS.csv #2865 — the same file over the same area again is asked (it made a second card 5 m up)
+      if (sameRaster(raster, rasters) && !window.confirm(tr("\"{name}\" is already imported over the same area. Import it again?", { name: raster.name }))) { setError({ info: true, text: tr("\"{name}\" was not imported again.", { name: raster.name }) }); return; }
       addRaster({ ...raster, elevation: drape.z });
       setError({ info: true, text: `${msg} ${drapeElevationNote(drape)}` });
     } catch (err) {
@@ -477,13 +482,13 @@ export default function RasterModule({ embedded = false } = {}) {
         {/* TASKS.csv #458 — Raster ribbon: the import actions; the sidebar keeps the import CRS and the rasters. */}
         <Ribbon label="Raster tools" show={!embedded}>
           <RibbonGroup label="Import">
-            <RibbonButton icon={busy ? Loader2 : Image} label={busy ? "Reading…" : "GeoTIFF / GXF"} tone="data" disabled={busy} title="Import a georeferenced GeoTIFF or Geosoft .gxf grid (uses the Source CRS below)" onClick={() => fileInput.current.click()} />
+            <RibbonButton icon={busy ? Loader2 : Image} label={busy ? "Reading…" : "GeoTIFF / GXF"} tone="data" disabled={busy} title="Import a georeferenced GeoTIFF, Geosoft .gxf or Geosoft / Surfer .grd grid (uses the Source CRS below)" /* #2856 */ onClick={() => fileInput.current.click()} />
             <RibbonButton icon={Satellite} label={satProgress ? `Fetching ${satProgress.done}/${satProgress.total}` : "Satellite"} tone="data" disabled={satBusy} title="Free Sentinel-2 imagery (no account): the latest clear scene over an area you pick on a map, or matching an existing terrain / boundary / raster extent" onClick={openSatPicker} />
             <RibbonButton icon={MapPinned} label="Georeference" tone="data" title="Georeference a scanned map or sketch with no coordinates: click matching points and type their real X/Y" onClick={() => setGeorefOpen(true)} />
             <RibbonButton icon={Rainbow} label="Spectral index" tone="data" title="Quartz / carbonate / mafic indices from ASTER thermal emissivity, iron-oxide and clay ratios from Sentinel-2 or Landsat, or your own band arithmetic, from a multiband GeoTIFF" onClick={openSpectral} />
           </RibbonGroup>
         </Ribbon>
-        <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Raster drape")}<InfoButton title={tr("Raster drape")} text={tr("Import a georeferenced GeoTIFF (mag/radiometrics grid, orthophoto, whatever), or a Geosoft .gxf grid export (the plain-text Geosoft interchange format; the proprietary binary .grd isn't supported, no public spec to implement against), as a flat plane in the 3D view — set its elevation and opacity below once imported, or drape it onto a terrain surface (import one under Maps → Terrain first). If the file's coordinates aren't already in the project's EPSG ({v}), set Source CRS below and the raster is reprojected on import. Drag files in anywhere on this page, or use the button below.", { v: project?.crsSet === false ? tr("not chosen yet") : project?.epsg ?? "?" } /* #2289 */)} />
+        <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Raster drape")}<InfoButton title={tr("Raster drape")} text={tr("Import a georeferenced GeoTIFF (mag/radiometrics grid, orthophoto, whatever), a Geosoft .gxf grid, or a Geosoft or Surfer binary .grd grid, as a flat plane in the 3D view — set its elevation and opacity below once imported, or drape it onto a terrain surface (import one under Maps → Terrain first). If the file's coordinates aren't already in the project's EPSG ({v}), set Source CRS below and the raster is reprojected on import. Drag files in anywhere on this page, or use the button below.", { v: project?.crsSet === false ? tr("not chosen yet") : project?.epsg ?? "?" } /* #2289 */)} />
         </div>
         {/* TASKS.csv #287 — Source CRS override. Sits ABOVE the import button (and applies to
             drag-dropped files too) because it has to be set before the file is read, not after. */}
@@ -548,7 +553,7 @@ export default function RasterModule({ embedded = false } = {}) {
           <SpectralIndexModal epsg={tieOf(project) ? null : project?.epsg} tie={tieOf(project) /* #2648 */} defaultElevation={defaultElevation} sourceEpsg={isMineSource(sourceEpsg) ? "" : sourceEpsg /* #2684 — a satellite scene is never on a mine grid */} areaOptions={spectralAreas}
             onClose={() => setSpectralOpen(false)}
             onImport={(raster, msg) => { // TASKS.csv #2294 — placed as a GeoTIFF of the same footprint is (#1505), and said
-              const list = [].concat(raster), drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: list[0]?.bbox, rasters, fileName: list[0]?.name });
+              const list = [].concat(raster), drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: list[0]?.bbox, rasters, fileName: list[0]?.name, stations: layers?.geophys_pts /* #2868 */ });
               list.forEach((r, k) => addRaster({ ...r, elevation: drape.z + k * 5 })); /* an array: the #807 depth + wavelength maps, stacked 5 m apart */ setSpectralOpen(false); setError({ info: true, text: `${msg} ${drapeElevationNote(drape)}` }); }} />
         )}
         {/* projectEpsg: TASKS.csv #290 — lets the tie-point table declare its own CRS. */}
@@ -559,7 +564,7 @@ export default function RasterModule({ embedded = false } = {}) {
             onImport={(raster) => {
               // TASKS.csv #2294 (review #2174) — a scan of the same footprint as a GeoTIFF landed at the collar median (an underground level,
               // mid-way through the fans) while the GeoTIFF went 5 m above the highest collar under it: the same rule now, and said
-              const drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox, rasters, fileName: raster.name });
+              const drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox, rasters, fileName: raster.name, stations: layers?.geophys_pts /* #2868 */ });
               // TASKS.csv #2590 (review #2486) — control points typed on a mine grid put the picture 6,240 km from the drilling, unasked
               if (drape.far && !window.confirm(tr("These control points place the picture about {km} km from the {n} collars, without reaching them. Are they on a local mine grid, or in another CRS than the project's?", { km: Math.round(drape.far.distM / 1000).toLocaleString(), n: collars.length.toLocaleString() }) + "\n\n" + tr("OK — import it there anyway.") + "\n" + tr("Cancel — go back to the control points."))) return;
               addRaster({ ...raster, elevation: drape.z });
@@ -607,7 +612,7 @@ export default function RasterModule({ embedded = false } = {}) {
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateRaster(r.id, { visible: r.visible === false })} style={{ cursor: "pointer", color: r.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                 {r.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
-              <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</div>
+              <MiddleName name={r.name} style={{ color: "var(--color-text)" }} />{/* #2852 — the tail kept, the full name on hover */}
               {r.grid && !r.geochem /* #1622 — no magnetic filters for a geochemistry grid */ && !r.terrainDerivative /* #1626 — nor for a slope / aspect / curvature */ && <SlidersHorizontal role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: filterFor === r.id ? "var(--color-info)" : "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Filter the values of \"{name}\"", { name: r.name })} title={tr("Grid filters: RTP, first vertical derivative, upward continuation, tilt derivative, analytic signal")} onClick={() => { const opening = filterFor !== r.id; setFilterFor(opening ? r.id : null); if (opening) setFilt((f) => ({ ...f, kind: defaultFilterKind(r, rasterMethodOf(r, geophysSurveys)) })); /* #1863 — RTP only for magnetics */ }} />}
               {r.grid && <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export the values of \"{name}\" as a GeoTIFF", { name: r.name })} title={tr("Export the values of \"{name}\" as a GeoTIFF", { name: r.name })} onClick={async () => { const epsgX = await ensureExportCrs(project); if (!epsgX) return; /* #1021 */ const g = r.grid; const res = await saveGeoTIFF(`${safeFileName(r.name)}.tif`, gridToGeoTIFF({ nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, bands: [{ values: g.values }], epsg: epsgX })); if (res?.ok) setError({ info: true, text: rasterExportNote(r) }); /* #1095 — what the file holds */ }} />}{/* TASKS.csv #854 */}
               {!r.grid && r.dataUrl && <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export the picture \"{name}\" as a GeoTIFF", { name: r.name })} title={tr("Export the picture \"{name}\" as a GeoTIFF", { name: r.name })} onClick={() => exportPicture(r)} />}{/* TASKS.csv #1860 — an RGB plan map, a scan, imagery */}
@@ -621,7 +626,7 @@ export default function RasterModule({ embedded = false } = {}) {
             {filterFor === r.id && r.grid && !r.geochem && (
               <div style={{ marginTop: 7, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <select value={filt.kind} onChange={(e) => setFilt((p) => ({ ...p, kind: e.target.value }))} style={{ ...numInput, flex: 1 }} aria-label={tr("Grid filter")}>
+                  <select value={filt.kind} onChange={(e) => setFilt((p) => ({ ...p, kind: e.target.value }))} style={{ ...numInput, flex: 1, minWidth: 0, width: "100%" /* #2865 — inside the card */ }} aria-label={tr("Grid filter")}>
                     <option value="rtp">{tr("Reduction to the pole (RTP)")}</option>
                     <option value="rtpa">{tr("RTP for low latitudes (amplitude-corrected)")}</option>{/* TASKS.csv #1988 */}
                     <option value="rte">{tr("Reduction to the equator (RTE)")}</option>
@@ -635,6 +640,7 @@ export default function RasterModule({ embedded = false } = {}) {
                     <option value="spectrum">{tr("Power spectrum depths + matched filter")}</option>
                   </select>
                 </div>
+                {filt.kind === "rtp" && magneticsFromName(r, rasterMethodOf(r, geophysSurveys)) && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{tr("Opened on RTP: taken as magnetics from its name. Choose another filter above if it is not.")}</div>}{/* #2862 */}
                 {(filt.kind === "rtp" || filt.kind === "rtpa" || filt.kind === "rte") && (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
                     <input type="number" placeholder={tr("Inclination °")} value={filt.inclination} onChange={(e) => setFilt((p) => ({ ...p, inclination: e.target.value, igrfSource: null }))} style={numInput} aria-label={tr("Field inclination")} />
@@ -751,14 +757,14 @@ export default function RasterModule({ embedded = false } = {}) {
           actionLabel={busy ? tr("Reading…") : tr("Import GeoTIFF / GXF…")}
           onAction={() => fileInput.current.click()}
           actionDisabled={busy}
-          actionTitle={tr("Pick a georeferenced raster — GeoTIFF or Geosoft .gxf grid")}
+          actionTitle={tr("Pick a georeferenced raster — a GeoTIFF, a Geosoft .gxf grid or a Geosoft / Surfer .grd grid")}
           footnote={tr("Or drag a file straight onto this pane. Anything imported here is reprojected to the project CRS if its own CRS differs.")}
         >
           <div style={{ marginBottom: 12 }}>{tr("Georeferenced image and grid layers — orthophotos, satellite imagery, geology maps, geophysical grids — draped over the terrain. Rasters render in the")}{" "}<b>{tr("3D View")}</b>{tr(", so switch tabs after importing to see them.")}</div>
         </EmptyState>
         {dragOver && (
           <div style={{ position: "absolute", inset: 0, background: "rgba(226,166,60,0.08)", border: "3px dashed var(--color-accent)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-            <div style={{ fontSize: "var(--font-size-xl)", color: "var(--color-accent)", background: "var(--color-bg)", padding: "14px 22px", borderRadius: 8, border: "1px solid var(--color-accent)" }}>{tr("Drop GeoTIFF(s)/.gxf to import")}</div>
+            <div style={{ fontSize: "var(--font-size-xl)", color: "var(--color-accent)", background: "var(--color-bg)", padding: "14px 22px", borderRadius: 8, border: "1px solid var(--color-accent)" }}>{tr("Drop GeoTIFF / .gxf / .grd files to import")}</div>
           </div>
         )}
       </div>)}
@@ -766,4 +772,8 @@ export default function RasterModule({ embedded = false } = {}) {
   );
 }
 
+// TASKS.csv #2865 — the Source CRS of the session (module scope: kept across tab changes, not saved)
+let keptSourceEpsg = "";
+// TASKS.csv #2865 — a raster of the same name over the same extent is already in the project
+const sameRaster = (r, list) => (list || []).some((x) => x.name === r.name && Array.isArray(x.bbox) && Array.isArray(r.bbox) && x.bbox.length === r.bbox.length && x.bbox.every((v, i) => Math.abs(v - r.bbox[i]) < 1e-6));
 const numInput = { flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" };
