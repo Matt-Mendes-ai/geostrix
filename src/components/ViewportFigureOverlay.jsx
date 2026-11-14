@@ -255,7 +255,8 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
             {it.head && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", fontWeight: 600, marginTop: i ? 4 : 0, marginBottom: 2 }}>{tr(it.group)}{it.classesShown ? " " + tr("({n} of {m} classes)", { n: it.classesShown[0], m: it.classesShown[1] }) : ""}</div>}{/* classesShown: #2039 */}
             <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2.5 }}>
               <span style={{ width: 18, display: "inline-flex", justifyContent: "center", flexShrink: 0 }}>{it.svg ? <span style={{ display: "inline-flex" }} dangerouslySetInnerHTML={{ __html: it.svg }} /> /* #3066 — a USGS structure symbol */ : <span style={{ borderRadius: 2, ...swatchShape(it.kind, 12), background: it.color, opacity: it.opacity ?? 1 /* #1122 */, border: it.kind === "line" ? "none" : "1px solid var(--color-border-light)" }} />}</span>{/* #948 — square / line / dot */}
-              <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={`${tr(it.group)}: ${it.label}`}>{it.label}</span>
+              <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={it.value ? tr("{group}: {label}, values {range}", { group: tr(it.group), label: it.label, range: it.value }) : `${tr(it.group)}: ${it.label}`}>{it.label}</span>
+              {it.value && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", whiteSpace: "nowrap", flexShrink: 0 }}>{it.value}</span>}{/* #3332 — a mineral's values (Total min) */}
             </div>
             </div>
           ))}

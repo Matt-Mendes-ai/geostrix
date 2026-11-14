@@ -12171,5 +12171,6 @@
   "(highest of {n} in the slab)": "(الأعلى من {n} في الشريحة)",
   "Show the legend": "إظهار وسيلة الإيضاح",
   "Legend ({n} rows)": "وسيلة الإيضاح ({n} صفوف)",
-  "Collapse the legend": "طي وسيلة الإيضاح"
+  "Collapse the legend": "طي وسيلة الإيضاح",
+  "{group}: {label}, values {range}": "{group}: {label}، القيم {range}"
 }

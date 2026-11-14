@@ -350,7 +350,9 @@ export const WEATH_COLORS = {
 };
 export function colorForWeathering(v) { return WEATH_COLORS[String(v || "").toUpperCase().replace(/[\s_-]+/g, "")] || categoricalSafeColor("weath", v); }
 
-export const MIN_COLORS = { ACA: "#c8c8d8", CPY: "#d4af37", GAL: "#6a6a78", PO: "#8a6a45", PY: "#d4c060", SPH: "#6a3a2a" };
+// TASKS.csv #3332 — CPY and PY were two near golds (#d4af37 / #d4c060, CIE76 dE 15) and PO and SPH two browns (dE 22): CPY now orange-brass, PY pale
+// brass, PO bronze-pink; every pair here is at least dE 34 apart
+export const MIN_COLORS = { ACA: "#c8c8d8", CPY: "#d08a1c", GAL: "#6a6a78", PO: "#c0907a", PY: "#e6d65a", SPH: "#6a3a2a" };
 export function colorForMineral(m) { return MIN_COLORS[(m || "").toUpperCase()] || categoricalSafeColor("mineral", m); }
 
 export const STRUCT_COLORS = { ALT: "#c9863d", BD: "#4a7ab5", CON: "#8a6fae", FLT: "#c0392b", FOL: "#3a8a8a", FOLD: "#4aa06a", SHZ: "#a5407a", VN: "#cfc7b0" };

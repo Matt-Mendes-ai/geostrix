@@ -12171,5 +12171,6 @@
   "(highest of {n} in the slab)": "(el más alto de {n} en la franja)",
   "Show the legend": "Mostrar la leyenda",
   "Legend ({n} rows)": "Leyenda ({n} filas)",
-  "Collapse the legend": "Contraer la leyenda"
+  "Collapse the legend": "Contraer la leyenda",
+  "{group}: {label}, values {range}": "{group}: {label}, valores {range}"
 }
