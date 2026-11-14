@@ -12171,5 +12171,6 @@
   "{list}: a partial (soluble) digest by the lab code in the header, kept as a measurement of its own, not as another method of the total.": "{list}: uma digestão parcial (solúvel) pelo código de laboratório no cabeçalho, mantida como uma medição própria, não como outro método do total.",
   "≥ {min} {unit}": "≥ {min} {unit}",
   "{min}–{max} {unit}": "{min}–{max} {unit}",
-  "The physical range of a reading in {unit} (the column name states the unit): click to use it as the valid range.": "A faixa física de uma leitura em {unit} (o nome da coluna indica a unidade): clique para usá-la como faixa válida."
+  "The physical range of a reading in {unit} (the column name states the unit): click to use it as the valid range.": "A faixa física de uma leitura em {unit} (o nome da coluna indica a unidade): clique para usá-la como faixa válida.",
+  "This table links check samples to their originals ({cols}) but holds no results: import the table with the check samples' results, and its sample id, sample type and parent columns tie them to the originals.": "Esta tabela liga amostras de controle às suas originais ({cols}) mas não tem resultados: importe a tabela com os resultados das amostras de controle, e suas colunas de id da amostra, tipo de amostra e amostra original as ligam às originais."
 }

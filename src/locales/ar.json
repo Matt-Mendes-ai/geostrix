@@ -12171,5 +12171,6 @@
   "{list}: a partial (soluble) digest by the lab code in the header, kept as a measurement of its own, not as another method of the total.": "{list}: هضم جزئي (قابل للذوبان) بحسب رمز المختبر في العنوان، يُحتفظ به قياسًا مستقلًا لا طريقةً أخرى للإجمالي.",
   "≥ {min} {unit}": "≥ {min} {unit}",
   "{min}–{max} {unit}": "{min}–{max} {unit}",
-  "The physical range of a reading in {unit} (the column name states the unit): click to use it as the valid range.": "النطاق الفيزيائي لقراءة بوحدة {unit} (يذكر اسم العمود الوحدة): انقر لاستخدامه نطاقًا صالحًا."
+  "The physical range of a reading in {unit} (the column name states the unit): click to use it as the valid range.": "النطاق الفيزيائي لقراءة بوحدة {unit} (يذكر اسم العمود الوحدة): انقر لاستخدامه نطاقًا صالحًا.",
+  "This table links check samples to their originals ({cols}) but holds no results: import the table with the check samples' results, and its sample id, sample type and parent columns tie them to the originals.": "يربط هذا الجدول عينات الضبط بأصولها ({cols}) لكنه لا يحوي نتائج: استورد جدول نتائج عينات الضبط، فأعمدة معرّف العينة ونوعها والعينة الأصل فيه تربطها بالأصول."
 }
