@@ -12056,5 +12056,6 @@
   "{n} points": "{n} نقاط",
   "{n} structure": "{n} بنية",
   "{n} structures": "{n} بنى",
-  "{layer} (hidden in 3D)": "{layer} (مخفي في العرض ثلاثي الأبعاد)"
+  "{layer} (hidden in 3D)": "{layer} (مخفي في العرض ثلاثي الأبعاد)",
+  "(highest of {n} in the slab)": "(الأعلى من {n} في الشريحة)"
 }

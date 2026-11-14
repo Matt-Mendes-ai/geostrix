@@ -12056,5 +12056,6 @@
   "{n} points": "{n} points",
   "{n} structure": "{n} structure",
   "{n} structures": "{n} structures",
-  "{layer} (hidden in 3D)": "{layer} (masqué en 3D)"
+  "{layer} (hidden in 3D)": "{layer} (masqué en 3D)",
+  "(highest of {n} in the slab)": "(le plus élevé de {n} dans la tranche)"
 }
