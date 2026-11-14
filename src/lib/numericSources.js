@@ -147,6 +147,26 @@ export function sourceAssays(choice, { layers, customLayers } = {}, { pointSuppo
   return { assays, assayElements: [{ symbol, unit: choice.unit }], symbol, unit: choice.unit, pointRows: pointRows.length, pointSupport: pointRows.length ? support : null, skipped, ...(vr ? { outOfRange, validRange: vr } : {}), ...(despikeM ? { despikeM } : {}) };
 }
 
+// TASKS.csv #3288 (#3241) — a log's rows as every other tool reads them: readings outside the valid range left out, the despike applied to the value. entry: { range,
+// despikeM } (project.logValidRange[key] for a built-in log, the layer's validRange / despikeM for an imported one); field: the value's column. Rows are copied, not edited.
+// -> { rows, outOfRange, validRange, despikeM }
+export function filterLogRows(rows, entry, field = "value") {
+  const f = logFilterOf(entry), vr = f.validRange || null, despikeM = f.despikeM || 0;
+  const outside = vr ? (v) => (Number.isFinite(vr[0]) && v < vr[0]) || (Number.isFinite(vr[1]) && v > vr[1]) : null;
+  let outOfRange = 0;
+  const kept = [];
+  for (const r of rows || []) {
+    const v = num(r[field]);
+    if (!Number.isFinite(v)) { kept.push([r, NaN]); continue; }
+    if (outside && outside(v)) { outOfRange++; continue; }
+    kept.push([r, v]);
+  }
+  const finite = kept.filter(([, v]) => Number.isFinite(v)), vals = despikeM ? movingMedian(finite, despikeM) : null;
+  let i = 0;
+  const out = kept.map(([r, v]) => (Number.isFinite(v) && vals ? { ...r, [field]: vals[i++] } : r));
+  return { rows: out, outOfRange, ...(vr ? { validRange: vr } : {}), ...(despikeM ? { despikeM } : {}) };
+}
+
 // TASKS.csv #3116 — the despike: each reading replaced by the median of its hole's readings within ±windowM / 2 of its depth (an interval's middle,
 // or the depth of a point reading), the lower middle one of an even count. A lone spike takes its neighbours' level; a reading alone in its
 // window keeps its value. kept: [[row, v]]

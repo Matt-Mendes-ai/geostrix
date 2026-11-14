@@ -54,6 +54,14 @@ export function collarTableHeight(rows, fontPt = 7) {
   return Math.ceil(2 * r + printPx(fontPt + 2) * 1.2 + 4 + 12 + Math.max(1, rows) * r);
 }
 
+// TASKS.csv #3408 (#2399) — the per-hole values joined onto a hole (a calibration table's probe, K factor, date) as one header line: 'Probe: GR-12 · K_factor: 1.02', at most
+// `max` of them, the rest counted. -> { text, all } ('' when the hole has none)
+export function collarAttrLine(collar, max = 6) {
+  const list = Object.entries(collar?.attrs || {}).map(([k, v]) => [String(k).trim(), String(v ?? "").trim()]).filter(([k, v]) => k && v);
+  const shown = list.slice(0, max).map(([k, v]) => `${k}: ${v}`);
+  return { text: shown.join(" · ") + (list.length > max ? ` · +${list.length - max}` : ""), all: list.map(([k, v]) => `${k}: ${v}`).join("\n") };
+}
+
 // TASKS.csv #2770 (split from #2717) — a long collar list in two table columns side by side, read down then across: the first half of a
 // page's rows on the left, the rest on the right (half the pages for a 400-hole appendix). -> [rows] or [left, right]
 export function splitTableRows(rows, parts = 1) {
