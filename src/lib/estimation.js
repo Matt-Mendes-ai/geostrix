@@ -464,16 +464,38 @@ function makeNeighbourGatherer(samplePoints, opts = {}) {
   // Raw intervals carry no coverage and weigh their length, as before.
   const lenOf = (p) => (lengthWeight && p.length != null && p.length > 0 ? p.length * (p.coverage > 0 && p.coverage < 1 ? p.coverage : 1) : 1);
 
+  // TASKS.csv #3256 (Galore Creek review: the dialog's defaults, 500 m search, ran over five minutes on 14 holes) — the walk keeps the
+  // candidates as squared distances and point references in buffers reused across blocks (it made an object for every composite in reach,
+  // ~3,000 a block, then sorted them all); a candidate object is made only for those that can be used (inside the radius the walk settled at)
+  let D2 = new Float64Array(1024), P = new Array(1024), n = 0, qx = 0, qy = 0, qz = 0;
+  // #3256 — without a domain rule the stopping test reads running figures kept as points are added (the `need` nearest, the nearest, and
+  // with a per-hole cap each hole's `cap` nearest), not a scan of every candidate on every ring
+  const need = Math.max(maxSamples, minSamples, minHoles, 1), cap = perHoleCap(maxSamples, minHoles, maxPerHole);
+  const inc = restrictToDomain ? null : { top: [], nearest: Infinity, count: 0, perHole: cap !== Infinity ? new Map() : null, cap };
+  const consider = (p) => {
+    const ddx = p.x - qx, ddy = p.y - qy, ddz = p.z - qz;
+    const d2 = ddx * ddx + ddy * ddy + ddz * ddz;
+    if (r2 != null && d2 > r2) return;
+    if (n === D2.length) { const g = new Float64Array(n * 2); g.set(D2); D2 = g; P.length = n * 2; }
+    D2[n] = d2; P[n] = p; n++;
+    if (inc) {
+      inc.count++;
+      if (d2 < inc.nearest) inc.nearest = d2;
+      const top = inc.top;
+      if (top.length < need) { let j = top.length - 1; top.push(d2); while (j >= 0 && top[j] > d2) { top[j + 1] = top[j]; j--; } top[j + 1] = d2; }
+      else if (d2 < top[need - 1]) { let j = need - 2; while (j >= 0 && top[j] > d2) { top[j + 1] = top[j]; j--; } top[j + 1] = d2; }
+      if (inc.perHole) {
+        let a = inc.perHole.get(p.hole_id);
+        if (!a) inc.perHole.set(p.hole_id, (a = []));
+        if (a.length < cap) { let j = a.length - 1; a.push(d2); while (j >= 0 && a[j] > d2) { a[j + 1] = a[j]; j--; } a[j + 1] = d2; }
+        else if (d2 < a[cap - 1]) { let j = cap - 2; while (j >= 0 && a[j] > d2) { a[j + 1] = a[j]; j--; } a[j + 1] = d2; }
+      }
+    }
+  };
   return (cx, cy, cz) => {
-    const dists = [];
-    const consider = (p) => {
-      const ddx = p.x - cx, ddy = p.y - cy, ddz = p.z - cz;
-      const d2 = ddx * ddx + ddy * ddy + ddz * ddz;
-      if (r2 != null && d2 > r2) return;
-      // `p` is carried by REFERENCE (not copied coordinates) so the moving-least-squares fit and the
-      // support classifier can see each sample's position without making the hot loop allocate more.
-      dists.push({ d2, value: p.value, hole_id: p.hole_id, len: lenOf(p), domain: p.domain ?? null, p });
-    };
+    n = 0; qx = cx; qy = cy; qz = cz;
+    if (inc) { inc.top.length = 0; inc.nearest = Infinity; inc.count = 0; inc.perHole?.clear(); }
+    let keepD2 = Infinity; // #3256 — the settled radius: no candidate beyond it can be used (Infinity: the walk did not settle, all are kept)
 
     if (index) {
       // TASKS.csv #1210 — a block farther than the search from the box around all the samples has no candidates: Woodjam, 194,616 blocks at a 50 m search, 32 estimated
@@ -481,7 +503,7 @@ function makeNeighbourGatherer(samplePoints, opts = {}) {
         const ex = cx < index.xmin ? index.xmin - cx : cx > index.xmax ? cx - index.xmax : 0;
         const ey = cy < index.ymin ? index.ymin - cy : cy > index.ymax ? cy - index.ymax : 0;
         const ez = cz < index.zmin ? index.zmin - cz : cz > index.zmax ? cz - index.zmax : 0;
-        if (ex * ex + ey * ey + ez * ez > r2) return dists;
+        if (ex * ex + ey * ey + ez * ez > r2) return [];
       }
       const b = index.size;
       const bx = Math.floor((cx - index.xmin) / b);
@@ -526,12 +548,21 @@ function makeNeighbourGatherer(samplePoints, opts = {}) {
           }
         }
         const safeD2 = (ring * b) * (ring * b);
-        if (settled(dists, safeD2, maxSamples, minSamples, minHoles, restrictToDomain, maxPerHole)) break;
+        const st = inc ? settledRunning(inc, safeD2, maxSamples, need) : settled(D2, P, n, safeD2, maxSamples, minSamples, minHoles, restrictToDomain, maxPerHole);
+        if (st) { if (st === SETTLED) keepD2 = safeD2; break; }
       }
     } else {
       for (let i = 0; i < samplePoints.length; i++) consider(samplePoints[i]);
     }
 
+    // `p` is carried by REFERENCE (not copied coordinates) so the moving-least-squares fit and the support classifier can see each
+    // sample's position
+    const dists = [];
+    for (let i = 0; i < n; i++) {
+      if (D2[i] > keepD2) continue;
+      const p = P[i];
+      dists.push({ d2: D2[i], value: p.value, hole_id: p.hole_id, len: lenOf(p), domain: p.domain ?? null, p });
+    }
     dists.sort((a, b) => a.d2 - b.d2);
     return dists;
   };
@@ -1093,8 +1124,26 @@ function solve4(Min, rhs, scale) {
 //     the nearest candidate, so that nearest candidate must be inside safeD2 too.
 // Conservative by construction: when it can't prove completeness it simply keeps walking, ending in the
 // worst case at the same full scan the old code always did.
-function settled(dists, safeD2, maxSamples, minSamples, minHoles, restrictToDomain, maxPerHole = 0) {
-  if (safeD2 <= 0 || !dists.length) return false;
+// #3256 — settled() without a domain rule, from the gatherer's running figures (the same answers: the kth nearest, the nearest, and with a
+// per-hole cap the maxSamples-th smallest of the holes' cap nearest)
+function settledRunning(inc, safeD2, maxSamples, need) {
+  if (safeD2 <= 0 || !inc.count) return 0;
+  if (inc.nearest > safeD2) return 0;
+  const kth = inc.count >= need ? inc.top[Math.min(maxSamples, need) - 1] : Infinity;
+  if (!inc.perHole) return kth <= safeD2 ? SETTLED : 0;
+  if (kth > safeD2) return 0;
+  const top = [];
+  for (const a of inc.perHole.values()) for (const d2 of a) {
+    if (top.length < maxSamples) { let j = top.length - 1; top.push(d2); while (j >= 0 && top[j] > d2) { top[j + 1] = top[j]; j--; } top[j + 1] = d2; }
+    else if (d2 < top[maxSamples - 1]) { let j = maxSamples - 2; while (j >= 0 && top[j] > d2) { top[j + 1] = top[j]; j--; } top[j + 1] = d2; }
+  }
+  return top.length >= maxSamples && top[maxSamples - 1] <= safeD2 ? SETTLED : 0;
+}
+// -> 0 (walk on), SETTLED (every candidate that can be used lies within safeD2), or SETTLED_KEEP_ALL (stop, but keep what was found: the
+// nearest has no domain, so the block is rejected or, with noCodeAsDomain, takes the no-code candidates as they are)
+const SETTLED = 1, SETTLED_KEEP_ALL = 2;
+function settled(D2, P, n, safeD2, maxSamples, minSamples, minHoles, restrictToDomain, maxPerHole = 0) {
+  if (safeD2 <= 0 || !n) return 0;
   const need = Math.max(maxSamples, minSamples, minHoles, 1);
   // kth smallest d2 among the entries passing `keep`, or Infinity if there aren't k of them. A bounded
   // insertion buffer rather than a sort: this runs once per ring per cell, and sorting the whole
@@ -1102,50 +1151,67 @@ function settled(dists, safeD2, maxSamples, minSamples, minHoles, restrictToDoma
   const kthAndNearest = (keep) => {
     const top = []; // ascending, at most `need` entries
     let nearest = Infinity, count = 0;
-    for (let i = 0; i < dists.length; i++) {
-      const d = dists[i];
-      if (keep && !keep(d)) continue;
+    for (let i = 0; i < n; i++) {
+      if (keep && !keep(P[i])) continue;
+      const d2 = D2[i];
       count++;
-      if (d.d2 < nearest) nearest = d.d2;
+      if (d2 < nearest) nearest = d2;
       if (top.length < need) {
         let j = top.length - 1;
-        top.push(d.d2);
-        while (j >= 0 && top[j] > d.d2) { top[j + 1] = top[j]; j--; }
-        top[j + 1] = d.d2;
-      } else if (d.d2 < top[need - 1]) {
+        top.push(d2);
+        while (j >= 0 && top[j] > d2) { top[j + 1] = top[j]; j--; }
+        top[j + 1] = d2;
+      } else if (d2 < top[need - 1]) {
         let j = need - 2;
-        while (j >= 0 && top[j] > d.d2) { top[j + 1] = top[j]; j--; }
-        top[j + 1] = d.d2;
+        while (j >= 0 && top[j] > d2) { top[j + 1] = top[j]; j--; }
+        top[j + 1] = d2;
       }
     }
     return { kth: count >= need ? top[Math.min(maxSamples, need) - 1] : Infinity, nearest, count };
   };
 
   const all = kthAndNearest(null);
-  if (all.nearest > safeD2) return false; // even the nearest sample isn't settled yet
+  if (all.nearest > safeD2) return 0; // even the nearest sample isn't settled yet
   // #642 — with a per-hole cap the used set can reach past the nearest maxSamples (other holes' samples further
   // out), so it is settled only once the capped selection is full and its furthest member is inside safeD2.
   // Short of that the walk goes on to the search radius (where it stops anyway).
-  const capped = perHoleCap(maxSamples, minHoles, maxPerHole) !== Infinity;
+  const cap = perHoleCap(maxSamples, minHoles, maxPerHole), capped = cap !== Infinity;
   // TASKS.csv #662 — the capped selection takes maxSamples entries from the distance-sorted list, so its furthest
   // member is never nearer than the maxSamples-th nearest candidate overall (nor than that within one domain, a
   // subset). While that one is outside safeD2 the capped set cannot be settled either: answer without the sort.
   // Measured before this: min holes 2 made a 976k-node grade-shell grid 2.7x and a 1M block model 4.3x slower.
-  if (capped && all.kth > safeD2) return false;
+  if (capped && all.kth > safeD2) return 0;
+  // TASKS.csv #3256 — the capped selection (selectUsed: the nearest first, at most `cap` from a hole, up to maxSamples) is the maxSamples
+  // smallest among each hole's `cap` nearest: per-hole bounded buffers, then the maxSamples-th of them, instead of filtering and sorting the
+  // whole candidate list on every ring (two thirds of a 500 m run's time)
   const cappedSettled = (keep) => {
-    const used = selectUsed(dists.filter((d) => !keep || keep(d)).sort((a, b) => a.d2 - b.d2), maxSamples, minHoles, maxPerHole);
-    return used.length >= maxSamples && used[used.length - 1].d2 <= safeD2;
+    const per = new Map();
+    for (let i = 0; i < n; i++) {
+      const p = P[i];
+      if (keep && !keep(p)) continue;
+      const d2 = D2[i];
+      let a = per.get(p.hole_id);
+      if (!a) per.set(p.hole_id, (a = []));
+      if (a.length < cap) { let j = a.length - 1; a.push(d2); while (j >= 0 && a[j] > d2) { a[j + 1] = a[j]; j--; } a[j + 1] = d2; }
+      else if (d2 < a[cap - 1]) { let j = cap - 2; while (j >= 0 && a[j] > d2) { a[j + 1] = a[j]; j--; } a[j + 1] = d2; }
+    }
+    const top = [];
+    for (const a of per.values()) for (const d2 of a) {
+      if (top.length < maxSamples) { let j = top.length - 1; top.push(d2); while (j >= 0 && top[j] > d2) { top[j + 1] = top[j]; j--; } top[j + 1] = d2; }
+      else if (d2 < top[maxSamples - 1]) { let j = maxSamples - 2; while (j >= 0 && top[j] > d2) { top[j + 1] = top[j]; j--; } top[j + 1] = d2; }
+    }
+    return top.length >= maxSamples && top[maxSamples - 1] <= safeD2 ? SETTLED : 0;
   };
   if (capped && !restrictToDomain) return cappedSettled(null);
   if (restrictToDomain) {
     let dom = null;
-    for (let i = 0; i < dists.length; i++) if (dists[i].d2 === all.nearest) { dom = dists[i].domain; break; }
-    if (dom == null) return true; // this cell gets rejected outright; more candidates can't change that
-    if (capped) return cappedSettled((d) => d.domain === dom);
-    const inDom = kthAndNearest((d) => d.domain === dom);
-    return inDom.kth <= safeD2;
+    for (let i = 0; i < n; i++) if (D2[i] === all.nearest) { dom = P[i].domain ?? null; break; }
+    if (dom == null) return SETTLED_KEEP_ALL; // this cell gets rejected outright; more candidates can't change that
+    if (capped) return cappedSettled((p) => (p.domain ?? null) === dom);
+    const inDom = kthAndNearest((p) => (p.domain ?? null) === dom);
+    return inDom.kth <= safeD2 ? SETTLED : 0;
   }
-  return all.kth <= safeD2;
+  return all.kth <= safeD2 ? SETTLED : 0;
 }
 
 // TASKS.csv #142 — dense-grid sibling of estimateBlockModel for the numeric (grade-shell) implicit

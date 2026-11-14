@@ -46,16 +46,18 @@ export function memberMeans(cells, join, { cutoffs, interpolatedOnly = false, de
     .map((c) => { const vol = blockVolume(c), rho = densityOf ? densityOf(c) : null; return { v: c.value, vol, w: densityOf ? (rho > 0 ? vol * rho : 0) : vol, at: join.members.map((_, m) => join.valueAt(c, m)) }; });
   return [...cutoffs].sort((a, b) => a - b).map((cutoff) => {
     const means = join.members.map((_, m) => {
-      let wsum = 0, gsum = 0, vAll = 0, vHas = 0, volW = 0, volG = 0;
+      let wsum = 0, gsum = 0, vAll = 0, vHas = 0, volW = 0, volG = 0, wAll = 0, vAllW = 0, vHasW = 0;
       for (const b of blocks) {
         if (b.v < cutoff) continue;
-        vAll += b.vol;
+        vAll += b.vol; wAll += b.w; if (b.w > 0) vAllW += b.vol;
         const x = b.at[m];
         if (x === undefined) continue;
-        vHas += b.vol; wsum += b.w; gsum += b.w * x; volW += b.vol; volG += b.vol * x;
+        vHas += b.vol; wsum += b.w; gsum += b.w * x; volW += b.vol; volG += b.vol * x; if (b.w > 0) vHasW += b.vol;
       }
       const mean = wsum > 0 ? gsum / wsum : volW > 0 ? volG / volW : null; // no tonnes at all: by volume, as the table does
-      return { mean, covered: vAll > 0 ? vHas / vAll : null };
+      // TASKS.csv #3270 — with tonnes, the row counts only the blocks with a density, so the covered share is of their volume
+      const tons = densityOf && wAll > 0;
+      return { mean, covered: tons ? (vAllW > 0 ? vHasW / vAllW : null) : vAll > 0 ? vHas / vAll : null };
     });
     return { cutoff, means };
   });

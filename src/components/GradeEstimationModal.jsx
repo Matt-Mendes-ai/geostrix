@@ -405,10 +405,13 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   useEffect(() => () => { lastEstimateSettings.set(settingsKey, remember.current); }, [settingsKey]);
   // TASKS.csv #520 — the estimate runs in a worker: the window keeps repainting, shows progress and can be cancelled
   const [progress, setProgress] = useState(null); // 0..1 while running
+  const runStartedAt = useRef(0); // TASKS.csv #3256 — the time left, from the run's own progress
+  // after 5 % and 3 s, a straight-line estimate from the share done so far (an estimate, said as one)
+  const timeLeft = (p) => { const el = (performance.now() - runStartedAt.current) / 1000; if (!(p >= 0.05 && p < 1 && el >= 3)) return ""; const left = (el * (1 - p)) / p; return left < 60 ? tr(" (about {s} s left)", { s: Math.max(5, Math.round(left / 5) * 5) }) : tr(" (about {m} min left)", { m: Math.round(left / 60) }); };
   const abortRef = useRef(null);
   const cancelRun = () => abortRef.current?.abort();
   const run = () => {
-    setError(""); setResult(null); setProgress(0);
+    setError(""); setResult(null); setProgress(0); runStartedAt.current = performance.now(); // #3256
     if (!collars.length) { setError(tr("No collars loaded — nothing to estimate from.")); return; }
     // TASKS.csv #676 — with fewer samples than holes, no block can ever reach the hole rule (it just reported 0 blocks)
     if (maxSamples < minHoles) { setError(tr("Max samples per block ({maxSamples}) is below Min distinct holes ({minHoles}), so no block could ever be estimated. Raise Max samples or lower Min holes.", { maxSamples, minHoles })); return; }
@@ -430,8 +433,18 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         const cap = Number.isFinite(capValue) && capValue > 0 ? capValue : null; // TASKS.csv #259
         let intervals, rawStats = null;
         const filled = uns.apply(srcAssays), runAssays = filled.assays; // #2417 / #2542 — barren: the unsampled metres filled at the typed value
-        if (useComposites) {
+        // TASKS.csv #3269 (Galore Creek review) — a point-like source (specific gravity, point load: readings far shorter than the composite)
+        // is estimated as readings, not composited: 141 of 144 SG pieces of ~0.11 m fell in 2 m windows 5 % covered and were dropped in
+        // silence, and the density model rested on three values. The readings' median length under a quarter of the composite length.
+        const readLens = [];
+        for (const r of runAssays) { const v = r.values?.[symbol]; if (v != null && v !== "" && Number.isFinite(Number(v)) && Number(r.to) > Number(r.from)) readLens.push(Number(r.to) - Number(r.from)); }
+        readLens.sort((a, b) => a - b);
+        const readMedian = readLens.length ? readLens[readLens.length >> 1] : null;
+        const compositingSkipped = useComposites && readMedian != null && readMedian < compositeLength / 4 ? { medianM: readMedian, lengthM: compositeLength } : null;
+        const coverageStats = {}; // #3269 — the readings no kept composite took
+        if (useComposites && !compositingSkipped) {
           intervals = compositeDownhole(runAssays, symbol, unit, elementUnits, {
+            stats: coverageStats, // #3269
             length: compositeLength, minCoverage, // TASKS.csv #262 — was hardcoded 0.5
             capValue: cap,
             domainRows: domainRowsSel, // #1571 — a built-in or a custom layer
@@ -467,6 +480,8 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           points = points.filter((p) => inShell(p));
           shellInfo = { name: sh.name, samplesInside: points.length, samplesOutside: before - points.length };
         }
+        // #3269 — no composite kept (every window under the minimum coverage) is not a placing problem: say what left the readings out
+        if (!points.length && !intervals.length && coverageStats.readings > 0 && coverageStats.leftOut === coverageStats.readings) { setError(tr("All {n} readings were left out: every composite they fell in was under the minimum coverage ({c} %). Lower the minimum coverage, or untick compositing to estimate the readings as they are.", { n: coverageStats.readings.toLocaleString(), c: Math.round(minCoverage * 100) })); setRunning(false); return; }
         if (!points.length) { setError(shellInfo ? tr("No {symbol} samples fall inside \"{name}\".", { symbol, name: shellInfo.name }) : tr("No sample points could be placed in 3D — check that holes have collars and (ideally) survey data.")); setRunning(false); return; }
         let logInfo = null; // TASKS.csv #1741 — a geometric mean per block: interpolate log10 values, convert the blocks back below
         if (logValues) logInfo = logPoints(points);
@@ -542,7 +557,9 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           // TASKS.csv #3255 — the record says whether #1573's 5 % rule was on (two models differing only in it had identical parameters)
           ...(minHoles > 1 ? { secondHoleRule: materialHoles ? "a second hole counts when it carries at least 5 % of the inverse-distance weight, except for a block within a cell of its nearest composite (there every hole in reach counts)" : "every hole in reach counts" } : {}),
           searchTrend: trend ? { name: trend.name, dip: trend.dip, dipAzimuth: trend.dipAzimuth, pitch: trend.pitch, ratios: trend.ratios, ellipsoidM: [1, trend.ratios.int / trend.ratios.max, trend.ratios.min / trend.ratios.max].map((f) => Math.round(f * (searchRadius > 0 ? searchRadius : gridDiagonal))) } : null, // #650
-          composited: useComposites, compositeLengthM: useComposites ? compositeLength : null, minCoverage: useComposites ? minCoverage : null,
+          composited: useComposites && !compositingSkipped, compositeLengthM: useComposites && !compositingSkipped ? compositeLength : null, minCoverage: useComposites && !compositingSkipped ? minCoverage : null,
+          ...(compositingSkipped ? { compositingSkipped: `the readings are ${Math.round(compositingSkipped.medianM * 100) / 100} m long (median), under a quarter of the ${compositeLength} m composites: each reading estimated as a sample of its own` } : {}), // #3269
+          ...(coverageStats.leftOut > 0 ? { readingsUnderCoverage: `${coverageStats.leftOut} of ${coverageStats.readings} readings in no composite with at least ${Math.round(minCoverage * 100)} % coverage` } : {}), // #3269
           capValue: Number.isFinite(cap) ? cap : null, capAudit: cap != null ? capAudit(srcAssays, symbol, unit, elementUnits, cap) : null, includeQAQC, // capAudit: #533
           // TASKS.csv #529 — the unit of the estimated values and of the cap (an "Au" column could be ppm or ppb); and the
           // domain fields, which #533's edit had left inside the comment above (estimates since then lacked them)
@@ -649,7 +666,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         setStage(null);
         const withBlocks = members.filter((m) => m.cells.length);
         if (withBlocks.length) { const set = setRecord(newSetId(), symbol, withBlocks.map((m) => m.element)); params.set = set; for (const m of withBlocks) m.params.set = set; }
-        setResult({ ...est, params, members, nnCells: nnCheck /* #3060 */, checkPoints: points, samplePointCount: points.length, noCodeComposites: domainKey ? points.filter((p) => p.domain == null).length : 0 /* #2541 */, droppedCount: dropped, clampedCount: clamped, beyondTraceCount: beyondTrace, rawStats, intervalCount: intervals.length });
+        setResult({ ...est, params, members, nnCells: nnCheck /* #3060 */, checkPoints: points, compositingSkipped, coverageLeftOut: coverageStats.leftOut > 0 ? { leftOut: coverageStats.leftOut, readings: coverageStats.readings, minCoverage } : null /* #3269 */, samplePointCount: points.length, noCodeComposites: domainKey ? points.filter((p) => p.domain == null).length : 0 /* #2541 */, droppedCount: dropped, clampedCount: clamped, beyondTraceCount: beyondTrace, rawStats, intervalCount: intervals.length });
         setAdded(false); setAddedSupport(false); setAddedKv(false); // a fresh run invalidates every "Added ✓" state
       } catch (e) {
         setError(e.cancelled ? tr("Estimation cancelled.") : (e.message || tr("Estimation failed.")));
@@ -992,7 +1009,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           )}
 
           <button onClick={run} disabled={!bounds || overLimit || reachPending || running || !symbol || !uns.ready /* #2417 */} style={{ ...btn(true), alignSelf: "flex-start", padding: "8px 16px", display: "flex", alignItems: "center", gap: 6, opacity: (!bounds || overLimit || !symbol || !uns.ready) ? 0.5 : 1 }}>
-            <Play size={14} /> {running ? (stage ? tr("Running {el}… {v}", { el: stage, v: progress != null ? Math.round(progress * 100) + "%" : "" }) /* #3014 */ : tr("Running… {v}", { v: progress != null ? Math.round(progress * 100) + "%" : "" })) : tr("Run estimation")}
+            <Play size={14} /> {running ? (stage ? tr("Running {el}… {v}", { el: stage, v: progress != null ? Math.round(progress * 100) + "%" + timeLeft(progress) : "" }) /* #3014 */ : tr("Running… {v}", { v: progress != null ? Math.round(progress * 100) + "%" + timeLeft(progress) : "" })) : tr("Run estimation")}
           </button>
           {running && <button type="button" onClick={cancelRun} style={{ ...btn(false), alignSelf: "flex-start", padding: "6px 14px" }}>{tr("Cancel")}</button>}
 
@@ -1009,6 +1026,8 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
                   : <div style={{ fontWeight: 600, color: "var(--color-warn-text)" }}>{tr("None of these {n} blocks lies between holes: every one is extrapolated from the nearest holes.", { n: n.toLocaleString() })}{tail}</div>;
               })()}
               {result.belowDrilling?.blocks > 0 && result.belowDrilling.metalShare >= 0.05 && <div style={{ color: "var(--color-warn-text)" }}>{modelTrend ? tr("{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling. The structural trend \"{name}\" sets the reach up and down: a flatter trend in Model settings keeps it nearer the samples.", { pct: Math.round(100 * result.belowDrilling.metalShare), k: result.belowDrilling.blocks.toLocaleString(), n: result.belowDrilling.of.toLocaleString(), r: Number(searchRadius) || 0, name: modelTrend.name }) /* #2697 — the Vertical reach box is disabled under a trend */ : Number(flatReach) > 0 ? tr("{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling, within the {h} m Vertical reach.", { pct: Math.round(100 * result.belowDrilling.metalShare), k: result.belowDrilling.blocks.toLocaleString(), n: result.belowDrilling.of.toLocaleString(), r: Number(searchRadius) || 0, h: Number(flatReach) }) /* #3025 (1) — no advice to set what is set */ : tr("{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling. A Vertical reach under the search radius keeps it near the samples.", { pct: Math.round(100 * result.belowDrilling.metalShare), k: result.belowDrilling.blocks.toLocaleString(), n: result.belowDrilling.of.toLocaleString(), r: Number(searchRadius) || 0 })}</div>}{/* #2546 */}
+              {result.compositingSkipped && <div role="note">{tr("Not composited: the readings are {m} m long (median), under a quarter of the {L} m composites, so each reading is estimated as a sample of its own (a 2 m window would hold a few per cent of one and fail the minimum coverage).", { m: Math.round(result.compositingSkipped.medianM * 100) / 100, L: result.compositingSkipped.lengthM })}</div>}{/* #3269 */}
+              {result.coverageLeftOut && <div role="note" style={{ color: result.coverageLeftOut.leftOut / Math.max(1, result.coverageLeftOut.readings) > 0.2 ? "var(--color-warn-text)" : undefined }}>{tr("{k} of the {n} readings were left out: every composite they fell in was under the minimum coverage ({c} %).", { k: result.coverageLeftOut.leftOut.toLocaleString(), n: result.coverageLeftOut.readings.toLocaleString(), c: Math.round(result.coverageLeftOut.minCoverage * 100) })}</div>}{/* #3269 */}
               <div>{tr("{samplePointCount} sample point(s) placed ({intervalCount} interval(s), {droppedCount} dropped — no collar/survey to place them{v}{v2}).", { samplePointCount: result.samplePointCount, intervalCount: result.intervalCount, droppedCount: result.droppedCount, v: result.beyondTraceCount ? tr(", {beyondTraceCount} of them deeper than the hole's trace", { beyondTraceCount: result.beyondTraceCount }) : "", v2: result.clampedCount ? tr("; {clampedCount} negative grade(s) clamped to zero", { clampedCount: result.clampedCount }) : "" })}</div>
               {/* TASKS.csv #571 */}
               {result.rawStats && (result.rawStats.duplicatesSkipped > 0 || result.rawStats.overlappingRows > 0) && (

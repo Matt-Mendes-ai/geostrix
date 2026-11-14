@@ -50,9 +50,9 @@ test("#2637 the bench table: per-block density, tonnes summed block by block, th
   const per = gradeTonnageByBench(cells, { cutoff: 0, benchH: 10, density: 2.5, unit: "%", densityOf: (c) => rho.get(c) });
   assert.equal(per[0].tonnes, 1000 * 2 + 1000 * 3);
   assert.ok(Math.abs(per[0].meanGrade - (2 * 2000 + 4 * 3000) / 5000) < 1e-12);
-  // a block with no density: in the volume, not the tonnes
+  // a block with no density: left out of the bench row and counted apart (TASKS.csv #3270 — it was in the volume, not the tonnes)
   const part = gradeTonnageByBench(cells, { cutoff: 0, benchH: 10, unit: "%", densityOf: (c) => (c === cells[0] ? 2 : null) });
-  assert.equal(part[0].tonnes, 2000); assert.equal(part[0].volumeM3, 2000);
+  assert.equal(part[0].tonnes, 2000); assert.equal(part[0].volumeM3, 1000); assert.equal(part[0].noDensityBlocks, 1); assert.equal(part[0].noDensityVolumeM3, 1000);
 });
 
 test("wiring: the dialog's fill from a log, the bench table's density, the CSV header line; keys", () => {

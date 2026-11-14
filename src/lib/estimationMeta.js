@@ -27,7 +27,9 @@ export const CELL_BUDGET_KEY = "geostrix.voxelCellBudget";
 const storageOr = (s) => s ?? (typeof localStorage !== "undefined" ? localStorage : null);
 export function readCellBudget(storage) { try { return clampCellBudget(Number(storageOr(storage)?.getItem(CELL_BUDGET_KEY))); } catch { return null; } }
 export function saveCellBudget(v, storage) { try { const c = clampCellBudget(v), st = storageOr(storage); if (c == null) st?.removeItem(CELL_BUDGET_KEY); else st?.setItem(CELL_BUDGET_KEY, String(c)); } catch { /* session only */ } }
-export const blockModelBudgetNote = (b) => (b <= 200000 ? "fast, ~0.1 GB of memory" : b <= 1000000 ? "~40 s, ~0.4 GB of memory" : "~1.5 min, ~0.9 GB of memory");
+// TASKS.csv #3256 (Galore Creek review) — memory only: the time depends on the search radius and the composites in reach as much as on the
+// blocks ("200,000 blocks (fast)" ran over five minutes at a 500 m search on 14 holes); the run says its own time left as it goes
+export const blockModelBudgetNote = (b) => (b <= 200000 ? "~0.1 GB of memory" : b <= 1000000 ? "~0.4 GB of memory" : "~0.9 GB of memory");
 // TASKS.csv #1416 (review #1352) — the grade shell's budget menu in the same form, so the two menus read alike. Its grid is a
 // Float64 value per block plus a 5-byte support code and index (estimateDenseGrid): ~13 MB per million, not the block model's
 // ~0.4 GB. Times from #625: 1.09 million blocks 18 s, 2.7 million 51 s, 5 million ~150 s (radius 50 m; a larger search is slower).
