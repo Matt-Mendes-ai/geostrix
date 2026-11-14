@@ -199,6 +199,16 @@ export function seedBreaks(range, baseColor) {
     for (let i = 0; i < steps.length; i++) cols.push(i < 3 ? C[i] : nextDarkerClassColor(baseColor, cols[i - 1]));
     return steps.map((lim, i) => ({ max: lim, color: cols[i], label: i === 0 ? `\u2264 ${lim}` : `${steps[i - 1]}\u2013${lim}`, seeded: true }));
   }
+  // TASKS.csv #3260 — a trace element spread over a decade or more between its median and P97.5: round limits on a log scale between them
+  const logs = logClassLimits(range);
+  if (logs) {
+    // up to six classes: their lightness spread evenly from the pale class to the dark one, so no two share a colour (stepping down from the
+    // three-class ramp met its floor at five)
+    const lims = [...logs, +Number(max).toPrecision(6)], n = lims.length;
+    const Ls = lims.map((_, i) => 88.9 - ((88.9 - 30) * i) / (n - 1)), Cs = lims.map((_, i) => (i === 0 ? 0.7 : i === n - 1 ? 0.95 : 1.1));
+    const cols = lightnessRamp(baseColor, Ls, Cs) || lightnessRamp("#e0894a", Ls, Cs); // no element colour: the default ramp's hue
+    return lims.map((lim, i) => ({ max: lim, color: cols[i], label: i === 0 ? `\u2264 ${lim}` : `${lims[i - 1]}\u2013${lim}`, seeded: true }));
+  }
   // Percentile boundaries when the caller supplied a distribution; equal-interval otherwise.
   const usable = Number.isFinite(p50) && Number.isFinite(p90) && p50 > min && p90 > p50 && p90 < max;
   const b1 = usable ? p50 : min + span / 3;
@@ -216,6 +226,22 @@ export function seedBreaks(range, baseColor) {
     { max: round(veryHigh ? p975 : max), color: C[2], label: "High", seeded: true },
     ...(veryHigh ? [{ max: round(max), color: nextDarkerClassColor(baseColor, C[2]), label: "Very high", seeded: true }] : []),
   ];
+}
+
+// TASKS.csv #3260 (Galore review: Cu '≤ 460 / 460–6590 / 6590–16600 / > 16600 ppm' put 0.046-0.66 % Cu, 40 % of the samples and every usual
+// cut-off, in one class) — when the median and the 97.5th percentile are a decade or more apart (p975 / p50 >= 10), the class limits are round
+// numbers on a log scale between them: 1 and 3 x 10^k (Cu 460-16,600 ppm: 1,000 / 3,000 / 10,000; Au 0.04-1.19: 0.1 / 0.3 / 1), or 1 x 10^k
+// alone when that gives more than five; two to five limits, else null (and the percentile classes stand). Any element, any deposit style:
+// the rule reads the element's own spread. Not for a major component (round equal steps, #2935, are tried first).
+export function logClassLimits(range) {
+  const { p50, p975, max } = range || {};
+  if (!(p50 > 0) || !(p975 > p50) || !(max > p975) || p975 / p50 < 10) return null;
+  for (const series of [[1, 3], [1]]) {
+    const lims = [];
+    for (let k = Math.floor(Math.log10(p50)); k <= Math.ceil(Math.log10(p975)); k++) for (const m of series) { const v = +(m * 10 ** k).toPrecision(6); if (v > p50 && v <= p975) lims.push(v); }
+    if (lims.length >= 2 && lims.length <= 5) return lims;
+  }
+  return null;
 }
 
 // TASKS.csv #2935 — a major component: range.unit a percentage ('%', '% SiO2') and a median of 5 % or more

@@ -73,7 +73,7 @@ test("#2648 the terrain, satellite and spectral flows go through the tie", () =>
   assert.match(g, /const lonLatOf = \(x, y\) => \{ const tie = tieOf\(project\)/);
   assert.doesNotMatch(g, /toLonLat\(x, y, project\.epsg\)\)\)/);
   const r = read("modules/RasterModule.jsx");
-  assert.match(r, /tieFetchedImage\(r, tie, opts\.targetEpsg/);
+  assert.match(r, /tieFetchedImage\(part, tie, opts\.targetEpsg/);
   assert.match(r, /targetEpsg: tie \? Number\(tie\.epsg\) : project\.epsg/);
   assert.match(r, /<SpectralIndexModal epsg=\{tieOf\(project\) \? null : project\?\.epsg\} tie=\{tieOf\(project\)/);
   assert.equal((r.match(/project\?\.crsSet === false && !tieOf\(project\)/g) || []).length, 3); // Satellite, Spectral; the RTP IGRF fill since #2561

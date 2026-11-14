@@ -19,8 +19,8 @@ import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 
 import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma, FileCheck, X, AlertTriangle, Globe, Database, Radar } from "../components/icons.js"; // Radar: #1999
 const McdAnomalyPanel = React.lazy(() => import("../components/McdAnomalyPanel.jsx")); // TASKS.csv #1999 — a lazy chunk: opened rarely
 import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"; // TASKS.csv #729
-import { addCalculatedElement, CALC_PRESETS, presetUnitsFor, oxideTotalPreset } from "../lib/calcElement.js"; // TASKS.csv #401; presetUnitsFor: #2619; oxideTotalPreset: #2914
-import { majorOxides, MIN_MAJORS } from "../lib/oxideTotals.js"; // TASKS.csv #2914 — the 'Oxide total' preset sums QAQC > Totals' majors
+import { addCalculatedElement, CALC_PRESETS, presetUnitsFor, oxideTotalPreset, mixedUnitReads } from "../lib/calcElement.js"; // mixedUnitReads: #3219 // TASKS.csv #401; presetUnitsFor: #2619; oxideTotalPreset: #2914
+import { majorOxides, MIN_MAJORS, anhydrousRows, sourceRow } from "../lib/oxideTotals.js"; // anhydrousRows / sourceRow: #2942 // TASKS.csv #2914 — the 'Oxide total' preset sums QAQC > Totals' majors
 import { useStore, useSetTaskProgress } from "../lib/store.jsx"; // useSetTaskProgress: #2164
 import { elementColumnStats } from "../lib/assayColumnScan.js"; // TASKS.csv #2164
 const ELEMENT_SCAN_CHUNKED_ROWS = 50000; // #2164 — below this the element columns are counted at once
@@ -36,7 +36,7 @@ import { seedFromProject, projectImportChoices, importChoicesOf, conversionsOver
 import { assayFileSummary, removeAssayFile, removeAssayElement, carbonateShare, VOLCANIC_DIAGRAMS, LOI, isLoiHeader, readLoiCell, projectKeepsOxide, unitBasis, oxideAliases } from "../lib/geochem.js"; // oxideAliases: #2914; // LOI: #2734; // TASKS.csv #624; carbonateShare: #1392
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #624
 import ElementBasisSelect from "../components/ElementBasisSelect.jsx"; // TASKS.csv #2627
-import GeochemPlot from "../components/GeochemPlot.jsx";
+import GeochemPlot, { onAxes } from "../components/GeochemPlot.jsx"; // onAxes: #3231
 import { lithologyBySample, lithologyCounts, NOT_LOGGED } from "../lib/sampleLithology.js"; // TASKS.csv #619
 import AssayImportModal from "../components/AssayImportModal.jsx";
 import { dbImportRecord, upsertDbImport } from "../lib/dbImports.js"; // TASKS.csv #1963
@@ -72,9 +72,13 @@ import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import EmptyState, { emptyStateSecondaryBtn } from "../components/EmptyState.jsx"; // TASKS.csv #309
 
 const ALL_DIAGRAMS = { ...DIAGRAMS, ...SPIDER_DIAGRAMS };
+// TASKS.csv #3219 — a calculated element's range in significant figures ('range 0.00-0.00' hid a ratio of 0.125)
+const sigFig = (v) => (!Number.isFinite(v) ? "—" : v === 0 ? "0" : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : String(+v.toPrecision(3)));
 const SPIDER_MIN = 4; // TASKS.csv #2030 — the fewest elements a normalized pattern can show a slope or an anomaly with
 // TASKS.csv #1678 — the X-Y scatter: its axes are chosen on the tab, so it is built there (lib/geochemXY.js); this stands in until they are
 const XY_ENTRY = { id: "xy", label: "X–Y scatter (choose the axes)", requires: [], xLabel: "", yLabel: "", xRange: [0, 1], yRange: [0, 1], project: () => null };
+// TASKS.csv #3051 — the ternary of three chosen corners, before its corners are set
+const TERNARY_ENTRY = { id: "ternary", label: TERNARY_LABEL, caption: TERNARY_CAPTION, requires: [], ternary: true, noFields: true, corners: ["", "", ""], project: () => null };
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { labAssays, isPxrfRow, sampleTypeClass, classifyQAQCRow } from "../lib/qaqc.js"; // TASKS.csv #1673; sampleTypeClass: #1661; classifyQAQCRow: #2027
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
@@ -86,7 +90,7 @@ import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #1212
 import { useTabNotices } from "../lib/useTabNotices.js"; // TASKS.csv #1203
 import SampleGridPanel from "../components/SampleGridPanel.jsx"; // TASKS.csv #1622
 import { methodColumnFor, methodsIn, partialDigestionFor } from "../lib/digestion.js"; // TASKS.csv #1518
-import { axisOf, xyDiagram, xyStats, elementsWithoutValues } from "../lib/geochemXY.js"; // TASKS.csv #1678; xyStats: #2353; elementsWithoutValues: #2719
+import { axisOf, xyDiagram, xyStats, elementsWithoutValues, ternaryDiagram, TERNARY_LABEL, TERNARY_CAPTION } from "../lib/geochemXY.js"; // ternary: #3051 // TASKS.csv #1678; xyStats: #2353; elementsWithoutValues: #2719
 import { numericSourceChoices } from "../lib/numericSources.js"; // TASKS.csv #1678
 import { keptMemo } from "../lib/keptMemo.js"; // TASKS.csv #3120 — the derived samples kept across tab visits
 import { requestProjectCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1445
@@ -136,6 +140,8 @@ export default function GeochemModule() {
     if (diagramId === "boxplot" && (noVolcanicCodes((layers?.litho || []).map((r) => r.value)) || BULK_COMMODITIES.has(leadFor(assays, assayElements)))) setDiagramId("xy");
   }, [assayElements]); // once per mount, on the project as loaded
   const [xyX, setXyX] = useKeptState(keptScope, "geochem.xyX", ""); // #1678 — "el:Cu" or a numeric source key
+  const [ternKeys, setTernKeys] = useKeptState(keptScope, "geochem.ternKeys", ["", "", ""]); // #3051 — the ternary's corners (top, bottom left, bottom right)
+  const [ternK, setTernK] = useKeptState(keptScope, "geochem.ternK", ["1", "1", "1"]); // #3051 — each corner's factor
   const [xyY, setXyY] = useKeptState(keptScope, "geochem.xyY", "");
   const [xyOne, setXyOne] = useKeptState(keptScope, "geochem.xyOne", false); // #2353 — a 1:1 line
   const [xyMin, setXyMin] = useKeptState(keptScope, "geochem.xyMin", ""); // #2353 — the statistics over X >= this
@@ -226,7 +232,7 @@ export default function GeochemModule() {
   // TASKS.csv #2957 — the units the project already stores an element in (surface samples first, then drill assays): a new file's oxide column takes that basis
   const projectUnits = useMemo(() => ({ ...Object.fromEntries(assayElements.filter((e) => !e.calculated).map((e) => [e.symbol, e.unit])), ...Object.fromEntries(surfaceElements.filter((e) => !e.calculated).map((e) => [e.symbol, e.unit])) }), [assayElements, surfaceElements]);
   // TASKS.csv #1678 — the X-Y scatter's axes: elements, then the numeric downhole logs and custom-layer fields (read at each sample's depth)
-  const xyChoices = useMemo(() => numericSourceChoices({ layers: store.layers, customLayers: store.customLayers, builtinFields: { labelOf: (k) => tr(LAYER_META[k]?.label || k) } /* #2915 */ }), [store.layers, store.customLayers]);
+  const xyChoices = useMemo(() => numericSourceChoices({ layers: store.layers, customLayers: store.customLayers, logValidRange: store.project?.logValidRange /* #3116 */, builtinFields: { labelOf: (k) => tr(LAYER_META[k]?.label || k) } /* #2915 */ }), [store.layers, store.customLayers, store.project?.logValidRange]);
   // TASKS.csv #2719 — with pXRF and lab results, an element measured by only one of them offered an empty axis in the other source:
   // the X / Y lists mark (and grey out) the elements with no value in the samples shown
   const xyEmptyElements = useMemo(() => (diagramId === "xy" && hasPxrf ? elementsWithoutValues(sourceRows, assayElements.map((e) => e.symbol)) : new Set()), [diagramId, hasPxrf, sourceRows, assayElements]);
@@ -250,6 +256,15 @@ export default function GeochemModule() {
     const ctx = { layers: store.layers, customLayers: store.customLayers };
     return [axisOf(choice(xyKeyX), ctx), axisOf(choice(xyKeyY), ctx)];
   }, [diagramId, xyKeyX, xyKeyY, xyChoices, assayElements, store.layers, store.customLayers]);
+  // TASKS.csv #3051 — the ternary's corners: the user's, else the lead, its closest partner and the next element of the suite
+  const ternDefault = useMemo(() => { const three = correlationDefaults(assayElements.filter((e) => !e.calculated).map((e) => e.symbol), 3, { lead: xyLead }); return [...new Set([...xyPair, ...three])].slice(0, 3).map((s) => `el:${s}`); }, [assayElements, xyLead, xyPair]);
+  const ternKeysNow = [0, 1, 2].map((i) => ternKeys?.[i] || ternDefault[i] || "");
+  const ternDiag = useMemo(() => {
+    if (diagramId !== "ternary") return null;
+    const choice = (key) => { if (!key) return null; if (key.startsWith("el:")) { const e = assayElements.find((x) => x.symbol === key.slice(3)); return e ? { kind: "element", symbol: e.symbol, unit: e.unit } : null; } return xyChoices.find((c) => c.key === key) || null; };
+    const ctx = { layers: store.layers, customLayers: store.customLayers };
+    return ternaryDiagram(ternKeysNow.map((k) => axisOf(choice(k), ctx)), ternK);
+  }, [diagramId, ternKeysNow.join("|"), (ternK || []).join("|"), xyChoices, assayElements, store.layers, store.customLayers]); // keys by value
   // TASKS.csv #2359 (review #2325) — an X-Y scatter that plots nothing ('0 of 569 samples plotted' for V on pXRF readings that never report it)
   // says which axis has no value in the samples shown, or that no sample has both
   const xyEmptyReason = (axes, rows, units) => {
@@ -278,7 +293,11 @@ export default function GeochemModule() {
   // 3D view and moved whenever the lithology filter changed the ranks.
   const lithOverride = viewerUiState?.legendOverride?.litho;
   const lithColors = useMemo(() => Object.fromEntries(lithCounts.map(([k]) => [k, k === NOT_LOGGED ? "#b8bec7" : lithOverride?.[k]?.color || colorForLithology(k)])), [lithCounts, lithOverride]);
-  const plotted = useMemo(() => keptMemo([sourceRows, sampleLith], `plot|${lithFilter ? [...lithFilter].sort().join("\u0001") : "*"}`, () => (lithFilter ? sourceRows.filter((a) => lithFilter.has(sampleLith.get(a) ?? NOT_LOGGED)) : sourceRows)), [sourceRows, lithFilter, sampleLith]); // sourceRows: #1673; kept: #3120
+  // TASKS.csv #2942 — the majors recalculated to 100 % volatile-free (an option, with at least MIN_MAJORS of them); samples missing one are left out
+  const anhMajors = useMemo(() => majorOxides(assayElements), [assayElements]);
+  const [anhydrous, setAnhydrous] = useKeptState(keptScope, "geochem.anhydrous", false);
+  const anhydrousOn = !!anhydrous && anhMajors.length >= MIN_MAJORS;
+  const plotted = useMemo(() => keptMemo([sourceRows, sampleLith], `plot|${lithFilter ? [...lithFilter].sort().join("\u0001") : "*"}|${anhydrousOn ? anhMajors.map((m) => m.symbol).join(",") : ""}`, () => { const rows = lithFilter ? sourceRows.filter((a) => lithFilter.has(sampleLith.get(a) ?? NOT_LOGGED)) : sourceRows; return anhydrousOn ? anhydrousRows(rows, anhMajors) : rows; }), [sourceRows, lithFilter, sampleLith, anhydrousOn, anhMajors]); // sourceRows: #1673; kept: #3120; anhydrous: #2942
   // TASKS.csv #2353 — n, Spearman, the median Y / X and the length-weighted ratio, over X >= the typed value
   // TASKS.csv #2909 (WA iron review) — the statistics line of the samples the plot draws: it read every sample ('n 147,659 · Spearman -0.96') under a
   // lithology filter showing 26,253 (three ore strands), the question the filter is for
@@ -290,7 +309,7 @@ export default function GeochemModule() {
     return [
       `${sm.hole_id}  ${num(sm.from)}–${num(sm.to)} m`,
       `Sample ID: ${sm.sample_id || "— (none in the assay file)"}`,
-      `Lithology (logged): ${hasLithLog ? sampleLith.get(sm) ?? "not logged here" : "no lithology log loaded"}`,
+      `Lithology (logged): ${hasLithLog ? sampleLith.get(sourceRow(sm)) ?? "not logged here" : "no lithology log loaded"}`, // sourceRow: #2942
     ];
   };
   // TASKS.csv #619 (#618 click review) — the element colour range was recomputed over ALL assays for EVERY point
@@ -312,7 +331,7 @@ export default function GeochemModule() {
   const colorBy = useMemo(() => { const fn = (sample) => {
     if (colorMode === "uniform") return "#4a9be0";
     if (colorMode === "hole") return holeColors[sample.hole_id] || "#55606e";
-    if (colorMode === "lithology") return lithColors[sampleLith.get(sample) ?? NOT_LOGGED] || "#b8bec7";
+    if (colorMode === "lithology") return lithColors[sampleLith.get(sourceRow(sample)) ?? NOT_LOGGED] || "#b8bec7"; // sourceRow: #2942
     if (colorMode === "element" && colorEl) {
       const v = valueIn(sample, colorEl, colorUnit, elementUnits);
       if (v == null || !colorRange) return "#eef1f4";
@@ -324,7 +343,7 @@ export default function GeochemModule() {
   fn.rank = colorMode === "element" && colorEl ? (sample) => valueIn(sample, colorEl, colorUnit, elementUnits) ?? -Infinity : null;
   return fn; }, [colorMode, colorEl, colorUnit, holeColors, lithColors, sampleLith, colorRange, elementUnits]);
 
-  const diagram = diagramId === "xy" ? xyDiag || XY_ENTRY : ALL_DIAGRAMS[diagramId]; // xy: #1678
+  const diagram = diagramId === "xy" ? xyDiag || XY_ENTRY : diagramId === "ternary" ? ternDiag || TERNARY_ENTRY /* #3051 */ : ALL_DIAGRAMS[diagramId]; // xy: #1678
   // TASKS.csv #1392 — a volcanic-protolith diagram on mostly calcareous samples says so (see carbonateShare)
   const carbShare = useMemo(() => carbonateShare(assays, elementUnits), [assays, elementUnits]);
   // TASKS.csv #2911 — the volcanic diagrams say when no logged code is a volcanic rock (TAS drew alluvium and iron formation across its fields)
@@ -335,9 +354,9 @@ export default function GeochemModule() {
   // all 83,670 samples again in the caption and the export furniture)
   // TASKS.csv #2018 — the half-detection sentence counts the plotted samples that hold a '<' value for the diagram's elements
   const unitsKey = useMemo(() => JSON.stringify(elementUnits), [elementUnits]); // #3120 — the units as part of a kept result's key
-  const censoredCount = useMemo(() => (diagram.ratio ? 0 : keptMemo([plotted, diagram], `cens|${diagramId}|${xyKeyX}|${xyKeyY}`, () => censoredSamples(plotted, diagram.spider ? diagram.order : diagramId === "xy" ? [xyKeyX, xyKeyY].filter((k) => String(k).startsWith("el:")).map((k) => k.slice(3)) : diagram.requires))), [plotted, diagram, diagramId, xyKeyX, xyKeyY]); // ratio: #2501, none plotted; xy (requires []): #2505
+  const censoredCount = useMemo(() => (diagram.ratio ? 0 : keptMemo([plotted, diagram], `cens|${diagramId}|${xyKeyX}|${xyKeyY}`, () => censoredSamples(plotted, diagram.spider ? diagram.order : diagramId === "xy" ? [xyKeyX, xyKeyY].filter((k) => String(k).startsWith("el:")).map((k) => k.slice(3)) : diagramId === "ternary" ? ternKeysNow.filter((k) => String(k).startsWith("el:")).map((k) => k.slice(3)) /* #3051 */ : diagram.requires))), [plotted, diagram, diagramId, xyKeyX, xyKeyY]); // ratio: #2501, none plotted; xy (requires []): #2505
   const ratioLeftOut = useMemo(() => censoredLeftOut(diagram, plotted, elementUnits), [diagram, plotted, elementUnits]); // #2501
-  const plottedCount = useMemo(() => keptMemo([plotted, diagram], `count|${unitsKey}`, () => (diagram.spider ? plotted.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length : plotted.filter((a) => diagram.project(a, elementUnits)).length)), [diagram, plotted, elementUnits, unitsKey]); // kept: #3120
+  const plottedCount = useMemo(() => keptMemo([plotted, diagram], `count|${unitsKey}`, () => (diagram.spider ? plotted.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length : plotted.filter((a) => { const p = diagram.project(a, elementUnits); return p && onAxes(diagram, p); }).length)), [diagram, plotted, elementUnits, unitsKey]); // kept: #3120; onAxes: #3231 — drawn, not only projected
   const availableSymbols = new Set(assayElements.map((e) => e.symbol));
   const missingForDiagram = diagram.requires.filter((s) => !availableSymbols.has(s));
 
@@ -1224,7 +1243,7 @@ export default function GeochemModule() {
       : [];
     const keyTitle = colorMode === "hole" ? "Hole" : colorMode === "lithology" ? "Lithology" : colorMode === "element" ? `${colorEl} (${colorRange?.log ? "log" : "linear"} scale)` : "";
     const pdx = partialDigestionFor(assayElements, diagram.requires); // #1518 — the warning travels with the exported figure
-    return geochemFurniture({ title: diagram.label, caption: (carbonateNote ? `${carbonateNote} ` : "") + (volcanicNote ? `${volcanicNote} ` : "") /* #2911 */ + (pdx.length ? `${diagram.caption} ${tr("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pdx.map(([s, m]) => `${s} ${m}`).join(", ") })}` : diagram.caption), plotted: n, total: assays.length, spider: !!diagram.spider, hidden: lithFilter ? assays.length - plotted.length : null, keyTitle, keyItems, date: new Date().toISOString().slice(0, 10), censored: censoredCount }); // #1017 — in lib, tested; censored: #2018
+    return geochemFurniture({ title: diagram.label, caption: (carbonateNote ? `${carbonateNote} ` : "") + (volcanicNote ? `${volcanicNote} ` : "") /* #2911 */ + (anhydrousOn ? `${tr("Major oxides recalculated to 100 % volatile-free.")} ` : "") /* #2942 */ + (pdx.length ? `${diagram.caption} ${tr("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pdx.map(([s, m]) => `${s} ${m}`).join(", ") })}` : diagram.caption), plotted: n, total: assays.length, spider: !!diagram.spider, hidden: lithFilter ? assays.length - plotted.length : null, keyTitle, keyItems, date: new Date().toISOString().slice(0, 10), censored: censoredCount }); // #1017 — in lib, tested; censored: #2018
   };
   const exportPlotSVG = () => {
     const svg = svgRef.current;
@@ -1359,8 +1378,11 @@ export default function GeochemModule() {
                 </select>
                 <input value={calc.name} onChange={(e) => setCalc((c) => ({ ...c, name: e.target.value }))} placeholder={tr("Name, e.g. AI")} aria-label={tr("Calculated element name")} style={{ fontSize: "var(--font-size-sm)" }} />
                 {/* TASKS.csv #1749 (review #1645, Copley) — a metal-equivalent (CuEq, AuEq) is a grade, not an index: with a grade unit its estimate can be priced in the pit shell */}
-                <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Unit")}<select value={calc.unit || "index"} onChange={(e) => setCalc((c) => ({ ...c, unit: e.target.value }))} style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Unit of the calculated element")} title={tr("An index has no unit. A metal-equivalent (CuEq, AuEq) takes the grade unit its formula gives, % or g/t, so an estimate of it can be priced in the pit shell.")}>{["index", "%", "g/t", "ppm", "ppb"].map((u) => <option key={u} value={u}>{u === "index" ? tr("index (no unit)") : u}</option>)}</select></label>
+                <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Unit")}<select value={calc.unit || "index"} onChange={(e) => setCalc((c) => ({ ...c, unit: e.target.value }))} style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Unit of the calculated element")} title={tr("An index has no unit. A metal-equivalent (CuEq, AuEq) takes the grade unit its formula gives, % or g/t, so an estimate of it can be priced in the pit shell.")}>{[...new Set(["index", "%", "g/t", "ppm", "ppb", ...((calc.source === "surface" ? surfaceElements : assayElements).map((e) => e.unit).filter((u) => u && unitBasis(u).oxide)) /* #3160 — the oxide units the project stores */, ...(calc.unit ? [calc.unit] : [])])].map((u) => <option key={u} value={u}>{u === "index" ? tr("index (no unit)") : u}</option>)}</select></label>
                 <textarea value={calc.expr} onChange={(e) => setCalc((c) => ({ ...c, expr: e.target.value }))} rows={3} placeholder={tr("Formula over element symbols, e.g. 100*Zn/(Zn+Pb)")} aria-label={tr("Calculated element formula")} style={{ fontSize: "var(--font-size-sm)", fontFamily: "monospace" }} />
+                {!presetUnitsFor(calc.preset, calc.expr) && mixedUnitReads(calc.expr, calc.source === "surface" ? surfaceElements : assayElements) && ( /* TASKS.csv #3219 — a ratio of elements stored in different units */
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}><input type="checkbox" checked={!!calc.readPpm} onChange={(e) => setCalc((c) => ({ ...c, readPpm: e.target.checked }))} />{tr("Read these elements in ppm: the formula divides elements stored in different units ({list})", { list: Object.keys(mixedUnitReads(calc.expr, calc.source === "surface" ? surfaceElements : assayElements)).map((sym) => `${sym} ${((calc.source === "surface" ? surfaceElements : assayElements).find((e) => e.symbol === sym) || {}).unit || ""}`).join(", ") })}</label>
+                )}
                 {aliasNames.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Oxide names work too, in % through the import's factors: {list}.", { list: aliasNames.slice(0, 12).join(", ") + (aliasNames.length > 12 ? " …" : "") })}</div>}{/* #2914 */}
                 <div style={{ color: "var(--color-text-muted)" }}>{tr("Elements are read in their stored units ({v}{v2}). Rows missing any element in the formula get no value.", { v: calcEls.slice(0, 6).map((e) => `${e.symbol} ${e.unit}`).join(", "), v2: calcEls.length > 6 ? ", …" : "" })}</div>
                 {calc.msg && (calc.msg.preset && calc.preset && !presetUnitsFor(calc.preset, calc.expr) /* #2619 — the preset's promise no longer holds */
@@ -1370,17 +1392,17 @@ export default function GeochemModule() {
                   <button style={{ ...genBtn, flex: 1 }} onClick={() => {
                     try {
                       if (onSurface) { // #1799 — stored on the surface samples like an imported element: plan map, thresholds, grade stats take it
-                        const r = addCalculatedElement(surfaceSamples, surfaceElements, calc.name, calc.expr, calc.unit || "index", { readUnits: presetUnitsFor(calc.preset, calc.expr) }); // #2500; presetUnitsFor: #2619
+                        const r = addCalculatedElement(surfaceSamples, surfaceElements, calc.name, calc.expr, calc.unit || "index", { readUnits: presetUnitsFor(calc.preset, calc.expr) || (calc.readPpm ? mixedUnitReads(calc.expr, surfaceElements) : null) /* #3219 */ }); // #2500; presetUnitsFor: #2619
                         setSurfaceSamples(r.assays);
                         setSurfaceElements((prev) => [...prev, r.element]);
-                        setNotices((p) => [...p, notice("Added calculated element {symbol} = {expr} on {computed} surface sample(s) (range {min}–{max}){v}. The plan map, thresholds, grade stats and correlation can use it. It is not recalculated if the samples are re-imported.", { symbol: r.element.symbol, expr: r.element.calculated.expr, computed: r.computed.toLocaleString(), min: r.min.toFixed(2), max: r.max.toFixed(2), v: (r.skipped ? tr("; {skipped} sample(s) missing an element in the formula have no value", { skipped: r.skipped.toLocaleString() }) : "") + (r.leftBdl ? tr("; {n} left out: a ratio with a below-detection operand is not a value", { n: r.leftBdl.toLocaleString() }) : "") + (r.flaggedLt ? tr("; {n} flagged below detection ('<'): every element in the formula was", { n: r.flaggedLt.toLocaleString() }) : "") /* #2505 */ })]);
+                        setNotices((p) => [...p, notice("Added calculated element {symbol} = {expr} on {computed} surface sample(s) (range {min}–{max}){v}. The plan map, thresholds, grade stats and correlation can use it. It is not recalculated if the samples are re-imported.", { symbol: r.element.symbol, expr: r.element.calculated.expr, computed: r.computed.toLocaleString(), min: sigFig(r.min), max: sigFig(r.max) /* #3219 — 0.125, not 0.00 */, v: (r.skipped ? tr("; {skipped} sample(s) missing an element in the formula have no value", { skipped: r.skipped.toLocaleString() }) : "") + (r.leftBdl ? tr("; {n} left out: a ratio with a below-detection operand is not a value", { n: r.leftBdl.toLocaleString() }) : "") + (r.flaggedLt ? tr("; {n} flagged below detection ('<'): every element in the formula was", { n: r.flaggedLt.toLocaleString() }) : "") /* #2505 */ + (r.divZero ? tr("; {n} could not be computed from their values (a division by zero, the log or root of a negative number), so no value", { n: r.divZero.toLocaleString() }) : "") /* #3160; #3226 (2) — not only a division */ + (r.mixedUnits ? tr("; divided as stored, though {list} are in different units: tick 'Read these elements in ppm' to compare like with like", { list: r.mixedUnits.map((c) => `${c.sym} (${c.unit})`).join(", ") }) : "") /* #3219 */ })]);
                         setCalc(null);
                         return;
                       }
-                      const r = addCalculatedElement(assays, assayElements, calc.name, calc.expr, calc.unit || "index", { readUnits: presetUnitsFor(calc.preset, calc.expr) }); // unit: #1749; readUnits: #2500, #2619 (a preset's formula as given)
+                      const r = addCalculatedElement(assays, assayElements, calc.name, calc.expr, calc.unit || "index", { readUnits: presetUnitsFor(calc.preset, calc.expr) || (calc.readPpm ? mixedUnitReads(calc.expr, assayElements) : null) /* #3219 */ }); // unit: #1749; readUnits: #2500, #2619 (a preset's formula as given)
                       setAssays(r.assays);
                       setAssayElements((prev) => [...prev, r.element]);
-                      setNotices((p) => [...p, notice(collars.length ? "Added calculated element {symbol} = {expr} on {computed} assay interval(s) (range {min}–{max}){v}. It can now be shown downhole, in 3D and on sections like any element. It is not recalculated if assays are re-imported." : "Added calculated element {symbol} = {expr} on {computed} assay interval(s) (range {min}–{max}){v}. Every Geochem tool can use it now; it is drawn downhole once collars are loaded. It is not recalculated if assays are re-imported.", /* #1800 */ { symbol: r.element.symbol, expr: r.element.calculated.expr, computed: r.computed.toLocaleString(), min: r.min.toFixed(2), max: r.max.toFixed(2), v: (r.skipped ? tr("; {skipped} interval(s) missing an element in the formula have no value", { skipped: r.skipped.toLocaleString() }) : "") + (r.leftBdl ? tr("; {n} left out: a ratio with a below-detection operand is not a value", { n: r.leftBdl.toLocaleString() }) : "") + (r.flaggedLt ? tr("; {n} flagged below detection ('<'): every element in the formula was", { n: r.flaggedLt.toLocaleString() }) : "") /* #2505 */ })]);
+                      setNotices((p) => [...p, notice(collars.length ? "Added calculated element {symbol} = {expr} on {computed} assay interval(s) (range {min}–{max}){v}. It can now be shown downhole, in 3D and on sections like any element. It is not recalculated if assays are re-imported." : "Added calculated element {symbol} = {expr} on {computed} assay interval(s) (range {min}–{max}){v}. Every Geochem tool can use it now; it is drawn downhole once collars are loaded. It is not recalculated if assays are re-imported.", /* #1800 */ { symbol: r.element.symbol, expr: r.element.calculated.expr, computed: r.computed.toLocaleString(), min: sigFig(r.min), max: sigFig(r.max) /* #3219 — 0.125, not 0.00 */, v: (r.skipped ? tr("; {skipped} interval(s) missing an element in the formula have no value", { skipped: r.skipped.toLocaleString() }) : "") + (r.leftBdl ? tr("; {n} left out: a ratio with a below-detection operand is not a value", { n: r.leftBdl.toLocaleString() }) : "") + (r.flaggedLt ? tr("; {n} flagged below detection ('<'): every element in the formula was", { n: r.flaggedLt.toLocaleString() }) : "") /* #2505 */ + (r.divZero ? tr("; {n} could not be computed from their values (a division by zero, the log or root of a negative number), so no value", { n: r.divZero.toLocaleString() }) : "") /* #3160; #3226 (2) — not only a division */ + (r.mixedUnits ? tr("; divided as stored, though {list} are in different units: tick 'Read these elements in ppm' to compare like with like", { list: r.mixedUnits.map((c) => `${c.sym} (${c.unit})`).join(", ") }) : "") /* #3219 */ })]);
                       setCalc(null);
                     } catch (err) { setCalc((c) => ({ ...c, msg: { ok: false, text: err.message } })); }
                   }}>{tr("Add")}</button>
@@ -1420,7 +1442,7 @@ export default function GeochemModule() {
       <div className="ge-main" style={{ display: "flex", flexDirection: "column", padding: 20, overflow: "auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
           <select aria-label={tr("Diagram")} value={diagramId} onChange={(e) => setDiagramId(e.target.value)} style={selectStyle}>
-            {[...Object.values(ALL_DIAGRAMS), XY_ENTRY].map((d) => <option key={d.id} value={d.id}>{tr(d.label)}</option>)}
+            {[...Object.values(ALL_DIAGRAMS), XY_ENTRY, TERNARY_ENTRY /* #3051 */].map((d) => <option key={d.id} value={d.id}>{tr(d.label)}</option>)}
           </select>
           {diagramId === "xy" && ( /* TASKS.csv #1678 — the scatter's two axes */
             <>
@@ -1436,8 +1458,25 @@ export default function GeochemModule() {
               {/* TASKS.csv #2353 — a 1:1 line and the numbers a log-against-assay check reads */}
               <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }}><input type="checkbox" checked={!!xyOne} onChange={(e) => setXyOne(e.target.checked)} />{tr("1:1 line")}</label>
               <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{tr("Statistics where X ≥")}<input type="number" step="any" value={xyMin} onChange={(e) => setXyMin(e.target.value)} aria-label={tr("Statistics where X is at least")} style={{ ...selectStyle, width: 80, padding: "4px 6px" }} /></label>
-              {xyStat && <span style={{ fontSize: 11.5, color: "#2a3444" }} role="status">{tr("n {n} · Spearman {r} · median Y / X {m} · length-weighted Y / X {w}", { n: xyStat.n.toLocaleString(), r: Number.isFinite(xyStat.r) ? xyStat.r.toFixed(2) : "—", m: Number.isFinite(xyStat.medianRatio) ? xyStat.medianRatio.toPrecision(3) : "—", w: Number.isFinite(xyStat.weightedRatio) ? xyStat.weightedRatio.toPrecision(3) : "—" })}</span>}
+              {xyStat && <span style={{ fontSize: 11.5, color: "#2a3444" }} role="status">{tr("n {n} · Spearman {r} · median Y / X {m} · length-weighted Y / X {w}", { n: xyStat.n.toLocaleString(), r: Number.isFinite(xyStat.r) ? xyStat.r.toFixed(2) : "—", m: Number.isFinite(xyStat.medianRatio) ? xyStat.medianRatio.toPrecision(3) : "—", w: Number.isFinite(xyStat.weightedRatio) ? xyStat.weightedRatio.toPrecision(3) : "—" })}{xyStat.inPpm ? ` ${tr("(ratios in ppm / ppm: the two axes are stored in different units)")}` : "" /* #3219 */}</span>}
             </>
+          )}
+          {diagramId === "ternary" && ( /* TASKS.csv #3051 — the three corners and their factors */
+            <>
+              {[tr("Top"), tr("Bottom left"), tr("Bottom right")].map((corner, i) => (
+                <label key={i} style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{corner}
+                  <select aria-label={tr("{corner} corner", { corner })} value={ternKeysNow[i]} onChange={(e) => setTernKeys(ternKeysNow.map((k, j) => (j === i ? e.target.value : k)))} style={{ ...selectStyle, padding: "5px 8px", maxWidth: 180 }}>
+                    {!ternKeysNow[i] && <option value="">{tr("— choose —")}</option>}
+                    <optgroup label={tr("Elements")}>{assayElements.map((e) => <option key={e.symbol} value={`el:${e.symbol}`}>{e.unit ? `${e.symbol} (${e.unit})` : e.symbol}</option>)}</optgroup>
+                    {xyChoices.length > 0 && <optgroup label={tr("Downhole logs and custom fields (at each sample's depth)")}>{xyChoices.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}</optgroup>}
+                  </select>
+                  <span aria-hidden="true">×</span><input type="number" min="0" step="any" value={ternK?.[i] ?? "1"} onChange={(e) => setTernK([0, 1, 2].map((j) => (j === i ? e.target.value : ternK?.[j] ?? "1")))} aria-label={tr("{corner} factor", { corner })} title={tr("A factor for this corner (0.01 for Ti/100, 3 for Y×3)")} style={{ ...selectStyle, width: 58, padding: "4px 6px" }} />
+                </label>
+              ))}
+            </>
+          )}
+          {anhMajors.length >= MIN_MAJORS && !(ALL_DIAGRAMS[diagramId]?.spider) && ( /* TASKS.csv #2942 — volatile-free majors */
+            <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }} title={tr("Each sample's major oxides are scaled to sum to 100 % (the loss on ignition left out), as classification diagrams such as TAS are drawn. Samples missing a major oxide are left out. Ratios do not change.")}><input type="checkbox" checked={anhydrousOn} onChange={(e) => setAnhydrous(e.target.checked)} />{tr("Majors to 100 % volatile-free")}</label>
           )}
           {hasPxrf && ( /* TASKS.csv #1673 — which rows the plot uses */
             <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 11.5, color: "#55606e" }} title={tr("Portable XRF readings are screening numbers (zero-length points, 'not detected' zeros, a bad reading at 36,096 ppm Rb): plotted apart from the lab assays unless you choose both.")}>{tr("Samples:")}<select aria-label={tr("Samples plotted")} value={plotSource} onChange={(e) => setPlotSource(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
@@ -1555,11 +1594,11 @@ export default function GeochemModule() {
               <div role="status" style={{ padding: 12, border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{/* TASKS.csv #2030 */}
                 {spiderPresent.length ? tr("Only {list} of this diagram's {n} elements were analysed: a pattern needs at least {min} of them, so none is drawn (a partial digestion often leaves out most REE).", { list: spiderPresent.join(", "), n: diagram.order.length, min: SPIDER_MIN }) : tr("None of this diagram's elements was analysed.")}
               </div>
-            ) : <GeochemPlot diagramId={diagramId} diagramOverride={diagramId === "xy" ? diagram : null} samples={plotted} elementUnits={elementUnits} colorBy={colorBy} svgRef={svgRef} altBoxes={alterationBoxes?.boxes || PROVISIONAL_ALTERATION_BOXES} describe={describeSample} />} {/* plotted / describe: #619; the spider check: #2030 */}
+            ) : <GeochemPlot diagramId={diagramId} diagramOverride={diagramId === "xy" || diagramId === "ternary" /* #3051 */ ? diagram : null} samples={plotted} elementUnits={elementUnits} colorBy={colorBy} svgRef={svgRef} altBoxes={alterationBoxes?.boxes || PROVISIONAL_ALTERATION_BOXES} describe={describeSample} />} {/* plotted / describe: #619; the spider check: #2030 */}
             <div style={{ fontSize: "var(--font-size-xs)", color: "#65717e", marginTop: 8 }}>
               {((o) => o.v + o.v2 + (ratioLeftOut.total ? " " + tr("{n} sample(s) left out: a ratio with a below-detection operand is not a point ({list}).", { n: ratioLeftOut.total.toLocaleString(), list: Object.entries(ratioLeftOut.bySymbol).sort((x, y) => y[1] - x[1]).map(([k, n]) => tr("{el} below detection in {n}", { el: k, n: n.toLocaleString() })).join(", ") }) : "") /* #2501 */ + (censoredCount ? " " + tr(censoredCount === 1 ? "1 of them holds a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored." : "{n} of them hold a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored.", { n: censoredCount.toLocaleString() }) : "") /* #2018 — only when there are some */)({ v: diagram.spider
                 ? tr("{n} of {assays} samples have at least one plottable element.", { n: plottedCount, assays: sourceRows.length })
-                : tr("{n} of {assays} samples plotted.", { n: plottedCount, assays: sourceRows.length }) + (plottedCount === 0 && sourceRows.length && plotted.length /* #2925 (4) — not when the lithology filter hid them all: it says so */ && diagramId === "xy" && xyAxes?.[0] && xyAxes?.[1] ? " " + xyEmptyReason(xyAxes, sourceRows, elementUnits) /* #2359 — why the frame is empty */ : "") + (plottedCount === 0 && sourceRows.length && !missingForDiagram.length && diagram.requires.length ? " " + ((absent) => (absent.length ? tr("None of these samples has {list}.", { list: absent.join(", ") }) : tr("No sample has {requires} all together (they may come from different files, e.g. a lab assay and a pXRF reading).", { requires: diagram.requires.join(", ") })))(diagram.requires.filter((sym) => !sourceRows.some((r) => Number.isFinite(r.values?.[sym])))) : ""), /* plottedCount: #1519; the reason for none: #1679 (Copley TAS: Si only in the pXRF, Na only in the lab assays) */ v2: (lithFilter ? tr(" {v} hidden by the lithology filter.", { v: sourceRows.length - plotted.length }) : "") + (hasPxrf && plotSource !== "both" ? " " + (plotSource === "pxrf" ? tr("{k} lab assay(s) left out: pXRF readings only.", { k: (assays.length - sourceAll.length).toLocaleString() }) : tr("{k} pXRF reading(s) left out: lab assays only.", { k: (assays.length - sourceAll.length).toLocaleString() })) : "") + (qcInSource && !plotQc ? " " + tr("{k} QC insert(s) (standards, blanks, duplicates) left out.", { k: qcInSource.toLocaleString() }) : "") /* #2027 */ })}</div>
+                : tr("{n} of {assays} samples plotted.", { n: plottedCount, assays: sourceRows.length }) + (plottedCount === 0 && sourceRows.length && plotted.length /* #2925 (4) — not when the lithology filter hid them all: it says so */ && diagramId === "xy" && xyAxes?.[0] && xyAxes?.[1] ? " " + xyEmptyReason(xyAxes, sourceRows, elementUnits) /* #2359 — why the frame is empty */ : "") + (plottedCount === 0 && sourceRows.length && !missingForDiagram.length && diagram.requires.length ? " " + ((absent) => (absent.length ? tr("None of these samples has {list}.", { list: absent.join(", ") }) : tr("No sample has {requires} all together (they may come from different files, e.g. a lab assay and a pXRF reading).", { requires: diagram.requires.join(", ") })))(diagram.requires.filter((sym) => !sourceRows.some((r) => Number.isFinite(r.values?.[sym])))) : ""), /* plottedCount: #1519; the reason for none: #1679 (Copley TAS: Si only in the pXRF, Na only in the lab assays) */ v2: (lithFilter ? tr(" {v} hidden by the lithology filter.", { v: sourceRows.length - plotted.length - (plotted.leftOut || 0) }) : "") + (plotted.leftOut ? " " + tr("{k} sample(s) without every major oxide left out of the volatile-free recalculation.", { k: plotted.leftOut.toLocaleString() }) : "") /* #2942 */ + (hasPxrf && plotSource !== "both" ? " " + (plotSource === "pxrf" ? tr("{k} lab assay(s) left out: pXRF readings only.", { k: (assays.length - sourceAll.length).toLocaleString() }) : tr("{k} pXRF reading(s) left out: lab assays only.", { k: (assays.length - sourceAll.length).toLocaleString() })) : "") + (qcInSource && !plotQc ? " " + tr("{k} QC insert(s) (standards, blanks, duplicates) left out.", { k: qcInSource.toLocaleString() }) : "") /* #2027 */ })}</div>
           </div>
         )}
       </div>

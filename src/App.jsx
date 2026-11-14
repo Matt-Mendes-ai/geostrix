@@ -9,7 +9,7 @@ import { requestModuleAction } from "./lib/menuRequests.js"; // TASKS.csv #565
 import { onProjectCrsRequest, requestProjectCrs } from "./lib/projectCrsRequest.js"; // TASKS.csv #615
 import { onTableSubsetRequest } from "./lib/tableSubsetRequest.js"; // TASKS.csv #2177
 import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Layers3, Target, FileBarChart2, Map as MapIcon, Compass, Pickaxe, Globe } from "./components/icons.js"; // Compass: #820; Globe: #3068
-import { crsName, getProj4DefSync, loadEpsgRegistry, onEpsgRegistry, isMetricProjectedEpsg } from "./lib/reproject.js"; // TASKS.csv #485; #834 registry; #1148
+import { crsName, getProj4DefSync, loadEpsgRegistry, onEpsgRegistry, isMetricProjectedEpsg, reprojectXY } from "./lib/reproject.js"; // TASKS.csv #485; #834 registry; #1148; reprojectXY: #2808
 import { useStore, useCursorValue, useTaskProgressValue, FreezeStore } from "./lib/store.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx"; // TASKS.csv #442
 import ExportToast from "./components/ExportToast.jsx"; // TASKS.csv #1042 — every export says whether it was saved, and where
@@ -629,7 +629,7 @@ export default function App() {
       </div>
       </RibbonSlotContext.Provider>
 
-      <StatusBar onEpsg={() => requestProjectCrs()} pyStatus={pyStatus} updater={updater} onHelp={() => setShortcutsTab("shortcuts")} onPython={() => setShortcutsTab("python")} />
+      <StatusBar worldCursor={viewerShown || active === "maps"} /* #3229 — Layout's cursor is in page units */ onEpsg={() => requestProjectCrs()} pyStatus={pyStatus} updater={updater} onHelp={() => setShortcutsTab("shortcuts")} onPython={() => setShortcutsTab("python")} />
       <ExportToast />
       {subsetRequest && <Suspense fallback={null}><TableColumnsModal name={subsetRequest.name} preview={subsetRequest.preview} budget={subsetRequest.budget} onDone={(v) => { subsetRequest.resolve(v); setSubsetRequest(null); }} /></Suspense>}
       {crsRequest && <Suspense fallback={null}><ProjectCrsModal reason={crsRequest.reason} points={crsRequest.points} suggested={crsRequest.suggested} noLocalGrid={!!crsRequest.noLocalGrid} family={crsRequest.family || null} onDone={finishCrsRequest} /></Suspense>}
@@ -688,14 +688,16 @@ function WorkspaceTabBar({ tabs, activeTabId, activeDirty, activeName, onSwitch,
   );
 }
 
-function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython }) {
+function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, worldCursor = true }) {
   const { project, collars, desurveyMethod, setDesurveyMethod } = useStore();
   // TASKS.csv #226/#214 — cursor and taskProgress both live in their own tiny contexts now (see
   // store.jsx's own comments on CursorProvider/TaskProgressProvider), not the big shared store,
   // specifically so this component re-renders on every mousemove-driven cursor update / progress tick
   // (as it always needed to, to show a live readout) WITHOUT dragging every other useStore() consumer
   // — most importantly ViewerModule.jsx — along for that same ride.
-  const cursor = useCursorValue();
+  const liveCursor = useCursorValue();
+  // TASKS.csv #3235 — off the world views (Layout, Geochem…) the shared cursor is stale or a page position: E / N / Z read "—" there
+  const cursor = worldCursor ? liveCursor : { x: null, y: null, z: null };
   const taskProgress = useTaskProgressValue();
   const fmt = (v) => (v == null ? "—" : v.toLocaleString(undefined, { maximumFractionDigits: 1 }));
   const pyColor = pyStatus === "connected" ? "#e2a63c" : pyStatus === "checking" || pyStatus === "standby" ? "#55606e" : "#94a1b0";
@@ -710,6 +712,9 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython }) {
       <span>E <span className="val">{fmt(cursor.x)}</span></span>
       <span>N <span className="val">{fmt(cursor.y)}</span></span>
       <span>Z <span className="val">{fmt(cursor.z)}</span></span>
+      {/* TASKS.csv #2808 (split from #2526) — latitude / longitude (WGS 84) beside E / N when the project has a real CRS (not a local or unset one) */}
+      {(() => { const ll = worldCursor /* TASKS.csv #3229 — not on Layout, whose cursor is a page position */ && cursor.x != null && cursor.y != null && project.crsSet !== false && project.epsg && isMetricProjectedEpsg(project.epsg) && getProj4DefSync(project.epsg) ? reprojectXY(cursor.x, cursor.y, project.epsg, 4326) : null;
+        return ll && Number.isFinite(ll.x) && Number.isFinite(ll.y) ? <span title={tr("Latitude, longitude (WGS 84) of the cursor")}><span className="val">{ll.y.toFixed(5)}, {ll.x.toFixed(5)}</span></span> : null; })()}
       {/* TASKS.csv #249 (colorblind-safety review) — state was previously color-only-at-a-glance (the
           dot's hue), with the actual word only in a hover title; now a short suffix is always visible
           so the state doesn't depend on distinguishing the dot's color, matching the pattern the

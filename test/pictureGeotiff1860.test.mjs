@@ -25,6 +25,8 @@ test("#1860 the picture is written as 8-bit RGB + alpha on its box, and reads ba
 test("#1860 the picture card has the export icon", () => {
   const m = read("modules/RasterModule.jsx");
   assert.match(m, /\{!r\.grid && r\.dataUrl && <Download [^>]*aria-label=\{tr\("Export the picture \\"\{name\}\\" as a GeoTIFF"/);
-  assert.match(m, /imageToGeoTIFF\(\{ \.\.\.px, bbox: r\.bbox, epsg: epsgX \}\)/);
-  assert.match(m, /const epsgX = await ensureExportCrs\(project\); \/\* #1021 \*\//);
+  // #2322 — the picture goes through imageToWorld (unchanged without a tie) and exportCrs (ensureExportCrs's answer, or a tied grid's CRS)
+  assert.match(m, /const out = imageToWorld\(\{ \.\.\.px, bbox: r\.bbox \}, ex\.tie\);/);
+  assert.match(m, /imageToGeoTIFF\(\{ \.\.\.out, epsg: epsgX \}\)/);
+  assert.match(m, /const ex = await exportCrs\(project\); \/\* #1021; #2322/);
 });

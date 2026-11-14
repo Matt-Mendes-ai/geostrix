@@ -82,3 +82,28 @@ export function constraintSamples({ collars, survey, rows, method, units, backgr
   out.holes = used.size;
   return out;
 }
+
+// TASKS.csv #2668 — the log's unit from what the rows say: a meter model (Terraplus KT-5 / 6 / 9 / 10 / 20 and ZH SM-20 / 30 read in x10^-3 SI;
+// a Bartington MS2 / MS3 in x10^-5 SI) or a unit written out ('x10-3 SI', 'SI'), in any text field the import kept (#2668's instrument field).
+// rows: the log's rows -> { unit: "e3" | "e5" | "si", said: the text it was read from, field } when most rows that say anything agree, else null
+const METER_UNIT = [[/^(kt)[\s-]*(5|6|9|10|20)\b/i, "e3"], [/^sm[\s-]*(20|30)\b/i, "e3"], [/^ms[\s-]*[23]\b/i, "e5"]];
+const UNIT_TEXT = [[/10\s*(\^|\*\*)?\s*[-−⁻]\s*3|e-?3\b|×\s*10⁻³/i, "e3"], [/10\s*(\^|\*\*)?\s*[-−⁻]\s*5|e-?5\b|×\s*10⁻⁵/i, "e5"], [/^si$/i, "si"]];
+const SKIP_FIELDS = new Set(["hole_id", "_src", "value", "from", "to", "depth", "description"]);
+export function suscUnitFromRows(rows) {
+  const votes = new Map();
+  for (const r of (rows || []).slice(0, 2000)) {
+    for (const k in r) {
+      if (SKIP_FIELDS.has(k)) continue;
+      const v = typeof r[k] === "string" ? r[k].trim() : "";
+      if (!v) continue;
+      const hit = METER_UNIT.find(([re]) => re.test(v)) || UNIT_TEXT.find(([re]) => re.test(v));
+      if (!hit) continue;
+      const key = `${hit[1]}|${k}`, e = votes.get(key) || { unit: hit[1], field: k, said: v, n: 0 };
+      e.n++; votes.set(key, e);
+    }
+  }
+  if (!votes.size) return null;
+  const all = [...votes.values()].sort((a, b) => b.n - a.n), total = all.reduce((t, e) => t + e.n, 0);
+  return all[0].n >= 0.9 * total ? { unit: all[0].unit, said: all[0].said, field: all[0].field } : null;
+}
+

@@ -51,8 +51,8 @@ function hillshadeCanvas(t) {
 // TASKS.csv #2853 — the top visible grid's value at the cursor, after the E / N
 const cursorValueText = (rasters, c) => { const t = topRasterValueAt(rasters, c.x, c.y); return t ? `  ·  ${t.name.length > 28 ? `…${t.name.slice(-27)}` : t.name}: ${t.value.toLocaleString(undefined, { maximumSignificantDigits: 4 })}${t.unit ? ` ${t.unit}` : ""}` : ""; };
 export default function MapsPlanView() {
-  const { rasters = [], terrain, mapLayers = [], boundaries = [], collars = [], surfaceSamples = [], assays = [], assayElements = [], layers = {}, customLayers = [], project, survey = [], desurveyMethod } = useStore(); // assays: #2459; layers, customLayers: #2658; project: #2128; survey, desurveyMethod: #2991 (a coded RL figure)
-  const wrapRef = useRef(null), canvasRef = useRef(null), layerCache = useRef(new Map()), drag = useRef(null);
+  const { rasters = [], terrain, mapLayers = [], boundaries = [], collars = [], surfaceSamples = [], assays = [], assayElements = [], layers = {}, customLayers = [], project, survey = [], desurveyMethod, addLayoutImage, goToModule } = useStore(); // addLayoutImage / goToModule: #3194 // assays: #2459; layers, customLayers: #2658; project: #2128; survey, desurveyMethod: #2991 (a coded RL figure)
+  const wrapRef = useRef(null), canvasRef = useRef(null), layerCache = useRef(new Map()), drag = useRef(null), gridDrawn = useRef(false); // gridDrawn: #3194
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [view, setView] = useState(null); // { cx, cy, mPerPx }
   const [cursor, setCursor] = useState(null);
@@ -147,6 +147,18 @@ export default function MapsPlanView() {
       ctx.beginPath();
       (b.polylines || []).forEach((pl) => { if (pl.length < 2 || !polylineInView(pl, viewBox)) return; pl.forEach((p, i) => (i ? ctx.lineTo(X(p.x), Y(p.y)) : ctx.moveTo(X(p.x), Y(p.y)))); });
       ctx.stroke();
+      // TASKS.csv #3234 — the parts' names at each part's centre, when the boundary's row asks for them (#2673's 'Label the parts'), as in 3D
+      if (b.partLabels && b.partNames?.some(Boolean)) {
+        ctx.save(); ctx.font = "11px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.fillStyle = "#1a2028";
+        (b.polylines || []).forEach((pl, i) => {
+          const name = b.partNames[i];
+          if (!name || !pl?.length || !polylineInView(pl, viewBox)) return;
+          let sx = 0, sy = 0; for (const q of pl) { sx += q.x; sy += q.y; }
+          const cx = X(sx / pl.length), cy = Y(sy / pl.length);
+          ctx.strokeText(String(name), cx, cy); ctx.fillText(String(name), cx, cy);
+        });
+        ctx.restore();
+      }
     });
     ctx.fillStyle = "rgba(90,96,104,0.55)";
     surfaceSamples.forEach((s) => { if (Number.isFinite(s.x)) ctx.fillRect(X(s.x) - 1, Y(s.y) - 1, 2, 2); });
@@ -184,6 +196,7 @@ export default function MapsPlanView() {
       ctx.beginPath(); mPts.forEach((p, i) => (i ? ctx.lineTo(X(p.x), Y(p.y)) : ctx.moveTo(X(p.x), Y(p.y)))); ctx.stroke(); ctx.setLineDash([]);
       ctx.fillStyle = "#c2185b"; mPts.forEach((p) => { ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 3.5, 0, Math.PI * 2); ctx.fill(); });
     }
+    gridDrawn.current = showGrid; // #3194 — what the canvas holds now
   }, [v?.cx, v?.cy, v?.mPerPx, size, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, spacingM /* #2989 */, showIds, showGrid, measuring, mPts, gtPlan, gtMax]); // gtPlan: #2755
 
   if (!extent || !v) return null;
@@ -215,6 +228,25 @@ export default function MapsPlanView() {
     const conv = project?.crsSet !== false && project?.epsg ? trueNorthBearingInGridDeg((mPts[0].x + mPts[1].x) / 2, (mPts[0].y + mPts[1].y) / 2, project.epsg) : null;
     return { ...m, conv: Number.isFinite(conv) ? conv : null };
   })() : null;
+  // TASKS.csv #3194 (Matt) — the view as it is on screen, to the Layout page (lib/mapSnapshot.js, loaded on use): north up, at its scale,
+  // with its centre and extent for Layout's scale bar and coordinate grid, and a legend of what it draws
+  const toLayout = async () => {
+    const cv = canvasRef.current;
+    if (!cv) return;
+    const { mapSnapshotPayload } = await import("../lib/mapSnapshot.js");
+    // the plan's own grid is left off the picture (its labels shrink with it): Layout draws a labelled one at the sheet's scale, ticked when
+    // the plan's was on. The canvas is redrawn without it, captured, and the grid put back.
+    const hadGrid = showGrid;
+    if (hadGrid) {
+      setShowGrid(false);
+      for (let i = 0; i < 30 && gridDrawn.current; i++) await new Promise((r) => requestAnimationFrame(r));
+    }
+    const collarTitle = colouring ? (colourBy.startsWith("f:") ? colourBy.slice(2) : colourBy.replace(/^(max|mean):/, "")) : "";
+    const src = cv.toDataURL("image/png");
+    if (hadGrid) setShowGrid(true);
+    addLayoutImage({ ...mapSnapshotPayload({ src, pxW: cv.width, pxH: cv.height, view: v, size, mapLayers, boundaries, rasters, collarLegend: colouring?.legend || null, collarTitle, collars: collars.filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y)).length, samples: surfaceSamples.filter((s) => Number.isFinite(s.x)).length, label: project?.name ? `Map view: ${project.name}` : "Map view" }), utmGrid: hadGrid });
+    goToModule("layout");
+  };
   const chip = { position: "absolute", background: "rgba(255,255,255,0.9)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "3px 7px", fontSize: "var(--font-size-sm)", color: "#1a2028" };
   return (
     <div ref={wrapRef} className="ge-maps-plan" style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
@@ -270,6 +302,7 @@ export default function MapsPlanView() {
         <span style={{ fontWeight: 700 }}>{tr("N ↑")}</span>
         <button onClick={fit} style={{ fontSize: "var(--font-size-sm)", padding: "1px 7px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", cursor: "pointer" }}>{tr("Fit")}</button>
         <label style={{ display: "flex", alignItems: "center", gap: 3 }}><input type="checkbox" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} />{tr("Grid")}</label>{/* #2128 */}
+        <button onClick={toLayout} title={tr("Put this view on the Layout page, north up at its scale, with a legend of its layers")} style={{ fontSize: "var(--font-size-sm)", padding: "1px 7px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", cursor: "pointer" }}>{tr("Snapshot to Layout")}</button>{/* #3194 — the 3D View's own words for the same thing */}
         <button onClick={() => { setMeasuring((m) => !m); setMPts([]); }} aria-pressed={measuring} style={{ fontSize: "var(--font-size-sm)", padding: "1px 7px", border: `1px solid ${measuring ? "var(--color-selected-border)" : "var(--color-border)"}`, borderRadius: 4, background: measuring ? "var(--color-selected-bg)" : "var(--color-bg)", cursor: "pointer" }}>{tr("Measure")}</button>
       </div>
       {measuring && ( /* TASKS.csv #2128 */

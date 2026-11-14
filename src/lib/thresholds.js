@@ -141,7 +141,15 @@ export const THRESHOLD_METHODS = [
   { id: "median2mad", label: "Median + 2 MAD (log)", ref: "Reimann et al. 2005", assumption: "Robust: barely moved by the outliers it looks for." },
   { id: "tukey", label: "Tukey upper fence (log)", ref: "Tukey 1977", assumption: "Robust: Q3 + 1.5 × IQR of log values." },
   { id: "probbreak", label: "Probability-plot break", ref: "Sinclair 1976", assumption: "Suggested bend between two populations; check it on the plot." },
+  // TASKS.csv #3173 (Matt's decision, 2026-11-13) — majors (Fe, SiO2, Na2O ...) keep their place in Anomaly thresholds with rules on the values
+  // themselves (shown on arithmetic axes; the log rules stay behind #3070's tick): mean + 2 SD, the break on an arithmetic probability plot,
+  // and mean - 2 SD for a depletion (Na2O lost in an alteration halo), whose anomaly is the low side (low: true)
+  { id: "amean2sd", label: "Mean + 2 SD (values)", ref: "", assumption: "On the values themselves: assumes one population, roughly normal, as a major element often is; outliers inflate the SD.", arith: true },
+  { id: "aprobbreak", label: "Probability-plot break (values)", ref: "Sinclair 1976", assumption: "The bend on a probability plot of the values themselves (not their logs); check it on the plot.", arith: true },
+  { id: "amean2sdLow", label: "Mean − 2 SD (depletion)", ref: "", assumption: "The low side: a sample at or below it is depleted (an element lost in alteration, say). On the values themselves; assumes one roughly normal population.", arith: true, low: true },
 ];
+export const ARITH_RULES = new Set(THRESHOLD_METHODS.filter((m) => m.arith).map((m) => m.id)); // #3173
+export const isLowRule = (id) => !!THRESHOLD_METHODS.find((m) => m.id === id)?.low; // #3173 — the anomaly is at or below the threshold
 // TASKS.csv #3070 (split from #2912, review #2876 WA iron) — the rules worked out on log10 values. On Fe of an iron ore (20-65 %) Thresholds
 // drew 'log10 Fe' and offered Mean + 2 SD (log) = 87 %: a percentage-scale major is not log-normal, and these rules assume it is.
 export const LOG_RULES = new Set(["mean2sd", "median2mad", "tukey", "probbreak"]);
@@ -196,6 +204,23 @@ export function candidateThresholds(summary) {
     const h = Math.floor(n / 2), up = prob.slice(h);
     const b = twoSegmentBreak(up.map((p) => p[0]), up.map((p) => p[1]), side(n));
     if (real(b)) { probBreak = { ...b, k: b.k + h }; out.probbreak = 10 ** L[probBreak.k]; }
+  }
+  // TASKS.csv #3173 — the arithmetic rules: mean and SD of the values (length-weighted with weights, the reliability-weights SD), and the same
+  // two-segment break over the upper half of a probability plot of the values (not their logs)
+  if (n >= MIN_N_ROBUST) {
+    const w = summary.weights;
+    let W = 0, W2 = 0, sum = 0;
+    for (let i = 0; i < n; i++) { const wi = w ? w[i] : 1; W += wi; W2 += wi * wi; sum += wi * s[i]; }
+    const mean = sum / W;
+    let ss = 0; for (let i = 0; i < n; i++) { const wi = w ? w[i] : 1; ss += wi * (s[i] - mean) ** 2; }
+    const denom = w ? W - W2 / W : n - 1, sd = n > 1 && denom > 0 ? Math.sqrt(ss / denom) : 0;
+    out.amean2sd = mean + 2 * sd;
+    out.amean2sdLow = mean - 2 * sd > 0 ? mean - 2 * sd : null; // a negative concentration is no threshold
+  }
+  if (n >= MIN_N_BREAKS) {
+    const h = Math.floor(n / 2), up = prob.slice(h);
+    const b = twoSegmentBreak(up.map((p) => p[0]), s.slice(h), side(n));
+    if (real(b)) out.aprobbreak = s[b.k + h];
   }
   return { values: out, prob: { points: prob, breakIndex: probBreak?.k ?? null } };
 }
@@ -307,22 +332,25 @@ export const isSurfaceThreshold = (t) => t && t.source !== "drill";
 
 // TASKS.csv #2507 (review #2486, WA lithium) — a rule whose threshold no sample of the population reaches (above its maximum, or over 100 for a
 // per-cent unit): Median + 2 MAD gave 29.1 % Li on a population topping at 3.32 %, pre-selected and ready to save. -> true when unusable
-export function thresholdUnreachable(value, summary, unit) {
+export function thresholdUnreachable(value, summary, unit, low = false) {
   if (value == null || !Number.isFinite(value)) return false;
+  if (low) return Number.isFinite(summary?.min) && value < summary.min; // #3173 — a depletion below every sample finds none
   return (Number.isFinite(summary?.max) && value > summary.max) || (String(unit).trim().startsWith("%") && value > 100);
 }
 // the rule to open on: the preferred one when every population can reach it, else none (null) — the review's advice: select nothing rather
 // than silently swap in another rule (a percentile always "works" but flags its share whether or not anything is anomalous)
 export function usableDefaultMethod(pops, preferred, unit) {
-  const ok = (id) => pops.length > 0 && pops.every((p) => { const v = p.cand.values[id]; return v != null && Number.isFinite(v) && !thresholdUnreachable(v, p.summary, unit); });
+  const ok = (id) => pops.length > 0 && pops.every((p) => { const v = p.cand.values[id]; return v != null && Number.isFinite(v) && !thresholdUnreachable(v, p.summary, unit, isLowRule(id)); });
   return ok(preferred) ? preferred : null;
 }
 
 // TASKS.csv #2347 (Matt's decision, split from #2196) — a saved DRILL threshold is offered to the drill tools, never applied: the rule, its
 // population and the date it was decided, in the tool's unit (a record saved in another unit is not offered). A surface record never is.
 // records: store.geochemThresholds -> [{ key, value, rule, population, decided }]
+// TASKS.csv #3160 (#2925 (1)) — the offers highest first (the ore populations of a bulk commodity, the anomalous ones of a trace element)
+export const sortedThresholdOffers = (offers) => [...(offers || [])].sort((a, b) => b.value - a.value);
 export function drillThresholdOffers(records, symbol, unit) {
   const r = (records || []).find((x) => x?.source === "drill" && x.symbol === symbol);
-  if (!r || (unit && r.unit && r.unit !== unit)) return [];
+  if (!r || (unit && r.unit && r.unit !== unit) || r.direction === "below") return []; // #3173 — a depletion threshold is no cut-off
   return Object.entries(r.values || {}).filter(([, v]) => Number.isFinite(v) && v > 0).map(([key, value]) => ({ key, value, rule: r.methodLabel || r.method, population: key === "all" || key === "" ? null : `${r.groupLabel}: ${key}`, decided: r.decided }));
 }

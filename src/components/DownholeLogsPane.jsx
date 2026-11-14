@@ -6,12 +6,14 @@ import { Activity } from "./icons.js";
 import { numericSourceChoices, sourceAssays } from "../lib/numericSources.js";
 import { domainLayerChoices, foldDomainRows } from "../lib/domainLayers.js"; // foldDomainRows: TASKS.csv #2790
 import { LAYER_META } from "../lib/layers.js";
-import { groupLogByCode, rankLogGroups, codeTable, ratioComparable, assayIndex, logVsAssayIndexed, logVsModel, NOT_LOGGED, strideSample, SCATTER_MAX, logScaleSuits, allAboveZero, countAtOrBelowZero, sig3 } from "../lib/downholeLogs.js"; // logVsModel: #1595; strideSample: #2331; logScaleSuits...: #2558; groupLogByCode / rankLogGroups: #2948
+import { groupLogByCode, rankLogGroups, codeTable, ratioComparable, assayIndex, logVsAssayIndexed, logVsModel, NOT_LOGGED, strideSample, SCATTER_MAX, allAboveZero, countAtOrBelowZero, sig3, orderLogSources, logScaleFor } from "../lib/downholeLogs.js"; // logVsModel: #1595; strideSample: #2331; logScaleSuits...: #2558; groupLogByCode / rankLogGroups: #2948
 import { BoxPlots } from "./GradeStatistics.jsx";
 import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #2394 — the choices survive the pane closing (per project)
 import { useStore } from "../lib/store.jsx";
+import { logHoleChoices, holesForChoice, filterLogData } from "../lib/logHoleFilter.js"; // TASKS.csv #3132
+import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2967 — the opening element: the project's lead commodity (#2908)
 import { useDeferredMemo, DEFER_ROWS } from "../lib/useDeferredMemo.js"; // TASKS.csv #2948
 import { logUnitChoices } from "../lib/logUnits.js"; // TASKS.csv #2952
 import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #2953 — the whiskers
@@ -67,7 +69,7 @@ function Scatter({ pairs = null, xs = null, ys = null, xLabel, yLabel, logX, log
       <text x={pl - 3} y={pt + 8} fontSize="8" fill="#55606e" textAnchor="end">{lab(y1, logY)}</text>
       <text x={10} y={(pt + h - pb) / 2} fontSize="9" fill="#55606e" textAnchor="middle" transform={`rotate(-90 10 ${(pt + h - pb) / 2})`}>{yLabel}{logY ? ` (${tr("log scale")})` : ""}</text>
     </svg>
-    {drawn.step > 1 && <div style={note}>{tr("{k} of {n} pairs drawn (every {s}th, and the extremes); the statistics use all of them.", { k: drawn.points.length.toLocaleString(), n: pts.length.toLocaleString(), s: drawn.step })}</div>}
+    {drawn.step > 1 && <div style={note}>{tr("{k} of {n} pairs drawn (one in every {s}, and the extremes); the statistics use all of them.", { k: drawn.points.length.toLocaleString(), n: pts.length.toLocaleString(), s: drawn.step })}</div>}
     </>
   );
 }
@@ -135,8 +137,10 @@ function LogUnitField({ layer, onSet }) {
 
 // TASKS.csv #2953 (review #2876, WA iron) — a valid range for the log, stored on the layer (customLayers[].validRange) and honoured wherever
 // the layer is read (numericSources sourceAssays: Downhole logs, Estimation, Grade shell). Blank ends are open. Uncontrolled, as the unit.
-function ValidRangeField({ layer, onSet }) {
-  const [lo, hi] = Array.isArray(layer?.validRange) ? layer.validRange : [null, null];
+// TASKS.csv #3116 — the same field for a built-in log (project.logValidRange[key].range): range / idKey instead of the layer
+function ValidRangeField({ range, idKey, onSet }) {
+  const [lo, hi] = Array.isArray(range) ? range : [null, null];
+  const layer = { id: idKey };
   const read = (form) => { const a = form.querySelector('[data-end="lo"]').value.trim(), b = form.querySelector('[data-end="hi"]').value.trim(); return [a === "" ? null : Number(a), b === "" ? null : Number(b)]; };
   const commit = (e) => {
     const [a, b] = read(e.currentTarget.closest("label"));
@@ -156,6 +160,21 @@ function ValidRangeField({ layer, onSet }) {
 // TASKS.csv #2401 (review #2325, WA uranium) — a blank code was an unlabelled group ('E3 78.4 ·  37.2 · QB 34.3'), and long code names were cut
 // at the left of the box plot ('gnesium_Clays', ':not logged)'): '(blank)' for an empty code, '(not logged)' as before, and a long name
 // shortened at its end (max characters) so its start stays readable
+// TASKS.csv #3116 — the despike: a moving median along each hole over a typed window (m), stored with the range and applied in sourceAssays,
+// so Downhole logs, Estimation and Grade shell read the same readings. Blank or 0: none. Uncontrolled, as the range.
+function DespikeField({ value, idKey, onSet }) {
+  const commit = (e) => {
+    const t = e.currentTarget.value.trim(), v = t === "" ? 0 : Number(t);
+    if (!Number.isFinite(v) || v < 0 || v === (Number(value) || 0)) return;
+    onSet(v > 0 ? v : undefined);
+  };
+  return (
+    <label style={{ ...row, justifyContent: "flex-start", gap: 6 }} title={tr("Each reading becomes the median of its hole's readings within this many metres (centred on it): a lone spike takes its neighbours' level. Applied in Downhole logs, Estimation and Grade shell. Blank: none.")}>
+      {tr("Despike (m)")}<input key={`${idKey}:${value ?? ""}`} type="number" min="0" step="any" defaultValue={value || ""} placeholder={tr("none")} onBlur={commit} onKeyDown={(e) => { if (e.key === "Enter") commit(e); }} style={{ ...smallSel, width: 70 }} aria-label={tr("Despike window (m)")} />
+    </label>
+  );
+}
+
 function codeLabel(k, max = 0) {
   const t = k === NOT_LOGGED ? tr("(not logged)") : String(k ?? "").trim() === "" ? tr("(blank)") : String(k);
   return max && t.length > max ? `${t.slice(0, max - 1)}…` : t;
@@ -163,25 +182,55 @@ function codeLabel(k, max = 0) {
 export default function DownholeLogsPane({ layers, customLayers = [], assays = [], assayElements = [], onClose, onEstimate = null }) {
   // TASKS.csv #2558 — a model evaluated onto the holes is not a log: it opened as the Log and was then compared with itself (Spearman 1.00)
   const modelIds = useMemo(() => new Set(customLayers.filter((l) => l.sourceModel != null || (l.rows || []).some((r) => r.modelled)).map((l) => l.id)), [customLayers]);
-  const sources = useMemo(() => numericSourceChoices({ layers, customLayers, models: false }).filter((s) => s.layerId == null || !modelIds.has(s.layerId)), [layers, customLayers, modelIds]);
+  // TASKS.csv #2967 — built-in and imported logs in one list, the most readings first (orderLogSources): it opened on 'Recovery (3,408)'
+  const { project, setLogValidRange } = useStore(); // #3116 — the built-in logs' range / despike
+  const logValidRange = project?.logValidRange || null;
+  const sources = useMemo(() => orderLogSources(numericSourceChoices({ layers, customLayers, models: false, logValidRange }).filter((s) => s.layerId == null || !modelIds.has(s.layerId))), [logValidRange, layers, customLayers, modelIds]);
   // TASKS.csv #2394 (review #2325) — the pane forgot its log, code layer, element and model on reopen, and the stall of picking the log
   // again was paid every time: kept per project as Geochem's and Geophysics' panels keep theirs (#1284)
   const keptScope = scopeOf(useStore().getProjectToken());
   const [sourceKey, setSourceKey] = useKeptState(keptScope, "dhlogs.source", "");
   const source = sources.find((s) => s.key === sourceKey) || sources[0] || null;
-  const data = useMemo(() => (source ? sourceAssays(source, { layers, customLayers }) : null), [source, layers, customLayers]);
+  const dataAll = useMemo(() => (source ? sourceAssays(source, { layers, customLayers }) : null), [source, layers, customLayers]);
+  // TASKS.csv #3132 — the readings kept to the holes checked in the 3D View or to the collars inside an area (lib/logHoleFilter.js); everything
+  // below (classes, box plots, pairings) reads `data`, the kept readings
+  const { collars = [], boundaries = [], viewerUiState } = useStore();
+  const holeCtx = useMemo(() => ({ collars, boundaries, visibleHoles: viewerUiState?.visibleHoles || null }), [collars, boundaries, viewerUiState?.visibleHoles]);
+  const holeChoices = useMemo(() => logHoleChoices(holeCtx), [holeCtx]);
+  const [holeKey, setHoleKey] = useKeptState(keptScope, "dhlogs.holes", "all");
+  const holeChoice = holeChoices.find((c) => c.key === holeKey) || holeChoices[0];
+  const keptHoles = useMemo(() => holesForChoice(holeChoice.key, holeCtx), [holeChoice.key, holeCtx]);
+  const data = useMemo(() => filterLogData(dataAll, keptHoles), [dataAll, keptHoles]);
   const { setCustomLayers } = useStore(); // #2952 — the log's unit, typed in the pane
+  // TASKS.csv #2968 — 'Composite to the assay intervals': the log (its range and despike applied, every hole) averaged over each assay sample
+  // and added as a numeric layer (lib/logComposite.js, loaded on the click); what it made is said under the button, kept per project
+  const [compositeMsg, setCompositeMsg] = useKeptState(keptScope, "dhlogs.compositeMsg", null); // { key: the log's, text }
+  const composite = async () => {
+    if (!source || !dataAll) return;
+    const key = source.key, say = (text) => setCompositeMsg({ key, text });
+    let lib;
+    try { lib = await import("../lib/logComposite.js"); } catch (err) { say(tr("The compositing could not be loaded: {v}", { v: err?.message || err })); return; }
+    const res = lib.compositeLogToAssays(dataAll, assays);
+    if (!res.rows.length) { say(tr("No assay sample has enough of this log's readings in it: no layer was made.")); return; }
+    const name = lib.compositeLayerName(source.symbol, customLayers);
+    const unit = source.unit && source.unit !== "as logged" ? source.unit : undefined;
+    setCustomLayers((p) => [...p, { id: `custom_${Date.now()}`, name, rows: res.rows, ...(unit ? { unit } : {}), binM: "assay", notes: lib.compositeNotes(source.label, res, { despikeM: dataAll.despikeM, outOfRange: dataAll.outOfRange }) }]);
+    say(tr("Added the layer \"{name}\". Assay samples: {s}; readings in them: {r}. Left out: {t} sample(s) under half covered by readings, {u} reading(s) in no sample. Estimation, Grade shell, Geochem X-Y and Statistics can read it.", { name, s: res.samples.toLocaleString(), r: res.readings.toLocaleString(), t: res.thin.toLocaleString(), u: res.unsampled.toLocaleString() }));
+  };
   const logLayer = source?.layerId != null && source.field === "value" ? customLayers.find((c) => c.id === source.layerId) : null;
+  const builtinKey = source?.layerKey && source.field === "value" && source.key === `log:${source.layerKey}` ? source.layerKey : null; // #3116 — a built-in log (not one of its extra fields)
   const layerNotes = source?.layerId != null ? String(customLayers.find((c) => c.id === source.layerId)?.notes || "").trim() : ""; // TASKS.csv #2775
   const domains = useMemo(() => domainLayerChoices(layers, customLayers, (k) => tr(LAYER_META[k]?.label || k)), [layers, customLayers]);
   const [domainKey, setDomainKey] = useKeptState(keptScope, "dhlogs.domain", "");
   const domain = domains.find((d) => d.key === domainKey) || domains[0] || null;
-  // #2558 — the log scale follows the data (all above zero, over a decade) until the box is ticked or unticked
-  const [logChoice, setLogChoice] = useKeptState(keptScope, "dhlogs.logChoice", "auto");
+  // #2558 — the log scale follows the data (all above zero, over a decade). TASKS.csv #2967 — the choice is kept PER LOG ({ [source key]:
+  // "log" | "linear" }, absent = automatic) and Automatic can be chosen again: one tick on the density log set every log, for good
+  const [scaleBy, setScaleBy] = useKeptState(keptScope, "dhlogs.scaleBy", {});
   const logValues = useMemo(() => (data ? data.assays.map((r) => r.values?.[data.symbol]) : []), [data]);
   // TASKS.csv #2245 (review #2174) — a log the sources say is linear (RQD, recovery, SG: LOG_SOURCES logScale false) opens linear: RQD went to a
-  // log axis up to '1.00e+3 %' because one reading was 1,000 %
-  const logScale = logChoice === "auto" ? source?.logScale !== false && logScaleSuits(logValues) : logChoice === "on";
+  // log axis up to '1.00e+3 %' because one reading was 1,000 %. An imported log's Automatic follows its readings (logScaleFor, #2967)
+  const scale = logScaleFor(source, logValues, source ? scaleBy?.[source.key] : null), logScale = scale.log;
+  const setScale = (v) => { if (!source) return; setScaleBy((m) => { const n = { ...(m || {}) }; if (v === "auto") delete n[source.key]; else n[source.key] = v; return n; }); };
   const overPct = useMemo(() => (source?.unit === "%" ? logValues.filter((v) => Number.isFinite(v) && v > 100).length : 0), [source, logValues]); // #2245
   const logHidden = logScale ? countAtOrBelowZero(logValues) : 0;
   // TASKS.csv #2393 — rank the codes by the median (default), the mean, P90 or the share of readings above a value
@@ -217,7 +266,8 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
   const tableWeighted = table.some((r) => r.weighted);
   const symbols = assayElements.map((e) => e.symbol);
   const [element, setElement] = useKeptState(keptScope, "dhlogs.element", "");
-  const el = symbols.includes(element) ? element : symbols[0] || "";
+  const lead = useLeadCommodity(); // #2967 — the project's lead commodity (#2908: Fe on an iron project), not the first symbol of the alphabet
+  const el = symbols.includes(element) ? element : symbols.includes(lead) ? lead : symbols[0] || "";
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   // TASKS.csv #2954 — pair each reading, or the log's mean over each assay sample (one pair per sample: four bins of one sample are not four pairs)
   const [pairOn, setPairOn] = useKeptState(keptScope, "dhlogs.pairOn", "reading");
@@ -248,12 +298,29 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
             <select value={source?.key || ""} onChange={(e) => setSourceKey(e.target.value)} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Downhole log")}>
               {sources.map((s) => <option key={s.key} value={s.key}>{s.label} ({s.n.toLocaleString()})</option>)}
             </select></label>
+          {holeChoices.length > 1 && ( /* TASKS.csv #3132 */
+            <label style={row}>{tr("Holes")}
+              <select value={holeChoice.key} onChange={(e) => setHoleKey(e.target.value)} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Holes to read")}>
+                {holeChoices.map((c) => <option key={c.key} value={c.key}>{c.kind === "all" ? tr("All holes") : c.kind === "checked" ? tr("Holes checked in the 3D View") : tr("Collars inside \"{name}\"", { name: c.name })}</option>)}
+              </select></label>
+          )}
+          {data?.holeFilter && <div style={note}>{tr("Readings kept: {r} of {t} (holes chosen: {h}; with readings: {k}).", { r: data.holeFilter.readings.toLocaleString(), t: data.holeFilter.of.toLocaleString(), h: data.holeFilter.holes.toLocaleString(), k: data.holeFilter.holesWithReadings.toLocaleString() })}</div>}
           {data && <div style={note}>{tr(source?.binM === "assay" ? "{n} assay-interval bins, in {u}{v}." /* #3039 */ : source?.binM ? "{n} bins of {b} m, in {u}{v}." : unitOf(source?.unit) ? "{n} readings, in {u}{v}." : "{n} readings, values as logged{v}.", { n: data.assays.length.toLocaleString(), b: source?.binM, u: unitOf(source?.unit) || tr("the layer's own units"), v: data.pointRows ? tr("; {p} depth-only readings are given {s} m of core each", { p: data.pointRows.toLocaleString(), s: data.pointSupport }) : "" })}</div>}
           {logLayer && <LogUnitField layer={logLayer} onSet={(u) => setCustomLayers((p) => p.map((c) => (c.id === logLayer.id ? { ...c, unit: u || undefined } : c)))} />}{/* #2952 */}
-          {logLayer && <ValidRangeField layer={logLayer} onSet={(r) => setCustomLayers((p) => p.map((c) => (c.id === logLayer.id ? { ...c, validRange: r } : c)))} />}{/* #2953 */}
+          {logLayer && <ValidRangeField range={logLayer.validRange} idKey={logLayer.id} onSet={(r) => setCustomLayers((p) => p.map((c) => (c.id === logLayer.id ? { ...c, validRange: r } : c)))} />}{/* #2953 */}
+          {logLayer && <DespikeField value={logLayer.despikeM} idKey={logLayer.id} onSet={(d) => setCustomLayers((p) => p.map((c) => (c.id === logLayer.id ? { ...c, despikeM: d } : c)))} />}{/* #3116 */}
+          {builtinKey && <ValidRangeField range={logValidRange?.[builtinKey]?.range} idKey={builtinKey} onSet={(r) => setLogValidRange(builtinKey, { ...(logValidRange?.[builtinKey] || {}), range: r })} />}{/* #3116 */}
+          {builtinKey && <DespikeField value={logValidRange?.[builtinKey]?.despikeM} idKey={builtinKey} onSet={(d) => setLogValidRange(builtinKey, { ...(logValidRange?.[builtinKey] || {}), despikeM: d })} />}
+          {data?.despikeM > 0 && <div style={note}>{tr("Despiked: each reading is the median of its hole's readings within {m} m, here and in Estimation and Grade shell.", { m: data.despikeM })}</div>}
           {data?.outOfRange > 0 && <div style={note}>{tr("{k} reading(s) outside the valid range ({lo} to {hi}) are left out here and in Estimation and Grade shell.", { k: data.outOfRange.toLocaleString(), lo: Number.isFinite(data.validRange[0]) ? data.validRange[0] : "…", hi: Number.isFinite(data.validRange[1]) ? data.validRange[1] : "…" })}</div>}
           {implausible && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr(implausible.rule === "density" ? "{n} reading(s) are outside {lo} to {hi} {u}, denser or lighter than any rock: check them, or set a valid range." : "{n} reading(s) are below 0, which a reading in {u} cannot be: check them, or set a valid range.", { n: implausible.n.toLocaleString(), lo: implausible.lo, hi: implausible.hi, u: implausible.unit })}</div>}
           {layerNotes && <div style={{ ...note, color: "var(--color-text-muted)", whiteSpace: "pre-wrap" }}>{tr("Layer notes: {v}", { v: layerNotes })}</div>}{/* TASKS.csv #2775 — the import's notes (what was left out, where readings sit), as the 3D View's row shows them (#2432); English project text */}
+          {assays.length > 0 && source && ( /* TASKS.csv #2968 */
+            <div style={{ ...note, display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
+              <button type="button" onClick={composite} style={{ ...smallSel, cursor: "pointer" }} title={tr("Average this log over each assay sample of its hole (length-weighted, after its valid range and despike, every hole) and add the result as a numeric layer, beside the grades sample by sample")}>{tr("Composite to the assay intervals")}</button>
+              {compositeMsg?.key === source.key && <div role="status">{compositeMsg.text}</div>}
+            </div>
+          )}
           {overPct > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{n} reading(s) are above 100 %, which a percentage cannot be: check them (Data QC lists them). They are drawn as logged.", { n: overPct.toLocaleString() })}</div>}{/* #2245 */}
           <label style={row}>{tr("By code of")}
             <select value={domain?.key || ""} onChange={(e) => setDomainKey(e.target.value)} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Group readings by")} disabled={!domains.length}>
@@ -261,7 +328,12 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
               {domains.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
             </select></label>
           {domainFold?.folded.length > 0 && <div style={note}>{tr("Spellings that differ only by case or spaces are one domain here: {list}.", { list: domainFold.folded.map((f) => f.codes.join(" = ")).join("; ") })}</div>}{/* #2790 */}
-          <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={logScale} onChange={(e) => setLogChoice(e.target.checked ? "on" : "off")} />{tr("Log scale")}</label>
+          <label style={row}>{tr("Scale")}{/* #2967 — per log, with Automatic */}
+            <select value={scale.auto ? "auto" : scale.log ? "log" : "linear"} onChange={(e) => setScale(e.target.value)} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Scale of this log")} disabled={!source}>
+              <option value="auto">{scale.autoLog ? tr("Automatic (logarithmic)") : tr("Automatic (linear)")}</option>
+              <option value="log">{tr("Logarithmic")}</option>
+              <option value="linear">{tr("Linear")}</option>
+            </select></label>
           {logHidden > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{k} of {n} readings are zero or negative and are not shown on the log scale.", { k: logHidden.toLocaleString(), n: logValues.filter(Number.isFinite).length.toLocaleString() })}</div>}
           {groupPending ? working(tr("Grouping {n} readings by {layer}…", { n: nRows.toLocaleString(), layer: domain?.label || "" })) : groups.length > 0 ? (
             <>

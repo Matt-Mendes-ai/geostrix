@@ -7,7 +7,8 @@
 //   dotsPath     the collars as zero-length round-capped strokes in one <path> (stroke-width = the dot's diameter)
 //   segmentFinder  what used to be each interval's <title>: the interval nearest a point on screen, from a grid of its segments
 // X, Y: world E / N -> SVG units (the plan frame's).
-const f1 = (v) => v.toFixed(1);
+// TASKS.csv #3137 — one decimal without toFixed (4x faster; ~0.3 s of the WA iron plan's paths); the same text but '-0.0' -> '0.0'
+export const f1 = (v) => { const r = Math.round(v * 10), a = r < 0 ? -r : r; return (r < 0 ? "-" : "") + (a - (a % 10)) / 10 + "." + (a % 10); };
 
 export function linePath(line, X, Y) {
   let d = "";
@@ -36,6 +37,34 @@ export function dotsPath(points, X, Y) {
   let d = "";
   for (const [x, y] of points) if (Number.isFinite(x) && Number.isFinite(y)) d += `M${f1(X(x))},${f1(Y(y))}h0`;
   return d;
+}
+
+// TASKS.csv #3191 (#3137, WA iron) — 6,036 pierce points were 6,036 <circle>s, the bulk of the ~0.4 s React spent committing a new plan.
+// A dot is a zero-length subpath ('M x,y h0') drawn with a round cap: items { x, y, color } (world) -> [[color, d]], one path per colour
+export function dotsByColour(items, X, Y) {
+  const by = new Map();
+  for (const it of items) {
+    if (!Number.isFinite(it.x) || !Number.isFinite(it.y)) continue;
+    const d = `M${f1(X(it.x))},${f1(Y(it.y))}h0`, a = by.get(it.color);
+    if (a) a.push(d); else by.set(it.color, [d]);
+  }
+  return [...by].map(([color, parts]) => [color, parts.join("")]);
+}
+// items { x, y } -> find(sx, sy, reach = 6): the index of the nearest item within `reach` SVG units, -1 when none (built on the first query)
+export function pointFinder(items, X, Y, cell = 12) {
+  let grid = null;
+  const pts = [];
+  return (sx, sy, reach = 6) => {
+    if (!grid) {
+      grid = new Map();
+      items.forEach((it, i) => { const x = X(it.x), y = Y(it.y); if (!Number.isFinite(x) || !Number.isFinite(y)) return; pts[i] = [x, y]; const key = Math.floor(x / cell) * 100003 + Math.floor(y / cell); const a = grid.get(key); if (a) a.push(i); else grid.set(key, [i]); });
+    }
+    let best = -1, bestD = reach * reach;
+    for (let c = Math.floor((sx - reach) / cell); c <= Math.floor((sx + reach) / cell); c++) for (let r = Math.floor((sy - reach) / cell); r <= Math.floor((sy + reach) / cell); r++) {
+      for (const i of grid.get(c * 100003 + r) || []) { const dx = pts[i][0] - sx, dy = pts[i][1] - sy, d = dx * dx + dy * dy; if (d <= bestD) { bestD = d; best = i; } }
+    }
+    return best;
+  };
 }
 
 // squared distance from (px, py) to the segment a-b

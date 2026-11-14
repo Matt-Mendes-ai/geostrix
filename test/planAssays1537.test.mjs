@@ -39,8 +39,9 @@ test("without grade classes: a ramp over the whole project's values, the same co
 });
 
 test("the plan payload and window use it", () => {
-  const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(v, /const pa = planAssayLayers\(points, holes, assayLegendGroups\(/);
+  const v = readFileSync(new URL("../src/modules/viewer/levelPlanBuild.js", import.meta.url), "utf8"); // #3137 — the build moved here
+  assert.match(v, /const pa = planAssayLayers\(points, holes, ctx\.assayLegend\(\), ctx\.projectValues\);/);
+  assert.match(readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8"), /assayLegend: \(\) => assayLegendGroups\(\{ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle \}\)/);
   assert.match(v, /intervals: \[\.\.\.planIntervals, \.\.\.pa\.intervals\], assayLegends: pa\.legends/);
   const w = readFileSync(new URL("../src/components/LevelPlanWindow.jsx", import.meta.url), "utf8");
   assert.match(w, /const L = data\.assayLegends\?\.\[activeLayer\] \|\| planLegend\(/);

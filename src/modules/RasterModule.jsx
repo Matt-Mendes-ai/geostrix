@@ -1,7 +1,8 @@
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { defaultDrapeElevation, rasterDrapeElevation, drapeElevationNote } from "../lib/drapeElevation.js"; // TASKS.csv #1856; rasterDrapeElevation: #1505
 import { isAreaBoundary } from "../lib/boundaryImport.js"; // TASKS.csv #1466
-import { ensureProjectCrs, ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #615; export: #1021
+import { ensureProjectCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #615
+import { exportCrs, gridBandsToWorld, imageToWorld, tiedExportNote } from "../lib/tiedExport.js"; // TASKS.csv #1021; a tied local grid: #2322
 import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import { runPfieldsJob } from "../lib/desktop.js"; // TASKS.csv #1985
@@ -13,7 +14,8 @@ import SpectralIndexModal from "../components/SpectralIndexModal.jsx"; // TASKS.
 import { useStore } from "../lib/store.jsx";
 import { buildRasterImport, gridToSurveyRows, ternaryRaster, parseWorldFile, tieFetchedImage, dataUrlPixels } from "../lib/raster.js"; // dataUrlPixels: #1860; // parseWorldFile: TASKS.csv #1855; tieFetchedImage: #2648
 import { b64ToF32, gridDeclination } from "../lib/inversion.js"; // TASKS.csv #373
-import { SAT_LEVELS, planLatestFetch, levelsAddingNothing, naipCoverage } from "../lib/imageryLevels.js"; // TASKS.csv #781 / #837; naipCoverage: #1474
+import { SAT_LEVELS, planLatestFetch, levelsAddingNothing, naipCoverage } from "../lib/imageryLevels.js";
+import { useMachineMemoryGB, fetchFits, fetchBudgetMB, centreBox } from "../lib/fetchMemory.js"; // TASKS.csv #3251 // TASKS.csv #781 / #837; naipCoverage: #1474
 const NAIP_FINEST_M = 0.6; // lib/naipFetch.js, which stays out of this module until NAIP is fetched
 import { gridToGeoTIFF, saveGeoTIFF, safeFileName, rasterExportNote, imageToGeoTIFF, pictureExportNote } from "../lib/gridExport.js"; // TASKS.csv #854; rasterExportNote: #1095; picture: #1860
 import { toLonLat, crsName } from "../lib/reproject.js";
@@ -142,7 +144,7 @@ export default function RasterModule({ embedded = false } = {}) {
       const d = gridDeclination(D, cx, cy, project?.epsg);
       if (!d) { setError({ info: false, text: tr("Could not compute grid convergence for this project CRS.") }); return; }
       declGrid = d.grid;
-      Object.assign(params, { inclination: I, declinationTrue: D, declinationGrid: +d.grid.toFixed(3), gridConvergence: +d.convergence.toFixed(3), fieldSource: filt.igrfSource || "typed by the user" }); // fieldSource: #2561
+      Object.assign(params, { inclination: I, declinationTrue: D, declinationGrid: +d.grid.toFixed(3), gridConvergence: +d.convergence.toFixed(3), gridConvergenceMeaning: "the bearing of true north measured from grid north (+ = east of grid north); the surveying convergence is the same angle with the opposite sign" /* TASKS.csv #2969 */, fieldSource: filt.igrfSource || "typed by the user" }); // fieldSource: #2561
       if (filt.kind === "rtpa" && filt.amplitudeInclination !== "") params.amplitudeInclination = Number(filt.amplitudeInclination);
     }
     if (filt.kind === "upward") {
@@ -280,6 +282,9 @@ export default function RasterModule({ embedded = false } = {}) {
   // TASKS.csv #781 — resolution level, remembered per computer (a preference, not project data)
   const [satLevel, setSatLevelState] = useState(() => { try { const v = localStorage.getItem("geostrix_sat_level"); return SAT_LEVELS[v] ? v : "standard"; } catch { return "standard"; } });
   const setSatLevel = (v) => { setSatLevelState(v); try { localStorage.setItem("geostrix_sat_level", v); } catch { /* private window: session only */ } };
+  const ramGB = useMachineMemoryGB(); // #3251 — what a Full fetch may take on this computer
+  // #3251 — the most a fetch can take: NAIP planned at 0.3 m (some states since 2022; the fetch learns the real one from the catalogue)
+  const satWorst = (bbox) => planLatestFetch(bbox, satLevel, satSource === "naip" ? NAIP_FINEST_M / 2 : undefined, { naip: satSource === "naip" });
   // TASKS.csv #838 — where the image comes from: Sentinel-2 everywhere, NAIP's much finer aerial imagery in the USA
   const [satSource, setSatSourceState] = useState(() => { try { return localStorage.getItem("geostrix_sat_source") === "naip" ? "naip" : "sentinel2"; } catch { return "sentinel2"; } });
   const setSatSource = (v) => { setSatSourceState(v); try { localStorage.setItem("geostrix_sat_source", v); } catch { /* private window: session only */ } };
@@ -386,22 +391,29 @@ export default function RasterModule({ embedded = false } = {}) {
   const runSatFetch = async (bboxLonLat) => {
     // #1474 — no catalogue search for an area NAIP cannot cover
     if (satSource === "naip" && naipCoverage(bboxLonLat) === "outside") { setError({ info: false, text: tr("This area is outside the contiguous USA, where NAIP is flown: choose Sentinel-2 (worldwide) instead.") }); return; }
+    { const w = satWorst(bboxLonLat); if (!fetchFits(w.memoryMB, ramGB)) { setError({ info: false, text: tr("This imagery could take about {mb} MB of memory, over the {max} MB a fetch may use on this computer (a quarter of its memory). Choose a lower resolution or a smaller area.", { mb: w.memoryMB.toLocaleString(), max: fetchBudgetMB(ramGB).toLocaleString() }) }); return; } } // #3251
     setSatPickerOpen(false);
     setSatBusy(true);
     setSatProgress({ done: 0, total: 1 });
     try { // TASKS.csv #816 / #837 — the latest clear Sentinel-2 scene (Copernicus: free and open, any use with attribution)
       const tie = tieOf(project); // TASKS.csv #2648 — a tied local grid: fetched in the tie's CRS, then brought into the grid
-      const opts = { targetEpsg: tie ? Number(tie.epsg) : project.epsg, maxPx: SAT_LEVELS[satLevel]?.gridMax || 2048, onProgress: (done, total) => setSatProgress({ done, total }) };
-      let r = satSource === "naip" ? await (await import("../lib/naipFetch.js")).fetchNaip(bboxLonLat, opts) : await (await import("../lib/imageryFetch.js")).fetchLatestTrueColour(bboxLonLat, opts);
+      // #3251 — Full: NAIP at the imagery's own pixels, in up to 2 x 2 pictures (r.parts)
+      const opts = { targetEpsg: tie ? Number(tie.epsg) : project.epsg, maxPx: SAT_LEVELS[satLevel]?.gridMax || 2048, full: satLevel === "full", onProgress: (done, total) => setSatProgress({ done, total }) };
+      const r = satSource === "naip" ? await (await import("../lib/naipFetch.js")).fetchNaip(bboxLonLat, opts) : await (await import("../lib/imageryFetch.js")).fetchLatestTrueColour(bboxLonLat, opts);
       let tieNote = "";
-      if (tie) {
-        const local = await tieFetchedImage(r, tie, opts.targetEpsg, SAT_LEVELS[satLevel]?.gridMax || 2048);
-        if (!local) throw new Error(tr("The fetched imagery could not be brought into the local grid through its tie to EPSG:{epsg}.", { epsg: opts.targetEpsg }));
-        r = local;
-        tieNote = " " + tr("It was fetched in EPSG:{epsg} and brought into the local grid through the grid's tie, and resampled onto the grid's own north.", { epsg: opts.targetEpsg });
+      const parts = [];
+      for (const part of r.parts || [r]) {
+        let p = part;
+        if (tie) {
+          const local = await tieFetchedImage(part, tie, opts.targetEpsg, SAT_LEVELS[satLevel]?.gridMax || 2048);
+          if (!local) throw new Error(tr("The fetched imagery could not be brought into the local grid through its tie to EPSG:{epsg}.", { epsg: opts.targetEpsg }));
+          p = { ...local, pixelM: part.pixelM && part.gridW ? part.pixelM * Math.max(part.gridW / local.gridW, part.gridH / local.gridH) : null };
+          tieNote = " " + tr("It was fetched in EPSG:{epsg} and brought into the local grid through the grid's tie, and resampled onto the grid's own north.", { epsg: opts.targetEpsg });
+        }
+        parts.push(p);
       }
-      addRaster({ name: r.name, bbox: r.bbox, dataUrl: r.dataUrl, elevation: defaultElevation });
-      setError({ info: satSource === "naip" ? !r.partial : r.areaCloud <= 0.1, text: tr("Fetched and imported \"{name}\" ({gridW} × {gridH} px).", { name: r.name, gridW: r.gridW, gridH: r.gridH }) + r.note + tieNote });
+      for (const p of parts) addRaster({ name: p.name, bbox: p.bbox, dataUrl: p.dataUrl, elevation: defaultElevation, ...(p.pixelM ? { pixelM: p.pixelM, gridW: p.gridW, gridH: p.gridH } : {}) /* #3251 — said on the card */ });
+      setError({ info: satSource === "naip" ? !r.partial : r.areaCloud <= 0.1, text: (parts.length > 1 ? tr("Fetched and imported {n} pictures of \"{name}\" ({gridW} × {gridH} px each at most).", { n: parts.length, name: r.name.replace(/, part 1 of \d+$/, ""), gridW: arrMax(parts.map((p) => p.gridW)), gridH: arrMax(parts.map((p) => p.gridH)) }) : tr("Fetched and imported \"{name}\" ({gridW} × {gridH} px).", { name: r.name, gridW: r.gridW, gridH: r.gridH })) + r.note + tieNote });
     } catch (err) {
       setError({ info: false, text: err.message });
     } finally {
@@ -437,12 +449,14 @@ export default function RasterModule({ embedded = false } = {}) {
   // TASKS.csv #1860 (review #1646) — a picture raster out as an RGBA GeoTIFF in the project CRS: a plan map georeferenced here can go to
   // QGIS or a colleague without its four points being placed again
   const exportPicture = async (r) => {
-    const epsgX = await ensureExportCrs(project); /* #1021 */
-    if (!epsgX) return;
+    const ex = await exportCrs(project); /* #1021; #2322 — a tied local grid: resampled through its tie */
+    if (!ex) return;
+    const epsgX = ex.epsg;
     try {
       const px = await dataUrlPixels(r.dataUrl, tr("The picture of \"{name}\" could not be read.", { name: r.name }));
-      const res = await saveGeoTIFF(`${safeFileName(r.name)}.tif`, imageToGeoTIFF({ ...px, bbox: r.bbox, epsg: epsgX }));
-      if (res?.ok) setError({ info: true, text: pictureExportNote(r, px.width, px.height, epsgX) });
+      const out = imageToWorld({ ...px, bbox: r.bbox }, ex.tie);
+      const res = await saveGeoTIFF(`${safeFileName(r.name)}.tif`, imageToGeoTIFF({ ...out, epsg: epsgX }));
+      if (res?.ok) setError({ info: true, text: pictureExportNote(r, out.width, out.height, epsgX) + tiedExportNote(ex.tie) });
       else if (res && !res.ok && res.error) setError({ info: false, text: res.error });
     } catch (e) { setError({ info: false, text: e.message }); }
   };
@@ -536,9 +550,9 @@ export default function RasterModule({ embedded = false } = {}) {
             areaOptions={satAreaOptions}
             onClose={() => setSatPickerOpen(false)}
             onConfirm={runSatFetch}
-            extraControls={(bbox) => { // TASKS.csv #781 — resolution, and what it would fetch for this area
+            extraControls={(bbox, { setArea } = {}) => { // TASKS.csv #781 — resolution, and what it would fetch for this area; setArea: #3251
               const naip = satSource === "naip";
-              const p = bbox ? planLatestFetch(bbox, satLevel, naip ? NAIP_FINEST_M : undefined) : null; // #837
+              const p = bbox ? planLatestFetch(bbox, satLevel, naip ? NAIP_FINEST_M : undefined, { naip }) : null; // #837; naip: #3251 — Full in up to 2 x 2 pictures
               return (
                 <span style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 10, fontSize: "var(--font-size-sm)", color: "#5a6472" }}>
                   <select value={satSource} onChange={(e) => setSatSource(e.target.value)} aria-label={tr("Imagery source")} style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid var(--color-border)", maxWidth: 300 }}
@@ -552,6 +566,16 @@ export default function RasterModule({ embedded = false } = {}) {
                   </select>
                   {naip && bbox && naipCoverage(bbox) !== "inside" && <span style={{ color: "var(--color-danger-icon-strong)" }}>{naipCoverage(bbox) === "outside" ? tr("Outside the USA: NAIP has no imagery here.") : tr("Part of this area is outside the USA: NAIP covers only the rest.")}</span>}{/* #1474 */}
                   {p && <span>{tr("~{v} m pixels · image {gridW} × {gridH} px{v3}", { gridW: p.gridW, gridH: p.gridH, v: naip ? (p.pixelM < 10 ? p.pixelM.toFixed(1) : Math.round(p.pixelM)) : Math.round(p.pixelM), v3: p.nativeLimited ? (naip ? tr(" · imagery's finest") : tr(" · imagery's finest (10 m)")) : "" })}</span>}
+                  {(() => { // #3251 — the pictures and memory, at the most (NAIP planned at 0.3 m); over this computer's share, said
+                    const w = bbox ? satWorst(bbox) : null;
+                    if (!w || (w.parts <= 1 && fetchFits(w.memoryMB, ramGB))) return null;
+                    return <span style={fetchFits(w.memoryMB, ramGB) ? undefined : { color: "var(--color-warn-text)" }}>{w.parts > 1 ? tr("up to {n} pictures, about {mb} MB", { n: w.parts, mb: w.memoryMB.toLocaleString() }) : tr("about {mb} MB", { mb: w.memoryMB.toLocaleString() })}{fetchFits(w.memoryMB, ramGB) ? "" : " " + tr("over this computer's {max} MB", { max: fetchBudgetMB(ramGB).toLocaleString() })}</span>;
+                  })()}
+                  {p && setArea && !p.nativeLimited && p.pixelM > 1.5 * (naip ? NAIP_FINEST_M : 10) && (
+                    <button type="button" onClick={() => setArea(centreBox(bbox, p.fullSideM))} style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)", cursor: "pointer" }}
+                      title={tr("The imagery's own pixels at this resolution cover about {km} km across: keep the centre of the drawn area", { km: (p.fullSideM / 1000).toFixed(1) })}>{tr("Full resolution: centre {km} km", { km: (p.fullSideM / 1000).toFixed(1) })}</button>
+                  )}
+                  {naip && satLevel === "full" && <span>{tr("Some states are flown at 0.3 m (Colorado since 2023): Full then fetches 0.3 m pixels, over a quarter of the area at the most.")}</span>}
                   {p && !p.nativeLimited && p.pixelM > 3 * (naip ? NAIP_FINEST_M : 10) && <span style={{ color: "var(--color-warn-text)" }}>{tr("Pixels {k} times coarser than the imagery's own: a smaller area gets finer ones.", { k: Math.round(p.pixelM / (naip ? NAIP_FINEST_M : 10)) })}</span>}{/* #2126 */}
                 </span>
               );
@@ -623,8 +647,9 @@ export default function RasterModule({ embedded = false } = {}) {
                 {r.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <MiddleName name={r.name} style={{ color: "var(--color-text)" }} />{/* #2852 — the tail kept, the full name on hover */}
+              {r.pixelM > 0 && <span style={{ flexShrink: 0, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }} title={tr("Fetched at {m} m pixels, {w} × {h} px", { m: r.pixelM < 1 ? r.pixelM.toFixed(2) : r.pixelM.toFixed(1), w: r.gridW, h: r.gridH })}>{tr("{m} m px", { m: r.pixelM < 1 ? r.pixelM.toFixed(2) : r.pixelM.toFixed(1) })}</span>}{/* #3251 */}
               {r.grid && !r.geochem /* #1622 — no magnetic filters for a geochemistry grid */ && !r.terrainDerivative /* #1626 — nor for a slope / aspect / curvature */ && <SlidersHorizontal role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: filterFor === r.id ? "var(--color-info)" : "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Filter the values of \"{name}\"", { name: r.name })} title={tr("Grid filters: RTP, first vertical derivative, upward continuation, tilt derivative, analytic signal")} onClick={() => { const opening = filterFor !== r.id; setFilterFor(opening ? r.id : null); if (opening) setFilt((f) => ({ ...f, kind: defaultFilterKind(r, rasterMethodOf(r, geophysSurveys)) })); /* #1863 — RTP only for magnetics */ }} />}
-              {r.grid && <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export the values of \"{name}\" as a GeoTIFF", { name: r.name })} title={tr("Export the values of \"{name}\" as a GeoTIFF", { name: r.name })} onClick={async () => { const epsgX = await ensureExportCrs(project); if (!epsgX) return; /* #1021 */ const g = r.grid; const res = await saveGeoTIFF(`${safeFileName(r.name)}.tif`, gridToGeoTIFF({ nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, bands: [{ values: g.values }], epsg: epsgX })); if (res?.ok) setError({ info: true, text: rasterExportNote(r) }); /* #1095 — what the file holds */ }} />}{/* TASKS.csv #854 */}
+              {r.grid && <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export the values of \"{name}\" as a GeoTIFF", { name: r.name })} title={tr("Export the values of \"{name}\" as a GeoTIFF", { name: r.name })} onClick={async () => { const ex = await exportCrs(project); if (!ex) return; /* #1021; #2322 — a tied local grid: through its tie */ const g = r.grid; const res = await saveGeoTIFF(`${safeFileName(r.name)}.tif`, gridToGeoTIFF({ ...gridBandsToWorld({ nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, bands: [{ values: g.values }] }, ex.tie), epsg: ex.epsg })); if (res?.ok) setError({ info: true, text: rasterExportNote(r) + tiedExportNote(ex.tie) }); /* #1095 — what the file holds */ }} />}{/* TASKS.csv #854 */}
               {!r.grid && r.dataUrl && <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export the picture \"{name}\" as a GeoTIFF", { name: r.name })} title={tr("Export the picture \"{name}\" as a GeoTIFF", { name: r.name })} onClick={() => exportPicture(r)} />}{/* TASKS.csv #1860 — an RGB plan map, a scan, imagery */}
               {r.grid && <ScatterChart role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Use the values of \"{name}\" as survey points", { name: r.name })} title={tr("Use as survey points ({nx}×{ny} grid values, {v}) — for the Geophysics inversion", { nx: r.grid.nx, ny: r.grid.ny, v: gridCellText(r.grid) })} onClick={() => gridAsSurvey(r)} />}
               {r.bbox && <Crosshair role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Zoom the plan to \"{name}\"", { name: r.name })} title={tr("Zoom the plan to \"{name}\"", { name: r.name })} onClick={() => requestPlanZoom(r.bbox)} />}{/* TASKS.csv #2657 */}

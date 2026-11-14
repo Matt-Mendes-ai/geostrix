@@ -47,13 +47,13 @@ import { surveyIdsWithoutCollar, idList } from "../../lib/surveyCollarCheck.js";
 import { eventNotes } from "../../lib/downholeEvents.js"; // TASKS.csv #2317
 import { applyRowFilter, defaultRowFilter, overlapSummary, overlapWorthSaying } from "../../lib/importRowFilter.js"; // TASKS.csv #2330; overlap: #2391
 import { isNullSentinel, LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, keepDerivedPicks, isDerivedPick, replaceNote, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
-import { alterationStyleFromName, styledAltValue, isBlankCode, NO_CODE, blankCodeText } from "../../lib/viewer/importHelpers.js"; // TASKS.csv #1511; isBlankCode: #2182
+import { alterationStyleFromName, styledAltValue, isBlankCode, NO_CODE, blankCodeText, skipBlankValue, mineralListValue } from "../../lib/viewer/importHelpers.js"; // TASKS.csv #1511; isBlankCode: #2182; skipBlankValue: #2021
 import { fillDownHoleIds, numberedSiblings, allCodesOf, normInterval, applyCustomFields, normNumericInterval, normStructure, skippedRowsText, strikeStats, loadRaster, looksLikeAssay, isSurfaceSampleTable, looksLikeSurfaceSamples /* #2268 */, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
 import { unreadableFormatAdvice } from "../../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { layerOverlapOf } from "../../lib/viewer/layerOverlap.js"; // #1649
 import { requestModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #917; useModuleAction: #2019
-import { autoExtraFields, companionLayer, surveyMethodFields, columnsLeftOut } from "../../lib/viewer/autoExtras.js"; // TASKS.csv #1501; surveyMethodFields: #2187
+import { autoExtraFields, companionLayer, surveyMethodFields, columnsLeftOut, suscInstrumentFields } from "../../lib/viewer/autoExtras.js"; // suscInstrumentFields: #2668 // TASKS.csv #1501; surveyMethodFields: #2187
 import { surfaceAttrColumns, surfaceAttrs } from "../../lib/geochemColumns.js"; // TASKS.csv #1504 — unmapped collar columns kept as attrs; #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 import { rasterDrapeElevation, drapeElevationNote, planElevation } from "../../lib/drapeElevation.js"; // TASKS.csv #1505; planElevation: #2294
 import { projectTargetEpsg } from "../../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
@@ -161,7 +161,7 @@ export function makeImportPipeline(ctx, h) {
       const mapping0 = azColFor(target, headers, data, ll ? ll.mapping : guessMapping(target, headers)); // #426; #2015
       const codeGuess = codeColumnGuess(target, headers, data, mapping0), mapping = codeGuess ? { ...mapping0, value: codeGuess.col } : mapping0; // #2889 — no name matched: the file's one code column, said as a guess
       const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
-      setImportModal({ ...(codeGuess ? { valueGuess: codeGuess } : {}), ...azRefFor(target, headers, data), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : {}) /* #2187 */, file, fileName: file.name, headers, rowCount: meta?.logTable ? meta.logTable.n : data.length, sampleRows: data.slice(0, 5), allRows: data, ...(meta?.logTable ? { logTable: meta.logTable } : {}) /* #3038 */, target, mapping, ...(forceTarget ? {} : guardGuess(target, mapping, headers, data, file.name)), ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */, perRowEpsgCol, sourceEpsg: ll ? ll.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
+      setImportModal({ ...(codeGuess ? { valueGuess: codeGuess } : {}), ...azRefFor(target, headers, data), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : target === "magsusc" ? { customFields: suscInstrumentFields(headers, data) } /* #2668 */ : {}) /* #2187 */, file, fileName: file.name, headers, rowCount: meta?.logTable ? meta.logTable.n : data.length, sampleRows: data.slice(0, 5), allRows: data, ...(meta?.logTable ? { logTable: meta.logTable } : {}) /* #3038 */, target, mapping, ...(forceTarget ? {} : guardGuess(target, mapping, headers, data, file.name)), ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */, perRowEpsgCol, sourceEpsg: ll ? ll.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
     }, chosenLayer);
   };
@@ -185,7 +185,7 @@ export function makeImportPipeline(ctx, h) {
       try {
         const live = importStateRef.current;
         const chooseProjectEpsg = (src, cur) => adoptCrsIfEmpty(src, file.name) || cur; // #607
-        const { raster, msg } = await (await loadRaster()).buildRasterImport(file, { epsg: projectTargetEpsg(live.project || project), defaultElevation, chooseProjectEpsg });
+        const { raster, msg } = await (await loadRaster()).buildRasterImport(file, { epsg: projectTargetEpsg(live.project || project), defaultElevation, chooseProjectEpsg, tie: tieOf(live.project || project) /* #2743 — a tied mine grid: through its tie, as Maps and Geophysics do (#2587) */ });
         const drape = rasterDrapeElevation({ collars: live.collars || collars, voxelModels: live.voxelModels || [], surfaceSamples: live.surfaceSamples || [], bbox: raster.bbox, rasters: live.rasters || [], fileName: file.name, stations: live.layers?.geophys_pts /* #2868 */ }); // #1505
         addRaster({ ...raster, elevation: drape.z });
         setNotices((p) => [...p, notice("{msg} {v} Set its opacity (or a Source CRS, if it landed in the wrong place) on the Maps tab.", { msg, v: drapeElevationNote(drape) })]);
@@ -262,10 +262,13 @@ export function makeImportPipeline(ctx, h) {
   // (279 rows of the real log), SWIR_Halo to Veins; Lawyers' Vein Min was appended into Mineralization unseen.
   // -> { target, n, src, holes } or null.
   const layerOverlap = (target, mapping, rows, fileName) => layerOverlapOf(importStateRef.current.layers, target, mapping, rows, fileName); // #1649 — lib/viewer/layerOverlap.js (the hook reads it too)
-  // the dialog's pre-set: such a guess becomes a custom layer, and the dialog says why (#1649)
+  // the dialog's pre-set: such a guess is never committed unseen, and the dialog says what it replaces (#1649). TASKS.csv #2021 — it stays the
+  // recognized layer (a corrected log re-imported under another name became a custom layer of an all-blank column), with the note and Custom
+  // layer one choice away; the value never preselects a column that is blank on every row
   const guardGuess = (target, mapping, headers, rows, fileName) => {
     const ov = layerOverlap(target, mapping, rows, fileName);
-    return ov ? { target: "custom", mapping: guessMapping("custom", headers), guessNote: ov } : { target, mapping };
+    const m = skipBlankValue(mapping, headers, rows);
+    return ov ? { target, mapping: m, guessNote: ov } : { target, mapping: m };
   };
   const azRefFor = (target, headers, rows) => { const d = AZ_TARGETS.has(target) ? detectAzimuthRef(headers, rows) : null; if (d?.tools && !d.ref) return { azimuthToolsCol: d.col }; /* #3209 */ return d?.ref ? { azimuthRef: d.ref, azimuthRefFrom: d.col, ...(d.also ? { azimuthRefAlso: d.also } : {}) } : {}; }; // also: #2154
   // TASKS.csv #2015 — a survey sheet's corrected azimuth column (grid when filled, else true north) is the one read
@@ -832,6 +835,7 @@ export function makeImportPipeline(ctx, h) {
         let extra = 0; // #2874 — this row's count of codes beyond the drawn one
         if (sib) { const a = allCodesOf(raw, sib); if (a.extra) { r.all_codes = a.all; r.codes = a.codes; codesKept += a.extra; codesRows++; extra = a.extra; } } // codes: #1650
         if (altStyle) { r.value = styleCode(r.value); r.alt_style = altStyle; if (Array.isArray(r.codes)) r.codes = r.codes.map(styleCode); } // #1511
+        if (target === "mnlgy" && !numeric) { const l = mineralListValue(r.value); if (l !== r.value) { r.as_logged = r.value; r.value = l; } } // #2022 — 'Py; Cpy' and 'Cpy; Py' are one class
         // #2182 — a blank code: the next numbered code if the row has one (Min_Code2), else the row is skipped and counted, not 'Unknown'
         // #2493 — or, when the dialog's "keep blank codes as (no code)" is ticked, kept as that explicit class (the log stays continuous)
         if (!numeric && isBlankCode(raw[mapping.value])) { blankRows++; const next = Array.isArray(r.codes) ? r.codes.find((c) => !isBlankCode(c)) : null; if (next) { r.value = String(next).trim(); blankTookNext++; if (extra) { codesKept--; if (extra === 1) codesRows--; } /* #2874 — that code is drawn now, not 'not drawn' */ } else if (data.keepBlankCodes) { r.value = NO_CODE; blankKept++; } else r.value = null; }
@@ -1042,7 +1046,7 @@ export function makeImportPipeline(ctx, h) {
       // them: a queued shapefile used to be committed with no Source CRS, so its collars stayed in their own UTM
       // zone's numbers inside a project in another zone (~400 km from the same drop's reprojected map layers).
       // TASKS.csv #2899 — a queued survey gets the same pre-added instrument / method field as one dropped alone (#2187)
-      const modalData = { ...(codeGuess ? { valueGuess: codeGuess } : {}), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : {}), ...azRefFor(target, headers, data), file, fileName: file.name, headers, rowCount: meta?.logTable ? meta.logTable.n : data.length, sampleRows: data.slice(0, 5), allRows: data, ...(meta?.logTable ? { logTable: meta.logTable } : {}) /* #3038 */, target, mapping, ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */,
+      const modalData = { ...(codeGuess ? { valueGuess: codeGuess } : {}), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : target === "magsusc" ? { customFields: suscInstrumentFields(headers, data) } /* #2668 */ : {}), ...azRefFor(target, headers, data), file, fileName: file.name, headers, rowCount: meta?.logTable ? meta.logTable.n : data.length, sampleRows: data.slice(0, 5), allRows: data, ...(meta?.logTable ? { logTable: meta.logTable } : {}) /* #3038 */, target, mapping, ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */,
         sourceEpsg: queueLl ? queueLl.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "", perRowEpsgCol: guessColumn(headers, EPSG_COL_ALIASES), ...guarded };
       if (confident) {
         // TASKS.csv #1501 — a log's other columns as extra fields, and a Geotech table's Recovery % as that layer too (collars keep
@@ -1337,5 +1341,6 @@ export function makeImportPipeline(ctx, h) {
     setNotices((p) => [...p, notice("Reloaded from the database: {lines}", { lines: lines.join(" · ") })]);
   };
 
+  // cancelImport (#2660) is the hook's own: it reads the hook's drop-origin ref
   return { commitImport, handleDrop, importBrowserFile, importOverlap, layerPicker, loadSampleProject, openImportFromRows, openImportModal, processImportQueue, sampleLoading, setLayerPicker, reloadDbImports };
 }

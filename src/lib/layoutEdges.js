@@ -19,6 +19,8 @@ export function elementCaption(el, max = 24) {
   return t.length > max ? `${t.slice(0, max - 1)}…` : t;
 }
 
+// TASKS.csv #3028 (3) — a table sent from a tool (Best intercepts, source "static") is not a collar table: the kind the confirm names
+export const elementKind = (el) => (el?.type === "table" && el?.source === "static" ? "statictable" : el?.type);
 // the elements of one page past its edge -> [{ id, type, caption, sides }]
 export function offSheetElements(elements, page, tol = 1) {
   const out = [];
@@ -27,7 +29,7 @@ export function offSheetElements(elements, page, tol = 1) {
     const x = Number(el?.x) || 0, y = Number(el?.y) || 0;
     // sized by its content: only where it starts is known
     const past = b ? sides(b.x, b.y, b.x + b.w, b.y + b.h, page.w, page.h, tol) : [x < 0 && "left", y < 0 && "top", x >= page.w && "right", y >= page.h && "bottom"].filter(Boolean);
-    if (past.length) out.push({ id: el.id, type: el.type, caption: elementCaption(el), sides: past });
+    if (past.length) out.push({ id: el.id, type: elementKind(el), caption: elementCaption(el), sides: past });
   }
   return out;
 }

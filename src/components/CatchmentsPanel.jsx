@@ -7,7 +7,7 @@ import { useStore } from "../lib/store.jsx";
 import { routeTerrainAsync } from "../lib/hydrologyClient.js";
 import { analyseCatchments, catchmentImage, streamNetwork, followUpGpx, catchmentBands, STREAM_MEDIA, DEFAULT_CATCHMENT_OPTS } from "../lib/catchments.js";
 import { pointTransform } from "../lib/reproject.js";
-import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1021
+import { exportCrs, exportXY, gridBandsToWorld, tiedExportNote } from "../lib/tiedExport.js"; // TASKS.csv #1021; a tied local grid: #2322
 import { gridToGeoTIFF, nodeGridGeometry, saveGeoTIFF } from "../lib/gridExport.js"; // TASKS.csv #854
 import { makeValueGrid } from "../lib/raster.js";
 import { f32ToB64 } from "../lib/inversion.js";
@@ -78,17 +78,17 @@ export default function CatchmentsPanel({ onClose }) {
   // TASKS.csv #1021 — the coordinate system is asked for if it was never chosen, and a GPS file is never written with raw
   // x / y as latitude / longitude (when no transform to WGS 84 loads it says so instead)
   const exportGpx = async () => {
-    const epsg = await ensureExportCrs(project); if (!epsg) return;
-    const T = pointTransform(epsg, 4326);
+    const ex = await exportCrs(project); if (!ex) return; // #2322 — a tied local grid: through its tie
+    const { epsg } = ex, T = pointTransform(epsg, 4326), P = exportXY(ex.tie);
     if (!T) { setMsg(tr("EPSG:{epsg} could not be converted to latitude / longitude, so no GPS file was written.", { epsg })); return; }
-    saveFile({ suggestedName: `follow_up_${opts.symbol}.gpx`, filters: [{ name: "GPX", extensions: ["gpx"] }], content: followUpGpx(a, (x, y) => T(x, y), `Follow-up reaches: ${opts.symbol} in ${opts.medium}`) });
+    saveFile({ suggestedName: `follow_up_${opts.symbol}.gpx`, filters: [{ name: "GPX", extensions: ["gpx"] }], content: followUpGpx(a, (x, y) => T(...P(x, y)), `Follow-up reaches: ${opts.symbol} in ${opts.medium}`) });
   };
   // TASKS.csv #854 — the catchment grid for QGIS: class / site rank / productivity per cell
   const exportTif = async () => {
-    const epsg = await ensureExportCrs(project); if (!epsg) return; // #1021
-    const { g, cls, rank, prod } = cellBands();
-    saveGeoTIFF(`catchments_${opts.symbol}.tif`, gridToGeoTIFF({ ...g, bands: [{ values: cls }, { values: rank }, { values: prod }], epsg }));
-    setMsg(tr("GeoTIFF: band 1 = class (1 background, 2 above background, 3 anomalous), band 2 = site rank, band 3 = productivity; no data −9999; {epsg}.", { epsg: `EPSG:${epsg}` }));
+    const ex = await exportCrs(project); if (!ex) return; // #1021; #2322 — a tied local grid: resampled through its tie
+    const { epsg } = ex, { g, cls, rank, prod } = cellBands();
+    saveGeoTIFF(`catchments_${opts.symbol}.tif`, gridToGeoTIFF({ ...gridBandsToWorld({ ...g, bands: [{ values: cls }, { values: rank }, { values: prod }] }, ex.tie), epsg }));
+    setMsg(tr("GeoTIFF: band 1 = class (1 background, 2 above background, 3 anomalous), band 2 = site rank, band 3 = productivity; no data −9999; {epsg}.", { epsg: `EPSG:${epsg}` }) + tiedExportNote(ex.tie));
   };
   const exportCsv = () => saveFile({ suggestedName: `catchments_${opts.symbol}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(catchmentRows(a, { symbol: opts.symbol, unit, crs: crsCell(project) })) }); // #1083 — rows in lib, tested
 

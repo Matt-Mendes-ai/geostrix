@@ -103,7 +103,7 @@ export function tieStarterFurniture(els, view, { bar: wantBar = true, north: wan
 // snapshot. A moved section used to leave its 200 m bar and legend beside the plan, while its new page printed a starter "100 m"
 // bar that measured 238 m at 1:5,000. -> { from, to } element lists, or null when the element is not on `from`.
 const boundToId = (el, id) => el.boundTo === id || el.boundViewportId === id || el.overviewOf === id;
-export function sendElementWithFurniture(from, to, elementId, move, newId = (el) => `${el.type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`) {
+export function sendElementWithFurniture(from, to, elementId, move, newId = (el) => `${el.type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, page = null) { // page: #2740
   const el = (from || []).find((e) => e.id === elementId);
   if (!el) return null;
   let deps = from.filter((e) => e.id !== elementId && boundToId(e, elementId));
@@ -127,6 +127,7 @@ export function sendElementWithFurniture(from, to, elementId, move, newId = (el)
     const idMap = new Map(sent.map((e) => [e.id, newId(e)]));
     sent = relinkCopies(sent.map((e) => ({ ...e, id: idMap.get(e.id) })), idMap, false).map((e) => ("boundViewportId" in e && idMap.has(e.boundViewportId) ? { ...e, boundViewportId: idMap.get(e.boundViewportId) } : e));
   }
+  if (page) sent = clampGroupIntoPage(sent, page); // TASKS.csv #2740
   const view = sent[0];
   let dest = [...(to || []), ...sent];
   if (view.type === "viewport" || view.type === "image") dest = tieStarterFurniture(dest, view, { bar: !deps.some((e) => e.type === "scale"), north: !deps.some((e) => e.type === "north") });
@@ -141,3 +142,17 @@ export function relinkCopies(copies, idMap, dropOutside) {
   const relink = (id) => (id == null ? id : idMap.has(id) ? idMap.get(id) : dropOutside ? null : id);
   return copies.map((el) => ({ ...el, ...("boundTo" in el ? { boundTo: relink(el.boundTo) } : {}), ...("overviewOf" in el ? { overviewOf: relink(el.overviewOf) } : {}) }));
 }
+
+// TASKS.csv #2740 (split from #2612) — an element sent to another page kept its x / y: from an A3 landscape page to an A4 portrait one it landed off
+// the paper. The sent group (the element and its bar / arrow / legend) moves together, as little as needed, to lie inside the page ({ w, h } px);
+// a group larger than the page goes to its top-left corner. Elements without a position are left as they are.
+export function clampGroupIntoPage(els, page) {
+  const placed = (els || []).filter((e) => Number.isFinite(e?.x) && Number.isFinite(e?.y));
+  if (!placed.length || !(page?.w > 0) || !(page?.h > 0)) return els;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const e of placed) { x0 = Math.min(x0, e.x); y0 = Math.min(y0, e.y); x1 = Math.max(x1, e.x + (Number(e.w) || 0)); y1 = Math.max(y1, e.y + (Number(e.h) || 0)); }
+  const fit = (lo, hi, size) => (hi - lo > size ? -lo : lo < 0 ? -lo : hi > size ? size - hi : 0);
+  const dx = fit(x0, x1, page.w), dy = fit(y0, y1, page.h);
+  return dx || dy ? els.map((e) => (Number.isFinite(e?.x) && Number.isFinite(e?.y) ? { ...e, x: e.x + dx, y: e.y + dy } : e)) : els;
+}
+

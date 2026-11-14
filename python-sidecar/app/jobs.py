@@ -27,7 +27,9 @@ import uuid
 # importing Harmonica / Verde and 3-4 s fitting) — the gridding jobs (kind "pfields": equivalent sources, Euler, spline, gravity reductions)
 # keep their process after the job: it waits up to WARM_IDLE_S for the next gridding job, then exits and hands its memory back. Inversions and
 # the other kinds keep #321's one process per job, and starting one retires an idle warm worker first.
-WARM_KINDS = {"pfields"}
+# TASKS.csv #3281 (review #3195, Galore Creek: a 14-point surface took 33-41 s) — the implicit model (GemPy) too: measured on this machine, a
+# 14-point surface spent 2.5-14 s importing GemPy (warm / cold disk), 9.3 s on its first solve and 3.7 s on a second solve in the same process.
+WARM_KINDS = {"pfields", "implicit"}
 WARM_IDLE_S = float(os.environ.get("GEOSTRIX_WARM_IDLE_S", "180"))
 WARM_MARGIN_S = min(15.0, WARM_IDLE_S / 3)  # the parent reuses a warm worker only while it is clearly still waiting
 
@@ -136,6 +138,7 @@ def _run_once(kind, req, q, cap, warm=False):
             q.put(("progress", {"stage": "modelling", "message": "Solving the implicit model (GemPy)…"}))
             try:
                 out = implicit_model(ImplicitModelRequest(**req)).model_dump()
+                out = {**out, "warmEngine": warm}  # #3281 — GemPy was still loaded from a recent run
             except HTTPException as exc:  # a handled, user-facing message (too few points, etc.)
                 q.put(("error", str(exc.detail), ""))
                 return

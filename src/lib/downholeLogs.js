@@ -221,6 +221,25 @@ export function logScaleSuits(values) {
   for (const v of values || []) { if (!Number.isFinite(v)) continue; n++; if (v <= 0) return false; if (v < lo) lo = v; if (v > hi) hi = v; }
   return n > 0 && hi / lo > 10;
 }
+// TASKS.csv #2967 (WA iron review #2876) — the pane's Log list: built-in and imported logs together, the most readings first, a layer's fields
+// (its value, '› min', '› max') kept together in their own order. It opened on 'Recovery (3,408)' (a built-in layer, listed first) before
+// three wireline logs of 475,849-484,531 bins. sources: numericSourceChoices' entries ({ key, n, layerId | layerKey }). -> a new array
+export function orderLogSources(sources) {
+  const groupOf = (s) => (s.layerId != null ? `c:${s.layerId}` : `l:${s.layerKey ?? s.key}`);
+  const best = new Map(), first = new Map();
+  (sources || []).forEach((s, i) => { const g = groupOf(s); best.set(g, Math.max(best.get(g) ?? 0, s.n || 0)); if (!first.has(g)) first.set(g, i); });
+  return (sources || []).map((s, i) => ({ s, i, g: groupOf(s) })).sort((a, b) => best.get(b.g) - best.get(a.g) || first.get(a.g) - first.get(b.g) || a.i - b.i).map((x) => x.s);
+}
+// TASKS.csv #2967 — the scale of one log: the choice kept for THAT log ("log" / "linear"), else automatic. Automatic follows the readings
+// (logScaleSuits: all above zero, over a decade) except for the built-in logs the sources call linear (RQD, recovery, SG: #2245). An imported
+// log used to be linear whatever its readings (numericSources marks every custom field logScale false). -> { log, auto }
+export function logScaleFor(source, values, choice) {
+  const auto = choice !== "log" && choice !== "linear";
+  if (!auto) return { log: choice === "log", auto: false, autoLog: autoLogScale(source, values) };
+  const a = autoLogScale(source, values);
+  return { log: a, auto: true, autoLog: a };
+}
+const autoLogScale = (source, values) => (source?.layerId != null || source?.logScale !== false) && logScaleSuits(values);
 export const allAboveZero = (values) => { let n = 0; for (const v of values || []) { if (!Number.isFinite(v)) continue; n++; if (v <= 0) return false; } return n > 0; };
 export const countAtOrBelowZero = (values) => (values || []).reduce((k, v) => k + (Number.isFinite(v) && v <= 0 ? 1 : 0), 0);
 // a number to three significant figures, small ones included (0.000112, not the 0 that toLocaleString's three decimals gave)

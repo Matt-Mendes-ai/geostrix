@@ -15,6 +15,7 @@
 // StripLog's interactive version needs a user-picked element for anyway, not meaningful to default
 // per-hole in an unattended batch run).
 import { LAYER_META, UNIT_NAMES, colorForAlteration, colorForVein, colorForBreccia, colorForStructZone, colorForWeathering, rqdColor } from "./layers.js"; // weathering: #2162
+import { headerLines, sigText } from "./stripHeader.js"; // TASKS.csv #2481
 import { arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { FIGURE_FONT } from "./svgExport.js"; // TASKS.csv #1089
@@ -81,7 +82,7 @@ function assayTrack(rows, x, sy, sym, unit, elementUnits, bottom, range = null) 
     const w = frac(v) * (TRACK_W - 10);
     if (!(w > 0)) return "";
     return `<rect x="${x + 2}" y="${sy(r.from)}" width="${w}" height="${Math.max(0.5, sy(r.to) - sy(r.from))}" fill="#c9863d" opacity="0.85"><title>${r.from}-${r.to} m: ${esc(String(v))} ${esc(unit)}</title></rect>`;
-  }).join("") + (axis.linear ? (range ? `<text x="${x + (TRACK_W - 6) / 2}" y="${bottom + 23}" font-size="7" text-anchor="middle" fill="#65717e">${esc(tr("same axis on all pages"))}</text>` : "") : `<text x="${x + (TRACK_W - 6) / 2}" y="${bottom + 13}" font-size="8" text-anchor="middle" fill="#65717e">${esc(range ? tr("log {minPos}–{max}, all pages", { minPos: lo.toPrecision(2), max: hi.toPrecision(2) }) : tr("log {minPos}–{max}", { minPos: lo.toPrecision(2), max: hi.toPrecision(2) }))}</text>`);
+  }).join("") + (axis.linear ? (range ? `<text x="${x + (TRACK_W - 6) / 2}" y="${bottom + 23}" font-size="7" text-anchor="middle" fill="#65717e">${esc(tr("same axis on all pages"))}</text>` : "") : `<text x="${x + (TRACK_W - 6) / 2}" y="${bottom + 13}" font-size="8" text-anchor="middle" fill="#65717e">${esc(range ? tr("log {minPos}–{max}, all pages", { minPos: sigText(lo, 2), max: sigText(hi, 2) }) : tr("log {minPos}–{max}", { minPos: sigText(lo, 2), max: sigText(hi, 2) }) /* no exponents: #2481 */)}</text>`);
 }
 // #3024 — the axis of an assay track: linear from 0 with 3-5 round ticks when the values span under two decades, else log
 export function assayAxis(lo, hi) {
@@ -167,7 +168,11 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride
   }
   let x = DEPTH_COL_W;
   tracks.forEach((t) => {
-    body += `<text x="${x + 2}" y="16" font-size="10" font-weight="600" fill="#1a2028">${esc(t.label)}</text>`;
+    // TASKS.csv #2481 — a name too long for its track ran into the next one: sized to fit (down to 7 px), and on two lines when even that is too wide
+    const hl = headerLines(t.label, TRACK_W - 8), hs = Math.max(7, Math.min(10, (TRACK_W - 8) / (hl.reduce((p, l) => Math.max(p, l.length), 1) * 0.62)));
+    body += hl.length > 1
+      ? `<text x="${x + 2}" y="${16 - hs - 1}" font-size="${hs.toFixed(1)}" font-weight="600" fill="#1a2028">${hl.map((l, k) => `<tspan x="${x + 2}" dy="${k ? hs + 1 : 0}">${esc(l)}</tspan>`).join("")}<title>${esc(t.label)}</title></text>`
+      : `<text x="${x + 2}" y="16" font-size="${hs === 10 ? 10 : hs.toFixed(1)}" font-weight="600" fill="#1a2028">${esc(t.label)}</text>`;
     body += `<rect x="${x}" y="${PAD_TOP - 2}" width="${TRACK_W - 6}" height="${sy(maxDepth) - PAD_TOP + 2}" fill="none" stroke="#c7ccd3" stroke-width="1"/>`;
     if (t.kind === "fill") body += fillTrack(t.rows, x, sy, t.colorFn, t.nameFn, t.label === "Litho" && lithoPatterns ? (v) => (lithoPatterns.tiles[lithoPatterns.byCode[v]] ? lithoPatterns.byCode[v] : null) : null);
     else if (t.kind === "tick") body += tickTrack(t.rows, x, sy, t.colorFn);

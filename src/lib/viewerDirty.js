@@ -30,17 +30,22 @@ const KEEP = ["unit", "binM", "notes"];
 // TASKS.csv #2952 / #2953 — a log layer's unit and valid range are set in Geophysics > Downhole logs on the STORE's copy; the 3D View's own copy
 // never hears of them, so its next write here put its old unit back and dropped the range. For a layer the store already has, the store's
 // value of these wins; a layer new to the store takes the 3D View's (the import's unit).
-const STORE_WINS = ["unit", "validRange"];
-const ALL_KEPT = [...new Set([...KEEP, ...STORE_WINS])];
+const STORE_WINS = ["unit", "validRange", "despikeM"]; // despikeM: #3116, set in Downhole logs as the range is
+// TASKS.csv #3239 — and every other field the view does not set (a model-on-holes layer's sourceModel, #2558, fell off at the view's next
+// write): the view's copy of a store layer is the snapshot it was built from ({ ...l, group }), so only the fields the view itself edits
+// (VIEW_SETS) come from it; the rest is the store's copy, as it is now. A layer new to the store takes every field but the view's own.
+const VIEW_SETS = ["name", "rows", ...KEEP.filter((k) => !STORE_WINS.includes(k))]; // name, rows, binM, notes
+const VIEW_ONLY = new Set(["group"]); // the three.js group: never into the store (the project file)
+const sameLayer = (a, b) => { const ka = Object.keys(a), kb = Object.keys(b); return ka.length === kb.length && ka.every((k) => a[k] === b[k]); };
 export function mirrorCustomLayers(prev, local) {
   const p = prev || [];
   const byId = new Map(p.map((x) => [x?.id, x]));
   const next = local.map((l) => {
-    const o = { id: l.id, name: l.name, rows: l.rows };
-    for (const k of KEEP) if (l[k] != null) o[k] = l[k];
     const old = byId.get(l.id);
-    if (old) for (const k of STORE_WINS) { if (old[k] != null) o[k] = old[k]; else delete o[k]; }
+    if (!old) { const o = {}; for (const k of Object.keys(l)) if (!VIEW_ONLY.has(k) && l[k] !== undefined) o[k] = l[k]; return o; }
+    const o = { ...old, id: l.id };
+    for (const k of VIEW_SETS) { if (l[k] != null) o[k] = l[k]; else if (k !== "name" && k !== "rows") delete o[k]; }
     return o;
   });
-  return p.length === next.length && next.every((l, i) => p[i] && p[i].id === l.id && p[i].name === l.name && p[i].rows === l.rows && ALL_KEPT.every((k) => p[i][k] === l[k])) ? prev : next;
+  return p.length === next.length && next.every((l, i) => p[i] && sameLayer(p[i], l)) ? prev : next;
 }

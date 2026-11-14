@@ -19,6 +19,6 @@ test("Grade stats, Compositing and Best intercepts label with it; Best intercept
   const b = read("src/components/BestIntercepts.jsx");
   assert.match(b, /const pctOk = unit === "ppm" && !PRECIOUS_METALS\.has\(symbol\);/);
   assert.match(b, /const dg = \(v\) => \(pct \? v \/ 1e4 : v\);/);
-  assert.match(b, /\{tr\("Cutoff \(\{unit\}\)", \{ unit: unitL \}\)\}/);
+  assert.match(b, /\{tr\("Cutoff \(\{unit\}\)", \{ unit: (unitL|dispUnit \/\* #3221 \*\/) \}\)\}/); // #3221: typed in % when 'Show as %' is on
   assert.match(b, /row\[`avg_\$\{gradeSym\}_pct`\] = \+\(results\[i\]\.avgGrade \/ 1e4\)\.toPrecision\(6\);/);
 });

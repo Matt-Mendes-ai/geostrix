@@ -152,3 +152,29 @@ export function modelledIntervals(block, samples) {
   });
   return out;
 }
+
+// TASKS.csv #3262 (review #3195, Galore Creek) — the model check scored only the unit's own metres ('53 % of 910 logged metres ... in the
+// unit they were logged as') and not the other side: the same model put 2,297 m of the 5,454 m logged as other rock inside Intrusive i9,
+// so only 17 % of what it called i9 had been logged as i9. samples: the modelled units' rows (as checkAgainstLogs); others: every other
+// logged row inside the Model area { x, y, z, metres[, modelled] }. -> { otherIn, otherTotal, units: [{ unit, called, loggedAs, otherIn }] }:
+// called = the logged metres the model puts in the unit, loggedAs = those logged as it, otherIn = those logged as a rock not modelled.
+export function modelledAsTally(block, samples, others) {
+  const called = new Map(), loggedAs = new Map(), otherBy = new Map();
+  let otherIn = 0, otherTotal = 0;
+  for (const s of samples || []) {
+    const m = unitOfSample(block, s);
+    if (m == null) continue; // outside the model, or above every modelled top
+    called.set(m, (called.get(m) || 0) + s.metres);
+    if (m === s.logged) loggedAs.set(m, (loggedAs.get(m) || 0) + s.metres);
+  }
+  for (const o of others || []) {
+    const m = unitOfSample(block, o);
+    if (m === undefined) continue; // outside the model box: not scored, as the check leaves it out
+    otherTotal += o.metres;
+    if (m == null) continue;
+    otherIn += o.metres; otherBy.set(m, (otherBy.get(m) || 0) + o.metres);
+    called.set(m, (called.get(m) || 0) + o.metres);
+  }
+  const units = [...called].map(([unit, c]) => ({ unit, called: c, loggedAs: loggedAs.get(unit) || 0, otherIn: otherBy.get(unit) || 0 })).sort((a, b) => b.otherIn - a.otherIn);
+  return { otherIn, otherTotal, units };
+}

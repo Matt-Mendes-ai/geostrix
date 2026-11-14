@@ -9,7 +9,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { excludeQAQC, labAssays } from "../lib/qaqc.js"; // TASKS.csv #405
-import { correlationMatrix } from "../lib/correlation.js"; // TASKS.csv #405, #1514
+import { correlationMatrix, belowDetectionRows, belowDetectionPairs } from "../lib/correlation.js"; // TASKS.csv #405, #1514; belowDetection*: #3232
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { correlationRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
@@ -39,6 +39,7 @@ function cellColor(r) {
 
 // TASKS.csv #1799 (review #1646, Kodiak) — surfaceSamples / surfaceElements: a soil program's Cu-Au-Mo-As correlation. The source
 // switch is Grade stats' (#228); surface samples are one value each, with their QC already split off at import (Surface QAQC).
+const COUNT_ROWS = 20000, MEDIAN_ROWS = 2000; // TASKS.csv #3174 — the rows the default ticks are ranked on
 export default function CorrelationMatrix({ assays: assaysIn, assayElements: assayElementsIn, surfaceSamples = [], surfaceElements = [], onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
@@ -63,11 +64,14 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
   // of tiny cells; the checklist below lets the user swap in whichever subset they actually care about.
   // TASKS.csv #2351 — the lead commodity and the best-covered elements first (counted on the rows shown), the fixed suite only breaking ties
   const lead = useLeadCommodity();
-  const countsOf = (rows, syms) => { const c = {}; for (const s of syms) c[s] = 0; for (const r of rows || []) for (const s of syms) if (r?.values?.[s] != null && r.values[s] !== "") c[s]++; return c; };
+  // TASKS.csv #3174 (split from #3032) — on open, the coverage count read every row for every element (about 1 s at 147,000 samples x 27
+  // elements under load) and the bulk tie-break medians 5,000 rows each: both only rank the elements ticked first, so they read an evenly
+  // spread sample (COUNT_ROWS, MEDIAN_ROWS), every row of a smaller table
+  const countsOf = (rows, syms) => { const c = {}; for (const s of syms) c[s] = 0; const n = (rows || []).length, step = Math.max(1, Math.floor(n / COUNT_ROWS)); for (let i = 0; i < n; i += step) { const v = rows[i]?.values; if (!v) continue; for (const s of syms) if (v[s] != null && v[s] !== "") c[s]++; } return c; };
   // TASKS.csv #2908 — a bulk commodity's project (Fe, Mn, Al) ticks the majors after the lead: ties broken by the median grade (ppm of the
   // element), read from at most 5,000 evenly spread rows so a 150,000-sample table pays little for it
   const mediansOf = (rows, syms, units) => {
-    const step = Math.max(1, Math.floor((rows || []).length / 5000)), out = {};
+    const step = Math.max(1, Math.floor((rows || []).length / MEDIAN_ROWS)), out = {}; // #3174: was 5,000
     for (const s of syms) {
       const v = [];
       for (let i = 0; i < (rows || []).length; i += step) { const x = valueIn(rows[i], s, "ppm", units); if (x != null && Number.isFinite(x)) v.push(x); }
@@ -122,13 +126,24 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
   // while a new answer is on its way, the cells the last one holds (same rows and method) are shown; the others read '…'
   const shown = matrix || (asyncMatrix && asyncMatrix.caches === caches && asyncMatrix.key.split("|")[0] === method ? asyncMatrix.m : null);
   // pairs where both values are present and at least one is below detection (0 when detected pairs only)
+  // TASKS.csv #3232 — each cell read every row (66 cells x 147,000 rows: about 270 ms on the table's first render, with no value below
+  // detection at all): each element's below-detection rows are listed once, and a pair reads only those. Nothing is cached for a pair
+  // whose columns are not built yet (it was cached as 0)
+  const ltRows = (s) => {
+    const key = `ltrows|${s}`, L = caches.lt[s];
+    let r = caches.pairs.get(key);
+    if (r || !L) return r || [];
+    r = belowDetectionRows(L);
+    caches.pairs.set(key, r);
+    return r;
+  };
   const ltPairs = (a, b) => {
     const key = `ltpair|${a < b ? a : b}|${a < b ? b : a}`;
     let k = caches.pairs.get(key);
     if (k != null) return k;
-    k = 0;
     const ca = caches.cols[a], cb = caches.cols[b], la = caches.lt[a], lb = caches.lt[b];
-    if (ca && cb) for (let i = 0; i < ca.length; i++) if (ca[i] != null && cb[i] != null && Number.isFinite(ca[i]) && Number.isFinite(cb[i]) && (la[i] || lb[i])) k++;
+    if (!ca || !cb || !la || !lb) return 0;
+    k = belowDetectionPairs(ca, cb, la, ltRows(a), ltRows(b));
     caches.pairs.set(key, k);
     return k;
   };

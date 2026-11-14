@@ -6,7 +6,7 @@
 import React, { useState } from "react";
 import { mineGridOf } from "../lib/mineGrid.js"; // TASKS.csv #2586
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx";
-import { Image, Satellite, Mountain, MapPinned, Map as MapIcon, Globe, Globe2, Shapes, Flag, Layers, FileSpreadsheet, Rainbow } from "../components/icons.js";
+import { Image, Satellite, Mountain, MapPinned, Map as MapIcon, Globe, Globe2, Shapes, Flag, Layers, Layers3, FileSpreadsheet, Rainbow } from "../components/icons.js"; // Layers3: #3287
 import { requestModuleAction, useModuleAction } from "../lib/menuRequests.js";
 import { useStore } from "../lib/store.jsx";
 import { crsName } from "../lib/reproject.js";
@@ -67,7 +67,7 @@ export default function MapsModule() {
       }
       if (toViewer.length) { // points (collars, samples), tables and layer pickers: the 3D view's import asks what they are
         goToModule?.("viewer");
-        requestModuleAction("import-dropped-files", { files: [...files, ...toViewer], notes, others }); // the rasters of the same drop too: the 3D view imports them
+        requestModuleAction("import-dropped-files", { files: [...files, ...toViewer], notes, others, origin: "maps" /* #2660 */ }); // the rasters of the same drop too: the 3D view imports them
         return;
       }
       setPane("raster");
@@ -90,6 +90,8 @@ export default function MapsModule() {
         </RibbonGroup>
         <RibbonGroup label="Map layers">
           <RibbonButton advanced icon={Globe} label="Web layers" tone="data" title="WMS / WFS layers from a government or company service" {...btn("web")} />
+          {/* TASKS.csv #3287 (Matt: "macrostrat geology deserves its own icon on the ribbon") — the Web layers pane's 'Macrostrat geology…' dialog, opened here */}
+          <RibbonButton icon={Layers3} label="Geology (Macrostrat)" tone="data" title="Macrostrat's compilation of geologic maps (CC BY 4.0) for the project area, as a drape or map layer, and the map units at its centre" {...btn("web", "open-macrostrat")} active={false} />
           <RibbonButton icon={Shapes} label="Boundaries" tone="data" title="Property / grid boundaries (.ply, DXF, shapefile, GeoPackage, KML)" {...btn("boundaries")} />
           <RibbonButton advanced icon={Flag} label="Claims" tone="data" title="Mineral claims / tenure" {...btn("claims")} />
         </RibbonGroup>

@@ -14,7 +14,7 @@ export const loadImportPipeline = () => (implPromise ||= import("./importPipelin
 
 export function useImportPipeline(ctx) {
   const { addVoxelModel, fillCodeDictionary, recordImportLeftOut, assays: storeAssays } = useStore(); // assays: #3039 // #2632; fillCodeDictionary: #2163; recordImportLeftOut: #2493
-  const { importStateRef, setNotices, setDragOver } = ctx;
+  const { importStateRef, setNotices, setDragOver, setImportModal, goToModule } = ctx;
   const [layerPicker, setLayerPicker] = useState(null); // TASKS.csv #288 — {file, forceTarget, options} while the layer picker is open
   const batchRowsRef = useRef(null);
   const commitBusyRef = useRef(false); // #1652 — one commit at a time
@@ -23,6 +23,7 @@ export function useImportPipeline(ctx) {
   const importActiveRef = useRef(false); // #229 — one queue at a time
   const assayHandoffRef = useRef([]); // #1350
   const surfaceHandoffRef = useRef(new Set()); // #2268
+  const dropOriginRef = useRef(null); // TASKS.csv #2660 — the tab a drop came from (Maps), for Cancel
   const [sampleLoading, setSampleLoading] = useState(false);
   const env = useRef(null);
   env.current = { ctx, h: { addVoxelModel, fillCodeDictionary, recordImportLeftOut, storeAssays, layerPicker, setLayerPicker, batchRowsRef, commitBusyRef, importQueueRef, importQueueTotalRef, importActiveRef, assayHandoffRef, surfaceHandoffRef, sampleLoading, setSampleLoading } };
@@ -37,12 +38,21 @@ export function useImportPipeline(ctx) {
   const handleDrop = (e) => { e.preventDefault(); setDragOver(false); const files = Array.from(e.dataTransfer?.files || []); return run((p) => p.handleDrop({ preventDefault() {}, dataTransfer: { files } })); };
   // TASKS.csv #2019 — files dropped on the Maps tab that need this import (points, tables, layer pickers), with what Maps already did
   useModuleAction(["import-dropped-files"], (_a, p) => {
+    dropOriginRef.current = p?.origin || null; // TASKS.csv #2660 — Cancel goes back where the drop was made
     const extra = [...(p?.notes || []), ...(p?.others?.length ? [notice("{names}: not a file the map or this import reads.", { names: p.others.slice(0, 4).join(", ") + (p.others.length > 4 ? "…" : "") })] : [])];
     if (extra.length) setNotices((q) => [...q, ...extra]);
     if (p?.files?.length) run((x) => x.handleDrop({ preventDefault() {}, dataTransfer: { files: p.files } }));
   });
   const processImportQueue = useCallback(() => run((p) => p.processImportQueue()), []); // run reads env.current: the latest values
   const call = (name) => (...args) => run((p) => p[name](...args));
+  // TASKS.csv #2660 (#2591 (3)) — a table dropped on the Maps plan opens this dialog on the 3D View; Cancel left the user there. Cancel on the last
+  // file of a drop made elsewhere goes back to that tab; a commit stays here (the data is drawn here)
+  const cancelImport = () => {
+    setImportModal(null);
+    const back = !importQueueRef.current.length ? dropOriginRef.current : null;
+    processImportQueue();
+    if (back) { dropOriginRef.current = null; goToModule(back); }
+  };
   const importOverlap = (m) => (m ? layerOverlapOf(importStateRef.current.layers, m.target, m.mapping, m.allRows || [], m.fileName) : null); // #1649
-  return { commitImport: call("commitImport"), handleDrop, importBrowserFile: call("importBrowserFile"), importOverlap, layerPicker, loadSampleProject: call("loadSampleProject"), openImportFromRows: call("openImportFromRows"), openImportModal: call("openImportModal"), processImportQueue, sampleLoading, setLayerPicker, reloadDbImports: call("reloadDbImports") };
+  return { cancelImport, commitImport: call("commitImport"), handleDrop, importBrowserFile: call("importBrowserFile"), importOverlap, layerPicker, loadSampleProject: call("loadSampleProject"), openImportFromRows: call("openImportFromRows"), openImportModal: call("openImportModal"), processImportQueue, sampleLoading, setLayerPicker, reloadDbImports: call("reloadDbImports") };
 }

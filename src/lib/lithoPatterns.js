@@ -72,7 +72,17 @@ export function patternForUnit(code, name = "", description = "") {
   if (CODE_MAP.has(k)) return CODE_MAP.get(k);
   const n = String(name || "").replace(new RegExp(`^${c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*[—-]\\s*`), ""); // "S5 — Meta-siltstone" -> "Meta-siltstone"
   if (NONE_TEXT.test(n)) return null;
-  return byText(n) ?? byText(description);
+  return byText(n) ?? byText(leadOf(description));
+}
+// TASKS.csv #2215 (review #2174, WA lode gold) — a code's most frequent logged description was searched whole, so a passing word picked the
+// pattern: 'Schist with minor quartz veining' gave 732 Quartz, '…dyke-like' 721 Igneous rock, printed on the log as if logged. Only the
+// description's lead (its rock name: up to the first comma, colon, bracket, sentence end or 'with / minor / cut by …' — not 'and', a log's andesite — six words at
+// most) is read; the unit's own name is still read whole.
+export function leadOf(description) {
+  const s = String(description || "").trim();
+  if (!s) return "";
+  const head = s.split(/\.\s+(?=[A-Z])/)[0].split(/[,;:(]|\s(?:with|minor|trace|cut by|containing|crosscut by|overprinted by|after|w\/)\s/i)[0];
+  return head.trim().split(/\s+/).slice(0, 6).join(" ");
 }
 
 // rows (litho intervals: { value, description? }), nameOf(code), override ({ code: { pattern } }) -> { code: FGDC code | null }

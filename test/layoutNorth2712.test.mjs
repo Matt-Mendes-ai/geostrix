@@ -18,7 +18,7 @@ test("else it is computed at the collars' centre: about Δλ · sin φ, true nor
   // UTM 9N, 600 km E (about 1.6° east of 129° W) at 56° N: γ ≈ 1.6 · sin 56° ≈ 1.3°; true north points west of grid north
   const c = pageConvergence([], { epsg: 32609 }, [{ x: 599000, y: 6206000 }, { x: 601000, y: 6208000 }]);
   assert.ok(c < -1.0 && c > -1.7, String(c));
-  assert.equal(formatConvergence(c), `${Math.abs(c).toFixed(1)}° W`);
+  assert.equal(formatConvergence(c), `TN ${Math.abs(c).toFixed(1)}° W of GN`); // #3028 (1): both norths named
   assert.equal(pageConvergence([], { epsg: 32609, crsSet: false }, [{ x: 1, y: 1 }]), null, "a local grid has no convergence");
   assert.equal(pageConvergence([], { epsg: 32609 }, []), null, "no collars, no diagram");
   assert.equal(formatConvergence(null), "");

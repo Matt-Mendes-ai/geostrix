@@ -29,8 +29,11 @@ export function fitDrillPlan(collars, w, h, presets = [500, 1000, 2000, 2500, 50
   if (!cs.length) return null;
   let xmin = Infinity, ymin = Infinity, xmax = -Infinity, ymax = -Infinity;
   for (const c of cs) { const p = holePlan(c); for (const [x, y] of [[p.x0, p.y0], [p.x1, p.y1]]) { if (x < xmin) xmin = x; if (x > xmax) xmax = x; if (y < ymin) ymin = y; if (y > ymax) ymax = y; } }
-  const spanX = Math.max(1, xmax - xmin), spanY = Math.max(1, ymax - ymin), m = 0.88; // 6 % margin each side
-  const need = Math.max(spanX / (w * m), spanY / (h * m)) * PAGE_PX_PER_PAPER_M; // the 1:N that just fits
+  const spanX = Math.max(1, xmax - xmin), spanY = Math.max(1, ymax - ymin);
+  // TASKS.csv #3181 (#3028 (6), review #2876) — the margin each side is 6 % of the frame or 5 mm (about two label heights), whichever is less:
+  // 6 % of a 201 x 127 mm frame (12 mm a side) sent a field that 1:150,000 holds with 9 % to spare to 1:200,000
+  const marginPx = (5 * PAGE_PX_PER_PAPER_M) / 1000, avail = (side) => side - 2 * Math.min(0.06 * side, marginPx);
+  const need = Math.max(spanX / avail(w), spanY / avail(h)) * PAGE_PX_PER_PAPER_M; // the 1:N that just fits
   const scale = presets.find((s) => s >= need) || Math.ceil(need / 1000) * 1000;
   return { scale, centre: { x: (xmin + xmax) / 2, y: (ymin + ymax) / 2 } };
 }
@@ -53,7 +56,17 @@ export function emptiestCorner(holes, w, h, kw, kh) {
 
 // A hole's series: its id without the trailing number (21CCDD042 -> 21CCDD; 21AGBDD043B -> 21AGBDD), the year / prospect / type prefix drill programs use.
 // A letter after the number (a re-drill, 21AGBDD043B) stays in its series.
-export const holeSeries = (id) => String(id ?? "").replace(/[-_ ]?\d+[A-Za-z]?$/, "") || String(id ?? "");
+// TASKS.csv #3026 (review #2876, WA iron) — and after a separator too: RHRCMET_0005_A, RHRCMET_0009_A ... were each their own series (125 of
+// them on the plan's key); they are RHRCMET.
+export const holeSeries = (id) => String(id ?? "").replace(/[-_ ]?\d+(?:[-_ ]?[A-Za-z])?$/, "") || String(id ?? "");
+// TASKS.csv #3026 — a key no taller than the frame: the rows that fit (keyLines: its title / note lines; extra: rows listed under it, the
+// shapes), the last one saying how many were left out. key: [{ label, ... }] -> the same, or capped with { label, note: true }
+export function capPlanKey(key, { frameH, rowPx, keyLines = 0, extra = 0, moreLabel = (n) => `+ ${n} more` }) {
+  const fit = Math.floor((frameH - 18) / rowPx) - keyLines - extra;
+  if (key.length <= Math.max(fit, 1)) return key;
+  const keep = Math.max(fit - 1, 1);
+  return [...key.slice(0, keep), { label: moreLabel(key.length - keep), note: true }];
+}
 
 // Labels placed greedily (right, left, above, below the collar), each kept only when it overlaps no label already placed and stays
 // inside the frame. points: [{ id, x, y }] in frame px. -> { placed: [{ id, x, y, anchor }], skipped }

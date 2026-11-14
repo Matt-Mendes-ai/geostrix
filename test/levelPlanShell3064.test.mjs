@@ -8,11 +8,11 @@ import fs from "node:fs";
 const s = fs.readFileSync(new URL("../src/components/LevelPlanWindow.jsx", import.meta.url), "utf8");
 
 test("the first build runs after a frame, and the shell paints before it", () => {
-  assert.match(s, /const f = requestAnimationFrame\(\(\) => \{ t = setTimeout\(\(\) => \{ const r0 = Math\.round\(defaultRl\);/);
-  assert.match(s, /ready \? buildRef\.current\(/, "no full build in the first render");
-  const shell = s.indexOf("if (!ready) return (");
+  assert.match(s, /const f = requestAnimationFrame\(\(\) => \{\r?\n\s+const r0 = Math\.round\(defaultRl\);/); // #3137: then a sliced holes-only pass
+  assert.match(s, /const data = plan \|\| empty;/, "no full build in the first render: the plan comes from the sliced build");
+  const shell = s.indexOf("if (!ready || !plan) return (");
   assert.ok(shell > 0 && shell < s.indexOf("if (!frame) return null;"), "the building shell comes before the no-frame guard");
-  assert.match(s.slice(shell, shell + 1200), /role="status"[^>]*>\{tr\("Building the plan at the RL most holes cross…"\)\}/);
+  assert.match(s.slice(shell, shell + 1200), /role="status"[^>]*>\{tr\("Building the plan at the RL most holes cross…"\)\} <span ref=\{statusRef\} \/>/);
 });
 
 test("the same RL is not built twice on open", () => {

@@ -162,7 +162,7 @@ export function syncRasterDrapes(group, cache, rasters, { origin, terrain, rende
 // ---------- rebuild boundary polylines (Geosoft .ply import) ----------
 // Own effect/group, same reasoning as the raster-drape effect above. Each boundary can have multiple
 // polylines (multi-part boundaries are real — see geosoft.js's parsePLYBoundary comment), rendered
-// as one THREE.LineLoop per part under a per-boundary THREE.Group so visibility/color/opacity toggle
+// as one closed THREE.Line per part (#2673: was a LineLoop) under a per-boundary THREE.Group so visibility/color/opacity toggle
 // the whole boundary at once. Every loop is closed (LineLoop, not Line) even for source files that
 // don't explicitly repeat the first vertex — real samples are inconsistent about that, and a closed
 // loop is the more useful default for a property/survey boundary either way.
@@ -214,15 +214,38 @@ export function syncBoundaries(group, cache, boundaries, { origin, terrain }) {
         positions[i * 3 + 2] = -(p.y - oy);
       });
       const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
       // TASKS.csv #408 — open strings stay open; only polylines flagged closed (or boundaries without
       // flags, i.e. every pre-#408 import) are drawn as loops.
       const isClosed = Array.isArray(b.closedFlags) ? !!b.closedFlags[pi] : true;
+      // TASKS.csv #2673 — a loop is drawn as a Line that repeats its first vertex: three.js r160's raycast never tests a LineLoop's closing
+      // segment, so hovering a square's fourth side named nothing. It looks the same.
+      const drawn = isClosed && pts.length > 2 ? (() => { const q = new Float32Array(positions.length + 3); q.set(positions); q.set(positions.subarray(0, 3), positions.length); return q; })() : positions;
+      geometry.setAttribute("position", new THREE.BufferAttribute(drawn, 3));
       const m = isContours && !index.has(Number(b.contourLevels[pi])) ? faint : material;
-      const line = isClosed ? new THREE.LineLoop(geometry, m) : new THREE.Line(geometry, m);
+      const line = new THREE.Line(geometry, m);
       line.renderOrder = DRAW_ORDER.lines; // #2776
+      // TASKS.csv #2673 (#1767) — the hover tip: the boundary's name and the part's own name (a claim block, a prospect outline)
+      const part = b.partNames?.[pi];
+      line.userData = { boundaryTip: part && part !== b.name ? `${b.name} — ${part}` : b.name };
       g.add(line);
     });
+    // TASKS.csv #2673 — the parts' names as labels at each part's centre, when asked for on the boundary's row (partLabels)
+    if (b.partLabels && b.partNames?.some(Boolean) && !isContours) {
+      const labels = new THREE.Group();
+      labels.userData = { contourLabels: true }; // sprites: disposed and left out of the pick targets as contour labels are
+      (b.polylines || []).forEach((pts, pi) => {
+        const name = b.partNames[pi];
+        if (!name || !pts?.length) return;
+        let sx = 0, sy = 0; for (const p of pts) { sx += p.x; sy += p.y; }
+        const c = { x: sx / pts.length, y: sy / pts.length, z: pts[0].z };
+        const sp = makeTextSprite(String(name), { color: "#1a2028", bg: "rgba(255,255,255,0.8)" });
+        sp.center.set(0.5, 0.5);
+        sp.position.set(c.x - ox, elevAt(c) - oz + 1, -(c.y - oy));
+        sp.userData = { tip: String(name) };
+        labels.add(sp);
+      });
+      if (labels.children.length) g.add(labels);
+    }
     if (isContours && b.contourLabels !== false) {
       const labels = new THREE.Group();
       labels.userData = { contourLabels: true };
@@ -602,7 +625,7 @@ export function syncTerrain(group, previous, terrain, { origin }) {
   if (gridW * gridH > ADAPTIVE_TERRAIN_NODES) {
     // TASKS.csv #796 — High / Very high detail grids: only the nodes an adaptive mesh needs (lib/terrainMesh.js)
     let am = adaptiveTerrainCache.get(terrain);
-    if (!am) { am = buildAdaptiveTerrain(gridW, gridH, elevations, mask ? (k) => isNoData(mask, k) : null); adaptiveTerrainCache.set(terrain, am); }
+    if (!am) { am = buildAdaptiveTerrain(gridW, gridH, elevations, mask ? (k) => isNoData(mask, k) : null, { maxTriangles: gridW * gridH > 1100 * 1100 ? 480000 : 160000 } /* TASKS.csv #3251 — a Full (2,049-node) grid: three times the triangles, or it draws no finer than Very high */); adaptiveTerrainCache.set(terrain, am); }
     const nv = am.vertexIds.length;
     const positions = new Float32Array(nv * 3), uvs = new Float32Array(nv * 2);
     for (let n = 0; n < nv; n++) {

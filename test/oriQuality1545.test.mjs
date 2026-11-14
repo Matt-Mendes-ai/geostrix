@@ -56,7 +56,7 @@ test("the filter keeps picks at or under the quality, keeps unknown ones and cou
 test("the Stereonet and the Downhole plot take the custom layers and offer the filter", () => {
   for (const f of ["../src/components/StereonetModal.jsx", "../src/components/DownholeStructurePlot.jsx"]) {
     const s = readFileSync(new URL(f, import.meta.url), "utf8");
-    assert.match(s, /customLayers = \[\] \}\)/, f);
+    assert.match(s, /customLayers = \[\](, isChecked = null)? \}\)/, f); // isChecked: #3282 (the Downhole plot)
     assert.match(s, /const oriLayer = useMemo\(\(\) => findOriQualityLayer\(customLayers\), \[customLayers\]\);/, f);
     assert.match(s, /aria-label=\{tr\("Orientation quality ≤"\)\}/, f);
     assert.match(s, /filterByQuality\(/, f);

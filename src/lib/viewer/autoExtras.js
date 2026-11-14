@@ -52,3 +52,18 @@ export function columnsLeftOut(headers, rows, used) {
   const u = new Set((used || []).filter(Boolean));
   return (headers || []).filter((h) => h && !u.has(h) && !String(h).startsWith("_") && (rows || []).some((r) => String(r?.[h] ?? "").trim() !== ""));
 }
+
+// TASKS.csv #2668 (follow-up of #1713) — a mag-susc log's instrument column (MagSus_Instrument = KT-10 on every row) or unit column was dropped
+// in the import dialog, so the inversion asked 'Log units: Choose…' with nothing to go on. Kept as an extra field by default, as a survey's
+// instrument is (#2187): by its header (instrument / meter / device / unit) or by values naming a meter (KT-10, SM-30, MS2…).
+const SUSC_INSTR_HEADER = /(instrument|instr|meter|device|(^|[\s_-])unit(s)?$)/i;
+const SUSC_METER = /^(kt|sm|ms|tk|gmk)[\s-]*\d/i;
+export function suscInstrumentFields(headers, rows) {
+  const sample = (rows || []).slice(0, 300);
+  return (headers || []).filter((h) => {
+    const vals = sample.map((r) => String(r?.[h] ?? "").trim()).filter(Boolean);
+    if (!vals.length) return false;
+    return SUSC_INSTR_HEADER.test(String(h).trim()) || vals.filter((v) => SUSC_METER.test(v)).length >= vals.length * 0.9;
+  }).map((h) => ({ column: h, name: String(h), type: "category" }));
+}
+

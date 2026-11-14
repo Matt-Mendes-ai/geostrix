@@ -36,7 +36,7 @@ test("a ramp per visible numeric layer, over the range the view colours it with"
 
 test("the overlay allocates its rows and the Figure count says how many of them show", () => {
   const ov = readFileSync(new URL("../src/components/ViewportFigureOverlay.jsx", import.meta.url), "utf8");
-  assert.match(ov, /const \{ rows: shown, total \} = allocateLegendRows\(legendGroups, Math\.min\(MAX_LEGEND_ITEMS, fit\.items\)\);/); // #1534: fewer when the view is short
+  assert.match(ov, /const \{ rows: shown, total \} = allocateLegendRows\(legendGroups, Math\.min\(lay\.cap, fit\.items\)\);/); // #1534: fewer when the view is short; #2044: the cap from its size
   assert.doesNotMatch(ov, /a\.g\.items\.length - b\.g\.items\.length/);
   const vm = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(vm, /numericLayerLegendGroups\(\{ layers, layerVisible, isRowVisible, colorOf: numericLayerColor(, symbology: numericSymbology)?(, clips: numericClip)? \}\)/); // symbology: #1699

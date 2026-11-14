@@ -23,6 +23,7 @@ import { mineralPlan } from "../lib/perMineralColumns.js"; // TASKS.csv #3205
 import RowFilterBox from "./RowFilterBox.jsx"; // TASKS.csv #2330 — only rows where a column is some values (a Superseded flag pre-set)
 import { surveyIdsWithoutCollar, idList } from "../lib/surveyCollarCheck.js"; // TASKS.csv #3202
 import { looksLikeStationTable } from "../lib/geophysColumns.js"; // TASKS.csv #2848
+import { perHoleJoinOf } from "../lib/perHoleJoin.js"; // TASKS.csv #2659
 import { requestModuleAction } from "../lib/menuRequests.js"; // #2848
 import { applyRowFilter, defaultRowFilter } from "../lib/importRowFilter.js"; // TASKS.csv #2330 — the button counts the rows the filter keeps
 // the rows the Import button will bring in: after the row filter (the user's, else the flag preset), as the commit counts them
@@ -44,7 +45,9 @@ import { codeOverlap, otherCodeSystem } from "../lib/codeOverlap.js"; // TASKS.c
 
 
 export default function ImportMappingModal({ modal, onChange, onCancel, onCommit, projectEpsg, replaceInfo = null }) { // replaceInfo: #1649
-  const { project: storeProject, layers: storeLayers, goToModule } = useStore(); // #2492; layers: #2893; goToModule: #2848
+  const { project: storeProject, layers: storeLayers, goToModule, collars: storeCollars } = useStore(); // #2492; layers: #2893; goToModule: #2848; collars: #2659
+  // TASKS.csv #2659 — every id an existing collar at its own position: a per-hole table, whose columns join onto those holes
+  const perHole = useMemo(() => (modal.target === "collars" ? perHoleJoinOf(modal.allRows || modal.sampleRows || [], modal.mapping, storeCollars) : null), [modal.target, modal.allRows, modal.sampleRows, modal.mapping, storeCollars]);
   const crsUnset = storeProject?.crsSet === false; // TASKS.csv #615
   useEscapeKey(onCancel); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
@@ -114,9 +117,11 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
             {Object.entries(TARGET_SCHEMAS).map(([k, v]) => <option key={k} value={k}>{tr(v.label)}</option>)}
           </select>
           {/* TASKS.csv #1649 — a guess that would have replaced another file's log, and what the current choice replaces */}
-          {modal.guessNote && modal.target === "custom" && (
+          {/* TASKS.csv #1649 / #2021 — a guessed layer that would replace another file's rows stays the guess: the replace alert below says what it
+              replaces (Ctrl+Z undoes it), and Custom layer is one choice away */}
+          {perHole && ( /* TASKS.csv #2659 */
             <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "-10px 0 12px", lineHeight: 1.4 }}>
-              {tr("Set to Custom layer: it looked like {layer}, but {layer} already holds {n} row(s) from {src} for {holes} of this file's holes, and importing there would replace them.", { layer: tr(LAYER_META[modal.guessNote.target]?.label || modal.guessNote.target), n: modal.guessNote.n, src: modal.guessNote.src || tr("an earlier import"), holes: modal.guessNote.holes })}
+              {tr("Per-hole values: all {n} hole(s) are already in the project at these coordinates. Importing joins the file's other columns ({cols}) onto those holes, on the hole id; no new hole is added.", { n: perHole.n.toLocaleString(), cols: perHole.columns.slice(0, 6).join(", ") + (perHole.columns.length > 6 ? "…" : "") })}
             </div>
           )}
           {/* TASKS.csv #2338 — a custom layer's name: two columns of one file were two layers both called after the file */}

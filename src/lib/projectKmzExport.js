@@ -27,8 +27,25 @@ export function dotPng(size = 32) {
   return rgbaToPng(size, size, rgba);
 }
 
+// TASKS.csv #3250 (Matt, 2026-11-13: Google Earth "files/raster_1.webp — Unsupported image type") — rasters keep their picture as WebP
+// (raster.js, imagery and web-layer fetches) and Google Earth reads only PNG / JPEG / GIF in a KMZ: a WebP picture is redrawn as PNG
+// (transparency kept) before it is written. -> the data URL to write
+export async function kmzImageUrl(url) {
+  if (!/^data:image\/webp[;,]/i.test(String(url || "")) || typeof document === "undefined") return url;
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const cv = document.createElement("canvas");
+    cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+    cv.getContext("2d").drawImage(img, 0, 0);
+    const png = cv.toDataURL("image/png");
+    return png.startsWith("data:image/png") ? png : null;
+  } catch { return null; } // left out (and counted as not written) rather than written as a picture Google Earth refuses
+}
+
 function dataUrlBytes(url) {
-  const m = /^data:image\/(png|jpe?g|webp);base64,(.*)$/i.exec(String(url || ""));
+  const m = /^data:image\/(png|jpe?g);base64,(.*)$/i.exec(String(url || "")); // not webp: Google Earth refuses it (#3250, kmzImageUrl)
   return m ? { bytes: b64ToBytes(m[2]), ext: m[1].toLowerCase() === "jpeg" ? "jpg" : m[1].toLowerCase() } : null;
 }
 
@@ -108,15 +125,20 @@ export async function exportProjectKmz(store, { confirm = (m) => window.confirm(
       if (a) ctx.anomaly = { ...a, label: m.anomalyLegendGroup(a)?.label || a.label };
     } catch { /* by medium, as when no classes are set */ }
   }
+  // #3250 — every raster picture and colour-bar picture as PNG / JPEG for Google Earth
+  const kmzUrl = new Map();
+  const urls = [...(store.rasters || []).flatMap((r) => [r?.dataUrl, r?.legendImage?.dataUrl]), ...(store.sectionImages || []).map((im) => im?.dataUrl)]; // section images: #3087 part 2
+  for (const u of urls) if (u && !kmzUrl.has(u)) kmzUrl.set(u, await kmzImageUrl(u));
+  const asKmz = (u) => (kmzUrl.has(u) ? kmzUrl.get(u) : u);
   const rasterImage = (r) => {
-    const img = dataUrlBytes(r.dataUrl);
+    const img = dataUrlBytes(asKmz(r.dataUrl));
     if (!img) return null;
     const lg = r.legendImage?.dataUrl ? null : rasterLegendGroups([{ ...r, visible: true }])[0];
     return { ...img, legend: lg && (lg.items?.length || lg.ramp) ? lg : null };
   };
   // the structures' USGS symbols (true strike from the project CRS; on a local grid, the grid bearing)
   const icons = (store.surfaceStructures || []).length ? await structureIconSet(store.surfaceStructures, { px: 64, epsg: tie ? null : ctx.epsg }) : { files: [], iconOf: () => null };
-  const out = buildProjectKml(ctx, { toLonLat, altOf, legendPng: legendCanvasPng, rasterImage, crsLabel, structureIconOf: (row, set) => icons.iconOf(row, set), include, imageBytes: dataUrlBytes });
+  const out = buildProjectKml(ctx, { toLonLat, altOf, legendPng: legendCanvasPng, rasterImage, crsLabel, structureIconOf: (row, set) => icons.iconOf(row, set), include, imageBytes: (u) => dataUrlBytes(asKmz(u)) });
   const kmz = await buildKmz([
     { name: "doc.kml", data: new TextEncoder().encode(out.kml), deflate: true },
     { name: DOT_ICON, data: dotPng() },

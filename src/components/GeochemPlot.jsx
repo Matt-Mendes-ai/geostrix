@@ -93,6 +93,10 @@ function HoverTip({ hover, lines }) {
   );
 }
 
+// TASKS.csv #3231 (#2925 (3), review #2876) — 'n of m samples plotted' counted the points drawn outside a fixed diagram's axes: a projected point
+// is plotted when it is inside them (the same test the circles use); a fitted range (dynamicRange) or a ternary holds every point
+export const onAxes = (d, p) => !p || d.ternary || d.dynamicRange || !d.xRange || !d.yRange || !(p.x < d.xRange[0] || p.x > d.xRange[1] || p.y < d.yRange[0] || p.y > d.yRange[1]);
+
 // ---------- binary (x-y, optional log) ----------
 function BinaryPlot({ diagram, projected, colorBy, svgRef, altBoxes, describe }) {
   let [xmin, xmax] = diagram.xRange || [0, 1];
@@ -320,11 +324,18 @@ function TernaryPlot({ diagram, projected, colorBy, svgRef, describe }) {
 // opaque smear with no readable pattern, so this caps at the most recently-imported MAX_LINES and
 // tells the user how many were left out rather than silently dropping the rest.
 const MAX_LINES = 250;
+// TASKS.csv #3224 (review #3195, Galore Creek) — on a four-acid ICP suite Sr, Ti and Y were analysed but invisible (a line needs two neighbours
+// and no marker was drawn) and twelve unanalysed elements kept their place on the axis. The axis holds the elements some drawn sample has
+// (the rest listed under the plot), every value gets a marker, and a sample's own gaps are bridged with a dashed line. Pure: -> { present
+// (indices into order), dropped (symbols) }
+export function spiderAxis(order, profiles) {
+  const present = [], dropped = [];
+  order.forEach((sym, i) => (profiles.some((pr) => pr[i]?.value > 0) ? present.push(i) : dropped.push(sym)));
+  return { present, dropped };
+}
 function SpiderPlot({ diagram, samples, elementUnits, colorBy, svgRef, describe }) {
   const order = diagram.order, norm = diagram.norm;
-  const n = order.length;
   const innerW = W - 2 * PAD, innerH = H - 2 * PAD;
-  const sx = (i) => PAD + (i / (n - 1)) * innerW;
 
   const lines = useMemo(() => {
     return samples.map((s) => ({ sample: s, profile: reeProfile(s, elementUnits, order, norm) }))
@@ -332,6 +343,9 @@ function SpiderPlot({ diagram, samples, elementUnits, colorBy, svgRef, describe 
   }, [samples, elementUnits, order, norm]);
   const { shown, groups } = useMemo(() => spreadLines(lines, MAX_LINES, (l) => l.sample.hole_id ?? l.sample.sample_id ?? ""), [lines]);
   const hiddenCount = lines.length - shown.length;
+  const axis = useMemo(() => spiderAxis(order, shown.map((l) => l.profile)), [order, shown]); // #3224
+  const posOf = new Map(axis.present.map((i, k) => [i, k])), m = Math.max(axis.present.length, 1);
+  const sx = (i) => PAD + (m > 1 ? (posOf.get(i) / (m - 1)) * innerW : innerW / 2);
 
   const allVals = shown.flatMap((l) => l.profile.map((p) => p.value).filter((v) => v > 0 && Number.isFinite(v))); // #1672 — a log axis: no zeros
   const ymin = allVals.length ? Math.pow(10, Math.floor(Math.log10(Math.min(arrMin(allVals), 0.9)))) : 0.1;
@@ -342,9 +356,17 @@ function SpiderPlot({ diagram, samples, elementUnits, colorBy, svgRef, describe 
   const pathFor = (profile) => {
     let d = "", pen = false;
     profile.forEach((p, i) => {
+      if (!posOf.has(i)) return; // off the axis: no sample has it (#3224)
       if (p.value == null || !(p.value > 0)) { pen = false; return; } // gap: lift the pen, don't interpolate across missing elements (#1672: or a zero)
       d += `${pen ? "L" : "M"}${sx(i)},${sy(p.value)} `; pen = true;
     });
+    return d.trim();
+  };
+  // #3224 — a dashed bridge across this sample's own gaps (an element it lacks between two it has)
+  const bridgeFor = (profile) => {
+    const pts = profile.map((p, i) => (posOf.has(i) && p.value > 0 ? [i, p.value] : null)).filter(Boolean);
+    let d = "";
+    for (let k = 1; k < pts.length; k++) if (posOf.get(pts[k][0]) - posOf.get(pts[k - 1][0]) > 1) d += `M${sx(pts[k - 1][0])},${sy(pts[k - 1][1])} L${sx(pts[k][0])},${sy(pts[k][1])} `;
     return d.trim();
   };
 
@@ -361,19 +383,23 @@ function SpiderPlot({ diagram, samples, elementUnits, colorBy, svgRef, describe 
       {/* normalized value of 1 = same as the reference (chondrite/primitive mantle) */}
       {ymin <= 1 && ymax >= 1 && <line x1={PAD} y1={sy(1)} x2={W - PAD} y2={sy(1)} stroke="#eef1f4" strokeWidth="1" strokeDasharray="3 2" />}
 
-      {order.map((sym, i) => (
+      {order.map((sym, i) => posOf.has(i) && (
         <g key={sym}>
           <line x1={sx(i)} y1={PAD} x2={sx(i)} y2={H - PAD} stroke="#eceef1" strokeWidth="0.5" />
           <text x={sx(i)} y={H - PAD + 16} fill="#65717e" fontSize={fontSizes.xs} textAnchor="middle">{sym}</text>
         </g>
       ))}
 
-      {shown.map((l, i) => (
-        <path key={i} d={pathFor(l.profile)} fill="none" stroke={colorBy(l.sample)} strokeWidth="1" strokeOpacity="0.55">{describe && <title>{describe(l.sample).join("\n")}</title>}</path>
-      ))}
+      {shown.map((l, i) => { const c = colorBy(l.sample), br = bridgeFor(l.profile); return (
+        <g key={i}>
+          <path d={pathFor(l.profile)} fill="none" stroke={c} strokeWidth="1" strokeOpacity="0.55">{describe && <title>{describe(l.sample).join("\n")}</title>}</path>
+          {br && <path d={br} fill="none" stroke={c} strokeWidth="0.8" strokeOpacity="0.45" strokeDasharray="3 3" />}{/* #3224 */}
+          {l.profile.map((p, j) => posOf.has(j) && p.value > 0 && <circle key={j} cx={sx(j)} cy={sy(p.value)} r={1.6} fill={c} fillOpacity="0.7" />)}
+        </g>); })}
 
       <text x={W / 2} y={H - 12} fill="#55606e" fontSize="11" textAnchor="middle">{tr("Element (chondrite/primitive-mantle order)")}</text>
       <text x={16} y={H / 2} fill="#55606e" fontSize="11" textAnchor="middle" transform={`rotate(-90 16 ${H / 2})`}>{tr("Sample / normalizing value")}</text>
+      {axis.dropped.length > 0 && <text x={PAD} y={H - 26} fill="#8a6a3a" fontSize={fontSizes.xs}>{tr("Not analysed in these samples, left off the axis: {list}", { list: axis.dropped.join(", ") })}</text>}{/* #3224 */}
       {hiddenCount > 0 && (
         <text x={W - PAD} y={PAD - 10} fill="#8a6a3a" fontSize={fontSizes.xs} textAnchor="end">{tr("{shown} of {total} samples drawn, spread evenly across {groups} hole(s)", { shown: shown.length, total: lines.length, groups })}</text>
       )}

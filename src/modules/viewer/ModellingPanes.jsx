@@ -303,8 +303,8 @@ export default function ModellingPanes(props) {
   const tracedHoles = useMemo(() => new Set((tracesRef?.current || []).filter((t) => t?.pts?.length >= 2).map((t) => t.hole_id)).size, [tracesSeq]); // #2053
   // TASKS.csv #1574 (review #1497, Lawyers) — the alteration halo from the Alteration log OR a categorical custom layer, and only
   // the intervals whose numeric field is at or above a value (Silicification intensity >= 2)
-  const { customLayers: customLayersAll = [], layers: storeLayers = {}, geochemThresholds = [] /* #2689 */ } = useStore();
-  const numericSources = useMemo(() => numericSourceChoices({ layers, customLayers: customLayersAll }), [layers, customLayersAll]); // TASKS.csv #1741
+  const { customLayers: customLayersAll = [], layers: storeLayers = {}, geochemThresholds = [] /* #2689 */, project: storeProject /* #3116 */ } = useStore();
+  const numericSources = useMemo(() => numericSourceChoices({ layers, customLayers: customLayersAll, logValidRange: storeProject?.logValidRange /* #3116 */ }), [layers, customLayersAll, storeProject?.logValidRange]); // TASKS.csv #1741
   const [altSource, setAltSource] = useState({ layer: "alt", field: "", min: "" });
   const altCustomLayers = useMemo(() => customLayersAll.filter((c) => (c.rows || []).some((r) => r.value != null && r.value !== "" && !Number.isFinite(Number(r.value)))), [customLayersAll]);
   // TASKS.csv #2540 (2) (review #2486, WA lithium) — the halo opened on an empty 'Alteration' layer: start on the first layer that has codes
@@ -319,13 +319,15 @@ export default function ModellingPanes(props) {
   // over the 150,455-row log when the source was Lithology (about 60 ms of the stall when a GemPy result lands)
   const altCustomRows = useMemo(() => (altSource.layer.startsWith("custom:") ? altCustomLayers.find((c) => `custom:${c.id}` === altSource.layer)?.rows || [] : null), [altSource.layer, altCustomLayers]);
   const altSourceRows = useMemo(() => (altSource.layer === "alt" ? storeLayers.alt || [] : altSource.layer === "vein" ? storeLayers.vein || [] : altSource.layer === "litho" ? storeLayers.litho || [] : altSource.layer === "weath" ? storeLayers.weath || [] /* #2529 */ : altCustomRows || []), [altSource.layer, storeLayers.alt, storeLayers.vein, storeLayers.litho, storeLayers.weath, altCustomRows]);
-  const altSourceCodes = useMemo(() => { if (altSource.layer === "alt") return alt_units.filter((u) => !isNotLogged(u)); const vals = new Set(); for (const r of altSourceRows) vals.add(String(r.value ?? "")); return [...vals].filter((v) => v && !isNotLogged(v)).sort(); }, [altSource.layer, alt_units, altSourceRows]); // #2945: 'not logged' tested once per code, not per row
+  const altSourceCodes = useMemo(() => { if (altSource.layer === "alt") return alt_units.filter((u) => !isNotLogged(u)); const vals = new Set(); for (const r of altSourceRows) vals.add(String(r.value ?? "")); return [...vals].filter((v) => v && !isNotLogged(v)).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base", numeric: true })); }, [altSource.layer, alt_units, altSourceRows]); /* #3283 (3) — without regard to case, i2 before i10: it was "WFP, i, i1, i10" */ // #2945: 'not logged' tested once per code, not per row
   // TASKS.csv #1421 (review #1352, Silvertip) — a code logged only as zero-length points (POT) cannot make a halo: it failed with
   // 'indicator never crosses 0.5'. The logged metres per code, so those are shown disabled and say why.
   const altLoggedM = useMemo(() => { const m = new Map(); for (const r of altSourceRows) { const k = String(r.value ?? ""), len = Number(r.to) - Number(r.from); if (k && len > 0) m.set(k, (m.get(k) || 0) + len); } return m; }, [altSourceRows]);
   // TASKS.csv #1553 (review #1497, Lawyers) — the Structures picker listed 27 types, VnGy and V1/V3 among them with no dip / dip
   // direction, and 'Run' only then said there was nothing to model: each type with its picks and how many are oriented
-  const structCounts = useMemo(() => { const m = new Map(); for (const r of layers.structure || []) { const k = String(r.value ?? ""); const e = m.get(k) || { n: 0, k: 0 }; e.n++; if (Number.isFinite(Number(r.dip)) && Number.isFinite(Number(r.azimuth)) && r.dip !== null && r.azimuth !== null && r.dip !== "" && r.azimuth !== "") e.k++; m.set(k, e); } return m; }, [layers.structure]);
+  // TASKS.csv #3282 (review #3195, Galore Creek) — with Model area = checked holes the menu gave the project's counts ('Shear · 21 of 25
+  // oriented') and the run used 13: the area's counts first (an, ak), the project's after
+  const structCounts = useMemo(() => { const m = new Map(), inArea = (r) => modelArea !== "checked" || visibleHoles?.[r.hole_id] !== false; for (const r of layers.structure || []) { const k = String(r.value ?? ""); const e = m.get(k) || { n: 0, k: 0, an: 0, ak: 0 }; const ok = Number.isFinite(Number(r.dip)) && Number.isFinite(Number(r.azimuth)) && r.dip !== null && r.azimuth !== null && r.dip !== "" && r.azimuth !== ""; e.n++; if (ok) e.k++; if (inArea(r)) { e.an++; if (ok) e.ak++; } m.set(k, e); } return m; }, [layers.structure, modelArea, visibleHoles]);
   const altNumericFields = useMemo(() => numericLayerFields(altSourceRows, { min: 3 }).filter((f) => f !== "from" && f !== "to"), [altSourceRows]);
   const altVocabFields = useMemo(() => intensityVocabFields(altSourceRows, { min: 3 }), [altSourceRows]); // #2230
   const altVocab = altVocabFields.find((v) => v.field === altSource.field) || null;
@@ -367,6 +369,13 @@ export default function ModellingPanes(props) {
   // TASKS.csv #2056 (review #2013, Woodjam) — the logged holes the model area feeds, and their clusters in plan (a gap over 5 x the hole spacing)
   const loggedInArea = useMemo(() => { const logged = new Set((layers.litho || []).map((r) => r.hole_id)); return (collars || []).filter((c) => (!logged.size || logged.has(c.hole_id)) && (modelArea !== "checked" || visibleHoles?.[c.hole_id] !== false)); }, [layers.litho, collars, modelArea, visibleHoles]);
   const areaClusters = useMemo(() => holeClusters(loggedInArea), [loggedInArea]);
+  // TASKS.csv #3268 (review #3195, Galore Creek) — the note was only in Model settings, which the Simple ribbon hides: a first Run in Simple spanned
+  // 9 clusters over 29 km unwarned. The same note, with its buttons, heads the Implicit surface and Strat. stack panes too.
+  const clusterNote = () => (areaClusters && areaClusters.clusters.length > 1 ? (<div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 6, lineHeight: 1.4 }}>{/* #2056 */}
+          {tr("The {n} logged holes in the model area lie in {k} clusters more than {g} m apart: one model spans the gaps between them, and its box, cells and unit volumes cover them. Model one cluster at a time:", { n: loggedInArea.length, k: areaClusters.clusters.length, g: Math.round(areaClusters.gapM).toLocaleString() })}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>{areaClusters.clusters.slice(0, 6).map((c) => (
+            <button key={c.ids[0]} type="button" title={c.ids.join(", ")} onClick={() => { setVisibleHoles(onlyTheseHoles(collars, c.ids)); setModelArea("checked"); }} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr(c.n === 1 ? "Around E {e}, N {nn} ({first})" : "Around E {e}, N {nn}: {n} holes over {s} km", { first: c.ids[0], n: c.n, e: Math.round(c.cx / 100) * 100, nn: Math.round(c.cy / 100) * 100, s: Math.max(0.1, c.spanM / 1000).toFixed(1) }) /* #2928 (3): a place, not one hole id */}</button>))}</div>
+        </div>) : null);
   // TASKS.csv #1844 (review #1646, Kodiak) — a disabled GemPy Run button said only 'Runs in GeoStrix's Python engine…' (the status bar read
   // 'Py: idle', ready): its title now says first what is missing, or that a model is running
   const gempyTitle = (missing) => (implicitBusy ? tr("A model is already running.") : missing || tr("Runs in GeoStrix's Python engine (GemPy) — the status bar's Py shows whether it is ready"));
@@ -406,11 +415,7 @@ export default function ModellingPanes(props) {
             : tr("Holes checked in the Holes list ({n} of {m})", { n: checkedHoleCount(collars, visibleHoles).checked, m: checkedHoleCount(collars, visibleHoles).all })}</option>
         </select>
         {modelArea === "checked" && <Suspense fallback={null}><ModelAreaRange collars={collars} visibleHoles={visibleHoles} setVisibleHoles={setVisibleHoles} small={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }} inp={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "3px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} /></Suspense>}{/* #2536 */}
-        {areaClusters && areaClusters.clusters.length > 1 && (<div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 6, lineHeight: 1.4 }}>{/* #2056 */}
-          {tr("The {n} logged holes in the model area lie in {k} clusters more than {g} m apart: one model spans the gaps between them, and its box, cells and unit volumes cover them. Model one cluster at a time:", { n: loggedInArea.length, k: areaClusters.clusters.length, g: Math.round(areaClusters.gapM).toLocaleString() })}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>{areaClusters.clusters.slice(0, 6).map((c) => (
-            <button key={c.ids[0]} type="button" title={c.ids.join(", ")} onClick={() => { setVisibleHoles(onlyTheseHoles(collars, c.ids)); setModelArea("checked"); }} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr(c.n === 1 ? "Around E {e}, N {nn} ({first})" : "Around E {e}, N {nn}: {n} holes over {s} km", { first: c.ids[0], n: c.n, e: Math.round(c.cx / 100) * 100, nn: Math.round(c.cy / 100) * 100, s: Math.max(0.1, c.spanM / 1000).toFixed(1) }) /* #2928 (3): a place, not one hole id */}</button>))}</div>
-        </div>)}
+        {clusterNote() /* #2056; also in the Implicit and Stack panes: #3268 */}
         {/* TASKS.csv #2378 (review #2325, WA uranium) — rock code and stratigraphic unit logged on the same intervals: which one the tools model */}
         {(unitFields || []).length > 0 && setUnitField && (
           <>
@@ -752,6 +757,7 @@ export default function ModellingPanes(props) {
         </>)}
         {toolPane === "implicit" && (<>
         {paneHeader("Implicit surface", Mountain, "model")}
+        {clusterNote() /* #3268 */}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Models the top contact of one unit from litho intervals, via GemPy in GeoStrix's Python engine. Uses structure dip/azimuth for orientation when available; if not, estimates one from the contact points themselves so it can still run.")}</div>
         {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the 3D View tab (Add layer › Lithology), or load the sample project."))}
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }} title={tr("Also feed drawn cross-section contacts (Draw upper contact, in the section pop-out) tagged as this unit's upper contact into the run as extra interface points")}>
@@ -835,6 +841,7 @@ export default function ModellingPanes(props) {
         </>)}
         {toolPane === "stack" && (<>
         {paneHeader("Stratigraphic stack", Layers, "model")}
+        {clusterNote() /* #3268 */}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Models several units' top contacts together in one run so they can't cross each other — add units below in order, youngest (shallowest) first. Litho-only: veins/dykes cut across a stack by nature, so model those with the Vein / dyke tool instead, not here.")}</div>
         {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the 3D View tab (Add layer › Lithology), or load the sample project."))}
         {/* TASKS.csv #810 — the stack reads the same option; it had no checkbox, so drawn contacts were dropped unseen */}
@@ -960,8 +967,7 @@ export default function ModellingPanes(props) {
         </label>
         {stackMethod === "layercake" ? (
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "4px 0 6px", lineHeight: 1.45 }}>
-            {tr("Layer-cake: the first top is an elevation grid through its picks, and each lower top is the one above minus the unit's thickness in the holes (zero where the unit is absent), so tops never cross or fold back. For a flat-lying pile, in seconds. An unconformity starts a new layer-cake that cuts the units under it. Faults are not taken yet.")}
-            {stackFaults.length > 0 && <div style={{ color: "var(--color-danger-icon-strong)", marginTop: 3 }}>{tr("Remove the faults from the stack to run it as a layer-cake.")}</div>}
+            {tr("Layer-cake: the first top is an elevation grid through its picks, and each lower top is the one above minus the unit's thickness in the holes (zero where the unit is absent), so tops never cross or fold back. For a flat-lying pile, in seconds. An unconformity starts a new layer-cake that cuts the units under it. A fault in the stack splits it into fault blocks, each a layer-cake of its own, so the tops step at the fault (each fault a plane through its picks, along its measured dip).")}
           </div>
         ) : stackBreaks.some((b) => stackUnits.slice(0, -1).includes(b)) ? (
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "6px 0", lineHeight: 1.45 }}>{tr("Packages: units between unconformities share one field and stay parallel, and each package truncates the ones below. Units missing inside a package cannot pinch out. A surface flattens beyond its own contacts, so compare the predicted map with your map.")}</div>
@@ -1021,7 +1027,7 @@ export default function ModellingPanes(props) {
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select aria-label={tr("Structure type")} value={structuralTarget} onChange={(e) => setStructuralTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
             <option value="">{tr("Choose a structure type…")}</option>
-            {struct_types.map((u) => { const c = structCounts.get(u) || { n: 0, k: 0 }; return <option key={u} value={u} disabled={!c.k}>{tr("{type} · {k} of {n} oriented", { type: u, k: c.k, n: c.n })}</option>; })}{/* #1553 */}
+            {struct_types.map((u) => { const c = structCounts.get(u) || { n: 0, k: 0, an: 0, ak: 0 }; return <option key={u} value={u} disabled={!(modelArea === "checked" ? c.ak : c.k)}>{modelArea === "checked" ? tr("{type} · {k} of {n} oriented in the model area ({k2} of {n2} in the project)", { type: u, k: c.ak, n: c.an, k2: c.k, n2: c.n }) : tr("{type} · {k} of {n} oriented", { type: u, k: c.k, n: c.n })}</option>; })}{/* #1553 */}
           </select>
           <button
             onClick={() => runStructuralModel(structuralTarget)}
@@ -1166,7 +1172,7 @@ export default function ModellingPanes(props) {
                     // across a switch. The cap is cleared; the cutoff is proposed as the new element's P90 of lab assays (pXRF left out).
                     const next = e.target.value;
                     setNumericSymbol(next); setNumericCapValue(NaN); if (!findNumericSource(next, { layers, customLayers: customLayersAll })) rememberElement("gradeShell", next); // #2552
-                    const ns = findNumericSource(next, { layers, customLayers: customLayersAll }); // #1741
+                    const ns = findNumericSource(next, { layers, customLayers: customLayersAll, logValidRange: storeProject?.logValidRange }); // #1741; logValidRange: #3116 — the cutoff proposed from the filtered readings
                     // #2060 (review #2013, Woodjam) — and without the QC inserts unless the pane includes them: Cu proposed 4470 ppm (a CRM's value), the drill samples' P90 is 4120
                     const rowsFor = ns ? sourceAssays(ns, { layers, customLayers: customLayersAll }).assays : (numericIncludeQAQC ? (assays || []).filter((a) => a.source !== "pXRF") : excludeQAQC(assays || []));
                     const v = rowsFor.map((a) => a.values?.[ns ? ns.symbol : next]).filter((x) => Number.isFinite(x) && x > 0).sort((x, y) => x - y);

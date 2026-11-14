@@ -20,7 +20,7 @@ test("12, 24 and all codes of a 34-code layer", () => {
 
 test("wiring: the legend's codesPerLayer reaches the load, and the sidebar sets it and reloads", () => {
   const g = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
-  assert.match(g, /capLegendGroups\(mergeCaseTwins\(groups\), perGroup === "all" \? Infinity : Number\(perGroup\) \|\| 12,/);
+  assert.match(g, /capLegendGroups\((?:applyCodeOrder\()?mergeCaseTwins\(groups\)(?:, orders\) \/\* #3130 \*\/)?, perGroup === "all" \? Infinity : Number\(perGroup\) \|\| 12,/);
   assert.match(g, /perGroup: perGroup \?\? legend\.codesPerLayer \?\? 12/);
   assert.match(g, /updateSelected\(\{ codesPerLayer: v \}\); syncLegendFromView\(sel\.id, \{ perGroup: v \}\);/);
 });

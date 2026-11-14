@@ -2,9 +2,9 @@
 // block. Same function, so the result is identical; progress after each top's grid.
 import { layerCake } from "./layerCake.js";
 
-self.onmessage = ({ data: { id, specs, extent, resolution, evalPts } }) => {
+self.onmessage = ({ data: { id, specs, extent, resolution, evalPts, faults } }) => { // faults: #3086
   try {
-    const r = layerCake(specs, extent, resolution, { evalPts, onProgress: (done, total) => self.postMessage({ id, progress: [done, total] }) });
+    const r = layerCake(specs, extent, resolution, { evalPts, faults, onProgress: (done, total) => self.postMessage({ id, progress: [done, total] }) });
     if (r.error) { self.postMessage({ id, failed: r.error }); return; }
     self.postMessage({ id, res: { surfaces: r.surfaces, block: r.block, evaluated: r.evaluated, grid: r.grid, report: r.report } }, [r.block.ids.buffer]);
   } catch (err) {

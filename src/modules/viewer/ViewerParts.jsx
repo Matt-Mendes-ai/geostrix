@@ -506,6 +506,7 @@ export function VoxelRangeRow({ model, onUpdate, compact = false, onShell = null
   const useLog = !!model.logScale && model.min > 0 && model.max > model.min;
   const toS = (v) => (useLog ? Math.log10(Math.max(model.min, v)) : v), fromS = (s) => (useLog ? 10 ** s : s);
   const sMin = toS(model.min), sMax = toS(model.max), sStep = (sMax - sMin) / 200 || 0.01;
+  const fromSlider = (raw) => (raw >= sMax - sStep / 2 ? model.max : raw <= sMin + sStep / 2 ? model.min : Number(Number(fromS(raw)).toPrecision(4))); // #3227 — at the box's 4 figures; the ends exact
   const debounceRef = useRef(null);
   const push = (patch) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -538,12 +539,12 @@ export function VoxelRangeRow({ model, onUpdate, compact = false, onShell = null
       </div>}
       <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 6 }}>
         <span style={{ color: "var(--color-text-faint)", width: 30, flexShrink: 0 }}>{tr("Min")}</span>
-        <input type="range" min={sMin} max={sMax} step={sStep} value={toS(dispMin)} onChange={(e) => onMinInput(Math.min(fromS(Number(e.target.value)), dispMax))} style={{ flex: 1, minWidth: 0 }} title={useLog ? tr("Log-stepped: the model's values span decades") : undefined} />
+        <input type="range" min={sMin} max={sMax} step={sStep} value={toS(dispMin)} onChange={(e) => onMinInput(Math.min(fromSlider(Number(e.target.value)), dispMax))} style={{ flex: 1, minWidth: 0 }} title={useLog ? tr("Log-stepped: the model's values span decades") : undefined} />
         <VoxelRangeNumber value={dispMin} label={tr("Lowest value shown of \"{name}\"", { name: model.name })} onCommit={(v) => { const x = Math.min(Math.max(v, model.min), dispMax); setDispMin(x); onUpdate(model.id, { threshold: storeMin(x) }); }} />{valueUnit(model) && <span style={{ color: "var(--color-text-faint)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{valueUnit(model)}</span>}{/* #2585 / #2457 */}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 4 }}>
         <span style={{ color: "var(--color-text-faint)", width: 30, flexShrink: 0 }}>{tr("Max")}</span>
-        <input type="range" min={sMin} max={sMax} step={sStep} value={toS(dispMax)} onChange={(e) => onMaxInput(Math.max(fromS(Number(e.target.value)), dispMin))} style={{ flex: 1, minWidth: 0 }} title={useLog ? tr("Log-stepped: the model's values span decades") : undefined} />
+        <input type="range" min={sMin} max={sMax} step={sStep} value={toS(dispMax)} onChange={(e) => onMaxInput(Math.max(fromSlider(Number(e.target.value)), dispMin))} style={{ flex: 1, minWidth: 0 }} title={useLog ? tr("Log-stepped: the model's values span decades") : undefined} />
         <VoxelRangeNumber value={dispMax} label={tr("Highest value shown of \"{name}\"", { name: model.name })} onCommit={(v) => { const x = Math.max(Math.min(v, model.max), dispMin); setDispMax(x); onUpdate(model.id, { rangeMax: storeMax(x) }); }} />{valueUnit(model) && <span style={{ color: "var(--color-text-faint)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{valueUnit(model)}</span>}{/* #2585 / #2457 */}
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>

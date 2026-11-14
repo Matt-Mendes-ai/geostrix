@@ -17,9 +17,8 @@ import { syncHoleLabels } from "../../lib/viewer/holeLabels.js";
 import { addTraceChunks } from "../../lib/viewer/traceBatch.js"; // #2176 step 3
 import { makeTextSprite } from "../../lib/viewer/textSprite.js";
 import { lazyTip } from "../../lib/viewer/lazyTip.js";
-import { projectSymbolChoices, symbolForReading, typeKey } from "../../lib/structureSymbols.js"; // TASKS.csv #3067; typeKey: #3091
-import { symbolProto3d, symbolInk, projectSymbolScales } from "../../lib/viewer/structureSymbol3d.js"; // projectSymbolScales: #3091
 import { traceLookup } from "../../lib/viewer/modelHelpers.js";
+import { dropLogCoarse, primeLogLod } from "./logLod.js"; // TASKS.csv #2802
 import { PROTO_CYLINDER, PROTO_SPHERE_8, PROTO_SPHERE_12, PROTO_CIRCLE_24, PROTO_PRISM_4, PROTO_SQUARE, PIN_AXIS, dipPinDir, INTERVAL_PROTO, UP_Y, DIR_TMP, POINT_PROTO } from "../../lib/viewer/protos.js";
 
 const toRad = (d) => (d * Math.PI) / 180;
@@ -188,7 +187,7 @@ export function keptOrigin(prev, mean, tol = ORIGIN_KEEP_M) {
 }
 
 export function buildDrillholeScene(ctx) {
-  const { applyCategoryVisibility, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collarSize /* #2823 */, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, pointBuildersStale, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels } = ctx;
+  const { applyCategoryVisibility, applyHoleVisibilityRef, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collarSize /* #2823 */, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, pointBuildersStale, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels } = ctx;
   const groups = layerGroupsRef.current;
   if (!groups.litho || buildDefer.skip()) return; // #1500 — a restore just scheduled its state: build once, next render
   // TASKS.csv #131 — c.material?.map?.dispose?.() added alongside the existing geometry/material
@@ -380,11 +379,8 @@ export function buildDrillholeScene(ctx) {
   const prev = sceneCaches.get(groups);
   const plan = planHoles(prev, collars, surveyByHole, desurveyMethod, { ox, oy, oz, rebuildSeq }, desurveyHole); // desurveyHole: #2937
   const { full, holeEntries, changedHoles } = plan;
-  const symChoices = projectSymbolChoices(surfaceStructures); // #3067 — the per-type USGS symbol choices (Surface Geology, #3066)
-  const symScales = projectSymbolScales(surfaceStructures); // #3091 — and their sets' line thickness
   const sigs = new Map(BUILT_ROW_KEYS.map((k) => [k, [layers[k], JSON.stringify(layerStyles[k] ?? null), effectiveLabel, baseColorForBuild, LAYER_META[k]?.numeric ? JSON.stringify([numericSymbology?.[k] ?? null, numericRange?.[k] ?? null]) : ""]]));
   customLayers.forEach((l) => sigs.set(l.id, [l, l.group, JSON.stringify(layerStyles[`custom:${l.id}`] ?? null)]));
-  sigs.get("structure").push(JSON.stringify(symChoices), JSON.stringify(symScales)); // #3067 — a symbol choice redraws the discs; #3091: a thickness too
   // #2373 — a custom layer whose style changed in its colours only is repainted in place, not rebuilt (its holes unchanged)
   const repaint = [];
   if (prev && !full) for (const l of customLayers) {
@@ -395,6 +391,8 @@ export function buildDrillholeScene(ctx) {
   }
   const rebuild = planGroups(prev, sigs, changedHoles, full);
   const groupOf = (k) => customLayers.find((l) => l.id === k)?.group || groups[k];
+  const lodRedo = customLayers.filter((l) => full || rebuild.has(l.id) || repaint.includes(l)); // #2802 — a long log's coarse set goes before
+  for (const l of lodRedo) dropLogCoarse(l.group); //  a rebuild, patch (retireHoles counts batch rows) or repaint touches the layer
   const patched = new Set(); // #3097 — only the moved holes of these groups are built again
   if (!full && plan.shift && plan.shift.moved === changedHoles.size && changedHoles.size <= PATCH_MAX_HOLES) {
     for (const k of rebuild) { const g = groupOf(k); if (g && sameRefs(prev.sigs.get(k), sigs.get(k)) && retireHoles(g, changedHoles)) patched.add(k); }
@@ -623,15 +621,8 @@ export function buildDrillholeScene(ctx) {
       pin.position.set(p.x, p.y, p.z);
       pin.userData = disc.userData;
       groups.structure.add(pin);
-      // TASKS.csv #3067 — the type's USGS symbol inside the disc, in its plane (lib/viewer/structureSymbol3d.js): the disc's own transform on a
-      // shared symbol geometry, so they batch. Ink that reads on the disc's colour; `symbol` keeps the legend overrides from repainting it.
-      const { symbol } = symbolForReading({ type: s.value, dip }, symChoices);
-      if (symbol) {
-        const sym = new THREE.Mesh(symbolProto3d(symbol, symScales[typeKey(s.value)] ?? 1), /* #3091 */ new THREE.MeshBasicMaterial({ color: symbolInk(color), side: THREE.DoubleSide }));
-        sym.position.copy(disc.position); sym.rotation.copy(disc.rotation); sym.scale.copy(disc.scale);
-        sym.userData = { ...disc.userData, symbol: symbol.fgdc };
-        groups.structure.add(sym);
-      }
+      // TASKS.csv #3193 (Matt, 2026-11-13: "remove the structural symbols of the drill holes structural plane and leave the discs only.
+      // it got too crowded") — #3067's USGS symbol inside each disc is gone; the outcrop structures keep theirs (#3066).
     });
 
     customLayers.forEach((layer) => {
@@ -695,6 +686,7 @@ export function buildDrillholeScene(ctx) {
   // #2176 — only the groups made again (a kept group's members are batched already)
   if (full) Object.values(layerGroupsRef.current).forEach((g) => { if (g) buildLayerBatches(g); });
   else [...(rebuildHoles ? [groups.holes] : []), ...[...rebuild].map((k) => customLayers.find((l) => l.id === k)?.group || groups[k])].forEach((g) => { if (g) buildLayerBatches(g); });
+  for (const l of lodRedo) primeLogLod(l.group, l, layerStyles); // #2802 — built on first need (logLod.js)
   // TASKS.csv #551 — assay spheres, geophysics points and surface samples have their own builders (each clears and
   // batches only its own group): run them on the traces and origin just built
   // #2176 — with the same traces and origin, only a builder whose own inputs changed since it last ran (a deferred commit, #1500)
@@ -727,7 +719,8 @@ export function buildDrillholeScene(ctx) {
     collarSize?.apply(groups.holes, labelAnchors); // TASKS.csv #2823 — the markers' size from the drilling / the setting, now they are batched
     syncHoleLabels(groups.hole_labels, labelAnchors, holeLabelModeRef.current, makeTextSprite);
   }
-  applyCategoryVisibility();
+  // TASKS.csv #3253 — the checked holes, then the category filters on top (applyHoleVisibility ends with them); the filters alone before
+  (applyHoleVisibilityRef?.current || applyCategoryVisibility)();
   // Same reasoning for legendOverride: build-time color now comes from baseColorForBuild (plain
   // default, no override), so a real rebuild's fresh meshes need any currently-active legend color
   // overrides reapplied here too, or they'd flash back to default colors until legendOverride itself

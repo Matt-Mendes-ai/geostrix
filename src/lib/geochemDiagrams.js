@@ -54,7 +54,7 @@ function afmDivider() {
   return raw.map(([a, f, m]) => ternaryXY(a, f, m));
 }
 // ---------- ternary helpers ----------
-function ternaryXY(a, f, m) {
+export function ternaryXY(a, f, m) { // exported: #3051 (the ternary of chosen corners)
   // a at top, f bottom-left, m bottom-right; returns {x:0..1, y:0..1}
   const x = 0.5 * (2 * m + a) / (a + f + m || 1);
   const y = (Math.sqrt(3) / 2) * a / (a + f + m || 1);

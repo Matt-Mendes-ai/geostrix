@@ -24,7 +24,7 @@ test("no source file imports the body statically", () => {
 
 test("the hook returns what the body returns, and keeps the React state", () => {
   const names = (s) => s.match(/return \{ ([^}]+) \};\s*\}\s*$/)[1].split(",").map((x) => x.trim().split(":")[0].trim()).sort();
-  assert.deepEqual(names(hook), names(impl));
+  assert.deepEqual(names(hook).filter((n) => n !== "cancelImport"), names(impl), "the same, but cancelImport (#2660), which is the hook's own: it reads the drop-origin ref");
   for (const h of ["useStore()", "useState(null)", "useRef(null)", "useRef(false)", "useModuleAction([\"import-dropped-files\"]", "useCallback("]) assert.ok(hook.includes(h), h);
   for (const h of ["useStore(", "useState(", "useRef(", "useCallback(", "useModuleAction("]) assert.ok(!impl.includes(h), `no hook call in the body: ${h}`);
   assert.match(impl, /export function makeImportPipeline\(ctx, h\) \{/);

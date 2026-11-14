@@ -12,6 +12,7 @@ import { gradeUnitLabel } from "./geochemColumns.js"; // TASKS.csv #2218; #3159:
 import { rasterUnitOf } from "./rasterMethod.js"; // TASKS.csv #2747
 import { idwColourFields } from "./idwColour.js"; // TASKS.csv #2845; #3159: not idw.js, which put the IDW gridding in startup
 import { makeSurveyColorer } from "./geophysSurveys.js"; // TASKS.csv #2878
+import { airDilutedFloor } from "./voxelStretch.js"; // TASKS.csv #1872
 
 // the per-element identity hues of assay markers (moved from ViewerModule; TASKS.csv #306)
 export const ASSAY_ELEMENT_COLORS = [0, 1, 2, 3, 4, 5, 6, 7, 11, 14, 15, 8, 10, 13].map((i) => CATEGORICAL_SAFE_COLORS[i]);
@@ -34,6 +35,7 @@ export const fmtLegendValue = (v) => (Math.abs(v) >= 1000 || v === 0 ? v.toFixed
 // keys: the categorical layer keys, in order. hidden[key]: a Set or array of hidden values. singleColor[key]: a one-
 // colour layer style (#635). labelFor / colorFor(key, value): with the user's overrides applied.
 // placed (TASKS.csv #1867 / #1813): the hole ids that have a collar; intervals of any other hole draw nothing and are left out (null = all)
+const isFiltered = (h) => (h instanceof Set ? h.size > 0 : Array.isArray(h) ? h.length > 0 : false);
 export function categoryLegendGroups({ keys, layers, layerVisible, hidden = {}, visibleHoles = {}, singleColor = {}, labelFor, colorFor, placed = null }) {
   const groups = [];
   keys.forEach((key) => {
@@ -57,7 +59,7 @@ export function categoryLegendGroups({ keys, layers, layerVisible, hidden = {}, 
       items.push([labelFor(key, v), colorFor(key, v)]); counts.push(1);
     }
     const order = items.map((_, i) => i).sort((a, b) => String(items[a][0]).localeCompare(String(items[b][0])));
-    if (items.length) groups.push({ key, label: LAYER_META[key].label, items: order.map((i) => items[i]), counts: order.map((i) => counts[i]) });
+    if (items.length) groups.push({ key, label: LAYER_META[key].label, items: order.map((i) => items[i]), counts: order.map((i) => counts[i]), ...(isFiltered(h) ? { filtered: true } : {}) }); // filtered: #2044
   });
   return groups;
 }
@@ -114,7 +116,7 @@ export function voxelLegendGroups(voxelModels) {
   const groups = [];
   (voxelModels || []).forEach((m) => {
     if (m.visible === false || !Number.isFinite(m.min) || !Number.isFinite(m.max)) return;
-    const lo = Number.isFinite(m.threshold) ? Math.max(m.min, m.threshold) : m.min;
+    const lo = airDilutedFloor(m, Number.isFinite(m.threshold) ? Math.max(m.min, m.threshold) : m.min); // #1872 — not the air-diluted blocks
     const hi = Number.isFinite(m.rangeMax) ? Math.min(m.max, m.rangeMax) : m.max;
     // TASKS.csv #356 — a model of named classes (e.g. the implicit model's units) gets swatches, not a numeric ramp.
     if (m.valueLabels && m.stops?.length) { groups.push({ key: `voxel_${m.id}`, label: m.name, items: m.stops.filter((st) => st.value >= lo && st.value <= hi).map((st) => [m.valueLabels[st.value] ?? String(st.value), st.color]) }); return; }
@@ -304,6 +306,8 @@ export function allocateLegendRows(groups, max) {
   // shared out one row at a time among ~12 groups, Cu kept only '> 8020 ppm' while its Low / Medium classes coloured nearly every marker
   let gradeRows = 0;
   gs.forEach((g, i) => { const n = g.items.length; if (g.grade && n <= 8 && gradeRows + n <= Math.floor(max / 2)) { quota[i] = n; left -= n; gradeRows += n; } });
+  // TASKS.csv #2044 — a layer whose categories were filtered is the one the figure is about: its list whole next, while it fits in half the rows
+  gs.forEach((g, i) => { const n = g.items.length; if (g.filtered && !quota[i] && gradeRows + n <= Math.floor(max / 2)) { quota[i] = n; left -= n; gradeRows += n; } });
   while (left > 0 && moved) {
     moved = false;
     for (let i = 0; i < gs.length && left > 0; i++) if (quota[i] < gs[i].items.length) { quota[i]++; left--; moved = true; }

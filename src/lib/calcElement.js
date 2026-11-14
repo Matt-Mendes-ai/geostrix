@@ -92,6 +92,19 @@ const bare = (s) => String(s ?? "").replace(/\s+/g, "");
 export function presetUnitsFor(preset, expr) {
   return preset?.units && bare(expr) === bare(preset.expr) ? preset.units : null;
 }
+// TASKS.csv #3219 (review #3195) — a typed ratio of elements stored in different units (CuAA17 in %, Cu in ppm) was divided on the raw numbers
+// ('range 0.00-0.00' for 0.125). Not converted on its own (a typed formula may carry its own factor, K*10000/Rb): when a typed formula divides
+// and its operands are plain concentrations in more than one unit (g/t and ppm being one), the dialog offers to read them in ppm (the
+// readUnits a preset uses) and the result says the ratio was taken on the stored numbers. -> { sym: "ppm" } or null
+export function mixedUnitReads(expr, assayElements) {
+  if (!/\//.test(String(expr ?? ""))) return null;
+  const ops = operandsOf(expr, (assayElements || []).map((e) => e.symbol));
+  const unitOf = Object.fromEntries((assayElements || []).map((e) => [e.symbol, String(e.unit || "")]));
+  const plain = ops.filter((s) => CONVERTIBLE.has(unitOf[s]));
+  if (plain.length < 2 || plain.length !== ops.length) return null; // an oxide basis, an index or counts among them: as stored
+  const kinds = new Set(plain.map((s) => (unitOf[s] === "g/t" ? "ppm" : unitOf[s])));
+  return kinds.size > 1 ? Object.fromEntries(plain.map((s) => [s, "ppm"])) : null;
+}
 // the element symbols a formula reads (whole identifiers only: "Cu" in "Cu/Au", not in "CuAu"); #2914 — an oxide alias reads its element
 export function operandsOf(expr, symbols, aliases = []) {
   const ids = new Set(String(expr ?? "").match(/[A-Za-z_][A-Za-z0-9_]*/g) || []);
@@ -101,6 +114,7 @@ export function operandsOf(expr, symbols, aliases = []) {
 // Returns { assays, element, computed, skipped, min, max, leftBdl, flaggedLt } or throws with a readable message.
 // #2500 — readUnits ({ K: "%", Rb: "ppm" }, a preset's): the elements are converted to those units before the formula reads them.
 export function addCalculatedElement(assays, assayElements, name, expr, unit = "index", { readUnits = null } = {}) {
+  const mixed = readUnits ? null : mixedUnitReads(expr, assayElements); // #3219 — said, not converted
   const n = String(name || "").trim();
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(n)) throw new Error(tr("Name must start with a letter and use only letters, digits and _."));
   if ((assayElements || []).some((e) => e.symbol === n)) throw new Error(tr("\"{n}\" already exists — pick another name.", { n }));
@@ -115,16 +129,19 @@ export function addCalculatedElement(assays, assayElements, name, expr, unit = "
   // 21,881 rows where both were numbers in 9,172. A formula without division keeps '<' when every operand is '<'; a ratio with a '<'
   // operand gets no value (counted as leftBdl), as the diagrams leave such a ratio out (#2501)
   const ops = operandsOf(expr, symbols, used), isRatio = /\//.test(String(expr)); // used: #2914
-  let computed = 0, skipped = 0, leftBdl = 0, flaggedLt = 0, min = Infinity, max = -Infinity;
+  // TASKS.csv #3160 (#2925 (8), review #2876) — a division by zero (every operand present, no finite result) was counted with the rows
+  // missing an element: it is counted apart (divZero)
+  let computed = 0, skipped = 0, leftBdl = 0, flaggedLt = 0, divZero = 0, min = Infinity, max = -Infinity;
   const out = (assays || []).map((a) => {
     const lts = ops.filter((s) => isBelowDetection(a, s)).length;
     if (isRatio && lts) { leftBdl++; return a; }
     const v = fn(a.values || {});
-    if (!Number.isFinite(v)) { skipped++; return a; }
+    // #3226 (2) — any formula, not only a ratio: log10(Cu-460) on Cu under 460 was counted with the rows missing an element
+    if (!Number.isFinite(v)) { if (ops.length && ops.every((s) => Number.isFinite(Number(a.values?.[s])) && a.values?.[s] !== null && a.values?.[s] !== "")) divZero++; else skipped++; return a; }
     computed++; if (v < min) min = v; if (v > max) max = v;
     if (ops.length && lts === ops.length) { flaggedLt++; return { ...a, values: { ...(a.values || {}), [n]: v }, ...(Array.isArray(a.bdl) ? { bdl: [...a.bdl, n] } : { qualifiers: { ...(a.qualifiers || {}), [n]: "<" } }) }; } // a surface sample: its bdl list
     return { ...a, values: { ...(a.values || {}), [n]: v } };
   });
   if (!computed) throw new Error(tr("The formula gave no value on any assay row — check that every element in it has results."));
-  return { assays: out, element: { symbol: n, unit, calculated: { expr: String(expr).trim(), ...(readUnits ? { readUnits } : {}) } }, computed, skipped, min, max, converted: conv, leftBdl, flaggedLt };
+  return { assays: out, element: { symbol: n, unit, calculated: { expr: String(expr).trim(), ...(readUnits ? { readUnits } : {}) } }, computed, skipped, min, max, converted: conv, leftBdl, flaggedLt, divZero, mixedUnits: mixed ? Object.keys(mixed).map((sym) => ({ sym, unit: (assayElements || []).find((e) => e.symbol === sym)?.unit || "" })) : null };
 }

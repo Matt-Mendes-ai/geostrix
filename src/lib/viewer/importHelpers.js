@@ -354,7 +354,10 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
   }
   if (name.endsWith(".zip") || name.endsWith(".shp")) {
     const reader = name.endsWith(".zip")
-      ? Promise.all([file.arrayBuffer(), loadShapefile()]).then(([buf, { parseShapefileZip }]) => parseShapefileZip(buf, chosenLayer))
+      ? Promise.all([file.arrayBuffer(), loadShapefile()]).then(async ([buf, { parseShapefileZip, listZipNames }]) => {
+        const members = await listZipNames(buf).catch(() => null); // #2025 — what else the zip holds
+        return { ...(await parseShapefileZip(buf, chosenLayer)), zipMembers: members };
+      })
       : readLooseShapefile(file);
     Promise.all([reader, loadShapefile()]).then(([parsed, { shapefileFeaturesToRows }]) => {
       // TASKS.csv #288 — same "ask, don't silently take the first one" gate as the GeoPackage branch
@@ -368,6 +371,7 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
       if (parsed.otherBaseNames) note += tr(" This .zip bundles {v} separate shapefiles — \"{layerName}\" was imported; open the file again to pick another.", { v: parsed.otherBaseNames + 1, layerName: parsed.layerName });
       if (parsed.skippedCount) note += tr(" {skippedCount} feature(s) with an unsupported shape type were skipped.", { skippedCount: parsed.skippedCount });
       if (parsed.deletedCount) note += tr(" {deletedCount} record(s) flagged deleted in the .dbf were left out.", { deletedCount: parsed.deletedCount });
+      if (parsed.zipMembers) note += zipOthersNote(file.name, parsed.layerName, parsed.zipMembers); // #2025
       if (parsed.hasAttributes === false) note += tr(" No .dbf attribute table came with the .shp — only coordinates came through. Select or drop the .shp together with its .dbf and .prj (or a .zip of them).");
       // TASKS.csv #223 — read the .prj sidecar's declared CRS instead of silently ignoring it. Only
       // ever SUGGESTS a Source CRS for the user to confirm (prefills the import modal's field, doesn't
@@ -506,3 +510,37 @@ export function codeList(row) {
   if (!row?.all_codes) return [];
   return String(row.all_codes).split(" · ").map((p) => p.trim().split(/\s+/)[0]).filter(Boolean);
 }
+
+// TASKS.csv #2021 (review #2013, Woodjam) — a mapping's value column that is blank on every row (a sheet's empty style_value) was preselected,
+// and Import gave 283 rows of nothing: the value moves to the first other column with something in it (not one already mapped), else stays
+export function skipBlankValue(mapping, headers, rows, sample = 500) {
+  if (!mapping?.value || !Array.isArray(rows) || !rows.length) return mapping;
+  const part = rows.slice(0, sample);
+  const filled = (h) => part.some((r) => r?.[h] != null && String(r[h]).trim() !== "");
+  if (filled(mapping.value)) return mapping;
+  const taken = new Set(Object.values(mapping).filter(Boolean));
+  const next = (headers || []).find((h) => h && !taken.has(h) && filled(h));
+  return next ? { ...mapping, value: next } : mapping;
+}
+
+// TASKS.csv #2022 (review #2013, Woodjam) — a mineralization column holding a list ('Cpy; Py', 'Py; Cpy', 'Py; Py') became one category per
+// spelling: 116 classes, a legend of 'Py' and 'Unknown'. A list (';' or ',' between names) becomes the sorted, de-duplicated names ('Cpy; Py'),
+// the first spelling of a name kept; a single name is unchanged. The text as logged is kept on the row (as_logged) by the caller.
+export function mineralListValue(v) {
+  const s = String(v ?? "");
+  if (!/[;,]/.test(s)) return v;
+  const seen = new Map();
+  for (const part of s.split(/[;,]+/)) { const t = part.trim(); if (t && !seen.has(t.toLowerCase())) seen.set(t.toLowerCase(), t); }
+  if (!seen.size) return v;
+  return [...seen.values()].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" })).join("; ");
+}
+
+// TASKS.csv #2025 (review #2013, Woodjam) — a .zip holding a shapefile AND a CSV (and a .qmd): the shapefile was read for the Collars dialog and the
+// CSV never mentioned, though a GeoPackage in a zip says 'Read … from inside …'. The members that are not a shapefile's parts are named.
+const SHAPE_PART = /\.(shp|shx|dbf|prj|cpg|sbn|sbx|qix|fix|qmd|shp\.xml|aux\.xml)$/i;
+export function zipOthersNote(zipName, layerName, members) {
+  const others = (members || []).filter((m) => m && !m.endsWith("/") && !SHAPE_PART.test(m) && !/(^|\/)(__MACOSX|\.)/.test(m)).map((m) => m.split("/").pop());
+  const read = tr(" Read the shapefile \"{layer}\" from inside {zip}.", { layer: layerName || "", zip: zipName });
+  return others.length ? read + " " + tr("Not read from it: {files}. Unzip it and import those on their own.", { files: others.slice(0, 5).join(", ") + (others.length > 5 ? "…" : "") }) : read;
+}
+

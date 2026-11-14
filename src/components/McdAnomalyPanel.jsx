@@ -2,12 +2,13 @@
 // the drill assays (lab rows: no QC inserts, no pXRF) or of the surface samples (one medium, or all), on elements read from the data
 // (defaultMcdElements) that the user can change. Written like a Calc. element, so the plan map, the 3D View, thresholds and grade stats
 // take it. The panel says what the score is: a ranking of how unusual each sample's whole composition is, not a probability.
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { t as tr } from "../lib/i18n.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
-import { mcdAnomalyScores, defaultMcdElements } from "../lib/mcd.js";
+import { defaultMcdElements } from "../lib/mcd.js";
+import { runMcdScores } from "../lib/mcdClient.js"; // TASKS.csv #3030 — in a worker for a large table
 import { classifyQAQCRow, isPxrfRow } from "../lib/qaqc.js";
 import { notice } from "../lib/notices.js";
 
@@ -26,12 +27,16 @@ export default function McdAnomalyPanel({ assays, assayElements, surfaceSamples,
   const [name, setName] = useState("MCD_score");
   const [res, setRes] = useState(null), [err, setErr] = useState(null), [busy, setBusy] = useState(false);
   const reset = () => { setRes(null); setErr(null); };
+  // TASKS.csv #3030 — the fit runs in a worker from MCD_WORKER_FROM samples (10^5 froze the window about 10 s); closing the dialog or a new
+  // run drops the one in flight
+  const job = useRef(null);
+  useEffect(() => () => job.current?.cancel(), []);
   const run = () => {
     setBusy(true); reset();
-    setTimeout(() => { // let the 'Scoring…' state paint (10^4 samples take about a second)
-      try { setRes(mcdAnomalyScores(pool, chosen)); } catch (e) { setErr(e.message); }
-      setBusy(false);
-    }, 30);
+    job.current?.cancel();
+    const j = runMcdScores(pool, chosen);
+    job.current = j;
+    j.promise.then((r) => { if (job.current === j) { setRes(r); setBusy(false); } }, (e) => { if (job.current === j) { setErr(e.message); setBusy(false); } });
   };
   const exists = elements.some((e) => e.symbol === name);
   const validName = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) && !exists;

@@ -30,5 +30,23 @@ test("#2814 a big held layer gone from the project releases the hold; small ones
 
 test("#2814 FreezeStore: the release only while frozen, on a changed value, after the transition check", () => {
   const src = fs.readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8");
-  assert.match(src, /if \(hold\.frozen !== frozen\) setHold\(\{ frozen, value: live \}\);[\s\S]{0,700}else if \(frozen && hold\.value !== live && heldBigLayerGone\(hold\.value\?\.mapLayers, live\?\.mapLayers\)\) setHold\(\{ frozen, value: live \}\);/);
+  assert.match(src, /if \(hold\.frozen !== frozen\) setHold\(\{ frozen, value: live \}\);[\s\S]{0,700}else if \(frozen && hold\.value !== live && \(heldBigLayerGone\(hold\.value\?\.mapLayers, live\?\.mapLayers\) \|\| heldItemGone\(hold\.value\?\.rasters, live\?\.rasters\) \|\| heldItemGone\(hold\.value\?\.voxelModels, live\?\.voxelModels\)\)\) setHold\(\{ frozen, value: live \}\);/ /* #2873: rasters and models too */);
+});
+
+test("#2873 a raster or block model removed while hidden releases the hold; edits that keep the id do not", async () => {
+  const { heldItemGone } = await load();
+  const r1 = { id: "r1" }, r2 = { id: "r2" };
+  assert.equal(heldItemGone([r1, r2], [r2]), true);
+  assert.equal(heldItemGone([r1, r2], [{ ...r1, opacity: 0.5 }, r2]), false); // restyled, same id
+  assert.equal(heldItemGone([r1], [r1, r2]), false); // added
+  assert.equal(heldItemGone([], [r1]), false);
+  assert.equal(heldItemGone(undefined, []), false);
+});
+
+test("#2783 the shell line names the restricting solid and the Model area; the estimate's tooltip its trend and grid", () => {
+  const v = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  assert.match(v, /\{s\.params\.domain \? tr\(" · inside \\"\{solid\}\\"", \{ solid: s\.params\.domain \}\) : ""\}\{s\.params\.modelArea \? tr\(" · model area: \{area\}", \{ area: s\.params\.modelArea \}\) : ""\}/);
+  const g = fs.readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
+  assert.match(g, /\$\{p\.searchTrend\?\.name \? `, trend "\$\{p\.searchTrend\.name\}"/);
+  assert.match(g, /\$\{p\.gridFrom \? `, grid: \$\{p\.gridFrom\}` : ""\}/);
 });

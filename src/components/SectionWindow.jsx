@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useMemo, useState, useRef, useLayoutEffect } from "react";
+import { bearingText, sectionLookText } from "../lib/layoutLinks.js"; // TASKS.csv #2308 — the side the section is seen from
 import { Camera, Pencil, Check, Undo2, X, Save, Download, FileText, Crosshair } from "./icons.js";
 import { onSectionData, sendSectionSnapshot, sendSectionContacts, saveFile, savePDF, canvasPngBytes, onSectionResnap } from "../lib/desktop.js"; // onSectionResnap: TASKS.csv #1485
 import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #395
@@ -80,6 +81,11 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   // different visible-hole set intact, unlike screen-relative fractions would.
   const [contacts, setContacts] = useState([]);
   const [savedKey, setSavedKey] = useState(contactsKey([])); // #1323 — the lines as last loaded or saved
+  // TASKS.csv #3259 (Galore review) — a section along a steep hole (694 m, dip -75) opened 1,037 x 3,009 px in a 464 px tall view: fitted to the
+  // width only, never seen whole. With 'Fit to window' (on to start with) the drawing's height is capped at the window's, so it scales to fit
+  // both ways at its own VE (the click mapping goes through the SVG's own transform); off, it is full width and scrolls, for detail.
+  const [fitWhole, setFitWhole] = useState(() => { try { return localStorage.getItem("geostrix.sectionFit") !== "0"; } catch { return true; } });
+  useEffect(() => { try { localStorage.setItem("geostrix.sectionFit", fitWhole ? "1" : "0"); } catch { /* storage off */ } }, [fitWhole]);
   const unsavedRef = useRef(false);
   const [drawing, setDrawing] = useState(false);
   // TASKS.csv #519 — snap clicks to the logged contacts / traces, and edit a finished string's vertices
@@ -224,7 +230,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
     // #2610 — the payload is built now (at the print size); the font goes in before it is sent
     const send = (p) => embedFigureFont(markup).catch(() => markup).then((m) => sendSectionSnapshot({ ...p, src: `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(m)))}` }));
     send({
-      label: data?.title || "Cross-section",
+      label: `${data?.title || "Cross-section"}${data?.section ? ` · ${sectionLookText(Number(data.section.azimuth ?? ((Math.atan2(data.section.bx - data.section.ax, data.section.by - data.section.ay) * 180) / Math.PI + 360) % 360))}` : ""}`, // #2308 — page text, English
       naturalW: dims.w, naturalH: dims.h,
       sectionTabId: tabId, textFactor: Number(textFactor) > 0 ? Number(textFactor) : 1, replaceElementId: replaceElementId || null, resnapRound: round, // #1485 — so Layout can ask for the text at its print size
       // TASKS.csv — Layout scale-bar assignment for cross-sections: the real-world horizontal span
@@ -493,6 +499,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
           <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={tr("Vertical exaggeration — 1x is true scale (vertical and horizontal axes at the same real-world-units-per-pixel)")}>{tr("VE")}<input type="number" min="0.1" max="20" step="0.5" value={vExag ?? ""} onChange={(e) => setVExag(Math.min(MAX_SECTION_VE, Math.max(0.1, Number(e.target.value) || 1)))} style={{ width: 46, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, color: "#1a2028", fontSize: 11, padding: "3px 5px" }} />
             ×
           </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("Scale the section to fit the window, both ways, at its VE (off: full width, scroll for detail)")}><input type="checkbox" checked={fitWhole} onChange={(e) => setFitWhole(e.target.checked)} />{tr("Fit to window")}</label>{/* #3259 */}
           {onPopOut && !drawing && <button onClick={() => onPopOut({ ...data, contacts, labels, savedContactsKey: savedKey })} style={btnStyle(false)} title={tr("Open this section in a window of its own, to compare it beside another. It uses more memory than a tab.")}>{tr("Own window")}</button>}{/* #1303 */}
           <button onClick={exportPNG} style={btnStyle(false)} title={tr("Export section → PNG")}><Download size={14} />{" "}{tr("PNG")}</button>
           <button onClick={exportSVG} style={btnStyle(false)} title={tr("Export section → SVG")}><Download size={14} />{" "}{tr("SVG")}</button>
@@ -550,7 +557,8 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
         </div>
       )}
 
-      <div className="ge-section-body" style={{ flex: 1, overflow: "auto", padding: 16 }}>
+      <div className={`ge-section-body${fitWhole ? " ge-section-fit" : ""}`} style={{ flex: 1, overflow: "auto", padding: 16 }}>
+        {fitWhole && <style>{"@media screen { .ge-section-fit > svg { max-height: calc(100vh - 250px); height: auto; } }"}</style>}{/* #3259 — not in print */}
         {/* TASKS.csv #1230 — over the section's title margin, not in the toolbar: wrapping there moved the section ~23 px under the cursor as the first click was aimed */}
         {drawing && (
           <div style={{ position: "sticky", top: 0, height: 0, zIndex: 5 }}>
@@ -605,8 +613,13 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
   const ux = dx / len, uy = dy / len;
   const along = (x, y) => (x - ax) * ux + (y - ay) * uy;
 
-  let maxL = len, minZ = Infinity, maxZ = -Infinity;
+  let minL = 0, maxL = len, minZ = Infinity, maxZ = -Infinity;
   holes.forEach((h) => h.trace.forEach((p) => { minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z); }));
+  // TASKS.csv #2979 (#2483, WA uranium) — a hole inside an end cap but past A or B (NND5033, 90 m past B) was clipped by the frame while
+  // its name floated beyond the axes. The distance axis now spans the holes' in-buffer runs too (before A: negative, past B: over the
+  // line's length), and the corner coordinates are the frame's ends; a section with every hole between A and B is drawn as before.
+  holes.forEach((h) => { for (const p of h.trace) { if (h.runs && !h.runs.some(([m0, m1]) => p.md >= m0 && p.md <= m1)) continue; const l = (p.x - ax) * ux + (p.y - ay) * uy; if (l < minL) minL = l; if (l > maxL) maxL = l; } });
+  { const m = 0.02 * (maxL - minL); if (minL < 0) minL -= m; if (maxL > len) maxL += m; } // a widened end off the frame line
   contacts.forEach((c) => c.points.forEach((p) => { minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z); }));
   // TASKS.csv #112 — elevation profile from SRTM. Fold the topographic profile into the same
   // min/max-elevation pass everything else uses, so the ground surface is never clipped off the top
@@ -625,7 +638,8 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
   autoVERef.current = autoVE;
   const vExag = vExagIn ?? autoVE ?? 1;
   // TASKS.csv #1256 — at a large text size the subtitle ran past the frame and the PNG cut the sentence
-  const subtitleLines = wrapText(tr("Azimuth {v}° · {v2}{v3} · elevation in m", { v: Number(section.azimuth ?? (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360).toFixed(0), v2: vExag && vExag !== 1 ? tr("{vExag}x vertical exaggeration", { vExag }) : tr("no vertical exaggeration"), v3: section.corridor ? tr(" · data within ±{corridor} m of the line (dashed = trace projected from further away)", { corridor: section.corridor }) : "" }), Math.floor((W - 2 * PAD) / (0.56 * fs(10))));
+  const azDeg = Number(section.azimuth ?? (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360); // #2308 — and the side it is seen from: the start is on the left, so the reader faces the azimuth - 90°
+  const subtitleLines = wrapText(tr("Azimuth {v}° · looking {look} · {v2}{v3} · elevation in m", { v: azDeg.toFixed(0), look: bearingText(azDeg - 90), v2: vExag && vExag !== 1 ? tr("{vExag}x vertical exaggeration", { vExag }) : tr("no vertical exaggeration"), v3: section.corridor ? tr(" · data within ±{corridor} m of the line (dashed = trace projected from further away)", { corridor: section.corridor }) : "" }), Math.floor((W - 2 * PAD) / (0.56 * fs(10))));
   // TASKS.csv #1637 — which ribbon is which: 5-6 parallel ribbons per hole had no key on the section itself
   { const rib = ribbonOrder(intervals); if (rib.length > 1) subtitleLines.push(...wrapText(tr("Ribbons on each hole, left to right: {list}", { list: rib.join(" · ") }), Math.floor((W - 2 * PAD) / (0.56 * fs(10))))); }
   if (!isFinite(minZ)) { minZ = 0; maxZ = 100; }
@@ -639,7 +653,7 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
   // looked like before #15 — H was a constant, so the vertical scale silently varied per section
   // depending on its elevation range, with no way to tell how exaggerated a given view already was).
   // The page's rendered height now follows from vScale rather than the other way around.
-  const hScale = (W - 2 * PAD) / maxL;
+  const hScale = (W - 2 * PAD) / (maxL - minL);
   const vScale = hScale * (vExag || 1);
   const H = Math.max(200, Math.round((maxZ - minZ) * vScale) + 2 * PAD);
   // TASKS.csv #1396 — a depth tick, EOH or offset label is drawn only for a point inside the plot frame: #1205 clipped the
@@ -649,13 +663,16 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
   // since nothing here needs to re-render when it changes.
   if (geomRef) geomRef.current = { hScale, ve: vExag }; // ve: #2363, the VE drawn
 
-  const sx = (l) => PAD + l * hScale;
+  const sx = (l) => PAD + (l - minL) * hScale; // minL: #2979
   const sz = (z) => H - PAD - (z - minZ) * vScale;
   const totalH = H; // TASKS.csv #1128 — no key inside the section any more (#1043 drew one): it goes to Layout
+  // TASKS.csv #2142 (review #2013, Woodjam) — the title sits above the subtitle lines, which grow with the ribbon list: with four or more lines
+  // (or at a large text size) its top was above the frame and a Layout snapshot cut it in half. The drawing grows upward by what it needs.
+  const titleY = PAD - fs(22) - (subtitleLines.length - 1) * fs(12), topExtra = Math.max(0, Math.ceil(fs(12) + 4 - titleY));
   // Inverse of sx/sz — converts a click back to (l, z), then to world (x, y) via the section line's
   // own origin/direction, so a drawn contact point is stored as real-world coordinates, not a
   // screen-relative fraction (see store.jsx's `sections` comment).
-  const invSx = (screenX) => (screenX - PAD) / hScale;
+  const invSx = (screenX) => minL + (screenX - PAD) / hScale;
   const invSz = (screenY) => minZ + (H - PAD - screenY) / vScale;
 
   const traceByHole = Object.fromEntries(holes.map((h) => [h.hole_id, h.trace]));
@@ -694,7 +711,7 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
         strings: contacts.map((c) => ({ id: c.id, points: c.points, closed: c.kind === "outline" })), skip: dragRef.current ? { id: dragRef.current.id, i: dragRef.current.i } : null }); // strings: #876
       if (s) return projectSnaps ? onSectionPlane(s, { ax, ay, ux, uy }) : s;
     }
-    const l = Math.max(0, Math.min(maxL, invSx(local.x)));
+    const l = Math.max(minL, Math.min(maxL, invSx(local.x)));
     const z = invSz(local.y);
     return { l, z, x: ax + l * ux, y: ay + l * uy };
   };
@@ -749,7 +766,7 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
     { x: fs(16), y: H / 2 + fs(60), w: fs(13), h: fs(120) }, // #1700 — the rotated "Elevation (m)" title: a grade label was drawn over it
   ];
   return (
-    <svg ref={svgRef} fontFamily={textFont} viewBox={`0 0 ${W} ${totalH}`} width="100%" style={{ background: "#ffffff", borderRadius: 8, cursor: drawing ? "crosshair" : "default" }} onClick={handleClick} onMouseMove={handleMove} onMouseUp={handleUp} onMouseLeave={handleUp}>
+    <svg ref={svgRef} fontFamily={textFont} viewBox={`0 ${-topExtra} ${W} ${totalH + topExtra}`} /* topExtra: #2142 */ width="100%" style={{ background: "#ffffff", borderRadius: 8, cursor: drawing ? "crosshair" : "default" }} onClick={handleClick} onMouseMove={handleMove} onMouseUp={handleUp} onMouseLeave={handleUp}>
       {/* TASKS.csv #1129 — "texts on the cross section are getting written on top or behind features": every label has a white halo, so it reads over ribbons, structures and contacts */}
       <style>{`text { paint-order: stroke; stroke: #ffffff; stroke-width: ${(2.6 * textScale).toFixed(1)}px; stroke-linejoin: round; }`}</style>
       <defs>
@@ -807,15 +824,15 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
           <text x={PAD - 8} y={sz(z) + fs(3)} fill="#65717e" fontSize={fs(10)} textAnchor="end">{z.toFixed(0)}</text>
         </g>
       ))}
-      {niceTicks(0, maxL, 8).filter((l) => l >= 0 && l <= maxL).map((l, i) => (
+      {niceTicks(minL, maxL, 8).filter((l) => l >= minL && l <= maxL).map((l, i) => (
         <g key={`d${i}`}>
           <line x1={sx(l)} y1={H - PAD} x2={sx(l)} y2={H - PAD + 4} stroke="#65717e" strokeWidth="0.8" />
           <text x={sx(l)} y={H - PAD + 4 + fs(10)} fill="#65717e" fontSize={fs(10)} textAnchor="middle">{l.toFixed(0)}</text>
         </g>
       ))}
-      <text x={PAD} y={H - PAD + 4 + fs(26)} fill="#55606e" fontSize={fs(10)} textAnchor="start">{`${Math.round(ax).toLocaleString()} E  ${Math.round(ay).toLocaleString()} N`}</text>
-      <text x={W - PAD} y={H - PAD + 4 + fs(26)} fill="#55606e" fontSize={fs(10)} textAnchor="end">{`${Math.round(bx).toLocaleString()} E  ${Math.round(by).toLocaleString()} N`}</text>
-      <text x={PAD} y={PAD - fs(22) - (subtitleLines.length - 1) * fs(12)} fill="#1a2028" fontSize={fs(12)} fontWeight="600">{title || tr("Cross-section")}</text>
+      <text x={PAD} y={H - PAD + 4 + fs(26)} fill="#55606e" fontSize={fs(10)} textAnchor="start">{`${Math.round(ax + minL * ux).toLocaleString()} E  ${Math.round(ay + minL * uy).toLocaleString()} N`}</text>{/* the frame's ends (#2979) */}
+      <text x={W - PAD} y={H - PAD + 4 + fs(26)} fill="#55606e" fontSize={fs(10)} textAnchor="end">{`${Math.round(ax + maxL * ux).toLocaleString()} E  ${Math.round(ay + maxL * uy).toLocaleString()} N`}</text>
+      <text x={PAD} y={titleY} fill="#1a2028" fontSize={fs(12)} fontWeight="600">{title || tr("Cross-section")}</text>
       <text x={PAD} y={PAD - fs(8) - (subtitleLines.length - 1) * fs(12)} fill="#55606e" fontSize={fs(10)}>{subtitleLines.map((l, i) => <tspan key={i} x={PAD} dy={i ? fs(12) : 0}>{l}</tspan>)}</text>
 
       {/* TASKS.csv #112 — topographic ground-surface profile sampled from the loaded SRTM/DEM terrain
@@ -833,7 +850,7 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
       {elevationProfile && elevationProfile.length > 1 && (
         <g>
           <polygon
-            points={`${sx(0)},${H - PAD} ${elevationProfile.map((p) => `${sx(p.d)},${sz(p.z)}`).join(" ")} ${sx(maxL)},${H - PAD}`}
+            points={`${sx(elevationProfile[0].d)},${H - PAD} ${elevationProfile.map((p) => `${sx(p.d)},${sz(p.z)}`).join(" ")} ${sx(elevationProfile[elevationProfile.length - 1].d)},${H - PAD}`}
             fill="#e8dfc8" fillOpacity="0.55" stroke="none"
           />
           <polyline

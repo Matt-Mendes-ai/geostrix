@@ -10,7 +10,9 @@ import { hasComputerTemplates } from "../lib/desktop.js"; // TASKS.csv #1487
 import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js"; // TASKS.csv #1777 — listed with the page's placeholders
 import { scaleBarLabel, scaleBarMidLabel } from "../lib/scaleBarLabel.js"; // TASKS.csv #2140
-import { offSheetPages, rectSidesPast, elementCaption } from "../lib/layoutEdges.js"; // TASKS.csv #2482 / #2309; named elements: #2700
+import { offSheetPages, rectSidesPast, elementCaption, elementKind } from "../lib/layoutEdges.js"; // elementKind: #3028
+import { DEFAULT_LAYOUT_ELEMENTS } from "../lib/projectFields.js"; // TASKS.csv #3028 (5)
+import { groupOrdersFromItems, applyCodeOrder, projectCodeOrders, clearCodeOrders, pagesHoldingOrder, orderedGroupsOf } from "../lib/legendCodeOrder.js"; // TASKS.csv #3130 — a code order set once; clear*: #3199 // TASKS.csv #2482 / #2309; named elements: #2700
 import { fillPlaceholders, northName, pageConvergence, formatConvergence } from "../lib/layoutText.js";
 import { samplesTableRows, holesWithoutCollars } from "../lib/samplesTable.js"; // TASKS.csv #1869 // TASKS.csv #2139; north / convergence: #2712
 import { mergeCaseTwins } from "../lib/legendCaseTwins.js"; // TASKS.csv #2609
@@ -109,7 +111,10 @@ function sortedCollars(collars) {
 let layoutClipboard = null;
 
 // TASKS.csv #2700 — an element kind as the ribbon names it (the export's 'past the edge' confirm)
-const ELEMENT_KIND_NAMES = { text: "Text", rect: "Rectangle", north: "North arrow", scale: "Scale bar", legend: "Legend", viewport: "Viewport", image: "Image", table: "Collar table", titleblock: "Title block", drillplan: "Drill plan", logo: "Logo", arrow: "Arrow", callout: "Callout" };
+// TASKS.csv #3028 (5) — a new page's starter (the project's title, a north arrow, a scale bar) placed for its paper: north and scale keep the
+// A4-landscape starter's distance from the right and bottom edges (1123 x 794 px: x 1000, y 720)
+const starterFor = (format) => { const { w, h } = pagePx(format); return DEFAULT_LAYOUT_ELEMENTS.map((el) => (el.id === "north" ? { ...el, x: w - 123 } : el.id === "scale" ? { ...el, y: h - 74 } : el)); };
+const ELEMENT_KIND_NAMES = { text: "Text", rect: "Rectangle", north: "North arrow", scale: "Scale bar", legend: "Legend", viewport: "Viewport", image: "Image", table: "Collar table", statictable: "Table" /* #3028 (3) */, titleblock: "Title block", drillplan: "Drill plan", logo: "Logo", arrow: "Arrow", callout: "Callout" };
 
 export default function LayoutModule() {
   const {
@@ -149,6 +154,7 @@ export default function LayoutModule() {
     geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, // TASKS.csv #2878 — the survey points' ramps
     viewportBatchDone, setViewportBatchDone, // TASKS.csv #1644 — an atlas's maps centred on their holes
     requestViewportBatch, printSrcs, setPrintSrcs, // TASKS.csv #2303 — the export's 300 dpi print pass
+    undoCheckpoint, // TASKS.csv #3184 — each insert / duplicate / paste its own undo step
   } = useStore();
   const setTaskProgress = useSetTaskProgress();
   useEffect(() => { if (viewportBatchDone) setTaskProgress?.(null); }, [viewportBatchDone, setTaskProgress]);
@@ -206,7 +212,7 @@ export default function LayoutModule() {
     const namePast = (it) => tr("{what} past the {sides}", { what: it.caption ? `${kindName(it.type)} "${it.caption}"` : kindName(it.type), sides: it.sides.map(sideName).join(" / ") });
     if (pg) {
       const r = pg.getBoundingClientRect();
-      const offEls = [...pg.querySelectorAll("[data-el-id]")].map((e) => { const el = elements.find((x) => x.id === e.getAttribute("data-el-id")); return { type: el?.type, caption: elementCaption(el), sides: rectSidesPast([e, ...e.querySelectorAll("text")].map((n) => n.getBoundingClientRect()), r) }; }).filter((it) => it.sides.length);
+      const offEls = [...pg.querySelectorAll("[data-el-id]")].map((e) => { const el = elements.find((x) => x.id === e.getAttribute("data-el-id")); return { type: elementKind(el) /* #3028 (3) */, caption: elementCaption(el), sides: rectSidesPast([e, ...e.querySelectorAll("text")].map((n) => n.getBoundingClientRect()), r) }; }).filter((it) => it.sides.length);
       if (offEls.length) past.push(tr("on this page: {list}", { list: offEls.map(namePast).join(", ") }));
     }
     if (layoutPrintRequest.kind !== "png") for (const o of offSheetPages(layoutPages, activeLayoutPageId, (pp) => pagePx(pageFormatOf(pp)))) past.push(tr("on {page}: {list}", { page: o.name, list: o.items.map(namePast).join(", ") }));
@@ -399,7 +405,7 @@ export default function LayoutModule() {
       // ViewerModule's buildSectionPayload): the exact {label,color} pairs actually drawn in this
       // section, so a legend bound to this image (see syncLegendFromView below) can match it
       // without needing a live theme, which a flattened snapshot doesn't have.
-      return { id: img.id, type: "image", label: img.label || "Snapshot", src: img.src, aspect, x: spot.x, y: spot.y, w, h, worldWidthAtCaptureM: img.worldWidthAtCaptureM ?? null, verticalExaggeration: img.verticalExaggeration ?? null /* #944 */, sectionAzimuth: Number.isFinite(img.sectionAzimuth) ? img.sectionAzimuth : null /* #1489 */, depthHeightAtCaptureM: img.depthHeightAtCaptureM ?? null /* #1480 */, planMap: !!img.planMap /* #1864 */, naturalW: img.naturalW, naturalH: img.naturalH, legendItems: img.legendItems || null, sectionTabId: img.sectionTabId || null, textFactor: img.textFactor || 1 /* #1485 */, ...(img.keyDrawn ? { keyDrawn: true } : {}) /* #2739 — the image draws its own key */ };
+      return { id: img.id, type: "image", label: img.label || "Snapshot", src: img.src, aspect, x: spot.x, y: spot.y, w, h, worldWidthAtCaptureM: img.worldWidthAtCaptureM ?? null, verticalExaggeration: img.verticalExaggeration ?? null /* #944 */, sectionAzimuth: Number.isFinite(img.sectionAzimuth) ? img.sectionAzimuth : null /* #1489 */, depthHeightAtCaptureM: img.depthHeightAtCaptureM ?? null /* #1480 */, planMap: !!img.planMap /* #1864 */, ...(img.planView && img.targetWorld && img.worldHeightAtTarget ? { mapsView: !!img.mapsView, planView: true, trueScale: true, targetWorld: img.targetWorld, worldHeightAtTarget: img.worldHeightAtTarget, cameraAzimuthDeg: 0, utmGrid: !!img.utmGrid } : {}) /* #3194 — a Maps snapshot: north up at a known scale, for the coordinate grid */, naturalW: img.naturalW, naturalH: img.naturalH, legendItems: img.legendItems || null, sectionTabId: img.sectionTabId || null, textFactor: img.textFactor || 1 /* #1485 */, ...(img.keyDrawn ? { keyDrawn: true } : {}) /* #2739 — the image draws its own key */ };
     });
     // TASKS.csv #1128 — a cross-section snapshot comes with its legend as a Layout element (movable, editable, bound to
     // the snapshot so "Sync" refreshes it), right of the image when it fits on the sheet, else below it
@@ -729,6 +735,7 @@ export default function LayoutModule() {
   }, [showGrid, gridSnapPx]);
 
   const addElement = (type) => {
+    undoCheckpoint?.(); // #3184
     const id = `${type}_${Date.now()}`;
     const base = { id, type, x: 100, y: 100 };
     if (type === "text") base.text = "Text", base.w = 200;
@@ -744,9 +751,10 @@ export default function LayoutModule() {
     if (type === "legend") {
       // TASKS.csv #1224 — what the 3D view shows now, bound to the page's viewport if there is just one: a stock row on a printed figure says nothing true
       const only = elements.filter((el) => el.type === "viewport");
-      const { items } = legendFromView(viewerUiState || {}, { frameHoles: only.length === 1 ? holesInFrame(only[0], collars) : null, frame: only.length === 1 ? frameTest(only[0]) : null }); // #1633; frame: #2134
+      const { groups: newGroups, items } = legendFromView(viewerUiState || {}, { frameHoles: only.length === 1 ? holesInFrame(only[0], collars) : null, frame: only.length === 1 ? frameTest(only[0]) : null, orders: projectCodeOrders(layoutPages, activeLayoutPageId, elements, null) /* #3130 */ }); // #1633; frame: #2134
       // the whole view can run off the page: Load from view brings the rest. #1482 — samples and grades first, and a line says what was left out
       const ranked = rankLegendGroups(items), kept = firstLegendGroups(ranked), left = legendGroupCount(ranked) - legendGroupCount(kept);
+      if (newGroups.length) base.loadedGroups = newGroups.map((g) => g.label); // #3130 — its arrows record the order it is given
       base.items = items.length ? (left > 0 ? [...kept, [tr("+ {n} more group(s): Load from view adds them", { n: left }), null, { heading: true }]] : kept) : [["Item", "#55606e"]];
       const viewports = elements.filter((el) => el.type === "viewport");
       if (viewports.length === 1) Object.assign(base, { boundViewportId: viewports[0].id, loadedItems: base.items, loadedCapturedAt: viewports[0].capturedAt || null }); // stamp: #2471
@@ -881,6 +889,9 @@ export default function LayoutModule() {
   };
 
   const updateSelected = (patch) => setElements((els) => els.map((el) => el.id === selected ? { ...el, ...patch } : el));
+  // TASKS.csv #3130 — a legend loaded from a view (it knows its groups) records the order its rows were moved into, for every legend of
+  // the project to take on its next 'Load from view'; a hand-made legend records nothing
+  const keptOrder = (legend, items) => (legend?.loadedGroups?.length ? { codeOrder: { ...(legend.codeOrder || {}), ...groupOrdersFromItems(items, legend.loadedGroups.length === 1 ? legend.loadedGroups[0] : null) } } : {});
   // Deleting a viewport/section also drops any scale bar bound to it (an orphaned bar with no view to
   // describe would just be confusing) and un-binds any legend that was reading lithologies from it
   // (the legend itself stays — just reverts to a plain manually-editable one). Generalized to a set of
@@ -915,6 +926,7 @@ export default function LayoutModule() {
   const duplicateSelected = () => {
     const ids = selectionIds();
     if (!ids.length) return;
+    undoCheckpoint?.(); // #3184
     const src = elements.filter((e) => ids.includes(e.id));
     const { dx, dy } = copyOffset(src, A4, Math.round(5 * PX_PER_MM)); // #2715 — back onto the sheet at its right / bottom edge
     const idMap = new Map(ids.map((id) => [id, `${(elements.find((e) => e.id === id) || {}).type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`]));
@@ -934,6 +946,7 @@ export default function LayoutModule() {
   };
   const pasteClipboard = () => {
     if (!layoutClipboard?.els?.length) return false;
+    undoCheckpoint?.(); // #3184
     const { dx, dy } = layoutClipboard.pageId === activeLayoutPageId ? copyOffset(layoutClipboard.els, A4, Math.round(5 * PX_PER_MM)) /* #2715 */ : { dx: 0, dy: 0 };
     const idMap = new Map(layoutClipboard.els.map((e) => [e.id, `${e.type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`]));
     const copies = relinkCopies(layoutClipboard.els.map((e) => ({ ...e, id: idMap.get(e.id), x: e.x + dx, y: e.y + dy, locked: false })), idMap, false); // #924
@@ -1051,7 +1064,7 @@ export default function LayoutModule() {
   // full unit list, since that list can grow after the theme was saved) to build the item list.
   // TASKS.csv #1633 — frameHoles (holesInFrame of the bound frame, or null): only the holes the frame shows give categories
   // perGroup (TASKS.csv #3021): the codes listed per layer, a number or "all" (the legend's codesPerLayer; 12 by default, as before)
-  const legendFromView = (theme, { frameHoles = null, frame = null, perGroup = 12 } = {}) => {
+  const legendFromView = (theme, { frameHoles = null, frame = null, perGroup = 12, orders = null } = {}) => { // orders: #3130
     // TASKS.csv #2134 — the frame filters the surface samples and the map layers too: none inside drops the group, and the media /
     // classes are those found inside
     const sampleGroup = (() => {
@@ -1093,7 +1106,7 @@ export default function LayoutModule() {
     // TASKS.csv #2609 — case-only twins of one colour are one row, and the left-out line is for the sheet's reader (the sidebar explains editing)
     // TASKS.csv #3021 (review #2876, WA iron) — the strand key printed 12 of 34 codes ('+ 22 more codes, not listed', the footwall JER among them):
     // the legend's own 'Codes per layer' (12 / 24 / all); a long key flows into columns to fit the sheet (legendFit, #1480)
-    const items = legendGroupsToItems(capLegendGroups(mergeCaseTwins(groups), perGroup === "all" ? Infinity : Number(perGroup) || 12, (n) => tr("+ {n} more codes, not listed", { n })));
+    const items = legendGroupsToItems(capLegendGroups(applyCodeOrder(mergeCaseTwins(groups), orders) /* #3130 */, perGroup === "all" ? Infinity : Number(perGroup) || 12, (n) => tr("+ {n} more codes, not listed", { n })));
     return { groups, items };
   };
   // TASKS.csv #2471 — auto: the bound viewport was refreshed and the legend's rows were the loaded ones (legendSyncState "reload");
@@ -1124,9 +1137,9 @@ export default function LayoutModule() {
     const theme = themes.find((t) => t.id === vp.themeId) || (!vp.themeId && vp.viewState ? { ...vp.viewState, name: tr("the current view") } : null);
     if (!theme) { say(tr("This viewport's saved theme could no longer be found (it may have been renamed or deleted) — rebind the viewport to a theme in its own panel, or resave that theme, then sync again.")); return; }
     const frameHoles = holesInFrame(vp, collars); // #1633 — a top-down true-scale frame: what it shows; else the whole view
-    const { groups, items } = legendFromView(theme, { frameHoles, frame: frameTest(vp), perGroup: perGroup ?? legend.codesPerLayer ?? 12 }); // frame: #2134; perGroup: #3021
+    const { groups, items } = legendFromView(theme, { frameHoles, frame: frameTest(vp), perGroup: perGroup ?? legend.codesPerLayer ?? 12, orders: projectCodeOrders(layoutPages, activeLayoutPageId, elements, legendId) /* #3130 */ }); // frame: #2134; perGroup: #3021
     if (!items.length) { setElements((els) => els.map((el) => el.id === legendId ? { ...el, ...stamp([]) } : el)); setSyncNotice(tr("Nothing that view shows has a legend: no visible category layer, assay classes, block model, surface samples, map layer or boundary.")); return; }
-    setElements((els) => els.map((el) => el.id === legendId ? { ...el, ...stamp(items) } : el));
+    setElements((els) => els.map((el) => el.id === legendId ? { ...el, ...stamp(items), loadedGroups: groups.map((g) => g.label) /* #3130 */ } : el));
     setSyncNotice(tr(groups.length === 1 ? "Loaded {n} legend group from \"{name}\"." : "Loaded {n} legend groups from \"{name}\".", { n: groups.length, name: theme.name })
       + (frameHoles ? tr(" Categories from the {h} of {all} holes inside the frame.", { h: frameHoles.size, all: collars.length }) : "")
       + (() => { // #2134 — the collars with no survey or attitude are drawn as assumed vertical holes (#2014): say how many of those counted
@@ -1458,6 +1471,25 @@ export default function LayoutModule() {
                     {tr("Out of step with its viewport: the viewport was refreshed after these rows were loaded, and they were edited (or loaded before this check existed), so they were kept. Load from view to update them.")}</div>
                 )}
                 {syncNotice && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div>}
+                {!!(sel.codeOrder || sel.loadedGroups?.length) && (() => { /* TASKS.csv #3199 — a recorded code order can be forgotten */
+                  // the groups this legend orders: its own record, or one of its loaded groups that a legend of the project records
+                  const groups = orderedGroupsOf(sel, projectCodeOrders(layoutPages, activeLayoutPageId, elements, sel.id));
+                  if (!groups.length) return null;
+                  const clear = () => {
+                    const others = pagesHoldingOrder(layoutPages, activeLayoutPageId, groups);
+                    // this page's legends are reachable here; another page's are cleared from that page (the line names them)
+                    setElements((els) => clearCodeOrders(els, groups));
+                    setSyncNotice(others.length
+                      ? tr("Cleared on this page's legends. Legends on {pages} still hold an order for these layers and would bring it back: clear it there too.", { pages: others.join(", ") })
+                      : tr("Cleared. Load from view lists the codes in their default order again."));
+                  };
+                  return (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", margin: "4px 0 8px", lineHeight: 1.4 }}>
+                      <span>{tr("Code order set with the arrows for {groups}: every legend loaded from a view takes it.", { groups: groups.join(", ") })}</span>
+                      <button type="button" onClick={clear} style={smallBtn} title={tr("Forget the order on this page's legends; the rows stay as they are until the next Load from view")}>{tr("Clear the set order")}</button>
+                    </div>
+                  );
+                })()}
                 {sel.items.map(([name, color, opt], i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
                     {opt?.heading || opt?.ramp || opt?.note || opt?.image /* TASKS.csv #725 — a group heading or a ramp has no single colour; #1633 a note; #2747 an image */
@@ -1471,9 +1503,9 @@ export default function LayoutModule() {
                       updateSelected({ items });
                     }} style={{ ...inp, marginBottom: 0, flex: 1 }} />
                     <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                      <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => { if (i === 0) return; const items = sel.items.slice(); [items[i - 1], items[i]] = [items[i], items[i - 1]]; updateSelected({ items }); }}
+                      <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => { if (i === 0) return; const items = sel.items.slice(); [items[i - 1], items[i]] = [items[i], items[i - 1]]; updateSelected({ items, ...keptOrder(sel, items) }); }}
                         style={{ cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "var(--color-border-light)" : "var(--color-text-secondary)", fontSize: "var(--font-size-xs)", lineHeight: 1 }} title={tr("Move up")}>▲</div>
-                      <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => { if (i === sel.items.length - 1) return; const items = sel.items.slice(); [items[i + 1], items[i]] = [items[i], items[i + 1]]; updateSelected({ items }); }}
+                      <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => { if (i === sel.items.length - 1) return; const items = sel.items.slice(); [items[i + 1], items[i]] = [items[i], items[i + 1]]; updateSelected({ items, ...keptOrder(sel, items) }); }}
                         style={{ cursor: i === sel.items.length - 1 ? "default" : "pointer", color: i === sel.items.length - 1 ? "var(--color-border-light)" : "var(--color-text-secondary)", fontSize: "var(--font-size-xs)", lineHeight: 1 }} title={tr("Move down")}>▼</div>
                     </div>
                     <Trash2 aria-label={tr("Remove this item")} title={tr("Remove this item")} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: sel.items.length > 1 ? "pointer" : "default", color: sel.items.length > 1 ? "var(--color-text-secondary)" : "var(--color-border-light)", flexShrink: 0 }}
@@ -1529,6 +1561,11 @@ export default function LayoutModule() {
                 <SectionScaleControls sel={sel} pageW={A4.w} pageH={A4.h} updateSelected={updateSelected} onResize={(next) => setElements((els) => followResize(els, sel.id, next))} />
                 <button onClick={() => syncScaleBarForElement(sel, sel.worldWidthAtCaptureM, sel.w)} style={{ ...pBtn, marginTop: 4 }}>
                   <Ruler size={12} />{" "}{sel.planMap ? tr("Assign scale bar to this map") : tr("Assign scale bar to this section")}</button>
+                {sel.planView && ( /* TASKS.csv #3194 — a Maps snapshot is north up at a known scale: the viewports' labelled grid */
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", margin: "6px 0" }}>
+                    <input type="checkbox" disabled={!utmGridReady(sel)} checked={!!sel.utmGrid && utmGridReady(sel)} onChange={(e) => updateSelected({ utmGrid: e.target.checked })} />{tr("Coordinate grid (labelled)")}
+                  </label>
+                )}
                 {syncNotice && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div>}
               </>
             )}
@@ -1713,7 +1750,12 @@ export default function LayoutModule() {
             );
           })}
           <button
-            onClick={() => addLayoutPage()}
+            onClick={() => { // TASKS.csv #3028 (5) — the current page's paper (an A3 project's second page was A4 landscape), its starter laid out for it
+              const fmt = activePage?.format;
+              if (!fmt) { addLayoutPage(); return; }
+              const [id] = addLayoutPages([{ name: `Page ${layoutPages.length + 1}`, elements: starterFor(fmt) }]);
+              if (id) setLayoutPageFormat(id, fmt);
+            }}
             title={tr("Add page")}
             style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 22, height: 22, marginBottom: 2, background: "transparent", border: "1px solid transparent", borderRadius: 5, color: "var(--color-text-muted)", cursor: "pointer" }}
           >
@@ -1827,7 +1869,7 @@ export default function LayoutModule() {
             <Lock key={`lock_${el.id}`} size={11} aria-hidden="true" style={{ position: "absolute", left: el.x - 13, top: el.y - 13, color: "var(--color-text-muted)", pointerEvents: "none", zIndex: 4 }} />
           ))}
           {withLiveScaleBars(elements).map((el) => (
-            <LayoutElement key={el.id} el={el} selected={selected === el.id} multiSelected={multiSelected.size > 1 && multiSelected.has(el.id)} onDown={(e) => { e.stopPropagation(); onDown(e, el); }} onSelect={(id) => { if (selected !== id) { setSelected(id); setMultiSelected(new Set()); } }} onResizeStart={onResizeStart} ctx={textCtx} />
+            <LayoutElement key={el.id} el={el} selected={selected === el.id} multiSelected={multiSelected.size > 1 && multiSelected.has(el.id)} onDown={(e) => { e.stopPropagation(); onDown(e, el); }} onSelect={(id) => { if (selected !== id) { setSelected(id); setMultiSelected(new Set()); } }} onResizeStart={onResizeStart} ctx={textCtx} onTextEdit={(id, text) => setElements((els) => els.map((x) => (x.id === id ? { ...x, text } : x)))} /* #2944 */ />
           ))}
           {guides.map((g, i) => ( /* TASKS.csv #910 */
             <div key={`guide${i}`} style={g.axis === "x"
@@ -2069,7 +2111,7 @@ function SectionScaleControls({ sel, pageW, pageH, updateSelected, onResize = nu
         );
       })()}
       {tooBig && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4, lineHeight: 1.4 }}>{tr("At this scale the section is larger than the page: choose a smaller scale (a larger number), a larger page, or the other orientation.")}</div>}
-      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 }}>{sel.planMap ? tr("A plan map from Geochem, drawn as it was when sent: to change it, make a new one from Geochem > Plan map. Resizing it changes its scale.") : tr("A cross-section snapshot is a drawing of the section as it was when taken, so it has no theme, refresh or 3D camera to adjust. To change what it shows, take a new snapshot from the cross-section window. The scale is horizontal, along the section; resizing the snapshot changes it.")}</div>
+      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 }}>{sel.mapsView ? tr("A view of the Maps tab, drawn as it was when sent: to change it, send it again from Maps. It is north up; resizing it changes its scale.") /* #3194 */ : sel.planMap ? tr("A plan map from Geochem, drawn as it was when sent: to change it, make a new one from Geochem > Plan map. Resizing it changes its scale.") : tr("A cross-section snapshot is a drawing of the section as it was when taken, so it has no theme, refresh or 3D camera to adjust. To change what it shows, take a new snapshot from the cross-section window. The scale is horizontal, along the section; resizing the snapshot changes it.")}</div>
     </div>
   );
 }
@@ -2332,7 +2374,19 @@ function textContextFor(els, project, page, index, count, collars = null, credit
 }
 const fillText = (text, ctx) => fillPlaceholders(text, ctx, PLACEHOLDER); // #2139 — an empty fill takes its separator with it
 
-function LayoutElement({ el, selected, multiSelected, onDown, print = false, onResizeStart, ctx = null, onSelect = null }) {
+function LayoutElement({ el, selected, multiSelected, onDown, print = false, onResizeStart, ctx = null, onSelect = null, onTextEdit = null }) {
+  // TASKS.csv #2944 (split from #2144) — a double-click on a title or text box edits its text in place (the raw text, placeholders and all);
+  // Enter (a title) or Ctrl+Enter (a text), or leaving the box, keeps it; Escape leaves it as it was. The sidebar field stays the other way in.
+  const [editing, setEditing] = useState(false);
+  const canEdit = !print && !el.locked && !!onTextEdit && (el.type === "title" || el.type === "text");
+  const startEdit = canEdit ? (e) => { e.stopPropagation(); setEditing(true); } : undefined;
+  const inPlace = (style, multi) => {
+    const done = (keep, value) => { setEditing(false); if (keep && value !== (el.text ?? "")) onTextEdit(el.id, value); };
+    const props = { autoFocus: true, defaultValue: el.text ?? "", "aria-label": tr("Edit the text"), onMouseDown: (e) => e.stopPropagation(), onBlur: (e) => { if (!e.target.dataset.done) done(true, e.target.value); }, // a key already closed it: the blur on removal is not a second edit
+      onKeyDown: (e) => { e.stopPropagation(); if (e.key === "Escape") { e.preventDefault(); e.target.dataset.done = "1"; done(false); } else if (e.key === "Enter" && (!multi || e.ctrlKey || e.metaKey)) { e.preventDefault(); e.target.dataset.done = "1"; done(true, e.target.value); } },
+      style: { ...style, width: "100%", boxSizing: "border-box", border: "1px solid var(--color-info)", background: "#fff", padding: 0, margin: 0, outline: "none", resize: "none", font: "inherit", fontSize: style.fontSize, fontWeight: style.fontWeight, fontStyle: style.fontStyle } };
+    return multi ? <textarea {...props} rows={Math.max(2, String(el.text ?? "").split("\n").length)} /> : <input {...props} />;
+  };
   // TASKS.csv #965 — reachable from the keyboard: Tab focuses an element and selects it, so the mm fields, arrow nudges
   // and Delete work without a mouse (the print copy gets none of this)
   const kb = onSelect && !print ? { tabIndex: 0, onFocus: (e) => { if (e.target === e.currentTarget && e.currentTarget.matches?.(":focus-visible")) onSelect(el.id); }, /* keyboard focus only: a click also focuses, and must not undo a Ctrl+click multi-selection */ "aria-label": tr("{type} element", { type: el.type }) } : {};
@@ -2352,8 +2406,9 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   if (el.type === "title") {
     const b = frameBorder(el);
     return (
-      <div style={{ ...wrap, width: el.w, border: b, padding: b !== "none" ? 8 : 0, boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
-        <div style={{ fontSize: el.fontSize ?? 26, fontWeight: (el.bold ?? true) ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || INK, fontFamily: FONT }}>{fillText(el.text, ctx)}</div>
+      <div style={{ ...wrap, width: el.w, border: b, padding: b !== "none" ? 8 : 0, boxSizing: "border-box" }} onMouseDown={onDown} onDoubleClick={startEdit} data-el-id={el.id} {...kb}>
+        {editing ? inPlace({ fontSize: el.fontSize ?? 26, fontWeight: (el.bold ?? true) ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || INK, fontFamily: FONT }, false) /* #2944 */
+          : <div style={{ fontSize: el.fontSize ?? 26, fontWeight: (el.bold ?? true) ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || INK, fontFamily: FONT }}>{fillText(el.text, ctx)}</div>}
         {handles}
       </div>
     );
@@ -2361,8 +2416,9 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   if (el.type === "text") {
     const b = frameBorder(el);
     return (
-      <div style={{ ...wrap, width: el.w, border: b, padding: b !== "none" ? 8 : 0, boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
-        <div style={{ fontSize: el.fontSize ?? printPx(printPt.body), fontWeight: el.bold ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || INK, whiteSpace: "pre-wrap" /* #1868 */ }}>{fillText(el.text, ctx)}</div>
+      <div style={{ ...wrap, width: el.w, border: b, padding: b !== "none" ? 8 : 0, boxSizing: "border-box" }} onMouseDown={onDown} onDoubleClick={startEdit} data-el-id={el.id} {...kb}>
+        {editing ? inPlace({ fontSize: el.fontSize ?? printPx(printPt.body), fontWeight: el.bold ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || INK }, true) /* #2944 */
+          : <div style={{ fontSize: el.fontSize ?? printPx(printPt.body), fontWeight: el.bold ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || INK, whiteSpace: "pre-wrap" /* #1868 */ }}>{fillText(el.text, ctx)}</div>}
         {handles}
       </div>
     );
@@ -2394,6 +2450,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     return (
       <div style={{ ...wrap, width: el.w || 200, height: el.h || 120 }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
         <img src={el.src} alt={el.label || "snapshot"} style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", background: "#fff" }} draggable={false} />
+        {el.utmGrid && utmGridReady(el) && <div style={{ position: "absolute", inset: 0 }}><UtmGridOverlay el={el} crs={ctx?.crs || ""} /></div>}{/* TASKS.csv #3194 — a Maps snapshot's grid, as a viewport's */}
         {handles}
       </div>
     );

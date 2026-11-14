@@ -35,7 +35,7 @@ test("stale only when the model has a stamp and it differs", () => {
 
 test("wiring: runs stamp their surfaces; the last model is stamped; the line and the surface rows are marked", () => {
   const r = fs.readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
-  assert.match(r, /lithoStamp: layerStamp\(layers\.litho\),/);
+  assert.match(r, /lithoStamp: layerStamp\(importStateRef\.current\.layers\?\.litho \?\? layers\.litho\),/); // #3265 — the whole log, as the badge compares with
   const v = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(v, /const setLastLithBlock = \(lb\) => setLastLithBlockRaw\(lb && \{ \.\.\.lb, lithoStamp: layerStamp\(layers\.litho\) \}\);/);
   assert.match(v, /const lithoNow = useMemo\(\(\) => layerStamp\(layers\.litho\), \[layers\.litho\]\);/);

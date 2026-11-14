@@ -5,7 +5,7 @@
 //  - pileFromRuns / pileRelation: which of two units the holes put above the other, and in how many of the holes logging both;
 //  - absentTops: where a unit is missing from a hole that passes from a younger unit straight into an older one, its top is that
 //    contact (zero thickness there), for 'Add the logged tops' to offer as picks;
-//  - upperNeighbour: the next top up among the pane's other explicit tops;
+//  - upperNeighbour / lowerNeighbour (#3113): the next top up or down among the pane's other explicit tops;
 //  - meshHeightLookup / clampUnder / orderAgainst: hold a surface at or under that top, or count where it lies above it.
 // Pure: no React, no three.js.
 import { stackOrderFromHoles } from "./stackOrderFromHoles.js";
@@ -67,6 +67,36 @@ export function upperNeighbour(pile, unit, candidates, opts = {}) {
   let best = 0;
   for (let i = 1; i < ups.length; i++) if (under[i] > under[best] || (under[i] === under[best] && ups[i].rel.agree > ups[best].rel.agree)) best = i;
   return ups[best];
+}
+
+// TASKS.csv #3113 — the mirror: the next top DOWN among the candidates (the holes put `unit` above it), the closest one (the most other
+// candidates under it); null when none is decided under `unit`
+export function lowerNeighbour(pile, unit, candidates, opts = {}) {
+  const downs = [];
+  for (const c of candidates || []) {
+    if (!c || c.unit === unit) continue;
+    const rel = pileRelation(pile, unit, c.unit, opts);
+    if (rel.order === 1) downs.push({ ...c, rel });
+  }
+  if (!downs.length) return null;
+  const over = downs.map((c) => downs.reduce((k, d) => k + (d !== c && pileRelation(pile, c.unit, d.unit, opts).order === 1 ? 1 : 0), 0));
+  let best = 0;
+  for (let i = 1; i < downs.length; i++) if (over[i] > over[best] || (over[i] === over[best] && downs[i].rel.agree > downs[best].rel.agree)) best = i;
+  return downs[best];
+}
+
+// TASKS.csv #3115 — the tops down the pile from `first` (a candidate): each next one the closest under the last by the holes' order,
+// among the candidates not yet taken. pileOf(unit) -> the pile for that unit (topsOfUnit(unit).pile). -> [first, ...] (at most `max`)
+export function pileBelow(first, candidates, pileOf, { max = 40 } = {}) {
+  const out = [], seen = new Set();
+  let cur = first;
+  while (cur && !seen.has(cur.id) && out.length < max) {
+    seen.add(cur.id); out.push(cur);
+    const pile = pileOf(cur.unit);
+    if (!pile) break;
+    cur = lowerNeighbour(pile, cur.unit, (candidates || []).filter((c) => !seen.has(c.id)));
+  }
+  return out;
 }
 
 // The elevation of a triangle mesh (positions: x, y map, z elevation triples) at a map point: the highest crossing, NaN off it. A
@@ -185,4 +215,39 @@ export function planeDipDeg(points) {
   if (!(Math.abs(det) > 1e-9 * (sxx * syy || 1))) return NaN;
   const b = (sxz * syy - syz * sxy) / det, c = (syz * sxx - sxz * sxy) / det;
   return (Math.atan(Math.hypot(b, c)) * 180) / Math.PI;
+}
+
+// TASKS.csv #3262 — the RMS distance (m, in z) of the points from that least-squares plane; NaN as planeDipDeg
+export function planeMisfitM(points) {
+  const P = (points || []).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z));
+  if (!Number.isFinite(planeDipDeg(P))) return NaN;
+  let mx = 0, my = 0, mz = 0;
+  for (const p of P) { mx += p.x; my += p.y; mz += p.z; }
+  mx /= P.length; my /= P.length; mz /= P.length;
+  let sxx = 0, sxy = 0, syy = 0, sxz = 0, syz = 0;
+  for (const p of P) { const x = p.x - mx, y = p.y - my, z = p.z - mz; sxx += x * x; sxy += x * y; syy += y * y; sxz += x * z; syz += y * z; }
+  const det = sxx * syy - sxy * sxy, b = (sxz * syy - syz * sxy) / det, c = (syz * sxx - sxz * sxy) / det;
+  let ss = 0;
+  for (const p of P) { const r = p.z - mz - b * (p.x - mx) - c * (p.y - my); ss += r * r; }
+  return Math.sqrt(ss / P.length);
+}
+
+// TASKS.csv #3262 (review #3195, Galore Creek) — 'thin beds of its neighbours in a flat pile' was concluded from the first tops' dip alone:
+// intrusive phases met by inclined holes collared at similar elevations have first tops that are flat ON AVERAGE (5.6°) but scattered far
+// off any one plane. A flat pile's first tops lie close to their plane: within twice the unit's median run (10 m at least). A unit whose
+// role cuts across (a Modelling codes intrusion / cross-cutting; a dyke, vein, breccia or fault) is never read as a pile.
+const NOT_A_PILE = new Set(["intrusion", "cross-cutting", "dyke", "vein", "breccia", "fault"]);
+export function looksLikeFlatPile({ dip, misfit, medianRunM, role }) {
+  if (NOT_A_PILE.has(role)) return false;
+  return Number.isFinite(dip) && dip <= 15 && Number.isFinite(misfit) && misfit <= Math.max(10, 2 * (Number(medianRunM) || 0));
+}
+
+// TASKS.csv #3263 (review #3195, Galore Creek) — Closed body flattened its cells (80 x 80 x 4 m) for any unit 'logged in thin runs' over a wide
+// area: an intrusive met by holes inclined 55-85° became a stack of flat plates. Flat cells only when the runs line up along a near-flat
+// layer: the inside points' plane dips 30° or less and they lie within max(20 m, 4 x the median run) of it, and the role does not cut
+// across. WA uranium's lignite (#2384): 0.1°, 4.6 m off its plane; its flat sands and clays 15-20 m. -> { flat, dip, misfit }
+export function runsLieFlat(points, medianRunM, role = null) {
+  const dip = planeDipDeg(points), misfit = planeMisfitM(points);
+  const flat = !NOT_A_PILE.has(role) && Number.isFinite(dip) && dip <= 30 && Number.isFinite(misfit) && misfit <= Math.max(20, 4 * (Number(medianRunM) || 0));
+  return { flat, dip, misfit };
 }

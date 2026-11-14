@@ -3,7 +3,7 @@ import { X, Plus, Trash2, RotateCcw } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
-import { seedBreaks, nextDarkerClassColor, majorComponentSteps } from "../lib/colorRamp.js"; // TASKS.csv #319 / #476; #701; #2935
+import { seedBreaks, nextDarkerClassColor, majorComponentSteps, logClassLimits } from "../lib/colorRamp.js"; // TASKS.csv #319 / #476; #701; #2935
 import { roundBreaks, addClassLimit } from "../lib/assayClasses.js"; // TASKS.csv #2519
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { SHAPES } from "../lib/layerStyle.js"; // TASKS.csv #649 — the same marker shapes as the other point layers
@@ -72,6 +72,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
   // TASKS.csv #2935 — Reset gives the seeded classes the dialog calls the default (was no classes: 'sphere size = grade', one colour)
   const reset = () => commit({ color: defaultColor, sizeMult: 1, shape: "auto", opacity: 1, minCutoff: "", breaks: seedBreaks({ ...range, unit }, defaultColor) });
   const major = majorComponentSteps({ ...range, unit });
+  const logLims = !major ? logClassLimits(range) : null; // #3260
 
   return (
     <div style={overlay} {...backdropProps(onClose)}>
@@ -123,7 +124,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
               <span style={{ ...rowLabel, marginBottom: 0 }} title={tr("Recategorize: instead of one flat colour, split this element into grade classes, each with its own colour — like a graduated/categorized legend.")}>{tr("Grade classes (recategorize)")}</span>
               {!local.breaks.length && <button onClick={addBreak} style={smallBtn}><Plus size={12} />{" "}{tr("Add classes")}</button>}
             </div>
-            {(major || basisText) && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{major ? tr("Default classes: round steps of the data, as for a major component (a median of {p50} {unit}): {limits}.", { p50: +range.p50.toFixed(2), unit, limits: major.join(" / ") }) : basisText}</div>}{/* #2519; #2935 */}
+            {(major || logLims || basisText) && !local.breaks.some((b) => b.seeded === false) /* #2941 — not once a class was edited (rounded, a limit added) */ && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{major ? tr("Default classes: round steps of the data, as for a major component (a median of {p50} {unit}): {limits}.", { p50: +range.p50.toFixed(2), unit, limits: major.join(" / ") }) : logLims ? tr("Default classes: round limits on a log scale between the median ({p50}) and the 97.5th percentile ({p975}): {limits} {unit}.", { p50: +Number(range.p50).toPrecision(3), p975: +Number(range.p975).toPrecision(3), limits: logLims.join(" / "), unit }) /* #3260 */ : basisText}</div>}{/* #2519; #2935 */}
             {offers.length > 0 && (
               <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", marginBottom: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{/* #2688 — offered, never applied */}
                 <span>{tr("Saved threshold:")}</span>

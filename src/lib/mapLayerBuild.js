@@ -3,7 +3,10 @@
 import { CATEGORICAL_SAFE_COLORS } from "./layers.js";
 import { readsAsMineGrid, mineToProject, partsBox, isMineSource, mineChoiceToProject } from "./mineGrid.js"; // TASKS.csv #2586; isMineSource, mineChoiceToProject: #2684
 import { fileToLocal } from "./localGridTie.js"; // TASKS.csv #2320
-import { reprojectXY, getProj4DefSync, prjRefusal, datumNote } from "./reproject.js";
+import { reprojectXY, getProj4DefSync, prjRefusal, datumNote, crsName } from "./reproject.js"; // crsName: #2774
+// TASKS.csv #2774 (split from #2467) — the file's CRS by name, as Boundaries / Claims say it (lib/boundaryImport.js crsLabel): "EPSG:26909" alone
+// told a geologist nothing; the datum caveat (datumNote) was already there
+const crsLabel = (c) => { const n = crsName(Number(c)); return n ? `${n} (EPSG:${c})` : `EPSG:${c}`; };
 import { autoCategories, applyQmlToCategories, guessStyleField, normalizeMapLayer } from "./mapLayers.js";
 import { graduatedStyle, isIdField } from "./mapGraduated.js"; // TASKS.csv #1600
 
@@ -59,9 +62,9 @@ export function buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverrid
   } else if (src && dst && src !== dst && getProj4DefSync(src) && getProj4DefSync(dst)) {
     transform = (x, y) => { const r = reprojectXY(x, y, src, dst); return r ? [r.x, r.y] : [x, y]; };
     const datum = datumNote(src); // #1244 — NAD27 and the like: how good the shift is
-    crsNote = `reprojected EPSG:${src} → EPSG:${dst}${datum ? ` ⚠ ${datum}` : ""}`;
+    crsNote = `reprojected ${crsLabel(src)} → ${crsLabel(dst)}${datum ? ` ⚠ ${datum}` : ""}`; // names: #2774
   } else if (src && dst && src !== dst) {
-    crsNote = `source EPSG:${src} could not be reprojected — assumed to already match EPSG:${dst}`;
+    crsNote = `source ${crsLabel(src)} could not be reprojected — assumed to already match ${crsLabel(dst)}`;
   } else if (!src) {
     const refused = prjRefusal(parsed.prjWkt); // #1243
     const box = mineGrid ? partsBox((parsed.features || []).flatMap((f) => (f.parts?.length ? f.parts : [f.geometry || []]))) : null;
@@ -70,7 +73,7 @@ export function buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverrid
       crsNote = `no CRS in file; its coordinates lie on the project's mine grid${mineGrid.name ? ` (${mineGrid.name})` : ""} where the collars are — read on that grid, into EPSG:${dst} through its tie`;
     } else crsNote = refused ? `its .prj (${refused}) matches no CRS GeoStrix knows — assumed EPSG:${dst ?? "?"}; set the Source CRS if that is wrong` : `no CRS in file — assumed EPSG:${dst ?? "?"}`;
   } else {
-    crsNote = `EPSG:${src}`;
+    crsNote = `in ${crsLabel(src)}, the project's coordinate system`; // #2774 — said too, as Boundaries do (#2467)
   }
   let clipped = null;
   if (clipTo && (parsed.features || []).length) {
