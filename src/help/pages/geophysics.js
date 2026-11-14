@@ -75,7 +75,7 @@ export default [
     summary: "Ground loop-loop electromagnetic soundings (a DUALEM, a GEM-2, or an Aarhus Workbench export) inverted for electrical conductivity against depth: one smooth layered model under each sounding, a section along each line with the depth of investigation, each sounding's readings against what its model predicts, and the models in 3D as a point survey. Runs in the Python engine.",
     notFor: [
       "A 1D model assumes flat-lying layers. Under a dyke, a pipe, a fence, a buried tank or any 3D conductor it is wrong in place and value. Use it for cover thickness, regolith, clay layers and the water table.",
-      "Time-domain (TEM) soundings are not read yet.",
+      "Time-domain (TEM) line data opens in Geophysics > EM > TEM line data (channels, decays and the decay constant); a TEM inversion is not available yet.",
       "The tie to the neighbouring soundings pulls each model toward its neighbours' first models: a stand-in for a laterally constrained inversion (Aarhus Workbench's LCI), not the same thing.",
     ],
     fields: [
@@ -488,23 +488,52 @@ export default [
     id: "em-surveys",
     area: "Geophysics",
     title: "Electromagnetic surveys (EM)",
-    summary: "Geophysics > EM: which kind of EM survey to read. EM measures how well the ground conducts electricity: massive sulphide, graphite, clay and salt water are conductors. Frequency-domain loop-loop soundings (DUALEM, GEM-2) open in FDEM 1D; a time-domain (TEM) survey's single channel imports as points until whole TEM lines can be read.",
+    summary: "Geophysics > EM: which kind of EM survey to read. EM measures how well the ground conducts electricity: massive sulphide, graphite, clay and salt water are conductors. Time-domain (TEM) line data opens in TEM line data (every channel along a line, the decay at a station, the decay constant mapped); frequency-domain loop-loop soundings (DUALEM, GEM-2) open in FDEM 1D.",
     notFor: [
-      "Reading whole TEM lines (every channel, the decay at a station, a decay-constant grid) is not available yet.",
+      "A TEM inversion (conductivity against depth from the decays) is not available yet.",
       "MT / AMT soundings have their own button.",
     ],
     fields: [
+      { name: "TEM line data: channels, decays, decay constant…", what: "Opens TEM line data: a SkyTEM or Aarhus Workbench .xyz, a Geosoft .xyz with a channel per gate, or a CSV.", choose: "For airborne or ground time-domain EM with every gate." },
       { name: "FDEM 1D: ground loop-loop (DUALEM, GEM-2)…", what: "Opens FDEM 1D: the soundings, and conductivity against depth under each from a 1D inversion.", choose: "For a DUALEM or GEM-2 CSV, or an Aarhus Workbench export." },
-      { name: "TEM: one channel as points…", what: "Opens the point importer set to TEM: one value a station (dB/dt, B-field or a decay constant).", choose: "Pick a late-time channel, or the decay constant, as Value to map conductors." },
+      { name: "TEM: one channel as points…", what: "Opens the point importer set to TEM: one value a station (dB/dt, B-field or a decay constant).", choose: "For a table that already holds one channel, or a decay constant, per station." },
     ],
     warnings: [],
     howto: {
       steps: [
         "Geophysics > EM.",
         "FDEM 1D: ground loop-loop… then Open soundings, and pick a DUALEM or GEM-2 CSV.",
-        "For a TEM survey: TEM: one channel as points… then Import survey .xyz… and choose the channel as Value.",
+        "For a TEM survey: TEM line data… then Open TEM line data…, and pick the .xyz or CSV.",
       ],
     },
-    related: ["fdem-1d", "point-survey", "mt-soundings"],
+    related: ["tem-lines", "fdem-1d", "point-survey", "mt-soundings"],
+  },
+  {
+    id: "tem-lines",
+    area: "Geophysics",
+    title: "TEM line data (multi-channel)",
+    summary: "Geophysics > EM > TEM line data: time-domain electromagnetic data along lines, every gate of the decay at every station. The channels are stacked along a line, the decay at a clicked station is drawn with its late-time decay constant (tau), and tau at every station is mapped. A long decay (a large tau) marks a good conductor: massive sulphide, graphite, saline water.",
+    notFor: [
+      "No TEM inversion yet: the decays are not turned into conductivity against depth (that needs the system's waveform and geometry).",
+      "The decay constant is fitted to the later half of each decay (the gates at or after the middle time of the positive readings). Where those gates are in the noise, tau is not reliable; read the decay plot.",
+    ],
+    fields: [
+      { name: "Open TEM line data…", what: "An Aarhus Workbench or SkyTEM *_dat.xyz (its gate times and coordinate system are read from the header), a Geosoft .xyz with a column per gate (dBdt_Z[0], dBdt_Z[1] …) and Line markers, or a CSV with X, Y, a line column and a column per gate." },
+      { name: "Channels", what: "Columns that share a name and end in a gate number form one decay (DBDT_CH1GT1 …, CH01 …). A two-moment SkyTEM file has one set per moment; uncertainty columns are listed last." },
+      { name: "Gate times (ms), one per gate", what: "Read from the file's header when it states them (seconds are converted); otherwise type them.", choose: "From the survey's logistics report or the instrument's gate table." },
+      { name: "Map the decay constant (tau)", what: "Fits tau at every station, adds it as a point survey ('<file> · tau', TEM: decay constant, ms) and grids it by inverse distance, blanked at 1.5 times the line spacing." },
+      { name: "Add one gate as a point survey…", what: "One gate's readings at every station as a point survey (TEM: dB/dt), which Point survey can grid." },
+    ],
+    warnings: [],
+    howto: {
+      steps: [
+        "Geophysics > EM > TEM line data…",
+        "Open TEM line data…, and pick the file.",
+        "Check the channels and the gate times; type the times if the file does not state them.",
+        "Pick a line; click a station on the stacked profiles to see its decay and tau.",
+        "Map the decay constant (tau): the point survey and its grid are added.",
+      ],
+    },
+    related: ["em-surveys", "fdem-1d", "point-survey"],
   },
 ];

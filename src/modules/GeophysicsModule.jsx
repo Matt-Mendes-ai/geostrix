@@ -77,6 +77,7 @@ import { openHelp } from "../lib/help.js";
 const DownholeLogsPane = React.lazy(() => import("../components/DownholeLogsPane.jsx")); // TASKS.csv #1425
 const MtSoundingsPane = React.lazy(() => import("../components/MtSoundingsPane.jsx")); // TASKS.csv #1989
 const FdemPane = React.lazy(() => import("../components/FdemPane.jsx")); // TASKS.csv #1986
+const TemPane = React.lazy(() => import("../components/TemPane.jsx")); // TASKS.csv #1986 step 1 — TEM line data
 const EqsGridBox = React.lazy(() => import("../components/EqsGridBox.jsx")); // TASKS.csv #1985
 const GravityReductionBox = React.lazy(() => import("../components/GravityReductionBox.jsx")); // TASKS.csv #1985
 import { Layers as RLayers /* #1986 */, Waves as RWaves /* #1989 */, Zap as RZap, Radar as RRadar, Magnet as RMagnet, Mountain as RMountain, Shapes as RShapes, Globe as RGlobe, Flag as RFlag, Settings2 as RSettings2, Package as RPackage, Box as RBox } from "../components/icons.js";
@@ -1985,7 +1986,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             <RibbonButton icon={RWeight} label="Gravity" tone="data" title="Gravity: rock density, for dense massive sulphide, mafic intrusions, basins and faults. Import gravity stations (CSV / .xyz)." {...methodBtn("grav")} />
             <RibbonButton icon={RRadiation} label="Radiometrics" tone="data" title="Radiometrics: potassium, thorium and uranium at the surface, for potassic alteration, granites and uranium. Import K / eTh / eU channels (CSV / .xyz)." {...methodBtn("rad")} />
             <RibbonButton icon={RZap} label="IP / Resistivity" tone="model" title="IP / resistivity: chargeability (disseminated sulphide) and resistivity (silicification, clay, water) under a line; a 2D DC / IP inversion." {...geoBtn("dcip")} />
-            <RibbonButton icon={Radio} label="EM" tone="data" title="EM: electrical conductors (massive sulphide, graphite, clay, water). Ground loop-loop FDEM now; time-domain (TEM) line data is coming." active={geoPane === "em" || geoPane === "fdem"} onClick={() => setGeoPane("em")} />
+            <RibbonButton icon={Radio} label="EM" tone="data" title="EM: electrical conductors (massive sulphide, graphite, clay, water). Time-domain (TEM) line data and ground loop-loop FDEM." active={geoPane === "em" || geoPane === "fdem" || geoPane === "tem"} onClick={() => setGeoPane("em")} />
             <RibbonButton icon={RWaves} label="MT / AMT" tone="data" title="MT / AMT: resistivity to depth from natural fields, hundreds of metres to kilometres (EDI soundings)." {...geoBtn("mt")} />{/* TASKS.csv #1989 */}
             <RibbonButton icon={RRadar} label="Point survey" tone="data" title="Any other survey measured at points (SP, VLF, a contractor's channel): CSV or Geosoft .xyz, with its method set on its card." {...methodBtn(null)} />
             <RibbonButton advanced icon={RLayers} label="Inversion" tone="model" title="Magnetics / gravity inversion and forward modelling (SimPEG)" {...geoBtn("inversion")} />
@@ -2940,8 +2941,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           <TaskPaneHeader title="Electromagnetic surveys (EM)" icon={Radio} tone="data" onClose={() => setGeoPane(null)} />
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5, marginBottom: 10 }}>{tr("EM measures how well the ground conducts electricity: massive sulphide, graphite, clay and salt water are conductors. Pick the kind of survey:")}</div>
           {[
+            { label: tr("TEM line data: channels, decays, decay constant…"), text: tr("Time-domain EM along lines (SkyTEM, a Workbench or Geosoft .xyz, a CSV with a column per gate): every channel stacked along a line, the decay at a station, and the decay constant mapped."), go: () => setGeoPane("tem"), help: "tem-lines" }, // #1986 step 1
             { label: tr("FDEM 1D: ground loop-loop (DUALEM, GEM-2)…"), text: tr("Frequency-domain readings along lines: conductivity against depth under each sounding, a 1D inversion."), go: () => setGeoPane("fdem"), help: "fdem-1d" },
-            { label: tr("TEM: one channel as points…"), text: tr("Time-domain EM: reading whole TEM lines (every channel, the decay at a station, a decay-constant grid) is coming. Today one channel (dB/dt, B-field or a decay constant) imports as a point survey."), go: () => { setMethodHint("tem"); setGeoPane("points"); }, help: "point-survey" },
+            { label: tr("TEM: one channel as points…"), text: tr("One channel already in a table (dB/dt, B-field or a decay constant) imported as a point survey."), go: () => { setMethodHint("tem"); setGeoPane("points"); }, help: "point-survey" },
           ].map((o) => (
             <div key={o.help} style={{ padding: "8px 10px", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 8, background: "var(--color-bg)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -2953,6 +2955,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           ))}
         </>)}
         {geoPane === "mt" && (<Suspense fallback={null}><MtSoundingsPane layers={layers} setLayers={setLayers} geophysSurveys={geophysSurveys} updateGeophysSurvey={updateGeophysSurvey} project={project} setEpsg={setEpsg} projectIsEmpty={projectIsEmpty} pendingFiles={mtDrop} onPendingDone={() => setMtDrop(null)} onClose={() => setGeoPane(null)} /></Suspense>)}{/* TASKS.csv #1989 */}
+        {geoPane === "tem" && (<Suspense fallback={null}><TemPane setLayers={setLayers} updateGeophysSurvey={updateGeophysSurvey} addRaster={addRaster} rasters={rasters} project={project} setEpsg={setEpsg} projectIsEmpty={projectIsEmpty} onClose={() => setGeoPane(null)} /></Suspense>)}{/* TASKS.csv #1986 step 1 */}
         {geoPane === "fdem" && (<Suspense fallback={null}><FdemPane layers={layers} setLayers={setLayers} geophysSurveys={geophysSurveys} updateGeophysSurvey={updateGeophysSurvey} project={project} setEpsg={setEpsg} projectIsEmpty={projectIsEmpty} pendingFiles={fdemDrop} onPendingDone={() => setFdemDrop(null)} onClose={() => setGeoPane(null)} /></Suspense>)}{/* TASKS.csv #1986 */}
         {geoPane === "logs" && (<Suspense fallback={null}><DownholeLogsPane layers={layers} customLayers={customLayers} assays={assays} assayElements={assayElements} onClose={() => setGeoPane(null)} onEstimate={() => goToModule("modelling")} /></Suspense>)}{/* TASKS.csv #1425 */}
         {geoPane === "budget" && (<>
