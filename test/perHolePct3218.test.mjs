@@ -22,5 +22,5 @@ test("every grade column under a '%' heading is the stored value times the displ
 test("wiring: the per-hole rows go through the intercept rows' conversion", () => {
   const s = readFileSync(new URL("../src/components/BestIntercepts.jsx", import.meta.url), "utf8");
   assert.match(s, /holeTotalsDisplay\(holeTotals\(results\), dg\)/);
-  assert.match(s, /const dg = \(v\) => \(pct \? v \/ 1e4 : v\);/);
+  assert.match(s, /const dg = \(v\) => \(conv \? toDisplay\(v, unit, shownUnit\) : v\);/ /* #3236 — any plain unit */);
 });
