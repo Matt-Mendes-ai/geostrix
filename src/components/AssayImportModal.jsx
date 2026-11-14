@@ -242,8 +242,9 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
                   <X role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => removeEl(e.symbol)} title={tr("Remove this element mapping")} aria-label={tr("Remove the {symbol} mapping", { symbol: e.symbol })} />
                 </div>
               ))}
-              {modal.elements.length === 0 && (
+              {modal.elements.length === 0 && (<>
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", padding: "6px 4px" }}>{tr("No element columns recognized — add one manually below.")}</div>
+                {(modal.qc?.parent_id || modal.qc?.sample_type) && modal.qc?.sample_id && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", padding: "0 4px 6px", lineHeight: 1.45 }}>{tr("This table links check samples to their originals ({cols}) but holds no results: import the table with the check samples' results, and its sample id, sample type and parent columns tie them to the originals.", { cols: [modal.qc.sample_id, modal.qc.parent_id, modal.qc.sample_type].filter(Boolean).join(", ") })}</div>}{/* TASKS.csv #2340 */}</>
               )}
             </div>
           ) : (

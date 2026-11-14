@@ -463,7 +463,7 @@ export default function GeochemModule() {
       const methods = methodCol ? Array.from(new Set(data.map((r) => r[methodCol]).filter(Boolean))) : [];
       const analytes = Array.from(new Set(data.map((r) => r[analyteCol]).filter(Boolean)));
       const elements = analytes.filter(isElementColumn).map((sym) => ({ symbol: sym, header: sym, unit: inferUnit(sym, sym), checked: true }));
-      setAssayModal({ file, fileName: file.name, format: "long", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol, analyte: analyteCol, value: valueCol, method: methodCol }, qc: qcColumns(headers), methods, selectedMethod: methods[0] || null, elements, ...projectImportChoices(assayElements, elements.map((e) => e.symbol)) /* #3217 */, ...preset });
+      setAssayModal({ file, fileName: file.name, format: "long", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol, analyte: analyteCol, value: valueCol, method: methodCol }, qc: qcColumns(headers, data) /* rows: #2340 */, methods, selectedMethod: methods[0] || null, elements, ...projectImportChoices(assayElements, elements.map((e) => e.symbol)) /* #3217 */, ...preset });
     } else {
       // TASKS.csv #210 — a single lab export can carry more than one column for the same element
       // (e.g. this session's real pXRF sample data has "Ag_XRF_Corrected_ppm_D", "Ag_pXRF_ppm", AND
@@ -483,7 +483,7 @@ export default function GeochemModule() {
         // TASKS.csv #3217 — headers the project already holds open with last time's column, unit and choices (a re-import multiplied seven
         // elements set to ppm by hand by 10,000), and the columns added by hand then are offered again
         const { elements } = seedFromProject(picked, assayElements, headers);
-        setAssayModal({ file, fileName: file.name, format: "wide", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol }, qc: qcColumns(headers), methods: [], selectedMethod: null, elements, ...projectImportChoices(assayElements, elements.map((e) => e.symbol)), ...preset });
+        setAssayModal({ file, fileName: file.name, format: "wide", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol }, qc: qcColumns(headers, data) /* rows: #2340 */, methods: [], selectedMethod: null, elements, ...projectImportChoices(assayElements, elements.map((e) => e.symbol)), ...preset });
       };
       if (data.length < ELEMENT_SCAN_CHUNKED_ROWS) { openWide(null); return; }
       const scanLabel = tr("Checking the element columns of {name}…", { name: file.name });
