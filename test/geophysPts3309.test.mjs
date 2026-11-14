@@ -62,8 +62,13 @@ test("the zoom: under the base size nothing is rebuilt; above it, the sizes are;
   const z = syncGeophysPts(g, [...ip, ...res], base({ minR: 6 }));
   assert.deepEqual(z.resized.sort(), ["IP.xyz", "Res.xyz"]); assert.deepEqual(z.rebuilt, []);
   assert.equal(batchesOf(g, "IP.xyz")[0], ipB, "rescaled in place, the same batch");
-  const t0 = (ip[0].value - 5) / 9.8; // the robust range of 5..14.8
-  assert.ok(ipB.instanceMatrix.array[0] > s0 && Math.abs(ipB.instanceMatrix.array[0] - symbolRadius(Math.min(1, Math.max(0, t0)), 6)) < 0.2, `${s0} -> ${ipB.instanceMatrix.array[0]}`);
+  const t0 = Math.min(1, Math.max(0, (ip[0].value - 5) / 9.8)); // the robust range of 5..14.8
+  // #3401 — the matrices keep the base radius (no rewrite, no upload); the shader's floor: base x max(1, minR x ratio) = symbolRadius(t, minR)
+  const f = ipB.userData.compact.floor, drawn = ipB.instanceMatrix.array[0] * Math.max(1, f.u.value * f.ratio[0]);
+  assert.equal(ipB.instanceMatrix.array[0], s0, "no matrix rewritten");
+  assert.equal(f.u.value, 6);
+  assert.ok(Math.abs(drawn - symbolRadius(t0, 6)) < 0.2, `${s0} -> ${drawn}`);
+  assert.equal(ipB.geometry.getAttribute("aFloor").count, ip.length);
   assert.equal(ipB.userData.compact.moves, undefined, "the pick index is not rebuilt for a size change");
   assert.equal(syncGeophysPts(g, [...ip, ...res], base({ minR: 6, origin: { x: 400100, y: 6300000, z: 0 } })).rebuilt.length, 2);
   assert.equal(symbolRadius(0.5, 0.2), 1.4 + 1.4); assert.equal(symbolRadius(0, 6), 6);
@@ -116,5 +121,7 @@ test("wired: the 3D View's build syncs per survey and keeps the surveys for the 
   assert.match(v, /if \(rows\.length\) import\("\.\.\/lib\/viewer\/geophysPts\.js"\)\.then\(\(m\) => \{ geophysPtsLib = m; buildGeophysPtsRef\.current\(\); \}\)/);
   assert.doesNotMatch(v, /^import [^\n]*lib\/viewer\/geophysPts\.js/m);
   // zooming in: shrunk at once, not after the zoom settles
-  assert.match(v, /if \(name === "geophys_pts" && mpp < builtRef\.current \/ 2 && floored\(builtRef\.current, mpp\)\) \{ zr\.key = key; zr\.at = Infinity; buildRef\.current\(\); continue; \}/);
+  assert.match(v, /if \(name === "geophys_pts" && mpp < builtRef\.current \/ 2 && floored\(builtRef\.current, mpp\)\) \{ zr\.key = key; zr\.at = Infinity; go\(\); continue; \}/);
+  // #3401 — go(): the survey points' floor set as a uniform (resizeSurveyPts), the build only when that cannot be done
+  assert.match(v, /const go = \(\) => \{ if \(name === "geophys_pts" && geophysPtsLib\?\.resizeSurveyPts\(sg, minSymbolRadiusM\(mpp, GEOPHYS_MIN_PX\)\)\) builtRef\.current = mpp; else buildRef\.current\(\); \};/);
 });

@@ -63,7 +63,8 @@ export function instanceSphere(batch, i, c) {
   const b = batch.userData.compact.base, o = i * 16, { center: s, radius } = g.boundingSphere, mw = batch.matrixWorld;
   c.set(b[o] * s.x + b[o + 4] * s.y + b[o + 8] * s.z + b[o + 12], b[o + 1] * s.x + b[o + 5] * s.y + b[o + 9] * s.z + b[o + 13], b[o + 2] * s.x + b[o + 6] * s.y + b[o + 10] * s.z + b[o + 14]).applyMatrix4(mw);
   const s2 = Math.max(b[o] ** 2 + b[o + 1] ** 2 + b[o + 2] ** 2, b[o + 4] ** 2 + b[o + 5] ** 2 + b[o + 6] ** 2, b[o + 8] ** 2 + b[o + 9] ** 2 + b[o + 10] ** 2);
-  return radius * Math.sqrt(s2) * mw.getMaxScaleOnAxis();
+  const f = batch.userData.compact.floor; // #3401 — a survey's zoom floor, applied by its shader
+  return radius * Math.sqrt(s2) * mw.getMaxScaleOnAxis() * (f ? Math.max(1, f.u.value * f.ratio[i]) : 1);
 }
 export function sphereHitDistance(batch, i, ray, at = _sh) {
   const r = instanceSphere(batch, i, _sc), d = ray.direction, p = ray.origin;

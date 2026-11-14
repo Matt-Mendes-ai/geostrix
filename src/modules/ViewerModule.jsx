@@ -2282,9 +2282,10 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
             const zr = zoomRef.current;
             // TASKS.csv #3309 — zooming in on the survey points: shrunk at once (an in-place rescale since #3309), not after the zoom settles;
             // symbols sized for a far view were drawn hundreds of pixels across, every frame took seconds and the zoom never settled
-            if (name === "geophys_pts" && mpp < builtRef.current / 2 && floored(builtRef.current, mpp)) { zr.key = key; zr.at = Infinity; buildRef.current(); continue; }
+            const go = () => { if (name === "geophys_pts" && geophysPtsLib?.resizeSurveyPts(sg, minSymbolRadiusM(mpp, GEOPHYS_MIN_PX))) builtRef.current = mpp; else buildRef.current(); }; // #3401 — the survey points' floor is a uniform: no rebuild
+            if (name === "geophys_pts" && mpp < builtRef.current / 2 && floored(builtRef.current, mpp)) { zr.key = key; zr.at = Infinity; go(); continue; }
             if (key !== zr.key) { zr.key = key; zr.at = now; }
-            else if (now - zr.at > 400 && needsSymbolRebuild(builtRef.current, mpp) && floored(builtRef.current, mpp)) { zr.at = Infinity; buildRef.current(); }
+            else if (now - zr.at > 400 && needsSymbolRebuild(builtRef.current, mpp) && floored(builtRef.current, mpp)) { zr.at = Infinity; go(); }
           }
         }
         if (gridGroupRef.current?.userData.labels) fitScreenLabels(gridGroupRef.current.userData.labels, camera, mount.clientHeight); // #2211
