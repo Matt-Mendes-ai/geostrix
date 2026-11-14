@@ -12059,5 +12059,8 @@
   "its dominant mineral": "su mineral dominante",
   "{n} interval(s) with none of them logged are not in the layer.": "{n} intervalo(s) sin ninguno de ellos registrado no están en la capa.",
   "{n} negative value(s) were left out.": "Se omitieron {n} valor(es) negativos.",
-  "{col} holds numbers, not mineral names: each different number would be its own legend row. Choose a column of mineral names, or a file's per-mineral amount columns (they are offered as minerals, with Total min as the value).": "{col} contiene números, no nombres de minerales: cada número distinto sería su propia fila en la leyenda. Elija una columna de nombres de minerales, o las columnas de cantidad por mineral del archivo (se ofrecen como minerales, con el Total min como valor)."
+  "{col} holds numbers, not mineral names: each different number would be its own legend row. Choose a column of mineral names, or a file's per-mineral amount columns (they are offered as minerals, with Total min as the value).": "{col} contiene números, no nombres de minerales: cada número distinto sería su propia fila en la leyenda. Elija una columna de nombres de minerales, o las columnas de cantidad por mineral del archivo (se ofrecen como minerales, con el Total min como valor).",
+  "{shown} of {count}": "{shown} de {count}",
+  "{hidden} of {count} intervals hidden by the code filter (Filter / legend)": "{hidden} de {count} intervalos ocultos por el filtro de códigos (Filtro / leyenda)",
+  "Undo could not remove {symbol}: the assay table has changed since it was added, so it was left as it is.": "Deshacer no pudo quitar {symbol}: la tabla de ensayes cambió desde que se agregó, así que se dejó como está."
 }

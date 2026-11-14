@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const src = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
+const src = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const body = src.slice(src.indexOf("const gatherLithoSurfaceSpec = "), src.indexOf("const gatherLithoSurfaceSpec = ") + 60000);
 
 test("#3264 an overburden unit takes no structure pick: its dip comes from its contacts, and the run says why", () => {

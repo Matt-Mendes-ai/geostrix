@@ -12059,5 +12059,8 @@
   "its dominant mineral": "son minéral dominant",
   "{n} interval(s) with none of them logged are not in the layer.": "{n} intervalle(s) sans aucun d'eux noté ne sont pas dans la couche.",
   "{n} negative value(s) were left out.": "{n} valeur(s) négative(s) ont été laissées de côté.",
-  "{col} holds numbers, not mineral names: each different number would be its own legend row. Choose a column of mineral names, or a file's per-mineral amount columns (they are offered as minerals, with Total min as the value).": "{col} contient des nombres, pas des noms de minéraux : chaque nombre différent serait sa propre ligne de légende. Choisissez une colonne de noms de minéraux, ou les colonnes de quantité par minéral du fichier (elles sont proposées comme minéraux, avec le Total min comme valeur)."
+  "{col} holds numbers, not mineral names: each different number would be its own legend row. Choose a column of mineral names, or a file's per-mineral amount columns (they are offered as minerals, with Total min as the value).": "{col} contient des nombres, pas des noms de minéraux : chaque nombre différent serait sa propre ligne de légende. Choisissez une colonne de noms de minéraux, ou les colonnes de quantité par minéral du fichier (elles sont proposées comme minéraux, avec le Total min comme valeur).",
+  "{shown} of {count}": "{shown} sur {count}",
+  "{hidden} of {count} intervals hidden by the code filter (Filter / legend)": "{hidden} intervalles sur {count} masqués par le filtre de codes (Filtre / légende)",
+  "Undo could not remove {symbol}: the assay table has changed since it was added, so it was left as it is.": "Annuler n'a pas pu retirer {symbol} : la table des analyses a changé depuis son ajout, elle a donc été laissée telle quelle."
 }

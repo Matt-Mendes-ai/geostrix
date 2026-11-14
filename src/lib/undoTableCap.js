@@ -48,7 +48,7 @@ export function capUndoTables(steps, held, { keep = KEEP_REMOVED, keepAssays = K
     if (s?.customLayers?.some((l) => dropRows.has(l?.rows))) s = { ...s, customLayers: s.customLayers.filter((l) => !dropRows.has(l?.rows)) };
     if (s && dropAssays.has(s.assays)) s = { ...s, assays: later ?? (held?.[0]?.assays ?? []) };
     out[i] = s;
-    if (s && !dropAssays.has(s.assays)) later = s.assays;
+    if (s && !dropAssays.has(s.assays) && Array.isArray(s.assays)) later = s.assays; // #3110 — never a calculated element's undo token
   }
   return { steps: out, layers, assayRows };
 }

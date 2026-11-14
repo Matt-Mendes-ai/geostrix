@@ -64,3 +64,23 @@ export function orderedGroupsOf(legend, orders) {
   const lent = (legend?.loadedGroups || []).filter((g) => orders?.[g]?.length && !own.includes(g));
   return [...own, ...lent];
 }
+
+// TASKS.csv #3296 (from #2940, review #2876 WA iron) — the 3D View listed a layer's codes by count in its inspector and alphabetically on
+// the figure legend (14 of 34 shown), and neither took the order set on a Layout legend (#3130). Both now use one order: the codes the
+// project's set order names first, in that order, then the rest by count (commonest first), so the figure's cut keeps the commonest.
+// groups: legendGroups' { label, items, counts } -> the same groups reordered (a group without counts keeps its order before the set one)
+export function viewCodeOrder(groups, orders) {
+  const byCount = (groups || []).map((g) => {
+    if (!g?.counts || !g.items?.length || g.ramp || g.image) return g;
+    const idx = g.items.map((_, i) => i).sort((a, b) => g.counts[b] - g.counts[a] || a - b);
+    return { ...g, items: idx.map((i) => g.items[i]), counts: idx.map((i) => g.counts[i]) };
+  });
+  return applyCodeOrder(byCount, orders);
+}
+
+// the inspector's [value, count] entries (by count) with the group's set order first: labelOf(value) is the row label the order names
+export function entriesInCodeOrder(entries, order, labelOf = (v) => v) {
+  if (!order?.length || !entries?.length) return entries;
+  const rank = new Map(order.map((l, i) => [l, i]));
+  return entries.map((e, i) => [e, i]).sort((a, b) => (rank.get(labelOf(a[0][0])) ?? Infinity) - (rank.get(labelOf(b[0][0])) ?? Infinity) || a[1] - b[1]).map(([e]) => e);
+}

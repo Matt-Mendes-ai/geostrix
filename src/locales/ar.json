@@ -12059,5 +12059,8 @@
   "its dominant mineral": "معدنها السائد",
   "{n} interval(s) with none of them logged are not in the layer.": "{n} فترة لم يُسجَّل فيها أي منها ليست في الطبقة.",
   "{n} negative value(s) were left out.": "استُبعدت {n} قيمة سالبة.",
-  "{col} holds numbers, not mineral names: each different number would be its own legend row. Choose a column of mineral names, or a file's per-mineral amount columns (they are offered as minerals, with Total min as the value).": "يحتوي {col} على أرقام، لا أسماء معادن: سيصبح كل رقم مختلف سطرًا مستقلًا في المفتاح. اختر عمودًا لأسماء المعادن، أو أعمدة كمية كل معدن في الملف (تُعرض كمعادن، وقيمتها مجموع المعادن Total min)."
+  "{col} holds numbers, not mineral names: each different number would be its own legend row. Choose a column of mineral names, or a file's per-mineral amount columns (they are offered as minerals, with Total min as the value).": "يحتوي {col} على أرقام، لا أسماء معادن: سيصبح كل رقم مختلف سطرًا مستقلًا في المفتاح. اختر عمودًا لأسماء المعادن، أو أعمدة كمية كل معدن في الملف (تُعرض كمعادن، وقيمتها مجموع المعادن Total min).",
+  "{shown} of {count}": "{shown} من {count}",
+  "{hidden} of {count} intervals hidden by the code filter (Filter / legend)": "{hidden} من {count} فترة مخفية بواسطة مرشّح الرموز (المرشّح / المفتاح)",
+  "Undo could not remove {symbol}: the assay table has changed since it was added, so it was left as it is.": "تعذّر على التراجع إزالة {symbol}: تغيّر جدول التحاليل منذ إضافته، لذا تُرك كما هو."
 }

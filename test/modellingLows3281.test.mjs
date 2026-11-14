@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { exportSurfaceTS } from "../src/lib/meshExport.js";
 
-const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
+const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
 test("#3281 the implicit engine is kept warm between runs, as the gridding jobs are (#3124)", () => {
   const j = read("../python-sidecar/app/jobs.py");
