@@ -39,7 +39,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 // A simple drag-and-drop page-layout canvas. Elements are absolutely positioned on an A4-landscape
 // page; "Export PDF" prints the page via the Electron main process (or the browser print dialog).
 
-import { PAGE_FORMATS, pageFormatOf, pagePx, pageMm, pageCssName } from "../lib/pageFormats.js"; // TASKS.csv #398; mm / named pages: #908
+import { PAGE_FORMATS, pageFormatOf, pagePx, pageMm, pageCssName, addPagesOnPaper, snapshotPagePaper } from "../lib/pageFormats.js"; // TASKS.csv #398; mm / named pages: #908; on their paper: #3370
 import { azimuthToGridOffset, setIgrfModule } from "../lib/azimuthRef.js"; // TASKS.csv #399 — GN/TN/MN diagram
 import { localDate, collarDrillDate, schematicAngles, rayTip, yearLater, keepOnSheet, DIAGRAM_W, DIAGRAM_H, ORIGIN } from "../lib/northDiagram.js"; // TASKS.csv #1773 / #2137 / #2310 / #2478 / #2613
 import * as igrfModule from "../lib/igrf.js"; // #552 — Layout is a lazy chunk: it brings IGRF with it
@@ -426,10 +426,13 @@ export default function LayoutModule() {
     const frames = elements.filter((e) => e.type === "viewport" || e.type === "drillplan" || (e.type === "image" && e.worldWidthAtCaptureM != null)).map(elementBox);
     const overlapsFrame = (a) => frames.some((f) => Math.min(a.x + a.w, f.x + f.w) - Math.max(a.x, f.x) > 4 && Math.min(a.y + a.h, f.y + f.h) - Math.max(a.y, f.y) > 4);
     if (frames.length && additions.some(overlapsFrame)) {
-      const atTop = additions.map((a, i) => ({ ...a, x: 40, y: 40 + i * 20 }));
-      const moved = atTop.map((a) => { const l = legends.find((g) => g.boundViewportId === a.id); if (!l) return null; const right = a.x + a.w + 16; return { ...l, x: right + 170 <= A4.w ? right : a.x, y: right + 170 <= A4.w ? a.y : a.y + a.h + 16 }; }).filter(Boolean);
+      // TASKS.csv #3370 (review #3195) — the new page was A4 landscape whatever this page's paper: a section fitted to an A3 portrait page
+      // ran 378 mm down a 210 mm sheet. It takes this page's paper (portrait when the pictures are taller than wide), fitted to it.
+      const paper = snapshotPagePaper(activePage?.format, additions.map((a) => a.aspect)), P = pagePx(paper);
+      const atTop = additions.map((a, i) => { const w = Math.round(Math.min(P.w - 160, 700, (P.h - 160) * a.aspect)); return { ...a, x: 40, y: 40 + i * 20, w, h: Math.round(w / a.aspect) }; });
+      const moved = atTop.map((a) => { const l = legends.find((g) => g.boundViewportId === a.id); if (!l) return null; const right = a.x + a.w + 16; return { ...l, x: right + 170 <= P.w ? right : a.x, y: right + 170 <= P.w ? a.y : a.y + a.h + 16 }; }).filter(Boolean);
       const name = tr("Snapshot {n}", { n: layoutPages.length + 1 });
-      addLayoutPages([{ name, elements: [...atTop, ...moved] }]);
+      addPagesOnPaper(addLayoutPages, setLayoutPageFormat, [{ name, elements: [...atTop, ...moved] }], paper);
       setSyncNotice(tr("The snapshot would have covered a frame on this page, so it is on a new page, \"{name}\".", { name }));
       additions.forEach((img) => consumeLayoutImage(img.id));
       return;
@@ -1369,7 +1372,7 @@ export default function LayoutModule() {
                         ))}</div>
                       </div>
                     ); })()}
-                    {conts.length > 0 && <button onClick={() => addLayoutPages(conts.map((t, i) => ({ name: `${activePage?.name || tr("Collars")} (${i + 2})`, elements: [t], batch: `collars_${sel.id}` })))} style={{ ...pBtn, marginBottom: 8 }}>{tr("Continue on {n} new page(s)", { n: conts.length })}</button>}
+                    {conts.length > 0 && <button onClick={() => addPagesOnPaper(addLayoutPages, setLayoutPageFormat, conts.map((t, i) => ({ name: `${activePage?.name || tr("Collars")} (${i + 2})`, elements: [t], batch: `collars_${sel.id}` })), activePage?.format /* #3370 — the table's own paper */)} style={{ ...pBtn, marginBottom: 8 }}>{tr("Continue on {n} new page(s)", { n: conts.length })}</button>}
                   </>);
                 })()}
                 <FrameControls sel={sel} updateSelected={updateSelected} />
@@ -1828,7 +1831,7 @@ export default function LayoutModule() {
             layers={layers}
             legendOverride={viewerUiState?.legendOverride} // TASKS.csv #1092 — the 3D legend's colours / names
             sections={sections}
-            addLayoutPages={addLayoutPages}
+            addLayoutPages={(pgs) => addPagesOnPaper(addLayoutPages, setLayoutPageFormat, pgs, activePage?.format) /* #3370 — laid out for this page's paper, so made on it */}
             page={A4}
             assays={assays} assayElements={assayElements} /* #1480 — assay tracks on the strip logs */
           />

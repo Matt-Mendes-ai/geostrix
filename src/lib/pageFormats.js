@@ -43,3 +43,19 @@ export function pdfOptions(format) {
 // TASKS.csv #1143 — the paper for a one-page section PDF: portrait only for a figure taller than it is wide (landscape would
 // shrink it down the middle of the sheet). -> { landscape }
 export function sectionPaper(w, h) { return { landscape: !(h > w) }; }
+
+// TASKS.csv #3370 (review #3195) — pages the app makes (Atlas pages, a table's continuation, a snapshot's own page, Best intercepts' pages)
+// were always A4 landscape: the store's addLayoutPages keeps a page's id, name, elements and batch only, so their paper (laid out for the
+// page they came from) was lost. This adds them, then gives each the paper, as 'Add page' (#3028) does. `format` null = the default paper.
+export function addPagesOnPaper(addLayoutPages, setLayoutPageFormat, pages, format) {
+  const ids = addLayoutPages(format ? pages.map((pg) => ({ ...pg, format })) : pages) || [];
+  if (format && typeof setLayoutPageFormat === "function") for (const id of ids) setLayoutPageFormat(id, pageFormatOf({ format }));
+  return ids;
+}
+// The paper for a snapshot's own page (#3370): the page it came from, turned to portrait when every picture is taller than wide.
+export function snapshotPagePaper(format, aspects) {
+  const f = pageFormatOf({ format });
+  const tall = aspects.length > 0 && aspects.every((a) => Number.isFinite(a) && a < 1);
+  if (tall && f.orientation === "landscape") return { ...f, orientation: "portrait" };
+  return format ? f : null;
+}
