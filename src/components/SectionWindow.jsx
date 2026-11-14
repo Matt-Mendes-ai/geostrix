@@ -140,6 +140,18 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   const setTextFont = (v) => { setTextFontState(v); try { localStorage.setItem("geostrix.sectionFont", v); } catch { /* private window */ } };
   const [textScale, setTextScaleState] = useState(() => { try { const v = Number(localStorage.getItem("geostrix.sectionTextScale")); return v >= 0.7 && v <= 2 ? v : 1; } catch { return 1; } });
   const setTextScale = (v) => { const n = Math.max(0.7, Math.min(2, Number(v) || 1)); setTextScaleState(n); try { localStorage.setItem("geostrix.sectionTextScale", String(n)); } catch { /* private window */ } };
+  // TASKS.csv #3304 — 'Fit to window' can shrink a tall section's labels (10 drawing units at the text size) below ~7 px on screen: said
+  // beside the box. Measured from the drawn width over the viewBox's, again when the drawing is resized.
+  const [fitTextPx, setFitTextPx] = useState(null);
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!fitWhole || !svg || typeof ResizeObserver === "undefined") { setFitTextPx(null); return undefined; }
+    const measure = () => { const vb = svg.viewBox?.baseVal, w = svg.getBoundingClientRect().width; setFitTextPx(vb?.width && w ? (10 * textScale * w) / vb.width : null); };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(svg);
+    return () => ro.disconnect();
+  }, [fitWhole, textScale, vExag, data]);
   // TASKS.csv #1130 — "User should be able to set opacity of structures" (kept per user, like the hole width)
   const [structOpacity, setStructOpacityState] = useState(() => { try { const v = Number(localStorage.getItem("geostrix.sectionStructOpacity")); return v > 0 && v <= 1 ? v : 1; } catch { return 1; } });
   const setStructOpacity = (v) => { const n = Math.max(0.05, Math.min(1, Number(v) || 1)); setStructOpacityState(n); try { localStorage.setItem("geostrix.sectionStructOpacity", String(n)); } catch { /* private window */ } };
@@ -501,6 +513,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
             ×
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("Scale the section to fit the window, both ways, at its VE (off: full width, scroll for detail)")}><input type="checkbox" checked={fitWhole} onChange={(e) => setFitWhole(e.target.checked)} />{tr("Fit to window")}</label>{/* #3259 */}
+          {fitWhole && fitTextPx != null && fitTextPx < 7 && <span role="note" style={{ fontSize: 11, color: "#8a6a1f" }} title={tr("Fitted whole, this section's labels are drawn under 7 px tall. A lower VE makes it less tall, so it fits larger; or untick Fit to window and scroll.")}>{tr("Text under 7 px: lower the VE, or untick to scroll")}</span>}{/* #3304 */}
           {onPopOut && !drawing && <button onClick={() => onPopOut({ ...data, contacts, labels, savedContactsKey: savedKey })} style={btnStyle(false)} title={tr("Open this section in a window of its own, to compare it beside another. It uses more memory than a tab.")}>{tr("Own window")}</button>}{/* #1303 */}
           <button onClick={exportPNG} style={btnStyle(false)} title={tr("Export section → PNG")}><Download size={14} />{" "}{tr("PNG")}</button>
           <button onClick={exportSVG} style={btnStyle(false)} title={tr("Export section → SVG")}><Download size={14} />{" "}{tr("SVG")}</button>

@@ -17,7 +17,7 @@ test("#1405: the walls hang below the ground grid, as deep as the drilling", () 
   const g = readFileSync(new URL("../src/lib/viewer/gridGroup.js", import.meta.url), "utf8");
   // #3277 — and up to the highest collar: the walls' middle is lift + up - (h + up) / 2
   assert.ok(g.includes("const H = h + up, mid = lift + up - H / 2;") && g.includes("back.position.set(0, mid, -size / 2);") && g.includes("side.position.set(-size / 2, mid, 0);"));
-  assert.ok(v.includes("buildGridGroup(gridConfig, gridPlacement(collars, survey), DEFAULT_GRID.color)") && v.includes("}, [gridConfig, collars, survey]);"));
+  assert.ok(v.includes("buildGridGroup(gridConfig, gridPlacement(collars, survey, tracesRef.current /* #3355 */), DEFAULT_GRID.color)") && v.includes("}, [gridConfig, collars, survey, tracesSeq]);")) // #3355: the traces too;
 });
 
 test("#1405: the depth estimate and the wall height", async () => {
