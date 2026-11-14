@@ -130,6 +130,7 @@
   "Inversion": "النمذجة العكسية",
   "Lab certificates": "شهادات المختبر",
   "Legend": "مفتاح الرموز",
+  "The unit {symbol} is shown in, kept with the project and shared with Best intercepts. The stored values are unchanged; the cut-offs and the cap are typed in the unit shown.": "الوحدة التي يُعرض بها {symbol}، محفوظة مع المشروع ومشتركة مع أفضل التقاطعات. القيم المخزنة لا تتغير؛ وتُكتب حدود القطع والسقف بالوحدة المعروضة.",
   "The background task could not start.": "تعذّر بدء المهمة في الخلفية.",
   "Triangulating {n} points…": "جارٍ تثليث {n} نقطة…",
   "Drawing the map…": "جارٍ رسم الخريطة…",

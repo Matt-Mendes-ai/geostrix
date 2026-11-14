@@ -130,6 +130,7 @@
   "Inversion": "Inversão",
   "Lab certificates": "Certificados de lab.",
   "Legend": "Legenda",
+  "The unit {symbol} is shown in, kept with the project and shared with Best intercepts. The stored values are unchanged; the cut-offs and the cap are typed in the unit shown.": "A unidade em que {symbol} é mostrado, guardada com o projeto e compartilhada com Melhores interseções. Os valores armazenados não mudam; os teores de corte e o teto são digitados na unidade mostrada.",
   "The background task could not start.": "A tarefa em segundo plano não pôde iniciar.",
   "Triangulating {n} points…": "Triangulando {n} pontos…",
   "Drawing the map…": "Desenhando o mapa…",

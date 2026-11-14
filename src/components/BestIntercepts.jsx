@@ -62,12 +62,10 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
   const [continuePages, setContinuePages] = useKeptState(keptScope, "bi.continuePages", false); // TASKS.csv #2708
   const pctOk = unit === "ppm" && !PRECIOUS_METALS.has(symbol);
   // TASKS.csv #3236 — the unit shown is the project's choice for the element (project.displayUnits, set in 'Show in' below, kept with the
-  // project); 'Show as %' (kept for the session, #3223) moves into it once. A project's choice is read whatever the build; before the store
-  // has the setter, 'Show as %' works as it did for an element with no choice.
-  const unitsKept = typeof setDisplayUnit === "function";
+  // project, store setDisplayUnit); a session's 'Show as %' (#3223, before #3236) moves into it once
   const chosen = project?.displayUnits?.[symbol];
-  const shownUnit = isPlainUnit(unit) && isPlainUnit(chosen) ? chosen : !unitsKept && pctOk && asPct ? "%" : null;
-  useEffect(() => { if (unitsKept && asPct) { if (pctOk && !chosen) setDisplayUnit(symbol, "%"); setAsPct(false); } }, [unitsKept, asPct, pctOk, chosen, symbol]);
+  const shownUnit = isPlainUnit(unit) && isPlainUnit(chosen) ? chosen : null;
+  useEffect(() => { if (asPct) { if (pctOk && !chosen) setDisplayUnit(symbol, "%"); setAsPct(false); } }, [asPct, pctOk, chosen, symbol]);
   const conv = shownUnit != null && displayFactor(unit, shownUnit) !== 1; // a converted value
   const pct = conv; // the name the code below reads (#3221): 'the grades are shown converted'
   const dispUnit = shownUnit || unitL; // a chosen unit, else the stored one's label (g/t for a precious metal in ppm, #1680)
@@ -324,8 +322,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
                 {symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, elementUnits[s])})</option>)}
               </select>
             </label>
-            {!unitsKept && pctOk && <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 4, cursor: "pointer" }} title={tr("Show the grades as % (ppm / 10,000) in the table, the Layout table and an extra CSV column. The cut-off and 'Including at' are then typed in % too.")}><input type="checkbox" checked={asPct} onChange={(e) => setAsPct(e.target.checked)} />{tr("Show as %")}</label>}
-            {unitsKept && isPlainUnit(unit) && <label style={fieldLabel} title={tr("The unit {symbol} is shown in, kept with the project: this table, the Layout table and an extra CSV column. The stored values and the CSV's stored-unit columns are unchanged; the cut-off and 'Including at' are typed in the unit shown.", { symbol })}>{tr("Show in")}
+            {isPlainUnit(unit) && <label style={fieldLabel} title={tr("The unit {symbol} is shown in, kept with the project: this table, the Layout table and an extra CSV column. The stored values and the CSV's stored-unit columns are unchanged; the cut-off and 'Including at' are typed in the unit shown.", { symbol })}>{tr("Show in")}
               <select value={shownUnit || ""} onChange={(e) => setDisplayUnit(symbol, e.target.value || null)} style={inp} aria-label={tr("Show in")}>
                 <option value="">{tr("As stored ({unit})", { unit: unitL })}</option>
                 {DISPLAY_UNITS.filter((u) => u !== unitL).map((u) => <option key={u} value={u}>{u}</option>)}
