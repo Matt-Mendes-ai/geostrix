@@ -5352,7 +5352,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         content: zipBytes /* #1040 bytes */,
       });
       if (!res?.ok) { if (res?.error) throw new Error(res.error); return; } // cancelled: say nothing
-      setNotices((p) => [...p, notice("Exported {features} feature(s) from \"{label}\" as a shapefile (.zip — .shp/.shx/.dbf{v}).", { features: features.length, label, v: project?.epsg ? tr("/.prj") : "" })]);
+      setNotices((p) => [...p, appendNotice(notice("Exported {features} feature(s) from \"{label}\" as a shapefile (.zip — .shp/.shx/.dbf{v}).", { features: features.length, label, v: project?.epsg ? tr("/.prj") : "" }), tx.bearingAttributeNote(features, ex?.tie) /* #3187 */)]);
     } catch (err) {
       setNotices((p) => [...p, errorNotice(tr("Shapefile export failed: {message}", { message: err.message }))]);
     }
@@ -5373,7 +5373,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         content: gpkgBytes /* #1040 bytes */,
       });
       if (!res?.ok) { if (res?.error) throw new Error(res.error); return; } // cancelled: say nothing
-      setNotices((p) => [...p, notice("Exported {features} feature(s) from \"{label}\" as a GeoPackage (.gpkg).", { features: features.length, label })]);
+      setNotices((p) => [...p, appendNotice(notice("Exported {features} feature(s) from \"{label}\" as a GeoPackage (.gpkg).", { features: features.length, label }), tx.bearingAttributeNote(features, ex?.tie) /* #3187 */)]);
     } catch (err) {
       setNotices((p) => [...p, errorNotice(tr("GeoPackage export failed: {message}", { message: err.message }))]);
     }
