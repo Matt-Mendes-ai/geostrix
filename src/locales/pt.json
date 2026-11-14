@@ -12371,5 +12371,7 @@
   "The file's distance unit is {u}: its coordinates are used as they are, not converted to metres.": "A unidade de distância do arquivo é {u}: as coordenadas são usadas como estão, sem conversão para metros.",
   "A geoh5 file carries no coordinate system: its coordinates are used as they are, in the project's.": "Um arquivo geoh5 não traz sistema de coordenadas: as coordenadas são usadas como estão, no do projeto.",
   "A Geoscience ANALYST workspace: its points, curves, surfaces, block models and 2D grids are read. Drillholes and other objects are listed as not read.": "Um espaço de trabalho do Geoscience ANALYST: são lidos os pontos, curvas, superfícies, modelos de blocos e grades 2D. Os furos e outros objetos são listados como não lidos.",
-  "Import Geoscience ANALYST (.geoh5)…": "Importar Geoscience ANALYST (.geoh5)…"
+  "Import Geoscience ANALYST (.geoh5)…": "Importar Geoscience ANALYST (.geoh5)…",
+  "The unit {symbol} is shown in here and in Best intercepts and Grade stats. Display only: the rules are worked in the stored unit.": "A unidade em que {symbol} é mostrado aqui e em Melhores intervalos e Estatísticas de teor. Apenas de exibição: as regras são calculadas na unidade guardada.",
+  "{n} of them lie more than {d} m from the nearest collar (the farthest {m} m): the surface through the collars is a guess there. A terrain gives the real ground.": "{n} delas estão a mais de {d} m do colar mais próximo (a mais distante a {m} m): ali a superfície pelos colares é um palpite. Um terreno dá o solo real."
 }
