@@ -10,7 +10,8 @@ const pointsBox = (polylines) => {
   return Number.isFinite(a) ? [a, b, c, d] : null;
 };
 // -> [{ kind: "raster" | "terrain" | "map layer" | "boundary", name, far }] of the visible layers far from the collars
-export function planFarLayers({ rasters = [], terrain, mapLayers = [], boundaries = [], collars = [] }) {
+// surveys (TASKS.csv #3342): lib/planSurveys.js surveysOnPlan's entries ({ name, box }), the Geophysics point surveys drawn on the plan
+export function planFarLayers({ rasters = [], terrain, mapLayers = [], boundaries = [], collars = [], surveys = [] }) {
   if (!(collars || []).length) return [];
   const out = [];
   const check = (kind, name, b) => { const far = b && farFromCollars(b, collars); if (far) out.push({ kind, name, far }); };
@@ -18,9 +19,10 @@ export function planFarLayers({ rasters = [], terrain, mapLayers = [], boundarie
   if (terrain) check("terrain", terrain.name, terrain.bbox);
   mapLayers.forEach((l) => l.visible !== false && check("map layer", l.name, l.bbox));
   boundaries.forEach((b) => b.visible !== false && check("boundary", b.name, pointsBox(b.polylines)));
+  (surveys || []).forEach((s) => check("survey", s.name, s.box)); // #3342
   return out;
 }
-export function planDataExtent({ rasters = [], terrain, mapLayers = [], boundaries = [], collars = [], surfaceSamples = [] }) {
+export function planDataExtent({ rasters = [], terrain, mapLayers = [], boundaries = [], collars = [], surfaceSamples = [], surveys = [] }) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   const box = (b) => { if (!b) return; if (b[0] < x0) x0 = b[0]; if (b[1] < y0) y0 = b[1]; if (b[2] > x1) x1 = b[2]; if (b[3] > y1) y1 = b[3]; };
   const pt = (p) => { if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) box([p.x, p.y, p.x, p.y]); };
@@ -31,5 +33,6 @@ export function planDataExtent({ rasters = [], terrain, mapLayers = [], boundari
   boundaries.forEach((b) => b.visible !== false && near(pointsBox(b.polylines)) && (b.polylines || []).forEach((pl) => pl.forEach(pt)));
   collars.forEach(pt);
   surfaceSamples.forEach(pt);
+  (surveys || []).forEach((s) => near(s.box) && box(s.box)); // #3342 — the point surveys
   return Number.isFinite(x0) && x1 >= x0 ? [x0, y0, Math.max(x1, x0 + 1), Math.max(y1, y0 + 1)] : null;
 }

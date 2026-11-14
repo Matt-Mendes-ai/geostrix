@@ -49,5 +49,5 @@ test("a file with one feature still gives one claim named after the file, with i
 test("the Claims / Boundaries routes pass featureOf and attributes for KML and GeoJSON / GPX", () => {
   const src = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
   assert.match(src, /return \{ polylines, featureOf, attributes, note: withLonLatSource\(lonLatNote\(tie\)\) \};/);
-  assert.match(src, /return \{ polylines, closedFlags, featureOf, attributes, \.\.\.\(partNames \? \{ partNames \} : \{\}\), note:/);
+  assert.match(src, /return \{ polylines(: read)?, closedFlags, featureOf, attributes, \.\.\.\(partNames \? \{ partNames \} : \{\}\), note[:\s}]/); // polylines: read — #3341
 });

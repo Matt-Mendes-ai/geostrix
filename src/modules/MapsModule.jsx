@@ -3,7 +3,7 @@
 // layers and all the cartography tab in one tab" (+ "also boundaries, currently in geophysics tab"). The tools themselves stay in
 // their modules (RasterModule, GeophysicsModule's map panes, CartographyModule), shown here "embedded": this tab owns the ribbon,
 // each button picks the pane (and, for an import, asks the module to start it through a module action, #565).
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { mineGridOf } from "../lib/mineGrid.js"; // TASKS.csv #2586
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx";
 import { Image, Satellite, Mountain, MapPinned, Map as MapIcon, Globe, Globe2, Shapes, Flag, Layers, Layers3, FileSpreadsheet, Rainbow } from "../components/icons.js"; // Layers3: #3287
@@ -13,6 +13,7 @@ import { crsName } from "../lib/reproject.js";
 import EmptyState from "../components/EmptyState.jsx";
 import MapsPlanView from "../components/MapsPlanView.jsx"; // TASKS.csv #1625
 import { planDataExtent } from "../lib/mapsPlan.js";
+import { surveysOnPlan } from "../lib/planSurveys.js"; // TASKS.csv #3342
 import RasterModule from "./RasterModule.jsx";
 import GeophysicsModule from "./GeophysicsModule.jsx";
 import CartographyModule from "./CartographyModule.jsx";
@@ -28,8 +29,9 @@ const CRS_PANES = new Set(["crs", "layer", "file"]);
 
 export default function MapsModule() {
   const [pane, setPane] = useState("raster");
-  const { rasters = [], terrain, mapLayers = [], boundaries = [], project, surfaceSamples = [], collars = [], addMapLayer, goToModule } = useStore(); // surfaceSamples: TASKS.csv #1792; collars: #1625; addMapLayer / goToModule: #2019
-  const hasPlan = !!planDataExtent({ rasters, terrain, mapLayers, boundaries, collars, surfaceSamples }); // #1625 — a plan of it, else the card
+  const { rasters = [], terrain, mapLayers = [], boundaries = [], project, surfaceSamples = [], collars = [], addMapLayer, goToModule, layers = {} } = useStore(); // surfaceSamples: TASKS.csv #1792; collars: #1625; addMapLayer / goToModule: #2019; layers: #3342
+  const surveys = useMemo(() => surveysOnPlan(layers.geophys_pts), [layers.geophys_pts]); // #3342 — the point surveys are on the plan
+  const hasPlan = !!planDataExtent({ rasters, terrain, mapLayers, boundaries, collars, surfaceSamples, surveys }); // #1625 — a plan of it, else the card
   useModuleAction(["maps-crs"], () => setPane("crs")); // the Set project CRS menu item
   useModuleAction(["maps-terrain"], () => setPane("terrain")); // TASKS.csv #1429 — the inversion pane's 'Go to Maps › Terrain'
   // TASKS.csv #1994 — a lidar file dropped on the 3D View or the Geophysics tab: the Terrain pane, which opens it
@@ -51,8 +53,26 @@ export default function MapsModule() {
       if (!all.length) return;
       const routes = mapsDropRoutes(all.map((f) => f.name)), byName = new Map(all.map((f) => [f.name, f]));
       const files = routes.raster.map((n) => byName.get(n)), others = [...routes.other, ...grouped.unmatched.map((f) => f.name)];
-      const toViewer = routes.table.map((n) => byName.get(n)), notes = [];
+      const toViewer = [], notes = [];
       const crsReady = !!project?.epsg && project?.crsSet !== false; // an unset project CRS: the 3D view's import adopts the file's (#607)
+      // TASKS.csv #3342 (Galore Creek review) — a CSV with X / Y (or longitude / latitude) and no hole id is a table of points (stations,
+      // electrodes, pads, sample sites): asked, it becomes a point layer in Map layers; otherwise it opens the 3D view's import as before
+      for (const n of routes.table) {
+        const f = byName.get(n);
+        if (!crsReady || !/\.(csv|txt)$/i.test(n) || f.size > 50e6) { toViewer.push(f); continue; }
+        const [{ default: Papa }, { pointTableColumns, pointTableLayer }] = await Promise.all([import("papaparse"), import("../lib/planSurveys.js")]);
+        const text = await f.text();
+        const head = Papa.parse(text, { preview: 1 }).data[0] || [];
+        const cols = pointTableColumns(head);
+        if (!cols || !window.confirm(tr("{name} has coordinate columns ({x}, {y}) and no hole id: put its rows on the map as points?", { name: n, x: cols?.x, y: cols?.y }) + "\n\n" + tr("OK — a point layer in Map layers (stations, electrodes, sample sites).") + "\n" + tr("Cancel — open the drillhole import."))) { toViewer.push(f); continue; }
+        const rows = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
+        const layer = buildLayer(pointTableLayer(n.replace(/\.[^.]+$/, ""), rows, cols), { sourceName: n.replace(/\.[^.]+$/, ""), projectEpsg: projectTargetEpsg(project), qml: null, sourceOverride: null, mineGrid: mineGridOf(project), collars });
+        if (!layer?.features?.length) { notes.push(tr("{name}: no rows with usable coordinates.", { name: n })); continue; }
+        const twin = sameMapLayer(mapLayers, layer);
+        if (twin) { notes.push(tr("{name} is already in Map layers as \"{layer}\" ({features}): not added again.", { name: n, layer: twin.name, features: featureCountText(layer.features.length, layer.geomType) })); continue; }
+        addMapLayer({ ...layer, drapeMode: "terrain" });
+        notes.push(tr("{name}: {features} added to Map layers as points, {crsNote}.", { name: n, features: featureCountText(layer.features.length, layer.geomType), crsNote: layer.crsNote }) + (layer.skipped ? " " + tr("{n} row(s) without coordinates were left out.", { n: layer.skipped.toLocaleString() }) : ""));
+      }
       for (const n of routes.vector) {
         const f = byName.get(n);
         const got = crsReady ? await new Promise((res) => parseVectorFile(f, (rows, err, meta) => res({ err, meta }))) : null;

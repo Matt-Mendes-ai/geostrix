@@ -102,6 +102,19 @@ test("a pad whose callout has no room gets a short 'first id +n' label", () => {
 test("wired into the Maps plan (and so into Snapshot to Layout, which captures the canvas)", () => {
   const s = readFileSync(new URL("../src/components/MapsPlanView.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(s, /import \{ drawCallouts \} from "\.\.\/lib\/collarCallouts\.js";/);
-  assert.match(s, /if \(showIds\) \{[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*drawCallouts\(ctx, collars, X, Y, size, \{ colourOf: colouring \? \(c\) => colouring\.colourOf\(c\) : undefined, dotR: ds\.r, mPerPx: v\.mPerPx/);
+  assert.match(s, /if \(showIds\) \{[^\n]*\n(?:\s*\/\/[^\n]*\n)*(?:\s*(?:const keepClear|const cr|if \((?:cr|showGrid)\))[^\n]*\n)*\s*drawCallouts\(ctx, collars, X, Y, size, \{ colourOf: colouring \? \(c\) => colouring\.colourOf\(c\) : undefined, dotR: ds\.r, mPerPx: v\.mPerPx/);
   assert.match(s, /const src = cv\.toDataURL\("image\/png"\);/);
+});
+
+// TASKS.csv #3405 — callout boxes and labels stay clear of rectangles the plan keeps (the Collars chip, the grid's edge labels)
+test("keepClear: no callout box or label lands on a kept rectangle", () => {
+  const f = fitView(ORION);
+  const free = fakeCtx();
+  drawCallouts(free, ORION, f.X, f.Y, f.view, { dotR: 3.6, mPerPx: f.m });
+  const b = free.rects[0]; // wherever a box went when nothing was kept clear: keep that spot clear
+  const keep = [{ x0: b.x0 - 2, y0: b.y0 - 2, x1: b.x1 + 2, y1: b.y1 + 2 }];
+  const ctx = fakeCtx();
+  drawCallouts(ctx, ORION, f.X, f.Y, f.view, { dotR: 3.6, mPerPx: f.m, keepClear: keep });
+  const hit = (r) => r.x0 < keep[0].x1 && keep[0].x0 < r.x1 && r.y0 < keep[0].y1 && keep[0].y0 < r.y1;
+  for (const r of ctx.rects) assert.ok(!hit(r), "a box on the kept rectangle");
 });

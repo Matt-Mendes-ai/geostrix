@@ -19,14 +19,15 @@ import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader } from "../components
 import CrsPicker from "../components/CrsPicker.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
-import { crsName, isMetricProjectedEpsg, pointTransform, getProj4DefSync, isGeographicCrs, datumNote } from "../lib/reproject.js"; // datumNote: #2467
+import { crsName, isMetricProjectedEpsg, pointTransform, getProj4DefSync, isGeographicCrs, datumNote, crsAreaOf, loadEpsgRegistry, onEpsgRegistry } from "../lib/reproject.js"; // datumNote: #2467; area, registry: #3339
+import { crsMapArea, inCrsArea, areaText } from "../lib/crsMapArea.js"; // TASKS.csv #3339
 import { trueNorthBearingInGridDeg } from "../lib/inversion.js";
 import { parseTableFile, toExportCsv } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
 import SourceCrsField from "../components/SourceCrsField.jsx";
 import { readShapefileLayers, reprojectShapefileZip, reportShapefileText, readGeoTiffInfo, reprojectGeoTiff, reportGeoTiffText, reprojectTableRows, degreesOutOfRange, utmOutOfRange, isUtmCrs, fileXYColumns, fromForGridPrefix , sridColumnEpsg, rowsToGeoJSON /* #2130 */ } from "../lib/fileReproject.js"; // #487; degreesOutOfRange: #2461; utmOutOfRange ... fromForGridPrefix: #2588
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
-import { collarCentreLonLat, collarSpread, formatLonLat, medianPoint, crsCandidatesAt } from "../lib/projectCrs.js"; // TASKS.csv #2291; medianPoint: #2463; crsCandidatesAt: #2465
+import { collarCentreLonLat, collarSpread, formatLonLat, medianPoint, crsCandidatesAt, offsetFrom } from "../lib/projectCrs.js"; // TASKS.csv #2291; medianPoint: #2463; crsCandidatesAt: #2465
 import { smallGridCoordinates } from "../lib/crsFromColumns.js"; // TASKS.csv #2291
 import { tieOf } from "../lib/localGridTie.js"; // TASKS.csv #2587
 import { gridToCrsChoice, isMineSource, MINE_SOURCE } from "../lib/mineGrid.js"; // TASKS.csv #2812 — 'A file' from the mine grid
@@ -94,6 +95,9 @@ export default function CartographyModule({ embedded = false, forcePane = null }
   const [newCrs, setNewCrs] = useState(null);
   const [rotate, setRotate] = useState(true);
   const changing = newCrs && Number(newCrs) !== Number(project.epsg);
+  // TASKS.csv #3339 — the CRS's area of use, from the EPSG registry (loaded on use), for the landing note
+  const [, setRegTick] = useState(0);
+  useEffect(() => { if (!newCrs) return undefined; const off = onEpsgRegistry(() => setRegTick((n) => n + 1)); loadEpsgRegistry().catch(() => {}); return off; }, [!!newCrs]);
   const setOnly = () => { setEpsg(Number(newCrs)); setMsg({ ok: true, text: tr("Project CRS set to {v}. No coordinates were changed.", { v: nameOf(newCrs) }) }); setNewCrs(null); };
   const moveAll = () => {
     // TASKS.csv #528 — one click moved every object and cleared Undo, picked from a long list of look-alike names
@@ -225,14 +229,36 @@ export default function CartographyModule({ embedded = false, forcePane = null }
             {/* TASKS.csv #2291 (review #2174) — the status-bar dialog's landing check, here too: the pane set GDA94 / MGA 51 on a local mine grid
                 with no word, and the 245 collars "were" in the Southern Ocean */}
             {(changing || project.crsSet === false) && newCrs && !isGeographic(newCrs) && (store.collars || []).length > 0 && (() => {
-              const cols = store.collars, at = collarCentreLonLat(cols, newCrs), spread = at ? collarSpread(cols, newCrs) : null, small = smallGridCoordinates(cols);
+              // TASKS.csv #3339 (Galore Creek review) — the note read the UTM numbers as if they already were the new CRS's numbers (true only for
+              // 'Only change the label'), and from that position, outside the CRS's own area, the #2181 test said the collars mixed frames. With data
+              // to move it now says what each button does: Reproject keeps the collars where they are; the label alone puts them where the numbers
+              // read in the new CRS land. The frame test runs only on a landing inside the CRS's area.
+              const cols = store.collars, at = collarCentreLonLat(cols, newCrs), small = smallGridCoordinates(cols);
+              const area = crsMapArea(crsAreaOf(newCrs), crsName(newCrs), getProj4DefSync(newCrs)), inside = !!at && inCrsArea(area, at);
+              const spread = inside ? collarSpread(cols, newCrs) : null;
               const odd = !at || Math.abs(at.lat) > 75;
+              const both = hasData && project.crsSet !== false && changing; // both buttons are offered
+              const here = both ? collarCentreLonLat(cols, project.epsg) : null;
+              const labelWrong = odd || !inside || spread?.far || small;
+              const problems = <>
+                {at && odd ? " " + tr("That is near a pole: almost certainly not the CRS these coordinates are in.") : ""}
+                {at && !odd && !inside ? " " + tr("Read as {v}, these numbers fall outside the area it is used in ({area}): they are not in it.", { v: crsName(newCrs) || tr("EPSG:{newCrs}", { newCrs }), area: areaText(area) }) : ""}
+                {spread?.far ? " " + tr("{far} of the {total} collars land more than 50 km from the others (up to {km} km): they are not all in one coordinate frame, so no single CRS places them all.", { far: spread.far, total: spread.total, km: spread.km.toLocaleString() }) : ""}
+                {small ? " " + tr("{n} of {of} collars have eastings {x0}–{x1} and northings {y0}–{y1}, which no UTM / MGA zone has: they look like a local mine grid.", { n: small.n, of: small.of, x0: Math.round(small.x[0]).toLocaleString(), x1: Math.round(small.x[1]).toLocaleString(), y0: Math.round(small.y[0]).toLocaleString(), y1: Math.round(small.y[1]).toLocaleString() }) : ""}
+              </>;
+              if (both) return (
+                <div role="note" style={note}>
+                  {here ? tr("Reproject keeps your {n} collars where they are ({where}) and gives them {v} numbers.", { n: cols.length, where: formatLonLat(here), v: crsName(newCrs) || tr("EPSG:{newCrs}", { newCrs }) }) : null}
+                  <span style={{ color: labelWrong ? "var(--color-warn-text-strong)" : undefined }}>{" "}
+                    {at ? tr("Only changing the label would put them at {where}.", { where: formatLonLat(at) }) + ((off) => (off && off.km >= 1 ? " " + tr("That is about {km} km {dir} of where the project says they are now.", { km: off.km.toLocaleString(), dir: tr(off.dir) }) : ""))(offsetFrom(here, at)) /* #2999 */ : tr("Only changing the label: your collars do not fit this CRS (they land off the globe).")}
+                    {problems}
+                  </span>
+                </div>
+              );
               return (
-                <div role="note" style={{ ...note, color: odd || spread?.far || small ? "var(--color-warn-text-strong)" : undefined }}>
+                <div role="note" style={{ ...note, color: labelWrong ? "var(--color-warn-text-strong)" : undefined }}>
                   {at ? tr("Your {n} collars would be at {where}.", { n: cols.length, where: formatLonLat(at) }) : tr("Your collars do not fit this CRS (they land off the globe).")}
-                  {at && odd ? " " + tr("That is near a pole: almost certainly not the CRS these coordinates are in.") : ""}
-                  {spread?.far ? " " + tr("{far} of the {total} collars land more than 50 km from the others (up to {km} km): they are not all in one coordinate frame, so no single CRS places them all.", { far: spread.far, total: spread.total, km: spread.km.toLocaleString() }) : ""}
-                  {small ? " " + tr("{n} of {of} collars have eastings {x0}–{x1} and northings {y0}–{y1}, which no UTM / MGA zone has: they look like a local mine grid.", { n: small.n, of: small.of, x0: Math.round(small.x[0]).toLocaleString(), x1: Math.round(small.x[1]).toLocaleString(), y0: Math.round(small.y[0]).toLocaleString(), y1: Math.round(small.y[1]).toLocaleString() }) : ""}
+                  {problems}
                 </div>
               );
             })()}
@@ -360,7 +386,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
         <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("EPSG:{epsg} · {v}", { epsg: project.epsg, v: metric === true ? tr("projected, metres") : metric === false ? tr("geographic (degrees) — distances, volumes and grids need a projected CRS") : tr("GeoStrix has no definition for this code: imports cannot be reprojected into it") })}</div>
         {lonLat && (
           <div style={{ ...note, fontSize: "var(--font-size-base)" }}>{tr("Project location: {v}°{v2}, {v3}°{v4}", { v: Math.abs(lonLat[1]).toFixed(4), v2: lonLat[1] >= 0 ? "N" : "S", v3: Math.abs(lonLat[0]).toFixed(4), v4: lonLat[0] >= 0 ? "E" : "W" })}
-            {convergence != null && <>{" "}{tr("· grid convergence here {v}{convergence}° (true north is {v2}° {v3} of grid north)", { v: convergence >= 0 ? "+" : "", convergence: convergence.toFixed(2), v2: Math.abs(convergence).toFixed(2), v3: convergence >= 0 ? tr("east") : tr("west") })}</>}
+            {convergence != null && <>{" "}{/* TASKS.csv #3352 — the usual sign: grid convergence is grid north's angle from true north, negative west of the central meridian (the bearing of true north, the opposite, was printed) */}{tr("· grid convergence here {v}{convergence}° (grid north is {v2}° {v3} of true north)", { v: -convergence >= 0 ? "+" : "-", convergence: Math.abs(convergence).toFixed(2), v2: Math.abs(convergence).toFixed(2), v3: -convergence >= 0 ? tr("east") : tr("west") })}</>}
           </div>
         )}
         </>)}

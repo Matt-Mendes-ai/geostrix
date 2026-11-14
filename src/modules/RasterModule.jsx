@@ -32,6 +32,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the 
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1461
 import { fetchAreaBox, imageryAreaCollars } from "../lib/dataExtent.js"; // #1461; imageryAreaCollars: #2126
 import RasterColourControls from "../components/RasterColourControls.jsx"; // TASKS.csv #1236
+import ZonalStatsBox from "../components/ZonalStatsBox.jsx"; // TASKS.csv #2002
 import GridContourControls from "../components/GridContourControls.jsx"; // TASKS.csv #1622
 import { gridCellText } from "../lib/raster.js"; // TASKS.csv #1242
 import { detectKeyColour } from "../lib/rasterKey.js"; // TASKS.csv #1623
@@ -97,6 +98,7 @@ function SpectrumPanel({ spectrum, onSplit }) {
   );
 }
 
+const GRAVITY_UNIT_RE = /^(mgal|µgal|μgal|ugal)$/i; // TASKS.csv #2947 — gridFilters.js GRAVITY_UNITS (that module loads on first use, so the form keeps its own copy)
 export default function RasterModule({ embedded = false } = {}) {
   const { rasters, addRaster, updateRaster, removeRaster, moveRaster /* #2853 */, terrain, project, collars, survey = [] /* #2126 */, boundaries, setLayers, projectIsEmpty, setEpsg, surfaceSamples = [], voxelModels = [], updateGeophysSurvey, geophysSurveys = {}, layers = {} /* #2868 — the survey stations */ } = useStore(); // voxelModels: #1856 // projectIsEmpty/setEpsg: #607; updateGeophysSurvey: #1985
   // TASKS.csv #326 — a data grid's nodes as survey points (Geophysics -> Point cloud / Inversion). Replaces
@@ -201,7 +203,7 @@ export default function RasterModule({ embedded = false } = {}) {
       const { applyGridFilterAsync } = await import("../lib/gridFilterClient.js");
       const out = await applyGridFilterAsync({ nx: g.nx, ny: g.ny, dx: g.dx, dy: g.dy, values }, filt.kind, { ...params, declination: declGrid ?? undefined });
       const label = FILTERS[filt.kind].label;
-      const ou = filterOutputUnits(filt.kind, rasterUnitOf(r)); // TASKS.csv #2837 / #2843 — the typed unit too; tilt: degrees; a gravity derivative per km
+      const ou = filterOutputUnits(filt.kind, rasterUnitOf(r), filt.gravPer || "km"); // gravPer: #2947 — TASKS.csv #2837 / #2843 — the typed unit too; tilt: degrees; a gravity derivative per km
       if (ou.scale !== 1) for (let i = 0; i < out.values.length; i++) out.values[i] *= ou.scale;
       const suffix = filt.kind === "rtp" || filt.kind === "rte" ? ` (I ${params.inclination}°, D ${params.declinationTrue}° true)` : filt.kind === "rtpa" ? ` (I ${params.inclination}°, D ${params.declinationTrue}° true, Ia ${out.amplitudeInclination}°)` : filt.kind === "upward" ? ` (+${params.height} m)` : "";
       if (filt.kind === "rtpa") params.amplitudeInclination = out.amplitudeInclination; // #1988 — the one used, recorded with the raster
@@ -657,6 +659,7 @@ export default function RasterModule({ embedded = false } = {}) {
               {rasters.length > 1 && <ChevronDown role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Move \"{name}\" down the list (drawn over the one before on the plan)", { name: r.name })} title={tr("Move \"{name}\" down the list (drawn over the one before on the plan)", { name: r.name })} onClick={() => moveRaster(r.id, 1)} />}
               <Trash2 aria-label={tr("Remove raster \"{name}\"", { name: r.name })} title={tr("Remove raster \"{name}\"", { name: r.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: r.name }))) removeRaster(r.id); }} />
             </div>
+            {r.grid && <ZonalStatsBox raster={r} boundaries={boundaries} />}{/* TASKS.csv #2002 */}
             {r.terrainDerivative && r.terrainDerivative.terrainId != null && terrain?.id !== r.terrainDerivative.terrainId && ( /* TASKS.csv #1626 — made from a terrain since replaced */
               <div style={{ marginTop: 5, fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("Made from the terrain \"{name}\", which has since been replaced: it still shows that ground, draped on the new one. Remove it and make it again from the current terrain (Maps > Terrain > Hillshade, slope, aspect…).", { name: r.terrainDerivative.terrainName || "?" })}</div>
             )}
@@ -710,6 +713,15 @@ export default function RasterModule({ embedded = false } = {}) {
                 {filt.kind === "worms" && (
                   <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                     <input type="checkbox" checked={!!filt.integrate} onChange={(e) => setFilt((p) => ({ ...p, integrate: e.target.checked }))} />{tr("Magnetic RTP grid: integrate it first (pseudo-gravity)")}
+                  </label>
+                )}
+                {(filt.kind === "vd1" || filt.kind === "as") && GRAVITY_UNIT_RE.test(String(rasterUnitOf(r) || "").trim()) && ( /* TASKS.csv #2947 — a gravity derivative's unit */
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>{tr("Derivative in")}
+                    <select value={filt.gravPer || "km"} aria-label={tr("Unit of the gravity derivative")} onChange={(e) => setFilt((p) => ({ ...p, gravPer: e.target.value }))} style={{ ...numInput, flex: 1 }}>
+                      <option value="km">{tr("per kilometre (as published)")}</option>
+                      <option value="m">{tr("per metre")}</option>
+                      <option value="E">{tr("Eötvös")}</option>
+                    </select>
                   </label>
                 )}
                 {filt.kind === "upward" && (

@@ -2,7 +2,9 @@
 import { t as tr } from "./i18n.js";
 
 // [west, south, east, north] in degrees. The registry's area when it has one (east < west crosses 180 degrees); else a UTM zone from its name; a geographic CRS is the world.
-export function crsMapArea(registryArea, name) {
+// def (optional, TASKS.csv #3339): a proj4 definition, for a CRS the registry has not loaded yet and whose name is not a UTM zone — a coarse box
+// round its origin (45 degrees of longitude and 30 of latitude each way), enough to tell 'near its area' from 'the other side of the world'.
+export function crsMapArea(registryArea, name, def = null) {
   if (registryArea) return registryArea;
   const n = String(name || "");
   const utm = /UTM zone (\d{1,2})\s*([NS])?/i.exec(n);
@@ -10,7 +12,25 @@ export function crsMapArea(registryArea, name) {
     const z = Number(utm[1]);
     if (z >= 1 && z <= 60) { const west = -180 + (z - 1) * 6; return /^s$/i.test(utm[2] || "") ? [west, -80, west + 6, 0] : [west, 0, west + 6, 84]; }
   }
-  return /longitude|latitude/i.test(n) ? [-180, -90, 180, 90] : null;
+  if (/longitude|latitude/i.test(n)) return [-180, -90, 180, 90];
+  return def ? crsAreaFromDef(def) : null;
+}
+export function crsAreaFromDef(def) {
+  const d = String(def || "");
+  if (!/\+proj=(aea|lcc|tmerc|stere|sterea|omerc|eqdc|laea|cass|merc|poly)\b/.test(d)) return null;
+  const v = (k) => { const m = new RegExp(`\\+${k}=(-?[\\d.]+)`).exec(d); return m ? Number(m[1]) : null; };
+  const lon0 = v("lon_0") ?? v("lonc") ?? 0, l1 = v("lat_1"), l2 = v("lat_2"), lat0 = l1 != null && l2 != null ? (l1 + l2) / 2 : v("lat_ts") ?? v("lat_0") ?? 0;
+  return [lon0 - 45, Math.max(-90, lat0 - 30), lon0 + 45, Math.min(90, lat0 + 30)];
+}
+
+// TASKS.csv #3339 (Galore Creek review) — whether a { lon, lat } lies in a CRS's area ([west, south, east, north]; east < west crosses 180
+// degrees), with a margin in degrees (a property on a zone edge is still in it): the collars' UTM numbers read as BC Albers fell at 0.000 N,
+// 64.2 E, and from there the mixed-frame test said the collars were not in one frame. true when the area is not known.
+export function inCrsArea(area, p, marginDeg = 1) {
+  if (!area || !p || !Number.isFinite(p.lon) || !Number.isFinite(p.lat)) return !area;
+  const [w, s, e, n] = area;
+  if (p.lat < s - marginDeg || p.lat > n + marginDeg) return false;
+  return e < w ? p.lon >= w - marginDeg || p.lon <= e + marginDeg : p.lon >= w - marginDeg && p.lon <= e + marginDeg;
 }
 
 // Boxes in the map's coordinates (x = lon + 180, y = 90 - lat): two when the area crosses 180 degrees

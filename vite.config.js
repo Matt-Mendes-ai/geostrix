@@ -76,6 +76,9 @@ export default defineConfig({
   // TASKS.csv #3090 — the dependency pre-bundle's scan crawled every .html under the root, the worktrees' dist and release folders too,
   // and the dev window waited on it for minutes at the splash: the app has one page.
   optimizeDeps: { entries: ["index.html"] },
+  // TASKS.csv #3188 — workers are built as ES modules (every `new Worker` here already passes { type: "module" }): the GeoTIFF import worker
+  // runs geotiff.js, whose decoders load by dynamic import, and the default IIFE worker format cannot split code
+  worker: { format: "es" },
   server: { port: 5173, strictPort: true, watch: { ignored: ["**/.claude/**", "**/dist/**", "**/release/**", "**/python-sidecar/**", "**/sample_data/**", "**/docs/**", "**/test/**", "**/TASKS.csv*", "**/*.log"] } },
   build: {
     outDir: "dist",

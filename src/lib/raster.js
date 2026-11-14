@@ -27,7 +27,7 @@ import { VIRIDIS_ANCHORS } from "./layers.js"; // TASKS.csv #740
 import { makeStretch } from "./idw.js"; // TASKS.csv #708 — the same 2-98 % stretch as IDW grids
 import { rasterStops, DEFAULT_RASTER_STYLE } from "./rasterColour.js"; // TASKS.csv #1236
 import { t as tr, currentLanguage, currentDictionary } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language; the worker's: #3142
-import { b64ToBytes } from "./base64.js"; // TASKS.csv #1114
+import { b64ToBytes, bytesToB64 } from "./base64.js"; // TASKS.csv #1114; bytesToB64: #3188
 import { gridPicture } from "./gridPicture.js"; // TASKS.csv #3033 — the picture of a value grid, shared with the filter worker
 import { borderKeyColour, colourFraction, hexRgb } from "./rasterKey.js"; // TASKS.csv #1623
 import { tieReaches, tieImageToLocal, tieGridToLocal, mineReaches, mineImageToProject, mineGridToProject, mineBoxOf } from "./rasterTie.js"; // TASKS.csv #2587 / #2322; mine*: #2684
@@ -63,6 +63,18 @@ export const reducedImportNote = (w, h, keepDetail) => (Math.max(w, h) <= (keepD
   ? tr(" Reduced from {w} × {h} px to 4096 px on its long side, the most GeoStrix keeps.", { w, h })
   : tr(" Reduced from {w} × {h} px to 2048 px on its long side. Tick Keep full detail and import it again to keep up to 4096 px.", { w, h }));
 const imageDataUrl = (canvas) => { const u = canvas.toDataURL("image/webp", 0.92); return u.startsWith("data:image/webp") ? u : canvas.toDataURL("image/png"); };
+// TASKS.csv #3188 — parseGeoTIFF and the picture's reprojection run in geotiffImport.worker.js: a canvas there is an OffscreenCanvas, whose
+// picture comes from convertToBlob (the same PNG, or WebP at full detail, as toDataURL gives on the page)
+const newCanvas = (w, h) => {
+  if (typeof document !== "undefined") { const c = document.createElement("canvas"); c.width = w; c.height = h; return c; }
+  return new OffscreenCanvas(w, h);
+};
+async function canvasDataUrl(canvas, fullDetail) {
+  if (typeof canvas.toDataURL === "function") return fullDetail ? imageDataUrl(canvas) : canvas.toDataURL("image/png");
+  let blob = fullDetail ? await canvas.convertToBlob({ type: "image/webp", quality: 0.92 }) : null;
+  if (!blob || blob.type !== "image/webp") blob = await canvas.convertToBlob({ type: "image/png" });
+  return `data:${blob.type};base64,${bytesToB64(new Uint8Array(await blob.arrayBuffer()))}`;
+}
 
 // TASKS.csv #326 / #3142 — the kept value grid (GRID_MAX, makeValueGrid) lives in rasterRows.js now, with the .gxf / .grd readers, so the
 // raster-import worker can run it; re-exported here for every caller that imports it from raster.js
@@ -339,8 +351,7 @@ export async function parseGeoTIFF(file, { bandFn = null, samples = null, maxSid
   const rasters = bandFn ? [bandFn(read0, isNoData0)] : read0; // #783
   const bandCount = rasters.length;
 
-  const canvas = document.createElement("canvas");
-  canvas.width = outW; canvas.height = outH;
+  const canvas = newCanvas(outW, outH); // #3188 — an OffscreenCanvas in the import worker
   const ctx = canvas.getContext("2d");
   const imgData = ctx.createImageData(outW, outH);
 
@@ -412,7 +423,7 @@ export async function parseGeoTIFF(file, { bandFn = null, samples = null, maxSid
     worldUnused, // #2857
     width: srcW,
     height: srcH,
-    dataUrl: maxSide > MAX_TEXTURE_SIZE ? imageDataUrl(canvas) : canvas.toDataURL("image/png"), // #838 — a 16 megapixel PNG would bloat the project file
+    dataUrl: await canvasDataUrl(canvas, maxSide > MAX_TEXTURE_SIZE), // #838 — a 16 megapixel PNG would bloat the project file; #3188 — also in the worker
     bandCount,
     sourceBands, // #783
     epsgTag,
@@ -775,6 +786,53 @@ export async function parseGridFileOffThread(file, kind, { makeWorker = null } =
 
 export { nodeGridAreaBbox } from "./rasterRows.js"; // TASKS.csv #2828 / #3142 — moved with the readers
 
+// TASKS.csv #3188 (split from #3142) — a GeoTIFF's import froze the window: a 5000 x 5000 single-band float file (100 MB) blocked it 2.5 s and
+// 2.1 s of a 5.2 s import (the decode, the colours of 4 million pixels and their 2-98 % stretch, the kept value grid, the PNG), and 4.0 s and
+// 3.3 s of 10 s when it was also reprojected (reprojectImageRGBA, then a second PNG). parseGeoTIFF runs whole in geotiffImport.worker.js (the
+// File is passed, not copied; geotiff reads it by byte range there as here), and the reprojection of its picture too. A file with a band
+// function (Spectral index: a function cannot be posted) is read here as before. A worker that cannot start, or a worker without an
+// OffscreenCanvas, falls back to reading here; a file the reader refuses gives the reader's own message either way.
+let tiffImportSeq = 0;
+function tiffImportJob(msg, transfer = [], makeWorker = null) {
+  let w;
+  try { w = makeWorker ? makeWorker() : new Worker(new URL("./geotiffImport.worker.js", import.meta.url), { type: "module" }); } catch { return Promise.resolve({ failed: "no worker" }); }
+  return new Promise((resolve) => {
+    const id = ++tiffImportSeq;
+    w.onmessage = (e) => { if (e.data?.id !== id) return; w.terminate(); resolve(e.data); };
+    w.onerror = (e) => { e?.preventDefault?.(); w.terminate(); resolve({ failed: String(e?.message || "worker error") }); };
+    w.postMessage({ id, ...msg, lang: { code: currentLanguage(), dict: currentDictionary() } }, transfer);
+  });
+}
+// -> parseGeoTIFF's result; opts: { samples, maxSide, worldFile } (no bandFn)
+export async function parseGeoTiffOffThread(file, opts = {}, { makeWorker = null } = {}) {
+  const r = await tiffImportJob({ op: "parse", file, opts }, [], makeWorker);
+  if (r.error) throw new Error(r.error);
+  if (r.failed) return parseGeoTIFF(file, opts);
+  return r.res;
+}
+// -> reprojectImageRGBA's result with its picture: { bbox, width, height, data, dataUrl }
+export async function reprojectPictureOffThread(img, fromDef, toDef, fullDetail, { makeWorker = null } = {}) {
+  const r = await tiffImportJob({ op: "reproject", img, fromDef, toDef, fullDetail }, [], makeWorker);
+  if (!r.failed && !r.error) return r.res;
+  const rp = reprojectImageRGBA(img, fromDef, toDef, img.width, img.height);
+  const canvas = newCanvas(rp.width, rp.height);
+  canvas.getContext("2d").putImageData(new ImageData(rp.data, rp.width, rp.height), 0, 0);
+  return { ...rp, dataUrl: await canvasDataUrl(canvas, fullDetail) };
+}
+// the worker's side of both jobs (geotiffImport.worker.js calls it; here so the worker file stays a few lines)
+export async function geotiffImportWork(d) {
+  if (d.op === "parse") {
+    const res = await parseGeoTIFF(d.file, d.opts || {});
+    const g = res.grid;
+    return { res, transfer: [res.pixels.data.buffer, ...(g ? [g.values, g.maxValues, g.minValues].filter(Boolean).map((a) => a.buffer) : [])] };
+  }
+  const { img, fromDef, toDef, fullDetail } = d;
+  const rp = reprojectImageRGBA(img, fromDef, toDef, img.width, img.height);
+  const canvas = newCanvas(rp.width, rp.height);
+  canvas.getContext("2d").putImageData(new ImageData(rp.data, rp.width, rp.height), 0, 0);
+  return { res: { ...rp, dataUrl: await canvasDataUrl(canvas, fullDetail) }, transfer: [rp.data.buffer] };
+}
+
 // TASKS.csv #1347 / #3142 — a .gxf / .grd's rows as the drape: rasterRows.js rowsPicture (the stretch, the colours, the kept values), the
 // picture drawn on a canvas here. The raster-import worker (rasterImport.worker.js) does the same with an OffscreenCanvas.
 function rasterFromRows(rows) {
@@ -835,7 +893,7 @@ export const notDegrees = (epsg, bbox) => isGeographicCrs(epsg) && Array.isArray
 export async function buildRasterImport(file, { epsg, defaultElevation, sourceEpsg, chooseProjectEpsg, bandFn = null, samples = null, name = null, keepDetail = false, worldFile = null, tie = null, collarZ = null, mineSource = null, sideCrs = null } = {}) { // samples: #807; keepDetail: #838; worldFile: #1855; tie: #2587; collarZ: #2129; sideCrs: #2830
   const isGxf = /\.gxf$/i.test(file.name), isGrd = /\.grd$/i.test(file.name); // isGrd: #1347
   const maxSide = keepDetail ? FULL_DETAIL_SIZE : MAX_TEXTURE_SIZE;
-  const parsed = isGxf || isGrd ? await parseGridFileOffThread(file, isGxf ? "gxf" : "grd") : await parseGeoTIFF(file, { bandFn, samples, maxSide, worldFile }); // bandFn: #783; samples: #807; off the UI thread: #3142
+  const parsed = isGxf || isGrd ? await parseGridFileOffThread(file, isGxf ? "gxf" : "grd") : bandFn ? await parseGeoTIFF(file, { bandFn, samples, maxSide, worldFile }) : await parseGeoTiffOffThread(file, { samples, maxSide, worldFile }); // bandFn: #783; samples: #807; off the UI thread: #3142 (.gxf / .grd), #3188 (GeoTIFF)
   if (name) parsed.name = name;
   let bbox = parsed.bbox;
   let dataUrl = parsed.dataUrl;
@@ -893,14 +951,10 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
     if (fromDef && toDef && parsed.pixels) {
       const [xmin, ymin, xmax, ymax] = parsed.bbox;
       const { width, height, data } = parsed.pixels;
-      const rp = reprojectImageRGBA({ xmin, ymin, xmax, ymax, width, height, data }, fromDef, toDef, width, height);
-      const canvas = document.createElement("canvas");
-      canvas.width = rp.width; canvas.height = rp.height;
-      const ctx = canvas.getContext("2d");
-      ctx.putImageData(new ImageData(rp.data, rp.width, rp.height), 0, 0);
+      const rp = await reprojectPictureOffThread({ xmin, ymin, xmax, ymax, width, height, data }, fromDef, toDef, keepDetail); // #3188 — in the import worker
       bbox = rp.bbox; px = rp;
-      dataUrl = keepDetail ? imageDataUrl(canvas) : canvas.toDataURL("image/png");
-      crsNote = ` Reprojected from EPSG:${srcEpsg} (${srcLabel}) into the project's EPSG:${projEpsg} on import — the drape's footprint moved ${sizeText(Math.hypot(rp.bbox[0] - xmin, rp.bbox[1] - ymin), projEpsg)} as a result.`;
+      dataUrl = rp.dataUrl;
+      crsNote = ` Reprojected from EPSG:${srcEpsg} (${srcLabel}) into the project's EPSG:${projEpsg} on import — the numbers of its corner changed by ${sizeText(Math.hypot(rp.bbox[0] - xmin, rp.bbox[1] - ymin), projEpsg)} as a result.`;
     } else {
       crsNote = ` Warning: ${srcLabel} says EPSG:${srcEpsg}, which doesn't match the project's EPSG:${projEpsg}, but ${!parsed.pixels ? "this raster's pixels couldn't be re-sampled" : `EPSG:${!fromDef ? srcEpsg : projEpsg} isn't one GeoStrix can reproject`} — it was imported at its own raw coordinates, so it will NOT line up with your drillholes.`;
     }

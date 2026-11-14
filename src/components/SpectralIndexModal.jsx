@@ -182,7 +182,7 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
                 </select>
               )}
               <div style={{ ...small, marginTop: 6 }}>{source === "sentinel2"
-                ? tr("Copernicus Sentinel-2 surface reflectance from Element 84's Earth Search (AWS Open Data), free, no account. Summer dates keep snow off the ground; cloud, shadow, snow and water are masked with the scene's own classification. Only the area's window of the bands the index uses is downloaded.")
+                ? tr("Copernicus Sentinel-2 surface reflectance from Element 84's Earth Search (AWS Open Data), free, no account. Choose dates with the least cloud and snow (summer in the north, the dry season in the tropics); cloud, shadow, snow and water are masked with the scene's own classification. Only the area's window of the bands the index uses is downloaded.")
                 : tr("ASTER L1T from Microsoft's Planetary Computer, free, no account: the 2000-2006 archive, thermal bands 10-14 at 90 m as at-sensor radiance (not emissivity: compare values within one scene). Only the area's window is downloaded.")}</div>
             </div>
           ) : (

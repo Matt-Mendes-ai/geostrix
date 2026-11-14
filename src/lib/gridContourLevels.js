@@ -35,6 +35,8 @@ export function fieldContourLevels(values) {
 }
 // 'every 5' / 'every 0.5' typed in the box -> 5 / 0.5, else null
 export function everyInterval(text) {
-  const m = /^\s*every\s+([0-9]*\.?[0-9]+)\s*$/i.exec(String(text || ""));
-  return m && Number(m[1]) > 0 ? Number(m[1]) : null;
+  // TASKS.csv #2946 — the word in the other interface languages too (cada / a cada / tous les / كل), a decimal comma as well as a point
+  const m = /^\s*(?:every|cada|a cada|tous les|toutes les|كل)\s+([0-9]*[.,]?[0-9]+)\s*$/iu.exec(String(text || ""));
+  const v = m ? Number(m[1].replace(",", ".")) : NaN;
+  return v > 0 ? v : null;
 }
