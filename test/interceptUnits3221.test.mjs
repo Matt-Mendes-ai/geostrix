@@ -3,10 +3,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { toDisplay, fromDisplay } from "../src/lib/displayUnits.js"; // TASKS.csv #3236 — the boxes convert through it
 
 const s = readFileSync(new URL("../src/components/BestIntercepts.jsx", import.meta.url), "utf8");
 // the two conversions, evaluated from the source with pct on and off
-const conv = (pct) => new Function("pct", `${s.match(/const toStored = [^\n]*;/)[0]} return { toStored, shownBox };`)(pct);
+const conv = (pct) => new Function("conv", "toDisplay", "fromDisplay", "unit", "shownUnit", `${s.match(/const toStored = [^\n]*;/)[0]} return { toStored, shownBox };`)(pct, toDisplay, fromDisplay, "ppm", pct ? "%" : null);
 
 test("typed in % and stored in ppm, the box showing what was typed", () => {
   const on = conv(true), off = conv(false);
@@ -21,7 +22,7 @@ test("wiring: both boxes, their headings, the equivalent and the element's own c
   assert.match(s, /setIncludeCutoff\(e\.target\.value === "" \? "" : String\(toStored\(Number\(e\.target\.value\)\)\)\)/);
   assert.match(s, /tr\("\{symbol\}Eq \(\{unit\}\)", \{ symbol, unit: dispUnit/);
   assert.match(s, /\+dg\(v\)\.toPrecision\(4\)/);
-  assert.match(s, /s === symbol && pct \? "%" : elementUnits\[s\]/);
+  assert.match(s, /s === symbol && pct \? dispUnit : elementUnits\[s\]/);
   assert.match(s, /\(s === symbol \? dg\(r\.extras\[s\]\) : r\.extras\[s\]\)/);
   assert.doesNotMatch(s, /The cutoff stays in ppm\./);
 });
