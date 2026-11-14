@@ -12623,5 +12623,20 @@
   "Against the {n} of the {total} points it was built from that lie on its ground: median {med} m off, worst {worst} m ({id}), {over} more than {lim} m off.": "Contra os {n} dos {total} pontos com que foi construído que caem sobre o seu terreno: mediana {med} m de diferença, pior {worst} m ({id}), {over} com mais de {lim} m.",
   "Area {v} ha on the ground ({g} ha on the map grid)": "Área {v} ha no terreno ({g} ha na grade do mapa)",
   "Area {v} ha": "Área {v} ha",
-  "{v} ha on the ground ({g} ha on the map grid)": "{v} ha no terreno ({g} ha na grade do mapa)"
+  "{v} ha on the ground ({g} ha on the map grid)": "{v} ha no terreno ({g} ha na grade do mapa)",
+  "Shape by": "Forma por",
+  "Shape collars by": "Forma dos colares por",
+  "One shape": "Uma só forma",
+  "Size by the value's class": "Tamanho pela classe do valor",
+  "Shape legend": "Legenda das formas",
+  "A new raster of this grid's cells inside the boundary (the original stays), cropped to its extent": "Um novo raster com as células desta grade dentro do limite (o original fica), recortado à sua extensão",
+  "Clip to this boundary (new raster)": "Recortar a este limite (novo raster)",
+  "Column(s) {cols} look like bearings: they were written as they are, measured from the local grid's north, not turned by the tie's rotation ({rot}°).": "A(s) coluna(s) {cols} parecem rumos: foram gravadas como estão, medidas a partir do norte da grade local, sem girar pela rotação do vínculo ({rot}°).",
+  "The CRS the layer's numbers are really in, or the project's local mine grid.": "O SRC em que os números da camada realmente estão, ou a grade de mina local do projeto.",
+  "Build the terrain from the samples and collars inside an area you draw, so the grid follows them: for a field wider than one grid can resolve": "Construir o terreno com as amostras e colares dentro de uma área desenhada, para a grade segui-los: para um campo mais largo do que uma grade consegue resolver",
+  "Limit to a drawn area…": "Limitar a uma área desenhada…",
+  "Inside {w} × {h} km": "Dentro de {w} × {h} km",
+  "Draw the area to build the terrain over": "Desenhe a área sobre a qual construir o terreno",
+  "No cell of \"{name}\" with a value lies inside \"{boundary}\".": "Nenhuma célula de \"{name}\" com valor fica dentro de \"{boundary}\".",
+  "Added \"{name}\": {kept} of {total} cells inside \"{boundary}\" have a value ({cells} cells in all, cropped to the boundary). \"{source}\" is unchanged.": "\"{name}\" adicionado: {kept} de {total} células dentro de \"{boundary}\" têm valor ({cells} células ao todo, recortado ao limite). \"{source}\" não mudou."
 }

@@ -40,6 +40,28 @@ export function collarColourFields(collars) {
   return out.sort((a, b) => a.key.localeCompare(b.key));
 }
 
+// TASKS.csv #3456 — the collar fields a symbol shape can follow: text (or numeric-looking) fields of 2 to 5 distinct values -> [{ key, values }]
+export function collarShapeFields(collars) {
+  const cs = (collars || []).filter((c) => c && typeof c === "object");
+  const out = [];
+  for (const k of fieldKeys(cs)) {
+    const vals = fieldValues(cs, k);
+    if (vals.length < 2) continue;
+    const n = new Set(vals.map((v) => String(v).trim())).size;
+    if (n >= 2 && n <= 5) out.push({ key: k, values: n });
+  }
+  return out.sort((a, b) => a.key.localeCompare(b.key));
+}
+// a field's values -> shapes 0-4, commonest first: { shapeOf(collar) -> 0-4, legend: [{ label, shape, count }] } or null (not 2-5 values)
+export function collarShapes(collars, field) {
+  const counts = new Map();
+  for (const c of collars || []) { const v = collarFieldValue(c, field); if (v === "" || v == null || typeof v === "object") continue; const k = String(v).trim(); counts.set(k, (counts.get(k) || 0) + 1); }
+  if (counts.size < 2 || counts.size > 5) return null;
+  const order = [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  const shape = new Map(order.map(([k], i) => [k, i]));
+  return { shapeOf: (c) => { const v = collarFieldValue(c, field); return v === "" || v == null || typeof v === "object" ? 0 : shape.get(String(v).trim()) ?? 0; }, legend: order.map(([k, n], i) => ({ label: k, shape: i, count: n })) };
+}
+
 // TASKS.csv #3340 — the text fields too varied to colour by (more than MAX_GROUPED values), for the menu to name: [{ key, values }]. A field with
 // a different value on every hole (an id, a date per hole) is not listed: it is not a grouping.
 // TASKS.csv #3351 (Galore Creek review) — STARTDATE / ENDDATE, kept by the import as the text of Excel serials, were offered as numbers and
@@ -107,6 +129,8 @@ export function collarColouring(collars, { field = null, values = null, breaks: 
     const noValue = (collars || []).filter((c) => !Number.isFinite(num(valueOf(c)))).length;
     return {
       kind: "number", noValue,
+      classOf: (c) => { const v = num(valueOf(c)); return Number.isFinite(v) ? cls(v) : -1; }, // #3457 — the class a hole's value falls in (size by value)
+      classes: k,
       colourOf: (c) => { const v = num(valueOf(c)); return Number.isFinite(v) ? colours[cls(v)] : null; },
       legend: colours.map((colour, i) => ({ colour, label: `${fmt(edges[i])} – ${fmt(edges[i + 1])} (${counts[i].toLocaleString()})` })),
     };

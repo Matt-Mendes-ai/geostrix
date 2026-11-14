@@ -13,11 +13,11 @@ import { drawMapLayer, mapStyleSignature, mapTextureSize } from "../lib/mapLayer
 import { keyedCanvas } from "../lib/rasterKey.js";
 import { planDataExtent, planFarLayers } from "../lib/mapsPlan.js"; // planFarLayers: TASKS.csv #2125
 import { figureSamples, colourFromStops } from "../lib/sampleGrid.js"; // TASKS.csv #1622
-import { collarColourFields, collarFieldsLeftOut, perHoleAssay, collarColouring, parseBreaks } from "../lib/collarMapStyle.js"; // TASKS.csv #2459; left out: #3340
+import { collarColourFields, collarFieldsLeftOut, perHoleAssay, collarColouring, parseBreaks, collarShapeFields, collarShapes } from "../lib/collarMapStyle.js"; // TASKS.csv #2459; left out: #3340
 import { planTraces, highestAt, drawTraces } from "../lib/planTraces.js"; // TASKS.csv #3337 — the holes' traces in plan
 import { surveysOnPlan, surveyOutlineBoundary, ringArea } from "../lib/planSurveys.js"; // TASKS.csv #3342 — the point surveys on the plan
 import { drawCallouts } from "../lib/collarCallouts.js"; // TASKS.csv #3397 — holes from one pad: one ring and a callout listing them
-import { collarSpacing, dotStyle, dotsInView, drawDots, polylineInView } from "../lib/planDots.js"; // TASKS.csv #2988 / #2989
+import { collarSpacing, dotStyle, dotsInView, drawDots, polylineInView, drawShapedDots, dotKey, SIZE_SCALE, shapePath } from "../lib/planDots.js"; // TASKS.csv #2988 / #2989
 import HoleValueGridPanel from "./HoleValueGridPanel.jsx"; // TASKS.csv #2658
 import { planGridStep, planGridLines, gridLabel, measureLine, distanceText } from "../lib/planGrid.js"; // TASKS.csv #2128
 import { trueNorthBearingInGridDeg } from "../lib/inversion.js"; // TASKS.csv #2128 — the convergence at the measured line
@@ -55,6 +55,12 @@ function hillshadeCanvas(t) {
 
 
 // TASKS.csv #3342 — the point surveys' colours on the plan (none of them the collars' black or the samples' grey)
+// TASKS.csv #3456 — a legend glyph of one of the five shapes (the same paths the plan draws)
+function ShapeGlyph({ shape }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => { const c = ref.current?.getContext("2d"); if (!c) return; c.clearRect(0, 0, 14, 14); c.beginPath(); shapePath(c, shape, 7, 7, 4.5); c.fillStyle = "#5a6472"; c.fill(); c.strokeStyle = "#14181e"; c.lineWidth = 1; c.stroke(); }, [shape]);
+  return <canvas ref={ref} width={14} height={14} style={{ width: 14, height: 14, flex: "0 0 auto" }} aria-hidden="true" />;
+}
 const SURVEY_COLOURS = ["#0e7490", "#b45309", "#7c3aed", "#be185d", "#15803d", "#1d4ed8"];
 // TASKS.csv #2998 — '  ·  57.1291°N 131.4509°W' (null transform or a failed conversion: nothing)
 const lonLatText = (T, c) => {
@@ -115,6 +121,11 @@ export default function MapsPlanView() {
   const showTraces = tracesPicked ?? planT.longReach > 0;
   const [colourAt, setColourAt] = useState("collar"); // "collar" | "intercept"
   const spacingM = useMemo(() => collarSpacing(collars), [collars]); // #2989 — the holes' typical spacing, for the dot size
+  // TASKS.csv #3456 / #3457 — the symbol: a shape by a collar field of up to 5 values, a size by the per-hole value's class
+  const shapeFields = useMemo(() => collarShapeFields(collars), [collars]);
+  const [shapeBy, setShapeBy] = useState("");
+  const shapes = useMemo(() => (shapeBy ? collarShapes(collars, shapeBy) : null), [collars, shapeBy]);
+  const [sizeBy, setSizeBy] = useState(false);
   const [breaksText, setBreaksText] = useState(""); // #3050 — typed class breaks for a numeric colouring
   const breaks = useMemo(() => parseBreaks(breaksText), [breaksText]);
   const colouring = useMemo(() => {
@@ -272,7 +283,11 @@ export default function MapsPlanView() {
     // holes' spacing on screen and loses its outline when the dots would touch (#2459: a hole with no value under the colouring: a grey ring)
     const ds = dotStyle(spacingM, v.mPerPx, !!colouring);
     if (showTraces && planT.traces.size) drawTraces(ctx, planT.traces, X, Y, viewBox, { tickPx: Math.max(2.5, ds.r + 1.5) }); // #3337 — under the dots
-    drawDots(ctx, dotsInView(dotCollars, colouring ? (c) => colouring.colourOf(c) : () => "#1a2028", X, Y, size.w, size.h, ds.r + 1), { ...ds, stroke: colouring ? "#1a2028" : "#ffffff" });
+    const sized = sizeBy && colouring?.kind === "number" && colouring.classOf;
+    if (shapes || sized) { // #3456 / #3457 — one path per colour, shape and size class
+      const keyOf = (c) => dotKey(colouring ? colouring.colourOf(c) : "#1a2028", shapes ? shapes.shapeOf(c) : 0, sized ? Math.max(0, colouring.classOf(c)) : 2);
+      drawShapedDots(ctx, dotsInView(dotCollars, keyOf, X, Y, size.w, size.h, ds.r * 1.7 + 1), { ...ds, stroke: colouring ? "#1a2028" : "#ffffff" });
+    } else drawDots(ctx, dotsInView(dotCollars, colouring ? (c) => colouring.colourOf(c) : () => "#1a2028", X, Y, size.w, size.h, ds.r + 1), { ...ds, stroke: colouring ? "#1a2028" : "#ffffff" });
     if (gtPlan && gtMax > 0) { // #2755 — at each hole's intercept position (holeTotals: their length-weighted mid-points), area in proportion to GT
       ctx.lineWidth = 1;
       for (const h of gtPlan.holes) {
@@ -298,7 +313,7 @@ export default function MapsPlanView() {
       ctx.fillStyle = "#c2185b"; mPts.forEach((p) => { ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 3.5, 0, Math.PI * 2); ctx.fill(); });
     }
     gridDrawn.current = showGrid; // #3194 — what the canvas holds now
-  }, [v?.cx, v?.cy, v?.mPerPx, size, lodReady /* #3252 */, chipOpen /* #3458: its size changes the callouts */, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, spacingM /* #2989 */, showTraces, planT, dotCollars /* #3337 */, surveys, surveysHidden /* #3342 */, showIds, showGrid, showLonLat /* #3466 */, measuring, mPts, gtPlan, gtMax]); // gtPlan: #2755
+  }, [v?.cx, v?.cy, v?.mPerPx, size, lodReady /* #3252 */, chipOpen /* #3458: its size changes the callouts */, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, spacingM /* #2989 */, showTraces, planT, dotCollars /* #3337 */, shapes, sizeBy /* #3456 / #3457 */, surveys, surveysHidden /* #3342 */, showIds, showGrid, showLonLat /* #3466 */, measuring, mPts, gtPlan, gtMax]); // gtPlan: #2755
 
   // TASKS.csv #3252 — once the view has settled (250 ms), ask for the detail tiles it shows; each one that arrives redraws the plan
   useEffect(() => {
@@ -386,6 +401,17 @@ export default function MapsPlanView() {
               style={{ background: "none", border: "none", cursor: "pointer", padding: "0 2px", color: "inherit", fontSize: "var(--font-size-sm)" }}>{chipOpen ? "▾" : "▸"}</button>{/* TASKS.csv #3458 */}
           </label>
           {chipOpen && <>
+          {shapeFields.length > 0 && ( /* TASKS.csv #3456 — a second variable: the symbol's shape */
+            <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Shape by")}
+              <select value={shapeBy} onChange={(e) => setShapeBy(e.target.value)} aria-label={tr("Shape collars by")} style={{ fontSize: "var(--font-size-sm)", flex: 1, minWidth: 0 }}>
+                <option value="">{tr("One shape")}</option>
+                {shapeFields.map((f) => <option key={f.key} value={f.key}>{f.key}</option>)}
+              </select>
+            </label>
+          )}
+          {colouring?.kind === "number" && ( /* TASKS.csv #3457 — the size follows the value's class */
+            <label style={{ display: "flex", alignItems: "center", gap: 5 }}><input type="checkbox" checked={sizeBy} onChange={(e) => setSizeBy(e.target.checked)} />{tr("Size by the value's class")}</label>
+          )}
           {colouring?.kind === "number" && ( /* TASKS.csv #3050 — the class breaks typed, not only the quintiles */
             <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Class breaks")}
               <input value={breaksText} onChange={(e) => setBreaksText(e.target.value)} placeholder={tr("quintiles, or e.g. 50, 55, 60")} aria-label={tr("Class breaks of the collar colours")} style={{ fontSize: "var(--font-size-sm)", flex: 1, minWidth: 0 }} />
@@ -426,7 +452,13 @@ export default function MapsPlanView() {
                 const u = unit ? ` (${unit})` : "";
                 return kind === "max" ? tr("Highest {el} in the hole{u}", { el: key, u }) : kind === "mean" ? tr("{el}{u}, length-weighted mean of the hole", { el: key, u }) : key;
               })()}</span>
-              {colouring.legend.map((l) => <span key={l.label} title={l.other ? l.other.join(", ") : undefined} style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 9, height: 9, borderRadius: "50%", border: "1px solid #14181e", background: l.colour, flex: "0 0 auto" }} />{l.other ? tr("Other: {n} values ({holes} holes)", { n: l.other.length, holes: l.holes.toLocaleString() }) /* #3340 */ : l.label}</span>)}
+              {colouring.legend.map((l, li) => <span key={l.label} title={l.other ? l.other.join(", ") : undefined} style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 9 * (sizeBy && colouring.kind === "number" ? SIZE_SCALE[li] ?? 1 : 1), height: 9 * (sizeBy && colouring.kind === "number" ? SIZE_SCALE[li] ?? 1 : 1), borderRadius: "50%", border: "1px solid #14181e", background: l.colour, flex: "0 0 auto" }} />{l.other ? tr("Other: {n} values ({holes} holes)", { n: l.other.length, holes: l.holes.toLocaleString() }) /* #3340 */ : l.label}</span>)}
+              {shapes && ( /* TASKS.csv #3456 — what each shape stands for */
+                <div aria-label={tr("Shape legend")} style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 3 }}>
+                  <span style={{ fontWeight: 600 }}>{shapeBy}</span>
+                  {shapes.legend.map((l) => <span key={l.label} style={{ display: "flex", alignItems: "center", gap: 5 }}><ShapeGlyph shape={l.shape} />{l.label} ({l.count.toLocaleString()})</span>)}
+                </div>
+              )}
               {atIntercept ? <span>{tr("Each dot sits at the mid-point of its hole's highest interval; the line runs from the collar.")}</span> : null}
               {(colourBy.startsWith("max:") || colourBy.startsWith("mean:")) && !breaks.length ? <span>{colouring.noValue ? tr("Classes at the quintiles of the holes' values; a grey ring is a hole with no value ({n}).", { n: colouring.noValue.toLocaleString() }) : tr("Classes at the quintiles of the holes' values; a grey ring is a hole with no value.")}{/* counts: #3351 */}</span> : null}
             </div>

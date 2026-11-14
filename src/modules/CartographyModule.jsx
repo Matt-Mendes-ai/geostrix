@@ -30,7 +30,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the 
 import { collarCentreLonLat, collarSpread, formatLonLat, medianPoint, crsCandidatesAt, offsetFrom } from "../lib/projectCrs.js"; // TASKS.csv #2291; medianPoint: #2463; crsCandidatesAt: #2465
 import { smallGridCoordinates, gridFrameFromRows } from "../lib/crsFromColumns.js"; // TASKS.csv #2291; gridFrameFromRows: #3446
 import { tieOf } from "../lib/localGridTie.js"; // TASKS.csv #2587
-import { gridToCrsChoice, isMineSource, MINE_SOURCE } from "../lib/mineGrid.js"; // TASKS.csv #2812 — 'A file' from the mine grid
+import { gridToCrsChoice, isMineSource, MINE_SOURCE, mineGridOf } from "../lib/mineGrid.js"; // TASKS.csv #2812 — 'A file' from the mine grid
 const LocalGridPanel = React.lazy(() => import("../components/LocalGridPanel.jsx")); // TASKS.csv #2288 — on demand
 const MineGridPanel = React.lazy(() => import("../components/MineGridPanel.jsx")); // TASKS.csv #2586 — on demand
 
@@ -117,9 +117,10 @@ export default function CartographyModule({ embedded = false, forcePane = null }
   const obj = inventory.find((i) => i.key === objKey);
   const moveObject = () => run(async () => {
     if (project?.crsSet === false) throw new Error(tr("The project's coordinate system is not chosen yet, so there is no CRS to reproject a layer into. Choose it under Project CRS first.")); // #2290
-    const report = await reprojectObjectTo({ kind: obj.kind, id: obj.id }, Number(objFrom), { rotateAzimuths: rotate });
-    const dn = datumNote(objFrom) || datumNote(project.epsg); // TASKS.csv #2467 — the datum shift applied, said (AGD84 -> GDA94: EPSG's national fit, ~1 m)
-    setMsg({ ok: true, text: reportText(report, `${obj.label} moved from ${nameOf(objFrom)} into the project CRS, ${nameOf(project.epsg)}`) + (dn ? ` ${dn}` : "") });
+    const fromMine = isMineSource(objFrom); // TASKS.csv #2826 — the layer's coordinates are the project's mine grid's
+    const report = await reprojectObjectTo({ kind: obj.kind, id: obj.id }, fromMine ? MINE_SOURCE : Number(objFrom), { rotateAzimuths: rotate });
+    const dn = fromMine ? "" : datumNote(objFrom) || datumNote(project.epsg); // TASKS.csv #2467 — the datum shift applied, said (AGD84 -> GDA94: EPSG's national fit, ~1 m)
+    setMsg({ ok: true, text: reportText(report, `${obj.label} moved from ${fromMine ? `the mine grid${fileGrid?.name ? ` (${fileGrid.name})` : ""}` : nameOf(objFrom)} into the project CRS, ${nameOf(project.epsg)}`) + (dn ? ` ${dn}` : "") });
   });
 
   // ---- reproject a file pane ----
@@ -309,8 +310,10 @@ export default function CartographyModule({ embedded = false, forcePane = null }
                   <option value="">{tr("Choose a layer…")}</option>
                   {inventory.map((i) => <option key={i.key} value={i.key}>{i.label}</option>)}
                 </select>
-                <div style={{ marginTop: 10 }}><CrsPicker label={tr("Its coordinates are really in")} value={objFrom} onChange={setObjFrom} height={150} /></div>
-                <button style={primary} disabled={busy || !obj || !objFrom || Number(objFrom) === Number(project.epsg)} onClick={moveObject}>
+                {mineGridOf(project) /* #2826 — a project with a mine grid reads a layer on it too */
+                  ? <div style={{ marginTop: 10 }}><SourceCrsField label={tr("Its coordinates are really in")} value={objFrom ?? ""} onChange={(c) => setObjFrom(c === "" ? null : isMineSource(c) ? MINE_SOURCE : Number(c))} mineGrid={fileGrid} defaultText={tr("Choose…")} title={tr("The CRS the layer's numbers are really in, or the project's local mine grid.")} /></div>
+                  : <div style={{ marginTop: 10 }}><CrsPicker label={tr("Its coordinates are really in")} value={objFrom} onChange={setObjFrom} height={150} /></div>}
+                <button style={primary} disabled={busy || !obj || !objFrom || (!isMineSource(objFrom) && Number(objFrom) === Number(project.epsg))} onClick={moveObject}>
                   {busy ? <Loader2 size={14} className="spin" /> : <Layers size={14} />}{" "}{tr("Reproject into the project CRS")}</button>
               </>
             ) : <div style={box(true)}>{tr("Nothing with map coordinates is loaded yet.")}</div>}

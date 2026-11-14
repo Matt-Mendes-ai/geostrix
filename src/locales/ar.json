@@ -12623,5 +12623,20 @@
   "Against the {n} of the {total} points it was built from that lie on its ground: median {med} m off, worst {worst} m ({id}), {over} more than {lim} m off.": "مقابل {n} من {total} نقطة بُني منها وتقع على أرضه: الوسيط {med} م انحرافًا، الأسوأ {worst} م ({id})، و{over} بانحراف أكثر من {lim} م.",
   "Area {v} ha on the ground ({g} ha on the map grid)": "المساحة {v} هكتار على الأرض ({g} هكتار على شبكة الخريطة)",
   "Area {v} ha": "المساحة {v} هكتار",
-  "{v} ha on the ground ({g} ha on the map grid)": "{v} هكتار على الأرض ({g} هكتار على شبكة الخريطة)"
+  "{v} ha on the ground ({g} ha on the map grid)": "{v} هكتار على الأرض ({g} هكتار على شبكة الخريطة)",
+  "Shape by": "الشكل حسب",
+  "Shape collars by": "شكل الفوهات حسب",
+  "One shape": "شكل واحد",
+  "Size by the value's class": "الحجم حسب فئة القيمة",
+  "Shape legend": "مفتاح الأشكال",
+  "A new raster of this grid's cells inside the boundary (the original stays), cropped to its extent": "نقطي جديد بخلايا هذه الشبكة داخل الحدّ (يبقى الأصل)، مقصوص إلى امتداده",
+  "Clip to this boundary (new raster)": "قصّ إلى هذا الحدّ (نقطي جديد)",
+  "Column(s) {cols} look like bearings: they were written as they are, measured from the local grid's north, not turned by the tie's rotation ({rot}°).": "يبدو أن العمود(الأعمدة) {cols} اتجاهات: كُتبت كما هي، مقيسة من شمال الشبكة المحلية، دون تدويرها بدوران الربط ({rot}°).",
+  "The CRS the layer's numbers are really in, or the project's local mine grid.": "نظام الإحداثيات الذي تقع فيه أرقام الطبقة فعلًا، أو شبكة المنجم المحلية للمشروع.",
+  "Build the terrain from the samples and collars inside an area you draw, so the grid follows them: for a field wider than one grid can resolve": "بناء التضاريس من العينات والفوهات داخل منطقة ترسمها لتتبعها الشبكة: لحقل أعرض مما تستطيع شبكة واحدة حلّه",
+  "Limit to a drawn area…": "التقييد بمنطقة مرسومة…",
+  "Inside {w} × {h} km": "داخل {w} × {h} كم",
+  "Draw the area to build the terrain over": "ارسم المنطقة التي تُبنى التضاريس فوقها",
+  "No cell of \"{name}\" with a value lies inside \"{boundary}\".": "لا تقع أي خلية ذات قيمة من \"{name}\" داخل \"{boundary}\".",
+  "Added \"{name}\": {kept} of {total} cells inside \"{boundary}\" have a value ({cells} cells in all, cropped to the boundary). \"{source}\" is unchanged.": "أُضيف \"{name}\": {kept} من {total} خلية داخل \"{boundary}\" لها قيمة ({cells} خلية في المجموع، مقصوص إلى الحد). \"{source}\" لم يتغير."
 }

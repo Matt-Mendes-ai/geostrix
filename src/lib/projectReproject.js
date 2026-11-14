@@ -30,7 +30,7 @@ const isNad83Null = (d) => /\+ellps=GRS80\b/.test(d || "") && /\+towgs84=0,0,0(,
 export const nullDatumPair = (a, b) => (isWgs84(a) && isNad83Null(b)) || (isNad83Null(a) && isWgs84(b));
 
 export function reprojectProject(live, fromEpsg, toEpsg, opts = {}) {
-  const T = pointTransform(fromEpsg, toEpsg);
+  const T = opts.transform || pointTransform(fromEpsg, toEpsg); // opts.transform: a mine grid's way in (TASKS.csv #2826), through its tie
   if (!T) throw new Error(tr("Can't reproject from EPSG:{fromEpsg} to EPSG:{toEpsg} — one of them isn't a CRS GeoStrix can build.", { fromEpsg, toEpsg }));
   const fromDef = getProj4DefSync(fromEpsg), toDef = getProj4DefSync(toEpsg);
   const rotate = opts.rotateAzimuths !== false;

@@ -11,6 +11,7 @@
 import { magColorRGB } from "./layers.js";
 import { idwColourFields } from "./idwColour.js"; // TASKS.csv #3159 — moved there, re-exported below
 import { percentileSorted } from "./arrayStats.js"; // TASKS.csv #740
+import { percentilesBySelection } from "./percentileSelect.js"; // TASKS.csv #3189 — the 2nd / 98th percentiles by selection (O(n)), no sort of every value
 import { f32ToB64 } from "./inversion.js"; // TASKS.csv #538 — the float grid kept on the raster
 
 // Grids `points` ({x,y,value}[]) onto a regular raster using inverse-distance weighting. `power`
@@ -123,6 +124,14 @@ export function makeStretch(values, mode = "p2-98") {
   if (!n) return { t: () => 0, lo: null, hi: null, mode };
   const v = new Float64Array(n);
   for (let i = 0, k = 0; i < values.length; i++) if (Number.isFinite(values[i])) v[k++] = values[i];
+  // TASKS.csv #3189 — the 2-98 % stretch (the default) and the linear one need two values each, not an ordered list: a 500 x 500 grid spent 0.1-0.25 s
+  // here, four times a card (rasterColour.js). The same numbers (percentileSelect.js reproduces percentileSorted to the bit, -0 / +0 included)
+  if (mode === "p2-98" || mode === "linear") {
+    let lo, hi;
+    if (mode === "linear") { lo = Infinity; hi = -Infinity; for (let i = 0; i < n; i++) { if (v[i] < lo) lo = v[i]; if (v[i] > hi) hi = v[i]; } }
+    else [lo, hi] = percentilesBySelection(v, [0.02, 0.98]);
+    return { mode, lo, hi, t: (x) => (hi > lo ? Math.min(1, Math.max(0, (x - lo) / (hi - lo))) : 0) };
+  }
   v.sort();
   const q = (p) => percentileSorted(v, p); // #740 — the shared rule
   if (mode === "equalise") {

@@ -109,8 +109,9 @@ test("the import routes .gxf / .grd through the worker; the worker runs the shar
   // the readers' module stays light enough for a worker: no DOM, no geotiff, no CRS registry
   const rr = readFileSync(new URL("../src/lib/rasterRows.js", import.meta.url), "utf8");
   assert.doesNotMatch(rr, /document\.|from "geotiff"|reproject\.js/);
-  // nothing new in the startup bundle (#3159): makeStretch and arrayStats.js keep their code; the selection is reached only from lazy modules
-  assert.doesNotMatch(readFileSync(new URL("../src/lib/idw.js", import.meta.url), "utf8"), /percentileSelect|percentilesBySelection/);
+  // TASKS.csv #3189 (Matt's pick B, 2026-11-14): makeStretch's 2-98 % and linear stretches now use the selection (about 1.7 kB in the startup bundle,
+  // measured by check-bundle-size); arrayStats.js keeps its code. The numbers are unchanged (the selection reproduces percentileSorted to the bit).
+  assert.match(readFileSync(new URL("../src/lib/idw.js", import.meta.url), "utf8"), /import \{ percentilesBySelection \} from "\.\/percentileSelect\.js"; \/\/ TASKS\.csv #3189/);
   assert.doesNotMatch(readFileSync(new URL("../src/lib/arrayStats.js", import.meta.url), "utf8"), /percentilesBySelection/);
   assert.match(rr, /import \{ stretchP298 \} from "\.\/percentileSelect\.js";/);
 });
