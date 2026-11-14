@@ -1945,9 +1945,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     scene.add(new THREE.AmbientLight(0xffffff, 0.35 * Math.PI));
     const dl = new THREE.DirectionalLight(0xffffff, 0.65 * Math.PI); dl.position.set(200, 400, 200); scene.add(dl);
     headlightRef.current = dl;
-    // The grid itself is now built/rebuilt by a dedicated effect below (see gridGroupRef), driven by
-    // gridConfig — replaces this single hardcoded GridHelper so visibility/size/divisions/color/3D
-    // mode are all user-adjustable instead of fixed at scene-creation time.
+    // The grid is built by its own effect below (gridGroupRef), from gridConfig.
     // TASKS.csv #311 — kept in a ref and toggled by gridConfig.axes (default off; see axisLinesRef's
     // own comment for why they exist at all and why they are hidden rather than removed). Three
     // THREE.Line objects with 2 vertices each — the .visible flip below costs nothing.
@@ -7649,7 +7647,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <div ref={contextMenuRef} role="menu" aria-label={tr("3D view menu")} onKeyDown={onContextMenuKeyDown} onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: contextMenu.x, top: contextMenu.y, background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 8, padding: 6, fontSize: "var(--font-size-base)", minWidth: 180, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
             {contextMenu.hit ? (
               <>
-                <div style={{ padding: "6px 10px", color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", whiteSpace: "pre-line", borderBottom: "1px solid var(--color-border)", marginBottom: 4 }}>{contextMenu.hit.tip}</div>
+                <div style={{ padding: "6px 10px", color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", whiteSpace: "pre-line", maxWidth: 360, overflowWrap: "anywhere", borderBottom: "1px solid var(--color-border)", marginBottom: 4 }}>{contextMenu.hit.tip}</div>{/* #3280 (5) — a long code meaning made it 715 px wide */}
                 <ContextItem label={tr("Zoom here")} onClick={() => { zoomToPoint(contextMenu.hit.point); setContextMenu(null); }} />
                 <ContextItem label={tr("Hide {holeId}", { holeId: contextMenu.hit.holeId })} onClick={() => { toggleHole(contextMenu.hit.holeId); setContextMenu(null); }} />
                 <ContextItem label={tr("Copy details")} onClick={() => { copyText(contextMenu.hit.tip); setContextMenu(null); }} />
