@@ -12057,5 +12057,8 @@
   "{n} structure": "{n} بنية",
   "{n} structures": "{n} بنى",
   "{layer} (hidden in 3D)": "{layer} (مخفي في العرض ثلاثي الأبعاد)",
-  "(highest of {n} in the slab)": "(الأعلى من {n} في الشريحة)"
+  "(highest of {n} in the slab)": "(الأعلى من {n} في الشريحة)",
+  "Show the legend": "إظهار وسيلة الإيضاح",
+  "Legend ({n} rows)": "وسيلة الإيضاح ({n} صفوف)",
+  "Collapse the legend": "طي وسيلة الإيضاح"
 }

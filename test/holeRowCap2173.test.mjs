@@ -20,6 +20,6 @@ test("the hole list is capped, with Show more, and starts again on a new filter"
 test("no layout read on every render in the ribbon fit or the legend fit", () => {
   assert.ok(ribbon.includes("const key = `${mode}|${[...el.querySelectorAll(\".ge-ribbon-label\")].map((x) => x.textContent).join(\"|\")}`;"));
   assert.ok(!/const key = `\$\{mode\}\|\$\{el\.clientWidth\}/.test(ribbon));
-  assert.ok(overlay.includes("}, [fit, legendKey, boxH, boxW, config.title, config.legend, config.enabled, showScale]);") /* boxW: #2044 */);
+  assert.ok(overlay.includes("}, [fit, legendKey, boxH, boxW, config.title, config.legend, config.enabled, showScale, collapsed]);") /* boxW: #2044 */);
   assert.ok(overlay.includes("const k = Math.max(1, Math.ceil(over / 17)) * lay.cols, shownNow = Math.max(1, shownLenRef.current);"));
 });

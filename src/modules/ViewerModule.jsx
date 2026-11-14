@@ -7506,6 +7506,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             cameraRef={cameraRef}
             mountRef={mountRef}
             camSignalRef={figureOverlaySignalRef}
+            openKey={viewerUiStateSeq} /* #3280 (1) */
           />
         )}
         {/* TASKS.csv #294 — the fresh-project empty state. This used to be a single grey line

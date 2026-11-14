@@ -12057,5 +12057,8 @@
   "{n} structure": "{n} estructura",
   "{n} structures": "{n} estructuras",
   "{layer} (hidden in 3D)": "{layer} (oculto en 3D)",
-  "(highest of {n} in the slab)": "(el más alto de {n} en la franja)"
+  "(highest of {n} in the slab)": "(el más alto de {n} en la franja)",
+  "Show the legend": "Mostrar la leyenda",
+  "Legend ({n} rows)": "Leyenda ({n} filas)",
+  "Collapse the legend": "Contraer la leyenda"
 }
