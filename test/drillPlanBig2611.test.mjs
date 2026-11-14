@@ -31,7 +31,7 @@ test("the key takes the corner with the fewest holes", () => {
 test("wired: no yellow on the white map, the corner, collars avoided, the CRS by name", () => {
   const c = readFileSync(new URL("../src/components/DrillPlanElement.jsx", import.meta.url), "utf8");
   assert.match(c, /const ON_WHITE = CATEGORICAL_SAFE_COLORS\.filter\(\(c\) => String\(c\)\.toUpperCase\(\) !== "#F0E442"\);/);
-  assert.match(c, /emptiestCorner\(g\.holes, g\.w, g\.h, keyBox\.w, keyBox\.h\)/);
+  assert.match(c, /emptiestCorner\(\[\.\.\.g\.holes, \.\.\.planned\], g\.w, g\.h, keyBox\.w, keyBox\.h\)/ /* #2259 — the planned holes count too */);
   assert.match(c, /\.\.\.collarBoxes\] \}\);/);
   const m = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
   assert.match(m, /: project\?\.epsg \? crsText\(project\.epsg\) \/\* #2611/);

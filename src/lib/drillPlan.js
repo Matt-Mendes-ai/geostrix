@@ -144,6 +144,19 @@ export function drillPlanGeometry(el, collars) {
   return { w, h, ppm, holes };
 }
 
+// TASKS.csv #2259 (review #2174, WA gold) — a drill plan is what a program is approved and staked from, and it showed the drilled collars only:
+// the planned holes (drawn in the planned colour in the 3D view and on sections) are on it too, unless the element's 'Show the planned holes'
+// is off. planned: the project's plannedHoles ({ name, x, y, azimuth, dip, length }); the hole filter reads a planned hole's name as its id.
+export const plannedAsCollars = (planned) => (planned || []).map((p) => ({ ...p, hole_id: p.name || p.id }));
+export const showsPlanned = (el) => el?.showPlanned !== false;
+// -> frame-px holes as drillPlanGeometry's, each with planned: true ([] when off or none)
+export function drillPlanPlanned(el, planned) {
+  if (!showsPlanned(el) || !planned?.length) return [];
+  return drillPlanGeometry(el, plannedAsCollars(planned)).holes.map((h) => ({ ...h, planned: true }));
+}
+// the holes a 'Fit the holes' frames: the collars, and the planned holes when the plan shows them
+export const holesToFit = (el, collars, planned) => filterHoles([...(collars || []), ...(showsPlanned(el) ? plannedAsCollars(planned) : [])], el?.holeFilter);
+
 // TASKS.csv #2301 (review #2174, WA gold) — the location plan had no coordinates at all. A grid at a round spacing (el.gridM, else about five
 // lines across the frame: 1 / 2 / 2.5 / 5 x 10^n m; 0 = no grid), with easting labels along the top and northing labels down the left, in the
 // project's own metres. -> { spacing, xs: [{ px, label }], ys: [{ px, label }] } or null
