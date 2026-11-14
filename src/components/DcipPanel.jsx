@@ -3,6 +3,7 @@
 // line by its start / end coordinates, state the data uncertainty (never assumed), invert. Results: a
 // section view here, and block models (resistivity, chargeability) along the line in the 3D view.
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
+import { tableRefusal } from "../lib/tableRefusal.js"; // TASKS.csv #3320
 import InResultArea from "./InResultArea.jsx"; // TASKS.csv #1199
 import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #1174
 import { Upload, Play, Download, Trash2 } from "./icons.js";
@@ -151,6 +152,10 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
         if (r?.error) throw new Error(r.error); // #1660 — a 3D survey, said
         if (r) t = { headers: r.headers, rows: r.rows, note: r.note };
       }
+      // TASKS.csv #3320 — still one column after every reader tried: not a table this button can read, said (a picker of seven lists each
+      // holding the file's first line was opened)
+      // and a 3D reading file (Tx1East / Rx1North ...) that no line reader placed, whose columns are map coordinates
+      { const g0 = guessDcipColumns(t.headers || []), r = !(g0.a && g0.m) ? tableRefusal(f.name, t.headers, t.rows, "dcipLine") : null; if (r) { setMsg({ ok: false, text: r }); return; } }
       const m = guessDcipColumns(t.headers);
       // TASKS.csv #634 — a different line's file starts unplaced: the previous line's position (and stations) used to
       // carry over, silently putting e.g. 8575E on 9000E's coordinates. Reloading the same file keeps it.
@@ -266,6 +271,8 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
       const sf = { name: f.name, ...parseStationFile(decodeTableBytes(await f.arrayBuffer()).text, f.name) };
       const keys = Object.keys(sf.lines);
       const hints = [lineName, ...(file?.rows || []).slice(0, 3).flatMap((r) => Object.values(r))];
+      // TASKS.csv #3320 — a file with no stations in it said nothing at all
+      if (!keys.length) { setMsg({ ok: false, text: tr("\"{name}\" has no line stations in it: Load the line stations reads GPS waypoints named '<line> <station>' (e.g. '8575E 750N') or a table of line, station, X and Y.", { name: f.name }) }); return; }
       const k = matchStationLine(keys, ...hints);
       if (k != null) applyStations(sf, k);
       else { setStationFile(sf); setMsg({ ok: true, text: tr("{name} has {keys} lines and none is named like \"{lineName}\" — choose this line's stations.", { name: f.name, keys: keys.length, lineName }) }); }

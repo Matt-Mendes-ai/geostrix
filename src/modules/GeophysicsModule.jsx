@@ -80,6 +80,7 @@ import { Layers as RLayers /* #1986 */, Waves as RWaves /* #1989 */, Zap as RZap
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax, median } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread); median: #2239
 import { unreadableFormatAdvice, textTableRefusal } from "../lib/unreadableFormats.js"; // TASKS.csv #603; textTableRefusal: #2847
+import { tableRefusal } from "../lib/tableRefusal.js"; // TASKS.csv #3320 — a table the picker cannot use (one column, a DC / IP reading file)
 import { t as tr } from "../lib/i18n.js";
 import { decadesBetween, isLogSpaced, logViridisStops } from "../lib/pointSurveyScale.js"; // TASKS.csv #1787
 import { defaultModelLegend } from "../lib/modelDefaultStops.js"; // TASKS.csv #2400
@@ -430,6 +431,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (file.size > STREAM_FROM_BYTES) { await openStreamedCsv(file, head); return; } // #1351 — was refused above 150 MB
     parseTableFile(file).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback
         const res = { data: t.rows, meta: { fields: t.headers }, note: t.note };
+        { const r = tableRefusal(file.name, t.headers, t.rows, "point"); if (r) { setError(r); return; } } // #3320 — before the column picker
         // TASKS.csv #484 — columns are matched on the words in each header (Easting_X, Raw_Mag_nT...), once per
         // file. Not sure which is which -> the column picker below (shared with .xyz), never a dead end.
         const cols = guessGeophysColumns(res.meta.fields || []);
@@ -1335,6 +1337,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       if (file.size > STREAM_FROM_BYTES) { // TASKS.csv #1351 — header and sample from the first part; Import streams the rest, thinned
         const head = await headText(file);
         const { columns, rows: sample } = parseXYZ(head);
+        { const r = tableRefusal(file.name, columns, sample, "point"); if (r) { setXyzError({ info: false, text: r }); return; } } // #3320
         const g = guessXyzChannels(columns, sample), estimate = Math.round((sample.length / Math.max(1, head.length)) * file.size);
         setXyzPending({ fileName: file.name, columns, rows: sample, xCol: guessColumn(columns, XY_NAME_HINTS.x), yCol: guessColumn(columns, XY_NAME_HINTS.y), zCol: g.z, valueCol: g.value, header: gemHeaderInfo(head), headerEpsg: gemHeaderEpsg(head) || geosoftHeaderEpsg(head) /* #2832 */, ...cleaningDefaults(columns),
           stream: { file, kind: "xyz", columns, estimate, keepEvery: suggestKeepEvery(estimate, undefined, (layers.geophys_pts || []).length) } });
@@ -1343,6 +1346,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       }
       const text = await file.text();
       const { columns, rows: parsedRows } = parseXYZ(text);
+      { const r = tableRefusal(file.name, columns, parsedRows, "point"); if (r) { setXyzError({ info: false, text: r }); return; } } // #3320
       const g = guessXyzChannels(columns, parsedRows); // #600 — first guesses; the picker still shows every column
       const gx = guessColumn(columns, XY_NAME_HINTS.x), gy = guessColumn(columns, XY_NAME_HINTS.y);
       setXyzPending({
