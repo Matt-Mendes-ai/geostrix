@@ -7,8 +7,8 @@ import { suggestKeepEvery } from "../src/lib/xyzBatch.js";
 const src = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
 
 test("with holes the big build depends on the layers except geophys_pts", () => {
-  assert.ok(src.includes('if (prev && Object.keys({ ...prev, ...layers }).every((k) => k === "geophys_pts" || prev[k] === layers[k])) return prev;'));
-  assert.ok(src.includes(", noHoles ? layers : layersForBuild /* #1582 */, customLayers,"));
+  assert.ok(src.includes('if (prev && Object.keys({ ...prev, ...sceneLayers }).every((k) => k === "geophys_pts" || prev[k] === sceneLayers[k])) return prev;' /* sceneLayers: the layers with the built-in logs filtered, #3241 */));
+  assert.ok(src.includes(", noHoles ? sceneLayers : layersForBuild /* #1582; sceneLayers: #3241 */, customLayers,"));
 });
 
 test("the Keep default leaves room for what the project already draws", () => {

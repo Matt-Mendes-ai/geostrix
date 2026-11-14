@@ -47,6 +47,7 @@ import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader, PaneNotice } from ".
 import { Pickaxe, Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, PenTool, Rows3, Crosshair, Target, SquareSplitVertical, Sparkles } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
 import { solidBounds, SOLID_IMPORT_EXTENSIONS, SOLID_FACE_WARN } from "../lib/solidImportMeta.js"; // TASKS.csv #148; #552 split
 import { tieOf } from "../lib/localGridTie.js"; // TASKS.csv #3186
+import { withFilteredLogs } from "../lib/logFilter.js"; // TASKS.csv #3241 (not numericSources.js: its imports would join the startup bundle)
 import { parseSolidInWorker } from "../lib/solidImportClient.js"; // TASKS.csv #414
 // TASKS.csv #414 — imported solids, one tone per layer (grey-blue family: never the generated-surface gold).
 const IMPORTED_SOLID_COLORS = [0x8fa3b8, 0xa89bbd, 0x8fb8aa, 0xbfae92, 0x93b3c4, 0xb89aa4];
@@ -4289,12 +4290,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // TASKS.csv #1582 (review #1497, Lawyers) — geophysics readings live in layers.geophys_pts but are built by their own builder;
   // with holes the big build never reads them, so a survey import or removal keeps the same object here (23-30 s on Lawyers)
   const layersBuildRef = useRef(null);
+  // TASKS.csv #3241 — the 3D ribbons draw the built-in logs (Mag. susc., SG) as Downhole logs read them: the valid range and the despike applied
+  const sceneLayers = useMemo(() => withFilteredLogs(layers, project?.logValidRange), [layers, project?.logValidRange]);
   const layersForBuild = useMemo(() => {
     const prev = layersBuildRef.current;
-    if (prev && Object.keys({ ...prev, ...layers }).every((k) => k === "geophys_pts" || prev[k] === layers[k])) return prev;
-    layersBuildRef.current = layers;
-    return layers;
-  }, [layers]);
+    if (prev && Object.keys({ ...prev, ...sceneLayers }).every((k) => k === "geophys_pts" || prev[k] === sceneLayers[k])) return prev;
+    layersBuildRef.current = sceneLayers;
+    return sceneLayers;
+  }, [sceneLayers]);
   // TASKS.csv #2371 — the desurvey method changes a trace only where a hole's survey has two attitudes; otherwise a switch redraws nothing and says why
   const desurveyBites = useMemo(() => desurveyMatters(collars, survey), [collars, survey]);
   const desurveySeenRef = useRef(desurveyMethod);
@@ -4304,8 +4307,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   }, [desurveyMethod]);
   useEffect(() => {
     // TASKS.csv #2176 step 1 — the drillhole scene build, moved unchanged into viewer/drillholeScene.js (#1084 size cap)
-    buildDrillholeScene({ applyCategoryVisibility, applyHoleVisibilityRef /* #3253 */, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collarSize, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels, pointBuildersStale: () => [!sameInputs(assayBuiltRef.current, assayInputs), !sameInputs(geophysBuiltRef.current, geophysInputs), !sameInputs(surfaceBuiltRef.current, surfaceInputs)] /* #2176 */ });
-  }, [collars, survey, desurveyBites ? desurveyMethod : "" /* #135 — switching method must rebuild every trace; #1528 / #2371 — not when every hole keeps one attitude (straight holes, the same for every method) */, noHoles ? layers : layersForBuild /* #1582 */, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, layerStylesBuildKey /* #635; #1528 — not the in-place opacities */, noHoles && anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, noHoles && mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, noHoles && voxelGeomSignature /* #1569 — with holes, only the fit box below */, fitBox, rebuildSeq, noHoles && placedSurfaceSamples /* #606 — and the no-drillhole camera anchor */]); // #551: assay / geophysics-legend / surface-visibility inputs moved to their own builders
+    buildDrillholeScene({ applyCategoryVisibility, applyHoleVisibilityRef /* #3253 */, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collarSize, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers: sceneLayers /* #3241 */, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels, pointBuildersStale: () => [!sameInputs(assayBuiltRef.current, assayInputs), !sameInputs(geophysBuiltRef.current, geophysInputs), !sameInputs(surfaceBuiltRef.current, surfaceInputs)] /* #2176 */ });
+  }, [collars, survey, desurveyBites ? desurveyMethod : "" /* #135 — switching method must rebuild every trace; #1528 / #2371 — not when every hole keeps one attitude (straight holes, the same for every method) */, noHoles ? sceneLayers : layersForBuild /* #1582; sceneLayers: #3241 */, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, layerStylesBuildKey /* #635; #1528 — not the in-place opacities */, noHoles && anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, noHoles && mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, noHoles && voxelGeomSignature /* #1569 — with holes, only the fit box below */, fitBox, rebuildSeq, noHoles && placedSurfaceSamples /* #606 — and the no-drillhole camera anchor */]); // #551: assay / geophysics-legend / surface-visibility inputs moved to their own builders
   // TASKS.csv #1569 (review #1497, Lawyers) — with drillholes, a block model only widens the fit box (the origin and the first
   // fit come from the holes): adding one re-derives that box here instead of rebuilding every drillhole and custom layer
   // (25-26 s per 'Add as block model' on Lawyers). Without holes the build above still runs, since the models anchor it.
