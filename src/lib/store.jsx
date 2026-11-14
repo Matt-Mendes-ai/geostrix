@@ -1042,7 +1042,7 @@ export function StoreProvider({ children }) {
       fields.rasters = await reprojectRasterImages(fields.rasters || live.rasters, fromEpsg, toEpsg, opts.onProgress);
       report.counts.rasters = fields.rasters.length;
     }
-    loadProjectPayload(payloadFromFields({ ...liveRef.current, ...fields }), live.project?.name);
+    applyLoadedFields({ ...liveRef.current, ...fields }); // TASKS.csv #3493 — the moved fields as they are (was a write to columns and a read back of the whole project)
     setActiveTabDirty(true); // after the load (which marks a loaded project clean): this one has changed
     clearUndoHistory();
     return report;
@@ -1092,7 +1092,7 @@ export function StoreProvider({ children }) {
       const [moved] = await reprojectRasterImages([r], fromEpsg, toEpsg);
       changed.rasters = changed.rasters.map((x) => (x.id === target.id ? moved : x));
     }
-    loadProjectPayload(payloadFromFields({ ...liveRef.current, ...changed }), live.project?.name);
+    applyLoadedFields({ ...liveRef.current, ...changed }); // TASKS.csv #3493 — as reprojectProjectTo
     setActiveTabDirty(true);
     clearUndoHistory();
     return report;
@@ -1239,10 +1239,17 @@ export function StoreProvider({ children }) {
     // Every field from the table (projectFields.js): older files just lack newer keys and get that field's empty
     // value; layers / voxel models are expanded from their compact form; pre-#69 flat layouts become "Page 1".
     const dropped = [];
-    setFields(fieldsFromPayload(data, fallbackName, dropped));
+    const vals = fieldsFromPayload(data, fallbackName, dropped);
     lastDroppedFieldsRef.current = dropped; // #1262 — openProject reports them
     // TASKS.csv #1081 — a file from before version 20 may carry connection profiles: moved to this computer's list
     { const fromFile = profilesFromFile(data); if (fromFile.length) setDbConnections((prev) => mergeDbProfiles(prev, fromFile)); } // #1263
+    applyLoadedFields(vals);
+  }, []);
+  // TASKS.csv #3493 — what every load does with a complete set of field values: set them, and treat it as a loaded project (the 3D View re-reads
+  // everything, the camera and the clean state reset). loadProjectPayload builds the values from a file's payload; a reprojection has them
+  // already (the live fields with the moved ones) and gives them here, without writing the whole project to columns and reading it back.
+  const applyLoadedFields = useCallback((vals) => {
+    setFields(vals);
     setViewerUiStateSeq((s) => s + 1);
     setLastCamState(null); // a different project's saved camera has no meaning here — fall back to the default view
     setPendingLayoutImages([]);
