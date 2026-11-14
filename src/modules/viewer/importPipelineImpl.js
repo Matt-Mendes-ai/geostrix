@@ -37,6 +37,8 @@ import { loadSampleFiles, readSiblingFiles, sampleStatus } from "../../lib/deskt
 const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #605 (same test as xlsx.js; the reader itself loads on demand, #552)
 import { buildLayer, sameMapLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609; sameMapLayer: #2019
 import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
+import { rasterFileSet } from "../../lib/rasterSideFiles.js"; // TASKS.csv #2901 — a world file / .prj / Geosoft .xml dropped with its raster
+import { geosoftXmlCrs } from "../../lib/geosoftXml.js"; // TASKS.csv #2901
 import { requestProjectCrs } from "../../lib/projectCrsRequest.js"; // TASKS.csv #615
 import { collarAlwaysKept, firstPerHole } from "../../lib/collarAttrs.js"; // TASKS.csv #2492 / #2190; firstPerHole: #2172
 import { surveyMethodKey, surveyMethodByHole, foldCaseVariants } from "../../lib/surveyMethod.js"; // TASKS.csv #2494
@@ -184,7 +186,7 @@ export function makeImportPipeline(ctx, h) {
   // DXF and simply doesn't find it, with no explanation. The dispatch below is purely that filter-list
   // gap being closed: each extension is routed to the handler that already exists for it, so a file
   // picked from the Browser behaves exactly like the same file imported from its own module's button.
-  const importBrowserFile = async (file, filePath) => { // filePath: the Browser panel's (#2725)
+  const importBrowserFile = async (file, filePath, side = {}) => { // filePath: the Browser panel's (#2725); side: { world, xml, prj } dropped with a raster (#2901)
     const name = (file?.name || "").toLowerCase();
     // Drape elevation default, the rule RasterModule / GeophysicsModule use (#1505: above the collars under it, stacked over an
     // earlier raster, or at the depth the file name says). The per-raster elevation control on the Maps tab moves it after.
@@ -194,7 +196,13 @@ export function makeImportPipeline(ctx, h) {
       try {
         const live = importStateRef.current;
         const chooseProjectEpsg = (src, cur) => adoptCrsIfEmpty(src, file.name) || cur; // #607
-        const { raster, msg } = await (await loadRaster()).buildRasterImport(file, { epsg: projectTargetEpsg(live.project || project), defaultElevation, chooseProjectEpsg, tie: tieOf(live.project || project) /* #2743 — a tied mine grid: through its tie, as Maps and Geophysics do (#2587) */ });
+        // TASKS.csv #2901 — the side files dropped with it, read as the raster pane, the Maps plan drop and the Geophysics tab read them
+        const rasterLib = await loadRaster();
+        const worldFile = side.world ? rasterLib.parseWorldFile(await side.world.text(), side.world.name) : null;
+        const xc = side.xml ? geosoftXmlCrs(await side.xml.text()) : null;
+        const pe = !xc && side.prj ? guessEpsgFromPrjWkt(await side.prj.text()) : null;
+        const sideCrs = xc ? { epsg: xc.epsg, from: side.xml.name } : pe ? { epsg: pe, from: side.prj.name } : null;
+        const { raster, msg } = await rasterLib.buildRasterImport(file, { epsg: projectTargetEpsg(live.project || project), defaultElevation, chooseProjectEpsg, tie: tieOf(live.project || project) /* #2743 — a tied mine grid: through its tie, as Maps and Geophysics do (#2587) */, worldFile, sideCrs });
         const drape = rasterDrapeElevation({ collars: live.collars || collars, voxelModels: live.voxelModels || [], surfaceSamples: live.surfaceSamples || [], bbox: raster.bbox, rasters: live.rasters || [], fileName: file.name, stations: live.layers?.geophys_pts /* #2868 */ }); // #1505
         addRaster({ ...raster, elevation: drape.z });
         setNotices((p) => [...p, notice("{msg} {v} Set its opacity (or a Source CRS, if it landed in the wrong place) on the Maps tab.", { msg, v: drapeElevationNote(drape) })]);
@@ -1194,7 +1202,13 @@ export function makeImportPipeline(ctx, h) {
     // be refused ("Only .csv … can be dropped") although the Browser panel and the Raster / 3D Modelling buttons
     // import them: they go to those same handlers (importBrowserFile / importSolidFile), outside the table queue.
     const direct = grouped.files.filter((f) => /\.(tiff?|gxf|grd|dxf|obj|ts|gp|pl)$/i.test(f.name)); // grd: #1347; ts / gp / pl: GOCAD, #1992
-    for (const f of direct) { if (/\.(obj|ts|gp)$/i.test(f.name)) importSolidFile(f); else await importBrowserFile(f); }
+    // TASKS.csv #2901 — a world file / .prj / Geosoft .xml with the raster of the same name goes with it (a .prj or .xml with no .shp is among `unmatched`)
+    const rasterSides = rasterFileSet([...grouped.files, ...grouped.unmatched]);
+    const sideUsed = new Set(rasterSides.images.flatMap((i) => [i.world, i.xml, i.prj].filter(Boolean)));
+    const sideOf = (f) => rasterSides.images.find((i) => i.file === f) || {};
+    grouped.unmatched = grouped.unmatched.filter((f) => !sideUsed.has(f));
+    const sideInFiles = grouped.files.filter((f) => sideUsed.has(f)).length;
+    for (const f of direct) { if (/\.(obj|ts|gp)$/i.test(f.name)) importSolidFile(f); else await importBrowserFile(f, undefined, sideOf(f)); }
     // TASKS.csv #1992 — a GOCAD VSet (points with properties) is a point survey: read on the Geophysics tab
     const vsNames = grouped.files.filter((f) => /\.vs$/i.test(f.name)).map((f) => f.name);
     // TASKS.csv #1991 — a Leapfrog .msh is a solid; a UBC-GIF tensor mesh (also .msh, text 'NX NY NZ') is a block model mesh
@@ -1231,7 +1245,7 @@ export function makeImportPipeline(ctx, h) {
       advised.push(notice("{names}: XYZ point files are read on the Geophysics tab, which opens them now.", { names: xyzFiles.slice(0, 4).map((f) => f.name).join(", ") + (xyzFiles.length > 4 ? " …" : "") }));
     }
     if (advised.length) setNotices((p) => [...p, ...advised]);
-    const skipped = grouped.files.length - files.length - direct.length - advised.length - voFiles.length - voSide.size /* #2632 */ - (mshCount - mshAdvice.length) /* #1991: the Leapfrog meshes went to the solid import */ - Math.max(0, vsNames.length - 1) /* #1992 */ - Math.max(0, ediNames.length - 1) /* #1989: one notice for all of them */ - Math.max(0, lidarNames.length - 1) /* #1994 */ - Math.max(0, xyzFiles.length - 1) /* #3212 */ + grouped.unmatched.length;
+    const skipped = grouped.files.length - files.length - direct.length - advised.length - voFiles.length - voSide.size /* #2632 */ - (mshCount - mshAdvice.length) /* #1991: the Leapfrog meshes went to the solid import */ - Math.max(0, vsNames.length - 1) /* #1992 */ - Math.max(0, ediNames.length - 1) /* #1989: one notice for all of them */ - Math.max(0, lidarNames.length - 1) /* #1994 */ - Math.max(0, xyzFiles.length - 1) /* #3212 */ - sideInFiles /* #2901: read with their raster */ + grouped.unmatched.length;
     if (!files.length) {
       if (!direct.length && !advised.length && !mshCount && !voFiles.length) setNotices((p) => [...p, notice("Not imported from this drop: {names}. Dropped here, the 3D View reads .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml / .kmz, .las logs, GeoTIFF / .gxf / .grd grids and .dxf / .obj files; point surveys (.xyz) open on the Geophysics tab.", { names: grouped.files.slice(0, 4).map((f) => f.name).join(", ") + (grouped.files.length > 4 ? " …" : "") })]); // #3212 — the file named; an info, not a red notice left on screen
       else if (skipped) setNotices((p) => [...p, notice("{skipped} unrecognized file(s) skipped.", { skipped })]);
