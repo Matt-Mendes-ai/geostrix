@@ -103,7 +103,7 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
     const n = noiseGroupFor(data.groups, group);
     return n ? channelMatrix(data, n) : null;
   }, [data, group, isJoin, joinable]);
-  const stdGuess = useMemo(() => (noiseMat ? stdKindGuess(noiseMat.v) : "relative"), [noiseMat]); // #3440 — the USGS / Aarhus export's STD is in the data's unit
+  const stdGuess = useMemo(() => (noiseMat ? stdKindGuess(noiseMat) : "relative"), [noiseMat]); // #3440 — the USGS / Aarhus export's STD is in the data's unit
   const noiseOpts = useMemo(() => {
     const floor = Number(st?.floor) > 0 ? Number(st.floor) : null, maxUnc = st?.useStd && noiseMat ? (Number(st.maxUnc) > 0 ? Number(st.maxUnc) / 100 : 0.33) : null;
     return floor != null || maxUnc != null ? { floor, maxUnc, stdKind: st?.stdKind || stdGuess } : null;

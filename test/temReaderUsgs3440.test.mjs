@@ -36,8 +36,13 @@ test("#3440 the USGS layout: map-grid X / Y, the decays first, their gate times 
 test("#3440 the uncertainty columns' unit is guessed from their values; no-data values", () => {
   const d = readTemText(csv, "x");
   const n = channelMatrix(d, noiseGroupFor(d.groups, d.groups[0]));
-  assert.equal(stdKindGuess(n.v), "absolute"); // the USGS export: pV / (A m^4), tens to hundreds early
+  assert.equal(stdKindGuess(n), "absolute"); // values over 1.5
   assert.equal(stdKindGuess([0.03, 0.05, 0.2, NaN]), "relative");
+  // the real USGS export: SI, every STD under 1, falling with the decay (8e-9 early to 6e-12 late at one station): absolute
+  const si = { m: 6, n: 2, v: [8e-9, 2e-9, 4e-10, 7e-11, 2e-11, 6e-12, 5e-9, 1e-9, 3e-10, 5e-11, 1e-11, 4e-12] };
+  assert.equal(stdKindGuess(si), "absolute");
+  // relative fractions stay near a few per cent at every gate
+  assert.equal(stdKindGuess({ m: 6, n: 2, v: [0.03, 0.03, 0.04, 0.05, 0.08, 0.12, 0.03, 0.03, 0.04, 0.06, 0.09, 0.15] }), "relative");
   for (const x of [-9999, -99999, -10000, 1e31]) assert.ok(isNoData(x), String(x));
   for (const x of [0, -1, 9998, 1e20]) assert.ok(!isNoData(x), String(x));
 });

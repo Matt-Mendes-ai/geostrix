@@ -225,9 +225,23 @@ export function gateTimesFromColumns(groups, g, get) {
   }
   return null;
 }
-// TASKS.csv #3440 — what a set of uncertainty columns holds: the USGS / Aarhus export gives dB/dt's standard deviation in the data's own unit
-// (pV / (A m^4), tens to hundreds at the early gates); a relative uncertainty is a fraction, never over about 1. -> "absolute" | "relative"
-export function stdKindGuess(values) {
-  for (const v of values || []) if (Number.isFinite(v) && Math.abs(v) > 1.5) return "absolute";
-  return "relative";
+// TASKS.csv #3440 — what a set of uncertainty columns holds. The real USGS / Aarhus export gives dB/dt's standard deviation in the data's own
+// unit, and in SI (1e-9 to 1e-12 V / (A m^4), though its dictionary says pV): every value is under 1, so size alone cannot tell it from a
+// fraction. An absolute uncertainty falls with the decay (by decades over a station's gates); a relative one stays near a few per cent.
+// noise: { m, n, v } (the STD matrix; a plain array is read as values only), any value over 1.5 is absolute.
+// -> "absolute" | "relative"
+export function stdKindGuess(noise) {
+  const v = noise?.v || noise || [];
+  for (const x of v) if (Number.isFinite(x) && Math.abs(x) > 1.5) return "absolute";
+  if (!noise?.m || !noise?.n) return "relative";
+  const spans = [];
+  const step = Math.max(1, Math.floor(noise.n / 200));
+  for (let i = 0; i < noise.n; i += step) {
+    let lo = Infinity, hi = -Infinity;
+    for (let k = 0; k < noise.m; k++) { const x = Math.abs(v[i * noise.m + k]); if (x > 0 && Number.isFinite(x)) { if (x < lo) lo = x; if (x > hi) hi = x; } }
+    if (hi > lo) spans.push(Math.log10(hi / lo));
+  }
+  if (!spans.length) return "relative";
+  spans.sort((a, b) => a - b);
+  return spans[Math.floor(spans.length / 2)] > 1 ? "absolute" : "relative"; // a station's uncertainties spanning a decade or more
 }
