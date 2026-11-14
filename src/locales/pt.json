@@ -12645,5 +12645,11 @@
   "Added \"{name}\": {kept} of {total} cells inside \"{boundary}\" have a value ({cells} cells in all, cropped to the boundary). \"{source}\" is unchanged.": "\"{name}\" adicionado: {kept} de {total} células dentro de \"{boundary}\" têm valor ({cells} células ao todo, recortado ao limite). \"{source}\" não mudou.",
   "\"{name}\": {rows} rows. X / Y are {x} / {y}, and From is the project's {crs}: the points land beside the project's collars when read in it. Check both, then save.": "\"{name}\": {rows} linhas. X / Y são {x} / {y}, e De é o {crs} do projeto: os pontos ficam ao lado dos colares do projeto quando lidos nele. Confira ambos e salve.",
   "+{n} with the same box": "+{n} com a mesma caixa",
-  "{n} feature(s); attributes: {cols}": "{n} feição(ões); atributos: {cols}"
+  "{n} feature(s); attributes: {cols}": "{n} feição(ões); atributos: {cols}",
+  "Export GOCAD (.vs / .pl)…": "Exportar GOCAD (.vs / .pl)…",
+  "Exported {n} line(s) from \"{label}\" as a GOCAD PLine (.pl).": "Foram exportadas {n} linha(s) de «{label}» como GOCAD PLine (.pl).",
+  "Exported {n} point(s) from \"{label}\" as a GOCAD VSet (.vs), with these numeric attributes as properties: {props}.": "Foram exportados {n} ponto(s) de «{label}» como GOCAD VSet (.vs), com estes atributos numéricos como propriedades: {props}.",
+  "Exported {n} point(s) from \"{label}\" as a GOCAD VSet (.vs).": "Foram exportados {n} ponto(s) de «{label}» como GOCAD VSet (.vs).",
+  "{n} vertex/vertices of \"{label}\" have no elevation: written at 0 in the GOCAD file.": "{n} vértice(s) de «{label}» não têm elevação: gravados em 0 no arquivo GOCAD.",
+  "GOCAD export failed: {message}": "Falha na exportação para GOCAD: {message}"
 }

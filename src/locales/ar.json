@@ -12645,5 +12645,11 @@
   "Added \"{name}\": {kept} of {total} cells inside \"{boundary}\" have a value ({cells} cells in all, cropped to the boundary). \"{source}\" is unchanged.": "أُضيف \"{name}\": {kept} من {total} خلية داخل \"{boundary}\" لها قيمة ({cells} خلية في المجموع، مقصوص إلى الحد). \"{source}\" لم يتغير.",
   "\"{name}\": {rows} rows. X / Y are {x} / {y}, and From is the project's {crs}: the points land beside the project's collars when read in it. Check both, then save.": "\"{name}\": {rows} صف. X / Y هما {x} / {y}، و«من» هو {crs} الخاص بالمشروع: تقع النقاط بجوار فوهات المشروع عند قراءتها به. تحقق منهما ثم احفظ.",
   "+{n} with the same box": "+{n} بالإطار نفسه",
-  "{n} feature(s); attributes: {cols}": "{n} عنصر(عناصر)؛ السمات: {cols}"
+  "{n} feature(s); attributes: {cols}": "{n} عنصر(عناصر)؛ السمات: {cols}",
+  "Export GOCAD (.vs / .pl)…": "تصدير GOCAD (‎.vs / .pl)…",
+  "Exported {n} line(s) from \"{label}\" as a GOCAD PLine (.pl).": "تم تصدير {n} خط (خطوط) من «{label}» بصيغة GOCAD PLine (.pl).",
+  "Exported {n} point(s) from \"{label}\" as a GOCAD VSet (.vs), with these numeric attributes as properties: {props}.": "تم تصدير {n} نقطة (نقاط) من «{label}» بصيغة GOCAD VSet (.vs)، مع هذه السمات الرقمية كخصائص: {props}.",
+  "Exported {n} point(s) from \"{label}\" as a GOCAD VSet (.vs).": "تم تصدير {n} نقطة (نقاط) من «{label}» بصيغة GOCAD VSet (.vs).",
+  "{n} vertex/vertices of \"{label}\" have no elevation: written at 0 in the GOCAD file.": "{n} رأس (رؤوس) من «{label}» بلا ارتفاع: كُتبت بالقيمة 0 في ملف GOCAD.",
+  "GOCAD export failed: {message}": "فشل التصدير إلى GOCAD: {message}"
 }
