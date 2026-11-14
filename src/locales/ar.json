@@ -11949,5 +11949,6 @@
   "{type} · {k} of {n} oriented in the model area ({k2} of {n2} in the project)": "{type} · {k} من {n} موجّهة في منطقة النموذج ({k2} من {n2} في المشروع)",
   "Unit volume (closed)": "حجم وحدة (مغلق)",
   "{shown} of {count}": "{shown} من {count}",
-  "{hidden} of {count} intervals hidden by the code filter (Filter / legend)": "{hidden} من {count} فترة مخفية بواسطة مرشّح الرموز (المرشّح / المفتاح)"
+  "{hidden} of {count} intervals hidden by the code filter (Filter / legend)": "{hidden} من {count} فترة مخفية بواسطة مرشّح الرموز (المرشّح / المفتاح)",
+  "Undo could not remove {symbol}: the assay table has changed since it was added, so it was left as it is.": "تعذّر على التراجع إزالة {symbol}: تغيّر جدول التحاليل منذ إضافته، لذا تُرك كما هو."
 }

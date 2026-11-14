@@ -11949,5 +11949,6 @@
   "{type} · {k} of {n} oriented in the model area ({k2} of {n2} in the project)": "{type} · {k} de {n} orientadas en el área del modelo ({k2} de {n2} en el proyecto)",
   "Unit volume (closed)": "Volumen de unidad (cerrado)",
   "{shown} of {count}": "{shown} de {count}",
-  "{hidden} of {count} intervals hidden by the code filter (Filter / legend)": "{hidden} de {count} intervalos ocultos por el filtro de códigos (Filtro / leyenda)"
+  "{hidden} of {count} intervals hidden by the code filter (Filter / legend)": "{hidden} de {count} intervalos ocultos por el filtro de códigos (Filtro / leyenda)",
+  "Undo could not remove {symbol}: the assay table has changed since it was added, so it was left as it is.": "Deshacer no pudo quitar {symbol}: la tabla de ensayes cambió desde que se agregó, así que se dejó como está."
 }
