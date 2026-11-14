@@ -163,7 +163,7 @@ test("part 2: structures carry the shared USGS icon set (structureKmzIcons, as t
   assert.ok(!files.some((f) => /^files\/(sym|fgdc)_/.test(f.name)), "the caller adds the icon set's PNGs, not the KML builder");
   assert.doesNotMatch(kml, /files\/strike\.png/, "the plain strike icon only for a reading with an attitude and no icon");
   const src = readFileSync(new URL("../src/lib/projectKmzExport.js", import.meta.url), "utf8");
-  assert.match(src, /await structureIconSet\(store\.surfaceStructures, \{ px: 64, epsg: tie \? null : ctx\.epsg \}\)/);
+  assert.match(src, /await structureIconSet\(store\.surfaceStructures, \{ px: 64, epsg: tie \? null : ctx\.epsg(, symbolByType: project\.structureSymbolByType \/\* #3094 \*\/)? \}\)/);
   assert.match(src, /\.\.\.icons\.files\.filter\(\(f\) => out\.kml\.includes\(f\.name\)\)/);
 });
 

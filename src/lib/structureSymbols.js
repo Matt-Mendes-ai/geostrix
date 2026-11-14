@@ -125,9 +125,12 @@ export const typeKey = (t) => String(t ?? "").trim().toUpperCase();
 
 // TASKS.csv #3066 — the per-type choice, saved with the project on each outcrop set (set.symbolByType: { TYPEKEY: familyId }); one map for
 // the whole project, merged over the sets (a later set's choice wins for a type in both). #3067 (drillhole structure discs) reads the same.
-export function projectSymbolChoices(surfaceStructures) {
+// TASKS.csv #3094 — symbolByType: the project's own choices (project.structureSymbolByType, store setStructureSymbolByType), which win; an older
+// project's per-set choices (set.symbolByType, #3066) stay as the fallback for a type the project map does not name
+export function projectSymbolChoices(surfaceStructures, symbolByType = null) {
   const out = {};
   for (const set of surfaceStructures || []) for (const [k, v] of Object.entries(set?.symbolByType || {})) if (FAMILIES[v]) out[k] = v;
+  for (const [k, v] of Object.entries(symbolByType || {})) if (FAMILIES[v]) out[k] = v;
   return out;
 }
 

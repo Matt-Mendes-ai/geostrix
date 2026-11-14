@@ -1607,7 +1607,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     // or by medium), then the Surface Geology map layers and the boundaries
     const surfFirst = []; // TASKS.csv #3046 (3) — on the Surface Geology tab the map's own groups lead (the figure's cut fell on them)
     if (sampleLegendGroup) groups.push({ ...sampleLegendGroup, items: sampleLegendGroup.items.map(([l, c, o]) => [tr(l), c, o]) }), surfFirst.push(groups[groups.length - 1]);
-    const outcrop = outcropLegendGroup({ surfaceStructures }); // TASKS.csv #1437 — the outcrop sets' classes
+    const outcrop = outcropLegendGroup({ surfaceStructures, symbolByType: store.project?.structureSymbolByType /* #3094 */ }); // TASKS.csv #1437 — the outcrop sets' classes
     if (outcrop) groups.push({ ...outcrop, label: tr(outcrop.label), items: outcrop.items.map(([l, c, o]) => [tr(l), c, o]) }), surfFirst.push(groups[groups.length - 1]);
     { const mg = mapLayerLegendGroups(mapLayers); groups.push(...mg, ...boundaryLegendGroups(boundaries)); surfFirst.unshift(...mg); }
     { const hg = holeColourLegendGroup(holeScheme, tr("Holes by {field}", { field: holeColourBy }), tr("(no value)")); if (hg) groups.unshift(hg); } // #1504
@@ -4688,7 +4688,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // ---------- rebuild surface structure symbols (TASKS.csv #317) ----------
   // moved to lib/viewer/sceneBuilders.js syncSurfaceStructures (TASKS.csv #693); its comments explain the build
-  useEffect(() => { if (surfStructGroupRef.current && !buildDefer.skip()) { syncSurfaceStructures(surfStructGroupRef.current, surfStructObjsRef.current, surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ }); const lg = layerGroupsRef.current?.outcrop_labels; if (lg) syncTextLabels(lg, outcropLabelItems(surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ }), makeTextSprite, 0); /* #1443 */ } }, [surfaceStructures, collars, terrain, surfaceFlatZ /* #2753 */, rebuildSeq, deferRound]);
+  useEffect(() => { if (surfStructGroupRef.current && !buildDefer.skip()) { syncSurfaceStructures(surfStructGroupRef.current, surfStructObjsRef.current, surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ, symbolByType: store.project?.structureSymbolByType /* #3094 */ }); const lg = layerGroupsRef.current?.outcrop_labels; if (lg) syncTextLabels(lg, outcropLabelItems(surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ, symbolByType: store.project?.structureSymbolByType }), makeTextSprite, 0); /* #1443 */ } }, [surfaceStructures, collars, terrain, surfaceFlatZ /* #2753 */, store.project?.structureSymbolByType /* #3094 */, rebuildSeq, deferRound]);
 
   // ---------- rebuild OMF objects (TASKS.csv — Open Mining Format import) ----------
   // moved to lib/viewer/sceneBuilders.js syncOmfObjects (TASKS.csv #693); its comments explain the build
@@ -6233,10 +6233,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           (the generated surfaces and domains stay below it); the analysis plots open directly. */}
       {mode === "modelling" && (
         <Ribbon show={visible && !bare} label="3D Modelling tools">
-          <RibbonGroup advanced={!simpleTools.strat} label="Setup">
-            <RibbonButton advanced icon={Settings} label="Model settings" tone="model" title="Domain, intercept set, contact orientations, resolution, stiffness, search ellipsoid, anisotropy" {...paneProps("settings")} />
-            <RibbonButton icon={Group} label="Litho groups" tone="model" title="Lump lithology codes into modelling units" {...paneProps("groups")} />
-            <RibbonButton icon={Waypoints} label="Modelling codes" tone="model" title="Give intervals modelling codes (alternating flows), connect units between holes, set roles and pile order" {...paneProps("mcodes")} />
+          <RibbonGroup label="Setup">{/* #3153 — Model settings in Simple too: every modelling tool reads it */}
+            <RibbonButton icon={Settings} label="Model settings" tone="model" title="Domain, intercept set, contact orientations, resolution, stiffness, search ellipsoid, anisotropy" {...paneProps("settings")} />
+            <RibbonButton advanced={!simpleTools.strat} icon={Group} label="Litho groups" tone="model" title="Lump lithology codes into modelling units" {...paneProps("groups")} />
+            <RibbonButton advanced={!simpleTools.strat} icon={Waypoints} label="Modelling codes" tone="model" title="Give intervals modelling codes (alternating flows), connect units between holes, set roles and pile order" {...paneProps("mcodes")} />
             <RibbonButton advanced icon={GitCompare} label="Correlation" tone="model" title="Section correlation" {...paneProps("correlation")} />
           </RibbonGroup>
           {/* TASKS.csv #750 — Matt: "predictive could go into 3d modelling as a tool, geoML modelling group. the other one should

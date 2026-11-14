@@ -22,10 +22,10 @@ import { nearestCodeLookup, densityByCode, intervalCodePoints, codesByMetres } f
 import { numericSourceChoices } from "../lib/numericSources.js"; // TASKS.csv #3109
 import { densityMeansByCode } from "../lib/densityFromLog.js"; // TASKS.csv #3109 / #3081
 import { blockModelLattice } from "../lib/estimationMeta.js"; // TASKS.csv #3012
-import { sameLattice, densityFromModel, DENSITY_RANGE } from "../lib/densityFromModel.js"; // TASKS.csv #3012
+import { sameLattice, densityFromModel, DENSITY_RANGE, isDensityModel } from "../lib/densityFromModel.js"; // TASKS.csv #3012; isDensityModel: #3172
 import { desurveyHole } from "../lib/desurvey.js"; // TASKS.csv #2550 — the code intervals placed in 3D
 import { setMembersOf } from "../lib/estimateSet.js"; // TASKS.csv #3014 part b
-import { setJoin, applyLimits, memberMeans, memberMeanColumns, memberMetal, memberMetalColumns /* #3274 */ } from "../lib/setLimits.js"; // TASKS.csv #3014 part b
+import { setJoin, applyLimits, memberMeans, memberMeansByBench, memberMeanColumns, memberMetal, memberMetalColumns /* #3274 */ } from "../lib/setLimits.js"; // TASKS.csv #3014 part b
 
 const fmt = (v, d = 0) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString(undefined, { maximumFractionDigits: d }));
 const sig = (v) => (v == null || !Number.isFinite(v) ? "—" : Number(v.toPrecision(3)).toLocaleString());
@@ -124,7 +124,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
   const cellsUsed = limited ? limited.cells : cellsInside;
   const limitText = limited?.active.length ? limited.active.map((m) => `${members[m].element} ${limitList[m].op === "min" ? ">=" : "<="} ${Number(limitList[m].value)} ${members[m].unit || ""}`.trim()).join(" and ") : "";
   // #3014 part b — not the other elements of this model's set: they are grades on the same blocks (Al2O3 at 1.8-10 % would read as a density)
-  const densityModels = useMemo(() => (latticeOf ? voxelModels.filter((m) => m !== model && m.id !== model.id && m.cells?.length && !(model.params?.set?.id && m.params?.set?.id === model.params.set.id) && sameLattice(blockModelLattice(m), latticeOf)) : []), [voxelModels, model, latticeOf]);
+  const densityModels = useMemo(() => (latticeOf ? voxelModels.filter((m) => m !== model && m.id !== model.id && m.cells?.length && !(model.params?.set?.id && m.params?.set?.id === model.params.set.id) && isDensityModel(m) /* #3172 */ && sameLattice(blockModelLattice(m), latticeOf)) : []), [voxelModels, model, latticeOf]);
   const densityModel = densityLayer.startsWith("model:") ? densityModels.find((m) => `model:${m.id}` === densityLayer) || null : null;
   const byModel = useMemo(() => (densityModel ? densityFromModel(densityModel.cells, latticeOf, rho) : null), [densityModel, latticeOf, rho]);
   const modelUse = useMemo(() => { if (!byModel) return null; let k = 0, sum = 0, f = 0; for (const c of cellsUsed) { if (byModel.has(c)) { k++; sum += byModel.of(c); } else f++; } return { k, f, mean: k ? sum / k : null }; }, [byModel, cellsUsed]); // #3012
@@ -146,6 +146,8 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
   const means = useMemo(() => (join ? memberMeans(cellsUsed, join, { cutoffs, interpolatedOnly: interpOnly, densityOf: byModel?.of || byCode?.of || null }) : null), [join, cellsUsed, cutoffs, interpOnly, byModel, byCode]); // #3014 part b
   const benchCut = cutoffs.includes(Number(benchCutoff)) ? Number(benchCutoff) : cutoffs[0];
   const benchRows = useMemo(() => (byBench && Number(benchH) > 0 && benchCut != null ? gradeTonnageByBench(cellsUsed, { cutoff: benchCut, benchH: Number(benchH), datum: Number(benchDatum) || 0, density: rho, unit, interpolatedOnly: interpOnly, densityOf: byModel?.of || byCode?.of || null }) : []), [byBench, benchH, benchDatum, benchCut, cellsUsed, rho, unit, interpOnly, byModel, byCode]); // #1957; densityOf: #2637 — the same density as the main table
+  // TASKS.csv #3171 — the set's other elements bench by bench, over the blocks each bench row counts
+  const benchMeans = useMemo(() => (join && benchRows.length ? memberMeansByBench(cellsUsed, join, { cutoff: benchCut, benchH: Number(benchH), datum: Number(benchDatum) || 0, interpolatedOnly: interpOnly, densityOf: byModel?.of || byCode?.of || null }) : null), [join, benchRows, cellsUsed, benchCut, benchH, benchDatum, interpOnly, byModel, byCode]);
   // TASKS.csv #3270 (Galore Creek review) — with a density per block, a row counts only the blocks that have one; the others are counted apart
   const perBlock = !!(byModel?.of || byCode?.of), noDensCol = perBlock && rows.some((r) => r.noDensityBlocks > 0), noDensBench = perBlock && benchRows.some((r) => r.noDensityBlocks > 0);
   // TASKS.csv #3274 — the set's other elements' contained metal beside their means (with tonnes)
@@ -183,6 +185,10 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
       EXPLORATION_TARGET_CAUTION,
     ] });
     const benchOut = byBench && benchRows.length ? benchRows.map((r) => ({ bench_floor_rl: Math.round(r.floorRL * 100) / 100, cutoff: benchCut, blocks: r.blocks, volume_m3: Math.round(r.volumeM3), [`mean_${vname}`]: r.meanGrade == null ? "" : Number(r.meanGrade.toPrecision(5)), ...(tonnesOn ? { tonnes: Math.round(r.tonnes || 0) } : {}), ...(tonnesOn && metal ? Object.fromEntries(mcols.map((c) => [c.key, r.metal == null ? "" : Number((r.metal * c.factor).toPrecision(6))])) : {}), /* #1577 */ ...(r.interpolatedShare != null ? { interpolated_pct: Math.round(r.interpolatedShare * 100) } : {}) })) : null; // #1957
+    // TASKS.csv #3171 — the set's other elements per bench, in the main table's column names (rows in the same order: highest bench first)
+    const benchExtra = benchOut && benchMeans ? memberMeanColumns(benchMeans, members.map((m) => ({ col: m.col, element: m.element }))) : null;
+    const benchExtraM = benchExtra && memberMetalOn ? memberMetalColumns(benchMeans, members, { perBlock, rho }) : null;
+    if (benchExtra) benchOut.forEach((r, i) => Object.assign(r, benchExtra[i], benchExtraM ? benchExtraM[i] : {}));
     saveFile({ suggestedName: `${String(model.name).replace(/[^a-z0-9_-]+/gi, "_")}_grade_tonnage${solid ? "_inside_solid" : ""}${benchOut ? "_by_bench" : ""}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(benchOut || out), stamp) });
   };
 
@@ -255,6 +261,8 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
               <th style={th}>{tr("Bench floor (m)")}</th><th style={th}>{tr("Blocks")}</th><th style={th}>{tr("Volume (m³)")}</th><th style={th}>{unitL ? tr("Mean grade ({unit})", { unit: unitL }) : tr("Mean grade")}</th>
               {tonnesOn && <th style={th}>{tr("Tonnes")}</th>}{tonnesOn && mcols.map((c) => <th key={c.key} style={th}>{element ? memberMetalLabel(c, element) : tr(c.label, c.args)}</th>)/* #3286 (4) */}
               {hasSupport && <th style={th}>{tr("Interpolated")}</th>}
+              {benchMeans && members.map((m) => <th key={m.element} style={th} title={tr("{el}'s mean over the blocks counted at this cutoff, weighted as the mean grade is", { el: m.element })}>{m.unit ? tr("Mean {el} ({unit})", { el: m.element, unit: gradeUnitLabel(m.element, m.unit) }) : tr("Mean {el}", { el: m.element })}</th>)}{/* #3171 */}
+              {benchMeans && memberMetalOn && members.map((m, i) => memberMcols[i].map((c) => <th key={`${m.element}_${c.key}`} style={th} title={tr("{el} contained in the counted blocks that have a value of it: its mean times their tonnes. No price, recovery or equivalent grade.", { el: m.element })}>{memberMetalLabel(c, m.element)}</th>))}{/* #3171 */}
               {noDensBench && <th style={th} title={tr("Blocks at this cutoff with no density: left out of the row (its blocks, volume, grade and tonnes)")}>{tr("No density")}</th>}{/* #3270 */}
             </tr></thead>
             <tbody>{benchRows.map((r) => (
@@ -262,6 +270,8 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
                 <td style={td}>{fmt(r.floorRL, 1)}</td><td style={td}>{fmt(r.blocks, 1)}</td><td style={td}>{fmt(r.volumeM3)}</td><td style={td}>{sig(r.meanGrade)}</td>
                 {tonnesOn && <td style={td} title={exactTitle(r.tonnes)}>{sig(r.tonnes)}</td>}{tonnesOn && mcols.map((c) => <td key={c.key} style={td} title={r.metal == null ? undefined : exactTitle(r.metal * c.factor)}>{r.metal == null ? "—" : sig(r.metal * c.factor) /* #2404 — millions of pounds; #3284 — every tonnage and metal: 3 significant figures */}</td>)}
                 {hasSupport && <td style={td}>{r.interpolatedShare == null ? "—" : `${Math.round(r.interpolatedShare * 100)} %`}</td>}
+                {benchMeans && benchMeans.find((x) => x.floorRL === r.floorRL)?.means.map((x, m) => <td key={members[m].element} style={td} title={x.covered != null && x.covered < 0.9995 ? tr("{el} has a value in {p} % of this volume", { el: members[m].element, p: Math.round(x.covered * 100) }) : undefined}>{sig(x.mean)}{x.covered != null && x.covered < 0.9995 ? "*" : ""}</td>)}{/* #3171 */}
+                {benchMeans && memberMetalOn && members.map((mb, i) => { const x = benchMeans.find((q) => q.floorRL === r.floorRL)?.means[i]; const vals = memberMetal(x, { perBlock, rho, unit: mb.unit, element: mb.element }); return memberMcols[i].map((c, j) => <td key={`${mb.element}_${c.key}`} style={td} title={exactTitle(vals[j]?.value)}>{vals[j]?.value == null ? "—" : sig(vals[j].value)}</td>); })}{/* #3171 */}
                 {noDensBench && <td style={td}>{fmt(r.noDensityBlocks || 0, 1)}</td>}{/* #3270 */}
               </tr>))}</tbody>
           </table>
