@@ -12167,5 +12167,6 @@
   "These columns are read in ppm, but their median is thousands of times the element's average in the Earth's crust: {list}. They look like ppb. Pick the unit for each in the list below, or:": "Ces colonnes sont lues en ppm, mais leur médiane vaut des milliers de fois la moyenne de l'élément dans la croûte terrestre : {list}. Elles ressemblent à des ppb. Choisissez l'unité de chacune dans la liste ci-dessous, ou :",
   "{header} (median {median} ppm; the crust averages about {crust} ppm)": "{header} (médiane {median} ppm ; la croûte en contient en moyenne environ {crust} ppm)",
   "Read these {n} as ppb": "Lire ces {n} en ppb",
-  "Read {header} as ppb": "Lire {header} en ppb"
+  "Read {header} as ppb": "Lire {header} en ppb",
+  "{list}: a partial (soluble) digest by the lab code in the header, kept as a measurement of its own, not as another method of the total.": "{list} : une mise en solution partielle (soluble) d'après le code de laboratoire de l'en-tête, gardée comme une mesure à part entière, pas comme une autre méthode du total."
 }

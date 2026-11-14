@@ -12167,5 +12167,6 @@
   "These columns are read in ppm, but their median is thousands of times the element's average in the Earth's crust: {list}. They look like ppb. Pick the unit for each in the list below, or:": "تُقرأ هذه الأعمدة بوحدة ppm، لكن وسيطها يبلغ آلاف أضعاف متوسط العنصر في القشرة الأرضية: {list}. تبدو بوحدة ppb. اختر وحدة كل منها في القائمة أدناه، أو:",
   "{header} (median {median} ppm; the crust averages about {crust} ppm)": "{header} (الوسيط {median} ppm؛ متوسط القشرة نحو {crust} ppm)",
   "Read these {n} as ppb": "اقرأ هذه الأعمدة الـ{n} بوحدة ppb",
-  "Read {header} as ppb": "اقرأ {header} بوحدة ppb"
+  "Read {header} as ppb": "اقرأ {header} بوحدة ppb",
+  "{list}: a partial (soluble) digest by the lab code in the header, kept as a measurement of its own, not as another method of the total.": "{list}: هضم جزئي (قابل للذوبان) بحسب رمز المختبر في العنوان، يُحتفظ به قياسًا مستقلًا لا طريقةً أخرى للإجمالي."
 }
