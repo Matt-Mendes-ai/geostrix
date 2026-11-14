@@ -39,6 +39,6 @@ test("the spot is found on the paper, clear of what is there", () => {
 test("wired in the store: the active page's paper, the sized frame, the spot on that paper", () => {
   const s = fs.readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(s, /const paper = pagePx\(pageFormatOf\(layoutPages\.find\(\(p\) => p\.id === activeLayoutPageId\)\)\);\n\s*const \{ w, h \} = viewportFrameOnPaper\(paper, aspect\);/);
-  assert.match(s, /\.\.\.freeSpot\(els, w, h, paper\)/);
+  assert.match(s, /mkView\(freeSpot\(els, w, h, paper\)\)/);
   assert.match(s, /import \{ freeSpot, viewportFrameOnPaper/);
 });

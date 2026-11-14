@@ -30,5 +30,5 @@ test("snapshots, views, inserts and logos use it; Ctrl+C / Ctrl+V copy between p
   assert.match(L, /\(e\.key === "v" \|\| e\.key === "V"\)\) \{ if \(pasteClipboard\(\)\) e\.preventDefault\(\); return; \}/);
   assert.match(L, /^let layoutClipboard = null;$/m);
   const S = readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8");
-  assert.match(S, /\.\.\.freeSpot\(els, w, h(, paper)?\) \/\* #1484/);
+  assert.match(S, /(\.\.\.freeSpot\(els, w, h(, paper)?\)|mkView\(freeSpot\(els, w, h, paper\)\)|\.\.\.spot) \/\* #1484/);
 });

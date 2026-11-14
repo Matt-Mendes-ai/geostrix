@@ -25,7 +25,7 @@ import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveWriteParts /* #1
 import { normalizeDesurveyMethod } from "./desurvey.js";
 import { readCellBudget, saveCellBudget } from "./estimationMeta.js"; // TASKS.csv #1970
 import { nextGroupColour, lithologyNoteRoles, setLithologyNoteRoles } from "./layers.js"; // TASKS.csv #1377; note roles: #2046
-import { freeSpot, viewportFrameOnPaper /* #3418 */ } from "./layoutPlace.js"; // TASKS.csv #1484
+import { freeSpot, viewportFrameOnPaper /* #3418 */, spotIsFree /* #3451 */ } from "./layoutPlace.js"; // TASKS.csv #1484
 
 const StoreContext = createContext(null);
 export const useStore = () => useContext(StoreContext);
@@ -887,15 +887,22 @@ export function StoreProvider({ children }) {
       const paper = pagePx(pageFormatOf(layoutPages.find((p) => p.id === activeLayoutPageId)));
       const { w, h } = viewportFrameOnPaper(paper, aspect);
       const id = `viewport_${Date.now()}`;
-      setLayoutElements((els) => addViewportToPage(els, {
+      const mkView = (spot) => ({
         id, type: "viewport", themeId: viewportPendingRequest.themeId,
-        ...freeSpot(els, w, h, paper) /* #1484 — the page's free space, not (90, 90); #3418 — on its paper, the least-covered spot when nothing is free */, w, h, capW: w, capH: h, aspect, src: res.src, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, ve: res.ve > 1 ? res.ve : 1 /* #2628 */, // capW / capH: #906
+        ...spot /* #1484 — the page's free space, not (90, 90); #3418 — on its paper */, w, h, capW: w, capH: h, aspect, src: res.src, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, ve: res.ve > 1 ? res.ve : 1 /* #2628 */, // capW / capH: #906
         trueScale: !!res.trueScale, targetWorld: res.targetWorld || null, planView: !!res.planView, // #399
         viewState: res.viewState || null, // #948 — a theme-less capture's own view settings, for its legend
         capturedAt: Date.now(), // TASKS.csv #2471 — when; a bound legend loaded from an older capture is out of step
         samplesUnplaced: res.samplesUnplaced || 0, // TASKS.csv #1864
         rotation: 0, frameWidth: 1, frameColor: "#1a2028" /* #966: the page ink, colors.text */, frameStyle: "solid", refreshing: false,
-      }));
+      });
+      // TASKS.csv #3451 — with nothing free on this page's paper the frame goes on a new page of the same paper, clear of everything, instead of over what is there
+      const here = freeSpot(layoutElements, w, h, paper);
+      if (layoutElements.length > 0 && !spotIsFree(layoutElements, here, w, h)) {
+        const pageId = `page_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, fmt = layoutPages.find((p) => p.id === activeLayoutPageId)?.format;
+        setLayoutPages((pages) => [...pages, { id: pageId, name: `Page ${pages.length + 1}`, elements: addViewportToPage([], mkView(freeSpot([], w, h, paper))), ...(fmt ? { format: fmt } : {}) }]);
+        setActiveLayoutPageId(pageId);
+      } else setLayoutElements((els) => addViewportToPage(els, mkView(freeSpot(els, w, h, paper))));
       setLayoutSelectRequest(id);
     } else {
       applyEls((els) => els.map((el) => el.id === targetElementId
@@ -1086,7 +1093,7 @@ export function StoreProvider({ children }) {
   const setDrillRates = useCallback((rates) => setProject((p) => ({ ...p, drillRates: (typeof rates === "function" ? rates(p.drillRates || {}) : rates) || null })), []); // TASKS.csv #2581 — $/m per hole type, kept with the project (a function: from the latest rates)
   // TASKS.csv #3116 — a built-in log's valid range and despike ({ range: [lo, hi], despikeM }), kept with the project like the drill rates:
   // project.logValidRange = { [layerKey]: ... } (an older project has none: read as {}). null / {} removes the log's entry.
-  const setLogValidRange = useCallback((key, entry) => setProject((p) => { const next = { ...(p.logValidRange || {}) }; if (entry && (entry.range || entry.despikeM > 0)) next[key] = entry; else delete next[key]; return { ...p, logValidRange: next }; }), []);
+  const setLogValidRange = useCallback((key, entry) => setProject((p) => { const next = { ...(p.logValidRange || {}) }; if (entry && (entry.range || entry.despikeM > 0 || entry.unit)) next[key] = entry; /* TASKS.csv #3448 — entry.unit: a built-in log's unit, kept beside its range */ else delete next[key]; return { ...p, logValidRange: next }; }), []);
   // TASKS.csv #3236 — a per-element display unit kept with the project: project.displayUnits = { [symbol]: "ppm" | "g/t" | "ppb" | "%" }
   // (display only; stored values, calculations and saved thresholds keep their unit; an older project has none: read as {}). null removes the entry.
   const setDisplayUnit = useCallback((symbol, unit) => setProject((p) => { const next = { ...(p.displayUnits || {}) }; if (unit) next[symbol] = unit; else delete next[symbol]; return { ...p, displayUnits: next }; }), []);

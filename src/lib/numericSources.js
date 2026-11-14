@@ -42,7 +42,8 @@ export function numericSourceChoices({ layers, customLayers, models = true, buil
     const n = (layers?.[k] || []).filter((r) => Number.isFinite(num(r.value))).length;
     // TASKS.csv #2079 (review #2013, Woodjam) — a mag-susc log of 0.055 to 181 was labelled SI (181 SI is more than pure magnetite): the
     // unit is SI only when the readings can be SI (lib/drillholeConstraints.js suscUnitHint); otherwise 'as logged'
-    const unit = k === "magsusc" && suscUnitHint((layers?.[k] || []).map((r) => r.value))?.likely !== "si" ? CUSTOM_UNIT : m.unit;
+    const own = String(logValidRange?.[k]?.unit ?? "").trim(); // TASKS.csv #3448 — the unit the user stated for this built-in log, before any guess
+    const unit = own || (k === "magsusc" && suscUnitHint((layers?.[k] || []).map((r) => r.value))?.likely !== "si" ? CUSTOM_UNIT : m.unit);
     const f = logFilterOf(logValidRange?.[k]); // #3116
     if (n >= MIN_ROWS) out.push({ key: `log:${k}`, label: m.label + logFilterLabel(f), symbol: m.label, unit, n, logScale: m.logScale, field: "value", layerKey: k, ...f });
   }

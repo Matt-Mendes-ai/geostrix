@@ -67,6 +67,12 @@ export function freeSpot(elements, w, h, page = { w: 1123, h: 794 }, { margin = 
   return best ? { x: best.x, y: best.y } : { x: margin, y: margin };
 }
 
+// TASKS.csv #3451 (#3418) — does a w x h item at `spot` touch nothing on the page? freeSpot returns the least-covered spot when nothing is free; this says whether it was.
+export function spotIsFree(elements, spot, w, h) {
+  const c = { x: spot.x, y: spot.y, w, h };
+  return (elements || []).every((e) => overlap(c, elementBox(e)) === 0);
+}
+
 // TASKS.csv #3418 (#3383 (11)) — a new viewport frame took an A4-landscape size and spot whatever the page's paper was (700 px wide, placed in 1123 x 794).
 // -> { w, h }: at most 700 px wide, inside the paper's margins both ways (80 px of height, 160 of width), never under 60 px wide
 export function viewportFrameOnPaper(paper, aspect) {
