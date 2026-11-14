@@ -234,7 +234,10 @@ const ROLE_PATTERNS = [
 // NPRC 'shotcrete' / 'cement!' / 'core not present', NLST 'tray thrown out') were all 'stratigraphic', so 36 % of a unit's run starts sat
 // under them as false tops. Read from the notes, never from a code prefix (V*, B*, N* mean other things on other deposits).
 const NOTE_RULES = [
-  [/\b(lost core|core loss|no (core )?recovery|tricone|pre-?collar|casing|shotcrete|cement|not present|thrown out)\b/, "no recovery"], // shotcrete…: #2227
+  // shotcrete…: #2227. TASKS.csv #3254 (#3195, Galore Creek modelling) — not the bare word 'cement': a breccia's notes describe its cement ('silica
+  // cement', 'cemented by tourmaline'), and code B (145 intervals) was read as no recovery and ignored by the modelling tools. Cement is no
+  // recovery when the note is only that ('cement!', the WA log's), or a cement plug / grout in the hole.
+  [/\b(lost core|core loss|no (core )?recovery|tricone|pre-?collar|casing|shotcrete|not present|thrown out|cement(ed)? (plug|grout)|grout(ed)?)\b|^\W*(cement|concrete)\W*$/, "no recovery"],
   [/\b(fault breccia|fault gouge|flt (breccia|bx|gouge)|gouge)\b/, "fault"], // Woodjam UTB 'fault breccia', UTG 'flt gouge'
   [/\b(shear( zone)?|sz|fault zone)\b/, "fault"], // #2227 — a shear zone cuts the pile like a fault (BSZ 'carbonate veins within the shear')
   [/\b(dykes?|dikes?)\b/, "dyke"],
@@ -1236,7 +1239,27 @@ function structurePicks(headers) {
   const m = guessMapping("structure", headers);
   return !!(m.value && ((m.alpha && m.beta) || (m.dip && (m.azimuth || m.strike))));
 }
+// TASKS.csv #3210 (#3195, Galore Creek) — a numeric kind is never guessed from a value column of words: an overburden log went to Specific gravity
+// by its 'Relative Density (for non cohesive soils)' column ('Very Dense', 'N/A') and loaded 0 of 374 rows. With the rows at hand, a numeric
+// guess whose value column holds more words than numbers (first 200 filled cells) becomes a custom layer, which asks for its value.
+const NUMERIC_KINDS = new Set(["sg", "magsusc", "geotech", "recovery"]);
+export function valueColumnIsWords(target, headers, rows) {
+  if (!NUMERIC_KINDS.has(target) || !rows?.length) return false;
+  const col = guessMapping(target, headers).value;
+  if (!col) return false;
+  let num = 0, word = 0;
+  for (let i = 0; i < rows.length && num + word < 200; i++) {
+    const s = String(rows[i]?.[col] ?? "").trim();
+    if (!s) continue;
+    if (Number.isFinite(Number(s.replace(/^[<>]\s*/, "")))) num++; else word++;
+  }
+  return word > num;
+}
 export function guessTargetFor(headers, name, rows = null) {
+  const t = guessTargetForRaw(headers, name, rows);
+  return valueColumnIsWords(t, headers, rows) ? "custom" : t; // #3210
+}
+function guessTargetForRaw(headers, name, rows) {
   if (CUSTOM_LOG_NAMES.test(String(name || ""))) return "custom";
   // #2884 (review #2876, WA iron) — From equals To on every sampled row and a log channel is named (Density_Best, Gamma_Best ...): point
   // readings, a downhole log, before any name hint ("density.csv" would keep Specific gravity: millions of zero-length intervals)

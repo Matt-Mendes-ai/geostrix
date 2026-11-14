@@ -42,7 +42,7 @@ test("the dialog offers the mine grid for collars and for 'Grid of'; the import 
   const d = readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8");
   assert.match(d, /mineGrid=\{modal\.target === "collars" \? mineSourceOf\(storeProject\) : null/);
   assert.match(d, /label=\{tr\("Grid of"\)\}[\s\S]{0,200}mineGrid=\{mineSourceOf\(storeProject\)/);
-  const p = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const p = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(p, /const mineSrc = isMineSource\(sourceEpsg\), srcEpsg = mineSrc \? "" : sourceEpsg;/);
   assert.match(p, /const declaredEpsg = rowCodes\.length === 1 && \(!srcEpsg/, "the CRS adopted when nothing is loaded is never 'mine'");
   assert.match(p, /if \(mineSrc\) mineNote = collarsOnMineGrid\(rows, liveProject/);

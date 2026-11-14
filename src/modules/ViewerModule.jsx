@@ -130,6 +130,7 @@ const InterpretPane = React.lazy(() => import("../components/InterpretPane.jsx")
 const UndrilledZonesPane = React.lazy(() => import("../components/UndrilledZonesPane.jsx")); // TASKS.csv #1139 // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
 import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv #499
 import { sliceReadoutText } from "../lib/sliceReadout.js";
+import { sliceTraces, medianCollarPos, slabSummary, slabSummaryText } from "../lib/viewer/slicePlace.js"; // TASKS.csv #3258
 import { buildVectorFeatures as buildVectorFeaturesOf } from "../lib/viewer/vectorFeatures.js"; // TASKS.csv #1083
 import { isRepeatClick } from "../lib/repeatClick.js"; // TASKS.csv #1152; #3159: not interpretation.js, which put the interpretation layers' code in startup
 import { syncInterpretPreview, hoverFirstCorner } from "../lib/viewer/interpretDraw.js"; // TASKS.csv #1152; hover: #2682
@@ -144,6 +145,8 @@ import { snapInterpretClick } from "../lib/viewer/interpretSnap.js"; // TASKS.cs
 import { outlinesKey, blockSourceKey } from "../lib/explicitLog.js"; // TASKS.csv #878
 import { extrapolationNotice } from "../lib/extrapolatedInputs.js"; // #1840
 import { withAlphaOnlyPicks } from "../lib/alphaPicks.js"; // #1686
+import { orientedLayerPicks } from "../lib/layerPickOrientation.js"; // TASKS.csv #3266
+import { viewCodeOrder, projectCodeOrders } from "../lib/legendCodeOrder.js"; // TASKS.csv #3296
 import { numericClips, rampRange } from "../lib/numericClip.js"; // #1699
 import { unitShell, meshVolume, blockUnitStats } from "../lib/unitVolumes.js"; // TASKS.csv #517; blockUnitStats: #877
 const ModellingCodesPane = React.lazy(() => import("../components/ModellingCodesPane.jsx")); // TASKS.csv #599 — modelling view only, so loaded on demand (#476 budget)
@@ -400,6 +403,7 @@ const SURFACE_TYPES = [
   { key: "geophysical_shell", label: "Geophysical anomaly shell" }, // TASKS.csv #1780 — a block model's value range as a solid
   { key: "alteration_envelope", label: "Alteration envelope" },
   { key: "unit_body", label: "Unit body (closed)" }, // TASKS.csv #1340 — a rock unit from its modelling code
+  { key: "unit_volume", label: "Unit volume (closed)" }, // TASKS.csv #3283 (1) — 'Add unit volumes' solids (#2917) showed the first option, 'Stratigraphic contact'
   { key: "pit_shell", label: "Pit shell (conceptual)" }, // TASKS.csv #1341
   { key: "pit_design", label: "Pit design (benched)" }, // TASKS.csv #1874
   { key: "design_solid", label: "Design solid (from strings)" }, // TASKS.csv #1877
@@ -485,6 +489,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     generatedSurfaces, setGeneratedSurfaces, modelDomains, setModelDomains, // TASKS.csv #52 — persisted implicit surfaces + domains
     getProjectToken, isSameProject, // TASKS.csv #466
     customLayers: storeCustomLayers, setCustomLayers: setStoreCustomLayers,
+    layoutPages, // TASKS.csv #3296 — the code order set on a Layout legend (#3130)
     viewerUiState, setViewerUiState, viewerUiStateSeq, markViewerUiBaseline,
     lastCamState, setLastCamState,
     addLayoutImage, goToModule, requestViewportRender, // requestViewportRender: #1005
@@ -1167,7 +1172,11 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // TASKS.csv #1546 — Model area: "all" | "checked" (the checked holes only feed the modelling tools)
   const [modelArea, setModelArea] = useState("all");
   const { unitLayers, unitField, setUnitField, unitFields } = useUnitSource(layers, customLayers); // #2378, #2529 — which Lithology field is the unit
-  const modelLayers = useMemo(() => (modelArea === "checked" ? restrictLayersToHoles(unitLayers, visibleHoles) : unitLayers), [unitLayers, modelArea, visibleHoles]);
+  // TASKS.csv #3266 — the interval angles with a beta (a fault-zone layer, the Veins layer) oriented as the structure picks are: they join the
+  // structure picks the modelling tools, the Structures menu, the Stereonet and the Downhole plot read (lib/layerPickOrientation.js)
+  const layerPicks = useMemo(() => orientedLayerPicks({ structure: layers.structure, customLayers, veins: layers.vein, collars, survey }), [layers.structure, customLayers, layers.vein, collars, survey]);
+  const unitLayersP = useMemo(() => (layerPicks.oriented.length ? { ...unitLayers, structure: [...(unitLayers.structure || []), ...layerPicks.oriented] } : unitLayers), [unitLayers, layerPicks]);
+  const modelLayers = useMemo(() => (modelArea === "checked" ? restrictLayersToHoles(unitLayersP, visibleHoles) : unitLayersP), [unitLayersP, modelArea, visibleHoles]);
   // TASKS.csv #52 (c) — which named intercept set (store.interceptSets) the modelling tools are
   // restricted to. Session state, not persisted, for exactly the reason modelDomainId isn't: the SETS
   // are project data and are saved; which one you happen to have selected right now is a UI choice.
@@ -1366,6 +1375,9 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     if (hidden && hidden.has(String(row.value))) return false;
     return true;
   }, [categoryFilter, numericRange]);
+  // TASKS.csv #3295 (from #2524, review #2486) — 'Lithology 17852' with 13,982 intervals hidden by the code filter: the rows each filtered
+  // layer still shows, for its sidebar row ('3,870 of 17,852')
+  const filteredShown = useMemo(() => { const out = {}; for (const [k, hid] of Object.entries(categoryFilter)) if (hid?.size && Array.isArray(layers[k])) { let n = 0; for (const r of layers[k]) if (!hid.has(String(r.value))) n++; out[k] = n; } return out; }, [categoryFilter, layers]);
   // TASKS.csv #227 (continuation) — used ONLY inside the big geometry-rebuild effect's build loops,
   // instead of isRowVisible, for the same reason customVisible was pulled out of that effect's
   // dependency array: a category-hidden row's mesh is still built (numericRange-based exclusion is
@@ -1580,7 +1592,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     // TASKS.csv #725 — the same builders the Layout legend uses (lib/legendGroups.js), so the two keys cannot disagree
     const singleColor = Object.fromEntries(CATEGORY_LAYER_KEYS.filter((k) => layerStyles[k]?.color).map((k) => [k, layerStyles[k].color])); // #635
     const groups = [
-      ...categoryLegendGroups({ keys: CATEGORY_LAYER_KEYS, layers, layerVisible, hidden: categoryFilter, visibleHoles, singleColor, labelFor: effectiveLabel, colorFor: effectiveColor, placed: new Set(collars.map((c) => String(c.hole_id))) }), // #1813
+      // TASKS.csv #3296 — the codes in one order with the inspector: the project's set order (#3130) first, then by count (the figure's cut keeps the commonest)
+      ...viewCodeOrder(categoryLegendGroups({ keys: CATEGORY_LAYER_KEYS, layers, layerVisible, hidden: categoryFilter, visibleHoles, singleColor, labelFor: effectiveLabel, colorFor: effectiveColor, placed: new Set(collars.map((c) => String(c.hole_id))) }), projectCodeOrders(layoutPages, null, null, null)), // #1813
       ...assayLegendGroups({ assays, assayElements, assayVisible: assayVisible && collars.length > 0 /* #1813 */, assayDisplayElements, assayStyle }),
       ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), ...scoreRasterLegendGroups(rasters) /* #2670 — score maps */, // #1236
       ...numericLayerLegendGroups({ layers, layerVisible, isRowVisible, colorOf: numericLayerColor, symbology: numericSymbology, clips: numericClip }), // #1398 — the RQD / recovery / SG / mag susc ramps
@@ -1596,23 +1609,32 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     // TASKS.csv #451 / #2075 — one ramp per survey, the drawn points only; the builder is shared with the Layout legend since #2878
     groups.push(...geophysLegendGroups({ rows: layers?.geophys_pts, visible: !!layerVisible.geophys_pts, surveys: geophysSurveys, stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax, label: LAYER_META.geophys_pts?.label || "Geophysics points" }));
     return groups;
-  }, [rasters, sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, numericLayerColor, isRowVisible, collars, customLayers, customVisible, holeScheme, holeColourBy, surfaceStructures]); // #1398; collars: #1813; holeScheme: #1504; surfaceStructures: #3092
+  }, [rasters, sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, numericLayerColor, isRowVisible, collars, customLayers, customVisible, holeScheme, holeColourBy, surfaceStructures, layoutPages /* #3296 */]); // #1398; collars: #1813; holeScheme: #1504; surfaceStructures: #3092
 
   // TASKS.csv #453 — the 3D slice's planes over the drilled extent: vertical (azimuth, position) or horizontal (an elevation); thickness 0 = a half-space
   const sliceExtent = useMemo(() => {
-    const ts = mainTraces(tracesRef.current, (t) => t.wz?.[0]); // #2936 / #3004 — no suspect collar
+    const base = sliceTraces(tracesRef.current, visibleHoles), ts = mainTraces(base, (t) => t.wz?.[0]); // #2936 / #3004 — no suspect collar; #3258 — the checked holes
     const pts = ts.flatMap((t) => t.pts || []);
     if (pts.length) {
       let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;
       for (const p of pts) { if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x; if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y; if (p.z < z0) z0 = p.z; if (p.z > z1) z1 = p.z; }
-      return { x0, x1, y0, y1, z0, z1, leftOut: tracesRef.current.length - ts.length }; // #3029
+      return { x0, x1, y0, y1, z0, z1, leftOut: base.length - ts.length, traces: ts }; // #3029; traces: #3258
     }
     // #1804 — no hole traces: the data's own box (block models, samples, rasters), as the build recorded it
     const box = (lastTracesRef.current || []).flat();
     if (box.length) return { x0: Math.min(...box.map((p) => p.x)), x1: Math.max(...box.map((p) => p.x)), y0: Math.min(...box.map((p) => p.y)), y1: Math.max(...box.map((p) => p.y)), z0: Math.min(...box.map((p) => p.z)), z1: Math.max(...box.map((p) => p.z)) };
     return null;
-  }, [slice3d.on, collars, survey, rebuildSeq]);
-  const sliceReadout = useMemo(() => sliceReadoutText(slice3d, sliceExtent, originRef.current.z) + (sliceExtent?.leftOut ? tr(" · {n} hole(s) with a suspect collar elevation outside the range", { n: sliceExtent.leftOut }) : ""), [slice3d, sliceExtent]); // #1974; #3029
+  }, [slice3d.on, collars, survey, rebuildSeq, visibleHoles]);
+  // #3258 — a vertical slab opens on the checked holes' median collar (once per turn-on; the slider is the user's after that)
+  const slicePlacedRef = useRef(false);
+  useEffect(() => {
+    if (!slice3d.on) { slicePlacedRef.current = false; return; }
+    if (slicePlacedRef.current || slice3d.mode === "horizontal" || !sliceExtent?.traces) return;
+    slicePlacedRef.current = true;
+    const pos = medianCollarPos(sliceExtent.traces, sliceExtent, slice3d.azimuth);
+    if (pos != null && Math.abs(pos - slice3d.pos) > 1e-6) setSlice3d((s) => ({ ...s, pos: +pos.toFixed(4) }));
+  }, [slice3d.on, slice3d.mode, sliceExtent]);
+  const sliceReadout = useMemo(() => sliceReadoutText(slice3d, sliceExtent, originRef.current.z) + slabSummaryText(slabSummary(sliceExtent?.traces, sliceExtent, slice3d, originRef.current)) /* #3258 */ + (sliceExtent?.leftOut ? tr(" · {n} hole(s) with a suspect collar elevation outside the range", { n: sliceExtent.leftOut }) : ""), [slice3d, sliceExtent]); // #1974; #3029
   useEffect(() => {
     lastActivityRef.current = Date.now(); // #441 — redraw now
     if (!slice3d.on || !sliceExtent) { slicePlanesRef.current = []; return; }
@@ -2825,7 +2847,7 @@ ${describeTrend(t)}` };
   const lithoGroupCrossCuts = (g) => (g.codes || []).some((c) => isCrossCuttingRole(roleForLithology(c)));
   const alt_units = distinctValues(layers.alt || []).map(([v]) => v);
   const vein_units = veinSourceUnits(layers, modellingCodes); // TASKS.csv #144; lithology vein codes: #2226
-  const struct_types = distinctValues(layers.structure || []).map(([v]) => v);
+  const struct_types = distinctValues(unitLayersP.structure || []).map(([v]) => v); // #3266 — the oriented layer picks' types too
 
   // The sidebar's notices list sits below the (potentially long) Holes list, so on a property with
   // many holes a new notice can land far off-screen with nothing drawing the eye to it — from the
@@ -2907,7 +2929,7 @@ ${describeTrend(t)}` };
   // consumers degrade honestly (the plot falls back to true dip and says so; the Terzaghi weighting
   // leaves those picks at weight 1 and reports how many).
   const structurePicksWithHoleAttitude = useMemo(() => {
-    const rows = withAlphaOnlyPicks(layers.structure, layers.structzone, customLayers); // #1686
+    const rows = withAlphaOnlyPicks(layers.structure, layers.structzone, customLayers, { veins: layers.vein, orient: () => layerPicks.picks }); // #1686; oriented when they have a beta, and the Veins layer: #3266
     if (!rows.length) return rows;
     const collarById = new Map(collars.map((c) => [c.hole_id, c]));
     const surveyByHole = new Map();
@@ -2929,7 +2951,7 @@ ${describeTrend(t)}` };
       const att = cache.get(key);
       return att ? { ...p, holeAz: att.azimuth, holeDip: att.dip } : p;
     });
-  }, [layers.structure, layers.structzone, customLayers, collars, survey]);
+  }, [layers.structure, layers.structzone, customLayers, collars, survey, layerPicks]);
 
   // TASKS.csv #281 — the Stereonet's spatial-domain filter, handed to the modal as a callback so the
   // modal never needs to know what a domain IS (fault-side constraints evaluated against implicit
@@ -4155,6 +4177,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       buildLayerBatches(into); // the families under 24 markers, this element's only
     });
     setAssayLod(g, assayKeptRef.current, g.userData.lodOn); // #3144 — new elements too
+    applyHoleVisibilityRef.current?.(); // #3253 — an element switched on: its markers in the checked holes only
     if (errors.length) setNotices((pv) => [...pv, errorNotice(tr("{errors} hole(s) failed to draw assay markers: {v}", { errors: errors.length, v: errors.slice(0, 3).join(" · ") }))]);
   };
   const buildAssaySpheresRef = useRef(buildAssaySpheres);
@@ -4262,7 +4285,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   }, [layers]);
   useEffect(() => {
     // TASKS.csv #2176 step 1 — the drillhole scene build, moved unchanged into viewer/drillholeScene.js (#1084 size cap)
-    buildDrillholeScene({ applyCategoryVisibility, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collarSize, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels, pointBuildersStale: () => [!sameInputs(assayBuiltRef.current, assayInputs), !sameInputs(geophysBuiltRef.current, geophysInputs), !sameInputs(surfaceBuiltRef.current, surfaceInputs)] /* #2176 */ });
+    buildDrillholeScene({ applyCategoryVisibility, applyHoleVisibilityRef /* #3253 */, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collarSize, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels, pointBuildersStale: () => [!sameInputs(assayBuiltRef.current, assayInputs), !sameInputs(geophysBuiltRef.current, geophysInputs), !sameInputs(surfaceBuiltRef.current, surfaceInputs)] /* #2176 */ });
   }, [collars, survey, survey.length ? desurveyMethod : "" /* #135 — switching method must rebuild every trace; #1528 — with no survey every method gives the same straight holes */, noHoles ? layers : layersForBuild /* #1582 */, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, layerStylesBuildKey /* #635; #1528 — not the in-place opacities */, noHoles && anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, noHoles && mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, noHoles && voxelGeomSignature /* #1569 — with holes, only the fit box below */, fitBox, rebuildSeq, noHoles && placedSurfaceSamples /* #606 — and the no-drillhole camera anchor */]); // #551: assay / geophysics-legend / surface-visibility inputs moved to their own builders
   // TASKS.csv #1569 (review #1497, Lawyers) — with drillholes, a block model only widens the fit box (the origin and the first
   // fit come from the holes): adding one re-derives that box here instead of rebuilding every drillhole and custom layer
@@ -4288,7 +4311,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     });
   }, [layerStyles]);
   // TASKS.csv #1277 — the Hole labels dropdown redraws the labels only
-  useEffect(() => { syncHoleLabels(layerGroupsRef.current?.hole_labels, holeLabelAnchorsRef.current, holeLabelMode, makeTextSprite); }, [holeLabelMode]);
+  useEffect(() => { syncHoleLabels(layerGroupsRef.current?.hole_labels, holeLabelAnchorsRef.current, holeLabelMode, makeTextSprite); applyHoleVisibilityRef.current?.(); /* #3253 */ }, [holeLabelMode]);
   // #551 — declared AFTER the big effect: when both fire, the big one builds first and these then see unchanged inputs
   // #1500 — not in a commit whose big build was deferred (buildDefer): the next render's big build builds these at its end
   useEffect(() => { if (!buildDefer.skip() && !sameInputs(assayBuiltRef.current, assayInputs)) buildAssaySpheresRef.current(); }, assayInputs);
@@ -5037,8 +5060,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   useEffect(() => { applyLegendOverrideColors(); }, [applyLegendOverrideColors]);
 
   const holesHiddenRef = useRef(false); // #1500 — none hidden now or last pass
-  useEffect(() => {
-    const groups = layerGroupsRef.current;
+  // TASKS.csv #3253 (Galore review, after #2930) — the checked holes applied to everything drawn: run when the checks change AND at the end of
+  // every rebuild (the drillhole build: Desurvey, Refresh view, imports; the assay markers: an element chip; the hole labels: their mode),
+  // which drew the unchecked holes again while the list still said '16 of 70 checked'. Reads the checks through visibleHolesRef.
+  const applyHoleVisibility = useCallback(() => {
+    const groups = layerGroupsRef.current, visibleHoles = visibleHolesRef.current;
     const anyHidden = Object.values(visibleHoles).some((v) => v === false);
     if (!anyHidden && !holesHiddenRef.current) return;
     holesHiddenRef.current = anyHidden;
@@ -5053,7 +5079,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     syncLayerBatches(); // TASKS.csv #312
     redeclutter(groups.hole_labels); // #3098
     applyCategoryVisibility(); // #2930 — the category filters again, on top of the holes (it ANDs both)
-  }, [visibleHoles, syncLayerBatches, applyCategoryVisibility]);
+  }, [syncLayerBatches, applyCategoryVisibility]);
+  const applyHoleVisibilityRef = useRef(applyHoleVisibility); applyHoleVisibilityRef.current = applyHoleVisibility; // #3253 — for the builders
+  useEffect(() => { applyHoleVisibility(); }, [visibleHoles, applyHoleVisibility]);
 
   // ---------- generic import pipeline ----------
   // TASKS.csv #445 step 3 — the import pipeline (viewer/useImportPipeline.js), called where its code sat: same hook order
@@ -5385,9 +5413,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // and it has no fileInputs ref (nothing to click).
   const renderLayerRow = (key) => {
     const meta = LAYER_META[key];
+    const shown = filteredShown[key] ?? null; // #3295
     const isGeophys = key === "geophys_pts";
     return (
-      <LayerRow key={key} label={tr(meta.label)} count={(layers[key] || []).length} visible={layerVisible[key]}
+      <LayerRow key={key} label={tr(meta.label)} count={(layers[key] || []).length} shown={shown} visible={layerVisible[key]}
         onToggle={() => toggleLayer(key)}
         onUpload={isGeophys ? () => goToModule("geophysics") : () => fileInputs.current[key].click()}
         onInspect={() => setInspectLayer(key)} onZoom={() => zoomToLayer(key)} onClear={() => clearLayer(key)}
@@ -6868,7 +6897,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {sidebarTab === "modelling" && (<>
         {MODELLING_PANES.has(toolPane) && (
           <Suspense fallback={null}>
-            <ModellingPanes {...{ visibleHoles, setVisibleHoles, /* #2536 */ stackBreaks, setStackBreaks, orientationReachM, setOrientationReachM, /* #1170 */ tracesSeq, /* #888 */ explicitTrend, /* #881 */ camState, sectionImages, setDigitizeImageId, /* #824 */ runMapModel, MapModelPanel, viewDragHookRef, sceneRef, layerGroupsRef, /* #1333 */ cameraRef, rendererRef, explicitOverlayRef, ExplicitSurfacePanel, ModellingCodesPane, PredictivePanel, SurfaceGeologyProjection, TrendsPanel, activeInterceptSet, activeInterceptSetId, addLithoGroup, addStackUnit, addVoxelModel, addWorldMeshSurface, alt_units, alterationBusy, alterationCellSize, alterationSearchRadius, alterationTarget, askPrompt, assayElements, assays, clipToDomainBoundary, clipToTopo, limitToContacts, setLimitToContacts, contactReachM, setContactReachM, collars, desurveyMethod, domains, emptyPaneHint, expandedLithoGroupId, explicitClickRef, explicitPickFor, explicitSnap, explicitSurfaces, faultCandidates, implicitBusy, implicitGroupRef, implicitMeshesRef, implicitSurfaces, implicitTarget, includeSectionContacts, interceptSets, isLithoGroupKey, isMcodeKey, lastActivityRef, layers: unitLayers, unitField, setUnitField, unitFields, /* #2378 */ lithoGroupCrossCuts, lithoGroupKey, lithoGroupRole, lithoGroups, litho_units, mapConstraint, mapLayers, mcConnectFrom, mcGroupOf, mcPickMode, mcSelected, mcodeDefaultRole, miniField, modelDomainId, modelArea, setModelArea, /* #1546 */ modelResolution, modellingCodeList, modellingCodes, moveStackUnit, numericBudgetHint, numericBusy, numericCapValue, numericCellSize, numericCellHeight, setNumericCellHeight, numericFlatReach, setNumericFlatReach, /* #3062 */ numericCloseShell, numericCompositeLength, numericCutoff, numericIncludeQAQC, numericMaxBlocks, numericMethod, numericVariogram, setNumericVariogram, /* #1015 */ numericMinCoverage, numericMinHoles, numericPadding, numericSearchRadius, numericSymbol, numericUseComposites, orientTypes, orientTypesSel, originRef, paneHeader, projectMapContact, rangeMultiplier, removeImplicitSurface, removeLithoGroup, removeStackUnit, resolveLithoTarget, runAlterationModel, runImplicitModel, runNumericModel, runStackModel, runStructuralModel, runVeinModel, searchEllipsoid, sections, sensBudget, sensN, sensOpen, sensSigmaDeg, sensSigmaPos, setActiveInterceptSetId, setAlterationCellSize, setAlterationSearchRadius, setAlterationTarget, setClipToDomainBoundary, setClipToTopo, setCoreOrientOpen, setExpandedLithoGroupId, setExplicitPickFor, setExplicitSnap, setExplicitSurfaces, setFenceOpen, setGradeEstOpen, setImplicitSurfaces, setImplicitTarget, setIncludeSectionContacts, setMapConstraint, setMcConnectFrom, setMcPickMode, setMcSelected, setModelDomainId, setModelResolution, setModellingCodes, setNotices, setNumericBudgetHint, setNumericCapValue, setNumericCellSize, setNumericCloseShell, setNumericCompositeLength, setNumericCutoff, setNumericIncludeQAQC, setNumericMaxBlocks, setNumericMethod, setNumericMinCoverage, setNumericMinHoles, setNumericPadding, setNumericSearchRadius, setNumericSymbol, setNumericUseComposites, setOrientTypesSel, setRangeMultiplier, setSearchEllipsoid, setSensBudget, setSensN, setSensOpen, setSensSigmaDeg, setSensSigmaPos, setSmoothClusters, setStackAdd, setStackFaults, setStackRelation, setStereonetOpen, setStructuralTarget, setStructuralTrends, setSurfaceDetail, setTadpoleOpen, setThinPicks, setThinWindowM, setTrendPreviewId, setVariogramOpen, setVeinCellSize, setVeinDip, setVeinDipDir, setVeinSearchRadius, setVeinTarget, smoothClusters, stackAdd, stackFaults, stackFaultOffsets, setStackFaultOffsets, /* #1054 */ stackRelation, stackUnits, struct_types, structuralTarget, structuralTrends, structurePicksWithHoleAttitude, structureTypes, surfaceDetail, surfaceStructures, survey, terrain, thinPicks, thinWindowM, toolPane, tracesRef, trendFor, trendPreviewId, updateLithoGroup, veinBusy, veinCellSize, veinDip, veinDipDir, veinSearchRadius, veinTarget, vein_units, worldPointFromHits }} />
+            <ModellingPanes {...{ visibleHoles, setVisibleHoles, /* #2536 */ stackBreaks, setStackBreaks, orientationReachM, setOrientationReachM, /* #1170 */ tracesSeq, /* #888 */ explicitTrend, /* #881 */ camState, sectionImages, setDigitizeImageId, /* #824 */ runMapModel, MapModelPanel, viewDragHookRef, sceneRef, layerGroupsRef, /* #1333 */ cameraRef, rendererRef, explicitOverlayRef, ExplicitSurfacePanel, ModellingCodesPane, PredictivePanel, SurfaceGeologyProjection, TrendsPanel, activeInterceptSet, activeInterceptSetId, addLithoGroup, addStackUnit, addVoxelModel, addWorldMeshSurface, alt_units, alterationBusy, alterationCellSize, alterationSearchRadius, alterationTarget, askPrompt, assayElements, assays, clipToDomainBoundary, clipToTopo, limitToContacts, setLimitToContacts, contactReachM, setContactReachM, collars, desurveyMethod, domains, emptyPaneHint, expandedLithoGroupId, explicitClickRef, explicitPickFor, explicitSnap, explicitSurfaces, faultCandidates, implicitBusy, implicitGroupRef, implicitMeshesRef, implicitSurfaces, implicitTarget, includeSectionContacts, interceptSets, isLithoGroupKey, isMcodeKey, lastActivityRef, layers: unitLayersP /* #3266 */, unitField, setUnitField, unitFields, /* #2378 */ lithoGroupCrossCuts, lithoGroupKey, lithoGroupRole, lithoGroups, litho_units, mapConstraint, mapLayers, mcConnectFrom, mcGroupOf, mcPickMode, mcSelected, mcodeDefaultRole, miniField, modelDomainId, modelArea, setModelArea, /* #1546 */ modelResolution, modellingCodeList, modellingCodes, moveStackUnit, numericBudgetHint, numericBusy, numericCapValue, numericCellSize, numericCellHeight, setNumericCellHeight, numericFlatReach, setNumericFlatReach, /* #3062 */ numericCloseShell, numericCompositeLength, numericCutoff, numericIncludeQAQC, numericMaxBlocks, numericMethod, numericVariogram, setNumericVariogram, /* #1015 */ numericMinCoverage, numericMinHoles, numericPadding, numericSearchRadius, numericSymbol, numericUseComposites, orientTypes, orientTypesSel, originRef, paneHeader, projectMapContact, rangeMultiplier, removeImplicitSurface, removeLithoGroup, removeStackUnit, resolveLithoTarget, runAlterationModel, runImplicitModel, runNumericModel, runStackModel, runStructuralModel, runVeinModel, searchEllipsoid, sections, sensBudget, sensN, sensOpen, sensSigmaDeg, sensSigmaPos, setActiveInterceptSetId, setAlterationCellSize, setAlterationSearchRadius, setAlterationTarget, setClipToDomainBoundary, setClipToTopo, setCoreOrientOpen, setExpandedLithoGroupId, setExplicitPickFor, setExplicitSnap, setExplicitSurfaces, setFenceOpen, setGradeEstOpen, setImplicitSurfaces, setImplicitTarget, setIncludeSectionContacts, setMapConstraint, setMcConnectFrom, setMcPickMode, setMcSelected, setModelDomainId, setModelResolution, setModellingCodes, setNotices, setNumericBudgetHint, setNumericCapValue, setNumericCellSize, setNumericCloseShell, setNumericCompositeLength, setNumericCutoff, setNumericIncludeQAQC, setNumericMaxBlocks, setNumericMethod, setNumericMinCoverage, setNumericMinHoles, setNumericPadding, setNumericSearchRadius, setNumericSymbol, setNumericUseComposites, setOrientTypesSel, setRangeMultiplier, setSearchEllipsoid, setSensBudget, setSensN, setSensOpen, setSensSigmaDeg, setSensSigmaPos, setSmoothClusters, setStackAdd, setStackFaults, setStackRelation, setStereonetOpen, setStructuralTarget, setStructuralTrends, setSurfaceDetail, setTadpoleOpen, setThinPicks, setThinWindowM, setTrendPreviewId, setVariogramOpen, setVeinCellSize, setVeinDip, setVeinDipDir, setVeinSearchRadius, setVeinTarget, smoothClusters, stackAdd, stackFaults, stackFaultOffsets, setStackFaultOffsets, /* #1054 */ stackRelation, stackUnits, struct_types, structuralTarget, structuralTrends, structurePicksWithHoleAttitude, structureTypes, surfaceDetail, surfaceStructures, survey, terrain, thinPicks, thinWindowM, toolPane, tracesRef, trendFor, trendPreviewId, updateLithoGroup, veinBusy, veinCellSize, veinDip, veinDipDir, veinSearchRadius, veinTarget, vein_units, worldPointFromHits }} />
           </Suspense>
         )}{/* TASKS.csv #693 — loaded on demand */}
         {toolPane && <div className="ge-pane-end" role="separator" />}{/* #458 */}
@@ -7783,6 +7812,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <LayerInspector
           layerKey={inspectLayer} rows={layers[inspectLayer] || []} meta={LAYER_META[inspectLayer]}
           categoryFilter={categoryFilter[inspectLayer] || new Set()} numericRange={numericRange[inspectLayer]} legendOverride={legendOverride[inspectLayer] || {}}
+          codeOrder={projectCodeOrders(layoutPages, null, null, null)[LAYER_META[inspectLayer]?.label]} codeLabel={(v) => effectiveLabel(inspectLayer, v)} /* #3296 */
           onToggleCategory={(v) => toggleCategory(inspectLayer, v)}
           onSetRange={(range) => setNumericRange((p) => ({ ...p, [inspectLayer]: range }))}
           onSetColor={(v, color) => setLegendColor(inspectLayer, v, color)}
@@ -7946,6 +7976,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           picks={structurePicksWithHoleAttitude}
           customLayers={storeCustomLayers || []} /* TASKS.csv #1545 */
           holes={holesForTadpole}
+          isChecked={(id) => visibleHoles?.[id] !== false} /* #3282 — opens on a checked hole */
           litho={layers.litho || []}
           onClose={() => setTadpoleOpen(false)}
         />

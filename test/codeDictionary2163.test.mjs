@@ -76,7 +76,7 @@ test("#2163 wiring: the store setters, the import fill and the inspector's dicti
   const store = fs.readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8");
   assert.match(store, /codeDictionary: \[codeDictionary, setCodeDictionary\]/);
   assert.match(store, /fillCodeDictionary, setCodeDictionaryEntry/);
-  const imp = fs.readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const imp = fs.readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(imp, /!numeric && fillCodeDictionary \? fillCodeDictionary\(target, rows\)/);
   const insp = fs.readFileSync(new URL("../src/components/LayerInspector.jsx", import.meta.url), "utf8");
   assert.match(insp, /<CodeDictionaryTable /);

@@ -148,7 +148,7 @@ test("wiring: the Province's two servers only, every hop; the menu and cards; th
   const app = src("src/App.jsx");
   assert.match(app, /if \(BC_SAMPLE_INFO\[which\] && \(await sampleStatus\(\)\)\[which\] === "missing"\) \{ setSampleAsk\(which\); return; \}/);
   assert.match(app, /window\.addEventListener\("geostrix-sample-missing", h\)/);
-  assert.match(src("src/modules/viewer/useImportPipeline.js"), /loadSampleFiles\(S\.dir, S\.files, \{ optional: S\.optional \|\| \[\] \}\)/);
+  assert.match(src("src/modules/viewer/importPipelineImpl.js"), /loadSampleFiles\(S\.dir, S\.files, \{ optional: S\.optional \|\| \[\] \}\)/);
   assert.match(src("scripts/smoke-electron.mjs"), /"wa_uranium" \+ sep \+ "collars\.csv"/);
   const notice = src("build/installer-notice.txt");
   assert.match(notice, /CC BY 4\.0/); assert.match(notice, /Copernicus WorldDEM-30/); assert.match(notice, /NOT INCLUDED: the sample projects from BC's public assessment reports/);

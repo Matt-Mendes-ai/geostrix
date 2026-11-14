@@ -60,7 +60,7 @@ const deg1 = (v) => (Number.isFinite(Number(v)) ? +Number(v).toFixed(1) : v); //
 // side to see it would defeat the purpose of the view.
 const isOriented = (p) => p.dip != null && p.azimuth != null && p.dip !== "" && p.azimuth !== "" && !isNaN(p.dip) && !isNaN(p.azimuth); // #527
 
-export default function DownholeStructurePlot({ picks, holes, litho = [], onClose, customLayers = [] }) { // customLayers: TASKS.csv #1545
+export default function DownholeStructurePlot({ picks, holes, litho = [], onClose, customLayers = [], isChecked = null }) { // customLayers: TASKS.csv #1545; isChecked: #3282
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
 
@@ -72,7 +72,8 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
     return (holes || []).map((h) => h.hole_id).filter((id) => withPicks.has(id)).sort();
   }, [picks, holes]);
 
-  const [holeId, setHoleId] = useState(() => holeIds[0] || "");
+  // TASKS.csv #3282 — it opened on the first hole by name (an unchecked Copper Canyon hole on Galore): the first CHECKED hole with picks
+  const [holeId, setHoleId] = useState(() => (isChecked && holeIds.find((id) => isChecked(id))) || holeIds[0] || "");
   const [xMode, setXMode] = useState("alpha"); // "alpha" | "dip"
   const [typeFilter, setTypeFilter] = useState("all");
   const [qualityMax, setQualityMax] = useState(""); // TASKS.csv #1545

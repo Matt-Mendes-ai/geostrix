@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 test("the code that takes a blank first code's place leaves the 'not drawn' count", () => {
-  const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.ok(u.includes("codesKept += a.extra; codesRows++; extra = a.extra; }"));
   assert.ok(u.includes("blankTookNext++; if (extra) { codesKept--; if (extra === 1) codesRows--; }"));
 });

@@ -132,7 +132,7 @@ test("wired: the Geophysics tab's button, drop and survey method; the 3D View se
   assert.match(g, /accept="\.las,\.laz"/);
   assert.match(g, /<LidarImportBox key=/);
   assert.match(g, /\["euler_depth", "mt_bostick", "lidar", "em1d_cond"\]\.includes\(meta\.method\)/);
-  const v = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const v = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(v, /requestModuleAction\("maps-lidar", \{ file:/);
   assert.match(readFileSync(new URL("../src/modules/MapsModule.jsx", import.meta.url), "utf8"), /useModuleAction\(\["maps-lidar"\], \(_a, p\) => \{ setPane\("terrain"\); requestModuleAction\("open-lidar", p\); \}\);/);
   assert.match(g, /if \(forcePane === "terrain" && p\?\.file\) openLidar\(p\.file\)/);

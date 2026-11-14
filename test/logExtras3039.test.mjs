@@ -70,7 +70,7 @@ test("wiring and the keys", () => {
   const b = readFileSync(new URL("../src/components/LogChannelsBox.jsx", import.meta.url), "utf8");
   assert.match(b, /aria-label=\{k === "min" \? tr\("Lowest valid reading of \{c\}"/);
   assert.match(b, /<option value="assay">/);
-  const p = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const p = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(p, /const rg = logRange\(data\.logRanges\?\.\[col\]\);/);
   assert.match(p, /binM === "assay" \? assayIntervals\(storeAssays\) : null/);
   for (const l of ["es", "pt", "fr", "ar"]) {

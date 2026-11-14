@@ -6,7 +6,7 @@ import { northRefText } from "../src/lib/azimuthRef.js";
 import { rowFilterColumns } from "../src/lib/importRowFilter.js";
 
 const modal = readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8");
-const pipe = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+const pipe = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
 
 test("(1) collars on a project with no CRS: the dialog says the azimuths are converted once the CRS question is answered", () => {
   assert.match(modal, /modal\.target === "collars" \/\/ #2900 \(1\)/);

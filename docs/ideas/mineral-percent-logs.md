@@ -1,6 +1,6 @@
 # Mineralization logged as per cent per mineral (TASKS.csv #3205) — design note
 
-Written 2026-11-13. This is a plan, not a description of shipped behaviour.
+Written 2026-11-13. Built 2026-11-13 after Matt's decision (one layer per mineral; an opt-in total of the columns the user ticks as sulphides).
 
 ## What is missing
 
@@ -29,8 +29,8 @@ file: one row per interval, then `MN_CPY_pct`, `MN_BN_pct`, `MN_PY_pct`, `MN_MAG
    - all-blank columns listed as left out ("MN_MAG_pct: no value in any row").
    - Import is enabled once one column is ticked. The Value field is not needed.
 3. **What the import makes.**
-   - Each ticked column becomes a numeric interval custom layer, named `<file>: <column> (% visual)`, with unit "% (visual)". That is the
-     word the logger used. Assays are the measured grade; this is an estimate by eye.
+   - Each ticked column becomes a numeric interval custom layer, named `<file>: <column>`, with unit "% visual" (the legend adds the unit,
+     so it is not in the name too). "Visual" is the logger's word. Assays are the measured grade; this is an estimate by eye.
    - A row with no value of that mineral is not a "blank code". It is simply not an interval of that layer, and is counted once in the
      notice.
    - Each `*_style` column next to a mineral (`MN_CPY_style` beside `MN_CPY_pct`) rides on that mineral's rows as a text field, so Identify

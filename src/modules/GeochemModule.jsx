@@ -70,6 +70,7 @@ const SQLWorkspaceModal = React.lazy(() => import("../components/SQLWorkspaceMod
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import EmptyState, { emptyStateSecondaryBtn } from "../components/EmptyState.jsx"; // TASKS.csv #309
+import { symbolPresent } from "../lib/calcUndo.js"; // TASKS.csv #3110
 
 const ALL_DIAGRAMS = { ...DIAGRAMS, ...SPIDER_DIAGRAMS };
 // TASKS.csv #3219 — a calculated element's range in significant figures ('range 0.00-0.00' hid a ratio of 0.125)
@@ -119,7 +120,7 @@ export default function GeochemModule() {
   const store = useStore();
   const setTaskProgress = useSetTaskProgress(); // #2164
   const keptScope = scopeOf(store.getProjectToken()); // TASKS.csv #1284 — survives a tab switch
-  const { assays, setAssays, assayElements, setAssayElements, surfaceSamples, setSurfaceSamples, surfaceElements, setSurfaceElements, geochemThresholds, setGeochemThresholds, surfaceQc, setSurfaceQc, mapLayers, replaceLayer, layers, collars, survey, boundaries, alterationBoxes, setAlterationBoxes, project, projectIsEmpty, setEpsg, viewerUiState } = store; // viewerUiState: #1091 (the 3D legend's colour edits)
+  const { assays, setAssays, setAssaysWithInverse /* #3110 */, assayElements, setAssayElements, surfaceSamples, setSurfaceSamples, surfaceElements, setSurfaceElements, geochemThresholds, setGeochemThresholds, surfaceQc, setSurfaceQc, mapLayers, replaceLayer, layers, collars, survey, boundaries, alterationBoxes, setAlterationBoxes, project, projectIsEmpty, setEpsg, viewerUiState } = store; // viewerUiState: #1091 (the 3D legend's colour edits)
   const [altBoxOpen, setAltBoxOpen] = useState(false); // TASKS.csv #503
   const [volcModal, setVolcModal] = useState(null); // TASKS.csv #2352 — { methodKey, codes } while asking which logged codes are volcanic
   const assayHoleIds = useMemo(() => new Set(assays.map((a) => a.hole_id)), [assays]);
@@ -1400,7 +1401,9 @@ export default function GeochemModule() {
                         return;
                       }
                       const r = addCalculatedElement(assays, assayElements, calc.name, calc.expr, calc.unit || "index", { readUnits: presetUnitsFor(calc.preset, calc.expr) || (calc.readPpm ? mixedUnitReads(calc.expr, assayElements) : null) /* #3219 */ }); // unit: #1749; readUnits: #2500, #2619 (a preset's formula as given)
-                      setAssays(r.assays);
+                      // TASKS.csv #3110 — a NEW element's Add is undone as 'remove it' (no copy of the old table in the history); a symbol some row
+                      // already carries (a re-run, or an imported element of that name) keeps the plain snapshot, so an undo never deletes real data
+                      if (setAssaysWithInverse && !symbolPresent(assays, r.element.symbol)) setAssaysWithInverse(r.assays, r.element.symbol); else setAssays(r.assays);
                       setAssayElements((prev) => [...prev, r.element]);
                       setNotices((p) => [...p, notice(collars.length ? "Added calculated element {symbol} = {expr} on {computed} assay interval(s) (range {min}–{max}){v}. It can now be shown downhole, in 3D and on sections like any element. It is not recalculated if assays are re-imported." : "Added calculated element {symbol} = {expr} on {computed} assay interval(s) (range {min}–{max}){v}. Every Geochem tool can use it now; it is drawn downhole once collars are loaded. It is not recalculated if assays are re-imported.", /* #1800 */ { symbol: r.element.symbol, expr: r.element.calculated.expr, computed: r.computed.toLocaleString(), min: sigFig(r.min), max: sigFig(r.max) /* #3219 — 0.125, not 0.00 */, v: (r.skipped ? tr("; {skipped} interval(s) missing an element in the formula have no value", { skipped: r.skipped.toLocaleString() }) : "") + (r.leftBdl ? tr("; {n} left out: a ratio with a below-detection operand is not a value", { n: r.leftBdl.toLocaleString() }) : "") + (r.flaggedLt ? tr("; {n} flagged below detection ('<'): every element in the formula was", { n: r.flaggedLt.toLocaleString() }) : "") /* #2505 */ + (r.divZero ? tr("; {n} could not be computed from their values (a division by zero, the log or root of a negative number), so no value", { n: r.divZero.toLocaleString() }) : "") /* #3160; #3226 (2) — not only a division */ + (r.mixedUnits ? tr("; divided as stored, though {list} are in different units: tick 'Read these elements in ppm' to compare like with like", { list: r.mixedUnits.map((c) => `${c.sym} (${c.unit})`).join(", ") }) : "") /* #3219 */ })]);
                       setCalc(null);

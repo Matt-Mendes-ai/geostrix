@@ -8,18 +8,28 @@ export const SAT_LEVELS = {
   standard: { label: "Standard", gridMax: 1024 },
   high: { label: "High", gridMax: 2048 },
   veryhigh: { label: "Very high", gridMax: 3072 },
+  // TASKS.csv #3251 — the imagery's own pixels: one picture of up to 4,096 px (every GPU's texture), and for NAIP up to 2 x 2 of them
+  // (naipFetch.js naipTiles); past that the pixels are just coarse enough to fit
+  full: { label: "Full", gridMax: 4096, naipSides: 2 },
 };
 
 // Shown before fetching: { pixelM, gridW, gridH, nativeLimited } for a lon / lat box at a level. Metres from degrees
 // at the box's middle latitude (good to ~1 % here); the real grid is laid out in the scene's own UTM by windowGrid
 // with the same rule (native cell, or the longest side / gridMax when that is coarser).
-export function planLatestFetch([lonMin, latMin, lonMax, latMax], level = "standard", nativeM = NATIVE_M) { // nativeM: #838 — NAIP's finer pixels
+// #3251 — naip: the Full level may split into up to naipSides x naipSides pictures (parts); gpuMB: the pictures' graphics memory with mipmaps
+export function planLatestFetch([lonMin, latMin, lonMax, latMax], level = "standard", nativeM = NATIVE_M, { naip = false } = {}) { // nativeM: #838 — NAIP's finer pixels
   if (!SAT_LEVELS[level]) level = "standard";
-  const l = SAT_LEVELS[level];
+  const l = SAT_LEVELS[level], sides = naip ? l.naipSides || 1 : 1;
   const midLat = ((latMin + latMax) / 2) * Math.PI / 180;
   const w = Math.max(1, (lonMax - lonMin) * Math.cos(midLat) * 111320), h = Math.max(1, (latMax - latMin) * 110574);
-  const pixelM = Math.max(nativeM, Math.max(w, h) / l.gridMax);
-  return { pixelM, gridW: Math.max(1, Math.ceil(w / pixelM)), gridH: Math.max(1, Math.ceil(h / pixelM)), nativeLimited: pixelM === nativeM, level };
+  const pixelM = Math.max(nativeM, Math.max(w, h) / (l.gridMax * sides));
+  const gridW = Math.max(1, Math.ceil(w / pixelM)), gridH = Math.max(1, Math.ceil(h / pixelM));
+  const parts = Math.ceil(gridW / l.gridMax) * Math.ceil(gridH / l.gridMax);
+  const gpuMB = Math.round((gridW * gridH * 4 * 4) / 3 / 1e6);
+  // memoryMB: the pictures, and one picture's working copies while it is built (its RGBA, the canvas, the three bands read)
+  const partPx = Math.min(gridW, l.gridMax) * Math.min(gridH, l.gridMax);
+  // fullSideM: the widest area this level gets at the imagery's own pixels ('Full resolution for a smaller area', #3251)
+  return { pixelM, gridW, gridH, nativeLimited: pixelM === nativeM, level, parts, gpuMB, memoryMB: gpuMB + Math.round((partPx * 11) / 1e6), fullSideM: nativeM * l.gridMax * sides };
 }
 
 // TASKS.csv #1766 (review #1645, Copley) — Standard, High and Very high all read '~10 m pixels · image 293 x 267 px' for Sentinel-2 on a

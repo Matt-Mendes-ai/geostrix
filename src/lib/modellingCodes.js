@@ -33,6 +33,20 @@ export function effectiveCode(row, mc, groupOf) {
   const g = groupOf ? groupOf(row.value) : null;
   return g || String(row.value ?? "").trim();
 }
+// TASKS.csv #3148 — effectiveCode for many rows: the row key (two toFixed and a string per row) only when there are overrides, and the
+// code of each logged value once. On WA iron's 150,456 strand rows codedRuns took 1.7 s and codesInUse 0.46 s, most of it the keys of an
+// empty `assign`. -> (row) => code, the same as effectiveCode(row, mc, groupOf)
+export function codeResolver(mc, groupOf) {
+  const assign = mc?.assign, hasAssign = !!assign && Object.keys(assign).length > 0;
+  const byValue = new Map();
+  return (row) => {
+    if (hasAssign) { const o = assign[rowKey(row)]; if (o) return o; }
+    const v = row.value;
+    let c = byValue.get(v);
+    if (c === undefined) { const g = groupOf ? groupOf(v) : null; c = g || String(v ?? "").trim(); byValue.set(v, c); }
+    return c;
+  };
+}
 
 // TASKS.csv #810 — does a row belong to a raw-code or group target (codes, named unitName)? Only an explicit override
 // in `assign` changes the answer: re-coded INTO the unit it does, re-coded AWAY it does not; the default group
@@ -51,19 +65,21 @@ export function codeInfo(mc, name, defaultRole = () => "stratigraphic") {
 // not contacts, #354). A run records whether something touches it from above (`above`: the run above, or
 // null at a hole start or below an unlogged gap).
 export function codedRuns(lithoRows, mc, groupOf) {
-  const byHole = new Map();
-  (lithoRows || []).forEach((r) => {
-    if (r == null || r.hole_id == null || !Number.isFinite(Number(r.from)) || !Number.isFinite(Number(r.to)) || !(Number(r.to) > Number(r.from))) return;
-    if (!byHole.has(r.hole_id)) byHole.set(r.hole_id, []);
-    byHole.get(r.hole_id).push(r);
-  });
+  const byHole = new Map(), codeOf = codeResolver(mc, groupOf); // #3148
+  for (const r of lithoRows || []) {
+    if (r == null || r.hole_id == null) continue;
+    const f = Number(r.from), t = Number(r.to);
+    if (!Number.isFinite(f) || !Number.isFinite(t) || !(t > f)) continue;
+    let list = byHole.get(r.hole_id);
+    if (!list) byHole.set(r.hole_id, (list = []));
+    list.push({ r, f, t });
+  }
   const runs = [];
-  byHole.forEach((rows, hole_id) => {
-    rows.sort((a, b) => Number(a.from) - Number(b.from));
+  byHole.forEach((items, hole_id) => {
+    items.sort((a, b) => a.f - b.f);
     let cur = null;
-    rows.forEach((r) => {
-      const code = effectiveCode(r, mc, groupOf);
-      const from = Number(r.from), to = Number(r.to);
+    items.forEach(({ r, f: from, t: to }) => {
+      const code = codeOf(r);
       if (cur && cur.code === code && Math.abs(from - cur.to) < EPS) { cur.to = Math.max(cur.to, to); cur.rows.push(r); return; }
       const touching = cur && Math.abs(from - cur.to) < EPS;
       const run = { hole_id, code, from, to, rows: [r], above: touching ? cur : null, holeStart: !cur };
@@ -199,7 +215,8 @@ export function withPileOrder(mc, names) {
 // Every code in use (effective codes of the rows), in pile order then name.
 export function codesInUse(lithoRows, mc, groupOf, defaultRole) {
   const names = new Set();
-  (lithoRows || []).forEach((r) => { const c = effectiveCode(r, mc, groupOf); if (c) names.add(c); });
+  const codeOf = codeResolver(mc, groupOf); // #3148
+  for (const r of lithoRows || []) { const c = codeOf(r); if (c) names.add(c); }
   return [...names].map((n) => codeInfo(mc, n, defaultRole))
     .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity) || a.name.localeCompare(b.name, undefined, { numeric: true }));
 }

@@ -37,6 +37,8 @@ export function unitSourceFields(rows, { maxDistinct = 300, sample = 6000 } = {}
 // TASKS.csv #2529 (review #2486, WA lithium) — another coded interval layer as the unit: the Weathering layer (top of fresh rock, logged in
 // 795 holes, could only be built by re-importing weathering as the Lithology value) or a custom layer of codes. Keys: "@weath",
 // "@custom:<id>" (a field name never starts with "@"). -> [{ name, label, distinct, rows }]
+const BUILTIN_UNIT_LAYERS = [["weath", "Weathering"], ["alt", "Alteration"], ["breccia", "Breccia"]];
+const BUILTIN_KEYS = new Set(BUILTIN_UNIT_LAYERS.map(([k]) => `@${k}`));
 export function unitSourceLayers(layers, customLayers = []) {
   const out = [];
   const codes = (rows) => {
@@ -52,8 +54,9 @@ export function unitSourceLayers(layers, customLayers = []) {
     }
     return n && text >= n / 2 && set.size <= 300 ? { distinct: set.size, rows: n } : null;
   };
-  const w = codes(layers?.weath);
-  if (w) out.push({ name: "@weath", label: "Weathering", ...w });
+  // TASKS.csv #3267 (review #3195, Galore Creek) — the Alteration layer (the high-T assemblage, 1,238 intervals, the ore control there) and
+  // the Breccia layer too: only a second assemblage imported as a custom layer could be modelled, grouped or built as one body
+  for (const [k, label] of BUILTIN_UNIT_LAYERS) { const w = codes(layers?.[k]); if (w) out.push({ name: `@${k}`, label, ...w }); }
   for (const c of customLayers || []) { const k = codes(c.rows); if (k) out.push({ name: `@custom:${c.id}`, label: c.name, ...k }); }
   return out;
 }
@@ -63,7 +66,7 @@ export function unitSourceLayers(layers, customLayers = []) {
 export function applyUnitSource(layers, field, customLayers = []) {
   if (!field || !layers) return layers;
   if (field.startsWith("@")) {
-    const rows = field === "@weath" ? layers.weath : (customLayers || []).find((c) => `@custom:${c.id}` === field)?.rows;
+    const rows = BUILTIN_KEYS.has(field) ? layers[field.slice(1)] : (customLayers || []).find((c) => `@custom:${c.id}` === field)?.rows; // @alt / @breccia: #3267
     const litho = [];
     for (const r of rows || []) {
       const t = r.value == null ? "" : String(r.value).trim();

@@ -43,7 +43,7 @@ test("Data QC: one info line naming the count; the collar attr shows up in the h
 });
 
 test("the survey commit folds, tags the collars and says it", () => {
-  const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(u, /const methodSum = methodKey \? surveyMethodByHole\(rows, methodKey\) : null;/);
   assert.match(u, /attrs: \{ \.\.\.\(c\.attrs \|\| \{\}\), "survey method": methodSum\.byHole\.get\(c\.hole_id\) \}/);
   assert.match(u, /have only assumed survey stations \(their direction was not measured\)/);

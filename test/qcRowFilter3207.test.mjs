@@ -20,7 +20,7 @@ test("a QC sample-type column is pre-set to keep the rock samples; on an assay i
   assert.deepEqual(qcRowFilter(cols), { col: "SG Sample Type", keep: ["Original"], drop: 6, flag: "qc" });
   const f = defaultRowFilter(headers, rows);
   assert.equal(f.flag, "qc");
-  assert.equal(applyRowFilter(rows, f).dropped, 6);
+  assert.equal(applyRowFilter(rows, f).dropped, 7, "the 6 QC rows and, since the #3207 follow-up, the rejected one too (Rejected? = Y)");
   assert.notEqual(defaultRowFilter(headers, rows, { qc: false })?.flag, "qc", "an assay import keeps its QC samples");
   for (const v of ["STD", "CRM", "Blank", "BLK", "Dup", "Pulp Duplicate", "Coarse Rep", "Lab Repeat", "Check"]) assert.equal(qcRowFilter([{ col: "QC_Type", values: [["Sample", 10], [v, 2]] }])?.drop, 2, v);
   assert.equal(qcRowFilter([{ col: "Lithology", values: [["Standard", 3], ["Basalt", 9]] }]), null, "a column not named for sample type");
@@ -40,5 +40,5 @@ test("the import notice counts rows past the end of their hole (a standard at 99
 test("the dialogs use the preset; the assay dialog's box never offers the QC one", () => {
   assert.match(readFileSync(new URL("../src/components/AssayImportModal.jsx", import.meta.url), "utf8"), /<RowFilterBox modal=\{modal\} onChange=\{onChange\} sel=\{sel\} qc=\{false/);
   assert.match(readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8"), /modalIn\.allRows, \{ qc: false/);
-  assert.match(readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8"), /allRowsIn, \{ qc: target !== "assays" \}\)/);
+  assert.match(readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8"), /allRowsIn, \{ qc: target !== "assays" \}\)/);
 });

@@ -48,7 +48,7 @@ test("only a local-grid project's own tie counts", () => {
 });
 
 test("the import, the panel, the store and the status bar use it", () => {
-  const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(u, /const gridTie = liveProject\?\.crsSet === false && liveProject\?\.localGrid \? tieOf\(liveProject\) : null;/);
   assert.match(u, /const p = fileToLocal\(gridTie, r\.x, r\.y, fromEpsg\);/);
   assert.match(u, /\} else if \(liveProject\?\.epsg && \(perRowEpsgCol/); // the placeholder is never the target on a local grid
@@ -58,7 +58,7 @@ test("the import, the panel, the store and the status bar use it", () => {
 });
 
 test("a local-grid project is never given a file's declared CRS (found live: an MGA file ended the grid)", () => {
-  const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   const i = u.indexOf("const adoptCrsIfEmpty = (declared, fileName) => {"), j = u.indexOf("if (live.project?.crsSet === false && live.project?.localGrid) return null;", i), k = u.indexOf("live.setEpsg(d);", i);
   assert.ok(i > 0 && j > i && j < k);
 });

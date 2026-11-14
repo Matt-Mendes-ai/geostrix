@@ -31,7 +31,7 @@ test("#2855 a .grd dropped on the Geophysics tab goes to the raster import, and 
   const g = read("../src/modules/GeophysicsModule.jsx");
   assert.match(g, /const gxfs = files\.filter\(\(f\) => \/\\\.\(gxf\|grd\)\$\/i\.test\(f\.name\)\);/);
   assert.match(g, /this tab reads CSV, GeoTIFF, GXF, \.grd, XYZ/);
-  assert.match(read("../src/modules/viewer/useImportPipeline.js"), /GeoTIFF \/ \.gxf \/ \.grd grids/);
+  assert.match(read("../src/modules/viewer/importPipelineImpl.js"), /GeoTIFF \/ \.gxf \/ \.grd grids/);
 });
 
 test("#2849 the survey points' floor: 5 px across, rebuilt only where the floor matters", () => {

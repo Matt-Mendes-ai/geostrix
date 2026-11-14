@@ -24,7 +24,7 @@ test("the map-layer importers, the outcrop structures and the surface samples pa
   assert.match(sm, /const t = fileToLocal\(gridTie, r\.x, r\.y, src\);/);
   assert.match(sm, /r\.dipDir = bearingToLocal\(gridTie, r\.dipDir\)/);
   assert.match(sm, /\} else if \(project\?\.crsSet === false && project\?\.localGrid\) \{/); // no tie: kept
-  assert.match(readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8"), /tie: tieOf\(live\.project\) \/\* #2320 \*\//);
+  assert.match(readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8"), /tie: tieOf\(live\.project\) \/\* #2320 \*\//);
   const g = readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8");
   assert.match(g, /const doReproject = !localNoTie && fromEpsg && toEpsg && fromEpsg !== toEpsg;/);
   assert.match(g, /const p = gridTie \? fileToLocal\(gridTie, x, y, fromEpsg\) : reprojectXY\(x, y, fromEpsg, toEpsg\);/);

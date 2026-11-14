@@ -40,7 +40,7 @@ test("#1185 box plots share the histogram's log axis", async () => {
 });
 
 test("#1232 a notice that dropped data stays until read", () => {
-  assert.match(read("src/modules/viewer/useImportPipeline.js"), /structure dip\(s\)[^\n]*level: "error"/);
+  assert.match(read("src/modules/viewer/importPipelineImpl.js"), /structure dip\(s\)[^\n]*level: "error"/);
 });
 
 test("#1269 the QC stamp describes the run it exports", () => {

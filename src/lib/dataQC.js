@@ -620,6 +620,17 @@ const INTERVAL_CHECKS = [
   ["alt_gc", "Alteration (geochem-derived)"],
 ];
 
+// TASKS.csv #3211 — the custom layers Data QC checks as intervals: most rows have a From and a To; a binned log and a modelled layer are left out
+export function customIntervalLayers(customLayers) {
+  return (customLayers || []).filter((l) => {
+    const rows = l?.rows || [];
+    if (!rows.length || l.binM !== undefined || rows[0]?.modelled) return false;
+    let iv = 0; const n = Math.min(rows.length, 200);
+    for (let i = 0; i < n; i++) if (Number.isFinite(rows[i]?.from) && Number.isFinite(rows[i]?.to)) iv++;
+    return iv * 2 > n;
+  });
+}
+
 export function* runDataQCSteps({ project, collars, survey, layers, boundaries, assays, terrain = null, terrainThreshold = 15, doglegWarn = 3, doglegError = 10, customLayers = [] }) { // customLayers: #2493
   const collarIds = new Set(collars.map((c) => c.hole_id));
   // TASKS.csv #339 — end of hole = the DEEPER of the collar length and the last survey station. Letting the
@@ -632,7 +643,11 @@ export function* runDataQCSteps({ project, collars, survey, layers, boundaries, 
   const parts = [];
   parts.push(validateProject(project), validateCollars(collars, survey), validateCollarsVsTerrain(collars, terrain, terrainThreshold)); yield step(1);
   parts.push(yield* validateSurveyAndTrajectorySteps(collars, survey, { doglegWarn, doglegError })); yield step(2); // #545
-  for (const [k, label, opt] of INTERVAL_CHECKS) { parts.push(yield* validateIntervalLayerSteps(layers[k] || [], label, collarIds, holeLengths, opt)); } yield step(3);
+  for (const [k, label, opt] of INTERVAL_CHECKS) { parts.push(yield* validateIntervalLayerSteps(layers[k] || [], label, collarIds, holeLengths, opt)); }
+  // TASKS.csv #3211 (#3195, Galore Creek) — the custom interval layers get the same checks (holes, from / to, reversed, overlaps, past the end of
+  // the hole); not a binned log (its bins are the import's) nor a modelled layer (made by the app)
+  for (const l of customIntervalLayers(customLayers)) parts.push(yield* validateIntervalLayerSteps(l.rows, tr("Custom layer: {name}", { name: l.name }), collarIds, holeLengths, { gaps: false }));
+  yield step(3);
   parts.push(yield* validateAssaysSteps(assays || [], collarIds, holeLengths)); yield step(4);
   const tail1 = [
     ...validatePointLayer(layers.mnlgy || [], "Mineralization", collarIds, holeLengths),

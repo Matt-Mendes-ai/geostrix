@@ -20,7 +20,7 @@ test("the filter box's examples are this project's first two ids", () => {
 });
 
 test("the default-classes line goes once a class is edited; the chips grey out and the count says why", () => {
-  assert.match(read("../src/components/AssayStyleModal.jsx"), /\{\(major \|\| basisText\) && !local\.breaks\.some\(\(b\) => b\.seeded === false\)/);
+  assert.match(read("../src/components/AssayStyleModal.jsx"), /\{\(major \|\| logLims \|\| basisText\) && !local\.breaks\.some\(\(b\) => b\.seeded === false\)/);
   const v = read("../src/modules/ViewerModule.jsx");
   assert.match(v, /!assayVisible \? tr\("\{n\} chosen, all hidden \(the eye\)", \{ n: assayDisplayElements\.length \}\)/);
   assert.match(v, /opacity: assayVisible \? 1 : 0\.45/);
