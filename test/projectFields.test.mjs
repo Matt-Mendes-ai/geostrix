@@ -37,7 +37,7 @@ test("#448 store.jsx wires exactly the table's fields to their own state", () =>
     assert.match(src, new RegExp(`const \\[${k}, ${setter}\\] = useState\\(`), `${k}: no useState`);
   }
   // the generated paths really are used (not a table beside the old hand-written lists)
-  for (const use of ["payloadFromFields(liveRef.current)", "setFields(fieldsFromPayload(data, fallbackName, dropped))", "setFields(emptyFields())", "extraDirtyValues(live)", "UNDO_KEYS.map((k) => live[k])", "autosaveRef.current = { ...live, hasWork }"]) assert.ok(src.includes(use), use);
+  for (const use of ["payloadFromFields(liveRef.current)", "const vals = fieldsFromPayload(data, fallbackName, dropped)", "applyLoadedFields(vals)", "setFields(vals)" /* #3493: loadProjectPayload -> applyLoadedFields */, "setFields(emptyFields())", "extraDirtyValues(live)", "UNDO_KEYS.map((k) => live[k])", "autosaveRef.current = { ...live, hasWork }"]) assert.ok(src.includes(use), use);
 });
 
 // A project with a non-empty value in every field.
