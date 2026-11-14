@@ -44,7 +44,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
   const unitL = element && unit ? gradeUnitLabel(element, unit) : unit; // TASKS.csv #2218 — the label (g/t for gold in ppm); unit stays for the sums and the CSV — kg and troy oz for a precious metal, t otherwise
   const [cutoffText, setCutoffText] = useState(() => autoCutoffs(model.cells, { element, unit }).join(", "));
   const [density, setDensity] = useState("");
-  const { layers, customLayers = [], generatedSurfaces = [], collars = [], survey = [], desurveyMethod, voxelModels = [] } = useStore(); // collars / survey: #2550; voxelModels: #3012; customLayers: #3109
+  const { layers, customLayers = [], generatedSurfaces = [], collars = [], survey = [], desurveyMethod, voxelModels = [], updateVoxelModel } = useStore(); // collars / survey: #2550; voxelModels: #3012; customLayers: #3109
   // TASKS.csv #1949 (Vulcan review) — the table inside a chosen closed solid, by block centre or by the share of each block inside
   // TASKS.csv #2061 (review #2013, Woodjam) — any watertight solid, as the Estimation dialog's 'Restrict to a modelled volume' takes: only Mine
   // Design solids carry closure 'closed', so an artificially closed grade shell (1.97 Mm³, watertight) was 'no closed solid in the project'
@@ -72,6 +72,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
   // taking the nearest logged interval within reach; the Density above is the default (no code within reach, or no density typed)
   const codeLayers = useMemo(() => ["weath", "litho", "alt"].filter((k) => (layers?.[k] || []).some((r) => r.value != null && String(r.value).trim() !== "")), [layers]);
   const [densityLayer, setDensityLayer] = useState("");
+  const [densityKept, setDensityKept] = useState(false); // TASKS.csv #3297
   const [codeDensity, setCodeDensity] = useState({});
   // TASKS.csv #3013 (WA iron review) — the first 30 codes by NAME had boxes: SC, SNAM, SONAM and TNAM (the second ore strand) took the default
   // without a word. All the layer's codes now, those the blocks take first (most blocks first), then the rest by logged metres (#2993's order);
@@ -211,6 +212,14 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
             <select value={densityLayer} onChange={(e) => setDensityLayer(e.target.value)} style={{ ...inp, maxWidth: 260 }} aria-label={tr("Density by")}><option value="">{tr("one value")}</option>{codeLayers.map((k) => <option key={k} value={k}>{k === "weath" ? tr("Weathering") : k === "litho" ? tr("Lithology") : tr("Alteration")}</option>)}{densityModels.map((m) => <option key={m.id} value={`model:${m.id}`}>{tr("the block model \"{name}\" (same blocks)", { name: m.name })}</option>)/* #3012 */}</select></label>}
           {sgLayer && <button type="button" style={{ ...inp, cursor: "pointer" }} title={tr("The length-weighted mean of the Specific gravity layer: {n} rows, {min} to {max}. One value for every block.", { n: sgLayer.n, min: sgLayer.min, max: sgLayer.max })} onClick={() => { setDensity(String(sgLayer.mean)); setFromSg(true); }}>{tr("Use the SG layer's mean ({v})", { v: sgLayer.mean })}</button>}
         </div>
+        {/* TASKS.csv #3297 (#2637's rest) — the density used here kept with the saved block model: a DENSITY column per block in its exports */}
+        {updateVoxelModel && model.id != null && voxelModels.some((m) => m.id === model.id) && (rho || byModel || byCode) && (
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 8, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+            <button type="button" style={{ ...inp, cursor: "pointer" }} title={tr("Writes each block's density (the one value, or its code's or the density model's) into the block model, so its CSV, OMF and VTK exports carry a DENSITY column and tonnes agree everywhere.")}
+              onClick={() => { const of = byModel?.of || byCode?.of || null; const cells = (model.cells || []).map((c) => { const d = of ? of(c) : null; const v = Number.isFinite(d) && d > 0 ? d : rho; return v ? { ...c, density: v } : c; }); updateVoxelModel(model.id, { cells, params: { ...(model.params || {}), densityKept: byModel ? "density model" : byCode ? `by ${densityLayer}` : "one value", densityDefault: rho } }); setDensityKept(true); }}>{tr("Keep this density with the block model")}</button>
+            {densityKept && <span>{tr("Kept: the block model now carries a density per block (a DENSITY column in its exports).")}</span>}
+          </div>
+        )}
         {/* TASKS.csv #3014 part b — limits from the set: each other element's ceiling or floor */}
         {members.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 14px", alignItems: "center", marginBottom: 8, fontSize: "var(--font-size-sm)" }}>

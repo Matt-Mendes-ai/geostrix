@@ -181,3 +181,34 @@ export function searchEllipsoidAxes(t, radius) {
   const { max, int, min } = cleanTrend(t).ratios, r = Number(radius) || 0;
   return [1, int / max, min / max].map((f) => Math.round(r * f * 10) / 10);
 }
+
+// TASKS.csv #3385 (from #3273) — a structural trend from the Variogram tool's direction table: the major axis is the direction with the
+// longest well-fitted range, the minor axis the shortest well-fitted direction made square to it (the plane's normal), the intermediate
+// axis their cross product. Ratios are the ranges along the three: the long one, the short one, and the intermediate from the fitted
+// direction nearest that axis (within 30 degrees), else the geometric mean of the two. Kriging under the trend then follows what the table
+// measured. rows: directionRow results already filtered to the fits that mean something (variogram.js wellFittedDirections).
+// -> a trend (cleanTrend), or null when fewer than two directions fit, or the shortest is within 20 degrees of the longest.
+export function trendFromDirections(rows, directionVector) {
+  const fits = (rows || []).filter((r) => r && r.range > 0).map((r) => ({ ...r, v: directionVector(r.azimuth, r.dip) }));
+  if (fits.length < 2) return null;
+  fits.sort((a, b) => b.range - a.range);
+  const long = fits[0], short = fits[fits.length - 1];
+  const dot = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
+  const unit = (a) => { const l = Math.hypot(a.x, a.y, a.z); return l ? { x: a.x / l, y: a.y / l, z: a.z / l } : null; };
+  const m = long.v, c = dot(short.v, m);
+  if (Math.abs(c) > Math.cos(20 * rad)) return null;
+  const minor = unit({ x: short.v.x - c * m.x, y: short.v.y - c * m.y, z: short.v.z - c * m.z });
+  if (!minor) return null;
+  const mid = cross(minor, m); // unit: both are unit and square
+  const near = fits.filter((f) => f !== long && f !== short && Math.abs(dot(f.v, mid)) >= Math.cos(30 * rad)).sort((a, b) => Math.abs(dot(b.v, mid)) - Math.abs(dot(a.v, mid)))[0];
+  const rInt = near ? Math.min(long.range, Math.max(short.range, near.range)) : Math.sqrt(long.range * short.range);
+  const plane = planeFromNormal(minor);
+  if (!plane) return null;
+  const dd = plane.dipAzimuth * rad, dp = plane.dip * rad;
+  const strike = { x: -Math.cos(dd), y: Math.sin(dd), z: 0 };
+  const down = { x: Math.sin(dd) * Math.cos(dp), y: Math.cos(dd) * Math.cos(dp), z: -Math.sin(dp) };
+  let pitch = Math.atan2(dot(m, down), dot(m, strike)) * deg; // -180..180; an axis and its reverse are one axis
+  if (pitch < 0) pitch += 180;
+  if (pitch >= 180) pitch -= 180;
+  return cleanTrend({ name: "Trend from directions", dip: plane.dip, dipAzimuth: plane.dipAzimuth, pitch, ratios: { max: long.range, int: rInt, min: short.range } });
+}

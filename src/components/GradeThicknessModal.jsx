@@ -11,6 +11,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { useStore } from "../lib/store.jsx";
+import { openHelp } from "../lib/help.js"; // TASKS.csv #3452
 import { desurveyHole } from "../lib/desurvey.js";
 import { computeBestIntercepts, gradeUnitLabel } from "../lib/geochem.js";
 import { excludeQAQC } from "../lib/qaqc.js";
@@ -165,14 +166,15 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
       <div role="dialog" aria-modal="true" aria-label={gtView === "long" ? tr("Grade × thickness on a long section") : tr("Grade × thickness in plan")} onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 16, width: 900, maxWidth: "95vw", maxHeight: "94vh", overflow: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)" }}>{gtView === "long" ? tr("Grade × thickness on a long section") : tr("Grade × thickness in plan")}</div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3452 — the help page of the tool */}<button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("grade-thickness")} aria-label={tr("Help: {name}", { name: tr("Grade × thickness") })} title={tr("Help for this tool (F1, works offline)")}>?</button>
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
         </div>
         {/* TASKS.csv #3089 — Plan (a thin, flat body) or Long section (a steep vein or lode) */}
         <label style={{ ...field, flexDirection: "row", alignItems: "center", gap: 8 }}>{tr("View")}<select value={gtView} onChange={(e) => setGtView(e.target.value)} style={{ ...inp, width: "auto" }} aria-label={tr("Grade × thickness view")}>
           <option value="plan">{tr("Plan (a thin, flat body)")}</option>
           <option value="long">{tr("Long section (a steep vein or lode)")}</option>
         </select></label>
-        {gtView === "long" ? <div style={note}>{tr("For a steep vein or lode: per hole, the intercepts' thickness and grade × thickness (GT) by the same rules as Best intercepts, placed at the intercepts' mid-point; projected on a vertical plane along strike and contoured in three panels (thickness, grade, GT), stopping at the drilled extent.")}</div> : <div style={note}>{tr("For a thin, flat body: per hole, the mineralized thickness and grade × thickness (GT) from the intercepts, with the same rules as Best intercepts; then GT and thickness are interpolated in plan and contoured at a GT cut-off you choose. Thickness is in downhole metres (true thickness for vertical holes through flat ore).")}</div>}
+        {gtView === "long" ? <div style={note}>{tr("For a steep vein or lode: per hole, the intercepts' thickness and grade × thickness (GT) by the same rules as Best intercepts, placed at the intercepts' mid-point; projected on a vertical plane along strike and contoured in three panels (thickness, grade, GT), or four with the kriging standard deviation, stopping at the drilled extent.")}</div> : <div style={note}>{tr("For a thin, flat body: per hole, the mineralized thickness and grade × thickness (GT) from the intercepts, with the same rules as Best intercepts; then GT and thickness are interpolated in plan and contoured at a GT cut-off you choose. Thickness is in downhole metres (true thickness for vertical holes through flat ore).")}</div>}
         {inArea && <div style={note}>{tr("Samples from the Model area's {n} checked holes (Model settings).", { n: areaHoles })}</div>}{/* #3016 */}
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
           <label style={field}>{tr("Element")}<select value={symbol} onChange={(e) => { setSymbol(e.target.value); setCutoff(""); setGtCut(""); setAsOxide(false); }} style={inp} aria-label={tr("Element")}>{symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, (assayElements || []).find((e) => e.symbol === s)?.unit)})</option>)}</select></label>

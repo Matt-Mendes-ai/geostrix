@@ -76,6 +76,17 @@ function groundCappedGrid(grid, iso, groundAt, toReal = null) {
 // TASKS.csv #2782 — the layer an envelope was built from, as saved in its provenance (project data: English)
 const SOURCE_NAME = { litho: "Lithology", alt: "Alteration", vein: "Veins", weath: "Weathering" };
 
+// TASKS.csv #3082 (6) — three grade shells run with the same element, cutoff, trend and holes were all named alike in the list and in 'New version of':
+// a name already in use gets the cell size, then a number
+export function distinctShellName(label, taken, cellM = null) {
+  const used = new Set(taken || []);
+  if (!used.has(label)) return label;
+  const withCells = Number.isFinite(cellM) && cellM > 0 ? `${label}, ${+Number(cellM).toFixed(2)} m cells` : label;
+  if (!used.has(withCells)) return withCells;
+  let n = 2;
+  while (used.has(`${withCells} #${n}`)) n++;
+  return `${withCells} #${n}`;
+}
 export function createModellingRuns(ctx, mcRef) {
   const {
     activeInterceptSetRef,
@@ -2771,7 +2782,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         implicitGroupRef.current?.add(mesh);
         const id = `impl_${Date.now()}_numeric_${symbol}`;
         implicitMeshesRef.current[id] = mesh;
-        setImplicitSurfaces((p) => [...p, { id, name: label, visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: "mineralization_envelope", relationships: [], closure, params, surfaceSupportCounts: surfCounts, supportColored: false }]); // surfaceSupportCounts/supportColored: TASKS.csv #91
+        setImplicitSurfaces((p) => [...p, { id, name: distinctShellName(label, p.map((x) => x.name), cs), visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: "mineralization_envelope", relationships: [], closure, params, surfaceSupportCounts: surfCounts, supportColored: false }]); // surfaceSupportCounts/supportColored: TASKS.csv #91
         setNotices((p) => [...p, notice("Added \"{label}\": {points} ({intervals}{v4}, {dropped} dropped{v5}, {above} at/above cutoff{v6}) → {nx}×{ny}×{nz} grid ({estimated} cells estimated, {skipped} outside the search radius{v7}{v8}) → {vertices} vertices / {faces} faces{v9}. Exploration target volume only — not a Mineral Resource.", { label, points: tr(points.length === 1 ? "{n} sample point" : "{n} sample points", { n: points.length }) /* #1116 */,
           intervals: numericUseComposites ? tr(intervals.length === 1 ? "{n} {len} m composite" : "{n} {len} m composites", { n: intervals.length, len: numericCompositeLength }) : tr(intervals.length === 1 ? "{n} raw interval" : "{n} raw intervals", { n: intervals.length }), v4: rawStats && (rawStats.duplicatesSkipped || rawStats.overlappingRows) ? tr(" after {duplicatesSkipped} exact duplicate(s) left out and {overlappingRows} overlapping row(s) resolved", { duplicatesSkipped: rawStats.duplicatesSkipped, overlappingRows: rawStats.overlappingRows }) : "", dropped, v5: beyondTrace ? tr(" ({beyondTrace} deeper than the hole's trace)", { beyondTrace }) : "", above, v6: clamped ? tr(clamped === 1 ? ", {clamped} negative grade clamped to zero" : ", {clamped} negative grades clamped to zero", { clamped }) : "", nx: grid.nx, ny: grid.ny, nz: grid.nz, estimated: grid.estimated.toLocaleString(), skipped: grid.skipped.toLocaleString(), v7: grid.singleHoleCells ? tr(", {singleHoleCells} informed by only ONE hole", { singleHoleCells: grid.singleHoleCells.toLocaleString() }) : "", v8: gsVariogram ? tr("; kriged with a {model} variogram {v}: nugget {v2}, sill {v3}, range {v4} m", { model: gsVariogram.model, v: gsVariogram.fitted ? tr("fitted to the samples") : tr("as entered"), v2: +gsVariogram.nugget.toPrecision(3), v3: +gsVariogram.sill.toPrecision(3), v4: Math.round(gsVariogram.range) }) + (anisotropy.enabled ? tr(" (along the trend \"{name}\")", { name: anisotropy.trend?.name || "" }) : "") : "" /* #935 */, vertices: mc.vertices.length.toLocaleString(), faces: mc.faces.length.toLocaleString(), v9: vol.watertight ? tr(", closed ({volumeM3} m³)", { volumeM3: vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 }) }) : tr(", open ({openEdgeCount} open edges — shell reaches the edge of the estimated region)", { openEdgeCount: vol.openEdgeCount }) })]);
         // TASKS.csv #2223 — the refit above counted the whole box; say how little of it the search reaches, and the budget that keeps the
