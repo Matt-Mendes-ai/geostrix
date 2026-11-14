@@ -37,6 +37,8 @@ function screenLine(points, [px, color, order], tip) {
 }
 
 export function clearSectionTraces(group) {
+  const labels = group.userData.labels;
+  if (labels) { group.userData.labels = null; clearSectionTraces(labels); } // #3246 — its sprites and their textures too
   group.children.slice().forEach((ch) => { group.remove(ch); ch.geometry?.dispose(); ch.material?.map?.dispose(); ch.material?.dispose(); }); // map: #1126 label textures
 }
 
@@ -50,6 +52,9 @@ export function buildSectionTraces(group, sections, { origin, terrain, collars }
   const czs = (collars || []).map((c) => c.z).filter(Number.isFinite).sort((u, v) => u - v);
   const flatZ = czs.length ? czs[czs.length >> 1] : oz;
   const fences = fenceLabels(sections); // #1255
+  // TASKS.csv #3246 — the end labels in a group of their own, which the view declutters as it does the hole labels (holeLabels.js):
+  // separate sections 25 m apart printed theirs over each other ('Section 90° m' on 'Section 90° -125 m')
+  const labels = new THREE.Group(); labels.name = "sectionLabels"; group.add(labels); group.userData.labels = labels;
   const at = (x, y, z) => new THREE.Vector3(x - ox, z - oz, -(y - oy));
   sections.forEach((sct) => {
     const { ax, ay, bx, by } = sct;
@@ -77,7 +82,7 @@ export function buildSectionTraces(group, sections, { origin, terrain, collars }
       sp.position.copy(at(ex + nx * tickLen * 1.15, ey + ny * tickLen * 1.15, ez));
       sp.center.set(0.5, 0.5);
       sp.renderOrder = 12;
-      group.add(sp);
+      labels.add(sp);
     });
   });
 }
