@@ -39,7 +39,7 @@ test("Thresholds: flagged '<' values are below detection; the floor guess runs o
   const q = readFileSync(new URL("../src/lib/qaqc.js", import.meta.url), "utf8");
   assert.match(q, /if \(s\?\.bdl\?\.includes\?\.\(symbol\) \|\| s\?\.qualifiers\?\.\[symbol\] === "<"\) continue; vals\.push\(valueIn\(s, symbol, unit, units\)\);/);
   assert.match(src, /censoredOf: \(s\) => flaggedLt\(s\) \|\|/);
-  assert.match(src, /floor: formatLimit\(floor\.floor\), unit, dl: formatLimit\(floor\.dl\)/);
+  assert.match(src, /floor: formatLimit\((sh\()?floor\.floor\)?\), unit(: dispUnit)?, dl: formatLimit\((sh\()?floor\.dl\)?\)/);
   // the WA case: every floor value carries the '<' flag, so no floor is left to guess about
   const data = Array.from({ length: 100 }, (_, i) => ({ values: { Li: i < 30 ? 0.0023226645607841317 : 0.5 + i / 100 }, qualifiers: i < 30 ? { Li: "<" } : {} }));
   const flagged = (s) => s.qualifiers?.Li === "<";

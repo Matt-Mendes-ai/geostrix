@@ -11,6 +11,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #1698 — the custom layers
+import { filterLogRows } from "../lib/numericSources.js"; // TASKS.csv #3288
 import { customColour } from "../lib/customColour.js"; // #1698 — the 3D view's colour of a custom code
 import { codeMeaning } from "../lib/viewer/codeMeaning.js"; // TASKS.csv #2821 — a code's meaning in this project (#2816's rule)
 import { numericLayerFields } from "../lib/evidenceSources.js"; // #1698 — the numeric fields of a custom layer
@@ -36,7 +37,7 @@ import { localDate } from "../lib/localDate.js";
 import { stripLogFurniture, pngScaleFor } from "../lib/figureFurniture.js"; // TASKS.csv #1048
 import { stripLogTextPt } from "../lib/atlas.js"; // TASKS.csv #1480 — the size its labels print at
 import { assayAxis } from "../lib/striplogSvg.js"; // TASKS.csv #3141 — the Atlas's linear / log axis rule (#3024)
-import { suspectIdsOf } from "../lib/collarTable.js"; // TASKS.csv #3131 — #3004's rule, cached per collar list (the Layout collar table's)
+import { suspectIdsOf, collarAttrLine } from "../lib/collarTable.js"; // TASKS.csv #3131 — #3004's rule, cached per collar list (the Layout collar table's)
 import { elevationTrust } from "../lib/collarElevationTrust.js";
 import { headerLines, sigText } from "../lib/stripHeader.js"; // TASKS.csv #2481
 // TASKS.csv #2481 — a value at n significant figures without exponent notation ('7460', not '7.46e+3'), for the printed axes
@@ -91,7 +92,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const structs = useMemo(() => holeStructures(layers.structure, holeId), [layers.structure, holeId]); // #1400
   // TASKS.csv #1698 — custom layers as tracks on request ("+ track"): a text layer as a colour column (the 3D view's colours of its
   // codes), a numeric field (a SWIR wavelength, a chalcopyrite %) as a bar; a depth-only row is drawn 0.5 m tall at its depth
-  const { customLayers: allCustom = [], codeDictionary } = useStore();
+  const { customLayers: allCustom = [], codeDictionary, project: stripProject } = useStore(); // stripProject: the logs' valid range and despike (#3288)
   // TASKS.csv #2821 (split from #2816) — what a logged code means in this project's code dictionary, beside the code: in each interval's
   // hover, the lithology pattern list and the figure's key. A track's key is its layer's (litho, alt, vein ...); null when the dictionary
   // has nothing for the code, says no more than the code, or the shown name already says it (codeMeaning)
@@ -110,7 +111,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const [customTracks, setCustomTracks] = useState([]);
   const customTrackDefs = useMemo(() => customTracks.map((k) => customChoices.find((c) => c.key === k)).filter(Boolean).map((c) => {
     const depthOf = (r) => (Number.isFinite(Number(r.depth)) ? Number(r.depth) : Number(r.from));
-    const rows = (c.layer.rows || []).filter((r) => r.hole_id === holeId).map((r) => (Number(r.to) > Number(r.from) ? { ...r, from: Number(r.from), to: Number(r.to) } : { ...r, from: depthOf(r) - 0.25, to: depthOf(r) + 0.25 })).filter((r) => Number.isFinite(r.from) && Number.isFinite(r.to)).sort((a, b) => a.from - b.from);
+    const rows = (c.numeric && c.field === "value" ? filterLogRows((c.layer.rows || []).filter((r) => r.hole_id === holeId), { range: c.layer.validRange, despikeM: c.layer.despikeM }).rows /* #3288 */ : (c.layer.rows || []).filter((r) => r.hole_id === holeId)).map((r) => (Number(r.to) > Number(r.from) ? { ...r, from: Number(r.from), to: Number(r.to) } : { ...r, from: depthOf(r) - 0.25, to: depthOf(r) + 0.25 })).filter((r) => Number.isFinite(r.from) && Number.isFinite(r.to)).sort((a, b) => a.from - b.from);
     const name = c.field === "value" ? String(c.layer.name) : c.field, short = name.length > 14 ? "…" + name.slice(-13) : name; // the tail: "Copley_2023_DH_SWIR_Halo" -> "...2023_DH_SWIR_Halo"
     if (c.numeric) {
       const rs = rows.filter((r) => Number.isFinite(Number(r[c.field]))).map((r) => ({ ...r, value: Number(r[c.field]) }));
@@ -132,6 +133,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const collar = collars.find((c) => c.hole_id === holeId);
   // TASKS.csv #3131 (#3023) — an RL the import filled in, or one in the file that is probably a missing value, is said so (as the collar table marks it)
   const rlTrust = collar ? elevationTrust(collar, suspectIdsOf(collars)) : "measured";
+  const attrLine = useMemo(() => collarAttrLine(collar), [collar]); // #3408
   const rlNote = rlTrust === "assumed" ? tr("filled at import, not in the collar file") : rlTrust === "suspect" ? tr("in the collar file, but probably a missing value") : "";
   const maxDepth = Math.max(
     collar?.length || 0,
@@ -170,7 +172,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     // TASKS.csv #356 — the implicit model's unit at each logged interval, right beside the logged litho.
     ...modelledLayers.filter((ml) => !ml.rows?.[0]?.numeric).map((ml, i, arr) => { const rows = (ml.rows || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); const col = Object.fromEntries(rows.map((r) => [r.value, r.modelColor])); return { key: `modelled_${ml.id}`, label: arr.length > 1 ? `Model ${i + 1}` : "Modelled", title: ml.name, rows, kind: "fill", colorFn: (v) => col[v] || "#d9dce1", nameFn: (v) => v }; }).filter((t) => t.rows.length),
     // TASKS.csv #323 — logged susceptibility / SG and a numeric model evaluated onto the hole, side by side
-    ...[["magsusc", "Mag. susc."], ["sg", "SG"]].map(([k, label]) => { const rows = (layers[k] || []).filter((r) => r.hole_id === holeId && Number.isFinite(Number(r.value))).map((r) => (Number.isFinite(r.depth) && !Number.isFinite(r.to) ? { ...r, from: r.depth - 0.25, to: r.depth + 0.25 } : r)).sort((a, b) => a.from - b.from); return { key: `log_${k}`, label, title: `${label} as logged`, rows, kind: "bar", max: rows.reduce((m, r) => Math.max(m, Number(r.value)), 0), scaleLabel: true, ...(k === "magsusc" ? { logOk: true, minPos: valueRange(rows).minPos } : {}) }; }).filter((t) => t.rows.length), // logOk: #1400 — mag susc follows the Log scale box
+    ...[["magsusc", "Mag. susc."], ["sg", "SG"]].map(([k, label]) => { const rows = filterLogRows((layers[k] || []).filter((r) => r.hole_id === holeId), stripProject?.logValidRange?.[k]).rows /* #3288 — range and despike, as Downhole logs and Estimation read it */.filter((r) => r.hole_id === holeId && Number.isFinite(Number(r.value))).map((r) => (Number.isFinite(r.depth) && !Number.isFinite(r.to) ? { ...r, from: r.depth - 0.25, to: r.depth + 0.25 } : r)).sort((a, b) => a.from - b.from); return { key: `log_${k}`, label, title: `${label} as logged`, rows, kind: "bar", max: rows.reduce((m, r) => Math.max(m, Number(r.value)), 0), scaleLabel: true, ...(k === "magsusc" ? { logOk: true, minPos: valueRange(rows).minPos } : {}) }; }).filter((t) => t.rows.length), // logOk: #1400 — mag susc follows the Log scale box
     ...modelledLayers.filter((ml) => ml.rows?.[0]?.numeric).map((ml) => { const rows = (ml.rows || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); return { key: `modelledN_${ml.id}`, label: "Model", title: `${ml.name}${ml.unit ? ` (${ml.unit})` : ""}`, rows, kind: "bar", max: rows.reduce((m, r) => Math.max(m, r.value), 0), scaleLabel: true, colorOf: (r) => r.modelColor }; }).filter((t) => t.rows.length),
     // TASKS.csv #3141 — a built-in track only when this hole has rows (an iron hole drew empty Alt. / Vein / Rec.% columns on every log)
     ...(alt.length ? [{ key: "alt", label: "Alt.", rows: alt, kind: "fill", colorFn: (v) => fill("alt", colorForAlteration, v), nameFn: labelFor ? (v) => labelFor("alt", v) : null }] : []),
@@ -277,6 +279,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
           <div>
             <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600 }}>{tr("Strip log — {holeId}", { holeId })}</div>
             <div style={{ fontSize: 11, color: "#65717e", marginTop: 2 }}>{tr("{maxDepth} m total depth", { maxDepth: +maxDepth.toFixed(1) })}{rlNote && <span style={{ color: "#8a6a1f" }}>{" · "}{tr("collar RL {rl} m: {note}", { rl: Number(collar.z).toFixed(1), note: rlNote })}</span>}</div>{/* #3131 */}
+            {attrLine.text && <div style={{ fontSize: 11, color: "#65717e", marginTop: 1, maxWidth: 520, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={attrLine.all}>{attrLine.text}</div>}{/* TASKS.csv #3408 — the per-hole values joined onto this hole */}
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>

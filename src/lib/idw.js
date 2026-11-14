@@ -25,7 +25,7 @@ import { f32ToB64 } from "./inversion.js"; // TASKS.csv #538 — the float grid 
 // at 25 m cells. The ring search visits buckets outward from the cell and stops once the next ring is
 // farther than the current k-th nearest point, so the result is the same set of points the brute-force
 // scan chose.
-export function idwGrid(points, { xmin, ymin, xmax, ymax, cellSize, power = 2, maxDistance = Infinity, maxPoints = 12 }) {
+export function idwGrid(points, { xmin, ymin, xmax, ymax, cellSize, power = 2, maxDistance = Infinity, maxPoints = 12, onRow = null }) { // onRow(row, rows): TASKS.csv #3444 — progress, from the worker
   const gridW = Math.max(1, Math.round((xmax - xmin) / cellSize));
   const gridH = Math.max(1, Math.round((ymax - ymin) / cellSize));
   const values = new Float32Array(gridW * gridH);
@@ -54,6 +54,7 @@ export function idwGrid(points, { xmin, ymin, xmax, ymax, cellSize, power = 2, m
   const k = Math.max(1, maxPoints);
   const bestD = new Float64Array(k), bestI = new Int32Array(k);
   for (let row = 0; row < gridH; row++) {
+    if (onRow && row % 8 === 0) onRow(row, gridH);
     const cy = ymax - (row + 0.5) * cellSize; // row 0 = north, same convention as reproject.js/raster.js
     for (let col = 0; col < gridW; col++) {
       const cx = xmin + (col + 0.5) * cellSize;
