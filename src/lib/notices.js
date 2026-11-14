@@ -23,3 +23,11 @@ export const notice = (text, vars) => {
 // TASKS.csv #821 — more (already translated) text after a notice: notice() returns an object, so `notice(...) + "..."`
 // would print "[object Object]..." (it did, in the #817 "Model from the map" summary)
 export const appendNotice = (n, extra) => (extra ? { ...n, text: n.text + extra } : n);
+// TASKS.csv #3114 — a notice that stands for the latest result of one check: the list without the earlier notices of that tag, then the new
+// one(s), tagged. A topology check's 'found 3 violation(s)' stayed on screen after a later check passed. Generic: any handler whose result
+// replaces its last one can use a tag of its own. Strings and Errors are turned into notice objects so they can carry the tag.
+export function replaceNotices(list, tag, next) {
+  const kept = (list || []).filter((n) => !(n && typeof n === "object" && !(n instanceof Error) && n.tag === tag));
+  const add = (Array.isArray(next) ? next : [next]).filter((n) => n != null).map((n) => (typeof n === "string" ? { text: n, level: noticeLevel(n), tag } : n instanceof Error ? { text: n.message, level: "error", tag } : { ...n, tag }));
+  return [...kept, ...add];
+}
