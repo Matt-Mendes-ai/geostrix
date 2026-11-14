@@ -12625,5 +12625,7 @@
   "Against the {n} of the {total} points it was built from that lie on its ground: median {med} m off, worst {worst} m ({id}), {over} more than {lim} m off.": "Face aux {n} des {total} points ayant servi à le construire qui tombent sur son terrain : médiane {med} m d'écart, pire {worst} m ({id}), {over} à plus de {lim} m.",
   "Area {v} ha on the ground ({g} ha on the map grid)": "Surface {v} ha sur le terrain ({g} ha sur la grille de la carte)",
   "Area {v} ha": "Surface {v} ha",
-  "{v} ha on the ground ({g} ha on the map grid)": "{v} ha sur le terrain ({g} ha sur la grille de la carte)"
+  "{v} ha on the ground ({g} ha on the map grid)": "{v} ha sur le terrain ({g} ha sur la grille de la carte)",
+  "{n} drillhole(s), handed to the 3D View's import": "{n} sondage(s), remis à l'import de la vue 3D",
+  "{name}: {n} drillhole(s) with {s} survey station(s), read as {tables} and imported here as any table is. Dips are as geoh5 writes them, negative down, and are read that way.": "{name} : {n} sondage(s) avec {s} station(s) de levé, lus comme {tables} et importés ici comme toute table. Les pendages sont tels que geoh5 les écrit, négatifs vers le bas, et sont lus ainsi."
 }

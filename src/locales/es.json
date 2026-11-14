@@ -12625,5 +12625,7 @@
   "Against the {n} of the {total} points it was built from that lie on its ground: median {med} m off, worst {worst} m ({id}), {over} more than {lim} m off.": "Frente a los {n} de los {total} puntos con que se construyó que caen sobre su terreno: mediana {med} m de diferencia, peor {worst} m ({id}), {over} con más de {lim} m.",
   "Area {v} ha on the ground ({g} ha on the map grid)": "Área {v} ha en el terreno ({g} ha en la grilla del mapa)",
   "Area {v} ha": "Área {v} ha",
-  "{v} ha on the ground ({g} ha on the map grid)": "{v} ha en el terreno ({g} ha en la grilla del mapa)"
+  "{v} ha on the ground ({g} ha on the map grid)": "{v} ha en el terreno ({g} ha en la grilla del mapa)",
+  "{n} drillhole(s), handed to the 3D View's import": "{n} sondaje(s), entregados a la importación de la Vista 3D",
+  "{name}: {n} drillhole(s) with {s} survey station(s), read as {tables} and imported here as any table is. Dips are as geoh5 writes them, negative down, and are read that way.": "{name}: {n} sondaje(s) con {s} estación(es) de levantamiento, leídos como {tables} e importados aquí como cualquier tabla. Las inclinaciones están como las escribe geoh5, negativas hacia abajo, y se leen así."
 }

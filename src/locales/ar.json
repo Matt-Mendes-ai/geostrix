@@ -12625,5 +12625,7 @@
   "Against the {n} of the {total} points it was built from that lie on its ground: median {med} m off, worst {worst} m ({id}), {over} more than {lim} m off.": "مقابل {n} من {total} نقطة بُني منها وتقع على أرضه: الوسيط {med} م انحرافًا، الأسوأ {worst} م ({id})، و{over} بانحراف أكثر من {lim} م.",
   "Area {v} ha on the ground ({g} ha on the map grid)": "المساحة {v} هكتار على الأرض ({g} هكتار على شبكة الخريطة)",
   "Area {v} ha": "المساحة {v} هكتار",
-  "{v} ha on the ground ({g} ha on the map grid)": "{v} هكتار على الأرض ({g} هكتار على شبكة الخريطة)"
+  "{v} ha on the ground ({g} ha on the map grid)": "{v} هكتار على الأرض ({g} هكتار على شبكة الخريطة)",
+  "{n} drillhole(s), handed to the 3D View's import": "{n} ثقب حفر، سُلّمت إلى استيراد العرض ثلاثي الأبعاد",
+  "{name}: {n} drillhole(s) with {s} survey station(s), read as {tables} and imported here as any table is. Dips are as geoh5 writes them, negative down, and are read that way.": "{name}: {n} ثقب حفر مع {s} محطة مسح، قُرئت على هيئة {tables} وتُستورد هنا كأي جدول. الميول كما يكتبها geoh5، سالبة نحو الأسفل، وتُقرأ كذلك."
 }

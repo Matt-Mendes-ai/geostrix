@@ -11,7 +11,7 @@ const xyzMap = (rows) => new Map([["x", Float64Array.from(rows, (r) => r[0])], [
 
 // -> Uint8Array of the file. The block model's cell values are 100·i + 10·j + k (i along U, j along V, k down Z from the origin), stored in the
 // format's order k + i·nZ + j·nU·nZ; the grid's are i + 10·j, stored i + j·nU.
-export async function geoh5FixtureBytes({ blockRotation = 0, notGeoscience = false } = {}) {
+export async function geoh5FixtureBytes({ blockRotation = 0, notGeoscience = false, twoSets = false } = {}) {
   const mod = await h5wasm.ready;
   const path = `/fixture_${Date.now()}_${seq}.geoh5`;
   const f = new h5wasm.File(path, "w");
@@ -70,7 +70,31 @@ export async function geoh5FixtureBytes({ blockRotation = 0, notGeoscience = fal
     o.create_attribute("U Count", 3); o.create_attribute("V Count", 2); o.create_attribute("Rotation", 0.0);
   });
   data(grid, "TMI", tFloat, "Cell", new Float64Array([0, 1, 2, 10, 11, 12]), "<d");
-  object("drill", "DH-1", (o) => o.create_attribute("Collar", xyzMap([[1000, 2000, 360]])));
+  // TASKS.csv #1993 step 1b — two drillholes: collar, End of hole, Surveys (Depth, Azimuth, Dip; dip negative down as geoh5 writes it), interval data
+  // (FROM / TO, a referenced lithology, a Cu value with one no-data) and point data (DEPTH, a mag susc)
+  const tLith = dataType("Lith codes", "Referenced", [[0, "Unknown"], [1, "BAS"], [2, "AND"]]);
+  const hole = (name, collar, eoh, stations, ivs, pts) => {
+    const h = object("drill", name, (o) => {
+      o.create_attribute("Collar", xyzMap([collar])); o.create_attribute("End of hole", eoh);
+      o.create_dataset({ name: "Surveys", data: new Map([["Depth", Float32Array.from(stations, (s) => s[0])], ["Azimuth", Float32Array.from(stations, (s) => s[1])], ["Dip", Float32Array.from(stations, (s) => s[2])]]) });
+    });
+    data(h, "FROM", tFloat, "Cell", Float32Array.from(ivs, (r) => r[0]), "<f");
+    data(h, "TO", tFloat, "Cell", Float32Array.from(ivs, (r) => r[1]), "<f");
+    data(h, "Lithology", tLith, "Cell", Uint32Array.from(ivs, (r) => r[2]), "<I");
+    data(h, "Cu_ppm", tFloat, "Cell", Float32Array.from(ivs, (r) => r[3]), "<f");
+    if (pts) { data(h, "DEPTH", tFloat, "Vertex", Float32Array.from(pts, (r) => r[0]), "<f"); data(h, "MagSus", tFloat, "Vertex", Float32Array.from(pts, (r) => r[1]), "<f"); }
+  };
+  hole("DH-1", [1000, 2000, 360], 120, [[0, 90, -60], [100, 92, -58]], [[0, 10, 1, 120], [10, 40, 2, 1.175494351e-38], [40, 120, 1, 860]], [[5, 0.002], [50, 0.015]]);
+  hole("DH-2", [1050, 2010, 358], 80, [[0, 270, -75]], [[0, 80, 2, 45]], null);
+  if (twoSets) { // DH-3: a lithology set (FROM / TO) and an assay set (FROM (1) / TO (1)) on different intervals; each entry blank on the other set's cells
+    const ND = 1.175494351e-38, h = object("drill", "DH-3", (o) => { o.create_attribute("Collar", xyzMap([[1100, 2020, 355]])); o.create_attribute("End of hole", 60); o.create_dataset({ name: "Surveys", data: new Map([["Depth", new Float32Array([0])], ["Azimuth", new Float32Array([0])], ["Dip", new Float32Array([-90])]]) }); });
+    data(h, "FROM", tFloat, "Cell", new Float32Array([0, 30, ND, ND, ND]), "<f");
+    data(h, "TO", tFloat, "Cell", new Float32Array([30, 60, ND, ND, ND]), "<f");
+    data(h, "Lithology", tLith, "Cell", new Uint32Array([1, 2, 0, 0, 0]), "<I");
+    data(h, "FROM (1)", tFloat, "Cell", new Float32Array([ND, ND, 0, 2, 4]), "<f");
+    data(h, "TO (1)", tFloat, "Cell", new Float32Array([ND, ND, 2, 4, 6]), "<f");
+    data(h, "Au_ppm", tFloat, "Cell", new Float32Array([ND, ND, 0.1, 2.5, 0.3]), "<f");
+  }
   object("other", "Mystery");
   f.close();
   const bytes = mod.FS.readFile(path);
