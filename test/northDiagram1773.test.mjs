@@ -57,6 +57,7 @@ test("wired: the captions stay level (only the rays rotate), the date default, t
   assert.match(m, /const date = sel\.declDate \|\| drill\?\.date \|\| localDate\(\);/);
   assert.match(m, /<g transform=\{el\.rotation \? `rotate\(\$\{el\.rotation\} \$\{ORIGIN\.x\} \$\{ORIGIN\.y\}\)` : undefined\}>/);
   assert.match(m, /yearLater\(date\)/);
-  assert.match(m, /\.\.\.keepOnSheet\(sel\.x, sel\.y, A4\.w, A4\.h\)/);
+  assert.match(m, /const kept = keepOnSheet\(sel\.x, sel\.y, A4\.w, A4\.h\)/); // #3383 (1): kept on the sheet, or a free spot when it would cover another element
+  assert.match(m, /\.\.\.\(covers \? freeSpot\(others, DIAGRAM_W, DIAGRAM_H, A4\) : kept\)/);
   assert.doesNotMatch(m, /IGRF-14; changes about 0\.1-0\.2°\/yr/);
 });

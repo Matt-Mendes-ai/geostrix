@@ -16,20 +16,20 @@ const rows = [
 test("each mineral row carries its values' range; a single value as one figure; blanks are not zero; a mineral with none has no range", () => {
   const [g] = categoryLegendGroups({ ...base, layers: { mnlgy: rows } });
   const byLabel = Object.fromEntries(g.items.map(([l, , o]) => [l, o?.value ?? null]));
-  assert.deepEqual(byLabel, { CPY: "0.40–12.0", PY: "3.00", SPH: null });
+  assert.deepEqual(byLabel, { CPY: "0.4–12", PY: "3", SPH: null } /* #3382: one key format, 3 significant figures, no trailing zeros */);
   assert.deepEqual(g.counts, [3, 3, 1], "counts unchanged");
 });
 
 test("other category layers get no values; the hidden and the hole-filtered rows do not count", () => {
   const g = categoryLegendGroups({ ...base, layers: { mnlgy: rows, litho: [{ hole_id: "A", value: "Basalt", extra: "9" }] }, visibleHoles: { B: false }, hidden: { mnlgy: ["PY"] } });
   const m = g.find((x) => x.key === "mnlgy"), l = g.find((x) => x.key === "litho");
-  assert.deepEqual(m.items.map(([lab, , o]) => [lab, o?.value ?? null]), [["CPY", "0.40–2.50"], ["SPH", null]]);
+  assert.deepEqual(m.items.map(([lab, , o]) => [lab, o?.value ?? null]), [["CPY", "0.4–2.5"], ["SPH", null]]);
   assert.equal(l.items[0].length, 2, "a lithology row has no value");
 });
 
 test("the legend rows carry the value to the overlay, which shows it beside the label and in the tooltip", () => {
   const groups = categoryLegendGroups({ ...base, layers: { mnlgy: rows } });
-  assert.deepEqual(allocateLegendRows(groups, 20).rows.map((r) => [r.label, r.value]), [["CPY", "0.40–12.0"], ["PY", "3.00"], ["SPH", undefined]]);
+  assert.deepEqual(allocateLegendRows(groups, 20).rows.map((r) => [r.label, r.value]), [["CPY", "0.4–12"], ["PY", "3"], ["SPH", undefined]]);
   const src = fs.readFileSync(new URL("../src/components/ViewportFigureOverlay.jsx", import.meta.url), "utf8");
   assert.match(src, /\{it\.value && <span style=\{\{ fontSize: "var\(--font-size-xs\)", color: "var\(--color-text-secondary\)", whiteSpace: "nowrap", flexShrink: 0 \}\}>\{it\.value\}<\/span>\}/);
   assert.match(src, /tr\("\{group\}: \{label\}, values \{range\}", \{ group: tr\(it\.group\), label: it\.label, range: it\.value \}\)/);
