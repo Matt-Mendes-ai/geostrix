@@ -68,7 +68,7 @@ const dipColOf = (target, mapping) => (target === "collars" || target === "surve
 // TASKS.csv #3205 — the per-mineral layers' rules (lib/perMineralColumns.js), loaded on demand before a commit that may need them (a Mineralization
 // or Custom interval table): kept here, not in the import's data, which a database import saves as its choices
 let perMineralLib = null;
-const loadPerMineral = async (target) => { if (!perMineralLib && (target === "mnlgy" || target === "custom")) { try { perMineralLib = await import("../../lib/perMineralColumns.js"); } catch { /* offline chunk: the import goes on without the per-mineral layers */ } } };
+const loadPerMineral = async (target) => { if (!perMineralLib && (target === "mnlgy" || target === "custom" || target === "litho" /* a composition: #3052 */)) { try { perMineralLib = await import("../../lib/perMineralColumns.js"); } catch { /* offline chunk: the import goes on without the per-mineral layers */ } } };
 
 // TASKS.csv #3211 — a custom interval layer's overlaps, counted for every one (the interval import says them only with a column that may explain them)
 function customOverlapText(rows) {
@@ -294,10 +294,22 @@ export function makeImportPipeline(ctx, h) {
   // (or the chosen one), its value Total min, and every ticked mineral with its text companions (_dist, _morph) a field. Done here, before the
   // commit, so the dialog, a queued drop and a database reload all get it; a database import still records the dialog's own choices.
   const commitImportData = (data) => {
-    const plan = data?.target === "mnlgy" && perMineralLib ? perMineralLib.mineralPlan("mnlgy", data.headers || Object.keys(data.allRows?.[0] || {}), data.allRows || [], data.mapping || {}, data) : null;
-    if (!plan || plan.mode !== "single") return commitImportDataRaw(data);
+    // TASKS.csv #3052 — a composition (components summing to 100) on a Lithology, Mineralization or Custom import: the same rewrite, its code the
+    // dominant component (MIXED under the threshold), its share kept as a field
+    const tg = data?.target, plan = (tg === "mnlgy" || tg === "litho" || tg === "custom") && perMineralLib ? perMineralLib.mineralPlan(tg, data.headers || Object.keys(data.allRows?.[0] || {}), data.allRows || [], data.mapping || {}, data) : null;
+    if (!plan || plan.mode !== "single" || (tg !== "mnlgy" && !plan.composition)) return commitImportDataRaw(data);
     const fileName = String(data.fileName ?? "").replace(/ \(\d+ more queued\)$/, "");
     const out = perMineralLib.singleMineralRows(data.allRows, data.mapping, plan, plan.colourBy);
+    if (plan.composition) { // #3052
+      if (!out.rows.length) { setNotices((p) => [...p, errorNotice(tr("{fileName}: nothing was added: no interval has a share in the ticked components.", { fileName }))]); return false; }
+      const comp = plan.composition, mixed = out.rows.filter((r) => r[perMineralLib.MIN_CODE_COL] === perMineralLib.MIXED).length;
+      setNotices((p) => [...p, tr("{fileName}: a composition of {n} components (each row's shares sum to 100, median {median}): each interval is coded by its dominant component, MIXED where none reaches {t} % ({mixed} interval(s)); its share is kept as Dominant share (%), and every component as a field (Identify shows them).", { fileName, n: plan.cols.length, median: comp.median, t: plan.mixedBelow, mixed: mixed.toLocaleString() })
+        + (comp.off ? " " + tr("{n} interval(s) sum to more than 5 away from 100 ({holes}): check them in the file.", { n: comp.off.toLocaleString(), holes: comp.offHoles.join(", ") + (comp.offHoles.length >= 8 ? ", …" : "") }) : "")
+        + (out.none ? " " + tr("{n} interval(s) with no component logged are not in the layer.", { n: out.none.toLocaleString() }) : "")
+        + (plan.blank.length ? " " + tr("Left out, with no value in any row: {cols}.", { cols: plan.blank.join(", ") }) : "")]);
+      const own = (data.customFields || []).filter((f) => !out.customFields.some((g) => g.column === f.column) && !plan.cols.some((c) => c.col === f.column));
+      return commitImportDataRaw({ ...data, allRows: out.rows, mapping: out.mapping, customFields: [...own, ...out.customFields], recordAs: data });
+    }
     if (!out.rows.length) { setNotices((p) => [...p, errorNotice(tr("{fileName}: nothing was added: no interval has an amount in the ticked mineral columns.", { fileName }))]); return false; }
     const codes = plan.cols.map((c) => perMineralLib.mineralCode(c.col));
     setNotices((p) => [...p, tr("{fileName}: Mineralization from {n} mineral column(s) ({list}): each interval is coloured by {by}, and its value is Total min, the sum of those columns. Each mineral is kept as a field (Identify shows them).", { fileName, n: plan.cols.length, list: plan.cols.map((c, k) => `${c.col} = ${codes[k]}`).join(", "), by: plan.colourBy === "dominant" ? tr("its dominant mineral") : perMineralLib.mineralCode(plan.colourBy) })
@@ -434,8 +446,29 @@ export function makeImportPipeline(ctx, h) {
       setNotices((p) => [...p, notice("{fileName}: {cols} joined onto {n} hole(s) as per-hole values (Identify shows them on each hole); blanks and no-data codes left out.", { fileName, cols: noXYJoin.columns.slice(0, 8).join(", ") + (noXYJoin.columns.length > 8 ? "…" : ""), n: noXYJoin.n })]);
       return;
     }
+    // #3205 / #3307 — the per-mineral (or per-component) numeric layers of a plan in "layers" mode
+    const makeMineralLayers = () => {
+      // TASKS.csv #3205 (Matt's decision 2026-11-13) — one numeric interval custom layer per mineral column, in % (visual), named after the
+      // column; an interval with no value of a mineral is not in its layer (not a 'blank code'); its style column rides along as text
+      const { layers: mLayers, made, outside } = perMineralLib.perMineralLayers(allRows, mapping, minPlan, fileName, (cols) => tr("total of {cols}", { cols: cols.join(" + ") }));
+      mLayers.forEach((l, k) => {
+        const id = `custom_${Date.now()}_${k}`;
+        const group = new THREE.Group(); group.name = id;
+        layerGroupsRef.current[id] = group;
+        sceneRef.current.getObjectByName("root").add(group);
+        setCustomLayers((p) => [...p, { id, name: l.name, rows: l.rows, group, unit: perMineralLib.UNIT, notes: l.notes }]);
+        setCustomVisible((p) => ({ ...p, [id]: k === 0 }));
+      });
+      if (!made.length) setNotices((p) => [...p, errorNotice(tr("{fileName}: nothing was added: no interval has a per-cent value in the ticked columns.", { fileName }))]);
+      else setNotices((p) => [...p, tr("{fileName}: {n} layer(s) of visual per cent (one per mineral column) imported: {list}. The first is shown; the others are in the Layers list.", { fileName, n: made.length, list: made.join(", ") })
+        + (minPlan.blank.length ? " " + tr("Left out, with no value in any row: {cols}.", { cols: minPlan.blank.join(", ") }) : "")
+        + (outside ? " " + tr("{n} value(s) below 0 or over 100 % were left out.", { n: outside.toLocaleString() }) : "")]);
+    };
     const missing = schema.fields.filter((f) => f.required && !mapping[f.key] && !(logChans && f.key === "value") && !(recCalc && f.key === "value") && !(minPlan && f.key === "value"));
     if (missing.length) { setNotices((p) => [...p, notice("{fileName}: map required field(s) — {v}", { fileName, v: missing.map((f) => f.label).join(", ") })]); return false; }
+    // TASKS.csv #3052 — a composition imported as per-component layers keeps the code column it was mapped with (the strand code) as its own layer
+    const compLayersMade = minPlan?.mode === "layers" && !!minPlan.composition && !!mapping.value && target !== "custom" && minPlan.cols.length > 0;
+    if (compLayersMade) makeMineralLayers();
     // TASKS.csv #1963 — a table pulled from a database: its record (profile, schema, table, these choices) for "Reload from database"
     if (dbSource?.profile && setDbImports) { const rec = dbImportRecord(data.recordAs || data /* #3307 — the dialog's choices, not the rows made from them */, dbSource, target); if (rec) setDbImports((prev) => upsertDbImport(prev, rec)); }
     const flipDip = (raw) => (dipConvention === "neg_down" ? -raw : raw);
@@ -769,22 +802,8 @@ export function makeImportPipeline(ctx, h) {
       { const holes = new Set(rows.map((r) => r.hole_id)), saved = (importStateRef.current.layers?.structure || []).filter((r) => isDerivedPick(r) && holes.has(r.hole_id)).length; if (saved) setNotices((p) => [...p, tr("{saved} pick(s) from the Core orientation calculator were kept in these holes.", { saved })]); } // #1234
       setLayerVisible((p) => ({ ...p, structure: true }));
       setNotices((p) => [...p, appendNotice(notice("Loaded {rows} structure points from {fileName}.", { rows: rows.length, fileName }), skippedRowsText(stDropped, allRows.length))]); // #1070
-    } else if (minPlan?.mode === "layers") { // #3307 — the one-layer mode is made in commitImportData
-      // TASKS.csv #3205 (Matt's decision 2026-11-13) — one numeric interval custom layer per mineral column, in % (visual), named after the
-      // column; an interval with no value of a mineral is not in its layer (not a 'blank code'); its style column rides along as text
-      const { layers: mLayers, made, outside } = perMineralLib.perMineralLayers(allRows, mapping, minPlan, fileName, (cols) => tr("total of {cols}", { cols: cols.join(" + ") }));
-      mLayers.forEach((l, k) => {
-        const id = `custom_${Date.now()}_${k}`;
-        const group = new THREE.Group(); group.name = id;
-        layerGroupsRef.current[id] = group;
-        sceneRef.current.getObjectByName("root").add(group);
-        setCustomLayers((p) => [...p, { id, name: l.name, rows: l.rows, group, unit: perMineralLib.UNIT, notes: l.notes }]);
-        setCustomVisible((p) => ({ ...p, [id]: k === 0 }));
-      });
-      if (!made.length) setNotices((p) => [...p, errorNotice(tr("{fileName}: nothing was added: no interval has a per-cent value in the ticked columns.", { fileName }))]);
-      else setNotices((p) => [...p, tr("{fileName}: {n} layer(s) of visual per cent (one per mineral column) imported: {list}. The first is shown; the others are in the Layers list.", { fileName, n: made.length, list: made.join(", ") })
-        + (minPlan.blank.length ? " " + tr("Left out, with no value in any row: {cols}.", { cols: minPlan.blank.join(", ") }) : "")
-        + (outside ? " " + tr("{n} value(s) below 0 or over 100 % were left out.", { n: outside.toLocaleString() }) : "")]);
+    } else if (minPlan?.mode === "layers" && !compLayersMade) { // #3307 — the one-layer mode is made in commitImportData
+      makeMineralLayers();
     } else if (logChans) {
       // TASKS.csv #2160 (Matt's decision 2026-11-09) — a downhole log: one numeric layer per ticked channel, the unit from the column
       // name; binned (mean, min, max per bin) when chosen, which the dialog proposes when the readings would not fit
