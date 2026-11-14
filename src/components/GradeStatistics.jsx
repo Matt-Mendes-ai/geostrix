@@ -23,7 +23,8 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "weath", "structzone", "geotech"]; // weath: #2162
 import { arrMin, arrMax, sortedWeighted } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread); sortedWeighted: #2910
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
-import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { t as tr } from "../lib/i18n.js";
+import { axisFig } from "../lib/numberFormat.js"; // TASKS.csv #3293 — axis ends in plain digits // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { gradeStatsRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
 import { weightedProbPoints, weightedPercentile, capEffect, thinToPixels } from "../lib/probPlot.js"; // TASKS.csv #1388; thinToPixels: #1512
@@ -566,8 +567,8 @@ function BoxPlots({ groups, domainLabel, logScale, unit, fit = false }) { // fit
           </g>
         );
       })}
-      <text x={padL} y={h - 6} fontSize={fontSizes.xs} fill="#55606e">{low.toPrecision(3)}</text>
-      <text x={w - padR} y={h - 6} fontSize={fontSizes.xs} fill="#55606e" textAnchor="end">{high.toPrecision(3)} {unit}{logScale ? ` (${tr("log scale")})` : ""}</text>
+      <text x={padL} y={h - 6} fontSize={fontSizes.xs} fill="#55606e">{axisFig(low)}</text>
+      <text x={w - padR} y={h - 6} fontSize={fontSizes.xs} fill="#55606e" textAnchor="end">{axisFig(high)} {unit}{logScale ? ` (${tr("log scale")})` : ""}</text>
     </svg>
   );
 }
