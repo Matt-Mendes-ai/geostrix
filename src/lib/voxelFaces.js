@@ -100,44 +100,71 @@ export function buildExposedFaces(cells, grid, origin, colorRGB, { maxGrid = 64e
   const nx = grid.ex.length - 1, ny = grid.ey.length - 1, nz = grid.ez.length - 1;
   if (nx * ny * nz > maxGrid) return null;
   // interval indices of the shown cells (looked up from the grid's own cell list)
-  let pos = grid.cells === cells ? null : grid.posMap;
-  if (grid.cells !== cells && !pos) { pos = new Map(); const gc = grid.cells; for (let t = 0; t < gc.length; t++) pos.set(gc[t], t); grid.posMap = pos; }
-  const n = cells.length, I = new Int32Array(n), J = new Int32Array(n), K = new Int32Array(n);
+  const n = cells.length, I = new Int32Array(n), J = new Int32Array(n), K = new Int32Array(n), gc = grid.cells;
+  // TASKS.csv #3365 — a cutoff's cells are the grid's own, in order (a filter of them): matched walking both lists, where a Map lookup per
+  // cell (an object key) was most of a cutoff change's face build. Any other list: the map, as before.
+  let gi = 0;
   for (let t = 0; t < n; t++) {
-    const g = pos ? pos.get(cells[t]) : t;
-    if (g === undefined) return null;
-    I[t] = grid.I[g]; J[t] = grid.J[g]; K[t] = grid.K[g];
+    const c = cells[t];
+    while (gi < gc.length && gc[gi] !== c) gi++;
+    if (gi === gc.length) { gi = -1; break; }
+    I[t] = grid.I[gi]; J[t] = grid.J[gi]; K[t] = grid.K[gi]; gi++;
+  }
+  if (gi < 0) {
+    let pos = grid.posMap;
+    if (!pos) { pos = new Map(); for (let t = 0; t < gc.length; t++) pos.set(gc[t], t); grid.posMap = pos; }
+    for (let t = 0; t < n; t++) {
+      const q = pos.get(cells[t]);
+      if (q === undefined) return null;
+      I[t] = grid.I[q]; J[t] = grid.J[q]; K[t] = grid.K[q];
+    }
   }
   const px = nx + 2, py = ny + 2, pz = nz + 2, at = (i, j, k) => ((k + 1) * py + (j + 1)) * px + (i + 1);
-  const occ = new Uint8Array(px * py * pz);
-  for (let t = 0; t < n; t++) occ[at(I[t], J[t], K[t])] = 1;
+  const occ = new Uint8Array(px * py * pz), Q = new Int32Array(n); // Q: each cell's index in the padded box (#3365)
+  for (let t = 0; t < n; t++) occ[(Q[t] = at(I[t], J[t], K[t]))] = 1;
   // #904 — with boundaries, a neighbour of a different value counts as not shown (its face is drawn, from both sides)
   let val = null;
-  if (boundaries) { val = new Float64Array(px * py * pz); for (let t = 0; t < n; t++) val[at(I[t], J[t], K[t])] = classOf ? classOf(cells[t].value) : cells[t].value; } // #3354 — the class
+  if (boundaries) { val = classOf ? new Int32Array(px * py * pz) : new Float64Array(px * py * pz); for (let t = 0; t < n; t++) val[Q[t]] = classOf ? classOf(cells[t].value) : cells[t].value; } // #3354 — the class
   // scene-axis neighbour step in grid indices: scene X = +i (east), scene Y = +k (elevation), scene Z = -j (north), as an
   // offset in the padded box, one per face of FACES
   const step = [[1, 0, 0], [0, 0, 1], [0, -1, 0]];
   const off = FACES.map((f) => { const d = step[f.a]; return f.s * (d[0] + d[1] * px + d[2] * px * py); });
   // the neighbour shown (and the same class, with boundaries); #3354 — a contact between two shown cells is drawn once, by the cell
   // whose face points the negative way along its axis
-  const hidden = (nb, v, f) => occ[nb] === 1 && (!val || val[nb] === v || FACES[f].s > 0);
-  const keyOf = (t) => (val ? val[at(I[t], J[t], K[t])] : cells[t].value);
+  const POS = Uint8Array.from(FACES, (f) => (f.s > 0 ? 1 : 0));
+  const hidden = (nb, v, f) => occ[nb] === 1 && (!val || val[nb] === v || POS[f] === 1);
+  // #3365 — each cell's drawn faces (a bit per face) from this one pass; the fill below reads them
+  const M = new Uint8Array(n);
   let faces = 0;
-  for (let t = 0; t < n; t++) { const q = at(I[t], J[t], K[t]), v = keyOf(t); for (let f = 0; f < 6; f++) if (!hidden(q + off[f], v, f)) faces++; }
+  for (let t = 0; t < n; t++) {
+    const q = Q[t], v = val ? val[q] : cells[t].value;
+    let m = 0;
+    for (let f = 0; f < 6; f++) if (!hidden(q + off[f], v, f)) { m |= 1 << f; faces++; }
+    M[t] = m;
+  }
   const positions = new Float32Array(faces * 12), normals = new Float32Array(faces * 12), colors = new Float32Array(faces * 12);
   const indices = new Uint32Array(faces * 6);
   const { ex, ey, ez } = grid;
   const B = [[0, 0], [0, 0], [0, 0]];
+  const lin = new Map(); // #3365 — each colour's linear RGB once (a discrete model has one per class), keyed 0xRRGGBB
+  const linear = (c) => {
+    const whole = (c[0] | 0) === c[0] && (c[1] | 0) === c[1] && (c[2] | 0) === c[2], key = whole ? c[0] * 65536 + c[1] * 256 + c[2] : -1;
+    let L = whole ? lin.get(key) : undefined;
+    if (!L) { L = [srgbToLinear(c[0] / 255), srgbToLinear(c[1] / 255), srgbToLinear(c[2] / 255)]; if (whole) lin.set(key, L); }
+    return L;
+  };
   let q4 = 0;
   for (let t = 0; t < n; t++) {
-    const i = I[t], j = J[t], k = K[t], q = at(i, j, k), v = keyOf(t), cv = cells[t].value;
+    const m = M[t];
+    if (!m) continue;
+    const i = I[t], j = J[t], k = K[t], cv = cells[t].value;
     // scene bounds [low, high] per scene axis (Z = -north, so north's high edge is scene Z's low bound)
     B[0][0] = ex[i] - origin.x; B[0][1] = ex[i + 1] - origin.x; B[1][0] = ez[k] - origin.z; B[1][1] = ez[k + 1] - origin.z; B[2][0] = -(ey[j + 1] - origin.y); B[2][1] = -(ey[j] - origin.y);
     let r = -1, g = 0, b = 0;
     for (let fi = 0; fi < 6; fi++) {
-      if (hidden(q + off[fi], v, fi)) continue;
+      if (!((m >> fi) & 1)) continue;
       const f = FACES[fi];
-      if (r < 0) { const c = colorRGB(cv); r = srgbToLinear(c[0] / 255); g = srgbToLinear(c[1] / 255); b = srgbToLinear(c[2] / 255); }
+      if (r < 0) { const L = linear(colorRGB(cv)); r = L[0]; g = L[1]; b = L[2]; }
       for (let vv = 0; vv < 4; vv++) {
         const p = f.quad[vv], o = (q4 * 4 + vv) * 3;
         positions[o] = B[0][p[0]]; positions[o + 1] = B[1][p[1]]; positions[o + 2] = B[2][p[2]];

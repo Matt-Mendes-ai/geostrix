@@ -12,7 +12,7 @@ test("the overlap test counts frames only (viewports, drill plans, placed sectio
 
 test("an overlapping snapshot goes to a new page with its legend, and the page keeps its own elements", () => {
   assert.match(m, /if \(frames\.length && additions\.some\(overlapsFrame\)\) \{/);
-  assert.match(m, /addLayoutPages\(\[\{ name, elements: \[\.\.\.atTop, \.\.\.moved\] \}\]\);/);
+  assert.match(m, /addLayoutPages(\(|, setLayoutPageFormat, )\[\{ name, elements: \[\.\.\.atTop, \.\.\.moved\] \}\](\)|, paper\));/); // #3370: on its paper
   assert.match(m, /The snapshot would have covered a frame on this page, so it is on a new page, \\"\{name\}\\"\./);
   for (const lang of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(readFileSync(new URL(`../src/locales/${lang}.json`, import.meta.url), "utf8"));

@@ -185,6 +185,23 @@ function stationsWithInclination(collar, survey, assumeVertical = false) {
   return stations.map((s) => ({ md: s.depth, I: 90 - s.dip, Az: s.azimuth }));
 }
 
+// TASKS.csv #2371 (review #2325, WA uranium: 430 holes, one station each at depth 0, dip -90) — every method gives the same straight trace
+// when each hole keeps one attitude down its survey (a hole with no survey is straight too), so switching the method changes nothing.
+// -> true when some hole's survey has two stations of different attitude (a vertical station's azimuth does not count)
+export function desurveyMatters(collars, survey) {
+  if (!survey?.length) return false;
+  const holes = new Set((collars || []).map((c) => String(c.hole_id))), first = new Map();
+  const same = (a, b) => Number(a.dip) === Number(b.dip) && (Math.abs(Number(a.dip)) === 90 || Number(a.azimuth) === Number(b.azimuth));
+  for (const r of survey) {
+    const id = String(r.hole_id);
+    if (!holes.has(id)) continue;
+    const f = first.get(id);
+    if (!f) first.set(id, r);
+    else if (!same(f, r)) return true;
+  }
+  return false;
+}
+
 // Interpolates {md, I, Az} at an arbitrary MD along a stationsWithInclination() list.
 function interpAtStation(withI, md) {
   // TASKS.csv #526 — outside the surveyed range, hold the nearest station's attitude. Past the last station the

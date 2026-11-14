@@ -41,7 +41,7 @@ import { COLLAR_MARKER_UNIFORMS } from "../lib/viewer/collarMarkerShader.js"; //
 // CSS-vs-JS boundary theme.js documents for colour.
 import { fontSizes } from "../lib/theme.js";
 import { rampTickLabels } from "../lib/legendScale.js"; // TASKS.csv #736
-import { allocateLegendRows } from "../lib/legendGroups.js"; // TASKS.csv #1398
+import { allocateLegendRows, foldLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #1398; fold: #3398
 import { swatchShape } from "../lib/legendGroups.js"; // TASKS.csv #948
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
@@ -87,7 +87,21 @@ const card = {
   fontFamily: "'Exo 2', system-ui, sans-serif",
 };
 
-export default function ViewportFigureOverlay({ config, title, legendGroups, camStateRef, cameraRef, mountRef, camSignalRef }) {
+// TASKS.csv #3280 (1) (Galore review; Matt's decision, 2026-11-14) — a project opened with every layer on showed a 250 x 650 px legend of
+// twelve groups over a view of specks. Shortly after a project opens (openKey: the viewer's New / Open sequence), a legend that would cover
+// more than a quarter of the view starts collapsed to a 'Legend (n rows)' bar, one click opens it; small legends open as before, and once
+// the user opens or collapses it themselves it stays as they left it.
+export const LEGEND_AUTO_MS = 8000;
+export const legendTooBig = (w, h, boxW, boxH) => boxW > 0 && boxH > 0 && w * h > 0.25 * boxW * boxH;
+// 'would cover': the whole legend, before the fit below cuts it to the view's height (#1534) — cut, it is rarely a quarter of any view (a
+// 974 x 543 view held WA gold's 80 rows as 250 x 417 px, 20 %). A row is about 17 px, a heading one row, a colour ramp about two, 250 px wide.
+export const legendFullSize = (groups) => { let rows = 1; for (const g of groups || []) rows += g.ramp ? 2 : (g.items?.length || 0) + 1; return [250, rows * 17 + 16]; };
+
+// TASKS.csv #3398 (Matt: 'make the legend in the 3d view always collapsable') — the legend's collapse and each group's fold are the user's,
+// kept in the figure settings (config.legendCollapsed, config.legendFolded: saved with the view, per project, and with its themes) through
+// onConfig; a saved choice also stops #3280 (1)'s collapse at open.
+export default function ViewportFigureOverlay({ config, title, legendGroups: allGroups, camStateRef, cameraRef, mountRef, camSignalRef, openKey = 0, onConfig = null }) {
+  const legendGroups = foldLegendGroups(allGroups, config.legendFolded); // #3398
   const barRectRef = useRef(null);
   const barTextRef = useRef(null);
   const barMidRef = useRef(null);
@@ -150,6 +164,11 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
   const [boxW, setBoxW] = useState(0); // #2044
   const shownLenRef = useRef(0); // #2173 — the item rows of the last render
   const [boxH, setBoxH] = useState(0);
+  const [autoCollapsed, setCollapsed] = useState(false), auto = useRef({ key: null, until: 0, user: false }); // #3280 (1)
+  if (auto.current.key !== openKey) auto.current = { key: openKey, until: Date.now() + LEGEND_AUTO_MS, user: false };
+  const saved = typeof config.legendCollapsed === "boolean" ? config.legendCollapsed : null, collapsed = saved ?? autoCollapsed; // #3398
+  const toggleLegend = (v) => { auto.current.user = true; setCollapsed(v); onConfig?.((f) => ({ ...f, legendCollapsed: v })); };
+  const toggleGroup = (key) => onConfig?.((f) => { const set = new Set(f.legendFolded || []); if (!set.delete(key)) set.add(key); return { ...f, legendFolded: [...set] }; }); // #3398
   useEffect(() => {
     const el = rootRef.current;
     if (!el || typeof ResizeObserver === "undefined") return undefined;
@@ -159,12 +178,14 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
   }, [config.enabled]); // the root exists only while the overlay is on
   // a string, not the array: legendGroups may be a new array every render, and a reset on every render would never settle
   const legendKey = (legendGroups || []).map((g) => `${g.key}:${(g.items || []).length}:${g.ramp ? 1 : 0}`).join("|");
-  const itemTotal = (legendGroups || []).reduce((n, g) => n + (g.items?.length || 0), 0);
+  const itemTotal = (allGroups || []).reduce((n, g) => n + (g.items?.length || 0), 0); // #3398: all of them, folded or not
   const lay = legendLayout(boxH, boxW, itemTotal); // #2044
-  useLayoutEffect(() => { setFit({ items: lay.cap, ramps: 6 }); }, [legendKey, boxH, boxW, config.title, config.legend, config.enabled, showScale]);
+  useLayoutEffect(() => { setFit({ items: lay.cap, ramps: 6 }); }, [legendKey, boxH, boxW, config.title, config.legend, config.enabled, showScale, collapsed]); // collapsed: #3280 (1)
   useLayoutEffect(() => {
     const lg = legendRef.current;
     if (!lg) return;
+    const a = auto.current; // #3280 (1) — collapsed when it would cover a quarter of the view, only shortly after an open and before the user chose
+    if (saved == null && !a.user && Date.now() < a.until && legendTooBig(...legendFullSize(legendGroups), boxW, boxH)) { a.until = 0; setCollapsed(true); return; } // saved: #3398
     const limit = scaleRef.current ? scaleRef.current.getBoundingClientRect().top - 6 : (rootRef.current?.getBoundingClientRect().bottom ?? Infinity) - 12;
     const over = lg.getBoundingClientRect().bottom - limit;
     if (over <= 0) return;
@@ -174,7 +195,7 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
     setFit((f) => (f.items > 1 && shownNow > 1 ? { ...f, items: Math.max(1, Math.min(f.items, shownNow) - k) } : f.ramps > 1 ? { ...f, ramps: f.ramps - 1 } : f)); // bounded: stops at 1 + 1
     // TASKS.csv #2173 — measured when the fit step or what the legend holds changes, not after every render: getBoundingClientRect forced a
     // layout of the whole page on each store update (1.3 s while a 10,544-hole project opened)
-  }, [fit, legendKey, boxH, boxW, config.title, config.legend, config.enabled, showScale]);
+  }, [fit, legendKey, boxH, boxW, config.title, config.legend, config.enabled, showScale, collapsed]);
 
   // TASKS.csv #2623 — vertical exaggeration: the camera's view matrix (verticalExaggeration.js), the collar markers' uniforms, a redraw.
   // Here because this component holds the camera and orbit refs and the figure settings (saved with the view and its themes), and stays
@@ -205,11 +226,11 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
   const twoCols = lay.cols === 2 && shown.length > lay.cap / 2; // #2044 — the second column only when one would not hold the rows
   shownLenRef.current = shown.length;
   // TASKS.csv #381 — continuous keys (block models, geophysics points, #1398 the numeric hole layers): gradient bar + min/max
-  const allRamps = (legendGroups || []).filter((g) => g.ramp);
+  const allRamps = (allGroups || []).filter((g) => g.ramp);
   const ramps = allRamps.slice(0, Math.min(6, fit.ramps));
   const hiddenCount = total - shown.length + (allRamps.length - ramps.length); // #1534 — ramps left out are counted too
   // TASKS.csv #2747 — a picture raster's attached colour bar (legendImage), drawn as the image itself
-  const images = (legendGroups || []).filter((g) => g.image?.src).slice(0, 2);
+  const images = (allGroups || []).filter((g) => g.image?.src).slice(0, 2);
   const showLegend = config.legend && (shown.length > 0 || ramps.length > 0 || images.length > 0);
   const fmtR = (v) => (Math.abs(v) >= 1000 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 0.1 ? v.toFixed(2) : v.toPrecision(2));
   const showTitle = config.title && !!title;
@@ -218,23 +239,33 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
     // pointerEvents: none on every layer of this overlay. #304's hover picking and every orbit drag
     // go to the canvas underneath; an overlay that swallowed pointer events would break hovering
     // silently, which is exactly the failure this project's picking harness exists to catch.
-    <div ref={rootRef} style={{ position: "absolute", inset: 0, pointerEvents: "none" }} aria-hidden="true">
+    <div ref={rootRef} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
       {showTitle && (
-        <div style={{ ...card, position: "absolute", top: 12, left: 12, maxWidth: 340, padding: "6px 11px", fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        <div aria-hidden="true" style={{ ...card, position: "absolute", top: 12, left: 12, maxWidth: 340, padding: "6px 11px", fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           {title}
         </div>
       )}
-      {showLegend && (
+      {showLegend && collapsed && ( /* #3280 (1) */
+        <button type="button" onClick={() => toggleLegend(false)} aria-expanded={false} title={tr("Show the legend")} style={{ ...card, position: "absolute", top: showTitle ? 48 : 12, left: 12, padding: "5px 10px", pointerEvents: "auto", cursor: "pointer", fontSize: "var(--font-size-xs)", fontWeight: 700, letterSpacing: 0.5, color: "var(--color-text-caption)" }}>
+          {tr("Legend ({n} rows)", { n: itemTotal + allRamps.length + images.length })} ▸
+        </button>
+      )}
+      {showLegend && !collapsed && (
         <div ref={legendRef} style={{ ...card, position: "absolute", top: showTitle ? 48 : 12, left: 12, padding: "7px 11px 8px", maxWidth: twoCols ? 480 : 250 }}>
-          <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: "var(--color-text-caption)", marginBottom: 5 }}>{tr("Legend")}</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: "var(--font-size-xs)", fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: "var(--color-text-caption)", marginBottom: 5 }}><span aria-hidden="true">{tr("Legend")}</span>
+            <button type="button" onClick={() => toggleLegend(true)} aria-expanded={true} aria-label={tr("Collapse the legend")} title={tr("Collapse the legend")} style={{ pointerEvents: "auto", cursor: "pointer", background: "none", border: "none", padding: "0 2px", color: "var(--color-text-caption)", fontSize: "var(--font-size-sm)", lineHeight: 1 }}>▾</button>{/* #3280 (1) */}
+          </div>
           <div style={twoCols ? { columnCount: 2, columnGap: 14 } : undefined}>{/* #2044 — a heading stays with its first row */}
           {shown.map((it, i) => (
             <div key={`${it.group}|${it.label}|${i}`} style={{ breakInside: "avoid" }}>
-            {it.head && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", fontWeight: 600, marginTop: i ? 4 : 0, marginBottom: 2 }}>{tr(it.group)}{it.classesShown ? " " + tr("({n} of {m} classes)", { n: it.classesShown[0], m: it.classesShown[1] }) : ""}</div>}{/* classesShown: #2039 */}
-            <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2.5 }}>
+            {it.head && <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", fontWeight: 600, marginTop: i ? 4 : 0, marginBottom: 2 }}>
+              {onConfig && it.gkey && <button type="button" onClick={() => toggleGroup(it.gkey)} aria-expanded={!it.folded} aria-label={it.folded ? tr("Show {group} in the legend", { group: tr(it.group) }) : tr("Fold {group} to its heading", { group: tr(it.group) })} title={it.folded ? tr("Show {group} in the legend", { group: tr(it.group) }) : tr("Fold {group} to its heading", { group: tr(it.group) })} style={{ pointerEvents: "auto", cursor: "pointer", background: "none", border: "none", padding: 0, width: 12, color: "var(--color-text-caption)", fontSize: "var(--font-size-xs)", lineHeight: 1 }}>{it.folded ? "▸" : "▾"}</button>}{/* #3398 */}
+              <span>{tr(it.group)}{it.folded ? " " + tr("({n} rows)", { n: Number(it.label) }) : it.classesShown ? " " + tr("({n} of {m} classes)", { n: it.classesShown[0], m: it.classesShown[1] }) : ""}</span></div>}{/* classesShown: #2039 */}
+            {!it.folded && <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2.5 }}>
               <span style={{ width: 18, display: "inline-flex", justifyContent: "center", flexShrink: 0 }}>{it.svg ? <span style={{ display: "inline-flex" }} dangerouslySetInnerHTML={{ __html: it.svg }} /> /* #3066 — a USGS structure symbol */ : <span style={{ borderRadius: 2, ...swatchShape(it.kind, 12), background: it.color, opacity: it.opacity ?? 1 /* #1122 */, border: it.kind === "line" ? "none" : "1px solid var(--color-border-light)" }} />}</span>{/* #948 — square / line / dot */}
-              <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={`${tr(it.group)}: ${it.label}`}>{it.label}</span>
-            </div>
+              <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={it.value ? tr("{group}: {label}, values {range}", { group: tr(it.group), label: it.label, range: it.value }) : `${tr(it.group)}: ${it.label}`}>{it.label}</span>
+              {it.value && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", whiteSpace: "nowrap", flexShrink: 0 }}>{it.value}</span>}{/* #3332 — a mineral's values (Total min) */}
+            </div>}
             </div>
           ))}
           </div>

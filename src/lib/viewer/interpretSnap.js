@@ -15,6 +15,24 @@ const layerLabel = (k) => LAYER_META[k]?.label || k;
 
 let cache = null; // { traces, layers, shownKey, ox, oy, oz, index }
 
+// TASKS.csv #3044 (#2972) — on the Surface Geology tab a line is drawn along mapped contacts and through outcrop stations: a click also snaps
+// to a vertex of a shown map layer or to an outcrop reading's station. The 3D View passes the holes only, so the Interpretation pane registers
+// these (world E / N / Z, the Z on the ground the layer is drawn on): { points: [{ x, y, z, label, kind: "vertex" | "station" }] } or null.
+let extras = null, extrasCache = null; // extrasCache: { extras, ox, oy, oz, index }
+export function setInterpretSnapExtras(e) { extras = e && e.points?.length ? e : null; }
+function extrasIndexFor(origin) {
+  if (!extras) return null;
+  const c = extrasCache;
+  if (c && c.extras === extras && c.ox === origin.x && c.oy === origin.y && c.oz === origin.z) return c.index;
+  const xyz = new Float64Array(extras.points.length * 3), info = [];
+  extras.points.forEach((p, i) => { xyz[i * 3] = p.x - origin.x; xyz[i * 3 + 1] = (Number.isFinite(p.z) ? p.z : origin.z) - origin.z; xyz[i * 3 + 2] = origin.y - p.y; info.push({ hole_id: null, md: 0, label: p.label, kind: p.kind }); });
+  const index = { xyz, info, traces: [] };
+  extrasCache = { extras, ox: origin.x, oy: origin.y, oz: origin.z, index };
+  return index;
+}
+// the kinds a plan look snaps to (#2972: not a contact down a hole under its collar): collars and what lies on the ground
+const PLAN_KINDS = new Set(["collar", "vertex", "station"]);
+
 function pointAt(pts, md) {
   if (!pts?.length) return null;
   if (md <= pts[0].md) return pts[0];
@@ -68,7 +86,7 @@ export function snapRay(index, ray, tolAt) {
   const o = ray.origin, d = ray.direction, a = index.xyz, plan = isPlanLook(ray);
   let best = null;
   for (let i = 0; i < a.length; i += 3) {
-    if (plan && index.info[i / 3].kind !== "collar") continue; // #2972
+    if (plan && !PLAN_KINDS.has(index.info[i / 3].kind)) continue; // #2972; map vertices and stations: #3044
     const vx = a[i] - o.x, vy = a[i + 1] - o.y, vz = a[i + 2] - o.z;
     const t = vx * d.x + vy * d.y + vz * d.z;
     if (t <= 0) continue;
@@ -114,8 +132,15 @@ export function snapTolerance(camera, heightPx, px = SNAP_PX) {
 // The click's world point, snapped when `on`: world (the raycast hit, world coords, or null), ray (scene), opts { on, traces, layers,
 // visible (layerVisible), origin, camera, heightPx }. Returns the hit unchanged when nothing is in reach.
 export function snapInterpretClick(world, ray, { on, traces, layers, visible, origin, camera, heightPx }) {
-  if (!on || !traces?.length || !origin) return world;
-  const s = snapRay(snapIndexFor(traces, layers, shownIntervalLayers(visible), origin, layerLabel), ray, snapTolerance(camera, heightPx));
+  const ex = on && origin ? extrasIndexFor(origin) : null; // #3044
+  if (!on || !origin || (!traces?.length && !ex)) return world;
+  const tol = snapTolerance(camera, heightPx);
+  const holes = traces?.length ? snapRay(snapIndexFor(traces, layers, shownIntervalLayers(visible), origin, layerLabel), ray, tol) : null;
+  // #3044 — a map vertex or station nearer the ray (in pixels) than the hole's point wins; a hole tie stays a tie otherwise
+  const ground = ex ? snapRay(ex, ray, tol) : null;
+  const near = (p) => { if (!p) return Infinity; const o = ray.origin, d = ray.direction, vx = p.x - o.x, vy = p.y - o.y, vz = p.z - o.z, t = vx * d.x + vy * d.y + vz * d.z; const px = vx - t * d.x, py = vy - t * d.y, pz = vz - t * d.z; return Math.sqrt(px * px + py * py + pz * pz) / (tol(Math.max(t, 1e-6)) || 1); };
+  const s = ground && near(ground) < near(holes) ? ground : holes;
   if (!s) return world;
+  if (!s.hole_id) return { x: s.x + origin.x, y: origin.y - s.z, z: s.y + origin.z, snap: { label: s.label, kind: s.kind } }; // no tie: the spot only
   return { x: s.x + origin.x, y: origin.y - s.z, z: s.y + origin.z, snap: { hole_id: s.hole_id, md: +s.md.toFixed(2), label: s.label, kind: s.kind } };
 }

@@ -28,7 +28,7 @@ test("the first unit under overburden, casing and no recovery, at the hole's own
   assert.ok(Math.abs(v.x - 1000) < 1e-6 && Math.abs(v.z - 494) < 1e-6, "vertical: under the collar, 6 m down");
   const d = 10 / Math.SQRT2; // 10 m down a 45° hole (dip positive down, as stored) to the east
   assert.ok(Math.abs(a.x - (1100 + d)) < 0.01 && Math.abs(a.y - 2000) < 0.01 && Math.abs(a.z - (500 - d)) < 0.01, JSON.stringify(a));
-  assert.equal(a.cover, 10);
+  assert.ok(Math.abs(a.cover - d) < 0.01 && a.coverAlong === 10, "#3378: cover_m is the vertical depth, cover_along_hole_m the 10 m down the hole");
 });
 
 test("a hole all in cover, or not logged, gives no point", () => {
@@ -43,7 +43,7 @@ test("as a point map layer coloured by unit", () => {
   assert.equal(L.features.length, 2);
   assert.deepEqual(L.categories.map((c) => c.value).sort(), ["LMST", "SLST"]);
   assert.equal(featureCategoryValue(L.features[1], "unit"), "LMST");
-  assert.deepEqual(L.features[0].attributes, { unit: "SLST", hole_id: "V1", from_m: 6, cover_m: 6 });
+  assert.deepEqual(L.features[0].attributes, { unit: "SLST", hole_id: "V1", from_m: 6, cover_m: 6, cover_along_hole_m: 6 });
   assert.equal(L.features[0].parts[0][0].length, 3);
 });
 

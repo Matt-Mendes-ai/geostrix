@@ -3,13 +3,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { allocateLegendRows, assayLegendGroups } from "../src/lib/legendGroups.js";
 
-test("an Au group cut to two rows keeps the two highest classes", () => {
+test("an Au group cut to two rows keeps its lowest and highest classes (#3306; #1534 kept the two highest)", () => {
   const [au] = assayLegendGroups({ assays: [{}], assayElements: [{ symbol: "Au", unit: "g/t" }], assayVisible: true, assayDisplayElements: ["Au"],
     assayStyle: { Au: { breaks: [{ max: 0.012, color: "#eee" }, { max: 0.24, color: "#c80" }, { max: 136, color: "#800" }] } } });
   assert.equal(au.grade, true);
   const litho = { key: "litho", label: "Lithology", items: [["Cong", "#111"], ["Felsic Dyke", "#222"], ["V-Hbl-Intermed", "#333"]], counts: [4, 13, 644] };
   const { rows } = allocateLegendRows([au, litho], 4);
-  assert.deepEqual(rows.map((r) => r.label), ["0.012–0.24 g/t", "> 0.24 g/t", "Felsic Dyke", "V-Hbl-Intermed"]);
+  assert.deepEqual(rows.map((r) => r.label), ["≤ 0.012 g/t", "> 0.24 g/t", "Felsic Dyke", "V-Hbl-Intermed"]);
 });
 
 test("a group that fits is untouched", () => {

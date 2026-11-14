@@ -24,6 +24,6 @@ test("no offer when the frame already suits the holes", () => {
 
 test("wired in the drill plan's sidebar", () => {
   const m = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
-  assert.match(m, /const t = turnedFrameFit\(filterHoles\(tableCollars \|\| \[\], sel\.holeFilter\), sel\.w, sel\.h, SCALE_PRESETS\)/);
+  assert.match(m, /const t = turnedFrameFit\(filterHoles\(tableCollars \|\| \[\], sel\.holeFilter\), sel\.w, sel\.h, SCALE_PRESETS(, traces \/\* #3367 \*\/)?\)/);
   assert.match(m, /updateSelected\(\{ w: t\.w, h: t\.h, scale: t\.scale, centre: t\.centre \}\)/);
 });

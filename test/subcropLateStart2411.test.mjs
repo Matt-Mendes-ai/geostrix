@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { collarSubcrop, LATE_START_M } from "../src/lib/collarSubcrop.js";
 
-const collar = (id, x) => ({ hole_id: id, x, y: 0, z: 300, azimuth: 0, dip: -90, length: 100 });
+const collar = (id, x) => ({ hole_id: id, x, y: 0, z: 300, azimuth: 0, dip: 90, length: 100 }); // down (dip positive down, as stored): #3378 measures the cover vertically
 
 test("#2087 — NCR 0-150.6 m then UTG: the point is UTG under 150.6 m of cover, not NCR at 0", () => {
   const out = collarSubcrop({ collars: [{ ...collar("TF24-126", 0), length: 300 }], survey: [], litho: [{ hole_id: "TF24-126", from: 0, to: 150.6, value: "NCR" }, { hole_id: "TF24-126", from: 150.6, to: 200, value: "UTG" }] });

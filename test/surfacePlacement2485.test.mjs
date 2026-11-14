@@ -24,14 +24,14 @@ test("#2571 a sample over a void of a TIN is flat and counted as a TIN gap, not 
   assert.ok(by.void.zFlat && by.void.zTinGap && !by.void.zOutside); assert.equal(by.void.z, 256);
   assert.ok(by.off.zFlat && by.off.zOutside && !by.off.zTinGap);
   assert.equal(src.get(by.void), samples[2]);
-  assert.deepEqual(surfacePlacementCounts(samples, placed), { noTerrain: 0, outside: 1, tinGap: 1, unplaced: 0 });
+  assert.deepEqual(surfacePlacementCounts(samples, placed), { noTerrain: 0, outside: 1, tinGap: 1, collars: 0, unplaced: 0 });
 });
 
 test("#606 / #1806 / #1818 a DEM's void leaves the sample out; outside or with no terrain it is flat", () => {
   const dem = placeSurfaceSamples(samples, terrainOf(null), 256, groundAt);
-  assert.deepEqual(surfacePlacementCounts(samples, dem), { noTerrain: 0, outside: 1, tinGap: 0, unplaced: 1 });
+  assert.deepEqual(surfacePlacementCounts(samples, dem), { noTerrain: 0, outside: 1, tinGap: 0, collars: 0, unplaced: 1 });
   const none = placeSurfaceSamples(samples, null, 256, groundAt);
-  assert.deepEqual(surfacePlacementCounts(samples, none), { noTerrain: 3, outside: 0, tinGap: 0, unplaced: 0 });
+  assert.deepEqual(surfacePlacementCounts(samples, none), { noTerrain: 3, outside: 0, tinGap: 0, collars: 0, unplaced: 0 });
   const allZ = samples.map((r) => ({ ...r, z: 1 }));
   assert.equal(placeSurfaceSamples(allZ, terrainOf(null), 256, groundAt), allZ, "the same array when every sample has a z");
 });

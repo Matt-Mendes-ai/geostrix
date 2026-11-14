@@ -31,6 +31,7 @@ test("a project with the file's 'hole_type' column and the 'hole type' class bes
 
 test("the pick writes the key's spaces as '_' too, and RC is named in full", () => {
   const s = readFileSync(new URL("../src/modules/viewer/HoleFilterBar.jsx", import.meta.url), "utf8");
-  assert.match(s, /value=\{`\$\{ch\.key\.replace\(\/\\s\+\/g, "_"\)\}=\$\{v\.replace\(\/\\s\+\/g, "_"\)\}`\}/);
+  assert.match(s, /const termOf = \(key, v\) => `\$\{key\.replace\(\/\\s\+\/g, "_"\)\}=\$\{v\.replace\(\/\\s\+\/g, "_"\)\}`;/); // #3356: one helper for both menus
+  assert.match(s, /value=\{termOf\(ch\.key, v\)\}/);
   assert.equal(normalizeHoleType("RC"), "Reverse circulation (RC)");
 });

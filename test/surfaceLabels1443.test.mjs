@@ -54,8 +54,8 @@ test("wiring: two label groups decluttered each frame, the outcrop effect and th
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(v, /for \(const name of \["outcrop_labels", "sample_labels"\]\) \{ const lg = new THREE\.Group\(\)/);
   assert.match(v, /for \(const name of \["outcrop_labels", "sample_labels"\]\) \{ const lg = layerGroupsRef\.current\?\.\[name\]; if \(lg\?\.visible && lg\.children\.length\) \{ fitScreenLabels\(lg, camera, mount\.clientHeight\); declutterHoleLabels\(lg/);
-  assert.match(v, /syncTextLabels\(lg, outcropLabelItems\(surfaceStructures, \{ origin: originRef\.current, terrain, flatZ: surfaceFlatZ \}\), makeTextSprite, 0\)/); // flatZ: #2753
-  assert.match(v, /sampleLabelItems\(placedSurfaceSamples, layerStyles\.surface_samples\?\.label \|\| "none", \{ ox, oy, oz \}\)/); // the items come from the lib (ViewerModule's size cap)
+  assert.match(v, /syncTextLabels\(lg, outcropLabelItems\(surfaceStructures, \{ origin: originRef\.current, terrain, flatZ: surfaceFlatZ(, symbolByType: [^}]*)? \}\), makeTextSprite, 0\)/); // flatZ: #2753
+  assert.match(v, /sampleLabelItems\(placedSurfaceSamples, layerStyles\.surface_samples\?\.label \|\| "none", \{ ox, oy, oz(, units: surfaceElementUnits \/\* #2641 \*\/)? \}\)/); // the items come from the lib (ViewerModule's size cap)
   assert.match(v, /labelChoices: key === "surface_samples"/);
   const m = readFileSync(new URL("../src/components/LayerStyleModal.jsx", import.meta.url), "utf8");
   assert.match(m, /target\.labelChoices && \(/);

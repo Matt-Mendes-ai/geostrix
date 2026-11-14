@@ -24,7 +24,7 @@ import { lazyModal } from "../lib/lazyModal.jsx";
 import { withSetColumns } from "../lib/estimateSet.js"; // TASKS.csv #3014 part c — a set member exported with its siblings' columns
 import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
 import { logStops, SEQUENTIAL_ANCHORS, b64ToF32 } from "../lib/inversion.js"; // TASKS.csv #481; b64ToF32: #2846
-import { SURVEY_METHODS, unitsForMethod, robustRange, SURVEY_METHOD_GROUPS, guessSurveyMethodFrom, diurnalApplies /* #1586 */, Z_MEANINGS, surveyKey, surveyStats, aglToElevation, surveyNameClashes, uniqueSurveyKey, renameSurvey, soleValueColumn /* #3319 */, replaceSurveyPoints, surveyExportRows } from "../lib/geophysSurveys.js"; // surveyExportRows: #1094 // TASKS.csv #451; replaceSurveyPoints #600
+import { SURVEY_METHODS, unitsForMethod, robustRange, SURVEY_METHOD_GROUPS, guessSurveyMethodFrom, diurnalApplies /* #1586 */, Z_MEANINGS, surveyKey, surveyStats, aglToElevation, surveyNameClashes, uniqueSurveyKey, renameSurvey, soleValueColumn /* #3319 */, eqsApplies /* #3321 */, methodWithHint /* #3400 */, replaceSurveyPoints, surveyExportRows } from "../lib/geophysSurveys.js"; // surveyExportRows: #1094 // TASKS.csv #451; replaceSurveyPoints #600
 import { radiometricChannels, otherMeasurementColumns, isMultiRadiometric, channelKey, withValueChannel, tickedChannels, ratioJobs, ratioOf } from "../lib/radiometricChannels.js"; // TASKS.csv #2395
 import { terrainElevationAt } from "../lib/inversion.js";
 import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #1709
@@ -57,7 +57,7 @@ import { readKmlFile, kmlToProjectPolylines } from "../lib/kml.js"; // TASKS.csv
 import { parseShapefileZip, parseShapefileParts } from "../lib/shapefile.js";
 import { groupShapefileParts } from "../lib/viewer/importHelpers.js"; // TASKS.csv #2121 — a loose .shp with its .prj / .dbf / .cpg
 import { parseGeoPackage } from "../lib/gpkg.js";
-import { idwGridToRasterInput, gridValuesToRasterInput, snappedGridExtent, suggestBlankingDistance, suggestIdwCell, uniqueName } from "../lib/idw.js"; // suggestIdwCell, uniqueName: #2562; gridValuesToRasterInput, snappedGridExtent: #2846, #2872
+import { idwGridToRasterInput, gridValuesToRasterInput, snappedGridExtent, uniqueName } from "../lib/idw.js"; // uniqueName: #2562; gridValuesToRasterInput, snappedGridExtent: #2846, #2872
 import { surveySplineRequest, splineFinish, gridMethodTag } from "../lib/surveyGrid.js"; // TASKS.csv #2846
 import { gridSurveyAsync } from "../lib/surveyGridClient.js"; // #2846 — minimum curvature in a worker
 import { MINCURV_MAX_CELLS, SPLINE_MAX_CELLS } from "../lib/sampleGrid.js"; // #2846
@@ -72,6 +72,8 @@ import InversionPanel from "../components/InversionPanel.jsx"; // TASKS.csv #321
 import DcipPanel from "../components/DcipPanel.jsx"; // TASKS.csv #322 — 2D DC resistivity / IP
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { Activity as RActivity } from "../components/icons.js"; // TASKS.csv #1425
+import { Gauge as RRadiation, ArrowDownToLine as RWeight } from "../components/icons.js"; // TASKS.csv #3400 — icons already in the app: a new lucide icon would add to the startup vendor chunk
+import { openHelp } from "../lib/help.js";
 const DownholeLogsPane = React.lazy(() => import("../components/DownholeLogsPane.jsx")); // TASKS.csv #1425
 const MtSoundingsPane = React.lazy(() => import("../components/MtSoundingsPane.jsx")); // TASKS.csv #1989
 const FdemPane = React.lazy(() => import("../components/FdemPane.jsx")); // TASKS.csv #1986
@@ -81,11 +83,15 @@ import { Layers as RLayers /* #1986 */, Waves as RWaves /* #1989 */, Zap as RZap
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax, median } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread); median: #2239
 import { unreadableFormatAdvice, textTableRefusal } from "../lib/unreadableFormats.js"; // TASKS.csv #603; textTableRefusal: #2847
+import { tableRefusal } from "../lib/tableRefusal.js"; // TASKS.csv #3320 — a table the picker cannot use (one column, a DC / IP reading file)
 import { t as tr } from "../lib/i18n.js";
 import { decadesBetween, isLogSpaced, logViridisStops } from "../lib/pointSurveyScale.js"; // TASKS.csv #1787
+import { surveyMetaFor } from "../lib/surveyLegendDefault.js"; // TASKS.csv #3323
+import { sampleSurveyOnHoles, suggestHoleSampling } from "../lib/surveyOnHoles.js"; // TASKS.csv #3324
 import { defaultModelLegend } from "../lib/modelDefaultStops.js"; // TASKS.csv #2400
 import { guessVoxelProperty, isLogProperty, propertyRamp, parseGradeLabel } from "../lib/voxelProperty.js"; // TASKS.csv #1786; propertyRamp: #1788; parseGradeLabel: #2667
 import { cloudShape } from "../lib/cloudShape.js"; // TASKS.csv #1783
+import { surveyGridDefaults, proposeSlice, blankForCell } from "../lib/surveyGridDefaults.js"; // TASKS.csv #3322
 import { defaultDrapeElevation, rasterDrapeElevation, drapeElevationNote, planElevation } from "../lib/drapeElevation.js"; // planElevation: #2294; // TASKS.csv #1856; rasterDrapeElevation: #1505
 import { collarTerrainOffset } from "../lib/terrainCheck.js"; // TASKS.csv #1620
 import { voxelStretch, sortedShownValues } from "../lib/voxelStretch.js"; // TASKS.csv #1812 / #1781
@@ -166,6 +172,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const [geoPaneState, setGeoPane] = useState("points"); // TASKS.csv #458 — the sidebar shows the tool picked on the ribbon
   const geoPane = forcePane || geoPaneState; // #749 — the Maps tab chooses the pane
   const geoBtn = (id) => ({ active: geoPane === id, onClick: () => setGeoPane(id) });
+  // TASKS.csv #3400 — the method a Surveys button opened the point importer with ("mag" | "grav" | "rad" | "tem" | null: Other point data)
+  const [methodHint, setMethodHint] = useState(null);
+  const methodBtn = (h) => ({ active: geoPane === "points" && methodHint === h, onClick: () => { setMethodHint(h); setGeoPane("points"); } });
   const [mtDrop, setMtDrop] = useState(null); // TASKS.csv #1989 — .edi files dropped on the tab, for the MT pane
   const [fdemDrop, setFdemDrop] = useState(null); // TASKS.csv #1986 — Aarhus Workbench .xyz exports dropped on the tab, for the FDEM pane
   const [eqsFor, setEqsFor] = useState(null); // TASKS.csv #1985 — the survey whose equivalent-source box is open
@@ -273,6 +282,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const [omfPick, setOmfPick] = useState({});
   const omfInput = useRef(null);
   const [idwOpen, setIdwOpen] = useState(false); // TASKS.csv #235 — grid geophys_pts to a raster (IDW)
+  // TASKS.csv #3324 — the pane's survey sampled along the drillholes, as a downhole layer
+  const [holeOpen, setHoleOpen] = useState(false);
+  const [holeOpts, setHoleOpts] = useState({ dist: "", step: "", mode: "nearest" });
+  const [holeBusy, setHoleBusy] = useState(false);
   const [idwCellText, setIdwCellText] = useState(""); // TASKS.csv #2562 — blank: from the station spacing (idwCellSize below)
   const [idwPower, setIdwPower] = useState(2);
   const [idwStretch, setIdwStretch] = useState("p2-98"); // TASKS.csv #372
@@ -370,12 +383,41 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const manySurveys = surveyList.length > 1;
   const legendKey = surveyList.some((s) => s.key === legendSurvey) ? legendSurvey : surveyList[0]?.key || "";
   const legendRows = useMemo(() => (manySurveys ? rows.filter((r) => surveyKey(r) === legendKey) : rows), [manySurveys, rows, legendKey]);
+  const holeShape = useMemo(() => (holeOpen && legendRows.length ? cloudShape(legendRows) : null), [holeOpen, legendRows]); // #3324
+  const holeSuggest = useMemo(() => (holeShape?.is3D ? suggestHoleSampling(legendRows) : null), [holeShape, legendRows]); // #3324 — from the cloud's 3D spacing
+  // TASKS.csv #3324 (review #3195, Galore Creek) — 'does chargeability follow the sulphide?': the survey's value at each step down every hole
+  // (the nearest point within the distance, or the inverse-distance mean of the points within it), a numeric layer 'On holes: <survey>'
+  // that Downhole logs ('against a model'), the strip logs and sections read like a block model evaluated onto the holes (#323)
+  const sampleSurveyAlongHoles = async (key) => {
+    if (holeBusy) return;
+    if (!(collars || []).some((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && Number.isFinite(c?.z))) { setError(tr("No drillholes can be placed: the project has no collar coordinates. Import the collars to sample \"{key}\" along the holes.", { key })); return; }
+    const pts = rows.filter((r) => surveyKey(r) === key);
+    const maxDist = Number(holeOpts.dist) > 0 ? Number(holeOpts.dist) : holeSuggest?.maxDist || 25;
+    const step = Number(holeOpts.step) > 0 ? Number(holeOpts.step) : holeSuggest?.step || 5;
+    const mode = holeOpts.mode === "idw" ? "idw" : "nearest";
+    setHoleBusy(true);
+    await new Promise((r) => setTimeout(r, 30)); // let the busy line paint
+    const t0 = performance.now();
+    let res;
+    try { res = sampleSurveyOnHoles({ points: pts, collars, survey, desurveyMethod, step, maxDist, mode }); } finally { setHoleBusy(false); }
+    const secs = (performance.now() - t0) / 1000;
+    if (!res.rows.length) { setError(tr("No drillhole passes within {d} m of a point of \"{key}\". A larger distance reaches farther, and the values are then less local.", { d: maxDist, key })); return; }
+    const name = uniqueName(`On holes: ${key}`, (customLayers || []).map((l) => l.name));
+    setCustomLayers((p) => [...p, { id: `custom_${Date.now()}`, name, rows: res.rows, sourceSurvey: key, unit: geophysSurveys?.[key]?.units || null }]);
+    const args = { name, holes: res.holes.toLocaleString(), rows: res.rows.length.toLocaleString(), d: maxDist, s: step };
+    setError({ info: true, text: (mode === "idw"
+      ? tr("Added \"{name}\": the inverse-distance mean of the points within {d} m, every {s} m down {holes} hole(s) ({rows} intervals). Downhole logs can now plot a log against it (against a model), and the strip logs show it.", args)
+      : tr("Added \"{name}\": the nearest point's value within {d} m, every {s} m down {holes} hole(s) ({rows} intervals). Downhole logs can now plot a log against it (against a model), and the strip logs show it.", args)) + " " + tr("({s} s)", { s: secs < 10 ? secs.toFixed(1) : Math.round(secs) }) });
+  };
   const legendDrawn = useMemo(() => robustRange(legendRows.map((r) => r.value)), [legendRows]);
   const legendRange = useMemo(() => { let a = null, b = null; for (const r of legendRows) { const v = r.value; if (typeof v !== "number" || isNaN(v)) continue; if (a === null || v < a) a = v; if (b === null || v > b) b = v; } return { min: a, max: b }; }, [legendRows]);
-  const legendMeta = (manySurveys && geophysSurveys[legendKey]?.legend) || null;
+  // TASKS.csv #3323 — a survey's own legend (an import's log scale, or one edited while there were several) is the one drawn even as the only
+  // survey (surveyColourModel), so it is the one shown and edited here too: the pane showed and wrote the flat layer's fields instead
+  const ownLegend = manySurveys || !!geophysSurveys[legendKey]?.legend;
+  const legendMeta = (ownLegend && geophysSurveys[legendKey]?.legend) || null;
   // TASKS.csv #1787 — the point-survey legend's edits, routed to the survey's own legend (#1587) or the one flat layer's store fields
   const ptsLegendUpdate = (_id, patch) => {
-    if (manySurveys) { updateGeophysSurvey(legendKey, { legend: { ...(geophysSurveys[legendKey]?.legend || {}), ...patch } }); return; } // #1587
+    if (ownLegend) { updateGeophysSurvey(legendKey, { legend: { ...(geophysSurveys[legendKey]?.legend || {}), ...patch } }); return; } // #1587; #3323
     if ("min" in patch) setGeophysPtsMin(patch.min);
     if ("max" in patch) setGeophysPtsMax(patch.max);
     if ("colorMode" in patch) setGeophysPtsColorMode(patch.colorMode);
@@ -398,14 +440,18 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // TASKS.csv #1783 (review #1646, Kodiak) — a 3D point cloud (an inversion model imported as points) is gridded one depth slice at a time
   const idwShape = useMemo(() => (idwRows.length ? cloudShape(idwRows) : null), [idwRows]);
   const [idwZ, setIdwZ] = useState({ lo: "", hi: "" });
+  // TASKS.csv #3322 — both boxes empty: the proposed slice (the level with the most points), not every depth at once; one typed: the other end of the cloud
+  const idwSliceProp = useMemo(() => (idwShape?.is3D ? proposeSlice(idwRows) : null), [idwRows, idwShape]);
+  const idwZAuto = !!idwSliceProp && idwZ.lo === "" && idwZ.hi === "";
+  const idwZLo = idwZAuto ? idwSliceProp.lo : idwZ.lo === "" ? -Infinity : Number(idwZ.lo), idwZHi = idwZAuto ? idwSliceProp.hi : idwZ.hi === "" ? Infinity : Number(idwZ.hi);
   const idwSlice = useMemo(() => {
     if (!idwShape?.is3D) return idwRows;
-    const lo = idwZ.lo === "" ? -Infinity : Number(idwZ.lo), hi = idwZ.hi === "" ? Infinity : Number(idwZ.hi);
-    return idwRows.filter((r) => Number.isFinite(r.z) && r.z >= lo && r.z <= hi);
-  }, [idwRows, idwShape, idwZ]);
-  const idwSuggest = useMemo(() => (idwSlice.length ? suggestBlankingDistance(idwSlice) : null), [idwSlice]); // the slice's own spacing (#1783)
-  const idwAutoCell = suggestIdwCell(idwSuggest?.spacing) || 25; // #2562 — a quarter to a half of the spacing
+    return idwRows.filter((r) => Number.isFinite(r.z) && r.z >= idwZLo && r.z <= idwZHi);
+  }, [idwRows, idwShape, idwZLo, idwZHi]);
+  const idwSuggest = useMemo(() => (idwSlice.length ? surveyGridDefaults(idwSlice) : null), [idwSlice]); // the slice's own spacing (#1783); lines with no line column, the 4,000,000-cell limit (#3322)
+  const idwAutoCell = idwSuggest?.cell || 25; // #2562 — a quarter to a half of the spacing; #3322 — never over the cell limit
   const idwCellSize = idwCellText === "" ? idwAutoCell : Math.max(0.1, Number(idwCellText) || idwAutoCell);
+  const idwAutoBlank = idwSuggest ? blankForCell(idwSuggest.distance, idwCellSize) : null; // #3322 — a typed cell carries the blanking: at least 1.5 cells
   // #451 — radar-altimeter heights -> elevations on the loaded terrain
   const convertAgl = (key) => {
     if (!terrain) return;
@@ -431,6 +477,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (file.size > STREAM_FROM_BYTES) { await openStreamedCsv(file, head); return; } // #1351 — was refused above 150 MB
     parseTableFile(file).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback
         const res = { data: t.rows, meta: { fields: t.headers }, note: t.note };
+        { const r = tableRefusal(file.name, t.headers, t.rows, "point"); if (r) { setError(r); return; } } // #3320 — before the column picker
         // TASKS.csv #484 — columns are matched on the words in each header (Easting_X, Raw_Mag_nT...), once per
         // file. Not sure which is which -> the column picker below (shared with .xyz), never a dead end.
         const cols = guessGeophysColumns(res.meta.fields || []);
@@ -484,7 +531,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         { const named = keepOrReplace(good); good = named.rows; reprojectNote += named.note; } // #3319 — another file of the same name: asked
         const replacedN = replaceSurveyPoints(rows, good).replaced; // #600 — for the notice; the update below does the same
         setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, good).rows }));
-        { const g = guessSurveyMethodFrom(cols.value, good.map((r) => r.label)); if (g && !geophysSurveys[file.name]?.method) updateGeophysSurvey(file.name, { method: g, units: SURVEY_METHODS[g].units }); } // #1151 — from the value column's name
+        { const g = methodWithHint(guessSurveyMethodFrom(cols.value, good.map((r) => r.label), { columns: res.meta.fields || [] } /* #3323 — MT columns */), methodHint) /* #3400 */; if (g && !geophysSurveys[file.name]?.method) updateGeophysSurvey(file.name, surveyMetaFor(g, good.map((r) => r.value))); } // #1151 — from the value column's name; #3323 — a log legend for resistivity
         if (replacedN) reprojectNote += tr(" Replaced the {replacedN} point(s) of the earlier import of this file.", { replacedN: replacedN.toLocaleString() });
         const zNote = noZ ? tr(" {noZ} point(s) have no elevation: they are kept for modelling with \"sensor at a fixed height above terrain\", and are not drawn in 3D.", { noZ }) : ""; // #365
         const readNote = res.note ? ` ${res.note.trim()}` : ""; // #444 — comma decimals / encoding, said out loud
@@ -628,6 +675,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const outsideCanada = useMemo(() => { const at = project?.crsSet !== false && project?.epsg ? collarCentreLonLat(collars, project.epsg) : null; return !!at && !(at.lat > 40.5 && at.lat < 84 && at.lon > -142 && at.lon < -51); }, [collars, project?.epsg, project?.crsSet]);
   // TASKS.csv #2589 — collars stacked at one spot at different RLs (pit benches of different dates): which ground the terrain takes
   const benches = useMemo(() => collarBenches(projectZPoints.collarPts), [projectZPoints]);
+  // TASKS.csv #3381 (#3195, Galore Creek) — the samples' heights (hand-held GPS, often) went into the ground beside the surveyed collars without
+  // asking: with both, which of them the terrain is built from is a choice (both, the default as before; collars only; samples only)
+  const [zSource, setZSource] = useState("both");
+  const zBoth = projectZPoints.samples > 0 && projectZPoints.collars > 0;
+  const zUse = zBoth ? zSource : "both";
+  const zCount = (zUse === "collars" ? 0 : projectZPoints.samples) + (zUse === "samples" ? 0 : projectZPoints.collars);
   const [benchMode, setBenchMode] = useState("all");
   // TASKS.csv #2987 — which collars the terrain leaves out, and why (named, the first few)
   const collarsOutNote = (out) => {
@@ -640,7 +693,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     setTerrainError(null);
     setTerrainBusy(true);
     try {
-      const { samples, samplePts, collarPts } = projectZPoints;
+      const { samplePts: allSamplePts, collarPts: allCollarPts } = projectZPoints;
+      const samplePts = zUse === "collars" ? [] : allSamplePts, collarPts = zUse === "samples" ? [] : allCollarPts, samples = samplePts.length; // #3381
       const picked = pickBenchGround(collarPts, benches.n ? benchMode : "all"); // #2589
       const points = [...samplePts, ...picked.points], nc = picked.points.length;
       const benchNote = !benches.n ? ""
@@ -651,7 +705,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       // RL 102-351 under a surface near 400): ask, and name it for what it is
       const ug = collarsLookUnderground(collars, survey);
       if (ug.underground && !window.confirm(tr("The collars look like underground collars ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): a surface through them runs through the mine levels, not the ground.", { upward: ug.upward, stacked: ug.stacked }) + "\n\n" + tr("OK — build it anyway, named 'Surface through the collars'.") + "\n" + tr("Cancel — don't build it (import a DEM or fetch SRTM for the real ground)."))) return;
-      await finishPointsTerrain({ points, lines: [], what: tr("{s} surface sample(s) and {c} collar(s) of this project", { s: samples, c: nc }), name: ug.underground ? "Surface through the collars" : "Terrain from samples and collars", sourceFile: "project surface samples and collars", reprojected: false, misfitAt: picked.points, benchNote, leftOutNote: collarsOutNote(projectZPoints.collarsOut), spacingFit: true }); // name: #2263; misfitAt, benchNote: #2589; leftOutNote: #2987; spacingFit: #3036
+      await finishPointsTerrain({ points, lines: [], what: tr("{s} surface sample(s) and {c} collar(s) of this project", { s: samples, c: nc }), name: ug.underground ? "Surface through the collars" : zUse === "collars" ? "Terrain from collars" : zUse === "samples" ? "Terrain from samples" : "Terrain from samples and collars" /* the source in the name: #3381 */, sourceFile: "project surface samples and collars", reprojected: false, misfitAt: picked.points, benchNote, leftOutNote: collarsOutNote(projectZPoints.collarsOut), spacingFit: true }); // name: #2263; misfitAt, benchNote: #2589; leftOutNote: #2987; spacingFit: #3036
     } catch (err) {
       setTerrainError({ info: false, text: err.message });
     } finally {
@@ -1336,6 +1390,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       if (file.size > STREAM_FROM_BYTES) { // TASKS.csv #1351 — header and sample from the first part; Import streams the rest, thinned
         const head = await headText(file);
         const { columns, rows: sample } = parseXYZ(head);
+        { const r = tableRefusal(file.name, columns, sample, "point"); if (r) { setXyzError({ info: false, text: r }); return; } } // #3320
         const g = guessXyzChannels(columns, sample), estimate = Math.round((sample.length / Math.max(1, head.length)) * file.size);
         setXyzPending({ fileName: file.name, columns, rows: sample, xCol: guessColumn(columns, XY_NAME_HINTS.x), yCol: guessColumn(columns, XY_NAME_HINTS.y), zCol: g.z, valueCol: g.value, header: gemHeaderInfo(head), headerEpsg: gemHeaderEpsg(head) || geosoftHeaderEpsg(head) /* #2832 */, ...cleaningDefaults(columns),
           stream: { file, kind: "xyz", columns, estimate, keepEvery: suggestKeepEvery(estimate, undefined, (layers.geophys_pts || []).length) } });
@@ -1344,6 +1399,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       }
       const text = await file.text();
       const { columns, rows: parsedRows } = parseXYZ(text);
+      { const r = tableRefusal(file.name, columns, parsedRows, "point"); if (r) { setXyzError({ info: false, text: r }); return; } } // #3320
       const g = guessXyzChannels(columns, parsedRows); // #600 — first guesses; the picker still shows every column
       const gx = guessColumn(columns, XY_NAME_HINTS.x), gy = guessColumn(columns, XY_NAME_HINTS.y);
       setXyzPending({
@@ -1500,8 +1556,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const colOf = new Map(ownColumns.map((o) => [o.file, o.col]));
       for (const src of new Set(points.map((r) => r._src))) {
         const orig = Object.keys(named.renamed).find((k) => named.renamed[k] === src) || src;
-        const g = guessSurveyMethodFrom(colOf.get(orig) || valueCol, [], { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }); // hints: #1586
-        if (g && !geophysSurveys[src]?.method) updateGeophysSurvey(src, { method: g, units: SURVEY_METHODS[g].units });
+        const g = methodWithHint(guessSurveyMethodFrom(colOf.get(orig) || valueCol, [], { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }), methodHint); // hints: #1586; the method button: #3400
+        if (g && !geophysSurveys[src]?.method) updateGeophysSurvey(src, surveyMetaFor(g, points.filter((r) => r._src === src).map((r) => r.value))); // #3323
       }
     }
     setXyzError({ info: !failed.length, text: [
@@ -1624,8 +1680,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     mapped = named.rows; reprojectNote += named.note;
     const replacedN = replaceSurveyPoints(rows, mapped).replaced; // #600 — re-import replaces, does not double
     setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, mapped).rows }));
-    if (jobs) for (const j of jobs) if (j.method && SURVEY_METHODS[j.method] && !geophysSurveys[keyOf(j.src)]?.method) updateGeophysSurvey(keyOf(j.src), { method: j.method, units: SURVEY_METHODS[j.method].units }); // #2395; a channel whose name says nothing: #2081
-    if (!jobs) { const g = guessSurveyMethodFrom(valueCol, mapped.map((r) => r.label), { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }); if (g && !geophysSurveys[keyOf(fileName)]?.method) updateGeophysSurvey(keyOf(fileName), { method: g, units: SURVEY_METHODS[g].units }); } // #1151; hints: #1586
+    if (jobs) for (const j of jobs) if (j.method && SURVEY_METHODS[j.method] && !geophysSurveys[keyOf(j.src)]?.method) updateGeophysSurvey(keyOf(j.src), surveyMetaFor(j.method, mapped.filter((r) => r._src === keyOf(j.src)).map((r) => r.value))); // #2395; #3323; a channel whose name says nothing: #2081
+    if (!jobs) { const g = methodWithHint(guessSurveyMethodFrom(valueCol, mapped.map((r) => r.label), { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }), methodHint) /* #3400 */; if (g && !geophysSurveys[keyOf(fileName)]?.method) updateGeophysSurvey(keyOf(fileName), surveyMetaFor(g, mapped.map((r) => r.value))); } // #1151; hints: #1586; #3323
     if (replacedN) reprojectNote += tr(" Replaced the {replacedN} point(s) of the earlier import of this file.", { replacedN: replacedN.toLocaleString() });
     const skipped = (jobs ? cleanedRows.length * jobs.length : cleanedRows.length) - mapped.length - noFix; // #538; #2395: per channel survey
     if (jobs) reprojectNote += tr(" As {k} survey(s): {list}.", { k: jobs.length, list: jobs.map((j) => j.src).join(", ") }); // #2395 — the no-fix readings are reported separately; #1583: after the cleaning
@@ -1922,11 +1978,17 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         {/* TASKS.csv #458 — Geophysics ribbon: each button shows that tool in the sidebar */}
         <Ribbon label="Geophysics tools" show={!embedded}>
           <RibbonGroup label="Surveys">
-            <RibbonButton icon={RRadar} label="Point survey" tone="data" title="Import a mag / gravity / IP / radiometric point survey (CSV or Geosoft .xyz)" {...geoBtn("points")} />
-            <RibbonButton advanced icon={RMagnet} label="Inversion" tone="model" title="Magnetics / gravity inversion and forward modelling (SimPEG)" {...geoBtn("inversion")} />
-            <RibbonButton advanced icon={RZap} label="DC / IP" tone="model" title="2D DC resistivity / IP line inversion (SimPEG)" {...geoBtn("dcip")} />
-            <RibbonButton advanced icon={RWaves} label="MT / AMT" tone="data" title="MT / AMT soundings from EDI files: curves, pseudosections and approximate depths" {...geoBtn("mt")} />{/* TASKS.csv #1989 */}
-            <RibbonButton advanced icon={RLayers} label="FDEM 1D" tone="model" title="Ground loop-loop EM (DUALEM, GEM-2): conductivity against depth under each sounding, a 1D inversion" {...geoBtn("fdem")} />{/* TASKS.csv #1986 */}
+            {/* TASKS.csv #3400 (Matt) — a button per survey method by name, in Simple mode too: a beginner finds the survey there. Magnetics,
+                Gravity and Radiometrics open the point importer set to that method; IP / Resistivity the DC / IP line; EM a chooser (FDEM 1D,
+                TEM); MT / AMT the EDI soundings. Point survey is the importer with no method set (its name kept: messages and help say 'Geophysics > Point survey'). */}
+            <RibbonButton icon={RMagnet} label="Magnetics" tone="data" title="Magnetics: the magnetite in the rocks, for intrusions, faults, iron formation and magnetite-destructive alteration. Import a ground or airborne survey (CSV / .xyz)." {...methodBtn("mag")} />
+            <RibbonButton icon={RWeight} label="Gravity" tone="data" title="Gravity: rock density, for dense massive sulphide, mafic intrusions, basins and faults. Import gravity stations (CSV / .xyz)." {...methodBtn("grav")} />
+            <RibbonButton icon={RRadiation} label="Radiometrics" tone="data" title="Radiometrics: potassium, thorium and uranium at the surface, for potassic alteration, granites and uranium. Import K / eTh / eU channels (CSV / .xyz)." {...methodBtn("rad")} />
+            <RibbonButton icon={RZap} label="IP / Resistivity" tone="model" title="IP / resistivity: chargeability (disseminated sulphide) and resistivity (silicification, clay, water) under a line; a 2D DC / IP inversion." {...geoBtn("dcip")} />
+            <RibbonButton icon={Radio} label="EM" tone="data" title="EM: electrical conductors (massive sulphide, graphite, clay, water). Ground loop-loop FDEM now; time-domain (TEM) line data is coming." active={geoPane === "em" || geoPane === "fdem"} onClick={() => setGeoPane("em")} />
+            <RibbonButton icon={RWaves} label="MT / AMT" tone="data" title="MT / AMT: resistivity to depth from natural fields, hundreds of metres to kilometres (EDI soundings)." {...geoBtn("mt")} />{/* TASKS.csv #1989 */}
+            <RibbonButton icon={RRadar} label="Point survey" tone="data" title="Any other survey measured at points (SP, VLF, a contractor's channel): CSV or Geosoft .xyz, with its method set on its card." {...methodBtn(null)} />
+            <RibbonButton advanced icon={RLayers} label="Inversion" tone="model" title="Magnetics / gravity inversion and forward modelling (SimPEG)" {...geoBtn("inversion")} />
           </RibbonGroup>
           {/* #749 — Terrain, map layers, web layers, boundaries and claims moved to the Maps tab */}
           <RibbonGroup label="Models">
@@ -1956,7 +2018,18 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           onChange={(e) => { const f = e.target.files[0]; importFile(f); e.target.value = ""; }}
         />
         {geoPane === "points" && (<>
-        <TaskPaneHeader title="Point survey (CSV / XYZ)" icon={RRadar} tone="data" />
+        {/* TASKS.csv #3400 — the pane opened by a method button says so, with that method's help page */}
+        {methodHint === "mag" ? <TaskPaneHeader title="Magnetic survey (CSV / XYZ)" icon={RMagnet} tone="data" />
+          : methodHint === "grav" ? <TaskPaneHeader title="Gravity survey (CSV / XYZ)" icon={RWeight} tone="data" />
+            : methodHint === "rad" ? <TaskPaneHeader title="Radiometric survey (CSV / XYZ)" icon={RRadiation} tone="data" />
+              : <TaskPaneHeader title="Point survey (CSV / XYZ)" icon={RRadar} tone="data" />}
+        {methodHint && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45, margin: "-4px 0 10px" }}>
+          {methodHint === "mag" ? tr("A survey imported here is labelled magnetics (total field), or the magnetic product its column names (reduced to pole, a derivative). Change it on the survey's card.")
+            : methodHint === "grav" ? tr("A survey imported here is labelled gravity (Bouguer anomaly), or the gravity product its column names (free air, Gzz). Change it on the survey's card.")
+              : methodHint === "rad" ? tr("A survey imported here is labelled radiometrics: each K, eTh, eU or total-count column the importer finds becomes its own survey. Change the method on the survey's card.")
+                : tr("A survey imported here is labelled a TEM channel (dB/dt), or B-field or decay constant when its column says so: one value a station. Change it on the survey's card.")}
+          {" "}<button type="button" onClick={() => setMethodHint(null)} style={{ border: "none", background: "none", padding: 0, color: "var(--color-info)", cursor: "pointer", fontSize: "inherit", textDecoration: "underline" }}>{tr("Import without a method")}</button>
+        </div>}
         <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Point cloud (CSV)")}<InfoButton title={tr("Point cloud (CSV)")} text={tr("Import a CSV point cloud (x, y, z, value) — mag, IP, gravity, radiometrics, or any other point-sampled survey. Points render in the same 3D scene as drillholes for co-visualization (see the \"Geophysics points\" layer on the Viewer’s Home tab).")} />
         </div>
 
@@ -1997,6 +2070,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                       ? <input autoFocus defaultValue={sv.key} aria-label={tr("New name for \"{key}\"", { key: sv.key })} style={{ ...numInput, flex: 1, minWidth: 0 }}
                           onBlur={(e) => commitSurveyRename(sv.key, e.currentTarget.value)} onKeyDown={(e) => { if (e.key === "Enter") commitSurveyRename(sv.key, e.currentTarget.value); if (e.key === "Escape") setRenamingSurvey(null); }} />
                       : <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text)" }} title={sv.key}>{sv.key}</span>}
+                    {/* TASKS.csv #3325 — show / hide this survey in the 3D view and its legend (two clouds on the same points shared one mass) */}
+                    <button type="button" aria-pressed={!meta.hidden} aria-label={meta.hidden ? tr("Show survey \"{key}\" in the 3D view", { key: sv.key }) : tr("Hide survey \"{key}\" in the 3D view", { key: sv.key })} title={meta.hidden ? tr("Show survey \"{key}\" in the 3D view", { key: sv.key }) : tr("Hide survey \"{key}\" in the 3D view", { key: sv.key })} style={{ ...iconBtn, opacity: meta.hidden ? 0.55 : 1 }} onClick={() => updateGeophysSurvey(sv.key, { hidden: !meta.hidden })}>{meta.hidden ? <EyeOff size={12} aria-hidden="true" /> : <Eye size={12} aria-hidden="true" />}</button>
                     <button type="button" aria-label={tr("Rename survey \"{key}\"", { key: sv.key })} title={tr("Rename survey \"{key}\"", { key: sv.key })} style={iconBtn} onClick={() => setRenamingSurvey(sv.key)}><Pencil size={12} aria-hidden="true" /></button>
                     {/* TASKS.csv #2871 — buttons, not bare svg elements */}
                     <button type="button" aria-label={tr("Export the points of \"{key}\" (CSV)", { key: sv.key })} title={tr("Export the points of \"{key}\" (CSV)", { key: sv.key })} style={iconBtn} onClick={() => exportSurvey(sv.key)}><Download size={12} aria-hidden="true" /></button>{/* #1094 */}
@@ -2019,7 +2094,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     {Object.entries(Z_MEANINGS).map(([k, label]) => <option key={k} value={k}>{tr(label)}</option>)}{/* #1974 */}
                   </select>
                   {/* TASKS.csv #1985 — gridded on one level with equivalent sources (Harmonica, in the Python engine) */}
-                  {!["euler_depth", "mt_bostick", "lidar", "em1d_cond"].includes(meta.method) /* derived points at depth, not readings; lidar: #1994; em1d_cond: #1986 */ && <button type="button" onClick={() => setEqsFor(eqsFor === sv.key ? null : sv.key)} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Grid the readings on one level with equivalent sources (Harmonica): readings at different heights come out on a level surface, and a higher level continues the survey upward")}>{tr("Grid with equivalent sources…")}</button>}
+                  {/* TASKS.csv #3321 — not for a survey that is not a potential field (IP, resistivity, EM, radiometrics ...): said in one line */}
+                  {eqsApplies(meta.method) === "no" && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 5, lineHeight: 1.4 }}>{tr("Equivalent sources: for magnetic and gravity surveys only (a field measured on or above the ground); this survey is {label}.", { label: tr(SURVEY_METHODS[meta.method]?.label || meta.method) })}</div>}
+                  {(eqsApplies(meta.method) === "ok" || eqsApplies(meta.method) === "assume") /* derived points at depth (Euler, Niblett-Bostick, lidar, FDEM models): no button, as before */ && <button type="button" onClick={() => setEqsFor(eqsFor === sv.key ? null : sv.key)} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Grid the readings on one level with equivalent sources (Harmonica): readings at different heights come out on a level surface, and a higher level continues the survey upward")}>{tr("Grid with equivalent sources…")}</button>}
                   {eqsFor === sv.key && <Suspense fallback={null}><EqsGridBox survey={sv.key} rows={rows} units={meta.units || ""} method={meta.method || null} /* #2639 */ addRaster={addRaster} defaultElevation={defaultElevation} numInput={numInput} pBtn={pBtn} /></Suspense>}
                   {/* TASKS.csv #1985 — free-air and Bouguer anomalies of a gravity survey (or of values that look like absolute gravity) */}
                   {(["grav", "grav_fa"].includes(meta.method) || (Number.isFinite(sv.min) && sv.min > 900000)) && <button type="button" onClick={() => setGravFor(gravFor === sv.key ? null : sv.key)} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Free-air anomaly (observed less normal gravity) and Bouguer anomaly (less the Bouguer plate or the terrain's gravity), in the Python engine")}><Scale size={14} />{tr("Gravity reductions…")}</button>}
@@ -2180,7 +2257,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             {(manySurveys ? legendRange.min : min) !== null && (
               <div style={{ color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>{tr("Value range: {min} – {max}", { min: (manySurveys ? legendRange.min : min).toLocaleString(), max: (manySurveys ? legendRange.max : max).toLocaleString() })}{manySurveys && geophysSurveys[legendKey]?.units ? ` ${geophysSurveys[legendKey].units}` : ""}</div>
             )}
-            {min !== null && (manySurveys ? legendMeta?.min == null && legendMeta?.max == null : geophysPtsMin == null && geophysPtsMax == null) && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", marginTop: 2, lineHeight: 1.4 }}>{tr("Colours use the 2–98 percentile of the values, so a few extreme readings do not wash out the map. Edit a limit to change it.")}</div>/* #1177 */}
+            {min !== null && (ownLegend ? legendMeta?.min == null && legendMeta?.max == null : geophysPtsMin == null && geophysPtsMax == null) && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", marginTop: 2, lineHeight: 1.4 }}>{tr("Colours use the 2–98 percentile of the values, so a few extreme readings do not wash out the map. Edit a limit to change it.")}</div>/* #1177 */}
             {/* TASKS.csv #122 — same graduated/classed symbology (user-defined class breaks, adjustable
                 palette) voxel models already have, reused directly: geophysPtsModel below is shaped
                 exactly like a real voxel model ({min,max,colorMode,stops,cells}) so VoxelLegendEditor
@@ -2188,7 +2265,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 unchanged. geophysPtsOnUpdate routes its onUpdate(id, patch) calls to the store fields
                 instead of a per-model update, since geophys_pts is one flat layer, not a list. */}
             {min !== null && (() => { // TASKS.csv #1787 — Linear / Log colour scale for a positive survey (log: viridis on log-spaced stops)
-              const cur = manySurveys ? { min: legendMeta?.min ?? legendDrawn.min, max: legendMeta?.max ?? legendDrawn.max, stops: legendMeta?.stops || [] } : { min: geophysPtsMin ?? drawnRange.min, max: geophysPtsMax ?? drawnRange.max, stops: geophysPtsStops };
+              const cur = ownLegend ? { min: legendMeta?.min ?? legendDrawn.min, max: legendMeta?.max ?? legendDrawn.max, stops: legendMeta?.stops || [] } : { min: geophysPtsMin ?? drawnRange.min, max: geophysPtsMax ?? drawnRange.max, stops: geophysPtsStops };
               if (!((manySurveys ? legendRange.min : min) > 0) || !(cur.min > 0 && cur.max > cur.min)) return null;
               const isLog = isLogSpaced(cur.stops), dec = decadesBetween(cur.min, cur.max);
               return (
@@ -2209,7 +2286,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               <VoxelLegendEditor
                 key={manySurveys ? legendKey : "all"}
                 model={manySurveys
-                  ? { id: "geophys_pts", min: legendMeta?.min ?? legendDrawn.min, max: legendMeta?.max ?? legendDrawn.max, colorMode: legendMeta?.colorMode || "continuous", stops: legendMeta?.stops || [], cells: legendRows } // #1587 — this survey's own legend
+                  ? { id: "geophys_pts", min: legendMeta?.min ?? legendDrawn.min, max: legendMeta?.max ?? legendDrawn.max, colorMode: legendMeta?.colorMode || "continuous", stops: legendMeta?.stops || [], cells: legendRows } // #1587 — this survey's own legend (#3323: also as the only survey)
                   : { id: "geophys_pts", min: geophysPtsMin ?? drawnRange.min, max: geophysPtsMax ?? drawnRange.max, colorMode: geophysPtsColorMode, stops: geophysPtsStops, cells: rows }}
                 onUpdate={ptsLegendUpdate} /* #1787 — the same routing, shared with the colour-scale choice */
               />
@@ -2228,6 +2305,32 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 own guard), so only shown once points exist rather than as a separately-gated button. */}
             <button onClick={() => setSpatialOpen(true)} style={{ ...pBtn, marginTop: 8, marginBottom: 0, justifyContent: "center" }}>
               <Triangle size={14} />{" "}{tr("Spatial analysis (Voronoi / declustering)…")}</button>
+            {/* TASKS.csv #3324 — the survey's value along the holes, as a downhole layer */}
+            <button onClick={() => setHoleOpen((v) => !v)} title={tr("The survey's value along each drillhole (the nearest point, or an inverse-distance mean, within a distance), as a downhole layer that Downhole logs and the strip logs read.")} style={{ ...pBtn, marginTop: 8, marginBottom: 0, justifyContent: "center", background: holeOpen ? "var(--color-selected-bg)" : undefined }}>
+              <Waypoints size={14} />{" "}{tr("Sample along the drillholes…")}</button>
+            {holeOpen && (
+              <div style={{ marginTop: 8, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
+                {!holeShape?.is3D ? <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", lineHeight: 1.5 }}>{tr("\"{key}\" is a surface survey: its points lie on the ground, so only the top of a hole passes near them. Sampling along the holes is for a 3D point cloud (an inversion model or a pseudo-section imported as points).", { key: legendKey })}</div> : <>
+                  <div style={{ color: "var(--color-text-secondary)", marginBottom: 8, lineHeight: 1.5 }}>{tr("\"{key}\" along each hole: at every step down the hole, the value of the nearest point within the distance (or the inverse-distance mean of the points within it). Steps farther than that from every point are left empty.", { key: legendKey })}</div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+                    <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Distance (m)")}</span>
+                    <input type="number" min="0.1" step="any" value={holeOpts.dist} placeholder={holeSuggest ? String(holeSuggest.maxDist) : "25"} onChange={(e) => setHoleOpts((o) => ({ ...o, dist: e.target.value }))} style={numInput} aria-label={tr("Search distance from the hole")} />
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+                    <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Step (m)")}</span>
+                    <input type="number" min="0.1" step="any" value={holeOpts.step} placeholder={holeSuggest ? String(holeSuggest.step) : "5"} onChange={(e) => setHoleOpts((o) => ({ ...o, step: e.target.value }))} style={numInput} aria-label={tr("Step down the hole")} />
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+                    <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Value")}</span>
+                    <select value={holeOpts.mode} onChange={(e) => setHoleOpts((o) => ({ ...o, mode: e.target.value }))} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label={tr("Value taken at each step")}>
+                      <option value="nearest">{tr("Nearest point")}</option><option value="idw">{tr("Inverse-distance mean")}</option>
+                    </select>
+                  </div>
+                  {holeSuggest && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{holeSuggest.sectionSpacing ? tr("Defaults from the cloud's spacing: its points lie on sections about {l} m apart, so the distance is three quarters of that, which reaches the nearer section from a hole between two; the step is a quarter of the {s} m point spacing.", { l: Math.round(holeSuggest.sectionSpacing), s: +holeSuggest.spacing.toFixed(1) }) : tr("Defaults from the cloud's spacing ({s} m): a distance of 1.5 spacings and a step of a quarter spacing.", { s: +holeSuggest.spacing.toFixed(1) })}</div>}
+                  <button disabled={holeBusy} onClick={() => sampleSurveyAlongHoles(legendKey)} style={{ ...pBtn, marginTop: 4, marginBottom: 0, justifyContent: "center" }}>{holeBusy ? tr("Sampling…") : tr("Add as a downhole layer")}</button>
+                </>}
+              </div>
+            )}
             {/* TASKS.csv #235 — grid this point cloud into a raster (inverse-distance weighting), pure JS. */}
             <button onClick={() => setIdwOpen((v) => !v)} style={{ ...pBtn, marginTop: 8, marginBottom: 0, justifyContent: "center", background: idwOpen ? "var(--color-selected-bg)" : undefined }}>
               <Box size={14} />{" "}{tr("Grid to raster (IDW, minimum curvature, spline)…")}</button>
@@ -2245,18 +2348,19 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     <div style={{ color: "var(--color-warn-text)", fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 4 }}>{tr("This is a 3D point cloud, not a surface survey: {n} points from {lo} to {hi} m elevation (within a plan cell their elevations spread {k}× the cell). A raster flattens every depth into one value per cell, so grid one depth slice at a time.", { n: idwShape.n.toLocaleString(), lo: Math.round(idwShape.zMin).toLocaleString(), hi: Math.round(idwShape.zMax).toLocaleString(), k: idwShape.spread.toFixed(0) })}</div>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                       <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Slice z (m)")}</span>
-                      <input type="number" step="any" value={idwZ.lo} placeholder={String(Math.round(idwShape.zMin))} onChange={(e) => setIdwZ((z) => ({ ...z, lo: e.target.value }))} style={{ ...numInput, width: 80 }} aria-label={tr("Lowest elevation of the slice")} />
+                      <input type="number" step="any" value={idwZ.lo} placeholder={String(idwZAuto ? idwSliceProp.lo : Math.round(idwShape.zMin))} onChange={(e) => setIdwZ((z) => ({ ...z, lo: e.target.value }))} style={{ ...numInput, width: 80 }} aria-label={tr("Lowest elevation of the slice")} />
                       <span style={{ color: "var(--color-text-muted)" }}>{tr("to")}</span>
-                      <input type="number" step="any" value={idwZ.hi} placeholder={String(Math.round(idwShape.zMax))} onChange={(e) => setIdwZ((z) => ({ ...z, hi: e.target.value }))} style={{ ...numInput, width: 80 }} aria-label={tr("Highest elevation of the slice")} />
+                      <input type="number" step="any" value={idwZ.hi} placeholder={String(idwZAuto ? idwSliceProp.hi : Math.round(idwShape.zMax))} onChange={(e) => setIdwZ((z) => ({ ...z, hi: e.target.value }))} style={{ ...numInput, width: 80 }} aria-label={tr("Highest elevation of the slice")} />
                       <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)" }}>{tr("{n} points in the slice", { n: idwSlice.length.toLocaleString() })}</span>
                     </div>
+                    {idwZAuto && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginTop: 4 }}>{/* #3322 */}{idwSliceProp.layered ? tr("Proposed: the level at {z} m, the one with the most points ({n}); the levels are {g} m apart. Type other elevations to grid another slice.", { z: idwSliceProp.z.toLocaleString(), n: idwSliceProp.n.toLocaleString(), g: +idwSliceProp.gap.toFixed(2) }) : tr("Proposed: the {t} m band with the most points. Type other elevations to grid another slice.", { t: idwSliceProp.thickness.toLocaleString() })}</div>}
                   </div>
                 )}
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Cell size")}</span>
                   <input type="number" min="0.1" step="any" value={idwCellText} placeholder={String(idwAutoCell)} onChange={(e) => setIdwCellText(e.target.value)} style={numInput} aria-label={tr("Cell size")} />
                 </div>
-                {idwSuggest && idwCellText === "" && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{tr("Cell {c} m by default: a quarter to a half of the median spacing ({s} m).", { c: idwAutoCell, s: idwSuggest.spacing.toFixed(1) })}</div>}{/* #2562 */}
+                {idwSuggest && idwCellText === "" && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{idwSuggest.capped ? tr("Cell {c} m by default: the smallest round cell that keeps the grid under 4 million cells ({s} m, a quarter of the median spacing, would make it too large).", { c: idwAutoCell, s: idwSuggest.spacingCell }) /* #3322 */ : tr("Cell {c} m by default: a quarter to a half of the median spacing ({s} m).", { c: idwAutoCell, s: idwSuggest.spacing.toFixed(1) })}</div>}{/* #2562 */}
                 {idwMethod === "idw" && <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }} title={tr("How sharply influence falls off with distance — higher means nearer points dominate more.")}>{tr("Power")}</span>
                   <input type="number" min="0.5" step="0.5" value={idwPower} onChange={(e) => setIdwPower(Math.max(0.5, Number(e.target.value) || 2))} style={numInput} />
@@ -2276,9 +2380,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 )}
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }} title={tr("Cells farther than this from every point are left empty (transparent) instead of extrapolated. Default: 1.5x the median spacing between lines (2x the station spacing for scattered stations). 0 = fill everything.")}>
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Blank > (m)")}</span>
-                  <input type="number" min="0" step="any" value={idwBlank} placeholder={idwSuggest ? String(Math.round(idwSuggest.distance)) : "none"} onChange={(e) => setIdwBlank(e.target.value)} style={numInput} aria-label={tr("Blanking distance")} />
+                  <input type="number" min="0" step="any" value={idwBlank} placeholder={idwSuggest ? String(Math.round(idwAutoBlank)) : "none"} onChange={(e) => setIdwBlank(e.target.value)} style={numInput} aria-label={tr("Blanking distance")} />
                 </div>
-                {idwSuggest && idwBlank === "" && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{tr("Default {v} m: median {basis} {spacing} m.", { v: Math.round(idwSuggest.distance), basis: idwSuggest.basis, spacing: idwSuggest.spacing.toFixed(1) })}</div>}
+                {idwSuggest && idwBlank === "" && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{idwAutoBlank > idwSuggest.distance + 1e-9 ? tr("Default {v} m: 1.5 cells of {c} m (the spacing alone would give {d} m, which leaves most cells empty at this cell size).", { v: Math.round(idwAutoBlank), c: idwCellSize, d: Math.round(idwSuggest.distance) }) /* #3322 */ : idwSuggest.linesEstimated ? tr("Default {v} m: 1.5 times the spacing between lines, about {spacing} m (estimated: the file has no line column, and its stations are {along} m apart along the lines).", { v: Math.round(idwAutoBlank), spacing: Math.round(idwSuggest.spacing), along: +idwSuggest.alongSpacing.toFixed(1) }) /* #3322 */ : idwSuggest.basis === "line spacing" ? tr("Default {v} m: 1.5 times the median line spacing, {spacing} m.", { v: Math.round(idwAutoBlank), spacing: idwSuggest.spacing.toFixed(1) }) : tr("Default {v} m: twice the median station spacing, {spacing} m.", { v: Math.round(idwAutoBlank), spacing: idwSuggest.spacing.toFixed(1) })}</div>}
                 {/* TASKS.csv #372 — colour stretch */}
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }} title={tr("Percentile clip: the 2nd-98th percentile spans the colours, extremes saturate (default). Equalize: every colour covers the same number of cells (shows texture; colour no longer scales with value). Linear: min to max (a few extreme values squeeze everything else into one colour).")}>
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Colours")}</span>
@@ -2296,12 +2400,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     if (!pts.length) { setError(tr("No points in that elevation slice.")); return; }
                     // TASKS.csv #2557 — a single traverse became an 80 x 1 'grid' that RTP then filtered as a map
                     if (pointsAlongOneLine(pts, idwCellSize)) { setError(tr("The {n} points lie along one line: a grid of them is a single row of cells, which the map filters (RTP, derivatives…) would treat as a map. Plot the line as a profile instead.", { n: pts.length.toLocaleString() })); return; }
-                    const sliceTag = idwShape?.is3D ? ` z ${idwZ.lo === "" ? Math.round(idwShape.zMin) : idwZ.lo}–${idwZ.hi === "" ? Math.round(idwShape.zMax) : idwZ.hi} m` : "";
+                    const sliceTag = idwShape?.is3D ? ` z ${Number.isFinite(idwZLo) ? +idwZLo.toFixed(2) : Math.round(idwShape.zMin)}–${Number.isFinite(idwZHi) ? +idwZHi.toFixed(2) : Math.round(idwShape.zMax)} m` : ""; // #3322 — the proposed slice too
                     const xs = pts.map((r) => r.x), ys = pts.map((r) => r.y);
                     const { xmin, xmax, ymin, ymax } = snappedGridExtent({ xmin: arrMin(xs), xmax: arrMax(xs), ymin: arrMin(ys), ymax: arrMax(ys) }, idwCellSize); // #2872 — nodes on multiples of the cell, every station inside
                     const gridW = Math.round((xmax - xmin) / idwCellSize), gridH = Math.round((ymax - ymin) / idwCellSize);
                     if (gridW * gridH > 4_000_000) { setError(tr("That cell size would produce a {gridW}×{gridH} grid — too large. Use a bigger cell size.", { gridW, gridH })); return; }
-                    const blank = idwBlank === "" ? idwSuggest?.distance ?? Infinity : Number(idwBlank) > 0 ? Number(idwBlank) : Infinity; // #538
+                    const blank = idwBlank === "" ? idwAutoBlank ?? Infinity : Number(idwBlank) > 0 ? Number(idwBlank) : Infinity; // #538; #3322 — at least 1.5 cells
                     const label = surveyLabel(idwKey); // #2559 — 'file.csv · K_pct' kept its channel ('[^.]+$' took '.csv · K_pct' off)
                     const tag = gridMethodTag(idwMethod, idwTension); // #2846
                     const gName = uniqueName(`${label}${sliceTag} ${tag} ${idwCellSize} m${Number.isFinite(blank) ? `, blanked > ${Math.round(blank)} m` : ""}`, rasters.map((x) => x.name)); // sliceTag: #1783; uniqueName: #2562
@@ -2340,7 +2444,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     // the points have no z.
                     const ptsZs = pts.map((r) => r.z).filter(Number.isFinite), ptsZ = ptsZs.length ? median(ptsZs) : null;
                     const gridElev = ptsZ != null ? ptsZ : defaultElevation;
-                    addRaster({ ...raster, elevation: gridElev, provenance: { tool: idwMethod === "mincurv" ? "Point survey gridding (minimum curvature with tension)" : idwMethod === "spline" ? "Point survey gridding (Verde biharmonic spline on block medians, damping by blocked cross-validation)" : "IDW gridding", survey: idwKey, points: pts.length, cellM: idwCellSize, ...(idwMethod === "idw" ? { power: idwPower } : how) /* #2846 */, blankingM: Number.isFinite(blank) ? Math.round(blank) : null, blankingBasis: idwBlank === "" && idwSuggest ? `1.5x / 2x the median ${idwSuggest.basis} (${idwSuggest.spacing.toFixed(1)} m)` : "entered" }, surveyMethod: geophysSurveys?.[idwKey]?.method || undefined, units: geophysSurveys?.[idwKey]?.units || undefined /* #2557 */ });
+                    addRaster({ ...raster, elevation: gridElev, provenance: { tool: idwMethod === "mincurv" ? "Point survey gridding (minimum curvature with tension)" : idwMethod === "spline" ? "Point survey gridding (Verde biharmonic spline on block medians, damping by blocked cross-validation)" : "IDW gridding", survey: idwKey, points: pts.length, cellM: idwCellSize, ...(idwMethod === "idw" ? { power: idwPower } : how) /* #2846 */, blankingM: Number.isFinite(blank) ? Math.round(blank) : null, blankingBasis: idwBlank === "" && idwSuggest ? (idwAutoBlank > idwSuggest.distance + 1e-9 ? `1.5 cells (${idwCellSize} m)` : `1.5x / 2x the median ${idwSuggest.basis} (${idwSuggest.spacing.toFixed(1)} m)`) : "entered" }, surveyMethod: geophysSurveys?.[idwKey]?.method || undefined, units: geophysSurveys?.[idwKey]?.units || undefined /* #2557 */ });
                     const cells = raster.grid.nx * raster.grid.ny;
                     // TASKS.csv #2075 (review #2013, Geophysics) — where the raster is drawn: Woodjam's n = 1 grid went flat at 965 m (the collars' median,
                     // 10 km away) while its ground is 1,062-1,116 m, and nothing said so
@@ -2443,11 +2547,20 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         <input ref={lidarInput} type="file" accept=".las,.laz" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) openLidar(f); e.target.value = ""; }} />
         {lidarPending && <LidarImportBox key={lidarPending.file.name + lidarPending.file.size} pending={lidarPending} projectEpsg={lidarPending.epsg} busy={lidarBusy} onImport={confirmLidar} onCancel={() => setLidarPending(null)} btn={pBtn} />}
         {projectZPoints.points.length >= 3 && (
-          <button onClick={terrainFromProject} style={{ ...pBtn, marginTop: 6 }} disabled={terrainBusy}
+          <button onClick={terrainFromProject} style={{ ...pBtn, marginTop: 6 }} disabled={terrainBusy || zCount < 3}
             title={tr("Triangulates the elevations the project's surface samples and drill collars already carry: offline, no file needed. Only as good as those elevations (GPS heights are rough).")}>
-            <Triangle size={14} /> {tr("Terrain from this project's samples and collars ({n})", { n: projectZPoints.points.length.toLocaleString() })}
+            <Triangle size={14} /> {tr("Terrain from this project's samples and collars ({n})", { n: zCount.toLocaleString() })}
           </button>
         )}{/* TASKS.csv #1599 */}
+        {projectZPoints.points.length >= 3 && zBoth && ( /* TASKS.csv #3381 */
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("From")}
+            <select value={zSource} onChange={(e) => setZSource(e.target.value)} aria-label={tr("Elevations the terrain is built from")} style={{ flex: 1, minWidth: 0 }}>
+              <option value="both">{tr("Samples and collars ({s} + {c})", { s: projectZPoints.samples.toLocaleString(), c: projectZPoints.collars.toLocaleString() })}</option>
+              <option value="collars">{tr("Collars only ({c}): surveyed, usually", { c: projectZPoints.collars.toLocaleString() })}</option>
+              <option value="samples">{tr("Samples only ({s}): GPS heights are rough", { s: projectZPoints.samples.toLocaleString() })}</option>
+            </select>
+          </label>
+        )}
         {projectZPoints.collarsOut.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{collarsOutNote(projectZPoints.collarsOut)}</div>}{/* TASKS.csv #2987 */}
         {projectZPoints.points.length >= 3 && benches.n > 0 && ( /* TASKS.csv #2589 */
           <label style={{ display: "block", marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.4 }}>
@@ -2822,6 +2935,22 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             it and see how his own hardware handles it, applies to both the OMF and UBC import sections
             below (both already accepted a maxCells parameter, just previously always the same
             hardcoded default). */}
+        </>)}
+        {geoPane === "em" && (<>{/* TASKS.csv #3400 — EM: which kind of EM survey, each with its help page */}
+          <TaskPaneHeader title="Electromagnetic surveys (EM)" icon={Radio} tone="data" onClose={() => setGeoPane(null)} />
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5, marginBottom: 10 }}>{tr("EM measures how well the ground conducts electricity: massive sulphide, graphite, clay and salt water are conductors. Pick the kind of survey:")}</div>
+          {[
+            { label: tr("FDEM 1D: ground loop-loop (DUALEM, GEM-2)…"), text: tr("Frequency-domain readings along lines: conductivity against depth under each sounding, a 1D inversion."), go: () => setGeoPane("fdem"), help: "fdem-1d" },
+            { label: tr("TEM: one channel as points…"), text: tr("Time-domain EM: reading whole TEM lines (every channel, the decay at a station, a decay-constant grid) is coming. Today one channel (dB/dt, B-field or a decay constant) imports as a point survey."), go: () => { setMethodHint("tem"); setGeoPane("points"); }, help: "point-survey" },
+          ].map((o) => (
+            <div key={o.help} style={{ padding: "8px 10px", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 8, background: "var(--color-bg)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <button type="button" onClick={o.go} style={{ ...pBtn, flex: 1, marginBottom: 0 }}>{o.label}</button>
+                <button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp(o.help)} aria-label={tr("Help: {name}", { name: o.label })} title={tr("Help for this tool (F1, works offline)")}>?</button>
+              </div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45, marginTop: 5 }}>{o.text}</div>
+            </div>
+          ))}
         </>)}
         {geoPane === "mt" && (<Suspense fallback={null}><MtSoundingsPane layers={layers} setLayers={setLayers} geophysSurveys={geophysSurveys} updateGeophysSurvey={updateGeophysSurvey} project={project} setEpsg={setEpsg} projectIsEmpty={projectIsEmpty} pendingFiles={mtDrop} onPendingDone={() => setMtDrop(null)} onClose={() => setGeoPane(null)} /></Suspense>)}{/* TASKS.csv #1989 */}
         {geoPane === "fdem" && (<Suspense fallback={null}><FdemPane layers={layers} setLayers={setLayers} geophysSurveys={geophysSurveys} updateGeophysSurvey={updateGeophysSurvey} project={project} setEpsg={setEpsg} projectIsEmpty={projectIsEmpty} pendingFiles={fdemDrop} onPendingDone={() => setFdemDrop(null)} onClose={() => setGeoPane(null)} /></Suspense>)}{/* TASKS.csv #1986 */}

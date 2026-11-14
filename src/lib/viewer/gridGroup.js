@@ -12,15 +12,18 @@ import { collarsLookUnderground } from "../collarGround.js"; // TASKS.csv #3159:
 import { makeTextSprite } from "./textSprite.js";
 
 // -> { depth (m below the origin the drilling reaches), lift (m the plane sits above the origin), origin { x, y, z } (the mean collar, the
-// viewer's scene origin with collars) } or null without collars
-export function gridPlacement(collars, survey = []) {
+// viewer's scene origin with collars) } or null without collars. traces: the desurveyed holes ({ wz: elevations }), when built
+// TASKS.csv #3355 (WA gold) — the depth from the traces' lowest point: each hole's collar dip x length put deep deviated holes below the frame
+export const tracesLowest = (traces) => { let lo = Infinity; for (const t of traces || []) for (const z of t?.wz || []) if (z < lo) lo = z; return lo; };
+export function gridPlacement(collars, survey = [], traces = null) {
   const cs = (collars || []).filter((c) => [c.x, c.y, c.z].every((v) => Number.isFinite(Number(v))));
   if (!cs.length) return null;
   const mean = (k) => cs.reduce((s, c) => s + Number(c[k]), 0) / cs.length;
   const origin = { x: mean("x"), y: mean("y"), z: mean("z") };
   const top = Math.max(...cs.map((c) => Number(c.z)));
   const lift = cs.length > 1 && collarsLookUnderground(cs.length === collars.length ? collars : cs, survey).underground ? top - origin.z : 0; // the store's array when none was left out: the answer is kept per array (#2798)
-  return { depth: drillDepthBelowOrigin(cs), lift, origin, top, auto: autoGridSize(cs) }; // top: the highest collar's RL (#3277)
+  const low = tracesLowest(traces);
+  return { depth: Number.isFinite(low) ? Math.max(0, origin.z - low) : drillDepthBelowOrigin(cs), lift, origin, top, auto: autoGridSize(cs) }; // top: the highest collar's RL (#3277)
 }
 
 // TASKS.csv #3277 (Galore review) — collars from RL 456 to 1,596 under a 2,000 m horizontal cell: the plane snapped to RL 0 and the walls hung

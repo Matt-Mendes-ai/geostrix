@@ -36,6 +36,7 @@ import { codeIndex, codeAt, NO_CODE } from "../lib/sampleLithology.js"; // TASKS
 import { labelMargin, fitLabel } from "../lib/fitLabel.js"; // TASKS.csv #2714
 import { numericSourceChoices } from "../lib/numericSources.js"; // TASKS.csv #2672
 import { logClasses, logClassRank, NO_READING } from "../lib/logClasses.js"; // TASKS.csv #2672
+import { DISPLAY_UNITS, isPlainUnit, displayFactor, toDisplay, fromDisplay } from "../lib/displayUnits.js"; // TASKS.csv #3236
 import { overlapMeans, aboveCutoffRows, parseCutoffs, defaultCutoffs, gradeStatsCsvRows } from "../lib/cutoffTable.js"; // TASKS.csv #2912; csv: #3069
 import { interceptCutoffFor } from "../lib/interceptCutoff.js"; // TASKS.csv #3069
 import { drillThresholdOffers, sortedThresholdOffers } from "../lib/thresholds.js"; // TASKS.csv #3069 — the saved drill thresholds, offered as in Best intercepts; sorted: #3160
@@ -117,7 +118,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
-  const { project, geochemThresholds = [] } = useStore(); // #1099 — the CRS line of the export stamp; geochemThresholds: #3069
+  const { project, geochemThresholds = [], setDisplayUnit } = useStore(); // #1099 — the CRS line of the export stamp; geochemThresholds: #3069; setDisplayUnit: #3236
   // TASKS.csv #228 — surface geochemistry has no downhole domain (litho/alt/etc are interval layers
   // tied to hole_id/from/to, which surface samples don't have) but DOES have its own natural grouping
   // dimension, sampling medium (soil/rock chip/stream sediment/...), so "source" picks which dataset
@@ -159,7 +160,15 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   // below-detection row already halved by parseAssayValue's "<" handling, are excluded from the log
   // view specifically rather than silently breaking the whole chart). Surface samples group by their
   // own sampling medium instead of a downhole domain layer — see `source`'s own comment above.
-  const rows = useMemo(() => {
+  // TASKS.csv #3236 — the element in the project's display unit (project.displayUnits, the same choice as Best intercepts): every row's value
+  // is converted once, so the statistics, plots, cut-offs and the cap test are all in it and say so; the stored values are unchanged
+  const storedUnit = (source === "surface" ? surfaceElementUnits[symbol] : elementUnits[symbol]) || "ppm";
+  const chosenUnit = project?.displayUnits?.[symbol];
+  const shownUnit = isPlainUnit(storedUnit) && isPlainUnit(chosenUnit) ? chosenUnit : null;
+  const dk = shownUnit ? displayFactor(storedUnit, shownUnit) : 1;
+  const toShown = (v) => (dk === 1 || v == null ? v : toDisplay(v, storedUnit, shownUnit));
+  const dispLabel = shownUnit || gradeUnitLabel(symbol, storedUnit);
+  const rowsStored = useMemo(() => {
     if (source === "surface") {
       return surfaceSamples.map((s) => {
         const v = valueIn(s, symbol, surfaceElementUnits[symbol] || "ppm", surfaceElementUnits);
@@ -179,6 +188,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
       return { value: s.value, weight: s.to - s.from, domain, lt: s.lt }; // weight: #267; lt (every result '<'): #2505
     });
   }, [source, surfaceSamples, statsAssays, symbol, elementUnits, surfaceElementUnits, domainIdx, domainKey, covLog, storeLayers, customLayers]); // covLog: #2672
+  const rows = useMemo(() => (dk === 1 ? rowsStored : rowsStored.map((r) => ({ ...r, value: toDisplay(r.value, storedUnit, shownUnit) }))), [rowsStored, dk, storedUnit, shownUnit]); // #3236
 
   // TASKS.csv #267 — weighting only applies to drillhole assays (surface samples have no interval
   // length), and only when every row in the group actually has a usable length.
@@ -187,7 +197,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   // file) is below detection here too, as in Thresholds; zeros below the minimum make it the reporting step instead, in both
   // #3083 — on the file's results, not on the resolved segments (an average of a '<' row and a result fell below the floor and hid it)
   const ltFloor = useMemo(() => (source === "surface" ? fileCensoring(surfaceSamples, symbol, surfaceElementUnits[symbol] || "ppm", surfaceElementUnits) : fileCensoring(statsAssays, symbol, elementUnits[symbol] || "ppm", elementUnits)).floor, [source, surfaceSamples, statsAssays, symbol, elementUnits, surfaceElementUnits]);
-  const isLt = (r) => r.lt || (ltFloor != null && Math.abs(r.value - ltFloor.floor) <= ltFloor.floor * 1e-9);
+  const isLt = (r) => r.lt || (ltFloor != null && Math.abs(r.value - toShown(ltFloor.floor)) <= toShown(ltFloor.floor) * 1e-9); // toShown: #3236 — the rows are in the shown unit
   // TASKS.csv #3243 (split from #3222) — no result flagged '<': the count is a guess from the floor, and the column says so
   const floorOnly = useMemo(() => ltFloor != null && !rows.some((r) => r.lt), [ltFloor, rows]);
   // TASKS.csv #2508 (review #2486) — 'Hole + lithology' on 2,248 holes: 5,938 groups, a table row and a box plot each, froze the window 1.6-3.8 s.
@@ -231,7 +241,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   const capValue = capTest === "" ? null : Number(capTest);
   const capFx = Number.isFinite(capValue) && capValue > 0 ? capEffect(prob.vs, prob.ws, capValue) : null;
   // #1676 — the warning Compositing gives, with the zone the capped samples form (drillhole assays only: surface samples have no depth)
-  const capWarn = useMemo(() => (capFx ? capWarningText(capFx.pctMetalRemoved, source === "assays" ? capAboveZone(resolvedSegments(statsAssays, symbol, elementUnits[symbol] || "ppm", elementUnits), capValue) : null) : ""), [capFx?.pctMetalRemoved, capValue, source, statsAssays, symbol, elementUnits]);
+  const capWarn = useMemo(() => (capFx ? capWarningText(capFx.pctMetalRemoved, source === "assays" ? capAboveZone(resolvedSegments(statsAssays, symbol, elementUnits[symbol] || "ppm", elementUnits), dk === 1 ? capValue : fromDisplay(capValue, storedUnit, shownUnit) /* #3236 — the segments are stored */) : null) : ""), [capFx?.pctMetalRemoved, capValue, source, statsAssays, symbol, elementUnits]);
   // TASKS.csv #2912 — the cut-off table: the user's cut-offs (the data's median / Q3 / P90 until typed) and the 'Also show' elements' means
   const [cutText, setCutText] = useState("");
   const [alsoSyms, setAlsoSyms] = useState([]);
@@ -245,12 +255,12 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
     if (source !== "assays" || !symbol) return [];
     const unit = elementUnits[symbol] || "ppm", out = [];
     const bi = interceptCutoffFor(project?.name, symbol, unit);
-    if (bi != null) out.push({ key: "bi", value: bi, label: tr("Best intercepts {v}", { v: +bi.toPrecision(4) }), title: tr("The cut-off last set in Best intercepts for {symbol}. Click to add it.", { symbol }) });
+    if (bi != null) out.push({ key: "bi", value: toShown(bi) /* #3236 */, label: tr("Best intercepts {v}", { v: +toShown(bi).toPrecision(4) }), title: tr("The cut-off last set in Best intercepts for {symbol}. Click to add it.", { symbol }) });
     // the highest four: #3160. A trailing comment here once swallowed the push, so the loop's body was the return: undefined with no saved
     // threshold (Grade stats closed on cutOffers.length), the first offer never added with one
-    for (const o of sortedThresholdOffers(drillThresholdOffers(geochemThresholds, symbol, unit)).slice(0, 4)) out.push({ key: "t:" + o.key, value: o.value, label: `${o.population ? `${o.population.split(": ").pop()} ` : ""}${+Number(o.value).toPrecision(4)}`, title: tr("{rule}{pop}, decided {date}. Click to add it.", { rule: o.rule, pop: o.population ? ` (${o.population})` : "", date: o.decided }) });
+    for (const o of sortedThresholdOffers(drillThresholdOffers(geochemThresholds, symbol, unit)).slice(0, 4)) out.push({ key: "t:" + o.key, value: toShown(o.value) /* #3236 */, label: `${o.population ? `${o.population.split(": ").pop()} ` : ""}${+Number(toShown(o.value)).toPrecision(4)}`, title: tr("{rule}{pop}, decided {date}. Click to add it.", { rule: o.rule, pop: o.population ? ` (${o.population})` : "", date: o.decided }) });
     return out.filter((o, i, a) => a.findIndex((p) => p.value === o.value) === i);
-  }, [source, symbol, elementUnits, project?.name, geochemThresholds]);
+  }, [source, symbol, elementUnits, project?.name, geochemThresholds, dk]); // dk: #3236
   const addCutoff = (v) => setCutText([...new Set([...cutoffs, v])].sort((a, b) => a - b).join(", "));
   const cutRows = useMemo(() => {
     if (!rows.length || !cutoffs.length) return [];
@@ -285,11 +295,12 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
 
   const exportCSV = () => {
     // TASKS.csv #1099 — the unit in the column names and a provenance stamp, as every other estimation-adjacent CSV (#404)
-    const unit = (source === "surface" ? surfaceElementUnits[symbol] : elementUnits[symbol]) || "ppm";
+    const unit = shownUnit || storedUnit; // #3236 — the unit the values are in
     const domainRows = gradeStatsRows(groups, { unit, label: (k) => (domainKey === "litho" ? domainLabel(k) : k), weighted: weightingActive }); // #1083 — rows in lib, tested
     const alsoUnits = Object.fromEntries(alsoShown.map((x) => [x, (source === "surface" ? surfaceElementUnits : elementUnits)[x] || "ppm"]));
     const rowsOut = gradeStatsCsvRows(domainRows, cutRows, { unit, alsoUnits, lengths: source === "assays", weighted: weightingActive }); // #3069 — and the Above cut-off table
     const stamp = stampLines({ tool: "Grade statistics", version: APP_VERSION, epsg: stampEpsg(project) /* #2195 */, params: [
+      ...(dk !== 1 ? [`Display unit: every ${symbol} value in this file is in ${shownUnit} (stored in ${storedUnit}); the other elements' columns are in their stored units`] : []), // #3236
       `Element: ${symbol} (${unit}) | source: ${source === "surface" ? "surface samples (one sample = weight 1)" : "drillhole assays"} | domains: ${domainKey ? domainName(domainKey) : "none (all samples)"}`,
       `Basis: ${weightingActive ? "length-weighted (interval length)" : "unweighted arithmetic"}; sample (n-1) variance`,
       ...(source === "surface" ? [] : [
@@ -345,6 +356,11 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                 {activeElements.map((e) => <option key={e.symbol} value={e.symbol}>{elementOptionLabel(e.symbol, e.unit) /* #2914 */}</option>)}
               </select>
             </label>
+            {isPlainUnit(storedUnit) && typeof setDisplayUnit === "function" && <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("The unit {symbol} is shown in, kept with the project and shared with Best intercepts. The stored values are unchanged; the cut-offs and the cap are typed in the unit shown.", { symbol })}>{tr("Show in")}
+              <select value={shownUnit || ""} onChange={(e) => setDisplayUnit(symbol, e.target.value || null)} style={{ ...sel, display: "block", marginTop: 4 }} aria-label={tr("Show in")}>
+                <option value="">{tr("As stored ({unit})", { unit: gradeUnitLabel(symbol, storedUnit) })}</option>
+                {DISPLAY_UNITS.filter((u) => u !== gradeUnitLabel(symbol, storedUnit)).map((u) => <option key={u} value={u}>{u}</option>)}
+              </select></label>}{/* TASKS.csv #3236 */}
             {source === "assays" && symbol && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr("n counts the samples with a {symbol} result, each metre once; a sample takes the domain code it overlaps most.", { symbol })}</div>}{/* TASKS.csv #2752 */}
             {source === "assays" ? (
               <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Domain (optional)")}<select value={domainKey} onChange={(e) => setDomainKey(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
@@ -382,29 +398,29 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
           ) : (
             <>
               <div>
-                <div style={label}>{tr("Distribution — {symbol} ({v}){v2}", { symbol, v: gradeUnitLabel(symbol, elementUnits[symbol]), v2: logScale ? tr(", log₁₀ scale") : "" })}</div>
-                <Histogram data={histogram} unit={gradeUnitLabel(symbol, elementUnits[symbol])} logScale={logScale} />
+                <div style={label}>{tr("Distribution — {symbol} ({v}){v2}", { symbol, v: dispLabel, v2: logScale ? tr(", log₁₀ scale") : "" })}</div>
+                <Histogram data={histogram} unit={dispLabel} logScale={logScale} />
                 {logScale && histogram?.leftOut > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("{n} zero or negative values are not on the log scale.", { n: histogram.leftOut.toLocaleString() })}</div>}
               </div>
 
               <div>
                 <div style={label}>{tr("By domain — {groups} {v}", { groups: groups.length, v: tr(groups.length === 1 ? "group" : "groups") })}</div>
-                <BoxPlots groups={shownGroups} domainLabel={domainLabel} logScale={logScale} unit={gradeUnitLabel(symbol, elementUnits[symbol])} />
+                <BoxPlots groups={shownGroups} domainLabel={domainLabel} logScale={logScale} unit={dispLabel} />
                 {groups.length > SHOWN_MAX && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("The {shown} largest of {n} groups are drawn and listed; {more} more are in the CSV export.", { shown: SHOWN_MAX, n: groups.length.toLocaleString(), more: (groups.length - SHOWN_MAX).toLocaleString() })}</div>}{/* #2508 */}
               </div>
 
               {/* TASKS.csv #1388 */}
               <div>
-                <div style={label}>{logScale ? tr("Log-probability plot — {symbol} ({v}){v2}", { symbol, v: gradeUnitLabel(symbol, elementUnits[symbol]) /* #2192 */, v2: weightingActive ? tr(", length-weighted") : "" }) : tr("Probability plot — {symbol} ({v}){v2}", { symbol, v: gradeUnitLabel(symbol, elementUnits[symbol]), v2: weightingActive ? tr(", length-weighted") : "" }) /* #2912 */}</div>
-                <ProbPlot prob={prob} cap={capFx ? capValue : null} domainLabel={domainLabel} unit={gradeUnitLabel(symbol, elementUnits[symbol])} />
+                <div style={label}>{logScale ? tr("Log-probability plot — {symbol} ({v}){v2}", { symbol, v: dispLabel /* #2192 */, v2: weightingActive ? tr(", length-weighted") : "" }) : tr("Probability plot — {symbol} ({v}){v2}", { symbol, v: dispLabel, v2: weightingActive ? tr(", length-weighted") : "" }) /* #2912 */}</div>
+                <ProbPlot prob={prob} cap={capFx ? capValue : null} domainLabel={domainLabel} unit={dispLabel} />
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>
-                  <span>{tr("P97.5 = {a}, P99 = {b} {unit} (the percentiles Compositing offers as caps)", { a: gradeText(prob.p975), b: gradeText(prob.p99), unit: gradeUnitLabel(symbol, elementUnits[symbol]) })}</span>
-                  {brkAsCap && <button type="button" onClick={() => setCapTest(String(+prob.brk.toPrecision(4)))} style={{ ...sel, cursor: "pointer" }} title={tr("The bend between two populations that the two-line fit finds in the high tail (Sinclair 1976), as Thresholds suggests it. Check it on the plot before using it as a cap.")}>{tr("Test the probability-plot break: {v} {unit}", { v: gradeText(prob.brk), unit: gradeUnitLabel(symbol, elementUnits[symbol]) })}</button>}{/* #2675 */}
+                  <span>{tr("P97.5 = {a}, P99 = {b} {unit} (the percentiles Compositing offers as caps)", { a: gradeText(prob.p975), b: gradeText(prob.p99), unit: dispLabel })}</span>
+                  {brkAsCap && <button type="button" onClick={() => setCapTest(String(+prob.brk.toPrecision(4)))} style={{ ...sel, cursor: "pointer" }} title={tr("The bend between two populations that the two-line fit finds in the high tail (Sinclair 1976), as Thresholds suggests it. Check it on the plot before using it as a cap.")}>{tr("Test the probability-plot break: {v} {unit}", { v: gradeText(prob.brk), unit: dispLabel })}</button>}{/* #2675 */}
                   <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Cap to test")}<input type="number" min="0" step="any" value={capTest} onChange={(e) => setCapTest(e.target.value)} style={{ ...sel, width: 80 }} aria-label={tr("Cap to test")} /></label>
                   {capFx && <span>{weightingActive ? tr("{above} of {n} samples above it; {pct}% of the metal (grade × length) removed", { above: capFx.above, n: capFx.n, pct: capFx.pctMetalRemoved.toFixed(1) }) : tr("{above} of {n} samples above it", { above: capFx.above, n: capFx.n })}</span>}
                 </div>
                 {capWarn && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text-strong)", marginTop: 3, lineHeight: 1.4 }}>{capWarn}</div>}{/* #1676 */}
-                {prob.brk > 0 && !brkAsCap && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 3, lineHeight: 1.4 }}>{prob.log ? tr("The probability-plot break ({v} {unit}) lies below the median, so it is not offered as a cap: it separates two populations rather than marking a high-grade tail.", { v: gradeText(prob.brk), unit: gradeUnitLabel(symbol, elementUnits[symbol]) }) : tr("These values are not strongly skewed, so the probability-plot break ({v} {unit}) is not offered as a cap: on such a grade a step usually separates two populations, not outliers.", { v: gradeText(prob.brk), unit: gradeUnitLabel(symbol, elementUnits[symbol]) })}</div>}{/* #2912 */}
+                {prob.brk > 0 && !brkAsCap && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 3, lineHeight: 1.4 }}>{prob.log ? tr("The probability-plot break ({v} {unit}) lies below the median, so it is not offered as a cap: it separates two populations rather than marking a high-grade tail.", { v: gradeText(prob.brk), unit: dispLabel }) : tr("These values are not strongly skewed, so the probability-plot break ({v} {unit}) is not offered as a cap: on such a grade a step usually separates two populations, not outliers.", { v: gradeText(prob.brk), unit: dispLabel })}</div>}{/* #2912 */}
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 2, lineHeight: 1.4 }}>{logScale ? tr("Each population plots as a straight line on these axes (log-normal); a bend or a step in the high tail is where a second population starts, the usual place to cap (Sinclair 1976). Values of 0 count in the cumulative % but cannot be drawn on a log axis.") : tr("Arithmetic axes: a normally distributed population plots as a straight line, and a step is where a second population starts. Tick Log scale for a skewed trace element.") /* #2912 */}</div>
               </div>
 
@@ -439,7 +455,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
 
               {/* TASKS.csv #2912 — above each cut-off: what a bulk commodity is read by */}
               <div>
-                <div style={label}>{tr("Above cut-off — {symbol} ({v})", { symbol, v: gradeUnitLabel(symbol, (source === "surface" ? surfaceElementUnits : elementUnits)[symbol]) })}</div>
+                <div style={label}>{tr("Above cut-off — {symbol} ({v})", { symbol, v: dispLabel })}</div>
                 <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}>
                   <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Cut-offs")}<input type="text" value={cutText} onChange={(e) => setCutText(e.target.value)} placeholder={cutDefaults.join(", ")} style={{ ...sel, width: 140 }} aria-label={tr("Cut-offs")} /></label>
                   <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Also show")}<select value="" onChange={(e) => { const v = e.target.value; if (v) setAlsoSyms((a) => (a.includes(v) ? a : [...a, v])); }} style={sel} aria-label={tr("Also show")}>

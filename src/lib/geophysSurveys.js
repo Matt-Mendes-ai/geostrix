@@ -69,7 +69,8 @@ const WORD_RULES = [
   [/^(uth|u_th)$/, "rad_uth"], [/^(kth|k_th)$/, "rad_kth"], [/^(k|k40|potassium|kpct)$/, "rad_k"], [/^(eth|th|thorium)$/, "rad_th"], [/^(eu|u|uranium)$/, "rad_u"], [/^(tc|totalcount|total|cps|dose)$/, "rad_tc"],
   [/^(vlf|tilt|tiltangle)$/, "vlf_tilt"], [/^(tipper|ztem|tzx|tzy|tzr)$/, "ztem_tipper"], // before the EM channels: a VLF or ZTEM in-phase is still VLF / ZTEM
   [/^(cond|conductivity|sigma|msm|appcond)$/, "em_cond"], [/^(inphase|inph|ip_ppm|real)$/, "em_inphase"], [/^(quad|quadrature|imag)$/, "em_quad"], [/^(dbdt|dbdtz|emz)$/, "em_dbdt"], [/^(bfield|bz|pt)$/, "em_bfield"], [/^(tau|decay)$/, "em_tau"],
-  [/^(rhoa|apprho|mt|amt)$/, "mt_rho"], [/^(phase|phs)$/, "mt_phase"],
+  // TASKS.csv #3323 — RhoA / AppRho is a DC survey's apparent resistivity beside its IP file; MT only when the file has MT columns (fileHints' mtSet)
+  [/^(mt|amt)$/, "mt_rho"], [/^(rhoa|apprho)$/, "res"], [/^(phase|phs)$/, "mt_phase"],
   [/^(chargeability|charge|ip|mvv|mv_v|mx|appmx|appm|app_mx)$/, "ip"] /* mx / appmx: #3208 (apparent chargeability) */, [/^(res|resistivity|rho|ohmm|appres)$/, "res"], [/^(sp|selfpotential)$/, "sp"],
 ];
 // TASKS.csv #1586 — what the file says about itself, read before the column's own words: a GEM GSM-19 (or any magnetometer)
@@ -77,15 +78,18 @@ const WORD_RULES = [
 // "ip_..." column VLF in-phase, not IP chargeability.
 const MAGNETOMETER = /gsm-?\d+|gem ?systems|overhauser|proton|cesium|caesium|magnetometer|scintrex ?env|envi ?mag|g-?85[0-9]/i;
 const VLF_COLUMN = /^(f|ip|op|h1|h2|pt|tilt)_?\d+p\d+$/i;
+// #3323 — MT columns: a frequency or period, or the impedance tensor's; a chargeability column makes it (spectral) IP, not MT
+const MT_COLUMN = /^(freq|frequency|period|zxy|zyx|zxx|zyy|rhoxy|rhoyx|phixy|phiyx)(_?(hz|s|sec|deg))?$/i, IP_COLUMN = /^(ip|mx|appmx|chargeability|charge|mvv|mv_v)$/i;
 export function fileHints({ instrument = null, columns = [] } = {}) {
   const cols = (columns || []).map((c) => String(c).toLowerCase());
-  return { magnetometer: !!(instrument && MAGNETOMETER.test(String(instrument))), vlfSet: cols.filter((c) => VLF_COLUMN.test(c)).length >= 2 };
+  return { magnetometer: !!(instrument && MAGNETOMETER.test(String(instrument))), vlfSet: cols.filter((c) => VLF_COLUMN.test(c)).length >= 2, mtSet: cols.some((c) => MT_COLUMN.test(c)) && !cols.some((c) => IP_COLUMN.test(c)) /* #3323 */ };
 }
 export function guessSurveyMethod(header, hints = null) {
   if (!header) return null;
   const words = String(header).toLowerCase().replace(/[()[\]]/g, " ").split(/[^a-z0-9]+/).filter(Boolean);
   const joined = words.join("");
   const h = hints ? fileHints(hints) : null;
+  if (h?.mtSet && /^(rhoa|apprho|appres|rho|apparentresistivity)/.test(joined)) return "mt_rho"; // #3323 — a frequency or phase column: MT
   if (h?.vlfSet) { if (/^(ip|inph|inphase)/.test(joined)) return "vlf_inphase"; if (/^(op|quad)/.test(joined)) return "vlf_quad"; if (/^(tilt|h1)/.test(joined)) return "vlf_tilt"; } // #1586
   for (const [re, m] of WORD_RULES) { if (re.test(joined)) return m; } // "U_Th" is the ratio, not thorium
   for (const [re, m] of WORD_RULES) { if (words.some((w) => re.test(w))) return m; }
@@ -288,4 +292,28 @@ export function soleValueColumn(columns, rows, used = []) {
   const numeric = (c) => { let n = 0, ok = 0; for (const r of sample) { const v = r[c]; if (v == null || v === "") continue; n++; if (Number.isFinite(typeof v === "number" ? v : Number(v))) ok++; } return n > 0 && ok >= 0.9 * n; };
   const cands = (columns || []).filter((c) => !skip.has(c) && !NOT_VALUE.test(String(c).trim()) && numeric(c));
   return cands.length === 1 ? cands[0] : null;
+}
+
+// TASKS.csv #3321 (Galore Creek review: 'Grid with equivalent sources…' was offered on IP chargeability, resistivity, an electrode list and a
+// 3D cloud) — equivalent sources continue a potential field measured on or above the ground: offered for magnetic and gravity surveys, and
+// for one not labelled (with what it assumes); not for other methods. The derived points at depth stay without the button (#1985 / #1994 /
+// #1986). -> "hidden" | "ok" | "assume" | "no"
+export const EQS_HIDDEN = new Set(["euler_depth", "mt_bostick", "lidar", "em1d_cond", "worms_height", "tiltdepth_depth"]);
+export function eqsApplies(method) {
+  if (!method || method === "other") return "assume";
+  if (EQS_HIDDEN.has(method)) return "hidden";
+  const g = SURVEY_METHODS[method]?.group;
+  return g === "mag" || g === "grav" ? "ok" : "no";
+}
+
+// TASKS.csv #3400 (Matt: "I wanna have the ribbon menu with all the survey names or abbreviations. So a beginner will know where to find the
+// survey they want to work with") — the Surveys ribbon's Magnetics / Gravity / Radiometrics buttons (and EM > TEM channel) open the point
+// importer set to that method: a file read there takes the method its columns name when it is of that kind (a reduced-to-pole grid, eTh),
+// else the kind's usual one. -> a SURVEY_METHODS key, or the guess as before with no hint
+export const METHOD_HINTS = { mag: "mag", grav: "grav", rad: "rad_tc", tem: "em_dbdt" };
+const TEM_METHODS = new Set(["em_dbdt", "em_bfield", "em_tau"]);
+export function methodWithHint(guess, hint) {
+  if (!hint || !METHOD_HINTS[hint]) return guess || null;
+  const fits = hint === "tem" ? TEM_METHODS.has(guess) : SURVEY_METHODS[guess]?.group === hint;
+  return fits ? guess : METHOD_HINTS[hint];
 }

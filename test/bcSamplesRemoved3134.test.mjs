@@ -28,7 +28,7 @@ test("the synthetic geophysics files are shareable, say they are simulated, and 
   assert.match(fs.readFileSync(new URL("synthetic_geophysics/README.md", SD), "utf8"), /entirely\s+simulated/);
   assert.match(fs.readFileSync(new URL("synthetic_geophysics/geophys_mag_survey.csv", SD), "utf8").split(/\r?\n/)[0], /^x,y,z,value,label$/);
   const help = fs.readFileSync(new URL("../src/help/pages/geophysics.js", import.meta.url), "utf8");
-  assert.equal((help.match(/geophys_mag_survey\.csv in the sample_data\/synthetic_geophysics folder/g) || []).length, 2);
+  assert.equal((help.match(/geophys_mag_survey\.csv in the sample_data\/synthetic_geophysics folder/g) || []).length, 3); // #3400: the Magnetics page too
   assert.doesNotMatch(help, /sample_data\/(harry_property|woodjam|silvertip|perk_rocky)/, "no step sends a user to a folder that is gone");
 });
 

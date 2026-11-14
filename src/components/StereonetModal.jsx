@@ -145,6 +145,9 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
   // only reached after a "s1 > 0.65 = tight cluster" check and so called open folds tight clusters.
   const fabric = stats ? fabricShape(stats.s1, stats.s2, stats.s3, stats.n) : null; // #713 n: too few picks to judge
   const isGirdle = fabric?.shape === "girdle";
+  // TASKS.csv #3379 — a mean the readout itself rates 'at the level of random planes' is not offered as a structural trend (it was, behind a
+  // confirm only reached by clicking): disabled with the reason, as for pooled types and girdles
+  const noTrend = !!stats?.noPreferred && !isGirdle;
   const pooledTypes = typeFilter === "all" && types.length > 1; // TASKS.csv #1827
 
   const SIZE = 420, PAD = 24, R = SIZE / 2 - PAD, CX = SIZE / 2, CY = SIZE / 2;
@@ -477,7 +480,10 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                   <span title={tr("Woodcock shape K = {K} (< 1 girdle, > 1 cluster), strength C = {C}", { K: fabric.K.toFixed(2), C: fabric.C.toFixed(1) })}>
                     {/* TASKS.csv #1441 (review #1352) — no shape verdict over pooled types (it read "Tight cluster" under "Mixed types ... not one
                         population"), and "tight" only for a Fisher k of 20 or more (it was said at k = 4.7) */}
+                    {/* TASKS.csv #3379 (#3195, Galore Creek) — one verdict per mean: under 'No preferred orientation' the shape line read 'Weak clustering
+                        (k 3.0): a broad set' two lines down; the no-preference line above is the verdict, the shape line only names the shape then */}
                     {typeFilter === "all" && types.length > 1 ? tr("Shape not assessed: the picks are of several types.")
+                      : stats?.noPreferred && !isGirdle ? tr("No shape to speak of: the picks are spread as random planes would be.")
                       : isGirdle ? tr("Girdle — picks spread along a great circle (possible fold); a single mean plane is not meaningful, use the fold axis (β) below.")
                       : fabric.shape === "cluster" ? (!(stats?.k >= 20) ? tr("Cluster — one dominant orientation, loosely defined (k {k}).", { k: Number.isFinite(stats?.k) ? stats.k.toFixed(1) : "?" }) : tr("Tight cluster — a single dominant orientation."))
                       : fabric.shape === "few" ? tr("Too few picks to judge the shape (fewer than 4) — the mean plane is only as good as these picks.")
@@ -504,10 +510,10 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                 )}
                 {onUseAsTrend && (
                   <button
-                    onClick={() => { if (stats.noPreferred && !window.confirm(tr("These picks show no preferred orientation (k = {k}, at the level of random planes). Add their mean plane as a structural trend anyway?", { k: stats.k.toFixed(1) }))) return; onUseAsTrend({ azimuth: stats.meanDipDir, dip: stats.meanDip, terzaghi: !!terzaghiOn }); }} // #1066; terzaghi: #1446 — the trend's name says which mean
-                    disabled={isGirdle || pooledTypes} // pooledTypes: TASKS.csv #1827 — a mean over several structure types is no one orientation
-                    style={{ ...exportBtn, width: "100%", marginTop: 7, padding: "5px 8px", fontSize: 10.5, borderColor: "#a9c6e0", color: "#2f6fe0", opacity: isGirdle || pooledTypes ? 0.5 : 1, cursor: isGirdle || pooledTypes ? "not-allowed" : "pointer" }}
-                    title={pooledTypes ? tr("Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.", { n: types.length }) : isGirdle ? tr("Disabled: this population is a girdle (a fold), so its mean plane is not a real orientation — pushing it to anisotropy would model a plane that exists nowhere. Filter to one fold limb first.") : tr("Add this mean plane as a new structural trend (Modelling tab > Trends): the plane only — pitch 90° (down dip) and ratios 3 : 2 : 1, to edit there")}
+                    onClick={() => { if (noTrend) return; onUseAsTrend({ azimuth: stats.meanDipDir, dip: stats.meanDip, terzaghi: !!terzaghiOn }); }} // #1066; terzaghi: #1446 — the trend's name says which mean
+                    disabled={isGirdle || pooledTypes || noTrend} // pooledTypes: TASKS.csv #1827 — a mean over several structure types is no one orientation; noTrend: #3379
+                    style={{ ...exportBtn, width: "100%", marginTop: 7, padding: "5px 8px", fontSize: 10.5, borderColor: "#a9c6e0", color: "#2f6fe0", opacity: isGirdle || pooledTypes || noTrend ? 0.5 : 1, cursor: isGirdle || pooledTypes || noTrend ? "not-allowed" : "pointer" }}
+                    title={pooledTypes ? tr("Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.", { n: types.length }) : noTrend ? tr("Disabled: these picks show no preferred orientation (k = {k}, at the level of random planes), so their mean plane is not a trend to model. Filter to fewer holes or one domain first.", { k: stats.k.toFixed(1) }) /* #3379 */ : isGirdle ? tr("Disabled: this population is a girdle (a fold), so its mean plane is not a real orientation — pushing it to anisotropy would model a plane that exists nowhere. Filter to one fold limb first.") : tr("Add this mean plane as a new structural trend (Modelling tab > Trends): the plane only — pitch 90° (down dip) and ratios 3 : 2 : 1, to edit there")}
                   >{tr("Add as structural trend")}</button>
                 )}
               </div>

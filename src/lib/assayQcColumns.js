@@ -4,8 +4,8 @@ import { sampleTypeClass } from "./qaqc.js";
 
 const ALIASES = {
   sample_id: ["sample_id", "sampleid", "sample_no", "sample_number", "sample", "samp_id", "sample_num", "samp_num"], // samp_num: #1510 (40958Z's drill assays; the surface import knew it)
-  sample_type: ["sample_type", "samp_type", "sampletype", "qc_type", "qctype", "qaqc_type", "qaqc", "sample_class", "sample_category", "type"],
-  parent_id: ["parent_id", "parent", "parent_sample", "parent_sample_id", "original_id", "original", "orig_sample_id", "primary_id", "original_sample", "parent_sample_number", "parent_sample_no", "parent_number"], // parent_sample_number: #1661 (Kodiak's Appendix B)
+  sample_type: ["sample_type", "samp_type", "sampletype", "qc_type", "qctype", "qaqc_type", "qaqc", "sample_class", "sample_category", "qc_category", "qccategory", "qc_class", "check_type", "type"], // qc_category…: #2340 (WAMEX's link table)
+  parent_id: ["parent_id", "parent", "parent_sample", "parent_sample_id", "original_id", "original", "orig_sample_id", "primary_id", "original_sample", "parent_sample_number", "parent_sample_no", "parent_number", "orig_sampleid", "orig_sample", "orig_id", "original_sampleid", "original_sample_id", "parentid", "parent_sampleid"], // parent_sample_number: #1661 (Kodiak's Appendix B); orig_sampleid…: #2340
   qc_code: ["standard_id", "std_id", "standard", "crm", "crm_id", "crm_name", "standard_name", "qc_code", "qc_id", "qc_name", "reference_material", "standard_type", "std_type", "crm_type", "control_type", "reference_material_id"], // standard_type: #1661
   // TASKS.csv #2764 — the lab certificate (or lab job) a sample was reported on, so the Lab certificates review can name the sheet's
   // certificates that no given file is (VA23186444 in the sheet, VA24189659.csv in the folder)
@@ -13,9 +13,16 @@ const ALIASES = {
 };
 export const QC_COLUMN_KEYS = Object.keys(ALIASES);
 
-export function qcColumns(headers) {
+// rows (TASKS.csv #2340, optional): a header the file has twice ('Sample_Type' blank, then 'Sample_Type_1' as the parser renames the second) — the
+// copy with values is taken, not the first one (the pXRF file's readings lost their WCORE / ORIG type)
+export function qcColumns(headers, rows = null) {
   const norm = (h) => String(h).trim().toLowerCase().replace(/[\s-]+/g, "_");
-  const out = Object.fromEntries(QC_COLUMN_KEYS.map((k) => [k, (headers || []).find((h) => ALIASES[k].includes(norm(h))) || ""]));
+  const filled = (h) => !rows?.length || rows.some((r) => r?.[h] != null && String(r[h]).trim() !== "");
+  const pick = (k) => {
+    const hits = (headers || []).filter((h) => ALIASES[k].includes(norm(h)) || ALIASES[k].includes(norm(h).replace(/_\d+$/, "")));
+    return hits.find((h) => ALIASES[k].includes(norm(h)) && filled(h)) || hits.find(filled) || hits.find((h) => ALIASES[k].includes(norm(h))) || "";
+  };
+  const out = Object.fromEntries(QC_COLUMN_KEYS.map((k) => [k, pick(k)]));
   // #2764 — a drillhole database with a certificate per element ('Cu certificate', 'Au_Cert_No'): the first of them
   if (!out.certificate) out.certificate = (headers || []).find((h) => /^[a-z]{1,2}_(cert|certificate)(_?(no|num|number|id))?$/.test(norm(h))) || "";
   return out;

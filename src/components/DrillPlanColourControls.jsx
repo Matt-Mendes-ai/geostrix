@@ -65,7 +65,7 @@ export default function DrillPlanColourControls({ sel, updateSelected, collars, 
             : kind === "gt"
             ? tr("Each hole's grade × length is summed over its assayed metres, with no cut-off. The key's classes break at the 50th, 75th and 90th percentile of the plan's holes, so they follow this project's own values.")
             : tr("The key's classes break at the 50th, 75th and 90th percentile of the plan's holes, so they follow this project's own values.")}
-          {blank ? " " + tr("Holes with no result for this element are hollow rings.") : ""}
+          {blank ? " " + (kind === "bi" ? tr("Holes never assayed for this element are crossed rings; assayed holes with no interval at the cut-off are hollow rings.") /* #3375 */ : tr("Holes with no result for this element are hollow rings.")) : ""}
         </div>
       )}
       {fields.length > 0 && ( /* TASKS.csv #2686 — a symbol shape by a collar field, beside the colour */

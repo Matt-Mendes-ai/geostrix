@@ -19,19 +19,38 @@ export function stopsAreLogSpaced(stops) {
   return mean > 0 && d.every((x) => Math.abs(x - mean) <= 0.05 * mean);
 }
 
+// TASKS.csv #3396 — a formatter under which distinct values read differently: `fmt` when it already does, else 3 to 10 significant figures,
+// in scientific notation under 0.001 or from 1,000,000 ('1.2e-5', not '0.000012'). Values equal in fact stay equal.
+const sci = (x, p) => { const [m, e] = x.toExponential(p - 1).split("e"); return `${+m}e${e.replace("+", "")}`; };
+export function distinctBoundFormat(values, fmt = (x) => String(+Number(x).toPrecision(3))) {
+  const v = [...new Set((values || []).filter(Number.isFinite))].sort((a, b) => a - b);
+  const ok = (g) => v.every((x, i) => i === 0 || g(x) !== g(v[i - 1]));
+  if (ok(fmt)) return fmt;
+  for (let p = 3; p <= 10; p++) {
+    const g = (x) => (x !== 0 && (Math.abs(x) < 1e-3 || Math.abs(x) >= 1e6) ? sci(x, p) : String(+x.toPrecision(p)));
+    if (ok(g)) return g;
+  }
+  return (x) => String(x);
+}
+
 // -> { kind: "classes", items: [[label, color]] }   for a discrete (classified) model
 //    { kind: "ramp", log, min, max, colors, ticks: [{ at (0-1), label }] }   otherwise
 export function legendScale(model, lo, hi, fmt = (x) => String(+Number(x).toPrecision(3))) {
   const stops = [...(model?.stops || [])].filter((s) => Number.isFinite(s.value)).sort((a, b) => a.value - b.value);
   if (model?.colorMode === "discrete" && stops.length) {
-    const items = [];
+    // TASKS.csv #3396 — quantile breaks of a field with most cells near zero land on one value: Matt's mag susc model printed
+    // '0.000010 – 0.000010' five times. A class whose bounds are equal draws nothing (colorForVoxelValue takes the last stop at or below a
+    // value), so it is left out; and the bounds get as many significant figures as it takes for neighbours to read differently.
+    const shown = [];
     for (let i = 0; i < stops.length; i++) {
       const from = i === 0 ? -Infinity : stops[i].value, to = i + 1 < stops.length ? stops[i + 1].value : Infinity;
       if (to <= lo || from > hi) continue; // a class entirely outside the shown range
-      const a = Math.max(from, lo), b = Math.min(to, hi);
-      items.push([i + 1 < stops.length ? `${fmt(a)} – ${fmt(b)}` : `≥ ${fmt(a)}`, stops[i].color]);
+      const a = Math.max(from, lo), b = Math.min(to, hi), last = i + 1 >= stops.length;
+      if (!last && !(b > a)) continue; // #3396 — no width: nothing is drawn in it
+      shown.push({ a, b, last, color: stops[i].color });
     }
-    return { kind: "classes", items };
+    const f = distinctBoundFormat(shown.flatMap((c) => (c.last ? [c.a] : [c.a, c.b])), fmt);
+    return { kind: "classes", items: shown.map((c) => [c.last ? `≥ ${f(c.a)}` : `${f(c.a)} – ${f(c.b)}`, c.color]) };
   }
   // TASKS.csv #1812 — a model with no stops is coloured on its 2-98 % stretch: the bar spans it and the clipped ends read ≤ / ≥
   const st = voxelStretch(model), clipLo = st && lo < st[0] && st[0] < hi, clipHi = st && hi > st[1] && st[1] > lo;

@@ -96,6 +96,18 @@ export const LOI_HEADER = /^loi(?:[\s_-]*(?:\d{3,4}|total|tot))?(?:[\s_-]*(?:xrf
 export const isLoiHeader = (h) => LOI_HEADER.test(String(h ?? "").replace(/\(.*?\)/g, " ").trim());
 const loiRank = (h) => { const s = String(h).toLowerCase(); return /total|tot/.test(s) ? 0 : /1000/.test(s) ? 1 : /^loi[\s_-]*(pct|%|wt)?$/.test(s.replace(/\(.*?\)/g, "").trim()) ? 2 : 3; };
 
+// TASKS.csv #3242 (from #3220, Galore Creek) — a partial (soluble) digest is another measurement, not a method of the total: Cu_AA05_pct and
+// Cu_AA17_pct were offered as methods of total copper, to be joined into it. A header carrying a partial-leach lab code (AA05, AA06, AA07, AA17
+// and their letter variants, or saying sequential / soluble) is its own symbol, '<element>_<code>' (Cu_AA05), with partialOf naming the element.
+// -> the code as written in the symbol, or null
+export function partialLeachCode(header) {
+  const h = String(header || "");
+  const m = /(^|[\s_-])(aa-?0?[5-7]|aa-?17)([a-z]?)($|[\s_-])/i.exec(h);
+  if (m) return (m[2].replace(/-/g, "") + m[3]).toUpperCase().replace(/^AA([5-7])$/, "AA0$1");
+  const w = /(^|[\s_-])(seq(uential)?|(acid|cyanide|cn|as|h2so4)[\s_-]*sol(uble)?|sol(uble)?|ascu|cncu|solcu)($|[\s_-])/i.exec(h);
+  if (w) return w[2].replace(/[\s_-]+/g, "").toUpperCase().replace(/^SEQUENTIAL$/, "SEQ").replace(/^SOLUBLE$/, "SOL");
+  return null;
+}
 export function pickElementColumns(headers, rows, stats = null) {
   const bySym = new Map();
   headers.forEach((h, order) => {
@@ -108,21 +120,23 @@ export function pickElementColumns(headers, rows, stats = null) {
     else for (const r of rows) { const v = parseAssayValue(r[h]); if (isResultValue(v)) { n++; if (v > max) max = v; } } // #3213 — a -999 code is no result
     // TASKS.csv #2185 — a column of words (P_TSA_A_Mineral1 = IntChlorite) is no element, whatever its header starts with
     if (!n && rows?.length) { let text = 0; for (let i = 0; i < rows.length && i < 200; i++) { const s = String(rows[i]?.[h] ?? "").trim(); if (s && !/^[<>]?\s*[-+]?[\d.]/.test(s)) text++; } if (text) return; }
-    if (!bySym.has(sym)) bySym.set(sym, []);
+    const leach = sym !== LOI ? partialLeachCode(h) : null, key = leach ? `${sym}_${leach}` : sym; // #3242 — its own symbol
+    if (!bySym.has(key)) bySym.set(key, []);
     // #2157 — a lab repeat / duplicate / check column (AuRp1, Au-Rp1, Au_Rep, Au_Dup, Au_Check) is never the main column beside one that is not
     const repeat = /^[a-z]{1,2}[\s_-]*(rp|rep|repeat|dup|duplicate|chk|check|r)\d*([\s_-]|$)/i.test(String(h).replace(/\(.*?\)/g, "").trim());
-    bySym.get(sym).push({ header: h, n, max, order, exact: String(h).trim() === sym, repeat, rank: sym === LOI ? loiRank(h) : 0 /* #2734 */ });
+    bySym.get(key).push({ header: h, n, max, order, exact: String(h).trim() === sym, repeat, rank: sym === LOI ? loiRank(h) : 0 /* #2734 */, ...(leach ? { partialOf: sym } : {}) });
   });
   const out = [];
   bySym.forEach((cands, symbol) => {
     const sorted = [...cands].sort((a, b) => Number(a.repeat) - Number(b.repeat) || (symbol === LOI ? a.rank - b.rank : 0) || b.n - a.n || Number(b.exact) - Number(a.exact) || a.order - b.order); // repeat: #2157; rank: #2734
     const main = sorted[0];
-    let unit = symbol === LOI ? "%" : inferUnit(main.header, symbol); // #2734 — LOI is a weight per cent
+    const el = cands[0].partialOf || symbol; // #3242 — a partial digest's units are its element's
+    let unit = symbol === LOI ? "%" : inferUnit(main.header, el); // #2734 — LOI is a weight per cent
     const unitInHeader = /ppm|ppb|gpt|g\/t|pct|%/i.test(main.header);
     // TASKS.csv #2490 (review #2486, WA lithium) — not for an oxide column: Fe2O3 / SiO2 in per cent with one impossible value over 100 were
     // relabelled ppm; that value is flagged by the dialog instead (oxidesOver100)
     if (unit === "%" && !unitInHeader && main.max > 100 && !oxideOfHeader(main.header)) unit = "ppm";
-    const ppb = !unitInHeader ? preciousReadsPpb(symbol, main.header, rows, main.max) : null; // #2337
+    const ppb = !unitInHeader ? preciousReadsPpb(el, main.header, rows, main.max) : null; // #2337
     if (ppb) unit = "ppb";
     let overLimit = null;
     if (main.n && Number.isFinite(main.max)) {
@@ -130,7 +144,7 @@ export function pickElementColumns(headers, rows, stats = null) {
         if (!c.n) continue;
         let atCap = 0;
         for (const r of rows) { const og = parseAssayValue(r[c.header]); if (og == null) continue; if (parseAssayValue(r[main.header]) === main.max) atCap++; }
-        if (atCap / c.n >= 0.9) { overLimit = { header: c.header, unit: inferUnit(c.header, symbol), limit: main.max, n: c.n }; break; }
+        if (atCap / c.n >= 0.9) { overLimit = { header: c.header, unit: inferUnit(c.header, el), limit: main.max, n: c.n }; break; }
       }
     }
     // TASKS.csv #2328 (review #2325, WA uranium) — the other method columns of the element (U_100, U_101, U, U_103 beside U_102): each sample
@@ -146,7 +160,7 @@ export function pickElementColumns(headers, rows, stats = null) {
       for (const r of rows) { let k = 0; for (const h of hs) { const v = parseAssayValue(r[h]); if (isResultValue(v)) k++; } if (k) withAny++; if (k > 1) withSeveral++; } // #3213
     }
     const joinDefault = methodCols.length > 0 && withAny > 0 && withSeveral / withAny <= 0.05 && !methodCols.some((c) => c.rangeClash); // rangeClash: #3213
-    out.push({ symbol, header: main.header, unit, alts: sorted.slice(1).map((c) => c.header), overLimit, n: main.n, ...(ppb ? { unitFromValues: ppb } : {}), // n: #1389 — values in the chosen column; unitFromValues: #2337
+    out.push({ symbol, header: main.header, unit, alts: sorted.slice(1).map((c) => c.header), overLimit, n: main.n, ...(ppb ? { unitFromValues: ppb } : {}), ...(el !== symbol ? { partialOf: el } : {}), // n: #1389 — values in the chosen column; unitFromValues: #2337; partialOf: #3242
       ...(methodCols.length ? { methodCols, methodOverlap: { withAny, withSeveral }, join: joinDefault } : {}) }); // #2328
   });
   return out;

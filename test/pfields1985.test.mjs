@@ -41,7 +41,8 @@ test("the app: Euler in the grid filters, equivalent sources on each survey, one
   assert.match(r, /runPfieldsJob\(\{ op: "euler", nx: g\.nx, ny: g\.ny, dx: g\.dx, dy: g\.dy, x0: g\.x0, yTop: g\.yTop, values: g\.values, structural_index: Number\(filt\.si\), window: win, observation_elevation: 0 \}/);
   assert.match(r, /placeEulerSolutions\(d, \{ levelM, groundAt: terrain \?/); // #2553: the grid's level first, the terrain for draped grids
   assert.ok(g.includes('const EqsGridBox = React.lazy(() => import("../components/EqsGridBox.jsx"));'));
-  assert.ok(g.includes('{!["euler_depth", "mt_bostick", "lidar", "em1d_cond"].includes(meta.method) /* derived points at depth, not readings; lidar: #1994; em1d_cond: #1986 */ && <button'), "not offered on derived points (nor on a lidar cloud, #1994)");
+  // #3321 — the rule moved to geophysSurveys eqsApplies: the derived points (and a lidar cloud, #1994) are still 'hidden'
+  assert.ok(g.includes('{(eqsApplies(meta.method) === "ok" || eqsApplies(meta.method) === "assume")'), "not offered on derived points (nor on a lidar cloud, #1994)");
   assert.match(box, /runPfieldsJob\(request, \{ signal: abort\.current\.signal/);
   assert.equal(SURVEY_METHODS.euler_depth.units, "m");
 });

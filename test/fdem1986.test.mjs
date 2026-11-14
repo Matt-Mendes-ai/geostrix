@@ -108,7 +108,7 @@ test("the models as points at depth: each layer's middle below the ground, cut a
 test("wired: the pane, the ribbon, a Workbench .xyz dropped on the tab, the job, the help page; the engine's job and pins", () => {
   const g = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
   assert.match(g, /const FdemPane = React\.lazy\(\(\) => import\("\.\.\/components\/FdemPane\.jsx"\)\)/);
-  assert.match(g, /label="FDEM 1D"[^\n]*\{\.\.\.geoBtn\("fdem"\)\}/);
+  assert.match(g, /label: tr\("FDEM 1D: ground loop-loop \(DUALEM, GEM-2\)…"\)[^\n]*go: \(\) => setGeoPane\("fdem"\), help: "fdem-1d"/); // #3400 — under the EM button's chooser
   assert.match(g, /if \(wbs\.length\) \{ setFdemDrop\(wbs\); setGeoPane\("fdem"\); \}/);
   assert.match(readFileSync(new URL("../src/lib/desktop.js", import.meta.url), "utf8"), /export const runEm1dJob = \(request, opts\) => runSidecarJobKind\("em1d", request, opts\);/);
   assert.match(readFileSync(new URL("../src/lib/help.js", import.meta.url), "utf8"), /"FDEM 1D \(DUALEM, GEM-2\)": "fdem-1d"/);

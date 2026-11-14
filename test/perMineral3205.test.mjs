@@ -64,7 +64,7 @@ test("wired into the dialog and the commit, loaded on demand", () => {
   const p = fs.readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(p, /await import\("\.\.\/\.\.\/lib\/perMineralColumns\.js"\)/);
   assert.doesNotMatch(p, /^import .*perMineralColumns/m, "not a startup import");
-  assert.match(p, /\} else if \(minPlan\?\.mode === "layers"\) \{/); // #3307: the one-layer mode is made before the commit
+  assert.match(p, /\} else if \(minPlan\?\.mode === "layers"( && !compLayersMade)?\) \{/); // compLayersMade: #3052 // #3307: the one-layer mode is made before the commit
   assert.match(p, /!\(minPlan && f\.key === "value"\)/);
   const d = fs.readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8");
   assert.match(d, /<MineralPercentBox modal=\{modal\} onChange=\{onChange\} sel=\{sel\} \/>/);

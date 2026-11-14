@@ -13,7 +13,9 @@ test("gold in ppm is labelled g/t, a base metal keeps ppm", () => {
 
 test("Compositing's cap audit, Grade stats' probability plot and every QAQC label use the label unit", () => {
   assert.ok(rd("../src/components/CompositingModal.jsx").includes("<CapAuditHint assays={compAssays} symbol={symbol} unit={unit} unitLabel={unitL}"));
-  assert.ok(rd("../src/components/GradeStatistics.jsx").includes('tr("Log-probability plot — {symbol} ({v}){v2}", { symbol, v: gradeUnitLabel(symbol, elementUnits[symbol])'));
+  const gs = rd("../src/components/GradeStatistics.jsx"); // #3236 — dispLabel: the chosen display unit, else the label unit (g/t for gold in ppm)
+  assert.ok(gs.includes('tr("Log-probability plot — {symbol} ({v}){v2}", { symbol, v: dispLabel'));
+  assert.ok(gs.includes("const dispLabel = shownUnit || gradeUnitLabel(symbol, storedUnit);"));
   const q = rd("../src/components/QAQCPanel.jsx");
   assert.ok(q.includes("const unitL = gradeUnitLabel(symbol, unit);"));
   for (const s of ['tr("Detection limit ({unit})", { unit: unitL })', "multiple of the detection limit ({dl} {unit})\", { dl: formatLimit(dl), unit: unitL })" /* #2503 */, "(5x DL)\", { unit: unitL })", 'tr("Ignore pairs with a mean below ({unit}){v}", { unit: unitL,', "cert={cert} unit={unitL}"]) assert.ok(q.includes(s), s);

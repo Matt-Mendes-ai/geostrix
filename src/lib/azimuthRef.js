@@ -163,6 +163,7 @@ export function bearingsToGrid(rows, ref, epsg, isoDate) {
   let converted = 0, failed = 0, example = null;
   const out = rows.map((r) => {
     if (!Number.isFinite(r.dipDir) && !Number.isFinite(r.strike)) return r;
+    if (r.horizontal) return r; // TASKS.csv #3381 — a flat bed (#2958) has no direction: its stored dip direction 0 was turned to 20.29 (a strike of 290.29 in the export)
     const key = `${Math.round(r.x / 100)},${Math.round(r.y / 100)}`;
     let o = cache.get(key);
     if (o === undefined) { o = azimuthToGridOffset(ref, r.x, r.y, epsg, isoDate); cache.set(key, o); }

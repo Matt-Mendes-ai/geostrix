@@ -127,6 +127,21 @@ export function retireHoles(g, holes) {
   return true;
 }
 
+// TASKS.csv #3053 — the holes whose rows differ between two versions of a layer's rows (a commit keeps the other holes' row objects, as
+// replaceRowsByHole does), or null when a patch is not worth it: more than maxShare of the rows changed, or a hole whose rows are not
+// grouped together. -> Set of hole ids (a hole that lost all its rows included)
+export const ROW_PATCH_MAX_SHARE = 0.1;
+export function rowChangedHoles(prevRows, rows, maxShare = ROW_PATCH_MAX_SHARE) {
+  if (!Array.isArray(prevRows) || !Array.isArray(rows) || prevRows === rows) return null;
+  const by = (list) => { const m = new Map(); for (const r of list) { const h = r?.hole_id; if (!h) continue; const a = m.get(h); if (a) a.push(r); else m.set(h, [r]); } return m; };
+  const a = by(prevRows), b = by(rows), out = new Set();
+  let changed = 0;
+  for (const [h, rs] of b) if (!sameRefs(a.get(h), rs)) { out.add(h); changed += rs.length; }
+  for (const [h, rs] of a) if (!b.has(h)) { out.add(h); changed += rs.length; }
+  if (!out.size || changed > maxShare * Math.max(rows.length, prevRows.length)) return null;
+  return out;
+}
+
 // Which layer groups are made again: all on a full build; else a group whose signature changed, that is new, or that has
 // rows in a hole desurveyed again (its members stand on that hole's trace).
 export function planGroups(prev, sigs, changedHoles, full) {
@@ -397,10 +412,22 @@ export function buildDrillholeScene(ctx) {
   if (!full && plan.shift && plan.shift.moved === changedHoles.size && changedHoles.size <= PATCH_MAX_HOLES) {
     for (const k of rebuild) { const g = groupOf(k); if (g && sameRefs(prev.sigs.get(k), sigs.get(k)) && retireHoles(g, changedHoles)) patched.add(k); }
   }
+  // TASKS.csv #3053 — a commit that changed the rows of a few holes (817 lithology rows of 33 holes into a 150,455-row layer) built the
+  // whole group again: every interval, half a second of the 1.9 s stall. Such a group is patched as #3097's moved holes are: the holes
+  // whose rows changed are retired and built again. Only when nothing else of the group's signature changed, no hole was desurveyed
+  // again, and the layer is not numeric (its colour range spans every row).
+  const rowPatchHoles = new Map(); // group key -> the holes built again
+  if (prev && !full && !changedHoles.size) for (const k of rebuild) {
+    const old = prev.sigs.get(k), sig = sigs.get(k);
+    if (!old || !sig || !Array.isArray(sig[0]) || LAYER_META[k]?.numeric || !sig.slice(1).every((v, i) => v === old[i + 1])) continue;
+    const holes = rowChangedHoles(old[0], sig[0]), g = holes && groupOf(k);
+    if (g && retireHoles(g, holes)) { patched.add(k); rowPatchHoles.set(k, holes); }
+  }
   const rebuildHoles = full || changedHoles.size > 0;
   if (full) clearGroups(Object.values(groups));
   else clearGroups([...(rebuildHoles ? [groups.holes, groups.hole_labels] : []), ...[...rebuild].filter((k) => !patched.has(k)).map(groupOf)].filter(Boolean)); // patched: #3097
-  const byHoleIf = (k, rows) => (!rebuild.has(k) ? NO_HOLES : patched.has(k) ? groupByHole((rows || []).filter((r) => changedHoles.has(r.hole_id))) : groupByHole(rows)); // a kept group builds nothing below; a patched one its moved holes
+  const patchHoles = (k) => rowPatchHoles.get(k) || changedHoles; // #3053 — a row patch's holes, else the moved holes (#3097)
+  const byHoleIf = (k, rows) => (!rebuild.has(k) ? NO_HOLES : patched.has(k) ? groupByHole((rows || []).filter((r) => patchHoles(k).has(r.hole_id))) : groupByHole(rows)); // a kept group builds nothing below; a patched one its moved holes
   const rowsByHole = {
     litho: byHoleIf("litho", layers.litho), alt: byHoleIf("alt", layers.alt), vein: byHoleIf("vein", layers.vein),
     geotech: byHoleIf("geotech", layers.geotech), litho_gc: byHoleIf("litho_gc", layers.litho_gc), alt_gc: byHoleIf("alt_gc", layers.alt_gc),
@@ -411,6 +438,11 @@ export function buildDrillholeScene(ctx) {
   // the holes each group has rows in, for the next build's planGroups (a kept group keeps its set)
   const holeSets = new Map();
   for (const k of sigs.keys()) holeSets.set(k, rebuild.has(k) && !patched.has(k) ? new Set((rowsByHole[k] || customRowsByHoleByLayer.get(k) || NO_HOLES).keys()) : prev.holeSets.get(k));
+  for (const [k, holes] of rowPatchHoles) { // #3053 — the patched holes that have rows now are in the set, those that lost them are not
+    const set = new Set(prev.holeSets.get(k) || []), now = rowsByHole[k] || NO_HOLES;
+    for (const h of holes) { if (now.has(h)) set.add(h); else set.delete(h); }
+    holeSets.set(k, set);
+  }
 
   // Bug-hunt pass: color/size range for numeric point layers (mnlgy/magsusc) used to be computed
   // per-hole inside buildPointMarkers below, so the same absolute value rendered a different color

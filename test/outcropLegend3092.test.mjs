@@ -12,7 +12,7 @@ test("#3092 — the overlay legend is recomputed when the outcrop structures cha
   assert.ok(i > 0);
   const end = v.indexOf("]);", v.indexOf("}, [", i));
   const deps = v.slice(v.indexOf("}, [", i), end);
-  assert.ok(v.slice(i, end).includes("outcropLegendGroup({ surfaceStructures })"), "the memo reads them");
+  assert.ok(v.slice(i, end).includes("outcropLegendGroup({ surfaceStructures"), "the memo reads them"); // with the project's symbol map since #3094
   assert.match(deps, /\bsurfaceStructures\b/);
 });
 

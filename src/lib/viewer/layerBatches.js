@@ -52,7 +52,35 @@ export class InstanceView {
 InstanceView.prototype.isObject3D = true;
 InstanceView.prototype.isMesh = true;
 InstanceView.prototype.isInstanceView = true;
-InstanceView.prototype.raycast = THREE.Mesh.prototype.raycast;
+// TASKS.csv #3360 — a survey point (a batch tagged geophysSurvey, lib/viewer/geophysPts.js) is hit on its symbol's bounding sphere, not
+// its triangles: symbols still sized for a far view made a hover ray-test ~43 M triangles (15 s). The distance along the ray, or -1.
+// As three's Sphere.applyMatrix4 + Ray.intersectSphere (the nearer crossing ahead, else the farther), without a matrix product per instance.
+const _sc = new THREE.Vector3(), _sh = new THREE.Vector3();
+// instance i's bounding sphere in world space: its centre into c, its radius returned
+export function instanceSphere(batch, i, c) {
+  const g = batch.geometry;
+  if (!g.boundingSphere) g.computeBoundingSphere();
+  const b = batch.userData.compact.base, o = i * 16, { center: s, radius } = g.boundingSphere, mw = batch.matrixWorld;
+  c.set(b[o] * s.x + b[o + 4] * s.y + b[o + 8] * s.z + b[o + 12], b[o + 1] * s.x + b[o + 5] * s.y + b[o + 9] * s.z + b[o + 13], b[o + 2] * s.x + b[o + 6] * s.y + b[o + 10] * s.z + b[o + 14]).applyMatrix4(mw);
+  const s2 = Math.max(b[o] ** 2 + b[o + 1] ** 2 + b[o + 2] ** 2, b[o + 4] ** 2 + b[o + 5] ** 2 + b[o + 6] ** 2, b[o + 8] ** 2 + b[o + 9] ** 2 + b[o + 10] ** 2);
+  const f = batch.userData.compact.floor; // #3401 — a survey's zoom floor, applied by its shader
+  return radius * Math.sqrt(s2) * mw.getMaxScaleOnAxis() * (f ? Math.max(1, f.u.value * f.ratio[i]) : 1);
+}
+export function sphereHitDistance(batch, i, ray, at = _sh) {
+  const r = instanceSphere(batch, i, _sc), d = ray.direction, p = ray.origin;
+  const vx = _sc.x - p.x, vy = _sc.y - p.y, vz = _sc.z - p.z, tca = vx * d.x + vy * d.y + vz * d.z, d2 = vx * vx + vy * vy + vz * vz - tca * tca;
+  if (d2 > r * r) return -1;
+  const thc = Math.sqrt(r * r - d2), t0 = tca - thc, t1 = tca + thc;
+  if (t1 < 0) return -1;
+  const t = t0 < 0 ? t1 : t0;
+  at.set(p.x + d.x * t, p.y + d.y * t, p.z + d.z * t);
+  return t;
+}
+InstanceView.prototype.raycast = function (raycaster, hits) {
+  if (this.batch.userData.geophysSurvey == null) return THREE.Mesh.prototype.raycast.call(this, raycaster, hits);
+  const d = sphereHitDistance(this.batch, this.i, raycaster.ray);
+  if (d >= raycaster.near && d <= raycaster.far) hits.push({ distance: d, point: _sh.clone(), object: this, face: null, faceIndex: null });
+};
 InstanceView.prototype._computeIntersections = THREE.Mesh.prototype._computeIntersections;
 InstanceView.prototype.getVertexPosition = THREE.Mesh.prototype.getVertexPosition;
 

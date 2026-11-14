@@ -8,8 +8,13 @@ export default function SurfacePlacementNotices({ counts, z }) {
   if (!counts) return null;
   const zr = Math.round(z);
   return (<>
-    {counts.noTerrain > 0 && ( // TASKS.csv #1818
-      <div style={lineStyle}>{tr("{n} surface sample(s) have no elevation and there is no terrain: drawn flat at {z} m (the median collar, the highest on an underground project, or the samples' own). Load a terrain (Maps > Terrain) to place them on the ground.", { n: counts.noTerrain, z: zr })}</div>
+    {counts.collars > 0 && ( // TASKS.csv #3368 — the one rule for everything drawn on the ground with no terrain
+      <div style={lineStyle}>{tr("{n} surface sample(s) have no elevation and there is no terrain: drawn on the surface through the collar elevations, as the map layers are. Load a terrain (Maps > Terrain) to place them on the ground.", { n: counts.collars })}</div>
+    )}
+    {counts.noTerrain > 0 && ( // TASKS.csv #1818; #3368 — the rule it used, not three possible ones
+      <div style={lineStyle}>{counts.flatRule === "highest-collar" ? tr("{n} surface sample(s) have no elevation and there is no terrain: drawn flat at {z} m, the highest collar (the collars look underground). Load a terrain (Maps > Terrain) to place them on the ground.", { n: counts.noTerrain, z: zr })
+        : counts.flatRule === "collars" ? tr("{n} surface sample(s) have no elevation and there is no terrain: drawn flat at {z} m, the median collar elevation. Load a terrain (Maps > Terrain) to place them on the ground.", { n: counts.noTerrain, z: zr })
+        : tr("{n} surface sample(s) have no elevation and there is no terrain: drawn flat at {z} m, the median elevation of the samples that have one. Load a terrain (Maps > Terrain) to place them on the ground.", { n: counts.noTerrain, z: zr })}</div>
     )}
     {counts.outside > 0 && ( // TASKS.csv #1806
       <div style={lineStyle}>{tr("{n} surface sample(s) have no elevation and lie outside the terrain's footprint: drawn flat at {z} m. A terrain that covers them (Maps > Terrain) places them on the ground.", { n: counts.outside, z: zr })}</div>

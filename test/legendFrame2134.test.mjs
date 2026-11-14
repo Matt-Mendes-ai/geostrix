@@ -53,7 +53,7 @@ test("wired: both legend paths pass the frame; the notice counts the assumed hol
   assert.equal((m.match(/frame: (only\.length === 1 \? frameTest\(only\[0\]\) : null|frameTest\(vp\))/g) || []).length, 2);
   assert.match(m, /\.\.\.mapLayerLegendGroups\(shownMapLayers\)/);
   assert.match(m, /holeAttitudeAssumed\(c, surveyed\.has\(c\.hole_id\) \? \[\{\}\] : \[\]\)/);
-  assert.match(m, /\{legendItems\.map\(\(\[name, color, opt\], i\)/);
+  assert.match(m, /const legendRow = \(\[name, color, opt\], i\) =>/); // #3395: the rows grouped (a heading with its first row)
   assert.match(m, /pageW: pagePx\(pageFormatOf\(page\)\)\.w/);
   assert.match(m, /assayLegendGroups\(\{ assays: inFrame\(assays\)/);
   assert.match(m, /numericLayerLegendGroups\(\{ layers: frameLayers,/);

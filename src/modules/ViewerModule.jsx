@@ -33,7 +33,7 @@ import { toLonLat, isMetricProjectedEpsg } from "../lib/reproject.js";
 import { mirrorCustomLayers } from "../lib/viewerDirty.js"; // #1656
 import { customLayerSync, detachCustomGroups } from "./viewer/customLayerSync.js"; // #2361
 import { useStore, useSetCursor, useSetTaskProgress } from "../lib/store.jsx";
-import { surveyAzimuthDipAt } from "../lib/desurvey.js"; // desurveyHole, holeAttitudeAssumed (#2014): used by viewer/drillholeScene.js (#2176)
+import { surveyAzimuthDipAt, desurveyMatters } from "../lib/desurvey.js"; // desurveyMatters: #2371; // desurveyHole, holeAttitudeAssumed (#2014): used by viewer/drillholeScene.js (#2176)
 import { unitSupport } from "../lib/unitSupport.js"; // #2096
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { blockToCells, modelledIntervals, ABOVE_TOPS, unitAt } from "../lib/modelCheck.js"; // TASKS.csv #356
@@ -46,6 +46,7 @@ import { sectionFromCentre, sectionThroughHole, fenceLinesWithData, fenceExtentP
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader, PaneNotice } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { Pickaxe, Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, PenTool, Rows3, Crosshair, Target, SquareSplitVertical, Sparkles } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
 import { solidBounds, SOLID_IMPORT_EXTENSIONS, SOLID_FACE_WARN } from "../lib/solidImportMeta.js"; // TASKS.csv #148; #552 split
+import { tieOf } from "../lib/localGridTie.js"; // TASKS.csv #3186
 import { parseSolidInWorker } from "../lib/solidImportClient.js"; // TASKS.csv #414
 // TASKS.csv #414 — imported solids, one tone per layer (grey-blue family: never the generated-surface gold).
 const IMPORTED_SOLID_COLORS = [0x8fa3b8, 0xa89bbd, 0x8fb8aa, 0xbfae92, 0x93b3c4, 0xb89aa4];
@@ -125,6 +126,7 @@ import { useSurfacePlacement } from "./viewer/useSurfacePlacement.js"; import Su
 let solidSeq = 0; // TASKS.csv #1887 — distinct ids for solids added within one millisecond
 import { hitLabel } from "../lib/viewer/hitLabel.js"; // TASKS.csv #1891 (moved out, #1084 size cap)
 import { customColour, customLegendGroups, customFields, sectionCustomLegendItems /* #2669 */ } from "../lib/customColour.js"; // TASKS.csv #1697
+import { sectionNumericLegendItems } from "../lib/sectionLegend.js"; // TASKS.csv #3413
 const DumpPane = React.lazy(() => import("../components/DumpPane.jsx")); // TASKS.csv #1880
 const InterpretPane = React.lazy(() => import("../components/InterpretPane.jsx")); // TASKS.csv #1152
 const UndrilledZonesPane = React.lazy(() => import("../components/UndrilledZonesPane.jsx")); // TASKS.csv #1139 // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
@@ -1074,6 +1076,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const minePaneRef = useRef("pit"); // #1360 — the Mine Design pane last open
   useEffect(() => { setToolPane(pendingPaneRef.current || (mode === "targeting" ? "plan" : mode === "minedesign" ? minePaneRef.current : null)); pendingPaneRef.current = null; }, [mode]);
   useEffect(() => { if (mode === "minedesign" && toolPane) minePaneRef.current = toolPane; }, [mode, toolPane]);
+  const surfaceTopRef = useRef(false); // TASKS.csv #3046 (4) — a map reads north up: the tab's first visit opens in Top view (as the Top button)
+  useEffect(() => { if (mode !== "surface" || surfaceTopRef.current || !camState.current || !cameraRef.current?.__update) return; surfaceTopRef.current = true; camState.current.theta = 0; camState.current.phi = 0.02; cameraRef.current.__update(); }, [mode]);
   const paneProps = (id) => ({ active: toolPane === id, expanded: toolPane === id, onClick: () => setToolPane((p) => (p === id ? null : id)) }); // expanded: #595
   const paneHeader = (title, icon, tone) => <><TaskPaneHeader title={title} icon={icon} tone={tone} onClose={() => setToolPane(null)} /><PaneNotice key={toolPane} notices={notices} /></>; // #1602
   // TASKS.csv #572 — a modelling pane with nothing to model says what to load, instead of an empty "Choose…" select
@@ -1603,15 +1607,17 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     ];
     // TASKS.csv #843 / #948 — the surface samples as the view colours them (the anomaly map's rule and classes, one colour,
     // or by medium), then the Surface Geology map layers and the boundaries
-    if (sampleLegendGroup) groups.push({ ...sampleLegendGroup, items: sampleLegendGroup.items.map(([l, c, o]) => [tr(l), c, o]) });
-    const outcrop = outcropLegendGroup({ surfaceStructures }); // TASKS.csv #1437 — the outcrop sets' classes
-    if (outcrop) groups.push({ ...outcrop, label: tr(outcrop.label), items: outcrop.items.map(([l, c, o]) => [tr(l), c, o]) });
-    groups.push(...mapLayerLegendGroups(mapLayers), ...boundaryLegendGroups(boundaries));
+    const surfFirst = []; // TASKS.csv #3046 (3) — on the Surface Geology tab the map's own groups lead (the figure's cut fell on them)
+    if (sampleLegendGroup) groups.push({ ...sampleLegendGroup, items: sampleLegendGroup.items.map(([l, c, o]) => [tr(l), c, o]) }), surfFirst.push(groups[groups.length - 1]);
+    const outcrop = outcropLegendGroup({ surfaceStructures, symbolByType: store.project?.structureSymbolByType /* #3094 */ }); // TASKS.csv #1437 — the outcrop sets' classes
+    if (outcrop) groups.push({ ...outcrop, label: tr(outcrop.label), items: outcrop.items.map(([l, c, o]) => [tr(l), c, o]) }), surfFirst.push(groups[groups.length - 1]);
+    { const mg = mapLayerLegendGroups(mapLayers); groups.push(...mg, ...boundaryLegendGroups(boundaries)); surfFirst.unshift(...mg); }
     { const hg = holeColourLegendGroup(holeScheme, tr("Holes by {field}", { field: holeColourBy }), tr("(no value)")); if (hg) groups.unshift(hg); } // #1504
     // TASKS.csv #451 / #2075 — one ramp per survey, the drawn points only; the builder is shared with the Layout legend since #2878
-    groups.push(...geophysLegendGroups({ rows: layers?.geophys_pts, visible: !!layerVisible.geophys_pts, surveys: geophysSurveys, stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax, label: LAYER_META.geophys_pts?.label || "Geophysics points" }));
-    return groups;
-  }, [rasters, sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, numericLayerColor, isRowVisible, collars, customLayers, customVisible, holeScheme, holeColourBy, surfaceStructures, layoutPages /* #3296 */]); // #1398; collars: #1813; holeScheme: #1504; surfaceStructures: #3092
+    const geo = geophysLegendGroups({ rows: layers?.geophys_pts, visible: !!layerVisible.geophys_pts, surveys: geophysSurveys, stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax, label: LAYER_META.geophys_pts?.label || "Geophysics points" });
+    if (bare) groups.unshift(...geo); else groups.push(...geo); // TASKS.csv #3325 — beside the Geophysics sidebar the survey ramps lead (the hole ramps took all six)
+    return mode === "surface" && surfFirst.length ? [...surfFirst, ...groups.filter((g) => !surfFirst.includes(g))] : groups; // #3046 (3)
+  }, [mode /* #3046 */, bare /* #3325 */, rasters, sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, numericLayerColor, isRowVisible, collars, customLayers, customVisible, holeScheme, holeColourBy, surfaceStructures, layoutPages /* #3296 */]); // #1398; collars: #1813; holeScheme: #1504; surfaceStructures: #3092
 
   // TASKS.csv #453 — the 3D slice's planes over the drilled extent: vertical (azimuth, position) or horizontal (an elevation); thickness 0 = a half-space
   const sliceExtent = useMemo(() => {
@@ -1865,6 +1871,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     rendererRef.current = renderer; mount.appendChild(renderer.domElement);
+    const warmId = typeof requestIdleCallback === "function" ? requestIdleCallback(() => import("../lib/viewer/surfaceWarmup.js").then((m) => { if (rendererRef.current === renderer) m.warmSurfacePrograms(renderer, scene, camera); }).catch(() => {}), { timeout: 10000 }) : null; // #3155 — the surface shaders compiled at idle
 
     const root = new THREE.Group(); root.name = "root"; scene.add(root);
     // TASKS.csv #695 — neither is ever transformed; left auto-updating they force every descendant's world matrix
@@ -2278,9 +2285,10 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
             const zr = zoomRef.current;
             // TASKS.csv #3309 — zooming in on the survey points: shrunk at once (an in-place rescale since #3309), not after the zoom settles;
             // symbols sized for a far view were drawn hundreds of pixels across, every frame took seconds and the zoom never settled
-            if (name === "geophys_pts" && mpp < builtRef.current / 2 && floored(builtRef.current, mpp)) { zr.key = key; zr.at = Infinity; buildRef.current(); continue; }
+            const go = () => { if (name === "geophys_pts" && geophysPtsLib?.resizeSurveyPts(sg, minSymbolRadiusM(mpp, GEOPHYS_MIN_PX))) builtRef.current = mpp; else buildRef.current(); }; // #3401 — the survey points' floor is a uniform: no rebuild
+            if (name === "geophys_pts" && mpp < builtRef.current / 2 && floored(builtRef.current, mpp)) { zr.key = key; zr.at = Infinity; go(); continue; }
             if (key !== zr.key) { zr.key = key; zr.at = now; }
-            else if (now - zr.at > 400 && needsSymbolRebuild(builtRef.current, mpp) && floored(builtRef.current, mpp)) { zr.at = Infinity; buildRef.current(); }
+            else if (now - zr.at > 400 && needsSymbolRebuild(builtRef.current, mpp) && floored(builtRef.current, mpp)) { zr.at = Infinity; go(); }
           }
         }
         if (gridGroupRef.current?.userData.labels) fitScreenLabels(gridGroupRef.current.userData.labels, camera, mount.clientHeight); // #2211
@@ -2300,7 +2308,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     animate();
 
     return () => {
-      cancelAnimationFrame(raf); ro.disconnect();
+      cancelAnimationFrame(raf); ro.disconnect(); if (warmId != null) cancelIdleCallback(warmId); // #3155
       dom.removeEventListener("pointermove", wakeOnPointer); // #441
       if (THREE.DefaultLoadingManager.onLoad !== prevLoadHandler) THREE.DefaultLoadingManager.onLoad = prevLoadHandler;
       dom.removeEventListener("pointerdown", onPointerDown);
@@ -2424,10 +2432,10 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   useEffect(() => {
     if (!sceneRef.current) return;
     if (gridGroupRef.current) { sceneRef.current.remove(gridGroupRef.current); disposeThreeGroup(gridGroupRef.current); }
-    const group = buildGridGroup(gridConfig, gridPlacement(collars, survey), DEFAULT_GRID.color);
+    const group = buildGridGroup(gridConfig, gridPlacement(collars, survey, tracesRef.current /* #3355 */), DEFAULT_GRID.color);
     sceneRef.current.add(group);
     gridGroupRef.current = group;
-  }, [gridConfig, collars, survey]);
+  }, [gridConfig, collars, survey, tracesSeq]);
 
   // ---------- TASKS.csv #650: "View" a structural trend — its ellipsoid, plane and major axis at the drilling's centre ----------
   const trendPreviewRef = useRef(null);
@@ -3520,6 +3528,14 @@ ${describeTrend(t)}` };
         setNotices((p) => [...p, notice("{name}: import cancelled ({triangleCount} triangles).", { name: file.name, triangleCount: solid.triangleCount.toLocaleString() })]);
         return;
       }
+      // TASKS.csv #3186 — on a local grid tied to a real CRS: the file's numbers are local metres or the tie's CRS (one question, lib/solidTie.js)
+      const gridTie = tieOf(project);
+      let viaTie = false;
+      if (gridTie) {
+        const g = (await import("../lib/solidTie.js")).solidTieGuess(solid.parts, gridTie, importStateRef.current?.collars);
+        viaTie = window.confirm(tr("The project's local grid is tied to EPSG:{epsg}. Are the coordinates in \"{name}\" in EPSG:{epsg}?{hint}\n\nOK: place them through the tie, onto the local grid. Cancel: use them as local-grid metres, as they are.", { epsg: gridTie.epsg, name: file.name, hint: g.suggest === "tie" ? tr("\n\nThe solid is about {d} m from the holes read that way, against {e} m as local metres: it looks like EPSG:{epsg}.", { d: Math.round(g.viaTieM).toLocaleString(), e: Math.round(g.asLocalM).toLocaleString(), epsg: gridTie.epsg }) : g.suggest === "local" ? tr("\n\nThe solid is about {e} m from the holes as local metres, against {d} m read through the tie: it looks like local-grid metres.", { d: Math.round(g.viaTieM).toLocaleString(), e: Math.round(g.asLocalM).toLocaleString() }) : "" }));
+        if (viaTie) solid.parts = (await import("../lib/solidTie.js")).solidPartsToLocal(solid.parts, gridTie);
+      }
       const bounds = solidBounds(solid.parts);
       const o = originRef.current;
       const label = file.name.replace(/\.(dxf|obj|msh|ts|gp)$/i, "");
@@ -3565,7 +3581,7 @@ ${describeTrend(t)}` };
           params: {
             tool: "imported solid", sourceFile: file.name, format: solid.format, ...(layered ? { layer: part.layer } : {}),
             detail: solid.note, vertices: nVerts, triangles: nTris,
-            crsAssumed: project?.crsSet === false ? "assumed on the project's local grid (CRS not set)" /* #2232 */ : project?.epsg ? `assumed already in EPSG:${project.epsg}` : "assumed already in the project CRS",
+            crsAssumed: viaTie ? `placed onto the local grid through its tie to EPSG:${gridTie.epsg} (x, y; elevation unchanged)` /* #3186 */ : project?.crsSet === false ? "assumed on the project's local grid (CRS not set)" /* #2232 */ : project?.epsg ? `assumed already in EPSG:${project.epsg}` : "assumed already in the project CRS",
             importedAt: new Date().toISOString(),
           },
         };
@@ -3575,14 +3591,14 @@ ${describeTrend(t)}` };
         ? ` Extent: E ${bounds.min.x.toFixed(0)}–${bounds.max.x.toFixed(0)}, N ${bounds.min.y.toFixed(0)}–${bounds.max.y.toFixed(0)}, Z ${bounds.min.z.toFixed(0)}–${bounds.max.z.toFixed(0)}.`
         : "";
       const layerNote = layered ? tr(" One surface per {v} ({v2}).", { v: solid.format === "DXF" ? "layer" : "object", v2: solid.parts.map((p) => p.layer).join(", ") }) : "";
-      setNotices((p) => [...p, notice("Imported \"{name}\" as a solid: {vertexCount} vertices / {triangleCount} triangles ({format}, {note}).{layerNote} It appears under Generated surfaces with the same show/hide, remove and query controls.{bb} Coordinates are used AS-IS — a DXF/OBJ carries no CRS, so GeoStrix does not reproject it; if it lands away from your holes, the file is in a different CRS.", { name: file.name, vertexCount: solid.vertexCount.toLocaleString(), triangleCount: solid.triangleCount.toLocaleString(), format: solid.format, note: solid.note, layerNote, bb })]);
+      setNotices((p) => [...p, viaTie ? notice("Imported \"{name}\" as a solid: {vertexCount} vertices / {triangleCount} triangles ({format}, {note}).{layerNote} It appears under Generated surfaces with the same show/hide, remove and query controls.{bb} Placed onto the local grid through its tie to EPSG:{epsg} (x and y; elevation unchanged).", { name: file.name, vertexCount: solid.vertexCount.toLocaleString(), triangleCount: solid.triangleCount.toLocaleString(), format: solid.format, note: solid.note, layerNote, bb, epsg: gridTie.epsg }) /* #3186 */ : notice("Imported \"{name}\" as a solid: {vertexCount} vertices / {triangleCount} triangles ({format}, {note}).{layerNote} It appears under Generated surfaces with the same show/hide, remove and query controls.{bb} Coordinates are used AS-IS — a DXF/OBJ carries no CRS, so GeoStrix does not reproject it; if it lands away from your holes, the file is in a different CRS.", { name: file.name, vertexCount: solid.vertexCount.toLocaleString(), triangleCount: solid.triangleCount.toLocaleString(), format: solid.format, note: solid.note, layerNote, bb })]);
       fitBox(box);
       import("../lib/solidCheckNote.js").then(({ solidCheckNote }) => { const t = solidCheckNote(solid.parts, (k) => (layered ? `${label} — ${solid.parts[k].layer}` : label)); if (t) setNotices((p) => [...p, infoNotice(t)]); }).catch(() => {}); // #2801 — on demand
     } catch (e) {
       clearProgress();
       setNotices((p) => [...p, errorNotice(tr("{name}: couldn't import as a solid ({v}).", { name: file.name, v: e.message || e }))]); // #739
     }
-  }, [fitBox, project?.epsg, setTaskProgress]);
+  }, [fitBox, project?.epsg, project?.crsSet, project?.localGrid, setTaskProgress]); // crsSet / localGrid: the tie (#3186)
   useModuleAction(["import-solid"], (a, payload) => { for (const f of payload?.files || []) importSolidFile(f); }); // TASKS.csv #1503 — a face-only DXF dropped on the Geophysics tab
 
 
@@ -4248,7 +4264,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         const j = surfaceDrawnIdx ? surfaceDrawnIdx[i] : i; // #1819 — classes are per surfaceSamples index
         const cl = an ? (j >= 0 ? an.classOf[j] : -1) : -2;
         const color = an ? (cl >= 0 ? an.classes[cl].color : an.noDataColor) : (st.color || colorForMedium(row.medium));
-        const mesh = new PickStandIn(proto, { color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // #312; #1500
+        const mesh = new PickStandIn(proto, { color, transparent: true, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // #312; #1500; transparent: #3046 (5)
+        mesh.renderOrder = 7; // TASKS.csv #3046 (5) — DRAW_ORDER.lines (#2776): after a flat map drape (no depth write), so a sample under it is not dimmed
         mesh.scale.setScalar(Math.max(radiusOf(row.medium), minR) * st.size * (an?.isolated[j] ? 0.55 : 1)); // #843 — an isolated anomaly is drawn small; #849 size; minR: #1597
         mesh.position.set(row.x - ox, row.z - oz, -(row.y - oy));
         const mapped = mappedOfSample(an, layerStyles.surface_anomaly, j, surfaceElementUnits); // #1821
@@ -4257,7 +4274,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       } catch (err) { errors.push(err.message); }
     });
     buildLayerBatches(g);
-    { const lg = layerGroupsRef.current.sample_labels; if (lg) syncTextLabels(lg, sampleLabelItems(placedSurfaceSamples, layerStyles.surface_samples?.label || "none", { ox, oy, oz }), makeTextSprite, Math.max(minR, 1.8) * 2); } // TASKS.csv #1443 — a label beside each sample (id or one element's value), decluttered each frame
+    { const lg = layerGroupsRef.current.sample_labels; if (lg) syncTextLabels(lg, sampleLabelItems(placedSurfaceSamples, layerStyles.surface_samples?.label || "none", { ox, oy, oz, units: surfaceElementUnits /* #2641 */ }), makeTextSprite, Math.max(minR, 1.8) * 2); } // TASKS.csv #1443 — a label beside each sample (id or one element's value), decluttered each frame
     if (errors.length) setNotices((pv) => [...pv, errorNotice(tr("{errors} surface sample(s) failed to render: {v}", { errors: errors.length, v: errors.slice(0, 3).join(" · ") }))]);
   };
   const surfaceSymbolMppRef = useRef(NaN); // TASKS.csv #1597 — the metres-per-pixel the surface symbols were sized for
@@ -4279,10 +4296,17 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     layersBuildRef.current = layers;
     return layers;
   }, [layers]);
+  // TASKS.csv #2371 — the desurvey method changes a trace only where a hole's survey has two attitudes; otherwise a switch redraws nothing and says why
+  const desurveyBites = useMemo(() => desurveyMatters(collars, survey), [collars, survey]);
+  const desurveySeenRef = useRef(desurveyMethod);
+  useEffect(() => {
+    if (desurveySeenRef.current !== desurveyMethod && survey.length && !desurveyBites) setNotices((p) => replaceNotices(p, "desurveySame", tr("Every hole keeps one attitude down its survey, so all desurvey methods give the same traces: nothing was redrawn."))); // one, not one per switch (#3114's tag)
+    desurveySeenRef.current = desurveyMethod;
+  }, [desurveyMethod]);
   useEffect(() => {
     // TASKS.csv #2176 step 1 — the drillhole scene build, moved unchanged into viewer/drillholeScene.js (#1084 size cap)
     buildDrillholeScene({ applyCategoryVisibility, applyHoleVisibilityRef /* #3253 */, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collarSize, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels, pointBuildersStale: () => [!sameInputs(assayBuiltRef.current, assayInputs), !sameInputs(geophysBuiltRef.current, geophysInputs), !sameInputs(surfaceBuiltRef.current, surfaceInputs)] /* #2176 */ });
-  }, [collars, survey, survey.length ? desurveyMethod : "" /* #135 — switching method must rebuild every trace; #1528 — with no survey every method gives the same straight holes */, noHoles ? layers : layersForBuild /* #1582 */, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, layerStylesBuildKey /* #635; #1528 — not the in-place opacities */, noHoles && anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, noHoles && mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, noHoles && voxelGeomSignature /* #1569 — with holes, only the fit box below */, fitBox, rebuildSeq, noHoles && placedSurfaceSamples /* #606 — and the no-drillhole camera anchor */]); // #551: assay / geophysics-legend / surface-visibility inputs moved to their own builders
+  }, [collars, survey, desurveyBites ? desurveyMethod : "" /* #135 — switching method must rebuild every trace; #1528 / #2371 — not when every hole keeps one attitude (straight holes, the same for every method) */, noHoles ? layers : layersForBuild /* #1582 */, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, layerStylesBuildKey /* #635; #1528 — not the in-place opacities */, noHoles && anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, noHoles && mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, noHoles && voxelGeomSignature /* #1569 — with holes, only the fit box below */, fitBox, rebuildSeq, noHoles && placedSurfaceSamples /* #606 — and the no-drillhole camera anchor */]); // #551: assay / geophysics-legend / surface-visibility inputs moved to their own builders
   // TASKS.csv #1569 (review #1497, Lawyers) — with drillholes, a block model only widens the fit box (the origin and the first
   // fit come from the holes): adding one re-derives that box here instead of rebuilding every drillhole and custom layer
   // (25-26 s per 'Add as block model' on Lawyers). Without holes the build above still runs, since the models anchor it.
@@ -4307,7 +4331,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     });
   }, [layerStyles]);
   // TASKS.csv #1277 — the Hole labels dropdown redraws the labels only
-  useEffect(() => { syncHoleLabels(layerGroupsRef.current?.hole_labels, holeLabelAnchorsRef.current, holeLabelMode, makeTextSprite); applyHoleVisibilityRef.current?.(); /* #3253 */ }, [holeLabelMode]);
+  useEffect(() => {
+    const g = layerGroupsRef.current?.hole_labels, byId = holeScheme ? new Map(collars.map((c) => [String(c.hole_id), c])) : null;
+    if (g) g.userData.colourOf = byId ? (id) => holeScheme.colourOf(byId.get(String(id))) : null; // #3399 — a pad callout's swatches; a rebuild's sync reads it too
+    syncHoleLabels(g, holeLabelAnchorsRef.current, holeLabelMode, makeTextSprite); applyHoleVisibilityRef.current?.(); /* #3253 */
+  }, [holeLabelMode, holeScheme]);
   // #551 — declared AFTER the big effect: when both fire, the big one builds first and these then see unchanged inputs
   // #1500 — not in a commit whose big build was deferred (buildDefer): the next render's big build builds these at its end
   useEffect(() => { if (!buildDefer.skip() && !sameInputs(assayBuiltRef.current, assayInputs)) buildAssaySpheresRef.current(); }, assayInputs);
@@ -4671,7 +4699,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // ---------- rebuild surface structure symbols (TASKS.csv #317) ----------
   // moved to lib/viewer/sceneBuilders.js syncSurfaceStructures (TASKS.csv #693); its comments explain the build
-  useEffect(() => { if (surfStructGroupRef.current && !buildDefer.skip()) { syncSurfaceStructures(surfStructGroupRef.current, surfStructObjsRef.current, surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ }); const lg = layerGroupsRef.current?.outcrop_labels; if (lg) syncTextLabels(lg, outcropLabelItems(surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ }), makeTextSprite, 0); /* #1443 */ } }, [surfaceStructures, collars, terrain, surfaceFlatZ /* #2753 */, rebuildSeq, deferRound]);
+  useEffect(() => { if (surfStructGroupRef.current && !buildDefer.skip()) { syncSurfaceStructures(surfStructGroupRef.current, surfStructObjsRef.current, surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ, symbolByType: store.project?.structureSymbolByType /* #3094 */ }); const lg = layerGroupsRef.current?.outcrop_labels; if (lg) syncTextLabels(lg, outcropLabelItems(surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ, symbolByType: store.project?.structureSymbolByType }), makeTextSprite, 0); /* #1443 */ } }, [surfaceStructures, collars, terrain, surfaceFlatZ /* #2753 */, store.project?.structureSymbolByType /* #3094 */, rebuildSeq, deferRound]);
 
   // ---------- rebuild OMF objects (TASKS.csv — Open Mining Format import) ----------
   // moved to lib/viewer/sceneBuilders.js syncOmfObjects (TASKS.csv #693); its comments explain the build
@@ -5078,6 +5106,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     addRaster,
     collars,
     goToModule, // TASKS.csv #917
+    mode, // TASKS.csv #3046 (1) — a sample drop on Surface Geology comes back there
     importModal,
     importSolidFile,
     importStateRef,
@@ -5682,7 +5711,23 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // rasters (an SRTM area in a section meant for one voxel model and the holes); a null key = the live visibility, so old sections draw as before.
   // Every shown layer as plain { color, label } primitives, made here where the colour / filter logic lives: the window only draws.
   // TASKS.csv #525 — factored out of buildSectionPayload so the level plan colours holes exactly as sections do.
+  // TASKS.csv #3298 (#3191: ~0.44 s of a Level plan open on WA iron's 6,390 holes, shared with sections) — the primitives kept for the last few
+  // (inputs, holes, scope): this function is made anew on every render, so the plan's own cache (keyed on it) was dropped by any re-render
+  // between two RL steps and rebuilt them. Callers get fresh arrays of the same objects (a section empties and refills its arrays).
+  const primsCacheRef = useRef([]), primsVerRef = useRef({ deps: null, v: 0 });
+  const primsDeps = () => [layers, layerVisible, isRowVisible, numericLayerColor, effectiveColor, effectiveLabel, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, assayRowShown, customLayers, customVisible, layerStyles];
+  const primsVersion = () => { const d = primsDeps(), r = primsVerRef.current; if (!r.deps || !d.every((x, i) => x === r.deps[i])) { r.deps = d; r.v++; } return r.v; }; // for the plan's cache (levelPlanBuild)
   const layerPrimitivesFor = (holeIds, scope = {}) => {
+    const deps = primsDeps();
+    const sk = JSON.stringify(scope), list = primsCacheRef.current;
+    let hit = list.find((c) => c.sk === sk && c.holes.size === holeIds.size && c.deps.every((d, i) => d === deps[i]) && [...holeIds].every((h) => c.holes.has(h)));
+    if (!hit) {
+      hit = { sk, holes: new Set(holeIds), deps, out: buildLayerPrimitives(holeIds, scope) };
+      primsCacheRef.current = [hit, ...list.filter((c) => c.deps.every((d, i) => d === deps[i]))].slice(0, 4); // other inputs: dropped
+    }
+    return { intervals: [...hit.out.intervals], points: [...hit.out.points] };
+  };
+  const buildLayerPrimitives = (holeIds, scope) => {
     const intervals = [];
     // TASKS.csv #137 — SG has no fixed domain (as RQD% / recovery% do): its project min / max, as the scene build's.
     const sgVals = (layers.sg || []).filter((r) => holeIds.has(r.hole_id) && isRowVisible("sg", r)).map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
@@ -5711,7 +5756,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         const label = meta.numeric ? row.value : effectiveLabel(key, row.value);
         // TASKS.csv #684 — a mineralisation INTERVAL is a ribbon over its depths in the section, not a dot at its midpoint
         if (key === "mnlgy" && isIntervalRow(row)) { intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${meta.label}: ${label}${row.extra != null ? ` (${row.extra}%)` : ""}`, layer: key }); return; }
-        points.push({ hole_id: row.hole_id, md: mid, color, label: `${meta.label}: ${label}`, layer: key }); // layer: #1706
+        points.push({ hole_id: row.hole_id, md: mid, color, label: `${meta.label}: ${label}`, layer: key, value: meta.numeric ? row.value : undefined }); // layer: #1706; value: #3362
       });
     });
     const showAssays = scope.showAssays != null ? scope.showAssays : assayVisible;
@@ -5738,7 +5783,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       layer.rows.filter((r) => holeIds.has(r.hole_id)).forEach((row) => {
         const iv = row.to != null && !isNaN(row.to), color = (iv ? stI.color || row.modelColor : stP.color) || customColour(layer, layerStyles, row);
         if (iv) intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${nm}: ${row.value}`, layer: `custom:${layer.id}` });
-        else if (row.depth != null && !isNaN(row.depth)) points.push({ hole_id: row.hole_id, md: row.depth, color, label: `${nm}: ${row.value}`, layer: `custom:${layer.id}` });
+        else if (row.depth != null && !isNaN(row.depth)) points.push({ hole_id: row.hole_id, md: row.depth, color, label: `${nm}: ${row.value}`, layer: `custom:${layer.id}`, value: row.value }); // value: #3362
       });
     });
 
@@ -5931,6 +5976,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     legendItems.sort((a, b) => a[0].localeCompare(b[0]));
     // TASKS.csv #2669 — the custom layers drawn on the section (a strat-unit ribbon, a gamma log): their classes, or their ramp
     legendItems.push(...sectionCustomLegendItems(customLayers, new Set([...intervals, ...points].map((r) => String(r.layer || "")).filter((k) => k.startsWith("custom:")).map((k) => k.slice(7))), layerStyles));
+    { const nk = ["sg", "geotech", "recovery", "magsusc"].filter((k) => intervals.some((r) => r.layer === k) || points.some((r) => r.layer === k)); if (nk.length) legendItems.push(...sectionNumericLegendItems(numericLayerLegendGroups({ keys: nk, layers, layerVisible: Object.fromEntries(nk.map((k) => [k, true])), isRowVisible, colorOf: numericLayerColor, symbology: numericSymbology, clips: numericClip }))); } // TASKS.csv #3377 / #3413 — the numeric ribbons' keys (SG, RQD %, recovery, mag susc), as the 3D legend's
 
     // TASKS.csv #357 — model surfaces and imported solids ON the section. Every visible implicit/solid mesh
     // is cut by the vertical section plane (per-triangle sign test, once per section): the geologist can
@@ -5987,7 +6033,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // block-model cells, model surfaces, planned holes), as a section draws them (layerPrimitivesFor). #3137 — built a slice at a time in
   // modules/viewer/levelPlanBuild.js, which loads with the window; this is what it reads.
   const planCacheRef = useRef(null);
-  const planCtx = () => ({ traces: tracesRef.current, visibleHoles, layerPrimitivesFor, cache: planCacheRef, layerVisible, layers, customLayers, customVisible, isRowVisible, effectiveColor, effectiveLabel,
+  const planCtx = () => ({ traces: tracesRef.current, visibleHoles, layerPrimitivesFor, primsVersion: primsVersion() /* #3298 */, cache: planCacheRef, layerVisible, layers, customLayers, customVisible, isRowVisible, effectiveColor, effectiveLabel,
     voxelModels, voxelCellShown, colorForVoxelValue, origin: originRef.current, implicitSurfaces, implicitMeshes: implicitMeshesRef.current, plannedHoles, plannedHoleTrace,
     assayLegend: () => assayLegendGroups({ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle }), projectValues: (sym) => assays.map((a) => a.values[sym]).filter((v) => v != null) }); // #1537
 
@@ -7510,6 +7556,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             cameraRef={cameraRef}
             mountRef={mountRef}
             camSignalRef={figureOverlaySignalRef}
+            openKey={viewerUiStateSeq} /* #3280 (1) */
+            onConfig={setFigureOverlay} /* #3398 — the legend's collapse and folds, saved with the view */
           />
         )}
         {/* TASKS.csv #294 — the fresh-project empty state. This used to be a single grey line

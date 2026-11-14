@@ -61,7 +61,8 @@ test("wiring: a desurvey-only change patches the groups it can; they are not cle
   const s = fs.readFileSync(new URL("../src/modules/viewer/drillholeScene.js", import.meta.url), "utf8");
   assert.match(s, /if \(!full && plan\.shift && plan\.shift\.moved === changedHoles\.size && changedHoles\.size <= PATCH_MAX_HOLES\) \{/);
   assert.match(s, /\[\.\.\.rebuild\]\.filter\(\(k\) => !patched\.has\(k\)\)\.map\(groupOf\)/);
-  assert.match(s, /patched\.has\(k\) \? groupByHole\(\(rows \|\| \[\]\)\.filter\(\(r\) => changedHoles\.has\(r\.hole_id\)\)\)/);
+  assert.match(s, /patched\.has\(k\) \? groupByHole\(\(rows \|\| \[\]\)\.filter\(\(r\) => patchHoles\(k\)\.has\(r\.hole_id\)\)\)/); // #3053: a row patch's holes, else the moved holes
+  assert.match(s, /const patchHoles = \(k\) => rowPatchHoles\.get\(k\) \|\| changedHoles;/);
   assert.match(s, /holeSets\.set\(k, rebuild\.has\(k\) && !patched\.has\(k\) \?/);
   assert.match(s, /g\.userData\.retired = 0; g\.userData\.patches = 0; \/\* #3097 \*\//);
 });

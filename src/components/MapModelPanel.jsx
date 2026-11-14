@@ -12,7 +12,8 @@ import { mapGroundCount, contactsInArea } from "../lib/mapGroundCount.js"; // TA
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #2724 — the collars and survey the logged intercepts are placed on
 import { ChevronUp, ChevronDown } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
-import { suggestPileOrder } from "../lib/pileOrder.js";
+import { suggestPileOrder, mapRoleFromLog } from "../lib/pileOrder.js"; // mapRoleFromLog: #3369
+import { roleWithCodes } from "../lib/collarSubcrop.js"; // TASKS.csv #3369 — the logs' role of a code (Modelling codes first)
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { loggedCodes, suggestCodeUnits, holeContacts, MAX_GAP_M, contactsAgainstOrder } from "../lib/holeMapContacts.js"; // TASKS.csv #1718; contactsAgainstOrder: #2408
 
@@ -24,7 +25,11 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   const polys = (mapLayers || []).filter((l) => l.geomType === "polygon");
   const lines = (mapLayers || []).filter((l) => l.geomType === "line" || l.geomType === "polyline"); // the importer names them "polyline"
   const [layerId, setLayerId] = useState("");
-  const layer = polys.find((l) => l.id === layerId) || polys[0] || null;
+  // TASKS.csv #3369 — the default map is a mapped layer that is shown, not the subcrop's nearest-hole outlines (the review's pane opened on them
+  // even when they were hidden and an imported map existed)
+  const derivedMap = (l) => !!(l?.subcropOutlines || l?.subcropFromCollars);
+  const layer = polys.find((l) => l.id === layerId) || polys.find((l) => !derivedMap(l) && l.visible !== false) || polys.find((l) => !derivedMap(l)) || polys.find((l) => l.visible !== false) || polys[0] || null;
+  const nearestHole = !!layer?.subcropOutlines; // #3369
   const [field, setField] = useState("");
   const unitField = fieldsOf(layer).includes(field) ? field : (layer?.styleField || fieldsOf(layer)[0] || "");
   const [descField, setDescField] = useState("");
@@ -62,10 +67,13 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
     if (!terrain?.bbox) return null;
     return (x, y) => terrainGroundAt(terrain, x, y); // TASKS.csv #927
   }, [terrain]);
+  // TASKS.csv #3369 — on the nearest-hole outlines: no order votes from their borders, and each code starts on the role the logs give it
+  const { modellingCodes: mcodes } = useStore();
+  const logRoleOf = useMemo(() => { if (!nearestHole) return null; const r = roleWithCodes(mcodes); return (u) => mapRoleFromLog(r(u)); }, [nearestHole, mcodes]);
   const suggestion = useMemo(() => {
     if (!layer || !unitField) return null;
-    try { return suggestPileOrder({ layer, field: unitField, descField: desc || null, bedding, faults: faults.filter((f) => f.on).map((f) => f.line), groundAt }); } catch { return null; }
-  }, [layer, unitField, desc, bedding, faults, groundAt]);
+    try { return suggestPileOrder({ layer, field: unitField, descField: desc || null, bedding, faults: faults.filter((f) => f.on).map((f) => f.line), groundAt, nearestHole, roleOf: logRoleOf }); } catch { return null; }
+  }, [layer, unitField, desc, bedding, faults, groundAt, nearestHole, logRoleOf]);
   const [order, setOrder] = useState([]);
   const [roles, setRoles] = useState({});
   // TASKS.csv #2408 — an order set by hand is kept when the suggestion is recomputed (unticking an orientation class put Basement back on top
@@ -178,6 +186,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
       </div>
       <div style={row}><span style={{ width: 70, flexShrink: 0 }}>{tr("Map")}</span>
         <select value={layer?.id || ""} onChange={(e) => setLayerId(e.target.value)} style={sel} aria-label={tr("Geological map")}>{polys.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select></div>
+      {nearestHole && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>{tr("This map is the nearest-hole outlines of the subcrop from collars: its borders lie half-way between holes, not on mapped contacts, so they give no evidence of order. Each code starts on the role the logs give it (intrusive and cross-cutting codes leave the pile). Set the order by hand, check it against the logged contacts below, or choose a mapped layer.")}</div>}
       <div style={row}><span style={{ width: 70, flexShrink: 0 }}>{tr("Unit field")}</span>
         <select value={unitField} onChange={(e) => setField(e.target.value)} style={sel} aria-label={tr("Unit field")}>{fieldsOf(layer).map((f) => <option key={f} value={f}>{f}</option>)}</select></div>
       <div style={row}><span style={{ width: 70, flexShrink: 0 }}>{tr("Description")}</span>
@@ -229,6 +238,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
         </div>
       )}
       <div role="button" tabIndex={0} onClick={() => setShowWhy((v) => !v)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setShowWhy((v) => !v); }} style={{ cursor: "pointer", fontSize: "var(--font-size-xs)", marginBottom: 4 }}>{showWhy ? "▾" : "▸"} {tr("Why this order (contact by contact)")}</div>
+      {showWhy && nearestHole && <div style={{ fontSize: "var(--font-size-xs)", marginBottom: 2 }}>{tr("{n} border(s) between nearest-hole outlines: not contacts, not used.", { n: (suggestion?.pairs || []).filter((p) => p.nearestHole).length })}</div>}
       {showWhy && (suggestion?.pairs || []).filter((p) => p.weight || p.faulted).sort((a, b) => (b.weight || 0) - (a.weight || 0)).map((p) => (
         <div key={`${p.a}|${p.b}`} style={{ fontSize: "var(--font-size-xs)", marginBottom: 2 }}>
           {p.faulted ? tr("{a} | {b}: follows a mapped fault — not used", { a: p.a, b: p.b })

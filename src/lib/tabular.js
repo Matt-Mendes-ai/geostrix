@@ -156,6 +156,64 @@ export function spaceTableToTabs(text) {
 // composite (TASKS.csv #2345): { hole, from, to, lengthM } — the kept rows composited to that length as they are read (never all held)
 // logRead (TASKS.csv #3038): { hole, depth | from + to, channels, sampleN } — a downhole log read into typed columns (logOnRead.js) as it is
 // read: the rows returned are its first sampleN rows, and `logTable` holds every reading
+// TASKS.csv #3156 (from #3038) — the log's parse was the wait to the dialog (about 30 s for a 121 MB log in the worker): Papa built a row object
+// for every reading, only for the log reader to copy four numbers out of it. A plain log (one delimiter, no quote anywhere, unique header names,
+// every line as wide as the header) is scanned here instead: the first sampleN lines become full rows (the dialog's preview and guesses), every
+// other line only hands the reader its hole, depth and channel cells. Cells are typed as Papa's dynamicTyping types them (true / false, a float
+// in its range, an ISO date, '' -> null), so the reader sees the same values. Anything else -> null, and Papa reads it as before.
+const PAPA_FLOAT = /^\s*-?(\d+\.?|\.\d+|\d+\.\d+)([eE][-+]?\d+)?\s*$/;
+const PAPA_ISO_DATE = /^((\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z)))$/;
+const papaValue = (v) => {
+  if (v === "true" || v === "TRUE") return true;
+  if (v === "false" || v === "FALSE") return false;
+  if (PAPA_FLOAT.test(v)) { const f = parseFloat(v); if (f > -9007199254740992 && f < 9007199254740992) return f; }
+  if (PAPA_ISO_DATE.test(v)) return new Date(v);
+  return v === "" ? null : v;
+};
+export function fastLogScan(text, logRead, dynamicTyping) {
+  if (!text || text.indexOf('"') >= 0) return null;
+  let i0 = text.indexOf("\n"); if (i0 < 0) return null;
+  const head = text.slice(0, i0).replace(/\r$/, "");
+  const dels = [",", "\t", ";"].filter((d) => head.includes(d));
+  if (dels.length !== 1) return null;
+  const d = dels[0], fields = head.split(d);
+  if (new Set(fields).size !== fields.length || fields.some((f) => f === "")) return null;
+  const want = [logRead.hole, logRead.depth, logRead.from, logRead.to, ...(logRead.channels || [])].filter(Boolean);
+  const idx = want.map((f) => fields.indexOf(f));
+  if (idx.some((k) => k < 0)) return null;
+  const typedCol = fields.map((f) => dynamicTyping(f)), W = fields.length;
+  const slotOf = fields.map((f) => want.indexOf(f)); // column -> its place in `want`, or -1
+  const lr = makeLogReader(logRead), sampleN = logRead.sampleN ?? 5000;
+  let pos = i0 + 1, line = 0;
+  const n = text.length;
+  while (pos < n) {
+    let e = text.indexOf("\n", pos); if (e < 0) e = n;
+    let end = e; if (end > pos && text.charCodeAt(end - 1) === 13) end--;
+    if (end > pos) {
+      const o = {};
+      if (line < sampleN) {
+        const cells = text.slice(pos, end).split(d);
+        if (cells.length !== W) return null; // a short or long line: Papa's errors and its __parsed_extra, not ours
+        for (let k = 0; k < W; k++) o[fields[k]] = typedCol[k] ? papaValue(cells[k]) : cells[k];
+      } else { // past the sample: the wanted cells only, found by walking the delimiters (no array per line); the line's width still checked
+        let k = 0, a = pos;
+        while (true) {
+          let b = text.indexOf(d, a); if (b < 0 || b > end) b = end;
+          const j = slotOf[k];
+          if (j >= 0) { const c = text.slice(a, b); o[want[j]] = typedCol[k] ? papaValue(c) : c; }
+          k++;
+          if (b >= end) break;
+          a = b + 1;
+        }
+        if (k !== W) return null;
+      }
+      lr.add(o); line++;
+    }
+    pos = e + 1;
+  }
+  const f = lr.finish();
+  return { data: f.sample, logTable: f.table, errors: [], meta: { fields, delimiter: d } };
+}
 export function parseTableText(text, { comments = "#", columnar = false, keep = null, holes = null, composite = null, logRead = null } = {}) {
   ({ text } = stripLeadingComments(text, comments)); // #720
   const spaced = spaceTableToTabs(text); // #2017
@@ -171,7 +229,9 @@ export function parseTableText(text, { comments = "#", columnar = false, keep = 
   let res, droppedByHole = 0;
   const hf = holes?.col && holes.ids ? { col: holes.col, ids: new Set([...holes.ids].map((v) => String(v).trim())) } : null; // #2321
   let composited = null, logTable = null;
-  if (keep?.length || hf || composite || logRead) { // #2177 — row by row, each row cut to the kept columns at once, so the dropped ones never accumulate; #2321 — other holes' rows too
+  const fast = logRead && !keep?.length && !hf && !composite ? fastLogScan(text, logRead, dynamicTyping) : null; // #3156 — a plain log, scanned
+  if (fast) { res = { data: fast.data, errors: fast.errors, meta: fast.meta }; logTable = fast.logTable; }
+  else if (keep?.length || hf || composite || logRead) { // #2177 — row by row, each row cut to the kept columns at once, so the dropped ones never accumulate; #2321 — other holes' rows too
     const want = keep?.length ? new Set([...keep, ...(composite ? [composite.hole, composite.from, composite.to] : [])]) : null, data = [], errors = []; // #2345 — the composite's own columns are always read
     const comp = composite ? makeCompositor(composite) : null; // #2345 — each kept row goes into its hole's bins instead of the row list
     const lr = logRead ? makeLogReader(logRead) : null; // #3038 — each row into the log's typed columns

@@ -34,7 +34,7 @@ import MapImportReview from "./MapImportReview.jsx"; // TASKS.csv #1325
 import { classifyTables, needsImportReview, isCoveringPolygon } from "../lib/mapImportReview.js";
 import { CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
-import { collarSubcrop, subcropLayer, roleWithCodes, subcropLeftOut, holeStartCodes } from "../lib/collarSubcrop.js"; // TASKS.csv #1719; roleWithCodes: #2407; subcropLeftOut: #2566; holeStartCodes: #2956
+import { collarSubcrop, subcropLayer, roleWithCodes, subcropLeftOut, holeStartCodes, subcropSkippedCodes, coverRoleSource } from "../lib/collarSubcrop.js"; // TASKS.csv #1719; roleWithCodes: #2407; subcropLeftOut: #2566; holeStartCodes: #2956; skipped codes: #3366
 import { outlineLayer, defaultReach, medianSpacing } from "../lib/subcropOutlines.js"; // TASKS.csv #2956
 import { loggedCodeSpellings, withLogColours } from "../lib/logColours.js"; // TASKS.csv #2970
 import { categoryColor, LAYER_META } from "../lib/layers.js"; // TASKS.csv #1719 — the logs' own colours
@@ -50,7 +50,7 @@ import { tieOf, fileToLocal, bearingToLocal } from "../lib/localGridTie.js"; // 
 import { structureIconSet, lineScaleOf } from "../lib/structureKmzIcons.js"; // TASKS.csv #3066 / #3068 — the USGS symbols replace #2681's strike icon (shared with the project KMZ)
 import { mineGridOf, mineSourceOf, isMineSource, mineChoiceToProject, mineSourceSentence } from "../lib/mineGrid.js"; // TASKS.csv #2586; the mine-grid Source CRS: #2684
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2265
-import { structureGroundCounts, surfaceFlatElevation } from "../lib/viewer/surfacePlacement.js"; import { terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #2485 (2); surfaceFlatElevation: #2753
+import { structureGroundCounts, surfaceFlatElevation, noTerrainGround } from "../lib/viewer/surfacePlacement.js"; import { terrainGroundAt } from "../lib/viewer/geomath.js"; import { mapLayerOnCollars } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #2485 (2); surfaceFlatElevation: #2753; noTerrainGround, mapLayerOnCollars: #3368
 
 // TASKS.csv #2093 / #1826 — the structure import's skipped rows, one reason each (parseStructureRows' skipWhy)
 export function skipReasons(w = {}, names = {}) { // names: the rows skipped for no direction (#2958)
@@ -69,7 +69,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     project, terrain, projectIsEmpty, setEpsg, // #607
     mapLayers, addMapLayer, updateMapLayer, removeMapLayer, goToModule /* #2793 */,
     surfaceStructures, addSurfaceStructureSet, updateSurfaceStructureSet, removeSurfaceStructureSet,
-  collars = [], /* #1325 */ surfaceSamples = [], /* #1715 */ survey = [], layers = {}, desurveyMethod, viewerUiState, /* #1719 */ setStructureCodeClasses /* #2266 */, modellingCodes /* #2407 */, setModellingCodes /* #2956 */ } = useStore();
+  collars = [], /* #1325 */ surfaceSamples = [], /* #1715 */ survey = [], layers = {}, desurveyMethod, viewerUiState, /* #1719 */ setStructureCodeClasses /* #2266 */, setStructureSymbolByType /* #3094 */, modellingCodes /* #2407 */, setModellingCodes /* #2956 */ } = useStore();
   const mapInput = useRef(null);
   const qmlInput = useRef(null);
   const qmlTargetRef = useRef(null);
@@ -83,8 +83,13 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
   const logSpell = useMemo(() => loggedCodeSpellings(layers.litho), [layers.litho]);
   // TASKS.csv #3066 — the USGS (FGDC) symbol per structure type: the project's choices (kept on the sets, set.symbolByType), else the default
   // from the type's words; a change applies to every set that has the type
-  const symbolChoices = useMemo(() => projectSymbolChoices(surfaceStructures), [surfaceStructures]);
-  const setTypeSymbol = (key, family) => { for (const set of surfaceStructures) if ((set.rows || []).some((r) => typeKey(r.type || r.cls) === key)) updateSurfaceStructureSet(set.id, { symbolByType: { ...(set.symbolByType || {}), [key]: family } }); };
+  // TASKS.csv #3094 — the choice is the project's (setStructureSymbolByType, project.structureSymbolByType): one entry per type, whatever set holds
+  // it, kept for a set imported later; the type's old per-set entries (#3066) are cleared so the two cannot disagree
+  const symbolChoices = useMemo(() => projectSymbolChoices(surfaceStructures, project?.structureSymbolByType), [surfaceStructures, project?.structureSymbolByType]);
+  const setTypeSymbol = (key, family) => {
+    setStructureSymbolByType(key, family || null);
+    for (const set of surfaceStructures) if (set.symbolByType && key in set.symbolByType) { const next = { ...set.symbolByType }; delete next[key]; updateSurfaceStructureSet(set.id, { symbolByType: next }); }
+  };
   const logColourOf = (u) => categoryColor(viewerUiState?.legendOverride?.litho?.[u], LAYER_META.litho, u);
   const logCats = (layer, cats) => withLogColours(cats, logSpell, logColourOf, { byCount: !!(layer.subcropFromCollars || layer.subcropOutlines) });
   const [subDepth, setSubDepth] = useState(""); // TASKS.csv #2956 — blank: the first unit under the cover; a number: the unit that far down each hole
@@ -116,7 +121,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         if (!toLonLat) throw new Error(tr("EPSG:{epsg} cannot be converted to latitude / longitude.", { epsg }));
         // TASKS.csv #3066 — each reading's USGS (FGDC) symbol, one PNG per symbol used, turned by its strike like #2681's icon
         const feats = ox.surfaceStructureFeatures(s, epsg, zAt), rowsOut = (s.rows || []).filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y)); // the features' rows, in order
-        const icons = await structureIconSet([s], { epsg }), iconAt = new Map(feats.features.map((f, i) => [f, icons.iconOf(rowsOut[i], s)]));
+        const icons = await structureIconSet([s], { epsg, symbolByType: project?.structureSymbolByType /* #3094 */ }), iconAt = new Map(feats.features.map((f, i) => [f, icons.iconOf(rowsOut[i], s)]));
         const kml = ox.featuresToKml(feats, { name: s.name, toLonLat, nameOf: (f) => (f.attributes.dip !== "" ? `${Math.round(f.attributes.dip)}°` : ""), colorOf: (f) => STRUCTURE_CLASS_COLORS[f.attributes.cls] || "#555555", headingOf: (f) => iconAt.get(f)?.heading ?? (f.attributes.strike_rhr_true !== "" ? f.attributes.strike_rhr_true : null), iconOf: (f) => iconAt.get(f)?.href ?? null /* #3066 */ });
         // TASKS.csv #2681 — a .kmz: the KML and the strike-symbol icon it points at, so Google Earth turns a dip symbol, not its pushpin
         const { buildZip } = await import("../lib/shapefile.js");
@@ -374,6 +379,12 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
 
   // TASKS.csv #1719 / #2956 — the subcrop from collars (the button's body, a function since #2956 so 'Make it again' can run it); replace: the
   // layer a previous run made, removed first
+  // TASKS.csv #3366 (#3195, Galore Creek) — the codes skipped as cover above the mapped unit, named in the result: breccia B, read as no recovery
+  // from its notes, was skipped in 7 holes and nothing said so. A role read from the notes says so.
+  const skippedText = (list) => !list.length ? "" : tr("Skipped as cover above the mapped unit: {codes}.", { codes: list.slice(0, 8).map((c) => {
+    const v = { code: c.code, n: c.holes, m: c.maxM };
+    return coverRoleSource(c.code, modellingCodes) !== "notes" ? tr("{code} in {n} hole(s), up to {m} m", v) : c.role === "overburden" ? tr("{code} in {n} hole(s), up to {m} m (overburden, from its notes)", v) : tr("{code} in {n} hole(s), up to {m} m (no recovery, from its notes)", v);
+  }).join("; ") + (list.length > 8 ? "; …" : "") });
   const makeSubcrop = (replace = null) => {
     // TASKS.csv #2265 (review #2174) — on a project drilled from underground the 'top of each hole' is a drill position on a mine level,
     // not the surface: asked first, named for what it is. (Its NPRC / Unknown 'units' are cover since #2227: roleForLithology reads the notes.)
@@ -383,9 +394,10 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     const depth = String(subDepth).trim() === "" ? null : Number(subDepth); // #2956
     if (depth != null && !(depth >= 0)) { setMapMsg({ ok: false, text: tr("The depth below the collar must be a number of metres, 0 or more.") }); return; }
     const pts = collarSubcrop({ collars, survey, litho: layers.litho, desurveyMethod, roleOf: roleWithCodes(modellingCodes), report: rep, atDepthM: depth }); // roleOf: #2407; atDepthM: #2956
+    const skippedCodes = subcropSkippedCodes({ collars, litho: layers.litho, roleOf: roleWithCodes(modellingCodes) }); // #3366
     const late = rep.lateStart.length ? tr("{n} hole(s) whose log starts below the collar ({a}–{b} m down: an unlogged precollar, or logging only where something was met) were left out: their first logged unit is a point down the hole, not a subcrop ({ids}).", { n: rep.lateStart.length, a: Math.round(Math.min(...rep.lateStart.map((h) => h.logStart)) * 10) / 10, b: Math.round(Math.max(...rep.lateStart.map((h) => h.logStart)) * 10) / 10, ids: rep.lateStart.slice(0, 5).map((h) => h.hole_id).join(", ") + (rep.lateStart.length > 5 ? ", …" : "") }) : "";
-    if (!pts.length) { setMapMsg({ ok: false, text: [depth != null ? tr("No hole's log covers {d} m down.", { d: depth }) /* #2956 */ : tr("No hole has a logged unit under its overburden / casing to place."), late].filter(Boolean).join(" ") }); return; }
-    const base = depth != null ? tr("Units {d} m below the collars", { d: depth }) : ug.underground ? tr("Units at the collars") : tr("Subcrop from collars"); // #2265; at a depth: #2956
+    if (!pts.length) { setMapMsg({ ok: false, text: [depth != null ? tr("No hole's log covers {d} m down.", { d: depth }) /* #2956 */ : tr("No hole has a logged unit under its overburden / casing to place."), late, skippedText(skippedCodes) /* #3366 */].filter(Boolean).join(" ") }); return; }
+    const base = depth != null ? tr("Units {d} m down the holes", { d: depth }) /* #3378 — down each hole, not below the collars */ : ug.underground ? tr("Units at the collars") : tr("Subcrop from collars"); // #2265; at a depth: #2956
     if (replace) removeMapLayer(replace.id); // #2956 — 'Make it again' replaces the layer it made
     let name = base; for (let k = 2; mapLayers.some((l) => l.name === name && l.id !== replace?.id); k++) name = `${base} (${k})`;
     const layer = subcropLayer(pts, name, (u) => categoryColor(viewerUiState?.legendOverride?.litho?.[u], LAYER_META.litho, u));
@@ -393,7 +405,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     const skipped = collars.length - pts.length - rep.lateStart.length - (rep.notAtDepth || 0); // the late starts are said on their own (#2411)
     setSubcropCard({ name, pts, reach: String(defaultReach(pts)), depth }); // #2956
     setMapMsg({ ok: true, text: [depth != null ? tr("{name}: {n} point(s), {units} unit(s): the unit logged {d} m down each hole, at the hole's position at that depth.", { name, n: pts.length, units: layer.categories.length, d: depth }) /* #2956 */ : tr("{name}: {n} point(s), {units} unit(s): the first logged unit under the overburden / casing / no recovery at the top of each hole, at the hole's position at that depth. A start for the map, not a mapped outcrop.", { name, n: pts.length, units: layer.categories.length }),
-      rep.notAtDepth ? tr("{n} hole(s) whose log does not cover {d} m down were left out.", { n: rep.notAtDepth, d: depth }) : "" /* #2956 */, skipped > 0 ? (() => { const lo = subcropLeftOut({ collars, litho: layers.litho, roleOf: roleWithCodes(modellingCodes) }); return tr("{n} hole(s) were left out: {a} with no lithology log, {b} with only blank codes, {c} with only cover (overburden / casing / no recovery).", { n: skipped, a: lo.noLog, b: lo.blankOnly, c: lo.coverOnly }); })() /* #2566 — the reason, not one guess for all */ : "", late, depth == null ? tr("Each point keeps the depth of the cover above it (cover_m): 'Colour by depth of cover' below maps it.") : ""].filter(Boolean).join(" ") }); // cover_m: #2956
+      rep.notAtDepth ? tr("{n} hole(s) whose log does not cover {d} m down were left out.", { n: rep.notAtDepth, d: depth }) : "" /* #2956 */, skipped > 0 ? (() => { const lo = subcropLeftOut({ collars, litho: layers.litho, roleOf: roleWithCodes(modellingCodes) }); if (depth != null) lo.coverOnly = 0; /* #3378 — at a depth a hole in cover gives a point */ return tr("{n} hole(s) were left out: {a} with no lithology log, {b} with only blank codes, {c} with only cover (overburden / casing / no recovery).", { n: skipped, a: lo.noLog, b: lo.blankOnly, c: lo.coverOnly }); })() /* #2566 — the reason, not one guess for all */ : "", late, skippedText(skippedCodes) /* #3366 */, depth == null ? tr("Each point keeps the vertical depth of the cover above it below its collar (cover_m; cover_along_hole_m is its length down the hole): 'Colour by depth of cover' below maps it.") /* #3378 */ : ""].filter(Boolean).join(" ") }); // cover_m: #2956
   };
   // TASKS.csv #2956 — a code ticked as cover in the subcrop card: its role written as 3D Modelling > Modelling codes would (unticked: stratigraphic)
   const setCoverRole = (code, on) => setModellingCodes((p) => {
@@ -410,7 +422,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     const layer = outlineLayer(c.pts, name, (u) => categoryColor(viewerUiState?.legendOverride?.litho?.[u], LAYER_META.litho, u), { reachM });
     if (!layer.features.length) { setMapMsg({ ok: false, text: tr("No outline could be made from these points.") }); return; }
     addMapLayer(layer);
-    setMapMsg({ ok: true, text: tr("{name}: {n} polygon(s), {units} unit(s): each hole's nearest-hole area, cut back to {r} m from the hole (the median hole spacing is {s} m). A unit map from the drilling, not a mapped outline: Model it can build from it.", { name, n: layer.features.length, units: layer.categories.length, r: reachM, s: Math.round(medianSpacing(c.pts)) }) });
+    setMapMsg({ ok: true, text: tr("{name}: {n} polygon(s), {units} unit(s): each hole's nearest-hole area, cut back to {r} m from the hole (the median hole spacing is {s} m). A unit map from the drilling, not a mapped outline: its borders lie half-way between holes, so Model it takes no order from them.", { name, n: layer.features.length, units: layer.categories.length, r: reachM, s: Math.round(medianSpacing(c.pts)) }) });
   };
   const changeStyleField = (layer, field) => {
     const grad = graduatedStyle(layer.features, field); // TASKS.csv #1600 - a numeric field in classes
@@ -574,7 +586,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         + (out.fromQuadrant ? tr(" {n} dip direction(s) taken from the strike and the dip quadrant.", { n: out.fromQuadrant }) : "") // #2083
         + (out.quadrantUnread ? tr(" {n} dip quadrant(s) could not be read (not N, NE, E…), so the strike convention was used there.", { n: out.quadrantUnread }) : "")
         + (out.rhrMismatches ? (out.strikeRule === "lhr" ? tr(" {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart by the left-hand rule — the dip direction was used; check whether those strikes are right-hand-rule.", { rhrMismatches: out.rhrMismatches }) : tr(" {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart — the dip direction was used; check whether those strikes are left-hand-rule.", { rhrMismatches: out.rhrMismatches })) : "")
-        + (noZ ? (terrain ? structNoZText(noZ, structureGroundCounts(out.rows, terrain, terrainGroundAt)) : tr(" {noZ} had no elevation: drawn flat until a terrain is loaded (Maps > Terrain), then placed on it.", { noZ })) : "") // #1448 — they were said to 'sit on the terrain' with none loaded
+        + (noZ ? (terrain ? structNoZText(noZ, structureGroundCounts(out.rows, terrain, terrainGroundAt)) : (() => { const ug = collars.length > 1 && collarsLookUnderground(collars, survey).underground; /* #3368 — the ground they are drawn on, said */ return noTerrainGround(collars, ug) ? tr(" {noZ} had no elevation: drawn on the surface through the collar elevations, as the map layers are, until a terrain is loaded (Maps > Terrain), then placed on it.", { noZ }) : tr(" {noZ} had no elevation: drawn flat at {z} m until a terrain is loaded (Maps > Terrain), then placed on it.", { noZ, z: Math.round(surfaceFlatElevation(collars, surfaceSamples, ug)) }); })()) : "") // #1448 — they were said to 'sit on the terrain' with none loaded
         + (otherTypes.length ? tr(" Type code(s) {codes} are classed as Other: not a fault, breccia, vein, contact, joint, bedding, foliation or cleavage code GeoStrix knows. Pick a class for each on the import card (kept for this project), or rename them in the file.", { codes: otherTypes.slice(0, 8).join(", ") + (otherTypes.length > 8 ? "…" : "") }) : "") // #2082
         + crsNote + northNote,
     });
@@ -637,16 +649,27 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       {subcropCard && mapLayers.some((l) => l.name === subcropCard.name) && (() => { /* TASKS.csv #2956 — what the holes start in, cover, outlines */
         const layer = mapLayers.find((l) => l.name === subcropCard.name);
         const starts = holeStartCodes({ collars, litho: layers.litho, roleOf: roleWithCodes(modellingCodes) }), total = starts.reduce((a, c) => a + c.holes, 0) || 1;
+        // TASKS.csv #3366 — every code skipped as cover (ticked, with its holes and longest run; a role from the notes says so), then the other codes
+        // the holes start in: a wrong skip can be seen and unticked
+        const skipped = subcropSkippedCodes({ collars, litho: layers.litho, roleOf: roleWithCodes(modellingCodes) }), skipKeys = new Set(skipped.map((c) => c.code.toUpperCase()));
+        const others = starts.filter((c) => !skipKeys.has(c.code.toUpperCase()));
         return (
           <div style={{ marginTop: 8, padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
-            <div style={{ marginBottom: 4 }}>{tr("What the holes start in (the first logged code at the collar). Tick the codes that are cover and make it again: the map then shows the first unit under them. A tick sets the code's role to overburden, as 3D Modelling > Modelling codes does.")}</div>
-            {starts.slice(0, 10).map((c) => (
+            <div style={{ marginBottom: 4 }}>{tr("The codes skipped as cover (ticked), then what the other holes start in (the first logged code at the collar). Untick a code that is rock, or tick one that is cover, and make it again. A tick sets the code's role to overburden and an untick to stratigraphic, as 3D Modelling > Modelling codes does.")}</div>
+            {skipped.map((c) => (
+              <label key={"s:" + c.code} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <input type="checkbox" checked={c.role === "overburden" || c.role === "no recovery"} onChange={(e) => setCoverRole(c.code, e.target.checked)} aria-label={tr("{code} is cover", { code: c.code })} />
+                <span style={{ flex: 1 }}>{c.code}{coverRoleSource(c.code, modellingCodes) === "notes" && <em style={{ color: "var(--color-text-muted)" }}> {tr("from its notes")}</em>}</span>
+                <span>{c.whole ? tr("skipped in {n} hole(s), up to {m} m; the whole log of {w}", { n: c.holes, m: c.maxM, w: c.whole }) : tr("skipped in {n} hole(s), up to {m} m", { n: c.holes, m: c.maxM })}</span>
+              </label>
+            ))}
+            {others.slice(0, 10).map((c) => (
               <label key={c.code} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <input type="checkbox" checked={c.role === "overburden" || c.role === "no recovery"} onChange={(e) => setCoverRole(c.code, e.target.checked)} aria-label={tr("{code} is cover", { code: c.code })} />
                 <span style={{ flex: 1 }}>{c.code}</span><span>{tr("{n} hole(s), {p}%", { n: c.holes, p: Math.round((100 * c.holes) / total) })}</span>
               </label>
             ))}
-            {starts.length > 10 && <div>{tr("…and {n} more code(s): all of them are in 3D Modelling > Modelling codes.", { n: starts.length - 10 })}</div>}
+            {others.length > 10 && <div>{tr("…and {n} more code(s): all of them are in 3D Modelling > Modelling codes.", { n: others.length - 10 })}</div>}
             <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
               <button onClick={() => makeSubcrop(layer)} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>{tr("Make it again")}</button>
               {subcropCard.depth == null && <button onClick={() => changeStyleField(layer, "cover_m")} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>{tr("Colour by depth of cover")}</button>}
@@ -655,7 +678,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               <span>{tr("Outline the units out to")}</span>
               <input type="number" min={1} value={subcropCard.reach} onChange={(e) => setSubcropCard((c) => ({ ...c, reach: e.target.value }))} aria-label={tr("Outline distance from the holes, m")} style={{ ...numInput, width: 70 }} />
               <span>{tr("m from a hole")}</span>
-              <button onClick={outlineSubcrop} title={tr("A polygon map: each hole's nearest-hole area, cut back to this distance from the hole, with the unit of its point. Model it can build from it.")} style={{ ...pBtn, marginBottom: 0, width: "auto" }}>{tr("Outline")}</button>
+              <button onClick={outlineSubcrop} title={tr("A polygon map: each hole's nearest-hole area, cut back to this distance from the hole, with the unit of its point. Its borders are not mapped contacts.")} style={{ ...pBtn, marginBottom: 0, width: "auto" }}>{tr("Outline")}</button>
             </div>
           </div>
         );
@@ -677,7 +700,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
             <label style={{ ...row, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
               <input type="checkbox" checked={l.drapeMode === "terrain" && !!terrain} disabled={!terrain} title={!terrain && l.drapeMode === "terrain" ? tr("Flat for now: it drapes on the terrain once one is loaded.") : undefined} /* #1606 */
                 onChange={(e) => updateMapLayer(l.id, { drapeMode: e.target.checked ? "terrain" : "flat" })} />
-              <span style={{ color: "var(--color-text-caption)" }}>{tr("Drape on terrain{v}", { v: !terrain ? tr(" (import or fetch a DEM first, or offline: Geophysics > Block models > Terrain from the model's top)") /* #1824 */ : "" })}</span>
+              <span style={{ color: "var(--color-text-caption)" }}>{tr("Drape on terrain{v}", { v: !terrain ? tr(" (make one in Maps > Terrain first: fetch one, import a DEM, or offline from points, from the project's samples and collars, or from a block model's top)") /* #1824; one direction, as the Surface structures text (#3381) */ : "" })}</span>
             </label>
             {l.hasZ && !(l.drapeMode === "terrain" && terrain) && ( /* TASKS.csv #1601 - a polygon: outlines only (a drape is a flat picture) */
               <label style={{ ...row, cursor: "pointer" }}>
@@ -685,7 +708,12 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
                 <span style={{ color: "var(--color-text-caption)" }}>{l.geomType === "polygon" ? tr("Outlines at the file's own elevations") : tr("At the file's own elevations")}</span>
               </label>
             )}
-            {!(l.drapeMode === "terrain" && terrain) && l.drapeMode !== "file" && (
+            {/* TASKS.csv #3368 — with no terrain the layer lies on the surface through the collars, as the interpretation lines; or flat at Elev. */}
+            {mapLayerOnCollars(l, terrain, collars) && <div style={{ ...row, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("No terrain: draped on the surface through the collar elevations, as the interpretation lines are.")}</div>}
+            {!terrain && l.drapeMode !== "file" && (mapLayerOnCollars(l, terrain, collars) || (l.drapeMode === "flat" && mapLayerOnCollars({ ...l, drapeMode: "terrain" }, terrain, collars))) && (
+              <label style={{ ...row, cursor: "pointer" }}><input type="checkbox" checked={l.drapeMode === "flat"} onChange={(e) => updateMapLayer(l.id, { drapeMode: e.target.checked ? "flat" : "terrain" })} /><span style={{ color: "var(--color-text-caption)" }}>{tr("Flat at one RL instead")}</span></label>
+            )}
+            {!(l.drapeMode === "terrain" && terrain) && l.drapeMode !== "file" && !mapLayerOnCollars(l, terrain, collars) && (
               <div style={row}>
                 <span style={lbl}>{tr("Elev.")}</span>
                 <input type="number" value={Math.round(l.elevation || 0)} onChange={(e) => updateMapLayer(l.id, { elevation: Number(e.target.value) })} style={numInput} />

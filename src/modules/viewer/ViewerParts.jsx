@@ -285,7 +285,7 @@ export function SurfaceRibbon({ show, paneProps, onStereonet, onModelIt, mapPoly
       </RibbonGroup>
       <RibbonGroup label="Field data">
         <RibbonButton icon={Info} label="Identify" tone="analyse" active={identifyOn} title="Click anything in the 3D view to see which layer it belongs to and its details. Esc stops." onClick={onToggleIdentify} />
-        <RibbonButton icon={Palette} label="Rock chips" tone="view" disabled={!sampleCount} disabledReason="Import surface samples (rock chips, soils) on the Geochem tab first" title="Style the surface samples: colour, size, shape, labels; colour by element is in the sidebar" onClick={onStyleSamples} />
+        <RibbonButton icon={Palette} label="Rock chips" tone="view" disabled={!sampleCount} disabledReason="No surface samples yet: drop a rock-chip or soil file on the 3D view, or import it on the Geochem tab" /* #3381 — a dropped sample file is taken (#2268) */ title="Style the surface samples: colour, size, shape, labels; colour by element is in the sidebar" onClick={onStyleSamples} />
       </RibbonGroup>
       <RibbonGroup label="Next step">
         <RibbonButton icon={Mountain} label="Model it" tone="model" title="Build a 3D model from this map and these measurements: opens 3D Modelling > Model from map" onClick={onModelIt}

@@ -24,6 +24,6 @@ test("#2562 the pane's two survey selects move together, and the cell box defaul
   const g = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
   assert.match(g, /onChange=\{\(e\) => \{ setLegendSurvey\(e\.target\.value\); setIdwSurvey\(e\.target\.value\);/);
   assert.match(g, /onChange=\{\(e\) => \{ setIdwSurvey\(e\.target\.value\); setLegendSurvey\(e\.target\.value\);/);
-  assert.match(g, /const idwAutoCell = suggestIdwCell\(idwSuggest\?\.spacing\) \|\| 25;/);
+  assert.match(g, /const idwAutoCell = idwSuggest\?\.cell \|\| 25;/); // #3322: surveyGridDefaults, never over the cell limit
   assert.match(g, /const gName = uniqueName\(`\$\{label\}\$\{sliceTag\} \$\{tag\} \$\{idwCellSize\} m/); // #2846: the method's tag (IDW, min. curvature, spline)
 });

@@ -335,6 +335,12 @@ export function roleIsAssumed(u) {
   const k = String(u || "").trim().toLowerCase();
   return k !== "unknown" && !UNIT_ROLES[k] && !ROLE_PATTERNS.some(([re]) => re.test(k)) && !noteRoles?.get(k);
 }
+// TASKS.csv #3366 (#3195, Galore Creek) — the role came from the code's notes (#2046), not from its name: the Subcrop pane says so beside a
+// code it skipped as cover, so a wrong guess (breccia B read as no recovery from its cement, #3254) can be seen and unticked
+export function roleIsFromNotes(u) {
+  const k = String(u || "").trim().toLowerCase();
+  return k !== "unknown" && !UNIT_ROLES[k] && !ROLE_PATTERNS.some(([re]) => re.test(k)) && !!noteRoles?.get(k);
+}
 export function roleForLithology(u) {
   const k = String(u || "").trim().toLowerCase();
   if (k === "unknown") return "no recovery"; // TASKS.csv #2227 — the label blank cells import as (#2182) is not logged rock: never a unit, never a role from notes
@@ -403,7 +409,9 @@ export const WEATH_COLORS = {
 };
 export function colorForWeathering(v) { return WEATH_COLORS[String(v || "").toUpperCase().replace(/[\s_-]+/g, "")] || categoricalSafeColor("weath", v); }
 
-export const MIN_COLORS = { ACA: "#c8c8d8", CPY: "#d4af37", GAL: "#6a6a78", PO: "#8a6a45", PY: "#d4c060", SPH: "#6a3a2a" };
+// TASKS.csv #3332 — CPY and PY were two near golds (#d4af37 / #d4c060, CIE76 dE 15) and PO and SPH two browns (dE 22): CPY now orange-brass, PY pale
+// brass, PO bronze-pink; every pair here is at least dE 34 apart
+export const MIN_COLORS = { ACA: "#c8c8d8", CPY: "#d08a1c", GAL: "#6a6a78", PO: "#c0907a", PY: "#e6d65a", SPH: "#6a3a2a" };
 export function colorForMineral(m) { return MIN_COLORS[(m || "").toUpperCase()] || categoricalSafeColor("mineral", m); }
 
 export const STRUCT_COLORS = { ALT: "#c9863d", BD: "#4a7ab5", CON: "#8a6fae", FLT: "#c0392b", FOL: "#3a8a8a", FOLD: "#4aa06a", SHZ: "#a5407a", VN: "#cfc7b0" };
@@ -552,10 +560,10 @@ export function makeVoxelColorResolverRGB(model) {
   const sorted = [...stops].sort((a, b) => a.value - b.value).map((s) => ({ value: s.value, rgb: hexToRgb(s.color) }));
   const discrete = model.colorMode === "discrete";
   return (value) => {
-    if (discrete) {
-      let rgb = sorted[0].rgb;
-      for (const s of sorted) { if (value >= s.value) rgb = s.rgb; else break; }
-      return rgb;
+    if (discrete) { // the last stop at or below the value (else the first); #3365: a binary search, not a scan of every stop per cell
+      let lo = 0, hi = sorted.length - 1, k = 0;
+      while (lo <= hi) { const m = (lo + hi) >> 1; if (value >= sorted[m].value) { k = m; lo = m + 1; } else hi = m - 1; }
+      return sorted[k].rgb;
     }
     if (value <= sorted[0].value) return sorted[0].rgb;
     if (value >= sorted[sorted.length - 1].value) return sorted[sorted.length - 1].rgb;
