@@ -1,4 +1,4 @@
-import { cellsFromColumnsSliced, checkColumns } from "./estimationCells.js"; // TASKS.csv #661; sliced / checkColumns: #3060
+import { cellsFromColumnsSliced, checkColumns, memberColumns } from "./estimationCells.js"; // TASKS.csv #661; sliced / checkColumns: #3060; memberColumns: #3163
 import { packPoints } from "./pointColumns.js"; // TASKS.csv #3008 — the points as columns, not 147,000 cloned objects
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv #520 — UI-thread side of estimation.worker.js. runEstimation("block" | "dense", points, opts,
@@ -11,7 +11,14 @@ import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the inter
 const withCells = async (r, { checkOnly = false, signal = null } = {}) => {
   if (!r?.columns) return r;
   const { columns, ...rest } = r;
-  return checkOnly ? { ...rest, checkColumns: checkColumns(columns) } : { ...rest, cells: await cellsFromColumnsSliced(columns, { signal }) };
+  // TASKS.csv #3163 — a set's members estimated in the same run: their check columns, or their cells, beside the primary's
+  const M = columns.mv?.length || 0;
+  if (checkOnly) return { ...rest, checkColumns: checkColumns(columns), ...(M ? { memberCheckColumns: columns.mv.map((_, m) => checkColumns(memberColumns(columns, m))) } : {}) };
+  const cells = await cellsFromColumnsSliced(columns, { signal });
+  if (!M) return { ...rest, cells };
+  const memberCells = [];
+  for (let m = 0; m < M; m++) memberCells.push(await cellsFromColumnsSliced(memberColumns(columns, m), { signal }));
+  return { ...rest, cells, memberCells };
 };
 export function runEstimation(kind, points, opts, { onProgress, signal, checkOnly = false } = {}) {
   return new Promise((resolve, reject) => {
@@ -20,7 +27,7 @@ export function runEstimation(kind, points, opts, { onProgress, signal, checkOnl
     const inline = () => import("./estimation.js").then((m) => {
       if (signal?.aborted) throw cancelledError();
       const fn = kind === "dense" ? m.estimateDenseGrid : m.estimateBlockModel;
-      return checkOnly && kind !== "dense" ? withCells(fn(points, { ...opts, onProgress, columns: true }), { checkOnly }) : fn(points, { ...opts, onProgress }); // #3060
+      return (checkOnly || opts.members) && kind !== "dense" ? withCells(fn(points, { ...opts, onProgress, columns: true }), { checkOnly }) : fn(points, { ...opts, onProgress }); // #3060; members (columns only): #3163
     }).then(resolve, reject);
     let worker;
     try {

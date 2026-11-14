@@ -100,39 +100,27 @@ export function syncRasterDrapes(group, cache, rasters, { origin, terrain, rende
         pos.needsUpdate = true;
         geometry.computeVertexNormals();
       } else if (drapeOnTerrain) {
-        // Bug fix (user report: "image is not draping correctly... zones of discrepancies"). Two
-        // compounding issues here, both about how closely this mesh actually hugs the terrain mesh
-        // underneath it: (1) SEG was a flat 48 regardless of how much of the terrain's own (up to
-        // 200x200) grid this raster's footprint covers — a raster spanning most/all of a rugged
-        // terrain (real mountain topography, not a gentle slope) was being approximated by a much
-        // coarser mesh than the terrain itself, so the drape cut straight across ridges/valleys the
-        // terrain mesh actually resolves, instead of following them — visible as patchy gaps/seams
-        // wherever local relief was sharper than 48 segments could capture. Now scaled to the
-        // terrain's own resolution over the raster's footprint fraction (capped for perf). (2) even
-        // with matched resolution, a drape sampled to sit exactly ON the terrain surface is a classic
-        // z-fighting setup — two coincident (or near-coincident, given #1's approximation error)
-        // surfaces at the same depth flicker unpredictably between which one the GPU draws on top,
-        // which reads exactly as "overall ok, but some zones look wrong" since it's viewpoint- and
-        // precision-dependent, not a real gap in the data. A small constant elevation nudge (well
-        // under a metre, invisible at any real-world project scale) lifts the drape just clear of the
-        // terrain so it always wins the depth test cleanly.
-        const rasterFracX = w / Math.max(1e-6, terrain.bbox[2] - terrain.bbox[0]);
-        const rasterFracY = h / Math.max(1e-6, terrain.bbox[3] - terrain.bbox[1]);
-        const SEG = Math.round(Math.min(160, Math.max(48, Math.max(rasterFracX * terrain.gridW, rasterFracY * terrain.gridH))));
-        const Z_FIGHT_EPSILON = 0.15; // world units (metres) — lifts the drape just clear of the terrain mesh
-        geometry = new THREE.PlaneGeometry(w, h, SEG, SEG);
-        const pos = geometry.attributes.position;
-        for (let i = 0; i < pos.count; i++) {
-          // Plane starts in the XY plane (local X = world easting offset, local Y = world northing
-          // offset, BEFORE the -90° X rotation below lays it flat) — sample the real-world point at
-          // this vertex and set local Z (which becomes scene Y = elevation, post-rotation).
-          const localX = pos.getX(i), localY = pos.getY(i);
-          const worldX = cx + localX, worldY = cy + localY;
-          const el = sampleTerrainElevation(terrain, worldX, worldY);
-          pos.setZ(i, el - oz + Z_FIGHT_EPSILON);
+        // TASKS.csv #3394 (#3380's follow-up) — on the terrain's own nodes and triangles (lib/viewer/terrainDrape.js), as the map layers are
+        // since #3380. The plane of 48-160 even segments read bilinearly (#81's fix for 'zones of discrepancies') parted from the drawn
+        // triangles inside twisted cells by up to a quarter of a cell's twist, far more than its 0.15 m lift, and the ground showed through.
+        // Lifted 0.15 m (#81's z-fight margin) plus what the drape cannot match exactly (a decimated terrain mesh, nodes skipped on a very
+        // large raster, the box's edge cells), and drawn ahead of the ground in the depth test.
+        const am = terrain.gridW * terrain.gridH > ADAPTIVE_TERRAIN_NODES ? adaptiveTerrainCache.get(terrain) : null;
+        const adaptiveError = terrain.gridW * terrain.gridH > ADAPTIVE_TERRAIN_NODES ? (am?.maxError ?? 2) : 0;
+        const dg = terrainDrapeGrid(terrain, r.bbox, { adaptiveError });
+        const W = dg.xs.length, H = dg.ys.length, positions = new Float32Array(W * H * 3), uvs = new Float32Array(W * H * 2), up = 0.15 + dg.extraLift;
+        for (let row = 0; row < H; row++) for (let k = 0; k < W; k++) {
+          const q = row * W + k;
+          positions[q * 3] = dg.xs[k] - cx; positions[q * 3 + 1] = dg.ys[row] - cy; positions[q * 3 + 2] = dg.z[q] - oz + up; // the plane's local frame (rotated below)
+          uvs[q * 2] = (dg.xs[k] - xmin) / w; uvs[q * 2 + 1] = (dg.ys[row] - ymin) / h; // as PlaneGeometry's: u east, v north
         }
-        pos.needsUpdate = true;
-        geometry.computeVertexNormals();
+        geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+        geometry.setIndex(new THREE.BufferAttribute(dg.indices, 1));
+        geometry.computeBoundingSphere();
+        geometry.userData.drapeLift = up;
+        material.polygonOffset = true; material.polygonOffsetFactor = -2; material.polygonOffsetUnits = -2; // as the map layers' (#3380)
       } else {
         geometry = new THREE.PlaneGeometry(w, h);
       }

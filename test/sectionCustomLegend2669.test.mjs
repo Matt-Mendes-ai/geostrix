@@ -25,7 +25,7 @@ test("#2669 the grouped key: the classes under their layer, the ramp as its own 
   assert.deepEqual(heads, ["Lithology", "Strat unit", "Gamma (ppm)"]);
   const after = rows.slice(rows.findIndex((r) => r[0] === "Gamma (ppm)") + 1);
   assert.equal(after.length, 5);
-  assert.ok(after.every(([v, c]) => Number.isFinite(Number(v)) && /^(#|rgb)/.test(c)));
+  assert.ok(after.every(([v, c]) => Number.isFinite(Number(String(v).replace(/^[≤≥] /, ""))) && /^(#|rgb)/.test(c))); // #3377: a clipped end reads '≤ x' / '≥ x'
   // a list already grouped (rows with options other than a ramp) comes back unchanged
   const grouped = [["Lithology", null, { heading: true }], ["BAS", "#111"]];
   assert.equal(groupSectionLegend(grouped).length, 2);

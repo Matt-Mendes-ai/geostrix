@@ -543,7 +543,25 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           ...(supportRef > 0 ? { supportRef } : {}),             // #1411
           ...(trend ? { trend: { basis: trendBasis(trend), scales: trendSearchScales(trend) } } : {}), // TASKS.csv #650 — ellipsoidal search
         };
-        const share = others.length ? 1 / (1 + others.length) : 1; // #3014 — the primary's part of the progress bar
+        // TASKS.csv #3163 (split from #3014) — the set's other elements composited and placed BEFORE the primary's run. A member whose points are
+        // the primary's (the same holes, positions, lengths and domains: every composite carries it) is estimated in the primary's own search and
+        // its nearest-neighbour check in the check's: one search for the set instead of one per element, with the same values. The others run on
+        // their own as before; so does every member under kriging (each fits its own variogram) or a log10 run.
+        const prep = [];
+        for (const el of others) {
+          const u = elementUnits[el] || "ppm";
+          const unsM = resolveUnsampled("estimate", { assays: srcAssays, collars: runCollars, symbol: el, unit: u, elementUnits, logCtx: { layers, customLayers } });
+          const fm = unsM.apply(srcAssays), rows = fm.assays;
+          const mCapN = Number(memberCapOf(el)), mCap = mCapN > 0 ? mCapN : null; // #3271
+          const iv = useComposites ? await compositeDownholeSliced(rows, el, u, elementUnits, { length: compositeLength, minCoverage, capValue: mCap, domainRows: domainRowsSel }, { signal: ac.signal }) /* #3105 */ : rawSampleIntervals(rows, el, u, elementUnits, { capValue: mCap }).intervals;
+          let mp = (await samplePointsSliced(iv, collars, survey, desurveyHole, desurveyMethod, { signal: ac.signal })).points; // #3111
+          if (inShell) mp = mp.filter((q) => inShell(q));
+          prep.push({ el, u, unsM, fm, rows, mCap, mp, mUns: mp.length ? unsampledPointsFor(rows, el, u) : [] });
+        }
+        const samePoints = (a, b) => a.length === b.length && a.every((q, i) => { const r = b[i]; return q.hole_id === r.hole_id && q.x === r.x && q.y === r.y && q.z === r.z && (q.length ?? null) === (r.length ?? null) && (q.domain ?? null) === (r.domain ?? null); });
+        const sharedIdx = method !== "ok" && !logInfo ? prep.map((q, k) => (q.mp.length && samePoints(q.mp, estPts) ? k : -1)).filter((k) => k >= 0) : [];
+        const sharedValues = sharedIdx.length ? sharedIdx.map((k) => Float64Array.from(prep[k].mp, (q) => q.value)) : null;
+        const share = others.length ? 1 / (1 + others.length - sharedIdx.length) : 1; // #3014 — the primary's part of the progress bar (#3163: shared members take none)
         setStage(others.length ? symbol : null);
         const est = await runEstimation("block", estPts, {
           ...baseOpts,
@@ -551,7 +569,10 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           ...(method === "ok" ? { variogram: { model: vgModel, ...(vgNugget !== "" && vgSill !== "" && vgRange !== "" ? { nugget: Number(vgNugget), sill: Number(vgSill), range: Number(vgRange) } : {}) } } : {}), // #709
           ...(unsPts.length ? { unsampledPoints: unsPts } : {}), // #2596
           ...(logFills.length ? { logShare: true } : {}), // #2721
+          ...(sharedValues ? { members: { values: sharedValues, unsampled: sharedIdx.map((k) => prep[k].mUns) } } : {}), // #3163
         }, { onProgress: (f) => setProgress(share * (method === "nn" ? f : 0.8 * f)), signal: ac.signal });
+        // #3163 — what the shared members take from this run, before the primary's trims touch it
+        const sharedRun = sharedValues ? { cells: est.memberCells, supportCounts: est.supportCounts, dominated: est.dominatedCells, mlsCounts: est.mlsCounts } : null;
         // TASKS.csv #1051 — a nearest-neighbour model over the same grid, search, domains and trend (one sample per block,
         // so it is cheap): its mean over the same blocks is the declustered mean the estimate is checked against
         const nnOpts = { // #3271 — shared with the set's members' own checks
@@ -559,7 +580,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           minSamples: 1, maxSamples: 1, minHoles: 1, restrictToDomain: restrictToDomain && !!domainKey, noCodeAsDomain: restrictToDomain && !!domainKey && noCodeAsDomain /* #2541 */,
           ...(trend ? { trend: { basis: trendBasis(trend), scales: trendSearchScales(trend) } } : {}),
         };
-        const nnEst = method === "nn" ? est : await runEstimation("block", estPts, nnOpts, { onProgress: (f) => setProgress(share * (0.8 + 0.2 * f)), signal: ac.signal, checkOnly: true /* #3060 — only joined against the estimate: kept as columns */ });
+        const nnEst = method === "nn" ? est : await runEstimation("block", estPts, { ...nnOpts, ...(sharedValues ? { members: { values: sharedValues } } : {}) /* #3163 */ }, { onProgress: (f) => setProgress(share * (0.8 + 0.2 * f)), signal: ac.signal, checkOnly: true /* #3060 — only joined against the estimate: kept as columns */ });
         if (logInfo) { for (const c of est.cells) c.value = unlogValue(c.value); if (nnEst !== est) { const v = nnEst.checkColumns.value; for (let i = 0; i < v.length; i++) v[i] = unlogValue(v[i]); } } // #1741 — back to data units
         // TASKS.csv #404 — the parameters are captured AT RUN TIME (the form can be edited before
         // "Add to project"), and travel with the block model into the project file.
@@ -652,25 +673,24 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         // its own variogram; then the primary's trims. #3271 — and its own check against a nearest-neighbour pass on the same grid.
         const members = [];
         const inArea = areaString ? ((pts) => (x, y) => pointInPolygon(x, y, pts))(areaString.vertices.map((q) => ({ x: q[0], y: q[1] }))) : null;
+        let ownRuns = 0; // #3163 — members run on their own so far (the progress bar's steps)
         for (let k = 0; k < others.length; k++) {
-          const el = others[k], u = elementUnits[el] || "ppm";
+          const { el, u, unsM, fm, mCap, mp, mUns } = prep[k]; // #3163 — composited and placed before the primary's run
           setStage(el);
           await new Promise((r) => setTimeout(r, 0));
-          const unsM = resolveUnsampled("estimate", { assays: srcAssays, collars: runCollars, symbol: el, unit: u, elementUnits, logCtx: { layers, customLayers } });
-          const fm = unsM.apply(srcAssays), rows = fm.assays;
-          const mCapN = Number(memberCapOf(el)), mCap = mCapN > 0 ? mCapN : null; // #3271
-          const iv = useComposites ? await compositeDownholeSliced(rows, el, u, elementUnits, { length: compositeLength, minCoverage, capValue: mCap, domainRows: domainRowsSel }, { signal: ac.signal }) /* #3105 */ : rawSampleIntervals(rows, el, u, elementUnits, { capValue: mCap }).intervals;
-          let mp = (await samplePointsSliced(iv, collars, survey, desurveyHole, desurveyMethod, { signal: ac.signal })).points; // #3111
-          if (inShell) mp = mp.filter((q) => inShell(q));
           if (!mp.length) { members.push({ ...memberSummary(el, u, [], 0), cells: [], cap: mCap }); continue; }
-          const mUns = unsampledPointsFor(rows, el, u);
+          const j = sharedIdx.indexOf(k); // #3163 — estimated in the primary's search
           let me;
-          try {
-            me = await runEstimation("block", mp, { ...baseOpts, ...(method === "ok" ? { variogram: { model: vgModel } } : {}), ...(mUns.length ? { unsampledPoints: mUns } : {}) }, { onProgress: (f) => setProgress(share * (1 + k + f)), signal: ac.signal });
-          } catch (err) { if (err.cancelled) throw err; throw new Error(`${el}: ${err.message}`); }
+          if (j >= 0) me = { cells: sharedRun.cells[j], supportCounts: sharedRun.supportCounts, dominatedCells: sharedRun.dominated, mlsCounts: sharedRun.mlsCounts };
+          else {
+            try {
+              me = await runEstimation("block", mp, { ...baseOpts, ...(method === "ok" ? { variogram: { model: vgModel } } : {}), ...(mUns.length ? { unsampledPoints: mUns } : {}) }, { onProgress: (f) => setProgress(share * (1 + ownRuns + f)), signal: ac.signal });
+            } catch (err) { if (err.cancelled) throw err; throw new Error(`${el}: ${err.message}`); }
+            ownRuns++;
+          }
           const t = trimLike(me.cells, { inShell, inArea, groundAt: groundAt && cutAtGround ? groundAt : null });
           // #3271 — the member's own check: composites, nearest neighbour and estimate means over its blocks
-          const mNn = method === "nn" ? null : await runEstimation("block", mp, nnOpts, { signal: ac.signal, checkOnly: true });
+          const mNn = method === "nn" ? null : j >= 0 ? { checkColumns: nnEst.memberCheckColumns[j] } /* #3163 */ : await runEstimation("block", mp, nnOpts, { signal: ac.signal, checkOnly: true });
           await new Promise((r) => setTimeout(r, 0));
           const mCheck = t.cells.length ? estimateCheck(t.cells, mNn ? mNn.checkColumns : t.cells, mp) : null;
           const mAudit = mCap != null ? capAudit(srcAssays, el, u, elementUnits, mCap) : null;
@@ -683,6 +703,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
             ...(me.variogram ? { variogram: { ...me.variogram, frame: params.variogram?.frame }, krigingBlocks: me.okCounts } : {}), ...(me.mlsCounts ? { mlsBlocks: me.mlsCounts } : {}),
             ...(dominated ? { effectivelyOneHoleBlocks: dominated } : {}),
             ...(t.dropped ? { trimmedLikeThePrimary: `${t.dropped} block(s) dropped by the primary's limits (the restricting solid, the area string, the ground)` } : {}),
+            ...(j >= 0 ? { searchSharedWith: `${symbol}: estimated in the same neighbour search, on the same sample points` } : {}), // #3163
           });
           members.push({ ...memberSummary(el, u, t.cells, mp.length), cells: t.cells, params: mParams, supportCounts, cap: mCap, capAudit: mAudit, check: mCheck }); // cap / check: #3271
         }

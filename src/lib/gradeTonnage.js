@@ -179,6 +179,17 @@ export function blocksInsideSolid(cells, positions, indices, { mode = "centre", 
 // tonnes, metal, interpolatedShare }] from the top bench down; a bench with nothing at the cutoff is not listed.
 // TASKS.csv #2637 — densityOf(cell), as gradeTonnageTable takes it (a density per block by a logged code or a density model): each bench's
 // tonnes and metal summed block by block and its mean grade tonnage-weighted; a block with no density counts in the volume, not the tonnes
+// TASKS.csv #3171 — the benches a block spans and the share of its height in each (a block spanning two benches is split by its vertical
+// overlap): fn(k, floorRL, share) per bench. Shared by gradeTonnageByBench and the set members' means per bench (setLimits.js), so the two agree.
+export function forEachBench(c, h, datum, fn) {
+  const zlo = c.z - c.dz / 2, zhi = c.z + c.dz / 2;
+  const k0 = Math.floor((zlo - datum) / h + 1e-9), k1 = Math.ceil((zhi - datum) / h - 1e-9) - 1;
+  for (let k = k0; k <= Math.max(k0, k1); k++) {
+    const lo = datum + k * h, hi = lo + h, overlap = Math.min(zhi, hi) - Math.max(zlo, lo);
+    if (!(overlap > 1e-9)) continue;
+    fn(k, lo, Math.min(1, overlap / c.dz));
+  }
+}
 export function gradeTonnageByBench(cells, { cutoff, benchH, datum = 0, density = null, unit = null, interpolatedOnly = false, densityOf = null } = {}) {
   const m = metalOf(unit), rho = Number(density) > 0 ? Number(density) : null, h = Number(benchH);
   if (!(h > 0)) return [];
@@ -186,16 +197,13 @@ export function gradeTonnageByBench(cells, { cutoff, benchH, datum = 0, density 
   const benches = new Map();
   for (const c of cells || []) {
     if (!Number.isFinite(c.value) || !(c.dx > 0 && c.dy > 0 && c.dz > 0) || c.value < cutoff || (interpolatedOnly && c.support !== "interpolated")) continue;
-    const vol = blockVolume(c), zlo = c.z - c.dz / 2, zhi = c.z + c.dz / 2;
-    const k0 = Math.floor((zlo - datum) / h + 1e-9), k1 = Math.ceil((zhi - datum) / h - 1e-9) - 1;
-    for (let k = k0; k <= Math.max(k0, k1); k++) {
-      const lo = datum + k * h, hi = lo + h, overlap = Math.min(zhi, hi) - Math.max(zlo, lo);
-      if (!(overlap > 1e-9)) continue;
-      const share = Math.min(1, overlap / c.dz), v = vol * share;
+    const vol = blockVolume(c);
+    forEachBench(c, h, datum, (k, lo, share) => { // #3171 — the split shared with the members' means per bench
+      const v = vol * share;
       let b = benches.get(k); if (!b) benches.set(k, (b = { floorRL: lo, blocks: 0, vol: 0, gv: 0, vi: 0, t: 0, gt: 0, dBlocks: 0, dVol: 0, dVi: 0 }));
       b.blocks += share; b.vol += v; b.gv += v * c.value; if (c.support === "interpolated") b.vi += v;
       if (densityOf) { const r = densityOf(c); if (r > 0) { b.t += v * r; b.gt += v * r * c.value; b.dBlocks += share; b.dVol += v; if (c.support === "interpolated") b.dVi += v; } } // #2637; d*: #3270
-    }
+    });
   }
   return [...benches.values()].sort((a, b) => b.floorRL - a.floorRL).map((b) => {
     if (densityOf && b.t > 0) { // #2637; #3270 — the blocks with a density only, as the main table

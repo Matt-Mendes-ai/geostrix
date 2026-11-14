@@ -37,7 +37,7 @@ test("the colouring says which rule it used, and names the holes with no interce
 
 test("wired: the plan's input, the cache and the sidebar fields", () => {
   const d = readFileSync(new URL("../src/components/DrillPlanElement.jsx", import.meta.url), "utf8");
-  assert.match(d, /if \(kind === "bi"\) return \{ \.\.\.bestInterceptInput\(el, assays, key, unit, units\), unit: gradeUnitLabel\(key, unit\) \};/);
+  assert.match(d, /if \(kind === "bi"\) return \{ \.\.\.bestInterceptInput\(el, assays, key, unit, units\), unit: gradeUnitLabel\(key, unit\) \};|const r = bestInterceptInput\(el, assays, key, unit, units\);\s+if \(!shown\) return \{ \.\.\.r, unit: gradeUnitLabel\(key, unit\) \};/); // #3382: then in the display unit
   assert.match(d, /const biCache = new WeakMap\(\);/);
   const c = readFileSync(new URL("../src/components/DrillPlanColourControls.jsx", import.meta.url), "utf8");
   assert.match(c, /<option value="bi">\{tr\("Best intercept, grade × length \(cut-off\)"\)\}<\/option>/);

@@ -5,6 +5,8 @@
 // other markers, labels and callouts. A single hole keeps its plain label. Pure (screen pixels in, rectangles out) except drawCallouts,
 // which takes a canvas 2D context: the Maps plan uses it, and the Layout drill plan can use the grouping and the placement.
 
+import { groupPads } from "./padGroups.js"; // TASKS.csv #3406 — the metre test: the 3D View's pad grouping (#3399)
+
 export const PAD_M = 5; // holes this close in plan are one pad, at any scale where the pad stays small on screen (PAD_MAX_PX)
 export const SEP_PX = 12; // closer than this on screen, two labels cannot be told apart: one callout, whatever the distance on the ground
 export const PAD_MAX_PX = 30; // holes drawn farther apart than this have room for their own labels (zoomed in on a pad: each its id)
@@ -38,6 +40,10 @@ export function collarPads(world, screen, mPerPx, { padM = PAD_M, sepPx = SEP_PX
   const tolPx = Math.max(sepPx, Math.min(maxPx, mPerPx > 0 ? padM / mPerPx : 0));
   const cell = Math.max(1, tolPx), grid = new Map(), key = (i, j) => i * 131071 + j;
   const n = screen.length, used = new Uint8Array(n);
+  // TASKS.csv #3406 — holes within padM metres in plan: groupPads' groups (lib/padGroups.js, shared with the 3D View's callouts); each hole's group
+  const metreGroup = new Int32Array(n).fill(-1), pts = [];
+  for (let i = 0; i < n; i++) { const w = world[i]; if (Number.isFinite(w?.x) && Number.isFinite(w?.y)) pts.push({ x: w.x, y: w.y, i }); }
+  groupPads(pts, padM).forEach((g, k) => { for (const p of g) metreGroup[p.i] = k; });
   for (let i = 0; i < n; i++) {
     const p = screen[i];
     if (!Number.isFinite(p?.x) || !Number.isFinite(p?.y)) { used[i] = 1; continue; }
@@ -48,8 +54,7 @@ export function collarPads(world, screen, mPerPx, { padM = PAD_M, sepPx = SEP_PX
     const a = screen[i], b = screen[j], dPx = Math.hypot(a.x - b.x, a.y - b.y);
     if (dPx < sepPx) return true;
     if (dPx > maxPx) return false;
-    const u = world[i], v = world[j];
-    return Number.isFinite(u?.x) && Number.isFinite(v?.x) && Math.hypot(u.x - v.x, u.y - v.y) <= padM;
+    return metreGroup[i] >= 0 && metreGroup[i] === metreGroup[j]; // #3406 — one metre pad (groupPads), within maxPx on screen
   };
   const pads = [];
   for (let i = 0; i < n; i++) {

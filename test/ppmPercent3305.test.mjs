@@ -13,7 +13,7 @@ test("P90 over 1,000 ppm: the classes and the heading in per cent", () => {
   assert.equal(ppmAsPercent(a, "Cu", "ppm"), true);
   const [g] = assayLegendGroups({ assays: a, assayElements: elements, assayVisible: true, assayDisplayElements: ["Cu"], assayStyle: { Cu: { breaks, minCutoff: 100 } } });
   assert.equal(g.label, "Cu (%)");
-  assert.deepEqual(g.items.map(([l]) => l), ["≤ 0.046 %", "0.046–0.66 %", "0.66–1.66 %", "> 1.66 %", "below 0.010 % hidden"]);
+  assert.deepEqual(g.items.map(([l]) => l), ["≤ 0.046 %", "0.046–0.659 %", "0.659–1.66 %", "> 1.66 %", "below 0.01 % hidden"] /* #3382: 3 significant figures */);
 });
 
 test("a trace element (10 % or fewer over 1,000 ppm), another unit, no samples: unchanged", () => {
@@ -21,7 +21,7 @@ test("a trace element (10 % or fewer over 1,000 ppm), another unit, no samples: 
   assert.equal(ppmAsPercent(a, "Cu", "ppm"), false);
   const [g] = assayLegendGroups({ assays: a, assayElements: elements, assayVisible: true, assayDisplayElements: ["Cu"], assayStyle: { Cu: { breaks } } });
   assert.equal(g.label, "Cu (ppm)");
-  assert.equal(g.items[1][0], "460.0–6590 ppm");
+  assert.equal(g.items[1][0], "460–6,590 ppm" /* #3382 */);
   assert.equal(ppmAsPercent(samples(Array(50).fill(50000)), "Au", "g/t"), false, "only ppm");
   assert.equal(ppmAsPercent([], "Cu", "ppm"), false);
 });

@@ -23,5 +23,7 @@ test("the pane: no fixed 25 m, the source said, none flags nothing", () => {
   assert.ok(!p.includes("useState(25)"));
   assert.ok(p.includes("const autoMin = minSpacingFrom(siteSpacing);"));
   assert.ok(p.includes("Min. spacing: a quarter of the drilled holes' site spacing ({s} m). Type your own."));
-  assert.ok(p.includes("const tooClose = minSpacing > 0 && nearestReal && nearestReal.distance < minSpacing;"));
+  // #3336 — off the pad: the nearest-hole flag; on a shared pad, also a pad hole still inside the minimum at the toe
+  assert.ok(p.includes("const offClose = minSpacing > 0 && !!nearestReal && nearestReal.distance < minSpacing;"));
+  assert.ok(p.includes("const tooClose = offClose || padTooClose;"));
 });

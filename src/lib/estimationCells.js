@@ -40,6 +40,9 @@ function fillCells(cells, cols, from, to) {
 // TASKS.csv #3060 — the nearest-neighbour check model kept as its lattice and values only (x, y, z, value: ~32 bytes a block), never as cell
 // objects (lib/estimateCheck.js joins it as columns): on a whole-field run that was a second 627,000-object build and ~0.25 GB held
 export const checkColumns = (cols) => ({ n: cols.n, dx: cols.dx, dy: cols.dy, dz: cols.dz, x: cols.x, y: cols.y, z: cols.z, value: cols.value });
+// TASKS.csv #3163 — a set's member estimated in the same run (cols.mv[m], cols.nu[m]): the run's columns with the member's values and its own
+// near-unsampled flags (nothing else in a block depends on the values)
+export const memberColumns = (cols, m) => ({ ...cols, value: cols.mv[m], nearUnsampled: cols.nu?.[m] || undefined, mv: undefined, nu: undefined });
 
 // the buffers to transfer from the worker
-export const columnBuffers = (cols) => [cols.x, cols.y, cols.z, cols.value, cols.nSamples, cols.nHoles, cols.support, cols.supportIndex, cols.nearestSampleM, cols.kv, cols.holeShare, cols.beyond, cols.nearUnsampled, cols.fromLog, cols.domainCode].filter(Boolean).map((a) => a.buffer);
+export const columnBuffers = (cols) => [cols.x, cols.y, cols.z, cols.value, cols.nSamples, cols.nHoles, cols.support, cols.supportIndex, cols.nearestSampleM, cols.kv, cols.holeShare, cols.beyond, cols.nearUnsampled, cols.fromLog, cols.domainCode, ...(cols.mv || []), ...(cols.nu || [])].filter(Boolean).map((a) => a.buffer); // mv / nu: #3163

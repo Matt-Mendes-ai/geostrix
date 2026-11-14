@@ -35,8 +35,19 @@ export function groupSectionLegend(items, ribbons = null) {
     out.push(...list);
     if (long.get(g)) out.push([tr("+ {n} longer description(s) not listed (over {c} characters)", { n: long.get(g), c: LONG_VALUE }), null, { note: true }]);
   }
-  for (const [label, , opt] of ramps) { const rr = rampRows(opt.ramp); if (rr.length) out.push([label, null, { heading: true }], ...rr); }
+  // TASKS.csv #3377 — a ramp drawn as a ribbon (specific gravity, RQD) is numbered like the others: '(ribbon 1 of 6, from the left)'
+  for (const [label, , opt] of ramps) { const rr = rampRows(opt.ramp); if (rr.length) out.push([where(label), null, { heading: true }], ...rr); }
   return out;
+}
+
+// TASKS.csv #3377 (review #3195) — a section drew specific gravity and RQD as ribbons 1 and 6 of 6 and neither the sheet's legend nor the
+// section's key said what their colours mean. The section legend's items for the numeric hole layers on the section, from
+// lib/legendGroups numericLayerLegendGroups (the 3D legend's ramps, or its classes): a ramp as one ramp row (five value swatches in the
+// legend, rampRows), classes as 'Layer: class' rows. Their group names are the ribbons' (LAYER_META labels), so they are numbered too.
+export function sectionNumericLegendItems(groups) {
+  return (groups || []).flatMap((g) => (g.ramp
+    ? [[g.label, null, { ramp: { colors: g.ramp.colors, min: g.ramp.min, max: g.ramp.max, minLabel: g.ramp.minLabel, maxLabel: g.ramp.maxLabel, log: !!g.ramp.log } }]]
+    : (g.items || []).filter(([, c]) => c).map(([n, c]) => [`${g.label}: ${n}`, c])));
 }
 
 // TASKS.csv #1637 — the interval layers' ribbons from left to right on a hole drawn downwards (SectionWindow offsets them 0, +w, -w,
@@ -102,6 +113,9 @@ export function rampRows(ramp, n = 5) {
     const v = log && min > 0 ? 10 ** (Math.log10(min) + t * (Math.log10(max) - Math.log10(min))) : min + t * (max - min);
     rows.push([String(+v.toPrecision(3)), colors[Math.round(t * (colors.length - 1))]]);
   }
+  // TASKS.csv #3377 — a ramp clipped at its ends (the 2-98 % stretch) says so at its ends, as the 3D legend does ('≤ 2.42', '≥ 3.04')
+  if (rows.length && /^≤/.test(String(ramp.minLabel || ""))) rows[0][0] = String(ramp.minLabel);
+  if (rows.length > 1 && /^≥/.test(String(ramp.maxLabel || ""))) rows[rows.length - 1][0] = String(ramp.maxLabel);
   return rows;
 }
 export function sectionModelLegend(surfaceTraces, voxelSlices, surfaceGroup = "Model surfaces") {
