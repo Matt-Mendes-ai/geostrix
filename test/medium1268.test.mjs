@@ -13,7 +13,7 @@ test("#1268 survey stations for a hole with no collar are named", () => {
   const stations = [{ hole_id: "A", depth: 0 }, { hole_id: "QA-999", depth: 10 }].map((r) => ({ hole_id: r.hole_id, from: r.depth, to: r.depth }));
   const msg = importCheckSummary(stations, [{ hole_id: "A", length: 100 }], null, "survey stations from t.csv");
   assert.match(msg, /QA-999/);
-  const imp = read("src/modules/viewer/useImportPipeline.js");
+  const imp = read("src/modules/viewer/importPipelineImpl.js");
   assert.match(imp, /survey stations from \$\{fileName\}/);
 });
 

@@ -33,7 +33,7 @@ test("rows at the same depth fall back to the signature compare; identical: fals
 });
 
 test("the import's setters ask for the rows only; the notice's call keeps the check", () => {
-  const p = fs.readFileSync("src/modules/viewer/useImportPipeline.js", "utf8");
+  const p = fs.readFileSync("src/modules/viewer/importPipelineImpl.js", "utf8");
   assert.equal(p.split("{ identical: false })").length - 1, 4);
   assert.equal((p.match(/const replaced = replaceRowsByHole\(/g) || []).length, 3);
 });

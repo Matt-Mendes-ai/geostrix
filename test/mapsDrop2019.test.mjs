@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { sameMapLayer, mapsDropRoutes } from "../src/lib/mapLayerBuild.js";
 const rd = (f) => readFileSync(new URL(f, import.meta.url), "utf8").replace(/\r\n/g, "\n");
-const maps = rd("../src/modules/MapsModule.jsx"), pipe = rd("../src/modules/viewer/useImportPipeline.js");
+const maps = rd("../src/modules/MapsModule.jsx"), pipe = rd("../src/modules/viewer/importPipelineImpl.js");
 
 test("a drop on the map: rasters, GIS vectors, tables and the rest", () => {
   assert.deepEqual(mapsDropRoutes(["dem.tif", "ip.shp", "claims.zip", "pts.gpkg", "collars.csv", "wb.xlsx", "notes.docx"]),
@@ -21,7 +21,8 @@ test("wired: Maps adds lines / polygons itself and hands the rest to the 3D view
   assert.match(maps, /const routes = mapsDropRoutes\(all\.map\(\(f\) => f\.name\)\)/);
   assert.match(maps, /if \(!vec \|\| got\.err \|\| got\.meta\?\.layerOptions \|\| !vec\.geomType \|\| vec\.geomType === "point"\) \{ toViewer\.push\(f\); continue; \}/);
   assert.match(maps, /goToModule\?\.\("viewer"\);\s*requestModuleAction\("import-dropped-files"/);
-  assert.match(pipe, /useModuleAction\(\["import-dropped-files"\], \(_a, p\) => \{/);
+  // the listener is a hook: it stayed in useImportPipeline.js when the body moved to importPipelineImpl.js (startup split)
+  assert.match(readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8"), /useModuleAction\(\["import-dropped-files"\], \(_a, p\) => \{/);
   assert.match(pipe, /const twin = sameMapLayer\(live\.mapLayers, layer\);/);
   assert.match(maps, /const twin = sameMapLayer\(mapLayers, layer\);/);
 });

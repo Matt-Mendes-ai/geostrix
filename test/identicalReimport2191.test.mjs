@@ -24,6 +24,6 @@ test("a changed hole is still replaced, an unchanged one identical", () => {
 });
 
 test("#2153's one-column range holds", () => {
-  const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(u, /cols: sib\.codes\.length > 1 \? `\$\{sib\.codes\[0\]\}–\$\{sib\.codes\[sib\.codes\.length - 1\]\}` : sib\.codes\[0\]/);
 });

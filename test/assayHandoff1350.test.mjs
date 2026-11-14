@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const pipe = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+const pipe = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
 const geo = readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8");
 
 test("the drop paths queue the assay file and hand it over", () => {

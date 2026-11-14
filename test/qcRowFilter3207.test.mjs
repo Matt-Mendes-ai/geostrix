@@ -40,5 +40,5 @@ test("the import notice counts rows past the end of their hole (a standard at 99
 test("the dialogs use the preset; the assay dialog's box never offers the QC one", () => {
   assert.match(readFileSync(new URL("../src/components/AssayImportModal.jsx", import.meta.url), "utf8"), /<RowFilterBox modal=\{modal\} onChange=\{onChange\} sel=\{sel\} qc=\{false/);
   assert.match(readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8"), /modalIn\.allRows, \{ qc: false/);
-  assert.match(readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8"), /allRowsIn, \{ qc: target !== "assays" \}\)/);
+  assert.match(readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8"), /allRowsIn, \{ qc: target !== "assays" \}\)/);
 });

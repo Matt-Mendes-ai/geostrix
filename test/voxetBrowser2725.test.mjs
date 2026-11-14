@@ -47,7 +47,7 @@ test("a side file over the read limit comes back as a file whose read says to dr
 test("wiring: the panel passes the path; importBrowserFile's .vo branch hands importVoxet a side-file resolver", () => {
   const panel = fs.readFileSync(new URL("../src/components/DbBrowserPanel.jsx", import.meta.url), "utf8");
   assert.match(panel, /onImportFile\(file, entry\.path\)/);
-  const pipe = fs.readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const pipe = fs.readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(pipe, /const importBrowserFile = async \(file, filePath\)/);
   assert.match(pipe, /if \(\/\\\.vo\$\/\.test\(name\)\) \{ await importVoxet\(file, filePath \? \(h\) => readSiblingFiles\(filePath, h\.props\.map\(\(p\) => p\.file\)\) : \[file\], !!filePath\); return; \}/);
   assert.match(pipe, /all = typeof allIn === "function" \? await allIn\(h\) : allIn/);

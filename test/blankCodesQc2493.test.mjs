@@ -62,7 +62,7 @@ test("#2493 wiring: the dialog's choice, the import's use of it, the left-out re
   const dlg = fs.readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8");
   assert.match(dlg, /onChange=\{\(e\) => onChange\(\{ \.\.\.modal, keepBlankCodes: e\.target\.checked \}\)\}/);
   assert.match(dlg, /if \(!b \|\| !b\.blank\) return null;/, "said from the first blank row");
-  const imp = fs.readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const imp = fs.readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(imp, /else if \(data\.keepBlankCodes\) \{ r\.value = NO_CODE; blankKept\+\+; \}/);
   assert.match(imp, /recordImportLeftOut\?\.\(target, fileName, dropped, allRows\.length\);/);
   // the setter the import calls is one the store really gives (a guarded call to a missing setProject recorded nothing, found live)

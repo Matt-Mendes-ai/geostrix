@@ -35,7 +35,7 @@ test("the import: a unit box beside each ticked channel (the name's unit, else t
   const b = readFileSync(new URL("../src/components/LogChannelsBox.jsx", import.meta.url), "utf8");
   assert.match(b, /value=\{modal\.logUnits\?\.\[c\.col\] \?\? c\.unit \?\? ""\}/);
   assert.match(b, /set\(\{ logUnits: \{ \.\.\.\(modal\.logUnits \|\| \{\}\), \[c\.col\]: e\.target\.value \} \}\)/);
-  const pipe = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const pipe = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(pipe, /const unit = String\(data\.logUnits\?\.\[col\] \?\? unitFromHeader\(col\)\)\.trim\(\);/);
   assert.match(pipe, /unit: unit \|\| undefined/);
 });

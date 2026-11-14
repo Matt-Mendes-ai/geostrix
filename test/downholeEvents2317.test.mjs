@@ -49,7 +49,7 @@ test("depth-pick options: one shallowest pick per hole per code; numeric point l
 });
 
 test("the import and the Explicit surface tool use them", () => {
-  const ip = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const ip = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(ip, /const evNotes = mapping\.depth && !mapping\.from && !mapping\.to \? eventNotes\(rows\) : null;/);
   const p = readFileSync(new URL("../src/components/ExplicitSurfacePanel.jsx", import.meta.url), "utf8");
   assert.match(p, /const eventOpts = useMemo\(\(\) => eventPickOptions\(storeCustomLayers\), \[storeCustomLayers\]\);/);

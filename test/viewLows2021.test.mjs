@@ -15,7 +15,7 @@ test("#2021 a value column blank on every row is not preselected", () => {
   // a filled value stays; nothing else filled: unchanged
   assert.equal(skipBlankValue({ value: "unit" }, ["unit"], rows).value, "unit");
   assert.equal(skipBlankValue({ hole_id: "hole", value: "style_value" }, ["hole", "style_value"], rows).value, "style_value");
-  const src = read("../src/modules/viewer/useImportPipeline.js");
+  const src = read("../src/modules/viewer/importPipelineImpl.js");
   assert.match(src, /const m = skipBlankValue\(mapping, headers, rows\);\s*return ov \? \{ target, mapping: m, guessNote: ov \} : \{ target, mapping: m \};/);
 });
 
@@ -27,7 +27,7 @@ test("#2022 a mineral list is sorted and de-duplicated; a single mineral is unch
   assert.equal(mineralListValue("py, Cpy ,PY"), "Cpy; py");
   assert.equal(mineralListValue("Py"), "Py");
   assert.equal(mineralListValue(""), "");
-  assert.match(read("../src/modules/viewer/useImportPipeline.js"), /if \(target === "mnlgy" && !numeric\) \{ const l = mineralListValue\(r\.value\); if \(l !== r\.value\) \{ r\.as_logged = r\.value; r\.value = l; \} \}/);
+  assert.match(read("../src/modules/viewer/importPipelineImpl.js"), /if \(target === "mnlgy" && !numeric\) \{ const l = mineralListValue\(r\.value\); if \(l !== r\.value\) \{ r\.as_logged = r\.value; r\.value = l; \} \}/);
 });
 
 test("#2025 a zip's members other than the shapefile are named", () => {
