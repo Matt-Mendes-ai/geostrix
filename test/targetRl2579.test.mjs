@@ -24,5 +24,5 @@ test("no point under the cell: the inverse-distance-squared mean RL of the point
   assert.ok(Math.abs(t.z - z) < 1e-9, String(t.z));
   const p = readFileSync(new URL("../src/components/EvidenceOverlayPane.jsx", import.meta.url), "utf8");
   assert.match(p, /return \{ pts: holeGradePoints\(gradeAssaysOf\(l\.kind === "pxrf" \? pxrfAssays : cleanAssays, l\), l\.ref,/); // the card's own holes
-  assert.match(p, /zs\[k\]\?\.from === "mean" \? tr\("Opens Planned holes with this easting and northing as the target, at RL \{z\} m: no point/);
+  assert.match(p, /zs\[k\]\?\.from === "mean" \? \(levelSet\(level\) \? tr\("Opens Planned holes with this easting and northing as the target, at RL \{z\} m: no point/); // #3422 — 'and the Level' only when a Level is set
 });

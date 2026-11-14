@@ -9,5 +9,6 @@ test("applied picks are remembered outside the form, and the pick's note follows
   assert.match(p, /if \(!pickedPoint \|\| pickedPoint === lastAppliedPick\.current \|\| appliedPicks\.has\(pickedPoint\)\) return;/);
   assert.match(p, /appliedPicks\.add\(pickedPoint\); setPickInForm\(true\);/);
   assert.match(p, /\{noTerrain && pickedPoint && pickInForm && <div role="note"/);
-  assert.ok(p.includes("onAdd({ ...(draft.name.trim() ? { name: draft.name.trim() } : {})") && !p.includes("name: draft.name.trim() || undefined")); // the store names a blank one PLAN-n
+  // the store names a blank one PLAN-n; #3347 — unless the project's series offers its next id
+  assert.ok(p.includes("onAdd({ ...(draft.name.trim() ? { name: draft.name.trim() } : nameOffer ? { name: nameOffer } : {})") && !p.includes("name: draft.name.trim() || undefined"));
 });

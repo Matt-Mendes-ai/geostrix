@@ -48,7 +48,7 @@ test("surveyPoints keeps z and, given a level, only the readings inside it", () 
 test("wiring: a 3D survey is a Level card; the card says how it is read; 'Read at RL' only when a card read the Level; keys", () => {
   const p = readFileSync(new URL("../src/components/EvidenceOverlayPane.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(p, /const levelKind = \(l\) => LEVEL_KINDS\.has\(l\.kind\) \|\| \(l\.kind === "survey" && !!cloudInfo\(l\.ref\)\?\.cloud\);/);
-  assert.match(p, /pts = cloudInfo\(src\.ref\)\?\.cloud && lv \? surveyPoints\(geophysPts, src\.ref, lv\) : all;/);
+  assert.match(p, /let pts = cloud && lv \? surveyPoints\(geophysPts, src\.ref, lv\) : all;/); // #3421 — a stated reduction without a Level follows
   assert.match(p, /\|L\$\{levelKind\(src\) \?/);
   assert.equal((p.match(/LEVEL_KINDS\.has\(l\.kind\)/g) || []).length, 1, "every other Level test goes through levelKind");
   assert.match(p, /out\.levelUsed = levelSet\(level\) && layers\.some\(\(l\) => levelKind\(l\) && !\(l\.kind === "voxel" && \(l\.zMin != null \|\| l\.zMax != null\)\)\);/);

@@ -34,6 +34,21 @@ export function surveyPoints(rows, key, level = null) {
   return out;
 }
 
+// TASKS.csv #3421 (split from #3333) — a 3D survey with no Level took the readings nearest in plan at every depth, mixed. A stated reduction
+// instead: the readings of each map cell (the grid's own cell, `cell` m) reduced to one, the highest or the mean, at the cell's mean position.
+// how: "max" | "mean". -> points (x, y, value, z: null)
+export function surveyColumns(points, cell, how = "max") {
+  const c = Math.max(1e-6, Number(cell) || 1), by = new Map();
+  for (const p of points || []) {
+    if (!Number.isFinite(p.value) || !Number.isFinite(p.x) || !Number.isFinite(p.y)) continue;
+    const k = `${Math.floor(p.x / c)},${Math.floor(p.y / c)}`;
+    const e = by.get(k) || { sx: 0, sy: 0, n: 0, sum: 0, max: -Infinity };
+    e.sx += p.x; e.sy += p.y; e.n++; e.sum += p.value; if (p.value > e.max) e.max = p.value;
+    by.set(k, e);
+  }
+  return [...by.values()].map((e) => ({ x: e.sx / e.n, y: e.sy / e.n, value: how === "mean" ? e.sum / e.n : e.max, z: null }));
+}
+
 // TASKS.csv #3333 — a survey whose readings are stacked in elevation (an IP / resistivity pseudo-section or inversion cloud, a downhole
 // survey), not a map: Evidence overlay took the 12 readings nearest in plan whatever their depth (RL 914 to 1,380 m in one cell of the Galore
 // Creek IP cloud). Told from a surface survey over steep ground by the readings' own neighbours: for a sample of readings, the elevation
@@ -289,9 +304,11 @@ export function structureCodes(rows, traces) {
 // the picks of one type as distanceEvidence parts (each a single point)
 // TASKS.csv #1456 (review #1352) — every hole trace in plan, for "distance to drilling": with it an overlay can ask for ground that is
 // anomalous AND untested. A vertical hole is its collar point; an angled one the line its trace makes on the map.
-export function drilledParts(traces) {
+// TASKS.csv #3345 — `assayed` (assayedTraceParts' traces Map, or null): only the holes with assays ("holes"), or only their assayed parts ("intervals")
+export function drilledParts(traces, assayed = null, mode = "all") {
   const out = [];
-  for (const t of traces?.values?.() || []) if (t?.length) out.push(t.map((p) => [p.x, p.y]));
+  if (assayed && mode === "intervals") { for (const parts of assayed.values()) for (const part of parts) out.push(part.map((p) => [p.x, p.y])); return out; }
+  for (const [h, t] of traces?.entries?.() || []) if (t?.length && (!assayed || mode !== "holes" || assayed.has(h))) out.push(t.map((p) => [p.x, p.y]));
   return out;
 }
 
@@ -561,6 +578,19 @@ export function gradeCardReads(assays, symbol, unit, units) {
 // measure of a code: its ref is "@" + JSON { l: layer key or "custom:<id>", f: field, c: code (upper case when fold), fold, how? }.
 // The plain "layer:code" ref of a built-in log's value code keeps its old form, so a saved overlay still finds its cards.
 export const codedRef = (o) => `@${JSON.stringify(o)}`;
+// TASKS.csv #3346 (review #3195, Galore Creek) — missing-information codes were offered as geological evidence ('Distance to logged Alteration: NR',
+// 'No High-T Assemblage', 'Lithology: NR') and so were a source's shifted rows ('Calcic-BX (abundant gnt', '1'), each as four cards. A code is
+// kept out of the evidence list when it says nothing was recorded (NR, n/a, none, nil, unknown, not logged, 'No …'), when the name rules read it
+// as no recovery (lost core: roleOf), or when its brackets do not close (a description cut across columns). Fewer than CODE_MIN_ROWS rows on
+// the holes: left out too (the list's minimum was 3).
+export const CODE_MIN_ROWS = 5;
+const NOT_RECORDED = /^(nr|n\/r|nl|not recorded|not logged|none|nil|null|n\/?a|unknown|unk|no data|nd|-+|\?+)$|^no\s/i;
+export function notEvidenceCode(code, roleOf = null) {
+  const s = String(code ?? "").trim();
+  if (!s || NOT_RECORDED.test(s)) return true;
+  if ((s.match(/\(/g) || []).length !== (s.match(/\)/g) || []).length) return true;
+  return !!roleOf && roleOf(s) === "no recovery";
+}
 export const parseCodedRef = (ref) => { if (typeof ref !== "string" || ref[0] !== "@") return null; try { return JSON.parse(ref.slice(1)); } catch { return null; } };
 export const codedRowsOf = (l, projectLayers, customLayers) => (String(l).startsWith("custom:") ? (customLayers || []).find((c) => String(c.id) === String(l).slice(7))?.rows || [] : projectLayers?.[l] || []);
 

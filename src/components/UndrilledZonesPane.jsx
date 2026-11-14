@@ -5,6 +5,8 @@ import { Crosshair } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
 import { desurveyHole, holeAttitudeAssumed } from "../lib/desurvey.js"; // holeAttitudeAssumed: #2097
+import { assayedSpans, cutTrace } from "../lib/assayedTraces.js"; // TASKS.csv #3345
+import { excludeQAQC } from "../lib/qaqc.js"; // #3345 — standards and blanks are not assays of the rock
 import { drilledCollars } from "../lib/collarStatus.js"; // #2097
 import { plannedTrace } from "../lib/holePlanning.js";
 import { isMeshClosed } from "../lib/meshQuery.js";
@@ -33,7 +35,7 @@ const mm3 = (v) => (v >= 1e5 ? `${(v / 1e6).toFixed(2)} Mm³` : `${Math.round(v)
 // holes pane, and coming back should not mean measuring again
 let lastResult = null;
 export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlanTo = null }) {
-  const { collars = [], survey = [], plannedHoles = [], desurveyMethod, terrain } = useStore(); // terrain: #1557
+  const { collars = [], survey = [], plannedHoles = [], desurveyMethod, terrain, assays = [] } = useStore(); // terrain: #1557; assays: #3345
   // TASKS.csv #1732 (review #1645, Copley) — the restored result brings back the unit and settings it was made with: the unit read 'Modelled
   // unit...' and Find was disabled while the old result showed, so a re-run with planned holes did nothing
   const was = lastResult?.inputs && solids.some((s) => s.id === lastResult.inputs.unitId) ? lastResult.inputs : null;
@@ -45,6 +47,8 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
   const [cellText, setCellText] = useState(() => was?.cellText ?? "");
   const [cellZText, setCellZText] = useState(() => was?.cellZText ?? ""); // #2966 — an optional block height
   const [insideOnly, setInsideOnly] = useState(() => was?.insideOnly ?? false);
+  const [assayedOnly, setAssayedOnly] = useState(() => was?.assayedOnly ?? false); // TASKS.csv #3345 — only the assayed parts of the holes test the ground
+  const spans = useMemo(() => (assayedOnly ? assayedSpans(excludeQAQC(assays)) : null), [assayedOnly, assays]);
   const [withPlanned, setWithPlanned] = useState(() => was?.withPlanned ?? false);
   const [minText, setMinText] = useState(() => was?.minText ?? "");
   const [busy, setBusy] = useState(false);
@@ -80,16 +84,20 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
     for (const s of survey) { if (!by.has(s.hole_id)) by.set(s.hole_id, []); by.get(s.hole_id).push(s); }
     const out = [];
     const { collars: drilledList, proposed } = drilledCollars(collars); // #2097 — a collar marked proposed is not drilled ground
-    let assumed = 0;
+    let assumed = 0, unassayed = 0, holesUsed = 0;
     for (const c of drilledList) {
       if (![c.x, c.y, c.z].every(Number.isFinite)) continue;
       const hs = by.get(c.hole_id) || [];
       const t = desurveyHole(c, hs, desurveyMethod);
-      if (t.length > 1) { out.push(t); if (holeAttitudeAssumed(c, hs)) assumed++; }
+      if (t.length > 1) {
+        if (spans) { const sp = spans.get(c.hole_id) || []; if (!sp.length) unassayed++; else holesUsed++; for (const [a, b] of sp) { const part = cutTrace(t, a, b); if (part.length > 1) out.push(part); } } // #3345 — a hole's assayed parts, each a trace
+        else { out.push(t); holesUsed++; }
+        if (holeAttitudeAssumed(c, hs)) assumed++;
+      }
     }
-    const drilled = out.length;
+    const drilledParts = out.length; // #3345 — with the assayed parts only, a hole may give several traces: the holes are counted apart
     if (withPlanned) for (const h of plannedHoles) { const t = plannedTrace(h); if (t.length > 1) out.push(t); }
-    return { traces: out, drilled, planned: out.length - drilled, assumed, proposed: proposed.length };
+    return { traces: out, drilled: holesUsed, planned: out.length - drilledParts, assumed, proposed: proposed.length, unassayed, holesDrilled: drilledList.length };
   };
 
   const run = () => {
@@ -104,7 +112,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
     const ug = terrain ? null : collarsLookUnderground(collars, survey);
     const onCollars = !terrain && !ug?.underground && collars.some((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && Number.isFinite(c?.z));
     const args = { solid: { positions: unit.positions, indices: unit.indices }, traces: t.traces, coverM: Number(coverM), cellM: Number(cellText) > 0 ? Number(cellText) : own ? own.cellM : 0, cellZM: cellZ > 0 ? cellZ : 0 /* #2966 */, insideOnly, minZoneM3: minText === "" ? null : Number(minText) || 0, minZoneBlocks: MIN_ZONE_BLOCKS /* #2256 — blank: under 8 blocks */ };
-    const inputs = { unitId, coverM, cellText, cellZText, insideOnly, withPlanned, minText }, unitName = unit.name;
+    const inputs = { unitId, coverM, cellText, cellZText, insideOnly, withPlanned, minText, assayedOnly /* #3345 */ }, unitName = unit.name;
     job.current?.cancel();
     const j = runUndrilledZonesAsync(args, terrain ? { terrain } : onCollars ? { collars } : null);
     job.current = j;
@@ -151,7 +159,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
             </optgroup>
           )}
         </select>
-        {choices.open.length > 0 && <div style={note}>{tr(OPEN_ROUTE, { n: choices.open.length })}</div>}
+        {choices.open.length > 0 && !unit && <div style={note}>{tr(OPEN_ROUTE, { n: choices.open.length })}</div>}{/* #3348 (13) — not while a closed shell is chosen */}
         {supportText && <div style={{ ...note, color: "var(--color-warn-text)" }}>{supportText}</div>}{/* #1725 */}
         {unit && !support && unit.type === "geophysical_shell" && <div style={note}>{tr("\"{name}\" was cut from a block model that records no drillhole support per cell (an imported or geophysical model), so nothing here says how well drilled its shape is.", { name: unit.name })}</div>}{/* #2096 */}
         <label style={row} title={tr("A block of the unit counts as covered when a drillhole passes within this distance of it")}>{tr("Covered within (m of a hole)")}
@@ -168,6 +176,8 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
           <input type="number" min="0" step="any" value={minText} placeholder={minAuto ? tr("{n} blocks: {v}", { n: MIN_ZONE_BLOCKS, v: Math.round(minAuto).toLocaleString() }) : "0"} title={tr("Blank: gaps under {n} blocks are left out (a gap of a block or two is the grid, not a target).", { n: MIN_ZONE_BLOCKS })} onChange={(e) => setMinText(e.target.value)} style={{ ...smallSel, width: 90 }} /></label>
         <label style={{ display: "flex", gap: 5, alignItems: "flex-start", cursor: "pointer" }}><input type="checkbox" checked={insideOnly} onChange={(e) => setInsideOnly(e.target.checked)} />
           <span>{tr("Count only the parts of holes inside the unit")}<span style={{ ...note, display: "block" }}>{tr("Off: a hole just outside still tests the contact beside it.")}</span></span></label>
+        <label style={{ display: "flex", gap: 5, alignItems: "flex-start", cursor: "pointer" }}><input type="checkbox" checked={assayedOnly} onChange={(e) => setAssayedOnly(e.target.checked)} />{/* #3345 */}
+          <span>{tr("Count only the assayed parts of holes")}<span style={{ ...note, display: "block" }}>{tr("Off: every metre drilled tests the ground, assayed or not.")}</span></span></label>
         <label style={{ display: "flex", gap: 5, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={withPlanned} onChange={(e) => setWithPlanned(e.target.checked)} disabled={!plannedHoles.length} />
           {tr("Count planned holes as drilled ({n})", { n: plannedHoles.length })}</label>
         <button onClick={run} disabled={!unit || busy || !(coverM > 0)} style={{ ...pBtn, justifyContent: "center", opacity: unit && !busy && coverM > 0 ? 1 : 0.5, marginBottom: 0 }}>{busy ? tr("Measuring…") : tr("Find undrilled zones")}</button>
@@ -187,7 +197,8 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
               <div key={i} style={{ ...note, color: "var(--color-text-secondary)" }}>{onPlanTo && <button onClick={() => onPlanTo(z.target || z.centre)} style={planBtn} title={tr("Open Planned holes aimed at the zone's point farthest from the drilling: choose a collar, then Solve")}>{/* #1724 */}{tr("Plan a hole to here")}</button>}{z.target ? tr("{i}. {v}: a hole aims at E {x}, N {y}, elevation {z} (the zone's point farthest from the drilling).", { i: i + 1, v: mm3(z.volumeM3), x: Math.round(z.target.x).toLocaleString(), y: Math.round(z.target.y).toLocaleString(), z: Math.round(z.target.z).toLocaleString() }) /* #2580 — the point handed over, not the centroid */ : tr("{i}. {v} around E {x}, N {y}, elevation {z}", { i: i + 1, v: mm3(z.volumeM3), x: Math.round(z.centre.x).toLocaleString(), y: Math.round(z.centre.y).toLocaleString(), z: Math.round(z.centre.z).toLocaleString() })}</div>
             ))}
             {result.zones.length > 8 && <div style={note}>{tr("… and {n} more.", { n: result.zones.length - 8 })}</div>}
-            <div style={note}>{tr(result.holes.planned ? "{drilled} drilled and {planned} planned holes; {b} m blocks, measured from each block's centre to the hole traces in 3D." : "{drilled} drilled holes; {b} m blocks, measured from each block's centre to the hole traces in 3D.", { drilled: result.holes.drilled, planned: result.holes.planned, b: result.cellZM > 0 && Math.abs(result.cellZM - result.cellM) > 1e-6 ? `${+result.cellM.toFixed(2)} × ${+result.cellM.toFixed(2)} × ${+result.cellZM.toFixed(2)}` : +result.cellM.toFixed(2) /* #2966 */ })}{result.holes.assumed ? " " + tr("{n} of the drilled holes have no survey and no azimuth / dip and are taken as vertical.", { n: result.holes.assumed }) : ""}{result.holes.proposed ? " " + tr("{n} collar(s) whose status is proposed are not counted.", { n: result.holes.proposed }) : ""}</div>{/* #2097 */}
+            <div style={note}>{tr(result.holes.planned ? "{drilled} drilled and {planned} planned holes; {b} m blocks, measured from each block's centre to the hole traces in 3D." : "{drilled} drilled holes; {b} m blocks, measured from each block's centre to the hole traces in 3D.", { drilled: result.holes.drilled, planned: result.holes.planned, b: result.cellZM > 0 && Math.abs(result.cellZM - result.cellM) > 1e-6 ? `${+result.cellM.toFixed(2)} × ${+result.cellM.toFixed(2)} × ${+result.cellZM.toFixed(2)}` : +result.cellM.toFixed(2) /* #2966 */ })}{result.holes.assumed ? " " + tr("{n} of the drilled holes have no survey and no azimuth / dip and are taken as vertical.", { n: result.holes.assumed }) : ""}{result.holes.proposed ? " " + tr("{n} collar(s) whose status is proposed are not counted.", { n: result.holes.proposed }) : ""}</div>
+            {result.inputs?.assayedOnly && <div style={note}>{tr("Only the assayed parts of holes were counted: {k} of the {n} drilled holes have no assay.", { k: result.holes.unassayed || 0, n: result.holes.holesDrilled || result.holes.drilled })}</div>}{/* #3345 */}{/* #2097 */}
             {result.cellM > result.coverM && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("The blocks ({b} m) are coarser than the coverage distance ({c} m): a block counts as covered by where its centre falls, so the covered share and the smallest zones move with the block grid. Type a smaller block size if the unit's box allows it.", { b: +result.cellM.toFixed(2), c: result.coverM })}</div>}{/* #1568 */}
             {result.zones.length > 0 && <button onClick={add} style={{ ...pBtn, justifyContent: "center", marginBottom: 0 }}>{tr("Add the zones to the 3D view")}</button>}
           </div>
