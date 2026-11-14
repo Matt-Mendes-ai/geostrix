@@ -35,10 +35,15 @@ test("the ground grid closes the levels above it; a crown closes more", () => {
 });
 
 test("the flat-body test: a 60 x 60 m outline on a 3 m level is flat (over 10 x), on a 6 m level not quite; a 12 m wide one is not", () => {
-  const r = stopeOutlines({ cells }, { ...opts, levelH: 3 });
+  // #3317 — flat needs the body thin too (its plan width over 3 x its height): a 6 m seam, one block thick
+  const seam = cells.filter((c) => c.z < 306);
+  const r = stopeOutlines({ cells: seam }, { ...opts, levelH: 3 });
   const f = flatBodyCheck(r.levels, 3);
   assert.ok(f.flat && Math.round(f.a) === 60 && Math.round(f.b) === 60 && f.h === 3, JSON.stringify(f));
-  assert.equal(flatBodyCheck(stopeOutlines({ cells }, opts).levels, 6).flat, false); // 60 m is exactly 10 x 6 m
+  assert.equal(flatBodyCheck(stopeOutlines({ cells: seam }, opts).levels, 6).flat, false); // 60 m is exactly 10 x 6 m
+  // #3317 — the same 60 x 60 m outlines on a body 36 m tall: wide on each level, but massive, not flat
+  const m = flatBodyCheck(stopeOutlines({ cells }, { ...opts, levelH: 3 }).levels, 3);
+  assert.ok(!m.flat && m.massive && m.bodyH >= 30, JSON.stringify(m));
   const narrow = cells.filter((c) => c.x < 12);
   const n = flatBodyCheck(stopeOutlines({ cells: narrow }, opts).levels, 6);
   assert.equal(n.flat, false);
