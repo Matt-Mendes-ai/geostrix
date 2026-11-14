@@ -12149,5 +12149,7 @@
   "Elevations the terrain is built from": "المناسيب التي تُبنى منها التضاريس",
   "Samples and collars ({s} + {c})": "العينات والفوهات ({s} + {c})",
   "Collars only ({c}): surveyed, usually": "الفوهات فقط ({c}): مرفوعة مساحيًا عادةً",
-  "Samples only ({s}): GPS heights are rough": "العينات فقط ({s}): ارتفاعات GPS تقريبية"
+  "Samples only ({s}): GPS heights are rough": "العينات فقط ({s}): ارتفاعات GPS تقريبية",
+  "Checking the values… {pct}%": "جارٍ فحص القيم… {pct}%",
+  "The values are being checked for negatives, zeros and empty cells: the questions below depend on them.": "يجري فحص القيم بحثًا عن القيم السالبة والأصفار والخلايا الفارغة: تعتمد الأسئلة أدناه على ذلك."
 }

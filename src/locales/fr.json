@@ -12149,5 +12149,7 @@
   "Elevations the terrain is built from": "Altitudes à partir desquelles le terrain est construit",
   "Samples and collars ({s} + {c})": "Échantillons et collets ({s} + {c})",
   "Collars only ({c}): surveyed, usually": "Collets seulement ({c}) : levés, en général",
-  "Samples only ({s}): GPS heights are rough": "Échantillons seulement ({s}) : les altitudes GPS sont approximatives"
+  "Samples only ({s}): GPS heights are rough": "Échantillons seulement ({s}) : les altitudes GPS sont approximatives",
+  "Checking the values… {pct}%": "Vérification des valeurs… {pct} %",
+  "The values are being checked for negatives, zeros and empty cells: the questions below depend on them.": "Les valeurs sont vérifiées pour les négatifs, les zéros et les cellules vides : les questions ci-dessous en dépendent."
 }
