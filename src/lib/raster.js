@@ -954,7 +954,7 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
       const rp = await reprojectPictureOffThread({ xmin, ymin, xmax, ymax, width, height, data }, fromDef, toDef, keepDetail); // #3188 — in the import worker
       bbox = rp.bbox; px = rp;
       dataUrl = rp.dataUrl;
-      crsNote = ` Reprojected from EPSG:${srcEpsg} (${srcLabel}) into the project's EPSG:${projEpsg} on import — the drape's footprint moved ${sizeText(Math.hypot(rp.bbox[0] - xmin, rp.bbox[1] - ymin), projEpsg)} as a result.`;
+      crsNote = ` Reprojected from EPSG:${srcEpsg} (${srcLabel}) into the project's EPSG:${projEpsg} on import — the numbers of its corner changed by ${sizeText(Math.hypot(rp.bbox[0] - xmin, rp.bbox[1] - ymin), projEpsg)} as a result.`;
     } else {
       crsNote = ` Warning: ${srcLabel} says EPSG:${srcEpsg}, which doesn't match the project's EPSG:${projEpsg}, but ${!parsed.pixels ? "this raster's pixels couldn't be re-sampled" : `EPSG:${!fromDef ? srcEpsg : projEpsg} isn't one GeoStrix can reproject`} — it was imported at its own raw coordinates, so it will NOT line up with your drillholes.`;
     }

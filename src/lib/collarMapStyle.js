@@ -31,6 +31,7 @@ export function collarColourFields(collars) {
   for (const k of fieldKeys(cs)) {
     const vals = fieldValues(cs, k);
     if (vals.length < 2) continue;
+    if (looksLikeDateSerials(k, vals)) continue; // #3351 — a date kept as an Excel serial is not a number to class
     const distinct = new Set(vals.map((v) => String(v).trim()));
     if (vals.every((v) => Number.isFinite(num(v))) && distinct.size > MAX_CATEGORIES) out.push({ key: k, kind: "number", n: vals.length });
     else if (distinct.size >= 2 && distinct.size <= MAX_CATEGORIES) out.push({ key: k, kind: "category", n: vals.length });
@@ -41,6 +42,9 @@ export function collarColourFields(collars) {
 
 // TASKS.csv #3340 — the text fields too varied to colour by (more than MAX_GROUPED values), for the menu to name: [{ key, values }]. A field with
 // a different value on every hole (an id, a date per hole) is not listed: it is not a grouping.
+// TASKS.csv #3351 (Galore Creek review) — STARTDATE / ENDDATE, kept by the import as the text of Excel serials, were offered as numbers and
+// classed '45,079 – 45,109'. A field named for a date whose values are whole numbers of 20000-60000 (1954-2064) is left out of the menu.
+export const looksLikeDateSerials = (key, vals) => /date|dt$|time/i.test(String(key)) && vals.length > 0 && vals.every((v) => { const n = num(v); return Number.isInteger(n) && n >= 20000 && n <= 60000; });
 export function collarFieldsLeftOut(collars) {
   const cs = (collars || []).filter((c) => c && typeof c === "object");
   const out = [];
@@ -81,7 +85,10 @@ const fmt = (v) => (Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : Number
 
 // values: Map(hole_id -> value) or a collar field. -> { colourOf(collar) -> colour | null, legend: [{ colour, label }], kind }
 // Numbers: five classes at the quintiles of the holes' values (viridis, low dark to high yellow); categories: one colour each, by count.
-export function collarColouring(collars, { field = null, values = null } = {}) {
+// TASKS.csv #3050 — "50, 55, 60" (commas, semicolons or spaces; a decimal comma is not read: use a point) -> [50, 55, 60] ascending and distinct, or [] when
+// there is nothing usable; at most 12 breaks
+export const parseBreaks = (text) => [...new Set(String(text ?? "").split(/[;\s,]+/).map((t) => t.trim()).filter(Boolean).map(Number).filter(Number.isFinite))].sort((a, b) => a - b).slice(0, 12);
+export function collarColouring(collars, { field = null, values = null, breaks: typed = null } = {}) {
   const valueOf = values ? (c) => values.get(c.hole_id) : (c) => collarFieldValue(c, field); // #2984 — attrs too
   const vals = (collars || []).map(valueOf).filter((v) => v !== "" && v != null);
   if (!vals.length) return null;
@@ -89,14 +96,19 @@ export function collarColouring(collars, { field = null, values = null } = {}) {
   if (numeric) {
     const s = vals.map(num).filter(Number.isFinite).sort((a, b) => a - b);
     if (!s.length) return null;
-    const breaks = [0.2, 0.4, 0.6, 0.8].map((p) => qSorted(s, p)).filter((b, i, a) => i === 0 || b > a[i - 1]);
+    // #3050 — class breaks typed by the geologist (50, 55, 60 % Fe) instead of the quintiles
+    const breaks = typed?.length ? typed.filter((b, i, a) => i === 0 || b > a[i - 1]) : [0.2, 0.4, 0.6, 0.8].map((p) => qSorted(s, p)).filter((b, i, a) => i === 0 || b > a[i - 1]);
     const k = breaks.length + 1, colours = Array.from({ length: k }, (_, i) => viridis(k === 1 ? 0.5 : i / (k - 1)));
     const cls = (v) => { let i = 0; while (i < breaks.length && v > breaks[i]) i++; return i; };
     const edges = [s[0], ...breaks, s[s.length - 1]];
+    // TASKS.csv #3351 — the holes in each class, and those with no value (the grey rings)
+    const counts = new Array(k).fill(0);
+    for (const v of s) counts[cls(v)]++;
+    const noValue = (collars || []).filter((c) => !Number.isFinite(num(valueOf(c)))).length;
     return {
-      kind: "number",
+      kind: "number", noValue,
       colourOf: (c) => { const v = num(valueOf(c)); return Number.isFinite(v) ? colours[cls(v)] : null; },
-      legend: colours.map((colour, i) => ({ colour, label: `${fmt(edges[i])} – ${fmt(edges[i + 1])}` })),
+      legend: colours.map((colour, i) => ({ colour, label: `${fmt(edges[i])} – ${fmt(edges[i + 1])} (${counts[i].toLocaleString()})` })),
     };
   }
   const counts = new Map();

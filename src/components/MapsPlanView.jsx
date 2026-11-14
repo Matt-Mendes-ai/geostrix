@@ -13,7 +13,7 @@ import { drawMapLayer, mapStyleSignature, mapTextureSize } from "../lib/mapLayer
 import { keyedCanvas } from "../lib/rasterKey.js";
 import { planDataExtent, planFarLayers } from "../lib/mapsPlan.js"; // planFarLayers: TASKS.csv #2125
 import { figureSamples, colourFromStops } from "../lib/sampleGrid.js"; // TASKS.csv #1622
-import { collarColourFields, collarFieldsLeftOut, perHoleAssay, collarColouring } from "../lib/collarMapStyle.js"; // TASKS.csv #2459; left out: #3340
+import { collarColourFields, collarFieldsLeftOut, perHoleAssay, collarColouring, parseBreaks } from "../lib/collarMapStyle.js"; // TASKS.csv #2459; left out: #3340
 import { planTraces, highestAt, drawTraces } from "../lib/planTraces.js"; // TASKS.csv #3337 — the holes' traces in plan
 import { surveysOnPlan, surveyOutlineBoundary, ringArea } from "../lib/planSurveys.js"; // TASKS.csv #3342 — the point surveys on the plan
 import { drawCallouts } from "../lib/collarCallouts.js"; // TASKS.csv #3397 — holes from one pad: one ring and a callout listing them
@@ -24,7 +24,8 @@ import { trueNorthBearingInGridDeg } from "../lib/inversion.js"; // TASKS.csv #2
 import { usePlanZoom, viewForBox } from "../lib/planZoom.js"; // TASKS.csv #2657
 import { usePlanGt, showGtOnPlan, gtRadius, gtLegend } from "../lib/planGt.js"; // TASKS.csv #2755
 import { topRasterValueAt } from "../lib/planRasterValue.js"; // TASKS.csv #2853 — the value under the cursor
-import { perHoleValuesOf } from "../lib/holeValueGrid.js"; // TASKS.csv #2658; perHoleValuesOf: #2991 (a coded log's values too)
+import { pointTransform, isGeographicCrs } from "../lib/reproject.js"; // TASKS.csv #2998 — longitude / latitude under the cursor
+import { perHoleValuesOf, perHoleFigureAtIntercepts } from "../lib/holeValueGrid.js"; // TASKS.csv #2658; perHoleValuesOf: #2991 (a coded log's values too)
 
 const imageCache = new Map(); // dataUrl (+ key colour) -> { img, ready }
 function cachedImage(url, keyColour, onReady) {
@@ -53,10 +54,20 @@ function hillshadeCanvas(t) {
 
 // TASKS.csv #3342 — the point surveys' colours on the plan (none of them the collars' black or the samples' grey)
 const SURVEY_COLOURS = ["#0e7490", "#b45309", "#7c3aed", "#be185d", "#15803d", "#1d4ed8"];
+// TASKS.csv #2998 — '  ·  57.1291°N 131.4509°W' (null transform or a failed conversion: nothing)
+const lonLatText = (T, c) => {
+  if (!T) return "";
+  try { const [lon, lat] = T(c.x, c.y); return Number.isFinite(lon) && Number.isFinite(lat) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? `  ·  ${Math.abs(lat).toFixed(4)}°${lat >= 0 ? "N" : "S"} ${Math.abs(lon).toFixed(4)}°${lon >= 0 ? "E" : "W"}` : ""; } catch { return ""; }
+};
 // TASKS.csv #2853 — the top visible grid's value at the cursor, after the E / N
 const cursorValueText = (rasters, c) => { const t = topRasterValueAt(rasters, c.x, c.y); return t ? `  ·  ${t.name.length > 28 ? `…${t.name.slice(-27)}` : t.name}: ${t.value.toLocaleString(undefined, { maximumSignificantDigits: 4 })}${t.unit ? ` ${t.unit}` : ""}` : ""; };
 export default function MapsPlanView() {
   const { rasters = [], terrain, mapLayers = [], boundaries = [], collars = [], surfaceSamples = [], assays = [], assayElements = [], layers = {}, customLayers = [], project, survey = [], desurveyMethod, addLayoutImage, goToModule, addBoundary } = useStore(); // addBoundary: #3342 // addLayoutImage / goToModule: #3194 // assays: #2459; layers, customLayers: #2658; project: #2128; survey, desurveyMethod: #2991 (a coded RL figure)
+  // TASKS.csv #2998 / #2298 — the cursor's longitude / latitude beside its E / N (a projected project CRS only), so a zone edge or a point from a
+  // report in degrees can be found on the plan, and the readout says which frame its E / N are in
+  const toLonLat = project?.crsSet !== false && project?.epsg && !isGeographicCrs(project.epsg) ? pointTransform(project.epsg, 4326) : null; // looked up as the cursor moves: the registry may load after the plan
+  const frameText = project?.crsSet === false ? tr(" (local grid)") : "";
+  const chipRef = useRef(null); // the Collars chip, for the callouts to keep clear of (#3405)
   const wrapRef = useRef(null), canvasRef = useRef(null), layerCache = useRef(new Map()), drag = useRef(null), gridDrawn = useRef(false); // gridDrawn: #3194
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [view, setView] = useState(null); // { cx, cy, mPerPx }
@@ -87,11 +98,13 @@ export default function MapsPlanView() {
   const showTraces = tracesPicked ?? planT.longReach > 0;
   const [colourAt, setColourAt] = useState("collar"); // "collar" | "intercept"
   const spacingM = useMemo(() => collarSpacing(collars), [collars]); // #2989 — the holes' typical spacing, for the dot size
+  const [breaksText, setBreaksText] = useState(""); // #3050 — typed class breaks for a numeric colouring
+  const breaks = useMemo(() => parseBreaks(breaksText), [breaksText]);
   const colouring = useMemo(() => {
     if (!colourBy) return null;
     const [kind, key] = [colourBy.slice(0, colourBy.indexOf(":")), colourBy.slice(colourBy.indexOf(":") + 1)];
-    return kind === "f" ? collarColouring(collars, { field: key }) : collarColouring(collars, { values: perHoleAssay(assays, key, kind) });
-  }, [colourBy, collars, assays]);
+    return kind === "f" ? collarColouring(collars, { field: key, breaks }) : collarColouring(collars, { values: perHoleAssay(assays, key, kind), breaks });
+  }, [colourBy, collars, assays, breaks]);
   const atIntercept = colourAt === "intercept" && colourBy.startsWith("max:") && planT.traces.size > 0;
   const dotCollars = useMemo(() => {
     if (!atIntercept) return collars;
@@ -217,7 +230,11 @@ export default function MapsPlanView() {
     if (showIds) { // #2459 — the hole ids, decluttered: a label that would overlap one already drawn is left out
       // TASKS.csv #3397 (Matt) — holes that start at one spot (a pad) were drawn as one dot and one id: a ring round them and a callout box
       // listing each id with its colour-by swatch, clear of the other labels; a single hole keeps its id. Snapshot to Layout captures it.
-      drawCallouts(ctx, collars, X, Y, size, { colourOf: colouring ? (c) => colouring.colourOf(c) : undefined, dotR: ds.r, mPerPx: v.mPerPx, more: (n) => tr("+{n} more", { n }) });
+      const keepClear = []; // #3405 — boxes stay clear of the Collars chip and the grid's edge labels
+      const cr = chipRef.current;
+      if (cr) keepClear.push({ x0: cr.offsetLeft, y0: cr.offsetTop, x1: cr.offsetLeft + cr.offsetWidth, y1: cr.offsetTop + cr.offsetHeight });
+      if (showGrid) keepClear.push({ x0: 0, y0: 0, x1: size.w, y1: 14 }, { x0: 0, y0: 0, x1: 58, y1: size.h });
+      drawCallouts(ctx, collars, X, Y, size, { colourOf: colouring ? (c) => colouring.colourOf(c) : undefined, dotR: ds.r, mPerPx: v.mPerPx, more: (n) => tr("+{n} more", { n }), keepClear });
     }
     if (measuring && mPts.length) { // #2128 — the measured line
       ctx.strokeStyle = "#c2185b"; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
@@ -282,7 +299,7 @@ export default function MapsPlanView() {
         onWheel={onWheel} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={() => { onUp(); setCursor(null); }} onDoubleClick={measuring ? undefined : fit /* #2128 — a double-click while measuring sets points */} />
       {figure && <FigureLegend f={figure} chip={chip} />}
       {collars.length > 0 && ( /* TASKS.csv #2459 / #2591 — the collars' colour and labels, and their legend */
-        <div style={{ ...chip, left: 10, top: 10, maxWidth: 270, display: "flex", flexDirection: "column", gap: 4, lineHeight: 1.35 }} onMouseDown={(e) => e.stopPropagation()}>
+        <div ref={chipRef} style={{ ...chip, left: 10, top: 10, maxWidth: 270, display: "flex", flexDirection: "column", gap: 4, lineHeight: 1.35 }} onMouseDown={(e) => e.stopPropagation()}>
           <label style={{ display: "flex", alignItems: "center", gap: 5 }}>
             {tr("Collars")}
             <select value={colourBy} onChange={(e) => setColourBy(e.target.value)} aria-label={tr("Colour collars by")} style={{ fontSize: "var(--font-size-sm)", flex: 1, minWidth: 0 }}>
@@ -294,6 +311,11 @@ export default function MapsPlanView() {
               </optgroup>}
             </select>
           </label>
+          {colouring?.kind === "number" && ( /* TASKS.csv #3050 — the class breaks typed, not only the quintiles */
+            <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Class breaks")}
+              <input value={breaksText} onChange={(e) => setBreaksText(e.target.value)} placeholder={tr("quintiles, or e.g. 50, 55, 60")} aria-label={tr("Class breaks of the collar colours")} style={{ fontSize: "var(--font-size-sm)", flex: 1, minWidth: 0 }} />
+            </label>
+          )}
           {colourBy.startsWith("max:") && planT.traces.size > 0 && ( /* TASKS.csv #3337 */
             <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Colour at")}
               <select value={colourAt} onChange={(e) => setColourAt(e.target.value)} aria-label={tr("Where the colour is drawn")} style={{ fontSize: "var(--font-size-sm)", flex: 1, minWidth: 0 }}>
@@ -331,7 +353,7 @@ export default function MapsPlanView() {
               })()}</span>
               {colouring.legend.map((l) => <span key={l.label} title={l.other ? l.other.join(", ") : undefined} style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 9, height: 9, borderRadius: "50%", border: "1px solid #14181e", background: l.colour, flex: "0 0 auto" }} />{l.other ? tr("Other: {n} values ({holes} holes)", { n: l.other.length, holes: l.holes.toLocaleString() }) /* #3340 */ : l.label}</span>)}
               {atIntercept ? <span>{tr("Each dot sits at the mid-point of its hole's highest interval; the line runs from the collar.")}</span> : null}
-              {colourBy.startsWith("max:") || colourBy.startsWith("mean:") ? <span>{tr("Classes at the quintiles of the holes' values; a grey ring is a hole with no value.")}</span> : null}
+              {(colourBy.startsWith("max:") || colourBy.startsWith("mean:")) && !breaks.length ? <span>{colouring.noValue ? tr("Classes at the quintiles of the holes' values; a grey ring is a hole with no value ({n}).", { n: colouring.noValue.toLocaleString() }) : tr("Classes at the quintiles of the holes' values; a grey ring is a hole with no value.")}{/* counts: #3351 */}</span> : null}
             </div>
           )}
         </div>
@@ -341,7 +363,7 @@ export default function MapsPlanView() {
         <span>{sb.label}</span>
       </div>
       <div style={{ ...chip, right: 10, top: 10, display: "flex", gap: 8, alignItems: "center" }}>
-        <span style={{ fontWeight: 700 }}>{tr("N ↑")}</span>
+        <span style={{ fontWeight: 700 }} title={tr("Grid north: the plan is drawn on the project's grid, north up. True north differs by the grid convergence (Maps > Project CRS, or Measure).")}>{tr("N ↑")}</span>{/* TASKS.csv #3352 */}
         <button onClick={fit} style={{ fontSize: "var(--font-size-sm)", padding: "1px 7px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", cursor: "pointer" }}>{tr("Fit")}</button>
         <label style={{ display: "flex", alignItems: "center", gap: 3 }}><input type="checkbox" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} />{tr("Grid")}</label>{/* #2128 */}
         <button onClick={toLayout} title={tr("Put this view on the Layout page, north up at its scale, with a legend of its layers")} style={{ fontSize: "var(--font-size-sm)", padding: "1px 7px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", cursor: "pointer" }}>{tr("Snapshot to Layout")}</button>{/* #3194 — the 3D View's own words for the same thing */}
@@ -350,7 +372,7 @@ export default function MapsPlanView() {
       {measuring && ( /* TASKS.csv #2128 */
         <div role="status" aria-label={tr("Measured line")} style={{ ...chip, right: 10, bottom: 40, maxWidth: 340, lineHeight: 1.4, fontVariantNumeric: "tabular-nums" }}>
           {measured
-            ? <>{tr("{d} · grid bearing {b}°", { d: distanceText(measured.distM), b: measured.bearingDeg.toFixed(1) })}{measured.conv != null && Math.abs(measured.conv) >= 0.01 ? " " + tr("(true north is {c}° {dir} of grid north here)", { c: Math.abs(measured.conv).toFixed(2), dir: measured.conv >= 0 ? tr("east") : tr("west") }) : ""}</>
+            ? <>{tr("{d} on the grid · grid bearing {b}°", { d: distanceText(measured.distM), b: measured.bearingDeg.toFixed(1) })}{measured.conv != null && Math.abs(measured.conv) >= 0.01 ? " " + tr("(true north is {c}° {dir} of grid north here)", { c: Math.abs(measured.conv).toFixed(2), dir: measured.conv >= 0 ? tr("east") : tr("west") }) : ""}</>
             : tr("Click two points on the plan to measure between them.")}
         </div>
       )}
@@ -376,7 +398,7 @@ export default function MapsPlanView() {
         </div>
       )}
       <div style={{ ...chip, right: 10, bottom: 10, fontVariantNumeric: "tabular-nums" }}>
-        {cursor ? `E ${Math.round(cursor.x).toLocaleString()}  N ${Math.round(cursor.y).toLocaleString()}${cursorValueText(rasters, cursor)}` : tr("Plan view · wheel to zoom, drag to pan, double-click to fit · drape and 3D in the 3D View")}
+        {cursor ? `E ${Math.round(cursor.x).toLocaleString()}  N ${Math.round(cursor.y).toLocaleString()}${frameText}${lonLatText(toLonLat, cursor)}${cursorValueText(rasters, cursor)}` : tr("Plan view · wheel to zoom, drag to pan, double-click to fit · drape and 3D in the 3D View")}
       </div>
     </div>
   );
@@ -385,6 +407,7 @@ export default function MapsPlanView() {
 // TASKS.csv #2658 — a per-hole value grid's figure points: the collars with the value the grid was made from (recomputed: the project
 // file does not keep a second copy), [{ x, y, v }]
 function holeFigurePoints(g, ctx) {
+  if (g.placeAt === "intercept") return perHoleFigureAtIntercepts(g, ctx); // #3350 — each dot where the grid used its value
   const vals = perHoleValuesOf(g, ctx); // #2991 — a coded log (thickness, depth or RL of a strand) as well as an assay or a numeric log
   const out = [];
   for (const c of ctx.collars || []) { const v = vals.get(c.hole_id); if (Number.isFinite(v) && Number.isFinite(c.x) && Number.isFinite(c.y)) out.push({ x: c.x, y: c.y, v }); }
@@ -408,7 +431,7 @@ function FigureLegend({ f, chip }) {
       </div>
       <span style={{ fontSize: "var(--font-size-xs)", display: "flex", alignItems: "center", gap: 5 }}>
         <span style={{ width: 9, height: 9, borderRadius: "50%", border: "1px solid #14181e", background: stops[Math.floor(stops.length / 2)].color, flex: "0 0 auto" }} />
-        {g.source === "holes" ? tr("{n} holes at their collars, on the grid's colour scale", { n: f.pts.length.toLocaleString() }) /* #2658 */ : tr("{n} {el} samples{m}, on the grid's colour scale", { n: f.pts.length.toLocaleString(), el: g.symbol, m: g.medium ? tr(" ({medium})", { medium: g.medium }) : "" })}
+        {g.source === "holes" ? (g.placeAt === "intercept" ? tr("{n} holes at their intercepts, on the grid's colour scale", { n: f.pts.length.toLocaleString() }) /* #3350 */ : tr("{n} holes at their collars, on the grid's colour scale", { n: f.pts.length.toLocaleString() })) /* #2658 */ : tr("{n} {el} samples{m}, on the grid's colour scale", { n: f.pts.length.toLocaleString(), el: g.symbol, m: g.medium ? tr(" ({medium})", { medium: g.medium }) : "" })}
       </span>
       {f.levels.length > 0 && <span style={{ fontSize: "var(--font-size-xs)", display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 14, height: 0, borderTop: "2px solid #d62f2f", flex: "0 0 auto" }} />{tr("Contours: {levels} {unit}", { levels: f.levels.map(fmtV).join(", "), unit })}</span>}
     </div>

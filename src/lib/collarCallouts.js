@@ -114,7 +114,8 @@ export function placeLabels(labels, index, h = 13, dx = 5, gap = 4) { // gap: ro
 // The ids on the plan: ctx a canvas 2D context; collars: the rows (hole_id, x, y); X / Y: world -> pixel; view { w, h };
 // colourOf(c) -> a colour, null (no value: a grey ring) or undefined (no colouring: no swatch); dotR: the dot radius; more(n) -> '+n more'.
 // Pads get a callout, single holes their id; a pad whose callout has no room, a short label 'first id +n'. -> { pads, callouts, labels }
-export function drawCallouts(ctx, collars, X, Y, view, { colourOf, dotR = 3, mPerPx, more = (n) => `+${n} more` } = {}) {
+// keepClear (TASKS.csv #3405): rectangles { x0, y0, x1, y1 } in pixels that no callout box or label may take (the Collars chip, the grid's edge labels)
+export function drawCallouts(ctx, collars, X, Y, view, { colourOf, dotR = 3, mPerPx, more = (n) => `+${n} more`, keepClear = [] } = {}) {
   const world = [], screen = [], rows = [];
   for (const c of collars || []) {
     if (!Number.isFinite(c?.x) || !Number.isFinite(c?.y)) continue;
@@ -124,6 +125,7 @@ export function drawCallouts(ctx, collars, X, Y, view, { colourOf, dotR = 3, mPe
   }
   const pads = collarPads(world, screen, mPerPx);
   const index = new RectIndex(), dots = new RectIndex();
+  for (const r of keepClear) index.add(r); // #3405
   for (const p of screen) dots.add({ x0: p.x - dotR, y0: p.y - dotR, x1: p.x + dotR, y1: p.y + dotR }); // a box leaves the markers visible (a label may cross one, as before)
   const multi = pads.filter((p) => p.members.length > 1);
   const id = (i) => String(rows[i].hole_id ?? "");

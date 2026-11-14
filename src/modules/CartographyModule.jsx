@@ -27,7 +27,7 @@ import { saveFile } from "../lib/desktop.js";
 import SourceCrsField from "../components/SourceCrsField.jsx";
 import { readShapefileLayers, reprojectShapefileZip, reportShapefileText, readGeoTiffInfo, reprojectGeoTiff, reportGeoTiffText, reprojectTableRows, degreesOutOfRange, utmOutOfRange, isUtmCrs, fileXYColumns, fromForGridPrefix , sridColumnEpsg, rowsToGeoJSON /* #2130 */ } from "../lib/fileReproject.js"; // #487; degreesOutOfRange: #2461; utmOutOfRange ... fromForGridPrefix: #2588
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
-import { collarCentreLonLat, collarSpread, formatLonLat, medianPoint, crsCandidatesAt } from "../lib/projectCrs.js"; // TASKS.csv #2291; medianPoint: #2463; crsCandidatesAt: #2465
+import { collarCentreLonLat, collarSpread, formatLonLat, medianPoint, crsCandidatesAt, offsetFrom } from "../lib/projectCrs.js"; // TASKS.csv #2291; medianPoint: #2463; crsCandidatesAt: #2465
 import { smallGridCoordinates } from "../lib/crsFromColumns.js"; // TASKS.csv #2291
 import { tieOf } from "../lib/localGridTie.js"; // TASKS.csv #2587
 import { gridToCrsChoice, isMineSource, MINE_SOURCE } from "../lib/mineGrid.js"; // TASKS.csv #2812 — 'A file' from the mine grid
@@ -250,7 +250,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
                 <div role="note" style={note}>
                   {here ? tr("Reproject keeps your {n} collars where they are ({where}) and gives them {v} numbers.", { n: cols.length, where: formatLonLat(here), v: crsName(newCrs) || tr("EPSG:{newCrs}", { newCrs }) }) : null}
                   <span style={{ color: labelWrong ? "var(--color-warn-text-strong)" : undefined }}>{" "}
-                    {at ? tr("Only changing the label would put them at {where}.", { where: formatLonLat(at) }) : tr("Only changing the label: your collars do not fit this CRS (they land off the globe).")}
+                    {at ? tr("Only changing the label would put them at {where}.", { where: formatLonLat(at) }) + ((off) => (off && off.km >= 1 ? " " + tr("That is about {km} km {dir} of where the project says they are now.", { km: off.km.toLocaleString(), dir: tr(off.dir) }) : ""))(offsetFrom(here, at)) /* #2999 */ : tr("Only changing the label: your collars do not fit this CRS (they land off the globe).")}
                     {problems}
                   </span>
                 </div>
@@ -386,7 +386,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
         <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("EPSG:{epsg} · {v}", { epsg: project.epsg, v: metric === true ? tr("projected, metres") : metric === false ? tr("geographic (degrees) — distances, volumes and grids need a projected CRS") : tr("GeoStrix has no definition for this code: imports cannot be reprojected into it") })}</div>
         {lonLat && (
           <div style={{ ...note, fontSize: "var(--font-size-base)" }}>{tr("Project location: {v}°{v2}, {v3}°{v4}", { v: Math.abs(lonLat[1]).toFixed(4), v2: lonLat[1] >= 0 ? "N" : "S", v3: Math.abs(lonLat[0]).toFixed(4), v4: lonLat[0] >= 0 ? "E" : "W" })}
-            {convergence != null && <>{" "}{tr("· grid convergence here {v}{convergence}° (true north is {v2}° {v3} of grid north)", { v: convergence >= 0 ? "+" : "", convergence: convergence.toFixed(2), v2: Math.abs(convergence).toFixed(2), v3: convergence >= 0 ? tr("east") : tr("west") })}</>}
+            {convergence != null && <>{" "}{/* TASKS.csv #3352 — the usual sign: grid convergence is grid north's angle from true north, negative west of the central meridian (the bearing of true north, the opposite, was printed) */}{tr("· grid convergence here {v}{convergence}° (grid north is {v2}° {v3} of true north)", { v: -convergence >= 0 ? "+" : "-", convergence: Math.abs(convergence).toFixed(2), v2: Math.abs(convergence).toFixed(2), v3: -convergence >= 0 ? tr("east") : tr("west") })}</>}
           </div>
         )}
         </>)}

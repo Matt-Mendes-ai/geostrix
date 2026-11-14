@@ -12409,5 +12409,15 @@
   "Cancel — open the drillhole import.": "Annuler — ouvrir l'import des sondages.",
   "{name}: no rows with usable coordinates.": "{name} : aucune ligne avec des coordonnées utilisables.",
   "{name}: {features} added to Map layers as points, {crsNote}.": "{name} : {features} ajoutés aux Couches de carte comme points, {crsNote}.",
-  "{n} row(s) without coordinates were left out.": "{n} ligne(s) sans coordonnées ont été écartées."
+  "{n} row(s) without coordinates were left out.": "{n} ligne(s) sans coordonnées ont été écartées.",
+  " (local grid)": " (grille locale)",
+  "quintiles, or e.g. 50, 55, 60": "quintiles, ou p. ex. 50, 55, 60",
+  "Class breaks of the collar colours": "Limites de classe des couleurs des collets",
+  "Classes at the quintiles of the holes' values; a grey ring is a hole with no value ({n}).": "Classes aux quintiles des valeurs des sondages ; un anneau gris est un sondage sans valeur ({n}).",
+  "Grid north: the plan is drawn on the project's grid, north up. True north differs by the grid convergence (Maps > Project CRS, or Measure).": "Nord de la grille : le plan est dessiné sur la grille du projet, nord en haut. Le nord vrai diffère par la convergence des méridiens (Cartes > SCR du projet, ou Mesurer).",
+  "{d} on the grid · grid bearing {b}°": "{d} sur la grille · gisement de grille {b}°",
+  "{n} holes at their intercepts, on the grid's colour scale": "{n} sondages à leurs intersections, sur l'échelle de couleurs de la grille",
+  "That is about {km} km {dir} of where the project says they are now.": "C'est à environ {km} km au {dir} de l'endroit où le projet les place maintenant.",
+  "· grid convergence here {v}{convergence}° (grid north is {v2}° {v3} of true north)": "· convergence de grille ici {v}{convergence}° (le nord de la grille est à {v2}° à l'{v3} du nord vrai)",
+  "{name}: {n} line feature(s) were not claims (a claim is an area): import them under Boundaries": "{name} : {n} entité(s) linéaire(s) n'étaient pas des claims (un claim est une surface) : importez-les sous Limites"
 }

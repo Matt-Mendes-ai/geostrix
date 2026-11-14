@@ -12409,5 +12409,15 @@
   "Cancel — open the drillhole import.": "Cancelar — abrir a importação de furos.",
   "{name}: no rows with usable coordinates.": "{name}: nenhuma linha com coordenadas utilizáveis.",
   "{name}: {features} added to Map layers as points, {crsNote}.": "{name}: {features} adicionados a Camadas do mapa como pontos, {crsNote}.",
-  "{n} row(s) without coordinates were left out.": "{n} linha(s) sem coordenadas foram deixadas de fora."
+  "{n} row(s) without coordinates were left out.": "{n} linha(s) sem coordenadas foram deixadas de fora.",
+  " (local grid)": " (grade local)",
+  "quintiles, or e.g. 50, 55, 60": "quintis, ou p. ex. 50, 55, 60",
+  "Class breaks of the collar colours": "Quebras de classe das cores dos colares",
+  "Classes at the quintiles of the holes' values; a grey ring is a hole with no value ({n}).": "Classes nos quintis dos valores dos furos; um anel cinzento é um furo sem valor ({n}).",
+  "Grid north: the plan is drawn on the project's grid, north up. True north differs by the grid convergence (Maps > Project CRS, or Measure).": "Norte da grade: a planta é desenhada na grade do projeto, com o norte para cima. O norte verdadeiro difere pela convergência da grade (Mapas > SRC do projeto, ou Medir).",
+  "{d} on the grid · grid bearing {b}°": "{d} na grade · rumo da grade {b}°",
+  "{n} holes at their intercepts, on the grid's colour scale": "{n} furos nas suas interseções, na escala de cores da grade",
+  "That is about {km} km {dir} of where the project says they are now.": "Isso fica a cerca de {km} km a {dir} de onde o projeto diz que estão agora.",
+  "· grid convergence here {v}{convergence}° (grid north is {v2}° {v3} of true north)": "· convergência da grade aqui {v}{convergence}° (o norte da grade está {v2}° a {v3} do norte verdadeiro)",
+  "{name}: {n} line feature(s) were not claims (a claim is an area): import them under Boundaries": "{name}: {n} feição(ões) linear(es) não eram claims (um claim é uma área): importe-as em Limites"
 }

@@ -105,7 +105,7 @@ import { tieTerrainToLocal } from "../lib/terrainTie.js"; // TASKS.csv #2648
 import { farFromCollars, farLabel } from "../lib/landingCheck.js"; // TASKS.csv #2590
 import { collarCentreLonLat } from "../lib/projectCrs.js"; // TASKS.csv #2465
 import { niceContourInterval, terrainRange, MIN_CONTOUR_INTERVAL } from "../lib/contourInterval.js"; // TASKS.csv #2462
-import { vectorToBoundaryPolylines, boundaryCrsTransform, claimsFromVector, isAreaBoundary, fileStem, crsLabel } from "../lib/boundaryImport.js"; // crsLabel: #2467; // fileStem: #1767; // TASKS.csv #1035; claims per feature: #1970; isAreaBoundary: #1466
+import { vectorToBoundaryPolylines, boundaryCrsTransform, claimsFromVector, closedFeaturesOnly, isAreaBoundary, fileStem, crsLabel } from "../lib/boundaryImport.js"; // crsLabel: #2467; // fileStem: #1767; // TASKS.csv #1035; claims per feature: #1970; isAreaBoundary: #1466
 import { clampCellBudget, MIN_CELL_BUDGET, MAX_BLOCK_MODEL_BUDGET } from "../lib/estimationMeta.js"; // TASKS.csv #1074
 import { checkGpkgSize } from "../lib/gpkgSize.js"; // TASKS.csv #1716
 import { sniffTable, estimateRows, streamTableRows, streamXyzRows, headText } from "../lib/streamTable.js"; // TASKS.csv #1351
@@ -1268,7 +1268,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         if (shapePolylines) {
           // TASKS.csv #1970 — a tenure file holds one feature per claim: one claim each (tenure number, name, good-to date from the
           // attributes), every GeoPackage table; a file of more than MAX_CLAIMS_PER_FILE features stays one claim and says so
-          for (const p of shapePolylines.multi || [shapePolylines]) {
+          for (const p0 of shapePolylines.multi || [shapePolylines]) {
+            const { result: p, lines } = closedFeaturesOnly(p0); // #3349 — a road beside the claim is not a claim
+            if (lines) notes.push(tr("{name}: {n} line feature(s) were not claims (a claim is an area): import them under Boundaries", { name: file.name, n: lines.toLocaleString() }));
             const label = shapePolylines.multi ? `${base}: ${p.table}` : base;
             if (p.note) notes.push(`${file.name}: ${p.note}`); // #1035
             const split = claimsFromVector(p, label, MAX_CLAIMS_PER_FILE);

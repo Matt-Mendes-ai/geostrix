@@ -49,3 +49,14 @@ test("the Project CRS pane says what each button does, and gates the frame test 
   const m = readFileSync(new URL("../src/components/ProjectCrsModal.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(m, /const spread = landing && !outside \? collarSpread\(collars, choice\) : null;/);
 });
+
+// TASKS.csv #2999 — 'Only change the label' says how far and which way the collars would move from where the project puts them now
+import { offsetFrom } from "../src/lib/projectCrs.js";
+test("the label-only landing is placed against the present position", () => {
+  const now = collarCentreLonLat([{ x: 600000, y: 7500000 }], 28350), as51 = collarCentreLonLat([{ x: 600000, y: 7500000 }], 28351);
+  const o = offsetFrom(now, as51);
+  assert.equal(o.dir, "E");
+  assert.ok(o.km > 600 && o.km < 650, `${o.km}`); // the review's 'about 617 km east'
+  assert.equal(offsetFrom(now, now).km, 0);
+  assert.match(readFileSync(new URL("../src/modules/CartographyModule.jsx", import.meta.url), "utf8"), /That is about \{km\} km \{dir\} of where the project says they are now\./);
+});

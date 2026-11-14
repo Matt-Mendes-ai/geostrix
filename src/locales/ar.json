@@ -12409,5 +12409,15 @@
   "Cancel — open the drillhole import.": "إلغاء — فتح استيراد ثقوب الحفر.",
   "{name}: no rows with usable coordinates.": "{name}: لا صفوف بإحداثيات صالحة.",
   "{name}: {features} added to Map layers as points, {crsNote}.": "{name}: أُضيفت {features} إلى طبقات الخريطة كنقاط، {crsNote}.",
-  "{n} row(s) without coordinates were left out.": "استُبعد {n} صف(وف) بلا إحداثيات."
+  "{n} row(s) without coordinates were left out.": "استُبعد {n} صف(وف) بلا إحداثيات.",
+  " (local grid)": " (شبكة محلية)",
+  "quintiles, or e.g. 50, 55, 60": "الخُمس، أو مثلًا 50، 55، 60",
+  "Class breaks of the collar colours": "حدود فئات ألوان الفوهات",
+  "Classes at the quintiles of the holes' values; a grey ring is a hole with no value ({n}).": "الفئات عند خُمس قيم الثقوب؛ الحلقة الرمادية ثقب بلا قيمة ({n}).",
+  "Grid north: the plan is drawn on the project's grid, north up. True north differs by the grid convergence (Maps > Project CRS, or Measure).": "شمال الشبكة: يُرسم المسقط على شبكة المشروع والشمال إلى الأعلى. يختلف الشمال الحقيقي بتقارب الشبكة (الخرائط > نظام إحداثيات المشروع، أو القياس).",
+  "{d} on the grid · grid bearing {b}°": "{d} على الشبكة · اتجاه الشبكة {b}°",
+  "{n} holes at their intercepts, on the grid's colour scale": "{n} ثقوب عند تقاطعاتها، على مقياس ألوان الشبكة",
+  "That is about {km} km {dir} of where the project says they are now.": "يبعد ذلك نحو {km} كم نحو {dir} عن موقعها الحالي في المشروع.",
+  "· grid convergence here {v}{convergence}° (grid north is {v2}° {v3} of true north)": "· تقارب الشبكة هنا {v}{convergence}° (شمال الشبكة {v2}° إلى {v3} الشمال الحقيقي)",
+  "{name}: {n} line feature(s) were not claims (a claim is an area): import them under Boundaries": "{name}: {n} عنصر(عناصر) خطي لم يكن مطالبة (المطالبة مساحة): استوردها ضمن الحدود"
 }

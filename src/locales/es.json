@@ -12409,5 +12409,15 @@
   "Cancel — open the drillhole import.": "Cancelar — abrir la importación de sondajes.",
   "{name}: no rows with usable coordinates.": "{name}: no hay filas con coordenadas utilizables.",
   "{name}: {features} added to Map layers as points, {crsNote}.": "{name}: {features} agregados a Capas del mapa como puntos, {crsNote}.",
-  "{n} row(s) without coordinates were left out.": "Se omitieron {n} fila(s) sin coordenadas."
+  "{n} row(s) without coordinates were left out.": "Se omitieron {n} fila(s) sin coordenadas.",
+  " (local grid)": " (grilla local)",
+  "quintiles, or e.g. 50, 55, 60": "quintiles, o p. ej. 50, 55, 60",
+  "Class breaks of the collar colours": "Cortes de clase de los colores de los collares",
+  "Classes at the quintiles of the holes' values; a grey ring is a hole with no value ({n}).": "Clases en los quintiles de los valores de los sondajes; un anillo gris es un sondaje sin valor ({n}).",
+  "Grid north: the plan is drawn on the project's grid, north up. True north differs by the grid convergence (Maps > Project CRS, or Measure).": "Norte de grilla: la planta se dibuja en la grilla del proyecto, con el norte arriba. El norte verdadero difiere por la convergencia de grilla (Mapas > SRC del proyecto, o Medir).",
+  "{d} on the grid · grid bearing {b}°": "{d} en la grilla · rumbo de grilla {b}°",
+  "{n} holes at their intercepts, on the grid's colour scale": "{n} sondajes en sus intercepciones, en la escala de color de la grilla",
+  "That is about {km} km {dir} of where the project says they are now.": "Eso queda a unos {km} km al {dir} de donde el proyecto dice que están ahora.",
+  "· grid convergence here {v}{convergence}° (grid north is {v2}° {v3} of true north)": "· convergencia de grilla aquí {v}{convergence}° (el norte de grilla está {v2}° al {v3} del norte verdadero)",
+  "{name}: {n} line feature(s) were not claims (a claim is an area): import them under Boundaries": "{name}: {n} elemento(s) lineal(es) no eran concesiones (una concesión es un área): impórtelos en Límites"
 }
