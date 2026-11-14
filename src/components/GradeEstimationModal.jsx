@@ -5,7 +5,8 @@ import { belowDrilling } from "../lib/belowDrilling.js"; // TASKS.csv #2546
 import { buildMeshQuery, isPointInsideMesh, isMeshClosed } from "../lib/meshQuery.js"; // TASKS.csv #517
 import { validateSolid } from "../lib/meshValidate.js"; // TASKS.csv #860
 import { X, Play } from "./icons.js";
-import { compositeDownhole, rawSampleIntervals, PRECIOUS_METALS, capAudit, lengthWeightedPercentile, gradeUnitLabel, resolvedSegments } from "../lib/geochem.js"; // gradeUnitLabel: #2218; // rawSampleIntervals: #571; lengthWeightedPercentile: #1573
+import { compositeDownholeSliced } from "../lib/compositeSliced.js"; // TASKS.csv #3105 — compositing in slices of holes
+import { rawSampleIntervals, PRECIOUS_METALS, capAudit, lengthWeightedPercentile, gradeUnitLabel, resolvedSegments } from "../lib/geochem.js"; // gradeUnitLabel: #2218; // rawSampleIntervals: #571; lengthWeightedPercentile: #1573
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import EstimateCheck from "./EstimateCheck.jsx"; // TASKS.csv #1051
 import { NEAR_UNSAMPLED_HOLES } from "../lib/unsampledFlags.js"; // TASKS.csv #3065
@@ -455,13 +456,14 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         const compositingSkipped = useComposites && readMedian != null && readMedian < compositeLength / 4 ? { medianM: readMedian, lengthM: compositeLength } : null;
         const coverageStats = {}; // #3269 — the readings no kept composite took
         if (useComposites && !compositingSkipped) {
-          intervals = compositeDownhole(runAssays, symbol, unit, elementUnits, {
+          // TASKS.csv #3105 — in slices of holes (the window paints between them): one 0.6 s task on WA iron's 147,891 assays; the same composites
+          intervals = await compositeDownholeSliced(runAssays, symbol, unit, elementUnits, {
             stats: coverageStats, // #3269
             length: compositeLength, minCoverage, // TASKS.csv #262 — was hardcoded 0.5
             capValue: cap,
             domainRows: domainRowsSel, // #1571 — a built-in or a custom layer
             ...(domainRowsSel && Object.values(capByDomain).some((v) => Number(v) > 0) ? { capByDomain: Object.fromEntries(Object.entries(capByDomain).filter(([, v]) => Number(v) > 0).map(([k, v]) => [k, Number(v)])) } : {}), // #1571
-          });
+          }); // no signal: the run's AbortController is made after this (the Cancel button acts on the estimate)
         } else {
           // TASKS.csv #571 — duplicates / overlaps resolved, values in `unit`, as in compositing
           const raw = rawSampleIntervals(runAssays, symbol, unit, elementUnits, { capValue: cap });
@@ -657,7 +659,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           const unsM = resolveUnsampled("estimate", { assays: srcAssays, collars: runCollars, symbol: el, unit: u, elementUnits, logCtx: { layers, customLayers } });
           const fm = unsM.apply(srcAssays), rows = fm.assays;
           const mCapN = Number(memberCapOf(el)), mCap = mCapN > 0 ? mCapN : null; // #3271
-          const iv = useComposites ? compositeDownhole(rows, el, u, elementUnits, { length: compositeLength, minCoverage, capValue: mCap, domainRows: domainRowsSel }) : rawSampleIntervals(rows, el, u, elementUnits, { capValue: mCap }).intervals;
+          const iv = useComposites ? await compositeDownholeSliced(rows, el, u, elementUnits, { length: compositeLength, minCoverage, capValue: mCap, domainRows: domainRowsSel }, { signal: ac.signal }) /* #3105 */ : rawSampleIntervals(rows, el, u, elementUnits, { capValue: mCap }).intervals;
           let mp = samplePointsFromIntervals(iv, collars, survey, desurveyHole, desurveyMethod).points;
           if (inShell) mp = mp.filter((q) => inShell(q));
           if (!mp.length) { members.push({ ...memberSummary(el, u, [], 0), cells: [], cap: mCap }); continue; }

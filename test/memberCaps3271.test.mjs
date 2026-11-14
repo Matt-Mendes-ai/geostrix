@@ -31,7 +31,7 @@ test("wiring: the members' top cuts in the dialog, used in the run, recorded, ch
   const m = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(m, /const memberCapOf = \(el\) => \(el in memberCaps \? memberCaps\[el\] : memberProposals\[el\]\?\.proposed \?\? ""\);/);
   assert.match(m, /const mCapN = Number\(memberCapOf\(el\)\), mCap = mCapN > 0 \? mCapN : null;/);
-  assert.match(m, /compositeDownhole\(rows, el, u, elementUnits, \{ length: compositeLength, minCoverage, capValue: mCap, domainRows: domainRowsSel \}\) : rawSampleIntervals\(rows, el, u, elementUnits, \{ capValue: mCap \}\)/);
+  assert.match(m, /compositeDownholeSliced\(rows, el, u, elementUnits, \{ length: compositeLength, minCoverage, capValue: mCap, domainRows: domainRowsSel \}, \{ signal: ac\.signal \}\) \/\* #3105 \*\/ : rawSampleIntervals\(rows, el, u, elementUnits, \{ capValue: mCap \}\)/);
   assert.match(m, /element: el, unit: u, capValue: mCap, capUnit: mCap != null \? u : null, \.\.\.\(mAudit \? \{ capAudit: mAudit \} : \{\}\)/);
   assert.match(m, /const mNn = method === "nn" \? null : await runEstimation\("block", mp, nnOpts, \{ signal: ac\.signal, checkOnly: true \}\);/);
   assert.match(m, /const nnEst = method === "nn" \? est : await runEstimation\("block", estPts, nnOpts, \{/);

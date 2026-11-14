@@ -81,7 +81,7 @@ test("a block wholly above or below every sample informing it is flagged; grade-
 test("the three tools read the choice and the estimate says where the metal is", () => {
   const e = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
   assert.match(e, /const filled = uns\.apply\(srcAssays\), runAssays = filled\.assays;/);
-  assert.match(e, /intervals = compositeDownhole\(runAssays, symbol/);
+  assert.match(e, /intervals = await compositeDownholeSliced\(runAssays, symbol/); // #3105 — in slices of holes
   assert.match(e, /rawSampleIntervals\(runAssays, symbol/);
   assert.match(e, /\.\.\.uns\.params\(filled\), beyondFlagged: true/);
   assert.match(e, /!symbol \|\| !uns\.ready/);
