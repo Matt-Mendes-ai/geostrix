@@ -17,6 +17,7 @@ import { contourLabelSpots, indexLevels } from "../contourLabels.js"; // TASKS.c
 import { makeTextSprite } from "./textSprite.js"; // TASKS.csv #1466 / #1622
 import { collarGround, collarsLookUnderground } from "../collarGround.js"; // TASKS.csv #2447; #3159: not pitShell.js, which put the pit solver in startup; collarsLookUnderground: #3368
 import { outcropNoTerrainGround } from "./surfacePlacement.js"; // TASKS.csv #3368
+import { terrainDrapeGrid } from "./terrainDrape.js"; // TASKS.csv #3380
 import { DRAW_ORDER } from "./drawOrder.js"; // TASKS.csv #2776
 
 // TASKS.csv #2447 / #2576 (reviews #2325 / #2486) — a raster drawn on the collar surface (drapeMode "collars", a project with no terrain): a
@@ -348,22 +349,28 @@ export function syncMapLayers(group, cache, mapLayers, { origin, terrain, render
       const texture = new THREE.CanvasTexture(canvas);
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 1;
-      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: l.opacity ?? 0.6, side: THREE.DoubleSide, depthWrite: false });
+      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: l.opacity ?? 0.6, side: THREE.DoubleSide, depthWrite: false,
+        polygonOffset: drapeOnTerrain, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }); // #3380 — on the ground, ahead of it in the depth test
       let geometry;
       if (drapeOnTerrain) {
-        // Same resolution reasoning as the raster drape above: follow the terrain's own grid over this
-        // layer's footprint (x1.5 so the drape doesn't cut corners between terrain samples), capped.
-        const fracX = w / Math.max(1e-6, terrain.bbox[2] - terrain.bbox[0]);
-        const fracY = h / Math.max(1e-6, terrain.bbox[3] - terrain.bbox[1]);
-        const segX = Math.round(Math.min(256, Math.max(32, fracX * terrain.gridW * 1.5)));
-        const segY = Math.round(Math.min(256, Math.max(32, fracY * terrain.gridH * 1.5)));
-        geometry = new THREE.PlaneGeometry(w, h, segX, segY);
-        const pos = geometry.attributes.position;
-        for (let i = 0; i < pos.count; i++) {
-          const el = sampleTerrainElevation(terrain, cx + pos.getX(i), cy + pos.getY(i));
-          pos.setZ(i, el - oz + lift);
+        // TASKS.csv #3380 — the drape on the terrain's own nodes and triangles (lib/viewer/terrainDrape.js): an even plane read bilinearly
+        // parted from the drawn triangles inside twisted cells and the ground showed through the polygons. Lifted clear of what it cannot
+        // match exactly (a decimated terrain mesh, nodes skipped on a very large box, the box's edge cells).
+        const am = terrain.gridW * terrain.gridH > ADAPTIVE_TERRAIN_NODES ? adaptiveTerrainCache.get(terrain) : null;
+        const adaptiveError = terrain.gridW * terrain.gridH > ADAPTIVE_TERRAIN_NODES ? (am?.maxError ?? 2) : 0;
+        const dg = terrainDrapeGrid(terrain, bbox, { adaptiveError });
+        const W = dg.xs.length, H = dg.ys.length, positions = new Float32Array(W * H * 3), uvs = new Float32Array(W * H * 2), up = lift + dg.extraLift;
+        for (let r = 0; r < H; r++) for (let k = 0; k < W; k++) {
+          const q = r * W + k;
+          positions[q * 3] = dg.xs[k] - cx; positions[q * 3 + 1] = dg.ys[r] - cy; positions[q * 3 + 2] = dg.z[q] - oz + up; // the plane's local frame (rotated below)
+          uvs[q * 2] = (dg.xs[k] - bbox[0]) / w; uvs[q * 2 + 1] = (dg.ys[r] - bbox[1]) / h;
         }
-        pos.needsUpdate = true;
+        geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+        geometry.setIndex(new THREE.BufferAttribute(dg.indices, 1));
+        geometry.computeBoundingSphere();
+        geometry.userData.drapeLift = up; // #3380
       } else if (onCollars) { // #2768 — on the surface through the collar elevations
         const ground = collarGround(collars);
         geometry = new THREE.PlaneGeometry(w, h, COLLAR_DRAPE_SEG, COLLAR_DRAPE_SEG);
