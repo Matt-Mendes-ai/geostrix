@@ -56,7 +56,7 @@ import { readKmlFile, kmlToProjectPolylines } from "../lib/kml.js"; // TASKS.csv
 import { parseShapefileZip, parseShapefileParts } from "../lib/shapefile.js";
 import { groupShapefileParts } from "../lib/viewer/importHelpers.js"; // TASKS.csv #2121 — a loose .shp with its .prj / .dbf / .cpg
 import { parseGeoPackage } from "../lib/gpkg.js";
-import { idwGridToRasterInput, gridValuesToRasterInput, snappedGridExtent, suggestBlankingDistance, suggestIdwCell, uniqueName } from "../lib/idw.js"; // suggestIdwCell, uniqueName: #2562; gridValuesToRasterInput, snappedGridExtent: #2846, #2872
+import { idwGridToRasterInput, gridValuesToRasterInput, snappedGridExtent, uniqueName } from "../lib/idw.js"; // uniqueName: #2562; gridValuesToRasterInput, snappedGridExtent: #2846, #2872
 import { surveySplineRequest, splineFinish, gridMethodTag } from "../lib/surveyGrid.js"; // TASKS.csv #2846
 import { gridSurveyAsync } from "../lib/surveyGridClient.js"; // #2846 — minimum curvature in a worker
 import { MINCURV_MAX_CELLS, SPLINE_MAX_CELLS } from "../lib/sampleGrid.js"; // #2846
@@ -88,6 +88,7 @@ import { decadesBetween, isLogSpaced, logViridisStops } from "../lib/pointSurvey
 import { defaultModelLegend } from "../lib/modelDefaultStops.js"; // TASKS.csv #2400
 import { guessVoxelProperty, isLogProperty, propertyRamp, parseGradeLabel } from "../lib/voxelProperty.js"; // TASKS.csv #1786; propertyRamp: #1788; parseGradeLabel: #2667
 import { cloudShape } from "../lib/cloudShape.js"; // TASKS.csv #1783
+import { surveyGridDefaults, proposeSlice, blankForCell } from "../lib/surveyGridDefaults.js"; // TASKS.csv #3322
 import { defaultDrapeElevation, rasterDrapeElevation, drapeElevationNote, planElevation } from "../lib/drapeElevation.js"; // planElevation: #2294; // TASKS.csv #1856; rasterDrapeElevation: #1505
 import { collarTerrainOffset } from "../lib/terrainCheck.js"; // TASKS.csv #1620
 import { voxelStretch, sortedShownValues } from "../lib/voxelStretch.js"; // TASKS.csv #1812 / #1781
@@ -403,14 +404,18 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // TASKS.csv #1783 (review #1646, Kodiak) — a 3D point cloud (an inversion model imported as points) is gridded one depth slice at a time
   const idwShape = useMemo(() => (idwRows.length ? cloudShape(idwRows) : null), [idwRows]);
   const [idwZ, setIdwZ] = useState({ lo: "", hi: "" });
+  // TASKS.csv #3322 — both boxes empty: the proposed slice (the level with the most points), not every depth at once; one typed: the other end of the cloud
+  const idwSliceProp = useMemo(() => (idwShape?.is3D ? proposeSlice(idwRows) : null), [idwRows, idwShape]);
+  const idwZAuto = !!idwSliceProp && idwZ.lo === "" && idwZ.hi === "";
+  const idwZLo = idwZAuto ? idwSliceProp.lo : idwZ.lo === "" ? -Infinity : Number(idwZ.lo), idwZHi = idwZAuto ? idwSliceProp.hi : idwZ.hi === "" ? Infinity : Number(idwZ.hi);
   const idwSlice = useMemo(() => {
     if (!idwShape?.is3D) return idwRows;
-    const lo = idwZ.lo === "" ? -Infinity : Number(idwZ.lo), hi = idwZ.hi === "" ? Infinity : Number(idwZ.hi);
-    return idwRows.filter((r) => Number.isFinite(r.z) && r.z >= lo && r.z <= hi);
-  }, [idwRows, idwShape, idwZ]);
-  const idwSuggest = useMemo(() => (idwSlice.length ? suggestBlankingDistance(idwSlice) : null), [idwSlice]); // the slice's own spacing (#1783)
-  const idwAutoCell = suggestIdwCell(idwSuggest?.spacing) || 25; // #2562 — a quarter to a half of the spacing
+    return idwRows.filter((r) => Number.isFinite(r.z) && r.z >= idwZLo && r.z <= idwZHi);
+  }, [idwRows, idwShape, idwZLo, idwZHi]);
+  const idwSuggest = useMemo(() => (idwSlice.length ? surveyGridDefaults(idwSlice) : null), [idwSlice]); // the slice's own spacing (#1783); lines with no line column, the 4,000,000-cell limit (#3322)
+  const idwAutoCell = idwSuggest?.cell || 25; // #2562 — a quarter to a half of the spacing; #3322 — never over the cell limit
   const idwCellSize = idwCellText === "" ? idwAutoCell : Math.max(0.1, Number(idwCellText) || idwAutoCell);
+  const idwAutoBlank = idwSuggest ? blankForCell(idwSuggest.distance, idwCellSize) : null; // #3322 — a typed cell carries the blanking: at least 1.5 cells
   // #451 — radar-altimeter heights -> elevations on the loaded terrain
   const convertAgl = (key) => {
     if (!terrain) return;
@@ -2272,18 +2277,19 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     <div style={{ color: "var(--color-warn-text)", fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 4 }}>{tr("This is a 3D point cloud, not a surface survey: {n} points from {lo} to {hi} m elevation (within a plan cell their elevations spread {k}× the cell). A raster flattens every depth into one value per cell, so grid one depth slice at a time.", { n: idwShape.n.toLocaleString(), lo: Math.round(idwShape.zMin).toLocaleString(), hi: Math.round(idwShape.zMax).toLocaleString(), k: idwShape.spread.toFixed(0) })}</div>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                       <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Slice z (m)")}</span>
-                      <input type="number" step="any" value={idwZ.lo} placeholder={String(Math.round(idwShape.zMin))} onChange={(e) => setIdwZ((z) => ({ ...z, lo: e.target.value }))} style={{ ...numInput, width: 80 }} aria-label={tr("Lowest elevation of the slice")} />
+                      <input type="number" step="any" value={idwZ.lo} placeholder={String(idwZAuto ? idwSliceProp.lo : Math.round(idwShape.zMin))} onChange={(e) => setIdwZ((z) => ({ ...z, lo: e.target.value }))} style={{ ...numInput, width: 80 }} aria-label={tr("Lowest elevation of the slice")} />
                       <span style={{ color: "var(--color-text-muted)" }}>{tr("to")}</span>
-                      <input type="number" step="any" value={idwZ.hi} placeholder={String(Math.round(idwShape.zMax))} onChange={(e) => setIdwZ((z) => ({ ...z, hi: e.target.value }))} style={{ ...numInput, width: 80 }} aria-label={tr("Highest elevation of the slice")} />
+                      <input type="number" step="any" value={idwZ.hi} placeholder={String(idwZAuto ? idwSliceProp.hi : Math.round(idwShape.zMax))} onChange={(e) => setIdwZ((z) => ({ ...z, hi: e.target.value }))} style={{ ...numInput, width: 80 }} aria-label={tr("Highest elevation of the slice")} />
                       <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)" }}>{tr("{n} points in the slice", { n: idwSlice.length.toLocaleString() })}</span>
                     </div>
+                    {idwZAuto && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginTop: 4 }}>{/* #3322 */}{idwSliceProp.layered ? tr("Proposed: the level at {z} m, the one with the most points ({n}); the levels are {g} m apart. Type other elevations to grid another slice.", { z: idwSliceProp.z.toLocaleString(), n: idwSliceProp.n.toLocaleString(), g: +idwSliceProp.gap.toFixed(2) }) : tr("Proposed: the {t} m band with the most points. Type other elevations to grid another slice.", { t: idwSliceProp.thickness.toLocaleString() })}</div>}
                   </div>
                 )}
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Cell size")}</span>
                   <input type="number" min="0.1" step="any" value={idwCellText} placeholder={String(idwAutoCell)} onChange={(e) => setIdwCellText(e.target.value)} style={numInput} aria-label={tr("Cell size")} />
                 </div>
-                {idwSuggest && idwCellText === "" && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{tr("Cell {c} m by default: a quarter to a half of the median spacing ({s} m).", { c: idwAutoCell, s: idwSuggest.spacing.toFixed(1) })}</div>}{/* #2562 */}
+                {idwSuggest && idwCellText === "" && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{idwSuggest.capped ? tr("Cell {c} m by default: the smallest round cell that keeps the grid under 4 million cells ({s} m, a quarter of the median spacing, would make it too large).", { c: idwAutoCell, s: idwSuggest.spacingCell }) /* #3322 */ : tr("Cell {c} m by default: a quarter to a half of the median spacing ({s} m).", { c: idwAutoCell, s: idwSuggest.spacing.toFixed(1) })}</div>}{/* #2562 */}
                 {idwMethod === "idw" && <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }} title={tr("How sharply influence falls off with distance — higher means nearer points dominate more.")}>{tr("Power")}</span>
                   <input type="number" min="0.5" step="0.5" value={idwPower} onChange={(e) => setIdwPower(Math.max(0.5, Number(e.target.value) || 2))} style={numInput} />
@@ -2303,9 +2309,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 )}
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }} title={tr("Cells farther than this from every point are left empty (transparent) instead of extrapolated. Default: 1.5x the median spacing between lines (2x the station spacing for scattered stations). 0 = fill everything.")}>
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Blank > (m)")}</span>
-                  <input type="number" min="0" step="any" value={idwBlank} placeholder={idwSuggest ? String(Math.round(idwSuggest.distance)) : "none"} onChange={(e) => setIdwBlank(e.target.value)} style={numInput} aria-label={tr("Blanking distance")} />
+                  <input type="number" min="0" step="any" value={idwBlank} placeholder={idwSuggest ? String(Math.round(idwAutoBlank)) : "none"} onChange={(e) => setIdwBlank(e.target.value)} style={numInput} aria-label={tr("Blanking distance")} />
                 </div>
-                {idwSuggest && idwBlank === "" && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{tr("Default {v} m: median {basis} {spacing} m.", { v: Math.round(idwSuggest.distance), basis: idwSuggest.basis, spacing: idwSuggest.spacing.toFixed(1) })}</div>}
+                {idwSuggest && idwBlank === "" && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{idwAutoBlank > idwSuggest.distance + 1e-9 ? tr("Default {v} m: 1.5 cells of {c} m (the spacing alone would give {d} m, which leaves most cells empty at this cell size).", { v: Math.round(idwAutoBlank), c: idwCellSize, d: Math.round(idwSuggest.distance) }) /* #3322 */ : idwSuggest.linesEstimated ? tr("Default {v} m: 1.5 times the spacing between lines, about {spacing} m (estimated: the file has no line column, and its stations are {along} m apart along the lines).", { v: Math.round(idwAutoBlank), spacing: Math.round(idwSuggest.spacing), along: +idwSuggest.alongSpacing.toFixed(1) }) /* #3322 */ : idwSuggest.basis === "line spacing" ? tr("Default {v} m: 1.5 times the median line spacing, {spacing} m.", { v: Math.round(idwAutoBlank), spacing: idwSuggest.spacing.toFixed(1) }) : tr("Default {v} m: twice the median station spacing, {spacing} m.", { v: Math.round(idwAutoBlank), spacing: idwSuggest.spacing.toFixed(1) })}</div>}
                 {/* TASKS.csv #372 — colour stretch */}
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }} title={tr("Percentile clip: the 2nd-98th percentile spans the colours, extremes saturate (default). Equalize: every colour covers the same number of cells (shows texture; colour no longer scales with value). Linear: min to max (a few extreme values squeeze everything else into one colour).")}>
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Colours")}</span>
@@ -2323,12 +2329,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     if (!pts.length) { setError(tr("No points in that elevation slice.")); return; }
                     // TASKS.csv #2557 — a single traverse became an 80 x 1 'grid' that RTP then filtered as a map
                     if (pointsAlongOneLine(pts, idwCellSize)) { setError(tr("The {n} points lie along one line: a grid of them is a single row of cells, which the map filters (RTP, derivatives…) would treat as a map. Plot the line as a profile instead.", { n: pts.length.toLocaleString() })); return; }
-                    const sliceTag = idwShape?.is3D ? ` z ${idwZ.lo === "" ? Math.round(idwShape.zMin) : idwZ.lo}–${idwZ.hi === "" ? Math.round(idwShape.zMax) : idwZ.hi} m` : "";
+                    const sliceTag = idwShape?.is3D ? ` z ${Number.isFinite(idwZLo) ? +idwZLo.toFixed(2) : Math.round(idwShape.zMin)}–${Number.isFinite(idwZHi) ? +idwZHi.toFixed(2) : Math.round(idwShape.zMax)} m` : ""; // #3322 — the proposed slice too
                     const xs = pts.map((r) => r.x), ys = pts.map((r) => r.y);
                     const { xmin, xmax, ymin, ymax } = snappedGridExtent({ xmin: arrMin(xs), xmax: arrMax(xs), ymin: arrMin(ys), ymax: arrMax(ys) }, idwCellSize); // #2872 — nodes on multiples of the cell, every station inside
                     const gridW = Math.round((xmax - xmin) / idwCellSize), gridH = Math.round((ymax - ymin) / idwCellSize);
                     if (gridW * gridH > 4_000_000) { setError(tr("That cell size would produce a {gridW}×{gridH} grid — too large. Use a bigger cell size.", { gridW, gridH })); return; }
-                    const blank = idwBlank === "" ? idwSuggest?.distance ?? Infinity : Number(idwBlank) > 0 ? Number(idwBlank) : Infinity; // #538
+                    const blank = idwBlank === "" ? idwAutoBlank ?? Infinity : Number(idwBlank) > 0 ? Number(idwBlank) : Infinity; // #538; #3322 — at least 1.5 cells
                     const label = surveyLabel(idwKey); // #2559 — 'file.csv · K_pct' kept its channel ('[^.]+$' took '.csv · K_pct' off)
                     const tag = gridMethodTag(idwMethod, idwTension); // #2846
                     const gName = uniqueName(`${label}${sliceTag} ${tag} ${idwCellSize} m${Number.isFinite(blank) ? `, blanked > ${Math.round(blank)} m` : ""}`, rasters.map((x) => x.name)); // sliceTag: #1783; uniqueName: #2562
@@ -2367,7 +2373,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     // the points have no z.
                     const ptsZs = pts.map((r) => r.z).filter(Number.isFinite), ptsZ = ptsZs.length ? median(ptsZs) : null;
                     const gridElev = ptsZ != null ? ptsZ : defaultElevation;
-                    addRaster({ ...raster, elevation: gridElev, provenance: { tool: idwMethod === "mincurv" ? "Point survey gridding (minimum curvature with tension)" : idwMethod === "spline" ? "Point survey gridding (Verde biharmonic spline on block medians, damping by blocked cross-validation)" : "IDW gridding", survey: idwKey, points: pts.length, cellM: idwCellSize, ...(idwMethod === "idw" ? { power: idwPower } : how) /* #2846 */, blankingM: Number.isFinite(blank) ? Math.round(blank) : null, blankingBasis: idwBlank === "" && idwSuggest ? `1.5x / 2x the median ${idwSuggest.basis} (${idwSuggest.spacing.toFixed(1)} m)` : "entered" }, surveyMethod: geophysSurveys?.[idwKey]?.method || undefined, units: geophysSurveys?.[idwKey]?.units || undefined /* #2557 */ });
+                    addRaster({ ...raster, elevation: gridElev, provenance: { tool: idwMethod === "mincurv" ? "Point survey gridding (minimum curvature with tension)" : idwMethod === "spline" ? "Point survey gridding (Verde biharmonic spline on block medians, damping by blocked cross-validation)" : "IDW gridding", survey: idwKey, points: pts.length, cellM: idwCellSize, ...(idwMethod === "idw" ? { power: idwPower } : how) /* #2846 */, blankingM: Number.isFinite(blank) ? Math.round(blank) : null, blankingBasis: idwBlank === "" && idwSuggest ? (idwAutoBlank > idwSuggest.distance + 1e-9 ? `1.5 cells (${idwCellSize} m)` : `1.5x / 2x the median ${idwSuggest.basis} (${idwSuggest.spacing.toFixed(1)} m)`) : "entered" }, surveyMethod: geophysSurveys?.[idwKey]?.method || undefined, units: geophysSurveys?.[idwKey]?.units || undefined /* #2557 */ });
                     const cells = raster.grid.nx * raster.grid.ny;
                     // TASKS.csv #2075 (review #2013, Geophysics) — where the raster is drawn: Woodjam's n = 1 grid went flat at 965 m (the collars' median,
                     // 10 km away) while its ground is 1,062-1,116 m, and nothing said so
