@@ -1741,6 +1741,10 @@ export function StoreProvider({ children }) {
   // TASKS.csv #398 — per-page paper size / orientation ({size, orientation}, see lib/pageFormats.js). Saved
   // with the page; a page without one is A4 landscape, exactly as before.
   const setLayoutPageFormat = useCallback((id, format) => setLayoutPages((p) => p.map((pg) => (pg.id === id ? { ...pg, format } : pg))), []);
+  // TASKS.csv #3331 — one change to the elements of EVERY page (Layout's "Clear the set order" on all pages in one click); one undo step
+  // TASKS.csv #2883 — Geochem > Compositing's last settings, kept in the project file (project.lastCompositing; no token), unchanged = no new state
+  const setLastCompositing = useCallback((s) => setProject((p) => (JSON.stringify(p.lastCompositing ?? null) === JSON.stringify(s ?? null) ? p : { ...p, lastCompositing: s || undefined })), []);
+  const mapLayoutPagesElements = useCallback((fn) => setLayoutPages((p) => p.map((pg) => ({ ...pg, elements: fn(pg.elements || []) }))), []);
   // TASKS.csv #130 — Atlas (batch page generation, one page per drillhole/section). Deliberately a
   // separate bulk method rather than N calls to addLayoutPage(): that always seeds DEFAULT_LAYOUT_
   // ELEMENTS (wrong — atlas pages carry their own generated `elements`) and switches the active page +
@@ -1751,7 +1755,7 @@ export function StoreProvider({ children }) {
   const addLayoutPages = useLatestCallback((pages) => {
     if (!pages || !pages.length) return [];
     // TASKS.csv #1636 — batch: the run that generated the page (an atlas, a collar table's continuation), removable in one action
-    const withIds = pages.map((pg, i) => ({ id: `page_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}`, name: pg.name, elements: pg.elements, ...(pg.batch ? { batch: pg.batch } : {}) }));
+    const withIds = pages.map((pg, i) => ({ id: `page_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}`, name: pg.name, elements: pg.elements, ...(pg.batch ? { batch: pg.batch } : {}), ...(pg.format ? { format: pg.format } : {}) /* #3404 — its paper, so callers need not set it afterwards */ }));
     setLayoutPages((p) => [...p, ...withIds]);
     setActiveLayoutPageId(withIds[0].id);
     clearUndoHistory();
@@ -1835,7 +1839,7 @@ export function StoreProvider({ children }) {
     generatedSurfaces, setGeneratedSurfaces, modelDomains, setModelDomains, // TASKS.csv #52
     layerGroups, addLayerGroup, renameLayerGroup, deleteLayerGroup, toggleLayerGroupCollapsed, setLayerGroupFor,
     layoutElements, setLayoutElements,
-    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat, sendLayoutElement, // sendLayoutElement: #1484
+    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat, mapLayoutPagesElements /* #3331 */, setLastCompositing /* #2883 */, sendLayoutElement, // sendLayoutElement: #1484
     layoutTemplates, addLayoutTemplate, renameLayoutTemplate, deleteLayoutTemplate,
     viewportRenderRequest, viewportRenderRequestSeq, requestViewportRender, viewportPendingRequest,
     requestViewportBatch, cancelViewportBatch, viewportBatchDone, setViewportBatchDone, // TASKS.csv #1644

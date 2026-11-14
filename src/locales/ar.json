@@ -12352,5 +12352,10 @@
   "Key title": "عنوان المفتاح",
   "Key note": "ملاحظة المفتاح",
   "Back to the plan's own wording": "العودة إلى صياغة المخطط",
-  "{n} intervals in this hole have no code/value, the shallowest at {v}m.": "{n} مقطعًا في هذه الحفرة بلا رمز/قيمة، أقلها عمقًا عند {v} م."
+  "{n} intervals in this hole have no code/value, the shallowest at {v}m.": "{n} مقطعًا في هذه الحفرة بلا رمز/قيمة، أقلها عمقًا عند {v} م.",
+  "Clear it on every page": "مسحه في كل الصفحات",
+  "Forget the order on the legends of every page of this project": "نسيان الترتيب في مفاتيح كل صفحات هذا المشروع",
+  "Cleared on every page's legends. Load from view lists the codes in their default order again.": "تم المسح في مفاتيح كل الصفحات. يعرض «التحميل من العرض» الرموز بترتيبها الافتراضي مجددًا.",
+  "Save CSV": "حفظ CSV",
+  "Save the table as a CSV file": "حفظ الجدول كملف CSV"
 }

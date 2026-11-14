@@ -12352,5 +12352,10 @@
   "Key title": "Título de la leyenda",
   "Key note": "Nota de la leyenda",
   "Back to the plan's own wording": "Volver al texto del plano",
-  "{n} intervals in this hole have no code/value, the shallowest at {v}m.": "{n} intervalos de este sondaje no tienen código/valor, el más somero a {v} m."
+  "{n} intervals in this hole have no code/value, the shallowest at {v}m.": "{n} intervalos de este sondaje no tienen código/valor, el más somero a {v} m.",
+  "Clear it on every page": "Borrarlo en todas las páginas",
+  "Forget the order on the legends of every page of this project": "Olvidar el orden en las leyendas de todas las páginas de este proyecto",
+  "Cleared on every page's legends. Load from view lists the codes in their default order again.": "Borrado en las leyendas de todas las páginas. Cargar desde la vista vuelve a listar los códigos en su orden predeterminado.",
+  "Save CSV": "Guardar CSV",
+  "Save the table as a CSV file": "Guardar la tabla como archivo CSV"
 }

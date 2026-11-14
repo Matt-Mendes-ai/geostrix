@@ -12352,5 +12352,10 @@
   "Key title": "Titre de la légende",
   "Key note": "Note de la légende",
   "Back to the plan's own wording": "Revenir au libellé du plan",
-  "{n} intervals in this hole have no code/value, the shallowest at {v}m.": "{n} intervalles de ce sondage n'ont ni code ni valeur, le plus superficiel à {v} m."
+  "{n} intervals in this hole have no code/value, the shallowest at {v}m.": "{n} intervalles de ce sondage n'ont ni code ni valeur, le plus superficiel à {v} m.",
+  "Clear it on every page": "L'effacer sur toutes les pages",
+  "Forget the order on the legends of every page of this project": "Oublier l'ordre dans les légendes de toutes les pages de ce projet",
+  "Cleared on every page's legends. Load from view lists the codes in their default order again.": "Effacé dans les légendes de toutes les pages. Charger depuis la vue liste de nouveau les codes dans leur ordre par défaut.",
+  "Save CSV": "Enregistrer en CSV",
+  "Save the table as a CSV file": "Enregistrer le tableau en fichier CSV"
 }

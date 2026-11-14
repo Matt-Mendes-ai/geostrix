@@ -12,6 +12,8 @@ import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #2394 — the choices survive the pane closing (per project)
 import { useStore } from "../lib/store.jsx";
+import { codeTableCells, codeTableCsv, codeTableText } from "../lib/codeTableCsv.js"; // TASKS.csv #3289
+import { saveFile } from "../lib/desktop.js"; // #3289
 import { logHoleChoices, holesForChoice, filterLogData } from "../lib/logHoleFilter.js"; // TASKS.csv #3132
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2967 — the opening element: the project's lead commodity (#2908)
 import { useDeferredMemo, DEFER_ROWS } from "../lib/useDeferredMemo.js"; // TASKS.csv #2948
@@ -88,13 +90,12 @@ function CodeTable({ rows, order, minCount, unit, binned, keptScope }) {
     if (sortBy === "key") return String(a.key).localeCompare(String(b.key), undefined, { numeric: true });
     return (b[sortBy] ?? -Infinity) - (a[sortBy] ?? -Infinity);
   });
-  const u = unit ? ` (${unit})` : "";
+
   const cols = [["key", tr("Code")], ["n", binned ? tr("Bins") : tr("Readings")], ["mean", tr("Mean")], ["median", tr("Median")], ["p10", "P10"], ["p90", "P90"]];
   const copy = async (e) => {
     const b = e.currentTarget; // the button says "Copied" for two seconds (a flash, not a choice: no state)
-    const head = ["Code", binned ? "Bins" : "Readings", ...(binned ? ["Readings"] : []), `Mean${u}`, `Median${u}`, `P10${u}`, `P90${u}`].join("\t"); // export text: English (CLAUDE.md)
-    const body = sorted.map((r) => [r.key === NOT_LOGGED ? NOT_LOGGED : String(r.key ?? "").trim() === "" ? "(blank)" : String(r.key), r.n, ...(binned ? [r.readings] : []), fig(r.mean), fig(r.median), fig(r.p10), fig(r.p90)].join("\t"));
-    try { await navigator.clipboard.writeText([head, ...body].join("\n")); b.textContent = tr("Copied"); setTimeout(() => { b.textContent = tr("Copy table"); }, 2000); } catch { /* no clipboard */ }
+    const text = codeTableText(codeTableCells(sorted, { binned, unit, notLogged: NOT_LOGGED })); // export text: English (CLAUDE.md)
+    try { await navigator.clipboard.writeText(text); b.textContent = tr("Copied"); setTimeout(() => { b.textContent = tr("Copy table"); }, 2000); } catch { /* no clipboard */ }
   };
   const th = { textAlign: "right", fontWeight: 600, padding: "2px 4px", cursor: "pointer", whiteSpace: "nowrap", position: "sticky", top: 0, background: "var(--color-bg)" };
   return (
@@ -113,6 +114,7 @@ function CodeTable({ rows, order, minCount, unit, binned, keptScope }) {
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
         <button type="button" onClick={copy} style={{ ...smallSel, cursor: "pointer" }}>{tr("Copy table")}</button>
+        <button type="button" onClick={() => saveFile({ suggestedName: "log_code_table.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: codeTableCsv(codeTableCells(sorted, { binned, unit, notLogged: NOT_LOGGED })) })} style={{ ...smallSel, cursor: "pointer" }} title={tr("Save the table as a CSV file")}>{tr("Save CSV")}</button>{/* TASKS.csv #3289 */}
         {unit && <span style={note}>{tr("Values in {u}.", { u: unit })}</span>}
       </div>
     </div>

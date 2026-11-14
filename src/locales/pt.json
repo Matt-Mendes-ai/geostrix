@@ -12352,5 +12352,10 @@
   "Key title": "Título da legenda",
   "Key note": "Nota da legenda",
   "Back to the plan's own wording": "Voltar ao texto do plano",
-  "{n} intervals in this hole have no code/value, the shallowest at {v}m.": "{n} intervalos deste furo não têm código/valor, o mais raso a {v} m."
+  "{n} intervals in this hole have no code/value, the shallowest at {v}m.": "{n} intervalos deste furo não têm código/valor, o mais raso a {v} m.",
+  "Clear it on every page": "Limpar em todas as páginas",
+  "Forget the order on the legends of every page of this project": "Esquecer a ordem nas legendas de todas as páginas deste projeto",
+  "Cleared on every page's legends. Load from view lists the codes in their default order again.": "Limpo nas legendas de todas as páginas. Carregar da vista volta a listar os códigos na ordem padrão.",
+  "Save CSV": "Salvar CSV",
+  "Save the table as a CSV file": "Salvar a tabela como arquivo CSV"
 }

@@ -3,7 +3,7 @@
 // plan of the 446 holes could not be made: at 1:20,000 the traces were 1 px lines under soils and geophysics, with no collar
 // symbol or label. Pure functions; the drawing is components/DrillPlanElement.jsx.
 
-import { collarsMatching } from "./holeFilter.js"; // TASKS.csv #2141
+import { collarsMatchingList } from "./holeFilter.js"; // TASKS.csv #2141; #3357 — the 3D View's Holes list rules (exact values, OR within a field)
 import { PAGE_PX_PER_PAPER_M, pxPerMetre } from "./pagePxScale.js";
 import { desurveyHole, normalizeDesurveyMethod, DESURVEY_METHODS } from "./desurvey.js"; // TASKS.csv #3367 (desurvey.js imports nothing)
 import { fmtSig3 } from "./numberFormat.js"; // TASKS.csv #3382
@@ -56,7 +56,7 @@ export function traceCaption({ surveyed = 0, straight = 0, planned = 0, method =
 // the hole-filter grammar of the hole list (#1504); a plain term still matches the hole id ('24-' kept Redgold's RG24-15 22 km north)
 export const filterHoles = (collars, filter) => {
   const ok = (collars || []).filter(finite);
-  return String(filter || "").trim() ? collarsMatching(ok, filter) : ok;
+  return String(filter || "").trim() ? collarsMatchingList(ok, filter) : ok;
 };
 
 // The scale (from `presets`, smallest first) and centre that show every hole (collar and trace) inside a w x h px frame with a margin.

@@ -175,7 +175,9 @@ export function mapLayerLegendGroups(mapLayers) {
       : cats.length
       ? cats.map((c) => [c.label ?? (c.value == null ? "(no value)" : numeric ? `${l.styleField} ${c.value}` : String(c.value)), c.color, o])
       : [[l.name || "map layer", l.color || "#e2a63c", o]];
-    groups.push({ key: `map_${l.id ?? i}`, label: l.name || "Map layer", items, ...(graduated && cats.length ? { grade: true } : {}) });
+    // TASKS.csv #3393 (#3378) — a graduated layer's heading names the field and its unit ('Subcrop — cover_m, m'): classes of a bare number said nothing on a figure
+    const unit = graduated && l.styleField ? (/_m$/.test(l.styleField) ? ", m" : "") : "";
+    groups.push({ key: `map_${l.id ?? i}`, label: graduated && cats.length && l.styleField ? `${l.name || "Map layer"} — ${l.styleField}${unit}` : l.name || "Map layer", items, ...(graduated && cats.length ? { grade: true } : {}) });
   });
   return groups;
 }

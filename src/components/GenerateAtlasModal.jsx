@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { isNumericLayer } from "../lib/domainLayers.js"; // TASKS.csv #2477
-import { collarAttrChoices, collarsMatching, pickTerm } from "../lib/holeFilter.js"; // TASKS.csv #2607; pickTerm: #2960
+import { collarAttrChoices, collarsMatchingList, pickTerm } from "../lib/holeFilter.js"; // TASKS.csv #2607; pickTerm: #2960
 import { assayTrackRange } from "../lib/striplogSvg.js"; // TASKS.csv #2605
 import { X, LayoutGrid, Loader2 } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -49,7 +49,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
   // list's own rule: words match the id, 'Drill_Code=DD' a collar field) narrows what is listed and what All ticks
   const [holeFilter, setHoleFilter] = useState("");
   const attrChoices = useMemo(() => collarAttrChoices(collars), [collars]);
-  const shownHoles = useMemo(() => (holeFilter.trim() ? collarsMatching(tracedCollars, holeFilter).map((c) => c.hole_id) : holeIds), [tracedCollars, holeFilter, holeIds]);
+  const shownHoles = useMemo(() => (holeFilter.trim() ? collarsMatchingList(tracedCollars, holeFilter) /* #3357 */.map((c) => c.hole_id) : holeIds), [tracedCollars, holeFilter, holeIds]);
   const items = mode === "hole" ? shownHoles : sections;
   // TASKS.csv #3180 (#3028 (4), review #2876) — 6,390 checkboxes stalled the dialog's opening 1.1 s: only the rows in view are drawn
   const { scrollRef, onScroll, startIndex, endIndex, topPad, bottomPad } = useVirtualRows(items.length, ITEM_ROW_H, { containerHeight: 180 });

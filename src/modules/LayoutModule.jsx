@@ -137,7 +137,7 @@ export default function LayoutModule() {
     // TASKS.csv #69 — multiple layout pages per project (see store.jsx's own comment on
     // layoutPages/layoutElements for how these two coexist: `elements`/`setElements` above already
     // transparently follow whichever page is active).
-    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat, sendLayoutElement, // #1484
+    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat, mapLayoutPagesElements /* #3331 */, sendLayoutElement, // #1484
     // Legend "load lithologies from the bound view" (below) needs the actual litho rows — a theme
     // only records which units were filtered/hidden at capture time, not the vocabulary itself.
     // TASKS.csv #130 — collars/sections needed for the Atlas batch-page-generation feature below.
@@ -1589,6 +1589,7 @@ export default function LayoutModule() {
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", margin: "4px 0 8px", lineHeight: 1.4 }}>
                       <span>{tr("Code order set with the arrows for {groups}: every legend loaded from a view takes it.", { groups: groups.join(", ") })}</span>
                       <button type="button" onClick={clear} style={smallBtn} title={tr("Forget the order on this page's legends; the rows stay as they are until the next Load from view")}>{tr("Clear the set order")}</button>
+                      {pagesHoldingOrder(layoutPages, activeLayoutPageId, groups).length > 0 && <button type="button" onClick={() => { undoCheckpoint?.(); mapLayoutPagesElements((els) => clearCodeOrders(els, groups)); setSyncNotice(tr("Cleared on every page's legends. Load from view lists the codes in their default order again.")); }} style={smallBtn} title={tr("Forget the order on the legends of every page of this project")}>{tr("Clear it on every page")}</button> /* #3331 */}
                     </div>
                   );
                 })()}
