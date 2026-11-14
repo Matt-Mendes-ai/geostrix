@@ -87,6 +87,10 @@ export function syncGeophysPts(group, rows, { opts = {}, surveys = null, style, 
     cache.set(k, { dataSig, sizeKey: sk, rowsSig, rr, batches: built.batches, ts: built.ts });
     out.rebuilt.push(k);
   }
+  // TASKS.csv #3325 — a survey hidden from its card (geophysSurveys[key].hidden): its batch kept and not drawn, so showing it again costs nothing.
+  // A hidden compact batch is not picked (eachPickTarget, #3144), changes the pick signature (batchTag's 'h') and is left out of Fit
+  // (visibleSceneBox skips what is not visible). `single` still counts every survey, so hiding one never recolours another.
+  for (const [k, entry] of cache) { const show = !surveys?.[k]?.hidden; for (const b of entry.batches) b.visible = show; }
   return out;
 }
 

@@ -2894,6 +2894,8 @@
   "Import Geosoft .xyz…": "Importer un .xyz Geosoft…",
   "Surveys loaded": "Levés chargés",
   "Remove survey \"{key}\"": "Retirer le levé « {key} »",
+  "Show survey \"{key}\" in the 3D view": "Afficher le levé « {key} » dans la vue 3D",
+  "Hide survey \"{key}\" in the 3D view": "Masquer le levé « {key} » dans la vue 3D",
   "Remove the {count} points of \"{key}\"?": "Retirer les {count} points de « {key} » ?",
   "{count} points{v}, {withZ} with elevation · values {v2}{v3}": "{count} points{v}, {withZ} avec élévation · valeurs {v2}{v3}",
   "Method of \"{key}\"": "Méthode de « {key} »",

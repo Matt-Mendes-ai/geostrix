@@ -30,7 +30,7 @@ test("#3046 (1) a surface-sample drop on Surface Geology goes back there after t
 test("#3046 (3)-(5) the tab's legend order, its first view, and samples over flat drapes", () => {
   const v = rd("../src/modules/ViewerModule.jsx");
   assert.match(v, /return mode === "surface" && surfFirst\.length \? \[\.\.\.surfFirst, \.\.\.groups\.filter\(\(g\) => !surfFirst\.includes\(g\)\)\] : groups;/);
-  assert.match(v, /\}, \[mode \/\* #3046 \*\/, rasters, sampleLegendGroup,/);
+  assert.match(v, /\}, \[mode \/\* #3046 \*\/, (bare \/\* #3325 \*\/, )?rasters, sampleLegendGroup,/);
   assert.match(v, /if \(mode !== "surface" \|\| surfaceTopRef\.current \|\| !camState\.current \|\| !cameraRef\.current\?\.__update\) return; surfaceTopRef\.current = true; camState\.current\.theta = 0; camState\.current\.phi = 0\.02;/);
   assert.match(v, /new PickStandIn\(proto, \{ color, transparent: true, opacity: st\.opacity,/);
   assert.match(v, /mesh\.renderOrder = 7; \/\/ TASKS\.csv #3046 \(5\)/);
