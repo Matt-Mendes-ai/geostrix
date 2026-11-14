@@ -77,6 +77,9 @@ export default function MapsPlanView() {
   const frameText = project?.crsSet === false ? tr(" (local grid)") : "";
   const [chipOpen, setChipOpen] = useState(true); // TASKS.csv #3458 — the Collars panel and its legend can be folded off the plan
   const setStatusCursor = useSetCursor();
+  const [captureDpr, setCaptureDpr] = useState(null); // TASKS.csv #3228 step B — the pixel ratio of the Layout snapshot (null: the screen's)
+  const drawnDpr = useRef(0);
+  const dragSnap = useRef(null); // TASKS.csv #3049 — the picture moved while a drag lasts
   const chipRef = useRef(null); // the Collars chip, for the callouts to keep clear of (#3405)
   // TASKS.csv #3252 phase 1 — a raster with a source description (raster.lod) gets detail tiles where the plan looks: the loader (and the
   // Planetary Computer reader behind it) is loaded the first time one is shown
@@ -165,7 +168,18 @@ export default function MapsPlanView() {
   useEffect(() => {
     const cv = canvasRef.current;
     if (!cv || !v) return;
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = captureDpr || window.devicePixelRatio || 1; // TASKS.csv #3228 step B — twice the pixels while Snapshot to Layout captures
+    // TASKS.csv #3049 (measured first: a pan frame took 134 ms at Fit on a 6,390-collar project with five rasters and 1,040 contour lines, 17 ms
+    // zoomed in) — while the mouse drags, the picture the plan showed when the drag began is moved instead of the layers being drawn again; the
+    // strip the move uncovers is background until the button is released, which draws everything at the new place
+    const snap = dragSnap.current;
+    if (drag.current && snap && snap.mPerPx === v.mPerPx && snap.w === cv.width && snap.h === cv.height) {
+      const c2 = cv.getContext("2d");
+      c2.setTransform(1, 0, 0, 1, 0, 0);
+      c2.fillStyle = "#f4f5f2"; c2.fillRect(0, 0, cv.width, cv.height);
+      c2.drawImage(snap.canvas, Math.round(((snap.cx - v.cx) / v.mPerPx) * dpr), Math.round(((v.cy - snap.cy) / v.mPerPx) * dpr));
+      return;
+    }
     cv.width = Math.round(size.w * dpr); cv.height = Math.round(size.h * dpr);
     const ctx = cv.getContext("2d");
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -313,7 +327,8 @@ export default function MapsPlanView() {
       ctx.fillStyle = "#c2185b"; mPts.forEach((p) => { ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 3.5, 0, Math.PI * 2); ctx.fill(); });
     }
     gridDrawn.current = showGrid; // #3194 — what the canvas holds now
-  }, [v?.cx, v?.cy, v?.mPerPx, size, lodReady /* #3252 */, chipOpen /* #3458: its size changes the callouts */, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, spacingM /* #2989 */, showTraces, planT, dotCollars /* #3337 */, shapes, sizeBy /* #3456 / #3457 */, surveys, surveysHidden /* #3342 */, showIds, showGrid, showLonLat /* #3466 */, measuring, mPts, gtPlan, gtMax]); // gtPlan: #2755
+    drawnDpr.current = dpr; // #3228
+  }, [v?.cx, v?.cy, v?.mPerPx, size, lodReady /* #3252 */, captureDpr /* #3228 */, chipOpen /* #3458: its size changes the callouts */, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, spacingM /* #2989 */, showTraces, planT, dotCollars /* #3337 */, shapes, sizeBy /* #3456 / #3457 */, surveys, surveysHidden /* #3342 */, showIds, showGrid, showLonLat /* #3466 */, measuring, mPts, gtPlan, gtMax]); // gtPlan: #2755
 
   // TASKS.csv #3252 — once the view has settled (250 ms), ask for the detail tiles it shows; each one that arrives redraws the plan
   useEffect(() => {
@@ -337,7 +352,11 @@ export default function MapsPlanView() {
     const m = v.mPerPx * (e.deltaY > 0 ? 1.2 : 1 / 1.2);
     setView({ mPerPx: m, cx: at.x - (px - size.w / 2) * m, cy: at.y + (py - size.h / 2) * m });
   };
-  const onDown = (e) => { drag.current = { x: e.clientX, y: e.clientY, cx: v.cx, cy: v.cy }; };
+  const onDown = (e) => {
+    drag.current = { x: e.clientX, y: e.clientY, cx: v.cx, cy: v.cy };
+    const cv = canvasRef.current; // #3049 — what the plan shows now, to be moved while the drag lasts
+    if (cv && cv.width > 0) { const c = document.createElement("canvas"); c.width = cv.width; c.height = cv.height; c.getContext("2d").drawImage(cv, 0, 0); dragSnap.current = { canvas: c, cx: v.cx, cy: v.cy, mPerPx: v.mPerPx, w: cv.width, h: cv.height }; }
+  };
   // #2128 — a click (not a drag) while measuring sets a point; a third click starts a new line
   const measureClick = (e) => {
     const d = drag.current;
@@ -353,7 +372,7 @@ export default function MapsPlanView() {
     const d = drag.current;
     if (d) setView({ mPerPx: v.mPerPx, cx: d.cx - (e.clientX - d.x) * v.mPerPx, cy: d.cy + (e.clientY - d.y) * v.mPerPx });
   };
-  const onUp = (e) => { if (e) measureClick(e); drag.current = null; };
+  const onUp = (e) => { if (e) measureClick(e); const was = drag.current; drag.current = null; if (was && dragSnap.current) { dragSnap.current = null; setTick((t) => t + 1); } }; // #3049 — release: draw every layer at the new place
   // #2128 — the measured line's distance and grid bearing, and where true north is there (a projected project CRS only)
   const measured = measuring && mPts.length === 2 ? (() => {
     const m = measureLine(mPts[0], mPts[1]);
@@ -374,7 +393,11 @@ export default function MapsPlanView() {
       for (let i = 0; i < 30 && gridDrawn.current; i++) await new Promise((r) => requestAnimationFrame(r));
     }
     const collarTitle = colouring ? (colourBy.startsWith("f:") ? colourBy.slice(2) : colourBy.replace(/^(max|mean):/, "")) : "";
+    // TASKS.csv #3228 step B — the plan drawn again at twice the screen's pixels (at most 4x and 36 megapixels) for the Layout sheet, then back
+    const want = Math.min(4, Math.max(2, 2 * (window.devicePixelRatio || 1)), Math.sqrt(36e6 / Math.max(1, size.w * size.h)));
+    if (want > (window.devicePixelRatio || 1)) { setCaptureDpr(want); for (let i = 0; i < 60 && drawnDpr.current !== want; i++) await new Promise((r) => requestAnimationFrame(r)); }
     const src = cv.toDataURL("image/png");
+    setCaptureDpr(null);
     if (hadGrid) setShowGrid(true);
     addLayoutImage({ ...mapSnapshotPayload({ src, pxW: cv.width, pxH: cv.height, view: v, size, mapLayers, boundaries, rasters, collarLegend: colouring?.legend ? colouring.legend.map((l) => (l.other ? { ...l, label: tr("Other: {n} values ({holes} holes)", { n: l.other.length, holes: l.holes.toLocaleString() }) } : l)) : null, /* #3340 */ collarTitle, collars: collars.filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y)).length, samples: surfaceSamples.filter((s) => Number.isFinite(s.x)).length, label: project?.name ? `Map view: ${project.name}` : "Map view" }), utmGrid: hadGrid });
     goToModule("layout");
