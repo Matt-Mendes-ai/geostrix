@@ -40,7 +40,7 @@ test("the pane defaults to a shown mapped layer, warns on the outlines and passe
   const src = fs.readFileSync(new URL("../src/components/MapModelPanel.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(src, /polys\.find\(\(l\) => !derivedMap\(l\) && l\.visible !== false\)/);
   assert.match(src, /const nearestHole = !!layer\?\.subcropOutlines;/);
-  assert.match(src, /suggestPileOrder\(\{[^}]*groundAt, nearestHole, roleOf: logRoleOf \}\)/);
+  assert.match(src, /suggestPileOrder\(\{[^}]*groundAt, nearestHole, roleOf: logRoleOf, loggedContacts \}\)/);
   assert.match(src, /\{nearestHole && <div role="status"/);
   const sm = fs.readFileSync(new URL("../src/components/SurfaceMappingPanel.jsx", import.meta.url), "utf8");
   assert.ok(!sm.includes("Model it can build from it"), "the outline notice no longer invites a model");
