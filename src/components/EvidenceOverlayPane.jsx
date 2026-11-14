@@ -7,7 +7,7 @@ import { collarAttrChoices, collarsWithPick } from "../lib/holeFilter.js"; // TA
 import { Download, Layers } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
-import { pickDefaultReachM, drilledSiteSpacing, occurrenceHoles /* #2964 */ } from "../lib/evidenceSources.js"; // TASKS.csv #1179; #1451; drilledSiteSpacing: #2949
+import { pickDefaultReachM, drilledSiteSpacing, occurrenceHoles /* #2964 */, notEvidenceCode, CODE_MIN_ROWS /* #3346 */ } from "../lib/evidenceSources.js"; // TASKS.csv #1179; #1451; drilledSiteSpacing: #2949
 import { drilledCollars } from "../lib/collarStatus.js"; // TASKS.csv #2097
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1449 / #1450
 import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #1281
@@ -31,7 +31,8 @@ import { pBtn as sidebarBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS
 import { t as tr } from "../lib/i18n.js";
 import { computeBestIntercepts } from "../lib/geochem.js"; // TASKS.csv #2653 — Best intercepts' rules
 import { holeTotals } from "../lib/accumulation.js"; // TASKS.csv #2653 — #2419's per-hole totals
-import { LAYER_META } from "../lib/layers.js"; // TASKS.csv #1728
+import { LAYER_META, roleForLithology } from "../lib/layers.js"; // TASKS.csv #1728; roleForLithology: #3346
+import { assayedSpans, assayedTraceParts } from "../lib/assayedTraces.js"; // TASKS.csv #3345
 const CODED_LAYERS = ["litho", "alt", "vein", "breccia", "weath", "mnlgy", "structzone", "litho_gc", "alt_gc"]; // TASKS.csv #1455 — the coded logs offered as "distance to"
 import { SURVEY_METHODS } from "../lib/geophysSurveys.js"; // TASKS.csv #1209
 import { modelListName } from "../lib/modelListName.js"; // TASKS.csv #1839
@@ -101,11 +102,15 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   // TASKS.csv #2453 / #2583 (reviews #2325 WA uranium, #2486 WA lithium) — every coded FIELD of a log (a lithology row's strat and oxidation)
   // and of a custom layer (Rock2, a stratigraphic unit, a TSA mineral), codes folded by case ('p' with 'P'); and per hole, the metres logged
   // with a code, the depth to its top and the elevation of its base, the evidence a flat stratabound target is explored with
+  // TASKS.csv #3345 — the drilled holes' assayed parts, for the distance-to-drilling card's choice; worked out on first use
+  const assayedMemo = useMemo(() => ({ v: null }), [traces, cleanAssays]); // a fresh slot whenever the holes or the assays change
+  const assayedHoles = () => assayedMemo.v || (assayedMemo.v = assayedTraceParts(traces, assayedSpans(cleanAssays)));
   const codeCards = (out, l, name, rows, builtIn) => {
     const interval = rows.some((r) => Number.isFinite(Number(r.from)) && Number.isFinite(Number(r.to)));
     for (const field of codedFields(rows)) {
       const what = field === "value" ? name : `${name} ${field}`;
-      for (const c of foldedCodes(rows, traces, { min: 3, field })) {
+      for (const c of foldedCodes(rows, traces, { min: CODE_MIN_ROWS, field })) { // min: #3346 (it was 3)
+        if (notEvidenceCode(c.label, roleForLithology) || c.variants.some((v) => notEvidenceCode(v, roleForLithology))) continue; // #3346 — not recorded, not a code
         const fold = c.variants.length > 1;
         if (builtIn && field === "value" && !fold) out.push({ key: `zone:${l}:${c.label}`, label: tr("Distance to logged {layer}: {code}", { layer: name, code: c.label }), kind: "zone", ref: `${l}:${c.label}` }); // the old card, as saved
         else { const ref = codedRef({ l, f: field, c: fold ? c.key : c.label, fold }); out.push({ key: `zone${ref}`, label: tr("Distance to logged {layer}: {code}", { layer: what, code: c.label }), kind: "zone", ref }); }
@@ -259,7 +264,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     if (src.kind === "voxel") { const m = voxelModels.find((x) => (x.id ?? x.name) === src.ref); const own = opts.zMin != null || opts.zMax != null; return m ? voxelColumnEvidence(grid, m, src.how, own ? { zMin: opts.zMin, zMax: opts.zMax } : { zMin: lv?.zMin ?? null, zMax: lv?.zMax ?? null }) : null; } // #1831 — an elevation band; else the Level (#2326)
     if (src.kind === "pick") return distanceEvidence(grid, structureParts(structurePicks, src.ref, traces, lv)); // lv: #2326
     if (src.kind === "kde") return kdeEvidence(grid, trainingPoints, opts.reach || reachFromNeighbours(trainingPoints, 2)); // #2001 — bandwidth: the card's reach
-    if (src.kind === "drilled") return distanceEvidence(grid, drilledParts(traces)); // #1456
+    if (src.kind === "drilled") return distanceEvidence(grid, drilledParts(traces, opts.field === "assayed" && opts.value ? assayedHoles().traces : null, opts.value || "all")); // #1456; assayed: #3345
     if (src.kind === "solid") { const m = solidMesh?.(src.ref); return m?.vertices?.length ? solidFootprintEvidence(grid, m.vertices, m.indices) : null; } // #1567
     if (src.kind === "numeric") return pointEvidence(grid, numericPointsOf(src.ref, lv), { maxDistance: opts.reach || drillReach }); // #1728; lv: #2326; a code's per-hole measure: #2453
     if (src.kind === "zone" && parseCodedRef(src.ref)) { const z = parseCodedRef(src.ref); return distanceEvidence(grid, zoneParts(codedRowsOf(z.l, projectLayers, customLayers), z.c, traces, undefined, lv, { field: z.f, fold: !!z.fold })); } // #2453 / #2583
@@ -591,6 +596,14 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
           <div key={l.id} style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: 6, display: "flex", flexDirection: "column", gap: 4 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text)" }} title={l.label}>{l.label}</span><button type="button" style={linkBtn} onClick={() => { setLayers((L) => L.filter((x) => x.id !== l.id)); setResult(null); }} aria-label={tr("Remove this evidence")}>×</button></div>
             {l.values?.length > 0 && (() => { const c = evidenceCoverage(l.values); return <div style={{ fontSize: "var(--font-size-xs)", color: c < LOW_COVERAGE ? "var(--color-warn-text)" : "var(--color-text-muted)" }}>{c < LOW_COVERAGE ? tr("Values on {p}% of the grid only: with fuzzy AND, the algebraic product or gamma every other cell scores nothing.", { p: (c * 100).toFixed(c < 0.01 ? 2 : 1) }) : tr("Values on {p}% of the grid.", { p: Math.round(c * 100) })}</div>; })()}{/* #2252 */}
+            {l.kind === "drilled" && (() => { const ah = assayedHoles(); return (<div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap", fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{/* #3345 */}
+              <select value={l.field === "assayed" && l.value ? l.value : "all"} onChange={(e) => updateLayer(l.id, { field: "assayed", value: e.target.value === "all" ? "" : e.target.value }, true)} style={sel} aria-label={tr("Which drilling counts")}>
+                <option value="all">{tr("every hole ({n})", { n: traces.size })}</option>
+                <option value="holes">{tr("holes with assays ({n})", { n: ah.holes })}</option>
+                <option value="intervals">{tr("the assayed intervals only")}</option>
+              </select>
+              {ah.none > 0 && <span>{tr("{k} of the {n} holes have no assay.", { k: ah.none, n: traces.size })}</span>}
+            </div>); })()}
             {l.kind === "survey" && cloudInfo(l.ref)?.cloud && (() => { const ci = cloudInfo(l.ref), rl = { a: Math.round(ci.zMin).toLocaleString(), b: Math.round(ci.zMax).toLocaleString() }; return <div style={{ fontSize: "var(--font-size-xs)", color: levelSet(level) ? "var(--color-text-muted)" : "var(--color-warn-text)" }}>{levelSet(level) ? tr("A 3D survey (readings at RL {a} to {b} m): read inside the Level, {n} of its {total} readings.", { ...rl, n: surveyPoints(geophysPts, l.ref, level).length.toLocaleString(), total: ci.n.toLocaleString() }) : tr("A 3D survey (readings at RL {a} to {b} m): each cell takes the readings nearest in plan at every depth, mixed. Set a Level to read one depth band.", rl)}</div>; })()}{/* #3333 */}
             {l.kind === "distance" && (() => { const ml = mapLayers.find((x) => String(x.id) === String(l.ref)); const vals = l.field ? [...new Set((ml?.features || []).map((f) => String(f.attributes?.[l.field] ?? "")))].slice(0, 60) : []; return (
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>

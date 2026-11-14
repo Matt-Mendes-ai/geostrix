@@ -289,9 +289,11 @@ export function structureCodes(rows, traces) {
 // the picks of one type as distanceEvidence parts (each a single point)
 // TASKS.csv #1456 (review #1352) — every hole trace in plan, for "distance to drilling": with it an overlay can ask for ground that is
 // anomalous AND untested. A vertical hole is its collar point; an angled one the line its trace makes on the map.
-export function drilledParts(traces) {
+// TASKS.csv #3345 — `assayed` (assayedTraceParts' traces Map, or null): only the holes with assays ("holes"), or only their assayed parts ("intervals")
+export function drilledParts(traces, assayed = null, mode = "all") {
   const out = [];
-  for (const t of traces?.values?.() || []) if (t?.length) out.push(t.map((p) => [p.x, p.y]));
+  if (assayed && mode === "intervals") { for (const parts of assayed.values()) for (const part of parts) out.push(part.map((p) => [p.x, p.y])); return out; }
+  for (const [h, t] of traces?.entries?.() || []) if (t?.length && (!assayed || mode !== "holes" || assayed.has(h))) out.push(t.map((p) => [p.x, p.y]));
   return out;
 }
 
@@ -561,6 +563,19 @@ export function gradeCardReads(assays, symbol, unit, units) {
 // measure of a code: its ref is "@" + JSON { l: layer key or "custom:<id>", f: field, c: code (upper case when fold), fold, how? }.
 // The plain "layer:code" ref of a built-in log's value code keeps its old form, so a saved overlay still finds its cards.
 export const codedRef = (o) => `@${JSON.stringify(o)}`;
+// TASKS.csv #3346 (review #3195, Galore Creek) — missing-information codes were offered as geological evidence ('Distance to logged Alteration: NR',
+// 'No High-T Assemblage', 'Lithology: NR') and so were a source's shifted rows ('Calcic-BX (abundant gnt', '1'), each as four cards. A code is
+// kept out of the evidence list when it says nothing was recorded (NR, n/a, none, nil, unknown, not logged, 'No …'), when the name rules read it
+// as no recovery (lost core: roleOf), or when its brackets do not close (a description cut across columns). Fewer than CODE_MIN_ROWS rows on
+// the holes: left out too (the list's minimum was 3).
+export const CODE_MIN_ROWS = 5;
+const NOT_RECORDED = /^(nr|n\/r|nl|not recorded|not logged|none|nil|null|n\/?a|unknown|unk|no data|nd|-+|\?+)$|^no\s/i;
+export function notEvidenceCode(code, roleOf = null) {
+  const s = String(code ?? "").trim();
+  if (!s || NOT_RECORDED.test(s)) return true;
+  if ((s.match(/\(/g) || []).length !== (s.match(/\)/g) || []).length) return true;
+  return !!roleOf && roleOf(s) === "no recovery";
+}
 export const parseCodedRef = (ref) => { if (typeof ref !== "string" || ref[0] !== "@") return null; try { return JSON.parse(ref.slice(1)); } catch { return null; } };
 export const codedRowsOf = (l, projectLayers, customLayers) => (String(l).startsWith("custom:") ? (customLayers || []).find((c) => String(c.id) === String(l).slice(7))?.rows || [] : projectLayers?.[l] || []);
 

@@ -29,5 +29,5 @@ test("#1455 the pane offers the coded logs and reads a mineral's percent", () =>
   assert.ok(p.includes('const CODED_LAYERS = ["litho", "alt", "vein", "breccia", "weath", "mnlgy", "structzone", "litho_gc", "alt_gc"]'));
   // #2453 / #2583 — the codes now come folded by case from every coded field (codeCards); a built-in log's value code keeps its old card
   assert.ok(p.includes('tr("Distance to logged {layer}: {code}", { layer: name, code: c.label })') && p.includes('tr("Drillholes: {code} % along the holes", { code })'));
-  assert.ok(p.includes("foldedCodes(rows, traces, { min: 3, field })") && p.includes('/^coded:([^:]+):(.+):([^:]+)$/.exec(ref)'));
+  assert.ok(p.includes("foldedCodes(rows, traces, { min: CODE_MIN_ROWS, field })") /* #3346: 5, was 3 */ && p.includes('/^coded:([^:]+):(.+):([^:]+)$/.exec(ref)'));
 });
