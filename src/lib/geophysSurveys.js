@@ -52,6 +52,16 @@ export const SURVEY_METHODS = {
 // What the SimPEG inversion models: the measured total field and Bouguer gravity. A derivative or a filtered product is
 // not the field; a radiometric or EM channel is another physics.
 export const methodIsInvertible = (m) => m === "mag" || m === "grav";
+// TASKS.csv #2403 (review #2325) — the Inversion checklist counted every survey's readings as one ('1,722 reading(s) loaded' for two 861-station
+// surveys, one of them radiometric). rows: the points with a value; surveys: geophysSurveys. A survey whose Method is not set counts as usable
+// (the pane lets it through; only a labelled non-field survey is refused). -> { total, n (surveys), usable: [{ key, count }], usableReadings, skipped: [{ key, count }] }
+export function inversionSurveyCounts(rows, surveys) {
+  const by = new Map();
+  for (const r of rows || []) { const k = r._src || "(unnamed import)"; by.set(k, (by.get(k) || 0) + 1); }
+  const usable = [], skipped = [];
+  for (const [key, count] of by) { const m = surveys?.[key]?.method; (!m || methodIsInvertible(m) ? usable : skipped).push({ key, count }); }
+  return { total: (rows || []).length, n: by.size, usable, usableReadings: usable.reduce((s, x) => s + x.count, 0), skipped };
+}
 
 // A method read from the value column's header at import ("TMI_nT", "Bouguer", "eTh_ppm", "Cond_mSm"...). Words are
 // matched whole, so "ip" never fires on "dip" and "k" never on "kelvin"; null when nothing fits (the select stays

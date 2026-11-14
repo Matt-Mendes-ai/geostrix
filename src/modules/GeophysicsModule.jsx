@@ -1473,7 +1473,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const { columns, rows: parsedRows } = parseXYZ(text);
       const g = guessXyzChannels(columns, parsedRows);
       const bytes = files.reduce((a, f) => a + f.size, 0), estimate = Math.round((parsedRows.length / Math.max(1, files[0].size)) * bytes);
-      setXyzPending({ fileName: files[0].name, columns, rows: parsedRows, xCol: guessColumn(columns, XY_NAME_HINTS.x), yCol: guessColumn(columns, XY_NAME_HINTS.y), zCol: g.z, valueCol: g.value, header: gemHeaderInfo(text), headerEpsg: gemHeaderEpsg(text), ...cleaningDefaults(columns) /* #1583 */,
+      const gx = guessColumn(columns, XY_NAME_HINTS.x), gy = guessColumn(columns, XY_NAME_HINTS.y); // TASKS.csv #3364 — the first file's one column left is the Value, as the single-file picker does since #3208
+      setXyzPending({ fileName: files[0].name, columns, rows: parsedRows, xCol: gx, yCol: gy, zCol: g.z, valueCol: g.value || onlyValueLeft(columns, [gx, gy, g.z].filter(Boolean), parsedRows), header: gemHeaderInfo(text), headerEpsg: gemHeaderEpsg(text), ...cleaningDefaults(columns) /* #1583 */,
         batch: { files, gpsFiles, estimate, keepEvery: suggestKeepEvery(estimate, 100000, (layers.geophys_pts || []).length), timeCol: columns.find((c) => /^time$/i.test(c)) || columns.find((c) => /time/i.test(c)) || null, bases: [] } }); // #1582 — counts what is already drawn; timeCol / bases: #1585
     } catch (err) {
       setXyzError({ info: false, text: tr("Could not parse {name}: {message}", { name: files[0].name, message: err.message }) });
@@ -1512,7 +1513,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         // the IP file's AppMx) takes that one, as a survey of its own, and says so
         let vCol = valueCol;
         if (columns.includes(xCol) && columns.includes(yCol) && !columns.includes(valueCol)) { const alt = soleValueColumn(columns, raw, [xCol, yCol, zCol]); if (alt) { vCol = alt; ownColumns.push({ file: f.name, col: alt }); } }
-        if (!columns.includes(xCol) || !columns.includes(yCol) || !columns.includes(vCol)) throw new Error(tr("it has no {x}, {y} or {v} column.", { x: xCol, y: yCol, v: valueCol }));
+        if (!columns.includes(xCol) || !columns.includes(yCol) || !columns.includes(vCol)) { const lack = [xCol, yCol, valueCol].filter((c) => !columns.includes(c)); throw new Error(lack.length === 1 ? tr("it has no {c} column.", { c: lack[0] }) : tr("it has none of the columns {c}.", { c: lack.join(", ") })); } // #3330 (5) — only the missing one
         read += raw.length;
         const base = f.name.replace(/\.[^.]+$/, "");
         const cleaned = cleanRows(raw, cleaning, (r) => r[vCol], (r) => r._line ?? null); // #1583; vCol: #3319
@@ -2077,7 +2078,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     {/* TASKS.csv #2871 — buttons, not bare svg elements */}
                     <button type="button" aria-label={tr("Export the points of \"{key}\" (CSV)", { key: sv.key })} title={tr("Export the points of \"{key}\" (CSV)", { key: sv.key })} style={iconBtn} onClick={() => exportSurvey(sv.key)}><Download size={12} aria-hidden="true" /></button>{/* #1094 */}
                     <button type="button" aria-label={tr("Remove survey \"{key}\"", { key: sv.key })} title={tr("Remove survey \"{key}\"", { key: sv.key })} style={iconBtn}
-                      onClick={() => { if (window.confirm(tr("Remove the {count} points of \"{key}\"?", { count: sv.count.toLocaleString(), key: sv.key }))) setLayers((l) => ({ ...l, geophys_pts: (l.geophys_pts || []).filter((r) => surveyKey(r) !== sv.key) })); }}><Trash2 size={12} aria-hidden="true" /></button>
+                      onClick={() => { if (window.confirm(tr("Remove the {count} points of \"{key}\"?", { count: sv.count.toLocaleString(), key: sv.key }))) { setLayers((l) => ({ ...l, geophys_pts: (l.geophys_pts || []).filter((r) => surveyKey(r) !== sv.key) })); setGeophysSurveys((m) => { const { [sv.key]: _gone, ...rest } = m || {}; return rest; }); /* TASKS.csv #3330 (2) — its Method, units and legend go with its last point: a later import under that name inherited them */ } }}><Trash2 size={12} aria-hidden="true" /></button>
                   </div>
                   <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>
                     {tr("{count} points{v}, {withZ} with elevation · values {v2}{v3}", { count: sv.count.toLocaleString(), v: sv.lines ? `, ${sv.lines} line(s)` : "", withZ: sv.withZ.toLocaleString(), v2: Number.isFinite(sv.min) ? rangeText(sv.min, sv.max) /* #2402 — 57,392 to 57,571, not 5.739e+4 */ : "—", v3: meta.units ? ` ${meta.units}` : "" })}
