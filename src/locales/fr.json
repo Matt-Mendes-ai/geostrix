@@ -12679,5 +12679,6 @@
   "Sent.": "Envoyé.",
   "Writes each block's density (the one value, or its code's or the density model's) into the block model, so its CSV, OMF and VTK exports carry a DENSITY column and tonnes agree everywhere.": "Écrit la densité de chaque bloc (la valeur unique, celle de son code ou celle du modèle de densité) dans le modèle de blocs, de sorte que ses exports CSV, OMF et VTK portent une colonne DENSITY et que les tonnages concordent partout.",
   "Keep this density with the block model": "Conserver cette densité dans le modèle de blocs",
-  "Kept: the block model now carries a density per block (a DENSITY column in its exports).": "Conservée : le modèle de blocs porte maintenant une densité par bloc (une colonne DENSITY dans ses exports)."
+  "Kept: the block model now carries a density per block (a DENSITY column in its exports).": "Conservée : le modèle de blocs porte maintenant une densité par bloc (une colonne DENSITY dans ses exports).",
+  "Added \"{name}\" to the model surfaces: export it, slice it in sections, or turn it off there. Ctrl+Z takes it back.": "« {name} » a été ajouté aux surfaces du modèle : exportez-le, coupez-le en sections ou désactivez-le là. Ctrl+Z l'annule."
 }

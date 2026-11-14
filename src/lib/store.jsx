@@ -676,6 +676,7 @@ export function StoreProvider({ children }) {
   // a colleague or attach to an assessment report, and the measured cost doesn't justify it — see this
   // row's TASKS.csv notes for the actual byte counts.
   const [generatedSurfaces, setGeneratedSurfaces] = useState([]);
+  const [surfaceIds, setSurfaceIds] = useState([]); // TASKS.csv #3494 (#3082) — the ids of the model surfaces, so Undo / Redo can take one away or bring it back (the meshes stay in ViewerModule)
   // TASKS.csv #89's own note deferred domain persistence to #52 ("a domain referencing a fault by id
   // can't outlive a session regardless" while surfaces themselves weren't saved). Now that surfaces
   // persist, their ids are stable across a save/reload, so the domains that reference them can persist
@@ -984,7 +985,7 @@ export function StoreProvider({ children }) {
   const liveRef = useRef(live);
   liveRef.current = live;
   // Setters never change identity, so the first render's table is safe inside []-dependency callbacks.
-  const setFields = (vals) => { for (const k of FIELD_KEYS) fieldState[k][1](vals[k]); };
+  const setFields = (vals) => { for (const k of FIELD_KEYS) fieldState[k][1](vals[k]); setSurfaceIds((vals.generatedSurfaces || []).map((x) => x?.id).filter((id) => id != null)); /* TASKS.csv #3494 — a load / New starts the model surfaces' undo ids over */ };
 
   const setEpsg = useCallback((epsg) => setProject((p) => ({ ...p, epsg, crsSet: true, localGrid: null })), []); // #615 — any explicit choice sets it (and ends a local grid, #2180)
   // TASKS.csv #2180 (review #2174, WA gold) — a local mine grid with no CRS is a project state of its own: coordinates kept as they are, no
@@ -1557,7 +1558,7 @@ export function StoreProvider({ children }) {
   // the first render's setLayoutElements bound to "page_initial", so undo did nothing on other pages or wrote
   // one page's elements over another's; and a page SWITCH changed layoutElements' identity and recorded a
   // spurious undo step. The pages list is unchanged by switching and restores exactly.
-  const undoSnapshot = () => { const snap = {}; for (const k of UNDO_KEYS) snap[k] = live[k]; return snap; }; // #448: fields with track "undo"
+  const undoSnapshot = () => { const snap = {}; for (const k of UNDO_KEYS) snap[k] = live[k]; snap.surfaceIds = surfaceIds; /* TASKS.csv #3494 — not a project field: the ids of the model surfaces, so Undo can take one away or bring it back */ return snap; }; // #448: fields with track "undo"
   // Bug fix (found while adding plannedHoles to undo-tracking for #188 and testing redo end-to-end —
   // NOT a new bug, this affected every undo-tracked field, not just plannedHoles): `undo`/`redo` below
   // were `useCallback(fn, [applySnapshot])` (useLatestCallback since #2769's heap check, which runs the latest render's body), and `applySnapshot` never changes identity, so `undo`/
@@ -1665,7 +1666,7 @@ export function StoreProvider({ children }) {
     if (undoIntent.current && current.assays === undoIntent.current.next) { undoBeforeBurst.current = { ...undoBeforeBurst.current, assays: undoIntent.current.token }; undoIntent.current = null; commitUndoBurst(); return; }
     if (undoDebounceTimer.current) clearTimeout(undoDebounceTimer.current);
     undoDebounceTimer.current = setTimeout(commitUndoBurst, UNDO_DEBOUNCE_MS);
-  }, UNDO_KEYS.map((k) => live[k])); // #448 (always the same length); #463: layoutPages
+  }, [...UNDO_KEYS.map((k) => live[k]), surfaceIds]); // #448 (always the same length); #463: layoutPages; surfaceIds: #3494
 
   const applySnapshot = useCallback((snap) => {
     undoApplying.current = true;
@@ -1675,6 +1676,7 @@ export function StoreProvider({ children }) {
       else snap = { ...snap, assays: r.assays };
     }
     for (const f of FIELDS) if (f.track === "undo" && f.key !== "layoutPages") fieldState[f.key][1](snap[f.key] ?? f.empty());
+    if (snap.surfaceIds) setSurfaceIds(snap.surfaceIds); // TASKS.csv #3494 — ViewerModule takes the surfaces away / back to match
     // #463 — whole pages list; keep the active page if it still exists, else the first one.
     if (snap.layoutPages) { setLayoutPages(snap.layoutPages); setActiveLayoutPageId((id) => (snap.layoutPages.some((p) => p.id === id) ? id : snap.layoutPages[0]?.id || id)); }
     // React batches these, but the flag needs to survive until AFTER the effect above re-runs on the
@@ -1844,7 +1846,7 @@ export function StoreProvider({ children }) {
     voxelModels, addVoxelModel, updateVoxelModel, removeVoxelModel,
     voxelCellBudget, setVoxelCellBudget,
     plannedHoles, addPlannedHole, updatePlannedHole, removePlannedHole,
-    generatedSurfaces, setGeneratedSurfaces, modelDomains, setModelDomains, // TASKS.csv #52
+    generatedSurfaces, setGeneratedSurfaces, surfaceIds, setSurfaceIds /* #3494 */, modelDomains, setModelDomains, // TASKS.csv #52
     layerGroups, addLayerGroup, renameLayerGroup, deleteLayerGroup, toggleLayerGroupCollapsed, setLayerGroupFor,
     layoutElements, setLayoutElements,
     layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat, mapLayoutPagesElements /* #3331 */, setLastCompositing /* #2883 */, sendLayoutElement, // sendLayoutElement: #1484

@@ -19,7 +19,7 @@ import { smallGridCoordinates } from "../lib/crsFromColumns.js"; // TASKS.csv #2
 const CrsWorldMap = React.lazy(() => import("./CrsWorldMap.jsx")); // #1330
 
 export default function ProjectCrsModal({ reason, points, suggested = null, noLocalGrid = false, family = null, onDone }) { // noLocalGrid: #2621; family: #2495
-  const { project, collars: storeCollars, setEpsg, setLocalGrid, projectIsEmpty } = useStore();
+  const { project, collars: storeCollars, setEpsg, setLocalGrid, setLocalGridDatum, projectIsEmpty } = useStore();
   const collars = points?.length ? points : storeCollars; // the file being imported, when there is one
   const [where, setWhere] = useState("");
   const [choice, setChoiceRaw] = useState(project.crsSet ? Number(project.epsg) : suggested ? Number(suggested) : null); // suggested: #1345
@@ -28,6 +28,7 @@ export default function ProjectCrsModal({ reason, points, suggested = null, noLo
   const smallGrid = useMemo(() => smallGridCoordinates((points?.length ? points : storeCollars) || []), [points, storeCollars]);
   const [localMode, setLocalMode] = useState(() => !noLocalGrid && !project.crsSet && (!!project.localGrid || (!suggested && !!smallGrid)));
   const [gridName, setGridName] = useState(project.localGrid?.name || "");
+  const [gridRl, setGridRl] = useState(project.localGrid?.rlOffset != null ? String(project.localGrid.rlOffset) : ""), [gridNorth, setGridNorth] = useState(project.localGrid?.northDeg != null ? String(project.localGrid.northDeg) : ""); // TASKS.csv #3495 (#2809) — the RL datum and the typed north, as the Local grid panel has them
   const setChoice = (c) => { setChoiceRaw(c); setLocalMode(false); };
   const [searchAll, setSearchAll] = useState(false);
   const cancel = () => onDone(null);
@@ -60,7 +61,7 @@ export default function ProjectCrsModal({ reason, points, suggested = null, noLo
   const kmFromStated = landing && at ? Math.round(Math.hypot((landing.lat - at.lat) * 111, (landing.lon - at.lon) * 111 * Math.cos((at.lat * Math.PI) / 180))) : null;
 
   const use = () => { if (!choice) return; setEpsg(choice); onDone(choice); };
-  const keepLocal = () => { setLocalGrid(gridName); onDone(null); }; // #2180 — no CRS: callers place the coordinates as they are
+  const keepLocal = () => { setLocalGrid(gridName); const d = { rlOffset: gridRl, ...(project.localGrid?.tie ? {} : { northDeg: gridNorth }) }; if ((gridRl !== "" || project.localGrid?.rlOffset != null) || (gridNorth !== "" || project.localGrid?.northDeg != null)) setLocalGridDatum?.(d); onDone(null); }; // #3495 — the datum and north with the name // #2180 — no CRS: callers place the coordinates as they are
 
   return (
     <div style={overlay}>
@@ -92,6 +93,10 @@ export default function ProjectCrsModal({ reason, points, suggested = null, noLo
             <div style={{ color: "var(--color-text)", fontWeight: 600 }}>{tr("These are local mine-grid coordinates: keep them, no CRS")}</div>
             <div style={{ color: "var(--color-text-muted)" }}>{smallGrid && !project.localGrid ? tr("{n} of {of} coordinates are ones no UTM / MGA zone has (eastings {x0}–{x1}), so this is chosen.", { n: smallGrid.n, of: smallGrid.of, x0: Math.round(smallGrid.x[0]).toLocaleString(), x1: Math.round(smallGrid.x[1]).toLocaleString() }) + " " : ""}{tr("Everything stays in the grid's own metres and later files are not asked again. Terrain and imagery downloads, basemaps, Macrostrat, true / magnetic north and exports with a coordinate system (.prj, KML, GeoPackage) say they are not available until a CRS is chosen.")}</div>
             {localMode && <input value={gridName} onClick={(e) => e.stopPropagation()} onChange={(e) => setGridName(e.target.value)} placeholder={tr("Grid name (optional), e.g. Wallaby mine grid")} aria-label={tr("Local grid name")} style={{ ...inp, marginTop: 6 }} />}
+            {localMode && <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 6 }}>{/* TASKS.csv #3495 */}
+              <label title={tr("Grid RL = elevation + this offset (a mine datum of +1000: RL 1,250 is 250 m above sea level). Blank: the RLs are elevations.")}>{tr("RL datum: grid RL = elevation +")} <input type="number" step="any" value={gridRl} onChange={(e) => setGridRl(e.target.value)} placeholder={tr("blank")} aria-label={tr("RL datum offset (m)")} style={{ ...inp, width: 80 }} /> {tr("m")}</label>
+              {!project.localGrid?.tie && <label title={tr("For a grid not tied to a CRS: how far grid north is turned from true north, east positive (west negative). A true-north survey is converted with it on import. A tie, when there is one, knows its own rotation.")}>{tr("Grid north is")} <input type="number" step="any" value={gridNorth} onChange={(e) => setGridNorth(e.target.value)} placeholder={tr("blank")} aria-label={tr("Grid north from true north (degrees, east positive)")} style={{ ...inp, width: 80 }} /> {tr("° east of true north")}</label>}
+            </div>}
           </div>}
 
           <div>
