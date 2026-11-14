@@ -12351,5 +12351,6 @@
   "Type a line to replace the plan's wording; clear it to go back. A line keeps your wording while its class stays.": "اكتب سطرًا لاستبدال صياغة المخطط؛ امسحه للعودة. يحتفظ السطر بصياغتك ما دام صنفه قائمًا.",
   "Key title": "عنوان المفتاح",
   "Key note": "ملاحظة المفتاح",
-  "Back to the plan's own wording": "العودة إلى صياغة المخطط"
+  "Back to the plan's own wording": "العودة إلى صياغة المخطط",
+  "{n} intervals in this hole have no code/value, the shallowest at {v}m.": "{n} مقطعًا في هذه الحفرة بلا رمز/قيمة، أقلها عمقًا عند {v} م."
 }

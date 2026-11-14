@@ -5,7 +5,7 @@
 import { desurveyHole, pointOnTrace } from "./desurvey.js";
 import { roleForLithology, colorForLithology, roleIsFromNotes } from "./layers.js";
 
-const SKIP = new Set(["overburden", "no recovery"]);
+const SKIP = new Set(["overburden", "no recovery", "ignore"]); // "ignore": what Modelling codes calls a no-recovery code (#3390)
 
 // TASKS.csv #2407 (review #2325, WA uranium) — the role a code was given in 3D Modelling > Modelling codes wins over the guess from its name:
 // with QA (the Quaternary cover) set to overburden, the "subcrop map" was still 408 points of QA, as roleForLithology knows only names

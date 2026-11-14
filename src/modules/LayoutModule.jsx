@@ -1275,7 +1275,7 @@ export default function LayoutModule() {
           </RibbonGroup>
           <RibbonGroup label="Views">
             <RibbonButton icon={Camera} label="Current view" tone="view" title="Add a viewport snapshot of the current 3D View (no theme needed)" onClick={() => startViewportRender(null, "new")} />
-            <RibbonButton icon={MapPinned} label="Drill plan" tone="view" disabled={!collars.length} title="A drill-hole location plan: collar symbols, traces and labels at a true scale, drawn from the collars (not a 3D capture)" onClick={() => addElement("drillplan")} />{/* TASKS.csv #1639 */}
+            <RibbonButton icon={MapPinned} label="Drill plan" tone="view" disabled={!collars.length && !(plannedHoles || []).length /* #3358 — planned holes alone make a plan */} title="A drill-hole location plan: collar symbols, traces and labels at a true scale, drawn from the collars and any planned holes (not a 3D capture)" onClick={() => addElement("drillplan")} />{/* TASKS.csv #1639 */}
             <RibbonButton advanced icon={MonitorPlay} label="Theme view" tone="view" disabled={!themes.length} active={themePickerFor === "new"} title={themes.length ? "Add a live-bound viewport of a saved 3D View theme (pick it in the sidebar)" : "Save a theme in the 3D View first (Themes on its ribbon)"} onClick={() => setThemePickerFor(themePickerFor === "new" ? null : "new")} />
           </RibbonGroup>
           <RibbonGroup advanced label="Draw">

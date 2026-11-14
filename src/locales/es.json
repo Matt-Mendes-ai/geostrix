@@ -12351,5 +12351,6 @@
   "Type a line to replace the plan's wording; clear it to go back. A line keeps your wording while its class stays.": "Escriba una línea para reemplazar el texto del plano; bórrela para volver. Una línea conserva su texto mientras su clase siga existiendo.",
   "Key title": "Título de la leyenda",
   "Key note": "Nota de la leyenda",
-  "Back to the plan's own wording": "Volver al texto del plano"
+  "Back to the plan's own wording": "Volver al texto del plano",
+  "{n} intervals in this hole have no code/value, the shallowest at {v}m.": "{n} intervalos de este sondaje no tienen código/valor, el más somero a {v} m."
 }
