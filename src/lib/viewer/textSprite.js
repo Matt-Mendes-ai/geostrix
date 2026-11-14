@@ -122,6 +122,46 @@ export function fillTextSprites(sprites) {
   return todo.length;
 }
 makeTextSprite.lazy = makeLazyTextSprites;
+
+// TASKS.csv #3399 (Matt: 'also draw callouts in the 3d view where more than 1 drill hole is located'; Orion_2026's 'OR-26-01 +2') — a pad's
+// callout: a box listing each hole (a swatch of its colour when the holes are coloured by a collar field), up and to the right of the collar
+// with a short leader down to it. One canvas per callout (pads are few). The sprite's bottom-left corner is the collar; labelLines: its height
+// in label lines, for fitScreenLabels and the declutter's boxes. lines: [{ text, colour? }]
+export const CALLOUT_MAX_LINES = 12;
+export function makeCalloutSprite(lines, { color = "#1a2028", bg = "rgba(255,255,255,0.92)", border = "rgba(26,32,40,0.35)" } = {}) {
+  const all = lines || [], shown = all.length > CALLOUT_MAX_LINES ? [...all.slice(0, CALLOUT_MAX_LINES - 1), { text: `+${all.length - CALLOUT_MAX_LINES + 1}` }] : all;
+  const lineH = 40, padX = 10, padY = 6, sw = shown.some((l) => l.colour) ? 28 : 0, leadW = 34, leadH = 30;
+  const canvas = document.createElement("canvas"), ctx = canvas.getContext("2d");
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+  texture.generateMipmaps = false;
+  const material = new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true, sizeAttenuation: false });
+  const draw = () => {
+    ctx.font = LABEL_FONT;
+    const boxW = Math.ceil(Math.max(...shown.map((l) => ctx.measureText(l.text).width), 10)) + padX * 2 + sw, boxH = shown.length * lineH + padY * 2;
+    canvas.width = leadW + boxW; canvas.height = boxH + leadH;
+    ctx.strokeStyle = color; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(1.5, canvas.height - 1.5); ctx.lineTo(leadW + 2, boxH - 2); ctx.stroke(); // the leader: collar (bottom-left) to the box's corner
+    ctx.fillStyle = bg; ctx.fillRect(leadW, 0, boxW, boxH);
+    ctx.strokeStyle = border; ctx.lineWidth = 2; ctx.strokeRect(leadW + 1, 1, boxW - 2, boxH - 2);
+    ctx.font = LABEL_FONT; ctx.textBaseline = "middle";
+    shown.forEach((l, i) => {
+      const y = padY + i * lineH + lineH / 2;
+      if (l.colour) { ctx.fillStyle = l.colour; ctx.fillRect(leadW + padX, y - 10, 20, 20); ctx.strokeStyle = border; ctx.lineWidth = 1; ctx.strokeRect(leadW + padX + 0.5, y - 9.5, 19, 19); }
+      ctx.fillStyle = color; ctx.fillText(l.text, leadW + padX + sw, y);
+    });
+    material.userData.labelAspect = canvas.width / canvas.height;
+    material.userData.labelLines = canvas.height / LABEL_H;
+    texture.needsUpdate = true;
+  };
+  draw();
+  if (document.fonts && !document.fonts.check(LABEL_FONT)) document.fonts.load(LABEL_FONT).then(() => { if (material.map) draw(); }).catch(() => {});
+  const sprite = new THREE.Sprite(material);
+  sprite.center.set(0, 0);
+  sprite.renderOrder = 999;
+  return sprite;
+}
+makeTextSprite.callout = makeCalloutSprite;
 makeTextSprite.fill = fillTextSprites;
 
 export function fitScreenLabels(group, camera, viewportH) {
@@ -130,8 +170,8 @@ export function fitScreenLabels(group, camera, viewportH) {
     ? (2 * LABEL_PX) / (viewportH * camera.projectionMatrix.elements[5])
     : (LABEL_PX * (camera.top - camera.bottom)) / (camera.zoom * viewportH);
   for (const sp of group.children) {
-    const a = sp.material?.userData?.labelAspect;
-    if (a) sp.scale.set(s * a, s, 1);
+    const a = sp.material?.userData?.labelAspect, L = sp.material?.userData?.labelLines || 1; // L: a callout's lines (#3399)
+    if (a) sp.scale.set(s * a * L, s * L, 1);
   }
 }
 
