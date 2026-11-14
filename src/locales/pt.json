@@ -11609,7 +11609,7 @@
   "Give the distance from the holes as a number of metres above 0.": "Informe a distância aos furos como um número de metros maior que 0.",
   "{name} outlines": "Contornos de {name}",
   "No outline could be made from these points.": "Nenhum contorno pôde ser feito com esses pontos.",
-  "{name}: {n} polygon(s), {units} unit(s): each hole's nearest-hole area, cut back to {r} m from the hole (the median hole spacing is {s} m). A unit map from the drilling, not a mapped outline: Model it can build from it.": "{name}: {n} polígono(s), {units} unidade(s): a área mais próxima de cada furo, recortada a {r} m do furo (o espaçamento mediano entre furos é {s} m). Um mapa de unidades a partir da sondagem, não um contorno mapeado: Modelar pode construir a partir dele.",
+  "{name}: {n} polygon(s), {units} unit(s): each hole's nearest-hole area, cut back to {r} m from the hole (the median hole spacing is {s} m). A unit map from the drilling, not a mapped outline: its borders lie half-way between holes, so Model it takes no order from them.": "{name}: {n} polígono(s), {units} unidade(s): a área mais próxima de cada furo, recortada a {r} m do furo (o espaçamento mediano entre furos é {s} m). Um mapa de unidades a partir dos furos, não um contorno mapeado: suas bordas ficam a meio caminho entre furos, então Modelar não tira deles nenhuma ordem.",
   "Unit at": "Unidade a",
   "under cover": "sob cobertura",
   "Depth below the collar for the subcrop, m (blank: the first unit under the cover)": "Profundidade abaixo da boca para o subafloramento, m (em branco: a primeira unidade sob a cobertura)",
@@ -11622,7 +11622,7 @@
   "Outline the units out to": "Contornar as unidades até",
   "Outline distance from the holes, m": "Distância do contorno aos furos, m",
   "m from a hole": "m de um furo",
-  "A polygon map: each hole's nearest-hole area, cut back to this distance from the hole, with the unit of its point. Model it can build from it.": "Um mapa de polígonos: a área mais próxima de cada furo, recortada a esta distância do furo, com a unidade do seu ponto. Modelar pode construir a partir dele.",
+  "A polygon map: each hole's nearest-hole area, cut back to this distance from the hole, with the unit of its point. Its borders are not mapped contacts.": "Um mapa de polígonos: a área mais próxima de cada furo, recortada a esta distância do furo, com a unidade do seu ponto. Suas bordas não são contatos mapeados.",
   "Outline": "Contornar",
   "No hole's log covers {d} m down.": "A descrição de nenhum furo cobre {d} m de profundidade.",
   "Terrain under the inputs: {a} of {n} contact point(s) and {b} of {m} measurement(s). The rest will be placed at the map layer's elevation{z} and the surfaces cut there; a terrain over the whole map (Maps > Terrain) puts them on the ground.": "Terreno sob os dados: {a} de {n} ponto(s) de contato e {b} de {m} medição(ões). O resto será colocado na elevação da camada do mapa{z} e as superfícies cortadas ali; um terreno sobre todo o mapa (Mapas > Terreno) os coloca no solo.",
@@ -12134,5 +12134,7 @@
   "The codes skipped as cover (ticked), then what the other holes start in (the first logged code at the collar). Untick a code that is rock, or tick one that is cover, and make it again. A tick sets the code's role to overburden and an untick to stratigraphic, as 3D Modelling > Modelling codes does.": "Os códigos ignorados como cobertura (marcados) e depois aquilo em que começam os outros furos (o primeiro código registrado no colar). Desmarque um código que seja rocha, ou marque um que seja cobertura, e gere de novo. Marcar define o papel do código como cobertura e desmarcar, como estratigráfico, como em Modelagem 3D > Códigos de modelagem.",
   "from its notes": "pelas suas notas",
   "skipped in {n} hole(s), up to {m} m; the whole log of {w}": "ignorado em {n} furo(s), até {m} m; todo o registro de {w}",
-  "skipped in {n} hole(s), up to {m} m": "ignorado em {n} furo(s), até {m} m"
+  "skipped in {n} hole(s), up to {m} m": "ignorado em {n} furo(s), até {m} m",
+  "This map is the nearest-hole outlines of the subcrop from collars: its borders lie half-way between holes, not on mapped contacts, so they give no evidence of order. Each code starts on the role the logs give it (intrusive and cross-cutting codes leave the pile). Set the order by hand, check it against the logged contacts below, or choose a mapped layer.": "Este mapa são os contornos por furo mais próximo do subafloramento a partir dos colares: suas bordas ficam a meio caminho entre furos, não sobre contatos mapeados, então não dão evidência de ordem. Cada código começa com o papel que os registros lhe dão (códigos intrusivos e transversais saem da pilha). Defina a ordem à mão, compare-a com os contatos registrados abaixo ou escolha uma camada mapeada.",
+  "{n} border(s) between nearest-hole outlines: not contacts, not used.": "{n} borda(s) entre contornos por furo mais próximo: não são contatos, não usadas."
 }

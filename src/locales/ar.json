@@ -11609,7 +11609,7 @@
   "Give the distance from the holes as a number of metres above 0.": "أدخل المسافة من الثقوب عدداً من الأمتار أكبر من 0.",
   "{name} outlines": "محيطات {name}",
   "No outline could be made from these points.": "تعذّر رسم أي محيط من هذه النقاط.",
-  "{name}: {n} polygon(s), {units} unit(s): each hole's nearest-hole area, cut back to {r} m from the hole (the median hole spacing is {s} m). A unit map from the drilling, not a mapped outline: Model it can build from it.": "{name}: {n} مضلّع، {units} وحدة: المنطقة الأقرب إلى كل ثقب، مقصوصة على بعد {r} م من الثقب (التباعد الوسيط بين الثقوب {s} م). خريطة وحدات من الحفر، لا محيط مرسوم ميدانياً: يمكن لـ«نمذجتها» البناء عليها.",
+  "{name}: {n} polygon(s), {units} unit(s): each hole's nearest-hole area, cut back to {r} m from the hole (the median hole spacing is {s} m). A unit map from the drilling, not a mapped outline: its borders lie half-way between holes, so Model it takes no order from them.": "{name}: {n} مضلع (مضلعات)، {units} وحدة (وحدات): المنطقة الأقرب إلى كل ثقب حفر، مقصوصة إلى {r} م من الثقب (متوسط التباعد بين الثقوب {s} م). خريطة وحدات من الحفر، لا حدود مرسومة ميدانيًا: حدودها في منتصف المسافة بين الثقوب، فلا تأخذ النمذجة منها أي ترتيب.",
   "Unit at": "الوحدة على",
   "under cover": "تحت الغطاء",
   "Depth below the collar for the subcrop, m (blank: the first unit under the cover)": "العمق تحت الفوهة للنتوء المغطى، م (فارغ: أول وحدة تحت الغطاء)",
@@ -11622,7 +11622,7 @@
   "Outline the units out to": "ارسم محيطات الوحدات حتى",
   "Outline distance from the holes, m": "مسافة المحيط من الثقوب، م",
   "m from a hole": "م من الثقب",
-  "A polygon map: each hole's nearest-hole area, cut back to this distance from the hole, with the unit of its point. Model it can build from it.": "خريطة مضلّعات: المنطقة الأقرب إلى كل ثقب، مقصوصة على هذه المسافة منه، بوحدة نقطته. يمكن لـ«نمذجتها» البناء عليها.",
+  "A polygon map: each hole's nearest-hole area, cut back to this distance from the hole, with the unit of its point. Its borders are not mapped contacts.": "خريطة مضلعات: المنطقة الأقرب إلى كل ثقب حفر، مقصوصة إلى هذه المسافة من الثقب، بوحدة نقطته. حدودها ليست تماسات مرسومة ميدانيًا.",
   "Outline": "ارسم المحيط",
   "No hole's log covers {d} m down.": "لا يغطي سجل أي ثقب عمق {d} م.",
   "Terrain under the inputs: {a} of {n} contact point(s) and {b} of {m} measurement(s). The rest will be placed at the map layer's elevation{z} and the surfaces cut there; a terrain over the whole map (Maps > Terrain) puts them on the ground.": "التضاريس تحت المدخلات: {a} من {n} نقطة تماس و{b} من {m} قياس. سيوضع الباقي على منسوب طبقة الخريطة{z} وتُقطع الأسطح هناك؛ تضاريس تغطي الخريطة كلها (الخرائط > التضاريس) تضعها على الأرض.",
@@ -12134,5 +12134,7 @@
   "The codes skipped as cover (ticked), then what the other holes start in (the first logged code at the collar). Untick a code that is rock, or tick one that is cover, and make it again. A tick sets the code's role to overburden and an untick to stratigraphic, as 3D Modelling > Modelling codes does.": "الرموز التي تم تخطيها كغطاء (المحددة)، ثم ما تبدأ به ثقوب الحفر الأخرى (أول رمز مسجل عند الفوهة). ألغِ تحديد رمز هو صخر، أو حدد رمزًا هو غطاء، ثم أعد الإنشاء. التحديد يجعل دور الرمز غطاءً ترابيًا وإلغاؤه يجعله طبقيًا، كما في النمذجة ثلاثية الأبعاد > رموز النمذجة.",
   "from its notes": "من ملاحظاته",
   "skipped in {n} hole(s), up to {m} m; the whole log of {w}": "تم تخطيه في {n} ثقب (ثقوب) حفر، حتى {m} م؛ السجل كله في {w}",
-  "skipped in {n} hole(s), up to {m} m": "تم تخطيه في {n} ثقب (ثقوب) حفر، حتى {m} م"
+  "skipped in {n} hole(s), up to {m} m": "تم تخطيه في {n} ثقب (ثقوب) حفر، حتى {m} م",
+  "This map is the nearest-hole outlines of the subcrop from collars: its borders lie half-way between holes, not on mapped contacts, so they give no evidence of order. Each code starts on the role the logs give it (intrusive and cross-cutting codes leave the pile). Set the order by hand, check it against the logged contacts below, or choose a mapped layer.": "هذه الخريطة هي حدود أقرب ثقب لخريطة ما تحت الغطاء من الفوهات: حدودها في منتصف المسافة بين الثقوب، لا على تماسات مرسومة ميدانيًا، فلا تعطي دليلًا على الترتيب. يبدأ كل رمز بالدور الذي تعطيه له السجلات (الرموز المتداخلة والقاطعة تخرج من العمود). حدد الترتيب يدويًا، أو قارنه بالتماسات المسجلة أدناه، أو اختر طبقة مرسومة ميدانيًا.",
+  "{n} border(s) between nearest-hole outlines: not contacts, not used.": "{n} حد (حدود) بين حدود أقرب ثقب: ليست تماسات، لا تُستخدم."
 }

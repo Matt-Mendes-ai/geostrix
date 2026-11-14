@@ -11609,7 +11609,7 @@
   "Give the distance from the holes as a number of metres above 0.": "Donnez la distance aux sondages comme un nombre de mètres supérieur à 0.",
   "{name} outlines": "Contours de {name}",
   "No outline could be made from these points.": "Aucun contour n'a pu être tracé à partir de ces points.",
-  "{name}: {n} polygon(s), {units} unit(s): each hole's nearest-hole area, cut back to {r} m from the hole (the median hole spacing is {s} m). A unit map from the drilling, not a mapped outline: Model it can build from it.": "{name} : {n} polygone(s), {units} unité(s) : la zone la plus proche de chaque sondage, ramenée à {r} m du sondage (l'espacement médian des sondages est de {s} m). Une carte d'unités issue des sondages, pas un contour cartographié : Modéliser peut s'en servir.",
+  "{name}: {n} polygon(s), {units} unit(s): each hole's nearest-hole area, cut back to {r} m from the hole (the median hole spacing is {s} m). A unit map from the drilling, not a mapped outline: its borders lie half-way between holes, so Model it takes no order from them.": "{name} : {n} polygone(s), {units} unité(s) : la zone la plus proche de chaque sondage, réduite à {r} m du sondage (l'espacement médian des sondages est de {s} m). Une carte d'unités tirée des sondages, pas un contour cartographié : ses limites sont à mi-chemin entre les sondages, donc Modéliser n'en tire aucun ordre.",
   "Unit at": "Unité à",
   "under cover": "sous couverture",
   "Depth below the collar for the subcrop, m (blank: the first unit under the cover)": "Profondeur sous le collet pour le sous-affleurement, m (vide : la première unité sous la couverture)",
@@ -11622,7 +11622,7 @@
   "Outline the units out to": "Tracer le contour des unités jusqu'à",
   "Outline distance from the holes, m": "Distance du contour aux sondages, m",
   "m from a hole": "m d'un sondage",
-  "A polygon map: each hole's nearest-hole area, cut back to this distance from the hole, with the unit of its point. Model it can build from it.": "Une carte de polygones : la zone la plus proche de chaque sondage, ramenée à cette distance du sondage, avec l'unité de son point. Modéliser peut s'en servir.",
+  "A polygon map: each hole's nearest-hole area, cut back to this distance from the hole, with the unit of its point. Its borders are not mapped contacts.": "Une carte de polygones : la zone la plus proche de chaque sondage, réduite à cette distance du sondage, avec l'unité de son point. Ses limites ne sont pas des contacts cartographiés.",
   "Outline": "Contour",
   "No hole's log covers {d} m down.": "Le log d'aucun sondage ne couvre {d} m de profondeur.",
   "Terrain under the inputs: {a} of {n} contact point(s) and {b} of {m} measurement(s). The rest will be placed at the map layer's elevation{z} and the surfaces cut there; a terrain over the whole map (Maps > Terrain) puts them on the ground.": "Terrain sous les données : {a} point(s) de contact sur {n} et {b} mesure(s) sur {m}. Le reste sera placé à l'altitude de la couche de la carte{z} et les surfaces coupées là ; un terrain sur toute la carte (Cartes > Terrain) les pose sur le sol.",
@@ -12134,5 +12134,7 @@
   "The codes skipped as cover (ticked), then what the other holes start in (the first logged code at the collar). Untick a code that is rock, or tick one that is cover, and make it again. A tick sets the code's role to overburden and an untick to stratigraphic, as 3D Modelling > Modelling codes does.": "Les codes ignorés comme couverture (cochés), puis ce par quoi commencent les autres sondages (le premier code décrit au collet). Décochez un code qui est de la roche, ou cochez-en un qui est de la couverture, et refaites la carte. Cocher donne au code le rôle de mort-terrain et décocher, stratigraphique, comme dans Modélisation 3D > Codes de modélisation.",
   "from its notes": "d'après ses notes",
   "skipped in {n} hole(s), up to {m} m; the whole log of {w}": "ignoré dans {n} sondage(s), jusqu'à {m} m ; toute la description de {w}",
-  "skipped in {n} hole(s), up to {m} m": "ignoré dans {n} sondage(s), jusqu'à {m} m"
+  "skipped in {n} hole(s), up to {m} m": "ignoré dans {n} sondage(s), jusqu'à {m} m",
+  "This map is the nearest-hole outlines of the subcrop from collars: its borders lie half-way between holes, not on mapped contacts, so they give no evidence of order. Each code starts on the role the logs give it (intrusive and cross-cutting codes leave the pile). Set the order by hand, check it against the logged contacts below, or choose a mapped layer.": "Cette carte est faite des contours au sondage le plus proche de la sous-affleurance tirée des collets : ses limites sont à mi-chemin entre les sondages, pas sur des contacts cartographiés, donc elles ne donnent aucun indice d'ordre. Chaque code part du rôle que lui donnent les descriptions (les codes intrusifs et recoupants sortent de la pile). Fixez l'ordre à la main, comparez-le aux contacts décrits ci-dessous, ou choisissez une couche cartographiée.",
+  "{n} border(s) between nearest-hole outlines: not contacts, not used.": "{n} limite(s) entre contours au sondage le plus proche : pas des contacts, non utilisées."
 }

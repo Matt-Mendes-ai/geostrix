@@ -417,7 +417,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     const layer = outlineLayer(c.pts, name, (u) => categoryColor(viewerUiState?.legendOverride?.litho?.[u], LAYER_META.litho, u), { reachM });
     if (!layer.features.length) { setMapMsg({ ok: false, text: tr("No outline could be made from these points.") }); return; }
     addMapLayer(layer);
-    setMapMsg({ ok: true, text: tr("{name}: {n} polygon(s), {units} unit(s): each hole's nearest-hole area, cut back to {r} m from the hole (the median hole spacing is {s} m). A unit map from the drilling, not a mapped outline: Model it can build from it.", { name, n: layer.features.length, units: layer.categories.length, r: reachM, s: Math.round(medianSpacing(c.pts)) }) });
+    setMapMsg({ ok: true, text: tr("{name}: {n} polygon(s), {units} unit(s): each hole's nearest-hole area, cut back to {r} m from the hole (the median hole spacing is {s} m). A unit map from the drilling, not a mapped outline: its borders lie half-way between holes, so Model it takes no order from them.", { name, n: layer.features.length, units: layer.categories.length, r: reachM, s: Math.round(medianSpacing(c.pts)) }) });
   };
   const changeStyleField = (layer, field) => {
     const grad = graduatedStyle(layer.features, field); // TASKS.csv #1600 - a numeric field in classes
@@ -673,7 +673,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               <span>{tr("Outline the units out to")}</span>
               <input type="number" min={1} value={subcropCard.reach} onChange={(e) => setSubcropCard((c) => ({ ...c, reach: e.target.value }))} aria-label={tr("Outline distance from the holes, m")} style={{ ...numInput, width: 70 }} />
               <span>{tr("m from a hole")}</span>
-              <button onClick={outlineSubcrop} title={tr("A polygon map: each hole's nearest-hole area, cut back to this distance from the hole, with the unit of its point. Model it can build from it.")} style={{ ...pBtn, marginBottom: 0, width: "auto" }}>{tr("Outline")}</button>
+              <button onClick={outlineSubcrop} title={tr("A polygon map: each hole's nearest-hole area, cut back to this distance from the hole, with the unit of its point. Its borders are not mapped contacts.")} style={{ ...pBtn, marginBottom: 0, width: "auto" }}>{tr("Outline")}</button>
             </div>
           </div>
         );

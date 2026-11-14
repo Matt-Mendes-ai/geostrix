@@ -11609,7 +11609,7 @@
   "Give the distance from the holes as a number of metres above 0.": "Indique la distancia a los sondajes como un número de metros mayor que 0.",
   "{name} outlines": "Contornos de {name}",
   "No outline could be made from these points.": "No se pudo trazar ningún contorno con estos puntos.",
-  "{name}: {n} polygon(s), {units} unit(s): each hole's nearest-hole area, cut back to {r} m from the hole (the median hole spacing is {s} m). A unit map from the drilling, not a mapped outline: Model it can build from it.": "{name}: {n} polígono(s), {units} unidad(es): el área más cercana a cada sondaje, recortada a {r} m del sondaje (el espaciado mediano entre sondajes es {s} m). Un mapa de unidades a partir de la perforación, no un contorno mapeado: Modelarlo puede construir a partir de él.",
+  "{name}: {n} polygon(s), {units} unit(s): each hole's nearest-hole area, cut back to {r} m from the hole (the median hole spacing is {s} m). A unit map from the drilling, not a mapped outline: its borders lie half-way between holes, so Model it takes no order from them.": "{name}: {n} polígono(s), {units} unidad(es): el área más cercana a cada sondaje, recortada a {r} m del sondaje (el espaciado mediano entre sondajes es {s} m). Un mapa de unidades a partir de los sondajes, no un contorno mapeado: sus bordes están a medio camino entre sondajes, así que Modelarlo no toma de ellos ningún orden.",
   "Unit at": "Unidad a",
   "under cover": "bajo cobertura",
   "Depth below the collar for the subcrop, m (blank: the first unit under the cover)": "Profundidad bajo el collar para el subafloramiento, m (en blanco: la primera unidad bajo la cobertura)",
@@ -11622,7 +11622,7 @@
   "Outline the units out to": "Contornear las unidades hasta",
   "Outline distance from the holes, m": "Distancia del contorno a los sondajes, m",
   "m from a hole": "m de un sondaje",
-  "A polygon map: each hole's nearest-hole area, cut back to this distance from the hole, with the unit of its point. Model it can build from it.": "Un mapa de polígonos: el área más cercana a cada sondaje, recortada a esta distancia del sondaje, con la unidad de su punto. Modelarlo puede construir a partir de él.",
+  "A polygon map: each hole's nearest-hole area, cut back to this distance from the hole, with the unit of its point. Its borders are not mapped contacts.": "Un mapa de polígonos: el área más cercana a cada sondaje, recortada a esta distancia del sondaje, con la unidad de su punto. Sus bordes no son contactos mapeados.",
   "Outline": "Contornear",
   "No hole's log covers {d} m down.": "El registro de ningún sondaje cubre {d} m de profundidad.",
   "Terrain under the inputs: {a} of {n} contact point(s) and {b} of {m} measurement(s). The rest will be placed at the map layer's elevation{z} and the surfaces cut there; a terrain over the whole map (Maps > Terrain) puts them on the ground.": "Terreno bajo los datos: {a} de {n} punto(s) de contacto y {b} de {m} medición(es). El resto se colocará a la elevación de la capa del mapa{z} y las superficies se cortarán allí; un terreno sobre todo el mapa (Mapas > Terreno) los pone sobre el suelo.",
@@ -12134,5 +12134,7 @@
   "The codes skipped as cover (ticked), then what the other holes start in (the first logged code at the collar). Untick a code that is rock, or tick one that is cover, and make it again. A tick sets the code's role to overburden and an untick to stratigraphic, as 3D Modelling > Modelling codes does.": "Los códigos omitidos como cobertura (marcados) y luego aquello en que empiezan los demás sondajes (el primer código registrado en el collar). Desmarque un código que sea roca, o marque uno que sea cobertura, y vuelva a generarlo. Una marca asigna al código el rol de cobertura y quitarla, estratigráfico, como en Modelado 3D > Códigos de modelado.",
   "from its notes": "según sus notas",
   "skipped in {n} hole(s), up to {m} m; the whole log of {w}": "omitido en {n} sondaje(s), hasta {m} m; todo el registro de {w}",
-  "skipped in {n} hole(s), up to {m} m": "omitido en {n} sondaje(s), hasta {m} m"
+  "skipped in {n} hole(s), up to {m} m": "omitido en {n} sondaje(s), hasta {m} m",
+  "This map is the nearest-hole outlines of the subcrop from collars: its borders lie half-way between holes, not on mapped contacts, so they give no evidence of order. Each code starts on the role the logs give it (intrusive and cross-cutting codes leave the pile). Set the order by hand, check it against the logged contacts below, or choose a mapped layer.": "Este mapa son los contornos por sondaje más cercano del subafloramiento desde los collares: sus bordes están a medio camino entre sondajes, no sobre contactos mapeados, así que no dan evidencia de orden. Cada código empieza con el rol que le dan los registros (los códigos intrusivos y transversales salen de la pila). Fije el orden a mano, compárelo con los contactos registrados abajo o elija una capa mapeada.",
+  "{n} border(s) between nearest-hole outlines: not contacts, not used.": "{n} borde(s) entre contornos por sondaje más cercano: no son contactos, no se usan."
 }
