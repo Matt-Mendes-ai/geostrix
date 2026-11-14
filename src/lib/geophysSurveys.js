@@ -289,3 +289,15 @@ export function soleValueColumn(columns, rows, used = []) {
   const cands = (columns || []).filter((c) => !skip.has(c) && !NOT_VALUE.test(String(c).trim()) && numeric(c));
   return cands.length === 1 ? cands[0] : null;
 }
+
+// TASKS.csv #3321 (Galore Creek review: 'Grid with equivalent sources…' was offered on IP chargeability, resistivity, an electrode list and a
+// 3D cloud) — equivalent sources continue a potential field measured on or above the ground: offered for magnetic and gravity surveys, and
+// for one not labelled (with what it assumes); not for other methods. The derived points at depth stay without the button (#1985 / #1994 /
+// #1986). -> "hidden" | "ok" | "assume" | "no"
+export const EQS_HIDDEN = new Set(["euler_depth", "mt_bostick", "lidar", "em1d_cond", "worms_height", "tiltdepth_depth"]);
+export function eqsApplies(method) {
+  if (!method || method === "other") return "assume";
+  if (EQS_HIDDEN.has(method)) return "hidden";
+  const g = SURVEY_METHODS[method]?.group;
+  return g === "mag" || g === "grav" ? "ok" : "no";
+}
