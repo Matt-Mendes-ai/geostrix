@@ -130,18 +130,26 @@ export function syncTextLabels(group, items, makeSprite, lift = 6) {
 }
 const shortNum = (v) => (Math.abs(v) >= 100 ? String(Math.round(v)) : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 1 ? v.toFixed(2) : String(+v.toPrecision(2)));
 // mode: "none" | "id" | "el:<symbol>" -> the label text, or null when the sample has nothing to say
-export function sampleLabelText(row, mode) {
+// TASKS.csv #2641 — units (symbol -> unit): an element stored as its oxide ('% Li2O') is labelled with that unit, so a map label does not read
+// as the element; other elements keep the bare number
+const oxideUnit = (u) => /\b[A-Z][a-z]?\d*O\d*\b/.test(String(u || "")); // Li2O, Fe2O3, CaO, U3O8 in '% Li2O'
+export function sampleLabelText(row, mode, units = null) {
   if (!row || !mode || mode === "none") return null;
   if (mode === "id") { const id = row.sample_id; return id != null && String(id).trim() !== "" ? String(id) : null; }
   // TASKS.csv #2565 — a below-detection sample (stored at half its limit) is labelled '<limit', not with a number that is in no file
-  if (mode.startsWith("el:")) { const sym = mode.slice(3), v = Number(row.values?.[sym]); return Number.isFinite(v) ? (Array.isArray(row.bdl) && row.bdl.includes(sym) ? `<${shortNum(2 * v)}` : shortNum(v)) : null; }
+  if (mode.startsWith("el:")) {
+    const sym = mode.slice(3), v = Number(row.values?.[sym]);
+    if (!Number.isFinite(v)) return null;
+    const t = Array.isArray(row.bdl) && row.bdl.includes(sym) ? `<${shortNum(2 * v)}` : shortNum(v);
+    return oxideUnit(units?.[sym]) ? `${t} ${units[sym]}` : t; // #2641
+  }
   return null;
 }
 export const dipLabelText = (r) => (r && Number.isFinite(Number(r.dip)) ? String(Math.round(Number(r.dip))) : null);
 // the label items of the placed surface samples (scene coordinates), at most `cap` of them
-export function sampleLabelItems(rows, mode, { ox = 0, oy = 0, oz = 0 } = {}, cap = 2500) {
+export function sampleLabelItems(rows, mode, { ox = 0, oy = 0, oz = 0, units = null } = {}, cap = 2500) { // units: #2641
   const items = [];
   if (!mode || mode === "none") return items;
-  for (const row of rows || []) { if (items.length >= cap) break; const text = sampleLabelText(row, mode); if (text != null) items.push({ x: row.x - ox, y: row.z - oz, z: -(row.y - oy), text, tip: `${row.sample_id ?? ""}\n${text}` }); }
+  for (const row of rows || []) { if (items.length >= cap) break; const text = sampleLabelText(row, mode, units); if (text != null) items.push({ x: row.x - ox, y: row.z - oz, z: -(row.y - oy), text, tip: `${row.sample_id ?? ""}\n${text}` }); }
   return items;
 }

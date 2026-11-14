@@ -12158,5 +12158,7 @@
   "to the Geochem import {n}: {list}": "vers l'import Géochimie {n} : {list}",
   "cancelled {n}: {list}": "annulés {n} : {list}",
   "not imported {n}: {list}": "non importés {n} : {list}",
-  "The Geochem tab opens next, for the assay file(s).": "L'onglet Géochimie s'ouvre ensuite, pour le ou les fichiers d'analyses."
+  "The Geochem tab opens next, for the assay file(s).": "L'onglet Géochimie s'ouvre ensuite, pour le ou les fichiers d'analyses.",
+  "Loaded {rows} surface samples (1 element): back on the Surface Geology tab, where they are drawn.{v}": "{rows} échantillons de surface chargés (1 élément) : retour à l'onglet Géologie de surface, où ils sont dessinés.{v}",
+  "Loaded {rows} surface samples ({chosen} elements): back on the Surface Geology tab, where they are drawn.{v}": "{rows} échantillons de surface chargés ({chosen} éléments) : retour à l'onglet Géologie de surface, où ils sont dessinés.{v}"
 }

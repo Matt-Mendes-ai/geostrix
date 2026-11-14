@@ -205,7 +205,9 @@ export default function GeochemModule() {
   // TASKS.csv #1652 (review #1645, Copley) — every assay-like file of a 3D View drop, one after another (only the first was opened: the pXRF
   // file got '1 more assay file(s) to import from the Geochem tab' and had to be found and dropped again), each routed by its name as
   // this tab's own drop does (pxrf / xrf -> the pXRF import)
-  useModuleAction(["import-assay-file"], (_a, p) => { const fs = p?.files || (p?.file ? [p.file] : []); enqueueAssayFiles(fs); });
+  const returnToRef = useRef(null); // TASKS.csv #3046 (1) — the tab a surface-sample drop came from (Surface Geology): back there after its dialog
+  useModuleAction(["import-assay-file"], (_a, p) => { const fs = p?.files || (p?.file ? [p.file] : []); returnToRef.current = p?.returnTo || null; enqueueAssayFiles(fs); });
+  const goBackAfterSurface = () => { const back = returnToRef.current; if (!back) return false; returnToRef.current = null; store.goToModule?.(back); return true; };
   // TASKS.csv #917 — assays straight from a database: this tab's Database button, or a table the 3D View's database
   // Browser panel recognized as assays and handed over
   const [dbOpen, setDbOpen] = useState(false);
@@ -1130,7 +1132,9 @@ export default function GeochemModule() {
       doReproject ? `Reprojected from EPSG:${fromEpsg} to the project's EPSG:${toEpsg}${reprojectFailed ? ` (${reprojectFailed} row(s) could not be converted and were skipped)` : ""}.` : null,
     ].filter(Boolean).join(" ");
     if (sampleDates.ambiguous.length) setNotices((p) => [...p, tr("{fileName}: {cols} kept as written: every date there could be day/month or month/day.", { fileName: modal.fileName, cols: sampleDates.ambiguous.join(", ") })]); // #3200, as collars (#3075)
-    setNotices((p) => [...p, notice(chosen.length === 1 ? "Loaded {rows} surface samples (1 element). Switch to 3D View to see them.{v}" : "Loaded {rows} surface samples ({chosen} elements). Switch to 3D View to see them.{v}", /* #2201 */ { rows: rows.length, chosen: chosen.length, v: extra ? " " + extra : "" })]);
+    const back = goBackAfterSurface(); // #3046 (1) — the notice says where the samples are seen
+    setNotices((p) => [...p, back ? notice(chosen.length === 1 ? "Loaded {rows} surface samples (1 element): back on the Surface Geology tab, where they are drawn.{v}" : "Loaded {rows} surface samples ({chosen} elements): back on the Surface Geology tab, where they are drawn.{v}", { rows: rows.length, chosen: chosen.length, v: extra ? " " + extra : "" })
+      : notice(chosen.length === 1 ? "Loaded {rows} surface samples (1 element). Switch to 3D View to see them.{v}" : "Loaded {rows} surface samples ({chosen} elements). Switch to 3D View to see them.{v}", /* #2201 */ { rows: rows.length, chosen: chosen.length, v: extra ? " " + extra : "" })]);
     setSurfaceModal(null);
   };
 
@@ -1639,7 +1643,7 @@ export default function GeochemModule() {
         <SurfaceImportModal
           modal={surfaceModal}
           onChange={setSurfaceModal}
-          onCancel={() => setSurfaceModal(null)}
+          onCancel={() => { setSurfaceModal(null); goBackAfterSurface(); /* #3046 (1) */ }}
           onCommit={() => commitSurfaceImport(surfaceModal)}
           onJoinFile={joinSurfaceFile}
           projectEpsg={project?.epsg}
