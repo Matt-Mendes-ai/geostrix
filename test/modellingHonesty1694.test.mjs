@@ -18,5 +18,5 @@ test("#1694 the empty Generated surfaces list: one instruction; the 'saved with 
 });
 
 test("#2232 an imported solid's crsAssumed: the local grid when the project's CRS is not set", () => {
-  assert.match(s, /crsAssumed: project\?\.crsSet === false \? "assumed on the project's local grid \(CRS not set\)" \/\* #2232 \*\/ : project\?\.epsg \? `assumed already in EPSG:\$\{project\.epsg\}` : "assumed already in the project CRS",/);
+  assert.match(s, /crsAssumed: (viaTie \? `[^`]*` \/\* #3186 \*\/ : )?project\?\.crsSet === false \? "assumed on the project's local grid \(CRS not set\)" \/\* #2232 \*\/ : project\?\.epsg \? `assumed already in EPSG:\$\{project\.epsg\}` : "assumed already in the project CRS",/);
 });

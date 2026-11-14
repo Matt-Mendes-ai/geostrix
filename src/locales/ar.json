@@ -12307,5 +12307,9 @@
   "One numeric layer per ticked component, in %, beside the {layer} layer of {col}": "طبقة رقمية لكل مكون محدد، بالنسبة المئوية، بجانب طبقة {layer} من {col}",
   "One numeric layer per ticked component, in %": "طبقة رقمية لكل مكون محدد، بالنسبة المئوية",
   "MIXED where the largest share is under": "MIXED حيث تقل أكبر نسبة عن",
-  "Share under which an interval is MIXED, %": "النسبة التي يكون المقطع دونها MIXED، %"
+  "Share under which an interval is MIXED, %": "النسبة التي يكون المقطع دونها MIXED، %",
+  "The project's local grid is tied to EPSG:{epsg}. Are the coordinates in \"{name}\" in EPSG:{epsg}?{hint}\n\nOK: place them through the tie, onto the local grid. Cancel: use them as local-grid metres, as they are.": "الشبكة المحلية للمشروع مرتبطة بـ EPSG:{epsg}. هل إحداثيات «{name}» بنظام EPSG:{epsg}؟{hint}\n\nموافق: ضعها عبر الربط على الشبكة المحلية. إلغاء: استخدمها كأمتار الشبكة المحلية كما هي.",
+  "\n\nThe solid is about {d} m from the holes read that way, against {e} m as local metres: it looks like EPSG:{epsg}.": "\n\nبهذه القراءة يبعد المجسم نحو {d} م عن الحفر، مقابل {e} م كأمتار محلية: يبدو بنظام EPSG:{epsg}.",
+  "\n\nThe solid is about {e} m from the holes as local metres, against {d} m read through the tie: it looks like local-grid metres.": "\n\nكأمتار محلية يبعد المجسم نحو {e} م عن الحفر، مقابل {d} م بالقراءة عبر الربط: يبدو أنه بأمتار الشبكة المحلية.",
+  "Imported \"{name}\" as a solid: {vertexCount} vertices / {triangleCount} triangles ({format}, {note}).{layerNote} It appears under Generated surfaces with the same show/hide, remove and query controls.{bb} Placed onto the local grid through its tie to EPSG:{epsg} (x and y; elevation unchanged).": "تم استيراد «{name}» كمجسم: {vertexCount} رأسًا / {triangleCount} مثلثًا ({format}، {note}).{layerNote} يظهر ضمن الأسطح المولدة بنفس أدوات الإظهار/الإخفاء والحذف والاستعلام.{bb} وُضع على الشبكة المحلية عبر ربطها بـ EPSG:{epsg} (x وy؛ الارتفاع دون تغيير)."
 }
