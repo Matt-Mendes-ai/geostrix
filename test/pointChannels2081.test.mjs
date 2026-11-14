@@ -27,5 +27,5 @@ test("the import opens the picker with each measurement as a channel, and channe
   const src = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
   assert.match(src, /const more = otherMeasurementColumns\(res\.meta\.fields \|\| \[\], res\.data, cols\); if \(more\.length\)/);
   assert.match(src, /\.\.\.tickedChannels\(xyzPending\.channels, xyzPending\.channelPick\)\.map/); // #2840: every ticked column with its own method (channelMethods)
-  assert.match(src, /if \(j\.method && SURVEY_METHODS\[j\.method\] && !geophysSurveys\[j\.src\]\?\.method\)/);
+  assert.match(src, /if \(j\.method && SURVEY_METHODS\[j\.method\] && !geophysSurveys\[keyOf\(j\.src\)\]\?\.method\)/);
 });

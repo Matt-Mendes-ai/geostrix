@@ -17,13 +17,13 @@ import { suspectElevationIds, elevationTrust } from "../lib/collarElevationTrust
 import { logReadingCounts } from "../lib/inversionLogSources.js"; // TASKS.csv #2950
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1461
 import { fetchAreaBox, modelGapKm } from "../lib/dataExtent.js"; // #1461; modelGapKm: #1427
-import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe, ArrowDownToLine, PackageOpen, Scale, Crosshair } from "../components/icons.js"; // Crosshair: #2657
+import { Pencil /* #3319 */, Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe, ArrowDownToLine, PackageOpen, Scale, Crosshair } from "../components/icons.js"; // Crosshair: #2657
 import { requestPlanZoom, polylinesBox } from "../lib/planZoom.js"; // TASKS.csv #2657 // Scale: #1052
 import { lazyModal } from "../lib/lazyModal.jsx";
 import { withSetColumns } from "../lib/estimateSet.js"; // TASKS.csv #3014 part c — a set member exported with its siblings' columns
 import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
 import { logStops, SEQUENTIAL_ANCHORS, b64ToF32 } from "../lib/inversion.js"; // TASKS.csv #481; b64ToF32: #2846
-import { SURVEY_METHODS, unitsForMethod, robustRange, SURVEY_METHOD_GROUPS, guessSurveyMethodFrom, diurnalApplies /* #1586 */, Z_MEANINGS, surveyKey, surveyStats, aglToElevation, replaceSurveyPoints, surveyExportRows } from "../lib/geophysSurveys.js"; // surveyExportRows: #1094 // TASKS.csv #451; replaceSurveyPoints #600
+import { SURVEY_METHODS, unitsForMethod, robustRange, SURVEY_METHOD_GROUPS, guessSurveyMethodFrom, diurnalApplies /* #1586 */, Z_MEANINGS, surveyKey, surveyStats, aglToElevation, surveyNameClashes, uniqueSurveyKey, renameSurvey, soleValueColumn /* #3319 */, replaceSurveyPoints, surveyExportRows } from "../lib/geophysSurveys.js"; // surveyExportRows: #1094 // TASKS.csv #451; replaceSurveyPoints #600
 import { radiometricChannels, otherMeasurementColumns, isMultiRadiometric, channelKey, withValueChannel, tickedChannels, ratioJobs, ratioOf } from "../lib/radiometricChannels.js"; // TASKS.csv #2395
 import { terrainElevationAt } from "../lib/inversion.js";
 import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #1709
@@ -177,7 +177,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     voxelModels, addVoxelModel, updateVoxelModel, removeVoxelModel, dcipLines, // dcipLines: #1176
     voxelCellBudget, setVoxelCellBudget,
     survey, desurveyMethod, setCustomLayers, // TASKS.csv #323 — evaluate a model onto the drillholes
-    geophysSurveys, updateGeophysSurvey, setLayers, // TASKS.csv #451
+    geophysSurveys, updateGeophysSurvey, setLayers, setGeophysSurveys /* #3319 — a survey renamed */, // TASKS.csv #451
     boundaries, addBoundary, updateBoundary, removeBoundary,
     omfObjects, addOmfObject, updateOmfObject, removeOmfObject,
     projectIsEmpty, setEpsg, // TASKS.csv #607
@@ -333,6 +333,35 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const rows = layers.geophys_pts || [];
   const drawnRange = useMemo(() => robustRange(rows.map((r) => r.value)), [rows]); // TASKS.csv #1177 — the range the 3D colours use
   const surveyList = useMemo(() => surveyStats(rows), [rows]); // TASKS.csv #451
+  // TASKS.csv #3319 — an import whose survey name is already loaded from ANOTHER file (another row count or extent: the Extension grid's
+  // IP.xyz over the Main grid's) is asked about: OK replaces it, Cancel keeps both, the new one named 'IP.xyz (2)'. The same file read again
+  // still replaces it (#600). -> { rows, note, renamed: { old key: new key } }
+  const keepOrReplace = (incoming) => {
+    const clashes = surveyNameClashes(rows, incoming);
+    if (!clashes.length) return { rows: incoming, note: "", renamed: {} };
+    const keys = new Set([...rows.map(surveyKey), ...incoming.map(surveyKey)]), renamed = {};
+    let out = incoming, note = "";
+    const size = (e) => `${Math.round(e.xmax - e.xmin).toLocaleString()} × ${Math.round(e.ymax - e.ymin).toLocaleString()} m`;
+    for (const c of clashes) {
+      if (window.confirm(tr("A survey named \"{key}\" is already loaded: {n} points over {size}. This file has {n2} points over {size2}, so it may be another grid of the same name.\n\nOK replaces the loaded survey. Cancel keeps both, naming this one \"{name}\".", { key: c.key, n: c.loaded.n.toLocaleString(), size: size(c.loaded), n2: c.incoming.n.toLocaleString(), size2: size(c.incoming), name: uniqueSurveyKey(c.key, keys) }))) continue;
+      const nk = uniqueSurveyKey(c.key, keys);
+      keys.add(nk); renamed[c.key] = nk;
+      out = out.map((r) => (surveyKey(r) === c.key ? { ...r, _src: nk } : r));
+      note += tr(" Kept beside the loaded \"{key}\" as \"{name}\" (rename it on its card).", { key: c.key, name: nk });
+    }
+    return { rows: out, note, renamed };
+  };
+  // TASKS.csv #3319 — rename a survey on its card: its points and its method / units / legend move to the new name
+  const [renamingSurvey, setRenamingSurvey] = useState(null);
+  const commitSurveyRename = (from, to) => {
+    setRenamingSurvey(null);
+    const name = String(to || "").trim();
+    if (!name || name === from) return;
+    if (surveyList.some((sv) => sv.key === name)) { setXyzError({ info: false, text: tr("A survey named \"{name}\" is already loaded: choose another name.", { name }) }); return; }
+    const out = renameSurvey(rows, geophysSurveys, from, name);
+    setLayers((l) => ({ ...l, geophys_pts: renameSurvey(l.geophys_pts, {}, from, name).rows }));
+    setGeophysSurveys(out.surveys);
+  };
   // TASKS.csv #1587 (review #1497, Lawyers) — with several surveys the legend below edits ONE survey's own legend
   // (geophysSurveys[key].legend, read by makeSurveyColorer); the global stops / mode / range were ignored in 3D then, and the
   // classes were cut across nT and % values together.
@@ -451,6 +480,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             ? tr(" Couldn't resolve a proj4 definition for EPSG:{srcEpsg} or EPSG:{epsg} — no reprojection happened.", { srcEpsg, epsg: project.epsg })
             : tr(" Reprojected from EPSG:{srcEpsg}{v} to the project's EPSG:{epsg}.", { srcEpsg, v: !geophysSourceEpsg && cols.geographic ? tr(" (longitude/latitude columns)") : "", epsg: project.epsg });
         }
+        { const named = keepOrReplace(good); good = named.rows; reprojectNote += named.note; } // #3319 — another file of the same name: asked
         const replacedN = replaceSurveyPoints(rows, good).replaced; // #600 — for the notice; the update below does the same
         setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, good).rows }));
         { const g = guessSurveyMethodFrom(cols.value, good.map((r) => r.label)); if (g && !geophysSurveys[file.name]?.method) updateGeophysSurvey(file.name, { method: g, units: SURVEY_METHODS[g].units }); } // #1151 — from the value column's name
@@ -1410,6 +1440,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const cleaning = { sqCol: xyzPending.sqCol, minQuality: xyzPending.minQuality, despike: xyzPending.despike }, minQ = xyzPending.minQuality;
     const bases = batch.bases || [], timeCol = batch.timeCol; // #1585
     let dcFiles = 0, dcUsed = 0, dcLeft = 0; const noBase = []; // #1585
+    const ownColumns = []; // #3319 — files read on their own value column
     let mineNote = ""; // #2684
     setXyzPending(null);
     for (let i = 0; i < files.length; i++) {
@@ -1419,22 +1450,26 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       try {
         const text = await f.text();
         const { columns, rows: raw } = parseXYZ(text);
-        if (!columns.includes(xCol) || !columns.includes(yCol) || !columns.includes(valueCol)) throw new Error(tr("it has no {x}, {y} or {v} column.", { x: xCol, y: yCol, v: valueCol }));
+        // TASKS.csv #3319 — a file without the chosen value column but with one other numeric column (the resistivity file's AppRho beside
+        // the IP file's AppMx) takes that one, as a survey of its own, and says so
+        let vCol = valueCol;
+        if (columns.includes(xCol) && columns.includes(yCol) && !columns.includes(valueCol)) { const alt = soleValueColumn(columns, raw, [xCol, yCol, zCol]); if (alt) { vCol = alt; ownColumns.push({ file: f.name, col: alt }); } }
+        if (!columns.includes(xCol) || !columns.includes(yCol) || !columns.includes(vCol)) throw new Error(tr("it has no {x}, {y} or {v} column.", { x: xCol, y: yCol, v: valueCol }));
         read += raw.length;
         const base = f.name.replace(/\.[^.]+$/, "");
-        const cleaned = cleanRows(raw, cleaning, (r) => r[valueCol], (r) => r._line ?? null); // #1583
+        const cleaned = cleanRows(raw, cleaning, (r) => r[vCol], (r) => r._line ?? null); // #1583; vCol: #3319
         lowQuality += cleaned.lowQuality; spikes += cleaned.spikes;
         // #1585 — the day's base(s): by the header date, else the file name's; a reading the bases do not cover is left out, not guessed
         if (bases.length) {
           const day = gemHeaderInfo(text).date || fileNameDate(f.name);
           const dayBases = day ? bases.filter((b) => b.date === day) : [];
           if (dayBases.length && timeCol && columns.includes(timeCol)) {
-            const res = diurnalCorrect(cleaned.rows.map((r) => r[timeCol]), cleaned.rows.map((r) => r[valueCol]), dayBases);
-            cleaned.rows = cleaned.rows.map((r, k) => ({ ...r, [valueCol]: res.corrected[k] }));
+            const res = diurnalCorrect(cleaned.rows.map((r) => r[timeCol]), cleaned.rows.map((r) => r[vCol]), dayBases);
+            cleaned.rows = cleaned.rows.map((r, k) => ({ ...r, [vCol]: res.corrected[k] }));
             dcFiles++; dcUsed += res.used; dcLeft += res.outside + res.gaps + res.noTime;
           } else noBase.push(day ? `${f.name} (${day})` : `${f.name} (${tr("day unknown")})`);
         }
-        let mapped = cleaned.rows.map((r) => ({ x: r[xCol], y: r[yCol], z: zCol && Number.isFinite(r[zCol]) ? r[zCol] : null, value: r[valueCol], ...(r._line != null ? { line: merged ? `${base} ${r._line}` : String(r._line), label: `Line ${r._line}` } : {}), _src: surveyName || f.name }))
+        let mapped = cleaned.rows.map((r) => ({ x: r[xCol], y: r[yCol], z: zCol && Number.isFinite(r[zCol]) ? r[zCol] : null, value: r[vCol], ...(r._line != null ? { line: merged ? `${base} ${r._line}` : String(r._line), label: `Line ${r._line}` } : {}), _src: surveyName || f.name }))
           .filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value) && !(r.x === 0 && r.y === 0)); // #538 — no GPS fix
         mapped = everyNth(mapped, keepEvery);
         const gpsName = pairGpsFile(f.name, gpsFiles.map((g) => g.name));
@@ -1456,15 +1491,23 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         failed.push(`${f.name}: ${err.message}`);
       }
     }
-    const points = collected.flat();
+    let points = collected.flat(), clashNote = "";
     if (points.length) {
+      const named = keepOrReplace(points); points = named.rows; clashNote = named.note.trim(); // #3319
       setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, points).rows }));
-      const g = guessSurveyMethodFrom(valueCol, [], { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }); // hints: #1586
-      if (g) for (const src of new Set(points.map((r) => r._src))) if (!geophysSurveys[src]?.method) updateGeophysSurvey(src, { method: g, units: SURVEY_METHODS[g].units });
+      // #3319 — each survey's method from its own value column (a file read on another column guesses from that one)
+      const colOf = new Map(ownColumns.map((o) => [o.file, o.col]));
+      for (const src of new Set(points.map((r) => r._src))) {
+        const orig = Object.keys(named.renamed).find((k) => named.renamed[k] === src) || src;
+        const g = guessSurveyMethodFrom(colOf.get(orig) || valueCol, [], { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }); // hints: #1586
+        if (g && !geophysSurveys[src]?.method) updateGeophysSurvey(src, { method: g, units: SURVEY_METHODS[g].units });
+      }
     }
     setXyzError({ info: !failed.length, text: [
       tr("Imported {kept} point(s) from {n} of {total} files ({read} readings in them).", { kept: kept.toLocaleString(), n: files.length - failed.length, total: files.length, read: read.toLocaleString() }),
       mineNote, // #2684
+      ownColumns.length ? tr("Read on their own value column: {list}.", { list: ownColumns.map((o) => `${o.file} (${o.col})`).join(", ") }) : "", // #3319
+      clashNote, // #3319
       keepEvery > 1 ? tr("Kept 1 reading in {n}: a short anomaly between kept readings is not shown.", { n: keepEvery }) : "",
       lowQuality ? tr("Dropped {n} reading(s) with signal quality under {q}.", { n: lowQuality.toLocaleString(), q: minQ }) : "", // #1583
       spikes ? tr("Dropped {n} spike(s) more than 6 MAD from the running median along their line.", { n: spikes.toLocaleString() }) : "",
@@ -1576,10 +1619,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         ? tr(" Couldn't resolve a proj4 definition for EPSG:{geophysSourceEpsg} or EPSG:{epsg} — no reprojection happened.", { geophysSourceEpsg, epsg: targetEpsg })
         : tr(" Reprojected from EPSG:{geophysSourceEpsg} to the project's EPSG:{epsg}.", { geophysSourceEpsg, epsg: targetEpsg });
     }
+    const named = keepOrReplace(mapped), keyOf = (k) => named.renamed[k] || k; // #3319 — another file of the same name: asked
+    mapped = named.rows; reprojectNote += named.note;
     const replacedN = replaceSurveyPoints(rows, mapped).replaced; // #600 — re-import replaces, does not double
     setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, mapped).rows }));
-    if (jobs) for (const j of jobs) if (j.method && SURVEY_METHODS[j.method] && !geophysSurveys[j.src]?.method) updateGeophysSurvey(j.src, { method: j.method, units: SURVEY_METHODS[j.method].units }); // #2395; a channel whose name says nothing: #2081
-    if (!jobs) { const g = guessSurveyMethodFrom(valueCol, mapped.map((r) => r.label), { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }); if (g && !geophysSurveys[fileName]?.method) updateGeophysSurvey(fileName, { method: g, units: SURVEY_METHODS[g].units }); } // #1151; hints: #1586
+    if (jobs) for (const j of jobs) if (j.method && SURVEY_METHODS[j.method] && !geophysSurveys[keyOf(j.src)]?.method) updateGeophysSurvey(keyOf(j.src), { method: j.method, units: SURVEY_METHODS[j.method].units }); // #2395; a channel whose name says nothing: #2081
+    if (!jobs) { const g = guessSurveyMethodFrom(valueCol, mapped.map((r) => r.label), { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }); if (g && !geophysSurveys[keyOf(fileName)]?.method) updateGeophysSurvey(keyOf(fileName), { method: g, units: SURVEY_METHODS[g].units }); } // #1151; hints: #1586
     if (replacedN) reprojectNote += tr(" Replaced the {replacedN} point(s) of the earlier import of this file.", { replacedN: replacedN.toLocaleString() });
     const skipped = (jobs ? cleanedRows.length * jobs.length : cleanedRows.length) - mapped.length - noFix; // #538; #2395: per channel survey
     if (jobs) reprojectNote += tr(" As {k} survey(s): {list}.", { k: jobs.length, list: jobs.map((j) => j.src).join(", ") }); // #2395 — the no-fix readings are reported separately; #1583: after the cleaning
@@ -1947,7 +1992,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               return (
                 <div key={sv.key} style={{ marginBottom: 8, padding: "8px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text)" }} title={sv.key}>{sv.key}</span>
+                    {renamingSurvey === sv.key /* TASKS.csv #3319 — rename on the card */
+                      ? <input autoFocus defaultValue={sv.key} aria-label={tr("New name for \"{key}\"", { key: sv.key })} style={{ ...numInput, flex: 1, minWidth: 0 }}
+                          onBlur={(e) => commitSurveyRename(sv.key, e.currentTarget.value)} onKeyDown={(e) => { if (e.key === "Enter") commitSurveyRename(sv.key, e.currentTarget.value); if (e.key === "Escape") setRenamingSurvey(null); }} />
+                      : <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text)" }} title={sv.key}>{sv.key}</span>}
+                    <button type="button" aria-label={tr("Rename survey \"{key}\"", { key: sv.key })} title={tr("Rename survey \"{key}\"", { key: sv.key })} style={iconBtn} onClick={() => setRenamingSurvey(sv.key)}><Pencil size={12} aria-hidden="true" /></button>
                     {/* TASKS.csv #2871 — buttons, not bare svg elements */}
                     <button type="button" aria-label={tr("Export the points of \"{key}\" (CSV)", { key: sv.key })} title={tr("Export the points of \"{key}\" (CSV)", { key: sv.key })} style={iconBtn} onClick={() => exportSurvey(sv.key)}><Download size={12} aria-hidden="true" /></button>{/* #1094 */}
                     <button type="button" aria-label={tr("Remove survey \"{key}\"", { key: sv.key })} title={tr("Remove survey \"{key}\"", { key: sv.key })} style={iconBtn}
