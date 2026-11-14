@@ -25,7 +25,7 @@ import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveWriteParts /* #1
 import { normalizeDesurveyMethod } from "./desurvey.js";
 import { readCellBudget, saveCellBudget } from "./estimationMeta.js"; // TASKS.csv #1970
 import { nextGroupColour, lithologyNoteRoles, setLithologyNoteRoles } from "./layers.js"; // TASKS.csv #1377; note roles: #2046
-import { freeSpot } from "./layoutPlace.js"; // TASKS.csv #1484
+import { freeSpot, viewportFrameOnPaper /* #3418 */ } from "./layoutPlace.js"; // TASKS.csv #1484
 
 const StoreContext = createContext(null);
 export const useStore = () => useContext(StoreContext);
@@ -882,12 +882,14 @@ export function StoreProvider({ children }) {
     }
     const aspect = res.naturalW && res.naturalH ? res.naturalW / res.naturalH : 16 / 9;
     if (targetElementId === "new") {
-      const w = Math.min(1123 - 160, 700); // 1123 = A4-landscape page width in px @ ~96dpi (LayoutModule's A4.w)
-      const h = Math.round(w / aspect);
+      // TASKS.csv #3418 — the frame is sized to, and placed on, the ACTIVE page's own paper (a portrait or A3 page took an A4-landscape
+      // frame and spot: 1123 x 794 px): at most 700 px wide, within the paper's margins both ways
+      const paper = pagePx(pageFormatOf(layoutPages.find((p) => p.id === activeLayoutPageId)));
+      const { w, h } = viewportFrameOnPaper(paper, aspect);
       const id = `viewport_${Date.now()}`;
       setLayoutElements((els) => addViewportToPage(els, {
         id, type: "viewport", themeId: viewportPendingRequest.themeId,
-        ...freeSpot(els, w, h) /* #1484 — the page's free space, not (90, 90) */, w, h, capW: w, capH: h, aspect, src: res.src, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, ve: res.ve > 1 ? res.ve : 1 /* #2628 */, // capW / capH: #906
+        ...freeSpot(els, w, h, paper) /* #1484 — the page's free space, not (90, 90); #3418 — on its paper, the least-covered spot when nothing is free */, w, h, capW: w, capH: h, aspect, src: res.src, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, ve: res.ve > 1 ? res.ve : 1 /* #2628 */, // capW / capH: #906
         trueScale: !!res.trueScale, targetWorld: res.targetWorld || null, planView: !!res.planView, // #399
         viewState: res.viewState || null, // #948 — a theme-less capture's own view settings, for its legend
         capturedAt: Date.now(), // TASKS.csv #2471 — when; a bound legend loaded from an older capture is out of step
