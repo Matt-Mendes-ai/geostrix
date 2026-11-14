@@ -52,3 +52,8 @@ test("#3229 the latitude / longitude only where the cursor is a world position (
   assert.match(a, /<StatusBar worldCursor=\{viewerShown \|\| active === "maps"\}/);
   assert.match(a, /const ll = worldCursor \/\* TASKS\.csv #3229/);
 });
+
+test("#3235 off the world views the status bar's E / N / Z read a dash", () => {
+  const a = fs.readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
+  assert.match(a, /const cursor = worldCursor \? liveCursor : \{ x: null, y: null, z: null \};/);
+});

@@ -21,7 +21,7 @@ function codedMeta(layer, codes, st, vertical) {
 }
 
 export default function HoleValueGridPanel() {
-  const { collars = [], assays = [], assayElements = [], layers = {}, customLayers = [], addRaster, voxelModels, surfaceSamples, survey = [], desurveyMethod } = useStore(); // survey, desurveyMethod: #2745
+  const { collars = [], assays = [], assayElements = [], layers = {}, customLayers = [], addRaster, voxelModels, surfaceSamples, survey = [], desurveyMethod, project } = useStore(); // survey, desurveyMethod: #2745; project: #3116
   const [open, setOpen] = useState(false);
   const [sourceId, setSourceId] = useState("");
   const [stat, setStat] = useState("max");
@@ -35,7 +35,7 @@ export default function HoleValueGridPanel() {
   // threshold depth as vertical depth below the collar
   const [placeAt, setPlaceAt] = useState("collar");
   const [depthAs, setDepthAs] = useState("along");
-  const sources = useMemo(() => (open ? holeValueSources({ assayElements, layers, customLayers, labelOf: (k) => LAYER_META[k]?.label || k }) : []), [open, assayElements, layers, customLayers]);
+  const sources = useMemo(() => (open ? holeValueSources({ assayElements, layers, customLayers, labelOf: (k) => LAYER_META[k]?.label || k, logValidRange: project?.logValidRange || null }) : []), [open, assayElements, layers, customLayers, project?.logValidRange]); // #3116
   const source = sources.find((s) => s.id === sourceId) || sources[0] || null;
   // TASKS.csv #2991 (WA iron review) — a coded log (a strand, a lithology): the chosen code(s), and thickness, depth or RL of their top / base
   const coded = source?.kind === "coded";
@@ -90,7 +90,7 @@ export default function HoleValueGridPanel() {
       {open && source && (
         <div style={{ marginTop: 5, display: "flex", flexDirection: "column", gap: 5 }}>
           <label style={lbl}>{tr("Value")}<select value={source.id} onChange={(e) => { setSourceId(e.target.value); setLogChoice(null); }} aria-label={tr("Per-hole value source")} style={inp}>
-            {sources.map((s) => <option key={s.id} value={s.id}>{s.unit ? `${s.symbol} (${s.unit})` : s.symbol}</option>)}
+            {sources.map((s) => <option key={s.id} value={s.id}>{s.unit ? `${s.label || s.symbol} (${s.unit})` : s.label || s.symbol}</option>)}{/* label: #3116 — a log's range / despike said */}
           </select></label>
           {coded && <label style={lbl}>{tr("Code(s)")}<select multiple size={Math.min(5, source.codes.length)} value={codesOn} onChange={(e) => setCodes([...e.target.selectedOptions].map((o) => o.value))} aria-label={tr("Codes of the layer")} style={inp}>
             {source.codes.map((c) => <option key={c.code} value={c.code}>{`${c.code} (${c.n.toLocaleString()})`}</option>)}

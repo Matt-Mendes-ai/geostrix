@@ -1,20 +1,21 @@
 // TASKS.csv #2330 (review #2325, WA uranium) — the import dialog's optional row filter: "only rows where <column> is <values>", with each
 // value's count, pre-set when a Superseded / Current flag column marks rows as out of date (lib/importRowFilter.js)
 import React, { useMemo } from "react";
-import { rowFilterColumns, defaultRowFilter } from "../lib/importRowFilter.js";
+import { rowFilterColumns, defaultRowFilter, applyRowFilter } from "../lib/importRowFilter.js"; // applyRowFilter: #3207 follow-up
 import { t as tr } from "../lib/i18n.js";
 
 const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45 };
 
-export default function RowFilterBox({ modal, onChange, sel }) {
+export default function RowFilterBox({ modal, onChange, sel, qc = null }) { // qc: #3207 — the QC-sample preset (null: on unless the target is assays)
   const rows = modal.allRows || modal.sampleRows || [];
   const cols = useMemo(() => rowFilterColumns(modal.headers, rows), [modal.headers, rows]);
-  const preset = useMemo(() => defaultRowFilter(modal.headers, rows), [modal.headers, rows]);
+  const preset = useMemo(() => defaultRowFilter(modal.headers, rows, { qc: qc ?? modal.target !== "assays" }), [modal.headers, rows, modal.target, qc]); // qc: #3207 — never on an assay import
   if (!cols.length) return null;
   const f = modal.rowFilter !== undefined ? modal.rowFilter : preset; // undefined: the preset; null: every row
   const col = f ? cols.find((c) => c.col === f.col) : null;
   const set = (rowFilter) => onChange({ ...modal, rowFilter });
-  const kept = col ? col.values.filter(([v]) => f.keep.includes(v)).reduce((n, [, c]) => n + c, 0) : rows.length;
+  // the second preset column (#3207 follow-up) needs the rows themselves: counted with the import's own filter
+  const kept = f?.also ? applyRowFilter(rows, f).rows.length : col ? col.values.filter(([v]) => f.keep.includes(v)).reduce((n, [, c]) => n + c, 0) : rows.length;
   return (
     <div style={{ marginBottom: 14, border: "1px solid var(--color-border)", borderRadius: 6, padding: "8px 10px" }}>
       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", fontSize: "var(--font-size-base)" }}>
@@ -36,11 +37,18 @@ export default function RowFilterBox({ modal, onChange, sel }) {
       )}
       {/* TASKS.csv #2431 — the line follows the ticks: shown while a value the preset leaves out is still unticked */}
       {preset && f && f.col === preset.col && col && col.values.some(([v]) => !preset.keep.includes(v) && !f.keep.includes(v)) && (
-        <div style={{ ...note, marginTop: 4, color: "var(--color-warn-text)" }}>{preset.flag === "run" /* TASKS.csv #2898 */
+        <div style={{ ...note, marginTop: 4, color: "var(--color-warn-text)" }}>{preset.flag === "qc" /* TASKS.csv #3207 */
+          ? tr("{col}: {n} row(s) are QC samples (standards, blanks or duplicates), not the rock: they are left out. Tick their value to keep them.", { col: preset.col, n: preset.drop.toLocaleString() })
+          : preset.flag === "run" /* TASKS.csv #2898 */
           ? tr("{col}: {n} row(s) are repeat runs, not run {keep} (the main one): they are left out, so each depth is read once. Tick their value to keep them.", { col: preset.col, n: preset.drop.toLocaleString(), keep: preset.keep[0] })
           : preset.flag === "superseded"
           ? tr("{col} marks {n} row(s) as superseded (out of date): they are left out. Tick their value to keep them.", { col: preset.col, n: preset.drop.toLocaleString() })
           : tr("{col} marks {n} row(s) as not current: they are left out. Tick their value to keep them.", { col: preset.col, n: preset.drop.toLocaleString() })}</div>
+      )}
+      {preset?.also && f === preset && ( /* TASKS.csv #3207 follow-up — a second preset column, applied too */
+        <div style={{ ...note, marginTop: 4, color: "var(--color-warn-text)" }}>{preset.also.flag === "superseded"
+          ? tr("{col} marks {n} row(s) as superseded or rejected: they are left out too.", { col: preset.also.col, n: preset.also.drop.toLocaleString() })
+          : tr("{col} marks {n} row(s) as not current: they are left out too.", { col: preset.also.col, n: preset.also.drop.toLocaleString() })}</div>
       )}
       {f && <div style={{ ...note, marginTop: 4 }}>{tr("{k} of {n} rows will be imported.", { k: kept.toLocaleString(), n: rows.length.toLocaleString() })}</div>}
     </div>

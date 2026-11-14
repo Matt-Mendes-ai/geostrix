@@ -93,14 +93,15 @@ export function anomalyClasses(samples, cfg, { units = {}, mapLayers = [], thres
     const pooledP = poolSmallPopulations(populations(samples, { valueOf: (s) => valueIn(s, sym, unit, units), keyOf: groupKeyFn(groupBy, mapLayers, samples) })); // #1820; samples: #1796
     const pops = pooledP.pops;
     smallNotes(notes, pooledP.pooled, pooledP.unclassed, MIN_POPULATION);
+    const below = scheme === "threshold" && saved.direction === "below"; // TASKS.csv #3173 — a depletion rule: the low side is the anomaly
     if (scheme === "threshold") {
-      classes = [{ label: `below the 75th percentile` }, { label: `75th percentile to the threshold` }, { label: `at or above the threshold (anomalous)` }];
+      classes = below ? [{ label: `above the 25th percentile` }, { label: `25th percentile to the threshold` }, { label: `at or below the threshold (depleted)` }] : [{ label: `below the 75th percentile` }, { label: `75th percentile to the threshold` }, { label: `at or above the threshold (anomalous)` }];
       anomalousFrom = 2;
       pops.forEach((p) => {
         let t = saved.values?.[p.key];
         if (t == null) { t = candidateThresholds(p.summary).values[saved.method]; if (t != null) notes.push({ text: "\"{pop}\" was not in the saved populations: its {rule} recomputed ({t} {unit}).", params: { pop: p.key, rule: saved.methodLabel, t: fmt(t), unit } }); }
-        const p75 = quantileSorted(p.summary.sorted, 0.75);
-        p.idx.forEach((i, k) => { const v = p.values[k]; classOf[i] = t != null && v >= t ? 2 : v >= p75 ? 1 : 0; });
+        const p75 = quantileSorted(p.summary.sorted, 0.75), p25 = quantileSorted(p.summary.sorted, 0.25);
+        p.idx.forEach((i, k) => { const v = p.values[k]; classOf[i] = below ? (t != null && v <= t ? 2 : v <= p25 ? 1 : 0) : t != null && v >= t ? 2 : v >= p75 ? 1 : 0; });
       });
       label = `${sym} (${unit}): ${saved.methodLabel}${saved.ref ? ` (${saved.ref})` : ""}, populations by ${String(saved.groupLabel || groupBy).toLowerCase()}, decided ${saved.decided}`;
     } else {

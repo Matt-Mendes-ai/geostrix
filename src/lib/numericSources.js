@@ -24,14 +24,29 @@ const num = (v) => { const n = typeof v === "number" ? v : v === "" || v == null
 // TASKS.csv #2915 (review #2876, WA iron) — builtinFields ({ labelOf }) adds the numeric extra fields of the built-in interval logs
 // (Lithology's Met_CLA_pct: a clay % on every strand interval was offered nowhere but SQL), keyed log:<layer>:<field>
 const BUILTIN_FIELD_LOGS = ["litho", "alt", "vein", "breccia", "weath", "structzone", "geotech", "mnlgy"];
-export function numericSourceChoices({ layers, customLayers, models = true, builtinFields = null } = {}) { // models: #2397 — false leaves out layers evaluated from a model
+// TASKS.csv #3116 — a log's valid range and despike ({ range: [lo, hi], despikeM }: project.logValidRange[key] for a built-in log, the layer's
+// validRange / despikeM for an imported one) as the choice carries them, and the words its label adds so no tool reads filtered readings
+// unsaid: "Mag. susc. (range 0–5,000, despiked 1 m)"
+const fmt = (v) => Number(v).toLocaleString("en-US", { maximumSignificantDigits: 6 });
+export function logFilterOf(entry) {
+  const r = Array.isArray(entry?.range) ? entry.range.map(num) : null, d = num(entry?.despikeM);
+  return { ...(r && (Number.isFinite(r[0]) || Number.isFinite(r[1])) ? { validRange: r } : {}), ...(d > 0 ? { despikeM: d } : {}) };
+}
+export function logFilterLabel(f) {
+  const parts = [];
+  if (f?.validRange) parts.push(`range ${Number.isFinite(f.validRange[0]) ? fmt(f.validRange[0]) : "…"}–${Number.isFinite(f.validRange[1]) ? fmt(f.validRange[1]) : "…"}`);
+  if (f?.despikeM > 0) parts.push(`despiked ${fmt(f.despikeM)} m`);
+  return parts.length ? ` (${parts.join(", ")})` : "";
+}
+export function numericSourceChoices({ layers, customLayers, models = true, builtinFields = null, logValidRange = null } = {}) { // models: #2397 — false leaves out layers evaluated from a model; logValidRange: #3116
   const out = [];
   for (const [k, m] of Object.entries(LOG_SOURCES)) {
     const n = (layers?.[k] || []).filter((r) => Number.isFinite(num(r.value))).length;
     // TASKS.csv #2079 (review #2013, Woodjam) — a mag-susc log of 0.055 to 181 was labelled SI (181 SI is more than pure magnetite): the
     // unit is SI only when the readings can be SI (lib/drillholeConstraints.js suscUnitHint); otherwise 'as logged'
     const unit = k === "magsusc" && suscUnitHint((layers?.[k] || []).map((r) => r.value))?.likely !== "si" ? CUSTOM_UNIT : m.unit;
-    if (n >= MIN_ROWS) out.push({ key: `log:${k}`, label: m.label, symbol: m.label, unit, n, logScale: m.logScale, field: "value", layerKey: k });
+    const f = logFilterOf(logValidRange?.[k]); // #3116
+    if (n >= MIN_ROWS) out.push({ key: `log:${k}`, label: m.label + logFilterLabel(f), symbol: m.label, unit, n, logScale: m.logScale, field: "value", layerKey: k, ...f });
   }
   const extraFields = []; // #2915 — listed last, so the X-Y default axis and the older lists keep their order
   if (builtinFields) for (const k of BUILTIN_FIELD_LOGS) {
@@ -61,7 +76,8 @@ export function numericSourceChoices({ layers, customLayers, models = true, buil
       if (n < MIN_ROWS) continue;
       const label = f === "value" ? String(c.name) : `${c.name} › ${f}`;
       const unit = c.unit && (f === "value" || (c.binM && (f === "min" || f === "max"))) ? String(c.unit) : CUSTOM_UNIT;
-      custom.push({ key: `custom:${c.id}:${f}`, label, symbol: label, unit, n, logScale: false, field: f, layerId: c.id, ...(c.binM ? { binM: c.binM } : {}) /* #2396 */, _log: c.sourceModel != null ? 2 : c.unit || c.binM ? 0 : 1, _name: String(c.name) });
+      const said = f === "value" ? logFilterLabel(logFilterOf({ range: c.validRange, despikeM: c.despikeM })) : ""; // #3116
+      custom.push({ key: `custom:${c.id}:${f}`, label: label + said, symbol: label, unit, n, logScale: false, field: f, layerId: c.id, ...(c.binM ? { binM: c.binM } : {}) /* #2396 */, _log: c.sourceModel != null ? 2 : c.unit || c.binM ? 0 : 1, _name: String(c.name) });
     }
   }
   custom.sort((a, b) => a._log - b._log || b.n - a.n || a._name.localeCompare(b._name));
@@ -96,16 +112,24 @@ export function sourceAssays(choice, { layers, customLayers } = {}, { pointSuppo
   // TASKS.csv #2953 (review #2876, WA iron: one bin of -821,754.9 flattened the susceptibility box plot) — the log layer's valid range
   // (customLayers[].validRange [lo, hi], either end blank), set in Downhole logs: readings outside it are left out here, so Downhole logs,
   // Estimation and Grade shell all read the same readings, and counted (outOfRange)
-  const vr = field === "value" && Array.isArray(layer?.validRange) ? layer.validRange.map(num) : null;
+  // TASKS.csv #3116 — a built-in log's range and despike ride on the choice (numericSourceChoices' logValidRange); an imported log's on its layer
+  const own = field === "value" ? (layer ? logFilterOf({ range: layer.validRange, despikeM: layer.despikeM }) : logFilterOf({ range: choice.validRange, despikeM: choice.despikeM })) : {};
+  const vr = own.validRange || null, despikeM = own.despikeM || 0;
   const outside = vr ? (v) => (Number.isFinite(vr[0]) && v < vr[0]) || (Number.isFinite(vr[1]) && v > vr[1]) : null;
   let outOfRange = 0;
   const pointRows = [];
   const assays = [];
   let skipped = 0;
+  const kept = []; // [r, v]: in range, with a hole
   for (const r of rows) {
     const v = num(r[field]);
     if (!Number.isFinite(v) || r.hole_id == null) { skipped++; continue; }
     if (outside && outside(v)) { outOfRange++; continue; } // #2953
+    kept.push([r, v]);
+  }
+  const values = despikeM ? movingMedian(kept, despikeM) : null; // #3116
+  for (let i = 0; i < kept.length; i++) {
+    const r = kept[i][0], v = values ? values[i] : kept[i][1];
     const from = num(r.from), to = num(r.to);
     // w (TASKS.csv #2951): a binned log's bin carries its count of readings (downholeLogChannels: n), so a mean over bins can weigh each by it
     const w = choice.binM && field === "value" && Number.isFinite(num(r.n)) && num(r.n) > 0 ? num(r.n) : undefined;
@@ -120,7 +144,29 @@ export function sourceAssays(choice, { layers, customLayers } = {}, { pointSuppo
     if (Number.isFinite(sp) && sp < support) support = Math.max(0.1, sp);
     for (const p of pointRows) assays.push({ hole_id: p.hole_id, from: p.depth - support / 2, to: p.depth + support / 2, values: { [symbol]: p.v }, source: "log" });
   }
-  return { assays, assayElements: [{ symbol, unit: choice.unit }], symbol, unit: choice.unit, pointRows: pointRows.length, pointSupport: pointRows.length ? support : null, skipped, ...(vr ? { outOfRange, validRange: vr } : {}) };
+  return { assays, assayElements: [{ symbol, unit: choice.unit }], symbol, unit: choice.unit, pointRows: pointRows.length, pointSupport: pointRows.length ? support : null, skipped, ...(vr ? { outOfRange, validRange: vr } : {}), ...(despikeM ? { despikeM } : {}) };
+}
+
+// TASKS.csv #3116 — the despike: each reading replaced by the median of its hole's readings within ±windowM / 2 of its depth (an interval's middle,
+// or the depth of a point reading), the lower middle one of an even count. A lone spike takes its neighbours' level; a reading alone in its
+// window keeps its value. kept: [[row, v]]
+function movingMedian(kept, windowM) {
+  const out = new Float64Array(kept.length), byHole = new Map(), h = windowM / 2;
+  const depth = kept.map(([r]) => { const f = num(r.from), t = num(r.to); return Number.isFinite(f) && Number.isFinite(t) ? (f + t) / 2 : num(r.depth); });
+  kept.forEach(([r, v], i) => { if (!Number.isFinite(depth[i])) { out[i] = v; return; } const k = String(r.hole_id); (byHole.get(k) || byHole.set(k, []).get(k)).push(i); }); // no depth: as read (skipped later)
+  for (const idx of byHole.values()) {
+    idx.sort((a, b) => depth[a] - depth[b]);
+    let lo = 0, hi = 0;
+    for (let k = 0; k < idx.length; k++) {
+      const d = depth[idx[k]];
+      while (depth[idx[lo]] < d - h) lo++;
+      while (hi < idx.length && depth[idx[hi]] <= d + h) hi++;
+      const w = []; for (let j = lo; j < hi; j++) w.push(kept[idx[j]][1]);
+      w.sort((a, b) => a - b);
+      out[idx[k]] = w[(w.length - 1) >> 1]; // the LOWER middle of an even count: always a reading, and a lone spike never averaged into its neighbours
+    }
+  }
+  return out;
 }
 
 // log10 of the sample values, for an estimate that is a geometric mean per block (susceptibility varies over decades, so an

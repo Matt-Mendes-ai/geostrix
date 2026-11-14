@@ -14,7 +14,10 @@ export function packColumn(arr) {
 }
 
 export function createCorrelationClient({ makeWorker } = {}) {
-  let worker = null, failed = false, seq = 0, sentEpoch = null, sent = new Set();
+  // TASKS.csv #3232 — the worker is told the epoch by number (epochNo), never the epoch itself: the dialog's epoch is its caches object, every
+  // column as a plain array, and posting it cloned them all on the main thread (about 480 ms at 147,000 samples x 12 elements); the clone was
+  // also a new object each time, so the worker dropped its columns on every request and a tick computed the earlier pairs without them
+  let worker = null, failed = false, seq = 0, sentEpoch = null, epochNo = 0, sent = new Set();
   const pending = new Map();
   const start = () => {
     if (worker || failed) return worker;
@@ -31,6 +34,7 @@ export function createCorrelationClient({ makeWorker } = {}) {
   };
   return {
     // cols: the caller's columns (symbol -> array), cache: the caller's Map for the fallback; epoch: any value that changes when the rows do
+    // (compared here by identity; only a number per epoch is posted, #3232)
     compute({ epoch, cols, symbols, method, cache, onProgress }) {
       const id = ++seq;
       let cancelled = false;
@@ -38,11 +42,11 @@ export function createCorrelationClient({ makeWorker } = {}) {
         const here = () => { try { resolve(correlationMatrix(cols, symbols, method, cache)); } catch (err) { reject(err); } };
         const w = start();
         if (!w) { here(); return; }
-        if (epoch !== sentEpoch) { sentEpoch = epoch; sent = new Set(); }
+        if (epoch !== sentEpoch) { sentEpoch = epoch; epochNo++; sent = new Set(); }
         const fresh = {}, transfer = [];
         for (const s of symbols) if (!sent.has(s) && cols[s]) { fresh[s] = packColumn(cols[s]); transfer.push(fresh[s].buffer); sent.add(s); }
         pending.set(id, { resolve: (m) => { if (!cancelled) resolve(m); }, reject: (err) => { if (!cancelled) reject(err); }, onProgress: (p) => { if (!cancelled) onProgress?.(p); }, fallback: () => { if (!cancelled) here(); } });
-        w.postMessage({ id, epoch, cols: fresh, symbols, method }, transfer);
+        w.postMessage({ id, epoch: epochNo, cols: fresh, symbols, method }, transfer);
       });
       return { promise, cancel: () => { cancelled = true; pending.delete(id); } };
     },

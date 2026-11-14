@@ -162,6 +162,7 @@ test("#514 the file format is pinned to PROJECT_VERSION: change FIELDS -> bump t
     26: "project+load,collars,survey,layers+save+load,assays+save+load,assayElements,customLayers+save+load,viewerUiState,themes,rasters,boundaries,mapLayers,sectionImages,surfaceStructures,fieldStructuralRefs,lithoGroups,geophysSurveys,crmCertificates,dcipLines,alterationBoxes+load,modellingCodes+load,structuralTrends+load,explicitSurfaces,omfObjects,terrain+save+load,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+save+load,activeLayoutPageId,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates+save+load,plannedHoles,designLines,designStrings,surfaceSamples+save+load,surfaceElements,geochemThresholds,surfaceQc,evidenceOverlay,generatedSurfaces+save+load,modelDomains,dbImports", // #2334: customLayers+save+load, // #2691 / #2661 — the same fields: project.localGrid may carry rlOffset / northDeg
     27: "project+load,collars,survey,layers+save+load,assays+save+load,assayElements,customLayers+save+load,viewerUiState,themes,rasters,boundaries,mapLayers,sectionImages,surfaceStructures,fieldStructuralRefs,lithoGroups,codeDictionary,geophysSurveys,crmCertificates,dcipLines,alterationBoxes+load,modellingCodes+load,structuralTrends+load,explicitSurfaces,omfObjects,terrain+save+load,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+save+load,activeLayoutPageId,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates+save+load,plannedHoles,designLines,designStrings,surfaceSamples+save+load,surfaceElements,geochemThresholds,surfaceQc,evidenceOverlay,generatedSurfaces+save+load,modelDomains,dbImports", // #2163 — codeDictionary
     28: "project+load,collars,survey,layers+save+load,assays+save+load,assayElements,customLayers+save+load,viewerUiState,themes,rasters,boundaries,mapLayers,sectionImages,surfaceStructures,fieldStructuralRefs,lithoGroups,codeDictionary,geophysSurveys,crmCertificates,dcipLines,alterationBoxes+load,modellingCodes+load,structuralTrends+load,explicitSurfaces,omfObjects,terrain+save+load,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+save+load,activeLayoutPageId,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates+save+load,plannedHoles,designLines,designStrings,surfaceSamples+save+load,surfaceElements,geochemThresholds,surfaceQc,evidenceOverlay,generatedSurfaces+save+load,modelDomains,dbImports", // #2493 — same fields; project.importLeftOut inside project
+    29: "project+load,collars,survey,layers+save+load,assays+save+load,assayElements,customLayers+save+load,viewerUiState,themes,rasters,boundaries,mapLayers,sectionImages,surfaceStructures,fieldStructuralRefs,lithoGroups,codeDictionary,geophysSurveys,crmCertificates,dcipLines,alterationBoxes+load,modellingCodes+load,structuralTrends+load,explicitSurfaces,omfObjects,terrain+save+load,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+save+load,activeLayoutPageId,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates+save+load,plannedHoles,designLines,designStrings,surfaceSamples+save+load,surfaceElements,geochemThresholds,surfaceQc,evidenceOverlay,generatedSurfaces+save+load,modelDomains,dbImports", // #3257 — same fields; voxel models' optional cell keys as columns (has / nul bitsets, bool)
   };
   assert.ok(PINNED[PROJECT_VERSION], `PROJECT_VERSION ${PROJECT_VERSION} has no pinned fingerprint — add it`);
   assert.equal(formatFingerprint(), PINNED[PROJECT_VERSION], "the project format changed: bump PROJECT_VERSION and pin the new fingerprint");
@@ -210,6 +211,7 @@ test("#742 the saved and re-loaded bytes of a golden project are pinned to PROJE
     26: { saved: "b0c02f9e57cdb2c3", loaded: "abeba6b0a6582d8d" }, // #2691 / #2661 — only "version" changed (the golden project has no local grid)
     27: { saved: "8539d250cdee2ea3", loaded: "93d1773bc57ad2ab" }, // #2163 — "version" and an empty codeDictionary
     28: { saved: "28cc981a26157190", loaded: "93d1773bc57ad2ab" }, // #2493 — only "version" changed (the golden project has no importLeftOut)
+    29: { saved: "b48ae791890158f7", loaded: "93d1773bc57ad2ab" }, // #3257 — "version", and the golden voxel model's dx / dy / dz (the same in every cell) as one value each; it loads the same
   };
   const p = JSON.parse(saved); // every encoder must actually have run, or the pin guards nothing
   assert.ok(p.assays?.__compactTable, "assays not compacted - make the golden project bigger");
@@ -241,9 +243,14 @@ test("#660 every voxel model is compacted and round-trips (numbers and text supp
     }
     assert.equal(Object.keys(b).length, Object.keys(a).length);
   });
-  // cells whose keys differ, or hold something that is not a number or text, are saved as they were
+  // TASKS.csv #3257 — cells whose keys differ are compacted too (an optional key is a column with a presence bitset) and come back
+  // exactly; a cell holding something that is not a number, text, true / false or null, or a key with values of two kinds, is saved as it was
   const mixed = { id: "v2", source: "csv", cells: [{ x: 1, y: 1, z: 1, value: 1 }, { x: 2, y: 2, z: 2 }] };
-  assert.equal(compactVoxelModels([mixed])[0], mixed);
+  const mc = compactVoxelModels([mixed])[0];
+  assert.ok(mc.compactCells && !mc.cells);
+  assert.deepEqual(expandVoxelModels([JSON.parse(JSON.stringify(mc))])[0].cells, mixed.cells);
+  const twoKinds = { id: "v4", source: "csv", cells: [{ x: 1, y: 1, z: 1, value: 1 }, { x: 2, y: 2, z: 2, value: "high" }] };
+  assert.equal(compactVoxelModels([twoKinds])[0], twoKinds);
   const obj = { id: "v3", source: "geoml", cells: [{ x: 1, y: 1, z: 1, value: 1, extra: { a: 1 } }] };
   assert.equal(compactVoxelModels([obj])[0], obj);
   // a v12 simpeg file (no keys) still expands with the old eight columns

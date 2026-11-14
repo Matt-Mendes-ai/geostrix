@@ -78,9 +78,49 @@ function categoricalSafeColor(namespace, key) {
   if (!cache) { cache = new Map(); categoricalColorCache.set(namespace, cache); }
   const k = key === undefined || key === null || key === "" ? "unknown" : String(key).toLowerCase();
   if (cache.has(k)) return cache.get(k);
-  const color = cache.size < CATEGORICAL_SAFE_COLORS.length ? CATEGORICAL_SAFE_COLORS[cache.size] : hashColor(k);
+  const color = cache.size < CATEGORICAL_SAFE_COLORS.length ? CATEGORICAL_SAFE_COLORS[cache.size] : beyondPalette(cache, k);
   cache.set(k, color);
   return color;
+}
+// TASKS.csv #2524 / #2940 (reviews #2486, #2876) — past the 16 palette colours the hashed hues ran together: GR #41c8ab and NS #41c8a6, SC and
+// CAV identical, six violets and seven magentas on an iron strand log; DID_U / DID_M / DID_L had nothing in common with DID. A code past the
+// palette now takes the next slot of a golden-angle hue sequence with a three-step lightness cycle (neighbouring slots differ in hue by about
+// 137 degrees and in lightness), and a sub-divided code (its parent before '_', '-' or a space) whose parent already has a colour takes a
+// lighter or darker shade of that parent's hue. Deterministic in first-seen order, as the palette is.
+const GOLDEN = 137.508, LIGHT_CYCLE = [50, 66, 36];
+export function beyondPalette(cache, k) {
+  const parent = k.split(/[_\-\s]+/)[0];
+  if (parent && parent !== k && cache.has(parent)) {
+    const hsl = hexOrHslToHsl(cache.get(parent));
+    if (hsl) {
+      // the lightness of the parent and of the siblings already shaded: the first step that keeps 6 points from all of them (clamped to 18-86)
+      const used = [hsl.l];
+      for (const [key, c] of cache) if (key !== parent && key.split(/[_\-\s]+/)[0] === parent) { const o = hexOrHslToHsl(c); if (o) used.push(o.l); }
+      const clamp = (v) => Math.max(18, Math.min(86, Math.round(v)));
+      const steps = [18, -16, 30, -28, 9, -8, 40, -38, 24, -22];
+      const l = steps.map((d) => clamp(hsl.l + d)).find((v) => used.every((u) => Math.abs(u - v) >= 6));
+      if (l != null) return `hsl(${Math.round(hsl.h)}, ${Math.round(Math.max(30, hsl.s))}%, ${l}%)`;
+    }
+  }
+  const n = cache.size - CATEGORICAL_SAFE_COLORS.length;
+  const hue = (25 + n * GOLDEN) % 360;
+  return `hsl(${Math.round(hue)}, 58%, ${LIGHT_CYCLE[n % LIGHT_CYCLE.length]}%)`;
+}
+// "#rrggbb" or "hsl(h, s%, l%)" -> { h, s, l } (degrees, per cent) or null
+function hexOrHslToHsl(c) {
+  const m = /^hsl\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%\s*\)$/i.exec(String(c || "").trim());
+  if (m) return { h: +m[1], s: +m[2], l: +m[3] };
+  const x = /^#?([0-9a-f]{6})$/i.exec(String(c || "").trim());
+  if (!x) return null;
+  const r = parseInt(x[1].slice(0, 2), 16) / 255, g = parseInt(x[1].slice(2, 4), 16) / 255, bl = parseInt(x[1].slice(4, 6), 16) / 255;
+  const mx = Math.max(r, g, bl), mn = Math.min(r, g, bl), l = (mx + mn) / 2, d = mx - mn;
+  let h = 0, s = 0;
+  if (d > 0) {
+    s = d / (1 - Math.abs(2 * l - 1));
+    h = mx === r ? ((g - bl) / d) % 6 : mx === g ? (bl - r) / d + 2 : (r - g) / d + 4;
+    h *= 60; if (h < 0) h += 360;
+  }
+  return { h, s: s * 100, l: l * 100 };
 }
 
 // TASKS.csv #249 (colorblind-safety review) — this palette skewed heavily brown/olive/dark-green,
@@ -194,7 +234,10 @@ const ROLE_PATTERNS = [
 // NPRC 'shotcrete' / 'cement!' / 'core not present', NLST 'tray thrown out') were all 'stratigraphic', so 36 % of a unit's run starts sat
 // under them as false tops. Read from the notes, never from a code prefix (V*, B*, N* mean other things on other deposits).
 const NOTE_RULES = [
-  [/\b(lost core|core loss|no (core )?recovery|tricone|pre-?collar|casing|shotcrete|cement|not present|thrown out)\b/, "no recovery"], // shotcrete…: #2227
+  // shotcrete…: #2227. TASKS.csv #3254 (#3195, Galore Creek modelling) — not the bare word 'cement': a breccia's notes describe its cement ('silica
+  // cement', 'cemented by tourmaline'), and code B (145 intervals) was read as no recovery and ignored by the modelling tools. Cement is no
+  // recovery when the note is only that ('cement!', the WA log's), or a cement plug / grout in the hole.
+  [/\b(lost core|core loss|no (core )?recovery|tricone|pre-?collar|casing|shotcrete|not present|thrown out|cement(ed)? (plug|grout)|grout(ed)?)\b|^\W*(cement|concrete)\W*$/, "no recovery"],
   [/\b(fault breccia|fault gouge|flt (breccia|bx|gouge)|gouge)\b/, "fault"], // Woodjam UTB 'fault breccia', UTG 'flt gouge'
   [/\b(shear( zone)?|sz|fault zone)\b/, "fault"], // #2227 — a shear zone cuts the pile like a fault (BSZ 'carbonate veins within the shear')
   [/\b(dykes?|dikes?)\b/, "dyke"],
@@ -787,7 +830,7 @@ export const TARGET_SCHEMAS = {
   // numbered primary columns (Alt1_Code, Min1_Code / Min_Code1, Vein1_Comp / Vein_Type1, MagSus1, Ave_Reading,
   // BulkDens_Calc, SG_D). Listed FIRST so the primary (1st) column wins over a later one.
   alt: { label: "Alteration", fields: [
-    ...intervalFields(["alt1_code", "alt_code", "alt_assemblage", "alt_rx_min1_type", "alt_min1_type", "alt_min_1_type", "alt1_mineral", "alt_mineral", "alt1_min", "altn1", "alt1_style", "alt2_code", "assemblage", "alteration"]), // alt_rx_min1_type: #1345 (acQuire); alt1_mineral…: #2153 / #2184 (WAMEX)
+    ...intervalFields(["alt1_code", "alt_code", "alt_assemblage", "alt_rx_min1_type", "alt_min1_type", "alt_min_1_type", "alt1_mineral", "alt_mineral", "alt1_min", "altn1", "alt1_style", "alt2_code", "assemblage", "assemb", "alteration"]), // alt_rx_min1_type: #1345 (acQuire); alt1_mineral…: #2153 / #2184 (WAMEX); assemb: #3204 (AL_HIGHT_ASSEMB / AL_LOWT_ASSEMB, the first one)
     // TASKS.csv #1511 — intensity as logged (text: "3", "W", "strong"), as structural zones keep it (#604)
     { key: "intensity", label: "Intensity (optional)", required: false, aliases: ["alt1_intensity", "alt_intensity", "alt1_int", "alt_int", "alteration_intensity", "intensity"] },
   ] },
@@ -806,11 +849,11 @@ export const TARGET_SCHEMAS = {
   mnlgy: { label: "Mineralization", fields: intervalFields(["min1_code", "min_code1", "min_code", "min_mnlgy", "sul_min_1", "sulph_min_1", "mineral"], ["min1_pct", "min_pct1", "min_int_pct", "sul_min_1_pct", "percent", "pct"]) }, // sul_min_1: #1345 (acQuire sulphide log)
   geotech: { label: "Geotech (numeric)", fields: intervalFields(["rqd_pct", "rqd_pct_d", "rqq_pct_d", "rqd", "value"], null, true) }, // #1345: the percent column before REC_RQD_M (metres)
   recovery: { label: "Recovery % (numeric)", fields: intervalFields(["recovery_pct", "recovery", "rec_pct", "rec_pct_d", "core_recovery", "value"], null, true) },
-  sg: { label: "Specific gravity (numeric)", fields: intervalFields(["sg", "sg_d", "bulkdens_calc", "sg_calc", "specific_gravity", "specific_grav", "bulk_density", "density", "reading", "value"], null, true) }, // reading: #2153 (beside Weight_Wet / Weight_Dry)
+  sg: { label: "Specific gravity (numeric)", fields: intervalFields(["sg", "sg_d", "bulkdens_calc", "sg_calc", "calc_sg" /* #3204: CALC-SG */, "specific_gravity", "specific_grav", "bulk_density", "density", "reading", "value"], null, true) }, // reading: #2153 (beside Weight_Wet / Weight_Dry)
   // TASKS.csv #605 — mag sus is often logged as POINT readings (depth + value, an MX-style "Mag Susc" sheet), so a
   // Depth column is an alternative to From / To (oneOf below; the reading is placed at that depth).
   magsusc: { label: "Mag. susceptibility (numeric)", oneOf: [["from", "to"], ["depth"]], fields: [
-    ...intervalFields(["mag_avg_si", "ave_reading", "avg_reading", "mag_reading", "magsus1", "magsus", "mag_si", "mag_sus", "mag_avg", "mag", "value"], null, true) // mag_reading: #1345
+    ...intervalFields(["mag_avg_si", "ave_reading", "avg_reading", "mag_reading", "ms_reading" /* #3204 */, "magsus1", "magsus", "mag_si", "mag_sus", "mag_avg", "mag", "value"], null, true) // mag_reading: #1345
       .map((f) => (f.key === "from" || f.key === "to" ? { ...f, required: false, label: `${f.label} (or Depth below)` } : f)),
     { key: "depth", label: "Depth (point readings, instead of From / To)", required: false, aliases: ["depth", "depth_m", "md", "at"] },
   ] },
@@ -1180,7 +1223,9 @@ export function schemaSatisfied(target, mapping) {
 // Logs with no built-in layer, named for what they hold: ask, as a custom layer. #600 (40958Z): a void / cavity log is not veins (its bare
 // "Type" column hit the vein rule); #1345: a UV fluorescence log is not lithology; #1502 (40958Z): Oxidation, Silicification and
 // OriCore (the core-orientation marks) were all guessed as Lithology from a generic code / description column.
-const CUSTOM_LOG_NAMES = /\b(voids?|cavit(y|ies))\b|fluoresc|silicif|\bori(ented)?[\s_-]*core\b|\boricore\b/i; // oxidation / weathering: their own layer since #2162
+// TASKS.csv #3204 (#3195, Galore Creek) — geotechnical test tables (lock angles, pocket penetrometer, point load, UCS) and an overburden log went to
+// Lithology / Structure planes / Veins / SG by a stray 'LITH' / 'Structure' / 'Test Type' column: a custom layer, asked
+const CUSTOM_LOG_NAMES = /\b(voids?|cavit(y|ies))\b|fluoresc|silicif|\bori(ented)?[\s_-]*core\b|\boricore\b|lock[\s_-]*angles?|penetrometer|point[\s_-]*load|(^|[^a-z])ucs([^a-z]|$)|overburden/i; // oxidation / weathering: their own layer since #2162
 // TASKS.csv #2339 (review #2325, WA uranium) — a hyperspectral (HyLogger TSA) table: mineral / weight pairs and absorption-feature
 // parameters (TSA_S Mineral1, TSA_S Weight1, w2200, d2200, hqd2200, kaol_cryst, FeOx ...). geophysics_1.csv (34 columns, one U3O8_ppm
 // among them) went to the assay import as 5,394 U results, double-counting the lab's. -> the number of spectral columns
@@ -1189,11 +1234,38 @@ export const spectralColumns = (headers) => (headers || []).filter((h) => SPECTR
 // the mineral column of a spectral table: the first Mineral1 (TSA_S before TSA_V by header order)
 export const spectralMineralColumn = (headers) => (headers || []).find((h) => /mineral[\s_]*1$/i.test(String(h).trim())) || "";
 // rows (optional, TASKS.csv #2884): the file's rows, for the zero-length test below
+// #3204 — a type column with the orientation of each pick (alpha and beta, or dip with dip direction / strike): structure planes, whatever else is numeric
+function structurePicks(headers) {
+  const m = guessMapping("structure", headers);
+  return !!(m.value && ((m.alpha && m.beta) || (m.dip && (m.azimuth || m.strike))));
+}
+// TASKS.csv #3210 (#3195, Galore Creek) — a numeric kind is never guessed from a value column of words: an overburden log went to Specific gravity
+// by its 'Relative Density (for non cohesive soils)' column ('Very Dense', 'N/A') and loaded 0 of 374 rows. With the rows at hand, a numeric
+// guess whose value column holds more words than numbers (first 200 filled cells) becomes a custom layer, which asks for its value.
+const NUMERIC_KINDS = new Set(["sg", "magsusc", "geotech", "recovery"]);
+export function valueColumnIsWords(target, headers, rows) {
+  if (!NUMERIC_KINDS.has(target) || !rows?.length) return false;
+  const col = guessMapping(target, headers).value;
+  if (!col) return false;
+  let num = 0, word = 0;
+  for (let i = 0; i < rows.length && num + word < 200; i++) {
+    const s = String(rows[i]?.[col] ?? "").trim();
+    if (!s) continue;
+    if (Number.isFinite(Number(s.replace(/^[<>]\s*/, "")))) num++; else word++;
+  }
+  return word > num;
+}
 export function guessTargetFor(headers, name, rows = null) {
+  const t = guessTargetForRaw(headers, name, rows);
+  return valueColumnIsWords(t, headers, rows) ? "custom" : t; // #3210
+}
+function guessTargetForRaw(headers, name, rows) {
   if (CUSTOM_LOG_NAMES.test(String(name || ""))) return "custom";
   // #2884 (review #2876, WA iron) — From equals To on every sampled row and a log channel is named (Density_Best, Gamma_Best ...): point
   // readings, a downhole log, before any name hint ("density.csv" would keep Specific gravity: millions of zero-length intervals)
-  if (rows && zeroLengthRows(headers, rows) === true && looksLikeLogTable(headers, rows)) return "custom";
+  // TASKS.csv #3204 (#3195, Galore Creek) — not a table of oriented structure picks: Point Structures (GEOLFROM = GEOLTO; PTSTR_STR_TYPE, PTSTR_ALPHA,
+  // PTSTR_BETA) has numbers in every row too, and went to Custom layer while the same columns of Fault Structures were read as Structure planes
+  if (rows && zeroLengthRows(headers, rows) === true && looksLikeLogTable(headers, rows) && !structurePicks(headers)) return "custom";
   if (spectralColumns(headers) >= 4) return "custom"; // #2339 — a mineral table from spectra, not Mineralization (ore minerals)
   // TASKS.csv #2317 — regolith boundary events (BOCO, TOFR, ... at one depth per hole, no from / to): a custom point layer of codes, not
   // structure picks without an orientation (where 'Event_Code + Depth' used to land)

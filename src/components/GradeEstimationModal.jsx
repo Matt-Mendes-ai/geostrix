@@ -68,8 +68,8 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   // wavelength, a chalcopyrite %) is estimated like a grade: its rows become assay-shaped intervals under one "element"
   const saved = useRef(lastEstimateSettings.get(estimateSettingsKey(project)) || null).current; // #1580
   const keep = (k, d, ok = () => true) => (saved && saved[k] !== undefined && ok(saved[k]) ? saved[k] : d);
-  const [sourceKey, setSourceKey] = useState(() => keep("sourceKey", "assay", (k) => k === "assay" || numericSourceChoices({ layers, customLayers, models: false }).some((x) => x.key === k)));
-  const numericSources = useMemo(() => numericSourceChoices({ layers, customLayers, models: false /* #2397 — not a model of a model */ }), [layers, customLayers]);
+  const [sourceKey, setSourceKey] = useState(() => keep("sourceKey", "assay", (k) => k === "assay" || numericSourceChoices({ layers, customLayers, models: false, logValidRange: project?.logValidRange }).some((x) => x.key === k))); // logValidRange: #3116
+  const numericSources = useMemo(() => numericSourceChoices({ layers, customLayers, models: false /* #2397 — not a model of a model */, logValidRange: project?.logValidRange /* #3116 */ }), [layers, customLayers, project?.logValidRange]);
   const source = useMemo(() => numericSources.find((s) => s.key === sourceKey) || null, [numericSources, sourceKey]);
   const sourceData = useMemo(() => (source ? sourceAssays(source, { layers, customLayers }) : null), [source, layers, customLayers]);
   const assaysIn = sourceData ? sourceData.assays : assaysProp, assayElements = sourceData ? sourceData.assayElements : assayElementsProp;
@@ -539,6 +539,8 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           gridFrom: shellBox ? `box of the restricting solid "${shellBox.name}" within the drilling` : areaString ? `inside the closed design string "${areaString.name}" (${outsideArea} block(s) outside it dropped)` : gridMode === "checked" && checkedBounds ? `desurveyed traces of the ${checkedBounds.holes} checked hole(s)` : traceBounds ? `desurveyed traces of ${traceBounds.holes} assayed hole(s)` : "collar box (no hole could be desurveyed)", // #521; #1570
           searchRadiusM: searchRadius > 0 ? searchRadius : Math.round(gridDiagonal), searchRadiusWasUnlimited: !(searchRadius > 0), ...(supportRef > 0 ? { supportScoredAgainstM: Math.round(supportRef) } : {}), // #1411
           minSamples, maxSamples, minHoles, maxSamplesPerHole: maxPerHole || null,
+          // TASKS.csv #3255 — the record says whether #1573's 5 % rule was on (two models differing only in it had identical parameters)
+          ...(minHoles > 1 ? { secondHoleRule: materialHoles ? "a second hole counts when it carries at least 5 % of the inverse-distance weight, except for a block within a cell of its nearest composite (there every hole in reach counts)" : "every hole in reach counts" } : {}),
           searchTrend: trend ? { name: trend.name, dip: trend.dip, dipAzimuth: trend.dipAzimuth, pitch: trend.pitch, ratios: trend.ratios, ellipsoidM: [1, trend.ratios.int / trend.ratios.max, trend.ratios.min / trend.ratios.max].map((f) => Math.round(f * (searchRadius > 0 ? searchRadius : gridDiagonal))) } : null, // #650
           composited: useComposites, compositeLengthM: useComposites ? compositeLength : null, minCoverage: useComposites ? minCoverage : null,
           capValue: Number.isFinite(cap) ? cap : null, capAudit: cap != null ? capAudit(srcAssays, symbol, unit, elementUnits, cap) : null, includeQAQC, // capAudit: #533
@@ -554,6 +556,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         if (est.mlsCounts) params.mlsBlocks = est.mlsCounts; // #516 — how the linear trend was fitted
         if (est.variogram) { params.variogram = { ...est.variogram, frame: trend ? `in the trend "${trend.name}" frame: the range is along its major axis` : "isotropic" }; params.krigingBlocks = est.okCounts; } // #709
         if (est.dominatedCells) params.effectivelyOneHoleBlocks = est.dominatedCells; // #676 — 2+ holes, one with >= 95 % of the weight
+        if (est.piercedBlocks) params.drilledBlocks = { blocks: est.piercedBlocks.blocks, estimated: est.piercedBlocks.estimated, holes: est.piercedBlocks.holes, holesWithNone: est.piercedBlocks.holesEmpty.length }; // #3255
         est.blocksBeforeTrims = est.cells.length; // #2106
         if (inShell) { // #517
           const before = est.cells.length;
@@ -1013,6 +1016,9 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
               )}
               {result.params?.capValue != null && <div>{tr("Grades capped at {cap} {unit} before estimating.", { cap: result.params.capValue, unit: result.params.capUnit ? gradeUnitLabel(symbol, result.params.capUnit) : "" /* #2218 */ })}</div>}{/* #1736 — said in the result */}
               <div>{tr("{blocksEstimated} block(s) estimated, {blocksSkipped} left un-estimated (no sample within search radius / below min-samples / below min distinct holes).", { blocksEstimated: result.blocksEstimated.toLocaleString(), blocksSkipped: result.blocksSkipped.toLocaleString() })}</div>
+              {result.piercedBlocks?.blocks > 0 && result.piercedBlocks.estimated < result.piercedBlocks.blocks && ( /* TASKS.csv #3255 — the best-informed blocks, said when some are empty */
+                <div role="note" style={{ color: result.piercedBlocks.holesEmpty.length ? "var(--color-warn-text)" : undefined }}>{tr("{e} of the {b} blocks a drillhole passes through were estimated.", { e: result.piercedBlocks.estimated.toLocaleString(), b: result.piercedBlocks.blocks.toLocaleString() })}{result.piercedBlocks.holesEmpty.length ? " " + tr("{k} of the {h} holes have no estimated block anywhere along them ({list}): Min distinct holes ({m}) or the search left them out.", { k: result.piercedBlocks.holesEmpty.length, h: result.piercedBlocks.holes, list: result.piercedBlocks.holesEmpty.slice(0, 5).join(", ") + (result.piercedBlocks.holesEmpty.length > 5 ? ", …" : ""), m: result.params?.minHoles ?? minHoles }) : ""}</div>
+              )}
               {result.noCodeBlocks > 0 && <div role="note" style={{ color: "var(--color-warn-text)" }}>{tr("{n} of them because their nearest composite has no {domain} code ({c} of {all} composites have none): the domain search does not estimate them. Tick 'Estimate the samples with no code as a domain of their own' to fill them from those composites.", { n: result.noCodeBlocks.toLocaleString(), domain: result.params?.domain || tr("domain"), c: (result.noCodeComposites ?? 0).toLocaleString(), all: (result.samplePointCount ?? 0).toLocaleString() })}</div>}{/* #2541 */}
               {(() => { // TASKS.csv #1738 — a zero-block run says which rule emptied it and what would change that
                 const adv = zeroBlockAdvice({ blocksEstimated: result.blocksEstimated, searchRadiusM: result.params?.searchRadiusM ?? searchRadius, minHoles: result.params?.minHoles ?? minHoles, spacing });

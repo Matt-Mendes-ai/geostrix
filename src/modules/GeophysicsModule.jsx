@@ -1,9 +1,11 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from "react"; // Suspense: TASKS.csv #1425
 import { ensureProjectCrs, ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #615; export: #1021
 import { exportCrs, terrainToWorld, tiedExportNote } from "../lib/tiedExport.js"; // TASKS.csv #2322 — a tied local grid's exports through its tie
-import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565; requestModuleAction: #1152
+import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js";
+import { useMachineMemoryGB, fetchFits, fetchBudgetMB, centreBox } from "../lib/fetchMemory.js"; // TASKS.csv #3251 // TASKS.csv #565; requestModuleAction: #1152
 import { askAdoptCrs, projectEpsgChooser, medianLonLat } from "../lib/adoptCrs.js"; // TASKS.csv #607; medianLonLat: #2833
 import { gemHeaderEpsg, KEEP_CHOICES, suggestKeepEvery, everyNth, batchSurveyName, pairGpsFile } from "../lib/xyzBatch.js"; // TASKS.csv #1329
+const THIN_FROM_ROWS = 100000; // TASKS.csv #3208 — a file read whole over this many readings offers thinning
 import BlockModelMappingModal from "../components/BlockModelMappingModal.jsx"; // TASKS.csv #410
 import { guessBlockModelMapping, numericColumns, importBlockModelAttrs } from "../lib/blockModelCsv.js"; // importBlockModelAttrs: #1671 (in a worker)
 import { parseTableFile, toExportCsv, skipPreamble } from "../lib/tabular.js"; // TASKS.csv #444; toExportCsv: #1094; skipPreamble: #1666
@@ -37,14 +39,14 @@ import { blockModelCsvText, blockModelParamLines } from "../lib/blockModelExport
 import { stampLines, withStamp, stampBeside, stampPlacement, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #404/#411
 import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #529
 import InfoButton from "../components/InfoButton.jsx";
-import { fetchSRTMTerrain, collarGroundMisfit, findBetterUtmZone } from "../lib/srtmFetch.js";
+import { fetchSRTMTerrain, collarGroundMisfit, findBetterUtmZone, planTerrainFetch } from "../lib/srtmFetch.js"; // planTerrainFetch: #3251
 import { fetchCopernicusTerrain } from "../lib/copernicusDem.js"; // TASKS.csv #814
 import { toLonLat, reprojectXY, crsName, pointTransform, getProj4Def, isMetricProjectedEpsg, isGeographicCrs } from "../lib/reproject.js"; // isMetricProjectedEpsg: #2127; isGeographicCrs: #2832
 import { geosoftHeaderEpsg, xyLookLikeDegrees } from "../lib/stationDegrees.js"; // TASKS.csv #2832
 import { omfToProjectObjectsAsync } from "../lib/omfImport.js"; // TASKS.csv #637; #1280
 import { isDcip2dMeshText } from "../lib/ubc2d.js"; // TASKS.csv #1348
 import { parseUBCMesh, isUBCMeshText, parseUBCModelStream, maskAirCells, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel, coarsenRecord, wantsLogMean, MEAN_RULE } from "../lib/voxel.js"; // coarsenRecord: #1095
-import { parsePLYBoundary, parseXYZ, guessXyzChannels } from "../lib/geosoft.js";
+import { parsePLYBoundary, parseXYZ, guessXyzChannels, onlyValueLeft /* #3208 */ } from "../lib/geosoft.js";
 import { gridPairs, stationPlacer, nearestStationZ, looksLikeLocalGrid } from "../lib/gridFromStations.js"; // TASKS.csv #1326
 import { parseStationFile } from "../lib/dcipStations.js";
 import { gemHeaderInfo, fileNameDate, parseBaseStation, diurnalCorrect, batchDiurnalPlan } from "../lib/diurnal.js"; // fileNameDate…: TASKS.csv #1585
@@ -237,6 +239,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // (localStorage), Standard by default so a modest laptop never gets a big grid it did not ask for
   const [terrainDetail, setTerrainDetailState] = useState(() => { try { return Number(localStorage.getItem("geostrix.terrainDetail")) || 200; } catch { return 200; } });
   const setTerrainDetail = (v) => { setTerrainDetailState(v); try { localStorage.setItem("geostrix.terrainDetail", String(v)); } catch { /* private window */ } };
+  const ramGB = useMachineMemoryGB(); // #3251 — what a Full fetch may take on this computer
   // TASKS.csv #979 — the block-model CSV's column names, a per-computer preference like the one above
   const [bmNames, setBmNamesState] = useState(() => { try { return localStorage.getItem("geostrix.blockCsvNames") === "micromine" ? "micromine" : "datamine"; } catch { return "datamine"; } });
   const setBmNames = (v) => { setBmNamesState(v); try { localStorage.setItem("geostrix.blockCsvNames", v); } catch { /* private window */ } };
@@ -685,6 +688,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const lidarInput = useRef(null);
   // only the instance showing the Terrain pane (the Maps tab's) answers: the Geophysics tab may be mounted too
   useModuleAction(["open-lidar"], (_a, p) => { if (forcePane === "terrain" && p?.file) openLidar(p.file); });
+  // TASKS.csv #3287 — the Maps ribbon's 'Geology (Macrostrat)' button: the Web layers pane's 'Macrostrat geology…' item, the same steps
+  const openMacrostrat = async () => {
+    if (project?.crsSet === false) { if (!(await ensureProjectCrs(project, tr("Web map layers are downloaded for the place your coordinates point to, so the project needs its coordinate system first.")))) return; }
+    setWebLayerDefaultBbox(await defaultSrtmBboxLonLat()); setMacrostratOpen(true);
+  };
+  useModuleAction(["open-macrostrat"], () => { if (forcePane === "web") openMacrostrat(); });
   const openLidar = async (file) => {
     if (!file) return;
     setTerrainError(null);
@@ -909,6 +918,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (terrain && !epsgOverride && !window.confirm(tr("Replace the current terrain (\"{name}\") with freshly fetched terrain for this area? Only one terrain surface is supported at a time.", { name: terrain.name }))) {
       return;
     }
+    // TASKS.csv #3251 — over a quarter of this computer's memory: refused with the figures, before anything is fetched
+    const plan = planTerrainFetch(bboxLonLat, terrainDetail, terrainSource);
+    if (!fetchFits(plan.memoryMB, ramGB)) { setTerrainError({ info: false, text: tr("This terrain would take about {mb} MB of memory, over the {max} MB a fetch may use on this computer (a quarter of its memory). Choose a lower Terrain detail or a smaller area.", { mb: plan.memoryMB.toLocaleString(), max: fetchBudgetMB(ramGB).toLocaleString() }) }); return; }
     setSrtmPickerOpen(false);
     setTerrainBusy(true);
     setSrtmProgress({ done: 0, total: 1 });
@@ -1302,14 +1314,17 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const text = await file.text();
       const { columns, rows: parsedRows } = parseXYZ(text);
       const g = guessXyzChannels(columns, parsedRows); // #600 — first guesses; the picker still shows every column
+      const gx = guessColumn(columns, XY_NAME_HINTS.x), gy = guessColumn(columns, XY_NAME_HINTS.y);
       setXyzPending({
         fileName: file.name,
         columns,
         rows: parsedRows,
-        xCol: guessColumn(columns, XY_NAME_HINTS.x),
-        yCol: guessColumn(columns, XY_NAME_HINTS.y),
+        xCol: gx,
+        yCol: gy,
         zCol: g.z,
-        valueCol: g.value,
+        valueCol: g.value || onlyValueLeft(columns, [gx, gy, g.z].filter(Boolean), parsedRows), // #3208 — the one column left
+        // TASKS.csv #3208 — over 100,000 readings read whole: the same 'Keep 1 in n' as a streamed file (#1351); 245,066 IP points froze the app ~6 s
+        ...(parsedRows.length > THIN_FROM_ROWS ? { thin: { total: parsedRows.length, keepEvery: suggestKeepEvery(parsedRows.length, undefined, (layers.geophys_pts || []).length) } } : {}),
         header: gemHeaderInfo(text), // #610 — survey date / UTC offset, for matching base-station files
         headerEpsg: gemHeaderEpsg(text) || geosoftHeaderEpsg(text), // #1329; a Geosoft header: #2832
         ...cleaningDefaults(columns), // #1583
@@ -1479,7 +1494,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (xyzPending.batch) { confirmBatchXYZ(); return; } // #1329
     if (xyzPending.stream && !Array.isArray(streamedRows)) { confirmStreamed(); return; } // #1351 — read the whole file first, thinned
     const { fileName, xCol, yCol, zCol, valueCol } = xyzPending;
-    const parsedRows = Array.isArray(streamedRows) ? streamedRows : xyzPending.rows;
+    const thinBy = !Array.isArray(streamedRows) && xyzPending.thin?.keepEvery > 1 ? xyzPending.thin.keepEvery : 1; // #3208
+    const parsedRows = Array.isArray(streamedRows) ? streamedRows : everyNth(xyzPending.rows, thinBy);
+    if (thinBy > 1) streamNote = `${streamNote || ""}${tr(" Kept 1 in {n} of the file's {seen} readings.", { n: thinBy, seen: xyzPending.rows.length.toLocaleString() })}`;
     if (!xCol || !yCol || !valueCol) {
       setXyzError({ info: false, text: tr("Pick an X, Y, and Value column before importing.") });
       return;
@@ -2019,6 +2036,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               <input type="checkbox" checked={!!xyzPending.despike} onChange={(e) => setXyzPending((p) => ({ ...p, despike: e.target.checked }))} />
               <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("drop readings more than 6 MAD from the running median along their line")}</span>
             </label>
+            {xyzPending.thin && !xyzPending.stream && ( /* TASKS.csv #3208 — a big file read whole: how many readings to keep */
+              <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: "var(--font-size-sm)" }} title={tr("Every reading is one point in the 3D view, and hundreds of thousands make it slow and the project file large. Thinning keeps the map of the survey, but a short anomaly between kept readings can be lost.")}>
+                <span style={{ color: "var(--color-text-faint)", width: 140, flexShrink: 0 }}>{tr("Keep")}</span>
+                <select value={xyzPending.thin.keepEvery} aria-label={tr("How many readings to keep")} onChange={(e) => setXyzPending((p) => ({ ...p, thin: { ...p.thin, keepEvery: Number(e.target.value) } }))} style={{ flex: 1, minWidth: 0 }}>
+                  {KEEP_CHOICES.map((n) => <option key={n} value={n}>{n === 1 ? tr("Every reading (about {rows} points)", { rows: xyzPending.thin.total.toLocaleString() }) : tr("1 in {n} (about {rows} points)", { n, rows: Math.round(xyzPending.thin.total / n).toLocaleString() })}</option>)}
+                </select>
+              </label>
+            )}
             {xyzPending.stream && ( /* TASKS.csv #1351 — how many readings of the big file to keep */
               <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: "var(--font-size-sm)" }} title={tr("Every reading is one point in the 3D view, and hundreds of thousands make it slow and the project file large. Thinning keeps the map of the survey, but a short anomaly between kept readings is lost.")}>
                 <span style={{ color: "var(--color-text-faint)", width: 140, flexShrink: 0 }}>{tr("Keep")}</span>
@@ -2340,9 +2365,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             <option value={200}>{tr("Standard (200 nodes)")}</option>
             <option value={513}>{tr("High (513 nodes)")}</option>
             <option value={1025}>{tr("Very high (1,025 nodes)")}</option>
+            <option value={2049}>{tr("Full (2,049 nodes)")}</option>{/* TASKS.csv #3251 — the fetch reads tiles to match (srtmFetch tileBudget) */}
           </select>
         </div>
-        {terrainDetail > 200 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Finer ground for the next fetch or import: about {mb} MB in memory, {mb2} MB in the project file, and up to a second to build the mesh.", { mb: terrainDetail > 600 ? 9 : 2, mb2: terrainDetail > 600 ? 6 : 1.5 })}</div>}
+        {terrainDetail > 200 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Finer ground for the next fetch or import: about {mb} MB in memory, {mb2} MB in the project file, and up to a second to build the mesh.", { mb: terrainDetail > 1500 ? 40 : terrainDetail > 600 ? 9 : 2, mb2: terrainDetail > 1500 ? 22 : terrainDetail > 600 ? 6 : 1.5 })}</div>}
         <div style={{ display: "flex", gap: 6 }}>
           <button onClick={() => terrainInput.current.click()} style={{ ...pBtn, flex: 1 }} disabled={terrainBusy}>
             {terrainBusy && !srtmProgress ? <Loader2 size={14} className="spin" /> : <Mountain size={14} />} {terrainBusy && !srtmProgress ? tr("Reading…") : terrain ? tr("Replace terrain…") : tr("Import SRTM/DEM…")}
@@ -2395,6 +2421,22 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             areaOptions={srtmAreaOptions}
             onClose={() => setSrtmPickerOpen(false)}
             onConfirm={runSrtmFetch}
+            extraControls={(bbox, { setArea }) => { // TASKS.csv #3251 — the spacing this area gets against the source's own pixel, before the fetch
+              if (!bbox) return null;
+              const p = planTerrainFetch(bbox, terrainDetail, terrainSource), fits = fetchFits(p.memoryMB, ramGB);
+              const coarse = p.effectiveM > 1.5 * p.nativeM;
+              return (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8, marginRight: 10, fontSize: "var(--font-size-sm)", color: "#5a6472" }}>
+                  <span title={tr("Nodes {n} m apart; the source's pixels here {s} m (its finest {f} m){tiles}", { n: p.nodeM.toFixed(1), s: p.sourcePixelM.toFixed(1), f: p.nativeM.toFixed(1), tiles: p.tiles ? tr(", {t} tiles, about {mb} MB to download", { t: p.tiles, mb: p.downloadMB }) : "" })}>
+                    {tr("~{m} m ground detail · {mem} MB", { m: p.effectiveM < 10 ? p.effectiveM.toFixed(1) : Math.round(p.effectiveM), mem: p.memoryMB.toLocaleString() })}</span>
+                  {!fits && <span style={{ color: "var(--color-warn-text)" }}>{tr("over this computer's {max} MB", { max: fetchBudgetMB(ramGB).toLocaleString() })}</span>}
+                  {coarse && p.fullSideKm * 1000 < Math.max((bbox[2] - bbox[0]) * 111320 * Math.cos(((bbox[1] + bbox[3]) / 2) * Math.PI / 180), (bbox[3] - bbox[1]) * 110574) && (
+                    <button type="button" onClick={() => setArea(centreBox(bbox, p.fullSideKm * 1000))} style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)", cursor: "pointer" }}
+                      title={tr("The source's own {f} m detail at this Terrain detail covers about {km} km across: keep the centre of the drawn area", { f: p.nativeM.toFixed(1), km: p.fullSideKm.toFixed(1) })}>{tr("Full resolution: centre {km} km", { km: p.fullSideKm.toFixed(1) })}</button>
+                  )}
+                </span>
+              );
+            }}
           />
         )}
         <input
@@ -2417,7 +2459,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 {terrain.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{terrain.name}</div>
-              <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{terrain.gridW}×{terrain.gridH}</span>
+              <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }} title={terrain.source?.nodeM ? tr("Nodes {n} m apart; the source's pixels {s} m", { n: terrain.source.nodeM.toFixed(1), s: Number(terrain.source.sourcePixelM || 0).toFixed(1) }) : undefined}>{terrain.gridW}×{terrain.gridH}{terrain.source?.nodeM ? ` · ${terrain.source.nodeM < 10 ? terrain.source.nodeM.toFixed(1) : Math.round(terrain.source.nodeM)} m` : ""}</span>{/* · m: #3251 */}
               <Trash2 aria-label={tr("Remove terrain \"{name}\"", { name: terrain.name })} title={tr("Remove terrain \"{name}\"", { name: terrain.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove the terrain surface \"{name}\"? Any rasters draped on it will fall back to a flat elevation.", { name: terrain.name }))) removeTerrain(); }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
@@ -2580,7 +2622,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             </div>
             {b.partNames?.some(Boolean) && ( /* TASKS.csv #2673 — the parts' names as labels in the 3D view (hovering a part names it anyway) */
               <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5, cursor: "pointer", color: "var(--color-text-caption)", fontSize: "var(--font-size-sm)" }}>
-                <input type="checkbox" checked={!!b.partLabels} onChange={(e) => updateBoundary(b.id, { partLabels: e.target.checked })} />{tr("Label the parts in the 3D view")}
+                <input type="checkbox" checked={!!b.partLabels} onChange={(e) => updateBoundary(b.id, { partLabels: e.target.checked })} />{tr("Label the parts (3D view and Maps plan)")}
               </label>
             )}
             {b.partNames?.some(Boolean) && ( /* TASKS.csv #1767 — the parts' own names, from the file */
@@ -2636,10 +2678,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         }} style={pBtn}>
           <Globe size={14} />{" "}{tr("Add web layer (WMS / WFS)…")}</button>
         {/* TASKS.csv #2005 — Macrostrat's world geologic map (CC BY 4.0) for the project area, and the units at its centre */}
-        <button onClick={async () => {
-          if (project?.crsSet === false) { if (!(await ensureProjectCrs(project, tr("Web map layers are downloaded for the place your coordinates point to, so the project needs its coordinate system first.")))) return; }
-          setWebLayerDefaultBbox(await defaultSrtmBboxLonLat()); setMacrostratOpen(true);
-        }} style={pBtn} title={tr("Macrostrat's compilation of geologic maps (CC BY 4.0) for the project area, and the map units at its centre with their original maps")}>
+        <button onClick={openMacrostrat /* #3287 — shared with the Maps ribbon's button */} style={pBtn} title={tr("Macrostrat's compilation of geologic maps (CC BY 4.0) for the project area, and the map units at its centre with their original maps")}>
           <Globe size={14} />{" "}{tr("Macrostrat geology…")}</button>
         {macrostratOpen && <React.Suspense fallback={null}><MacrostratModal onClose={() => setMacrostratOpen(false)} addRaster={addRaster} addMapLayer={addMapLayer} /* #2012 */ projectEpsg={project?.epsg} bboxLonLat={webLayerDefaultBbox} /></React.Suspense>}
 

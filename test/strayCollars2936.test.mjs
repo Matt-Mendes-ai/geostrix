@@ -33,7 +33,7 @@ test("mainTraces keeps the order and drops only the strays; the 3D slice's exten
   assert.ok(!kept.some((t) => t.id === 7));
   assert.equal(mainTraces(ts.slice(0, 10), (t) => t.z).length, 9, "#3004: the 0 m collar is suspect on a small project too (the gap test alone kept it)");
   const v = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(v, /const ts = mainTraces\(tracesRef\.current, \(t\) => t\.wz\?\.\[0\]\);/); // #3004 — world z (the 0 m test)
+  assert.match(v, /const base = sliceTraces\(tracesRef\.current, visibleHoles\), ts = mainTraces\(base, \(t\) => t\.wz\?\.\[0\]\);/); // #3004 — world z (the 0 m test)
 });
 
 test("#3004 — the default ranges follow the shared collar rule: a 0 m collar on a small project is left out too (the gap test needs 20 holes)", async () => {

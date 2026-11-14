@@ -4,7 +4,8 @@
 import * as THREE from "three";
 import { layerStamp } from "../../lib/layerStamp.js"; // TASKS.csv #2388
 import { rowsByHole } from "../../lib/rowsByHole.js"; // TASKS.csv #2906
-import { interbeds, planeDipDeg } from "../../lib/pileTops.js"; // TASKS.csv #2927
+import { isNotRecorded } from "../../lib/notRecorded.js"; // TASKS.csv #3267
+import { interbeds, planeDipDeg, planeMisfitM, looksLikeFlatPile, runsLieFlat } from "../../lib/pileTops.js"; // TASKS.csv #2927; #3262; #3263
 import { stackCellCheck, medianStackThickness } from "../../lib/stackResolution.js"; // TASKS.csv #2905; medianStackThickness: #2922
 import { suspectElevationIds } from "../../lib/collarElevationTrust.js"; // TASKS.csv #2918 (the #3004 rule)
 import { trendRatioText, trendBasis, trendScales } from "../../lib/trend.js"; // TASKS.csv #2423; basis / scales: #3062
@@ -23,7 +24,7 @@ import { baselineNotice, oneHoleDipNotice } from "../../lib/modelCheckBaseline.j
 import { desurveyHole } from "../../lib/desurvey.js";
 import { missOverHalfCell, restrictRowsToHoles, checkedHoleCount } from "../../lib/modelArea.js"; // TASKS.csv #1546; restrictRowsToHoles, checkedHoleCount: #2059
 import { sanitizeMesh } from "../../lib/meshSanitize.js";
-import { checkAgainstLogs, unitVolumes, resampleWarpedBlock, capBlockAtGround } from "../../lib/modelCheck.js";
+import { checkAgainstLogs, unitVolumes, resampleWarpedBlock, capBlockAtGround, modelledAsTally /* #3262 */ } from "../../lib/modelCheck.js";
 import { pythonImplicitModel, problemReportInfo } from "../../lib/desktop.js"; // problemReportInfo: #3215 (the total memory)
 import { makeRng, perturbPoints, perturbOrientation, pointsToMeshDistance, spreadSummary, spreadColor, SPREAD_NOT_REPRODUCED } from "../../lib/surfaceSpread.js";
 import { colorForLithology, colorForAlteration, colorForStructure, minMax, roleForLithology, groupMcodeRole } from "../../lib/layers.js";
@@ -85,6 +86,7 @@ export function createModellingRuns(ctx, mcRef) {
     assays,
     unitLitho, unitField, // TASKS.csv #2378 — the Lithology rows with the unit from the chosen field (all holes), and that field
     customLayers, // TASKS.csv #1739 — a vein's logged angle to core axis may sit on a custom interval layer
+    logValidRange, // TASKS.csv #3116 — the built-in logs' range / despike (useModelling adds it)
     clipToDomainBoundary,
     clipToTopo,
     limitToContacts, // TASKS.csv #1335
@@ -639,7 +641,7 @@ export function createModellingRuns(ctx, mcRef) {
         surface: spec.meshName, sourcePoints: spec.points.length, orientations: spec.orientations.length,
         relation, resolution, blockCellM: blockCellsM(extent, resolution).map((v) => Math.round(v * 10) / 10), // #2624 — per axis, from the box's shape
         ...(unitField ? { unitsFrom: unitField } : {}), // #2378 — the Lithology field the units were read from
-        lithoStamp: layerStamp(layers.litho), // #2388 — the log it read: the surface is marked 'source changed' when the log is replaced or edited
+        lithoStamp: layerStamp(importStateRef.current.layers?.litho ?? layers.litho), // #2388 — the log: 'source changed' when it is replaced or edited. #3265 — the project's whole log, as the badge compares with: `layers` here is the Model area's rows (and the unit field's values, #2378), whose stamp never matched
         surfaceDetail: cakeRun ? null : res.surfaceDetail ?? 4, ...(res.cake ? { cakeGridCellM: Math.round(res.cake.grid.cell * 10) / 10 } : {}), // #766; #2905 — GemPy's octree level for the mesh (4 = its floor)
         gempyRange: res.rangeUsed ?? null, gempyRangeDefault: res.rangeDefault ?? null, engineDtype: res.precision ?? "float64", // engineDtype: #767 (an older engine solved in float64)
         gempyRangeMultiplier: rangeMultiplier || null, gempyCO: res.cO ?? null,
@@ -818,6 +820,12 @@ export function createModellingRuns(ctx, mcRef) {
       if (res.cake) setNotices((p) => [...p, cakeNotice()]); // #2905
       if (chk.total > 0) setNotices((p) => [...p, notice("Model check{v}: the model puts {v2} of {v3} logged metres of the modelled units in the unit they were logged as. By unit: {perUnit}.{v4}{v5} Unit volumes inside the model box ({v6}) are bounded by that box and are not resource figures.{v8}{v7}", { v8: clipGround ? (clipGround.kind === "terrain" ? tr(" They and the lithology block are cut at the terrain ({cells} cells above the ground left out).", { cells: airCut.toLocaleString() }) : tr(" They and the lithology block are cut at the collar surface ({cells} cells above it left out).", { cells: airCut.toLocaleString() })) : "" /* #2470 */, v: exact ? tr(" (each interval's midpoint evaluated exactly)") : tr(" (read from the {modelResolution}³ block)", { modelResolution }), v2: pct(chk.matched, chk.total), v3: Math.round(chk.total), perUnit, v4: worst ? tr(" Least reproduced holes: {worst}.", { worst }) : "", v5: chk.outside ? tr(" {v} m fell outside the model extent.", { v: Math.round(chk.outside) }) : "", v6: vols.length ? vols.map((v) => (lowestOpen && v.name === lowestOpen.unit ? (lowestOpen.floorRL != null ? tr("below {top}, to the box floor at RL {rl}: {vol}", { top: lowestOpen.top, rl: lowestOpen.floorRL, vol: fmtVol(v.volume) }) : tr("below {top}, to the box floor: {vol}", { top: lowestOpen.top, vol: fmtVol(v.volume) })) : `${v.name} ${fmtVol(v.volume)}`)).join(", ") : baseRun ? tr("none: {unit} lies above its base and nothing caps it without a terrain", { unit: specs[0].meshName }) : tr("none"), v7: anisotropy.enabled ? tr(" With the {trendWord} \"{v}\" the model is solved in a stretched frame: the check and volumes account for it, and \"Add as block model\" gets the model resampled onto a real-space grid.", { trendWord, v: anisotropy.params?.trend || tr("unnamed") }) : "" })]);
       { const bn = baselineNotice(chk); if (bn) setNotices((p) => [...p, bn]); } // #1687 — what a trivial model would score
+      // TASKS.csv #3262 — the other side: the logged metres of other rock the model puts inside a modelled unit
+      if (chk.total > 0) {
+        const others = evalRows.filter((q) => unitOfRow(q.row) == null).map((q) => ({ x: q.x, y: q.y, z: q.z, metres: q.row.to - q.row.from, ...("modelled" in q ? { modelled: q.modelled } : {}) }));
+        const tally = modelledAsTally(res.block, samples, others), worst = tally.units[0];
+        if (worst && tally.otherIn >= 0.1 * tally.otherTotal && worst.otherIn > 0) setNotices((p) => [...p, notice("Model check, the other side: the model also puts {m} of the {total} logged metres of other rock inside the modelled units. Of the {called} m it calls {unit}, {share} % were logged as {unit}: its volume overstates the unit by as much.", { m: Math.round(tally.otherIn).toLocaleString(), total: Math.round(tally.otherTotal).toLocaleString(), called: Math.round(worst.called).toLocaleString(), unit: worst.unit, share: Math.round((100 * worst.loggedAs) / worst.called) })]);
+      }
       // TASKS.csv #758 — the predicted geological map, and how it compares with the mapped geology
       if (mapGrid && exact && addRaster) {
         const [bx0, bx1, by0, by1, bz0, bz1] = res.block.extent;
@@ -1253,7 +1261,10 @@ export function createModellingRuns(ctx, mcRef) {
         const first = new Map(); points.forEach((p) => { if (p.hole_id != null && !(first.get(p.hole_id)?.z >= p.z)) first.set(p.hole_id, p); });
         const dip = planeDipDeg([...first.values()]);
         const unitVals = isMcode ? mcodeLogged : codes, byH = rowsByHole(layers.litho || []);
-        const ib = Number.isFinite(dip) && dip <= 15 && unitVals ? interbeds(multi.map(([h]) => h), (h) => byH.get(h), (v) => unitVals.has(v)) : [];
+        // #3262 — flat on average is not a pile: the first tops must also lie close to that plane, and the unit must not cut across
+        const runs = unitVals ? [...per.keys()].flatMap((h) => (byH.get(h) || []).filter((r) => unitVals.has(r.value) && r.to > r.from).map((r) => r.to - r.from)).sort((a, b) => a - b) : [];
+        const pile = looksLikeFlatPile({ dip, misfit: planeMisfitM([...first.values()]), medianRunM: runs.length ? runs[Math.floor(runs.length / 2)] : 0, role: unitRoleOf(target) });
+        const ib = pile && unitVals ? interbeds(multi.map(([h]) => h), (h) => byH.get(h), (v) => unitVals.has(v)) : [];
         const split = ib.filter((q) => q.holes >= 0.5 * ib.of).slice(0, 3);
         if (split.length) setNotices((p) => [...p, notice("{unitName} repeats in {p} % of the holes that log it, interbedded with {list} (in {n} of those {m} holes), and its first tops lie near flat (dipping {d}°): thin beds of its neighbours in a flat pile, not a steep body. One surface through each hole's first top is what the Strat. stack's Layer-cake method and the Explicit surface's 'Add the logged tops' build.", { unitName, p: Math.round((100 * multi.length) / per.size), list: split.map((q) => q.code).join(", "), n: split[0].holes, m: ib.of, d: dip.toFixed(1) })]);
         else setNotices((p) => [...p, notice("{unitName} repeats in {p} % of the holes that log it: it behaves like a steep body or a set of sheets, not one layer. A closed body (Modelling codes › Closed body) or Veins / dykes models it as a body.", { unitName, p: Math.round((100 * multi.length) / per.size) })]);
@@ -1413,6 +1424,11 @@ export function createModellingRuns(ctx, mcRef) {
     const useTypes = new Set(orientTypes);
     let structRows = (layers.structure || []).filter((s) => useTypes.has(String(s.value)) && s.dip != null && s.azimuth != null && !isNaN(s.dip) && !isNaN(s.azimuth));
     const picksAtStart = structRows.length; // captured: the updater below can run after the thinning replaces structRows
+    // TASKS.csv #3264 (review #3195, Galore Creek) — the base of overburden is an erosion surface: 36 bedding and intrusive-contact picks
+    // measured in core 116 to 496 m below it (dips 20-82°) bent it 4.1 m off its 14 contacts typically, 18.5 m at worst (0.26 / 2.55 m
+    // without them). An overburden unit takes no orientation from bedrock structure picks: its dip is estimated from its own contacts.
+    const ovbSkipped = isOverburdenUnit ? structRows.length : 0;
+    if (ovbSkipped) structRows = [];
     if (!silent && structRows.length) setNotices((p) => [...p, notice("Orientations for \"{unitName}\" from structure type(s) {v} ({structRows} pick(s) before spatial filtering). Change which types count as contacts under Contact orientations.", { unitName, v: [...useTypes].join(", "), structRows: picksAtStart })]);
     structRows = filterRowsByDomain(structRows, traces, (s) => s.depth);
     const preSearchCount = structRows.length;
@@ -1434,6 +1450,8 @@ export function createModellingRuns(ctx, mcRef) {
     const nearPicks = orientationsNearContacts(orientations, points, reachM);
     orientations = nearPicks.kept;
     if (nearPicks.total && !silent) setNotices((p) => [...p, notice("\"{unitName}\": {kept} of {total} structure pick(s) lie within {reachM} m of its contacts and steer this surface (Model settings > Contact orientations from picks).", { unitName, kept: nearPicks.kept.length, total: nearPicks.total, reachM })]);
+    // #3264 — the automatic reach (twice the median collar spacing) can be wider than the drilling: then it filters nothing, and says so
+    if (nearPicks.total > 1 && nearPicks.kept.length === nearPicks.total && !(orientationReachM > 0) && !silent) setNotices((p) => [...p, notice("The automatic reach ({reachM} m, twice the median collar spacing) kept every pick: set a shorter one under Model settings > Contact orientations from picks to use only the picks close to \"{unitName}\".", { reachM, unitName })]);
     // TASKS.csv #318 — outcrop measurements of the chosen types within the search radius of the mapped
     // contact, as orientations at their own (terrain) position. Only when a map contact is in play: a
     // bedding reading 3 km from anything being modelled has no business steering this surface.
@@ -1452,7 +1470,8 @@ export function createModellingRuns(ctx, mcRef) {
       orientations = [est];
       orientationEstimated = true;
       { const oh = !silent && oneHoleDipNotice(points, unitName); if (oh) setNotices((p) => [...p, oh]); } // #1687
-      if (!silent && nearPicks.total) setNotices((p) => [...p, notice("No structure pick within {reachM} m of the \"{unitName}\" contacts: its dip was estimated from the contact points (~{dip}°/~{azimuth}°).", { reachM, unitName, dip: Math.round(est.dip), azimuth: Math.round(est.azimuth) })]);
+      if (!silent && ovbSkipped) setNotices((p) => [...p, notice("Base of {unitName}: the {n} bedrock structure pick(s) were not used — the base of overburden is an erosion surface, not bedding or a contact. Its dip was estimated from its contact points (~{dip}°/~{azimuth}°).", { unitName, n: ovbSkipped, dip: Math.round(est.dip), azimuth: Math.round(est.azimuth) })]); // #3264
+      else if (!silent && nearPicks.total) setNotices((p) => [...p, notice("No structure pick within {reachM} m of the \"{unitName}\" contacts: its dip was estimated from the contact points (~{dip}°/~{azimuth}°).", { reachM, unitName, dip: Math.round(est.dip), azimuth: Math.round(est.azimuth) })]);
       // TASKS.csv #2233 (review #2174) — picks loaded but no type chosen under Contact orientations is not "no structure picks found"
       else if (!silent && !picksAtStart && (layers.structure || []).some((r) => r.dip != null && r.azimuth != null)) { const loaded = (layers.structure || []).filter((r) => r.dip != null && r.azimuth != null); setNotices((p) => [...p, notice("No structure type is chosen as a contact orientation ({n} oriented pick(s) of {t} type(s) are loaded): the dip of \"{unitName}\" was estimated from its contact points (~{dip}°/~{azimuth}°). Tick a type under Model settings > Contact orientations to use the picks.", { n: loaded.length, t: new Set(loaded.map((r) => String(r.value))).size, unitName, dip: est.dip.toFixed(0), azimuth: est.azimuth.toFixed(0) })]); }
       else if (!silent) setNotices((p) => [...p, notice("No structure picks found — estimated a single dip/azimuth (~{dip}°/~{azimuth}°) from the shape of the \"{unitName}\" contact points: the orientation comes from the contacts alone.", /* #2928 (6): no 'import a structure CSV' on a project with none */ { dip: est.dip.toFixed(0), azimuth: est.azimuth.toFixed(0), unitName })]);
@@ -1977,14 +1996,17 @@ export function createModellingRuns(ctx, mcRef) {
         // altered holes, an indicator interpolation has nothing pulling it back below 0.5.
         const subLen = Math.max(0.5, cs / 2);
         const intervals = [];
+        let notRecordedM = 0; // #3267
         altRows.forEach((r) => {
           const isTarget = isTargetRow(r);
+          if (!isTarget && isNotRecorded(r.value)) { notRecordedM += Math.max(0, Number(r.to) - Number(r.from)) || 0; return; } // #3267 — 'NR' is unknown, as a blank row, not a zero
           if (isTarget && excludedIntercepts.includes(interceptId(sourceKey, r))) return; // #84 — reviewed-out intercepts never model
           if (isTarget && !interceptInActiveSet(interceptId(sourceKey, r))) return; // #52 (c) — target picks outside the active set
           splitIntervalForSampling(Number(r.from), Number(r.to), subLen).forEach((seg) => {
             intervals.push({ hole_id: r.hole_id, from: seg.from, to: seg.to, avgGrade: isTarget ? 1 : 0 });
           });
         });
+        if (notRecordedM > 0) setNotices((p) => [...p, notice("{m} m coded as not recorded (NR, not logged, unknown) were left out as unknown, not counted as outside \"{code}\".", { m: Math.round(notRecordedM).toLocaleString(), code: altValue })]); // #3267
         // TASKS.csv #2380 (review #2325, WA uranium) — logged rock with no alteration row: unknown (as before) or, when asked, unaltered (a 0).
         // Said either way, with the metres, so a halo that grew through such gaps (SIL: 715 Mm³ from 2 m silcrete rows) is explained.
         const gaps = !isCode && sourceKey === "alt" && !customSrc ? rockWithoutRows(layers.litho || [], altRows) : null;
@@ -2070,7 +2092,12 @@ export function createModellingRuns(ctx, mcRef) {
         // TASKS.csv #2384 (Matt's decision 2026-11-11) — a thin, wide unit whose cubic cell would pass its thickest run gets a cell height of its
         // own (from the median logged run) and a plan cell from the hole spacing, counted on that grid; not under a geology trend (its warped frame)
         const cellsAt3 = (c, cz) => Math.max(1, Math.round((bounds.xmax - bounds.xmin) / c)) * Math.max(1, Math.round((bounds.ymax - bounds.ymin) / c)) * Math.max(1, Math.round((bounds.zmax - bounds.zmin) / cz));
-        const seam = isCode && !anisotropy.enabled && !(cellSetting > 0) ? seamCells(cell, autoB, cellsAt3, MAX_BLOCKS * 0.75) : null;
+        const seam0 = isCode && !anisotropy.enabled && !(cellSetting > 0) ? seamCells(cell, autoB, cellsAt3, MAX_BLOCKS * 0.75) : null;
+        // TASKS.csv #3263 — flat cells only for runs that line up along a near-flat layer (lib/pileTops.js runsLieFlat); steep sheets and
+        // phases met by inclined holes keep cubic cells (and #2047's warning when a cube passes the thickest run), said so
+        const lieFlat = seam0 ? runsLieFlat(inside, autoB.medianRunM, codeInfo(modellingCodes, String(target).slice(6), mcodeDefaultRole).role) : null;
+        const seam = seam0 && lieFlat.flat ? seam0 : null;
+        if (seam0 && !seam) setNotices((p) => [...p, notice("\"{label}\": {code} is logged in thin runs, but they do not line up along a flat layer between the holes (they lie {m} m off their best-fitting plane, which dips {dip}°), so the cells stay cubic ({cube} m): flat cells would spread each run sideways into a plate.", { label, code: String(target).slice(6), m: Math.round(lieFlat.misfit), dip: Number.isFinite(lieFlat.dip) ? Math.round(lieFlat.dip) : "—", cube: Math.round(cell * 10) / 10 })]);
         const cubicWouldBe = cell;
         let cellZ = cell;
         if (seam) { cell = seam.dxy; cellZ = seam.dz; coarsened = seam.coarsened; }
@@ -2431,7 +2458,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
     const anisotropy = flatT ? { enabled: true, flat: true, trend: flatT, basis: trendBasis(flatT), scales: trendScales(flatT), params: { trend: flatT.name, dip: 0, dipAzimuth: 0, pitch: 0, ratios: flatT.ratios } } : shellTrend;
     // TASKS.csv #1741 / #1708 — numericSymbol may name a downhole log or a numeric layer field ("log:magsusc", "custom:<id>:<field>"):
     // its rows stand in for the assays under one element, values as logged
-    const numSrc = findNumericSource(numericSymbol, { layers, customLayers });
+    const numSrc = findNumericSource(numericSymbol, { layers, customLayers, logValidRange }); // logValidRange: #3116
     const srcData = numSrc ? sourceAssays(numSrc, { layers, customLayers }) : null;
     const symbol = numSrc ? numSrc.symbol : (numericSymbol || assayElements[0]?.symbol);
     if (!symbol) { setNotices((p) => [...p, notice("No assay elements loaded — import assays before running the numeric model.")]); return; }
@@ -2468,7 +2495,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         let unsFill = null, unsParams = null;
         if (!numSrc) {
           const { resolveUnsampled } = await import("../../components/UnsampledChoice.jsx");
-          const u = resolveUnsampled("gradeShell", { assays: srcAssays, collars: inArea ? restrictRowsToHoles(collars, visibleHoles) : collars /* #3006 — the holes the run uses */, symbol, unit, elementUnits, logCtx: { layers, customLayers } }); // logCtx: a picked log, #2721
+          const u = resolveUnsampled("gradeShell", { assays: srcAssays, collars: inArea ? restrictRowsToHoles(collars, visibleHoles) : collars /* #3006 — the holes the run uses */, symbol, unit, elementUnits, logCtx: { layers, customLayers, logValidRange } }); // logCtx: a picked log, #2721
           if (!u.ready) throw new Error(tr("Choose how the unsampled metres inside the sampled holes are read (and, for barren, type their value) before running."));
           unsFill = u.apply(srcAssays); unsParams = u.params(unsFill);
           if (unsFill.filledM > 0 && u.mode === "log") setNotices((q) => [...q, notice("Unsampled metres read from the log \"{log}\" × {f} ({lu} to {u}, the factor you gave): {m} m in {n} hole(s) filled from its readings; {r} m had no reading and stay not known.", { log: unsParams.unsampledLog, f: unsParams.unsampledLogFactor, lu: unsParams.unsampledLogUnit, u: unsParams.unsampledUnit, m: unsParams.unsampledLogFilledM.toLocaleString(), n: unsParams.unsampledHolesFilled, r: unsParams.unsampledLogNoReadingM.toLocaleString() })]); // #2721

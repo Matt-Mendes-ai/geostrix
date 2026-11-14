@@ -2,7 +2,7 @@
 // cell of every ticked column before it could paint: four passes over a 590,000-row x 30-element file (71 M cell reads through the
 // columnar row getters) froze the window for 3.1 s. One pass over the rows reads every candidate column at once, in chunks that
 // yield to the window between them, with progress; ticking an element re-sums the per-column results without a rescan (#583).
-import { parseAssayValue, isBlankAssayCell, isOverLimitCode, isNoDataCode, isElementColumn } from "./geochem.js"; // isNoDataCode: #2336
+import { parseAssayValue, isBlankAssayCell, isOverLimitCode, isNoDataCode, isElementColumn, isResultValue } from "./geochem.js"; // isNoDataCode: #2336; isResultValue: #3213
 
 const yieldToWindow = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -95,7 +95,7 @@ export async function elementColumnStats(rows, headers, { chunk = 25000, onProgr
       const r = rows[i];
       for (let j = 0; j < hs.length; j++) {
         const v = parseAssayValue(r[hs[j]]);
-        if (v != null && Number.isFinite(v)) { const s = st[j]; s.n++; if (v > s.max) s.max = v; }
+        if (isResultValue(v)) { const s = st[j]; s.n++; if (v > s.max) s.max = v; } // #3213 — as pickElementColumns: a -999 code is no result
       }
     }
     if (end < n) { onProgress?.(end / n); await yieldToWindow(); }

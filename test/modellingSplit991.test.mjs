@@ -24,6 +24,8 @@ test("#991 every ctx field the modelling runs and hook read is passed to useMode
   const runNames = grab(runs, /export function createModellingRuns\(ctx, mcRef\) \{\s*const \{([\s\S]*?)\} = ctx;/, "createModellingRuns' ctx destructure");
   const hookNames = grab(hook, /export function useModelling\(ctx\) \{\s*const \{([\s\S]*?)\} = ctx;/, "useModelling's ctx destructure");
   const ctx = grab(vm, /useModelling\(\{([\s\S]*?)\}\);/, "the useModelling({ }) call");
+  // TASKS.csv #3116 — and what the hook adds to the run's context itself (ctxRef.current = { ...ctx, logValidRange }, read from the store)
+  for (const n of grab(hook, /ctxRef\.current = \{ \.\.\.ctx, ([^}]*)\};/, "the hook's additions to the run's ctx")) ctx.add(n);
   assert.ok(runNames.size > 50, `${runNames.size} ctx fields found`);
   assert.deepEqual([...runNames, ...hookNames].filter((n) => !ctx.has(n)), [], "read by the runs / hook but not passed");
   assert.deepEqual([...ctx].filter((n) => !runNames.has(n) && !hookNames.has(n)), [], "passed in the ctx but read by neither");

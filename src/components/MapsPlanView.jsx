@@ -147,6 +147,18 @@ export default function MapsPlanView() {
       ctx.beginPath();
       (b.polylines || []).forEach((pl) => { if (pl.length < 2 || !polylineInView(pl, viewBox)) return; pl.forEach((p, i) => (i ? ctx.lineTo(X(p.x), Y(p.y)) : ctx.moveTo(X(p.x), Y(p.y)))); });
       ctx.stroke();
+      // TASKS.csv #3234 — the parts' names at each part's centre, when the boundary's row asks for them (#2673's 'Label the parts'), as in 3D
+      if (b.partLabels && b.partNames?.some(Boolean)) {
+        ctx.save(); ctx.font = "11px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.fillStyle = "#1a2028";
+        (b.polylines || []).forEach((pl, i) => {
+          const name = b.partNames[i];
+          if (!name || !pl?.length || !polylineInView(pl, viewBox)) return;
+          let sx = 0, sy = 0; for (const q of pl) { sx += q.x; sy += q.y; }
+          const cx = X(sx / pl.length), cy = Y(sy / pl.length);
+          ctx.strokeText(String(name), cx, cy); ctx.fillText(String(name), cx, cy);
+        });
+        ctx.restore();
+      }
     });
     ctx.fillStyle = "rgba(90,96,104,0.55)";
     surfaceSamples.forEach((s) => { if (Number.isFinite(s.x)) ctx.fillRect(X(s.x) - 1, Y(s.y) - 1, 2, 2); });

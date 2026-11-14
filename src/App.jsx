@@ -695,7 +695,9 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, worldCursor = 
   // specifically so this component re-renders on every mousemove-driven cursor update / progress tick
   // (as it always needed to, to show a live readout) WITHOUT dragging every other useStore() consumer
   // — most importantly ViewerModule.jsx — along for that same ride.
-  const cursor = useCursorValue();
+  const liveCursor = useCursorValue();
+  // TASKS.csv #3235 — off the world views (Layout, Geochem…) the shared cursor is stale or a page position: E / N / Z read "—" there
+  const cursor = worldCursor ? liveCursor : { x: null, y: null, z: null };
   const taskProgress = useTaskProgressValue();
   const fmt = (v) => (v == null ? "—" : v.toLocaleString(undefined, { maximumFractionDigits: 1 }));
   const pyColor = pyStatus === "connected" ? "#e2a63c" : pyStatus === "checking" || pyStatus === "standby" ? "#55606e" : "#94a1b0";

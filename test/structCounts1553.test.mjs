@@ -7,5 +7,6 @@ test("each type shows how many of its picks are oriented, and a type with none c
   const s = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
   assert.match(s, /const structCounts = useMemo\(/);
   assert.match(s, /Number\.isFinite\(Number\(r\.dip\)\) && Number\.isFinite\(Number\(r\.azimuth\)\)/);
-  assert.match(s, /<option key=\{u\} value=\{u\} disabled=\{!c\.k\}>\{tr\("\{type\} · \{k\} of \{n\} oriented", \{ type: u, k: c\.k, n: c\.n \}\)\}<\/option>/);
+  // #3282 — with Model area = checked holes, the area's counts first (ak / an), the project's after
+  assert.match(s, /<option key=\{u\} value=\{u\} disabled=\{!\(modelArea === "checked" \? c\.ak : c\.k\)\}>\{modelArea === "checked" \? tr\("\{type\} · \{k\} of \{n\} oriented in the model area \(\{k2\} of \{n2\} in the project\)", \{ type: u, k: c\.ak, n: c\.an, k2: c\.k, n2: c\.n \}\) : tr\("\{type\} · \{k\} of \{n\} oriented", \{ type: u, k: c\.k, n: c\.n \}\)\}<\/option>/);
 });

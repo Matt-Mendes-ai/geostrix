@@ -87,6 +87,14 @@ export function guessXyzChannels(columns, rows) {
   return { z, value };
 }
 
+// TASKS.csv #3208 (review #3195, Galore Creek) — 'X Y Z AppMx': X, Y and Z were guessed and Value left on '(choose a column)' though AppMx was
+// the only column left. The one usable numeric column the coordinates leave, else "".
+export function onlyValueLeft(columns, taken, rows) {
+  const sample = rows.length > 2000 ? rows.filter((_, i) => i % Math.ceil(rows.length / 2000) === 0) : rows;
+  const left = (columns || []).filter((c) => c && !taken.includes(c) && !/^(line|fid|time|date|station.*|_line)$/i.test(String(c)) && sample.some((r) => Number.isFinite(r[c])));
+  return left.length === 1 ? left[0] : "";
+}
+
 // TASKS.csv #1326 — "$$DATA$$" tables, the .xyz of 28944Z (Teck, Scott Geophysics, 2006): titles, then the columns' names in 4-character fields, their types, a Fortran
 // format saying where each sits in a line, then the rows. Nothing to do with Geosoft's .xyz but the extension.
 function parseFortranFields(fmt) {
