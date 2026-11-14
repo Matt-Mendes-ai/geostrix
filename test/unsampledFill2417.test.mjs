@@ -86,7 +86,7 @@ test("the three tools read the choice and the estimate says where the metal is",
   assert.match(e, /\.\.\.uns\.params\(filled\), beyondFlagged: true/);
   assert.match(e, /!symbol \|\| !uns\.ready/);
   const v = readFileSync(new URL("../src/components/VariogramModal.jsx", import.meta.url), "utf8");
-  assert.match(v, /compositeDownhole\(filled\.assays, symbol/);
+  assert.match(v, /compositeDownholeSliced\(filled\.assays, symbol/);
   const g = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
   assert.match(g, /resolveUnsampled\("gradeShell", \{ assays: srcAssays, collars(: inArea \? restrictRowsToHoles\(collars, visibleHoles\) : collars \/\* #3006 — the holes the run uses \*\/)?, symbol, unit, elementUnits, logCtx: \{ layers, customLayers, logValidRange \} \}\)/); // #2721: and the logs one may pick
   assert.match(g, /intervals = compositeDownhole\(runAssays, symbol/);

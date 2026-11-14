@@ -3,4 +3,6 @@
 // and the transparent list after it, sorted by renderOrder: the flat raster (transparent, no depth write) goes first in the transparent pass,
 // then these, at full opacity (transparent: true, opacity 1: they look the same) with their depth test and depth write kept, so they still
 // hide each other and the terrain still hides what is under it. Map layers keep 2 + their index (sceneBuilders); labels stay at 999.
-export const DRAW_ORDER = { flatRaster: 1, traces: 5, collars: 6, lines: 7 };
+// TASKS.csv #3035 (#2956) — the subcrop points (a map of what each hole met under cover) over the collar markers: at Top / Fit 6,390 black
+// markers sat on the points and the map read as black blobs with a coloured fringe. They are drawn after the collars with no depth test.
+export const DRAW_ORDER = { flatRaster: 1, traces: 5, collars: 6, lines: 7, mapPoints: 8 };

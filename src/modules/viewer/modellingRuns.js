@@ -43,6 +43,7 @@ import { clipMesh } from "../../lib/clipMesh.js";
 import { holeCounts } from "../../lib/intervalBox.js"; // TASKS.csv #1337
 import { thinStructurePicks } from "../../lib/viewer/orientationThin.js"; // TASKS.csv #765
 import { autoReachM, orientationsNearContacts, contactFit, tooFewContacts, octreeCellM } from "../../lib/viewer/contactFit.js"; // TASKS.csv #1170, #1171; octreeCellM: #2624
+import { contactCoverage } from "../../lib/contactCoverage.js"; // TASKS.csv #3152 — the contacts the cut mesh still covers
 import { axisResolution, blockCellsM } from "../../lib/modelResolution.js"; // TASKS.csv #2624
 import { surfacePackages, unitPackage, contactSurface, contactPackage, movePointsToUnconformities } from "../../lib/viewer/stackPackages.js"; // TASKS.csv #1309
 import { makeEnsembleCounter, quantile, gridValuesToCells } from "../../lib/ensembleProbability.js"; // TASKS.csv #757
@@ -568,6 +569,7 @@ export function createModellingRuns(ctx, mcRef) {
       }
       // TASKS.csv #1335 — a level set runs to the walls of the box wherever the field crosses it, data or not
       const reach = reachOf.get(spec.meshName);
+      const preReach = { verts: sceneVerts, faces }; // #3152 — the mesh before each cut, to say which one removed it over a contact
       if (reach) {
         const c = clipMesh(sceneVerts, faces, (v) => reach.isOutside(sceneToApi(v)));
         sceneVerts = c.verts; faces = c.faces;
@@ -580,6 +582,7 @@ export function createModellingRuns(ctx, mcRef) {
       // footprint; outside it there is nothing to clip against). #568 — cut at the ground line (was: every
       // triangle whose centroid was above it dropped, leaving a saw-tooth that stopped short of the surface).
       let topoClipped = 0;
+      const preGround = { verts: sceneVerts, faces }; // #3152
       if (clipGround) {
         const o = originRef.current;
         const [txmin, tymin, txmax, tymax] = clipGround.bbox;
@@ -604,7 +607,15 @@ export function createModellingRuns(ctx, mcRef) {
       }
       // TASKS.csv #1171 — how far the mesh as drawn passes from the contact points it was fitted through. Not when it was clipped to a
       // domain, whose outside contacts it no longer reaches on purpose.
-      const fit = clipDomain ? null : contactFit(spec.points.map((p) => apiToScene([p.x, p.y, p.z])).map((q) => [q.x, q.y, q.z]), sceneVerts.map((v) => [v.x, v.y, v.z]), faces);
+      // TASKS.csv #3152 (WA iron, #2928 (5)) — the fit over the contacts the kept mesh lies over or under: Top of TNAM had no mesh at 32 of its
+      // 159 contacts after its cuts, and the line counted all 159 (those 32 measured against the nearest kept part, metres to the side)
+      const contactPts = clipDomain ? null : spec.points.map((p) => apiToScene([p.x, p.y, p.z])).map((q) => [q.x, q.y, q.z]);
+      const cover = contactPts ? contactCoverage(contactPts, sceneVerts.map((v) => [v.x, v.y, v.z]), faces, [...(clipGround ? [{ cut: "ground", ...preGround }] : []), ...(reach ? [{ cut: "reach", ...preReach }] : [])]) : null;
+      const fit = clipDomain ? null : contactFit(cover?.left ? contactPts.filter((_, i) => cover.covered[i]) : contactPts, sceneVerts.map((v) => [v.x, v.y, v.z]), faces);
+      if (cover?.left) {
+        const why = [cover.byCut.ground ? tr("{n} where the part of it above the ground was cut away", { n: cover.byCut.ground }) : null, cover.byCut.reach ? tr("{n} past its contacts' outline", { n: cover.byCut.reach }) : null, cover.never ? tr("{n} where the model's surface never ran", { n: cover.never }) : null].filter(Boolean).join("; ");
+        setNotices((p) => [...p, notice("\"{label}\": {k} of its {n} contact point(s) have no surface above or below them ({why}); its fit is measured over the other {m}.", { label: spec.label, k: cover.left, n: contactPts.length, why, m: contactPts.length - cover.left })]);
+      }
       if (fit) setNotices((p) => [...p, notice(fit.worst > 10 ? "\"{label}\" misses its {n} contact point(s) by {typical} m typically and {worst} m at worst, with mesh cells of about {cell} m. A finer Surface detail shrinks the cells; Surface query shows it hole by hole.{v}" : "\"{label}\" passes within {worst} m of its {n} contact point(s), with mesh cells of about {cell} m.", { label: spec.label, n: fit.n, typical: Math.round(fit.typical * 10) / 10, worst: Math.round(fit.worst * 10) / 10, cell: Math.round(fit.cell), v: missOverHalfCell(fit) ? tr(" The typical miss is more than half a cell: model a smaller area (Model settings › Model area, the holes of one prospect) before a finer detail.") : "" })]); // v: TASKS.csv #1546
       const geo = new THREE.BufferGeometry();
       geo.setAttribute("position", new THREE.Float32BufferAttribute(sceneVerts.flatMap((v) => [v.x, v.y, v.z]), 3));
@@ -663,6 +674,7 @@ export function createModellingRuns(ctx, mcRef) {
         ...(spec.params?.picksNearContacts ? { picksNearContacts: spec.params.picksNearContacts } : {}), // #1170
         ...(spec.package != null ? { package: spec.package } : {}), // #1309
         ...(fit ? { contactFit: { points: fit.n, typicalMissM: +fit.typical.toFixed(2), worstMissM: +fit.worst.toFixed(2), meshCellM: Math.round(fit.cell) } } : {}), // #1171
+        ...(cover?.left ? { contactsWithoutSurface: { left: cover.left, of: contactPts.length, byCut: cover.byCut, never: cover.never } } : {}), // #3152 — left out of contactFit
         ...(smoothReports.find((r) => r.meshName === spec.meshName) ? { clusteredContactsSmoothed: (({ smoothed, total, skipped }) => ({ smoothed, of: total, ...(skipped ? { skipped } : {}), method: "KDE (Scott, in the contacts' plane), nugget on points >= 2x even density and >= 0.5 of the max (von Harten et al. 2021)" }))(smoothReports.find((r) => r.meshName === spec.meshName)) } : {}), // #761
         generatedAt: new Date().toISOString(),
         solveSeconds: Math.round(baseSolveSeconds * 10) / 10, // #2383 — what this run cost, for the next one of its size

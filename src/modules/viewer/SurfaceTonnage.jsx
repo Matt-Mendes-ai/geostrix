@@ -38,7 +38,7 @@ export default function SurfaceTonnage({ s, volumeM3, sgRows, traces, geometry, 
       )}
       {tonnage != null ? (
         <>
-          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{tr("Tonnage:")}{" "}<strong>{tonnage.toLocaleString(undefined, { maximumFractionDigits: 0 })} t</strong></div>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{tr("Tonnage:")}{" "}<strong title={`${Math.round(tonnage).toLocaleString()} t`}>{Number(tonnage.toPrecision(3)).toLocaleString()} t</strong>{/* TASKS.csv #3284 — 3 significant figures, exact on hover (as Grade-tonnage) */}</div>
           {from && <div style={muted}>{from.kind === "inside"
             ? tr("Density: the length-weighted mean of {n} measured SG intervals inside this solid ({range}).", { n: from.n, range: range(from) })
             : tr("Density: the length-weighted mean of the whole Specific gravity layer, {n} intervals ({range}), not only those inside this solid.", { n: from.n, range: range(from) })}</div>}

@@ -9,6 +9,6 @@ const m = readFileSync(new URL("../src/components/StereonetModal.jsx", import.me
 test("the button is disabled while several structure types are pooled, the same condition as the 'Mixed types' warning", () => {
   assert.match(m, /const pooledTypes = typeFilter === "all" && types\.length > 1;/);
   assert.match(m, /\{typeFilter === "all" && types\.length > 1 && <div style=\{\{ marginBottom: 3, color: "#8a5a00" \}\}>\{tr\("Mixed types:/);
-  assert.match(m, /disabled=\{isGirdle \|\| pooledTypes\}/);
+  assert.match(m, /disabled=\{isGirdle \|\| pooledTypes \|\| noTrend\}/); // noTrend: #3379
   assert.match(m, /title=\{pooledTypes \? tr\("Disabled: this mean pools \{n\} structure types/);
 });

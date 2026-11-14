@@ -24,7 +24,7 @@ import { lazyModal } from "../lib/lazyModal.jsx";
 import { withSetColumns } from "../lib/estimateSet.js"; // TASKS.csv #3014 part c — a set member exported with its siblings' columns
 import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
 import { logStops, SEQUENTIAL_ANCHORS, b64ToF32 } from "../lib/inversion.js"; // TASKS.csv #481; b64ToF32: #2846
-import { SURVEY_METHODS, unitsForMethod, robustRange, SURVEY_METHOD_GROUPS, guessSurveyMethodFrom, diurnalApplies /* #1586 */, Z_MEANINGS, surveyKey, surveyStats, aglToElevation, surveyNameClashes, uniqueSurveyKey, renameSurvey, soleValueColumn /* #3319 */, replaceSurveyPoints, surveyExportRows } from "../lib/geophysSurveys.js"; // surveyExportRows: #1094 // TASKS.csv #451; replaceSurveyPoints #600
+import { SURVEY_METHODS, unitsForMethod, robustRange, SURVEY_METHOD_GROUPS, guessSurveyMethodFrom, diurnalApplies /* #1586 */, Z_MEANINGS, surveyKey, surveyStats, aglToElevation, surveyNameClashes, uniqueSurveyKey, renameSurvey, soleValueColumn /* #3319 */, eqsApplies /* #3321 */, replaceSurveyPoints, surveyExportRows } from "../lib/geophysSurveys.js"; // surveyExportRows: #1094 // TASKS.csv #451; replaceSurveyPoints #600
 import { radiometricChannels, otherMeasurementColumns, isMultiRadiometric, channelKey, withValueChannel, tickedChannels, ratioJobs, ratioOf } from "../lib/radiometricChannels.js"; // TASKS.csv #2395
 import { terrainElevationAt } from "../lib/inversion.js";
 import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #1709
@@ -81,6 +81,7 @@ import { Layers as RLayers /* #1986 */, Waves as RWaves /* #1989 */, Zap as RZap
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax, median } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread); median: #2239
 import { unreadableFormatAdvice, textTableRefusal } from "../lib/unreadableFormats.js"; // TASKS.csv #603; textTableRefusal: #2847
+import { tableRefusal } from "../lib/tableRefusal.js"; // TASKS.csv #3320 — a table the picker cannot use (one column, a DC / IP reading file)
 import { t as tr } from "../lib/i18n.js";
 import { decadesBetween, isLogSpaced, logViridisStops } from "../lib/pointSurveyScale.js"; // TASKS.csv #1787
 import { defaultModelLegend } from "../lib/modelDefaultStops.js"; // TASKS.csv #2400
@@ -431,6 +432,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (file.size > STREAM_FROM_BYTES) { await openStreamedCsv(file, head); return; } // #1351 — was refused above 150 MB
     parseTableFile(file).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback
         const res = { data: t.rows, meta: { fields: t.headers }, note: t.note };
+        { const r = tableRefusal(file.name, t.headers, t.rows, "point"); if (r) { setError(r); return; } } // #3320 — before the column picker
         // TASKS.csv #484 — columns are matched on the words in each header (Easting_X, Raw_Mag_nT...), once per
         // file. Not sure which is which -> the column picker below (shared with .xyz), never a dead end.
         const cols = guessGeophysColumns(res.meta.fields || []);
@@ -628,6 +630,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const outsideCanada = useMemo(() => { const at = project?.crsSet !== false && project?.epsg ? collarCentreLonLat(collars, project.epsg) : null; return !!at && !(at.lat > 40.5 && at.lat < 84 && at.lon > -142 && at.lon < -51); }, [collars, project?.epsg, project?.crsSet]);
   // TASKS.csv #2589 — collars stacked at one spot at different RLs (pit benches of different dates): which ground the terrain takes
   const benches = useMemo(() => collarBenches(projectZPoints.collarPts), [projectZPoints]);
+  // TASKS.csv #3381 (#3195, Galore Creek) — the samples' heights (hand-held GPS, often) went into the ground beside the surveyed collars without
+  // asking: with both, which of them the terrain is built from is a choice (both, the default as before; collars only; samples only)
+  const [zSource, setZSource] = useState("both");
+  const zBoth = projectZPoints.samples > 0 && projectZPoints.collars > 0;
+  const zUse = zBoth ? zSource : "both";
+  const zCount = (zUse === "collars" ? 0 : projectZPoints.samples) + (zUse === "samples" ? 0 : projectZPoints.collars);
   const [benchMode, setBenchMode] = useState("all");
   // TASKS.csv #2987 — which collars the terrain leaves out, and why (named, the first few)
   const collarsOutNote = (out) => {
@@ -640,7 +648,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     setTerrainError(null);
     setTerrainBusy(true);
     try {
-      const { samples, samplePts, collarPts } = projectZPoints;
+      const { samplePts: allSamplePts, collarPts: allCollarPts } = projectZPoints;
+      const samplePts = zUse === "collars" ? [] : allSamplePts, collarPts = zUse === "samples" ? [] : allCollarPts, samples = samplePts.length; // #3381
       const picked = pickBenchGround(collarPts, benches.n ? benchMode : "all"); // #2589
       const points = [...samplePts, ...picked.points], nc = picked.points.length;
       const benchNote = !benches.n ? ""
@@ -651,7 +660,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       // RL 102-351 under a surface near 400): ask, and name it for what it is
       const ug = collarsLookUnderground(collars, survey);
       if (ug.underground && !window.confirm(tr("The collars look like underground collars ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): a surface through them runs through the mine levels, not the ground.", { upward: ug.upward, stacked: ug.stacked }) + "\n\n" + tr("OK — build it anyway, named 'Surface through the collars'.") + "\n" + tr("Cancel — don't build it (import a DEM or fetch SRTM for the real ground)."))) return;
-      await finishPointsTerrain({ points, lines: [], what: tr("{s} surface sample(s) and {c} collar(s) of this project", { s: samples, c: nc }), name: ug.underground ? "Surface through the collars" : "Terrain from samples and collars", sourceFile: "project surface samples and collars", reprojected: false, misfitAt: picked.points, benchNote, leftOutNote: collarsOutNote(projectZPoints.collarsOut), spacingFit: true }); // name: #2263; misfitAt, benchNote: #2589; leftOutNote: #2987; spacingFit: #3036
+      await finishPointsTerrain({ points, lines: [], what: tr("{s} surface sample(s) and {c} collar(s) of this project", { s: samples, c: nc }), name: ug.underground ? "Surface through the collars" : zUse === "collars" ? "Terrain from collars" : zUse === "samples" ? "Terrain from samples" : "Terrain from samples and collars" /* the source in the name: #3381 */, sourceFile: "project surface samples and collars", reprojected: false, misfitAt: picked.points, benchNote, leftOutNote: collarsOutNote(projectZPoints.collarsOut), spacingFit: true }); // name: #2263; misfitAt, benchNote: #2589; leftOutNote: #2987; spacingFit: #3036
     } catch (err) {
       setTerrainError({ info: false, text: err.message });
     } finally {
@@ -1336,6 +1345,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       if (file.size > STREAM_FROM_BYTES) { // TASKS.csv #1351 — header and sample from the first part; Import streams the rest, thinned
         const head = await headText(file);
         const { columns, rows: sample } = parseXYZ(head);
+        { const r = tableRefusal(file.name, columns, sample, "point"); if (r) { setXyzError({ info: false, text: r }); return; } } // #3320
         const g = guessXyzChannels(columns, sample), estimate = Math.round((sample.length / Math.max(1, head.length)) * file.size);
         setXyzPending({ fileName: file.name, columns, rows: sample, xCol: guessColumn(columns, XY_NAME_HINTS.x), yCol: guessColumn(columns, XY_NAME_HINTS.y), zCol: g.z, valueCol: g.value, header: gemHeaderInfo(head), headerEpsg: gemHeaderEpsg(head) || geosoftHeaderEpsg(head) /* #2832 */, ...cleaningDefaults(columns),
           stream: { file, kind: "xyz", columns, estimate, keepEvery: suggestKeepEvery(estimate, undefined, (layers.geophys_pts || []).length) } });
@@ -1344,6 +1354,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       }
       const text = await file.text();
       const { columns, rows: parsedRows } = parseXYZ(text);
+      { const r = tableRefusal(file.name, columns, parsedRows, "point"); if (r) { setXyzError({ info: false, text: r }); return; } } // #3320
       const g = guessXyzChannels(columns, parsedRows); // #600 — first guesses; the picker still shows every column
       const gx = guessColumn(columns, XY_NAME_HINTS.x), gy = guessColumn(columns, XY_NAME_HINTS.y);
       setXyzPending({
@@ -2019,7 +2030,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     {Object.entries(Z_MEANINGS).map(([k, label]) => <option key={k} value={k}>{tr(label)}</option>)}{/* #1974 */}
                   </select>
                   {/* TASKS.csv #1985 — gridded on one level with equivalent sources (Harmonica, in the Python engine) */}
-                  {!["euler_depth", "mt_bostick", "lidar", "em1d_cond"].includes(meta.method) /* derived points at depth, not readings; lidar: #1994; em1d_cond: #1986 */ && <button type="button" onClick={() => setEqsFor(eqsFor === sv.key ? null : sv.key)} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Grid the readings on one level with equivalent sources (Harmonica): readings at different heights come out on a level surface, and a higher level continues the survey upward")}>{tr("Grid with equivalent sources…")}</button>}
+                  {/* TASKS.csv #3321 — not for a survey that is not a potential field (IP, resistivity, EM, radiometrics ...): said in one line */}
+                  {eqsApplies(meta.method) === "no" && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 5, lineHeight: 1.4 }}>{tr("Equivalent sources: for magnetic and gravity surveys only (a field measured on or above the ground); this survey is {label}.", { label: tr(SURVEY_METHODS[meta.method]?.label || meta.method) })}</div>}
+                  {(eqsApplies(meta.method) === "ok" || eqsApplies(meta.method) === "assume") /* derived points at depth (Euler, Niblett-Bostick, lidar, FDEM models): no button, as before */ && <button type="button" onClick={() => setEqsFor(eqsFor === sv.key ? null : sv.key)} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Grid the readings on one level with equivalent sources (Harmonica): readings at different heights come out on a level surface, and a higher level continues the survey upward")}>{tr("Grid with equivalent sources…")}</button>}
                   {eqsFor === sv.key && <Suspense fallback={null}><EqsGridBox survey={sv.key} rows={rows} units={meta.units || ""} method={meta.method || null} /* #2639 */ addRaster={addRaster} defaultElevation={defaultElevation} numInput={numInput} pBtn={pBtn} /></Suspense>}
                   {/* TASKS.csv #1985 — free-air and Bouguer anomalies of a gravity survey (or of values that look like absolute gravity) */}
                   {(["grav", "grav_fa"].includes(meta.method) || (Number.isFinite(sv.min) && sv.min > 900000)) && <button type="button" onClick={() => setGravFor(gravFor === sv.key ? null : sv.key)} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Free-air anomaly (observed less normal gravity) and Bouguer anomaly (less the Bouguer plate or the terrain's gravity), in the Python engine")}><Scale size={14} />{tr("Gravity reductions…")}</button>}
@@ -2443,11 +2456,20 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         <input ref={lidarInput} type="file" accept=".las,.laz" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) openLidar(f); e.target.value = ""; }} />
         {lidarPending && <LidarImportBox key={lidarPending.file.name + lidarPending.file.size} pending={lidarPending} projectEpsg={lidarPending.epsg} busy={lidarBusy} onImport={confirmLidar} onCancel={() => setLidarPending(null)} btn={pBtn} />}
         {projectZPoints.points.length >= 3 && (
-          <button onClick={terrainFromProject} style={{ ...pBtn, marginTop: 6 }} disabled={terrainBusy}
+          <button onClick={terrainFromProject} style={{ ...pBtn, marginTop: 6 }} disabled={terrainBusy || zCount < 3}
             title={tr("Triangulates the elevations the project's surface samples and drill collars already carry: offline, no file needed. Only as good as those elevations (GPS heights are rough).")}>
-            <Triangle size={14} /> {tr("Terrain from this project's samples and collars ({n})", { n: projectZPoints.points.length.toLocaleString() })}
+            <Triangle size={14} /> {tr("Terrain from this project's samples and collars ({n})", { n: zCount.toLocaleString() })}
           </button>
         )}{/* TASKS.csv #1599 */}
+        {projectZPoints.points.length >= 3 && zBoth && ( /* TASKS.csv #3381 */
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("From")}
+            <select value={zSource} onChange={(e) => setZSource(e.target.value)} aria-label={tr("Elevations the terrain is built from")} style={{ flex: 1, minWidth: 0 }}>
+              <option value="both">{tr("Samples and collars ({s} + {c})", { s: projectZPoints.samples.toLocaleString(), c: projectZPoints.collars.toLocaleString() })}</option>
+              <option value="collars">{tr("Collars only ({c}): surveyed, usually", { c: projectZPoints.collars.toLocaleString() })}</option>
+              <option value="samples">{tr("Samples only ({s}): GPS heights are rough", { s: projectZPoints.samples.toLocaleString() })}</option>
+            </select>
+          </label>
+        )}
         {projectZPoints.collarsOut.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{collarsOutNote(projectZPoints.collarsOut)}</div>}{/* TASKS.csv #2987 */}
         {projectZPoints.points.length >= 3 && benches.n > 0 && ( /* TASKS.csv #2589 */
           <label style={{ display: "block", marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.4 }}>

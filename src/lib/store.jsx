@@ -1100,6 +1100,9 @@ export function StoreProvider({ children }) {
   const setDesurveyMethod = useCallback((m) => setProject((p) => ({ ...p, desurveyMethod: normalizeDesurveyMethod(m) })), []);
   // TASKS.csv #2266 — the class a structure type code no rule knows was given (code -> class), kept with the project like desurveyMethod
   const setStructureCodeClasses = useCallback((m) => setProject((p) => ({ ...p, structureCodeClasses: { ...(p.structureCodeClasses || {}), ...m } })), []);
+  // TASKS.csv #3094 — a structure type's USGS symbol, project-wide: project.structureSymbolByType = { [type]: symbol id } (an older project has
+  // none: the per-set symbolByType choices still apply, #3066). null removes the entry.
+  const setStructureSymbolByType = useCallback((type, symbol) => setProject((p) => { const next = { ...(p.structureSymbolByType || {}) }; if (symbol) next[type] = symbol; else delete next[type]; return { ...p, structureSymbolByType: next }; }), []);
 
   const mergeLayer = useCallback((key, rows) => setLayers((p) => ({ ...p, [key]: [...(p[key] || []), ...rows] })), []);
   const replaceLayer = useCallback((key, rows) => setLayers((p) => ({ ...p, [key]: rows })), []);
@@ -1773,7 +1776,7 @@ export function StoreProvider({ children }) {
     sampleRequest, requestSampleProject, clearSampleRequest, // TASKS.csv #1120
     projectIsEmpty: !hasWork, // TASKS.csv #607 — nothing loaded yet (same test as autosave): an import may adopt its CRS
     desurveyMethod, setDesurveyMethod, // TASKS.csv #135
-    setStructureCodeClasses, // #2266
+    setStructureCodeClasses, setStructureSymbolByType /* #3094 */, // #2266
     collars, setCollars,
     survey, setSurvey,
     layers, setLayers, mergeLayer, replaceLayer,

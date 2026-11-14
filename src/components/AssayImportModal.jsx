@@ -1,7 +1,7 @@
 import { QC_COLUMN_KEYS } from "../lib/assayQcColumns.js"; // TASKS.csv #1184
 import React, { useEffect, useMemo, useState } from "react";
 import { X } from "./icons.js";
-import { percentColumnsReadingPpm } from "../lib/percentAsPpm.js"; // TASKS.csv #3197
+import { percentColumnsReadingPpm, ppmColumnsReadingPpb } from "../lib/percentAsPpm.js"; // TASKS.csv #3197; ppb: #3294
 import { conversionsOver100 } from "../lib/assayReimport.js"; // TASKS.csv #3217
 import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, UNIT_ONLY_SYMBOLS, unitAssumed, repeatColumns, numberedRepeatCandidates, oxideOfHeader, keepsOxide, importStoreUnit, oxidesOver100, LOI } from "../lib/geochem.js"; // LOI: #2887; // importStoreUnit, oxidesOver100: #2490 // numberedRepeatCandidates: #2350 // repeatColumns: #2194; oxide basis: #2487
 import { scanAssayColumns, negativeSummary, zeroCount, blankCount } from "../lib/assayColumnScan.js"; // TASKS.csv #2164
@@ -54,6 +54,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
   const lastTime = modal.elements.filter((e) => e.checked && e.asLastTime); // #3217 — seeded from the project
   // TASKS.csv #3197 — per-cent columns whose values run far past 100 (median over 100: ppm under a _pct name), said here, where the unit menu is
   const pctAsPpm = useMemo(() => (modal.format === "wide" ? percentColumnsReadingPpm(modal.allRows || [], modal.elements.filter((e) => e.checked)) : []), [modal.format, modal.allRows, modal.elements]);
+  const ppmAsPpb = useMemo(() => (modal.format === "wide" ? ppmColumnsReadingPpb(modal.allRows || [], modal.elements.filter((e) => e.checked)) : []), [modal.format, modal.allRows, modal.elements]); // #3294
   const over100 = useMemo(() => (modal.format === "wide" ? oxidesOver100(modal.allRows || [], modal.elements.filter((e) => e.checked), modal.mapping || {}) : []), [modal.format, modal.allRows, modal.elements, modal.mapping]); // #2490
   // TASKS.csv #210 — manual "add a column the auto-detector missed" control, wide format only (long
   // format's elements come from distinct analyte VALUES in one column, not headers — a different,
@@ -179,6 +180,12 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
             <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "4px 0", lineHeight: 1.45 }}>{tr("As last time in this project: {list}. Change any of them in the list below.", { list: lastTime.slice(0, 12).map((e) => `${e.symbol} ${e.header} (${e.unit})`).join(", ") + (lastTime.length > 12 ? ", …" : "") })}</div>
           )}
           {/* TASKS.csv #3197 — a per-cent column holding ppm: said while the unit menu is in reach, ppm offered, nothing converted until chosen */}
+          {ppmAsPpb.length > 0 && ( /* TASKS.csv #3294 — a ppm column holding ppb, against the crust's average */
+            <div role="note" style={{ padding: "6px 16px", fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.45 }}>
+              {tr("These columns are read in ppm, but their median is thousands of times the element's average in the Earth's crust: {list}. They look like ppb. Pick the unit for each in the list below, or:", { list: ppmAsPpb.map((o) => tr("{header} (median {median} ppm; the crust averages about {crust} ppm)", { header: o.header, median: +o.median.toPrecision(3), crust: o.crust })).join("; ") })}{" "}
+              <button type="button" onClick={() => setUnits(ppmAsPpb.map((o) => o.symbol), "ppb")} style={{ ...sel, cursor: "pointer", padding: "1px 8px" }}>{ppmAsPpb.length > 1 ? tr("Read these {n} as ppb", { n: ppmAsPpb.length }) : tr("Read {header} as ppb", { header: ppmAsPpb[0].header })}</button>
+            </div>
+          )}
           {pctAsPpm.length > 0 && (
             <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "4px 0", lineHeight: 1.45 }}>
               {tr("These columns are read in per cent, but their values run far past 100 %, which no weight per cent can: {list}. They look like ppm. Pick the unit for each in the list below, or:", { list: pctAsPpm.map((o) => tr("{header} (median {median} %, up to {max} %)", { header: o.header, median: Math.round(o.median).toLocaleString(), max: Math.round(o.max).toLocaleString() })).join(", ") })}{" "}
@@ -338,7 +345,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
               them, and the reason is said here, not in the panel behind the dialog */}
           {unmapped.length > 0 && !modal.busy && scan && <div role="note" style={{ alignSelf: "center", flex: 2, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("Map the {cols} column(s) to import.", { cols: unmapped.join(", ") })}</div>}
           {checkedCount === 0 && unmapped.length === 0 && !modal.busy && scan && <div role="note" style={{ alignSelf: "center", flex: 2, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("Tick or add at least one element to import.")}</div>}
-          <button onClick={onCommit} disabled={!!modal.busy || !scan || checkedCount === 0 || unmapped.length > 0} /* !scan: #2164; 0 elements: #2183; unmapped: #2037 */ style={{ ...btn(true), flex: 2, opacity: modal.busy || !scan || checkedCount === 0 || unmapped.length > 0 ? 0.6 : 1 }}>{modal.busy ? tr("Importing…") : tr(checkedCount === 1 ? "Import {checkedCount} element" : "Import {checkedCount} elements", { checkedCount })}</button>{/* busy: #583 */}
+          <button onClick={onCommit} disabled={!!modal.busy || !scan || checkedCount === 0 || unmapped.length > 0} /* !scan: #2164; 0 elements: #2183; unmapped: #2037 */ aria-busy={!scan || !!modal.busy} title={!scan ? tr("The values are being checked for negatives, zeros and empty cells: the questions below depend on them.") : undefined} /* #3072 */ style={{ ...btn(true), flex: 2, opacity: modal.busy || !scan || checkedCount === 0 || unmapped.length > 0 ? 0.6 : 1 }}>{modal.busy ? tr("Importing…") : !scan && (modal.allRows || []).length > 0 ? tr("Checking the values… {pct}%", { pct: Math.round(scanPct * 100) }) /* TASKS.csv #3072 — why the button waits, on the button: the status line above can be scrolled out of view */ : tr(checkedCount === 1 ? "Import {checkedCount} element" : "Import {checkedCount} elements", { checkedCount })}</button>{/* busy: #583 */}
         </div>
       </div>
     </div>

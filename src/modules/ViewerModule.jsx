@@ -182,7 +182,7 @@ import { ViewToolbar, SurfaceRibbon, ContextItem, HoleRowList, OrphanHoles, Laye
 import { plannedTrace } from "../lib/plannedTrace.js"; // TASKS.csv #119 - shared, Node-verified target math; plannedTrace: #524; #3159: plannedTrace.js, not holePlanning.js (the targeting solvers)
 import { extractMapContacts, orientationAt, projectContactRibbon, thinLine, densifyLine } from "../lib/mapLayers.js"; // TASKS.csv #316-#318
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
-import { noticeText, noticeLevel, errorNotice, infoNotice, notice, appendNotice } from "../lib/notices.js"; // TASKS.csv #390
+import { noticeText, noticeLevel, errorNotice, infoNotice, notice, appendNotice, replaceNotices } from "../lib/notices.js"; // TASKS.csv #390; replaceNotices: #3114
 let geophysPtsLib = null; // TASKS.csv #3309 — lib/viewer/geophysPts.js (the survey points per survey; makeSurveyColorer #451 inside), loaded on the first survey drawn
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellShown, sampleTerrainElevation, terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #445
 import { assaySizeFor, assayPassesCutoff } from "../lib/viewer/assaySize.js"; // #1533 — moved out
@@ -1074,6 +1074,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const minePaneRef = useRef("pit"); // #1360 — the Mine Design pane last open
   useEffect(() => { setToolPane(pendingPaneRef.current || (mode === "targeting" ? "plan" : mode === "minedesign" ? minePaneRef.current : null)); pendingPaneRef.current = null; }, [mode]);
   useEffect(() => { if (mode === "minedesign" && toolPane) minePaneRef.current = toolPane; }, [mode, toolPane]);
+  const surfaceTopRef = useRef(false); // TASKS.csv #3046 (4) — a map reads north up: the tab's first visit opens in Top view (as the Top button)
+  useEffect(() => { if (mode !== "surface" || surfaceTopRef.current || !camState.current || !cameraRef.current?.__update) return; surfaceTopRef.current = true; camState.current.theta = 0; camState.current.phi = 0.02; cameraRef.current.__update(); }, [mode]);
   const paneProps = (id) => ({ active: toolPane === id, expanded: toolPane === id, onClick: () => setToolPane((p) => (p === id ? null : id)) }); // expanded: #595
   const paneHeader = (title, icon, tone) => <><TaskPaneHeader title={title} icon={icon} tone={tone} onClose={() => setToolPane(null)} /><PaneNotice key={toolPane} notices={notices} /></>; // #1602
   // TASKS.csv #572 — a modelling pane with nothing to model says what to load, instead of an empty "Choose…" select
@@ -1603,15 +1605,16 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     ];
     // TASKS.csv #843 / #948 — the surface samples as the view colours them (the anomaly map's rule and classes, one colour,
     // or by medium), then the Surface Geology map layers and the boundaries
-    if (sampleLegendGroup) groups.push({ ...sampleLegendGroup, items: sampleLegendGroup.items.map(([l, c, o]) => [tr(l), c, o]) });
+    const surfFirst = []; // TASKS.csv #3046 (3) — on the Surface Geology tab the map's own groups lead (the figure's cut fell on them)
+    if (sampleLegendGroup) groups.push({ ...sampleLegendGroup, items: sampleLegendGroup.items.map(([l, c, o]) => [tr(l), c, o]) }), surfFirst.push(groups[groups.length - 1]);
     const outcrop = outcropLegendGroup({ surfaceStructures }); // TASKS.csv #1437 — the outcrop sets' classes
-    if (outcrop) groups.push({ ...outcrop, label: tr(outcrop.label), items: outcrop.items.map(([l, c, o]) => [tr(l), c, o]) });
-    groups.push(...mapLayerLegendGroups(mapLayers), ...boundaryLegendGroups(boundaries));
+    if (outcrop) groups.push({ ...outcrop, label: tr(outcrop.label), items: outcrop.items.map(([l, c, o]) => [tr(l), c, o]) }), surfFirst.push(groups[groups.length - 1]);
+    { const mg = mapLayerLegendGroups(mapLayers); groups.push(...mg, ...boundaryLegendGroups(boundaries)); surfFirst.unshift(...mg); }
     { const hg = holeColourLegendGroup(holeScheme, tr("Holes by {field}", { field: holeColourBy }), tr("(no value)")); if (hg) groups.unshift(hg); } // #1504
     // TASKS.csv #451 / #2075 — one ramp per survey, the drawn points only; the builder is shared with the Layout legend since #2878
     groups.push(...geophysLegendGroups({ rows: layers?.geophys_pts, visible: !!layerVisible.geophys_pts, surveys: geophysSurveys, stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax, label: LAYER_META.geophys_pts?.label || "Geophysics points" }));
-    return groups;
-  }, [rasters, sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, numericLayerColor, isRowVisible, collars, customLayers, customVisible, holeScheme, holeColourBy, surfaceStructures, layoutPages /* #3296 */]); // #1398; collars: #1813; holeScheme: #1504; surfaceStructures: #3092
+    return mode === "surface" && surfFirst.length ? [...surfFirst, ...groups.filter((g) => !surfFirst.includes(g))] : groups; // #3046 (3)
+  }, [mode /* #3046 */, rasters, sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, numericLayerColor, isRowVisible, collars, customLayers, customVisible, holeScheme, holeColourBy, surfaceStructures, layoutPages /* #3296 */]); // #1398; collars: #1813; holeScheme: #1504; surfaceStructures: #3092
 
   // TASKS.csv #453 — the 3D slice's planes over the drilled extent: vertical (azimuth, position) or horizontal (an elevation); thickness 0 = a half-space
   const sliceExtent = useMemo(() => {
@@ -4249,7 +4252,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         const j = surfaceDrawnIdx ? surfaceDrawnIdx[i] : i; // #1819 — classes are per surfaceSamples index
         const cl = an ? (j >= 0 ? an.classOf[j] : -1) : -2;
         const color = an ? (cl >= 0 ? an.classes[cl].color : an.noDataColor) : (st.color || colorForMedium(row.medium));
-        const mesh = new PickStandIn(proto, { color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // #312; #1500
+        const mesh = new PickStandIn(proto, { color, transparent: true, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // #312; #1500; transparent: #3046 (5)
+        mesh.renderOrder = 7; // TASKS.csv #3046 (5) — DRAW_ORDER.lines (#2776): after a flat map drape (no depth write), so a sample under it is not dimmed
         mesh.scale.setScalar(Math.max(radiusOf(row.medium), minR) * st.size * (an?.isolated[j] ? 0.55 : 1)); // #843 — an isolated anomaly is drawn small; #849 size; minR: #1597
         mesh.position.set(row.x - ox, row.z - oz, -(row.y - oy));
         const mapped = mappedOfSample(an, layerStyles.surface_anomaly, j, surfaceElementUnits); // #1821
@@ -4258,7 +4262,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       } catch (err) { errors.push(err.message); }
     });
     buildLayerBatches(g);
-    { const lg = layerGroupsRef.current.sample_labels; if (lg) syncTextLabels(lg, sampleLabelItems(placedSurfaceSamples, layerStyles.surface_samples?.label || "none", { ox, oy, oz }), makeTextSprite, Math.max(minR, 1.8) * 2); } // TASKS.csv #1443 — a label beside each sample (id or one element's value), decluttered each frame
+    { const lg = layerGroupsRef.current.sample_labels; if (lg) syncTextLabels(lg, sampleLabelItems(placedSurfaceSamples, layerStyles.surface_samples?.label || "none", { ox, oy, oz, units: surfaceElementUnits /* #2641 */ }), makeTextSprite, Math.max(minR, 1.8) * 2); } // TASKS.csv #1443 — a label beside each sample (id or one element's value), decluttered each frame
     if (errors.length) setNotices((pv) => [...pv, errorNotice(tr("{errors} surface sample(s) failed to render: {v}", { errors: errors.length, v: errors.slice(0, 3).join(" · ") }))]);
   };
   const surfaceSymbolMppRef = useRef(NaN); // TASKS.csv #1597 — the metres-per-pixel the surface symbols were sized for
@@ -4521,14 +4525,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         });
         const res = checkTopology(input, { up: "y" });
         if (!res.checked) {
-          setNotices((p) => [...p, notice("Nothing to check: none of the {surfacesChecked} surface(s) declare a relationship that implies a geometric constraint. Declare \"is below\" / \"is above\" / \"must not cross\" on a surface (expand its row) and run this again.", { surfacesChecked: res.surfacesChecked })]);
+          setNotices((p) => replaceNotices(p, "topologyCheck", notice("Nothing to check: none of the {surfacesChecked} surface(s) declare a relationship that implies a geometric constraint. Declare \"is below\" / \"is above\" / \"must not cross\" on a surface (expand its row) and run this again.", { surfacesChecked: res.surfacesChecked }))); // #3114
         } else if (!res.violations.length) {
-          setNotices((p) => [...p, notice("Topology check passed: {checked} check(s) across {surfacesChecked} surface(s), no violations.{v}", { checked: res.checked, surfacesChecked: res.surfacesChecked, v: res.skipped ? tr(" {skipped} declared relationship(s) skipped — either the target surface no longer exists, or the relationship (truncates / terminates against / cuts) is one where an intersection is expected and so has nothing to violate.", { skipped: res.skipped }) : "" })]);
+          setNotices((p) => replaceNotices(p, "topologyCheck", notice("Topology check passed: {checked} check(s) across {surfacesChecked} surface(s), no violations.{v}", { checked: res.checked, surfacesChecked: res.surfacesChecked, v: res.skipped ? tr(" {skipped} declared relationship(s) skipped — either the target surface no longer exists, or the relationship (truncates / terminates against / cuts) is one where an intersection is expected and so has nothing to violate.", { skipped: res.skipped }) : "" }))); // #3114
         } else {
-          setNotices((p) => [...p, appendNotice(notice("Topology check found {violations} violation(s) in {checked} check(s):", { violations: res.violations.length, checked: res.checked }), res.violations.map((v) => ` • ${v.message}`).join(""))]); // #1542 — one notice: the count and the list stay together
+          setNotices((p) => replaceNotices(p, "topologyCheck", appendNotice(notice("Topology check found {violations} violation(s) in {checked} check(s):", { violations: res.violations.length, checked: res.checked }), res.violations.map((v) => ` • ${v.message}`).join("")))); // #3114 — replaces the last check's notice // #1542 — one notice: the count and the list stay together
         }
       } catch (err) {
-        setNotices((p) => [...p, errorNotice(tr("Topology check failed: {message}", { message: err.message }))]);
+        setNotices((p) => replaceNotices(p, "topologyCheck", errorNotice(tr("Topology check failed: {message}", { message: err.message }))));
       } finally {
         setTopologyBusy(false);
       }
@@ -5079,6 +5083,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     addRaster,
     collars,
     goToModule, // TASKS.csv #917
+    mode, // TASKS.csv #3046 (1) — a sample drop on Surface Geology comes back there
     importModal,
     importSolidFile,
     importStateRef,
@@ -7128,7 +7133,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                           {tr("No volume or tonnage: this body contains only {n} of the {m} sample points of {code} it was built from, so it is not that unit. Rebuild it with a smaller cell and a search near the logged intervals.", { n: s.params.samplesInside?.inside ?? 0, m: s.params.samplesInside?.of ?? 0, code: s.params.target })}</div>
                       ) : (
                       <>
-                      {expandedSurfaceVolume.watertight && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>{tr("Volume:")}{" "}<strong>{Number(expandedSurfaceVolume.volumeM3.toPrecision(3)).toLocaleString()} m³</strong>
+                      {expandedSurfaceVolume.watertight && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>{tr("Volume:")}{" "}<strong title={`${Math.round(expandedSurfaceVolume.volumeM3).toLocaleString()} m³`}>{Number(expandedSurfaceVolume.volumeM3.toPrecision(3)).toLocaleString()} m³</strong>{/* title: #3284 */}
                       </div>}{/* #1229 */}
                       {/* TASKS.csv #257 — an ARTIFICIALLY closed shell is watertight, so the old
                           !watertight-only caution never fired for the single most misleading case in
@@ -7138,7 +7143,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                           test: two disjoint balloons 200 m apart are each closed and report as one
                           volume. Union-find over the indexed mesh says how many bodies there really are. */}
                       {expandedSurfaceVolume.componentCount > 1 && (
-                        <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 6, lineHeight: 1.45 }}>{expandedSurfaceVolume.watertight ? tx("This shell is {bodies} totalling {vol} m³, not one continuous body.", { bodies: <strong>{tr("{n} separate bodies", { n: expandedSurfaceVolume.componentCount })}</strong>, vol: expandedSurfaceVolume.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 }) }) : tr("This shell is {n} separate pieces, not one continuous body.", { n: expandedSurfaceVolume.componentCount }) /* #2219 */}</div>
+                        <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 6, lineHeight: 1.45 }}>{expandedSurfaceVolume.watertight ? tx("This shell is {bodies} totalling {vol} m³, not one continuous body.", { bodies: <strong>{tr("{n} separate bodies", { n: expandedSurfaceVolume.componentCount })}</strong>, vol: <span title={`${Math.round(expandedSurfaceVolume.volumeM3).toLocaleString()} m³`}>{Number(expandedSurfaceVolume.volumeM3.toPrecision(3)).toLocaleString()}</span> }) /* #3284 — the Volume line's figure */ : tr("This shell is {n} separate pieces, not one continuous body.", { n: expandedSurfaceVolume.componentCount }) /* #2219 */}</div>
                       )}
                       {!expandedSurfaceVolume.watertight && (
                         <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 6, lineHeight: 1.4 }}>{tr("{v} That can mean several things: it's a single draped contact or fault sheet rather than a solid; it was clipped against a modelling domain; or the shell reaches the edge of the estimated region (the shell is only closed there when \"Close shell artificially\" is ticked). So no enclosed volume is given.", { v: tr(expandedSurfaceVolume.openEdgeCount === 1 ? "This surface isn't a closed solid ({n} open edge)." : "This surface isn't a closed solid ({n} open edges).", { n: expandedSurfaceVolume.openEdgeCount }) })}</div>
@@ -7146,7 +7151,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                       {/* TASKS.csv #270 (LOW-2) — a tonnage with no grade beside it invites quoting the
                           CUTOFF as the grade. Report the interpolated mean inside the shell instead. */}
                       {s.params?.meanGradeInShell != null && (
-                        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>{tr("Mean interpolated grade inside the shell:")}{" "}<strong>{s.params.meanGradeInShell.toFixed(3)} {PRECIOUS_METALS.has(s.params.element) && s.params.unit === "ppm" ? "g/t" : s.params.unit}</strong>
+                        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>{tr("Mean interpolated grade inside the shell:")}{" "}<strong title={String(s.params.meanGradeInShell)}>{Number(s.params.meanGradeInShell.toPrecision(4)).toLocaleString()} {PRECIOUS_METALS.has(s.params.element) && s.params.unit === "ppm" ? "g/t" : s.params.unit}</strong>{/* 4 significant figures: #3284 */}
                           <span style={{ color: "var(--color-text-muted)" }}>{" "}{tr("— not a resource grade (no dilution, no recovery, no declustering; it is the mean of the interpolated cells at or above the {cutoff} cutoff).", { cutoff: s.params.cutoff })}</span>
                         </div>
                       )}

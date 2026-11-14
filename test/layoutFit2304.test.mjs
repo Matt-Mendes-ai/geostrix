@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const L = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
-const at = L.indexOf("const fitViewport = async (sel, { pass = 1 } = {}) =>") /* #3018 */, body = L.slice(at, L.indexOf("\n  };", at));
+const at = L.indexOf("const fitViewport = async (sel, { pass = 1") /* #3371: more options */ /* #3018 */, body = L.slice(at, L.indexOf("\n  };", at));
 
 test("the scale is computed with and without the assumed holes' points", () => {
   assert.match(body, /if \(!assumedIds\.has\(hid\)\) ptsDrilled\.push\(\[p\.x, p\.y\]\)/);

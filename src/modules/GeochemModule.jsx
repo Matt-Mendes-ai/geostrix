@@ -26,7 +26,7 @@ import { elementColumnStats } from "../lib/assayColumnScan.js"; // TASKS.csv #21
 const ELEMENT_SCAN_CHUNKED_ROWS = 50000; // #2164 — below this the element columns are counted at once
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
 import { assayImportFindings } from "../lib/assayImportFindings.js"; // TASKS.csv #2498
-import { repeatColumns, columnDetectionLimit, isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, columnPositiveMax, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, oxideUnit, importStoreUnit, oxideBasisUnit, oxideColumnUnit, surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples, otherMediumTwins } from "../lib/geochem.js"; // otherMediumTwins: #2085
+import { repeatColumns, columnDetectionLimit, isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, columnPositiveMax, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, oxideUnit, importStoreUnit, oxideBasisUnit, oxideColumnUnit, surfaceAttrColumns, surfaceAttrs, surfaceDateReaders, surfaceAttrsDated /* #3200 */, mergeSurfaceSamples, otherMediumTwins } from "../lib/geochem.js"; // otherMediumTwins: #2085
 import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile, loggedCodeAt, isSedimentaryCode, noVolcanicCodes /* #2911 */, mergeClassRuns, FITTED_PROTOLITH, fitLeastAlteredBox, nameAiUpTrend , censoredOperand, censoredLeftOut, guessProtolith } from "../lib/geochemDiagrams.js"; // fitted: #2028; nameAiUpTrend: #2145
 import { qcRecordFromFileRow, emptySurfaceQc, looksLikeQcTypeColumn, mergeQcRecords } from "../lib/surfaceQaqc.js"; // TASKS.csv #842; looksLikeQcTypeColumn, mergeQcRecords: #1794
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
@@ -205,7 +205,9 @@ export default function GeochemModule() {
   // TASKS.csv #1652 (review #1645, Copley) — every assay-like file of a 3D View drop, one after another (only the first was opened: the pXRF
   // file got '1 more assay file(s) to import from the Geochem tab' and had to be found and dropped again), each routed by its name as
   // this tab's own drop does (pxrf / xrf -> the pXRF import)
-  useModuleAction(["import-assay-file"], (_a, p) => { const fs = p?.files || (p?.file ? [p.file] : []); enqueueAssayFiles(fs); });
+  const returnToRef = useRef(null); // TASKS.csv #3046 (1) — the tab a surface-sample drop came from (Surface Geology): back there after its dialog
+  useModuleAction(["import-assay-file"], (_a, p) => { const fs = p?.files || (p?.file ? [p.file] : []); returnToRef.current = p?.returnTo || null; enqueueAssayFiles(fs); });
+  const goBackAfterSurface = () => { const back = returnToRef.current; if (!back) return false; returnToRef.current = null; store.goToModule?.(back); return true; };
   // TASKS.csv #917 — assays straight from a database: this tab's Database button, or a table the 3D View's database
   // Browser panel recognized as assays and handed over
   const [dbOpen, setDbOpen] = useState(false);
@@ -1030,6 +1032,7 @@ export default function GeochemModule() {
     // TASKS.csv #842 — a parent / original-sample column pairs a field duplicate with its original
     const parentCol = allHeaders.find((h) => /^(parent|orig(inal)?)[\s_-]*(sample)?[\s_-]*(id|no|number|#)?$|^dup(licate)?[\s_-]*of$/i.test(String(h).trim())) || null;
     const attrCols = surfaceAttrColumns(allHeaders, allRows, { ...mapping, parent: parentCol }, elements).filter((h) => !modal.attrExclude?.includes(h)); // TASKS.csv #841; attrExclude: #846
+    const sampleDates = surfaceDateReaders(allRows, attrCols); // TASKS.csv #3200 — date columns as ISO dates plus a '<col> year' field, as collars
     const qcRecords = []; // TASKS.csv #842 — rows the sample-type column marks as standard / blank / duplicate
     const flagCols = flagColumns(allHeaders, chosen), flaggedLo = new Map(); // TASKS.csv #2018 — '<el>_flag' = LDL: below detection
     const mappedRows = allRows.map((r) => {
@@ -1071,7 +1074,7 @@ export default function GeochemModule() {
         values,
         ...(bdl.length ? { bdl } : {}),
         ...(nd.length ? { nd } : {}),
-        ...surfaceAttrs(r, attrCols),
+        ...surfaceAttrsDated(r, attrCols, sampleDates.readers), // dates: #3200
       };
     });
     // TASKS.csv #1664 (review #1646, Kodiak) — a sample row with no coordinates was dropped with no word (181 Kodiak control rows vanished
@@ -1128,7 +1131,10 @@ export default function GeochemModule() {
       mineSrc ? mineSourceSentence(mineSourceOf(project), toEpsg).trim() : null, // #2684
       doReproject ? `Reprojected from EPSG:${fromEpsg} to the project's EPSG:${toEpsg}${reprojectFailed ? ` (${reprojectFailed} row(s) could not be converted and were skipped)` : ""}.` : null,
     ].filter(Boolean).join(" ");
-    setNotices((p) => [...p, notice(chosen.length === 1 ? "Loaded {rows} surface samples (1 element). Switch to 3D View to see them.{v}" : "Loaded {rows} surface samples ({chosen} elements). Switch to 3D View to see them.{v}", /* #2201 */ { rows: rows.length, chosen: chosen.length, v: extra ? " " + extra : "" })]);
+    if (sampleDates.ambiguous.length) setNotices((p) => [...p, tr("{fileName}: {cols} kept as written: every date there could be day/month or month/day.", { fileName: modal.fileName, cols: sampleDates.ambiguous.join(", ") })]); // #3200, as collars (#3075)
+    const back = goBackAfterSurface(); // #3046 (1) — the notice says where the samples are seen
+    setNotices((p) => [...p, back ? notice(chosen.length === 1 ? "Loaded {rows} surface samples (1 element): back on the Surface Geology tab, where they are drawn.{v}" : "Loaded {rows} surface samples ({chosen} elements): back on the Surface Geology tab, where they are drawn.{v}", { rows: rows.length, chosen: chosen.length, v: extra ? " " + extra : "" })
+      : notice(chosen.length === 1 ? "Loaded {rows} surface samples (1 element). Switch to 3D View to see them.{v}" : "Loaded {rows} surface samples ({chosen} elements). Switch to 3D View to see them.{v}", /* #2201 */ { rows: rows.length, chosen: chosen.length, v: extra ? " " + extra : "" })]);
     setSurfaceModal(null);
   };
 
@@ -1637,7 +1643,7 @@ export default function GeochemModule() {
         <SurfaceImportModal
           modal={surfaceModal}
           onChange={setSurfaceModal}
-          onCancel={() => setSurfaceModal(null)}
+          onCancel={() => { setSurfaceModal(null); goBackAfterSurface(); /* #3046 (1) */ }}
           onCommit={() => commitSurfaceImport(surfaceModal)}
           onJoinFile={joinSurfaceFile}
           projectEpsg={project?.epsg}

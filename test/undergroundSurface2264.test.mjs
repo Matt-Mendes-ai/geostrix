@@ -9,7 +9,8 @@ const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
 test("#2264 the flat elevation: the highest collar when the collars look underground", () => {
   const v = read("src/modules/viewer/useSurfacePlacement.js"); // moved out of ViewerModule: #2485
-  assert.match(v, /surfaceFlatElevation\(collars, surfaceSamples, collars\.length > 1 && collarsLookUnderground\(collars, survey\)\.underground\)/);
+  assert.match(v, /const underground = useMemo\(\(\) => collars\.length > 1 && collarsLookUnderground\(collars, survey\)\.underground, \[collars, survey\]\);/); // #3368: shared with the collar ground
+  assert.match(v, /surfaceFlatElevation\(collars, surfaceSamples, underground\)/);
   assert.match(read("src/lib/viewer/surfacePlacement.js"), /const top = collars\.length > 1 && underground \? Math\.max\(\.\.\.collars\.map\(\(c\) => c\.z\)\.filter\(Number\.isFinite\)\) : null;/);
   // 12 upholes among 20 collars: underground
   const collars = Array.from({ length: 20 }, (_, i) => ({ hole_id: `U${i}`, x: i * 5, y: 0, z: 100 + i * 10 }));
@@ -21,6 +22,6 @@ test("#2264 the flat elevation: the highest collar when the collars look undergr
 test("#2265 Subcrop from collars asks on an underground project and is named for what it is; Unknown is cover", () => {
   const s = read("src/components/SurfaceMappingPanel.jsx");
   assert.match(s, /if \(ug\.underground && !window\.confirm\(tr\("The collars look underground/);
-  assert.match(s, /const base = (depth != null \? tr\("Units \{d\} m below the collars", \{ d: depth \}\) : )?ug\.underground \? tr\("Units at the collars"\) : tr\("Subcrop from collars"\);/);
+  assert.match(s, /const base = (depth != null \? tr\("Units \{d\} m down the holes", \{ d: depth \}\) \/\* #3378[^*]*\*\/ : )?ug\.underground \? tr\("Units at the collars"\) : tr\("Subcrop from collars"\);/);
   assert.equal(roleForLithology("Unknown"), "no recovery");
 });

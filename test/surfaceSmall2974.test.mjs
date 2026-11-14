@@ -13,5 +13,5 @@ test("(6) the typed form checks dip 0-90 and dip direction 0-360 and names the v
 test("(7) suggestions: polygon layers' categorical values and the logged lithology codes, not a GPX layer's names", () => {
   const p = readFileSync(new URL("../src/components/UnitPolygonPane.jsx", import.meta.url), "utf8");
   assert.match(p, /if \(l\.geomType !== "polygon" \|\| l\.styleBreaks\?\.length\) continue;/);
-  assert.match(p, /for \(const r of layers\?\.litho \|\| \[\]\) \{ const v = String\(r\?\.value \?\? ""\)\.trim\(\); if \(v\) s\.add\(v\); \}/);
+  assert.match(p, /for \(const r of layers\?\.litho \|\| \[\]\) \{\s*const v = String\(r\?\.value \?\? ""\)\.trim\(\); if \(!v \|\| s\.has\(v\)\) continue;/); // the logged codes, but not cover / no recovery: #3381
 });

@@ -6,7 +6,7 @@ import { mineSourceOf, isMineSource } from "../lib/mineGrid.js"; // TASKS.csv #2
 import { X } from "./icons.js";
 import { TARGET_SCHEMAS, guessMapping, LAYER_META } from "../lib/layers.js";
 import { alterationStyleFromName, blankShare } from "../lib/viewer/importHelpers.js"; // TASKS.csv #1511; blankShare: #2182
-import { AZIMUTH_REFS } from "../lib/azimuthRef.js"; // TASKS.csv #396
+import { AZIMUTH_REFS, azimuthToGridOffset } from "../lib/azimuthRef.js"; // TASKS.csv #396; azimuthToGridOffset: #3302
 import { fitSimilarity, parseControlPoints } from "../lib/localGrid.js"; // TASKS.csv #412
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -56,6 +56,14 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
   // TASKS.csv #2659 — every id an existing collar at its own position: a per-hole table, whose columns join onto those holes
   const perHole = useMemo(() => (modal.target === "collars" ? perHoleJoinOf(modal.allRows || modal.sampleRows || [], modal.mapping, storeCollars) : null), [modal.target, modal.allRows, modal.sampleRows, modal.mapping, storeCollars]);
   const crsUnset = storeProject?.crsSet === false; // TASKS.csv #615
+  // TASKS.csv #3302 (from #3209) — true-north azimuths (a gyro survey, or the file says so): the grid convergence at the project's collars, said
+  // before Import, so the turn the azimuths take is seen (it was only in the notice after)
+  const trueTurn = useMemo(() => {
+    if (modal.azimuthRef !== "true" || crsUnset || !projectEpsg || !["collars", "survey", "structure"].includes(modal.target)) return null;
+    const xs = (storeCollars || []).map((c) => c.x).filter(Number.isFinite).sort((a, b) => a - b), ys = (storeCollars || []).map((c) => c.y).filter(Number.isFinite).sort((a, b) => a - b);
+    if (!xs.length || !ys.length) return null;
+    try { const o = azimuthToGridOffset("true", xs[xs.length >> 1], ys[ys.length >> 1], projectEpsg); return o && Number.isFinite(o.offset) ? o.offset : null; } catch { return null; }
+  }, [modal.azimuthRef, modal.target, crsUnset, projectEpsg, storeCollars]);
   useEscapeKey(onCancel); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const schema = TARGET_SCHEMAS[modal.target];
@@ -363,6 +371,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                     <input type="radio" name="azref" checked={(modal.azimuthRef || "grid") === k} onChange={() => onChange({ ...modal, azimuthRef: k })} /> {text}
                   </label>
                 ))}
+                {trueTurn != null && <div role="note" style={{ marginLeft: 22, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{Math.abs(trueTurn) < 0.005 ? tr("At the project's collars true north and grid north coincide (no grid convergence): these azimuths are used as they are.") : tr(trueTurn > 0 ? "At the project's collars true north lies {deg}° east of grid north (the grid convergence): these azimuths are turned by +{deg}° to grid north." : "At the project's collars true north lies {deg}° west of grid north (the grid convergence): these azimuths are turned by −{deg}° to grid north.", { deg: Math.abs(trueTurn).toFixed(2) })}</div>}{/* #3302 */}
                 {/* TASKS.csv #2491 — true / magnetic north with no project CRS: said here, before Import, not only in the notice after */}
                 {crsUnset && (modal.azimuthRef === "true" || modal.azimuthRef === "magnetic") && (() => {
                   const tie = tieOf(storeProject);
