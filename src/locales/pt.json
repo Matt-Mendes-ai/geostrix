@@ -5099,6 +5099,8 @@
   "Predictive modelling (geoML)": "Modelagem preditiva (geoML)",
   "Models with": "Modelos com",
   "uncertainty": "incerteza",
+  "gate times": "tempos das janelas",
+  "model": "modelo",
   "from Gaussian processes (": "a partir de processos gaussianos (",
   ", Ítalo Gonçalves). Results appear in the 3D view beside your other models, named \"geoML — …\", so you can compare them. Everything runs on this computer.": ", Ítalo Gonçalves). Os resultados aparecem na visão 3D ao lado dos seus outros modelos, com o nome \"geoML — …\", para você poder compará-los. Tudo roda neste computador.",
   "Checking the add-on…": "Verificando o complemento…",

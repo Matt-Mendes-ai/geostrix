@@ -179,3 +179,90 @@ def forward(cond, thick, system, gates, widths=None, waveform=None, jac=False):
     if not jac:
         return out
     return out, (Jresp * wg[None, None, :, None]).sum(axis=2)
+
+
+# ---------------------------------------------------------------------------------------------------------------------------------
+# TASKS.csv #3440 (step 2 of 3) — the inversion: FDEM 1D's (em1d.invert_batch: log10 conductivity of N layers, Gauss-Newton with vertical
+# smoothness and a weak pull toward the best half-space, the trade-off cooled to a misfit of 1), with TEM's forward through its hook and
+# the decays fitted in log space (they span decades). The data are in pV / (A m^4) (SkyTEM / Workbench's unit), so the log's floor
+# (em1d clamps at 1e-9) is far below any reading.
+
+PV = 1e12  # V / (A m^4) -> pV / (A m^4)
+TEM_LAYERS = {"n": 20, "first": 3.0, "bottom": 300.0}  # ~3 m at the top, a half-space below 300 m (an airborne system's reach)
+
+
+class TemSurvey:
+    """A system and its gates as em1d.invert_batch expects a survey: kind 'log' and forward_fn(m (S, N) log10 S/m, thick, jac)"""
+
+    kind = "log"
+
+    def __init__(self, system, gates, widths=None, waveform=None):
+        self.system, self.gates = dict(system), np.asarray(gates, float)
+        self.widths = None if widths is None else np.asarray(widths, float)
+        self.waveform = waveform
+
+    def forward_fn(self, m, thick, jac=False):
+        cond = 10.0 ** np.atleast_2d(np.asarray(m, float))
+        out = forward(cond, thick, self.system, self.gates, self.widths, self.waveform, jac=jac)
+        if jac:
+            d, J = out
+            return d * PV, J * PV
+        return out * PV
+
+
+def run_job(req, progress):
+    """req: system {geom 'vmd' | 'loop', r | a, h}, gates (s), widths (s, optional), waveform [[t, I], ...] (optional), data (rows of
+    pV / (A m^4), null = missing), std (rows of relative uncertainties, optional), errRel, errAbs (pV / (A m^4)), layers {n, first,
+    bottom}, lateral, window, gapM, maxIter, line, x, y.
+    -> thick, condMs (mS/m per layer), chi, doi, pred (pV / (A m^4)), seconds, leftOut (readings <= 0 or without an uncertainty)"""
+    import time as _time
+
+    from .em1d import ALPHA, CHUNK, DOI_FRAC, depth_of_investigation, invert_batch, layer_thicknesses, neighbour_mean
+
+    t0 = _time.time()
+    sv = TemSurvey(req["system"], req["gates"], req.get("widths"), req.get("waveform"))
+    data = np.array([[np.nan if v is None else float(v) for v in row] for row in req["data"]], float)
+    rel, ab = float(req.get("errRel", 0.05)), float(req.get("errAbs", 0.0))
+    if req.get("std") is not None:
+        std = np.array([[np.nan if v is None else float(v) for v in row] for row in req["std"]], float)
+        sd = np.where(np.isfinite(std), np.abs(std) * np.abs(data), rel * np.abs(data)) + ab
+    else:
+        sd = rel * np.abs(data) + ab
+    lay = {**TEM_LAYERS, **(req.get("layers") or {})}
+    thick = layer_thicknesses(int(lay["n"]), float(lay["first"]), float(lay["bottom"]))
+    lateral = float(req.get("lateral", 0.0))
+    max_iter = int(req.get("maxIter", 15))
+    S = len(data)
+    line = req.get("line") or [0] * S
+    x = np.asarray(req.get("x") or [0.0] * S, float)
+    y = np.asarray(req.get("y") or [0.0] * S, float)
+    left_out = int((np.isfinite(data) & (data <= 0)).sum())
+    passes = 2 if lateral > 0 else 1
+    m = np.full((S, len(thick) + 1), np.nan)
+    chi = np.full(S, np.nan)
+    pred = np.full_like(data, np.nan)
+    doi = np.full(S, np.nan)
+    chunk = max(1, CHUNK // 4)  # a TEM forward is ~10x an FDEM one: report progress more often
+    for p in range(passes):
+        ref = None if p == 0 else neighbour_mean(m, line, x, y, int(req.get("window", 3)), float(req.get("gapM", 100.0)))
+        for c0 in range(0, S, chunk):
+            c1 = min(S, c0 + chunk)
+            mr = None if ref is None else ref[c0:c1]
+            alpha = ALPHA if ref is None else np.where(np.isfinite(mr[:, 0]), max(lateral, ALPHA), ALPHA)
+            mm, cc, pp, JJ, ww = invert_batch(sv, data[c0:c1], sd[c0:c1], thick, m_ref=mr, alpha=alpha, max_iter=max_iter)
+            m[c0:c1], chi[c0:c1], pred[c0:c1] = mm, cc, pp
+            doi[c0:c1] = depth_of_investigation(JJ, ww, thick, float(req.get("doiFrac", DOI_FRAC)))
+            done = p * S + c1
+            el = _time.time() - t0
+            progress({"stage": "inverting", "message": (f"Pass {p + 1} of {passes}: " if passes > 1 else "") + f"station {c1:,} of {S:,}…",
+                      "iter": done, "maxIter": passes * S, "etaS": round(el / done * (passes * S - done))})
+    nan = lambda a: [None if not np.isfinite(v) else round(float(v), 6) for v in np.ravel(a)]
+    pred[~np.isfinite(data)] = np.nan
+    return {
+        "thick": [round(float(t), 4) for t in thick],
+        "condMs": [nan(1000.0 * 10.0 ** row) for row in m],
+        "chi": nan(chi), "doi": nan(doi),
+        "pred": [nan(row) for row in pred],
+        "leftOut": left_out,
+        "seconds": round(_time.time() - t0, 1),
+    }

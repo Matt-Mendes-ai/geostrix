@@ -8,6 +8,8 @@ Plain script (no pytest in the venv): python tests/test_tem1d.py
   - SimPEG's 1D layered TDEM simulation, when it is installed
   - the waveform convolution (a linear ramp-off is the mean of the step-off response over the ramp) and the gate widths
   - the Jacobian (d data / d log10 conductivity) against finite differences
+  - step 2: the inversion recovers a synthetic 3-layer earth (a conductor at 30-60 m) from its own data, with and without 3 % noise,
+    through run_job; the request validation (app.main._validate_tem1d)
 """
 import math
 import os
@@ -160,6 +162,51 @@ def check_speed():
     print(f"speed: 32 soundings x 20 layers x 24 gates with the Jacobian in {dt * 1000:.0f} ms ({dt / 32 * 1000:.1f} ms a sounding)")
 
 
+def check_inversion():
+    system = {"geom": "vmd", "r": 13.0, "h": 30.0}
+    gates = np.logspace(-5, math.log10(5e-3), 24)
+    wf = [[-0.004, 0.0], [-0.0039, 1.0], [-3e-5, 1.0], [0.0, 0.0]]
+    true_c, true_t = [0.01, 0.3, 0.005], [30.0, 30.0]
+    d = tem1d.forward([true_c], true_t, system, gates, waveform=wf)[0] * tem1d.PV
+    noisy = d * (1 + 0.03 * np.random.default_rng(1).standard_normal(d.size))
+    t0 = time.perf_counter()
+    out = tem1d.run_job({"system": system, "gates": gates.tolist(), "waveform": wf, "data": [noisy.tolist(), d.tolist()], "errRel": 0.03, "maxIter": 15}, lambda ev: None)
+    dt = time.perf_counter() - t0
+    thick = np.asarray(out["thick"])
+    tops = np.r_[0.0, np.cumsum(thick)]
+    mids = tops[:-1] + thick / 2
+    for name, row, chi in zip(("3 % noise", "noise-free"), out["condMs"], out["chi"]):
+        c = np.asarray(row[:-1]) / 1000.0  # S/m, the layers above the half-space
+        peak = mids[int(np.argmax(c))]
+        # the conductor's conductance (S): the true one is 0.3 S/m x 30 m = 9 S; a smooth model spreads it over the layers about it
+        band = (mids > 15) & (mids < 80)
+        conductance = float((c * thick)[band].sum())
+        shallow = float(c[mids < 15].max())
+        print(f"inversion ({name}): chi {chi:.2f}, peak at {peak:.0f} m ({c.max() * 1000:.0f} mS/m), conductance 15-80 m {conductance:.1f} S (true 9), "
+              f"above 15 m at most {shallow * 1000:.1f} mS/m (true 10), DOI {out['doi'][0]:.0f} m")
+        assert 0.4 < chi < 1.6
+        assert 30 <= peak <= 60
+        assert 0.6 * 9 < conductance < 1.4 * 9
+        assert shallow < 0.03
+    print(f"  2 stations in {dt:.1f} s")
+    try:
+        from fastapi import HTTPException
+        from app.main import _validate_tem1d
+    except Exception as e:  # noqa: BLE001
+        print(f"request validation: not checked ({e})")
+        return
+    good = {"system": system, "gates": gates.tolist(), "data": [d.tolist()], "errRel": 0.05}
+    _validate_tem1d(good)
+    for bad, why in [({**good, "system": {"geom": "vmd", "h": 30}}, "no offset"), ({**good, "gates": gates[::-1].tolist()}, "decreasing gates"),
+                     ({**good, "data": [d[:5].tolist()]}, "a short row"), ({**good, "waveform": [[-1e-3, 1.0], [-1e-5, 0.5]]}, "a waveform not ending off at 0")]:
+        try:
+            _validate_tem1d(bad)
+        except HTTPException:
+            continue
+        raise AssertionError(f"accepted {why}")
+    print("request validation: a good request passes, four bad ones are refused")
+
+
 if __name__ == "__main__":
     check_half_space()
     check_against_empymod()
@@ -167,4 +214,5 @@ if __name__ == "__main__":
     check_waveform_and_gates()
     check_jacobian()
     check_speed()
+    check_inversion()
     print("tem1d: all checks passed")
