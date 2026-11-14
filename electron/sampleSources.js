@@ -148,13 +148,17 @@ function convertHarry(gpkgPath, write) {
     const collars = db.prepare("SELECT hole_id, hole_name, easting, northing, elevation, azimuth, dip, length FROM collar WHERE ar_number = ? ORDER BY hole_name").all(HARRY_REPORT);
     if (!collars.length) throw new Error(`No hole of report ${HARRY_REPORT} in the database.`);
     const name = new Map(collars.map((c) => [c.hole_id, c.hole_name])), ids = [...name.keys()], q = ids.map(() => "?").join(",");
-    const line = (vals) => vals.map((v) => (typeof v === "number" ? pyFloat(v) : v == null ? "" : String(v))).join(",");
+    const line = (vals) => vals.map((v) => (typeof v === "number" ? pyFloat(v) : v == null ? "" : typeof v === "object" && "csv" in v ? v.csv /* #3308: already CSV-quoted */ : String(v))).join(",");
     const files = [];
     const out = (fname, header, rows) => { write(fname, Buffer.from([header.join(","), ...rows.map(line)].join("\n") + "\n")); files.push(fname); };
     out("collars.csv", ["hole_id", "x", "y", "z", "azimuth", "dip", "length"], collars.map((c) => [c.hole_name, c.easting, c.northing, c.elevation, c.azimuth, c.dip, c.length]));
-    const lit = db.prepare(`SELECT hole_id, from_depth, to_depth, litho_unit FROM litho WHERE hole_id IN (${q})`).all(...ids)
+    // TASKS.csv #3308 (Matt: the lithology description field in the samples) — the database's litho `comments` (101 of Harry's 343 intervals:
+    // 'conglomerate', 'altered after 149.5 - Fe-carbonate?') as the description, quoted where it holds a comma; read only when the table has it
+    const hasComments = db.prepare("PRAGMA table_info(litho)").all().some((c) => c.name === "comments");
+    const lit = db.prepare(`SELECT hole_id, from_depth, to_depth, litho_unit${hasComments ? ", comments" : ""} FROM litho WHERE hole_id IN (${q})`).all(...ids)
       .sort((a, b) => (name.get(a.hole_id) < name.get(b.hole_id) ? -1 : name.get(a.hole_id) > name.get(b.hole_id) ? 1 : a.from_depth - b.from_depth));
-    out("litho.csv", ["hole_id", "from", "to", "lithology"], lit.map((r) => [name.get(r.hole_id), r.from_depth, r.to_depth, r.litho_unit]));
+    const descCell = (v) => { const t = v == null ? "" : String(v).trim().replace(/\s+/g, " "); return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+    out("litho.csv", ["hole_id", "from", "to", "lithology", ...(hasComments ? ["description"] : [])], lit.map((r) => [name.get(r.hole_id), r.from_depth, r.to_depth, r.litho_unit, ...(hasComments ? [{ csv: descCell(r.comments) }] : [])]));
     const samples = db.prepare(`SELECT fid, sample_id, hole_id, from_depth, to_depth FROM sample WHERE hole_id IN (${q})`).all(...ids);
     const det = new Map();
     for (const d of db.prepare(`SELECT d.sample_id AS s, a.analyte_abbr AS el, d.method_code AS m, d.abundance AS v FROM determin d JOIN sample s ON s.sample_id = d.sample_id JOIN code_analytes a ON a.analyte_code = d.analyte_code WHERE s.hole_id IN (${q})`).iterate(...ids)) det.set(`${d.s}|${d.el}|${d.m}`, d.v);
