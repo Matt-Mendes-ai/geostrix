@@ -25,6 +25,6 @@ test("#1597 the symbols are rebuilt only when the zoom moved a factor of two fro
 test("#1597 the 3D view sizes the symbols with the minimum, rebuilds them from the render loop, and the Surface Geology tab lists what is on the map", () => {
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.ok(v.includes("Math.max(radiusOf(row.medium), minR) * st.size"));
-  assert.ok(v.includes('["surface_samples", surfaceSymbolMppRef, surfaceZoomRef, buildSurfaceSamplesRef, () => true]') && v.includes("needsSymbolRebuild(builtRef.current, mpp) && floored(builtRef.current, mpp)) { zr.at = Infinity; buildRef.current(); }")); // #2849: one loop for the samples and the survey points
+  assert.ok(v.includes('["surface_samples", surfaceSymbolMppRef, surfaceZoomRef, buildSurfaceSamplesRef, () => true]') && v.includes("needsSymbolRebuild(builtRef.current, mpp) && floored(builtRef.current, mpp)) { zr.at = Infinity; go(); }") && v.includes("else buildRef.current(); };")); // #2849: one loop for the samples and the survey points
   assert.ok(v.includes('{tr("On the map")}'));
 });

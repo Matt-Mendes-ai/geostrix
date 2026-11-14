@@ -6,10 +6,9 @@
 // 2-98 % range (a sort of its values) is kept while its rows are unchanged.
 // The batches sit directly in the layer's group (picking reads its direct children), each tagged userData.geophysSurvey = its key.
 import * as THREE from "three";
-import { makeAssayBatcher, BATCH_MIN } from "./assayBatcher.js";
-import { buildLayerBatches, addCompactBatch, syncBatchedInstances } from "./layerBatches.js";
+import { addCompactBatch } from "./layerBatches.js";
 import { colorFrom } from "./pickStandIn.js";
-import { surveyKey, robustRange, surveyColourModel, colourOfModel, tIn } from "../geophysSurveys.js";
+import { surveyKey, robustRange, surveyColourModel, tIn } from "../geophysSurveys.js";
 import { colorForVoxelValue } from "../layers.js";
 
 // a point's userData: its row, and its tooltip made when read (one small object per point, no closure; as lazyTip's TipData, #1500)
@@ -35,6 +34,28 @@ const rowId = (r) => { let id = ROW_IDS.get(r); if (!id) ROW_IDS.set(r, (id = ne
 
 // a symbol's radius before the style's size (ViewerModule's #2849 rule): the floor matters only above the base 1.4 m
 export const symbolRadius = (t, minR) => Math.max(1.4 + 2.8 * t, minR * (1 + t));
+// TASKS.csv #3401 (#3309 / #3360's follow-up) — a wheel step over two IP clouds (543,820 points) blocked 0.2-0.5 s: the zoom's new size floor
+// rewrote every point's matrix and uploaded them all again (35 MB), after a pass over every row. The floor is now applied by the shader:
+// each point's matrix holds its base radius (1.4 + 2.8 t) x size, an attribute its floor ratio (1 + t) / (1.4 + 2.8 t), and the batch a
+// uniform minR, so the drawn radius is base x max(1, minR x ratio) = symbolRadius(t, minR) x size. A zoom sets the uniform (resizeSurveyPts).
+// compact.floor = { ratio, u }: the pick (layerBatches.js instanceSphere) sizes each sphere the same way.
+const floorRatio = (t) => (1 + t) / (1.4 + 2.8 * t);
+function floorMaterial(material, u) {
+  material.onBeforeCompile = (sh) => {
+    sh.uniforms.uMinR = u;
+    sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nattribute float aFloor;\nuniform float uMinR;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\ntransformed *= max(1.0, uMinR * aFloor);");
+  };
+  material.customProgramCacheKey = () => "geophysFloor";
+}
+// the zoom's size floor for every survey drawn in the group, without a rebuild. -> false when a survey has no floor (then build as before)
+export function resizeSurveyPts(group, minR) {
+  const cache = group?.userData.geophysCache;
+  if (!cache) return false;
+  for (const entry of cache.values()) if (!entry.batches.every((b) => b.userData.compact?.floor && b.parent === group)) return false;
+  for (const entry of cache.values()) { for (const b of entry.batches) b.userData.compact.floor.u.value = minR; entry.sizeKey = sizeKey(minR); }
+  return true;
+}
 const sizeKey = (minR) => (minR > 1.4 ? minR.toFixed(3) : "base");
 
 // group: the geophys_pts layer group; rows: the points to draw (finite z, passing the filters); opts: { stops, colorMode, min, max };
@@ -57,8 +78,9 @@ export function syncGeophysPts(group, rows, { opts = {}, surveys = null, style, 
     const model = surveyColourModel(rr, surveys?.[k]?.legend || null, opts, single);
     const dataSig = [rowsSig, JSON.stringify(model), styleSig, originSig].join("#"), sk = sizeKey(minR);
     if (prev && prev.dataSig === dataSig && prev.batches.every((b) => b.parent === group)) {
+      for (const b of prev.batches) if (b.userData.compact?.floor) b.userData.compact.floor.u.value = minR; // #3401 — the uniform, always current
       if (prev.sizeKey === sk) { out.kept.push(k); continue; }
-      if (prev.ts) { rescale(prev.batches[0], prev.ts, minR, style.size); prev.sizeKey = sk; out.resized.push(k); continue; }
+      if (prev.batches.every((b) => b.userData.compact?.floor)) { prev.sizeKey = sk; out.resized.push(k); continue; }
     }
     if (prev) dropBatches(group, prev);
     const built = buildSurvey(group, k, list, model, { style, proto, minR, origin, tipOf });
@@ -68,25 +90,17 @@ export function syncGeophysPts(group, rows, { opts = {}, surveys = null, style, 
   return out;
 }
 
-// the batch's scales from its points' colour positions (t) at a new floor. The pick index is NOT rebuilt (no cp.moves): the points did not
-// move, and rebuilding it over 543,820 instances was most of a 1-2 s zoom stall; a hover still tests each candidate's current size, from
-// boxes as they were built (a grown symbol's rim may be missed until the next full build)
-function rescale(inst, ts, minR, size) {
-  const cp = inst.userData.compact, base = cp.base;
-  for (let i = 0; i < ts.length; i++) { const s = symbolRadius(ts[i], minR) * size, o = i * 16; base[o] = s; base[o + 5] = s; base[o + 10] = s; }
-  syncBatchedInstances(inst);
-}
-
 function dropBatches(group, entry) {
   for (const b of entry.batches) {
     group.remove(b);
-    if (b.isInstancedMesh) { b.material?.dispose?.(); b.dispose?.(); } // the shared symbol geometry stays
+    if (b.isInstancedMesh) { b.material?.dispose?.(); b.dispose?.(); if (b.userData.ownGeometry) b.geometry.dispose(); } // #3401: its own copy (the floor attribute); the shared symbol geometry stays
   }
 }
 
+// #3401 — every survey as one compact batch, a few points too (they were stand-ins under BATCH_MIN: a zoom rebuilt them), so a zoom resizes all of them
 function buildSurvey(group, key, list, model, opts) {
-  if (list.length >= BATCH_MIN) { const { inst, ts } = buildSurveyBatch(group, key, list, model, opts); return { batches: [inst], ts }; }
-  return { batches: buildSurveySmall(group, key, list, model, opts), ts: null };
+  const { inst, ts } = buildSurveyBatch(group, key, list, model, opts);
+  return { batches: [inst], ts };
 }
 
 // one survey = one symbol and one material: its matrices (a uniform scale and a translation, as Matrix4.compose writes them), colours and
@@ -94,43 +108,28 @@ function buildSurvey(group, key, list, model, opts) {
 // point, and a THREE.Color parsed for each new colour string, were most of the build)
 function buildSurveyBatch(group, key, list, model, { style, proto, minR, origin, tipOf }) {
   const { x: ox, y: oy, z: oz } = origin, n = list.length, size = style.size;
-  const base = new Float32Array(n * 16), col = new Float32Array(n * 3), rows = new Array(n), rgb = new Map(), ts = new Float32Array(n);
+  const base = new Float32Array(n * 16), col = new Float32Array(n * 3), rows = new Array(n), rgb = new Map(), ts = new Float32Array(n), ratio = new Float32Array(n);
   for (let i = 0; i < n; i++) {
     const row = list[i], v = row.value;
     const color = style.color || colorForVoxelValue(model, v);
     let c = rgb.get(color);
     if (!c) { const k = colorFrom(color, true); rgb.set(color, (c = [k.r, k.g, k.b])); }
-    const t = (ts[i] = tIn(model, v)), s = symbolRadius(t, minR) * size, o = i * 16;
+    const t = (ts[i] = tIn(model, v)), s = (1.4 + 2.8 * t) * size, o = i * 16; // #3401: the base radius; the floor in the shader
+    ratio[i] = floorRatio(t);
     base[o] = s; base[o + 5] = s; base[o + 10] = s; base[o + 15] = 1;
     base[o + 12] = row.x - ox; base[o + 13] = row.z - oz; base[o + 14] = -(row.y - oy);
     col[i * 3] = c[0]; col[i * 3 + 1] = c[1]; col[i * 3 + 2] = c[2];
     rows[i] = new SurveyPointTip(row, tipOf);
   }
-  const inst = addCompactBatch(group, proto, { transparent: style.opacity < 1, opacity: style.opacity, side: style.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }, base, rows, col);
+  const geo = proto.clone(); // #3401 — its own copy for the per-point floor attribute (a few hundred vertices)
+  geo.setAttribute("aFloor", new THREE.InstancedBufferAttribute(ratio, 1));
+  const inst = addCompactBatch(group, geo, { transparent: style.opacity < 1, opacity: style.opacity, side: style.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }, base, rows, col);
+  const u = { value: minR };
+  floorMaterial(inst.material, u);
+  inst.userData.compact.floor = { ratio, u };
   inst.userData.geophysSurvey = key;
+  inst.userData.ownGeometry = true;
   return { inst, ts };
-}
-
-// a survey under BATCH_MIN points: stand-ins, batched like any layer's (in a group of their own, then moved in)
-function buildSurveySmall(group, key, list, model, { style, proto, minR, origin, tipOf }) {
-  const { x: ox, y: oy, z: oz } = origin;
-  const batcher = makeAssayBatcher();
-  const mat = { color: null, transparent: style.opacity < 1, opacity: style.opacity, side: style.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }; // one spec, its colour set per point
-  for (const row of list) {
-    const { color: c0, t } = colourOfModel(model, row.value);
-    mat.color = style.color || c0;
-    batcher.add(proto, mat, (tr) => {
-      tr.scale.setScalar(symbolRadius(t, minR) * style.size);
-      tr.position.set(row.x - ox, row.z - oz, -(row.y - oy));
-      return true;
-    }, () => new SurveyPointTip(row, tipOf));
-  }
-  const tmp = new THREE.Group();
-  batcher.finish(tmp);
-  buildLayerBatches(tmp);
-  const batches = [...tmp.children];
-  for (const b of batches) { b.userData.geophysSurvey = key; group.add(b); }
-  return batches;
 }
 
 // a point's tooltip, made when it is read (the survey's units as they are then)

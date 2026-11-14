@@ -18,8 +18,9 @@ export const PLAN_HOLE_STEP = 400, PLAN_ROW_STEP = 15000;
 function cacheOf(ctx) {
   let pc = ctx.cache.current;
   const also = (ctx.also || []).join("|"); // #3248
-  if (!pc || pc.fn !== ctx.layerPrimitivesFor || pc.traces !== ctx.traces || pc.vh !== ctx.visibleHoles || pc.also !== also) {
-    pc = ctx.cache.current = { fn: ctx.layerPrimitivesFor, traces: ctx.traces, vh: ctx.visibleHoles, also, base: new Map(), prims: null, ivBy: null, ptBy: null, rdBy: null };
+  const fn = ctx.primsVersion ?? ctx.layerPrimitivesFor; // #3298 — the primitives' inputs, not the function (made anew on every render of the 3D View)
+  if (!pc || pc.fn !== fn || pc.traces !== ctx.traces || pc.vh !== ctx.visibleHoles || pc.also !== also) {
+    pc = ctx.cache.current = { fn, traces: ctx.traces, vh: ctx.visibleHoles, also, base: new Map(), prims: null, ivBy: null, ptBy: null, rdBy: null };
   }
   return pc;
 }

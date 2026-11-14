@@ -146,10 +146,10 @@ function buildTree(n, bounds) {
 // #3360: a survey batch's boxes are its symbols' spheres' (centre +- radius, no matrix product), refitted on the same tree when a zoom
 // resizes the symbols in place (geophysPts.js rescale: sampled scales differ), so a grown symbol's rim is no longer missed.
 const BATCH_TREES = new WeakMap();
-const scaleSample = (base, n) => { let s = ""; const step = Math.max(1, Math.floor(n / 16)); for (let k = 0; k < n; k += step) s += `${base[k * 16]},`; return s; };
+const scaleSample = (base, n, floor) => { let s = floor ? `f${floor.u.value}|` : ""; const step = Math.max(1, Math.floor(n / 16)); for (let k = 0; k < n; k += step) s += `${base[k * 16]},`; return s; }; // floor: #3401
 export function batchTree(o) { // exported for the tests
   const cp = o.userData.compact, n = cp.rows.length, sphere = o.userData.geophysSurvey != null;
-  const key = `${n}|${cp.moves || 0}|${sphere}|${o.matrixWorld.elements.join(",")}`, scales = sphere ? scaleSample(cp.base, n) : "";
+  const key = `${n}|${cp.moves || 0}|${sphere}|${o.matrixWorld.elements.join(",")}`, scales = sphere ? scaleSample(cp.base, n, cp.floor) : "";
   const kept = BATCH_TREES.get(o);
   if (kept && kept.key === key && kept.base === cp.base) {
     if (kept.scales !== scales) { refit(kept.tree, sphereBounds(o, n)); kept.scales = scales; }

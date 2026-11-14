@@ -44,7 +44,9 @@ test("#2849 the survey points' floor: 5 px across, rebuilt only where the floor 
   const v = read("../src/modules/ViewerModule.jsx");
   // #3309 — the rule moved into lib/viewer/geophysPts.js with the per-survey build; the 3D View passes the floor
   assert.match(read("../src/lib/viewer/geophysPts.js"), /export const symbolRadius = \(t, minR\) => Math\.max\(1\.4 \+ 2\.8 \* t, minR \* \(1 \+ t\)\);/);
-  assert.match(read("../src/lib/viewer/geophysPts.js"), /tr\.scale\.setScalar\(symbolRadius\(t, minR\) \* style\.size\);/);
+  // #3401 — the floor applied by the shader: base radius in the matrix, (1 + t) / (1.4 + 2.8 t) per point, minR a uniform
+  assert.match(read("../src/lib/viewer/geophysPts.js"), /s = \(1\.4 \+ 2\.8 \* t\) \* size, o = i \* 16;/);
+  assert.match(read("../src/lib/viewer/geophysPts.js"), /transformed \*= max\(1\.0, uMinR \* aFloor\);/);
   assert.match(v, /minR: minSymbolRadiusM\(mpp, GEOPHYS_MIN_PX\)/);
   assert.match(v, /\["geophys_pts", geophysSymbolMppRef, geophysZoomRef, buildGeophysPtsRef,/);
 });

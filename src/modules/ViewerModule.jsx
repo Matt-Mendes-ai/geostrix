@@ -33,7 +33,7 @@ import { toLonLat, isMetricProjectedEpsg } from "../lib/reproject.js";
 import { mirrorCustomLayers } from "../lib/viewerDirty.js"; // #1656
 import { customLayerSync, detachCustomGroups } from "./viewer/customLayerSync.js"; // #2361
 import { useStore, useSetCursor, useSetTaskProgress } from "../lib/store.jsx";
-import { surveyAzimuthDipAt } from "../lib/desurvey.js"; // desurveyHole, holeAttitudeAssumed (#2014): used by viewer/drillholeScene.js (#2176)
+import { surveyAzimuthDipAt, desurveyMatters } from "../lib/desurvey.js"; // desurveyMatters: #2371; // desurveyHole, holeAttitudeAssumed (#2014): used by viewer/drillholeScene.js (#2176)
 import { unitSupport } from "../lib/unitSupport.js"; // #2096
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { blockToCells, modelledIntervals, ABOVE_TOPS, unitAt } from "../lib/modelCheck.js"; // TASKS.csv #356
@@ -2282,9 +2282,10 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
             const zr = zoomRef.current;
             // TASKS.csv #3309 — zooming in on the survey points: shrunk at once (an in-place rescale since #3309), not after the zoom settles;
             // symbols sized for a far view were drawn hundreds of pixels across, every frame took seconds and the zoom never settled
-            if (name === "geophys_pts" && mpp < builtRef.current / 2 && floored(builtRef.current, mpp)) { zr.key = key; zr.at = Infinity; buildRef.current(); continue; }
+            const go = () => { if (name === "geophys_pts" && geophysPtsLib?.resizeSurveyPts(sg, minSymbolRadiusM(mpp, GEOPHYS_MIN_PX))) builtRef.current = mpp; else buildRef.current(); }; // #3401 — the survey points' floor is a uniform: no rebuild
+            if (name === "geophys_pts" && mpp < builtRef.current / 2 && floored(builtRef.current, mpp)) { zr.key = key; zr.at = Infinity; go(); continue; }
             if (key !== zr.key) { zr.key = key; zr.at = now; }
-            else if (now - zr.at > 400 && needsSymbolRebuild(builtRef.current, mpp) && floored(builtRef.current, mpp)) { zr.at = Infinity; buildRef.current(); }
+            else if (now - zr.at > 400 && needsSymbolRebuild(builtRef.current, mpp) && floored(builtRef.current, mpp)) { zr.at = Infinity; go(); }
           }
         }
         if (gridGroupRef.current?.userData.labels) fitScreenLabels(gridGroupRef.current.userData.labels, camera, mount.clientHeight); // #2211
@@ -4284,10 +4285,17 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     layersBuildRef.current = layers;
     return layers;
   }, [layers]);
+  // TASKS.csv #2371 — the desurvey method changes a trace only where a hole's survey has two attitudes; otherwise a switch redraws nothing and says why
+  const desurveyBites = useMemo(() => desurveyMatters(collars, survey), [collars, survey]);
+  const desurveySeenRef = useRef(desurveyMethod);
+  useEffect(() => {
+    if (desurveySeenRef.current !== desurveyMethod && survey.length && !desurveyBites) setNotices((p) => replaceNotices(p, "desurveySame", tr("Every hole keeps one attitude down its survey, so all desurvey methods give the same traces: nothing was redrawn."))); // one, not one per switch (#3114's tag)
+    desurveySeenRef.current = desurveyMethod;
+  }, [desurveyMethod]);
   useEffect(() => {
     // TASKS.csv #2176 step 1 — the drillhole scene build, moved unchanged into viewer/drillholeScene.js (#1084 size cap)
     buildDrillholeScene({ applyCategoryVisibility, applyHoleVisibilityRef /* #3253 */, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collarSize, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels, pointBuildersStale: () => [!sameInputs(assayBuiltRef.current, assayInputs), !sameInputs(geophysBuiltRef.current, geophysInputs), !sameInputs(surfaceBuiltRef.current, surfaceInputs)] /* #2176 */ });
-  }, [collars, survey, survey.length ? desurveyMethod : "" /* #135 — switching method must rebuild every trace; #1528 — with no survey every method gives the same straight holes */, noHoles ? layers : layersForBuild /* #1582 */, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, layerStylesBuildKey /* #635; #1528 — not the in-place opacities */, noHoles && anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, noHoles && mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, noHoles && voxelGeomSignature /* #1569 — with holes, only the fit box below */, fitBox, rebuildSeq, noHoles && placedSurfaceSamples /* #606 — and the no-drillhole camera anchor */]); // #551: assay / geophysics-legend / surface-visibility inputs moved to their own builders
+  }, [collars, survey, desurveyBites ? desurveyMethod : "" /* #135 — switching method must rebuild every trace; #1528 / #2371 — not when every hole keeps one attitude (straight holes, the same for every method) */, noHoles ? layers : layersForBuild /* #1582 */, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, layerStylesBuildKey /* #635; #1528 — not the in-place opacities */, noHoles && anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, noHoles && mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, noHoles && voxelGeomSignature /* #1569 — with holes, only the fit box below */, fitBox, rebuildSeq, noHoles && placedSurfaceSamples /* #606 — and the no-drillhole camera anchor */]); // #551: assay / geophysics-legend / surface-visibility inputs moved to their own builders
   // TASKS.csv #1569 (review #1497, Lawyers) — with drillholes, a block model only widens the fit box (the origin and the first
   // fit come from the holes): adding one re-derives that box here instead of rebuilding every drillhole and custom layer
   // (25-26 s per 'Add as block model' on Lawyers). Without holes the build above still runs, since the models anchor it.
@@ -5692,7 +5700,23 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // rasters (an SRTM area in a section meant for one voxel model and the holes); a null key = the live visibility, so old sections draw as before.
   // Every shown layer as plain { color, label } primitives, made here where the colour / filter logic lives: the window only draws.
   // TASKS.csv #525 — factored out of buildSectionPayload so the level plan colours holes exactly as sections do.
+  // TASKS.csv #3298 (#3191: ~0.44 s of a Level plan open on WA iron's 6,390 holes, shared with sections) — the primitives kept for the last few
+  // (inputs, holes, scope): this function is made anew on every render, so the plan's own cache (keyed on it) was dropped by any re-render
+  // between two RL steps and rebuilt them. Callers get fresh arrays of the same objects (a section empties and refills its arrays).
+  const primsCacheRef = useRef([]), primsVerRef = useRef({ deps: null, v: 0 });
+  const primsDeps = () => [layers, layerVisible, isRowVisible, numericLayerColor, effectiveColor, effectiveLabel, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, assayRowShown, customLayers, customVisible, layerStyles];
+  const primsVersion = () => { const d = primsDeps(), r = primsVerRef.current; if (!r.deps || !d.every((x, i) => x === r.deps[i])) { r.deps = d; r.v++; } return r.v; }; // for the plan's cache (levelPlanBuild)
   const layerPrimitivesFor = (holeIds, scope = {}) => {
+    const deps = primsDeps();
+    const sk = JSON.stringify(scope), list = primsCacheRef.current;
+    let hit = list.find((c) => c.sk === sk && c.holes.size === holeIds.size && c.deps.every((d, i) => d === deps[i]) && [...holeIds].every((h) => c.holes.has(h)));
+    if (!hit) {
+      hit = { sk, holes: new Set(holeIds), deps, out: buildLayerPrimitives(holeIds, scope) };
+      primsCacheRef.current = [hit, ...list.filter((c) => c.deps.every((d, i) => d === deps[i]))].slice(0, 4); // other inputs: dropped
+    }
+    return { intervals: [...hit.out.intervals], points: [...hit.out.points] };
+  };
+  const buildLayerPrimitives = (holeIds, scope) => {
     const intervals = [];
     // TASKS.csv #137 — SG has no fixed domain (as RQD% / recovery% do): its project min / max, as the scene build's.
     const sgVals = (layers.sg || []).filter((r) => holeIds.has(r.hole_id) && isRowVisible("sg", r)).map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
@@ -5997,7 +6021,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // block-model cells, model surfaces, planned holes), as a section draws them (layerPrimitivesFor). #3137 — built a slice at a time in
   // modules/viewer/levelPlanBuild.js, which loads with the window; this is what it reads.
   const planCacheRef = useRef(null);
-  const planCtx = () => ({ traces: tracesRef.current, visibleHoles, layerPrimitivesFor, cache: planCacheRef, layerVisible, layers, customLayers, customVisible, isRowVisible, effectiveColor, effectiveLabel,
+  const planCtx = () => ({ traces: tracesRef.current, visibleHoles, layerPrimitivesFor, primsVersion: primsVersion() /* #3298 */, cache: planCacheRef, layerVisible, layers, customLayers, customVisible, isRowVisible, effectiveColor, effectiveLabel,
     voxelModels, voxelCellShown, colorForVoxelValue, origin: originRef.current, implicitSurfaces, implicitMeshes: implicitMeshesRef.current, plannedHoles, plannedHoleTrace,
     assayLegend: () => assayLegendGroups({ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle }), projectValues: (sym) => assays.map((a) => a.values[sym]).filter((v) => v != null) }); // #1537
 
