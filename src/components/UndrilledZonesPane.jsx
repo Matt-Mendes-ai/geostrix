@@ -138,7 +138,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
         zones: r.zones.length, smallGapsLeftOut: r.ignored.zones, smallGapUnderM3: Math.round(r.minZoneM3 ?? 0) /* #2256 */, builtAt: new Date().toISOString(),
         note: `Blocks of the unit whose centre is more than ${r.coverM} m from every hole trace (3D distance to the desurveyed trace). Not covered by drilling, not a resource or a target ranking.` },
     });
-    setMsg({ ok: true, text: tr("Added \"{name}\" to the model surfaces: export it, slice it in sections, or remove it there. Ctrl+Z does not take it back (it would undo your last edit before it); a model surface is not part of the undo history.", { name }) }); // #3437: Undo used to remove the planned hole added before the zones and leave the zones
+    setMsg({ ok: true, text: tr("Added \"{name}\" to the model surfaces: export it, slice it in sections, or turn it off there. Ctrl+Z takes it back.", { name }) }); // #3437 / #3494: Undo used to remove the planned hole added before the zones and leave the zones; the model surfaces are in the undo history now
   };
 
   const unitV = result ? result.unitCells * result.cellVolume : 0;

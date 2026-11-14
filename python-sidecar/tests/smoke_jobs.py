@@ -128,6 +128,17 @@ def main():
            "data": [[20000.0 / (1 + (t / 1e-4) ** 2.5) for t in gates]] * 2, "errRel": 0.05, "layers": {"n": 8, "first": 5.0, "bottom": 150.0}, "maxIter": 3}
     r = run_job("tem1d", tem)
     assert len(r.get("condMs") or []) == 2 and all(v is not None for v in r["condMs"][0]), f"tem1d: {list(r)[:8]}"
+    # TASKS.csv #3440 step 3 / #3485 — two moments, a station's own height and receiver height, a loop of the frame's area (scipy.special.j1
+    # must import frozen), the receiver's filters, a bipolar base frequency, gate widths and a gate inside the turn-off (the gates' map folded
+    # once a moment); progress events must reach the poll
+    lm = {"gates": [-5e-6] + [1e-5 * 1.8 ** k for k in range(6)], "widths": [1e-6] * 7, "baseFreq": 210.0,
+          "waveform": [[-8.2e-4, 0.0], [-8.1e-4, 1.0], [-1.8e-5, 1.0], [-1e-5, 0.4], [0.0, 0.0]]}
+    hm = {"gates": [1e-4 * 1.6 ** k for k in range(8)], "baseFreq": 30.0, "waveform": [[-4.32e-3, 0.0], [-4.2e-3, 1.0], [-3.2e-4, 1.0], [0.0, 0.0]]}
+    row = [8000.0 / (1 + ((t + 2e-5) / 5e-5) ** 2) for t in lm["gates"]] + [2000.0 / (1 + (t / 3e-4) ** 2.5) for t in hm["gates"]]
+    tem2 = {"system": {"geom": "cloop", "a": 10.36, "r": 12.83, "h": 30.0, "rz": 2.0, "filters": [2.1e5, 3e5]}, "moments": [lm, hm],
+            "data": [row] * 3, "heights": [28.0, 31.5, 35.0], "rz": [1.5, 1.6, None], "errRel": 0.05, "layers": {"n": 8, "first": 5.0, "bottom": 150.0}, "maxIter": 3}
+    r = run_job("tem1d", tem2)
+    assert len(r.get("condMs") or []) == 3 and all(v is not None for v in r["condMs"][2]) and len(r["pred"][0]) == 15, f"tem1d (report system): {list(r)[:8]}"
 
     # TASKS.csv #1985 — Boule's normal gravity and Harmonica's prism layer (gravred), Verde's SplineCV (spline): frozen, they need
     # their submodules and metadata; a flat 500 m terrain of 21 x 21 nodes at 1 km

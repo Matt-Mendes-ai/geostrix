@@ -213,7 +213,8 @@ import { hideTraceHoles } from "../lib/viewer/traceBatch.js"; // TASKS.csv #2176
 import { closedShellsOf } from "./viewer/estimationShells.js"; // TASKS.csv #2695
 import { findOnTraceWorld, findOnTrace, traceLookup, traceOfHole /* #2931 */, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
-import { syncDrawLods, dropDrawLod } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
+import { syncDrawLods } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
+import { useSurfaceUndo, stashSurface } from "./viewer/surfaceUndo.js"; // TASKS.csv #3494 — Undo / Redo for the model surfaces
 import { useModelling } from "./viewer/useModelling.js";
 import { useUnitSource } from "./viewer/useUnitSource.js"; // TASKS.csv #2378
 import { wheelZoom } from "./viewer/wheelZoom.js"; // #2368
@@ -496,6 +497,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     surfaceSamples, surfaceElements, codeDictionary, // #2816
     designLines, /* TASKS.csv #1342 */ designStrings, /* TASKS.csv #1876 */ plannedHoles, addPlannedHole, updatePlannedHole, removePlannedHole,
     generatedSurfaces, setGeneratedSurfaces, modelDomains, setModelDomains, // TASKS.csv #52 — persisted implicit surfaces + domains
+    surfaceIds, setSurfaceIds, undoCheckpoint, // TASKS.csv #3494 — the ids of the model surfaces in the undo history
     getProjectToken, isSameProject, // TASKS.csv #466
     customLayers: storeCustomLayers, setCustomLayers: setStoreCustomLayers,
     layoutPages, // TASKS.csv #3296 — the code order set on a Layout legend (#3130)
@@ -1002,6 +1004,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const plannedMeshesRef = useRef({}); // id -> THREE.Group (line + toe marker)
   const measureGroupRef = useRef(null); // TASKS.csv #121 — line/polygon + vertex markers for the active measurement
   const [implicitSurfaces, setImplicitSurfaces] = useState([]); // [{id, name, visible, vertexCount, faceCount}]
+  const surfacesNowRef = useRef([]); surfacesNowRef.current = implicitSurfaces; const surfaceGrave = useRef(new Map()); // TASKS.csv #3494 — the removed surfaces kept for Undo
   const [implicitTarget, setImplicitTarget] = useState("");
   // TASKS.csv #52 (a) — sensitivity-spread inputs. The two sigmas deliberately start EMPTY and the run
   // button stays disabled until both are typed: #52's gate is that the input uncertainty must come from
@@ -3785,8 +3788,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     ? confirmDestructive(tr("Remove the explicit surface \"{name}\" with its picks and lines?", { name: s.name }), { undoable: true })
     : confirmDestructive(tr("Remove surface \"{name}\"?", { name: s.name }), { recover: tr("getting it back means re-running the model.") }));
   const removeImplicitSurface = useCallback((id) => {
-    const mesh = implicitMeshesRef.current[id];
-    if (mesh) { dropDrawLod(mesh); implicitGroupRef.current?.remove(mesh); mesh.geometry?.dispose?.(); mesh.material?.dispose?.(); delete implicitMeshesRef.current[id]; } // dropDrawLod: #795
+    stashSurface({ grave: surfaceGrave.current, meshes: implicitMeshesRef.current, group: implicitGroupRef.current, surfaces: surfacesNowRef.current }, id); // TASKS.csv #3494 — kept for Undo, not disposed (dropDrawLod: #795, inside)
     // TASKS.csv #83 — drop any relationship pointing AT the surface being removed too, so the
     // remaining surfaces don't end up referencing a dangling id.
     // TASKS.csv #93 — and HEAL THE VERSION CHAIN in the same pass: if the removed surface was a middle
@@ -4375,6 +4377,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // don't touch geometry at all. Keying the cache on the geometry's own uuid means a metadata edit
   // re-serialises nothing; only a genuinely new/regenerated mesh pays the conversion.
   const surfaceGeomCacheRef = useRef({});
+  useSurfaceUndo({ implicitSurfaces, setImplicitSurfaces, implicitMeshesRef, implicitGroupRef, grave: surfaceGrave, hydrationRef: surfaceHydrationRef, viewerUiStateSeq, surfaceIds, setSurfaceIds, undoCheckpoint }); // TASKS.csv #3494
 
   useEffect(() => {
     // Only ever hydrate ONCE per project load. viewerUiStateSeq is the store's existing
@@ -5352,7 +5355,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         content: zipBytes /* #1040 bytes */,
       });
       if (!res?.ok) { if (res?.error) throw new Error(res.error); return; } // cancelled: say nothing
-      setNotices((p) => [...p, notice("Exported {features} feature(s) from \"{label}\" as a shapefile (.zip — .shp/.shx/.dbf{v}).", { features: features.length, label, v: project?.epsg ? tr("/.prj") : "" })]);
+      setNotices((p) => [...p, appendNotice(notice("Exported {features} feature(s) from \"{label}\" as a shapefile (.zip — .shp/.shx/.dbf{v}).", { features: features.length, label, v: project?.epsg ? tr("/.prj") : "" }), tx.bearingAttributeNote(features, ex?.tie) /* #3187 */)]);
     } catch (err) {
       setNotices((p) => [...p, errorNotice(tr("Shapefile export failed: {message}", { message: err.message }))]);
     }
@@ -5373,7 +5376,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         content: gpkgBytes /* #1040 bytes */,
       });
       if (!res?.ok) { if (res?.error) throw new Error(res.error); return; } // cancelled: say nothing
-      setNotices((p) => [...p, notice("Exported {features} feature(s) from \"{label}\" as a GeoPackage (.gpkg).", { features: features.length, label })]);
+      setNotices((p) => [...p, appendNotice(notice("Exported {features} feature(s) from \"{label}\" as a GeoPackage (.gpkg).", { features: features.length, label }), tx.bearingAttributeNote(features, ex?.tie) /* #3187 */)]);
     } catch (err) {
       setNotices((p) => [...p, errorNotice(tr("GeoPackage export failed: {message}", { message: err.message }))]);
     }

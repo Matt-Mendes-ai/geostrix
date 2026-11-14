@@ -390,8 +390,10 @@ export function directionRow(points, base, dir, model = "spherical") {
 
 // the direction to read the long axis from: the longest range among the fits that mean something (r² of 0.5 or more, 30 pairs, and a
 // range within 1.5 × that direction's reliable lags); null when none does. On Woodjam Cu the longest raw range (993 m) had r² 0.10.
+// TASKS.csv #3385 — the fits that mean something (the rule above), for the trend built from the table
+export const wellFittedDirections = (rows) => (rows || []).filter((r) => r.range != null && r.nPairs >= 30 && r.rSquared >= 0.5 && !(r.maxReliableLag > 0 && r.range > 1.5 * r.maxReliableLag));
 export function longestDirection(rows) {
-  return (rows || []).filter((r) => r.range != null && r.nPairs >= 30 && r.rSquared >= 0.5 && !(r.maxReliableLag > 0 && r.range > 1.5 * r.maxReliableLag)).sort((a, b) => b.range - a.range)[0] || null;
+  return wellFittedDirections(rows).sort((a, b) => b.range - a.range)[0] || null;
 }
 
 export function fitVariogramModel(bins, opts = {}) {

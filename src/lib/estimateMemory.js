@@ -14,3 +14,18 @@ export function sendVariogramToEstimation(project, { symbol, model, nugget, sill
   lastEstimateSettings.set(key, next);
   return next;
 }
+
+// TASKS.csv #3079 (from #3011) — the downhole range as the flat search's vertical reach: the next Estimation dialog opens with a flat search of
+// `radiusM` across and `reachM` up and down (the dialog's Search radius and Vertical reach). Never applied by itself: this is the geologist's click.
+export function sendFlatSearchToEstimation(project, { radiusM, reachM }) {
+  const key = estimateSettingsKey(project), prev = lastEstimateSettings.get(key) || {};
+  const next = { ...prev, searchRadius: +Number(radiusM).toPrecision(4), flatReach: +Number(reachM).toPrecision(4) };
+  lastEstimateSettings.set(key, next);
+  return next;
+}
+// the continuity down the holes against the continuity between them, from two fits (each { range }): the ratio and a flat search that follows it
+export function anisotropyFromFits(downhole, across) {
+  const a = Number(downhole?.range), b = Number(across?.range);
+  if (!(a > 0) || !(b > 0)) return null;
+  return { downholeM: a, acrossM: b, ratio: b / a, flat: b / a >= 2 };
+}

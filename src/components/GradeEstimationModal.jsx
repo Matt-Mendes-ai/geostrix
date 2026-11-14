@@ -278,7 +278,13 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   // TASKS.csv #3006 (WA iron review) — with the samples from the checked holes, the holes the run uses are the checked ones: every unchecked hole
   // was a hole 'never assayed' (5,968 of them, 288,935 m written at 0 % Fe by the barren option, the composite mean 38.3 -> 1.78 %) and its
   // drilled metres 'unsampled drilling' nearer than a block's samples. A hole left out of the run is neither sampled nor unsampled.
+  // TASKS.csv #3082 (4) — the settings the shown result was run with: when they change the result is greyed and says so (it stayed, with its
+  // "Add as block model" button, under changed settings)
+  const settingsSig = JSON.stringify([sourceKey, logValues, symbol, setPicked, memberCaps, useComposites, compositeLength, minCoverage, domainKey, capByDomain, padding, cellSize, cellHeight, flatReach, gridMode, originE, blockBudget, method, vgModel, vgNugget, addedKv, searchRadius, minSamples, minHoles, materialHoles, maxSamples, maxPerHole, capValue, includeQAQC, restrictToDomain, noCodeAsDomain, classifySupport, shellId, belowGround, samplesFrom]);
+  const sigNow = useRef(settingsSig); sigNow.current = settingsSig;
+  const runSig = useRef(null), [resultSig, setResultSig] = useState(null);
   const runCollars = useMemo(() => (samplesFrom === "checked" && checkedHoleIds?.size ? collars.filter((c) => checkedHoleIds.has(c.hole_id)) : collars), [collars, samplesFrom, checkedHoleIds]);
+  const levelCollars = useMemo(() => ((samplesFrom === "checked" || gridMode === "checked") && checkedHoleIds?.size ? collars.filter((c) => checkedHoleIds.has(c.hole_id)) : collars), [collars, samplesFrom, gridMode, checkedHoleIds]); // TASKS.csv #3082 (5) — the collar-bench note counts the holes the block is built from
   const uns = useUnsampled("estimate", { assays: srcAssays, collars: runCollars /* #3006 */, symbol, unit, elementUnits, layers, customLayers }); // TASKS.csv #2417 / #2542; layers / customLayers: a picked log, #2721
   // TASKS.csv #1738 (review #1645, Copley) — how far apart the holes are, under the radius and in a zero-block result
   // TASKS.csv #2062 (review #2013, Woodjam) — over the holes that carry the chosen element, not every collar: 534 district collars with no
@@ -423,7 +429,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   const abortRef = useRef(null);
   const cancelRun = () => abortRef.current?.abort();
   const run = () => {
-    setError(""); setResult(null); setProgress(0); runStartedAt.current = performance.now(); // #3256
+    setError(""); setResult(null); runSig.current = sigNow.current; setProgress(0); runStartedAt.current = performance.now(); // #3256
     setWeakFitAsk(null); // #3273
     if (!collars.length) { setError(tr("No collars loaded — nothing to estimate from.")); return; }
     // TASKS.csv #676 — with fewer samples than holes, no block can ever reach the hole rule (it just reported 0 blocks)
@@ -705,12 +711,13 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
             ...(t.dropped ? { trimmedLikeThePrimary: `${t.dropped} block(s) dropped by the primary's limits (the restricting solid, the area string, the ground)` } : {}),
             ...(j >= 0 ? { searchSharedWith: `${symbol}: estimated in the same neighbour search, on the same sample points` } : {}), // #3163
           });
-          members.push({ ...memberSummary(el, u, t.cells, mp.length), cells: t.cells, params: mParams, supportCounts, cap: mCap, capAudit: mAudit, check: mCheck }); // cap / check: #3271
+          members.push({ ...memberSummary(el, u, t.cells, mp.length), cells: t.cells, params: mParams, supportCounts, cap: mCap, capAudit: mAudit, check: mCheck, checkNn: mNn ? mNn.checkColumns : t.cells, checkPoints: mp }); // cap / check: #3271; checkNn / checkPoints: the member's swaths, #3384
         }
         setStage(null);
         const withBlocks = members.filter((m) => m.cells.length);
         if (withBlocks.length) { const set = setRecord(newSetId(), symbol, withBlocks.map((m) => m.element)); params.set = set; for (const m of withBlocks) m.params.set = set; }
         setResult({ ...est, params, members, nnCells: nnCheck /* #3060 */, checkPoints: points, compositingSkipped, coverageLeftOut: coverageStats.leftOut > 0 ? { leftOut: coverageStats.leftOut, readings: coverageStats.readings, minCoverage } : null /* #3269 */, samplePointCount: points.length, noCodeComposites: domainKey ? points.filter((p) => p.domain == null).length : 0 /* #2541 */, droppedCount: dropped, clampedCount: clamped, beyondTraceCount: beyondTrace, rawStats, intervalCount: intervals.length });
+        setResultSig(runSig.current);
         setAdded(false); setAddedSupport(false); setAddedKv(false); // a fresh run invalidates every "Added ✓" state
       } catch (e) {
         if (e.weakFit) setWeakFitAsk(e.weakFit); // #3273 — asked below the Run button, not an error
@@ -955,7 +962,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
                   {restrictToDomain
                     ? tr("Each block adopts the domain of its nearest composite and only ever sees composites from that same domain — a nearest-neighbour domain model, the simplest defensible way to give a point in space a domain from downhole-only logging. Blocks whose nearest composite has no logged domain are left un-estimated.")
-                    : tr("Selecting a domain above only stops a single composite from spanning two domains. It does NOT stop the interpolation search itself from drawing samples across a contact or a fault — that search is a plain sphere through all the data, so grade will be smeared across geological boundaries. Tick the box above to restrict the search too.")}
+                    : tr("Selecting a domain above only stops a single composite from spanning two domains. It does NOT stop the interpolation search itself from drawing samples across a contact or a fault — that search is {shape} through all the data, so grade will be smeared across geological boundaries. Tick the box above to restrict the search too.", { shape: trend && searchRadius > 0 ? tr("the ellipsoid above") : tr("a plain sphere") }) /* TASKS.csv #3082 (3) — said of the search actually in use */}
                 </div>
               </>
             )}
@@ -968,7 +975,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
             </label>
           )}
           {underground?.underground && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", margin: "2px 0 6px 22px", lineHeight: 1.4 }}>{tr("Off: the collars look like underground collars ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other), so they are not a ground surface and no block is cut. Load a terrain to cut at the surface.", { upward: underground.upward, stacked: underground.stacked })}</div>}{/* #2217 */}
-          {groundAt && groundSource === "collars" && !underground?.underground && <CollarLevelsNote collars={collars} style={{ margin: "2px 0 6px 22px" }} />}{/* #2584 */}
+          {groundAt && groundSource === "collars" && !underground?.underground && <CollarLevelsNote collars={levelCollars} style={{ margin: "2px 0 6px 22px" }} />}{/* #2584; #3082 (5) — the count of the holes this block is built from, not every collar of the project */}
           {/* TASKS.csv #517 — a modelled unit volume (or an imported closed solid) as a hard domain boundary */}
           {volumeShells.length > 0 && (
             <label style={fieldLabel} title={tr("Only samples inside this closed solid inform the estimate, and only blocks whose centre is inside it are kept — e.g. Au inside the modelled DACT. Build unit volumes from an implicit model (3D Modelling, after a stack run: Add unit volumes).")}>{tr("Restrict to a modelled volume")}<select value={shellId} onChange={(e) => setShellId(e.target.value)} style={inp} aria-label={tr("Restrict to a modelled volume")}>
@@ -1091,8 +1098,9 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           )}
           {error && <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-danger-icon-strong)" }}>{error}</div>}
 
+          {result && resultSig != null && resultSig !== settingsSig && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("A setting has changed since this result was run: it is shown greyed. Run again to refresh it.")}</div>}{/* TASKS.csv #3082 (4) */}
           {result && (
-            <div style={{ padding: 10, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-strong)", display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ opacity: resultSig != null && resultSig !== settingsSig ? 0.5 : 1, padding: 10, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-strong)", display: "flex", flexDirection: "column", gap: 6 }}>
               {result.supportCounts && result.blocksEstimated > 0 && (() => { // TASKS.csv #1573 — the support split first, in plain words
                 const sc = result.supportCounts, n = result.blocksEstimated, pct = Math.round((100 * sc.interpolated) / n);
                 const one = result.singleHoleCells || 0, dom = result.dominatedCells || 0;
@@ -1199,6 +1207,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
                   {result.members.map((m) => <div key={m.element} style={{ color: m.blocks ? undefined : "var(--color-warn-text)" }}>{m.blocks ? tr("{el}: {blocks} blocks from {n} composites, mean {mean} {unit}", { el: m.element, blocks: m.blocks.toLocaleString(), n: m.composites.toLocaleString(), mean: m.mean != null ? +m.mean.toPrecision(3) : "—", unit: gradeUnitLabel(m.element, m.unit) }) : tr("{el}: no samples to estimate from; not added.", { el: m.element })}
                     {m.blocks > 0 && <span>{"; "}{m.cap != null ? tr("capped at {cap} {unit} ({k} of {n} samples)", { cap: m.cap, unit: gradeUnitLabel(m.element, m.unit), k: (m.capAudit?.nCapped ?? 0).toLocaleString(), n: (m.capAudit?.nSamples ?? 0).toLocaleString() }) : tr("not capped")}</span>}{/* #3271 */}
                     {m.check?.estimate?.mean != null && <div style={{ paddingInlineStart: 12 }}>{tr("check: composites {c}, nearest neighbour {nn}, estimate {e} {unit} ({d} against the nearest neighbour)", { c: m.check.composites.mean != null ? +m.check.composites.mean.toPrecision(3) : "—", nn: m.check.nn.mean != null ? +m.check.nn.mean.toPrecision(3) : "—", e: +m.check.estimate.mean.toPrecision(3), unit: gradeUnitLabel(m.element, m.unit), d: m.check.departPct != null ? `${m.check.departPct > 0 ? "+" : ""}${m.check.departPct.toFixed(1)} %` : "—" })}</div>}{/* #3271 */}
+                    {m.blocks > 0 && m.checkNn && m.checkPoints && <details style={{ paddingInlineStart: 12 }}><summary style={{ cursor: "pointer" }}>{tr("Swath plots for {el}", { el: m.element })}</summary>{/* TASKS.csv #3384 — the swaths of each member, as the primary has */}<EstimateCheck cells={m.cells} nnCells={m.checkNn} points={m.checkPoints} unit={gradeUnitLabel(m.element, m.unit)} symbol={m.element} method={result.params.method} epsg={stampEpsg(project)} composited={result.params.composited !== false} /></details>}
                   </div>)}
                 </div>
               )}

@@ -12,6 +12,7 @@ import { reprojectXY, crsName } from "../lib/reproject.js";
 import { askAdoptCrs } from "../lib/adoptCrs.js";
 import { smallSel, pBtn } from "../lib/sidebarStyles.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // no Math.min / max spread (#371)
+import TemInvertPanel from "./TemInvertPanel.jsx"; // TASKS.csv #3440 step 3 — the 1D inversion
 import { t as tr } from "../lib/i18n.js";
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
@@ -221,7 +222,10 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
           </select>
           <button type="button" disabled={st.gate == null} onClick={() => addGate(st.gate)} style={{ ...smallSel, cursor: "pointer" }}>{tr("Add")}</button>
         </div>
-        <div style={note}>{tr("Not here yet: a 1D TEM inversion (conductivity against depth), which needs the system's waveform and geometry.")}</div>
+        {/* TASKS.csv #3440 step 3 — the 1D inversion, for a set of decays (one, or both moments joined) */}
+        {(isJoin || group.role === "data" || (!group.role && !group.aux)) && (
+          <TemInvertPanel data={data} groups={isJoin ? [joinable.ga, joinable.gb] : [group]} timesOf={(g) => (isJoin ? (g === joinable.ga ? joinable.ta : joinable.tb) : times)} line={line} setLayers={setLayers} updateGeophysSurvey={updateGeophysSurvey} />
+        )}
       </>)}
     </div>
   );
