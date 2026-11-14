@@ -6,7 +6,7 @@ import { t as tr } from "../lib/i18n.js";
 import { useStore } from "../lib/store.jsx";
 import { saveFile } from "../lib/desktop.js";
 import { toCsv, FORMULA_LEAD } from "../lib/tabular.js";
-import { sectionFrame, projectPierces, sectionGrids, sectionSpacing, contourLevels, pierceRows } from "../lib/longSection.js";
+import { sectionFrame, projectPierces, sectionGrids, sectionGridsOK, sectionSpacing, contourLevels, pierceRows } from "../lib/longSection.js"; // sectionGridsOK: #3122
 import { layoutLongSection, drawLongSection } from "../lib/longSectionFigure.js";
 import { imagePdf, dataUrlBytes } from "../lib/imagePdf.js";
 
@@ -29,9 +29,19 @@ export default function LongSectionGT({ holes, zeros, symbol, shownGrade, gtLabe
   const [fig, setFig] = useState(null), [msg, setMsg] = useState(null);
 
   const kindLabel = { true: tr("true (normal to the plane)"), horizontal: tr("horizontal (level, across strike)"), downhole: tr("downhole (as logged)") };
-  const draw = () => {
-    const grid = sectionGrids(points, { cell: cellM, radius: radiusM });
+  // TASKS.csv #3122 — the plan's ordinary kriging and standard deviation on the section too; the method in force is the one chosen when Draw was pressed
+  const [method, setMethod] = useState("idw"), [showSd, setShowSd] = useState(true);
+  // TASKS.csv #3123 — the mask (the pierce points' outline, or a distance from a pierce point) and the hole-id labels
+  const [maskKind, setMaskKind] = useState("outline"), [maskText, setMaskText] = useState(""), [labels, setLabels] = useState(false);
+  const maskM = maskKind === "distance" ? (Number(maskText) > 0 ? Number(maskText) : radiusM || 0) : 0;
+  const draw = async () => {
+    let grid;
+    if (method === "ok") {
+      const k = await import("../lib/planKriging.js");
+      grid = sectionGridsOK(points, { cell: cellM, radius: radiusM, maskM }, k);
+    } else grid = sectionGrids(points, { cell: cellM, radius: radiusM, maskM });
     if (!grid) { setFig(null); setMsg(tr("Nothing to grid: at least two pierce points and a cell and search are needed.")); return; }
+    const ok = grid.method === "ok";
     const vals = [grid.thickness, grid.grade, grid.gt];
     const levels = vals.map((v, k) => contourLevels(v, { step: steps[k] }));
     const kw = KIND_WORD[kind];
@@ -40,13 +50,17 @@ export default function LongSectionGT({ holes, zeros, symbol, shownGrade, gtLabe
       { title: `(b) Grade (${shownGrade})`, values: grid.grade, levels: levels[1], unit: shownGrade },
       { title: `(c) Grade × thickness (${gtLabel})`, values: grid.gt, levels: levels[2], unit: gtLabel },
     ];
-    const L = layoutLongSection(grid, { width: 1600 });
+    // the standard deviation of the GT kriging as a fourth panel: lowest beside the pierce points, highest where they are farthest apart
+    if (ok && showSd && grid.sdGT) panels.push({ title: `(d) GT kriging standard deviation (${gtLabel})`, values: grid.sdGT, levels: contourLevels(grid.sdGT, {}), unit: gtLabel });
+    // what the kriging fitted, said as the plan says it (a variable with no fit stays inverse distance)
+    const fitMsg = (what, vg) => (vg?.fit ? tr("{what}: variogram nugget {n}, sill {s}, range {r} m, r² {q} ({p} pairs).", { what, n: +vg.fit.nugget.toPrecision(3), s: +vg.fit.sill.toPrecision(3), r: Math.round(vg.fit.range), q: vg.fit.rSquared != null ? +vg.fit.rSquared.toFixed(2) : "—", p: vg.nPairs }) : tr("{what}: no variogram could be fitted (too few holes or pairs, or every hole the same): estimated by inverse distance.", { what }));
+    const L = layoutLongSection(grid, { width: 1600, count: panels.length });
     const c = document.createElement("canvas"); c.width = L.width; c.height = L.height;
-    drawLongSection(c.getContext("2d"), L, grid, panels, { points, azimuth: frame.strikeAz,
-      method: `${symbol}: intercepts at ${cut} ${shownGrade}; ${points.length} pierce points, inverse distance (${+grid.cell.toFixed(1)} m cells, ${grid.radius} m search).`,
-      note: `Long section along ${Math.round(frame.strikeAz)}°${mode === "fit" ? ` (strike of the intercepts' best-fit plane, dip ${Math.round(frame.dip)}°)` : ""}; contours stop at the pierce points' outline (dashed). Not a resource estimate.` });
-    setFig({ png: c.toDataURL("image/png"), jpeg: c.toDataURL("image/jpeg", 0.92), w: c.width, h: c.height, grid, levels });
-    setMsg(null);
+    drawLongSection(c.getContext("2d"), L, grid, panels, { points, azimuth: frame.strikeAz, labels,
+      method: `${symbol}: intercepts at ${cut} ${shownGrade}; ${points.length} pierce points, ${ok ? "ordinary kriging" : "inverse distance"} (${+grid.cell.toFixed(1)} m cells, ${grid.radius} m search).`,
+      note: `Long section along ${Math.round(frame.strikeAz)}°${mode === "fit" ? ` (strike of the intercepts' best-fit plane, dip ${Math.round(frame.dip)}°)` : ""}; contours stop ${maskM > 0 ? `${Math.round(maskM)} m from a pierce point` : "at the pierce points' outline (dashed)"}. Not a resource estimate.` });
+    setFig({ png: c.toDataURL("image/png"), jpeg: c.toDataURL("image/jpeg", 0.92), w: c.width, h: c.height, grid, levels, ok });
+    setMsg(ok ? [fitMsg("GT", grid.vgGT), fitMsg(tr("Thickness"), grid.vgTh)].join(" ") : null);
   };
   const base = `gt_long_section_${symbol}`;
   const savePng = () => fig && saveFile({ suggestedName: `${base}.png`, filters: [{ name: "PNG", extensions: ["png"] }], content: dataUrlBytes(fig.png) });
@@ -77,6 +91,17 @@ export default function LongSectionGT({ holes, zeros, symbol, shownGrade, gtLabe
         {[tr("Thickness interval (m)"), tr("Grade interval ({u})", { u: shownGrade }), tr("GT interval ({u})", { u: gtLabel })].map((l, k) => (
           <label key={k} style={field} title={tr("Blank: a round interval (1, 2 or 5 x 10^n) giving about six bands.")}>{l}<input type="number" min="0" step="any" value={steps[k]} placeholder={tr("round")} onChange={(e) => setSteps((p) => p.map((v, q) => (q === k ? e.target.value : v)))} style={inp} aria-label={l} /></label>
         ))}
+        <label style={field}>{tr("Method")}<select value={method} onChange={(e) => { setMethod(e.target.value); setFig(null); }} style={{ ...inp, width: "auto" }} aria-label={tr("Section estimation method")} title={tr("Ordinary kriging fits a 2D variogram to the holes' GT, and another to their thickness, and weighs the nearest holes by it; inverse distance weighs them by distance alone. Both estimate the same nodes.")}>{/* #3122 */}
+          <option value="idw">{tr("Inverse distance (squared)")}</option>
+          <option value="ok">{tr("Ordinary kriging (a 2D variogram of each)")}</option>
+        </select></label>
+        {method === "ok" && <label style={{ ...field, flexDirection: "row", alignItems: "center", gap: 5 }} title={tr("The square root of each node's kriging variance: it depends on where the holes are and on the variogram, not on their values, so it shows where the kriged plan is least sure.")}><input type="checkbox" checked={showSd} onChange={(e) => { setShowSd(e.target.checked); setFig(null); }} />{tr("Add a panel of the GT kriging standard deviation")}</label>}
+        <label style={field}>{tr("Panels stop at")}<select value={maskKind} onChange={(e) => { setMaskKind(e.target.value); setFig(null); }} style={{ ...inp, width: "auto" }} aria-label={tr("Where the panels stop")} title={tr("The convex outline of the pierce points spans the gap between two separate patches of drilling; a distance from the nearest pierce point does not.")}>{/* #3123 */}
+          <option value="outline">{tr("the outline of the pierce points")}</option>
+          <option value="distance">{tr("a distance from the nearest pierce point")}</option>
+        </select></label>
+        {maskKind === "distance" && <label style={field}>{tr("Distance (m)")}<input type="number" min="0" step="any" value={maskText} placeholder={radiusM ? String(radiusM) : ""} onChange={(e) => { setMaskText(e.target.value); setFig(null); }} style={inp} aria-label={tr("Mask distance (m)")} /></label>}
+        <label style={{ ...field, flexDirection: "row", alignItems: "center", gap: 5 }}><input type="checkbox" checked={labels} onChange={(e) => { setLabels(e.target.checked); setFig(null); }} />{tr("Label the pierce points with their hole ids")}</label>{/* #3123 */}
         <button type="button" disabled={frame.error || points.length < 2 || !cellM || !radiusM} onClick={draw} style={btn}>{tr("Draw the long section")}</button>
       </div>
       {frame.error === "azimuth" && <div style={note}>{tr("Type the azimuth along strike: none is chosen for you.")}</div>}
@@ -92,7 +117,7 @@ export default function LongSectionGT({ holes, zeros, symbol, shownGrade, gtLabe
       {msg && <div role="status" style={note}>{msg}</div>}
       {fig && (
         <>
-          <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("{n} of {t} nodes estimated, inside the pierce points' outline. Intervals: thickness {a} m, grade {b} {gu}, GT {c} {tu}.", { n: fig.grid.estimated.toLocaleString(), t: (fig.grid.nx * fig.grid.ny).toLocaleString(), a: fig.levels[0][0] ?? "—", b: fig.levels[1][0] ?? "—", gu: shownGrade, c: fig.levels[2][0] ?? "—", tu: gtLabel })}</div>
+          <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{fig.grid.maskM > 0 ? tr("{n} of {t} nodes estimated, within {m} m of a pierce point. Intervals: thickness {a} m, grade {b} {gu}, GT {c} {tu}.", { n: fig.grid.estimated.toLocaleString(), t: (fig.grid.nx * fig.grid.ny).toLocaleString(), m: Math.round(fig.grid.maskM), a: fig.levels[0][0] ?? "—", b: fig.levels[1][0] ?? "—", gu: shownGrade, c: fig.levels[2][0] ?? "—", tu: gtLabel }) : tr("{n} of {t} nodes estimated, inside the pierce points' outline. Intervals: thickness {a} m, grade {b} {gu}, GT {c} {tu}.", { n: fig.grid.estimated.toLocaleString(), t: (fig.grid.nx * fig.grid.ny).toLocaleString(), a: fig.levels[0][0] ?? "—", b: fig.levels[1][0] ?? "—", gu: shownGrade, c: fig.levels[2][0] ?? "—", tu: gtLabel })}{/* #3123 — the distance mask says its distance */}</div>
           <img src={fig.png} alt={tr("Grade × thickness long section: thickness, grade and GT")} style={{ width: "100%", border: "1px solid var(--color-border)", borderRadius: 6, background: "#fff" }} />
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button type="button" onClick={savePng} style={btn}>{tr("Export PNG")}</button>
@@ -100,7 +125,7 @@ export default function LongSectionGT({ holes, zeros, symbol, shownGrade, gtLabe
             <button type="button" onClick={toLayout} style={btn}>{tr("Add to Layout")}</button>
             <button type="button" onClick={saveCsv} style={btn}>{tr("Export the pierce points (CSV)")}</button>
           </div>
-          <div style={note}><b>{tr("Not a resource estimate.")}</b>{" "}{tr("Inverse-distance interpolation of the pierce points' thickness and GT on the section, grade as GT over thickness: no declustering, no variogram, no classification. Between pierce points the numbers are the method's; the panels stop at the outline of the pierce points (dashed), and a hole assayed with no intercept counts as 0.")}</div>
+          <div style={note}><b>{tr("Not a resource estimate.")}</b>{" "}{fig.ok ? tr("Ordinary kriging of the pierce points' thickness and GT on the section (a variogram fitted to each), grade as GT over thickness: no declustering, no classification. Between pierce points the numbers are the method's; the panels stop at the outline of the pierce points (dashed), and a hole assayed with no intercept counts as 0.") : tr("Inverse-distance interpolation of the pierce points' thickness and GT on the section, grade as GT over thickness: no declustering, no variogram, no classification. Between pierce points the numbers are the method's; the panels stop at the outline of the pierce points (dashed), and a hole assayed with no intercept counts as 0.")}{/* #3122 */}</div>
         </>
       )}
     </>

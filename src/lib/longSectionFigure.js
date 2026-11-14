@@ -9,7 +9,7 @@ const niceStep = (span, n) => { const raw = Math.abs(span) / n || 1, p = 10 ** M
 const fmtLevel = (v) => { const n = Number(v.toPrecision(3)); return Math.abs(n) >= 1000 ? n.toLocaleString("en-US") : String(n); };
 
 // grid: sectionGrids' result. -> the figure's geometry: width, height, the plot box per panel, metres -> pixels (s along, s * ve up), ve
-export function layoutLongSection(grid, { width = 1600, minPlotH = 150, maxPlotH = 480 } = {}) {
+export function layoutLongSection(grid, { width = 1600, minPlotH = 150, maxPlotH = 480, count = 3 } = {}) { // count: #3122 — a fourth panel for the standard deviation
   const left = 96, right = 210, titleH = 34, axisH = 40, footH = 74;
   const a0 = grid.x0 - grid.cell / 2, a1 = grid.x0 + (grid.nx - 0.5) * grid.cell, e0 = grid.y0 - grid.cell / 2, e1 = grid.y0 + (grid.ny - 0.5) * grid.cell;
   const spanA = Math.max(1, a1 - a0), spanE = Math.max(1, e1 - e0);
@@ -17,12 +17,12 @@ export function layoutLongSection(grid, { width = 1600, minPlotH = 150, maxPlotH
   if (plotH > maxPlotH) { s = maxPlotH / spanE; plotW = spanA * s; plotH = maxPlotH; }
   if (plotH < minPlotH) { ve = minPlotH / plotH; plotH = minPlotH; }
   const panelH = titleH + plotH + axisH;
-  const panels = [0, 1, 2].map((k) => ({ x: left, y: k * panelH + titleH, w: plotW, h: plotH }));
-  return { width, height: 3 * panelH + footH, panels, s, ve, a0, a1, e0, e1, left, right, titleH, axisH, footY: 3 * panelH };
+  const panels = Array.from({ length: count }, (_, k) => ({ x: left, y: k * panelH + titleH, w: plotW, h: plotH }));
+  return { width, height: count * panelH + footH, panels, s, ve, a0, a1, e0, e1, left, right, titleH, axisH, footY: count * panelH };
 }
 
 // panels: [{ title, values (Float64Array on the grid), levels, unit }] x 3; points: projectPierces' rows; azimuth: the along-strike azimuth.
-export function drawLongSection(ctx, L, grid, panels, { points = [], azimuth = 0, method = "", note = "" } = {}) {
+export function drawLongSection(ctx, L, grid, panels, { points = [], azimuth = 0, method = "", note = "", labels = false } = {}) { // labels: #3123 — each pierce point's hole id
   const X = (a) => L.panels[0].x + (a - L.a0) * L.s;
   ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, L.width, L.height);
   ctx.textBaseline = "middle";
@@ -61,6 +61,7 @@ export function drawLongSection(ctx, L, grid, panels, { points = [], azimuth = 0
     // the drilled outline and the pierce points
     if (grid.hull?.length >= 3) { ctx.strokeStyle = "#6b7280"; ctx.setLineDash([5, 4]); ctx.beginPath(); grid.hull.forEach(([a, e], q) => (q ? ctx.lineTo(X(a), Y(e)) : ctx.moveTo(X(a), Y(e)))); ctx.closePath(); ctx.stroke(); ctx.setLineDash([]); }
     for (const p of points) { ctx.fillStyle = p.thick > 0 ? "#111827" : "#ffffff"; ctx.strokeStyle = "#111827"; ctx.beginPath(); ctx.arc(X(p.along), Y(p.elev), 2.4, 0, 2 * Math.PI); ctx.fill(); ctx.stroke(); }
+    if (labels) { ctx.font = "10px sans-serif"; ctx.fillStyle = "#111827"; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; for (const p of points) if (p.hole_id != null) ctx.fillText(String(p.hole_id), X(p.along) + 4, Y(p.elev) - 3); ctx.textBaseline = "middle"; } // #3123
     ctx.restore();
     ctx.strokeStyle = "#111827"; ctx.lineWidth = 1; ctx.strokeRect(box.x, box.y, box.w, box.h);
     // axes: elevation (left), along strike (under each panel)

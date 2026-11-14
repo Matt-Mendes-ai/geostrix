@@ -40,7 +40,7 @@ function sdImageUrl(sdPixels, sd, nx, ny, max) {
 export default function GradeThicknessModal({ assays, assayElements, collars, survey, layers, inArea = null, onClose }) {
   useEscapeKey(onClose);
   useFocusTrap();
-  const { desurveyMethod, addMapLayer } = useStore(); // addMapLayer: #2755
+  const { desurveyMethod, addMapLayer, project } = useStore(); // addMapLayer: #2755; project: #2880 (the grid's CRS)
   const symbols = (assayElements || []).map((e) => e.symbol);
   const lead = useLeadCommodity(); // #3016
   const [symbol, setSymbolRaw] = useState(() => preferredElement(symbols, "gradeThickness", lead) || symbols[0] || "");
@@ -133,6 +133,21 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
     return { X: (x) => 10 + (x - x0) * s, Y: (y) => H - 10 - (y - y0) * s, R: (g) => (g > 0 ? 3 + 11 * Math.sqrt(g / gmax) : 2.5) };
   }, [pts]);
   const fmt = (v, d = 1) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString(undefined, { maximumFractionDigits: d }));
+  // TASKS.csv #2880 — the plan grid out: GT, thickness and, with kriging, each one's standard deviation per node, as CSV rows or GeoTIFF bands
+  const exportGridCsv = async () => {
+    if (!grid) return;
+    const { planGridRows } = await import("../lib/planGridExport.js");
+    const rows = planGridRows(grid, `gt_${gtLabel.replace(/[^\w%]+/g, "_")}`);
+    const header = [`# Grade x thickness plan grid (GeoStrix): ${symbol}${ox ? ` reported as ${ox.oxide} (x ${ox.factor})` : ""}, intercepts at ${cut} ${shownGrade}, ${runMethod === "ok" ? "ordinary kriging" : "inverse distance squared"}, ${Math.round(grid.cell)} m nodes, ${Math.round(grid.radius)} m search. Nodes with no hole in reach are not listed. Not a resource estimate.`];
+    saveFile({ suggestedName: `grade_thickness_${symbol}_plan_grid.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: [...header, toCsv(rows, { escapeFormulae: FORMULA_LEAD })].join("\n"), encoding: "text" });
+  };
+  const exportGridTiff = async () => {
+    if (!grid) return;
+    const [{ planGridBands }, { gridToGeoTIFF, saveGeoTIFF }] = await Promise.all([import("../lib/planGridExport.js"), import("../lib/gridExport.js")]);
+    const g = planGridBands(grid);
+    saveGeoTIFF(`grade_thickness_${symbol}_plan_grid.tif`, gridToGeoTIFF({ ...g, epsg: project?.epsg }));
+    setPlanMsg(tr("GeoTIFF of the plan grid: {n} bands in this order: {names}; {nx} × {ny} nodes of {c} m, no data where no hole is in reach.", { n: g.bands.length, names: g.bands.map((b) => b.name).join(", "), nx: g.nx, ny: g.ny, c: Math.round(g.dx) }));
+  };
   const exportCsv = () => {
     if (!totals) return;
     const rows = totals.holes.map((h) => ({ hole_id: h.hole_id, from_m: +h.from.toFixed(2), to_m: +h.to.toFixed(2), thickness_m: +h.thicknessM.toFixed(2), sampled_m: +h.sampledM.toFixed(2), [`gt_${gtLabel.replace(/[^\w%]+/g, "_")}`]: +h.gt.toPrecision(5), [`mean_grade_${shownGrade.replace(/[^\w%]+/g, "_")}`]: h.meanGrade == null ? "" : +h.meanGrade.toPrecision(4), top_rl: h.topRL == null ? "" : +h.topRL.toFixed(1), base_rl: h.baseRL == null ? "" : +h.baseRL.toFixed(1), x: h.x == null ? "" : +h.x.toFixed(1), y: h.y == null ? "" : +h.y.toFixed(1) }));
@@ -189,6 +204,10 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
                 </svg>
               )}
             </div>
+            {grid && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{/* #2880 */}
+              <button type="button" onClick={exportGridCsv} style={{ ...inp, width: "auto", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}><Download size={14} />{tr("Export the plan grid (CSV)")}</button>
+              <button type="button" onClick={exportGridTiff} style={{ ...inp, width: "auto", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title={tr("GT, thickness and, with kriging, their standard deviations, one band each, in the project's CRS")}><Download size={14} />{tr("Export the plan grid (GeoTIFF)")}</button>
+            </div>}
             <div style={{ display: "flex", gap: 8 }}><button type="button" onClick={exportCsv} style={{ ...inp, width: "auto", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}><Download size={14} />{tr("Export per-hole totals (CSV)")}</button>
               <button type="button" disabled={!totals?.holes?.length} /* TASKS.csv #2755 */ onClick={() => { showGtOnPlan({ symbol: ox ? ox.oxide : symbol, label: gtLabel, title: `GT (${gtLabel}), intercepts at ${cut} ${shownGrade}`, holes: [...totals.holes.filter((h) => Number.isFinite(h.x)), ...totals.zeros].map((h) => ({ hole_id: h.hole_id, x: h.x, y: h.y, gt: h.gt, thicknessM: h.thicknessM })) }); setPlanMsg(tr("The holes' GT is on the Maps tab's plan, as circles sized by GT (until the app is closed or you clear it there).")); }}
                 style={{ ...inp, width: "auto", cursor: totals?.holes?.length ? "pointer" : "default" }} title={tr("Graduate the collars on the Maps tab's plan by these totals: circle area in proportion to GT, a hole assayed with no intercept as a hollow ring.")}>{tr("Show on the Maps plan")}</button>

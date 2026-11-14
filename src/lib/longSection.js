@@ -89,21 +89,41 @@ const inHull = (h, x, y, tol) => {
 // The three grids on the section, (along, elevation): thickness and GT by the plan's estimator (inverse distance within `radius`), grade =
 // GT / thickness where there is a thickness; every node outside the pierce points' outline (plus half a cell) left out, so the panels stop
 // where the drilling stops. -> { nx, ny, x0, y0, cell, thickness, gt, grade, hull, estimated, radius, cellAsked } | null
-export function sectionGrids(points, { cell, radius, maxNodes = 120000 } = {}) {
-  const P = (points || []).map((q) => ({ x: q.along, y: q.elev, gt: q.gt, thicknessM: q.thick }));
-  const g = planGrid(P, { cell, radius, pad: 0, maxNodes });
-  if (!g) return null;
-  const hull = hull2d(P.map((p) => [p.x, p.y]));
+const sectionPoints = (points) => (points || []).map((q) => ({ x: q.along, y: q.elev, gt: q.gt, thicknessM: q.thick, hole_id: q.hole_id }));
+// the grid masked to the outline of the pierce points, with the grade as GT over thickness (standard deviations, when the grid has them, masked too)
+// TASKS.csv #3123 (split from #3089) — the mask: the pierce points' convex outline (the default), or only the nodes within `maskM` of a pierce point
+// (a lode drilled in two separate patches: the outline spans the barren gap between them). maskM <= 0 / not a number: the outline.
+function finishSection(g, P, { maskM = 0 } = {}) {
+  const near = maskM > 0, hull = hull2d(P.map((p) => [p.x, p.y])), m2 = maskM * maskM;
   const grade = new Float64Array(g.nx * g.ny).fill(NaN);
   let n = 0;
   for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) {
     const k = i + g.nx * j, x = g.x0 + i * g.cell, y = g.y0 + j * g.cell;
-    if (!inHull(hull, x, y, g.cell / 2)) { g.gt[k] = NaN; g.thickness[k] = NaN; continue; }
+    let keep;
+    if (near) { keep = false; for (const p of P) { const dx = p.x - x, dy = p.y - y; if (dx * dx + dy * dy <= m2) { keep = true; break; } } }
+    else keep = inHull(hull, x, y, g.cell / 2);
+    if (!keep) { g.gt[k] = NaN; g.thickness[k] = NaN; if (g.sdGT) g.sdGT[k] = NaN; if (g.sdTh) g.sdTh[k] = NaN; continue; }
     if (!Number.isFinite(g.gt[k])) continue;
     n++;
     if (g.thickness[k] > 1e-9) grade[k] = g.gt[k] / g.thickness[k];
   }
-  return { ...g, grade, hull, estimated: n };
+  return { ...g, grade, hull: near ? [] : hull, estimated: n, maskM: near ? maskM : 0 }; // no outline to draw in the distance mask
+}
+export function sectionGrids(points, { cell, radius, maxNodes = 120000, maskM = 0 } = {}) {
+  const P = sectionPoints(points);
+  const g = planGrid(P, { cell, radius, pad: 0, maxNodes });
+  return g ? finishSection(g, P, { maskM }) : null;
+}
+// TASKS.csv #3122 (split from #3089) — the plan's ordinary kriging (#2756) and its standard-deviation grids (#2820) on the section too: a variogram
+// of GT and of thickness from the pierce points (one per hole: every pair is between holes) in (along strike, elevation), then point kriging at
+// the same nodes. kriging: planKriging.js's { planVariogram, planGridOK } (loaded on demand by the caller, which keeps this module light).
+// -> the grid as sectionGrids gives it, plus { method: "ok", vgGT, vgTh, kriged, sdGT, sdTh, clamped, fallback }
+export function sectionGridsOK(points, { cell, radius, maxNodes = 120000, maskM = 0 } = {}, kriging) {
+  const P = sectionPoints(points), spacing = sectionSpacing(points);
+  if (!kriging || P.length < 2) return null;
+  const vgGT = kriging.planVariogram(P, "gt", spacing), vgTh = kriging.planVariogram(P, "thicknessM", spacing);
+  const g = kriging.planGridOK(P, { cell, radius, pad: 0, maxNodes, vgGT: vgGT.fit, vgTh: vgTh.fit });
+  return g ? { ...finishSection(g, P, { maskM }), vgGT, vgTh } : null;
 }
 
 // the typical spacing of the pierce points on the section (for the default cell and search)
