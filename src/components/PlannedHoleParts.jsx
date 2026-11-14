@@ -9,12 +9,13 @@ import { colors } from "../lib/theme.js";
 import { lazyModal } from "../lib/lazyModal.jsx";
 import { solveOrientationToTarget, plannedTrace, solveCollarForTarget, isShallowDip, SHALLOW_DIP_DEG, nearestCollarsToTarget } from "../lib/holePlanning.js"; // nearestCollarsToTarget: #2250; // solveCollarForTarget / shallow: TASKS.csv #1835
 import { azimuthToGridOffset, loadIgrf, wrap360 } from "../lib/azimuthRef.js"; // TASKS.csv #1729
-import { planGeometryKey, drilledTraceIndex, isTargetModel, targetBandIndex, planChecks, COLLAR_ZONE_M, minSpacingFrom /* #2976 */ } from "../lib/plannedHoleChecks.js"; // TASKS.csv #1039; COLLAR_ZONE_M: #1454
+import { planGeometryKey, drilledTraceIndex, isTargetModel, targetBandIndex, planChecks, COLLAR_ZONE_M, padClearance, minSpacingFrom /* #2976 */ } from "../lib/plannedHoleChecks.js"; // TASKS.csv #1039; COLLAR_ZONE_M: #1454
 import { piercePoints as surfacePierces } from "../lib/piercePoints.js"; // TASKS.csv #1009
 import { drilledDefaults } from "../lib/plannedDefaults.js"; // TASKS.csv #2450
 import { costByType, collarHoleTypes } from "../lib/drillProgram.js"; // TASKS.csv #2581
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #2581 — the rates are kept with the project
 import { collarGround, collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2100 — the ground between the collars when there is no terrain; underground: #2251 / #2253
+import { collarFillAt, collarFillGround, collarFillSource, distanceText } from "../lib/collarFill.js"; // TASKS.csv #3335
 
 const PlannedHoleTargeting = lazyModal(() => import("./PlannedHoleTargeting.jsx")); // TASKS.csv #119
 import CollarPicker from "./CollarPicker.jsx"; // TASKS.csv #2104
@@ -79,6 +80,11 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
   // and the dump already use, #1557 / #1616), before a flat plane: Woodjam's pick read 967 m where the collars around stand at 1,001-1,019 m
   const collarZ = useMemo(() => (!groundAt && collars?.length ? collarGround(collars) : null), [groundAt, collars]);
   const ground = groundAt || collarZ;
+  // TASKS.csv #3335 — the collar ground judged by the site spacing: rounded to the metre past one spacing, nothing past three (a terrain as before)
+  const siteSpacing = useMemo(() => (collarZ ? drilledSiteSpacing(collars) : null), [collarZ, collars]);
+  const groundFill = useMemo(() => (collarZ && !groundAt ? collarFillGround(collarZ, siteSpacing) : ground), [collarZ, groundAt, siteSpacing, ground]);
+  const fillAt = (x, y) => (collarZ && !groundAt ? collarFillAt(collarZ, siteSpacing, x, y) : null);
+  const farText = (f) => tr("No Elev offered: the nearest collar is {d} away, over three times the site spacing ({s} m), so the ground between the collars says nothing here. Type the Elev, or load a terrain.", { d: distanceText(f.nearestM), s: Math.round(f.spacing) });
   // TASKS.csv #2251 / #2253 (review #2174, WA gold) — on a project drilled from underground the surface through the collars is a level between
   // drill positions, not the ground, and an uphole is a normal design: said so, in place of the surface-drilling wording
   const underground = useMemo(() => !groundAt && (collars?.length || 0) > 1 && collarsLookUnderground(collars, survey || []).underground, [groundAt, collars, survey]);
@@ -103,7 +109,7 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
     try {
       const { rows, headers } = parseTableText(await file.text());
       // #2963 — a blank elevation takes the ground the form offers (the terrain, else the trusted collars' ground: #2962); not from underground collars
-      const groundForZ = ground && !underground ? ground : null;
+      const groundForZ = ground && !underground ? groundFill : null; // #3335 — the collar ground as judged (NaN too far: the row is skipped)
       let r = plannedHolesFromRows(rows, headers, { groundAt: groundForZ });
       // TASKS.csv #2963 — no azimuth or dip column (a vertical program is a list of E, N and depth): the form's Az / Dip for every row, asked
       // first, never assumed. The form's azimuth goes to grid as the form's own (a true / magnetic one needs its offset, else only a vertical dip)
@@ -116,7 +122,7 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
       // GeoStrix keeps a downward hole's dip negative; a sheet whose every dip is positive may count down as positive: asked, never assumed
       if (r.allDipsPositive && window.confirm(tr("Every dip in {f} is positive. GeoStrix reads a positive dip as an upward hole. Are these downward holes written with positive dips (flip them to negative)?", { f: file.name }))) holes = holes.map((h) => ({ ...h, dip: -h.dip }));
       const groundWords = groundAt ? "the terrain under the hole" : "the ground interpolated between the nearest collars (no terrain)"; // the pattern's words
-      holes.forEach((h) => { const { zFromGround, ...rest } = h; onAdd({ ...rest, zSource: zFromGround ? `${groundWords} (Elev blank in ${file.name})` : `imported from ${file.name}` }); });
+      holes.forEach((h) => { const { zFromGround, ...rest } = h; onAdd({ ...rest, zSource: zFromGround ? `${groundAt ? groundWords : collarFillSource(fillAt(h.x, h.y))} (Elev blank in ${file.name})` : `imported from ${file.name}` }); }); // #3335 — the collar ground's distance and range
       const sk = r.skipped.length ? " " + tr("{n} row(s) skipped (lines {list}): a missing or bad value.", { n: r.skipped.length, list: r.skipped.slice(0, 6).map((s) => `${s.row} (${s.why})`).join(", ") + (r.skipped.length > 6 ? ", …" : "") }) : "";
       const how = (r.usedFallback ? " " + tr("Every hole takes the form's Az {a}° / Dip {d}° (the file has no azimuth or dip column).", { a: Math.round(holes[0]?.azimuth * 10) / 10, d: holes[0]?.dip }) : "") + (r.verticalBlankAz ? " " + tr("{n} vertical row(s) with a blank azimuth read as azimuth 0.", { n: r.verticalBlankAz }) : "") + (r.zFromGround ? " " + (groundAt ? tr("{n} row(s) with a blank Elev took the terrain under the hole.", { n: r.zFromGround }) : tr("{n} row(s) with a blank Elev took the ground interpolated between the nearest collars (no terrain).", { n: r.zFromGround })) : ""); // #2963
       setImportMsg({ warn: !holes.length || r.skipped.length > 0, text: tr("Added {n} planned hole(s) from {f}.", { n: holes.length, f: file.name }) + how + sk });
@@ -136,9 +142,15 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
   useEffect(() => {
     if (!pickedPoint || pickedPoint === lastAppliedPick.current || appliedPicks.has(pickedPoint)) return; // #1838
     lastAppliedPick.current = pickedPoint; appliedPicks.add(pickedPoint); setPickInForm(true);
-    const zc = !pickedPoint.on && collarZ ? collarZ(pickedPoint.x, pickedPoint.y) : NaN; // #2100 — the click hit nothing
-    setDraft((p) => ({ ...p, x: Math.round(pickedPoint.x * 10) / 10, y: Math.round(pickedPoint.y * 10) / 10, z: Math.round((Number.isFinite(zc) ? zc : pickedPoint.z) * 10) / 10 }));
-    setZSource(Number.isFinite(zc) ? "the ground interpolated between the nearest collars (no terrain)" : `picked on the view (${pickedPoint.on || "a flat plane through the data"})`); setCollarNote(null); // #1835
+    const fc = !pickedPoint.on && collarZ ? collarFillAt(collarZ, siteSpacing, pickedPoint.x, pickedPoint.y) : null; // #2100 — the click hit nothing; #3335 — judged by the site spacing
+    if (fc?.far) { // #3335 — too far from any collar: the E / N are kept, no Elev is made up
+      setDraft((p) => ({ ...p, x: Math.round(pickedPoint.x * 10) / 10, y: Math.round(pickedPoint.y * 10) / 10, z: "" }));
+      setZSource("typed"); setCollarNote({ warn: true, text: farText(fc) });
+    } else {
+      const zc = fc?.z ?? NaN;
+      setDraft((p) => ({ ...p, x: Math.round(pickedPoint.x * 10) / 10, y: Math.round(pickedPoint.y * 10) / 10, z: Number.isFinite(zc) ? zc : Math.round(pickedPoint.z * 10) / 10 }));
+      setZSource(Number.isFinite(zc) ? collarFillSource(fc) : `picked on the view (${pickedPoint.on || "a flat plane through the data"})`); setCollarNote(null); // #1835
+    }
   }, [pickedPoint]);
   const applyFromCollar = (holeId) => {
     setFromCollarId(holeId);
@@ -190,9 +202,10 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
     if (draft.z !== "" || draft.x === "" || draft.y === "" || !ground || underground) return null;
     const x = Number(draft.x), y = Number(draft.y);
     if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    if (collarZ && !groundAt) return collarFillAt(collarZ, siteSpacing, x, y); // #3335 — { z (null when too far), nearestM, zMin, zMax, … }
     const z = ground(x, y);
-    return Number.isFinite(z) ? Math.round(z * 10) / 10 : null;
-  }, [draft.x, draft.y, draft.z, ground, underground]);
+    return Number.isFinite(z) ? { z: Math.round(z * 10) / 10 } : null;
+  }, [draft.x, draft.y, draft.z, ground, underground, collarZ, groundAt, siteSpacing]);
   const gridAz = azOffset ? Math.round(wrap360(Number(draft.azimuth) + azOffset.offset) * 100) / 100 : null;
   const submit = () => {
     if (!canAdd) return;
@@ -219,8 +232,8 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
       {/* TASKS.csv #2451 — a typed E / N with no Elev: the ground there, offered (the terrain, else the collar surface the pick and the solver use) */}
       {zOffer && (
         <div role="note" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", margin: "-2px 0 5px", lineHeight: 1.4 }}>
-          <span style={{ flex: 1 }}>{groundAt ? tr("Elev is blank: {z} from the terrain at this E / N.", { z: zOffer }) : tr("Elev is blank: {z} from the ground interpolated between the nearest collars (no terrain).", { z: zOffer })}</span>
-          <button type="button" onClick={() => { set("z", zOffer); setZSource(groundAt ? "the terrain at the typed E / N" : "the ground interpolated between the nearest collars (no terrain)"); }} style={{ ...miniBtn, flex: "none" }}>{tr("Use it")}</button>
+          <span style={{ flex: 1, ...(zOffer.far ? { color: "var(--color-warn-text)" } : {}) }}>{groundAt ? tr("Elev is blank: {z} from the terrain at this E / N.", { z: zOffer.z }) : zOffer.far ? farText(zOffer) : zOffer.nearestM != null ? tr("Elev is blank: {z} from the ground interpolated between the nearest collars (no terrain): the nearest collar is {d} away, the collars used stand at {a} to {b} m.", { z: zOffer.z, d: distanceText(zOffer.nearestM), a: Math.round(zOffer.zMin), b: Math.round(zOffer.zMax) }) : tr("Elev is blank: {z} from the ground interpolated between the nearest collars (no terrain).", { z: zOffer.z })}</span>{/* #3335 */}
+          {zOffer.z != null && <button type="button" onClick={() => { set("z", zOffer.z); setZSource(groundAt ? "the terrain at the typed E / N" : collarFillSource(zOffer)); }} style={{ ...miniBtn, flex: "none" }}>{tr("Use it")}</button>}
         </div>
       )}
       {!groundAt && !underground && (zOffer || /collars/.test(zSource)) && <CollarLevelsNote collars={collars} />}{/* #2584 */}
@@ -254,7 +267,7 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
       {importMsg && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: importMsg.warn ? "var(--color-warn-text)" : "var(--color-text-secondary)", lineHeight: 1.4, marginBottom: 5 }}>{importMsg.text}</div>}
       {/* TASKS.csv #2449 — a line or grid of holes from the E / N above, with the Az / Dip / Length above */}
       <PlannedHolePattern start={{ x: draft.x, y: draft.y, z: draft.z }} orient={!isNaN(Number(draft.azimuth)) && draft.azimuth !== "" && !isNaN(Number(draft.dip)) && draft.dip !== "" && Number(draft.length) > 0 && azOffset && gridAz != null ? { azimuth: azRef === "grid" ? Number(draft.azimuth) : gridAz, dip: Number(draft.dip), length: Number(draft.length) } : null}
-        ground={underground ? null : ground} groundLabel={groundAt ? "the terrain under the hole" : "the ground interpolated between the nearest collars (no terrain)"} onAdd={onAdd} btn={miniBtn} />
+        ground={underground ? null : groundFill} groundLabel={groundAt ? "the terrain under the hole" : (x, y) => collarFillSource(fillAt(x, y))} onAdd={onAdd} btn={miniBtn} />{/* #3335 — the collar ground as judged; each hole's own words */}
       {/* TASKS.csv #1182 — with no terrain a click on empty space gets its Elev from a flat plane at the data's origin, and that value reached the rig sheet's CSV and GPX unmarked */}
       {noTerrain && pickedPoint && pickInForm && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 4, lineHeight: 1.4 }}>{pickedPoint.onRaster && pickedPoint.onCollarSurface && !underground ? tr("No terrain is loaded: the E / N are those of the map cell you clicked, and the Elev is the ground interpolated between the nearest collars there. Check it before using it, or load a terrain.") /* #2447 */ : pickedPoint.onCollarSurface && !underground ? tr("No terrain is loaded: the E / N are where your click meets the ground interpolated between the nearest collars, and the Elev is that ground. Check it before using it, or load a terrain.") /* #2574 */ : zSource.startsWith("the ground interpolated") ? tr(underground ? "No terrain is loaded and the collars look underground: the Elev is on a surface through the drill collars, a level between drill positions, not the ground (the flat plane through the data would have given {p} m). Type the drill level's RL, or load a terrain." /* #2253 */ : "No terrain is loaded: the Elev is the ground interpolated between the nearest collars (the flat plane through the data would have given {p} m). Check it before using it, or load a terrain.", { p: Math.round(pickedPoint.z) }) : tr("No terrain is loaded, so a picked Elev is whatever the click hit, or a flat plane through the data. Check it before using it, or load a terrain.")}</div>}{/* #2100 */}
       <div style={{ borderTop: "1px solid var(--color-border)", marginTop: 7, paddingTop: 7 }}>
@@ -366,16 +379,25 @@ export function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, 
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 7, lineHeight: 1.4 }}>{tr("Narrow a voxel model's Min/Max range in Targeting > Voxel ranges to check planned holes against a target band.")}</div>
       )}
       {drilled.proposed?.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 7, lineHeight: 1.4 }}>{tr("{n} collar(s) whose status is proposed are not counted as drilled holes: {list}.", { n: drilled.proposed.length, list: drilled.proposed.slice(0, 6).join(", ") + (drilled.proposed.length > 6 ? ` (+${drilled.proposed.length - 6})` : "") })}</div>}{/* #2097 */}
-      {results.map(({ hole, nearestReal, samePad = [], targetHits }) => {
-        const tooClose = minSpacing > 0 && nearestReal && nearestReal.distance < minSpacing; // none: no flag (#2976)
+      {results.map(({ hole, nearestReal: nearest0, samePad = [], targetHits, padProfile, nearestOff }) => {
+        // TASKS.csv #3336 — on a shared pad the spacing check is against the holes off the pad; the pad's own holes are said by depth and at the
+        // toe, and flag only when still inside the minimum at the toe
+        const onPad = samePad.length > 0 && !!padProfile;
+        const nearestReal = onPad ? nearestOff : nearest0;
+        const pads = onPad ? padProfile.map((pp) => ({ id: pp.hole_id, c: padClearance(pp, minSpacing) })).filter((x) => x.c) : [];
+        const padTooClose = minSpacing > 0 && pads.some((x) => x.c.inside);
+        const offClose = minSpacing > 0 && !!nearestReal && nearestReal.distance < minSpacing; // none: no flag (#2976)
+        const tooClose = offClose || padTooClose;
         return (
           <div key={hole.id} style={{ padding: "6px 8px", marginBottom: 5, borderRadius: 5, background: tooClose ? "var(--color-danger-bg-soft)" : "var(--color-bg-subtle)", border: `1px solid ${tooClose ? "var(--color-danger-fg)" : "var(--color-border)"}`, fontSize: "var(--font-size-sm)" }}>
             <div style={{ color: "var(--color-text)", marginBottom: 2 }}>{hole.name || tr("Planned hole")}</div>
-            {samePad.length > 0 && <div style={{ color: "var(--color-text-caption)" }}>{tr("Same pad as {holes}: the first {m} m are not compared.", { holes: samePad.join(", "), m: COLLAR_ZONE_M })}</div>}{/* #1454 */}
+            {samePad.length > 0 && !onPad && <div style={{ color: "var(--color-text-caption)" }}>{tr("Same pad as {holes}: the first {m} m are not compared.", { holes: samePad.join(", "), m: COLLAR_ZONE_M })}</div>}{/* #1454 */}
+            {onPad && <div style={{ color: "var(--color-text-caption)" }}>{tr("Same pad as {holes}.", { holes: samePad.join(", ") })}</div>}{/* #3336 */}
+            {pads.map(({ id, c }) => <div key={id} style={{ color: c.inside ? "var(--color-danger-fg)" : "var(--color-text-caption)" }}>{!(minSpacing > 0) || c.below === 0 ? tr("{hole}: {toe} m apart at the toe.", { hole: id, toe: c.toe.toFixed(1) }) : c.inside ? tr("{hole}: within the {min} m minimum all the way to the toe ({toe} m apart there).", { hole: id, min: minSpacing, toe: c.toe.toFixed(1) }) : tr("{hole}: within the {min} m minimum down to {md} m down this hole; {toe} m apart at the toe.", { hole: id, min: minSpacing, md: Math.round(c.below), toe: c.toe.toFixed(1) })}</div>)}{/* #3336 */}
             {nearestReal ? (
-              <div style={{ color: tooClose ? "var(--color-danger-fg)" : "var(--color-text-caption)" }}>{tr("Nearest existing hole: {hole_id} — {distance} m{v}", { hole_id: nearestReal.hole_id, distance: nearestReal.distance.toFixed(1), v: tooClose ? tr(" (within the {minSpacing} m minimum)", { minSpacing }) : "" })}{nearestReal.steady ? tr(", the same all the way down") /* #2457 */ : nearestReal.md > 0 ? tr(", at {md} m down this hole", { md: Math.round(nearestReal.md) }) : ""}{nearestReal.assumed ? tr(" ({hole_id} has no survey and no azimuth / dip: taken as a vertical hole)", { hole_id: nearestReal.hole_id }) : ""}{/* #2097 */}
+              <div style={{ color: offClose ? "var(--color-danger-fg)" : "var(--color-text-caption)" }}>{tr("Nearest existing hole: {hole_id} — {distance} m{v}", { hole_id: nearestReal.hole_id, distance: nearestReal.distance.toFixed(1), v: offClose ? tr(" (within the {minSpacing} m minimum)", { minSpacing }) : "" })}{nearestReal.steady ? tr(", the same all the way down") /* #2457 */ : nearestReal.md > 0 ? tr(", at {md} m down this hole", { md: Math.round(nearestReal.md) }) : ""}{nearestReal.assumed ? tr(" ({hole_id} has no survey and no azimuth / dip: taken as a vertical hole)", { hole_id: nearestReal.hole_id }) : ""}{/* #2097 */}
               </div>
-            ) : (
+            ) : onPad ? null /* #3336 — only the pad's own holes: said above */ : (
               <div style={{ color: "var(--color-text-muted)" }}>{tr("No existing drilled holes to compare against.")}</div>
             )}
             {targetHits.length > 0 && (

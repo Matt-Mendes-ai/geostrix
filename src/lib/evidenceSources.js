@@ -20,10 +20,50 @@ export function surveyNames(rows) {
   for (const r of rows || []) if (Number.isFinite(r.value)) out.add(surveyKey(r));
   return [...out];
 }
-export function surveyPoints(rows, key) {
+// TASKS.csv #3333 (review #3195, Galore Creek) — z kept (null when the reading has none); `level` given: only the readings inside it (a
+// reading with no elevation is left out then). The caller passes a level for a 3D survey only (surveyCloud): a surface survey's readings
+// are a map, at the ground, whatever the Level.
+export function surveyPoints(rows, key, level = null) {
   const out = [];
-  for (const r of rows || []) if (surveyKey(r) === key && Number.isFinite(r.value) && Number.isFinite(r.x) && Number.isFinite(r.y)) out.push({ x: r.x, y: r.y, value: r.value });
+  for (const r of rows || []) {
+    if (surveyKey(r) !== key || !Number.isFinite(r.value) || !Number.isFinite(r.x) || !Number.isFinite(r.y)) continue;
+    const z = Number.isFinite(r.z) ? r.z : null;
+    if (level && (z == null || !inLevel(z, level))) continue;
+    out.push({ x: r.x, y: r.y, value: r.value, z });
+  }
   return out;
+}
+
+// TASKS.csv #3333 — a survey whose readings are stacked in elevation (an IP / resistivity pseudo-section or inversion cloud, a downhole
+// survey), not a map: Evidence overlay took the 12 readings nearest in plan whatever their depth (RL 914 to 1,380 m in one cell of the Galore
+// Creek IP cloud). Told from a surface survey over steep ground by the readings' own neighbours: for a sample of readings, the elevation
+// range of the 8 nearest in plan over their plan distance. Ground, however steep, rises less than it runs (a ratio under 1 at 45 degrees);
+// a stack of readings under one station rises tens of times its run. A median over CLOUD_RATIO is a cloud.
+// -> null (no elevations) | { cloud, zMin, zMax, n }
+export const CLOUD_RATIO = 3;
+export function surveyCloud(points) {
+  const pts = (points || []).filter((p) => Number.isFinite(p.z));
+  const n = pts.length;
+  if (!n) return null;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, zMin = Infinity, zMax = -Infinity;
+  for (const p of pts) { if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x; if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y; if (p.z < zMin) zMin = p.z; if (p.z > zMax) zMax = p.z; }
+  if (n < 9) return { cloud: false, zMin, zMax, n };
+  const cell = Math.max(1, Math.sqrt(Math.max(1, (x1 - x0) * (y1 - y0)) / n)), buckets = new Map(), key = (cx, cy) => `${cx},${cy}`;
+  for (const p of pts) { const k = key(Math.floor(p.x / cell), Math.floor(p.y / cell)); (buckets.get(k) || buckets.set(k, []).get(k)).push(p); }
+  const step = Math.max(1, Math.floor(n / 400)), ratios = [];
+  for (let i = 0; i < n; i += step) {
+    const p = pts[i], cx = Math.floor(p.x / cell), cy = Math.floor(p.y / cell), near = [];
+    for (let ring = 1; ring <= 3 && near.length < 9; ring++) { near.length = 0; for (let dx = -ring; dx <= ring; dx++) for (let dy = -ring; dy <= ring; dy++) for (const q of buckets.get(key(cx + dx, cy + dy)) || []) if (q !== p) near.push(q); }
+    if (near.length < 2) continue;
+    near.sort((a, b) => (a.x - p.x) ** 2 + (a.y - p.y) ** 2 - ((b.x - p.x) ** 2 + (b.y - p.y) ** 2));
+    const nb = near.slice(0, 8);
+    let lo = p.z, hi = p.z, run = 0;
+    for (const q of nb) { if (q.z < lo) lo = q.z; if (q.z > hi) hi = q.z; run = Math.max(run, Math.hypot(q.x - p.x, q.y - p.y)); }
+    ratios.push((hi - lo) / Math.max(run, 0.5));
+  }
+  if (!ratios.length) return { cloud: false, zMin, zMax, n };
+  ratios.sort((a, b) => a - b);
+  return { cloud: ratios[ratios.length >> 1] > CLOUD_RATIO, zMin, zMax, n };
 }
 
 // TASKS.csv #1829 / #1561 (reviews #1646 Kodiak, #1497 Lawyers) — how far a SAMPLE's value reaches: `factor` x the median distance
@@ -537,7 +577,10 @@ export function holeIntervalPoints(assays, symbol, unit, units, traces, { how, c
   for (const t of totals) {
     if (!Number.isFinite(t.x) || !Number.isFinite(t.y)) continue;
     seen.add(t.hole_id);
-    out.push({ x: t.x, y: t.y, z: null, value: how === "m" ? t.thicknessM : t.gt, hole_id: t.hole_id });
+    // TASKS.csv #3334 (review #3195, Galore Creek) — the intercepts' length-weighted elevation (holeTotals' z), so a target handed to Planned
+    // holes is at the grade; it was null here, and the barren holes' mid-span elevations below were the only ones targetElevation could use
+    // ('Plan a hole to here' gave RL 801 m, the middle of a hole with no intercept 534 m away, 10 m under the ground at the target)
+    out.push({ x: t.x, y: t.y, z: Number.isFinite(t.z) ? t.z : null, value: how === "m" ? t.thicknessM : t.gt, hole_id: t.hole_id });
   }
   const span = new Map();
   for (const a of assays || []) {
@@ -545,7 +588,8 @@ export function holeIntervalPoints(assays, symbol, unit, units, traces, { how, c
     const f = Number(a.from), to = Number(a.to); if (!(to > f)) continue;
     const s = span.get(a.hole_id) || [Infinity, -Infinity]; span.set(a.hole_id, [Math.min(s[0], f), Math.max(s[1], to)]);
   }
-  for (const [h, [f, to]] of span) { const p = pointOnTrace(traces.get(h), (f + to) / 2); if (p) out.push({ x: p.x, y: p.y, z: p.z, value: 0, hole_id: h }); }
+  // #3334 — a hole with no intercept is a 0 in plan, with no elevation: the middle of its assayed span says nothing about where a target is
+  for (const [h, [f, to]] of span) { const p = pointOnTrace(traces.get(h), (f + to) / 2); if (p) out.push({ x: p.x, y: p.y, z: null, value: 0, hole_id: h }); }
   return out;
 }
 

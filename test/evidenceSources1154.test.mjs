@@ -11,7 +11,7 @@ const cellAt = (x, y) => { for (let k = 0; k < grid.nx * grid.ny; k++) { const [
 test("#1154 surveys: named, kept apart, and the reach bridges the lines", () => {
   const rows = [{ _src: "mag.csv", x: 1, y: 2, value: 50 }, { _src: "mag.csv", x: 3, y: 4, value: NaN }, { _src: "grav.csv", x: 5, y: 6, value: 1 }, { _src: "empty.csv", x: 7, y: 8 }];
   assert.deepEqual(surveyNames(rows), ["mag.csv", "grav.csv"]);
-  assert.deepEqual(surveyPoints(rows, "mag.csv"), [{ x: 1, y: 2, value: 50 }]);
+  assert.deepEqual(surveyPoints(rows, "mag.csv"), [{ x: 1, y: 2, value: 50, z: null }]); // z: #3333 (null: the reading has none)
   // lines 200 m apart with stations every 10 m: half the line spacing must be covered
   const pts = [];
   for (let l = 0; l <= 2000; l += 200) for (let s = 0; s <= 2000; s += 10) pts.push({ x: l, y: s });

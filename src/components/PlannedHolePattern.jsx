@@ -28,7 +28,7 @@ export default function PlannedHolePattern({ start, orient, ground, groundLabel,
   const pat = useMemo(() => holePattern({ x: num(start.x), y: num(start.y), bearingDeg: num(p.bearing), spacing: num(p.spacing), count: num(p.count), lineCount: p.lines === "" ? 1 : num(p.lines), lineSpacing: num(p.lineSpacing), prefix, firstNumber: first }), [start.x, start.y, p, prefix, first]);
   const typedZ = num(start.z);
   // each hole's Elev: the ground under it, else the typed Elev; a hole with neither is not added
-  const placed = useMemo(() => pat.holes.map((h) => { const g = ground ? ground(h.x, h.y) : NaN; return Number.isFinite(g) ? { ...h, z: Math.round(g * 10) / 10, zSource: groundLabel } : Number.isFinite(typedZ) ? { ...h, z: typedZ, zSource: "typed (the pattern's start Elev)" } : { ...h, z: null }; }), [pat, ground, groundLabel, typedZ]);
+  const placed = useMemo(() => pat.holes.map((h) => { const g = ground ? ground(h.x, h.y) : NaN; return Number.isFinite(g) ? { ...h, z: Math.round(g * 10) / 10, zSource: typeof groundLabel === "function" ? groundLabel(h.x, h.y) : groundLabel /* #3335 — each hole's own words */ } : Number.isFinite(typedZ) ? { ...h, z: typedZ, zSource: "typed (the pattern's start Elev)" } : { ...h, z: null }; }), [pat, ground, groundLabel, typedZ]);
   const noZ = placed.filter((h) => h.z == null).length;
   const ready = !pat.error && placed.length > 0 && !noZ && !!orient;
   const add = () => {

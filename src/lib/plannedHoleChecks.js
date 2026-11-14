@@ -52,16 +52,17 @@ function drilledTraceIndexOf(collars, survey, desurveyMethod, cell) {
 const RINGS = 3;
 // the nearest drilled point to p: the grid cells within RINGS of p's cell (exact when the best is within RINGS cells),
 // else every hole whose bounding box could hold something nearer
-function nearestDrilled(index, p) {
+function nearestDrilled(index, p, skip = null) { // skip: #3336 — a Set of hole ids left out (the pad's own holes)
   const { grid, cell } = index;
   const ci = Math.floor(p.x / cell), cj = Math.floor(p.y / cell), ck = Math.floor(p.z / cell);
   let best = Infinity, hole = null;
   for (let i = ci - RINGS; i <= ci + RINGS; i++) for (let j = cj - RINGS; j <= cj + RINGS; j++) for (let k = ck - RINGS; k <= ck + RINGS; k++) {
     const list = grid.get(`${i},${j},${k}`);
-    if (list) for (const q of list) { const d = Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z); if (d < best) { best = d; hole = q.hole_id; } }
+    if (list) for (const q of list) { if (skip && skip.has(q.hole_id)) continue; const d = Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z); if (d < best) { best = d; hole = q.hole_id; } }
   }
   if (best <= RINGS * cell) return { best, hole }; // anything outside the searched block is at least RINGS cells away
   for (const h of index.holes) {
+    if (skip && skip.has(h.hole_id)) continue;
     const [x0, y0, z0, x1, y1, z1] = h.bb;
     const lb = Math.hypot(Math.max(x0 - p.x, 0, p.x - x1), Math.max(y0 - p.y, 0, p.y - y1), Math.max(z0 - p.z, 0, p.z - z1));
     if (lb >= best) continue;
@@ -127,10 +128,10 @@ export function planChecks(plannedHoles, drilled, targets, traceOf = plannedTrac
     const pts = traceOf(hole); // dense (~3 m) desurveyed points
     if (!pts.length) return { hole, nearestReal: null, samePad: [], targetHits: [] };
     const gk = traceOf === plannedTrace && near ? holeGeomKey(hole) : null, hit = gk != null ? near.get(gk) : null;
-    const { nearestReal, samePad } = hit || nearestOf(pts, drilled);
-    if (gk != null && !hit) near.set(gk, { nearestReal, samePad });
+    const { nearestReal, samePad, padProfile, nearestOff } = hit || nearestOf(pts, drilled); // padProfile / nearestOff: #3336
+    if (gk != null && !hit) near.set(gk, { nearestReal, samePad, padProfile, nearestOff });
     const targetHits = targetHitsOf(pts, targets);
-    return { hole, nearestReal, samePad, targetHits };
+    return { hole, nearestReal, samePad, targetHits, ...(padProfile ? { padProfile, nearestOff } : {}) };
   });
 }
 function nearestOf(pts, drilled) {
@@ -142,7 +143,31 @@ function nearestOf(pts, drilled) {
     const spread = new Map(); let counted = 0;
     if (drilled?.n) for (const p of pts) { if ((p.md ?? 0) < skipMd) continue; counted++; const { best, hole: h } = nearestDrilled(drilled, p); if (h != null) { const r = spread.get(h) || { lo: Infinity, hi: -Infinity, n: 0 }; r.lo = Math.min(r.lo, best); r.hi = Math.max(r.hi, best); r.n++; spread.set(h, r); } if (h != null && (!nearestReal || best < nearestReal.distance)) nearestReal = { hole_id: h, distance: best, md: p.md ?? 0, assumed: !!drilled.assumed?.has(h) }; } // assumed: #2097
     if (nearestReal) { const r = spread.get(nearestReal.hole_id); nearestReal.steady = !!r && r.n >= 0.8 * counted && r.hi - r.lo < 1; }
-    return { nearestReal, samePad };
+    // TASKS.csv #3336 (review #3195, Galore Creek) — a hole fanned from a shared pad always failed the spacing check: its nearest point was, by
+    // construction, one metre past the 50 m left out ('PD23-013 — 12.8 m … at 51 m down this hole' for a hole 123 m from it at the toe). The
+    // pad's own holes are now followed down the whole hole (padProfile: the separation at every point of this one), so the pane can say from
+    // which depth the hole clears the minimum and how far apart the toes are; the spacing check proper is against the holes OFF the pad
+    // (nearestOff, from the collar down).
+    if (!samePad.length) return { nearestReal, samePad };
+    const pad = new Set(samePad);
+    const padProfile = (drilled.holes || []).filter((h) => pad.has(h.hole_id)).map((h) => {
+      const md = [], d = [];
+      for (const p of pts) { let b = Infinity; for (const q of h.pts) { const x = Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z); if (x < b) b = x; } md.push(p.md ?? 0); d.push(b); }
+      return { hole_id: h.hole_id, md, d };
+    });
+    let nearestOff = null;
+    for (const p of pts) { const { best, hole: h } = nearestDrilled(drilled, p, pad); if (h != null && (!nearestOff || best < nearestOff.distance)) nearestOff = { hole_id: h, distance: best, md: p.md ?? 0 }; }
+    return { nearestReal, samePad, padProfile, nearestOff };
+}
+// TASKS.csv #3336 — a pad hole's profile read against the minimum: { below (the depth down this hole from which it stays outside the minimum,
+// 0 when never inside, null when inside at the toe), toe (the separation at the toe) }
+export function padClearance(profile, minSpacing) {
+  const n = profile?.d?.length || 0;
+  if (!n) return null;
+  const toe = profile.d[n - 1];
+  if (!(minSpacing > 0)) return { below: null, toe, inside: false };
+  let last = -1; for (let i = 0; i < n; i++) if (profile.d[i] < minSpacing) last = i;
+  return { below: last < 0 ? 0 : last === n - 1 ? null : profile.md[last + 1], toe, inside: last === n - 1 };
 }
 function targetHitsOf(pts, targets) {
     return (targets || []).map((t) => {
