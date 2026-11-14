@@ -25,7 +25,8 @@ import PromptModal from "../components/PromptModal.jsx";
 import { minMax, LAYER_META } from "../lib/layers.js";
 import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape, capLegendGroups, outcropLegendGroup } from "../lib/legendGroups.js"; // TASKS.csv #725; #948; #1633; outcropLegendGroup: #1437
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
-import { tableTextFit } from "../lib/collarTable.js"; // TASKS.csv #3374
+import { planKeyItems } from "../lib/planKeyLegend.js"; // TASKS.csv #3419
+import { tableTextFit, collarTableCells, splitHalvesFit } from "../lib/collarTable.js"; // TASKS.csv #3374; collarTableCells / splitHalvesFit: #3411
 import { collarTableSlice, continuationTables, collarsWithSurveyAttitude, continuationPageIndex, collarTableFieldChoices, defaultCollarTableFields, splitTableRows, suspectIdsOf, elevationCell, elevationNotes } from "../lib/collarTable.js"; // elevation*: #3023 // splitTableRows: #2770; // field columns: #2717; // continuationPageIndex: #2718 // TASKS.csv #1638; collarsWithSurveyAttitude: #2133
 import { fitDrillPlan, filterHoles, allHolesSteep, STEEP_DIP, turnedFrameFit, labelBackdrop, plannedAsCollars, holesToFit, showsPlanned, planTraces } from "../lib/drillPlan.js"; // planTraces: #3367; // planned: #2259; // labelBackdrop: #2738; // TASKS.csv #1639; allHolesSteep: #2473; turnedFrameFit: #2305
 import DrillPlanColourControls from "../components/DrillPlanColourControls.jsx"; // TASKS.csv #2473
@@ -136,7 +137,7 @@ export default function LayoutModule() {
     // TASKS.csv #69 — multiple layout pages per project (see store.jsx's own comment on
     // layoutPages/layoutElements for how these two coexist: `elements`/`setElements` above already
     // transparently follow whichever page is active).
-    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat, sendLayoutElement, // #1484
+    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat, mapLayoutPagesElements /* #3331 */, sendLayoutElement, // #1484
     // Legend "load lithologies from the bound view" (below) needs the actual litho rows — a theme
     // only records which units were filtered/hidden at capture time, not the vocabulary itself.
     // TASKS.csv #130 — collars/sections needed for the Atlas batch-page-generation feature below.
@@ -817,6 +818,12 @@ export default function LayoutModule() {
       const ranked = rankLegendGroups(items), kept = firstLegendGroups(ranked), left = legendGroupCount(ranked) - legendGroupCount(kept);
       if (newGroups.length) base.loadedGroups = newGroups.map((g) => g.label); // #3130 — its arrows record the order it is given
       base.items = items.length ? (left > 0 ? [...kept, [tr("+ {n} more group(s): Load from view adds them", { n: left }), null, { heading: true }]] : kept) : [["Item", "#55606e"]];
+      // TASKS.csv #3419 — a page whose only map is one drill plan: the rows are the plan's own key, not the 3D View's (a copy, as a loaded legend is)
+      const plans = elements.filter((el) => el.type === "drillplan");
+      if (!only.length && plans.length === 1) {
+        const pk = planKeyItems(drillPlanDrawing(plans[0], tableCollars || [], assays, assayElements, plannedHoles, planTraces(tableCollars || [], survey, project?.desurveyMethod), project?.desurveyMethod, project?.displayUnits));
+        if (pk.length) { base.items = pk; delete base.loadedGroups; }
+      }
       const viewports = elements.filter((el) => el.type === "viewport");
       if (viewports.length === 1) Object.assign(base, { boundViewportId: viewports[0].id, loadedItems: base.items, loadedCapturedAt: viewports[0].capturedAt || null }); // stamp: #2471
       const box = legendBoxSize(base.items); // #2869 — the size it draws at: a 220 px guess grew over the north arrow beside it
@@ -1268,7 +1275,7 @@ export default function LayoutModule() {
           </RibbonGroup>
           <RibbonGroup label="Views">
             <RibbonButton icon={Camera} label="Current view" tone="view" title="Add a viewport snapshot of the current 3D View (no theme needed)" onClick={() => startViewportRender(null, "new")} />
-            <RibbonButton icon={MapPinned} label="Drill plan" tone="view" disabled={!collars.length} title="A drill-hole location plan: collar symbols, traces and labels at a true scale, drawn from the collars (not a 3D capture)" onClick={() => addElement("drillplan")} />{/* TASKS.csv #1639 */}
+            <RibbonButton icon={MapPinned} label="Drill plan" tone="view" disabled={!collars.length && !(plannedHoles || []).length /* #3358 — planned holes alone make a plan */} title="A drill-hole location plan: collar symbols, traces and labels at a true scale, drawn from the collars and any planned holes (not a 3D capture)" onClick={() => addElement("drillplan")} />{/* TASKS.csv #1639 */}
             <RibbonButton advanced icon={MonitorPlay} label="Theme view" tone="view" disabled={!themes.length} active={themePickerFor === "new"} title={themes.length ? "Add a live-bound viewport of a saved 3D View theme (pick it in the sidebar)" : "Save a theme in the 3D View first (Themes on its ribbon)"} onClick={() => setThemePickerFor(themePickerFor === "new" ? null : "new")} />
           </RibbonGroup>
           <RibbonGroup advanced label="Draw">
@@ -1411,6 +1418,9 @@ export default function LayoutModule() {
                 {sel.source === "collars" && (() => { // TASKS.csv #1638 — an appendix of every hole: a first row, a filter, continuation pages
                   const sl = collarTableSlice(sortedCollars(tableCollars || []), { firstRow: sel.firstRow, maxRows: sel.maxRows, filter: sel.holeFilter });
                   const conts = sl.after > 0 ? continuationTables(sel, sl.total) : [];
+                  // TASKS.csv #3411 — not offered when its two halves cannot fit the doubled frame even at 5 pt: said here, not under the frame afterwards
+                  const extraCols = (sel.extraCols || []).filter(Boolean), tableCols = [tr("Hole"), tr("Easting"), tr("Northing"), tr("Elev. (m)"), tr("Azimuth (grid)"), tr("Dip"), tr("Depth (m)"), ...extraCols];
+                  const noSplit = sel.split !== 2 && !splitHalvesFit({ columns: tableCols, rows: collarTableCells(collarTableSlice(sortedCollars(tableCollars || []), { firstRow: sel.firstRow, maxRows: (Number(sel.maxRows) || 40) * 2, filter: sel.holeFilter }).rows, extraCols), fontPt: sel.fontPt || printPt.small, widthPx: Math.min(A4.w - 80, (Number(sel.w) || 520) * 2) - 12 - 2 * (Number(sel.frameWidth) || 0), measure: measureTableText(layoutFontStack(sel.fontFamily)) }).fits;
                   return (<>
                     <div style={{ display: "flex", gap: 6 }}>
                       <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("First row")}<input type="number" min="1" step="1" value={sel.firstRow || 1} onChange={(e) => updateSelected({ firstRow: Math.max(1, Math.round(Number(e.target.value) || 1)) })} style={inp} /></label>
@@ -1418,10 +1428,11 @@ export default function LayoutModule() {
                     </div>
                     <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>{tr("Rows {a}–{b} of {n}.", { a: sl.total ? sl.start + 1 : 0, b: sl.end, n: sl.total })}</div>
                     {/* TASKS.csv #2770 — two table columns per page: twice the rows at the same height, twice the width (up to the sheet's) */}
-                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }} title={tr("The rows read down the left column, then the right one. The row limit doubles and the table is as tall as before, so a long list takes half the pages.")}>
-                      <input type="checkbox" checked={sel.split === 2} onChange={(e) => { const on = e.target.checked, lim = Math.max(1, Math.round(Number(sel.maxRows) || 40)), w = Number(sel.w) || 520; updateSelected(on ? { split: 2, maxRows: lim * 2, w: Math.min(A4.w - 80, w * 2) } : { split: 1, maxRows: Math.max(1, Math.ceil(lim / 2)), w: Math.max(260, Math.round(w / 2)) }); }} />
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: noSplit ? "var(--color-text-muted)" : "var(--color-text-secondary)", marginBottom: noSplit ? 2 : 8, cursor: noSplit ? "default" : "pointer" }} title={tr("The rows read down the left column, then the right one. The row limit doubles and the table is as tall as before, so a long list takes half the pages.")}>
+                      <input type="checkbox" disabled={noSplit} checked={sel.split === 2} onChange={(e) => { const on = e.target.checked, lim = Math.max(1, Math.round(Number(sel.maxRows) || 40)), w = Number(sel.w) || 520; updateSelected(on ? { split: 2, maxRows: lim * 2, w: Math.min(A4.w - 80, w * 2) } : { split: 1, maxRows: Math.max(1, Math.ceil(lim / 2)), w: Math.max(260, Math.round(w / 2)) }); }} />
                       {tr("Two table columns side by side")}
                     </label>
+                    {noSplit && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Not available: the two halves with these columns would not fit the doubled frame even at 5 pt. Drop a column, or keep one column and let the rest carry on to the next page.")}</div>}
                     {(() => { const choices = collarTableFieldChoices(tableCollars); return choices.length > 0 && ( /* TASKS.csv #2717 — collar fields as extra columns */
                       <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 8 }}>{tr("Also as columns:")}
                         <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", marginTop: 2 }}>{choices.map((k) => (
@@ -1578,6 +1589,7 @@ export default function LayoutModule() {
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", margin: "4px 0 8px", lineHeight: 1.4 }}>
                       <span>{tr("Code order set with the arrows for {groups}: every legend loaded from a view takes it.", { groups: groups.join(", ") })}</span>
                       <button type="button" onClick={clear} style={smallBtn} title={tr("Forget the order on this page's legends; the rows stay as they are until the next Load from view")}>{tr("Clear the set order")}</button>
+                      {pagesHoldingOrder(layoutPages, activeLayoutPageId, groups).length > 0 && <button type="button" onClick={() => { undoCheckpoint?.(); mapLayoutPagesElements((els) => clearCodeOrders(els, groups)); setSyncNotice(tr("Cleared on every page's legends. Load from view lists the codes in their default order again.")); }} style={smallBtn} title={tr("Forget the order on the legends of every page of this project")}>{tr("Clear it on every page")}</button> /* #3331 */}
                     </div>
                   );
                 })()}
@@ -1705,6 +1717,22 @@ export default function LayoutModule() {
                   <input type="checkbox" checked={showsPlanned(sel)} onChange={(e) => updateSelected({ showPlanned: e.target.checked })} />{tr("Show the planned holes ({n} in the frame)", { n: dd.planned.length })}</label>}{/* TASKS.csv #2259 */}
                 <DrillPlanColourControls sel={sel} updateSelected={updateSelected} collars={tableCollars || []} assayElements={assayElements} colouring={dd.colouring} inp={inp} />{/* TASKS.csv #2473 — replaces the series tick */}
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Text size (pt)")}<input type="number" min="5" max="12" step="0.5" value={sel.fontPt || 7} onChange={(e) => updateSelected({ fontPt: Math.max(5, Math.min(12, Number(e.target.value) || 7)) })} style={{ ...inp, marginTop: 4 }} /></label>
+                {(dd.keyOriginal.title || dd.keyOriginal.rows.length > 0) && (() => { /* TASKS.csv #3415 — the key's lines, editable like a legend's rows; a blank box is the plan's own wording */
+                  const ke = sel.keyEdits || {}, edited = !!(ke.title || ke.note || Object.values(ke.rows || {}).some(Boolean));
+                  const setEdit = (k, v) => updateSelected({ keyEdits: { ...ke, [k]: v } }), setRow = (orig, v) => updateSelected({ keyEdits: { ...ke, rows: { ...(ke.rows || {}), [orig]: v } } });
+                  const box = { ...inp, marginTop: 2, marginBottom: 4 };
+                  return (
+                    <details style={{ marginBottom: 8 }} open={edited || undefined}>
+                      <summary style={{ cursor: "pointer", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Edit the key's lines")}{edited ? " •" : ""}</summary>
+                      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "4px 0", lineHeight: 1.4 }}>{tr("Type a line to replace the plan's wording; clear it to go back. A line keeps your wording while its class stays.")}</div>
+                      {dd.keyOriginal.title && <input type="text" aria-label={tr("Key title")} value={ke.title || ""} placeholder={dd.keyOriginal.title} onChange={(e) => setEdit("title", e.target.value)} style={box} />}
+                      {dd.keyOriginal.note && <input type="text" aria-label={tr("Key note")} value={ke.note || ""} placeholder={dd.keyOriginal.note} onChange={(e) => setEdit("note", e.target.value)} style={box} />}
+                      {dd.keyOriginal.rows.slice(0, 14).map((orig) => <input key={orig} type="text" aria-label={orig} value={(ke.rows || {})[orig] || ""} placeholder={orig} onChange={(e) => setRow(orig, e.target.value)} style={box} />)}
+                      {dd.keyOriginal.rows.length > 14 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("({n} more not listed)", { n: dd.keyOriginal.rows.length - 14 })}</div>}
+                      {edited && <button type="button" onClick={() => updateSelected({ keyEdits: null })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Back to the plan's own wording")}</button>}
+                    </details>
+                  );
+                })()}
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("{n} hole(s) in the frame; {p} of {l} labelled ({s} without a label where it would overlap another).", { n: dd.holes.length, p: dd.labels.placed.length, l: dd.labelled, s: dd.labels.skipped })} {(dd.caption ? `${dd.caption}. ` : "") + tr("Drawn from the collars and surveys, not the 3D view; the sheet says how the traces were drawn. Insert > Scale bar binds to it.") /* #3367 */}</div>
                 <FrameControls sel={sel} updateSelected={updateSelected} />
               </>);

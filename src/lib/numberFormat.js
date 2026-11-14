@@ -9,3 +9,6 @@ export function fmtSig3(x) {
   if (Math.abs(v) < 1e-3) return sciShort(v);
   return Number(v.toPrecision(3)).toLocaleString("en-US", { maximumFractionDigits: 20 });
 }
+
+// TASKS.csv #3293 (#3226 (5)) — an axis end in plain digits: toPrecision(3) wrote 1000 as "1.00e+3" beside "100"
+export const axisFig = (v) => (Number.isFinite(v) ? String(+Number(v).toPrecision(3)) : "");

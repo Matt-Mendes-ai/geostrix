@@ -25,7 +25,7 @@ import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveWriteParts /* #1
 import { normalizeDesurveyMethod } from "./desurvey.js";
 import { readCellBudget, saveCellBudget } from "./estimationMeta.js"; // TASKS.csv #1970
 import { nextGroupColour, lithologyNoteRoles, setLithologyNoteRoles } from "./layers.js"; // TASKS.csv #1377; note roles: #2046
-import { freeSpot } from "./layoutPlace.js"; // TASKS.csv #1484
+import { freeSpot, viewportFrameOnPaper /* #3418 */ } from "./layoutPlace.js"; // TASKS.csv #1484
 
 const StoreContext = createContext(null);
 export const useStore = () => useContext(StoreContext);
@@ -882,12 +882,14 @@ export function StoreProvider({ children }) {
     }
     const aspect = res.naturalW && res.naturalH ? res.naturalW / res.naturalH : 16 / 9;
     if (targetElementId === "new") {
-      const w = Math.min(1123 - 160, 700); // 1123 = A4-landscape page width in px @ ~96dpi (LayoutModule's A4.w)
-      const h = Math.round(w / aspect);
+      // TASKS.csv #3418 — the frame is sized to, and placed on, the ACTIVE page's own paper (a portrait or A3 page took an A4-landscape
+      // frame and spot: 1123 x 794 px): at most 700 px wide, within the paper's margins both ways
+      const paper = pagePx(pageFormatOf(layoutPages.find((p) => p.id === activeLayoutPageId)));
+      const { w, h } = viewportFrameOnPaper(paper, aspect);
       const id = `viewport_${Date.now()}`;
       setLayoutElements((els) => addViewportToPage(els, {
         id, type: "viewport", themeId: viewportPendingRequest.themeId,
-        ...freeSpot(els, w, h) /* #1484 — the page's free space, not (90, 90) */, w, h, capW: w, capH: h, aspect, src: res.src, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, ve: res.ve > 1 ? res.ve : 1 /* #2628 */, // capW / capH: #906
+        ...freeSpot(els, w, h, paper) /* #1484 — the page's free space, not (90, 90); #3418 — on its paper, the least-covered spot when nothing is free */, w, h, capW: w, capH: h, aspect, src: res.src, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, ve: res.ve > 1 ? res.ve : 1 /* #2628 */, // capW / capH: #906
         trueScale: !!res.trueScale, targetWorld: res.targetWorld || null, planView: !!res.planView, // #399
         viewState: res.viewState || null, // #948 — a theme-less capture's own view settings, for its legend
         capturedAt: Date.now(), // TASKS.csv #2471 — when; a bound legend loaded from an older capture is out of step
@@ -1739,6 +1741,10 @@ export function StoreProvider({ children }) {
   // TASKS.csv #398 — per-page paper size / orientation ({size, orientation}, see lib/pageFormats.js). Saved
   // with the page; a page without one is A4 landscape, exactly as before.
   const setLayoutPageFormat = useCallback((id, format) => setLayoutPages((p) => p.map((pg) => (pg.id === id ? { ...pg, format } : pg))), []);
+  // TASKS.csv #3331 — one change to the elements of EVERY page (Layout's "Clear the set order" on all pages in one click); one undo step
+  // TASKS.csv #2883 — Geochem > Compositing's last settings, kept in the project file (project.lastCompositing; no token), unchanged = no new state
+  const setLastCompositing = useCallback((s) => setProject((p) => (JSON.stringify(p.lastCompositing ?? null) === JSON.stringify(s ?? null) ? p : { ...p, lastCompositing: s || undefined })), []);
+  const mapLayoutPagesElements = useCallback((fn) => setLayoutPages((p) => p.map((pg) => ({ ...pg, elements: fn(pg.elements || []) }))), []);
   // TASKS.csv #130 — Atlas (batch page generation, one page per drillhole/section). Deliberately a
   // separate bulk method rather than N calls to addLayoutPage(): that always seeds DEFAULT_LAYOUT_
   // ELEMENTS (wrong — atlas pages carry their own generated `elements`) and switches the active page +
@@ -1749,7 +1755,7 @@ export function StoreProvider({ children }) {
   const addLayoutPages = useLatestCallback((pages) => {
     if (!pages || !pages.length) return [];
     // TASKS.csv #1636 — batch: the run that generated the page (an atlas, a collar table's continuation), removable in one action
-    const withIds = pages.map((pg, i) => ({ id: `page_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}`, name: pg.name, elements: pg.elements, ...(pg.batch ? { batch: pg.batch } : {}) }));
+    const withIds = pages.map((pg, i) => ({ id: `page_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}`, name: pg.name, elements: pg.elements, ...(pg.batch ? { batch: pg.batch } : {}), ...(pg.format ? { format: pg.format } : {}) /* #3404 — its paper, so callers need not set it afterwards */ }));
     setLayoutPages((p) => [...p, ...withIds]);
     setActiveLayoutPageId(withIds[0].id);
     clearUndoHistory();
@@ -1833,7 +1839,7 @@ export function StoreProvider({ children }) {
     generatedSurfaces, setGeneratedSurfaces, modelDomains, setModelDomains, // TASKS.csv #52
     layerGroups, addLayerGroup, renameLayerGroup, deleteLayerGroup, toggleLayerGroupCollapsed, setLayerGroupFor,
     layoutElements, setLayoutElements,
-    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat, sendLayoutElement, // sendLayoutElement: #1484
+    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat, mapLayoutPagesElements /* #3331 */, setLastCompositing /* #2883 */, sendLayoutElement, // sendLayoutElement: #1484
     layoutTemplates, addLayoutTemplate, renameLayoutTemplate, deleteLayoutTemplate,
     viewportRenderRequest, viewportRenderRequestSeq, requestViewportRender, viewportPendingRequest,
     requestViewportBatch, cancelViewportBatch, viewportBatchDone, setViewportBatchDone, // TASKS.csv #1644

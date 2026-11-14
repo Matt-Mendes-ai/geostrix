@@ -121,6 +121,19 @@ export function elevationNotes(rows, suspect) {
   return out;
 }
 
+// TASKS.csv #3411 (review #3374) — 'Two table columns side by side' offered itself when the two halves could not fit the doubled frame even at
+// 5 pt (a long collar field as a column) and then said so under the frame. collarTableCells(rows, extraCols): the text the table prints for each
+// collar (the footnote marks counted as one character each: * on a value from the survey), as arrays by column; splitHalvesFit(...): whether the
+// halves of a split table fit widthPx at the smallest size (minPt, 5) -> { fits, fs }
+export function collarTableCells(collars, extra = []) {
+  const f = (v, d) => (Number.isFinite(Number(v)) && v !== "" && v != null ? Number(v).toFixed(d) : "");
+  return (collars || []).map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), `${f(c.z, 1)}\u2021`, `${f(c.azimuth, 0)}*`, `${f(Number.isFinite(c.dip) ? -c.dip : "", 0)}*`, f(c.length, 1), ...(extra || []).map((k) => String(c.attrs?.[k] ?? "").trim())]);
+}
+export function splitHalvesFit({ columns, rows, fontPt, widthPx, measure, minPt = 5 }) {
+  const r = tableTextFit({ columns, parts: splitTableRows(rows, 2), fsPx: printPx(fontPt), widthPx, gap: 14, minPx: printPx(minPt), measure });
+  return { fits: r.fits, fs: r.fs };
+}
+
 // TASKS.csv #3374 (review #3195) — 'Two table columns side by side' with two collar fields as columns ran its right half 86 mm off an A4
 // sheet: each half was given 50 % of the frame and its cells do not wrap. The text is sized so the tables fit the frame's width: the
 // widest text of each column (measure(text, px, bold) -> px; the headings bold), its cell padding (half the size a side) and the gap

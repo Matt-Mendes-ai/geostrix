@@ -12504,5 +12504,17 @@
   "Choose a boundary or claim…": "اختر حدًّا أو مطالبة…",
   "No cell of this grid lies inside it.": "لا تقع أي خلية من هذه الشبكة داخله.",
   "Values in {unit}; cells are read at their centres.": "القيم بوحدة {unit}؛ تُقرأ الخلايا عند مراكزها.",
-  "Copy as text": "نسخ كنص"
+  "Copy as text": "نسخ كنص",
+  "Not available: the two halves with these columns would not fit the doubled frame even at 5 pt. Drop a column, or keep one column and let the rest carry on to the next page.": "غير متاح: لن يتسع نصفا الجدول بهذه الأعمدة للإطار المضاعف حتى بحجم 5 نقاط. احذف عمودًا، أو أبقِ عمودًا واحدًا واترك الباقي يكمل في الصفحة التالية.",
+  "Edit the key's lines": "تحرير أسطر المفتاح",
+  "Type a line to replace the plan's wording; clear it to go back. A line keeps your wording while its class stays.": "اكتب سطرًا لاستبدال صياغة المخطط؛ امسحه للعودة. يحتفظ السطر بصياغتك ما دام صنفه قائمًا.",
+  "Key title": "عنوان المفتاح",
+  "Key note": "ملاحظة المفتاح",
+  "Back to the plan's own wording": "العودة إلى صياغة المخطط",
+  "{n} intervals in this hole have no code/value, the shallowest at {v}m.": "{n} مقطعًا في هذه الحفرة بلا رمز/قيمة، أقلها عمقًا عند {v} م.",
+  "Clear it on every page": "مسحه في كل الصفحات",
+  "Forget the order on the legends of every page of this project": "نسيان الترتيب في مفاتيح كل صفحات هذا المشروع",
+  "Cleared on every page's legends. Load from view lists the codes in their default order again.": "تم المسح في مفاتيح كل الصفحات. يعرض «التحميل من العرض» الرموز بترتيبها الافتراضي مجددًا.",
+  "Save CSV": "حفظ CSV",
+  "Save the table as a CSV file": "حفظ الجدول كملف CSV"
 }

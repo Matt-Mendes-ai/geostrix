@@ -12504,5 +12504,17 @@
   "Choose a boundary or claim…": "Choisissez une limite ou un claim…",
   "No cell of this grid lies inside it.": "Aucune cellule de cette grille n'est à l'intérieur.",
   "Values in {unit}; cells are read at their centres.": "Valeurs en {unit} ; les cellules sont lues à leur centre.",
-  "Copy as text": "Copier en texte"
+  "Copy as text": "Copier en texte",
+  "Not available: the two halves with these columns would not fit the doubled frame even at 5 pt. Drop a column, or keep one column and let the rest carry on to the next page.": "Indisponible : les deux moitiés avec ces colonnes ne tiendraient pas dans le cadre doublé, même à 5 pt. Retirez une colonne, ou gardez une seule colonne et laissez le reste se poursuivre sur la page suivante.",
+  "Edit the key's lines": "Modifier les lignes de la légende",
+  "Type a line to replace the plan's wording; clear it to go back. A line keeps your wording while its class stays.": "Saisissez une ligne pour remplacer le libellé du plan ; effacez-la pour revenir. Une ligne garde votre libellé tant que sa classe existe.",
+  "Key title": "Titre de la légende",
+  "Key note": "Note de la légende",
+  "Back to the plan's own wording": "Revenir au libellé du plan",
+  "{n} intervals in this hole have no code/value, the shallowest at {v}m.": "{n} intervalles de ce sondage n'ont ni code ni valeur, le plus superficiel à {v} m.",
+  "Clear it on every page": "L'effacer sur toutes les pages",
+  "Forget the order on the legends of every page of this project": "Oublier l'ordre dans les légendes de toutes les pages de ce projet",
+  "Cleared on every page's legends. Load from view lists the codes in their default order again.": "Effacé dans les légendes de toutes les pages. Charger depuis la vue liste de nouveau les codes dans leur ordre par défaut.",
+  "Save CSV": "Enregistrer en CSV",
+  "Save the table as a CSV file": "Enregistrer le tableau en fichier CSV"
 }

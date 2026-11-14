@@ -12504,5 +12504,17 @@
   "Choose a boundary or claim…": "Elija un límite o concesión…",
   "No cell of this grid lies inside it.": "Ninguna celda de esta grilla queda dentro.",
   "Values in {unit}; cells are read at their centres.": "Valores en {unit}; las celdas se leen en sus centros.",
-  "Copy as text": "Copiar como texto"
+  "Copy as text": "Copiar como texto",
+  "Not available: the two halves with these columns would not fit the doubled frame even at 5 pt. Drop a column, or keep one column and let the rest carry on to the next page.": "No disponible: las dos mitades con estas columnas no cabrían en el marco duplicado ni siquiera a 5 pt. Quite una columna, o deje una sola columna y que el resto siga en la página siguiente.",
+  "Edit the key's lines": "Editar las líneas de la leyenda",
+  "Type a line to replace the plan's wording; clear it to go back. A line keeps your wording while its class stays.": "Escriba una línea para reemplazar el texto del plano; bórrela para volver. Una línea conserva su texto mientras su clase siga existiendo.",
+  "Key title": "Título de la leyenda",
+  "Key note": "Nota de la leyenda",
+  "Back to the plan's own wording": "Volver al texto del plano",
+  "{n} intervals in this hole have no code/value, the shallowest at {v}m.": "{n} intervalos de este sondaje no tienen código/valor, el más somero a {v} m.",
+  "Clear it on every page": "Borrarlo en todas las páginas",
+  "Forget the order on the legends of every page of this project": "Olvidar el orden en las leyendas de todas las páginas de este proyecto",
+  "Cleared on every page's legends. Load from view lists the codes in their default order again.": "Borrado en las leyendas de todas las páginas. Cargar desde la vista vuelve a listar los códigos en su orden predeterminado.",
+  "Save CSV": "Guardar CSV",
+  "Save the table as a CSV file": "Guardar la tabla como archivo CSV"
 }

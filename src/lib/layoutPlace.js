@@ -67,6 +67,14 @@ export function freeSpot(elements, w, h, page = { w: 1123, h: 794 }, { margin = 
   return best ? { x: best.x, y: best.y } : { x: margin, y: margin };
 }
 
+// TASKS.csv #3418 (#3383 (11)) — a new viewport frame took an A4-landscape size and spot whatever the page's paper was (700 px wide, placed in 1123 x 794).
+// -> { w, h }: at most 700 px wide, inside the paper's margins both ways (80 px of height, 160 of width), never under 60 px wide
+export function viewportFrameOnPaper(paper, aspect) {
+  const a = aspect > 0 ? aspect : 16 / 9, W = paper?.w || 1123, H = paper?.h || 794;
+  const w = Math.max(60, Math.min(W - 160, 700, Math.round((H - 80) * a)));
+  return { w, h: Math.round(w / a) };
+}
+
 // TASKS.csv #2135 (review #2013, Layout) — a new collar table landed at (100, 100) over the legend and the scale bar. It now takes a
 // free spot for as many of its rows as fit there (all of them, or as many as the sheet holds, down to 5; the rest go on continuation
 // pages, #1638); with no free spot even for 5 rows, the least-covered spot for the full table. total: the collars it will list.

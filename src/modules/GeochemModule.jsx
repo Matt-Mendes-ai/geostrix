@@ -45,6 +45,7 @@ import { isLabCertificateText, parseLabCertificate, combineCertificates, joinCer
 import AlterationBoxModal from "../components/AlterationBoxModal.jsx"; // TASKS.csv #503
 import { applyRowFilter, defaultRowFilter, overlapSummary, overlapWorthSaying } from "../lib/importRowFilter.js"; // TASKS.csv #2391
 import VolcanicCodesModal, { NOT_LOGGED_CODE } from "../components/VolcanicCodesModal.jsx"; // TASKS.csv #2352
+import { entryOf } from "../lib/codeDictionary.js"; // TASKS.csv #3292
 import SurfaceImportModal, { SURFACE_MEDIA } from "../components/SurfaceImportModal.jsx";
 // TASKS.csv #1794 — the medium a cell names (the import's own list and aliases), for telling a medium column from a QC-type column
 const surfaceMediumOf = (m) => (SURFACE_MEDIA.includes(m) ? m : /rock|grab|chip|outcrop|float|channel|soil|silt|stream|sediment|moss|talus|bleg|\bhmc\b|heavy.?min|concentrate|water/.test(m) ? m : null);
@@ -1169,7 +1170,7 @@ export default function GeochemModule() {
         const c = loggedCodeAt(a, lb) ?? NOT_LOGGED_CODE;
         counts.set(c, (counts.get(c) || 0) + 1);
       }
-      if (counts.size) { setVolcModal({ methodKey, codes: [...counts].sort((x, y) => y[1] - x[1]).map(([code, n]) => ({ code, n, volcanic: !!code && !isSedimentaryCode(code) && !!guessProtolith(code) })) }); return; }
+      if (counts.size) { setVolcModal({ methodKey, codes: [...counts].sort((x, y) => y[1] - x[1]).map(([code, n]) => ({ code, n, meaning: code ? entryOf(store.codeDictionary?.litho, code)?.desc || "" : "" /* #3292 — the project's own name for the code */, volcanic: !!code && !isSedimentaryCode(code) && !!guessProtolith(code) })) }); return; }
     }
     // TASKS.csv #503 — the box plot needs its protolith set-up first (dialog), then classifies per sample
     if (methodKey === "alteration_boxplot" && !altSetup) { setAltBoxOpen(true); return; }
