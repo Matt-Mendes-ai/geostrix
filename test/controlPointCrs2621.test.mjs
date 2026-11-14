@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 const src = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
 
 test("the control-point caller asks with noLocalGrid, and the request carries it to the dialog", () => {
-  assert.match(src("../src/modules/viewer/useImportPipeline.js"), /The collars are placed in it\.", \{ fileName: importModal\.fileName \}\), pts, null, \{ noLocalGrid: true \}\)/);
+  assert.match(src("../src/modules/viewer/importPipelineImpl.js"), /The collars are placed in it\.", \{ fileName: importModal\.fileName \}\), pts, null, \{ noLocalGrid: true \}\)/);
   assert.match(src("../src/lib/projectCrsRequest.js"), /detail: \{ reason, points, suggested, noLocalGrid: !!opts\.noLocalGrid, (family: opts\.family \|\| null, )?resolve \}/);
   assert.match(src("../src/App.jsx"), /noLocalGrid=\{!!crsRequest\.noLocalGrid\}/);
 });

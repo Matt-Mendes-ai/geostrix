@@ -110,7 +110,7 @@ test("#1992 the solid import reads .ts and .gp (TSurfs only, the rest named in t
 });
 
 test("#1992 routes: .pl as boundaries, .ts / .gp as solids and .vs to Geophysics from the 3D View; .vs read in Point survey", () => {
-  const imp = read("src/modules/viewer/useImportPipeline.js");
+  const imp = read("src/modules/viewer/importPipelineImpl.js");
   assert.match(imp, /if \(\/\\\.pl\$\/\.test\(name\)\) \{/);
   assert.match(imp, /addBoundary\(\{ name: o\.name, polylines: o\.lines, closedFlags: o\.lines\.map\(\(\) => false\), useVertexZ: true/);
   assert.match(imp, /if \(\/\\\.\(obj\|ts\|gp\)\$\/i\.test\(f\.name\)\) importSolidFile\(f\)/);

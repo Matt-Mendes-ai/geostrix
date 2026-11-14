@@ -26,7 +26,7 @@ test("#3267 the Alteration and Breccia layers are offered as the unit, and read 
 test("#3267 'not recorded' codes are unknown in the indicator; a 'No ... Assemblage' stays a true zero", () => {
   for (const v of ["NR", "nr", "N/R", "Not recorded", "not  logged", "Unknown", "?"]) assert.equal(isNotRecorded(v), true, v);
   for (const v of ["No High-T Assemblage", "None", "Potassic", "", null, "NRX"]) assert.equal(isNotRecorded(v), false, String(v));
-  const src = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
+  const src = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(src, /if \(!isTarget && isNotRecorded\(r\.value\)\) \{ notRecordedM \+= /);
   assert.match(src, /coded as not recorded \(NR, not logged, unknown\) were left out as unknown/);
 });

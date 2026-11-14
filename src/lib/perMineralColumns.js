@@ -7,7 +7,30 @@
 // a per-cent column name: MN_CPY_pct, CPY_PCT, Cpy%, Cpy (%), pct_cpy, CPY_VIS_PCT, Py_percent
 const PCT_NAME = /(^|[\s_-])(pct|percent|perc|vis_?pct)$|^(pct|percent)[\s_-]|%\)?$|\(\s*%\s*\)$/i;
 const IGNORED = /^(hole|hole_?id|holeid|bhid|from|to|depth|sample|sample_?id)$/i;
+// TASKS.csv #3307 (Matt, 2026-11-13: a logging database's assemblage table, py_sum / sph_sum / po_sum / cpy_sum / gal_sum / apy_sum / sfs_sum / au_sum,
+// with py_dist / py_morph beside them) — '<mineral>_sum' is a mineral amount too, when the stem is a mineral abbreviation or the column has
+// text companions (_dist, _morph …); a bare '_sum' of anything else is not
+const SUM_NAME = /^(.+?)[\s_-]*(sum|total|tot|amt|amount)$/i;
+const MINERAL_ABBR = new Set(["py", "pyr", "cpy", "cp", "po", "pyrr", "sph", "sp", "sl", "gal", "gn", "ga", "apy", "aspy", "asp", "sfs", "ss", "tt", "tn", "td", "mo", "mol", "moly", "bn", "cc", "cv", "en", "mt", "mag", "hem", "hm", "au", "vg", "ag", "el", "stb", "sb", "cin", "sch", "wf", "cst", "mal", "az", "ccp", "ml", "ilm", "cob", "pent", "pn"]);
+const COMPANION = ["style", "habit", "form", "occurrence", "occ", "dist", "distribution", "morph", "morphology", "mode", "texture"];
+const stemOf = (col) => String(col).replace(/[\s_-]*(vis_?pct|pct|percent|perc)$/i, "").replace(/[\s_-]*\(?\s*%\s*\)?$/, "").replace(/^(pct|percent)[\s_-]+/i, "").replace(/[\s_-]*(sum|total|tot|amt|amount)$/i, "").trim();
+// the text columns beside a mineral column: MN_CPY_pct -> MN_CPY_style; py_sum -> py_dist, py_morph (any case)
+export function companionColumns(col, headers) {
+  const stem = stemOf(col);
+  if (!stem || stem === col) return [];
+  const want = new Set(COMPANION.map((w) => `${stem}_${w}`.toLowerCase()));
+  return (headers || []).filter((h) => want.has(String(h).trim().toLowerCase().replace(/[\s-]+/g, "_")));
+}
+export function isSumMineralColumn(h, headers = []) {
+  const m = SUM_NAME.exec(String(h ?? "").trim());
+  if (!m || IGNORED.test(String(h).trim())) return false;
+  const stem = m[1].replace(/^(mn|min|mnl|sul|sulph)[\s_-]+/i, "").toLowerCase();
+  return MINERAL_ABBR.has(stem) || companionColumns(h, headers).length > 0;
+}
 export const isPercentColumn = (h) => PCT_NAME.test(String(h ?? "").trim()) && !IGNORED.test(String(h ?? "").trim());
+export const isMineralAmountColumn = (h, headers = []) => isPercentColumn(h) || isSumMineralColumn(h, headers); // #3307
+// the mineral's code for the Mineralization layer: MN_CPY_pct -> CPY, py_sum -> PY
+export const mineralCode = (col) => stemOf(col).replace(/^(mn|min|mnl|sul|sulph)[\s_-]+/i, "").toUpperCase() || String(col).toUpperCase();
 
 export function percentNumber(v) {
   const s = String(v ?? "").trim();
@@ -17,22 +40,18 @@ export function percentNumber(v) {
 }
 
 // the style / habit text column beside a mineral column: MN_CPY_pct -> MN_CPY_style (any case), or null
-export function styleColumnFor(col, headers) {
-  const stem = String(col).replace(/[\s_-]*(vis_?pct|pct|percent|perc)$/i, "").replace(/[\s_-]*\(?\s*%\s*\)?$/, "").trim();
-  if (!stem || stem === col) return null;
-  const want = new Set(["style", "habit", "form", "occurrence", "occ"].map((w) => `${stem}_${w}`.toLowerCase()));
-  return (headers || []).find((h) => want.has(String(h).trim().toLowerCase().replace(/[\s-]+/g, "_"))) || null;
-}
+export const styleColumnFor = (col, headers) => companionColumns(col, headers)[0] || null; // the first companion (#3307)
 
 // the per-cent columns of the file (not mapped as the hole / from / to), in file order -> [{ col, n, max, style }]; blank ones have n 0
 export function percentColumns(headers, rows, mapping = {}, { sample = 200000 } = {}) {
   const used = new Set([mapping.hole_id, mapping.from, mapping.to, mapping.depth].filter(Boolean));
-  const list = (headers || []).filter((h) => !used.has(h) && isPercentColumn(h));
+  const list = (headers || []).filter((h) => !used.has(h) && isMineralAmountColumn(h, headers)); // _sum: #3307
   const step = Math.max(1, Math.floor((rows || []).length / sample));
   return list.map((col) => {
     let n = 0, max = -Infinity;
     for (let i = 0; i < (rows || []).length; i += step) { const x = percentNumber(rows[i]?.[col]); if (Number.isFinite(x)) { n++; if (x > max) max = x; } }
-    return { col, n: step > 1 ? n * step : n, max: n ? max : null, style: styleColumnFor(col, headers) };
+    const companions = companionColumns(col, headers);
+    return { col, n: step > 1 ? n * step : n, max: n ? max : null, style: companions[0] || null, companions };
   });
 }
 
@@ -44,17 +63,21 @@ export function perMineralOffer(target, headers, rows, mapping = {}) {
   const cols = percentColumns(headers, rows, mapping);
   // a code column: the Mineralization layer as before. The guess (#2889) can take a mineral's own style column (MN_CPY_style: diss, vein …) as the
   // code: that is a property of one mineral, not a mineralization code, so the box is still offered
-  if (target === "mnlgy" && mapping.value && !isPercentColumn(mapping.value) && !cols.some((c) => c.style === mapping.value)) return null;
+  if (target === "mnlgy" && mapping.value && !isMineralAmountColumn(mapping.value, headers) && !cols.some((c) => c.companions.includes(mapping.value))) return null;
   return cols.filter((c) => c.n > 0).length >= 2 ? cols : null;
 }
 
 // what the dialog's choices are: the ticked mineral columns (default: every column with values) and the columns summed as sulphides
 // (opt-in: none by default) -> { cols: [...], sum: [...] }
+// TASKS.csv #3307 — mode: "single" (Matt's default for Mineralization: one layer, coloured by mineral, Value = Total min) or "layers" (#3205: one
+// numeric layer per mineral; the default for a Custom layer); colourBy: "dominant" or one of the ticked columns
 export function perMineralChoice(modal, cols) {
   const withValues = (cols || []).filter((c) => c.n > 0).map((c) => c.col);
   const ticked = (modal?.mineralCols ?? withValues).filter((c) => withValues.includes(c));
   const sum = (modal?.mineralSum || []).filter((c) => withValues.includes(c));
-  return { cols: ticked, sum };
+  const mode = modal?.mineralMode || (modal?.target === "custom" ? "layers" : "single");
+  const colourBy = ticked.includes(modal?.mineralColourBy) ? modal.mineralColourBy : "dominant";
+  return { cols: ticked, sum, mode, colourBy };
 }
 
 const MAX_PCT = 100;
@@ -115,11 +138,40 @@ export function perMineralLayers(allRows, mapping, plan, fileName, totalLabel = 
   return { layers, made, outside };
 }
 
+// TASKS.csv #3307 — the one Mineralization layer: each interval's code is its dominant mineral (or, coloured by one mineral, that mineral where it
+// is logged and 'No <code>' elsewhere), its extra is Total min (the sum of the ticked minerals), and every ticked mineral and its text companions
+// ride along as fields. An interval with none of them is not in the layer (counted). -> { rows, mapping, customFields, none, outside }
+export const MIN_CODE_COL = "__min_code", MIN_TOTAL_COL = "__min_total";
+export function singleMineralRows(allRows, mapping, plan, colourBy = "dominant") {
+  const cols = plan.cols.map((c) => c.col);
+  const rows = []; let none = 0, outside = 0;
+  for (const r of allRows || []) {
+    let total = 0, best = null, bestV = -Infinity, any = false;
+    for (const c of cols) {
+      const v = percentNumber(r?.[c]);
+      if (!Number.isFinite(v)) continue;
+      if (v < 0) { outside++; continue; }
+      any = true; total += v;
+      if (v > bestV) { bestV = v; best = c; }
+    }
+    if (!any || total <= 0) { none++; continue; }
+    const code = colourBy === "dominant" ? mineralCode(best) : percentNumber(r?.[colourBy]) > 0 ? mineralCode(colourBy) : `No ${mineralCode(colourBy)}`;
+    rows.push({ ...r, [MIN_CODE_COL]: code, [MIN_TOTAL_COL]: String(Math.round(total * 1e6) / 1e6) });
+  }
+  const customFields = [];
+  for (const c of plan.cols) {
+    customFields.push({ column: c.col, name: c.col, type: "number" });
+    for (const t of c.companions || []) customFields.push({ column: t, name: t });
+  }
+  return { rows, mapping: { ...mapping, value: MIN_CODE_COL, extra: MIN_TOTAL_COL }, customFields, none, outside };
+}
+
 // the import's plan from the dialog's data, or null when the box does not apply (or every mineral was unticked: the import is the value column)
 export function mineralPlan(target, headers, allRows, mapping, data) {
   const offer = perMineralOffer(target, headers, allRows, mapping);
   if (!offer) return null;
-  const { cols, sum } = perMineralChoice(data, offer);
-  if (!cols.length && sum.length < 2) return null;
-  return { cols: cols.map((col) => ({ col, style: offer.find((c) => c.col === col)?.style || null })), sum: sum.length >= 2 ? sum : [], blank: offer.filter((c) => !c.n).map((c) => c.col) };
+  const { cols, sum, mode, colourBy } = perMineralChoice({ ...data, target }, offer);
+  if (mode === "single" ? !cols.length : !cols.length && sum.length < 2) return null;
+  const pick = (col) => { const o = offer.find((c) => c.col === col); return { col, style: o?.style || null, companions: o?.companions || [] }; };
+  return { mode, colourBy, cols: cols.map(pick), sum: mode === "layers" && sum.length >= 2 ? sum : [], blank: offer.filter((c) => !c.n).map((c) => c.col) };
 }

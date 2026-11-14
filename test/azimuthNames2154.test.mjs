@@ -34,7 +34,7 @@ test("#2187 a survey's method / surveyor column is kept as an extra field", () =
 });
 
 test("#2154 / #2187 wiring", () => {
-  const p = read("src/modules/viewer/useImportPipeline.js");
+  const p = read("src/modules/viewer/importPipelineImpl.js");
   assert.match(p, /if \(target !== "survey" && target !== "collars"\) return mapping;/);
   assert.match(p, /!azDetected\.hint && !azDetected\.also\)/);
   assert.match(p, /azimuthRefAlso: d\.also/);

@@ -41,7 +41,7 @@ export function runEstimation(kind, points, opts, { onProgress, signal, checkOnl
         worker.terminate();
         withCells(d.result, { checkOnly, signal }).then((v) => finish(resolve, v), (err) => finish(reject, err));
       }
-      else if (d.type === "error") finish(reject, new Error(d.message));
+      else if (d.type === "error") finish(reject, Object.assign(new Error(d.message), d.weakFit ? { weakFit: d.weakFit } : {})); // weakFit: TASKS.csv #3273
     };
     worker.onerror = (e) => {
       e.preventDefault?.();

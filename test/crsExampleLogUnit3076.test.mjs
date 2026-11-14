@@ -23,7 +23,7 @@ test("the CRS box's example is one point both ways, and the box reads both", () 
 });
 
 test("a log layer's name carries its unit, unless the column already says it; a channel with no unit is named in a notice", () => {
-  const s = read("../src/modules/viewer/useImportPipeline.js");
+  const s = read("../src/modules/viewer/importPipelineImpl.js");
   assert.match(s, /const name = `\$\{base\}: \$\{col\}\$\{unit && !String\(col\)\.toLowerCase\(\)\.includes\(unit\.toLowerCase\(\)\) \? ` \(\$\{unit\}\)` : ""\}`;/);
   assert.match(s, /if \(!unit\) noUnit\.push\(col\);/);
   assert.match(s, /tr\("\{fileName\}: no unit for \{cols\}: the column name gives none and none was typed, so the values are as logged with no unit\."/);

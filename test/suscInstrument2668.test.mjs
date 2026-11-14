@@ -13,7 +13,7 @@ test("#2668 the instrument column is kept by default (by its header, or by value
   assert.deepEqual(suscInstrumentFields(["HoleID", "From", "To", "MagSus", "MagSus_Instrument", "Logger", "Meter2"], rows).map((f) => f.column), ["MagSus_Instrument", "Meter2"]);
   assert.deepEqual(suscInstrumentFields(["Hole", "Depth", "Susc", "Units"], [{ Hole: "H", Depth: 1, Susc: 0.2, Units: "x10-3 SI" }]).map((f) => f.column), ["Units"]);
   assert.deepEqual(suscInstrumentFields(["Hole", "Units"], [{ Hole: "H", Units: "" }]), []); // empty: not kept
-  const p = read("../src/modules/viewer/useImportPipeline.js");
+  const p = read("../src/modules/viewer/importPipelineImpl.js");
   assert.equal((p.match(/target === "magsusc" \? \{ customFields: suscInstrumentFields\(headers, data\) \}/g) || []).length, 2); // the dialog and the folder queue
 });
 
@@ -33,5 +33,5 @@ test("#2668 the log's unit from its rows: KT / SM meters x10^-3 SI, a Bartington
 });
 
 test("#2743 the 3D View's raster drop passes the project's tie", () => {
-  assert.match(read("../src/modules/viewer/useImportPipeline.js"), /buildRasterImport\(file, \{ epsg: projectTargetEpsg\(live\.project \|\| project\), defaultElevation, chooseProjectEpsg, tie: tieOf\(live\.project \|\| project\)/);
+  assert.match(read("../src/modules/viewer/importPipelineImpl.js"), /buildRasterImport\(file, \{ epsg: projectTargetEpsg\(live\.project \|\| project\), defaultElevation, chooseProjectEpsg, tie: tieOf\(live\.project \|\| project\)/);
 });

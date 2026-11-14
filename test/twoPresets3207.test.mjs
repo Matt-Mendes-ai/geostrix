@@ -35,6 +35,6 @@ test("the dialog and the notice say the second column", () => {
   const b = fs.readFileSync(new URL("../src/components/RowFilterBox.jsx", import.meta.url), "utf8");
   assert.match(b, /preset\?\.also && f === preset/);
   assert.match(b, /const kept = f\?\.also \? applyRowFilter\(rows, f\)\.rows\.length/, "the box's count includes the second column");
-  const u = fs.readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = fs.readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(u, /rowFilter\.also \? " " \+ tr\("\{col\} was also kept only where it is \{values\}\."/);
 });

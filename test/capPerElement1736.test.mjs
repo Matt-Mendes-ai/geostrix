@@ -8,7 +8,9 @@ const panes = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", i
 
 test("Estimation: changing the element clears the cap and the old result; a capped run says so", () => {
   assert.ok(est.includes("onChange={(e) => { setSymbol(e.target.value); setCapValue(NaN); setResult(null); }}"));
-  assert.ok(est.includes('result.params?.capValue != null && <div>{tr("Grades capped at {cap} {unit} before estimating."'));
+  // TASKS.csv #3271 — in a set the line names the capped element; alone, as before
+  assert.ok(est.includes('result.params?.capValue != null && <div>{result.members?.length ? tr("{el} capped at {cap} {unit} before estimating."'));
+  assert.ok(est.includes(': tr("Grades capped at {cap} {unit} before estimating."'));
 });
 
 test("Estimation: models are named from the result's own element / method / cell", () => {
@@ -18,7 +20,9 @@ test("Estimation: models are named from the result's own element / method / cell
 
 test("Grade shell: the cap is cleared and the cutoff re-proposed (P90 of lab assays) on an element change", () => {
   assert.ok(panes.includes("setNumericSymbol(next); setNumericCapValue(NaN);"));
-  assert.ok(panes.includes('.filter((a) => a.source !== "pXRF") : excludeQAQC(assays || []));')); // #1741 — a downhole log stands in for the assays; #2060 — QC left out (excludeQAQC drops pXRF too)
+  // #3272 — the proposal is one function (the element change and the opening element), over the holes the run uses
+  assert.ok(panes.includes("proposeShellCutoff(next); // #3272"));
+  assert.ok(panes.includes('(numericIncludeQAQC ? inArea.filter((a) => a.source !== "pXRF") : excludeQAQC(inArea))')); // #1741 — a downhole log stands in for the assays; #2060 — QC left out (excludeQAQC drops pXRF too)
   assert.ok(panes.includes("rowsFor.map((a) => a.values?.[ns ? ns.symbol : next])"));
 });
 

@@ -49,7 +49,7 @@ test("#2181 the CRS dialog's spread: 3 local-grid collars among 5 MGA ones land 
   assert.equal(s.far, 3); assert.equal(s.total, 8); assert.ok(s.km > 300);
   assert.equal(collarSpread(mga, 28351).far, 0);
   assert.match(read("src/components/ProjectCrsModal.jsx"), /spread\?\.far > 0/);
-  const p = read("src/modules/viewer/useImportPipeline.js");
+  const p = read("src/modules/viewer/importPipelineImpl.js");
   assert.match(p, /const byHeader = epsgFromColumns\(hdrs\)( \|\| \(family[^\n]*?\))?, named = byHeader \|\| frame\?\.epsg \|\| null;/);
   assert.match(p, /names more than one frame/);
   assert.match(p, /which no UTM \/ MGA zone has/);

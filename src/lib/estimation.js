@@ -119,6 +119,9 @@ function trendFrame(trend, center) {
 // with 6 Harry holes and 12 m with 37, fitted ranges of 19 m and 78 m for the same element. On Harry's 24 and 37 holes
 // this rule fits Au 61 / 72 m and Cu 142 / 73 m (a fixed 25 m lag: 59 / 77 and 189 / 80); a full-spacing lag put the
 // whole sill in the first bin (pure nugget). betweenHoleM is returned for the run summary's warning.
+// TASKS.csv #3273 (Galore Creek review) — the run-time fit kriged 11,308 blocks on 'r² 0.17' and said 'weak' only afterwards. Under this
+// r² (the Variogram tool's own 'Weak fit' threshold, #1742) a run that passes askOnWeakFit stops before kriging, with the fit on the error.
+export const WEAK_FIT_R2 = 0.5;
 function resolveVariogram(pts, given, cellSize) {
   const v = given || {};
   const model = v.model || "spherical";
@@ -167,7 +170,8 @@ export function estimateBlockModel(samplePoints, opts) {
   // TASKS.csv #709 — kriging needs a variogram (resolveVariogram), in the same frame the search works in
   const tw0 = method === "ok" ? withTrend(samplePoints, opts) : null;
   const variogram = method === "ok" ? resolveVariogram(tw0.pts, opts.variogram, cellSize) : null;
-  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, noCodeAsDomain, variogram, supportRef: opts.supportRef, materialHoles: !!opts.materialHoles, nearHoleM: Math.max(dx, dy, dz) }; // supportRef: #1411; materialHoles: #1573; nearHoleM: #3255
+  if (variogram?.fitted && opts.askOnWeakFit && variogram.rSquared != null && variogram.rSquared < WEAK_FIT_R2) throw Object.assign(new Error(tr("The automatic variogram fit is weak.")), { weakFit: variogram }); // #3273
+  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, noCodeAsDomain, variogram, supportRef: opts.supportRef, materialHoles: !!opts.materialHoles, nearHoleM: Math.max(dx, dy, dz), ...(opts.holeBracket === false ? { holeBracket: false } : {}) }; // holeBracket: #3275 (false: the samples-used class, for comparison) // supportRef: #1411; materialHoles: #1573; nearHoleM: #3255
   // TASKS.csv #91/#92 — support classification is opt-in and OFF by default: it widens the neighbour
   // search and adds per-cell work, so it must never be paid for by a caller that didn't ask. `bracketTol`
   // is half a cell, so bracketing has to be real at the scale the block model is drawn at.
@@ -237,7 +241,7 @@ export function estimateBlockModel(samplePoints, opts) {
   let dominatedCells = 0; // TASKS.csv #676 — 2+ holes, but one carries >= 95 % of the weight
   const mlsCounts = { full: 0, reduced: 0, idw: 0 }; // TASKS.csv #516
   const okCounts = { kriged: 0, exact: 0, negativeWeights: 0, fallbackIdw: 0, beyondRange: 0, clampedNegative: 0 }; // TASKS.csv #709; beyondRange: #1027; clampedNegative: #1412
-  const supportCounts = { interpolated: 0, extrapolated: 0, unsupported: 0, searchLimited: 0 };
+  const supportCounts = { interpolated: 0, extrapolated: 0, unsupported: 0, searchLimited: 0, oneSided: 0 }; // oneSided: #3275
 
   for (let iz = 0; iz < nz; iz++) {
     const cz = bounds.zmin + (iz + 0.5) * dz;
@@ -256,6 +260,7 @@ export function estimateBlockModel(samplePoints, opts) {
         if (r.support) {
           supportCounts[r.support.cls]++;
           if (r.support.cls === SUPPORT_EXTRAPOLATED && r.support.dataBracketed) supportCounts.searchLimited++;
+          if (r.support.oneSided) supportCounts.oneSided++; // #3275
         }
         if (pierced.has(rowBase + ix)) piercedDone.add(rowBase + ix); // #3255
         const by = beyondOf(r, cz); // #2417
@@ -400,7 +405,7 @@ export function retallyKeptCells(cells, { method, supportCounts, dropUnsupported
     else if (method !== "nn" && c.nHoles > 1 && c.holeShare >= DOMINANT_SHARE) dominatedCells++;
     if (sc && (c.support === SUPPORT_INTERPOLATED || c.support === SUPPORT_EXTRAPOLATED)) sc[c.support]++;
   }
-  if (sc) sc.searchLimited = Math.min(supportCounts.searchLimited || 0, sc.extrapolated);
+  if (sc) { sc.searchLimited = Math.min(supportCounts.searchLimited || 0, sc.extrapolated); if (supportCounts.oneSided != null) sc.oneSided = Math.min(supportCounts.oneSided, sc.interpolated); } // oneSided: #3275, only for counts that carry it (a run saved before has none)
   return { singleHoleCells, dominatedCells, supportCounts: sc };
 }
 // TASKS.csv #1573 (review #1497, Lawyers) — a "second hole" counts toward min distinct holes only when it carries a material
@@ -464,16 +469,38 @@ function makeNeighbourGatherer(samplePoints, opts = {}) {
   // Raw intervals carry no coverage and weigh their length, as before.
   const lenOf = (p) => (lengthWeight && p.length != null && p.length > 0 ? p.length * (p.coverage > 0 && p.coverage < 1 ? p.coverage : 1) : 1);
 
+  // TASKS.csv #3256 (Galore Creek review: the dialog's defaults, 500 m search, ran over five minutes on 14 holes) — the walk keeps the
+  // candidates as squared distances and point references in buffers reused across blocks (it made an object for every composite in reach,
+  // ~3,000 a block, then sorted them all); a candidate object is made only for those that can be used (inside the radius the walk settled at)
+  let D2 = new Float64Array(1024), P = new Array(1024), n = 0, qx = 0, qy = 0, qz = 0;
+  // #3256 — without a domain rule the stopping test reads running figures kept as points are added (the `need` nearest, the nearest, and
+  // with a per-hole cap each hole's `cap` nearest), not a scan of every candidate on every ring
+  const need = Math.max(maxSamples, minSamples, minHoles, 1), cap = perHoleCap(maxSamples, minHoles, maxPerHole);
+  const inc = restrictToDomain ? null : { top: [], nearest: Infinity, count: 0, perHole: cap !== Infinity ? new Map() : null, cap };
+  const consider = (p) => {
+    const ddx = p.x - qx, ddy = p.y - qy, ddz = p.z - qz;
+    const d2 = ddx * ddx + ddy * ddy + ddz * ddz;
+    if (r2 != null && d2 > r2) return;
+    if (n === D2.length) { const g = new Float64Array(n * 2); g.set(D2); D2 = g; P.length = n * 2; }
+    D2[n] = d2; P[n] = p; n++;
+    if (inc) {
+      inc.count++;
+      if (d2 < inc.nearest) inc.nearest = d2;
+      const top = inc.top;
+      if (top.length < need) { let j = top.length - 1; top.push(d2); while (j >= 0 && top[j] > d2) { top[j + 1] = top[j]; j--; } top[j + 1] = d2; }
+      else if (d2 < top[need - 1]) { let j = need - 2; while (j >= 0 && top[j] > d2) { top[j + 1] = top[j]; j--; } top[j + 1] = d2; }
+      if (inc.perHole) {
+        let a = inc.perHole.get(p.hole_id);
+        if (!a) inc.perHole.set(p.hole_id, (a = []));
+        if (a.length < cap) { let j = a.length - 1; a.push(d2); while (j >= 0 && a[j] > d2) { a[j + 1] = a[j]; j--; } a[j + 1] = d2; }
+        else if (d2 < a[cap - 1]) { let j = cap - 2; while (j >= 0 && a[j] > d2) { a[j + 1] = a[j]; j--; } a[j + 1] = d2; }
+      }
+    }
+  };
   return (cx, cy, cz) => {
-    const dists = [];
-    const consider = (p) => {
-      const ddx = p.x - cx, ddy = p.y - cy, ddz = p.z - cz;
-      const d2 = ddx * ddx + ddy * ddy + ddz * ddz;
-      if (r2 != null && d2 > r2) return;
-      // `p` is carried by REFERENCE (not copied coordinates) so the moving-least-squares fit and the
-      // support classifier can see each sample's position without making the hot loop allocate more.
-      dists.push({ d2, value: p.value, hole_id: p.hole_id, len: lenOf(p), domain: p.domain ?? null, p });
-    };
+    n = 0; qx = cx; qy = cy; qz = cz;
+    if (inc) { inc.top.length = 0; inc.nearest = Infinity; inc.count = 0; inc.perHole?.clear(); }
+    let keepD2 = Infinity; // #3256 — the settled radius: no candidate beyond it can be used (Infinity: the walk did not settle, all are kept)
 
     if (index) {
       // TASKS.csv #1210 — a block farther than the search from the box around all the samples has no candidates: Woodjam, 194,616 blocks at a 50 m search, 32 estimated
@@ -481,7 +508,7 @@ function makeNeighbourGatherer(samplePoints, opts = {}) {
         const ex = cx < index.xmin ? index.xmin - cx : cx > index.xmax ? cx - index.xmax : 0;
         const ey = cy < index.ymin ? index.ymin - cy : cy > index.ymax ? cy - index.ymax : 0;
         const ez = cz < index.zmin ? index.zmin - cz : cz > index.zmax ? cz - index.zmax : 0;
-        if (ex * ex + ey * ey + ez * ez > r2) return dists;
+        if (ex * ex + ey * ey + ez * ez > r2) return [];
       }
       const b = index.size;
       const bx = Math.floor((cx - index.xmin) / b);
@@ -526,12 +553,21 @@ function makeNeighbourGatherer(samplePoints, opts = {}) {
           }
         }
         const safeD2 = (ring * b) * (ring * b);
-        if (settled(dists, safeD2, maxSamples, minSamples, minHoles, restrictToDomain, maxPerHole)) break;
+        const st = inc ? settledRunning(inc, safeD2, maxSamples, need) : settled(D2, P, n, safeD2, maxSamples, minSamples, minHoles, restrictToDomain, maxPerHole);
+        if (st) { if (st === SETTLED) keepD2 = safeD2; break; }
       }
     } else {
       for (let i = 0; i < samplePoints.length; i++) consider(samplePoints[i]);
     }
 
+    // `p` is carried by REFERENCE (not copied coordinates) so the moving-least-squares fit and the support classifier can see each
+    // sample's position
+    const dists = [];
+    for (let i = 0; i < n; i++) {
+      if (D2[i] > keepD2) continue;
+      const p = P[i];
+      dists.push({ d2: D2[i], value: p.value, hole_id: p.hole_id, len: lenOf(p), domain: p.domain ?? null, p });
+    }
     dists.sort((a, b) => a.d2 - b.d2);
     return dists;
   };
@@ -558,6 +594,7 @@ function makeCellEstimator(samplePoints, opts = {}) {
   const bracketTol = opts.bracketTol || 0;
   const bracketMax = Math.max(maxSamples, Math.min(64, maxSamples * 4));
   const gather = makeNeighbourGatherer(samplePoints, wantSupport ? { ...opts, maxSamples: bracketMax } : opts);
+  const holeBr = wantSupport && opts.holeBracket !== false ? makeHoleBracketer(samplePoints, { searchRadius: opts.searchRadius, step: Math.max(bracketTol, 1), tol: bracketTol }) : null; // #3275
 
   const shareIds = [], shareW = []; // #676 — scratch for the dominant-hole share, reused across blocks
   return (cx, cy, cz) => {
@@ -573,12 +610,13 @@ function makeCellEstimator(samplePoints, opts = {}) {
     // a point in space from downhole-only domain logging — and then only ever sees composites carrying
     // that same domain. A cell whose nearest composite has no logged domain is left un-estimated rather
     // than quietly falling back to the unrestricted search.
-    let candidates = dists;
+    let candidates = dists, cellDom; // cellDom: #3275 — the block's domain for the hole test (undefined without a domain rule)
     if (restrictToDomain) {
       // TASKS.csv #2541 (review #2486, WA lithium) — a block whose nearest composite has no code was deleted in silence (one 500 m block fell from
       // 30.5 Mt to 11.0 Mt). It is now counted (skip: "noCode"), or, with noCodeAsDomain, estimated from the composites with no code as a domain
       const cellDomain = dists[0].domain;
       if (cellDomain == null && !noCodeAsDomain) return NO_CODE;
+      cellDom = cellDomain == null ? null : cellDomain;
       candidates = cellDomain == null ? dists.filter((d) => d.domain == null) : dists.filter((d) => d.domain === cellDomain);
       if (candidates.length < minSamples) return null;
     }
@@ -662,8 +700,69 @@ function makeCellEstimator(samplePoints, opts = {}) {
         if (Math.sqrt(m2) > opts.variogram.range) out.okFar = true;
       }
     }
-    if (wantSupport) out.support = supportFrom(candidates, used, holes, cx, cy, cz, bracketTol, bracketMax, opts.supportRef > 0 ? opts.supportRef : opts.searchRadius, opts.supportRef > 0); // supportRef: #1411
+    if (wantSupport) out.support = supportFrom(candidates, used, holes, cx, cy, cz, bracketTol, bracketMax, opts.supportRef > 0 ? opts.supportRef : opts.searchRadius, opts.supportRef > 0, holeBr ? holeBr(cx, cy, cz, cellDom) : null); // supportRef: #1411; holeBr: #3275
     return out;
+  };
+}
+
+// TASKS.csv #3275 (Galore Creek review) — 'between holes' from the hole traces within the search, not from the samples used: on the same holes
+// and lattice 2 % of the copper blocks were 'interpolated' (16 samples at 8 a hole are two 16 m runs of core) against 24 % of the specific-
+// gravity blocks (144 short pieces spread down the holes), so the class measured how closely a hole is sampled, not how it is drilled.
+// A block is between holes when the sample points within the search radius, from at least two holes, lie on both sides of it along x, y and
+// z (by more than `tol`, half a cell, as before). Each hole's points are thinned to one every `step` m along it, which changes nothing
+// about which sides they lie on but keeps the test cheap; the walk goes nearest bucket first and stops once all six sides and two holes are
+// seen. With a domain rule, only the points of the block's domain count (undefined: no domain rule). -> (x, y, z, domain) => boolean
+function makeHoleBracketer(points, { searchRadius = null, step = 1, tol = 0 } = {}) {
+  const byHole = new Map();
+  for (const p of points) { if (!Number.isFinite(p.x) || !Number.isFinite(p.y) || !Number.isFinite(p.z)) continue; let a = byHole.get(p.hole_id); if (!a) byHole.set(p.hole_id, (a = [])); a.push(p); }
+  const X = [], Y = [], Z = [], H = [], D = [];
+  let hid = 0, xmin = Infinity, xmax = -Infinity, ymin = Infinity, ymax = -Infinity, zmin = Infinity, zmax = -Infinity;
+  const s2 = Math.max(step, 1e-6) ** 2;
+  for (const arr of byHole.values()) {
+    // along the hole: by the distance from one end of it (the point farthest from the first)
+    const a0 = arr[0]; let end = a0, far = -1;
+    for (const q of arr) { const d = (q.x - a0.x) ** 2 + (q.y - a0.y) ** 2 + (q.z - a0.z) ** 2; if (d > far) { far = d; end = q; } }
+    const ord = arr.map((q) => [(q.x - end.x) ** 2 + (q.y - end.y) ** 2 + (q.z - end.z) ** 2, q]).sort((u, v) => u[0] - v[0]);
+    let last = null;
+    for (let i = 0; i < ord.length; i++) {
+      const q = ord[i][1];
+      if (last && i < ord.length - 1 && (q.x - last.x) ** 2 + (q.y - last.y) ** 2 + (q.z - last.z) ** 2 < s2 && q.domain === last.domain) continue;
+      X.push(q.x); Y.push(q.y); Z.push(q.z); H.push(hid); D.push(q.domain); last = q;
+      if (q.x < xmin) xmin = q.x; if (q.x > xmax) xmax = q.x; if (q.y < ymin) ymin = q.y; if (q.y > ymax) ymax = q.y; if (q.z < zmin) zmin = q.z; if (q.z > zmax) zmax = q.z;
+    }
+    hid++;
+  }
+  const n = X.length;
+  if (!n) return () => false;
+  const r = searchRadius > 0 && Number.isFinite(searchRadius) ? searchRadius : Infinity, r2 = r * r;
+  const diag = Math.hypot(xmax - xmin, ymax - ymin, zmax - zmin) || 1;
+  const B = Math.max(step, Number.isFinite(r) ? r / 2 : diag / 4, diag / 64);
+  const key = (i, j, k) => (i * 4096 + j) * 4096 + k;
+  const grid = new Map();
+  for (let q = 0; q < n; q++) { const kk = key(Math.floor((X[q] - xmin) / B), Math.floor((Y[q] - ymin) / B), Math.floor((Z[q] - zmin) / B)); let b = grid.get(kk); if (!b) grid.set(kk, (b = [])); b.push(q); }
+  const R = Number.isFinite(r) ? Math.ceil(r / B) : Math.ceil(diag / B) + 1;
+  const offs = [];
+  for (let i = -R; i <= R; i++) for (let j = -R; j <= R; j++) for (let k = -R; k <= R; k++) offs.push([i, j, k, i * i + j * j + k * k]);
+  offs.sort((u, v) => u[3] - v[3]);
+  return (cx, cy, cz, domain) => {
+    const bi = Math.floor((cx - xmin) / B), bj = Math.floor((cy - ymin) / B), bk = Math.floor((cz - zmin) / B);
+    let nx = false, px = false, ny = false, py = false, nz = false, pz = false, h1 = -1, two = false;
+    for (let o = 0; o < offs.length; o++) {
+      const b = grid.get(key(bi + offs[o][0], bj + offs[o][1], bk + offs[o][2]));
+      if (!b) continue;
+      for (let t = 0; t < b.length; t++) {
+        const q = b[t];
+        if (domain !== undefined && D[q] !== domain) continue;
+        const ox = X[q] - cx, oy = Y[q] - cy, oz = Z[q] - cz;
+        if (ox * ox + oy * oy + oz * oz > r2) continue;
+        if (ox < -tol) nx = true; else if (ox > tol) px = true;
+        if (oy < -tol) ny = true; else if (oy > tol) py = true;
+        if (oz < -tol) nz = true; else if (oz > tol) pz = true;
+        if (!two) { if (h1 < 0) h1 = H[q]; else if (H[q] !== h1) two = true; }
+      }
+      if (two && nx && px && ny && py && nz && pz) return true;
+    }
+    return false;
   };
 }
 
@@ -674,7 +773,7 @@ function makeCellEstimator(samplePoints, opts = {}) {
 // farUnsupported (#1411): with no search radius, `searchRadius` is a reference distance from the data (the caller's supportRef), and an
 // estimate farther than it from every sample, not bracketed, is classed unsupported: on Silvertip a block 1 km from any hole was
 // "extrapolated", like one 25 m away, and the support index never fell below 0.39 (scored against the 2.4 km grid diagonal).
-function supportFrom(candidates, used, holes, cx, cy, cz, bracketTol, bracketMax, searchRadius, farUnsupported = false) {
+function supportFrom(candidates, used, holes, cx, cy, cz, bracketTol, bracketMax, searchRadius, farUnsupported = false, betweenHoles = null) { // betweenHoles: #3275
   let anyNegX = false, anyPosX = false, anyNegY = false, anyPosY = false, anyNegZ = false, anyPosZ = false;
   const allHoles = new Set();
   const wide = candidates.length > bracketMax ? candidates.slice(0, bracketMax) : candidates;
@@ -703,13 +802,17 @@ function supportFrom(candidates, used, holes, cx, cy, cz, bracketTol, bracketMax
   const bracketed = { x: negX && posX, y: negY && posY, z: negZ && posZ };
   // Two distinct holes is part of the definition, not an extra constraint: one hole is a line, and a
   // line cannot bracket a point in 3-space no matter how many composites are strung along it.
-  const isInterp = bracketed.x && bracketed.y && bracketed.z && holes.size >= 2;
+  const usedSurround = bracketed.x && bracketed.y && bracketed.z && holes.size >= 2;
+  // TASKS.csv #3275 — with the hole bracketer, 'interpolated' is 'between holes' (the traces in the search surround it); a block between holes
+  // whose samples used do not surround it is counted apart (oneSided): its estimate leans on one side, whatever the class says
+  const isInterp = betweenHoles == null ? usedSurround : betweenHoles;
+  const oneSided = betweenHoles != null && betweenHoles && !usedSurround;
   const nearest = Math.sqrt(used[0].d2);
   const far = farUnsupported && !isInterp && nearest > searchRadius;
   return {
     cls: isInterp ? SUPPORT_INTERPOLATED : far ? SUPPORT_UNSUPPORTED : SUPPORT_EXTRAPOLATED,
     code: isInterp ? 2 : far ? 0 : 1,
-    nearest, nearestPoint: used[0].p, nSamples: used.length, nHoles: holes.size, nOctants, bracketed, dataBracketed,
+    nearest, nearestPoint: used[0].p, nSamples: used.length, nHoles: holes.size, nOctants, bracketed, dataBracketed: betweenHoles == null ? dataBracketed : false, oneSided, // #3275 — dataBracketed (the 64 nearest) only without the hole test
     nHolesWide: allHoles.size, nWide: wide.length,
     index: supportIndex({ nearest, nHoles: holes.size, nOctants, searchRadius }),
   };
@@ -806,6 +909,7 @@ export function makeSupportClassifier(samplePoints, opts = {}) {
   // inside a 400 m search radius reported only one hole in its neighbourhood.
   const bracketMax = Math.max(maxSamples, Math.min(64, maxSamples * 4));
   const gather = makeNeighbourGatherer(samplePoints, { ...opts, maxSamples: bracketMax });
+  const holeBr = opts.holeBracket !== false ? makeHoleBracketer(samplePoints, { searchRadius, step: Math.max(bracketTol, 1), tol: bracketTol }) : null; // #3275
   const none = {
     cls: SUPPORT_UNSUPPORTED, code: 0, nearest: Infinity, nSamples: 0, nHoles: 0,
     nOctants: 0, bracketed: { x: false, y: false, z: false }, dataBracketed: false,
@@ -815,17 +919,18 @@ export function makeSupportClassifier(samplePoints, opts = {}) {
   return (cx, cy, cz) => {
     const dists = gather(cx, cy, cz);
     if (dists.length < minSamples) return none;
-    let candidates = dists;
+    let candidates = dists, cellDom;
     if (restrictToDomain) {
       const cellDomain = dists[0].domain;
       if (cellDomain == null) return none;
+      cellDom = cellDomain;
       candidates = dists.filter((d) => d.domain === cellDomain);
       if (candidates.length < minSamples) return none;
     }
     const used = selectUsed(candidates, maxSamples, minHoles, maxPerHole); // #642 — the estimator's own selection
     const holes = useMaterialRule(minHoles, wantMaterial, opts.nearHoleM, used) ? materialHoles(used, 2) : new Set(used.map((s) => s.hole_id)); // #1573 / #3255 — the estimator's rule, so the support class describes the same estimate
     if (holes.size < minHoles) return none;
-    return supportFrom(candidates, used, holes, cx, cy, cz, bracketTol, bracketMax, searchRadius);
+    return supportFrom(candidates, used, holes, cx, cy, cz, bracketTol, bracketMax, searchRadius, false, holeBr ? holeBr(cx, cy, cz, cellDom) : null); // holeBr: #3275
   };
 }
 
@@ -855,8 +960,13 @@ export function summarizeSupport(counts0, { tool = "estimate", beyond = 0 } = {}
   let s = `${(counts.interpolated || 0).toLocaleString()} interpolated (${pct(counts.interpolated)}), `
     + `${(counts.extrapolated || 0).toLocaleString()} extrapolated (${pct(counts.extrapolated)}), `
     + `${(counts.unsupported || 0).toLocaleString()} unsupported (${pct(counts.unsupported)})`;
+  // TASKS.csv #3275 — the class is 'between holes' (the traces within the search surround the cell); the cells whose estimate drew on samples
+  // that do not surround them are said apart. searchLimited (the 64 nearest composites surround it) stays for runs saved before.
+  if (counts.oneSided) {
+    s += `. Of the interpolated cells (between holes: the holes within the search surround them), ${counts.oneSided.toLocaleString()} were estimated from samples that do not surround them (the nearest samples used came from fewer holes or one side). ${tool === "shell" ? "A grade shell takes the 16 nearest samples per cell; longer composites spread them over more of the holes around it." : "Raising max samples, lengthening composites or limiting samples per hole lets those estimates draw on the holes around them."}`;
+  }
   if (counts.searchLimited) {
-    s += `. Of the extrapolated cells, ${counts.searchLimited.toLocaleString()} DO have data surrounding them inside the search radius — the neighbourhood simply never reached it (every sample used came from nearer composites in fewer holes). ${tool === "shell" ? "Longer composites would convert those (a grade shell takes the 16 nearest samples per cell; Max samples and samples per hole are set in Estimate grade into block model)." : "Raising max samples, lengthening composites, or limiting samples per hole would convert those."}`;
+    s += `. Of the extrapolated cells, ${counts.searchLimited.toLocaleString()} DO have data surrounding them among the nearest composites the search read (up to 64) — the neighbourhood simply never reached it (every sample used came from nearer composites in fewer holes). ${tool === "shell" ? "Longer composites would convert those (a grade shell takes the 16 nearest samples per cell; Max samples and samples per hole are set in Estimate grade into block model)." : "Raising max samples, lengthening composites, or limiting samples per hole would convert those."}`;
   }
   return s;
 }
@@ -1093,8 +1203,26 @@ function solve4(Min, rhs, scale) {
 //     the nearest candidate, so that nearest candidate must be inside safeD2 too.
 // Conservative by construction: when it can't prove completeness it simply keeps walking, ending in the
 // worst case at the same full scan the old code always did.
-function settled(dists, safeD2, maxSamples, minSamples, minHoles, restrictToDomain, maxPerHole = 0) {
-  if (safeD2 <= 0 || !dists.length) return false;
+// #3256 — settled() without a domain rule, from the gatherer's running figures (the same answers: the kth nearest, the nearest, and with a
+// per-hole cap the maxSamples-th smallest of the holes' cap nearest)
+function settledRunning(inc, safeD2, maxSamples, need) {
+  if (safeD2 <= 0 || !inc.count) return 0;
+  if (inc.nearest > safeD2) return 0;
+  const kth = inc.count >= need ? inc.top[Math.min(maxSamples, need) - 1] : Infinity;
+  if (!inc.perHole) return kth <= safeD2 ? SETTLED : 0;
+  if (kth > safeD2) return 0;
+  const top = [];
+  for (const a of inc.perHole.values()) for (const d2 of a) {
+    if (top.length < maxSamples) { let j = top.length - 1; top.push(d2); while (j >= 0 && top[j] > d2) { top[j + 1] = top[j]; j--; } top[j + 1] = d2; }
+    else if (d2 < top[maxSamples - 1]) { let j = maxSamples - 2; while (j >= 0 && top[j] > d2) { top[j + 1] = top[j]; j--; } top[j + 1] = d2; }
+  }
+  return top.length >= maxSamples && top[maxSamples - 1] <= safeD2 ? SETTLED : 0;
+}
+// -> 0 (walk on), SETTLED (every candidate that can be used lies within safeD2), or SETTLED_KEEP_ALL (stop, but keep what was found: the
+// nearest has no domain, so the block is rejected or, with noCodeAsDomain, takes the no-code candidates as they are)
+const SETTLED = 1, SETTLED_KEEP_ALL = 2;
+function settled(D2, P, n, safeD2, maxSamples, minSamples, minHoles, restrictToDomain, maxPerHole = 0) {
+  if (safeD2 <= 0 || !n) return 0;
   const need = Math.max(maxSamples, minSamples, minHoles, 1);
   // kth smallest d2 among the entries passing `keep`, or Infinity if there aren't k of them. A bounded
   // insertion buffer rather than a sort: this runs once per ring per cell, and sorting the whole
@@ -1102,50 +1230,67 @@ function settled(dists, safeD2, maxSamples, minSamples, minHoles, restrictToDoma
   const kthAndNearest = (keep) => {
     const top = []; // ascending, at most `need` entries
     let nearest = Infinity, count = 0;
-    for (let i = 0; i < dists.length; i++) {
-      const d = dists[i];
-      if (keep && !keep(d)) continue;
+    for (let i = 0; i < n; i++) {
+      if (keep && !keep(P[i])) continue;
+      const d2 = D2[i];
       count++;
-      if (d.d2 < nearest) nearest = d.d2;
+      if (d2 < nearest) nearest = d2;
       if (top.length < need) {
         let j = top.length - 1;
-        top.push(d.d2);
-        while (j >= 0 && top[j] > d.d2) { top[j + 1] = top[j]; j--; }
-        top[j + 1] = d.d2;
-      } else if (d.d2 < top[need - 1]) {
+        top.push(d2);
+        while (j >= 0 && top[j] > d2) { top[j + 1] = top[j]; j--; }
+        top[j + 1] = d2;
+      } else if (d2 < top[need - 1]) {
         let j = need - 2;
-        while (j >= 0 && top[j] > d.d2) { top[j + 1] = top[j]; j--; }
-        top[j + 1] = d.d2;
+        while (j >= 0 && top[j] > d2) { top[j + 1] = top[j]; j--; }
+        top[j + 1] = d2;
       }
     }
     return { kth: count >= need ? top[Math.min(maxSamples, need) - 1] : Infinity, nearest, count };
   };
 
   const all = kthAndNearest(null);
-  if (all.nearest > safeD2) return false; // even the nearest sample isn't settled yet
+  if (all.nearest > safeD2) return 0; // even the nearest sample isn't settled yet
   // #642 — with a per-hole cap the used set can reach past the nearest maxSamples (other holes' samples further
   // out), so it is settled only once the capped selection is full and its furthest member is inside safeD2.
   // Short of that the walk goes on to the search radius (where it stops anyway).
-  const capped = perHoleCap(maxSamples, minHoles, maxPerHole) !== Infinity;
+  const cap = perHoleCap(maxSamples, minHoles, maxPerHole), capped = cap !== Infinity;
   // TASKS.csv #662 — the capped selection takes maxSamples entries from the distance-sorted list, so its furthest
   // member is never nearer than the maxSamples-th nearest candidate overall (nor than that within one domain, a
   // subset). While that one is outside safeD2 the capped set cannot be settled either: answer without the sort.
   // Measured before this: min holes 2 made a 976k-node grade-shell grid 2.7x and a 1M block model 4.3x slower.
-  if (capped && all.kth > safeD2) return false;
+  if (capped && all.kth > safeD2) return 0;
+  // TASKS.csv #3256 — the capped selection (selectUsed: the nearest first, at most `cap` from a hole, up to maxSamples) is the maxSamples
+  // smallest among each hole's `cap` nearest: per-hole bounded buffers, then the maxSamples-th of them, instead of filtering and sorting the
+  // whole candidate list on every ring (two thirds of a 500 m run's time)
   const cappedSettled = (keep) => {
-    const used = selectUsed(dists.filter((d) => !keep || keep(d)).sort((a, b) => a.d2 - b.d2), maxSamples, minHoles, maxPerHole);
-    return used.length >= maxSamples && used[used.length - 1].d2 <= safeD2;
+    const per = new Map();
+    for (let i = 0; i < n; i++) {
+      const p = P[i];
+      if (keep && !keep(p)) continue;
+      const d2 = D2[i];
+      let a = per.get(p.hole_id);
+      if (!a) per.set(p.hole_id, (a = []));
+      if (a.length < cap) { let j = a.length - 1; a.push(d2); while (j >= 0 && a[j] > d2) { a[j + 1] = a[j]; j--; } a[j + 1] = d2; }
+      else if (d2 < a[cap - 1]) { let j = cap - 2; while (j >= 0 && a[j] > d2) { a[j + 1] = a[j]; j--; } a[j + 1] = d2; }
+    }
+    const top = [];
+    for (const a of per.values()) for (const d2 of a) {
+      if (top.length < maxSamples) { let j = top.length - 1; top.push(d2); while (j >= 0 && top[j] > d2) { top[j + 1] = top[j]; j--; } top[j + 1] = d2; }
+      else if (d2 < top[maxSamples - 1]) { let j = maxSamples - 2; while (j >= 0 && top[j] > d2) { top[j + 1] = top[j]; j--; } top[j + 1] = d2; }
+    }
+    return top.length >= maxSamples && top[maxSamples - 1] <= safeD2 ? SETTLED : 0;
   };
   if (capped && !restrictToDomain) return cappedSettled(null);
   if (restrictToDomain) {
     let dom = null;
-    for (let i = 0; i < dists.length; i++) if (dists[i].d2 === all.nearest) { dom = dists[i].domain; break; }
-    if (dom == null) return true; // this cell gets rejected outright; more candidates can't change that
-    if (capped) return cappedSettled((d) => d.domain === dom);
-    const inDom = kthAndNearest((d) => d.domain === dom);
-    return inDom.kth <= safeD2;
+    for (let i = 0; i < n; i++) if (D2[i] === all.nearest) { dom = P[i].domain ?? null; break; }
+    if (dom == null) return SETTLED_KEEP_ALL; // this cell gets rejected outright; more candidates can't change that
+    if (capped) return cappedSettled((p) => (p.domain ?? null) === dom);
+    const inDom = kthAndNearest((p) => (p.domain ?? null) === dom);
+    return inDom.kth <= safeD2 ? SETTLED : 0;
   }
-  return all.kth <= safeD2;
+  return all.kth <= safeD2 ? SETTLED : 0;
 }
 
 // TASKS.csv #142 — dense-grid sibling of estimateBlockModel for the numeric (grade-shell) implicit
@@ -1168,7 +1313,7 @@ export function estimateDenseGrid(samplePoints, opts) {
   const twK = method === "ok" ? withTrend(samplePoints, opts) : null; // #709 — kriging works on grade shells too
   const variogram = method === "ok" ? resolveVariogram(twK.pts, opts.variogram, cellSize) : null;
   if (variogram) out.variogram = variogram;
-  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, noCodeAsDomain, variogram, supportRef: opts.supportRef, materialHoles: !!opts.materialHoles, nearHoleM: Math.max(dx, dy, dz) }; // supportRef: #1411; materialHoles: #1573; nearHoleM: #3255
+  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, noCodeAsDomain, variogram, supportRef: opts.supportRef, materialHoles: !!opts.materialHoles, nearHoleM: Math.max(dx, dy, dz), ...(opts.holeBracket === false ? { holeBracket: false } : {}) }; // holeBracket: #3275 (false: the samples-used class, for comparison) // supportRef: #1411; materialHoles: #1573; nearHoleM: #3255
   // TASKS.csv #91/#92 — opt-in per-node data-support classification, OFF by default so no existing
   // caller pays for it. When on, the grid carries two extra parallel arrays on the same
   // [ix + nx * (iy + ny * iz)] indexing as `values`, so a mesh extracted from this grid can be coloured
@@ -1183,7 +1328,7 @@ export function estimateDenseGrid(samplePoints, opts) {
   const est = tw.q ? (x, y, z) => est0(...tw.q(x, y, z)) : est0;
   const supportCode = wantSupport ? new Uint8Array(totalBlocks) : null; // 0 unsupported / 1 extrapolated / 2 interpolated
   const supportIdx = wantSupport ? new Float32Array(totalBlocks) : null;
-  const supportCounts = { interpolated: 0, extrapolated: 0, unsupported: 0, searchLimited: 0 };
+  const supportCounts = { interpolated: 0, extrapolated: 0, unsupported: 0, searchLimited: 0, oneSided: 0 }; // oneSided: #3275
   let estimated = 0;
   let singleHoleCells = 0, dominatedCells = 0; // dominatedCells: #676
   for (let iz = 0; iz < nz; iz++) {
@@ -1201,6 +1346,7 @@ export function estimateDenseGrid(samplePoints, opts) {
           supportIdx[rowBase + ix] = sup ? sup.index : 0;
           supportCounts[sup ? sup.cls : SUPPORT_UNSUPPORTED]++;
           if (sup && sup.cls === SUPPORT_EXTRAPOLATED && sup.dataBracketed) supportCounts.searchLimited++;
+          if (sup && sup.oneSided) supportCounts.oneSided++; // #3275
         }
         if (!r || r.skip) continue; // skip: #2541
         if (r.nHoles === 1) singleHoleCells++;

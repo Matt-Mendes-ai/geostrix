@@ -57,7 +57,7 @@ test("the menu shows each bin's rows and memory; the commit picks the same bin a
   assert.match(box, /const est = useMemo\(\(\) => \(shown \? logBinEstimate\(src, modal\.mapping\) : null\), \[shown, src, modal\.mapping\]\);/);
   assert.match(box, /effectiveLogBin\(modal, readings, ticked\.length, est\)/);
   assert.match(box, /LOG_BINS\.map\(\(b\) =>/);
-  const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(u, /defaultLogBin\(readings, chans\.length, needsBinning\(readings, chans\.length\) \? logBinEstimate\(src, mapping\) : null\)/);
   for (const l of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));

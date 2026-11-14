@@ -12,7 +12,19 @@ export const depthKey = (hole, d) => `${hole}|${Number(d).toFixed(3)}`;
 // them was most of Contact picks' time once the trace lookups were fixed. They are now hole -> (whole millimetres -> values), about
 // six times faster to build; read them with depthIndexAt(index, hole, depth) (the same 1 mm match, holes compared as text).
 const mmOf = (d) => Math.round(Number(d) * 1000);
+// TASKS.csv #3170 — kept per rows array and field: a six-unit stack on WA iron built the same two indexes over 150,455 intervals twice per
+// unit (the unit's own rows are the litho rows without modelling-code assignments, and the raw-code pair beside them), about 0.6 s of the
+// run's first main-thread task. Callers only read them (depthIndexAt).
+const depthIndexMemo = { from: new WeakMap(), to: new WeakMap() };
 function depthIndex(rows, field) {
+  const memo = Array.isArray(rows) ? depthIndexMemo[field] : null;
+  const kept = memo?.get(rows);
+  if (kept) return kept;
+  const m = depthIndexOf(rows, field);
+  if (memo) memo.set(rows, m);
+  return m;
+}
+function depthIndexOf(rows, field) {
   const m = new Map();
   let last, hm = null;
   for (const r of rows || []) {

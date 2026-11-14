@@ -45,7 +45,7 @@ test("a collar's attrs take the ISO date and a year field, which the hole filter
 });
 
 test("the collar import reads the date columns and says so", () => {
-  const s = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const s = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(s, /\.\.\.withHoleType\(withDates\(surfaceAttrs\(r, attrCols\)\), r\)/);
   assert.match(s, /tr\("\{fileName\}: \{cols\} read as dates/);
   assert.match(s, /tr\("\{fileName\}: \{cols\} kept as written: every date there could be day\/month or month\/day\."/);

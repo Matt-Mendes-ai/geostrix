@@ -26,6 +26,7 @@ import { interceptRows, optionalInterceptColumns } from "../lib/drillReportExpor
 import { localDate } from "../lib/localDate.js"; // TASKS.csv #2358
 import { cutoffOnElementChange, rememberInterceptCutoff } from "../lib/interceptCutoff.js"; // TASKS.csv #2513; remember: #3069
 import { interceptTablePlan, interceptCount, columnFormat, continuationRanges } from "../lib/interceptTable.js"; // continuationRanges: #2708
+import { DISPLAY_UNITS, isPlainUnit, displayFactor, toDisplay, fromDisplay, unitSlug } from "../lib/displayUnits.js"; // TASKS.csv #3236
 import { BULK_COMMODITIES } from "../lib/preferredElement.js"; // TASKS.csv #2923 — no metal equivalent for a bulk commodity
 import { elementOptionLabel, isLoiHeader } from "../lib/geochem.js"; // TASKS.csv #2923 — 'Si as SiO2' in the price rows; isLoiHeader: #2924 // TASKS.csv #2200 / #2479; columnFormat: #3019
 import { pagePx, pageFormatOf } from "../lib/pageFormats.js"; // TASKS.csv #2479
@@ -44,7 +45,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
   const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
-  const { desurveyMethod, project, getProjectToken, setLayoutElements, addLayoutPages, switchLayoutPage, layoutElements = [], layoutPages = [], activeLayoutPageId, goToModule, geochemThresholds = [] } = useStore(); // addLayoutPages: #3019 // layoutElements / pages: #2479 // TASKS.csv #135 — true-width needs the project's own trace; layout: #911; geochemThresholds: #2347
+  const { desurveyMethod, project, getProjectToken, setLayoutElements, addLayoutPages, switchLayoutPage, setDisplayUnit, layoutElements = [], layoutPages = [], activeLayoutPageId, goToModule, geochemThresholds = [] } = useStore(); // addLayoutPages: #3019 // layoutElements / pages: #2479 // TASKS.csv #135 — true-width needs the project's own trace; layout: #911; geochemThresholds: #2347
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
   const lead = useLeadCommodity();
@@ -60,12 +61,20 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
   const [asPct, setAsPct] = useKeptState(keptScope, "bi.asPct", false);
   const [continuePages, setContinuePages] = useKeptState(keptScope, "bi.continuePages", false); // TASKS.csv #2708
   const pctOk = unit === "ppm" && !PRECIOUS_METALS.has(symbol);
-  const pct = pctOk && asPct;
-  const dispUnit = pct ? "%" : unitL;
-  const dg = (v) => (pct ? v / 1e4 : v);
+  // TASKS.csv #3236 — the unit shown is the project's choice for the element (project.displayUnits, set in 'Show in' below, kept with the
+  // project); 'Show as %' (kept for the session, #3223) moves into it once. A project's choice is read whatever the build; before the store
+  // has the setter, 'Show as %' works as it did for an element with no choice.
+  const unitsKept = typeof setDisplayUnit === "function";
+  const chosen = project?.displayUnits?.[symbol];
+  const shownUnit = isPlainUnit(unit) && isPlainUnit(chosen) ? chosen : !unitsKept && pctOk && asPct ? "%" : null;
+  useEffect(() => { if (unitsKept && asPct) { if (pctOk && !chosen) setDisplayUnit(symbol, "%"); setAsPct(false); } }, [unitsKept, asPct, pctOk, chosen, symbol]);
+  const conv = shownUnit != null && displayFactor(unit, shownUnit) !== 1; // a converted value
+  const pct = conv; // the name the code below reads (#3221): 'the grades are shown converted'
+  const dispUnit = shownUnit || unitL; // a chosen unit, else the stored one's label (g/t for a precious metal in ppm, #1680)
+  const dg = (v) => (conv ? toDisplay(v, unit, shownUnit) : v);
   // TASKS.csv #3221 (review #3195, Galore Creek) — 'Show as %' left the cut-off and 'Including at' boxes in ppm (a 0.2 typed for 0.2 % was a
   // 0.2 ppm cut-off) and the CuEq column in ppm: with it on, the boxes are typed in % and stored in ppm, rounded so the box shows what was typed
-  const toStored = (v) => (pct ? +(v * 1e4).toPrecision(12) : v), shownBox = (v) => (pct ? +(v / 1e4).toPrecision(12) : v);
+  const toStored = (v) => (conv ? fromDisplay(v, unit, shownUnit) : v), shownBox = (v) => (conv ? +toDisplay(v, unit, shownUnit).toPrecision(12) : v); // #3236 — any plain unit
   // TASKS.csv #1387 (review #1352) — a cutoff belongs to its element: Ag 30 ppm became "Cutoff (%) = 30" for Pb. Each element keeps
   // the cutoff last used with it; one not used yet starts at its 90th percentile (one significant figure), said in the box's tooltip.
   // #1678 — the element the tool opens on too (it opened at 0.5 whatever the element: every Cu interval in ppm passed)
@@ -272,10 +281,12 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
     const loc = interceptLocations(results, collars, survey, desurveyMethod, tracesByHole);
     const rows = interceptRows(results, { symbol: gradeSym, unit, loc, trueWidth: twEnabled ? { dipDir: twDipDir, dip: twDip } : null, domain: !!domainLayer, // #1083 — in lib, tested
       extraSymbols: shownExtras, elementUnits, including: incOn ? { cutoff: includeCutoff, text: incText } : null, meq: meqCol ? meqFor : null });
-    if (pct) rows.forEach((row, i) => { row[`avg_${gradeSym}_pct`] = +(results[i].avgGrade / 1e4).toPrecision(6); }); // #1680 — beside the stored ppm column
+    // #1680 — beside the stored-unit column (avg_<sym>_<stored unit>); #3236 — named for the unit shown, and said in the header
+    if (conv) rows.forEach((row, i) => { row[`avg_${gradeSym}_${unitSlug(dispUnit)}`] = +dg(results[i].avgGrade).toPrecision(6); });
     // TASKS.csv #404 — the parameters behind these intercepts, at the top of the file.
     const stamp = stampLines({ tool: "Best intercepts", version: APP_VERSION, epsg: stampEpsg(project) /* #2195 */, params: [
       `Element: ${gradeSym} (${unit})${onEq ? " (per-sample metal equivalent)" : ""} | cutoff: ${cutoff} | max consecutive internal dilution: ${maxInternalDilution} m | min intercept length: ${minLength} m | min grade x length: ${minGradeLen}`,
+      ...(conv ? [`Display unit: ${gradeSym} is shown in ${dispUnit}; the avg_${gradeSym}_${unitSlug(dispUnit)} column is in ${dispUnit}, every other grade column and the cutoff above in ${unit} (as stored)`] : []), // TASKS.csv #3236
       // TASKS.csv #501/#502 — this now describes what computeBestIntercepts actually does (it used to dilute at zero)
       `Grades: length-weighted over assayed metres only; unsampled / not-assayed metres inside an intercept are left out of the grade and reported per row (unsampled_or_unassayed_m), not diluted in at zero. Empty cells were read at import as either not assayed or below detection ('<DL' at half), as chosen for each file.`,
       `QAQC inserts: ${includeQAQC ? "INCLUDED" : `excluded (${qaqcExcludedCount} rows)`}`,
@@ -313,7 +324,12 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
                 {symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, elementUnits[s])})</option>)}
               </select>
             </label>
-            {pctOk && <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 4, cursor: "pointer" }} title={tr("Show the grades as % (ppm / 10,000) in the table, the Layout table and an extra CSV column. The cut-off and 'Including at' are then typed in % too.")}><input type="checkbox" checked={asPct} onChange={(e) => setAsPct(e.target.checked)} />{tr("Show as %")}</label>}
+            {!unitsKept && pctOk && <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 4, cursor: "pointer" }} title={tr("Show the grades as % (ppm / 10,000) in the table, the Layout table and an extra CSV column. The cut-off and 'Including at' are then typed in % too.")}><input type="checkbox" checked={asPct} onChange={(e) => setAsPct(e.target.checked)} />{tr("Show as %")}</label>}
+            {unitsKept && isPlainUnit(unit) && <label style={fieldLabel} title={tr("The unit {symbol} is shown in, kept with the project: this table, the Layout table and an extra CSV column. The stored values and the CSV's stored-unit columns are unchanged; the cut-off and 'Including at' are typed in the unit shown.", { symbol })}>{tr("Show in")}
+              <select value={shownUnit || ""} onChange={(e) => setDisplayUnit(symbol, e.target.value || null)} style={inp} aria-label={tr("Show in")}>
+                <option value="">{tr("As stored ({unit})", { unit: unitL })}</option>
+                {DISPLAY_UNITS.filter((u) => u !== unitL).map((u) => <option key={u} value={u}>{u}</option>)}
+              </select></label>}{/* TASKS.csv #3236 */}
             <label style={fieldLabel}>{tr("Cutoff ({unit})", { unit: dispUnit /* #3221 */ })}<input type="number" step="any" value={shownBox(cutoff)} onChange={(e) => { setCutoff(toStored(Number(e.target.value) || 0)); setSuggested(null); setCutoffNote(null); }} style={inp} title={suggested != null && cutoff === suggested ? tr("Suggested: this element's 90th percentile. Set the cutoff you report at.") : undefined} />
             </label>
             {suggested != null && cutoff === suggested && (() => { const med = quantileOf(symbol, 0.5), q3 = quantileOf(symbol, 0.75); return ( /* TASKS.csv #3223 — said beside the box, not only in its tooltip */
@@ -451,7 +467,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
                     {optionalInterceptColumns({ including: incOn, metalEquivalent: meqCol }).map((c) => (c === "including"
                       ? <th key={c} style={th}>{tr("Including (≥ {includeCutoff})", { includeCutoff: `${shownBox(Number(includeCutoff))} ${dispUnit}` /* #3221 */ })}</th>
                       : <th key={c} style={th} title={metalEquivalentFormula(meqMetals)}>{tr("{symbol}Eq ({unit})", { symbol, unit: dispUnit /* #3221 */ })}</th>))}
-                    {shownExtras.map((s) => <th key={s} style={th}>{tr("Avg {s} ({v})", { s, v: s === symbol && pct ? "%" : elementUnits[s] || tr("ppm") /* #3221 */ })}</th>)}
+                    {shownExtras.map((s) => <th key={s} style={th}>{tr("Avg {s} ({v})", { s, v: s === symbol && pct ? dispUnit : elementUnits[s] || tr("ppm") /* #3221; #3236 — the unit shown */ })}</th>)}
                     <th style={th} title={tr("The assay intervals in the intercept at or above the cutoff")}>{tr("Samples ≥ cutoff")}</th>{/* #1393 — it counts those only */}
                   </tr>
                 </thead>

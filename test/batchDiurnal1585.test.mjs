@@ -37,7 +37,7 @@ test("the import path: every survey file is matched to its day's bases, the noti
   const s = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
   assert.match(s, /const day = gemHeaderInfo\(text\)\.date \|\| fileNameDate\(f\.name\);/);
   assert.match(s, /bases\.filter\(\(b\) => b\.date === day\)/);
-  assert.match(s, /diurnalCorrect\(cleaned\.rows\.map\(\(r\) => r\[timeCol\]\), cleaned\.rows\.map\(\(r\) => r\[valueCol\]\), dayBases\)/);
+  assert.match(s, /diurnalCorrect\(cleaned\.rows\.map\(\(r\) => r\[timeCol\]\), cleaned\.rows\.map\(\(r\) => r\[vCol\]\), dayBases\)/);
   assert.match(s, /Diurnal-corrected \{files\} of \{n\} files against their day's base/);
   assert.match(s, /No base for \{v\}: imported raw\./);
   assert.match(s, /Not diurnal-corrected: no base-station files were loaded\./);

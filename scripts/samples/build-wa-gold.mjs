@@ -57,8 +57,10 @@ const only = (name) => read(name).filter((r) => holes.has(txt(r.Hole_ID)));
 // lithology: the primary code and the oxidation state. Every row is Priority 0 (one log per hole); no interval overlaps another.
 const geo = only("geology.csv");
 if (new Set(geo.map((r) => txt(r.Priority))).size !== 1) throw new Error("the lithology log has more than one priority: decide which to keep");
-const litho = geo.map((r) => ({ ...iv(r), lithology: txt(r.Lith1_Code), weathering: txt(r.Lith1_Oxidation) })).filter((r) => within(r) && r.lithology);
-write("litho.csv", ["hole_id", "from", "to", "lithology"], litho);
+// TASKS.csv #3308 (Matt: "re import the lithologies for the sample projects and add the description field") — the geologist's
+// comment on the interval (the source's Comments: 4,456 of 4,629 rows), whitespace collapsed, as the layer's description
+const litho = geo.map((r) => ({ ...iv(r), lithology: txt(r.Lith1_Code), weathering: txt(r.Lith1_Oxidation), description: txt(r.Comments).replace(/\s+/g, " ") })).filter((r) => within(r) && r.lithology);
+write("litho.csv", ["hole_id", "from", "to", "lithology", "description"], litho);
 write("weath.csv", ["hole_id", "from", "to", "weathering"], litho.filter((r) => r.weathering));
 
 // alteration: the first code of each interval and its intensity (0 to 5). The company logs sulphides (PO, PY) in this table too.

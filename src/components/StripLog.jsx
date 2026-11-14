@@ -360,7 +360,8 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                         <rect x={x0 + (r.lane || 0) * w} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={t.colorFn(r.value)} stroke={lanes > 1 ? "#fff" : undefined} strokeWidth={lanes > 1 ? 0.5 : undefined}>
                           {(() => { // #2821 — every interval names its code (and its meaning); a lane's percent as before (#1254)
                             const n = t.nameFn ? t.nameFn(r.value) : r.value, m = meaningOf(t, r.value, String(n)), name = String(n) !== String(r.value) ? ` (${n})` : "";
-                            return (lanes > 1 || m) ? <title>{`${r.value}${name}${m ? ` — ${m}` : ""}${Number.isFinite(r.extra) ? ` ${r.extra} %` : ""}, ${r.from}–${r.to} m`}</title> : null;
+                            const d = typeof r.description === "string" && r.description.trim() ? `\n${r.description.trim()}` : ""; // TASKS.csv #3308 — the interval's own description, as logged
+                            return (lanes > 1 || m || d) ? <title>{`${r.value}${name}${m ? ` — ${m}` : ""}${Number.isFinite(r.extra) ? ` ${r.extra} %` : ""}, ${r.from}–${r.to} m${d}`}</title> : null;
                           })()}
                         </rect>
                         {t.key === "litho" && patternOf(r.value) && <rect x={x0} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={patternFill(patternOf(r.value), t.colorFn(r.value))} style={{ pointerEvents: "none" }} />}{/* #1995 — white lines on a dark colour */}

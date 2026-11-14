@@ -21,13 +21,13 @@ test("#2481 axis numbers to n figures never print in exponent notation", () => {
   assert.equal(sigText(0.000123456, 2), "0.00012");
   assert.equal(sigText(2.5, 3), "2.5");
   assert.equal(sigText("x", 3), "x");
-  const src = readFileSync(new URL("../src/components/StripLog.jsx", import.meta.url), "utf8");
+  const src = readFileSync(new URL("../src/components/StripLog.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.ok(!/\.toPrecision\(/.test(src), "StripLog formats its numbers through sigText");
   assert.match(src, /headerLines\(t\.label, TRACK_W - 8\)/);
 });
 
 test("#2142 the section's title sits inside its SVG: the viewBox grows upward by what the scaled title needs", () => {
-  const src = readFileSync(new URL("../src/components/SectionWindow.jsx", import.meta.url), "utf8");
+  const src = readFileSync(new URL("../src/components/SectionWindow.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(src, /topExtra = Math\.max\(0, Math\.ceil\(fs\(12\) \+ 4 - titleY\)\)/);
   assert.match(src, /viewBox=\{`0 \$\{-topExtra\} \$\{W\} \$\{totalH \+ topExtra\}`\}/);
   assert.match(src, /<text x=\{PAD\} y=\{titleY\}/);

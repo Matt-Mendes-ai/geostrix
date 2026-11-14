@@ -107,7 +107,7 @@ test("wired: the Geophysics tab reads .edi files into the MT pane; the 3D View p
   assert.ok(g.includes('const MtSoundingsPane = React.lazy(() => import("../components/MtSoundingsPane.jsx"));'));
   assert.match(g, /if \(edis\.length\) \{ setMtDrop\(edis\); setGeoPane\("mt"\); \}/);
   assert.match(g, /\{geoPane === "mt" && \(<Suspense fallback=\{null\}><MtSoundingsPane /);
-  const p = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const p = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.ok(p.includes("MT / AMT soundings are read on the Geophysics tab."));
   const pane = readFileSync(new URL("../src/components/MtSoundingsPane.jsx", import.meta.url), "utf8");
   assert.match(pane, /askAdoptCrs\(\{ isEmpty: projectIsEmpty, currentEpsg: target, declaredEpsg: 4326/);

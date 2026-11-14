@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { notice, noticeLevel } from "../src/lib/notices.js";
 
-const u = fs.readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+const u = fs.readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
 
 test(".xyz goes to the Geophysics tab's import", () => {
   assert.match(u, /const xyzFiles = grouped\.files\.filter\(\(f\) => \/\\\.xyz\$\/i\.test\(f\.name\)\);/);

@@ -4,14 +4,16 @@
 // (#264): no bench, berm or face angle is assumed.
 import { nearUnsampledMayBeStale } from "../lib/unsampledFlags.js"; // TASKS.csv #3065
 import React, { useMemo, useRef, useState } from "react";
-import { metalAmountText, elementOfModel, gradeWithElement } from "../lib/pitShell.js"; // TASKS.csv #2434
+import { metalAmountText, elementOfModel, gradeWithElement, gradeUnitText /* #3328 */ } from "../lib/pitShell.js"; // TASKS.csv #2434
 import { shellWallCompare } from "../lib/pitWalls.js"; // TASKS.csv #2433
 import { Layers3, Eye, EyeOff, Trash2, Download, Maximize2 } from "./icons.js"; // Maximize2: #2996
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // #1498
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
 import { runPitDesignAsync } from "../lib/pitDesignClient.js";
-import { benchStringRows, benchStringFeatures, benchTableRows, predictDesignCell, benchHeightThatDraws, MAX_DESIGN_CELLS } from "../lib/pitDesign.js"; // predictDesignCell: #1916
+import { benchStringRows, benchStringFeatures, benchTableRows, predictDesignCell, benchHeightThatDraws, MAX_DESIGN_CELLS, designDepth /* #3316 */ } from "../lib/pitDesign.js";
+import { collarGround } from "../lib/collarGround.js"; // TASKS.csv #3316
+import { terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #3316 // predictDesignCell: #1916
 import { buildDXF } from "../lib/dxf.js";
 import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
@@ -79,8 +81,13 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
     const p = pit && worldPositionsOf?.(pit.id); if (!p) return null;
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;
     for (let i = 0; i < p.length; i += 3) { if (p[i] < x0) x0 = p[i]; if (p[i] > x1) x1 = p[i]; if (p[i + 1] < y0) y0 = p[i + 1]; if (p[i + 1] > y1) y1 = p[i + 1]; if (p[i + 2] < z0) z0 = p[i + 2]; if (p[i + 2] > z1) z1 = p[i + 2]; }
-    return Number.isFinite(x0) ? { w: x1 - x0, h: y1 - y0, zRange: z1 - z0 } : null; // zRange: #2278 — crest to floor, as the run counts benches
-  }, [pit, worldPositionsOf]);
+    if (!Number.isFinite(x0)) return null;
+    // TASKS.csv #3316 — the run counts its benches from the highest ground over the shell's lattice (terrain, else the collars' surface), not the
+    // mesh's crest: the same depth here, so the line and the run agree on rising ground
+    const groundAt = terrain ? (x, y) => terrainGroundAt(terrain, x, y) : collars?.length ? collarGround(collars) : null;
+    const dd = designDepth(p, groundAt);
+    return { w: x1 - x0, h: y1 - y0, zRange: Math.max(z1 - z0, dd || 0) }; // zRange: #2278 — crest to floor, as the run counts benches
+  }, [pit, worldPositionsOf, terrain, collars]);
   const areaBox = useMemo(() => { if (!area) return null; const xs = area.vertices.map((q) => q[0]), ys = area.vertices.map((q) => q[1]); return { w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) }; }, [area]);
   const largestBox = !area && pitCount > 1 && largestOnly && Array.isArray(pit?.params?.largestPitBoxM) ? { w: pit.params.largestPitBoxM[0], h: pit.params.largestPitBoxM[1] } : null; // #1926
   const predictArgs = (shellBox || areaBox) && pit ? { boxW: Math.min(areaBox?.w ?? Infinity, largestBox?.w ?? shellBox?.w ?? Infinity), boxH: Math.min(areaBox?.h ?? Infinity, largestBox?.h ?? shellBox?.h ?? Infinity), /* the run's box is the kept columns': within both */ depth: Math.max(Number(pit.params?.maxDepthM) || 0, shellBox?.zRange || 0), shellCell: Number(pit.params?.gridCellM?.[0]) || 10, berm: v("berm"), batterDeg: v("batterDeg"), sectors: sectorsIn, ramp: rampIn, upper: upperIn /* #2730 */, maxCells: MAX_DESIGN_CELLS } : null; // depth, sectors, ramp: #2278
@@ -95,12 +102,13 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
 
   // TASKS.csv #3084 — the shell's other grades (#2995: params.otherGrades) carried into the bench table, by the same models (a model gone: left out)
   const alsoPairs = (pit?.params?.otherGrades || []).map((g) => ({ g, m: voxelModels.find((x) => x.name === g.blockModel) })).filter((x) => x.m);
-  const alsoLabels = alsoPairs.map(({ g }) => g.label || g.blockModel);
+  const alsoPrices = alsoPairs.map(({ g }) => g.pricing || null); // TASKS.csv #3311 — a priced other grade is priced in the design's ore decision too
+  const alsoLabels = alsoPairs.map(({ g }) => { const l = g.label || g.blockModel, u = g.unit ? gradeUnitText(g.unit, g.element || l) : ""; return u ? `${l} (${u})` : l; }); // #3328 (3) — the bench table's columns with their unit
   const run = async () => {
     const positions = worldPositionsOf?.(pit.id);
     if (!positions) { setMsg(tr("The pit's mesh is not in the view: show it and try again.")); return; }
     const inputs = { benchH: v("benchH"), berm: v("berm"), batterDeg: v("batterDeg"), datum: f.datum === "" ? 0 : Number(f.datum) || 0, ...(sectorsIn ? { sectors: sectorsIn } : {}), ...(rampIn ? { ramp: rampIn } : {}), ...(upperIn ? { upper: upperIn } : {}) /* #2730 */ }; // sectors: #1952; ramp: #1948
-    const opts = { ...inputs, cutoff: Number(pit.params?.cutoffGrade) || Infinity, density: Number(pit.params?.inputs?.density) || 1, wasteDensity: Number(pit.params?.inputs?.wasteDensity) || null /* #2437 */, weathered: (() => { const w = pit.params?.inputs?.weathered; return !w ? null : w.freshCode ? { ...w, points: weatheredBasePoints(layers?.weath || [], holeTraces(collars, survey, desurveyMethod), w.freshCode).points } : w; })() /* #2671 — as the shell */, largestOnly: pitCount > 1 && largestOnly && !area, areaPoly: area ? area.vertices.map((q) => [q[0], q[1]]) : null, economics: byIn && byModel ? { ...pit.params.inputs, unit: unit || pit.params.inputs.unit } : null /* #1917 */ }; // areaPoly: #1916
+    const opts = { ...inputs, cutoff: Number(pit.params?.cutoffGrade) || Infinity, density: Number(pit.params?.inputs?.density) || 1, wasteDensity: Number(pit.params?.inputs?.wasteDensity) || null /* #2437 */, weathered: (() => { const w = pit.params?.inputs?.weathered; return !w ? null : w.freshCode ? { ...w, points: weatheredBasePoints(layers?.weath || [], holeTraces(collars, survey, desurveyMethod), w.freshCode).points } : w; })() /* #2671 — as the shell */, largestOnly: pitCount > 1 && largestOnly && !area, areaPoly: area ? area.vertices.map((q) => [q[0], q[1]]) : null, economics: (byIn && byModel) || alsoPrices.some(Boolean) ? { ...pit.params.inputs, unit: unit || pit.params.inputs.unit, ...(byIn && byModel ? {} : { by: null }), alsoPrices } : null /* #1917; #3311 — the priced other grades too, aligned with alsoPairs (a model gone is left out of both) */ }; // areaPoly: #1916
     setBusy(true); setMsg(null);
     const t0 = performance.now();
     try {

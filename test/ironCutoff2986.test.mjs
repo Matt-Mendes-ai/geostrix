@@ -45,7 +45,7 @@ test("#2986 the pane: the optional field, its check, the line that says which cu
   const p = fs.readFileSync(new URL("../src/components/PitShellPane.jsx", import.meta.url), "utf8");
   assert.ok(p.includes('field("typedCutoff", tr("Cut-off ({unit}, optional)"'));
   assert.ok(p.includes('typedCutoff: "" /* #2986 */'), "restored from a pit's inputs like the other fields");
-  assert.ok(p.includes("by: byInputs, typedCutoff: typedCut /* #2986 */"));
+  assert.ok(p.includes("by: byInputs, alsoPrices /* #3311 */, typedCutoff: typedCut /* #2986 */"));
   assert.ok(p.includes("...(typedCut ? { typedCutoff: typedCut } : {}) /* #2986 */"));
   assert.ok(p.includes("Cut-off grade {c} {unit}, typed: a block below it is waste whatever it would pay."));
   assert.ok(p.includes("UNIT_PRICED.has(String(element || \"\")) && !eco?.cutoffTyped"));

@@ -47,5 +47,5 @@ test("wired: the workers and their fallbacks", () => {
   assert.ok(x.includes('new Worker(new URL("./xlsx.worker.js", import.meta.url)') && x.includes("return viaWorker || xlsxToCsvFiles(bytes, workbookName);"));
   assert.ok(x.includes("await xlsxToCsvFilesAsync(new Uint8Array(await file.arrayBuffer()), file.name)"));
   assert.ok(read("src/lib/viewer/importHelpers.js").includes("xlsxToCsvFilesAsync(new Uint8Array(buf), file.name)"));
-  assert.ok(read("src/modules/viewer/useImportPipeline.js").includes("await xlsxToCsvFilesAsync(new Uint8Array(await f.arrayBuffer()), f.name)"));
+  assert.ok(read("src/modules/viewer/importPipelineImpl.js").includes("await xlsxToCsvFilesAsync(new Uint8Array(await f.arrayBuffer()), f.name)"));
 });

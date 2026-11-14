@@ -30,7 +30,7 @@ test("Data QC checks custom interval layers, not binned logs, modelled layers or
 test("the import leaves a reversed interval out and names it, and counts the overlaps", () => {
   const t = skippedRowsText([{ reason: "reversed", example: "SY-2 8-6" }], 10);
   assert.match(t, /Skipped 1 of 10 row\(s\): 1 To less than From \(a reversed interval\) \(SY-2 8-6\)/);
-  const u = fs.readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = fs.readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(u, /row\.to < row\.from\) \{ cDropped\.push\(\{ reason: "reversed"/);
   assert.match(u, /skippedRowsText\(cDropped, allRows\.length\) \+ customOverlapText\(rows\)/);
 });

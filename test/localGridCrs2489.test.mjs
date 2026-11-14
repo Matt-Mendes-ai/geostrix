@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 test("the import asks for the control points' CRS, refuses without one, and words the notice from the choice", () => {
-  const p = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const p = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   const i = p.indexOf("TASKS.csv #2489"), body = p.slice(i, i + 2400);
   assert.ok(i > 0);
   assert.match(body, /if \(importStateRef\.current\.project\?\.crsSet === false\) \{/);

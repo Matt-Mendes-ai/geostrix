@@ -55,18 +55,18 @@ test("the opt-in sulphide total: the ticked columns summed, named for what it su
   const over = sumRows([{ HOLE_ID: "A", FROM: "0", TO: "1", a_pct: "60", b_pct: "50" }, { HOLE_ID: "A", FROM: "1", TO: "2", a_pct: "", b_pct: "" }], m, ["a_pct", "b_pct"]);
   assert.deepEqual([over.rows.length, over.outside, over.none], [0, 1, 1], "a total over 100 is left out; an interval with none of them is not in the layer");
   const choice = perMineralChoice({ mineralCols: ["MN_PY_pct", "MN_MAG_pct"], mineralSum: ["MN_CPY_pct"] }, percentColumns(headers, rows, m));
-  assert.deepEqual(choice, { cols: ["MN_PY_pct"], sum: ["MN_CPY_pct"] }, "a blank column cannot be ticked");
-  assert.deepEqual(mineralPlan("mnlgy", headers, rows, m, { mineralCols: [], mineralSum: ["MN_CPY_pct"] }), null, "nothing ticked and a one-column total: the Value column import");
-  assert.deepEqual(mineralPlan("mnlgy", headers, rows, m, { mineralCols: [], mineralSum: ["MN_CPY_pct", "MN_PY_pct"] }).sum, ["MN_CPY_pct", "MN_PY_pct"]);
+  assert.deepEqual({ cols: choice.cols, sum: choice.sum }, { cols: ["MN_PY_pct"], sum: ["MN_CPY_pct"] }, "a blank column cannot be ticked"); // mode / colourBy: #3307
+  assert.deepEqual(mineralPlan("mnlgy", headers, rows, m, { mineralMode: "layers" /* #3307: Mineralization defaults to one layer */, mineralCols: [], mineralSum: ["MN_CPY_pct"] }), null, "nothing ticked and a one-column total: the Value column import");
+  assert.deepEqual(mineralPlan("mnlgy", headers, rows, m, { mineralMode: "layers" /* #3307: Mineralization defaults to one layer */, mineralCols: [], mineralSum: ["MN_CPY_pct", "MN_PY_pct"] }).sum, ["MN_CPY_pct", "MN_PY_pct"]);
 });
 
 test("wired into the dialog and the commit, loaded on demand", () => {
-  const p = fs.readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const p = fs.readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(p, /await import\("\.\.\/\.\.\/lib\/perMineralColumns\.js"\)/);
   assert.doesNotMatch(p, /^import .*perMineralColumns/m, "not a startup import");
-  assert.match(p, /\} else if \(minPlan\) \{/);
+  assert.match(p, /\} else if \(minPlan\?\.mode === "layers"\) \{/); // #3307: the one-layer mode is made before the commit
   assert.match(p, /!\(minPlan && f\.key === "value"\)/);
   const d = fs.readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8");
-  assert.match(d, /<MineralPercentBox modal=\{modal\} onChange=\{onChange\} \/>/);
+  assert.match(d, /<MineralPercentBox modal=\{modal\} onChange=\{onChange\} sel=\{sel\} \/>/);
   assert.match(d, /!\(minOn && f\.key === "value"\)/);
 });
