@@ -501,10 +501,10 @@ export function makeVoxelColorResolverRGB(model) {
   const sorted = [...stops].sort((a, b) => a.value - b.value).map((s) => ({ value: s.value, rgb: hexToRgb(s.color) }));
   const discrete = model.colorMode === "discrete";
   return (value) => {
-    if (discrete) {
-      let rgb = sorted[0].rgb;
-      for (const s of sorted) { if (value >= s.value) rgb = s.rgb; else break; }
-      return rgb;
+    if (discrete) { // the last stop at or below the value (else the first); #3365: a binary search, not a scan of every stop per cell
+      let lo = 0, hi = sorted.length - 1, k = 0;
+      while (lo <= hi) { const m = (lo + hi) >> 1; if (value >= sorted[m].value) { k = m; lo = m + 1; } else hi = m - 1; }
+      return sorted[k].rgb;
     }
     if (value <= sorted[0].value) return sorted[0].rgb;
     if (value >= sorted[sorted.length - 1].value) return sorted[sorted.length - 1].rgb;
