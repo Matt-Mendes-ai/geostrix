@@ -24,5 +24,5 @@ test("#2404 U3O8 in millions of pounds, from the U3O8 tonnes", () => {
 test("#2404 the table's grade header names its unit", () => {
   const m = readFileSync(new URL("../src/components/GradeTonnageModal.jsx", import.meta.url), "utf8");
   assert.match(m, /unitL \? tr\("Mean grade \(\{unit\}\)", \{ unit: unitL \}\) : tr\("Mean grade"\)/);
-  assert.equal((m.match(/c\.key\.startsWith\("metal_mlb"\) \? sig\(r\.metal \* c\.factor\)/g) || []).length, 2); // both tables
+  assert.equal((m.match(/\{r\.metal == null \? "—" : sig\(r\.metal \* c\.factor\)/g) || []).length, 2); // both tables; #3284 — every metal column to 3 significant figures, Mlb among them
 });

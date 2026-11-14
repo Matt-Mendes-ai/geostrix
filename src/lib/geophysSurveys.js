@@ -289,3 +289,27 @@ export function soleValueColumn(columns, rows, used = []) {
   const cands = (columns || []).filter((c) => !skip.has(c) && !NOT_VALUE.test(String(c).trim()) && numeric(c));
   return cands.length === 1 ? cands[0] : null;
 }
+
+// TASKS.csv #3321 (Galore Creek review: 'Grid with equivalent sources…' was offered on IP chargeability, resistivity, an electrode list and a
+// 3D cloud) — equivalent sources continue a potential field measured on or above the ground: offered for magnetic and gravity surveys, and
+// for one not labelled (with what it assumes); not for other methods. The derived points at depth stay without the button (#1985 / #1994 /
+// #1986). -> "hidden" | "ok" | "assume" | "no"
+export const EQS_HIDDEN = new Set(["euler_depth", "mt_bostick", "lidar", "em1d_cond", "worms_height", "tiltdepth_depth"]);
+export function eqsApplies(method) {
+  if (!method || method === "other") return "assume";
+  if (EQS_HIDDEN.has(method)) return "hidden";
+  const g = SURVEY_METHODS[method]?.group;
+  return g === "mag" || g === "grav" ? "ok" : "no";
+}
+
+// TASKS.csv #3400 (Matt: "I wanna have the ribbon menu with all the survey names or abbreviations. So a beginner will know where to find the
+// survey they want to work with") — the Surveys ribbon's Magnetics / Gravity / Radiometrics buttons (and EM > TEM channel) open the point
+// importer set to that method: a file read there takes the method its columns name when it is of that kind (a reduced-to-pole grid, eTh),
+// else the kind's usual one. -> a SURVEY_METHODS key, or the guess as before with no hint
+export const METHOD_HINTS = { mag: "mag", grav: "grav", rad: "rad_tc", tem: "em_dbdt" };
+const TEM_METHODS = new Set(["em_dbdt", "em_bfield", "em_tau"]);
+export function methodWithHint(guess, hint) {
+  if (!hint || !METHOD_HINTS[hint]) return guess || null;
+  const fits = hint === "tem" ? TEM_METHODS.has(guess) : SURVEY_METHODS[guess]?.group === hint;
+  return fits ? guess : METHOD_HINTS[hint];
+}

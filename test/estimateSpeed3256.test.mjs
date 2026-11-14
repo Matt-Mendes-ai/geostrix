@@ -30,14 +30,17 @@ const cfgs = {
   unlimited_support: { searchRadius: null, support: true, maxBlocks: 400000 },
 };
 // produced by the estimator before #3256 (commit 839d7057) on this set
-const BEFORE = { holes1_r200: { hash: "687bcd174aa98387", blocks: 3444 }, holes2_material_r300: { hash: "755fdef2c85ac756", blocks: 3475 }, holes2_r300_support: { hash: "b856499ee4e12397", blocks: 3488 }, holes3_perHole4_r250: { hash: "f85f0bd77f4184a7", blocks: 2817 }, domain_r200: { hash: "c07f5a29d97d3eb6", blocks: 2956 }, domain_nocode_holes2: { hash: "dd176d7a378362fc", blocks: 3172 }, ok_r250: { hash: "520c263878096ef0", blocks: 3635 }, nn_r150: { hash: "024d1a0cf97a9614", blocks: 3032 }, minSamples5_r120: { hash: "31a4039f1603fcc0", blocks: 2690 }, trend_holes2: { hash: "bf864f5d82732fb6", blocks: 3218 }, unlimited_support: { hash: "bc5b2492d2fb1d24", blocks: 3696 }, dense: { hash: "51f2a8add757c8e6", blocks: 2860 } };
+// TASKS.csv #3275 — rehashed WITHOUT each block's support class and the support tally: #3275 redefined 'interpolated' (between holes, from the
+// traces in the search), so the class is pinned in test/betweenHoles3275.test.mjs instead. These hashes were produced by the code of commit 839d7057
+// and match the current code on all eleven (values, holes, the support index, flags and the other counts unchanged).
+const BEFORE = { holes1_r200: { hash: "706439d66d818365", blocks: 3444 }, holes2_material_r300: { hash: "50b13215dc5c817f", blocks: 3475 }, holes2_r300_support: { hash: "1e87ac1473bf8361", blocks: 3488 }, holes3_perHole4_r250: { hash: "df5347d6a85af861", blocks: 2817 }, domain_r200: { hash: "9b61e3edc110ca9b", blocks: 2956 }, domain_nocode_holes2: { hash: "73242c55cd865abe", blocks: 3172 }, ok_r250: { hash: "5482e3a76f00ef9c", blocks: 3635 }, nn_r150: { hash: "6108294571aad836", blocks: 3032 }, minSamples5_r120: { hash: "6b8f21f6e1d21660", blocks: 2690 }, trend_holes2: { hash: "7b8dd9dc6b1575dc", blocks: 3218 }, unlimited_support: { hash: "f87b021f4799b07c", blocks: 3696 }, dense: { hash: "51f2a8add757c8e6", blocks: 2860 } };
 
-test("every block of twelve configurations is the same as before the rewrite (values, holes, support, flags, counts)", () => {
+test("every block of twelve configurations is the same as before the rewrite (values, holes, support index, flags, counts)", () => {
   for (const [k, o] of Object.entries(cfgs)) {
     const r = estimateBlockModel(pts, { ...base, ...o });
     const h = createHash("sha256");
-    for (const c of r.cells) h.update(JSON.stringify(c));
-    h.update(JSON.stringify({ e: r.blocksEstimated, s: r.blocksSkipped, sh: r.singleHoleCells, d: r.dominatedCells, sc: r.supportCounts, bc: r.beyondCounts, pb: r.piercedBlocks, ok: r.okCounts }));
+    for (const c of r.cells) { const { support, ...rest } = c; h.update(JSON.stringify(rest)); } // support: #3275, pinned apart
+    h.update(JSON.stringify({ e: r.blocksEstimated, s: r.blocksSkipped, sh: r.singleHoleCells, d: r.dominatedCells, bc: r.beyondCounts, pb: r.piercedBlocks, ok: r.okCounts }));
     assert.deepEqual({ hash: h.digest("hex").slice(0, 16), blocks: r.blocksEstimated }, BEFORE[k], k);
   }
   const dg = estimateDenseGrid(pts, { ...base, searchRadius: 200, minHoles: 2 });

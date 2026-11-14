@@ -12,7 +12,7 @@ test("the texts say what the tools do now", () => {
   const g = src("../src/components/GradeEstimationModal.jsx");
   assert.match(g, /moving-least-squares or ordinary-kriging interpolation from composited assays/);
   assert.match(g, /no declustering and no resource classification\./);
-  assert.match(g, /no declustering, no variogram, and no resource classification\./);
+  assert.match(g, /no declustering, no variogram \(the method chosen uses none; ordinary kriging does\), and no resource classification\./);
   assert.match(g, /Kriged with the \{model\} variogram/); // #2429: 'the fitted ... fitted to' said it twice
   assert.ok(!/Kriged with a \{model\}/.test(g));
   const m = src("../src/modules/viewer/ModellingPanes.jsx");

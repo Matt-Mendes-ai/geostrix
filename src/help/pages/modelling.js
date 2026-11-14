@@ -34,7 +34,7 @@ export default [
       sample: "Harry",
       steps: [
         "File > Open Sample Project > Harry, then open the 3D Modelling tab.",
-        "Switch the ribbon to Advanced (top right) and open Setup > Model settings.",
+        "Open Setup > Model settings.",
         "Under Contact orientations, check that CON (the contact picks) is on and VN (the vein picks) is off. Harry's structure picks are synthesized, so treat the result as an exercise.",
         "Move Resolution down for a first look; leave Surface detail on Standard and Surface stiffness on Auto.",
         "Run Implicit surface on DACT and read the notices: how many picks were averaged, which holes gave contacts, the model check.",

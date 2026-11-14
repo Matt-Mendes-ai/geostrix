@@ -29,7 +29,7 @@ test("the same decision and wording as the Estimation dialog; wired under the sh
   assert.ok(n.includes(key) && e.includes(key));
   assert.match(e, /if \(!\(elementCV > 150\)\)/);
   assert.match(n, /lengthWeightedPercentile\(src, symbol, unit, units, 99\)/);
-  assert.match(n, /if \(auto\.current\.symbol === symbol\) return; \/\/ set once for this element/);
+  assert.match(n, /if \(own && !has\) return; \/\/ set once for this element: an emptied field stays empty/); // #3272 — own = auto.current.symbol === symbol
   const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
-  assert.match(p, /<ShellCapNote assays=\{assays\} symbol=\{sym\} unit=\{unit\} assayElements=\{assayElements\} includeQAQC=\{numericIncludeQAQC\} isAssay=\{!numSrc && symbols\.includes\(sym\)\} capValue=\{numericCapValue\} setCapValue=\{setNumericCapValue\} \/>/);
+  assert.match(p, /<ShellCapNote assays=\{shellAreaAssays \/\* #3272 — the holes the run uses \*\/\} symbol=\{sym\} unit=\{unit\} assayElements=\{assayElements\} includeQAQC=\{numericIncludeQAQC\} isAssay=\{!numSrc && symbols\.includes\(sym\)\} capValue=\{numericCapValue\} setCapValue=\{setNumericCapValue\} autoRef=\{shellCapAuto \/\* #3272 \*\/\} \/>/);
 });

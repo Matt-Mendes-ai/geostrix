@@ -17,5 +17,5 @@ test("hooks sit above the early return, and the reset keys on a string (no updat
   const ret = s.indexOf("if (!config.enabled) return veTag ?"); // #2623: the early return keeps the VE tag
   for (const h of ["useState({ items: MAX_LEGEND_ITEMS", "new ResizeObserver(", "useLayoutEffect(() => { setFit("]) assert.ok(s.indexOf(h) > 0 && s.indexOf(h) < ret, h);
   assert.match(s, /const legendKey = \(legendGroups \|\| \[\]\)\.map\(/);
-  assert.match(s, /\}, \[legendKey, boxH, boxW, config\.title, config\.legend, config\.enabled, showScale\]\);/); // boxW: #2044
+  assert.match(s, /\}, \[legendKey, boxH, boxW, config\.title, config\.legend, config\.enabled, showScale, collapsed\]\); \/\/ collapsed: #3280 \(1\)/); // boxW: #2044
 });

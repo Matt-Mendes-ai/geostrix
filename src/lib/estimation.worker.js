@@ -26,6 +26,6 @@ self.onmessage = (e) => {
       self.postMessage({ type: "done", result }, columnBuffers(result.columns));
     }
   } catch (err) {
-    self.postMessage({ type: "error", message: err?.message || String(err) });
+    self.postMessage({ type: "error", message: err?.message || String(err), ...(err?.weakFit ? { weakFit: err.weakFit } : {}) }); // weakFit: TASKS.csv #3273
   }
 };

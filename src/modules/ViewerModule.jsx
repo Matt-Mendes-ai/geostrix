@@ -182,7 +182,7 @@ import { ViewToolbar, SurfaceRibbon, ContextItem, HoleRowList, OrphanHoles, Laye
 import { plannedTrace } from "../lib/plannedTrace.js"; // TASKS.csv #119 - shared, Node-verified target math; plannedTrace: #524; #3159: plannedTrace.js, not holePlanning.js (the targeting solvers)
 import { extractMapContacts, orientationAt, projectContactRibbon, thinLine, densifyLine } from "../lib/mapLayers.js"; // TASKS.csv #316-#318
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
-import { noticeText, noticeLevel, errorNotice, infoNotice, notice, appendNotice } from "../lib/notices.js"; // TASKS.csv #390
+import { noticeText, noticeLevel, errorNotice, infoNotice, notice, appendNotice, replaceNotices } from "../lib/notices.js"; // TASKS.csv #390; replaceNotices: #3114
 let geophysPtsLib = null; // TASKS.csv #3309 — lib/viewer/geophysPts.js (the survey points per survey; makeSurveyColorer #451 inside), loaded on the first survey drawn
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellShown, sampleTerrainElevation, terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #445
 import { assaySizeFor, assayPassesCutoff } from "../lib/viewer/assaySize.js"; // #1533 — moved out
@@ -1868,6 +1868,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     rendererRef.current = renderer; mount.appendChild(renderer.domElement);
+    const warmId = typeof requestIdleCallback === "function" ? requestIdleCallback(() => import("../lib/viewer/surfaceWarmup.js").then((m) => { if (rendererRef.current === renderer) m.warmSurfacePrograms(renderer, scene, camera); }).catch(() => {}), { timeout: 10000 }) : null; // #3155 — the surface shaders compiled at idle
 
     const root = new THREE.Group(); root.name = "root"; scene.add(root);
     // TASKS.csv #695 — neither is ever transformed; left auto-updating they force every descendant's world matrix
@@ -2303,7 +2304,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     animate();
 
     return () => {
-      cancelAnimationFrame(raf); ro.disconnect();
+      cancelAnimationFrame(raf); ro.disconnect(); if (warmId != null) cancelIdleCallback(warmId); // #3155
       dom.removeEventListener("pointermove", wakeOnPointer); // #441
       if (THREE.DefaultLoadingManager.onLoad !== prevLoadHandler) THREE.DefaultLoadingManager.onLoad = prevLoadHandler;
       dom.removeEventListener("pointerdown", onPointerDown);
@@ -2427,10 +2428,10 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   useEffect(() => {
     if (!sceneRef.current) return;
     if (gridGroupRef.current) { sceneRef.current.remove(gridGroupRef.current); disposeThreeGroup(gridGroupRef.current); }
-    const group = buildGridGroup(gridConfig, gridPlacement(collars, survey), DEFAULT_GRID.color);
+    const group = buildGridGroup(gridConfig, gridPlacement(collars, survey, tracesRef.current /* #3355 */), DEFAULT_GRID.color);
     sceneRef.current.add(group);
     gridGroupRef.current = group;
-  }, [gridConfig, collars, survey]);
+  }, [gridConfig, collars, survey, tracesSeq]);
 
   // ---------- TASKS.csv #650: "View" a structural trend — its ellipsoid, plane and major axis at the drilling's centre ----------
   const trendPreviewRef = useRef(null);
@@ -4311,7 +4312,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     });
   }, [layerStyles]);
   // TASKS.csv #1277 — the Hole labels dropdown redraws the labels only
-  useEffect(() => { syncHoleLabels(layerGroupsRef.current?.hole_labels, holeLabelAnchorsRef.current, holeLabelMode, makeTextSprite); applyHoleVisibilityRef.current?.(); /* #3253 */ }, [holeLabelMode]);
+  useEffect(() => {
+    const g = layerGroupsRef.current?.hole_labels, byId = holeScheme ? new Map(collars.map((c) => [String(c.hole_id), c])) : null;
+    if (g) g.userData.colourOf = byId ? (id) => holeScheme.colourOf(byId.get(String(id))) : null; // #3399 — a pad callout's swatches; a rebuild's sync reads it too
+    syncHoleLabels(g, holeLabelAnchorsRef.current, holeLabelMode, makeTextSprite); applyHoleVisibilityRef.current?.(); /* #3253 */
+  }, [holeLabelMode, holeScheme]);
   // #551 — declared AFTER the big effect: when both fire, the big one builds first and these then see unchanged inputs
   // #1500 — not in a commit whose big build was deferred (buildDefer): the next render's big build builds these at its end
   useEffect(() => { if (!buildDefer.skip() && !sameInputs(assayBuiltRef.current, assayInputs)) buildAssaySpheresRef.current(); }, assayInputs);
@@ -4524,14 +4529,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         });
         const res = checkTopology(input, { up: "y" });
         if (!res.checked) {
-          setNotices((p) => [...p, notice("Nothing to check: none of the {surfacesChecked} surface(s) declare a relationship that implies a geometric constraint. Declare \"is below\" / \"is above\" / \"must not cross\" on a surface (expand its row) and run this again.", { surfacesChecked: res.surfacesChecked })]);
+          setNotices((p) => replaceNotices(p, "topologyCheck", notice("Nothing to check: none of the {surfacesChecked} surface(s) declare a relationship that implies a geometric constraint. Declare \"is below\" / \"is above\" / \"must not cross\" on a surface (expand its row) and run this again.", { surfacesChecked: res.surfacesChecked }))); // #3114
         } else if (!res.violations.length) {
-          setNotices((p) => [...p, notice("Topology check passed: {checked} check(s) across {surfacesChecked} surface(s), no violations.{v}", { checked: res.checked, surfacesChecked: res.surfacesChecked, v: res.skipped ? tr(" {skipped} declared relationship(s) skipped — either the target surface no longer exists, or the relationship (truncates / terminates against / cuts) is one where an intersection is expected and so has nothing to violate.", { skipped: res.skipped }) : "" })]);
+          setNotices((p) => replaceNotices(p, "topologyCheck", notice("Topology check passed: {checked} check(s) across {surfacesChecked} surface(s), no violations.{v}", { checked: res.checked, surfacesChecked: res.surfacesChecked, v: res.skipped ? tr(" {skipped} declared relationship(s) skipped — either the target surface no longer exists, or the relationship (truncates / terminates against / cuts) is one where an intersection is expected and so has nothing to violate.", { skipped: res.skipped }) : "" }))); // #3114
         } else {
-          setNotices((p) => [...p, appendNotice(notice("Topology check found {violations} violation(s) in {checked} check(s):", { violations: res.violations.length, checked: res.checked }), res.violations.map((v) => ` • ${v.message}`).join(""))]); // #1542 — one notice: the count and the list stay together
+          setNotices((p) => replaceNotices(p, "topologyCheck", appendNotice(notice("Topology check found {violations} violation(s) in {checked} check(s):", { violations: res.violations.length, checked: res.checked }), res.violations.map((v) => ` • ${v.message}`).join("")))); // #3114 — replaces the last check's notice // #1542 — one notice: the count and the list stay together
         }
       } catch (err) {
-        setNotices((p) => [...p, errorNotice(tr("Topology check failed: {message}", { message: err.message }))]);
+        setNotices((p) => replaceNotices(p, "topologyCheck", errorNotice(tr("Topology check failed: {message}", { message: err.message }))));
       } finally {
         setTopologyBusy(false);
       }
@@ -5716,7 +5721,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         const label = meta.numeric ? row.value : effectiveLabel(key, row.value);
         // TASKS.csv #684 — a mineralisation INTERVAL is a ribbon over its depths in the section, not a dot at its midpoint
         if (key === "mnlgy" && isIntervalRow(row)) { intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${meta.label}: ${label}${row.extra != null ? ` (${row.extra}%)` : ""}`, layer: key }); return; }
-        points.push({ hole_id: row.hole_id, md: mid, color, label: `${meta.label}: ${label}`, layer: key }); // layer: #1706
+        points.push({ hole_id: row.hole_id, md: mid, color, label: `${meta.label}: ${label}`, layer: key, value: meta.numeric ? row.value : undefined }); // layer: #1706; value: #3362
       });
     });
     const showAssays = scope.showAssays != null ? scope.showAssays : assayVisible;
@@ -5743,7 +5748,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       layer.rows.filter((r) => holeIds.has(r.hole_id)).forEach((row) => {
         const iv = row.to != null && !isNaN(row.to), color = (iv ? stI.color || row.modelColor : stP.color) || customColour(layer, layerStyles, row);
         if (iv) intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${nm}: ${row.value}`, layer: `custom:${layer.id}` });
-        else if (row.depth != null && !isNaN(row.depth)) points.push({ hole_id: row.hole_id, md: row.depth, color, label: `${nm}: ${row.value}`, layer: `custom:${layer.id}` });
+        else if (row.depth != null && !isNaN(row.depth)) points.push({ hole_id: row.hole_id, md: row.depth, color, label: `${nm}: ${row.value}`, layer: `custom:${layer.id}`, value: row.value }); // value: #3362
       });
     });
 
@@ -6204,10 +6209,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           (the generated surfaces and domains stay below it); the analysis plots open directly. */}
       {mode === "modelling" && (
         <Ribbon show={visible && !bare} label="3D Modelling tools">
-          <RibbonGroup advanced={!simpleTools.strat} label="Setup">
-            <RibbonButton advanced icon={Settings} label="Model settings" tone="model" title="Domain, intercept set, contact orientations, resolution, stiffness, search ellipsoid, anisotropy" {...paneProps("settings")} />
-            <RibbonButton icon={Group} label="Litho groups" tone="model" title="Lump lithology codes into modelling units" {...paneProps("groups")} />
-            <RibbonButton icon={Waypoints} label="Modelling codes" tone="model" title="Give intervals modelling codes (alternating flows), connect units between holes, set roles and pile order" {...paneProps("mcodes")} />
+          <RibbonGroup label="Setup">{/* #3153 — Model settings in Simple too: every modelling tool reads it */}
+            <RibbonButton icon={Settings} label="Model settings" tone="model" title="Domain, intercept set, contact orientations, resolution, stiffness, search ellipsoid, anisotropy" {...paneProps("settings")} />
+            <RibbonButton advanced={!simpleTools.strat} icon={Group} label="Litho groups" tone="model" title="Lump lithology codes into modelling units" {...paneProps("groups")} />
+            <RibbonButton advanced={!simpleTools.strat} icon={Waypoints} label="Modelling codes" tone="model" title="Give intervals modelling codes (alternating flows), connect units between holes, set roles and pile order" {...paneProps("mcodes")} />
             <RibbonButton advanced icon={GitCompare} label="Correlation" tone="model" title="Section correlation" {...paneProps("correlation")} />
           </RibbonGroup>
           {/* TASKS.csv #750 — Matt: "predictive could go into 3d modelling as a tool, geoML modelling group. the other one should
@@ -7132,7 +7137,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                           {tr("No volume or tonnage: this body contains only {n} of the {m} sample points of {code} it was built from, so it is not that unit. Rebuild it with a smaller cell and a search near the logged intervals.", { n: s.params.samplesInside?.inside ?? 0, m: s.params.samplesInside?.of ?? 0, code: s.params.target })}</div>
                       ) : (
                       <>
-                      {expandedSurfaceVolume.watertight && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>{tr("Volume:")}{" "}<strong>{Number(expandedSurfaceVolume.volumeM3.toPrecision(3)).toLocaleString()} m³</strong>
+                      {expandedSurfaceVolume.watertight && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>{tr("Volume:")}{" "}<strong title={`${Math.round(expandedSurfaceVolume.volumeM3).toLocaleString()} m³`}>{Number(expandedSurfaceVolume.volumeM3.toPrecision(3)).toLocaleString()} m³</strong>{/* title: #3284 */}
                       </div>}{/* #1229 */}
                       {/* TASKS.csv #257 — an ARTIFICIALLY closed shell is watertight, so the old
                           !watertight-only caution never fired for the single most misleading case in
@@ -7142,7 +7147,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                           test: two disjoint balloons 200 m apart are each closed and report as one
                           volume. Union-find over the indexed mesh says how many bodies there really are. */}
                       {expandedSurfaceVolume.componentCount > 1 && (
-                        <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 6, lineHeight: 1.45 }}>{expandedSurfaceVolume.watertight ? tx("This shell is {bodies} totalling {vol} m³, not one continuous body.", { bodies: <strong>{tr("{n} separate bodies", { n: expandedSurfaceVolume.componentCount })}</strong>, vol: expandedSurfaceVolume.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 }) }) : tr("This shell is {n} separate pieces, not one continuous body.", { n: expandedSurfaceVolume.componentCount }) /* #2219 */}</div>
+                        <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 6, lineHeight: 1.45 }}>{expandedSurfaceVolume.watertight ? tx("This shell is {bodies} totalling {vol} m³, not one continuous body.", { bodies: <strong>{tr("{n} separate bodies", { n: expandedSurfaceVolume.componentCount })}</strong>, vol: <span title={`${Math.round(expandedSurfaceVolume.volumeM3).toLocaleString()} m³`}>{Number(expandedSurfaceVolume.volumeM3.toPrecision(3)).toLocaleString()}</span> }) /* #3284 — the Volume line's figure */ : tr("This shell is {n} separate pieces, not one continuous body.", { n: expandedSurfaceVolume.componentCount }) /* #2219 */}</div>
                       )}
                       {!expandedSurfaceVolume.watertight && (
                         <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 6, lineHeight: 1.4 }}>{tr("{v} That can mean several things: it's a single draped contact or fault sheet rather than a solid; it was clipped against a modelling domain; or the shell reaches the edge of the estimated region (the shell is only closed there when \"Close shell artificially\" is ticked). So no enclosed volume is given.", { v: tr(expandedSurfaceVolume.openEdgeCount === 1 ? "This surface isn't a closed solid ({n} open edge)." : "This surface isn't a closed solid ({n} open edges).", { n: expandedSurfaceVolume.openEdgeCount }) })}</div>
@@ -7150,7 +7155,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                       {/* TASKS.csv #270 (LOW-2) — a tonnage with no grade beside it invites quoting the
                           CUTOFF as the grade. Report the interpolated mean inside the shell instead. */}
                       {s.params?.meanGradeInShell != null && (
-                        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>{tr("Mean interpolated grade inside the shell:")}{" "}<strong>{s.params.meanGradeInShell.toFixed(3)} {PRECIOUS_METALS.has(s.params.element) && s.params.unit === "ppm" ? "g/t" : s.params.unit}</strong>
+                        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>{tr("Mean interpolated grade inside the shell:")}{" "}<strong title={String(s.params.meanGradeInShell)}>{Number(s.params.meanGradeInShell.toPrecision(4)).toLocaleString()} {PRECIOUS_METALS.has(s.params.element) && s.params.unit === "ppm" ? "g/t" : s.params.unit}</strong>{/* 4 significant figures: #3284 */}
                           <span style={{ color: "var(--color-text-muted)" }}>{" "}{tr("— not a resource grade (no dilution, no recovery, no declustering; it is the mean of the interpolated cells at or above the {cutoff} cutoff).", { cutoff: s.params.cutoff })}</span>
                         </div>
                       )}
@@ -7515,6 +7520,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             cameraRef={cameraRef}
             mountRef={mountRef}
             camSignalRef={figureOverlaySignalRef}
+            openKey={viewerUiStateSeq} /* #3280 (1) */
+            onConfig={setFigureOverlay} /* #3398 — the legend's collapse and folds, saved with the view */
           />
         )}
         {/* TASKS.csv #294 — the fresh-project empty state. This used to be a single grey line

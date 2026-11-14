@@ -18,11 +18,11 @@ test("Cu and Au keep their four classes among nine busy groups", () => {
   assert.ok(!rows.some((r) => r.classesShown));
 });
 
-test("grade groups that do not fit in half the rows are shared out as before (top classes kept) and say so", () => {
+test("grade groups that do not fit in half the rows are shared out as before (the lowest and top classes kept, #3306) and say so", () => {
   const { rows } = allocateLegendRows([G("Lithology", 10), G("Cu (ppm)", 5, { grade: true }), G("Au (ppm)", 5, { grade: true })], 7);
   const cu = rows.filter((r) => r.group === "Cu (ppm)");
   assert.equal(cu.length, 2);
-  assert.deepEqual(cu.map((r) => r.label), ["Cu (ppm)3", "Cu (ppm)4"], "the top classes");
+  assert.deepEqual(cu.map((r) => r.label), ["Cu (ppm)0", "Cu (ppm)4"], "the lowest and the highest class (#3306)");
   assert.deepEqual(cu[0].classesShown, [2, 5]);
   assert.equal(rows.filter((r) => r.group === "Lithology").length, 3);
 });

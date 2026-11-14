@@ -253,13 +253,14 @@ const NOT_NOTES = new Set(["hole_id", "value", "_src", "codes", "all_codes", "al
 const NOTE_SAMPLE = 400;
 export function lithologyNoteRoles(rows) {
   const by = new Map(); // code -> { noted, hits: { role: n } }
+  const keys = new Set(); // #3147 — every code, for the cover check
   const lastKey = { raw: undefined, key: "" }; // logs run code by code: reuse the last key while the raw value repeats
   for (const r of rows || []) {
     if (!r || r.value == null) continue;
-    if (r.value !== lastKey.raw) { lastKey.raw = r.value; lastKey.key = String(r.value).trim().toLowerCase(); }
+    if (r.value !== lastKey.raw) { lastKey.raw = r.value; lastKey.key = String(r.value).trim().toLowerCase(); keys.add(lastKey.key); }
     if (by.get(lastKey.key)?.noted >= NOTE_SAMPLE) continue;
     let text = "";
-    for (const [k, v] of Object.entries(r)) if (!NOT_NOTES.has(k) && typeof v === "string" && v.length > 3) text += " " + v;
+    for (const k in r) { const v = r[k]; if (typeof v === "string" && v.length > 3 && !NOT_NOTES.has(k)) text += " " + v; } // #3147: no entries array per row
     if (!text) continue;
     const key = lastKey.key;
     let e = by.get(key); if (!e) by.set(key, (e = { noted: 0, hits: {} }));
@@ -273,8 +274,60 @@ export function lithologyNoteRoles(rows) {
     const best = Object.entries(e.hits).sort((a, b) => b[1] - a[1])[0];
     if (best && best[1] >= e.noted / 2) out.set(key, best[0]);
   });
+  coverRoles(rows, keys, out);
   return out;
 }
+// TASKS.csv #3147 (split from #2926, WA iron review) — the cover was 'stratigraphic' by default: ALU (alluvium) and CLA (clay) at the top of
+// the holes joined the pile and made false unit tops under them. A code is suggested as overburden when BOTH its name reads as cover (whole
+// short codes, or the spelled-out words; never 'clay' inside a longer name: 'clay altered granite' is rock) AND it lies at the top of the
+// holes: in at least COVER_TOP_SHARE of the holes that log it, it starts above every rock interval (a code that is neither a cover name,
+// overburden nor no recovery). The name alone is not enough (CLA, COL, DET mean other things elsewhere); the place alone is not either
+// (a hole's first unit is often bedrock, or 'not logged'). Detrital codes whose names do not say so (the WA log's DIW, DID) are left to the
+// geologist. A note role wins over it. out.cover keeps each suggested code's share, for the pane's tooltip.
+const COVER_NAME = /^(alu|allu|alluv|alv|cla|cly|clay|clays|col|coll|colluv|det|detr|detrital|detritals|detritus|soil|topsoil|scree|talus|transported)$|\b(alluvium|alluvial|colluvium|colluvial|detritals?|detritus|topsoil|scree|talus|transported cover)\b/;
+export const COVER_TOP_SHARE = 0.6; // rock codes lie on top in a few % of their holes (WA iron: 0-7 %); the cover in most (ALU 99 %, CLA 73 %)
+const COVER_MIN_HOLES = 3;
+// like the note sample (#2175): a share needs a few hundred holes, not every one; the pass stops at a hole's start once every candidate has
+// been seen in COVER_SAMPLE holes (a log runs hole by hole, so the holes read are whole)
+const COVER_SAMPLE = 1000;
+const NOT_ROCK = new Set(["overburden", "no recovery"]);
+function coverRoles(rows, keys, out) {
+  const cand = new Set([...keys].filter((k) => k !== "unknown" && !UNIT_ROLES[k] && !ROLE_PATTERNS.some(([re]) => re.test(k)) && !out.has(k) && COVER_NAME.test(k)));
+  if (!cand.size) return;
+  const rock = (k) => !cand.has(k) && k !== "unknown" && !NOT_ROCK.has(UNIT_ROLES[k] || ROLE_PATTERNS.find(([re]) => re.test(k))?.[1] || out.get(k));
+  const holes = new Map(); // hole -> { rock: top of the first rock interval, cand: Map(code -> its top) }
+  const isRock = new Map();
+  // logs run hole by hole and code by code: the last hole's record and the last value's kind are reused while they repeat
+  let lastRaw, key = "", isCand = false, rk = false, lastHole, h = null;
+  const seen = new Map([...cand].map((k) => [k, 0]));
+  let short = cand.size; // candidates seen in fewer than COVER_SAMPLE holes
+  for (const r of rows) {
+    if (!r || r.value == null || r.hole_id == null) continue;
+    const from = +r.from;
+    if (!(from === from) || from === Infinity || from === -Infinity) continue;
+    if (r.value !== lastRaw) {
+      lastRaw = r.value; key = String(r.value).trim().toLowerCase(); isCand = cand.has(key);
+      if (!isCand) { rk = isRock.get(key); if (rk === undefined) isRock.set(key, (rk = rock(key))); }
+    }
+    if (r.hole_id !== lastHole) {
+      if (!short) break;
+      lastHole = r.hole_id; h = holes.get(lastHole); if (!h) holes.set(lastHole, (h = { rock: Infinity, cand: new Map() }));
+    }
+    if (isCand) {
+      const t = h.cand.get(key);
+      if (t === undefined) { const n = seen.get(key) + 1; seen.set(key, n); if (n === COVER_SAMPLE) short--; }
+      if (t === undefined || from < t) h.cand.set(key, from);
+    }
+    else if (rk && from < h.rock) h.rock = from;
+  }
+  const tally = new Map(); // code -> [holes, holes where it is on top]
+  holes.forEach((h) => h.cand.forEach((top, k) => { let t = tally.get(k); if (!t) tally.set(k, (t = [0, 0])); t[0]++; if (top < h.rock) t[1]++; }));
+  const share = new Map();
+  tally.forEach(([n, onTop], k) => { if (n >= COVER_MIN_HOLES && onTop >= COVER_TOP_SHARE * n) { out.set(k, "overburden"); share.set(k, onTop / n); } });
+  if (share.size) out.cover = share;
+}
+// #3147 — the share of its holes a code was found on top in, when the cover check suggested it (else null)
+export function coverTopShare(u) { return noteRoles?.cover?.get(String(u || "").trim().toLowerCase()) ?? null; }
 let noteRoles = null;
 export function setLithologyNoteRoles(map) { noteRoles = map && map.size ? map : null; }
 // TASKS.csv #2537 — the role came from the default ('stratigraphic' for a code nothing recognises), not from a rule: the pane marks it
@@ -356,7 +409,9 @@ export const WEATH_COLORS = {
 };
 export function colorForWeathering(v) { return WEATH_COLORS[String(v || "").toUpperCase().replace(/[\s_-]+/g, "")] || categoricalSafeColor("weath", v); }
 
-export const MIN_COLORS = { ACA: "#c8c8d8", CPY: "#d4af37", GAL: "#6a6a78", PO: "#8a6a45", PY: "#d4c060", SPH: "#6a3a2a" };
+// TASKS.csv #3332 — CPY and PY were two near golds (#d4af37 / #d4c060, CIE76 dE 15) and PO and SPH two browns (dE 22): CPY now orange-brass, PY pale
+// brass, PO bronze-pink; every pair here is at least dE 34 apart
+export const MIN_COLORS = { ACA: "#c8c8d8", CPY: "#d08a1c", GAL: "#6a6a78", PO: "#c0907a", PY: "#e6d65a", SPH: "#6a3a2a" };
 export function colorForMineral(m) { return MIN_COLORS[(m || "").toUpperCase()] || categoricalSafeColor("mineral", m); }
 
 export const STRUCT_COLORS = { ALT: "#c9863d", BD: "#4a7ab5", CON: "#8a6fae", FLT: "#c0392b", FOL: "#3a8a8a", FOLD: "#4aa06a", SHZ: "#a5407a", VN: "#cfc7b0" };
@@ -505,10 +560,10 @@ export function makeVoxelColorResolverRGB(model) {
   const sorted = [...stops].sort((a, b) => a.value - b.value).map((s) => ({ value: s.value, rgb: hexToRgb(s.color) }));
   const discrete = model.colorMode === "discrete";
   return (value) => {
-    if (discrete) {
-      let rgb = sorted[0].rgb;
-      for (const s of sorted) { if (value >= s.value) rgb = s.rgb; else break; }
-      return rgb;
+    if (discrete) { // the last stop at or below the value (else the first); #3365: a binary search, not a scan of every stop per cell
+      let lo = 0, hi = sorted.length - 1, k = 0;
+      while (lo <= hi) { const m = (lo + hi) >> 1; if (value >= sorted[m].value) { k = m; lo = m + 1; } else hi = m - 1; }
+      return sorted[k].rgb;
     }
     if (value <= sorted[0].value) return sorted[0].rgb;
     if (value >= sorted[sorted.length - 1].value) return sorted[sorted.length - 1].rgb;

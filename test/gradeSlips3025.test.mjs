@@ -12,6 +12,6 @@ test("(1) and (9) in the Estimation dialog", () => {
 
 test("(6) the Grade shell's proposed cutoff", () => {
   const m = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
-  assert.match(m, /setShellCutoffAuto\(\{ symbol: next, value: p90, n: v\.length \}\)/);
+  assert.match(m, /setShellCutoffAuto\(\{ symbol: next, value: p90, n: v\.length, onOpen \}\)/); // onOpen: #3272
   assert.match(m, /shellCutoffAuto && shellCutoffAuto\.symbol === sym && numericCutoff === shellCutoffAuto\.value && /);
 });

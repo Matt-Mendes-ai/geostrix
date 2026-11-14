@@ -28,7 +28,7 @@ test("a picture raster with an attached colour bar becomes an image group, and a
 
 test("wired: the 3D figure legend and the Layout legend draw the image", () => {
   const o = readFileSync(new URL("../src/components/ViewportFigureOverlay.jsx", import.meta.url), "utf8");
-  assert.match(o, /const images = \(legendGroups \|\| \[\]\)\.filter\(\(g\) => g\.image\?\.src\)/);
+  assert.match(o, /const images = \(allGroups \|\| \[\]\)\.filter\(\(g\) => g\.image\?\.src\)/); // #3398: the groups before folding
   assert.match(o, /<img src=\{g\.image\.src\}/);
   const m = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
   assert.match(m, /\) : opt\?\.image \? \(/);

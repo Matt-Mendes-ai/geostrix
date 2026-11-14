@@ -30,7 +30,9 @@ export function assayColorFor(value, idx, style) {
 // the categorical layers a legend lists, in order (ViewerModule's CATEGORY_LAYER_KEYS)
 export const LEGEND_CATEGORY_KEYS = ["litho", "alt", "vein", "breccia", "weath" /* #2162 */, "structzone", "litho_gc", "alt_gc", "mnlgy", "structure"];
 
-export const fmtLegendValue = (v) => (Math.abs(v) >= 1000 || v === 0 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 0.1 ? v.toFixed(2) : v.toPrecision(2));
+// TASKS.csv #3396 — under 0.001 in short scientific notation ('1.2e-5'): a mag susc class read '0.000010 – 0.000012', the zeros counted by eye
+const sciShort = (v) => { const [m, e] = v.toExponential(1).split("e"); return `${+m}e${e.replace("+", "")}`; };
+export const fmtLegendValue = (v) => (Math.abs(v) >= 1000 || v === 0 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 0.1 ? v.toFixed(2) : Math.abs(v) < 1e-3 ? sciShort(v) : v.toPrecision(2));
 
 // keys: the categorical layer keys, in order. hidden[key]: a Set or array of hidden values. singleColor[key]: a one-
 // colour layer style (#635). labelFor / colorFor(key, value): with the user's overrides applied.
@@ -46,7 +48,7 @@ export function categoryLegendGroups({ keys, layers, layerVisible, hidden = {}, 
     const h = hidden[key];
     const isHidden = h instanceof Set ? (v) => h.has(v) : Array.isArray(h) ? ((s) => (v) => s.has(v))(new Set(h)) : () => false;
     const seen = new Map(); // value -> its row in `items` (#1633: and how many intervals carry it)
-    const items = [], counts = [];
+    const items = [], counts = [], lo = [], hi = [], ranged = key === "mnlgy"; // #3332 — each mineral's values (Total min, or the logged %)
     for (const row of rows) {
       const v = row.value;
       if (v == null || v === "") continue;
@@ -54,25 +56,42 @@ export function categoryLegendGroups({ keys, layers, layerVisible, hidden = {}, 
       if (isHidden(k)) continue;
       if (row.hole_id && visibleHoles[row.hole_id] === false) continue;
       if (placed && !placed.has(String(row.hole_id))) continue; // #1867 — no collar: nowhere on the sheet
-      if (seen.has(k)) { counts[seen.get(k)]++; continue; }
+      const x = ranged && row.extra != null && row.extra !== "" ? Number(row.extra) : NaN;
+      if (seen.has(k)) { const i = seen.get(k); counts[i]++; if (Number.isFinite(x)) { if (!(x >= lo[i])) lo[i] = x; if (!(x <= hi[i])) hi[i] = x; } continue; }
       seen.set(k, items.length);
-      items.push([labelFor(key, v), colorFor(key, v)]); counts.push(1);
+      items.push([labelFor(key, v), colorFor(key, v)]); counts.push(1); lo.push(Number.isFinite(x) ? x : undefined); hi.push(Number.isFinite(x) ? x : undefined);
     }
+    if (ranged) items.forEach((it, i) => { if (lo[i] !== undefined) it.push({ value: lo[i] === hi[i] ? fmtLegendValue(lo[i]) : `${fmtLegendValue(lo[i])}–${fmtLegendValue(hi[i])}` }); });
     const order = items.map((_, i) => i).sort((a, b) => String(items[a][0]).localeCompare(String(items[b][0])));
     if (items.length) groups.push({ key, label: LAYER_META[key].label, items: order.map((i) => items[i]), counts: order.map((i) => counts[i]), ...(isFiltered(h) ? { filtered: true } : {}) }); // filtered: #2044
   });
   return groups;
 }
 
+// TASKS.csv #3305 (#3260, Galore: Cu classes '460-6590 / 6590-16600 ppm') — a ppm element whose values run into the thousands (more than
+// 10 % of its samples over 1,000 ppm: its P90) reads in per cent in the legend. One pass over the samples, kept per samples array.
+const PCT_CACHE = new WeakMap();
+export function ppmAsPercent(assays, sym, unit) {
+  if (String(unit || "").toLowerCase() !== "ppm" || !Array.isArray(assays)) return false;
+  let per = PCT_CACHE.get(assays);
+  if (!per) PCT_CACHE.set(assays, (per = new Map()));
+  if (per.has(sym)) return per.get(sym);
+  let n = 0, big = 0;
+  for (const a of assays) { const v = a?.values?.[sym]; if (typeof v === "number" && Number.isFinite(v)) { n++; if (v > 1000) big++; } }
+  const r = n > 0 && big > n * 0.1;
+  per.set(sym, r);
+  return r;
+}
+
 // Assay grade classes are discrete swatches (one per class, with its range); an element with no classes gets one swatch
 // saying size shows grade.
 export function assayLegendGroups({ assays, assayElements, assayVisible, assayDisplayElements = [], assayStyle = {} }) {
   if (!assayVisible || !assayDisplayElements.length || !(assays || []).length) return [];
-  const fmt = fmtLegendValue;
   const unitOf = Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit]));
   return assayDisplayElements.map((sym, idx) => {
     const style = assayStyle[sym];
-    const unit = unitOf[sym] || "";
+    const pct = ppmAsPercent(assays, sym, unitOf[sym]); // #3305
+    const unit = pct ? "%" : unitOf[sym] || "", fmt = pct ? (v) => fmtLegendValue(v / 1e4) : fmtLegendValue;
     const items = style?.breaks?.length
       ? style.breaks.map((b, i) => {
         const lo = i ? style.breaks[i - 1].max : null;
@@ -198,7 +217,9 @@ export function surfaceSampleLegendGroup({ samples, visible = true, style = null
 // has counts; else its first), in their usual order, and ends with a note row saying how many were left out (moreLabel(n)).
 export function capLegendGroups(groups, perGroup = 12, moreLabel = (n) => `+ ${n} more`) {
   return groups.map((g) => {
-    if (g.ramp || !g.items || g.items.length <= perGroup) return g;
+    // TASKS.csv #3396 — a numeric model's classes (grade: a block model's, a classified log's, a graduated map layer's) are a scale, not codes:
+    // twelve of 60 mag susc classes and '+ 48 more codes, not listed' read as a key. The legend's box decides how many rows show (#3395).
+    if (g.ramp || g.grade || !g.items || g.items.length <= perGroup) return g;
     const idx = g.items.map((_, i) => i);
     const keep = new Set(g.counts ? idx.sort((a, b) => g.counts[b] - g.counts[a] || a - b).slice(0, perGroup) : idx.slice(0, perGroup));
     const items = g.items.filter((_, i) => keep.has(i));
@@ -298,6 +319,13 @@ export function numericLayerLegendGroups({ keys = ["geotech", "recovery", "sg", 
 // TASKS.csv #1398 — the 3D legend's rows shared out between its groups: one row per group in turn until `max` are given, so a long
 // group (lithology) cannot push the others out and short groups (#381: grade classes) still show in full; groups in their own
 // order (lithology first). -> { rows: [{ label, color, kind, opacity, group, head }], shown, total }
+// TASKS.csv #3398 (Matt: 'make the legend in the 3d view always collapsable'; Orion_2026, a 60-class MagSusc voxel group filling the
+// legend) — a folded group keeps only its heading, one row that says how many it holds; folded: the group keys the user folded
+export function foldLegendGroups(groups, folded) {
+  const f = new Set(folded || []);
+  if (!f.size) return groups || [];
+  return (groups || []).map((g) => (f.has(g.key) && g.items?.length ? { ...g, items: [[String(g.items.length), null, { folded: true }]], counts: undefined, grade: false, alwaysHead: true } : g));
+}
 export function allocateLegendRows(groups, max) {
   const gs = (groups || []).filter((g) => g.items?.length);
   const quota = gs.map(() => 0);
@@ -317,12 +345,12 @@ export function allocateLegendRows(groups, max) {
   // highest classes, a category group with counts its most frequent entries, each in its usual order.
   const pick = (g, n) => {
     if (n >= g.items.length) return g.items;
-    if (g.grade) return g.items.slice(g.items.length - n);
+    if (g.grade) return n >= 2 ? [g.items[0], ...g.items.slice(g.items.length - n + 1)] : g.items.slice(-1); // #3306 — the lowest class kept too: the range's both ends
     if (g.counts) { const keep = new Set(g.items.map((_, i) => i).sort((a, b) => g.counts[b] - g.counts[a] || a - b).slice(0, n)); return g.items.filter((_, i) => keep.has(i)); }
     return g.items.slice(0, n);
   };
   const multi = gs.filter((_, i) => quota[i] > 0).length > 1, rows = [];
-  gs.forEach((g, i) => pick(g, quota[i]).forEach(([label, color, opt], k) => rows.push({ label, color, kind: opt?.kind, opacity: opt?.opacity, svg: opt?.svg /* #3066 */, group: g.label, head: (multi || g.alwaysHead) && k === 0,
+  gs.forEach((g, i) => pick(g, quota[i]).forEach(([label, color, opt], k) => rows.push({ label, color, kind: opt?.kind, opacity: opt?.opacity, svg: opt?.svg /* #3066 */, value: opt?.value /* #3332 */, folded: opt?.folded /* #3398 */, gkey: g.key, group: g.label, head: (multi || g.alwaysHead) && k === 0,
     ...(k === 0 && g.grade && quota[i] < g.items.length ? { classesShown: [quota[i], g.items.length] } : {}) }))); // #2039 — a cut grade group says so
   return { rows, shown: rows.length, total: gs.reduce((n, g) => n + g.items.length, 0) };
 }
