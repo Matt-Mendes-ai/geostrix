@@ -8,7 +8,9 @@ import { read, table, folderBytes, fileOf, said, checkIntervals, fakeStore, chec
 const dir = "wa_gold";
 
 test("66 inclined holes in MGA zone 51, one survey run each, with intervals that neither overlap nor pass the hole's end", () => {
-  assert.ok(folderBytes(dir) < 1.5e6, `${folderBytes(dir)} bytes`);
+  // #3308 (Matt: the lithology description field in the samples) — the geologist's descriptions carried whole (4,076 of 4,207 intervals, about
+  // 0.45 MB): 1.68 MB with them, still light; the limit was 1.5 MB before
+  assert.ok(folderBytes(dir) < 1.75e6, `${folderBytes(dir)} bytes`);
   const { collars, survey } = checkIntervals(dir, ["litho.csv", "weath.csv", "alt.csv", "vein.csv", "assays.csv"]);
   assert.equal(collars.length, 66);
   assert.deepEqual([collars.filter((c) => c.hole_type === "RC").length, collars.filter((c) => c.hole_type === "DD").length], [35, 31]);
