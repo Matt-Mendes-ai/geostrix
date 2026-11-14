@@ -22,7 +22,7 @@ import { nearestCodeLookup, densityByCode, intervalCodePoints, codesByMetres } f
 import { numericSourceChoices } from "../lib/numericSources.js"; // TASKS.csv #3109
 import { densityMeansByCode } from "../lib/densityFromLog.js"; // TASKS.csv #3109 / #3081
 import { blockModelLattice } from "../lib/estimationMeta.js"; // TASKS.csv #3012
-import { sameLattice, densityFromModel, DENSITY_RANGE } from "../lib/densityFromModel.js"; // TASKS.csv #3012
+import { sameLattice, densityFromModel, DENSITY_RANGE, isDensityModel } from "../lib/densityFromModel.js"; // TASKS.csv #3012; isDensityModel: #3172
 import { desurveyHole } from "../lib/desurvey.js"; // TASKS.csv #2550 — the code intervals placed in 3D
 import { setMembersOf } from "../lib/estimateSet.js"; // TASKS.csv #3014 part b
 import { setJoin, applyLimits, memberMeans, memberMeanColumns, memberMetal, memberMetalColumns /* #3274 */ } from "../lib/setLimits.js"; // TASKS.csv #3014 part b
@@ -124,7 +124,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
   const cellsUsed = limited ? limited.cells : cellsInside;
   const limitText = limited?.active.length ? limited.active.map((m) => `${members[m].element} ${limitList[m].op === "min" ? ">=" : "<="} ${Number(limitList[m].value)} ${members[m].unit || ""}`.trim()).join(" and ") : "";
   // #3014 part b — not the other elements of this model's set: they are grades on the same blocks (Al2O3 at 1.8-10 % would read as a density)
-  const densityModels = useMemo(() => (latticeOf ? voxelModels.filter((m) => m !== model && m.id !== model.id && m.cells?.length && !(model.params?.set?.id && m.params?.set?.id === model.params.set.id) && sameLattice(blockModelLattice(m), latticeOf)) : []), [voxelModels, model, latticeOf]);
+  const densityModels = useMemo(() => (latticeOf ? voxelModels.filter((m) => m !== model && m.id !== model.id && m.cells?.length && !(model.params?.set?.id && m.params?.set?.id === model.params.set.id) && isDensityModel(m) /* #3172 */ && sameLattice(blockModelLattice(m), latticeOf)) : []), [voxelModels, model, latticeOf]);
   const densityModel = densityLayer.startsWith("model:") ? densityModels.find((m) => `model:${m.id}` === densityLayer) || null : null;
   const byModel = useMemo(() => (densityModel ? densityFromModel(densityModel.cells, latticeOf, rho) : null), [densityModel, latticeOf, rho]);
   const modelUse = useMemo(() => { if (!byModel) return null; let k = 0, sum = 0, f = 0; for (const c of cellsUsed) { if (byModel.has(c)) { k++; sum += byModel.of(c); } else f++; } return { k, f, mean: k ? sum / k : null }; }, [byModel, cellsUsed]); // #3012
