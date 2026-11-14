@@ -7275,7 +7275,7 @@
   "Added \"{name}\" to \"{layer}\" ({m} m).": "أُضيف «{name}» إلى «{layer}» ({m} م).",
   "Lines in \"{layer}\"": "الخطوط في «{layer}»",
   "Remove line \"{name}\"": "إزالة الخط «{name}»",
-  "Show, hide, export or remove the whole layer under Map layers; colours under Maps → Map layers.": "أظهر الطبقة كلها أو أخفها أو صدّرها أو أزلها من طبقات الخريطة؛ والألوان من الخرائط → طبقات الخريطة.",
+  "Show, hide or remove the whole layer under Map layers; export it from its right-click menu in the 3D View's layer list (Map layers).": "أظهر الطبقة كلها أو أخفها أو احذفها ضمن طبقات الخريطة؛ وصدّرها من قائمة النقر الأيمن في قائمة طبقات العرض ثلاثي الأبعاد (طبقات الخريطة).",
   "Geophysics: {name}": "الجيوفيزياء: {name}",
   "Block model: {name} (highest in each column)": "نموذج الكتل: {name} (الأعلى في كل عمود)",
   "Block model: {name} (lowest in each column)": "نموذج الكتل: {name} (الأدنى في كل عمود)",
@@ -12143,5 +12143,11 @@
   "No terrain: the polygons are draped on the ground between the collars (a surface through the collar elevations), as the interpretation lines are.": "لا توجد تضاريس: تُكسى المضلعات على الأرض بين الفوهات (سطح يمر بمناسيب الفوهات)، كخطوط التفسير.",
   "No terrain: draped on the surface through the collar elevations, as the interpretation lines are.": "لا توجد تضاريس: مكسوة على السطح المار بمناسيب الفوهات، كخطوط التفسير.",
   "No shape to speak of: the picks are spread as random planes would be.": "لا شكل يُذكر: القياسات متفرقة كما تكون المستويات العشوائية.",
-  "Disabled: these picks show no preferred orientation (k = {k}, at the level of random planes), so their mean plane is not a trend to model. Filter to fewer holes or one domain first.": "معطّل: لا تُظهر هذه القياسات اتجاهًا مفضلًا (k = {k}، بمستوى المستويات العشوائية)، فمستواها المتوسط ليس اتجاهًا للنمذجة. صفِّ أولًا إلى ثقوب أقل أو نطاق واحد."
+  "Disabled: these picks show no preferred orientation (k = {k}, at the level of random planes), so their mean plane is not a trend to model. Filter to fewer holes or one domain first.": "معطّل: لا تُظهر هذه القياسات اتجاهًا مفضلًا (k = {k}، بمستوى المستويات العشوائية)، فمستواها المتوسط ليس اتجاهًا للنمذجة. صفِّ أولًا إلى ثقوب أقل أو نطاق واحد.",
+  " (make one in Maps > Terrain first: fetch one, import a DEM, or offline from points, from the project's samples and collars, or from a block model's top)": " (أنشئ تضاريس أولًا في الخرائط > التضاريس: نزّلها، أو استورد نموذج ارتفاع رقمي، أو دون اتصال من نقاط، أو من عينات المشروع وفوهاته، أو من قمة نموذج كتلي)",
+  "No surface samples yet: drop a rock-chip or soil file on the 3D view, or import it on the Geochem tab": "لا توجد عينات سطحية بعد: أفلت ملف عينات صخرية أو تربة على العرض ثلاثي الأبعاد، أو استورده في تبويب الجيوكيمياء",
+  "Elevations the terrain is built from": "المناسيب التي تُبنى منها التضاريس",
+  "Samples and collars ({s} + {c})": "العينات والفوهات ({s} + {c})",
+  "Collars only ({c}): surveyed, usually": "الفوهات فقط ({c}): مرفوعة مساحيًا عادةً",
+  "Samples only ({s}): GPS heights are rough": "العينات فقط ({s}): ارتفاعات GPS تقريبية"
 }

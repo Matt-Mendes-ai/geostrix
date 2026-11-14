@@ -163,7 +163,7 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
                 <Trash2 size={13} role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Remove line \"{name}\"", { name: f.attributes.name })} onClick={() => remove(i)} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} />
               </div>
             ))}
-            <div style={{ ...note, marginTop: 4 }}>{tr("Show, hide, export or remove the whole layer under Map layers; colours under Maps → Map layers.")}</div>
+            <div style={{ ...note, marginTop: 4 }}>{tr("Show, hide or remove the whole layer under Map layers; export it from its right-click menu in the 3D View's layer list (Map layers).") /* #3381 — the Map layers cards have no export */}</div>
           </div>
         )}
       </div>

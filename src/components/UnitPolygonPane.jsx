@@ -13,6 +13,7 @@ import { t as tr } from "../lib/i18n.js";
 import { planElevation, planElevationText } from "../lib/drapeElevation.js"; // TASKS.csv #2269
 import { mapLayerOnCollars } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #3368
 import { categoryColor, LAYER_META } from "../lib/layers.js"; // TASKS.csv #2572 — the logs' colour for a logged code
+import { roleWithCodes } from "../lib/collarSubcrop.js"; // TASKS.csv #3381 — a logged code's role (Modelling codes first)
 import { closesRing } from "../lib/viewer/interpretDraw.js"; // TASKS.csv #2682 — one rule for the click and the 3D view's hover highlight
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
@@ -20,7 +21,7 @@ const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "sp
 
 // drawing: the 3D view's state { on, points: [{ x, y, z }], finishSeq }; onStart / onUndo / onCancel / onDone drive it.
 export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, onDone, onClose }) {
-  const { mapLayers, addMapLayer, updateMapLayer, terrain, collars, survey, voxelModels, surfaceSamples, layers, viewerUiState } = useStore(); // layers, viewerUiState: #2572
+  const { mapLayers, addMapLayer, updateMapLayer, terrain, collars, survey, voxelModels, surfaceSamples, layers, viewerUiState, modellingCodes } = useStore(); // layers, viewerUiState: #2572; modellingCodes: #3381
   // TASKS.csv #2572 — a unit named like a logged lithology code takes the logs' colour for it (as Subcrop from collars does)
   const loggedCodes = useMemo(() => new Set((layers?.litho || []).map((r) => String(r.value ?? "").trim()).filter(Boolean)), [layers?.litho]);
   const colorOf = (u) => (loggedCodes.has(u) ? categoryColor(viewerUiState?.legendOverride?.litho?.[u], LAYER_META.litho, u) : null);
@@ -50,9 +51,15 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
       const f = l.styleField || "unit";
       for (const ft of l.features || []) { const v = ft.attributes?.[f]; if (v != null && v !== "") s.add(String(v)); }
     }
-    for (const r of layers?.litho || []) { const v = String(r?.value ?? "").trim(); if (v) s.add(v); }
+    // TASKS.csv #3381 — not the logged codes that are cover or missing core (NR, OVB): nobody maps a unit of them
+    const roleOf = roleWithCodes(modellingCodes), notUnit = new Map();
+    for (const r of layers?.litho || []) {
+      const v = String(r?.value ?? "").trim(); if (!v || s.has(v)) continue;
+      if (!notUnit.has(v)) { const role = roleOf(v); notUnit.set(v, role === "overburden" || role === "no recovery" || role === "ignore"); }
+      if (!notUnit.get(v)) s.add(v);
+    }
     return [...s].sort();
-  }, [mapLayers, layers?.litho]);
+  }, [mapLayers, layers?.litho, modellingCodes]);
 
   const finish = (closedOnFirst = false) => {
     const corners = closedOnFirst ? pts.slice(0, -1) : pts; // #2414 — the click that closed the ring is not a corner
@@ -128,7 +135,7 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
                 <Trash2 size={13} role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Remove polygon {v}", { v: i + 1 })} onClick={() => remove(i)} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} />
               </div>
             ))}
-            <div style={{ ...note, marginTop: 4 }}>{tr("Show, hide, export or remove the whole layer under Map layers; colours under Maps → Map layers.")}</div>
+            <div style={{ ...note, marginTop: 4 }}>{tr("Show, hide or remove the whole layer under Map layers; export it from its right-click menu in the 3D View's layer list (Map layers).") /* #3381 — the Map layers cards have no export */}</div>
           </div>
         )}
       </div>

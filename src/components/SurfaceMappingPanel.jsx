@@ -695,7 +695,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
             <label style={{ ...row, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
               <input type="checkbox" checked={l.drapeMode === "terrain" && !!terrain} disabled={!terrain} title={!terrain && l.drapeMode === "terrain" ? tr("Flat for now: it drapes on the terrain once one is loaded.") : undefined} /* #1606 */
                 onChange={(e) => updateMapLayer(l.id, { drapeMode: e.target.checked ? "terrain" : "flat" })} />
-              <span style={{ color: "var(--color-text-caption)" }}>{tr("Drape on terrain{v}", { v: !terrain ? tr(" (import or fetch a DEM first, or offline: Geophysics > Block models > Terrain from the model's top)") /* #1824 */ : "" })}</span>
+              <span style={{ color: "var(--color-text-caption)" }}>{tr("Drape on terrain{v}", { v: !terrain ? tr(" (make one in Maps > Terrain first: fetch one, import a DEM, or offline from points, from the project's samples and collars, or from a block model's top)") /* #1824; one direction, as the Surface structures text (#3381) */ : "" })}</span>
             </label>
             {l.hasZ && !(l.drapeMode === "terrain" && terrain) && ( /* TASKS.csv #1601 - a polygon: outlines only (a drape is a flat picture) */
               <label style={{ ...row, cursor: "pointer" }}>

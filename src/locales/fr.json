@@ -7275,7 +7275,7 @@
   "Added \"{name}\" to \"{layer}\" ({m} m).": "« {name} » ajoutée à « {layer} » ({m} m).",
   "Lines in \"{layer}\"": "Lignes dans « {layer} »",
   "Remove line \"{name}\"": "Supprimer la ligne « {name} »",
-  "Show, hide, export or remove the whole layer under Map layers; colours under Maps → Map layers.": "Affichez, masquez, exportez ou supprimez toute la couche sous Couches cartographiques ; les couleurs sous Cartes → Couches cartographiques.",
+  "Show, hide or remove the whole layer under Map layers; export it from its right-click menu in the 3D View's layer list (Map layers).": "Affichez, masquez ou supprimez toute la couche sous Couches de carte ; exportez-la depuis son menu contextuel dans la liste des couches de la Vue 3D (Couches de carte).",
   "Geophysics: {name}": "Géophysique : {name}",
   "Block model: {name} (highest in each column)": "Modèle de blocs : {name} (le plus élevé de chaque colonne)",
   "Block model: {name} (lowest in each column)": "Modèle de blocs : {name} (le plus faible de chaque colonne)",
@@ -12143,5 +12143,11 @@
   "No terrain: the polygons are draped on the ground between the collars (a surface through the collar elevations), as the interpretation lines are.": "Pas de terrain : les polygones sont drapés sur le sol entre les collets (une surface passant par les altitudes des collets), comme les lignes d'interprétation.",
   "No terrain: draped on the surface through the collar elevations, as the interpretation lines are.": "Pas de terrain : drapée sur la surface passant par les altitudes des collets, comme les lignes d'interprétation.",
   "No shape to speak of: the picks are spread as random planes would be.": "Pas de forme à proprement parler : les mesures sont dispersées comme des plans au hasard.",
-  "Disabled: these picks show no preferred orientation (k = {k}, at the level of random planes), so their mean plane is not a trend to model. Filter to fewer holes or one domain first.": "Désactivé : ces mesures ne montrent aucune orientation préférentielle (k = {k}, au niveau de plans au hasard), donc leur plan moyen n'est pas une tendance à modéliser. Filtrez d'abord sur moins de sondages ou un seul domaine."
+  "Disabled: these picks show no preferred orientation (k = {k}, at the level of random planes), so their mean plane is not a trend to model. Filter to fewer holes or one domain first.": "Désactivé : ces mesures ne montrent aucune orientation préférentielle (k = {k}, au niveau de plans au hasard), donc leur plan moyen n'est pas une tendance à modéliser. Filtrez d'abord sur moins de sondages ou un seul domaine.",
+  " (make one in Maps > Terrain first: fetch one, import a DEM, or offline from points, from the project's samples and collars, or from a block model's top)": " (créez-en un d'abord dans Cartes > Terrain : téléchargez-en un, importez un MNT, ou hors ligne à partir de points, des échantillons et collets du projet, ou du toit d'un modèle de blocs)",
+  "No surface samples yet: drop a rock-chip or soil file on the 3D view, or import it on the Geochem tab": "Pas encore d'échantillons de surface : déposez un fichier d'échantillons de roche ou de sol sur la vue 3D, ou importez-le dans l'onglet Géochimie",
+  "Elevations the terrain is built from": "Altitudes à partir desquelles le terrain est construit",
+  "Samples and collars ({s} + {c})": "Échantillons et collets ({s} + {c})",
+  "Collars only ({c}): surveyed, usually": "Collets seulement ({c}) : levés, en général",
+  "Samples only ({s}): GPS heights are rough": "Échantillons seulement ({s}) : les altitudes GPS sont approximatives"
 }
