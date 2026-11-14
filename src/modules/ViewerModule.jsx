@@ -4312,7 +4312,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     });
   }, [layerStyles]);
   // TASKS.csv #1277 — the Hole labels dropdown redraws the labels only
-  useEffect(() => { syncHoleLabels(layerGroupsRef.current?.hole_labels, holeLabelAnchorsRef.current, holeLabelMode, makeTextSprite); applyHoleVisibilityRef.current?.(); /* #3253 */ }, [holeLabelMode]);
+  useEffect(() => {
+    const g = layerGroupsRef.current?.hole_labels, byId = holeScheme ? new Map(collars.map((c) => [String(c.hole_id), c])) : null;
+    if (g) g.userData.colourOf = byId ? (id) => holeScheme.colourOf(byId.get(String(id))) : null; // #3399 — a pad callout's swatches; a rebuild's sync reads it too
+    syncHoleLabels(g, holeLabelAnchorsRef.current, holeLabelMode, makeTextSprite); applyHoleVisibilityRef.current?.(); /* #3253 */
+  }, [holeLabelMode, holeScheme]);
   // #551 — declared AFTER the big effect: when both fire, the big one builds first and these then see unchanged inputs
   // #1500 — not in a commit whose big build was deferred (buildDefer): the next render's big build builds these at its end
   useEffect(() => { if (!buildDefer.skip() && !sameInputs(assayBuiltRef.current, assayInputs)) buildAssaySpheresRef.current(); }, assayInputs);

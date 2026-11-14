@@ -11,18 +11,30 @@ export function holeLabelText(a, mode) {
 import { groupPads } from "../padGroups.js"; // #3399
 const fillers = new WeakMap(); // #3098 — group -> fillTextSprites, for lazy labels
 // group: the hole_labels THREE.Group; makeSprite(text) -> a sprite. Clears what was there (textures included) first.
-export function syncHoleLabels(group, anchors, mode, makeSprite) {
+// TASKS.csv #3399 — a pad of several holes gets a callout (makeSprite.callout) listing each hole, with its colour when the holes are coloured
+// by a collar field: colourOf(hole id) -> hex, kept on the group (group.userData.colourOf) by the 3D View so a rebuild's sync draws them too
+export function syncHoleLabels(group, anchors, mode, makeSprite, colourOf = group?.userData?.colourOf || null) {
   if (!group) return 0;
   while (group.children.length) { const c = group.children.pop(); c.material?.map?.dispose?.(); c.material?.dispose?.(); c.geometry?.dispose?.(); } idle.delete(group); // #2364 — new sprites: the declutter runs again, not only after a camera move
   if (mode === "none") return 0;
   const fans = groupPads(anchors || []);
   // TASKS.csv #2208 — a fan of holes from one collar (an underground cuddy) gets ONE label, 'WB0817D +6', its ids in the tip
-  const texts = fans.map((g) => (g.length > 1 ? `${holeLabelText(g[0], mode)} +${g.length - 1}` : holeLabelText(g[0], mode)));
+  const callout = makeSprite.callout, pad = (g) => g.length > 1 && callout; // #3399
+  const singles = fans.filter((g) => !pad(g)), texts = singles.map((g) => (g.length > 1 ? `${holeLabelText(g[0], mode)} +${g.length - 1}` : holeLabelText(g[0], mode))); // '+n': no callout maker (#2208)
   const lazy = makeSprite.lazy && makeSprite.fill; // #3098 — drawn when the declutter shows them
-  const sprites = lazy ? makeSprite.lazy(texts) : makeSprite.many ? makeSprite.many(texts) : texts.map((t) => makeSprite(t)); // #2795 — one atlas, not a canvas per label
+  const made = lazy ? makeSprite.lazy(texts) : makeSprite.many ? makeSprite.many(texts) : texts.map((t) => makeSprite(t)); // #2795 — one atlas, not a canvas per label
   if (lazy) fillers.set(group, makeSprite.fill); else fillers.delete(group);
-  fans.forEach((g, i) => {
-    const a = g[0], sprite = sprites[i];
+  let k = 0;
+  fans.forEach((g) => {
+    const a = g[0];
+    if (pad(g)) { // #3399 — the leader's foot on the collar marker's top, the box up and to the right
+      const sprite = callout(g.map((x) => ({ text: holeLabelText(x, mode), colour: colourOf ? colourOf(x.id) : null })));
+      sprite.position.set(a.x, a.y + 1, a.z);
+      sprite.userData = { tip: g.map((x) => x.id).join("\n"), pad: g.length };
+      group.add(sprite);
+      return;
+    }
+    const sprite = made[k++];
     sprite.position.set(a.x, a.y + 6, a.z); // above the collar marker, as before
     sprite.userData = { tip: g.length > 1 ? g.map((x) => x.id).join("\n") : `${a.id}\nLabel` };
     group.add(sprite);
@@ -55,7 +67,10 @@ export function labelBoxes(group, camera, width, height, labelPx = 16) {
     const cx = e[0] * x + e[4] * y + e[8] * z + e[12], cy = e[1] * x + e[5] * y + e[9] * z + e[13], cz = e[2] * x + e[6] * y + e[10] * z + e[14], cw = e[3] * x + e[7] * y + e[11] * z + e[15];
     const w = p[3] * cx + p[7] * cy + p[11] * cz + p[15] * cw;
     if (!(w > 0)) return null;
-    return { x: ((p[0] * cx + p[4] * cy + p[8] * cz + p[12] * cw) / w) * 0.5 * width, y: ((p[1] * cx + p[5] * cy + p[9] * cz + p[13] * cw) / w) * 0.5 * height, w: labelPx * (sp.material?.userData?.labelAspect || 4), h: labelPx };
+    const sx = ((p[0] * cx + p[4] * cy + p[8] * cz + p[12] * cw) / w) * 0.5 * width, sy = ((p[1] * cx + p[5] * cy + p[9] * cz + p[13] * cw) / w) * 0.5 * height;
+    const L = sp.material?.userData?.labelLines;
+    if (L) { const h = labelPx * L, bw = h * (sp.material.userData.labelAspect || 4); return { x: sx + (0.5 - sp.center.x) * bw, y: sy + (0.5 - sp.center.y) * h, w: bw, h }; } // #3399 — a callout: its whole box, from its corner
+    return { x: sx, y: sy, w: labelPx * (sp.material?.userData?.labelAspect || 4), h: labelPx };
   });
 }
 
