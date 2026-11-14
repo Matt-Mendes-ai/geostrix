@@ -166,6 +166,13 @@ export function estimateBlockModel(samplePoints, opts) {
   const { dx, dy, dz, nx, ny, nz, totalBlocks } = gridDims(bounds, cellSize, opts.maxBlocks, reachInfo); // maxBlocks: #626
   const mask = reachInfo?.mask || null;
   if (!samplePoints.length) return { cells: [], blocksEstimated: 0, blocksSkipped: totalBlocks, singleHoleCells: 0 };
+  // TASKS.csv #3163 (split from #3014) — a set's members on the same sample points as this run: opts.members = { values: [per member, a value per
+  // sample point, in samplePoints' order], unsampled: [per member, its unsampled drill points, or null] }. Each block then also gives every
+  // member's value from the SAME search and weights (nearest-neighbour, IDW, MLS; not kriging, whose weights come from each member's own
+  // variogram), and each member's near-unsampled flag from its own unsampled points: one search for N elements instead of N searches.
+  // Columns only (the worker's form): columns.mv[m], columns.nu[m].
+  const mem = opts.members?.values?.length && method !== "ok" && opts.columns ? opts.members : null;
+  if (mem) samplePoints = samplePoints.map((p, i) => ({ ...p, _mi: i }));
 
   // TASKS.csv #709 — kriging needs a variogram (resolveVariogram), in the same frame the search works in
   const tw0 = method === "ok" ? withTrend(samplePoints, opts) : null;
@@ -176,7 +183,7 @@ export function estimateBlockModel(samplePoints, opts) {
   // search and adds per-cell work, so it must never be paid for by a caller that didn't ask. `bracketTol`
   // is half a cell, so bracketing has to be real at the scale the block model is drawn at.
   const tw = tw0 || withTrend(samplePoints, opts); // #650
-  const est0 = makeCellEstimator(tw.pts, { ...estOpts, support: !!opts.support, bracketTol: Math.min(dx, dy, dz) / 2, zRange: true, usedPoints: !!opts.unsampledPoints?.length || !!opts.logShare }); // zRange: #2417; usedPoints: #2596, #2721
+  const est0 = makeCellEstimator(tw.pts, { ...estOpts, support: !!opts.support, bracketTol: Math.min(dx, dy, dz) / 2, zRange: true, usedPoints: !!opts.unsampledPoints?.length || !!opts.logShare || !!mem?.unsampled?.some((u) => u?.length), ...(mem ? { memberValues: mem.values } : {}) }); // zRange: #2417; usedPoints: #2596, #2721; memberValues: #3163
   const est = tw.q ? (x, y, z) => est0(...tw.q(x, y, z)) : est0;
   const wantSupport = !!opts.support;
   // TASKS.csv #2417 / #2542 — a block whose whole height lies above (1) or below (2) every sample informing it: the estimate carried
@@ -188,12 +195,13 @@ export function estimateBlockModel(samplePoints, opts) {
   // across drilling that was never sampled (unknown, not barren). Real (unwarped) distances; off when no such points are given.
   const unsIdx = opts.unsampledPoints?.length ? makePointIndex(opts.unsampledPoints, Math.max(5, 2 * Math.max(dx, dy, dz))) : null;
   // the nearest sample is the nearest of those informing the block (real positions: wx under a trend), so no second search
-  const nearUnsampledOf = (r, cx, cy, cz) => {
-    if (!unsIdx || !r.used?.length) return 0;
+  const nearUnsampledOf = (r, cx, cy, cz, idx = unsIdx) => { // idx: #3163 — a member's own unsampled points
+    if (!idx || !r.used?.length) return 0;
     let dS = Infinity;
     for (const u of r.used) { const p = u.p, d = Math.hypot((p.wx ?? p.x) - cx, (p.wy ?? p.y) - cy, (p.wz ?? p.z) - cz); if (d < dS) dS = d; }
-    return unsIdx.anyWithin(cx, cy, cz, dS) ? 1 : 0;
+    return idx.anyWithin(cx, cy, cz, dS) ? 1 : 0;
   };
+  const memUns = mem ? mem.values.map((_, m) => (mem.unsampled?.[m]?.length ? makePointIndex(mem.unsampled[m], Math.max(5, 2 * Math.max(dx, dy, dz))) : null)) : null; // #3163
   let nearUnsampledBlocks = 0;
   // TASKS.csv #2721 — opts.logShare: the points carry logFrac (the share of their metres filled from a picked log); a block's share of its
   // value from the log is about the inverse-distance-weighted share of its informing samples' value (the method's power, 2 for kriging / MLS)
@@ -223,6 +231,7 @@ export function estimateBlockModel(samplePoints, opts) {
     ...(opts.logShare ? { fromLog: new Float32Array(cap) } : {}), // #2721
     ...(restrictToDomain ? { domainCode: new Int32Array(cap).fill(-1) } : {}), // #3014 — an index into domainNames, -1 = no code
   } : null;
+  const mv = mem ? mem.values.map(() => new Float64Array(cap)) : null, mnu = mem ? memUns.map((ix) => (ix ? new Uint8Array(cap) : null)) : null; // #3163
   const domainNames = [], domainIdx = new Map(); // #3014
   const domainCodeOf = (d) => { if (d == null) return -1; let k = domainIdx.get(d); if (k === undefined) { k = domainNames.length; domainNames.push(d); domainIdx.set(d, k); } return k; };
   // TASKS.csv #3255 — the blocks a drillhole passes through (a composite inside, real positions) and the holes along them: counted estimated or
@@ -273,6 +282,7 @@ export function estimateBlockModel(samplePoints, opts) {
           if (col.nearUnsampled) col.nearUnsampled[n] = nu; // #2596
           if (col.fromLog) col.fromLog[n] = fl; // #2721
           if (col.domainCode) col.domainCode[n] = domainCodeOf(r.domain); // #3014
+          if (mv) for (let m = 0; m < mv.length; m++) { mv[m][n] = r.mv[m]; if (mnu[m]) mnu[m][n] = nearUnsampledOf(r, cx, cy, cz, memUns[m]); } // #3163
           col.x[n] = cx; col.y[n] = cy; col.z[n] = cz; col.value[n] = r.value; col.nSamples[n] = r.nSamples; col.nHoles[n] = r.nHoles;
           col.holeShare[n] = r.nHoles === 1 ? 1 : r.domShare ?? NaN; // #1617 — the dominant hole's share, for the pit's single-hole count
           if (col.kv) col.kv[n] = r.kv ?? NaN;
@@ -298,7 +308,7 @@ export function estimateBlockModel(samplePoints, opts) {
     opts.onProgress?.((iz + 1) / nz); // #520 — once per z-slice (the estimation worker relays it)
   }
   // #661 — trimmed to the blocks actually estimated (slice copies, so the spare capacity is freed with the originals)
-  const columns = asColumns ? Object.fromEntries([["n", n], ["dx", dx], ["dy", dy], ["dz", dz], ...Object.entries(col).map(([k, a]) => [k, a.slice(0, n)]), ...(col.domainCode ? [["domainNames", domainNames]] : [])]) : null; // domainNames: #3014
+  const columns = asColumns ? Object.fromEntries([["n", n], ["dx", dx], ["dy", dy], ["dz", dz], ...Object.entries(col).map(([k, a]) => [k, a.slice(0, n)]), ...(col.domainCode ? [["domainNames", domainNames]] : []), ...(mv ? [["mv", mv.map((a) => a.slice(0, n))], ["nu", mnu.map((a) => (a ? a.slice(0, n) : null))]] : [])]) : null; // domainNames: #3014; mv / nu: #3163
   // #3255 — { blocks, estimated, holes, holesEmpty: [hole ids with no estimated block along them] }
   const holeHit = new Map();
   for (const [k, hs] of pierced) for (const h of hs) holeHit.set(h, (holeHit.get(h) || false) || piercedDone.has(k));
@@ -597,6 +607,7 @@ function makeCellEstimator(samplePoints, opts = {}) {
   const holeBr = wantSupport && opts.holeBracket !== false ? makeHoleBracketer(samplePoints, { searchRadius: opts.searchRadius, step: Math.max(bracketTol, 1), tol: bracketTol }) : null; // #3275
 
   const shareIds = [], shareW = []; // #676 — scratch for the dominant-hole share, reused across blocks
+  const MV = opts.memberValues?.length && method !== "ok" ? opts.memberValues : null; // #3163
   return (cx, cy, cz) => {
     const dists = gather(cx, cy, cz);
     if (dists.length < minSamples) return null;
@@ -658,6 +669,7 @@ function makeCellEstimator(samplePoints, opts = {}) {
     }
     if (value == null || !Number.isFinite(value)) return null;
     const out = { value, nSamples: used.length, nHoles: holes.size };
+    if (MV) out.mv = memberValuesAt(MV, used, method, power, mlsMode, cx, cy, cz); // #3163
     if (restrictToDomain) out.domain = dists[0].domain ?? null; // TASKS.csv #3014 — the domain the block took (its nearest composite's), kept on the block
     // TASKS.csv #2417 — the elevation range of the samples used (real elevations: wz under a trend), for the block's "above or
     // below every sample that informs it" flag
@@ -1034,6 +1046,25 @@ function methodPower(method) {
 }
 
 // Length-weighted inverse-distance. TASKS.csv #262 — weight is length / d^power.
+// TASKS.csv #3163 — a set's members' values at a block from the samples and weights its own value used (values[m][point._mi]): the nearest
+// sample's (NN), the exact hit's, IDW with the same weights, or MLS refitted to the member's values on the same neighbourhood (its fallback,
+// IDW², when the primary's fit fell back). The same arithmetic as the primary's, so a member estimated this way equals its own run.
+function memberValuesAt(MV, used, method, power, mlsMode, cx, cy, cz) {
+  const M = MV.length, out = new Array(M);
+  const at = (m, s) => MV[m][s.p._mi];
+  if (method === "nn") { for (let m = 0; m < M; m++) out[m] = at(m, used[0]); return out; }
+  const exact = used.find((s) => s.d2 < EXACT_D2);
+  if (exact) { for (let m = 0; m < M; m++) out[m] = at(m, exact); return out; }
+  const idw = (m, pw) => { let wSum = 0, vSum = 0; for (let i = 0; i < used.length; i++) { const s = used[i], w = s.len / Math.pow(s.d2, pw / 2); wSum += w; vSum += w * at(m, s); } return wSum > 0 ? vSum / wSum : null; };
+  for (let m = 0; m < M; m++) {
+    if (method === "mls1") {
+      if (mlsMode === "idw") { out[m] = idw(m, 2); continue; }
+      const r = mlsLinear(used.map((s) => ({ ...s, value: at(m, s) })), cx, cy, cz);
+      out[m] = r ? r.value : idw(m, 2);
+    } else out[m] = idw(m, power);
+  }
+  return out;
+}
 function idwValue(used, power) {
   let wSum = 0, vSum = 0;
   for (let i = 0; i < used.length; i++) {

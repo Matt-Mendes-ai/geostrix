@@ -33,8 +33,9 @@ test("wiring: the members' top cuts in the dialog, used in the run, recorded, ch
   assert.match(m, /const mCapN = Number\(memberCapOf\(el\)\), mCap = mCapN > 0 \? mCapN : null;/);
   assert.match(m, /compositeDownholeSliced\(rows, el, u, elementUnits, \{ length: compositeLength, minCoverage, capValue: mCap, domainRows: domainRowsSel \}, \{ signal: ac\.signal \}\) \/\* #3105 \*\/ : rawSampleIntervals\(rows, el, u, elementUnits, \{ capValue: mCap \}\)/);
   assert.match(m, /element: el, unit: u, capValue: mCap, capUnit: mCap != null \? u : null, \.\.\.\(mAudit \? \{ capAudit: mAudit \} : \{\}\)/);
-  assert.match(m, /const mNn = method === "nn" \? null : await runEstimation\("block", mp, nnOpts, \{ signal: ac\.signal, checkOnly: true \}\);/);
-  assert.match(m, /const nnEst = method === "nn" \? est : await runEstimation\("block", estPts, nnOpts, \{/);
+  // #3163 — a member on the primary's points takes its check from the primary's check run
+  assert.match(m, /const mNn = method === "nn" \? null : j >= 0 \? \{ checkColumns: nnEst\.memberCheckColumns\[j\] \} \/\* #3163 \*\/ : await runEstimation\("block", mp, nnOpts, \{ signal: ac\.signal, checkOnly: true \}\);/);
+  assert.match(m, /const nnEst = method === "nn" \? est : await runEstimation\("block", estPts, \{ \.\.\.nnOpts, \.\.\.\(sharedValues \? \{ members: \{ values: sharedValues \} \} : \{\}\) \/\* #3163 \*\/ \}, \{/);
   assert.match(m, /aria-label=\{tr\("Top cut of the other elements"\)\}/);
   assert.match(m, /tr\("check: composites \{c\}, nearest neighbour \{nn\}, estimate \{e\} \{unit\} \(\{d\} against the nearest neighbour\)"/);
   assert.match(m, /tr\("\{el\} capped at \{cap\} \{unit\} before estimating\."/);
