@@ -107,6 +107,14 @@ export function makeImportPipeline(ctx, h) {
     mode = null, // TASKS.csv #3046 (1)
   } = ctx;
 
+  // TASKS.csv #3408 (#2399) — a per-hole table with no coordinates whose ids are all existing holes, one row each (a gamma log's calibration table), is a
+  // Collars join, not a Custom layer: the guess says so, and the dialog's join note (#2399) follows. Only a Custom guess is changed.
+  const perHoleTarget = (target, headers, rows) => {
+    if (target !== "custom") return target;
+    const m = guessMapping("collars", headers);
+    return m.hole_id && !(m.x && m.y) && perHoleJoinOf(rows, m, importStateRef.current?.collars || [])?.noXY ? "collars" : target;
+  };
+
   // TASKS.csv #609 — a LINE or POLYGON shapefile (IP lines, claim outlines, a geology map) is map data, not a
   // drillhole table: it used to fall to the collar guess and open the mapping dialog. It goes to Map layers
   // (the Geophysics tab's panel) through the same builder, draped on the terrain when there is one.
@@ -165,7 +173,7 @@ export function makeImportPipeline(ctx, h) {
         assayHandoffRef.current.push(assayHandoffOf(file, data, headers, meta)); handOverAssays(); // #1350; #2016
         return;
       }
-      const target = forceTarget || guessTargetFor(headers, file.name, data); // #605: the file name as a hint; data: #2884
+      const target = forceTarget || perHoleTarget(guessTargetFor(headers, file.name, data), headers, data); // #605: the file name as a hint; data: #2884; perHoleTarget: #3408
       const ll = lonLatForCollars(target, guessMapping(target, headers), headers, data); // #1235
       const mapping0 = azColFor(target, headers, data, ll ? ll.mapping : guessMapping(target, headers)); // #426; #2015
       const codeGuess = codeColumnGuess(target, headers, data, mapping0), mapping = codeGuess ? { ...mapping0, value: codeGuess.col } : mapping0; // #2889 — no name matched: the file's one code column, said as a guess
@@ -248,7 +256,7 @@ export function makeImportPipeline(ctx, h) {
         : notice("{name} looks like an assay table, so it opened in Geochem's assay import, where you choose the elements.", { name: sourceName })]); // #995 — the tab switch is said
       return;
     }
-    const target = guessTargetFor(headers, sourceName, rows); // #605; rows: #2884
+    const target = perHoleTarget(guessTargetFor(headers, sourceName, rows), headers, rows); // #605; rows: #2884; #3408
     const ll = lonLatForCollars(target, guessMapping(target, headers), headers, rows); // #1235
     const mapping0 = azColFor(target, headers, rows, ll ? ll.mapping : guessMapping(target, headers)); // #426; #2015
     const codeGuess = codeColumnGuess(target, headers, rows, mapping0), mapping = codeGuess ? { ...mapping0, value: codeGuess.col } : mapping0; // #2889
@@ -1095,7 +1103,7 @@ export function makeImportPipeline(ctx, h) {
         processImportQueue();
         return;
       }
-      const target = guessTargetFor(headers, file.name, data); // #605; data: #2884
+      const target = perHoleTarget(guessTargetFor(headers, file.name, data), headers, data); // #605; data: #2884; #3408
       const schema = TARGET_SCHEMAS[target];
       const queueLl = lonLatForCollars(target, guessMapping(target, headers), headers, data); // #1235
       const mapping0 = azColFor(target, headers, data, queueLl ? queueLl.mapping : guessMapping(target, headers)); // #426; #2015
