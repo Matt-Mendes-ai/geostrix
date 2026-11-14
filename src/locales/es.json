@@ -12345,5 +12345,11 @@
   "a close spelling of \"{word}\" ({d} letter(s) off)": "una ortografía cercana a «{word}» ({d} letra(s) de diferencia)",
   "its meaning in the code dictionary: {meaning}": "su significado en el diccionario de códigos: {meaning}",
   "a common abbreviation": "una abreviatura común",
-  "the code read as a rock name": "el código leído como nombre de roca"
+  "the code read as a rock name": "el código leído como nombre de roca",
+  "Not available: the two halves with these columns would not fit the doubled frame even at 5 pt. Drop a column, or keep one column and let the rest carry on to the next page.": "No disponible: las dos mitades con estas columnas no cabrían en el marco duplicado ni siquiera a 5 pt. Quite una columna, o deje una sola columna y que el resto siga en la página siguiente.",
+  "Edit the key's lines": "Editar las líneas de la leyenda",
+  "Type a line to replace the plan's wording; clear it to go back. A line keeps your wording while its class stays.": "Escriba una línea para reemplazar el texto del plano; bórrela para volver. Una línea conserva su texto mientras su clase siga existiendo.",
+  "Key title": "Título de la leyenda",
+  "Key note": "Nota de la leyenda",
+  "Back to the plan's own wording": "Volver al texto del plano"
 }

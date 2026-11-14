@@ -12345,5 +12345,11 @@
   "a close spelling of \"{word}\" ({d} letter(s) off)": "كتابة قريبة من «{word}» (يختلف بـ {d} حرف)",
   "its meaning in the code dictionary: {meaning}": "معناه في قاموس الرموز: {meaning}",
   "a common abbreviation": "اختصار شائع",
-  "the code read as a rock name": "الرمز مقروءًا كاسم صخر"
+  "the code read as a rock name": "الرمز مقروءًا كاسم صخر",
+  "Not available: the two halves with these columns would not fit the doubled frame even at 5 pt. Drop a column, or keep one column and let the rest carry on to the next page.": "غير متاح: لن يتسع نصفا الجدول بهذه الأعمدة للإطار المضاعف حتى بحجم 5 نقاط. احذف عمودًا، أو أبقِ عمودًا واحدًا واترك الباقي يكمل في الصفحة التالية.",
+  "Edit the key's lines": "تحرير أسطر المفتاح",
+  "Type a line to replace the plan's wording; clear it to go back. A line keeps your wording while its class stays.": "اكتب سطرًا لاستبدال صياغة المخطط؛ امسحه للعودة. يحتفظ السطر بصياغتك ما دام صنفه قائمًا.",
+  "Key title": "عنوان المفتاح",
+  "Key note": "ملاحظة المفتاح",
+  "Back to the plan's own wording": "العودة إلى صياغة المخطط"
 }
