@@ -25,7 +25,7 @@ test("compositeDownhole counts the readings no kept composite took (opts.stats)"
 test("wiring: a source of readings under a quarter of the composite is not composited, said; readings under coverage counted; the record", () => {
   const m = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(m, /const compositingSkipped = useComposites && readMedian != null && readMedian < compositeLength \/ 4 \? \{ medianM: readMedian, lengthM: compositeLength \} : null;/);
-  assert.match(m, /if \(useComposites && !compositingSkipped\) \{\s*intervals = compositeDownhole\(runAssays, symbol, unit, elementUnits, \{\s*stats: coverageStats,/);
+  assert.match(m, /if \(useComposites && !compositingSkipped\) \{\s*(\/\/[^\n]*\n\s*)?intervals = await compositeDownholeSliced\(runAssays, symbol, unit, elementUnits, \{\s*stats: coverageStats,/);
   assert.match(m, /composited: useComposites && !compositingSkipped,/);
   assert.match(m, /\{result\.compositingSkipped && <div role="note">\{tr\("Not composited: the readings are \{m\} m long \(median\)/);
   assert.match(m, /\{result\.coverageLeftOut && <div role="note"/);

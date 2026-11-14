@@ -2,6 +2,7 @@
 // a numeric custom layer), drawn on the hole's own depth as bars (intervals) or a line (point readings). One scale for the whole panel,
 // so a bar means the same in every hole; its top end is the 98th percentile of the shown values, so one spike does not flatten the rest.
 import { LAYER_META } from "./layers.js";
+import { gradeUnitLabel } from "./geochemColumns.js"; // TASKS.csv #3286 (3) — Au / Ag / Pd in g/t, as the Grade tools
 import { isNumericLayer } from "./domainLayers.js";
 
 // -> [{ key, label, kind: "assay" | "layer", symbol?, rows? }]; label(text) translates a built-in layer's label
@@ -11,7 +12,7 @@ export function numericTrackSources({ layers = {}, customLayers = [], assays = [
     for (const e of assayElements || []) {
       const symbol = typeof e === "string" ? e : e?.symbol;
       if (!symbol) continue;
-      out.push({ key: `assay:${symbol}`, label: e?.unit ? `${symbol} (${e.unit})` : symbol, kind: "assay", symbol });
+      out.push({ key: `assay:${symbol}`, label: e?.unit ? `${symbol} (${gradeUnitLabel(symbol, e.unit)})` : symbol, kind: "assay", symbol });
     }
   }
   for (const [k, m] of Object.entries(LAYER_META)) {

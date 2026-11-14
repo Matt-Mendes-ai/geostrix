@@ -1,4 +1,5 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from "react"; // Suspense: TASKS.csv #1425
+import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3286 (3)
 import { ensureProjectCrs, ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #615; export: #1021
 import { exportCrs, terrainToWorld, tiedExportNote } from "../lib/tiedExport.js"; // TASKS.csv #2322 — a tied local grid's exports through its tie
 import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js";
@@ -3145,7 +3146,7 @@ function VoxelModelRow({ withSet = false /* #3014 part c */, others = null, mode
             style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)", padding: "2px 4px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)" }}>
             {/* TASKS.csv #2067 (review #2013) — an estimate knows its element and unit (params): said here, not set as property, which would
                 rename its export column (lib/blockModelExport.js) */}
-            <option value="">{!model.property && model.params?.element && !model.params?.declaredGrade ? (model.params.unit ? tr("{el} ({unit}), from the estimate", { el: model.params.element, unit: model.params.unit }) : tr("{el}, from the estimate", { el: model.params.element })) : tr("Not stated (the file names no unit)")}</option>
+            <option value="">{!model.property && model.params?.element && !model.params?.declaredGrade ? (model.params.unit ? tr("{el} ({unit}), from the estimate", { el: model.params.element, unit: gradeUnitLabel(model.params.element, model.params.unit) /* #3286 (3) */ }) : tr("{el}, from the estimate", { el: model.params.element })) : tr("Not stated (the file names no unit)")}</option>
             {VOXEL_PROPERTIES.map((v) => <option key={v} value={v}>{tr(v)}</option>)}
             <option value="__grade">{model.params?.declaredGrade ? tr("{el} ({unit}), a grade", { el: model.params.element, unit: model.params.unit }) : tr("A grade (element, unit)…")}</option>{/* #2667 */}
             <option value="__other">{model.property && !VOXEL_PROPERTIES.includes(model.property) ? model.property : tr("Other…")}</option>

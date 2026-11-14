@@ -1,7 +1,7 @@
 // TASKS.csv #3014 part b (design: docs/ideas/multi-element-estimation.md) — Grade-tonnage across a set of same-lattice models (params.set, part a):
 // limits on the set's other elements (Fe >= cut-off with SiO2 < 4 % and Al2O3 < 2.5 %), and each member's mean over the blocks counted. The
 // members are joined by lattice index, as the density model is (#3012). Pure; loaded with the Grade-tonnage dialog only.
-import { blockVolume } from "./gradeTonnage.js";
+import { blockVolume, metalOf, metalColumns } from "./gradeTonnage.js"; // metalOf / metalColumns: #3274
 
 // the lattice index of a block centre ({ dx, dy, dz, ox, oy, oz } from blockModelLattice), as one number
 const keyer = ({ dx, dy, dz, ox, oy, oz }) => (c) => {
@@ -57,9 +57,34 @@ export function memberMeans(cells, join, { cutoffs, interpolatedOnly = false, de
       const mean = wsum > 0 ? gsum / wsum : volW > 0 ? volG / volW : null; // no tonnes at all: by volume, as the table does
       // TASKS.csv #3270 — with tonnes, the row counts only the blocks with a density, so the covered share is of their volume
       const tons = densityOf && wAll > 0;
-      return { mean, covered: tons ? (vAllW > 0 ? vHasW / vAllW : null) : vAll > 0 ? vHas / vAll : null };
+      // TASKS.csv #3274 — wx / w: the weighted sum and weight (t x grade with a density per block, m3 x grade without), for the contained metal
+      return { mean, covered: tons ? (vAllW > 0 ? vHasW / vAllW : null) : vAll > 0 ? vHas / vAll : null, wx: gsum, w: wsum };
     });
     return { cutoff, means };
+  });
+}
+
+// TASKS.csv #3274 (Galore Creek review) — a Cu-Au-Ag set's table gave 'Mean Ag (g/t)' and 'Mean Au (g/t)' beside copper tonnes and no ounces.
+// A member's contained metal at a cutoff: its tonnes x grade over the counted blocks that have a value of it (memberMeans' wx: t x grade with a
+// density per block; m3 x grade times the one density otherwise), in the primary's metal columns for that element (t / Mlb, kg / troy oz).
+// -> [{ key, label, args, value }] (value null without tonnes). No price, recovery or equivalent grade: those are the block calculator's.
+export function memberMetal(x, { perBlock = false, rho = null, unit, element }) {
+  const m = metalOf(unit);
+  if (!m || !x) return [];
+  const tg = perBlock ? (x.w > 0 ? x.wx : null) : Number(rho) > 0 && Number.isFinite(x.wx) ? x.wx * Number(rho) : null;
+  return metalColumns(m, element).map((c) => ({ key: c.key, label: c.label, args: c.args || null, value: tg == null ? null : tg * m.factor * c.factor }));
+}
+// the CSV columns of the members' contained metal, one object per cutoff row: <element>_<kg | oz | t | mlb | t_<oxide>>
+export function memberMetalColumns(meansRows, members, { perBlock = false, rho = null } = {}) {
+  return meansRows.map((r) => {
+    const out = {};
+    members.forEach((mb, i) => {
+      for (const c of memberMetal(r.means[i], { perBlock, rho, unit: mb.unit, element: mb.element })) {
+        const suffix = c.key.replace(/^metal_/, "").replace(new RegExp(`_${mb.element}$`), "");
+        out[`${mb.element}_${suffix}`] = c.value == null ? "" : Number(c.value.toPrecision(6));
+      }
+    });
+    return out;
   });
 }
 
