@@ -57,8 +57,8 @@ test("wiring: the dialog asks for the NN model as columns and unlogs its values 
   assert.match(m, /setTimeout\(r, 0\)\); \/\/ TASKS\.csv #3060 — compositing, placing the points/);
   assert.match(m, /const v = nnEst\.checkColumns\.value; for \(let i = 0; i < v\.length; i\+\+\) v\[i\] = unlogValue\(v\[i\]\)/);
   const cl = readFileSync(new URL("../src/lib/estimationClient.js", import.meta.url), "utf8");
-  assert.match(cl, /cells: await cellsFromColumnsSliced\(columns, \{ signal \}\)/);
-  assert.match(cl, /checkOnly \? \{ \.\.\.rest, checkColumns: checkColumns\(columns\) \}/);
+  assert.match(cl, /const cells = await cellsFromColumnsSliced\(columns, \{ signal \}\);/); // #3163 — members' cells after it
+  assert.match(cl, /if \(checkOnly\) return \{ \.\.\.rest, checkColumns: checkColumns\(columns\),/); // #3163 — and the members' check columns
 });
 
 test("the check and the default swaths are kept per estimate / NN model / points: the render reads what the run worked out", () => {
