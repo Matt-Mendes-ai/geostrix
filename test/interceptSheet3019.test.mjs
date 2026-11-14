@@ -28,5 +28,5 @@ test("wiring: the extra columns and their cells, the widened table, and the page
   assert.match(b, /\.\.\.shownExtras\.map\(\(s\) => `\$\{s\} \(\$\{gradeUnitLabel\(s, elementUnits\[s\]\)\}\)`\)/);
   assert.match(b, /\.\.\.shownExtras\.map\(\(s\) => \(r\.extras\?\.\[s\] == null \? "—" : fExtra\[s\]\(r\.extras\[s\]\)\)\)/);
   assert.match(b, /const tableW = Math\.min\(pageSize\.w - 80, 560 \+ 70 \* shownExtras\.length\);/);
-  assert.match(b, /if \(ownPage\) addLayoutPages\(\[\{ name: tr\("Best intercepts"\), elements: \[table\] \}\]\);/);
+  assert.match(b, /if \(ownPage\) addLayoutPages\(\[\{ name: tr\("Best intercepts"\), elements: \[table\][^\n]*\}, \.\.\.contPages\]\);/); // contPages: #2708
 });
