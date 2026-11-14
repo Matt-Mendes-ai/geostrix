@@ -12666,5 +12666,13 @@
   "Reads {n} hole(s), samples at {band} (the Level above): a hole that does not reach that band reads as untested there.": "Lê {n} furo(s), amostras em {band} (o Nível acima): um furo que não chega a essa faixa é lido como não testado ali.",
   "Read at {band} (the Level).": "Lido em {band} (o Nível).",
   "The Level ({band}) was not used: none of these cards reads elevations.": "O Nível ({band}) não foi usado: nenhum destes cartões lê elevações.",
-  "Added \"{name}\" to the model surfaces: export it, slice it in sections, or remove it there. Ctrl+Z does not take it back (it would undo your last edit before it); a model surface is not part of the undo history.": "\"{name}\" foi adicionado às superfícies do modelo: exporte, corte em seções ou remova ali. Ctrl+Z não o desfaz (desfaria sua última edição anterior); uma superfície do modelo não faz parte do histórico de desfazer."
+  "Added \"{name}\" to the model surfaces: export it, slice it in sections, or remove it there. Ctrl+Z does not take it back (it would undo your last edit before it); a model surface is not part of the undo history.": "\"{name}\" foi adicionado às superfícies do modelo: exporte, corte em seções ou remova ali. Ctrl+Z não o desfaz (desfaria sua última edição anterior); uma superfície do modelo não faz parte do histórico de desfazer.",
+  "This picture prints at about {dpi} dpi at this size.": "Esta imagem é impressa a cerca de {dpi} dpi neste tamanho.",
+  "The Maps plan draws this view again over the same ground, as it is now (its layers and colours), at {dpi} dpi for this frame, then Layout opens again.": "O plano de Mapas desenha esta vista de novo sobre o mesmo terreno, como está agora (suas camadas e cores), a {dpi} dpi para este quadro, e depois a Prancha abre novamente.",
+  "Draw it again at {dpi} dpi from Maps": "Desenhá-la de novo a {dpi} dpi pelo Mapas",
+  "This frame is larger than a picture can be drawn at {dpi} dpi: it will be drawn at {got} dpi.": "Este quadro é maior do que se pode desenhar a {dpi} dpi: será desenhado a {got} dpi.",
+  "That is sharp enough to print at this size.": "É nítida o bastante para imprimir neste tamanho.",
+  "This snapshot was sent before Layout could ask Maps to draw it again: send it again from Maps to get that.": "Esta captura foi enviada antes de a Prancha poder pedir ao Mapas que a desenhasse de novo: envie-a novamente pelo Mapas para ter isso.",
+  "The map did not finish drawing at that size.": "O mapa não terminou de ser desenhado nesse tamanho.",
+  "Could not draw the map again for Layout: {message}": "Não foi possível desenhar o mapa de novo para a Prancha: {message}"
 }

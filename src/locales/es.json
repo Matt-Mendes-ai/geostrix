@@ -12666,5 +12666,13 @@
   "Reads {n} hole(s), samples at {band} (the Level above): a hole that does not reach that band reads as untested there.": "Lee {n} sondaje(s), muestras en {band} (el Nivel de arriba): un sondaje que no llega a esa franja se lee como no ensayado allí.",
   "Read at {band} (the Level).": "Leído en {band} (el Nivel).",
   "The Level ({band}) was not used: none of these cards reads elevations.": "No se usó el Nivel ({band}): ninguna de estas tarjetas lee elevaciones.",
-  "Added \"{name}\" to the model surfaces: export it, slice it in sections, or remove it there. Ctrl+Z does not take it back (it would undo your last edit before it); a model surface is not part of the undo history.": "Se añadió \"{name}\" a las superficies del modelo: expórtela, córtela en secciones o elimínela allí. Ctrl+Z no la quita (deshacería su última edición anterior); una superficie del modelo no forma parte del historial de deshacer."
+  "Added \"{name}\" to the model surfaces: export it, slice it in sections, or remove it there. Ctrl+Z does not take it back (it would undo your last edit before it); a model surface is not part of the undo history.": "Se añadió \"{name}\" a las superficies del modelo: expórtela, córtela en secciones o elimínela allí. Ctrl+Z no la quita (deshacería su última edición anterior); una superficie del modelo no forma parte del historial de deshacer.",
+  "This picture prints at about {dpi} dpi at this size.": "Esta imagen se imprime a unos {dpi} ppp con este tamaño.",
+  "The Maps plan draws this view again over the same ground, as it is now (its layers and colours), at {dpi} dpi for this frame, then Layout opens again.": "El plano de Mapas dibuja esta vista de nuevo sobre el mismo terreno, tal como está ahora (sus capas y colores), a {dpi} ppp para este marco, y luego se vuelve a abrir Lámina.",
+  "Draw it again at {dpi} dpi from Maps": "Dibujarla de nuevo a {dpi} ppp desde Mapas",
+  "This frame is larger than a picture can be drawn at {dpi} dpi: it will be drawn at {got} dpi.": "Este marco es más grande de lo que se puede dibujar a {dpi} ppp: se dibujará a {got} ppp.",
+  "That is sharp enough to print at this size.": "Es suficientemente nítida para imprimir con este tamaño.",
+  "This snapshot was sent before Layout could ask Maps to draw it again: send it again from Maps to get that.": "Esta captura se envió antes de que Lámina pudiera pedir a Mapas que la dibujara de nuevo: envíela otra vez desde Mapas para tenerlo.",
+  "The map did not finish drawing at that size.": "El mapa no terminó de dibujarse con ese tamaño.",
+  "Could not draw the map again for Layout: {message}": "No se pudo dibujar el mapa de nuevo para Lámina: {message}"
 }

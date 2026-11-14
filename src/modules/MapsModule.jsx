@@ -33,6 +33,7 @@ export default function MapsModule() {
   const surveys = useMemo(() => surveysOnPlan(layers.geophys_pts), [layers.geophys_pts]); // #3342 — the point surveys are on the plan
   const hasPlan = !!planDataExtent({ rasters, terrain, mapLayers, boundaries, collars, surfaceSamples, surveys }); // #1625 — a plan of it, else the card
   useModuleAction(["maps-crs"], () => setPane("crs")); // the Set project CRS menu item
+  useModuleAction(["maps-plan"], () => setPane((p) => (CRS_PANES.has(p) ? "raster" : p))); // TASKS.csv #3491 — Layout asks the plan for a fresh capture: it must be on screen
   useModuleAction(["maps-terrain"], () => setPane("terrain")); // TASKS.csv #1429 — the inversion pane's 'Go to Maps › Terrain'
   // TASKS.csv #1994 — a lidar file dropped on the 3D View or the Geophysics tab: the Terrain pane, which opens it
   useModuleAction(["maps-lidar"], (_a, p) => { setPane("terrain"); requestModuleAction("open-lidar", p); });
