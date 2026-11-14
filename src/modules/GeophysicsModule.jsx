@@ -2435,6 +2435,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     const { xmin, xmax, ymin, ymax } = snappedGridExtent({ xmin: arrMin(xs), xmax: arrMax(xs), ymin: arrMin(ys), ymax: arrMax(ys) }, idwCellSize); // #2872 — nodes on multiples of the cell, every station inside
                     const gridW = Math.round((xmax - xmin) / idwCellSize), gridH = Math.round((ymax - ymin) / idwCellSize);
                     if (gridW * gridH > 4_000_000) { setError(tr("That cell size would produce a {gridW}×{gridH} grid — too large. Use a bigger cell size.", { gridW, gridH })); return; }
+                    // TASKS.csv #3363 — IDW runs in this window and its time follows the CELLS, not the points (measured: ~10 microseconds a cell, 2.9 s at
+                    // 295,500 cells and 11.5 s at 1.2 million cells for 270,000 points of a 3D cloud, the same for 27,000): a large grid says so first
+                    if (idwMethod === "idw" && gridW * gridH > 500_000 && !window.confirm(tr("This grid has {cells} cells. IDW runs in this window and takes about {s} s here, during which it does not respond. Continue? A bigger cell size is faster.", { cells: (gridW * gridH).toLocaleString(), s: Math.max(5, Math.round((gridW * gridH) / 100_000)) }))) return;
                     const blank = idwBlank === "" ? idwAutoBlank ?? Infinity : Number(idwBlank) > 0 ? Number(idwBlank) : Infinity; // #538; #3322 — at least 1.5 cells
                     const label = surveyLabel(idwKey); // #2559 — 'file.csv · K_pct' kept its channel ('[^.]+$' took '.csv · K_pct' off)
                     const tag = gridMethodTag(idwMethod, idwTension); // #2846
