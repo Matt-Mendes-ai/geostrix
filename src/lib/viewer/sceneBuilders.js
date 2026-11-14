@@ -483,11 +483,11 @@ export function outcropZ(r, set, terrain, flatZ, oz) {
 // LineSegments and one Mesh of filled parts per set, coloured by the structure class. The set's size is the symbol's strike line (the
 // standard's 5.0 mm), so every part scales with it. An InstancedMesh of flat discs is kept for picking only (colour and depth writes
 // off): Identify still reads hit.instanceId as the row (lib/viewer/identify.js).
-export function syncSurfaceStructures(group, cache, surfaceStructures, { origin, terrain, flatZ = null }) {
+export function syncSurfaceStructures(group, cache, surfaceStructures, { origin, terrain, flatZ = null, symbolByType = null /* #3094 */ }) {
   Object.values(cache).forEach((g) => { group.remove(g); g.children.forEach((c) => { c.geometry?.dispose?.(); c.material?.dispose?.(); c.dispose?.(); }); }); // #433 — InstancedMesh buffers
   for (const id of Object.keys(cache)) delete cache[id]; // the caller owns the object: emptied, not replaced
   const { x: ox, y: oy, z: oz } = origin;
-  const choices = projectSymbolChoices(surfaceStructures); // #3066 — the per-type choice
+  const choices = projectSymbolChoices(surfaceStructures, symbolByType); // #3066 — the per-type choice; the project's: #3094
   surfaceStructures.forEach((set) => {
     const rows = set.rows || [];
     if (!rows.length) return;
@@ -531,13 +531,13 @@ export function syncSurfaceStructures(group, cache, surfaceStructures, { origin,
 
 // TASKS.csv #1443 — the dip label beside each disc of the sets that ask for one (set.labels === "dip"): the same anchor and
 // terrain snapping as the disc, so the number sits where the symbol is
-export function outcropLabelItems(surfaceStructures, { origin, terrain, flatZ = null }) {
+export function outcropLabelItems(surfaceStructures, { origin, terrain, flatZ = null, symbolByType = null /* #3094 */ }) {
   const { x: ox, y: oy, z: oz } = origin;
   const items = [];
   for (const set of surfaceStructures || []) {
     if (set.labels !== "dip" || set.visible === false) continue;
     const size = set.size ?? 25;
-    const choices = projectSymbolChoices(surfaceStructures); // #3066
+    const choices = projectSymbolChoices(surfaceStructures, symbolByType); // #3066; #3094
     for (const r of set.rows || []) {
       if (!Number.isFinite(r.dip) || !Number.isFinite(r.x) || !Number.isFinite(r.y)) continue;
       const { symbol } = symbolForReading(r, choices);
