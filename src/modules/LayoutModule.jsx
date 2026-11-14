@@ -40,6 +40,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 // page; "Export PDF" prints the page via the Electron main process (or the browser print dialog).
 
 import { viewportHoleVisibility, fitHoleSet } from "../lib/viewportHoles.js"; // TASKS.csv #3371
+import { splitStripLog, stripLogSliceElements, wholeStripLog, pageWidthDenom, sliceLabelPt } from "../lib/stripLogPages.js"; // TASKS.csv #3372
 import { PAGE_FORMATS, pageFormatOf, pagePx, pageMm, pageCssName, addPagesOnPaper, snapshotPagePaper } from "../lib/pageFormats.js"; // TASKS.csv #398; mm / named pages: #908; on their paper: #3370
 import { azimuthToGridOffset, setIgrfModule } from "../lib/azimuthRef.js"; // TASKS.csv #399 — GN/TN/MN diagram
 import { localDate, collarDrillDate, schematicAngles, rayTip, yearLater, keepOnSheet, DIAGRAM_W, DIAGRAM_H, ORIGIN } from "../lib/northDiagram.js"; // TASKS.csv #1773 / #2137 / #2310 / #2478 / #2613
@@ -61,7 +62,7 @@ import { numericLayerLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv 
 import { geophysLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #2878
 import { frameTest, samplesInFrame, mapLayersInFrame } from "../lib/legendFrame.js"; // TASKS.csv #2134
 import { LAYOUT_FONTS, LAYOUT_FONT_TYPES, LAYOUT_DEFAULT_FONT, layoutFontStack, pageFont, withPageFont } from "../lib/layoutFonts.js"; // TASKS.csv #2144
-import { legendFit, legendRowH, legendLabelW, legendBoxSize } from "../lib/legendFit.js"; // TASKS.csv #2134; row rules and box: #2869
+import { legendFit, legendRowH, legendLabelW, legendBoxSize, legendBoxFit, isLegendBox } from "../lib/legendFit.js"; // TASKS.csv #2134; row rules and box: #2869; a sized box: #3395
 import { scoreRasterLegendGroups, isScoreRaster } from "../lib/viewer/scoreRasterLegend.js"; // TASKS.csv #2794
 import { holeAttitudeAssumed } from "../lib/desurvey.js"; // TASKS.csv #2134 — the notice counts the assumed-vertical holes
 import { freeSpot, placeCollarTable, elementBox, copyOffset, followResize /* #2483 */ } from "../lib/layoutPlace.js"; // copyOffset: #2715 // elementBox: #1870 // TASKS.csv #1484 — new items into free space; #2135 the collar table
@@ -216,6 +217,12 @@ export default function LayoutModule() {
       const r = pg.getBoundingClientRect();
       const offEls = [...pg.querySelectorAll("[data-el-id]")].map((e) => { const el = elements.find((x) => x.id === e.getAttribute("data-el-id")); return { type: elementKind(el) /* #3028 (3) */, caption: elementCaption(el), sides: rectSidesPast([e, ...e.querySelectorAll("text")].map((n) => n.getBoundingClientRect()), r) }; }).filter((it) => it.sides.length);
       if (offEls.length) past.push(tr("on this page: {list}", { list: offEls.map(namePast).join(", ") }));
+    }
+    // TASKS.csv #3395 — a legend that leaves rows out (its box too small, or the sheet's foot), this page and the others
+    for (const pp of layoutPages) {
+      const els = pp.id === activeLayoutPageId ? elements : pp.elements || [], P = pagePx(pageFormatOf(pp));
+      const cut = els.filter((e) => e.type === "legend" && (e.items || []).length).map((e) => legendLayout(e, P.w, P.h)).filter((f) => f.left > 0);
+      if (cut.length) past.push(tr("on {page}: {list}", { page: pp.id === activeLayoutPageId ? tr("this page") : pp.name, list: cut.map((f) => (f.box ? tr("Legend: {n} row(s) left out, its box is too small", { n: f.left }) : tr("Legend: {n} row(s) left out, no room on the sheet", { n: f.left }))).join(", ") }));
     }
     if (layoutPrintRequest.kind !== "png") for (const o of offSheetPages(layoutPages, activeLayoutPageId, (pp) => pagePx(pageFormatOf(pp)))) past.push(tr("on {page}: {list}", { page: o.name, list: o.items.map(namePast).join(", ") }));
     if (past.length && !window.confirm(tr("Elements reach past the sheet's edge and will be cut off in the export: {list}. Export anyway?", { list: past.join("; ") }))) return;
@@ -552,6 +559,46 @@ export default function LayoutModule() {
     }
     return { bx: b.x - el.x, by: b.y - el.y, bw: b.w, bh: b.h, xs, ys };
   };
+  // TASKS.csv #3372 (review #3195) — a strip log taller than the page at its depth scale, laid out over new pages (lib/stripLogPages.js):
+  // this page keeps the first slice (the title, caption and key), each new page (this page's paper, one batch) the next depths with the
+  // track headers and axis captions again, and every slice a line saying its depths and 'page i of n'.
+  // Offered when the log runs off the page at its depth scale, or prints its labels under 6 pt: at that scale when it fits the page's
+  // width, else at the page's width (the picture keeps its shape, so the width sets how large its labels can print: wanted = the scale asked).
+  const stripLogSplitFor = (el) => {
+    if (!isDepthImage(el) || el.slice || !(el.naturalH > 0)) return null;
+    const d = depthScaleDenom(el);
+    if (!(d > 0)) return null;
+    const tall = el.y + el.h > A4.h - 40, small = sliceLabelPt(el.h / el.naturalH) < 6;
+    if (!tall && !small) return null;
+    const at = (denom, x) => ({ ...splitStripLog(el, { pageW: A4.w, pageH: A4.h, denom, x, y: el.y }), x, denom });
+    const widthD = pageWidthDenom(el, A4.w - 80);
+    if (tall) {
+      let r = at(d, el.x);
+      if (r.error === "too-wide" && el.x > 40) r = at(d, 40);
+      if (r.error !== "too-wide" || !widthD) return r;
+      const w = at(widthD, 40);
+      return { ...w, wanted: d, wantedW: r.w };
+    }
+    if (!widthD || widthD > d * 0.85) return null; // the page's width gives it little more
+    const w = at(widthD, 40);
+    return w.pages?.length > 1 ? { ...w, small: true } : null;
+  };
+  const splitStripLogOverPages = (el) => {
+    const r = stripLogSplitFor(el);
+    if (!r || r.error || !(r.pages?.length > 1)) return;
+    const batch = `striplog_${el.id}_${Date.now()}`;
+    const hole = String(el.label || "Strip log").replace(/^Strip log — /, "").replace(/,\s*-?[\d.]+--?[\d.]+ m\s*$/, "");
+    const holeLabel = `Strip log ${hole}`; // printed on the sheet: English, as the log's own title
+    const [first, cap] = stripLogSliceElements(el, r, 0, { x: r.x, y: el.y, holeLabel, batchId: batch });
+    setElements((els) => [...els.map((e) => (e.id === el.id ? first : e)), cap]);
+    const rest = r.pages.slice(1).map((_, j) => ({ name: `${activePage?.name || hole} (${j + 2})`, batch, elements: stripLogSliceElements(el, r, j + 1, { x: r.x, y: 40, holeLabel, batchId: batch }) }));
+    addPagesOnPaper(addLayoutPages, setLayoutPageFormat, rest, activePage?.format);
+    switchLayoutPage(activeLayoutPageId); // back to the page the log starts on
+    setSelected(el.id);
+    // after the page switch's re-render, whose selection change clears the notice line
+    const said = tr("The strip log is split over {n} pages at 1 : {d}; the other pages follow this one.", { n: r.pages.length, d: Math.round(r.denom).toLocaleString() });
+    setTimeout(() => setSyncNotice(said), 0);
+  };
   // TASKS.csv #907 — "Fit the holes": the smallest round scale (1 / 1.5 / 2 / 2.5 / 3 / 4 / 5 / 6 / 8 x 10^n - finer than
   // the presets, since a wide landscape frame over N-S data jumped from a needed 1:25,934 straight to 1:50,000) at which
   // the project's located data - collars, else surface samples, else boundaries - fits this frame with a 10 % margin, seen
@@ -636,7 +683,7 @@ export default function LayoutModule() {
       arrow = { x: el.x + (ax < 0 ? Math.abs(ax) + pad : pad), y: el.y + (ay < 0 ? Math.abs(ay) + pad : pad) };
     }
     const g = dragGuide(el); // #910 — the edges snap to the same lines (x / y of the box itself are the element's)
-    dragState.current = { resize: handle, id: el.id, startX: px, startY: py, x0: el.x, y0: el.y, w0, h0, lockAspect: ASPECT_LOCKED.has(el.type) || e.shiftKey, widthOnly: WIDTH_ONLY.has(el.type), arrow, guide: g };
+    dragState.current = { resize: handle, id: el.id, startX: px, startY: py, x0: el.x, y0: el.y, w0, h0, lockAspect: ASPECT_LOCKED.has(el.type) || e.shiftKey, widthOnly: WIDTH_ONLY.has(el.type) && !(el.type === "legend" && handle.includes("s")) /* #3395 — a legend's height */, arrow, guide: g };
   };
   // TASKS.csv #101 — derived (not stored) so it always reflects the bound viewport's LATEST scale.
   // Falls back to null (and the grid behaves exactly as before, mm-based) if nothing's bound, the
@@ -1147,7 +1194,7 @@ export default function LayoutModule() {
     const theme = themes.find((t) => t.id === vp.themeId) || (!vp.themeId && vp.viewState ? { ...vp.viewState, name: tr("the current view") } : null);
     if (!theme) { say(tr("This viewport's saved theme could no longer be found (it may have been renamed or deleted) — rebind the viewport to a theme in its own panel, or resave that theme, then sync again.")); return; }
     const frameHoles = holesInFrame(vp, collars); // #1633 — a top-down true-scale frame: what it shows; else the whole view
-    const { groups, items } = legendFromView(theme, { frameHoles, frame: frameTest(vp), perGroup: perGroup ?? legend.codesPerLayer ?? 12, orders: projectCodeOrders(layoutPages, activeLayoutPageId, elements, legendId) /* #3130 */ }); // frame: #2134; perGroup: #3021
+    const { groups, items } = legendFromView(theme, { frameHoles, frame: frameTest(vp), perGroup: perGroup ?? legend.codesPerLayer ?? (isLegendBox(legend) ? "all" : 12) /* #3395 — a sized box shows what fits */, orders: projectCodeOrders(layoutPages, activeLayoutPageId, elements, legendId) /* #3130 */ }); // frame: #2134; perGroup: #3021
     if (!items.length) { setElements((els) => els.map((el) => el.id === legendId ? { ...el, ...stamp([]) } : el)); setSyncNotice(tr("Nothing that view shows has a legend: no visible category layer, assay classes, block model, surface samples, map layer or boundary.")); return; }
     setElements((els) => els.map((el) => el.id === legendId ? { ...el, ...stamp(items), loadedGroups: groups.map((g) => g.label) /* #3130 */ } : el));
     setSyncNotice(tr(groups.length === 1 ? "Loaded {n} legend group from \"{name}\"." : "Loaded {n} legend groups from \"{name}\".", { n: groups.length, name: theme.name })
@@ -1453,6 +1500,32 @@ export default function LayoutModule() {
                     it." Bind this legend to one of the page's viewport elements, then pull the
                     lithology units actually visible in that viewport's saved theme (color + name via
                     the same colorForLithology/UNIT_NAMES the 3D viewer itself uses). */}
+                {sel.type === "legend" && (() => { /* TASKS.csv #3395 — the legend's height and its columns, as its width */
+                  const fit = legendLayout(sel, A4.w, A4.h), mm = (px) => Math.round((px / PX_PER_MM) * 10) / 10;
+                  // turning the box on with a bound 3D view: its codes are loaded in full, the box decides what shows
+                  const allCodes = () => { if (sel.codesPerLayer == null && elements.some((e) => e.id === sel.boundViewportId && e.type === "viewport")) syncLegendFromView(sel.id, { perGroup: "all" }); };
+                  return (
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>
+                        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("H (mm)")}
+                          <input type="number" min="10" step="1" placeholder={tr("auto")} value={Number(sel.h) > 0 ? mm(sel.h) : ""} aria-label={tr("Legend height (mm)")}
+                            onChange={(e) => { const v = Number(e.target.value); if (e.target.value === "" || !(v > 0)) { updateSelected({ h: undefined }); return; } const was = isLegendBox(sel); updateSelected({ h: Math.max(10, v) * PX_PER_MM }); if (!was) allCodes(); }}
+                            style={{ ...inp, marginTop: 4, marginBottom: 0, padding: "5px 6px" }} /></label>
+                        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Columns")}
+                          <select value={String(sel.legendCols ?? "auto")} aria-label={tr("Legend columns")} onChange={(e) => { const v = e.target.value === "auto" ? undefined : Number(e.target.value); const was = isLegendBox(sel); updateSelected({ legendCols: v }); if (!was && v) allCodes(); }}
+                            style={{ ...inp, marginTop: 4, marginBottom: 0, padding: "5px 6px" }}>
+                            <option value="auto">{tr("Auto")}</option>{[1, 2, 3, 4].map((n) => <option key={n} value={String(n)}>{n}</option>)}
+                          </select></label>
+                      </div>
+                      <div style={{ fontSize: "var(--font-size-xs)", color: fit.box && fit.left ? "var(--color-warn-text)" : "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>
+                        {fit.box && fit.left > 0 ? tr("{n} row(s) do not fit in this box: make it taller, add a column or widen it.", { n: fit.left })
+                          : fit.box ? tr("The rows fill {c} column(s) top to bottom; drag the bottom edge for its height.", { c: fit.cols })
+                          : tr("Blank height: it grows with its rows and flows into columns to stay on the sheet. Give it a height or a number of columns to size it yourself.")}
+                        {Number(sel.h) > 0 && <>{" "}<button type="button" onClick={() => updateSelected({ h: undefined })} style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Fit to its rows")}</button></>}
+                      </div>
+                    </div>
+                  );
+                })()}
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Bound viewport / cross-section")}<select value={sel.boundViewportId || ""} onChange={(e) => updateSelected({ boundViewportId: e.target.value || null })} style={{ ...inp, marginTop: 4 }}>
                     <option value="">{tr("— none —")}</option>
                     {elements.filter((el) => el.type === "viewport").map((el, i) => (
@@ -1472,7 +1545,7 @@ export default function LayoutModule() {
                 {/* TASKS.csv #3021 — how many codes of each layer a view's legend lists (a section's legend carries its own rows) */}
                 {elements.some((e) => e.id === sel.boundViewportId && e.type !== "image") && (
                   <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, margin: "4px 0 6px" }} title={tr("The commonest codes of each layer are listed; the rest are counted on one line. A long key flows into columns to fit the sheet.")}>{tr("Codes per layer")}
-                    <select value={String(sel.codesPerLayer ?? 12)} onChange={(e) => { const v = e.target.value === "all" ? "all" : Number(e.target.value); updateSelected({ codesPerLayer: v }); syncLegendFromView(sel.id, { perGroup: v }); }} style={{ fontSize: "var(--font-size-base)" }} aria-label={tr("Codes per layer")}>
+                    <select value={String(sel.codesPerLayer ?? (isLegendBox(sel) ? "all" : 12))} onChange={(e) => { const v = e.target.value === "all" ? "all" : Number(e.target.value); updateSelected({ codesPerLayer: v }); syncLegendFromView(sel.id, { perGroup: v }); }} style={{ fontSize: "var(--font-size-base)" }} aria-label={tr("Codes per layer")}>
                       <option value="12">12</option><option value="24">24</option><option value="all">{tr("all")}</option>
                     </select></label>
                 )}
@@ -1572,7 +1645,8 @@ export default function LayoutModule() {
                 section snapshots carry worldWidthAtCaptureM (see SectionWindow.jsx's snapshotToLayout)
                 only when they came from the pop-out's "Snapshot to Layout" button — a plain imported
                 photo or logo has no known real-world scale, so this stays hidden for those. */}
-            {isDepthImage(sel) && <DepthScaleControls sel={sel} pageH={A4.h} updateSelected={updateSelected} /> /* TASKS.csv #1480 */}
+            {isDepthImage(sel) && <DepthScaleControls sel={sel} pageH={A4.h} updateSelected={updateSelected} split={stripLogSplitFor(sel)} onSplit={() => splitStripLogOverPages(sel)} onWhole={() => setElements((els) => els.filter((e) => e.sliceCaptionOf !== sel.id).map((e) => (e.id === sel.id ? wholeStripLog(e) : e)))} /> /* TASKS.csv #1480; split: #3372 */}
+            {isDepthImage(sel) && syncNotice && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div> /* #3372 — the split's line */}
             {sel.type === "image" && sel.worldWidthAtCaptureM != null && (
               <>
                 <SectionScaleControls sel={sel} pageW={A4.w} pageH={A4.h} updateSelected={updateSelected} onResize={(next) => setElements((els) => followResize(els, sel.id, next))} />
@@ -2048,8 +2122,17 @@ function TitleBlockControls({ sel, updateSelected }) {
 // TASKS.csv #1480 (review #1352) — a strip log at an exact depth scale: its height sized so a metre of hole is 1/N m of paper (the width
 // follows), and what that is in millimetres per 10 m, the way a printed log is read
 const DEPTH_PRESETS = [200, 500, 1000, 2000, 2500, 5000, 10000];
-function DepthScaleControls({ sel, pageH, updateSelected }) {
+function DepthScaleControls({ sel, pageH, updateSelected, split = null, onSplit = null, onWhole = null }) { // split / onSplit / onWhole: #3372
   const [custom, setCustom] = useState(false);
+  if (sel.slice) { // TASKS.csv #3372 — one page of a split log: its depths, and the whole log again
+    const s = sel.slice, f = (v) => Number(Number(v).toFixed(1)).toLocaleString();
+    return (
+      <div style={{ marginTop: 4, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 }}>
+        {tr("Page {i} of {n} of this strip log, {from}-{to} m, at 1 : {d}.", { i: s.page, n: s.of, from: f(s.from), to: f(s.to), d: Math.round(depthScaleDenom(sel) || 0).toLocaleString() })}
+        {s.page === 1 && onWhole && <> {" "}<button type="button" onClick={onWhole} title={tr("Put the whole log back on this page as one picture. The other pages stay: delete them from one of them (the generated pages go in one action).")} style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Whole log again")}</button></>}
+      </div>
+    );
+  }
   const d = depthScaleDenom(sel), n = d ? Math.round(d) : 0;
   const preset = DEPTH_PRESETS.find((p) => Math.abs(d - p) < 0.5);
   const choice = custom ? "custom" : preset ? String(preset) : "";
@@ -2083,6 +2166,16 @@ function DepthScaleControls({ sel, pageH, updateSelected }) {
           : tr("Its labels print at about {pt} pt.", { pt: pt.toFixed(1) })}</div>
       ); })()}
       {sel.h > pageH && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("At this scale the log is taller than the page: a larger depth scale (1 : N with a bigger N) fits it, or a taller page.")}</div>}
+      {split && !split.error && split.pages?.length > 1 && (split.wanted || split.small) && ( /* TASKS.csv #3372 — at the page's width */
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", lineHeight: 1.4, marginTop: 4 }}>{split.wanted
+          ? tr("At 1 : {want} the log is {mm} mm wide, wider than the page; at 1 : {d} it fits the page's width, with its labels at about {pt} pt.", { want: Math.round(split.wanted).toLocaleString(), mm: Math.round((split.wantedW * 25.4) / 96), d: split.denom.toLocaleString(), pt: sliceLabelPt(split.k).toFixed(1) })
+          : tr("At 1 : {d}, the page's width, its labels print at about {pt} pt.", { d: split.denom.toLocaleString(), pt: sliceLabelPt(split.k).toFixed(1) })}</div>
+      )}
+      {split && !split.error && split.pages?.length > 1 && onSplit && ( /* TASKS.csv #3372 */
+        <button type="button" onClick={onSplit} title={tr("Lay the log out over new pages at this depth scale: each page repeats the track headers and the axis captions, and the key stays on this page.")} style={{ ...pBtn, marginTop: 6 }}>
+          {tr("Split over {n} pages at 1 : {d}", { n: split.pages.length, d: Math.round(split.denom).toLocaleString() })}</button>
+      )}
+      {split?.error === "too-wide" && !split.wanted && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4, marginTop: 4 }}>{tr("At 1 : {d} the log is {mm} mm wide, wider than the page: a larger depth scale or a wider page fits it.", { d: Math.round(split.denom).toLocaleString(), mm: Math.round((split.w * 25.4) / 96) })}</div>}
     </div>
   );
 }
@@ -2373,7 +2466,14 @@ const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, proje
 const BOX_TYPES = new Set(["viewport", "image", "rect", "logo"]);
 const ASPECT_LOCKED = new Set(["image", "logo"]);
 const WIDTH_ONLY = new Set(["title", "text", "callout", "legend", "table", "titleblock"]); // titleblock: #1868
-const HANDLES_FOR = { drillplan: ["nw", "n", "ne", "e", "se", "s", "sw", "w"], titleblock: ["e", "w"], viewport: ["nw", "n", "ne", "e", "se", "s", "sw", "w"], rect: ["nw", "n", "ne", "e", "se", "s", "sw", "w"], image: ["nw", "ne", "se", "sw"], logo: ["nw", "ne", "se", "sw"], title: ["e", "w"], text: ["e", "w"], callout: ["e", "w"], legend: ["e", "w"], table: ["e", "w"] };
+// TASKS.csv #3395 — how a legend lays out on its page: a sized box (a height or a column count, lib/legendFit legendBoxFit), else the page-led
+// flow of #1480 / #2134. Shared by the element and the export's pre-flight.
+function legendLayout(el, pageW = 1123, pageH = 794) {
+  const o = { rowH: legendRowH, labelW: legendLabelW, pageH, y: Number(el.y) || 0 };
+  if (isLegendBox(el)) return legendBoxFit(el.items || [], { ...o, boxW: Number(el.w) || null, boxH: Number(el.h) || null, cols: el.legendCols ?? null });
+  return legendFit(el.items || [], { ...o, x: Number(el.x) || 0, pageW });
+}
+const HANDLES_FOR = { drillplan: ["nw", "n", "ne", "e", "se", "s", "sw", "w"], titleblock: ["e", "w"], viewport: ["nw", "n", "ne", "e", "se", "s", "sw", "w"], rect: ["nw", "n", "ne", "e", "se", "s", "sw", "w"], image: ["nw", "ne", "se", "sw"], logo: ["nw", "ne", "se", "sw"], title: ["e", "w"], text: ["e", "w"], callout: ["e", "w"], legend: ["e", "w", "s", "se"] /* s / se: #3395 */, table: ["e", "w"] };
 const HANDLE_CURSOR = { n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize", ne: "nesw-resize", sw: "nesw-resize", nw: "nwse-resize", se: "nwse-resize", tip: "crosshair" };
 const HANDLE_POS = { n: { left: "50%", top: 0 }, s: { left: "50%", top: "100%" }, e: { left: "100%", top: "50%" }, w: { left: 0, top: "50%" }, ne: { left: "100%", top: 0 }, nw: { left: 0, top: 0 }, se: { left: "100%", top: "100%" }, sw: { left: 0, top: "100%" } };
 function Handles({ which, onStart, at = {} }) {
@@ -2478,6 +2578,21 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   );
   if (el.type === "image") {
     if (!el.src) return null; // defensive: a malformed/partial snapshot shouldn't take the whole page down
+    if (el.slice?.parts?.length && el.naturalH > 0) { // TASKS.csv #3372 — one page of a split strip log: its ranges of the one picture, stacked
+      const W = el.w || 200, H = el.h || 120, k = H / el.slice.parts.reduce((t, [a, b]) => t + (b - a), 0);
+      return (
+        <div style={{ ...wrap, width: W, height: H }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
+          <div style={{ width: "100%", height: "100%", overflow: "hidden", background: "#fff" }}>
+            {el.slice.parts.map(([a, b], i) => (
+              <div key={i} style={{ height: (b - a) * k, overflow: "hidden", position: "relative" }}>
+                <img src={el.src} alt={i ? "" : el.label || "strip log"} style={{ position: "absolute", left: 0, top: -a * k, width: W, height: el.naturalH * k, maxWidth: "none", display: "block" }} draggable={false} />
+              </div>
+            ))}
+          </div>
+          {handles}
+        </div>
+      );
+    }
     return (
       <div style={{ ...wrap, width: el.w || 200, height: el.h || 120 }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
         <img src={el.src} alt={el.label || "snapshot"} style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", background: "#fff" }} draggable={false} />
@@ -2601,18 +2716,18 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   // TASKS.csv #1480 / #1637 — a long bound legend (a strip log's or a section's 40+ rows) ran past the page foot: it now flows into as many
   // columns (up to 4) as it needs to end above the sheet's bottom margin, from the rows' printed heights
   // TASKS.csv #2134 — held to the room right of the legend too; rows past the sheet are left out and counted
-  const legendLay = el.type === "legend" ? (() => {
-    const row = legendRowH, labelW = legendLabelW; // #2869 — shared with the placement of a new legend (lib/legendFit.js)
-    return legendFit(el.items || [], { x: Number(el.x) || 0, y: Number(el.y) || 0, pageW: ctx?.pageW || 1123, pageH: ctx?.pageH || 794, rowH: row, labelW });
-  })() : { cols: 1, shown: 0, left: 0 };
+  const legendLay = el.type === "legend" ? legendLayout(el, ctx?.pageW || 1123, ctx?.pageH || 794) /* #2869 row rules; #3395 a sized box */ : { cols: 1, shown: 0, left: 0 };
   const legendCols = legendLay.cols;
-  const legendItems = el.type === "legend" ? (legendLay.left ? [...(el.items || []).slice(0, legendLay.shown), [tr("+ {n} more row(s) do not fit on the sheet: move the legend up or left, or edit it", { n: legendLay.left }), null, { note: true }]] : el.items || []) : [];
-  if (el.type === "legend") return (
-    <div style={{ ...wrap, background: "#fff", border: frameBorder(el, "1px solid #ccc"), padding: "8px 12px", minWidth: 150 * legendCols, width: legendCols > 1 ? undefined : el.w || undefined, boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
-      {handles}
-      <div style={{ fontSize: printPx(printPt.body), fontWeight: 700, color: INK, marginBottom: 6, fontFamily: FONT }}>{tr("Legend")}</div>
-      <div style={legendCols > 1 ? { columnCount: legendCols, columnGap: 18 } : undefined}>
-      {legendItems.map(([name, color, opt], i) => opt?.heading ? ( /* TASKS.csv #725 — a group heading; legendItems: #2134 */
+  const legendItems = el.type === "legend" ? (legendLay.left ? [...(el.items || []).slice(0, legendLay.shown), [legendLay.box ? tr("+ {n} more row(s) do not fit in the legend's box", { n: legendLay.left }) /* #3395 */ : tr("+ {n} more row(s) do not fit on the sheet: move the legend up or left, or edit it", { n: legendLay.left }), null, { note: true }]] : el.items || []) : [];
+  if (el.type === "legend") {
+    // TASKS.csv #3395 — a sized box: its own width and height, the rows poured into its columns top to bottom (column-fill auto), each
+    // group heading held with its first row
+    const box = !!legendLay.box, boxH = box && Number(el.h) > 0 ? Number(el.h) : null;
+    const rowsOf = [];
+    for (let i = 0; i < legendItems.length; i++) {
+      if (legendItems[i]?.[2]?.heading && i + 1 < legendItems.length) { rowsOf.push([i, i + 1]); i++; } else rowsOf.push([i]);
+    }
+    const legendRow = ([name, color, opt], i) => opt?.heading ? ( /* TASKS.csv #725 — a group heading; legendItems: #2134 */
         <div key={i} style={{ fontSize: printPx(printPt.small), fontWeight: 700, color: INK, margin: i ? "6px 0 2px" : "0 0 2px", breakAfter: "avoid" /* #1480 — a heading never ends a column */ }}>{name}</div>
       ) : opt?.note ? ( /* TASKS.csv #1633 — what a capped group left out */
         <div key={i} style={{ fontSize: printPx(printPt.caption), fontStyle: "italic", color: "#55606e", margin: "0 0 3px 28px", maxWidth: 200 /* #2134 — a long note wraps, it does not widen the legend past the sheet */ }}>{name}</div>
@@ -2632,10 +2747,19 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
           <span style={{ width: 20, display: "inline-flex", justifyContent: "center", flexShrink: 0 }}>{opt?.svg ? <span style={{ display: "inline-flex" }} dangerouslySetInnerHTML={{ __html: opt.svg }} /> /* #3066 — a USGS structure symbol */ : opt?.pattern != null ? <PatternSwatch code={opt.pattern} color={color} size={14} style={{ ...swatchShape(opt?.kind, 14), display: "inline-block", border: "1px solid #999" }} /> /* #1995 — the FGDC pattern the section / strip log draws */ : <span style={{ ...swatchShape(opt?.kind, 14), background: color, opacity: opt?.opacity ?? 1 /* #1122 — the map layer's drape opacity */, display: "inline-block", border: opt?.kind === "line" ? "none" : "1px solid #999" }} />}</span>{/* #948 — square / line / dot */}
           <span style={{ fontSize: printPx(printPt.small), color: INK }}>{name}</span>
         </div>
-      ))}
+      );
+    return (
+      <div style={{ ...wrap, background: "#fff", border: frameBorder(el, "1px solid #ccc"), padding: "8px 12px", minWidth: 150 * legendCols, width: box ? el.w || undefined : legendCols > 1 ? undefined : el.w || undefined, boxSizing: "border-box", ...(boxH ? { height: boxH, overflow: "hidden", display: "flex", flexDirection: "column" } : {}) }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
+        {handles}
+        <div style={{ fontSize: printPx(printPt.body), fontWeight: 700, color: INK, marginBottom: 6, fontFamily: FONT, flexShrink: 0 }}>{tr("Legend")}</div>
+        <div style={legendCols > 1 || box ? { columnCount: legendCols, columnGap: 18, columnFill: boxH ? "auto" : "balance", ...(boxH ? { flex: 1, minHeight: 0 } : {}) } : undefined}>
+          {rowsOf.map((ix) => ix.length > 1
+            ? <div key={ix[0]} style={{ breakInside: "avoid" }}>{legendRow(legendItems[ix[0]], ix[0])}{legendRow(legendItems[ix[1]], ix[1])}</div>
+            : legendRow(legendItems[ix[0]], ix[0]))}
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
   // TASKS.csv #911 — a table: live drillhole collars, or a static copy (Best intercepts' results). Print typography (pt),
   // numbers right-aligned in tabular figures, a hairline grid; rows beyond the limit are counted, not dropped silently.
   if (el.type === "table") {

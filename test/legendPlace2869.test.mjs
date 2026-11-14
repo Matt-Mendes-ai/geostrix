@@ -60,5 +60,5 @@ test("wiring: Layout places a new legend at its drawn size, lists pictures and s
   const s = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
   assert.match(s, /const box = legendBoxSize\(base\.items\);[^\r\n]*\r?\n\s*Object\.assign\(base, freeSpot\(elements, box\.w, Math\.min\(A4\.h - 80, box\.h\), A4\)\)/);
   assert.match(s, /rasterLegendGroups\(\(rasters \|\| \[\]\)\.filter\(\(r\) => !isScoreRaster\(r\)\), \{ pictureNote: tr\("picture: colours only, no values"\) \}\), \.\.\.scoreRasterLegendGroups\(rasters\)/);
-  assert.match(s, /const row = legendRowH, labelW = legendLabelW;/);
+  assert.match(s, /const o = \{ rowH: legendRowH, labelW: legendLabelW, pageH, y: Number\(el\.y\) \|\| 0 \};/); // #3395: in legendLayout
 });
