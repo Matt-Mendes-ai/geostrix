@@ -101,7 +101,7 @@ export default [
     howto: {
       sample: "the USGS Indiana FDEM data release (Terry et al. 2024, doi:10.5066/P14QAYKQ)",
       steps: [
-        "Geophysics > FDEM 1D > Open soundings: a DUALEM or GEM-2 CSV, or a Workbench *_dat.xyz (with its *_inv.xyz to compare).",
+        "Geophysics > EM > FDEM 1D > Open soundings: a DUALEM or GEM-2 CSV, or a Workbench *_dat.xyz (with its *_inv.xyz to compare).",
         "Enter the sensor height, check the error model and the layers, then Invert.",
         "Read the misfit summary, the section and a few soundings' readings against their models.",
         "Add the models to 3D to see them under the soundings beside the drillholes.",
@@ -238,7 +238,7 @@ export default [
     howto: {
       sample: "your own IP lines",
       steps: [
-        "No bundled sample has IP lines: use your own. Geophysics > DC / IP, then load a line's readings (pole-dipole or dipole-dipole) and, if the stations are not in the file, the survey's GPS file to place them.",
+        "No bundled sample has IP lines: use your own. Geophysics > IP / Resistivity, then load a line's readings (pole-dipole or dipole-dipole) and, if the stations are not in the file, the survey's GPS file to place them.",
         "Choose the line in the Lines in this project list.",
         "Check the pseudosection and the Line placed note, and read the chaining-scale note if one shows.",
         "Enter Resistivity ± %, floor and Chargeability ± %, floor mV/V from what you know of the data quality (the reference line shows SimPEG's tutorial values).",
@@ -407,5 +407,104 @@ export default [
       ],
     },
     related: ["block-models", "cell-budget", "dcip"],
+  },
+  // TASKS.csv #3400 — the Surveys ribbon's method buttons: a page for each kind of survey
+  {
+    id: "magnetics",
+    area: "Geophysics",
+    title: "Magnetic survey (CSV / XYZ)",
+    summary: "Geophysics > Magnetics opens the Point survey importer set to magnetics. A magnetic survey measures the Earth's field as the magnetite (and pyrrhotite) in the rocks disturbs it: intrusions, faults that offset magnetic units, iron formation, and alteration that destroys magnetite show as highs, breaks and lows. A survey read here is labelled Magnetics (TMI), or the magnetic product its column names (reduced to pole, a derivative, analytic signal, a measured gradient).",
+    notFor: [
+      "Magnetic susceptibility measured down the holes is not a survey: import it with the drillholes; Geophysics > Downhole logs compares it with the logged codes.",
+      "A gridded magnetic map (GeoTIFF, GXF, Geosoft .grd) goes in through Maps > GeoTIFF / GXF, where reduction to the pole and the derivative filters work on the grid.",
+    ],
+    fields: [
+      { name: "Import CSV… / Import survey .xyz (one or many)…", what: "The Point survey importers: a CSV, or Geosoft-style line files through the column picker. Each file becomes its own survey.", choose: "Pick the total-field channel as Value; import the file again for another channel." },
+      { name: "Method (on the survey's card)", what: "Magnetics (TMI) unless the value column's name says which product it is. The line under the pane's title says so; Import without a method returns to the plain Point survey importer.", choose: "Check it before an inversion: Mag / gravity inversion reads it." },
+      { name: "Diurnal correction (base station)", what: "In the .xyz picker, when the file has a time column: the base-station recordings of the same day remove the field's daily drift.", choose: "Use it for ground magnetics when a base station was run." },
+    ],
+    warnings: [],
+    howto: {
+      sample: "Harry",
+      steps: [
+        "Open the Harry sample.",
+        "Geophysics > Magnetics > Import CSV… and pick geophys_mag_survey.csv in the sample_data/synthetic_geophysics folder: in GeoStrix's install folder under resources, or in its source code (synthetic, made over Harry's holes).",
+        "The survey's card reads Method Magnetics (TMI), units nT. Press View in 3D to see the points with the drillholes.",
+        "Grid to raster (IDW)… makes a map of it; in Advanced mode, Inversion models the bodies under it.",
+      ],
+    },
+    related: ["point-survey", "mag-grav-inversion", "downhole-logs"],
+  },
+  {
+    id: "gravity",
+    area: "Geophysics",
+    title: "Gravity survey (CSV / XYZ)",
+    summary: "Geophysics > Gravity opens the Point survey importer set to gravity. A gravity survey measures small changes in the pull of the Earth from the density of the rocks below: massive sulphide and mafic or ultramafic intrusions show as highs, felsic intrusions, basins and thick cover as lows. A survey read here is labelled Gravity (Bouguer), or the gravity product its column names (free air, Gzz).",
+    notFor: [
+      "Observed (absolute) gravity is not yet an anomaly: Gravity reductions… on the survey's card makes the free-air and Bouguer anomalies from it.",
+      "A gridded gravity map goes in through Maps > GeoTIFF / GXF.",
+    ],
+    fields: [
+      { name: "Import CSV… / Import survey .xyz (one or many)…", what: "The Point survey importers: one station a row with x, y, elevation and the reading.", choose: "Keep the stations' elevations: the reductions and the inversion need them." },
+      { name: "Method (on the survey's card)", what: "Gravity (Bouguer) unless the value column's name says free air or Gzz.", choose: "Set it to what the contractor delivered, from the survey report." },
+      { name: "Gravity reductions…", what: "From observed gravity: the free-air anomaly, then the Bouguer anomaly with a plate or the loaded terrain. Each result is a new survey beside the readings.", choose: "Use it when the file holds observed gravity, not an anomaly." },
+    ],
+    warnings: [],
+    howto: {
+      sample: "Blake River",
+      steps: [
+        "Open the Blake River sample (the Geological Survey of Canada's gravity stations and Bouguer grid; no drillholes).",
+        "Geophysics > Gravity: its stations are a survey already, labelled Gravity (Bouguer), mGal.",
+        "Grid to raster (IDW)… grids the stations; compare the result with the published grid in Maps.",
+      ],
+    },
+    related: ["point-survey", "mag-grav-inversion", "terrain"],
+  },
+  {
+    id: "radiometrics",
+    area: "Geophysics",
+    title: "Radiometric survey (CSV / XYZ)",
+    summary: "Geophysics > Radiometrics opens the Point survey importer set to radiometrics. A gamma-ray spectrometer counts the potassium, thorium and uranium in the top few tens of centimetres of rock and soil: potassic alteration around porphyry and epithermal systems shows as potassium highs (and high K / eTh), granites as thorium and uranium highs. The importer finds the K, eTh, eU and total-count channels and makes each its own survey.",
+    notFor: [
+      "Cover, water and wet ground absorb the gamma rays: a low can be soil or swamp, not the rock.",
+      "A radiometric grid goes in through Maps > GeoTIFF / GXF, where three grids make a K-eTh-eU ternary image.",
+    ],
+    fields: [
+      { name: "Import each ticked channel as its own survey", what: "In the .xyz column picker: the radiometric channels found in the file, each imported as a survey with its own method and units.", choose: "Tick the channels you want; leave out the raw (uncorrected) windows." },
+      { name: "Also make the ratio surveys", what: "eU / eTh and K / eTh from the same stations, as surveys of their own.", choose: "Tick it when looking for potassic alteration (K / eTh) or uranium (eU / eTh)." },
+      { name: "Method (on the survey's card)", what: "The channel's own (Radiometrics: K, eTh, eU or total count); total count when the column says nothing.", choose: "Correct it from the survey report if a channel was named oddly." },
+    ],
+    warnings: [],
+    howto: {
+      steps: [
+        "No bundled sample has a radiometric survey: use your own.",
+        "Geophysics > Radiometrics > Import survey .xyz…, choose X, Y and a channel as Value, and tick the other channels to import with it.",
+        "Each channel is a survey: colour them one at a time, or grid them and build a ternary image in Maps.",
+      ],
+    },
+    related: ["point-survey"],
+  },
+  {
+    id: "em-surveys",
+    area: "Geophysics",
+    title: "Electromagnetic surveys (EM)",
+    summary: "Geophysics > EM: which kind of EM survey to read. EM measures how well the ground conducts electricity: massive sulphide, graphite, clay and salt water are conductors. Frequency-domain loop-loop soundings (DUALEM, GEM-2) open in FDEM 1D; a time-domain (TEM) survey's single channel imports as points until whole TEM lines can be read.",
+    notFor: [
+      "Reading whole TEM lines (every channel, the decay at a station, a decay-constant grid) is not available yet.",
+      "MT / AMT soundings have their own button.",
+    ],
+    fields: [
+      { name: "FDEM 1D: ground loop-loop (DUALEM, GEM-2)…", what: "Opens FDEM 1D: the soundings, and conductivity against depth under each from a 1D inversion.", choose: "For a DUALEM or GEM-2 CSV, or an Aarhus Workbench export." },
+      { name: "TEM: one channel as points…", what: "Opens the point importer set to TEM: one value a station (dB/dt, B-field or a decay constant).", choose: "Pick a late-time channel, or the decay constant, as Value to map conductors." },
+    ],
+    warnings: [],
+    howto: {
+      steps: [
+        "Geophysics > EM.",
+        "FDEM 1D: ground loop-loop… then Open soundings, and pick a DUALEM or GEM-2 CSV.",
+        "For a TEM survey: TEM: one channel as points… then Import survey .xyz… and choose the channel as Value.",
+      ],
+    },
+    related: ["fdem-1d", "point-survey", "mt-soundings"],
   },
 ];
