@@ -11,7 +11,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
-export default function AlterationBoxModal({ saved, lithoCodes, altCodes = [], onCancel, onRun }) { // altCodes: #2028
+export default function AlterationBoxModal({ saved, lithoCodes, altCodes = [], meaningOf = null, onCancel, onRun }) { // altCodes: #2028; meaningOf(layerKey, code): the project's own name for a logged code (#3482)
   useEscapeKey(onCancel);
   const [boxes, setBoxes] = useState(() => saved?.boxes || PROVISIONAL_ALTERATION_BOXES);
   const [source, setSource] = useState(saved?.source || "logged");
@@ -47,7 +47,7 @@ export default function AlterationBoxModal({ saved, lithoCodes, altCodes = [], o
             <div style={{ marginTop: 4, display: "flex", flexWrap: "wrap", gap: "2px 12px" }}>
               {altCodes.map((c) => (
                 <label key={c} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <input type="checkbox" checked={fitCodes.includes(c)} onChange={(e) => setFitCodes((f) => (e.target.checked ? [...f, c] : f.filter((x) => x !== c)))} />{c}
+                  <input type="checkbox" checked={fitCodes.includes(c)} onChange={(e) => setFitCodes((f) => (e.target.checked ? [...f, c] : f.filter((x) => x !== c)))} />{c}{meaningOf?.("alt", c) ? <span style={{ color: "var(--color-text-muted)" }} title={meaningOf("alt", c)}>{` — ${meaningOf("alt", c)}`}</span> : null}{/* #3482 */}
                 </label>
               ))}
             </div>
@@ -58,7 +58,7 @@ export default function AlterationBoxModal({ saved, lithoCodes, altCodes = [], o
             {lithoCodes.length === 0 && <div style={small}>{tr("No lithology logged on the assayed holes — choose one protolith above.")}</div>}
             {lithoCodes.map((c) => (
               <label key={c} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ width: 60, overflow: "hidden", textOverflow: "ellipsis" }}>{c}</span>
+                <span style={{ width: meaningOf?.("litho", c) ? 150 : 60, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={meaningOf?.("litho", c) ? `${c} — ${meaningOf("litho", c)}` : undefined}>{c}{meaningOf?.("litho", c) ? ` — ${meaningOf("litho", c)}` : ""}</span>{/* #3482 — the project's own name for the code */}
                 <select value={map[c] || ""} onChange={(e) => setMap((m) => ({ ...m, [c]: e.target.value || null }))} aria-label={tr("Protolith of {c}", { c })} style={{ ...num, width: 110 }}>
                   <option value="">{tr("— not classified")}</option>
                   {PROTOLITHS.map((p) => <option key={p} value={p}>{p}</option>)}
