@@ -70,10 +70,12 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   // TASKS.csv #3369 — on the nearest-hole outlines: no order votes from their borders, and each code starts on the role the logs give it
   const { modellingCodes: mcodes } = useStore();
   const logRoleOf = useMemo(() => { if (!nearestHole) return null; const r = roleWithCodes(mcodes); return (u) => mapRoleFromLog(r(u)); }, [nearestHole, mcodes]);
+  // TASKS.csv #3391 — on the outlines the units ARE the logged codes: their contacts down the holes (shallower = younger) give the order
+  const loggedContacts = useMemo(() => (nearestHole && lithoRows?.length ? holeContacts(lithoRows, Object.fromEntries(loggedCodes(lithoRows).map((c) => [c.code, String(c.code)]))).contacts : null), [nearestHole, lithoRows]);
   const suggestion = useMemo(() => {
     if (!layer || !unitField) return null;
-    try { return suggestPileOrder({ layer, field: unitField, descField: desc || null, bedding, faults: faults.filter((f) => f.on).map((f) => f.line), groundAt, nearestHole, roleOf: logRoleOf }); } catch { return null; }
-  }, [layer, unitField, desc, bedding, faults, groundAt, nearestHole, logRoleOf]);
+    try { return suggestPileOrder({ layer, field: unitField, descField: desc || null, bedding, faults: faults.filter((f) => f.on).map((f) => f.line), groundAt, nearestHole, roleOf: logRoleOf, loggedContacts }); } catch { return null; }
+  }, [layer, unitField, desc, bedding, faults, groundAt, nearestHole, logRoleOf, loggedContacts]);
   const [order, setOrder] = useState([]);
   const [roles, setRoles] = useState({});
   // TASKS.csv #2408 — an order set by hand is kept when the suggestion is recomputed (unticking an orientation class put Basement back on top
@@ -130,6 +132,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
     if (!i) return "";
     if (i.evidence === "bedding" && i.overOthers && i.underOthers) return tr("between its neighbours"); // TASKS.csv #1311
     if (i.evidence === "bedding") return i.score > 0.15 ? tr("younger than its neighbours") : i.score < -0.15 ? tr("older than its neighbours") : tr("weak evidence");
+    if (i.evidence === "logged") return i.score > 0.15 ? tr("younger than its neighbours in the logs") : i.score < -0.15 ? tr("older than its neighbours in the logs") : tr("weak evidence"); // TASKS.csv #3391
     if (i.evidence === "elevation") return tr("by elevation only");
     return tr("no evidence (by area)");
   };

@@ -12662,5 +12662,8 @@
   "Trend from the direction table ({symbol})": "اتجاه من جدول الاتجاهات ({symbol})",
   "Adds a structural trend whose major axis is the longest well-fitted direction and whose ratios are the ranges along its three axes; choose it in Estimation to krige with that anisotropy.": "يضيف اتجاهًا بنيويًا محوره الرئيسي هو الاتجاه الجيد المطابقة الأطول مدى ونسبه هي المدى على طول محاوره الثلاثة؛ اختره في التقدير لإجراء الكريجينغ بهذه التباينية.",
   "Make a structural trend from this table": "إنشاء اتجاه بنيوي من هذا الجدول",
-  "Added: {t}. Choose it for block estimation in Trends.": "أُضيف: {t}. اختره لتقدير الكتل في الاتجاهات."
+  "Added: {t}. Choose it for block estimation in Trends.": "أُضيف: {t}. اختره لتقدير الكتل في الاتجاهات.",
+  "younger than its neighbours in the logs": "أحدث من جاراتها في السجلات",
+  "older than its neighbours in the logs": "أقدم من جاراتها في السجلات",
+  "Swath plots for {el}": "مخططات الشرائح لـ {el}"
 }

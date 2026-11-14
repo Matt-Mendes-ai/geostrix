@@ -705,7 +705,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
             ...(t.dropped ? { trimmedLikeThePrimary: `${t.dropped} block(s) dropped by the primary's limits (the restricting solid, the area string, the ground)` } : {}),
             ...(j >= 0 ? { searchSharedWith: `${symbol}: estimated in the same neighbour search, on the same sample points` } : {}), // #3163
           });
-          members.push({ ...memberSummary(el, u, t.cells, mp.length), cells: t.cells, params: mParams, supportCounts, cap: mCap, capAudit: mAudit, check: mCheck }); // cap / check: #3271
+          members.push({ ...memberSummary(el, u, t.cells, mp.length), cells: t.cells, params: mParams, supportCounts, cap: mCap, capAudit: mAudit, check: mCheck, checkNn: mNn ? mNn.checkColumns : t.cells, checkPoints: mp }); // cap / check: #3271; checkNn / checkPoints: the member's swaths, #3384
         }
         setStage(null);
         const withBlocks = members.filter((m) => m.cells.length);
@@ -1199,6 +1199,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
                   {result.members.map((m) => <div key={m.element} style={{ color: m.blocks ? undefined : "var(--color-warn-text)" }}>{m.blocks ? tr("{el}: {blocks} blocks from {n} composites, mean {mean} {unit}", { el: m.element, blocks: m.blocks.toLocaleString(), n: m.composites.toLocaleString(), mean: m.mean != null ? +m.mean.toPrecision(3) : "—", unit: gradeUnitLabel(m.element, m.unit) }) : tr("{el}: no samples to estimate from; not added.", { el: m.element })}
                     {m.blocks > 0 && <span>{"; "}{m.cap != null ? tr("capped at {cap} {unit} ({k} of {n} samples)", { cap: m.cap, unit: gradeUnitLabel(m.element, m.unit), k: (m.capAudit?.nCapped ?? 0).toLocaleString(), n: (m.capAudit?.nSamples ?? 0).toLocaleString() }) : tr("not capped")}</span>}{/* #3271 */}
                     {m.check?.estimate?.mean != null && <div style={{ paddingInlineStart: 12 }}>{tr("check: composites {c}, nearest neighbour {nn}, estimate {e} {unit} ({d} against the nearest neighbour)", { c: m.check.composites.mean != null ? +m.check.composites.mean.toPrecision(3) : "—", nn: m.check.nn.mean != null ? +m.check.nn.mean.toPrecision(3) : "—", e: +m.check.estimate.mean.toPrecision(3), unit: gradeUnitLabel(m.element, m.unit), d: m.check.departPct != null ? `${m.check.departPct > 0 ? "+" : ""}${m.check.departPct.toFixed(1)} %` : "—" })}</div>}{/* #3271 */}
+                    {m.blocks > 0 && m.checkNn && m.checkPoints && <details style={{ paddingInlineStart: 12 }}><summary style={{ cursor: "pointer" }}>{tr("Swath plots for {el}", { el: m.element })}</summary>{/* TASKS.csv #3384 — the swaths of each member, as the primary has */}<EstimateCheck cells={m.cells} nnCells={m.checkNn} points={m.checkPoints} unit={gradeUnitLabel(m.element, m.unit)} symbol={m.element} method={result.params.method} epsg={stampEpsg(project)} composited={result.params.composited !== false} /></details>}
                   </div>)}
                 </div>
               )}

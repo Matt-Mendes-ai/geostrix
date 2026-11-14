@@ -12662,5 +12662,8 @@
   "Trend from the direction table ({symbol})": "Tendencia desde la tabla de direcciones ({symbol})",
   "Adds a structural trend whose major axis is the longest well-fitted direction and whose ratios are the ranges along its three axes; choose it in Estimation to krige with that anisotropy.": "Agrega una tendencia estructural cuyo eje mayor es la dirección de mejor ajuste con mayor alcance y cuyas razones son los alcances a lo largo de sus tres ejes; elíjala en Estimación para krigear con esa anisotropía.",
   "Make a structural trend from this table": "Crear una tendencia estructural con esta tabla",
-  "Added: {t}. Choose it for block estimation in Trends.": "Agregada: {t}. Elíjala para la estimación de bloques en Tendencias."
+  "Added: {t}. Choose it for block estimation in Trends.": "Agregada: {t}. Elíjala para la estimación de bloques en Tendencias.",
+  "younger than its neighbours in the logs": "más joven que sus vecinas en los registros",
+  "older than its neighbours in the logs": "más antigua que sus vecinas en los registros",
+  "Swath plots for {el}": "Gráficos de franjas de {el}"
 }
