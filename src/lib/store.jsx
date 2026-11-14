@@ -11,7 +11,7 @@ import { pagePx, pageFormatOf } from "./pageFormats.js"; // TASKS.csv #2740 — 
 import { setKnownHoleIds } from "./qaqcCore.js"; // TASKS.csv #400; qaqcCore: #1345
 import { compactLayers } from "./compactRows.js"; // TASKS.csv #374
 import { readDbProfiles, writeDbProfiles, mergeDbProfiles, profilesFromFile } from "./dbProfiles.js"; // TASKS.csv #1081
-import { FIELD_KEYS, FIELDS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, payloadFromFields, projectPartsSliced /* #3104 (projectParts before) */, joinParts, cachedJson /* #1975 */, extraDirtyValues, projectHasContent } from "./projectFields.js"; // TASKS.csv #448
+import { FIELD_KEYS, FIELDS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, expandPayloadSliced /* #3423 */, payloadFromFields, projectPartsSliced /* #3104 (projectParts before) */, joinParts, cachedJson /* #1975 */, extraDirtyValues, projectHasContent } from "./projectFields.js"; // TASKS.csv #448
 import { datumPatch } from "./localGridDatum.js"; // TASKS.csv #2691 / #2661
 import { fillFromRows, setEntry } from "./codeDictionary.js"; // TASKS.csv #2163
 import { changeElementBasis, rebaseRows, rebaseThresholds } from "./oxideBasisChange.js"; // TASKS.csv #2627
@@ -1325,11 +1325,12 @@ export function StoreProvider({ children }) {
       // TASKS.csv #1657 — the open's two costs as performance measures (DevTools > Performance, or performance.getEntriesByType("measure")),
       // so a slow open can say which: the file's JSON.parse, then loadProjectPayload (expanding the compact tables, every collection set)
       const tParse = performance.now();
-      const data = JSON.parse(res.content);
+      let data = JSON.parse(res.content);
       performance.measure?.("GeoStrix: project JSON.parse", { start: tParse, detail: { bytes: res.content.length } });
       const check = checkProjectFile(data); // TASKS.csv #342
       if (!check.ok) return { ok: false, error: check.error };
       if (check.newer && !window.confirm(tr("This project was saved by a newer version of GeoStrix (file format {newer}; this version reads up to {reads}). Anything that newer version added will not be shown, and saving it here would remove it from the file for good.\n\nOpen it anyway? (Update GeoStrix to keep everything.)", { newer: check.newer, reads: PROJECT_VERSION }))) return { ok: false, cancelled: true };
+      data = await expandPayloadSliced(data); // TASKS.csv #3423 — the column tables built into rows a slice at a time (one 1.4-1.9 s task before), before anything changes
       const current = snapshotCurrentPayload();
       const id = `tab_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       // TASKS.csv #199 — the tab/title should show the actual opened file's name, not whatever
@@ -1497,6 +1498,7 @@ export function StoreProvider({ children }) {
     try {
       const chk = checkProjectFile(data);
       if (!chk.ok) return null; // #342
+      data = await expandPayloadSliced(data); // TASKS.csv #3423 — expanded a slice at a time here, so restoreAutosave (synchronous: App reads its result) finds rows
       autosaveHoldRef.current = true; // #340 — keep it intact until the user chooses
       heldAutosaveRef.current = data; // #465
       const bgNames = (data.backgroundTabs || []).map((t) => t.name);
