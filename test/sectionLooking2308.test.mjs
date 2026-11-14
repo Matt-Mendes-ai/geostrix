@@ -20,6 +20,6 @@ test("the bearing of a few azimuths", () => {
 test("wiring: the caption and the snapshot label", () => {
   const w = fs.readFileSync(new URL("../src/components/SectionWindow.jsx", import.meta.url), "utf8");
   assert.match(w, /import \{ bearingText, sectionLookText \} from "\.\.\/lib\/layoutLinks\.js";/);
-  assert.match(w, /tr\("Azimuth \{v\}° · looking \{look\} · \{v2\}\{v3\} · elevation in m", \{ v: azDeg\.toFixed\(0\), look: bearingText\(azDeg - 90\),/);
+  assert.match(w, /tr\(rlOff \? "Azimuth \{v\}° · looking \{look\} · \{v2\}\{v3\} · RL in m" : "Azimuth \{v\}° · looking \{look\} · \{v2\}\{v3\} · elevation in m", \{ v: azDeg\.toFixed\(0\), look: bearingText\(azDeg - 90\),/);
   assert.match(w, /label: `\$\{data\?\.title \|\| "Cross-section"\}\$\{data\?\.section \? ` · \$\{sectionLookText\(/);
 });
