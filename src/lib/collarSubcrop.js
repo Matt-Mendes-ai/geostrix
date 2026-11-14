@@ -43,8 +43,10 @@ export function collarSubcrop({ collars, survey, litho, desurveyMethod, roleOf =
   for (const c of collars || []) {
     const rows = (byHoleLitho.get(c.hole_id) || []).sort((a, b) => a.from - b.from);
     const f0 = rows.find((r) => !SKIP.has(roleOf(r.value)));
-    if (!f0) continue;
-    if (rows[0].from > LATE_START_M) { report?.lateStart?.push({ hole_id: c.hole_id, logStart: rows[0].from, unit: f0.value }); continue; } // #2411 / #2570
+    // TASKS.csv #3378 (#3195, Galore Creek) — at a typed depth a hole still in cover there gives a point of its cover code: the four holes in
+    // overburden at 50 m (the deepest cover on the property, what a map at depth is for) were left out as 'only cover'
+    if (!rows.length || (!f0 && depth == null)) continue;
+    if (rows[0].from > LATE_START_M) { report?.lateStart?.push({ hole_id: c.hole_id, logStart: rows[0].from, unit: (f0 || rows[0]).value }); continue; } // #2411 / #2570
     let pick = f0;
     if (depth != null) { // #2956
       pick = rows.find((r) => r.from <= depth && depth < r.to) || null;
@@ -56,7 +58,12 @@ export function collarSubcrop({ collars, survey, litho, desurveyMethod, roleOf =
     const at = depth != null ? depth : first.from;
     const p = trace.length ? pointOnTrace(trace, at) : (Number.isFinite(Number(c.x)) && Number.isFinite(Number(c.y)) ? { x: Number(c.x), y: Number(c.y), z: Number(c.z) } : null);
     if (!p) continue;
-    out.push({ hole_id: c.hole_id, unit: first.value, from: depth != null ? depth : first.from, to: first.to, cover: f0.from, x: p.x, y: p.y, z: p.z });
+    // #3378 — the cover's base: down the hole (coverAlong) and below the collar (cover, vertical: what a mapper wants on an inclined hole; the
+    // trace is desurveyed). A hole in cover to the end of its log: the cover runs to there.
+    const coverAlong = f0 ? f0.from : rows[rows.length - 1].to;
+    const zc = trace.length ? trace[0].z : Number(c.z), base = trace.length ? pointOnTrace(trace, coverAlong) : null;
+    const cover = base && Number.isFinite(zc) && Number.isFinite(base.z) ? Math.round(Math.max(0, zc - base.z) * 1e6) / 1e6 : coverAlong; // to the micrometre: 300 - 299.6 is 0.4
+    out.push({ hole_id: c.hole_id, unit: first.value, from: depth != null ? depth : first.from, to: first.to, cover, coverAlong, inCover: !f0 || pick !== f0 && SKIP.has(roleOf(pick.value)), x: p.x, y: p.y, z: p.z });
   }
   return out;
 }
@@ -69,10 +76,11 @@ export function subcropLayer(points, name = "Subcrop from collars", colorOf = co
   const features = points.map((p) => {
     if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x; if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y;
     counts.set(p.unit, (counts.get(p.unit) || 0) + 1);
-    return { parts: [[[p.x, p.y, p.z]]], attributes: { unit: p.unit, hole_id: p.hole_id, from_m: +p.from.toFixed(2), cover_m: +p.cover.toFixed(2) } };
+    // #3378 — cover_m: the vertical depth of the cover below the collar; cover_along_hole_m: its length down the hole
+    return { parts: [[[p.x, p.y, p.z]]], attributes: { unit: p.unit, hole_id: p.hole_id, from_m: +p.from.toFixed(2), cover_m: +p.cover.toFixed(2), cover_along_hole_m: +(p.coverAlong ?? p.cover).toFixed(2) } };
   });
   return {
-    name, subcropFromCollars: true, geomType: "point", hasZ: true, features, fields: ["unit", "hole_id", "from_m", "cover_m"],
+    name, subcropFromCollars: true, geomType: "point", hasZ: true, features, fields: ["unit", "hole_id", "from_m", "cover_m", "cover_along_hole_m"],
     bbox: features.length ? [x0, y0, x1, y1] : null, styleField: "unit",
     categories: [...counts].sort((a, b) => b[1] - a[1]).map(([u, n]) => ({ value: u, label: u, color: colorOf(u), outline: null, visible: true, count: n })),
     opacity: 0.9, visible: true, drapeMode: "file", elevation: 0,

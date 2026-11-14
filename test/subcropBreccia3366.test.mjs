@@ -9,7 +9,7 @@ import { lithologyNoteRoles, setLithologyNoteRoles, roleIsFromNotes } from "../s
 
 // five vertical holes: OVB, then breccia B (notes about its cement) over i10 / V3; one hole in breccia to the end; NPRC ('core not present')
 // at the top of the last, a code whose no-recovery role does come from its notes
-const collars = ["H1", "H2", "H3", "H4", "H5"].map((h, i) => ({ hole_id: h, x: 1000 + 100 * i, y: 5000, z: 900, azimuth: 0, dip: -90, depth: 320 }));
+const collars = ["H1", "H2", "H3", "H4", "H5"].map((h, i) => ({ hole_id: h, x: 1000 + 100 * i, y: 5000, z: 900, azimuth: 0, dip: 90, depth: 320 }));
 const litho = [
   { hole_id: "H1", from: 0, to: 34.75, value: "OVB" }, { hole_id: "H1", from: 34.75, to: 148.6, value: "B", desc: "polymict breccia, silica cement, cpy in the matrix" }, { hole_id: "H1", from: 148.6, to: 300, value: "i10" },
   { hole_id: "H2", from: 0, to: 66.5, value: "OVB" }, { hole_id: "H2", from: 66.5, to: 140.88, value: "B", desc: "hydrothermal breccia cemented by tourmaline" }, { hole_id: "H2", from: 140.88, to: 300, value: "V3" },
