@@ -3,7 +3,7 @@
 // plan of the 446 holes could not be made: at 1:20,000 the traces were 1 px lines under soils and geophysics, with no collar
 // symbol or label. Pure functions; the drawing is components/DrillPlanElement.jsx.
 
-import { collarsMatching } from "./holeFilter.js"; // TASKS.csv #2141
+import { collarsMatchingList } from "./holeFilter.js"; // TASKS.csv #2141; #3357 — the 3D View's Holes list rules (exact values, OR within a field)
 import { PAGE_PX_PER_PAPER_M, pxPerMetre } from "./pagePxScale.js";
 import { desurveyHole, normalizeDesurveyMethod, DESURVEY_METHODS } from "./desurvey.js"; // TASKS.csv #3367 (desurvey.js imports nothing)
 import { fmtSig3 } from "./numberFormat.js"; // TASKS.csv #3382
@@ -56,7 +56,7 @@ export function traceCaption({ surveyed = 0, straight = 0, planned = 0, method =
 // the hole-filter grammar of the hole list (#1504); a plain term still matches the hole id ('24-' kept Redgold's RG24-15 22 km north)
 export const filterHoles = (collars, filter) => {
   const ok = (collars || []).filter(finite);
-  return String(filter || "").trim() ? collarsMatching(ok, filter) : ok;
+  return String(filter || "").trim() ? collarsMatchingList(ok, filter) : ok;
 };
 
 // The scale (from `presets`, smallest first) and centre that show every hole (collar and trace) inside a w x h px frame with a margin.
@@ -184,6 +184,38 @@ export function labelBackdrop(text, x, y, fontPx, anchor = "start", pad = 1) {
   return { x: left, y: y - fontPx + 1, w, h };
 }
 
+// TASKS.csv #3415 (#3382) — the key's lines are the plan's own wording ('< 111 m × %', 'assayed, no Cu intercept at the cut-off'), and a
+// legend's rows can be rewritten: el.keyEdits = { title, note, rows: { [the line as the plan words it]: your text } }. An empty or blank
+// text is no edit, so clearing a box goes back to the plan's wording, and an edit follows its line when the plan's other classes change.
+// applyKeyEdits(colouring, edits) -> the colouring with those lines replaced (the same object when there are none)
+export function applyKeyEdits(colouring, edits) {
+  if (!edits || !colouring) return colouring;
+  const text = (v) => (typeof v === "string" && v.trim() ? v.trim() : null), rows = edits.rows || {};
+  const key = (colouring.key || []).map((k) => (text(rows[k.label]) ? { ...k, label: text(rows[k.label]) } : k));
+  return { ...colouring, title: colouring.title ? (text(edits.title) ?? colouring.title) : colouring.title, note: colouring.note ? (text(edits.note) ?? colouring.note) : colouring.note, key };
+}
+
+// TASKS.csv #3412 (#3376) — a key that takes the top edge hides the easting labels under it (they run along the top). The hidden lines are
+// not left unlabelled: each is labelled along the BOTTOM edge instead, where it does not touch a caption or another label.
+// hiddenEastings(xs, keyBox, fontPx): the grid's easting entries under the key ({ px, label }), by the rule the top labels use
+export function hiddenEastings(xs, keyBox, fontPx) {
+  if (!keyBox || !(keyBox.y < fontPx + 2)) return [];
+  return (xs || []).filter((t) => t.px + 2 < keyBox.x + keyBox.w && t.px + 2 + String(t.label).length * fontPx * 0.5 > keyBox.x);
+}
+// bottomEastings(hidden, { gf, w, h, inset, boxes }) -> [{ label, x, y, anchor }]: gf the label size, inset the frame margin, boxes the backdrops
+// ({ x, y, w, h }) of the captions along the bottom edge; a label that would touch one of them, or another bottom label, is left out
+export function bottomEastings(hidden, { gf, w, h, inset = 6, boxes = [] } = {}) {
+  const hit = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  const out = [], taken = [...boxes];
+  for (const t of hidden || []) {
+    const end = t.px + 2 + String(t.label).length * gf * 0.55 > w - inset, x = end ? t.px - 2 : t.px + 2, anchor = end ? "end" : "start";
+    const b = labelBackdrop(t.label, x, h - inset, gf, anchor);
+    if (b.x < 0 || b.x + b.w > w || taken.some((o) => hit(b, o))) continue;
+    taken.push(b); out.push({ label: t.label, x, y: h - inset, anchor });
+  }
+  return out;
+}
+
 // avoid: boxes no label may overlap (the key, #2473)
 // TASKS.csv #2611 — the boxes sit in a uniform grid of CELL px cells, so avoiding every collar of a 2,248-hole plan stays a few ms
 export function placeLabels(points, { fontPx = 9, w, h, gap = 5, avoid = [] } = {}) {
@@ -254,7 +286,7 @@ export function drillPlanGrid(el) {
   let spacing = Number(el.gridM);
   if (!(spacing > 0)) { const raw = w / ppm / 5, mag = 10 ** Math.floor(Math.log10(raw)); spacing = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((v) => v >= raw); }
   const x0 = cx - w / 2 / ppm, x1 = cx + w / 2 / ppm, y0 = cy - h / 2 / ppm, y1 = cy + h / 2 / ppm;
-  const fmt = (v) => Math.round(v).toLocaleString("en-US");
+  const fmt = (v) => (Math.round(v) || 0).toLocaleString("en-US"); // #3412 — a line a hair west of 0 read "-0 E"
   const xs = [], ys = [];
   for (let x = Math.ceil(x0 / spacing) * spacing; x <= x1 && xs.length < 200; x += spacing) xs.push({ px: w / 2 + (x - cx) * ppm, label: `${fmt(x)} E` });
   for (let y = Math.ceil(y0 / spacing) * spacing; y <= y1 && ys.length < 200; y += spacing) ys.push({ px: h / 2 - (y - cy) * ppm, label: `${fmt(y)} N` });

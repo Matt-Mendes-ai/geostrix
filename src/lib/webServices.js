@@ -14,6 +14,15 @@ export const COMMON_WEB_SERVICES = [
   { id: "ga-surface", label: "Australia — Surface Geology 1:1M (Geoscience Australia)", region: "Australia", wms: "https://services.ga.gov.au/gis/services/GA_Surface_Geology/MapServer/WMSServer", wfs: null, layer: "AUS_GA_1M_GUPoly_Lithostratigraphy", licence: "Creative Commons Attribution 4.0", licenceUrl: "https://creativecommons.org/licenses/by/4.0/" },
 ];
 
+// TASKS.csv #3000 (WA iron review) — the list opened with two British Columbia services on a project at 22.5 S, 120 E. Each service's area, a
+// [west, south, east, north] box in degrees; the list puts the services whose area holds the project (its centre) first, the order otherwise unchanged
+const SERVICE_AREAS = { "bc-bedrock": [-140, 48, -114, 60.1], "bc-tenure": [-140, 48, -114, 60.1], "ga-surface": [112, -44, 154, -9] };
+export function servicesFirst(services, centreLonLat) {
+  if (!centreLonLat || !Number.isFinite(centreLonLat.lon) || !Number.isFinite(centreLonLat.lat)) return services;
+  const inside = (p) => { const a = SERVICE_AREAS[p.id]; return !!a && centreLonLat.lon >= a[0] && centreLonLat.lon <= a[2] && centreLonLat.lat >= a[1] && centreLonLat.lat <= a[3]; };
+  return [...services.filter(inside), ...services.filter((p) => !inside(p))];
+}
+
 // the service type to use for a preset: the one asked for when it offers it, else the one it has
 export function presetService(preset, wanted) {
   if (!preset) return wanted;

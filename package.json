@@ -1,6 +1,6 @@
 {
   "name": "geostrix",
-  "version": "0.1.116",
+  "version": "0.1.117",
   "description": "Mineral exploration workspace: drillholes, geochemistry, geophysics and 3D modelling",
   "author": "Matt Mendes",
   "license": "MIT",
@@ -21,6 +21,7 @@
     "d3-delaunay": "^6.0.4",
     "electron-updater": "^6.8.9",
     "geotiff": "^3.0.5",
+    "h5wasm": "0.10.3",
     "laz-perf": "0.0.7",
     "lucide-react": "^0.383.0",
     "meshoptimizer": "1.2.0",

@@ -25,7 +25,7 @@ import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveWriteParts /* #1
 import { normalizeDesurveyMethod } from "./desurvey.js";
 import { readCellBudget, saveCellBudget } from "./estimationMeta.js"; // TASKS.csv #1970
 import { nextGroupColour, lithologyNoteRoles, setLithologyNoteRoles } from "./layers.js"; // TASKS.csv #1377; note roles: #2046
-import { freeSpot } from "./layoutPlace.js"; // TASKS.csv #1484
+import { freeSpot, viewportFrameOnPaper /* #3418 */, spotIsFree /* #3451 */ } from "./layoutPlace.js"; // TASKS.csv #1484
 
 const StoreContext = createContext(null);
 export const useStore = () => useContext(StoreContext);
@@ -882,18 +882,27 @@ export function StoreProvider({ children }) {
     }
     const aspect = res.naturalW && res.naturalH ? res.naturalW / res.naturalH : 16 / 9;
     if (targetElementId === "new") {
-      const w = Math.min(1123 - 160, 700); // 1123 = A4-landscape page width in px @ ~96dpi (LayoutModule's A4.w)
-      const h = Math.round(w / aspect);
+      // TASKS.csv #3418 — the frame is sized to, and placed on, the ACTIVE page's own paper (a portrait or A3 page took an A4-landscape
+      // frame and spot: 1123 x 794 px): at most 700 px wide, within the paper's margins both ways
+      const paper = pagePx(pageFormatOf(layoutPages.find((p) => p.id === activeLayoutPageId)));
+      const { w, h } = viewportFrameOnPaper(paper, aspect);
       const id = `viewport_${Date.now()}`;
-      setLayoutElements((els) => addViewportToPage(els, {
+      const mkView = (spot) => ({
         id, type: "viewport", themeId: viewportPendingRequest.themeId,
-        ...freeSpot(els, w, h) /* #1484 — the page's free space, not (90, 90) */, w, h, capW: w, capH: h, aspect, src: res.src, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, ve: res.ve > 1 ? res.ve : 1 /* #2628 */, // capW / capH: #906
+        ...spot /* #1484 — the page's free space, not (90, 90); #3418 — on its paper */, w, h, capW: w, capH: h, aspect, src: res.src, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, ve: res.ve > 1 ? res.ve : 1 /* #2628 */, // capW / capH: #906
         trueScale: !!res.trueScale, targetWorld: res.targetWorld || null, planView: !!res.planView, // #399
         viewState: res.viewState || null, // #948 — a theme-less capture's own view settings, for its legend
         capturedAt: Date.now(), // TASKS.csv #2471 — when; a bound legend loaded from an older capture is out of step
         samplesUnplaced: res.samplesUnplaced || 0, // TASKS.csv #1864
         rotation: 0, frameWidth: 1, frameColor: "#1a2028" /* #966: the page ink, colors.text */, frameStyle: "solid", refreshing: false,
-      }));
+      });
+      // TASKS.csv #3451 — with nothing free on this page's paper the frame goes on a new page of the same paper, clear of everything, instead of over what is there
+      const here = freeSpot(layoutElements, w, h, paper);
+      if (layoutElements.length > 0 && !spotIsFree(layoutElements, here, w, h)) {
+        const pageId = `page_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, fmt = layoutPages.find((p) => p.id === activeLayoutPageId)?.format;
+        setLayoutPages((pages) => [...pages, { id: pageId, name: `Page ${pages.length + 1}`, elements: addViewportToPage([], mkView(freeSpot([], w, h, paper))), ...(fmt ? { format: fmt } : {}) }]);
+        setActiveLayoutPageId(pageId);
+      } else setLayoutElements((els) => addViewportToPage(els, mkView(freeSpot(els, w, h, paper))));
       setLayoutSelectRequest(id);
     } else {
       applyEls((els) => els.map((el) => el.id === targetElementId
@@ -1047,6 +1056,14 @@ export function StoreProvider({ children }) {
     const live = liveRef.current;
     const toEpsg = live.project?.epsg;
     const { reprojectProject } = await import("./projectReproject.js");
+    // TASKS.csv #2826 (Main's OK, 2026-11-14) — Maps > A layer 'Its coordinates are really in: Local mine grid': the layer moves through the project's
+    // mine grid tie (mineToProject) instead of a CRS; the bearings turn with it (reprojectProject builds each from two transformed points)
+    if (String(fromEpsg).toLowerCase() === "mine") {
+      const { mineGridOf, mineToProject } = await import("./mineGrid.js"), mg = mineGridOf(live.project);
+      if (!mg) throw new Error("This project has no mine grid to read the layer on.");
+      if (target.kind === "rasters" || target.kind === "terrain") throw new Error("A raster or a terrain is resampled between two CRSs, not through a mine grid's tie: bring it in with Maps > Georeference, or reproject the file (A file) first.");
+      opts = { ...opts, transform: mineToProject(mg, toEpsg) }; fromEpsg = Number(mg.tie.epsg);
+    }
     let sub, merge;
     const k = target.kind;
     if (k === "drillholes") {
@@ -1084,7 +1101,7 @@ export function StoreProvider({ children }) {
   const setDrillRates = useCallback((rates) => setProject((p) => ({ ...p, drillRates: (typeof rates === "function" ? rates(p.drillRates || {}) : rates) || null })), []); // TASKS.csv #2581 — $/m per hole type, kept with the project (a function: from the latest rates)
   // TASKS.csv #3116 — a built-in log's valid range and despike ({ range: [lo, hi], despikeM }), kept with the project like the drill rates:
   // project.logValidRange = { [layerKey]: ... } (an older project has none: read as {}). null / {} removes the log's entry.
-  const setLogValidRange = useCallback((key, entry) => setProject((p) => { const next = { ...(p.logValidRange || {}) }; if (entry && (entry.range || entry.despikeM > 0)) next[key] = entry; else delete next[key]; return { ...p, logValidRange: next }; }), []);
+  const setLogValidRange = useCallback((key, entry) => setProject((p) => { const next = { ...(p.logValidRange || {}) }; if (entry && (entry.range || entry.despikeM > 0 || entry.unit)) next[key] = entry; /* TASKS.csv #3448 — entry.unit: a built-in log's unit, kept beside its range */ else delete next[key]; return { ...p, logValidRange: next }; }), []);
   // TASKS.csv #3236 — a per-element display unit kept with the project: project.displayUnits = { [symbol]: "ppm" | "g/t" | "ppb" | "%" }
   // (display only; stored values, calculations and saved thresholds keep their unit; an older project has none: read as {}). null removes the entry.
   const setDisplayUnit = useCallback((symbol, unit) => setProject((p) => { const next = { ...(p.displayUnits || {}) }; if (unit) next[symbol] = unit; else delete next[symbol]; return { ...p, displayUnits: next }; }), []);
@@ -1739,6 +1756,10 @@ export function StoreProvider({ children }) {
   // TASKS.csv #398 — per-page paper size / orientation ({size, orientation}, see lib/pageFormats.js). Saved
   // with the page; a page without one is A4 landscape, exactly as before.
   const setLayoutPageFormat = useCallback((id, format) => setLayoutPages((p) => p.map((pg) => (pg.id === id ? { ...pg, format } : pg))), []);
+  // TASKS.csv #3331 — one change to the elements of EVERY page (Layout's "Clear the set order" on all pages in one click); one undo step
+  // TASKS.csv #2883 — Geochem > Compositing's last settings, kept in the project file (project.lastCompositing; no token), unchanged = no new state
+  const setLastCompositing = useCallback((s) => setProject((p) => (JSON.stringify(p.lastCompositing ?? null) === JSON.stringify(s ?? null) ? p : { ...p, lastCompositing: s || undefined })), []);
+  const mapLayoutPagesElements = useCallback((fn) => setLayoutPages((p) => p.map((pg) => ({ ...pg, elements: fn(pg.elements || []) }))), []);
   // TASKS.csv #130 — Atlas (batch page generation, one page per drillhole/section). Deliberately a
   // separate bulk method rather than N calls to addLayoutPage(): that always seeds DEFAULT_LAYOUT_
   // ELEMENTS (wrong — atlas pages carry their own generated `elements`) and switches the active page +
@@ -1749,7 +1770,7 @@ export function StoreProvider({ children }) {
   const addLayoutPages = useLatestCallback((pages) => {
     if (!pages || !pages.length) return [];
     // TASKS.csv #1636 — batch: the run that generated the page (an atlas, a collar table's continuation), removable in one action
-    const withIds = pages.map((pg, i) => ({ id: `page_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}`, name: pg.name, elements: pg.elements, ...(pg.batch ? { batch: pg.batch } : {}) }));
+    const withIds = pages.map((pg, i) => ({ id: `page_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}`, name: pg.name, elements: pg.elements, ...(pg.batch ? { batch: pg.batch } : {}), ...(pg.format ? { format: pg.format } : {}) /* #3404 — its paper, so callers need not set it afterwards */ }));
     setLayoutPages((p) => [...p, ...withIds]);
     setActiveLayoutPageId(withIds[0].id);
     clearUndoHistory();
@@ -1833,7 +1854,7 @@ export function StoreProvider({ children }) {
     generatedSurfaces, setGeneratedSurfaces, modelDomains, setModelDomains, // TASKS.csv #52
     layerGroups, addLayerGroup, renameLayerGroup, deleteLayerGroup, toggleLayerGroupCollapsed, setLayerGroupFor,
     layoutElements, setLayoutElements,
-    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat, sendLayoutElement, // sendLayoutElement: #1484
+    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat, mapLayoutPagesElements /* #3331 */, setLastCompositing /* #2883 */, sendLayoutElement, // sendLayoutElement: #1484
     layoutTemplates, addLayoutTemplate, renameLayoutTemplate, deleteLayoutTemplate,
     viewportRenderRequest, viewportRenderRequestSeq, requestViewportRender, viewportPendingRequest,
     requestViewportBatch, cancelViewportBatch, viewportBatchDone, setViewportBatchDone, // TASKS.csv #1644

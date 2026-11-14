@@ -3,6 +3,7 @@ import { RASTER_RAMPS, DEFAULT_RASTER_STYLE, rasterColourFields, rasterRange, de
 import { b64ToF32 } from "../lib/inversion.js";
 import { PALETTES, paletteShortName } from "../lib/layers.js"; // paletteShortName: #1859
 import { t as tr } from "../lib/i18n.js";
+import { idwColourFields } from "../lib/idwColour.js"; // TASKS.csv #2877
 import { rasterUnitOf } from "../lib/rasterMethod.js"; // TASKS.csv #1858
 import { averagedInfo, averagedRangeText } from "../lib/gridMeans.js"; // TASKS.csv #2831
 import { guessRasterMethod } from "../lib/rasterMethod.js"; // TASKS.csv #2835 / #2842
@@ -30,7 +31,7 @@ export default function RasterColourControls({ raster: r, onUpdate, inputStyle }
     const min = key === "min" ? v : style.min ?? range[0], max = key === "max" ? v : style.max ?? range[1];
     if (max > min) apply({ stretch: "custom", min, max });
   };
-  const stops = r.colourStops || [];
+  const stops = r.colourStops?.length ? r.colourStops : idwColourFields(r.stretch).colourStops || []; // #2877 — an IDW raster saved before #2845 has no colourStops: its bar from its stretch, as the legend does
   const decades = useMemo(() => decadesSpanned(values), [values]); // #1857
   const floor = useMemo(() => floorShare(values), [values]); // #2851 — a floor value
   const signed = useMemo(() => signedGridHint(values), [values]); // #2555 — a grid with values at or below zero: no log suggestion; a diverging ramp offered

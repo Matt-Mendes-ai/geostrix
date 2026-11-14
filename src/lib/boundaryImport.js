@@ -81,6 +81,20 @@ export function isoDateOf(v) {
   if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
   return "";
 }
+// TASKS.csv #3349 (Galore Creek review) — a road in a KML / GeoJSON beside the claim polygon became a claim with the area its closing would make
+// ('Area 450 ha' beside the real 600 ha). A claim is an area: only the features that hold a closed ring are kept, and the lines left out are
+// counted. -> { result, lines } (result unchanged when the file carries no closed flags or has no line to leave out)
+export function closedFeaturesOnly(result) {
+  const { polylines = [], closedFlags = [], featureOf, attributes = [] } = result || {};
+  if (!featureOf || featureOf.length !== polylines.length || closedFlags.length !== polylines.length) return { result, lines: 0 };
+  const hasRing = new Set();
+  featureOf.forEach((f, i) => { if (closedFlags[i]) hasRing.add(f); });
+  const all = new Set(featureOf), lines = all.size - hasRing.size;
+  if (!lines || !hasRing.size) return { result, lines: 0 }; // nothing to leave out, or all lines (the open-lines refusal stands)
+  const keep = polylines.map((_, i) => hasRing.has(featureOf[i]));
+  const pick = (a) => (Array.isArray(a) ? a.filter((_, i) => keep[i]) : a);
+  return { result: { ...result, polylines: pick(polylines), closedFlags: pick(closedFlags), featureOf: pick(featureOf), ...(result.partNames ? { partNames: pick(result.partNames) } : {}), attributes }, lines };
+}
 export function claimsFromVector(result, baseName, max = 300) {
   const { polylines = [], closedFlags = [], featureOf, attributes = [] } = result || {};
   if (!featureOf || featureOf.length !== polylines.length) return null;

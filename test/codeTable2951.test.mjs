@@ -50,8 +50,8 @@ test("the pane: common codes first in the box plot and the sentence, the table w
   assert.match(p, /<BoxPlots fit groups=\{boxes\.groups\}/); // #2953 — ranked.all, with whiskers at P2-P98
   assert.match(p, /\(ranked\.common\.length \? ranked\.common : groups\)\.slice\(0, 8\)/);
   assert.match(p, /<CodeTable rows=\{table\} order=\{ranked\.all\.map\(\(g\) => g\.key\)\} minCount=\{minCount\} unit=\{unitOf\(source\.unit\)\} binned=\{!!source\?\.binM\} keptScope=\{keptScope\} \/>/);
-  assert.match(p, /navigator\.clipboard\.writeText\(\[head, \.\.\.body\]\.join\("\\n"\)\)/);
-  assert.match(p, /`Mean\$\{u\}`/, "the copy says the unit");
+  assert.match(p, /navigator\.clipboard\.writeText\(text\)/);
+  assert.match(readFileSync(new URL("../src/lib/codeTableCsv.js", import.meta.url), "utf8"), /`Mean\$\{u\}`/, "the copy says the unit (the header moved to lib/codeTableCsv.js, #3289)");
   assert.match(p, /if \(ra !== rb\) return ra \? 1 : -1;/, "codes under the minimum count last, whatever the column");
   assert.match(p, /k: table\.filter\(\(r\) => r\.n < minCount\)\.length/, "the note counts the greyed rows of the table");
 });

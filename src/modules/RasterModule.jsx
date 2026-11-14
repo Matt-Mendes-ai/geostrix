@@ -14,7 +14,7 @@ import SpectralIndexModal from "../components/SpectralIndexModal.jsx"; // TASKS.
 import { useStore } from "../lib/store.jsx";
 import { buildRasterImport, gridToSurveyRows, ternaryRaster, parseWorldFile, tieFetchedImage, dataUrlPixels } from "../lib/raster.js"; // dataUrlPixels: #1860; // parseWorldFile: TASKS.csv #1855; tieFetchedImage: #2648
 import { b64ToF32, gridDeclination } from "../lib/inversion.js"; // TASKS.csv #373
-import { SAT_LEVELS, planLatestFetch, levelsAddingNothing, naipCoverage } from "../lib/imageryLevels.js";
+import { SAT_LEVELS, planLatestFetch, levelsAddingNothing, naipCoverage, levelsAtNative } from "../lib/imageryLevels.js"; // levelsAtNative: #3450
 import { useMachineMemoryGB, fetchFits, fetchBudgetMB, centreBox } from "../lib/fetchMemory.js"; // TASKS.csv #3251 // TASKS.csv #781 / #837; naipCoverage: #1474
 const NAIP_FINEST_M = 0.6; // lib/naipFetch.js, which stays out of this module until NAIP is fetched
 import { gridToGeoTIFF, saveGeoTIFF, safeFileName, rasterExportNote, imageToGeoTIFF, pictureExportNote } from "../lib/gridExport.js"; // TASKS.csv #854; rasterExportNote: #1095; picture: #1860
@@ -30,8 +30,11 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1461
-import { fetchAreaBox, imageryAreaCollars } from "../lib/dataExtent.js"; // #1461; imageryAreaCollars: #2126
+import { fetchAreaBox, imageryAreaCollars, mergeSameBoxOptions } from "../lib/dataExtent.js";
+import { defaultSpectralIndex } from "../lib/indexForProject.js"; // TASKS.csv #3479 // #1461; imageryAreaCollars: #2126
 import RasterColourControls from "../components/RasterColourControls.jsx"; // TASKS.csv #1236
+import ZonalStatsBox from "../components/ZonalStatsBox.jsx"; // TASKS.csv #2002
+import LodCacheLine from "../components/LodCacheLine.jsx"; // TASKS.csv #3252
 import GridContourControls from "../components/GridContourControls.jsx"; // TASKS.csv #1622
 import { gridCellText } from "../lib/raster.js"; // TASKS.csv #1242
 import { detectKeyColour } from "../lib/rasterKey.js"; // TASKS.csv #1623
@@ -97,8 +100,9 @@ function SpectrumPanel({ spectrum, onSplit }) {
   );
 }
 
+const GRAVITY_UNIT_RE = /^(mgal|µgal|μgal|ugal)$/i; // TASKS.csv #2947 — gridFilters.js GRAVITY_UNITS (that module loads on first use, so the form keeps its own copy)
 export default function RasterModule({ embedded = false } = {}) {
-  const { rasters, addRaster, updateRaster, removeRaster, moveRaster /* #2853 */, terrain, project, collars, survey = [] /* #2126 */, boundaries, setLayers, projectIsEmpty, setEpsg, surfaceSamples = [], voxelModels = [], updateGeophysSurvey, geophysSurveys = {}, layers = {} /* #2868 — the survey stations */ } = useStore(); // voxelModels: #1856 // projectIsEmpty/setEpsg: #607; updateGeophysSurvey: #1985
+  const { assays = [], assayElements = [], rasters, addRaster, updateRaster, removeRaster, moveRaster /* #2853 */, terrain, project, collars, survey = [] /* #2126 */, boundaries, setLayers, projectIsEmpty, setEpsg, surfaceSamples = [], voxelModels = [], updateGeophysSurvey, geophysSurveys = {}, layers = {} /* #2868 — the survey stations */ } = useStore(); // voxelModels: #1856 // projectIsEmpty/setEpsg: #607; updateGeophysSurvey: #1985
   // TASKS.csv #326 — a data grid's nodes as survey points (Geophysics -> Point cloud / Inversion). Replaces
   // any earlier points made from the same grid, so doing it twice does not double the survey.
   // TASKS.csv #373 — potential-field filters on a grid's kept values; each result is a new raster
@@ -201,7 +205,7 @@ export default function RasterModule({ embedded = false } = {}) {
       const { applyGridFilterAsync } = await import("../lib/gridFilterClient.js");
       const out = await applyGridFilterAsync({ nx: g.nx, ny: g.ny, dx: g.dx, dy: g.dy, values }, filt.kind, { ...params, declination: declGrid ?? undefined });
       const label = FILTERS[filt.kind].label;
-      const ou = filterOutputUnits(filt.kind, rasterUnitOf(r)); // TASKS.csv #2837 / #2843 — the typed unit too; tilt: degrees; a gravity derivative per km
+      const ou = filterOutputUnits(filt.kind, rasterUnitOf(r), filt.gravPer || "km"); // gravPer: #2947 — TASKS.csv #2837 / #2843 — the typed unit too; tilt: degrees; a gravity derivative per km
       if (ou.scale !== 1) for (let i = 0; i < out.values.length; i++) out.values[i] *= ou.scale;
       const suffix = filt.kind === "rtp" || filt.kind === "rte" ? ` (I ${params.inclination}°, D ${params.declinationTrue}° true)` : filt.kind === "rtpa" ? ` (I ${params.inclination}°, D ${params.declinationTrue}° true, Ia ${out.amplitudeInclination}°)` : filt.kind === "upward" ? ` (+${params.height} m)` : "";
       if (filt.kind === "rtpa") params.amplitudeInclination = out.amplitudeInclination; // #1988 — the one used, recorded with the raster
@@ -347,7 +351,7 @@ export default function RasterModule({ embedded = false } = {}) {
       const lons = lonLats.map((ll) => ll.lon), lats = lonLats.map((ll) => ll.lat);
       return { id: j.id, label: farLabel(j.label, farFromCollars([j.xmin, j.ymin, j.xmax, j.ymax], collars)), bboxLonLat: [arrMin(lons), arrMin(lats), arrMax(lons), arrMax(lats)] }; // farLabel: #2590
     }));
-    return options.filter(Boolean);
+    return mergeSameBoxOptions(options.filter(Boolean), (n) => tr("+{n} with the same box", { n })); // TASKS.csv #3477
   };
 
   // TASKS.csv #615 — as the SRTM picker: a CRS never chosen is asked for first, then the picker re-opens
@@ -412,7 +416,8 @@ export default function RasterModule({ embedded = false } = {}) {
         }
         parts.push(p);
       }
-      for (const p of parts) addRaster({ name: p.name, bbox: p.bbox, dataUrl: p.dataUrl, elevation: defaultElevation, ...(p.pixelM ? { pixelM: p.pixelM, gridW: p.gridW, gridH: p.gridH } : {}) /* #3251 — said on the card */ });
+      // TASKS.csv #3252 — the source's description (r.lod), for the Maps plan's detail tiles; not through a local grid's tie (the tiles are read in the project CRS)
+      for (const p of parts) addRaster({ name: p.name, bbox: p.bbox, dataUrl: p.dataUrl, elevation: defaultElevation, ...(p.pixelM ? { pixelM: p.pixelM, gridW: p.gridW, gridH: p.gridH } : {}) /* #3251 — said on the card */, ...(r.lod && !tie ? { lod: r.lod } : {}) });
       setError({ info: satSource === "naip" ? !r.partial : r.areaCloud <= 0.1, text: (parts.length > 1 ? tr("Fetched and imported {n} pictures of \"{name}\" ({gridW} × {gridH} px each at most).", { n: parts.length, name: r.name.replace(/, part 1 of \d+$/, ""), gridW: arrMax(parts.map((p) => p.gridW)), gridH: arrMax(parts.map((p) => p.gridH)) }) : tr("Fetched and imported \"{name}\" ({gridW} × {gridH} px).", { name: r.name, gridW: r.gridW, gridH: r.gridH })) + r.note + tieNote });
     } catch (err) {
       setError({ info: false, text: err.message });
@@ -470,6 +475,18 @@ export default function RasterModule({ embedded = false } = {}) {
     if (!set.images.length && set.orphans.length) said.push(tr("{names}: a world file, .prj or Geosoft .xml on its own places nothing: select or drop it together with its raster (same name).", { names: set.orphans.map((f) => f.name).join(", ") }));
     if (said.length) setError({ info: true, text: said.join(" ") });
     set.images.forEach(({ file, world, xml, prj }) => importRaster(file, world, xml, prj));
+  };
+  // TASKS.csv #3470 — a new raster of a value grid's cells inside a boundary or claim, cropped to it (lib/clipGrid.js); the original stays
+  const clipRasterTo = async (r, b) => {
+    try {
+      const [{ clipGridToPolygon }, { rasterFromGridAsync }] = await Promise.all([import("../lib/clipGrid.js"), import("../lib/gridFilterClient.js")]);
+      const c = clipGridToPolygon(r.grid, b.polylines);
+      if (!c || !c.kept) { setError({ info: false, text: tr("No cell of \"{name}\" with a value lies inside \"{boundary}\".", { name: r.name, boundary: b.name }) }); return; }
+      const nr = await rasterFromGridAsync({ name: `${r.name} — inside ${b.name}`, values: c.values, nx: c.nx, ny: c.ny, x0: c.x0, yTop: c.yTop, dx: c.dx, dy: c.dy, averagedBy: r.grid.averagedBy || 1, sourceSize: r.grid.sourceSize, elevation: r.elevation,
+        extra: { surveyMethod: rasterMethodOf(r, geophysSurveys) || undefined, units: rasterUnitOf(r) || undefined, ...(r.geochem ? { geochem: r.geochem } : {}), clippedTo: { boundary: b.name, source: r.name } } });
+      addRaster({ ...nr, drapeMode: r.drapeMode, elevation: r.elevation });
+      setError({ info: true, text: tr("Added \"{name}\": {kept} of {total} cells inside \"{boundary}\" have a value ({cells} cells in all, cropped to the boundary). \"{source}\" is unchanged.", { name: nr.name, kept: c.kept.toLocaleString(), total: c.total.toLocaleString(), boundary: b.name, cells: (c.nx * c.ny).toLocaleString(), source: r.name }) });
+    } catch (err) { setError({ info: false, text: err.message }); }
   };
   const importRaster = async (file, world = null, xml = null, prj = null) => { // world: a world file selected with it (TASKS.csv #1855); xml: a Geosoft .xml (#2830); prj: #2857
     if (!file) return;
@@ -575,6 +592,14 @@ export default function RasterModule({ embedded = false } = {}) {
                     <button type="button" onClick={() => setArea(centreBox(bbox, p.fullSideM))} style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)", cursor: "pointer" }}
                       title={tr("The imagery's own pixels at this resolution cover about {km} km across: keep the centre of the drawn area", { km: (p.fullSideM / 1000).toFixed(1) })}>{tr("Full resolution: centre {km} km", { km: (p.fullSideM / 1000).toFixed(1) })}</button>
                   )}
+                  {bbox && (() => { // TASKS.csv #3450 — why the higher levels are greyed out, and what gives finer detail
+                    const n = levelsAtNative(bbox, naip ? NAIP_FINEST_M : undefined);
+                    if (!n) return null;
+                    const level = tr("{label} resolution", { label: SAT_LEVELS[n.reached].label });
+                    return <span role="note" style={{ flexBasis: "100%", lineHeight: 1.4 }}>{naip
+                      ? tr("{level} already reaches NAIP's own pixels for an area this size: the higher levels would give the same picture.", { level })
+                      : tr("Sentinel-2's pixels are 10 m, and {level} already fetches them for an area this size: the higher levels would give the same picture. No finer free imagery is offered here (NAIP covers the USA only). For finer detail, import an orthophoto as a GeoTIFF (Maps > GeoTIFF / GXF).", { level })}</span>;
+                  })()}
                   {naip && satLevel === "full" && <span>{tr("Some states are flown at 0.3 m (Colorado since 2023): Full then fetches 0.3 m pixels, over a quarter of the area at the most.")}</span>}
                   {p && !p.nativeLimited && p.pixelM > 3 * (naip ? NAIP_FINEST_M : 10) && <span style={{ color: "var(--color-warn-text)" }}>{tr("Pixels {k} times coarser than the imagery's own: a smaller area gets finer ones.", { k: Math.round(p.pixelM / (naip ? NAIP_FINEST_M : 10)) })}</span>}{/* #2126 */}
                 </span>
@@ -583,7 +608,7 @@ export default function RasterModule({ embedded = false } = {}) {
           />
         )}
         {spectralOpen && ( // TASKS.csv #783
-          <SpectralIndexModal epsg={tieOf(project) ? null : project?.epsg} tie={tieOf(project) /* #2648 */} defaultElevation={defaultElevation} sourceEpsg={isMineSource(sourceEpsg) ? "" : sourceEpsg /* #2684 — a satellite scene is never on a mine grid */} areaOptions={spectralAreas}
+          <SpectralIndexModal defaultPreset={defaultSpectralIndex(assays, assayElements)} epsg={tieOf(project) ? null : project?.epsg} tie={tieOf(project) /* #2648 */} defaultElevation={defaultElevation} sourceEpsg={isMineSource(sourceEpsg) ? "" : sourceEpsg /* #2684 — a satellite scene is never on a mine grid */} areaOptions={spectralAreas}
             onClose={() => setSpectralOpen(false)}
             onImport={(raster, msg) => { // TASKS.csv #2294 — placed as a GeoTIFF of the same footprint is (#1505), and said
               const list = [].concat(raster), drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: list[0]?.bbox, rasters, fileName: list[0]?.name, stations: layers?.geophys_pts /* #2868 */ });
@@ -639,6 +664,7 @@ export default function RasterModule({ embedded = false } = {}) {
         {rasters.length === 0 && (
           <div style={{ marginTop: 14, fontSize: "var(--font-size-base)", color: "var(--color-text-muted)" }}>{tr("No rasters imported yet.")}</div>
         )}
+        <LodCacheLine hasLod={rasters.some((r) => r.lod)} />{/* TASKS.csv #3252 */}
         {rasters.length > 1 && <div style={{ marginTop: 8, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("The Maps plan draws these in order, the last on top; the arrows on a card move it.")}</div>}{/* #2853 */}
         {rasters.map((r) => (
           <div key={r.id} style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
@@ -657,6 +683,7 @@ export default function RasterModule({ embedded = false } = {}) {
               {rasters.length > 1 && <ChevronDown role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Move \"{name}\" down the list (drawn over the one before on the plan)", { name: r.name })} title={tr("Move \"{name}\" down the list (drawn over the one before on the plan)", { name: r.name })} onClick={() => moveRaster(r.id, 1)} />}
               <Trash2 aria-label={tr("Remove raster \"{name}\"", { name: r.name })} title={tr("Remove raster \"{name}\"", { name: r.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: r.name }))) removeRaster(r.id); }} />
             </div>
+            {r.grid && <ZonalStatsBox raster={r} boundaries={boundaries} onClip={(b) => clipRasterTo(r, b)} />}{/* TASKS.csv #2002 */}
             {r.terrainDerivative && r.terrainDerivative.terrainId != null && terrain?.id !== r.terrainDerivative.terrainId && ( /* TASKS.csv #1626 — made from a terrain since replaced */
               <div style={{ marginTop: 5, fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("Made from the terrain \"{name}\", which has since been replaced: it still shows that ground, draped on the new one. Remove it and make it again from the current terrain (Maps > Terrain > Hillshade, slope, aspect…).", { name: r.terrainDerivative.terrainName || "?" })}</div>
             )}
@@ -710,6 +737,15 @@ export default function RasterModule({ embedded = false } = {}) {
                 {filt.kind === "worms" && (
                   <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                     <input type="checkbox" checked={!!filt.integrate} onChange={(e) => setFilt((p) => ({ ...p, integrate: e.target.checked }))} />{tr("Magnetic RTP grid: integrate it first (pseudo-gravity)")}
+                  </label>
+                )}
+                {(filt.kind === "vd1" || filt.kind === "as") && GRAVITY_UNIT_RE.test(String(rasterUnitOf(r) || "").trim()) && ( /* TASKS.csv #2947 — a gravity derivative's unit */
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>{tr("Derivative in")}
+                    <select value={filt.gravPer || "km"} aria-label={tr("Unit of the gravity derivative")} onChange={(e) => setFilt((p) => ({ ...p, gravPer: e.target.value }))} style={{ ...numInput, flex: 1 }}>
+                      <option value="km">{tr("per kilometre (as published)")}</option>
+                      <option value="m">{tr("per metre")}</option>
+                      <option value="E">{tr("Eötvös")}</option>
+                    </select>
                   </label>
                 )}
                 {filt.kind === "upward" && (

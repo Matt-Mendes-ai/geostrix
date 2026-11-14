@@ -7,8 +7,8 @@ import { t as tr } from "../lib/i18n.js";
 
 // symbol; length / minCoverage (0-1) / cap: this tool's settings; onUse({ length, minCoverage, cap }) takes Geochem's; unitLabel: the cap's unit
 export default function GeochemCompositingNote({ symbol, length, minCoverage, cap, onUse, unitLabel = "", style }) {
-  const { isSameProject } = useStore() || {};
-  const g = lastCompositing(isSameProject, symbol);
+  const { isSameProject, project } = useStore() || {};
+  const g = lastCompositing(isSameProject, symbol, project?.lastCompositing); // #2883 — kept in the project
   const box = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, ...style };
   const capText = g && g.cap != null ? tr("cap {v} {u}", { v: Number(g.cap.toPrecision(4)).toLocaleString(), u: unitLabel }).trim() : tr("no cap");
   return (

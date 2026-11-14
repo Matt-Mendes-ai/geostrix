@@ -17,3 +17,13 @@ test("the dialog starts on the first area's latitude", () => {
   const src = readFileSync(new URL("../src/components/SpectralIndexModal.jsx", import.meta.url), "utf8");
   assert.match(src, /useState\(\(\) => \{ const b = areaOptions\[0\]\?\.bboxLonLat; return lastSummer\(b \? \(b\[1\] \+ b\[3\]\) \/ 2 : null\); \}\)/);
 });
+
+// TASKS.csv #3473 — the tropics: the dry season, not the summer (the Pilbara's December to February is its cyclone season)
+test("within 23.5 degrees: the last completed dry season", () => {
+  const nov2026 = new Date(2026, 10, 11);
+  assert.deepEqual(lastSummer(-22.48, nov2026), { from: "2026-06-01", to: "2026-09-15" }); // Pilbara
+  assert.deepEqual(lastSummer(-22.48, new Date(2026, 7, 1)), { from: "2025-06-01", to: "2025-09-15" }); // August: this dry season is not over
+  assert.deepEqual(lastSummer(10, nov2026), { from: "2025-12-01", to: "2026-03-15" }); // northern tropics
+  assert.deepEqual(lastSummer(10, new Date(2027, 1, 1)), { from: "2025-12-01", to: "2026-03-15" }); // February: not over
+  assert.deepEqual(lastSummer(-30, nov2026), { from: "2025-12-01", to: "2026-02-28" }); // outside the tropics: unchanged
+});

@@ -223,7 +223,9 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   // TASKS.csv #2523 (review #2486) — the section had no key in the window or its PNG / SVG / PDF (only a Layout snapshot carried one).
   // #1128 kept the legend out of the drawing so Layout can move and edit it: the drawing and the snapshot stay as they are; the key is shown
   // under the drawing (switchable, remembered) and drawn as a band in the exported copy only. models: block models are keyed by BlockModelKey.
-  const keyRows = (withModels) => (data ? groupSectionLegend([...sectionAssayLegend(data.points, data.assayLegend), ...shownLegendItems, ...sectionMineralLegend(data.intervals, data.points, LAYER_META.mnlgy.label), ...sectionModelLegend(data.surfaceTraces, withModels ? data.voxelSlices : [], tr("Model surfaces"))], ribbonOrder(data.intervals)) : []);
+  // TASKS.csv #3430 — the point surveys on the section: one ramp each (scatterCounts.legends, sectionScatter.js), drawn and exported as a model's
+  const surveyKeys = (data?.scatterCounts?.legends || []).map((g) => ({ id: g.key, name: g.label, legend: g }));
+  const keyRows = (withModels) => (data ? groupSectionLegend([...sectionAssayLegend(data.points, data.assayLegend), ...shownLegendItems, ...sectionMineralLegend(data.intervals, data.points, LAYER_META.mnlgy.label), ...sectionModelLegend(data.surfaceTraces, withModels ? [...(data.voxelSlices || []), ...surveyKeys] : [], tr("Model surfaces"))], ribbonOrder(data.intervals)) : []);
   const [showKey, setShowKey] = useState(() => { try { return localStorage.getItem("geostrix.sectionKey") !== "0"; } catch { return true; } });
   const toggleKey = () => setShowKey((v) => { try { localStorage.setItem("geostrix.sectionKey", v ? "0" : "1"); } catch { /* private mode */ } return !v; });
   const exportOpts = () => (showKey ? { furniture: sectionKeyFurniture(keyRows(true)) } : {});
@@ -587,7 +589,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
         <SectionSVG patterns={patternsOn && Object.keys(patternTiles).length ? patternTiles : null} onLeftOut={printScale == null ? setLabelsLeftOut : null} printing={printScale != null} /* #2761 */ textFont={textFont} textScale={printScale ?? textScale} /* #1090 — the print size while an export is drawn */ holeWidth={holeWidth} structOpacity={structOpacity} showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} onAutoVE={(v) => setVExag((cur) => cur ?? v)} geomRef={geomRef} planPts={planning ? planPts : []}
           snap={snapOn && !planning ? targets : null} projectSnaps={projectSnaps} editingId={editingId} onEditPoints={editPoints} onCopyGhost={drawing || planning ? null : copyGhost}
           labels={labels} onMoveLabel={(key, off) => changeLabels({ offsets: { ...labels.offsets, [key]: off } })} /* #823 */ />
-        <BlockModelKey slices={data.voxelSlices} />
+        <BlockModelKey slices={[...(data.voxelSlices || []), ...surveyKeys]} />{/* #3430: the surveys' ramps too */}
         <SectionKey rows={keyRows(false)} shown={showKey} onToggle={toggleKey} />{/* #2523 */}
       </div>
     </div>

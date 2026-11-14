@@ -126,7 +126,7 @@ test("the picker offers the answer only where it is passed, and every importer o
   assert.match(geo, /const mineSrc = isMineSource\(geophysSourceEpsg\); \/\/ #2684/);
   assert.match(geo, /mineSource: mineSourceOf\(project\) \/\* #2684 \*\/, chooseProjectEpsg/); // the DEM
   assert.equal((geo.match(/source: boundarySource, mineSource: mineSourceOf\(project\)/g) || []).length, 3); // shapefile, GeoPackage and the .dxf / .ply transform
-  assert.equal((geo.match(/await plainSourceTransform\(\)/g) || []).length, 3); // .dxf and .ply boundaries, .dxf / .ply claims
+  assert.equal((geo.match(/await plainSourceTransform\(\)/g) || []).length, 4); // .dxf and .ply boundaries, .dxf / .ply claims, and a GeoJSON in metres (#3341)
   const ras = read("modules/RasterModule.jsx");
   assert.match(ras, /mineGrid=\{mineSourceOf\(project\)/);
   assert.match(ras, /mineSource: mineSourceOf\(project\), sideCrs \}\)/); // sideCrs: #2830

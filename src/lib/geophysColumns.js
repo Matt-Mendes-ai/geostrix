@@ -25,7 +25,7 @@ const ROLES = {
   z: { exact: ["z", "elevation", "elev"], words: ["z", "elevation", "elev", "rl"] },
   value: {
     exact: ["value", "val", "reading", "mag", "response"],
-    words: ["value", "val", "reading", "response", "mag", "magnetic", "tmi", "rmi", "nt", "grav", "gravity", "bouguer", "cba", "res", "resistivity", "rho", "chargeability", "ip", "k", "th", "u", "tc", "dose", "eu", "eth", "uranium", "thorium", "potassium", "kpct" /* #2395 */, "susc", "susceptibility", "cond", "conductivity", "em"],
+    words: ["value", "val", "reading", "response", "mag", "magnetic", "tmi", "rmi", "nt", "grav", "gravity", "bouguer", "cba", "res", "resistivity", "rho", "chargeability", "ip", "mx" /* #3425 — AppMx, apparent chargeability */, "appmx", "mvv", "rhoa", "apprho", "k", "th", "u", "tc", "dose", "eu", "eth", "uranium", "thorium", "potassium", "kpct" /* #2395 */, "susc", "susceptibility", "cond", "conductivity", "em"],
   },
   line: { exact: ["line", "line_no", "lineno", "line_number", "flight_line", "flightline"], words: ["line", "flightline"] },
   fid: { exact: ["fid", "fiducial", "fiducial_no"], words: ["fid", "fiducial"] },
@@ -34,6 +34,7 @@ const ROLES = {
 // Never the value column: identifiers, QC, time, geometry and instrument housekeeping.
 const NOT_VALUE = ["id", "station", "stn", "flag", "qc", "time", "date", "hour", "utc", "gps", "sat", "sats", "hdop", "line", "fid", "fiducial", "x", "y", "z", "easting", "northing", "east", "north", "elevation", "elev", "lat", "lon", "long", "latitude", "longitude", "alt", "altitude", "height", "agl", "radar", "laser", "base", "diurnal", "heading", "speed", "error", "err", "std", "sd", "count", "number", "no", "index", "quality", "signal"];
 const GEOGRAPHIC = ["lon", "long", "longitude", "lat", "latitude"];
+const SECONDARY_VALUE = ["mx", "appmx", "mvv"]; // #3425 — apparent chargeability: the value alone, not beside another measurement
 const PROCESSED = ["corr", "corrected", "lev", "levelled", "leveled", "final", "residual", "res", "rtp", "filtered", "reduced", "processed", "igrf", "tie"];
 
 function pick(headers, role, taken) {
@@ -52,13 +53,20 @@ function pick(headers, role, taken) {
     const projected = cands.filter((h) => !headerWords(h).some((w) => GEOGRAPHIC.includes(w)));
     if (projected.length) return { col: projected[0], candidates: cands };
   }
+  // TASKS.csv #3425 — an apparent-chargeability spelling (Mx, AppMx, MVV) is the value when it is the only measurement, but beside a
+  // resistivity (a DC / IP file: 'MX_mVV' before 'RHO_ohmm') the resistivity stays the value and the Mx one is offered as the other measurement
+  let pool = cands;
   if (role === "value" && cands.length > 1) {
-    const processed = cands.filter((h) => headerWords(h).some((w) => PROCESSED.includes(w)) && !headerWords(h).includes("raw"));
+    const main = cands.filter((h) => !headerWords(h).filter((w) => r.words.includes(w)).every((w) => SECONDARY_VALUE.includes(w)));
+    if (main.length) pool = main;
+  }
+  if (role === "value" && pool.length > 1) {
+    const processed = pool.filter((h) => headerWords(h).some((w) => PROCESSED.includes(w)) && !headerWords(h).includes("raw"));
     if (processed.length) return { col: processed[0], candidates: cands };
-    const notRaw = cands.filter((h) => !headerWords(h).includes("raw"));
+    const notRaw = pool.filter((h) => !headerWords(h).includes("raw"));
     if (notRaw.length) return { col: notRaw[0], candidates: cands };
   }
-  return { col: cands[0], candidates: cands };
+  return { col: pool[0], candidates: cands };
 }
 
 // -> { x, y, z, value, line, fid, label } column names ("" = not found), plus valueCandidates (every column

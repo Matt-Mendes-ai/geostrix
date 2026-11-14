@@ -33,18 +33,23 @@ const cfgs = {
 // TASKS.csv #3275 — rehashed WITHOUT each block's support class and the support tally: #3275 redefined 'interpolated' (between holes, from the
 // traces in the search), so the class is pinned in test/betweenHoles3275.test.mjs instead. These hashes were produced by the code of commit 839d7057
 // and match the current code on all eleven (values, holes, the support index, flags and the other counts unchanged).
-const BEFORE = { holes1_r200: { hash: "706439d66d818365", blocks: 3444 }, holes2_material_r300: { hash: "50b13215dc5c817f", blocks: 3475 }, holes2_r300_support: { hash: "1e87ac1473bf8361", blocks: 3488 }, holes3_perHole4_r250: { hash: "df5347d6a85af861", blocks: 2817 }, domain_r200: { hash: "9b61e3edc110ca9b", blocks: 2956 }, domain_nocode_holes2: { hash: "73242c55cd865abe", blocks: 3172 }, ok_r250: { hash: "5482e3a76f00ef9c", blocks: 3635 }, nn_r150: { hash: "6108294571aad836", blocks: 3032 }, minSamples5_r120: { hash: "6b8f21f6e1d21660", blocks: 2690 }, trend_holes2: { hash: "7b8dd9dc6b1575dc", blocks: 3218 }, unlimited_support: { hash: "f87b021f4799b07c", blocks: 3696 }, dense: { hash: "51f2a8add757c8e6", blocks: 2860 } };
+// v0.1.116 CI: the raw-float hashes are platform-dependent (ok_r250's kriging solve differed in its last bits on CI's Node 22 / V8, not on
+// this machine's Node 24). Rehashed with every non-integer rounded to 10 significant figures (r10), from the current code, which on this
+// machine still matched all twelve raw hashes of commit 839d7057 above; the rounding keeps any real change in an estimate visible.
+const BEFORE = { holes1_r200: { hash: "4f9da3ad0e0a51e9", blocks: 3444 }, holes2_material_r300: { hash: "b4281bb7b5d91ae7", blocks: 3475 }, holes2_r300_support: { hash: "5057bc8a74fc40a2", blocks: 3488 }, holes3_perHole4_r250: { hash: "cd630a02ea7f6661", blocks: 2817 }, domain_r200: { hash: "a2799784b6254030", blocks: 2956 }, domain_nocode_holes2: { hash: "3bbd57a12c8f1baa", blocks: 3172 }, ok_r250: { hash: "ba5828e3628723d5", blocks: 3635 }, nn_r150: { hash: "4bc018efe5d109d7", blocks: 3032 }, minSamples5_r120: { hash: "5b297754b3c7e3ae", blocks: 2690 }, trend_holes2: { hash: "11073fdfda6eec18", blocks: 3218 }, unlimited_support: { hash: "9d10b9ba77476927", blocks: 3696 }, dense: { hash: "eedb636a55d6488c", blocks: 2860 } };
+
+const r10 = (k, v) => (typeof v === "number" && !Number.isInteger(v) ? Number(v.toPrecision(10)) : v); // platform-stable: 10 significant figures
 
 test("every block of twelve configurations is the same as before the rewrite (values, holes, support index, flags, counts)", () => {
   for (const [k, o] of Object.entries(cfgs)) {
     const r = estimateBlockModel(pts, { ...base, ...o });
     const h = createHash("sha256");
-    for (const c of r.cells) { const { support, ...rest } = c; h.update(JSON.stringify(rest)); } // support: #3275, pinned apart
-    h.update(JSON.stringify({ e: r.blocksEstimated, s: r.blocksSkipped, sh: r.singleHoleCells, d: r.dominatedCells, bc: r.beyondCounts, pb: r.piercedBlocks, ok: r.okCounts }));
+    for (const c of r.cells) { const { support, ...rest } = c; h.update(JSON.stringify(rest, r10)); } // support: #3275, pinned apart
+    h.update(JSON.stringify({ e: r.blocksEstimated, s: r.blocksSkipped, sh: r.singleHoleCells, d: r.dominatedCells, bc: r.beyondCounts, pb: r.piercedBlocks, ok: r.okCounts }, r10));
     assert.deepEqual({ hash: h.digest("hex").slice(0, 16), blocks: r.blocksEstimated }, BEFORE[k], k);
   }
   const dg = estimateDenseGrid(pts, { ...base, searchRadius: 200, minHoles: 2 });
-  assert.deepEqual({ hash: createHash("sha256").update(Buffer.from(new Float64Array(Array.from(dg.values, (v) => (Number.isFinite(v) ? v : -1))).buffer)).digest("hex").slice(0, 16), blocks: dg.estimated }, BEFORE.dense, "dense");
+  assert.deepEqual({ hash: createHash("sha256").update(Buffer.from(new Float64Array(Array.from(dg.values, (v) => (Number.isFinite(v) ? Number(v.toPrecision(10)) : -1))).buffer)).digest("hex").slice(0, 16), blocks: dg.estimated }, BEFORE.dense, "dense");
 });
 
 test("the walk keeps no per-candidate objects and sorts only the usable ones; the budget menu gives memory, the run its time left", () => {

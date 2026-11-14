@@ -41,7 +41,7 @@ test("a SYNTHETIC buried point mass (5 mGal peak): its 1VD is ~0.01 mGal/m, scal
 
 test("wired: runFilter takes the typed unit and scales the values before the raster is made", () => {
   const m = readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8");
-  assert.match(m, /const ou = filterOutputUnits\(filt\.kind, rasterUnitOf\(r\)\);/);
+  assert.match(m, /const ou = filterOutputUnits\(filt\.kind, rasterUnitOf\(r\), filt\.gravPer \|\| "km"\);/);
   assert.match(m, /if \(ou\.scale !== 1\) for \(let i = 0; i < out\.values\.length; i\+\+\) out\.values\[i\] \*= ou\.scale;/);
   assert.match(m, /units: ou\.units \/\* #2557, #2837 \*\//);
   assert.doesNotMatch(m, /units: r\.units \? FILTERS/);

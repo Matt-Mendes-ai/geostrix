@@ -98,6 +98,6 @@ test("the importers pass the project's tie, and the Project CRS page names the t
   assert.equal((gm.match(/collars, tie: tieOf\(project\), source: boundarySource, mineSource: mineSourceOf\(project\) \}\);/g) || []).length, 2); // source: #2684
   assert.match(gm, /kmlToProjectPolylines\(features, project\?\.epsg, \{ toLocal: tie \?/);
   assert.match(gm, /layersToBoundaryPolylines\(layers, project\?\.epsg, reprojectXY, tie \?/);
-  assert.match(gm, /tie: tieOf\(project\) \}\); \/\/ #607; tie: #2587/);
+  assert.match(gm, /tie: tieOf\(project\)(, worldFile, sideCrs)? \}\); \/\/ #607; tie: #2587/);
   assert.match(readFileSync(new URL("../src/modules/CartographyModule.jsx", import.meta.url), "utf8"), /project\.crsSet === false && tieOf\(project\) \?/);
 });

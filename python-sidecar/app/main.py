@@ -515,6 +515,64 @@ def _validate_em1d(req):
         raise HTTPException(400, "The relative error must be 0-1 and the absolute error >= 0 (not both 0); lateral 0-100.")
 
 
+# TASKS.csv #3440 — 1D inversion of TEM decays (app/geophys/tem1d.py): an airborne system (a dipole at height h, the receiver at offset r)
+# or a ground central loop (radius a), its gates (s after the turn-off), an optional current waveform, the decays in pV / (A m^4)
+TEM1D_MAX_STATIONS = 50_000
+
+
+def _validate_tem1d(req):
+    sysm = req.get("system")
+    try:
+        g = sysm.get("geom")
+        h = float(sysm.get("h", 0.0))
+        if g == "vmd":
+            ok = 0 < float(sysm["r"]) <= 200
+        elif g == "loop":
+            ok = 0 < float(sysm["a"]) <= 500
+        else:
+            ok = False
+        if not ok or not (0 <= h <= 200):
+            raise ValueError
+    except (KeyError, TypeError, ValueError, AttributeError):
+        raise HTTPException(422, "system needs geom 'vmd' with an offset r (0-200 m) or 'loop' with a radius a (0-500 m), and a height h (0-200 m).")
+    gates = req.get("gates")
+    if not isinstance(gates, list) or not (3 <= len(gates) <= 80) or any(not isinstance(t, (int, float)) or not (1e-7 <= t <= 1.0) for t in gates) \
+            or any(b <= a for a, b in zip(gates, gates[1:])):
+        raise HTTPException(422, "gates must list 3 to 80 increasing times between 1e-7 and 1 s.")
+    w = req.get("widths")
+    if w is not None and (not isinstance(w, list) or len(w) != len(gates) or any(not isinstance(v, (int, float)) or v < 0 for v in w)):
+        raise HTTPException(422, "widths must give one non-negative width (s) per gate.")
+    wf = req.get("waveform")
+    if wf is not None:
+        if not isinstance(wf, list) or not (2 <= len(wf) <= 50) or any(not isinstance(p, list) or len(p) != 2 for p in wf):
+            raise HTTPException(422, "waveform must list 2 to 50 [time (s), current 0-1] points.")
+        ts = [float(p[0]) for p in wf]
+        if any(b <= a for a, b in zip(ts, ts[1:])) or abs(ts[-1]) > 1e-12 or abs(float(wf[-1][1])) > 1e-12 or ts[0] < -1.0:
+            raise HTTPException(422, "The waveform's times must increase and end at t = 0 with the current off (I = 0).")
+    data = req.get("data")
+    if not isinstance(data, list) or not (1 <= len(data) <= TEM1D_MAX_STATIONS):
+        raise HTTPException(400, f"Between 1 and {TEM1D_MAX_STATIONS:,} stations.")
+    if any(not isinstance(r, list) or len(r) != len(gates) or any(v is not None and not isinstance(v, (int, float)) for v in r) for r in data):
+        raise HTTPException(422, f"Each station must hold {len(gates)} numbers (null = missing), one per gate.")
+    std = req.get("std")
+    if std is not None and (not isinstance(std, list) or len(std) != len(data) or any(not isinstance(r, list) or len(r) != len(gates) for r in std)):
+        raise HTTPException(422, "std must give one row of relative uncertainties per station, one per gate.")
+    n = len(data)
+    for k in ("line", "x", "y"):
+        if req.get(k) is not None and (not isinstance(req[k], list) or len(req[k]) != n):
+            raise HTTPException(422, f"{k} must have one value per station.")
+    lay = req.get("layers") or {}
+    try:
+        nl, first, bottom = int(lay.get("n", 20)), float(lay.get("first", 3.0)), float(lay.get("bottom", 300.0))
+        rel, ab, lat = float(req.get("errRel", 0.05)), float(req.get("errAbs", 0.0)), float(req.get("lateral", 0.0))
+    except (TypeError, ValueError):
+        raise HTTPException(422, "layers, errRel, errAbs and lateral must be numbers.")
+    if not (2 <= nl <= 40 and 0 < first < bottom <= 2000):
+        raise HTTPException(400, "2 to 40 layers, the first thinner than the bottom depth (at most 2,000 m).")
+    if not (0 <= rel <= 1 and ab >= 0 and (rel > 0 or ab > 0 or std is not None) and 0 <= lat <= 100):
+        raise HTTPException(400, "The relative error must be 0-1 and the absolute error >= 0 (not both 0 without std); lateral 0-100.")
+
+
 @app.post("/v1/geophys/dcip3d/plan")
 def dcip3d_plan(req: dict = Body(...)):
     """TASKS.csv #643 — the mesh, matrix size, peak memory and a time estimate, before anything is started."""
@@ -594,8 +652,16 @@ def start_job(req: dict = Body(...)):
         if job_id is None:
             return _job_slot_busy(manager)
         return {"id": job_id}
+    if req.get("jobKind") == "tem1d":  # TASKS.csv #3440
+        payload = req.get("request") or {}
+        _validate_tem1d(payload)
+        from app.jobs import manager
+        job_id = manager.start("tem1d", payload)
+        if job_id is None:
+            return _job_slot_busy(manager)
+        return {"id": job_id}
     if req.get("jobKind") != "potential":
-        raise HTTPException(400, "jobKind must be 'potential', 'implicit', 'dcip2d', 'dcip3d', 'pfields' or 'em1d'.")
+        raise HTTPException(400, "jobKind must be 'potential', 'implicit', 'dcip2d', 'dcip3d', 'pfields', 'em1d' or 'tem1d'.")
     payload = req.get("request") or {}
     _validate_potential(payload)
     from app.geophys.potential import plan

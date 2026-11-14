@@ -10,6 +10,7 @@ import { X, Download } from "./icons.js";
 import { valueIn } from "../lib/geochem.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #2902 — no Math.min / max(...spread) over a population (#371)
 import { THRESHOLD_METHODS, MIN_N_BREAKS, MIN_N_ROBUST, candidateThresholds, groupOptions, groupKeyFn, populations, normalQuantile, hasMixedSources, intervalLength, DRILL_DOMAINS, drillDomainKeyFn } from "../lib/thresholds.js"; import { thresholdUnreachable, usableDefaultMethod, LOG_RULES, thresholdScale, ARITH_RULES, isLowRule } from "../lib/thresholds.js"; import { linTicks } from "./GeochemPlot.jsx"; // ARITH_RULES / isLowRule: #3173; // LOG_RULES, thresholdScale, linTicks: #3070 // drill: TASKS.csv #2196
+import { DISPLAY_UNITS, isPlainUnit, displayUnitOf, displayFactor, toDisplay } from "../lib/displayUnits.js"; // TASKS.csv #3236 / #3290
 import { formatLimit, fileCensoring } from "../lib/qaqc.js"; // fileCensoring: #3083 (censoringFloor / reportedStep / zeroResults through it) // TASKS.csv #1520; formatLimit: #2503; reportedStep / zeroResults: #2913
 import { attributeDomainOptions, attributeDomainLabel, customDomainOptions } from "../lib/customDomains.js"; // #2504; customDomainOptions: #3108
 import { LAYER_META } from "../lib/layers.js"; // TASKS.csv #3108 — the built-in logs' names for their extra fields
@@ -35,7 +36,7 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
   // TASKS.csv #2196 (Matt's decision 2026-11-09) — drill assays as a second source: length-weighted, populations by a logged domain at
   // each interval's middle (Lithology / Alteration / Weathering), saved apart from the surface threshold of the same element
   const drillAssays = useMemo(() => assays.filter((a) => intervalLength(a) != null), [assays]);
-  const { collars = [], customLayers = [] } = useStore(); // #2504; customLayers: #3108
+  const { collars = [], customLayers = [], project, setDisplayUnit } = useStore(); // #2504; customLayers: #3108; project / setDisplayUnit: #3236
   const [source, setSource] = useState(() => (surfaceElements.length ? "surface" : "drill"));
   const drill = source === "drill";
   const elements = drill ? assayElements : surfaceElements, data = drill ? drillAssays : surfaceSamples;
@@ -64,6 +65,11 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
   useEffect(() => { if (saved) { setGroupBy(gOpts.some((o) => o.value === saved.groupBy) ? saved.groupBy : "none"); setMethod(saved.method); } }, [symbol]); // re-read the saved rule when the element changes
 
   const unit = units[symbol] || "ppm";
+  // TASKS.csv #3236 / #3290 — the element in the project's display unit (project.displayUnits, as Best intercepts and Grade stats): the table, the notes and the
+  // plot axes. The rules are worked, and a saved threshold is kept, in the stored unit (the record names it): display only.
+  const shownUnit = displayUnitOf(project, symbol, unit), dk = displayFactor(unit, shownUnit);
+  const sh = (v) => (v == null || !Number.isFinite(v) || dk === 1 ? v : toDisplay(v, unit, shownUnit));
+  const dispUnit = shownUnit;
   // TASKS.csv #1520 — values on a censoring floor (half the limit substituted in the file) count as <DL, as flagged ones do
   // #2503 — a value the lab flagged '<' (surface: bdl; drill: the qualifier) is below detection by the file's own word: the floor guess of
   // #1520 runs only on the unflagged values, for files that arrive with half the limit already substituted
@@ -140,6 +146,11 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
             <label style={ctl}>{tr("Element")}<select value={symbol} onChange={(e) => { setSymbol(e.target.value); setViewKey(null); }} style={{ ...sel, display: "block", marginTop: 4 }}>
               {elements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol} ({e.unit})</option>)}
             </select></label>
+            {isPlainUnit(unit) && typeof setDisplayUnit === "function" && <label style={ctl} title={tr("The unit {symbol} is shown in here and in Best intercepts and Grade stats. Display only: the rules are worked in the stored unit.", { symbol })}>{tr("Show in")}
+              <select value={project?.displayUnits?.[symbol] && project.displayUnits[symbol] !== unit ? project.displayUnits[symbol] : ""} onChange={(e) => setDisplayUnit(symbol, e.target.value || null)} style={{ ...sel, display: "block", marginTop: 4 }} aria-label={tr("Show in")}>
+                <option value="">{tr("As stored ({unit})", { unit })}</option>
+                {DISPLAY_UNITS.filter((u) => u !== unit).map((u) => <option key={u} value={u}>{u}</option>)}
+              </select></label>}{/* #3236 / #3290 */}
             <label style={ctl}>{tr("Populations")}<select value={groupBy} onChange={(e) => { setGroupBy(e.target.value); setViewKey(null); }} style={{ ...sel, display: "block", marginTop: 4, maxWidth: 320 }}>
               {gOpts.map((o) => <option key={o.value} value={o.value}>{o.kind === "column" ? tr("Column: {v}", { v: o.label }) : o.kind === "labmeta" ? tr("Lab column: {v}", { v: o.label }) /* #1828 */ : o.kind === "map" ? tr("Map: {v}", { v: o.label }) : o.kind === "attribute" ? attributeDomainLabel(o.d, tr) : tr(o.label)}</option>)}
             </select></label>
@@ -177,31 +188,31 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
                         <td style={{ ...td, textAlign: "start" }}>{groupLabel(p.key)}</td>
                         <td style={td}>{p.summary.n}</td>
                         <td style={{ ...td, color: p.summary.censoredPct > 30 || p.zero ? "var(--color-warn-text)" : undefined }} title={p.zero ? tr("{n} more reported as 0 by the source (below detection or not analysed: the layer does not say), not in n or these statistics", { n: p.zero }) : undefined}>{p.zero ? tr("{pct} (+{n} at 0)", { pct: Math.round(p.summary.censoredPct), n: p.zero }) : Math.round(p.summary.censoredPct)}</td>
-                        {shownMethods.map((m) => { const off = thresholdUnreachable(p.cand.values[m.id], p.summary, unit, !!m.low); /* #2507 */ return <td key={m.id} title={off ? tr("Above every sample of this population (its highest is {max} {unit}): no anomaly by this rule", { max: fmt(p.summary.max), unit }) : undefined} style={{ ...td, fontWeight: method === m.id ? 600 : 400, background: method === m.id ? "var(--color-selected-bg)" : undefined, color: off ? "var(--color-text-disabled)" : undefined, textDecoration: off ? "line-through" : undefined }}>{fmt(p.cand.values[m.id])}</td>; })}
+                        {shownMethods.map((m) => { const off = thresholdUnreachable(p.cand.values[m.id], p.summary, unit, !!m.low); /* #2507 */ return <td key={m.id} title={off ? tr("Above every sample of this population (its highest is {max} {unit}): no anomaly by this rule", { max: fmt(sh(p.summary.max)), unit: dispUnit }) : undefined} style={{ ...td, fontWeight: method === m.id ? 600 : 400, background: method === m.id ? "var(--color-selected-bg)" : undefined, color: off ? "var(--color-text-disabled)" : undefined, textDecoration: off ? "line-through" : undefined }}>{fmt(sh(p.cand.values[m.id]))}</td>; })}
                         <td style={td}>{p.cand.values[method] == null ? "—" : p.values.filter((v) => (isLowRule(method) ? v <= p.cand.values[method] : v >= p.cand.values[method])).length}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <div style={note}>{tr("Values in {unit}. Click a column to choose its rule, a row to plot that population. Robust rules need at least {a} samples; the probability-plot break needs {b} and is suggested only where the plot really bends.", { unit, a: MIN_N_ROBUST, b: MIN_N_BREAKS })}</div>
+              <div style={note}>{tr("Values in {unit}. Click a column to choose its rule, a row to plot that population. Robust rules need at least {a} samples; the probability-plot break needs {b} and is suggested only where the plot really bends.", { unit: dispUnit, a: MIN_N_ROBUST, b: MIN_N_BREAKS })}</div>
               <label style={{ ...note, display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}><input type="checkbox" checked={logOn} onChange={(e) => setLogChoice({ key: scaleKey, on: e.target.checked })} />{tr("Log scale and the log rules")}</label>{/* #3070 */}
               {!logOn && <div style={note}>{autoScale === "linear" ? tr("{symbol} reads as a major element here: per cent of the rock, not skewed like a trace element. The plots are arithmetic, and the rules are worked on the values themselves (mean ± 2 SD, the probability-plot break); the log rules, which assume a log-normal population, are behind the tick. A major is often read by its cut-offs too (Grade stats, Above cut-off).", { symbol }) /* #3173 */ : tr("Arithmetic scale: the log rules are not offered.")}</div>}
               {unusableRules.length > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Struck through: {rules} land above every sample of their population (or over 100 %): such a rule finds no anomaly here, often a sign of two populations. The probability plot's break and the Populations selector separate them; these rules cannot be saved.", { rules: unusableRules.map((m) => tr(m.label)).join(", ") })}</div>}{/* #2507 */}
               {view && view.zero > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{zero} {symbol} result(s) in \"{pop}\" were reported as 0 by the source (below detection or not analysed: the layer does not say). They are left out of n and of every threshold here; if they are below detection, the thresholds read high.", { zero: view.zero, symbol, pop: groupLabel(view.key) })}</div>}
-              {floor && <div style={note}>{tr("{pct} % of the {el} values sit on {floor} {unit}, probably half the detection limit {dl} substituted before import: counted as <DL.", { pct: Math.round(floor.share * 100), el: symbol, floor: formatLimit(floor.floor), unit, dl: formatLimit(floor.dl) })}</div>}{/* #1520 */}
-              {step && <div style={note}>{tr("{el} is reported to {step} {unit}, with {n} results of 0 below it: {step} is the reporting step, not half a limit, so it is not counted as <DL.", { el: symbol, step: formatLimit(step.step), unit, n: step.zeros.toLocaleString() })}</div>}{/* #2913 */}
+              {floor && <div style={note}>{tr("{pct} % of the {el} values sit on {floor} {unit}, probably half the detection limit {dl} substituted before import: counted as <DL.", { pct: Math.round(floor.share * 100), el: symbol, floor: formatLimit(sh(floor.floor)), unit: dispUnit, dl: formatLimit(sh(floor.dl)) })}</div>}{/* #1520 */}
+              {step && <div style={note}>{tr("{el} is reported to {step} {unit}, with {n} results of 0 below it: {step} is the reporting step, not half a limit, so it is not counted as <DL.", { el: symbol, step: formatLimit(sh(step.step)), unit: dispUnit, n: step.zeros.toLocaleString() })}</div>}{/* #2913 */}
               {view && view.summary.censoredPct > 30 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{pct}% of {symbol} in \"{pop}\" is below detection: its statistics are mostly about the detection limit.", { pct: Math.round(view.summary.censoredPct), symbol, pop: groupLabel(view.key) })}</div>}
 
               {view && (
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                   <div style={{ flex: "1 1 360px", minWidth: 0 }}>
                     <div style={label}>{logOn ? tr("Histogram — {pop}, log₁₀ {symbol}", { pop: groupLabel(view.key), symbol }) : tr("Histogram — {pop}, {symbol}", { pop: groupLabel(view.key), symbol })}</div>
-                    <LogHistogram summary={view.summary} values={pickValues(view.cand.values, shownMethods)} method={method} unit={unit} log={logOn} />
+                    <LogHistogram summary={view.summary} values={pickValues(view.cand.values, shownMethods)} method={method} unit={dispUnit} k={dk} log={logOn} />
                   </div>
                   <div style={{ flex: "1 1 360px", minWidth: 0 }}>
                     <div style={label}>{tr("Probability plot — {pop}", { pop: groupLabel(view.key) })}</div>
-                    <ProbabilityPlot prob={view.cand.prob} values={pickValues(view.cand.values, shownMethods)} method={method} unit={unit} log={logOn} />
+                    <ProbabilityPlot prob={view.cand.prob} values={pickValues(view.cand.values, shownMethods)} method={method} unit={dispUnit} k={dk} log={logOn} />
                   </div>
                 </div>
               )}
@@ -242,7 +253,7 @@ const pickValues = (values, shown) => Object.fromEntries(shown.map((m) => [m.id,
 // the axis: log10 decades, or (#3070, a percentage-scale major) arithmetic with round ticks; f maps a value to the axis, inv back
 const axisOf = (log) => (log ? { f: Math.log10, inv: (d) => 10 ** d, ticks: (a, b) => { const t = []; for (let d = Math.floor(a); d <= Math.ceil(b); d++) if (d >= a - 1e-9 && d <= b) t.push(d); return t; } } : { f: (v) => v, inv: (v) => v, ticks: (a, b) => linTicks(a, b, 5).filter((t) => t >= a - 1e-9 && t <= b) });
 // Histogram of log10 values (or of the values, #3070) with a vertical line per candidate (the chosen one thick)
-function LogHistogram({ summary, values, method, unit, log = true }) {
+function LogHistogram({ summary, values, method, unit, k = 1, log = true }) { // k: the stored -> shown unit factor (axis labels only, #3236)
   const w = 420, h = 190, pl = 34, pb = 30, pr = 8, pt = 8;
   const ax = axisOf(log), L = log ? summary.sortedLog : summary.sorted, lo = L[0], hi = L[L.length - 1];
   const tVals = Object.values(values).filter((v) => v > 0).map(ax.f);
@@ -255,7 +266,7 @@ function LogHistogram({ summary, values, method, unit, log = true }) {
     <svg viewBox={`0 0 ${w} ${h}`} width="100%" role="img" aria-label={log ? tr("Histogram of log values with the candidate thresholds") : tr("Histogram of the values with the candidate thresholds")} style={{ display: "block" }}>
       {bins.map((c, i) => <rect key={i} x={X(x0 + (i * (x1 - x0)) / nb) + 0.5} y={Y(c)} width={Math.max(0.5, (w - pl - pr) / nb - 1)} height={h - pb - Y(c)} style={{ fill: "var(--color-border-light)" }} />)}
       <line x1={pl} x2={w - pr} y1={h - pb} y2={h - pb} style={{ stroke: "var(--color-border)" }} />
-      {ticks.map((d) => <text key={d} x={X(d)} y={h - pb + 13} textAnchor="middle" fontSize={fontSizes.xs} style={{ fill: "var(--color-text-muted)" }}>{fmt(ax.inv(d))}</text>)}
+      {ticks.map((d) => <text key={d} x={X(d)} y={h - pb + 13} textAnchor="middle" fontSize={fontSizes.xs} style={{ fill: "var(--color-text-muted)" }}>{fmt(ax.inv(d) * k)}</text>)}
       <text x={w - pr} y={h - 3} textAnchor="end" fontSize={fontSizes.xs} style={{ fill: "var(--color-text-muted)" }}>{unit}</text>
       {THRESHOLD_METHODS.map((m) => values[m.id] > 0 && <line key={m.id} x1={X(ax.f(values[m.id]))} x2={X(ax.f(values[m.id]))} y1={pt} y2={h - pb} style={{ stroke: METHOD_COLOURS[m.id], strokeWidth: m.id === method ? 2.5 : 1, strokeDasharray: m.id === method ? undefined : "3 3" }} />)}
     </svg>
@@ -263,7 +274,7 @@ function LogHistogram({ summary, values, method, unit, log = true }) {
 }
 
 // Normal score (x) against log10 value (y; the value itself on an arithmetic axis, #3070); candidates as horizontal lines, the break marked
-function ProbabilityPlot({ prob, values, method, unit, log = true }) {
+function ProbabilityPlot({ prob, values, method, unit, k = 1, log = true }) {
   if (!prob?.points?.length) return null;
   const w = 420, h = 190, pl = 40, pb = 26, pr = 8, pt = 8, ax = axisOf(log);
   const P = log ? prob.points : prob.points.map(([z, l]) => [z, 10 ** l]); // prob.points hold log10 values
@@ -279,7 +290,7 @@ function ProbabilityPlot({ prob, values, method, unit, log = true }) {
     <svg viewBox={`0 0 ${w} ${h}`} width="100%" role="img" aria-label={tr("Probability plot with the candidate thresholds")} style={{ display: "block" }}>
       <line x1={pl} x2={pl} y1={pt} y2={h - pb} style={{ stroke: "var(--color-border)" }} />
       <line x1={pl} x2={w - pr} y1={h - pb} y2={h - pb} style={{ stroke: "var(--color-border)" }} />
-      {yTicks.map((d) => <text key={d} x={pl - 4} y={Y(d) + 3} textAnchor="end" fontSize={fontSizes.xs} style={{ fill: "var(--color-text-muted)" }}>{fmt(ax.inv(d))}</text>)}
+      {yTicks.map((d) => <text key={d} x={pl - 4} y={Y(d) + 3} textAnchor="end" fontSize={fontSizes.xs} style={{ fill: "var(--color-text-muted)" }}>{fmt(ax.inv(d) * k)}</text>)}
       {pctTicks.map(([q, z]) => <text key={q} x={X(z)} y={h - pb + 13} textAnchor="middle" fontSize={fontSizes.xs} style={{ fill: "var(--color-text-muted)" }}>{`${q * 100}%`}</text>)}
       <text x={w - pr} y={h - 2} textAnchor="end" fontSize={fontSizes.xs} style={{ fill: "var(--color-text-muted)" }}>{tr("cumulative %")}</text>
       <text x={4} y={pt + 8} fontSize={fontSizes.xs} style={{ fill: "var(--color-text-muted)" }}>{unit}</text>

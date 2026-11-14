@@ -471,7 +471,14 @@ export function hexToAci(hex) {
 }
 
 // colorOf(feature) -> "#rrggbb" or null: written as each polyline's colour (group 62)
-export function buildDXF({ features, geomType, layerOf = null, labelOf = null, textHeight = 1, colorOf = null }) {
+// TASKS.csv #2282 (review #2174, WA lode gold) — a Mine Design DXF said nothing about its grid: the strings are in the project's own metres and a surveyor
+// asks which. dxfGridNote(project, what) -> the 999 comment line: what it is, the coordinates' system and the CRS ('not set: the project's local grid')
+export function dxfGridNote(project, what = "design") {
+  const crs = project?.crsSet === false ? "not set (the project's local grid)" : project?.epsg ? `EPSG:${project.epsg}` : "not set";
+  return `GeoStrix ${what} | coordinates: project grid, metres | CRS: ${crs} | ${new Date().toISOString().slice(0, 10)}`;
+}
+// comment: a 999 line before the header, and $INSUNITS 6 (metres) in it
+export function buildDXF({ features, geomType, layerOf = null, labelOf = null, textHeight = 1, colorOf = null, comment = null }) {
   const lines = [];
   const put = (code, value) => { lines.push(String(code), String(value)); };
 
@@ -479,7 +486,8 @@ export function buildDXF({ features, geomType, layerOf = null, labelOf = null, t
   // as LWPOLYLINE, an R14 / R2000 entity, without the AcDbEntity / AcDbPolyline subclass markers and handles R2000
   // readers expect, in a file with no header (so read as R12): lenient readers (GDAL / QGIS) coped, strict ones
   // (AutoCAD, some Micromine / Surpac versions) could drop them. Closed rings set the closed bit.
-  lines.push(...DXF_R12_HEADER);
+  if (comment) lines.push("999", String(comment).replace(/[\r\n]+/g, " "));
+  lines.push(...(comment ? [...DXF_R12_HEADER.slice(0, -2), "9", "$INSUNITS", "70", "6", ...DXF_R12_HEADER.slice(-2)] : DXF_R12_HEADER)); // #2282
   put(0, "SECTION"); put(2, "ENTITIES");
 
   // TASKS.csv #408 — Z is written. Points carry their real elevation (they were all written at 0), and a

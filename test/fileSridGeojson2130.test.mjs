@@ -36,7 +36,7 @@ test("#2130 rows to GeoJSON points in WGS 84", () => {
 test("#2130 A file uses them", () => {
   const c = read("modules/CartographyModule.jsx");
   assert.match(c, /const srid = sridColumnEpsg\(t\.headers, t\.rows\);/);
-  assert.match(c, /const implied = srid \? srid\.epsg : /);
+  assert.match(c, /(let|const) implied = srid \? srid\.epsg : /);
   assert.match(c, /const T = pointTransform\(fileFrom, 4326\);/);
   assert.match(c, /onClick=\{saveGeoJSON\}/);
 });

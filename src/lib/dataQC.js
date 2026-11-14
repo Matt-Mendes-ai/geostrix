@@ -307,6 +307,7 @@ function* validateIntervalLayerSteps(rows, layerLabel, collarIds, holeLengths, {
   // TASKS.csv #3037 (split from #2884) — one warning per zero-length row gave a point-reading table imported as intervals 2.5 M warning rows and
   // a 10.5 s freeze: counted per hole (with the first depth), one line each
   const zeroByHole = new Map();
+  const noValueByHole = new Map(); // #3359
   let multiValued = 0; // #1532
   const byHole = new Map();
   for (const r of rows) {
@@ -338,7 +339,11 @@ function* validateIntervalLayerSteps(rows, layerLabel, collarIds, holeLengths, {
     }
     if (range && typeof r.value === "number" && Number.isFinite(r.value) && (r.value < range.min || r.value > range.max)) pushIssue(issues, "warning", layerLabel, r.hole_id, tr("Value {v} at {from}–{to}m is outside the plausible {min}–{max} range for {layer} — a keying or unit error?", { v: r.value, from: r.from, to: r.to, min: range.min, max: range.max, layer: layerLabel })); // #1531
     // #1395 — a 0 (0 % RQD, 0 % recovery) is a measurement, not a missing value: only blank, NaN or "Unknown" counts
-    if (r.value == null || r.value === "" || (typeof r.value === "number" && !Number.isFinite(r.value)) || r.value === "Unknown") pushIssue(issues, "info", layerLabel, r.hole_id, tr("Interval at {v}–{v2}m has no code/value.", { v: Number.isFinite(r.from) ? r.from : "?", v2: Number.isFinite(r.to) ? r.to : "?" }));
+    // TASKS.csv #3359 — counted per hole (with the shallowest depth), one line each, as the zero-length rows are (#3037)
+    if (r.value == null || r.value === "" || (typeof r.value === "number" && !Number.isFinite(r.value)) || r.value === "Unknown") {
+      const z = noValueByHole.get(r.hole_id), f = Number.isFinite(r.from) ? r.from : null, to = Number.isFinite(r.to) ? r.to : null;
+      if (z) { z.n++; if (f != null && (z.from == null || f < z.from)) { z.from = f; z.to = to; } } else noValueByHole.set(r.hole_id, { n: 1, from: f, to });
+    }
   }
   for (const [holeId, intervals] of byHole) {
     if (++tick % HOLE_STEP === 0) yield;
@@ -375,6 +380,7 @@ function* validateIntervalLayerSteps(rows, layerLabel, collarIds, holeLengths, {
     });
   }
   zeroByHole.forEach(({ n, from }, id) => pushIssue(issues, "warning", layerLabel, id, n === 1 ? tr("Zero-length interval at {from}m.", { from }) : tr("{n} zero-length intervals in this hole, the shallowest at {from}m: point readings imported as intervals, or mis-keyed depths.", { n: n.toLocaleString("en-US"), from }))); // #3037
+  noValueByHole.forEach(({ n, from, to }, id) => pushIssue(issues, "info", layerLabel, id, n === 1 ? tr("Interval at {v}–{v2}m has no code/value.", { v: from ?? "?", v2: to ?? "?" }) : tr("{n} intervals in this hole have no code/value, the shallowest at {v}m.", { n: n.toLocaleString(), v: from ?? "?" }))); // #3359
   if (multiValued) pushIssue(issues, "info", layerLabel, null, tr("{n} interval(s) repeat another's exact from–to with a different value: a log that records several values per run (e.g. vein types). Not counted as overlaps.", { n: multiValued }));
   orphans.forEach((n, id) => pushIssue(issues, "error", layerLabel, id, n === 1 ? tr("Interval references hole \"{hole_id}\", which has no matching collar.{v}", { hole_id: id, v: didYouMean(collarIds, id) }) : tr("{n} intervals reference hole \"{hole_id}\", which has no matching collar.{v}", { n, hole_id: id, v: didYouMean(collarIds, id) })));
   return issues;

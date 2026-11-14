@@ -6,12 +6,14 @@ import { Activity } from "./icons.js";
 import { numericSourceChoices, sourceAssays } from "../lib/numericSources.js";
 import { domainLayerChoices, foldDomainRows } from "../lib/domainLayers.js"; // foldDomainRows: TASKS.csv #2790
 import { LAYER_META } from "../lib/layers.js";
-import { groupLogByCode, rankLogGroups, codeTable, ratioComparable, assayIndex, logVsAssayIndexed, logVsModel, NOT_LOGGED, strideSample, SCATTER_MAX, allAboveZero, countAtOrBelowZero, sig3, orderLogSources, logScaleFor } from "../lib/downholeLogs.js"; // logVsModel: #1595; strideSample: #2331; logScaleSuits...: #2558; groupLogByCode / rankLogGroups: #2948
+import { groupLogByCode, rankLogGroups, shortenCode, shortCodes /* #3442 */, codeTable, ratioComparable, assayIndex, logVsAssayIndexed, logVsModel, NOT_LOGGED, strideSample, SCATTER_MAX, allAboveZero, countAtOrBelowZero, sig3, orderLogSources, logScaleFor } from "../lib/downholeLogs.js"; // logVsModel: #1595; strideSample: #2331; logScaleSuits...: #2558; groupLogByCode / rankLogGroups: #2948
 import { BoxPlots } from "./GradeStatistics.jsx";
 import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #2394 — the choices survive the pane closing (per project)
 import { useStore } from "../lib/store.jsx";
+import { codeTableCells, codeTableCsv, codeTableText } from "../lib/codeTableCsv.js"; // TASKS.csv #3289
+import { saveFile } from "../lib/desktop.js"; // #3289
 import { logHoleChoices, holesForChoice, filterLogData } from "../lib/logHoleFilter.js"; // TASKS.csv #3132
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2967 — the opening element: the project's lead commodity (#2908)
 import { useDeferredMemo, DEFER_ROWS } from "../lib/useDeferredMemo.js"; // TASKS.csv #2948
@@ -88,23 +90,23 @@ function CodeTable({ rows, order, minCount, unit, binned, keptScope }) {
     if (sortBy === "key") return String(a.key).localeCompare(String(b.key), undefined, { numeric: true });
     return (b[sortBy] ?? -Infinity) - (a[sortBy] ?? -Infinity);
   });
-  const u = unit ? ` (${unit})` : "";
+
   const cols = [["key", tr("Code")], ["n", binned ? tr("Bins") : tr("Readings")], ["mean", tr("Mean")], ["median", tr("Median")], ["p10", "P10"], ["p90", "P90"]];
   const copy = async (e) => {
     const b = e.currentTarget; // the button says "Copied" for two seconds (a flash, not a choice: no state)
-    const head = ["Code", binned ? "Bins" : "Readings", ...(binned ? ["Readings"] : []), `Mean${u}`, `Median${u}`, `P10${u}`, `P90${u}`].join("\t"); // export text: English (CLAUDE.md)
-    const body = sorted.map((r) => [r.key === NOT_LOGGED ? NOT_LOGGED : String(r.key ?? "").trim() === "" ? "(blank)" : String(r.key), r.n, ...(binned ? [r.readings] : []), fig(r.mean), fig(r.median), fig(r.p10), fig(r.p90)].join("\t"));
-    try { await navigator.clipboard.writeText([head, ...body].join("\n")); b.textContent = tr("Copied"); setTimeout(() => { b.textContent = tr("Copy table"); }, 2000); } catch { /* no clipboard */ }
+    const text = codeTableText(codeTableCells(sorted, { binned, unit, notLogged: NOT_LOGGED })); // export text: English (CLAUDE.md)
+    try { await navigator.clipboard.writeText(text); b.textContent = tr("Copied"); setTimeout(() => { b.textContent = tr("Copy table"); }, 2000); } catch { /* no clipboard */ }
   };
   const th = { textAlign: "right", fontWeight: 600, padding: "2px 4px", cursor: "pointer", whiteSpace: "nowrap", position: "sticky", top: 0, background: "var(--color-bg)" };
+  const short = shortCodes(sorted.map((r) => codeLabel(r.key)), 18); // #3442 — two long codes never read the same
   return (
     <div>
       <div style={{ maxHeight: 240, overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 4 }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-xs)" }} aria-label={tr("Figures per code")}>
           <thead><tr>{cols.map(([k, label]) => <th key={k} style={{ ...th, textAlign: k === "key" ? "left" : "right" }} onClick={() => setSortBy(sortBy === k ? "rank" : k)} aria-sort={sortBy === k ? "descending" : "none"} title={tr("Sort by this column (again: back to the box plot's order)")}>{label}{sortBy === k ? " ▾" : ""}</th>)}</tr></thead>
-          <tbody>{sorted.map((r) => (
+          <tbody>{sorted.map((r, ri) => (
             <tr key={String(r.key)} style={{ color: r.n < minCount ? "var(--color-text-muted)" : "inherit", opacity: r.n < minCount ? 0.7 : 1 }}>
-              <td style={{ padding: "1px 4px" }} title={codeLabel(r.key)}>{codeLabel(r.key, 18)}</td>
+              <td style={{ padding: "1px 4px" }} title={codeLabel(r.key)}>{short[ri]}</td>
               <td style={{ padding: "1px 4px", textAlign: "right" }} title={binned ? tr("{n} readings", { n: r.readings.toLocaleString() }) : undefined}>{r.n.toLocaleString()}</td>
               {["mean", "median", "p10", "p90"].map((k) => <td key={k} style={{ padding: "1px 4px", textAlign: "right" }}>{fig(r[k])}</td>)}
             </tr>
@@ -113,6 +115,7 @@ function CodeTable({ rows, order, minCount, unit, binned, keptScope }) {
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
         <button type="button" onClick={copy} style={{ ...smallSel, cursor: "pointer" }}>{tr("Copy table")}</button>
+        <button type="button" onClick={() => saveFile({ suggestedName: "log_code_table.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: codeTableCsv(codeTableCells(sorted, { binned, unit, notLogged: NOT_LOGGED })) })} style={{ ...smallSel, cursor: "pointer" }} title={tr("Save the table as a CSV file")}>{tr("Save CSV")}</button>{/* TASKS.csv #3289 */}
         {unit && <span style={note}>{tr("Values in {u}.", { u: unit })}</span>}
       </div>
     </div>
@@ -177,8 +180,10 @@ function DespikeField({ value, idKey, onSet }) {
 
 function codeLabel(k, max = 0) {
   const t = k === NOT_LOGGED ? tr("(not logged)") : String(k ?? "").trim() === "" ? tr("(blank)") : String(k);
-  return max && t.length > max ? `${t.slice(0, max - 1)}…` : t;
+  return max && t.length > max ? shortenCode(t, max) : t;
 }
+// TASKS.csv #3330 (6) / #3442 — a long code cut at its end ('Calcic-potassic (Garnet Dominant)' and '(Diopside Dominant)' both became 'Calcic-potassic (…'):
+// a trailing parenthesis is kept whole and the words before it shortened, else the middle is cut so the end shows too
 export default function DownholeLogsPane({ layers, customLayers = [], assays = [], assayElements = [], onClose, onEstimate = null }) {
   // TASKS.csv #2558 — a model evaluated onto the holes is not a log: it opened as the Log and was then compared with itself (Spearman 1.00)
   const modelIds = useMemo(() => new Set(customLayers.filter((l) => l.sourceModel != null || (l.rows || []).some((r) => r.modelled)).map((l) => l.id)), [customLayers]);
@@ -309,6 +314,7 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
           {logLayer && <LogUnitField layer={logLayer} onSet={(u) => setCustomLayers((p) => p.map((c) => (c.id === logLayer.id ? { ...c, unit: u || undefined } : c)))} />}{/* #2952 */}
           {logLayer && <ValidRangeField range={logLayer.validRange} idKey={logLayer.id} onSet={(r) => setCustomLayers((p) => p.map((c) => (c.id === logLayer.id ? { ...c, validRange: r } : c)))} />}{/* #2953 */}
           {logLayer && <DespikeField value={logLayer.despikeM} idKey={logLayer.id} onSet={(d) => setCustomLayers((p) => p.map((c) => (c.id === logLayer.id ? { ...c, despikeM: d } : c)))} />}{/* #3116 */}
+          {builtinKey && <LogUnitField layer={{ id: builtinKey, name: source?.label, unit: logValidRange?.[builtinKey]?.unit }} onSet={(u) => setLogValidRange(builtinKey, { ...(logValidRange?.[builtinKey] || {}), unit: u || undefined })} />}{/* TASKS.csv #3448 — a built-in log's unit, kept with the project like its range */}
           {builtinKey && <ValidRangeField range={logValidRange?.[builtinKey]?.range} idKey={builtinKey} onSet={(r) => setLogValidRange(builtinKey, { ...(logValidRange?.[builtinKey] || {}), range: r })} />}{/* #3116 */}
           {builtinKey && <DespikeField value={logValidRange?.[builtinKey]?.despikeM} idKey={builtinKey} onSet={(d) => setLogValidRange(builtinKey, { ...(logValidRange?.[builtinKey] || {}), despikeM: d })} />}
           {data?.despikeM > 0 && <div style={note}>{tr("Despiked: each reading is the median of its hole's readings within {m} m, here and in Estimation and Grade shell.", { m: data.despikeM })}</div>}

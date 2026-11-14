@@ -68,6 +68,29 @@ export function drawDots(ctx, groups, { r, halo, stroke = "#ffffff", empty = "#8
   }
 }
 
+// TASKS.csv #3456 / #3457 (Galore Creek review) — the collar map had one symbol, only its colour varied. A dot's key is "colour|shape|size class":
+// shape 0-4 (circle, square, triangle, diamond, plus) by a collar field of at most 5 values, size class 0-4 by the per-hole value's quintile
+// (radius x SIZE_SCALE[class]). A colour "" is a hole with no value (a ring). drawShapedDots draws the groups dotsInView made from such keys.
+export const SIZE_SCALE = [0.6, 0.8, 1, 1.3, 1.7];
+export const SHAPE_NAMES = ["circle", "square", "triangle", "diamond", "plus"];
+export function shapePath(ctx, shape, x, y, r) {
+  if (shape === 1) { ctx.rect(x - r, y - r, 2 * r, 2 * r); return; }
+  if (shape === 2) { ctx.moveTo(x, y - r * 1.15); ctx.lineTo(x + r * 1.1, y + r * 0.85); ctx.lineTo(x - r * 1.1, y + r * 0.85); ctx.closePath(); return; }
+  if (shape === 3) { ctx.moveTo(x, y - r * 1.25); ctx.lineTo(x + r * 1.25, y); ctx.lineTo(x, y + r * 1.25); ctx.lineTo(x - r * 1.25, y); ctx.closePath(); return; }
+  if (shape === 4) { const t = r * 0.45; ctx.moveTo(x - t, y - r); ctx.lineTo(x + t, y - r); ctx.lineTo(x + t, y - t); ctx.lineTo(x + r, y - t); ctx.lineTo(x + r, y + t); ctx.lineTo(x + t, y + t); ctx.lineTo(x + t, y + r); ctx.lineTo(x - t, y + r); ctx.lineTo(x - t, y + t); ctx.lineTo(x - r, y + t); ctx.lineTo(x - r, y - t); ctx.lineTo(x - t, y - t); ctx.closePath(); return; }
+  ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, Math.PI * 2);
+}
+export const dotKey = (colour, shape = 0, cls = 2) => `${colour ?? ""}|${shape}|${cls}`;
+export function drawShapedDots(ctx, groups, { r, halo, stroke = "#ffffff", empty = "#8a9099" }) {
+  for (const [key, xy] of groups) {
+    const [col, sh, cl] = key.split("|"), shape = Number(sh) || 0, rr = r * (SIZE_SCALE[Number(cl)] ?? 1) * (col ? 1 : 0.7);
+    ctx.beginPath();
+    for (let i = 0; i < xy.length; i += 2) shapePath(ctx, shape, xy[i], xy[i + 1], rr);
+    if (col) { ctx.fillStyle = col; ctx.fill(); if (halo) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); } }
+    else { ctx.strokeStyle = empty; ctx.lineWidth = 1; ctx.stroke(); }
+  }
+}
+
 // a polyline's bounding box, computed once per line (the line arrays are the store's, unchanged between frames)
 const boxes = new WeakMap();
 export function polylineBox(pl) {

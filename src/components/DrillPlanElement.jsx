@@ -3,7 +3,7 @@
 // #2473), a key. North is up.
 import React, { useMemo } from "react";
 import { drillPlanPlanned, planTraces, traceCaption } from "../lib/drillPlan.js"; // TASKS.csv #2259; planTraces / traceCaption: #3367
-import { drillPlanGeometry, placeLabels, drillPlanGrid, drillPlanColouring, colourByKind, emptiestCorner, labelBackdrop, drillPlanShapes, symbolPath, crossPath /* #3375 */, planPoints, wrapKeyText /* #3376 */, bestInterceptGT, p90Cutoff, capPlanKey } from "../lib/drillPlan.js"; // capPlanKey: #3026 // best intercept: #2685; // shapes: #2686; // labelBackdrop: #2738; // drillPlanGrid: #2301; colouring: #2473
+import { drillPlanGeometry, placeLabels, drillPlanGrid, drillPlanColouring, colourByKind, emptiestCorner, labelBackdrop, drillPlanShapes, symbolPath, crossPath /* #3375 */, planPoints, wrapKeyText /* #3376 */, bestInterceptGT, p90Cutoff, capPlanKey, hiddenEastings, bottomEastings /* #3412 */, applyKeyEdits /* #3415 */ } from "../lib/drillPlan.js"; // capPlanKey: #3026 // best intercept: #2685; // shapes: #2686; // labelBackdrop: #2738; // drillPlanGrid: #2301; colouring: #2473
 import { resolvedSegments, gradeUnitLabel, computeBestIntercepts } from "../lib/geochem.js"; // TASKS.csv #2473; computeBestIntercepts: #2685
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #2685 — QC inserts are not intercepts
 import { CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
@@ -81,7 +81,8 @@ export function drillPlanDrawing(el, collars, assays = null, assayElements = nul
   const g = drillPlanGeometry(el, collars, traces);
   const planned = drillPlanPlanned(el, plannedHoles); // TASKS.csv #2259 — dashed, in the planned colour, labelled '(planned)'
   const plannedKey = planned.length ? [{ label: tr("Planned hole") }] : [];
-  const colouring0 = drillPlanColouring(el, g.holes, collars, { ...drillPlanGradeInput(el, assays, assayElements, displayUnits), palette: ON_WHITE, ink: INK });
+  const colouringRaw = drillPlanColouring(el, g.holes, collars, { ...drillPlanGradeInput(el, assays, assayElements, displayUnits), palette: ON_WHITE, ink: INK });
+  const colouring0 = applyKeyEdits(colouringRaw, el.keyEdits); // TASKS.csv #3415 — the key's lines as the user worded them
   const shapes = drillPlanShapes(collars, el.shapeBy, g.holes.map((hh) => hh.id)); // #2686 — a symbol shape by a collar field
   const shapeKey = shapes.key.map((k) => ({ ...k, label: `${el.shapeBy}: ${k.shape === "circle" ? (k.label === "not recorded" ? tr("not recorded") : tr("other / not recorded")) : k.label}` }));
   const fontPx = printPx(el.fontPt || printPt.caption);
@@ -115,7 +116,8 @@ export function drillPlanDrawing(el, collars, assays = null, assayElements = nul
   const labels = placeLabels(toLabel, { fontPx, w: g.w, h: g.h, avoid: [...(keyBox ? [{ x0: keyBox.x, y0: keyBox.y, x1: keyBox.x + keyBox.w, y1: keyBox.y + keyBox.h }] : []), ...collarBoxes] });
   // TASKS.csv #3367 — the sheet says how the traces were drawn: along the surveys, straight, or both
   const caption = traceCaption({ surveyed: g.holes.filter((hh) => hh.surveyed).length, straight: g.holes.filter((hh) => !hh.surveyed).length, planned: planned.length, method });
-  return { ...g, planned, plannedKey, caption, colouring, shapes, shapeKey, fontPx, labels, labelled: toLabel.length, keyBox };
+  const keyOriginal = { title: colouringRaw.title || "", note: colouringRaw.note || "", rows: (colouringRaw.key || []).map((k) => k.label) }; // #3415 — the plan's own wording, for the sidebar's boxes
+  return { ...g, planned, plannedKey, caption, colouring, shapes, shapeKey, fontPx, labels, labelled: toLabel.length, keyBox, keyOriginal };
 }
 
 // TASKS.csv #3182 (#3028 (8), review #2876) — the grid caption and the first northing label touched the frame ('...(EPSG:28350' looked cut): a
@@ -152,8 +154,12 @@ export default function DrillPlanElement({ el, collars, gridCaption = "", assays
         {grid && (() => { /* #2738 — a white box behind each label, not a stroked halo (one text per label in the PDF) */
           const gf = Math.max(6, d.fontPx - 1), cap = gridCaption ? `Grid ${grid.spacing.toLocaleString("en-US")} m, ${gridCaption}` : `Grid ${grid.spacing.toLocaleString("en-US")} m`;
           const boxed = (key, text, x, y, anchor = "start") => { const b = labelBackdrop(text, x, y, gf, anchor); return <g key={key}><rect x={b.x} y={b.y} width={b.w} height={b.h} fill="#ffffff" fillOpacity="0.85" /><text x={x} y={y} textAnchor={anchor}>{text}</text></g>; };
+          // TASKS.csv #3412 — the eastings the key hides along the top are labelled along the bottom edge, clear of the captions
+          const hidden = hiddenEastings(grid.xs, keyBox, d.fontPx), hiddenPx = new Set(hidden.map((t) => t.px));
+          const capBoxes = [labelBackdrop(cap, d.w - GRID_INSET, d.h - GRID_INSET, gf, "end"), ...(d.caption ? [labelBackdrop(d.caption, d.w - GRID_INSET, d.h - GRID_INSET - (gf + 4), gf, "end")] : [])];
           return <g fontSize={gf} fill="#55606e" fontFamily={FONT}>
-            {grid.xs.filter((t) => !(keyBox && keyBox.y < d.fontPx + 2 && t.px + 2 < keyBox.x + keyBox.w && t.px + 2 + t.label.length * d.fontPx * 0.5 > keyBox.x)).map((t) => { const p = gridLabelPlace(t, "x", gf, d.w, d.h); return boxed(`lx${t.px}`, t.label, p.x, p.y, p.anchor); })}
+            {grid.xs.filter((t) => !hiddenPx.has(t.px)).map((t) => { const p = gridLabelPlace(t, "x", gf, d.w, d.h); return boxed(`lx${t.px}`, t.label, p.x, p.y, p.anchor); })}
+            {bottomEastings(hidden, { gf, w: d.w, h: d.h, inset: GRID_INSET, boxes: capBoxes }).map((p) => boxed(`lb${p.label}`, p.label, p.x, p.y, p.anchor))}
             {grid.ys.filter((t) => !(keyBox && keyBox.x < 2 + t.label.length * d.fontPx * 0.5 && t.px - d.fontPx < keyBox.y + keyBox.h && t.px > keyBox.y)).map((t) => { const p = gridLabelPlace(t, "y", gf, d.w, d.h); return boxed(`ly${t.px}`, t.label, p.x, p.y, p.anchor); })}{/* #2611 — not under the key; #3182 — inside the frame */}
             {boxed("cap", cap, d.w - GRID_INSET, d.h - GRID_INSET, "end")}
           </g>;

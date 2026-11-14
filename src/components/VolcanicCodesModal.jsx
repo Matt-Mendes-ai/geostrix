@@ -7,7 +7,7 @@ import { t as tr } from "../lib/i18n.js";
 
 export const NOT_LOGGED_CODE = ""; // the samples with no logged lithology at their midpoint
 
-// codes: [{ code, n, volcanic }] (volcanic: the starting tick); label: the method's name
+// codes: [{ code, n, volcanic, meaning? }] (volcanic: the starting tick; meaning: the project's dictionary name for the code, #3292); label: the method's name
 export default function VolcanicCodesModal({ label, codes, onCancel, onRun }) {
   useEscapeKey(onCancel);
   const [ticked, setTicked] = useState(() => new Set(codes.filter((c) => c.volcanic).map((c) => c.code)));
@@ -23,7 +23,7 @@ export default function VolcanicCodesModal({ label, codes, onCancel, onRun }) {
           {codes.map((c) => (
             <label key={c.code} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>
               <input type="checkbox" checked={ticked.has(c.code)} onChange={() => flip(c.code)} aria-label={tr("Volcanic: {code}", { code: c.code || tr("no code logged") })} />
-              <span style={{ minWidth: 90 }}>{c.code || <em>{tr("no code logged")}</em>}</span>
+              <span style={{ minWidth: 90 }} title={c.meaning || undefined}>{c.code || <em>{tr("no code logged")}</em>}{c.meaning ? ` — ${c.meaning}` : ""}</span>{/* #3292 */}
               <span style={{ color: "var(--color-text-muted)" }}>{tr("{n} sample(s)", { n: c.n.toLocaleString() })}</span>
             </label>
           ))}
