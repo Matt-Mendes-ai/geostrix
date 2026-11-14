@@ -131,7 +131,7 @@ test("wired: the Geophysics tab's button, drop and survey method; the 3D View se
   const g = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
   assert.match(g, /accept="\.las,\.laz"/);
   assert.match(g, /<LidarImportBox key=/);
-  assert.match(g, /\["euler_depth", "mt_bostick", "lidar", "em1d_cond"\]\.includes\(meta\.method\)/);
+  assert.match(readFileSync(new URL("../src/lib/geophysSurveys.js", import.meta.url), "utf8"), /EQS_HIDDEN = new Set\(\["euler_depth", "mt_bostick", "lidar", "em1d_cond"/); // #3321 — the list moved with eqsApplies
   const v = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
   assert.match(v, /requestModuleAction\("maps-lidar", \{ file:/);
   assert.match(readFileSync(new URL("../src/modules/MapsModule.jsx", import.meta.url), "utf8"), /useModuleAction\(\["maps-lidar"\], \(_a, p\) => \{ setPane\("terrain"\); requestModuleAction\("open-lidar", p\); \}\);/);

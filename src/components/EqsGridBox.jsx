@@ -8,6 +8,7 @@ import { suggestSampleGrid } from "../lib/sampleGrid.js";
 import { snappedNodeRegion } from "../lib/idw.js"; // TASKS.csv #2872
 import { b64ToF32 } from "../lib/inversion.js";
 import { surveyKey } from "../lib/geophysSurveys.js";
+import { cloudShape } from "../lib/cloudShape.js"; // TASKS.csv #3321 — a 3D cloud is not a field measured on one surface
 import { t as tr } from "../lib/i18n.js";
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45, marginTop: 4 };
@@ -28,6 +29,8 @@ export default function EqsGridBox({ survey, rows, units = "", method = null /* 
   const abort = useRef(null);
   const cellM = Number(cell) > 0 ? Number(cell) : sug?.cellM ?? 25;
   const noZ = withZ < pts.length;
+  // TASKS.csv #3321 — the shape, once, when the box opens: a 3D cloud (IP pseudo-depth points, an inversion model as points) is refused
+  const shape = useMemo(() => cloudShape(pts), [pts]);
   // TASKS.csv #2839 (GSC review B7) — blank elevation was the HIGHEST reading, so a ground survey came out continued upward (Matagami: 370 m
   // against a median station at 270 m, the grid 0.74 mGal off the stations). Blank now grids on the readings' own surface ("draped": each
   // node at the readings' height interpolated there, in the Python engine); a typed elevation is a level grid, a continuation to it. With
@@ -78,8 +81,14 @@ export default function EqsGridBox({ survey, rows, units = "", method = null /* 
           : tr("Of the time, loading the engine took {a} s (it then stays loaded for about 3 minutes, so a run soon after skips it), the fit {b} s and the grid {c} s.", { a: d.timings.load, b: d.timings.fit, c: d.timings.grid })) : "") });
     } catch (err) { setMsg({ info: false, text: err.message }); }
   };
+  if (shape?.is3D) return ( // #3321
+    <div style={{ marginTop: 6, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", fontSize: "var(--font-size-sm)" }} role="status">
+      {tr("This is a 3D point cloud (elevations {lo} to {hi} m), not a survey measured on one surface: equivalent sources continue a field measured on or above the ground, so they are not run on it.", { lo: Math.round(shape.zMin).toLocaleString(), hi: Math.round(shape.zMax).toLocaleString() })}
+    </div>
+  );
   return (
     <div style={{ marginTop: 6, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", fontSize: "var(--font-size-sm)" }}>
+      {!method && <div style={{ ...note, marginTop: 0, marginBottom: 6 }}>{tr("This survey has no method: equivalent sources assume it is a magnetic or gravity field measured on or above the ground.")}</div>}{/* #3321 */}
       <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "4px 6px", alignItems: "center" }}>
         <span>{tr("Cell (m)")}</span><input type="number" min="0" value={cell} placeholder={String(cellM)} aria-label={tr("Equivalent-source cell size")} onChange={(e) => setCell(e.target.value)} style={numInput} />
         <span>{tr("Grid at elevation (m)")}</span><input type="number" value={elev} placeholder={draped ? tr("the readings' surface") : Number.isFinite(elevM) ? String(elevM) : ""} aria-label={tr("Elevation to grid at")} onChange={(e) => setElev(e.target.value)} style={numInput} />
