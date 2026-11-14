@@ -32,6 +32,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the 
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1461
 import { fetchAreaBox, imageryAreaCollars } from "../lib/dataExtent.js"; // #1461; imageryAreaCollars: #2126
 import RasterColourControls from "../components/RasterColourControls.jsx"; // TASKS.csv #1236
+import ZonalStatsBox from "../components/ZonalStatsBox.jsx"; // TASKS.csv #2002
 import GridContourControls from "../components/GridContourControls.jsx"; // TASKS.csv #1622
 import { gridCellText } from "../lib/raster.js"; // TASKS.csv #1242
 import { detectKeyColour } from "../lib/rasterKey.js"; // TASKS.csv #1623
@@ -658,6 +659,7 @@ export default function RasterModule({ embedded = false } = {}) {
               {rasters.length > 1 && <ChevronDown role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Move \"{name}\" down the list (drawn over the one before on the plan)", { name: r.name })} title={tr("Move \"{name}\" down the list (drawn over the one before on the plan)", { name: r.name })} onClick={() => moveRaster(r.id, 1)} />}
               <Trash2 aria-label={tr("Remove raster \"{name}\"", { name: r.name })} title={tr("Remove raster \"{name}\"", { name: r.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: r.name }))) removeRaster(r.id); }} />
             </div>
+            {r.grid && <ZonalStatsBox raster={r} boundaries={boundaries} />}{/* TASKS.csv #2002 */}
             {r.terrainDerivative && r.terrainDerivative.terrainId != null && terrain?.id !== r.terrainDerivative.terrainId && ( /* TASKS.csv #1626 — made from a terrain since replaced */
               <div style={{ marginTop: 5, fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("Made from the terrain \"{name}\", which has since been replaced: it still shows that ground, draped on the new one. Remove it and make it again from the current terrain (Maps > Terrain > Hillshade, slope, aspect…).", { name: r.terrainDerivative.terrainName || "?" })}</div>
             )}

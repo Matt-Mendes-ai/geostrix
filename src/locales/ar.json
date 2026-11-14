@@ -12425,5 +12425,14 @@
   "Unit of the gravity derivative": "وحدة مشتقة الجاذبية",
   "per kilometre (as published)": "لكل كيلومتر (كما يُنشر)",
   "per metre": "لكل متر",
-  "Eötvös": "إتفوس"
+  "Eötvös": "إتفوس",
+  "Cells with a value": "الخلايا ذات القيمة",
+  "Area of those cells": "مساحة تلك الخلايا",
+  "10th percentile": "المئين العاشر",
+  "Statistics inside a boundary": "إحصاءات داخل حدّ",
+  "Boundary to read the grid inside": "الحد الذي تُقرأ الشبكة داخله",
+  "Choose a boundary or claim…": "اختر حدًّا أو مطالبة…",
+  "No cell of this grid lies inside it.": "لا تقع أي خلية من هذه الشبكة داخله.",
+  "Values in {unit}; cells are read at their centres.": "القيم بوحدة {unit}؛ تُقرأ الخلايا عند مراكزها.",
+  "Copy as text": "نسخ كنص"
 }

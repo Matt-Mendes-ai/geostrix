@@ -12425,5 +12425,14 @@
   "Unit of the gravity derivative": "Unidad de la derivada de gravedad",
   "per kilometre (as published)": "por kilómetro (como se publica)",
   "per metre": "por metro",
-  "Eötvös": "Eötvös"
+  "Eötvös": "Eötvös",
+  "Cells with a value": "Celdas con valor",
+  "Area of those cells": "Área de esas celdas",
+  "10th percentile": "Percentil 10",
+  "Statistics inside a boundary": "Estadísticas dentro de un límite",
+  "Boundary to read the grid inside": "Límite dentro del cual leer la grilla",
+  "Choose a boundary or claim…": "Elija un límite o concesión…",
+  "No cell of this grid lies inside it.": "Ninguna celda de esta grilla queda dentro.",
+  "Values in {unit}; cells are read at their centres.": "Valores en {unit}; las celdas se leen en sus centros.",
+  "Copy as text": "Copiar como texto"
 }
