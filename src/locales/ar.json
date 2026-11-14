@@ -12419,5 +12419,11 @@
   "{n} holes at their intercepts, on the grid's colour scale": "{n} ثقوب عند تقاطعاتها، على مقياس ألوان الشبكة",
   "That is about {km} km {dir} of where the project says they are now.": "يبعد ذلك نحو {km} كم نحو {dir} عن موقعها الحالي في المشروع.",
   "· grid convergence here {v}{convergence}° (grid north is {v2}° {v3} of true north)": "· تقارب الشبكة هنا {v}{convergence}° (شمال الشبكة {v2}° إلى {v3} الشمال الحقيقي)",
-  "{name}: {n} line feature(s) were not claims (a claim is an area): import them under Boundaries": "{name}: {n} عنصر(عناصر) خطي لم يكن مطالبة (المطالبة مساحة): استوردها ضمن الحدود"
+  "{name}: {n} line feature(s) were not claims (a claim is an area): import them under Boundaries": "{name}: {n} عنصر(عناصر) خطي لم يكن مطالبة (المطالبة مساحة): استوردها ضمن الحدود",
+  "Copernicus Sentinel-2 surface reflectance from Element 84's Earth Search (AWS Open Data), free, no account. Choose dates with the least cloud and snow (summer in the north, the dry season in the tropics); cloud, shadow, snow and water are masked with the scene's own classification. Only the area's window of the bands the index uses is downloaded.": "انعكاسية سطح Copernicus Sentinel-2 من Earth Search التابع لـ Element 84 (AWS Open Data)، مجانية وبلا حساب. اختر تواريخ بأقل غيوم وثلوج (الصيف في الشمال، والموسم الجاف في المناطق المدارية)؛ تُحجب الغيوم والظلال والثلوج والمياه بتصنيف المشهد نفسه. يُنزَّل فقط نافذة المنطقة من النطاقات التي يستخدمها المؤشر.",
+  "Derivative in": "المشتقة بوحدة",
+  "Unit of the gravity derivative": "وحدة مشتقة الجاذبية",
+  "per kilometre (as published)": "لكل كيلومتر (كما يُنشر)",
+  "per metre": "لكل متر",
+  "Eötvös": "إتفوس"
 }

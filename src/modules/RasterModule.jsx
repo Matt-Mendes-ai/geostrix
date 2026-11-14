@@ -97,6 +97,7 @@ function SpectrumPanel({ spectrum, onSplit }) {
   );
 }
 
+const GRAVITY_UNIT_RE = /^(mgal|µgal|μgal|ugal)$/i; // TASKS.csv #2947 — gridFilters.js GRAVITY_UNITS (that module loads on first use, so the form keeps its own copy)
 export default function RasterModule({ embedded = false } = {}) {
   const { rasters, addRaster, updateRaster, removeRaster, moveRaster /* #2853 */, terrain, project, collars, survey = [] /* #2126 */, boundaries, setLayers, projectIsEmpty, setEpsg, surfaceSamples = [], voxelModels = [], updateGeophysSurvey, geophysSurveys = {}, layers = {} /* #2868 — the survey stations */ } = useStore(); // voxelModels: #1856 // projectIsEmpty/setEpsg: #607; updateGeophysSurvey: #1985
   // TASKS.csv #326 — a data grid's nodes as survey points (Geophysics -> Point cloud / Inversion). Replaces
@@ -201,7 +202,7 @@ export default function RasterModule({ embedded = false } = {}) {
       const { applyGridFilterAsync } = await import("../lib/gridFilterClient.js");
       const out = await applyGridFilterAsync({ nx: g.nx, ny: g.ny, dx: g.dx, dy: g.dy, values }, filt.kind, { ...params, declination: declGrid ?? undefined });
       const label = FILTERS[filt.kind].label;
-      const ou = filterOutputUnits(filt.kind, rasterUnitOf(r)); // TASKS.csv #2837 / #2843 — the typed unit too; tilt: degrees; a gravity derivative per km
+      const ou = filterOutputUnits(filt.kind, rasterUnitOf(r), filt.gravPer || "km"); // gravPer: #2947 — TASKS.csv #2837 / #2843 — the typed unit too; tilt: degrees; a gravity derivative per km
       if (ou.scale !== 1) for (let i = 0; i < out.values.length; i++) out.values[i] *= ou.scale;
       const suffix = filt.kind === "rtp" || filt.kind === "rte" ? ` (I ${params.inclination}°, D ${params.declinationTrue}° true)` : filt.kind === "rtpa" ? ` (I ${params.inclination}°, D ${params.declinationTrue}° true, Ia ${out.amplitudeInclination}°)` : filt.kind === "upward" ? ` (+${params.height} m)` : "";
       if (filt.kind === "rtpa") params.amplitudeInclination = out.amplitudeInclination; // #1988 — the one used, recorded with the raster
@@ -710,6 +711,15 @@ export default function RasterModule({ embedded = false } = {}) {
                 {filt.kind === "worms" && (
                   <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                     <input type="checkbox" checked={!!filt.integrate} onChange={(e) => setFilt((p) => ({ ...p, integrate: e.target.checked }))} />{tr("Magnetic RTP grid: integrate it first (pseudo-gravity)")}
+                  </label>
+                )}
+                {(filt.kind === "vd1" || filt.kind === "as") && GRAVITY_UNIT_RE.test(String(rasterUnitOf(r) || "").trim()) && ( /* TASKS.csv #2947 — a gravity derivative's unit */
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>{tr("Derivative in")}
+                    <select value={filt.gravPer || "km"} aria-label={tr("Unit of the gravity derivative")} onChange={(e) => setFilt((p) => ({ ...p, gravPer: e.target.value }))} style={{ ...numInput, flex: 1 }}>
+                      <option value="km">{tr("per kilometre (as published)")}</option>
+                      <option value="m">{tr("per metre")}</option>
+                      <option value="E">{tr("Eötvös")}</option>
+                    </select>
                   </label>
                 )}
                 {filt.kind === "upward" && (

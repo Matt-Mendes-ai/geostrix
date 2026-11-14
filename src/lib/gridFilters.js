@@ -176,14 +176,21 @@ export const FILTERS = {
 // (mGal or µGal) is given per kilometre, x 1,000, the unit Bouguer derivatives are published in (the per-metre 1VD of a GSC Bouguer grid read
 // ~780 x smaller than the published grid beside it). Magnetic derivatives stay per metre (nT/m, as published). -> { units, scale }
 const PER_KM = new Set(["vd1", "as"]);
-export function filterOutputUnits(kind, parentUnit) {
+// TASKS.csv #2947 — per: the gravity derivative's unit the user chose: "km" (the default, as published), "m", or "E" (Eötvös, 1e-9 s^-2: 1 mGal/m =
+// 10,000 E and 1 µGal/m = 10 E); a magnetic or other filter ignores it
+export const GRAVITY_UNITS = /^(mgal|µgal|μgal|ugal)$/i;
+export function filterOutputUnits(kind, parentUnit, per = "km") {
   const f = FILTERS[kind];
   const u = String(parentUnit || "").trim();
   if (!f) return { units: undefined, scale: 1 };
   const probe = "\u0000";
   if (!f.unitsOut(probe).includes(probe)) return { units: f.unitsOut(""), scale: 1 }; // a unit of its own
   if (!u) return { units: undefined, scale: 1 };
-  if (PER_KM.has(kind) && /^(mgal|µgal|μgal|ugal)$/i.test(u)) return { units: `${u}/km`, scale: 1000 };
+  if (PER_KM.has(kind) && GRAVITY_UNITS.test(u)) {
+    if (per === "m") return { units: `${u}/m`, scale: 1 };
+    if (per === "E") return { units: "E", scale: /^m/i.test(u) ? 10000 : 10 };
+    return { units: `${u}/km`, scale: 1000 };
+  }
   return { units: f.unitsOut(u), scale: 1 };
 }
 

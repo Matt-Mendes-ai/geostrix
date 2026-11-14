@@ -33,7 +33,9 @@ const MacrostratModal = React.lazy(() => import("../components/MacrostratModal.j
 import { useStore } from "../lib/store.jsx";
 import { classifyBreaks, PALETTES, paletteShortName /* #1859 */, paletteColorsHex , colorForVoxelValue, readableValues /* #1422 */, rangeText /* #2402 */, classCountNote /* #1430 */ } from "../lib/layers.js";
 import StopValueInput from "../components/StopValueInput.jsx"; // TASKS.csv #1422
-import { parseDEMFiles, buildRasterImport, terrainToGeoTIFFArrayBuffer } from "../lib/raster.js";
+import { parseDEMFiles, buildRasterImport, terrainToGeoTIFFArrayBuffer, parseWorldFile } from "../lib/raster.js"; // parseWorldFile: #2901
+import { rasterFileSet } from "../lib/rasterSideFiles.js"; // TASKS.csv #2901 — a world file / .prj / Geosoft .xml dropped with its raster
+import { geosoftXmlCrs } from "../lib/geosoftXml.js"; // TASKS.csv #2901
 import { boundaryAreaHectares } from "../lib/geoprocessing.js";
 import { saveFile, safeFileName, runPfieldsJob } from "../lib/desktop.js"; // safeFileName: #1114; runPfieldsJob: #2846 (the spline)
 import { blockModelCsvText, blockModelParamLines } from "../lib/blockModelExport.js"; // TASKS.csv #411; #1041
@@ -42,7 +44,7 @@ import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #529
 import InfoButton from "../components/InfoButton.jsx";
 import { fetchSRTMTerrain, collarGroundMisfit, findBetterUtmZone, planTerrainFetch } from "../lib/srtmFetch.js"; // planTerrainFetch: #3251
 import { fetchCopernicusTerrain } from "../lib/copernicusDem.js"; // TASKS.csv #814
-import { toLonLat, reprojectXY, crsName, pointTransform, getProj4Def, isMetricProjectedEpsg, isGeographicCrs } from "../lib/reproject.js"; // isMetricProjectedEpsg: #2127; isGeographicCrs: #2832
+import { toLonLat, reprojectXY, crsName, pointTransform, getProj4Def, isMetricProjectedEpsg, isGeographicCrs, guessEpsgFromPrjWkt } from "../lib/reproject.js"; // guessEpsgFromPrjWkt: #2901; isMetricProjectedEpsg: #2127; isGeographicCrs: #2832
 import { geosoftHeaderEpsg, xyLookLikeDegrees } from "../lib/stationDegrees.js"; // TASKS.csv #2832
 import { omfToProjectObjectsAsync } from "../lib/omfImport.js"; // TASKS.csv #637; #1280
 import { isDcip2dMeshText } from "../lib/ubc2d.js"; // TASKS.csv #1348
@@ -558,11 +560,15 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // here ONLY so a .tif/.gxf dropped directly on the Geophysics tab (see onDrop below) still imports
   // exactly like before instead of forcing a tab-switch mid-drag. Uses the same buildRasterImport()
   // helper (raster.js) the Raster module's own import button calls — one shared parse/message path.
-  const importRaster = async (file) => {
+  const importRaster = async (file, side = {}) => { // side: { world, xml, prj } dropped with it (TASKS.csv #2901, as the raster pane's picker pairs them)
     if (!file) return;
     setRasterError({ info: true, text: tr("Importing {name}…", { name: file.name }) }); // a large GeoTIFF takes a few seconds
     try {
-      const { raster, msg } = await buildRasterImport(file, { epsg: projectTargetEpsg(project), defaultElevation, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: file.name }), tie: tieOf(project) }); // #607; tie: #2587
+      const worldFile = side.world ? parseWorldFile(await side.world.text(), side.world.name) : null;
+      const xc = side.xml ? geosoftXmlCrs(await side.xml.text()) : null;
+      const pe = !xc && side.prj ? guessEpsgFromPrjWkt(await side.prj.text()) : null;
+      const sideCrs = xc ? { epsg: xc.epsg, from: side.xml.name } : pe ? { epsg: pe, from: side.prj.name } : null;
+      const { raster, msg } = await buildRasterImport(file, { epsg: projectTargetEpsg(project), defaultElevation, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: file.name }), tie: tieOf(project), worldFile, sideCrs }); // #607; tie: #2587; worldFile, sideCrs: #2901
       const drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox, rasters, fileName: file.name, stations: layers?.geophys_pts /* #2868 */ }); // #1856; #1505
       addRaster({ ...raster, elevation: drape.z });
       setRasterError({ info: true, text: tr("{msg} (Tip: raster imports now have their own \"Raster\" tab — this drop still works here too.)", { msg: `${msg} ${drapeElevationNote(drape)}` }) });
@@ -1931,6 +1937,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         // importTerrain's own confirm-to-replace prompt), so multiple DEM-looking tifs still only end
         // up as one terrain, but every raster/CSV dropped together now actually imports.
         const csvs = files.filter((f) => f.name.toLowerCase().endsWith(".csv"));
+        const rasterSides = rasterFileSet(files); // #2901 — world files, .prj and Geosoft .xml with the raster of the same name; ones with none are named below
         const tifs = files.filter((f) => /\.tiff?$/i.test(f.name));
         const gxfs = files.filter((f) => /\.(gxf|grd)$/i.test(f.name)); // grd: #2855 — a Geosoft / Surfer grid, read as Maps and the 3D View read it
         const plys = files.filter((f) => /\.(ply|dxf)$/i.test(f.name));
@@ -1950,7 +1957,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         const lidarFiles = [];
         for (const f of lasFiles) { const b = new Uint8Array(await f.slice(0, 4).arrayBuffer()); if (/\.laz$/i.test(f.name) || (b[0] === 0x4c && b[1] === 0x41 && b[2] === 0x53 && b[3] === 0x46)) lidarFiles.push(f); else advice.push(tr("{name} is a LAS well log: drop it on the 3D View, which reads downhole logs.", { name: f.name })); }
         if (lidarFiles.length) { if (geoPane === "terrain") openLidar(lidarFiles[0]); else { goToModule("maps"); requestModuleAction("maps-lidar", { file: lidarFiles[0] }); } if (lidarFiles.length > 1) advice.push(tr("Opened \"{name}\". Lidar files are imported one at a time: import it, then drop the next.", { name: lidarFiles[0].name })); }
-        const other = files.filter((f) => !/\.(csv|tiff?|gxf|grd|ply|dxf|xyz|edi|las|laz|vs)$/i.test(f.name) && !(/\.(dfn|dat)$/i.test(f.name) && gdfPair(files)) /* #1990 / #1992: read above */ && !unreadableFormatAdvice(f.name)).map((f) => f.name);
+        const sideUsed = new Set(rasterSides.images.flatMap((i) => [i.world, i.xml, i.prj].filter(Boolean))); // #2901 — read with their raster
+        const other = files.filter((f) => !sideUsed.has(f) && !/\.(csv|tiff?|gxf|grd|ply|dxf|xyz|edi|las|laz|vs)$/i.test(f.name) && !(/\.(dfn|dat)$/i.test(f.name) && gdfPair(files)) /* #1990 / #1992: read above */ && !unreadableFormatAdvice(f.name)).map((f) => f.name);
         if (other.length) advice.push(tr("Not imported from this drop: {names}. Dropped here, this tab reads CSV, GeoTIFF, GXF, .grd, XYZ, PLY / DXF, EDI (MT soundings) and LAS / LAZ lidar; a UBC mesh and model go through Block models.", { names: other.slice(0, 6).join(", ") + (other.length > 6 ? " …" : "") }));
         // TASKS.csv #1989 — MT / AMT soundings go to their own pane, which reads them
         const edis = files.filter((f) => /\.edi$/i.test(f.name));
@@ -1970,8 +1978,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         const demTifs = tifs.filter((tif) => /dem|dtm|dsm|srtm|elev|terrain|topo/i.test(tif.name)); // dtm / dsm: #1351 (a drone DTM)
         const drapeTifs = tifs.filter((tif) => !/dem|dtm|dsm|srtm|elev|terrain|topo/i.test(tif.name));
         if (demTifs.length) importTerrain(demTifs);
-        drapeTifs.forEach((tif) => importRaster(tif));
-        gxfs.forEach((gxf) => importRaster(gxf));
+        const sideOf = (f) => rasterSides.images.find((i) => i.file === f) || {}; // #2901
+        drapeTifs.forEach((tif) => importRaster(tif, sideOf(tif)));
+        gxfs.forEach((gxf) => importRaster(gxf, sideOf(gxf)));
         if (plys.length) importBoundaries(plys);
         // .xyz needs a column-picker (its layout isn't fixed — see importXYZFile) which can only show
         // one file at a time; a multi-.xyz drop opens the picker for the first and leaves the rest for

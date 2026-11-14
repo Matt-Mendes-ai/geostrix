@@ -12419,5 +12419,11 @@
   "{n} holes at their intercepts, on the grid's colour scale": "{n} sondages à leurs intersections, sur l'échelle de couleurs de la grille",
   "That is about {km} km {dir} of where the project says they are now.": "C'est à environ {km} km au {dir} de l'endroit où le projet les place maintenant.",
   "· grid convergence here {v}{convergence}° (grid north is {v2}° {v3} of true north)": "· convergence de grille ici {v}{convergence}° (le nord de la grille est à {v2}° à l'{v3} du nord vrai)",
-  "{name}: {n} line feature(s) were not claims (a claim is an area): import them under Boundaries": "{name} : {n} entité(s) linéaire(s) n'étaient pas des claims (un claim est une surface) : importez-les sous Limites"
+  "{name}: {n} line feature(s) were not claims (a claim is an area): import them under Boundaries": "{name} : {n} entité(s) linéaire(s) n'étaient pas des claims (un claim est une surface) : importez-les sous Limites",
+  "Copernicus Sentinel-2 surface reflectance from Element 84's Earth Search (AWS Open Data), free, no account. Choose dates with the least cloud and snow (summer in the north, the dry season in the tropics); cloud, shadow, snow and water are masked with the scene's own classification. Only the area's window of the bands the index uses is downloaded.": "Réflectance de surface Copernicus Sentinel-2 d'Earth Search d'Element 84 (AWS Open Data), gratuite, sans compte. Choisissez des dates avec le moins de nuages et de neige (l'été au nord, la saison sèche sous les tropiques) ; nuages, ombres, neige et eau sont masqués par la classification propre à la scène. Seule la fenêtre de la zone des bandes utilisées par l'indice est téléchargée.",
+  "Derivative in": "Dérivée en",
+  "Unit of the gravity derivative": "Unité de la dérivée de gravité",
+  "per kilometre (as published)": "par kilomètre (comme publié)",
+  "per metre": "par mètre",
+  "Eötvös": "Eötvös"
 }
