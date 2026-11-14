@@ -30,7 +30,7 @@ test("points, curve, surface: vertices, cells, data by association; no-data, ref
   assert.equal(by.Contact.kind, "lines"); assert.deepEqual(by.Contact.segments, [0, 1, 1, 2, 2, 3]); assert.equal(by.Contact.attributes[0].location, "segments");
   assert.equal(by["Pit shell"].kind, "surface"); assert.deepEqual(by["Pit shell"].triangles, [0, 1, 2, 0, 2, 3]);
   assert.equal(by["Broken surface"].kind, "skipped", "a cell pointing past the vertices");
-  assert.match(by["DH-1"].reason, /drillhole/); assert.match(by.Mystery.reason, /Something new/);
+  assert.equal(by["DH-1"].kind, "drillhole", "read since step 1b"); assert.match(by.Mystery.reason, /Something new/);
 });
 
 test("the block model: delimiters running down, values in the format's order land in the right cells", async () => {
@@ -56,7 +56,7 @@ test("a rotated block model turns about its origin; a 2D grid is a one-cell-thic
   assert.ok(g.cells.every((c) => near(c.z, 350) && c.dz === 5));
   assert.ok(r.notes.some((n) => /2D grids \(Mag grid\)/.test(n)) && r.notes.some((n) => /no coordinate system/.test(n)));
   assert.deepEqual(r.omfObjects.map((o) => o.kind).sort(), ["lines", "points", "surface"]);
-  assert.equal(r.skipped.length, 3);
+  assert.equal(r.skipped.length, 2, "the broken surface and the unknown type; drillholes are read since step 1b");
 });
 
 test("another HDF5 file is refused with a reason", async () => {

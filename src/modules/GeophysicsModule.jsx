@@ -1264,7 +1264,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const buf = await file.arrayBuffer();
       // TASKS.csv #637 — the element conversion lives in lib/omfImport.js (shared with the Woodjam sample project)
       // TASKS.csv #1993 — a Geoscience ANALYST .geoh5 is read (h5wasm, on demand) into the same objects; drillholes are a later step
-      const res = /\.geoh5$/i.test(file.name) ? await (await import("../lib/geoh5Import.js")).geoh5ToProjectObjects(buf, effectiveMaxCells, opts) : await omfToProjectObjectsAsync(buf, effectiveMaxCells, opts);
+      const res = /\.geoh5$/i.test(file.name) ? await (await import("../lib/geoh5Import.js")).geoh5ToProjectObjects(buf, effectiveMaxCells, { ...opts, baseName: file.name.replace(/\.geoh5$/i, "") }) : await omfToProjectObjectsAsync(buf, effectiveMaxCells, opts);
       // TASKS.csv #1202 — pillar 3: a budget the geologist raised once should not fill a modest laptop unasked (about 0.4 GB per million blocks, as the budget's own tooltip says)
       const blocks = res.voxelModels.reduce((n, m) => n + (m.cells?.length || 0), 0);
       if (blocks > 500000 && !window.confirm(tr("\"{name}\" holds {n} blocks, about {gb} GB of memory while it is open. A modest laptop can slow down or run out. Import it? (Lowering the cell budget above coarsens it.)", { name: file.name, n: blocks.toLocaleString(), gb: (blocks * 0.4e-6).toFixed(1) }))) { setOmfError({ info: true, text: tr("\"{name}\" was not imported.", { name: file.name }) }); return; }
@@ -1278,6 +1278,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       if (linesCount) parts.push(tr("{linesCount} line set(s)", { linesCount }));
       if (surfacesCount) parts.push(tr("{surfacesCount} surface(s)", { surfacesCount }));
       if (volumesCount) parts.push(tr("{volumesCount} block model(s)", { volumesCount }));
+      if (res.drillholes) parts.push(tr("{n} drillhole(s), handed to the 3D View's import", { n: res.drillholes })); // #1993 step 1b
       let msg = parts.length ? tr("Imported \"{name}\" — {parts}.", { name: file.name, parts: parts.join(", ") }) : tr("\"{name}\" parsed but nothing usable was found.", { name: file.name });
       if (coarsenNotes.length) msg += ` ${coarsenNotes.join(" ")}`;
       if (!opts.volume) { // #1970 — a volume's other numeric attributes (two inversion iterations, conductivity and chargeability)
@@ -1287,6 +1288,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       if (skipped.length) msg += tr(" Skipped: {skipped}.", { skipped: skipped.join("; ") });
       msg += farNote(res.voxelModels.flatMap((m) => m.cells || [])); // #1427
       setOmfError({ info: parts.length > 0, text: msg });
+      // TASKS.csv #1993 step 1b — the drillholes as plain tables (collars, surveys, intervals, points) through the 3D View's own import: its queue imports what it
+      // is sure of and opens the mapping dialog for the rest (assays to Geochem, logs to their layer); the dip sign is its own check's (#2886)
+      if (res.drillholeTables?.length) {
+        goToModule?.("viewer");
+        requestModuleAction("import-dropped-files", { files: res.drillholeTables.map((d) => new File([d.text], d.name, { type: "text/csv" })), origin: "geophysics", notes: [tr("{name}: {n} drillhole(s) read as {tables}, imported here as any table is.", { name: file.name, n: res.drillholes, tables: res.drillholeTables.map((d) => d.name).join(", ") })] });
+      }
     } catch (err) {
       setOmfError({ info: false, text: err.message });
     } finally {

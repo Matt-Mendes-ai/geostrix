@@ -70,7 +70,22 @@ export async function geoh5FixtureBytes({ blockRotation = 0, notGeoscience = fal
     o.create_attribute("U Count", 3); o.create_attribute("V Count", 2); o.create_attribute("Rotation", 0.0);
   });
   data(grid, "TMI", tFloat, "Cell", new Float64Array([0, 1, 2, 10, 11, 12]), "<d");
-  object("drill", "DH-1", (o) => o.create_attribute("Collar", xyzMap([[1000, 2000, 360]])));
+  // TASKS.csv #1993 step 1b — two drillholes: collar, End of hole, Surveys (Depth, Azimuth, Dip; dip negative down as geoh5 writes it), interval data
+  // (FROM / TO, a referenced lithology, a Cu value with one no-data) and point data (DEPTH, a mag susc)
+  const tLith = dataType("Lith codes", "Referenced", [[0, "Unknown"], [1, "BAS"], [2, "AND"]]);
+  const hole = (name, collar, eoh, stations, ivs, pts) => {
+    const h = object("drill", name, (o) => {
+      o.create_attribute("Collar", xyzMap([collar])); o.create_attribute("End of hole", eoh);
+      o.create_dataset({ name: "Surveys", data: new Map([["Depth", Float32Array.from(stations, (s) => s[0])], ["Azimuth", Float32Array.from(stations, (s) => s[1])], ["Dip", Float32Array.from(stations, (s) => s[2])]]) });
+    });
+    data(h, "FROM", tFloat, "Cell", Float32Array.from(ivs, (r) => r[0]), "<f");
+    data(h, "TO", tFloat, "Cell", Float32Array.from(ivs, (r) => r[1]), "<f");
+    data(h, "Lithology", tLith, "Cell", Uint32Array.from(ivs, (r) => r[2]), "<I");
+    data(h, "Cu_ppm", tFloat, "Cell", Float32Array.from(ivs, (r) => r[3]), "<f");
+    if (pts) { data(h, "DEPTH", tFloat, "Vertex", Float32Array.from(pts, (r) => r[0]), "<f"); data(h, "MagSus", tFloat, "Vertex", Float32Array.from(pts, (r) => r[1]), "<f"); }
+  };
+  hole("DH-1", [1000, 2000, 360], 120, [[0, 90, -60], [100, 92, -58]], [[0, 10, 1, 120], [10, 40, 2, 1.175494351e-38], [40, 120, 1, 860]], [[5, 0.002], [50, 0.015]]);
+  hole("DH-2", [1050, 2010, 358], 80, [[0, 270, -75]], [[0, 80, 2, 45]], null);
   object("other", "Mystery");
   f.close();
   const bytes = mod.FS.readFile(path);

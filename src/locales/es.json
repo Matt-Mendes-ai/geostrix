@@ -12373,5 +12373,7 @@
   "A Geoscience ANALYST workspace: its points, curves, surfaces, block models and 2D grids are read. Drillholes and other objects are listed as not read.": "Un espacio de trabajo de Geoscience ANALYST: se leen sus puntos, curvas, superficies, modelos de bloques y grillas 2D. Los sondajes y otros objetos se listan como no leídos.",
   "Import Geoscience ANALYST (.geoh5)…": "Importar Geoscience ANALYST (.geoh5)…",
   "The unit {symbol} is shown in here and in Best intercepts and Grade stats. Display only: the rules are worked in the stored unit.": "La unidad en que se muestra {symbol} aquí y en Intervalos de mejor ley y Estadísticas de ley. Solo de visualización: las reglas se calculan en la unidad guardada.",
-  "{n} of them lie more than {d} m from the nearest collar (the farthest {m} m): the surface through the collars is a guess there. A terrain gives the real ground.": "{n} de ellas están a más de {d} m del collar más cercano (la más lejana a {m} m): allí la superficie a través de los collares es una suposición. Un terreno da el suelo real."
+  "{n} of them lie more than {d} m from the nearest collar (the farthest {m} m): the surface through the collars is a guess there. A terrain gives the real ground.": "{n} de ellas están a más de {d} m del collar más cercano (la más lejana a {m} m): allí la superficie a través de los collares es una suposición. Un terreno da el suelo real.",
+  "{n} drillhole(s), handed to the 3D View's import": "{n} sondaje(s), entregados a la importación de la Vista 3D",
+  "{name}: {n} drillhole(s) read as {tables}, imported here as any table is.": "{name}: {n} sondaje(s) leídos como {tables}, importados aquí como cualquier tabla."
 }

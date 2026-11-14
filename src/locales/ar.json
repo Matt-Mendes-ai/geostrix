@@ -12373,5 +12373,7 @@
   "A Geoscience ANALYST workspace: its points, curves, surfaces, block models and 2D grids are read. Drillholes and other objects are listed as not read.": "مساحة عمل Geoscience ANALYST: تُقرأ نقاطها ومنحنياتها وأسطحها ونماذج الكتل والشبكات الثنائية الأبعاد. تُدرج ثقوب الحفر والكائنات الأخرى على أنها لم تُقرأ.",
   "Import Geoscience ANALYST (.geoh5)…": "استيراد Geoscience ANALYST (.geoh5)…",
   "The unit {symbol} is shown in here and in Best intercepts and Grade stats. Display only: the rules are worked in the stored unit.": "الوحدة التي يُعرض بها {symbol} هنا وفي أفضل المقاطع وإحصاءات العيار. للعرض فقط: تُحسب القواعد بالوحدة المخزنة.",
-  "{n} of them lie more than {d} m from the nearest collar (the farthest {m} m): the surface through the collars is a guess there. A terrain gives the real ground.": "{n} منها تبعد أكثر من {d} م عن أقرب فوهة (الأبعد {m} م): السطح المار بالفوهات تخمين هناك. يعطي نموذج التضاريس الأرض الحقيقية."
+  "{n} of them lie more than {d} m from the nearest collar (the farthest {m} m): the surface through the collars is a guess there. A terrain gives the real ground.": "{n} منها تبعد أكثر من {d} م عن أقرب فوهة (الأبعد {m} م): السطح المار بالفوهات تخمين هناك. يعطي نموذج التضاريس الأرض الحقيقية.",
+  "{n} drillhole(s), handed to the 3D View's import": "{n} ثقب حفر، سُلّمت إلى استيراد العرض ثلاثي الأبعاد",
+  "{name}: {n} drillhole(s) read as {tables}, imported here as any table is.": "{name}: قُرئ {n} ثقب حفر على هيئة {tables}، وتُستورد هنا كأي جدول."
 }
