@@ -60,7 +60,7 @@ test("each interval: its dominant mineral as the code, Total min as the value, e
 
 test("wired: before the commit, for the dialog, a queued drop and a database reload; the database keeps the dialog's choices", () => {
   const u = fs.readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.match(u, /const commitImportData = \(data\) => \{\n {4}const plan = data\?\.target === "mnlgy" && perMineralLib/);
+  assert.match(u, /const commitImportData = \(data\) => \{\n(\s*\/\/[^\n]*\n)*\s*const tg = data\?\.target, plan = \(tg === "mnlgy" \|\| tg === "litho" \|\| tg === "custom"\) && perMineralLib/); // litho / custom compositions: #3052
   assert.match(u, /return commitImportDataRaw\(\{ \.\.\.data, allRows: out\.rows, mapping: out\.mapping, customFields: \[\.\.\.own, \.\.\.out\.customFields\], recordAs: data \}\);/);
   assert.match(u, /dbImportRecord\(data\.recordAs \|\| data/);
   assert.match(u, /for \(const rec of recs\) await loadPerMineral\(rec\.target\);/);

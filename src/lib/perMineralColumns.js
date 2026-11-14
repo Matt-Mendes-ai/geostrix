@@ -55,12 +55,49 @@ export function percentColumns(headers, rows, mapping = {}, { sample = 200000 } 
   });
 }
 
+// TASKS.csv #3052 (Matt's decisions 2026-11-14; design docs/ideas/composition-logs.md) — a log of components that sum to 100 per interval (the WA
+// iron material-type log: 43 Met_<component>_pct columns): three or more per-cent columns with values whose row sums have a median of 98-102 (rows
+// with all of them blank not counted). -> { n (components), median, off (rows more than 5 from 100), offHoles (up to 8) } | null
+export const COMPOSITION_MIN = 3, COMPOSITION_TOL = 2, COMPOSITION_OFF = 5;
+export function compositionOf(cols, rows, mapping = {}, { sample = 200000 } = {}) {
+  const use = (cols || []).filter((c) => c.n > 0).map((c) => c.col);
+  if (use.length < COMPOSITION_MIN || !(rows || []).length) return null;
+  const step = Math.max(1, Math.floor(rows.length / sample)), sums = [];
+  let off = 0; const offHoles = new Set();
+  for (let i = 0; i < rows.length; i += step) {
+    const r = rows[i]; let any = false, t = 0;
+    for (const c of use) { const v = percentNumber(r?.[c]); if (Number.isFinite(v)) { any = true; t += v; } }
+    if (!any) continue;
+    sums.push(t);
+    if (Math.abs(t - 100) > COMPOSITION_OFF) { off++; if (offHoles.size < 8 && mapping.hole_id) offHoles.add(String(r?.[mapping.hole_id] ?? "").trim()); }
+  }
+  if (sums.length < 3) return null;
+  sums.sort((a, b) => a - b);
+  const median = sums.length % 2 ? sums[sums.length >> 1] : (sums[sums.length / 2 - 1] + sums[sums.length / 2]) / 2;
+  if (Math.abs(median - 100) > COMPOSITION_TOL) return null;
+  return { n: use.length, median: Math.round(median * 100) / 100, off: step > 1 ? off * step : off, offHoles: [...offHoles] };
+}
+// the code of a component: its column without the per-cent marker and without the affix every component column shares (Met_HEM_pct -> HEM)
+export function componentPrefix(cols) {
+  const stems = (cols || []).map((c) => stemOf(c));
+  if (stems.length < 2) return "";
+  let pre = stems[0];
+  for (const st of stems) while (pre && !st.startsWith(pre)) pre = pre.slice(0, -1);
+  const cut = Math.max(pre.lastIndexOf("_"), pre.lastIndexOf("-"), pre.lastIndexOf(" ")); // only up to a separator: Met_HEM / Met_HMT keep HEM / HMT
+  return cut >= 0 ? pre.slice(0, cut + 1) : "";
+}
+export const componentCode = (col, prefix = "") => { const st = stemOf(col); return (prefix && st.startsWith(prefix) ? st.slice(prefix.length) : st).toUpperCase() || String(col).toUpperCase(); };
+export const MIXED = "MIXED", MIXED_BELOW = 50;
+
 // the box is offered for an interval table (hole, from, to) guessed as Mineralization or Custom layer, with no code column chosen for
 // Mineralization, and at least two per-cent columns with values -> the columns, or null
 export function perMineralOffer(target, headers, rows, mapping = {}) {
-  if (target !== "mnlgy" && target !== "custom") return null;
+  if (target !== "mnlgy" && target !== "custom" && target !== "litho") return null; // litho: a composition only (#3052)
   if (!mapping.hole_id || !mapping.from || !mapping.to || mapping.depth) return null;
   const cols = percentColumns(headers, rows, mapping);
+  const comp = compositionOf(cols, rows, mapping); // #3052
+  if (comp) { const out = cols.slice(); out.composition = { ...comp, prefix: componentPrefix(cols.filter((c) => c.n > 0).map((c) => c.col)) }; return out; }
+  if (target === "litho") return null;
   // a code column: the Mineralization layer as before. The guess (#2889) can take a mineral's own style column (MN_CPY_style: diss, vein …) as the
   // code: that is a property of one mineral, not a mineralization code, so the box is still offered
   if (target === "mnlgy" && mapping.value && !isMineralAmountColumn(mapping.value, headers) && !cols.some((c) => c.companions.includes(mapping.value))) return null;
@@ -73,11 +110,14 @@ export function perMineralOffer(target, headers, rows, mapping = {}) {
 // numeric layer per mineral; the default for a Custom layer); colourBy: "dominant" or one of the ticked columns
 export function perMineralChoice(modal, cols) {
   const withValues = (cols || []).filter((c) => c.n > 0).map((c) => c.col);
-  const ticked = (modal?.mineralCols ?? withValues).filter((c) => withValues.includes(c));
-  const sum = (modal?.mineralSum || []).filter((c) => withValues.includes(c));
-  const mode = modal?.mineralMode || (modal?.target === "custom" ? "layers" : "single");
-  const colourBy = ticked.includes(modal?.mineralColourBy) ? modal.mineralColourBy : "dominant";
-  return { cols: ticked, sum, mode, colourBy };
+  const comp = cols?.composition || null; // #3052
+  const mode = modal?.mineralMode || (comp || modal?.target !== "custom" ? "single" : "layers");
+  // #3052 — a composition's per-component layers start with none ticked (43 layers otherwise); its one layer takes every component
+  const ticked = (modal?.mineralCols ?? (comp && mode === "layers" ? [] : withValues)).filter((c) => withValues.includes(c));
+  const sum = comp ? [] : (modal?.mineralSum || []).filter((c) => withValues.includes(c));
+  const colourBy = !comp && ticked.includes(modal?.mineralColourBy) ? modal.mineralColourBy : "dominant";
+  const t = Number(modal?.mixedBelow), mixedBelow = comp ? (Number.isFinite(t) && t >= 0 && t <= 100 ? t : MIXED_BELOW) : null;
+  return { cols: ticked, sum, mode, colourBy, composition: comp, mixedBelow };
 }
 
 const MAX_PCT = 100;
@@ -155,23 +195,29 @@ export function singleMineralRows(allRows, mapping, plan, colourBy = "dominant")
       if (v > bestV) { bestV = v; best = c; }
     }
     if (!any || total <= 0) { none++; continue; }
+    if (plan.composition) { // #3052 — the dominant component, MIXED where it is under the threshold; the value is its share, not the total (100)
+      const code = bestV < plan.mixedBelow ? MIXED : componentCode(best, plan.composition.prefix);
+      rows.push({ ...r, [MIN_CODE_COL]: code, [MIN_TOTAL_COL]: String(Math.round(bestV * 1e6) / 1e6) });
+      continue;
+    }
     const code = colourBy === "dominant" ? mineralCode(best) : percentNumber(r?.[colourBy]) > 0 ? mineralCode(colourBy) : `No ${mineralCode(colourBy)}`;
     rows.push({ ...r, [MIN_CODE_COL]: code, [MIN_TOTAL_COL]: String(Math.round(total * 1e6) / 1e6) });
   }
-  const customFields = [];
+  const customFields = plan.composition ? [{ column: MIN_TOTAL_COL, name: "Dominant share (%)", type: "number" }] : []; // #3052
   for (const c of plan.cols) {
     customFields.push({ column: c.col, name: c.col, type: "number" });
     for (const t of c.companions || []) customFields.push({ column: t, name: t });
   }
-  return { rows, mapping: { ...mapping, value: MIN_CODE_COL, extra: MIN_TOTAL_COL }, customFields, none, outside };
+  // #3052 — a composition keeps its share as the field above; only the Mineralization layer has an amount of its own (extra)
+  return { rows, mapping: { ...mapping, value: MIN_CODE_COL, ...(!plan.composition || plan.target === "mnlgy" ? { extra: MIN_TOTAL_COL } : {}) }, customFields, none, outside };
 }
 
 // the import's plan from the dialog's data, or null when the box does not apply (or every mineral was unticked: the import is the value column)
 export function mineralPlan(target, headers, allRows, mapping, data) {
   const offer = perMineralOffer(target, headers, allRows, mapping);
   if (!offer) return null;
-  const { cols, sum, mode, colourBy } = perMineralChoice({ ...data, target }, offer);
+  const { cols, sum, mode, colourBy, composition, mixedBelow } = perMineralChoice({ ...data, target }, offer); // composition, mixedBelow: #3052
   if (mode === "single" ? !cols.length : !cols.length && sum.length < 2) return null;
   const pick = (col) => { const o = offer.find((c) => c.col === col); return { col, style: o?.style || null, companions: o?.companions || [] }; };
-  return { mode, colourBy, cols: cols.map(pick), sum: mode === "layers" && sum.length >= 2 ? sum : [], blank: offer.filter((c) => !c.n).map((c) => c.col) };
+  return { mode, colourBy, cols: cols.map(pick), sum: mode === "layers" && sum.length >= 2 ? sum : [], blank: offer.filter((c) => !c.n).map((c) => c.col), composition, mixedBelow, target };
 }
