@@ -303,7 +303,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
             <label style={fieldLabel} title={tr("A variogram assumes a common support — every sample the same volume. Compositing to a fixed length is what provides that; raw ragged intervals do not.")}>{tr("Composite length (m)")}<input type="number" min="0.1" step="any" value={compositeLength} onChange={(e) => setCompositeLength(Math.max(0.1, Number(e.target.value) || 2))} style={inp} />
               <CompositeLengthNote assays={srcAssays} symbol={symbol} length={compositeLength} onUse={(m) => { setCompositeLength(m); setResult(null); }} variogram />{/* #2549 */}
             </label>
-            <label style={fieldLabel} title={tr("Minimum fraction of a composite that must be covered by real assay material.")}>{tr("Min coverage (0-1)")}<input type="number" min="0" max="1" step="0.05" value={minCoverage} onChange={(e) => setMinCoverage(Math.min(1, Math.max(0, Number(e.target.value) || 0)))} style={inp} />
+            <label style={fieldLabel} title={tr("Minimum fraction of a composite that must be covered by real assay material.")}>{tr("Min coverage (%)")}<input type="number" min="0" max="100" step="1" value={Math.round(minCoverage * 100)} onChange={(e) => setMinCoverage(Math.min(100, Math.max(0, Number(e.target.value) || 0)) / 100)} style={inp} />{/* #3286 (7) — in %, as Estimation's */}
             </label>
             <label style={fieldLabel}>{tr("Domain layer")}<select value={domainKey} onChange={(e) => { setDomainKey(e.target.value); setDomainValue("__all__"); }} style={inp}>
                 <option value="">{tr("(none)")}</option>

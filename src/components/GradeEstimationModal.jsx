@@ -749,7 +749,8 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
     const set = result.params?.set; // #3014 — the set's models are added together, each named for its element and the set
     const p0 = result.params?.element || symbol, typed = !!modelName.trim();
     onAddModel({ name: set ? memberName(name, p0, p0, set, typed) : name, source: `estimate-${method}`, cells: result.cells, ...rampOf(result.cells), params: result.params }); // params: TASKS.csv #404
-    if (set) for (const m of result.members || []) if (m.cells.length) onAddModel({ name: memberName(name, p0, m.element, set, typed), source: `estimate-${method}`, cells: m.cells, ...rampOf(m.cells), params: m.params });
+    // TASKS.csv #3286 (5) — the set's other elements are added hidden: all shown, they share the blocks and each row warned 'the two colour each other's blocks'
+    if (set) for (const m of result.members || []) if (m.cells.length) onAddModel({ name: memberName(name, p0, m.element, set, typed), source: `estimate-${method}`, cells: m.cells, ...rampOf(m.cells), params: m.params, visible: false });
     setAdded(true);
   };
 
@@ -767,7 +768,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
             {numericSources.length > 0 && <label style={fieldLabel} title={tr("Assays, or a numeric downhole log / a numeric field of a custom layer, estimated like a grade")}>{tr("Source")}{/* #1741 */}
-              <select value={sourceKey} onChange={(e) => { const k = e.target.value, s = numericSources.find((x) => x.key === k); setSourceKey(k); setSymbol(s ? s.symbol : (assayElementsProp[0]?.symbol || "Au")); setLogValues(!!s?.logScale); setCapValue(NaN); setResult(null); }} style={inp}>
+              <select value={sourceKey} onChange={(e) => { const k = e.target.value, s = numericSources.find((x) => x.key === k); setSourceKey(k); if (s) setSymbolRaw(s.symbol); else setSymbol(preferredElement((assayElementsProp || []).map((x) => x.symbol), "estimate", lead) || assayElementsProp[0]?.symbol || "Au"); /* #3286 (1) — a log's name is not remembered as the element (setSymbol still saw Assays and overwrote Mn with it), and back on Assays the remembered element returns, as on opening */ setLogValues(!!s?.logScale); setCapValue(NaN); setResult(null); }} style={inp}>
                 <option value="assay">{tr("Assays")}</option>
                 {numericSources.map((s) => <option key={s.key} value={s.key}>{tr("{label} ({n} readings)", { label: s.label, n: s.n.toLocaleString() })}</option>)}
               </select>
@@ -1184,6 +1185,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
                   <input placeholder={modelName.trim() ? "" : resultName() /* #1737 — the name the result will get, not the form's current settings */} value={modelName} onChange={(e) => { setModelName(e.target.value); setAdded(false); setAddedSupport(false); }} style={{ ...inp, flex: 1, width: "auto" }} />
                   <button type="button" onClick={() => setGtOpen(true)} style={{ ...btn(false), padding: "7px 12px", width: "auto" }} title={tr("Tonnage and mean grade above a series of cutoffs, for this result (an exploration target, not a Mineral Resource)")}>{tr("Grade-tonnage…")}</button>{/* #1577 */}
                   <button onClick={addToProject} style={{ ...btn(true), padding: "7px 12px" }}>{added ? tr("Added ✓") : result.params?.set ? tr("Add the set ({n} block models)", { n: result.params.set.elements.length }) /* #3014 */ : result.supportCounts ? tr("Add as block model ({pct}% interpolated)", { pct: Math.round((100 * result.supportCounts.interpolated) / Math.max(1, result.blocksEstimated)) }) : tr("Add as block model")}</button>{/* pct: TASKS.csv #1573 */}
+                  {added && result.params?.set && <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("{el} is shown; the set's other elements are added hidden: they share the blocks, so show one at a time.", { el: result.params.element || symbol })}</span>}{/* #3286 (5) */}
                 </div>
               )}
               {/* TASKS.csv #92 — the index as its own block model. This IS the "where is this model
@@ -1217,7 +1219,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
                 : <>{tr("The search follows the structural trend \"{name}\" (an ellipsoid; change it in 3D Modelling → Model settings → Structural trends), there is", { name: trend.name })}</>)
               : <>{tr("The search is")}{" "}<strong>{tr("isotropic")}</strong>{" "}{tr("(a plain sphere — choose a trend for block estimation in 3D Modelling → Model settings → Structural trends to make it an ellipsoid), there is")}</>}{" "}{method === "ok" /* #1098 — kriging HAS a variogram */
                 ? tr("no declustering and no resource classification. Domain control applies only if you both select a domain layer and tick \"restrict the interpolation search\"; high-grade capping applies only if you enter a cap. Every one of those is an assumption you are making, not a property of the data.")
-                : tr("no declustering, no variogram, and no resource classification. Domain control applies only if you both select a domain layer and tick \"restrict the interpolation search\"; high-grade capping applies only if you enter a cap. Every one of those is an assumption you are making, not a property of the data.")}</div>
+                : tr("no declustering, no variogram (the method chosen uses none; ordinary kriging does), and no resource classification. Domain control applies only if you both select a domain layer and tick \"restrict the interpolation search\"; high-grade capping applies only if you enter a cap. Every one of those is an assumption you are making, not a property of the data.") /* #3286 (8) — said for the method chosen */}</div>
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>

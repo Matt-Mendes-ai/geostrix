@@ -253,7 +253,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
           <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 10 }}>
             <thead><tr>
               <th style={th}>{tr("Bench floor (m)")}</th><th style={th}>{tr("Blocks")}</th><th style={th}>{tr("Volume (m³)")}</th><th style={th}>{unitL ? tr("Mean grade ({unit})", { unit: unitL }) : tr("Mean grade")}</th>
-              {tonnesOn && <th style={th}>{tr("Tonnes")}</th>}{tonnesOn && mcols.map((c) => <th key={c.key} style={th}>{tr(c.label, c.args)}</th>)}
+              {tonnesOn && <th style={th}>{tr("Tonnes")}</th>}{tonnesOn && mcols.map((c) => <th key={c.key} style={th}>{element ? memberMetalLabel(c, element) : tr(c.label, c.args)}</th>)/* #3286 (4) */}
               {hasSupport && <th style={th}>{tr("Interpolated")}</th>}
               {noDensBench && <th style={th} title={tr("Blocks at this cutoff with no density: left out of the row (its blocks, volume, grade and tonnes)")}>{tr("No density")}</th>}{/* #3270 */}
             </tr></thead>
@@ -270,7 +270,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
         <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 10 }}>
           <thead><tr>
             <th style={th}>{unitL ? tr("Cutoff ({unit})", { unit: unitL }) : tr("Cutoff")}</th><th style={th}>{tr("Blocks")}</th><th style={th}>{tr("Volume (m³)")}</th><th style={th}>{unitL ? tr("Mean grade ({unit})", { unit: unitL }) : tr("Mean grade")}</th>
-            {tonnesOn && <th style={th}>{tr("Tonnes")}</th>}{tonnesOn && mcols.map((c) => <th key={c.key} style={th}>{tr(c.label, c.args)}</th>)}
+            {tonnesOn && <th style={th}>{tr("Tonnes")}</th>}{tonnesOn && mcols.map((c) => <th key={c.key} style={th}>{element ? memberMetalLabel(c, element) : tr(c.label, c.args)}</th>)/* #3286 (4) */}
             {hasSupport && <th style={th} title={tr("Share of the volume in blocks the estimate classed interpolated (between holes, from at least two)")}>{tr("Interpolated")}</th>}
             {beyondKnown && <th style={th} title={tr("Share of the metal in blocks lying wholly above or below every sample that informs them: grade carried up or down the holes into metres their samples do not reach")}>{tr("Beyond the samples")}</th>}
             {logKnown && <th style={th} title={tr("About the share of the metal from the readings of the log that filled the unsampled metres: neither a sample nor a typed barren value")}>{tr("From the log")}</th>}{/* #2721 */}

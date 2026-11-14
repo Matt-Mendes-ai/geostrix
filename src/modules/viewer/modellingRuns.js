@@ -2663,7 +2663,10 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // the "Cu > 1000 ppm" shell closed where two holes converge, 90-110 m away, and held no composite at all.
         const inShell = samplesInsideShell(gridPoints, grid, gsCap.values, numericCutoff);
         // TASKS.csv #2757 — the shell's share more than one hole spacing from every sample (real frame), as the unit body says it
-        const gsSpacing = autoHaloParams(collars.filter((c) => holesOfPoints.has(c.hole_id)), tracesRef.current || null).spacing;
+        // TASKS.csv #3286 (2) — the spacing Estimation and this pane's search say (holeSpacingSummary: the typical distance from a site to the next);
+        // the halo rule's own spacing gave 160 m beside Estimation's 200 m for the same 14 holes
+        const gsCollars = collars.filter((c) => holesOfPoints.has(c.hole_id));
+        const gsSpacing = (await import("../../lib/holeSpacing.js")).holeSpacingSummary(gsCollars)?.medianM || autoHaloParams(gsCollars, tracesRef.current || null).spacing;
         const gsBeyond = gsSpacing > 0 ? (await import("../../lib/haloSupport.js")).farFromSamples(gsCap.values, grid.nx, grid.ny, grid.nz, grid.origin, grid.cellSize, numericCutoff, points, gsSpacing, { toReal: anisotropy.enabled ? (q) => anisoWarpPoint(q, gsCenter, gsBasis, invScales(gsScl)) : null }) : null;
 
         const o = originRef.current;

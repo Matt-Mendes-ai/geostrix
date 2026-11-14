@@ -28,7 +28,8 @@ test("the unit body and the grade shell report it", () => {
   assert.match(r, /const sayBeyond = !!\(beyondSp && beyondSp\.inside && beyondSp\.share >= 0\.05\);/);
   assert.match(r, /\(beyondSp\.share >= 0\.5 \? errorNotice : notice\)\(tr\("\\"\{label\}\\": \{p\}% of its volume lies more than one hole spacing \(\{s\} m\) from any logged interval/);
   assert.match(r, /if \(farLogs\.inside && \(!sayBeyond \|\| farLogs\.dist < 0\.9 \* auto\.spacing\)\)/, "#1740's line kept when it measures a shorter distance");
-  assert.match(r, /const gsSpacing = autoHaloParams\(collars\.filter\(\(c\) => holesOfPoints\.has\(c\.hole_id\)\), tracesRef\.current \|\| null\)\.spacing;/);
+  // TASKS.csv #3286 (2) — the spacing Estimation says (holeSpacingSummary), the halo rule's only as a fallback
+  assert.match(r, /const gsSpacing = \(await import\("\.\.\/\.\.\/lib\/holeSpacing\.js"\)\)\.holeSpacingSummary\(gsCollars\)\?\.medianM \|\| autoHaloParams\(gsCollars, tracesRef\.current \|\| null\)\.spacing;/);
   assert.match(r, /farFromSamples\(gsCap\.values, grid\.nx, grid\.ny, grid\.nz, grid\.origin, grid\.cellSize, numericCutoff, points, gsSpacing,/);
   assert.match(r, /beyondDrilling: \{ share: \+gsBeyond\.share\.toFixed\(3\), holeSpacingM: Math\.round\(gsSpacing\) \}/);
 });
