@@ -12665,5 +12665,9 @@
   "Added: {t}. Choose it for block estimation in Trends.": "أُضيف: {t}. اختره لتقدير الكتل في الاتجاهات.",
   "younger than its neighbours in the logs": "أحدث من جاراتها في السجلات",
   "older than its neighbours in the logs": "أقدم من جاراتها في السجلات",
-  "Swath plots for {el}": "مخططات الشرائح لـ {el}"
+  "Swath plots for {el}": "مخططات الشرائح لـ {el}",
+  "Selecting a domain above only stops a single composite from spanning two domains. It does NOT stop the interpolation search itself from drawing samples across a contact or a fault — that search is {shape} through all the data, so grade will be smeared across geological boundaries. Tick the box above to restrict the search too.": "اختيار نطاق أعلاه يمنع فقط أن يمتد مركّب واحد عبر نطاقين. ولا يمنع بحث الاستيفاء نفسه من أخذ عينات عبر تماس أو صدع: هذا البحث هو {shape} عبر كل البيانات، لذا سيتوزع العيار عبر الحدود الجيولوجية. حدّد المربع أعلاه لتقييد البحث أيضًا.",
+  "the ellipsoid above": "الإهليلجي أعلاه",
+  "a plain sphere": "كرة بسيطة",
+  "A setting has changed since this result was run: it is shown greyed. Run again to refresh it.": "تغيّر إعداد منذ إنتاج هذه النتيجة: تظهر باهتة. شغّل من جديد لتحديثها."
 }

@@ -12665,5 +12665,9 @@
   "Added: {t}. Choose it for block estimation in Trends.": "Agregada: {t}. Elíjala para la estimación de bloques en Tendencias.",
   "younger than its neighbours in the logs": "más joven que sus vecinas en los registros",
   "older than its neighbours in the logs": "más antigua que sus vecinas en los registros",
-  "Swath plots for {el}": "Gráficos de franjas de {el}"
+  "Swath plots for {el}": "Gráficos de franjas de {el}",
+  "Selecting a domain above only stops a single composite from spanning two domains. It does NOT stop the interpolation search itself from drawing samples across a contact or a fault — that search is {shape} through all the data, so grade will be smeared across geological boundaries. Tick the box above to restrict the search too.": "Seleccionar un dominio arriba solo evita que un único composito abarque dos dominios. NO evita que la búsqueda de interpolación tome muestras a través de un contacto o una falla: esa búsqueda es {shape} a través de todos los datos, por lo que la ley se dispersará entre límites geológicos. Marque la casilla de arriba para restringir también la búsqueda.",
+  "the ellipsoid above": "el elipsoide de arriba",
+  "a plain sphere": "una esfera simple",
+  "A setting has changed since this result was run: it is shown greyed. Run again to refresh it.": "Un ajuste cambió desde que se obtuvo este resultado: se muestra atenuado. Ejecute de nuevo para actualizarlo."
 }
