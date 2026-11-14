@@ -3,12 +3,12 @@ import CompositeLengthNote from "./CompositeLengthNote.jsx"; // TASKS.csv #2549
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { makeVariogramClient } from "../lib/variogramClient.js"; // TASKS.csv #3009 — the pair loop in a worker
 import { X, Play } from "./icons.js";
-import { compositeDownhole, gradeUnitLabel } from "../lib/geochem.js"; // gradeUnitLabel: #2429
+import { gradeUnitLabel } from "../lib/geochem.js";
+import { compositeDownholeSliced, samplePointsSliced } from "../lib/compositeSliced.js"; // TASKS.csv #3111 — compositing and placing in slices of holes // gradeUnitLabel: #2429
 import { sendVariogramToEstimation } from "../lib/estimateMemory.js"; // TASKS.csv #3273
 import { excludeQAQC, labAssays } from "../lib/qaqc.js"; // TASKS.csv #266 — same QAQC exclusion the estimator uses; labAssays: #1744
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #2552
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2552
-import { samplePointsFromIntervals } from "../lib/estimation.js";
 import { makeRunCache } from "../lib/runCache.js"; // TASKS.csv #3061
 import { desurveyHole } from "../lib/desurvey.js";
 import {
@@ -154,18 +154,21 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
     setTimeout(async () => {
       try {
         // TASKS.csv #3061 — composited and placed once per element / length / coverage / domain layer / unsampled reading / hole mode
-        const comp = compCache.current.get([srcAssays, uns.ready, uns.mode, uns.value, uns.logKey, uns.logFactor, uns.alsoUnassayed, layers, customLayers, symbol, unit, elementUnits, compositeLength, minCoverage, domainChoice ? domainChoice.rows : null, collars, survey, desurveyMethod, holeMode], () => {
+        const comp = (await compCache.current.getAsync([srcAssays, uns.ready, uns.mode, uns.value, uns.logKey, uns.logFactor, uns.alsoUnassayed, layers, customLayers, symbol, unit, elementUnits, compositeLength, minCoverage, domainChoice ? domainChoice.rows : null, collars, survey, desurveyMethod, holeMode], async () => {
           const filled = uns.apply(srcAssays); // #2417 / #2542 — barren: the unsampled metres filled at the typed value
-          const intervals = compositeDownhole(filled.assays, symbol, unit, elementUnits, {
+          // TASKS.csv #3111 — the first Compute for an element / length / domain froze the window about 1 s on 147,000 samples: the compositing
+          // and the placing now run in slices of whole holes, a task each (the same composites and points)
+          const intervals = await compositeDownholeSliced(filled.assays, symbol, unit, elementUnits, {
             length: compositeLength, minCoverage,
             domainRows: domainChoice ? domainChoice.rows : null, // #1571
           });
           if (!intervals.length) return { filled, intervals };
-          const { points: placed3d, dropped: dropped3d } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole, desurveyMethod); // #135
+          await new Promise((r) => setTimeout(r, 0));
+          const { points: placed3d, dropped: dropped3d } = await samplePointsSliced(intervals, collars, survey, desurveyHole, desurveyMethod); // #135
           // TASKS.csv #1843 — Downhole only needs depths: the holes that could not be placed in 3D are placed by depth along the hole
           const byDepth = holeMode === "downhole" ? downholeLinePoints(intervals, new Set(placed3d.map((p) => p.hole_id))) : { points: [], holes: 0 };
           return { filled, intervals, byDepth, allPoints: byDepth.points.length ? [...placed3d, ...byDepth.points] : placed3d, dropped: Math.max(0, dropped3d - byDepth.points.length) };
-        }).value;
+        })).value;
         const { filled, intervals, byDepth, allPoints, dropped } = comp;
         if (!intervals.length) { setError(tr("Compositing produced no intervals — check the element and composite length.")); setRunning(false); return; }
         if (!allPoints.length) { setError(collars.length ? tr("No composite could be placed in 3D — check that holes have collars and (ideally) survey data.") : noCollarsNotice(tr("the variogram"), layers, srcAssays).text); setRunning(false); return; } // #1841 — no collars at all: say what is waiting

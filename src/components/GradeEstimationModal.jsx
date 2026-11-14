@@ -5,14 +5,14 @@ import { belowDrilling } from "../lib/belowDrilling.js"; // TASKS.csv #2546
 import { buildMeshQuery, isPointInsideMesh, isMeshClosed } from "../lib/meshQuery.js"; // TASKS.csv #517
 import { validateSolid } from "../lib/meshValidate.js"; // TASKS.csv #860
 import { X, Play } from "./icons.js";
-import { compositeDownholeSliced } from "../lib/compositeSliced.js"; // TASKS.csv #3105 — compositing in slices of holes
+import { compositeDownholeSliced, samplePointsSliced } from "../lib/compositeSliced.js"; // TASKS.csv #3105 — compositing in slices of holes; placing: #3111
 import { rawSampleIntervals, PRECIOUS_METALS, capAudit, lengthWeightedPercentile, gradeUnitLabel, resolvedSegments } from "../lib/geochem.js"; // gradeUnitLabel: #2218; // rawSampleIntervals: #571; lengthWeightedPercentile: #1573
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import EstimateCheck from "./EstimateCheck.jsx"; // TASKS.csv #1051
 import { NEAR_UNSAMPLED_HOLES } from "../lib/unsampledFlags.js"; // TASKS.csv #3065
 import { estimateCheck, swath } from "../lib/estimateCheck.js"; // TASKS.csv #3060 — worked out during the run
 import { excludeQAQC, labAssays } from "../lib/qaqc.js"; // TASKS.csv #266
-import { samplePointsFromIntervals, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport, supportInReach, supportBeyondReach, retallyKeptCells } from "../lib/estimation.js"; // retallyKeptCells: #2106
+import { MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport, supportInReach, supportBeyondReach, retallyKeptCells } from "../lib/estimation.js"; // retallyKeptCells: #2106
 import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit, blockModelLattice, snapBoundsToLattice, overlapBox, blockModelExtent /* #2729 */ } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
 import { runEstimation } from "../lib/estimationClient.js"; // TASKS.csv #520 — off the UI thread
 import { memberCapProposal } from "../lib/memberCaps.js"; // TASKS.csv #3271
@@ -471,7 +471,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           rawStats = raw.stats;
         }
         await new Promise((r) => setTimeout(r, 0)); // TASKS.csv #3060 — compositing, placing the points and the unsampled metres were one ~1 s task: the window paints between them
-        let { points, dropped, clamped, beyondTrace } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole, desurveyMethod); // #135
+        let { points, dropped, clamped, beyondTrace } = await samplePointsSliced(intervals, collars, survey, desurveyHole, desurveyMethod); // #135; in slices of holes: #3111 (#3105's follow-up)
         // TASKS.csv #2721 — each composite's share of its metres filled from the picked log (its value is partly the log's)
         const logFills = uns.mode === "log" ? (filled.fills || []).filter((f) => f.unsampledFill === "log") : [];
         if (logFills.length) {
@@ -660,7 +660,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           const fm = unsM.apply(srcAssays), rows = fm.assays;
           const mCapN = Number(memberCapOf(el)), mCap = mCapN > 0 ? mCapN : null; // #3271
           const iv = useComposites ? await compositeDownholeSliced(rows, el, u, elementUnits, { length: compositeLength, minCoverage, capValue: mCap, domainRows: domainRowsSel }, { signal: ac.signal }) /* #3105 */ : rawSampleIntervals(rows, el, u, elementUnits, { capValue: mCap }).intervals;
-          let mp = samplePointsFromIntervals(iv, collars, survey, desurveyHole, desurveyMethod).points;
+          let mp = (await samplePointsSliced(iv, collars, survey, desurveyHole, desurveyMethod, { signal: ac.signal })).points; // #3111
           if (inShell) mp = mp.filter((q) => inShell(q));
           if (!mp.length) { members.push({ ...memberSummary(el, u, [], 0), cells: [], cap: mCap }); continue; }
           const mUns = unsampledPointsFor(rows, el, u);

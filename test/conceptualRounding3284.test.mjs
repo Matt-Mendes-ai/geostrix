@@ -32,3 +32,13 @@ test("the CSV keeps the whole figures", () => {
     for (const k of ["Exact: {v}. Shown to three significant figures: a conceptual figure; the CSV keeps it whole.", "Tonnes and metal are shown to three significant figures (hover a figure for the exact sum; the CSV keeps it whole): they are conceptual."]) assert.ok(d[k], `${l}: ${k}`);
   }
 });
+
+test("the shell card: one volume figure, the grade to four figures, the tonnage to three, exact on hover", () => {
+  const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  assert.match(v, /\{tr\("Volume:"\)\}\{" "\}<strong title=\{`\$\{Math\.round\(expandedSurfaceVolume\.volumeM3\)\.toLocaleString\(\)\} m³`\}>\{Number\(expandedSurfaceVolume\.volumeM3\.toPrecision\(3\)\)\.toLocaleString\(\)\} m³<\/strong>/);
+  assert.match(v, /vol: <span title=\{`\$\{Math\.round\(expandedSurfaceVolume\.volumeM3\)\.toLocaleString\(\)\} m³`\}>\{Number\(expandedSurfaceVolume\.volumeM3\.toPrecision\(3\)\)\.toLocaleString\(\)\}<\/span>/);
+  assert.match(v, /<strong title=\{String\(s\.params\.meanGradeInShell\)\}>\{Number\(s\.params\.meanGradeInShell\.toPrecision\(4\)\)\.toLocaleString\(\)\}/);
+  assert.ok(!v.includes("s.params.meanGradeInShell.toFixed(3)"));
+  const t = readFileSync(new URL("../src/modules/viewer/SurfaceTonnage.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  assert.match(t, /\{tr\("Tonnage:"\)\}\{" "\}<strong title=\{`\$\{Math\.round\(tonnage\)\.toLocaleString\(\)\} t`\}>\{Number\(tonnage\.toPrecision\(3\)\)\.toLocaleString\(\)\} t<\/strong>/);
+});

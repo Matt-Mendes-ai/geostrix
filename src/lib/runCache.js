@@ -11,6 +11,13 @@ export function makeRunCache() {
       value = compute(); deps = nextDeps.slice();
       return { value, hit: false };
     },
+    // TASKS.csv #3111 — the same, for a compute that awaits (compositing in slices); deps are taken when the value lands
+    async getAsync(nextDeps, compute) {
+      if (deps && same(deps, nextDeps)) return { value, hit: true };
+      const v = await compute();
+      value = v; deps = nextDeps.slice();
+      return { value, hit: false };
+    },
     clear() { deps = null; value = undefined; },
   };
 }
