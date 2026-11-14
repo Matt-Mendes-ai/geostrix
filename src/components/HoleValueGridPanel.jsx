@@ -114,7 +114,8 @@ export default function HoleValueGridPanel() {
           {isDepth && <label style={lbl}>{tr("Depth")}<select value={depthAs} onChange={(e) => setDepthAs(e.target.value)} aria-label={tr("How the depth is measured")} style={inp}>
             <option value="along">{tr("Down the hole (from the collar)")}</option><option value="vertical">{tr("Vertical, below the collar")}</option>
           </select></label>}
-          {st === "firstOver" && <label style={lbl}>{tr("Threshold ({unit})", { unit: source.unit || tr("as logged") })}<input type="number" value={threshold} onChange={(e) => setThreshold(e.target.value)} aria-label={tr("Threshold")} style={inp} /></label>}
+          {st === "firstOver" && <label style={lbl}>{tr("Threshold ({unit})", { unit: source.unit || tr("as logged") })}<input type="number" value={threshold} onChange={(e) => { setThreshold(e.target.value); setMsg(null); }} aria-label={tr("Threshold")} style={inp} /></label>}
+          {st === "firstOver" && threshold === "" && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)" }}>{tr("Type the threshold the depth is measured to: Grid to raster stays off until it is typed.")}</div>}{/* TASKS.csv #3459 */}
           {st !== "firstOver" && !coded && <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-xs)", cursor: "pointer" }}><input type="checkbox" checked={log} onChange={(e) => setLogChoice(e.target.checked)} />{tr("Interpolate log10 of the values")}</label>}
           <div style={{ display: "flex", gap: 5 }}>
             <label style={lbl}>{tr("Method")}<select value={method} onChange={(e) => setMethod(e.target.value)} aria-label={tr("Gridding method")} style={inp}>

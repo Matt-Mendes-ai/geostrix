@@ -112,7 +112,7 @@ export function kmlToMapLayers(features) {
 // Placemark's name and ExtendedData / SchemaData, and whether it is a polygon, so a claims KML gives one claim per Placemark with its
 // tenure number, status and expiry (lib/boundaryImport.js claimsFromVector), as a shapefile does
 export function kmlToProjectPolylines(features, epsg, { includePoints = false, toLocal = null } = {}) {
-  const polylines = [], featureOf = [], attributes = [], closedFlags = [], byPlacemark = new Map();
+  const polylines = [], featureOf = [], attributes = [], closedFlags = [], byPlacemark = new Map(), partNames = [];
   let failed = 0;
   features.forEach((f, k) => {
     if (f.geomType === "point" && !includePoints) return;
@@ -126,8 +126,9 @@ export function kmlToProjectPolylines(features, epsg, { includePoints = false, t
     const key = f.placemark ?? `f${k}`;
     if (!byPlacemark.has(key)) { byPlacemark.set(key, attributes.length); attributes.push({ ...(f.name ? { name: f.name } : {}), ...(f.attrs || {}) }); }
     polylines.push(pts); featureOf.push(byPlacemark.get(key)); closedFlags.push(f.geomType === "polygon");
+    partNames.push(f.name ? String(f.name) : ""); // TASKS.csv #3454 — the Placemark's name as the part's name, as the GeoJSON route keeps its feature's (#1767)
   });
-  return { polylines, failed, featureOf, attributes, closedFlags };
+  return { polylines, failed, featureOf, attributes, closedFlags, ...(partNames.some(Boolean) ? { partNames } : {}) };
 }
 
 // Flat rows for the general vector importer (lon/lat, left for its own source-CRS reprojection as
