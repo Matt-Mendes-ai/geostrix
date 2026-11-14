@@ -8,6 +8,7 @@ import { useStore } from "../lib/store.jsx";
 import { surveyKey } from "../lib/geophysSurveys.js";
 import { attitudeOf, attitudeAttrs, INTERPRETATION_TYPES, CONFIDENCE, NEW_LAYER, chooseLayerId, uniqueLayerName, typeLabel, isInterpretationLayer, interpretationLayer, addInterpretationLine, removeInterpretationLine, restoreInterpretationLine, lineLengthM, moveInterpretationVertex, insertInterpretationVertex, removeInterpretationVertex } from "../lib/interpretation.js";
 import { useInterpretVertexEdit } from "./useInterpretVertexEdit.js"; // TASKS.csv #2767
+import { setInterpretSnapExtras } from "../lib/viewer/interpretSnap.js"; // TASKS.csv #3044
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { collarGround } from "../lib/pitShell.js"; // TASKS.csv #2768
 import { interpretationOnCollars } from "../lib/viewer/sceneBuilders.js";
@@ -22,7 +23,7 @@ const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "sp
 // drawing: the 3D view's state { on, points: [{ x, y, z }], finishSeq }; onStart / onUndo / onCancel / onDone drive it.
 // presetSurvey: the survey a Geophysics-tab button named (TASKS.csv #1152), or null.
 export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDone, presetSurvey, onClose, onSnap = null, view = null, snapCtx = null }) { // view / snapCtx: #2767
-  const { mapLayers, addMapLayer, updateMapLayer, layers, rasters, terrain, collars, survey: holeSurvey, voxelModels, surfaceSamples } = useStore(); // holeSurvey: the drillhole survey, not the geophysics one picked below
+  const { mapLayers, addMapLayer, updateMapLayer, layers, rasters, terrain, collars, survey: holeSurvey, voxelModels, surfaceSamples, surfaceStructures } = useStore(); // surfaceStructures: #3044 // holeSurvey: the drillhole survey, not the geophysics one picked below
   // TASKS.csv #2269 — no terrain and no grid shown for the clicks to land on: they fall on the scene's origin plane, so the lines go at a
   // stated plan elevation instead (on a shown grid the clicks keep its elevation, as before)
   const plan = useMemo(() => (terrain || (rasters || []).some((r) => r.visible !== false) ? null : planElevation({ collars, survey: holeSurvey, voxelModels, surfaceSamples })), [terrain, rasters, collars, holeSurvey, voxelModels, surfaceSamples]);
@@ -77,6 +78,18 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
   const onCollars = interpretationOnCollars(layer || { interpretation: true }, terrain, collars);
   const collarG = useMemo(() => (onCollars ? collarGround(collars) : null), [onCollars, collars]);
   const groundAt = useMemo(() => (terrain ? (x, y) => terrainGroundAt(terrain, x, y) : collarG), [terrain, collarG]);
+  // TASKS.csv #3044 — a click also snaps to a vertex of a shown map layer or an outcrop station (lib/viewer/interpretSnap.js): each on the ground
+  // its layer is drawn on (its own z, else the terrain / the collars' ground, else its Elev.)
+  const snapExtras = useMemo(() => {
+    const points = [], MAX = 200000, zAt = (x, y, z, flat) => { if (Number.isFinite(z)) return z; const g = groundAt ? groundAt(x, y) : NaN; return Number.isFinite(g) ? g : flat; };
+    for (const l of mapLayers || []) {
+      if (l.visible === false || points.length >= MAX) continue;
+      for (const f of l.features || []) for (const part of f.parts || (f.geometry ? [f.geometry] : [])) for (const v of part || []) if (Array.isArray(v) && points.length < MAX) points.push({ x: v[0], y: v[1], z: zAt(v[0], v[1], l.drapeMode === "file" ? v[2] : NaN, l.elevation || 0), label: l.name, kind: "vertex" });
+    }
+    for (const st of surfaceStructures || []) if (st.visible !== false) for (const r of st.rows || []) if (Number.isFinite(r.x) && Number.isFinite(r.y) && points.length < MAX) points.push({ x: r.x, y: r.y, z: zAt(r.x, r.y, r.z, 0), label: r.station || st.name, kind: "station" });
+    return { points };
+  }, [mapLayers, surfaceStructures, groundAt]);
+  useEffect(() => { setInterpretSnapExtras(snapExtras); return () => setInterpretSnapExtras(null); }, [snapExtras]);
   useInterpretVertexEdit({ view, layer: editIdx != null ? layer : null, index: editIdx, groundAt, snap: { on: drawing.snap !== false, ctx: snapCtx },
     onMove: (vi, xy, tie) => { if (layer) updateMapLayer(layer.id, (l) => ({ ...moveInterpretationVertex(l, editIdx, vi, xy, tie), id: layer.id })); },
     onInsert: (at, xy, tie) => { if (layer) updateMapLayer(layer.id, (l) => ({ ...insertInterpretationVertex(l, editIdx, at, xy, tie), id: layer.id })); }, // #2784
