@@ -23,10 +23,11 @@ export function useImportPipeline(ctx) {
   const importActiveRef = useRef(false); // #229 — one queue at a time
   const assayHandoffRef = useRef([]); // #1350
   const surfaceHandoffRef = useRef(new Set()); // #2268
+  const queueLogRef = useRef(null); // TASKS.csv #3071 — what became of each file of a multi-file drop: [{ name, outcome }], null outside one
   const dropOriginRef = useRef(null); // TASKS.csv #2660 — the tab a drop came from (Maps), for Cancel
   const [sampleLoading, setSampleLoading] = useState(false);
   const env = useRef(null);
-  env.current = { ctx, h: { addVoxelModel, fillCodeDictionary, recordImportLeftOut, storeAssays, layerPicker, setLayerPicker, batchRowsRef, commitBusyRef, importQueueRef, importQueueTotalRef, importActiveRef, assayHandoffRef, surfaceHandoffRef, sampleLoading, setSampleLoading } };
+  env.current = { ctx, h: { addVoxelModel, fillCodeDictionary, recordImportLeftOut, storeAssays, layerPicker, setLayerPicker, batchRowsRef, commitBusyRef, importQueueRef, importQueueTotalRef, importActiveRef, assayHandoffRef, surfaceHandoffRef, queueLogRef, sampleLoading, setSampleLoading } };
   // the body, built with the latest render's values, then the call; a failed chunk load is said, not swallowed
   const run = (fn) => loadImportPipeline().then((m) => fn(m.makeImportPipeline(env.current.ctx, env.current.h)), (e) => { setNotices((p) => [...p, errorNotice(String(e?.message || e))]); });
   useEffect(() => { // loaded on an idle moment after launch, so the first import does not wait for it
@@ -49,6 +50,7 @@ export function useImportPipeline(ctx) {
   // file of a drop made elsewhere goes back to that tab; a commit stays here (the data is drawn here)
   const cancelImport = () => {
     setImportModal(null);
+    const asked = (queueLogRef.current || []).filter((e) => e.outcome === "asked").pop(); if (asked) asked.outcome = "cancelled"; // #3071
     const back = !importQueueRef.current.length ? dropOriginRef.current : null;
     processImportQueue();
     if (back) { dropOriginRef.current = null; goToModule(back); }

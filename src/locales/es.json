@@ -12151,5 +12151,12 @@
   "Collars only ({c}): surveyed, usually": "Solo collares ({c}): levantados topográficamente, por lo general",
   "Samples only ({s}): GPS heights are rough": "Solo muestras ({s}): las alturas GPS son aproximadas",
   "Checking the values… {pct}%": "Revisando los valores… {pct}%",
-  "The values are being checked for negatives, zeros and empty cells: the questions below depend on them.": "Se están revisando los valores en busca de negativos, ceros y celdas vacías: las preguntas de abajo dependen de ello."
+  "The values are being checked for negatives, zeros and empty cells: the questions below depend on them.": "Se están revisando los valores en busca de negativos, ceros y celdas vacías: las preguntas de abajo dependen de ello.",
+  "{n} files dropped: {parts}.": "{n} archivos soltados: {parts}.",
+  "imported {n}: {list}": "importados {n}: {list}",
+  "map layers {n}: {list}": "capas de mapa {n}: {list}",
+  "to the Geochem import {n}: {list}": "a la importación de Geoquímica {n}: {list}",
+  "cancelled {n}: {list}": "cancelados {n}: {list}",
+  "not imported {n}: {list}": "no importados {n}: {list}",
+  "The Geochem tab opens next, for the assay file(s).": "A continuación se abre la pestaña Geoquímica, para el o los archivos de ensayes."
 }
