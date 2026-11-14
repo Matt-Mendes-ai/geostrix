@@ -12168,5 +12168,8 @@
   "{header} (median {median} ppm; the crust averages about {crust} ppm)": "{header} (الوسيط {median} ppm؛ متوسط القشرة نحو {crust} ppm)",
   "Read these {n} as ppb": "اقرأ هذه الأعمدة الـ{n} بوحدة ppb",
   "Read {header} as ppb": "اقرأ {header} بوحدة ppb",
-  "{list}: a partial (soluble) digest by the lab code in the header, kept as a measurement of its own, not as another method of the total.": "{list}: هضم جزئي (قابل للذوبان) بحسب رمز المختبر في العنوان، يُحتفظ به قياسًا مستقلًا لا طريقةً أخرى للإجمالي."
+  "{list}: a partial (soluble) digest by the lab code in the header, kept as a measurement of its own, not as another method of the total.": "{list}: هضم جزئي (قابل للذوبان) بحسب رمز المختبر في العنوان، يُحتفظ به قياسًا مستقلًا لا طريقةً أخرى للإجمالي.",
+  "≥ {min} {unit}": "≥ {min} {unit}",
+  "{min}–{max} {unit}": "{min}–{max} {unit}",
+  "The physical range of a reading in {unit} (the column name states the unit): click to use it as the valid range.": "النطاق الفيزيائي لقراءة بوحدة {unit} (يذكر اسم العمود الوحدة): انقر لاستخدامه نطاقًا صالحًا."
 }

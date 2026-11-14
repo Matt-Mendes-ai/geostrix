@@ -12168,5 +12168,8 @@
   "{header} (median {median} ppm; the crust averages about {crust} ppm)": "{header} (mediana {median} ppm; a crosta tem em média cerca de {crust} ppm)",
   "Read these {n} as ppb": "Ler estas {n} em ppb",
   "Read {header} as ppb": "Ler {header} em ppb",
-  "{list}: a partial (soluble) digest by the lab code in the header, kept as a measurement of its own, not as another method of the total.": "{list}: uma digestão parcial (solúvel) pelo código de laboratório no cabeçalho, mantida como uma medição própria, não como outro método do total."
+  "{list}: a partial (soluble) digest by the lab code in the header, kept as a measurement of its own, not as another method of the total.": "{list}: uma digestão parcial (solúvel) pelo código de laboratório no cabeçalho, mantida como uma medição própria, não como outro método do total.",
+  "≥ {min} {unit}": "≥ {min} {unit}",
+  "{min}–{max} {unit}": "{min}–{max} {unit}",
+  "The physical range of a reading in {unit} (the column name states the unit): click to use it as the valid range.": "A faixa física de uma leitura em {unit} (o nome da coluna indica a unidade): clique para usá-la como faixa válida."
 }

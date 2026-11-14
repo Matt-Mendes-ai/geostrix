@@ -16,6 +16,16 @@ export function implausibleReadings(values, unit) {
   for (const v of values || []) if (Number.isFinite(v) && (v < lo || (hi != null && v > hi))) n++;
   return n ? { n, rule, lo, hi, unit: u } : null;
 }
+// TASKS.csv #3158 (from #3041) — a valid range offered for a channel only when its column name states the unit, from the same physical bounds
+// (#2953): a density in g/cc 1 to 5 (kg/m³ 1,000 to 5,000), a gamma in API or cps not below 0. Never preset: the boxes stay blank until it is
+// clicked. -> { min, max (null: none) } | null
+export function rangeGuessFor(unit) {
+  const u = String(unit || "").trim();
+  if (/^g\/cc$|^g\/cm3$|^g\/cm³$/i.test(u)) return { min: 1, max: 5 };
+  if (/^kg\/m3$|^kg\/m³$/i.test(u)) return { min: 1000, max: 5000 };
+  if (/^(api|cps)$/i.test(u)) return { min: 0, max: null };
+  return null;
+}
 export function logUnitChoices(name) {
   const s = String(name || "");
   if (DENS_NAME.test(s)) return ["g/cc", "kg/m³"];
