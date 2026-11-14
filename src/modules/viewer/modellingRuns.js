@@ -3,7 +3,7 @@
 // (exactly what the old useCallback closures saw), and mcRef is the hook's live ref (#599).
 import * as THREE from "three";
 import { layerStamp } from "../../lib/layerStamp.js"; // TASKS.csv #2388
-import { rowsByHole } from "../../lib/rowsByHole.js"; // TASKS.csv #2906
+import { rowsByHole, holeRowsOfCodes, firstFromByHole } from "../../lib/rowsByHole.js"; // TASKS.csv #2906; holeRowsOfCodes / firstFromByHole: #3387
 import { isNotRecorded } from "../../lib/notRecorded.js"; // TASKS.csv #3267
 import { interbeds, planeDipDeg, planeMisfitM, looksLikeFlatPile, runsLieFlat } from "../../lib/pileTops.js"; // TASKS.csv #2927; #3262; #3263
 import { stackCellCheck, medianStackThickness } from "../../lib/stackResolution.js"; // TASKS.csv #2905; medianStackThickness: #2922
@@ -1157,8 +1157,7 @@ export function createModellingRuns(ctx, mcRef) {
     // depth it is the collar (bench holes collared in pegmatite: 180 of 254 'Top of P'), after an unlogged start or a gap it is unknown. The
     // Modelling-codes branch (topsForCode) and the Explicit surface tool already left them out; this branch took every start.
     let holeStartSkipped = 0, gapSkipped = 0;
-    const firstFrom = new Map();
-    for (const r of layers.litho || []) { const f = Number(r.from); if (r.hole_id != null && Number.isFinite(f) && !(firstFrom.get(r.hole_id) <= f)) firstFrom.set(r.hole_id, f); }
+    const firstFrom = firstFromByHole(layers.litho || []); // #3387 — kept per log, not rebuilt per unit
     const isOverburdenUnit = unitRoleOf(target) === "overburden"; // #1684
     // #1367 — the logged codes around each depth, for the roles of what sits right above an interval (raw values, not IN tokens)
     const rawEnds = isMcode ? null : intervalEndIndex(layers.litho), rawStarts = isMcode ? null : intervalStartIndex(layers.litho);
@@ -1213,7 +1212,8 @@ export function createModellingRuns(ctx, mcRef) {
     }
     if (!isMcode && !isOverburdenUnit) traces.forEach((t) => {
       const zAt = (md) => findOnTrace(t.pts, md)?.y; // scene y = elevation
-      (rowsByHole(layers.litho).get(t.hole_id) || []).filter((r) => !isNaN(r.from)).forEach((r) => { // #2906 — the hole's rows, not a scan of the whole log per hole
+      // #3387 — without assignments only the unit's own codes count (inUnit is codes.has(value)): read those rows, not all of the hole's
+      (hasAssign ? rowsByHole(layers.litho).get(t.hole_id) || [] : holeRowsOfCodes(layers.litho, t.hole_id, codes)).filter((r) => !isNaN(r.from)).forEach((r) => { // #2906 — the hole's rows, not a scan of the whole log per hole
         const isIn = inUnit(r);
         if (hasAssign && isIn !== codes.has(r.value)) { if (isIn) assignedIn++; else assignedOut++; }
         if (!isIn) return;

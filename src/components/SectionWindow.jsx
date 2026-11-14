@@ -621,7 +621,8 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
   useEffect(() => { onLeftOut?.(leftOutRef.current); });
   const autoVERef = useRef(null); // #2363 — this section's opening VE, told to the toolbar once (it keeps it from then on)
   useEffect(() => { if (autoVERef.current != null && vExagIn == null) onAutoVE?.(autoVERef.current); });
-  const { holes = [], section, intervals = [], points = [], planes = [], elevationProfile = null, voxelSlices = [], surfaceTraces = [], plannedHoles = [], title = "", sectionImages = [], scatter = [] } = data; // scatter: #1807
+  const { holes = [], section, intervals = [], points = [], planes = [], elevationProfile = null, voxelSlices = [], surfaceTraces = [], plannedHoles = [], title = "", sectionImages = [], scatter = [], rlOffset = 0 } = data; // scatter: #1807; rlOffset: #2809
+  const rlOff = Number.isFinite(rlOffset) ? rlOffset : 0; // TASKS.csv #2809 — the mine grid's RL datum: grid RL = elevation + this; 0: the axis is elevation
   // TASKS.csv #1090 — the margin and the title / axis text positions follow the text size: at 2x (or the print size the
   // exports use) the title and subtitle, and the tick labels and coordinates under the frame, overlapped
   const ts = Math.max(1, textScale);
@@ -660,7 +661,7 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
   const vExag = vExagIn ?? autoVE ?? 1;
   // TASKS.csv #1256 — at a large text size the subtitle ran past the frame and the PNG cut the sentence
   const azDeg = Number(section.azimuth ?? (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360); // #2308 — and the side it is seen from: the start is on the left, so the reader faces the azimuth - 90°
-  const subtitleLines = wrapText(tr("Azimuth {v}° · looking {look} · {v2}{v3} · elevation in m", { v: azDeg.toFixed(0), look: bearingText(azDeg - 90), v2: vExag && vExag !== 1 ? tr("{vExag}x vertical exaggeration", { vExag }) : tr("no vertical exaggeration"), v3: section.corridor ? tr(" · data within ±{corridor} m of the line (dashed = trace projected from further away)", { corridor: section.corridor }) : "" }), Math.floor((W - 2 * PAD) / (0.56 * fs(10))));
+  const subtitleLines = wrapText(tr(rlOff ? "Azimuth {v}° · looking {look} · {v2}{v3} · RL in m" : "Azimuth {v}° · looking {look} · {v2}{v3} · elevation in m", { v: azDeg.toFixed(0), look: bearingText(azDeg - 90), v2: vExag && vExag !== 1 ? tr("{vExag}x vertical exaggeration", { vExag }) : tr("no vertical exaggeration"), v3: section.corridor ? tr(" · data within ±{corridor} m of the line (dashed = trace projected from further away)", { corridor: section.corridor }) : "" }), Math.floor((W - 2 * PAD) / (0.56 * fs(10))));
   // TASKS.csv #1637 — which ribbon is which: 5-6 parallel ribbons per hole had no key on the section itself
   { const rib = ribbonOrder(intervals); if (rib.length > 1) subtitleLines.push(...wrapText(tr("Ribbons on each hole, left to right: {list}", { list: rib.join(" · ") }), Math.floor((W - 2 * PAD) / (0.56 * fs(10))))); }
   if (!isFinite(minZ)) { minZ = 0; maxZ = 100; }
@@ -782,7 +783,7 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
   // #1144 — what the hole names and other labels stay off (centre-x / baseline-y, as placeLabels): the elevation numbers, the
   // title band above the frame and the distance axis band below it
   const axisLabelBoxes = [
-    ...niceTicks(minZ, maxZ, 8).map((z) => { const w = labelWidth(z.toFixed(0), fs(10)); return { x: PAD - 8 - w / 2, y: sz(z) + fs(3), w, h: fs(10) + 2 }; }),
+    ...niceTicks(minZ + rlOff, maxZ + rlOff, 8).map((rl) => { const w = labelWidth(rl.toFixed(0), fs(10)); return { x: PAD - 8 - w / 2, y: sz(rl - rlOff) + fs(3), w, h: fs(10) + 2 }; }), // rl: #2809
     { x: W / 2, y: PAD - fs(3), w: W, h: PAD - fs(3) },
     { x: W / 2, y: H, w: W, h: PAD - 3 },
     { x: fs(16), y: H / 2 + fs(60), w: fs(13), h: fs(120) }, // #1700 — the rotated "Elevation (m)" title: a grade label was drawn over it
@@ -840,12 +841,12 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
       {/* TASKS.csv #393 — round-number elevation ticks (were 8 equal steps: 612 / 683 / 754 ...) and a
           distance axis with ticks, plus the section's end coordinates and title/azimuth/VE drawn INSIDE
           the figure, so an exported PNG/SVG/PDF still says where and what it is. */}
-      {niceTicks(minZ, maxZ, 8).map((z, i) => (
+      {niceTicks(minZ + rlOff, maxZ + rlOff, 8).map((rl, i) => { const z = rl - rlOff; return ( /* TASKS.csv #2809 — on a mine grid with an RL datum the axis reads grid RLs (elevation + the datum) */
         <g key={i}>
           <line x1={PAD} y1={sz(z)} x2={W - PAD} y2={sz(z)} stroke="#eceef1" strokeWidth="0.5" />
-          <text x={PAD - 8} y={sz(z) + fs(3)} fill="#65717e" fontSize={fs(10)} textAnchor="end">{z.toFixed(0)}</text>
+          <text x={PAD - 8} y={sz(z) + fs(3)} fill="#65717e" fontSize={fs(10)} textAnchor="end">{rl.toFixed(0)}</text>
         </g>
-      ))}
+      ); })}
       {niceTicks(minL, maxL, 8).filter((l) => l >= minL && l <= maxL).map((l, i) => (
         <g key={`d${i}`}>
           <line x1={sx(l)} y1={H - PAD} x2={sx(l)} y2={H - PAD + 4} stroke="#65717e" strokeWidth="0.8" />
@@ -1178,7 +1179,7 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
         {(() => { const rl = resolveLabels(floatLabels, [...holeLabelBoxes, ...axisLabelBoxes], { bounds: [4, W - 4], yBounds: [2, totalH - 2] }); leftOutRef.current += floatLabels.filter((l) => l.optional).length - rl.filter((l) => l.optional).length; return rl; })().map((l) => <React.Fragment key={l.key}>{l.leaderFrom && <line x1={l.leaderFrom.x} y1={l.leaderFrom.y} x2={l.x} y2={l.y - l.size / 2} stroke="#7a8494" strokeWidth="0.5" /> /* #1144 — moved off its spot */}<text x={l.x} y={l.y} fill={l.fill} fontSize={l.size} fontWeight={l.weight} textAnchor={l.anchor}>{l.text}</text></React.Fragment>)}
       </g>
       <text x={W / 2} y={H - fs(14)} fill="#55606e" fontSize={fs(11)} textAnchor="middle">{tr("Distance along section (m)")}</text>
-      <text x={fs(16)} y={H / 2} fill="#55606e" fontSize={fs(11)} textAnchor="middle" transform={`rotate(-90 ${fs(16)} ${H / 2})`}>{tr("Elevation (m)")}</text>
+      <text x={fs(16)} y={H / 2} fill="#55606e" fontSize={fs(11)} textAnchor="middle" transform={`rotate(-90 ${fs(16)} ${H / 2})`}>{rlOff ? tr("RL (m)") : tr("Elevation (m)")}</text>
     </svg>
   );
 }

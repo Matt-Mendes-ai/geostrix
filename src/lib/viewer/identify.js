@@ -1,5 +1,6 @@
 // TASKS.csv #1324 — the Identify tool: what is under a click in the 3D view, nearest first, for everything a click can land on. Hover tooltips only ever answered for
 // drillhole layers; a block model, a raster or a map layer said nothing. Runs on a click only, loaded with the first one: nothing here costs anything until then.
+import { gridRlOf } from "../localGridDatum.js"; // TASKS.csv #2809
 import * as THREE from "three";
 import { b64ToF32 } from "../inversion.js";
 import { pointInRings, STRUCTURE_CLASS_LABELS } from "../mapLayers.js"; // labels: TASKS.csv #2271
@@ -145,6 +146,8 @@ export function assayValueText(row, sym, unit = "") {
 function describe(hit, ctx) {
   const o = hit.object, p = hit.point, { x: ox, y: oy, z: oz } = ctx.origin;
   const world = { e: p.x + ox, n: oy - p.z, z: p.y + oz };
+  const rl = gridRlOf(world.z, ctx.rlOffset); // #2809
+  if (rl != null) world.rl = rl;
   const tipLines = fromTip(o.userData?.tip);
   const base = { point: p, world, hole: null };
   // a drillhole layer, custom layer, assay or point survey
@@ -157,7 +160,12 @@ function describe(hit, ctx) {
     if (hole) fields.push([tr("Hole"), hole]);
     // TASKS.csv #1504 — a collar's own record: position, orientation, length and the columns kept from its file
     const c = o.userData?.collar;
-    if (collar) return { ...base, layer: tr("Collars"), title: hole, hole, fields: c ? [...fields, ...attributeFields(c), ...attributeFields(c.attrs, new Set())] : fields };
+    if (collar) {
+      // TASKS.csv #2809 — on a mine grid with an RL datum the collar's grid RL follows its elevation (z)
+      const own = c ? attributeFields(c) : [], rl = gridRlOf(c?.z, ctx.rlOffset), at = own.findIndex(([k]) => k === "z");
+      if (rl != null && at >= 0) own.splice(at + 1, 0, [tr("RL (grid)"), num(rl, 4)]);
+      return { ...base, layer: tr("Collars"), title: hole, hole, fields: c ? [...fields, ...own, ...attributeFields(c.attrs, new Set())] : fields };
+    }
     // #1821 — a surface sample: the element it is coloured by and its class first, every element, its own fields
     if (o.userData?.units && row?.medium != null) return { ...base, layer: group, title: tipLines[0] || group, hole: null, fields: [...sampleIdentifyFields(row, o.userData.mapped, o.userData.units), ...attributeFields(row, new Set([...SKIP, "attrs", ...PLACEMENT_KEYS])), recordedElevationField(row)] }; // placement: #2271
     const nameLine = tipLines[1]?.includes(":") ? tipLines[1].slice(tipLines[1].indexOf(":") + 1).trim() : null;
@@ -260,6 +268,7 @@ export function identifyAt(r, clientX, clientY) {
   const kinds = r.kinds.map(([ref, label]) => [ref.current, label]);
   return describeHits(hits, {
     origin: r.originRef.current,
+    rlOffset: r.rlOffset, // TASKS.csv #2809 — the mine grid's RL datum, when the project has one
     rayDirection: rc.ray.direction,
     units: r.units,
     meaningOf: (o, v, shown) => (r.codeDictionary ? codeMeaning(r.codeDictionary, groups.get(o.parent), v, shown) : null), // #2816
@@ -295,4 +304,4 @@ export function leadFirst(assays, units = {}) {
   return out;
 }
 
-export const identifyText = (it) => [it.layer, it.title, ...it.fields.map(([k, v]) => (k ? `${k}: ${v}` : v)), `${num(it.world.e, 1)} E, ${num(it.world.n, 1)} N, ${num(it.world.z, 1)} m`].join("\n");
+export const identifyText = (it) => [it.layer, it.title, ...it.fields.map(([k, v]) => (k ? `${k}: ${v}` : v)), `${num(it.world.e, 1)} E, ${num(it.world.n, 1)} N, ${num(it.world.z, 1)} m${it.world.rl != null ? `, grid RL ${num(it.world.rl, 1)} m` : ""}`].join("\n"); // grid RL: #2809

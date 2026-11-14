@@ -10,6 +10,7 @@ import { onProjectCrsRequest, requestProjectCrs } from "./lib/projectCrsRequest.
 import { onTableSubsetRequest } from "./lib/tableSubsetRequest.js"; // TASKS.csv #2177
 import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Layers3, Target, FileBarChart2, Map as MapIcon, Compass, Pickaxe, Globe } from "./components/icons.js"; // Compass: #820; Globe: #3068
 import { crsName, getProj4DefSync, loadEpsgRegistry, onEpsgRegistry, isMetricProjectedEpsg, reprojectXY } from "./lib/reproject.js"; // TASKS.csv #485; #834 registry; #1148; reprojectXY: #2808
+import { rlOffsetOf, gridRlOf } from "./lib/localGridDatum.js"; // TASKS.csv #2809 — the grid RL beside Z
 import { useStore, useCursorValue, useTaskProgressValue, FreezeStore } from "./lib/store.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx"; // TASKS.csv #442
 import ExportToast from "./components/ExportToast.jsx"; // TASKS.csv #1042 — every export says whether it was saved, and where
@@ -712,6 +713,7 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, worldCursor = 
       <span>E <span className="val">{fmt(cursor.x)}</span></span>
       <span>N <span className="val">{fmt(cursor.y)}</span></span>
       <span>Z <span className="val">{fmt(cursor.z)}</span></span>
+      {(() => { const off = rlOffsetOf(project), rl = gridRlOf(cursor.z, off); return rl == null ? null : <span title={tr("Grid RL: the elevation plus the project's RL datum ({off} m, set under Project coordinate system)", { off: off.toLocaleString() })}>RL <span className="val">{fmt(rl)}</span></span>; })()}{/* TASKS.csv #2809 */}
       {/* TASKS.csv #2808 (split from #2526) — latitude / longitude (WGS 84) beside E / N when the project has a real CRS (not a local or unset one) */}
       {(() => { const ll = worldCursor /* TASKS.csv #3229 — not on Layout, whose cursor is a page position */ && cursor.x != null && cursor.y != null && project.crsSet !== false && project.epsg && isMetricProjectedEpsg(project.epsg) && getProj4DefSync(project.epsg) ? reprojectXY(cursor.x, cursor.y, project.epsg, 4326) : null;
         return ll && Number.isFinite(ll.x) && Number.isFinite(ll.y) ? <span title={tr("Latitude, longitude (WGS 84) of the cursor")}><span className="val">{ll.y.toFixed(5)}, {ll.x.toFixed(5)}</span></span> : null; })()}
