@@ -34,6 +34,21 @@ export function surveyPoints(rows, key, level = null) {
   return out;
 }
 
+// TASKS.csv #3421 (split from #3333) — a 3D survey with no Level took the readings nearest in plan at every depth, mixed. A stated reduction
+// instead: the readings of each map cell (the grid's own cell, `cell` m) reduced to one, the highest or the mean, at the cell's mean position.
+// how: "max" | "mean". -> points (x, y, value, z: null)
+export function surveyColumns(points, cell, how = "max") {
+  const c = Math.max(1e-6, Number(cell) || 1), by = new Map();
+  for (const p of points || []) {
+    if (!Number.isFinite(p.value) || !Number.isFinite(p.x) || !Number.isFinite(p.y)) continue;
+    const k = `${Math.floor(p.x / c)},${Math.floor(p.y / c)}`;
+    const e = by.get(k) || { sx: 0, sy: 0, n: 0, sum: 0, max: -Infinity };
+    e.sx += p.x; e.sy += p.y; e.n++; e.sum += p.value; if (p.value > e.max) e.max = p.value;
+    by.set(k, e);
+  }
+  return [...by.values()].map((e) => ({ x: e.sx / e.n, y: e.sy / e.n, value: how === "mean" ? e.sum / e.n : e.max, z: null }));
+}
+
 // TASKS.csv #3333 — a survey whose readings are stacked in elevation (an IP / resistivity pseudo-section or inversion cloud, a downhole
 // survey), not a map: Evidence overlay took the 12 readings nearest in plan whatever their depth (RL 914 to 1,380 m in one cell of the Galore
 // Creek IP cloud). Told from a surface survey over steep ground by the readings' own neighbours: for a sample of readings, the elevation

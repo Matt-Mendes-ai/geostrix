@@ -130,7 +130,7 @@ export function planChecks(plannedHoles, drilled, targets, traceOf = plannedTrac
     const pts = traces[i];
     if (!pts.length) return { hole, nearestReal: null, samePad: [], targetHits: [] };
     const gk = traceOf === plannedTrace && near ? holeGeomKey(hole) : null, hit = gk != null ? near.get(gk) : null;
-    const { nearestReal, samePad, padProfile, nearestOff } = hit || nearestOf(pts, drilled); // padProfile / nearestOff: #3336
+    const { nearestReal, samePad, padProfile, nearestOff } = hit || nearestOf(pts, drilled, hole?.target); // padProfile / nearestOff: #3336; target: #3426
     if (gk != null && !hit) near.set(gk, { nearestReal, samePad, padProfile, nearestOff });
     const targetHits = targetHitsOf(pts, targets);
     return { hole, nearestReal, samePad, targetHits, ...(padProfile ? { padProfile, nearestOff } : {}), ...(amongPlanned[i] ? { nearestPlanned: amongPlanned[i] } : {}) };
@@ -158,7 +158,7 @@ export function nearestPlannedOf(holes, traces, reach = MAX_PLANNED_REACH) {
   }
   return out;
 }
-function nearestOf(pts, drilled) {
+function nearestOf(pts, drilled, target = null) {
     let nearestReal = null;
     const c0 = pts[0], samePad = (drilled?.holes || []).filter((h) => h.pts[0] && Math.hypot(h.pts[0].x - c0.x, h.pts[0].y - c0.y, h.pts[0].z - c0.z) <= PAD_M).map((h) => h.hole_id);
     const skipMd = samePad.length ? COLLAR_ZONE_M : -Infinity;
@@ -174,10 +174,14 @@ function nearestOf(pts, drilled) {
     // (nearestOff, from the collar down).
     if (!samePad.length) return { nearestReal, samePad };
     const pad = new Set(samePad);
+    // TASKS.csv #3426 (split from #3336) — a hole with a target (a hole planned to a point): the point of this hole nearest it, where the
+    // separation to each pad hole is also judged
+    let tIdx = -1;
+    if (target && [target.x, target.y, target.z].every(Number.isFinite)) { let best = Infinity; pts.forEach((p, i) => { const d = Math.hypot(p.x - target.x, p.y - target.y, p.z - target.z); if (d < best) { best = d; tIdx = i; } }); }
     const padProfile = (drilled.holes || []).filter((h) => pad.has(h.hole_id)).map((h) => {
       const md = [], d = [];
       for (const p of pts) { let b = Infinity; for (const q of h.pts) { const x = Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z); if (x < b) b = x; } md.push(p.md ?? 0); d.push(b); }
-      return { hole_id: h.hole_id, md, d };
+      return { hole_id: h.hole_id, md, d, ...(tIdx >= 0 ? { target: { md: md[tIdx], d: d[tIdx] } } : {}) };
     });
     let nearestOff = null;
     for (const p of pts) { const { best, hole: h } = nearestDrilled(drilled, p, pad); if (h != null && (!nearestOff || best < nearestOff.distance)) nearestOff = { hole_id: h, distance: best, md: p.md ?? 0 }; }
@@ -188,10 +192,10 @@ function nearestOf(pts, drilled) {
 export function padClearance(profile, minSpacing) {
   const n = profile?.d?.length || 0;
   if (!n) return null;
-  const toe = profile.d[n - 1];
-  if (!(minSpacing > 0)) return { below: null, toe, inside: false };
+  const toe = profile.d[n - 1], tg = profile.target ? { target: { md: profile.target.md, d: profile.target.d, inside: minSpacing > 0 && profile.target.d < minSpacing } } : {}; // target: #3426
+  if (!(minSpacing > 0)) return { below: null, toe, inside: false, ...tg };
   let last = -1; for (let i = 0; i < n; i++) if (profile.d[i] < minSpacing) last = i;
-  return { below: last < 0 ? 0 : last === n - 1 ? null : profile.md[last + 1], toe, inside: last === n - 1 };
+  return { below: last < 0 ? 0 : last === n - 1 ? null : profile.md[last + 1], toe, inside: last === n - 1, ...tg };
 }
 function targetHitsOf(pts, targets) {
     return (targets || []).map((t) => {
