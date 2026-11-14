@@ -23,7 +23,7 @@ test("#1151 only the measured fields are inverted: a derivative or an EM channel
 test("#1151 a method from the value column's header", () => {
   const cases = [["TMI_nT", "mag"], ["Raw_Mag_nT", "mag"], ["RTP", "mag_rtp"], ["Mag_1VD", "mag_1vd"], ["AS_nT_m", "mag_as"],
     ["Bouguer_mGal", "grav"], ["FreeAir", "grav_fa"], ["Gzz_Eo", "grav_gzz"], ["K_pct", "rad_k"], ["eTh_ppm", "rad_th"], ["eU", "rad_u"], ["Total_Count_cps", "rad_tc"], ["U_Th", "rad_uth"],
-    ["Cond_mSm", "em_cond"], ["Apparent conductivity", "em_cond"], ["InPhase_ppm", "em_inphase"], ["Quad_ppm", "em_quad"], ["dBdt_ch12", "em_dbdt"], ["Tau_ms", "em_tau"], ["VLF_tilt", "vlf_tilt"], ["Tzx_inphase", "ztem_tipper"], ["RhoA", "mt_rho"],
+    ["Cond_mSm", "em_cond"], ["Apparent conductivity", "em_cond"], ["InPhase_ppm", "em_inphase"], ["Quad_ppm", "em_quad"], ["dBdt_ch12", "em_dbdt"], ["Tau_ms", "em_tau"], ["VLF_tilt", "vlf_tilt"], ["Tzx_inphase", "ztem_tipper"], ["RhoA", "res"] /* #3323: DC unless MT columns */,
     ["Chargeability_mVV", "ip"], ["IP", "ip"], ["Resistivity_ohmm", "res"], ["SP_mV", "sp"],
     ["dip", null], ["Kelvin", null], ["Easting", null], ["", null]];
   for (const [h, m] of cases) assert.equal(guessSurveyMethod(h), m, h);

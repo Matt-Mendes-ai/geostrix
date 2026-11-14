@@ -30,5 +30,5 @@ test("the import opens the picker for such a file and the picker imports each ch
   assert.match(m, /if \(isMultiRadiometric\(cols\.valueCandidates\)\) \{/);
   assert.match(m, /src: channelKey\(fileName, c\.col\)/);
   assert.match(m, /src: channelKey\(fileName, r\.label\), ratio: r, method: r\.method/);
-  assert.match(m, /updateGeophysSurvey\(keyOf\(j\.src\), \{ method: j\.method, units: SURVEY_METHODS\[j\.method\]\.units \}\)/);
+  assert.match(m, /updateGeophysSurvey\(keyOf\(j\.src\), surveyMetaFor\(j\.method, /);
 });
