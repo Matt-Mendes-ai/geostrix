@@ -11918,5 +11918,13 @@
   " · no hole in the slab: move it or turn it": " · aucun sondage dans la tranche : déplacez-la ou tournez-la",
   "Fit to window": "Ajuster à la fenêtre",
   "Scale the section to fit the window, both ways, at its VE (off: full width, scroll for detail)": "Mettre la coupe à l’échelle de la fenêtre, dans les deux sens, à son exagération verticale (désactivé : pleine largeur, faire défiler pour le détail)",
-  "No drill lines found: the holes are not in lines. Azimuth from the commonest bearing between neighbouring collars ({az}°).": "Aucune ligne de forage trouvée : les sondages ne sont pas alignés. Azimut selon l’orientation la plus fréquente entre collets voisins ({az}°)."
+  "No drill lines found: the holes are not in lines. Azimuth from the commonest bearing between neighbouring collars ({az}°).": "Aucune ligne de forage trouvée : les sondages ne sont pas alignés. Azimut selon l’orientation la plus fréquente entre collets voisins ({az}°).",
+  "{v} · {v2} · {v3} · {v4}{v5}{v6}": "{v} · {v2} · {v3} · {v4}{v5}{v6}",
+  "{n} hole": "{n} sondage",
+  "{n} holes": "{n} sondages",
+  "{n} interval": "{n} intervalle",
+  "{n} point": "{n} point",
+  "{n} points": "{n} points",
+  "{n} structure": "{n} structure",
+  "{n} structures": "{n} structures"
 }

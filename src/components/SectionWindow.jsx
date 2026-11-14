@@ -396,7 +396,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
       <div ref={toolbarRef} className="ge-section-toolbar" style={{ padding: "10px 16px", borderBottom: "1px solid #d9dce1", fontSize: 14, color: "#8a6a1f", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, boxSizing: "border-box", ...(drawing && toolbarHeight.current ? { height: toolbarHeight.current } : null) }}>
         <span>{data.title || tr("Cross-section")} <span style={{ color: "#65717e", fontSize: 11, marginLeft: 8 }}>{tr("azimuth {v}° · buffer ±{v2}m", { v: data.section?.azimuth?.toFixed(0), v2: data.section?.corridor })}</span></span>
         <span style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <span style={{ color: "#65717e", fontSize: 11 }}>{tr("{v} holes · {v2} intervals · {v3} points · {v4} structures{v5}{v6}", { v: data.holes?.length || 0, v2: data.intervals?.length || 0, v3: data.points?.length || 0, v4: data.planes?.length || 0, v5: data.elevationProfile?.length > 1 ? tr(" · terrain profile") : "", v6: data.voxelSlices?.length ? ` · ${data.voxelSlices.map((v) => v.name).join(", ")}` : "" })}{data.scatterCounts && (data.scatterCounts.geophys || data.scatterCounts.samples) ? tr(" · {g} geophysics points · {s} surface samples", { g: data.scatterCounts.geophys.toLocaleString(), s: data.scatterCounts.samples.toLocaleString() }) : ""}</span>
+          <span style={{ color: "#65717e", fontSize: 11 }}>{tr("{v} · {v2} · {v3} · {v4}{v5}{v6}", { v: countText(data.holes?.length, "{n} hole", "{n} holes"), v2: countText(data.intervals?.length, "{n} interval", "{n} intervals"), v3: countText(data.points?.length, "{n} point", "{n} points"), v4: countText(data.planes?.length, "{n} structure", "{n} structures") /* #3280 — '1 holes' */, v5: data.elevationProfile?.length > 1 ? tr(" · terrain profile") : "", v6: data.voxelSlices?.length ? ` · ${data.voxelSlices.map((v) => v.name).join(", ")}` : "" })}{data.scatterCounts && (data.scatterCounts.geophys || data.scatterCounts.samples) ? tr(" · {g} geophysics points · {s} surface samples", { g: data.scatterCounts.geophys.toLocaleString(), s: data.scatterCounts.samples.toLocaleString() }) : ""}</span>
           {stepping && <span role="status" style={{ color: "#8a6a1f", fontSize: 11 }}>{tr("Building the section…")}</span>}{/* #2210 */}
           {labelsLeftOut > 0 && <span style={{ color: "#8a6a1f", fontSize: 11 }} title={tr("Hole names, end-of-hole depths or offsets with nowhere free to go are left out rather than printed on top of each other. A narrower buffer (fewer holes), a higher VE, a smaller text size or dragging labels makes room; hover a hole for its name.")}>{labelsLeftOut === 1 ? tr("1 label left out: no room") : tr("{n} labels left out: no room", { n: labelsLeftOut })}</span>}{/* #1536 */}
           {!drawing ? (
@@ -584,6 +584,10 @@ function btnStyle(active) {
 }
 const selectStyle = { padding: "5px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 11.5 };
 
+// TASKS.csv #3280 (Galore review) — '1 holes · 60 intervals' and an offset of '-0…+6 m': singular / plural, and a sign from the rounded metre
+const countText = (n, one, many) => tr(n === 1 ? one : many, { n: n || 0 });
+const signedM = (v) => { const r = Math.round(v); return r > 0 ? `+${r}` : String(r === 0 ? 0 : r); };
+
 function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidth = 5, structOpacity = 1, showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag: vExagIn, onAutoVE = null, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onLeftOut = null, onMoveLabel, onCopyGhost = null, projectSnaps = false }) {
   const plotClipId = `sectionPlotArea${useId().replace(/:/g, "")}`, patId = `${plotClipId}p`; // patId: #1995 // #1303 — a hidden tab's clip path would hide this one's drawing
   const fs = (n) => +(n * textScale).toFixed(2); // TASKS.csv #1129 — every label at the chosen text size
@@ -700,7 +704,7 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
     const o = signedOffset(p.x, p.y, { x: ax, y: ay }, { x: bx, y: by });
     if (Math.abs(o) <= 5) return;
     const x = sx(p.l), y = sz(p.z);
-    floatLabels.push({ key: `snap${key}`, text: `${o >= 0 ? "+" : ""}${o.toFixed(0)} m`, size: fs(9), fill: colors.warnText, weight: 600, prio: 3, cands: [{ x: x + 7, y: y - 5, anchor: "start" }, { x: x - 7, y: y - 5, anchor: "end" }, { x: x + 7, y: y + fs(11), anchor: "start" }, { x: x - 7, y: y + fs(11), anchor: "end" }] });
+    floatLabels.push({ key: `snap${key}`, text: `${signedM(o)} m`, size: fs(9), fill: colors.warnText, weight: 600, prio: 3, cands: [{ x: x + 7, y: y - 5, anchor: "start" }, { x: x - 7, y: y - 5, anchor: "end" }, { x: x + 7, y: y + fs(11), anchor: "start" }, { x: x - 7, y: y + fs(11), anchor: "end" }] });
   };
   const pointAt = (local) => {
     if (snap) {
@@ -871,7 +875,7 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
           return [sx(along(p0.x + t * (p1.x - p0.x), p0.y + t * (p1.y - p0.y))), sz(p0.z + t * (p1.z - p0.z))];
         };
         const solid = runs ? runs.map(([m0, m1]) => [at(m0), ...h.trace.filter((p) => p.md > m0 && p.md < m1).map((p) => [sx(along(p.x, p.y)), sz(p.z)]), at(m1)]) : [pts];
-        const off = h.minOffset != null ? (Math.abs(h.maxOffset - h.minOffset) < 0.5 ? `${h.minOffset >= 0 ? "+" : ""}${h.minOffset.toFixed(0)} m` : `${h.minOffset >= 0 ? "+" : ""}${h.minOffset.toFixed(0)}…${h.maxOffset >= 0 ? "+" : ""}${h.maxOffset.toFixed(0)} m`) : null;
+        const off = h.minOffset != null ? (Math.abs(h.maxOffset - h.minOffset) < 0.5 ? `${signedM(h.minOffset)} m` : `${signedM(h.minOffset)}…${signedM(h.maxOffset)} m`) : null; // #3280 — '-0…+6 m'
         return (
           <g key={hi} clipPath={`url(#${plotClipId})`}>{/* #1205 — a hole at the start of the line ran over the elevation axis */}
             {runs && <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="#9aa5b3" strokeWidth="1" strokeDasharray="4 3"><title>{tr("{hole_id}: outside the ±{corridor} m buffer — projected onto the section, no data drawn here", { hole_id: h.hole_id, corridor: section.corridor })}</title></polyline>}
