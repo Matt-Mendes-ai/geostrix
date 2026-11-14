@@ -147,6 +147,8 @@ export function parseNumberList(str, n) {
   }
   return out;
 }
+// TASKS.csv #2206 Phase 2 — rowTable.js decodes the file's columns into a table with this
+export const decodeColumn = (col, n) => decodeAll(col, n);
 function decodeAll(col, n) {
   if (typeof col.n === "string") return { num: parseNumberList(col.n, n) };
   const codes = new Int32Array(n);
