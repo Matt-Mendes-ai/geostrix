@@ -7040,6 +7040,8 @@
   "volume (m³)": "volume (m³)",
   "mean grade": "teor médio",
   "Mean grade is volume-weighted over the blocks at or above each cutoff.": "O teor médio é ponderado pelo volume sobre os blocos iguais ou acima de cada teor de corte.",
+  "Exact: {v}. Shown to three significant figures: a conceptual figure; the CSV keeps it whole.": "Exato: {v}. Mostrado com três algarismos significativos: é um número conceitual; o CSV o guarda inteiro.",
+  "Tonnes and metal are shown to three significant figures (hover a figure for the exact sum; the CSV keeps it whole): they are conceptual.": "As toneladas e o metal são mostrados com três algarismos significativos (passe o cursor sobre um número para a soma exata; o CSV a guarda inteira): são conceituais.",
   "Blocks at this cutoff with no density: left out of the row (its blocks, volume, grade and tonnes)": "Blocos neste teor de corte sem densidade: ficam fora da linha (seus blocos, volume, teor e toneladas)",
   "No density": "Sem densidade",
   "no density and are counted apart, in the No density column": "nenhuma densidade e são contados à parte, na coluna Sem densidade",

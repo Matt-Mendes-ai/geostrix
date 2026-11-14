@@ -29,6 +29,9 @@ import { setJoin, applyLimits, memberMeans, memberMeanColumns, memberMetal, memb
 
 const fmt = (v, d = 0) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString(undefined, { maximumFractionDigits: d }));
 const sig = (v) => (v == null || !Number.isFinite(v) ? "—" : Number(v.toPrecision(3)).toLocaleString());
+// TASKS.csv #3284 (Galore Creek review) — conceptual tonnages were printed to the tonne and the ounce ('Tonnes 2,894,940,928', 'Cu (t) 9,931,925.8')
+// from 14 holes, under a caution that asks for ranges: tonnes and metal to three significant figures, the exact sum on hover and in the CSV
+const exactTitle = (v) => (v == null || !Number.isFinite(v) ? undefined : tr("Exact: {v}. Shown to three significant figures: a conceptual figure; the CSV keeps it whole.", { v: fmt(v, 1) }));
 const sig4 = (v) => (v == null || !Number.isFinite(v) ? "—" : Number(v.toPrecision(4)).toLocaleString(undefined, { maximumFractionDigits: 10 })); // TASKS.csv #2548 — a typed cut-off (0.2323) as typed, not 0.232
 const compact = (v) => (v == null || !Number.isFinite(v) ? "—" : new Intl.NumberFormat(undefined, { notation: "compact", maximumSignificantDigits: 3 }).format(v)); // axis labels
 
@@ -257,7 +260,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
             <tbody>{benchRows.map((r) => (
               <tr key={r.floorRL}>
                 <td style={td}>{fmt(r.floorRL, 1)}</td><td style={td}>{fmt(r.blocks, 1)}</td><td style={td}>{fmt(r.volumeM3)}</td><td style={td}>{sig(r.meanGrade)}</td>
-                {tonnesOn && <td style={td}>{fmt(r.tonnes)}</td>}{tonnesOn && mcols.map((c) => <td key={c.key} style={td}>{r.metal == null ? "—" : c.key.startsWith("metal_mlb") ? sig(r.metal * c.factor) /* #2404 — millions of pounds: 3 significant figures */ : fmt(r.metal * c.factor, c.factor < 1e-2 && c.key !== "metal_oz" ? 1 : 0)}</td>)}
+                {tonnesOn && <td style={td} title={exactTitle(r.tonnes)}>{sig(r.tonnes)}</td>}{tonnesOn && mcols.map((c) => <td key={c.key} style={td} title={r.metal == null ? undefined : exactTitle(r.metal * c.factor)}>{r.metal == null ? "—" : sig(r.metal * c.factor) /* #2404 — millions of pounds; #3284 — every tonnage and metal: 3 significant figures */}</td>)}
                 {hasSupport && <td style={td}>{r.interpolatedShare == null ? "—" : `${Math.round(r.interpolatedShare * 100)} %`}</td>}
                 {noDensBench && <td style={td}>{fmt(r.noDensityBlocks || 0, 1)}</td>}{/* #3270 */}
               </tr>))}</tbody>
@@ -278,12 +281,12 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
           <tbody>{rows.map((r) => (
             <tr key={r.cutoff}>
               <td style={td}>{sig4(r.cutoff)}{cutoffPct(r.cutoff, element, unit) != null ? ` (${sig4(cutoffPct(r.cutoff, element, unit))} %)` : ""}</td>{/* #1747 — a base metal in ppm: its cut-off in % too */}<td style={td}>{fmt(r.blocks)}</td><td style={td}>{fmt(r.volumeM3)}</td><td style={td}>{sig(r.meanGrade)}</td>
-              {tonnesOn && <td style={td}>{fmt(r.tonnes)}</td>}{tonnesOn && mcols.map((c) => <td key={c.key} style={td}>{r.metal == null ? "—" : c.key.startsWith("metal_mlb") ? sig(r.metal * c.factor) /* #2404 — millions of pounds: 3 significant figures */ : fmt(r.metal * c.factor, c.factor < 1e-2 && c.key !== "metal_oz" ? 1 : 0)}</td>)}
+              {tonnesOn && <td style={td} title={exactTitle(r.tonnes)}>{sig(r.tonnes)}</td>}{tonnesOn && mcols.map((c) => <td key={c.key} style={td} title={r.metal == null ? undefined : exactTitle(r.metal * c.factor)}>{r.metal == null ? "—" : sig(r.metal * c.factor) /* #2404 — millions of pounds; #3284 — every tonnage and metal: 3 significant figures */}</td>)}
               {hasSupport && <td style={td}>{r.interpolatedShare == null ? "—" : `${Math.round(r.interpolatedShare * 100)} %`}</td>}
               {beyondKnown && <td style={td}>{r.beyondShare == null ? "—" : `${Math.round(r.beyondShare * 100)} %`}</td>}
               {logKnown && <td style={td}>{r.logShare == null ? "—" : `${Math.round(r.logShare * 100)} %`}</td>}{/* #2721 */}
               {means && means.find((x) => x.cutoff === r.cutoff)?.means.map((x, m) => <td key={members[m].element} style={td} title={x.covered != null && x.covered < 0.9995 ? tr("{el} has a value in {p} % of this volume", { el: members[m].element, p: Math.round(x.covered * 100) }) : undefined}>{sig(x.mean)}{x.covered != null && x.covered < 0.9995 ? "*" : ""}</td>)}{/* #3014 part b */}
-              {memberMetalOn && members.map((m, i) => { const x = means.find((q) => q.cutoff === r.cutoff)?.means[i]; const vals = memberMetal(x, { perBlock, rho, unit: m.unit, element: m.element }); return memberMcols[i].map((c, j) => <td key={`${m.element}_${c.key}`} style={td}>{vals[j]?.value == null ? "—" : c.key.startsWith("metal_mlb") ? sig(vals[j].value) : fmt(vals[j].value, c.factor < 1e-2 && c.key !== "metal_oz" ? 1 : 0)}</td>); })}{/* #3274 */}
+              {memberMetalOn && members.map((m, i) => { const x = means.find((q) => q.cutoff === r.cutoff)?.means[i]; const vals = memberMetal(x, { perBlock, rho, unit: m.unit, element: m.element }); return memberMcols[i].map((c, j) => <td key={`${m.element}_${c.key}`} style={td} title={exactTitle(vals[j]?.value)}>{vals[j]?.value == null ? "—" : sig(vals[j].value) /* #3284 */}</td>); })}{/* #3274 */}
               {noDensCol && <td style={td}>{fmt(r.noDensityBlocks || 0)}</td>}{/* #3270 */}
             </tr>))}</tbody>
         </table>
@@ -309,6 +312,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
           </svg>
         )}
         <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5, marginBottom: 6 }}>
+          {tonnesOn && <>{tr("Tonnes and metal are shown to three significant figures (hover a figure for the exact sum; the CSV keeps it whole): they are conceptual.")}{" "}</>}{/* #3284 */}
           {perBlock && rows.some((r) => r.tonnes != null) ? tr("Mean grade is tonnage-weighted (each block's volume times its density) over the blocks with a density at or above each cutoff; blocks with none are left out of the row.") : tr("Mean grade is volume-weighted over the blocks at or above each cutoff.")}{/* #3270 */}{means && means.some((r) => r.means.some((x) => x.covered != null && x.covered < 0.9995)) ? ` ${tr("* the element has no value in part of that volume (its own estimate did not reach every block); the mean is over the blocks it has.")}` : ""}{merged ? ` ${tr("Blocks merged on import count only the share of the block the model filled (COVERAGE).")}` : ""}{!rho && !perBlock ? ` ${tr("Enter a density to get tonnes: no default is assumed.")}` : !rho && (noDensCol || noDensBench) ? ` ${tr("Enter a Density to give the blocks with none a value: no default is assumed.")}` : ""}{/* #3270 */}
         </div>
         <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "7px 9px", lineHeight: 1.5, marginBottom: 10 }}>

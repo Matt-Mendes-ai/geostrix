@@ -7040,6 +7040,8 @@
   "volume (m³)": "volume (m³)",
   "mean grade": "teneur moyenne",
   "Mean grade is volume-weighted over the blocks at or above each cutoff.": "La teneur moyenne est pondérée par le volume sur les blocs égaux ou supérieurs à chaque teneur de coupure.",
+  "Exact: {v}. Shown to three significant figures: a conceptual figure; the CSV keeps it whole.": "Exact : {v}. Affiché à trois chiffres significatifs : c'est un chiffre conceptuel ; le CSV le garde entier.",
+  "Tonnes and metal are shown to three significant figures (hover a figure for the exact sum; the CSV keeps it whole): they are conceptual.": "Les tonnes et le métal sont affichés à trois chiffres significatifs (survolez un chiffre pour la somme exacte ; le CSV la garde entière) : ils sont conceptuels.",
   "Blocks at this cutoff with no density: left out of the row (its blocks, volume, grade and tonnes)": "Blocs à cette teneur de coupure sans densité : exclus de la ligne (ses blocs, volume, teneur et tonnes)",
   "No density": "Sans densité",
   "no density and are counted apart, in the No density column": "aucune densité et sont comptés à part, dans la colonne Sans densité",

@@ -7040,6 +7040,8 @@
   "volume (m³)": "الحجم (م³)",
   "mean grade": "متوسط المحتوى",
   "Mean grade is volume-weighted over the blocks at or above each cutoff.": "متوسط المحتوى مرجّح بالحجم على الكتل المساوية لكل حد قطع أو الأعلى منه.",
+  "Exact: {v}. Shown to three significant figures: a conceptual figure; the CSV keeps it whole.": "بالضبط: {v}. معروض بثلاثة أرقام معنوية: رقم مفاهيمي؛ ويحفظه ملف CSV كاملًا.",
+  "Tonnes and metal are shown to three significant figures (hover a figure for the exact sum; the CSV keeps it whole): they are conceptual.": "تُعرض الأطنان والمعدن بثلاثة أرقام معنوية (مرّر المؤشر على الرقم للمجموع الدقيق؛ ويحفظه ملف CSV كاملًا): إنها مفاهيمية.",
   "Blocks at this cutoff with no density: left out of the row (its blocks, volume, grade and tonnes)": "كتل عند هذا الحد الأدنى بلا كثافة: مستبعدة من الصف (كتله وحجمه ومحتواه وأطنانه)",
   "No density": "بلا كثافة",
   "no density and are counted apart, in the No density column": "لا كثافة وتُعدّ على حدة، في عمود بلا كثافة",

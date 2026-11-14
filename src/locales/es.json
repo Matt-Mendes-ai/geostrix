@@ -7040,6 +7040,8 @@
   "volume (m³)": "volumen (m³)",
   "mean grade": "ley media",
   "Mean grade is volume-weighted over the blocks at or above each cutoff.": "La ley media se pondera por volumen sobre los bloques iguales o superiores a cada ley de corte.",
+  "Exact: {v}. Shown to three significant figures: a conceptual figure; the CSV keeps it whole.": "Exacto: {v}. Se muestra con tres cifras significativas: es una cifra conceptual; el CSV la guarda entera.",
+  "Tonnes and metal are shown to three significant figures (hover a figure for the exact sum; the CSV keeps it whole): they are conceptual.": "Las toneladas y el metal se muestran con tres cifras significativas (pase el cursor sobre una cifra para ver la suma exacta; el CSV la guarda entera): son conceptuales.",
   "Blocks at this cutoff with no density: left out of the row (its blocks, volume, grade and tonnes)": "Bloques en esta ley de corte sin densidad: quedan fuera de la fila (sus bloques, volumen, ley y toneladas)",
   "No density": "Sin densidad",
   "no density and are counted apart, in the No density column": "ninguna densidad y se cuentan aparte, en la columna Sin densidad",
