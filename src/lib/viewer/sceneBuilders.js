@@ -324,6 +324,8 @@ export function syncMapLayers(group, cache, mapLayers, { origin, terrain, render
       let obj = cache[l.id];
       if (obj && obj.userData.geoKey !== key) { disposeMesh(obj); obj = null; delete cache[l.id]; }
       if (!obj) { obj = mapLayerAtOwnZ(l, origin); obj.userData = { geoKey: key, styleKey: key }; obj.renderOrder = 2 + li; group.add(obj); cache[l.id] = obj; }
+      // TASKS.csv #3035 — the subcrop points over the collar markers they sit under (and the traces): after them, with no depth test
+      if (l.subcropFromCollars && l.geomType === "point") { obj.renderOrder = DRAW_ORDER.mapPoints + li; obj.material.depthTest = false; }
       obj.material.opacity = Math.max(0.5, l.opacity ?? 0.6);
       obj.visible = l.visible !== false;
       return;
