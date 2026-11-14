@@ -13,6 +13,7 @@ import { rasterUnitOf } from "./rasterMethod.js"; // TASKS.csv #2747
 import { idwColourFields } from "./idwColour.js"; // TASKS.csv #2845; #3159: not idw.js, which put the IDW gridding in startup
 import { makeSurveyColorer } from "./geophysSurveys.js"; // TASKS.csv #2878
 import { airDilutedFloor } from "./voxelStretch.js"; // TASKS.csv #1872
+import { fmtSig3 } from "./numberFormat.js"; // TASKS.csv #3382
 
 // the per-element identity hues of assay markers (moved from ViewerModule; TASKS.csv #306)
 export const ASSAY_ELEMENT_COLORS = [0, 1, 2, 3, 4, 5, 6, 7, 11, 14, 15, 8, 10, 13].map((i) => CATEGORICAL_SAFE_COLORS[i]);
@@ -31,8 +32,9 @@ export function assayColorFor(value, idx, style) {
 export const LEGEND_CATEGORY_KEYS = ["litho", "alt", "vein", "breccia", "weath" /* #2162 */, "structzone", "litho_gc", "alt_gc", "mnlgy", "structure"];
 
 // TASKS.csv #3396 — under 0.001 in short scientific notation ('1.2e-5'): a mag susc class read '0.000010 – 0.000012', the zeros counted by eye
-const sciShort = (v) => { const [m, e] = v.toExponential(1).split("e"); return `${+m}e${e.replace("+", "")}`; };
-export const fmtLegendValue = (v) => (Math.abs(v) >= 1000 || v === 0 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 0.1 ? v.toFixed(2) : Math.abs(v) < 1e-3 ? sciShort(v) : v.toPrecision(2));
+// TASKS.csv #3382 — and everything else at three significant figures with thousands separators, as the drill plan's key ('460.0-6590 ppm'
+// read '460 – 6,590 ppm' there): lib/numberFormat fmtSig3
+export const fmtLegendValue = (v) => fmtSig3(v);
 
 // keys: the categorical layer keys, in order. hidden[key]: a Set or array of hidden values. singleColor[key]: a one-
 // colour layer style (#635). labelFor / colorFor(key, value): with the user's overrides applied.

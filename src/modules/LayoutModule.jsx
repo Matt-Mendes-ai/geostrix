@@ -1084,7 +1084,7 @@ export default function LayoutModule() {
   const credits = useMemo(() => projectCredits(terrain, rasters), [terrain, rasters]); // TASKS.csv #949
   // TASKS.csv #1483 — a collar with no azimuth / dip of its own (Silvertip's) takes its shallowest survey station's, marked so
   const tableCollars = useMemo(() => collarsWithSurveyAttitude(collars, survey), [collars, survey]); // #1483 / #1771 / #2133 (lib/collarTable.js)
-  const textCtx = useMemo(() => ({ ...textContextFor(elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits), assays, assayElements /* #2473 — a drill plan coloured by grade */, surfaceSamples, surfaceElements, layers /* #1869 — the samples table; the holes without a collar */, plannedHoles /* #2259 */, survey, desurveyMethod: project?.desurveyMethod /* #3367 */ }), [elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits, assays, assayElements, surfaceSamples, surfaceElements, layers, plannedHoles, survey]);
+  const textCtx = useMemo(() => ({ ...textContextFor(elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits), assays, assayElements /* #2473 — a drill plan coloured by grade */, surfaceSamples, surfaceElements, layers /* #1869 — the samples table; the holes without a collar */, plannedHoles /* #2259 */, survey, desurveyMethod: project?.desurveyMethod /* #3367 */, displayUnits: project?.displayUnits /* #3382 */ }), [elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits, assays, assayElements, surfaceSamples, surfaceElements, layers, plannedHoles, survey]);
 
   // "Each viewport and cross section need an option to assign a scale bar to it" — previously there
   // was only ever ONE scale-bar element on a page (onSyncScaleBar found-or-created the single
@@ -1481,7 +1481,11 @@ export default function LayoutModule() {
                 const o2 = azimuthToGridOffset("magnetic", at.x, at.y, project.epsg, yearLater(date));
                 const rate = o2 && Number.isFinite(o2.declination) ? o2.declination - o.declination : null;
                 // #1773 / #2137 — the diagram grows from the 54 px arrow to its own box: kept on the sheet
-                updateSelected({ decl: { convergence: o.convergence, declination: o.declination, date, at, rate }, declError: null, ...keepOnSheet(sel.x, sel.y, A4.w, A4.h) });
+                // TASKS.csv #3383 (1) — kept on the sheet it grew down over the map frame, hiding half its own caption: where its 48 x 36 mm box in
+                // place covers another element, it takes the page's free spot at that size instead (as a new legend does, #2869)
+                const kept = keepOnSheet(sel.x, sel.y, A4.w, A4.h), others = elements.filter((e) => e.id !== sel.id);
+                const covers = others.some((e) => { const b = elementBox(e); return Math.min(kept.x + DIAGRAM_W, b.x + b.w) - Math.max(kept.x, b.x) > 4 && Math.min(kept.y + DIAGRAM_H, b.y + b.h) - Math.max(kept.y, b.y) > 4; });
+                updateSelected({ decl: { convergence: o.convergence, declination: o.declination, date, at, rate }, declError: null, ...(covers ? freeSpot(others, DIAGRAM_W, DIAGRAM_H, A4) : kept) });
               };
               return (
                 <div style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
@@ -1670,7 +1674,7 @@ export default function LayoutModule() {
             {/* TASKS.csv #19 — shape/annotation property editors */}
             {sel.type === "drillplan" && (() => { // TASKS.csv #1639 — the drill plan's scale, extent, labels and colours
               const traces = planTraces(tableCollars || [], survey, project?.desurveyMethod); // #3367 — kept per collars / survey / method
-              const dd = drillPlanDrawing(sel, tableCollars || [], assays, assayElements, plannedHoles, traces, project?.desurveyMethod); // assays: #2473; plannedHoles: #2259
+              const dd = drillPlanDrawing(sel, tableCollars || [], assays, assayElements, plannedHoles, traces, project?.desurveyMethod, project?.displayUnits /* #3382 */); // assays: #2473; plannedHoles: #2259
               return (<>
                 {dd.keyBox?.under > 0 && ( /* TASKS.csv #3376 — every corner of the frame holds a hole: the key covers some */
                   <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr("The key covers {n} hole(s) whichever corner it takes: make the frame larger, or move the plan's centre so a corner is clear.", { n: dd.keyBox.under })}</div>
@@ -1687,6 +1691,9 @@ export default function LayoutModule() {
                 {(() => { const t = turnedFrameFit(filterHoles(tableCollars || [], sel.holeFilter), sel.w, sel.h, SCALE_PRESETS, traces /* #3367 */); return t && sel.scale >= t.from ? ( /* TASKS.csv #2305 — the holes run the other way: offer the turned frame */
                   <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("The holes run the other way: this frame turned ({w} × {h} mm) fits them at 1 : {scale}.", { w: Math.round(t.w / PX_PER_MM), h: Math.round(t.h / PX_PER_MM), scale: t.scale.toLocaleString() })}{" "}
                     <button type="button" onClick={() => updateSelected({ w: t.w, h: t.h, scale: t.scale, centre: t.centre })} style={{ ...pBtn, display: "inline-flex", marginBottom: 0, padding: "1px 6px" }}>{tr("Turn the frame")}</button>
+                    {(sel.x + t.w > A4.w - 10 || sel.y + t.h > A4.h - 10) && (A4.w > A4.h) === (t.w < t.h) && <>{" "}{/* TASKS.csv #3383 (2) — a 127 x 201 mm frame hung 28 mm off an A4 landscape sheet */}
+                      {tr("Turned, it runs off this page: turn the page as well.")}{" "}
+                      <button type="button" onClick={() => { const P = { w: A4.h, h: A4.w }; changePageFormat({ ...pageFormat, orientation: pageFormat.orientation === "landscape" ? "portrait" : "landscape" }); updateSelected({ w: t.w, h: t.h, scale: t.scale, centre: t.centre, ...(sel.x + t.w > P.w - 10 || sel.y + t.h > P.h - 10 ? { x: 40, y: 60 } : {}) }); }} style={{ ...pBtn, display: "inline-flex", marginBottom: 0, padding: "1px 6px" }}>{tr("Turn the frame and the page")}</button></>}
                   </div>) : null; })()}
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Holes containing")}<input type="text" value={sel.holeFilter || ""} placeholder={tr("all")} title={tr("Text in the hole id, or a collar field such as year=2024 (every field term must match)")} /* #2141 */ onChange={(e) => updateSelected({ holeFilter: e.target.value })} style={{ ...inp, marginTop: 4 }} /></label>
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Labels")}<select value={sel.labels || "all"} onChange={(e) => updateSelected({ labels: e.target.value })} style={{ ...inp, marginTop: 4 }}>
@@ -2110,7 +2117,7 @@ function TitleBlockControls({ sel, updateSelected }) {
   const btn = { ...small, cursor: "pointer", padding: "0 5px", flexShrink: 0 };
   return (
     <div style={{ marginBottom: 8 }}>
-      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr("Label and value of each row. Values can use {project}, {date}, {scale}, {crs}, {page} and {pages}; the first row prints bold.")}</div>
+      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr("Label and value of each row. Values can use {project}, {date}, {page}, {pages}, {pagename}, {scale}, {crs}, {credits}, {north} and {convergence}; the first row prints bold.") /* #3383 (4) — the title's list */}</div>
       {rows.map((r, i) => (
         <div key={i} style={{ display: "flex", gap: 3, marginBottom: 3 }}>
           <input value={r[0]} onChange={(e) => setRow(i, 0, e.target.value)} style={{ ...small, width: "36%" }} aria-label={tr("Label of row {n}", { n: i + 1 })} />
@@ -2460,7 +2467,7 @@ const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, proje
         const f = pageFormatOf(pg), [w, h] = pageMm(f);
         return (
           <div key={pg.id} className={`ge-print-page ge-print-${pageCssName(f)}`} style={{ width: `${w}mm`, height: `${h}mm` }}>
-            {withLiveScaleBars(pg.elements).map((el) => <LayoutElement key={el.id} el={el} selected={false} multiSelected={false} print onDown={() => {}} ctx={{ ...textContextFor(pg.elements || [], project, pg, i + pageOffset, pageTotal ?? pages.length, collars, credits), assays, assayElements, surfaceSamples, surfaceElements, layers /* #1869 */, plannedHoles /* #2259 */, survey, desurveyMethod: project?.desurveyMethod /* #3367 */, continuedOn: (t, r) => { const j = continuationPageIndex(pages, i, t, r); return j == null ? null : j + pageOffset + 1; } /* #2718 */ }} />)}
+            {withLiveScaleBars(pg.elements).map((el) => <LayoutElement key={el.id} el={el} selected={false} multiSelected={false} print onDown={() => {}} ctx={{ ...textContextFor(pg.elements || [], project, pg, i + pageOffset, pageTotal ?? pages.length, collars, credits), assays, assayElements, surfaceSamples, surfaceElements, layers /* #1869 */, plannedHoles /* #2259 */, survey, desurveyMethod: project?.desurveyMethod /* #3367 */, displayUnits: project?.displayUnits /* #3382 */, continuedOn: (t, r) => { const j = continuationPageIndex(pages, i, t, r); return j == null ? null : j + pageOffset + 1; } /* #2718 */ }} />)}
           </div>
         );
       })}
@@ -2858,7 +2865,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   // TASKS.csv #19 — shapes/annotation tools
   if (el.type === "drillplan") return ( /* TASKS.csv #1639 */
     <div style={{ ...wrap, width: el.w, height: el.h, border: frameBorder(el), boxSizing: "content-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
-      <DrillPlanElement el={el} collars={ctx?.collars || []} gridCaption={ctx?.gridCaption || ""} assays={ctx?.assays || null} assayElements={ctx?.assayElements || null} plannedHoles={ctx?.plannedHoles || null} survey={ctx?.survey || null} desurveyMethod={ctx?.desurveyMethod || null} />{/* gridCaption: #2301; assays: #2473 */}
+      <DrillPlanElement el={el} collars={ctx?.collars || []} gridCaption={ctx?.gridCaption || ""} assays={ctx?.assays || null} assayElements={ctx?.assayElements || null} plannedHoles={ctx?.plannedHoles || null} survey={ctx?.survey || null} desurveyMethod={ctx?.desurveyMethod || null} displayUnits={ctx?.displayUnits || null} />{/* gridCaption: #2301; assays: #2473; displayUnits: #3382 */}
       {handles}
     </div>
   );

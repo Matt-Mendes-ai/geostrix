@@ -60,7 +60,7 @@ test("wiring: the element draws a path as a polyline and prints the caption; Lay
   const l = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
   assert.match(l, /survey=\{ctx\?\.survey \|\| null\} desurveyMethod=\{ctx\?\.desurveyMethod \|\| null\}/);
   assert.match(l, /<LayoutPrintRoot ref=\{printRootRef\} plannedHoles=\{plannedHoles\} \/\* #2259 \*\/ survey=\{survey\}/);
-  assert.match(l, /plannedHoles \/\* #2259 \*\/, survey, desurveyMethod: project\?\.desurveyMethod \/\* #3367 \*\/ \}\), \[/);
+  assert.match(l, /plannedHoles \/\* #2259 \*\/, survey, desurveyMethod: project\?\.desurveyMethod \/\* #3367 \*\/(, displayUnits: project\?\.displayUnits \/\* #3382 \*\/)? \}\), \[/);
   assert.match(l, /SCALE_PRESETS, traces \/\* #3367 \*\/\);/);
   assert.doesNotMatch(l, /traces run straight from each collar's azimuth, dip and length/);
 });

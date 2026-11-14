@@ -8,6 +8,7 @@ import { resolvedSegments, gradeUnitLabel, computeBestIntercepts } from "../lib/
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #2685 — QC inserts are not intercepts
 import { CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
 import { printPx, printPt, colors } from "../lib/theme.js"; // colors.planned: #2259
+import { isPlainUnit, toDisplay } from "../lib/displayUnits.js"; // TASKS.csv #3382 — the element's chosen display unit (#3236)
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #2686 — the shape key's circle row
 
 import { layoutFontStack } from "../lib/layoutFonts.js"; // TASKS.csv #2144
@@ -47,21 +48,40 @@ function assayedHoles(segs) {
 }
 
 // TASKS.csv #2473 — the resolved assay segments and unit label a grade colouring needs (resolvedSegments is cached per assay list)
-export function drillPlanGradeInput(el, assays, assayElements) {
+// displayUnits (TASKS.csv #3382): project.displayUnits, the unit an element is shown in (#3236, Best intercepts / Grade stats 'Show in'): a
+// copper plan's key read '1,531,044 – 2,046,822 m × ppm' (153 – 205 m × %). Values and the cut-off are given in it; classes are unchanged.
+const shownSegCache = new WeakMap();
+export function drillPlanGradeInput(el, assays, assayElements, displayUnits = null) {
   const { kind, key } = colourByKind(el?.colourBy);
   if ((kind !== "max" && kind !== "gt" && kind !== "bi") || !key || !assays?.length) return { segs: null, unit: "" };
   const units = Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit || "ppm"]));
   const unit = units[key] || "ppm";
-  if (kind === "bi") return { ...bestInterceptInput(el, assays, key, unit, units), unit: gradeUnitLabel(key, unit) }; // #2685
-  return { segs: resolvedSegments(assays, key, unit, units), unit: gradeUnitLabel(key, unit) };
+  const chosen = displayUnits?.[key], shown = isPlainUnit(unit) && isPlainUnit(chosen) && chosen !== unit ? chosen : null;
+  const conv = (v) => (shown ? toDisplay(v, unit, shown) : v);
+  if (kind === "bi") {
+    const r = bestInterceptInput(el, assays, key, unit, units);
+    if (!shown) return { ...r, unit: gradeUnitLabel(key, unit) }; // #2685
+    return { ...r, perHole: new Map([...(r.perHole || new Map())].map(([id, v]) => [id, conv(v)])), biRule: shownCutoffRule(r.biRule, unit, shown, key), unit: gradeUnitLabel(key, shown) };
+  }
+  const segs = resolvedSegments(assays, key, unit, units);
+  if (!shown || !segs) return { segs, unit: gradeUnitLabel(key, unit) };
+  let byUnit = shownSegCache.get(segs);
+  if (!byUnit) shownSegCache.set(segs, (byUnit = new Map()));
+  if (!byUnit.has(shown)) byUnit.set(shown, segs.map((s) => ({ ...s, value: conv(Number(s.value)) })));
+  return { segs: byUnit.get(shown), unit: gradeUnitLabel(key, shown) };
+}
+// the best-intercept rule's cut-off in the display unit ('cut-off 7000 ppm (the P90)' -> 'cut-off 0.7 % (the P90)'); the rest as it is
+function shownCutoffRule(rule, unit, shown, key) {
+  const from = gradeUnitLabel(key, unit), to = gradeUnitLabel(key, shown);
+  return String(rule || "").replace(/^cut-off ([-\d.]+) (\S+)/, (m, v, u) => (u === from ? `cut-off ${+toDisplay(Number(v), unit, shown).toPrecision(6)} ${to}` : m));
 }
 
 // traces (#3367): planTraces' Map, the surveyed holes' plan paths; method: the project's desurvey method (for the caption)
-export function drillPlanDrawing(el, collars, assays = null, assayElements = null, plannedHoles = null, traces = null, method = null) {
+export function drillPlanDrawing(el, collars, assays = null, assayElements = null, plannedHoles = null, traces = null, method = null, displayUnits = null) { // displayUnits: #3382
   const g = drillPlanGeometry(el, collars, traces);
   const planned = drillPlanPlanned(el, plannedHoles); // TASKS.csv #2259 — dashed, in the planned colour, labelled '(planned)'
   const plannedKey = planned.length ? [{ label: tr("Planned hole") }] : [];
-  const colouring0 = drillPlanColouring(el, g.holes, collars, { ...drillPlanGradeInput(el, assays, assayElements), palette: ON_WHITE, ink: INK });
+  const colouring0 = drillPlanColouring(el, g.holes, collars, { ...drillPlanGradeInput(el, assays, assayElements, displayUnits), palette: ON_WHITE, ink: INK });
   const shapes = drillPlanShapes(collars, el.shapeBy, g.holes.map((hh) => hh.id)); // #2686 — a symbol shape by a collar field
   const shapeKey = shapes.key.map((k) => ({ ...k, label: `${el.shapeBy}: ${k.shape === "circle" ? (k.label === "not recorded" ? tr("not recorded") : tr("other / not recorded")) : k.label}` }));
   const fontPx = printPx(el.fontPt || printPt.caption);
@@ -109,10 +129,10 @@ export function gridLabelPlace(t, axis, fontPx, w, h) {
 }
 
 // gridCaption (#2301): what the grid's numbers are ('local mine grid', the CRS name), from the page
-export default function DrillPlanElement({ el, collars, gridCaption = "", assays = null, assayElements = null, plannedHoles = null, survey = null, desurveyMethod = null }) { // plannedHoles: #2259; survey / desurveyMethod: #3367
+export default function DrillPlanElement({ el, collars, gridCaption = "", assays = null, assayElements = null, plannedHoles = null, survey = null, desurveyMethod = null, displayUnits = null }) { // plannedHoles: #2259; survey / desurveyMethod: #3367; displayUnits: #3382
   const FONT = layoutFontStack(el?.fontFamily); // TASKS.csv #2144 — the element's typeface (none: Exo 2)
   const traces = useMemo(() => planTraces(collars, survey, desurveyMethod), [collars, survey, desurveyMethod]); // #3367 — kept per collars / survey / method
-  const d = useMemo(() => drillPlanDrawing(el, collars, assays, assayElements, plannedHoles, traces, desurveyMethod), [el, collars, assays, assayElements, plannedHoles, traces, desurveyMethod]);
+  const d = useMemo(() => drillPlanDrawing(el, collars, assays, assayElements, plannedHoles, traces, desurveyMethod, displayUnits), [el, collars, assays, assayElements, plannedHoles, traces, desurveyMethod, displayUnits]);
   const grid = useMemo(() => drillPlanGrid(el), [el]);
   const line = 0.3 * MM, { colouring, keyBox } = d; // keyBox: placed in drillPlanDrawing (#2611)
   const styles = useMemo(() => new Map(d.holes.map((hh) => [hh.id, d.colouring.styleOf(hh.id, hh.series)])), [d]);
