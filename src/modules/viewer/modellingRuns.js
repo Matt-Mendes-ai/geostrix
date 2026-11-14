@@ -459,7 +459,7 @@ export function createModellingRuns(ctx, mcRef) {
         const words = { g: gb < 10 ? gb.toFixed(1) : Math.round(gb), warn: "", m: mins.toLocaleString(), how, x: x < 10 ? x.toFixed(1) : Math.round(x), p: solid.reduce((t, q) => t + q.points.length, 0).toLocaleString(), o: new Set(solid.flatMap((q) => q.orientations.map((r) => `${r.x},${r.y},${r.z},${r.dip},${r.azimuth}`))).size.toLocaleString(), s: solid.length, b: workOpts.blockCells.toLocaleString() };
         if (!window.confirm(tr("This GemPy run is about {x} times the work of a run sized for a few minutes ({p} contact points, {o} orientations, {s} surfaces, a block of {b} cells): about {m} minutes {how}, and about {g} GB of memory{warn}. The 15-minute stop is off for it: Cancel on the status bar stops it. Fewer units, a smaller Model area or a lower Resolution (Model settings) shorten it. Run it?", words))) {
           setImplicitBusy(false);
-          setNotices((p) => [...p, notice("Not run: about {x} times the work of a run sized for a few minutes ({p} contact points, {o} orientations, {s} surfaces, a block of {b} cells). Fewer units, a smaller Model area or a lower Resolution (Model settings) shorten it.", words)]);
+          setNotices((p) => [...p, notice("Not run: about {x} times the work of a run sized for a few minutes ({p} contact points, {o} orientations, {s} surfaces, a block of {b} cells): about {m} minutes {how}, and about {g} GB of memory{warn}. Fewer units, a smaller Model area or a lower Resolution (Model settings) shorten it.", words)]);
           return;
         }
         overWork = x;
@@ -548,6 +548,8 @@ export function createModellingRuns(ctx, mcRef) {
     specs.forEach((spec, specIndex) => {
       let surf = byName[spec.meshName];
       if (!surf || !surf.vertices?.length) { missing.push(spec.label); return; }
+      // TASKS.csv #3238 — a surface back with vertices but no triangles was named in 'Added … surfaces' and added nothing, with no notice: said like the other no-mesh cases
+      if (!surf.faces?.length) { missing.push(`${spec.label} (GemPy returned vertices but no triangles)`); return; }
       // TASKS.csv #314 — NaN from GemPy arrives as null with HTTP 200: drop what touches it, and say so.
       const clean = sanitizeMesh(surf.vertices, surf.faces);
       if (clean.badVertices) {

@@ -45,6 +45,7 @@ export const PANE_HELP = {
   "Alteration modelling": "alteration-modelling",
   "Grade shell": "grade-shell",
   "Grade estimation": "grade-estimation",
+  "Grade × thickness": "grade-thickness", // TASKS.csv #3121 — opened from the Grade estimation pane; F1 and the Help search find it
   "geoML models": "geoml",
   "Section correlation": "section-correlation",
   "Model from map": "model-from-map",
