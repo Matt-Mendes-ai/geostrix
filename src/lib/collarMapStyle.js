@@ -8,6 +8,16 @@ import { CATEGORICAL_SAFE_COLORS, VIRIDIS_ANCHORS } from "./layers.js";
 const SKIP = new Set(["x", "y", "z", "hole_id", "id", "depth", "dip", "azimuth", "azi", "_src", "_row", "lon", "lat", "lng", "elev", "elevation", "easting", "northing", "max_depth", "length"]);
 const num = (v) => (typeof v === "number" ? v : v === "" || v == null ? NaN : Number(v));
 const MAX_CATEGORIES = 16;
+// TASKS.csv #3340 (Galore Creek review) — a text field with a few more than 16 values (DH_AREA: 18 areas) was silently left out of the menu,
+// although it is the field the property is organized by. Up to MAX_GROUPED values the commonest TOP_GROUPED keep their colour and the rest
+// are one 'other' class; a field with more is listed in the menu as left out, with its count (collarFieldsLeftOut).
+const MAX_GROUPED = 40, TOP_GROUPED = 15;
+const fieldKeys = (cs) => {
+  const keys = new Set();
+  for (const c of cs.slice(0, 2000)) for (const k of [...Object.keys(c), ...Object.keys(c.attrs && typeof c.attrs === "object" ? c.attrs : {})]) if (k !== "attrs" && !SKIP.has(k.toLowerCase()) && !k.startsWith("_")) keys.add(k);
+  return keys;
+};
+const fieldValues = (cs, k) => cs.map((c) => collarFieldValue(c, k)).filter((v) => v !== "" && v != null && typeof v !== "object");
 // TASKS.csv #2984 (WA iron review) — an import keeps a collar file's other columns in collar.attrs (#1504), never as top-level keys, so the
 // Maps plan offered no collar field on an imported project (the #2459 test built collars no import makes). A field is read at the top
 // level first, then in attrs.
@@ -17,15 +27,28 @@ export const collarFieldValue = (c, k) => (c?.[k] !== undefined && typeof c[k] !
 // field whose values are all numbers is a number (an id-like column, a different value on every hole and not numeric, is left out)
 export function collarColourFields(collars) {
   const cs = (collars || []).filter((c) => c && typeof c === "object");
-  const keys = new Set();
-  for (const c of cs.slice(0, 2000)) for (const k of [...Object.keys(c), ...Object.keys(c.attrs && typeof c.attrs === "object" ? c.attrs : {})]) if (k !== "attrs" && !SKIP.has(k.toLowerCase()) && !k.startsWith("_")) keys.add(k);
   const out = [];
-  for (const k of keys) {
-    const vals = cs.map((c) => collarFieldValue(c, k)).filter((v) => v !== "" && v != null && typeof v !== "object");
+  for (const k of fieldKeys(cs)) {
+    const vals = fieldValues(cs, k);
     if (vals.length < 2) continue;
     const distinct = new Set(vals.map((v) => String(v).trim()));
     if (vals.every((v) => Number.isFinite(num(v))) && distinct.size > MAX_CATEGORIES) out.push({ key: k, kind: "number", n: vals.length });
     else if (distinct.size >= 2 && distinct.size <= MAX_CATEGORIES) out.push({ key: k, kind: "category", n: vals.length });
+    else if (distinct.size > MAX_CATEGORIES && distinct.size <= MAX_GROUPED) out.push({ key: k, kind: "category", n: vals.length, values: distinct.size, grouped: true }); // #3340
+  }
+  return out.sort((a, b) => a.key.localeCompare(b.key));
+}
+
+// TASKS.csv #3340 — the text fields too varied to colour by (more than MAX_GROUPED values), for the menu to name: [{ key, values }]. A field with
+// a different value on every hole (an id, a date per hole) is not listed: it is not a grouping.
+export function collarFieldsLeftOut(collars) {
+  const cs = (collars || []).filter((c) => c && typeof c === "object");
+  const out = [];
+  for (const k of fieldKeys(cs)) {
+    const vals = fieldValues(cs, k);
+    if (vals.length < 2 || vals.every((v) => Number.isFinite(num(v)))) continue;
+    const distinct = new Set(vals.map((v) => String(v).trim())).size;
+    if (distinct > MAX_GROUPED && distinct < vals.length) out.push({ key: k, values: distinct });
   }
   return out.sort((a, b) => a.key.localeCompare(b.key));
 }
@@ -79,8 +102,16 @@ export function collarColouring(collars, { field = null, values = null } = {}) {
   const counts = new Map();
   for (const v of vals) { const k = String(v).trim(); counts.set(k, (counts.get(k) || 0) + 1); }
   const order = [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([k]) => k);
-  const colourFor = new Map(order.map((k, i) => [k, CATEGORICAL_SAFE_COLORS[i % CATEGORICAL_SAFE_COLORS.length]]));
-  return { kind: "category", colourOf: (c) => { const v = valueOf(c); return v === "" || v == null ? null : colourFor.get(String(v).trim()) || null; }, legend: order.map((k) => ({ colour: colourFor.get(k), label: `${k} (${counts.get(k).toLocaleString()})` })) };
+  // #3340 — over 16 values: the commonest 15 keep a colour each, the rest share one grey-brown 'other' class (counted in the legend)
+  const grouped = order.length > MAX_CATEGORIES, kept = grouped ? order.slice(0, TOP_GROUPED) : order, OTHER = "#9c8f80";
+  const colourFor = new Map(kept.map((k, i) => [k, CATEGORICAL_SAFE_COLORS[i % CATEGORICAL_SAFE_COLORS.length]]));
+  const legend = kept.map((k) => ({ colour: colourFor.get(k), label: `${k} (${counts.get(k).toLocaleString()})` }));
+  if (grouped) {
+    const rest = order.slice(TOP_GROUPED);
+    let n = 0; for (const k of rest) n += counts.get(k);
+    legend.push({ colour: OTHER, label: `other: ${rest.length} values (${n.toLocaleString()})`, other: rest, holes: n }); // the plan words it through tr()
+  }
+  return { kind: "category", grouped, colourOf: (c) => { const v = valueOf(c); return v === "" || v == null ? null : colourFor.get(String(v).trim()) || (grouped ? OTHER : null); }, legend };
 }
 
 // label boxes that do not overlap, in drawing order: [{ i, x, y }] of the points whose label fits. w / h: a label's size in pixels.

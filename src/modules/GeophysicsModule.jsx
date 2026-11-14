@@ -629,12 +629,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const pointsTerrainInput = useRef(null);
   // TASKS.csv #1599 — the triangulation, the replace check and the report, shared by a points / contours file and the project's own samples and collars
   // misfitAt / benchNote (TASKS.csv #2589): the points the surface is measured against, and what was done where collars stack
-  const finishPointsTerrain = async ({ points, lines, what, name, sourceFile, reprojected, misfitAt = null, benchNote = "", leftOutNote = "", spacingFit = false }) => {
+  const finishPointsTerrain = async ({ points, lines, what, name, sourceFile, reprojected, misfitAt = null, benchNote = "", leftOutNote = "", spacingFit = false, reach = null }) => {
     const { terrainFromPointsAsync } = await import("../lib/terrainFromPoints.js");
-    const t = await terrainFromPointsAsync({ points, lines }, { gridMax: terrainDetail, spacingFit }); // #986 — in a worker; spacingFit: #3036
+    const t = await terrainFromPointsAsync({ points, lines }, { gridMax: terrainDetail, spacingFit, reach }); // #986 — in a worker; spacingFit: #3036; reach: #3338
     if (!confirmReplaceTerrain(terrain, name)) return; // #2554 — the shared question
     const replaced = replacedTerrainNote(terrain);
-    const built = { name, bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask || null, source: { kind: "tin from points", file: sourceFile, points: t.stats.points, nodeM: t.stats.cellM } };
+    const built = { name, bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask || null, source: { kind: "tin from points", file: sourceFile, points: t.stats.points, nodeM: t.stats.cellM, ...(t.stats.reachM ? { reachM: Math.round(t.stats.reachM) } : {}) } }; // reachM: #3338
     addTerrain(built);
     let msg = replaced + tr("Built \"{name}\" from {what}: a triangulated surface of {tri} triangles sampled on a {gridW}×{gridH} grid (nodes ~{cell} m apart).", { name, what, tri: t.stats.triangles.toLocaleString(), gridW: t.gridW, gridH: t.gridH, cell: t.stats.cellM.toFixed(1) });
     if (reprojected) msg += " " + tr("The coordinates read as longitude / latitude and were reprojected from WGS 84 to the project's EPSG:{epsg}.", { epsg: project.epsg });
@@ -645,7 +645,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (t.stats.pointNodes) msg += " " + tr("{n} node(s) beside points at the edge of their area (outside every triangle) take the nearby points' elevations, so every point has ground.", { n: t.stats.pointNodes.toLocaleString() });
     if (leftOutNote) msg += " " + leftOutNote; // #2987
     if (t.stats.densifyCapped) msg += " " + tr("The contour lines were given a vertex every {m} m rather than every half node spacing ({h} m), to keep the triangulation to about four points per grid node.", { m: t.stats.densifyStepM.toFixed(1), h: t.stats.halfCellM.toFixed(1) }); // #986
-    if (t.stats.longDropped) msg += " " + tr("{n} triangle(s) with an edge over {m} m were left out, so no ground is invented across gaps in the data.", { n: t.stats.longDropped, m: Math.round(t.stats.maxEdgeM) });
+    // TASKS.csv #3338 — what the long-edge rule left out, and how far the ground reaches from the points (it said 'no ground is invented' over
+    // 41.5 km² drawn up to 2.4 km from a collar)
+    if (t.stats.longDropped) msg += " " + tr("{n} triangle(s) with an edge over {m} m were left out.", { n: t.stats.longDropped, m: Math.round(t.stats.maxEdgeM) });
+    if (t.stats.reachM) msg += " " + tr("Ground is drawn only up to {r} m from a point (set under 'Ground reaches at most'): {n} more grid cells were left without ground.", { r: Math.round(t.stats.reachM).toLocaleString(), n: t.stats.beyondReach.toLocaleString() });
+    if (t.stats.reachMaxM > 0) msg += " " + tr("The ground reaches up to {max} m from its nearest point (median {med} m): beyond the points it is the triangles' guess.", { max: Math.round(t.stats.reachMaxM).toLocaleString(), med: Math.round(t.stats.reachMedianM).toLocaleString() });
     if (lines.length && t.stats.flatPct >= 5) msg += " " + tr("{pct}% of the triangles are flat (all three corners on one contour): terraces on hilltops and valley floors, where contours alone do not say how the ground continues.", { pct: t.stats.flatPct.toFixed(0) });
     if (t.stats.filledCount) msg += " " + tr("{pct}% of the grid ({n} cells) lies outside the triangulated points and is left out of the 3D surface. The modelling tools, inversions and collar checks read no ground there (stations, collars or a flat ground stand in); only map layers draped on the terrain sit at the mean elevation {z} m.", { pct: t.stats.filledPct.toFixed(1), n: t.stats.filledCount.toLocaleString(), z: t.stats.fillValue.toFixed(0) });
     if (benchNote) msg += " " + benchNote; // #2589
@@ -682,6 +686,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const zUse = zBoth ? zSource : "both";
   const zCount = (zUse === "collars" ? 0 : projectZPoints.samples) + (zUse === "samples" ? 0 : projectZPoints.collars);
   const [benchMode, setBenchMode] = useState("all");
+  // TASKS.csv #3338 — how far from a sample or collar the project's terrain draws ground: "" = auto (lib/terrainFromPoints.js REACH_*), else metres
+  const [reachText, setReachText] = useState("");
   // TASKS.csv #2987 — which collars the terrain leaves out, and why (named, the first few)
   const collarsOutNote = (out) => {
     if (!out?.length) return "";
@@ -705,7 +711,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       // RL 102-351 under a surface near 400): ask, and name it for what it is
       const ug = collarsLookUnderground(collars, survey);
       if (ug.underground && !window.confirm(tr("The collars look like underground collars ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): a surface through them runs through the mine levels, not the ground.", { upward: ug.upward, stacked: ug.stacked }) + "\n\n" + tr("OK — build it anyway, named 'Surface through the collars'.") + "\n" + tr("Cancel — don't build it (import a DEM or fetch SRTM for the real ground)."))) return;
-      await finishPointsTerrain({ points, lines: [], what: tr("{s} surface sample(s) and {c} collar(s) of this project", { s: samples, c: nc }), name: ug.underground ? "Surface through the collars" : zUse === "collars" ? "Terrain from collars" : zUse === "samples" ? "Terrain from samples" : "Terrain from samples and collars" /* the source in the name: #3381 */, sourceFile: "project surface samples and collars", reprojected: false, misfitAt: picked.points, benchNote, leftOutNote: collarsOutNote(projectZPoints.collarsOut), spacingFit: true }); // name: #2263; misfitAt, benchNote: #2589; leftOutNote: #2987; spacingFit: #3036
+      await finishPointsTerrain({ points, lines: [], what: tr("{s} surface sample(s) and {c} collar(s) of this project", { s: samples, c: nc }), name: ug.underground ? "Surface through the collars" : zUse === "collars" ? "Terrain from collars" : zUse === "samples" ? "Terrain from samples" : "Terrain from samples and collars" /* the source in the name: #3381 */, sourceFile: "project surface samples and collars", reprojected: false, misfitAt: picked.points, benchNote, leftOutNote: collarsOutNote(projectZPoints.collarsOut), spacingFit: true, reach: Number(reachText) > 0 ? Number(reachText) : "auto" /* #3338 */ }); // name: #2263; misfitAt, benchNote: #2589; leftOutNote: #2987; spacingFit: #3036
     } catch (err) {
       setTerrainError({ info: false, text: err.message });
     } finally {
@@ -1124,12 +1130,24 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (name.endsWith(".gpx") || name.endsWith(".geojson") || name.endsWith(".json")) {
       const { parseGPX, gpxToLayers, parseGeoJSON, layersToBoundaryPolylines } = await import("../lib/gpxGeojson.js");
       const text = await file.text();
-      const layers = name.endsWith(".gpx") ? gpxToLayers(parseGPX(text)) : parseGeoJSON(text).layers;
+      const gj = name.endsWith(".gpx") ? null : parseGeoJSON(text);
+      const layers = gj ? gj.layers : gpxToLayers(parseGPX(text));
       const tie = tieOf(project); // #2587
       if (tie) await getProj4Def(Number(tie.epsg)); // a registry code loads on demand (#834)
-      const { polylines, closedFlags, failed, partNames, featureOf, attributes } = layersToBoundaryPolylines(layers, project?.epsg, reprojectXY, tie ? (x, y, from) => fileToLocal(tie, x, y, from) : null); // closedFlags: #1760; partNames: #1767
-      if (!polylines.length) throw new Error(failed ? tr("Coordinates could not be converted to EPSG:{v}.", { v: project?.epsg }) : tr("No lines or polygons found in this file (GPX waypoints and GeoJSON points are imported as a map layer in Surface Geology)."));
-      return { polylines, closedFlags, featureOf, attributes, ...(partNames ? { partNames } : {}), note: withLonLatSource(lonLatNote(tie)) }; // note: #2467; #2684; featureOf / attributes: #2742 — one claim per feature
+      const { polylines: read, closedFlags, failed, partNames, featureOf, attributes } = layersToBoundaryPolylines(layers, project?.epsg, reprojectXY, tie ? (x, y, from) => fileToLocal(tie, x, y, from) : null); // closedFlags: #1760; partNames: #1767
+      if (!read.length) throw new Error(failed ? tr("Coordinates could not be converted to EPSG:{v}.", { v: project?.epsg }) : tr("No lines or polygons found in this file (GPX waypoints and GeoJSON points are imported as a map layer in Surface Geology)."));
+      // TASKS.csv #3341 (Galore Creek review) — a GeoJSON in project metres with no 'crs' member was taken as the project CRS (#1757: its numbers
+      // are not degrees) while the note said its longitude / latitude was reprojected. The note says what was done: not degrees -> taken as the
+      // project CRS, or placed from the Source CRS chosen in the pane, as a .shp with no .prj; a 'crs' member naming a code -> read in it.
+      if (gj?.notDegrees) {
+        const placed = await plainSourceTransform(); // the pane's Source CRS, when one is chosen
+        const polylines = placed ? placed.map(read) : read;
+        const note = placed ? placed.note : tr("the file names no CRS and its coordinates are not degrees: they were taken as the project's {dst}, check where it lies (or choose its Source CRS in the pane and import it again)", { dst: crsLabel(project?.epsg) });
+        return { polylines, closedFlags, featureOf, attributes, ...(partNames ? { partNames } : {}), note };
+      }
+      const named = gj?.epsg && gj.epsg !== 4326 ? gj.epsg : null;
+      const note = named ? withLonLatSource(tr("its 'crs' member names EPSG:{src}: read in it and reprojected to the project's {dst}", { src: named, dst: crsLabel(project?.epsg) })) : withLonLatSource(lonLatNote(tie));
+      return { polylines: read, closedFlags, featureOf, attributes, ...(partNames ? { partNames } : {}), note }; // note: #2467; #2684; #3341; featureOf / attributes: #2742 — one claim per feature
     }
     // TASKS.csv #1035 — every part of every feature, reprojected from the file's own CRS (lib/boundaryImport.js)
     if (name.endsWith(".zip") || name.endsWith(".shp")) {
@@ -2557,6 +2575,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               <option value="collars">{tr("Collars only ({c}): surveyed, usually", { c: projectZPoints.collars.toLocaleString() })}</option>
               <option value="samples">{tr("Samples only ({s}): GPS heights are rough", { s: projectZPoints.samples.toLocaleString() })}</option>
             </select>
+          </label>
+        )}
+        {projectZPoints.points.length >= 3 && ( /* TASKS.csv #3338 */
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}
+            title={tr("Grid cells further than this from every sample or collar are left without ground. Blank: five times their typical spacing, and at least 500 m.")}>
+            {tr("Ground reaches at most")}
+            <input type="number" min="0" step="50" value={reachText} placeholder={tr("auto")} onChange={(e) => setReachText(e.target.value)} aria-label={tr("Ground reaches at most (m from a sample or collar)")} style={{ ...numInput, flex: "0 0 80px" }} />
+            {tr("m from a point")}
           </label>
         )}
         {projectZPoints.collarsOut.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{collarsOutNote(projectZPoints.collarsOut)}</div>}{/* TASKS.csv #2987 */}

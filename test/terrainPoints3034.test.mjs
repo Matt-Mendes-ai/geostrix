@@ -71,8 +71,8 @@ test("#2987 / #3034 / #3036 — Geophysics' terrain from the project uses measur
   assert.match(src, /const measured = \(collars \|\| \[\]\)\.filter\(\(c\) => trustOf\(c\) === "measured"\);/);
   assert.match(src, /c = pick\(measured\)/);
   assert.match(src, /tr\("\{n\} collar\(s\) are left out: \{a\} with an elevation the import filled in, \{s\} with one that looks like a missing value \(\{ids\}\)\."/);
-  assert.match(src, /leftOutNote: collarsOutNote\(projectZPoints\.collarsOut\), spacingFit: true \}\)/);
-  assert.match(src, /terrainFromPointsAsync\(\{ points, lines \}, \{ gridMax: terrainDetail, spacingFit \}\)/);
+  assert.match(src, /leftOutNote: collarsOutNote\(projectZPoints\.collarsOut\), spacingFit: true(, reach: [^}]*)? \}\)/);
+  assert.match(src, /terrainFromPointsAsync\(\{ points, lines \}, \{ gridMax: terrainDetail, spacingFit, reach \}\)/);
   assert.match(src, /if \(t\.stats\.pointNodes\) msg \+=/);
   assert.match(src, /if \(t\.stats\.gridFromSpacing\) msg \+=/);
   assert.match(src, /\{projectZPoints\.collarsOut\.length > 0 && <div/, "said under the button, before it is pressed");

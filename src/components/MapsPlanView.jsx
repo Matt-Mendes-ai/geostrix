@@ -13,7 +13,9 @@ import { drawMapLayer, mapStyleSignature, mapTextureSize } from "../lib/mapLayer
 import { keyedCanvas } from "../lib/rasterKey.js";
 import { planDataExtent, planFarLayers } from "../lib/mapsPlan.js"; // planFarLayers: TASKS.csv #2125
 import { figureSamples, colourFromStops } from "../lib/sampleGrid.js"; // TASKS.csv #1622
-import { collarColourFields, perHoleAssay, collarColouring } from "../lib/collarMapStyle.js"; // TASKS.csv #2459
+import { collarColourFields, collarFieldsLeftOut, perHoleAssay, collarColouring } from "../lib/collarMapStyle.js"; // TASKS.csv #2459; left out: #3340
+import { planTraces, highestAt, drawTraces } from "../lib/planTraces.js"; // TASKS.csv #3337 — the holes' traces in plan
+import { surveysOnPlan, surveyOutlineBoundary, ringArea } from "../lib/planSurveys.js"; // TASKS.csv #3342 — the point surveys on the plan
 import { drawCallouts } from "../lib/collarCallouts.js"; // TASKS.csv #3397 — holes from one pad: one ring and a callout listing them
 import { collarSpacing, dotStyle, dotsInView, drawDots, polylineInView } from "../lib/planDots.js"; // TASKS.csv #2988 / #2989
 import HoleValueGridPanel from "./HoleValueGridPanel.jsx"; // TASKS.csv #2658
@@ -49,17 +51,23 @@ function hillshadeCanvas(t) {
 }
 
 
+// TASKS.csv #3342 — the point surveys' colours on the plan (none of them the collars' black or the samples' grey)
+const SURVEY_COLOURS = ["#0e7490", "#b45309", "#7c3aed", "#be185d", "#15803d", "#1d4ed8"];
 // TASKS.csv #2853 — the top visible grid's value at the cursor, after the E / N
 const cursorValueText = (rasters, c) => { const t = topRasterValueAt(rasters, c.x, c.y); return t ? `  ·  ${t.name.length > 28 ? `…${t.name.slice(-27)}` : t.name}: ${t.value.toLocaleString(undefined, { maximumSignificantDigits: 4 })}${t.unit ? ` ${t.unit}` : ""}` : ""; };
 export default function MapsPlanView() {
-  const { rasters = [], terrain, mapLayers = [], boundaries = [], collars = [], surfaceSamples = [], assays = [], assayElements = [], layers = {}, customLayers = [], project, survey = [], desurveyMethod, addLayoutImage, goToModule } = useStore(); // addLayoutImage / goToModule: #3194 // assays: #2459; layers, customLayers: #2658; project: #2128; survey, desurveyMethod: #2991 (a coded RL figure)
+  const { rasters = [], terrain, mapLayers = [], boundaries = [], collars = [], surfaceSamples = [], assays = [], assayElements = [], layers = {}, customLayers = [], project, survey = [], desurveyMethod, addLayoutImage, goToModule, addBoundary } = useStore(); // addBoundary: #3342 // addLayoutImage / goToModule: #3194 // assays: #2459; layers, customLayers: #2658; project: #2128; survey, desurveyMethod: #2991 (a coded RL figure)
   const wrapRef = useRef(null), canvasRef = useRef(null), layerCache = useRef(new Map()), drag = useRef(null), gridDrawn = useRef(false); // gridDrawn: #3194
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [view, setView] = useState(null); // { cx, cy, mPerPx }
   const [cursor, setCursor] = useState(null);
   const [tick, setTick] = useState(0); // an image finished decoding
-  const extent = useMemo(() => planDataExtent({ rasters, terrain, mapLayers, boundaries, collars, surfaceSamples }), [rasters, terrain, mapLayers, boundaries, collars, surfaceSamples]);
-  const farLayers = useMemo(() => planFarLayers({ rasters, terrain, mapLayers, boundaries, collars }), [rasters, terrain, mapLayers, boundaries, collars]); // #2125
+  // TASKS.csv #3342 — the Geophysics point surveys (thinned to 5,000 points each), drawn on the plan in a colour each, listed with their outline
+  const surveys = useMemo(() => surveysOnPlan(layers.geophys_pts), [layers.geophys_pts]);
+  const [surveysHidden, setSurveysHidden] = useState(() => new Set());
+  const [outlineNote, setOutlineNote] = useState("");
+  const extent = useMemo(() => planDataExtent({ rasters, terrain, mapLayers, boundaries, collars, surfaceSamples, surveys }), [rasters, terrain, mapLayers, boundaries, collars, surfaceSamples, surveys]);
+  const farLayers = useMemo(() => planFarLayers({ rasters, terrain, mapLayers, boundaries, collars, surveys }), [rasters, terrain, mapLayers, boundaries, collars, surveys]); // #2125
   // TASKS.csv #2459 / #2591 — collars coloured by a collar field or a per-hole assay statistic, and labelled with their ids
   const [colourBy, setColourBy] = useState(""); // "" | "f:<field>" | "max:<element>" | "mean:<element>"
   const [showIds, setShowIds] = useState(false);
@@ -71,12 +79,25 @@ export default function MapsPlanView() {
   const [measuring, setMeasuring] = useState(false);
   const [mPts, setMPts] = useState([]);
   const colourFields = useMemo(() => collarColourFields(collars), [collars]);
+  const fieldsLeftOut = useMemo(() => collarFieldsLeftOut(collars), [collars]); // #3340 — named in the menu, not silently dropped
+  // TASKS.csv #3337 — each hole's desurveyed trace in plan with a tick at its toe, on by default when any hole ends more than 10 m from its
+  // collar; with a per-hole highest value the dot can sit where that value is down the hole ('at the intercept')
+  const planT = useMemo(() => planTraces(collars, survey, desurveyMethod), [collars, survey, desurveyMethod]);
+  const [tracesPicked, setTracesPicked] = useState(null); // null: the default above
+  const showTraces = tracesPicked ?? planT.longReach > 0;
+  const [colourAt, setColourAt] = useState("collar"); // "collar" | "intercept"
   const spacingM = useMemo(() => collarSpacing(collars), [collars]); // #2989 — the holes' typical spacing, for the dot size
   const colouring = useMemo(() => {
     if (!colourBy) return null;
     const [kind, key] = [colourBy.slice(0, colourBy.indexOf(":")), colourBy.slice(colourBy.indexOf(":") + 1)];
     return kind === "f" ? collarColouring(collars, { field: key }) : collarColouring(collars, { values: perHoleAssay(assays, key, kind) });
   }, [colourBy, collars, assays]);
+  const atIntercept = colourAt === "intercept" && colourBy.startsWith("max:") && planT.traces.size > 0;
+  const dotCollars = useMemo(() => {
+    if (!atIntercept) return collars;
+    const at = highestAt(assays, colourBy.slice(4), planT.traces);
+    return collars.map((c) => { const p = at.get(String(c.hole_id)); return p ? { ...c, x: p.x, y: p.y } : c; });
+  }, [atIntercept, collars, assays, colourBy, planT]);
   const hill = useMemo(() => (terrain?.elevations?.length && terrain.gridW > 2 ? hillshadeCanvas(terrain) : null), [terrain]);
   // TASKS.csv #1622 (review #1497) — a gridded surface-sample element in one figure: the top visible geochemistry grid, its samples
   // drawn on top in the grid's own colours (a sample's colour against the grid around it shows what the gridding did), its contour
@@ -161,6 +182,12 @@ export default function MapsPlanView() {
         ctx.restore();
       }
     });
+    surveys.forEach((s, i) => { // #3342 — small squares, one colour per survey, under the samples and collars
+      if (surveysHidden.has(s.key) || s.box[2] < viewBox[0] || s.box[0] > viewBox[2] || s.box[3] < viewBox[1] || s.box[1] > viewBox[3]) return;
+      ctx.fillStyle = SURVEY_COLOURS[i % SURVEY_COLOURS.length];
+      const xy = s.xy;
+      for (let k = 0; k < xy.length; k += 2) { const px = X(xy[k]), py = Y(xy[k + 1]); if (px >= -3 && py >= -3 && px <= size.w + 3 && py <= size.h + 3) ctx.fillRect(px - 1.5, py - 1.5, 3, 3); }
+    });
     ctx.fillStyle = "rgba(90,96,104,0.55)";
     surfaceSamples.forEach((s) => { if (Number.isFinite(s.x)) ctx.fillRect(X(s.x) - 1, Y(s.y) - 1, 2, 2); });
     if (figure) {
@@ -175,7 +202,8 @@ export default function MapsPlanView() {
     // TASKS.csv #2988 / #2989 — the dots in view only, one path per colour (was a beginPath / fill / stroke per hole); the dot shrinks with the
     // holes' spacing on screen and loses its outline when the dots would touch (#2459: a hole with no value under the colouring: a grey ring)
     const ds = dotStyle(spacingM, v.mPerPx, !!colouring);
-    drawDots(ctx, dotsInView(collars, colouring ? (c) => colouring.colourOf(c) : () => "#1a2028", X, Y, size.w, size.h, ds.r + 1), { ...ds, stroke: colouring ? "#1a2028" : "#ffffff" });
+    if (showTraces && planT.traces.size) drawTraces(ctx, planT.traces, X, Y, viewBox, { tickPx: Math.max(2.5, ds.r + 1.5) }); // #3337 — under the dots
+    drawDots(ctx, dotsInView(dotCollars, colouring ? (c) => colouring.colourOf(c) : () => "#1a2028", X, Y, size.w, size.h, ds.r + 1), { ...ds, stroke: colouring ? "#1a2028" : "#ffffff" });
     if (gtPlan && gtMax > 0) { // #2755 — at each hole's intercept position (holeTotals: their length-weighted mid-points), area in proportion to GT
       ctx.lineWidth = 1;
       for (const h of gtPlan.holes) {
@@ -197,7 +225,7 @@ export default function MapsPlanView() {
       ctx.fillStyle = "#c2185b"; mPts.forEach((p) => { ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 3.5, 0, Math.PI * 2); ctx.fill(); });
     }
     gridDrawn.current = showGrid; // #3194 — what the canvas holds now
-  }, [v?.cx, v?.cy, v?.mPerPx, size, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, spacingM /* #2989 */, showIds, showGrid, measuring, mPts, gtPlan, gtMax]); // gtPlan: #2755
+  }, [v?.cx, v?.cy, v?.mPerPx, size, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, spacingM /* #2989 */, showTraces, planT, dotCollars /* #3337 */, surveys, surveysHidden /* #3342 */, showIds, showGrid, measuring, mPts, gtPlan, gtMax]); // gtPlan: #2755
 
   if (!extent || !v) return null;
   const sb = niceScaleBar(v.mPerPx, 140);
@@ -244,7 +272,7 @@ export default function MapsPlanView() {
     const collarTitle = colouring ? (colourBy.startsWith("f:") ? colourBy.slice(2) : colourBy.replace(/^(max|mean):/, "")) : "";
     const src = cv.toDataURL("image/png");
     if (hadGrid) setShowGrid(true);
-    addLayoutImage({ ...mapSnapshotPayload({ src, pxW: cv.width, pxH: cv.height, view: v, size, mapLayers, boundaries, rasters, collarLegend: colouring?.legend || null, collarTitle, collars: collars.filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y)).length, samples: surfaceSamples.filter((s) => Number.isFinite(s.x)).length, label: project?.name ? `Map view: ${project.name}` : "Map view" }), utmGrid: hadGrid });
+    addLayoutImage({ ...mapSnapshotPayload({ src, pxW: cv.width, pxH: cv.height, view: v, size, mapLayers, boundaries, rasters, collarLegend: colouring?.legend ? colouring.legend.map((l) => (l.other ? { ...l, label: tr("Other: {n} values ({holes} holes)", { n: l.other.length, holes: l.holes.toLocaleString() }) } : l)) : null, /* #3340 */ collarTitle, collars: collars.filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y)).length, samples: surfaceSamples.filter((s) => Number.isFinite(s.x)).length, label: project?.name ? `Map view: ${project.name}` : "Map view" }), utmGrid: hadGrid });
     goToModule("layout");
   };
   const chip = { position: "absolute", background: "rgba(255,255,255,0.9)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "3px 7px", fontSize: "var(--font-size-sm)", color: "#1a2028" };
@@ -259,13 +287,26 @@ export default function MapsPlanView() {
             {tr("Collars")}
             <select value={colourBy} onChange={(e) => setColourBy(e.target.value)} aria-label={tr("Colour collars by")} style={{ fontSize: "var(--font-size-sm)", flex: 1, minWidth: 0 }}>
               <option value="">{tr("One colour")}</option>
-              {colourFields.length > 0 && <optgroup label={tr("Collar field")}>{colourFields.map((f) => <option key={f.key} value={`f:${f.key}`}>{f.key}</option>)}</optgroup>}
+              {colourFields.length > 0 && <optgroup label={tr("Collar field")}>{colourFields.map((f) => <option key={f.key} value={`f:${f.key}`}>{f.grouped ? tr("{field} ({n} values: the commonest 15, the rest as other)", { field: f.key, n: f.values }) : f.key}</option>)}</optgroup>}
+              {fieldsLeftOut.length > 0 && <optgroup label={tr("Too many values to colour by")}>{fieldsLeftOut.map((f) => <option key={f.key} disabled value="">{tr("{field}: {n} values", { field: f.key, n: f.values.toLocaleString() })}</option>)}</optgroup>/* #3340 */}
               {assayElements.length > 0 && <optgroup label={tr("Per hole, from the assays")}>
                 {assayElements.flatMap((e) => [<option key={`max:${e.symbol}`} value={`max:${e.symbol}`}>{tr("Highest {el} in the hole", { el: e.symbol })}</option>, <option key={`mean:${e.symbol}`} value={`mean:${e.symbol}`}>{tr("{el}, length-weighted mean of the hole", { el: e.symbol })}</option>])}
               </optgroup>}
             </select>
           </label>
+          {colourBy.startsWith("max:") && planT.traces.size > 0 && ( /* TASKS.csv #3337 */
+            <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Colour at")}
+              <select value={colourAt} onChange={(e) => setColourAt(e.target.value)} aria-label={tr("Where the colour is drawn")} style={{ fontSize: "var(--font-size-sm)", flex: 1, minWidth: 0 }}>
+                <option value="collar">{tr("the collar")}</option>
+                <option value="intercept">{tr("the highest interval, down the hole")}</option>
+              </select>
+            </label>
+          )}
           <label style={{ display: "flex", alignItems: "center", gap: 5 }}><input type="checkbox" checked={showIds} onChange={(e) => setShowIds(e.target.checked)} />{tr("Hole ids")}</label>
+          {planT.traces.size > 0 && ( /* TASKS.csv #3337 */
+            <label style={{ display: "flex", alignItems: "center", gap: 5 }} title={tr("{n} of the holes end more than 10 m from their collar in plan (up to {m} m)", { n: planT.longReach.toLocaleString(), m: Math.round(planT.reachMax).toLocaleString() })}>
+              <input type="checkbox" checked={showTraces} onChange={(e) => setTracesPicked(e.target.checked)} />{tr("Hole traces (a tick at the toe)")}</label>
+          )}
           <HoleValueGridPanel /> {/* TASKS.csv #2658 */}
           {gtPlan && gtMax > 0 && ( /* TASKS.csv #2755 */
             <div aria-label={tr("Grade × thickness legend")} style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: "var(--font-size-xs)", fontVariantNumeric: "tabular-nums" }}>
@@ -288,7 +329,8 @@ export default function MapsPlanView() {
                 const u = unit ? ` (${unit})` : "";
                 return kind === "max" ? tr("Highest {el} in the hole{u}", { el: key, u }) : kind === "mean" ? tr("{el}{u}, length-weighted mean of the hole", { el: key, u }) : key;
               })()}</span>
-              {colouring.legend.map((l) => <span key={l.label} style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 9, height: 9, borderRadius: "50%", border: "1px solid #14181e", background: l.colour, flex: "0 0 auto" }} />{l.label}</span>)}
+              {colouring.legend.map((l) => <span key={l.label} title={l.other ? l.other.join(", ") : undefined} style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 9, height: 9, borderRadius: "50%", border: "1px solid #14181e", background: l.colour, flex: "0 0 auto" }} />{l.other ? tr("Other: {n} values ({holes} holes)", { n: l.other.length, holes: l.holes.toLocaleString() }) /* #3340 */ : l.label}</span>)}
+              {atIntercept ? <span>{tr("Each dot sits at the mid-point of its hole's highest interval; the line runs from the collar.")}</span> : null}
               {colourBy.startsWith("max:") || colourBy.startsWith("mean:") ? <span>{tr("Classes at the quintiles of the holes' values; a grey ring is a hole with no value.")}</span> : null}
             </div>
           )}
@@ -310,6 +352,22 @@ export default function MapsPlanView() {
           {measured
             ? <>{tr("{d} · grid bearing {b}°", { d: distanceText(measured.distM), b: measured.bearingDeg.toFixed(1) })}{measured.conv != null && Math.abs(measured.conv) >= 0.01 ? " " + tr("(true north is {c}° {dir} of grid north here)", { c: Math.abs(measured.conv).toFixed(2), dir: measured.conv >= 0 ? tr("east") : tr("west") }) : ""}</>
             : tr("Click two points on the plan to measure between them.")}
+        </div>
+      )}
+      {surveys.length > 0 && ( /* TASKS.csv #3342 — the point surveys, each with its outline as a boundary */
+        <div aria-label={tr("Point surveys on the plan")} style={{ ...chip, left: 10, bottom: 56, maxWidth: 300, maxHeight: 180, overflowY: "auto", display: "flex", flexDirection: "column", gap: 3, lineHeight: 1.35, fontSize: "var(--font-size-xs)" }} onMouseDown={(e) => e.stopPropagation()}>
+          <span style={{ fontWeight: 600 }}>{tr("Point surveys (Geophysics)")}</span>
+          {surveys.map((s, i) => (
+            <span key={s.key} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <input type="checkbox" checked={!surveysHidden.has(s.key)} aria-label={tr("Show {name} on the plan", { name: s.name })} onChange={(e) => setSurveysHidden((h) => { const n = new Set(h); if (e.target.checked) n.delete(s.key); else n.add(s.key); return n; })} />
+              <span style={{ width: 8, height: 8, background: SURVEY_COLOURS[i % SURVEY_COLOURS.length], flex: "0 0 auto" }} />
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={s.name}>{tr("{name} ({n})", { name: s.name, n: s.n.toLocaleString() })}</span>
+              <button type="button" style={{ fontSize: "var(--font-size-xs)", background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0 }}
+                title={tr("Add the survey's outline (the convex hull of its points) to Boundaries")}
+                onClick={() => { const b = surveyOutlineBoundary(layers.geophys_pts, s.key); if (!b) { setOutlineNote(tr("{name}: too few points for an outline.", { name: s.name })); return; } addBoundary(b); setOutlineNote(tr("Added \"{name}\" to Boundaries: the convex hull of {n} points, {ha} ha.", { name: b.name, n: s.n.toLocaleString(), ha: (ringArea(b.polylines[0]) / 1e4).toLocaleString(undefined, { maximumFractionDigits: 1 }) })); }}>{tr("Outline as boundary")}</button>
+            </span>
+          ))}
+          {outlineNote && <span role="status" style={{ color: "var(--color-text-muted)" }}>{outlineNote}</span>}
         </div>
       )}
       {farLayers.length > 0 && ( /* TASKS.csv #2125 — what Fit leaves out */
