@@ -136,7 +136,7 @@ export function idwGround(points) {
     if (diff < 0) { search(lo, mid); take(k); if (cnt < 4 || diff * diff <= bd[3]) search(mid + 1, hi); }
     else { search(mid + 1, hi); take(k); if (cnt < 4 || diff * diff <= bd[3]) search(lo, mid); }
   };
-  return (x, y) => {
+  const at = (x, y) => {
     cnt = 0; qx = x; qy = y;
     search(0, n);
     if (bd[0] < 1e-12) return bz[0];
@@ -144,4 +144,13 @@ export function idwGround(points) {
     for (let m = 0; m < cnt; m++) { const k = 1 / bd[m]; w += k; s += k * bz[m]; }
     return s / w;
   };
+  // TASKS.csv #3335 — what a value here rests on: the plan distance to the nearest point and the elevations of the ones used
+  at.near = (x, y) => {
+    cnt = 0; qx = x; qy = y;
+    search(0, n);
+    let zMin = Infinity, zMax = -Infinity;
+    for (let m = 0; m < cnt; m++) { if (bz[m] < zMin) zMin = bz[m]; if (bz[m] > zMax) zMax = bz[m]; }
+    return { nearestM: Math.sqrt(bd[0]), zMin, zMax, used: cnt };
+  };
+  return at;
 }

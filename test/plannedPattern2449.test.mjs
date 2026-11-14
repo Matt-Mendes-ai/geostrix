@@ -37,5 +37,5 @@ test("bad or missing inputs, too many holes, and the next free number", () => {
 test("the add form offers it", () => {
   const f = fs.readFileSync("src/components/PlannedHoleParts.jsx", "utf8");
   assert.match(f, /<PlannedHolePattern start=\{\{ x: draft\.x, y: draft\.y, z: draft\.z \}\}/);
-  assert.match(f, /ground=\{underground \? null : ground\}/);
+  assert.match(f, /ground=\{underground \? null : groundFill\}/);
 });

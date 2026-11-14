@@ -18,7 +18,8 @@ test("the collars' ground near TK10-23 is about 1,000 m, not the 967 m plane; th
 
 test("the form uses it for a pick on nothing and for Solve collar, and says so", () => {
   assert.match(f, /const collarZ = useMemo\(\(\) => \(!groundAt && collars\?\.length \? collarGround\(collars\) : null\), \[groundAt, collars\]\);/);
-  assert.match(f, /const zc = !pickedPoint\.on && collarZ \? collarZ\(pickedPoint\.x, pickedPoint\.y\) : NaN;/);
+  // #3335 — the collar ground judged by the site spacing (collarFillAt), so a pick far from any collar gets no Elev
+  assert.match(f, /const fc = !pickedPoint\.on && collarZ \? collarFillAt\(collarZ, siteSpacing, pickedPoint\.x, pickedPoint\.y\) : null;/);
   assert.match(f, /\{ groundAt: ground \|\| null, surfaceZ:/);
   assert.match(f, /the ground interpolated between the nearest collars \(no terrain\)/);
 });
