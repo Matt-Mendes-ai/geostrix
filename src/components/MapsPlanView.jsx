@@ -13,7 +13,8 @@ import { drawMapLayer, mapStyleSignature, mapTextureSize } from "../lib/mapLayer
 import { keyedCanvas } from "../lib/rasterKey.js";
 import { planDataExtent, planFarLayers } from "../lib/mapsPlan.js"; // planFarLayers: TASKS.csv #2125
 import { figureSamples, colourFromStops } from "../lib/sampleGrid.js"; // TASKS.csv #1622
-import { collarColourFields, perHoleAssay, collarColouring, declutterLabels } from "../lib/collarMapStyle.js"; // TASKS.csv #2459
+import { collarColourFields, perHoleAssay, collarColouring } from "../lib/collarMapStyle.js"; // TASKS.csv #2459
+import { drawCallouts } from "../lib/collarCallouts.js"; // TASKS.csv #3397 — holes from one pad: one ring and a callout listing them
 import { collarSpacing, dotStyle, dotsInView, drawDots, polylineInView } from "../lib/planDots.js"; // TASKS.csv #2988 / #2989
 import HoleValueGridPanel from "./HoleValueGridPanel.jsx"; // TASKS.csv #2658
 import { planGridStep, planGridLines, gridLabel, measureLine, distanceText } from "../lib/planGrid.js"; // TASKS.csv #2128
@@ -186,10 +187,9 @@ export default function MapsPlanView() {
       }
     }
     if (showIds) { // #2459 — the hole ids, decluttered: a label that would overlap one already drawn is left out
-      ctx.font = "10px sans-serif"; ctx.textBaseline = "middle"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.fillStyle = "#1a2028";
-      const pts = collars.map((c) => (Number.isFinite(c.x) ? { x: X(c.x), y: Y(c.y) } : null)).map((p) => (p && p.x > -60 && p.y > -10 && p.x < size.w + 10 && p.y < size.h + 10 ? p : { x: NaN, y: NaN }));
-      const w = Math.min(90, 8 + Math.max(0, ...collars.slice(0, 500).map((c) => ctx.measureText(String(c.hole_id ?? "")).width)));
-      for (const l of declutterLabels(pts, w, 13)) { const t = String(collars[l.i].hole_id ?? ""); ctx.strokeText(t, l.x + 5, l.y); ctx.fillText(t, l.x + 5, l.y); }
+      // TASKS.csv #3397 (Matt) — holes that start at one spot (a pad) were drawn as one dot and one id: a ring round them and a callout box
+      // listing each id with its colour-by swatch, clear of the other labels; a single hole keeps its id. Snapshot to Layout captures it.
+      drawCallouts(ctx, collars, X, Y, size, { colourOf: colouring ? (c) => colouring.colourOf(c) : undefined, dotR: ds.r, mPerPx: v.mPerPx, more: (n) => tr("+{n} more", { n }) });
     }
     if (measuring && mPts.length) { // #2128 — the measured line
       ctx.strokeStyle = "#c2185b"; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
