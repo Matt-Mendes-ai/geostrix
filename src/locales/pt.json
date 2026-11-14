@@ -12375,5 +12375,11 @@
   "The unit {symbol} is shown in here and in Best intercepts and Grade stats. Display only: the rules are worked in the stored unit.": "A unidade em que {symbol} é mostrado aqui e em Melhores intervalos e Estatísticas de teor. Apenas de exibição: as regras são calculadas na unidade guardada.",
   "{n} of them lie more than {d} m from the nearest collar (the farthest {m} m): the surface through the collars is a guess there. A terrain gives the real ground.": "{n} delas estão a mais de {d} m do colar mais próximo (a mais distante a {m} m): ali a superfície pelos colares é um palpite. Um terreno dá o solo real.",
   "{n} drillhole(s), handed to the 3D View's import": "{n} furo(s), entregues à importação da Vista 3D",
-  "{name}: {n} drillhole(s) with {s} survey station(s), read as {tables} and imported here as any table is. Dips are as geoh5 writes them, negative down, and are read that way.": "{name}: {n} furo(s) com {s} estação(ões) de levantamento, lidos como {tables} e importados aqui como qualquer tabela. Os mergulhos estão como o geoh5 os escreve, negativos para baixo, e são lidos assim."
+  "{name}: {n} drillhole(s) with {s} survey station(s), read as {tables} and imported here as any table is. Dips are as geoh5 writes them, negative down, and are read that way.": "{name}: {n} furo(s) com {s} estação(ões) de levantamento, lidos como {tables} e importados aqui como qualquer tabela. Os mergulhos estão como o geoh5 os escreve, negativos para baixo, e são lidos assim.",
+  "Export GOCAD (.vs / .pl)…": "Exportar GOCAD (.vs / .pl)…",
+  "Exported {n} line(s) from \"{label}\" as a GOCAD PLine (.pl).": "Foram exportadas {n} linha(s) de «{label}» como GOCAD PLine (.pl).",
+  "Exported {n} point(s) from \"{label}\" as a GOCAD VSet (.vs), with these numeric attributes as properties: {props}.": "Foram exportados {n} ponto(s) de «{label}» como GOCAD VSet (.vs), com estes atributos numéricos como propriedades: {props}.",
+  "Exported {n} point(s) from \"{label}\" as a GOCAD VSet (.vs).": "Foram exportados {n} ponto(s) de «{label}» como GOCAD VSet (.vs).",
+  "{n} vertex/vertices of \"{label}\" have no elevation: written at 0 in the GOCAD file.": "{n} vértice(s) de «{label}» não têm elevação: gravados em 0 no arquivo GOCAD.",
+  "GOCAD export failed: {message}": "Falha na exportação para GOCAD: {message}"
 }

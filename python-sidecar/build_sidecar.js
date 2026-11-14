@@ -31,6 +31,17 @@ if (!fs.existsSync(venvPython)) {
 // to reach /health vs 6.5 s of actual Python work). A --onedir build is already unpacked — electron-builder
 // ships a folder either way — so that cost disappears. The old single-file exe is removed first so a stale
 // one can never be packaged by mistake.
+// TASKS.csv #3445 — OneDrive marks the files of a synced folder Read-only, and PyInstaller's own clean-up of python-sidecar/dist and build then
+// stops with "Access is denied". On Windows the flag is cleared on both folders first (attrib -R, files and folders, recursive), with no
+// manual step; a folder that does not exist yet is skipped, and a failure only warns (PyInstaller then says what it could not remove).
+if (isWin) {
+  for (const d of ["dist", "build"].map((n) => path.join(sidecarDir, n))) {
+    if (!fs.existsSync(d)) continue;
+    const r = spawnSync("attrib", ["-R", path.join(d, "*"), "/S", "/D"], { encoding: "utf8" });
+    if (r.status !== 0) console.warn(`[build:sidecar] Could not clear the Read-only flag under ${d}: ${(r.stderr || r.stdout || "").trim()}`);
+  }
+}
+
 const oldOnefile = path.join(sidecarDir, "dist", isWin ? "geostrix-sidecar.exe" : "geostrix-sidecar");
 if (fs.existsSync(oldOnefile) && fs.statSync(oldOnefile).isFile()) fs.rmSync(oldOnefile);
 

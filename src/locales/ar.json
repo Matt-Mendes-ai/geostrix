@@ -12375,5 +12375,11 @@
   "The unit {symbol} is shown in here and in Best intercepts and Grade stats. Display only: the rules are worked in the stored unit.": "الوحدة التي يُعرض بها {symbol} هنا وفي أفضل المقاطع وإحصاءات العيار. للعرض فقط: تُحسب القواعد بالوحدة المخزنة.",
   "{n} of them lie more than {d} m from the nearest collar (the farthest {m} m): the surface through the collars is a guess there. A terrain gives the real ground.": "{n} منها تبعد أكثر من {d} م عن أقرب فوهة (الأبعد {m} م): السطح المار بالفوهات تخمين هناك. يعطي نموذج التضاريس الأرض الحقيقية.",
   "{n} drillhole(s), handed to the 3D View's import": "{n} ثقب حفر، سُلّمت إلى استيراد العرض ثلاثي الأبعاد",
-  "{name}: {n} drillhole(s) with {s} survey station(s), read as {tables} and imported here as any table is. Dips are as geoh5 writes them, negative down, and are read that way.": "{name}: {n} ثقب حفر مع {s} محطة مسح، قُرئت على هيئة {tables} وتُستورد هنا كأي جدول. الميول كما يكتبها geoh5، سالبة نحو الأسفل، وتُقرأ كذلك."
+  "{name}: {n} drillhole(s) with {s} survey station(s), read as {tables} and imported here as any table is. Dips are as geoh5 writes them, negative down, and are read that way.": "{name}: {n} ثقب حفر مع {s} محطة مسح، قُرئت على هيئة {tables} وتُستورد هنا كأي جدول. الميول كما يكتبها geoh5، سالبة نحو الأسفل، وتُقرأ كذلك.",
+  "Export GOCAD (.vs / .pl)…": "تصدير GOCAD (‎.vs / .pl)…",
+  "Exported {n} line(s) from \"{label}\" as a GOCAD PLine (.pl).": "تم تصدير {n} خط (خطوط) من «{label}» بصيغة GOCAD PLine (.pl).",
+  "Exported {n} point(s) from \"{label}\" as a GOCAD VSet (.vs), with these numeric attributes as properties: {props}.": "تم تصدير {n} نقطة (نقاط) من «{label}» بصيغة GOCAD VSet (.vs)، مع هذه السمات الرقمية كخصائص: {props}.",
+  "Exported {n} point(s) from \"{label}\" as a GOCAD VSet (.vs).": "تم تصدير {n} نقطة (نقاط) من «{label}» بصيغة GOCAD VSet (.vs).",
+  "{n} vertex/vertices of \"{label}\" have no elevation: written at 0 in the GOCAD file.": "{n} رأس (رؤوس) من «{label}» بلا ارتفاع: كُتبت بالقيمة 0 في ملف GOCAD.",
+  "GOCAD export failed: {message}": "فشل التصدير إلى GOCAD: {message}"
 }

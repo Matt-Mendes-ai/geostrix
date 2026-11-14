@@ -104,3 +104,19 @@ test("the TSurf of a generated surface reads back with the same vertices, faces 
   assert.deepEqual(Array.from(o.positions), [E0, N0, 0, E0 + 10, N0, 1, E0, N0 + 5, 2, E0 + 10, N0 + 5, 3]);
   assert.deepEqual(Array.from(o.indices), [0, 1, 2, 1, 3, 2]);
 });
+
+test("wired in the 3D View: a handler beside the DXF one, an item in the overlay and the layer menus, lazy imports, keys in every language", async () => {
+  const fs = await import("node:fs");
+  const s = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  assert.match(s, /const exportVectorGocad = async \(kind, key, label, built = null\) => \{/);
+  assert.match(s, /await import\("\.\.\/lib\/viewer\/vectorGocad\.js"\)/, "loaded on demand: not in the startup bundle");
+  assert.doesNotMatch(s, /^import .*vectorGocad|^import .*gocadWrite/m);
+  assert.match(s, /exportVectorGocad\(null, null, label, await build\(\)\)/);
+  assert.match(s, /exportVectorGocad\(vectorKind, layerContextMenu\.key, layerContextMenu\.label\)/);
+  assert.match(s, /\["Export GOCAD \(\.vs \/ \.pl\)…", exportVectorGocad[^\]]*\]\]\.map/, "and the drillholes ribbon menu: collars as a VSet, traces as a PLine");
+  assert.match(s, /ex\?\.epsg \?\? null, crs: crsCell\(project\)/, "the export CRS (a tied grid through its tie), or 'Default'");
+  for (const lang of ["es", "pt", "fr", "ar"]) {
+    const d = JSON.parse(fs.readFileSync(new URL(`../src/locales/${lang}.json`, import.meta.url), "utf8"));
+    for (const k of ["Export GOCAD (.vs / .pl)…", "GOCAD export failed: {message}", "Exported {n} line(s) from \"{label}\" as a GOCAD PLine (.pl)."]) assert.ok(d[k], `${lang}: ${k}`);
+  }
+});

@@ -5389,6 +5389,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     { label: tr("Export Shapefile (.zip)…"), onClick: async () => exportVectorShapefile(null, null, label, await build()) },
     { label: tr("Export GeoPackage (.gpkg)…"), onClick: async () => exportVectorGeoPackage(null, null, label, await build()) },
     { label: tr("Export DXF (.dxf)…"), onClick: async () => exportVectorDXF(null, null, label, (await import("../lib/overlayExport.js")).explodeParts(await build())) },
+    { label: tr("Export GOCAD (.vs / .pl)…"), onClick: async () => exportVectorGocad(null, null, label, await build()) }, // #2631
     { label: tr("Export KML (Google Earth)…"), onClick: async () => exportVectorKML(label, await build(), typeof kml === "function" ? await kml() : kml) },
     { label: tr("Export GeoJSON (WGS 84)…"), onClick: async () => exportVectorKML(label, await build(), {}, "geojson") }, // #2759
     csvRows && { label: tr("Export CSV…"), onClick: async () => { const rows = await csvRows(); if (rows.length) saveFile({ quiet: "success", suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: await toExportCsv(rows), encoding: "text" }); } },
@@ -5414,6 +5415,25 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       setNotices((p) => [...p, notice("Exported {features} feature(s) from \"{label}\" as a DXF (.dxf, R12, elevations kept). A DXF carries only layer names{v}: use Shapefile or GeoPackage for every attribute.", { features: features.length, label, v: valueLayer ? tr(" (one per logged value{v2})", { v2: pickLabel ? tr(", picks labelled dip/dip direction") : "" }) : "" })]); // #1060
     } catch (err) {
       setNotices((p) => [...p, errorNotice(tr("DXF export failed: {message}", { message: err.message }))]);
+    }
+  };
+  // TASKS.csv #2631 — GOCAD ASCII: points as a VSet (.vs) with the numeric attributes as properties, lines as a PLine (.pl); lib/gocadWrite.js
+  const exportVectorGocad = async (kind, key, label, built = null) => {
+    const { features, geomType } = built || buildVectorFeatures(kind, key);
+    if (!features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
+    try {
+      const tx = await import("../lib/tiedExport.js"), ex = project?.crsSet === false && !tx.tieOf(project) ? null : await tx.exportCrs(project); if (!ex && project?.crsSet !== false) return; // as the Shapefile export: a tied grid through its tie, no CRS = 'Default'
+      const { vectorGocadText } = await import("../lib/viewer/vectorGocad.js");
+      const g = vectorGocadText({ features: tx.featuresToWorld(features, ex?.tie), geomType }, { label, epsg: ex?.epsg ?? null, crs: crsCell(project) });
+      const res = await saveFile({ quiet: true, suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.${g.ext}`, filters: [{ name: g.ext === "vs" ? "GOCAD VSet" : "GOCAD PLine", extensions: [g.ext] }], content: g.text });
+      if (!res?.ok) { if (res?.error) throw new Error(res.error); return; }
+      setNotices((p) => [...p,
+        g.ext === "pl" ? notice("Exported {n} line(s) from \"{label}\" as a GOCAD PLine (.pl).", { n: g.count, label })
+          : g.properties.length ? notice("Exported {n} point(s) from \"{label}\" as a GOCAD VSet (.vs), with these numeric attributes as properties: {props}.", { n: g.count, label, props: g.properties.join(", ") })
+            : notice("Exported {n} point(s) from \"{label}\" as a GOCAD VSet (.vs).", { n: g.count, label }),
+        ...(g.zMissing ? [notice("{n} vertex/vertices of \"{label}\" have no elevation: written at 0 in the GOCAD file.", { n: g.zMissing, label })] : [])]);
+    } catch (err) {
+      setNotices((p) => [...p, errorNotice(tr("GOCAD export failed: {message}", { message: err.message }))]);
     }
   };
   // TASKS.csv #1034 — tables the CSV importer reads back (modules/viewer/drillholeExport.js)
@@ -7743,7 +7763,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         if (layerContextMenu.key === "__drillholes__") {
           const nTr = tracesRef.current.filter((t) => t.pts.length > 1).length, close = () => setLayerContextMenu(null);
           const head = (t) => <div style={{ padding: "6px 10px 2px", color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>{t}</div>;
-          const three = (kind, key, label, none) => [["Export Shapefile (.zip)…", exportVectorShapefile], ["Export GeoPackage (.gpkg)…", exportVectorGeoPackage], ["Export DXF (.dxf)…", exportVectorDXF]].map(([l, fn]) => <ContextItem key={kind + l} label={tr(l)} disabled={none} title={none ? tr("Nothing to export yet.") : undefined} onClick={() => { fn(kind, key, label); close(); }} />);
+          const three = (kind, key, label, none) => [["Export Shapefile (.zip)…", exportVectorShapefile], ["Export GeoPackage (.gpkg)…", exportVectorGeoPackage], ["Export DXF (.dxf)…", exportVectorDXF], ["Export GOCAD (.vs / .pl)…", exportVectorGocad /* #2631 */]].map(([l, fn]) => <ContextItem key={kind + l} label={tr(l)} disabled={none} title={none ? tr("Nothing to export yet.") : undefined} onClick={() => { fn(kind, key, label); close(); }} />);
           return (
             <div style={{ position: "fixed", inset: 0, zIndex: 55 }} onClick={close} onContextMenu={(e) => { e.preventDefault(); close(); }}>
               <div ref={layerMenuKeys.menuRef} role="menu" aria-label={layerContextMenu.label} onKeyDown={layerMenuKeys.onKeyDown} onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: layerContextMenu.x, top: layerContextMenu.y, width: 310, background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 8, padding: 6, fontSize: "var(--font-size-base)", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
@@ -7774,6 +7794,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             <ContextItem label={tr("Export Shapefile (.zip)…")} onClick={() => { exportVectorShapefile(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
             <ContextItem label={tr("Export GeoPackage (.gpkg)…")} onClick={() => { exportVectorGeoPackage(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
             <ContextItem label={tr("Export DXF (.dxf)…")} onClick={() => { exportVectorDXF(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
+            <ContextItem label={tr("Export GOCAD (.vs / .pl)…")} onClick={() => { exportVectorGocad(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} /> {/* #2631 */}
             {layerContextMenu.key !== "geophys_pts" && <ContextItem label={tr("Export CSV table (imports back)…")} onClick={() => { exportDrillholeTables(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />}
             <ContextItem label={tr("Export all drillhole tables (.zip of CSV)…")} title={tr("Loads into Postgres with COPY and into MySQL with LOAD DATA")} onClick={() => { exportDrillholeTables("all"); setLayerContextMenu(null); }} />
             <ContextItem label={tr("Inspect / edit table…")} onClick={() => { setAttrTableTarget({ kind: vectorKind, key: layerContextMenu.key, label: layerContextMenu.label }); setLayerContextMenu(null); }} />
