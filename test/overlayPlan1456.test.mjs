@@ -35,7 +35,7 @@ test("distance to drilling: 0 on a trace, growing away from it in plan", () => {
 test("wired: the source, its rising default, the lists and the plan hand-over with a blank elevation", () => {
   const p = readFileSync(new URL("../src/components/EvidenceOverlayPane.jsx", import.meta.url), "utf8");
   assert.match(p, /key: "drilled", label: tr\("Distance to drilling \(hole traces, in plan\)"\), kind: "drilled"/);
-  assert.match(p, /src\.kind === "drilled"\) return distanceEvidence\(grid, drilledParts\(traces, /); // #3345 — and which drilling counts
+  assert.match(p, /src\.kind === "drilled"\) \{[^\n]*\n[^\n]*\n[^\n]*\n\s*return distanceEvidence\(grid, drilledParts\(only\(traces\), /); // #3345 — and which drilling counts
   assert.match(p, /if \(src\.kind === "drilled"\) \{[^\n]*shape: "increasing", low: 0/);
   assert.match(p, /<TopPlaces score=\{result\.fuzzy\}/);
   assert.match(p, /<TopPlaces score=\{result\.wofe\.post\.prob\}/);

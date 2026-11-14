@@ -12645,5 +12645,16 @@
   "Added \"{name}\": {kept} of {total} cells inside \"{boundary}\" have a value ({cells} cells in all, cropped to the boundary). \"{source}\" is unchanged.": "Se agregó \"{name}\": {kept} de {total} celdas dentro de \"{boundary}\" tienen valor ({cells} celdas en total, recortado al límite). \"{source}\" no cambió.",
   "\"{name}\": {rows} rows. X / Y are {x} / {y}, and From is the project's {crs}: the points land beside the project's collars when read in it. Check both, then save.": "\"{name}\": {rows} filas. X / Y son {x} / {y}, y Desde es el {crs} del proyecto: los puntos quedan junto a los collares del proyecto al leerlos en él. Revise ambos y guarde.",
   "+{n} with the same box": "+{n} con el mismo recuadro",
-  "{n} feature(s); attributes: {cols}": "{n} elemento(s); atributos: {cols}"
+  "{n} feature(s); attributes: {cols}": "{n} elemento(s); atributos: {cols}",
+  "RL {a} to {b} m": "RL {a} a {b} m",
+  "{a} to {b} m below the collar": "{a} a {b} m bajo el collar",
+  "Blank = every depth. Metres vertically below each hole's collar, for collars at different elevations: the same depth band of every hole.": "En blanco = todas las profundidades. Metros en vertical bajo el collar de cada sondaje, para collares a distintas elevaciones: la misma franja de profundidad en todos los sondajes.",
+  "Depth below collar (m)": "Profundidad bajo el collar (m)",
+  "Depth from (m below the collar)": "Profundidad desde (m bajo el collar)",
+  "Depth to (m below the collar)": "Profundidad hasta (m bajo el collar)",
+  "Holes this card measures from": "Sondajes desde los que mide esta tarjeta",
+  "Reads {n} hole(s), samples at {band} (the Level above): a hole that does not reach that band reads as untested there.": "Lee {n} sondaje(s), muestras en {band} (el Nivel de arriba): un sondaje que no llega a esa franja se lee como no ensayado allí.",
+  "Read at {band} (the Level).": "Leído en {band} (el Nivel).",
+  "The Level ({band}) was not used: none of these cards reads elevations.": "No se usó el Nivel ({band}): ninguna de estas tarjetas lee elevaciones.",
+  "Added \"{name}\" to the model surfaces: export it, slice it in sections, or remove it there. Ctrl+Z does not take it back (it would undo your last edit before it); a model surface is not part of the undo history.": "Se añadió \"{name}\" a las superficies del modelo: expórtela, córtela en secciones o elimínela allí. Ctrl+Z no la quita (deshacería su última edición anterior); una superficie del modelo no forma parte del historial de deshacer."
 }

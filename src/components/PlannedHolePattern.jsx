@@ -4,6 +4,7 @@
 import React, { useMemo, useState } from "react";
 import { t as tr } from "../lib/i18n.js";
 import { useStore } from "../lib/store.jsx";
+import { holeSeries } from "../lib/holeSeries.js"; // TASKS.csv #3433
 import { holePattern, nextPatternNumber, MAX_PATTERN_HOLES } from "../lib/plannedPattern.js";
 
 const small = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
@@ -17,15 +18,19 @@ const Field = ({ label, value, onChange, type = "number", placeholder }) => (
 // start: { x, y, z } as typed in the form (strings or numbers); orient: { azimuth (grid), dip, length } or null when not valid;
 // ground(x, y) -> z | NaN or null; groundLabel: the z_source words for it; onAdd(hole) as the form's; btn: the form's button style
 export default function PlannedHolePattern({ start, orient, ground, groundLabel, onAdd, btn }) {
-  const { plannedHoles = [] } = useStore();
+  const { plannedHoles = [], collars = [] } = useStore();
+  // TASKS.csv #3433 — the project's own hole series (GC23-0956 ... GC23-0988 -> GC23-, 989, 4 digits) offered as the prefix and the first number, as the single-hole form does (#3347)
+  const series = useMemo(() => holeSeries([...collars.map((c) => c.hole_id), ...plannedHoles.map((h) => h.name)]), [collars, plannedHoles]);
   const [open, setOpen] = useState(false);
-  const [p, setP] = useState({ bearing: "", spacing: "", count: "", lines: "", lineSpacing: "", prefix: "PLAN-", type: "" /* #2978 (3) */ });
+  const [p, setP] = useState({ bearing: "", spacing: "", count: "", lines: "", lineSpacing: "", prefix: null /* null: not typed, the series (#3433) or PLAN- */, type: "" /* #2978 (3) */ });
   const [done, setDone] = useState(null);
   const set = (k) => (v) => { setP((q) => ({ ...q, [k]: v })); setDone(null); };
   const num = (v) => (v === "" || v == null ? NaN : Number(v));
-  const prefix = p.prefix.trim() || "PLAN-";
-  const first = useMemo(() => nextPatternNumber(plannedHoles, prefix), [plannedHoles, prefix]);
-  const pat = useMemo(() => holePattern({ x: num(start.x), y: num(start.y), bearingDeg: num(p.bearing), spacing: num(p.spacing), count: num(p.count), lineCount: p.lines === "" ? 1 : num(p.lines), lineSpacing: num(p.lineSpacing), prefix, firstNumber: first }), [start.x, start.y, p, prefix, first]);
+  const offered = series?.prefix || "PLAN-";
+  const prefix = (p.prefix == null ? offered : p.prefix.trim()) || "PLAN-";
+  const inSeries = !!series && prefix === series.prefix;
+  const first = useMemo(() => (inSeries ? series.next : nextPatternNumber(plannedHoles, prefix)), [inSeries, series, plannedHoles, prefix]);
+  const pat = useMemo(() => holePattern({ x: num(start.x), y: num(start.y), bearingDeg: num(p.bearing), spacing: num(p.spacing), count: num(p.count), lineCount: p.lines === "" ? 1 : num(p.lines), lineSpacing: num(p.lineSpacing), prefix, firstNumber: first, minWidth: inSeries ? Math.max(2, series.width) : 2 }), [start.x, start.y, p, prefix, first]);
   const typedZ = num(start.z);
   // each hole's Elev: the ground under it, else the typed Elev; a hole with neither is not added
   const placed = useMemo(() => pat.holes.map((h) => { const g = ground ? ground(h.x, h.y) : NaN; return Number.isFinite(g) ? { ...h, z: Math.round(g * 10) / 10, zSource: typeof groundLabel === "function" ? groundLabel(h.x, h.y) : groundLabel /* #3335 — each hole's own words */ } : Number.isFinite(typedZ) ? { ...h, z: typedZ, zSource: "typed (the pattern's start Elev)" } : { ...h, z: null }; }), [pat, ground, groundLabel, typedZ]);
@@ -52,7 +57,7 @@ export default function PlannedHolePattern({ start, orient, ground, groundLabel,
       <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
         <Field label={tr("Lines")} value={p.lines} onChange={set("lines")} placeholder="1" />
         <Field label={tr("Line spacing m")} value={p.lineSpacing} onChange={set("lineSpacing")} />
-        <Field label={tr("Name prefix")} value={p.prefix} onChange={set("prefix")} type="text" />
+        <Field label={tr("Name prefix")} value={p.prefix == null ? offered : p.prefix} onChange={set("prefix")} type="text" />
         <Field label={tr("Hole type")} value={p.type} onChange={set("type")} type="text" placeholder={tr("e.g. RC")} />{/* #2978 (3) — every hole of the pattern */}
       </div>
       {pat.error === "too-many" && <div style={{ ...small, color: "var(--color-warn-text)" }}>{tr("At most {n} holes in one pattern.", { n: MAX_PATTERN_HOLES })}</div>}

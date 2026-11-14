@@ -12645,5 +12645,16 @@
   "Added \"{name}\": {kept} of {total} cells inside \"{boundary}\" have a value ({cells} cells in all, cropped to the boundary). \"{source}\" is unchanged.": "أُضيف \"{name}\": {kept} من {total} خلية داخل \"{boundary}\" لها قيمة ({cells} خلية في المجموع، مقصوص إلى الحد). \"{source}\" لم يتغير.",
   "\"{name}\": {rows} rows. X / Y are {x} / {y}, and From is the project's {crs}: the points land beside the project's collars when read in it. Check both, then save.": "\"{name}\": {rows} صف. X / Y هما {x} / {y}، و«من» هو {crs} الخاص بالمشروع: تقع النقاط بجوار فوهات المشروع عند قراءتها به. تحقق منهما ثم احفظ.",
   "+{n} with the same box": "+{n} بالإطار نفسه",
-  "{n} feature(s); attributes: {cols}": "{n} عنصر(عناصر)؛ السمات: {cols}"
+  "{n} feature(s); attributes: {cols}": "{n} عنصر(عناصر)؛ السمات: {cols}",
+  "RL {a} to {b} m": "المنسوب {a} إلى {b} م",
+  "{a} to {b} m below the collar": "{a} إلى {b} م تحت الفوهة",
+  "Blank = every depth. Metres vertically below each hole's collar, for collars at different elevations: the same depth band of every hole.": "فارغ = كل الأعماق. أمتار رأسيًا تحت فوهة كل ثقب، للفوهات ذات الارتفاعات المختلفة: نطاق العمق نفسه لكل الثقوب.",
+  "Depth below collar (m)": "العمق تحت الفوهة (م)",
+  "Depth from (m below the collar)": "العمق من (م تحت الفوهة)",
+  "Depth to (m below the collar)": "العمق إلى (م تحت الفوهة)",
+  "Holes this card measures from": "الثقوب التي تقيس منها هذه البطاقة",
+  "Reads {n} hole(s), samples at {band} (the Level above): a hole that does not reach that band reads as untested there.": "يقرأ {n} ثقب(ثقوب)، عينات عند {band} (المستوى أعلاه): الثقب الذي لا يصل إلى هذا النطاق يُقرأ كغير مختبر هناك.",
+  "Read at {band} (the Level).": "مقروء عند {band} (المستوى).",
+  "The Level ({band}) was not used: none of these cards reads elevations.": "لم يُستخدم المستوى ({band}): لا تقرأ أي من هذه البطاقات المناسيب.",
+  "Added \"{name}\" to the model surfaces: export it, slice it in sections, or remove it there. Ctrl+Z does not take it back (it would undo your last edit before it); a model surface is not part of the undo history.": "أُضيف \"{name}\" إلى أسطح النموذج: صدّره أو قطّعه في مقاطع أو أزله هناك. لا يتراجع Ctrl+Z عنه (بل يتراجع عن تعديلك السابق)؛ سطح النموذج ليس جزءًا من سجل التراجع."
 }
