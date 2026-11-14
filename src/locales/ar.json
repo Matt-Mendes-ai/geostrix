@@ -12357,5 +12357,19 @@
   "Forget the order on the legends of every page of this project": "نسيان الترتيب في مفاتيح كل صفحات هذا المشروع",
   "Cleared on every page's legends. Load from view lists the codes in their default order again.": "تم المسح في مفاتيح كل الصفحات. يعرض «التحميل من العرض» الرموز بترتيبها الافتراضي مجددًا.",
   "Save CSV": "حفظ CSV",
-  "Save the table as a CSV file": "حفظ الجدول كملف CSV"
+  "Save the table as a CSV file": "حفظ الجدول كملف CSV",
+  "a drillhole (read in a later step)": "ثقب حفر (يُقرأ في خطوة لاحقة)",
+  "an image (not read)": "صورة (لم تُقرأ)",
+  "a label (not read)": "تسمية (لم تُقرأ)",
+  "a block model without its U / V / Z cell delimiters": "نموذج كتل بلا محددات الخلايا U / V / Z",
+  "a 2D grid without its U / V counts and sizes": "شبكة ثنائية الأبعاد بلا أعداد وأحجام U / V",
+  "This is not a geoh5 file: it has no GEOSCIENCE group (another kind of HDF5 file?).": "هذا ليس ملف geoh5: لا يحوي مجموعة GEOSCIENCE (نوع آخر من ملفات HDF5؟).",
+  "an object of type \"{type}\" (not read)": "كائن من نوع «{type}» (لم يُقرأ)",
+  "no vertices": "بلا رؤوس",
+  "cells missing, or pointing past the vertices": "خلايا مفقودة، أو تشير إلى ما بعد الرؤوس",
+  "2D grids ({names}) are shown as block models one cell thick, coloured by their values.": "تُعرض الشبكات الثنائية الأبعاد ({names}) كنماذج كتل بسماكة خلية واحدة، ملونة حسب قيمها.",
+  "The file's distance unit is {u}: its coordinates are used as they are, not converted to metres.": "وحدة المسافة في الملف هي {u}: تُستخدم إحداثياته كما هي دون تحويل إلى الأمتار.",
+  "A geoh5 file carries no coordinate system: its coordinates are used as they are, in the project's.": "لا يحمل ملف geoh5 نظام إحداثيات: تُستخدم إحداثياته كما هي في نظام المشروع.",
+  "A Geoscience ANALYST workspace: its points, curves, surfaces, block models and 2D grids are read. Drillholes and other objects are listed as not read.": "مساحة عمل Geoscience ANALYST: تُقرأ نقاطها ومنحنياتها وأسطحها ونماذج الكتل والشبكات الثنائية الأبعاد. تُدرج ثقوب الحفر والكائنات الأخرى على أنها لم تُقرأ.",
+  "Import Geoscience ANALYST (.geoh5)…": "استيراد Geoscience ANALYST (.geoh5)…"
 }
