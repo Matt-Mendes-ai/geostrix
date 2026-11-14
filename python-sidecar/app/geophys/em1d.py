@@ -215,7 +215,9 @@ def invert_batch(sv, d, sd, thick, m_ref=None, alpha=ALPHA, max_iter=15, smooth=
     # apparent conductivity is fitted in log space (Workbench's choice too): sd becomes the log of 1 + the relative error, so a
     # model over-predicting a near-zero reading is not punished as if the reading were exact; a reading <= 0 has no log and is
     # left out (counted by the caller). ppm (in-phase can be negative) stays linear.
-    logd = sv.kind == "eca"
+    # TASKS.csv #3440 — a TEM survey (app/geophys/tem1d.py TemSurvey) brings its own forward (forward_fn) and kind "log": its decays span decades
+    logd = sv.kind in ("eca", "log")
+    fw = getattr(sv, "forward_fn", None) or (lambda mm, th, jac=False: forward(sv, mm, th, jac=jac))
     ok = np.isfinite(d) & np.isfinite(sd) & (sd > 0) & ((d > 0) if logd else True)
     if logd:
         dd = np.where(ok, np.log(np.where(ok, d, 1.0)), 0.0)
@@ -227,9 +229,9 @@ def invert_batch(sv, d, sd, thick, m_ref=None, alpha=ALPHA, max_iter=15, smooth=
 
     def F(mm, jac=False):
         if not jac:
-            p = forward(sv, mm, thick)
+            p = fw(mm, thick)
             return np.log(np.maximum(p, 1e-9)) if logd else p
-        p, Jm = forward(sv, mm, thick, jac=True)
+        p, Jm = fw(mm, thick, jac=True)
         if logd:
             pp = np.maximum(p, 1e-9)
             return np.log(pp), Jm / pp[:, :, None]

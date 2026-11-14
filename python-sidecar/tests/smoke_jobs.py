@@ -121,6 +121,14 @@ def main():
     r = run_job("em1d", em)
     assert len(r.get("condMs") or []) == 3 and all(v is not None for v in r["condMs"][1]), f"em1d: {list(r)[:8]}"
 
+    # TASKS.csv #3440 — 1D TEM: two stations of an airborne dipole system over a 10 mS/m half-space, a 30 us ramp-off (empymod's Fourier
+    # transform must import frozen: the engine's own use of it, beside em1d's numba kernel)
+    gates = [1e-5 * 1.8 ** k for k in range(10)]
+    tem = {"system": {"geom": "vmd", "r": 13.0, "h": 30.0}, "gates": gates, "waveform": [[-0.002, 0.0], [-0.0019, 1.0], [-3e-5, 1.0], [0.0, 0.0]],
+           "data": [[20000.0 / (1 + (t / 1e-4) ** 2.5) for t in gates]] * 2, "errRel": 0.05, "layers": {"n": 8, "first": 5.0, "bottom": 150.0}, "maxIter": 3}
+    r = run_job("tem1d", tem)
+    assert len(r.get("condMs") or []) == 2 and all(v is not None for v in r["condMs"][0]), f"tem1d: {list(r)[:8]}"
+
     # TASKS.csv #1985 — Boule's normal gravity and Harmonica's prism layer (gravred), Verde's SplineCV (spline): frozen, they need
     # their submodules and metadata; a flat 500 m terrain of 21 x 21 nodes at 1 km
     import base64, struct
