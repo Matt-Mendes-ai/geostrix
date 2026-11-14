@@ -30,7 +30,9 @@ export function assayColorFor(value, idx, style) {
 // the categorical layers a legend lists, in order (ViewerModule's CATEGORY_LAYER_KEYS)
 export const LEGEND_CATEGORY_KEYS = ["litho", "alt", "vein", "breccia", "weath" /* #2162 */, "structzone", "litho_gc", "alt_gc", "mnlgy", "structure"];
 
-export const fmtLegendValue = (v) => (Math.abs(v) >= 1000 || v === 0 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 0.1 ? v.toFixed(2) : v.toPrecision(2));
+// TASKS.csv #3396 — under 0.001 in short scientific notation ('1.2e-5'): a mag susc class read '0.000010 – 0.000012', the zeros counted by eye
+const sciShort = (v) => { const [m, e] = v.toExponential(1).split("e"); return `${+m}e${e.replace("+", "")}`; };
+export const fmtLegendValue = (v) => (Math.abs(v) >= 1000 || v === 0 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 0.1 ? v.toFixed(2) : Math.abs(v) < 1e-3 ? sciShort(v) : v.toPrecision(2));
 
 // keys: the categorical layer keys, in order. hidden[key]: a Set or array of hidden values. singleColor[key]: a one-
 // colour layer style (#635). labelFor / colorFor(key, value): with the user's overrides applied.
@@ -198,7 +200,9 @@ export function surfaceSampleLegendGroup({ samples, visible = true, style = null
 // has counts; else its first), in their usual order, and ends with a note row saying how many were left out (moreLabel(n)).
 export function capLegendGroups(groups, perGroup = 12, moreLabel = (n) => `+ ${n} more`) {
   return groups.map((g) => {
-    if (g.ramp || !g.items || g.items.length <= perGroup) return g;
+    // TASKS.csv #3396 — a numeric model's classes (grade: a block model's, a classified log's, a graduated map layer's) are a scale, not codes:
+    // twelve of 60 mag susc classes and '+ 48 more codes, not listed' read as a key. The legend's box decides how many rows show (#3395).
+    if (g.ramp || g.grade || !g.items || g.items.length <= perGroup) return g;
     const idx = g.items.map((_, i) => i);
     const keep = new Set(g.counts ? idx.sort((a, b) => g.counts[b] - g.counts[a] || a - b).slice(0, perGroup) : idx.slice(0, perGroup));
     const items = g.items.filter((_, i) => keep.has(i));
