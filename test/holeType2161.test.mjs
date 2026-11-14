@@ -17,7 +17,7 @@ test("#2161 the spellings", () => {
 });
 
 test("#2161 the collar import adds it beside the file's own column", () => {
-  const p = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const p = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(p, /"hole type": ht/);
   assert.match(p, /\.\.\.withHoleType\((withDates\()?surfaceAttrs\(r, attrCols\)\)?, r\)/); // withDates: #3075
 });

@@ -16,7 +16,7 @@ test("Planar_StrucType (filled on all rows) over Linear_StrucType (blank on most
 });
 
 test("the import wires both", () => {
-  const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(u, /if \(target === "structure" && mapping\?\.value\) return \{ \.\.\.mapping, value: fullestTypeColumn\(headers, rows, mapping\.value\) \};/);
   assert.match(u, /pick\(s\) have an alpha angle and no beta: kept unoriented/);
 });

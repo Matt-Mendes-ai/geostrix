@@ -28,7 +28,7 @@ test("Data QC: many ids with no collar are one line naming them; a few keep thei
 test("the dialog offers to leave them out (ticked); the import leaves them out by default and says so either way", () => {
   const d = readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8");
   assert.match(d, /checked=\{modal\.dropUncollared !== false\}/);
-  const p = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const p = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(p, /const noCollar = surveyIdsWithoutCollar\(all, importStateRef\.current\.collars\);/);
   assert.match(p, /if \(data\.dropUncollared !== false\) \{ const gone = new Set\(noCollar\.ids\); all = all\.filter/);
   assert.match(p, /skippedRowsText\(svDropped, allRows\.length\) \+ noCollarNote/);

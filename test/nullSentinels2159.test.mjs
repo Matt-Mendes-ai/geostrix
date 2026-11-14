@@ -11,7 +11,7 @@ test("#2159 num(): the no-data codes are missing, exact values only", () => {
 });
 
 test("#2159 the import counts them per mapped column and says so", () => {
-  const p = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const p = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(p, /if \(v != null && v !== "" && isNullSentinel\(v\)\) hits\.set\(c/);
   assert.match(p, /were read as missing: \{cols\}/);
 });

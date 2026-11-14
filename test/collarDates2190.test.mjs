@@ -26,7 +26,7 @@ test("on 242 holes the dates go over the 100-value rule but are kept; a mapped c
 });
 
 test("the collar commit uses it", () => {
-  const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(u, /import \{ collarAlwaysKept(, firstPerHole)? \} from "\.\.\/\.\.\/lib\/collarAttrs\.js";/); // firstPerHole: #2172
   assert.match(u, /for \(const c of collarAlwaysKept\(collarHdrs, attrMapping\)\) if \(!attrCols\.includes\(c\)\) attrCols\.push\(c\);/);
 });

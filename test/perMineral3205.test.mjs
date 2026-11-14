@@ -61,7 +61,7 @@ test("the opt-in sulphide total: the ticked columns summed, named for what it su
 });
 
 test("wired into the dialog and the commit, loaded on demand", () => {
-  const p = fs.readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const p = fs.readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(p, /await import\("\.\.\/\.\.\/lib\/perMineralColumns\.js"\)/);
   assert.doesNotMatch(p, /^import .*perMineralColumns/m, "not a startup import");
   assert.match(p, /\} else if \(minPlan\) \{/);

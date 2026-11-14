@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const src = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+const src = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
 const modal = readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8");
 
 test("the guess becomes a custom layer, with the reason, in every dialog path", () => {
@@ -15,7 +15,9 @@ test("the guess becomes a custom layer, with the reason, in every dialog path", 
 
 test("a folder drop never commits unseen into another file's log", () => {
   assert.ok(src.includes('const confident = target !== "custom" && !guarded.guessNote &&'));
-  assert.ok(src.includes("if (holes.has(r.hole_id) && r._src !== name)"), "rows of the SAME file (a re-import) do not count");
+  // the overlap check moved to lib/viewer/layerOverlap.js with the startup split (the hook reads it while the dialog renders)
+  const lib = readFileSync(new URL("../src/lib/viewer/layerOverlap.js", import.meta.url), "utf8");
+  assert.ok(lib.includes("if (holes.has(r.hole_id) && r._src !== name)"), "rows of the SAME file (a re-import) do not count");
 });
 
 test("the dialog says why, and what the chosen layer would replace", () => {

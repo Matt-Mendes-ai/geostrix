@@ -27,7 +27,7 @@ test("the holes left pointing up after the sign (stored dips are positive down)"
 });
 
 test("the dialog and the import use it", () => {
-  const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.equal((u.match(/\.\.\.dipConventionFields\((data|rows), dipColOf\(target, mapping\)\) \/\* #2886 \*\//g) || []).length, 3, "the single drop, the database table and the queue");
   assert.ok(!/dipConvention: "neg_down"/.test(u));
   assert.match(u, /const up = upwardHoles\(rows\), list = up\.slice\(0, 5\)\.join\(", "\); if \(up\.length\) parts\.push\(up\.length > 5 \/\/ #2886/);

@@ -59,7 +59,7 @@ test("binning is proposed only above the budget (the WA iron log: 2.58 M reading
 
 test("the dialog box and the commit are wired", () => {
   assert.match(readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8"), /<LogChannelsBox modal=\{modal\} onChange=\{onChange\} sel=\{sel\} \/>/);
-  const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(u, /const out = logChannelRows\(src, mapping, col, binM, nd\?\.values \|\| null, rg, / /* nd: the no-data codes left out, #2332 */);
   assert.match(u, /const binNote = !out\.binned \? \"\" : binM === \"assay\" \? `Binned on import to the assay sample intervals[\s\S]*?: `Binned on import to \$\{binM\} m: mean of/ /* assay: #3039 */); // #2329: the note is joined with the interval-middle one
 });
@@ -76,7 +76,7 @@ test("with channels ticked, the value column is not required (the dialog's butto
   assert.equal(logChannelsFor("litho", ["HOLEID", "DEPTH", "Gamma_Best"], rows, { depth: "DEPTH" }), null);
   const m = readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8");
   assert.match(m, /!\(logOn && f\.key === "value"\)/);
-  assert.match(readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8"), /!\(logChans && f\.key === "value"\)/);
+  assert.match(readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8"), /!\(logChans && f\.key === "value"\)/);
 });
 
 test("a binned log's unit, bin and notes are kept in the saved project (the store's mirror of the custom layers)", async () => {

@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const pipe = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+const pipe = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const modal = readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
 test("true / magnetic north and another CRS's grid are left as they are while the project CRS is not chosen", () => {

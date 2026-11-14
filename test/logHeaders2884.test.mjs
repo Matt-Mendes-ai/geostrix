@@ -36,7 +36,7 @@ test("From = To on every row: point readings, even with density alone and an SG 
 });
 
 test("the import paths pass their rows to the guess", () => {
-  const src = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const src = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(src, /guessTargetFor\(headers, file\.name, data\); \/\/ #605: the file name as a hint; data: #2884/);
   assert.match(src, /guessTargetFor\(headers, sourceName, rows\); \/\/ #605; rows: #2884/);
   assert.match(src, /guessTargetFor\(headers, file\.name, data\); \/\/ #605; data: #2884/);

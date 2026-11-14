@@ -42,6 +42,6 @@ test("the assay dialog shows the filter and the assay commit applies it and says
   const g = readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8");
   assert.match(g, /const filtered = applyRowFilter\(modalIn\.allRows \|\| \[\], rowFilter\), modal = filtered\.dropped \? \{ \.\.\.modalIn, allRows: filtered\.rows \} : modalIn;/);
   assert.match(g, /overlapSummary\(allRows, \{ hole: mapping\.hole_id, from: mapping\.from, to: mapping\.to \}/);
-  const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(u, /if \(overlapWorthSaying\(o\) && o\.col\) setNotices/);
 });

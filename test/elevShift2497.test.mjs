@@ -9,7 +9,7 @@ test("the shift is outside the {modal.localGridOn && ...} block; the pipeline ap
   const m = readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8");
   const shift = m.indexOf('tr("Elevation shift")'), tick = m.indexOf('tr("X/Y are on a local mine grid")'), block = m.indexOf("{modal.localGridOn && (");
   assert.ok(shift > 0 && shift < tick && tick < block, "the shift sits before the tick and its block");
-  const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(u, /if \(units === "ft" \|\| gridOn \|\| Number\(importModal\.zShift\)\) \{/);
   assert.match(u, /const zShift = importModal\.target === "collars" \? Number\(importModal\.zShift\) \|\| 0 : 0;/);
 });

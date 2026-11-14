@@ -27,7 +27,7 @@ test("a soil table with a sample depth is still samples (the hole-length test is
 });
 
 test("both drop paths hand it over, with a surface-sample notice", () => {
-  const s = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const s = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.equal((s.match(/looksLikeSurfaceSamples\(headers, data\)/g) || []).length, 2);
   assert.match(s, /opened in Geochem's surface-sample import, where you choose the elements\. Not samples\?/);
 });

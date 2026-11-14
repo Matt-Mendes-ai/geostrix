@@ -21,7 +21,7 @@ test("magnetic tools are a hint of magnetic north; gyro and magnetic tools toget
 });
 
 test("the queue stops on such a survey, and the dialog says why", () => {
-  const u = fs.readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = fs.readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(u, /const azOk = !azDetected \|\| \(!azDetected\.mixed && azDetected\.ref !== "magnetic" && !azDetected\.hint/, "a hint or a mix is never committed unseen (#2015)");
   assert.match(u, /if \(d\?\.tools && !d\.ref\) return \{ azimuthToolsCol: d\.col \}/);
   const m = fs.readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8");

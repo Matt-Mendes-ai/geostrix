@@ -32,7 +32,7 @@ test("the dialog says it with the way out; the queue opens the dialog instead of
   const d = readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8");
   assert.match(d, /\{f\.key === "value" && codeClash && \(/);
   assert.match(d, /const asOwnLayer = \(\) => onChange\(\{ \.\.\.modal, target: "custom", customName:/);
-  const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(u, /const otherCodes = !LAYER_META\[target\]\?\.numeric && otherCodeSystem\(codeOverlap\(importStateRef\.current\.layers\?\.\[target\], data, mapping\.value, mapping\.hole_id\)\);/);
   assert.match(u, /exactRequired && dipsAgree && azOk && !otherCodes;/);
   for (const l of ["es", "pt", "fr", "ar"]) {
