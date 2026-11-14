@@ -2,7 +2,7 @@
 // trace (0.3 mm), a collar symbol (1.6 mm), labels that do not overlap, and, when coloured (by series, a collar field or a grade:
 // #2473), a key. North is up.
 import React, { useMemo } from "react";
-import { drillPlanPlanned } from "../lib/drillPlan.js"; // TASKS.csv #2259
+import { drillPlanPlanned, planTraces, traceCaption } from "../lib/drillPlan.js"; // TASKS.csv #2259; planTraces / traceCaption: #3367
 import { drillPlanGeometry, placeLabels, drillPlanGrid, drillPlanColouring, colourByKind, emptiestCorner, labelBackdrop, drillPlanShapes, symbolPath, bestInterceptGT, p90Cutoff, capPlanKey } from "../lib/drillPlan.js"; // capPlanKey: #3026 // best intercept: #2685; // shapes: #2686; // labelBackdrop: #2738; // drillPlanGrid: #2301; colouring: #2473
 import { resolvedSegments, gradeUnitLabel, computeBestIntercepts } from "../lib/geochem.js"; // TASKS.csv #2473; computeBestIntercepts: #2685
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #2685 — QC inserts are not intercepts
@@ -48,8 +48,9 @@ export function drillPlanGradeInput(el, assays, assayElements) {
   return { segs: resolvedSegments(assays, key, unit, units), unit: gradeUnitLabel(key, unit) };
 }
 
-export function drillPlanDrawing(el, collars, assays = null, assayElements = null, plannedHoles = null) {
-  const g = drillPlanGeometry(el, collars);
+// traces (#3367): planTraces' Map, the surveyed holes' plan paths; method: the project's desurvey method (for the caption)
+export function drillPlanDrawing(el, collars, assays = null, assayElements = null, plannedHoles = null, traces = null, method = null) {
+  const g = drillPlanGeometry(el, collars, traces);
   const planned = drillPlanPlanned(el, plannedHoles); // TASKS.csv #2259 — dashed, in the planned colour, labelled '(planned)'
   const plannedKey = planned.length ? [{ label: tr("Planned hole") }] : [];
   const colouring0 = drillPlanColouring(el, g.holes, collars, { ...drillPlanGradeInput(el, assays, assayElements), palette: ON_WHITE, ink: INK });
@@ -74,7 +75,9 @@ export function drillPlanDrawing(el, collars, assays = null, assayElements = nul
   const r = (el.collarMm || 0.8) * MM_PX + 1;
   const collarBoxes = [...g.holes, ...planned].filter((hh) => hh.inside).map((hh) => ({ x0: hh.ax - r, y0: hh.ay - r, x1: hh.ax + r, y1: hh.ay + r }));
   const labels = placeLabels(toLabel, { fontPx, w: g.w, h: g.h, avoid: [...(keyBox ? [{ x0: keyBox.x, y0: keyBox.y, x1: keyBox.x + keyBox.w, y1: keyBox.y + keyBox.h }] : []), ...collarBoxes] });
-  return { ...g, planned, plannedKey, colouring, shapes, shapeKey, fontPx, labels, labelled: toLabel.length, keyBox };
+  // TASKS.csv #3367 — the sheet says how the traces were drawn: along the surveys, straight, or both
+  const caption = traceCaption({ surveyed: g.holes.filter((hh) => hh.surveyed).length, straight: g.holes.filter((hh) => !hh.surveyed).length, planned: planned.length, method });
+  return { ...g, planned, plannedKey, caption, colouring, shapes, shapeKey, fontPx, labels, labelled: toLabel.length, keyBox };
 }
 
 // TASKS.csv #3182 (#3028 (8), review #2876) — the grid caption and the first northing label touched the frame ('...(EPSG:28350' looked cut): a
@@ -88,9 +91,10 @@ export function gridLabelPlace(t, axis, fontPx, w, h) {
 }
 
 // gridCaption (#2301): what the grid's numbers are ('local mine grid', the CRS name), from the page
-export default function DrillPlanElement({ el, collars, gridCaption = "", assays = null, assayElements = null, plannedHoles = null }) { // plannedHoles: #2259
+export default function DrillPlanElement({ el, collars, gridCaption = "", assays = null, assayElements = null, plannedHoles = null, survey = null, desurveyMethod = null }) { // plannedHoles: #2259; survey / desurveyMethod: #3367
   const FONT = layoutFontStack(el?.fontFamily); // TASKS.csv #2144 — the element's typeface (none: Exo 2)
-  const d = useMemo(() => drillPlanDrawing(el, collars, assays, assayElements, plannedHoles), [el, collars, assays, assayElements, plannedHoles]);
+  const traces = useMemo(() => planTraces(collars, survey, desurveyMethod), [collars, survey, desurveyMethod]); // #3367 — kept per collars / survey / method
+  const d = useMemo(() => drillPlanDrawing(el, collars, assays, assayElements, plannedHoles, traces, desurveyMethod), [el, collars, assays, assayElements, plannedHoles, traces, desurveyMethod]);
   const grid = useMemo(() => drillPlanGrid(el), [el]);
   const line = 0.3 * MM, { colouring, keyBox } = d; // keyBox: placed in drillPlanDrawing (#2611)
   const styles = useMemo(() => new Map(d.holes.map((hh) => [hh.id, d.colouring.styleOf(hh.id, hh.series)])), [d]);
@@ -116,7 +120,13 @@ export default function DrillPlanElement({ el, collars, gridCaption = "", assays
             {boxed("cap", cap, d.w - GRID_INSET, d.h - GRID_INSET, "end")}
           </g>;
         })()}
-        {d.holes.map((hh) => <line key={`t${hh.id}`} x1={hh.ax} y1={hh.ay} x2={hh.bx} y2={hh.by} stroke={styles.get(hh.id).hollow ? INK : styles.get(hh.id).colour} strokeWidth={line} strokeLinecap="round" />)}
+        {d.caption && (() => { /* TASKS.csv #3367 — how the traces were drawn, on the sheet: above the grid caption, or in its place */
+          const gf = Math.max(6, d.fontPx - 1), y = d.h - GRID_INSET - (grid ? gf + 4 : 0), b = labelBackdrop(d.caption, d.w - GRID_INSET, y, gf, "end");
+          return <g fontSize={gf} fill="#55606e" fontFamily={FONT}><rect x={b.x} y={b.y} width={b.w} height={b.h} fill="#ffffff" fillOpacity="0.85" /><text x={d.w - GRID_INSET} y={y} textAnchor="end">{d.caption}</text></g>;
+        })()}
+        {d.holes.map((hh) => hh.path /* #3367 — along the survey */
+          ? <polyline key={`t${hh.id}`} points={hh.path.map(([x, y]) => `${x},${y}`).join(" ")} fill="none" stroke={styles.get(hh.id).hollow ? INK : styles.get(hh.id).colour} strokeWidth={line} strokeLinecap="round" strokeLinejoin="round" />
+          : <line key={`t${hh.id}`} x1={hh.ax} y1={hh.ay} x2={hh.bx} y2={hh.by} stroke={styles.get(hh.id).hollow ? INK : styles.get(hh.id).colour} strokeWidth={line} strokeLinecap="round" />)}
         {/* #2473 — a hole with no value is a hollow ring; higher grade classes are drawn last, on top */}
         {d.holes.filter((hh) => hh.inside).sort((a, b) => styles.get(a.id).rMm - styles.get(b.id).rMm).map((hh) => { const s = styles.get(hh.id), r = rOf(s), path = symbolPath(d.shapes.shapeOf(hh.id), hh.ax, hh.ay, r); /* #2686; r: #3017 */ const hollowFill = dense.halo ? "#ffffff" : "none"; return path
           ? <path key={`c${hh.id}`} d={path} fill={s.hollow ? hollowFill : s.colour} stroke={s.hollow ? s.colour : dense.halo ? "#ffffff" : "none"} strokeWidth={s.hollow ? 0.9 : 0.6} />
