@@ -10,7 +10,8 @@ import { holesWithoutField } from "../lib/viewer/holeFieldPicks.js"; // #3074
 import { holeColourScheme, applyHoleColours, holeColourLegendGroup } from "../lib/viewer/holeColours.js"; // #1504
 import FenceOptions from "./viewer/FenceOptions.jsx";
 import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js";
-import React, { useRef, useEffect, useState, useCallback, useMemo, Suspense } from "react";
+import React, { useRef, useEffect, useState, Suspense } from "react";
+import { useDataGeneration, generationTables, useCallbackGen as useCallback, useMemoGen as useMemo } from "./viewer/dataGeneration.js"; // TASKS.csv #3483 — the memos made again when a big table is replaced (a leak of every earlier generation)
 import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565; requestModuleAction: #1417
 import { isPxrfRow } from "../lib/qaqcCore.js"; // TASKS.csv #1695; #3159: qaqcCore, not qaqc.js (the QAQC charts' code, not needed at startup)
 import { describeDbImport } from "../lib/dbImports.js"; // TASKS.csv #1963
@@ -474,6 +475,7 @@ const faceLook = (mesh, op) => { const m = mesh.material, t = op < 1; m.opacity 
 
 export default function ViewerModule({ mode = "view", visible = true, bare = false }) { // bare: #1979 — the viewport alone, beside the Geophysics sidebar
   const store = useStore();
+  useDataGeneration(generationTables(store)); // TASKS.csv #3483 — before every useCallback / useMemo below
   // TASKS.csv #336 — latest survey/layers for import notices. commitImportData is reached through the
   // multi-file queue's long-lived callback, whose closure can hold stale store values.
   const importStateRef = useRef({});
