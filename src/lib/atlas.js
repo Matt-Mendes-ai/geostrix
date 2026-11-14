@@ -11,6 +11,7 @@
 import { buildStripLogDataUrl } from "./striplogSvg.js";
 import { utmGridReady, metresPerPagePx } from "./layoutGeometry.js"; // TASKS.csv #1644
 import { DIAGRAM_W, DIAGRAM_H } from "./northDiagram.js"; // TASKS.csv #2478
+import { elementBox } from "./layoutPlace.js"; // TASKS.csv #3233
 
 // TASKS.csv #1644 (review #1497, Lawyers) — each hole marked on the template's map. The viewport is still the template's one capture
 // (see above), so a page used to show the district plan with nothing saying where its hole was (21AGBDD001 800 m off centre,
@@ -104,16 +105,52 @@ function substituteElement(el, values) {
 // TASKS.csv #1478 (review #1352) — the strip log went below the lowest template element (y 780 on a 794 px page: a 14 px sliver
 // printed). It now takes the full page height inside the margins (at most 40 % of the width) on the side whose column covers less
 // of the template's elements. page: { w, h } in page px; elements: [{ x, y, w, h }]. -> { x, y, w, h }
+// TASKS.csv #3233 (split from #2674) — the column was taken even when the template left a free area the log fits in, and the template was
+// then narrowed around it (#1772). The log now takes the template's largest free area (freeStripLogBox) when it is at least FREE_SHARE as
+// tall there as in the column; below that, the column and #1772's room-making, as before. -> { x, y, w, h, free (true: nothing moved) }
+export const FREE_SHARE = 0.6; // a layout choice: in the free area the log's text prints at 60 % of the column's size or more
 export function placeStripLog(elements, aspect, page = { w: 1123, h: 794 }, margin = 40) {
   let h = page.h - 2 * margin, w = h * aspect;
   if (w > page.w * 0.4) { w = page.w * 0.4; h = w / aspect; }
+  const free = freeStripLogBox(elements, aspect, page, margin);
+  if (free && free.h >= FREE_SHARE * h - 1e-9) return { ...free, free: true };
   const overlap = (x) => elements.reduce((s, el) => {
     const ex = el.x || 0, ey = el.y || 0, ew = el.w || 100, eh = el.h || 40;
     const ox = Math.max(0, Math.min(x + w, ex + ew) - Math.max(x, ex)), oy = Math.max(0, Math.min(margin + h, ey + eh) - Math.max(margin, ey));
     return s + ox * oy;
   }, 0);
   const right = page.w - margin - w, left = margin;
-  return { x: overlap(right) <= overlap(left) ? right : left, y: margin, w, h };
+  return { x: overlap(right) <= overlap(left) ? right : left, y: margin, w, h, free: false };
+}
+
+// TASKS.csv #3233 — the tallest log of this aspect (width / height) that fits on the page inside the margins without touching a template
+// element (kept `gap` px clear of each), at most 40 % of the page width as in the column; on a tie the one further right and higher.
+// Each band between a top edge (the margin or an element's bottom) and a bottom edge (the margin or an element's top) is split into the
+// x-gaps the elements crossing it leave. -> { x, y, w, h } or null
+export function freeStripLogBox(elements, aspect, page = { w: 1123, h: 794 }, margin = 40, gap = 12) {
+  if (!(aspect > 0)) return null;
+  const boxes = (elements || []).map(elementBox).filter((b) => b.w > 0 && b.h > 0);
+  const top = margin, bottom = page.h - margin, left = margin, right = page.w - margin;
+  const tops = [top, ...boxes.map((b) => b.y + b.h + gap)].filter((y) => y >= top && y < bottom);
+  const bottoms = [bottom, ...boxes.map((b) => b.y - gap)].filter((y) => y > top && y <= bottom);
+  let best = null;
+  for (const y0 of tops) for (const y1 of bottoms) {
+    const H = y1 - y0;
+    if (H <= 0 || (best && H < best.h)) continue;
+    const cross = boxes.filter((b) => b.y < y1 + gap && b.y + b.h > y0 - gap).map((b) => [b.x - gap, b.x + b.w + gap]).sort((a, b) => a[0] - b[0]);
+    let x = left;
+    const gaps = [];
+    for (const [a, b] of cross) { if (a > x) gaps.push([x, Math.min(a, right)]); x = Math.max(x, b); if (x >= right) break; }
+    if (x < right) gaps.push([x, right]);
+    for (const [g0, g1] of gaps) {
+      const Wd = g1 - g0;
+      if (Wd <= 0) continue;
+      const h = Math.min(H, Wd / aspect, (page.w * 0.4) / aspect), w = h * aspect;
+      const c = { x: g1 - w, y: y0, w, h };
+      if (!best || h > best.h + 1e-9 || (Math.abs(h - best.h) <= 1e-9 && (c.x > best.x + 1e-9 || (Math.abs(c.x - best.x) <= 1e-9 && c.y < best.y)))) best = c;
+    }
+  }
+  return best;
 }
 // TASKS.csv #1772 (review #1645, Copley) — the strip log's column still covered a wide template map (the 1:5,000 viewport ran to
 // x 1011 of 1123 px, the log started at 959). Each template element it covers is narrowed to end `gap` px before it (or, on the
@@ -163,9 +200,9 @@ async function buildOneHolePage(holeId, templateElements, { collars, layers, inc
     let built = null;
     try { built = await buildStripLogDataUrl({ holeId, collars, layers, legendOverride, lithoPatterns, ...(assayTracks || {}) }); } catch { stripLogFailed = true; } // legendOverride: #1092; assayTracks { assays, assaySymbols, elementUnits }: #1480
     if (built) {
-      const box = placeStripLog(elements, built.aspect, page || undefined);
+      const { free, ...box } = placeStripLog(elements, built.aspect, page || undefined);
       textPt = stripLogTextPt(built.height, box.h);
-      ({ elements, narrowed, overlapping } = makeRoomForStripLog(elements, box, { pageW: (page || {}).w || 1123 })); // #1772
+      if (!free) ({ elements, narrowed, overlapping } = makeRoomForStripLog(elements, box, { pageW: (page || {}).w || 1123 })); // #1772; free: #3233 — nothing to move
       elements = [...elements, { id: `striplog_${holeId}_${Date.now()}`, type: "image", label: `Strip log — ${holeId}`, src: built.dataUrl, aspect: built.aspect, ...box, depthHeightAtCaptureM: built.depthHeightAtCaptureM ?? null /* #1480 */ }];
     }
   }

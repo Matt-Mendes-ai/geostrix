@@ -25,7 +25,7 @@ import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every ex
 import { interceptRows, optionalInterceptColumns } from "../lib/drillReportExport.js"; // TASKS.csv #1083, #1290
 import { localDate } from "../lib/localDate.js"; // TASKS.csv #2358
 import { cutoffOnElementChange, rememberInterceptCutoff } from "../lib/interceptCutoff.js"; // TASKS.csv #2513; remember: #3069
-import { interceptTablePlan, interceptCount, columnFormat } from "../lib/interceptTable.js";
+import { interceptTablePlan, interceptCount, columnFormat, continuationRanges } from "../lib/interceptTable.js"; // continuationRanges: #2708
 import { BULK_COMMODITIES } from "../lib/preferredElement.js"; // TASKS.csv #2923 — no metal equivalent for a bulk commodity
 import { elementOptionLabel, isLoiHeader } from "../lib/geochem.js"; // TASKS.csv #2923 — 'Si as SiO2' in the price rows; isLoiHeader: #2924 // TASKS.csv #2200 / #2479; columnFormat: #3019
 import { pagePx, pageFormatOf } from "../lib/pageFormats.js"; // TASKS.csv #2479
@@ -44,7 +44,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
   const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
-  const { desurveyMethod, project, getProjectToken, setLayoutElements, addLayoutPages, layoutElements = [], layoutPages = [], activeLayoutPageId, goToModule, geochemThresholds = [] } = useStore(); // addLayoutPages: #3019 // layoutElements / pages: #2479 // TASKS.csv #135 — true-width needs the project's own trace; layout: #911; geochemThresholds: #2347
+  const { desurveyMethod, project, getProjectToken, setLayoutElements, addLayoutPages, switchLayoutPage, layoutElements = [], layoutPages = [], activeLayoutPageId, goToModule, geochemThresholds = [] } = useStore(); // addLayoutPages: #3019 // layoutElements / pages: #2479 // TASKS.csv #135 — true-width needs the project's own trace; layout: #911; geochemThresholds: #2347
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
   const lead = useLeadCommodity();
@@ -58,6 +58,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
   // Also show, empty prices): they are kept per project for the session (lib/keptState, as Geochem's own choices are)
   const keptScope = scopeOf(getProjectToken?.());
   const [asPct, setAsPct] = useKeptState(keptScope, "bi.asPct", false);
+  const [continuePages, setContinuePages] = useKeptState(keptScope, "bi.continuePages", false); // TASKS.csv #2708
   const pctOk = unit === "ppm" && !PRECIOUS_METALS.has(symbol);
   const pct = pctOk && asPct;
   const dispUnit = pct ? "%" : unitL;
@@ -227,10 +228,13 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
     const ownPage = plan.overlaps && typeof addLayoutPages === "function";
     if (ownPage) plan = interceptTablePlan([], pageSize, { total: results.length, w: tableW });
     const columns = [tr("Hole"), tr("From (m)"), tr("To (m)"), tr("Length (m)"), ...(twEnabled ? [tr("True width (m)")] : []), `${gradeSym} (${dispUnit})`, tr("Grade × length ({unit} × m)", { unit: dispUnit }), ...shownExtras.map((s) => `${s} (${gradeUnitLabel(s, elementUnits[s])})`), ...(incOn ? [tr("Including")] : [])]; // dispUnit: #1680; extras: #3019
-    const open = interceptOpenEnds(results.slice(0, plan.shown), reportAssays, symbol, collars); // #2608 — a length that is a minimum
-    // #3019 — one number of decimals per column (the grade printed '56.07', '59', '58.6')
-    const shownRows = results.slice(0, plan.shown), fGrade = columnFormat(shownRows.map((r) => dg(r.avgGrade))), fGT = columnFormat(shownRows.map((r) => dg(interceptGradeLength(r)))), fExtra = Object.fromEntries(shownExtras.map((s) => [s, columnFormat(shownRows.map((r) => r.extras?.[s]))]));
-    const rows = results.slice(0, plan.shown).map((r, i) => [String(r.hole_id), Number(r.from).toFixed(2), Number(r.to).toFixed(2), `${r.unsampledM > 0.05 ? tr("{len} ({s} sampled)", { len: r.length.toFixed(2), s: interceptSampledM(r).toFixed(2) }) : r.length.toFixed(2)}${open[i].top || open[i].bottom ? "+" : ""}` /* #2475; + open: #2608 */, ...(twEnabled ? [r.tw ? r.tw.trueWidth.toFixed(2) : ""] : []), `${r.overRange ? "≥" : ""}${fGrade(dg(r.avgGrade))}`, fGT(dg(interceptGradeLength(r))) /* #2479; fixed decimals: #3019 */, ...shownExtras.map((s) => (r.extras?.[s] == null ? "—" : fExtra[s](r.extras[s]))), ...(incOn ? [r.including ? incText(r.including[0]) : ""] : [])]);
+    // TASKS.csv #2708 — with 'Continue on new pages' every intercept is printed: the first table's rows here, the rest on pages of their own
+    const cont = continuePages && plan.more > 0 && typeof addLayoutPages === "function";
+    const printed = cont ? results.length : plan.shown;
+    const open = interceptOpenEnds(results.slice(0, printed), reportAssays, symbol, collars); // #2608 — a length that is a minimum
+    // #3019 — one number of decimals per column (the grade printed '56.07', '59', '58.6'); #2708 — over every printed row, one format on all pages
+    const shownRows = results.slice(0, printed), fGrade = columnFormat(shownRows.map((r) => dg(r.avgGrade))), fGT = columnFormat(shownRows.map((r) => dg(interceptGradeLength(r)))), fExtra = Object.fromEntries(shownExtras.map((s) => [s, columnFormat(shownRows.map((r) => r.extras?.[s]))]));
+    const allRows = results.slice(0, printed).map((r, i) => [String(r.hole_id), Number(r.from).toFixed(2), Number(r.to).toFixed(2), `${r.unsampledM > 0.05 ? tr("{len} ({s} sampled)", { len: r.length.toFixed(2), s: interceptSampledM(r).toFixed(2) }) : r.length.toFixed(2)}${open[i].top || open[i].bottom ? "+" : ""}` /* #2475; + open: #2608 */, ...(twEnabled ? [r.tw ? r.tw.trueWidth.toFixed(2) : ""] : []), `${r.overRange ? "≥" : ""}${fGrade(dg(r.avgGrade))}`, fGT(dg(interceptGradeLength(r))) /* #2479; fixed decimals: #3019 */, ...shownExtras.map((s) => (r.extras?.[s] == null ? "—" : fExtra[s](r.extras[s]))), ...(incOn ? [r.including ? incText(r.including[0]) : ""] : [])]);
     const from = tr("{symbol} ≥ {cutoff} {unit}, dilution ≤ {dil} m, min {min} m", { symbol: gradeSym, cutoff, unit: unitL, dil: maxInternalDilution, min: minLength });
     // TASKS.csv #936 — a printed intercept table is what gets lifted into a report or a news release: it carries the
     // caveats the dialog and the CSV stamp give (QC, over-range, below detection, true width, screening)
@@ -238,15 +242,26 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
       includeQAQC ? tr("QC samples (standards, blanks, duplicates) are included.") : qaqcExcludedCount > 0 ? tr("{n} QC sample(s) (standards, blanks, duplicates) excluded.", { n: qaqcExcludedCount }) : "",
       results.some((r) => r.overRange) ? tr("≥: contains an over-range result counted at its ceiling; the true grade is at least this.") : "",
       tr("Below-detection results are taken at half the detection limit."),
-      results.slice(0, plan.shown).some((r) => r.unsampledM > 0.05) ? tr("Where a length shows its sampled metres, the rest of the interval has no result: the grade and grade × length are over the samples only.") : "", // #2475
+      results.slice(0, printed).some((r) => r.unsampledM > 0.05) ? tr("Where a length shows its sampled metres, the rest of the interval has no result: the grade and grade × length are over the samples only.") : "", // #2475
       open.some((o) => o.top || o.bottom) ? tr("+: the intercept starts at the hole's first sample or ends at its last sample or the end of the hole, so the mineralization may continue: the length is a minimum.") : "", // #2608
       twEnabled ? tr("True width to a structure dipping {dip}° towards {dipDir}°.", { dip: twDip, dipDir: twDipDir }) : tr("Lengths are downhole, not true widths."),
       tr("Screening tool: verify any intercept against the raw assay certificates before reporting it."),
     ].filter(Boolean).join(" ");
-    const table = { id: `table_${Date.now()}`, type: "table", source: "static", x: plan.x, y: plan.y /* #2479 — a free spot (was 60, 60 over the title); a second send takes the next free spot */, w: tableW /* #3019 */, fontPt: 7, frameWidth: 1,
-      title: tr("Best intercepts: {from}", { from }), from, note, columns, rows: plan.more > 0 ? [...rows, [tr("… and {n} more intercept(s), not shown on this sheet", { n: plan.more }) /* #2608 — the sheet's reader has no CSV */, ...columns.slice(1).map(() => "")]] : rows };
-    if (ownPage) addLayoutPages([{ name: tr("Best intercepts"), elements: [table] }]); // #3019 — the active page had no clear spot for it
-    else setLayoutElements((els) => [...els, table]);
+    const rows = allRows.slice(0, plan.shown);
+    const tail = (text) => [text, ...columns.slice(1).map(() => "")];
+    const carriesOn = tail(tr("Continued on the next page")); // #2708
+    const stamp = Date.now();
+    const table = { id: `table_${stamp}`, type: "table", source: "static", x: plan.x, y: plan.y /* #2479 — a free spot (was 60, 60 over the title); a second send takes the next free spot */, w: tableW /* #3019 */, fontPt: 7, frameWidth: 1,
+      title: tr("Best intercepts: {from}", { from }), from, note, columns, rows: plan.more > 0 ? [...rows, cont ? carriesOn : tail(tr("… and {n} more intercept(s), not shown on this sheet", { n: plan.more })) /* #2608 — the sheet's reader has no CSV */] : rows };
+    // #2708 — the continuation tables, one per new page, at the top-left margin; the caveats stay on the first table
+    const ranges = cont ? continuationRanges(plan.shown, results.length, pageSize, { w: tableW }) : [];
+    const contPages = ranges.map(([a, b], k) => ({ name: tr("Best intercepts ({n})", { n: k + 2 }), batch: `intercepts_${stamp}`,
+      elements: [{ ...table, id: `table_${stamp}_${k + 1}`, x: 40, y: 40, note: "", title: tr("Best intercepts, continued: {from}", { from }), rows: [...allRows.slice(a, b), ...(b < results.length ? [carriesOn] : [])] }] }));
+    if (ownPage) addLayoutPages([{ name: tr("Best intercepts"), elements: [table], ...(cont ? { batch: `intercepts_${stamp}` } : {}) }, ...contPages]); // #3019 — the active page had no clear spot for it
+    else {
+      setLayoutElements((els) => [...els, table]);
+      if (contPages.length) { addLayoutPages(contPages); switchLayoutPage?.(activeLayoutPageId); } // #2708 — back to the page the table starts on
+    }
     goToModule("layout");
     onClose();
   };
@@ -504,6 +519,8 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
             <Download size={14} />{" "}{tr("Export report (CSV)")}</button>
           <button onClick={toLayout} disabled={results.length === 0} title={tr("Put the best of these intercepts on the current Layout page as a table, as many as fit a free spot on the page (the CSV has them all)")} style={{ ...btn(false), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: results.length === 0 ? 0.5 : 1 }}>
             <Sheet size={14} />{" "}{tr("To Layout")}</button>{/* TASKS.csv #911 */}
+          <label style={{ display: "flex", alignItems: "center", gap: 5, alignSelf: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }} title={tr("The intercepts that do not fit the sheet go on new Layout pages, as the collar table's continuation does, instead of a closing count row")}>
+            <input type="checkbox" checked={continuePages} onChange={(e) => setContinuePages(e.target.checked)} />{tr("Continue on new pages")}</label>{/* TASKS.csv #2708 */}
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
