@@ -79,6 +79,7 @@ import { openHelp } from "../lib/help.js";
 const DownholeLogsPane = React.lazy(() => import("../components/DownholeLogsPane.jsx")); // TASKS.csv #1425
 const MtSoundingsPane = React.lazy(() => import("../components/MtSoundingsPane.jsx")); // TASKS.csv #1989
 const FdemPane = React.lazy(() => import("../components/FdemPane.jsx")); // TASKS.csv #1986
+const TemPane = React.lazy(() => import("../components/TemPane.jsx")); // TASKS.csv #1986 step 1 — TEM line data
 const EqsGridBox = React.lazy(() => import("../components/EqsGridBox.jsx")); // TASKS.csv #1985
 const GravityReductionBox = React.lazy(() => import("../components/GravityReductionBox.jsx")); // TASKS.csv #1985
 import { Layers as RLayers /* #1986 */, Waves as RWaves /* #1989 */, Zap as RZap, Radar as RRadar, Magnet as RMagnet, Mountain as RMountain, Shapes as RShapes, Globe as RGlobe, Flag as RFlag, Settings2 as RSettings2, Package as RPackage, Box as RBox } from "../components/icons.js";
@@ -93,7 +94,7 @@ import { sampleSurveyOnHoles, suggestHoleSampling } from "../lib/surveyOnHoles.j
 import { defaultModelLegend } from "../lib/modelDefaultStops.js"; // TASKS.csv #2400
 import { guessVoxelProperty, isLogProperty, propertyRamp, parseGradeLabel } from "../lib/voxelProperty.js"; // TASKS.csv #1786; propertyRamp: #1788; parseGradeLabel: #2667
 import { cloudShape } from "../lib/cloudShape.js"; // TASKS.csv #1783
-import { surveyGridDefaults, proposeSlice, blankForCell } from "../lib/surveyGridDefaults.js"; // TASKS.csv #3322
+import { surveyGridDefaults, proposeSlice, blankForCell, levelSlices, inLevel } from "../lib/surveyGridDefaults.js"; // TASKS.csv #3322; levelSlices: #3420
 import { defaultDrapeElevation, rasterDrapeElevation, drapeElevationNote, planElevation } from "../lib/drapeElevation.js"; // planElevation: #2294; // TASKS.csv #1856; rasterDrapeElevation: #1505
 import { collarTerrainOffset } from "../lib/terrainCheck.js"; // TASKS.csv #1620
 import { voxelStretch, sortedShownValues } from "../lib/voxelStretch.js"; // TASKS.csv #1812 / #1781
@@ -442,6 +443,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // TASKS.csv #1783 (review #1646, Kodiak) — a 3D point cloud (an inversion model imported as points) is gridded one depth slice at a time
   const idwShape = useMemo(() => (idwRows.length ? cloudShape(idwRows) : null), [idwRows]);
   const [idwZ, setIdwZ] = useState({ lo: "", hi: "" });
+  const [levelSet, setLevelSet] = useState({ step: "", lo: "", hi: "" }); // TASKS.csv #3420 — every N m between lo and hi
   // TASKS.csv #3322 — both boxes empty: the proposed slice (the level with the most points), not every depth at once; one typed: the other end of the cloud
   const idwSliceProp = useMemo(() => (idwShape?.is3D ? proposeSlice(idwRows) : null), [idwRows, idwShape]);
   const idwZAuto = !!idwSliceProp && idwZ.lo === "" && idwZ.hi === "";
@@ -454,6 +456,33 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const idwAutoCell = idwSuggest?.cell || 25; // #2562 — a quarter to a half of the spacing; #3322 — never over the cell limit
   const idwCellSize = idwCellText === "" ? idwAutoCell : Math.max(0.1, Number(idwCellText) || idwAutoCell);
   const idwAutoBlank = idwSuggest ? blankForCell(idwSuggest.distance, idwCellSize) : null; // #3322 — a typed cell carries the blanking: at least 1.5 cells
+  // TASKS.csv #3420 (review #3195) — 'every N m between … and …': one IDW grid per level of a 3D cloud in one go, all at the pane's cell and blanking
+  // so the levels compare; named by their z range, each drawn at its points' median elevation. (IDW only: minimum curvature or a spline for a dozen levels is slow.)
+  const levelStepAuto = idwSliceProp ? (idwSliceProp.layered ? idwSliceProp.gap : idwSliceProp.thickness) : null;
+  const makeLevelGrids = () => {
+    const rows3 = idwRows.filter((r) => Number.isFinite(r.z));
+    const lo = levelSet.lo === "" ? idwShape.zMin : Number(levelSet.lo), hi = levelSet.hi === "" ? idwShape.zMax : Number(levelSet.hi);
+    const step = levelSet.step === "" ? levelStepAuto : Number(levelSet.step);
+    const wins = levelSlices(lo, hi, step);
+    if (!wins) { setError(tr("Give a step above zero and a range with the top above the bottom.")); return; }
+    const taken = rasters.map((x) => x.name), label = surveyLabel(idwKey), blank = idwBlank === "" ? idwAutoBlank ?? Infinity : Number(idwBlank) > 0 ? Number(idwBlank) : Infinity;
+    let made = 0, skipped = 0, tooBig = false;
+    for (const w of wins) {
+      const pts = rows3.filter((r) => inLevel(r.z, w));
+      if (pts.length < 3 || pointsAlongOneLine(pts, idwCellSize)) { skipped++; continue; }
+      const xs = pts.map((r) => r.x), ys = pts.map((r) => r.y);
+      const box = snappedGridExtent({ xmin: arrMin(xs), xmax: arrMax(xs), ymin: arrMin(ys), ymax: arrMax(ys) }, idwCellSize);
+      if (Math.round((box.xmax - box.xmin) / idwCellSize) * Math.round((box.ymax - box.ymin) / idwCellSize) > 4_000_000) { tooBig = true; break; }
+      const name = uniqueName(`${label} z ${+w.lo.toFixed(2)}–${+w.hi.toFixed(2)} m IDW ${idwCellSize} m${Number.isFinite(blank) ? `, blanked > ${Math.round(blank)} m` : ""}`, taken); taken.push(name);
+      const raster = idwGridToRasterInput(pts, { ...box, cellSize: idwCellSize, power: idwPower, stretch: idwStretch, maxDistance: blank, name });
+      const zs = pts.map((r) => r.z);
+      addRaster({ ...raster, elevation: median(zs), provenance: { tool: "IDW gridding (level set)", survey: idwKey, points: pts.length, cellM: idwCellSize, power: idwPower, blankingM: Number.isFinite(blank) ? Math.round(blank) : null, levelM: [w.lo, w.hi] }, surveyMethod: geophysSurveys?.[idwKey]?.method || undefined, units: geophysSurveys?.[idwKey]?.units || undefined });
+      made++;
+    }
+    if (tooBig) { setError(tr("That cell size would make a level grid over 4 million cells. Use a bigger cell size.")); return; }
+    setError({ info: made > 0, text: made ? tr("Added {k} level grid(s) from {lo} to {hi} m, every {step} m (IDW {c} m, blanked > {b} m).{v}", { k: made, lo: +lo.toFixed(2), hi: +hi.toFixed(2), step: +step.toFixed(2), c: idwCellSize, b: Number.isFinite(blank) ? Math.round(blank) : 0, v: skipped ? " " + tr("{n} level(s) with fewer than 3 points were skipped.", { n: skipped }) : "" }) : tr("No level had enough points to grid.") });
+    if (made) setIdwOpen(false);
+  };
   // #451 — radar-altimeter heights -> elevations on the loaded terrain
   const convertAgl = (key) => {
     if (!terrain) return;
@@ -1498,7 +1527,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const { columns, rows: parsedRows } = parseXYZ(text);
       const g = guessXyzChannels(columns, parsedRows);
       const bytes = files.reduce((a, f) => a + f.size, 0), estimate = Math.round((parsedRows.length / Math.max(1, files[0].size)) * bytes);
-      setXyzPending({ fileName: files[0].name, columns, rows: parsedRows, xCol: guessColumn(columns, XY_NAME_HINTS.x), yCol: guessColumn(columns, XY_NAME_HINTS.y), zCol: g.z, valueCol: g.value, header: gemHeaderInfo(text), headerEpsg: gemHeaderEpsg(text), ...cleaningDefaults(columns) /* #1583 */,
+      const gx = guessColumn(columns, XY_NAME_HINTS.x), gy = guessColumn(columns, XY_NAME_HINTS.y); // TASKS.csv #3364 — the first file's one column left is the Value, as the single-file picker does since #3208
+      setXyzPending({ fileName: files[0].name, columns, rows: parsedRows, xCol: gx, yCol: gy, zCol: g.z, valueCol: g.value || onlyValueLeft(columns, [gx, gy, g.z].filter(Boolean), parsedRows), header: gemHeaderInfo(text), headerEpsg: gemHeaderEpsg(text), ...cleaningDefaults(columns) /* #1583 */,
         batch: { files, gpsFiles, estimate, keepEvery: suggestKeepEvery(estimate, 100000, (layers.geophys_pts || []).length), timeCol: columns.find((c) => /^time$/i.test(c)) || columns.find((c) => /time/i.test(c)) || null, bases: [] } }); // #1582 — counts what is already drawn; timeCol / bases: #1585
     } catch (err) {
       setXyzError({ info: false, text: tr("Could not parse {name}: {message}", { name: files[0].name, message: err.message }) });
@@ -1537,7 +1567,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         // the IP file's AppMx) takes that one, as a survey of its own, and says so
         let vCol = valueCol;
         if (columns.includes(xCol) && columns.includes(yCol) && !columns.includes(valueCol)) { const alt = soleValueColumn(columns, raw, [xCol, yCol, zCol]); if (alt) { vCol = alt; ownColumns.push({ file: f.name, col: alt }); } }
-        if (!columns.includes(xCol) || !columns.includes(yCol) || !columns.includes(vCol)) throw new Error(tr("it has no {x}, {y} or {v} column.", { x: xCol, y: yCol, v: valueCol }));
+        if (!columns.includes(xCol) || !columns.includes(yCol) || !columns.includes(vCol)) { const lack = [xCol, yCol, valueCol].filter((c) => !columns.includes(c)); throw new Error(lack.length === 1 ? tr("it has no {c} column.", { c: lack[0] }) : tr("it has none of the columns {c}.", { c: lack.join(", ") })); } // #3330 (5) — only the missing one
         read += raw.length;
         const base = f.name.replace(/\.[^.]+$/, "");
         const cleaned = cleanRows(raw, cleaning, (r) => r[vCol], (r) => r._line ?? null); // #1583; vCol: #3319
@@ -2014,7 +2044,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             <RibbonButton icon={RWeight} label="Gravity" tone="data" title="Gravity: rock density, for dense massive sulphide, mafic intrusions, basins and faults. Import gravity stations (CSV / .xyz)." {...methodBtn("grav")} />
             <RibbonButton icon={RRadiation} label="Radiometrics" tone="data" title="Radiometrics: potassium, thorium and uranium at the surface, for potassic alteration, granites and uranium. Import K / eTh / eU channels (CSV / .xyz)." {...methodBtn("rad")} />
             <RibbonButton icon={RZap} label="IP / Resistivity" tone="model" title="IP / resistivity: chargeability (disseminated sulphide) and resistivity (silicification, clay, water) under a line; a 2D DC / IP inversion." {...geoBtn("dcip")} />
-            <RibbonButton icon={Radio} label="EM" tone="data" title="EM: electrical conductors (massive sulphide, graphite, clay, water). Ground loop-loop FDEM now; time-domain (TEM) line data is coming." active={geoPane === "em" || geoPane === "fdem"} onClick={() => setGeoPane("em")} />
+            <RibbonButton icon={Radio} label="EM" tone="data" title="EM: electrical conductors (massive sulphide, graphite, clay, water). Time-domain (TEM) line data and ground loop-loop FDEM." active={geoPane === "em" || geoPane === "fdem" || geoPane === "tem"} onClick={() => setGeoPane("em")} />
             <RibbonButton icon={RWaves} label="MT / AMT" tone="data" title="MT / AMT: resistivity to depth from natural fields, hundreds of metres to kilometres (EDI soundings)." {...geoBtn("mt")} />{/* TASKS.csv #1989 */}
             <RibbonButton icon={RRadar} label="Point survey" tone="data" title="Any other survey measured at points (SP, VLF, a contractor's channel): CSV or Geosoft .xyz, with its method set on its card." {...methodBtn(null)} />
             <RibbonButton advanced icon={RLayers} label="Inversion" tone="model" title="Magnetics / gravity inversion and forward modelling (SimPEG)" {...geoBtn("inversion")} />
@@ -2105,7 +2135,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     {/* TASKS.csv #2871 — buttons, not bare svg elements */}
                     <button type="button" aria-label={tr("Export the points of \"{key}\" (CSV)", { key: sv.key })} title={tr("Export the points of \"{key}\" (CSV)", { key: sv.key })} style={iconBtn} onClick={() => exportSurvey(sv.key)}><Download size={12} aria-hidden="true" /></button>{/* #1094 */}
                     <button type="button" aria-label={tr("Remove survey \"{key}\"", { key: sv.key })} title={tr("Remove survey \"{key}\"", { key: sv.key })} style={iconBtn}
-                      onClick={() => { if (window.confirm(tr("Remove the {count} points of \"{key}\"?", { count: sv.count.toLocaleString(), key: sv.key }))) setLayers((l) => ({ ...l, geophys_pts: (l.geophys_pts || []).filter((r) => surveyKey(r) !== sv.key) })); }}><Trash2 size={12} aria-hidden="true" /></button>
+                      onClick={() => { if (window.confirm(tr("Remove the {count} points of \"{key}\"?", { count: sv.count.toLocaleString(), key: sv.key }))) { setLayers((l) => ({ ...l, geophys_pts: (l.geophys_pts || []).filter((r) => surveyKey(r) !== sv.key) })); setGeophysSurveys((m) => { const { [sv.key]: _gone, ...rest } = m || {}; return rest; }); /* TASKS.csv #3330 (2) — its Method, units and legend go with its last point: a later import under that name inherited them */ } }}><Trash2 size={12} aria-hidden="true" /></button>
                   </div>
                   <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>
                     {tr("{count} points{v}, {withZ} with elevation · values {v2}{v3}", { count: sv.count.toLocaleString(), v: sv.lines ? `, ${sv.lines} line(s)` : "", withZ: sv.withZ.toLocaleString(), v2: Number.isFinite(sv.min) ? rangeText(sv.min, sv.max) /* #2402 — 57,392 to 57,571, not 5.739e+4 */ : "—", v3: meta.units ? ` ${meta.units}` : "" })}
@@ -2434,6 +2464,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     const { xmin, xmax, ymin, ymax } = snappedGridExtent({ xmin: arrMin(xs), xmax: arrMax(xs), ymin: arrMin(ys), ymax: arrMax(ys) }, idwCellSize); // #2872 — nodes on multiples of the cell, every station inside
                     const gridW = Math.round((xmax - xmin) / idwCellSize), gridH = Math.round((ymax - ymin) / idwCellSize);
                     if (gridW * gridH > 4_000_000) { setError(tr("That cell size would produce a {gridW}×{gridH} grid — too large. Use a bigger cell size.", { gridW, gridH })); return; }
+                    // TASKS.csv #3363 — IDW runs in this window and its time follows the CELLS, not the points (measured: ~10 microseconds a cell, 2.9 s at
+                    // 295,500 cells and 11.5 s at 1.2 million cells for 270,000 points of a 3D cloud, the same for 27,000): a large grid says so first
+                    if (idwMethod === "idw" && gridW * gridH > 500_000 && !window.confirm(tr("This grid has {cells} cells. IDW runs in this window and takes about {s} s here, during which it does not respond. Continue? A bigger cell size is faster.", { cells: (gridW * gridH).toLocaleString(), s: Math.max(5, Math.round((gridW * gridH) / 100_000)) }))) return;
                     const blank = idwBlank === "" ? idwAutoBlank ?? Infinity : Number(idwBlank) > 0 ? Number(idwBlank) : Infinity; // #538; #3322 — at least 1.5 cells
                     const label = surveyLabel(idwKey); // #2559 — 'file.csv · K_pct' kept its channel ('[^.]+$' took '.csv · K_pct' off)
                     const tag = gridMethodTag(idwMethod, idwTension); // #2846
@@ -2495,6 +2528,20 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   }}
                   style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}
                 >{tr("Generate raster")}</button>
+                {idwShape?.is3D && idwMethod === "idw" && ( // TASKS.csv #3420
+                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--color-border)" }}>
+                    <div style={{ color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{tr("Or a grid for every level of the cloud: one IDW grid per window, at this cell size and blanking.")}</div>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6, flexWrap: "wrap" }}>
+                      <span style={{ color: "var(--color-text-faint)" }}>{tr("Every")}</span>
+                      <input type="number" min="0.1" step="any" value={levelSet.step} placeholder={levelStepAuto != null ? String(+levelStepAuto.toFixed(2)) : ""} onChange={(e) => setLevelSet((v) => ({ ...v, step: e.target.value }))} style={{ ...numInput, width: 64 }} aria-label={tr("Level thickness")} />
+                      <span style={{ color: "var(--color-text-faint)" }}>{tr("m, from")}</span>
+                      <input type="number" step="any" value={levelSet.lo} placeholder={String(Math.round(idwShape.zMin))} onChange={(e) => setLevelSet((v) => ({ ...v, lo: e.target.value }))} style={{ ...numInput, width: 70 }} aria-label={tr("Lowest elevation of the levels")} />
+                      <span style={{ color: "var(--color-text-faint)" }}>{tr("to")}</span>
+                      <input type="number" step="any" value={levelSet.hi} placeholder={String(Math.round(idwShape.zMax))} onChange={(e) => setLevelSet((v) => ({ ...v, hi: e.target.value }))} style={{ ...numInput, width: 70 }} aria-label={tr("Highest elevation of the levels")} />
+                    </div>
+                    <button type="button" disabled={!!idwBusy} onClick={makeLevelGrids} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>{tr("Generate a grid per level")}</button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -2977,8 +3024,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           <TaskPaneHeader title="Electromagnetic surveys (EM)" icon={Radio} tone="data" onClose={() => setGeoPane(null)} />
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5, marginBottom: 10 }}>{tr("EM measures how well the ground conducts electricity: massive sulphide, graphite, clay and salt water are conductors. Pick the kind of survey:")}</div>
           {[
+            { label: tr("TEM line data: channels, decays, decay constant…"), text: tr("Time-domain EM along lines (SkyTEM, a Workbench or Geosoft .xyz, a CSV with a column per gate): every channel stacked along a line, the decay at a station, and the decay constant mapped."), go: () => setGeoPane("tem"), help: "tem-lines" }, // #1986 step 1
             { label: tr("FDEM 1D: ground loop-loop (DUALEM, GEM-2)…"), text: tr("Frequency-domain readings along lines: conductivity against depth under each sounding, a 1D inversion."), go: () => setGeoPane("fdem"), help: "fdem-1d" },
-            { label: tr("TEM: one channel as points…"), text: tr("Time-domain EM: reading whole TEM lines (every channel, the decay at a station, a decay-constant grid) is coming. Today one channel (dB/dt, B-field or a decay constant) imports as a point survey."), go: () => { setMethodHint("tem"); setGeoPane("points"); }, help: "point-survey" },
+            { label: tr("TEM: one channel as points…"), text: tr("One channel already in a table (dB/dt, B-field or a decay constant) imported as a point survey."), go: () => { setMethodHint("tem"); setGeoPane("points"); }, help: "point-survey" },
           ].map((o) => (
             <div key={o.help} style={{ padding: "8px 10px", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 8, background: "var(--color-bg)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -2990,6 +3038,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           ))}
         </>)}
         {geoPane === "mt" && (<Suspense fallback={null}><MtSoundingsPane layers={layers} setLayers={setLayers} geophysSurveys={geophysSurveys} updateGeophysSurvey={updateGeophysSurvey} project={project} setEpsg={setEpsg} projectIsEmpty={projectIsEmpty} pendingFiles={mtDrop} onPendingDone={() => setMtDrop(null)} onClose={() => setGeoPane(null)} /></Suspense>)}{/* TASKS.csv #1989 */}
+        {geoPane === "tem" && (<Suspense fallback={null}><TemPane setLayers={setLayers} updateGeophysSurvey={updateGeophysSurvey} addRaster={addRaster} rasters={rasters} project={project} setEpsg={setEpsg} projectIsEmpty={projectIsEmpty} onClose={() => setGeoPane(null)} /></Suspense>)}{/* TASKS.csv #1986 step 1 */}
         {geoPane === "fdem" && (<Suspense fallback={null}><FdemPane layers={layers} setLayers={setLayers} geophysSurveys={geophysSurveys} updateGeophysSurvey={updateGeophysSurvey} project={project} setEpsg={setEpsg} projectIsEmpty={projectIsEmpty} pendingFiles={fdemDrop} onPendingDone={() => setFdemDrop(null)} onClose={() => setGeoPane(null)} /></Suspense>)}{/* TASKS.csv #1986 */}
         {geoPane === "logs" && (<Suspense fallback={null}><DownholeLogsPane layers={layers} customLayers={customLayers} assays={assays} assayElements={assayElements} onClose={() => setGeoPane(null)} onEstimate={() => goToModule("modelling")} /></Suspense>)}{/* TASKS.csv #1425 */}
         {geoPane === "budget" && (<>

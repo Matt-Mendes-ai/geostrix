@@ -6,7 +6,7 @@
 //    value as CELL_DATA and NaN where the lattice has no block; otherwise (merged / octree models) UNSTRUCTURED_GRID of
 //    VOXEL cells. BINARY (big-endian, as the format requires), so NaN is exact and the file stays compact.
 import { blockModelLattice } from "./estimationMeta.js";
-import { valueColumnName, numericCellFields, sectionTrueSize } from "./blockModelExport.js"; // TASKS.csv #1050; sectionTrueSize: #1093
+import { valueColumnName, numericCellFields, sectionTrueSize, domainLegendText } from "./blockModelExport.js"; // TASKS.csv #1050; sectionTrueSize: #1093
 
 const title = (s) => String(s).replace(/[\r\n]+/g, " ").slice(0, 250); // the format's title line: one line, <= 256 chars
 // TASKS.csv #1053 (review #1016) — the title is all the provenance a legacy VTK file can carry, and it said only
@@ -45,7 +45,7 @@ export function blockModelToVtk(model, note = "") {
   const field = scalarName(valueColumnName(model)); // #1050 — "Au_ppm", as the CSV and OMF name it (was "value")
   const extra = numericCellFields(cells, model.exportExtra); // #1050; exportExtra: the set's other elements, #3014 part c — COVERAGE, KV, N_SAMPLES ... as further CELL_DATA arrays
   const scalars = (n, at) => extra.flatMap(({ name, get }) => { const a = new Float32Array(n).fill(NaN); at((c, i) => { const v = get(c); if (v != null) a[i] = v; }); return [`SCALARS ${scalarName(name)} float 1\nLOOKUP_TABLE default\n`, f32be(a), "\n"]; });
-  const head = (dataset) => `# vtk DataFile Version 3.0\n${stampTitle(model.name, note)}\nBINARY\nDATASET ${dataset}\n`;
+  const head = (dataset) => `# vtk DataFile Version 3.0\n${stampTitle(model.name, [note, domainLegendText(cells)].filter(Boolean).join(" "))}\nBINARY\nDATASET ${dataset}\n`; // domainLegendText: #3179
   // TASKS.csv #1093 — a DC/IP line's cells as the true rotated cells: one HEXAHEDRON (VTK type 12) each, ds along the line,
   // the section width across it, dz down (the axis-aligned boxes overlapped and held 1.87x the volume on an oblique line)
   if (model.section && cells.length && cells.every((c) => sectionTrueSize(model, c))) {

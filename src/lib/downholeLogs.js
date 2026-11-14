@@ -216,10 +216,14 @@ export function strideSample(pts, max = SCATTER_MAX) {
 
 // TASKS.csv #2558 (review #2486) — a log scale suits values that are all above zero and span more than a decade (a resistivity, a mag
 // susc); a density contrast, a residual or a derivative is signed, and a log axis dropped its negative half (102 of 564) without a word
+// TASKS.csv #3329 (review #3195, Galore Creek) — seven zero readings among 9,582 (0.07 %) of a 0 to 558 susceptibility log switched it to a linear
+// axis, every box squashed against the left edge: under 1 % of the readings at or below zero are tolerated when the positive ones span a decade
+// (the pane already counts the readings a log axis cannot show). A signed log has far more than that on its negative side.
+export const LOG_ZERO_SHARE = 0.01;
 export function logScaleSuits(values) {
-  let lo = Infinity, hi = -Infinity, n = 0;
-  for (const v of values || []) { if (!Number.isFinite(v)) continue; n++; if (v <= 0) return false; if (v < lo) lo = v; if (v > hi) hi = v; }
-  return n > 0 && hi / lo > 10;
+  let lo = Infinity, hi = -Infinity, n = 0, bad = 0;
+  for (const v of values || []) { if (!Number.isFinite(v)) continue; n++; if (v <= 0) { bad++; continue; } if (v < lo) lo = v; if (v > hi) hi = v; }
+  return n > bad && bad / n < LOG_ZERO_SHARE && hi / lo > 10;
 }
 // TASKS.csv #2967 (WA iron review #2876) — the pane's Log list: built-in and imported logs together, the most readings first, a layer's fields
 // (its value, '› min', '› max') kept together in their own order. It opened on 'Recovery (3,408)' (a built-in layer, listed first) before

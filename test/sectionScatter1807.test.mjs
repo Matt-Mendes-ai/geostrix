@@ -14,7 +14,7 @@ const samples = [{ x: 700, y: 20, z: 1550, medium: "soil", sample_id: "S1" }, { 
 test("#1807 points within the corridor and the line's length, with their elevation; no elevation, no place", () => {
   const s = corridorScatter({ geophysPts: geo, samples }, a, b, 100);
   assert.deepEqual(s.map((p) => [p.kind, Math.round(p.d), p.z]), [["geophys", 100, -100], ["geophys", 500, 900], ["sample", 700, 1550]]);
-  assert.deepEqual(s.counts, { geophys: 2, samples: 1 });
+  assert.deepEqual({ geophys: s.counts.geophys, samples: s.counts.samples }, { geophys: 2, samples: 1 }); // legends: #3430
   assert.ok(s[0].color && s[0].label.includes("10"));
   assert.equal(s[2].label, "Surface sample S1 (soil)");
   assert.equal(corridorScatter({ geophysPts: geo }, a, b, 100, 1).length, 1, "capped");

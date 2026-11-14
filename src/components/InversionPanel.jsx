@@ -33,7 +33,7 @@ import { constraintSamples, SUSC_UNITS, suscUnitHint, PHYSICAL_MAX_SI, EXTREME_X
 import { categoricalModels, modelUnits, unitMedians, modelBody } from "../lib/geologyForward.js"; // TASKS.csv #760
 import { t as tr } from "../lib/i18n.js";
 import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #1709 // TASKS.csv #786
-import { SURVEY_METHODS, methodIsInvertible } from "../lib/geophysSurveys.js"; // TASKS.csv #1151
+import { SURVEY_METHODS, methodIsInvertible, inversionSurveyCounts } from "../lib/geophysSurveys.js"; // TASKS.csv #1151; inversionSurveyCounts: #2403
 import { terrainFromSurveyElevations } from "../lib/terrainFromPoints.js"; // TASKS.csv #1589
 import { defaultPlannedExtent, generatePlannedStations, DEFAULT_PLANNED, fitPlannedSpacing } from "../lib/plannedGrid.js"; // TASKS.csv #1710; fit: #2969
 import { replaceSurveyPoints, SURVEY_METHODS as SM } from "../lib/geophysSurveys.js"; // TASKS.csv #1710 — the predicted anomaly as a survey
@@ -231,7 +231,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
     if (zModeEff === "drape" && !terrain) problems.push(tr("A terrain surface is needed to drape the stations on."));
     if (kind === "inversion" && !terrain) problems.push(tr("An inversion needs a terrain surface (Maps > Terrain) to know which cells are underground."));
     if (crsIssue) problems.push(crsIssue);
-    if (downhole?.isDownhole) problems.push(tr("These points are not survey stations: {pct}% of them sit more than 10 m below the {ground} (typically {med} m). A downhole log cannot be inverted as a surface survey; import it with the drillholes and use the drillhole-constraint option instead.", { pct: Math.round(100 * downhole.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(downhole.medianDropM) })); // #1709
+    if (downhole?.isDownhole) problems.push(tr("These points are not survey stations: {pct}% of them sit more than 10 m below the {ground} (typically {med} m), so they are points at depth: a downhole log, or an inversion model or pseudo-section imported as points. A surface survey is inverted from stations on or above the ground; a downhole log goes in with the drillholes and the drillhole-constraint option.", { pct: Math.round(100 * downhole.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(downhole.medianDropM) })); // #1709
     if (method === "mag") {
       if (!(num(field.strength) > 20000 && num(field.strength) < 70000)) problems.push(tr("Enter the field strength (nT, e.g. from IGRF for the survey date)."));
       if (!(Math.abs(num(field.inclination)) <= 90)) problems.push(tr("Enter the field inclination."));
@@ -507,7 +507,13 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
           {/* TASKS.csv #1429 (review #1352, Silvertip) — what an inversion needs, up front: the terrain was found missing only after Estimate */}
           {engine?.available && (
             <div aria-label={tr("What an inversion needs")} style={{ ...small, border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 7px", marginBottom: 6, display: "flex", flexDirection: "column", gap: 3 }}>
-              <div>{allRows.length ? "✓ " + tr("Survey: {n} reading(s) loaded.", { n: allRows.length.toLocaleString() }) : "○ " + tr("Survey: none yet (Geophysics › Point survey: x, y, z and the value per station).")}</div>
+              <div>{(() => { // #2403 — counted per survey: only a magnetic or gravity survey can be inverted, and surveys are never mixed
+                if (!allRows.length) return "○ " + tr("Survey: none yet (Geophysics › Point survey: x, y, z and the value per station).");
+                const c = inversionSurveyCounts(allRows, geophysSurveys);
+                if (c.n === 1 && !c.skipped.length) return "✓ " + tr("Survey: {n} reading(s) loaded.", { n: c.total.toLocaleString() });
+                if (!c.usable.length) return "○ " + tr("{k} survey(s) loaded, none magnetic or gravity: this tool inverts the measured total magnetic field and Bouguer gravity only.", { k: c.n });
+                return "✓ " + tr("{k} survey(s) loaded; {u} can be inverted (magnetic or gravity): {list}.", { k: c.n, u: c.usable.length, list: c.usable.slice(0, 3).map((x) => `${x.key} (${x.count.toLocaleString()})`).join(", ") + (c.usable.length > 3 ? "…" : "") });
+              })()}</div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                 <span>{terrain ? "✓ " + tr("Terrain: {name}.", { name: terrain.name || tr("loaded") }) : "○ " + tr("Terrain: none yet. An inversion needs one to know which cells are underground: fetch one, import a DEM, or make one from this project's samples and collars.")}</span>
                 {!terrain && <button type="button" onClick={() => { goToModule("maps"); requestModuleAction("maps-terrain"); }} style={{ ...pBtn, width: "auto", padding: "2px 8px", margin: 0 }}>{tr("Go to Maps › Terrain")}</button>}
@@ -559,7 +565,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
           {engine?.available && rows.length > 0 && (
             <>
               <div style={small}>{tr("{rows} survey stations loaded{v}. SimPEG {simpeg}.", { rows: rows.length.toLocaleString(), v: spacing ? tr(", median spacing {spacing} m", { spacing: spacing.toFixed(spacing < 10 ? 1 : 0) }) + (coreHint?.lineSpacing ? tr(" along lines {l} m apart", { l: Math.round(coreHint.lineSpacing) }) : "") : "", simpeg: engine.simpeg })}</div>
-              {downhole?.isDownhole && <div style={{ ...small, color: "var(--color-warn-text)", marginBottom: 8 }}>{tr("These points are not survey stations: {pct}% of them sit more than 10 m below the {ground} (typically {med} m). A downhole log cannot be inverted as a surface survey; import it with the drillholes and use the drillhole-constraint option instead.", { pct: Math.round(100 * downhole.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(downhole.medianDropM) })}</div>}{/* #1709 */}
+              {downhole?.isDownhole && <div style={{ ...small, color: "var(--color-warn-text)", marginBottom: 8 }}>{tr("These points are not survey stations: {pct}% of them sit more than 10 m below the {ground} (typically {med} m), so they are points at depth: a downhole log, or an inversion model or pseudo-section imported as points. A surface survey is inverted from stations on or above the ground; a downhole log goes in with the drillholes and the drillhole-constraint option.", { pct: Math.round(100 * downhole.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(downhole.medianDropM) })}</div>}{/* #1709 */}
               {step(1, tr("Data"), <>
                 <div role="radiogroup" aria-label={tr("Survey type")} style={{ display: "flex", gap: 10, marginTop: 4 }}>
                   {Object.entries(METHODS).map(([k, m]) => (

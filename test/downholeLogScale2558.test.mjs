@@ -37,3 +37,12 @@ test("the pane: the log follows the data, counts what it hides, and leaves the e
   assert.match(p, /numericSourceChoices\(\{ layers, customLayers, models: false, logValidRange \}\)\.filter\(\(s\) => s\.layerId == null \|\| !modelIds\.has\(s\.layerId\)\)/);
   assert.match(p, /a: sig3\(vm\.medianLog\), b: sig3\(vm\.medianModel\)/);
 });
+
+test("#3329 a handful of zero readings does not turn a decades-wide log linear", () => {
+  const susc = [...Array(7).fill(0), ...Array.from({ length: 9575 }, (_, i) => 0.05 * 10 ** (4 * (i / 9574)))]; // 0.05 .. 500, seven zeros of 9,582
+  assert.equal(logScaleSuits(susc), true);
+  assert.equal(countAtOrBelowZero(susc), 7); // the pane still says how many the log axis cannot show
+  assert.equal(logScaleSuits([0, ...Array.from({ length: 99 }, (_, i) => 1 + i)]), false, "1 zero in 100 is not under 1 %");
+  assert.equal(logScaleSuits([...Array(50).fill(-1), ...Array.from({ length: 50 }, (_, i) => 1 + i * 10)]), false, "a signed log");
+  assert.equal(logScaleSuits([0, 0, 0]), false);
+});

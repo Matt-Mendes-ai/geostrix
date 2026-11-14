@@ -129,3 +129,19 @@ export function proposeSlice(points) {
   for (const [b, c] of bins) { const cb = bb == null ? -1 : bins.get(bb); if (c > cb || (c === cb && Math.abs(b - bMed) < Math.abs(bb - bMed))) bb = b; }
   return { layered: false, thickness: t, lo: r2(bb * t), hi: r2((bb + 1) * t), n: bins.get(bb) };
 }
+
+// TASKS.csv #3420 — a set of level grids from a 3D cloud: 'every N m between lo and hi'. The windows are [lo + i N, lo + (i + 1) N), the last one
+// closed at hi, so every point between lo and hi falls in exactly one. -> [{ lo, hi, label }] at most `max` (the first ones), or null for no usable range
+export function levelSlices(lo, hi, step, max = 40) {
+  if (!(Number.isFinite(lo) && Number.isFinite(hi) && hi > lo && step > 0)) return null;
+  const out = [];
+  for (let i = 0; i < max; i++) {
+    const a = +(lo + i * step).toFixed(6);
+    if (a >= hi) break;
+    const b = Math.min(hi, +(a + step).toFixed(6));
+    out.push({ lo: a, hi: b, last: b >= hi });
+  }
+  return out;
+}
+// the points of one window: [lo, hi), the last window up to and including hi
+export const inLevel = (z, w) => Number.isFinite(z) && z >= w.lo && (w.last ? z <= w.hi : z < w.hi);

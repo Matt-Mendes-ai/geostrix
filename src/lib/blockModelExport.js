@@ -64,8 +64,18 @@ export function sectionHeaderLine(model) {
 // extra (TASKS.csv #3014 part c): [{ name, get }] value columns of the model's set (model.exportExtra), written first, where some cell has one
 export function numericCellFields(cells, extra = []) {
   const own = CELL_FIELDS.filter(([, get]) => (cells || []).some((c) => get(c) != null)).map(([name, get]) => ({ name, get }));
-  return [...(extra || []).filter((e) => (cells || []).some((c) => e.get(c) != null)), ...own];
+  // TASKS.csv #3179 — DOMAIN is text, which a VTK / OMF numeric array cannot hold: its code (1, 2 … in the order the domains first appear), with the legend in the file's title / description
+  const dl = domainLegend(cells), codeOf = new Map(dl.map(([code, name]) => [name, code]));
+  const dom = dl.length ? [{ name: "DOMAIN_CODE", get: (c) => (c.domain == null ? null : codeOf.get(String(c.domain)) ?? null) }] : [];
+  return [...(extra || []).filter((e) => (cells || []).some((c) => e.get(c) != null)), ...own, ...dom];
 }
+// the domains of a hard-boundary estimate as [[1, 'name'], …], in the order they first appear; [] when no block has one
+export function domainLegend(cells) {
+  const seen = new Map();
+  for (const c of cells || []) if (c.domain != null && !seen.has(String(c.domain))) seen.set(String(c.domain), seen.size + 1);
+  return [...seen].map(([name, code]) => [code, name]);
+}
+export const domainLegendText = (cells) => { const dl = domainLegend(cells); return dl.length ? `DOMAIN_CODE: ${dl.map(([k, n]) => `${k} = ${n}`).join(", ")}.` : ""; };
 
 // TASKS.csv #979 — the centroid and size column names: Datamine's (also read by Vulcan, Surpac and Leapfrog) or
 // Micromine's, which the block-model import already recognizes (#659), so a Micromine user does not map six fields
