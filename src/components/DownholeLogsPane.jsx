@@ -6,7 +6,7 @@ import { Activity } from "./icons.js";
 import { numericSourceChoices, sourceAssays } from "../lib/numericSources.js";
 import { domainLayerChoices, foldDomainRows } from "../lib/domainLayers.js"; // foldDomainRows: TASKS.csv #2790
 import { LAYER_META } from "../lib/layers.js";
-import { groupLogByCode, rankLogGroups, codeTable, ratioComparable, assayIndex, logVsAssayIndexed, logVsModel, NOT_LOGGED, strideSample, SCATTER_MAX, allAboveZero, countAtOrBelowZero, sig3, orderLogSources, logScaleFor } from "../lib/downholeLogs.js"; // logVsModel: #1595; strideSample: #2331; logScaleSuits...: #2558; groupLogByCode / rankLogGroups: #2948
+import { groupLogByCode, rankLogGroups, shortenCode, shortCodes /* #3442 */, codeTable, ratioComparable, assayIndex, logVsAssayIndexed, logVsModel, NOT_LOGGED, strideSample, SCATTER_MAX, allAboveZero, countAtOrBelowZero, sig3, orderLogSources, logScaleFor } from "../lib/downholeLogs.js"; // logVsModel: #1595; strideSample: #2331; logScaleSuits...: #2558; groupLogByCode / rankLogGroups: #2948
 import { BoxPlots } from "./GradeStatistics.jsx";
 import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
@@ -98,14 +98,15 @@ function CodeTable({ rows, order, minCount, unit, binned, keptScope }) {
     try { await navigator.clipboard.writeText(text); b.textContent = tr("Copied"); setTimeout(() => { b.textContent = tr("Copy table"); }, 2000); } catch { /* no clipboard */ }
   };
   const th = { textAlign: "right", fontWeight: 600, padding: "2px 4px", cursor: "pointer", whiteSpace: "nowrap", position: "sticky", top: 0, background: "var(--color-bg)" };
+  const short = shortCodes(sorted.map((r) => codeLabel(r.key)), 18); // #3442 — two long codes never read the same
   return (
     <div>
       <div style={{ maxHeight: 240, overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 4 }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-xs)" }} aria-label={tr("Figures per code")}>
           <thead><tr>{cols.map(([k, label]) => <th key={k} style={{ ...th, textAlign: k === "key" ? "left" : "right" }} onClick={() => setSortBy(sortBy === k ? "rank" : k)} aria-sort={sortBy === k ? "descending" : "none"} title={tr("Sort by this column (again: back to the box plot's order)")}>{label}{sortBy === k ? " ▾" : ""}</th>)}</tr></thead>
-          <tbody>{sorted.map((r) => (
+          <tbody>{sorted.map((r, ri) => (
             <tr key={String(r.key)} style={{ color: r.n < minCount ? "var(--color-text-muted)" : "inherit", opacity: r.n < minCount ? 0.7 : 1 }}>
-              <td style={{ padding: "1px 4px" }} title={codeLabel(r.key)}>{codeLabel(r.key, 18)}</td>
+              <td style={{ padding: "1px 4px" }} title={codeLabel(r.key)}>{short[ri]}</td>
               <td style={{ padding: "1px 4px", textAlign: "right" }} title={binned ? tr("{n} readings", { n: r.readings.toLocaleString() }) : undefined}>{r.n.toLocaleString()}</td>
               {["mean", "median", "p10", "p90"].map((k) => <td key={k} style={{ padding: "1px 4px", textAlign: "right" }}>{fig(r[k])}</td>)}
             </tr>
@@ -179,8 +180,10 @@ function DespikeField({ value, idKey, onSet }) {
 
 function codeLabel(k, max = 0) {
   const t = k === NOT_LOGGED ? tr("(not logged)") : String(k ?? "").trim() === "" ? tr("(blank)") : String(k);
-  return max && t.length > max ? `${t.slice(0, max - 1)}…` : t;
+  return max && t.length > max ? shortenCode(t, max) : t;
 }
+// TASKS.csv #3330 (6) / #3442 — a long code cut at its end ('Calcic-potassic (Garnet Dominant)' and '(Diopside Dominant)' both became 'Calcic-potassic (…'):
+// a trailing parenthesis is kept whole and the words before it shortened, else the middle is cut so the end shows too
 export default function DownholeLogsPane({ layers, customLayers = [], assays = [], assayElements = [], onClose, onEstimate = null }) {
   // TASKS.csv #2558 — a model evaluated onto the holes is not a log: it opened as the Log and was then compared with itself (Spearman 1.00)
   const modelIds = useMemo(() => new Set(customLayers.filter((l) => l.sourceModel != null || (l.rows || []).some((r) => r.modelled)).map((l) => l.id)), [customLayers]);

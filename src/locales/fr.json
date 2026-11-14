@@ -12589,5 +12589,11 @@
   "The file's distance unit is {u}: its coordinates are used as they are, not converted to metres.": "L'unité de distance du fichier est {u} : ses coordonnées sont utilisées telles quelles, sans conversion en mètres.",
   "A geoh5 file carries no coordinate system: its coordinates are used as they are, in the project's.": "Un fichier geoh5 ne porte aucun système de coordonnées : ses coordonnées sont utilisées telles quelles, dans celui du projet.",
   "A Geoscience ANALYST workspace: its points, curves, surfaces, block models and 2D grids are read. Drillholes and other objects are listed as not read.": "Un espace de travail Geoscience ANALYST : ses points, courbes, surfaces, modèles de blocs et grilles 2D sont lus. Les sondages et autres objets sont listés comme non lus.",
-  "Import Geoscience ANALYST (.geoh5)…": "Importer Geoscience ANALYST (.geoh5)…"
+  "Import Geoscience ANALYST (.geoh5)…": "Importer Geoscience ANALYST (.geoh5)…",
+  "Gridding {n} points by inverse distance…": "Maillage de {n} points par inverse de la distance…",
+  "Gridding {n} points by inverse distance: {pct} %": "Maillage de {n} points par inverse de la distance : {pct} %",
+  "Inverse-distance gridding failed: {message}": "Le maillage par inverse de la distance a échoué : {message}",
+  "Not EDI files, not read here: {names}. MT / AMT reads .edi soundings. A DC / IP line table (.csv, .dat, .txt) can be tried in the DC / IP pane, which lets you map its columns.": "Ce ne sont pas des fichiers EDI, non lus ici : {names}. MT / AMT lit des sondages .edi. Un tableau de ligne DC / IP (.csv, .dat, .txt) peut être essayé dans le panneau DC / IP, qui permet d'associer ses colonnes.",
+  "Choose the columns for A, M and the apparent resistivity in the lists above.": "Choisissez les colonnes de A, M et de la résistivité apparente dans les listes ci-dessus.",
+  "This limits block models only (OMF and UBC imports). Point surveys and rasters are not cut down by it.": "Cela ne limite que les modèles de blocs (imports OMF et UBC). Les levés ponctuels et les rasters ne sont pas réduits."
 }

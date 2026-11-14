@@ -12589,5 +12589,11 @@
   "The file's distance unit is {u}: its coordinates are used as they are, not converted to metres.": "وحدة المسافة في الملف هي {u}: تُستخدم إحداثياته كما هي دون تحويل إلى الأمتار.",
   "A geoh5 file carries no coordinate system: its coordinates are used as they are, in the project's.": "لا يحمل ملف geoh5 نظام إحداثيات: تُستخدم إحداثياته كما هي في نظام المشروع.",
   "A Geoscience ANALYST workspace: its points, curves, surfaces, block models and 2D grids are read. Drillholes and other objects are listed as not read.": "مساحة عمل Geoscience ANALYST: تُقرأ نقاطها ومنحنياتها وأسطحها ونماذج الكتل والشبكات الثنائية الأبعاد. تُدرج ثقوب الحفر والكائنات الأخرى على أنها لم تُقرأ.",
-  "Import Geoscience ANALYST (.geoh5)…": "استيراد Geoscience ANALYST (.geoh5)…"
+  "Import Geoscience ANALYST (.geoh5)…": "استيراد Geoscience ANALYST (.geoh5)…",
+  "Gridding {n} points by inverse distance…": "جارٍ تشبيك {n} نقطة بمقلوب المسافة…",
+  "Gridding {n} points by inverse distance: {pct} %": "جارٍ تشبيك {n} نقطة بمقلوب المسافة: {pct}٪",
+  "Inverse-distance gridding failed: {message}": "فشل التشبيك بمقلوب المسافة: {message}",
+  "Not EDI files, not read here: {names}. MT / AMT reads .edi soundings. A DC / IP line table (.csv, .dat, .txt) can be tried in the DC / IP pane, which lets you map its columns.": "ليست ملفات EDI ولا تُقرأ هنا: {names}. يقرأ MT / AMT سبر .edi. يمكن تجربة جدول خط DC / IP (‏.csv و.dat و.txt) في لوحة DC / IP، التي تتيح ربط أعمدته.",
+  "Choose the columns for A, M and the apparent resistivity in the lists above.": "اختر أعمدة A وM والمقاومية الظاهرية من القوائم أعلاه.",
+  "This limits block models only (OMF and UBC imports). Point surveys and rasters are not cut down by it.": "هذا يحد نماذج الكتل فقط (استيراد OMF وUBC). لا تُقلَّص المسوح النقطية والنقطيات."
 }

@@ -12589,5 +12589,11 @@
   "The file's distance unit is {u}: its coordinates are used as they are, not converted to metres.": "La unidad de distancia del archivo es {u}: sus coordenadas se usan tal cual, sin convertir a metros.",
   "A geoh5 file carries no coordinate system: its coordinates are used as they are, in the project's.": "Un archivo geoh5 no trae sistema de coordenadas: sus coordenadas se usan tal cual, en las del proyecto.",
   "A Geoscience ANALYST workspace: its points, curves, surfaces, block models and 2D grids are read. Drillholes and other objects are listed as not read.": "Un espacio de trabajo de Geoscience ANALYST: se leen sus puntos, curvas, superficies, modelos de bloques y grillas 2D. Los sondajes y otros objetos se listan como no leídos.",
-  "Import Geoscience ANALYST (.geoh5)…": "Importar Geoscience ANALYST (.geoh5)…"
+  "Import Geoscience ANALYST (.geoh5)…": "Importar Geoscience ANALYST (.geoh5)…",
+  "Gridding {n} points by inverse distance…": "Grillando {n} puntos por inverso de la distancia…",
+  "Gridding {n} points by inverse distance: {pct} %": "Grillando {n} puntos por inverso de la distancia: {pct} %",
+  "Inverse-distance gridding failed: {message}": "Falló la grilla por inverso de la distancia: {message}",
+  "Not EDI files, not read here: {names}. MT / AMT reads .edi soundings. A DC / IP line table (.csv, .dat, .txt) can be tried in the DC / IP pane, which lets you map its columns.": "No son archivos EDI, no se leen aquí: {names}. MT / AMT lee sondeos .edi. Una tabla de línea DC / IP (.csv, .dat, .txt) se puede probar en el panel DC / IP, que permite asignar sus columnas.",
+  "Choose the columns for A, M and the apparent resistivity in the lists above.": "Elija las columnas de A, M y la resistividad aparente en las listas de arriba.",
+  "This limits block models only (OMF and UBC imports). Point surveys and rasters are not cut down by it.": "Esto limita solo los modelos de bloques (importaciones OMF y UBC). Los levantamientos puntuales y los ráster no se reducen."
 }
