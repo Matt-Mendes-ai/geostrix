@@ -14,6 +14,7 @@ import { groupSectionLegend, sectionAssayLegend, sectionMineralLegend, sectionMo
 import { LAYER_META } from "../lib/layers.js"; // #1475 — the mineralization group name
 import { exportSvgMarkup, FIGURE_FONT } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 import { wrapText, sectionKeyFurniture } from "../lib/figureFurniture.js"; // sectionKeyFurniture: TASKS.csv #2523
+import { sectionHeaderLayout, stackEndLabels } from "../lib/sectionHeader.js"; // TASKS.csv #3410
 import { signedOffset } from "../lib/sectionCorridor.js"; // TASKS.csv #1231
 import { colors, printPt, printPx, PLACED_W } from "../lib/theme.js"; // TASKS.csv #1121 — colors.planned, the planned-hole colour of every view; print scale: #1090
 import { loadPatternTiles, patternDefs, patternFill, sectionTilePx } from "../lib/lithoPatterns.js"; // TASKS.csv #1995
@@ -146,7 +147,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   useEffect(() => {
     const svg = svgRef.current;
     if (!fitWhole || !svg || typeof ResizeObserver === "undefined") { setFitTextPx(null); return undefined; }
-    const measure = () => { const vb = svg.viewBox?.baseVal, w = svg.getBoundingClientRect().width; setFitTextPx(vb?.width && w ? (10 * textScale * w) / vb.width : null); };
+    const measure = () => { const vb = svg.viewBox?.baseVal, r = svg.getBoundingClientRect(), k = vb?.width && vb.height && r.width ? Math.min(r.width / vb.width, r.height / vb.height) : 0; setFitTextPx(k ? 10 * textScale * k : null); }; // the drawing's scale inside the element: fitted to the height it is narrower than the element (#3410's live check)
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(svg);
@@ -686,7 +687,8 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
   const totalH = H; // TASKS.csv #1128 — no key inside the section any more (#1043 drew one): it goes to Layout
   // TASKS.csv #2142 (review #2013, Woodjam) — the title sits above the subtitle lines, which grow with the ribbon list: with four or more lines
   // (or at a large text size) its top was above the frame and a Layout snapshot cut it in half. The drawing grows upward by what it needs.
-  const titleY = PAD - fs(22) - (subtitleLines.length - 1) * fs(12), topExtra = Math.max(0, Math.ceil(fs(12) + 4 - titleY));
+  // TASKS.csv #3410 — and the title wraps to the frame's width at its size (a re-drawn narrow section's text factor), the band above it from its lines
+  const { titleLines, titleY, subtitleY, topExtra } = sectionHeaderLayout(title || tr("Cross-section"), subtitleLines, W, PAD, fs);
   // Inverse of sx/sz — converts a click back to (l, z), then to world (x, y) via the section line's
   // own origin/direction, so a drawn contact point is stored as real-world coordinates, not a
   // screen-relative fraction (see store.jsx's `sections` comment).
@@ -848,10 +850,14 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
           <text x={sx(l)} y={H - PAD + 4 + fs(10)} fill="#65717e" fontSize={fs(10)} textAnchor="middle">{l.toFixed(0)}</text>
         </g>
       ))}
-      <text x={PAD} y={H - PAD + 4 + fs(26)} fill="#55606e" fontSize={fs(10)} textAnchor="start">{`${Math.round(ax + minL * ux).toLocaleString()} E  ${Math.round(ay + minL * uy).toLocaleString()} N`}</text>{/* the frame's ends (#2979) */}
-      <text x={W - PAD} y={H - PAD + 4 + fs(26)} fill="#55606e" fontSize={fs(10)} textAnchor="end">{`${Math.round(ax + maxL * ux).toLocaleString()} E  ${Math.round(ay + maxL * uy).toLocaleString()} N`}</text>
-      <text x={PAD} y={titleY} fill="#1a2028" fontSize={fs(12)} fontWeight="600">{title || tr("Cross-section")}</text>
-      <text x={PAD} y={PAD - fs(8) - (subtitleLines.length - 1) * fs(12)} fill="#55606e" fontSize={fs(10)}>{subtitleLines.map((l, i) => <tspan key={i} x={PAD} dy={i ? fs(12) : 0}>{l}</tspan>)}</text>
+      {(() => { // the frame's ends (#2979); #3410 — the right one a line lower when the two would overprint (a narrow re-drawn section)
+        const left = `${Math.round(ax + minL * ux).toLocaleString()} E  ${Math.round(ay + minL * uy).toLocaleString()} N`, right = `${Math.round(ax + maxL * ux).toLocaleString()} E  ${Math.round(ay + maxL * uy).toLocaleString()} N`;
+        const y = H - PAD + 4 + fs(26), stack = stackEndLabels(left, right, W, PAD, fs(10));
+        return (<><text x={PAD} y={y} fill="#55606e" fontSize={fs(10)} textAnchor="start">{left}</text>
+          <text x={W - PAD} y={stack ? y + fs(12) : y} fill="#55606e" fontSize={fs(10)} textAnchor="end">{right}</text></>);
+      })()}
+      <text x={PAD} y={titleY} fill="#1a2028" fontSize={fs(12)} fontWeight="600">{titleLines.map((l, i) => <tspan key={i} x={PAD} dy={i ? fs(14) : 0}>{l}</tspan>)}</text>{/* #3410 — wrapped */}
+      <text x={PAD} y={subtitleY} fill="#55606e" fontSize={fs(10)}>{subtitleLines.map((l, i) => <tspan key={i} x={PAD} dy={i ? fs(12) : 0}>{l}</tspan>)}</text>
 
       {/* TASKS.csv #112 — topographic ground-surface profile sampled from the loaded SRTM/DEM terrain
           along this section line (see ViewerModule.jsx's buildSectionPayload). Drawn as a filled
