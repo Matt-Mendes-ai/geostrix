@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { makeVariogramClient } from "../lib/variogramClient.js"; // TASKS.csv #3009 — the pair loop in a worker
 import { X, Play } from "./icons.js";
 import { compositeDownhole, gradeUnitLabel } from "../lib/geochem.js"; // gradeUnitLabel: #2429
+import { sendVariogramToEstimation } from "../lib/estimateMemory.js"; // TASKS.csv #3273
 import { excludeQAQC, labAssays } from "../lib/qaqc.js"; // TASKS.csv #266 — same QAQC exclusion the estimator uses; labAssays: #1744
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #2552
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2552
@@ -56,7 +57,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
   // and silently fell back to the default method — meaning a project set to, say, tangential would
   // have had its variogram computed on minimum-curvature traces. Same store field GradeEstimationModal
   // reads.
-  const { desurveyMethod, customLayers = [], structuralTrends, generatedSurfaces = [] } = useStore(); // customLayers: TASKS.csv #1571; structuralTrends: #2424 (read only); generatedSurfaces: #2710
+  const { desurveyMethod, customLayers = [], structuralTrends, generatedSurfaces = [], project } = useStore(); // project: #3273 // customLayers: TASKS.csv #1571; structuralTrends: #2424 (read only); generatedSurfaces: #2710
   // TASKS.csv #2710 — a generated surface (a Top of a unit) the in-plane pairs may follow: the composites flattened on it
   const flatSurfaces = useMemo(() => generatedSurfaces.filter((x) => x.vertices?.length >= 9 && x.indices?.length >= 3), [generatedSurfaces]);
   const flatLabels = useMemo(() => surfaceOptionLabels(flatSurfaces), [flatSurfaces]);
@@ -70,6 +71,9 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
   const [symbol, setSymbolRaw] = useState(() => preferredElement(symbols, "variogram", lead) || symbols[0] || "Au");
   const setSymbol = (v) => { setSymbolRaw(v); rememberElement("variogram", v); };
   const unit = elementUnits[symbol] || "ppm";
+  const [sentToEst, setSentToEst] = useState(null); // TASKS.csv #3273
+  // TASKS.csv #3273 — a semivariance with separators and its squared unit (the review read 'nugget 22800000' with none); transformed values have no grade unit
+  const semi = (v) => { const t = Number.isFinite(v) && Math.abs(v) >= 1000 && Math.abs(v) < 1e15 ? Math.round(v).toLocaleString() : fmtNum(v); return result?.transform === "none" && Number.isFinite(v) ? `${t} ${gradeUnitLabel(symbol, unit)}²` : t; };
 
   // --- input / compositing (mirrors GradeEstimationModal so the variogram characterises the SAME
   // support the estimator would consume; see the module header of lib/variogram.js for why a variogram
@@ -470,8 +474,8 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
               <div style={{ display: "flex", gap: 18, flexWrap: "wrap", fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>
                 {result.fit ? (
                   <>
-                    <Stat label={tr("Nugget")} value={nuggetFree ? tr("{v} (not constrained)", { v: fmtNum(result.fit.nugget) }) : fmtNum(result.fit.nugget)} />
-                    <Stat label={tr("Sill")} value={fmtNum(result.fit.sill)} />
+                    <Stat label={tr("Nugget")} value={nuggetFree ? tr("{v} (not constrained)", { v: semi(result.fit.nugget) }) : semi(result.fit.nugget)} />
+                    <Stat label={tr("Sill")} value={semi(result.fit.sill)} />{/* semi: #3273 — separators and the squared unit */}
                     <Stat label={tr("Variogram range")} value={result.fit.beyondData ? tr("{v} m: past the furthest lag ({max} m), not measured", { v: result.fit.range.toFixed(1), max: result.fit.maxLag.toFixed(0) }) : `${result.fit.range.toFixed(1)} m`} />{/* #1420 */}
                     <Stat label={tr("Nugget / sill")} value={result.fit.nuggetRatio == null ? "—" : nuggetFree ? tr("{v} (not constrained)", { v: `${(result.fit.nuggetRatio * 100).toFixed(0)}%` }) : `${(result.fit.nuggetRatio * 100).toFixed(0)}%`} />
                     <Stat label={tr("Fit r²")} value={result.fit.rSquared != null ? result.fit.rSquared.toFixed(3) : "—"} />
@@ -480,6 +484,16 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
                 ) : <div style={{ color: "var(--color-text-muted)" }}>{tr("Too few usable lag bins to fit a model.")}</div>}
               </div>
 
+              {result.fit && result.transform === "none" && ( /* TASKS.csv #3273 — the model to Estimation, not retyped (a transformed variogram is not in grade units) */
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <button type="button" onClick={() => {
+                    const how = tr("{mode}, lag {lag} m, r² {r}", { mode: result.holeMode === "downhole" ? tr("Downhole only (resolves nugget)") : result.holeMode === "between" ? tr("Between holes only") : tr("All pairs"), lag: +Number(result.lag).toPrecision(3), r: result.fit.rSquared != null ? result.fit.rSquared.toFixed(2) : "—" });
+                    sendVariogramToEstimation(project, { symbol, model: result.fit.model, nugget: result.fit.nugget, sill: result.fit.sill, range: result.fit.range, from: how });
+                    setSentToEst({ symbol, how, downhole: result.holeMode === "downhole", range: result.fit.range }); // downhole: the range is along the holes
+                  }} title={tr("The next Estimation dialog for {el} opens on ordinary kriging with this model, nugget, sill and range", { el: symbol })} style={{ padding: "5px 12px", borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)", cursor: "pointer", fontSize: "var(--font-size-sm)" }}>{tr("Use this model in Estimation")}</button>
+                  {sentToEst && sentToEst.symbol === symbol && <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Sent: the next Estimation dialog for {el} opens on ordinary kriging with it ({how}). With a structural trend chosen for block estimation, its range is along the trend's major axis.", { el: symbol, how: sentToEst.how })}{sentToEst.downhole ? ` ${tr("Its range ({r} m) is measured down the holes; between holes the grade may reach further or less far. Compare All pairs or Between holes only before kriging with it.", { r: +Number(sentToEst.range).toPrecision(3) })}` : ""}</span>}
+                </div>
+              )}
               {result.fit && (
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.55 }}>
                   {tr("{v} The fit is a weighted least-squares starting point, not an answer — read the plot and override it if the curve does not follow the points you trust.", { v: VARIOGRAM_MODELS[result.fit.model] ? tr(VARIOGRAM_MODELS[result.fit.model].note) : "" })}</div>

@@ -119,6 +119,9 @@ function trendFrame(trend, center) {
 // with 6 Harry holes and 12 m with 37, fitted ranges of 19 m and 78 m for the same element. On Harry's 24 and 37 holes
 // this rule fits Au 61 / 72 m and Cu 142 / 73 m (a fixed 25 m lag: 59 / 77 and 189 / 80); a full-spacing lag put the
 // whole sill in the first bin (pure nugget). betweenHoleM is returned for the run summary's warning.
+// TASKS.csv #3273 (Galore Creek review) — the run-time fit kriged 11,308 blocks on 'r² 0.17' and said 'weak' only afterwards. Under this
+// r² (the Variogram tool's own 'Weak fit' threshold, #1742) a run that passes askOnWeakFit stops before kriging, with the fit on the error.
+export const WEAK_FIT_R2 = 0.5;
 function resolveVariogram(pts, given, cellSize) {
   const v = given || {};
   const model = v.model || "spherical";
@@ -167,6 +170,7 @@ export function estimateBlockModel(samplePoints, opts) {
   // TASKS.csv #709 — kriging needs a variogram (resolveVariogram), in the same frame the search works in
   const tw0 = method === "ok" ? withTrend(samplePoints, opts) : null;
   const variogram = method === "ok" ? resolveVariogram(tw0.pts, opts.variogram, cellSize) : null;
+  if (variogram?.fitted && opts.askOnWeakFit && variogram.rSquared != null && variogram.rSquared < WEAK_FIT_R2) throw Object.assign(new Error(tr("The automatic variogram fit is weak.")), { weakFit: variogram }); // #3273
   const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, noCodeAsDomain, variogram, supportRef: opts.supportRef, materialHoles: !!opts.materialHoles, nearHoleM: Math.max(dx, dy, dz) }; // supportRef: #1411; materialHoles: #1573; nearHoleM: #3255
   // TASKS.csv #91/#92 — support classification is opt-in and OFF by default: it widens the neighbour
   // search and adds per-cell work, so it must never be paid for by a caller that didn't ask. `bracketTol`

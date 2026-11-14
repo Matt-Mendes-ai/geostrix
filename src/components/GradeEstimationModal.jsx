@@ -59,8 +59,10 @@ const GradeTonnageModal = lazyModal(() => import("./GradeTonnageModal.jsx")); //
 // TASKS.csv #1580 (review #1497, Lawyers) — the dialog's settings come back when it is reopened in the session, per project: a reopen
 // started again on IDW, no cap, 50 m radius and an automatic cell. A value that no longer applies (an element, domain, volume or block
 // model not in the project, a cap kept for another element) starts at its default.
-const lastEstimateSettings = new Map(); // project key -> settings
-export const estimateSettingsKey = (project) => String(project?.id ?? project?.name ?? "");
+import { lastEstimateSettings, estimateSettingsKey } from "../lib/estimateMemory.js"; // TASKS.csv #3273 — shared with the Variogram tool
+export { estimateSettingsKey };
+// TASKS.csv #3273 — a semivariance with separators (22,800,000, not 22800000)
+const fmtSemi = (v) => (!Number.isFinite(v) ? "—" : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : String(+v.toPrecision(3)));
 export default function GradeEstimationModal({ modelArea = null /* #2544 */, assays: assaysProp, assayElements: assayElementsProp, layers, collars, survey, onAddModel, onClose, volumeShells = [], trend: modelTrend = null, groundAt = null, groundSource = null, checkedHoleIds = null, areaStrings = [] }) { // groundAt: TASKS.csv #803; groundSource "terrain" | "collars": #1616
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
@@ -258,6 +260,10 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   const [modelName, setModelName] = useState("");
   const [result, setResult] = useState(null); // { cells, blocksEstimated, blocksSkipped, grid, samplePointCount, droppedCount } | null
   const [error, setError] = useState("");
+  // TASKS.csv #3273 — a weak automatic variogram fit stops the run and asks: inverse distance, or krige with it anyway
+  const [weakFitAsk, setWeakFitAsk] = useState(null), weakFitAccepted = useRef(false), [rerun, setRerun] = useState(0);
+  const vgFrom = sameElement ? keep("vgFrom", "") : ""; // the Variogram tool's 'Use this model in Estimation'
+  const vgFromSaved = vgFrom && saved && saved.vgNugget === vgNugget && saved.vgSill === vgSill && saved.vgRange === vgRange && saved.vgModel === vgModel;
   const [running, setRunning] = useState(false);
 
   const qaqcExcludedCount = useMemo(() => assays.length - excludeQAQC(assays).length, [assays]);
@@ -417,6 +423,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   const cancelRun = () => abortRef.current?.abort();
   const run = () => {
     setError(""); setResult(null); setProgress(0); runStartedAt.current = performance.now(); // #3256
+    setWeakFitAsk(null); // #3273
     if (!collars.length) { setError(tr("No collars loaded — nothing to estimate from.")); return; }
     // TASKS.csv #676 — with fewer samples than holes, no block can ever reach the hole rule (it just reported 0 blocks)
     if (maxSamples < minHoles) { setError(tr("Max samples per block ({maxSamples}) is below Min distinct holes ({minHoles}), so no block could ever be estimated. Raise Max samples or lower Min holes.", { maxSamples, minHoles })); return; }
@@ -538,6 +545,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         setStage(others.length ? symbol : null);
         const est = await runEstimation("block", estPts, {
           ...baseOpts,
+          ...(method === "ok" && !weakFitAccepted.current ? { askOnWeakFit: true } : {}), // #3273 — a weak automatic fit asks first
           ...(method === "ok" ? { variogram: { model: vgModel, ...(vgNugget !== "" && vgSill !== "" && vgRange !== "" ? { nugget: Number(vgNugget), sill: Number(vgSill), range: Number(vgRange) } : {}) } } : {}), // #709
           ...(unsPts.length ? { unsampledPoints: unsPts } : {}), // #2596
           ...(logFills.length ? { logShare: true } : {}), // #2721
@@ -682,13 +690,16 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         setResult({ ...est, params, members, nnCells: nnCheck /* #3060 */, checkPoints: points, compositingSkipped, coverageLeftOut: coverageStats.leftOut > 0 ? { leftOut: coverageStats.leftOut, readings: coverageStats.readings, minCoverage } : null /* #3269 */, samplePointCount: points.length, noCodeComposites: domainKey ? points.filter((p) => p.domain == null).length : 0 /* #2541 */, droppedCount: dropped, clampedCount: clamped, beyondTraceCount: beyondTrace, rawStats, intervalCount: intervals.length });
         setAdded(false); setAddedSupport(false); setAddedKv(false); // a fresh run invalidates every "Added ✓" state
       } catch (e) {
-        setError(e.cancelled ? tr("Estimation cancelled.") : (e.message || tr("Estimation failed.")));
+        if (e.weakFit) setWeakFitAsk(e.weakFit); // #3273 — asked below the Run button, not an error
+        else setError(e.cancelled ? tr("Estimation cancelled.") : (e.message || tr("Estimation failed.")));
       }
+      weakFitAccepted.current = false; // #3273 — 'Krige with it anyway' covers the one run
       abortRef.current = null; setProgress(null); setStage(null);
       setRunning(false);
     }, 40);
   };
 
+  useEffect(() => { if (rerun) run(); }, [rerun]); // #3273 — a choice in the weak-fit question runs again with it (run reads the new method)
   const [added, setAdded] = useState(false);
   const [gtOpen, setGtOpen] = useState(false); // TASKS.csv #1577
   const [addedSupport, setAddedSupport] = useState(false); // TASKS.csv #92
@@ -817,6 +828,10 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
                   </label>
                 ))}
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", flex: "1 1 160px" }}>{tr("Blank = fitted to these composites when you run. Values in the estimated unit ({unit}), squared for nugget and sill.", { unit })}</div>
+                {vgFromSaved && <div style={{ flex: "1 1 100%", fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>{tr("From the Variogram tool: {how}.", { how: vgFrom })}</div>}{/* #3273 */}
+                <div style={{ flex: "1 1 100%", fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{trend /* #3273 — kriging takes the trend's anisotropy, said where the range is typed */
+                  ? (() => { const sc = trendSearchScales(trend); return tr("With the trend \"{name}\", kriging reads distances in its frame: the range is along its major axis, and the variogram reaches {b} and {c} of it across (its ratios).", { name: trend.name || tr("flat search"), b: `${Math.round(100 / sc.semiMajor)} %`, c: `${Math.round(100 / sc.minor)} %` }); })()
+                  : tr("One range in every direction (isotropic). For an anisotropic variogram, choose a structural trend for block estimation (3D Modelling → Model settings → Structural trends): kriging then reads distances in its frame, so the range is along its major axis and shorter across it by its ratios.")}</div>
               </div>
             )}
             {flatProposal && !proposalApplied && ( /* TASKS.csv #2418 — offered, from these holes; never applied by itself */
@@ -1040,6 +1055,16 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           </button>
           {running && <button type="button" onClick={cancelRun} style={{ ...btn(false), alignSelf: "flex-start", padding: "6px 14px" }}>{tr("Cancel")}</button>}
 
+          {weakFitAsk && !running && ( /* TASKS.csv #3273 */
+            <div role="alertdialog" aria-label={tr("Weak variogram fit")} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", lineHeight: 1.45 }}>
+              {tr("The variogram fitted to these composites is weak (r² {r}): nugget {n}, sill {s}, range {range} m. Kriging with it would rest the weights on a guess.", { r: weakFitAsk.rSquared.toFixed(2), n: `${fmtSemi(weakFitAsk.nugget)}${logValues ? "" : ` ${gradeUnitLabel(symbol, unit)}²`}`, s: `${fmtSemi(weakFitAsk.sill)}${logValues ? "" : ` ${gradeUnitLabel(symbol, unit)}²`}`, range: Math.round(weakFitAsk.range) })}
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
+                <button type="button" style={{ ...btn(true), padding: "5px 12px" }} onClick={() => { setWeakFitAsk(null); setMethod("idw2"); setRerun((k) => k + 1); }}>{tr("Estimate by inverse distance (power 2)")}</button>
+                <button type="button" style={{ ...btn(false), padding: "5px 12px" }} onClick={() => { setWeakFitAsk(null); weakFitAccepted.current = true; setRerun((k) => k + 1); }}>{tr("Krige with it anyway")}</button>
+              </div>
+              <div style={{ marginTop: 4, color: "var(--color-text-secondary)" }}>{tr("Or read the variogram in the Variogram tool and send its model here with 'Use this model in Estimation'.")}</div>
+            </div>
+          )}
           {error && <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-danger-icon-strong)" }}>{error}</div>}
 
           {result && (
@@ -1079,7 +1104,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
               {/* TASKS.csv #258 */}
               {/* TASKS.csv #516 — say how MLS (linear) actually ran */}
               {result.variogram && (
-                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>{tr("Kriged with the {model} variogram{v}: nugget {v2}, sill {v3}, range {v4} m{v5}{v6}." /* #2429: was 'the fitted ... fitted to' */, { model: result.variogram.model, v: result.variogram.fitted ? tr(" fitted to these composites") : tr(" as entered"), v2: +result.variogram.nugget.toPrecision(3), v3: +result.variogram.sill.toPrecision(3), v4: Math.round(result.variogram.range), v5: trend ? tr(" (along the trend \"{name}\")", { name: trend.name }) : "", v6: result.variogram.fitted ? tr(" — check it against the Variogram tool before trusting it") : "" })}{(() => { // TASKS.csv #1027 — a range the holes cannot see across
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>{tr("Kriged with the {model} variogram{v}: nugget {v2}, sill {v3}, range {v4} m{v5}{v6}." /* #2429: was 'the fitted ... fitted to' */, { model: result.variogram.model, v: result.variogram.fitted ? tr(" fitted to these composites") : tr(" as entered"), v2: `${fmtSemi(result.variogram.nugget)}${logValues ? "" : ` ${gradeUnitLabel(symbol, unit)}²`}`, v3: `${fmtSemi(result.variogram.sill)}${logValues ? "" : ` ${gradeUnitLabel(symbol, unit)}²`}` /* #3273 — separators and the unit */, v4: Math.round(result.variogram.range), v5: trend ? tr(" (along the trend \"{name}\")", { name: trend.name }) : "", v6: result.variogram.fitted ? tr(" — check it against the Variogram tool before trusting it") : "" })}{(() => { // TASKS.csv #1027 — a range the holes cannot see across
                   const v = result.variogram, far = result.params?.krigingBlocks?.beyondRange || 0, kr = result.params?.krigingBlocks?.kriged || 0;
                   const short = v.betweenHoleM != null && v.range < v.betweenHoleM;
                   if (short) return <span style={{ color: "var(--color-warn-text)" }}>{" "}{tr("The variogram cannot see between your holes: the range ({r} m) is shorter than the typical spacing between holes ({s} m){v}, so kriging is close to a plain average of the neighbours here.", { r: Math.round(v.range), s: v.betweenHoleM, v: kr ? tr(" and {n} of {m} kriged blocks have their nearest composite beyond it", { n: far.toLocaleString(), m: kr.toLocaleString() }) : "" })}</span>;
