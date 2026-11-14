@@ -43,10 +43,11 @@ import { surveyMethodKey, surveyMethodByHole, foldCaseVariants } from "../../lib
 import { fullestTypeColumn } from "../../lib/downholeTableGuess.js"; // TASKS.csv #2188
 import { holeTypeColumn, normalizeHoleType } from "../../lib/holeType.js"; // TASKS.csv #2161
 import { dateColumnReader, withDateFields } from "../../lib/dateColumns.js"; // TASKS.csv #3075
+import { loggedCodeSpellings, withLogColours } from "../../lib/logColours.js"; // TASKS.csv #3043
 import { surveyIdsWithoutCollar, idList } from "../../lib/surveyCollarCheck.js"; // TASKS.csv #3202
 import { eventNotes } from "../../lib/downholeEvents.js"; // TASKS.csv #2317
 import { applyRowFilter, defaultRowFilter, overlapSummary, overlapWorthSaying } from "../../lib/importRowFilter.js"; // TASKS.csv #2330; overlap: #2391
-import { isNullSentinel, LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, keepDerivedPicks, isDerivedPick, replaceNote, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
+import { categoryColor /* #3043 */, isNullSentinel, LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, keepDerivedPicks, isDerivedPick, replaceNote, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
 import { alterationStyleFromName, styledAltValue, isBlankCode, NO_CODE, blankCodeText, skipBlankValue, mineralListValue } from "../../lib/viewer/importHelpers.js"; // TASKS.csv #1511; isBlankCode: #2182; skipBlankValue: #2021
 import { fillDownHoleIds, numberedSiblings, allCodesOf, normInterval, applyCustomFields, normNumericInterval, normStructure, skippedRowsText, strikeStats, loadRaster, looksLikeAssay, isSurfaceSampleTable, looksLikeSurfaceSamples /* #2268 */, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
 import { unreadableFormatAdvice } from "../../lib/unreadableFormats.js"; // TASKS.csv #603
@@ -76,7 +77,7 @@ function customOverlapText(rows) {
 }
 
 export function makeImportPipeline(ctx, h) {
-  const { addVoxelModel, fillCodeDictionary, recordImportLeftOut, storeAssays, layerPicker, setLayerPicker, batchRowsRef, commitBusyRef, importQueueRef, importQueueTotalRef, importActiveRef, assayHandoffRef, surfaceHandoffRef, sampleLoading, setSampleLoading } = h;
+  const { viewerUiState, addVoxelModel, fillCodeDictionary, recordImportLeftOut, storeAssays, layerPicker, setLayerPicker, batchRowsRef, commitBusyRef, importQueueRef, importQueueTotalRef, importActiveRef, assayHandoffRef, surfaceHandoffRef, queueLogRef, sampleLoading, setSampleLoading } = h;
   const {
     addBoundary,
     addRaster,
@@ -134,8 +135,14 @@ export function makeImportPipeline(ctx, h) {
     adoptCrsIfEmpty(guessEpsgFromPrjWkt(parsed.prjWkt), file.name); // #607
     const live = importStateRef.current;
     const sourceName = file.name.replace(/\.(shp|zip)$/i, "");
-    const layer = buildLayer({ ...parsed, epsg: guessEpsgFromPrjWkt(parsed.prjWkt) }, { sourceName, projectEpsg: projectTargetEpsg(live.project), tie: tieOf(live.project) /* #2320 */, mineGrid: mineGridOf(live.project), collars: live.collars /* #2586 */, qml: null, sourceOverride: null });
+    let layer = buildLayer({ ...parsed, epsg: guessEpsgFromPrjWkt(parsed.prjWkt) }, { sourceName, projectEpsg: projectTargetEpsg(live.project), tie: tieOf(live.project) /* #2320 */, mineGrid: mineGridOf(live.project), collars: live.collars /* #2586 */, qml: null, sourceOverride: null });
     if (!layer) { setNotices((p) => [...p, notice("{name}: no usable line / polygon features.", { name: file.name })]); return; }
+    // TASKS.csv #3043 (from #2970) — a unit named like a logged lithology code takes the logs' colour for it (their legend's own, if it was
+    // changed), as the Surface Geology import does: a map dropped here drew its units in a palette by file order
+    if (!layer.styleBreaks && layer.categories?.length > 1) {
+      const spell = loggedCodeSpellings(live.layers?.litho);
+      if (spell.size) layer = { ...layer, categories: withLogColours(layer.categories, spell, (u) => categoryColor(viewerUiState?.legendOverride?.litho?.[u], LAYER_META.litho, u)) };
+    }
     const twin = sameMapLayer(live.mapLayers, layer); // #2019 — the same file again: not a second copy
     if (twin) { setNotices((p) => [...p, notice("{name} is already in Map layers as \"{layer}\" ({features}): not added again.", { name: file.name, layer: twin.name, features: featureCountText(layer.features.length, layer.geomType) })]); return; }
     live.addMapLayer({ ...layer, drapeMode: "terrain" }); // #1606 — flat until a terrain exists, then draped (was 'flat' for good when imported before one)
@@ -979,6 +986,7 @@ export function makeImportPipeline(ctx, h) {
       setNotices((p) => [...p, `${importModal.fileName}:${units === "ft" ? " depths/lengths" + (importModal.mapping.z ? tr(" and elevations") : "") + " converted from feet to metres (x 0.3048)." : ""}${grid ? tr(" {moved} collar(s) moved from the local grid to EPSG:{v} (scale {scale}, rotation {rotationDeg}° counter-clockwise from the local grid to the map, RMS {rmsM} m over {n} control points){v2}.", { moved: t.moved, v: importStateRef.current.project?.epsg ?? project?.epsg /* #2489: the CRS just chosen, never a placeholder */, scale: grid.scale.toFixed(6), rotationDeg: grid.rotationDeg.toFixed(3), rmsM: grid.rmsM.toFixed(2), n: grid.n, v2: t.turned ? tr("; {turned} azimuth(s) turned with the grid ({v}°)", { turned: t.turned, v: (-grid.rotationDeg).toFixed(3) }) : "" }) : ""}${zShift ? tr(" Elevations shifted by {zShift} m.", { zShift }) : ""}`]);
     }
     commitImportData(modalData);
+    const asked = (queueLogRef?.current || []).filter((e) => e.outcome === "asked").pop(); if (asked) asked.outcome = "imported"; // #3071
     setImportModal(null);
     processImportQueue();
   };
@@ -1018,9 +1026,26 @@ export function makeImportPipeline(ctx, h) {
     setNotices((p) => [...p, surface ? notice("{name} looks like a table of surface samples (coordinates, no from / to, no hole ID), so it opened in Geochem's surface-sample import, where you choose the elements. Not samples? Cancel there and use + Add CSV layer in the 3D View's sidebar to import it as a layer of your own.", { name: files[0].name }) /* #2268 */ : notice("{name} is assay data: it is open in the Geochem assay import, which asks which columns are elements. Not assays? Cancel there and use + Add CSV layer in the 3D View's sidebar to import it as a layer of your own.", { name: files[0].name }), // the way out: #2185
       ...(files.length > 1 ? [notice("{n} more assay file(s) follow in the Geochem import, one after another: {list}.", { n: files.length - 1, list: files.slice(1).map((f) => f.name).join(", ") })] : [])]);
   };
+  // TASKS.csv #3071 (#2899) — a multi-file drop ended with no word on what became of each file (a cancelled dialog, a file handed to Geochem):
+  // one summary notice per drop, by outcome, and the tab the queue leaves the user on when assays go on to the Geochem import
+  const logQueue = (name, outcome) => { if (queueLogRef?.current) queueLogRef.current.push({ name, outcome }); };
+  const queueSummary = () => {
+    const log = queueLogRef?.current; if (queueLogRef) queueLogRef.current = null;
+    if (!log || log.length < 2) return;
+    const of = (o) => log.filter((e) => e.outcome === o).map((e) => e.name), list = (a) => a.slice(0, 6).join(", ") + (a.length > 6 ? ", …" : "");
+    const parts = [
+      [of("imported"), (a) => tr("imported {n}: {list}", { n: a.length, list: list(a) })],
+      [of("map"), (a) => tr("map layers {n}: {list}", { n: a.length, list: list(a) })],
+      [of("geochem"), (a) => tr("to the Geochem import {n}: {list}", { n: a.length, list: list(a) })],
+      [of("cancelled"), (a) => tr("cancelled {n}: {list}", { n: a.length, list: list(a) })],
+      [[...of("asked"), ...of("unread")], (a) => tr("not imported {n}: {list}", { n: a.length, list: list(a) })],
+    ].filter(([a]) => a.length).map(([a, f]) => f(a));
+    setNotices((p) => [...p, notice("{n} files dropped: {parts}.", { n: log.length, parts: parts.join("; ") }),
+      ...(of("geochem").length ? [notice("The Geochem tab opens next, for the assay file(s).")] : [])]);
+  };
   const processImportQueue = () => { // #3159 split: a plain function here; the hook keeps the useCallback
     const file = importQueueRef.current.shift();
-    if (!file) { importActiveRef.current = false; batchRowsRef.current = null; setTaskProgress?.(null); importQueueTotalRef.current = 0; handOverAssays(); return; } // #1350
+    if (!file) { importActiveRef.current = false; batchRowsRef.current = null; setTaskProgress?.(null); importQueueTotalRef.current = 0; queueSummary(); /* #3071 */ handOverAssays(); return; } // #1350
     const total = importQueueTotalRef.current || importQueueRef.current.length + 1;
     const doneCount = total - importQueueRef.current.length; // this file counts as "now processing"
     setTaskProgress?.({ label: `Importing files (${doneCount}/${total}): ${file.name}`, pct: Math.round((doneCount / total) * 100) });
@@ -1029,13 +1054,14 @@ export function makeImportPipeline(ctx, h) {
       // queue here; the picker's own onPick/onCancel resumes it (openImportModal -> mapping modal ->
       // commitImport/cancel -> processImportQueue), so the queue can't advance past an unanswered
       // question or double-import the same file.
-      if (meta?.layerOptions) { setLayerPicker({ file, options: meta.layerOptions }); return; }
-      if (err || !data || !data.length) { setNotices((p) => [...p, notice("{name}: couldn't read {v}.", { name: file.name, v: err ? "file (" + err + ")" : tr("— no rows found") })]); processImportQueue(); return; }
-      if (isMapGeometry(meta)) { sendToMapLayers(file, meta.vector); processImportQueue(); return; } // #609
+      if (meta?.layerOptions) { logQueue(file.name, "asked"); setLayerPicker({ file, options: meta.layerOptions }); return; } // logQueue: #3071
+      if (err || !data || !data.length) { logQueue(file.name, "unread"); setNotices((p) => [...p, notice("{name}: couldn't read {v}.", { name: file.name, v: err ? "file (" + err + ")" : tr("— no rows found") })]); processImportQueue(); return; }
+      if (isMapGeometry(meta)) { logQueue(file.name, "map"); sendToMapLayers(file, meta.vector); processImportQueue(); return; } // #609
       const headers = meta?.headers || Object.keys(data[0]);
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
       if (looksLikeAssay(headers, file.name, data) || looksLikeSurfaceSamples(headers, data)) { // file.name: #1105; data: #2185; soils: #2268
         assayHandoffRef.current.push(assayHandoffOf(file, data, headers, meta)); // #1350 — to the Geochem import when the queue is done; #2016
+        logQueue(file.name, "geochem"); // #3071
         processImportQueue();
         return;
       }
@@ -1073,6 +1099,7 @@ export function makeImportPipeline(ctx, h) {
         const comp = companionLayer(target, headers);
         const extras = target === "collars" ? [] : target === "survey" ? surveyMethodFields(headers, data) /* #2187 */ : autoExtraFields(headers, data, mapping, { exclude: [modalData.perRowEpsgCol, comp?.column].filter(Boolean) });
         askCrsForCollars(modalData).then(() => {
+          logQueue(file.name, "imported"); // #3071
           commitImportData({ ...modalData, customFields: extras, unseen: true }); // #615; unseen: #715 — no dialog, so its defaults are assumptions
           if (comp) commitImportData({ ...modalData, target: comp.target, mapping: { ...mapping, value: comp.column }, customFields: [], unseen: true });
           const said = [extras.length ? tr("kept {n} more column(s) with each row (Identify shows them): {cols}", { n: extras.length, cols: extras.slice(0, 8).map((f) => f.column).join(", ") + (extras.length > 8 ? "…" : "") }) : "", comp ? tr("its \"{col}\" column also filled {layer}", { col: comp.column, layer: LAYER_META[comp.target]?.label || comp.target }) : ""].filter(Boolean);
@@ -1081,6 +1108,7 @@ export function makeImportPipeline(ctx, h) {
         });
       } else {
         const remaining = importQueueRef.current.length;
+        logQueue(file.name, "asked"); // #3071 — the dialog's Import or Cancel says which
         setImportModal({ ...modalData, fileName: remaining ? `${file.name} (${remaining} more queued)` : file.name });
       }
     });
@@ -1204,6 +1232,7 @@ export function makeImportPipeline(ctx, h) {
     batchRowsRef.current = new WeakSet(); // #605
     setNotices((p) => [...p, notice("Importing {files} files — auto-detecting each one, will ask when unsure…", { files: files.length })]);
     importQueueTotalRef.current = files.length;
+    if (queueLogRef) queueLogRef.current = []; // #3071 — a drop's files are summed up at its end (a sample project says its own)
     importQueueRef.current = await orderImportFiles(files); // #600: collars, then surveys, then the rest
     processImportQueue();
   };

@@ -18,7 +18,7 @@ test("draped only for an interpretation layer, with no terrain, three or more co
 
 test("wiring: the map-layer drape samples the collar ground; the 3D View passes the collars; the pane says so and offers flat", () => {
   const sb = readFileSync(new URL("../src/lib/viewer/sceneBuilders.js", import.meta.url), "utf8");
-  assert.match(sb, /const onCollars = interpretationOnCollars\(l, terrain, collars\);/);
+  assert.match(sb, /const onCollars = mapLayerOnCollars\(l, terrain, collars\);/); // every map layer since #3368
   assert.match(sb, /onCollars \? `collars:\$\{collarsKey\(collars\)\}`/);
   assert.match(sb, /const ground = collarGround\(collars\);\s*geometry = new THREE\.PlaneGeometry\(w, h, COLLAR_DRAPE_SEG, COLLAR_DRAPE_SEG\);/);
   assert.match(readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8"), /syncMapLayers\([^)]*collars \/\* #2768 \*\/ \}\)/);
