@@ -34,5 +34,5 @@ test("a polygon off the grid has no cells; a boundary with nothing, none", () =>
 
 test("the raster card offers it for any gridded raster", () => {
   const m = readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.match(m, /\{r\.grid && <ZonalStatsBox raster=\{r\} boundaries=\{boundaries\} \/>\}/);
+  assert.match(m, /\{r\.grid && <ZonalStatsBox raster=\{r\} boundaries=\{boundaries\}( onClip=\{\(b\) => clipRasterTo\(r, b\)\})? \/>\}/);
 });

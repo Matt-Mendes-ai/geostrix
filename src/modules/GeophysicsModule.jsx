@@ -268,6 +268,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const [terrainSource, setTerrainSourceState] = useState(() => { try { return localStorage.getItem("geostrix.terrainSource") || "aws"; } catch { return "aws"; } });
   const setTerrainSource = (v) => { setTerrainSourceState(v); try { localStorage.setItem("geostrix.terrainSource", v); } catch { /* private window */ } };
   const [srtmPickerOpen, setSrtmPickerOpen] = useState(false);
+  // TASKS.csv #3095 (Matt's pick B) — Terrain from samples and collars over a drawn area: on a field wider than the grid can resolve (6,000 holes
+  // over 38 km) one terrain is coarser than the points; a drawn area (the SRTM picker's) keeps the points inside it and the grid follows them
+  const [projAreaPicker, setProjAreaPicker] = useState(false);
+  const [projArea, setProjArea] = useState(null); // [lonMin, latMin, lonMax, latMax] | null
   const [srtmSeedBbox, setSrtmSeedBbox] = useState(null); // [lonMin, latMin, lonMax, latMax] | null
   const [srtmSeedLonLat, setSrtmSeedLonLat] = useState(null); // { lon, lat } | null — TASKS.csv #200 "Locate" button
   const [srtmAreaOptions, setSrtmAreaOptions] = useState(null); // [{id, label, bboxLonLat}] | null — TASKS.csv #200
@@ -741,7 +745,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     setTerrainBusy(true);
     try {
       const { samplePts: allSamplePts, collarPts: allCollarPts } = projectZPoints;
-      const samplePts = zUse === "collars" ? [] : allSamplePts, collarPts = zUse === "samples" ? [] : allCollarPts, samples = samplePts.length; // #3381
+      const areaBox = projAreaBox(projArea, project?.epsg); // #3095 — the drawn area in project coordinates
+      const inArea = (p) => !areaBox || (p.x >= areaBox[0] && p.x <= areaBox[2] && p.y >= areaBox[1] && p.y <= areaBox[3]);
+      const samplePts = zUse === "collars" ? [] : allSamplePts.filter(inArea), collarPts = zUse === "samples" ? [] : allCollarPts.filter(inArea), samples = samplePts.length; // #3381; #3095
       const picked = pickBenchGround(collarPts, benches.n ? benchMode : "all"); // #2589
       const points = [...samplePts, ...picked.points], nc = picked.points.length;
       const benchNote = !benches.n ? ""
@@ -2650,6 +2656,17 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             <Triangle size={14} /> {tr("Terrain from this project's samples and collars ({n})", { n: zCount.toLocaleString() })}
           </button>
         )}{/* TASKS.csv #1599 */}
+        {projectZPoints.points.length >= 3 && ( /* TASKS.csv #3095 — the points inside a drawn area only */
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", flexWrap: "wrap" }}>
+            <button type="button" onClick={async () => { const seed = await defaultSrtmBboxLonLat(); setSrtmSeedBbox(projArea || seed); setSrtmSeedLonLat(seed ? { lon: (seed[0] + seed[2]) / 2, lat: (seed[1] + seed[3]) / 2 } : null); setSrtmAreaOptions(await buildSrtmAreaOptions()); setProjAreaPicker(true); }}
+              style={{ ...pBtn, flex: "0 0 auto" }} title={tr("Build the terrain from the samples and collars inside an area you draw, so the grid follows them: for a field wider than one grid can resolve")}>{tr("Limit to a drawn area…")}</button>
+            {projArea && <span>{tr("Inside {w} × {h} km", { w: ((projArea[2] - projArea[0]) * 111.32 * Math.cos(((projArea[1] + projArea[3]) / 2) * Math.PI / 180)).toFixed(1), h: ((projArea[3] - projArea[1]) * 110.57).toFixed(1) })} <button type="button" onClick={() => setProjArea(null)} style={{ background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0, fontSize: "var(--font-size-sm)" }}>{tr("Clear")}</button></span>}
+          </div>
+        )}
+        {projAreaPicker && (
+          <BasemapView mode="draw" title={tr("Draw the area to build the terrain over")} lon={srtmSeedLonLat?.lon} lat={srtmSeedLonLat?.lat} initialBboxLonLat={srtmSeedBbox} areaOptions={srtmAreaOptions}
+            confirmLabel="Use this area" onClose={() => setProjAreaPicker(false)} onConfirm={(bbox) => { setProjArea(bbox); setProjAreaPicker(false); }} />
+        )}
         {projectZPoints.points.length >= 3 && zBoth && ( /* TASKS.csv #3381 */
           <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("From")}
             <select value={zSource} onChange={(e) => setZSource(e.target.value)} aria-label={tr("Elevations the terrain is built from")} style={{ flex: 1, minWidth: 0 }}>
@@ -3586,4 +3603,13 @@ function VoxelLegendEditor({ model, onUpdate }) {
 }
 
 const pBtn ={ display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "8px 10px", marginBottom: 6, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer" };
+// TASKS.csv #3095 — a lon / lat box as a box in the project CRS (the corners' extent), or null with no area / no CRS
+function projAreaBox(area, epsg) {
+  if (!area || !epsg) return null;
+  const T = pointTransform(4326, epsg);
+  const cs = T ? [[area[0], area[1]], [area[2], area[1]], [area[2], area[3]], [area[0], area[3]]].map(([lo, la]) => T(lo, la)) : [];
+  if (cs.length < 4 || cs.some((c) => !c || !Number.isFinite(c[0]) || !Number.isFinite(c[1]))) return null;
+  const xs = cs.map((c) => c[0]), ys = cs.map((c) => c[1]);
+  return [xs.reduce((m, v) => (v < m ? v : m)), ys.reduce((m, v) => (v < m ? v : m)), xs.reduce((m, v) => (v > m ? v : m)), ys.reduce((m, v) => (v > m ? v : m))]; // four corners: no spread (#371)
+}
 const numInput = { flex: 1, minWidth: 0 /* #1433 */, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)", fontSize: "var(--font-size-sm)", padding: "3px 6px" };

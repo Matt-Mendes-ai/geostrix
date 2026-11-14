@@ -12627,5 +12627,20 @@
   "Area {v} ha": "Surface {v} ha",
   "{v} ha on the ground ({g} ha on the map grid)": "{v} ha sur le terrain ({g} ha sur la grille de la carte)",
   "{n} drillhole(s), handed to the 3D View's import": "{n} sondage(s), remis à l'import de la vue 3D",
-  "{name}: {n} drillhole(s) with {s} survey station(s), read as {tables} and imported here as any table is. Dips are as geoh5 writes them, negative down, and are read that way.": "{name} : {n} sondage(s) avec {s} station(s) de levé, lus comme {tables} et importés ici comme toute table. Les pendages sont tels que geoh5 les écrit, négatifs vers le bas, et sont lus ainsi."
+  "{name}: {n} drillhole(s) with {s} survey station(s), read as {tables} and imported here as any table is. Dips are as geoh5 writes them, negative down, and are read that way.": "{name} : {n} sondage(s) avec {s} station(s) de levé, lus comme {tables} et importés ici comme toute table. Les pendages sont tels que geoh5 les écrit, négatifs vers le bas, et sont lus ainsi.",
+  "Shape by": "Forme selon",
+  "Shape collars by": "Forme des collets selon",
+  "One shape": "Une seule forme",
+  "Size by the value's class": "Taille selon la classe de la valeur",
+  "Shape legend": "Légende des formes",
+  "A new raster of this grid's cells inside the boundary (the original stays), cropped to its extent": "Un nouveau raster des cellules de cette grille dans la limite (l'original reste), recadré à son étendue",
+  "Clip to this boundary (new raster)": "Découper à cette limite (nouveau raster)",
+  "Column(s) {cols} look like bearings: they were written as they are, measured from the local grid's north, not turned by the tie's rotation ({rot}°).": "La / les colonne(s) {cols} ressemblent à des gisements : elles ont été écrites telles quelles, mesurées depuis le nord de la grille locale, sans être tournées par la rotation du lien ({rot}°).",
+  "The CRS the layer's numbers are really in, or the project's local mine grid.": "Le SCR dans lequel sont réellement les nombres de la couche, ou la grille de mine locale du projet.",
+  "Build the terrain from the samples and collars inside an area you draw, so the grid follows them: for a field wider than one grid can resolve": "Construire le terrain avec les échantillons et collets d'une zone dessinée, pour que la grille les suive : pour un champ plus large que ce qu'une grille peut résoudre",
+  "Limit to a drawn area…": "Limiter à une zone dessinée…",
+  "Inside {w} × {h} km": "Dans {w} × {h} km",
+  "Draw the area to build the terrain over": "Dessinez la zone sur laquelle construire le terrain",
+  "No cell of \"{name}\" with a value lies inside \"{boundary}\".": "Aucune cellule de « {name} » avec une valeur n'est dans « {boundary} ».",
+  "Added \"{name}\": {kept} of {total} cells inside \"{boundary}\" have a value ({cells} cells in all, cropped to the boundary). \"{source}\" is unchanged.": "« {name} » ajouté : {kept} cellules sur {total} dans « {boundary} » ont une valeur ({cells} cellules en tout, recadré à la limite). « {source} » est inchangé."
 }

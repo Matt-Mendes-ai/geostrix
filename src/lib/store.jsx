@@ -1049,6 +1049,14 @@ export function StoreProvider({ children }) {
     const live = liveRef.current;
     const toEpsg = live.project?.epsg;
     const { reprojectProject } = await import("./projectReproject.js");
+    // TASKS.csv #2826 (Main's OK, 2026-11-14) — Maps > A layer 'Its coordinates are really in: Local mine grid': the layer moves through the project's
+    // mine grid tie (mineToProject) instead of a CRS; the bearings turn with it (reprojectProject builds each from two transformed points)
+    if (String(fromEpsg).toLowerCase() === "mine") {
+      const { mineGridOf, mineToProject } = await import("./mineGrid.js"), mg = mineGridOf(live.project);
+      if (!mg) throw new Error("This project has no mine grid to read the layer on.");
+      if (target.kind === "rasters" || target.kind === "terrain") throw new Error("A raster or a terrain is resampled between two CRSs, not through a mine grid's tie: bring it in with Maps > Georeference, or reproject the file (A file) first.");
+      opts = { ...opts, transform: mineToProject(mg, toEpsg) }; fromEpsg = Number(mg.tie.epsg);
+    }
     let sub, merge;
     const k = target.kind;
     if (k === "drillholes") {

@@ -475,6 +475,18 @@ export default function RasterModule({ embedded = false } = {}) {
     if (said.length) setError({ info: true, text: said.join(" ") });
     set.images.forEach(({ file, world, xml, prj }) => importRaster(file, world, xml, prj));
   };
+  // TASKS.csv #3470 — a new raster of a value grid's cells inside a boundary or claim, cropped to it (lib/clipGrid.js); the original stays
+  const clipRasterTo = async (r, b) => {
+    try {
+      const [{ clipGridToPolygon }, { rasterFromGridAsync }] = await Promise.all([import("../lib/clipGrid.js"), import("../lib/gridFilterClient.js")]);
+      const c = clipGridToPolygon(r.grid, b.polylines);
+      if (!c || !c.kept) { setError({ info: false, text: tr("No cell of \"{name}\" with a value lies inside \"{boundary}\".", { name: r.name, boundary: b.name }) }); return; }
+      const nr = await rasterFromGridAsync({ name: `${r.name} — inside ${b.name}`, values: c.values, nx: c.nx, ny: c.ny, x0: c.x0, yTop: c.yTop, dx: c.dx, dy: c.dy, averagedBy: r.grid.averagedBy || 1, sourceSize: r.grid.sourceSize, elevation: r.elevation,
+        extra: { surveyMethod: rasterMethodOf(r, geophysSurveys) || undefined, units: rasterUnitOf(r) || undefined, ...(r.geochem ? { geochem: r.geochem } : {}), clippedTo: { boundary: b.name, source: r.name } } });
+      addRaster({ ...nr, drapeMode: r.drapeMode, elevation: r.elevation });
+      setError({ info: true, text: tr("Added \"{name}\": {kept} of {total} cells inside \"{boundary}\" have a value ({cells} cells in all, cropped to the boundary). \"{source}\" is unchanged.", { name: nr.name, kept: c.kept.toLocaleString(), total: c.total.toLocaleString(), boundary: b.name, cells: (c.nx * c.ny).toLocaleString(), source: r.name }) });
+    } catch (err) { setError({ info: false, text: err.message }); }
+  };
   const importRaster = async (file, world = null, xml = null, prj = null) => { // world: a world file selected with it (TASKS.csv #1855); xml: a Geosoft .xml (#2830); prj: #2857
     if (!file) return;
     setError(null);
@@ -670,7 +682,7 @@ export default function RasterModule({ embedded = false } = {}) {
               {rasters.length > 1 && <ChevronDown role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Move \"{name}\" down the list (drawn over the one before on the plan)", { name: r.name })} title={tr("Move \"{name}\" down the list (drawn over the one before on the plan)", { name: r.name })} onClick={() => moveRaster(r.id, 1)} />}
               <Trash2 aria-label={tr("Remove raster \"{name}\"", { name: r.name })} title={tr("Remove raster \"{name}\"", { name: r.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: r.name }))) removeRaster(r.id); }} />
             </div>
-            {r.grid && <ZonalStatsBox raster={r} boundaries={boundaries} />}{/* TASKS.csv #2002 */}
+            {r.grid && <ZonalStatsBox raster={r} boundaries={boundaries} onClip={(b) => clipRasterTo(r, b)} />}{/* TASKS.csv #2002 */}
             {r.terrainDerivative && r.terrainDerivative.terrainId != null && terrain?.id !== r.terrainDerivative.terrainId && ( /* TASKS.csv #1626 — made from a terrain since replaced */
               <div style={{ marginTop: 5, fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("Made from the terrain \"{name}\", which has since been replaced: it still shows that ground, draped on the new one. Remove it and make it again from the current terrain (Maps > Terrain > Hillshade, slope, aspect…).", { name: r.terrainDerivative.terrainName || "?" })}</div>
             )}

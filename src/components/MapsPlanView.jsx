@@ -13,11 +13,11 @@ import { drawMapLayer, mapStyleSignature, mapTextureSize } from "../lib/mapLayer
 import { keyedCanvas } from "../lib/rasterKey.js";
 import { planDataExtent, planFarLayers } from "../lib/mapsPlan.js"; // planFarLayers: TASKS.csv #2125
 import { figureSamples, colourFromStops } from "../lib/sampleGrid.js"; // TASKS.csv #1622
-import { collarColourFields, collarFieldsLeftOut, perHoleAssay, collarColouring, parseBreaks } from "../lib/collarMapStyle.js"; // TASKS.csv #2459; left out: #3340
+import { collarColourFields, collarFieldsLeftOut, perHoleAssay, collarColouring, parseBreaks, collarShapeFields, collarShapes } from "../lib/collarMapStyle.js"; // TASKS.csv #2459; left out: #3340
 import { planTraces, highestAt, drawTraces } from "../lib/planTraces.js"; // TASKS.csv #3337 — the holes' traces in plan
 import { surveysOnPlan, surveyOutlineBoundary, ringArea } from "../lib/planSurveys.js"; // TASKS.csv #3342 — the point surveys on the plan
 import { drawCallouts } from "../lib/collarCallouts.js"; // TASKS.csv #3397 — holes from one pad: one ring and a callout listing them
-import { collarSpacing, dotStyle, dotsInView, drawDots, polylineInView } from "../lib/planDots.js"; // TASKS.csv #2988 / #2989
+import { collarSpacing, dotStyle, dotsInView, drawDots, polylineInView, drawShapedDots, dotKey, SIZE_SCALE, shapePath } from "../lib/planDots.js"; // TASKS.csv #2988 / #2989
 import HoleValueGridPanel from "./HoleValueGridPanel.jsx"; // TASKS.csv #2658
 import { planGridStep, planGridLines, gridLabel, measureLine, distanceText } from "../lib/planGrid.js"; // TASKS.csv #2128
 import { trueNorthBearingInGridDeg } from "../lib/inversion.js"; // TASKS.csv #2128 — the convergence at the measured line
@@ -55,6 +55,12 @@ function hillshadeCanvas(t) {
 
 
 // TASKS.csv #3342 — the point surveys' colours on the plan (none of them the collars' black or the samples' grey)
+// TASKS.csv #3456 — a legend glyph of one of the five shapes (the same paths the plan draws)
+function ShapeGlyph({ shape }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => { const c = ref.current?.getContext("2d"); if (!c) return; c.clearRect(0, 0, 14, 14); c.beginPath(); shapePath(c, shape, 7, 7, 4.5); c.fillStyle = "#5a6472"; c.fill(); c.strokeStyle = "#14181e"; c.lineWidth = 1; c.stroke(); }, [shape]);
+  return <canvas ref={ref} width={14} height={14} style={{ width: 14, height: 14, flex: "0 0 auto" }} aria-hidden="true" />;
+}
 const SURVEY_COLOURS = ["#0e7490", "#b45309", "#7c3aed", "#be185d", "#15803d", "#1d4ed8"];
 // TASKS.csv #2998 — '  ·  57.1291°N 131.4509°W' (null transform or a failed conversion: nothing)
 const lonLatText = (T, c) => {
@@ -71,6 +77,9 @@ export default function MapsPlanView() {
   const frameText = project?.crsSet === false ? tr(" (local grid)") : "";
   const [chipOpen, setChipOpen] = useState(true); // TASKS.csv #3458 — the Collars panel and its legend can be folded off the plan
   const setStatusCursor = useSetCursor();
+  const [captureDpr, setCaptureDpr] = useState(null); // TASKS.csv #3228 step B — the pixel ratio of the Layout snapshot (null: the screen's)
+  const drawnDpr = useRef(0);
+  const dragSnap = useRef(null); // TASKS.csv #3049 — the picture moved while a drag lasts
   const chipRef = useRef(null); // the Collars chip, for the callouts to keep clear of (#3405)
   // TASKS.csv #3252 phase 1 — a raster with a source description (raster.lod) gets detail tiles where the plan looks: the loader (and the
   // Planetary Computer reader behind it) is loaded the first time one is shown
@@ -115,6 +124,11 @@ export default function MapsPlanView() {
   const showTraces = tracesPicked ?? planT.longReach > 0;
   const [colourAt, setColourAt] = useState("collar"); // "collar" | "intercept"
   const spacingM = useMemo(() => collarSpacing(collars), [collars]); // #2989 — the holes' typical spacing, for the dot size
+  // TASKS.csv #3456 / #3457 — the symbol: a shape by a collar field of up to 5 values, a size by the per-hole value's class
+  const shapeFields = useMemo(() => collarShapeFields(collars), [collars]);
+  const [shapeBy, setShapeBy] = useState("");
+  const shapes = useMemo(() => (shapeBy ? collarShapes(collars, shapeBy) : null), [collars, shapeBy]);
+  const [sizeBy, setSizeBy] = useState(false);
   const [breaksText, setBreaksText] = useState(""); // #3050 — typed class breaks for a numeric colouring
   const breaks = useMemo(() => parseBreaks(breaksText), [breaksText]);
   const colouring = useMemo(() => {
@@ -154,7 +168,18 @@ export default function MapsPlanView() {
   useEffect(() => {
     const cv = canvasRef.current;
     if (!cv || !v) return;
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = captureDpr || window.devicePixelRatio || 1; // TASKS.csv #3228 step B — twice the pixels while Snapshot to Layout captures
+    // TASKS.csv #3049 (measured first: a pan frame took 134 ms at Fit on a 6,390-collar project with five rasters and 1,040 contour lines, 17 ms
+    // zoomed in) — while the mouse drags, the picture the plan showed when the drag began is moved instead of the layers being drawn again; the
+    // strip the move uncovers is background until the button is released, which draws everything at the new place
+    const snap = dragSnap.current;
+    if (drag.current && snap && snap.mPerPx === v.mPerPx && snap.w === cv.width && snap.h === cv.height) {
+      const c2 = cv.getContext("2d");
+      c2.setTransform(1, 0, 0, 1, 0, 0);
+      c2.fillStyle = "#f4f5f2"; c2.fillRect(0, 0, cv.width, cv.height);
+      c2.drawImage(snap.canvas, Math.round(((snap.cx - v.cx) / v.mPerPx) * dpr), Math.round(((v.cy - snap.cy) / v.mPerPx) * dpr));
+      return;
+    }
     cv.width = Math.round(size.w * dpr); cv.height = Math.round(size.h * dpr);
     const ctx = cv.getContext("2d");
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -272,7 +297,11 @@ export default function MapsPlanView() {
     // holes' spacing on screen and loses its outline when the dots would touch (#2459: a hole with no value under the colouring: a grey ring)
     const ds = dotStyle(spacingM, v.mPerPx, !!colouring);
     if (showTraces && planT.traces.size) drawTraces(ctx, planT.traces, X, Y, viewBox, { tickPx: Math.max(2.5, ds.r + 1.5) }); // #3337 — under the dots
-    drawDots(ctx, dotsInView(dotCollars, colouring ? (c) => colouring.colourOf(c) : () => "#1a2028", X, Y, size.w, size.h, ds.r + 1), { ...ds, stroke: colouring ? "#1a2028" : "#ffffff" });
+    const sized = sizeBy && colouring?.kind === "number" && colouring.classOf;
+    if (shapes || sized) { // #3456 / #3457 — one path per colour, shape and size class
+      const keyOf = (c) => dotKey(colouring ? colouring.colourOf(c) : "#1a2028", shapes ? shapes.shapeOf(c) : 0, sized ? Math.max(0, colouring.classOf(c)) : 2);
+      drawShapedDots(ctx, dotsInView(dotCollars, keyOf, X, Y, size.w, size.h, ds.r * 1.7 + 1), { ...ds, stroke: colouring ? "#1a2028" : "#ffffff" });
+    } else drawDots(ctx, dotsInView(dotCollars, colouring ? (c) => colouring.colourOf(c) : () => "#1a2028", X, Y, size.w, size.h, ds.r + 1), { ...ds, stroke: colouring ? "#1a2028" : "#ffffff" });
     if (gtPlan && gtMax > 0) { // #2755 — at each hole's intercept position (holeTotals: their length-weighted mid-points), area in proportion to GT
       ctx.lineWidth = 1;
       for (const h of gtPlan.holes) {
@@ -298,7 +327,8 @@ export default function MapsPlanView() {
       ctx.fillStyle = "#c2185b"; mPts.forEach((p) => { ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 3.5, 0, Math.PI * 2); ctx.fill(); });
     }
     gridDrawn.current = showGrid; // #3194 — what the canvas holds now
-  }, [v?.cx, v?.cy, v?.mPerPx, size, lodReady /* #3252 */, chipOpen /* #3458: its size changes the callouts */, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, spacingM /* #2989 */, showTraces, planT, dotCollars /* #3337 */, surveys, surveysHidden /* #3342 */, showIds, showGrid, showLonLat /* #3466 */, measuring, mPts, gtPlan, gtMax]); // gtPlan: #2755
+    drawnDpr.current = dpr; // #3228
+  }, [v?.cx, v?.cy, v?.mPerPx, size, lodReady /* #3252 */, captureDpr /* #3228 */, chipOpen /* #3458: its size changes the callouts */, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, spacingM /* #2989 */, showTraces, planT, dotCollars /* #3337 */, shapes, sizeBy /* #3456 / #3457 */, surveys, surveysHidden /* #3342 */, showIds, showGrid, showLonLat /* #3466 */, measuring, mPts, gtPlan, gtMax]); // gtPlan: #2755
 
   // TASKS.csv #3252 — once the view has settled (250 ms), ask for the detail tiles it shows; each one that arrives redraws the plan
   useEffect(() => {
@@ -322,7 +352,11 @@ export default function MapsPlanView() {
     const m = v.mPerPx * (e.deltaY > 0 ? 1.2 : 1 / 1.2);
     setView({ mPerPx: m, cx: at.x - (px - size.w / 2) * m, cy: at.y + (py - size.h / 2) * m });
   };
-  const onDown = (e) => { drag.current = { x: e.clientX, y: e.clientY, cx: v.cx, cy: v.cy }; };
+  const onDown = (e) => {
+    drag.current = { x: e.clientX, y: e.clientY, cx: v.cx, cy: v.cy };
+    const cv = canvasRef.current; // #3049 — what the plan shows now, to be moved while the drag lasts
+    if (cv && cv.width > 0) { const c = document.createElement("canvas"); c.width = cv.width; c.height = cv.height; c.getContext("2d").drawImage(cv, 0, 0); dragSnap.current = { canvas: c, cx: v.cx, cy: v.cy, mPerPx: v.mPerPx, w: cv.width, h: cv.height }; }
+  };
   // #2128 — a click (not a drag) while measuring sets a point; a third click starts a new line
   const measureClick = (e) => {
     const d = drag.current;
@@ -338,7 +372,7 @@ export default function MapsPlanView() {
     const d = drag.current;
     if (d) setView({ mPerPx: v.mPerPx, cx: d.cx - (e.clientX - d.x) * v.mPerPx, cy: d.cy + (e.clientY - d.y) * v.mPerPx });
   };
-  const onUp = (e) => { if (e) measureClick(e); drag.current = null; };
+  const onUp = (e) => { if (e) measureClick(e); const was = drag.current; drag.current = null; if (was && dragSnap.current) { dragSnap.current = null; setTick((t) => t + 1); } }; // #3049 — release: draw every layer at the new place
   // #2128 — the measured line's distance and grid bearing, and where true north is there (a projected project CRS only)
   const measured = measuring && mPts.length === 2 ? (() => {
     const m = measureLine(mPts[0], mPts[1]);
@@ -359,7 +393,11 @@ export default function MapsPlanView() {
       for (let i = 0; i < 30 && gridDrawn.current; i++) await new Promise((r) => requestAnimationFrame(r));
     }
     const collarTitle = colouring ? (colourBy.startsWith("f:") ? colourBy.slice(2) : colourBy.replace(/^(max|mean):/, "")) : "";
+    // TASKS.csv #3228 step B — the plan drawn again at twice the screen's pixels (at most 4x and 36 megapixels) for the Layout sheet, then back
+    const want = Math.min(4, Math.max(2, 2 * (window.devicePixelRatio || 1)), Math.sqrt(36e6 / Math.max(1, size.w * size.h)));
+    if (want > (window.devicePixelRatio || 1)) { setCaptureDpr(want); for (let i = 0; i < 60 && drawnDpr.current !== want; i++) await new Promise((r) => requestAnimationFrame(r)); }
     const src = cv.toDataURL("image/png");
+    setCaptureDpr(null);
     if (hadGrid) setShowGrid(true);
     addLayoutImage({ ...mapSnapshotPayload({ src, pxW: cv.width, pxH: cv.height, view: v, size, mapLayers, boundaries, rasters, collarLegend: colouring?.legend ? colouring.legend.map((l) => (l.other ? { ...l, label: tr("Other: {n} values ({holes} holes)", { n: l.other.length, holes: l.holes.toLocaleString() }) } : l)) : null, /* #3340 */ collarTitle, collars: collars.filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y)).length, samples: surfaceSamples.filter((s) => Number.isFinite(s.x)).length, label: project?.name ? `Map view: ${project.name}` : "Map view" }), utmGrid: hadGrid });
     goToModule("layout");
@@ -386,6 +424,17 @@ export default function MapsPlanView() {
               style={{ background: "none", border: "none", cursor: "pointer", padding: "0 2px", color: "inherit", fontSize: "var(--font-size-sm)" }}>{chipOpen ? "▾" : "▸"}</button>{/* TASKS.csv #3458 */}
           </label>
           {chipOpen && <>
+          {shapeFields.length > 0 && ( /* TASKS.csv #3456 — a second variable: the symbol's shape */
+            <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Shape by")}
+              <select value={shapeBy} onChange={(e) => setShapeBy(e.target.value)} aria-label={tr("Shape collars by")} style={{ fontSize: "var(--font-size-sm)", flex: 1, minWidth: 0 }}>
+                <option value="">{tr("One shape")}</option>
+                {shapeFields.map((f) => <option key={f.key} value={f.key}>{f.key}</option>)}
+              </select>
+            </label>
+          )}
+          {colouring?.kind === "number" && ( /* TASKS.csv #3457 — the size follows the value's class */
+            <label style={{ display: "flex", alignItems: "center", gap: 5 }}><input type="checkbox" checked={sizeBy} onChange={(e) => setSizeBy(e.target.checked)} />{tr("Size by the value's class")}</label>
+          )}
           {colouring?.kind === "number" && ( /* TASKS.csv #3050 — the class breaks typed, not only the quintiles */
             <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Class breaks")}
               <input value={breaksText} onChange={(e) => setBreaksText(e.target.value)} placeholder={tr("quintiles, or e.g. 50, 55, 60")} aria-label={tr("Class breaks of the collar colours")} style={{ fontSize: "var(--font-size-sm)", flex: 1, minWidth: 0 }} />
@@ -426,7 +475,13 @@ export default function MapsPlanView() {
                 const u = unit ? ` (${unit})` : "";
                 return kind === "max" ? tr("Highest {el} in the hole{u}", { el: key, u }) : kind === "mean" ? tr("{el}{u}, length-weighted mean of the hole", { el: key, u }) : key;
               })()}</span>
-              {colouring.legend.map((l) => <span key={l.label} title={l.other ? l.other.join(", ") : undefined} style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 9, height: 9, borderRadius: "50%", border: "1px solid #14181e", background: l.colour, flex: "0 0 auto" }} />{l.other ? tr("Other: {n} values ({holes} holes)", { n: l.other.length, holes: l.holes.toLocaleString() }) /* #3340 */ : l.label}</span>)}
+              {colouring.legend.map((l, li) => <span key={l.label} title={l.other ? l.other.join(", ") : undefined} style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 9 * (sizeBy && colouring.kind === "number" ? SIZE_SCALE[li] ?? 1 : 1), height: 9 * (sizeBy && colouring.kind === "number" ? SIZE_SCALE[li] ?? 1 : 1), borderRadius: "50%", border: "1px solid #14181e", background: l.colour, flex: "0 0 auto" }} />{l.other ? tr("Other: {n} values ({holes} holes)", { n: l.other.length, holes: l.holes.toLocaleString() }) /* #3340 */ : l.label}</span>)}
+              {shapes && ( /* TASKS.csv #3456 — what each shape stands for */
+                <div aria-label={tr("Shape legend")} style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 3 }}>
+                  <span style={{ fontWeight: 600 }}>{shapeBy}</span>
+                  {shapes.legend.map((l) => <span key={l.label} style={{ display: "flex", alignItems: "center", gap: 5 }}><ShapeGlyph shape={l.shape} />{l.label} ({l.count.toLocaleString()})</span>)}
+                </div>
+              )}
               {atIntercept ? <span>{tr("Each dot sits at the mid-point of its hole's highest interval; the line runs from the collar.")}</span> : null}
               {(colourBy.startsWith("max:") || colourBy.startsWith("mean:")) && !breaks.length ? <span>{colouring.noValue ? tr("Classes at the quintiles of the holes' values; a grey ring is a hole with no value ({n}).", { n: colouring.noValue.toLocaleString() }) : tr("Classes at the quintiles of the holes' values; a grey ring is a hole with no value.")}{/* counts: #3351 */}</span> : null}
             </div>

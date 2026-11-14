@@ -8,7 +8,7 @@ import { rasterUnitOf } from "../lib/rasterMethod.js";
 
 const fmt = (v) => (Number.isFinite(v) ? (Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : Number(v.toPrecision(4)).toLocaleString()) : "–");
 
-export default function ZonalStatsBox({ raster, boundaries }) {
+export default function ZonalStatsBox({ raster, boundaries, onClip = null }) { // onClip(boundary): makes the clipped raster (TASKS.csv #3470)
   const areas = useMemo(() => (boundaries || []).filter(isAreaBoundary), [boundaries]);
   const [id, setId] = useState("");
   const b = areas.find((x) => x.id === id);
@@ -24,6 +24,7 @@ export default function ZonalStatsBox({ raster, boundaries }) {
         <option value="">{tr("Choose a boundary or claim…")}</option>
         {areas.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
       </select>
+      {b && onClip && <button type="button" onClick={() => onClip(b)} title={tr("A new raster of this grid's cells inside the boundary (the original stays), cropped to its extent")} style={{ marginTop: 4, display: "block", fontSize: "var(--font-size-xs)", background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0 }}>{tr("Clip to this boundary (new raster)")}</button>}
       {b && !s && <div style={{ marginTop: 4, color: "var(--color-text-muted)" }}>{tr("No cell of this grid lies inside it.")}</div>}
       {s && (
         <div style={{ marginTop: 4, fontVariantNumeric: "tabular-nums" }}>
