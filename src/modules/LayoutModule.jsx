@@ -40,6 +40,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 // page; "Export PDF" prints the page via the Electron main process (or the browser print dialog).
 
 import { viewportHoleVisibility, fitHoleSet } from "../lib/viewportHoles.js"; // TASKS.csv #3371
+import { splitStripLog, stripLogSliceElements, wholeStripLog, pageWidthDenom, sliceLabelPt } from "../lib/stripLogPages.js"; // TASKS.csv #3372
 import { PAGE_FORMATS, pageFormatOf, pagePx, pageMm, pageCssName, addPagesOnPaper, snapshotPagePaper } from "../lib/pageFormats.js"; // TASKS.csv #398; mm / named pages: #908; on their paper: #3370
 import { azimuthToGridOffset, setIgrfModule } from "../lib/azimuthRef.js"; // TASKS.csv #399 — GN/TN/MN diagram
 import { localDate, collarDrillDate, schematicAngles, rayTip, yearLater, keepOnSheet, DIAGRAM_W, DIAGRAM_H, ORIGIN } from "../lib/northDiagram.js"; // TASKS.csv #1773 / #2137 / #2310 / #2478 / #2613
@@ -551,6 +552,46 @@ export default function LayoutModule() {
       xs.push(ob.x, ob.x + ob.w / 2, ob.x + ob.w); ys.push(ob.y, ob.y + ob.h / 2, ob.y + ob.h);
     }
     return { bx: b.x - el.x, by: b.y - el.y, bw: b.w, bh: b.h, xs, ys };
+  };
+  // TASKS.csv #3372 (review #3195) — a strip log taller than the page at its depth scale, laid out over new pages (lib/stripLogPages.js):
+  // this page keeps the first slice (the title, caption and key), each new page (this page's paper, one batch) the next depths with the
+  // track headers and axis captions again, and every slice a line saying its depths and 'page i of n'.
+  // Offered when the log runs off the page at its depth scale, or prints its labels under 6 pt: at that scale when it fits the page's
+  // width, else at the page's width (the picture keeps its shape, so the width sets how large its labels can print: wanted = the scale asked).
+  const stripLogSplitFor = (el) => {
+    if (!isDepthImage(el) || el.slice || !(el.naturalH > 0)) return null;
+    const d = depthScaleDenom(el);
+    if (!(d > 0)) return null;
+    const tall = el.y + el.h > A4.h - 40, small = sliceLabelPt(el.h / el.naturalH) < 6;
+    if (!tall && !small) return null;
+    const at = (denom, x) => ({ ...splitStripLog(el, { pageW: A4.w, pageH: A4.h, denom, x, y: el.y }), x, denom });
+    const widthD = pageWidthDenom(el, A4.w - 80);
+    if (tall) {
+      let r = at(d, el.x);
+      if (r.error === "too-wide" && el.x > 40) r = at(d, 40);
+      if (r.error !== "too-wide" || !widthD) return r;
+      const w = at(widthD, 40);
+      return { ...w, wanted: d, wantedW: r.w };
+    }
+    if (!widthD || widthD > d * 0.85) return null; // the page's width gives it little more
+    const w = at(widthD, 40);
+    return w.pages?.length > 1 ? { ...w, small: true } : null;
+  };
+  const splitStripLogOverPages = (el) => {
+    const r = stripLogSplitFor(el);
+    if (!r || r.error || !(r.pages?.length > 1)) return;
+    const batch = `striplog_${el.id}_${Date.now()}`;
+    const hole = String(el.label || "Strip log").replace(/^Strip log — /, "").replace(/,\s*-?[\d.]+--?[\d.]+ m\s*$/, "");
+    const holeLabel = `Strip log ${hole}`; // printed on the sheet: English, as the log's own title
+    const [first, cap] = stripLogSliceElements(el, r, 0, { x: r.x, y: el.y, holeLabel, batchId: batch });
+    setElements((els) => [...els.map((e) => (e.id === el.id ? first : e)), cap]);
+    const rest = r.pages.slice(1).map((_, j) => ({ name: `${activePage?.name || hole} (${j + 2})`, batch, elements: stripLogSliceElements(el, r, j + 1, { x: r.x, y: 40, holeLabel, batchId: batch }) }));
+    addPagesOnPaper(addLayoutPages, setLayoutPageFormat, rest, activePage?.format);
+    switchLayoutPage(activeLayoutPageId); // back to the page the log starts on
+    setSelected(el.id);
+    // after the page switch's re-render, whose selection change clears the notice line
+    const said = tr("The strip log is split over {n} pages at 1 : {d}; the other pages follow this one.", { n: r.pages.length, d: Math.round(r.denom).toLocaleString() });
+    setTimeout(() => setSyncNotice(said), 0);
   };
   // TASKS.csv #907 — "Fit the holes": the smallest round scale (1 / 1.5 / 2 / 2.5 / 3 / 4 / 5 / 6 / 8 x 10^n - finer than
   // the presets, since a wide landscape frame over N-S data jumped from a needed 1:25,934 straight to 1:50,000) at which
@@ -1572,7 +1613,8 @@ export default function LayoutModule() {
                 section snapshots carry worldWidthAtCaptureM (see SectionWindow.jsx's snapshotToLayout)
                 only when they came from the pop-out's "Snapshot to Layout" button — a plain imported
                 photo or logo has no known real-world scale, so this stays hidden for those. */}
-            {isDepthImage(sel) && <DepthScaleControls sel={sel} pageH={A4.h} updateSelected={updateSelected} /> /* TASKS.csv #1480 */}
+            {isDepthImage(sel) && <DepthScaleControls sel={sel} pageH={A4.h} updateSelected={updateSelected} split={stripLogSplitFor(sel)} onSplit={() => splitStripLogOverPages(sel)} onWhole={() => setElements((els) => els.filter((e) => e.sliceCaptionOf !== sel.id).map((e) => (e.id === sel.id ? wholeStripLog(e) : e)))} /> /* TASKS.csv #1480; split: #3372 */}
+            {isDepthImage(sel) && syncNotice && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div> /* #3372 — the split's line */}
             {sel.type === "image" && sel.worldWidthAtCaptureM != null && (
               <>
                 <SectionScaleControls sel={sel} pageW={A4.w} pageH={A4.h} updateSelected={updateSelected} onResize={(next) => setElements((els) => followResize(els, sel.id, next))} />
@@ -2048,8 +2090,17 @@ function TitleBlockControls({ sel, updateSelected }) {
 // TASKS.csv #1480 (review #1352) — a strip log at an exact depth scale: its height sized so a metre of hole is 1/N m of paper (the width
 // follows), and what that is in millimetres per 10 m, the way a printed log is read
 const DEPTH_PRESETS = [200, 500, 1000, 2000, 2500, 5000, 10000];
-function DepthScaleControls({ sel, pageH, updateSelected }) {
+function DepthScaleControls({ sel, pageH, updateSelected, split = null, onSplit = null, onWhole = null }) { // split / onSplit / onWhole: #3372
   const [custom, setCustom] = useState(false);
+  if (sel.slice) { // TASKS.csv #3372 — one page of a split log: its depths, and the whole log again
+    const s = sel.slice, f = (v) => Number(Number(v).toFixed(1)).toLocaleString();
+    return (
+      <div style={{ marginTop: 4, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 }}>
+        {tr("Page {i} of {n} of this strip log, {from}-{to} m, at 1 : {d}.", { i: s.page, n: s.of, from: f(s.from), to: f(s.to), d: Math.round(depthScaleDenom(sel) || 0).toLocaleString() })}
+        {s.page === 1 && onWhole && <> {" "}<button type="button" onClick={onWhole} title={tr("Put the whole log back on this page as one picture. The other pages stay: delete them from one of them (the generated pages go in one action).")} style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Whole log again")}</button></>}
+      </div>
+    );
+  }
   const d = depthScaleDenom(sel), n = d ? Math.round(d) : 0;
   const preset = DEPTH_PRESETS.find((p) => Math.abs(d - p) < 0.5);
   const choice = custom ? "custom" : preset ? String(preset) : "";
@@ -2083,6 +2134,16 @@ function DepthScaleControls({ sel, pageH, updateSelected }) {
           : tr("Its labels print at about {pt} pt.", { pt: pt.toFixed(1) })}</div>
       ); })()}
       {sel.h > pageH && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("At this scale the log is taller than the page: a larger depth scale (1 : N with a bigger N) fits it, or a taller page.")}</div>}
+      {split && !split.error && split.pages?.length > 1 && (split.wanted || split.small) && ( /* TASKS.csv #3372 — at the page's width */
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", lineHeight: 1.4, marginTop: 4 }}>{split.wanted
+          ? tr("At 1 : {want} the log is {mm} mm wide, wider than the page; at 1 : {d} it fits the page's width, with its labels at about {pt} pt.", { want: Math.round(split.wanted).toLocaleString(), mm: Math.round((split.wantedW * 25.4) / 96), d: split.denom.toLocaleString(), pt: sliceLabelPt(split.k).toFixed(1) })
+          : tr("At 1 : {d}, the page's width, its labels print at about {pt} pt.", { d: split.denom.toLocaleString(), pt: sliceLabelPt(split.k).toFixed(1) })}</div>
+      )}
+      {split && !split.error && split.pages?.length > 1 && onSplit && ( /* TASKS.csv #3372 */
+        <button type="button" onClick={onSplit} title={tr("Lay the log out over new pages at this depth scale: each page repeats the track headers and the axis captions, and the key stays on this page.")} style={{ ...pBtn, marginTop: 6 }}>
+          {tr("Split over {n} pages at 1 : {d}", { n: split.pages.length, d: Math.round(split.denom).toLocaleString() })}</button>
+      )}
+      {split?.error === "too-wide" && !split.wanted && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4, marginTop: 4 }}>{tr("At 1 : {d} the log is {mm} mm wide, wider than the page: a larger depth scale or a wider page fits it.", { d: Math.round(split.denom).toLocaleString(), mm: Math.round((split.w * 25.4) / 96) })}</div>}
     </div>
   );
 }
@@ -2478,6 +2539,21 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   );
   if (el.type === "image") {
     if (!el.src) return null; // defensive: a malformed/partial snapshot shouldn't take the whole page down
+    if (el.slice?.parts?.length && el.naturalH > 0) { // TASKS.csv #3372 — one page of a split strip log: its ranges of the one picture, stacked
+      const W = el.w || 200, H = el.h || 120, k = H / el.slice.parts.reduce((t, [a, b]) => t + (b - a), 0);
+      return (
+        <div style={{ ...wrap, width: W, height: H }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
+          <div style={{ width: "100%", height: "100%", overflow: "hidden", background: "#fff" }}>
+            {el.slice.parts.map(([a, b], i) => (
+              <div key={i} style={{ height: (b - a) * k, overflow: "hidden", position: "relative" }}>
+                <img src={el.src} alt={i ? "" : el.label || "strip log"} style={{ position: "absolute", left: 0, top: -a * k, width: W, height: el.naturalH * k, maxWidth: "none", display: "block" }} draggable={false} />
+              </div>
+            ))}
+          </div>
+          {handles}
+        </div>
+      );
+    }
     return (
       <div style={{ ...wrap, width: el.w || 200, height: el.h || 120 }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
         <img src={el.src} alt={el.label || "snapshot"} style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", background: "#fff" }} draggable={false} />
