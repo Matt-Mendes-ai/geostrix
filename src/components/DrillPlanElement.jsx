@@ -3,7 +3,7 @@
 // #2473), a key. North is up.
 import React, { useMemo } from "react";
 import { drillPlanPlanned, planTraces, traceCaption } from "../lib/drillPlan.js"; // TASKS.csv #2259; planTraces / traceCaption: #3367
-import { drillPlanGeometry, placeLabels, drillPlanGrid, drillPlanColouring, colourByKind, emptiestCorner, labelBackdrop, drillPlanShapes, symbolPath, bestInterceptGT, p90Cutoff, capPlanKey } from "../lib/drillPlan.js"; // capPlanKey: #3026 // best intercept: #2685; // shapes: #2686; // labelBackdrop: #2738; // drillPlanGrid: #2301; colouring: #2473
+import { drillPlanGeometry, placeLabels, drillPlanGrid, drillPlanColouring, colourByKind, emptiestCorner, labelBackdrop, drillPlanShapes, symbolPath, crossPath /* #3375 */, planPoints, wrapKeyText /* #3376 */, bestInterceptGT, p90Cutoff, capPlanKey } from "../lib/drillPlan.js"; // capPlanKey: #3026 // best intercept: #2685; // shapes: #2686; // labelBackdrop: #2738; // drillPlanGrid: #2301; colouring: #2473
 import { resolvedSegments, gradeUnitLabel, computeBestIntercepts } from "../lib/geochem.js"; // TASKS.csv #2473; computeBestIntercepts: #2685
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #2685 — QC inserts are not intercepts
 import { CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
@@ -35,7 +35,15 @@ function bestInterceptInput(el, assays, key, unit, units) {
   if (!m) biCache.set(assays, (m = new Map()));
   if (!m.has(ck)) m.set(ck, bestInterceptGT(computeBestIntercepts(excludeQAQC(assays), key, unit, units, { cutoff: r.cutoff, maxInternalDilution: r.dilution, minLength: r.minLength })));
   const u = gradeUnitLabel(key, unit);
-  return { perHole: m.get(ck), biRule: `cut-off ${r.cutoff} ${u}${r.defaulted ? " (the P90)" : ""}, at most ${r.dilution} m internal dilution${r.minLength ? `, at least ${r.minLength} m` : ""}` };
+  return { perHole: m.get(ck), biRule: `cut-off ${r.cutoff} ${u}${r.defaulted ? " (the P90)" : ""}, at most ${r.dilution} m internal dilution${r.minLength ? `, at least ${r.minLength} m` : ""}`, assayed: assayedHoles(resolvedSegments(assays, key, unit, units)) /* #3375 */ };
+}
+// TASKS.csv #3375 — the holes with a result for the element (kept per segment list): the others were never assayed for it
+const assayedCache = new WeakMap();
+function assayedHoles(segs) {
+  if (!segs) return new Set();
+  let s = assayedCache.get(segs);
+  if (!s) { s = new Set(); for (const g of segs) if (Number.isFinite(Number(g.value))) s.add(String(g.hole_id ?? "")); assayedCache.set(segs, s); }
+  return s;
 }
 
 // TASKS.csv #2473 — the resolved assay segments and unit label a grade colouring needs (resolvedSegments is cached per assay list)
@@ -62,14 +70,24 @@ export function drillPlanDrawing(el, collars, assays = null, assayElements = nul
   const f = String(el.labelFilter || "").trim().toLowerCase();
   const toLabel = el.labels === "none" ? [] : [...g.holes, ...planned].filter((hh) => hh.inside && (!f || hh.id.toLowerCase().includes(f))).map((hh) => ({ id: hh.planned ? tr("{name} (planned)", { name: hh.id }) : hh.id, x: hh.ax, y: hh.ay })); // planned: #2259
   // the key's box (top left), which no hole label may run under (#2473)
-  const keyLines = [colouring.title, colouring.note].filter(Boolean), keyRow = fontPx + 4;
   const keyRows = colouring.key.length + shapeKey.length + plannedKey.length; // #2686 — the shapes listed under the colours; #2259 — then the planned hole
-  let keyBox = keyRows ? { x: 6, y: 6, lines: keyLines, row: keyRow,
-    w: Math.max(0, ...[...colouring.key, ...shapeKey, ...plannedKey].map((k) => k.label.length * fontPx * 0.56 + 26), ...keyLines.map((t, i) => t.length * (i ? fontPx - 1 : fontPx) * (i ? 0.5 : 0.56) + 16)),
-    h: (keyLines.length + keyRows) * keyRow + 6 } : null;
-  // TASKS.csv #2611 — the key in the corner with the fewest holes (the top left held the first northing label and the collars)
-  if (keyBox) {
-    keyBox = { ...keyBox, ...emptiestCorner([...g.holes, ...planned], g.w, g.h, keyBox.w, keyBox.h) };
+  // TASKS.csv #3376 (review #3195) — the title and note wrap to min(45 % of the frame, 70 mm) (the note set a 503 px key in a 480 px frame,
+  // over a hole and every easting label); the corner is chosen by the holes' traces as well as their collars, and when every corner still
+  // holds a hole the key's text goes one size down. under: the holes it still covers, for the sidebar.
+  const maxKeyW = Math.max(150, Math.min(g.w * 0.45, 70 * MM_PX));
+  const keyAt = (fp) => {
+    const titleLines = wrapKeyText(colouring.title, maxKeyW - 16, fp * 0.56), noteLines = wrapKeyText(colouring.note, maxKeyW - 16, (fp - 1) * 0.5);
+    const lines = [...titleLines, ...noteLines], row = fp + 4;
+    return { x: 6, y: 6, lines, bold: titleLines.length, row, fontPx: fp,
+      w: Math.max(0, ...[...colouring.key, ...shapeKey, ...plannedKey].map((k) => k.label.length * fp * 0.56 + 26), ...lines.map((t, i) => t.length * (i < titleLines.length ? fp * 0.56 : (fp - 1) * 0.5) + 16)),
+      h: (lines.length + keyRows) * row + 6 };
+  };
+  let keyBox = null;
+  if (keyRows) {
+    const pts = planPoints([...g.holes, ...planned]);
+    const place = (b) => ({ ...b, ...emptiestCorner([...g.holes, ...planned], g.w, g.h, b.w, b.h, pts) });
+    keyBox = place(keyAt(fontPx));
+    if (keyBox.under > 0 && fontPx > printPx(5)) { const small = place(keyAt(Math.max(printPx(5), fontPx - 1.5))); if (small.under < keyBox.under) keyBox = small; }
   }
   // TASKS.csv #2611 — labels keep off the other holes' collars as well as each other
   const r = (el.collarMm || 0.8) * MM_PX + 1;
@@ -129,7 +147,9 @@ export default function DrillPlanElement({ el, collars, gridCaption = "", assays
           : <line key={`t${hh.id}`} x1={hh.ax} y1={hh.ay} x2={hh.bx} y2={hh.by} stroke={styles.get(hh.id).hollow ? INK : styles.get(hh.id).colour} strokeWidth={line} strokeLinecap="round" />)}
         {/* #2473 — a hole with no value is a hollow ring; higher grade classes are drawn last, on top */}
         {d.holes.filter((hh) => hh.inside).sort((a, b) => styles.get(a.id).rMm - styles.get(b.id).rMm).map((hh) => { const s = styles.get(hh.id), r = rOf(s), path = symbolPath(d.shapes.shapeOf(hh.id), hh.ax, hh.ay, r); /* #2686; r: #3017 */ const hollowFill = dense.halo ? "#ffffff" : "none"; return path
-          ? <path key={`c${hh.id}`} d={path} fill={s.hollow ? hollowFill : s.colour} stroke={s.hollow ? s.colour : dense.halo ? "#ffffff" : "none"} strokeWidth={s.hollow ? 0.9 : 0.6} />
+          ? <g key={`c${hh.id}`}><path d={path} fill={s.hollow ? hollowFill : s.colour} stroke={s.hollow ? s.colour : dense.halo ? "#ffffff" : "none"} strokeWidth={s.hollow ? 0.9 : 0.6} />{s.cross && <path d={crossPath(hh.ax, hh.ay, r)} stroke={s.colour} strokeWidth={0.8} fill="none" /> /* #3375 */}</g>
+          : s.cross /* #3375 — not assayed: a crossed ring */
+          ? <g key={`c${hh.id}`}><circle cx={hh.ax} cy={hh.ay} r={r} fill={hollowFill} stroke={s.colour} strokeWidth={0.9} /><path d={crossPath(hh.ax, hh.ay, r)} stroke={s.colour} strokeWidth={0.8} fill="none" /></g>
           : s.hollow
           ? <circle key={`c${hh.id}`} cx={hh.ax} cy={hh.ay} r={r} fill={hollowFill} stroke={s.colour} strokeWidth={0.9} />
           : <circle key={`c${hh.id}`} cx={hh.ax} cy={hh.ay} r={r} fill={s.colour} stroke={dense.halo ? "#ffffff" : "none"} strokeWidth={0.6} />; })}
@@ -141,24 +161,24 @@ export default function DrillPlanElement({ el, collars, gridCaption = "", assays
       {keyBox && (
         <g transform={`translate(${keyBox.x},${keyBox.y})`}>
           <rect x="0" y="0" width={keyBox.w} height={keyBox.h} fill="rgba(255,255,255,0.9)" stroke="#c9ced4" />
-          {keyBox.lines.map((t, i) => <text key={`kt${i}`} x="8" y={8 + i * keyBox.row + d.fontPx - 1} fontSize={i ? d.fontPx - 1 : d.fontPx} fontWeight={i ? 400 : 600} fill={i ? "#55606e" : INK} fontFamily={FONT}>{t}</text>)}
+          {keyBox.lines.map((t, i) => <text key={`kt${i}`} x="8" y={8 + i * keyBox.row + keyBox.fontPx - 1} fontSize={i >= keyBox.bold ? keyBox.fontPx - 1 : keyBox.fontPx} fontWeight={i >= keyBox.bold ? 400 : 600} fill={i >= keyBox.bold ? "#55606e" : INK} fontFamily={FONT}>{t}</text>) /* #3376 — the title's wrapped lines bold */}
           {colouring.key.map((k, i) => (
             <g key={`k${i}`} transform={`translate(8,${8 + (keyBox.lines.length + i) * keyBox.row})`}>
-              {k.note ? null /* #3026 — the '+ n more' line */ : k.hollow ? <circle cx="4" cy={d.fontPx / 2 - 1} r={k.rMm * MM} fill="#ffffff" stroke={k.colour} strokeWidth={0.9} /> : <circle cx="4" cy={d.fontPx / 2 - 1} r={k.rMm * MM} fill={k.colour} />}
-              <text x="14" y={d.fontPx - 1} fontSize={d.fontPx} fill={INK} fontFamily={FONT}>{k.label}</text>
+              {k.note ? null /* #3026 — the '+ n more' line */ : k.cross ? <g><circle cx="4" cy={keyBox.fontPx / 2 - 1} r={k.rMm * MM} fill="#ffffff" stroke={k.colour} strokeWidth={0.9} /><path d={crossPath(4, keyBox.fontPx / 2 - 1, k.rMm * MM)} stroke={k.colour} strokeWidth={0.8} fill="none" /></g> /* #3375 */ : k.hollow ? <circle cx="4" cy={keyBox.fontPx / 2 - 1} r={k.rMm * MM} fill="#ffffff" stroke={k.colour} strokeWidth={0.9} /> : <circle cx="4" cy={keyBox.fontPx / 2 - 1} r={k.rMm * MM} fill={k.colour} />}
+              <text x="14" y={keyBox.fontPx - 1} fontSize={keyBox.fontPx} fill={INK} fontFamily={FONT}>{k.label}</text>
             </g>
           ))}
           {d.plannedKey.map((k, i) => ( /* TASKS.csv #2259 */
             <g key={`kp${i}`} transform={`translate(8,${8 + (keyBox.lines.length + colouring.key.length + d.shapeKey.length + i) * keyBox.row})`}>
-              <line x1="-2" y1={d.fontPx / 2 - 1} x2="10" y2={d.fontPx / 2 - 1} stroke={colors.planned} strokeWidth={line} strokeDasharray={`${0.9 * MM} ${0.6 * MM}`} />
-              <circle cx="4" cy={d.fontPx / 2 - 1} r={(el.collarMm || 0.8) * MM} fill="#ffffff" stroke={colors.planned} strokeWidth={0.9} />
-              <text x="14" y={d.fontPx - 1} fontSize={d.fontPx} fill={INK} fontFamily={FONT}>{k.label}</text>
+              <line x1="-2" y1={keyBox.fontPx / 2 - 1} x2="10" y2={keyBox.fontPx / 2 - 1} stroke={colors.planned} strokeWidth={line} strokeDasharray={`${0.9 * MM} ${0.6 * MM}`} />
+              <circle cx="4" cy={keyBox.fontPx / 2 - 1} r={(el.collarMm || 0.8) * MM} fill="#ffffff" stroke={colors.planned} strokeWidth={0.9} />
+              <text x="14" y={keyBox.fontPx - 1} fontSize={keyBox.fontPx} fill={INK} fontFamily={FONT}>{k.label}</text>
             </g>
           ))}
-          {d.shapeKey.map((k, i) => { const cy = d.fontPx / 2 - 1, r = (el.collarMm || 0.8) * MM, path = symbolPath(k.shape, 4, cy, r); /* #2686 */ return (
+          {d.shapeKey.map((k, i) => { const cy = keyBox.fontPx / 2 - 1, r = (el.collarMm || 0.8) * MM, path = symbolPath(k.shape, 4, cy, r); /* #2686 */ return (
             <g key={`ks${i}`} transform={`translate(8,${8 + (keyBox.lines.length + colouring.key.length + i) * keyBox.row})`}>
               {path ? <path d={path} fill="#ffffff" stroke={INK} strokeWidth={0.9} /> : <circle cx="4" cy={cy} r={r} fill="#ffffff" stroke={INK} strokeWidth={0.9} />}
-              <text x="14" y={d.fontPx - 1} fontSize={d.fontPx} fill={INK} fontFamily={FONT}>{k.label}</text>
+              <text x="14" y={keyBox.fontPx - 1} fontSize={keyBox.fontPx} fill={INK} fontFamily={FONT}>{k.label}</text>
             </g>
           ); })}
         </g>

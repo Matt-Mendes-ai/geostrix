@@ -25,6 +25,7 @@ import PromptModal from "../components/PromptModal.jsx";
 import { minMax, LAYER_META } from "../lib/layers.js";
 import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape, capLegendGroups, outcropLegendGroup } from "../lib/legendGroups.js"; // TASKS.csv #725; #948; #1633; outcropLegendGroup: #1437
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
+import { tableTextFit } from "../lib/collarTable.js"; // TASKS.csv #3374
 import { collarTableSlice, continuationTables, collarsWithSurveyAttitude, continuationPageIndex, collarTableFieldChoices, defaultCollarTableFields, splitTableRows, suspectIdsOf, elevationCell, elevationNotes } from "../lib/collarTable.js"; // elevation*: #3023 // splitTableRows: #2770; // field columns: #2717; // continuationPageIndex: #2718 // TASKS.csv #1638; collarsWithSurveyAttitude: #2133
 import { fitDrillPlan, filterHoles, allHolesSteep, STEEP_DIP, turnedFrameFit, labelBackdrop, plannedAsCollars, holesToFit, showsPlanned, planTraces } from "../lib/drillPlan.js"; // planTraces: #3367; // planned: #2259; // labelBackdrop: #2738; // TASKS.csv #1639; allHolesSteep: #2473; turnedFrameFit: #2305
 import DrillPlanColourControls from "../components/DrillPlanColourControls.jsx"; // TASKS.csv #2473
@@ -116,7 +117,7 @@ let layoutClipboard = null;
 // TASKS.csv #3028 (5) — a new page's starter (the project's title, a north arrow, a scale bar) placed for its paper: north and scale keep the
 // A4-landscape starter's distance from the right and bottom edges (1123 x 794 px: x 1000, y 720)
 const starterFor = (format) => { const { w, h } = pagePx(format); return DEFAULT_LAYOUT_ELEMENTS.map((el) => (el.id === "north" ? { ...el, x: w - 123 } : el.id === "scale" ? { ...el, y: h - 74 } : el)); };
-const ELEMENT_KIND_NAMES = { text: "Text", rect: "Rectangle", north: "North arrow", scale: "Scale bar", legend: "Legend", viewport: "Viewport", image: "Image", table: "Collar table", statictable: "Table" /* #3028 (3) */, titleblock: "Title block", drillplan: "Drill plan", logo: "Logo", arrow: "Arrow", callout: "Callout" };
+const ELEMENT_KIND_NAMES = { title: "Title" /* #3374 */, text: "Text", rect: "Rectangle", north: "North arrow", scale: "Scale bar", legend: "Legend", viewport: "Viewport", image: "Image", table: "Collar table", statictable: "Table" /* #3028 (3) */, titleblock: "Title block", drillplan: "Drill plan", logo: "Logo", arrow: "Arrow", callout: "Callout" };
 
 export default function LayoutModule() {
   const {
@@ -215,7 +216,7 @@ export default function LayoutModule() {
     const namePast = (it) => tr("{what} past the {sides}", { what: it.caption ? `${kindName(it.type)} "${it.caption}"` : kindName(it.type), sides: it.sides.map(sideName).join(" / ") });
     if (pg) {
       const r = pg.getBoundingClientRect();
-      const offEls = [...pg.querySelectorAll("[data-el-id]")].map((e) => { const el = elements.find((x) => x.id === e.getAttribute("data-el-id")); return { type: elementKind(el) /* #3028 (3) */, caption: elementCaption(el), sides: rectSidesPast([e, ...e.querySelectorAll("text")].map((n) => n.getBoundingClientRect()), r) }; }).filter((it) => it.sides.length);
+      const offEls = [...pg.querySelectorAll("[data-el-id]")].map((e) => { const el = elements.find((x) => x.id === e.getAttribute("data-el-id")); return { type: elementKind(el) /* #3028 (3) */, caption: elementCaption(el), sides: rectSidesPast([e, ...e.querySelectorAll("text, td, th") /* td / th: #3374 — a table's cells */].map((n) => n.getBoundingClientRect()), r) }; }).filter((it) => it.sides.length);
       if (offEls.length) past.push(tr("on this page: {list}", { list: offEls.map(namePast).join(", ") }));
     }
     // TASKS.csv #3395 — a legend that leaves rows out (its box too small, or the sheet's foot), this page and the others
@@ -395,7 +396,10 @@ export default function LayoutModule() {
         const pt = sectionTextPt(upd), round = Number(img.resnapRound) || 0;
         if (pt != null && Math.abs(pt - 7) > 0.7 && round < 3 && upd.sectionTabId) { sendSectionResnap({ tabId: upd.sectionTabId, elementId: upd.id, textFactor: +((upd.textFactor * 7) / pt).toFixed(3), round: round + 1 }); again++; }
       }
-      setElements((els) => els.map((el) => next.get(el.id) || el));
+      // TASKS.csv #3373 (review #3195) — the re-drawn picture grew from 60.8 x 167.6 to 77.7 x 184.4 mm in place, under its bound legend and with
+      // its bound scale bar over the section's own distance axis: its furniture below / right of it moves with its new edge, as when a scale is
+      // picked (#2483 followResize)
+      setElements((els) => [...next.values()].reduce((acc, upd) => followResize(acc, upd.id, upd), els));
       replacing.forEach((img) => consumeLayoutImage(img.id));
       setSyncNotice(again ? tr("Snapshot taken again; adjusting its text once more for the plot scale…") : tr("Snapshot taken again with its text at print size, at the same plot scale."));
     }
@@ -1668,6 +1672,9 @@ export default function LayoutModule() {
               const traces = planTraces(tableCollars || [], survey, project?.desurveyMethod); // #3367 — kept per collars / survey / method
               const dd = drillPlanDrawing(sel, tableCollars || [], assays, assayElements, plannedHoles, traces, project?.desurveyMethod); // assays: #2473; plannedHoles: #2259
               return (<>
+                {dd.keyBox?.under > 0 && ( /* TASKS.csv #3376 — every corner of the frame holds a hole: the key covers some */
+                  <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr("The key covers {n} hole(s) whichever corner it takes: make the frame larger, or move the plan's centre so a corner is clear.", { n: dd.keyBox.under })}</div>
+                )}
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Scale 1 :")}<select value={String(sel.scale)} onChange={(e) => updateSelected({ scale: Number(e.target.value) })} style={{ ...inp, marginTop: 4 }}>
                   {[...new Set([...SCALE_PRESETS, sel.scale])].sort((a, b) => a - b).map((s) => <option key={s} value={String(s)}>{Number(s).toLocaleString()}</option>)}
                 </select></label>
@@ -2466,6 +2473,24 @@ const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, proje
 const BOX_TYPES = new Set(["viewport", "image", "rect", "logo"]);
 const ASPECT_LOCKED = new Set(["image", "logo"]);
 const WIDTH_ONLY = new Set(["title", "text", "callout", "legend", "table", "titleblock"]); // titleblock: #1868
+// TASKS.csv #3374 — a cell's text width in page px at `px` (canvas measureText at 100 px, scaled; kept per typeface, weight and text)
+const tableMeasureCache = new Map();
+let tableMeasureCtx = null;
+function measureTableText(font) {
+  return (text, px, bold) => {
+    const key = `${font}|${bold ? 6 : 4}|${text}`;
+    let w = tableMeasureCache.get(key);
+    if (w == null) {
+      if (!tableMeasureCtx) tableMeasureCtx = typeof document !== "undefined" ? document.createElement("canvas").getContext("2d") : null;
+      if (!tableMeasureCtx) return text.length * px * 0.55;
+      tableMeasureCtx.font = `${bold ? 600 : 400} 100px ${font}`;
+      w = tableMeasureCtx.measureText(text).width;
+      if (tableMeasureCache.size > 50000) tableMeasureCache.clear();
+      tableMeasureCache.set(key, w);
+    }
+    return (w * px) / 100;
+  };
+}
 // TASKS.csv #3395 — how a legend lays out on its page: a sized box (a height or a column count, lib/legendFit legendBoxFit), else the page-led
 // flow of #1480 / #2134. Shared by the element and the export's pre-flight.
 function legendLayout(el, pageW = 1123, pageH = 794) {
@@ -2795,8 +2820,11 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
       rows = t.rows; more = t.more; nextRow = rows.length + 1;
       head = el.threshold != null ? tr("{n} sample(s) at or above {v} {u}, highest first", { n: t.total.toLocaleString(), v: el.threshold, u: t.unitLabel }) : tr("{n} sample(s), highest first", { n: t.total.toLocaleString() });
     }
-    const fs = printPx(el.fontPt || printPt.small), cell = { padding: `${Math.round(fs * 0.25)}px ${Math.round(fs * 0.5)}px`, borderBottom: "1px solid #c9ced4" /* #999 — 0.26 mm on paper like the scale bar; 0.5 px vanished on screen at Fit zoom */, whiteSpace: "nowrap" };
     const tableParts = el.source === "collars" ? splitTableRows(rows, el.split) : [rows]; // #2770
+    // TASKS.csv #3374 — the text sized so the table (both halves of a split one) fits the frame's width, down to 5 pt (lib/collarTable tableTextFit)
+    const fsSet = printPx(el.fontPt || printPt.small), frameW = (Number(el.w) || 520) - 12 - 2 * (Number(el.frameWidth) || 0);
+    const textFit = tableTextFit({ columns, parts: tableParts, fsPx: fsSet, widthPx: frameW, gap: 14, minPx: printPx(5), measure: measureTableText(FONT) });
+    const fs = textFit.fs, cell = { padding: `${Math.round(fs * 0.25)}px ${Math.round(fs * 0.5)}px`, borderBottom: "1px solid #c9ced4" /* #999 — 0.26 mm on paper like the scale bar; 0.5 px vanished on screen at Fit zoom */, whiteSpace: "nowrap" };
     const numeric = columns.map((_, j) => rows.length > 0 && rows.every((r) => r[j] === "" || /^[-+≥<>]?[\d.,]+[*†‡§]?$/.test(String(r[j])))); // \*: #1483; †: #2133; ‡ §: #3023
     return (
       <div style={{ ...wrap, width: el.w || 520, background: "#fff", border: frameBorder(el), padding: 6, boxSizing: "border-box", fontFamily: FONT, color: "#1a2028" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
@@ -2805,7 +2833,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
         {/* TASKS.csv #2770 — a split collar table: two tables side by side, the rows read down then across; the empty and 'more' lines once */}
         <div style={tableParts.length > 1 ? { display: "flex", gap: 14, alignItems: "flex-start" } : undefined}>
         {tableParts.map((part, pi) => (
-          <table key={pi} style={{ width: tableParts.length > 1 ? "50%" : "100%", borderCollapse: "collapse", fontSize: fs, fontVariantNumeric: "tabular-nums", tableLayout: "auto" }}>
+          <table key={pi} style={{ width: tableParts.length > 1 ? (textFit.shrunk ? "auto" : "50%") /* #3374 — sized to fit: each half its own width */ : "100%", borderCollapse: "collapse", fontSize: fs, fontVariantNumeric: "tabular-nums", tableLayout: "auto" }}>
             <thead><tr>{columns.map((h, j) => <th key={j} style={{ ...cell, textAlign: numeric[j] ? "right" : "left", fontWeight: 600, borderBottom: "1px solid #1a2028" }}>{h}</th>)}</tr></thead>
             <tbody>
               {part.map((r, i) => <tr key={i}>{r.map((v, j) => <td key={j} style={{ ...cell, textAlign: numeric[j] ? "right" : "left" }}>{v}</td>)}</tr>)}
@@ -2818,6 +2846,11 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
         </div>
         {surveyNote && <div style={{ fontSize: printPx(Math.max(5, (el.fontPt || printPt.small) - 1)), fontStyle: "italic", color: "#3a424c", marginTop: 4, lineHeight: 1.35, whiteSpace: "normal" }}>{surveyNote}</div>}
         {el.note && <div style={{ fontSize: printPx(Math.max(5, (el.fontPt || printPt.small) - 1)), fontStyle: "italic", color: "#3a424c", marginTop: 4, lineHeight: 1.35, whiteSpace: "normal" }}>{fillText(el.note, ctx)}</div>}{/* TASKS.csv #936 */}
+        {selected && !print && textFit.shrunk && ( /* TASKS.csv #3374 — what fitting the frame did, on screen only, under the frame */
+          <div data-ui-only style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, fontSize: "calc(11px / var(--lz, 1))", color: textFit.fits ? "var(--color-text-muted)" : "var(--color-warn-text)", whiteSpace: "nowrap", pointerEvents: "none" }}>
+            {textFit.fits ? tr("Text reduced to {pt} pt to fit the frame's width.", { pt: (fs * 72 / 96).toFixed(1) }) : tr("Too wide for the frame even at 5 pt: widen the frame, drop a column, or untick the two table columns.")}
+          </div>
+        )}
         {handles}
       </div>
     );
