@@ -25,7 +25,7 @@ test("the grid's edges and indices are exact at UTM coordinates", () => {
   for (let i = 0; i < ex.length; i++) assert.ok(Math.abs(g.ex[i] - ex[i]) < 1e-6);
 });
 
-test("faces match a brute-force count for subsets, with and without internal boundaries; the cell map is kept on the grid", () => {
+test("faces match a brute-force count for subsets, with and without internal boundaries; no cell map for a subset in order (#3365)", () => {
   const g = rectilinearGrid(cells);
   let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   for (let rep = 0; rep < 12; rep++) {
@@ -35,7 +35,7 @@ test("faces match a brute-force count for subsets, with and without internal bou
       assert.equal(r.faces, bruteFaces(shown, boundaries), `rep ${rep} boundaries ${boundaries}`);
       assert.equal(r.indices.length, r.faces * 6);
     }
-    if (rep > 0) assert.ok(g.posMap instanceof Map, "kept after the first subset");
+    if (rep > 0) assert.equal(g.posMap, undefined, "#3365: a subset in the grid's order is matched walking both lists, no map built");
   }
 });
 

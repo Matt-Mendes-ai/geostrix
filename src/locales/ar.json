@@ -12216,5 +12216,6 @@
   "to the Geochem import {n}: {list}": "إلى استيراد الجيوكيمياء {n}: {list}",
   "cancelled {n}: {list}": "ملغاة {n}: {list}",
   "not imported {n}: {list}": "غير مستوردة {n}: {list}",
-  "The Geochem tab opens next, for the assay file(s).": "يُفتح تبويب الجيوكيمياء بعد ذلك، لملف (ملفات) التحاليل."
+  "The Geochem tab opens next, for the assay file(s).": "يُفتح تبويب الجيوكيمياء بعد ذلك، لملف (ملفات) التحاليل.",
+  "{group}: {label}, values {range}": "{group}: {label}، القيم {range}"
 }

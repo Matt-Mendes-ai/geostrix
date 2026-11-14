@@ -46,7 +46,7 @@ export function categoryLegendGroups({ keys, layers, layerVisible, hidden = {}, 
     const h = hidden[key];
     const isHidden = h instanceof Set ? (v) => h.has(v) : Array.isArray(h) ? ((s) => (v) => s.has(v))(new Set(h)) : () => false;
     const seen = new Map(); // value -> its row in `items` (#1633: and how many intervals carry it)
-    const items = [], counts = [];
+    const items = [], counts = [], lo = [], hi = [], ranged = key === "mnlgy"; // #3332 — each mineral's values (Total min, or the logged %)
     for (const row of rows) {
       const v = row.value;
       if (v == null || v === "") continue;
@@ -54,25 +54,42 @@ export function categoryLegendGroups({ keys, layers, layerVisible, hidden = {}, 
       if (isHidden(k)) continue;
       if (row.hole_id && visibleHoles[row.hole_id] === false) continue;
       if (placed && !placed.has(String(row.hole_id))) continue; // #1867 — no collar: nowhere on the sheet
-      if (seen.has(k)) { counts[seen.get(k)]++; continue; }
+      const x = ranged && row.extra != null && row.extra !== "" ? Number(row.extra) : NaN;
+      if (seen.has(k)) { const i = seen.get(k); counts[i]++; if (Number.isFinite(x)) { if (!(x >= lo[i])) lo[i] = x; if (!(x <= hi[i])) hi[i] = x; } continue; }
       seen.set(k, items.length);
-      items.push([labelFor(key, v), colorFor(key, v)]); counts.push(1);
+      items.push([labelFor(key, v), colorFor(key, v)]); counts.push(1); lo.push(Number.isFinite(x) ? x : undefined); hi.push(Number.isFinite(x) ? x : undefined);
     }
+    if (ranged) items.forEach((it, i) => { if (lo[i] !== undefined) it.push({ value: lo[i] === hi[i] ? fmtLegendValue(lo[i]) : `${fmtLegendValue(lo[i])}–${fmtLegendValue(hi[i])}` }); });
     const order = items.map((_, i) => i).sort((a, b) => String(items[a][0]).localeCompare(String(items[b][0])));
     if (items.length) groups.push({ key, label: LAYER_META[key].label, items: order.map((i) => items[i]), counts: order.map((i) => counts[i]), ...(isFiltered(h) ? { filtered: true } : {}) }); // filtered: #2044
   });
   return groups;
 }
 
+// TASKS.csv #3305 (#3260, Galore: Cu classes '460-6590 / 6590-16600 ppm') — a ppm element whose values run into the thousands (more than
+// 10 % of its samples over 1,000 ppm: its P90) reads in per cent in the legend. One pass over the samples, kept per samples array.
+const PCT_CACHE = new WeakMap();
+export function ppmAsPercent(assays, sym, unit) {
+  if (String(unit || "").toLowerCase() !== "ppm" || !Array.isArray(assays)) return false;
+  let per = PCT_CACHE.get(assays);
+  if (!per) PCT_CACHE.set(assays, (per = new Map()));
+  if (per.has(sym)) return per.get(sym);
+  let n = 0, big = 0;
+  for (const a of assays) { const v = a?.values?.[sym]; if (typeof v === "number" && Number.isFinite(v)) { n++; if (v > 1000) big++; } }
+  const r = n > 0 && big > n * 0.1;
+  per.set(sym, r);
+  return r;
+}
+
 // Assay grade classes are discrete swatches (one per class, with its range); an element with no classes gets one swatch
 // saying size shows grade.
 export function assayLegendGroups({ assays, assayElements, assayVisible, assayDisplayElements = [], assayStyle = {} }) {
   if (!assayVisible || !assayDisplayElements.length || !(assays || []).length) return [];
-  const fmt = fmtLegendValue;
   const unitOf = Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit]));
   return assayDisplayElements.map((sym, idx) => {
     const style = assayStyle[sym];
-    const unit = unitOf[sym] || "";
+    const pct = ppmAsPercent(assays, sym, unitOf[sym]); // #3305
+    const unit = pct ? "%" : unitOf[sym] || "", fmt = pct ? (v) => fmtLegendValue(v / 1e4) : fmtLegendValue;
     const items = style?.breaks?.length
       ? style.breaks.map((b, i) => {
         const lo = i ? style.breaks[i - 1].max : null;
@@ -317,12 +334,12 @@ export function allocateLegendRows(groups, max) {
   // highest classes, a category group with counts its most frequent entries, each in its usual order.
   const pick = (g, n) => {
     if (n >= g.items.length) return g.items;
-    if (g.grade) return g.items.slice(g.items.length - n);
+    if (g.grade) return n >= 2 ? [g.items[0], ...g.items.slice(g.items.length - n + 1)] : g.items.slice(-1); // #3306 — the lowest class kept too: the range's both ends
     if (g.counts) { const keep = new Set(g.items.map((_, i) => i).sort((a, b) => g.counts[b] - g.counts[a] || a - b).slice(0, n)); return g.items.filter((_, i) => keep.has(i)); }
     return g.items.slice(0, n);
   };
   const multi = gs.filter((_, i) => quota[i] > 0).length > 1, rows = [];
-  gs.forEach((g, i) => pick(g, quota[i]).forEach(([label, color, opt], k) => rows.push({ label, color, kind: opt?.kind, opacity: opt?.opacity, svg: opt?.svg /* #3066 */, group: g.label, head: (multi || g.alwaysHead) && k === 0,
+  gs.forEach((g, i) => pick(g, quota[i]).forEach(([label, color, opt], k) => rows.push({ label, color, kind: opt?.kind, opacity: opt?.opacity, svg: opt?.svg /* #3066 */, value: opt?.value /* #3332 */, group: g.label, head: (multi || g.alwaysHead) && k === 0,
     ...(k === 0 && g.grade && quota[i] < g.items.length ? { classesShown: [quota[i], g.items.length] } : {}) }))); // #2039 — a cut grade group says so
   return { rows, shown: rows.length, total: gs.reduce((n, g) => n + g.items.length, 0) };
 }

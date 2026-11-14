@@ -12216,5 +12216,6 @@
   "to the Geochem import {n}: {list}": "para a importação de Geoquímica {n}: {list}",
   "cancelled {n}: {list}": "cancelados {n}: {list}",
   "not imported {n}: {list}": "não importados {n}: {list}",
-  "The Geochem tab opens next, for the assay file(s).": "A seguir abre-se a aba Geoquímica, para o(s) arquivo(s) de análises."
+  "The Geochem tab opens next, for the assay file(s).": "A seguir abre-se a aba Geoquímica, para o(s) arquivo(s) de análises.",
+  "{group}: {label}, values {range}": "{group}: {label}, valores {range}"
 }
