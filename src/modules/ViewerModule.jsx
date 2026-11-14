@@ -114,6 +114,7 @@ import { outcropLegendGroup /* TASKS.csv #1437 */, ASSAY_ELEMENT_COLORS, assayCo
 // TASKS.csv #843 — the anomaly map (lib/anomalyMap.js + lib/thresholds.js) and its controls load only when used: off the startup bundle
 const SurfaceAnomalyControls = React.lazy(() => import("../components/SurfaceAnomalyControls.jsx"));
 const EvidenceOverlayPane = React.lazy(() => import("../components/EvidenceOverlayPane.jsx"));
+const SlicePlaceRow = React.lazy(() => import("../components/SlicePlaceRow.jsx")); // TASKS.csv #3431
 const PitShellPane = React.lazy(() => import("../components/PitShellPane.jsx")); // TASKS.csv #1341
 const DesignLinesPane = React.lazy(() => import("../components/DesignLinesPane.jsx")); // TASKS.csv #1342
 const PitDesignPane = React.lazy(() => import("../components/PitDesignPane.jsx")); // TASKS.csv #1874
@@ -3537,6 +3538,13 @@ ${describeTrend(t)}` };
         if (viaTie) solid.parts = (await import("../lib/solidTie.js")).solidPartsToLocal(solid.parts, gridTie);
       }
       const bounds = solidBounds(solid.parts);
+      // TASKS.csv #3428 — more than 100 km from the holes froze the view for about a minute (fitted, with a scene origin that far): asked first, and
+      // when imported anyway the view stays where it is
+      const farSolid = (await import("../lib/solidFar.js")).solidFarFromHoles(bounds, importStateRef.current?.collars);
+      if (farSolid?.far && !window.confirm(tr("\"{name}\" lies about {km} km from your holes (E {e}, N {n}): its coordinates look like another coordinate system, or a local grid read as real coordinates. A solid that far can freeze the 3D view. Import it anyway? OK: import it and leave the view where it is. Cancel: don't import it.", { name: file.name, km: Math.round(farSolid.distM / 1000).toLocaleString(), e: Math.round(farSolid.solid[0]).toLocaleString(), n: Math.round(farSolid.solid[1]).toLocaleString() }))) {
+        setNotices((p) => [...p, notice("{name}: import cancelled (it lies about {km} km from the holes).", { name: file.name, km: Math.round(farSolid.distM / 1000).toLocaleString() })]);
+        return;
+      }
       const o = originRef.current;
       const label = file.name.replace(/\.(dxf|obj|msh|ts|gp)$/i, "");
       const stamp = Date.now();
@@ -3592,7 +3600,7 @@ ${describeTrend(t)}` };
         : "";
       const layerNote = layered ? tr(" One surface per {v} ({v2}).", { v: solid.format === "DXF" ? "layer" : "object", v2: solid.parts.map((p) => p.layer).join(", ") }) : "";
       setNotices((p) => [...p, viaTie ? notice("Imported \"{name}\" as a solid: {vertexCount} vertices / {triangleCount} triangles ({format}, {note}).{layerNote} It appears under Generated surfaces with the same show/hide, remove and query controls.{bb} Placed onto the local grid through its tie to EPSG:{epsg} (x and y; elevation unchanged).", { name: file.name, vertexCount: solid.vertexCount.toLocaleString(), triangleCount: solid.triangleCount.toLocaleString(), format: solid.format, note: solid.note, layerNote, bb, epsg: gridTie.epsg }) /* #3186 */ : notice("Imported \"{name}\" as a solid: {vertexCount} vertices / {triangleCount} triangles ({format}, {note}).{layerNote} It appears under Generated surfaces with the same show/hide, remove and query controls.{bb} Coordinates are used AS-IS — a DXF/OBJ carries no CRS, so GeoStrix does not reproject it; if it lands away from your holes, the file is in a different CRS.", { name: file.name, vertexCount: solid.vertexCount.toLocaleString(), triangleCount: solid.triangleCount.toLocaleString(), format: solid.format, note: solid.note, layerNote, bb })]);
-      fitBox(box);
+      if (!farSolid?.far) fitBox(box); // #3428 — a far solid is imported where it is; the view is not moved to it
       import("../lib/solidCheckNote.js").then(({ solidCheckNote }) => { const t = solidCheckNote(solid.parts, (k) => (layered ? `${label} — ${solid.parts[k].layer}` : label)); if (t) setNotices((p) => [...p, infoNotice(t)]); }).catch(() => {}); // #2801 — on demand
     } catch (e) {
       clearProgress();
@@ -6361,6 +6369,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               )}
             </div>
             <input type="range" min="0" max="1" step="0.002" value={slice3d.pos} onChange={(e) => setSlice3d((s) => ({ ...s, pos: Number(e.target.value) }))} aria-label={tr("Slice position")} />
+            <Suspense fallback={null}><SlicePlaceRow slice3d={slice3d} setSlice3d={setSlice3d} ext={sliceExtent} origin={originRef.current} collars={collars} /></Suspense>{/* #3431 — by a hole or a coordinate */}
             <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Thickness")}{" "}<input type="number" min="0" step="5" value={slice3d.thickness} onChange={(e) => setSlice3d((s) => ({ ...s, thickness: Math.max(0, Number(e.target.value) || 0) }))} style={{ width: 64 }} aria-label={tr("Slice thickness")} /> m
               <span style={{ color: "var(--color-text-muted)" }}>{slice3d.thickness > 0 ? tr("slab") : tr("0 = everything beyond the cut")}</span>
             </label>

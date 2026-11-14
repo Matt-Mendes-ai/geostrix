@@ -20,6 +20,27 @@ export function slabAxis(ext, azimuth) {
   return { nx, nz, lo, hi };
 }
 
+// TASKS.csv #3431 (side session 2's note, from #3324) — the 0-1 slider spans the whole extent, and one step is metres: the slab placed by what the
+// geologist knows, a hole or a coordinate. The slider position (0-1) at which the slab passes through a world point (E, N, RL), for the current
+// orientation: a vertical slab through its E / N (along its normal), a horizontal one through its RL. origin: the scene origin { x, y, z } (scene
+// x = E - x, y = RL - z, z = y - N). null when the extent has no span there. Clamped to 0-1 with `outside` set when the point is beyond the range.
+export function slabPosThrough(ext, slice3d, origin, e, n, rl) {
+  if (!ext) return null;
+  const o = origin || { x: 0, y: 0, z: 0 };
+  let v, lo, hi;
+  if (slice3d?.mode === "horizontal") {
+    if (!Number.isFinite(rl)) return null;
+    v = rl - (o.z || 0); lo = ext.y0; hi = ext.y1;
+  } else {
+    if (!Number.isFinite(e) || !Number.isFinite(n)) return null;
+    const a = slabAxis(ext, slice3d?.azimuth || 0);
+    v = (e - o.x) * a.nx + ((o.y || 0) - n) * a.nz; lo = a.lo; hi = a.hi;
+  }
+  if (!(hi > lo)) return null;
+  const raw = (v - lo) / (hi - lo);
+  return { pos: Math.min(1, Math.max(0, +raw.toFixed(4))), outside: raw < 0 || raw > 1 };
+}
+
 // the slider position (0-1) of the median collar along the slab's normal; null when there is nothing to place
 export function medianCollarPos(traces, ext, azimuth) {
   const { nx, nz, lo, hi } = slabAxis(ext, azimuth);
