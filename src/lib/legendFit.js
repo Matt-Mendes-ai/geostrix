@@ -25,6 +25,45 @@ export function legendBoxSize(items) {
   const content = Math.max(126, ...list.map((it) => (it?.[2]?.heading || it?.[2]?.ramp || it?.[2]?.image || it?.[2]?.note ? 0 : 28) + legendLabelW(it)));
   return { w: Math.ceil(content + 26), h: Math.ceil(16 + printPx(printPt.body) * 1.25 + 6 + list.reduce((a, it) => a + legendRowH(it), 0)) };
 }
+// TASKS.csv #3395 (Matt: "we should have options to resize legend not only the width but also the height. And split the legend into columns")
+// — a legend with a height (boxH, page px) or a chosen column count (cols 1-4) is a box: its rows fill the columns top to bottom (a group
+// heading kept with its first row, a row never split), the columns share its width (boxW), and only what the box still cannot hold is
+// left out, counted on the note row. Auto (cols null) takes as many columns as the rows need, as many as fit the width (150 px each). A
+// legend with neither keeps legendFit below (#1480 / #2134), so a page made before draws as it did. -> { cols, shown, left, box: true, colW }
+export const isLegendBox = (el) => Number(el?.h) > 0 || [1, 2, 3, 4].includes(Number(el?.legendCols));
+export function legendBoxFit(items, { boxW = null, boxH = null, cols = null, pageH = 794, y = 0, margin = 30, rowH, labelW, maxCols = 4, gap = 18, pad = 24, head = 40, noteH = 16 } = {}) {
+  const list = items || [];
+  const heights = list.map(rowH);
+  const blocks = []; // a heading with the row after it: a column never ends on a heading
+  for (let i = 0; i < list.length; i++) {
+    if (list[i]?.[2]?.heading && i + 1 < list.length) { blocks.push({ to: i + 2, h: heights[i] + heights[i + 1] }); i++; }
+    else blocks.push({ to: i + 1, h: heights[i] });
+  }
+  const colH = Math.max(20, (Number(boxH) > 0 ? Number(boxH) : pageH - y - margin) - head);
+  // the first k blocks poured into columns of colH: the column reached (c), its height used, and the items shown in n columns
+  const fill = (n, k = blocks.length) => {
+    let c = 0, used = 0, shown = 0;
+    for (let j = 0; j < k; j++) {
+      if (used > 0 && used + blocks[j].h > colH) { c++; used = 0; }
+      if (c >= n) break;
+      used += blocks[j].h; shown = blocks[j].to; // a block taller than a column alone is drawn and clipped by the box
+    }
+    return { c, used, shown };
+  };
+  const width = Number(boxW) > 0 ? Number(boxW) : null;
+  const across = width ? Math.max(1, Math.floor((width - pad + gap) / (150 + gap))) : maxCols;
+  let n = [1, 2, 3, 4].includes(Number(cols)) ? Number(cols) : 0;
+  if (!n) { n = 1; while (n < Math.min(maxCols, across) && fill(n).shown < list.length) n++; }
+  let shown = fill(n).shown;
+  if (shown < list.length) { // the note row needs its own room: in the last column, or a column still empty after the rows
+    let k = blocks.findIndex((bl) => bl.to > shown);
+    if (k < 0) k = blocks.length;
+    for (; k > 0; k--) { const f = fill(n, k); if (f.c < n - 1 || f.used + noteH <= colH) break; }
+    shown = k > 0 ? blocks[k - 1].to : 0;
+  }
+  const labelCol = Math.max(150, ...list.map((it) => 28 + labelW(it)));
+  return { cols: n, shown, left: list.length - shown, box: true, colW: width ? (width - pad - gap * (n - 1)) / n : labelCol };
+}
 export function legendFit(items, { x = 0, y = 0, pageW = 1123, pageH = 794, margin = 30, rowH, labelW, maxCols = 4, gap = 18, pad = 24, head = 40 } = {}) {
   const list = items || [];
   const heights = list.map(rowH);
