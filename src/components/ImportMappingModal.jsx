@@ -136,7 +136,9 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
               replaces (Ctrl+Z undoes it), and Custom layer is one choice away */}
           {perHole && ( /* TASKS.csv #2659 */
             <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "-10px 0 12px", lineHeight: 1.4 }}>
-              {tr("Per-hole values: all {n} hole(s) are already in the project at these coordinates. Importing joins the file's other columns ({cols}) onto those holes, on the hole id; no new hole is added.", { n: perHole.n.toLocaleString(), cols: perHole.columns.slice(0, 6).join(", ") + (perHole.columns.length > 6 ? "…" : "") })}
+              {perHole.noXY /* #2399 */
+                ? tr("Per-hole values: every row is one of the project's holes ({n}), and the file has no coordinates. Importing joins its other columns ({cols}) onto those holes as attributes (Identify shows them); blanks and no-data codes such as -999 are left out, and no new hole is added.", { n: perHole.n.toLocaleString(), cols: perHole.columns.slice(0, 6).join(", ") + (perHole.columns.length > 6 ? "…" : "") })
+                : tr("Per-hole values: all {n} hole(s) are already in the project at these coordinates. Importing joins the file's other columns ({cols}) onto those holes, on the hole id; no new hole is added.", { n: perHole.n.toLocaleString(), cols: perHole.columns.slice(0, 6).join(", ") + (perHole.columns.length > 6 ? "…" : "") })}
             </div>
           )}
           {/* TASKS.csv #2338 — a custom layer's name: two columns of one file were two layers both called after the file */}
@@ -459,7 +461,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
           const logOn = !!logChannelsFor(modal.target, modal.headers, modal.allRows || modal.sampleRows || [], modal.mapping, modal.logChannels); // #2160 — the channels are the values
           const recOn = modal.target === "recovery" && !modal.mapping.value && !modal.recoveryCalcOff && !!recoveryColumns(modal.headers); // #2891 — the value is computed
           const minOn = !logOn && !!mineralPlan(modal.target, modal.headers, modal.allRows || modal.sampleRows || [], modal.mapping || {}, modal); // #3205 — the minerals are the values
-          const missingRequired = schema.fields.filter((f) => f.required && !modal.mapping[f.key] && !(logOn && f.key === "value") && !(recOn && f.key === "value") && !(minOn && f.key === "value"))
+          const missingRequired = schema.fields.filter((f) => f.required && !modal.mapping[f.key] && !(logOn && f.key === "value") && !(recOn && f.key === "value") && !(minOn && f.key === "value") && !(perHole?.noXY && ["x", "y", "z"].includes(f.key)) /* #2399 */)
             .concat(schema.oneOf && !schema.oneOf.some((keys) => keys.every((k) => modal.mapping[k])) ? [{ key: "oneOf", label: "From + To, or Depth" }] : []); // #605
           // TASKS.csv #2895 (review #2876, WA iron) — magnetic azimuths with no survey date: Import was enabled, the dialog closed and nothing
           // was imported (the commit refuses it), so the mapping had to be redone from a fresh drop. The button waits for the date instead.

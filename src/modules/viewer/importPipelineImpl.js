@@ -59,6 +59,7 @@ import { surfaceAttrColumns, surfaceAttrs } from "../../lib/geochemColumns.js"; 
 import { rasterDrapeElevation, drapeElevationNote, planElevation } from "../../lib/drapeElevation.js"; // TASKS.csv #1505; planElevation: #2294
 import { projectTargetEpsg } from "../../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 import { looksLikeUbcMesh } from "../../lib/leapfrogMsh.js"; // TASKS.csv #1991
+import { perHoleJoinOf, perHoleAttrs } from "../../lib/perHoleJoin.js"; // TASKS.csv #2399
 
 const AZ_TARGETS = new Set(["collars", "survey", "structure"]); // TASKS.csv #1647 — tables with an azimuth
 // TASKS.csv #2886 — the dip column whose signs decide the pre-selected convention (collars and surveys)
@@ -425,6 +426,14 @@ export function makeImportPipeline(ctx, h) {
     const recCalc = target === "recovery" && !mapping.value && !data.recoveryCalcOff ? recoveryColumns(Object.keys(allRows[0] || {})) : null;
     // TASKS.csv #3205 — a log in visual per cent per mineral: one layer per ticked mineral column (and the opt-in sulphide total); no Value needed
     const minPlan = !logChans && perMineralLib ? perMineralLib.mineralPlan(target, data.headers || Object.keys(allRows[0] || {}), allRows, mapping, data) : null;
+    // TASKS.csv #2399 — a per-hole table with no coordinates, every row an existing hole: its columns merged onto those holes' attributes
+    const noXYJoin = target === "collars" && (!mapping.x || !mapping.y) ? perHoleJoinOf(allRows, mapping, importStateRef.current.collars || []) : null;
+    if (noXYJoin?.noXY) {
+      const add = perHoleAttrs(allRows, mapping.hole_id, isNullSentinel);
+      setCollars((prev) => prev.map((c) => { const a = add.get(String(c.hole_id).trim()); return a && Object.keys(a).length ? { ...c, attrs: { ...(c.attrs || {}), ...a } } : c; }));
+      setNotices((p) => [...p, notice("{fileName}: {cols} joined onto {n} hole(s) as per-hole values (Identify shows them on each hole); blanks and no-data codes left out.", { fileName, cols: noXYJoin.columns.slice(0, 8).join(", ") + (noXYJoin.columns.length > 8 ? "…" : ""), n: noXYJoin.n })]);
+      return;
+    }
     const missing = schema.fields.filter((f) => f.required && !mapping[f.key] && !(logChans && f.key === "value") && !(recCalc && f.key === "value") && !(minPlan && f.key === "value"));
     if (missing.length) { setNotices((p) => [...p, notice("{fileName}: map required field(s) — {v}", { fileName, v: missing.map((f) => f.label).join(", ") })]); return false; }
     // TASKS.csv #1963 — a table pulled from a database: its record (profile, schema, table, these choices) for "Reload from database"
