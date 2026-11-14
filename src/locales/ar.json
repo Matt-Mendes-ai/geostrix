@@ -11614,7 +11614,6 @@
   "under cover": "تحت الغطاء",
   "Depth below the collar for the subcrop, m (blank: the first unit under the cover)": "العمق تحت الفوهة للنتوء المغطى، م (فارغ: أول وحدة تحت الغطاء)",
   "m down each hole": "م في كل ثقب",
-  "What the holes start in (the first logged code at the collar). Tick the codes that are cover and make it again: the map then shows the first unit under them. A tick sets the code's role to overburden, as 3D Modelling > Modelling codes does.": "ما تبدأ به الثقوب (أول رمز مسجّل عند الفوهة). حدّد الرموز التي هي غطاء وأعد الإنشاء: تُظهر الخريطة عندها أول وحدة تحتها. التحديد يجعل دور الرمز «طبقة غطاء»، كما في النمذجة ثلاثية الأبعاد > رموز النمذجة.",
   "{code} is cover": "{code} غطاء",
   "{n} hole(s), {p}%": "{n} ثقب، {p}%",
   "…and {n} more code(s): all of them are in 3D Modelling > Modelling codes.": "…و{n} رمز آخر: جميعها في النمذجة ثلاثية الأبعاد > رموز النمذجة.",
@@ -12127,5 +12126,13 @@
   "The ore-grade blocks lie {min}–{max} m below the ground over them ({median} m at the median; {src}): deep for an open pit. Compare Stope outlines before reading this pit as a mine.": "تقع كتل محتوى الخام على عمق {min}–{max} م تحت الأرض فوقها ({median} م عند الوسيط؛ {src}): عميقة لحفرة مفتوحة. قارن محيطات غرف التعدين قبل قراءة هذه الحفرة كمنجم.",
   "the ground interpolated between the collars": "الأرض المستكملة بين الفوهات",
   "{layer} (hidden in 3D)": "{layer} (مخفي في العرض ثلاثي الأبعاد)",
-  "(highest of {n} in the slab)": "(الأعلى من {n} في الشريحة)"
+  "(highest of {n} in the slab)": "(الأعلى من {n} في الشريحة)",
+  "Skipped as cover above the mapped unit: {codes}.": "تم تخطيها كغطاء فوق الوحدة المرسومة: {codes}.",
+  "{code} in {n} hole(s), up to {m} m": "{code} في {n} ثقب (ثقوب) حفر، حتى {m} م",
+  "{code} in {n} hole(s), up to {m} m (overburden, from its notes)": "{code} في {n} ثقب (ثقوب) حفر، حتى {m} م (غطاء ترابي، من ملاحظاته)",
+  "{code} in {n} hole(s), up to {m} m (no recovery, from its notes)": "{code} في {n} ثقب (ثقوب) حفر، حتى {m} م (بدون استرداد، من ملاحظاته)",
+  "The codes skipped as cover (ticked), then what the other holes start in (the first logged code at the collar). Untick a code that is rock, or tick one that is cover, and make it again. A tick sets the code's role to overburden and an untick to stratigraphic, as 3D Modelling > Modelling codes does.": "الرموز التي تم تخطيها كغطاء (المحددة)، ثم ما تبدأ به ثقوب الحفر الأخرى (أول رمز مسجل عند الفوهة). ألغِ تحديد رمز هو صخر، أو حدد رمزًا هو غطاء، ثم أعد الإنشاء. التحديد يجعل دور الرمز غطاءً ترابيًا وإلغاؤه يجعله طبقيًا، كما في النمذجة ثلاثية الأبعاد > رموز النمذجة.",
+  "from its notes": "من ملاحظاته",
+  "skipped in {n} hole(s), up to {m} m; the whole log of {w}": "تم تخطيه في {n} ثقب (ثقوب) حفر، حتى {m} م؛ السجل كله في {w}",
+  "skipped in {n} hole(s), up to {m} m": "تم تخطيه في {n} ثقب (ثقوب) حفر، حتى {m} م"
 }

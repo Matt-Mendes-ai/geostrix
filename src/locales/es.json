@@ -11614,7 +11614,6 @@
   "under cover": "bajo cobertura",
   "Depth below the collar for the subcrop, m (blank: the first unit under the cover)": "Profundidad bajo el collar para el subafloramiento, m (en blanco: la primera unidad bajo la cobertura)",
   "m down each hole": "m en cada sondaje",
-  "What the holes start in (the first logged code at the collar). Tick the codes that are cover and make it again: the map then shows the first unit under them. A tick sets the code's role to overburden, as 3D Modelling > Modelling codes does.": "En qué empiezan los sondajes (el primer código registrado en el collar). Marque los códigos que son cobertura y hágalo de nuevo: el mapa muestra entonces la primera unidad bajo ellos. Una marca asigna al código el rol de sobrecarga, como lo hace Modelado 3D > Códigos de modelado.",
   "{code} is cover": "{code} es cobertura",
   "{n} hole(s), {p}%": "{n} sondaje(s), {p} %",
   "…and {n} more code(s): all of them are in 3D Modelling > Modelling codes.": "…y {n} código(s) más: todos están en Modelado 3D > Códigos de modelado.",
@@ -12127,5 +12126,13 @@
   "The ore-grade blocks lie {min}–{max} m below the ground over them ({median} m at the median; {src}): deep for an open pit. Compare Stope outlines before reading this pit as a mine.": "Los bloques con ley de mineral están {min}–{max} m bajo el terreno que los cubre ({median} m en la mediana; {src}): profundo para un rajo abierto. Compare los contornos de caserones antes de leer este rajo como una mina.",
   "the ground interpolated between the collars": "el terreno interpolado entre los collares",
   "{layer} (hidden in 3D)": "{layer} (oculto en 3D)",
-  "(highest of {n} in the slab)": "(el más alto de {n} en la franja)"
+  "(highest of {n} in the slab)": "(el más alto de {n} en la franja)",
+  "Skipped as cover above the mapped unit: {codes}.": "Omitidos como cobertura sobre la unidad mapeada: {codes}.",
+  "{code} in {n} hole(s), up to {m} m": "{code} en {n} sondaje(s), hasta {m} m",
+  "{code} in {n} hole(s), up to {m} m (overburden, from its notes)": "{code} en {n} sondaje(s), hasta {m} m (cobertura, según sus notas)",
+  "{code} in {n} hole(s), up to {m} m (no recovery, from its notes)": "{code} en {n} sondaje(s), hasta {m} m (sin recuperación, según sus notas)",
+  "The codes skipped as cover (ticked), then what the other holes start in (the first logged code at the collar). Untick a code that is rock, or tick one that is cover, and make it again. A tick sets the code's role to overburden and an untick to stratigraphic, as 3D Modelling > Modelling codes does.": "Los códigos omitidos como cobertura (marcados) y luego aquello en que empiezan los demás sondajes (el primer código registrado en el collar). Desmarque un código que sea roca, o marque uno que sea cobertura, y vuelva a generarlo. Una marca asigna al código el rol de cobertura y quitarla, estratigráfico, como en Modelado 3D > Códigos de modelado.",
+  "from its notes": "según sus notas",
+  "skipped in {n} hole(s), up to {m} m; the whole log of {w}": "omitido en {n} sondaje(s), hasta {m} m; todo el registro de {w}",
+  "skipped in {n} hole(s), up to {m} m": "omitido en {n} sondaje(s), hasta {m} m"
 }

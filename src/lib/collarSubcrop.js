@@ -3,7 +3,7 @@
 // hole's own position at that depth (an angled hole's bedrock pierce point is not at its collar). A starting map, not a mapped
 // outcrop: the points say what the drill met under cover, and where. Pure.
 import { desurveyHole, pointOnTrace } from "./desurvey.js";
-import { roleForLithology, colorForLithology } from "./layers.js";
+import { roleForLithology, colorForLithology, roleIsFromNotes } from "./layers.js";
 
 const SKIP = new Set(["overburden", "no recovery"]);
 
@@ -113,4 +113,36 @@ export function holeStartCodes({ collars, litho, roleOf = roleForLithology }) {
   }
   return [...by.values()].map((e) => { const code = [...e.spell].sort((a, b) => b[1] - a[1])[0][0]; return { code, holes: e.holes, role: roleOf(code) || null }; })
     .sort((a, b) => b.holes - a.holes || (a.code < b.code ? -1 : 1));
+}
+
+// TASKS.csv #3366 (#3195, Galore Creek) — every code the subcrop skipped as cover above the unit it mapped (or through a whole hole that gave
+// no point), not only the codes the holes start in: breccia B, read as no recovery from its notes, was skipped in 7 holes (up to 114 m, and
+// all of one hole) and the pane never named it, so the map showed the unit under it and 'depth of cover' ran to its base. Holes whose log
+// starts below the collar are left out, as collarSubcrop leaves them. -> [{ code, role, holes, maxM, whole (holes it filled to the end) }]
+export function subcropSkippedCodes({ collars, litho, roleOf = roleForLithology }) {
+  const ids = new Set((collars || []).map((c) => c.hole_id)), byHole = new Map();
+  for (const r of litho || []) {
+    const f = Number(r.from), t = Number(r.to), v = String(r.value ?? "").trim();
+    if (!ids.has(r.hole_id) || !Number.isFinite(f) || !v) continue;
+    (byHole.get(r.hole_id) || byHole.set(r.hole_id, []).get(r.hole_id)).push({ from: f, to: Number.isFinite(t) ? t : f, value: v });
+  }
+  const by = new Map();
+  for (const rows of byHole.values()) {
+    rows.sort((a, b) => a.from - b.from);
+    if (rows[0].from > LATE_START_M) continue;
+    const i = rows.findIndex((r) => !SKIP.has(roleOf(r.value))), above = i < 0 ? rows : rows.slice(0, i), m = new Map();
+    for (const r of above) { const k = r.value.toUpperCase(), e = m.get(k) || { len: 0, spell: r.value }; e.len += Math.max(0, r.to - r.from); m.set(k, e); }
+    for (const [k, e] of m) {
+      const g = by.get(k) || { holes: 0, maxM: 0, whole: 0, spell: new Map() };
+      g.holes++; g.maxM = Math.max(g.maxM, e.len); if (i < 0) g.whole++; g.spell.set(e.spell, (g.spell.get(e.spell) || 0) + 1); by.set(k, g);
+    }
+  }
+  return [...by.values()].map((g) => { const code = [...g.spell].sort((a, b) => b[1] - a[1])[0][0]; return { code, role: roleOf(code), holes: g.holes, maxM: Math.round(g.maxM * 10) / 10, whole: g.whole }; })
+    .sort((a, b) => b.holes - a.holes || (a.code < b.code ? -1 : 1));
+}
+// #3366 — where a skipped code's role came from: 3D Modelling > Modelling codes ('codes'), the code's notes ('notes'), or its name ('name')
+export function coverRoleSource(code, modellingCodes) {
+  const k = String(code).trim().toUpperCase();
+  if ((modellingCodes?.codes || []).some((c) => c?.name != null && c.role && String(c.name).trim().toUpperCase() === k)) return "codes";
+  return roleIsFromNotes(code) ? "notes" : "name";
 }

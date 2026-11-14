@@ -282,6 +282,12 @@ export function roleIsAssumed(u) {
   const k = String(u || "").trim().toLowerCase();
   return k !== "unknown" && !UNIT_ROLES[k] && !ROLE_PATTERNS.some(([re]) => re.test(k)) && !noteRoles?.get(k);
 }
+// TASKS.csv #3366 (#3195, Galore Creek) — the role came from the code's notes (#2046), not from its name: the Subcrop pane says so beside a
+// code it skipped as cover, so a wrong guess (breccia B read as no recovery from its cement, #3254) can be seen and unticked
+export function roleIsFromNotes(u) {
+  const k = String(u || "").trim().toLowerCase();
+  return k !== "unknown" && !UNIT_ROLES[k] && !ROLE_PATTERNS.some(([re]) => re.test(k)) && !!noteRoles?.get(k);
+}
 export function roleForLithology(u) {
   const k = String(u || "").trim().toLowerCase();
   if (k === "unknown") return "no recovery"; // TASKS.csv #2227 — the label blank cells import as (#2182) is not logged rock: never a unit, never a role from notes

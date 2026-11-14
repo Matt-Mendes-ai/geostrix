@@ -11614,7 +11614,6 @@
   "under cover": "sous couverture",
   "Depth below the collar for the subcrop, m (blank: the first unit under the cover)": "Profondeur sous le collet pour le sous-affleurement, m (vide : la première unité sous la couverture)",
   "m down each hole": "m dans chaque sondage",
-  "What the holes start in (the first logged code at the collar). Tick the codes that are cover and make it again: the map then shows the first unit under them. A tick sets the code's role to overburden, as 3D Modelling > Modelling codes does.": "Ce par quoi commencent les sondages (le premier code décrit au collet). Cochez les codes qui sont de la couverture et refaites-la : la carte montre alors la première unité sous eux. Une coche donne au code le rôle de mort-terrain, comme Modélisation 3D > Codes de modélisation.",
   "{code} is cover": "{code} est de la couverture",
   "{n} hole(s), {p}%": "{n} sondage(s), {p} %",
   "…and {n} more code(s): all of them are in 3D Modelling > Modelling codes.": "…et {n} code(s) de plus : tous sont dans Modélisation 3D > Codes de modélisation.",
@@ -12127,5 +12126,13 @@
   "The ore-grade blocks lie {min}–{max} m below the ground over them ({median} m at the median; {src}): deep for an open pit. Compare Stope outlines before reading this pit as a mine.": "Les blocs à teneur de minerai sont à {min}–{max} m sous le terrain qui les surmonte ({median} m en médiane ; {src}) : profond pour une fosse à ciel ouvert. Comparez les contours de chantiers avant de lire cette fosse comme une mine.",
   "the ground interpolated between the collars": "le terrain interpolé entre les collets",
   "{layer} (hidden in 3D)": "{layer} (masqué en 3D)",
-  "(highest of {n} in the slab)": "(le plus élevé de {n} dans la tranche)"
+  "(highest of {n} in the slab)": "(le plus élevé de {n} dans la tranche)",
+  "Skipped as cover above the mapped unit: {codes}.": "Ignorés comme couverture au-dessus de l'unité cartographiée : {codes}.",
+  "{code} in {n} hole(s), up to {m} m": "{code} dans {n} sondage(s), jusqu'à {m} m",
+  "{code} in {n} hole(s), up to {m} m (overburden, from its notes)": "{code} dans {n} sondage(s), jusqu'à {m} m (mort-terrain, d'après ses notes)",
+  "{code} in {n} hole(s), up to {m} m (no recovery, from its notes)": "{code} dans {n} sondage(s), jusqu'à {m} m (sans récupération, d'après ses notes)",
+  "The codes skipped as cover (ticked), then what the other holes start in (the first logged code at the collar). Untick a code that is rock, or tick one that is cover, and make it again. A tick sets the code's role to overburden and an untick to stratigraphic, as 3D Modelling > Modelling codes does.": "Les codes ignorés comme couverture (cochés), puis ce par quoi commencent les autres sondages (le premier code décrit au collet). Décochez un code qui est de la roche, ou cochez-en un qui est de la couverture, et refaites la carte. Cocher donne au code le rôle de mort-terrain et décocher, stratigraphique, comme dans Modélisation 3D > Codes de modélisation.",
+  "from its notes": "d'après ses notes",
+  "skipped in {n} hole(s), up to {m} m; the whole log of {w}": "ignoré dans {n} sondage(s), jusqu'à {m} m ; toute la description de {w}",
+  "skipped in {n} hole(s), up to {m} m": "ignoré dans {n} sondage(s), jusqu'à {m} m"
 }

@@ -34,7 +34,7 @@ import MapImportReview from "./MapImportReview.jsx"; // TASKS.csv #1325
 import { classifyTables, needsImportReview, isCoveringPolygon } from "../lib/mapImportReview.js";
 import { CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
-import { collarSubcrop, subcropLayer, roleWithCodes, subcropLeftOut, holeStartCodes } from "../lib/collarSubcrop.js"; // TASKS.csv #1719; roleWithCodes: #2407; subcropLeftOut: #2566; holeStartCodes: #2956
+import { collarSubcrop, subcropLayer, roleWithCodes, subcropLeftOut, holeStartCodes, subcropSkippedCodes, coverRoleSource } from "../lib/collarSubcrop.js"; // TASKS.csv #1719; roleWithCodes: #2407; subcropLeftOut: #2566; holeStartCodes: #2956; skipped codes: #3366
 import { outlineLayer, defaultReach, medianSpacing } from "../lib/subcropOutlines.js"; // TASKS.csv #2956
 import { loggedCodeSpellings, withLogColours } from "../lib/logColours.js"; // TASKS.csv #2970
 import { categoryColor, LAYER_META } from "../lib/layers.js"; // TASKS.csv #1719 — the logs' own colours
@@ -374,6 +374,12 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
 
   // TASKS.csv #1719 / #2956 — the subcrop from collars (the button's body, a function since #2956 so 'Make it again' can run it); replace: the
   // layer a previous run made, removed first
+  // TASKS.csv #3366 (#3195, Galore Creek) — the codes skipped as cover above the mapped unit, named in the result: breccia B, read as no recovery
+  // from its notes, was skipped in 7 holes and nothing said so. A role read from the notes says so.
+  const skippedText = (list) => !list.length ? "" : tr("Skipped as cover above the mapped unit: {codes}.", { codes: list.slice(0, 8).map((c) => {
+    const v = { code: c.code, n: c.holes, m: c.maxM };
+    return coverRoleSource(c.code, modellingCodes) !== "notes" ? tr("{code} in {n} hole(s), up to {m} m", v) : c.role === "overburden" ? tr("{code} in {n} hole(s), up to {m} m (overburden, from its notes)", v) : tr("{code} in {n} hole(s), up to {m} m (no recovery, from its notes)", v);
+  }).join("; ") + (list.length > 8 ? "; …" : "") });
   const makeSubcrop = (replace = null) => {
     // TASKS.csv #2265 (review #2174) — on a project drilled from underground the 'top of each hole' is a drill position on a mine level,
     // not the surface: asked first, named for what it is. (Its NPRC / Unknown 'units' are cover since #2227: roleForLithology reads the notes.)
@@ -383,8 +389,9 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     const depth = String(subDepth).trim() === "" ? null : Number(subDepth); // #2956
     if (depth != null && !(depth >= 0)) { setMapMsg({ ok: false, text: tr("The depth below the collar must be a number of metres, 0 or more.") }); return; }
     const pts = collarSubcrop({ collars, survey, litho: layers.litho, desurveyMethod, roleOf: roleWithCodes(modellingCodes), report: rep, atDepthM: depth }); // roleOf: #2407; atDepthM: #2956
+    const skippedCodes = subcropSkippedCodes({ collars, litho: layers.litho, roleOf: roleWithCodes(modellingCodes) }); // #3366
     const late = rep.lateStart.length ? tr("{n} hole(s) whose log starts below the collar ({a}–{b} m down: an unlogged precollar, or logging only where something was met) were left out: their first logged unit is a point down the hole, not a subcrop ({ids}).", { n: rep.lateStart.length, a: Math.round(Math.min(...rep.lateStart.map((h) => h.logStart)) * 10) / 10, b: Math.round(Math.max(...rep.lateStart.map((h) => h.logStart)) * 10) / 10, ids: rep.lateStart.slice(0, 5).map((h) => h.hole_id).join(", ") + (rep.lateStart.length > 5 ? ", …" : "") }) : "";
-    if (!pts.length) { setMapMsg({ ok: false, text: [depth != null ? tr("No hole's log covers {d} m down.", { d: depth }) /* #2956 */ : tr("No hole has a logged unit under its overburden / casing to place."), late].filter(Boolean).join(" ") }); return; }
+    if (!pts.length) { setMapMsg({ ok: false, text: [depth != null ? tr("No hole's log covers {d} m down.", { d: depth }) /* #2956 */ : tr("No hole has a logged unit under its overburden / casing to place."), late, skippedText(skippedCodes) /* #3366 */].filter(Boolean).join(" ") }); return; }
     const base = depth != null ? tr("Units {d} m below the collars", { d: depth }) : ug.underground ? tr("Units at the collars") : tr("Subcrop from collars"); // #2265; at a depth: #2956
     if (replace) removeMapLayer(replace.id); // #2956 — 'Make it again' replaces the layer it made
     let name = base; for (let k = 2; mapLayers.some((l) => l.name === name && l.id !== replace?.id); k++) name = `${base} (${k})`;
@@ -393,7 +400,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     const skipped = collars.length - pts.length - rep.lateStart.length - (rep.notAtDepth || 0); // the late starts are said on their own (#2411)
     setSubcropCard({ name, pts, reach: String(defaultReach(pts)), depth }); // #2956
     setMapMsg({ ok: true, text: [depth != null ? tr("{name}: {n} point(s), {units} unit(s): the unit logged {d} m down each hole, at the hole's position at that depth.", { name, n: pts.length, units: layer.categories.length, d: depth }) /* #2956 */ : tr("{name}: {n} point(s), {units} unit(s): the first logged unit under the overburden / casing / no recovery at the top of each hole, at the hole's position at that depth. A start for the map, not a mapped outcrop.", { name, n: pts.length, units: layer.categories.length }),
-      rep.notAtDepth ? tr("{n} hole(s) whose log does not cover {d} m down were left out.", { n: rep.notAtDepth, d: depth }) : "" /* #2956 */, skipped > 0 ? (() => { const lo = subcropLeftOut({ collars, litho: layers.litho, roleOf: roleWithCodes(modellingCodes) }); return tr("{n} hole(s) were left out: {a} with no lithology log, {b} with only blank codes, {c} with only cover (overburden / casing / no recovery).", { n: skipped, a: lo.noLog, b: lo.blankOnly, c: lo.coverOnly }); })() /* #2566 — the reason, not one guess for all */ : "", late, depth == null ? tr("Each point keeps the depth of the cover above it (cover_m): 'Colour by depth of cover' below maps it.") : ""].filter(Boolean).join(" ") }); // cover_m: #2956
+      rep.notAtDepth ? tr("{n} hole(s) whose log does not cover {d} m down were left out.", { n: rep.notAtDepth, d: depth }) : "" /* #2956 */, skipped > 0 ? (() => { const lo = subcropLeftOut({ collars, litho: layers.litho, roleOf: roleWithCodes(modellingCodes) }); return tr("{n} hole(s) were left out: {a} with no lithology log, {b} with only blank codes, {c} with only cover (overburden / casing / no recovery).", { n: skipped, a: lo.noLog, b: lo.blankOnly, c: lo.coverOnly }); })() /* #2566 — the reason, not one guess for all */ : "", late, skippedText(skippedCodes) /* #3366 */, depth == null ? tr("Each point keeps the depth of the cover above it (cover_m): 'Colour by depth of cover' below maps it.") : ""].filter(Boolean).join(" ") }); // cover_m: #2956
   };
   // TASKS.csv #2956 — a code ticked as cover in the subcrop card: its role written as 3D Modelling > Modelling codes would (unticked: stratigraphic)
   const setCoverRole = (code, on) => setModellingCodes((p) => {
@@ -637,16 +644,27 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       {subcropCard && mapLayers.some((l) => l.name === subcropCard.name) && (() => { /* TASKS.csv #2956 — what the holes start in, cover, outlines */
         const layer = mapLayers.find((l) => l.name === subcropCard.name);
         const starts = holeStartCodes({ collars, litho: layers.litho, roleOf: roleWithCodes(modellingCodes) }), total = starts.reduce((a, c) => a + c.holes, 0) || 1;
+        // TASKS.csv #3366 — every code skipped as cover (ticked, with its holes and longest run; a role from the notes says so), then the other codes
+        // the holes start in: a wrong skip can be seen and unticked
+        const skipped = subcropSkippedCodes({ collars, litho: layers.litho, roleOf: roleWithCodes(modellingCodes) }), skipKeys = new Set(skipped.map((c) => c.code.toUpperCase()));
+        const others = starts.filter((c) => !skipKeys.has(c.code.toUpperCase()));
         return (
           <div style={{ marginTop: 8, padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
-            <div style={{ marginBottom: 4 }}>{tr("What the holes start in (the first logged code at the collar). Tick the codes that are cover and make it again: the map then shows the first unit under them. A tick sets the code's role to overburden, as 3D Modelling > Modelling codes does.")}</div>
-            {starts.slice(0, 10).map((c) => (
+            <div style={{ marginBottom: 4 }}>{tr("The codes skipped as cover (ticked), then what the other holes start in (the first logged code at the collar). Untick a code that is rock, or tick one that is cover, and make it again. A tick sets the code's role to overburden and an untick to stratigraphic, as 3D Modelling > Modelling codes does.")}</div>
+            {skipped.map((c) => (
+              <label key={"s:" + c.code} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <input type="checkbox" checked={c.role === "overburden" || c.role === "no recovery"} onChange={(e) => setCoverRole(c.code, e.target.checked)} aria-label={tr("{code} is cover", { code: c.code })} />
+                <span style={{ flex: 1 }}>{c.code}{coverRoleSource(c.code, modellingCodes) === "notes" && <em style={{ color: "var(--color-text-muted)" }}> {tr("from its notes")}</em>}</span>
+                <span>{c.whole ? tr("skipped in {n} hole(s), up to {m} m; the whole log of {w}", { n: c.holes, m: c.maxM, w: c.whole }) : tr("skipped in {n} hole(s), up to {m} m", { n: c.holes, m: c.maxM })}</span>
+              </label>
+            ))}
+            {others.slice(0, 10).map((c) => (
               <label key={c.code} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <input type="checkbox" checked={c.role === "overburden" || c.role === "no recovery"} onChange={(e) => setCoverRole(c.code, e.target.checked)} aria-label={tr("{code} is cover", { code: c.code })} />
                 <span style={{ flex: 1 }}>{c.code}</span><span>{tr("{n} hole(s), {p}%", { n: c.holes, p: Math.round((100 * c.holes) / total) })}</span>
               </label>
             ))}
-            {starts.length > 10 && <div>{tr("…and {n} more code(s): all of them are in 3D Modelling > Modelling codes.", { n: starts.length - 10 })}</div>}
+            {others.length > 10 && <div>{tr("…and {n} more code(s): all of them are in 3D Modelling > Modelling codes.", { n: others.length - 10 })}</div>}
             <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
               <button onClick={() => makeSubcrop(layer)} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>{tr("Make it again")}</button>
               {subcropCard.depth == null && <button onClick={() => changeStyleField(layer, "cover_m")} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>{tr("Colour by depth of cover")}</button>}
