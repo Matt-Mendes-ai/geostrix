@@ -24,7 +24,7 @@ const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "weath", "structzo
 import { arrMin, arrMax, sortedWeighted } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread); sortedWeighted: #2910
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
 import { t as tr } from "../lib/i18n.js";
-import { axisFig } from "../lib/numberFormat.js"; // TASKS.csv #3293 — axis ends in plain digits // TASKS.csv #786
+import { axisFig, axisTicks } from "../lib/numberFormat.js"; // TASKS.csv #3293 — axis ends in plain digits // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { gradeStatsRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
 import { weightedProbPoints, weightedPercentile, capEffect, thinToPixels } from "../lib/probPlot.js"; // TASKS.csv #1388; thinToPixels: #1512
@@ -549,7 +549,7 @@ function BoxPlots({ groups, domainLabel, logScale, unit, fit = false }) { // fit
   // TASKS.csv #2714 — the label margin follows the longest label (up to 40 % of the width); a longer one is cut with an ellipsis
   const names = groups.map((g) => String(domainLabel(g.key)));
   const padL = labelMargin(names, fontSizes.sm, { min: fit ? 110 : 90, width: w });
-  const h = groups.length * rowH + 34;
+  const h = groups.length * rowH + 48; // 14 px more for the ticks (#3481)
   const { x, low, high } = boxPlotScale(groups.map((g) => g.stats), logScale, padL, w - padR); // TASKS.csv #1185
   return (
     <svg width={fit ? "100%" : w} height={fit ? undefined : h} viewBox={fit ? `0 0 ${w} ${h}` : undefined} style={{ maxWidth: "100%", display: "block" }}>
@@ -567,6 +567,7 @@ function BoxPlots({ groups, domainLabel, logScale, unit, fit = false }) { // fit
           </g>
         );
       })}
+      {axisTicks(low, high, logScale && low > 0).map((v) => <g key={v}>{/* TASKS.csv #3481 — round ticks along the bottom, in plain digits */}<line x1={x(v)} x2={x(v)} y1={h - 30} y2={h - 26} stroke="#9aa5b3" /><text x={x(v)} y={h - 17} fontSize={fontSizes.xs} fill="#55606e" textAnchor="middle">{axisFig(v)}</text></g>)}
       <text x={padL} y={h - 6} fontSize={fontSizes.xs} fill="#55606e">{axisFig(low)}</text>
       <text x={w - padR} y={h - 6} fontSize={fontSizes.xs} fill="#55606e" textAnchor="end">{axisFig(high)} {unit}{logScale ? ` (${tr("log scale")})` : ""}</text>
     </svg>

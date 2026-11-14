@@ -25,10 +25,10 @@ test("the tables: collars, surveys, numeric intervals together, each code column
   const r = await geoh5ToProjectObjects(buf(await geoh5FixtureBytes()), 1e6, { baseName: "My survey.geoh5" });
   assert.equal(r.drillholes, 2);
   const by = Object.fromEntries(r.drillholeTables.map((f) => [f.name, rows(f.text)]));
-  assert.deepEqual(Object.keys(by), ["My_survey_geoh5_collars.csv", "My_survey_geoh5_surveys.csv", "My_survey_geoh5_interval_values.csv", "My_survey_geoh5_Lithology.csv", "My_survey_geoh5_points.csv"]);
+  assert.deepEqual(Object.keys(by), ["My_survey_geoh5_collars.csv", "My_survey_geoh5_surveys.csv", "My_survey_geoh5_assays.csv", "My_survey_geoh5_Lithology.csv", "My_survey_geoh5_points.csv"]);
   assert.deepEqual(by["My_survey_geoh5_collars.csv"], [["hole_id", "x", "y", "z", "azimuth", "dip", "depth"], ["DH-1", "1000", "2000", "360", "90", "-60", "120"], ["DH-2", "1050", "2010", "358", "270", "-75", "80"]]);
   assert.equal(by["My_survey_geoh5_surveys.csv"].length, 4);
-  assert.deepEqual(by["My_survey_geoh5_interval_values.csv"][2], ["DH-1", "10", "40", ""]);
+  assert.deepEqual(by["My_survey_geoh5_assays.csv"][2], ["DH-1", "10", "40", ""]);
   assert.deepEqual(by["My_survey_geoh5_Lithology.csv"][0], ["hole_id", "from", "to", "Lithology"]);
   assert.deepEqual(by["My_survey_geoh5_points.csv"].slice(1), [["DH-1", "5", "0.002"], ["DH-1", "50", "0.015"]]);
 });
@@ -51,8 +51,17 @@ test("two FROM / TO sets on one hole (lithology and assays on different interval
   assert.deepEqual([dh.intervalSets[1].from, Array.from(dh.intervalSets[1].columns.Au_ppm)], [[0, 2, 4], [0.1, 2.5, 0.3]]);
   const r = await geoh5ToProjectObjects(buf(await geoh5FixtureBytes({ twoSets: true })), 1e6, { baseName: "two" });
   const names = r.drillholeTables.map((f) => f.name);
-  assert.ok(names.some((n) => /^two_intervals_\d+_Cu_ppm/.test(n)) && names.some((n) => /^two_intervals_\d+_Au_ppm/.test(n)), names.join(" "));
+  assert.ok(names.some((n) => /^two_assays_\d+/.test(n)) && names.filter((n) => /^two_assays_\d+/.test(n)).length === 2, names.join(" "));
   assert.equal(r.drillholes, 3); assert.equal(r.surveyStations, 4);
-  const au = r.drillholeTables.find((f) => /Au_ppm/.test(f.name)).text.trim().split(/\r\n/);
+  const au = r.drillholeTables.filter((f) => /assays/.test(f.name)).map((f) => f.text).find((x) => /Au_ppm/.test(x)).trim().split(/\r\n/);
   assert.deepEqual(au, ["hole_id,from,to,Au_ppm", "DH-3,0,2,0.1", "DH-3,2,4,2.5", "DH-3,4,6,0.3"]);
+});
+
+test("#3480: a numeric interval table with one element column is named *_assays, and the import's own check takes it for assays", async () => {
+  const { looksLikeAssay, } = await import("../src/lib/viewer/importHelpers.js");
+  const r = await geoh5ToProjectObjects(buf(await geoh5FixtureBytes()), 1e6, { baseName: "one" });
+  const f = r.drillholeTables.find((t) => /_assays\.csv$/.test(t.name));
+  assert.ok(f, r.drillholeTables.map((t) => t.name).join(" "));
+  assert.equal(looksLikeAssay(f.text.split(/\r\n/)[0].split(","), f.name), true);
+  assert.equal(looksLikeAssay(["hole_id", "from", "to", "Cu_ppm"], "one_interval_values.csv"), false, "the old name was not enough");
 });

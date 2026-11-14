@@ -4,6 +4,7 @@
 import { parseGeoh5 } from "./geoh5.js";
 import { elementsToProjectObjects } from "./omfImport.js";
 import { t as tr } from "./i18n.js";
+import { isElementColumn } from "./geochemColumns.js"; // TASKS.csv #3480
 
 export async function geoh5ToProjectObjects(arrayBuffer, maxCells, opts = {}) {
   const ws = await parseGeoh5(arrayBuffer);
@@ -41,7 +42,10 @@ export function drillholeTables(holes, base = "geoh5") {
   const multi = holes.some((h) => (h.intervalSets || []).length > 1);
   sets.forEach((g, gi) => {
     const isNum = (k) => g.parts.some(({ s }) => s.columns[k] instanceof Float64Array), num = g.names.filter(isNum), codes = g.names.filter((k) => !isNum(k));
-    const tag = multi ? `intervals_${gi + 1}_${safeName(num.slice(0, 2).join("_")).slice(0, 40)}` : "interval_values";
+    // TASKS.csv #3480 — a numeric table whose columns read as elements (Cu_ppm, Au) is named *_assays: the import's own check (a name with "assay" beside from / to) then
+    // sends it to Geochem's assay dialog, where a lone element column was guessed as a Lithology layer
+    const assays = num.some((k) => isElementColumn(k));
+    const tag = assays ? (multi ? `assays_${gi + 1}` : "assays") : multi ? `intervals_${gi + 1}_${safeName(num.slice(0, 2).join("_")).slice(0, 40)}` : "interval_values";
     if (num.length) out.push({ name: `${b}_${tag}.csv`, text: csv(["hole_id", "from", "to", ...num], g.parts.flatMap(({ h, s }) => s.from.map((f, i) => [h.name, f, s.to[i], ...num.map((k) => s.columns[k]?.[i])]))) });
     for (const k of codes) out.push({ name: multi ? `${b}_intervals_${gi + 1}_${safeName(k)}.csv` : `${b}_${safeName(k)}.csv` /* multi: a code column of two sets would share a name */, text: csv(["hole_id", "from", "to", k], g.parts.flatMap(({ h, s }) => s.from.map((f, i) => [h.name, f, s.to[i], s.columns[k]?.[i]]).filter((r) => r[3] !== "" && r[3] != null))) });
   });

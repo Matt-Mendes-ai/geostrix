@@ -9,5 +9,5 @@ test("plain digits, three significant figures, no exponent", () => {
 });
 test("wired", () => {
   const s = fs.readFileSync(new URL("../src/components/GradeStatistics.jsx", import.meta.url), "utf8");
-  assert.ok(s.includes("{axisFig(low)}</text>") && s.includes("{axisFig(high)} {unit}") && s.includes("import { axisFig }"));
+  assert.ok(s.includes("{axisFig(low)}</text>") && s.includes("{axisFig(high)} {unit}") && s.includes("import { axisFig"));
 });
