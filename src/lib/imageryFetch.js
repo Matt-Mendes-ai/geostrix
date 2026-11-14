@@ -307,7 +307,7 @@ export async function fetchLatestTrueColour(bboxLonLat, { targetEpsg = null, max
   const pixelM = Math.round(Math.max(out.scaleX, out.scaleY));
   return {
     name: `Sentinel-2 ${scene.date} natural colour (~${pixelM} m pixels)`,
-    bbox, dataUrl, gridW: out.width, gridH: out.height, epsg: out.epsg, scene,
+    bbox, dataUrl, gridW: out.width, gridH: out.height, epsg: out.epsg, scene, pixelM: Math.max(out.scaleX, out.scaleY), // pixelM: #3251, said on the raster's card
     areaCloud: bad,
     note: tr(" Scene {id}, {date}: {pct}% cloud or shadow over your area (scenes tried, newest first: {tried}). Natural colour (red / green / blue surface reflectance stretched together).", { id: scene.id, date: scene.date, pct: Math.round(100 * bad), tried: tried.join(", ") }),
   };

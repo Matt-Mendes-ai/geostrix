@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 const read = (f) => readFileSync(f, "utf8");
 const main = read("electron/main.js"), win = read("src/components/SectionWindow.jsx"), tabs = read("src/components/SectionTabs.jsx");
 test("#1303 a window takes its own section's data only, and ids stay unique across tabs", () => {
-  assert.match(win, /if \(!tabId \|\| d\.id !== tabId\) return;/);
+  assert.match(win, /if \(!tabId \|\| d0\.id !== tabId\) return; const d = unpackSectionPayload\(d0\);/ /* #2343: the packed bulk unpacked after the id check */);
   assert.ok(!win.includes('id="sectionPlotArea"'), "a hidden tab's clip path would hide the shown tab's drawing");
   assert.ok(!win.includes('id="ge-outline-names"'));
   assert.match(win, /plotClipId = `sectionPlotArea\$\{useId\(\)/);

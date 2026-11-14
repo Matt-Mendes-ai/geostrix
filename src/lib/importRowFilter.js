@@ -90,11 +90,19 @@ export function applyRowFilter(rows, filter) {
   if (!(rows || []).some((r) => r && filter.col in r)) return { rows, dropped: 0 }; // `in`: the column reader's rows have getters, not own keys
   const keep = new Set(filter.keep.map(norm));
   const kept = (rows || []).filter((r) => keep.has(norm(r?.[filter.col])));
+  if (filter.also) { const b = applyRowFilter(kept, filter.also); return { rows: b.rows, dropped: (rows || []).length - b.rows.length }; } // #3207 follow-up
   return { rows: kept, dropped: (rows || []).length - kept.length };
 }
 
 // the filter an import gets when the user has not set one: the flag column's preset, or none (the dialog's box and the commit both ask this)
-export const defaultRowFilter = (headers, rows, { qc = true } = {}) => { const cols = rowFilterColumns(headers, rows); return (qc ? qcRowFilter(cols) : null) || flagRowFilter(cols) || runRowFilter(cols); }; // run: #2898; qc: #3207
+// TASKS.csv #3207 follow-up — a QC sample-type column AND a reject / supersede flag (Galore Creek's SG table: 'SG Sample Type' and 'Rejected?'): both
+// apply, the flag carried as `also` (the dialog says both; a filter the user picks in the box is one column, as before)
+export const defaultRowFilter = (headers, rows, { qc = true } = {}) => {
+  const cols = rowFilterColumns(headers, rows);
+  const q = qc ? qcRowFilter(cols) : null, fl = flagRowFilter(cols);
+  if (q && fl && fl.col !== q.col) return { ...q, also: fl };
+  return q || fl || runRowFilter(cols);
+}; // run: #2898; qc: #3207
 
 // TASKS.csv #2391 (split from #2330, review #2325) — the intervals of an import that overlap another of the same hole, and the column that
 // probably explains them: one of a few values (a flag, version or priority) that the overlapping rows carry far more often than the rest.
@@ -118,8 +126,10 @@ export function overlapSummary(rows, cols, headers) {
   if (over.size) {
     const skip = new Set([cols.hole, cols.from, cols.to]);
     for (const c of rowFilterColumns((headers || []).filter((h) => !skip.has(h)), rows)) {
-      // a flag, version or priority column by its name, or a column of words (a lab, a status): never a grade with few values
-      if (c.values.length > 6 || !(FLAGLIKE.test(key(c.col)) || c.values.some(([v]) => v !== "" && !Number.isFinite(Number(v))))) continue;
+      // a flag, version or priority column by its name, or one whose values all read as a flag (Y / N, current, superseded, v2 …): never a
+      // grade with few values. TASKS.csv #3210 (#3195, Galore Creek) — any column of words used to qualify, and an overburden log's soil
+      // property was named as what may mark the out-of-date rows ('33% of them have Dry Strength = M')
+      if (c.values.length > 6 || !(FLAGLIKE.test(key(c.col)) || c.values.every(([v]) => v === "" || FLAG_VALUE.test(String(v).trim())))) continue;
       const inOver = new Map();
       for (const i of over) { const v = norm(rows[i]?.[c.col]); inOver.set(v, (inOver.get(v) || 0) + 1); }
       for (const [v, n] of c.values) {
@@ -130,6 +140,7 @@ export function overlapSummary(rows, cols, headers) {
   }
   return { n: over.size, holes: holes.size, total, col: best?.col ?? null, value: best?.value ?? null, share: best?.share ?? null };
 }
+const FLAG_VALUE = /^(y|n|yes|no|true|false|t|f|x|-1|0|1|current|superseded|old|new|latest|final|draft|re-?log(ged)?|original|primary|secondary|active|inactive|valid|invalid|deleted|void|rejected|accepted|v\d+|rev\s*\d+)$/i; // #3210
 const FLAGLIKE = /(supersed|obsolete|delet|replac|void|reject|current|valid|latest|active|accept|version|^ver$|priority|prio|status|flag|rank|primary|rerun|order|seq)/i;
 // whether an overlap count is worth a notice: more than a few rows and more than 2 % of them
 export const overlapWorthSaying = (s) => s.n >= 5 && s.n > 0.02 * s.total;

@@ -21,8 +21,11 @@ test("(8) a division by zero is not 'missing an element'", () => {
   const assays = [{ values: { Fe: 60, Si: 3 } }, { values: { Fe: 55, Si: 0 } }, { values: { Fe: 50 } }];
   const r = addCalculatedElement(assays, [{ symbol: "Fe", unit: "%" }, { symbol: "Si", unit: "%" }], "FeSi", "Fe / Si");
   assert.equal(r.computed, 1); assert.equal(r.divZero, 1); assert.equal(r.skipped, 1);
+  // #3226 (2) — a log of a negative number is not 'missing an element' either
+  const g = addCalculatedElement([{ values: { Cu: 300 } }, { values: { Cu: 900 } }, { values: {} }], [{ symbol: "Cu", unit: "ppm" }], "LogT", "log10(Cu-460)");
+  assert.equal(g.computed, 1); assert.equal(g.divZero, 1); assert.equal(g.skipped, 1);
   const G = readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8");
-  assert.equal((G.match(/r\.divZero \? tr\("; \{n\} divided by zero, so no value"/g) || []).length, 2, "both notices (assays, surface samples)");
+  assert.equal((G.match(/r\.divZero \? tr\("; \{n\} could not be computed from their values/g) || []).length, 2, "both notices (assays, surface samples)"); // #3226 (2): not only a division
   assert.match(G, /\.map\(\(e\) => e\.unit\)\.filter\(\(u\) => u && unitBasis\(u\)\.oxide\)\) \/\* #3160/);
 });
 

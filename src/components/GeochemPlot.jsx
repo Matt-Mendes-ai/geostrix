@@ -93,6 +93,10 @@ function HoverTip({ hover, lines }) {
   );
 }
 
+// TASKS.csv #3231 (#2925 (3), review #2876) — 'n of m samples plotted' counted the points drawn outside a fixed diagram's axes: a projected point
+// is plotted when it is inside them (the same test the circles use); a fitted range (dynamicRange) or a ternary holds every point
+export const onAxes = (d, p) => !p || d.ternary || d.dynamicRange || !d.xRange || !d.yRange || !(p.x < d.xRange[0] || p.x > d.xRange[1] || p.y < d.yRange[0] || p.y > d.yRange[1]);
+
 // ---------- binary (x-y, optional log) ----------
 function BinaryPlot({ diagram, projected, colorBy, svgRef, altBoxes, describe }) {
   let [xmin, xmax] = diagram.xRange || [0, 1];

@@ -1,5 +1,7 @@
 import React, { useEffect, useId, useMemo, useState, useRef, useLayoutEffect } from "react";
+import { bearingText, sectionLookText } from "../lib/layoutLinks.js"; // TASKS.csv #2308 — the side the section is seen from
 import { Camera, Pencil, Check, Undo2, X, Save, Download, FileText, Crosshair } from "./icons.js";
+import { unpackSectionPayload } from "../lib/sectionPack.js"; // TASKS.csv #2343 — a pushed payload's packed bulk
 import { onSectionData, sendSectionSnapshot, sendSectionContacts, saveFile, savePDF, canvasPngBytes, onSectionResnap } from "../lib/desktop.js"; // onSectionResnap: TASKS.csv #1485
 import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #395
 import { snapTargets, snapClick, moveVertex, deleteVertex, insertVertex, nearestSegment, setTieVertex, copyGhostString, onSectionPlane, contactsKey, sectionHasUnsaved } from "../lib/sectionDigitise.js"; // TASKS.csv #519; copyGhostString: #1059
@@ -80,6 +82,11 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   // different visible-hole set intact, unlike screen-relative fractions would.
   const [contacts, setContacts] = useState([]);
   const [savedKey, setSavedKey] = useState(contactsKey([])); // #1323 — the lines as last loaded or saved
+  // TASKS.csv #3259 (Galore review) — a section along a steep hole (694 m, dip -75) opened 1,037 x 3,009 px in a 464 px tall view: fitted to the
+  // width only, never seen whole. With 'Fit to window' (on to start with) the drawing's height is capped at the window's, so it scales to fit
+  // both ways at its own VE (the click mapping goes through the SVG's own transform); off, it is full width and scrolls, for detail.
+  const [fitWhole, setFitWhole] = useState(() => { try { return localStorage.getItem("geostrix.sectionFit") !== "0"; } catch { return true; } });
+  useEffect(() => { try { localStorage.setItem("geostrix.sectionFit", fitWhole ? "1" : "0"); } catch { /* storage off */ } }, [fitWhole]);
   const unsavedRef = useRef(false);
   const [drawing, setDrawing] = useState(false);
   // TASKS.csv #519 — snap clicks to the logged contacts / traces, and edit a finished string's vertices
@@ -163,7 +170,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   useEffect(() => {
     const takeLabels = (d) => { if (!d) return; setLabels(d.labels ? { mode: "collar", leaders: "auto", ...d.labels, offsets: d.labels.offsets || {} } : { mode: "collar", leaders: "auto", offsets: {} }); }; // #823 — a section without saved labels starts from the defaults
     // TASKS.csv #876 — a quiet refresh (an explicit surface was rebuilt) updates the drawing but keeps what is being drawn
-    const off = onSectionData((d) => { if (!tabId || d.id !== tabId) return; /* #1303 — other tabs share this window */ if (d.refreshOnly) { setData((prev) => ({ ...d, contacts: prev?.contacts })); const r = document.documentElement.dataset; r.sectionRefreshes = String((Number(r.sectionRefreshes) || 0) + 1); return; } setData(d); if (!unsavedRef.current) { setContacts(d.contacts || []); setSavedKey(contactsKey(d.contacts)); } /* #1323 — reopening the section must not wipe lines not saved yet */ takeLabels(d); });
+    const off = onSectionData((d0) => { if (!tabId || d0.id !== tabId) return; const d = unpackSectionPayload(d0); /* #2343 */ /* #1303 — other tabs share this window */ if (d.refreshOnly) { setData((prev) => ({ ...d, contacts: prev?.contacts })); const r = document.documentElement.dataset; r.sectionRefreshes = String((Number(r.sectionRefreshes) || 0) + 1); return; } setData(d); if (!unsavedRef.current) { setContacts(d.contacts || []); setSavedKey(contactsKey(d.contacts)); } /* #1323 — reopening the section must not wipe lines not saved yet */ takeLabels(d); });
     if (initial) { setData(initial); setContacts(initial.contacts || []); setSavedKey(initial.savedContactsKey ?? contactsKey(initial.contacts)); takeLabels(initial); } // #1303 — from the tab host; savedContactsKey: #1323, a popped-out section keeps its unsaved state
     const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
     const id = params.get("id");
@@ -224,7 +231,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
     // #2610 — the payload is built now (at the print size); the font goes in before it is sent
     const send = (p) => embedFigureFont(markup).catch(() => markup).then((m) => sendSectionSnapshot({ ...p, src: `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(m)))}` }));
     send({
-      label: data?.title || "Cross-section",
+      label: `${data?.title || "Cross-section"}${data?.section ? ` · ${sectionLookText(Number(data.section.azimuth ?? ((Math.atan2(data.section.bx - data.section.ax, data.section.by - data.section.ay) * 180) / Math.PI + 360) % 360))}` : ""}`, // #2308 — page text, English
       naturalW: dims.w, naturalH: dims.h,
       sectionTabId: tabId, textFactor: Number(textFactor) > 0 ? Number(textFactor) : 1, replaceElementId: replaceElementId || null, resnapRound: round, // #1485 — so Layout can ask for the text at its print size
       // TASKS.csv — Layout scale-bar assignment for cross-sections: the real-world horizontal span
@@ -493,6 +500,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
           <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={tr("Vertical exaggeration — 1x is true scale (vertical and horizontal axes at the same real-world-units-per-pixel)")}>{tr("VE")}<input type="number" min="0.1" max="20" step="0.5" value={vExag ?? ""} onChange={(e) => setVExag(Math.min(MAX_SECTION_VE, Math.max(0.1, Number(e.target.value) || 1)))} style={{ width: 46, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, color: "#1a2028", fontSize: 11, padding: "3px 5px" }} />
             ×
           </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("Scale the section to fit the window, both ways, at its VE (off: full width, scroll for detail)")}><input type="checkbox" checked={fitWhole} onChange={(e) => setFitWhole(e.target.checked)} />{tr("Fit to window")}</label>{/* #3259 */}
           {onPopOut && !drawing && <button onClick={() => onPopOut({ ...data, contacts, labels, savedContactsKey: savedKey })} style={btnStyle(false)} title={tr("Open this section in a window of its own, to compare it beside another. It uses more memory than a tab.")}>{tr("Own window")}</button>}{/* #1303 */}
           <button onClick={exportPNG} style={btnStyle(false)} title={tr("Export section → PNG")}><Download size={14} />{" "}{tr("PNG")}</button>
           <button onClick={exportSVG} style={btnStyle(false)} title={tr("Export section → SVG")}><Download size={14} />{" "}{tr("SVG")}</button>
@@ -550,7 +558,8 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
         </div>
       )}
 
-      <div className="ge-section-body" style={{ flex: 1, overflow: "auto", padding: 16 }}>
+      <div className={`ge-section-body${fitWhole ? " ge-section-fit" : ""}`} style={{ flex: 1, overflow: "auto", padding: 16 }}>
+        {fitWhole && <style>{"@media screen { .ge-section-fit > svg { max-height: calc(100vh - 250px); height: auto; } }"}</style>}{/* #3259 — not in print */}
         {/* TASKS.csv #1230 — over the section's title margin, not in the toolbar: wrapping there moved the section ~23 px under the cursor as the first click was aimed */}
         {drawing && (
           <div style={{ position: "sticky", top: 0, height: 0, zIndex: 5 }}>
@@ -630,7 +639,8 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
   autoVERef.current = autoVE;
   const vExag = vExagIn ?? autoVE ?? 1;
   // TASKS.csv #1256 — at a large text size the subtitle ran past the frame and the PNG cut the sentence
-  const subtitleLines = wrapText(tr("Azimuth {v}° · {v2}{v3} · elevation in m", { v: Number(section.azimuth ?? (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360).toFixed(0), v2: vExag && vExag !== 1 ? tr("{vExag}x vertical exaggeration", { vExag }) : tr("no vertical exaggeration"), v3: section.corridor ? tr(" · data within ±{corridor} m of the line (dashed = trace projected from further away)", { corridor: section.corridor }) : "" }), Math.floor((W - 2 * PAD) / (0.56 * fs(10))));
+  const azDeg = Number(section.azimuth ?? (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360); // #2308 — and the side it is seen from: the start is on the left, so the reader faces the azimuth - 90°
+  const subtitleLines = wrapText(tr("Azimuth {v}° · looking {look} · {v2}{v3} · elevation in m", { v: azDeg.toFixed(0), look: bearingText(azDeg - 90), v2: vExag && vExag !== 1 ? tr("{vExag}x vertical exaggeration", { vExag }) : tr("no vertical exaggeration"), v3: section.corridor ? tr(" · data within ±{corridor} m of the line (dashed = trace projected from further away)", { corridor: section.corridor }) : "" }), Math.floor((W - 2 * PAD) / (0.56 * fs(10))));
   // TASKS.csv #1637 — which ribbon is which: 5-6 parallel ribbons per hole had no key on the section itself
   { const rib = ribbonOrder(intervals); if (rib.length > 1) subtitleLines.push(...wrapText(tr("Ribbons on each hole, left to right: {list}", { list: rib.join(" · ") }), Math.floor((W - 2 * PAD) / (0.56 * fs(10))))); }
   if (!isFinite(minZ)) { minZ = 0; maxZ = 100; }

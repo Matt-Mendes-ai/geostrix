@@ -187,7 +187,7 @@ export function keptOrigin(prev, mean, tol = ORIGIN_KEEP_M) {
 }
 
 export function buildDrillholeScene(ctx) {
-  const { applyCategoryVisibility, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collarSize /* #2823 */, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, pointBuildersStale, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels } = ctx;
+  const { applyCategoryVisibility, applyHoleVisibilityRef, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collarSize /* #2823 */, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, pointBuildersStale, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels } = ctx;
   const groups = layerGroupsRef.current;
   if (!groups.litho || buildDefer.skip()) return; // #1500 — a restore just scheduled its state: build once, next render
   // TASKS.csv #131 — c.material?.map?.dispose?.() added alongside the existing geometry/material
@@ -719,7 +719,8 @@ export function buildDrillholeScene(ctx) {
     collarSize?.apply(groups.holes, labelAnchors); // TASKS.csv #2823 — the markers' size from the drilling / the setting, now they are batched
     syncHoleLabels(groups.hole_labels, labelAnchors, holeLabelModeRef.current, makeTextSprite);
   }
-  applyCategoryVisibility();
+  // TASKS.csv #3253 — the checked holes, then the category filters on top (applyHoleVisibility ends with them); the filters alone before
+  (applyHoleVisibilityRef?.current || applyCategoryVisibility)();
   // Same reasoning for legendOverride: build-time color now comes from baseColorForBuild (plain
   // default, no override), so a real rebuild's fresh meshes need any currently-active legend color
   // overrides reapplied here too, or they'd flash back to default colors until legendOverride itself

@@ -191,11 +191,12 @@ function stripDuplicateMarker(hole_id, patterns) {
 // counted in pairs.identicalRepeats.
 export function duplicatePairs(assays, symbol, elementUnits, patterns = DEFAULT_QAQC_PATTERNS, { minMean = 0, repeatedIntervals = false } = {}) {
   const originals = new Map(), bySampleId = new Map(), repeats = [];
+  let repeatedRows = 0; // TASKS.csv #3230 (#2925 (2)) — counted with the tick off too, so the tab can say how many there are to read
   assays.forEach((a) => {
     if (classifyQAQCRow(a, patterns) !== "regular") return;
     const k = `${a.hole_id}|${a.from}|${a.to}`;
     if (!originals.has(k)) originals.set(k, a); // the FIRST row of an interval is its original (#579)
-    else if (repeatedIntervals) repeats.push(a);
+    else { repeatedRows++; if (repeatedIntervals) repeats.push(a); }
     if (a.sample_id) bySampleId.set(String(a.sample_id), a);
   });
   const pairs = [];
@@ -218,9 +219,13 @@ export function duplicatePairs(assays, symbol, elementUnits, patterns = DEFAULT_
     const rpd = mean !== 0 ? (Math.abs(v1 - v2) / mean) * 100 : 0;
     pairs.push({ original_hole: orig.hole_id, duplicate_hole: a.hole_id, from: a.from, to: a.to, v1, v2, rpd, how, belowLimit: minMean > 0 && mean < minMean, kind: duplicateKind(a), sample_id: a.sample_id ?? null });
   });
-  repeats.forEach((a) => { // #579
-    const orig = originals.get(`${a.hole_id}|${a.from}|${a.to}`);
-    if (JSON.stringify(orig.values ?? null) === JSON.stringify(a.values ?? null)) { identicalRepeats++; return; }
+  const sid = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+  repeats.forEach((a0) => { // #579
+    const first = originals.get(`${a0.hole_id}|${a0.from}|${a0.to}`);
+    if (JSON.stringify(first.values ?? null) === JSON.stringify(a0.values ?? null)) { identicalRepeats++; return; }
+    // TASKS.csv #3230 — with sample ids on both rows, the lower id (natural order: S9 before S10) is the original, not the first row of the file
+    const swap = first.sample_id != null && a0.sample_id != null && first.sample_id !== "" && a0.sample_id !== "" && sid.compare(String(a0.sample_id), String(first.sample_id)) < 0;
+    const orig = swap ? a0 : first, a = swap ? first : a0;
     const v1 = valueIn(orig, symbol, elementUnits[symbol] || "ppm", elementUnits);
     const v2 = valueIn(a, symbol, elementUnits[symbol] || "ppm", elementUnits);
     if (v1 == null || v2 == null) return;
@@ -229,6 +234,7 @@ export function duplicatePairs(assays, symbol, elementUnits, patterns = DEFAULT_
     pairs.push({ original_hole: orig.hole_id, duplicate_hole: a.hole_id, from: a.from, to: a.to, v1, v2, rpd, how: "repeated interval", belowLimit: minMean > 0 && mean < minMean, kind: duplicateKind(a), sample_id: a.sample_id ?? null });
   });
   pairs.identicalRepeats = identicalRepeats;
+  pairs.repeatedRows = repeatedRows; // #3230
   return pairs;
 }
 

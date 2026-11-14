@@ -60,6 +60,18 @@ const AZ_TARGETS = new Set(["collars", "survey", "structure"]); // TASKS.csv #16
 // TASKS.csv #2886 — the dip column whose signs decide the pre-selected convention (collars and surveys)
 const dipColOf = (target, mapping) => (target === "collars" || target === "survey" ? mapping?.dip || null : null);
 
+// TASKS.csv #3205 — the per-mineral layers' rules (lib/perMineralColumns.js), loaded on demand before a commit that may need them (a Mineralization
+// or Custom interval table): kept here, not in the import's data, which a database import saves as its choices
+let perMineralLib = null;
+const loadPerMineral = async (target) => { if (!perMineralLib && (target === "mnlgy" || target === "custom")) { try { perMineralLib = await import("../../lib/perMineralColumns.js"); } catch { /* offline chunk: the import goes on without the per-mineral layers */ } } };
+
+// TASKS.csv #3211 — a custom interval layer's overlaps, counted for every one (the interval import says them only with a column that may explain them)
+function customOverlapText(rows) {
+  if (!rows.length || !rows.some((r) => Number.isFinite(r.from) && Number.isFinite(r.to))) return "";
+  const o = overlapSummary(rows, { hole: "hole_id", from: "from", to: "to" }, []);
+  return o.n ? " " + tr("{n} of the {total} interval(s) overlap another of the same hole, in {holes} hole(s): Data QC lists them.", { n: o.n.toLocaleString(), total: o.total.toLocaleString(), holes: o.holes }) : "";
+}
+
 export function useImportPipeline(ctx) {
   const { addVoxelModel, fillCodeDictionary, recordImportLeftOut, assays: storeAssays } = useStore(); // assays: #3039 // #2632; fillCodeDictionary: #2163; recordImportLeftOut: #2493
   const {
@@ -274,7 +286,7 @@ export function useImportPipeline(ctx) {
     const m = skipBlankValue(mapping, headers, rows);
     return ov ? { target, mapping: m, guessNote: ov } : { target, mapping: m };
   };
-  const azRefFor = (target, headers, rows) => { const d = AZ_TARGETS.has(target) ? detectAzimuthRef(headers, rows) : null; return d?.ref ? { azimuthRef: d.ref, azimuthRefFrom: d.col, ...(d.also ? { azimuthRefAlso: d.also } : {}) } : {}; }; // also: #2154
+  const azRefFor = (target, headers, rows) => { const d = AZ_TARGETS.has(target) ? detectAzimuthRef(headers, rows) : null; if (d?.tools && !d.ref) return { azimuthToolsCol: d.col }; /* #3209 */ return d?.ref ? { azimuthRef: d.ref, azimuthRefFrom: d.col, ...(d.also ? { azimuthRefAlso: d.also } : {}) } : {}; }; // also: #2154
   // TASKS.csv #2015 — a survey sheet's corrected azimuth column (grid when filled, else true north) is the one read
   const azColFor = (target, headers, rows, mapping) => { if (target === "structure" && mapping?.value) return { ...mapping, value: fullestTypeColumn(headers, rows, mapping.value) }; /* #2188 — the fullest of several *_StrucType columns */ if (target !== "survey" && target !== "collars") return mapping; /* collars: #2154 (Azimuth_MAG beside Azimuth_TRUE) */ const d = detectAzimuthRef(headers, rows); return d?.azimuthCol ? { ...mapping, azimuth: d.azimuthCol } : mapping; };
   // TASKS.csv #2341 — the file's columns this import did not read, named in the notice ("Add one under Extra fields to keep it")
@@ -296,7 +308,8 @@ export function useImportPipeline(ctx) {
       const o = overlapSummary(allRows, { hole: mapping.hole_id, from: mapping.from, to: mapping.to }, Object.keys(allRows?.[0] || {}));
       if (overlapWorthSaying(o) && o.col) setNotices((p) => [...p, notice("{fileName}: {n} of {total} interval(s) overlap another of the same hole, in {holes} hole(s); {pct}% of them have {col} = {value}, which may mark the out-of-date rows: the import's row filter can leave them out.", { fileName, n: o.n.toLocaleString(), total: o.total.toLocaleString(), holes: o.holes, pct: Math.round(o.share * 100), col: o.col, value: o.value || "(blank)" })]);
     }
-    if (rowsFiltered) setNotices((p) => [...p, notice("{fileName}: {n} row(s) left out by the row filter ({col} kept only where it is {values}).", { fileName, n: rowsFiltered.toLocaleString(), col: rowFilter.col, values: rowFilter.keep.map((v) => v || "(blank)").join(", ") })]);
+    if (rowsFiltered) setNotices((p) => [...p, appendNotice(notice("{fileName}: {n} row(s) left out by the row filter ({col} kept only where it is {values}).", { fileName, n: rowsFiltered.toLocaleString(), col: rowFilter.col, values: rowFilter.keep.map((v) => v || "(blank)").join(", ") }),
+      rowFilter.also ? " " + tr("{col} was also kept only where it is {values}.", { col: rowFilter.also.col, values: rowFilter.also.keep.map((v) => v || "(blank)").join(", ") }) : "")]); // also: #3207 follow-up
     // TASKS.csv #2159 — the mapped columns' no-data codes (-999, -999.25, -9999, -99999), read as missing by num(): counted and said once
     {
       const cols = [...new Set(Object.values(mapping || {}).filter(Boolean))], hits = new Map();
@@ -399,7 +412,9 @@ export function useImportPipeline(ctx) {
     const logChans = logChannelsFor(target, Object.keys(allRows[0] || {}), allRows, mapping, data.logChannels); // #2160 — the channels are the values
     // TASKS.csv #2891 — Recovery % with no Value column: computed from core loss (or recovered length) and the drilled run, unless declined
     const recCalc = target === "recovery" && !mapping.value && !data.recoveryCalcOff ? recoveryColumns(Object.keys(allRows[0] || {})) : null;
-    const missing = schema.fields.filter((f) => f.required && !mapping[f.key] && !(logChans && f.key === "value") && !(recCalc && f.key === "value"));
+    // TASKS.csv #3205 — a log in visual per cent per mineral: one layer per ticked mineral column (and the opt-in sulphide total); no Value needed
+    const minPlan = !logChans && perMineralLib ? perMineralLib.mineralPlan(target, data.headers || Object.keys(allRows[0] || {}), allRows, mapping, data) : null;
+    const missing = schema.fields.filter((f) => f.required && !mapping[f.key] && !(logChans && f.key === "value") && !(recCalc && f.key === "value") && !(minPlan && f.key === "value"));
     if (missing.length) { setNotices((p) => [...p, notice("{fileName}: map required field(s) — {v}", { fileName, v: missing.map((f) => f.label).join(", ") })]); return false; }
     // TASKS.csv #1963 — a table pulled from a database: its record (profile, schema, table, these choices) for "Reload from database"
     if (dbSource?.profile && setDbImports) { const rec = dbImportRecord(data, dbSource, target); if (rec) setDbImports((prev) => upsertDbImport(prev, rec)); }
@@ -734,6 +749,22 @@ export function useImportPipeline(ctx) {
       { const holes = new Set(rows.map((r) => r.hole_id)), saved = (importStateRef.current.layers?.structure || []).filter((r) => isDerivedPick(r) && holes.has(r.hole_id)).length; if (saved) setNotices((p) => [...p, tr("{saved} pick(s) from the Core orientation calculator were kept in these holes.", { saved })]); } // #1234
       setLayerVisible((p) => ({ ...p, structure: true }));
       setNotices((p) => [...p, appendNotice(notice("Loaded {rows} structure points from {fileName}.", { rows: rows.length, fileName }), skippedRowsText(stDropped, allRows.length))]); // #1070
+    } else if (minPlan) {
+      // TASKS.csv #3205 (Matt's decision 2026-11-13) — one numeric interval custom layer per mineral column, in % (visual), named after the
+      // column; an interval with no value of a mineral is not in its layer (not a 'blank code'); its style column rides along as text
+      const { layers: mLayers, made, outside } = perMineralLib.perMineralLayers(allRows, mapping, minPlan, fileName, (cols) => tr("total of {cols}", { cols: cols.join(" + ") }));
+      mLayers.forEach((l, k) => {
+        const id = `custom_${Date.now()}_${k}`;
+        const group = new THREE.Group(); group.name = id;
+        layerGroupsRef.current[id] = group;
+        sceneRef.current.getObjectByName("root").add(group);
+        setCustomLayers((p) => [...p, { id, name: l.name, rows: l.rows, group, unit: perMineralLib.UNIT, notes: l.notes }]);
+        setCustomVisible((p) => ({ ...p, [id]: k === 0 }));
+      });
+      if (!made.length) setNotices((p) => [...p, errorNotice(tr("{fileName}: nothing was added: no interval has a per-cent value in the ticked columns.", { fileName }))]);
+      else setNotices((p) => [...p, tr("{fileName}: {n} layer(s) of visual per cent (one per mineral column) imported: {list}. The first is shown; the others are in the Layers list.", { fileName, n: made.length, list: made.join(", ") })
+        + (minPlan.blank.length ? " " + tr("Left out, with no value in any row: {cols}.", { cols: minPlan.blank.join(", ") }) : "")
+        + (outside ? " " + tr("{n} value(s) below 0 or over 100 % were left out.", { n: outside.toLocaleString() }) : "")]);
     } else if (logChans) {
       // TASKS.csv #2160 (Matt's decision 2026-11-09) — a downhole log: one numeric layer per ticked channel, the unit from the column
       // name; binned (mean, min, max per bin) when chosen, which the dialog proposes when the readings would not fit
@@ -781,6 +812,8 @@ export function useImportPipeline(ctx) {
         if (!row.hole_id) { cDropped.push({ reason: "no hole id" }); continue; }
         if (isBlankCode(row.value)) { cDropped.push({ reason: "no code" }); continue; }
         if (!Number.isFinite(row.depth) && !(Number.isFinite(row.from) && Number.isFinite(row.to))) { cDropped.push({ reason: "no interval", example: row.hole_id }); continue; }
+        // TASKS.csv #3211 (#3195, Galore Creek) — a reversed interval (To above From in depth) was kept without a word: left out and named
+        if (Number.isFinite(row.from) && Number.isFinite(row.to) && row.to < row.from) { cDropped.push({ reason: "reversed", example: `${row.hole_id} ${row.from}-${row.to}` }); continue; }
         rows.push(row);
       }
       const layerName = String(data.customName || "").trim() || (mapping.value ? `${String(fileName).replace(/\.csv$/i, "")}: ${mapping.value}` : String(fileName).replace(/\.csv$/i, "")); // #2338
@@ -797,7 +830,7 @@ export function useImportPipeline(ctx) {
       setCustomVisible((p) => ({ ...p, [id]: true }));
       setNotices((p) => [...p, evNotes
         ? notice("Added \"{fileName}\" as a layer of depth picks ({rows} rows, {codes}): drawn on the traces, and offered as picks in the Explicit surface tool (one per hole) for a surface such as the base of oxidation.", { fileName, rows: rows.length, codes: [...new Set(rows.map((r) => String(r.value ?? "").trim()).filter(Boolean))].slice(0, 8).join(", ") })
-        : appendNotice(notice("Added \"{name}\" as a custom layer ({rows} rows).", { name: layerName, rows: rows.length }), skippedRowsText(cDropped, allRows.length))]); // #2338
+        : appendNotice(notice("Added \"{name}\" as a custom layer ({rows} rows).", { name: layerName, rows: rows.length }), skippedRowsText(cDropped, allRows.length) + customOverlapText(rows))]); // #2338; overlaps: #3211
       }
     } else {
       // _src (source filename) is stamped on every row here — TASKS.csv #63: lets the layer inspector
@@ -898,6 +931,7 @@ export function useImportPipeline(ctx) {
   };
   const commitImportOnce = async () => {
     await askCrsForCollars(importModal); // #615
+    await loadPerMineral(importModal.target); // #3205
     if (importModal.azimuthRef === "magnetic") { try { await loadIgrf(); } catch { /* offline chunk load failed: the conversion reports the holes it couldn't convert */ } } // #552
     // TASKS.csv #412 — feet and local mine grid are applied to the raw rows before the normal import.
     let modalData = importModal;
@@ -1143,10 +1177,17 @@ export function useImportPipeline(ctx) {
       goToModule("maps"); requestModuleAction("maps-lidar", { file: grouped.files.find((f) => f.name === lidarNames[0]) }); // Maps > Terrain reads it
       advised.push(notice(lidarNames.length > 1 ? "{names}: lidar point clouds, read in Maps > Terrain one at a time. The first is open there; drop the others there after it." : "{names}: a lidar point cloud, opened in Maps > Terrain.", { names: lidarNames.slice(0, 4).join(", ") + (lidarNames.length > 4 ? " …" : "") }));
     }
+    // TASKS.csv #3212 (#3195, Galore Creek) — an .xyz point file (an IP line, a survey's points) was refused with a list of formats that named
+    // neither the file nor where .xyz goes; the Geophysics tab reads it (a column picker). Handed to that tab's drop import, as lidar goes to Maps.
+    const xyzFiles = grouped.files.filter((f) => /\.xyz$/i.test(f.name));
+    if (xyzFiles.length) {
+      goToModule("geophysics"); requestModuleAction("geophysics-drop", { files: xyzFiles });
+      advised.push(notice("{names}: XYZ point files are read on the Geophysics tab, which opens them now.", { names: xyzFiles.slice(0, 4).map((f) => f.name).join(", ") + (xyzFiles.length > 4 ? " …" : "") }));
+    }
     if (advised.length) setNotices((p) => [...p, ...advised]);
-    const skipped = grouped.files.length - files.length - direct.length - advised.length - voFiles.length - voSide.size /* #2632 */ - (mshCount - mshAdvice.length) /* #1991: the Leapfrog meshes went to the solid import */ - Math.max(0, vsNames.length - 1) /* #1992 */ - Math.max(0, ediNames.length - 1) /* #1989: one notice for all of them */ - Math.max(0, lidarNames.length - 1) /* #1994 */ + grouped.unmatched.length;
+    const skipped = grouped.files.length - files.length - direct.length - advised.length - voFiles.length - voSide.size /* #2632 */ - (mshCount - mshAdvice.length) /* #1991: the Leapfrog meshes went to the solid import */ - Math.max(0, vsNames.length - 1) /* #1992 */ - Math.max(0, ediNames.length - 1) /* #1989: one notice for all of them */ - Math.max(0, lidarNames.length - 1) /* #1994 */ - Math.max(0, xyzFiles.length - 1) /* #3212 */ + grouped.unmatched.length;
     if (!files.length) {
-      if (!direct.length && !advised.length && !mshCount && !voFiles.length) setNotices((p) => [...p, notice("Only .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml/.kmz, .las logs, GeoTIFF / .gxf / .grd grids and .dxf / .obj files can be dropped in directly.")]);
+      if (!direct.length && !advised.length && !mshCount && !voFiles.length) setNotices((p) => [...p, notice("Not imported from this drop: {names}. Dropped here, the 3D View reads .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml / .kmz, .las logs, GeoTIFF / .gxf / .grd grids and .dxf / .obj files; point surveys (.xyz) open on the Geophysics tab.", { names: grouped.files.slice(0, 4).map((f) => f.name).join(", ") + (grouped.files.length > 4 ? " …" : "") })]); // #3212 — the file named; an info, not a red notice left on screen
       else if (skipped) setNotices((p) => [...p, notice("{skipped} unrecognized file(s) skipped.", { skipped })]);
       return;
     }
@@ -1297,6 +1338,7 @@ export function useImportPipeline(ctx) {
   // committed through the same dialog choices; assay tables go back through Geochem's commit. Says what each table gave.
   const reloadDbImports = async () => {
     const recs = dbImports || [];
+    for (const rec of recs) await loadPerMineral(rec.target); // #3205 — a per-mineral import reloads as one
     if (!recs.length) { setNotices((p) => [...p, notice("Nothing to reload: no layer of this project was imported from a database yet (Browser panel > a database table, or Database on the ribbon).")]); return; }
     if (!connectDb) return;
     const lines = [];

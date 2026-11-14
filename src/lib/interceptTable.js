@@ -25,6 +25,20 @@ export function columnFormat(values, sig = 4) {
   return (v) => (v == null || !Number.isFinite(Number(v)) ? "" : Number(v).toFixed(d));
 }
 
+// TASKS.csv #2708 (split from #2200 / #2479) — 'Continue on new pages': the intercepts the sheet's spot leaves out go on pages of their own
+// (the collar table's continuation, #1638), each table as many rows as a fresh page holds (no caveat note: it is on the first table).
+// first: the rows on the first table (plan.shown); total: all intercepts. -> [[from, to)] index ranges, one per continuation page
+export function continuationRanges(first, total, page, { w = 560, fontPt = 7 } = {}) {
+  const out = [];
+  for (let from = first; from < total;) {
+    const p = interceptTablePlan([], page, { total: total - from, w, fontPt, noteRows: 0 });
+    const n = Math.max(1, p.more > 0 ? p.shown : total - from); // a cut table's last row says it carries on, as the first table's does
+    out.push([from, from + n]);
+    from += n;
+  }
+  return out;
+}
+
 // the line above the dialog's table (#2200): how many intercepts, in how many holes
 export function interceptCount(results) {
   const holes = new Set((results || []).map((r) => r.hole_id));

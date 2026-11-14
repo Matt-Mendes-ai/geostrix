@@ -6,6 +6,7 @@ import { openCog, stacSearch, signPc, windowGrid, PC_SEARCH } from "./imageryFet
 import { reprojectXY, getProj4DefSync } from "./reproject.js";
 import { pointInRings } from "./mapLayers.js";
 import { t as tr } from "./i18n.js";
+import { arrMin, arrMax } from "./arrayStats.js"; // #3251 — no spread (#371)
 
 const NAIP_TOKEN = "https://planetarycomputer.microsoft.com/api/sas/v1/token/naipeuwest/naip";
 export const NAIP_FINEST_M = 0.6; // most states since 2010; some years are 0.3 or 1 m
@@ -75,7 +76,30 @@ function latticeMapper(grid, fromEpsg, toEpsg, step = 16) {
 
 const itemEpsg = (p) => p["proj:epsg"] ?? Number(String(p["proj:code"] || "").replace(/^EPSG:/i, ""));
 
-export async function fetchNaip(bboxLonLat, { targetEpsg = null, maxPx = 2048, onProgress } = {}) {
+// TASKS.csv #3251 (Matt: "even images from the US which were supposed to have 0.6m res are low res", Colorado) — the picture's grid was
+// capped at the level's longest side (1,024 / 2,048 / 3,072 px), so a 3 km area came in at 2.9 / 1.5 / 1.0 m pixels while Colorado's 2023
+// NAIP is 0.3 m. 'Full resolution' (full: true) fetches at the imagery's own pixel size, split into pictures of at most TILE_PX on a side
+// (the texture every GPU takes), at most MAX_SIDE_TILES x MAX_SIDE_TILES of them (about 360 MB of graphics memory at the most); a larger area
+// gets pixels just coarse enough to fit, and says so. The split is on the target grid, so the pictures meet edge to edge with no overlap.
+export const TILE_PX = 4096, MAX_SIDE_TILES = 2;
+// full grid { box, width, height, cell } -> { cell, nx, ny, tiles: [{ box, width, height, cell }] } (west to east, north to south)
+export function naipTiles(box, cellM, { tile = TILE_PX, maxSide = MAX_SIDE_TILES } = {}) {
+  const W = box[2] - box[0], H = box[3] - box[1];
+  const cell = Math.max(cellM, W / (maxSide * tile), H / (maxSide * tile));
+  const width = Math.max(1, Math.round(W / cell)), height = Math.max(1, Math.round(H / cell));
+  const nx = Math.ceil(width / tile), ny = Math.ceil(height / tile);
+  const split = (n, k) => Array.from({ length: k }, (_, i) => Math.floor(((i + 1) * n) / k) - Math.floor((i * n) / k));
+  const ws = split(width, nx), hs = split(height, ny), tiles = [];
+  let top = box[3];
+  for (const h of hs) {
+    let left = box[0];
+    for (const w of ws) { tiles.push({ box: [left, top - h * cell, left + w * cell, top], width: w, height: h, cell }); left += w * cell; }
+    top -= h * cell;
+  }
+  return { cell, nx, ny, width, height, tiles };
+}
+
+export async function fetchNaip(bboxLonLat, { targetEpsg = null, maxPx = 2048, full = false, onProgress } = {}) {
   const d = await stacSearch(PC_SEARCH, { collections: ["naip"], bbox: bboxLonLat, limit: 250, sortby: [{ field: "properties.datetime", direction: "desc" }] });
   const found = (d.features || []).filter((f) => f.assets?.image?.href).map((f) => ({ id: f.id, date: String(f.properties.datetime).slice(0, 10), gsd: f.properties.gsd, epsg: itemEpsg(f.properties), bbox: f.bbox, geometry: f.geometry, href: f.assets.image.href }));
   if (!found.length) throw new Error(tr("No NAIP imagery here. NAIP covers the USA only; elsewhere use the Sentinel-2 source."));
@@ -83,9 +107,45 @@ export async function fetchNaip(bboxLonLat, { targetEpsg = null, maxPx = 2048, o
   if (items.length > MAX_ITEMS) throw new Error(tr("This area spans {n} NAIP images, over the {max} read at once. Draw a smaller area.", { n: items.length, max: MAX_ITEMS }));
   const dst = Number(targetEpsg) && getProj4DefSync(targetEpsg) ? Number(targetEpsg) : items[0].epsg;
   const finest = Math.min(...items.map((i) => i.gsd).filter(Number.isFinite), NAIP_FINEST_M * 2);
-  const grid = windowGrid(bboxLonLat, dst, finest, maxPx);
+  // #3251 — one grid capped at the level's size, or (full) the imagery's own pixels in up to 2 x 2 pictures
+  const whole = windowGrid(bboxLonLat, dst, finest, full ? Infinity : maxPx);
+  const plan = full ? naipTiles(whole.box, finest) : { cell: whole.cell, tiles: [whole] };
+  const years = [...new Set(items.map((i) => i.date.slice(0, 4)))].sort();
+  const yearText = years.length > 1 ? `${years[0]}-${years[years.length - 1]}` : years[0];
+  const pixel = plan.cell < 10 ? Number(plan.cell.toFixed(plan.cell < 1 ? 2 : 1)) : Math.round(plan.cell);
+  const parts = [];
+  let done = 0;
+  const steps = plan.tiles.length * items.length;
+  for (const [k, grid] of plan.tiles.entries()) {
+    const tileLonLat = gridLonLat(grid, dst);
+    const part = await paintNaipGrid(grid, tileLonLat, items, dst, () => onProgress?.(++done, steps));
+    if (!part) continue;
+    const name = `NAIP ${yearText} natural colour (~${pixel} m pixels)${plan.tiles.length > 1 ? `, part ${k + 1} of ${plan.tiles.length}` : ""}`;
+    parts.push({ name, bbox: grid.box, dataUrl: part, gridW: grid.width, gridH: grid.height, pixelM: grid.cell });
+  }
+  if (!parts.length) throw new Error(tr("No NAIP imagery here. NAIP covers the USA only; elsewhere use the Sentinel-2 source."));
+  const native = finest < NAIP_FINEST_M * 2 ? finest : null;
+  const coarser = native && plan.cell > native * 1.01 ? Math.round((plan.cell / native) * 10) / 10 : 0;
+  return {
+    ...parts[0], parts, epsg: dst, partial: cover < 0.98, nativeM: native,
+    note: tr(" USDA NAIP aerial imagery, public domain, from the Microsoft Planetary Computer: {n} image(s) from {years}.", { n: items.length, years: yearText }) + (cover < 0.98 ? tr(" It covers about {pct}% of your area: the rest stays empty.", { pct: Math.round(cover * 100) }) : "")
+      + (parts.length > 1 ? tr(" In {n} pictures of at most {px} px a side, edge to edge.", { n: parts.length, px: TILE_PX }) : "")
+      + (coarser ? (full ? tr(" Its pixels are {m} m, {k} times the imagery's own {native} m: a smaller area gets finer ones.", { m: pixel, k: coarser, native }) : tr(" Its pixels are {m} m, {k} times the imagery's own {native} m: a smaller area, or Full resolution, gets finer ones.", { m: pixel, k: coarser, native })) : native ? tr(" At the imagery's own {native} m pixels.", { native }) : ""),
+  };
+}
+
+// a grid's box in the target CRS -> its lon / lat box (corners and edge middles), for the images' windows
+function gridLonLat(grid, epsg) {
+  const [x0, y0, x1, y1] = grid.box, xm = (x0 + x1) / 2, ym = (y0 + y1) / 2;
+  const ps = [[x0, y0], [x1, y0], [x1, y1], [x0, y1], [xm, y0], [xm, y1], [x0, ym], [x1, ym]].map(([x, y]) => reprojectXY(x, y, epsg, 4326)).filter(Boolean);
+  const xs = ps.map((p) => p.x), ys = ps.map((p) => p.y);
+  return [arrMin(xs), arrMin(ys), arrMax(xs), arrMax(ys)];
+}
+
+// the images painted onto one grid -> a data URL (WebP 0.9, else PNG), or null when nothing landed on it
+async function paintNaipGrid(grid, bboxLonLat, items, dst, step) {
   const rgba = new Uint8ClampedArray(grid.width * grid.height * 4);
-  let painted = 0, done = 0;
+  let painted = 0;
   for (const it of items) {
     const ov = [Math.max(bboxLonLat[0], it.bbox[0]), Math.max(bboxLonLat[1], it.bbox[1]), Math.min(bboxLonLat[2], it.bbox[2]), Math.min(bboxLonLat[3], it.bbox[3])];
     if (ov[0] < ov[2] && ov[1] < ov[3]) {
@@ -95,19 +155,14 @@ export async function fetchNaip(bboxLonLat, { targetEpsg = null, maxPx = 2048, o
       const c = [[ov[0], ov[1]], [ov[2], ov[1]], [ov[2], ov[3]], [ov[0], ov[3]]].map(([x, y]) => reprojectXY(x, y, 4326, dst));
       painted += paintWindow(rgba, grid, { box: w.box, width: w.width, height: w.height, cell: w.cell, bands, xmin: Math.min(...c.map((p) => p.x)), xmax: Math.max(...c.map((p) => p.x)), ymin: Math.min(...c.map((p) => p.y)), ymax: Math.max(...c.map((p) => p.y)) }, latticeMapper(grid, dst, it.epsg));
     }
-    onProgress?.(++done, items.length);
+    step();
   }
-  if (!painted) throw new Error(tr("No NAIP imagery here. NAIP covers the USA only; elsewhere use the Sentinel-2 source."));
+  if (!painted) return null;
   const canvas = document.createElement("canvas");
   canvas.width = grid.width; canvas.height = grid.height;
   canvas.getContext("2d").putImageData(new ImageData(rgba, grid.width, grid.height), 0, 0);
-  const dataUrl = (() => { const u = canvas.toDataURL("image/webp", 0.9); return u.startsWith("data:image/webp") ? u : canvas.toDataURL("image/png"); })();
-  const years = [...new Set(items.map((i) => i.date.slice(0, 4)))].sort();
-  const yearText = years.length > 1 ? `${years[0]}-${years[years.length - 1]}` : years[0];
-  const pixel = grid.cell < 10 ? Number(grid.cell.toFixed(1)) : Math.round(grid.cell);
-  return {
-    name: `NAIP ${yearText} natural colour (~${pixel} m pixels)`,
-    bbox: grid.box, dataUrl, gridW: grid.width, gridH: grid.height, epsg: dst, partial: cover < 0.98,
-    note: tr(" USDA NAIP aerial imagery, public domain, from the Microsoft Planetary Computer: {n} image(s) from {years}.", { n: items.length, years: yearText }) + (cover < 0.98 ? tr(" It covers about {pct}% of your area: the rest stays empty.", { pct: Math.round(cover * 100) }) : ""),
-  };
+  const webp = canvas.toDataURL("image/webp", 0.9);
+  const url = webp.startsWith("data:image/webp") ? webp : canvas.toDataURL("image/png");
+  canvas.width = canvas.height = 0; // #3251 — the 4096 px canvas let go before the next part
+  return url;
 }

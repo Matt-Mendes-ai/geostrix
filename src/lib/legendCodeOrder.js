@@ -38,6 +38,33 @@ export function projectCodeOrders(pages, openPageId, openElements, legendId) {
   return Object.assign({}, ...all.map((el) => el.codeOrder));
 }
 
+// TASKS.csv #3199 (split from #3130) — a recorded order only changed when the rows were moved again: 'Clear the set order' forgets it for
+// the given groups on every legend of `elements` (the open page's; a legend left with no order loses the field). -> elements
+export function clearCodeOrders(elements, groups) {
+  const drop = new Set(groups || []);
+  if (!drop.size) return elements;
+  return (elements || []).map((el) => {
+    if (el?.type !== "legend" || !el.codeOrder || !Object.keys(el.codeOrder).some((g) => drop.has(g))) return el;
+    const rest = Object.fromEntries(Object.entries(el.codeOrder).filter(([g]) => !drop.has(g)));
+    const { codeOrder: _gone, ...base } = el;
+    return Object.keys(rest).length ? { ...base, codeOrder: rest } : base;
+  });
+}
+
+// the other pages whose legends still record an order for one of `groups` (they would bring it back on the next 'Load from view': every
+// legend of the project lends its order, projectCodeOrders). -> [page name]
+export function pagesHoldingOrder(pages, openPageId, groups) {
+  const want = new Set(groups || []);
+  return (pages || []).filter((pg) => pg.id !== openPageId && (pg.elements || []).some((el) => el?.type === "legend" && el.codeOrder && Object.keys(el.codeOrder).some((g) => want.has(g)))).map((pg) => pg.name || pg.id);
+}
+
+// the groups a legend's rows are ordered by: its own record, and those of its loaded groups that `orders` (projectCodeOrders) names -> [label]
+export function orderedGroupsOf(legend, orders) {
+  const own = Object.keys(legend?.codeOrder || {});
+  const lent = (legend?.loadedGroups || []).filter((g) => orders?.[g]?.length && !own.includes(g));
+  return [...own, ...lent];
+}
+
 // TASKS.csv #3296 (from #2940, review #2876 WA iron) — the 3D View listed a layer's codes by count in its inspector and alphabetically on
 // the figure legend (14 of 34 shown), and neither took the order set on a Layout legend (#3130). Both now use one order: the codes the
 // project's set order names first, in that order, then the rest by count (commonest first), so the figure's cut keeps the commonest.
