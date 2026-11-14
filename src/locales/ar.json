@@ -11119,6 +11119,8 @@
   "{n} of {m} holes in {w} × {h} m.": "{n} من {m} ثقب في {w} × {h} م.",
   "Check only these holes": "حدد هذه الثقوب فقط",
   "Not recognized: assumed stratigraphic. Check it before modelling.": "غير معروف: يُفترض طبقيًا. تحقّق منه قبل النمذجة.",
+  "Suggested as overburden: its name reads as cover, and it lies at the top of {pct}% of the holes that log it. Check it before modelling.": "مقترح كغطاء: اسمه يدل على غطاء، ويقع في أعلى {pct}% من ثقوب الحفر التي تسجّله. تحقّق منه قبل النمذجة.",
+  "A code whose name reads as cover (ALU, CLA, soil ...) and that lies at the top of most of its holes is suggested as overburden.": "يُقترح كغطاء كلُّ رمز يدل اسمه على غطاء (ALU، CLA، تربة ...) ويقع في أعلى معظم ثقوب الحفر التي تسجّله.",
   "Which holes' samples inform the estimate and its checks. The grid is set above, apart.": "أي الثقوب تُغذي التقدير وفحوصه بالعينات. الشبكة تُحدَّد أعلاه على حدة.",
   "Samples from": "العينات من",
   "Every hole": "كل الثقوب",
@@ -12245,5 +12247,9 @@
   "+ Add another…": "+ إضافة آخر…",
   "Show {group} in the legend": "إظهار {group} في وسيلة الإيضاح",
   "Fold {group} to its heading": "طيّ {group} إلى عنوانه",
-  "({n} rows)": "({n} صفوف)"
+  "({n} rows)": "({n} صفوف)",
+  "{list}: a partial (soluble) digest by the lab code in the header, kept as a measurement of its own, not as another method of the total.": "{list}: هضم جزئي (قابل للذوبان) بحسب رمز المختبر في العنوان، يُحتفظ به قياسًا مستقلًا لا طريقةً أخرى للإجمالي.",
+  "≥ {min} {unit}": "≥ {min} {unit}",
+  "{min}–{max} {unit}": "{min}–{max} {unit}",
+  "The physical range of a reading in {unit} (the column name states the unit): click to use it as the valid range.": "النطاق الفيزيائي لقراءة بوحدة {unit} (يذكر اسم العمود الوحدة): انقر لاستخدامه نطاقًا صالحًا."
 }

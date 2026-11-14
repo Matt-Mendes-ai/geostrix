@@ -180,6 +180,11 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
             <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "4px 0", lineHeight: 1.45 }}>{tr("As last time in this project: {list}. Change any of them in the list below.", { list: lastTime.slice(0, 12).map((e) => `${e.symbol} ${e.header} (${e.unit})`).join(", ") + (lastTime.length > 12 ? ", …" : "") })}</div>
           )}
           {/* TASKS.csv #3197 — a per-cent column holding ppm: said while the unit menu is in reach, ppm offered, nothing converted until chosen */}
+          {modal.format === "wide" && modal.elements.some((e) => e.partialOf) && ( /* TASKS.csv #3242 — partial digests kept apart from their element */
+            <div role="note" style={{ padding: "6px 16px", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 }}>
+              {tr("{list}: a partial (soluble) digest by the lab code in the header, kept as a measurement of its own, not as another method of the total.", { list: modal.elements.filter((e) => e.partialOf).map((e) => `${e.symbol} (${e.header})`).join(", ") })}
+            </div>
+          )}
           {ppmAsPpb.length > 0 && ( /* TASKS.csv #3294 — a ppm column holding ppb, against the crust's average */
             <div role="note" style={{ padding: "6px 16px", fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.45 }}>
               {tr("These columns are read in ppm, but their median is thousands of times the element's average in the Earth's crust: {list}. They look like ppb. Pick the unit for each in the list below, or:", { list: ppmAsPpb.map((o) => tr("{header} (median {median} ppm; the crust averages about {crust} ppm)", { header: o.header, median: +o.median.toPrecision(3), crust: o.crust })).join("; ") })}{" "}

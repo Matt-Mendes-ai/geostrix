@@ -11119,6 +11119,8 @@
   "{n} of {m} holes in {w} × {h} m.": "{n} des {m} sondages dans {w} × {h} m.",
   "Check only these holes": "Cocher seulement ces sondages",
   "Not recognized: assumed stratigraphic. Check it before modelling.": "Non reconnu : supposé stratigraphique. Vérifiez-le avant de modéliser.",
+  "Suggested as overburden: its name reads as cover, and it lies at the top of {pct}% of the holes that log it. Check it before modelling.": "Suggéré comme mort-terrain : son nom évoque une couverture, et il se trouve au sommet de {pct} % des sondages qui le décrivent. Vérifiez-le avant de modéliser.",
+  "A code whose name reads as cover (ALU, CLA, soil ...) and that lies at the top of most of its holes is suggested as overburden.": "Un code dont le nom évoque une couverture (ALU, CLA, sol ...) et qui se trouve au sommet de la plupart de ses sondages est suggéré comme mort-terrain.",
   "Which holes' samples inform the estimate and its checks. The grid is set above, apart.": "Quels sondages fournissent les échantillons de l'estimation et de ses contrôles. La grille est fixée au-dessus, à part.",
   "Samples from": "Échantillons de",
   "Every hole": "Tous les sondages",
@@ -12245,5 +12247,9 @@
   "+ Add another…": "+ En ajouter un autre…",
   "Show {group} in the legend": "Afficher {group} dans la légende",
   "Fold {group} to its heading": "Replier {group} sur son titre",
-  "({n} rows)": "({n} lignes)"
+  "({n} rows)": "({n} lignes)",
+  "{list}: a partial (soluble) digest by the lab code in the header, kept as a measurement of its own, not as another method of the total.": "{list} : une mise en solution partielle (soluble) d'après le code de laboratoire de l'en-tête, gardée comme une mesure à part entière, pas comme une autre méthode du total.",
+  "≥ {min} {unit}": "≥ {min} {unit}",
+  "{min}–{max} {unit}": "{min}–{max} {unit}",
+  "The physical range of a reading in {unit} (the column name states the unit): click to use it as the valid range.": "La plage physique d'une lecture en {unit} (le nom de la colonne indique l'unité) : cliquez pour l'utiliser comme plage valide."
 }

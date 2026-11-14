@@ -11119,6 +11119,8 @@
   "{n} of {m} holes in {w} × {h} m.": "{n} de {m} sondajes en {w} × {h} m.",
   "Check only these holes": "Marcar solo estos sondajes",
   "Not recognized: assumed stratigraphic. Check it before modelling.": "No reconocido: se asume estratigráfico. Revísalo antes de modelar.",
+  "Suggested as overburden: its name reads as cover, and it lies at the top of {pct}% of the holes that log it. Check it before modelling.": "Sugerido como cobertura: su nombre indica cobertura y está en la parte superior del {pct}% de los sondajes que lo registran. Revísalo antes de modelar.",
+  "A code whose name reads as cover (ALU, CLA, soil ...) and that lies at the top of most of its holes is suggested as overburden.": "Un código cuyo nombre indica cobertura (ALU, CLA, suelo ...) y que está en la parte superior de la mayoría de sus sondajes se sugiere como cobertura.",
   "Which holes' samples inform the estimate and its checks. The grid is set above, apart.": "Qué sondajes aportan muestras a la estimación y sus controles. La grilla se fija arriba, aparte.",
   "Samples from": "Muestras de",
   "Every hole": "Todos los sondajes",
@@ -12245,5 +12247,9 @@
   "+ Add another…": "+ Agregar otro…",
   "Show {group} in the legend": "Mostrar {group} en la leyenda",
   "Fold {group} to its heading": "Plegar {group} a su título",
-  "({n} rows)": "({n} filas)"
+  "({n} rows)": "({n} filas)",
+  "{list}: a partial (soluble) digest by the lab code in the header, kept as a measurement of its own, not as another method of the total.": "{list}: una digestión parcial (soluble) según el código de laboratorio del encabezado, conservada como una medición propia, no como otro método del total.",
+  "≥ {min} {unit}": "≥ {min} {unit}",
+  "{min}–{max} {unit}": "{min}–{max} {unit}",
+  "The physical range of a reading in {unit} (the column name states the unit): click to use it as the valid range.": "El rango físico de una lectura en {unit} (el nombre de la columna indica la unidad): haga clic para usarlo como rango válido."
 }
