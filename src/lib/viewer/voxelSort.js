@@ -49,3 +49,32 @@ export function sortVoxelInstancesBackToFront(mesh, cells, camPos) {
   mesh.instanceMatrix.needsUpdate = true;
   if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
 }
+
+// TASKS.csv #3354 — a large transparent model's face mesh (lib/voxelFaces.js: its skin and contacts, quads of 4 vertices / 6 indices) was
+// blended in build order, so which faces showed changed with the view ('just an outside shell depending on the angle'). Re-sorted back
+// to front like the boxes above: a 16-bit counting sort of the quads' centres by distance, written into the index buffer.
+export const FACE_SORT_MAX = 1_500_000; // quads; past this the index rewrite (9 MB per 375k quads) would stall an orbit's end
+export function sortFacesBackToFront(mesh, camPos) {
+  const g = mesh.geometry, idx = g.index;
+  if (!idx) return false;
+  const nq = idx.count / 6;
+  if (!(nq > 1) || nq > FACE_SORT_MAX) return false;
+  let prep = mesh.userData.faceSortPrep;
+  if (!prep || prep.n !== nq) {
+    const p = g.attributes.position.array, c = new Float32Array(nq * 3);
+    for (let q = 0; q < nq; q++) { const o = q * 12; c[q * 3] = (p[o] + p[o + 6]) / 2; c[q * 3 + 1] = (p[o + 1] + p[o + 7]) / 2; c[q * 3 + 2] = (p[o + 2] + p[o + 8]) / 2; } // a quad's centre: its diagonal's midpoint
+    prep = mesh.userData.faceSortPrep = { n: nq, c, d: new Float32Array(nq), key: new Uint16Array(nq), counts: new Uint32Array(65537), order: new Uint32Array(nq) };
+  }
+  const { n, c, d, key, counts, order } = prep, px = camPos.x, py = camPos.y, pz = camPos.z;
+  let maxD = 0;
+  for (let q = 0; q < n; q++) { const dx = c[q * 3] - px, dy = c[q * 3 + 1] - py, dz = c[q * 3 + 2] - pz, v = Math.sqrt(dx * dx + dy * dy + dz * dz); d[q] = v; if (v > maxD) maxD = v; }
+  const scale = maxD > 0 ? 65535 / maxD : 0;
+  counts.fill(0);
+  for (let q = 0; q < n; q++) { const k = 65535 - Math.min(65535, Math.floor(d[q] * scale)); key[q] = k; counts[k + 1]++; } // farthest first
+  for (let k = 1; k <= 65536; k++) counts[k] += counts[k - 1];
+  for (let q = 0; q < n; q++) order[counts[key[q]]++] = q;
+  const ia = idx.array;
+  for (let j = 0; j < n; j++) { const b4 = order[j] * 4, b6 = j * 6; ia[b6] = b4; ia[b6 + 1] = b4 + 1; ia[b6 + 2] = b4 + 2; ia[b6 + 3] = b4; ia[b6 + 4] = b4 + 2; ia[b6 + 5] = b4 + 3; }
+  idx.needsUpdate = true;
+  return true;
+}

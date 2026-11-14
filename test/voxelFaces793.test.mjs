@@ -71,13 +71,13 @@ test("#793 a tensor mesh (layers of different thickness) is a grid too; sub-bloc
 });
 
 // TASKS.csv #904 — a large transparent model is drawn as one face mesh too: its skin and, for a unit model, its contacts
-test("#904 boundaries: the faces between blocks of different value are added (both sides), same-value interiors still left out", () => {
+test("#904 boundaries: the faces between blocks of different value are added (once each, #3354), same-value interiors still left out", () => {
   const cells = block(4).map((c, t) => ({ ...c, value: (t % 4) < 2 ? 1 : 2 })); // two units side by side along x (i < 2 / i >= 2)
   const G = rectilinearGrid(cells);
   const skin = buildExposedFaces(cells, G, origin, grey);
   const withB = buildExposedFaces(cells, G, origin, grey, { boundaries: true });
   assert.equal(skin.faces, 6 * 16); // a 4 x 4 x 4 cube: 16 faces on each of its 6 sides
-  assert.equal(withB.faces, 6 * 16 + 2 * 16); // + the 4 x 4 contact between the units, drawn from each side
+  assert.equal(withB.faces, 6 * 16 + 16); // + the 4 x 4 contact between the units, once (double-sided material; #3354 — it was two coplanar faces)
   const same = block(4).map((c) => ({ ...c, value: 7 })), one = buildExposedFaces(same, rectilinearGrid(same), origin, grey, { boundaries: true });
   assert.equal(one.faces, 6 * 16, "a single unit: boundaries add nothing");
 });
