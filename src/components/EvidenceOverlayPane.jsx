@@ -47,7 +47,7 @@ const DRILL_KINDS = new Set(["grade", "pxrf", "pick", "numeric", "zone"]); // TA
 
 import { SOLID_SURFACE_TYPES } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #1567
 import { solidFootprintEvidence } from "../lib/evidence.js"; // TASKS.csv #1567
-export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids = [], solidMesh = null }) { // onPlanTo: #1456; solids, solidMesh: #1567
+export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids = [], solidMesh = null, checkedHoleIds = null }) { // onPlanTo: #1456; solids, solidMesh: #1567; checkedHoleIds: #3344
   const { rasters = [], mapLayers = [], surfaceSamples = [], surfaceElements = [], terrain, collars = [], survey = [], assays = [], assayElements = [], layers: projectLayers, customLayers = [], voxelModels = [], project, addRaster, updateRaster, updateVoxelModel, evidenceOverlay, setEvidenceOverlay, geophysSurveys = {} } = useStore();
   const units = useMemo(() => Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit])), [surfaceElements]);
   const assayUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
@@ -174,6 +174,19 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     voxelModels.forEach((m) => (m.cells || []).forEach((c) => { if (Number.isFinite(c.x) && Number.isFinite(c.y)) { all.grow(c.x - c.dx / 2, c.y - c.dy / 2, c.x + c.dx / 2, c.y + c.dy / 2); mdl.grow(c.x - c.dx / 2, c.y - c.dy / 2, c.x + c.dx / 2, c.y + c.dy / 2); } }));
     return { all: all.box(), samples: smp.box(), drilling: drl.box(), model: mdl.box() };
   }, [valueRasters, mapLayers, sampleCore, traces, geophysPts, voxelModels, drillPad]);
+  // TASKS.csv #3344 (review #3195, Galore Creek) — 'the drilling' is the box of every hole (29 x 15 km on Galore Creek): the central zone could
+  // only be scored by typing four coordinates. An Area can also be the holes the geologist is working on: the ones checked in the Holes list,
+  // or the holes where a collar field has a value (the cards' own Holes pick, #2960). The box of their traces, padded as 'the drilling' is.
+  const nChecked = checkedHoleIds && collars.length ? collars.filter((c) => checkedHoleIds.has(c.hole_id)).length : 0;
+  const holeArea = useMemo(() => {
+    let ids = null;
+    if (gridArea === "checked") ids = checkedHoleIds;
+    else if (gridArea.startsWith("holes:")) ids = new Set(collarsWithPick(collars, gridArea.slice(6)).map((c) => c.hole_id));
+    if (!ids) return null;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const [h, t] of traces) { if (!ids.has(h)) continue; for (const p of t) { x0 = Math.min(x0, p.x - drillPad); y0 = Math.min(y0, p.y - drillPad); x1 = Math.max(x1, p.x + drillPad); y1 = Math.max(y1, p.y + drillPad); } }
+    return x1 > x0 && y1 > y0 ? [x0, y0, x1, y1] : null;
+  }, [gridArea, checkedHoleIds, collars, traces, drillPad]);
   const cellTyped = Number(gridCell) > 0 ? Number(gridCell) : null;
   // TASKS.csv #2326 (review #2174, WA gold) — a Level (RL from / to) for every hole-based card and the block columns without their own band
   const [levelText, setLevelText] = useState(["", ""]);
@@ -187,9 +200,9 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   const level = useMemo(() => { const v = levelApplied.map((t) => (t === "" ? null : Number(t))).map((x) => (Number.isFinite(x) ? x : null)); return v[0] == null && v[1] == null ? null : { zMin: v[0] != null && v[1] != null ? Math.min(v[0], v[1]) : v[0], zMax: v[0] != null && v[1] != null ? Math.max(v[0], v[1]) : v[1] }; }, [levelApplied]);
   const grid = useMemo(() => {
     if (terrain && gridArea === "all" && !cellTyped) return evidenceGrid({ terrain });
-    const ext = evidenceExtent(gridArea, extents, gridBox.map((v) => (v === "" ? NaN : Number(v))));
+    const ext = holeArea ? evidenceExtent("holes", { holes: holeArea }) : evidenceExtent(gridArea, extents, gridBox.map((v) => (v === "" ? NaN : Number(v)))); // holeArea: #3344
     return ext ? evidenceGrid({ extent: ext, cellSize: cellTyped }) : null;
-  }, [terrain, gridArea, cellTyped, extents, gridBox]);
+  }, [terrain, gridArea, cellTyped, extents, gridBox, holeArea]);
 
   // evidence sources the project offers
   const baseSources = useMemo(() => {
@@ -536,6 +549,8 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
             <option value="all">{terrain ? tr("the terrain / every source") : tr("every source")}</option>
             {extents.samples && <option value="samples">{tr("the surface samples")}</option>}
             {extents.drilling && <option value="drilling">{tr("the drilling")}</option>}
+            {extents.drilling && nChecked > 0 && nChecked < collars.length && <option value="checked">{tr("the checked holes ({n} of {total})", { n: nChecked, total: collars.length })}</option>}{/* #3344 */}
+            {extents.drilling && holeAttrChoices.length > 0 && <optgroup label={tr("Holes where…")}>{holeAttrChoices.flatMap((ch) => ch.values.map((v) => <option key={`holes:${ch.key}=${v}`} value={`holes:${ch.key}=${v}`}>{`${ch.key} = ${v}`}</option>))}</optgroup>}{/* #3344 */}
             {extents.model && <option value="model">{tr("the block models' footprint")}</option>}{/* #1834 */}
             <option value="box">{tr("a box (typed)")}</option>
           </select></label>
