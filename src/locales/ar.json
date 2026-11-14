@@ -12160,5 +12160,8 @@
   "not imported {n}: {list}": "غير مستوردة {n}: {list}",
   "The Geochem tab opens next, for the assay file(s).": "يُفتح تبويب الجيوكيمياء بعد ذلك، لملف (ملفات) التحاليل.",
   "Loaded {rows} surface samples (1 element): back on the Surface Geology tab, where they are drawn.{v}": "حُمّلت {rows} عينة سطحية (عنصر واحد): عودة إلى تبويب الجيولوجيا السطحية، حيث تُرسم.{v}",
-  "Loaded {rows} surface samples ({chosen} elements): back on the Surface Geology tab, where they are drawn.{v}": "حُمّلت {rows} عينة سطحية ({chosen} عناصر): عودة إلى تبويب الجيولوجيا السطحية، حيث تُرسم.{v}"
+  "Loaded {rows} surface samples ({chosen} elements): back on the Surface Geology tab, where they are drawn.{v}": "حُمّلت {rows} عينة سطحية ({chosen} عناصر): عودة إلى تبويب الجيولوجيا السطحية، حيث تُرسم.{v}",
+  "At the project's collars true north and grid north coincide (no grid convergence): these azimuths are used as they are.": "عند فوهات المشروع يتطابق الشمال الحقيقي وشمال الشبكة (لا تقارب شبكي): تُستخدم هذه السموت كما هي.",
+  "At the project's collars true north lies {deg}° east of grid north (the grid convergence): these azimuths are turned by +{deg}° to grid north.": "عند فوهات المشروع يقع الشمال الحقيقي {deg}° شرق شمال الشبكة (التقارب الشبكي): تُدار هذه السموت بمقدار +{deg}° إلى شمال الشبكة.",
+  "At the project's collars true north lies {deg}° west of grid north (the grid convergence): these azimuths are turned by −{deg}° to grid north.": "عند فوهات المشروع يقع الشمال الحقيقي {deg}° غرب شمال الشبكة (التقارب الشبكي): تُدار هذه السموت بمقدار −{deg}° إلى شمال الشبكة."
 }

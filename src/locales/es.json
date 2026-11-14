@@ -12160,5 +12160,8 @@
   "not imported {n}: {list}": "no importados {n}: {list}",
   "The Geochem tab opens next, for the assay file(s).": "A continuación se abre la pestaña Geoquímica, para el o los archivos de ensayes.",
   "Loaded {rows} surface samples (1 element): back on the Surface Geology tab, where they are drawn.{v}": "Se cargaron {rows} muestras superficiales (1 elemento): de vuelta en la pestaña Geología de superficie, donde se dibujan.{v}",
-  "Loaded {rows} surface samples ({chosen} elements): back on the Surface Geology tab, where they are drawn.{v}": "Se cargaron {rows} muestras superficiales ({chosen} elementos): de vuelta en la pestaña Geología de superficie, donde se dibujan.{v}"
+  "Loaded {rows} surface samples ({chosen} elements): back on the Surface Geology tab, where they are drawn.{v}": "Se cargaron {rows} muestras superficiales ({chosen} elementos): de vuelta en la pestaña Geología de superficie, donde se dibujan.{v}",
+  "At the project's collars true north and grid north coincide (no grid convergence): these azimuths are used as they are.": "En los collares del proyecto el norte verdadero y el norte de cuadrícula coinciden (sin convergencia de cuadrícula): estos azimuts se usan tal cual.",
+  "At the project's collars true north lies {deg}° east of grid north (the grid convergence): these azimuths are turned by +{deg}° to grid north.": "En los collares del proyecto el norte verdadero está {deg}° al este del norte de cuadrícula (la convergencia de cuadrícula): estos azimuts se giran +{deg}° al norte de cuadrícula.",
+  "At the project's collars true north lies {deg}° west of grid north (the grid convergence): these azimuths are turned by −{deg}° to grid north.": "En los collares del proyecto el norte verdadero está {deg}° al oeste del norte de cuadrícula (la convergencia de cuadrícula): estos azimuts se giran −{deg}° al norte de cuadrícula."
 }
