@@ -2894,6 +2894,8 @@
   "Import Geosoft .xyz…": "استيراد Geosoft ‎.xyz…",
   "Surveys loaded": "المسوح المحمّلة",
   "Remove survey \"{key}\"": "إزالة المسح «{key}»",
+  "Show survey \"{key}\" in the 3D view": "إظهار المسح \"{key}\" في العرض ثلاثي الأبعاد",
+  "Hide survey \"{key}\" in the 3D view": "إخفاء المسح \"{key}\" في العرض ثلاثي الأبعاد",
   "Remove the {count} points of \"{key}\"?": "إزالة {count} نقطة من «{key}»؟",
   "{count} points{v}, {withZ} with elevation · values {v2}{v3}": "{count} نقطة{v}، {withZ} بارتفاع · القيم {v2}{v3}",
   "Method of \"{key}\"": "طريقة «{key}»",

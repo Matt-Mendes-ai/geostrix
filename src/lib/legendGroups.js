@@ -367,6 +367,7 @@ export function geophysLegendGroups({ rows = [], visible = true, surveys = {}, s
   const colorer = makeSurveyColorer(pts, { stops, colorMode, min, max }, surveys);
   const out = [];
   for (const [key, model] of colorer.models) {
+    if (surveys?.[key]?.hidden) continue; // TASKS.csv #3325 — a survey hidden from its card has no ramp (the others keep the colours they are drawn in)
     const units = surveys?.[key]?.units;
     out.push(scaleLegendGroup(`geophys_pts_${key}`, colorer.perSurvey ? `${key}${units ? ` (${units})` : ""}` : `${label}${units ? ` (${units})` : ""}`, model, model.min, model.max));
   }
