@@ -13,7 +13,8 @@ import { makeRunCache } from "../lib/runCache.js"; // TASKS.csv #3061
 import { desurveyHole } from "../lib/desurvey.js";
 import {
   fitVariogramModel, /* experimentalVariogram, directionRow: in the worker since #3009 */ MIN_HOLE_PAIRS /* #3285 */, variogramModelValue, VARIOGRAM_MODELS, verticalShare /* #3015 */,
-  VALUE_TRANSFORMS, applyValueTransform, groupPointsByDomain, variogramStationarity, siteSpacingLag, lagsShortOfSpacing, downholeLinePoints /* #1843 */, DIRECTION_TABLE, longestDirection /* #1996 */ } from "../lib/variogram.js";
+  VALUE_TRANSFORMS, applyValueTransform, groupPointsByDomain, variogramStationarity, siteSpacingLag, lagsShortOfSpacing, downholeLinePoints /* #1843 */, DIRECTION_TABLE, longestDirection /* #1996 */, wellFittedDirections, directionVector /* #3385 */ } from "../lib/variogram.js";
+import { trendFromDirections, describeTrend } from "../lib/trend.js"; // TASKS.csv #3385
 import { holeSpacingSummary } from "../lib/holeSpacing.js"; // TASKS.csv #2221
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -57,7 +58,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
   // and silently fell back to the default method — meaning a project set to, say, tangential would
   // have had its variogram computed on minimum-curvature traces. Same store field GradeEstimationModal
   // reads.
-  const { desurveyMethod, customLayers = [], structuralTrends, generatedSurfaces = [], project } = useStore(); // project: #3273 // customLayers: TASKS.csv #1571; structuralTrends: #2424 (read only); generatedSurfaces: #2710
+  const { desurveyMethod, customLayers = [], structuralTrends, setStructuralTrends, generatedSurfaces = [], project } = useStore(); // project: #3273 // customLayers: TASKS.csv #1571; structuralTrends: #2424 (read only); generatedSurfaces: #2710
   // TASKS.csv #2710 — a generated surface (a Top of a unit) the in-plane pairs may follow: the composites flattened on it
   const flatSurfaces = useMemo(() => generatedSurfaces.filter((x) => x.vertices?.length >= 9 && x.indices?.length >= 3), [generatedSurfaces]);
   const flatLabels = useMemo(() => surfaceOptionLabels(flatSurfaces), [flatSurfaces]);
@@ -108,6 +109,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
   const vertical = useMemo(() => verticalShare(collars, survey) >= 0.9, [collars, survey]);
   const [holeMode, setHoleMode] = useState(() => (verticalShare(collars, survey) >= 0.9 ? "downhole" : "all"));
   const [directional, setDirectional] = useState(false);
+  const [trendMade, setTrendMade] = useState(null); // TASKS.csv #3385
   const [azimuth, setAzimuth] = useState(0);
   const [dip, setDip] = useState(0);
   const [angleTol, setAngleTol] = useState(22.5);
@@ -415,6 +417,10 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
                   <tbody>{dirTable.rows.map((r) => <tr key={`${r.azimuth}_${r.dip}`} style={{ background: best && r === best ? "#eef6ee" : undefined }}><td style={{ padding: "1px 8px" }}>{r.dip === 90 ? "—" : r.azimuth}</td><td style={{ padding: "1px 8px" }}>{r.dip}</td><td style={{ padding: "1px 8px" }}>{r.nPairs.toLocaleString()}</td><td style={{ padding: "1px 8px", color: r.range != null && r.maxReliableLag > 0 && r.range > r.maxReliableLag ? "var(--color-warn-text)" : undefined }}>{r.range == null ? "—" : Math.round(r.range)}</td><td style={{ padding: "1px 8px" }}>{r.sill > 0 ? `${Math.round((100 * r.nugget) / r.sill)}%` : "—"}</td><td style={{ padding: "1px 8px" }}>{r.rSquared != null ? r.rSquared.toFixed(2) : "—"}</td></tr>)}</tbody></table>
                   {!dirTable.done && <div>{tr("Computing {n} of {m}…", { n: dirTable.rows.length + 1, m: DIRECTION_TABLE.length })}</div>}
                   {best && <div style={{ marginTop: 3 }}>{tr("Longest well-fitted range: azimuth {a}°, dip {d}°, {r} m (shaded; fits with r² 0.5 or more, within their reliable lags). A range in amber is past that direction's reliable lags; a weak r² is no direction at all. Read it as a guide to the anisotropy, then check that direction with its own variogram.", { a: best.azimuth, d: best.dip, r: Math.round(best.range) })}</div>}
+                  {best && (() => { const tr3 = trendFromDirections(wellFittedDirections(dirTable.rows), directionVector); return tr3 ? <div style={{ marginTop: 4, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>{/* TASKS.csv #3385 — the table's axes as a structural trend, so kriging's anisotropy follows what it measured */}
+                    <button type="button" onClick={() => { setStructuralTrends((st) => ({ ...st, trends: [...(st.trends || []), { ...tr3, name: tr("Trend from the direction table ({symbol})", { symbol }), id: `trend_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}` }] })); setTrendMade(describeTrend(tr3)); }} style={{ fontSize: "var(--font-size-sm)" }} title={tr("Adds a structural trend whose major axis is the longest well-fitted direction and whose ratios are the ranges along its three axes; choose it in Estimation to krige with that anisotropy.")}>{tr("Make a structural trend from this table")}</button>
+                    {trendMade && <span>{tr("Added: {t}. Choose it for block estimation in Trends.", { t: trendMade })}</span>}
+                  </div> : null; })()}
                   {dirTable.done && !best && <div style={{ marginTop: 3, color: "var(--color-warn-text)" }}>{tr("No direction has a fit good enough (r² 0.5 or more, within its reliable lags) to name a long axis: this variable shows no clear anisotropy at these lags.")}</div>}
                 </>; })()}
               </div>}

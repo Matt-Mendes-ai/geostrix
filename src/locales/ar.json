@@ -12656,5 +12656,11 @@
   "Reads {n} hole(s), samples at {band} (the Level above): a hole that does not reach that band reads as untested there.": "يقرأ {n} ثقب(ثقوب)، عينات عند {band} (المستوى أعلاه): الثقب الذي لا يصل إلى هذا النطاق يُقرأ كغير مختبر هناك.",
   "Read at {band} (the Level).": "مقروء عند {band} (المستوى).",
   "The Level ({band}) was not used: none of these cards reads elevations.": "لم يُستخدم المستوى ({band}): لا تقرأ أي من هذه البطاقات المناسيب.",
-  "Added \"{name}\" to the model surfaces: export it, slice it in sections, or remove it there. Ctrl+Z does not take it back (it would undo your last edit before it); a model surface is not part of the undo history.": "أُضيف \"{name}\" إلى أسطح النموذج: صدّره أو قطّعه في مقاطع أو أزله هناك. لا يتراجع Ctrl+Z عنه (بل يتراجع عن تعديلك السابق)؛ سطح النموذج ليس جزءًا من سجل التراجع."
+  "Added \"{name}\" to the model surfaces: export it, slice it in sections, or remove it there. Ctrl+Z does not take it back (it would undo your last edit before it); a model surface is not part of the undo history.": "أُضيف \"{name}\" إلى أسطح النموذج: صدّره أو قطّعه في مقاطع أو أزله هناك. لا يتراجع Ctrl+Z عنه (بل يتراجع عن تعديلك السابق)؛ سطح النموذج ليس جزءًا من سجل التراجع.",
+  "Grade × thickness": "العيار × السماكة",
+  "For a steep vein or lode: per hole, the intercepts' thickness and grade × thickness (GT) by the same rules as Best intercepts, placed at the intercepts' mid-point; projected on a vertical plane along strike and contoured in three panels (thickness, grade, GT), or four with the kriging standard deviation, stopping at the drilled extent.": "لعرق أو عِرق شديد الميل: لكل ثقب، سماكة التقاطعات والعيار × السماكة (GT) بالقواعد نفسها المستخدمة في أفضل التقاطعات، موضوعة عند منتصف كل تقاطع؛ مُسقطة على مستوى رأسي موازٍ للامتداد ومرسومة بالكنتور في ثلاث لوحات (السماكة، العيار، GT)، أو أربع مع الانحراف المعياري للكريجينغ، حتى امتداد الحفر.",
+  "Trend from the direction table ({symbol})": "اتجاه من جدول الاتجاهات ({symbol})",
+  "Adds a structural trend whose major axis is the longest well-fitted direction and whose ratios are the ranges along its three axes; choose it in Estimation to krige with that anisotropy.": "يضيف اتجاهًا بنيويًا محوره الرئيسي هو الاتجاه الجيد المطابقة الأطول مدى ونسبه هي المدى على طول محاوره الثلاثة؛ اختره في التقدير لإجراء الكريجينغ بهذه التباينية.",
+  "Make a structural trend from this table": "إنشاء اتجاه بنيوي من هذا الجدول",
+  "Added: {t}. Choose it for block estimation in Trends.": "أُضيف: {t}. اختره لتقدير الكتل في الاتجاهات."
 }
