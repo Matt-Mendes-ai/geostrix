@@ -126,8 +126,11 @@ export async function fetchNaip(bboxLonLat, { targetEpsg = null, maxPx = 2048, f
   if (!parts.length) throw new Error(tr("No NAIP imagery here. NAIP covers the USA only; elsewhere use the Sentinel-2 source."));
   const native = finest < NAIP_FINEST_M * 2 ? finest : null;
   const coarser = native && plan.cell > native * 1.01 ? Math.round((plan.cell / native) * 10) / 10 : 0;
+  // TASKS.csv #3252 — the description of the source kept with each raster, for the Maps plan's detail tiles (lib/lodTiles.js): the images
+  // (unsigned addresses: a read token is fetched when a tile is read) in painting order, their CRS and box, and the finest pixel they give
+  const lod = { source: "naip", epsg: dst, nativeM: finest, items: items.map((i) => ({ id: i.id, href: i.href, epsg: i.epsg, bbox: i.bbox, date: i.date })) };
   return {
-    ...parts[0], parts, epsg: dst, partial: cover < 0.98, nativeM: native,
+    ...parts[0], parts, epsg: dst, partial: cover < 0.98, nativeM: native, lod,
     note: tr(" USDA NAIP aerial imagery, public domain, from the Microsoft Planetary Computer: {n} image(s) from {years}.", { n: items.length, years: yearText }) + (cover < 0.98 ? tr(" It covers about {pct}% of your area: the rest stays empty.", { pct: Math.round(cover * 100) }) : "")
       + (parts.length > 1 ? tr(" In {n} pictures of at most {px} px a side, edge to edge.", { n: parts.length, px: TILE_PX }) : "")
       + (coarser ? (full ? tr(" Its pixels are {m} m, {k} times the imagery's own {native} m: a smaller area gets finer ones.", { m: pixel, k: coarser, native }) : tr(" Its pixels are {m} m, {k} times the imagery's own {native} m: a smaller area, or Full resolution, gets finer ones.", { m: pixel, k: coarser, native })) : native ? tr(" At the imagery's own {native} m pixels.", { native }) : ""),
@@ -142,21 +145,29 @@ function gridLonLat(grid, epsg) {
   return [arrMin(xs), arrMin(ys), arrMax(xs), arrMax(ys)];
 }
 
-// the images painted onto one grid -> a data URL (WebP 0.9, else PNG), or null when nothing landed on it
-async function paintNaipGrid(grid, bboxLonLat, items, dst, step) {
+// the images painted onto one grid -> { rgba, painted }. openTiff(href) -> a geotiff (signed and opened here by default; the detail tiles
+// pass one that keeps the opened images, TASKS.csv #3252)
+export async function paintNaipRgba(grid, bboxLonLat, items, dst, step = () => {}, { openTiff = async (href) => openCog(await signPc(href, NAIP_TOKEN)) } = {}) {
   const rgba = new Uint8ClampedArray(grid.width * grid.height * 4);
   let painted = 0;
   for (const it of items) {
     const ov = [Math.max(bboxLonLat[0], it.bbox[0]), Math.max(bboxLonLat[1], it.bbox[1]), Math.min(bboxLonLat[2], it.bbox[2]), Math.min(bboxLonLat[3], it.bbox[3])];
     if (ov[0] < ov[2] && ov[1] < ov[3]) {
       const w = windowGrid(ov, it.epsg, grid.cell, Infinity);
-      const tiff = await openCog(await signPc(it.href, NAIP_TOKEN));
+      const tiff = await openTiff(it.href);
       const bands = await tiff.readRasters({ bbox: w.box, width: w.width, height: w.height, resampleMethod: "nearest", samples: [0, 1, 2], fillValue: 0 });
       const c = [[ov[0], ov[1]], [ov[2], ov[1]], [ov[2], ov[3]], [ov[0], ov[3]]].map(([x, y]) => reprojectXY(x, y, 4326, dst));
       painted += paintWindow(rgba, grid, { box: w.box, width: w.width, height: w.height, cell: w.cell, bands, xmin: Math.min(...c.map((p) => p.x)), xmax: Math.max(...c.map((p) => p.x)), ymin: Math.min(...c.map((p) => p.y)), ymax: Math.max(...c.map((p) => p.y)) }, latticeMapper(grid, dst, it.epsg));
     }
     step();
   }
+  return { rgba, painted };
+}
+export { gridLonLat, NAIP_TOKEN };
+
+// the images painted onto one grid -> a data URL (WebP 0.9, else PNG), or null when nothing landed on it
+async function paintNaipGrid(grid, bboxLonLat, items, dst, step) {
+  const { rgba, painted } = await paintNaipRgba(grid, bboxLonLat, items, dst, step);
   if (!painted) return null;
   const canvas = document.createElement("canvas");
   canvas.width = grid.width; canvas.height = grid.height;

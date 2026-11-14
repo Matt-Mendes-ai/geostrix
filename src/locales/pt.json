@@ -12575,5 +12575,9 @@
   "Forget the order on the legends of every page of this project": "Esquecer a ordem nas legendas de todas as páginas deste projeto",
   "Cleared on every page's legends. Load from view lists the codes in their default order again.": "Limpo nas legendas de todas as páginas. Carregar da vista volta a listar os códigos na ordem padrão.",
   "Save CSV": "Salvar CSV",
-  "Save the table as a CSV file": "Salvar a tabela como arquivo CSV"
+  "Save the table as a CSV file": "Salvar a tabela como arquivo CSV",
+  "Reading detail ({n} tiles)…": "Lendo detalhe ({n} blocos)…",
+  "{n} detail tile(s) could not be read (offline?): the fetched picture shows there": "Não foi possível ler {n} bloco(s) de detalhe (sem conexão?): ali aparece a imagem baixada",
+  "Imagery fetched with a source (NAIP) shows finer detail where the Maps plan looks. The detail read is kept on this computer, up to 2 GB, so it shows again without a connection; the project file keeps only the fetched picture.": "As imagens baixadas com a sua fonte (NAIP) mostram mais detalhe onde a planta de Mapas olha. O detalhe lido fica neste computador, até 2 GB, para aparecer de novo sem conexão; o arquivo do projeto guarda só a imagem baixada.",
+  "Detail tiles on this computer: {size} of {cap} ({n} tiles)": "Blocos de detalhe neste computador: {size} de {cap} ({n} blocos)"
 }

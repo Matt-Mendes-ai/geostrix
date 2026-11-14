@@ -12575,5 +12575,9 @@
   "Forget the order on the legends of every page of this project": "نسيان الترتيب في مفاتيح كل صفحات هذا المشروع",
   "Cleared on every page's legends. Load from view lists the codes in their default order again.": "تم المسح في مفاتيح كل الصفحات. يعرض «التحميل من العرض» الرموز بترتيبها الافتراضي مجددًا.",
   "Save CSV": "حفظ CSV",
-  "Save the table as a CSV file": "حفظ الجدول كملف CSV"
+  "Save the table as a CSV file": "حفظ الجدول كملف CSV",
+  "Reading detail ({n} tiles)…": "قراءة التفاصيل ({n} بلاطات)…",
+  "{n} detail tile(s) could not be read (offline?): the fetched picture shows there": "تعذّرت قراءة {n} بلاطة(بلاطات) تفاصيل (بلا اتصال؟): تظهر هناك الصورة المجلوبة",
+  "Imagery fetched with a source (NAIP) shows finer detail where the Maps plan looks. The detail read is kept on this computer, up to 2 GB, so it shows again without a connection; the project file keeps only the fetched picture.": "تُظهر الصور المجلوبة مع مصدرها (NAIP) تفاصيل أدق حيث ينظر مسقط الخرائط. تُحفظ التفاصيل المقروءة على هذا الحاسوب حتى 2 غيغابايت لتظهر مجددًا بلا اتصال؛ ولا يحفظ ملف المشروع إلا الصورة المجلوبة.",
+  "Detail tiles on this computer: {size} of {cap} ({n} tiles)": "بلاطات التفاصيل على هذا الحاسوب: {size} من {cap} ({n} بلاطة)"
 }

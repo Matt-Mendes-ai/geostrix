@@ -33,6 +33,7 @@ import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1461
 import { fetchAreaBox, imageryAreaCollars } from "../lib/dataExtent.js"; // #1461; imageryAreaCollars: #2126
 import RasterColourControls from "../components/RasterColourControls.jsx"; // TASKS.csv #1236
 import ZonalStatsBox from "../components/ZonalStatsBox.jsx"; // TASKS.csv #2002
+import LodCacheLine from "../components/LodCacheLine.jsx"; // TASKS.csv #3252
 import GridContourControls from "../components/GridContourControls.jsx"; // TASKS.csv #1622
 import { gridCellText } from "../lib/raster.js"; // TASKS.csv #1242
 import { detectKeyColour } from "../lib/rasterKey.js"; // TASKS.csv #1623
@@ -414,7 +415,8 @@ export default function RasterModule({ embedded = false } = {}) {
         }
         parts.push(p);
       }
-      for (const p of parts) addRaster({ name: p.name, bbox: p.bbox, dataUrl: p.dataUrl, elevation: defaultElevation, ...(p.pixelM ? { pixelM: p.pixelM, gridW: p.gridW, gridH: p.gridH } : {}) /* #3251 — said on the card */ });
+      // TASKS.csv #3252 — the source's description (r.lod), for the Maps plan's detail tiles; not through a local grid's tie (the tiles are read in the project CRS)
+      for (const p of parts) addRaster({ name: p.name, bbox: p.bbox, dataUrl: p.dataUrl, elevation: defaultElevation, ...(p.pixelM ? { pixelM: p.pixelM, gridW: p.gridW, gridH: p.gridH } : {}) /* #3251 — said on the card */, ...(r.lod && !tie ? { lod: r.lod } : {}) });
       setError({ info: satSource === "naip" ? !r.partial : r.areaCloud <= 0.1, text: (parts.length > 1 ? tr("Fetched and imported {n} pictures of \"{name}\" ({gridW} × {gridH} px each at most).", { n: parts.length, name: r.name.replace(/, part 1 of \d+$/, ""), gridW: arrMax(parts.map((p) => p.gridW)), gridH: arrMax(parts.map((p) => p.gridH)) }) : tr("Fetched and imported \"{name}\" ({gridW} × {gridH} px).", { name: r.name, gridW: r.gridW, gridH: r.gridH })) + r.note + tieNote });
     } catch (err) {
       setError({ info: false, text: err.message });
@@ -641,6 +643,7 @@ export default function RasterModule({ embedded = false } = {}) {
         {rasters.length === 0 && (
           <div style={{ marginTop: 14, fontSize: "var(--font-size-base)", color: "var(--color-text-muted)" }}>{tr("No rasters imported yet.")}</div>
         )}
+        <LodCacheLine hasLod={rasters.some((r) => r.lod)} />{/* TASKS.csv #3252 */}
         {rasters.length > 1 && <div style={{ marginTop: 8, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("The Maps plan draws these in order, the last on top; the arrows on a card move it.")}</div>}{/* #2853 */}
         {rasters.map((r) => (
           <div key={r.id} style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>

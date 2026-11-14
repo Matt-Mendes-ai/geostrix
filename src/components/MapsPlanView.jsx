@@ -24,6 +24,7 @@ import { trueNorthBearingInGridDeg } from "../lib/inversion.js"; // TASKS.csv #2
 import { usePlanZoom, viewForBox } from "../lib/planZoom.js"; // TASKS.csv #2657
 import { usePlanGt, showGtOnPlan, gtRadius, gtLegend } from "../lib/planGt.js"; // TASKS.csv #2755
 import { topRasterValueAt } from "../lib/planRasterValue.js"; // TASKS.csv #2853 — the value under the cursor
+import { planLodTiles, tilesInView, tilePixelM, lodSourceKey, tileKey } from "../lib/lodTiles.js"; // TASKS.csv #3252 — detail tiles where the plan looks
 import { pointTransform, isGeographicCrs } from "../lib/reproject.js"; // TASKS.csv #2998 — longitude / latitude under the cursor
 import { perHoleValuesOf, perHoleFigureAtIntercepts } from "../lib/holeValueGrid.js"; // TASKS.csv #2658; perHoleValuesOf: #2991 (a coded log's values too)
 
@@ -68,6 +69,18 @@ export default function MapsPlanView() {
   const toLonLat = project?.crsSet !== false && project?.epsg && !isGeographicCrs(project.epsg) ? pointTransform(project.epsg, 4326) : null; // looked up as the cursor moves: the registry may load after the plan
   const frameText = project?.crsSet === false ? tr(" (local grid)") : "";
   const chipRef = useRef(null); // the Collars chip, for the callouts to keep clear of (#3405)
+  // TASKS.csv #3252 phase 1 — a raster with a source description (raster.lod) gets detail tiles where the plan looks: the loader (and the
+  // Planetary Computer reader behind it) is loaded the first time one is shown
+  const lodRasters = useMemo(() => rasters.filter((r) => r.lod && r.visible !== false && r.bbox), [rasters]);
+  const lodLoader = useRef(null);
+  const [lodReady, setLodReady] = useState(false);
+  const [lodStatus, setLodStatus] = useState(null);
+  useEffect(() => {
+    if (!lodRasters.length || lodLoader.current) return undefined;
+    let off = null, live = true;
+    import("../lib/lodTileLoader.js").then((m) => { if (!live) return; lodLoader.current = m; off = m.onLodStatus(setLodStatus); setLodReady(true); });
+    return () => { live = false; off?.(); };
+  }, [lodRasters.length > 0]);
   const wrapRef = useRef(null), canvasRef = useRef(null), layerCache = useRef(new Map()), drag = useRef(null), gridDrawn = useRef(false); // gridDrawn: #3194
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [view, setView] = useState(null); // { cx, cy, mPerPx }
@@ -147,7 +160,28 @@ export default function MapsPlanView() {
     const drawAt = (img, b, alpha = 1) => { if (!img) return; ctx.globalAlpha = alpha; ctx.drawImage(img, X(b[0]), Y(b[3]), (b[2] - b[0]) / v.mPerPx, (b[3] - b[1]) / v.mPerPx); ctx.globalAlpha = 1; };
     const redraw = () => setTick((t) => t + 1);
     if (hill) drawAt(hill, terrain.bbox, 0.9);
-    rasters.forEach((r) => { if (r.visible !== false && r.dataUrl && r.bbox) drawAt(cachedImage(r.dataUrl, !r.grid ? r.keyColour : null, redraw), r.bbox, r.opacity ?? 0.85); });
+    const viewBoxL = [left, top - size.h * v.mPerPx, left + size.w * v.mPerPx, top];
+    rasters.forEach((r) => {
+      if (r.visible !== false && r.dataUrl && r.bbox) drawAt(cachedImage(r.dataUrl, !r.grid ? r.keyColour : null, redraw), r.bbox, r.opacity ?? 0.85);
+      // #3252 — the detail tiles already read, over the fetched picture, coarse to fine, inside the raster's own box
+      const L = lodLoader.current;
+      if (!L || !r.lod || r.visible === false || !r.bbox) return;
+      const plan = planLodTiles(r, viewBoxL, v.mPerPx);
+      if (!plan) return;
+      const src = lodSourceKey(r), base = r.pixelM > 0 ? r.pixelM : plan.root.side / 4096;
+      ctx.save();
+      ctx.beginPath(); ctx.rect(X(r.bbox[0]), Y(r.bbox[3]), (r.bbox[2] - r.bbox[0]) / v.mPerPx, (r.bbox[3] - r.bbox[1]) / v.mPerPx); ctx.clip();
+      ctx.globalAlpha = r.opacity ?? 0.85;
+      ctx.imageSmoothingEnabled = true;
+      for (let z = 0; z <= plan.level; z++) {
+        if (tilePixelM(plan.root, z) >= base * 0.99) continue; // no finer than the picture under it
+        for (const t of tilesInView(plan.root, z, viewBoxL, r.bbox)) {
+          const img = L.lodTileImage(tileKey(src, t.z, t.x, t.y));
+          if (img && !L.isEmptyTile(img)) ctx.drawImage(img, X(t.box[0]), Y(t.box[3]), (t.box[2] - t.box[0]) / v.mPerPx, (t.box[3] - t.box[1]) / v.mPerPx);
+        }
+      }
+      ctx.restore();
+    });
     mapLayers.forEach((l) => {
       if (l.visible === false || !l.bbox || !l.features?.length) return;
       const sig = mapStyleSignature(l), hit = layerCache.current.get(l.id);
@@ -242,7 +276,21 @@ export default function MapsPlanView() {
       ctx.fillStyle = "#c2185b"; mPts.forEach((p) => { ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 3.5, 0, Math.PI * 2); ctx.fill(); });
     }
     gridDrawn.current = showGrid; // #3194 — what the canvas holds now
-  }, [v?.cx, v?.cy, v?.mPerPx, size, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, spacingM /* #2989 */, showTraces, planT, dotCollars /* #3337 */, surveys, surveysHidden /* #3342 */, showIds, showGrid, measuring, mPts, gtPlan, gtMax]); // gtPlan: #2755
+  }, [v?.cx, v?.cy, v?.mPerPx, size, lodReady /* #3252 */, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, spacingM /* #2989 */, showTraces, planT, dotCollars /* #3337 */, surveys, surveysHidden /* #3342 */, showIds, showGrid, measuring, mPts, gtPlan, gtMax]); // gtPlan: #2755
+
+  // TASKS.csv #3252 — once the view has settled (250 ms), ask for the detail tiles it shows; each one that arrives redraws the plan
+  useEffect(() => {
+    const L = lodLoader.current;
+    if (!L || !v || !lodRasters.length) return undefined;
+    const id = setTimeout(() => {
+      const left = v.cx - (size.w / 2) * v.mPerPx, top = v.cy + (size.h / 2) * v.mPerPx;
+      const viewBox = [left, top - size.h * v.mPerPx, left + size.w * v.mPerPx, top];
+      const wanted = [];
+      for (const r of lodRasters) { const plan = planLodTiles(r, viewBox, v.mPerPx); if (plan) wanted.push({ src: lodSourceKey(r), lod: r.lod, tiles: plan.tiles }); }
+      L.wantLodTiles(wanted, [v.cx, v.cy], () => setTick((t) => t + 1));
+    }, 250);
+    return () => clearTimeout(id);
+  }, [v?.cx, v?.cy, v?.mPerPx, size, lodRasters, lodReady]);
 
   if (!extent || !v) return null;
   const sb = niceScaleBar(v.mPerPx, 140);
@@ -398,6 +446,8 @@ export default function MapsPlanView() {
         </div>
       )}
       <div style={{ ...chip, right: 10, bottom: 10, fontVariantNumeric: "tabular-nums" }}>
+        {lodStatus?.loading ? <span style={{ marginRight: 8 }}>{tr("Reading detail ({n} tiles)…", { n: lodStatus.loading.toLocaleString() })}</span> : null}{/* #3252 */}
+        {!lodStatus?.loading && lodStatus?.failed ? <span style={{ marginRight: 8 }} title={lodStatus.lastError || ""}>{tr("{n} detail tile(s) could not be read (offline?): the fetched picture shows there", { n: lodStatus.failed.toLocaleString() })}</span> : null}
         {cursor ? `E ${Math.round(cursor.x).toLocaleString()}  N ${Math.round(cursor.y).toLocaleString()}${frameText}${lonLatText(toLonLat, cursor)}${cursorValueText(rasters, cursor)}` : tr("Plan view · wheel to zoom, drag to pan, double-click to fit · drape and 3D in the 3D View")}
       </div>
     </div>
