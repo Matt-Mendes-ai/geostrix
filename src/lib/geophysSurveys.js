@@ -240,3 +240,52 @@ export function unitsForMethod(meta, method) {
   const own = meta?.units && !Object.values(SURVEY_METHODS).some((m) => m.units === meta.units);
   return own ? {} : { units: SURVEY_METHODS[method].units };
 }
+
+// TASKS.csv #3319 (Galore Creek review: the Extension grid's IP.xyz silently replaced the Main grid's IP.xyz, 245,066 points, because a survey
+// is known by its file name) — a re-import of the same file still replaces it (#600); a file of the same name with another row count or
+// extent is asked about, and may be kept beside it under another name; a survey can be renamed.
+export function surveyExtent(rows) {
+  let xmin = Infinity, xmax = -Infinity, ymin = Infinity, ymax = -Infinity, n = 0;
+  for (const r of rows || []) {
+    if (!Number.isFinite(r.x) || !Number.isFinite(r.y)) continue;
+    n++; if (r.x < xmin) xmin = r.x; if (r.x > xmax) xmax = r.x; if (r.y < ymin) ymin = r.y; if (r.y > ymax) ymax = r.y;
+  }
+  return { n, xmin, xmax, ymin, ymax };
+}
+// the same file read again: the same number of points over the same extent (to 1 % of its span, or a metre)
+export function sameSurveyFile(loaded, incoming) {
+  const a = surveyExtent(loaded), b = surveyExtent(incoming);
+  if (a.n !== b.n) return false;
+  const tol = Math.max(1, 0.01 * Math.max(a.xmax - a.xmin, a.ymax - a.ymin));
+  return Math.abs(a.xmin - b.xmin) <= tol && Math.abs(a.xmax - b.xmax) <= tol && Math.abs(a.ymin - b.ymin) <= tol && Math.abs(a.ymax - b.ymax) <= tol;
+}
+// the surveys an import would replace that are NOT the same file: [{ key, loaded: extent, incoming: extent }]
+export function surveyNameClashes(prev, incoming) {
+  const byKey = (rows) => { const m = new Map(); for (const r of rows || []) { const k = surveyKey(r); let a = m.get(k); if (!a) m.set(k, (a = [])); a.push(r); } return m; };
+  const had = byKey(prev), now = byKey(incoming), out = [];
+  for (const [k, rows] of now) { const old = had.get(k); if (old && !sameSurveyFile(old, rows)) out.push({ key: k, loaded: surveyExtent(old), incoming: surveyExtent(rows) }); }
+  return out;
+}
+// 'IP.xyz' -> 'IP.xyz (2)' (then (3) ...) when taken
+export function uniqueSurveyKey(name, keys) {
+  const taken = keys instanceof Set ? keys : new Set(keys || []);
+  if (!taken.has(name)) return name;
+  for (let k = 2; ; k++) if (!taken.has(`${name} (${k})`)) return `${name} (${k})`;
+}
+// a survey renamed: its points' _src and its metadata (method, units, legend, label) moved to the new name
+export function renameSurvey(rows, surveys, from, to) {
+  const outRows = (rows || []).map((r) => (surveyKey(r) === from ? { ...r, _src: to } : r));
+  const outSurveys = { ...(surveys || {}) };
+  if (from in outSurveys) { outSurveys[to] = outSurveys[from]; delete outSurveys[from]; }
+  return { rows: outRows, surveys: outSurveys };
+}
+// a file of a multi-file import without the chosen value column: its only other numeric column (not X / Y / Z or a line, station, time
+// or date column), or null when there is none or more than one
+const NOT_VALUE = /^(x|y|z|e|n|east(ing)?|north(ing)?|elev(ation)?|lon(gitude)?|lat(itude)?|line|line_?no|station|stn|fid|time|date|utc|gps_?time|_line)$/i;
+export function soleValueColumn(columns, rows, used = []) {
+  const skip = new Set(used.filter(Boolean));
+  const sample = (rows || []).slice(0, 200);
+  const numeric = (c) => { let n = 0, ok = 0; for (const r of sample) { const v = r[c]; if (v == null || v === "") continue; n++; if (Number.isFinite(typeof v === "number" ? v : Number(v))) ok++; } return n > 0 && ok >= 0.9 * n; };
+  const cands = (columns || []).filter((c) => !skip.has(c) && !NOT_VALUE.test(String(c).trim()) && numeric(c));
+  return cands.length === 1 ? cands[0] : null;
+}
