@@ -22,11 +22,11 @@ test("one entry: kept while every input is the same value or the same object, wo
 
 test("wiring: the composites keyed by everything compositing and placing read; the domain / transform and the flattening kept apart", () => {
   const m = readFileSync(new URL("../src/components/VariogramModal.jsx", import.meta.url), "utf8");
-  const key = m.match(/compCache\.current\.get\(\[([^\]]+)\]/)[1].split(",").map((s) => s.trim());
+  const key = m.match(/compCache\.current\.getAsync\(\[([^\]]+)\]/)[1].split(",").map((s) => s.trim());
   for (const k of ["srcAssays", "uns.ready", "uns.mode", "uns.value", "uns.logKey", "uns.logFactor", "uns.alsoUnassayed", "layers", "customLayers", "symbol", "unit", "elementUnits", "compositeLength", "minCoverage", "domainChoice ? domainChoice.rows : null", "collars", "survey", "desurveyMethod", "holeMode"]) assert.ok(key.includes(k), k);
   // nothing the cached step reads is left out of its key
-  const body = m.slice(m.indexOf("compCache.current.get(["), m.indexOf("}).value;", m.indexOf("compCache.current.get([")));
-  for (const k of ["uns.apply(srcAssays)", "compositeDownhole(filled.assays, symbol, unit, elementUnits", "length: compositeLength, minCoverage", "samplePointsFromIntervals(intervals, collars, survey, desurveyHole, desurveyMethod)", "holeMode === \"downhole\""]) assert.ok(body.includes(k), k);
+  const body = m.slice(m.indexOf("compCache.current.getAsync(["), m.indexOf("})).value;", m.indexOf("compCache.current.getAsync(["))); // getAsync: #3111 (compositing and placing in slices)
+  for (const k of ["uns.apply(srcAssays)", "compositeDownholeSliced(filled.assays, symbol, unit, elementUnits", "length: compositeLength, minCoverage", "samplePointsSliced(intervals, collars, survey, desurveyHole, desurveyMethod)", "holeMode === \"downhole\""]) assert.ok(body.includes(k), k);
   assert.match(m, /pointCache\.current\.get\(\[allPoints, domainKey, domainValue, transform, capPercentile\]/);
   assert.match(m, /flatCache\.current\.get\(\[tPoints, usePlane\.surface\]/);
   assert.match(m, /= pick\.tf;/);
