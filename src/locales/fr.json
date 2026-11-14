@@ -12638,5 +12638,8 @@
   "Inside {w} × {h} km": "Dans {w} × {h} km",
   "Draw the area to build the terrain over": "Dessinez la zone sur laquelle construire le terrain",
   "No cell of \"{name}\" with a value lies inside \"{boundary}\".": "Aucune cellule de « {name} » avec une valeur n'est dans « {boundary} ».",
-  "Added \"{name}\": {kept} of {total} cells inside \"{boundary}\" have a value ({cells} cells in all, cropped to the boundary). \"{source}\" is unchanged.": "« {name} » ajouté : {kept} cellules sur {total} dans « {boundary} » ont une valeur ({cells} cellules en tout, recadré à la limite). « {source} » est inchangé."
+  "Added \"{name}\": {kept} of {total} cells inside \"{boundary}\" have a value ({cells} cells in all, cropped to the boundary). \"{source}\" is unchanged.": "« {name} » ajouté : {kept} cellules sur {total} dans « {boundary} » ont une valeur ({cells} cellules en tout, recadré à la limite). « {source} » est inchangé.",
+  "\"{name}\": {rows} rows. X / Y are {x} / {y}, and From is the project's {crs}: the points land beside the project's collars when read in it. Check both, then save.": "« {name} » : {rows} lignes. X / Y sont {x} / {y}, et De est le {crs} du projet : les points tombent à côté des collets du projet lus dans celui-ci. Vérifiez les deux, puis enregistrez.",
+  "+{n} with the same box": "+{n} avec la même emprise",
+  "{n} feature(s); attributes: {cols}": "{n} entité(s) ; attributs : {cols}"
 }

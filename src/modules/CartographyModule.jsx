@@ -155,9 +155,18 @@ export default function CartographyModule({ embedded = false, forcePane = null }
     // TASKS.csv #3446 (split from #2297) — a GRIDNAME-style column's VALUES (MGA94_51, NAT_Grid_ID = MGA94_Z50) name the file's CRS, as the collar import reads them
     const frame = !srid ? gridFrameFromRows(t.headers, t.rows) : null;
     const named = frame?.epsg && !frame.mixed ? frame.epsg : null;
-    const implied = srid ? srid.epsg : named || (g.geographic ? 4326 : fromForGridPrefix(g.prefix, project?.crsSet !== false ? project?.epsg : null)); // #2588 — MGA_ columns on an MGA project
+    let implied = srid ? srid.epsg : named || (g.geographic ? 4326 : fromForGridPrefix(g.prefix, project?.crsSet !== false ? project?.epsg : null)); // #2588 — MGA_ columns on an MGA project
+    // TASKS.csv #3476 (from #3460) — plain Easting / Northing columns that land within 50 km of the project's collars when read in the project CRS: From is that CRS
+    let landed = false;
+    if (!implied && !g.geographic && g.x && g.y && project?.crsSet !== false && project?.epsg && (store.collars || []).length) {
+      const pts = t.rows.map((r) => ({ x: Number(r[g.x]), y: Number(r[g.y]) })).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+      const at = collarCentreLonLat(pts, project.epsg), home = collarCentreLonLat(store.collars, project.epsg), off = at && home ? offsetFrom(home, at) : null;
+      if (off && off.km <= 50) { implied = project.epsg; landed = true; }
+    }
     setFileFrom(implied || null);
-    setMsg({ ok: true, text: named
+    setMsg({ ok: true, text: landed
+      ? tr("\"{name}\": {rows} rows. X / Y are {x} / {y}, and From is the project's {crs}: the points land beside the project's collars when read in it. Check both, then save.", { name: f.name, rows: t.rows.length.toLocaleString(), x: g.x, y: g.y, crs: nameOf(implied) })
+      : named
       ? tr("\"{name}\": {rows} rows. X / Y are {x} / {y}, and From is {crs}, from the values of its {col} column: check both, then save.", { name: f.name, rows: t.rows.length.toLocaleString(), x: g.x || "?", y: g.y || "?", crs: nameOf(named), col: frame.cols.join(" / ") })
       : frame?.mixed
       ? tr("\"{name}\": {rows} rows. Its {col} column names more than one grid ({names}): the rows are not in one CRS, so From is left for you to choose. Check the X / Y columns, then save.", { name: f.name, rows: t.rows.length.toLocaleString(), col: frame.cols.join(" / "), names: frame.groups.slice(0, 4).map((x) => `${x.name} (${x.rows.toLocaleString()})`).join(", ") })

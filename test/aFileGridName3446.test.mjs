@@ -16,7 +16,7 @@ test("every row naming MGA94_51 gives EPSG:28351; rows in several frames are mix
 test("A file pre-fills From from the values (after a srid column, before the header prefix) and says so; a mixed file leaves From to the user", () => {
   const c = readFileSync(new URL("../src/modules/CartographyModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(c, /const frame = !srid \? gridFrameFromRows\(t\.headers, t\.rows\) : null;/);
-  assert.match(c, /const implied = srid \? srid\.epsg : named \|\| \(g\.geographic \? 4326 : fromForGridPrefix/);
+  assert.match(c, /let implied = srid \? srid\.epsg : named \|\| \(g\.geographic \? 4326 : fromForGridPrefix/);
   assert.match(c, /from the values of its \{col\} column: check both, then save\./);
   assert.match(c, /names more than one grid \(\{names\}\): the rows are not in one CRS, so From is left for you to choose\./);
 });

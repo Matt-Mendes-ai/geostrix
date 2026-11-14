@@ -61,6 +61,9 @@ function ShapeGlyph({ shape }) {
   React.useEffect(() => { const c = ref.current?.getContext("2d"); if (!c) return; c.clearRect(0, 0, 14, 14); c.beginPath(); shapePath(c, shape, 7, 7, 4.5); c.fillStyle = "#5a6472"; c.fill(); c.strokeStyle = "#14181e"; c.lineWidth = 1; c.stroke(); }, [shape]);
   return <canvas ref={ref} width={14} height={14} style={{ width: 14, height: 14, flex: "0 0 auto" }} aria-hidden="true" />;
 }
+// TASKS.csv #3484 — the pixel ratio of a Layout snapshot of a w x h (CSS px) plan: 300 dpi of A3's long side, in [2 dpr, 8], within 36 megapixels
+export const SHEET_LONG_PX = 4961; // 420 mm at 300 dpi
+export const snapshotRatio = (w, h, dpr = 1) => Math.min(8, Math.max(2 * dpr, SHEET_LONG_PX / Math.max(1, w, h)), Math.sqrt(36e6 / Math.max(1, w * h)));
 const SURVEY_COLOURS = ["#0e7490", "#b45309", "#7c3aed", "#be185d", "#15803d", "#1d4ed8"];
 // TASKS.csv #2998 — '  ·  57.1291°N 131.4509°W' (null transform or a failed conversion: nothing)
 const lonLatText = (T, c) => {
@@ -393,8 +396,10 @@ export default function MapsPlanView() {
       for (let i = 0; i < 30 && gridDrawn.current; i++) await new Promise((r) => requestAnimationFrame(r));
     }
     const collarTitle = colouring ? (colourBy.startsWith("f:") ? colourBy.slice(2) : colourBy.replace(/^(max|mean):/, "")) : "";
-    // TASKS.csv #3228 step B — the plan drawn again at twice the screen's pixels (at most 4x and 36 megapixels) for the Layout sheet, then back
-    const want = Math.min(4, Math.max(2, 2 * (window.devicePixelRatio || 1)), Math.sqrt(36e6 / Math.max(1, size.w * size.h)));
+    // TASKS.csv #3228 / #3484 — the plan drawn again for the Layout sheet at 300 dpi of a full A3 sheet's width (4,961 px along its long side: the
+    // largest the snapshot is likely to be placed at; one placed smaller prints finer still), at least twice the screen's pixels, at most 8x and
+    // 36 megapixels; then back. The drawing is the screen's, scaled (dots, lines and text keep their size on the sheet).
+    const want = snapshotRatio(size.w, size.h, window.devicePixelRatio || 1);
     if (want > (window.devicePixelRatio || 1)) { setCaptureDpr(want); for (let i = 0; i < 60 && drawnDpr.current !== want; i++) await new Promise((r) => requestAnimationFrame(r)); }
     const src = cv.toDataURL("image/png");
     setCaptureDpr(null);

@@ -12638,5 +12638,8 @@
   "Inside {w} × {h} km": "Dentro de {w} × {h} km",
   "Draw the area to build the terrain over": "Desenhe a área sobre a qual construir o terreno",
   "No cell of \"{name}\" with a value lies inside \"{boundary}\".": "Nenhuma célula de \"{name}\" com valor fica dentro de \"{boundary}\".",
-  "Added \"{name}\": {kept} of {total} cells inside \"{boundary}\" have a value ({cells} cells in all, cropped to the boundary). \"{source}\" is unchanged.": "\"{name}\" adicionado: {kept} de {total} células dentro de \"{boundary}\" têm valor ({cells} células ao todo, recortado ao limite). \"{source}\" não mudou."
+  "Added \"{name}\": {kept} of {total} cells inside \"{boundary}\" have a value ({cells} cells in all, cropped to the boundary). \"{source}\" is unchanged.": "\"{name}\" adicionado: {kept} de {total} células dentro de \"{boundary}\" têm valor ({cells} células ao todo, recortado ao limite). \"{source}\" não mudou.",
+  "\"{name}\": {rows} rows. X / Y are {x} / {y}, and From is the project's {crs}: the points land beside the project's collars when read in it. Check both, then save.": "\"{name}\": {rows} linhas. X / Y são {x} / {y}, e De é o {crs} do projeto: os pontos ficam ao lado dos colares do projeto quando lidos nele. Confira ambos e salve.",
+  "+{n} with the same box": "+{n} com a mesma caixa",
+  "{n} feature(s); attributes: {cols}": "{n} feição(ões); atributos: {cols}"
 }

@@ -17,7 +17,7 @@ import { zeroMeansMissing } from "../lib/missingElevation.js"; // TASKS.csv #143
 import { suspectElevationIds, elevationTrust } from "../lib/collarElevationTrust.js"; // TASKS.csv #2987 (the shared rule, #3004)
 import { logReadingCounts } from "../lib/inversionLogSources.js"; // TASKS.csv #2950
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1461
-import { fetchAreaBox, modelGapKm } from "../lib/dataExtent.js"; // #1461; modelGapKm: #1427
+import { fetchAreaBox, modelGapKm, mergeSameBoxOptions } from "../lib/dataExtent.js"; // #1461; modelGapKm: #1427
 import { Pencil /* #3319 */, Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe, ArrowDownToLine, PackageOpen, Scale, Crosshair } from "../components/icons.js"; // Crosshair: #2657
 import { requestPlanZoom, polylinesBox } from "../lib/planZoom.js"; // TASKS.csv #2657 // Scale: #1052
 import { lazyModal } from "../lib/lazyModal.jsx";
@@ -1019,7 +1019,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const lons = lonLats.map((ll) => ll.lon), lats = lonLats.map((ll) => ll.lat);
       return { id: j.id, label: farLabel(j.label, farFromCollars([j.xmin, j.ymin, j.xmax, j.ymax], collars)), bboxLonLat: [arrMin(lons), arrMin(lats), arrMax(lons), arrMax(lats)] }; // farLabel: #2590
     }));
-    return options.filter(Boolean);
+    return mergeSameBoxOptions(options.filter(Boolean), (n) => tr("+{n} with the same box", { n })); // TASKS.csv #3477 — one line per distinct box
   };
 
   // TASKS.csv #615 — terrain is fetched for wherever the project CRS puts the data: a CRS never chosen is asked for
@@ -1255,9 +1255,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           if (sk || specs[0]?.dxfZerosDropped) dxfNotes.push(`${file.name}: ${[specs[0]?.dxfZerosDropped ? "every string had elevation 0, read as a 2D plan" : "", sk].filter(Boolean).join("; ")}`);
           continue;
         }
-        let polylines, closedFlags, partNames;
+        let polylines, closedFlags, partNames, featureOf, attributes;
         if (shapePolylines) {
-          ({ polylines, closedFlags, partNames } = shapePolylines); // partNames: #1767
+          ({ polylines, closedFlags, partNames, featureOf, attributes } = shapePolylines); // partNames: #1767; featureOf / attributes: #3478
+          if (!featureOf || (attributes || []).length > 300 || !(attributes || []).some((a) => a && Object.keys(a).length)) { featureOf = undefined; attributes = undefined; } // kept up to 300 features, as a claim file's
           if (shapePolylines.note) dxfNotes.push(`${file.name}: ${shapePolylines.note}`); // #1035 — the CRS said
         } else {
           const text = await file.text();
@@ -1265,7 +1266,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           const st = await plainSourceTransform(); // #2684
           if (st) { polylines = st.map(polylines); if (st.note) dxfNotes.push(`${file.name}: ${st.note}`); }
         }
-        addBoundary({ name: uniqueName(fileStem(file.name), boundaries.map((b) => b.name)) /* #3455 */, polylines, ...(closedFlags ? { closedFlags } : {}), ...(partNames ? { partNames } : {}), elevation: boundaryElevation }); // fileStem, partNames: #1767 — the claims path already named by the stem
+        addBoundary({ name: uniqueName(fileStem(file.name), boundaries.map((b) => b.name)) /* #3455 */, polylines, ...(closedFlags ? { closedFlags } : {}), ...(partNames ? { partNames } : {}), ...(attributes ? { featureOf, attributes } : {}) /* #3478 */, elevation: boundaryElevation }); // fileStem, partNames: #1767 — the claims path already named by the stem
         imported++;
       } catch (err) {
         if (err.facesOnly) { solids.push(file); continue; } // TASKS.csv #1503 — 3DFACE / polyface only: a solid, for the 3D View's solid import
@@ -2899,6 +2900,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               {polylinesBox(b.polylines) && <Crosshair role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Zoom the plan to \"{name}\"", { name: b.name })} title={tr("Zoom the plan to \"{name}\"", { name: b.name })} onClick={() => requestPlanZoom(polylinesBox(b.polylines))} />}{/* TASKS.csv #2657 */}
               <Trash2 aria-label={tr("Remove boundary \"{name}\"", { name: b.name })} title={tr("Remove boundary \"{name}\"", { name: b.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: b.name }))) removeBoundary(b.id); }} />
             </div>
+            {b.attributes?.length > 0 && ( /* TASKS.csv #3478 — the source's attributes, as a claim keeps them: the columns, and the first feature's values */
+              <div style={{ marginTop: 4, color: "var(--color-text-faint)", fontSize: "var(--font-size-sm)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                title={b.attributes.slice(0, 12).map((a, i) => `${i + 1}: ${Object.entries(a || {}).slice(0, 12).map(([k, v]) => `${k}=${v}`).join(", ")}`).join("\n")}>
+                {tr("{n} feature(s); attributes: {cols}", { n: b.attributes.length.toLocaleString(), cols: [...new Set(b.attributes.flatMap((a) => Object.keys(a || {})))].slice(0, 6).join(", ") })}
+              </div>
+            )}
             {isAreaBoundary(b) && (() => { // TASKS.csv #3469 — a closed boundary has an area too, as a claim does (on the ground where the grid's scale factor matters, #3468)
               const ga = groundArea(boundaryAreaHectares(b.polylines), b.polylines, project?.crsSet !== false ? project?.epsg : null), f = (v) => v.toLocaleString(undefined, { maximumFractionDigits: 1 });
               return <div style={{ marginTop: 4, color: "var(--color-text-faint)", fontSize: "var(--font-size-sm)" }}>{ga.groundHa != null ? tr("Area {v} ha on the ground ({g} ha on the map grid)", { v: f(ga.groundHa), g: f(ga.gridHa) }) : tr("Area {v} ha", { v: f(ga.gridHa) })}</div>;
