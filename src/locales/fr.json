@@ -12062,5 +12062,15 @@
   "{col} holds numbers, not mineral names: each different number would be its own legend row. Choose a column of mineral names, or a file's per-mineral amount columns (they are offered as minerals, with Total min as the value).": "{col} contient des nombres, pas des noms de minéraux : chaque nombre différent serait sa propre ligne de légende. Choisissez une colonne de noms de minéraux, ou les colonnes de quantité par minéral du fichier (elles sont proposées comme minéraux, avec le Total min comme valeur).",
   "{shown} of {count}": "{shown} sur {count}",
   "{hidden} of {count} intervals hidden by the code filter (Filter / legend)": "{hidden} intervalles sur {count} masqués par le filtre de codes (Filtre / légende)",
-  "Undo could not remove {symbol}: the assay table has changed since it was added, so it was left as it is.": "Annuler n'a pas pu retirer {symbol} : la table des analyses a changé depuis son ajout, elle a donc été laissée telle quelle."
+  "Undo could not remove {symbol}: the assay table has changed since it was added, so it was left as it is.": "Annuler n'a pas pu retirer {symbol} : la table des analyses a changé depuis son ajout, elle a donc été laissée telle quelle.",
+  "Only .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml/.kmz, .las logs, GeoTIFF / .gxf / .grd grids and .dxf / .obj files can be dropped in directly.": "Seuls les fichiers .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml/.kmz, les journaux .las, les grilles GeoTIFF / .gxf / .grd et les fichiers .dxf / .obj peuvent être déposés directement.",
+  "No drill lines found: the holes are not in lines. Azimuth from the commonest bearing between neighbouring collars ({az}°).": "Aucune ligne de forage trouvée : les sondages ne sont pas alignés. Azimut selon l’orientation la plus fréquente entre collets voisins ({az}°).",
+  "{v} · {v2} · {v3} · {v4}{v5}{v6}": "{v} · {v2} · {v3} · {v4}{v5}{v6}",
+  "{n} hole": "{n} sondage",
+  "{n} holes": "{n} sondages",
+  "{n} interval": "{n} intervalle",
+  "{n} point": "{n} point",
+  "{n} points": "{n} points",
+  "{n} structure": "{n} structure",
+  "{n} structures": "{n} structures"
 }

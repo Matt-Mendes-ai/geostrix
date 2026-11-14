@@ -96,7 +96,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
           {/* TASKS.csv #649 — shape and opacity, like the other layers' style panel */}
           <label style={row}>
             <span style={rowLabel}>{tr("Shape")}</span>
-            <select value={local.shape} onChange={(e) => commit({ ...local, shape: e.target.value })} aria-label={tr("Marker shape")} style={{ ...inp, flex: 1 }}>
+            <select value={local.shape} onChange={(e) => commit({ ...local, shape: e.target.value })} aria-label={tr("Marker shape")} style={{ ...inp, flex: 1, minWidth: 0 }}>{/* #3280 (6) — its longest option overflowed the dialog by 30 px */}
               <option value="auto">{tr("Automatic: spheres, or along the hole above {n} samples", { n: ASSAY_AUTO_LIMIT.toLocaleString() })}</option>
               {SHAPES.point.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
               <option value={ASSAY_TRACE}>{tr("Along the hole")}</option>

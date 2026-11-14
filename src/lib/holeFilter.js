@@ -51,8 +51,29 @@ export const pickTerm = (key, value) => `${String(key).trim().replace(/\s+/g, "_
 // PROSPECT. When plain text (no 'field=value' term) matches no hole id, the holes whose collar fields contain that text (case-insensitive,
 // '_' as a space) are listed instead. -> { holes, byField } (byField: true when the fallback answered). The Layout drill plan keeps
 // collarsMatching as it is.
+// TASKS.csv #3278 (Galore review) — the menu's 'DH_HOLE_PURPOSE = Resource' listed 12 holes (Resource, Resource Confidence, Resource
+// Expansion: the word match), and 'DH_AREA=CZNGL, DH_AREA=CZRPL' 0 (every field term had to match). For the 3D View's Holes list: a value
+// some hole holds exactly matches exactly (a typed word that is no whole value still matches as a word, #1504), and terms on one field are
+// joined by OR, different fields by AND. collarsMatching (the Layout drill plan, the Atlas) is unchanged.
+export function collarsMatchingList(collars, filter) {
+  const terms = String(filter || "").split(/[,\s]+/).filter(Boolean);
+  const byField = new Map();
+  for (const t of terms) { const i = t.indexOf("="); if (i < 0) continue; const k = norm(t.slice(0, i)); if (k) (byField.get(k) || byField.set(k, []).get(k)).push(norm(t.slice(i + 1))); }
+  if (!byField.size) return collarsMatching(collars, filter);
+  const idTerms = terms.filter((t) => !t.includes("=")).map(norm);
+  const attrsOf = (c, k) => { const a = c?.attrs || {}; return Object.keys(a).filter((x) => norm(x) === k).map((x) => norm(a[x])); }; // #2488
+  const fields = Array.from(byField, ([k, vs]) => {
+    const held = new Set(); for (const c of collars || []) for (const got of attrsOf(c, k)) held.add(got);
+    return [k, vs.map((v) => [v, held.has(v)])];
+  });
+  return (collars || []).filter((c) => {
+    if (idTerms.length && !idTerms.some((t) => norm(c.hole_id).includes(t))) return false;
+    return fields.every(([k, vs]) => attrsOf(c, k).some((got) => vs.some(([v, exact]) => got === v || (!exact && got.split(/[^a-z0-9.]+/).includes(v)))));
+  });
+}
+
 export function holesForFilter(collars, filter) {
-  const holes = collarsMatching(collars, filter);
+  const holes = collarsMatchingList(collars, filter); // #3278
   const text = norm(filter).replace(/\s+/g, " ");
   if (holes.length || !text || String(filter).includes("=")) return { holes, byField: false };
   const hits = (collars || []).filter((c) => Object.values(c?.attrs || {}).some((v) => norm(v).replace(/\s+/g, " ").includes(text)));

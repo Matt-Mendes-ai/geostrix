@@ -331,7 +331,17 @@ export function OrphanHoles({ layers, assays, collars, onOpenStripLog }) {
 // 265,000 elements in the page, and every layout of the window took about 0.5 s (the legend fit, the ribbon, each frame). It shows the
 // first HOLE_ROWS_STEP of the holes the filter matches, and 'Show more' adds the next; a new filter starts again from the top.
 export const HOLE_ROWS_STEP = 300;
-export function HoleRowList({ holes, filterKey, visibleHoles, onToggle, onOpenStripLog, onSection, onZoom }) {
+// TASKS.csv #3280 (11) (Galore review) — the list kept the collar file's order (CC23 after PD23): by hole id, numbers as numbers. The caller
+// hands a new array each render; the sorted one is kept while the same holes come in the same order (an O(n) check, not a sort per render).
+const ID_ORDER = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" }), idSorted = { src: [], out: [] };
+export function holesById(holes) {
+  const s = idSorted.src;
+  if (s.length === holes.length && holes.every((h, i) => h === s[i])) return idSorted.out;
+  idSorted.src = holes; idSorted.out = holes.slice().sort((a, b) => ID_ORDER.compare(String(a.hole_id), String(b.hole_id)));
+  return idSorted.out;
+}
+export function HoleRowList({ holes: given, filterKey, visibleHoles, onToggle, onOpenStripLog, onSection, onZoom }) {
+  const holes = holesById(given);
   const [limit, setLimit] = useState(HOLE_ROWS_STEP);
   useEffect(() => { setLimit(HOLE_ROWS_STEP); }, [filterKey]);
   const rest = holes.length - limit;

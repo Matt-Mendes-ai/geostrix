@@ -12062,5 +12062,15 @@
   "{col} holds numbers, not mineral names: each different number would be its own legend row. Choose a column of mineral names, or a file's per-mineral amount columns (they are offered as minerals, with Total min as the value).": "{col} contiene números, no nombres de minerales: cada número distinto sería su propia fila en la leyenda. Elija una columna de nombres de minerales, o las columnas de cantidad por mineral del archivo (se ofrecen como minerales, con el Total min como valor).",
   "{shown} of {count}": "{shown} de {count}",
   "{hidden} of {count} intervals hidden by the code filter (Filter / legend)": "{hidden} de {count} intervalos ocultos por el filtro de códigos (Filtro / leyenda)",
-  "Undo could not remove {symbol}: the assay table has changed since it was added, so it was left as it is.": "Deshacer no pudo quitar {symbol}: la tabla de ensayes cambió desde que se agregó, así que se dejó como está."
+  "Undo could not remove {symbol}: the assay table has changed since it was added, so it was left as it is.": "Deshacer no pudo quitar {symbol}: la tabla de ensayes cambió desde que se agregó, así que se dejó como está.",
+  "Only .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml/.kmz, .las logs, GeoTIFF / .gxf / .grd grids and .dxf / .obj files can be dropped in directly.": "Solo se pueden soltar directamente archivos .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml/.kmz, logueos .las, grillas GeoTIFF / .gxf / .grd y archivos .dxf / .obj.",
+  "No drill lines found: the holes are not in lines. Azimuth from the commonest bearing between neighbouring collars ({az}°).": "No se encontraron líneas de perforación: los sondajes no están en líneas. Azimut según el rumbo más común entre collares vecinos ({az}°).",
+  "{v} · {v2} · {v3} · {v4}{v5}{v6}": "{v} · {v2} · {v3} · {v4}{v5}{v6}",
+  "{n} hole": "{n} sondaje",
+  "{n} holes": "{n} sondajes",
+  "{n} interval": "{n} intervalo",
+  "{n} point": "{n} punto",
+  "{n} points": "{n} puntos",
+  "{n} structure": "{n} estructura",
+  "{n} structures": "{n} estructuras"
 }

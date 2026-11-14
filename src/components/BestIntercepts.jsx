@@ -398,7 +398,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
               {symbols.length - 1 > ALSO_MAX && (
                 <select aria-label={tr("Add an element")} value="" onChange={(e) => { if (e.target.value) toggleExtraSymbol(e.target.value); }} style={{ fontSize: "var(--font-size-sm)", padding: "3px 6px" }}>
                   <option value="">{tr("Add an element… ({n} more)", { n: symbols.filter((s) => s !== symbol && !extraSymbols.includes(s)).length })}</option>
-                  {symbols.filter((s) => s !== symbol && !extraSymbols.includes(s)).map((s) => <option key={s} value={s}>{`${s} (${elementUnits[s] || "ppm"})`}</option>)}
+                  {symbols.filter((s) => s !== symbol && !extraSymbols.includes(s)).map((s) => <option key={s} value={s}>{`${s} (${gradeUnitLabel(s, elementUnits[s])})`}</option>)}{/* #3280 (4) — as the Element menu: 'Au (g/t)', not 'Au (ppm)' */}
                 </select>
               )}
             </div>
