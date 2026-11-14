@@ -3,6 +3,8 @@
 // grade. The rows are turned into assay-shaped intervals under one "element" so the estimation, compositing, capping and
 // variogram code runs unchanged. Values are used as logged: the import never rescales a susceptibility, so the unit label
 // says "SI" and the dialogs say "as logged". Pure.
+import { logFilterOf, movingMedian } from "./logFilter.js"; // TASKS.csv #3241 — moved out so the 3D View can import it alone
+export { logFilterOf, filterLogRows, withFilteredLogs } from "./logFilter.js";
 import { numericLayerFields } from "./evidenceSources.js";
 import { isNumericLayer } from "./domainLayers.js";
 import { suscUnitHint } from "./drillholeConstraints.js"; // TASKS.csv #2079
@@ -28,10 +30,6 @@ const BUILTIN_FIELD_LOGS = ["litho", "alt", "vein", "breccia", "weath", "structz
 // validRange / despikeM for an imported one) as the choice carries them, and the words its label adds so no tool reads filtered readings
 // unsaid: "Mag. susc. (range 0–5,000, despiked 1 m)"
 const fmt = (v) => Number(v).toLocaleString("en-US", { maximumSignificantDigits: 6 });
-export function logFilterOf(entry) {
-  const r = Array.isArray(entry?.range) ? entry.range.map(num) : null, d = num(entry?.despikeM);
-  return { ...(r && (Number.isFinite(r[0]) || Number.isFinite(r[1])) ? { validRange: r } : {}), ...(d > 0 ? { despikeM: d } : {}) };
-}
 export function logFilterLabel(f) {
   const parts = [];
   if (f?.validRange) parts.push(`range ${Number.isFinite(f.validRange[0]) ? fmt(f.validRange[0]) : "…"}–${Number.isFinite(f.validRange[1]) ? fmt(f.validRange[1]) : "…"}`);
@@ -147,47 +145,6 @@ export function sourceAssays(choice, { layers, customLayers } = {}, { pointSuppo
   return { assays, assayElements: [{ symbol, unit: choice.unit }], symbol, unit: choice.unit, pointRows: pointRows.length, pointSupport: pointRows.length ? support : null, skipped, ...(vr ? { outOfRange, validRange: vr } : {}), ...(despikeM ? { despikeM } : {}) };
 }
 
-// TASKS.csv #3288 (#3241) — a log's rows as every other tool reads them: readings outside the valid range left out, the despike applied to the value. entry: { range,
-// despikeM } (project.logValidRange[key] for a built-in log, the layer's validRange / despikeM for an imported one); field: the value's column. Rows are copied, not edited.
-// -> { rows, outOfRange, validRange, despikeM }
-export function filterLogRows(rows, entry, field = "value") {
-  const f = logFilterOf(entry), vr = f.validRange || null, despikeM = f.despikeM || 0;
-  const outside = vr ? (v) => (Number.isFinite(vr[0]) && v < vr[0]) || (Number.isFinite(vr[1]) && v > vr[1]) : null;
-  let outOfRange = 0;
-  const kept = [];
-  for (const r of rows || []) {
-    const v = num(r[field]);
-    if (!Number.isFinite(v)) { kept.push([r, NaN]); continue; }
-    if (outside && outside(v)) { outOfRange++; continue; }
-    kept.push([r, v]);
-  }
-  const finite = kept.filter(([, v]) => Number.isFinite(v)), vals = despikeM ? movingMedian(finite, despikeM) : null;
-  let i = 0;
-  const out = kept.map(([r, v]) => (Number.isFinite(v) && vals ? { ...r, [field]: vals[i++] } : r));
-  return { rows: out, outOfRange, ...(vr ? { validRange: vr } : {}), ...(despikeM ? { despikeM } : {}) };
-}
-
-// TASKS.csv #3116 — the despike: each reading replaced by the median of its hole's readings within ±windowM / 2 of its depth (an interval's middle,
-// or the depth of a point reading), the lower middle one of an even count. A lone spike takes its neighbours' level; a reading alone in its
-// window keeps its value. kept: [[row, v]]
-function movingMedian(kept, windowM) {
-  const out = new Float64Array(kept.length), byHole = new Map(), h = windowM / 2;
-  const depth = kept.map(([r]) => { const f = num(r.from), t = num(r.to); return Number.isFinite(f) && Number.isFinite(t) ? (f + t) / 2 : num(r.depth); });
-  kept.forEach(([r, v], i) => { if (!Number.isFinite(depth[i])) { out[i] = v; return; } const k = String(r.hole_id); (byHole.get(k) || byHole.set(k, []).get(k)).push(i); }); // no depth: as read (skipped later)
-  for (const idx of byHole.values()) {
-    idx.sort((a, b) => depth[a] - depth[b]);
-    let lo = 0, hi = 0;
-    for (let k = 0; k < idx.length; k++) {
-      const d = depth[idx[k]];
-      while (depth[idx[lo]] < d - h) lo++;
-      while (hi < idx.length && depth[idx[hi]] <= d + h) hi++;
-      const w = []; for (let j = lo; j < hi; j++) w.push(kept[idx[j]][1]);
-      w.sort((a, b) => a - b);
-      out[idx[k]] = w[(w.length - 1) >> 1]; // the LOWER middle of an even count: always a reading, and a lone spike never averaged into its neighbours
-    }
-  }
-  return out;
-}
 
 // log10 of the sample values, for an estimate that is a geometric mean per block (susceptibility varies over decades, so an
 // arithmetic average of neighbours is dominated by the one magnetite-rich reading). Values at or below zero are floored at
