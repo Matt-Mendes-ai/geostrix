@@ -12107,5 +12107,7 @@
   "{n} blocks of the model lie outside the pit area: the walls that cut them cost them as waste, whatever their grade (the area limits what is priced, not the rock the walls take).": "{n} bloques del modelo están fuera del área del rajo: las paredes que los cortan los cuentan como estéril, sea cual sea su ley (el área limita lo que se valoriza, no la roca que toman las paredes).",
   "A massive body: the largest outline spans {a} × {b} m in plan on a {h} m level ({t} t), and outlines are found on {n} levels over {H} m of height. These are level outlines, not stopes: a body wide on every level is a bulk-mining question (a pit, or a cave), which this tool does not design.": "Un cuerpo masivo: el contorno más grande abarca {a} × {b} m en planta en un nivel de {h} m ({t} t), y hay contornos en {n} niveles a lo largo de {H} m de altura. Son contornos de nivel, no caserones: un cuerpo ancho en cada nivel es una cuestión de minería masiva (un rajo o un hundimiento), que esta herramienta no diseña.",
   "The ore-grade blocks lie {min}–{max} m below the ground over them ({median} m at the median; {src}): deep for an open pit. Compare Stope outlines before reading this pit as a mine.": "Los bloques con ley de mineral están {min}–{max} m bajo el terreno que los cubre ({median} m en la mediana; {src}): profundo para un rajo abierto. Compare los contornos de caserones antes de leer este rajo como una mina.",
-  "the ground interpolated between the collars": "el terreno interpolado entre los collares"
+  "the ground interpolated between the collars": "el terreno interpolado entre los collares",
+  "{layer} (hidden in 3D)": "{layer} (oculto en 3D)",
+  "(highest of {n} in the slab)": "(el más alto de {n} en la franja)"
 }

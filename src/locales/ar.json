@@ -12107,5 +12107,7 @@
   "{n} blocks of the model lie outside the pit area: the walls that cut them cost them as waste, whatever their grade (the area limits what is priced, not the rock the walls take).": "{n} كتلة من النموذج تقع خارج منطقة الحفرة: الجدران التي تقطعها تحسبها نفايات مهما كان محتواها (المنطقة تحدد ما يُسعَّر، لا الصخر الذي تأخذه الجدران).",
   "A massive body: the largest outline spans {a} × {b} m in plan on a {h} m level ({t} t), and outlines are found on {n} levels over {H} m of height. These are level outlines, not stopes: a body wide on every level is a bulk-mining question (a pit, or a cave), which this tool does not design.": "جسم ضخم: يمتد أكبر محيط {a} × {b} م في المسقط على مستوى {h} م ({t} طن)، وتوجد محيطات على {n} مستويات عبر {H} م من الارتفاع. هذه محيطات مستويات وليست غرف تعدين: الجسم العريض في كل مستوى مسألة تعدين بالجملة (حفرة أو انهيار)، لا تصممها هذه الأداة.",
   "The ore-grade blocks lie {min}–{max} m below the ground over them ({median} m at the median; {src}): deep for an open pit. Compare Stope outlines before reading this pit as a mine.": "تقع كتل محتوى الخام على عمق {min}–{max} م تحت الأرض فوقها ({median} م عند الوسيط؛ {src}): عميقة لحفرة مفتوحة. قارن محيطات غرف التعدين قبل قراءة هذه الحفرة كمنجم.",
-  "the ground interpolated between the collars": "الأرض المستكملة بين الفوهات"
+  "the ground interpolated between the collars": "الأرض المستكملة بين الفوهات",
+  "{layer} (hidden in 3D)": "{layer} (مخفي في العرض ثلاثي الأبعاد)",
+  "(highest of {n} in the slab)": "(الأعلى من {n} في الشريحة)"
 }

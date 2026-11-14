@@ -12107,5 +12107,7 @@
   "{n} blocks of the model lie outside the pit area: the walls that cut them cost them as waste, whatever their grade (the area limits what is priced, not the rock the walls take).": "{n} blocos do modelo ficam fora da área da cava: as paredes que os cortam os contam como estéril, seja qual for o teor (a área limita o que é precificado, não a rocha que as paredes levam).",
   "A massive body: the largest outline spans {a} × {b} m in plan on a {h} m level ({t} t), and outlines are found on {n} levels over {H} m of height. These are level outlines, not stopes: a body wide on every level is a bulk-mining question (a pit, or a cave), which this tool does not design.": "Um corpo maciço: o maior contorno abrange {a} × {b} m em planta num nível de {h} m ({t} t), e há contornos em {n} níveis ao longo de {H} m de altura. São contornos de nível, não realces: um corpo largo em todos os níveis é uma questão de lavra em massa (uma cava ou um abatimento), que esta ferramenta não projeta.",
   "The ore-grade blocks lie {min}–{max} m below the ground over them ({median} m at the median; {src}): deep for an open pit. Compare Stope outlines before reading this pit as a mine.": "Os blocos com teor de minério ficam {min}–{max} m abaixo do terreno sobre eles ({median} m na mediana; {src}): fundo para uma cava a céu aberto. Compare os contornos de realce antes de ler esta cava como uma mina.",
-  "the ground interpolated between the collars": "o terreno interpolado entre as bocas de furo"
+  "the ground interpolated between the collars": "o terreno interpolado entre as bocas de furo",
+  "{layer} (hidden in 3D)": "{layer} (oculto em 3D)",
+  "(highest of {n} in the slab)": "(o mais alto de {n} na faixa)"
 }

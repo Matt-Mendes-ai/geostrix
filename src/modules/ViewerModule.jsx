@@ -5690,13 +5690,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // TASKS.csv #525 — factored out of buildSectionPayload so the level plan colours holes exactly as sections do.
   const layerPrimitivesFor = (holeIds, scope = {}) => {
     const intervals = [];
-    // TASKS.csv #137 — SG has no fixed domain the way RQD%/recovery% do (see the main geometry
-    // effect's numericIntervalColor comment for the same reasoning) — its actual project min/max
-    // is computed once here too, same values that effect's globalPointRanges.sg would produce.
+    // TASKS.csv #137 — SG has no fixed domain (as RQD% / recovery% do): its project min / max, as the scene build's.
     const sgVals = (layers.sg || []).filter((r) => holeIds.has(r.hole_id) && isRowVisible("sg", r)).map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
     const sgRange = minMax(sgVals);
     ["litho", "alt", "vein", "breccia", "weath", "structzone", "geotech", "recovery", "sg", "litho_gc", "alt_gc"].forEach((key) => {
-      if (scope.layerKeys != null ? !scope.layerKeys.includes(key) : !layerVisible[key]) return;
+      if (scope.layerKeys != null ? !scope.layerKeys.includes(key) : !layerVisible[key] && !scope.also?.includes(key)) return; // also: #3248
       const meta = LAYER_META[key];
       (layers[key] || []).forEach((row) => {
         if (!holeIds.has(row.hole_id) || !isRowVisible(key, row)) return;
@@ -5708,7 +5706,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
     const points = [];
     ["mnlgy", "magsusc"].forEach((key) => {
-      if (scope.layerKeys != null ? !scope.layerKeys.includes(key) : !layerVisible[key]) return;
+      if (scope.layerKeys != null ? !scope.layerKeys.includes(key) : !layerVisible[key] && !scope.also?.includes(key)) return; // also: #3248
       const meta = LAYER_META[key];
       const vals = (layers[key] || []).filter((r) => holeIds.has(r.hole_id) && isRowVisible(key, r));
       const numeric = vals.map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
@@ -5740,7 +5738,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const showCustomLayers = scope.showCustomLayers != null ? scope.showCustomLayers : true;
     customLayers.forEach((layer) => {
       if (!showCustomLayers) return;
-      if (scope.showCustomLayers == null && customVisible[layer.id] === false) return;
+      if (scope.showCustomLayers == null && customVisible[layer.id] === false && !scope.also?.includes(`custom:${layer.id}`)) return; // #3248
       const st = layerStyles[`custom:${layer.id}`], stI = resolveLayerStyle(st, "interval"), stP = resolveLayerStyle(st, "point"); // #1539 — the 3D view's colours
       const nm = String(layer.name).replace(/: /g, " – "); // #2979 — 'Gamma: Raw_cps' was cut to 'Gamma' at the label's first ': ' (ribbons, keys, the level plan)
       layer.rows.filter((r) => holeIds.has(r.hole_id)).forEach((row) => {
@@ -5995,7 +5993,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // block-model cells, model surfaces, planned holes), as a section draws them (layerPrimitivesFor). #3137 — built a slice at a time in
   // modules/viewer/levelPlanBuild.js, which loads with the window; this is what it reads.
   const planCacheRef = useRef(null);
-  const planCtx = () => ({ traces: tracesRef.current, visibleHoles, layerPrimitivesFor, cache: planCacheRef, layerVisible, layers, isRowVisible, effectiveColor, effectiveLabel,
+  const planCtx = () => ({ traces: tracesRef.current, visibleHoles, layerPrimitivesFor, cache: planCacheRef, layerVisible, layers, customLayers, customVisible, isRowVisible, effectiveColor, effectiveLabel,
     voxelModels, voxelCellShown, colorForVoxelValue, origin: originRef.current, implicitSurfaces, implicitMeshes: implicitMeshesRef.current, plannedHoles, plannedHoleTrace,
     assayLegend: () => assayLegendGroups({ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle }), projectValues: (sym) => assays.map((a) => a.values[sym]).filter((v) => v != null) }); // #1537
 
