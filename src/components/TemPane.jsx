@@ -4,7 +4,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { Radio, Upload } from "./icons.js";
-import { readTemText, channelMatrix, linesOf, decayTau, tauAll, numbersIn, toMs } from "../lib/temLines.js";
+import { readTemText, channelMatrix, linesOf, decayTau, tauAll, numbersIn, toMs, joinMatrices, noiseGroupFor, maskNoisy } from "../lib/temLines.js";
 import { SURVEY_METHODS, surveyKey } from "../lib/geophysSurveys.js";
 import { surveyGridDefaults } from "../lib/surveyGridDefaults.js";
 import { idwGridToRasterInput, snappedGridExtent, uniqueName } from "../lib/idw.js";
@@ -82,14 +82,39 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
   const [busy, setBusy] = useState(false);
   const fileRef = useRef(null);
   const save = (next) => { LAST = next; setSt(next); };
-  const data = st?.data, group = data?.groups[st.g] || null;
-  const mat = useMemo(() => (data && group ? channelMatrix(data, group) : null), [data, group]);
+  const data = st?.data;
+  // TASKS.csv #3441 — a two-moment file whose header states both moments' gate times can be read as ONE decay (the gates of both, by time)
+  const joinable = useMemo(() => {
+    if (!data) return null;
+    const na = data.groups.filter((g) => !g.aux);
+    if (na.length !== 2) return null;
+    const ta = data.gateTimes(na[0]), tb = data.gateTimes(na[1]);
+    return ta && tb ? { ga: na[0], gb: na[1], ta, tb } : null;
+  }, [data]);
+  const isJoin = st?.g === "join" && !!joinable;
+  const joinOf = (ga, gb, ta, tb) => joinMatrices({ mat: channelMatrix(data, ga), times: ta, cols: ga.cols }, { mat: channelMatrix(data, gb), times: tb, cols: gb.cols });
+  const joined = useMemo(() => (isJoin ? joinOf(joinable.ga, joinable.gb, joinable.ta, joinable.tb) : null), [isJoin, joinable, data]);
+  const group = isJoin ? { prefix: `${joinable.ga.prefix} + ${joinable.gb.prefix}`, cols: joined.cols, aux: false } : data?.groups[st.g] || null;
+  const mat = useMemo(() => (joined ? joined.mat : data && group ? channelMatrix(data, group) : null), [joined, data, group]);
+  // the uncertainty columns of this group (of both moments, joined in the same order), for leaving the readings in the noise out of the fit
+  const noiseMat = useMemo(() => {
+    if (!data || !group) return null;
+    if (isJoin) { const na = noiseGroupFor(data.groups, joinable.ga), nb = noiseGroupFor(data.groups, joinable.gb); return na && nb ? joinOf(na, nb, joinable.ta, joinable.tb).mat : null; }
+    const n = noiseGroupFor(data.groups, group);
+    return n ? channelMatrix(data, n) : null;
+  }, [data, group, isJoin, joinable]);
+  const noiseOpts = useMemo(() => {
+    const floor = Number(st?.floor) > 0 ? Number(st.floor) : null, maxUnc = st?.useStd && noiseMat ? (Number(st.maxUnc) > 0 ? Number(st.maxUnc) / 100 : 0.33) : null;
+    return floor != null || maxUnc != null ? { floor, maxUnc, stdKind: st?.stdKind || "relative" } : null;
+  }, [st?.floor, st?.useStd, st?.maxUnc, st?.stdKind, noiseMat]);
+  const prepare = (i, row) => maskNoisy(row, noiseMat ? noiseMat.v.subarray(i * noiseMat.m, i * noiseMat.m + noiseMat.m) : null, noiseOpts).values;
   const lines = useMemo(() => (data ? linesOf(data) : []), [data]);
-  const times = useMemo(() => { const t = toMs(numbersIn(st?.timesText)); return group && t.length === group.cols.length ? t : null; }, [st?.timesText, group]);
+  const times = useMemo(() => { if (joined) return joined.times; const t = toMs(numbersIn(st?.timesText)); return group && t.length === group.cols.length ? t : null; }, [st?.timesText, group, joined]);
   const line = lines.find((l) => l.key === st?.line) || lines[0];
   const sel = st?.sel ?? line?.idx[0] ?? null;
   const vals = useMemo(() => (mat && sel != null ? Array.from(mat.v.subarray(sel * mat.m, sel * mat.m + mat.m)) : null), [mat, sel]);
-  const fit = useMemo(() => (times && vals ? decayTau(times, vals) : null), [times, vals]);
+  const masked = useMemo(() => (noiseOpts && vals ? maskNoisy(vals, noiseMat ? noiseMat.v.subarray(sel * noiseMat.m, sel * noiseMat.m + noiseMat.m) : null, noiseOpts) : null), [noiseOpts, vals, noiseMat, sel]);
+  const fit = useMemo(() => (times && vals ? decayTau(times, masked ? masked.values : vals) : null), [times, vals, masked]);
 
   const open = async (file) => {
     if (!file) return;
@@ -117,7 +142,7 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
   // tau at every station: a point survey '<file> · tau' (TEM: decay constant, ms) and its grid, inverse distance with the line spacing's blanking
   const mapTau = () => {
     if (!times || !mat) return;
-    const { tau, fitted } = tauAll(mat, times);
+    const { tau, fitted } = tauAll(mat, times, noiseOpts ? { prepare } : undefined); // #3441
     const name = `${data.name} · tau`;
     const pts = [];
     for (let i = 0; i < data.n; i++) if (Number.isFinite(tau[i]) && Number.isFinite(data.x[i]) && Number.isFinite(data.y[i])) pts.push({ x: data.x[i], y: data.y[i], z: data.z && Number.isFinite(data.z[i]) ? data.z[i] : null, value: +tau[i].toPrecision(5), line: data.line[i], _src: name });
@@ -154,15 +179,29 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
       {data && (<>
         {st.posNote && <div style={{ ...note, marginBottom: 6 }}>{st.posNote}</div>}
         <div style={rowS}><span>{tr("Channels")}</span>
-          <select value={st.g} onChange={(e) => { const g = Number(e.target.value), t = data.gateTimes(data.groups[g]); save({ ...st, g, timesText: t ? t.join(" ") : st.timesText }); }} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("TEM channel group")}>
+          <select value={st.g} onChange={(e) => { if (e.target.value === "join") { save({ ...st, g: "join" }); return; } const g = Number(e.target.value), t = data.gateTimes(data.groups[g]); save({ ...st, g, timesText: t ? t.join(" ") : st.timesText }); }} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("TEM channel group")}>
             {data.groups.map((g, i) => <option key={g.prefix} value={i}>{tr("{name} ({m} gates)", { name: g.prefix, m: g.cols.length })}{g.aux ? ` — ${tr("uncertainty")}` : ""}</option>)}
+            {joinable && <option value="join">{tr("Both moments joined ({m} gates)", { m: joinable.ta.length + joinable.tb.length })}</option>}{/* #3441 */}
           </select>
         </div>
-        <div style={{ ...rowS, alignItems: "flex-start", flexDirection: "column" }}>
+        {isJoin ? <div style={note}>{tr("Gate times of both moments read from the file ({a} to {b} ms), sorted together.", { a: fmt(times[0]), b: fmt(times[times.length - 1]) })}</div> : <div style={{ ...rowS, alignItems: "flex-start", flexDirection: "column" }}>
           <span>{tr("Gate times (ms), one per gate")}</span>
           <input type="text" value={st.timesText} onChange={(e) => save({ ...st, timesText: e.target.value })} placeholder={tr("{m} times, e.g. 0.01 0.02 0.04 …", { m: group.cols.length })} style={{ ...smallSel, width: "100%" }} aria-label={tr("Gate times in milliseconds")} />
           {!times && <span style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{have} of {m} gate times: the decay constant needs one per gate.", { have: numbersIn(st.timesText).length, m: group.cols.length })}</span>}
+        </div>}
+        {/* TASKS.csv #3441 — readings in the noise left out of the decay-constant fit */}
+        <div style={{ ...rowS, flexWrap: "wrap" }}>
+          <span>{tr("Noise floor")}</span>
+          <input type="number" min="0" step="any" value={st.floor ?? ""} placeholder={tr("none")} onChange={(e) => save({ ...st, floor: e.target.value })} style={{ ...smallSel, width: 90 }} aria-label={tr("Readings under this size are left out of the decay fit (the data's units)")} title={tr("Readings under this size are left out of the decay fit (the data's units)")} />
         </div>
+        {noiseMat && <div style={{ ...rowS, flexWrap: "wrap", justifyContent: "flex-start" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 4 }}><input type="checkbox" checked={!!st.useStd} onChange={(e) => save({ ...st, useStd: e.target.checked })} />{tr("Leave out readings with an uncertainty over")}</label>
+          <input type="number" min="1" max="1000" step="1" value={st.maxUnc ?? 33} onChange={(e) => save({ ...st, maxUnc: e.target.value })} style={{ ...smallSel, width: 52 }} aria-label={tr("Largest uncertainty kept, in per cent")} />
+          <span>%</span>
+          <select value={st.stdKind || "relative"} onChange={(e) => save({ ...st, stdKind: e.target.value })} style={smallSel} aria-label={tr("What the uncertainty columns hold")}>
+            <option value="relative">{tr("STD is a fraction of the reading")}</option><option value="absolute">{tr("STD is in the data's units")}</option>
+          </select>
+        </div>}
         {lines.length > 1 && <div style={rowS}><span>{tr("Line")}</span>
           <select value={line?.key} onChange={(e) => save({ ...st, line: e.target.value, sel: null })} style={smallSel} aria-label={tr("TEM line")}>{lines.map((l) => <option key={l.key} value={l.key}>{l.key} ({l.idx.length})</option>)}</select>
         </div>}
@@ -171,7 +210,7 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
         {sel != null && vals && (<>
           <div style={{ fontSize: "var(--font-size-sm)", marginBottom: 4 }}>{tr("Station {i}: {x} E, {y} N", { i: sel + 1, x: fmt(data.x[sel]), y: fmt(data.y[sel]) })}</div>
           {times ? <Decay times={times} vals={vals} fit={fit} /> : <div style={note}>{tr("Type the gate times to draw the decay.")}</div>}
-          {times && <div style={{ ...note, marginTop: 3 }}>{fit ? tr("Decay constant tau = {tau} ms, from gates {a} to {b} ({t0} to {t1} ms, r² {r2}).", { tau: fmt(fit.tau), a: fit.from + 1, b: fit.to + 1, t0: fmt(times[fit.from]), t1: fmt(times[fit.to]), r2: fit.r2.toFixed(3) }) : tr("No decay constant here: fewer than three positive late readings, or they do not fall.")}</div>}
+          {times && <div style={{ ...note, marginTop: 3 }}>{fit ? tr("Decay constant tau = {tau} ms, from gates {a} to {b} ({t0} to {t1} ms, r² {r2}).", { tau: fmt(fit.tau), a: fit.from + 1, b: fit.to + 1, t0: fmt(times[fit.from]), t1: fmt(times[fit.to]), r2: fit.r2.toFixed(3) }) : tr("No decay constant here: fewer than three positive late readings, or they do not fall.")}{masked?.dropped ? " " + tr("{n} reading(s) in the noise were left out.", { n: masked.dropped }) : ""}</div>}
         </>)}
         <button type="button" disabled={!times} onClick={mapTau} title={times ? undefined : tr("Type the gate times first")} style={{ ...pBtn, justifyContent: "center", marginTop: 8 }}>{tr("Map the decay constant (tau)")}</button>
         <div style={rowS}>

@@ -43,13 +43,18 @@ export function toMs(times) {
 }
 // The gate times a file states: a Workbench header key or a "/" comment line naming gates, with at least n increasing positive numbers.
 // -> ms, or null
-export function gateTimesFromText(text, n, header = null) {
+export function gateTimesFromText(text, n, header = null, channel = null) {
   const pick = (nums) => {
     const pos = nums.filter((v) => v > 0);
     for (let s = 0; s + n <= pos.length; s++) { const w = pos.slice(s, s + n); if (w.every((v, i) => !i || v > w[i - 1])) return toMs(w); }
     return null;
   };
-  if (header) for (const [k, v] of Object.entries(header)) if (/GATE/i.test(k)) { const t = pick(numbersIn(v)); if (t) return t; }
+  // TASKS.csv #3441 — a two-moment file states a gate list for each channel ('GATE TIMES CHANNEL 1', '… CHANNEL 2'): the group's own, by its channel number
+  if (header) {
+    const entries = Object.entries(header).filter(([k]) => /GATE/i.test(k));
+    const mine = channel != null ? entries.filter(([k]) => new RegExp("(?:CHANNEL|CH)\\s*0*" + channel + "\\b", "i").test(k)) : [];
+    for (const [, v] of mine.length ? mine : entries) { const t = pick(numbersIn(v)); if (t) return t; }
+  }
   const lines = String(text || "").split(/\r?\n/, 400);
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i].trim();
@@ -98,7 +103,7 @@ export function readTemText(text, name = "TEM") {
     name, source, n, columns, groups, epsg, header, line,
     x: get(xCol), y: get(yCol), z: zCol ? get(zCol) : null, xCol, yCol, zCol,
     get,
-    gateTimes: (g) => gateTimesFromText(text, g.cols.length, header),
+    gateTimes: (g) => gateTimesFromText(text, g.cols.length, header, channelNumber(g.prefix)),
   };
 }
 
@@ -148,8 +153,46 @@ export function tauAll(mat, times, opts) {
   const row = new Float64Array(mat.m);
   for (let i = 0; i < mat.n; i++) {
     for (let k = 0; k < mat.m; k++) row[k] = mat.v[i * mat.m + k];
-    const r = decayTau(times, row, opts);
+    const r = decayTau(times, opts?.prepare ? opts.prepare(i, row) : row, opts); // prepare: #3441 — the readings in the noise left out
     if (r && Number.isFinite(r.tau)) { tau[i] = r.tau; fitted++; }
   }
   return { tau, fitted };
+}
+
+// the channel number in a group's prefix ('DBDT_CH2GT' -> 2, 'Z_HM_ch05_' -> 5), else null
+export const channelNumber = (prefix) => { const m = String(prefix).match(/ch(?:annel)?_?0*(\d+)/i); return m ? Number(m[1]) : null; };
+
+// TASKS.csv #3441 — a two-moment system (SkyTEM low and high moment) joined into one decay: the gates of both groups sorted by time (a stable sort, so
+// where the moments overlap in time the low moment's reading comes first). a, b: { mat, times, cols } -> { mat, times, cols, from: [0 | 1, gate] each }
+export function joinMatrices(a, b) {
+  const items = [];
+  a.times.forEach((t, k) => items.push({ t, s: 0, k })); b.times.forEach((t, k) => items.push({ t, s: 1, k }));
+  items.sort((x, y) => x.t - y.t || x.s - y.s);
+  const n = a.mat.n, m = items.length, v = new Float64Array(n * m);
+  items.forEach((it, j) => { const src = it.s ? b.mat : a.mat; for (let i = 0; i < n; i++) v[i * m + j] = src.v[i * src.m + it.k]; });
+  return { mat: { m, n, v }, times: items.map((x) => x.t), cols: items.map((x) => (it0(x, a, b))), from: items.map((x) => [x.s, x.k]) };
+}
+const it0 = (x, a, b) => (x.s ? b.cols[x.k] : a.cols[x.k]);
+
+// The uncertainty columns of a data group: the aux group with the same prefix once STD / SD / error words are taken out ('DBDT_STD_CH1GT' for 'DBDT_CH1GT'), the same count
+export function noiseGroupFor(groups, group) {
+  const strip = (p) => String(p).toLowerCase().replace(/_?(std|sd|err|error|unc|uncertainty|noise)_?/g, "_").replace(/_+/g, "_");
+  return (groups || []).find((g) => g.aux && g !== group && g.cols.length === group.cols.length && strip(g.prefix) === strip(group.prefix)) || null;
+}
+
+// A reading is left out of the fit when it is under the noise floor (data units), or its uncertainty is over `maxUnc` of it
+// (stdKind 'relative': the STD column is a fraction of the reading; 'absolute': in the data's units, so the ratio is STD / |reading|).
+// -> a copy of values with the rejected readings as NaN, and how many went
+export function maskNoisy(values, noise, { floor = null, maxUnc = null, stdKind = "relative" } = {}) {
+  const out = Float64Array.from(values);
+  let dropped = 0;
+  for (let k = 0; k < out.length; k++) {
+    const v = out[k];
+    if (!Number.isFinite(v)) continue;
+    let bad = false;
+    if (floor != null && Math.abs(v) < floor) bad = true;
+    if (!bad && maxUnc != null && noise) { const sd = Math.abs(noise[k]); if (Number.isFinite(sd)) bad = (stdKind === "relative" ? sd : sd / Math.max(Math.abs(v), 1e-300)) > maxUnc; }
+    if (bad) { out[k] = NaN; dropped++; }
+  }
+  return { values: out, dropped };
 }
