@@ -1868,6 +1868,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     rendererRef.current = renderer; mount.appendChild(renderer.domElement);
+    const warmId = typeof requestIdleCallback === "function" ? requestIdleCallback(() => import("../lib/viewer/surfaceWarmup.js").then((m) => { if (rendererRef.current === renderer) m.warmSurfacePrograms(renderer, scene, camera); }).catch(() => {}), { timeout: 10000 }) : null; // #3155 — the surface shaders compiled at idle
 
     const root = new THREE.Group(); root.name = "root"; scene.add(root);
     // TASKS.csv #695 — neither is ever transformed; left auto-updating they force every descendant's world matrix
@@ -2303,7 +2304,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     animate();
 
     return () => {
-      cancelAnimationFrame(raf); ro.disconnect();
+      cancelAnimationFrame(raf); ro.disconnect(); if (warmId != null) cancelIdleCallback(warmId); // #3155
       dom.removeEventListener("pointermove", wakeOnPointer); // #441
       if (THREE.DefaultLoadingManager.onLoad !== prevLoadHandler) THREE.DefaultLoadingManager.onLoad = prevLoadHandler;
       dom.removeEventListener("pointerdown", onPointerDown);
@@ -2427,10 +2428,10 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   useEffect(() => {
     if (!sceneRef.current) return;
     if (gridGroupRef.current) { sceneRef.current.remove(gridGroupRef.current); disposeThreeGroup(gridGroupRef.current); }
-    const group = buildGridGroup(gridConfig, gridPlacement(collars, survey), DEFAULT_GRID.color);
+    const group = buildGridGroup(gridConfig, gridPlacement(collars, survey, tracesRef.current /* #3355 */), DEFAULT_GRID.color);
     sceneRef.current.add(group);
     gridGroupRef.current = group;
-  }, [gridConfig, collars, survey]);
+  }, [gridConfig, collars, survey, tracesSeq]);
 
   // ---------- TASKS.csv #650: "View" a structural trend — its ellipsoid, plane and major axis at the drilling's centre ----------
   const trendPreviewRef = useRef(null);
@@ -5716,7 +5717,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         const label = meta.numeric ? row.value : effectiveLabel(key, row.value);
         // TASKS.csv #684 — a mineralisation INTERVAL is a ribbon over its depths in the section, not a dot at its midpoint
         if (key === "mnlgy" && isIntervalRow(row)) { intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${meta.label}: ${label}${row.extra != null ? ` (${row.extra}%)` : ""}`, layer: key }); return; }
-        points.push({ hole_id: row.hole_id, md: mid, color, label: `${meta.label}: ${label}`, layer: key }); // layer: #1706
+        points.push({ hole_id: row.hole_id, md: mid, color, label: `${meta.label}: ${label}`, layer: key, value: meta.numeric ? row.value : undefined }); // layer: #1706; value: #3362
       });
     });
     const showAssays = scope.showAssays != null ? scope.showAssays : assayVisible;
@@ -5743,7 +5744,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       layer.rows.filter((r) => holeIds.has(r.hole_id)).forEach((row) => {
         const iv = row.to != null && !isNaN(row.to), color = (iv ? stI.color || row.modelColor : stP.color) || customColour(layer, layerStyles, row);
         if (iv) intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${nm}: ${row.value}`, layer: `custom:${layer.id}` });
-        else if (row.depth != null && !isNaN(row.depth)) points.push({ hole_id: row.hole_id, md: row.depth, color, label: `${nm}: ${row.value}`, layer: `custom:${layer.id}` });
+        else if (row.depth != null && !isNaN(row.depth)) points.push({ hole_id: row.hole_id, md: row.depth, color, label: `${nm}: ${row.value}`, layer: `custom:${layer.id}`, value: row.value }); // value: #3362
       });
     });
 
@@ -7516,6 +7517,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             mountRef={mountRef}
             camSignalRef={figureOverlaySignalRef}
             openKey={viewerUiStateSeq} /* #3280 (1) */
+            onConfig={setFigureOverlay} /* #3398 — the legend's collapse and folds, saved with the view */
           />
         )}
         {/* TASKS.csv #294 — the fresh-project empty state. This used to be a single grey line

@@ -12237,5 +12237,13 @@
   "These columns are read in ppm, but their median is thousands of times the element's average in the Earth's crust: {list}. They look like ppb. Pick the unit for each in the list below, or:": "Ces colonnes sont lues en ppm, mais leur médiane vaut des milliers de fois la moyenne de l'élément dans la croûte terrestre : {list}. Elles ressemblent à des ppb. Choisissez l'unité de chacune dans la liste ci-dessous, ou :",
   "{header} (median {median} ppm; the crust averages about {crust} ppm)": "{header} (médiane {median} ppm ; la croûte en contient en moyenne environ {crust} ppm)",
   "Read these {n} as ppb": "Lire ces {n} en ppb",
-  "Read {header} as ppb": "Lire {header} en ppb"
+  "Read {header} as ppb": "Lire {header} en ppb",
+  "Fitted whole, this section's labels are drawn under 7 px tall. A lower VE makes it less tall, so it fits larger; or untick Fit to window and scroll.": "Ajustée en entier, les étiquettes de cette coupe font moins de 7 px de haut. Une EV plus faible la rend moins haute, elle tient alors plus grande ; ou décochez Ajuster à la fenêtre et faites défiler.",
+  "Text under 7 px: lower the VE, or untick to scroll": "Texte de moins de 7 px : baissez l'EV ou décochez pour faire défiler",
+  "Add a collar field pick to the filter": "Ajouter un choix par champ du collet au filtre",
+  "Values of one field: holes with either. Different fields: holes with both.": "Valeurs d'un même champ : sondages ayant l'une ou l'autre. Champs différents : sondages ayant les deux.",
+  "+ Add another…": "+ En ajouter un autre…",
+  "Show {group} in the legend": "Afficher {group} dans la légende",
+  "Fold {group} to its heading": "Replier {group} sur son titre",
+  "({n} rows)": "({n} lignes)"
 }

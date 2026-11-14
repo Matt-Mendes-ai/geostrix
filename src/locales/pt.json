@@ -12237,5 +12237,13 @@
   "These columns are read in ppm, but their median is thousands of times the element's average in the Earth's crust: {list}. They look like ppb. Pick the unit for each in the list below, or:": "Estas colunas são lidas em ppm, mas sua mediana é milhares de vezes a média do elemento na crosta terrestre: {list}. Parecem ppb. Escolha a unidade de cada uma na lista abaixo, ou:",
   "{header} (median {median} ppm; the crust averages about {crust} ppm)": "{header} (mediana {median} ppm; a crosta tem em média cerca de {crust} ppm)",
   "Read these {n} as ppb": "Ler estas {n} em ppb",
-  "Read {header} as ppb": "Ler {header} em ppb"
+  "Read {header} as ppb": "Ler {header} em ppb",
+  "Fitted whole, this section's labels are drawn under 7 px tall. A lower VE makes it less tall, so it fits larger; or untick Fit to window and scroll.": "Ajustada inteira, os rótulos desta seção ficam com menos de 7 px de altura. Um EV menor a deixa menos alta, e ela cabe maior; ou desmarque Ajustar à janela e role.",
+  "Text under 7 px: lower the VE, or untick to scroll": "Texto com menos de 7 px: reduza o EV ou desmarque para rolar",
+  "Add a collar field pick to the filter": "Adicionar uma seleção por campo do colar ao filtro",
+  "Values of one field: holes with either. Different fields: holes with both.": "Valores de um mesmo campo: furos com qualquer um deles. Campos diferentes: furos com ambos.",
+  "+ Add another…": "+ Adicionar outro…",
+  "Show {group} in the legend": "Mostrar {group} na legenda",
+  "Fold {group} to its heading": "Recolher {group} ao seu título",
+  "({n} rows)": "({n} linhas)"
 }

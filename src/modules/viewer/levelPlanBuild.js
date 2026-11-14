@@ -82,7 +82,7 @@ export function* planBuild(ctx, rl, half, { holesOnly = false } = {}) {
     const md = pt.assay ? (pt.assay.from + pt.assay.to) / 2 : pt.md;
     if (!h.runs.some(([a, b]) => md >= a - 1e-9 && md <= b + 1e-9)) continue;
     const q = pointAtMd(h.trace, md);
-    planPoints.push({ hole_id: pt.hole_id, md, x: q.x, y: q.y, color: pt.color, label: pt.label, assay: pt.assay || null });
+    planPoints.push({ hole_id: pt.hole_id, md, x: q.x, y: q.y, color: pt.color, label: pt.label, assay: pt.assay || null, layer: pt.layer, value: pt.value }); // layer, value: #3362
   }
   // what each pierce point sits in: the interval of every logged layer at that depth, and the assays there
   // #2210 — rows grouped by hole (a filter per pierce point was ~200 ms on WA gold)
@@ -176,16 +176,20 @@ const f1 = (v) => (Math.round(v * 10) / 10).toFixed(1);
 // all at once (tests, and a caller that needs the plan now)
 // TASKS.csv #3249 — a vertical (or steep) hole puts a slab's samples of one element on one spot of the plan, and whichever was drawn last
 // showed. One stated rule: one hole's samples of one element within 0.5 m of each other on the plan show as the highest of them, its tooltip
-// saying so; other points (logs at a depth) as they are. Order kept (the first of each spot).
+// saying so; other points as they are. Order kept (the first of each spot).
+// TASKS.csv #3362 (WA uranium: the gamma log, 177,871 readings, a few hundred per hole within one slab) — a numeric log read at depths (a
+// custom point layer, Mag. susc.) by the same rule: one hole's readings of one layer on one spot show as the highest of them.
+const spotValue = (p) => (p.assay ? p.assay.value : p.layer && p.value !== "" && p.value != null ? Number(p.value) : NaN);
 export function highestOnSpot(points, tol = 0.5) {
   const out = [], spots = new Map();
   for (const p of points) {
-    if (!p.assay || !Number.isFinite(p.assay.value)) { out.push(p); continue; }
-    const k = `${p.hole_id}|${p.assay.sym}`, list = spots.get(k) || spots.set(k, []).get(k);
+    const v = spotValue(p);
+    if (!Number.isFinite(v)) { out.push(p); continue; }
+    const k = `${p.hole_id}|${p.assay ? p.assay.sym : p.layer}`, list = spots.get(k) || spots.set(k, []).get(k);
     const s = list.find((q) => Math.abs(q.p.x - p.x) <= tol && Math.abs(q.p.y - p.y) <= tol);
-    if (!s) { const e = { p, n: 1, at: out.length }; list.push(e); out.push(p); continue; }
+    if (!s) { const e = { p, v, n: 1, at: out.length }; list.push(e); out.push(p); continue; }
     s.n++;
-    if (p.assay.value > s.p.assay.value) s.p = p;
+    if (v > s.v) { s.p = p; s.v = v; }
     out[s.at] = s.p;
   }
   for (const list of spots.values()) for (const s of list) if (s.n > 1) out[s.at] = { ...s.p, label: `${s.p.label} ${tr("(highest of {n} in the slab)", { n: s.n })}` };

@@ -315,6 +315,13 @@ export function numericLayerLegendGroups({ keys = ["geotech", "recovery", "sg", 
 // TASKS.csv #1398 — the 3D legend's rows shared out between its groups: one row per group in turn until `max` are given, so a long
 // group (lithology) cannot push the others out and short groups (#381: grade classes) still show in full; groups in their own
 // order (lithology first). -> { rows: [{ label, color, kind, opacity, group, head }], shown, total }
+// TASKS.csv #3398 (Matt: 'make the legend in the 3d view always collapsable'; Orion_2026, a 60-class MagSusc voxel group filling the
+// legend) — a folded group keeps only its heading, one row that says how many it holds; folded: the group keys the user folded
+export function foldLegendGroups(groups, folded) {
+  const f = new Set(folded || []);
+  if (!f.size) return groups || [];
+  return (groups || []).map((g) => (f.has(g.key) && g.items?.length ? { ...g, items: [[String(g.items.length), null, { folded: true }]], counts: undefined, grade: false, alwaysHead: true } : g));
+}
 export function allocateLegendRows(groups, max) {
   const gs = (groups || []).filter((g) => g.items?.length);
   const quota = gs.map(() => 0);
@@ -339,7 +346,7 @@ export function allocateLegendRows(groups, max) {
     return g.items.slice(0, n);
   };
   const multi = gs.filter((_, i) => quota[i] > 0).length > 1, rows = [];
-  gs.forEach((g, i) => pick(g, quota[i]).forEach(([label, color, opt], k) => rows.push({ label, color, kind: opt?.kind, opacity: opt?.opacity, svg: opt?.svg /* #3066 */, value: opt?.value /* #3332 */, group: g.label, head: (multi || g.alwaysHead) && k === 0,
+  gs.forEach((g, i) => pick(g, quota[i]).forEach(([label, color, opt], k) => rows.push({ label, color, kind: opt?.kind, opacity: opt?.opacity, svg: opt?.svg /* #3066 */, value: opt?.value /* #3332 */, folded: opt?.folded /* #3398 */, gkey: g.key, group: g.label, head: (multi || g.alwaysHead) && k === 0,
     ...(k === 0 && g.grade && quota[i] < g.items.length ? { classesShown: [quota[i], g.items.length] } : {}) }))); // #2039 — a cut grade group says so
   return { rows, shown: rows.length, total: gs.reduce((n, g) => n + g.items.length, 0) };
 }

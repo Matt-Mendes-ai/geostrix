@@ -8,13 +8,14 @@ export function holeLabelText(a, mode) {
   return a.id;
 }
 
+import { groupPads } from "../padGroups.js"; // #3399
 const fillers = new WeakMap(); // #3098 — group -> fillTextSprites, for lazy labels
 // group: the hole_labels THREE.Group; makeSprite(text) -> a sprite. Clears what was there (textures included) first.
 export function syncHoleLabels(group, anchors, mode, makeSprite) {
   if (!group) return 0;
   while (group.children.length) { const c = group.children.pop(); c.material?.map?.dispose?.(); c.material?.dispose?.(); c.geometry?.dispose?.(); } idle.delete(group); // #2364 — new sprites: the declutter runs again, not only after a camera move
   if (mode === "none") return 0;
-  const fans = groupSharedCollars(anchors || []);
+  const fans = groupPads(anchors || []);
   // TASKS.csv #2208 — a fan of holes from one collar (an underground cuddy) gets ONE label, 'WB0817D +6', its ids in the tip
   const texts = fans.map((g) => (g.length > 1 ? `${holeLabelText(g[0], mode)} +${g.length - 1}` : holeLabelText(g[0], mode)));
   const lazy = makeSprite.lazy && makeSprite.fill; // #3098 — drawn when the declutter shows them
@@ -28,27 +29,9 @@ export function syncHoleLabels(group, anchors, mode, makeSprite) {
   });
   return group.children.length;
 }
-// TASKS.csv #2208 (review #2174, WA underground fans) — collars within `tol` scene units (metres) of one another, in anchor order: fans
-// of 2-7 holes from one cuddy put their labels a few pixels apart, overprinted into fragments at Fit. A 3D grid hash keeps it O(n).
-// TASKS.csv #3098 — integer cell keys (a string per neighbour cell was 134 ms of the 6,390-hole label switch); a hash shared by two
-// cells only adds candidates, and each candidate is checked against its own cell, so the grouping is the same as before.
-const cellKey = (x, y, z) => (Math.imul(x, 73856093) ^ Math.imul(y, 19349663) ^ Math.imul(z, 83492791));
-export function groupSharedCollars(anchors, tol = 1) {
-  const cells = new Map(), groups = [];
-  const cell = (v) => Math.floor(v / tol);
-  for (const a of anchors) {
-    const cx = cell(a.x), cy = cell(a.y), cz = cell(a.z);
-    let home = null;
-    for (let dx = -1; dx <= 1 && !home; dx++) for (let dy = -1; dy <= 1 && !home; dy++) for (let dz = -1; dz <= 1 && !home; dz++) {
-      const x = cx + dx, y = cy + dy, z = cz + dz;
-      for (const e of cells.get(cellKey(x, y, z)) || []) { if (e.x !== x || e.y !== y || e.z !== z) continue; const h = e.g[0]; if (Math.hypot(h.x - a.x, h.y - a.y, h.z - a.z) <= tol) { home = e.g; break; } }
-    }
-    if (home) { home.push(a); continue; }
-    const g = [a]; groups.push(g);
-    const k = cellKey(cx, cy, cz); if (!cells.has(k)) cells.set(k, []); cells.get(k).push({ x: cx, y: cy, z: cz, g });
-  }
-  return groups;
-}
+// TASKS.csv #2208 / #3098 — collars within `tol` scene units (metres) of one another: moved to lib/padGroups.js (#3399, shared with the Maps
+// plan's #3397), the same function
+export { groupPads as groupSharedCollars } from "../padGroups.js";
 
 // TASKS.csv #1294 — labels keep their on-screen size while collars close up, so at Fit five of them overprinted into nothing. When the camera has stopped (never
 // per frame), the labels that would overlap one already placed are hidden, in hole order; zooming in brings them back. labels: [{ x, y, w, h }] in pixels.

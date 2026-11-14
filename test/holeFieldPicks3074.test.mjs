@@ -35,6 +35,6 @@ test("not folded when the split differs (one value maps to two), or the holes wi
 test("wiring: the Holes list's picks, the 'also' label and the no-value option and filter", () => {
   const s = fs.readFileSync(new URL("../src/modules/viewer/HoleFilterBar.jsx", import.meta.url), "utf8");
   assert.match(s, /const none = holesWithoutField\(collars, filter\), found = none \? \{ holes: none, byField: false \} : holesForFilter\(collars, filter\);/);
-  assert.match(s, /\{picks\.map\(\(ch\) => <optgroup key=\{ch\.key\} label=\{ch\.also\.length \? tr\("\{field\} \(also \{others\}\)"/);
-  assert.match(s, /\{ch\.missing > 0 && <option value=\{noValuePick\(ch\.key\)\}>\{tr\("\{field\} = \(no value\): \{n\} hole\(s\)"/);
+  assert.match(s, /picks\.map\(\(ch\) => <optgroup key=\{ch\.key\} label=\{ch\.also\.length \? tr\("\{field\} \(also \{others\}\)"/); // #3356: in fieldOptions, shared by the add menu
+  assert.match(s, /\{!more && ch\.missing > 0 && <option value=\{noValuePick\(ch\.key\)\}>\{tr\("\{field\} = \(no value\): \{n\} hole\(s\)"/);
 });
