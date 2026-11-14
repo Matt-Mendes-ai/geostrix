@@ -138,7 +138,8 @@ export function makeCalloutSprite(lines, { color = "#1a2028", bg = "rgba(255,255
   const material = new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true, sizeAttenuation: false });
   const draw = () => {
     ctx.font = LABEL_FONT;
-    const boxW = Math.ceil(Math.max(...shown.map((l) => ctx.measureText(l.text).width), 10)) + padX * 2 + sw, boxH = shown.length * lineH + padY * 2;
+    let tw = 10; for (const l of shown) tw = Math.max(tw, ctx.measureText(l.text).width);
+    const boxW = Math.ceil(tw) + padX * 2 + sw, boxH = shown.length * lineH + padY * 2;
     canvas.width = leadW + boxW; canvas.height = boxH + leadH;
     ctx.strokeStyle = color; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(1.5, canvas.height - 1.5); ctx.lineTo(leadW + 2, boxH - 2); ctx.stroke(); // the leader: collar (bottom-left) to the box's corner
