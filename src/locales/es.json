@@ -12595,5 +12595,7 @@
   "Inverse-distance gridding failed: {message}": "Falló la grilla por inverso de la distancia: {message}",
   "Not EDI files, not read here: {names}. MT / AMT reads .edi soundings. A DC / IP line table (.csv, .dat, .txt) can be tried in the DC / IP pane, which lets you map its columns.": "No son archivos EDI, no se leen aquí: {names}. MT / AMT lee sondeos .edi. Una tabla de línea DC / IP (.csv, .dat, .txt) se puede probar en el panel DC / IP, que permite asignar sus columnas.",
   "Choose the columns for A, M and the apparent resistivity in the lists above.": "Elija las columnas de A, M y la resistividad aparente en las listas de arriba.",
-  "This limits block models only (OMF and UBC imports). Point surveys and rasters are not cut down by it.": "Esto limita solo los modelos de bloques (importaciones OMF y UBC). Los levantamientos puntuales y los ráster no se reducen."
+  "This limits block models only (OMF and UBC imports). Point surveys and rasters are not cut down by it.": "Esto limita solo los modelos de bloques (importaciones OMF y UBC). Los levantamientos puntuales y los ráster no se reducen.",
+  "The unit {symbol} is shown in here and in Best intercepts and Grade stats. Display only: the rules are worked in the stored unit.": "La unidad en que se muestra {symbol} aquí y en Intervalos de mejor ley y Estadísticas de ley. Solo de visualización: las reglas se calculan en la unidad guardada.",
+  "{n} of them lie more than {d} m from the nearest collar (the farthest {m} m): the surface through the collars is a guess there. A terrain gives the real ground.": "{n} de ellas están a más de {d} m del collar más cercano (la más lejana a {m} m): allí la superficie a través de los collares es una suposición. Un terreno da el suelo real."
 }

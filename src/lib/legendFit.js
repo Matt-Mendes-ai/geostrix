@@ -15,7 +15,7 @@ export function legendLabelW(it) {
   const len = String(it?.[0] ?? "").length;
   // a ramp's or a colour bar's name is a bold line above it, and a legend does not wrap it: the wider of the two
   if (o?.ramp || o?.image) return Math.max(o.ramp ? 152 : 160, len * printPx(printPt.small) * 0.6);
-  return o?.heading ? len * printPx(printPt.small) * 0.6 : o?.note ? Math.min(200, len * printPx(printPt.caption) * 0.55) : len * printPx(printPt.small) * 0.55;
+  return o?.heading ? len * printPx(printPt.small) * 0.6 : o?.note ? Math.min(200, len * printPx(printPt.caption) * 0.55) : len * printPx(printPt.small) * 0.55 + (o?.value ? 8 + String(o.value).length * printPx(printPt.caption) * 0.55 : 0); // #3402 — a mineral's range after its label
 }
 // The box a one-column legend of `items` draws: 12 px padding a side, a 150 px minimum, the swatch column (28 px) before a row's label, and
 // the 'Legend' title. A new legend stored no width, so it was placed as 220 px wide and then grew over what was beside it (the north arrow:

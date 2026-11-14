@@ -12595,5 +12595,7 @@
   "Inverse-distance gridding failed: {message}": "فشل التشبيك بمقلوب المسافة: {message}",
   "Not EDI files, not read here: {names}. MT / AMT reads .edi soundings. A DC / IP line table (.csv, .dat, .txt) can be tried in the DC / IP pane, which lets you map its columns.": "ليست ملفات EDI ولا تُقرأ هنا: {names}. يقرأ MT / AMT سبر .edi. يمكن تجربة جدول خط DC / IP (‏.csv و.dat و.txt) في لوحة DC / IP، التي تتيح ربط أعمدته.",
   "Choose the columns for A, M and the apparent resistivity in the lists above.": "اختر أعمدة A وM والمقاومية الظاهرية من القوائم أعلاه.",
-  "This limits block models only (OMF and UBC imports). Point surveys and rasters are not cut down by it.": "هذا يحد نماذج الكتل فقط (استيراد OMF وUBC). لا تُقلَّص المسوح النقطية والنقطيات."
+  "This limits block models only (OMF and UBC imports). Point surveys and rasters are not cut down by it.": "هذا يحد نماذج الكتل فقط (استيراد OMF وUBC). لا تُقلَّص المسوح النقطية والنقطيات.",
+  "The unit {symbol} is shown in here and in Best intercepts and Grade stats. Display only: the rules are worked in the stored unit.": "الوحدة التي يُعرض بها {symbol} هنا وفي أفضل المقاطع وإحصاءات العيار. للعرض فقط: تُحسب القواعد بالوحدة المخزنة.",
+  "{n} of them lie more than {d} m from the nearest collar (the farthest {m} m): the surface through the collars is a guess there. A terrain gives the real ground.": "{n} منها تبعد أكثر من {d} م عن أقرب فوهة (الأبعد {m} م): السطح المار بالفوهات تخمين هناك. يعطي نموذج التضاريس الأرض الحقيقية."
 }

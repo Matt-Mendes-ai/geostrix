@@ -46,6 +46,7 @@ import AlterationBoxModal from "../components/AlterationBoxModal.jsx"; // TASKS.
 import { applyRowFilter, defaultRowFilter, overlapSummary, overlapWorthSaying } from "../lib/importRowFilter.js"; // TASKS.csv #2391
 import VolcanicCodesModal, { NOT_LOGGED_CODE } from "../components/VolcanicCodesModal.jsx"; // TASKS.csv #2352
 import { entryOf } from "../lib/codeDictionary.js"; // TASKS.csv #3292
+import { displayUnitOf } from "../lib/displayUnits.js"; // TASKS.csv #3236 / #3290
 import SurfaceImportModal, { SURFACE_MEDIA } from "../components/SurfaceImportModal.jsx";
 // TASKS.csv #1794 — the medium a cell names (the import's own list and aliases), for telling a medium column from a QC-type column
 const surfaceMediumOf = (m) => (SURFACE_MEDIA.includes(m) ? m : /rock|grab|chip|outcrop|float|channel|soil|silt|stream|sediment|moss|talus|bleg|\bhmc\b|heavy.?min|concentrate|water/.test(m) ? m : null);
@@ -256,10 +257,10 @@ export default function GeochemModule() {
   const xyKeyX = xyX || (xyPair[0] ? `el:${xyPair[0]}` : ""), xyKeyY = xyY || (xyPair[1] ? `el:${xyPair[1]}` : xyChoices[0]?.key || (xyPair[0] ? `el:${xyPair[0]}` : ""));
   const xyAxes = useMemo(() => {
     if (diagramId !== "xy") return null;
-    const choice = (key) => { if (!key) return null; if (key.startsWith("el:")) { const e = assayElements.find((x) => x.symbol === key.slice(3)); return e ? { kind: "element", symbol: e.symbol, unit: e.unit } : null; } return xyChoices.find((c) => c.key === key) || null; };
+    const choice = (key) => { if (!key) return null; if (key.startsWith("el:")) { const e = assayElements.find((x) => x.symbol === key.slice(3)); return e ? { kind: "element", symbol: e.symbol, unit: displayUnitOf(store.project, e.symbol, e.unit) /* #3236 / #3290 — the project's display unit */ } : null; } return xyChoices.find((c) => c.key === key) || null; };
     const ctx = { layers: store.layers, customLayers: store.customLayers };
     return [axisOf(choice(xyKeyX), ctx), axisOf(choice(xyKeyY), ctx)];
-  }, [diagramId, xyKeyX, xyKeyY, xyChoices, assayElements, store.layers, store.customLayers]);
+  }, [diagramId, xyKeyX, xyKeyY, xyChoices, assayElements, store.layers, store.customLayers, store.project?.displayUnits]);
   // TASKS.csv #3051 — the ternary's corners: the user's, else the lead, its closest partner and the next element of the suite
   const ternDefault = useMemo(() => { const three = correlationDefaults(assayElements.filter((e) => !e.calculated).map((e) => e.symbol), 3, { lead: xyLead }); return [...new Set([...xyPair, ...three])].slice(0, 3).map((s) => `el:${s}`); }, [assayElements, xyLead, xyPair]);
   const ternKeysNow = [0, 1, 2].map((i) => ternKeys?.[i] || ternDefault[i] || "");
@@ -278,7 +279,7 @@ export default function GeochemModule() {
   // TASKS.csv #2030 (review #2013) — a spider of two elements (La, Ce from a four-acid digestion) drew 247 two-point 'patterns' and counted
   // 1964 'plottable' samples: below SPIDER_MIN of its elements in the samples shown, the diagram says so instead of drawing
   const spiderPresent = useMemo(() => { const d = ALL_DIAGRAMS[diagramId]; return d?.spider ? d.order.filter((sym) => sourceRows.some((r) => Number.isFinite(r.values?.[sym]))) : null; }, [diagramId, sourceRows]);
-  const xyDiag = useMemo(() => (xyAxes ? keptMemo([sourceRows, assayElements, store.layers, store.customLayers], `fit|${xyKeyX}|${xyKeyY}|${!!xyOne}`, () => xyDiagram(xyAxes[0], xyAxes[1], sourceRows, elementUnits, { oneToOne: !!xyOne })) : null), [xyAxes, sourceRows, elementUnits, xyOne]); // kept: #3120
+  const xyDiag = useMemo(() => (xyAxes ? keptMemo([sourceRows, assayElements, store.layers, store.customLayers, store.project?.displayUnits], `fit|${xyKeyX}|${xyKeyY}|${!!xyOne}`, () => xyDiagram(xyAxes[0], xyAxes[1], sourceRows, elementUnits, { oneToOne: !!xyOne })) : null), [xyAxes, sourceRows, elementUnits, xyOne]); // kept: #3120
   // TASKS.csv #1091 (review #1016, software artist) — holes from the colour-blind-safe categorical palette, in name order
   // (golden-angle HSL at one lightness put neighbouring hues at the same lightness, not dichromat-safe)
   const holeColors = useMemo(() => keptMemo([assays], "holeColors", () => { // kept: #3120 (6,390 ids sorted with a numeric collation: 0.13 s a visit)
@@ -305,7 +306,7 @@ export default function GeochemModule() {
   // TASKS.csv #2353 — n, Spearman, the median Y / X and the length-weighted ratio, over X >= the typed value
   // TASKS.csv #2909 (WA iron review) — the statistics line of the samples the plot draws: it read every sample ('n 147,659 · Spearman -0.96') under a
   // lithology filter showing 26,253 (three ore strands), the question the filter is for
-  const xyStat = useMemo(() => (xyAxes && xyAxes[0] && xyAxes[1] ? keptMemo([plotted, assayElements, store.layers, store.customLayers], `stat|${xyKeyX}|${xyKeyY}|${xyMin}`, () => xyStats(xyAxes[0], xyAxes[1], plotted, elementUnits, { xMin: xyMin !== "" && Number.isFinite(Number(xyMin)) ? Number(xyMin) : null })) : null), [xyAxes, plotted, elementUnits, xyMin]); // kept: #3120
+  const xyStat = useMemo(() => (xyAxes && xyAxes[0] && xyAxes[1] ? keptMemo([plotted, assayElements, store.layers, store.customLayers, store.project?.displayUnits], `stat|${xyKeyX}|${xyKeyY}|${xyMin}`, () => xyStats(xyAxes[0], xyAxes[1], plotted, elementUnits, { xMin: xyMin !== "" && Number.isFinite(Number(xyMin)) ? Number(xyMin) : null })) : null), [xyAxes, plotted, elementUnits, xyMin]); // kept: #3120
   // TASKS.csv #1519 — the holes plotted, for the on-screen key of 'by hole' (only worked out in that mode: 83,670 samples on Lawyers)
   const plottedHoles = useMemo(() => (colorMode === "hole" ? [...new Set(plotted.map((a) => a.hole_id))] : []), [colorMode, plotted]);
   const describeSample = (sm) => {
@@ -1155,6 +1156,7 @@ export default function GeochemModule() {
     enqueueAssayFiles(files); // #1652 — one after another (several at once all opened the one dialog)
   };
 
+  const codeMeaning = (k) => { const d = entryOf(store.codeDictionary?.litho, k)?.desc; return d ? ` (${d})` : ""; }; // TASKS.csv #3292 — the project's own name for a logged code, in the notices
   const runMethod = (methodKey, altSetup = null, volcanic = null) => { // volcanic: #2352 — the logged codes ticked as volcanic
     const method = GEOCHEM_METHODS[methodKey];
     const missing = method.requires.filter((s) => !availableSymbols.has(s));
@@ -1228,7 +1230,7 @@ export default function GeochemModule() {
     const sedN = Object.values(sedSkipped).reduce((s, n) => s + n, 0);
     const bdlN = Object.values(bdlLeft).reduce((s, n) => s + n, 0); // #2501
     const bdlText = bdlN ? tr(" {n} sample(s) were not classified: a below-detection operand is not a measurement ({list}).", { n: bdlN, list: Object.entries(bdlLeft).sort((x, y) => y[1] - x[1]).map(([k, n]) => tr("{el} below detection in {n}", { el: k, n })).join(", ") }) : "";
-    const sedText = sedN && volcanic ? tr(" {n} sample(s) were not classified: their logged codes were not ticked as volcanic ({codes}); this classifier is for volcanic rocks.", { n: sedN, codes: Object.entries(sedSkipped).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k} ${n}`).join(", ") }) /* #2352 */ : sedN ? tr(" {n} sample(s) in logged sedimentary or carbonate codes ({codes}) were not classified: this classifier is for volcanic rocks.", { n: sedN, codes: Object.entries(sedSkipped).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k} ${n}`).join(", ") }) : "";
+    const sedText = sedN && volcanic ? tr(" {n} sample(s) were not classified: their logged codes were not ticked as volcanic ({codes}); this classifier is for volcanic rocks.", { n: sedN, codes: Object.entries(sedSkipped).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k}${codeMeaning(k)} ${n}`).join(", ") }) /* #2352 */ : sedN ? tr(" {n} sample(s) in logged sedimentary or carbonate codes ({codes}) were not classified: this classifier is for volcanic rocks.", { n: sedN, codes: Object.entries(sedSkipped).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k}${codeMeaning(k)} ${n}`).join(", ") }) : "";
     const jensenText = methodKey === "litho_jensen" ? tr(" The classes are a simplified threshold split of the cation ternary, not the published Jensen fields.") : "";
     setNotices((p) => [...p, notice(runs.length ? (collars.length ? "Generated {rows} intervals from {n} samples → {v} layer (touching samples of one class are joined).{detail} Switch to 3D View to see it." : "Generated {rows} intervals from {n} samples → {v} layer (touching samples of one class are joined).{detail} No collars are loaded, so they cannot be drawn until collars with these hole ids are imported.") /* #1800 */ : "No interval was generated from {n} samples, so the {v} layer is empty.{detail}", { rows: runs.length, n: rows.length, v: method.target === "litho" ? tr("Lithology (geochem)") : tr("Alteration (geochem)"), detail: (fitted ? (countList ? ` ${countList}.` : "") + fitText + tr(" Screening level.") : detail) + trendText + sedText + bdlText + jensenText })]); // fitted: #2028; trendText: #2145; bdlText: #2501
     { const pd = partialDigestionFor(assayElements, method.requires); if (pd.length) setNotices((p) => [...p, notice("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pd.map(([s, m]) => `${s} ${m}`).join(", ") })]); } // #1518
