@@ -11119,6 +11119,8 @@
   "{n} of {m} holes in {w} × {h} m.": "{n} de {m} furos em {w} × {h} m.",
   "Check only these holes": "Marcar só estes furos",
   "Not recognized: assumed stratigraphic. Check it before modelling.": "Não reconhecido: assumido estratigráfico. Verifique antes de modelar.",
+  "Suggested as overburden: its name reads as cover, and it lies at the top of {pct}% of the holes that log it. Check it before modelling.": "Sugerido como cobertura: o nome indica cobertura e ele fica no topo de {pct}% dos furos que o registram. Verifique antes de modelar.",
+  "A code whose name reads as cover (ALU, CLA, soil ...) and that lies at the top of most of its holes is suggested as overburden.": "Um código cujo nome indica cobertura (ALU, CLA, solo ...) e que fica no topo da maioria dos seus furos é sugerido como cobertura.",
   "Which holes' samples inform the estimate and its checks. The grid is set above, apart.": "Quais furos fornecem amostras à estimativa e às suas verificações. A grade é definida acima, à parte.",
   "Samples from": "Amostras de",
   "Every hole": "Todos os furos",
