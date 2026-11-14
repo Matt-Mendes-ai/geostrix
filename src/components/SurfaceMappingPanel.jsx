@@ -50,7 +50,7 @@ import { tieOf, fileToLocal, bearingToLocal } from "../lib/localGridTie.js"; // 
 import { structureIconSet, lineScaleOf } from "../lib/structureKmzIcons.js"; // TASKS.csv #3066 / #3068 — the USGS symbols replace #2681's strike icon (shared with the project KMZ)
 import { mineGridOf, mineSourceOf, isMineSource, mineChoiceToProject, mineSourceSentence } from "../lib/mineGrid.js"; // TASKS.csv #2586; the mine-grid Source CRS: #2684
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2265
-import { structureGroundCounts, surfaceFlatElevation } from "../lib/viewer/surfacePlacement.js"; import { terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #2485 (2); surfaceFlatElevation: #2753
+import { structureGroundCounts, surfaceFlatElevation, noTerrainGround } from "../lib/viewer/surfacePlacement.js"; import { terrainGroundAt } from "../lib/viewer/geomath.js"; import { mapLayerOnCollars } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #2485 (2); surfaceFlatElevation: #2753; noTerrainGround, mapLayerOnCollars: #3368
 
 // TASKS.csv #2093 / #1826 — the structure import's skipped rows, one reason each (parseStructureRows' skipWhy)
 export function skipReasons(w = {}, names = {}) { // names: the rows skipped for no direction (#2958)
@@ -581,7 +581,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         + (out.fromQuadrant ? tr(" {n} dip direction(s) taken from the strike and the dip quadrant.", { n: out.fromQuadrant }) : "") // #2083
         + (out.quadrantUnread ? tr(" {n} dip quadrant(s) could not be read (not N, NE, E…), so the strike convention was used there.", { n: out.quadrantUnread }) : "")
         + (out.rhrMismatches ? (out.strikeRule === "lhr" ? tr(" {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart by the left-hand rule — the dip direction was used; check whether those strikes are right-hand-rule.", { rhrMismatches: out.rhrMismatches }) : tr(" {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart — the dip direction was used; check whether those strikes are left-hand-rule.", { rhrMismatches: out.rhrMismatches })) : "")
-        + (noZ ? (terrain ? structNoZText(noZ, structureGroundCounts(out.rows, terrain, terrainGroundAt)) : tr(" {noZ} had no elevation: drawn flat until a terrain is loaded (Maps > Terrain), then placed on it.", { noZ })) : "") // #1448 — they were said to 'sit on the terrain' with none loaded
+        + (noZ ? (terrain ? structNoZText(noZ, structureGroundCounts(out.rows, terrain, terrainGroundAt)) : (() => { const ug = collars.length > 1 && collarsLookUnderground(collars, survey).underground; /* #3368 — the ground they are drawn on, said */ return noTerrainGround(collars, ug) ? tr(" {noZ} had no elevation: drawn on the surface through the collar elevations, as the map layers are, until a terrain is loaded (Maps > Terrain), then placed on it.", { noZ }) : tr(" {noZ} had no elevation: drawn flat at {z} m until a terrain is loaded (Maps > Terrain), then placed on it.", { noZ, z: Math.round(surfaceFlatElevation(collars, surfaceSamples, ug)) }); })()) : "") // #1448 — they were said to 'sit on the terrain' with none loaded
         + (otherTypes.length ? tr(" Type code(s) {codes} are classed as Other: not a fault, breccia, vein, contact, joint, bedding, foliation or cleavage code GeoStrix knows. Pick a class for each on the import card (kept for this project), or rename them in the file.", { codes: otherTypes.slice(0, 8).join(", ") + (otherTypes.length > 8 ? "…" : "") }) : "") // #2082
         + crsNote + northNote,
     });
@@ -703,7 +703,12 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
                 <span style={{ color: "var(--color-text-caption)" }}>{l.geomType === "polygon" ? tr("Outlines at the file's own elevations") : tr("At the file's own elevations")}</span>
               </label>
             )}
-            {!(l.drapeMode === "terrain" && terrain) && l.drapeMode !== "file" && (
+            {/* TASKS.csv #3368 — with no terrain the layer lies on the surface through the collars, as the interpretation lines; or flat at Elev. */}
+            {mapLayerOnCollars(l, terrain, collars) && <div style={{ ...row, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("No terrain: draped on the surface through the collar elevations, as the interpretation lines are.")}</div>}
+            {!terrain && l.drapeMode !== "file" && (mapLayerOnCollars(l, terrain, collars) || (l.drapeMode === "flat" && mapLayerOnCollars({ ...l, drapeMode: "terrain" }, terrain, collars))) && (
+              <label style={{ ...row, cursor: "pointer" }}><input type="checkbox" checked={l.drapeMode === "flat"} onChange={(e) => updateMapLayer(l.id, { drapeMode: e.target.checked ? "flat" : "terrain" })} /><span style={{ color: "var(--color-text-caption)" }}>{tr("Flat at one RL instead")}</span></label>
+            )}
+            {!(l.drapeMode === "terrain" && terrain) && l.drapeMode !== "file" && !mapLayerOnCollars(l, terrain, collars) && (
               <div style={row}>
                 <span style={lbl}>{tr("Elev.")}</span>
                 <input type="number" value={Math.round(l.elevation || 0)} onChange={(e) => updateMapLayer(l.id, { elevation: Number(e.target.value) })} style={numInput} />

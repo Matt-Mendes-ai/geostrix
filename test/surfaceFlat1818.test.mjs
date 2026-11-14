@@ -13,8 +13,8 @@ const notes = readFileSync(new URL("../src/modules/viewer/SurfacePlacementNotice
 
 test("no terrain: a sample without a z is placed flat at the median collar / sample elevation, and the panel says so", () => {
   assert.ok(pl.includes("?? zMedian(collars) ?? zMedian(samples) ?? 0;")); // #2264: the highest collar first on an underground project
-  assert.ok(pl.includes("else if (!b) out = { ...r, z: flatZ, zFlat: true };") && pl.includes("else if (!inside) out = { ...r, z: flatZ, zFlat: true, zOutside: true };")); // TASKS.csv #1806 — outside the terrain's footprint: flat too; over a TIN's void too (#2406)
-  assert.ok(notes.includes("drawn flat at {z} m (the median collar, the highest on an underground project, or the samples' own)")); // #2264
+  assert.ok(pl.includes("out = Number.isFinite(c) ? { ...r, z: c, zCollars: true } : { ...r, z: flatZ, zFlat: true };") && pl.includes("else if (!inside) out = { ...r, z: flatZ, zFlat: true, zOutside: true };")); // TASKS.csv #1806 — outside the terrain's footprint: flat too; over a TIN's void too (#2406)
+  assert.ok(notes.includes("drawn flat at {z} m, the median collar elevation.") && notes.includes("drawn flat at {z} m, the highest collar (the collars look underground).")); // #2264; one rule named: #3368
 });
 
 test("classes come from every sample and reach the drawn ones through their index", () => {

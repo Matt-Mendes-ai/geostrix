@@ -15,7 +15,8 @@ import { buildAdaptiveTerrain } from "../terrainMesh.js"; // TASKS.csv #796
 import { keyedCanvas } from "../rasterKey.js"; // TASKS.csv #1623
 import { contourLabelSpots, indexLevels } from "../contourLabels.js"; // TASKS.csv #1466 / #1622
 import { makeTextSprite } from "./textSprite.js"; // TASKS.csv #1466 / #1622
-import { collarGround } from "../collarGround.js"; // TASKS.csv #2447; #3159: not pitShell.js, which put the pit solver in startup
+import { collarGround, collarsLookUnderground } from "../collarGround.js"; // TASKS.csv #2447; #3159: not pitShell.js, which put the pit solver in startup; collarsLookUnderground: #3368
+import { outcropNoTerrainGround } from "./surfacePlacement.js"; // TASKS.csv #3368
 import { DRAW_ORDER } from "./drawOrder.js"; // TASKS.csv #2776
 
 // TASKS.csv #2447 / #2576 (reviews #2325 / #2486) — a raster drawn on the collar surface (drapeMode "collars", a project with no terrain): a
@@ -303,7 +304,12 @@ export function mapLayerAtOwnZ(l, origin) {
 // TASKS.csv #2768 (#2630 (3)) — with no terrain an interpretation layer lay flat at one RL (the median collar) while collars ran 160-330 m,
 // so a line floated up to 96 m off the ground: it is now draped on the surface through the collar elevations (pitShell collarGround, as a
 // raster's 'collars' drape, #2447), unless the layer is set flat (drapeMode "flat", the pane's 'Flat at one RL instead').
-export const interpretationOnCollars = (l, terrain, collars) => !!l?.interpretation && !terrain && l.drapeMode !== "flat" && (collars?.length || 0) >= 3;
+// TASKS.csv #3368 (#3195, Galore Creek) — every map layer drawn on the ground takes that surface with no terrain, not only the interpretation
+// lines: a unit polygon lay flat at the median collar (867 m) while a fault traced on its edge followed the collars 168 m below it. Not a layer
+// at its own z ("file") or set flat, and not on a project drilled from underground (flat at its Elev., the highest collar: planElevation).
+export const mapLayerOnCollars = (l, terrain, collars) => !!l && !terrain && l.drapeMode !== "flat" && l.drapeMode !== "file" && (collars?.length || 0) >= 3
+  && (!!l.interpretation || !collarsLookUnderground(collars).underground);
+export const interpretationOnCollars = (l, terrain, collars) => !!l?.interpretation && mapLayerOnCollars(l, terrain, collars);
 export function syncMapLayers(group, cache, mapLayers, { origin, terrain, renderer, collars = null }) {
   const disposeMesh = (mesh) => { group.remove(mesh); mesh.geometry?.dispose?.(); mesh.material?.map?.dispose?.(); mesh.material?.dispose?.(); };
   const wanted = new Set(mapLayers.map((l) => l.id));
@@ -330,7 +336,7 @@ export function syncMapLayers(group, cache, mapLayers, { origin, terrain, render
     const w = bbox[2] - bbox[0], h = bbox[3] - bbox[1];
     const cx = (bbox[0] + bbox[2]) / 2, cy = (bbox[1] + bbox[3]) / 2;
     const drapeOnTerrain = l.drapeMode === "terrain" && !!terrain;
-    const onCollars = interpretationOnCollars(l, terrain, collars); // #2768
+    const onCollars = mapLayerOnCollars(l, terrain, collars); // #2768; every map layer: #3368
     const geoKey = `${drapeOnTerrain ? `terrain:${terrain.id}` : onCollars ? `collars:${collarsKey(collars)}` : `flat:${l.elevation || 0}`}|${ox},${oy},${oz}|${lift}|${bbox.join(",")}`;
     const styleKey = mapStyleSignature(l);
     let mesh = cache[l.id];
@@ -456,7 +462,11 @@ export function syncSectionImages(group, cache, sectionImages, { origin, rendere
 // clamped edge or filled level. A row with its own z keeps it off the terrain. No flatZ: the scene origin, as before.
 export function outcropZ(r, set, terrain, flatZ, oz) {
   const g = terrain ? terrainGroundAt(terrain, r.x, r.y) : NaN;
-  if (r.z == null) return Number.isFinite(g) ? g : Number.isFinite(flatZ) ? flatZ : oz;
+  if (r.z == null) {
+    if (Number.isFinite(g)) return g;
+    const c = !terrain ? outcropNoTerrainGround()?.(r.x, r.y) : NaN; // #3368 — no terrain: the surface through the collars, as the map layers
+    return Number.isFinite(c) ? c : Number.isFinite(flatZ) ? flatZ : oz;
+  }
   return Number.isFinite(g) && set.snapToTerrain !== false ? g : r.z;
 }
 // TASKS.csv #3066 (Matt, 2026-11-12) — "Discs should be reserved for drillhole structures": an outcrop measurement is drawn as its USGS (FGDC)

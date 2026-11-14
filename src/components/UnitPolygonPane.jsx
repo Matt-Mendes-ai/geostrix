@@ -11,6 +11,7 @@ import { activateOnKey } from "../lib/a11y.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { planElevation, planElevationText } from "../lib/drapeElevation.js"; // TASKS.csv #2269
+import { mapLayerOnCollars } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #3368
 import { categoryColor, LAYER_META } from "../lib/layers.js"; // TASKS.csv #2572 — the logs' colour for a logged code
 import { closesRing } from "../lib/viewer/interpretDraw.js"; // TASKS.csv #2682 — one rule for the click and the 3D view's hover highlight
 
@@ -29,6 +30,7 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
   const [layerPick, setLayerPick] = useState("");
   const layerId = layerPick || mine[0]?.id || NEW_LAYER;
   const layer = mine.find((l) => l.id === layerId) || null;
+  const onCollars = mapLayerOnCollars(layer || { drapeMode: "terrain" }, terrain, collars); // #3368
   // TASKS.csv #2682 — imported polygon layers with a unit field, offered as 'Copy of …': the first polygon finished makes the copy
   const imported = useMemo(() => mapLayers.filter(offerableForDrawing), [mapLayers]);
   const copySrc = String(layerId).startsWith("copy:") ? imported.find((l) => `copy:${l.id}` === layerId) || null : null;
@@ -87,7 +89,10 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
       <TaskPaneHeader title={tr("Unit polygons")} helpId="unit-polygons" icon={Shapes} tone="data" onClose={onClose} />
       <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
         <div style={note}>{tr("Draw the outline of a map unit by clicking its corners in the 3D view (Top view works best); a click on the first corner, a double-click or Finish closes it. The polygons are a geology map layer with a unit field: it drapes on the terrain, exports as Shapefile or GeoPackage, prints in the Layout legend, and Model it can build a 3D model from it.")}</div>
-        {plan && <div role="note" style={{ ...note, color: "var(--color-warn-text)" }}>{planElevationText(plan)}</div>}{/* #2269 */}
+        {/* TASKS.csv #3368 — with no terrain the polygons lie on the surface through the collars, as the interpretation lines do (#2768) */}
+        {plan && onCollars && <div role="note" style={note}>{tr("No terrain: the polygons are draped on the ground between the collars (a surface through the collar elevations), as the interpretation lines are.")}</div>}
+        {plan && layer && (onCollars || layer.drapeMode === "flat") && <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={layer.drapeMode === "flat"} onChange={(e) => updateMapLayer(layer.id, (l) => ({ ...l, drapeMode: e.target.checked ? "flat" : "terrain" }))} />{tr("Flat at one RL instead")}</label>}
+        {plan && !onCollars && <div role="note" style={{ ...note, color: "var(--color-warn-text)" }}>{planElevationText(plan)}</div>}{/* #2269 */}
         <label style={row}>{tr("Layer")}
           <select value={layerId} onChange={(e) => setLayerPick(e.target.value)} style={{ ...smallSel, maxWidth: 170 }} aria-label={tr("Drawn geology layer")}>
             {mine.map((l) => <option key={l.id} value={l.id}>{l.name} ({l.features.length})</option>)}
