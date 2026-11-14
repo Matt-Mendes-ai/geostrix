@@ -5700,7 +5700,23 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // rasters (an SRTM area in a section meant for one voxel model and the holes); a null key = the live visibility, so old sections draw as before.
   // Every shown layer as plain { color, label } primitives, made here where the colour / filter logic lives: the window only draws.
   // TASKS.csv #525 — factored out of buildSectionPayload so the level plan colours holes exactly as sections do.
+  // TASKS.csv #3298 (#3191: ~0.44 s of a Level plan open on WA iron's 6,390 holes, shared with sections) — the primitives kept for the last few
+  // (inputs, holes, scope): this function is made anew on every render, so the plan's own cache (keyed on it) was dropped by any re-render
+  // between two RL steps and rebuilt them. Callers get fresh arrays of the same objects (a section empties and refills its arrays).
+  const primsCacheRef = useRef([]), primsVerRef = useRef({ deps: null, v: 0 });
+  const primsDeps = () => [layers, layerVisible, isRowVisible, numericLayerColor, effectiveColor, effectiveLabel, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, assayRowShown, customLayers, customVisible, layerStyles];
+  const primsVersion = () => { const d = primsDeps(), r = primsVerRef.current; if (!r.deps || !d.every((x, i) => x === r.deps[i])) { r.deps = d; r.v++; } return r.v; }; // for the plan's cache (levelPlanBuild)
   const layerPrimitivesFor = (holeIds, scope = {}) => {
+    const deps = primsDeps();
+    const sk = JSON.stringify(scope), list = primsCacheRef.current;
+    let hit = list.find((c) => c.sk === sk && c.holes.size === holeIds.size && c.deps.every((d, i) => d === deps[i]) && [...holeIds].every((h) => c.holes.has(h)));
+    if (!hit) {
+      hit = { sk, holes: new Set(holeIds), deps, out: buildLayerPrimitives(holeIds, scope) };
+      primsCacheRef.current = [hit, ...list.filter((c) => c.deps.every((d, i) => d === deps[i]))].slice(0, 4); // other inputs: dropped
+    }
+    return { intervals: [...hit.out.intervals], points: [...hit.out.points] };
+  };
+  const buildLayerPrimitives = (holeIds, scope) => {
     const intervals = [];
     // TASKS.csv #137 — SG has no fixed domain (as RQD% / recovery% do): its project min / max, as the scene build's.
     const sgVals = (layers.sg || []).filter((r) => holeIds.has(r.hole_id) && isRowVisible("sg", r)).map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
@@ -6005,7 +6021,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // block-model cells, model surfaces, planned holes), as a section draws them (layerPrimitivesFor). #3137 — built a slice at a time in
   // modules/viewer/levelPlanBuild.js, which loads with the window; this is what it reads.
   const planCacheRef = useRef(null);
-  const planCtx = () => ({ traces: tracesRef.current, visibleHoles, layerPrimitivesFor, cache: planCacheRef, layerVisible, layers, customLayers, customVisible, isRowVisible, effectiveColor, effectiveLabel,
+  const planCtx = () => ({ traces: tracesRef.current, visibleHoles, layerPrimitivesFor, primsVersion: primsVersion() /* #3298 */, cache: planCacheRef, layerVisible, layers, customLayers, customVisible, isRowVisible, effectiveColor, effectiveLabel,
     voxelModels, voxelCellShown, colorForVoxelValue, origin: originRef.current, implicitSurfaces, implicitMeshes: implicitMeshesRef.current, plannedHoles, plannedHoleTrace,
     assayLegend: () => assayLegendGroups({ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle }), projectValues: (sym) => assays.map((a) => a.values[sym]).filter((v) => v != null) }); // #1537
 
