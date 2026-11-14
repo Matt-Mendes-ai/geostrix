@@ -130,6 +130,8 @@
   "Inversion": "Inversión",
   "Lab certificates": "Certificados de lab.",
   "Legend": "Leyenda",
+  "The key covers {n} hole(s) whichever corner it takes: make the frame larger, or move the plan's centre so a corner is clear.": "La leyenda cubre {n} sondaje(s) en cualquier esquina: agrande el marco o mueva el centro del plano para despejar una esquina.",
+  "Holes never assayed for this element are crossed rings; assayed holes with no interval at the cut-off are hollow rings.": "Los sondajes nunca ensayados para este elemento son anillos tachados; los sondajes ensayados sin intervalo sobre la ley de corte son anillos huecos.",
   "Text reduced to {pt} pt to fit the frame's width.": "Texto reducido a {pt} pt para caber en el ancho del marco.",
   "Too wide for the frame even at 5 pt: widen the frame, drop a column, or untick the two table columns.": "Demasiado ancha para el marco incluso a 5 pt: ensanche el marco, quite una columna o desmarque las dos columnas de tabla.",
   "this page": "esta página",

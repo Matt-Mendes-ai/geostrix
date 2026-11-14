@@ -86,11 +86,45 @@ export function turnedFrameFit(collars, w, h, presets, traces = null) { // trace
 
 // TASKS.csv #2611 — the corner of a w x h frame for a kw x kh key with the fewest holes under it (top left on a tie; bottom right sits above
 // the grid caption). holes: drillPlanGeometry's (ax, ay in frame px). -> { x, y }
-export function emptiestCorner(holes, w, h, kw, kh) {
+// points (TASKS.csv #3376): what the key must not hide, planPoints' collars and traces; without it the collars. -> { x, y, under }: under, the
+// holes whose collar or trace lies under the key in that corner (0: none)
+export function emptiestCorner(holes, w, h, kw, kh, points = null) {
   const corners = [[6, 6], [w - kw - 6, 6], [6, h - kh - 6], [w - kw - 6, h - kh - 22]];
-  const under = ([x, y]) => (holes || []).reduce((n, hh) => n + (hh.ax >= x && hh.ax <= x + kw && hh.ay >= y && hh.ay <= y + kh ? 1 : 0), 0);
-  const [x, y] = corners.map((c) => [c, under(c)]).sort((a, b) => a[1] - b[1])[0][0];
-  return { x: Math.max(0, x), y: Math.max(0, y) };
+  const pts = points || (holes || []).map((hh) => ({ id: hh.id, x: hh.ax, y: hh.ay }));
+  const under = ([x, y]) => new Set(pts.filter((p) => p.x >= x && p.x <= x + kw && p.y >= y && p.y <= y + kh).map((p) => p.id)).size;
+  const [[x, y], n] = corners.map((c) => [c, under(c)]).sort((a, b) => a[1] - b[1])[0];
+  return { x: Math.max(0, x), y: Math.max(0, y), under: n };
+}
+// TASKS.csv #3376 (review #3195) — the frame points of each hole the key must keep clear of: its collar, its toe, its trace's mid-point and
+// every few points of a surveyed path (#3367). -> [{ id, x, y }]
+export function planPoints(holes) {
+  const out = [];
+  for (const hh of holes || []) {
+    if (hh.inside === false) continue;
+    out.push({ id: hh.id, x: hh.ax, y: hh.ay });
+    if (Number.isFinite(hh.bx) && Number.isFinite(hh.by)) out.push({ id: hh.id, x: hh.bx, y: hh.by }, { id: hh.id, x: (hh.ax + hh.bx) / 2, y: (hh.ay + hh.by) / 2 });
+    const p = hh.path || [], step = Math.max(1, Math.floor(p.length / 12));
+    for (let i = step; i < p.length - 1; i += step) out.push({ id: hh.id, x: p[i][0], y: p[i][1] });
+  }
+  return out;
+}
+// TASKS.csv #3376 — a key line wrapped to maxPx (charPx: the width of a character at its size): at '; ' first, then between words.
+// The 'Best intercept' key's note set its width at 503 px in a 480 px frame. -> lines
+export function wrapKeyText(text, maxPx, charPx) {
+  const t = String(text || "").trim();
+  if (!t) return [];
+  const fits = (s) => s.length * charPx <= maxPx;
+  const out = [];
+  for (const part of t.split(/;\s+/).map((s, i, a) => (i < a.length - 1 ? `${s};` : s))) {
+    let line = "";
+    for (const word of part.split(/\s+/)) {
+      const next = line ? `${line} ${word}` : word;
+      if (fits(next) || !line) line = next;
+      else { out.push(line); line = word; }
+    }
+    if (line) out.push(line);
+  }
+  return out;
 }
 
 // A hole's series: its id without the trailing number (21CCDD042 -> 21CCDD; 21AGBDD043B -> 21AGBDD), the year / prospect / type prefix drill programs use.
@@ -131,6 +165,8 @@ export function drillPlanShapes(collars, field, holeIds = null) {
   return { shapeOf: (id) => shapeOfValue.get(valueOf.get(id)) || "circle", key };
 }
 // the outline of a symbol of radius r at (cx, cy), as an SVG path (the circle is drawn as a <circle>)
+// TASKS.csv #3375 — the '×' inside a 'not assayed' ring (or shape), its arms at 0.7 of the radius
+export const crossPath = (cx, cy, r) => { const k = r * 0.7; return `M${cx - k},${cy - k}L${cx + k},${cy + k}M${cx - k},${cy + k}L${cx + k},${cy - k}`; };
 export function symbolPath(shape, cx, cy, r) {
   if (shape === "square") { const s = r * 0.9; return `M${cx - s},${cy - s}h${2 * s}v${2 * s}h${-2 * s}z`; }
   if (shape === "triangle") { const s = r * 1.25; return `M${cx},${cy - s}L${cx + s * 0.866},${cy + s * 0.5}L${cx - s * 0.866},${cy + s * 0.5}z`; }
@@ -285,7 +321,10 @@ const rampIndex = (i, n) => (n <= 1 ? GRADE_COLOURS.length - 1 : Math.round((i *
 
 // How each hole is drawn, and the key. holes: drillPlanGeometry's; opts: { segs (for max / gt), unit, palette (categorical), ink }.
 // -> { by, title, note, breaks, styleOf(holeId, series) -> { colour, rMm, hollow }, key: [{ label, colour, rMm, hollow }] }
-export function drillPlanColouring(el, holes, collars, { segs = null, unit = "", palette = [], ink = "#1a2028", perHole = null, biRule = "" } = {}) { // perHole / biRule: #2685
+// assayed (TASKS.csv #3375): for 'bi', the holes with a result for the element; the others are 'not assayed' (a crossed ring), apart from the
+// assayed holes with no interval at the cut-off (a hollow ring): 24 geotechnical / condemnation holes with no assay at all shared the key row
+// 'no Cu intercept' with 16 assayed holes below the cut-off, and a hole that was never assayed is not a barren hole.
+export function drillPlanColouring(el, holes, collars, { segs = null, unit = "", palette = [], ink = "#1a2028", perHole = null, biRule = "", assayed = null } = {}) { // perHole / biRule: #2685
   const by = drillPlanColourBy(el), { kind, key } = colourByKind(by);
   const dot = (colour, rMm = 0.8, hollow = false) => ({ colour, rMm, hollow });
   if (kind === "series") {
@@ -319,12 +358,18 @@ export function drillPlanColouring(el, holes, collars, { segs = null, unit = "",
       }
     }
     const blank = holes.some((h) => !per.has(h.id));
+    const apart = kind === "bi" && assayed instanceof Set; // #3375
+    const notAssayed = (id) => apart && !per.has(id) && !assayed.has(id);
+    const anyNot = apart && holes.some((h) => notAssayed(h.id)), anyNone = holes.some((h) => !per.has(h.id) && !notAssayed(h.id));
+    const blankKey = !blank ? [] : apart
+      ? [...(anyNone ? [{ label: `assayed, no ${key} intercept at the cut-off`, ...dot(NONE_COLOUR, 0.6, true) }] : []), ...(anyNot ? [{ label: `no ${key} assays`, ...dot(NONE_COLOUR, 0.8, true), cross: true }] : [])]
+      : [{ label: kind === "bi" ? `no ${key} intercept` : `no ${key} result`, ...dot(NONE_COLOUR, 0.6, true) }];
     return {
       by, breaks,
       title: kind === "bi" ? `${key} best intercept, grade × length` : kind === "gt" ? `${key} grade × length, whole hole` : `Highest ${key} in the hole`,
       note: [kind === "bi" ? biRule : "", breaks.length ? "classes: 50th / 75th / 90th percentile of the plan's holes" : ""].filter(Boolean).join("; "),
-      styleOf: (id) => { const v = per.get(id); if (v == null) return dot(NONE_COLOUR, 0.6, true); const c = rampIndex(classOf(v, breaks), n); return dot(GRADE_COLOURS[c], GRADE_RADIUS_MM[c]); },
-      key: [...key2, ...(blank ? [{ label: kind === "bi" ? `no ${key} intercept` : `no ${key} result`, ...dot(NONE_COLOUR, 0.6, true) }] : [])],
+      styleOf: (id) => { const v = per.get(id); if (v == null) return notAssayed(id) ? { ...dot(NONE_COLOUR, 0.8, true), cross: true } : dot(NONE_COLOUR, 0.6, true); const c = rampIndex(classOf(v, breaks), n); return dot(GRADE_COLOURS[c], GRADE_RADIUS_MM[c]); },
+      key: [...key2, ...blankKey],
     };
   }
   return { by: "none", title: "", note: "", breaks: [], styleOf: () => dot(ink), key: [] };

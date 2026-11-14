@@ -130,6 +130,8 @@
   "Inversion": "Inversão",
   "Lab certificates": "Certificados de lab.",
   "Legend": "Legenda",
+  "The key covers {n} hole(s) whichever corner it takes: make the frame larger, or move the plan's centre so a corner is clear.": "A legenda cobre {n} furo(s) em qualquer canto: aumente o quadro ou mova o centro do plano para liberar um canto.",
+  "Holes never assayed for this element are crossed rings; assayed holes with no interval at the cut-off are hollow rings.": "Os furos nunca analisados para este elemento são anéis com um X; os furos analisados sem intervalo acima do teor de corte são anéis vazados.",
   "Text reduced to {pt} pt to fit the frame's width.": "Texto reduzido a {pt} pt para caber na largura do quadro.",
   "Too wide for the frame even at 5 pt: widen the frame, drop a column, or untick the two table columns.": "Larga demais para o quadro mesmo a 5 pt: alargue o quadro, retire uma coluna ou desmarque as duas colunas de tabela.",
   "this page": "esta página",

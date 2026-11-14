@@ -1672,6 +1672,9 @@ export default function LayoutModule() {
               const traces = planTraces(tableCollars || [], survey, project?.desurveyMethod); // #3367 — kept per collars / survey / method
               const dd = drillPlanDrawing(sel, tableCollars || [], assays, assayElements, plannedHoles, traces, project?.desurveyMethod); // assays: #2473; plannedHoles: #2259
               return (<>
+                {dd.keyBox?.under > 0 && ( /* TASKS.csv #3376 — every corner of the frame holds a hole: the key covers some */
+                  <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr("The key covers {n} hole(s) whichever corner it takes: make the frame larger, or move the plan's centre so a corner is clear.", { n: dd.keyBox.under })}</div>
+                )}
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Scale 1 :")}<select value={String(sel.scale)} onChange={(e) => updateSelected({ scale: Number(e.target.value) })} style={{ ...inp, marginTop: 4 }}>
                   {[...new Set([...SCALE_PRESETS, sel.scale])].sort((a, b) => a - b).map((s) => <option key={s} value={String(s)}>{Number(s).toLocaleString()}</option>)}
                 </select></label>
