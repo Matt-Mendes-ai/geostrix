@@ -1,7 +1,7 @@
 // TASKS.csv #3014 part b (design: docs/ideas/multi-element-estimation.md) — Grade-tonnage across a set of same-lattice models (params.set, part a):
 // limits on the set's other elements (Fe >= cut-off with SiO2 < 4 % and Al2O3 < 2.5 %), and each member's mean over the blocks counted. The
 // members are joined by lattice index, as the density model is (#3012). Pure; loaded with the Grade-tonnage dialog only.
-import { blockVolume, metalOf, metalColumns } from "./gradeTonnage.js"; // metalOf / metalColumns: #3274
+import { blockVolume, metalOf, metalColumns, forEachBench } from "./gradeTonnage.js"; // metalOf / metalColumns: #3274; forEachBench: #3171
 
 // the lattice index of a block centre ({ dx, dy, dz, ox, oy, oz } from blockModelLattice), as one number
 const keyer = ({ dx, dy, dz, ox, oy, oz }) => (c) => {
@@ -62,6 +62,38 @@ export function memberMeans(cells, join, { cutoffs, interpolatedOnly = false, de
     });
     return { cutoff, means };
   });
+}
+
+// TASKS.csv #3171 (split from #3014 part b) — the by-bench table gave the primary's mean only. Each member's mean bench by bench, over the blocks
+// the bench row counts (at or above the one cutoff, split by vertical overlap as gradeTonnageByBench does) and weighted as its mean grade is
+// (tonnes with a density per block, else volume). -> [{ floorRL, means: [{ mean, covered, wx, w }] }], highest bench first, as the bench rows.
+export function memberMeansByBench(cells, join, { cutoff, benchH, datum = 0, interpolatedOnly = false, densityOf = null } = {}) {
+  const h = Number(benchH), M = join.members.length;
+  if (!(h > 0)) return [];
+  const benches = new Map();
+  const acc = () => ({ wsum: 0, gsum: 0, vAll: 0, vHas: 0, volW: 0, volG: 0, wAll: 0, vAllW: 0, vHasW: 0 });
+  for (const c of cells || []) {
+    if (!Number.isFinite(c.value) || !(c.dx > 0 && c.dy > 0 && c.dz > 0) || c.value < cutoff || (interpolatedOnly && c.support !== "interpolated")) continue;
+    const vol = blockVolume(c), rho = densityOf ? densityOf(c) : null, at = join.members.map((_, m) => join.valueAt(c, m));
+    forEachBench(c, h, datum, (k, lo, share) => {
+      const v = vol * share, w = densityOf ? (rho > 0 ? v * rho : 0) : v;
+      let b = benches.get(k); if (!b) benches.set(k, (b = { floorRL: lo, by: Array.from({ length: M }, acc) }));
+      for (let m = 0; m < M; m++) {
+        const a = b.by[m];
+        a.vAll += v; a.wAll += w; if (w > 0) a.vAllW += v;
+        const x = at[m];
+        if (x === undefined) continue;
+        a.vHas += v; a.wsum += w; a.gsum += w * x; a.volW += v; a.volG += v * x; if (w > 0) a.vHasW += v;
+      }
+    });
+  }
+  return [...benches.values()].sort((a, b) => b.floorRL - a.floorRL).map((b) => ({
+    floorRL: b.floorRL,
+    means: b.by.map((a) => {
+      const tons = densityOf && a.wAll > 0;
+      return { mean: a.wsum > 0 ? a.gsum / a.wsum : a.volW > 0 ? a.volG / a.volW : null, covered: tons ? (a.vAllW > 0 ? a.vHasW / a.vAllW : null) : a.vAll > 0 ? a.vHas / a.vAll : null, wx: a.gsum, w: a.wsum };
+    }),
+  }));
 }
 
 // TASKS.csv #3274 (Galore Creek review) — a Cu-Au-Ag set's table gave 'Mean Ag (g/t)' and 'Mean Au (g/t)' beside copper tonnes and no ounces.
