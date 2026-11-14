@@ -12674,5 +12674,8 @@
   "That is sharp enough to print at this size.": "Elle est assez nette pour être imprimée à cette taille.",
   "This snapshot was sent before Layout could ask Maps to draw it again: send it again from Maps to get that.": "Cette capture a été envoyée avant que la Mise en page puisse demander à Cartes de la redessiner : renvoyez-la depuis Cartes pour y avoir droit.",
   "The map did not finish drawing at that size.": "La carte n'a pas fini de se dessiner à cette taille.",
-  "Could not draw the map again for Layout: {message}": "Impossible de redessiner la carte pour la Mise en page : {message}"
+  "Could not draw the map again for Layout: {message}": "Impossible de redessiner la carte pour la Mise en page : {message}",
+  "Macpass (Fireweed Metals Corp., Yukon): 559 holes drilled 1952-2023 on a zinc-lead-silver prospect, with down-hole surveys, 32,546 sampled intervals (Ag, Pb, Zn) and their bulk density — nothing synthesized.": "Macpass (Fireweed Metals Corp., Yukon) : 559 sondages forés de 1952 à 2023 sur un prospect de zinc-plomb-argent, avec leurs levés de déviation, 32 546 intervalles échantillonnés (Ag, Pb, Zn) et leur masse volumique apparente — rien de synthétique.",
+  "Sample: Macpass zinc-lead-silver (Yukon; 559 holes, 32,546 assays)": "Exemple : Macpass zinc-plomb-argent (Yukon ; 559 sondages, 32 546 analyses)",
+  "Load the bundled Macpass sample — Fireweed Metals Corp.'s drilling of a zinc-lead-silver prospect in east Yukon (1952-2023): 559 holes with down-hole surveys and 32,546 sampled intervals (Ag, Pb, Zn) with their bulk density, nothing synthesized.": "Charger le projet d'exemple Macpass inclus — les forages de Fireweed Metals Corp. sur un prospect de zinc-plomb-argent de l'est du Yukon (1952-2023) : 559 sondages avec levés de déviation et 32 546 intervalles échantillonnés (Ag, Pb, Zn) avec leur masse volumique apparente, rien de synthétique."
 }

@@ -12674,5 +12674,8 @@
   "That is sharp enough to print at this size.": "هي واضحة بما يكفي للطباعة بهذا الحجم.",
   "This snapshot was sent before Layout could ask Maps to draw it again: send it again from Maps to get that.": "أُرسلت هذه اللقطة قبل أن يتمكن التخطيط من أن يطلب من «الخرائط» إعادة رسمها: أرسلها من جديد من «الخرائط» للحصول على ذلك.",
   "The map did not finish drawing at that size.": "لم يكتمل رسم الخريطة بهذا الحجم.",
-  "Could not draw the map again for Layout: {message}": "تعذّر رسم الخريطة من جديد للتخطيط: {message}"
+  "Could not draw the map again for Layout: {message}": "تعذّر رسم الخريطة من جديد للتخطيط: {message}",
+  "Macpass (Fireweed Metals Corp., Yukon): 559 holes drilled 1952-2023 on a zinc-lead-silver prospect, with down-hole surveys, 32,546 sampled intervals (Ag, Pb, Zn) and their bulk density — nothing synthesized.": "ماكباس (Fireweed Metals Corp.، يوكون): 559 ثقباً حُفرت بين 1952 و2023 في مَكْمَن زنك-رصاص-فضة، مع مسوح الانحراف و32,546 مقطعاً مُعايَناً (Ag وPb وZn) وكثافتها الظاهرية — لا شيء مُصطنَع.",
+  "Sample: Macpass zinc-lead-silver (Yukon; 559 holes, 32,546 assays)": "عيّنة: ماكباس زنك-رصاص-فضة (يوكون؛ 559 ثقباً، 32,546 تحليلاً)",
+  "Load the bundled Macpass sample — Fireweed Metals Corp.'s drilling of a zinc-lead-silver prospect in east Yukon (1952-2023): 559 holes with down-hole surveys and 32,546 sampled intervals (Ag, Pb, Zn) with their bulk density, nothing synthesized.": "تحميل مشروع العيّنة ماكباس المضمَّن — حفر شركة Fireweed Metals Corp. في مَكْمَن زنك-رصاص-فضة بشرق يوكون (1952-2023): 559 ثقباً مع مسوح الانحراف و32,546 مقطعاً مُعايَناً (Ag وPb وZn) وكثافتها الظاهرية، لا شيء مُصطنَع."
 }

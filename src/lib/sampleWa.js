@@ -9,6 +9,7 @@ import { pickElementColumns, importStoreUnit, readAssayCell, readLoiCell, mergeA
 import { alignAssayUnits } from "./sampleWoodjam.js";
 import { notice, errorNotice } from "./notices.js";
 import { t as tr } from "./i18n.js";
+import { MACPASS_CREDIT } from "./sampleCredits.js"; // TASKS.csv #3496
 
 // which -> what its folder holds beside the drillhole tables. label: the sample's short name in notices (project data, English).
 export const WA_SAMPLES = {
@@ -21,6 +22,8 @@ export const WA_SAMPLES = {
   wa_lead_zinc: { dir: "wa_lead_zinc", epsg: 28352, label: "WA lead-silver-zinc", assays: "assays.csv" },
   wa_zinc_copper: { dir: "wa_zinc_copper", epsg: 28350, label: "WA zinc-copper", assays: "assays.csv", surface: [["soils.csv", "soil"], ["streams.csv", "stream sediment"]] },
   wa_gold: { dir: "wa_gold", epsg: 28351, label: "WA lode gold", assays: "assays.csv" },
+  // TASKS.csv #3496 — Fireweed Metals' Macpass drilling, used with their permission: Ag in ppm, Pb and Zn in %; the credit is kept with the project (Layout prints it)
+  yk_macpass: { dir: "yk_macpass", epsg: 26909, label: "Macpass", assays: "assays.csv", credit: MACPASS_CREDIT },
   // Century (Geological Survey of Queensland, CC BY 4.0): the same parts as a WA sample, from Queensland's database
   qld_century: {
     dir: "qld_century", epsg: 7854, label: "Century", assays: "assays.csv", surface: [["soils.csv", "soil"]],
@@ -95,6 +98,7 @@ const mergeElements = (prev, elements, unitOf = null) => { const m = new Map((pr
 export async function loadWaSampleExtras(which, readFile, store, { existingElements = [], existingSurfaceElements = [], project = null } = {}) {
   const S = WA_SAMPLES[which], notes = [];
   if (!S) return notes;
+  if (S.credit && typeof store.setProject === "function") store.setProject((p) => ({ ...p, dataCredit: S.credit })); // #3496 — saved with the project; Layout's {credits} prints it
   if (S.assays) {
     try {
       const raw = waAssays(await (await readFile(S.assays)).text(), S.assays);

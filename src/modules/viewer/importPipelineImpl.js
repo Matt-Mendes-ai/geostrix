@@ -62,6 +62,11 @@ import { rasterDrapeElevation, drapeElevationNote, planElevation } from "../../l
 import { projectTargetEpsg } from "../../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 import { looksLikeUbcMesh } from "../../lib/leapfrogMsh.js"; // TASKS.csv #1991
 import { perHoleJoinOf, perHoleAttrs } from "../../lib/perHoleJoin.js"; // TASKS.csv #2399
+import { MACPASS_CREDIT } from "../../lib/sampleCredits.js"; // TASKS.csv #3496
+
+// TASKS.csv #3496 — the sample files whose dip sign the sample itself states (negative = down, with real up-holes: positive dips), by File object: the queue
+// goes in unseen on them although a dip is above 0 (#335 asks otherwise). Nothing a user drops is in it.
+const STATED_DIPS = new WeakSet();
 
 const AZ_TARGETS = new Set(["collars", "survey", "structure"]); // TASKS.csv #1647 — tables with an azimuth
 // TASKS.csv #2886 — the dip column whose signs decide the pre-selected convention (collars and surveys)
@@ -1125,7 +1130,7 @@ export function makeImportPipeline(ctx, h) {
       const azColPicked = target === "survey" || target === "collars" ? detectAzimuthRef(headers, data)?.azimuthCol : null; // collars: #2154
       const exactRequired = schema.fields.filter((f) => f.required).every((f) => mapping[f.key] && (guessColumnExact(headers, f.aliases) === mapping[f.key] || (f.key === "azimuth" && azColPicked && mapping.azimuth === azColPicked)));
       const dipCol = schema.dipConvention || target === "survey" ? mapping.dip : null;
-      const dipsAgree = !dipCol || data.every((r) => { const d = Number(r[dipCol]); return r[dipCol] == null || r[dipCol] === "" || !Number.isFinite(d) || d <= 0; });
+      const dipsAgree = !dipCol || STATED_DIPS.has(file) /* #3496 */ || data.every((r) => { const d = Number(r[dipCol]); return r[dipCol] == null || r[dipCol] === "" || !Number.isFinite(d) || d <= 0; });
       // #1647 — a stated north: true is converted unseen; magnetic (needs a date) or a mix of norths opens the dialog
       const azDetected = AZ_TARGETS.has(target) ? detectAzimuthRef(headers, data) : null;
       const azOk = !azDetected || (!azDetected.mixed && azDetected.ref !== "magnetic" && !azDetected.hint && !azDetected.also); // hint (#2015): gyros only, no corrected column: asked; also (#2154): two azimuth columns, asked
@@ -1353,6 +1358,14 @@ export function makeImportPipeline(ctx, h) {
       files: ["collars.csv", "survey.csv", "litho.csv", "weath.csv", "alt.csv", "vein.csv", "structure.csv"],
       notice: "WA lode gold (WAMEX report A122506): 66 inclined holes from 2018-2019 on a gold prospect east of Kalgoorlie, with lithology, alteration, veining, oriented structures and 14,664 gold assays — nothing synthesized.",
     },
+    // TASKS.csv #3496 — Fireweed Metals' Macpass drilling (Yukon), used with their permission; its assays are loaded by the caller (lib/sampleWa.js); credit: shown as its own notice
+    yk_macpass: {
+      dir: "yk_macpass", epsg: 26909, crs: "NAD83 / UTM zone 9N",
+      files: ["collars.csv", "survey.csv", "sg.csv"], // sg.csv: the bulk density as the Specific gravity layer, with Method, Comment and the low-recovery flag as fields
+      notice: "Macpass (Fireweed Metals Corp., Yukon): 559 holes drilled 1952-2023 on a zinc-lead-silver prospect, with down-hole surveys, 32,546 sampled intervals (Ag, Pb, Zn) and their bulk density — nothing synthesized.",
+      credit: MACPASS_CREDIT,
+      dipsStated: ["survey.csv"], // 19 up-hole stations of 10 underground holes: positive dips, negative = down everywhere else
+    },
     // TASKS.csv #3107 — its geology, measurements and terrain are loaded by the caller (lib/sampleRegional.js)
     qc_rouyn_noranda: {
       dir: "qc_rouyn_noranda", epsg: 26917, crs: "NAD83 / UTM zone 17N",
@@ -1372,6 +1385,7 @@ export function makeImportPipeline(ctx, h) {
     setSampleLoading(true);
     try {
       const files = await loadSampleFiles(S.dir, S.files, { optional: S.optional || [] }); // optional: #3100
+      for (const f of files) if (S.dipsStated?.includes(f.name)) STATED_DIPS.add(f); // #3496
       const downloaded = S.noticeDownloaded && (await sampleStatus())[which] === "downloaded"; // #3100
       // TASKS.csv #617 — the sample's CRS is known: set it when the project's CRS was never chosen, instead of
       // stopping on #615's "which CRS are these collars in?" dialog
@@ -1383,7 +1397,7 @@ export function makeImportPipeline(ctx, h) {
       } else if (live.project?.epsg && Number(live.project.epsg) !== S.epsg) {
         setNotices((p) => [...p, notice("The sample project's coordinates are EPSG:{epsg} ({crs}), but this project is EPSG:{epsg2}: the holes will not line up with anything else in it. Load the sample into a new project.", { epsg: S.epsg, crs: S.crs, epsg2: live.project.epsg })]);
       }
-      setNotices((p) => [...p, notice(downloaded ? S.noticeDownloaded : S.notice)]); // #786 — the two SAMPLES notices are in the dictionaries; downloaded: #3100
+      setNotices((p) => [...p, notice(downloaded ? S.noticeDownloaded : S.notice), ...(S.credit ? [S.credit] : [])]); // #786; credit: #3496 — the data owner's own words, not translated — the two SAMPLES notices are in the dictionaries; downloaded: #3100
       importActiveRef.current = true;
       batchRowsRef.current = new WeakSet(); // #605
       importQueueTotalRef.current = files.length;
