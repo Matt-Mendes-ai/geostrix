@@ -5,6 +5,8 @@
 
 import { collarsMatching } from "./holeFilter.js"; // TASKS.csv #2141
 import { PAGE_PX_PER_PAPER_M, pxPerMetre } from "./pagePxScale.js";
+import { desurveyHole, normalizeDesurveyMethod, DESURVEY_METHODS } from "./desurvey.js"; // TASKS.csv #3367 (desurvey.js imports nothing)
+import { fmtSig3 } from "./numberFormat.js"; // TASKS.csv #3382
 export { PAGE_PX_PER_PAPER_M, pxPerMetre } from "./pagePxScale.js"; // TASKS.csv #3159 — moved there for the startup code
 
 // The hole in plan, straight from the collar's azimuth, dip and length (a survey bends it little at plan scale). Dip may be
@@ -16,6 +18,40 @@ export function holePlan(c) {
 }
 
 const finite = (c) => Number.isFinite(c?.x) && Number.isFinite(c?.y);
+
+// TASKS.csv #3367 (review #3195, Galore Creek) — every hole was drawn straight from its collar's planned azimuth and dip (holePlan, #1639):
+// on a gyro-surveyed project 25 of 70 traces ended more than 10 m from the surveyed toe (two about 60 m), a vertical hole that drifted 20 m
+// was a dot, and a top-down viewport on the same page drew the surveyed paths. A hole with survey stations is drawn along its desurveyed
+// path (the project's method), projected to plan; a hole with none, and a planned hole, stay straight. -> Map hole_id -> [[x, y], ...]
+// (null with no survey), kept per collars array for its survey and method
+const planMemo = new WeakMap();
+export function planTraces(collars, survey, method) {
+  if (!survey?.length || !collars?.length) return null;
+  const kept = planMemo.get(collars);
+  if (kept && kept.survey === survey && kept.method === method) return kept.out;
+  const by = new Map();
+  for (const st of survey) { const k = String(st.hole_id ?? ""); (by.get(k) || by.set(k, []).get(k)).push(st); }
+  const out = new Map();
+  for (const c of collars) {
+    const stations = by.get(String(c.hole_id ?? ""));
+    if (!stations?.length || !finite(c)) continue;
+    const t = desurveyHole({ ...c, z: Number.isFinite(c.z) ? c.z : 0 }, stations, method);
+    if (t.length > 1) out.set(String(c.hole_id), t.map((q) => [q.x, q.y]));
+  }
+  planMemo.set(collars, { survey, method, out });
+  return out;
+}
+// the sheet's line on how the traces were drawn (English: it is printed with the plan, as the grid caption is). surveyed / straight:
+// the drilled holes in the frame drawn each way; planned: planned holes shown; method: the project's desurvey method id
+export function traceCaption({ surveyed = 0, straight = 0, planned = 0, method = null } = {}) {
+  const m = (DESURVEY_METHODS.find((x) => x.id === normalizeDesurveyMethod(method))?.label || "minimum curvature").toLowerCase();
+  const parts = [];
+  if (surveyed && !straight) parts.push(`Traces along the downhole surveys (${m})`);
+  else if (surveyed) parts.push(`Traces along the downhole surveys (${m}); ${straight} hole(s) with no survey straight from the collar azimuth and dip`);
+  else if (straight) parts.push("Traces straight from each collar's azimuth and dip (no downhole surveys)");
+  if (planned) parts.push("planned holes straight from their design");
+  return parts.join("; ");
+}
 // TASKS.csv #2141 (review #2013) — a program's location plan in two clicks: the filter takes collar fields too ('year=2024', 'project=Woodjam'),
 // the hole-filter grammar of the hole list (#1504); a plain term still matches the hole id ('24-' kept Redgold's RG24-15 22 km north)
 export const filterHoles = (collars, filter) => {
@@ -24,11 +60,15 @@ export const filterHoles = (collars, filter) => {
 };
 
 // The scale (from `presets`, smallest first) and centre that show every hole (collar and trace) inside a w x h px frame with a margin.
-export function fitDrillPlan(collars, w, h, presets = [500, 1000, 2000, 2500, 5000, 10000, 20000, 25000, 50000, 100000]) {
+// traces: planTraces' Map (#3367) — a surveyed hole is framed along its path
+export function fitDrillPlan(collars, w, h, presets = [500, 1000, 2000, 2500, 5000, 10000, 20000, 25000, 50000, 100000], traces = null) {
   const cs = (collars || []).filter(finite);
   if (!cs.length) return null;
   let xmin = Infinity, ymin = Infinity, xmax = -Infinity, ymax = -Infinity;
-  for (const c of cs) { const p = holePlan(c); for (const [x, y] of [[p.x0, p.y0], [p.x1, p.y1]]) { if (x < xmin) xmin = x; if (x > xmax) xmax = x; if (y < ymin) ymin = y; if (y > ymax) ymax = y; } }
+  for (const c of cs) {
+    const t = traces?.get(String(c.hole_id)), p = t ? null : holePlan(c);
+    for (const [x, y] of t || [[p.x0, p.y0], [p.x1, p.y1]]) { if (x < xmin) xmin = x; if (x > xmax) xmax = x; if (y < ymin) ymin = y; if (y > ymax) ymax = y; }
+  }
   const spanX = Math.max(1, xmax - xmin), spanY = Math.max(1, ymax - ymin);
   // TASKS.csv #3181 (#3028 (6), review #2876) — the margin each side is 6 % of the frame or 5 mm (about two label heights), whichever is less:
   // 6 % of a 201 x 127 mm frame (12 mm a side) sent a field that 1:150,000 holds with 9 % to spare to 1:200,000
@@ -40,18 +80,52 @@ export function fitDrillPlan(collars, w, h, presets = [500, 1000, 2000, 2500, 50
 
 // TASKS.csv #2305 (review #2174, WA gold) — a north-south block fitted into a landscape frame printed 36 x 61 mm in a 201 x 127 mm frame at
 // 1:20,000, while the same frame turned would hold it at 1:10,000. -> the turned frame's fit when it is a larger scale (a smaller 1:N), else null
-export function turnedFrameFit(collars, w, h, presets) {
-  const now = fitDrillPlan(collars, w, h, presets), turned = fitDrillPlan(collars, h, w, presets);
+export function turnedFrameFit(collars, w, h, presets, traces = null) { // traces: #3367
+  const now = fitDrillPlan(collars, w, h, presets, traces), turned = fitDrillPlan(collars, h, w, presets, traces);
   return now && turned && turned.scale < now.scale ? { ...turned, w: h, h: w, from: now.scale } : null;
 }
 
 // TASKS.csv #2611 — the corner of a w x h frame for a kw x kh key with the fewest holes under it (top left on a tie; bottom right sits above
 // the grid caption). holes: drillPlanGeometry's (ax, ay in frame px). -> { x, y }
-export function emptiestCorner(holes, w, h, kw, kh) {
+// points (TASKS.csv #3376): what the key must not hide, planPoints' collars and traces; without it the collars. -> { x, y, under }: under, the
+// holes whose collar or trace lies under the key in that corner (0: none)
+export function emptiestCorner(holes, w, h, kw, kh, points = null) {
   const corners = [[6, 6], [w - kw - 6, 6], [6, h - kh - 6], [w - kw - 6, h - kh - 22]];
-  const under = ([x, y]) => (holes || []).reduce((n, hh) => n + (hh.ax >= x && hh.ax <= x + kw && hh.ay >= y && hh.ay <= y + kh ? 1 : 0), 0);
-  const [x, y] = corners.map((c) => [c, under(c)]).sort((a, b) => a[1] - b[1])[0][0];
-  return { x: Math.max(0, x), y: Math.max(0, y) };
+  const pts = points || (holes || []).map((hh) => ({ id: hh.id, x: hh.ax, y: hh.ay }));
+  const under = ([x, y]) => new Set(pts.filter((p) => p.x >= x && p.x <= x + kw && p.y >= y && p.y <= y + kh).map((p) => p.id)).size;
+  const [[x, y], n] = corners.map((c) => [c, under(c)]).sort((a, b) => a[1] - b[1])[0];
+  return { x: Math.max(0, x), y: Math.max(0, y), under: n };
+}
+// TASKS.csv #3376 (review #3195) — the frame points of each hole the key must keep clear of: its collar, its toe, its trace's mid-point and
+// every few points of a surveyed path (#3367). -> [{ id, x, y }]
+export function planPoints(holes) {
+  const out = [];
+  for (const hh of holes || []) {
+    if (hh.inside === false) continue;
+    out.push({ id: hh.id, x: hh.ax, y: hh.ay });
+    if (Number.isFinite(hh.bx) && Number.isFinite(hh.by)) out.push({ id: hh.id, x: hh.bx, y: hh.by }, { id: hh.id, x: (hh.ax + hh.bx) / 2, y: (hh.ay + hh.by) / 2 });
+    const p = hh.path || [], step = Math.max(1, Math.floor(p.length / 12));
+    for (let i = step; i < p.length - 1; i += step) out.push({ id: hh.id, x: p[i][0], y: p[i][1] });
+  }
+  return out;
+}
+// TASKS.csv #3376 — a key line wrapped to maxPx (charPx: the width of a character at its size): at '; ' first, then between words.
+// The 'Best intercept' key's note set its width at 503 px in a 480 px frame. -> lines
+export function wrapKeyText(text, maxPx, charPx) {
+  const t = String(text || "").trim();
+  if (!t) return [];
+  const fits = (s) => s.length * charPx <= maxPx;
+  const out = [];
+  for (const part of t.split(/;\s+/).map((s, i, a) => (i < a.length - 1 ? `${s};` : s))) {
+    let line = "";
+    for (const word of part.split(/\s+/)) {
+      const next = line ? `${line} ${word}` : word;
+      if (fits(next) || !line) line = next;
+      else { out.push(line); line = word; }
+    }
+    if (line) out.push(line);
+  }
+  return out;
 }
 
 // A hole's series: its id without the trailing number (21CCDD042 -> 21CCDD; 21AGBDD043B -> 21AGBDD), the year / prospect / type prefix drill programs use.
@@ -92,6 +166,8 @@ export function drillPlanShapes(collars, field, holeIds = null) {
   return { shapeOf: (id) => shapeOfValue.get(valueOf.get(id)) || "circle", key };
 }
 // the outline of a symbol of radius r at (cx, cy), as an SVG path (the circle is drawn as a <circle>)
+// TASKS.csv #3375 — the '×' inside a 'not assayed' ring (or shape), its arms at 0.7 of the radius
+export const crossPath = (cx, cy, r) => { const k = r * 0.7; return `M${cx - k},${cy - k}L${cx + k},${cy + k}M${cx - k},${cy + k}L${cx + k},${cy - k}`; };
 export function symbolPath(shape, cx, cy, r) {
   if (shape === "square") { const s = r * 0.9; return `M${cx - s},${cy - s}h${2 * s}v${2 * s}h${-2 * s}z`; }
   if (shape === "triangle") { const s = r * 1.25; return `M${cx},${cy - s}L${cx + s * 0.866},${cy + s * 0.5}L${cx - s * 0.866},${cy + s * 0.5}z`; }
@@ -132,17 +208,42 @@ export function placeLabels(points, { fontPx = 9, w, h, gap = 5, avoid = [] } = 
 }
 
 // Everything the element draws, in frame px (north up, centre of the frame = el.centre). Holes wholly outside are left out.
-export function drillPlanGeometry(el, collars) {
+// traces (#3367): planTraces' Map; a hole in it carries `path` (frame px from the collar to the toe) and surveyed: true
+export function drillPlanGeometry(el, collars, traces = null) {
   const w = el.w || 600, h = el.h || 400, ppm = pxPerMetre(el.scale), cx = el.centre?.x ?? 0, cy = el.centre?.y ?? 0;
   const toPx = (x, y) => [w / 2 + (x - cx) * ppm, h / 2 - (y - cy) * ppm];
   const holes = [];
   for (const c of filterHoles(collars, el.holeFilter)) {
-    const p = holePlan(c), [ax, ay] = toPx(p.x0, p.y0), [bx, by] = toPx(p.x1, p.y1);
-    if (Math.max(ax, bx) < 0 || Math.min(ax, bx) > w || Math.max(ay, by) < 0 || Math.min(ay, by) > h) continue;
-    holes.push({ id: String(c.hole_id ?? ""), series: holeSeries(c.hole_id), ax, ay, bx, by, inside: ax >= 0 && ax <= w && ay >= 0 && ay <= h });
+    const t = traces?.get(String(c.hole_id));
+    let ax, ay, bx, by, path = null;
+    if (t) {
+      path = t.map(([x, y]) => toPx(x, y));
+      [ax, ay] = toPx(c.x, c.y); [bx, by] = path[path.length - 1];
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      for (const [x, y] of path) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      if (x1 < 0 || x0 > w || y1 < 0 || y0 > h) continue;
+    } else {
+      const p = holePlan(c);
+      [ax, ay] = toPx(p.x0, p.y0); [bx, by] = toPx(p.x1, p.y1);
+      if (Math.max(ax, bx) < 0 || Math.min(ax, bx) > w || Math.max(ay, by) < 0 || Math.min(ay, by) > h) continue;
+    }
+    holes.push({ id: String(c.hole_id ?? ""), series: holeSeries(c.hole_id), ax, ay, bx, by, path, surveyed: !!t, inside: ax >= 0 && ax <= w && ay >= 0 && ay <= h });
   }
   return { w, h, ppm, holes };
 }
+
+// TASKS.csv #2259 (review #2174, WA gold) — a drill plan is what a program is approved and staked from, and it showed the drilled collars only:
+// the planned holes (drawn in the planned colour in the 3D view and on sections) are on it too, unless the element's 'Show the planned holes'
+// is off. planned: the project's plannedHoles ({ name, x, y, azimuth, dip, length }); the hole filter reads a planned hole's name as its id.
+export const plannedAsCollars = (planned) => (planned || []).map((p) => ({ ...p, hole_id: p.name || p.id }));
+export const showsPlanned = (el) => el?.showPlanned !== false;
+// -> frame-px holes as drillPlanGeometry's, each with planned: true ([] when off or none)
+export function drillPlanPlanned(el, planned) {
+  if (!showsPlanned(el) || !planned?.length) return [];
+  return drillPlanGeometry(el, plannedAsCollars(planned)).holes.map((h) => ({ ...h, planned: true }));
+}
+// the holes a 'Fit the holes' frames: the collars, and the planned holes when the plan shows them
+export const holesToFit = (el, collars, planned) => /* the fit's traces: #3367, passed beside */ filterHoles([...(collars || []), ...(showsPlanned(el) ? plannedAsCollars(planned) : [])], el?.holeFilter);
 
 // TASKS.csv #2301 (review #2174, WA gold) — the location plan had no coordinates at all. A grid at a round spacing (el.gridM, else about five
 // lines across the frame: 1 / 2 / 2.5 / 5 x 10^n m; 0 = no grid), with easting labels along the top and northing labels down the left, in the
@@ -210,10 +311,17 @@ export function gradeBreaks(values) {
   const v = [...values].filter(Number.isFinite).sort((a, b) => a - b);
   if (!v.length) return [];
   const q = (p) => v[Math.min(v.length - 1, Math.max(0, Math.ceil(p * v.length) - 1))];
-  return [...new Set([0.5, 0.75, 0.9].map(q).filter((b) => b > v[0]))];
+  const raw = [...new Set([0.5, 0.75, 0.9].map(q).filter((b) => b > v[0]))];
+  // TASKS.csv #3382 (review #3195) — two percentiles that nearly coincide (within 5 % of the bound: '514,406 – 518,514') are one class, not a
+  // sliver: a break that close to the one below it (or to the lowest value), or the top break that close to the highest value, is dropped
+  const near = (a, b) => Math.abs(b - a) < 0.05 * Math.max(Math.abs(a), Math.abs(b));
+  const out = [];
+  for (const b of raw) if (!near(out.length ? out[out.length - 1] : v[0], b)) out.push(b);
+  if (out.length && near(out[out.length - 1], v[v.length - 1]) && out[out.length - 1] !== v[v.length - 1]) out.pop();
+  return out;
 }
 export const classOf = (value, breaks) => { let i = 0; while (i < breaks.length && value >= breaks[i]) i++; return i; };
-export const fmtClassNumber = (x) => (Math.abs(x) >= 1000 ? Math.round(x).toLocaleString("en-US") : Number(x).toLocaleString("en-US", { maximumSignificantDigits: 3 }));
+export const fmtClassNumber = (x) => fmtSig3(x); // TASKS.csv #3382 — three significant figures everywhere ('1,530,000', was '1,531,044')
 export const GRADE_COLOURS = ["#8a9bb0", "#2b83ba", "#f08a24", "#c8102e"]; // low to high, each readable on the white sheet (no yellow: #2611)
 export const GRADE_RADIUS_MM = [0.6, 0.8, 1.05, 1.35]; // larger for higher classes, so the classes still read in a black-and-white print
 const NONE_COLOUR = "#9aa3ad";
@@ -221,7 +329,10 @@ const rampIndex = (i, n) => (n <= 1 ? GRADE_COLOURS.length - 1 : Math.round((i *
 
 // How each hole is drawn, and the key. holes: drillPlanGeometry's; opts: { segs (for max / gt), unit, palette (categorical), ink }.
 // -> { by, title, note, breaks, styleOf(holeId, series) -> { colour, rMm, hollow }, key: [{ label, colour, rMm, hollow }] }
-export function drillPlanColouring(el, holes, collars, { segs = null, unit = "", palette = [], ink = "#1a2028", perHole = null, biRule = "" } = {}) { // perHole / biRule: #2685
+// assayed (TASKS.csv #3375): for 'bi', the holes with a result for the element; the others are 'not assayed' (a crossed ring), apart from the
+// assayed holes with no interval at the cut-off (a hollow ring): 24 geotechnical / condemnation holes with no assay at all shared the key row
+// 'no Cu intercept' with 16 assayed holes below the cut-off, and a hole that was never assayed is not a barren hole.
+export function drillPlanColouring(el, holes, collars, { segs = null, unit = "", palette = [], ink = "#1a2028", perHole = null, biRule = "", assayed = null } = {}) { // perHole / biRule: #2685
   const by = drillPlanColourBy(el), { kind, key } = colourByKind(by);
   const dot = (colour, rMm = 0.8, hollow = false) => ({ colour, rMm, hollow });
   if (kind === "series") {
@@ -255,12 +366,18 @@ export function drillPlanColouring(el, holes, collars, { segs = null, unit = "",
       }
     }
     const blank = holes.some((h) => !per.has(h.id));
+    const apart = kind === "bi" && assayed instanceof Set; // #3375
+    const notAssayed = (id) => apart && !per.has(id) && !assayed.has(id);
+    const anyNot = apart && holes.some((h) => notAssayed(h.id)), anyNone = holes.some((h) => !per.has(h.id) && !notAssayed(h.id));
+    const blankKey = !blank ? [] : apart
+      ? [...(anyNone ? [{ label: `assayed, no ${key} intercept at the cut-off`, ...dot(NONE_COLOUR, 0.6, true) }] : []), ...(anyNot ? [{ label: `no ${key} assays`, ...dot(NONE_COLOUR, 0.8, true), cross: true }] : [])]
+      : [{ label: kind === "bi" ? `no ${key} intercept` : `no ${key} result`, ...dot(NONE_COLOUR, 0.6, true) }];
     return {
       by, breaks,
       title: kind === "bi" ? `${key} best intercept, grade × length` : kind === "gt" ? `${key} grade × length, whole hole` : `Highest ${key} in the hole`,
       note: [kind === "bi" ? biRule : "", breaks.length ? "classes: 50th / 75th / 90th percentile of the plan's holes" : ""].filter(Boolean).join("; "),
-      styleOf: (id) => { const v = per.get(id); if (v == null) return dot(NONE_COLOUR, 0.6, true); const c = rampIndex(classOf(v, breaks), n); return dot(GRADE_COLOURS[c], GRADE_RADIUS_MM[c]); },
-      key: [...key2, ...(blank ? [{ label: kind === "bi" ? `no ${key} intercept` : `no ${key} result`, ...dot(NONE_COLOUR, 0.6, true) }] : [])],
+      styleOf: (id) => { const v = per.get(id); if (v == null) return notAssayed(id) ? { ...dot(NONE_COLOUR, 0.8, true), cross: true } : dot(NONE_COLOUR, 0.6, true); const c = rampIndex(classOf(v, breaks), n); return dot(GRADE_COLOURS[c], GRADE_RADIUS_MM[c]); },
+      key: [...key2, ...blankKey],
     };
   }
   return { by: "none", title: "", note: "", breaks: [], styleOf: () => dot(ink), key: [] };

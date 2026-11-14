@@ -23,7 +23,7 @@ test("a section's trace and its end ticks are Line2 lines with a width in pixels
     assert.deepEqual([...new Set(lines.map((l) => l.material.linewidth))].sort(), TRACE_STROKES.map((s) => s[0]).sort());
     for (const l of lines) { assert.equal(l.material.depthTest, false); assert.equal(l.material.worldUnits, false); } // screen pixels
     assert.equal(g.children.filter((c) => c.isMesh && !c.isLine2).length, 0, "no world-width ribbons left");
-    assert.equal(g.children.filter((c) => c.isSprite).length, 2); // S1 and S1′
+    assert.equal(g.userData.labels.children.filter((c) => c.isSprite).length, 2); // S1 and S1′ (#3246: in their own group, decluttered)
     // flat 2 m over the median collar elevation, in the scene frame (y = Z - oz)
     const pos = lines[0].geometry.attributes.instanceStart.data.array;
     assert.equal(pos[1], 310 + 2 - origin.z);
@@ -45,9 +45,12 @@ test("a fence's lines are one thin line each; clearing disposes everything", () 
   const lines = g.children.filter((c) => c.isLine2);
   assert.deepEqual([...new Set(lines.map((l) => l.material.linewidth))], [FENCE_STROKES[0][0]]); // one thin line, no halo
   assert.equal(lines.length, 3 * 2); // each fence line + one tick at A (labelled), no B tick
-  assert.equal(g.children.filter((c) => c.isSprite).length, 3);
+  assert.equal(g.userData.labels.children.filter((c) => c.isSprite).length, 3);
+  const labels = g.userData.labels;
   clearSectionTraces(g);
   assert.equal(g.children.length, 0);
+  assert.equal(labels.children.length, 0, "#3246 — the label group's sprites go too");
+  assert.equal(g.userData.labels, null);
   buildSectionTraces(g, [], { origin, terrain: null, collars });
   assert.equal(g.children.length, 0);
   assert.equal(FENCE_STROKES.length, 1);
@@ -58,4 +61,6 @@ test("wiring: ViewerModule loads the traces on first use and keeps the #1980 gua
   assert.ok(v.includes("const group = sectionLinesGroupRef.current;\n    if (!group || buildDefer.skip()) return; // #1980"));
   assert.match(v, /import\("\.\.\/lib\/viewer\/sectionTraces\.js"\)\.then\(\(m\) => \{ if \(live\) \{ m\.buildSectionTraces\(group, want \? sections : \[\]/);
   assert.ok(!/width \* 2\.6/.test(v), "the ribbon code is gone from ViewerModule");
+  // #3246 — the end labels sized and decluttered each frame like the hole labels
+  assert.match(v, /const sl = sectionLinesGroupRef\.current\?\.userData\.labels; if \(sl\?\.children\.length\) \{ fitScreenLabels\(sl, camera, mount\.clientHeight\); declutterHoleLabels\(sl, camera, mount\.clientWidth, mount\.clientHeight\); \}/);
 });

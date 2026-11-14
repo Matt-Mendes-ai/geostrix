@@ -6,7 +6,7 @@ import fs from "node:fs";
 test("both import paths store 'terrain' (or 'file' for 3D points / lines with no terrain)", () => {
   const s = fs.readFileSync("src/components/SurfaceMappingPanel.jsx", "utf8");
   assert.match(s, /addMapLayer\(\{ \.\.\.layer, drapeMode: !terrain && layer\.hasZ && layer\.geomType !== "polygon" \? "file" : "terrain" \}\);/);
-  assert.match(fs.readFileSync("src/modules/viewer/useImportPipeline.js", "utf8"), /live\.addMapLayer\(\{ \.\.\.layer, drapeMode: "terrain" \}\);/);
+  assert.match(fs.readFileSync("src/modules/viewer/importPipelineImpl.js", "utf8"), /live\.addMapLayer\(\{ \.\.\.layer, drapeMode: "terrain" \}\);/);
 });
 
 test("the renderer draws a 'terrain' layer flat until a terrain exists, then on it", () => {

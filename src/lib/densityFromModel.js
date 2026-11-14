@@ -4,6 +4,16 @@
 // the densities a block may take from a model, t/m³ (a value outside is not a density: the block takes the typed default)
 export const DENSITY_RANGE = [1, 6];
 
+// TASKS.csv #3172 (split from #3014 part b) — the density choice offered any model on the same blocks, and a grade whose values fall in 1-6
+// (Fe in an iron project's waste, Al2O3 at 1.8-10 %, Cu in %) read as a density there. Only a model named or estimated as one is offered:
+// the element / value it was estimated from, its source column, or its name says density, specific gravity or SG (BD, DBD: bulk density).
+const DENSITY_WORDS = /(^|[^a-z0-9])(density|densities|specific gravity|s\.?g|bd|dbd|bulk dens\w*|dry dens\w*)([^a-z0-9]|$)/i;
+export function isDensityModel(m) {
+  if (!m) return false;
+  const p = m.params || {};
+  return [p.element, p.value, p.column, p.valueColumn, m.property, m.name].some((t) => typeof t === "string" && DENSITY_WORDS.test(t));
+}
+
 // two lattices ({ dx, dy, dz, ox, oy, oz } from blockModelLattice) the same: equal cells and origins one whole number of cells apart
 export function sameLattice(a, b) {
   if (!a || !b) return false;

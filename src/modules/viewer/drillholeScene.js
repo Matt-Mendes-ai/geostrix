@@ -9,7 +9,7 @@ import { LAYER_META, minMax } from "../../lib/layers.js";
 import { arrMin, arrMax } from "../../lib/arrayStats.js";
 import { desurveyHole, holeAttitudeAssumed } from "../../lib/desurvey.js";
 import { errorNotice, notice } from "../../lib/notices.js"; // notice: #2937
-import { resolveLayerStyle, TUBE_SEGMENTS } from "../../lib/layerStyle.js";
+import { resolveLayerStyle } from "../../lib/layerStyle.js";
 import { customColour } from "../../lib/customColour.js";
 import { PickStandIn } from "../../lib/viewer/pickStandIn.js";
 import { buildLayerBatches, collarMarkerMaterial, syncBatchedInstances } from "../../lib/viewer/layerBatches.js";
@@ -125,6 +125,21 @@ export function retireHoles(g, holes) {
   });
   g.userData.retired = (g.userData.retired || 0) + now; g.userData.patches = (g.userData.patches || 0) + 1;
   return true;
+}
+
+// TASKS.csv #3053 — the holes whose rows differ between two versions of a layer's rows (a commit keeps the other holes' row objects, as
+// replaceRowsByHole does), or null when a patch is not worth it: more than maxShare of the rows changed, or a hole whose rows are not
+// grouped together. -> Set of hole ids (a hole that lost all its rows included)
+export const ROW_PATCH_MAX_SHARE = 0.1;
+export function rowChangedHoles(prevRows, rows, maxShare = ROW_PATCH_MAX_SHARE) {
+  if (!Array.isArray(prevRows) || !Array.isArray(rows) || prevRows === rows) return null;
+  const by = (list) => { const m = new Map(); for (const r of list) { const h = r?.hole_id; if (!h) continue; const a = m.get(h); if (a) a.push(r); else m.set(h, [r]); } return m; };
+  const a = by(prevRows), b = by(rows), out = new Set();
+  let changed = 0;
+  for (const [h, rs] of b) if (!sameRefs(a.get(h), rs)) { out.add(h); changed += rs.length; }
+  for (const [h, rs] of a) if (!b.has(h)) { out.add(h); changed += rs.length; }
+  if (!out.size || changed > maxShare * Math.max(rows.length, prevRows.length)) return null;
+  return out;
 }
 
 // Which layer groups are made again: all on a full build; else a group whose signature changed, that is new, or that has
@@ -397,10 +412,22 @@ export function buildDrillholeScene(ctx) {
   if (!full && plan.shift && plan.shift.moved === changedHoles.size && changedHoles.size <= PATCH_MAX_HOLES) {
     for (const k of rebuild) { const g = groupOf(k); if (g && sameRefs(prev.sigs.get(k), sigs.get(k)) && retireHoles(g, changedHoles)) patched.add(k); }
   }
+  // TASKS.csv #3053 — a commit that changed the rows of a few holes (817 lithology rows of 33 holes into a 150,455-row layer) built the
+  // whole group again: every interval, half a second of the 1.9 s stall. Such a group is patched as #3097's moved holes are: the holes
+  // whose rows changed are retired and built again. Only when nothing else of the group's signature changed, no hole was desurveyed
+  // again, and the layer is not numeric (its colour range spans every row).
+  const rowPatchHoles = new Map(); // group key -> the holes built again
+  if (prev && !full && !changedHoles.size) for (const k of rebuild) {
+    const old = prev.sigs.get(k), sig = sigs.get(k);
+    if (!old || !sig || !Array.isArray(sig[0]) || LAYER_META[k]?.numeric || !sig.slice(1).every((v, i) => v === old[i + 1])) continue;
+    const holes = rowChangedHoles(old[0], sig[0]), g = holes && groupOf(k);
+    if (g && retireHoles(g, holes)) { patched.add(k); rowPatchHoles.set(k, holes); }
+  }
   const rebuildHoles = full || changedHoles.size > 0;
   if (full) clearGroups(Object.values(groups));
   else clearGroups([...(rebuildHoles ? [groups.holes, groups.hole_labels] : []), ...[...rebuild].filter((k) => !patched.has(k)).map(groupOf)].filter(Boolean)); // patched: #3097
-  const byHoleIf = (k, rows) => (!rebuild.has(k) ? NO_HOLES : patched.has(k) ? groupByHole((rows || []).filter((r) => changedHoles.has(r.hole_id))) : groupByHole(rows)); // a kept group builds nothing below; a patched one its moved holes
+  const patchHoles = (k) => rowPatchHoles.get(k) || changedHoles; // #3053 — a row patch's holes, else the moved holes (#3097)
+  const byHoleIf = (k, rows) => (!rebuild.has(k) ? NO_HOLES : patched.has(k) ? groupByHole((rows || []).filter((r) => patchHoles(k).has(r.hole_id))) : groupByHole(rows)); // a kept group builds nothing below; a patched one its moved holes
   const rowsByHole = {
     litho: byHoleIf("litho", layers.litho), alt: byHoleIf("alt", layers.alt), vein: byHoleIf("vein", layers.vein),
     geotech: byHoleIf("geotech", layers.geotech), litho_gc: byHoleIf("litho_gc", layers.litho_gc), alt_gc: byHoleIf("alt_gc", layers.alt_gc),
@@ -411,6 +438,11 @@ export function buildDrillholeScene(ctx) {
   // the holes each group has rows in, for the next build's planGroups (a kept group keeps its set)
   const holeSets = new Map();
   for (const k of sigs.keys()) holeSets.set(k, rebuild.has(k) && !patched.has(k) ? new Set((rowsByHole[k] || customRowsByHoleByLayer.get(k) || NO_HOLES).keys()) : prev.holeSets.get(k));
+  for (const [k, holes] of rowPatchHoles) { // #3053 — the patched holes that have rows now are in the set, those that lost them are not
+    const set = new Set(prev.holeSets.get(k) || []), now = rowsByHole[k] || NO_HOLES;
+    for (const h of holes) { if (now.has(h)) set.add(h); else set.delete(h); }
+    holeSets.set(k, set);
+  }
 
   // Bug-hunt pass: color/size range for numeric point layers (mnlgy/magsusc) used to be computed
   // per-hole inside buildPointMarkers below, so the same absolute value rendered a different color
@@ -510,7 +542,7 @@ export function buildDrillholeScene(ctx) {
           }
           return true;
         })();
-        let geo, mesh_ = null;
+        let geo, mesh_ = null, pieces = null;
         if (straight) {
           const dx = p2.x - p1.x, dy = p2.y - p1.y, dz = p2.z - p1.z;
           const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
@@ -528,18 +560,30 @@ export function buildDrillholeScene(ctx) {
           mesh_.position.set(p1.x, p1.y, p1.z);
           mesh_.quaternion.setFromUnitVectors(UP_Y, DIR_TMP.set(dx / len, dy / len, dz / len)); // #1500 — shared vectors
         } else {
-          const vecs = [new THREE.Vector3(p1.x, p1.y, p1.z), ...mid.map((p) => new THREE.Vector3(p.x, p.y, p.z)), new THREE.Vector3(p2.x, p2.y, p2.z)]; // #1500 — only here
-          const curve = new THREE.CatmullRomCurve3(vecs);
-          geo = new THREE.TubeGeometry(curve, Math.max(2, vecs.length * 2), radius, TUBE_SEGMENTS[st.shape], false);
+          // TASKS.csv #3279 (Galore review) — a curved interval was a CatmullRomCurve3 + TubeGeometry + material of its own (one draw call
+          // each), all made again when a Desurvey switch moved the stations: 211 ms of a 539 ms build on WA gold (35,385 members). Now
+          // straight pieces between its own trace points on the shared prototype, batched with the straight intervals; the inner joints
+          // overlap by half a radius so a bend shows no wedge, the ends stay on the interval's own depths.
+          const pts = [p1, ...mid, p2], last = pts.length - 2, ext = radius * 0.5;
           const color = st.color || (meta.numeric ? numericIntervalColor(groupKey, row.value) : baseColorForBuild(groupKey, row.value));
-          const mat = new THREE.MeshLambertMaterial({ color, transparent: st.opacity < 1, opacity: st.opacity });
-          mesh_ = new THREE.Mesh(geo, mat);
+          pieces = [];
+          for (let i = 0; i <= last; i++) {
+            const a = pts[i], b = pts[i + 1], dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if (len < 1e-6) continue;
+            const e0 = i > 0 ? ext : 0, e1 = i < last ? ext : 0, ux = dx / len, uy = dy / len, uz = dz / len;
+            const m = new PickStandIn(INTERVAL_PROTO[st.shape], { color, transparent: st.opacity < 1, opacity: st.opacity });
+            m.scale.set(radius, len + e0 + e1, radius);
+            m.position.set(a.x - ux * e0, a.y - uy * e0, a.z - uz * e0);
+            m.quaternion.setFromUnitVectors(UP_Y, DIR_TMP.set(ux, uy, uz));
+            pieces.push(m);
+          }
         }
-        const mesh = mesh_;
         // TASKS.csv #208 — a mapped Description in the tooltip; #227 — catValue for the category pass; #1500 — the tooltip made on first
         // read (lazyTip), holeId for the visible-holes pass
+        for (const mesh of pieces || [mesh_]) {
         mesh.userData = lazyTip({ row, holeId: c.hole_id, catValue: row.value, ...(groupKey === "litho" ? { lithoRow: row } : {}) }, () => `${c.hole_id}\n${meta.label}: ${meta.numeric ? row.value : effectiveLabel(groupKey, row.value)}${row.extra != null ? ` (${row.extra}${meta.extraSuffix || ""})` : ""}\n${+row.from.toFixed(2)}–${+row.to.toFixed(2)} m${row.intensity ? ` · intensity ${row.intensity}` : ""}${Number.isFinite(row.alpha) ? ` · alpha ${row.alpha}°` : ""}${row.description ? `\n${row.description}` : ""}`); // lithoRow: TASKS.csv #599 picking
         groups[groupKey].add(mesh);
+        }
        } catch (err) { buildErrors.push(`${groupKey} ${c.hole_id} ${row.from}-${row.to}: ${err.message}`); }
       });
     };

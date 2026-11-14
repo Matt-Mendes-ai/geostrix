@@ -185,6 +185,11 @@ export function applyValueTransform(points, transform = "none", capPercentile = 
 //
 // Returns { bins, nPairsUsed, nPoints, variance, mean, subsampled, maxReliableLag }.
 // #1996 — the median of a typed array (sorted in place: it is the bin's own scratch copy)
+// TASKS.csv #3285 (Galore Creek review) — a between-holes variogram from 11 drill sites showed 89,407 to 551,134 pairs a lag and never
+// tripped the 30-pair caution: those are composite pairs, and each lag rests on a handful of HOLE pairs, each counted thousands of times.
+// Each bin now carries holePairs (the distinct pairs of holes among its pairs between holes), and between holes a lag counts as reliable only
+// with at least MIN_HOLE_PAIRS of them, besides the 30 pairs.
+export const MIN_HOLE_PAIRS = 5;
 function medianOf(a) { if (!a.length) return NaN; a.sort(); const m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; }
 export function experimentalVariogram(points, opts = {}) {
   const lagDistance = Number(opts.lagDistance) > 0 ? Number(opts.lagDistance) : 10;
@@ -226,11 +231,21 @@ export function experimentalVariogram(points, opts = {}) {
   const bandwidth = dirV && Number(dir.bandwidth) > 0 ? Number(dir.bandwidth) : null;
 
   let nPairsUsed = 0;
+  // #3285 — the distinct hole pairs per bin (pairs between holes only; not counted in downhole mode, where there are none): a bit per hole pair
+  // and bin when that fits in 64 MB, else a Set per bin
+  const countHolePairs = holeMode !== "downhole";
+  const holeIx = new Int32Array(n), holeIds = new Map();
+  for (let i = 0; i < n; i++) { const id = pts[i].hole_id ?? ""; let v = holeIds.get(id); if (v == null) holeIds.set(id, (v = holeIds.size)); holeIx[i] = v; }
+  const nHoleIds = holeIds.size;
+  const hpBits = countHolePairs && nHoleIds * nHoleIds * (nLags + 1) <= 64e6 ? new Uint8Array(nHoleIds * nHoleIds * (nLags + 1)) : null;
+  const hpSets = countHolePairs && !hpBits ? Array.from({ length: nLags + 1 }, () => new Set()) : null;
+  const holePairs = new Uint32Array(nLags + 1), hh = nHoleIds * nHoleIds;
   // #1572 — in downhole mode the points are grouped by hole, so each hole's block of the loop is its own pair set
   const starts = dh ? dh.groups.map((g, i, arr) => arr.slice(0, i).reduce((s, x) => s + x.length, 0)) : null;
   let gi = 0, gEnd = dh ? (dh.groups[0]?.length ?? 0) : n;
   for (let i = 0; i < n; i++) {
     const a = pts[i];
+    const rowI = hpBits ? holeIx[i] * nHoleIds : 0; // #3285
     if (dh && i >= gEnd) { gi++; gEnd = starts[gi] + dh.groups[gi].length; }
     for (let j = i + 1; j < gEnd; j++) {
       const b = pts[j];
@@ -262,12 +277,16 @@ export function experimentalVariogram(points, opts = {}) {
       cnt[k] += 1;
       hSum[k] += h;
       nPairsUsed++;
+      if (hpBits) hpBits[k * hh + rowI + holeIx[j]] = 1; // #3285 — one store a pair (ordered; folded once after the loop)
+      else if (hpSets) { const hb = holeIx[j]; if (hb !== holeIx[i]) { const key = holeIx[i] < hb ? holeIx[i] * nHoleIds + hb : hb * nHoleIds + holeIx[i]; if (!hpSets[k].has(key)) { hpSets[k].add(key); holePairs[k]++; } } }
     }
   }
 
+  // #3285 — fold the ordered bits: a hole pair is in a bin when either order was stored (the diagonal, one hole, is not a pair)
+  if (hpBits) for (let k = 1; k <= nLags; k++) { const o = k * hh; let c = 0; for (let x = 0; x < nHoleIds; x++) for (let y = x + 1; y < nHoleIds; y++) if (hpBits[o + x * nHoleIds + y] | hpBits[o + y * nHoleIds + x]) c++; holePairs[k] = c; }
   const bins = [];
   for (let k = 1; k <= nLags; k++) {
-    if (cnt[k] === 0) { bins.push({ lag: k * lagDistance, h: k * lagDistance, gamma: null, nPairs: 0 }); continue; }
+    if (cnt[k] === 0) { bins.push({ lag: k * lagDistance, h: k * lagDistance, gamma: null, nPairs: 0, ...(countHolePairs ? { holePairs: 0 } : {}), reliable: false }); continue; }
     bins.push({
       lag: k * lagDistance,
       h: hSum[k] / cnt[k],              // the bin's MEAN separation — what gamma should be plotted at
@@ -275,6 +294,8 @@ export function experimentalVariogram(points, opts = {}) {
         : estimator === "dowd" ? 1.099 * medianOf(absBins[k].a.subarray(0, absBins[k].n)) ** 2 // #1996: 2.198 × median² / 2
         : sum[k] / (2 * cnt[k]),     // Matheron: mean of half the squared differences
       nPairs: cnt[k],
+      ...(countHolePairs ? { holePairs: holePairs[k] } : {}), // #3285
+      reliable: cnt[k] >= 30 && (holeMode !== "between" || holePairs[k] >= MIN_HOLE_PAIRS), // #3285 — between holes, also on hole pairs
     });
   }
 
@@ -292,7 +313,7 @@ export function experimentalVariogram(points, opts = {}) {
     // 'Between holes only' had a few pairs in its first bins and read 'only out to 0 m'; reliableFromLag says where the run starts
     ...(() => {
       let from = 0, last = 0;
-      for (const b of bins) { if (!from) { if (b.nPairs >= 30) { from = b.lag; last = b.lag; } continue; } if (b.nPairs >= 30) last = b.lag; else break; }
+      for (const b of bins) { if (!from) { if (b.reliable) { from = b.lag; last = b.lag; } continue; } if (b.reliable) last = b.lag; else break; } // reliable: #3285 (30 pairs; between holes also 5 hole pairs)
       return { maxReliableLag: last, reliableFromLag: from };
     })(),
   };

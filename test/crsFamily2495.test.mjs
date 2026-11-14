@@ -43,7 +43,7 @@ test("each zone lands the collars somewhere different: zone 50 puts the review's
 });
 
 test("the import passes the mapped columns' family to the CRS dialog, which lists its zones", () => {
-  const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(u, /const family = crsFamilyFromColumns\(\[xc, yc\]\.filter\(Boolean\)\);/);
   assert.match(u, /const zones = !named && family && !frame\?\.local && !small \? family : null;/);
   assert.match(u, /pts, named, \{ family: zones \}\);/);

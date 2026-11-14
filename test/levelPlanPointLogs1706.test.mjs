@@ -58,8 +58,8 @@ test("a logged interval of the same layer at the pierce point wins over a point 
 
 test("wiring: ViewerModule's point primitives carry their layer; the window offers the point logs and keys them in the legend", () => {
   const v = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(v, /label: `\$\{meta\.label\}: \$\{label\}`, layer: key \}\); \/\/ layer: #1706/);
-  assert.match(v, /label: `\$\{nm\}: \$\{row\.value\}`, layer: `custom:\$\{layer\.id\}` \}\);/); // nm: #2979
+  assert.match(v, /label: `\$\{meta\.label\}: \$\{label\}`, layer: key, value: meta\.numeric \? row\.value : undefined \}\); \/\/ layer: #1706; value: #3362/);
+  assert.match(v, /label: `\$\{nm\}: \$\{row\.value\}`, layer: `custom:\$\{layer\.id\}`, value: row\.value \}\); \/\/ value: #3362/); // nm: #2979
   const w = fs.readFileSync(new URL("../src/components/LevelPlanWindow.jsx", import.meta.url), "utf8");
   assert.match(w, /\.\.\.data\.intervals\.map\(\(iv\) => iv\.layer\), \.\.\.pointLogs\.map\(\(r\) => r\.layer\)/);
   assert.match(w, /planLegend\(data\.intervals\.some\(\(iv\) => iv\.layer === activeLayer\) \? data\.intervals : pointLogs, activeLayer,/);

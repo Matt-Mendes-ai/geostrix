@@ -8,47 +8,42 @@ export function holeLabelText(a, mode) {
   return a.id;
 }
 
+import { groupPads } from "../padGroups.js"; // #3399
 const fillers = new WeakMap(); // #3098 — group -> fillTextSprites, for lazy labels
 // group: the hole_labels THREE.Group; makeSprite(text) -> a sprite. Clears what was there (textures included) first.
-export function syncHoleLabels(group, anchors, mode, makeSprite) {
+// TASKS.csv #3399 — a pad of several holes gets a callout (makeSprite.callout) listing each hole, with its colour when the holes are coloured
+// by a collar field: colourOf(hole id) -> hex, kept on the group (group.userData.colourOf) by the 3D View so a rebuild's sync draws them too
+export function syncHoleLabels(group, anchors, mode, makeSprite, colourOf = group?.userData?.colourOf || null) {
   if (!group) return 0;
   while (group.children.length) { const c = group.children.pop(); c.material?.map?.dispose?.(); c.material?.dispose?.(); c.geometry?.dispose?.(); } idle.delete(group); // #2364 — new sprites: the declutter runs again, not only after a camera move
   if (mode === "none") return 0;
-  const fans = groupSharedCollars(anchors || []);
+  const fans = groupPads(anchors || []);
   // TASKS.csv #2208 — a fan of holes from one collar (an underground cuddy) gets ONE label, 'WB0817D +6', its ids in the tip
-  const texts = fans.map((g) => (g.length > 1 ? `${holeLabelText(g[0], mode)} +${g.length - 1}` : holeLabelText(g[0], mode)));
+  const callout = makeSprite.callout, pad = (g) => g.length > 1 && callout; // #3399
+  const singles = fans.filter((g) => !pad(g)), texts = singles.map((g) => (g.length > 1 ? `${holeLabelText(g[0], mode)} +${g.length - 1}` : holeLabelText(g[0], mode))); // '+n': no callout maker (#2208)
   const lazy = makeSprite.lazy && makeSprite.fill; // #3098 — drawn when the declutter shows them
-  const sprites = lazy ? makeSprite.lazy(texts) : makeSprite.many ? makeSprite.many(texts) : texts.map((t) => makeSprite(t)); // #2795 — one atlas, not a canvas per label
+  const made = lazy ? makeSprite.lazy(texts) : makeSprite.many ? makeSprite.many(texts) : texts.map((t) => makeSprite(t)); // #2795 — one atlas, not a canvas per label
   if (lazy) fillers.set(group, makeSprite.fill); else fillers.delete(group);
-  fans.forEach((g, i) => {
-    const a = g[0], sprite = sprites[i];
+  let k = 0;
+  fans.forEach((g) => {
+    const a = g[0];
+    if (pad(g)) { // #3399 — the leader's foot on the collar marker's top, the box up and to the right
+      const sprite = callout(g.map((x) => ({ text: holeLabelText(x, mode), colour: colourOf ? colourOf(x.id) : null })));
+      sprite.position.set(a.x, a.y + 1, a.z);
+      sprite.userData = { tip: g.map((x) => x.id).join("\n"), pad: g.length };
+      group.add(sprite);
+      return;
+    }
+    const sprite = made[k++];
     sprite.position.set(a.x, a.y + 6, a.z); // above the collar marker, as before
     sprite.userData = { tip: g.length > 1 ? g.map((x) => x.id).join("\n") : `${a.id}\nLabel` };
     group.add(sprite);
   });
   return group.children.length;
 }
-// TASKS.csv #2208 (review #2174, WA underground fans) — collars within `tol` scene units (metres) of one another, in anchor order: fans
-// of 2-7 holes from one cuddy put their labels a few pixels apart, overprinted into fragments at Fit. A 3D grid hash keeps it O(n).
-// TASKS.csv #3098 — integer cell keys (a string per neighbour cell was 134 ms of the 6,390-hole label switch); a hash shared by two
-// cells only adds candidates, and each candidate is checked against its own cell, so the grouping is the same as before.
-const cellKey = (x, y, z) => (Math.imul(x, 73856093) ^ Math.imul(y, 19349663) ^ Math.imul(z, 83492791));
-export function groupSharedCollars(anchors, tol = 1) {
-  const cells = new Map(), groups = [];
-  const cell = (v) => Math.floor(v / tol);
-  for (const a of anchors) {
-    const cx = cell(a.x), cy = cell(a.y), cz = cell(a.z);
-    let home = null;
-    for (let dx = -1; dx <= 1 && !home; dx++) for (let dy = -1; dy <= 1 && !home; dy++) for (let dz = -1; dz <= 1 && !home; dz++) {
-      const x = cx + dx, y = cy + dy, z = cz + dz;
-      for (const e of cells.get(cellKey(x, y, z)) || []) { if (e.x !== x || e.y !== y || e.z !== z) continue; const h = e.g[0]; if (Math.hypot(h.x - a.x, h.y - a.y, h.z - a.z) <= tol) { home = e.g; break; } }
-    }
-    if (home) { home.push(a); continue; }
-    const g = [a]; groups.push(g);
-    const k = cellKey(cx, cy, cz); if (!cells.has(k)) cells.set(k, []); cells.get(k).push({ x: cx, y: cy, z: cz, g });
-  }
-  return groups;
-}
+// TASKS.csv #2208 / #3098 — collars within `tol` scene units (metres) of one another: moved to lib/padGroups.js (#3399, shared with the Maps
+// plan's #3397), the same function
+export { groupPads as groupSharedCollars } from "../padGroups.js";
 
 // TASKS.csv #1294 — labels keep their on-screen size while collars close up, so at Fit five of them overprinted into nothing. When the camera has stopped (never
 // per frame), the labels that would overlap one already placed are hidden, in hole order; zooming in brings them back. labels: [{ x, y, w, h }] in pixels.
@@ -72,7 +67,10 @@ export function labelBoxes(group, camera, width, height, labelPx = 16) {
     const cx = e[0] * x + e[4] * y + e[8] * z + e[12], cy = e[1] * x + e[5] * y + e[9] * z + e[13], cz = e[2] * x + e[6] * y + e[10] * z + e[14], cw = e[3] * x + e[7] * y + e[11] * z + e[15];
     const w = p[3] * cx + p[7] * cy + p[11] * cz + p[15] * cw;
     if (!(w > 0)) return null;
-    return { x: ((p[0] * cx + p[4] * cy + p[8] * cz + p[12] * cw) / w) * 0.5 * width, y: ((p[1] * cx + p[5] * cy + p[9] * cz + p[13] * cw) / w) * 0.5 * height, w: labelPx * (sp.material?.userData?.labelAspect || 4), h: labelPx };
+    const sx = ((p[0] * cx + p[4] * cy + p[8] * cz + p[12] * cw) / w) * 0.5 * width, sy = ((p[1] * cx + p[5] * cy + p[9] * cz + p[13] * cw) / w) * 0.5 * height;
+    const L = sp.material?.userData?.labelLines;
+    if (L) { const h = labelPx * L, bw = h * (sp.material.userData.labelAspect || 4); return { x: sx + (0.5 - sp.center.x) * bw, y: sy + (0.5 - sp.center.y) * h, w: bw, h }; } // #3399 — a callout: its whole box, from its corner
+    return { x: sx, y: sy, w: labelPx * (sp.material?.userData?.labelAspect || 4), h: labelPx };
   });
 }
 
@@ -130,18 +128,26 @@ export function syncTextLabels(group, items, makeSprite, lift = 6) {
 }
 const shortNum = (v) => (Math.abs(v) >= 100 ? String(Math.round(v)) : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 1 ? v.toFixed(2) : String(+v.toPrecision(2)));
 // mode: "none" | "id" | "el:<symbol>" -> the label text, or null when the sample has nothing to say
-export function sampleLabelText(row, mode) {
+// TASKS.csv #2641 — units (symbol -> unit): an element stored as its oxide ('% Li2O') is labelled with that unit, so a map label does not read
+// as the element; other elements keep the bare number
+const oxideUnit = (u) => /\b[A-Z][a-z]?\d*O\d*\b/.test(String(u || "")); // Li2O, Fe2O3, CaO, U3O8 in '% Li2O'
+export function sampleLabelText(row, mode, units = null) {
   if (!row || !mode || mode === "none") return null;
   if (mode === "id") { const id = row.sample_id; return id != null && String(id).trim() !== "" ? String(id) : null; }
   // TASKS.csv #2565 — a below-detection sample (stored at half its limit) is labelled '<limit', not with a number that is in no file
-  if (mode.startsWith("el:")) { const sym = mode.slice(3), v = Number(row.values?.[sym]); return Number.isFinite(v) ? (Array.isArray(row.bdl) && row.bdl.includes(sym) ? `<${shortNum(2 * v)}` : shortNum(v)) : null; }
+  if (mode.startsWith("el:")) {
+    const sym = mode.slice(3), v = Number(row.values?.[sym]);
+    if (!Number.isFinite(v)) return null;
+    const t = Array.isArray(row.bdl) && row.bdl.includes(sym) ? `<${shortNum(2 * v)}` : shortNum(v);
+    return oxideUnit(units?.[sym]) ? `${t} ${units[sym]}` : t; // #2641
+  }
   return null;
 }
 export const dipLabelText = (r) => (r && Number.isFinite(Number(r.dip)) ? String(Math.round(Number(r.dip))) : null);
 // the label items of the placed surface samples (scene coordinates), at most `cap` of them
-export function sampleLabelItems(rows, mode, { ox = 0, oy = 0, oz = 0 } = {}, cap = 2500) {
+export function sampleLabelItems(rows, mode, { ox = 0, oy = 0, oz = 0, units = null } = {}, cap = 2500) { // units: #2641
   const items = [];
   if (!mode || mode === "none") return items;
-  for (const row of rows || []) { if (items.length >= cap) break; const text = sampleLabelText(row, mode); if (text != null) items.push({ x: row.x - ox, y: row.z - oz, z: -(row.y - oy), text, tip: `${row.sample_id ?? ""}\n${text}` }); }
+  for (const row of rows || []) { if (items.length >= cap) break; const text = sampleLabelText(row, mode, units); if (text != null) items.push({ x: row.x - ox, y: row.z - oz, z: -(row.y - oy), text, tip: `${row.sample_id ?? ""}\n${text}` }); }
   return items;
 }

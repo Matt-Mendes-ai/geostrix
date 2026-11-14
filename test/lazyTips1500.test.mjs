@@ -22,6 +22,7 @@ test("the build: intervals, point logs, custom layers and assay markers use lazy
   assert.match(s, /\(\) => lazyTip\(\{ row: a, holeId: c\.hole_id \}/, "#3055 — the assay marker's lazy tip, made only for a row that is drawn (lib/viewer/assayBatcher.js)");
   assert.ok(!/mesh\.userData = \{ row, tip: `\$\{c\.hole_id\}/.test(s), "no eager per-row drillhole tooltip left");
   assert.match(s, /mesh_\.quaternion\.setFromUnitVectors\(UP_Y, DIR_TMP\.set\(dx \/ len, dy \/ len, dz \/ len\)\);/);
-  const bent = s.indexOf("const curve = new THREE.CatmullRomCurve3(vecs);"), vecs = s.lastIndexOf("const vecs = [new THREE.Vector3(p1.x", bent);
-  assert.ok(vecs > 0 && bent - vecs < 300, "the point vectors are made in the bent-interval branch");
+  // #3279 — a bent interval is straight pieces on the shared vectors too: no Vector3 per point at all
+  assert.ok(!s.includes("const vecs = [new THREE.Vector3(p1.x"), "no point vectors for a bent interval");
+  assert.match(s, /m\.quaternion\.setFromUnitVectors\(UP_Y, DIR_TMP\.set\(ux, uy, uz\)\);/);
 });

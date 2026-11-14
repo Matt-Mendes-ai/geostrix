@@ -132,7 +132,7 @@ test("wired: the Geophysics tab's button, drop and survey method; the 3D View se
   assert.match(g, /accept="\.las,\.laz"/);
   assert.match(g, /<LidarImportBox key=/);
   assert.match(readFileSync(new URL("../src/lib/geophysSurveys.js", import.meta.url), "utf8"), /EQS_HIDDEN = new Set\(\["euler_depth", "mt_bostick", "lidar", "em1d_cond"/); // #3321 — the list moved with eqsApplies
-  const v = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const v = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(v, /requestModuleAction\("maps-lidar", \{ file:/);
   assert.match(readFileSync(new URL("../src/modules/MapsModule.jsx", import.meta.url), "utf8"), /useModuleAction\(\["maps-lidar"\], \(_a, p\) => \{ setPane\("terrain"\); requestModuleAction\("open-lidar", p\); \}\);/);
   assert.match(g, /if \(forcePane === "terrain" && p\?\.file\) openLidar\(p\.file\)/);
@@ -142,5 +142,5 @@ test("wired: the Geophysics tab's button, drop and survey method; the 3D View se
   // survey points (a lidar cloud is one) are not one Mesh and material each: since #3309 one compact batch per survey, written from typed
   // arrays (lib/viewer/geophysPts.js), no stand-in per point (#1500's stand-ins before)
   assert.ok(readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").includes("syncGeophysPts(g, rows, {"));
-  assert.match(readFileSync(new URL("../src/lib/viewer/geophysPts.js", import.meta.url), "utf8"), /const inst = addCompactBatch\(group, proto, /);
+  assert.match(readFileSync(new URL("../src/lib/viewer/geophysPts.js", import.meta.url), "utf8"), /const inst = addCompactBatch\(group, geo, /); // #3401: the symbol's own copy (its floor attribute)
 });

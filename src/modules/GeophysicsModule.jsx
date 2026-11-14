@@ -1,4 +1,5 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from "react"; // Suspense: TASKS.csv #1425
+import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3286 (3)
 import { ensureProjectCrs, ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #615; export: #1021
 import { exportCrs, terrainToWorld, tiedExportNote } from "../lib/tiedExport.js"; // TASKS.csv #2322 — a tied local grid's exports through its tie
 import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js";
@@ -639,6 +640,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const outsideCanada = useMemo(() => { const at = project?.crsSet !== false && project?.epsg ? collarCentreLonLat(collars, project.epsg) : null; return !!at && !(at.lat > 40.5 && at.lat < 84 && at.lon > -142 && at.lon < -51); }, [collars, project?.epsg, project?.crsSet]);
   // TASKS.csv #2589 — collars stacked at one spot at different RLs (pit benches of different dates): which ground the terrain takes
   const benches = useMemo(() => collarBenches(projectZPoints.collarPts), [projectZPoints]);
+  // TASKS.csv #3381 (#3195, Galore Creek) — the samples' heights (hand-held GPS, often) went into the ground beside the surveyed collars without
+  // asking: with both, which of them the terrain is built from is a choice (both, the default as before; collars only; samples only)
+  const [zSource, setZSource] = useState("both");
+  const zBoth = projectZPoints.samples > 0 && projectZPoints.collars > 0;
+  const zUse = zBoth ? zSource : "both";
+  const zCount = (zUse === "collars" ? 0 : projectZPoints.samples) + (zUse === "samples" ? 0 : projectZPoints.collars);
   const [benchMode, setBenchMode] = useState("all");
   // TASKS.csv #2987 — which collars the terrain leaves out, and why (named, the first few)
   const collarsOutNote = (out) => {
@@ -651,7 +658,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     setTerrainError(null);
     setTerrainBusy(true);
     try {
-      const { samples, samplePts, collarPts } = projectZPoints;
+      const { samplePts: allSamplePts, collarPts: allCollarPts } = projectZPoints;
+      const samplePts = zUse === "collars" ? [] : allSamplePts, collarPts = zUse === "samples" ? [] : allCollarPts, samples = samplePts.length; // #3381
       const picked = pickBenchGround(collarPts, benches.n ? benchMode : "all"); // #2589
       const points = [...samplePts, ...picked.points], nc = picked.points.length;
       const benchNote = !benches.n ? ""
@@ -662,7 +670,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       // RL 102-351 under a surface near 400): ask, and name it for what it is
       const ug = collarsLookUnderground(collars, survey);
       if (ug.underground && !window.confirm(tr("The collars look like underground collars ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): a surface through them runs through the mine levels, not the ground.", { upward: ug.upward, stacked: ug.stacked }) + "\n\n" + tr("OK — build it anyway, named 'Surface through the collars'.") + "\n" + tr("Cancel — don't build it (import a DEM or fetch SRTM for the real ground)."))) return;
-      await finishPointsTerrain({ points, lines: [], what: tr("{s} surface sample(s) and {c} collar(s) of this project", { s: samples, c: nc }), name: ug.underground ? "Surface through the collars" : "Terrain from samples and collars", sourceFile: "project surface samples and collars", reprojected: false, misfitAt: picked.points, benchNote, leftOutNote: collarsOutNote(projectZPoints.collarsOut), spacingFit: true }); // name: #2263; misfitAt, benchNote: #2589; leftOutNote: #2987; spacingFit: #3036
+      await finishPointsTerrain({ points, lines: [], what: tr("{s} surface sample(s) and {c} collar(s) of this project", { s: samples, c: nc }), name: ug.underground ? "Surface through the collars" : zUse === "collars" ? "Terrain from collars" : zUse === "samples" ? "Terrain from samples" : "Terrain from samples and collars" /* the source in the name: #3381 */, sourceFile: "project surface samples and collars", reprojected: false, misfitAt: picked.points, benchNote, leftOutNote: collarsOutNote(projectZPoints.collarsOut), spacingFit: true }); // name: #2263; misfitAt, benchNote: #2589; leftOutNote: #2987; spacingFit: #3036
     } catch (err) {
       setTerrainError({ info: false, text: err.message });
     } finally {
@@ -2476,11 +2484,20 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         <input ref={lidarInput} type="file" accept=".las,.laz" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) openLidar(f); e.target.value = ""; }} />
         {lidarPending && <LidarImportBox key={lidarPending.file.name + lidarPending.file.size} pending={lidarPending} projectEpsg={lidarPending.epsg} busy={lidarBusy} onImport={confirmLidar} onCancel={() => setLidarPending(null)} btn={pBtn} />}
         {projectZPoints.points.length >= 3 && (
-          <button onClick={terrainFromProject} style={{ ...pBtn, marginTop: 6 }} disabled={terrainBusy}
+          <button onClick={terrainFromProject} style={{ ...pBtn, marginTop: 6 }} disabled={terrainBusy || zCount < 3}
             title={tr("Triangulates the elevations the project's surface samples and drill collars already carry: offline, no file needed. Only as good as those elevations (GPS heights are rough).")}>
-            <Triangle size={14} /> {tr("Terrain from this project's samples and collars ({n})", { n: projectZPoints.points.length.toLocaleString() })}
+            <Triangle size={14} /> {tr("Terrain from this project's samples and collars ({n})", { n: zCount.toLocaleString() })}
           </button>
         )}{/* TASKS.csv #1599 */}
+        {projectZPoints.points.length >= 3 && zBoth && ( /* TASKS.csv #3381 */
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("From")}
+            <select value={zSource} onChange={(e) => setZSource(e.target.value)} aria-label={tr("Elevations the terrain is built from")} style={{ flex: 1, minWidth: 0 }}>
+              <option value="both">{tr("Samples and collars ({s} + {c})", { s: projectZPoints.samples.toLocaleString(), c: projectZPoints.collars.toLocaleString() })}</option>
+              <option value="collars">{tr("Collars only ({c}): surveyed, usually", { c: projectZPoints.collars.toLocaleString() })}</option>
+              <option value="samples">{tr("Samples only ({s}): GPS heights are rough", { s: projectZPoints.samples.toLocaleString() })}</option>
+            </select>
+          </label>
+        )}
         {projectZPoints.collarsOut.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{collarsOutNote(projectZPoints.collarsOut)}</div>}{/* TASKS.csv #2987 */}
         {projectZPoints.points.length >= 3 && benches.n > 0 && ( /* TASKS.csv #2589 */
           <label style={{ display: "block", marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.4 }}>
@@ -3195,7 +3212,7 @@ function VoxelModelRow({ withSet = false /* #3014 part c */, others = null, mode
             style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)", padding: "2px 4px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)" }}>
             {/* TASKS.csv #2067 (review #2013) — an estimate knows its element and unit (params): said here, not set as property, which would
                 rename its export column (lib/blockModelExport.js) */}
-            <option value="">{!model.property && model.params?.element && !model.params?.declaredGrade ? (model.params.unit ? tr("{el} ({unit}), from the estimate", { el: model.params.element, unit: model.params.unit }) : tr("{el}, from the estimate", { el: model.params.element })) : tr("Not stated (the file names no unit)")}</option>
+            <option value="">{!model.property && model.params?.element && !model.params?.declaredGrade ? (model.params.unit ? tr("{el} ({unit}), from the estimate", { el: model.params.element, unit: gradeUnitLabel(model.params.element, model.params.unit) /* #3286 (3) */ }) : tr("{el}, from the estimate", { el: model.params.element })) : tr("Not stated (the file names no unit)")}</option>
             {VOXEL_PROPERTIES.map((v) => <option key={v} value={v}>{tr(v)}</option>)}
             <option value="__grade">{model.params?.declaredGrade ? tr("{el} ({unit}), a grade", { el: model.params.element, unit: model.params.unit }) : tr("A grade (element, unit)…")}</option>{/* #2667 */}
             <option value="__other">{model.property && !VOXEL_PROPERTIES.includes(model.property) ? model.property : tr("Other…")}</option>

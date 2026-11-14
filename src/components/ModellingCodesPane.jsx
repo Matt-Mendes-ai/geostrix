@@ -1,5 +1,5 @@
 // TASKS.csv #599 — the Modelling codes pane (3D Modelling tab). The code list (colour, role, pile order),
-import { roleIsAssumed } from "../lib/layers.js"; // TASKS.csv #2537
+import { roleIsAssumed, coverTopShare } from "../lib/layers.js"; // TASKS.csv #2537; coverTopShare: #3147
 import { iconAction } from "../lib/a11y.js"; // TASKS.csv #687
 // optional auto-numbering of alternating flows, and the interval picked in the 3D view: its code can be
 // changed, or it can be connected to an interval in another hole (both get the same code; a tie line is
@@ -112,6 +112,12 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
   const [sheetMsg, setSheetMsg] = useState("");
   // TASKS.csv #2537 — a role no rule gave (no name, notes or group rule) and the geologist has not set
   const assumedRole = (name) => !(mc?.codes || []).some((x) => x.name === name && x.role) && !(groupOf && groupOf(name)) && roleIsAssumed(name);
+  // TASKS.csv #3147 — overburden suggested from the code's name and its place at the top of the holes: say so, while the geologist has not set it
+  const coverWhy = (c) => {
+    if (c.role !== "overburden" || (mc?.codes || []).some((x) => x.name === c.name && x.role) || (groupOf && groupOf(c.name))) return null;
+    const s = coverTopShare(c.name);
+    return s == null ? null : tr("Suggested as overburden: its name reads as cover, and it lies at the top of {pct}% of the holes that log it. Check it before modelling.", { pct: Math.round(s * 100) });
+  };
   const between = useMemo(() => (boxRows.length ? rowsBetween(litho, boxRows) : []), [litho, boxRows]);
   const boxRowsRef = useRef(boxRows);
   boxRowsRef.current = boxRows;
@@ -396,13 +402,13 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
         <button type="button" onClick={applyHolesOrder} title={tr("Down each hole the unit that starts higher is the younger; counted over the holes that log both, pair by pair (the Strat. stack's own check).")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Use the order from the holes")}</button>
         {holesNote && <span role="status" style={small}>{holesNote}</span>}
       </div>}
-      <div style={small}>{tr("Roles are suggested from each code's name and, when the import kept a notes column, from what its intervals say (dyke, lost core, monzonite ...). A code nothing recognises is assumed stratigraphic: check the roles before modelling.")}</div>{/* #2046 */}
+      <div style={small}>{tr("Roles are suggested from each code's name and, when the import kept a notes column, from what its intervals say (dyke, lost core, monzonite ...). A code nothing recognises is assumed stratigraphic: check the roles before modelling.")}{" "}{tr("A code whose name reads as cover (ALU, CLA, soil ...) and that lies at the top of most of its holes is suggested as overburden.")}</div>{/* #2046; cover: #3147 */}
       {codes.map((c, i) => (
         <div key={c.name} style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
           <input type="color" value={c.color || colorForLithology(c.name)} onChange={(e) => setCode(c.name, { color: e.target.value })} aria-label={tr("Colour of {name}", { name: c.name })} style={{ width: 22, height: 20, padding: 0, border: "none", background: "none" }} />
           <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }} title={tr("{v} interval run(s)", { v: counts.get(c.name) || 0 })}>{c.name} <span style={small}>({counts.get(c.name) || 0})</span></span>
           <button onClick={() => showCode(c.name)} title={tr("Show the intervals of {name}", { name: c.name })} aria-label={tr("Show the intervals of {name}", { name: c.name })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 4px" }}><Square size={11} /></button>
-          <select value={c.role} onChange={(e) => setCode(c.name, { role: e.target.value })} title={assumedRole(c.name) ? tr("Not recognized: assumed stratigraphic. Check it before modelling.") : tr(ROLE_HELP[c.role])} aria-label={tr("Role of {name}", { name: c.name })} style={{ ...inputStyle, width: 104, flex: "none", ...(assumedRole(c.name) ? { color: "var(--color-text-muted)", fontStyle: "italic" } : {}) }}>{/* #2537 — an assumed role looks assumed */}
+          <select value={c.role} onChange={(e) => setCode(c.name, { role: e.target.value })} title={assumedRole(c.name) ? tr("Not recognized: assumed stratigraphic. Check it before modelling.") : coverWhy(c) || tr(ROLE_HELP[c.role])} aria-label={tr("Role of {name}", { name: c.name })} style={{ ...inputStyle, width: 104, flex: "none", ...(assumedRole(c.name) ? { color: "var(--color-text-muted)", fontStyle: "italic" } : {}) }}>{/* #2537 — an assumed role looks assumed */}
             {CODE_ROLES.map((r) => <option key={r} value={r}>{tr(r)}</option>)}
           </select>
           <button onClick={() => moveCode(c.name, -1)} disabled={i === 0} aria-label={tr("Move {name} up (younger)", { name: c.name })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 5px" }}>▲</button>

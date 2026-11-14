@@ -285,7 +285,7 @@ export function SurfaceRibbon({ show, paneProps, onStereonet, onModelIt, mapPoly
       </RibbonGroup>
       <RibbonGroup label="Field data">
         <RibbonButton icon={Info} label="Identify" tone="analyse" active={identifyOn} title="Click anything in the 3D view to see which layer it belongs to and its details. Esc stops." onClick={onToggleIdentify} />
-        <RibbonButton icon={Palette} label="Rock chips" tone="view" disabled={!sampleCount} disabledReason="Import surface samples (rock chips, soils) on the Geochem tab first" title="Style the surface samples: colour, size, shape, labels; colour by element is in the sidebar" onClick={onStyleSamples} />
+        <RibbonButton icon={Palette} label="Rock chips" tone="view" disabled={!sampleCount} disabledReason="No surface samples yet: drop a rock-chip or soil file on the 3D view, or import it on the Geochem tab" /* #3381 — a dropped sample file is taken (#2268) */ title="Style the surface samples: colour, size, shape, labels; colour by element is in the sidebar" onClick={onStyleSamples} />
       </RibbonGroup>
       <RibbonGroup label="Next step">
         <RibbonButton icon={Mountain} label="Model it" tone="model" title="Build a 3D model from this map and these measurements: opens 3D Modelling > Model from map" onClick={onModelIt}
@@ -331,7 +331,17 @@ export function OrphanHoles({ layers, assays, collars, onOpenStripLog }) {
 // 265,000 elements in the page, and every layout of the window took about 0.5 s (the legend fit, the ribbon, each frame). It shows the
 // first HOLE_ROWS_STEP of the holes the filter matches, and 'Show more' adds the next; a new filter starts again from the top.
 export const HOLE_ROWS_STEP = 300;
-export function HoleRowList({ holes, filterKey, visibleHoles, onToggle, onOpenStripLog, onSection, onZoom }) {
+// TASKS.csv #3280 (11) (Galore review) — the list kept the collar file's order (CC23 after PD23): by hole id, numbers as numbers. The caller
+// hands a new array each render; the sorted one is kept while the same holes come in the same order (an O(n) check, not a sort per render).
+const ID_ORDER = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" }), idSorted = { src: [], out: [] };
+export function holesById(holes) {
+  const s = idSorted.src;
+  if (s.length === holes.length && holes.every((h, i) => h === s[i])) return idSorted.out;
+  idSorted.src = holes; idSorted.out = holes.slice().sort((a, b) => ID_ORDER.compare(String(a.hole_id), String(b.hole_id)));
+  return idSorted.out;
+}
+export function HoleRowList({ holes: given, filterKey, visibleHoles, onToggle, onOpenStripLog, onSection, onZoom }) {
+  const holes = holesById(given);
   const [limit, setLimit] = useState(HOLE_ROWS_STEP);
   useEffect(() => { setLimit(HOLE_ROWS_STEP); }, [filterKey]);
   const rest = holes.length - limit;
@@ -389,7 +399,8 @@ export const HoleRow = React.memo(function HoleRow({ hole_id, visible, onToggle,
   );
 });
 
-export function LayerRow({ label, count, visible, onToggle, onUpload, onInspect, onZoom, onClear, onContextMenu, input, expanded, onToggleExpand, children }) {
+// shown (TASKS.csv #3295): the rows the layer's code filter leaves shown, when it hides some (null otherwise)
+export function LayerRow({ label, count, shown = null, visible, onToggle, onUpload, onInspect, onZoom, onClear, onContextMenu, input, expanded, onToggleExpand, children }) {
   return (
     <div style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }} onContextMenu={onContextMenu}>
       {/* #386 — gap 9 (was 6): the zoom / filter / clear icons sat exactly on the WCAG 2.5.8 24 px spacing limit */}
@@ -409,7 +420,7 @@ export function LayerRow({ label, count, visible, onToggle, onUpload, onInspect,
             inside the inspector (ListFilter above) — this is the "I don't want this tab's data at all
             anymore" case, the inspector handles "just pull out one of several CSVs I merged in". */}
         {count > 0 && onClear && <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(onClear, tr("Remove all data from the {label} layer", { label }))} />}
-        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onUpload} style={{ cursor: "pointer", fontSize: "var(--font-size-sm)", color: count ? "var(--color-accent)" : "var(--color-text-muted)", flexShrink: 0 }} title={tr("Import CSV")} aria-label={count ? tr("Import CSV into {label} ({count} rows)", { label, count }) : tr("Import CSV into {label}", { label })}>{count ? `${count}` : <Upload size={12} />}</div>
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onUpload} style={{ cursor: "pointer", fontSize: "var(--font-size-sm)", color: count ? "var(--color-accent)" : "var(--color-text-muted)", flexShrink: 0 }} title={tr("Import CSV")} aria-label={count ? tr("Import CSV into {label} ({count} rows)", { label, count }) : tr("Import CSV into {label}", { label })}>{count ? (shown != null && shown < count ? <span title={tr("{hidden} of {count} intervals hidden by the code filter (Filter / legend)", { hidden: (count - shown).toLocaleString(), count: count.toLocaleString() })}>{tr("{shown} of {count}", { shown, count })}</span> /* #3295 — filtered to some codes: said on the row */ : `${count}`) : <Upload size={12} />}</div>
         {input}
       </div>
       {expanded && children && (

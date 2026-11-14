@@ -4,7 +4,7 @@ import React, { useMemo } from "react";
 import { logChannelColumns, defaultLogChannels, effectiveLogBin, logBoxPatch, needsBinning, looksLikeLogTable, channelNoData, noDataText, rawLogMB, logBinEstimate, LOG_BINS, logReadings, assayIntervals, logHoles, assayBinRows } from "../lib/downholeLogChannels.js"; // logReadings: #3038; assay bins: #3039
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #3039 — the project's assay samples // no-data: TASKS.csv #2332; effectiveLogBin / logBoxPatch: #2333; logBinEstimate / LOG_BINS: #2885
 import { t as tr } from "../lib/i18n.js";
-import { logUnitChoices } from "../lib/logUnits.js"; // TASKS.csv #2952
+import { logUnitChoices, rangeGuessFor } from "../lib/logUnits.js"; // TASKS.csv #2952; rangeGuessFor: #3158
 
 const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45 };
 
@@ -60,6 +60,15 @@ export default function LogChannelsBox({ modal, onChange, sel }) {
                     onChange={(e) => set({ logRanges: { ...(modal.logRanges || {}), [c.col]: { ...(modal.logRanges?.[c.col] || {}), [k]: e.target.value } } })}
                     style={{ ...sel, width: 62, padding: "1px 4px" }} aria-label={k === "min" ? tr("Lowest valid reading of {c}", { c: c.col }) : tr("Highest valid reading of {c}", { c: c.col })} />
                 ))}
+                {/* TASKS.csv #3158 — the physical range for the unit the column name states, offered (never preset) while both boxes are blank */}
+                {(() => {
+                  const g = c.unit ? rangeGuessFor(c.unit) : null, r = modal.logRanges?.[c.col];
+                  if (!g || (r && ((r.min ?? "") !== "" || (r.max ?? "") !== ""))) return null;
+                  const text = g.max == null ? tr("≥ {min} {unit}", { min: g.min, unit: c.unit }) : tr("{min}–{max} {unit}", { min: g.min, max: g.max, unit: c.unit });
+                  return <button type="button" onClick={() => set({ logRanges: { ...(modal.logRanges || {}), [c.col]: { min: String(g.min), max: g.max == null ? "" : String(g.max) } } })}
+                    title={tr("The physical range of a reading in {unit} (the column name states the unit): click to use it as the valid range.", { unit: c.unit })}
+                    style={{ ...sel, cursor: "pointer", padding: "1px 6px", width: "auto" }}>{text}</button>;
+                })()}
               </>
             ) : c.unit ? <span style={{ color: "var(--color-text-muted)" }}>{` (${c.unit})`}</span> : null}
           </label>

@@ -104,7 +104,7 @@ export default function LayerStyleModal({ target, style, onChange, onReset, onCl
                   <select value={style?.rampScale || ""} onChange={(e) => onChange({ rampScale: e.target.value || null })} aria-label={tr("Colour scale")} style={{ padding: "2px 4px" }}>
                     <option value="">{tr("auto (log over a decade)")}</option><option value="linear">{tr("linear")}</option><option value="log">{tr("log")}</option>
                   </select>
-                  {tr("Classes")}<input type="number" min="0" max="12" step="1" value={style?.classes ?? ""} placeholder={tr("none")} onChange={numIn("classes")} aria-label={tr("Number of colour classes")} style={{ width: 50, padding: "2px 4px" }} />
+                  {tr("Classes")}<input type="number" min="0" max="12" step="1" value={style?.classes ?? ""} placeholder={tr("none")} onChange={numIn("classes")} aria-label={tr("Number of colour classes")} style={{ width: 64, padding: "2px 4px" }} />{/* #3280 (6) — 50 px cut "none" to "non" */}
                 </label>
               </div>
             )}

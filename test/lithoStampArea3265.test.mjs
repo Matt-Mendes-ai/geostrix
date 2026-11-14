@@ -12,10 +12,10 @@ test("#3265 the area's rows never stamp as the whole log; the run stamps the pro
   assert.equal(area.litho.length, 2);
   assert.ok(isStaleStamp(layerStamp(area.litho), layerStamp(litho)), "the old stamp: always 'source changed' on a Model area");
   assert.ok(!isStaleStamp(layerStamp(litho), layerStamp(litho)));
-  const src = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
+  const src = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(src, /lithoStamp: layerStamp\(importStateRef\.current\.layers\?\.litho \?\? layers\.litho\)/);
   assert.ok(!/lithoStamp: layerStamp\(layers\.litho\)/.test(src));
-  const vm = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  const vm = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(vm, /const lithoNow = useMemo\(\(\) => layerStamp\(layers\.litho\), \[layers\.litho\]\);/, "the badge compares with the store's whole log");
   assert.match(vm, /importStateRef\.current = \{ survey: store\.survey, layers: store\.layers,/, "importStateRef carries the same store layers");
 });

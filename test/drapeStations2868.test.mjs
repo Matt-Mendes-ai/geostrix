@@ -25,7 +25,7 @@ test("#2868 the survey stations' median elevation when nothing else gives one", 
   // collars still come first
   assert.equal(rasterDrapeElevation({ collars: [{ x: 50, y: 50, z: 100 }], bbox: [0, 0, 100, 100], stations }).source, "collars");
   // the callers pass the stations
-  for (const f of ["modules/RasterModule.jsx", "modules/GeophysicsModule.jsx", "modules/viewer/useImportPipeline.js"]) assert.ok(fs.readFileSync(new URL(`../src/${f}`, import.meta.url), "utf8").includes("geophys_pts"), f);
+  for (const f of ["modules/RasterModule.jsx", "modules/GeophysicsModule.jsx", "modules/viewer/importPipelineImpl.js"]) assert.ok(fs.readFileSync(new URL(`../src/${f}`, import.meta.url), "utf8").includes("geophys_pts"), f);
   const r = fs.readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8");
   assert.equal((r.match(/stations: layers\?\.geophys_pts/g) || []).length, 3);
 });

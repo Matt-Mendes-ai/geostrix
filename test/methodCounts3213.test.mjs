@@ -6,8 +6,8 @@ import fs from "node:fs";
 import { pickElementColumns, isResultValue } from "../src/lib/geochem.js";
 import { elementColumnStats } from "../src/lib/assayColumnScan.js";
 
-// 100 samples: Cu_TOT_pct holds ppm (100-9,900) on every row; Cu_AA05_pct is true per cent on 70 rows, -999 on 30; Cu_AA17_pct likewise on 60 / 40
-const rows = Array.from({ length: 100 }, (_, i) => ({ HOLE: "SY-1", FROM: String(i), TO: String(i + 1), Cu_TOT_pct: String(100 + i * 98), Cu_AA05_pct: i < 70 ? String((0.01 + i * 0.009).toFixed(3)) : "-999", Cu_AA17_pct: i >= 40 ? String((0.02 + i * 0.008).toFixed(3)) : "-999" }));
+// 100 samples: Cu_TOT_pct holds ppm (100-9,900) on every row; Cu_OG62_pct is true per cent on 70 rows, -999 on 30; Cu_ICP61_pct likewise on 60 / 40 (TASKS.csv #3242: method codes that are not partial digests; AA05 / AA17 are symbols of their own now)
+const rows = Array.from({ length: 100 }, (_, i) => ({ HOLE: "SY-1", FROM: String(i), TO: String(i + 1), Cu_TOT_pct: String(100 + i * 98), Cu_OG62_pct: i < 70 ? String((0.01 + i * 0.009).toFixed(3)) : "-999", Cu_ICP61_pct: i >= 40 ? String((0.02 + i * 0.008).toFixed(3)) : "-999" }));
 const headers = Object.keys(rows[0]).slice(3);
 
 test("a -999 cell is no result", () => {
@@ -20,7 +20,7 @@ test("the counts leave the -999s out, in the per-row pass and in the chunked sta
   for (const stats of [null, await elementColumnStats(rows, headers, { chunk: 7 })]) {
     const [cu] = pickElementColumns(headers, rows, stats);
     assert.equal(cu.header, "Cu_TOT_pct");
-    assert.deepEqual(cu.methodCols.map((c) => [c.header, c.n]), [["Cu_AA05_pct", 70], ["Cu_AA17_pct", 60]], "not 100 and 100");
+    assert.deepEqual(cu.methodCols.map((c) => [c.header, c.n]), [["Cu_OG62_pct", 70], ["Cu_ICP61_pct", 60]], "not 100 and 100");
     assert.equal(cu.methodOverlap.withAny, 100);
     assert.equal(cu.methodOverlap.withSeveral, 100, "every row has the total and at least one partial");
   }

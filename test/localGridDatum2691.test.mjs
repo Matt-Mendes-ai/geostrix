@@ -34,7 +34,7 @@ test("the store's setter, the panel's fields and the import's true-north convers
   const p = fs.readFileSync("src/components/LocalGridPanel.jsx", "utf8");
   assert.match(p, /onBlur=\{\(\) => setLocalGridDatum\(\{ rlOffset: rl \}\)\}/);
   assert.match(p, /disabled=\{!!saved\} onChange=\{\(e\) => setNorth\(e\.target\.value\)\} onBlur=\{\(\) => setLocalGridDatum\(\{ northDeg: north \}\)\}/);
-  const i = fs.readFileSync("src/modules/viewer/useImportPipeline.js", "utf8");
+  const i = fs.readFileSync("src/modules/viewer/importPipelineImpl.js", "utf8");
   assert.match(i, /const typedNorth = !tie \? untiedNorthOf\(live\) : null;/);
   assert.match(i, /azimuth: trueToUntiedGrid\(r\.azimuth, typedNorth\)/);
 });

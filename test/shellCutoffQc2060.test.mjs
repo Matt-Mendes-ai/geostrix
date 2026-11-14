@@ -16,6 +16,6 @@ test("P90 over drill rows vs with a run of CRM pulps", () => {
 });
 
 test("the element switch proposes from excludeQAQC unless QC is included", () => {
-  assert.match(p, /\(numericIncludeQAQC \? \(assays \|\| \[\]\)\.filter\(\(a\) => a\.source !== "pXRF"\) : excludeQAQC\(assays \|\| \[\]\)\)/);
+  assert.match(p, /\(numericIncludeQAQC \? inArea\.filter\(\(a\) => a\.source !== "pXRF"\) : excludeQAQC\(inArea\)\)/); // #3272 — over the holes the run uses
   assert.match(p, /import \{ excludeQAQC(, labAssays)? \} from "\.\.\/\.\.\/lib\/qaqc\.js";/);
 });

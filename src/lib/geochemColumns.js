@@ -2,6 +2,7 @@
 // layers, the legends, the import helpers and the store's oxide basis), PRECIOUS_METALS / gradeUnitLabel, parseAssayValue and the
 // surface-sample attribute columns. Importing these from geochem.js put all of it (intercepts, compositing, statistics) in the
 // startup bundle. geochem.js re-exports everything here, so its other importers and the tests are unchanged.
+import { dateColumnReader, withDateFields } from "./dateColumns.js"; // TASKS.csv #3200
 
 export const ELEMENT_SYMBOLS = ["Ag","Al","As","Au","B","Ba","Be","Bi","Br","Ca","Cd","Ce","Cl","Co","Cr","Cs","Cu",
   "Dy","Er","Eu","F","Fe","Ga","Gd","Ge","Hf","Hg","Ho","In","Ir","K","La","Li","Lu","Mg","Mn","Mo","Na","Nb",
@@ -180,7 +181,9 @@ export function surfaceAttrColumns(headers, rows, mapping = {}, elements = []) {
       const v = r[h];
       if (v == null || String(v).trim() === "") continue;
       seen.add(String(v).trim());
-      if (seen.size > SURFACE_ATTR_MAX_DISTINCT && !isFreeTextHeader(h) && !isIdHeader(h)) return false; // free text: #1822; a site / station id: #1802
+      // free text: #1822; a site / station id: #1802; TASKS.csv #3200 — a column of dates is kept however many days it holds (a sample date was left out
+      // past 100 values, so never read as a date)
+      if (seen.size > SURFACE_ATTR_MAX_DISTINCT && !isFreeTextHeader(h) && !isIdHeader(h)) return !!dateColumnReader(rows.map((x) => attrText(x[h])));
     }
     return seen.size > 0;
   });
@@ -202,6 +205,21 @@ export function surfaceAttrLeftOut(headers, rows, mapping = {}, elements = [], e
 export function attrText(v) {
   if (v instanceof Date) { if (Number.isNaN(v.getTime())) return ""; const iso = v.toISOString(); return iso.endsWith("T00:00:00.000Z") ? iso.slice(0, 10) : iso; }
   return v == null ? "" : String(v).trim();
+}
+// TASKS.csv #3200 (from #3075) — the kept columns that read as dates, as the collar import reads them: each stored as an ISO date with a
+// '<col> year' field beside it (lib/dateColumns.js). -> { readers: Map(attr key -> reader), ambiguous: [header] (day / month cannot be told apart)}
+export function surfaceDateReaders(rows, cols) {
+  const readers = new Map(), ambiguous = [];
+  for (const h of cols || []) {
+    const rd = dateColumnReader((rows || []).map((r) => attrText(r[h])));
+    if (rd?.ambiguous) ambiguous.push(h); else if (rd) readers.set(String(h).replace(/\s+/g, " ").trim(), rd);
+  }
+  return { readers, ambiguous };
+}
+// surfaceAttrs with the date columns read (#3200)
+export function surfaceAttrsDated(row, cols, readers) {
+  const a = surfaceAttrs(row, cols);
+  return a.attrs && readers?.size ? { attrs: withDateFields(a.attrs, readers) } : a;
 }
 export function surfaceAttrs(row, cols) {
   const attrs = {};

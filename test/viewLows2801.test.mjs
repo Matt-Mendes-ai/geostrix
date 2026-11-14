@@ -7,7 +7,7 @@ import { solidCheckNote, solidProblems } from "../src/lib/solidCheckNote.js";
 import { featuresToGeoJson } from "../src/lib/overlayExport.js";
 import { buildLayer } from "../src/lib/mapLayerBuild.js";
 
-const read = (p) => fs.readFileSync(new URL(p, import.meta.url), "utf8");
+const read = (p) => fs.readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const tet = { positions: new Float64Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]), indices: new Uint32Array([0, 2, 1, 0, 1, 3, 1, 2, 3, 0, 3, 2]) };
 
 test("#2801 an imported solid's checks, part by part, with 'weld' for repeated vertices", () => {
@@ -48,12 +48,12 @@ test("#2808 the status bar gives latitude / longitude where the project has a re
 });
 
 test("#3229 the latitude / longitude only where the cursor is a world position (not Layout's page)", () => {
-  const a = fs.readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
+  const a = fs.readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(a, /<StatusBar worldCursor=\{viewerShown \|\| active === "maps"\}/);
   assert.match(a, /const ll = worldCursor \/\* TASKS\.csv #3229/);
 });
 
 test("#3235 off the world views the status bar's E / N / Z read a dash", () => {
-  const a = fs.readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
+  const a = fs.readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(a, /const cursor = worldCursor \? liveCursor : \{ x: null, y: null, z: null \};/);
 });

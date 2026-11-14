@@ -1,7 +1,7 @@
 // TASKS.csv #3014 part b (design: docs/ideas/multi-element-estimation.md) — Grade-tonnage across a set of same-lattice models (params.set, part a):
 // limits on the set's other elements (Fe >= cut-off with SiO2 < 4 % and Al2O3 < 2.5 %), and each member's mean over the blocks counted. The
 // members are joined by lattice index, as the density model is (#3012). Pure; loaded with the Grade-tonnage dialog only.
-import { blockVolume } from "./gradeTonnage.js";
+import { blockVolume, metalOf, metalColumns, forEachBench } from "./gradeTonnage.js"; // metalOf / metalColumns: #3274; forEachBench: #3171
 
 // the lattice index of a block centre ({ dx, dy, dz, ox, oy, oz } from blockModelLattice), as one number
 const keyer = ({ dx, dy, dz, ox, oy, oz }) => (c) => {
@@ -46,18 +46,77 @@ export function memberMeans(cells, join, { cutoffs, interpolatedOnly = false, de
     .map((c) => { const vol = blockVolume(c), rho = densityOf ? densityOf(c) : null; return { v: c.value, vol, w: densityOf ? (rho > 0 ? vol * rho : 0) : vol, at: join.members.map((_, m) => join.valueAt(c, m)) }; });
   return [...cutoffs].sort((a, b) => a - b).map((cutoff) => {
     const means = join.members.map((_, m) => {
-      let wsum = 0, gsum = 0, vAll = 0, vHas = 0, volW = 0, volG = 0;
+      let wsum = 0, gsum = 0, vAll = 0, vHas = 0, volW = 0, volG = 0, wAll = 0, vAllW = 0, vHasW = 0;
       for (const b of blocks) {
         if (b.v < cutoff) continue;
-        vAll += b.vol;
+        vAll += b.vol; wAll += b.w; if (b.w > 0) vAllW += b.vol;
         const x = b.at[m];
         if (x === undefined) continue;
-        vHas += b.vol; wsum += b.w; gsum += b.w * x; volW += b.vol; volG += b.vol * x;
+        vHas += b.vol; wsum += b.w; gsum += b.w * x; volW += b.vol; volG += b.vol * x; if (b.w > 0) vHasW += b.vol;
       }
       const mean = wsum > 0 ? gsum / wsum : volW > 0 ? volG / volW : null; // no tonnes at all: by volume, as the table does
-      return { mean, covered: vAll > 0 ? vHas / vAll : null };
+      // TASKS.csv #3270 — with tonnes, the row counts only the blocks with a density, so the covered share is of their volume
+      const tons = densityOf && wAll > 0;
+      // TASKS.csv #3274 — wx / w: the weighted sum and weight (t x grade with a density per block, m3 x grade without), for the contained metal
+      return { mean, covered: tons ? (vAllW > 0 ? vHasW / vAllW : null) : vAll > 0 ? vHas / vAll : null, wx: gsum, w: wsum };
     });
     return { cutoff, means };
+  });
+}
+
+// TASKS.csv #3171 (split from #3014 part b) — the by-bench table gave the primary's mean only. Each member's mean bench by bench, over the blocks
+// the bench row counts (at or above the one cutoff, split by vertical overlap as gradeTonnageByBench does) and weighted as its mean grade is
+// (tonnes with a density per block, else volume). -> [{ floorRL, means: [{ mean, covered, wx, w }] }], highest bench first, as the bench rows.
+export function memberMeansByBench(cells, join, { cutoff, benchH, datum = 0, interpolatedOnly = false, densityOf = null } = {}) {
+  const h = Number(benchH), M = join.members.length;
+  if (!(h > 0)) return [];
+  const benches = new Map();
+  const acc = () => ({ wsum: 0, gsum: 0, vAll: 0, vHas: 0, volW: 0, volG: 0, wAll: 0, vAllW: 0, vHasW: 0 });
+  for (const c of cells || []) {
+    if (!Number.isFinite(c.value) || !(c.dx > 0 && c.dy > 0 && c.dz > 0) || c.value < cutoff || (interpolatedOnly && c.support !== "interpolated")) continue;
+    const vol = blockVolume(c), rho = densityOf ? densityOf(c) : null, at = join.members.map((_, m) => join.valueAt(c, m));
+    forEachBench(c, h, datum, (k, lo, share) => {
+      const v = vol * share, w = densityOf ? (rho > 0 ? v * rho : 0) : v;
+      let b = benches.get(k); if (!b) benches.set(k, (b = { floorRL: lo, by: Array.from({ length: M }, acc) }));
+      for (let m = 0; m < M; m++) {
+        const a = b.by[m];
+        a.vAll += v; a.wAll += w; if (w > 0) a.vAllW += v;
+        const x = at[m];
+        if (x === undefined) continue;
+        a.vHas += v; a.wsum += w; a.gsum += w * x; a.volW += v; a.volG += v * x; if (w > 0) a.vHasW += v;
+      }
+    });
+  }
+  return [...benches.values()].sort((a, b) => b.floorRL - a.floorRL).map((b) => ({
+    floorRL: b.floorRL,
+    means: b.by.map((a) => {
+      const tons = densityOf && a.wAll > 0;
+      return { mean: a.wsum > 0 ? a.gsum / a.wsum : a.volW > 0 ? a.volG / a.volW : null, covered: tons ? (a.vAllW > 0 ? a.vHasW / a.vAllW : null) : a.vAll > 0 ? a.vHas / a.vAll : null, wx: a.gsum, w: a.wsum };
+    }),
+  }));
+}
+
+// TASKS.csv #3274 (Galore Creek review) — a Cu-Au-Ag set's table gave 'Mean Ag (g/t)' and 'Mean Au (g/t)' beside copper tonnes and no ounces.
+// A member's contained metal at a cutoff: its tonnes x grade over the counted blocks that have a value of it (memberMeans' wx: t x grade with a
+// density per block; m3 x grade times the one density otherwise), in the primary's metal columns for that element (t / Mlb, kg / troy oz).
+// -> [{ key, label, args, value }] (value null without tonnes). No price, recovery or equivalent grade: those are the block calculator's.
+export function memberMetal(x, { perBlock = false, rho = null, unit, element }) {
+  const m = metalOf(unit);
+  if (!m || !x) return [];
+  const tg = perBlock ? (x.w > 0 ? x.wx : null) : Number(rho) > 0 && Number.isFinite(x.wx) ? x.wx * Number(rho) : null;
+  return metalColumns(m, element).map((c) => ({ key: c.key, label: c.label, args: c.args || null, value: tg == null ? null : tg * m.factor * c.factor }));
+}
+// the CSV columns of the members' contained metal, one object per cutoff row: <element>_<kg | oz | t | mlb | t_<oxide>>
+export function memberMetalColumns(meansRows, members, { perBlock = false, rho = null } = {}) {
+  return meansRows.map((r) => {
+    const out = {};
+    members.forEach((mb, i) => {
+      for (const c of memberMetal(r.means[i], { perBlock, rho, unit: mb.unit, element: mb.element })) {
+        const suffix = c.key.replace(/^metal_/, "").replace(new RegExp(`_${mb.element}$`), "");
+        out[`${mb.element}_${suffix}`] = c.value == null ? "" : Number(c.value.toPrecision(6));
+      }
+    });
+    return out;
   });
 }
 

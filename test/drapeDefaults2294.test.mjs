@@ -22,5 +22,5 @@ test("wired: the georeferencer and the spectral import, the boundary / claim imp
   const gm = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
   assert.equal((gm.match(/elevation: boundaryElevation/g) || []).length, 4);
   assert.doesNotMatch(gm, /addBoundary\([^)]*elevation: defaultElevation/);
-  assert.match(readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8"), /defaultElevation = planElevation\(\{ collars: liveNow\.collars \|\| collars/);
+  assert.match(readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8"), /defaultElevation = planElevation\(\{ collars: liveNow\.collars \|\| collars/);
 });

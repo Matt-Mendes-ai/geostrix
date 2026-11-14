@@ -84,6 +84,14 @@ const INTRUSIVE = /\b(qz|q|mic|f)?(dio|diorite|grd|granodiorite|gra|granite|ton|
 const CROSS = /(breccia|\bbx\b|hbx|vein|\bqv\b|fault|gouge|mylonite)/i;
 const OTHER = /(hornfels|\bhfs\b|skarn|\bsk\b|till|overburden|alluvium|colluvium|glacial|\bobn\b|\bovb\b|gossan)/i;
 
+// TASKS.csv #3369 — a lithology role (layers.js roleForLithology, or a Modelling codes role) as a Model from map role; null: no opinion
+export function mapRoleFromLog(role) {
+  if (role === "dyke" || role === "intrusion") return "intrusion";
+  if (role === "breccia" || role === "fault" || role === "vein" || role === "cross-cutting") return "cross-cutting";
+  if (role === "overburden" || role === "no recovery" || role === "ignore") return "other";
+  return null;
+}
+
 // "stratigraphic" | "intrusion" | "cross-cutting" | "other", from a unit code and (optionally) its description
 export function classifyUnitRole(code, description = "") {
   const s = `${code || ""} ${description || ""}`;
@@ -102,7 +110,11 @@ const segDist = (p, a, b) => {
 };
 const nearLines = (p, lines, d) => lines.some((ln) => { for (let i = 0; i < ln.length - 1; i++) if (segDist(p, ln[i], ln[i + 1]) < d) return true; return false; });
 
-export function suggestPileOrder({ layer, field, descField = null, bedding = [], faults = [], groundAt = null, radiusM = 400, faultBufferM = 150, faultContactM = 300, sampleStepM = 25, windowM = 800, traceVoteWeight = 20 }) {
+// TASKS.csv #3369 (#3195, Galore Creek) — nearestHole: the map is the nearest-hole outlines of a subcrop from collars (a derived layer): its
+// borders are half-way between holes, not contacts, so they give no order evidence (each is listed as such, with no votes); roleOf: a role
+// for a code the name and description leave stratigraphic (the logs' role, mapRoleFromLog), so an intrusive phase or a dyke code starts as
+// on any map instead of all 19 units in a stratigraphic pile
+export function suggestPileOrder({ layer, field, descField = null, bedding = [], faults = [], groundAt = null, nearestHole = false, roleOf = null, radiusM = 400, faultBufferM = 150, faultContactM = 300, sampleStepM = 25, windowM = 800, traceVoteWeight = 20 }) {
   const units = new Map(); // unit -> { area, desc, polys: [parts] }
   const ringArea = (r) => { let a = 0; for (let i = 0; i < r.length - 1; i++) a += r[i][0] * r[i + 1][1] - r[i + 1][0] * r[i][1]; return Math.abs(a) / 2; };
   for (const f of layer.features) {
@@ -115,7 +127,7 @@ export function suggestPileOrder({ layer, field, descField = null, bedding = [],
     e.polys.push(rings);
   }
   const roles = {};
-  for (const [u, e] of units) roles[u] = classifyUnitRole(u, e.desc);
+  for (const [u, e] of units) { roles[u] = classifyUnitRole(u, e.desc); if (roles[u] === "stratigraphic" && roleOf) roles[u] = roleOf(u) || roles[u]; } // roleOf: #3369
   const inUnit = (p, u) => units.get(u).polys.some((rings) => pointInRings(p, rings));
   const beds = bedding.filter((b) => [b.x, b.y, b.dip, b.dipDir].every(Number.isFinite) && b.dip > 2);
   const faultLines = faults.filter((l) => l && l.length > 1);
@@ -125,6 +137,7 @@ export function suggestPileOrder({ layer, field, descField = null, bedding = [],
   for (const c of contacts) {
     const [a, b] = c.units;
     if (!units.has(a) || !units.has(b)) continue;
+    if (nearestHole) { pairs.push({ a, b, younger: null, older: null, weight: 0, agreement: 0, measurements: 0, samples: 0, lengthM: c.lengthM, nearestHole: true }); continue; } // #3369
     // a faulted contact (follows a mapped fault): listed, no votes
     if (faultLines.length) {
       const pts = c.lines.flat();

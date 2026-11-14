@@ -35,13 +35,36 @@ for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (let k = -1; k <
 // TASKS.csv #2456 (review #2325) — bounds: the estimate's grid box; only composites inside it (plus one cell) are checked, so 'Fit to the
 // checked holes' no longer warns about '269 of the 294 highest composites' hundreds of metres outside the grid. outsideGrid: how many
 // of the highest composites (ranked over all of them) lie outside, to say so. Without bounds the result is as before.
+// TASKS.csv #3105 — the k highest by value, highest first, exactly as a stable sort's first k (ties keep their order): the k-th value found by
+// selection on a copy of the values, then only those k sorted. A whole-field run sorted all 147,601 composites by value with a comparator
+// (about 150 ms of its last main-thread task) to keep the top 5 %.
+function topByValue(list, k) {
+  const n = list.length;
+  if (k >= n) return list.slice().sort((a, b) => b.value - a.value);
+  if (k <= 0) return [];
+  const v = new Float64Array(n);
+  for (let i = 0; i < n; i++) v[i] = list[i].value;
+  // quickselect for the k-th largest (index k - 1 in descending order)
+  let lo = 0, hi = n - 1; const want = k - 1;
+  while (hi > lo) {
+    const pv = v[(lo + hi) >> 1];
+    let i = lo, j = hi;
+    while (i <= j) { while (v[i] > pv) i++; while (v[j] < pv) j--; if (i <= j) { const t = v[i]; v[i] = v[j]; v[j] = t; i++; j--; } }
+    if (want <= j) hi = j; else if (want >= i) lo = i; else break;
+  }
+  const t = v[want];
+  let above = 0; for (let i = 0; i < n; i++) if (list[i].value > t) above++;
+  const out = []; let ties = k - above;
+  for (let i = 0; i < n; i++) { const x = list[i]; if (x.value > t) out.push(x); else if (x.value === t && ties > 0) { out.push(x); ties--; } }
+  return out.sort((a, b) => b.value - a.value); // stable: equal values keep the input order, as the full sort did
+}
 export function topCompositesWithoutBlocks(composites, cells, cellSize, { share = 0.05, min = 3, bounds = null } = {}) {
-  const all = (composites || []).filter((c) => Number.isFinite(c.value)).sort((a, b) => b.value - a.value);
+  const finite = (composites || []).filter((c) => Number.isFinite(c.value));
   const inGrid = (c) => !bounds || (c.x >= bounds.xmin - cellSize && c.x <= bounds.xmax + cellSize && c.y >= bounds.ymin - cellSize && c.y <= bounds.ymax + cellSize && c.z >= bounds.zmin - cellSize && c.z <= bounds.zmax + cellSize);
-  const sorted = bounds ? all.filter(inGrid) : all;
-  const outsideGrid = bounds ? all.slice(0, Math.min(all.length, Math.max(min, Math.ceil(share * all.length)))).filter((c) => !inGrid(c)).length : 0;
-  const n = Math.min(sorted.length, Math.max(min, Math.ceil(share * sorted.length)));
-  const top = sorted.slice(0, n), reachM = Math.sqrt(3) * cellSize;
+  const inside = bounds ? finite.filter(inGrid) : finite;
+  const outsideGrid = bounds ? topByValue(finite, Math.min(finite.length, Math.max(min, Math.ceil(share * finite.length)))).filter((c) => !inGrid(c)).length : 0; // #3105
+  const n = Math.min(inside.length, Math.max(min, Math.ceil(share * inside.length)));
+  const top = topByValue(inside, n), reachM = Math.sqrt(3) * cellSize; // #3105 — the top n, not a sort of every composite
   // a coarse hash of the cells, so each composite looks only at the cells of its own and the neighbouring bins
   // TASKS.csv #2547 — numeric bucket keys (string keys for 90,000 blocks cost ~100 ms)
   const bin = Math.max(1e-6, reachM), c0 = (cells || [])[0] || { x: 0, y: 0, z: 0 }, ox = Math.floor(c0.x / bin), oy = Math.floor(c0.y / bin), oz = Math.floor(c0.z / bin), O = 131072, key = (i, j, k) => ((i - ox + O) * 262144 + (j - oy + O)) * 262144 + (k - oz + O); // indices relative to the first cell: exact below 2^53

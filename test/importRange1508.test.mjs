@@ -22,7 +22,7 @@ test("in range, no range, or a layer without one: nothing said about values", ()
 });
 
 test("the importer passes the layer's range; Data QC uses the same table", () => {
-  assert.match(fs.readFileSync("src/modules/viewer/useImportPipeline.js", "utf8"), /PLAUSIBLE_RANGE\[target\] \|\| null\)/);
+  assert.match(fs.readFileSync("src/modules/viewer/importPipelineImpl.js", "utf8"), /PLAUSIBLE_RANGE\[target\] \|\| null\)/);
   const q = fs.readFileSync("src/lib/dataQC.js", "utf8");
   assert.match(q, /\["sg", "Specific gravity", \{ gaps: false, range: PLAUSIBLE_RANGE\.sg \}\]/); // #3136: the interval checks are a list now
 });

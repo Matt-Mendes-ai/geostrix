@@ -719,7 +719,7 @@ ipcMain.handle("section-contacts", (_e, payload) => {
 // multi-MB autosave no longer blocks the main process either.
 
 // ---------- PDF export ----------
-const PDF_PAGE_SIZES = new Set(["A3", "A4", "A5", "Legal", "Letter", "Tabloid"]); // TASKS.csv #398
+const PDF_PAGE_SIZES = new Set(["A0", "A1", "A2", "A3", "A4", "A5", "Legal", "Letter", "Tabloid"]); // TASKS.csv #398; A0-A2: #3383 (7), names printToPDF takes
 ipcMain.handle("export-pdf", async (ev, { suggestedName, pageSize, landscape, preferCSSPageSize }) => {
   const win = BrowserWindow.fromWebContents(ev.sender) || mainWindow; // #474 — the calling window, not whichever has focus
   const { canceled, filePath } = await dialog.showSaveDialog(win, {

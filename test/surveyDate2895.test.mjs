@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const d = readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8");
-const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
 const DATE_TEST = String.raw`!/^\d{4}-\d{2}-\d{2}$/.test(`;
 
 test("the dialog keeps Import disabled until the date is typed, and says why", () => {

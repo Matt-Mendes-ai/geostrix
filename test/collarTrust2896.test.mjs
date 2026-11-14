@@ -34,7 +34,7 @@ test("0 m near sea level is an elevation; a fixed file clears the mark; a stray 
 });
 
 test("the import stores and says it; Data QC flags it", () => {
-  const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(u, /setCollars\(\(prev\) => markSuspectElevations\(Array\.from\(new Map\(\[\.\.\.prev, \.\.\.applied\]\.map\(\(c\) => \[c\.hole_id, c\]\)\)\.values\(\)\)\)\.collars\);/);
   assert.match(u, /if \(suspectHere\.length\) \{ \/\/ #2896/);
   const q = readFileSync(new URL("../src/lib/dataQC.js", import.meta.url), "utf8");

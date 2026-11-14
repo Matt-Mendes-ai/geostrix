@@ -9,6 +9,7 @@
 // ctx: what the build reads from the 3D view, as ViewerModule's planCtx() gives it (data and its resolvers: colours, labels, filters).
 // What the RL does not change (each hole's trace, the layers' primitives) is kept in ctx.cache (#2982) until the view's inputs change.
 import { slabRuns, piercePoints, tracePolylines, pointAtMd, voxelPlanRects, meshPlanCut, planAssayLayers, groupByHole } from "../../lib/levelPlan.js";
+import { t as tr } from "../../lib/i18n.js";
 
 export const PLAN_HOLE_STEP = 400, PLAN_ROW_STEP = 15000;
 
@@ -16,8 +17,10 @@ export const PLAN_HOLE_STEP = 400, PLAN_ROW_STEP = 15000;
 // or the layer primitives' inputs change
 function cacheOf(ctx) {
   let pc = ctx.cache.current;
-  if (!pc || pc.fn !== ctx.layerPrimitivesFor || pc.traces !== ctx.traces || pc.vh !== ctx.visibleHoles) {
-    pc = ctx.cache.current = { fn: ctx.layerPrimitivesFor, traces: ctx.traces, vh: ctx.visibleHoles, base: new Map(), prims: null, ivBy: null, ptBy: null, rdBy: null };
+  const also = (ctx.also || []).join("|"); // #3248
+  const fn = ctx.primsVersion ?? ctx.layerPrimitivesFor; // #3298 — the primitives' inputs, not the function (made anew on every render of the 3D View)
+  if (!pc || pc.fn !== fn || pc.traces !== ctx.traces || pc.vh !== ctx.visibleHoles || pc.also !== also) {
+    pc = ctx.cache.current = { fn, traces: ctx.traces, vh: ctx.visibleHoles, also, base: new Map(), prims: null, ivBy: null, ptBy: null, rdBy: null };
   }
   return pc;
 }
@@ -46,7 +49,7 @@ export function* planBuild(ctx, rl, half, { holesOnly = false } = {}) {
     return { holes };
   }
   if (!pc.prims) { // #2982 — the layers' primitives over the shown holes (SG scaled over them), once per view state
-    const all = new Set(traces.filter((t) => visibleHoles[t.hole_id] !== false).map((t) => t.hole_id)), prims = ctx.layerPrimitivesFor(all, {});
+    const all = new Set(traces.filter((t) => visibleHoles[t.hole_id] !== false).map((t) => t.hole_id)), prims = ctx.layerPrimitivesFor(all, ctx.also?.length ? { also: ctx.also } : {}); // #3248 — and a layer hidden in 3D the plan is coloured by
     pc.prims = prims; pc.ivBy = groupByHole(prims.intervals.filter((iv) => !(iv.to - iv.from < 1e-6))); pc.ptBy = groupByHole(prims.points.filter((pt) => pt.assay));
     pc.rdBy = groupByHole(readingsOf(prims)); // #1706
     yield 0.15;
@@ -80,7 +83,7 @@ export function* planBuild(ctx, rl, half, { holesOnly = false } = {}) {
     const md = pt.assay ? (pt.assay.from + pt.assay.to) / 2 : pt.md;
     if (!h.runs.some(([a, b]) => md >= a - 1e-9 && md <= b + 1e-9)) continue;
     const q = pointAtMd(h.trace, md);
-    planPoints.push({ hole_id: pt.hole_id, md, x: q.x, y: q.y, color: pt.color, label: pt.label, assay: pt.assay || null });
+    planPoints.push({ hole_id: pt.hole_id, md, x: q.x, y: q.y, color: pt.color, label: pt.label, assay: pt.assay || null, layer: pt.layer, value: pt.value }); // layer, value: #3362
   }
   // what each pierce point sits in: the interval of every logged layer at that depth, and the assays there
   // #2210 — rows grouped by hole (a filter per pierce point was ~200 ms on WA gold)
@@ -143,7 +146,7 @@ export function* planBuild(ctx, rl, half, { holesOnly = false } = {}) {
   [...planIntervals, ...structures].forEach((r) => { const key = `${r.label}|${r.color}`; if (!legendSeen.has(key) && !/^(Geotech|Recovery|Specific gravity)/.test(r.label)) { legendSeen.add(key); legendItems.push([r.label, r.color]); } });
   legendItems.sort((a, b) => a[0].localeCompare(b[0]));
   const pa = planAssayLayers(points, holes, ctx.assayLegend(), ctx.projectValues); // #1537
-  return { rl, half, holes, intervals: [...planIntervals, ...pa.intervals], assayLegends: pa.legends, points: planPoints, pointLogs, structures, voxelSlices, surfaceCuts, planned, legendItems };
+  return { rl, half, holes, intervals: [...planIntervals, ...pa.intervals], assayLegends: pa.legends, points: highestOnSpot(planPoints), pointLogs, /* #3249 */ structures, voxelSlices, surfaceCuts, planned, legendItems };
 }
 
 // TASKS.csv #1706 (review #1645, Copley) — 'Colour holes by' offered the interval logs and (#1537) the assay elements, never a log read at
@@ -172,6 +175,38 @@ export function nearestReadings(rows, runs, md) {
 const f1 = (v) => (Math.round(v * 10) / 10).toFixed(1);
 
 // all at once (tests, and a caller that needs the plan now)
+// TASKS.csv #3249 — a vertical (or steep) hole puts a slab's samples of one element on one spot of the plan, and whichever was drawn last
+// showed. One stated rule: one hole's samples of one element within 0.5 m of each other on the plan show as the highest of them, its tooltip
+// saying so; other points as they are. Order kept (the first of each spot).
+// TASKS.csv #3362 (WA uranium: the gamma log, 177,871 readings, a few hundred per hole within one slab) — a numeric log read at depths (a
+// custom point layer, Mag. susc.) by the same rule: one hole's readings of one layer on one spot show as the highest of them.
+const spotValue = (p) => (p.assay ? p.assay.value : p.layer && p.value !== "" && p.value != null ? Number(p.value) : NaN);
+export function highestOnSpot(points, tol = 0.5) {
+  const out = [], spots = new Map();
+  for (const p of points) {
+    const v = spotValue(p);
+    if (!Number.isFinite(v)) { out.push(p); continue; }
+    const k = `${p.hole_id}|${p.assay ? p.assay.sym : p.layer}`, list = spots.get(k) || spots.set(k, []).get(k);
+    const s = list.find((q) => Math.abs(q.p.x - p.x) <= tol && Math.abs(q.p.y - p.y) <= tol);
+    if (!s) { const e = { p, v, n: 1, at: out.length }; list.push(e); out.push(p); continue; }
+    s.n++;
+    if (v > s.v) { s.p = p; s.v = v; }
+    out[s.at] = s.p;
+  }
+  for (const list of spots.values()) for (const s of list) if (s.n > 1) out[s.at] = { ...s.p, label: `${s.p.label} ${tr("(highest of {n} in the slab)", { n: s.n })}` };
+  return out;
+}
+
+// TASKS.csv #3248 — the logged layers hidden in the 3D View that have rows (a model layer such as Strat unit), offered greyed by the plan's
+// 'Colour holes by': picking one builds the plan with it, the 3D View unchanged. -> [{ key, label }]
+const PLAN_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "weath", "structzone", "geotech", "recovery", "sg", "litho_gc", "alt_gc", "mnlgy", "magsusc"];
+export function hiddenPlanLayers(ctx, meta) {
+  const out = [];
+  for (const k of PLAN_LAYER_KEYS) if (!ctx.layerVisible?.[k] && (ctx.layers?.[k] || []).length) out.push({ key: k, label: meta[k]?.label || k });
+  for (const l of ctx.customLayers || []) if (ctx.customVisible?.[l.id] === false && (l.rows || []).length) out.push({ key: `custom:${l.id}`, label: String(l.name) });
+  return out;
+}
+
 export function planBuildNow(ctx, rl, half, opts) { const g = planBuild(ctx, rl, half, opts); let r = g.next(); while (!r.done) r = g.next(); return r.value; }
 
 // a generator run in short slices between macrotasks: onProgress(the last value yielded), cancelled() -> true stops it (resolves null)

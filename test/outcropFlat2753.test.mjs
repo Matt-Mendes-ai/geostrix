@@ -45,7 +45,7 @@ test("the discs and their dip labels are placed by the same rule", () => {
 
 test("wiring: ViewerModule passes the samples' flat elevation and rebuilds when it changes", () => {
   const v = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(v, /syncSurfaceStructures\(surfStructGroupRef\.current, surfStructObjsRef\.current, surfaceStructures, \{ origin: originRef\.current, terrain, flatZ: surfaceFlatZ \}\)/);
-  assert.match(v, /outcropLabelItems\(surfaceStructures, \{ origin: originRef\.current, terrain, flatZ: surfaceFlatZ \}\)/);
-  assert.match(v, /\[surfaceStructures, collars, terrain, surfaceFlatZ \/\* #2753 \*\/, rebuildSeq, deferRound\]/);
+  assert.match(v, /syncSurfaceStructures\(surfStructGroupRef\.current, surfStructObjsRef\.current, surfaceStructures, \{ origin: originRef\.current, terrain, flatZ: surfaceFlatZ(, symbolByType: [^}]*)? \}\)/);
+  assert.match(v, /outcropLabelItems\(surfaceStructures, \{ origin: originRef\.current, terrain, flatZ: surfaceFlatZ(, symbolByType: [^}]*)? \}\)/);
+  assert.match(v, /\[surfaceStructures, collars, terrain, surfaceFlatZ \/\* #2753 \*\/,( store\.project\?\.structureSymbolByType \/\* #3094 \*\/,)? rebuildSeq, deferRound\]/);
 });

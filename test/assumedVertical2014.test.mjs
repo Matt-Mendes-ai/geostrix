@@ -53,7 +53,7 @@ test("the 3D view draws it dashed with a tip that says so, and the collar import
   // #2176 — merged trace chunks: an assumed-vertical hole goes in the dashed chunk (lib/viewer/traceBatch.js)
   assert.match(v, /traceHoles\.push\(\{ holeId: c\.hole_id, pts, dashed: assumedVertical \|\| methodAssumed \}\);/); // #2662
   assert.match(read("src/lib/viewer/traceBatch.js"), /new THREE\.LineDashedMaterial\(\{ vertexColors: true, dashSize: 4, gapSize: 4, transparent: true \}\)/);
-  const p = read("src/modules/viewer/useImportPipeline.js");
+  const p = read("src/modules/viewer/importPipelineImpl.js");
   assert.match(p, /const assumedVertical = applied\.filter\(\(c\) => !surveyedHoles\.has\(c\.hole_id\) && holeAttitudeAssumed\(c, \[\]\)\);/);
   assert.match(p, /drawn as ASSUMED vertical holes \(a collar marker and a dashed stick of the hole length\), flagged in Data QC/);
   assert.match(p, /if \(!surveyedHoles\.size && assumedVertical\.length < applied\.length\) parts\.push\(tr\("no survey loaded/); // #1504's line only for holes that do have an attitude

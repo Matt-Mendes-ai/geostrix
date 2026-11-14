@@ -30,7 +30,7 @@ test("the dialog offers it, the commit computes it and says so", () => {
   const d = readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8");
   assert.match(d, /const recOn = modal\.target === "recovery" && !modal\.mapping\.value && !modal\.recoveryCalcOff && !!recoveryColumns\(modal\.headers\);/);
   assert.match(d, /!\(recOn && f\.key === "value"\)/);
-  const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(u, /const recCalc = target === "recovery" && !mapping\.value && !data\.recoveryCalcOff \? recoveryColumns\(Object\.keys\(allRows\[0\] \|\| \{\}\)\) : null;/);
   assert.match(u, /if \(recCalc\) r\.value = recoveryPct\(raw, recCalc, mapping\); \/\/ #2891/);
   for (const l of ["es", "pt", "fr", "ar"]) {
@@ -40,6 +40,6 @@ test("the dialog offers it, the commit computes it and says so", () => {
 });
 
 test("the columns it was computed from are not listed as 'not imported'", () => {
-  const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(u, /leftOutText\(data, allRows, \[\.\.\.\(sib\?\.codes \|\| \[\]\), \.\.\.\(recCalc \? \[recCalc\.loss, recCalc\.recovered, recCalc\.drilled\]\.filter\(Boolean\) : \[\]\)\]\)/);
 });

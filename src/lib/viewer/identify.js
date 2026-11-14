@@ -11,6 +11,10 @@ import { blockExtremesAt } from "../gridMeans.js"; // TASKS.csv #2879
 import { codeMeaning } from "./codeMeaning.js"; // TASKS.csv #2816
 import { leadCommodity, BULK_COMMODITIES } from "../preferredElement.js"; // TASKS.csv #2938
 import { valueIn } from "../geochem.js"; // #2938 — each value in ppm, as useLeadCommodity reads them
+import { setMembersOf } from "../estimateSet.js"; // TASKS.csv #3178
+import { setJoin } from "../setLimits.js"; // #3178
+import { blockModelLattice } from "../estimationMeta.js"; // #3178
+import { gradeUnitLabel } from "../geochemColumns.js"; // #3178
 
 const num = (v, d = 2) => (Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: d }) : String(v ?? ""));
 const metres = (v) => `${num(v, 2)} m`;
@@ -52,6 +56,25 @@ export function depthOnTrace(pts, p) {
     if (d < bestD) { bestD = d; best = a.md + t * (b.md - a.md); }
   }
   return best;
+}
+
+// TASKS.csv #3178 (split from #3014 part c) — a block of an estimation set: the other elements' values at the same block, each by one lattice
+// lookup (the set shares one lattice: #3014). The members' lookups are built on the first click on that model and kept while its cells and theirs
+// are the same arrays. -> 'Mn (%) 0.456 · LOI (%) 5.51' (4 significant figures; '—' where a member has no block), or null when not a set.
+const setJoins = new WeakMap(); // the clicked model's cells -> { members (cells arrays), join }
+export function setValuesAt(model, cell, members) {
+  if (!members?.length || !cell) return null;
+  let e = setJoins.get(model.cells);
+  if (!e || e.members.length !== members.length || e.members.some((cs, i) => cs !== members[i].cells)) {
+    const lat = blockModelLattice(model);
+    if (!lat) return null;
+    e = { members: members.map((x) => x.cells), join: setJoin(lat, members.map((x) => ({ element: x.params?.element || x.name, unit: x.params?.unit, name: x.name, cells: x.cells }))) };
+    setJoins.set(model.cells, e);
+  }
+  return e.join.members.map((mb, i) => {
+    const v = e.join.valueAt(cell, i), u = mb.unit ? ` (${gradeUnitLabel(mb.element, mb.unit)})` : "";
+    return `${mb.element}${u} ${Number.isFinite(v) ? num(+v.toPrecision(4), 6) : "—"}`;
+  }).join(" · ");
 }
 
 // The block a point on a model falls in (world coordinates). A point on a face sits on the boundary of two blocks, so the caller nudges it along the ray first.
@@ -168,6 +191,8 @@ function describe(hit, ctx) {
       fields.push([m.property || tr("Value"), m.valueLabels?.[c.value] ?? (Number.isFinite(c.value) ? num(+c.value.toPrecision(4), 6) : String(c.value))]);
       fields.push([tr("Block size"), `${num(c.dx ?? m.dx, 1)} × ${num(c.dy ?? m.dy, 1)} × ${num(c.dz ?? m.dz, 1)} m`]);
       fields.push([tr("Block centre"), `${num(c.x, 1)} E, ${num(c.y, 1)} N, ${num(c.z, 1)} m`]);
+      const set = setValuesAt(m, c, ctx.setMembersOf?.(m)); // #3178
+      if (set) fields.push([tr("Set"), set]);
     }
     return { ...base, backdrop: true, layer: tr("Block models"), title: m.name, fields };
   }
@@ -239,6 +264,7 @@ export function identifyAt(r, clientX, clientY) {
     units: r.units,
     meaningOf: (o, v, shown) => (r.codeDictionary ? codeMeaning(r.codeDictionary, groups.get(o.parent), v, shown) : null), // #2816
     leadFirst: () => leadFirst(r.assays, r.units), // #2938
+    setMembersOf: (m) => setMembersOf(m, r.voxelModels || []), // #3178
     isHole: (id) => r.tracesRef.current.some((t) => t.hole_id === id),
     traceOf: (id) => r.tracesRef.current.find((t) => t.hole_id === id)?.pts,
     layerOf: (o) => { const k = groups.get(o.parent); return k == null ? null : r.layerLabel(k); },

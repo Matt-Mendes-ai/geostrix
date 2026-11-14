@@ -14,7 +14,8 @@ test("a portal 79 m above the collar ground: the line's start runs above it", ()
 
 test("the panes", () => {
   const d = fs.readFileSync("src/components/DesignLinesPane.jsx", "utf8");
-  assert.match(d, /const collarSurface = useMemo\(\(\) => \(terrain \|\| collarsLookUnderground\(collars\)\.underground \? null : collarGround\(collars\)\)/);
+  assert.match(d, /const collarSurf = useMemo\(\(\) => \(terrain \|\| collarsLookUnderground\(collars\)\.underground \? null : collarGround\(collars\)\)/); // #3327 — one memo for the start and the check
+  assert.match(d, /const collarSurface = collarSurf;/);
   assert.match(d, /c && collarSurface \? runAboveGround\(c\.vertices, collarSurface\)/);
   assert.match(fs.readFileSync("src/components/DumpPane.jsx", "utf8"), /\(s\.type === "pit_shell" \|\| s\.type === "pit_design"\) && Number\.isFinite\(s\.params\?\.wasteTonnes\)/);
 });

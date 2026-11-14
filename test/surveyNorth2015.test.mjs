@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { detectAzimuthRef } from "../src/lib/azimuthRef.js";
-const p = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+const p = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const H = ["hole_id", "depth", "azimuth", "azimuth_corrected_tn", "azimuth_corrected_gn", "dip", "instrument"];
 const row = (az, tn, gn, inst = "gyro") => ({ hole_id: "TF24-126", depth: 10, azimuth: az, azimuth_corrected_tn: tn, azimuth_corrected_gn: gn, dip: -60, instrument: inst });
 

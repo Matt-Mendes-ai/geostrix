@@ -24,14 +24,15 @@ test("2,248 holes: placed in well under a second", () => {
 
 test("the key takes the corner with the fewest holes", () => {
   const holes = Array.from({ length: 40 }, (_, i) => ({ ax: 20 + (i % 8) * 10, ay: 20 + Math.floor(i / 8) * 10 })); // the top left is full
-  assert.deepEqual(emptiestCorner(holes, 600, 400, 120, 80), { x: 600 - 120 - 6, y: 6 });
-  assert.deepEqual(emptiestCorner([], 600, 400, 120, 80), { x: 6, y: 6 });
+  const xy = ({ x, y }) => ({ x, y }); // #3376: it says how many holes are under it too (under)
+  assert.deepEqual(xy(emptiestCorner(holes, 600, 400, 120, 80)), { x: 600 - 120 - 6, y: 6 });
+  assert.deepEqual(emptiestCorner([], 600, 400, 120, 80), { x: 6, y: 6, under: 0 });
 });
 
 test("wired: no yellow on the white map, the corner, collars avoided, the CRS by name", () => {
   const c = readFileSync(new URL("../src/components/DrillPlanElement.jsx", import.meta.url), "utf8");
   assert.match(c, /const ON_WHITE = CATEGORICAL_SAFE_COLORS\.filter\(\(c\) => String\(c\)\.toUpperCase\(\) !== "#F0E442"\);/);
-  assert.match(c, /emptiestCorner\(g\.holes, g\.w, g\.h, keyBox\.w, keyBox\.h\)/);
+  assert.match(c, /emptiestCorner\(\[\.\.\.g\.holes, \.\.\.planned\], g\.w, g\.h, (keyBox|b)\.w, (keyBox|b)\.h(, pts)?\)/ /* #2259 — the planned holes count too */);
   assert.match(c, /\.\.\.collarBoxes\] \}\);/);
   const m = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
   assert.match(m, /: project\?\.epsg \? crsText\(project\.epsg\) \/\* #2611/);

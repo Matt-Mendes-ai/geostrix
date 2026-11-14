@@ -34,7 +34,7 @@ test("no tie, no location: null", () => {
 });
 
 test("wiring: the import converts through the tie, an untied grid says so, the notice's north label follows; the dialog warns", () => {
-  const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(u, /const live = importStateRef\.current\.project \|\| project, tie = tieOf\(live\);/);
   assert.match(u, /localGridAzimuthOffset\(azimuthRef, tie, loc\.x, loc\.y, azimuthDate\)/);
   assert.match(u, /this project is on a local grid with no tie to a coordinate system, so the grid's own north is not known/);

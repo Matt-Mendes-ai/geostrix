@@ -32,7 +32,7 @@ test("every number column left over, for 'Add every number column'", () => {
 });
 
 test("the import paths and the dialog use them", () => {
-  const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.equal((u.match(/const codeGuess = codeColumnGuess\(target, headers, (data|rows), mapping0\), mapping = codeGuess \? \{ \.\.\.mapping0, value: codeGuess\.col \} : mapping0;/g) || []).length, 3);
   assert.equal((u.match(/\.\.\.\(codeGuess \? \{ valueGuess: codeGuess \} : \{\}\)/g) || []).length, 3);
   const d = readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8");

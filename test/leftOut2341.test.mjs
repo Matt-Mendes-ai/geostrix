@@ -13,7 +13,7 @@ test("the columns with values that no field and no extra field read", () => {
 });
 
 test("the layer and survey notices name them; the dialog pre-fills the extra field's name", () => {
-  const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(u, /\+ leftOutText\(data, allRows, \[\.\.\.\(sib\?\.codes \|\| \[\]\), \.\.\.\(recCalc \? [^)]*\) : \[\]\)\]\) \/\* #2341; /); // + the Recovery % formula's columns: #2891
   assert.match(u, /tr\("Loaded \{rows\} survey stations from \{fileName\}\.", \{ rows: rows\.length, fileName \}\) \+ leftOutText\(data, allRows/);
   const m = readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8");

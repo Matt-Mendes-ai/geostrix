@@ -14,6 +14,7 @@ import { macrostratLithColours } from "../lib/macrostratColours.js"; // TASKS.cs
 import Papa from "papaparse";
 import { codeDescriptions } from "../lib/codeDescriptions.js"; // TASKS.csv #1778
 import CodeDictionaryTable from "./CodeDictionaryTable.jsx"; // TASKS.csv #2163
+import { entriesInCodeOrder } from "../lib/legendCodeOrder.js"; // TASKS.csv #3296
 
 // TASKS.csv #123 — QGIS-specialist audit finding: "Themes save whole-view state per-project; there's
 // no reusable style definition (color ramp + classification + symbol) that travels between projects
@@ -31,7 +32,7 @@ function exportLayerStyle(layerKey, meta, categories, legendOverride) {
   saveFile({ suggestedName: `${meta.label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}_style.json`, filters: [{ name: "GeoStrix style", extensions: ["json"] }], content: JSON.stringify(payload, null, 2) });
 }
 
-export default function LayerInspector({ layerKey, rows, meta, categoryFilter, numericRange, legendOverride, onToggleCategory, onSetRange, onSetColor, onSetLabel, onClose, onShowAll, onHideAll, onIsolate, onRemoveSource }) {
+export default function LayerInspector({ layerKey, rows, meta, categoryFilter, numericRange, legendOverride, codeOrder = null, codeLabel = null, onToggleCategory, onSetRange, onSetColor, onSetLabel, onClose, onShowAll, onHideAll, onIsolate, onRemoveSource }) {
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const [search, setSearch] = useState("");
@@ -55,7 +56,8 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
   const descFileInput = useRef(null); // TASKS.csv #1778
   // TASKS.csv #1233 / #1402 — the columns follow the data: Hole for every hole-based layer, description, intensity, percent
   const columns = useMemo(() => inspectorColumns(layerKey, rows), [layerKey, rows]);
-  const categories = meta.numeric ? [] : distinctValues(rows);
+  // TASKS.csv #3296 — by count, with the order set on a Layout legend (#3130) first: the 3D figure legend lists them the same way
+  const categories = meta.numeric ? [] : entriesInCodeOrder(distinctValues(rows), codeOrder, codeLabel || ((v) => v));
 
   const importLayerStyle = async (file) => {
     setStyleNotice(null);

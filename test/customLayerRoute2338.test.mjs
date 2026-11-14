@@ -20,7 +20,7 @@ test("the skipped rows are said as the built-in routes say them", () => {
 });
 
 test("the commit, the dialog's name field and the trash icon", () => {
-  const p = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const p = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(p, /cDropped\.push\(\{ reason: "no interval", example: row\.hole_id \}\)/);
   assert.match(p, /nothing was added as a custom layer/);
   assert.match(p, /name: layerName/);

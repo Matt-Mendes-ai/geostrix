@@ -97,7 +97,11 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
   const started = line && Number.isFinite(line.start?.x) && Number.isFinite(line.start?.y) && Number.isFinite(line.start?.z);
   const canDraw = line && Number.isFinite(line.start?.z);
   // #1612 / #1851 — the ground at a point: the terrain, else the nearest collar; null when the project knows no ground
-  const groundAt = (x, y) => { const g = terrain ? terrainGroundAt(terrain, x, y) : nearestZ(collars, x, y); return Number.isFinite(g) ? g : null; };
+  // TASKS.csv #3327 (review Galore Creek) — the start took the nearest collar's RL (445 m away) and the pane's own check the ground between the
+  // collars, so the portal hung 10.8 m in the air: the start now takes that same ground (collarGround, as Strings and the pits), the nearest
+  // collar only where the collars look underground
+  const collarSurf = useMemo(() => (terrain || collarsLookUnderground(collars).underground ? null : collarGround(collars)), [terrain, collars]);
+  const groundAt = (x, y) => { const g = terrain ? terrainGroundAt(terrain, x, y) : collarSurf ? collarSurf(x, y) : nearestZ(collars, x, y); return Number.isFinite(g) ? g : null; };
   const groundKnown = !!terrain || collars.some((k) => Number.isFinite(k.z));
   const collarZs = collars.map((k) => k.z).filter(Number.isFinite);
   // #1852 — a start far outside any elevation the project knows (or the planet) is probably a slip
@@ -166,7 +170,7 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
 
   // ---------- drawing in the 3D view ----------
   const state = useRef(); // the effect below lives as long as the drawing does, and reads the latest of these
-  state.current = { line, started, grade: Number(grade) || 0, radius: Number(radius) > 0 ? Number(radius) : 0, appendSegments, update, terrain, collars };
+  state.current = { line, started, grade: Number(grade) || 0, radius: Number(radius) > 0 ? Number(radius) : 0, appendSegments, update, terrain, collars, groundAt /* #3327 */ };
   useEffect(() => {
     const dom = view?.renderer.current?.domElement, scene = view?.scene.current;
     if (!drawing || !dom || !scene) return undefined;
@@ -209,7 +213,7 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
         if (!p) return;
         if (!s.started) {
           // #1359 — a start Z nobody typed is the ground under the click (terrain, else the nearest collar), not one median for the whole property
-          const g = s.line.start.zAuto ? (s.terrain ? terrainGroundAt(s.terrain, p[0], p[1]) : nearestZ(s.collars, p[0], p[1])) : null;
+          const g = s.line.start.zAuto ? s.groundAt(p[0], p[1]) : null; // #3327 — the ground the line is checked against
           s.update({ start: { x: +p[0].toFixed(2), y: +p[1].toFixed(2), z: Number.isFinite(g) ? Math.round(g) : s.line.start.z } });
           return;
         }
@@ -251,7 +255,7 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
   };
   // TASKS.csv #2600 (review #2486) — with no terrain, the ground interpolated between the collars (as Pit shell, Pit design, Dump and Drape use),
   // never the surface through collars drilled from underground
-  const collarSurface = useMemo(() => (terrain || collarsLookUnderground(collars).underground ? null : collarGround(collars)), [terrain, collars]);
+  const collarSurface = collarSurf; // #3327 — one surface for the start and the check
   const above = useMemo(() => (c && terrain ? runAboveGround(c.vertices, (x, y) => terrainGroundAt(terrain, x, y)) : c && collarSurface ? runAboveGround(c.vertices, collarSurface) : 0), [c, terrain, collarSurface]);
   const clearance = useMemo(() => (c && c.vertices.length > 2 ? selfClearance(c) : null), [c]);
   const wallSelf = clearance ? Math.max(0, clearance.distance - 2 * profileHalfAlong(clearance, line?.profile)) : null; // #1889 (declared after clearance: TDZ otherwise); along the pass: #1924
@@ -289,7 +293,7 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
         </div>
         {!canDraw && <div style={warn}>{groundKnown ? tr("Enter the start elevation (Z): clicks in the view are taken on that level.") : tr("Enter the start elevation (Z): the project has no terrain or collars to take the ground from. Clicks in the view are taken on that level.")}</div>}
         {line.start?.zAuto && Number.isFinite(line.start?.z) && !started && <div style={note}>{tr("Z {z} is the median collar elevation, only the level clicks are taken on until the start is placed; the start then takes the ground under it.", { z: fmtEN(line.start.z) })}</div>}{/* TASKS.csv #2114 — a number with its source */}
-        {line.start?.zAuto && Number.isFinite(line.start?.z) && started && <div style={note}>{tr("Start Z taken from {src} under the start.", { src: terrain ? tr("the terrain") : tr("the nearest collar") })}</div>}
+        {line.start?.zAuto && Number.isFinite(line.start?.z) && started && <div style={note}>{terrain || !collarSurf ? tr("Start Z taken from {src} under the start.", { src: terrain ? tr("the terrain") : tr("the nearest collar") }) : tr("Start Z taken from the ground interpolated between the collars (the nearest collar is {d} m away).", { d: Math.round(collars.reduce((m, c) => (Number.isFinite(c.x) && Number.isFinite(c.y) ? Math.min(m, Math.hypot(c.x - line.start.x, c.y - line.start.y)) : m), Infinity)).toLocaleString() }) /* #3327 */}</div>}
         {startZOdd && <div style={warn}>{tr("Start Z {z} m is far from every elevation this project knows: check it.", { z: fmtEN(line.start.z) })}</div>}
 
         <div style={label}>{tr("Next segment")}</div>

@@ -27,7 +27,7 @@ test("Alteration maps an intensity column (kept as logged text)", () => {
 });
 
 test("the importer prefixes the codes of a styled Alteration file; the dialog offers the style", () => {
-  const p = fs.readFileSync("src/modules/viewer/useImportPipeline.js", "utf8");
+  const p = fs.readFileSync("src/modules/viewer/importPipelineImpl.js", "utf8");
   assert.match(p, /const altStyle = target === "alt" \? String\(data\.altStyle \?\? alterationStyleFromName\(fileName\)\)\.trim\(\) : "";/);
   assert.match(p, /if \(altStyle\) \{ r\.value = styleCode\(r\.value\); r\.alt_style = altStyle;/);
   const d = fs.readFileSync("src/components/ImportMappingModal.jsx", "utf8");

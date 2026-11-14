@@ -2,11 +2,13 @@
 // trace (0.3 mm), a collar symbol (1.6 mm), labels that do not overlap, and, when coloured (by series, a collar field or a grade:
 // #2473), a key. North is up.
 import React, { useMemo } from "react";
-import { drillPlanGeometry, placeLabels, drillPlanGrid, drillPlanColouring, colourByKind, emptiestCorner, labelBackdrop, drillPlanShapes, symbolPath, bestInterceptGT, p90Cutoff, capPlanKey } from "../lib/drillPlan.js"; // capPlanKey: #3026 // best intercept: #2685; // shapes: #2686; // labelBackdrop: #2738; // drillPlanGrid: #2301; colouring: #2473
+import { drillPlanPlanned, planTraces, traceCaption } from "../lib/drillPlan.js"; // TASKS.csv #2259; planTraces / traceCaption: #3367
+import { drillPlanGeometry, placeLabels, drillPlanGrid, drillPlanColouring, colourByKind, emptiestCorner, labelBackdrop, drillPlanShapes, symbolPath, crossPath /* #3375 */, planPoints, wrapKeyText /* #3376 */, bestInterceptGT, p90Cutoff, capPlanKey } from "../lib/drillPlan.js"; // capPlanKey: #3026 // best intercept: #2685; // shapes: #2686; // labelBackdrop: #2738; // drillPlanGrid: #2301; colouring: #2473
 import { resolvedSegments, gradeUnitLabel, computeBestIntercepts } from "../lib/geochem.js"; // TASKS.csv #2473; computeBestIntercepts: #2685
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #2685 — QC inserts are not intercepts
 import { CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
-import { printPx, printPt } from "../lib/theme.js";
+import { printPx, printPt, colors } from "../lib/theme.js"; // colors.planned: #2259
+import { isPlainUnit, toDisplay } from "../lib/displayUnits.js"; // TASKS.csv #3382 — the element's chosen display unit (#3236)
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #2686 — the shape key's circle row
 
 import { layoutFontStack } from "../lib/layoutFonts.js"; // TASKS.csv #2144
@@ -34,44 +36,86 @@ function bestInterceptInput(el, assays, key, unit, units) {
   if (!m) biCache.set(assays, (m = new Map()));
   if (!m.has(ck)) m.set(ck, bestInterceptGT(computeBestIntercepts(excludeQAQC(assays), key, unit, units, { cutoff: r.cutoff, maxInternalDilution: r.dilution, minLength: r.minLength })));
   const u = gradeUnitLabel(key, unit);
-  return { perHole: m.get(ck), biRule: `cut-off ${r.cutoff} ${u}${r.defaulted ? " (the P90)" : ""}, at most ${r.dilution} m internal dilution${r.minLength ? `, at least ${r.minLength} m` : ""}` };
+  return { perHole: m.get(ck), biRule: `cut-off ${r.cutoff} ${u}${r.defaulted ? " (the P90)" : ""}, at most ${r.dilution} m internal dilution${r.minLength ? `, at least ${r.minLength} m` : ""}`, assayed: assayedHoles(resolvedSegments(assays, key, unit, units)) /* #3375 */ };
+}
+// TASKS.csv #3375 — the holes with a result for the element (kept per segment list): the others were never assayed for it
+const assayedCache = new WeakMap();
+function assayedHoles(segs) {
+  if (!segs) return new Set();
+  let s = assayedCache.get(segs);
+  if (!s) { s = new Set(); for (const g of segs) if (Number.isFinite(Number(g.value))) s.add(String(g.hole_id ?? "")); assayedCache.set(segs, s); }
+  return s;
 }
 
 // TASKS.csv #2473 — the resolved assay segments and unit label a grade colouring needs (resolvedSegments is cached per assay list)
-export function drillPlanGradeInput(el, assays, assayElements) {
+// displayUnits (TASKS.csv #3382): project.displayUnits, the unit an element is shown in (#3236, Best intercepts / Grade stats 'Show in'): a
+// copper plan's key read '1,531,044 – 2,046,822 m × ppm' (153 – 205 m × %). Values and the cut-off are given in it; classes are unchanged.
+const shownSegCache = new WeakMap();
+export function drillPlanGradeInput(el, assays, assayElements, displayUnits = null) {
   const { kind, key } = colourByKind(el?.colourBy);
   if ((kind !== "max" && kind !== "gt" && kind !== "bi") || !key || !assays?.length) return { segs: null, unit: "" };
   const units = Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit || "ppm"]));
   const unit = units[key] || "ppm";
-  if (kind === "bi") return { ...bestInterceptInput(el, assays, key, unit, units), unit: gradeUnitLabel(key, unit) }; // #2685
-  return { segs: resolvedSegments(assays, key, unit, units), unit: gradeUnitLabel(key, unit) };
+  const chosen = displayUnits?.[key], shown = isPlainUnit(unit) && isPlainUnit(chosen) && chosen !== unit ? chosen : null;
+  const conv = (v) => (shown ? toDisplay(v, unit, shown) : v);
+  if (kind === "bi") {
+    const r = bestInterceptInput(el, assays, key, unit, units);
+    if (!shown) return { ...r, unit: gradeUnitLabel(key, unit) }; // #2685
+    return { ...r, perHole: new Map([...(r.perHole || new Map())].map(([id, v]) => [id, conv(v)])), biRule: shownCutoffRule(r.biRule, unit, shown, key), unit: gradeUnitLabel(key, shown) };
+  }
+  const segs = resolvedSegments(assays, key, unit, units);
+  if (!shown || !segs) return { segs, unit: gradeUnitLabel(key, unit) };
+  let byUnit = shownSegCache.get(segs);
+  if (!byUnit) shownSegCache.set(segs, (byUnit = new Map()));
+  if (!byUnit.has(shown)) byUnit.set(shown, segs.map((s) => ({ ...s, value: conv(Number(s.value)) })));
+  return { segs: byUnit.get(shown), unit: gradeUnitLabel(key, shown) };
+}
+// the best-intercept rule's cut-off in the display unit ('cut-off 7000 ppm (the P90)' -> 'cut-off 0.7 % (the P90)'); the rest as it is
+function shownCutoffRule(rule, unit, shown, key) {
+  const from = gradeUnitLabel(key, unit), to = gradeUnitLabel(key, shown);
+  return String(rule || "").replace(/^cut-off ([-\d.]+) (\S+)/, (m, v, u) => (u === from ? `cut-off ${+toDisplay(Number(v), unit, shown).toPrecision(6)} ${to}` : m));
 }
 
-export function drillPlanDrawing(el, collars, assays = null, assayElements = null) {
-  const g = drillPlanGeometry(el, collars);
-  const colouring0 = drillPlanColouring(el, g.holes, collars, { ...drillPlanGradeInput(el, assays, assayElements), palette: ON_WHITE, ink: INK });
+// traces (#3367): planTraces' Map, the surveyed holes' plan paths; method: the project's desurvey method (for the caption)
+export function drillPlanDrawing(el, collars, assays = null, assayElements = null, plannedHoles = null, traces = null, method = null, displayUnits = null) { // displayUnits: #3382
+  const g = drillPlanGeometry(el, collars, traces);
+  const planned = drillPlanPlanned(el, plannedHoles); // TASKS.csv #2259 — dashed, in the planned colour, labelled '(planned)'
+  const plannedKey = planned.length ? [{ label: tr("Planned hole") }] : [];
+  const colouring0 = drillPlanColouring(el, g.holes, collars, { ...drillPlanGradeInput(el, assays, assayElements, displayUnits), palette: ON_WHITE, ink: INK });
   const shapes = drillPlanShapes(collars, el.shapeBy, g.holes.map((hh) => hh.id)); // #2686 — a symbol shape by a collar field
   const shapeKey = shapes.key.map((k) => ({ ...k, label: `${el.shapeBy}: ${k.shape === "circle" ? (k.label === "not recorded" ? tr("not recorded") : tr("other / not recorded")) : k.label}` }));
   const fontPx = printPx(el.fontPt || printPt.caption);
   // TASKS.csv #3026 — a key of 125 series ran 1,672 px down an 800 px frame: it lists the rows the frame holds and says how many it left out
   const colouring = { ...colouring0, key: capPlanKey(colouring0.key, { frameH: g.h, rowPx: fontPx + 4, keyLines: [colouring0.title, colouring0.note].filter(Boolean).length, extra: shapeKey.length, moreLabel: (n) => tr("+ {n} more, not listed", { n }) }) };
   const f = String(el.labelFilter || "").trim().toLowerCase();
-  const toLabel = el.labels === "none" ? [] : g.holes.filter((hh) => hh.inside && (!f || hh.id.toLowerCase().includes(f))).map((hh) => ({ id: hh.id, x: hh.ax, y: hh.ay }));
+  const toLabel = el.labels === "none" ? [] : [...g.holes, ...planned].filter((hh) => hh.inside && (!f || hh.id.toLowerCase().includes(f))).map((hh) => ({ id: hh.planned ? tr("{name} (planned)", { name: hh.id }) : hh.id, x: hh.ax, y: hh.ay })); // planned: #2259
   // the key's box (top left), which no hole label may run under (#2473)
-  const keyLines = [colouring.title, colouring.note].filter(Boolean), keyRow = fontPx + 4;
-  const keyRows = colouring.key.length + shapeKey.length; // #2686 — the shapes listed under the colours
-  let keyBox = keyRows ? { x: 6, y: 6, lines: keyLines, row: keyRow,
-    w: Math.max(0, ...[...colouring.key, ...shapeKey].map((k) => k.label.length * fontPx * 0.56 + 26), ...keyLines.map((t, i) => t.length * (i ? fontPx - 1 : fontPx) * (i ? 0.5 : 0.56) + 16)),
-    h: (keyLines.length + keyRows) * keyRow + 6 } : null;
-  // TASKS.csv #2611 — the key in the corner with the fewest holes (the top left held the first northing label and the collars)
-  if (keyBox) {
-    keyBox = { ...keyBox, ...emptiestCorner(g.holes, g.w, g.h, keyBox.w, keyBox.h) };
+  const keyRows = colouring.key.length + shapeKey.length + plannedKey.length; // #2686 — the shapes listed under the colours; #2259 — then the planned hole
+  // TASKS.csv #3376 (review #3195) — the title and note wrap to min(45 % of the frame, 70 mm) (the note set a 503 px key in a 480 px frame,
+  // over a hole and every easting label); the corner is chosen by the holes' traces as well as their collars, and when every corner still
+  // holds a hole the key's text goes one size down. under: the holes it still covers, for the sidebar.
+  const maxKeyW = Math.max(150, Math.min(g.w * 0.45, 70 * MM_PX));
+  const keyAt = (fp) => {
+    const titleLines = wrapKeyText(colouring.title, maxKeyW - 16, fp * 0.56), noteLines = wrapKeyText(colouring.note, maxKeyW - 16, (fp - 1) * 0.5);
+    const lines = [...titleLines, ...noteLines], row = fp + 4;
+    return { x: 6, y: 6, lines, bold: titleLines.length, row, fontPx: fp,
+      w: Math.max(0, ...[...colouring.key, ...shapeKey, ...plannedKey].map((k) => k.label.length * fp * 0.56 + 26), ...lines.map((t, i) => t.length * (i < titleLines.length ? fp * 0.56 : (fp - 1) * 0.5) + 16)),
+      h: (lines.length + keyRows) * row + 6 };
+  };
+  let keyBox = null;
+  if (keyRows) {
+    const pts = planPoints([...g.holes, ...planned]);
+    const place = (b) => ({ ...b, ...emptiestCorner([...g.holes, ...planned], g.w, g.h, b.w, b.h, pts) });
+    keyBox = place(keyAt(fontPx));
+    if (keyBox.under > 0 && fontPx > printPx(5)) { const small = place(keyAt(Math.max(printPx(5), fontPx - 1.5))); if (small.under < keyBox.under) keyBox = small; }
   }
   // TASKS.csv #2611 — labels keep off the other holes' collars as well as each other
   const r = (el.collarMm || 0.8) * MM_PX + 1;
-  const collarBoxes = g.holes.filter((hh) => hh.inside).map((hh) => ({ x0: hh.ax - r, y0: hh.ay - r, x1: hh.ax + r, y1: hh.ay + r }));
+  const collarBoxes = [...g.holes, ...planned].filter((hh) => hh.inside).map((hh) => ({ x0: hh.ax - r, y0: hh.ay - r, x1: hh.ax + r, y1: hh.ay + r }));
   const labels = placeLabels(toLabel, { fontPx, w: g.w, h: g.h, avoid: [...(keyBox ? [{ x0: keyBox.x, y0: keyBox.y, x1: keyBox.x + keyBox.w, y1: keyBox.y + keyBox.h }] : []), ...collarBoxes] });
-  return { ...g, colouring, shapes, shapeKey, fontPx, labels, labelled: toLabel.length, keyBox };
+  // TASKS.csv #3367 — the sheet says how the traces were drawn: along the surveys, straight, or both
+  const caption = traceCaption({ surveyed: g.holes.filter((hh) => hh.surveyed).length, straight: g.holes.filter((hh) => !hh.surveyed).length, planned: planned.length, method });
+  return { ...g, planned, plannedKey, caption, colouring, shapes, shapeKey, fontPx, labels, labelled: toLabel.length, keyBox };
 }
 
 // TASKS.csv #3182 (#3028 (8), review #2876) — the grid caption and the first northing label touched the frame ('...(EPSG:28350' looked cut): a
@@ -85,9 +129,10 @@ export function gridLabelPlace(t, axis, fontPx, w, h) {
 }
 
 // gridCaption (#2301): what the grid's numbers are ('local mine grid', the CRS name), from the page
-export default function DrillPlanElement({ el, collars, gridCaption = "", assays = null, assayElements = null }) {
+export default function DrillPlanElement({ el, collars, gridCaption = "", assays = null, assayElements = null, plannedHoles = null, survey = null, desurveyMethod = null, displayUnits = null }) { // plannedHoles: #2259; survey / desurveyMethod: #3367; displayUnits: #3382
   const FONT = layoutFontStack(el?.fontFamily); // TASKS.csv #2144 — the element's typeface (none: Exo 2)
-  const d = useMemo(() => drillPlanDrawing(el, collars, assays, assayElements), [el, collars, assays, assayElements]);
+  const traces = useMemo(() => planTraces(collars, survey, desurveyMethod), [collars, survey, desurveyMethod]); // #3367 — kept per collars / survey / method
+  const d = useMemo(() => drillPlanDrawing(el, collars, assays, assayElements, plannedHoles, traces, desurveyMethod, displayUnits), [el, collars, assays, assayElements, plannedHoles, traces, desurveyMethod, displayUnits]);
   const grid = useMemo(() => drillPlanGrid(el), [el]);
   const line = 0.3 * MM, { colouring, keyBox } = d; // keyBox: placed in drillPlanDrawing (#2611)
   const styles = useMemo(() => new Map(d.holes.map((hh) => [hh.id, d.colouring.styleOf(hh.id, hh.series)])), [d]);
@@ -113,29 +158,47 @@ export default function DrillPlanElement({ el, collars, gridCaption = "", assays
             {boxed("cap", cap, d.w - GRID_INSET, d.h - GRID_INSET, "end")}
           </g>;
         })()}
-        {d.holes.map((hh) => <line key={`t${hh.id}`} x1={hh.ax} y1={hh.ay} x2={hh.bx} y2={hh.by} stroke={styles.get(hh.id).hollow ? INK : styles.get(hh.id).colour} strokeWidth={line} strokeLinecap="round" />)}
+        {d.caption && (() => { /* TASKS.csv #3367 — how the traces were drawn, on the sheet: above the grid caption, or in its place */
+          const gf = Math.max(6, d.fontPx - 1), y = d.h - GRID_INSET - (grid ? gf + 4 : 0), b = labelBackdrop(d.caption, d.w - GRID_INSET, y, gf, "end");
+          return <g fontSize={gf} fill="#55606e" fontFamily={FONT}><rect x={b.x} y={b.y} width={b.w} height={b.h} fill="#ffffff" fillOpacity="0.85" /><text x={d.w - GRID_INSET} y={y} textAnchor="end">{d.caption}</text></g>;
+        })()}
+        {d.holes.map((hh) => hh.path /* #3367 — along the survey */
+          ? <polyline key={`t${hh.id}`} points={hh.path.map(([x, y]) => `${x},${y}`).join(" ")} fill="none" stroke={styles.get(hh.id).hollow ? INK : styles.get(hh.id).colour} strokeWidth={line} strokeLinecap="round" strokeLinejoin="round" />
+          : <line key={`t${hh.id}`} x1={hh.ax} y1={hh.ay} x2={hh.bx} y2={hh.by} stroke={styles.get(hh.id).hollow ? INK : styles.get(hh.id).colour} strokeWidth={line} strokeLinecap="round" />)}
         {/* #2473 — a hole with no value is a hollow ring; higher grade classes are drawn last, on top */}
         {d.holes.filter((hh) => hh.inside).sort((a, b) => styles.get(a.id).rMm - styles.get(b.id).rMm).map((hh) => { const s = styles.get(hh.id), r = rOf(s), path = symbolPath(d.shapes.shapeOf(hh.id), hh.ax, hh.ay, r); /* #2686; r: #3017 */ const hollowFill = dense.halo ? "#ffffff" : "none"; return path
-          ? <path key={`c${hh.id}`} d={path} fill={s.hollow ? hollowFill : s.colour} stroke={s.hollow ? s.colour : dense.halo ? "#ffffff" : "none"} strokeWidth={s.hollow ? 0.9 : 0.6} />
+          ? <g key={`c${hh.id}`}><path d={path} fill={s.hollow ? hollowFill : s.colour} stroke={s.hollow ? s.colour : dense.halo ? "#ffffff" : "none"} strokeWidth={s.hollow ? 0.9 : 0.6} />{s.cross && <path d={crossPath(hh.ax, hh.ay, r)} stroke={s.colour} strokeWidth={0.8} fill="none" /> /* #3375 */}</g>
+          : s.cross /* #3375 — not assayed: a crossed ring */
+          ? <g key={`c${hh.id}`}><circle cx={hh.ax} cy={hh.ay} r={r} fill={hollowFill} stroke={s.colour} strokeWidth={0.9} /><path d={crossPath(hh.ax, hh.ay, r)} stroke={s.colour} strokeWidth={0.8} fill="none" /></g>
           : s.hollow
           ? <circle key={`c${hh.id}`} cx={hh.ax} cy={hh.ay} r={r} fill={hollowFill} stroke={s.colour} strokeWidth={0.9} />
           : <circle key={`c${hh.id}`} cx={hh.ax} cy={hh.ay} r={r} fill={s.colour} stroke={dense.halo ? "#ffffff" : "none"} strokeWidth={0.6} />; })}
+        {/* TASKS.csv #2259 — planned holes: a dashed trace and a hollow ring in the planned colour, over the drilled ones */}
+        {d.planned.map((hh) => <line key={`pt${hh.id}`} x1={hh.ax} y1={hh.ay} x2={hh.bx} y2={hh.by} stroke={colors.planned} strokeWidth={line} strokeDasharray={`${0.9 * MM} ${0.6 * MM}`} />)}
+        {d.planned.filter((hh) => hh.inside).map((hh) => <circle key={`pc${hh.id}`} cx={hh.ax} cy={hh.ay} r={(el.collarMm || 0.8) * MM} fill="#ffffff" stroke={colors.planned} strokeWidth={0.9} />)}
         {d.labels.placed.map((l) => { const b = labelBackdrop(l.id, l.x, l.y, d.fontPx, l.anchor); return <g key={`l${l.id}`}><rect x={b.x} y={b.y} width={b.w} height={b.h} fill="#ffffff" fillOpacity="0.85" /><text x={l.x} y={l.y} textAnchor={l.anchor} fontSize={d.fontPx} fill={INK} fontFamily={FONT}>{l.id}</text></g>; })}{/* #2738 — boxed, not haloed */}
       </g>
       {keyBox && (
         <g transform={`translate(${keyBox.x},${keyBox.y})`}>
           <rect x="0" y="0" width={keyBox.w} height={keyBox.h} fill="rgba(255,255,255,0.9)" stroke="#c9ced4" />
-          {keyBox.lines.map((t, i) => <text key={`kt${i}`} x="8" y={8 + i * keyBox.row + d.fontPx - 1} fontSize={i ? d.fontPx - 1 : d.fontPx} fontWeight={i ? 400 : 600} fill={i ? "#55606e" : INK} fontFamily={FONT}>{t}</text>)}
+          {keyBox.lines.map((t, i) => <text key={`kt${i}`} x="8" y={8 + i * keyBox.row + keyBox.fontPx - 1} fontSize={i >= keyBox.bold ? keyBox.fontPx - 1 : keyBox.fontPx} fontWeight={i >= keyBox.bold ? 400 : 600} fill={i >= keyBox.bold ? "#55606e" : INK} fontFamily={FONT}>{t}</text>) /* #3376 — the title's wrapped lines bold */}
           {colouring.key.map((k, i) => (
             <g key={`k${i}`} transform={`translate(8,${8 + (keyBox.lines.length + i) * keyBox.row})`}>
-              {k.note ? null /* #3026 — the '+ n more' line */ : k.hollow ? <circle cx="4" cy={d.fontPx / 2 - 1} r={k.rMm * MM} fill="#ffffff" stroke={k.colour} strokeWidth={0.9} /> : <circle cx="4" cy={d.fontPx / 2 - 1} r={k.rMm * MM} fill={k.colour} />}
-              <text x="14" y={d.fontPx - 1} fontSize={d.fontPx} fill={INK} fontFamily={FONT}>{k.label}</text>
+              {k.note ? null /* #3026 — the '+ n more' line */ : k.cross ? <g><circle cx="4" cy={keyBox.fontPx / 2 - 1} r={k.rMm * MM} fill="#ffffff" stroke={k.colour} strokeWidth={0.9} /><path d={crossPath(4, keyBox.fontPx / 2 - 1, k.rMm * MM)} stroke={k.colour} strokeWidth={0.8} fill="none" /></g> /* #3375 */ : k.hollow ? <circle cx="4" cy={keyBox.fontPx / 2 - 1} r={k.rMm * MM} fill="#ffffff" stroke={k.colour} strokeWidth={0.9} /> : <circle cx="4" cy={keyBox.fontPx / 2 - 1} r={k.rMm * MM} fill={k.colour} />}
+              <text x="14" y={keyBox.fontPx - 1} fontSize={keyBox.fontPx} fill={INK} fontFamily={FONT}>{k.label}</text>
             </g>
           ))}
-          {d.shapeKey.map((k, i) => { const cy = d.fontPx / 2 - 1, r = (el.collarMm || 0.8) * MM, path = symbolPath(k.shape, 4, cy, r); /* #2686 */ return (
+          {d.plannedKey.map((k, i) => ( /* TASKS.csv #2259 */
+            <g key={`kp${i}`} transform={`translate(8,${8 + (keyBox.lines.length + colouring.key.length + d.shapeKey.length + i) * keyBox.row})`}>
+              <line x1="-2" y1={keyBox.fontPx / 2 - 1} x2="10" y2={keyBox.fontPx / 2 - 1} stroke={colors.planned} strokeWidth={line} strokeDasharray={`${0.9 * MM} ${0.6 * MM}`} />
+              <circle cx="4" cy={keyBox.fontPx / 2 - 1} r={(el.collarMm || 0.8) * MM} fill="#ffffff" stroke={colors.planned} strokeWidth={0.9} />
+              <text x="14" y={keyBox.fontPx - 1} fontSize={keyBox.fontPx} fill={INK} fontFamily={FONT}>{k.label}</text>
+            </g>
+          ))}
+          {d.shapeKey.map((k, i) => { const cy = keyBox.fontPx / 2 - 1, r = (el.collarMm || 0.8) * MM, path = symbolPath(k.shape, 4, cy, r); /* #2686 */ return (
             <g key={`ks${i}`} transform={`translate(8,${8 + (keyBox.lines.length + colouring.key.length + i) * keyBox.row})`}>
               {path ? <path d={path} fill="#ffffff" stroke={INK} strokeWidth={0.9} /> : <circle cx="4" cy={cy} r={r} fill="#ffffff" stroke={INK} strokeWidth={0.9} />}
-              <text x="14" y={d.fontPx - 1} fontSize={d.fontPx} fill={INK} fontFamily={FONT}>{k.label}</text>
+              <text x="14" y={keyBox.fontPx - 1} fontSize={keyBox.fontPx} fill={INK} fontFamily={FONT}>{k.label}</text>
             </g>
           ); })}
         </g>

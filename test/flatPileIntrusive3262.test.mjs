@@ -31,7 +31,7 @@ test("#3262 the model check's other side: the metres of other rock the model put
   assert.equal(t.otherIn, 2297);
   assert.deepEqual(t.units, [{ unit: "i9", called: 2782, loggedAs: 485, otherIn: 2297 }]);
   assert.equal(Math.round((100 * 485) / 2782), 17, "Galore's 17 %");
-  const src = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
+  const src = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(src, /const pile = looksLikeFlatPile\(\{ dip, misfit: planeMisfitM\(\[\.\.\.first\.values\(\)\]\), medianRunM: /);
   assert.match(src, /const ib = pile && unitVals \? interbeds\(/);
   assert.match(src, /Model check, the other side: the model also puts \{m\} of the \{total\} logged metres of other rock inside the modelled units/);

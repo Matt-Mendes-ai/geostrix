@@ -41,6 +41,6 @@ test("wired", () => {
   const m = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
   assert.match(m, /Object\.assign\(base, placeCollarTable\(elements, A4, \{ w: 520, fontPt: 7, total: collars\.length \}\)\)/); // #2135: the sheet fit moved into placeCollarTable
   assert.match(m, /const sl = collarTableSlice\(cs, \{ firstRow: el\.firstRow, maxRows: el\.maxRows, filter: el\.holeFilter \}\);/);
-  assert.match(m, /addLayoutPages\(conts\.map/);
+  assert.match(m, /addLayoutPages(\(|, setLayoutPageFormat, )conts\.map/); // #3370: on the table's paper
   assert.doesNotMatch(m, /or add a second table/);
 });

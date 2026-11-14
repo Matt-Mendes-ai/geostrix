@@ -149,7 +149,7 @@ export const productRevenue = (grade, pen, e) => {
   (e.penalties || []).forEach((l, k) => { const x = pen?.[k]; if (Number.isFinite(x) && x > l.limit) v -= l.perUnit * (x - l.limit); });
   return P.f * v;
 };
-export function pitEconomics({ unit, element = null, price, priceUnit, recovery, processingCost, revenueFactor = 1, by = null, typedCutoff = null, priceBasis = "metal", refGrade = null, adjPerUnit = null, penalties = null }) {
+export function pitEconomics({ unit, element = null, price, priceUnit, recovery, processingCost, revenueFactor = 1, by = null, alsoPrices = null, typedCutoff = null, priceBasis = "metal", refGrade = null, adjPerUnit = null, penalties = null }) {
   const m = pitMetalOf(unit, element); // #1748
   if (!m) return null;
   if (priceBasis === "product") { // #2986 part 2
@@ -170,6 +170,15 @@ export function pitEconomics({ unit, element = null, price, priceUnit, recovery,
   // recovery: its revenue per tonne per unit of ITS grade; a block's revenue is the sum over the metals (cellRevenue), so the ore
   // decision and the pit follow both. by: { unit, element, price, priceUnit, recovery }; the revenue factor scales both prices.
   if (by) { const b = pitEconomics({ ...by, by: null, typedCutoff: null, processingCost, revenueFactor }); e.by = b; e.byFailed = !b; }
+  // TASKS.csv #3311 (review Galore Creek) — a Cu-Au-Ag porphyry: one by-product could be priced, so the third metal (silver, about 5 % of
+  // the revenue) was left out of the revenue and the ore decision and reported as a grade only. A 'report these grades too' grade can carry
+  // its own price and recovery: alsoPrices[k] (aligned with the also grades; null = reported only) is priced as a by-product is, and a
+  // block's revenue sums every priced metal (cellRevenue).
+  if (Array.isArray(alsoPrices) && alsoPrices.some(Boolean)) {
+    e.alsoPriced = alsoPrices.map((a) => (a ? pitEconomics({ ...a, by: null, alsoPrices: null, typedCutoff: null, processingCost, revenueFactor }) : null));
+    const bad = alsoPrices.findIndex((a, k) => a && !e.alsoPriced[k]);
+    if (bad >= 0) e.alsoFailed = bad + 1;
+  }
   return e;
 }
 
@@ -180,7 +189,17 @@ export const marginPerTonne = (grade, e, miningCost, processingCost) => {
   return rev > processingCost ? rev - processingCost - miningCost : -miningCost;
 };
 // TASKS.csv #1917 — a block's revenue per tonne summed over the metals (c.by: its by-product grade, from joinByProduct), and its margin
-export const cellRevenue = (c, e) => (e.product ? productRevenue(c.value, c.pen, e) /* #2986 part 2 */ : c.value * e.revenuePerGrade + (e.by && c.by > 0 ? c.by * e.by.revenuePerGrade : 0));
+export const cellRevenue = (c, e) => (e.product ? productRevenue(c.value, c.pen, e) /* #2986 part 2 */ : c.value * e.revenuePerGrade + (e.by && c.by > 0 ? c.by * e.by.revenuePerGrade : 0) + (e.alsoPriced ? alsoRevenue(c, e.alsoPriced) : 0) /* #3311 */);
+// TASKS.csv #3311 — the priced 'report too' grades' revenue per tonne of a block (c.also: joinAlso's grades, NaN where the block has none)
+function alsoRevenue(c, priced) {
+  let r = 0;
+  for (let a = 0; a < priced.length; a++) { const p = priced[a], v = c.also?.[a]; if (p && v > 0) r += v * p.revenuePerGrade; }
+  return r;
+}
+// TASKS.csv #3312 (review Galore Creek) — whether a block is ore, as the shell decides it (cellMargin): a typed cut-off on the main grade when
+// one is in force, else revenue over every priced metal against the processing cost. The pit design used the revenue test whenever there was
+// a by-product, so a typed 2,000 ppm cut-off was ignored: 433 Mt of 'ore' in a 341 Mt shell.
+export const cellIsOre = (c, e, processingCost) => (e?.cutoffTyped ? c.value >= e.cutoff : cellRevenue(c, e) > processingCost);
 export const cellMargin = (c, e, miningCost, processingCost) => { const rev = cellRevenue(c, e); if (e.cutoffTyped) return c.value >= e.cutoff ? rev - processingCost - miningCost : -miningCost; /* #2986 — on the main grade */ return rev > processingCost ? rev - processingCost - miningCost : -miningCost; };
 // the by-product model's grades joined to the main model's blocks by block centre (to the centimetre): the same grid, so the same
 // centres. A block without a match keeps no by-product grade; no match at all means another grid. -> { cells, matched }
@@ -210,16 +229,29 @@ export { collarsLookUnderground, BENCH_PLAN_M, BENCH_RL_M, collarBenches, collar
 // TASKS.csv #2277 (review #2174, WA lode gold) — how far the ore-grade blocks (value at or above the cut-off grade) lie below the highest
 // collar, the nearest the surface the data knows: the pit's own depth is measured from its ground, which on a project drilled from
 // underground is a surface through the drill positions. -> null (no collar, no cut-off, no ore block) or { top, min, median, max, n, underground }
-export function oreDepthBelowCollars(cells, cutoff, collars, survey = []) {
+// TASKS.csv #3315 (review Galore Creek) — every pit pane said the ore lies '823-1,498 m below the highest collar (1,596 m RL) ... deep for an
+// open pit' about ore within 20 m of the local ground: the highest collar was 6.4 km away on a property with 1,140 m of relief. Each ore
+// block is now measured from the ground over its own column, the ground the pit itself uses: groundAt (the terrain), else the surface
+// interpolated between the collars (collarGround). Only collars that look underground (#2277, where that surface is a false ground: a
+// surface through the cuddies) keep the highest collar. -> { top (the highest collar), min, median, max, n, underground, from: "terrain" |
+// "collars" | "highest collar" }
+export function oreDepthBelowCollars(cells, cutoff, collars, survey = [], groundAt = null) {
   const zs = (collars || []).map((c) => c?.z).filter(Number.isFinite);
-  if (!zs.length || !Number.isFinite(cutoff)) return null;
+  if ((!zs.length && !groundAt) || !Number.isFinite(cutoff)) return null;
   let top = -Infinity;
   for (const z of zs) if (z > top) top = z;
+  const underground = zs.length ? collarsLookUnderground(collars, survey).underground : false;
+  const local = underground ? null : groundAt || (zs.length ? collarGround(collars) : null);
+  const from = underground || !local ? "highest collar" : groundAt ? "terrain" : "collars";
   const d = [];
-  for (const c of cells || []) if (Number.isFinite(c?.value) && c.value >= cutoff && Number.isFinite(c.z)) d.push(top - c.z);
+  for (const c of cells || []) {
+    if (!(Number.isFinite(c?.value) && c.value >= cutoff && Number.isFinite(c.z))) continue;
+    const g = local ? local(c.x, c.y) : top;
+    if (Number.isFinite(g)) d.push(g - c.z);
+  }
   if (!d.length) return null;
   d.sort((a, b) => a - b);
-  return { top, min: d[0], median: d[Math.floor(d.length / 2)], max: d[d.length - 1], n: d.length, underground: collarsLookUnderground(collars, survey).underground };
+  return { top, min: d[0], median: d[Math.floor(d.length / 2)], max: d[d.length - 1], n: d.length, underground, from };
 }
 // When the depth is worth a verdict: the ore's median 200 m or more below the highest collar (deeper than most open pits' ore), or 100 m
 // with the collars underground (drill positions on mine levels: the ore is reached from there). Warning thresholds, not facts about a deposit.
@@ -585,7 +617,7 @@ export function pitSummary(grid, mined) {
   }
   const wasteT = rockT - oreT;
   // #2995 — each other grade over the ore: its mean over the ore tonnes that have one, and the share of the ore they are
-  const also = (grid.metalA || []).map((m, a) => { let mt = 0, ot = 0; for (let q = 0; q < mined.length; q++) if (mined[q]) { mt += m[q]; ot += grid.oreA[a][q]; } return { meanGrade: ot > 0 ? mt / ot : null, oreShare: oreT > 0 ? ot / oreT : 0 }; });
+  const also = (grid.metalA || []).map((m, a) => { let mt = 0, ot = 0; for (let q = 0; q < mined.length; q++) if (mined[q]) { mt += m[q]; ot += grid.oreA[a][q]; } return { meanGrade: ot > 0 ? mt / ot : null, oreShare: oreT > 0 ? ot / oreT : 0, metalU: mt /* #3311 */ }; });
   return { blocks, oreT, wasteT, rockT, stripRatio: oreT > 0 ? wasteT / oreT : null, meanGrade: oreT > 0 ? metalU / oreT : null, metalU, metalU2, also, meanGrade2: oreT > 0 ? metalU2 / oreT : null /* #1917 */, money, barrenShare: rockT > 0 ? 1 - modelT / rockT : 0,
     oreSingleHoleShare: oreT > 0 ? thin / oreT : 0, oreExtrapolatedShare: oreT > 0 ? extrap / oreT : 0, oreBeyondSampleShare: oreT > 0 ? beyond / oreT : 0, oreNearUnsampledShare: oreT > 0 ? nearUns / oreT : 0 /* #2596 */, oreFromLogMetalShare: metalU > 0 ? fromLog / metalU : 0 /* #2748 — of the metal, as Grade-tonnage's column */, weatheredT: weath }; // #1354; beyond: #2435; weatheredT: #2597
 }
@@ -683,11 +715,42 @@ export function weatheredOf(w) {
   const at = pts.length ? idwGround(pts) : null; // #2584: depths, not collars
   return at ? { density: w.density, depthAt: at } : null;
 }
+// TASKS.csv #3313 (review Galore Creek) — with no terrain the pit stands on a surface interpolated between the collars (#1353), and on a
+// property of far-flung holes much of the pit is far from any of them: 42 % of the columns over 300 m away, the rim climbing towards one hole
+// 1 km off, unsaid. The mined columns farther than `reachM` (one hole spacing: the collars' median nearest-neighbour distance, at least
+// 300 m) from every collar, with the waste they hold and the ground's range over them. -> { reachM, cols, colsAll, wasteShare, wasteT,
+// groundMin, groundMax } or null
+export function farFromCollars(grid, mined, collars) {
+  const P = (collars || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y));
+  if (!grid || !mined || !P.length) return null;
+  let nn = [];
+  if (P.length > 1) for (let i = 0; i < P.length; i++) { let b = Infinity; for (let j = 0; j < P.length; j++) if (j !== i) { const d = Math.hypot(P[i].x - P[j].x, P[i].y - P[j].y); if (d < b) b = d; } nn.push(b); }
+  nn = nn.sort((a, b) => a - b);
+  const reachM = Math.max(300, nn.length ? nn[nn.length >> 1] : 0);
+  const { nx, ny, nz, x0, y0, dx, dy, ground } = grid, NC = nx * ny;
+  let cols = 0, colsAll = 0, wasteT = 0, wasteAll = 0, gMin = Infinity, gMax = -Infinity;
+  for (let c = 0; c < NC; c++) {
+    let w = 0, any = false;
+    for (let k = 0; k < nz; k++) { const q = k * NC + c; if (mined[q]) { any = true; w += grid.rockT[q] - grid.oreT[q]; } }
+    if (!any) continue;
+    colsAll++; wasteAll += w;
+    const x = x0 + ((c % nx) + 0.5) * dx, y = y0 + (Math.floor(c / nx) + 0.5) * dy;
+    let near = Infinity;
+    for (const p of P) { const d = Math.hypot(p.x - x, p.y - y); if (d < near) { near = d; if (near <= reachM) break; } }
+    if (near <= reachM) continue;
+    cols++; wasteT += w;
+    const g = ground?.[c];
+    if (Number.isFinite(g)) { if (g < gMin) gMin = g; if (g > gMax) gMax = g; }
+  }
+  if (!colsAll) return null;
+  return { reachM, cols, colsAll, wasteT, wasteShare: wasteAll > 0 ? wasteT / wasteAll : 0, groundMin: Number.isFinite(gMin) ? gMin : null, groundMax: Number.isFinite(gMax) ? gMax : null };
+}
 // the whole run, for the worker and the tests. inputs: { cells, unit, price, priceUnit, recovery, miningCost, processingCost, density, slopeDeg, revenueFactor, size }; ground as for buildPitGrid
 export function runPitShell(inputs, { groundAt = null, collars = null, onProgress = null } = {}) {
   const economics = pitEconomics(inputs);
   if (!economics) return { failed: "units" };
   if (economics.byFailed) return { failed: "by-units" }; // #1917
+  if (economics.alsoFailed) return { failed: "also-units", which: economics.alsoFailed - 1 }; // #3311 — a priced grade in units no price fits
   // TASKS.csv #1917 — the by-product's grades joined to the blocks; another grid matches no block and is refused
   let cells = inputs.cells, byMatched = null;
   if (inputs.by) { const j = joinByProduct(cells, inputs.byCells); if (!j.matched) return { failed: "by-grid" }; cells = j.cells; byMatched = j.matched / cells.length; }
@@ -709,10 +772,13 @@ export function runPitShell(inputs, { groundAt = null, collars = null, onProgres
   const solve = solvePit(grid, inputs.slopeDeg, { onProgress, sectorSlopes: inputs.sectorSlopes, upper: inputs.upperSlope || null /* #2439 */ }); // #1881
   const summary = pitSummary(grid, solve.mined);
   if (!summary.blocks) return { empty: true, cutoff: economics.cutoff, cell: [grid.dx, grid.dy, grid.dz], groundSource };
+  const farGround = groundSource === "collars" ? farFromCollars(grid, solve.mined, collars) : null; // #3313
   // #1917 — the by-product's figures: its metal, mean grade over the ore, its share of the revenue, and how many blocks carried it
-  const by = economics.by ? (() => { const r1 = summary.metalU * economics.revenuePerGrade, r2 = summary.metalU2 * economics.by.revenuePerGrade; return { metalU: summary.metalU2, meanGrade: summary.meanGrade2, metalUnit: economics.by.metalUnit, metalFactor: economics.by.metalFactor, cutoff: economics.by.cutoff, revenueShare: r1 + r2 > 0 ? r2 / (r1 + r2) : 0, matchedShare: byMatched }; })() : null;
-  const alsoGrades = alsoInfo ? alsoInfo.map((a, k) => ({ ...a, meanGrade: summary.also[k]?.meanGrade ?? null, oreShare: summary.also[k]?.oreShare ?? 0 })) : null; // #2995
-  return { ...summary, alsoGrades, penaltyMatched: penMatched /* #2986 part 2 */, productT: economics.product ? summary.oreT * economics.product.yieldPct / 100 : null, ...pitSurface(grid, solve.mined), by, parts: pitParts(grid, solve.mined) /* #1608 */, limitM: grid.limitM, limitedCols: grid.limitedCols /* #2665 */, oreAboveGroundT: grid.oreAboveGroundT, oreAboveGroundBlocks: grid.oreAboveGroundBlocks /* #1616 */, askedSize: grid.askedSize, modelCellM: grid.modelCell, modelCellZM: grid.modelCellZ /* #2110 */ /* #1610 */, cutoff: economics.cutoff, cutoffTyped: !!economics.cutoffTyped, breakEven: economics.breakEven ?? null /* #2986 */, metalUnit: economics.metalUnit, metalFactor: economics.metalFactor, cell: [grid.dx, grid.dy, grid.dz], grid: [grid.nx, grid.ny, grid.nz], walls: wallAngles(grid.dx, grid.dy, grid.dz, inputs.slopeDeg, null, inputs.sectorSlopes) /* levels: #2985 */, upperWalls: inputs.upperSlope?.slopeDeg > 0 && inputs.upperSlope.slopeDeg < 90 ? wallAngles(grid.dx, grid.dy, grid.dz, inputs.upperSlope.slopeDeg) : null /* #2985 */, groundSource, nodes: solve.nodes, arcs: solve.arcs, topAssumed: grid.topAssumed / (grid.nx * grid.ny), coarsened: grid.coarsened };
+  // #3311 — the priced 'report too' grades' revenue, so every share is of the revenue over all the priced metals
+  const rA = (economics.alsoPriced || []).map((p, k) => (p ? (summary.also[k]?.metalU || 0) * p.revenuePerGrade : 0)), rAll = summary.metalU * economics.revenuePerGrade + (economics.by ? summary.metalU2 * economics.by.revenuePerGrade : 0) + rA.reduce((t, x) => t + x, 0);
+  const by = economics.by ? (() => { const r2 = summary.metalU2 * economics.by.revenuePerGrade; return { metalU: summary.metalU2, meanGrade: summary.meanGrade2, metalUnit: economics.by.metalUnit, metalFactor: economics.by.metalFactor, cutoff: economics.by.cutoff, revenueShare: rAll > 0 ? r2 / rAll : 0 /* #3311: of every priced metal (was r1 + r2) */, matchedShare: byMatched }; })() : null;
+  const alsoGrades = alsoInfo ? alsoInfo.map((a, k) => { const p = economics.alsoPriced?.[k]; return { ...a, meanGrade: summary.also[k]?.meanGrade ?? null, oreShare: summary.also[k]?.oreShare ?? 0, ...(p ? { priced: { metalU: summary.also[k]?.metalU || 0, metalUnit: p.metalUnit, metalFactor: p.metalFactor, cutoff: p.cutoff, revenueShare: rAll > 0 ? rA[k] / rAll : 0 } } : {}) /* #3311 */ }; }) : null; // #2995
+  return { ...summary, farGround /* #3313 */, alsoGrades, penaltyMatched: penMatched /* #2986 part 2 */, productT: economics.product ? summary.oreT * economics.product.yieldPct / 100 : null, ...pitSurface(grid, solve.mined), by, parts: pitParts(grid, solve.mined) /* #1608 */, limitM: grid.limitM, limitedCols: grid.limitedCols /* #2665 */, oreAboveGroundT: grid.oreAboveGroundT, oreAboveGroundBlocks: grid.oreAboveGroundBlocks /* #1616 */, askedSize: grid.askedSize, modelCellM: grid.modelCell, modelCellZM: grid.modelCellZ /* #2110 */ /* #1610 */, cutoff: economics.cutoff, cutoffTyped: !!economics.cutoffTyped, breakEven: economics.breakEven ?? null /* #2986 */, metalUnit: economics.metalUnit, metalFactor: economics.metalFactor, cell: [grid.dx, grid.dy, grid.dz], grid: [grid.nx, grid.ny, grid.nz], walls: wallAngles(grid.dx, grid.dy, grid.dz, inputs.slopeDeg, null, inputs.sectorSlopes) /* levels: #2985 */, upperWalls: inputs.upperSlope?.slopeDeg > 0 && inputs.upperSlope.slopeDeg < 90 ? wallAngles(grid.dx, grid.dy, grid.dz, inputs.upperSlope.slopeDeg) : null /* #2985 */, groundSource, nodes: solve.nodes, arcs: solve.arcs, topAssumed: grid.topAssumed / (grid.nx * grid.ny), coarsened: grid.coarsened };
 }
 
 // TASKS.csv #1875 — what a shell is worth at the ENTERED price (#1609 valued a revenue-factor shell at the scaled price): the
@@ -720,7 +786,7 @@ export function runPitShell(inputs, { groundAt = null, collars = null, onProgres
 // ore / waste split (a block the lower price sent to waste stays waste here)
 export function pitValueAt(grid, mined, economics, miningCost, processingCost) {
   let money = 0;
-  for (let q = 0; q < mined.length; q++) if (mined[q]) money += grid.metalU[q] * economics.revenuePerGrade + (economics.by && grid.metalU2 ? grid.metalU2[q] * economics.by.revenuePerGrade : 0) /* #1917 */ - grid.oreT[q] * processingCost - grid.rockT[q] * miningCost;
+  for (let q = 0; q < mined.length; q++) if (mined[q]) money += grid.metalU[q] * economics.revenuePerGrade + (economics.by && grid.metalU2 ? grid.metalU2[q] * economics.by.revenuePerGrade : 0) /* #1917 */ + (economics.alsoPriced && grid.metalA ? economics.alsoPriced.reduce((t, p, a) => t + (p && grid.metalA[a] ? grid.metalA[a][q] * p.revenuePerGrade : 0), 0) : 0) /* #3311 */ - grid.oreT[q] * processingCost - grid.rockT[q] * miningCost;
   return money;
 }
 

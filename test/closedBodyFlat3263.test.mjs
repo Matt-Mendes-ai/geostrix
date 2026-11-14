@@ -22,7 +22,7 @@ test("#3263 flat cells only when the runs lie along a near-flat layer", () => {
 });
 
 test("#3263 wiring: the seam cells wait for runsLieFlat, and a refusal is said", () => {
-  const src = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
+  const src = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(src, /const lieFlat = seam0 \? runsLieFlat\(inside, autoB\.medianRunM, codeInfo\(modellingCodes, String\(target\)\.slice\(6\), mcodeDefaultRole\)\.role\) : null;/);
   assert.match(src, /const seam = seam0 && lieFlat\.flat \? seam0 : null;/);
   assert.match(src, /but they do not line up along a flat layer between the holes/);

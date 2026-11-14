@@ -6,6 +6,10 @@
 export const PAGE_FORMATS = {
   a4: { label: "A4", mm: [297, 210], electron: "A4" },
   a3: { label: "A3", mm: [420, 297], electron: "A3" },
+  // TASKS.csv #3383 (7) — a 29 x 15 km property at 1 : 50,000 needs 580 x 300 mm: the plotter sizes, as printToPDF names them
+  a2: { label: "A2", mm: [594, 420], electron: "A2" },
+  a1: { label: "A1", mm: [841, 594], electron: "A1" },
+  a0: { label: "A0", mm: [1189, 841], electron: "A0" },
   letter: { label: "Letter (8.5×11 in)", mm: [279.4, 215.9], electron: "Letter" },
   legal: { label: "Legal (8.5×14 in)", mm: [355.6, 215.9], electron: "Legal" },
   tabloid: { label: "Tabloid (11×17 in)", mm: [431.8, 279.4], electron: "Tabloid" },
@@ -43,3 +47,19 @@ export function pdfOptions(format) {
 // TASKS.csv #1143 — the paper for a one-page section PDF: portrait only for a figure taller than it is wide (landscape would
 // shrink it down the middle of the sheet). -> { landscape }
 export function sectionPaper(w, h) { return { landscape: !(h > w) }; }
+
+// TASKS.csv #3370 (review #3195) — pages the app makes (Atlas pages, a table's continuation, a snapshot's own page, Best intercepts' pages)
+// were always A4 landscape: the store's addLayoutPages keeps a page's id, name, elements and batch only, so their paper (laid out for the
+// page they came from) was lost. This adds them, then gives each the paper, as 'Add page' (#3028) does. `format` null = the default paper.
+export function addPagesOnPaper(addLayoutPages, setLayoutPageFormat, pages, format) {
+  const ids = addLayoutPages(format ? pages.map((pg) => ({ ...pg, format })) : pages) || [];
+  if (format && typeof setLayoutPageFormat === "function") for (const id of ids) setLayoutPageFormat(id, pageFormatOf({ format }));
+  return ids;
+}
+// The paper for a snapshot's own page (#3370): the page it came from, turned to portrait when every picture is taller than wide.
+export function snapshotPagePaper(format, aspects) {
+  const f = pageFormatOf({ format });
+  const tall = aspects.length > 0 && aspects.every((a) => Number.isFinite(a) && a < 1);
+  if (tall && f.orientation === "landscape") return { ...f, orientation: "portrait" };
+  return format ? f : null;
+}

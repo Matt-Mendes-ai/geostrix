@@ -33,7 +33,7 @@ test("wiring: the result line, the recorded rule, the drilled-block counts; keys
   assert.match(m, /if \(est\.piercedBlocks\) params\.drilledBlocks = \{/);
   assert.match(m, /\{result\.piercedBlocks\?\.blocks > 0 && result\.piercedBlocks\.estimated < result\.piercedBlocks\.blocks && \(/);
   const e = readFileSync(new URL("../src/lib/estimation.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.equal((e.match(/nearHoleM: Math\.max\(dx, dy, dz\) \}/g) || []).length, 2, "both entry points pass the reach");
+  assert.equal((e.match(/nearHoleM: Math\.max\(dx, dy, dz\)(, \.\.\.\(opts\.holeBracket === false \? \{ holeBracket: false \} : \{\}\))? \}/g) || []).length, 2, "both entry points pass the reach"); // holeBracket: #3275
   for (const l of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
     for (const k of ["{e} of the {b} blocks a drillhole passes through were estimated.", "{k} of the {h} holes have no estimated block anywhere along them ({list}): Min distinct holes ({m}) or the search left them out."]) assert.ok(d[k], `${l}: ${k}`);

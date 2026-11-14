@@ -45,5 +45,5 @@ test("a new style rebuilds the drape's texture, and an RGB ternary is not offere
   assert.match(readFileSync("src/lib/viewer/sceneBuilders.js", "utf8"), /r\.colourStyle \? JSON\.stringify\(r\.colourStyle\)/);
   assert.match(readFileSync("src/modules/RasterModule.jsx", "utf8"), /r\.grid && !r\.ternary && <RasterColourControls/);
   assert.match(readFileSync("src/lib/raster.js", "utf8"), /^    ternary: \{/m);
-  assert.match(readFileSync("src/modules/ViewerModule.jsx", "utf8"), /\}, \[rasters, sampleLegendGroup,/); // the legend follows a new style
+  assert.match(readFileSync("src/modules/ViewerModule.jsx", "utf8"), /\}, \[(mode \/\* #3046 \*\/, )?rasters, sampleLegendGroup,/); // the legend follows a new style; mode: #3046
 });

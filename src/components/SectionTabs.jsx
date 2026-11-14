@@ -3,6 +3,7 @@
 // compare two side by side. Pure routing: the main process owns which section is in which window.
 import React, { useEffect, useRef, useState } from "react";
 import SectionWindow from "./SectionWindow.jsx";
+import { unpackSectionPayload } from "../lib/sectionPack.js"; // TASKS.csv #2343
 import { getSectionData, onSectionData, closeSectionTab, popOutSectionTab, setSectionTabUnsaved } from "../lib/desktop.js";
 import { t as tr } from "../lib/i18n.js";
 
@@ -12,7 +13,8 @@ export default function SectionTabs() {
   const [tabs, setTabs] = useState([]); // [{ id, title, initial }]
   const [active, setActive] = useState(null);
   useEffect(() => {
-    const take = (d) => {
+    const take = (d0) => {
+      const d = unpackSectionPayload(d0); // #2343 — as drawn from (lib/sectionPack.js)
       if (!d?.id) return;
       setTabs((T) => (T.some((t) => t.id === d.id) ? T.map((t) => (t.id === d.id ? { ...t, title: d.title || t.title } : t)) : [...T, { id: d.id, title: d.title, initial: d }]));
       if (!d.refreshOnly) setActive(d.id);

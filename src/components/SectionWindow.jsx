@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useMemo, useState, useRef, useLayoutEffect } from "react";
 import { bearingText, sectionLookText } from "../lib/layoutLinks.js"; // TASKS.csv #2308 — the side the section is seen from
 import { Camera, Pencil, Check, Undo2, X, Save, Download, FileText, Crosshair } from "./icons.js";
+import { unpackSectionPayload } from "../lib/sectionPack.js"; // TASKS.csv #2343 — a pushed payload's packed bulk
 import { onSectionData, sendSectionSnapshot, sendSectionContacts, saveFile, savePDF, canvasPngBytes, onSectionResnap } from "../lib/desktop.js"; // onSectionResnap: TASKS.csv #1485
 import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #395
 import { snapTargets, snapClick, moveVertex, deleteVertex, insertVertex, nearestSegment, setTieVertex, copyGhostString, onSectionPlane, contactsKey, sectionHasUnsaved } from "../lib/sectionDigitise.js"; // TASKS.csv #519; copyGhostString: #1059
@@ -139,6 +140,18 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   const setTextFont = (v) => { setTextFontState(v); try { localStorage.setItem("geostrix.sectionFont", v); } catch { /* private window */ } };
   const [textScale, setTextScaleState] = useState(() => { try { const v = Number(localStorage.getItem("geostrix.sectionTextScale")); return v >= 0.7 && v <= 2 ? v : 1; } catch { return 1; } });
   const setTextScale = (v) => { const n = Math.max(0.7, Math.min(2, Number(v) || 1)); setTextScaleState(n); try { localStorage.setItem("geostrix.sectionTextScale", String(n)); } catch { /* private window */ } };
+  // TASKS.csv #3304 — 'Fit to window' can shrink a tall section's labels (10 drawing units at the text size) below ~7 px on screen: said
+  // beside the box. Measured from the drawn width over the viewBox's, again when the drawing is resized.
+  const [fitTextPx, setFitTextPx] = useState(null);
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!fitWhole || !svg || typeof ResizeObserver === "undefined") { setFitTextPx(null); return undefined; }
+    const measure = () => { const vb = svg.viewBox?.baseVal, w = svg.getBoundingClientRect().width; setFitTextPx(vb?.width && w ? (10 * textScale * w) / vb.width : null); };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(svg);
+    return () => ro.disconnect();
+  }, [fitWhole, textScale, vExag, data]);
   // TASKS.csv #1130 — "User should be able to set opacity of structures" (kept per user, like the hole width)
   const [structOpacity, setStructOpacityState] = useState(() => { try { const v = Number(localStorage.getItem("geostrix.sectionStructOpacity")); return v > 0 && v <= 1 ? v : 1; } catch { return 1; } });
   const setStructOpacity = (v) => { const n = Math.max(0.05, Math.min(1, Number(v) || 1)); setStructOpacityState(n); try { localStorage.setItem("geostrix.sectionStructOpacity", String(n)); } catch { /* private window */ } };
@@ -169,7 +182,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   useEffect(() => {
     const takeLabels = (d) => { if (!d) return; setLabels(d.labels ? { mode: "collar", leaders: "auto", ...d.labels, offsets: d.labels.offsets || {} } : { mode: "collar", leaders: "auto", offsets: {} }); }; // #823 — a section without saved labels starts from the defaults
     // TASKS.csv #876 — a quiet refresh (an explicit surface was rebuilt) updates the drawing but keeps what is being drawn
-    const off = onSectionData((d) => { if (!tabId || d.id !== tabId) return; /* #1303 — other tabs share this window */ if (d.refreshOnly) { setData((prev) => ({ ...d, contacts: prev?.contacts })); const r = document.documentElement.dataset; r.sectionRefreshes = String((Number(r.sectionRefreshes) || 0) + 1); return; } setData(d); if (!unsavedRef.current) { setContacts(d.contacts || []); setSavedKey(contactsKey(d.contacts)); } /* #1323 — reopening the section must not wipe lines not saved yet */ takeLabels(d); });
+    const off = onSectionData((d0) => { if (!tabId || d0.id !== tabId) return; const d = unpackSectionPayload(d0); /* #2343 */ /* #1303 — other tabs share this window */ if (d.refreshOnly) { setData((prev) => ({ ...d, contacts: prev?.contacts })); const r = document.documentElement.dataset; r.sectionRefreshes = String((Number(r.sectionRefreshes) || 0) + 1); return; } setData(d); if (!unsavedRef.current) { setContacts(d.contacts || []); setSavedKey(contactsKey(d.contacts)); } /* #1323 — reopening the section must not wipe lines not saved yet */ takeLabels(d); });
     if (initial) { setData(initial); setContacts(initial.contacts || []); setSavedKey(initial.savedContactsKey ?? contactsKey(initial.contacts)); takeLabels(initial); } // #1303 — from the tab host; savedContactsKey: #1323, a popped-out section keeps its unsaved state
     const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
     const id = params.get("id");
@@ -396,7 +409,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
       <div ref={toolbarRef} className="ge-section-toolbar" style={{ padding: "10px 16px", borderBottom: "1px solid #d9dce1", fontSize: 14, color: "#8a6a1f", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, boxSizing: "border-box", ...(drawing && toolbarHeight.current ? { height: toolbarHeight.current } : null) }}>
         <span>{data.title || tr("Cross-section")} <span style={{ color: "#65717e", fontSize: 11, marginLeft: 8 }}>{tr("azimuth {v}° · buffer ±{v2}m", { v: data.section?.azimuth?.toFixed(0), v2: data.section?.corridor })}</span></span>
         <span style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <span style={{ color: "#65717e", fontSize: 11 }}>{tr("{v} holes · {v2} intervals · {v3} points · {v4} structures{v5}{v6}", { v: data.holes?.length || 0, v2: data.intervals?.length || 0, v3: data.points?.length || 0, v4: data.planes?.length || 0, v5: data.elevationProfile?.length > 1 ? tr(" · terrain profile") : "", v6: data.voxelSlices?.length ? ` · ${data.voxelSlices.map((v) => v.name).join(", ")}` : "" })}{data.scatterCounts && (data.scatterCounts.geophys || data.scatterCounts.samples) ? tr(" · {g} geophysics points · {s} surface samples", { g: data.scatterCounts.geophys.toLocaleString(), s: data.scatterCounts.samples.toLocaleString() }) : ""}</span>
+          <span style={{ color: "#65717e", fontSize: 11 }}>{tr("{v} · {v2} · {v3} · {v4}{v5}{v6}", { v: countText(data.holes?.length, "{n} hole", "{n} holes"), v2: countText(data.intervals?.length, "{n} interval", "{n} intervals"), v3: countText(data.points?.length, "{n} point", "{n} points"), v4: countText(data.planes?.length, "{n} structure", "{n} structures") /* #3280 — '1 holes' */, v5: data.elevationProfile?.length > 1 ? tr(" · terrain profile") : "", v6: data.voxelSlices?.length ? ` · ${data.voxelSlices.map((v) => v.name).join(", ")}` : "" })}{data.scatterCounts && (data.scatterCounts.geophys || data.scatterCounts.samples) ? tr(" · {g} geophysics points · {s} surface samples", { g: data.scatterCounts.geophys.toLocaleString(), s: data.scatterCounts.samples.toLocaleString() }) : ""}</span>
           {stepping && <span role="status" style={{ color: "#8a6a1f", fontSize: 11 }}>{tr("Building the section…")}</span>}{/* #2210 */}
           {labelsLeftOut > 0 && <span style={{ color: "#8a6a1f", fontSize: 11 }} title={tr("Hole names, end-of-hole depths or offsets with nowhere free to go are left out rather than printed on top of each other. A narrower buffer (fewer holes), a higher VE, a smaller text size or dragging labels makes room; hover a hole for its name.")}>{labelsLeftOut === 1 ? tr("1 label left out: no room") : tr("{n} labels left out: no room", { n: labelsLeftOut })}</span>}{/* #1536 */}
           {!drawing ? (
@@ -500,6 +513,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
             ×
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("Scale the section to fit the window, both ways, at its VE (off: full width, scroll for detail)")}><input type="checkbox" checked={fitWhole} onChange={(e) => setFitWhole(e.target.checked)} />{tr("Fit to window")}</label>{/* #3259 */}
+          {fitWhole && fitTextPx != null && fitTextPx < 7 && <span role="note" style={{ fontSize: 11, color: "#8a6a1f" }} title={tr("Fitted whole, this section's labels are drawn under 7 px tall. A lower VE makes it less tall, so it fits larger; or untick Fit to window and scroll.")}>{tr("Text under 7 px: lower the VE, or untick to scroll")}</span>}{/* #3304 */}
           {onPopOut && !drawing && <button onClick={() => onPopOut({ ...data, contacts, labels, savedContactsKey: savedKey })} style={btnStyle(false)} title={tr("Open this section in a window of its own, to compare it beside another. It uses more memory than a tab.")}>{tr("Own window")}</button>}{/* #1303 */}
           <button onClick={exportPNG} style={btnStyle(false)} title={tr("Export section → PNG")}><Download size={14} />{" "}{tr("PNG")}</button>
           <button onClick={exportSVG} style={btnStyle(false)} title={tr("Export section → SVG")}><Download size={14} />{" "}{tr("SVG")}</button>
@@ -583,6 +597,10 @@ function btnStyle(active) {
   return { display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", background: active ? "#1e3629" : "#f4f5f7", border: active ? "1px solid #3d6b52" : "1px solid #d9dce1", borderRadius: 6, color: active ? "#8fd9ab" : "#1a2028", fontSize: 11.5, cursor: "pointer" };
 }
 const selectStyle = { padding: "5px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 11.5 };
+
+// TASKS.csv #3280 (Galore review) — '1 holes · 60 intervals' and an offset of '-0…+6 m': singular / plural, and a sign from the rounded metre
+const countText = (n, one, many) => tr(n === 1 ? one : many, { n: n || 0 });
+const signedM = (v) => { const r = Math.round(v); return r > 0 ? `+${r}` : String(r === 0 ? 0 : r); };
 
 function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidth = 5, structOpacity = 1, showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag: vExagIn, onAutoVE = null, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onLeftOut = null, onMoveLabel, onCopyGhost = null, projectSnaps = false }) {
   const plotClipId = `sectionPlotArea${useId().replace(/:/g, "")}`, patId = `${plotClipId}p`; // patId: #1995 // #1303 — a hidden tab's clip path would hide this one's drawing
@@ -703,7 +721,7 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
     const o = signedOffset(p.x, p.y, { x: ax, y: ay }, { x: bx, y: by });
     if (Math.abs(o) <= 5) return;
     const x = sx(p.l), y = sz(p.z);
-    floatLabels.push({ key: `snap${key}`, text: `${o >= 0 ? "+" : ""}${o.toFixed(0)} m`, size: fs(9), fill: colors.warnText, weight: 600, prio: 3, cands: [{ x: x + 7, y: y - 5, anchor: "start" }, { x: x - 7, y: y - 5, anchor: "end" }, { x: x + 7, y: y + fs(11), anchor: "start" }, { x: x - 7, y: y + fs(11), anchor: "end" }] });
+    floatLabels.push({ key: `snap${key}`, text: `${signedM(o)} m`, size: fs(9), fill: colors.warnText, weight: 600, prio: 3, cands: [{ x: x + 7, y: y - 5, anchor: "start" }, { x: x - 7, y: y - 5, anchor: "end" }, { x: x + 7, y: y + fs(11), anchor: "start" }, { x: x - 7, y: y + fs(11), anchor: "end" }] });
   };
   const pointAt = (local) => {
     if (snap) {
@@ -874,7 +892,7 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
           return [sx(along(p0.x + t * (p1.x - p0.x), p0.y + t * (p1.y - p0.y))), sz(p0.z + t * (p1.z - p0.z))];
         };
         const solid = runs ? runs.map(([m0, m1]) => [at(m0), ...h.trace.filter((p) => p.md > m0 && p.md < m1).map((p) => [sx(along(p.x, p.y)), sz(p.z)]), at(m1)]) : [pts];
-        const off = h.minOffset != null ? (Math.abs(h.maxOffset - h.minOffset) < 0.5 ? `${h.minOffset >= 0 ? "+" : ""}${h.minOffset.toFixed(0)} m` : `${h.minOffset >= 0 ? "+" : ""}${h.minOffset.toFixed(0)}…${h.maxOffset >= 0 ? "+" : ""}${h.maxOffset.toFixed(0)} m`) : null;
+        const off = h.minOffset != null ? (Math.abs(h.maxOffset - h.minOffset) < 0.5 ? `${signedM(h.minOffset)} m` : `${signedM(h.minOffset)}…${signedM(h.maxOffset)} m`) : null; // #3280 — '-0…+6 m'
         return (
           <g key={hi} clipPath={`url(#${plotClipId})`}>{/* #1205 — a hole at the start of the line ran over the elevation axis */}
             {runs && <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="#9aa5b3" strokeWidth="1" strokeDasharray="4 3"><title>{tr("{hole_id}: outside the ±{corridor} m buffer — projected onto the section, no data drawn here", { hole_id: h.hole_id, corridor: section.corridor })}</title></polyline>}

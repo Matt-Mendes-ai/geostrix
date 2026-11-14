@@ -15,7 +15,9 @@ import { buildAdaptiveTerrain } from "../terrainMesh.js"; // TASKS.csv #796
 import { keyedCanvas } from "../rasterKey.js"; // TASKS.csv #1623
 import { contourLabelSpots, indexLevels } from "../contourLabels.js"; // TASKS.csv #1466 / #1622
 import { makeTextSprite } from "./textSprite.js"; // TASKS.csv #1466 / #1622
-import { collarGround } from "../collarGround.js"; // TASKS.csv #2447; #3159: not pitShell.js, which put the pit solver in startup
+import { collarGround, collarsLookUnderground } from "../collarGround.js"; // TASKS.csv #2447; #3159: not pitShell.js, which put the pit solver in startup; collarsLookUnderground: #3368
+import { outcropNoTerrainGround } from "./surfacePlacement.js"; // TASKS.csv #3368
+import { terrainDrapeGrid } from "./terrainDrape.js"; // TASKS.csv #3380
 import { DRAW_ORDER } from "./drawOrder.js"; // TASKS.csv #2776
 
 // TASKS.csv #2447 / #2576 (reviews #2325 / #2486) — a raster drawn on the collar surface (drapeMode "collars", a project with no terrain): a
@@ -98,39 +100,27 @@ export function syncRasterDrapes(group, cache, rasters, { origin, terrain, rende
         pos.needsUpdate = true;
         geometry.computeVertexNormals();
       } else if (drapeOnTerrain) {
-        // Bug fix (user report: "image is not draping correctly... zones of discrepancies"). Two
-        // compounding issues here, both about how closely this mesh actually hugs the terrain mesh
-        // underneath it: (1) SEG was a flat 48 regardless of how much of the terrain's own (up to
-        // 200x200) grid this raster's footprint covers — a raster spanning most/all of a rugged
-        // terrain (real mountain topography, not a gentle slope) was being approximated by a much
-        // coarser mesh than the terrain itself, so the drape cut straight across ridges/valleys the
-        // terrain mesh actually resolves, instead of following them — visible as patchy gaps/seams
-        // wherever local relief was sharper than 48 segments could capture. Now scaled to the
-        // terrain's own resolution over the raster's footprint fraction (capped for perf). (2) even
-        // with matched resolution, a drape sampled to sit exactly ON the terrain surface is a classic
-        // z-fighting setup — two coincident (or near-coincident, given #1's approximation error)
-        // surfaces at the same depth flicker unpredictably between which one the GPU draws on top,
-        // which reads exactly as "overall ok, but some zones look wrong" since it's viewpoint- and
-        // precision-dependent, not a real gap in the data. A small constant elevation nudge (well
-        // under a metre, invisible at any real-world project scale) lifts the drape just clear of the
-        // terrain so it always wins the depth test cleanly.
-        const rasterFracX = w / Math.max(1e-6, terrain.bbox[2] - terrain.bbox[0]);
-        const rasterFracY = h / Math.max(1e-6, terrain.bbox[3] - terrain.bbox[1]);
-        const SEG = Math.round(Math.min(160, Math.max(48, Math.max(rasterFracX * terrain.gridW, rasterFracY * terrain.gridH))));
-        const Z_FIGHT_EPSILON = 0.15; // world units (metres) — lifts the drape just clear of the terrain mesh
-        geometry = new THREE.PlaneGeometry(w, h, SEG, SEG);
-        const pos = geometry.attributes.position;
-        for (let i = 0; i < pos.count; i++) {
-          // Plane starts in the XY plane (local X = world easting offset, local Y = world northing
-          // offset, BEFORE the -90° X rotation below lays it flat) — sample the real-world point at
-          // this vertex and set local Z (which becomes scene Y = elevation, post-rotation).
-          const localX = pos.getX(i), localY = pos.getY(i);
-          const worldX = cx + localX, worldY = cy + localY;
-          const el = sampleTerrainElevation(terrain, worldX, worldY);
-          pos.setZ(i, el - oz + Z_FIGHT_EPSILON);
+        // TASKS.csv #3394 (#3380's follow-up) — on the terrain's own nodes and triangles (lib/viewer/terrainDrape.js), as the map layers are
+        // since #3380. The plane of 48-160 even segments read bilinearly (#81's fix for 'zones of discrepancies') parted from the drawn
+        // triangles inside twisted cells by up to a quarter of a cell's twist, far more than its 0.15 m lift, and the ground showed through.
+        // Lifted 0.15 m (#81's z-fight margin) plus what the drape cannot match exactly (a decimated terrain mesh, nodes skipped on a very
+        // large raster, the box's edge cells), and drawn ahead of the ground in the depth test.
+        const am = terrain.gridW * terrain.gridH > ADAPTIVE_TERRAIN_NODES ? adaptiveTerrainCache.get(terrain) : null;
+        const adaptiveError = terrain.gridW * terrain.gridH > ADAPTIVE_TERRAIN_NODES ? (am?.maxError ?? 2) : 0;
+        const dg = terrainDrapeGrid(terrain, r.bbox, { adaptiveError });
+        const W = dg.xs.length, H = dg.ys.length, positions = new Float32Array(W * H * 3), uvs = new Float32Array(W * H * 2), up = 0.15 + dg.extraLift;
+        for (let row = 0; row < H; row++) for (let k = 0; k < W; k++) {
+          const q = row * W + k;
+          positions[q * 3] = dg.xs[k] - cx; positions[q * 3 + 1] = dg.ys[row] - cy; positions[q * 3 + 2] = dg.z[q] - oz + up; // the plane's local frame (rotated below)
+          uvs[q * 2] = (dg.xs[k] - xmin) / w; uvs[q * 2 + 1] = (dg.ys[row] - ymin) / h; // as PlaneGeometry's: u east, v north
         }
-        pos.needsUpdate = true;
-        geometry.computeVertexNormals();
+        geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+        geometry.setIndex(new THREE.BufferAttribute(dg.indices, 1));
+        geometry.computeBoundingSphere();
+        geometry.userData.drapeLift = up;
+        material.polygonOffset = true; material.polygonOffsetFactor = -2; material.polygonOffsetUnits = -2; // as the map layers' (#3380)
       } else {
         geometry = new THREE.PlaneGeometry(w, h);
       }
@@ -303,7 +293,12 @@ export function mapLayerAtOwnZ(l, origin) {
 // TASKS.csv #2768 (#2630 (3)) — with no terrain an interpretation layer lay flat at one RL (the median collar) while collars ran 160-330 m,
 // so a line floated up to 96 m off the ground: it is now draped on the surface through the collar elevations (pitShell collarGround, as a
 // raster's 'collars' drape, #2447), unless the layer is set flat (drapeMode "flat", the pane's 'Flat at one RL instead').
-export const interpretationOnCollars = (l, terrain, collars) => !!l?.interpretation && !terrain && l.drapeMode !== "flat" && (collars?.length || 0) >= 3;
+// TASKS.csv #3368 (#3195, Galore Creek) — every map layer drawn on the ground takes that surface with no terrain, not only the interpretation
+// lines: a unit polygon lay flat at the median collar (867 m) while a fault traced on its edge followed the collars 168 m below it. Not a layer
+// at its own z ("file") or set flat, and not on a project drilled from underground (flat at its Elev., the highest collar: planElevation).
+export const mapLayerOnCollars = (l, terrain, collars) => !!l && !terrain && l.drapeMode !== "flat" && l.drapeMode !== "file" && (collars?.length || 0) >= 3
+  && (!!l.interpretation || !collarsLookUnderground(collars).underground);
+export const interpretationOnCollars = (l, terrain, collars) => !!l?.interpretation && mapLayerOnCollars(l, terrain, collars);
 export function syncMapLayers(group, cache, mapLayers, { origin, terrain, renderer, collars = null }) {
   const disposeMesh = (mesh) => { group.remove(mesh); mesh.geometry?.dispose?.(); mesh.material?.map?.dispose?.(); mesh.material?.dispose?.(); };
   const wanted = new Set(mapLayers.map((l) => l.id));
@@ -317,6 +312,8 @@ export function syncMapLayers(group, cache, mapLayers, { origin, terrain, render
       let obj = cache[l.id];
       if (obj && obj.userData.geoKey !== key) { disposeMesh(obj); obj = null; delete cache[l.id]; }
       if (!obj) { obj = mapLayerAtOwnZ(l, origin); obj.userData = { geoKey: key, styleKey: key }; obj.renderOrder = 2 + li; group.add(obj); cache[l.id] = obj; }
+      // TASKS.csv #3035 — the subcrop points over the collar markers they sit under (and the traces): after them, with no depth test
+      if (l.subcropFromCollars && l.geomType === "point") { obj.renderOrder = DRAW_ORDER.mapPoints + li; obj.material.depthTest = false; }
       obj.material.opacity = Math.max(0.5, l.opacity ?? 0.6);
       obj.visible = l.visible !== false;
       return;
@@ -330,7 +327,7 @@ export function syncMapLayers(group, cache, mapLayers, { origin, terrain, render
     const w = bbox[2] - bbox[0], h = bbox[3] - bbox[1];
     const cx = (bbox[0] + bbox[2]) / 2, cy = (bbox[1] + bbox[3]) / 2;
     const drapeOnTerrain = l.drapeMode === "terrain" && !!terrain;
-    const onCollars = interpretationOnCollars(l, terrain, collars); // #2768
+    const onCollars = mapLayerOnCollars(l, terrain, collars); // #2768; every map layer: #3368
     const geoKey = `${drapeOnTerrain ? `terrain:${terrain.id}` : onCollars ? `collars:${collarsKey(collars)}` : `flat:${l.elevation || 0}`}|${ox},${oy},${oz}|${lift}|${bbox.join(",")}`;
     const styleKey = mapStyleSignature(l);
     let mesh = cache[l.id];
@@ -342,22 +339,28 @@ export function syncMapLayers(group, cache, mapLayers, { origin, terrain, render
       const texture = new THREE.CanvasTexture(canvas);
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 1;
-      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: l.opacity ?? 0.6, side: THREE.DoubleSide, depthWrite: false });
+      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: l.opacity ?? 0.6, side: THREE.DoubleSide, depthWrite: false,
+        polygonOffset: drapeOnTerrain, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }); // #3380 — on the ground, ahead of it in the depth test
       let geometry;
       if (drapeOnTerrain) {
-        // Same resolution reasoning as the raster drape above: follow the terrain's own grid over this
-        // layer's footprint (x1.5 so the drape doesn't cut corners between terrain samples), capped.
-        const fracX = w / Math.max(1e-6, terrain.bbox[2] - terrain.bbox[0]);
-        const fracY = h / Math.max(1e-6, terrain.bbox[3] - terrain.bbox[1]);
-        const segX = Math.round(Math.min(256, Math.max(32, fracX * terrain.gridW * 1.5)));
-        const segY = Math.round(Math.min(256, Math.max(32, fracY * terrain.gridH * 1.5)));
-        geometry = new THREE.PlaneGeometry(w, h, segX, segY);
-        const pos = geometry.attributes.position;
-        for (let i = 0; i < pos.count; i++) {
-          const el = sampleTerrainElevation(terrain, cx + pos.getX(i), cy + pos.getY(i));
-          pos.setZ(i, el - oz + lift);
+        // TASKS.csv #3380 — the drape on the terrain's own nodes and triangles (lib/viewer/terrainDrape.js): an even plane read bilinearly
+        // parted from the drawn triangles inside twisted cells and the ground showed through the polygons. Lifted clear of what it cannot
+        // match exactly (a decimated terrain mesh, nodes skipped on a very large box, the box's edge cells).
+        const am = terrain.gridW * terrain.gridH > ADAPTIVE_TERRAIN_NODES ? adaptiveTerrainCache.get(terrain) : null;
+        const adaptiveError = terrain.gridW * terrain.gridH > ADAPTIVE_TERRAIN_NODES ? (am?.maxError ?? 2) : 0;
+        const dg = terrainDrapeGrid(terrain, bbox, { adaptiveError });
+        const W = dg.xs.length, H = dg.ys.length, positions = new Float32Array(W * H * 3), uvs = new Float32Array(W * H * 2), up = lift + dg.extraLift;
+        for (let r = 0; r < H; r++) for (let k = 0; k < W; k++) {
+          const q = r * W + k;
+          positions[q * 3] = dg.xs[k] - cx; positions[q * 3 + 1] = dg.ys[r] - cy; positions[q * 3 + 2] = dg.z[q] - oz + up; // the plane's local frame (rotated below)
+          uvs[q * 2] = (dg.xs[k] - bbox[0]) / w; uvs[q * 2 + 1] = (dg.ys[r] - bbox[1]) / h;
         }
-        pos.needsUpdate = true;
+        geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+        geometry.setIndex(new THREE.BufferAttribute(dg.indices, 1));
+        geometry.computeBoundingSphere();
+        geometry.userData.drapeLift = up; // #3380
       } else if (onCollars) { // #2768 — on the surface through the collar elevations
         const ground = collarGround(collars);
         geometry = new THREE.PlaneGeometry(w, h, COLLAR_DRAPE_SEG, COLLAR_DRAPE_SEG);
@@ -456,7 +459,11 @@ export function syncSectionImages(group, cache, sectionImages, { origin, rendere
 // clamped edge or filled level. A row with its own z keeps it off the terrain. No flatZ: the scene origin, as before.
 export function outcropZ(r, set, terrain, flatZ, oz) {
   const g = terrain ? terrainGroundAt(terrain, r.x, r.y) : NaN;
-  if (r.z == null) return Number.isFinite(g) ? g : Number.isFinite(flatZ) ? flatZ : oz;
+  if (r.z == null) {
+    if (Number.isFinite(g)) return g;
+    const c = !terrain ? outcropNoTerrainGround()?.(r.x, r.y) : NaN; // #3368 — no terrain: the surface through the collars, as the map layers
+    return Number.isFinite(c) ? c : Number.isFinite(flatZ) ? flatZ : oz;
+  }
   return Number.isFinite(g) && set.snapToTerrain !== false ? g : r.z;
 }
 // TASKS.csv #3066 (Matt, 2026-11-12) — "Discs should be reserved for drillhole structures": an outcrop measurement is drawn as its USGS (FGDC)
@@ -464,11 +471,11 @@ export function outcropZ(r, set, terrain, flatZ, oz) {
 // LineSegments and one Mesh of filled parts per set, coloured by the structure class. The set's size is the symbol's strike line (the
 // standard's 5.0 mm), so every part scales with it. An InstancedMesh of flat discs is kept for picking only (colour and depth writes
 // off): Identify still reads hit.instanceId as the row (lib/viewer/identify.js).
-export function syncSurfaceStructures(group, cache, surfaceStructures, { origin, terrain, flatZ = null }) {
+export function syncSurfaceStructures(group, cache, surfaceStructures, { origin, terrain, flatZ = null, symbolByType = null /* #3094 */ }) {
   Object.values(cache).forEach((g) => { group.remove(g); g.children.forEach((c) => { c.geometry?.dispose?.(); c.material?.dispose?.(); c.dispose?.(); }); }); // #433 — InstancedMesh buffers
   for (const id of Object.keys(cache)) delete cache[id]; // the caller owns the object: emptied, not replaced
   const { x: ox, y: oy, z: oz } = origin;
-  const choices = projectSymbolChoices(surfaceStructures); // #3066 — the per-type choice
+  const choices = projectSymbolChoices(surfaceStructures, symbolByType); // #3066 — the per-type choice; the project's: #3094
   surfaceStructures.forEach((set) => {
     const rows = set.rows || [];
     if (!rows.length) return;
@@ -512,13 +519,13 @@ export function syncSurfaceStructures(group, cache, surfaceStructures, { origin,
 
 // TASKS.csv #1443 — the dip label beside each disc of the sets that ask for one (set.labels === "dip"): the same anchor and
 // terrain snapping as the disc, so the number sits where the symbol is
-export function outcropLabelItems(surfaceStructures, { origin, terrain, flatZ = null }) {
+export function outcropLabelItems(surfaceStructures, { origin, terrain, flatZ = null, symbolByType = null /* #3094 */ }) {
   const { x: ox, y: oy, z: oz } = origin;
   const items = [];
   for (const set of surfaceStructures || []) {
     if (set.labels !== "dip" || set.visible === false) continue;
     const size = set.size ?? 25;
-    const choices = projectSymbolChoices(surfaceStructures); // #3066
+    const choices = projectSymbolChoices(surfaceStructures, symbolByType); // #3066; #3094
     for (const r of set.rows || []) {
       if (!Number.isFinite(r.dip) || !Number.isFinite(r.x) || !Number.isFinite(r.y)) continue;
       const { symbol } = symbolForReading(r, choices);
