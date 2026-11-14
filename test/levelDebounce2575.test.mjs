@@ -6,9 +6,9 @@ import { readFileSync } from "node:fs";
 const p = readFileSync(new URL("../src/components/EvidenceOverlayPane.jsx", import.meta.url), "utf8");
 
 test("the Level is a draft until Enter, leaving the field or 600 ms without typing", () => {
-  assert.match(p, /const level = useMemo\(\(\) => \{ const v = levelApplied\.map\(/);
-  assert.match(p, /setTimeout\(\(\) => setLevelApplied\(\(a\) => \(a\[0\] === levelText\[0\] && a\[1\] === levelText\[1\] \? a : levelText\)\), 600\)/);
-  assert.equal((p.match(/onBlur=\{applyLevelNow\} onKeyDown=\{\(e\) => \{ if \(e\.key === "Enter"\) applyLevelNow\(\); \}\}/g) || []).length, 2);
+  assert.match(p, /const level = useMemo\(\(\) => \{\s*const v = levelApplied\.map\(/);
+  assert.match(p, /setTimeout\(\(\) => setLevelApplied\(\(a\) => \(sameLevel\(a, levelText\) \? a : levelText\)\), 600\)/);
+  assert.equal((p.match(/onBlur=\{applyLevelNow\} onKeyDown=\{\(e\) => \{ if \(e\.key === "Enter"\) applyLevelNow\(\); \}\}/g) || []).length, 4); // #3438: the RL pair and the depth pair
 });
 
 test("the cards are read once per applied Level, after a line that says so has painted", () => {

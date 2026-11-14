@@ -12651,5 +12651,16 @@
   "Exported {n} point(s) from \"{label}\" as a GOCAD VSet (.vs), with these numeric attributes as properties: {props}.": "{n} point(s) de « {label} » exporté(s) en GOCAD VSet (.vs), avec ces attributs numériques comme propriétés : {props}.",
   "Exported {n} point(s) from \"{label}\" as a GOCAD VSet (.vs).": "{n} point(s) de « {label} » exporté(s) en GOCAD VSet (.vs).",
   "{n} vertex/vertices of \"{label}\" have no elevation: written at 0 in the GOCAD file.": "{n} sommet(s) de « {label} » n'ont pas d'altitude : écrits à 0 dans le fichier GOCAD.",
-  "GOCAD export failed: {message}": "Échec de l'export GOCAD : {message}"
+  "GOCAD export failed: {message}": "Échec de l'export GOCAD : {message}",
+  "RL {a} to {b} m": "RL {a} à {b} m",
+  "{a} to {b} m below the collar": "{a} à {b} m sous le collet",
+  "Blank = every depth. Metres vertically below each hole's collar, for collars at different elevations: the same depth band of every hole.": "Vide = toutes les profondeurs. Mètres à la verticale sous le collet de chaque sondage, pour des collets à des altitudes différentes : la même tranche de profondeur pour chaque sondage.",
+  "Depth below collar (m)": "Profondeur sous le collet (m)",
+  "Depth from (m below the collar)": "Profondeur de (m sous le collet)",
+  "Depth to (m below the collar)": "Profondeur à (m sous le collet)",
+  "Holes this card measures from": "Sondages dont cette carte mesure la distance",
+  "Reads {n} hole(s), samples at {band} (the Level above): a hole that does not reach that band reads as untested there.": "Lit {n} sondage(s), échantillons à {band} (le Niveau ci-dessus) : un sondage qui n'atteint pas cette tranche est lu comme non testé à cet endroit.",
+  "Read at {band} (the Level).": "Lu à {band} (le Niveau).",
+  "The Level ({band}) was not used: none of these cards reads elevations.": "Le Niveau ({band}) n'a pas été utilisé : aucune de ces cartes ne lit d'altitudes.",
+  "Added \"{name}\" to the model surfaces: export it, slice it in sections, or remove it there. Ctrl+Z does not take it back (it would undo your last edit before it); a model surface is not part of the undo history.": "« {name} » a été ajouté aux surfaces du modèle : exportez-le, coupez-le en sections ou supprimez-le là. Ctrl+Z ne l'annule pas (il annulerait votre dernière modification précédente) ; une surface du modèle ne fait pas partie de l'historique d'annulation."
 }

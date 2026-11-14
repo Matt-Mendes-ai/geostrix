@@ -234,7 +234,17 @@ function holeTracesOf(collars, survey, method) {
 // TASKS.csv #2326 (review #2174, WA gold) — a Level (RL from / to): on a deposit drilled from underground every hole-based card projected
 // all depths onto one plan. level = { zMin, zMax } (either may be null; null / both null = every depth) -> is elevation z inside it
 export const inLevel = (z, level) => !level || ((level.zMin == null || z >= level.zMin) && (level.zMax == null || z <= level.zMax));
-export const levelSet = (level) => !!level && (level.zMin != null || level.zMax != null);
+export const levelSet = (level) => !!level && (level.zMin != null || level.zMax != null || level.dMin != null || level.dMax != null);
+// TASKS.csv #3438 (from #3348 (12)) — a depth band beside the elevation Level: level.dMin / dMax are metres VERTICALLY below the hole's collar
+// (collars of 456 to 1,596 m RL make one RL band read different depths in each hole, so areas could not be compared at the same depth). The
+// point p (with z) of a hole whose trace is t (t[0] is its collar): inside the elevation band and the depth band.
+export const hasDepthBand = (level) => !!level && (level.dMin != null || level.dMax != null);
+export function inBand(p, level, t) {
+  if (!inLevel(p.z, level)) return false;
+  if (!hasDepthBand(level)) return true;
+  const c = t && t[0] && Number.isFinite(t[0].z) ? t[0].z : NaN, d = c - p.z;
+  return Number.isFinite(d) && (level.dMin == null || d >= level.dMin) && (level.dMax == null || d <= level.dMax);
+}
 // lowest: #2578 — a card favourable when LOW (K/Rb, a depletion) maps each bin's lowest value, not its highest
 export function holeGradePoints(assays, symbol, unit, units, traces, bin = GRADE_BIN_M, level = null, lowest = false) {
   const best = new Map();
@@ -244,7 +254,7 @@ export function holeGradePoints(assays, symbol, unit, units, traces, bin = GRADE
     const v = valueIn(a, symbol, unit, units);
     if (v == null) continue;
     const p = pointOnTrace(t, (from + to) / 2);
-    if (!inLevel(p.z, level)) continue; // #2326
+    if (!inBand(p, level, t)) continue; // #2326; #3438 — and the depth band
     const key = `${Math.floor(p.x / bin)},${Math.floor(p.y / bin)}`, was = best.get(key);
     if (!was || (lowest ? v < was.value : v > was.value)) best.set(key, { x: p.x, y: p.y, z: p.z, value: v }); // z: #2326 (the target's elevation)
   }
@@ -319,7 +329,7 @@ export function structureParts(rows, code, traces, level = null) {
     const t = traces.get(r.hole_id), d = Number(r.depth);
     if (!t || !Number.isFinite(d)) continue;
     const p = pointOnTrace(t, d);
-    if (!inLevel(p.z, level)) continue; // #2326
+    if (!inBand(p, level, t)) continue; // #2326; #3438
     out.push([[p.x, p.y]]);
   }
   return out;
@@ -428,7 +438,7 @@ export function layerFieldPoints(rows, field, traces, bin = GRADE_BIN_M, level =
     const t = traces.get(r.hole_id), d = rowDepth(r), v = numericCell(r[field]); // #2049 — a number written as text too
     if (!t || !Number.isFinite(d) || v == null) continue;
     const p = pointOnTrace(t, d);
-    if (!inLevel(p.z, level)) continue; // #2326
+    if (!inBand(p, level, t)) continue; // #2326; #3438
     const key = `${Math.floor(p.x / bin)},${Math.floor(p.y / bin)}`, was = best.get(key);
     if (!was || v > was.value) best.set(key, { x: p.x, y: p.y, z: p.z, value: v });
   }
@@ -493,7 +503,7 @@ export function zoneHolePoints(rows, code, traces, how = "thick", { field = "val
     if (how !== "thick" && !has) continue; // no top / base where the hole did not log the code: unknown, not zero
     const d = how === "top" ? h.top : how === "baseZ" ? h.base : has ? (h.lo + h.hi) / 2 : h.first;
     const p = pointOnTrace(h.t, d);
-    if (!inLevel(p.z, level)) continue;
+    if (!inBand(p, level, h.t)) continue; // #3438
     out.push({ x: p.x, y: p.y, z: p.z, value: how === "top" ? h.top : how === "baseZ" ? p.z : h.thick });
   }
   return out;
@@ -517,13 +527,13 @@ export function zoneParts(rows, code, traces, stepM = 5, level = null, { field =
     if (!codesOf(r, field, fold).includes(code)) continue; // #2102 — a row listing the code
     const t = traces.get(r.hole_id), from = Number(r.from), to = Number(r.to);
     if (!t) continue;
-    if (!Number.isFinite(from) || !Number.isFinite(to)) { const d = Number(r.depth); if (Number.isFinite(d)) { const p = pointOnTrace(t, d); if (inLevel(p.z, level)) out.push([[p.x, p.y]]); } continue; } // a point row (#1455); level: #2326
+    if (!Number.isFinite(from) || !Number.isFinite(to)) { const d = Number(r.depth); if (Number.isFinite(d)) { const p = pointOnTrace(t, d); if (inBand(p, level, t)) out.push([[p.x, p.y]]); } continue; } // a point row (#1455); level: #2326
     const a = Math.min(from, to), b = Math.max(from, to), pts = [];
     for (let d = a; d <= b + 1e-9; d += stepM) pts.push(pointOnTrace(t, Math.min(d, b)));
     if (pts.length === 1 || Math.abs((b - a) % stepM) > 1e-9) pts.push(pointOnTrace(t, b));
     // #2326 — only the stretches inside the level, each its own part
     let part = [];
-    for (const p of pts) { if (inLevel(p.z, level)) part.push([p.x, p.y]); else if (part.length) { out.push(part); part = []; } }
+    for (const p of pts) { if (inBand(p, level, t)) part.push([p.x, p.y]); else if (part.length) { out.push(part); part = []; } }
     if (part.length) out.push(part);
   }
   return out;

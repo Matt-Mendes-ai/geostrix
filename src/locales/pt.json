@@ -12651,5 +12651,16 @@
   "Exported {n} point(s) from \"{label}\" as a GOCAD VSet (.vs), with these numeric attributes as properties: {props}.": "Foram exportados {n} ponto(s) de «{label}» como GOCAD VSet (.vs), com estes atributos numéricos como propriedades: {props}.",
   "Exported {n} point(s) from \"{label}\" as a GOCAD VSet (.vs).": "Foram exportados {n} ponto(s) de «{label}» como GOCAD VSet (.vs).",
   "{n} vertex/vertices of \"{label}\" have no elevation: written at 0 in the GOCAD file.": "{n} vértice(s) de «{label}» não têm elevação: gravados em 0 no arquivo GOCAD.",
-  "GOCAD export failed: {message}": "Falha na exportação para GOCAD: {message}"
+  "GOCAD export failed: {message}": "Falha na exportação para GOCAD: {message}",
+  "RL {a} to {b} m": "RL {a} a {b} m",
+  "{a} to {b} m below the collar": "{a} a {b} m abaixo do colar",
+  "Blank = every depth. Metres vertically below each hole's collar, for collars at different elevations: the same depth band of every hole.": "Em branco = todas as profundidades. Metros na vertical abaixo do colar de cada furo, para colares em elevações diferentes: a mesma faixa de profundidade em todos os furos.",
+  "Depth below collar (m)": "Profundidade abaixo do colar (m)",
+  "Depth from (m below the collar)": "Profundidade de (m abaixo do colar)",
+  "Depth to (m below the collar)": "Profundidade até (m abaixo do colar)",
+  "Holes this card measures from": "Furos a partir dos quais este cartão mede",
+  "Reads {n} hole(s), samples at {band} (the Level above): a hole that does not reach that band reads as untested there.": "Lê {n} furo(s), amostras em {band} (o Nível acima): um furo que não chega a essa faixa é lido como não testado ali.",
+  "Read at {band} (the Level).": "Lido em {band} (o Nível).",
+  "The Level ({band}) was not used: none of these cards reads elevations.": "O Nível ({band}) não foi usado: nenhum destes cartões lê elevações.",
+  "Added \"{name}\" to the model surfaces: export it, slice it in sections, or remove it there. Ctrl+Z does not take it back (it would undo your last edit before it); a model surface is not part of the undo history.": "\"{name}\" foi adicionado às superfícies do modelo: exporte, corte em seções ou remova ali. Ctrl+Z não o desfaz (desfaria sua última edição anterior); uma superfície do modelo não faz parte do histórico de desfazer."
 }
