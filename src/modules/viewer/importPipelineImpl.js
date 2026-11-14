@@ -279,7 +279,26 @@ export function makeImportPipeline(ctx, h) {
     const left = columnsLeftOut(hdrs, rows, [...Object.values(data.mapping || {}), ...(data.customFields || []).map((f) => f.column), data.perRowEpsgCol, data.rowFilter?.col, ...extra]);
     return left.length ? " " + tr("{n} column(s) of the file were not imported: {cols}. Add one under Extra fields in the import dialog to keep it.", { n: left.length, cols: left.slice(0, 8).join(", ") + (left.length > 8 ? ", …" : "") }) : "";
   };
+  // TASKS.csv #3307 (Matt, 2026-11-13) — a Mineralization table logged as an amount per mineral (py_sum, sph_sum … or MN_CPY_pct …, no code column):
+  // "mineralization should be categorized as minerals and values not just values"; "field Value should be Total Min … the total min field will add
+  // them up". The one Mineralization layer (the default; #3205's one layer per mineral stays a choice): each interval's code is its dominant mineral
+  // (or the chosen one), its value Total min, and every ticked mineral with its text companions (_dist, _morph) a field. Done here, before the
+  // commit, so the dialog, a queued drop and a database reload all get it; a database import still records the dialog's own choices.
   const commitImportData = (data) => {
+    const plan = data?.target === "mnlgy" && perMineralLib ? perMineralLib.mineralPlan("mnlgy", data.headers || Object.keys(data.allRows?.[0] || {}), data.allRows || [], data.mapping || {}, data) : null;
+    if (!plan || plan.mode !== "single") return commitImportDataRaw(data);
+    const fileName = String(data.fileName ?? "").replace(/ \(\d+ more queued\)$/, "");
+    const out = perMineralLib.singleMineralRows(data.allRows, data.mapping, plan, plan.colourBy);
+    if (!out.rows.length) { setNotices((p) => [...p, errorNotice(tr("{fileName}: nothing was added: no interval has an amount in the ticked mineral columns.", { fileName }))]); return false; }
+    const codes = plan.cols.map((c) => perMineralLib.mineralCode(c.col));
+    setNotices((p) => [...p, tr("{fileName}: Mineralization from {n} mineral column(s) ({list}): each interval is coloured by {by}, and its value is Total min, the sum of those columns. Each mineral is kept as a field (Identify shows them).", { fileName, n: plan.cols.length, list: plan.cols.map((c, k) => `${c.col} = ${codes[k]}`).join(", "), by: plan.colourBy === "dominant" ? tr("its dominant mineral") : perMineralLib.mineralCode(plan.colourBy) })
+      + (out.none ? " " + tr("{n} interval(s) with none of them logged are not in the layer.", { n: out.none.toLocaleString() }) : "")
+      + (out.outside ? " " + tr("{n} negative value(s) were left out.", { n: out.outside.toLocaleString() }) : "")
+      + (plan.blank.length ? " " + tr("Left out, with no value in any row: {cols}.", { cols: plan.blank.join(", ") }) : "")]);
+    const own = (data.customFields || []).filter((f) => !out.customFields.some((g) => g.column === f.column));
+    return commitImportDataRaw({ ...data, allRows: out.rows, mapping: out.mapping, customFields: [...own, ...out.customFields], recordAs: data });
+  };
+  const commitImportDataRaw = (data) => {
     const { target, mapping, allRows: allRowsIn, dipConvention, fileName: shownName, sourceEpsg, perRowEpsgCol, customFields, azimuthRef, azimuthDate, betaRefLine, azimuthGridEpsg, unseen = false, dbSource = null, reload = null } = data; // dbSource, reload: #1963 (reload: an object the collar diff is written to; no overwrite question)
     // TASKS.csv #1506 (review #1497) — the dialog's title carries the drop's queue count ("Min Domain.csv (10 more queued)"), and it
     // became the custom layer's name, each row's source (_src) and every notice: the bare file name from here on
@@ -401,7 +420,7 @@ export function makeImportPipeline(ctx, h) {
     const missing = schema.fields.filter((f) => f.required && !mapping[f.key] && !(logChans && f.key === "value") && !(recCalc && f.key === "value") && !(minPlan && f.key === "value"));
     if (missing.length) { setNotices((p) => [...p, notice("{fileName}: map required field(s) — {v}", { fileName, v: missing.map((f) => f.label).join(", ") })]); return false; }
     // TASKS.csv #1963 — a table pulled from a database: its record (profile, schema, table, these choices) for "Reload from database"
-    if (dbSource?.profile && setDbImports) { const rec = dbImportRecord(data, dbSource, target); if (rec) setDbImports((prev) => upsertDbImport(prev, rec)); }
+    if (dbSource?.profile && setDbImports) { const rec = dbImportRecord(data.recordAs || data /* #3307 — the dialog's choices, not the rows made from them */, dbSource, target); if (rec) setDbImports((prev) => upsertDbImport(prev, rec)); }
     const flipDip = (raw) => (dipConvention === "neg_down" ? -raw : raw);
     // TASKS.csv #548 — alpha/beta picks were oriented from the survey present at THEIR import; a new survey or
     // collar for those holes re-derives them (logged dip / dip direction and calculator results are left alone).
@@ -733,7 +752,7 @@ export function makeImportPipeline(ctx, h) {
       { const holes = new Set(rows.map((r) => r.hole_id)), saved = (importStateRef.current.layers?.structure || []).filter((r) => isDerivedPick(r) && holes.has(r.hole_id)).length; if (saved) setNotices((p) => [...p, tr("{saved} pick(s) from the Core orientation calculator were kept in these holes.", { saved })]); } // #1234
       setLayerVisible((p) => ({ ...p, structure: true }));
       setNotices((p) => [...p, appendNotice(notice("Loaded {rows} structure points from {fileName}.", { rows: rows.length, fileName }), skippedRowsText(stDropped, allRows.length))]); // #1070
-    } else if (minPlan) {
+    } else if (minPlan?.mode === "layers") { // #3307 — the one-layer mode is made in commitImportData
       // TASKS.csv #3205 (Matt's decision 2026-11-13) — one numeric interval custom layer per mineral column, in % (visual), named after the
       // column; an interval with no value of a mineral is not in its layer (not a 'blank code'); its style column rides along as text
       const { layers: mLayers, made, outside } = perMineralLib.perMineralLayers(allRows, mapping, minPlan, fileName, (cols) => tr("total of {cols}", { cols: cols.join(" + ") }));
