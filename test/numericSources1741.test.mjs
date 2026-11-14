@@ -50,7 +50,7 @@ test("the dialogs: a Source select in Estimation, the logs in the Grade shell el
   assert.match(m, /const assaysIn = sourceData \? sourceData\.assays : assaysProp, assayElements = sourceData \? sourceData\.assayElements : assayElementsProp;/);
   assert.match(m, /<option value="assay">\{tr\("Assays"\)\}<\/option>/);
   assert.match(m, /if \(logValues\) logInfo = logPoints\(points\);/);
-  assert.equal((m.match(/runEstimation\("block", estPts, \{/g) || []).length, 2); // the raw points stay for the checks
+  assert.equal((m.match(/runEstimation\("block", estPts, (\{|nnOpts, \{)/g) || []).length, 2); // the raw points stay for the checks; nnOpts: #3271
   assert.match(m, /c\.value = unlogValue\(c\.value\)/);
   const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
   assert.match(p, /<optgroup label=\{tr\("Downhole logs and numeric layers"\)\}>/);

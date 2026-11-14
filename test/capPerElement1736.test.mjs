@@ -8,7 +8,9 @@ const panes = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", i
 
 test("Estimation: changing the element clears the cap and the old result; a capped run says so", () => {
   assert.ok(est.includes("onChange={(e) => { setSymbol(e.target.value); setCapValue(NaN); setResult(null); }}"));
-  assert.ok(est.includes('result.params?.capValue != null && <div>{tr("Grades capped at {cap} {unit} before estimating."'));
+  // TASKS.csv #3271 — in a set the line names the capped element; alone, as before
+  assert.ok(est.includes('result.params?.capValue != null && <div>{result.members?.length ? tr("{el} capped at {cap} {unit} before estimating."'));
+  assert.ok(est.includes(': tr("Grades capped at {cap} {unit} before estimating."'));
 });
 
 test("Estimation: models are named from the result's own element / method / cell", () => {

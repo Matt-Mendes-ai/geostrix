@@ -14,6 +14,7 @@ import { excludeQAQC, labAssays } from "../lib/qaqc.js"; // TASKS.csv #266
 import { samplePointsFromIntervals, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport, supportInReach, supportBeyondReach, retallyKeptCells } from "../lib/estimation.js"; // retallyKeptCells: #2106
 import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit, blockModelLattice, snapBoundsToLattice, overlapBox, blockModelExtent /* #2729 */ } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
 import { runEstimation } from "../lib/estimationClient.js"; // TASKS.csv #520 — off the UI thread
+import { memberCapProposal } from "../lib/memberCaps.js"; // TASKS.csv #3271
 import { setChoices, setOthers, newSetId, setRecord, memberName, domainNameSuffix, trimLike, memberSummary, MAX_SET_ELEMENTS, MEMBER_OWN_KEYS } from "../lib/estimateSet.js"; // TASKS.csv #3014 — several elements in one run
 import { makeReachClient } from "../lib/blockReachClient.js"; // TASKS.csv #1416; in a worker: #1579
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #2552
@@ -86,6 +87,8 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   // TASKS.csv #3014 — other elements estimated in the same run, on the same grid, search and domain rule, added as a set (assays only)
   const [setPicked, setSetPicked] = useState(() => keep("setOthers", [], Array.isArray));
   const others = useMemo(() => (sourceKey === "assay" ? setOthers(setPicked, symbols, symbol) : []), [setPicked, symbols, symbol, sourceKey]);
+  // TASKS.csv #3271 — each other element's top cut: its own P99 when its CV is over 150 % (the single-run rule), editable; empty = not capped
+  const [memberCaps, setMemberCaps] = useState({});
   const [stage, setStage] = useState(null); // the element being run, while a set runs
 
   const [useComposites, setUseComposites] = useState(() => keep("useComposites", true));
@@ -263,6 +266,8 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   const [samplesFrom, setSamplesFrom] = useState(() => (modelArea === "checked" && checkedHoleIds?.size ? "checked" : "all"));
   const sampleAssays = useMemo(() => (samplesFrom === "checked" && checkedHoleIds?.size ? assays.filter((a) => checkedHoleIds.has(a.hole_id)) : assays), [assays, samplesFrom, checkedHoleIds]);
   const srcAssays = useMemo(() => (includeQAQC ? sampleAssays : excludeQAQC(sampleAssays)), [sampleAssays, includeQAQC]);
+  const memberProposals = useMemo(() => Object.fromEntries(others.map((el) => [el, memberCapProposal(srcAssays, el, elementUnits[el] || "ppm", elementUnits)])), [others, srcAssays, elementUnits]); // #3271
+  const memberCapOf = (el) => (el in memberCaps ? memberCaps[el] : memberProposals[el]?.proposed ?? ""); // #3271
   // TASKS.csv #3006 (WA iron review) — with the samples from the checked holes, the holes the run uses are the checked ones: every unchecked hole
   // was a hole 'never assayed' (5,968 of them, 288,935 m written at 0 % Fe by the barren option, the composite mean 38.3 -> 1.78 %) and its
   // drilled metres 'unsampled drilling' nearer than a block's samples. A hole left out of the run is neither sampled nor unsampled.
@@ -539,11 +544,12 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         }, { onProgress: (f) => setProgress(share * (method === "nn" ? f : 0.8 * f)), signal: ac.signal });
         // TASKS.csv #1051 — a nearest-neighbour model over the same grid, search, domains and trend (one sample per block,
         // so it is cheap): its mean over the same blocks is the declustered mean the estimate is checked against
-        const nnEst = method === "nn" ? est : await runEstimation("block", estPts, {
+        const nnOpts = { // #3271 — shared with the set's members' own checks
           bounds, cellSize: cell3, maxBlocks: blockBudget, method: "nn", searchRadius: searchRadius > 0 ? searchRadius : gridDiagonal,
           minSamples: 1, maxSamples: 1, minHoles: 1, restrictToDomain: restrictToDomain && !!domainKey, noCodeAsDomain: restrictToDomain && !!domainKey && noCodeAsDomain /* #2541 */,
           ...(trend ? { trend: { basis: trendBasis(trend), scales: trendSearchScales(trend) } } : {}),
-        }, { onProgress: (f) => setProgress(share * (0.8 + 0.2 * f)), signal: ac.signal, checkOnly: true /* #3060 — only joined against the estimate: kept as columns */ });
+        };
+        const nnEst = method === "nn" ? est : await runEstimation("block", estPts, nnOpts, { onProgress: (f) => setProgress(share * (0.8 + 0.2 * f)), signal: ac.signal, checkOnly: true /* #3060 — only joined against the estimate: kept as columns */ });
         if (logInfo) { for (const c of est.cells) c.value = unlogValue(c.value); if (nnEst !== est) { const v = nnEst.checkColumns.value; for (let i = 0; i < v.length; i++) v[i] = unlogValue(v[i]); } } // #1741 — back to data units
         // TASKS.csv #404 — the parameters are captured AT RUN TIME (the form can be edited before
         // "Add to project"), and travel with the block model into the project file.
@@ -632,7 +638,8 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         await new Promise((r) => setTimeout(r, 0)); 
         // TASKS.csv #3014 — the set's other elements: the same grid (bounds, cell size and budget: the same lattice), search, trend and domain
         // rule. Each is composited on its own (a sample missing the element is left out for it), takes the unsampled-metres choice saved for it
-        // here (else left out), has no top cut (a cap belongs to its element), and kriging fits its own variogram; then the primary's trims.
+        // here (else left out), its own top cut (#3271: its P99 when its CV is over 150 %, as shown and edited in the dialog), and kriging fits
+        // its own variogram; then the primary's trims. #3271 — and its own check against a nearest-neighbour pass on the same grid.
         const members = [];
         const inArea = areaString ? ((pts) => (x, y) => pointInPolygon(x, y, pts))(areaString.vertices.map((q) => ({ x: q[0], y: q[1] }))) : null;
         for (let k = 0; k < others.length; k++) {
@@ -641,27 +648,33 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           await new Promise((r) => setTimeout(r, 0));
           const unsM = resolveUnsampled("estimate", { assays: srcAssays, collars: runCollars, symbol: el, unit: u, elementUnits, logCtx: { layers, customLayers } });
           const fm = unsM.apply(srcAssays), rows = fm.assays;
-          const iv = useComposites ? compositeDownhole(rows, el, u, elementUnits, { length: compositeLength, minCoverage, capValue: null, domainRows: domainRowsSel }) : rawSampleIntervals(rows, el, u, elementUnits, { capValue: null }).intervals;
+          const mCapN = Number(memberCapOf(el)), mCap = mCapN > 0 ? mCapN : null; // #3271
+          const iv = useComposites ? compositeDownhole(rows, el, u, elementUnits, { length: compositeLength, minCoverage, capValue: mCap, domainRows: domainRowsSel }) : rawSampleIntervals(rows, el, u, elementUnits, { capValue: mCap }).intervals;
           let mp = samplePointsFromIntervals(iv, collars, survey, desurveyHole, desurveyMethod).points;
           if (inShell) mp = mp.filter((q) => inShell(q));
-          if (!mp.length) { members.push({ ...memberSummary(el, u, [], 0), cells: [] }); continue; }
+          if (!mp.length) { members.push({ ...memberSummary(el, u, [], 0), cells: [], cap: mCap }); continue; }
           const mUns = unsampledPointsFor(rows, el, u);
           let me;
           try {
             me = await runEstimation("block", mp, { ...baseOpts, ...(method === "ok" ? { variogram: { model: vgModel } } : {}), ...(mUns.length ? { unsampledPoints: mUns } : {}) }, { onProgress: (f) => setProgress(share * (1 + k + f)), signal: ac.signal });
           } catch (err) { if (err.cancelled) throw err; throw new Error(`${el}: ${err.message}`); }
           const t = trimLike(me.cells, { inShell, inArea, groundAt: groundAt && cutAtGround ? groundAt : null });
+          // #3271 — the member's own check: composites, nearest neighbour and estimate means over its blocks
+          const mNn = method === "nn" ? null : await runEstimation("block", mp, nnOpts, { signal: ac.signal, checkOnly: true });
+          await new Promise((r) => setTimeout(r, 0));
+          const mCheck = t.cells.length ? estimateCheck(t.cells, mNn ? mNn.checkColumns : t.cells, mp) : null;
+          const mAudit = mCap != null ? capAudit(srcAssays, el, u, elementUnits, mCap) : null;
           let supportCounts = me.supportCounts, dominated = me.dominatedCells;
           if (t.dropped) { const rt = retallyKeptCells(t.cells, { method, supportCounts, dropUnsupported: !!inShell }); if (rt.supportCounts) supportCounts = rt.supportCounts; dominated = rt.dominatedCells; }
           const mParams = { ...params };
           for (const key of MEMBER_OWN_KEYS) delete mParams[key];
           Object.assign(mParams, {
-            element: el, unit: u, capValue: null, capUnit: null, samplePoints: mp.length, ...unsM.params(fm), unsampledDrillPoints: mUns.length,
+            element: el, unit: u, capValue: mCap, capUnit: mCap != null ? u : null, ...(mAudit ? { capAudit: mAudit } : {}), samplePoints: mp.length, ...unsM.params(fm), unsampledDrillPoints: mUns.length, // cap: #3271
             ...(me.variogram ? { variogram: { ...me.variogram, frame: params.variogram?.frame }, krigingBlocks: me.okCounts } : {}), ...(me.mlsCounts ? { mlsBlocks: me.mlsCounts } : {}),
             ...(dominated ? { effectivelyOneHoleBlocks: dominated } : {}),
             ...(t.dropped ? { trimmedLikeThePrimary: `${t.dropped} block(s) dropped by the primary's limits (the restricting solid, the area string, the ground)` } : {}),
           });
-          members.push({ ...memberSummary(el, u, t.cells, mp.length), cells: t.cells, params: mParams, supportCounts });
+          members.push({ ...memberSummary(el, u, t.cells, mp.length), cells: t.cells, params: mParams, supportCounts, cap: mCap, capAudit: mAudit, check: mCheck }); // cap / check: #3271
         }
         setStage(null);
         const withBlocks = members.filter((m) => m.cells.length);
@@ -759,7 +772,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
             {/* TASKS.csv #3014 — other elements estimated in the same run and added with it as a set */}
             {sourceKey === "assay" && setChoices(symbols, symbol).length > 0 && (
               <details style={{ fontSize: "var(--font-size-sm)", paddingBottom: 6 }} open={others.length > 0}>
-                <summary style={{ cursor: "pointer" }} title={tr("Estimates other elements in the same run, on the same blocks, with the same search and domain rule, and adds them with this one as a set of block models. Each is composited on its own. The top cut and a typed variogram apply to {symbol} only; the unsampled metres of each other element are read as you last chose for it here, else left out.", { symbol })}>{others.length ? tr("Also estimate: {list}", { list: others.join(", ") }) : tr("Also estimate other elements…")}</summary>
+                <summary style={{ cursor: "pointer" }} title={tr("Estimates other elements in the same run, on the same blocks, with the same search and domain rule, and adds them with this one as a set of block models. Each is composited on its own, with its own top cut (below). A typed variogram applies to {symbol} only; the unsampled metres of each other element are read as you last chose for it here, else left out.", { symbol }) /* #3271 */}>{others.length ? tr("Also estimate: {list}", { list: others.join(", ") }) : tr("Also estimate other elements…")}</summary>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 10px", marginTop: 4, maxWidth: 520 }}>
                   {setChoices(symbols, symbol).map((s) => {
                     const on = others.includes(s), full = !on && others.length >= MAX_SET_ELEMENTS - 1;
@@ -769,6 +782,20 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
                   })}
                 </div>
                 {others.length >= MAX_SET_ELEMENTS - 1 && <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Up to {n} elements in one run.", { n: MAX_SET_ELEMENTS })}</div>}
+                {others.length > 0 && ( /* TASKS.csv #3271 — each other element's top cut, by the rule a run on it alone would use */
+                  <table style={{ marginTop: 6, borderCollapse: "collapse" }} aria-label={tr("Top cut of the other elements")}>
+                    <thead><tr><th style={{ textAlign: "start", paddingInlineEnd: 10 }}>{tr("Element")}</th><th style={{ textAlign: "start", paddingInlineEnd: 10 }} title={tr("Coefficient of variation of the assays (standard deviation / mean)")}>{tr("CV")}</th><th style={{ textAlign: "start", paddingInlineEnd: 10 }}>{tr("Top cut")}</th><th /></tr></thead>
+                    <tbody>{others.map((el) => {
+                      const pr = memberProposals[el], v = memberCapOf(el), capped = Number(v) > 0, high = pr?.cv > 150;
+                      return <tr key={el}>
+                        <td style={{ paddingInlineEnd: 10 }}>{el}</td>
+                        <td style={{ paddingInlineEnd: 10 }}>{pr?.cv != null ? `${Math.round(pr.cv)} %` : "—"}</td>
+                        <td style={{ paddingInlineEnd: 10, whiteSpace: "nowrap" }}><input type="number" min="0" step="any" value={v} onChange={(e) => { const x = e.target.value; setMemberCaps((m) => ({ ...m, [el]: x })); setResult(null); }} aria-label={tr("Top cut for {el}", { el })} style={{ ...inp, width: 90 }} /> {gradeUnitLabel(el, elementUnits[el] || "ppm")}</td>
+                        <td style={{ color: !capped && high ? "var(--color-warn-text)" : "var(--color-text-muted)" }}>{capped ? (pr?.proposed != null && Number(v) === pr.proposed ? tr("its P99: the CV is over 150 %") : tr("typed")) : high ? tr("not capped, though the CV is over 150 %") : tr("not capped: the CV is 150 % or under")}</td>
+                      </tr>;
+                    })}</tbody>
+                  </table>
+                )}
               </details>
             )}
             <label style={fieldLabel}>{tr("Method")}{/* TASKS.csv #87 — the method list comes from estimation.js's own table so the dropdown
@@ -1033,7 +1060,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
               {result.rawStats && (result.rawStats.duplicatesSkipped > 0 || result.rawStats.overlappingRows > 0) && (
                 <div>{tr("Raw assays: {duplicatesSkipped} exact duplicate row(s) left out; {overlappingRows} overlapping row(s) resolved into segments at the mean of the overlapping results.", { duplicatesSkipped: result.rawStats.duplicatesSkipped, overlappingRows: result.rawStats.overlappingRows })}</div>
               )}
-              {result.params?.capValue != null && <div>{tr("Grades capped at {cap} {unit} before estimating.", { cap: result.params.capValue, unit: result.params.capUnit ? gradeUnitLabel(symbol, result.params.capUnit) : "" /* #2218 */ })}</div>}{/* #1736 — said in the result */}
+              {result.params?.capValue != null && <div>{result.members?.length ? tr("{el} capped at {cap} {unit} before estimating.", { el: result.params.element || symbol, cap: result.params.capValue, unit: result.params.capUnit ? gradeUnitLabel(symbol, result.params.capUnit) : "" }) /* #3271 — which element, in a set */ : tr("Grades capped at {cap} {unit} before estimating.", { cap: result.params.capValue, unit: result.params.capUnit ? gradeUnitLabel(symbol, result.params.capUnit) : "" /* #2218 */ })}</div>}{/* #1736 — said in the result */}
               <div>{tr("{blocksEstimated} block(s) estimated, {blocksSkipped} left un-estimated (no sample within search radius / below min-samples / below min distinct holes).", { blocksEstimated: result.blocksEstimated.toLocaleString(), blocksSkipped: result.blocksSkipped.toLocaleString() })}</div>
               {result.piercedBlocks?.blocks > 0 && result.piercedBlocks.estimated < result.piercedBlocks.blocks && ( /* TASKS.csv #3255 — the best-informed blocks, said when some are empty */
                 <div role="note" style={{ color: result.piercedBlocks.holesEmpty.length ? "var(--color-warn-text)" : undefined }}>{tr("{e} of the {b} blocks a drillhole passes through were estimated.", { e: result.piercedBlocks.estimated.toLocaleString(), b: result.piercedBlocks.blocks.toLocaleString() })}{result.piercedBlocks.holesEmpty.length ? " " + tr("{k} of the {h} holes have no estimated block anywhere along them ({list}): Min distinct holes ({m}) or the search left them out.", { k: result.piercedBlocks.holesEmpty.length, h: result.piercedBlocks.holes, list: result.piercedBlocks.holesEmpty.slice(0, 5).join(", ") + (result.piercedBlocks.holesEmpty.length > 5 ? ", …" : ""), m: result.params?.minHoles ?? minHoles }) : ""}</div>
@@ -1120,7 +1147,10 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
               {result.members?.length > 0 && (
                 <div style={{ marginTop: 4, color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
                   <div style={{ fontWeight: 600 }}>{tr("Also estimated on the same grid (added with {symbol} as a set):", { symbol: result.params?.element || symbol })}</div>
-                  {result.members.map((m) => <div key={m.element} style={{ color: m.blocks ? undefined : "var(--color-warn-text)" }}>{m.blocks ? tr("{el}: {blocks} blocks from {n} composites, mean {mean} {unit}", { el: m.element, blocks: m.blocks.toLocaleString(), n: m.composites.toLocaleString(), mean: m.mean != null ? +m.mean.toPrecision(3) : "—", unit: gradeUnitLabel(m.element, m.unit) }) : tr("{el}: no samples to estimate from; not added.", { el: m.element })}</div>)}
+                  {result.members.map((m) => <div key={m.element} style={{ color: m.blocks ? undefined : "var(--color-warn-text)" }}>{m.blocks ? tr("{el}: {blocks} blocks from {n} composites, mean {mean} {unit}", { el: m.element, blocks: m.blocks.toLocaleString(), n: m.composites.toLocaleString(), mean: m.mean != null ? +m.mean.toPrecision(3) : "—", unit: gradeUnitLabel(m.element, m.unit) }) : tr("{el}: no samples to estimate from; not added.", { el: m.element })}
+                    {m.blocks > 0 && <span>{"; "}{m.cap != null ? tr("capped at {cap} {unit} ({k} of {n} samples)", { cap: m.cap, unit: gradeUnitLabel(m.element, m.unit), k: (m.capAudit?.nCapped ?? 0).toLocaleString(), n: (m.capAudit?.nSamples ?? 0).toLocaleString() }) : tr("not capped")}</span>}{/* #3271 */}
+                    {m.check?.estimate?.mean != null && <div style={{ paddingInlineStart: 12 }}>{tr("check: composites {c}, nearest neighbour {nn}, estimate {e} {unit} ({d} against the nearest neighbour)", { c: m.check.composites.mean != null ? +m.check.composites.mean.toPrecision(3) : "—", nn: m.check.nn.mean != null ? +m.check.nn.mean.toPrecision(3) : "—", e: +m.check.estimate.mean.toPrecision(3), unit: gradeUnitLabel(m.element, m.unit), d: m.check.departPct != null ? `${m.check.departPct > 0 ? "+" : ""}${m.check.departPct.toFixed(1)} %` : "—" })}</div>}{/* #3271 */}
+                  </div>)}
                 </div>
               )}
               {result.blocksEstimated > 0 && result.nnCells && <EstimateCheck cells={result.cells} nnCells={result.nnCells} points={result.checkPoints} unit={gradeUnitLabel(symbol, unit) /* #2218: display only */} symbol={symbol} method={result.params.method} epsg={stampEpsg(project)} composited={result.params.composited !== false} />}
