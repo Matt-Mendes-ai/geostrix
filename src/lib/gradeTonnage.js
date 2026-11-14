@@ -114,7 +114,11 @@ export function autoCutoffs(cells, { element = null, unit = null } = {}) {
 // TASKS.csv #2417 / #2542 — beyondKnown (the model's estimate flagged its blocks, params.beyondFlagged): beyondShare, the share of the
 // metal (grade x volume) in blocks above or below every sample that informs them
 // TASKS.csv #2550 — densityOf(cell): a density per block (by a logged code, lib/densityByCode.js); tonnes, metal and the mean grade (then
-// tonnage-weighted) are summed block by block. A block with no density counts in the volume, not in the tonnes.
+// tonnage-weighted) are summed block by block.
+// TASKS.csv #3270 (Galore Creek review) — one population per row: with densityOf, a row counts only the blocks that have a density (Blocks,
+// Volume, the shares, the tonnage-weighted grade and the tonnes alike), and noDensityBlocks / noDensityVolumeM3 say how many at that cutoff
+// were left out. Before, Blocks and Volume counted all 39,423 blocks while tonnes, metal and the grade were those of the 36,896 with a
+// density (2.53 t/m3 read off a rock of 2.71). A row in which no block has a density keeps every block, volume-weighted, with no tonnes.
 // TASKS.csv #2721 — logKnown (the estimate filled unsampled metres from a picked log): logShare, the share of the metal from that log's
 // readings (cell.fromLog, about the inverse-distance share of each block's informing samples), apart from any typed-barren metres
 export function gradeTonnageTable(cells, { cutoffs, density = null, unit = null, interpolatedOnly = false, beyondKnown = false, densityOf = null, logKnown = false } = {}) {
@@ -126,10 +130,15 @@ export function gradeTonnageTable(cells, { cutoffs, density = null, unit = null,
     let n = 0, vol = 0, gv = 0, vi = 0, v1 = 0, gvo = 0, gvl = 0, t = 0, gt = 0;
     for (const b of blocks) if (b.v >= cutoff) { n++; vol += b.vol; gv += b.v * b.vol; if (b.interp) vi += b.vol; if (b.one) v1 += b.vol; if (b.out) gvo += b.v * b.vol; gvl += b.v * b.vol * b.lg; if (b.rho > 0) { t += b.vol * b.rho; gt += b.v * b.vol * b.rho; } }
     if (densityOf) {
-      const tonnes = t > 0 ? t : null, meanGrade = t > 0 ? gt / t : vol > 0 ? gv / vol : null;
-      return { cutoff, blocks: n, volumeM3: vol, meanGrade, tonnes, metal: m && tonnes != null ? gt * m.factor : null,
+      if (!(t > 0)) return { cutoff, blocks: n, volumeM3: vol, meanGrade: vol > 0 ? gv / vol : null, tonnes: null, metal: null, noDensityBlocks: 0, noDensityVolumeM3: 0, // #3270 — no tonnes at all
         interpolatedShare: hasSupport && vol > 0 ? vi / vol : null, singleHoleShare: hasHoles && vol > 0 ? v1 / vol : null,
         ...(beyondKnown ? { beyondShare: gv > 0 ? gvo / gv : null } : {}), ...(logKnown ? { logShare: gv > 0 ? gvl / gv : null } : {}) };
+      // #3270 — the blocks with a density only
+      let dn = 0, dvol = 0, dvi = 0, dv1 = 0, dgv = 0, dgvo = 0, dgvl = 0;
+      for (const b of blocks) if (b.v >= cutoff && b.rho > 0) { dn++; dvol += b.vol; dgv += b.v * b.vol; if (b.interp) dvi += b.vol; if (b.one) dv1 += b.vol; if (b.out) dgvo += b.v * b.vol; dgvl += b.v * b.vol * b.lg; }
+      return { cutoff, blocks: dn, volumeM3: dvol, meanGrade: gt / t, tonnes: t, metal: m ? gt * m.factor : null, noDensityBlocks: n - dn, noDensityVolumeM3: vol - dvol,
+        interpolatedShare: hasSupport && dvol > 0 ? dvi / dvol : null, singleHoleShare: hasHoles && dvol > 0 ? dv1 / dvol : null,
+        ...(beyondKnown ? { beyondShare: dgv > 0 ? dgvo / dgv : null } : {}), ...(logKnown ? { logShare: dgv > 0 ? dgvl / dgv : null } : {}) };
     }
     const meanGrade = vol > 0 ? gv / vol : null, tonnes = rho && vol > 0 ? vol * rho : null;
     return { cutoff, blocks: n, volumeM3: vol, meanGrade, tonnes, metal: m && tonnes != null && meanGrade != null ? tonnes * meanGrade * m.factor : null,
@@ -183,16 +192,16 @@ export function gradeTonnageByBench(cells, { cutoff, benchH, datum = 0, density 
       const lo = datum + k * h, hi = lo + h, overlap = Math.min(zhi, hi) - Math.max(zlo, lo);
       if (!(overlap > 1e-9)) continue;
       const share = Math.min(1, overlap / c.dz), v = vol * share;
-      let b = benches.get(k); if (!b) benches.set(k, (b = { floorRL: lo, blocks: 0, vol: 0, gv: 0, vi: 0, t: 0, gt: 0 }));
+      let b = benches.get(k); if (!b) benches.set(k, (b = { floorRL: lo, blocks: 0, vol: 0, gv: 0, vi: 0, t: 0, gt: 0, dBlocks: 0, dVol: 0, dVi: 0 }));
       b.blocks += share; b.vol += v; b.gv += v * c.value; if (c.support === "interpolated") b.vi += v;
-      if (densityOf) { const r = densityOf(c); if (r > 0) { b.t += v * r; b.gt += v * r * c.value; } } // #2637
+      if (densityOf) { const r = densityOf(c); if (r > 0) { b.t += v * r; b.gt += v * r * c.value; b.dBlocks += share; b.dVol += v; if (c.support === "interpolated") b.dVi += v; } } // #2637; d*: #3270
     }
   }
   return [...benches.values()].sort((a, b) => b.floorRL - a.floorRL).map((b) => {
-    if (densityOf) { // #2637
-      const tonnes = b.t > 0 ? b.t : null, meanGrade = b.t > 0 ? b.gt / b.t : b.vol > 0 ? b.gv / b.vol : null;
-      return { floorRL: b.floorRL, blocks: +b.blocks.toFixed(2), volumeM3: b.vol, meanGrade, tonnes, metal: m && tonnes != null ? b.gt * m.factor : null, interpolatedShare: hasSupport && b.vol > 0 ? b.vi / b.vol : null };
+    if (densityOf && b.t > 0) { // #2637; #3270 — the blocks with a density only, as the main table
+      return { floorRL: b.floorRL, blocks: +b.dBlocks.toFixed(2), volumeM3: b.dVol, meanGrade: b.gt / b.t, tonnes: b.t, metal: m ? b.gt * m.factor : null, interpolatedShare: hasSupport && b.dVol > 0 ? b.dVi / b.dVol : null, noDensityBlocks: +(b.blocks - b.dBlocks).toFixed(2), noDensityVolumeM3: b.vol - b.dVol };
     }
+    if (densityOf) return { floorRL: b.floorRL, blocks: +b.blocks.toFixed(2), volumeM3: b.vol, meanGrade: b.vol > 0 ? b.gv / b.vol : null, tonnes: null, metal: null, interpolatedShare: hasSupport && b.vol > 0 ? b.vi / b.vol : null, noDensityBlocks: 0, noDensityVolumeM3: 0 };
     const meanGrade = b.vol > 0 ? b.gv / b.vol : null, tonnes = rho && b.vol > 0 ? b.vol * rho : null;
     return { floorRL: b.floorRL, blocks: +b.blocks.toFixed(2), volumeM3: b.vol, meanGrade, tonnes, metal: m && tonnes != null && meanGrade != null ? tonnes * meanGrade * m.factor : null, interpolatedShare: hasSupport && b.vol > 0 ? b.vi / b.vol : null };
   });
@@ -206,9 +215,10 @@ export const EXPLORATION_TARGET_CAUTION = "Any tonnage and grade from this table
 // columns (#1577): metalColumns(...) to write the metal as kg / troy oz / t instead of metalOf's own unit
 // pctOf (#1747): a base metal in ppm also gets its cut-off in % (cutoff_pct)
 export function gradeTonnageRows(rows, { vname, density = null, metal = null, columns = null, pctOf = null }) {
+  const noDens = rows.some((r) => r.noDensityBlocks > 0); // TASKS.csv #3270 — the blocks at the cutoff left out for want of a density
   const mcol = (r) => (columns ? Object.fromEntries(columns.map((c) => [c.key, r.metal == null ? "" : Number((r.metal * c.factor).toPrecision(6))])) : { [`metal_${metal.unit}`]: r.metal == null ? "" : Math.round(r.metal) });
   return rows.map((r) => ({ cutoff: r.cutoff, ...(pctOf ? { cutoff_pct: Number(pctOf(r.cutoff).toPrecision(6)) } : {}), blocks: r.blocks, volume_m3: Math.round(r.volumeM3), [`mean_${vname}`]: r.meanGrade == null ? "" : Number(r.meanGrade.toPrecision(5)),
-    ...(density ? { tonnes: Math.round(r.tonnes || 0) } : {}), ...(density && metal ? mcol(r) : {}),
+    ...(density ? { tonnes: Math.round(r.tonnes || 0) } : {}), ...(density && metal ? mcol(r) : {}), ...(noDens ? { blocks_no_density: r.noDensityBlocks || 0, volume_no_density_m3: Math.round(r.noDensityVolumeM3 || 0) } : {}),
     ...(r.interpolatedShare != null ? { interpolated_pct: Math.round(r.interpolatedShare * 100) } : {}), ...(r.singleHoleShare != null ? { one_hole_pct: Math.round(r.singleHoleShare * 100) } : {}), ...(r.beyondShare != null ? { beyond_samples_metal_pct: Math.round(r.beyondShare * 100) } : {}), ...(r.logShare != null ? { from_log_metal_pct: Math.round(r.logShare * 100) } : {}) })); // #1409; #2417; #2721
 }
 
