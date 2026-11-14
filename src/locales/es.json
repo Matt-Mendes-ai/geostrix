@@ -12575,5 +12575,19 @@
   "Forget the order on the legends of every page of this project": "Olvidar el orden en las leyendas de todas las páginas de este proyecto",
   "Cleared on every page's legends. Load from view lists the codes in their default order again.": "Borrado en las leyendas de todas las páginas. Cargar desde la vista vuelve a listar los códigos en su orden predeterminado.",
   "Save CSV": "Guardar CSV",
-  "Save the table as a CSV file": "Guardar la tabla como archivo CSV"
+  "Save the table as a CSV file": "Guardar la tabla como archivo CSV",
+  "a drillhole (read in a later step)": "un sondaje (se leerá en una etapa posterior)",
+  "an image (not read)": "una imagen (no leída)",
+  "a label (not read)": "una etiqueta (no leída)",
+  "a block model without its U / V / Z cell delimiters": "un modelo de bloques sin sus delimitadores de celda U / V / Z",
+  "a 2D grid without its U / V counts and sizes": "una grilla 2D sin sus cantidades y tamaños U / V",
+  "This is not a geoh5 file: it has no GEOSCIENCE group (another kind of HDF5 file?).": "No es un archivo geoh5: no tiene el grupo GEOSCIENCE (¿otro tipo de archivo HDF5?).",
+  "an object of type \"{type}\" (not read)": "un objeto de tipo «{type}» (no leído)",
+  "no vertices": "sin vértices",
+  "cells missing, or pointing past the vertices": "faltan celdas, o apuntan más allá de los vértices",
+  "2D grids ({names}) are shown as block models one cell thick, coloured by their values.": "Las grillas 2D ({names}) se muestran como modelos de bloques de una celda de espesor, coloreados por sus valores.",
+  "The file's distance unit is {u}: its coordinates are used as they are, not converted to metres.": "La unidad de distancia del archivo es {u}: sus coordenadas se usan tal cual, sin convertir a metros.",
+  "A geoh5 file carries no coordinate system: its coordinates are used as they are, in the project's.": "Un archivo geoh5 no trae sistema de coordenadas: sus coordenadas se usan tal cual, en las del proyecto.",
+  "A Geoscience ANALYST workspace: its points, curves, surfaces, block models and 2D grids are read. Drillholes and other objects are listed as not read.": "Un espacio de trabajo de Geoscience ANALYST: se leen sus puntos, curvas, superficies, modelos de bloques y grillas 2D. Los sondajes y otros objetos se listan como no leídos.",
+  "Import Geoscience ANALYST (.geoh5)…": "Importar Geoscience ANALYST (.geoh5)…"
 }

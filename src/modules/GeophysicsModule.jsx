@@ -284,6 +284,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const [omfChoices, setOmfChoices] = useState(null); // TASKS.csv #1970 — { file, choices: [{ volume, shown, attributes }] }
   const [omfPick, setOmfPick] = useState({});
   const omfInput = useRef(null);
+  const geoh5Input = useRef(null); // TASKS.csv #1993
   const [idwOpen, setIdwOpen] = useState(false); // TASKS.csv #235 — grid geophys_pts to a raster (IDW)
   // TASKS.csv #3324 — the pane's survey sampled along the drillholes, as a downhole layer
   const [holeOpen, setHoleOpen] = useState(false);
@@ -1357,7 +1358,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     try {
       const buf = await file.arrayBuffer();
       // TASKS.csv #637 — the element conversion lives in lib/omfImport.js (shared with the Woodjam sample project)
-      const res = await omfToProjectObjectsAsync(buf, effectiveMaxCells, opts);
+      // TASKS.csv #1993 — a Geoscience ANALYST .geoh5 is read (h5wasm, on demand) into the same objects; drillholes are a later step
+      const res = /\.geoh5$/i.test(file.name) ? await (await import("../lib/geoh5Import.js")).geoh5ToProjectObjects(buf, effectiveMaxCells, opts) : await omfToProjectObjectsAsync(buf, effectiveMaxCells, opts);
       // TASKS.csv #1202 — pillar 3: a budget the geologist raised once should not fill a modest laptop unasked (about 0.4 GB per million blocks, as the budget's own tooltip says)
       const blocks = res.voxelModels.reduce((n, m) => n + (m.cells?.length || 0), 0);
       if (blocks > 500000 && !window.confirm(tr("\"{name}\" holds {n} blocks, about {gb} GB of memory while it is open. A modest laptop can slow down or run out. Import it? (Lowering the cell budget above coarsens it.)", { name: file.name, n: blocks.toLocaleString(), gb: (blocks * 0.4e-6).toFixed(1) }))) { setOmfError({ info: true, text: tr("\"{name}\" was not imported.", { name: file.name }) }); return; }
@@ -3083,6 +3085,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           style={{ display: "none" }}
           onChange={(e) => { importOmf(e.target.files[0]); e.target.value = ""; }}
         />
+        {/* TASKS.csv #1993 — Geoscience ANALYST: points, curves, surfaces, block models and 2D grids (read only); drillholes later */}
+        <button onClick={() => geoh5Input.current.click()} style={{ ...pBtn, marginTop: 6 }} disabled={omfBusy} title={tr("A Geoscience ANALYST workspace: its points, curves, surfaces, block models and 2D grids are read. Drillholes and other objects are listed as not read.")}>
+          {omfBusy ? <Loader2 size={14} className="spin" /> : <Box size={14} />} {omfBusy ? tr("Reading…") : tr("Import Geoscience ANALYST (.geoh5)…")}
+        </button>
+        <input ref={geoh5Input} type="file" accept=".geoh5" style={{ display: "none" }} onChange={(e) => { importOmf(e.target.files[0]); e.target.value = ""; }} />
         {omfError && (
           <div style={{ marginTop: 8, padding: "8px 10px", background: omfError.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${omfError.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: "var(--font-size-base)", color: omfError.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
             {omfError.text}

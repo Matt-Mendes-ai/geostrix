@@ -27,6 +27,10 @@ function vendoredText(name) {
   try { return readFileSync(path.join(ROOT, "scripts", "licence-texts", `${name.replace(/\//g, "__")}.txt`), "utf8").trim(); } catch { return null; }
 }
 
+// TASKS.csv #1993 — a package whose licence field only points at its file ("SEE LICENSE IN LICENSE.txt"): the licence named from that file
+// (read when it was added). The full text is still taken from the package folder.
+const LICENSE_NAMES = { h5wasm: "NIST software notice and the HDF5 licence (BSD-style)" };
+
 function javascriptPackages() {
   const lock = JSON.parse(readFileSync(path.join(ROOT, "package-lock.json"), "utf8"));
   const pkgs = lock.packages || {};
@@ -62,7 +66,7 @@ function javascriptPackages() {
     let meta = {};
     try { meta = JSON.parse(readFileSync(path.join(ROOT, k, "package.json"), "utf8")); } catch { /* not installed here */ }
     const repo = typeof meta.repository === "string" ? meta.repository : meta.repository?.url;
-    return { name, version: p.version, license: p.license || meta.license || "see text", url: meta.homepage || (repo ? repo.replace(/^git\+/, "").replace(/\.git$/, "") : null), text: licenseText(path.join(ROOT, k)) ?? vendoredText(name) };
+    return { name, version: p.version, license: LICENSE_NAMES[name] || p.license || meta.license || "see text", url: meta.homepage || (repo ? repo.replace(/^git\+/, "").replace(/\.git$/, "") : null), text: licenseText(path.join(ROOT, k)) ?? vendoredText(name) };
   }).sort((a, b) => a.name.localeCompare(b.name));
 }
 

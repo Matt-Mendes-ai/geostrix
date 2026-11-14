@@ -23,8 +23,12 @@ export function omfToProjectObjectsAsync(arrayBuffer, maxCells, opts = {}) {
 // offer the rest; volumesOnly: a re-import for another attribute leaves the points, lines and surfaces out (already imported).
 export async function omfToProjectObjects(arrayBuffer, maxCells, { attribute = null, volumesOnly = false, volume = null, crop = null } = {}) { // crop: #1596
   const project = await parseOMF(arrayBuffer);
+  return elementsToProjectObjects(project.elements, maxCells, { attribute, volumesOnly, volume, crop });
+}
+// TASKS.csv #1993 — the elements (OMF's, or a .geoh5 read into the same shapes by lib/geoh5.js) -> project objects; source: the voxel models' "source"
+export function elementsToProjectObjects(elements, maxCells, { attribute = null, volumesOnly = false, volume = null, crop = null } = {}, source = "omf") {
   const omfObjects = [], voxelModels = [], skipped = [], notes = [], choices = [];
-  for (const el of project.elements) {
+  for (const el of elements) {
     if (volumesOnly && el.kind !== "volume") continue;
     if (volume && el.kind === "volume" && el.name !== volume) continue; // that volume only
     if (el.kind === "skipped") { skipped.push(`${el.name} (${el.reason})`); continue; }
@@ -54,7 +58,7 @@ export async function omfToProjectObjects(arrayBuffer, maxCells, { attribute = n
       if (air?.count) notes.push(tr("{name}: {count} cells at {v} (the value this model uses for air above the ground) treated as air (no data).", { name: el.name, count: air.count.toLocaleString(), v: Number(air.value).toPrecision(3) }));
       const numeric = (el.attributes || []).filter((a) => a.kind === "numeric").map((a) => a.name);
       if (numeric.length > 1) choices.push({ volume: el.name, shown: attrName, attributes: numeric });
-      voxelModels.push({ name: `${el.name} (${attrName})`, source: "omf", cells, min, max, ...colorInit, ...(coarsenedFrom ? { params: { coarsenedFrom } } : {}) }); // #1095
+      voxelModels.push({ name: `${el.name} (${attrName})`, source, cells, min, max, ...colorInit, ...(coarsenedFrom ? { params: { coarsenedFrom } } : {}) }); // #1095
       if (coarsenNote) notes.push(`${el.name}: ${coarsenNote}`);
     }
   }
