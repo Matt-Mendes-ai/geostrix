@@ -138,7 +138,7 @@ import { tipWithMeaning } from "../lib/viewer/codeMeaning.js"; // TASKS.csv #281
 import { localDate } from "../lib/localDate.js"; // TASKS.csv #2703
 import { rightDragTracker } from "./viewer/rightDrag.js"; // TASKS.csv #2213
 import { holeZoomPhi } from "./viewer/zoomHole.js"; // TASKS.csv #2375
-import { sortVoxelInstancesBackToFront } from "../lib/viewer/voxelSort.js"; // TASKS.csv #434
+import { sortVoxelInstancesBackToFront, sortFacesBackToFront } from "../lib/viewer/voxelSort.js"; // TASKS.csv #434; faces: #3354
 import { assayValueCounts, orderAssayChips, filterAssayChips, CHIP_FILTER_MIN } from "../lib/viewer/assayChipOrder.js"; // TASKS.csv #2374; filter: #2785
 import { scoreRasterLegendGroups } from "../lib/viewer/scoreRasterLegend.js"; // TASKS.csv #2670
 import { snapInterpretClick } from "../lib/viewer/interpretSnap.js"; // TASKS.csv #2630
@@ -158,7 +158,7 @@ import { useSculpt } from "../lib/useSculpt.js"; // TASKS.csv #145 — manual su
 const SculptPanel = lazyModal(() => import("../components/SculptPanel.jsx")); // TASKS.csv #476 // TASKS.csv #145
 // TASKS.csv #142 — numeric (grade-shell) implicit model: composites/assays -> dense IDW grid -> marching cubes
 import { SUPPORT_COLORS, MAX_BLOCKS, clampCellBudget, NUMERIC_CELL_DEFAULT } from "../lib/estimationMeta.js"; // SUPPORT_*: TASKS.csv #91/#92; budget: #625
-import { rectilinearGrid, buildExposedFaces } from "../lib/voxelFaces.js"; // TASKS.csv #793
+import { rectilinearGrid, buildExposedFaces, voxelBands } from "../lib/voxelFaces.js"; // TASKS.csv #793; voxelBands: #3354
 const SurfaceSolidsPanel = React.lazy(() => import("../components/SurfaceSolidsPanel.jsx")); // TASKS.csv #802 — loads when opened (startup budget)
 const ExplicitSurfacePanel = React.lazy(() => import("../components/ExplicitSurfacePanel.jsx")); // TASKS.csv #811 — loads when opened
 // TASKS.csv #693 — the 3D Modelling tool panes, loaded the first time one of them is opened
@@ -459,11 +459,13 @@ const VOXEL_DISPLAY_ONLY = new Set(["opacity", "visible", "name"]);
 // budget of 10 million. But when I change the opacity they render very slow" - 10 M boxes are 120 M blended triangles,
 // and the back-to-front re-sort of 10 M instances ran every 150 ms while the camera moved.
 const TRANSPARENT_BOX_LIMIT = 200_000;
-function voxelGeometryUnchanged(a, b) {
+function voxelGeometryUnchanged(a, b, anyOpacity = false) { // anyOpacity: a large model's face mesh serves both (#3354)
   if (a === b) return true;
   for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) if (!VOXEL_DISPLAY_ONLY.has(k) && a[k] !== b[k]) return false;
-  return ((a.opacity ?? 0.85) < 1) === ((b.opacity ?? 0.85) < 1); // (a big model's transparent face mesh is built when it turns transparent: #904)
+  return anyOpacity || ((a.opacity ?? 0.85) < 1) === ((b.opacity ?? 0.85) < 1);
 }
+// TASKS.csv #3354 — the face mesh's look for an opacity: blended both sides and re-sorted below 1, written to depth at 1
+const faceLook = (mesh, op) => { const m = mesh.material, t = op < 1; m.opacity = op; if (m.transparent !== t) { m.transparent = t; m.depthWrite = !t; m.side = t ? THREE.DoubleSide : THREE.FrontSide; m.needsUpdate = true; } mesh.userData.faceSort = t; };
 
 export default function ViewerModule({ mode = "view", visible = true, bare = false }) { // bare: #1979 — the viewport alone, beside the Geophysics sidebar
   const store = useStore();
@@ -2219,6 +2221,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       let didWork = false;
       Object.values(voxelMeshesRef.current).forEach((mesh) => {
         const cells = mesh.userData.transparentCells;
+        if (mesh.userData.faceSort && mesh.material.transparent && mesh.visible) { didWork = sortFacesBackToFront(mesh, camera.position) || didWork; return; } // #3354
         if (!cells || !mesh.material.transparent) return;
         didWork = true;
         sortVoxelInstancesBackToFront(mesh, cells, camera.position);
@@ -4721,9 +4724,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       // TASKS.csv #696 — a display-only change (opacity within the transparent range, visibility, name) is applied to
       // the existing mesh. Every model used to be rebuilt on every opacity-slider tick: 539 ms and a 72 MB instance
       // upload per tick for a 1M-cell model, and every OTHER model in the project rebuilt with it.
-      if (prev && prev.userData.srcModel && voxelGeometryUnchanged(prev.userData.srcModel, model) && prev.userData.origin === `${ox},${oy},${oz}` && prev.userData.sliceOn === sliceOn) { // sliceOn: #793
+      const bigFaces = prev?.userData.exposedFaces?.cells > TRANSPARENT_BOX_LIMIT; // #3354 — its mesh is the same at any opacity
+      if (prev && prev.userData.srcModel && voxelGeometryUnchanged(prev.userData.srcModel, model, bigFaces) && prev.userData.origin === `${ox},${oy},${oz}` && prev.userData.sliceOn === sliceOn) { // sliceOn: #793
         const op = model.opacity ?? 0.85;
-        prev.material.opacity = op;
+        if (bigFaces) faceLook(prev, op); else prev.material.opacity = op;
         prev.visible = model.visible !== false;
         prev.userData.srcModel = model;
         return;
@@ -4734,18 +4738,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       // visibility toggle (all rebuild this effect) leaked ~7.6 MB per 100k-cell model on the shared-RAM iGPU.
       if (prev) { group.remove(prev); prev.geometry.dispose(); prev.material.dispose(); prev.dispose?.(); delete voxelMeshesRef.current[model.id]; }
 
-      // TASKS.csv #188 — drillhole targeting module: "an option in the voxels that will turn off
-      // the specified geophysical survey ranges — if I just wanna see my mag high, or my mag low or
-      // IP high". The existing `threshold` field (GeophysicsModule's "Cutoff" slider) was always a
-      // lower bound only (value >= threshold, i.e. "hide everything below X"), which alone can't
-      // isolate a band like "IP high" or "mag low" — for that you need BOTH ends. Adding an upper
-      // bound `rangeMax` alongside it (defaults to +Infinity, i.e. unbounded, for every model that
-      // predates this — same backward-compatible-default pattern as every other optional model
-      // field here) turns the same cutoff into a genuine min/max range: set threshold high for "mag
-      // high", set rangeMax low for "mag low", or bracket both for an isolated IP-high band. The
-      // Targeting module's sidebar (below) is what exposes rangeMax in the UI; GeophysicsModule's
-      // own Cutoff slider is untouched and keeps working exactly as before (rangeMax simply stays at
-      // its unbounded default unless the Targeting tab's controls are used).
+      // TASKS.csv #188 — 'turn off the specified geophysical survey ranges' (mag high, mag low, IP high): threshold is the lower bound and
+      // rangeMax (default +Infinity) the upper; the Targeting sidebar sets rangeMax, the Geophysics Cutoff slider only threshold.
       const cells = model.cells.filter((c) => voxelCellShown(model, c)); // #1161 — the same cells the sections and level plan draw
       if (!cells.length) return;
 
@@ -4755,23 +4749,23 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       // lighting; nothing reads per-instance ids from voxel meshes (they are not pick targets with tooltips).
       // Not while a 3D slice is on: the face mesh is hollow, so a cut through it would show an empty inside where the
       // boxes show the blocks behind the cut.
-      const bigTransparent = opacity < 1 && cells.length > TRANSPARENT_BOX_LIMIT; // #904
+      const bigModel = cells.length > TRANSPARENT_BOX_LIMIT, bigTransparent = opacity < 1 && bigModel; // #904; bigModel: #3354
       if ((opacity >= 1 || bigTransparent) && !sliceOn) {
         const G = voxelGridOf(model);
-        const fm = G ? buildExposedFaces(cells, G, { x: ox, y: oy, z: oz }, makeVoxelColorResolverRGB(model), { boundaries: bigTransparent && model.colorMode === "discrete" }) : null;
+        const fm = G ? buildExposedFaces(cells, G, { x: ox, y: oy, z: oz }, makeVoxelColorResolverRGB(model), { boundaries: bigModel && model.colorMode === "discrete", classOf: voxelBands(model) }) : null; // #3354: classOf; opaque too
         if (fm) {
           const g = new THREE.BufferGeometry();
           g.setAttribute("position", new THREE.BufferAttribute(fm.positions, 3));
           g.setAttribute("normal", new THREE.BufferAttribute(fm.normals, 3));
           g.setAttribute("color", new THREE.BufferAttribute(fm.colors, 3));
           g.setIndex(new THREE.BufferAttribute(fm.indices, 1));
-          // #904 — transparent: blended without a per-frame sort (one mesh of faces), both sides drawn so the far skin shows
-          const fmesh = new THREE.Mesh(g, bigTransparent ? new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide }) : new THREE.MeshLambertMaterial({ vertexColors: true }));
+          const fmesh = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true }));
+          if (bigModel) faceLook(fmesh, opacity); // #904 — blended, both sides, so the far skin shows; #3354 — and back again in place
           fmesh.visible = model.visible !== false;
           fmesh.userData.transparentCells = null;
           fmesh.userData.srcModel = model;
           fmesh.userData.origin = `${ox},${oy},${oz}`;
-          fmesh.userData.exposedFaces = { faces: fm.faces, cells: cells.length, transparent: bigTransparent };
+          fmesh.userData.exposedFaces = { faces: fm.faces, cells: cells.length, transparent: bigTransparent, contacts: bigModel && model.colorMode === "discrete" };
           fmesh.userData.sliceOn = sliceOn;
           group.add(fmesh);
           voxelMeshesRef.current[model.id] = fmesh;

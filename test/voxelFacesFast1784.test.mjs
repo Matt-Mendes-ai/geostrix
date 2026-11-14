@@ -13,7 +13,7 @@ function bruteFaces(shown, boundaries) {
   let n = 0;
   for (const c of shown) for (const [di, dj, dk] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
     const nb = by.get(`${c.i + di},${c.j + dj},${c.k + dk}`);
-    if (!nb || (boundaries && nb.value !== c.value)) n++;
+    if (!nb || (boundaries && nb.value !== c.value && di + dj + dk > 0)) n++; // #3354 — a contact once, not from each side
   }
   return n;
 }
