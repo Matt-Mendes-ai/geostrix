@@ -25,7 +25,11 @@ export function planLatestFetch([lonMin, latMin, lonMax, latMax], level = "stand
   const pixelM = Math.max(nativeM, Math.max(w, h) / (l.gridMax * sides));
   const gridW = Math.max(1, Math.ceil(w / pixelM)), gridH = Math.max(1, Math.ceil(h / pixelM));
   const parts = Math.ceil(gridW / l.gridMax) * Math.ceil(gridH / l.gridMax);
-  return { pixelM, gridW, gridH, nativeLimited: pixelM === nativeM, level, parts, gpuMB: Math.round((gridW * gridH * 4 * 4) / 3 / 1e6) };
+  const gpuMB = Math.round((gridW * gridH * 4 * 4) / 3 / 1e6);
+  // memoryMB: the pictures, and one picture's working copies while it is built (its RGBA, the canvas, the three bands read)
+  const partPx = Math.min(gridW, l.gridMax) * Math.min(gridH, l.gridMax);
+  // fullSideM: the widest area this level gets at the imagery's own pixels ('Full resolution for a smaller area', #3251)
+  return { pixelM, gridW, gridH, nativeLimited: pixelM === nativeM, level, parts, gpuMB, memoryMB: gpuMB + Math.round((partPx * 11) / 1e6), fullSideM: nativeM * l.gridMax * sides };
 }
 
 // TASKS.csv #1766 (review #1645, Copley) — Standard, High and Very high all read '~10 m pixels · image 293 x 267 px' for Sentinel-2 on a

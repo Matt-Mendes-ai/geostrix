@@ -46,13 +46,13 @@ test("the picker's plan: Full gives the own pixels and says how many pictures an
 });
 
 test("wired: the fetch passes Full, each part is added with its pixel size, and the card says it", () => {
-  const m = readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8");
+  const m = readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(m, /full: satLevel === "full"/);
   assert.match(m, /for \(const part of r\.parts \|\| \[r\]\)/);
   assert.match(m, /pixelM: p\.pixelM, gridW: p\.gridW, gridH: p\.gridH/);
   assert.match(m, /\{r\.pixelM > 0 && <span/);
   assert.match(m, /planLatestFetch\(bbox, satLevel, naip \? NAIP_FINEST_M : undefined, \{ naip \}\)/);
-  const n = readFileSync(new URL("../src/lib/naipFetch.js", import.meta.url), "utf8");
+  const n = readFileSync(new URL("../src/lib/naipFetch.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(n, /const plan = full \? naipTiles\(whole\.box, finest\) : \{ cell: whole\.cell, tiles: \[whole\] \};/);
-  assert.match(readFileSync(new URL("../src/lib/imageryFetch.js", import.meta.url), "utf8"), /pixelM: Math\.max\(out\.scaleX, out\.scaleY\)/);
+  assert.match(readFileSync(new URL("../src/lib/imageryFetch.js", import.meta.url), "utf8").replace(/\r\n/g, "\n"), /pixelM: Math\.max\(out\.scaleX, out\.scaleY\)/);
 });

@@ -1,7 +1,8 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from "react"; // Suspense: TASKS.csv #1425
 import { ensureProjectCrs, ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #615; export: #1021
 import { exportCrs, terrainToWorld, tiedExportNote } from "../lib/tiedExport.js"; // TASKS.csv #2322 — a tied local grid's exports through its tie
-import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565; requestModuleAction: #1152
+import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js";
+import { useMachineMemoryGB, fetchFits, fetchBudgetMB, centreBox } from "../lib/fetchMemory.js"; // TASKS.csv #3251 // TASKS.csv #565; requestModuleAction: #1152
 import { askAdoptCrs, projectEpsgChooser, medianLonLat } from "../lib/adoptCrs.js"; // TASKS.csv #607; medianLonLat: #2833
 import { gemHeaderEpsg, KEEP_CHOICES, suggestKeepEvery, everyNth, batchSurveyName, pairGpsFile } from "../lib/xyzBatch.js"; // TASKS.csv #1329
 const THIN_FROM_ROWS = 100000; // TASKS.csv #3208 — a file read whole over this many readings offers thinning
@@ -38,7 +39,7 @@ import { blockModelCsvText, blockModelParamLines } from "../lib/blockModelExport
 import { stampLines, withStamp, stampBeside, stampPlacement, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #404/#411
 import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #529
 import InfoButton from "../components/InfoButton.jsx";
-import { fetchSRTMTerrain, collarGroundMisfit, findBetterUtmZone } from "../lib/srtmFetch.js";
+import { fetchSRTMTerrain, collarGroundMisfit, findBetterUtmZone, planTerrainFetch } from "../lib/srtmFetch.js"; // planTerrainFetch: #3251
 import { fetchCopernicusTerrain } from "../lib/copernicusDem.js"; // TASKS.csv #814
 import { toLonLat, reprojectXY, crsName, pointTransform, getProj4Def, isMetricProjectedEpsg, isGeographicCrs } from "../lib/reproject.js"; // isMetricProjectedEpsg: #2127; isGeographicCrs: #2832
 import { geosoftHeaderEpsg, xyLookLikeDegrees } from "../lib/stationDegrees.js"; // TASKS.csv #2832
@@ -238,6 +239,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // (localStorage), Standard by default so a modest laptop never gets a big grid it did not ask for
   const [terrainDetail, setTerrainDetailState] = useState(() => { try { return Number(localStorage.getItem("geostrix.terrainDetail")) || 200; } catch { return 200; } });
   const setTerrainDetail = (v) => { setTerrainDetailState(v); try { localStorage.setItem("geostrix.terrainDetail", String(v)); } catch { /* private window */ } };
+  const ramGB = useMachineMemoryGB(); // #3251 — what a Full fetch may take on this computer
   // TASKS.csv #979 — the block-model CSV's column names, a per-computer preference like the one above
   const [bmNames, setBmNamesState] = useState(() => { try { return localStorage.getItem("geostrix.blockCsvNames") === "micromine" ? "micromine" : "datamine"; } catch { return "datamine"; } });
   const setBmNames = (v) => { setBmNamesState(v); try { localStorage.setItem("geostrix.blockCsvNames", v); } catch { /* private window */ } };
@@ -916,6 +918,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (terrain && !epsgOverride && !window.confirm(tr("Replace the current terrain (\"{name}\") with freshly fetched terrain for this area? Only one terrain surface is supported at a time.", { name: terrain.name }))) {
       return;
     }
+    // TASKS.csv #3251 — over a quarter of this computer's memory: refused with the figures, before anything is fetched
+    const plan = planTerrainFetch(bboxLonLat, terrainDetail, terrainSource);
+    if (!fetchFits(plan.memoryMB, ramGB)) { setTerrainError({ info: false, text: tr("This terrain would take about {mb} MB of memory, over the {max} MB a fetch may use on this computer (a quarter of its memory). Choose a lower Terrain detail or a smaller area.", { mb: plan.memoryMB.toLocaleString(), max: fetchBudgetMB(ramGB).toLocaleString() }) }); return; }
     setSrtmPickerOpen(false);
     setTerrainBusy(true);
     setSrtmProgress({ done: 0, total: 1 });
@@ -2360,9 +2365,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             <option value={200}>{tr("Standard (200 nodes)")}</option>
             <option value={513}>{tr("High (513 nodes)")}</option>
             <option value={1025}>{tr("Very high (1,025 nodes)")}</option>
+            <option value={2049}>{tr("Full (2,049 nodes)")}</option>{/* TASKS.csv #3251 — the fetch reads tiles to match (srtmFetch tileBudget) */}
           </select>
         </div>
-        {terrainDetail > 200 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Finer ground for the next fetch or import: about {mb} MB in memory, {mb2} MB in the project file, and up to a second to build the mesh.", { mb: terrainDetail > 600 ? 9 : 2, mb2: terrainDetail > 600 ? 6 : 1.5 })}</div>}
+        {terrainDetail > 200 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Finer ground for the next fetch or import: about {mb} MB in memory, {mb2} MB in the project file, and up to a second to build the mesh.", { mb: terrainDetail > 1500 ? 40 : terrainDetail > 600 ? 9 : 2, mb2: terrainDetail > 1500 ? 22 : terrainDetail > 600 ? 6 : 1.5 })}</div>}
         <div style={{ display: "flex", gap: 6 }}>
           <button onClick={() => terrainInput.current.click()} style={{ ...pBtn, flex: 1 }} disabled={terrainBusy}>
             {terrainBusy && !srtmProgress ? <Loader2 size={14} className="spin" /> : <Mountain size={14} />} {terrainBusy && !srtmProgress ? tr("Reading…") : terrain ? tr("Replace terrain…") : tr("Import SRTM/DEM…")}
@@ -2415,6 +2421,22 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             areaOptions={srtmAreaOptions}
             onClose={() => setSrtmPickerOpen(false)}
             onConfirm={runSrtmFetch}
+            extraControls={(bbox, { setArea }) => { // TASKS.csv #3251 — the spacing this area gets against the source's own pixel, before the fetch
+              if (!bbox) return null;
+              const p = planTerrainFetch(bbox, terrainDetail, terrainSource), fits = fetchFits(p.memoryMB, ramGB);
+              const coarse = p.effectiveM > 1.5 * p.nativeM;
+              return (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8, marginRight: 10, fontSize: "var(--font-size-sm)", color: "#5a6472" }}>
+                  <span title={tr("Nodes {n} m apart; the source's pixels here {s} m (its finest {f} m){tiles}", { n: p.nodeM.toFixed(1), s: p.sourcePixelM.toFixed(1), f: p.nativeM.toFixed(1), tiles: p.tiles ? tr(", {t} tiles, about {mb} MB to download", { t: p.tiles, mb: p.downloadMB }) : "" })}>
+                    {tr("~{m} m ground detail · {mem} MB", { m: p.effectiveM < 10 ? p.effectiveM.toFixed(1) : Math.round(p.effectiveM), mem: p.memoryMB.toLocaleString() })}</span>
+                  {!fits && <span style={{ color: "var(--color-warn-text)" }}>{tr("over this computer's {max} MB", { max: fetchBudgetMB(ramGB).toLocaleString() })}</span>}
+                  {coarse && p.fullSideKm * 1000 < Math.max((bbox[2] - bbox[0]) * 111320 * Math.cos(((bbox[1] + bbox[3]) / 2) * Math.PI / 180), (bbox[3] - bbox[1]) * 110574) && (
+                    <button type="button" onClick={() => setArea(centreBox(bbox, p.fullSideKm * 1000))} style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)", cursor: "pointer" }}
+                      title={tr("The source's own {f} m detail at this Terrain detail covers about {km} km across: keep the centre of the drawn area", { f: p.nativeM.toFixed(1), km: p.fullSideKm.toFixed(1) })}>{tr("Full resolution: centre {km} km", { km: p.fullSideKm.toFixed(1) })}</button>
+                  )}
+                </span>
+              );
+            }}
           />
         )}
         <input
@@ -2437,7 +2459,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 {terrain.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{terrain.name}</div>
-              <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{terrain.gridW}×{terrain.gridH}</span>
+              <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }} title={terrain.source?.nodeM ? tr("Nodes {n} m apart; the source's pixels {s} m", { n: terrain.source.nodeM.toFixed(1), s: Number(terrain.source.sourcePixelM || 0).toFixed(1) }) : undefined}>{terrain.gridW}×{terrain.gridH}{terrain.source?.nodeM ? ` · ${terrain.source.nodeM < 10 ? terrain.source.nodeM.toFixed(1) : Math.round(terrain.source.nodeM)} m` : ""}</span>{/* · m: #3251 */}
               <Trash2 aria-label={tr("Remove terrain \"{name}\"", { name: terrain.name })} title={tr("Remove terrain \"{name}\"", { name: terrain.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove the terrain surface \"{name}\"? Any rasters draped on it will fall back to a flat elevation.", { name: terrain.name }))) removeTerrain(); }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>

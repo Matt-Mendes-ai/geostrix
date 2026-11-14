@@ -14,7 +14,8 @@ import SpectralIndexModal from "../components/SpectralIndexModal.jsx"; // TASKS.
 import { useStore } from "../lib/store.jsx";
 import { buildRasterImport, gridToSurveyRows, ternaryRaster, parseWorldFile, tieFetchedImage, dataUrlPixels } from "../lib/raster.js"; // dataUrlPixels: #1860; // parseWorldFile: TASKS.csv #1855; tieFetchedImage: #2648
 import { b64ToF32, gridDeclination } from "../lib/inversion.js"; // TASKS.csv #373
-import { SAT_LEVELS, planLatestFetch, levelsAddingNothing, naipCoverage } from "../lib/imageryLevels.js"; // TASKS.csv #781 / #837; naipCoverage: #1474
+import { SAT_LEVELS, planLatestFetch, levelsAddingNothing, naipCoverage } from "../lib/imageryLevels.js";
+import { useMachineMemoryGB, fetchFits, fetchBudgetMB, centreBox } from "../lib/fetchMemory.js"; // TASKS.csv #3251 // TASKS.csv #781 / #837; naipCoverage: #1474
 const NAIP_FINEST_M = 0.6; // lib/naipFetch.js, which stays out of this module until NAIP is fetched
 import { gridToGeoTIFF, saveGeoTIFF, safeFileName, rasterExportNote, imageToGeoTIFF, pictureExportNote } from "../lib/gridExport.js"; // TASKS.csv #854; rasterExportNote: #1095; picture: #1860
 import { toLonLat, crsName } from "../lib/reproject.js";
@@ -281,6 +282,9 @@ export default function RasterModule({ embedded = false } = {}) {
   // TASKS.csv #781 — resolution level, remembered per computer (a preference, not project data)
   const [satLevel, setSatLevelState] = useState(() => { try { const v = localStorage.getItem("geostrix_sat_level"); return SAT_LEVELS[v] ? v : "standard"; } catch { return "standard"; } });
   const setSatLevel = (v) => { setSatLevelState(v); try { localStorage.setItem("geostrix_sat_level", v); } catch { /* private window: session only */ } };
+  const ramGB = useMachineMemoryGB(); // #3251 — what a Full fetch may take on this computer
+  // #3251 — the most a fetch can take: NAIP planned at 0.3 m (some states since 2022; the fetch learns the real one from the catalogue)
+  const satWorst = (bbox) => planLatestFetch(bbox, satLevel, satSource === "naip" ? NAIP_FINEST_M / 2 : undefined, { naip: satSource === "naip" });
   // TASKS.csv #838 — where the image comes from: Sentinel-2 everywhere, NAIP's much finer aerial imagery in the USA
   const [satSource, setSatSourceState] = useState(() => { try { return localStorage.getItem("geostrix_sat_source") === "naip" ? "naip" : "sentinel2"; } catch { return "sentinel2"; } });
   const setSatSource = (v) => { setSatSourceState(v); try { localStorage.setItem("geostrix_sat_source", v); } catch { /* private window: session only */ } };
@@ -387,6 +391,7 @@ export default function RasterModule({ embedded = false } = {}) {
   const runSatFetch = async (bboxLonLat) => {
     // #1474 — no catalogue search for an area NAIP cannot cover
     if (satSource === "naip" && naipCoverage(bboxLonLat) === "outside") { setError({ info: false, text: tr("This area is outside the contiguous USA, where NAIP is flown: choose Sentinel-2 (worldwide) instead.") }); return; }
+    { const w = satWorst(bboxLonLat); if (!fetchFits(w.memoryMB, ramGB)) { setError({ info: false, text: tr("This imagery could take about {mb} MB of memory, over the {max} MB a fetch may use on this computer (a quarter of its memory). Choose a lower resolution or a smaller area.", { mb: w.memoryMB.toLocaleString(), max: fetchBudgetMB(ramGB).toLocaleString() }) }); return; } } // #3251
     setSatPickerOpen(false);
     setSatBusy(true);
     setSatProgress({ done: 0, total: 1 });
@@ -545,7 +550,7 @@ export default function RasterModule({ embedded = false } = {}) {
             areaOptions={satAreaOptions}
             onClose={() => setSatPickerOpen(false)}
             onConfirm={runSatFetch}
-            extraControls={(bbox) => { // TASKS.csv #781 — resolution, and what it would fetch for this area
+            extraControls={(bbox, { setArea } = {}) => { // TASKS.csv #781 — resolution, and what it would fetch for this area; setArea: #3251
               const naip = satSource === "naip";
               const p = bbox ? planLatestFetch(bbox, satLevel, naip ? NAIP_FINEST_M : undefined, { naip }) : null; // #837; naip: #3251 — Full in up to 2 x 2 pictures
               return (
@@ -561,7 +566,15 @@ export default function RasterModule({ embedded = false } = {}) {
                   </select>
                   {naip && bbox && naipCoverage(bbox) !== "inside" && <span style={{ color: "var(--color-danger-icon-strong)" }}>{naipCoverage(bbox) === "outside" ? tr("Outside the USA: NAIP has no imagery here.") : tr("Part of this area is outside the USA: NAIP covers only the rest.")}</span>}{/* #1474 */}
                   {p && <span>{tr("~{v} m pixels · image {gridW} × {gridH} px{v3}", { gridW: p.gridW, gridH: p.gridH, v: naip ? (p.pixelM < 10 ? p.pixelM.toFixed(1) : Math.round(p.pixelM)) : Math.round(p.pixelM), v3: p.nativeLimited ? (naip ? tr(" · imagery's finest") : tr(" · imagery's finest (10 m)")) : "" })}</span>}
-                  {p && p.parts > 1 && <span>{tr("in {n} pictures, about {mb} MB of graphics memory", { n: p.parts, mb: p.gpuMB.toLocaleString() })}</span>}{/* #3251 */}
+                  {(() => { // #3251 — the pictures and memory, at the most (NAIP planned at 0.3 m); over this computer's share, said
+                    const w = bbox ? satWorst(bbox) : null;
+                    if (!w || (w.parts <= 1 && fetchFits(w.memoryMB, ramGB))) return null;
+                    return <span style={fetchFits(w.memoryMB, ramGB) ? undefined : { color: "var(--color-warn-text)" }}>{w.parts > 1 ? tr("up to {n} pictures, about {mb} MB", { n: w.parts, mb: w.memoryMB.toLocaleString() }) : tr("about {mb} MB", { mb: w.memoryMB.toLocaleString() })}{fetchFits(w.memoryMB, ramGB) ? "" : " " + tr("over this computer's {max} MB", { max: fetchBudgetMB(ramGB).toLocaleString() })}</span>;
+                  })()}
+                  {p && setArea && !p.nativeLimited && p.pixelM > 1.5 * (naip ? NAIP_FINEST_M : 10) && (
+                    <button type="button" onClick={() => setArea(centreBox(bbox, p.fullSideM))} style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)", cursor: "pointer" }}
+                      title={tr("The imagery's own pixels at this resolution cover about {km} km across: keep the centre of the drawn area", { km: (p.fullSideM / 1000).toFixed(1) })}>{tr("Full resolution: centre {km} km", { km: (p.fullSideM / 1000).toFixed(1) })}</button>
+                  )}
                   {naip && satLevel === "full" && <span>{tr("Some states are flown at 0.3 m (Colorado since 2023): Full then fetches 0.3 m pixels, over a quarter of the area at the most.")}</span>}
                   {p && !p.nativeLimited && p.pixelM > 3 * (naip ? NAIP_FINEST_M : 10) && <span style={{ color: "var(--color-warn-text)" }}>{tr("Pixels {k} times coarser than the imagery's own: a smaller area gets finer ones.", { k: Math.round(p.pixelM / (naip ? NAIP_FINEST_M : 10)) })}</span>}{/* #2126 */}
                 </span>

@@ -57,7 +57,7 @@ test("the range and despike come first (the readings sourceAssays gives); the re
 
 test("the name is made unique; the pane's button loads the lib on the click and keeps no component state", () => {
   assert.equal(compositeLayerName("SG", [{ name: "SG on assay intervals" }, { name: "SG on assay intervals (2)" }]), "SG on assay intervals (3)");
-  const p = readFileSync(new URL("../src/components/DownholeLogsPane.jsx", import.meta.url), "utf8");
+  const p = readFileSync(new URL("../src/components/DownholeLogsPane.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(p, /lib = await import\("\.\.\/lib\/logComposite\.js"\)/);
   assert.match(p, /const res = lib\.compositeLogToAssays\(dataAll, assays\);/);
   assert.match(p, /binM: "assay", notes: lib\.compositeNotes\(/);
