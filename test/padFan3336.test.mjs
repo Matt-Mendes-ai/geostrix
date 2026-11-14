@@ -51,7 +51,7 @@ test("a hole not on a pad keeps the old result shape", () => {
 test("wiring: the pane says the pad by depth and at the toe, flags the toe and the off-pad hole; keys", () => {
   const p = readFileSync(new URL("../src/components/PlannedHoleParts.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(p, /const nearestReal = onPad \? nearestOff : nearest0;/);
-  assert.match(p, /const padTooClose = minSpacing > 0 && pads\.some\(\(x\) => x\.c\.inside\);/);
+  assert.match(p, /const padTooClose = minSpacing > 0 && pads\.some\(\(x\) => x\.c\.inside \|\| x\.c\.target\?\.inside\);/);
   assert.match(p, /\) : onPad \? null \/\* #3336/);
   const keys = ["Same pad as {holes}.", "{hole}: {toe} m apart at the toe.", "{hole}: within the {min} m minimum all the way to the toe ({toe} m apart there).", "{hole}: within the {min} m minimum down to {md} m down this hole; {toe} m apart at the toe."];
   for (const k of keys) assert.ok(p.includes(`tr("${k}"`), k);

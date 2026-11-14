@@ -14,6 +14,6 @@ test("the gridding notice says where the raster is drawn and why", () => {
 });
 test("the 3D legend ramps only the points that are drawn (with a z)", () => {
   // #2878: the 3D and Layout legends share lib/legendGroups.js geophysLegendGroups, which keeps the drawn points only
-  assert.match(v, /groups\.push\(\.\.\.geophysLegendGroups\(\{ rows: layers\?\.geophys_pts, visible: !!layerVisible\.geophys_pts/);
+  assert.match(v, /const geo = geophysLegendGroups\(\{ rows: layers\?\.geophys_pts, visible: !!layerVisible\.geophys_pts/);
   assert.match(rd("../src/lib/legendGroups.js"),/const pts = \(rows \|\| \[\]\)\.filter\(\(r\) => Number\.isFinite\(r\.z\) &&/);
 });

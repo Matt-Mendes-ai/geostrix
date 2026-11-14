@@ -1,5 +1,5 @@
 import { cellsFromColumnsSliced, checkColumns, memberColumns } from "./estimationCells.js"; // TASKS.csv #661; sliced / checkColumns: #3060; memberColumns: #3163
-import { packPoints } from "./pointColumns.js"; // TASKS.csv #3008 — the points as columns, not 147,000 cloned objects
+import { packPointsSliced } from "./pointColumns.js"; // TASKS.csv #3008 — the points as columns, not 147,000 cloned objects; sliced: #3389
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv #520 — UI-thread side of estimation.worker.js. runEstimation("block" | "dense", points, opts,
 // { onProgress(fraction), signal }) resolves with exactly what estimateBlockModel / estimateDenseGrid return.
@@ -58,6 +58,19 @@ export function runEstimation(kind, points, opts, { onProgress, signal, checkOnl
       settled = true; worker.terminate(); signal?.removeEventListener?.("abort", onAbort);
       inline();
     };
-    worker.postMessage({ kind, packed: packPoints(points), opts }); // #3008
+    // TASKS.csv #3389 — the columns are packed in slices (the window paints between them); the worker, loading meanwhile, is sent them when ready.
+    // opts.unsampledPoints (and each set member's) are arrays of {x, y, z} objects, one per unsampled drilled metre: cloned object by object they were
+    // the main thread's biggest hand-off cost, so they go as columns too
+    (async () => {
+      const packed = await packPointsSliced(points, { signal });
+      const send = { ...opts }, packedOpts = {};
+      if (opts.unsampledPoints?.length) { packedOpts.unsampledPoints = await packPointsSliced(opts.unsampledPoints, { signal }); delete send.unsampledPoints; }
+      if (opts.members?.unsampled?.some((u) => u?.length)) {
+        packedOpts.memberUnsampled = [];
+        for (const u of opts.members.unsampled) packedOpts.memberUnsampled.push(u?.length ? await packPointsSliced(u, { signal }) : null);
+        send.members = { ...opts.members, unsampled: opts.members.unsampled.map(() => null) };
+      }
+      if (!settled) worker.postMessage({ kind, packed, opts: send, packedOpts });
+    })().catch((err) => finish(reject, err)); // #3008
   });
 }

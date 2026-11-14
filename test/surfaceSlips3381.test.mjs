@@ -38,7 +38,7 @@ test("(3) cover and no-recovery codes are not offered as unit names to draw", ()
 test("(7) the offline terrain asks which elevations: samples and collars, collars only, samples only", () => {
   const g = rd("../src/modules/GeophysicsModule.jsx");
   assert.match(g, /const \[zSource, setZSource\] = useState\("both"\);/);
-  assert.match(g, /const samplePts = zUse === "collars" \? \[\] : allSamplePts, collarPts = zUse === "samples" \? \[\] : allCollarPts/);
+  assert.match(g, /const samplePts = zUse === "collars" \? \[\] : allSamplePts(\.filter\(inArea\))?, collarPts = zUse === "samples" \? \[\] : allCollarPts/);
   assert.ok(g.includes('<option value="collars">{tr("Collars only ({c}): surveyed, usually"'));
   assert.match(g, /disabled=\{terrainBusy \|\| zCount < 3\}/);
 });

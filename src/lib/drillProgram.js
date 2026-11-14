@@ -16,6 +16,24 @@ export function collarHoleTypes(collars, max = 12) {
 
 // holes [{ type, length }], rates { type: $/m } -> { rows: [{ type, n, m, rate, cost }], totalM, totalCost (null unless every type with
 // metres has a rate), missing: [types without a rate] }. The untyped holes are type "".
+// TASKS.csv #3347 (review #3195) — the program's cost was metres times a rate and nothing else. Optional fixed amounts: per hole, and per NEW
+// pad (a planned collar more than padM from every drilled collar and from the planned collars before it). -> { holes, newPads, fixed (null
+// when neither amount is typed) }
+export const FIXED_KEYS = { perHole: "__perHole", perPad: "__perPad" }; // kept in the drill rates beside the per-type $/m
+export function fixedCosts(planned, drilledCollars, rates = {}, padM = 10) {
+  const perHole = Number(rates?.[FIXED_KEYS.perHole]) > 0 ? Number(rates[FIXED_KEYS.perHole]) : null;
+  const perPad = Number(rates?.[FIXED_KEYS.perPad]) > 0 ? Number(rates[FIXED_KEYS.perPad]) : null;
+  const near = (a, b) => Math.hypot(Number(a.x) - Number(b.x), Number(a.y) - Number(b.y)) <= padM;
+  const pads = [];
+  let newPads = 0;
+  for (const h of planned || []) {
+    if (!Number.isFinite(Number(h?.x)) || !Number.isFinite(Number(h?.y))) continue;
+    if ((drilledCollars || []).some((c) => Number.isFinite(c?.x) && near(h, c)) || pads.some((p) => near(h, p))) continue;
+    pads.push(h); newPads++;
+  }
+  const holes = (planned || []).length;
+  return { holes, newPads, perHole, perPad, fixed: perHole == null && perPad == null ? null : (perHole || 0) * holes + (perPad || 0) * newPads };
+}
 export function costByType(holes, rates = {}) {
   const by = new Map();
   for (const h of holes || []) {

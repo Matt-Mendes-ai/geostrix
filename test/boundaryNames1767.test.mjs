@@ -39,7 +39,7 @@ test("GeoJSON and shapefile boundaries keep a name per part", async () => {
 
 test("Boundaries names by the stem and shows the parts' names", () => {
   const src = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
-  assert.match(src, /addBoundary\(\{ name: fileStem\(file\.name\), polylines,/);
+  assert.match(src, /addBoundary\(\{ name: uniqueName\(fileStem\(file\.name\), boundaries\.map\(\(b\) => b\.name\)\) \/\* #3455 \*\/, polylines,/);
   assert.match(src, /addBoundary\(\{ name: `\$\{fileStem\(file\.name\)\}: \$\{p\.table\}`/);
   assert.match(src, /tr\("Parts: \{names\}"/);
 });

@@ -49,3 +49,19 @@ export function modelGapKm(cells, collars = [], terrainBbox = null) {
   if (!Number.isFinite(rx0)) return null;
   return Math.hypot(Math.max(0, rx0 - mx1, mx0 - rx1), Math.max(0, ry0 - my1, my0 - ry1)) / 1000;
 }
+
+// TASKS.csv #3477 (from #3461) — the fetch-area dialogs list one line per layer: five rasters of one box were five lines, and their outlines
+// labelled on top of each other. One line per distinct box (rounded to 1e-4 degree): the first's label and how many more share its box.
+// options: [{ id, label, bboxLonLat }] -> the same shape, fewer entries
+export function mergeSameBoxOptions(options, moreText = (n) => `+${n} with the same box`) {
+  const seen = new Map(), out = [];
+  for (const o of options || []) {
+    const k = (o.bboxLonLat || []).map((v) => Math.round(v * 1e4)).join(",");
+    const hit = k && seen.get(k);
+    if (hit) { hit.extra++; continue; }
+    const e = { ...o, extra: 0 };
+    if (k) seen.set(k, e);
+    out.push(e);
+  }
+  return out.map(({ extra, ...o }) => (extra ? { ...o, label: `${o.label} (${moreText(extra)})` } : o));
+}

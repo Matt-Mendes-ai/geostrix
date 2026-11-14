@@ -20,6 +20,7 @@ export const PANE_HELP = {
   "Gravity survey (CSV / XYZ)": "gravity",
   "Radiometric survey (CSV / XYZ)": "radiometrics",
   "Electromagnetic surveys (EM)": "em-surveys",
+  "TEM line data (multi-channel)": "tem-lines", // TASKS.csv #1986 step 1
   // Maps
   "Boundaries": "boundaries",
   "Map layers & outcrop structures": "map-layers",
@@ -45,6 +46,7 @@ export const PANE_HELP = {
   "Alteration modelling": "alteration-modelling",
   "Grade shell": "grade-shell",
   "Grade estimation": "grade-estimation",
+  "Grade × thickness": "grade-thickness", // TASKS.csv #3121 — opened from the Grade estimation pane; F1 and the Help search find it
   "geoML models": "geoml",
   "Section correlation": "section-correlation",
   "Model from map": "model-from-map",

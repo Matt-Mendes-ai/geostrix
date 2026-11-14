@@ -156,6 +156,15 @@ export function collarSpread(collars, epsg, maxKm = 50) {
   return { far, total: pts.length, km: Math.round(worst) };
 }
 
+// TASKS.csv #2999 — how far, and in which of eight directions, the second place lies from the first ({ lon, lat } each): { km, dir } with dir a
+// compass key ("N" ... "NW"); km to the nearest 1 (good to ~1 % here, as collarSpread)
+export function offsetFrom(a, b) {
+  if (!a || !b) return null;
+  const dn = (b.lat - a.lat) * 111.2, de = (b.lon - a.lon) * 111.2 * Math.cos((((a.lat + b.lat) / 2) * Math.PI) / 180);
+  const deg = (Math.atan2(de, dn) * 180) / Math.PI, dir = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][Math.round(((deg + 360) % 360) / 45) % 8];
+  return { km: Math.round(Math.hypot(dn, de)), dir };
+}
+
 export const formatLonLat = ({ lon, lat }) => `${Math.abs(lat).toFixed(3)}° ${lat >= 0 ? "N" : "S"}, ${Math.abs(lon).toFixed(3)}° ${lon >= 0 ? "E" : "W"}`;
 
 // "52.2, -121.3", "52.2 N 121.3 W", "-23.5 -46.6" -> { lat, lon } (lat first, as people say it), or null.

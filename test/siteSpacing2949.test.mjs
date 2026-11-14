@@ -41,7 +41,8 @@ test("#2949 no pairwise loop left; the panes take the kept measure once, not per
   assert.ok(!/sites\.(filter|map)\(/.test(fn) && !/sites\.find\(/.test(fn), "no site-by-site scan");
   for (const f of ["EvidenceOverlayPane.jsx", "UndrilledZonesPane.jsx"]) {
     const s = fs.readFileSync(new URL(`../src/components/${f}`, import.meta.url), "utf8");
-    assert.ok(s.includes("const siteSpacing = useMemo(() => drilledSiteSpacing(collars), [collars]);"), f);
+    // #3432: the overlay measures the holes Area's collars when there is one
+    assert.ok(s.includes(f.startsWith("Evidence") ? "const siteSpacing = useMemo(() => drilledSiteSpacing(spacingCollars), [spacingCollars]);" : "const siteSpacing = useMemo(() => drilledSiteSpacing(collars), [collars]);"), f);
     assert.ok(!s.includes("medianSiteSpacing("), `${f} measures nowhere else`);
   }
 });

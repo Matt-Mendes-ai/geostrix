@@ -119,5 +119,17 @@ export const lonLatThrough = (tie, toLonLat) => (tie && toLonLat ? (x, y) => toL
 export { tieOf } from "./localGridTie.js"; // for the callers that load this module on demand
 // f(x, y) of the LOCAL grid (a terrain lookup) asked at a point in the tie CRS (unchanged without a tie)
 export const atLocal = (tie, f) => (tie && f ? (X, Y) => { const l = worldToLocal(tie, X, Y); return f(l.x, l.y); } : f);
+// TASKS.csv #3187 (Matt's pick B, 2026-11-14) — bearings stored as ATTRIBUTE columns of an exported layer (a structure layer's dip direction, a
+// hole's azimuth attribute) stay on the local grid's north: the positions are turned through the tie, the attribute columns are not (a column's
+// meaning is a guess from its name, and changing numbers a user wrote is not ours to do). The export says which columns look like bearings.
+// -> the sentence ('' without a tie or any such column)
+const BEARING_COL = /azimuth|dip[ _-]?dir|dipdir|strike|trend|bearing|plunge[ _-]?dir|heading/i;
+export function bearingAttributeNote(features, tie) {
+  if (!tie) return "";
+  const cols = new Set();
+  for (const f of features || []) for (const k of Object.keys(f?.attributes || f?.props || {})) if (BEARING_COL.test(k)) cols.add(k);
+  if (!cols.size) return "";
+  return " " + tr("Column(s) {cols} look like bearings: they were written as they are, measured from the local grid's north, not turned by the tie's rotation ({rot}°).", { cols: [...cols].slice(0, 6).join(", "), rot: tie.rotationDeg });
+}
 // the sentence an export adds on a tied grid
 export const tiedExportNote = (tie) => (tie ? " " + tr("Written in EPSG:{epsg} through the local grid's tie (rotation {rot}°): grids and pictures were resampled onto that CRS's north.", { epsg: tie.epsg, rot: +Number(tie.rotationDeg).toFixed(3) }) : "");

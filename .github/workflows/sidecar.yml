@@ -41,6 +41,9 @@ jobs:
       - name: 1D FDEM tests (#1986)
         working-directory: python-sidecar
         run: python tests/test_em1d.py
+      - name: 1D TEM forward tests (#3440)
+        working-directory: python-sidecar
+        run: python tests/test_tem1d.py
       - name: Onlap orientation tests (#512)
         working-directory: python-sidecar
         run: python tests/test_implicit_dedupe.py

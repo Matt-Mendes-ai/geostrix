@@ -10,6 +10,6 @@ test("#2291 the review's case: local-grid collars in MGA 51 land near the South 
   assert.ok(at && at.lat < -75, JSON.stringify(at));
   assert.ok(smallGridCoordinates(cols));
   const c = readFileSync(new URL("../src/modules/CartographyModule.jsx", import.meta.url), "utf8");
-  assert.match(c, /const cols = store\.collars, at = collarCentreLonLat\(cols, newCrs\), spread = at \? collarSpread\(cols, newCrs\) : null, small = smallGridCoordinates\(cols\);/);
+  assert.match(c, /const cols = store\.collars, at = collarCentreLonLat\(cols, newCrs\), small = smallGridCoordinates\(cols\);/);
   assert.match(c, /That is near a pole/);
 });

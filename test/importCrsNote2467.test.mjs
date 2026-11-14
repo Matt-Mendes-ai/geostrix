@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { vectorToBoundaryPolylines, crsLabel } from "../src/lib/boundaryImport.js";
-const read = (f) => readFileSync(new URL(`../src/${f}`, import.meta.url), "utf8");
+const read = (f) => readFileSync(new URL(`../src/${f}`, import.meta.url), "utf8").replace(/\r\n/g, "\n"); // CRLF checkout
 const rect = (x, y) => [[x, y], [x + 6000, y], [x + 6000, y + 5000], [x, y + 5000], [x, y]];
 
 test("#2467 AGD84 into GDA94: both CRSs by name, and the AGD84 caveat", async () => {
@@ -24,7 +24,8 @@ test("#2467 the project CRS itself, and the labels", async () => {
 
 test("#2467 KML / GPX / GeoJSON boundaries and claims say their lon / lat, and Maps > A layer gives the datum caveat", () => {
   const g = read("modules/GeophysicsModule.jsx");
-  assert.equal((g.match(/note: withLonLatSource\(lonLatNote\(tie\)\)/g) || []).length, 2); // withLonLatSource: #2684 (a Source CRS chosen in the pane is not used, and said)
+  assert.equal((g.match(/note: withLonLatSource\(lonLatNote\(tie\)\)/g) || []).length, 1); // the KML route; withLonLatSource: #2684 (a Source CRS chosen in the pane is not used, and said)
+  assert.match(g, /: withLonLatSource\(lonLatNote\(tie\)\);\n      return \{ polylines: read,/); // #3341 — the GPX / GeoJSON route's degrees case
   assert.match(g, /tr\("its longitude \/ latitude \(WGS 84\) was reprojected to the project's \{dst\}", \{ dst: crsLabel\(project\?\.epsg\) \}\)/);
-  assert.match(read("modules/CartographyModule.jsx"), /const dn = datumNote\(objFrom\) \|\| datumNote\(project\.epsg\);/);
+  assert.match(read("modules/CartographyModule.jsx"), /const dn = fromMine \? \"\" : datumNote\(objFrom\) \|\| datumNote\(project\.epsg\);/);
 });

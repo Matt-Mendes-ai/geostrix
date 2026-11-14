@@ -32,7 +32,7 @@ test("#2965 the list in Evidence overlay: a typed cut-off, Plan a deeper hole he
   const p = fs.readFileSync(new URL("../src/components/EvidenceOverlayPane.jsx", import.meta.url), "utf8");
   assert.ok(p.includes("<EndInOreList assays={cleanAssays} elements={labElements} units={assayUnits} traces={traces} collars={collars} survey={survey} onPlanTo={onPlanTo}"));
   const c = fs.readFileSync(new URL("../src/components/EndInOreList.jsx", import.meta.url), "utf8");
-  assert.ok(c.includes('const [cut, setCut] = useState("");'), "the cut-off starts blank");
+  assert.ok(c.includes('const [cut, setCutState] = useState(() => kept.cut);'), "the cut-off starts blank");
   assert.ok(c.includes("onPlanTo({ x: h.x, y: h.y, z: h.z })"));
   assert.ok(c.includes("checkableHoleLengths(collars, survey)"), "the hole's length from the collar or survey (#2167)");
 });

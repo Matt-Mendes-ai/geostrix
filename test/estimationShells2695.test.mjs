@@ -44,7 +44,7 @@ test("ViewerModule passes the cached list and one memoized Set", () => {
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(v, /const closedShellsForEstimation = \(\) => \(shellsRef\.current = closedShellsOf\(implicitSurfaces, implicitMeshesRef\.current, originRef\.current, shellsRef\.current\)\);/);
   assert.match(v, /const checkedHoleIds = useMemo\(\(\) => new Set\(/);
-  assert.equal((v.match(/checkedHoleIds=\{checkedHoleIds\}/g) || []).length, 2);
+  assert.equal((v.match(/checkedHoleIds=\{checkedHoleIds\}/g) || []).length, 3); // 3: Evidence overlay too (#3344)
   assert.ok(!v.includes("checkedHoleIds={new Set("));
   // the dialog's ground (collarGround buckets every collar) is built once per terrain / collars change, not twice a render
   assert.match(v, /const estGround = useMemo\(\(\) => \(!gradeEstOpen \? null : terrain \? \(x, y\) => terrainGroundAt\(terrain, x, y\) : collarGround\(collars\)\), \[gradeEstOpen, terrain, collars\]\);/);

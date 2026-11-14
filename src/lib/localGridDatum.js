@@ -16,6 +16,9 @@ export const trueToUntiedGrid = (bearing, northDeg) => ((((Number(bearing) - Num
 // an elevation (sea level) -> the grid's RL, and back
 export const elevationToRl = (z, rlOffset) => Number(z) + Number(rlOffset || 0);
 export const rlToElevation = (rl, rlOffset) => Number(rl) - Number(rlOffset || 0);
+// TASKS.csv #2809 (split from #2691) — the grid RL shown beside an elevation where the project is kept on a mine grid with an RL datum: null when
+// there is none (or it is 0: the RL is the elevation), else the elevation + the offset, rounded to a millimetre
+export const gridRlOf = (z, rlOffset) => (Number.isFinite(Number(z)) && z !== null && z !== "" && Number.isFinite(rlOffset) && rlOffset !== 0 ? Math.round((Number(z) + rlOffset) * 1000) / 1000 : null);
 // the patch the store's setter writes: blank clears the value
 export function datumPatch({ rlOffset, northDeg } = {}) {
   const out = {};

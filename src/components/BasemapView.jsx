@@ -320,7 +320,9 @@ export default function BasemapView({
           </div>
           {/* TASKS.csv #2094 (review #2013) — opening this map loads basemap tiles from the internet: said, before anything is fetched for the terrain */}
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>
-            {mode === "draw"
+            {!online /* TASKS.csv #3461 — the banner below says no tiles are loaded: the header must not say they are */
+              ? (mode === "draw" ? tr("The online basemap ({layer}) is off: no tiles are loaded. Nothing is fetched for the project until you press {confirm}.", { layer: tr(getBaseLayer(effectiveLayerId)?.label || "Standard"), confirm: tr(confirmLabel) }) : tr("The online basemap ({layer}) is off: no tiles are loaded.", { layer: tr(getBaseLayer(effectiveLayerId)?.label || "Standard") }))
+              : mode === "draw"
               ? tr("The map is an online basemap ({layer}): its tiles load from the internet as you look around. Nothing is fetched for the project until you press {confirm}.", { layer: tr(getBaseLayer(effectiveLayerId)?.label || "Standard"), confirm: tr(confirmLabel) })
               : tr("The map is an online basemap ({layer}): its tiles load from the internet as you look around.", { layer: tr(getBaseLayer(effectiveLayerId)?.label || "Standard") })}
           </div>

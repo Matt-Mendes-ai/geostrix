@@ -3,7 +3,7 @@
 // (exactly what the old useCallback closures saw), and mcRef is the hook's live ref (#599).
 import * as THREE from "three";
 import { layerStamp } from "../../lib/layerStamp.js"; // TASKS.csv #2388
-import { rowsByHole } from "../../lib/rowsByHole.js"; // TASKS.csv #2906
+import { rowsByHole, holeRowsOfCodes, firstFromByHole } from "../../lib/rowsByHole.js"; // TASKS.csv #2906; holeRowsOfCodes / firstFromByHole: #3387
 import { isNotRecorded } from "../../lib/notRecorded.js"; // TASKS.csv #3267
 import { interbeds, planeDipDeg, planeMisfitM, looksLikeFlatPile, runsLieFlat } from "../../lib/pileTops.js"; // TASKS.csv #2927; #3262; #3263
 import { stackCellCheck, medianStackThickness } from "../../lib/stackResolution.js"; // TASKS.csv #2905; medianStackThickness: #2922
@@ -459,7 +459,7 @@ export function createModellingRuns(ctx, mcRef) {
         const words = { g: gb < 10 ? gb.toFixed(1) : Math.round(gb), warn: "", m: mins.toLocaleString(), how, x: x < 10 ? x.toFixed(1) : Math.round(x), p: solid.reduce((t, q) => t + q.points.length, 0).toLocaleString(), o: new Set(solid.flatMap((q) => q.orientations.map((r) => `${r.x},${r.y},${r.z},${r.dip},${r.azimuth}`))).size.toLocaleString(), s: solid.length, b: workOpts.blockCells.toLocaleString() };
         if (!window.confirm(tr("This GemPy run is about {x} times the work of a run sized for a few minutes ({p} contact points, {o} orientations, {s} surfaces, a block of {b} cells): about {m} minutes {how}, and about {g} GB of memory{warn}. The 15-minute stop is off for it: Cancel on the status bar stops it. Fewer units, a smaller Model area or a lower Resolution (Model settings) shorten it. Run it?", words))) {
           setImplicitBusy(false);
-          setNotices((p) => [...p, notice("Not run: about {x} times the work of a run sized for a few minutes ({p} contact points, {o} orientations, {s} surfaces, a block of {b} cells). Fewer units, a smaller Model area or a lower Resolution (Model settings) shorten it.", words)]);
+          setNotices((p) => [...p, notice("Not run: about {x} times the work of a run sized for a few minutes ({p} contact points, {o} orientations, {s} surfaces, a block of {b} cells): about {m} minutes {how}, and about {g} GB of memory{warn}. Fewer units, a smaller Model area or a lower Resolution (Model settings) shorten it.", words)]);
           return;
         }
         overWork = x;
@@ -548,6 +548,8 @@ export function createModellingRuns(ctx, mcRef) {
     specs.forEach((spec, specIndex) => {
       let surf = byName[spec.meshName];
       if (!surf || !surf.vertices?.length) { missing.push(spec.label); return; }
+      // TASKS.csv #3238 — a surface back with vertices but no triangles was named in 'Added … surfaces' and added nothing, with no notice: said like the other no-mesh cases
+      if (!surf.faces?.length) { missing.push(`${spec.label} (GemPy returned vertices but no triangles)`); return; }
       // TASKS.csv #314 — NaN from GemPy arrives as null with HTTP 200: drop what touches it, and say so.
       const clean = sanitizeMesh(surf.vertices, surf.faces);
       if (clean.badVertices) {
@@ -1155,8 +1157,7 @@ export function createModellingRuns(ctx, mcRef) {
     // depth it is the collar (bench holes collared in pegmatite: 180 of 254 'Top of P'), after an unlogged start or a gap it is unknown. The
     // Modelling-codes branch (topsForCode) and the Explicit surface tool already left them out; this branch took every start.
     let holeStartSkipped = 0, gapSkipped = 0;
-    const firstFrom = new Map();
-    for (const r of layers.litho || []) { const f = Number(r.from); if (r.hole_id != null && Number.isFinite(f) && !(firstFrom.get(r.hole_id) <= f)) firstFrom.set(r.hole_id, f); }
+    const firstFrom = firstFromByHole(layers.litho || []); // #3387 — kept per log, not rebuilt per unit
     const isOverburdenUnit = unitRoleOf(target) === "overburden"; // #1684
     // #1367 — the logged codes around each depth, for the roles of what sits right above an interval (raw values, not IN tokens)
     const rawEnds = isMcode ? null : intervalEndIndex(layers.litho), rawStarts = isMcode ? null : intervalStartIndex(layers.litho);
@@ -1211,7 +1212,8 @@ export function createModellingRuns(ctx, mcRef) {
     }
     if (!isMcode && !isOverburdenUnit) traces.forEach((t) => {
       const zAt = (md) => findOnTrace(t.pts, md)?.y; // scene y = elevation
-      (rowsByHole(layers.litho).get(t.hole_id) || []).filter((r) => !isNaN(r.from)).forEach((r) => { // #2906 — the hole's rows, not a scan of the whole log per hole
+      // #3387 — without assignments only the unit's own codes count (inUnit is codes.has(value)): read those rows, not all of the hole's
+      (hasAssign ? rowsByHole(layers.litho).get(t.hole_id) || [] : holeRowsOfCodes(layers.litho, t.hole_id, codes)).filter((r) => !isNaN(r.from)).forEach((r) => { // #2906 — the hole's rows, not a scan of the whole log per hole
         const isIn = inUnit(r);
         if (hasAssign && isIn !== codes.has(r.value)) { if (isIn) assignedIn++; else assignedOut++; }
         if (!isIn) return;

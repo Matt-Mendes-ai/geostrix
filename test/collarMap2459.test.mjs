@@ -35,8 +35,8 @@ test("per hole: the highest value or the length-weighted mean; numbers in five q
   const c = collarColouring(collars, { values: vals });
   assert.equal(c.kind, "number");
   assert.equal(c.legend.length, 5);
-  assert.equal(c.legend[0].label, "0 – 60");
-  assert.equal(c.legend[4].label, "230 – 290");
+  assert.equal(c.legend[0].label, "0 – 60 (7)"); // #3351: the holes in each class
+  assert.equal(c.legend[4].label, "230 – 290 (6)");
   assert.equal(c.colourOf(collars[0]), c.legend[0].colour);
   assert.equal(c.colourOf(collars[29]), c.legend[4].colour);
   assert.notEqual(c.legend[0].colour, c.legend[4].colour);
@@ -50,7 +50,7 @@ test("labels that would overlap one already placed are left out", () => {
 
 test("the plan wires the colour-by, the legend and the labels", () => {
   const src = readFileSync(new URL("../src/components/MapsPlanView.jsx", import.meta.url), "utf8");
-  assert.match(src, /collarColouring\(collars, \{ values: perHoleAssay\(assays, key, kind\) \}\)/);
+  assert.match(src, /collarColouring\(collars, \{ values: perHoleAssay\(assays, key, kind\), breaks \}\)/);
   assert.match(src, /drawCallouts\(ctx, collars, X, Y, size, /); // #3397 — the labels, with the pads' callouts (lib/collarCallouts.js)
   assert.match(src, /aria-label=\{tr\("Colour collars by"\)\}/);
 });

@@ -71,10 +71,10 @@ export default function HoleValueGridPanel() {
     const how = method === "mincurv" ? "min. curvature T0.25" : method === "natneigh" ? "nat. neighbour" : "IDW";
     const drape = defaultDrapeElevation({ collars, voxelModels, surfaceSamples, bbox });
     addRaster({
-      name: `${what} per hole${unit ? ` (${unit})` : ""} ${how}${log ? " log10" : ""} ${res.cellM} m`, bbox, ...colour, elevation: drape.z,
+      name: `${what} per hole${unit ? ` (${unit})` : ""}${placeAt === "intercept" ? " at intercepts" : ""} ${how}${log ? " log10" : ""} ${res.cellM} m`, bbox, ...colour, elevation: drape.z, // at intercepts: #3350
       grid: { nx: grid.nx, ny: grid.ny, x0: grid.x0, yTop: grid.yTop, dx: grid.dx, dy: grid.dy, values: f32ToB64(grid.values), valid: res.valid },
       // source "holes": the figure draws the collars with their values, not surface samples (MapsPlanView)
-      geochem: { symbol: source.symbol, unit, log, medium: null, samples: res.points, cellM: res.cellM, method, ...(method === "mincurv" ? { tension: 0.25 } : method === "natneigh" ? {} : { power: 2 }), blankM: res.blankM, source: "holes", sourceId: source.id, stat: st, ...(st === "firstOver" ? { threshold: Number(threshold) } : {}), ...(coded ? { codes: codesOn } : {}), ...(vertical ? { verticalDepth: true } : {}) },
+      geochem: { symbol: source.symbol, unit, log, medium: null, samples: res.points, cellM: res.cellM, method, ...(method === "mincurv" ? { tension: 0.25 } : method === "natneigh" ? {} : { power: 2 }), blankM: res.blankM, source: "holes", placeAt, sourceId: source.id, stat: st, ...(st === "firstOver" ? { threshold: Number(threshold) } : {}), ...(coded ? { codes: codesOn } : {}), ...(vertical ? { verticalDepth: true } : {}) },
       provenance: { tool: `Per-hole value gridding (${what}, at the ${placeAt === "intercept" ? "intercepts, on the desurveyed holes" : "collars"}; ${method === "mincurv" ? "minimum curvature with tension" : method === "natneigh" ? "natural neighbour, discrete Sibson" : "inverse distance weighting"})` },
     });
     setMsg({ err: false, text: tr(placeAt === "intercept" ? "Gridded a value per hole from {n} hole(s) at their intercepts, {cell} m cells: {valid} of {cells} cells have a value. It is in Maps > GeoTIFF / GXF and the 3D View, where it can be contoured." : "Gridded a value per hole from {n} hole(s) at the collars, {cell} m cells: {valid} of {cells} cells have a value. It is in Maps > GeoTIFF / GXF and the 3D View, where it can be contoured.", { n: res.points.toLocaleString(), cell: res.cellM, valid: res.valid.toLocaleString(), cells: (grid.nx * grid.ny).toLocaleString() })
@@ -114,7 +114,8 @@ export default function HoleValueGridPanel() {
           {isDepth && <label style={lbl}>{tr("Depth")}<select value={depthAs} onChange={(e) => setDepthAs(e.target.value)} aria-label={tr("How the depth is measured")} style={inp}>
             <option value="along">{tr("Down the hole (from the collar)")}</option><option value="vertical">{tr("Vertical, below the collar")}</option>
           </select></label>}
-          {st === "firstOver" && <label style={lbl}>{tr("Threshold ({unit})", { unit: source.unit || tr("as logged") })}<input type="number" value={threshold} onChange={(e) => setThreshold(e.target.value)} aria-label={tr("Threshold")} style={inp} /></label>}
+          {st === "firstOver" && <label style={lbl}>{tr("Threshold ({unit})", { unit: source.unit || tr("as logged") })}<input type="number" value={threshold} onChange={(e) => { setThreshold(e.target.value); setMsg(null); }} aria-label={tr("Threshold")} style={inp} /></label>}
+          {st === "firstOver" && threshold === "" && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)" }}>{tr("Type the threshold the depth is measured to: Grid to raster stays off until it is typed.")}</div>}{/* TASKS.csv #3459 */}
           {st !== "firstOver" && !coded && <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-xs)", cursor: "pointer" }}><input type="checkbox" checked={log} onChange={(e) => setLogChoice(e.target.checked)} />{tr("Interpolate log10 of the values")}</label>}
           <div style={{ display: "flex", gap: 5 }}>
             <label style={lbl}>{tr("Method")}<select value={method} onChange={(e) => setMethod(e.target.value)} aria-label={tr("Gridding method")} style={inp}>

@@ -8,7 +8,7 @@ import { buildLayer, autoColorFor } from "../lib/mapLayerBuild.js";
 import { autoCategories } from "../lib/mapLayers.js";
 import BasemapView from "./BasemapView.jsx";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
-import { COMMON_WEB_SERVICES, presetService } from "../lib/webServices.js"; // TASKS.csv #1468
+import { COMMON_WEB_SERVICES, presetService, servicesFirst } from "../lib/webServices.js"; // TASKS.csv #1468; servicesFirst: #3000
 
 // TASKS.csv #127 — "many exploration geologists pull government geological/geophysical WMS layers
 // (provincial bedrock geology, airborne mag WMS, claim-tenure WFS) directly in QGIS. GeoStrix has no
@@ -137,7 +137,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
             <select value={preset ? presetId : ""} aria-label={tr("Common services")} style={{ ...sel, flex: 1 }}
               onChange={(e) => { const p = COMMON_WEB_SERVICES.find((x) => x.id === e.target.value); if (!p) { setPresetId(""); return; } const s = presetService(p, service); setPresetId(p.id); setService(s); setUrl(p[s]); fetchCapabilities(s, p[s], p.layer); }}>
               <option value="">{tr("Choose one, or type a URL below…")}</option>
-              {COMMON_WEB_SERVICES.map((p) => <option key={p.id} value={p.id}>{p.label}{p.wfs ? "" : ` (${tr("WMS only")})`}</option>)}
+              {servicesFirst(COMMON_WEB_SERVICES, defaultBboxLonLat ? { lon: (defaultBboxLonLat[0] + defaultBboxLonLat[2]) / 2, lat: (defaultBboxLonLat[1] + defaultBboxLonLat[3]) / 2 } : null).map((p) => <option key={p.id} value={p.id}>{p.label}{p.wfs ? "" : ` (${tr("WMS only")})`}</option>)}
             </select>
           </label>
           {preset && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75 }}>{tr("Licence: {v}. Credit the publisher in figures you share.", { v: preset.licence })}</div>}
