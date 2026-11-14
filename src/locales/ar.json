@@ -12642,5 +12642,8 @@
   "Inside {w} × {h} km": "داخل {w} × {h} كم",
   "Draw the area to build the terrain over": "ارسم المنطقة التي تُبنى التضاريس فوقها",
   "No cell of \"{name}\" with a value lies inside \"{boundary}\".": "لا تقع أي خلية ذات قيمة من \"{name}\" داخل \"{boundary}\".",
-  "Added \"{name}\": {kept} of {total} cells inside \"{boundary}\" have a value ({cells} cells in all, cropped to the boundary). \"{source}\" is unchanged.": "أُضيف \"{name}\": {kept} من {total} خلية داخل \"{boundary}\" لها قيمة ({cells} خلية في المجموع، مقصوص إلى الحد). \"{source}\" لم يتغير."
+  "Added \"{name}\": {kept} of {total} cells inside \"{boundary}\" have a value ({cells} cells in all, cropped to the boundary). \"{source}\" is unchanged.": "أُضيف \"{name}\": {kept} من {total} خلية داخل \"{boundary}\" لها قيمة ({cells} خلية في المجموع، مقصوص إلى الحد). \"{source}\" لم يتغير.",
+  "\"{name}\": {rows} rows. X / Y are {x} / {y}, and From is the project's {crs}: the points land beside the project's collars when read in it. Check both, then save.": "\"{name}\": {rows} صف. X / Y هما {x} / {y}، و«من» هو {crs} الخاص بالمشروع: تقع النقاط بجوار فوهات المشروع عند قراءتها به. تحقق منهما ثم احفظ.",
+  "+{n} with the same box": "+{n} بالإطار نفسه",
+  "{n} feature(s); attributes: {cols}": "{n} عنصر(عناصر)؛ السمات: {cols}"
 }
