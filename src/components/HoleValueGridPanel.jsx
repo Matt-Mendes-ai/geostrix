@@ -6,6 +6,8 @@ import { useStore } from "../lib/store.jsx";
 import { t as tr } from "../lib/i18n.js";
 import { gridSamples, logByDefault, samplePoints, suggestSampleGrid, MINCURV_MAX_CELLS } from "../lib/sampleGrid.js";
 import { holeValueSources, holeValueRows, perHoleValue, holeValueMeta, perHoleSpan, holeSamplesAt, perHoleCoded } from "../lib/holeValueGrid.js"; // perHoleSpan, holeSamplesAt: #2745; perHoleCoded: #2991
+import { preferredElement } from "../lib/preferredElement.js"; // TASKS.csv #3353 (7) — opens on the lead commodity, not the suite's first element
+import { useLeadCommodity } from "../lib/useLeadCommodity.js";
 import { LAYER_META } from "../lib/layers.js"; // TASKS.csv #2991 — a built-in log's name
 import { rasterColourFields } from "../lib/rasterColour.js";
 import { f32ToB64 } from "../lib/inversion.js";
@@ -36,7 +38,9 @@ export default function HoleValueGridPanel() {
   const [placeAt, setPlaceAt] = useState("collar");
   const [depthAs, setDepthAs] = useState("along");
   const sources = useMemo(() => (open ? holeValueSources({ assayElements, layers, customLayers, labelOf: (k) => LAYER_META[k]?.label || k, logValidRange: project?.logValidRange || null }) : []), [open, assayElements, layers, customLayers, project?.logValidRange]); // #3116
-  const source = sources.find((s) => s.id === sourceId) || sources[0] || null;
+  const lead = useLeadCommodity();
+  const leadSource = useMemo(() => { const assay = sources.filter((x) => x.kind === "assay"); const sym = preferredElement(assay.map((x) => x.symbol), null, lead); return assay.find((x) => x.symbol === sym) || null; }, [sources, lead]);
+  const source = sources.find((s) => s.id === sourceId) || leadSource || sources[0] || null; // TASKS.csv #3353 (7)
   // TASKS.csv #2991 (WA iron review) — a coded log (a strand, a lithology): the chosen code(s), and thickness, depth or RL of their top / base
   const coded = source?.kind === "coded";
   const [codes, setCodes] = useState([]);

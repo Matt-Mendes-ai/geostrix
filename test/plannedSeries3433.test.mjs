@@ -20,8 +20,8 @@ test("a pattern in the series keeps the series' digits", () => {
   assert.deepEqual(q.holes.map((h) => h.name), ["PLAN-01", "PLAN-02"]);
 });
 
-test("the pattern form reads the series; Undrilled zones says Undo does not remove the zones", () => {
+test("the pattern form reads the series; Undrilled zones says Ctrl+Z takes the zones back", () => {
   const src = (f) => fs.readFileSync(new URL(f, import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(src("../src/components/PlannedHolePattern.jsx"), /holeSeries\(\[\.\.\.collars/);
-  assert.match(src("../src/components/UndrilledZonesPane.jsx"), /Ctrl\+Z does not take it back/);
+  assert.match(src("../src/components/UndrilledZonesPane.jsx"), /Ctrl\+Z takes it back/);
 });

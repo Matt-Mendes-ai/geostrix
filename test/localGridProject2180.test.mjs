@@ -34,7 +34,7 @@ test("the store, the dialog's third answer, the status bar and the imports", () 
   const m = readFileSync(new URL("../src/components/ProjectCrsModal.jsx", import.meta.url), "utf8");
   assert.match(m, /These are local mine-grid coordinates: keep them, no CRS/);
   assert.match(m, /useState\(\(\) => !noLocalGrid && !project\.crsSet && \(!!project\.localGrid \|\| \(!suggested && !!smallGrid\)\)\)/); // pre-selected by the magnitude check (not for a control-point question: #2621)
-  assert.match(m, /const keepLocal = \(\) => \{ setLocalGrid\(gridName\); onDone\(null\); \};/);
+  assert.match(m, /const keepLocal = \(\) => \{ setLocalGrid\(gridName\);[^\n]*onDone\(null\); \};/);
   assert.match(readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8"), /project\.crsSet === false && project\.localGrid[\s\S]{0,400}\{tr\("Local grid"\)\}/);
   assert.match(readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8"), /live\.project\?\.crsSet !== false \|\| live\.project\?\.localGrid \|\|/);
   assert.match(readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8"), /project\?\.crsSet === false && !project\?\.localGrid/);
