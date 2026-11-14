@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { vectorToBoundaryPolylines, crsLabel } from "../src/lib/boundaryImport.js";
-const read = (f) => readFileSync(new URL(`../src/${f}`, import.meta.url), "utf8");
+const read = (f) => readFileSync(new URL(`../src/${f}`, import.meta.url), "utf8").replace(/\r\n/g, "\n"); // CRLF checkout
 const rect = (x, y) => [[x, y], [x + 6000, y], [x + 6000, y + 5000], [x, y + 5000], [x, y]];
 
 test("#2467 AGD84 into GDA94: both CRSs by name, and the AGD84 caveat", async () => {

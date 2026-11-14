@@ -33,10 +33,10 @@ test("horizontal: an RL; nothing to place by gives null", () => {
 });
 
 test("wiring: the row is lazy and sits under the slider; keys", () => {
-  const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n"); // CRLF checkout
   assert.match(v, /const SlicePlaceRow = React\.lazy\(\(\) => import\("\.\.\/components\/SlicePlaceRow\.jsx"\)\);/);
   assert.match(v, /aria-label=\{tr\("Slice position"\)\} \/>\n\s*<Suspense fallback=\{null\}><SlicePlaceRow slice3d=\{slice3d\} setSlice3d=\{setSlice3d\} ext=\{sliceExtent\} origin=\{originRef\.current\} collars=\{collars\} \/><\/Suspense>/);
-  const c = readFileSync(new URL("../src/components/SlicePlaceRow.jsx", import.meta.url), "utf8");
+  const c = readFileSync(new URL("../src/components/SlicePlaceRow.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   const keys = [...c.matchAll(/tr\("([^"]+)"/g)].map((m) => m[1]);
   assert.ok(keys.length >= 10);
   for (const l of ["es", "pt", "fr", "ar"]) { const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8")); for (const k of keys) assert.ok(d[k], `${l}: ${k}`); }
