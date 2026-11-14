@@ -32,7 +32,7 @@ test("#3440 the guesses: gate times as columns start at the ramp-down; SI or pV 
 });
 
 test("#3440 the presets and waveforms: approximate labels, a ramp-off ending at t = 0", () => {
-  for (const [k, p] of Object.entries(WAVEFORM_PRESETS)) if (k !== "step") assert.match(p.label, /approximate/);
+  for (const [k, p] of Object.entries(WAVEFORM_PRESETS)) if (k !== "step" && !p.table) assert.match(p.label, /approximate/); // #3485: the report's table is not
   assert.equal(waveformFrom(null, 0), null);
   const w = waveformFrom(4, 40);
   assert.deepEqual(w[w.length - 1], [0, 0]); assert.ok(Math.abs(w[2][0] + 40e-6) < 1e-12); assert.equal(w[2][1], 1);

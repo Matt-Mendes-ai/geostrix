@@ -262,6 +262,118 @@ def check_step3():
     print("step 3 validation: two moments and heights pass, four bad requests are refused")
 
 
+def check_system_3485():
+    """#3485: a loop of the frame's area with an offset receiver, the receiver above the transmitter, the receiver's low-pass filters, gates
+    inside the turn-off, a bipolar waveform's earlier half-periods, and the gates as one fixed map of the frequencies"""
+    cond, thick = [0.02, 0.2, 0.005], [25.0, 40.0]
+    times = np.array([2e-6, 5e-6, 2e-5, 1e-4, 1e-3])
+    # 1. the circular loop with an offset receiver against the loop's area integrated as dipoles (polar Gauss-Legendre, 8 x 24 points)
+    a, r, h, rz = 10.36, 12.83, 35.0, 2.0
+    loop = tem1d.step_off([cond], thick, {"geom": "cloop", "a": a, "r": r, "h": h, "rz": rz}, times)[0]
+    xr, wr = np.polynomial.legendre.leggauss(8)
+    rho = 0.5 * a * (xr + 1.0); wrho = 0.5 * a * wr
+    phi = 2 * math.pi * (np.arange(24) + 0.5) / 24
+    acc = np.zeros_like(times)
+    for rr, wq in zip(rho, wrho):
+        for ph in phi:
+            d = math.hypot(r - rr * math.cos(ph), rr * math.sin(ph))
+            acc += wq * rr * (2 * math.pi / 24) * tem1d.step_off([cond], thick, {"geom": "vmd", "r": d, "h": h, "rz": rz}, times)[0]
+    ratio = loop / (acc / (math.pi * a * a))
+    assert np.all(np.abs(ratio - 1) < 3e-3), ratio
+    small = tem1d.step_off([cond], thick, {"geom": "cloop", "a": 0.05, "r": r, "h": h}, times)[0] / tem1d.step_off([cond], thick, {"geom": "vmd", "r": r, "h": h}, times)[0]
+    assert np.all(np.abs(small - 1) < 1e-4), small
+    print(f"loop of radius {a} m, receiver {r} m off and {rz} m up, vs its area as 192 dipoles: ratio {ratio.min():.4f} to {ratio.max():.4f}; a 5 cm loop is the dipole")
+    # 2. the receiver's height: against empymod with the receiver 3 m above the source
+    import empymod
+    T = np.array([1e-5, 1e-4, 1e-3])
+    ours = tem1d.step_off([cond], thick, {"geom": "vmd", "r": 13.0, "h": 30.0, "rz": 3.0}, T)[0]
+    z0 = [0.0] * 4
+    emp = -np.asarray(empymod.bipole(src=[0, 0, -30.0, 0, 90], rec=[-13.0, 0, -33.0, 0, 90], depth=np.r_[0.0, np.cumsum(thick)], res=np.r_[2e14, 1.0 / np.asarray(cond)],
+                                     freqtime=T, signal=-1, msrc="loop", mrec="loop", verb=0, epermH=z0, epermV=z0, xdirect=None))
+    assert np.all(np.abs(ours / emp - 1) < 3e-3), ours / emp
+    print(f"receiver 3 m above the transmitter vs empymod: ratio {np.min(ours / emp):.4f} to {np.max(ours / emp):.4f}")
+    # 3. the receiver's first-order low-pass filters (one at 300 kHz; SkyTEM's 210 and 300 kHz), against the unfiltered step-off convolved with
+    #    the filters' impulse response, the image field's instantaneous part included: y_f(t) = Int h(s) y(t - s) ds + mu0 Hs_inf h(t).
+    #    Within ~2 us of the turn-off the two parts nearly cancel (the filtered response crosses zero), so there the error is measured
+    #    against the parts' size; no system uses those times (SkyTEM's transition zone)
+    base = {"geom": "vmd", "r": 13.0, "h": 30.0}
+    hinf = tem1d.hs_inf(base)[0]
+    tt = np.array([1.5e-6, 3e-6, 5e-6, 8e-6, 3e-5])
+    u, wu = np.polynomial.legendre.leggauss(80)
+    worst_late, worst_early = 0.0, 0.0
+    for fcs in ([3e5], [2.1e5, 3e5]):
+        taus = [1.0 / (2 * math.pi * f) for f in fcs]
+        hf = (lambda s, a=taus[0]: np.exp(-s / a) / a) if len(taus) == 1 else (lambda s, a=taus[0], b=taus[1]: (np.exp(-s / a) - np.exp(-s / b)) / (a - b))
+        ours = tem1d.forward([cond], thick, {**base, "filters": fcs}, tt)[0]
+        for t, o in zip(tt, ours):
+            lo = math.log(1e-10 / t)
+            x = t * np.exp(0.5 * lo * (1 - u))  # graded toward the response's sharp start
+            y = tem1d.step_off([cond], thick, base, x)[0]
+            inst = MU0 * hinf * hf(t)
+            ref = np.sum(-0.5 * lo * wu * x * hf(t - x) * y) + inst
+            if t >= 5e-6:
+                worst_late = max(worst_late, abs(o / ref - 1))
+            else:
+                worst_early = max(worst_early, abs(o - ref) / (abs(ref) + abs(inst)))
+    assert worst_late < 2e-3 and worst_early < 1e-2, (worst_late, worst_early)
+    print(f"low-pass filters (300 kHz; 210 + 300 kHz) vs the time-domain convolution: from 5 us within {worst_late:.1e}; at 1.5-3 us, where the "
+          f"parts cancel, within {worst_early:.1e} of their size")
+    # 4. gates inside a 20 us linear turn-off (no filter: the instantaneous part counted), against a direct integration
+    wf = [[-2.002e-3, 0.0], [-2.0e-3, 1.0], [-2e-5, 1.0], [0.0, 0.0]]
+    g = np.array([-1.2e-5, -4e-6, 3e-6, 2e-5])
+    sysr = {"geom": "vmd", "r": 13.0, "h": 30.0}
+    ours = tem1d.forward([cond], thick, sysr, g, waveform=wf)[0]
+    hinf = tem1d.hs_inf(sysr)[0]
+    ref = []
+    for t in g:
+        tot = 0.0
+        for a0, b0, sl in ((-2.002e-3, -2.0e-3, 500.0), (-2e-5, 0.0, -5e4)):
+            hi = min(b0, t)
+            if hi <= a0:
+                continue
+            u, wu = np.polynomial.legendre.leggauss(60)
+            # s = t - tau in [t - hi, t - a0], graded toward its lower end
+            lo_s, hi_s = t - hi, t - a0
+            v = np.linspace(0, 1, 2)
+            q = 0.5 * (u + 1)
+            sgrid = lo_s + (hi_s - lo_s) * q ** 3 if lo_s < 1e-7 else lo_s + (hi_s - lo_s) * q
+            jac = (hi_s - lo_s) * 3 * q ** 2 * 0.5 if lo_s < 1e-7 else 0.5 * (hi_s - lo_s) * np.ones_like(q)
+            sgrid = np.maximum(sgrid, 1e-10)
+            y = tem1d.step_off([cond], thick, sysr, sgrid)[0]
+            tot += -sl * np.sum(wu * jac * y)
+            if a0 < t < b0:
+                tot += -MU0 * hinf * sl
+        ref.append(tot)
+    rr = ours / np.array(ref)
+    assert np.all(np.abs(rr - 1) < 5e-3), rr
+    print(f"gates inside a 20 us turn-off (-12 and -4 us) and after it vs a direct integration: ratio {rr.min():.4f} to {rr.max():.4f}")
+    # 5. a bipolar waveform at 25 Hz: the steady state is the alternating sum of the earlier half-periods' pulses
+    g2 = np.array([1e-5, 1e-4, 1e-3, 5e-3])
+    rep = tem1d.forward([cond], thick, sysr, g2, waveform=wf, base_freq=25.0)[0]
+    half = 0.5 / 25.0
+    manual = sum((-1) ** k * tem1d.forward([cond], thick, sysr, g2 + k * half, waveform=wf)[0] for k in range(tem1d.N_HALF_PERIODS))
+    assert np.allclose(rep, manual, rtol=2e-3), rep / manual
+    one = tem1d.forward([cond], thick, sysr, g2, waveform=wf)[0]
+    print(f"a 25 Hz bipolar waveform = the alternating sum of {tem1d.N_HALF_PERIODS} half-periods (worst {np.max(np.abs(rep / manual - 1)):.1e}); "
+          f"the earlier pulses lower the 5 ms gate to {rep[-1] / one[-1]:.3f} of one pulse's")
+    # 6. the validator takes the new system and moment fields, and refuses bad ones
+    from fastapi import HTTPException
+    from app.main import _validate_tem1d
+    good = {"system": {"geom": "cloop", "a": 10.36, "r": 12.83, "h": 30.0, "rz": 2.0, "filters": [2.1e5, 3e5]},
+            "moments": [{"gates": g.tolist(), "widths": [1e-6] * 4, "waveform": wf, "baseFreq": 210.0}], "data": [[1.0] * 4], "rz": [1.5], "errRel": 0.05}
+    _validate_tem1d(good)
+    for bad, why in [({**good, "system": {**good["system"], "filters": [10.0]}}, "a 10 Hz filter"),
+                     ({**good, "moments": [{**good["moments"][0], "gates": [-3e-3, 1e-5, 2e-5, 3e-5]}]}, "a gate before the waveform"),
+                     ({**good, "moments": [{**good["moments"][0], "baseFreq": 400.0}]}, "a half-period shorter than the waveform"),
+                     ({**good, "rz": [50.0]}, "a receiver 50 m above")]:
+        try:
+            _validate_tem1d(bad)
+        except HTTPException:
+            continue
+        raise AssertionError(f"accepted {why}")
+    print("system validation: a loop, filters, receiver heights and a base frequency pass; four bad requests are refused")
+
+
 if __name__ == "__main__":
     check_half_space()
     check_against_empymod()
@@ -271,4 +383,5 @@ if __name__ == "__main__":
     check_speed()
     check_inversion()
     check_step3()
+    check_system_3485()
     print("tem1d: all checks passed")

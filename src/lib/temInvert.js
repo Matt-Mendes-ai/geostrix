@@ -11,7 +11,34 @@ export const WAVEFORM_PRESETS = {
   airLow: { label: "Airborne, low moment (approximate)", onMs: 0.8, rampUs: 5 },
   airHigh: { label: "Airborne, high moment (approximate)", onMs: 4, rampUs: 40 },
   ground: { label: "Ground loop (approximate)", onMs: 10, rampUs: 50 },
+  // TASKS.csv #3485 — the measured waveform from the survey's report (SkyTEM and Workbench reports list it as time and normalized current)
+  table: { label: "A table from the survey report", onMs: null, rampUs: null, table: true },
 };
+
+// TASKS.csv #3485 — a waveform table typed or pasted from a survey report: one "time (s), current" pair a line, times from the start of the
+// ramp-down (the reports' zero, and the gate times'). The current is normalized to its peak; it must end off. -> { waveform (ending at
+// t = 0, as the engine takes it), rampUs (the table's zero to the end of the turn-off), n } or { error }
+export function parseWaveformTable(text) {
+  const pts = [];
+  for (const raw of String(text || "").split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    const nums = line.split(/[\s,;]+/).map(Number);
+    if (nums.length < 2 || !Number.isFinite(nums[0]) || !Number.isFinite(nums[1])) continue; // a heading or a caption
+    pts.push([nums[0], nums[1]]);
+  }
+  if (pts.length < 3 || pts.some((q, k) => k && !(q[0] > pts[k - 1][0]))) return { error: "The table needs at least 3 lines of time (s) and current, the times increasing." };
+  let peak = 0;
+  for (const q of pts) peak = Math.max(peak, Math.abs(q[1]));
+  if (!(peak > 0)) return { error: "The table needs at least 3 lines of time (s) and current, the times increasing." };
+  const last = pts[pts.length - 1];
+  if (Math.abs(last[1]) / peak > 0.01) return { error: "The table must end with the current off." };
+  if (pts[pts.length - 1][0] - pts[0][0] > 1) return { error: "The table's times look like microseconds or milliseconds: give them in seconds." };
+  const tEnd = last[0];
+  const waveform = pts.map(([t, I], k) => [+(t - tEnd).toPrecision(10), k === pts.length - 1 ? 0 : +(I / peak).toPrecision(8)]);
+  waveform[waveform.length - 1][0] = 0;
+  return { waveform, rampUs: +(tEnd * 1e6).toPrecision(8), n: pts.length };
+}
 // -> [[t (s), I], …] ending at t = 0 with the current off, or null for an ideal step-off
 export function waveformFrom(onMs, rampUs) {
   if (!(onMs > 0)) return null;
@@ -48,6 +75,19 @@ export function unitGuess(mat) {
   return { unit: "pV", reason: "No early readings to judge by: taken as pV/(A·m⁴).", early: null };
 }
 
+// TASKS.csv #3485 — a column of the receiver's height above the ground (SkyTEM: RX_ALTITUDE, the Z coil), else null
+export function rxColumn(columns) {
+  return (columns || []).find((c) => /^rx_?alt(itude)?$/i.test(String(c))) || null;
+}
+
+// "210, 300" (kHz) -> [210000, 300000] (Hz), at most three; null when a value is not a number
+export function parseFilters(text) {
+  const parts = String(text || "").split(/[\s,;]+/).filter(Boolean);
+  const v = parts.map(Number);
+  if (v.some((x) => !(x >= 1 && x <= 1e5)) || v.length > 3) return null;
+  return v.map((x) => x * 1000);
+}
+
 // A column of the system's height above the ground at each station (SkyTEM: TX_ALTITUDE, ALT, INVALT), else null
 export function heightColumn(columns) {
   const cs = columns || [];
@@ -55,16 +95,33 @@ export function heightColumn(columns) {
   return null;
 }
 
-// The job request. moments: [{ group, times (ms, the file's), waveform, rampUs }] (one, or two joined); timeZero: "rampStart" | "rampEnd";
-// unit: "SI" | "pV"; noise: { use, kind ("absolute" | "relative") } with the moments' uncertainty matrices (or null); every: 1, 2, 5 …;
-// heightsCol; system { geom, r | a, h }; layers; errRel. -> { request, pick (the stations sent), dropped (gates at or before t = 0) }
-export function buildTemRequest(data, { moments, timeZero = "rampEnd", unit = "pV", noise = null, every = 1, heightsCol = null, system, layers, errRel = 0.05, lateral = 0 }) {
+// The job request. moments: [{ group, times (ms, the file's), waveform, rampUs, and from the survey report (TASKS.csv #3485): shiftUs (added to
+// the file's gate times: raw to calibrated), frontUs (gates before it are left out; null: those at or before the end of the turn-off),
+// baseFreq (Hz: a bipolar waveform's earlier half-periods), widthsUs (one per gate) }] (one, or two joined); timeZero: "rampStart" |
+// "rampEnd"; unit: "SI" | "pV"; noise: { use, kind ("absolute" | "relative") } with the moments' uncertainty matrices (or null); every: 1, 2,
+// 5 …; heightsCol, rxCol (the receiver's height: rz = rx - h a station); system { geom, r | a, h, rz, filters }; layers; errRel.
+// -> { request, pick (the stations sent), dropped (gates left out), widthsMismatch (moments whose widths were not used) }
+export function buildTemRequest(data, { moments, timeZero = "rampEnd", unit = "pV", noise = null, every = 1, heightsCol = null, rxCol = null, system, layers, errRel = 0.05, lateral = 0 }) {
   const scale = unit === "SI" ? 1e12 : 1;
+  const widthsMismatch = [];
   const ms = moments.map((mo) => {
     const shift = timeZero === "rampStart" ? (Number(mo.rampUs) || 0) * 1e-6 : 0;
+    const dt = (Number(mo.shiftUs) || 0) * 1e-6;
+    const front = mo.frontUs == null || mo.frontUs === "" || !Number.isFinite(Number(mo.frontUs)) ? null : Number(mo.frontUs) * 1e-6;
+    const start = mo.waveform ? mo.waveform[0][0] : 0; // a gate may sit inside the turn-off, after the waveform's start
     const keep = [], gates = [];
-    mo.times.forEach((t, k) => { const g = t / 1000 - shift; if (g > 1e-7) { keep.push(k); gates.push(+g.toPrecision(8)); } });
-    return { ...mo, keep, gates, mat: channelMatrix(data, mo.group) };
+    mo.times.forEach((t, k) => {
+      const own = t / 1000 + dt; // the file's time, corrected, in its own reference
+      const g = own - shift;
+      const ok = front == null ? g > 1e-7 : own >= front - 1e-12 && g > start + 1e-9;
+      if (ok) { keep.push(k); gates.push(+g.toPrecision(8)); }
+    });
+    let widths = null;
+    if (Array.isArray(mo.widthsUs) && mo.widthsUs.length) {
+      if (mo.widthsUs.length === mo.times.length && mo.widthsUs.every((w) => w >= 0)) widths = keep.map((k) => +(mo.widthsUs[k] * 1e-6).toPrecision(6));
+      else widthsMismatch.push(mo.group.prefix);
+    }
+    return { ...mo, keep, gates, widths, mat: channelMatrix(data, mo.group) };
   });
   const dropped = ms.reduce((s, mo) => s + (mo.times.length - mo.keep.length), 0);
   // stations: every Nth along each line, in file order
@@ -86,14 +143,16 @@ export function buildTemRequest(data, { moments, timeZero = "rampEnd", unit = "p
     })));
   }
   const hcol = heightsCol ? data.get(heightsCol) : null;
+  const rxc = rxCol && hcol ? data.get(rxCol) : null;
   const request = {
-    system, moments: ms.map((mo) => ({ gates: mo.gates, waveform: mo.waveform || null })),
+    system, moments: ms.map((mo) => ({ gates: mo.gates, waveform: mo.waveform || null, ...(mo.widths ? { widths: mo.widths } : {}), ...(Number(mo.baseFreq) > 0 ? { baseFreq: Number(mo.baseFreq) } : {}) })),
     data: dataRows, ...(std ? { std } : {}), errRel, layers, lateral,
     heights: hcol ? pick.map((i) => (Number.isFinite(hcol[i]) && hcol[i] >= 0 && hcol[i] <= 300 ? +hcol[i].toFixed(2) : null)) : undefined,
     line: pick.map((i) => String(data.line[i])), x: pick.map((i) => data.x[i]), y: pick.map((i) => data.y[i]),
   };
   if (!request.heights) delete request.heights;
-  return { request, pick, dropped, gatesPerMoment: ms.map((mo) => mo.gates.length), scale };
+  if (rxc) request.rz = pick.map((i) => { const d = rxc[i] - hcol[i]; return Number.isFinite(d) && Math.abs(d) <= 20 ? +d.toFixed(2) : null; });
+  return { request, pick, dropped, gatesPerMoment: ms.map((mo) => mo.gates.length), scale, widthsMismatch };
 }
 
 // The finished stations from the progress events (each carries the last few batches; a later pass replaces an earlier one).

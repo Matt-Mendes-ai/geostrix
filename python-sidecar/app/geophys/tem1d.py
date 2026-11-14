@@ -26,9 +26,18 @@ eq. 4.98) at a few centimetres' height; a layered model against empymod.bipole (
 displacement currents, no direct field) at an airborne height and offset; the waveform convolution against a direct integration;
 SimPEG's 1D TDEM simulation when it is installed.
 
-Not modelled: the receiver's own low-pass filters and the system's front gate (SkyTEM's filters are system-specific; the panel will
-ask for them in step 3), a non-coincident transmitter and receiver height, the loop's true shape (a dipole stands for an airborne
-loop, as GA-AEM and Aarhus Workbench do for a small loop high above the ground).
+TASKS.csv #3485 — the system as a survey report gives it: 'cloop', a loop of the frame's area with the receiver at an offset (exact for
+a circle; SkyTEM's octagon as the circle of its area), the receiver rz above the transmitter, the receiver's first-order low-pass filters
+(applied to Hz in the frequency domain), a measured waveform table with gates inside the turn-off (the earth's instantaneous image-field
+response counted when there is no filter), and a bipolar waveform's earlier half-periods (base_freq). The gate averaging, the waveform's
+convolution, the half-periods and the time transform are folded once a moment into a (gates x frequencies) map (_operator), so an
+inversion's every step is a small product (2.6x faster than a transform a step).
+Checked against Aarhus Workbench (TASKS.csv #3488): our forward of the USGS's own models of its 2016 Yellowstone SkyTEM 312 survey, with the
+contractor report's waveform tables, filters, frame and receiver position, against Workbench's forward of the same models in the release:
+the high moment within 1.4 % at every gate; the low moment within 2.2 % from 35 us (its first gates, at the turn-off's end, 8-20 %).
+
+Not modelled: the front gate's own transient (gates before it are left out), the frame's tilt, the X component, the octagon's shape
+beyond its area.
 """
 from __future__ import annotations
 
@@ -64,21 +73,39 @@ def _geometry(system, freqs):
     base, w0, w1 = _filt()
     F, L = len(freqs), len(base)
     h = np.atleast_1d(np.asarray(system.get("h", 0.0), float))[:, None]
+    # TASKS.csv #3485 — the receiver rz metres above the transmitter (SkyTEM's Z coil: 2 m above the frame; a file's RX_ALTITUDE less
+    # TX_ALTITUDE): the reflected path runs from the source down and up to the receiver, e^(-l (h_s + h_r))
+    rz = np.atleast_1d(np.asarray(system.get("rz", 0.0), float))[:, None]
+    hh = 2.0 * h + rz
+    if np.any(hh <= 0):
+        raise ValueError("The receiver must be above the ground.")
     g = system.get("geom", "vmd")
     if g == "vmd":
         r = float(system["r"])
         if not r > 0:
             raise ValueError("A vertical-dipole system needs a receiver offset r > 0 (use geom 'loop' for a central-loop system).")
         lam = base / r
-        G = np.exp(-2.0 * lam * h) * lam ** 2 * w0 / (4.0 * math.pi * r)
+        G = np.exp(-lam * hh) * lam ** 2 * w0 / (4.0 * math.pi * r)
+    elif g == "cloop":
+        # TASKS.csv #3485 — a circular loop of radius a (a frame's area as a circle: SkyTEM's 337 m2 octagon) with the receiver at offset r
+        # from its centre: Hz = 1 / (2 pi a) Int r_TE e^(-l (h_s + h_r)) l J1(l a) J0(l r) dl per unit moment (the dipole as a -> 0), on the
+        # J0 filter at r; e^(-2 l h) keeps the integrand smooth where J1(l a) would oscillate, so the filter holds (checked against the
+        # loop's area integrated as dipoles in tests/test_tem1d.py)
+        from scipy.special import j1
+
+        a, r = float(system["a"]), float(system["r"])
+        if not (a > 0 and r > 0):
+            raise ValueError("A loop with an offset receiver needs the loop radius a > 0 and the offset r > 0.")
+        lam = base / r
+        G = np.exp(-lam * hh) * lam * j1(lam * a) * w0 / (2.0 * math.pi * a * r)
     elif g == "loop":
         a = float(system["a"])
         if not a > 0:
             raise ValueError("A central-loop system needs the loop radius a > 0.")
         lam = base / a
-        G = np.exp(-2.0 * lam * h) * lam * w1 / (2.0 * math.pi * a * a)
+        G = np.exp(-lam * hh) * lam * w1 / (2.0 * math.pi * a * a)
     else:
-        raise ValueError(f"Unknown system geometry {g!r}: 'vmd' or 'loop'")
+        raise ValueError(f"Unknown system geometry {g!r}: 'vmd', 'cloop' or 'loop'")
     lamF = np.ascontiguousarray(np.tile(lam, F))
     GF = np.ascontiguousarray(np.tile(G, (1, F)))
     iwmu = np.ascontiguousarray(np.repeat(1j * MU0 * 2.0 * math.pi * np.asarray(freqs, float), L))
@@ -125,6 +152,10 @@ def step_off(cond, thick, system, times, jac=False):
 _GL4 = np.polynomial.legendre.leggauss(4)
 _GL3 = np.polynomial.legendre.leggauss(3)
 
+# TASKS.csv #3485 — a bipolar transmitter (SkyTEM: each half-period's pulse the opposite sign of the last) is read in its steady state:
+# the earlier pulses' decays, alternating in sign, are summed. Ten half-periods: the next term is under ~1e-3 of a late gate.
+N_HALF_PERIODS = 10
+
 
 def _sample_times(gates, widths):
     """the times at which a gate is read: its centre, or 3 Gauss-Legendre points over its width -> (times (G, k), weights (k,))"""
@@ -136,58 +167,149 @@ def _sample_times(gates, widths):
     return g[:, None] + 0.5 * w[:, None] * x[None, :], wt / 2.0
 
 
-def forward(cond, thick, system, gates, widths=None, waveform=None, jac=False):
-    """The decays a system reads: cond (S, N) S/m, thick (N - 1,) m, gates (G,) s after the end of the turn-off, widths (G,) s or None,
-    waveform [[t, I], ...] (s, current 0..1, ending at t = 0 with I = 0) or None for an ideal step-off.
-    -> -dBz/dt (S, G) in V / (A m^4) [and its Jacobian (S, G, N) d / d log10(cond)]"""
-    tg, wg = _sample_times(gates, widths)  # (G, k)
-    if waveform is None:
-        need = tg.ravel()
-        y = step_off(cond, thick, system, need, jac=jac)
-        Y, JY = y if jac else (y, None)
-        S = Y.shape[0]
-        out = (Y.reshape(S, *tg.shape) * wg).sum(axis=2)
-        if not jac:
-            return out
-        return out, (JY.reshape(S, *tg.shape, -1) * wg[None, None, :, None]).sum(axis=2)
+def _segments(waveform):
+    """[[t, I], ...] ending at t = 0 with I = 0 -> [(a, b, dI/dt)] where the current changes, and the waveform's start"""
     wf = np.asarray(waveform, float)
     tw, I = wf[:, 0], wf[:, 1]
     if not (abs(I[-1]) < 1e-12 and abs(tw[-1]) < 1e-15):
         raise ValueError("The waveform must end at t = 0 with the current off.")
-    xq, wq = _GL4
-    segs = []  # (a, b, slope) for every segment where the current changes
+    segs = []
     for k in range(len(tw) - 1):
         dt = tw[k + 1] - tw[k]
         if dt <= 0:
             raise ValueError("The waveform's times must increase.")
         s = (I[k + 1] - I[k]) / dt
         if s != 0.0:
-            segs.append((tw[k], tw[k + 1], s))
-    # every time the convolution needs: for each gate sample t and each segment, t - tau at the quadrature points
-    pts = []
-    for a, b, s in segs:
-        tau = 0.5 * (b - a) * xq + 0.5 * (a + b)
-        pts.append(tg[:, :, None] - tau[None, None, :])  # (G, k, 4), all > 0 since tau <= 0 < t
-    allt = np.concatenate([p.ravel() for p in pts])
-    y = step_off(cond, thick, system, allt, jac=jac)
-    Y, JY = y if jac else (y, None)
-    S = Y.shape[0]
-    resp = np.zeros((S,) + tg.shape)
-    Jresp = np.zeros((S,) + tg.shape + (JY.shape[2],)) if jac else None
-    off = 0
-    for (a, b, s), p in zip(segs, pts):
-        n = p.size
-        ys = Y[:, off:off + n].reshape((S,) + p.shape)
-        # response = - Int I'(tau) y_off(t - tau) dtau over the segment
-        resp += -s * 0.5 * (b - a) * (ys * wq).sum(axis=3)
-        if jac:
-            js = JY[:, off:off + n, :].reshape((S,) + p.shape + (JY.shape[2],))
-            Jresp += -s * 0.5 * (b - a) * (js * wq[None, None, None, :, None]).sum(axis=3)
-        off += n
-    out = (resp * wg).sum(axis=2)
+            segs.append((float(tw[k]), float(tw[k + 1]), float(s)))
+    return segs, float(tw[0])
+
+
+def _pieces(s_lo, s_hi):
+    """Gauss-Legendre points and weights over s in [s_lo, s_hi], graded toward s_lo when it is near 0 (the response's sharp start)"""
+    xq, wq = _GL4
+    L = s_hi - s_lo
+    if s_lo >= 0.25 * L:
+        edges = np.array([s_lo, s_hi])
+    else:
+        # halving toward s_lo down to 5 ns (well inside a receiver filter's ~0.5 us rise)
+        m = int(max(0, math.ceil(math.log2(max(L, 1e-12) / max(s_lo, 5e-9)))))
+        edges = np.concatenate([[s_lo], s_lo + L * 2.0 ** -np.arange(min(m, 30), -1, -1)])
+    d = np.diff(edges)
+    mid = 0.5 * (edges[1:] + edges[:-1])
+    return (mid[:, None] + 0.5 * d[:, None] * xq[None, :]).ravel(), (0.5 * d[:, None] * wq[None, :]).ravel()
+
+
+def _time_weights(gates, widths, waveform, base_freq):
+    """How a gate is read from the step-off response y_off(s) (s > 0): gate g = sum_j w_j y_off(s_j) over its own j, plus
+    delta_g * (-mu0 Hs_inf) — the instantaneous part (the earth's image field following the current), which only a gate inside the
+    turn-off sees, and only without receiver filters (a filter turns it into part of y_off).
+    The waveform's response at t: -Int I'(tau) y_off(t - tau) dtau over the times before t, so a gate may sit inside the ramp (TASKS.csv
+    #3485: SkyTEM's low-moment gates from 6 us, its ramp 18 us long). With a base frequency, the earlier half-periods' pulses, alternating
+    in sign. -> times (T,), gate index (T,), weights (T,), delta (G,)"""
+    tg, wg = _sample_times(gates, widths)
+    G, k = tg.shape
+    ts, gi, ww = [], [], []
+    delta = np.zeros(G)
+    if waveform is None:
+        if np.any(tg <= 0):
+            raise ValueError("Without a waveform every gate must be after the turn-off (t > 0).")
+        for q in range(k):
+            ts.append(tg[:, q]); gi.append(np.arange(G)); ww.append(np.full(G, wg[q]))
+        return np.concatenate(ts), np.concatenate(gi), np.concatenate(ww), delta
+    segs, t0 = _segments(waveform)
+    if np.any(tg <= t0):
+        raise ValueError("A gate starts before the waveform.")
+    half = 0.5 / float(base_freq) if base_freq else None
+    if half is not None and half <= -t0:
+        raise ValueError("The base frequency's half-period must be longer than the waveform.")
+    for rep in range(N_HALF_PERIODS if half else 1):
+        sign = -1.0 if rep % 2 else 1.0
+        for g in range(G):
+            for q in range(k):
+                t = tg[g, q] + (rep * half if half else 0.0)
+                for a, b, s in segs:
+                    hi = min(b, t)
+                    if hi <= a:
+                        continue
+                    sp, wp = _pieces(t - hi, t - a)  # s = t - tau
+                    ts.append(sp); gi.append(np.full(sp.size, g)); ww.append(-s * sign * wg[q] * wp)
+                    if a < t < b:
+                        delta[g] += sign * wg[q] * s
+    return np.concatenate(ts), np.concatenate(gi), np.concatenate(ww), delta
+
+
+_OPS = {}
+
+
+def _operator(gates, widths, waveform, base_freq, filt):
+    """The gates as a linear map of the secondary field at a set of frequencies, for this moment: the gate averaging, the waveform's
+    convolution, the earlier half-periods and the Fourier transform folded into two (G, F) matrices, once a moment (TASKS.csv #3485).
+    gate = Re(Hs) . Cre + Im(Hs) . Cim (+ delta . (-mu0 Hs_inf)), Hs the secondary Hz per unit moment (with the receiver's filters applied).
+    An inversion's every step is then a small product instead of a time transform. -> (freq, Cre, Cim, delta)"""
+    import empymod
+
+    key = (np.asarray(gates, float).tobytes(), None if widths is None else np.asarray(widths, float).tobytes(),
+           None if waveform is None else np.asarray(waveform, float).tobytes(), float(base_freq or 0.0), filt)
+    if key in _OPS:
+        return _OPS[key]
+    ts, gi, ww, delta = _time_weights(gates, widths, waveform, base_freq)
+    time, freq, ft, ftarg = _fourier(ts, filt)
+    F, G = len(freq), len(np.asarray(gates))
+    iwmu = 2j * math.pi * freq * MU0
+    C = {}
+    for part, unit in (("re", 1.0), ("im", 1j)):
+        Cp = np.zeros((G, F))
+        for c0 in range(0, F, 16):
+            n = min(16, F - c0)
+            E = np.zeros((F, n), np.complex128)
+            E[c0 + np.arange(n), np.arange(n)] = unit * iwmu[c0:c0 + n]
+            tEM, _ = empymod.model.tem(E, np.ones(n), freq, time, -1, ft, ftarg)
+            Y = -np.real(np.asarray(tEM)).reshape(len(time), n)  # y_off at every time for a unit input at each frequency
+            block = np.zeros((G, n))
+            np.add.at(block, gi, ww[:, None] * Y)
+            Cp[:, c0:c0 + n] = block
+        C[part] = Cp
+    if len(_OPS) > 32:
+        _OPS.clear()
+    _OPS[key] = (freq, C["re"], C["im"], delta)
+    return _OPS[key]
+
+
+def _filters(system, freq):
+    """the receiver's first-order low-pass filters (cut-offs in Hz; SkyTEM: the coil's and the instrument's), e^(i w t) convention"""
+    H = np.ones(len(freq), np.complex128)
+    for fc in system.get("filters") or []:
+        H = H / (1.0 + 1j * np.asarray(freq, float) / float(fc))
+    return H
+
+
+def forward(cond, thick, system, gates, widths=None, waveform=None, jac=False, base_freq=None):
+    """The decays a system reads: cond (S, N) S/m, thick (N - 1,) m, gates (G,) s after the end of the turn-off (a gate may be inside the
+    turn-off when a waveform is given: a negative time), widths (G,) s or None, waveform [[t, I], ...] (s, current, ending at t = 0 with
+    I = 0) or None for an ideal step-off, base_freq (Hz) for a bipolar waveform repeated in its steady state.
+    system: geom 'vmd' (r) | 'cloop' (a, r) | 'loop' (a), h (m, or one a station), rz (the receiver above the transmitter, m, or one a
+    station), filters (low-pass cut-offs, Hz).
+    -> -dBz/dt (S, G) in V / (A m^4) [and its Jacobian (S, G, N) d / d log10(cond)]"""
+    freq, Cre, Cim, delta = _operator(gates, widths, waveform, base_freq, _filter_for(system))
+    out = fd_hz(cond, thick, freq, system, jac=jac)
+    v, J = out if jac else (out, None)
+    H = _filters(system, freq)
+    vf = v * H[None, :]
+    res = vf.real @ Cre.T + vf.imag @ Cim.T
+    if not system.get("filters") and np.any(delta != 0):
+        res = res + (-MU0 * hs_inf(system, len(v)))[:, None] * delta[None, :]
     if not jac:
-        return out
-    return out, (Jresp * wg[None, None, :, None]).sum(axis=2)
+        return res
+    JH = J * H[None, :, None]
+    Jr = np.einsum("sfn,gf->sgn", JH.real, Cre) + np.einsum("sfn,gf->sgn", JH.imag, Cim)
+    return res, Jr
+
+
+def hs_inf(system, S=1):
+    """the secondary Hz per unit moment over a perfect conductor (r_TE = -1): the earth's instantaneous response, (S,)"""
+    _, G, _, _, L = _geometry(system, np.array([1.0]))
+    v = -G[:, :L].sum(axis=1)
+    return np.broadcast_to(v, (S,)) if v.size == 1 else v
 
 
 # ---------------------------------------------------------------------------------------------------------------------------------
@@ -202,8 +324,8 @@ TEM_LAYERS = {"n": 20, "first": 3.0, "bottom": 300.0}  # ~3 m at the top, a half
 
 class TemSurvey:
     """A system and its moments as em1d.invert_batch expects a survey: kind 'log' and forward_fn(m (S, N) log10 S/m, thick, jac).
-    moments: [{gates (s), widths (s) or None, waveform or None}, ...]: one (a single moment) or two (SkyTEM's low and high moment, each with
-    its own gates and waveform, their readings one after the other in a station's row: step 3)."""
+    moments: [{gates (s), widths (s) or None, waveform or None, baseFreq (Hz) or None}, ...]: one (a single moment) or two (SkyTEM's low
+    and high moment, each with its own gates and waveform, their readings one after the other in a station's row: step 3)."""
 
     kind = "log"
 
@@ -211,17 +333,18 @@ class TemSurvey:
         self.system = dict(system)
         ms = moments if moments else [{"gates": gates, "widths": widths, "waveform": waveform}]
         self.moments = [{"gates": np.asarray(m["gates"], float), "widths": None if m.get("widths") is None else np.asarray(m["widths"], float),
-                         "waveform": m.get("waveform")} for m in ms]
+                         "waveform": m.get("waveform"), "baseFreq": m.get("baseFreq")} for m in ms]
 
     def forward_fn(self, m, thick, jac=False):
         cond = 10.0 ** np.atleast_2d(np.asarray(m, float))
         system = self.system
-        h = np.atleast_1d(np.asarray(system.get("h", 0.0), float))
-        if len(h) > 1 and len(h) != len(cond):
-            # step 3 — the stations' own heights, but not one model a station (em1d.invert_batch's half-space search: a grid of 46 models):
-            # the mean height, for that starting guess only
-            system = {**system, "h": float(h.mean())}
-        outs = [forward(cond, thick, system, mo["gates"], mo["widths"], mo["waveform"], jac=jac) for mo in self.moments]
+        for key in ("h", "rz"):
+            v = np.atleast_1d(np.asarray(system.get(key, 0.0), float))
+            if len(v) > 1 and len(v) != len(cond):
+                # step 3 — the stations' own heights, but not one model a station (em1d.invert_batch's half-space search: a grid of 46 models):
+                # the mean, for that starting guess only
+                system = {**system, key: float(v.mean())}
+        outs = [forward(cond, thick, system, mo["gates"], mo["widths"], mo["waveform"], jac=jac, base_freq=mo["baseFreq"]) for mo in self.moments]
         if jac:
             return np.concatenate([o[0] for o in outs], axis=1) * PV, np.concatenate([o[1] for o in outs], axis=1) * PV
         return np.concatenate(outs, axis=1) * PV
@@ -262,6 +385,10 @@ def run_job(req, progress):
     h0 = float(system.get("h", 0.0))
     hs = np.asarray(req.get("heights") or [h0] * S, float)
     hs = np.where(np.isfinite(hs) & (hs >= 0), hs, h0)
+    # TASKS.csv #3485 — the receiver above the transmitter at each station (a SkyTEM file's RX_ALTITUDE less TX_ALTITUDE)
+    rz0 = float(system.get("rz", 0.0))
+    rzs = np.asarray([rz0 if v is None else v for v in req["rz"]] if req.get("rz") is not None else [rz0] * S, float)
+    rzs = np.where(np.isfinite(rzs), rzs, rz0)
     left_out = int((np.isfinite(data) & (data <= 0)).sum())
     passes = 2 if lateral > 0 else 1
     m = np.full((S, len(thick) + 1), np.nan)
@@ -281,7 +408,7 @@ def run_job(req, progress):
         for idx in batches:
             mr = None if ref is None else ref[idx]
             alpha = ALPHA if ref is None else np.where(np.isfinite(mr[:, 0]), max(lateral, ALPHA), ALPHA)
-            mm, cc, pp, JJ, ww = invert_batch(TemSurvey({**system, "h": hs[idx]}, moments=moments), data[idx], sd[idx], thick, m_ref=mr, alpha=alpha, max_iter=max_iter)
+            mm, cc, pp, JJ, ww = invert_batch(TemSurvey({**system, "h": hs[idx], "rz": rzs[idx]}, moments=moments), data[idx], sd[idx], thick, m_ref=mr, alpha=alpha, max_iter=max_iter)
             m[idx], chi[idx], pred[idx] = mm, cc, pp
             doi[idx] = depth_of_investigation(JJ, ww, thick, float(req.get("doiFrac", DOI_FRAC)))
             pp_out = pp.copy()

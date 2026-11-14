@@ -529,12 +529,22 @@ def _validate_tem1d(req):
             ok = 0 < float(sysm["r"]) <= 200
         elif g == "loop":
             ok = 0 < float(sysm["a"]) <= 500
+        elif g == "cloop":  # TASKS.csv #3485: a loop of the frame's area with the receiver at an offset
+            ok = 0 < float(sysm["a"]) <= 100 and 0 < float(sysm["r"]) <= 200
         else:
             ok = False
         if not ok or not (0 <= h <= 200):
             raise ValueError
     except (KeyError, TypeError, ValueError, AttributeError):
-        raise HTTPException(422, "system needs geom 'vmd' with an offset r (0-200 m) or 'loop' with a radius a (0-500 m), and a height h (0-200 m).")
+        raise HTTPException(422, "system needs geom 'vmd' with an offset r (0-200 m), 'cloop' with a radius a (0-100 m) and an offset r, or 'loop' with a radius a (0-500 m), and a height h (0-200 m).")
+    # TASKS.csv #3485 — the receiver above the transmitter (m), and the receiver's low-pass filters (cut-offs, Hz)
+    try:
+        rz = float(sysm.get("rz", 0.0))
+        filters = sysm.get("filters") or []
+        if not (-20 <= rz <= 20) or not isinstance(filters, list) or len(filters) > 3 or any(not (1e3 <= float(f) <= 1e8) for f in filters):
+            raise ValueError
+    except (TypeError, ValueError):
+        raise HTTPException(422, "rz must be -20 to 20 m and filters list at most 3 cut-offs of 1 kHz to 100 MHz.")
     # TASKS.csv #3440 step 3 — one moment (gates, widths, waveform) or several (moments: SkyTEM's low and high moment, each its own)
     moments = req.get("moments")
     if moments is None:
@@ -544,9 +554,15 @@ def _validate_tem1d(req):
     total = 0
     for mo in moments:
         gates = mo.get("gates") if isinstance(mo, dict) else None
-        if not isinstance(gates, list) or not (3 <= len(gates) <= 80) or any(not isinstance(t, (int, float)) or not (1e-7 <= t <= 1.0) for t in gates) \
+        wf = mo.get("waveform") if isinstance(mo, dict) else None
+        # TASKS.csv #3485 — with a waveform a gate may sit inside the turn-off (a negative time, after the waveform's start)
+        lo = 1e-7 if not wf else (float(wf[0][0]) if isinstance(wf, list) and wf and isinstance(wf[0], list) and wf[0] else 1e-7)
+        if not isinstance(gates, list) or not (3 <= len(gates) <= 80) or any(not isinstance(t, (int, float)) or not (lo < t <= 1.0) for t in gates) \
                 or any(b <= a for a, b in zip(gates, gates[1:])):
-            raise HTTPException(422, "gates must list 3 to 80 increasing times between 1e-7 and 1 s.")
+            raise HTTPException(422, "gates must list 3 to 80 increasing times up to 1 s, after the turn-off (or after the waveform's start).")
+        bf = mo.get("baseFreq")
+        if bf is not None and (not isinstance(bf, (int, float)) or not (1 <= bf <= 10000) or (wf and 0.5 / bf <= -float(wf[0][0]))):
+            raise HTTPException(422, "baseFreq must be 1-10,000 Hz, its half-period longer than the waveform.")
         total += len(gates)
         w = mo.get("widths")
         if w is not None and (not isinstance(w, list) or len(w) != len(gates) or any(not isinstance(v, (int, float)) or v < 0 for v in w)):
@@ -568,11 +584,13 @@ def _validate_tem1d(req):
     if std is not None and (not isinstance(std, list) or len(std) != len(data) or any(not isinstance(r, list) or len(r) != len(gates) for r in std)):
         raise HTTPException(422, "std must give one row of relative uncertainties per station, one per gate.")
     n = len(data)
-    for k in ("line", "x", "y", "heights"):
+    for k in ("line", "x", "y", "heights", "rz"):
         if req.get(k) is not None and (not isinstance(req[k], list) or len(req[k]) != n):
             raise HTTPException(422, f"{k} must have one value per station.")
     if req.get("heights") is not None and any(v is not None and (not isinstance(v, (int, float)) or not (0 <= v <= 300)) for v in req["heights"]):
         raise HTTPException(422, "heights must be 0-300 m (null: the system's height).")
+    if req.get("rz") is not None and any(v is not None and (not isinstance(v, (int, float)) or not (-20 <= v <= 20)) for v in req["rz"]):
+        raise HTTPException(422, "rz must be -20 to 20 m per station (null: the system's rz).")
     lay = req.get("layers") or {}
     try:
         nl, first, bottom = int(lay.get("n", 20)), float(lay.get("first", 3.0)), float(lay.get("bottom", 300.0))

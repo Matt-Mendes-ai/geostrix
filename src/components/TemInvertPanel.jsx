@@ -5,7 +5,7 @@
 // station's data against its model's response, the models in 3D.
 import React, { useMemo, useRef, useState } from "react";
 import { channelMatrix, noiseGroupFor, stdKindGuess } from "../lib/temLines.js";
-import { WAVEFORM_PRESETS, waveformFrom, timeZeroGuess, unitGuess, heightColumn, buildTemRequest, mergePartials, partialResult, layerThicknesses } from "../lib/temInvert.js";
+import { WAVEFORM_PRESETS, waveformFrom, parseWaveformTable, parseFilters, timeZeroGuess, unitGuess, heightColumn, rxColumn, buildTemRequest, mergePartials, partialResult, layerThicknesses } from "../lib/temInvert.js";
 import { modelPoints } from "../lib/fdem.js";
 import { SURVEY_METHODS, surveyKey } from "../lib/geophysSurveys.js";
 import { runTem1dJob } from "../lib/desktop.js";
@@ -104,11 +104,12 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
   const tz = useMemo(() => timeZeroGuess(data, groups[0]), [data, groups]);
   const ug = useMemo(() => unitGuess(mats[0]), [mats]);
   const hc = useMemo(() => heightColumn(data.columns), [data]);
+  const rxc = useMemo(() => rxColumn(data.columns), [data]);
   const stdGuess = useMemo(() => (noiseMats[0] ? stdKindGuess(noiseMats[0]) : "relative"), [noiseMats]);
   const fresh = () => ({
-    key, geom: "vmd", r: 13, a: 20, h: 30, heightsCol: hc || "", timeZero: tz.zero, unit: ug.unit, useStd: noiseMats.every(Boolean), stdKind: stdGuess, errRel: 5, every: 1,
+    key, geom: "vmd", r: 13, a: 20, area: 314, h: 30, rz: 0, rzCol: rxc && hc ? rxc : "", filters: "", heightsCol: hc || "", timeZero: tz.zero, unit: ug.unit, useStd: noiseMats.every(Boolean), stdKind: stdGuess, errRel: 5, every: 1,
     layers: { n: 20, first: 3, bottom: 300 },
-    wave: groups.map((g, k) => { const p = groups.length > 1 ? (k === 0 ? "airLow" : "airHigh") : "airHigh"; return { preset: p, onMs: WAVEFORM_PRESETS[p].onMs, rampUs: WAVEFORM_PRESETS[p].rampUs }; }),
+    wave: groups.map((g, k) => { const p = groups.length > 1 ? (k === 0 ? "airLow" : "airHigh") : "airHigh"; return { preset: p, onMs: WAVEFORM_PRESETS[p].onMs, rampUs: WAVEFORM_PRESETS[p].rampUs, table: "", baseFreq: "", shiftUs: "", frontUs: "", widthsUs: "" }; }),
     result: null, pick: null, sel: null,
   });
   const [st, setSt] = useState(() => (LAST && LAST.key === key ? LAST : fresh()));
@@ -119,11 +120,19 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
   const times = groups.map((g) => timesOf(g));
   const ready = times.every(Boolean);
 
+  // TASKS.csv #3485 — a moment's waveform: a preset's shape, or the survey report's table (its own ramp-off, from the table's zero)
+  const tables = (st.wave || []).map((w) => (w.preset === "table" ? parseWaveformTable(w.table) : null));
+  const waveOf = (k) => (tables[k] ? { waveform: tables[k].waveform || null, rampUs: tables[k].rampUs || 0 } : { waveform: waveformFrom(st.wave[k].onMs, st.wave[k].rampUs), rampUs: st.wave[k].rampUs });
+  const numList = (text) => String(text || "").split(/[\s,;]+/).filter(Boolean).map(Number);
+  const filters = parseFilters(st.filters);
+  const sysErr = tables.find((t) => t && t.error)?.error || (filters == null ? "Filters: up to three cut-offs in kHz (1 to 100,000), separated by commas." : null);
   const build = () => buildTemRequest(data, {
-    moments: groups.map((g, k) => ({ group: g, times: times[k], waveform: waveformFrom(st.wave[k].onMs, st.wave[k].rampUs), rampUs: st.wave[k].rampUs })),
-    timeZero: st.timeZero, unit: st.unit, every: st.every, heightsCol: st.heightsCol || null,
+    moments: groups.map((g, k) => ({ group: g, times: times[k], ...waveOf(k), baseFreq: st.wave[k].baseFreq, shiftUs: st.wave[k].shiftUs, frontUs: st.wave[k].frontUs,
+      widthsUs: String(st.wave[k].widthsUs || "").trim() ? numList(st.wave[k].widthsUs) : null })),
+    timeZero: st.timeZero, unit: st.unit, every: st.every, heightsCol: st.heightsCol || null, rxCol: st.rzCol || null,
     noise: { use: st.useStd, kind: st.stdKind, mats: noiseMats },
-    system: st.geom === "loop" ? { geom: "loop", a: Number(st.a) || 20, h: Number(st.h) || 0 } : { geom: "vmd", r: Number(st.r) || 13, h: Number(st.h) || 30 },
+    system: st.geom === "loop" ? { geom: "loop", a: Number(st.a) || 20, h: Number(st.h) || 0, filters: filters || [] }
+      : { ...(st.geom === "cloop" ? { geom: "cloop", a: Math.sqrt((Number(st.area) || 314) / Math.PI) } : { geom: "vmd" }), r: Number(st.r) || 13, h: Number(st.h) || 30, rz: Number(st.rz) || 0, filters: filters || [] },
     layers: { n: Number(st.layers.n) || 20, first: Number(st.layers.first) || 3, bottom: Number(st.layers.bottom) || 300 }, errRel: (Number(st.errRel) || 5) / 100,
   });
   // the engine's progress in the app's words (its own message is English): stations finished, the pass when the neighbour tie runs twice
@@ -135,6 +144,7 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
     return ev.passes > 1 ? tr("Pass {p} of {q}: {k} of {n} stations finished.", { p: (ev.pass || 0) + 1, q: ev.passes, k: k.toLocaleString(), n }) : tr("{k} of {n} stations finished.", { k: k.toLocaleString(), n });
   };
   const run = async () => {
+    if (sysErr) { setMsg({ text: tr(sysErr) }); return; }
     const b = build();
     if (!b.request.data.length) { setMsg({ text: tr("No stations to invert.") }); return; }
     const thick = layerThicknesses(b.request.layers.n, b.request.layers.first, b.request.layers.bottom);
@@ -154,7 +164,7 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
     if (res.ok) {
       save({ ...st, result: { ...res.data, partial: false }, pick: b.pick, scale: b.scale, gates: b.request.moments.map((m) => m.gates), obs: b.request.data, sel: null });
       const chi = (res.data.chi || []).filter(Number.isFinite).sort((x, y) => x - y);
-      setMsg({ info: true, text: tr("Inverted {n} stations in {s} s; misfit (chi) median {c}.", { n: b.pick.length.toLocaleString(), s: secs.toLocaleString(), c: chi.length ? chi[Math.floor(chi.length / 2)].toFixed(2) : "–" }) + (b.dropped ? " " + tr("{k} gate(s) at or before the end of the turn-off were left out.", { k: b.dropped }) : "") + (res.data.leftOut ? " " + tr("{k} reading(s) at or below zero were left out.", { k: res.data.leftOut }) : "") });
+      setMsg({ info: true, text: tr("Inverted {n} stations in {s} s; misfit (chi) median {c}.", { n: b.pick.length.toLocaleString(), s: secs.toLocaleString(), c: chi.length ? chi[Math.floor(chi.length / 2)].toFixed(2) : "–" }) + (b.dropped ? " " + tr("{k} gate(s) before the front gate (or the end of the turn-off) were left out.", { k: b.dropped }) : "") + (b.widthsMismatch?.length ? " " + tr("The gate widths of {m} do not match its gates (one a gate): they were not used.", { m: b.widthsMismatch.join(", ") }) : "") + (res.data.leftOut ? " " + tr("{k} reading(s) at or below zero were left out.", { k: res.data.leftOut }) : "") });
       return;
     }
     if (res.cancelled && gathered && gathered.condMs.size) {
@@ -194,12 +204,26 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
       <div style={rowS}><span>{tr("System")}</span>
         <select value={st.geom} onChange={(e) => set({ geom: e.target.value })} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("TEM system geometry")}>
           <option value="vmd">{tr("Airborne: the loop as a dipole, receiver offset")}</option>
+          <option value="cloop">{tr("Airborne: a loop of the frame's area, receiver offset")}</option>
           <option value="loop">{tr("Ground: central loop")}</option>
         </select>
       </div>
+      {st.geom === "cloop" && <div style={rowS}><span>{tr("Loop area (m²)")}</span><input type="number" min="1" step="any" value={st.area} onChange={(e) => set({ area: e.target.value })} style={num} aria-label={tr("Loop area (m²)")} /></div>}
       <div style={rowS}>
-        {st.geom === "vmd" ? <><span>{tr("Receiver offset (m)")}</span><input type="number" min="0.1" step="any" value={st.r} onChange={(e) => set({ r: e.target.value })} style={num} aria-label={tr("Receiver offset (m)")} /></>
+        {st.geom !== "loop" ? <><span>{tr("Receiver offset (m)")}</span><input type="number" min="0.1" step="any" value={st.r} onChange={(e) => set({ r: e.target.value })} style={num} aria-label={tr("Receiver offset (m)")} /></>
           : <><span>{tr("Loop radius (m)")}</span><input type="number" min="0.1" step="any" value={st.a} onChange={(e) => set({ a: e.target.value })} style={num} aria-label={tr("Loop radius (m)")} /></>}
+      </div>
+      {st.geom !== "loop" && <div style={rowS}><span>{tr("Receiver above the transmitter (m)")}</span>
+        <span style={{ display: "flex", gap: 4 }}>
+          {rxc && st.heightsCol && <select value={st.rzCol} onChange={(e) => set({ rzCol: e.target.value })} style={{ ...smallSel, maxWidth: 120 }} aria-label={tr("Where the receiver's height comes from")}>
+            <option value="">{tr("one value")}</option>
+            <option value={rxc}>{tr("{c} less the height", { c: rxc })}</option>
+          </select>}
+          {!(rxc && st.heightsCol && st.rzCol) && <input type="number" min="-20" max="20" step="any" value={st.rz} onChange={(e) => set({ rz: e.target.value })} style={num} aria-label={tr("Receiver above the transmitter (m)")} />}
+        </span>
+      </div>}
+      <div style={rowS}><span>{tr("Receiver low-pass filters (kHz)")}</span>
+        <input type="text" value={st.filters} placeholder={tr("none")} onChange={(e) => set({ filters: e.target.value })} style={{ ...num, width: 90 }} aria-label={tr("Receiver low-pass filters (kHz)")} />
       </div>
       <div style={rowS}><span>{tr("Height above ground")}</span>
         <span style={{ display: "flex", gap: 4 }}>
@@ -216,13 +240,29 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
           <select value={st.wave[k].preset} onChange={(e) => { const p = WAVEFORM_PRESETS[e.target.value]; setWave(k, { preset: e.target.value, onMs: p.onMs, rampUs: p.rampUs }); }} style={{ ...smallSel, maxWidth: 180 }} aria-label={tr("Waveform of {m}", { m: g.prefix })}>
             {Object.entries(WAVEFORM_PRESETS).map(([v, p]) => <option key={v} value={v}>{tr(p.label)}</option>)}
           </select>
-          {st.wave[k].onMs != null && <span style={{ display: "flex", gap: 4, alignItems: "center", fontSize: "var(--font-size-xs)" }}>
+          {st.wave[k].preset !== "table" && st.wave[k].onMs != null && <span style={{ display: "flex", gap: 4, alignItems: "center", fontSize: "var(--font-size-xs)" }}>
             {tr("on (ms)")}<input type="number" min="0.01" step="any" value={st.wave[k].onMs} onChange={(e) => setWave(k, { onMs: Number(e.target.value) })} style={{ ...num, width: 52 }} aria-label={tr("On-time of {m} (ms)", { m: g.prefix })} />
             {tr("ramp-off (µs)")}<input type="number" min="0" step="any" value={st.wave[k].rampUs} onChange={(e) => setWave(k, { rampUs: Number(e.target.value) })} style={{ ...num, width: 52 }} aria-label={tr("Ramp-off of {m} (µs)", { m: g.prefix })} />
           </span>}
+          {st.wave[k].preset === "table" && <div style={{ width: "100%" }}>
+            <textarea value={st.wave[k].table || ""} onChange={(e) => setWave(k, { table: e.target.value })} rows={4} spellCheck={false} style={{ ...smallSel, width: "100%", fontFamily: "var(--font-mono, monospace)", fontSize: "var(--font-size-xs)", boxSizing: "border-box" }}
+              aria-label={tr("Waveform table of {m}", { m: g.prefix })} placeholder={tr("time (s), current: one pair a line, from the start of the ramp-down")} />
+            <div style={note}>{tables[k]?.error ? tr(tables[k].error) : tables[k]?.waveform ? tr("{n} points; the turn-off ends {us} µs after the table's zero.", { n: tables[k].n, us: fmt(tables[k].rampUs) }) : ""}</div>
+          </div>}
+          <details style={{ width: "100%", fontSize: "var(--font-size-xs)" }}>
+            <summary style={{ cursor: "pointer" }}>{tr("From the survey report ({m})", { m: g.prefix })}</summary>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 4, alignItems: "center", marginTop: 4 }}>
+              <span>{tr("Base frequency (Hz)")}</span><input type="number" min="1" step="any" value={st.wave[k].baseFreq} placeholder={tr("one pulse")} onChange={(e) => setWave(k, { baseFreq: e.target.value })} style={num} aria-label={tr("Base frequency of {m} (Hz)", { m: g.prefix })} />
+              <span>{tr("Gate time shift (µs)")}</span><input type="number" step="any" value={st.wave[k].shiftUs} placeholder="0" onChange={(e) => setWave(k, { shiftUs: e.target.value })} style={num} aria-label={tr("Gate time shift of {m} (µs)", { m: g.prefix })} />
+              <span>{tr("Front gate (µs)")}</span><input type="number" step="any" value={st.wave[k].frontUs} placeholder={tr("end of turn-off")} onChange={(e) => setWave(k, { frontUs: e.target.value })} style={{ ...num, width: 90 }} aria-label={tr("Front gate of {m} (µs)", { m: g.prefix })} />
+              <span>{tr("Gate widths (µs, one a gate)")}</span><input type="text" value={st.wave[k].widthsUs} placeholder={tr("none")} onChange={(e) => setWave(k, { widthsUs: e.target.value })} style={{ ...num, width: 90 }} aria-label={tr("Gate widths of {m} (µs)", { m: g.prefix })} />
+            </div>
+            <div style={{ ...note, marginTop: 4 }}>{tr("The base frequency adds the earlier half-periods' pulses (a bipolar transmitter). The shift corrects the file's gate times (raw to calibrated, as the report lists them). Gates before the front gate, in the file's time, are left out; blank keeps those after the end of the turn-off.")}</div>
+          </details>
         </div>
       ))}
-      <div style={{ ...note, marginBottom: 6 }}>{tr("The presets are approximate: check the on-time and the ramp-off against the survey report (they move the early gates).")}</div>
+      <div style={{ ...note, marginBottom: 6 }}>{tr("The presets are approximate: check the on-time and the ramp-off against the survey report (they move the early gates).")} {tr("For a fit to the noise, take the waveform table, base frequency, filters, loop and receiver position from the survey report.")}</div>
+      {sysErr && <div role="alert" style={{ ...note, color: "var(--color-warn-text)", marginBottom: 6 }}>{tr(sysErr)}</div>}
       <div style={rowS}><span>{tr("Gate times start at")}</span>
         <select value={st.timeZero} onChange={(e) => set({ timeZero: e.target.value })} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("When the gate times start")}>
           <option value="rampEnd">{tr("the end of the turn-off")}</option>
