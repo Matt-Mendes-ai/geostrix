@@ -187,9 +187,9 @@ export function boundaryLegendGroups(boundaries) {
 // colours of sceneBuilders), in the class order, over the visible sets
 // TASKS.csv #3066 — one row per structure TYPE (the data's own words), with its USGS (FGDC) symbol (opt.svg, the inclined form) in the class
 // colour, in the class order; a type with no words is its class
-export function outcropLegendGroup({ surfaceStructures = [], visible = true } = {}) {
+export function outcropLegendGroup({ surfaceStructures = [], visible = true, symbolByType = null /* #3094 */ } = {}) {
   if (!visible) return null;
-  const choices = projectSymbolChoices(surfaceStructures), types = new Map();
+  const choices = projectSymbolChoices(surfaceStructures, symbolByType), types = new Map();
   for (const s of surfaceStructures || []) { if (s?.visible === false) continue; for (const r of s.rows || []) { const cls = r.cls || "other", k = typeKey(r.type || cls); if (!types.has(k)) types.set(k, { label: String(r.type || "").trim() || STRUCTURE_CLASS_LABELS[cls] || cls, type: r.type || cls, cls, lineScale: lineScaleOf(s) /* #3091 — the first set's */ }); } }
   if (!types.size) return null;
   const order = Object.keys(STRUCTURE_CLASS_COLORS);

@@ -43,10 +43,10 @@ test("SVG and geometry: lines, fills, dashes, the label", () => {
 });
 
 import { readFileSync } from "node:fs";
-test("the Surface Geology panel: a line per type with its symbol and a choice saved on the sets", () => {
+test("the Surface Geology panel: a line per type with its symbol, the choice the project's (#3094)", () => {
   const p = readFileSync(new URL("../src/components/SurfaceMappingPanel.jsx", import.meta.url), "utf8");
-  assert.match(p, /const symbolChoices = useMemo\(\(\) => projectSymbolChoices\(surfaceStructures\), \[surfaceStructures\]\);/);
-  assert.match(p, /updateSurfaceStructureSet\(set\.id, \{ symbolByType: \{ \.\.\.\(set\.symbolByType \|\| \{\}\), \[key\]: family \} \}\)/);
+  assert.match(p, /const symbolChoices = useMemo\(\(\) => projectSymbolChoices\(surfaceStructures, project\?\.structureSymbolByType\), \[surfaceStructures, project\?\.structureSymbolByType\]\);/);
+  assert.match(p, /setStructureSymbolByType\(key, family \|\| null\);/); // #3094 — the project's map, not one entry per set
   assert.match(p, /aria-label=\{tr\("Symbol for \{type\}", \{ type: t\.name \}\)\}/);
 });
 

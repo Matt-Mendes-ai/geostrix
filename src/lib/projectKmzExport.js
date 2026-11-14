@@ -137,7 +137,7 @@ export async function exportProjectKmz(store, { confirm = (m) => window.confirm(
     return { ...img, legend: lg && (lg.items?.length || lg.ramp) ? lg : null };
   };
   // the structures' USGS symbols (true strike from the project CRS; on a local grid, the grid bearing)
-  const icons = (store.surfaceStructures || []).length ? await structureIconSet(store.surfaceStructures, { px: 64, epsg: tie ? null : ctx.epsg }) : { files: [], iconOf: () => null };
+  const icons = (store.surfaceStructures || []).length ? await structureIconSet(store.surfaceStructures, { px: 64, epsg: tie ? null : ctx.epsg, symbolByType: project.structureSymbolByType /* #3094 */ }) : { files: [], iconOf: () => null };
   const out = buildProjectKml(ctx, { toLonLat, altOf, legendPng: legendCanvasPng, rasterImage, crsLabel, structureIconOf: (row, set) => icons.iconOf(row, set), include, imageBytes: (u) => dataUrlBytes(asKmz(u)) });
   const kmz = await buildKmz([
     { name: "doc.kml", data: new TextEncoder().encode(out.kml), deflate: true },

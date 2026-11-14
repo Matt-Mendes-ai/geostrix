@@ -1157,7 +1157,7 @@ export default function LayoutModule() {
       // TASKS.csv #948 — the Surface Geology map: surface samples as the 3D view colours them, map layers, boundaries
       // TASKS.csv #2878 — the point surveys the view draws, one ramp per survey, as the 3D legend shows them
       ...geophysLegendGroups({ rows: layers?.geophys_pts, visible: layerVisible.geophys_pts !== false, surveys: geophysSurveys, stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax, label: tr("Geophysics points") }),
-      ...(sampleGroup ? [sampleGroup] : []), ...(outcropLegendGroup({ surfaceStructures }) ? [outcropLegendGroup({ surfaceStructures })] : []) /* #1437 */, ...mapLayerLegendGroups(shownMapLayers), ...boundaryLegendGroups(boundaries),
+      ...(sampleGroup ? [sampleGroup] : []), ...(outcropLegendGroup({ surfaceStructures, symbolByType: project?.structureSymbolByType }) ? [outcropLegendGroup({ surfaceStructures, symbolByType: project?.structureSymbolByType })] : []) /* #1437; symbolByType: #3094 */, ...mapLayerLegendGroups(shownMapLayers), ...boundaryLegendGroups(boundaries),
     ];
     // #1633 — a long group keeps its most frequent entries and says how many it left out
     // TASKS.csv #2609 — case-only twins of one colour are one row, and the left-out line is for the sheet's reader (the sidebar explains editing)

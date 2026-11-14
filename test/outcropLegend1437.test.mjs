@@ -33,7 +33,7 @@ test("the legend group lists the classes drawn, in class order, over the visible
 
 test("the 3D View's legend and the Layout legend take the group", () => {
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(v, /const outcrop = outcropLegendGroup\(\{ surfaceStructures \}\);/);
+  assert.match(v, /const outcrop = outcropLegendGroup\(\{ surfaceStructures(, symbolByType: store\.project\?\.structureSymbolByType \/\* #3094 \*\/)? \}\);/); // symbolByType: #3094
   const l = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
   assert.match(l, /outcropLegendGroup\(\{ surfaceStructures/);
 });

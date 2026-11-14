@@ -69,7 +69,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     project, terrain, projectIsEmpty, setEpsg, // #607
     mapLayers, addMapLayer, updateMapLayer, removeMapLayer, goToModule /* #2793 */,
     surfaceStructures, addSurfaceStructureSet, updateSurfaceStructureSet, removeSurfaceStructureSet,
-  collars = [], /* #1325 */ surfaceSamples = [], /* #1715 */ survey = [], layers = {}, desurveyMethod, viewerUiState, /* #1719 */ setStructureCodeClasses /* #2266 */, modellingCodes /* #2407 */, setModellingCodes /* #2956 */ } = useStore();
+  collars = [], /* #1325 */ surfaceSamples = [], /* #1715 */ survey = [], layers = {}, desurveyMethod, viewerUiState, /* #1719 */ setStructureCodeClasses /* #2266 */, setStructureSymbolByType /* #3094 */, modellingCodes /* #2407 */, setModellingCodes /* #2956 */ } = useStore();
   const mapInput = useRef(null);
   const qmlInput = useRef(null);
   const qmlTargetRef = useRef(null);
@@ -83,8 +83,13 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
   const logSpell = useMemo(() => loggedCodeSpellings(layers.litho), [layers.litho]);
   // TASKS.csv #3066 — the USGS (FGDC) symbol per structure type: the project's choices (kept on the sets, set.symbolByType), else the default
   // from the type's words; a change applies to every set that has the type
-  const symbolChoices = useMemo(() => projectSymbolChoices(surfaceStructures), [surfaceStructures]);
-  const setTypeSymbol = (key, family) => { for (const set of surfaceStructures) if ((set.rows || []).some((r) => typeKey(r.type || r.cls) === key)) updateSurfaceStructureSet(set.id, { symbolByType: { ...(set.symbolByType || {}), [key]: family } }); };
+  // TASKS.csv #3094 — the choice is the project's (setStructureSymbolByType, project.structureSymbolByType): one entry per type, whatever set holds
+  // it, kept for a set imported later; the type's old per-set entries (#3066) are cleared so the two cannot disagree
+  const symbolChoices = useMemo(() => projectSymbolChoices(surfaceStructures, project?.structureSymbolByType), [surfaceStructures, project?.structureSymbolByType]);
+  const setTypeSymbol = (key, family) => {
+    setStructureSymbolByType(key, family || null);
+    for (const set of surfaceStructures) if (set.symbolByType && key in set.symbolByType) { const next = { ...set.symbolByType }; delete next[key]; updateSurfaceStructureSet(set.id, { symbolByType: next }); }
+  };
   const logColourOf = (u) => categoryColor(viewerUiState?.legendOverride?.litho?.[u], LAYER_META.litho, u);
   const logCats = (layer, cats) => withLogColours(cats, logSpell, logColourOf, { byCount: !!(layer.subcropFromCollars || layer.subcropOutlines) });
   const [subDepth, setSubDepth] = useState(""); // TASKS.csv #2956 — blank: the first unit under the cover; a number: the unit that far down each hole
@@ -116,7 +121,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         if (!toLonLat) throw new Error(tr("EPSG:{epsg} cannot be converted to latitude / longitude.", { epsg }));
         // TASKS.csv #3066 — each reading's USGS (FGDC) symbol, one PNG per symbol used, turned by its strike like #2681's icon
         const feats = ox.surfaceStructureFeatures(s, epsg, zAt), rowsOut = (s.rows || []).filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y)); // the features' rows, in order
-        const icons = await structureIconSet([s], { epsg }), iconAt = new Map(feats.features.map((f, i) => [f, icons.iconOf(rowsOut[i], s)]));
+        const icons = await structureIconSet([s], { epsg, symbolByType: project?.structureSymbolByType /* #3094 */ }), iconAt = new Map(feats.features.map((f, i) => [f, icons.iconOf(rowsOut[i], s)]));
         const kml = ox.featuresToKml(feats, { name: s.name, toLonLat, nameOf: (f) => (f.attributes.dip !== "" ? `${Math.round(f.attributes.dip)}°` : ""), colorOf: (f) => STRUCTURE_CLASS_COLORS[f.attributes.cls] || "#555555", headingOf: (f) => iconAt.get(f)?.heading ?? (f.attributes.strike_rhr_true !== "" ? f.attributes.strike_rhr_true : null), iconOf: (f) => iconAt.get(f)?.href ?? null /* #3066 */ });
         // TASKS.csv #2681 — a .kmz: the KML and the strike-symbol icon it points at, so Google Earth turns a dip symbol, not its pushpin
         const { buildZip } = await import("../lib/shapefile.js");

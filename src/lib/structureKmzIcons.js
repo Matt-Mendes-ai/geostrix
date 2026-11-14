@@ -13,8 +13,8 @@ const hasAttitude = (r) => Number.isFinite(num(r?.dip)) && (Number.isFinite(num(
 
 // -> { files: [{ name, data }], iconOf(row, set) -> { href, heading } | null }. epsg: the project CRS, so a grid dip direction (#547) turns to
 // true north; without one (or where the CRS cannot give the convergence) the grid bearing is used.
-export async function structureIconSet(surfaceStructures, { px = 64, epsg = null } = {}) {
-  const sets = surfaceStructures || [], choices = projectSymbolChoices(sets), files = new Map();
+export async function structureIconSet(surfaceStructures, { px = 64, epsg = null, symbolByType = null /* #3094 */ } = {}) {
+  const sets = surfaceStructures || [], choices = projectSymbolChoices(sets, symbolByType), files = new Map();
   const iconFor = (row, set) => {
     if (!hasAttitude(row)) return null;
     const { symbol } = symbolForReading({ ...row, dip: num(row.dip) }, choices), scale = lineScaleOf(set), name = fileName(symbol, scale);
