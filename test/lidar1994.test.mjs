@@ -139,6 +139,8 @@ test("wired: the Geophysics tab's button, drop and survey method; the 3D View se
   assert.match(readFileSync(new URL("../src/lib/geophysSurveys.js", import.meta.url), "utf8"), /lidar: \{ label: "Lidar point cloud"/);
   assert.match(readFileSync(new URL("../scripts/licence-texts/laz-perf.txt", import.meta.url), "utf8"), /Apache License\s+Version 2\.0/);
   assert.match(readFileSync(new URL("../src/lib/lidar.worker.js", import.meta.url), "utf8"), /laz-perf\/lib\/worker\/laz-perf\.wasm\?url/);
-  // survey points (a lidar cloud is one) are built as pick-only stand-ins (#1500), not one Mesh and material each
-  assert.ok(readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").includes('const mesh = new PickStandIn(proto, { color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // #312; #1994'));
+  // survey points (a lidar cloud is one) are not one Mesh and material each: since #3309 one compact batch per survey, written from typed
+  // arrays (lib/viewer/geophysPts.js), no stand-in per point (#1500's stand-ins before)
+  assert.ok(readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").includes("syncGeophysPts(g, rows, {"));
+  assert.match(readFileSync(new URL("../src/lib/viewer/geophysPts.js", import.meta.url), "utf8"), /const inst = addCompactBatch\(group, proto, /);
 });

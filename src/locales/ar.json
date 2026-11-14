@@ -106,6 +106,7 @@
   "Best intercepts": "أفضل التقاطعات",
   "Block models": "نماذج الكتل",
   "Boundaries": "الحدود",
+  "The survey points could not be drawn: {v}": "تعذّر رسم نقاط المسح: {v}",
   "Geology (Macrostrat)": "الجيولوجيا (Macrostrat)",
   "Macrostrat's compilation of geologic maps (CC BY 4.0) for the project area, as a drape or map layer, and the map units at its centre": "مجموعة الخرائط الجيولوجية من Macrostrat (CC BY 4.0) لمنطقة المشروع، كطبقة مُغطّاة أو طبقة خريطة، ووحدات الخريطة في مركزها",
   "By coordinates": "بالإحداثيات",

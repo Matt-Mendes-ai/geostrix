@@ -182,7 +182,7 @@ import { plannedTrace } from "../lib/plannedTrace.js"; // TASKS.csv #119 - share
 import { extractMapContacts, orientationAt, projectContactRibbon, thinLine, densifyLine } from "../lib/mapLayers.js"; // TASKS.csv #316-#318
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { noticeText, noticeLevel, errorNotice, infoNotice, notice, appendNotice } from "../lib/notices.js"; // TASKS.csv #390
-import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
+let geophysPtsLib = null; // TASKS.csv #3309 — lib/viewer/geophysPts.js (the survey points per survey; makeSurveyColorer #451 inside), loaded on the first survey drawn
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellShown, sampleTerrainElevation, terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #445
 import { assaySizeFor, assayPassesCutoff } from "../lib/viewer/assaySize.js"; // #1533 — moved out
 import { objectVisibilityBundle, applyObjectVisibility } from "../lib/viewer/themeObjects.js"; // TASKS.csv #1535
@@ -2271,6 +2271,9 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
             if (!(sg?.visible && sg.children.length)) continue;
             const now = Date.now(), mpp = metresPerPixel(camera, camState.current?.radius, mount.clientHeight), key = Math.round(Math.log2(mpp || 1) * 8);
             const zr = zoomRef.current;
+            // TASKS.csv #3309 — zooming in on the survey points: shrunk at once (an in-place rescale since #3309), not after the zoom settles;
+            // symbols sized for a far view were drawn hundreds of pixels across, every frame took seconds and the zoom never settled
+            if (name === "geophys_pts" && mpp < builtRef.current / 2 && floored(builtRef.current, mpp)) { zr.key = key; zr.at = Infinity; buildRef.current(); continue; }
             if (key !== zr.key) { zr.key = key; zr.at = now; }
             else if (now - zr.at > 400 && needsSymbolRebuild(builtRef.current, mpp) && floored(builtRef.current, mpp)) { zr.at = Infinity; buildRef.current(); }
           }
@@ -4179,37 +4182,31 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   const geophysInputs = [layers.geophys_pts, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, isRowVisibleForBuild, layerStyles.geophys_pts]; // #635 style
   const geophysBuiltRef = useRef(null);
+  const geophysSurveysRef = useRef(geophysSurveys); // TASKS.csv #3309 — read by a point's tooltip when it is shown (a units edit redraws nothing)
+  geophysSurveysRef.current = geophysSurveys;
   const buildGeophysPts = () => {
     const g = layerGroupsRef.current.geophys_pts;
     if (!g) return;
     geophysBuiltRef.current = geophysInputs;
-    clearGroup(g);
     // scene x = world x - ox, scene y = elevation - oz, scene z = -(northing - oy): the drillholes' convention
-    const { x: ox, y: oy, z: oz } = originRef.current;
     const rows = (layers.geophys_pts || []).filter((r) => Number.isFinite(r.z) && isRowVisibleForBuild("geophys_pts", r)); // #431; #365 — no elevation = not drawn
-    if (!rows.length) return;
-    const colorer = makeSurveyColorer(rows, { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax }, geophysSurveys); // #451 — per survey when several; #122 class breaks; #1587 each survey's own legend
-    const errors = [];
+    if (!geophysPtsLib) { // #3309 — out of the startup bundle (#3159): loaded when there is a survey to draw, then built
+      if (rows.length) import("../lib/viewer/geophysPts.js").then((m) => { geophysPtsLib = m; buildGeophysPtsRef.current(); }).catch((err) => setNotices((pv) => [...pv, errorNotice(tr("The survey points could not be drawn: {v}", { v: err?.message || err }))]));
+      return;
+    }
+    const { syncGeophysPts, geophysTipText } = geophysPtsLib;
     const st = resolveLayerStyle(layerStyles.geophys_pts, "point"); // TASKS.csv #635
     const proto = st.shape === "sphere" ? PROTO_SPHERE_8 : POINT_PROTO[st.shape];
     // TASKS.csv #2849 (GSC review B16) — 1.4-4.2 m symbols: 15,620 Blake River stations over 94 x 50 km were a few grey specks at Fit. A floor of
     // 5 px across at the zoom the build is for (as the surface samples, #1597), rebuilt from the render loop when the zoom settles elsewhere
     const mpp = metresPerPixel(cameraRef.current, camState.current?.radius, mountRef.current?.clientHeight);
     geophysSymbolMppRef.current = mpp;
-    const minR = minSymbolRadiusM(mpp, GEOPHYS_MIN_PX);
-    rows.forEach((row) => {
-      try {
-        const { color: c0, t } = colorer.colorOf(row);
-        const color = st.color || c0;
-        const mesh = new PickStandIn(proto, { color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // #312; #1994 — a stand-in (#1500): 83,000 lidar points, first frame 1.4 s as Meshes, 0.75 s so
-        mesh.scale.setScalar(Math.max(1.4 + 2.8 * t, minR * (1 + t)) * st.size); // minR: #2849 (the bigger value still drawn bigger)
-        mesh.position.set(row.x - ox, row.z - oz, -(row.y - oy));
-        mesh.userData = { row, tip: `${row._src || "Geophysics point"}${row.line != null ? ` · line ${row.line}` : ""}${row.fid != null ? ` · fid ${row.fid}` : ""}\n${row.label || "value"}: ${row.value}${geophysSurveys?.[row._src]?.units ? ` ${geophysSurveys[row._src].units}` : ""}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z` };
-        g.add(mesh);
-      } catch (err) { errors.push(err.message); }
-    });
-    buildLayerBatches(g);
-    if (errors.length) setNotices((pv) => [...pv, errorNotice(tr("{errors} geophysics point(s) failed to render: {v}", { errors: errors.length, v: errors.slice(0, 3).join(" · ") }))]);
+    // TASKS.csv #3309 (Galore Creek: 543,820 IP points, 3-8 s on every zoom, Fit, Method pick, units keystroke, import or removal) — per survey,
+    // into compact batches with no object per point (lib/viewer/geophysPts.js), and a survey rebuilt only when what it draws changed; colours
+    // per survey as makeSurveyColorer's (#451 / #122 / #1587)
+    try {
+      syncGeophysPts(g, rows, { opts: { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax }, surveys: geophysSurveys, style: st, proto, minR: minSymbolRadiusM(mpp, GEOPHYS_MIN_PX), origin: originRef.current, tipOf: (row) => geophysTipText(row, geophysSurveysRef.current) });
+    } catch (err) { setNotices((pv) => [...pv, errorNotice(tr("{errors} geophysics point(s) failed to render: {v}", { errors: rows.length, v: err.message }))]); }
   };
   const geophysSymbolMppRef = useRef(NaN); // TASKS.csv #2849 — the metres-per-pixel the survey points were sized for
   const geophysZoomRef = useRef({ key: null, at: 0 });
