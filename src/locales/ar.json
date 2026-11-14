@@ -921,6 +921,8 @@
   "At {cell} m cells this extent needs {needed} blocks — over the {budget}-block budget.": "بخلايا {cell} م يحتاج هذا الامتداد {needed} كتلة — أكثر من ميزانية {budget} كتلة.",
   "Use {n} m cells": "استخدام خلايا {n} م",
   "Largest budget + {n} m cells": "أكبر ميزانية + خلايا {n} م",
+  "A {b}-block budget ({cost}) keeps the default {cs} m cells here.": "ميزانية من {b} كتلة ({cost}) تُبقي هنا الخلايا الافتراضية بحجم {cs} م.",
+  "Use {b} blocks": "استخدم {b} كتلة",
   "With no search radius, every grid cell is estimated from the whole dataset — the run can take a minute or more and the window will be unresponsive while it does. Set a real search radius unless you specifically want an unbounded first pass.": "بلا نصف قطر بحث تُقدَّر كل خلية من مجموعة البيانات كاملة — قد يستغرق التشغيل دقيقة أو أكثر ولن تستجيب النافذة خلاله. حدد نصف قطر بحث حقيقيًا ما لم تكن تريد تحديدًا تمريرة أولى بلا حدود.",
   "Generate {el} shell": "إنشاء غلاف {el}",
   "Generate grade shell": "إنشاء غلاف المحتوى",

@@ -921,6 +921,8 @@
   "At {cell} m cells this extent needs {needed} blocks — over the {budget}-block budget.": "Con celdas de {cell} m esta extensión necesita {needed} bloques — más que el límite de {budget} bloques.",
   "Use {n} m cells": "Usar celdas de {n} m",
   "Largest budget + {n} m cells": "Límite más grande + celdas de {n} m",
+  "A {b}-block budget ({cost}) keeps the default {cs} m cells here.": "Un presupuesto de {b} bloques ({cost}) mantiene aquí las celdas predeterminadas de {cs} m.",
+  "Use {b} blocks": "Usar {b} bloques",
   "With no search radius, every grid cell is estimated from the whole dataset — the run can take a minute or more and the window will be unresponsive while it does. Set a real search radius unless you specifically want an unbounded first pass.": "Sin radio de búsqueda, cada celda se estima con todo el conjunto de datos — la corrida puede tardar un minuto o más y la ventana no responderá mientras tanto. Defina un radio de búsqueda real salvo que quiera a propósito una primera pasada sin límites.",
   "Generate {el} shell": "Generar envolvente de {el}",
   "Generate grade shell": "Generar envolvente de ley",
