@@ -12180,5 +12180,8 @@
   "The ore-grade blocks lie {min}–{max} m below the ground over them ({median} m at the median; {src}): deep for an open pit. Compare Stope outlines before reading this pit as a mine.": "Los bloques con ley de mineral están {min}–{max} m bajo el terreno que los cubre ({median} m en la mediana; {src}): profundo para un rajo abierto. Compare los contornos de caserones antes de leer este rajo como una mina.",
   "the ground interpolated between the collars": "el terreno interpolado entre los collares",
   "{layer} (hidden in 3D)": "{layer} (oculto en 3D)",
-  "(highest of {n} in the slab)": "(el más alto de {n} en la franja)"
+  "(highest of {n} in the slab)": "(el más alto de {n} en la franja)",
+  "Show the legend": "Mostrar la leyenda",
+  "Legend ({n} rows)": "Leyenda ({n} filas)",
+  "Collapse the legend": "Contraer la leyenda"
 }

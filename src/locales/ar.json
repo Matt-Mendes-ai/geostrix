@@ -12180,5 +12180,8 @@
   "The ore-grade blocks lie {min}–{max} m below the ground over them ({median} m at the median; {src}): deep for an open pit. Compare Stope outlines before reading this pit as a mine.": "تقع كتل محتوى الخام على عمق {min}–{max} م تحت الأرض فوقها ({median} م عند الوسيط؛ {src}): عميقة لحفرة مفتوحة. قارن محيطات غرف التعدين قبل قراءة هذه الحفرة كمنجم.",
   "the ground interpolated between the collars": "الأرض المستكملة بين الفوهات",
   "{layer} (hidden in 3D)": "{layer} (مخفي في العرض ثلاثي الأبعاد)",
-  "(highest of {n} in the slab)": "(الأعلى من {n} في الشريحة)"
+  "(highest of {n} in the slab)": "(الأعلى من {n} في الشريحة)",
+  "Show the legend": "إظهار وسيلة الإيضاح",
+  "Legend ({n} rows)": "وسيلة الإيضاح ({n} صفوف)",
+  "Collapse the legend": "طي وسيلة الإيضاح"
 }
