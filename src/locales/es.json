@@ -130,6 +130,8 @@
   "Inversion": "Inversión",
   "Lab certificates": "Certificados de lab.",
   "Legend": "Leyenda",
+  "Text reduced to {pt} pt to fit the frame's width.": "Texto reducido a {pt} pt para caber en el ancho del marco.",
+  "Too wide for the frame even at 5 pt: widen the frame, drop a column, or untick the two table columns.": "Demasiado ancha para el marco incluso a 5 pt: ensanche el marco, quite una columna o desmarque las dos columnas de tabla.",
   "this page": "esta página",
   "Legend height (mm)": "Alto de la leyenda (mm)",
   "Legend columns": "Columnas de la leyenda",

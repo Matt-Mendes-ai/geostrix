@@ -120,3 +120,27 @@ export function elevationNotes(rows, suspect) {
   if (sus.length) out.push({ mark: "§", kind: "suspect", ids: sus.map((c) => c.hole_id) });
   return out;
 }
+
+// TASKS.csv #3374 (review #3195) — 'Two table columns side by side' with two collar fields as columns ran its right half 86 mm off an A4
+// sheet: each half was given 50 % of the frame and its cells do not wrap. The text is sized so the tables fit the frame's width: the
+// widest text of each column (measure(text, px, bold) -> px; the headings bold), its cell padding (half the size a side) and the gap
+// between halves. Down to minPx; below that it says it does not fit. -> { fs, shrunk, fits }
+export function tableTextFit({ columns = [], parts = [], fsPx, widthPx, gap = 14, minPx = 0, measure }) {
+  const need = (fs) => {
+    const padX = Math.round(fs * 0.5);
+    let total = gap * Math.max(0, parts.length - 1);
+    for (const rows of parts) {
+      columns.forEach((h, j) => {
+        let m = measure(String(h ?? ""), fs, true);
+        for (const r of rows) { const w = measure(String(r?.[j] ?? ""), fs, false); if (w > m) m = w; }
+        total += m + 2 * padX;
+      });
+    }
+    return total;
+  };
+  const n0 = need(fsPx);
+  if (!(widthPx > 0) || n0 <= widthPx) return { fs: fsPx, shrunk: false, fits: true };
+  let fs = Math.max(minPx, (fsPx * widthPx) / n0);
+  for (let k = 0; k < 4 && fs > minPx; k++) { const n = need(fs); if (n <= widthPx) break; fs = Math.max(minPx, (fs * widthPx) / n); }
+  return { fs, shrunk: true, fits: need(fs) <= widthPx + 0.5 };
+}

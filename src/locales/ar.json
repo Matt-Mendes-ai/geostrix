@@ -130,6 +130,8 @@
   "Inversion": "النمذجة العكسية",
   "Lab certificates": "شهادات المختبر",
   "Legend": "مفتاح الرموز",
+  "Text reduced to {pt} pt to fit the frame's width.": "صُغّر النص إلى {pt} نقطة ليتسع لعرض الإطار.",
+  "Too wide for the frame even at 5 pt: widen the frame, drop a column, or untick the two table columns.": "أعرض من الإطار حتى بحجم 5 نقاط: وسّع الإطار، أو احذف عموداً، أو ألغِ تحديد عمودي الجدول.",
   "this page": "هذه الصفحة",
   "Legend height (mm)": "ارتفاع وسيلة الإيضاح (مم)",
   "Legend columns": "أعمدة وسيلة الإيضاح",
