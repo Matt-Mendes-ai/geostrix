@@ -331,7 +331,17 @@ export function OrphanHoles({ layers, assays, collars, onOpenStripLog }) {
 // 265,000 elements in the page, and every layout of the window took about 0.5 s (the legend fit, the ribbon, each frame). It shows the
 // first HOLE_ROWS_STEP of the holes the filter matches, and 'Show more' adds the next; a new filter starts again from the top.
 export const HOLE_ROWS_STEP = 300;
-export function HoleRowList({ holes, filterKey, visibleHoles, onToggle, onOpenStripLog, onSection, onZoom }) {
+// TASKS.csv #3280 (11) (Galore review) — the list kept the collar file's order (CC23 after PD23): by hole id, numbers as numbers. The caller
+// hands a new array each render; the sorted one is kept while the same holes come in the same order (an O(n) check, not a sort per render).
+const ID_ORDER = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" }), idSorted = { src: [], out: [] };
+export function holesById(holes) {
+  const s = idSorted.src;
+  if (s.length === holes.length && holes.every((h, i) => h === s[i])) return idSorted.out;
+  idSorted.src = holes; idSorted.out = holes.slice().sort((a, b) => ID_ORDER.compare(String(a.hole_id), String(b.hole_id)));
+  return idSorted.out;
+}
+export function HoleRowList({ holes: given, filterKey, visibleHoles, onToggle, onOpenStripLog, onSection, onZoom }) {
+  const holes = holesById(given);
   const [limit, setLimit] = useState(HOLE_ROWS_STEP);
   useEffect(() => { setLimit(HOLE_ROWS_STEP); }, [filterKey]);
   const rest = holes.length - limit;
@@ -389,7 +399,8 @@ export const HoleRow = React.memo(function HoleRow({ hole_id, visible, onToggle,
   );
 });
 
-export function LayerRow({ label, count, visible, onToggle, onUpload, onInspect, onZoom, onClear, onContextMenu, input, expanded, onToggleExpand, children }) {
+// shown (TASKS.csv #3295): the rows the layer's code filter leaves shown, when it hides some (null otherwise)
+export function LayerRow({ label, count, shown = null, visible, onToggle, onUpload, onInspect, onZoom, onClear, onContextMenu, input, expanded, onToggleExpand, children }) {
   return (
     <div style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }} onContextMenu={onContextMenu}>
       {/* #386 — gap 9 (was 6): the zoom / filter / clear icons sat exactly on the WCAG 2.5.8 24 px spacing limit */}
@@ -409,7 +420,7 @@ export function LayerRow({ label, count, visible, onToggle, onUpload, onInspect,
             inside the inspector (ListFilter above) — this is the "I don't want this tab's data at all
             anymore" case, the inspector handles "just pull out one of several CSVs I merged in". */}
         {count > 0 && onClear && <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(onClear, tr("Remove all data from the {label} layer", { label }))} />}
-        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onUpload} style={{ cursor: "pointer", fontSize: "var(--font-size-sm)", color: count ? "var(--color-accent)" : "var(--color-text-muted)", flexShrink: 0 }} title={tr("Import CSV")} aria-label={count ? tr("Import CSV into {label} ({count} rows)", { label, count }) : tr("Import CSV into {label}", { label })}>{count ? `${count}` : <Upload size={12} />}</div>
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onUpload} style={{ cursor: "pointer", fontSize: "var(--font-size-sm)", color: count ? "var(--color-accent)" : "var(--color-text-muted)", flexShrink: 0 }} title={tr("Import CSV")} aria-label={count ? tr("Import CSV into {label} ({count} rows)", { label, count }) : tr("Import CSV into {label}", { label })}>{count ? (shown != null && shown < count ? <span title={tr("{hidden} of {count} intervals hidden by the code filter (Filter / legend)", { hidden: (count - shown).toLocaleString(), count: count.toLocaleString() })}>{tr("{shown} of {count}", { shown, count })}</span> /* #3295 — filtered to some codes: said on the row */ : `${count}`) : <Upload size={12} />}</div>
         {input}
       </div>
       {expanded && children && (
@@ -506,6 +517,7 @@ export function VoxelRangeRow({ model, onUpdate, compact = false, onShell = null
   const useLog = !!model.logScale && model.min > 0 && model.max > model.min;
   const toS = (v) => (useLog ? Math.log10(Math.max(model.min, v)) : v), fromS = (s) => (useLog ? 10 ** s : s);
   const sMin = toS(model.min), sMax = toS(model.max), sStep = (sMax - sMin) / 200 || 0.01;
+  const fromSlider = (raw) => (raw >= sMax - sStep / 2 ? model.max : raw <= sMin + sStep / 2 ? model.min : Number(Number(fromS(raw)).toPrecision(4))); // #3227 — at the box's 4 figures; the ends exact
   const debounceRef = useRef(null);
   const push = (patch) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -538,12 +550,12 @@ export function VoxelRangeRow({ model, onUpdate, compact = false, onShell = null
       </div>}
       <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 6 }}>
         <span style={{ color: "var(--color-text-faint)", width: 30, flexShrink: 0 }}>{tr("Min")}</span>
-        <input type="range" min={sMin} max={sMax} step={sStep} value={toS(dispMin)} onChange={(e) => onMinInput(Math.min(fromS(Number(e.target.value)), dispMax))} style={{ flex: 1, minWidth: 0 }} title={useLog ? tr("Log-stepped: the model's values span decades") : undefined} />
+        <input type="range" min={sMin} max={sMax} step={sStep} value={toS(dispMin)} onChange={(e) => onMinInput(Math.min(fromSlider(Number(e.target.value)), dispMax))} style={{ flex: 1, minWidth: 0 }} title={useLog ? tr("Log-stepped: the model's values span decades") : undefined} />
         <VoxelRangeNumber value={dispMin} label={tr("Lowest value shown of \"{name}\"", { name: model.name })} onCommit={(v) => { const x = Math.min(Math.max(v, model.min), dispMax); setDispMin(x); onUpdate(model.id, { threshold: storeMin(x) }); }} />{valueUnit(model) && <span style={{ color: "var(--color-text-faint)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{valueUnit(model)}</span>}{/* #2585 / #2457 */}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 4 }}>
         <span style={{ color: "var(--color-text-faint)", width: 30, flexShrink: 0 }}>{tr("Max")}</span>
-        <input type="range" min={sMin} max={sMax} step={sStep} value={toS(dispMax)} onChange={(e) => onMaxInput(Math.max(fromS(Number(e.target.value)), dispMin))} style={{ flex: 1, minWidth: 0 }} title={useLog ? tr("Log-stepped: the model's values span decades") : undefined} />
+        <input type="range" min={sMin} max={sMax} step={sStep} value={toS(dispMax)} onChange={(e) => onMaxInput(Math.max(fromSlider(Number(e.target.value)), dispMin))} style={{ flex: 1, minWidth: 0 }} title={useLog ? tr("Log-stepped: the model's values span decades") : undefined} />
         <VoxelRangeNumber value={dispMax} label={tr("Highest value shown of \"{name}\"", { name: model.name })} onCommit={(v) => { const x = Math.max(Math.min(v, model.max), dispMin); setDispMax(x); onUpdate(model.id, { rangeMax: storeMax(x) }); }} />{valueUnit(model) && <span style={{ color: "var(--color-text-faint)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{valueUnit(model)}</span>}{/* #2585 / #2457 */}
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>

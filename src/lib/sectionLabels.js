@@ -125,7 +125,8 @@ export function leaderEnd(b) {
 // come back with `leaderFrom` (that first spot) so the drawing can tie a displaced label to its hole. Only with nowhere
 // free in reach do they overlap. bounds: [x0, x1] the search stays inside.
 const RINGS = 10;
-export function resolveLabels(specs, obstacles = [], { gap = 1.5, bounds = null, yBounds = null } = {}) {
+// rings (TASKS.csv #2372): how many rows out a label may move from its point before it is left out (RINGS, 10, by default; the level plan's 3)
+export function resolveLabels(specs, obstacles = [], { gap = 1.5, bounds = null, yBounds = null, rings = RINGS } = {}) {
   // TASKS.csv #2518 (review #2486) — the placed boxes in a grid: a level plan at RL 250 on 2,248 holes (1,800 labels) scanned every placed box
   // for every candidate spot, 330-650 ms per RL step. Same boxes, same order, same result: only the boxes that can touch are compared.
   const CELL = 48, grid = new Map(), cellKey = (i, j) => i * 1048576 + j;
@@ -149,7 +150,7 @@ export function resolveLabels(specs, obstacles = [], { gap = 1.5, bounds = null,
     let leaderFrom = null;
     if (!pick) {
       const c0 = s.cands[0], w = labelWidth(s.text, s.size), inside = (b) => (!bounds || (b.x0 >= bounds[0] && b.x1 <= bounds[1])) && (!yBounds || (b.y0 >= yBounds[0] && b.y1 <= yBounds[1]));
-      search: for (let r = 1; r <= RINGS; r++) for (const dy of [r, -r]) for (const dx of [0, -0.6, 0.6, -1.2, 1.2]) {
+      search: for (let r = 1; r <= rings; r++) for (const dy of [r, -r]) for (const dx of [0, -0.6, 0.6, -1.2, 1.2]) {
         const c = { ...c0, x: c0.x + dx * w, y: c0.y + dy * (s.size + 3) }, box = boxOf(c, s.text, s.size);
         if (inside(box) && inWithin(s, box) && !hit(box)) { pick = { c, box }; leaderFrom = { x: c0.x, y: c0.y - s.size / 2 }; break search; }
       }

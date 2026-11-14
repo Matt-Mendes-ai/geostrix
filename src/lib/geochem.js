@@ -105,7 +105,7 @@ export function pickElementColumns(headers, rows, stats = null) {
     if (DESCRIPTIVE_COLUMN.test(words) || /error/i.test(h)) return;
     let n = 0, max = -Infinity;
     if (stats?.has(h)) ({ n, max } = stats.get(h));
-    else for (const r of rows) { const v = parseAssayValue(r[h]); if (v != null && Number.isFinite(v)) { n++; if (v > max) max = v; } }
+    else for (const r of rows) { const v = parseAssayValue(r[h]); if (isResultValue(v)) { n++; if (v > max) max = v; } } // #3213 — a -999 code is no result
     // TASKS.csv #2185 — a column of words (P_TSA_A_Mineral1 = IntChlorite) is no element, whatever its header starts with
     if (!n && rows?.length) { let text = 0; for (let i = 0; i < rows.length && i < 200; i++) { const s = String(rows[i]?.[h] ?? "").trim(); if (s && !/^[<>]?\s*[-+]?[\d.]/.test(s)) text++; } if (text) return; }
     if (!bySym.has(sym)) bySym.set(sym, []);
@@ -136,13 +136,16 @@ export function pickElementColumns(headers, rows, stats = null) {
     // TASKS.csv #2328 (review #2325, WA uranium) — the other method columns of the element (U_100, U_101, U, U_103 beside U_102): each sample
     // was analysed by one method set, so they hardly overlap; read from the fullest only, U kept 5,060 of 9,746 values. Their counts and how
     // many rows carry two or more of them; joined by default when at most 5 % of the rows with a value carry several (first value wins).
-    const methodCols = symbol === LOI ? [] /* #2734 — LOI371 / LOI650 / LOI1000 are other measurements, not methods of one */ : sorted.slice(1).filter((c) => c.n > 0 && !c.repeat && (!overLimit || c.header !== overLimit.header)).map((c) => ({ header: c.header, n: c.n, unit: inferUnit(c.header, symbol) }));
+    const methodCols = symbol === LOI ? [] /* #2734 — LOI371 / LOI650 / LOI1000 are other measurements, not methods of one */ : sorted.slice(1).filter((c) => c.n > 0 && !c.repeat && (!overLimit || c.header !== overLimit.header)).map((c) => ({ header: c.header, n: c.n, unit: inferUnit(c.header, symbol), max: c.max }))
+      // TASKS.csv #3213 — a method column whose values are a thousandfold from the main column's, read in the same unit (partial copper in true per cent
+      // beside a _pct column holding ppm): said, and never joined by default
+      .map((c) => { const a = convertUnit(c.max, c.unit, unit), b = main.max; return Number.isFinite(a) && Number.isFinite(b) && a > 0 && b > 0 && Math.max(a / b, b / a) >= 1000 ? { ...c, rangeClash: true } : c; });
     let withAny = 0, withSeveral = 0;
     if (methodCols.length && rows?.length) {
       const hs = [main.header, ...methodCols.map((c) => c.header)];
-      for (const r of rows) { let k = 0; for (const h of hs) { const v = parseAssayValue(r[h]); if (v != null && Number.isFinite(v)) k++; } if (k) withAny++; if (k > 1) withSeveral++; }
+      for (const r of rows) { let k = 0; for (const h of hs) { const v = parseAssayValue(r[h]); if (isResultValue(v)) k++; } if (k) withAny++; if (k > 1) withSeveral++; } // #3213
     }
-    const joinDefault = methodCols.length > 0 && withAny > 0 && withSeveral / withAny <= 0.05;
+    const joinDefault = methodCols.length > 0 && withAny > 0 && withSeveral / withAny <= 0.05 && !methodCols.some((c) => c.rangeClash); // rangeClash: #3213
     out.push({ symbol, header: main.header, unit, alts: sorted.slice(1).map((c) => c.header), overLimit, n: main.n, ...(ppb ? { unitFromValues: ppb } : {}), // n: #1389 — values in the chosen column; unitFromValues: #2337
       ...(methodCols.length ? { methodCols, methodOverlap: { withAny, withSeveral }, join: joinDefault } : {}) }); // #2328
   });
@@ -246,6 +249,9 @@ export function readLoiCell(raw, posMax = 0) {
 // -999 in Mo / Ce / La / Ni (maxima 947, 650, 690, 767) was read as 999 ppm over the limit (Mo mean 11.7 -> 31.7). A lab's upper limit is a round
 // number (-10 for Au "> 10", -10000 for Cu), so only those can be over-limit codes; the all-nines ones are no-data (isNoDataCode)
 export const isAllNinesCode = (value) => value < 0 && ALL_NINES.test(String(-value)); // -99, -999, -9999: a no-data sentinel (#3196; long format too)
+// TASKS.csv #3213 — a cell that is a result: a number, not a no-data code (-99 / -999 / -9999). The column counts (which column is the element's, the
+// method-column tooltip) counted the -999s: 'Cu_AA05_pct (8,494)' where 6,368 are results
+export const isResultValue = (v) => v != null && Number.isFinite(v) && !isAllNinesCode(v);
 export const isOverLimitCode = (value, colMax) => value < 0 && value !== -1 && value !== -9 && colMax > 0 && -value >= colMax && -value <= 2 * colMax && !isAllNinesCode(value);
 export function columnPositiveMax(rows, header) {
   let max = 0;

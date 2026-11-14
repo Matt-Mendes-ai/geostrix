@@ -33,7 +33,7 @@ collars carry an `epsg` column with that code.
 |---|---:|---|
 | `collars.csv` | 66 | hole_id, x, y, z (305.7 to 313.8 m), length (10 to 309.4 m; 13,180 m in all), hole_type (35 RC, 31 DD), epsg. The hole type and total depth are from the database's own collar table. Two inclined diamond holes of the prospect have no downhole survey in the source and are left out |
 | `survey.csv` | 1,601 | hole_id, depth, azimuth on the national grid (the source's `NAT_Azimuth`, grid id MGA94_51 on every row), dip. Nine holes were surveyed twice; one run per hole is kept (see below) |
-| `litho.csv` | 4,207 | the primary rock code (`Lith1_Code`, 32 codes: HAQCS 1,171, HAQBC 829, HACS 534, RSU 280, FFF 252, PF 188, HAQB 160 ...). One log per hole; no interval overlaps another. The codes are the company's and the source gives no key to them |
+| `litho.csv` | 4,207 | the primary rock code (`Lith1_Code`, 32 codes: HAQCS 1,171, HAQBC 829, HACS 534, RSU 280, FFF 252, PF 188, HAQB 160 ...). One log per hole; no interval overlaps another. The codes are the company's and the source gives no key to them. `description`: the geologist's comment on the interval as logged (the source's `Comments`, whitespace collapsed; on 4,076 of the 4,207 intervals): mineral abundances and a few words on texture, alteration and contacts (TASKS.csv #3308) |
 | `weath.csv` | 4,116 | the oxidation state of the same intervals (FR 3,101, OX 491, TR 172, JO 126, MOX 88, SO 72, PO 66) |
 | `alt.csv` | 4,150 | the first code of the alteration log and its intensity (0 to 5): PO 1,841, PY 961, CLAY 616, HEM 158, DIO 121, BIO 107 ... The company logs sulphides in this table |
 | `vein.csv` | 1,412 | veining: the first composition (QTZ 1,165, CB 173 ...), the style and the percentage of the interval |

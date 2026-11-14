@@ -56,7 +56,7 @@ test("Data QC flags an assumed elevation as a warning on the hole", () => {
 });
 
 test("the import keeps them and says so", () => {
-  const src = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const src = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.ok(src.includes("rows = rows.filter((r) => r.hole_id && Number.isFinite(r.x) && Number.isFinite(r.y));"));
   assert.ok(src.includes("const zFill = fillMissingCollarZ(rows,"));
   assert.ok(src.includes('tr("{n} collar(s) had no elevation and were placed at an ASSUMED one ({how}), flagged in Data QC"'));

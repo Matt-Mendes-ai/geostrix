@@ -32,7 +32,7 @@ test("#2384: not when the cubic cell keeps within the runs, the runs are unknown
 
 test("#2384: the run uses it (not under a geology trend, not for a typed cell), says the cells first and records them", () => {
   const s = fs.readFileSync("src/modules/viewer/modellingRuns.js", "utf8");
-  assert.match(s, /const seam = isCode && !anisotropy\.enabled && !\(cellSetting > 0\) \? seamCells\(cell, autoB, cellsAt3, MAX_BLOCKS \* 0\.75\) : null;/);
+  assert.match(s, /const seam0 = isCode && !anisotropy\.enabled && !\(cellSetting > 0\) \? seamCells\(cell, autoB, cellsAt3, MAX_BLOCKS \* 0\.75\) : null;/ /* #3263: then only when the runs lie flat (runsLieFlat) */);
   assert.match(s, /cellSize: \{ dx: cell, dy: cell, dz: cellZ \/\* #2384 \*\/ \}/);
   assert.match(s, /const past = isCode && !seam \? bodyCellPastRuns/);
   assert.match(s, /cellSizeM: cellText, \.\.\.\(seam \? \{ cellHeightM: cellZ/);

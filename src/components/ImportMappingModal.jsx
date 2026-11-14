@@ -18,7 +18,17 @@ import { customFromPrevious } from "../lib/viewer/customMapping.js"; // TASKS.cs
 import { tieOf } from "../lib/localGridTie.js"; // TASKS.csv #2491
 import CoordSetsNote from "./CoordSetsNote.jsx"; // TASKS.csv #2492 — two coordinate sets, X / Y / Z from different sets, mine-grid numbers
 import LogChannelsBox from "./LogChannelsBox.jsx"; // TASKS.csv #2160 — one numeric layer per log channel
+import MineralPercentBox from "./MineralPercentBox.jsx"; // TASKS.csv #3205 — one numeric layer per mineral column
+// TASKS.csv #3307 — a Mineralization code column that holds numbers (most of its first 200 filled cells): each number would be a legend category
+const numericCodes = (rows, col) => {
+  if (!col) return false;
+  let num = 0, all = 0;
+  for (let i = 0; i < rows.length && all < 200; i++) { const v = String(rows[i]?.[col] ?? "").trim(); if (!v) continue; all++; if (Number.isFinite(Number(v))) num++; }
+  return all >= 3 && num * 10 >= all * 9;
+};
+import { mineralPlan } from "../lib/perMineralColumns.js"; // TASKS.csv #3205
 import RowFilterBox from "./RowFilterBox.jsx"; // TASKS.csv #2330 — only rows where a column is some values (a Superseded flag pre-set)
+import { surveyIdsWithoutCollar, idList } from "../lib/surveyCollarCheck.js"; // TASKS.csv #3202
 import { looksLikeStationTable } from "../lib/geophysColumns.js"; // TASKS.csv #2848
 import { perHoleJoinOf } from "../lib/perHoleJoin.js"; // TASKS.csv #2659
 import { requestModuleAction } from "../lib/menuRequests.js"; // #2848
@@ -31,8 +41,8 @@ const countCache = new WeakMap();
 const importCount = (modal) => {
   const rows = modal.allRows; if (!rows?.length || modal.logTable) return modal.rowCount; // logTable: #3038 — the rows are its first 5,000
   let c = countCache.get(rows); if (!c) countCache.set(rows, (c = new Map()));
-  const k = modal.rowFilter === undefined ? "preset" : JSON.stringify(modal.rowFilter);
-  if (!c.has(k)) { const f = modal.rowFilter !== undefined ? modal.rowFilter : defaultRowFilter(modal.headers, rows); c.set(k, f ? applyRowFilter(rows, f).rows.length : modal.rowCount); }
+  const k = modal.rowFilter === undefined ? `preset:${modal.target === "assays" ? "noqc" : "qc"}` : JSON.stringify(modal.rowFilter);
+  if (!c.has(k)) { const f = modal.rowFilter !== undefined ? modal.rowFilter : defaultRowFilter(modal.headers, rows, { qc: modal.target !== "assays" }); c.set(k, f ? applyRowFilter(rows, f).rows.length : modal.rowCount); } // qc: #3207
   return c.get(k);
 };
 import { logChannelsFor } from "../lib/downholeLogChannels.js";
@@ -53,6 +63,9 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
   // litho's new built-in Description field: map an arbitrary source column into an arbitrarily-named
   // field carried through on every imported row (see applyCustomFields in ViewerModule.jsx).
   const customFields = modal.customFields || [];
+  // TASKS.csv #3202 — a survey file's ids with no collar, counted here so they can be left out (the collars read on a line of their own)
+  const svCollars = useStore().collars;
+  const uncollared = useMemo(() => (modal.target === "survey" && modal.mapping?.hole_id ? surveyIdsWithoutCollar(modal.allRows || modal.sampleRows || [], svCollars, modal.mapping.hole_id) : null), [modal.target, modal.mapping?.hole_id, modal.allRows, modal.sampleRows, svCollars]);
   const [addName, setAddName] = useState("");
   const [addColumn, setAddColumn] = useState("");
   // TASKS.csv #213 — user request: "other software will let the user assign a data type to the added
@@ -146,7 +159,13 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                   <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={asOwnLayer} style={{ color: "var(--color-accent)", cursor: "pointer" }}>{tr("Import it as its own layer")}</span>
                 </div>
               )}
-              {f.key === "value" && modal.valueGuess && modal.mapping.value === modal.valueGuess.col && ( /* TASKS.csv #2889 — a guess, said as one */
+              {f.key === "value" && modal.target === "mnlgy" && numericCodes(modal.allRows || modal.sampleRows || [], modal.mapping.value) && ( /* TASKS.csv #3307 — numbers as mineral codes: a legend row per number */
+                <div role="note" style={{ flexBasis: "100%", marginInlineStart: 220, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("{col} holds numbers, not mineral names: each different number would be its own legend row. Choose a column of mineral names, or a file's per-mineral amount columns (they are offered as minerals, with Total min as the value).", { col: modal.mapping.value })}</div>
+              )}
+              {f.key === "value" && modal.valueGuess?.numeric && modal.mapping.value === modal.valueGuess.col && ( /* TASKS.csv #3204 — a number column guessed, said as one */
+                <div role="note" style={{ flexBasis: "100%", marginInlineStart: 220, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("No column name matched, so {col} was chosen: the file's only number column left. Check it is the one to draw.", { col: modal.valueGuess.col })}</div>
+              )}
+              {f.key === "value" && modal.valueGuess && !modal.valueGuess.numeric && modal.mapping.value === modal.valueGuess.col && ( /* TASKS.csv #2889 — a guess, said as one */
                 <div role="note" style={{ flexBasis: "100%", marginInlineStart: 220, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("No column name matched, so {col} was chosen: the file's only column of codes ({n} codes). Check it is the one to draw.", { col: modal.valueGuess.col, n: modal.valueGuess.codes })}</div>
               )}
               {/* TASKS.csv #2182 — a coded log's Value column blank on many rows: those rows are skipped, said before the import */}
@@ -173,7 +192,14 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
             </label>); })()}
           <CoordSetsNote modal={modal} project={storeProject} />{/* #2492 */}
           <LogChannelsBox modal={modal} onChange={onChange} sel={sel} />{/* #2160 */}
+          {!logChannelsFor(modal.target, modal.headers, modal.allRows || modal.sampleRows || [], modal.mapping, modal.logChannels) && <MineralPercentBox modal={modal} onChange={onChange} sel={sel} />}{/* #3205 */}
           <RowFilterBox modal={modal} onChange={onChange} sel={sel} />{/* #2330 */}
+          {uncollared && ( /* TASKS.csv #3202 */
+            <label style={{ display: "flex", gap: 6, alignItems: "flex-start", fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "0 0 12px", lineHeight: 1.4, cursor: "pointer" }}>
+              <input type="checkbox" checked={modal.dropUncollared !== false} onChange={(e) => onChange({ ...modal, dropUncollared: e.target.checked })} style={{ marginTop: 2 }} />
+              <span>{tr("Leave out the {stations} station(s) of {n} hole id(s) with no collar in the project ({ids}): they cannot be placed.", { stations: uncollared.stations.toLocaleString(), n: uncollared.ids.length, ids: idList(uncollared.ids) })}</span>
+            </label>
+          )}
           <div style={{ marginTop: 4, marginBottom: 14 }}>
             <div style={label}>{tr("Extra fields (optional)")}</div>
             {numbersLeft.length > 1 && ( /* #2889 */
@@ -329,6 +355,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
             <div style={{ marginTop: 14 }}>
               <div style={label}>{tr("Azimuths in this file are measured from")}</div>
               {modal.azimuthRefFrom && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4 }}>{tr("Set from the file's {col} column.", { col: modal.azimuthRefFrom })}</div>}{/* #1647 */}
+              {modal.azimuthToolsCol && !modal.azimuthRefFrom && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4 }}>{tr("The file's {col} column names both gyro and magnetic tools, which read different norths: choose the north these azimuths are in.", { col: modal.azimuthToolsCol })}</div>}{/* #3209 */}
               {modal.azimuthRefAlso?.length > 0 && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4 }}>{tr("This file has more than one azimuth column: {list}. {col} is read. To read another, pick it as the Azimuth column above and set the north below to match.", { list: [modal.azimuthRefFrom, ...modal.azimuthRefAlso.map((a) => a.col)].join(", "), col: modal.azimuthRefFrom })}</div>}{/* #2154 */}
               <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: "var(--font-size-base)" }}>
                 {Object.entries(AZIMUTH_REFS).map(([k, text]) => (
@@ -422,7 +449,8 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
         {(() => {
           const logOn = !!logChannelsFor(modal.target, modal.headers, modal.allRows || modal.sampleRows || [], modal.mapping, modal.logChannels); // #2160 — the channels are the values
           const recOn = modal.target === "recovery" && !modal.mapping.value && !modal.recoveryCalcOff && !!recoveryColumns(modal.headers); // #2891 — the value is computed
-          const missingRequired = schema.fields.filter((f) => f.required && !modal.mapping[f.key] && !(logOn && f.key === "value") && !(recOn && f.key === "value"))
+          const minOn = !logOn && !!mineralPlan(modal.target, modal.headers, modal.allRows || modal.sampleRows || [], modal.mapping || {}, modal); // #3205 — the minerals are the values
+          const missingRequired = schema.fields.filter((f) => f.required && !modal.mapping[f.key] && !(logOn && f.key === "value") && !(recOn && f.key === "value") && !(minOn && f.key === "value"))
             .concat(schema.oneOf && !schema.oneOf.some((keys) => keys.every((k) => modal.mapping[k])) ? [{ key: "oneOf", label: "From + To, or Depth" }] : []); // #605
           // TASKS.csv #2895 (review #2876, WA iron) — magnetic azimuths with no survey date: Import was enabled, the dialog closed and nothing
           // was imported (the commit refuses it), so the mapping had to be redone from a fresh drop. The button waits for the date instead.

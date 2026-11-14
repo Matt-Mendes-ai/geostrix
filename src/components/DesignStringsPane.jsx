@@ -297,7 +297,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
     if (!tonnage || !(tonnes > 0)) return "";
     const share = tonnage.tonnes / tonnes, unit = valueUnit(model), element = elementOfModel(model), m = unit ? pitMetalOf(unit, element) : null;
     const metal = m && tonnage.metalU > 0 ? " " + tr("Contained in those blocks: {m}.", { m: metalAmountText(tonnage.metalU * m.factor, m.unit, element, big) }) : "";
-    const others = alsoChosen.length ? " " + tr("Other grades of those blocks: {list}.", { list: alsoChosen.map((am, k) => `${am.property || am.name} ${tonnage.alsoGrades?.[k] == null ? "—" : Number(tonnage.alsoGrades[k].toPrecision(3))}`).join("; ") }) : ""; // #3084
+    const others = alsoChosen.length ? " " + tr("Other grades of those blocks: {list}.", { list: alsoChosen.map((am, k) => { const g = tonnage.alsoGrades?.[k], u = valueUnit(am), el = elementOfModel(am); return g == null ? `${el || am.property || am.name} —` : u && el ? gradeWithElement(g, u, el) : `${am.property || am.name} ${Number(g.toPrecision(3))}`; }).join("; ") /* #3328 (3) — '6.93 g/t Ag', not the model's whole name with no unit */ }) : ""; // #3084
     return (share < 0.95 ? " " + tr("The blocks fill {p} % of the solid ({bt} t of {t} t): the grade is theirs, the rest has no estimate.", { p: Math.round(share * 100), bt: big(tonnage.tonnes), t: big(tonnes) }) : "") + metal + others;
   };
   const finishSolid = (name0, r, how, prefix = "") => {

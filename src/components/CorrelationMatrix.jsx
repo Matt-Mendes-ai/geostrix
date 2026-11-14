@@ -9,7 +9,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { excludeQAQC, labAssays } from "../lib/qaqc.js"; // TASKS.csv #405
-import { correlationMatrix } from "../lib/correlation.js"; // TASKS.csv #405, #1514
+import { correlationMatrix, belowDetectionRows, belowDetectionPairs } from "../lib/correlation.js"; // TASKS.csv #405, #1514; belowDetection*: #3232
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { correlationRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
@@ -126,13 +126,24 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
   // while a new answer is on its way, the cells the last one holds (same rows and method) are shown; the others read '…'
   const shown = matrix || (asyncMatrix && asyncMatrix.caches === caches && asyncMatrix.key.split("|")[0] === method ? asyncMatrix.m : null);
   // pairs where both values are present and at least one is below detection (0 when detected pairs only)
+  // TASKS.csv #3232 — each cell read every row (66 cells x 147,000 rows: about 270 ms on the table's first render, with no value below
+  // detection at all): each element's below-detection rows are listed once, and a pair reads only those. Nothing is cached for a pair
+  // whose columns are not built yet (it was cached as 0)
+  const ltRows = (s) => {
+    const key = `ltrows|${s}`, L = caches.lt[s];
+    let r = caches.pairs.get(key);
+    if (r || !L) return r || [];
+    r = belowDetectionRows(L);
+    caches.pairs.set(key, r);
+    return r;
+  };
   const ltPairs = (a, b) => {
     const key = `ltpair|${a < b ? a : b}|${a < b ? b : a}`;
     let k = caches.pairs.get(key);
     if (k != null) return k;
-    k = 0;
     const ca = caches.cols[a], cb = caches.cols[b], la = caches.lt[a], lb = caches.lt[b];
-    if (ca && cb) for (let i = 0; i < ca.length; i++) if (ca[i] != null && cb[i] != null && Number.isFinite(ca[i]) && Number.isFinite(cb[i]) && (la[i] || lb[i])) k++;
+    if (!ca || !cb || !la || !lb) return 0;
+    k = belowDetectionPairs(ca, cb, la, ltRows(a), ltRows(b));
     caches.pairs.set(key, k);
     return k;
   };

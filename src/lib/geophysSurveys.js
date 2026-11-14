@@ -70,7 +70,7 @@ const WORD_RULES = [
   [/^(vlf|tilt|tiltangle)$/, "vlf_tilt"], [/^(tipper|ztem|tzx|tzy|tzr)$/, "ztem_tipper"], // before the EM channels: a VLF or ZTEM in-phase is still VLF / ZTEM
   [/^(cond|conductivity|sigma|msm|appcond)$/, "em_cond"], [/^(inphase|inph|ip_ppm|real)$/, "em_inphase"], [/^(quad|quadrature|imag)$/, "em_quad"], [/^(dbdt|dbdtz|emz)$/, "em_dbdt"], [/^(bfield|bz|pt)$/, "em_bfield"], [/^(tau|decay)$/, "em_tau"],
   [/^(rhoa|apprho|mt|amt)$/, "mt_rho"], [/^(phase|phs)$/, "mt_phase"],
-  [/^(chargeability|charge|ip|mvv|mv_v)$/, "ip"], [/^(res|resistivity|rho|ohmm|appres)$/, "res"], [/^(sp|selfpotential)$/, "sp"],
+  [/^(chargeability|charge|ip|mvv|mv_v|mx|appmx|appm|app_mx)$/, "ip"] /* mx / appmx: #3208 (apparent chargeability) */, [/^(res|resistivity|rho|ohmm|appres)$/, "res"], [/^(sp|selfpotential)$/, "sp"],
 ];
 // TASKS.csv #1586 — what the file says about itself, read before the column's own words: a GEM GSM-19 (or any magnetometer)
 // header makes an unnamed-looking channel magnetics; a VLF column set (f_/ip_/op_/h1_/pT_ with a frequency suffix) makes an
@@ -143,30 +143,54 @@ export function replaceSurveyPoints(prev, incoming) {
   return { rows: [...kept, ...incoming], replaced: (prev || []).length - kept.length };
 }
 
+// TASKS.csv #3309 — the values sorted as a Float64Array (a numeric sort, no comparator: about 5x faster on 300,000 IP readings), the same result
 export function robustRange(values, lo = 0.02, hi = 0.98) {
-  const v = values.filter(Number.isFinite).sort((a, b) => a - b);
+  let n = 0;
+  const v = new Float64Array(values.length);
+  for (const x of values) if (Number.isFinite(x)) v[n++] = x;
+  return rangeOfSorted(v.subarray(0, n).sort(), lo, hi);
+}
+function rangeOfSorted(v, lo, hi) {
   if (!v.length) return { min: NaN, max: NaN };
   if (v.length < 20) return { min: v[0], max: v[v.length - 1] };
   const q = (p) => v[Math.round(p * (v.length - 1))];
   const r = { min: q(lo), max: q(hi) };
   return r.max > r.min ? r : { min: v[0], max: v[v.length - 1] };
 }
-const tIn = (m, v) => (m.max > m.min ? Math.min(1, Math.max(0, (v - m.min) / (m.max - m.min))) : 0.3);
+export const tIn = (m, v) => (m.max > m.min ? Math.min(1, Math.max(0, (v - m.min) / (m.max - m.min))) : 0.3); // exported: #3309 (the 3D View's per-survey build)
 // TASKS.csv #1587 (review #1497, Lawyers) — `surveys` is the geophysSurveys meta: a survey's own legend ({ stops, colorMode,
 // min, max }, edited on the Point survey pane) wins over the 2-98 % range; with several surveys the global stops / mode /
 // range used to be ignored altogether, so the legend editor changed nothing in 3D.
-export function makeSurveyColorer(rows, { stops, colorMode, min, max } = {}, surveys = null) {
-  const keys = new Set((rows || []).map(surveyKey));
-  const legendOf = (k) => (surveys && surveys[k] && surveys[k].legend) || null;
-  if (keys.size <= 1) {
-    const rr = robustRange((rows || []).map((r) => r.value)), lg = legendOf([...keys][0]) || {};
-    const model = { stops: lg.stops ?? stops, colorMode: lg.colorMode ?? colorMode, min: lg.min ?? min ?? rr.min, max: lg.max ?? max ?? rr.max };
-    return { perSurvey: false, models: new Map([[[...keys][0], model]]), colorOf: (r) => ({ color: colorForVoxelValue(model, r.value), t: tIn(model, r.value) }) };
-  }
+// TASKS.csv #3309 — one survey's colour model, shared with the 3D View's per-survey build (lib/viewer/geophysPts.js), which keeps each
+// survey's 2-98 % range (rr) while its rows are unchanged: single = the only survey drawn (the global stops / mode / range apply)
+export function surveyColourModel(rr, legend, { stops, colorMode, min, max } = {}, single = false) {
+  if (single) { const lg = legend || {}; return { stops: lg.stops ?? stops, colorMode: lg.colorMode ?? colorMode, min: lg.min ?? min ?? rr.min, max: lg.max ?? max ?? rr.max }; }
+  return legend ? { stops: legend.stops ?? [], colorMode: legend.colorMode ?? "continuous", min: legend.min ?? rr.min, max: legend.max ?? rr.max, edited: true } : rr; // #1587
+}
+export const colourOfModel = (m, v) => ({ color: colorForVoxelValue(m, v), t: tIn(m, v) });
+// #3309 — each survey's 2-98 % range, kept per rows array: the 3D legend asked again on every units keystroke and Method pick, a sort of
+// all 543,820 IP readings each time
+const rangesCache = new WeakMap();
+export function surveyRanges(rows) {
+  const hit = rows && rangesCache.get(rows);
+  if (hit) return hit;
   const values = new Map();
-  for (const r of rows) { const k = surveyKey(r); if (!values.has(k)) values.set(k, []); values.get(k).push(r.value); }
+  for (const r of rows || []) { const k = surveyKey(r); let a = values.get(k); if (!a) values.set(k, (a = [])); a.push(r.value); }
+  const out = new Map();
+  for (const [k, v] of values) out.set(k, robustRange(v));
+  if (rows) rangesCache.set(rows, out);
+  return out;
+}
+export function makeSurveyColorer(rows, opts = {}, surveys = null) {
+  const ranges = surveyRanges(rows || []);
+  const legendOf = (k) => (surveys && surveys[k] && surveys[k].legend) || null;
+  if (ranges.size <= 1) {
+    const k = ranges.size ? [...ranges.keys()][0] : undefined;
+    const model = surveyColourModel(ranges.size ? ranges.get(k) : robustRange([]), legendOf(k), opts, true);
+    return { perSurvey: false, models: new Map([[k, model]]), colorOf: (r) => colourOfModel(model, r.value) };
+  }
   const models = new Map();
-  for (const [k, v] of values) { const rr = robustRange(v), lg = legendOf(k); models.set(k, lg ? { stops: lg.stops ?? [], colorMode: lg.colorMode ?? "continuous", min: lg.min ?? rr.min, max: lg.max ?? rr.max, edited: true } : rr); } // #1587
+  for (const [k, rr] of ranges) models.set(k, surveyColourModel(rr, legendOf(k), opts, false)); // #1587
   return {
     perSurvey: true, models,
     colorOf: (r) => {
@@ -215,4 +239,53 @@ export function unitsForMethod(meta, method) {
   if (!method) return {};
   const own = meta?.units && !Object.values(SURVEY_METHODS).some((m) => m.units === meta.units);
   return own ? {} : { units: SURVEY_METHODS[method].units };
+}
+
+// TASKS.csv #3319 (Galore Creek review: the Extension grid's IP.xyz silently replaced the Main grid's IP.xyz, 245,066 points, because a survey
+// is known by its file name) — a re-import of the same file still replaces it (#600); a file of the same name with another row count or
+// extent is asked about, and may be kept beside it under another name; a survey can be renamed.
+export function surveyExtent(rows) {
+  let xmin = Infinity, xmax = -Infinity, ymin = Infinity, ymax = -Infinity, n = 0;
+  for (const r of rows || []) {
+    if (!Number.isFinite(r.x) || !Number.isFinite(r.y)) continue;
+    n++; if (r.x < xmin) xmin = r.x; if (r.x > xmax) xmax = r.x; if (r.y < ymin) ymin = r.y; if (r.y > ymax) ymax = r.y;
+  }
+  return { n, xmin, xmax, ymin, ymax };
+}
+// the same file read again: the same number of points over the same extent (to 1 % of its span, or a metre)
+export function sameSurveyFile(loaded, incoming) {
+  const a = surveyExtent(loaded), b = surveyExtent(incoming);
+  if (a.n !== b.n) return false;
+  const tol = Math.max(1, 0.01 * Math.max(a.xmax - a.xmin, a.ymax - a.ymin));
+  return Math.abs(a.xmin - b.xmin) <= tol && Math.abs(a.xmax - b.xmax) <= tol && Math.abs(a.ymin - b.ymin) <= tol && Math.abs(a.ymax - b.ymax) <= tol;
+}
+// the surveys an import would replace that are NOT the same file: [{ key, loaded: extent, incoming: extent }]
+export function surveyNameClashes(prev, incoming) {
+  const byKey = (rows) => { const m = new Map(); for (const r of rows || []) { const k = surveyKey(r); let a = m.get(k); if (!a) m.set(k, (a = [])); a.push(r); } return m; };
+  const had = byKey(prev), now = byKey(incoming), out = [];
+  for (const [k, rows] of now) { const old = had.get(k); if (old && !sameSurveyFile(old, rows)) out.push({ key: k, loaded: surveyExtent(old), incoming: surveyExtent(rows) }); }
+  return out;
+}
+// 'IP.xyz' -> 'IP.xyz (2)' (then (3) ...) when taken
+export function uniqueSurveyKey(name, keys) {
+  const taken = keys instanceof Set ? keys : new Set(keys || []);
+  if (!taken.has(name)) return name;
+  for (let k = 2; ; k++) if (!taken.has(`${name} (${k})`)) return `${name} (${k})`;
+}
+// a survey renamed: its points' _src and its metadata (method, units, legend, label) moved to the new name
+export function renameSurvey(rows, surveys, from, to) {
+  const outRows = (rows || []).map((r) => (surveyKey(r) === from ? { ...r, _src: to } : r));
+  const outSurveys = { ...(surveys || {}) };
+  if (from in outSurveys) { outSurveys[to] = outSurveys[from]; delete outSurveys[from]; }
+  return { rows: outRows, surveys: outSurveys };
+}
+// a file of a multi-file import without the chosen value column: its only other numeric column (not X / Y / Z or a line, station, time
+// or date column), or null when there is none or more than one
+const NOT_VALUE = /^(x|y|z|e|n|east(ing)?|north(ing)?|elev(ation)?|lon(gitude)?|lat(itude)?|line|line_?no|station|stn|fid|time|date|utc|gps_?time|_line)$/i;
+export function soleValueColumn(columns, rows, used = []) {
+  const skip = new Set(used.filter(Boolean));
+  const sample = (rows || []).slice(0, 200);
+  const numeric = (c) => { let n = 0, ok = 0; for (const r of sample) { const v = r[c]; if (v == null || v === "") continue; n++; if (Number.isFinite(typeof v === "number" ? v : Number(v))) ok++; } return n > 0 && ok >= 0.9 * n; };
+  const cands = (columns || []).filter((c) => !skip.has(c) && !NOT_VALUE.test(String(c).trim()) && numeric(c));
+  return cands.length === 1 ? cands[0] : null;
 }

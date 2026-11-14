@@ -129,7 +129,11 @@ function* validateSurveyAndTrajectorySteps(collars, survey, { doglegWarn = 3, do
     if (Number.isFinite(s.azimuth) && (s.azimuth < 0 || s.azimuth >= 360)) pushIssue(issues, "warning", "Survey", s.hole_id, tr("Survey azimuth {azimuth}° is outside 0–360° @ {depth}m.", { azimuth: s.azimuth, depth: s.depth }));
     if (Number.isFinite(s.dip) && (s.dip < -90 || s.dip > 90)) pushIssue(issues, "warning", "Survey", s.hole_id, tr("Survey dip {dip}° is outside -90–90° @ {depth}m.", { dip: s.dip, depth: s.depth }));
   }
-  orphanStations.forEach((n, id) => pushIssue(issues, "error", "Survey", id, tr("{n} survey stations for hole \"{hole_id}\", which has no matching collar: this hole cannot be desurveyed and won't render.{v}", { n, hole_id: id, v: didYouMean(collarIds, id) })));
+  // TASKS.csv #3202 — many ids with no collar (a file's 91 test pits) are one line naming them, not 91 errors; a few keep their own lines (and their 'did you mean')
+  if (orphanStations.size > 3) {
+    const ids = [...orphanStations.keys()], total = [...orphanStations.values()].reduce((a, b) => a + b, 0);
+    pushIssue(issues, "error", "Survey", ids[0], tr("{n} survey hole ids have no matching collar ({ids}): their {stations} stations cannot be desurveyed and won't render.", { n: ids.length, ids: ids.slice(0, 8).join(", ") + (ids.length > 8 ? ", …" : ""), stations: total }));
+  } else orphanStations.forEach((n, id) => pushIssue(issues, "error", "Survey", id, tr("{n} survey stations for hole \"{hole_id}\", which has no matching collar: this hole cannot be desurveyed and won't render.{v}", { n, hole_id: id, v: didYouMean(collarIds, id) })));
   const lengthOf = new Map(collars.map((c) => [c.hole_id, Number(c.length)]));
   const collarOnly = []; // TASKS.csv #2335 — holes surveyed at the collar only (see below)
   for (const [holeId, stations] of byHole) {
@@ -300,6 +304,9 @@ function* validateIntervalLayerSteps(rows, layerLabel, collarIds, holeLengths, {
   const issues = [];
   let tick = 0;
   const orphans = new Map(); // TASKS.csv #1663 — rows of holes with no collar, counted per hole
+  // TASKS.csv #3037 (split from #2884) — one warning per zero-length row gave a point-reading table imported as intervals 2.5 M warning rows and
+  // a 10.5 s freeze: counted per hole (with the first depth), one line each
+  const zeroByHole = new Map();
   let multiValued = 0; // #1532
   const byHole = new Map();
   for (const r of rows) {
@@ -312,7 +319,8 @@ function* validateIntervalLayerSteps(rows, layerLabel, collarIds, holeLengths, {
     } else if (r.from > r.to) {
       pushIssue(issues, "error", layerLabel, r.hole_id, tr("Interval from ({from}) is greater than to ({to}) — swapped or mis-entered.", { from: r.from, to: r.to }));
     } else if (r.from === r.to) {
-      pushIssue(issues, "warning", layerLabel, r.hole_id, tr("Zero-length interval at {from}m.", { from: r.from }));
+      const z = zeroByHole.get(r.hole_id);
+      if (z) { z.n++; if (r.from < z.from) z.from = r.from; } else zeroByHole.set(r.hole_id, { n: 1, from: r.from }); // #3037
     }
     // TASKS.csv #285 (Micromine-specialist review) — survey rows have had a `depth < 0` ERROR check
     // since day one (see validateSurvey above), but interval and assay from/to depths never got the
@@ -366,6 +374,7 @@ function* validateIntervalLayerSteps(rows, layerLabel, collarIds, holeLengths, {
       seen.add(key);
     });
   }
+  zeroByHole.forEach(({ n, from }, id) => pushIssue(issues, "warning", layerLabel, id, n === 1 ? tr("Zero-length interval at {from}m.", { from }) : tr("{n} zero-length intervals in this hole, the shallowest at {from}m: point readings imported as intervals, or mis-keyed depths.", { n: n.toLocaleString("en-US"), from }))); // #3037
   if (multiValued) pushIssue(issues, "info", layerLabel, null, tr("{n} interval(s) repeat another's exact from–to with a different value: a log that records several values per run (e.g. vein types). Not counted as overlaps.", { n: multiValued }));
   orphans.forEach((n, id) => pushIssue(issues, "error", layerLabel, id, n === 1 ? tr("Interval references hole \"{hole_id}\", which has no matching collar.{v}", { hole_id: id, v: didYouMean(collarIds, id) }) : tr("{n} intervals reference hole \"{hole_id}\", which has no matching collar.{v}", { n, hole_id: id, v: didYouMean(collarIds, id) })));
   return issues;
@@ -611,6 +620,17 @@ const INTERVAL_CHECKS = [
   ["alt_gc", "Alteration (geochem-derived)"],
 ];
 
+// TASKS.csv #3211 — the custom layers Data QC checks as intervals: most rows have a From and a To; a binned log and a modelled layer are left out
+export function customIntervalLayers(customLayers) {
+  return (customLayers || []).filter((l) => {
+    const rows = l?.rows || [];
+    if (!rows.length || l.binM !== undefined || rows[0]?.modelled) return false;
+    let iv = 0; const n = Math.min(rows.length, 200);
+    for (let i = 0; i < n; i++) if (Number.isFinite(rows[i]?.from) && Number.isFinite(rows[i]?.to)) iv++;
+    return iv * 2 > n;
+  });
+}
+
 export function* runDataQCSteps({ project, collars, survey, layers, boundaries, assays, terrain = null, terrainThreshold = 15, doglegWarn = 3, doglegError = 10, customLayers = [] }) { // customLayers: #2493
   const collarIds = new Set(collars.map((c) => c.hole_id));
   // TASKS.csv #339 — end of hole = the DEEPER of the collar length and the last survey station. Letting the
@@ -623,7 +643,11 @@ export function* runDataQCSteps({ project, collars, survey, layers, boundaries, 
   const parts = [];
   parts.push(validateProject(project), validateCollars(collars, survey), validateCollarsVsTerrain(collars, terrain, terrainThreshold)); yield step(1);
   parts.push(yield* validateSurveyAndTrajectorySteps(collars, survey, { doglegWarn, doglegError })); yield step(2); // #545
-  for (const [k, label, opt] of INTERVAL_CHECKS) { parts.push(yield* validateIntervalLayerSteps(layers[k] || [], label, collarIds, holeLengths, opt)); } yield step(3);
+  for (const [k, label, opt] of INTERVAL_CHECKS) { parts.push(yield* validateIntervalLayerSteps(layers[k] || [], label, collarIds, holeLengths, opt)); }
+  // TASKS.csv #3211 (#3195, Galore Creek) — the custom interval layers get the same checks (holes, from / to, reversed, overlaps, past the end of
+  // the hole); not a binned log (its bins are the import's) nor a modelled layer (made by the app)
+  for (const l of customIntervalLayers(customLayers)) parts.push(yield* validateIntervalLayerSteps(l.rows, tr("Custom layer: {name}", { name: l.name }), collarIds, holeLengths, { gaps: false }));
+  yield step(3);
   parts.push(yield* validateAssaysSteps(assays || [], collarIds, holeLengths)); yield step(4);
   const tail1 = [
     ...validatePointLayer(layers.mnlgy || [], "Mineralization", collarIds, holeLengths),

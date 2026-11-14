@@ -33,6 +33,8 @@ import { isoconRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
 const DEFAULT_IMMOBILE = ["Al", "Ti", "Zr"];
 const USUAL_IMMOBILE = ["Al", "Ti", "Zr", "Nb", "Y", "Hf", "Th"]; // #2197 — the elements usually taken as immobile
 
+// TASKS.csv #3226 (6) (review #3195) — Pt, Re, Te read '0.00' on both sides of a '+182.5 %' change at two fixed decimals: three significant figures
+const sig3 = (v) => (!Number.isFinite(v) ? "—" : v === 0 ? "0" : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : String(+v.toPrecision(3)));
 export default function IsoconTool({ assays: assaysIn, assayElements, onClose }) {
   const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #2348 — as Correlation / Grade stats
   useEscapeKey(onClose); // TASKS.csv #238
@@ -252,8 +254,8 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
                   {result.table.map((r) => (
                     <tr key={r.symbol} style={{ borderTop: "1px solid #eceef1" }}>
                       <td style={td}>{r.symbol} {r.isImmobile && <span style={{ color: "#5a7290", fontSize: "var(--font-size-xs)" }}>{tr("(immobile)")}</span>}</td>
-                      <td style={{ ...td, ...(r.precursorN < MIN_GROUP_N ? { color: "var(--color-text-muted)" } : {}) }}>{r.precursor.toFixed(2)} <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>n {r.precursorN}{r.precursorLt ? `, ${tr("{n} <DL", { n: r.precursorLt })}` : ""}</span></td>
-                      <td style={{ ...td, ...(r.alteredN < MIN_GROUP_N ? { color: "var(--color-text-muted)" } : {}) }}>{r.altered.toFixed(2)} <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>n {r.alteredN}{r.alteredLt ? `, ${tr("{n} <DL", { n: r.alteredLt })}` : ""}</span></td>
+                      <td style={{ ...td, ...(r.precursorN < MIN_GROUP_N ? { color: "var(--color-text-muted)" } : {}) }}>{sig3(r.precursor)} <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>n {r.precursorN}{r.precursorLt ? `, ${tr("{n} <DL", { n: r.precursorLt })}` : ""}</span></td>
+                      <td style={{ ...td, ...(r.alteredN < MIN_GROUP_N ? { color: "var(--color-text-muted)" } : {}) }}>{sig3(r.altered)} <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>n {r.alteredN}{r.alteredLt ? `, ${tr("{n} <DL", { n: r.alteredLt })}` : ""}</span></td>
                       <td style={td}>{r.ratio.toFixed(3)}</td>
                       <td style={{ ...td, color: r.pct >= 0 ? "var(--color-success-fg)" : "var(--color-danger-fg)" }}>{r.pct >= 0 ? "+" : ""}{r.pct.toFixed(1)}%</td>
                     </tr>

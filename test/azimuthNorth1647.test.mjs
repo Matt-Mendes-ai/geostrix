@@ -18,7 +18,7 @@ test("a mix of norths asks; no column or no value it knows gives null", () => {
 });
 
 test("the import pre-sets the dialog, converts a true-north file unseen, asks for magnetic or mixed, and says when it assumed grid", () => {
-  const src = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const src = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.equal(src.split("...azRefFor(target, headers,").length - 1, 3, "single-file, sample and queue paths");
   assert.ok(src.includes('const azOk = !azDetected || (!azDetected.mixed && azDetected.ref !== "magnetic" && !azDetected.hint && !azDetected.also);') /* hint: #2015; also: #2154 */);
   assert.ok(src.includes("&& dipsAgree && azOk && !otherCodes;")); // !otherCodes: #2893

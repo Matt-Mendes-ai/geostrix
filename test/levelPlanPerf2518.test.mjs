@@ -88,8 +88,8 @@ test("busiestRl: the RL most holes cross, the middle of the busiest run", () => 
 test("the window: RL and slab debounced, the plan's RL in the title, the busiest RL at opening, the labels cached", () => {
   const s = readFileSync(new URL("../src/components/LevelPlanWindow.jsx", import.meta.url), "utf8");
   assert.match(s, /setTimeout\(\(\) => setApplied\(\(p\) => \(p\.rl === rl && p\.half === half \? p : \{ rl, half \}\)\), 150\)/); // #3064 — the same RL not built again
-  assert.match(s, /runSliced\(planBuild\(ctxRef\.current\(\), Number\(applied\.rl\), Math\.max\(0\.1, Number\(applied\.half\) \|\| 0\)\)/); // #3137 — sliced
-  assert.match(s, /\}, \[applied, rev, ready\]\);/);
+  assert.match(s, /runSliced\(planBuild\(\{ \.\.\.ctxRef\.current\(\), also \}, Number\(applied\.rl\), Math\.max\(0\.1, Number\(applied\.half\) \|\| 0\)\)/); // #3137 — sliced
+  assert.match(s, /\}, \[applied, rev, ready, also\]\);/);
   assert.match(s, /const b = \(pl && busiestRl\(pl\.holes\)\) \?\? r0;/); // #2929 / #3064 — before any full plan is committed (the first render is an empty plan)
   assert.match(s, /labelMemo\.current\.data === data && labelMemo\.current\.frame === frame/);
   assert.match(s, /\{ rl: data\.rl, half: data\.half \}/);

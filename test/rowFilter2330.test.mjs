@@ -40,7 +40,7 @@ test("the dialog shows the filter and the commit applies it, saying how many row
   assert.match(m, /<RowFilterBox modal=\{modal\} onChange=\{onChange\} sel=\{sel\} \/>/);
   assert.match(m, /tr\("Import \{rowCount\} rows", \{ rowCount: importCount\(modal\) \}\)/); // the button counts the rows kept
   assert.match(m, /const countCache = new WeakMap\(\);/);
-  const ip = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const ip = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(ip, /const rowFilter = data\.rowFilter !== undefined \? data\.rowFilter : defaultRowFilter\(/);
   assert.match(ip, /const \{ rows: allRows, dropped: rowsFiltered \} = applyRowFilter\(allRowsIn, rowFilter\);/);
   assert.match(ip, /row\(s\) left out by the row filter/);

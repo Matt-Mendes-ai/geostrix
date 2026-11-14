@@ -75,7 +75,7 @@ test("wiring: the drop sniffs a big file; the dialog and the commit read the tab
   const h = readFileSync(new URL("../src/lib/viewer/importHelpers.js", import.meta.url), "utf8");
   assert.match(h, /file\.size >= LOG_READ_MIN_BYTES && typeof Worker !== "undefined" \? await sniffLog\(file, m\)/);
   assert.match(h, /return m\.parseTableFile\(file, spec \? \{ logRead: spec \} : undefined\);/);
-  const p = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const p = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(p, /if \(!\(chans && plain && !rf\?\.col && logTableFits\(modalData\.logTable, modalData\.mapping, chans\)\)\) \{/);
   assert.match(p, /const src = data\.logTable \|\| allRows, readings = logReadings\(src\);/);
   assert.match(p, /const out = logChannelRows\(src, mapping, col, binM, nd\?\.values \|\| null, rg, /);

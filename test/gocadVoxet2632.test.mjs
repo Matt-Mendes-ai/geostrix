@@ -53,7 +53,7 @@ test("a rotated voxet is refused with the reason; a short side file too", () => 
 });
 
 test("the drop wires it", () => {
-  const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(u, /const voFiles = grouped\.files\.filter\(\(f\) => \/\\\.vo\$\/i\.test\(f\.name\)\), voSide = new Set\(\);/);
   assert.match(u, /addVoxelModel\(\{ name, source: "gocad", cells, min, max/);
 });

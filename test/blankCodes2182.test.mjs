@@ -12,7 +12,7 @@ test("#2182 blank codes and the share the dialog shows", () => {
 });
 
 test("#2182 wiring: the interval import skips them (or takes the next numbered code); the dialog warns over 20 %", () => {
-  const p = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const p = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(p, /!numeric && r\.value == null \? "no code"/);
   assert.match(p, /r\.codes\.find\(\(c\) => !isBlankCode\(c\)\)/);
   assert.match(readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8"), /b\.blank \/ b\.total >= 0\.2/);

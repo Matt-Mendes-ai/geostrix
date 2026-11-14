@@ -12,6 +12,7 @@ import { gradeUnitLabel } from "./geochemColumns.js"; // TASKS.csv #2218; #3159:
 import { rasterUnitOf } from "./rasterMethod.js"; // TASKS.csv #2747
 import { idwColourFields } from "./idwColour.js"; // TASKS.csv #2845; #3159: not idw.js, which put the IDW gridding in startup
 import { makeSurveyColorer } from "./geophysSurveys.js"; // TASKS.csv #2878
+import { airDilutedFloor } from "./voxelStretch.js"; // TASKS.csv #1872
 
 // the per-element identity hues of assay markers (moved from ViewerModule; TASKS.csv #306)
 export const ASSAY_ELEMENT_COLORS = [0, 1, 2, 3, 4, 5, 6, 7, 11, 14, 15, 8, 10, 13].map((i) => CATEGORICAL_SAFE_COLORS[i]);
@@ -115,7 +116,7 @@ export function voxelLegendGroups(voxelModels) {
   const groups = [];
   (voxelModels || []).forEach((m) => {
     if (m.visible === false || !Number.isFinite(m.min) || !Number.isFinite(m.max)) return;
-    const lo = Number.isFinite(m.threshold) ? Math.max(m.min, m.threshold) : m.min;
+    const lo = airDilutedFloor(m, Number.isFinite(m.threshold) ? Math.max(m.min, m.threshold) : m.min); // #1872 — not the air-diluted blocks
     const hi = Number.isFinite(m.rangeMax) ? Math.min(m.max, m.rangeMax) : m.max;
     // TASKS.csv #356 — a model of named classes (e.g. the implicit model's units) gets swatches, not a numeric ramp.
     if (m.valueLabels && m.stops?.length) { groups.push({ key: `voxel_${m.id}`, label: m.name, items: m.stops.filter((st) => st.value >= lo && st.value <= hi).map((st) => [m.valueLabels[st.value] ?? String(st.value), st.color]) }); return; }

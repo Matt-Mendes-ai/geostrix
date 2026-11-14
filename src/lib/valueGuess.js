@@ -4,6 +4,9 @@
 
 // the code-log layers (a Value of codes, not numbers)
 const CODE_TARGETS = new Set(["litho", "alt", "vein", "weath", "breccia", "structzone", "mnlgy"]);
+// TASKS.csv #3204 — the numeric layers: their one number column left (not an id, not mapped) is the guess, said as one (Galore Creek's MS_READING
+// and CALC-SG were refused with Import disabled)
+const NUMBER_TARGETS = new Set(["geotech", "recovery", "sg", "magsusc"]);
 // columns that hold codes but never the log's value: ids, project / company / people, dates, free text
 // (whole words of the header, "_" read as a space: 'Logged_Strand' is a code column, 'Logged_By' is not)
 const NOT_A_CODE_WORD = /\b(hole|holeid|hole id|bhid|dhid|sample|sampleid|sample id|project|projectcode|company|tenement|lease|prospect|priority|date|time|logged by|logger|geologist|comments?|cmnts?|remarks?|description|desc|notes?|source|batch|lab|method)\b/i;
@@ -14,6 +17,10 @@ const isNumber = (v) => v !== "" && Number.isFinite(Number(String(v).replace(","
 // the one column that can be the layer's Value when no name matched: text codes (2..max distinct, not all numbers, not a yes / no flag),
 // not mapped, not an id / project / date / comment column. -> { col, codes } | null (none, or more than one: no guess)
 export function codeColumnGuess(target, headers, rows, mapping = {}, { max = 200, sample = 200000 } = {}) { // sample: every row of a log up to 200,000, so the count said is the file's
+  if (NUMBER_TARGETS.has(target) && !mapping.value) { // #3204 — -> { col, numeric: true } | null
+    const left = numberColumnsLeft(headers, rows, mapping).filter((h) => !notACode(h) && !/^(from|to|depth|at|md)$/i.test(String(h).trim()));
+    return left.length === 1 ? { col: left[0], numeric: true } : null;
+  }
   if (!CODE_TARGETS.has(target) || mapping.value) return null;
   const used = new Set(Object.values(mapping).filter(Boolean));
   const list = rows || [], step = Math.max(1, Math.floor(list.length / sample));

@@ -32,11 +32,11 @@ test("every number column left over, for 'Add every number column'", () => {
 });
 
 test("the import paths and the dialog use them", () => {
-  const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.equal((u.match(/const codeGuess = codeColumnGuess\(target, headers, (data|rows), mapping0\), mapping = codeGuess \? \{ \.\.\.mapping0, value: codeGuess\.col \} : mapping0;/g) || []).length, 3);
   assert.equal((u.match(/\.\.\.\(codeGuess \? \{ valueGuess: codeGuess \} : \{\}\)/g) || []).length, 3);
   const d = readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8");
-  assert.match(d, /f\.key === "value" && modal\.valueGuess && modal\.mapping\.value === modal\.valueGuess\.col/);
+  assert.match(d, /f\.key === "value" && modal\.valueGuess && !modal\.valueGuess\.numeric && modal\.mapping\.value === modal\.valueGuess\.col/); // !numeric: #3204 (a number column guessed has its own line)
   assert.match(d, /onClick=\{addAllNumbers\}/);
   for (const l of ["es", "pt", "fr", "ar"]) {
     const j = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));

@@ -9,11 +9,11 @@ import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1048 — th
 import { levelPlanFurniture } from "../lib/figureFurniture.js"; // TASKS.csv #1017
 import { saveFile } from "../lib/desktop.js"; // TASKS.csv #1114 — the native save dialog, as every other export (#444)
 import { planLegend } from "../lib/levelPlanLegend.js"; // TASKS.csv #1404
-import { resolveLabels, clusterLabelPoints, groupLabelText } from "../lib/sectionLabels.js"; // TASKS.csv #1404 — the sections' label declutter (#1144); clusters: #2212
+import { resolveLabels, clusterLabelPoints, groupLabelText, labelWidth } from "../lib/sectionLabels.js"; // TASKS.csv #1404 — the sections' label declutter (#1144); clusters: #2212
 import { LAYER_META } from "../lib/layers.js";
 import { usePrompt } from "./usePrompt.jsx"; // TASKS.csv #1779
-import { mergedPath, pathsByColour, dotsPath, segmentFinder, f1 } from "../lib/levelPlanDraw.js"; // f1: #3137 // TASKS.csv #2982
-import { planBuild, runSliced } from "../modules/viewer/levelPlanBuild.js"; // TASKS.csv #3137 — the build, a slice at a time (loads with this window)
+import { mergedPath, pathsByColour, dotsPath, segmentFinder, f1, dotsByColour, pointFinder } from "../lib/levelPlanDraw.js"; // dots: #3191 // f1: #3137 // TASKS.csv #2982
+import { planBuild, runSliced, hiddenPlanLayers } from "../modules/viewer/levelPlanBuild.js"; // TASKS.csv #3137 — the build, a slice at a time (loads with this window)
 import { hoverTitle } from "../lib/svgLazyTitle.js"; // TASKS.csv #2982 — titles made on hover, as the section window (#2210)
 
 // TASKS.csv #525 — the LEVEL PLAN window: a horizontal section at an RL, at true scale with E / N axes, a scale bar
@@ -30,6 +30,10 @@ import { hoverTitle } from "../lib/svgLazyTitle.js"; // TASKS.csv #2982 — titl
 // level development string), visible in 3D and reusable like any boundary. Export PNG / Add to Layout keep the scale.
 
 const W = 760, H = 560, PAD = 34;
+// TASKS.csv #2372 (review #2325, WA uranium) — on a drilling grid (414 pierce points) the ids became a ring of labels with leaders up to a third
+// of the plan long, some over the easting axis. Above LABELS_AUTO_MAX pierce points the ids start off (hover names a point; the tick turns
+// them on), a label moves at most LABEL_RINGS rows from its point, and the axis labels are obstacles.
+const LABELS_AUTO_MAX = 100, LABEL_RINGS = 3;
 const niceStep = (span, n = 6) => { const raw = span / n, p = 10 ** Math.floor(Math.log10(raw || 1)), f = raw / p; return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p; };
 
 // screen -> E / N for a frame (the SVG's own transform, so it holds when the plan is scaled to fit the window)
@@ -70,7 +74,7 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
   }, []);
   const [half, setHalf] = useState(12.5);
   const [colourBy, setColourBy] = useState("");
-  const [labels, setLabels] = useState(true);
+  const [labelsPick, setLabels] = useState(null); // #2372 — null: the default for this plan's pierce points
   const [fitSlab, setFitSlab] = useState(false); // frame on the holes in the slab instead of the whole project
   const [view, setView] = useState(null); // zoom / pan window { x0, x1, y0, y1 } in E / N; null = the fitted frame
   const dragRef = useRef(null);
@@ -89,14 +93,15 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
   // TASKS.csv #3137 — built a slice at a time (the window paints and takes input meanwhile); a newer RL, slab or Refresh cancels the build under
   // way, and the plan on screen stays until the new one is ready
   const [plan, setPlan] = useState(null), [building, setBuilding] = useState(false);
+  const [also, setAlso] = useState([]); // TASKS.csv #3248 — a layer hidden in 3D, picked to colour the plan
   const buildGen = useRef(0);
   useEffect(() => {
     if (!ready) return;
     const gen = ++buildGen.current;
     setBuilding(true); say(0);
-    runSliced(planBuild(ctxRef.current(), Number(applied.rl), Math.max(0.1, Number(applied.half) || 0)), { onProgress: (f) => { if (buildGen.current === gen) say(f); }, cancelled: () => buildGen.current !== gen })
+    runSliced(planBuild({ ...ctxRef.current(), also }, Number(applied.rl), Math.max(0.1, Number(applied.half) || 0)), { onProgress: (f) => { if (buildGen.current === gen) say(f); }, cancelled: () => buildGen.current !== gen })
       .then((d) => { if (d && buildGen.current === gen) { setPlan(d); setBuilding(false); } }, (e) => { if (buildGen.current === gen) { setBuilding(false); console.error(e); } });
-  }, [applied, rev, ready]); // say writes a ref
+  }, [applied, rev, ready, also]); // say writes a ref; also: #3248
   useEffect(() => () => { buildGen.current++; }, []); // closed: the build under way stops
   const empty = useMemo(() => emptyPlan(applied), [applied]);
   const data = plan || empty;
@@ -105,15 +110,19 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
   // newly keyed siblings among kept ones were each placed one by one (React walks past the other new siblings for every placement)
   const buildSeq = useRef(0);
   const dataKey = useMemo(() => (buildSeq.current += 1), [data]);
+  const nPierce = useMemo(() => data.holes.reduce((n, h) => n + h.pierce.length, 0), [data]);
+  const labels = labelsPick ?? nPierce <= LABELS_AUTO_MAX; // #2372
   const pointLogs = data.pointLogs || []; // #1706 — the readings at a depth that fill pierce points (Mag. susc., SWIR points ...)
   const layerKeys = useMemo(() => [...new Set([...data.intervals.map((iv) => iv.layer), ...pointLogs.map((r) => r.layer)])], [data]);
   const activeLayer = layerKeys.includes(colourBy) ? colourBy : layerKeys.includes("litho") ? "litho" : layerKeys[0] || "";
+  const hiddenLayers = useMemo(() => hiddenPlanLayers(ctxRef.current(), LAYER_META).filter((h) => !layerKeys.includes(h.key)), [layerKeys]); // #3248
   // #1404 — the legend is the "Colour holes by" layer (categories, or a numeric layer's colours at their values) plus the
   // structure symbols drawn on the plan; it used to list every layer whichever one filled the pierce points
   const legend = useMemo(() => {
     const L = data.assayLegends?.[activeLayer] || planLegend(data.intervals.some((iv) => iv.layer === activeLayer) ? data.intervals : pointLogs, activeLayer, { numeric: activeLayer.startsWith("custom:") ? "auto" : !!LAYER_META[activeLayer]?.numeric }); // #1537 — an assay element: its classes or ramp
     const structs = (data.legendItems || []).filter(([label]) => /^Structure/.test(label));
-    return [...L.items.map(([n, c]) => [L.title ? `${L.title}: ${n}` : n, c]), ...structs];
+    let none = 0; for (const h of data.holes) for (const pc of h.pierce) if (!(pc.logs || []).some((l) => l.layer === activeLayer)) none++; // #3261
+    return [...L.items.map(([n, c]) => [L.title ? `${L.title}: ${n}` : n, c]), ...(none && L.items.length ? [[tr(none === 1 ? "No value here: {n} pierce point (hollow ring)" : "No value here: {n} pierce points (hollow ring)", { n: none }), "#ffffff", { ring: true }]] : []), ...structs];
   }, [data, activeLayer]);
 
   // a fixed frame for the whole project (from every hole's full trace), so moving the RL doesn't rescale the plan
@@ -176,6 +185,13 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
     drawMemo.current = { data, frame, layer: activeLayer, ivs, ivPaths: pathsByColour(ivs, X, Y), findIv: segmentFinder(ivs, X, Y),
       ctx: data.holes.map((h) => ctxCache(h.hole_id, h.context, path)).join(" "), collars: dotsPath(data.holes.map((h) => h.collar), X, Y),
       slab: mergedPath(data.holes.flatMap((h) => h.polylines), X, Y), pierce: data.holes.flatMap((h) => h.pierce.map((pc) => ({ h, pc }))) };
+    // TASKS.csv #3191 — pierce points and slab dots as one stroked path per colour (an outline under each), found on hover by position
+    // TASKS.csv #3261 (Galore review) — a pierce point with no value of the chosen layer at the RL (a hole with no assay or log there) was filled
+    // white beside a near-white lowest class: it is a smaller hollow grey ring now (pcNone), and the key counts it
+    const dm = drawMemo.current, pcs = dm.pierce.map(({ pc }) => ({ x: pc.x, y: pc.y, color: (pc.logs || []).find((l) => l.layer === activeLayer)?.color || null }));
+    const valued = pcs.filter((q) => q.color), none = pcs.filter((q) => !q.color).map((q) => [q.x, q.y]);
+    Object.assign(dm, { pcAll: dotsPath(valued.map((q) => [q.x, q.y]), X, Y), pcFill: dotsByColour(valued, X, Y), pcNone: dotsPath(none, X, Y), findPc: pointFinder(pcs, X, Y),
+      ptAll: dotsPath(data.points.map((q) => [q.x, q.y]), X, Y), ptFill: dotsByColour(data.points, X, Y), findPt: pointFinder(data.points, X, Y) });
   }
   const dw = drawMemo.current;
   const svgXY = (e) => { const el = svgRef.current, p = el.createSVGPoint(); p.x = e.clientX; p.y = e.clientY; return p.matrixTransform(el.getScreenCTM().inverse()); };
@@ -185,12 +201,19 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
     const groups = clusterLabelPoints(data.holes.flatMap((h) => h.pierce.map((pc, i) => ({ key: `${h.hole_id}_${i}`, id: h.hole_id, x: X(pc.x), y: Y(pc.y) }))), 8);
     const placed = resolveLabels(
       groups.map((g) => ({ key: g.key, text: groupLabelText(g.ids), ids: g.ids, size: 10.5, prio: 2, optional: true, cands: [{ x: g.x + 6, y: g.y - 5, anchor: "start" }, { x: g.x + 6, y: g.y + 13, anchor: "start" }, { x: g.x - 6, y: g.y - 5, anchor: "end" }, { x: g.x - 6, y: g.y + 13, anchor: "end" }] })),
-      data.holes.flatMap((h) => h.pierce.map((pc) => ({ x: X(pc.x), y: Y(pc.y) + 5, w: 11, h: 11 }))),
-      { bounds: [2, W - 2], yBounds: [20, H - 2] },
+      [...data.holes.flatMap((h) => h.pierce.map((pc) => ({ x: X(pc.x), y: Y(pc.y) + 5, w: 11, h: 11 }))), ...axisBoxes()], // axis labels: #2372
+      { bounds: [2, W - 2], yBounds: [20, H - 2], rings: LABEL_RINGS },
     );
     return { placed, hidden: groups.length - placed.length, grouped: groups.reduce((n, g) => n + (g.ids.length > 1 ? g.ids.length - 1 : 0), 0) };
   })() }).v;
 
+  // #2372 — the grid's E / N labels as obstacles (the same ticks as drawn below)
+  function axisBoxes() {
+    const st = niceStep(Math.max(frame.x1 - frame.x0, frame.y1 - frame.y0)), out = [];
+    for (let x = Math.ceil(frame.x0 / st) * st; x <= frame.x1; x += st) { const w = labelWidth(`${Math.round(x)}E`, 10); out.push({ x: X(x), y: H - 6, w, h: 10 }); }
+    for (let y = Math.ceil(frame.y0 / st) * st; y <= frame.y1; y += st) { const w = labelWidth(`${Math.round(y)}N`, 10); out.push({ x: 4 + w / 2, y: Y(y) - 3, w, h: 10 }); }
+    return out;
+  }
   const toWorld = (e) => toWorldF(frame, e, svgRef.current);
   const onClick = (e) => { if (drawing && !dragRef.current?.moved) { const q = toWorld(e); setPts((p) => [...p, q]); } };
   // drag = pan (also while drawing: a click without movement adds a point)
@@ -255,17 +278,18 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
           {leftOut > 0 && <span style={{ ...ctrl, color: "var(--color-warn-text)" }}>{tr("{n} hole(s) with a suspect collar elevation are outside this range (Data QC lists them)", { n: leftOut })}</span>}{/* #3029 */}
           <label style={ctrl} title={tr("Hole runs, logs, assays and structures within this distance above and below the RL are drawn")}>{tr("± slab (m)")}{" "}<input type="number" min={0.1} step="any" value={half} onChange={(e) => setHalf(e.target.value)} style={{ ...inp, width: 56 }} aria-label={tr("Slab half-width")} /></label>
           {layerKeys.length > 0 && (
-            <label style={ctrl} title={tr("The logs and assay elements shown in the 3D View are offered here: turn one on there (Recovery %, Mag. susc., or an element under Assays) to colour the plan by it. A log read at a depth colours a pierce point by its reading nearest the RL in the slab.")}>{tr("Colour holes by")}<select value={activeLayer} onChange={(e) => setColourBy(e.target.value)} style={{ ...inp, width: "auto" }} aria-label={tr("Colour holes by")}>
+            <label style={ctrl} title={tr("The logs and assay elements shown in the 3D View are offered here: turn one on there (Recovery %, Mag. susc., or an element under Assays) to colour the plan by it. A log read at a depth colours a pierce point by its reading nearest the RL in the slab.")}>{tr("Colour holes by")}<select value={activeLayer} onChange={(e) => { const v = e.target.value; if (hiddenLayers.some((h) => h.key === v)) setAlso([v]); setColourBy(v); }} style={{ ...inp, width: "auto" }} aria-label={tr("Colour holes by")}>
                 {layerKeys.map((k) => <option key={k} value={k}>{((data.intervals.find((iv) => iv.layer === k) || pointLogs.find((r) => r.layer === k))?.label || k).split(":")[0]}</option>)}
+                {hiddenLayers.map((h) => <option key={h.key} value={h.key} style={{ color: "var(--color-text-faint)" }}>{tr("{layer} (hidden in 3D)", { layer: h.label })}</option>)}{/* #3248 */}
               </select>
             </label>
           )}
-          <label style={ctrl}><input type="checkbox" checked={labels} onChange={(e) => setLabels(e.target.checked)} />{" "}{tr("Hole ids")}</label>
+          <label style={ctrl} title={tr("Off to start with above {n} pierce points: hover a pierce point for its hole id", { n: LABELS_AUTO_MAX })}><input type="checkbox" checked={labels} onChange={(e) => setLabels(e.target.checked)} />{" "}{tr("Hole ids")}</label>
           <label style={ctrl} title={tr("Frame the holes that are in the slab (zoomed in) instead of the whole project (a fixed frame as the RL moves)")}><input type="checkbox" checked={fitSlab} onChange={(e) => setFitSlab(e.target.checked)} />{" "}{tr("Fit to slab")}</label>
           <div style={{ flex: 1 }} />
           <button onClick={onClose} title={tr("Close")} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><XIcon size={18} /></button>
         </div>
-        <svg ref={svgRef} width={W} height={H} viewBox={`0 0 ${W} ${H}`} fontFamily="'Segoe UI', system-ui, Arial, sans-serif" role="img" aria-label={tr("Level plan at {rl} m", { rl })} onClick={onClick} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onDoubleClick={() => !drawing && setView(null)} style={{ display: "block", background: "#ffffff", border: "1px solid var(--color-border)", borderRadius: 6, cursor: drawing ? "crosshair" : "grab", maxWidth: "100%", height: "auto" }}>
+        <svg ref={svgRef} width={W} height={H} viewBox={`0 0 ${W} ${H}`} fontFamily="'Segoe UI', system-ui, Arial, sans-serif" role="img" aria-label={tr("Level plan at {rl} m", { rl })} onClick={onClick} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onDoubleClick={() => !drawing && setView(null)} style={{ display: "block", background: "#ffffff", border: "1px solid var(--color-border)", borderRadius: 6, cursor: drawing ? "crosshair" : "grab", maxWidth: "100%", height: "auto", width: `min(calc(96vw - 30px), calc((94vh - 170px) * ${W / H}))` /* #2372 — the plan fills the window */ }}>
           {/* grid */}
           {gx.map((x) => <g key={`gx${x}`}><line x1={X(x)} y1={PAD / 2} x2={X(x)} y2={H - PAD / 2} stroke="#eceef2" /><text x={X(x)} y={H - 6} fontSize="10" fill="#7a8494" textAnchor="middle">{Math.round(x)}E</text></g>)}
           {gy.map((y) => <g key={`gy${y}`}><line x1={PAD / 2} y1={Y(y)} x2={W - PAD / 2} y2={Y(y)} stroke="#eceef2" /><text x={4} y={Y(y) - 3} fontSize="10" fill="#7a8494">{Math.round(y)}N</text></g>)}
@@ -283,8 +307,9 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
             {dw.ivPaths.map(([c, d]) => <path key={c} d={d} stroke={c} strokeWidth={5} fill="none" strokeLinecap="butt" />)}
           </g>
           {/* assays / mineralisation dots */}
-          <g onMouseOver={(e) => { const p = data.points[Number(e.target?.dataset?.pt)]; if (p) hoverTitle(e.target, `${p.hole_id} @ ${p.md.toFixed(1)} m — ${p.label}`); }}>
-            {data.points.map((p, i) => <circle key={`p${i}`} data-pt={i} cx={X(p.x)} cy={Y(p.y)} r={2.6} fill={p.color} stroke="#ffffff" strokeWidth={0.6} />)}
+          <g onMouseMove={(e) => { const q = svgXY(e), p = data.points[dw.findPt(q.x, q.y, 4)]; if (p) hoverTitle(e.target, `${p.hole_id} @ ${p.md.toFixed(1)} m — ${p.label}`); }}>{/* #3191: r 2.6 dots, a white 0.6 edge */}
+            {dw.ptAll && <path d={dw.ptAll} stroke="#ffffff" strokeWidth={5.8} strokeLinecap="round" fill="none" />}
+            {dw.ptFill.map(([c, d]) => <path key={c} d={d} stroke={c} strokeWidth={4.6} strokeLinecap="round" fill="none" />)}
           </g>
           {/* structures: strike-dip symbols (oriented) or a small cross (unoriented) */}
           {data.structures.map((st, i) => {
@@ -295,9 +320,12 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
           {/* planned holes */}
           {data.planned.map((p) => <g key={`pl${p.name}`}><path d={path(p.context)} stroke={colors.planned} strokeWidth={1} strokeDasharray="4 3" fill="none" opacity={0.6} />{p.lines.map((l, i) => <path key={i} d={path(l)} stroke={colors.planned} strokeWidth={2.4} strokeDasharray="5 3" fill="none" />)}{p.pierce.map((pc, i) => <g key={`pp${i}`}><rect x={X(pc.x) - 4} y={Y(pc.y) - 4} width={8} height={8} fill="#ffffff" stroke={colors.planned} strokeWidth={1.6} /><title>{tr("Planned {name}: pierces {rl} m at {md} m", { name: p.name, rl, md: pc.md.toFixed(1) })}</title></g>)}{labels && p.pierce[0] && <text x={X(p.pierce[0].x) + 6} y={Y(p.pierce[0].y) + 3} fontSize="10" fill={colors.planned}>{p.name}</text>}</g>)}
           {/* pierce points */}
-          <g onMouseOver={(e) => { const it = dw.pierce[Number(e.target?.dataset?.pc)]; if (!it) return; const { h, pc } = it; hoverTitle(e.target, [tr("{hole_id} pierces {rl} m at {md} m", { hole_id: h.hole_id, rl, md: pc.md.toFixed(1) }), ...(pc.logs || []).filter((l) => !l.layer?.startsWith("assay:")).map((l) => l.label), ...(pc.assays || [])].join("\n")); }}>
+          <g onMouseMove={(e) => { const q = svgXY(e), it = dw.pierce[dw.findPc(q.x, q.y, 6)]; if (!it) return; const { h, pc } = it; hoverTitle(e.target, [tr("{hole_id} pierces {rl} m at {md} m", { hole_id: h.hole_id, rl, md: pc.md.toFixed(1) }), ...(pc.logs || []).filter((l) => !l.layer?.startsWith("assay:")).map((l) => l.label), ...(pc.assays || [])].join("\n")); }}>
             {/* filled with the chosen log's colour at the RL (white: not logged there) */}
-            {dw.pierce.map(({ h, pc }, k) => <circle key={`pc${h.hole_id}_${k}`} data-pc={k} cx={X(pc.x)} cy={Y(pc.y)} r={4.6} fill={(pc.logs || []).find((l) => l.layer === activeLayer)?.color || "#ffffff"} stroke="#1a2028" strokeWidth={1.6} />)}
+            {/* #3191 — r 4.6 with a 1.6 dark edge, as the circles were: an outline path 10.8 wide, then each colour 7.6 wide */}
+            {dw.pcNone && <><path d={dw.pcNone} stroke="#8a94a3" strokeWidth={9} strokeLinecap="round" fill="none" /><path d={dw.pcNone} stroke="#ffffff" strokeWidth={6.2} strokeLinecap="round" fill="none" /></>}{/* #3261 — no value here */}
+            {dw.pcAll && <path d={dw.pcAll} stroke="#1a2028" strokeWidth={10.8} strokeLinecap="round" fill="none" />}
+            {dw.pcFill.map(([c, d]) => <path key={c} d={d} stroke={c} strokeWidth={7.6} strokeLinecap="round" fill="none" />)}
           </g>
           {/* #1404 — hole ids through the sections' declutter (#1144): a fan's collars no longer print over each other */}
           {idLabels && idLabels.placed.map((l) => <g key={`hl${l.key}`}>{l.leaderFrom && <line x1={l.leaderFrom.x} y1={l.leaderFrom.y} x2={l.x} y2={l.y - 4} stroke="#7a8494" strokeWidth={0.6} />}<text x={l.x} y={l.y} fontSize="10.5" textAnchor={l.anchor} fill="#1a2028" stroke="#ffffff" strokeWidth={2.5} paintOrder="stroke">{l.text}{l.ids.length > 1 && <title>{l.ids.join(", ")}</title>}</text></g>)}{/* #2212 */}
@@ -324,7 +352,7 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
         </div>
         {legend.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 12px", marginTop: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", maxWidth: W }}>
-            {legend.slice(0, 40).map(([label, color]) => <span key={label + color} style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 10, height: 10, background: color, borderRadius: 2, border: "1px solid var(--color-border)" }} />{label}</span>)}
+            {legend.slice(0, 40).map(([label, color, o]) => <span key={label + color} style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 10, height: 10, background: color, borderRadius: o?.ring ? 5 : 2, border: o?.ring ? "1.5px solid #8a94a3" : "1px solid var(--color-border)", boxSizing: "border-box" }} />{label}</span>)}{/* ring: #3261 */}
             {legend.length > 40 && <span>{tr("+ {v} more", { v: legend.length - 40 })}</span>}
           </div>
         )}

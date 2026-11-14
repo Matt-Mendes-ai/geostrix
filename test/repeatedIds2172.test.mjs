@@ -12,7 +12,7 @@ test("the first row of each hole id is kept", () => {
 });
 
 test("the collar import uses it when no rank column decides (#600), and says it", () => {
-  const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(u, /const repeats = ranked\.rankColumn \? \{ dropped: 0, holes: \[\] \} : firstPerHole\(rows\);/);
   assert.match(u, /row\(s\) shared a hole id with an earlier row of the file; the first was kept/);
 });

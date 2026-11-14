@@ -6,6 +6,7 @@ import { t as tr } from "../lib/i18n.js";
 import { coverageSummary, sampledShare, fillUnsampled, fillFromLog, logFactorOffer, unsampledReady, defaultUnsampledMode, ASK_BELOW_SHARE, loggedEndsOf } from "../lib/unsampledFill.js"; // loggedEndsOf: #2736 (unassayedHoles: through coverageSummary, #3007) // fillFromLog / logFactorOffer: #2721
 import { numericSourceChoices, findNumericSource, sourceAssays } from "../lib/numericSources.js"; // TASKS.csv #2721 — the logs a user may pick
 import { restrictRowsToHoles } from "../lib/modelArea.js";
+import { useStore } from "../lib/store.jsx"; // TASKS.csv #3116 — the built-in logs' range / despike
 import { excludeQAQC } from "../lib/qaqc.js";
 
 const choices = new Map(); // "tool|symbol" -> { mode, value }
@@ -48,7 +49,8 @@ export function useUnsampled(tool, { assays, collars, symbol, unit, elementUnits
   // TASKS.csv #3007 — the share and the never-assayed holes from one coverage pass (was two over every assay)
   const cov = useMemo(() => coverageSummary(assays, collars, symbol, unit, elementUnits, { loggedEnds: layers ? loggedEndsOf(layers) : null }), [assays, collars, symbol, unit, elementUnits, layers]);
   const info = cov.info;
-  const logCtx = useMemo(() => (layers || customLayers ? { layers, customLayers } : null), [layers, customLayers]); // #2721
+  const logValidRange = useStore().project?.logValidRange; // #3116
+  const logCtx = useMemo(() => (layers || customLayers ? { layers, customLayers, logValidRange } : null), [layers, customLayers, logValidRange]); // #2721
   const logChoices = useMemo(() => (logCtx ? numericSourceChoices({ ...logCtx, models: false }) : []), [logCtx]);
   const unassayed = cov.unassayed; // #2736; one pass with the share: #3007
   return { ...resolveUnsampled(tool, { assays, collars, symbol, unit, elementUnits, info, logCtx }), set: (patch) => setUnsampledChoice(tool, symbol, patch), symbol, unit, logChoices, unassayed };

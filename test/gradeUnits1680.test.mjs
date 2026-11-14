@@ -18,7 +18,7 @@ test("Grade stats, Compositing and Best intercepts label with it; Best intercept
   assert.match(read("src/components/CompositingModal.jsx"), /tr\("High-grade cap \(\{unit\}\)", \{ unit: unitL/);
   const b = read("src/components/BestIntercepts.jsx");
   assert.match(b, /const pctOk = unit === "ppm" && !PRECIOUS_METALS\.has\(symbol\);/);
-  assert.match(b, /const dg = \(v\) => \(pct \? v \/ 1e4 : v\);/);
-  assert.match(b, /\{tr\("Cutoff \(\{unit\}\)", \{ unit: unitL \}\)\}/);
-  assert.match(b, /row\[`avg_\$\{gradeSym\}_pct`\] = \+\(results\[i\]\.avgGrade \/ 1e4\)\.toPrecision\(6\);/);
+  assert.match(b, /const dg = \(v\) => \(conv \? toDisplay\(v, unit, shownUnit\) : v\);/ /* #3236 — any plain unit */);
+  assert.match(b, /\{tr\("Cutoff \(\{unit\}\)", \{ unit: (unitL|dispUnit \/\* #3221 \*\/) \}\)\}/); // #3221: typed in % when 'Show as %' is on
+  assert.match(b, /row\[`avg_\$\{gradeSym\}_\$\{unitSlug\(dispUnit\)\}`\] = \+dg\(results\[i\]\.avgGrade\)\.toPrecision\(6\);/ /* #3236: avg_Cu_pct for % */);
 });

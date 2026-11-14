@@ -18,7 +18,7 @@ test("the component filters to the chosen survey, offers the select for several,
   assert.match(s, /points\.filter\(\(p\) => surveyKey\(p\) === key\)/);
   assert.match(s, /surveys\.length > 1 && \(/);
   assert.match(s, /aria-label=\{tr\("Survey to analyse"\)\}/);
-  assert.match(s, /robustRange\(vals\)/);
+  assert.match(readFileSync(new URL("../src/lib/voronoi.worker.js", import.meta.url), "utf8"), /const stretch = robustStretch\(d\.vs\);/); // #3310 — in the worker, robustRange's rule
   assert.match(s, /<StatRow label=\{tr\("Declustered mean"\)\} value=\{fmt\(stats\.declusteredMean\)\} highlight \/>/);
   assert.doesNotMatch(s, /cloudShape\(points\)/); // the shape of the chosen survey, not of everything
   const g = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");

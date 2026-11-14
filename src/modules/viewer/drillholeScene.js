@@ -9,7 +9,7 @@ import { LAYER_META, minMax } from "../../lib/layers.js";
 import { arrMin, arrMax } from "../../lib/arrayStats.js";
 import { desurveyHole, holeAttitudeAssumed } from "../../lib/desurvey.js";
 import { errorNotice, notice } from "../../lib/notices.js"; // notice: #2937
-import { resolveLayerStyle, TUBE_SEGMENTS } from "../../lib/layerStyle.js";
+import { resolveLayerStyle } from "../../lib/layerStyle.js";
 import { customColour } from "../../lib/customColour.js";
 import { PickStandIn } from "../../lib/viewer/pickStandIn.js";
 import { buildLayerBatches, collarMarkerMaterial, syncBatchedInstances } from "../../lib/viewer/layerBatches.js";
@@ -18,6 +18,7 @@ import { addTraceChunks } from "../../lib/viewer/traceBatch.js"; // #2176 step 3
 import { makeTextSprite } from "../../lib/viewer/textSprite.js";
 import { lazyTip } from "../../lib/viewer/lazyTip.js";
 import { traceLookup } from "../../lib/viewer/modelHelpers.js";
+import { dropLogCoarse, primeLogLod } from "./logLod.js"; // TASKS.csv #2802
 import { PROTO_CYLINDER, PROTO_SPHERE_8, PROTO_SPHERE_12, PROTO_CIRCLE_24, PROTO_PRISM_4, PROTO_SQUARE, PIN_AXIS, dipPinDir, INTERVAL_PROTO, UP_Y, DIR_TMP, POINT_PROTO } from "../../lib/viewer/protos.js";
 
 const toRad = (d) => (d * Math.PI) / 180;
@@ -186,7 +187,7 @@ export function keptOrigin(prev, mean, tol = ORIGIN_KEEP_M) {
 }
 
 export function buildDrillholeScene(ctx) {
-  const { applyCategoryVisibility, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collarSize /* #2823 */, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, pointBuildersStale, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels } = ctx;
+  const { applyCategoryVisibility, applyHoleVisibilityRef, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collarSize /* #2823 */, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, pointBuildersStale, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels } = ctx;
   const groups = layerGroupsRef.current;
   if (!groups.litho || buildDefer.skip()) return; // #1500 — a restore just scheduled its state: build once, next render
   // TASKS.csv #131 — c.material?.map?.dispose?.() added alongside the existing geometry/material
@@ -390,6 +391,8 @@ export function buildDrillholeScene(ctx) {
   }
   const rebuild = planGroups(prev, sigs, changedHoles, full);
   const groupOf = (k) => customLayers.find((l) => l.id === k)?.group || groups[k];
+  const lodRedo = customLayers.filter((l) => full || rebuild.has(l.id) || repaint.includes(l)); // #2802 — a long log's coarse set goes before
+  for (const l of lodRedo) dropLogCoarse(l.group); //  a rebuild, patch (retireHoles counts batch rows) or repaint touches the layer
   const patched = new Set(); // #3097 — only the moved holes of these groups are built again
   if (!full && plan.shift && plan.shift.moved === changedHoles.size && changedHoles.size <= PATCH_MAX_HOLES) {
     for (const k of rebuild) { const g = groupOf(k); if (g && sameRefs(prev.sigs.get(k), sigs.get(k)) && retireHoles(g, changedHoles)) patched.add(k); }
@@ -507,7 +510,7 @@ export function buildDrillholeScene(ctx) {
           }
           return true;
         })();
-        let geo, mesh_ = null;
+        let geo, mesh_ = null, pieces = null;
         if (straight) {
           const dx = p2.x - p1.x, dy = p2.y - p1.y, dz = p2.z - p1.z;
           const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
@@ -525,18 +528,30 @@ export function buildDrillholeScene(ctx) {
           mesh_.position.set(p1.x, p1.y, p1.z);
           mesh_.quaternion.setFromUnitVectors(UP_Y, DIR_TMP.set(dx / len, dy / len, dz / len)); // #1500 — shared vectors
         } else {
-          const vecs = [new THREE.Vector3(p1.x, p1.y, p1.z), ...mid.map((p) => new THREE.Vector3(p.x, p.y, p.z)), new THREE.Vector3(p2.x, p2.y, p2.z)]; // #1500 — only here
-          const curve = new THREE.CatmullRomCurve3(vecs);
-          geo = new THREE.TubeGeometry(curve, Math.max(2, vecs.length * 2), radius, TUBE_SEGMENTS[st.shape], false);
+          // TASKS.csv #3279 (Galore review) — a curved interval was a CatmullRomCurve3 + TubeGeometry + material of its own (one draw call
+          // each), all made again when a Desurvey switch moved the stations: 211 ms of a 539 ms build on WA gold (35,385 members). Now
+          // straight pieces between its own trace points on the shared prototype, batched with the straight intervals; the inner joints
+          // overlap by half a radius so a bend shows no wedge, the ends stay on the interval's own depths.
+          const pts = [p1, ...mid, p2], last = pts.length - 2, ext = radius * 0.5;
           const color = st.color || (meta.numeric ? numericIntervalColor(groupKey, row.value) : baseColorForBuild(groupKey, row.value));
-          const mat = new THREE.MeshLambertMaterial({ color, transparent: st.opacity < 1, opacity: st.opacity });
-          mesh_ = new THREE.Mesh(geo, mat);
+          pieces = [];
+          for (let i = 0; i <= last; i++) {
+            const a = pts[i], b = pts[i + 1], dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if (len < 1e-6) continue;
+            const e0 = i > 0 ? ext : 0, e1 = i < last ? ext : 0, ux = dx / len, uy = dy / len, uz = dz / len;
+            const m = new PickStandIn(INTERVAL_PROTO[st.shape], { color, transparent: st.opacity < 1, opacity: st.opacity });
+            m.scale.set(radius, len + e0 + e1, radius);
+            m.position.set(a.x - ux * e0, a.y - uy * e0, a.z - uz * e0);
+            m.quaternion.setFromUnitVectors(UP_Y, DIR_TMP.set(ux, uy, uz));
+            pieces.push(m);
+          }
         }
-        const mesh = mesh_;
         // TASKS.csv #208 — a mapped Description in the tooltip; #227 — catValue for the category pass; #1500 — the tooltip made on first
         // read (lazyTip), holeId for the visible-holes pass
+        for (const mesh of pieces || [mesh_]) {
         mesh.userData = lazyTip({ row, holeId: c.hole_id, catValue: row.value, ...(groupKey === "litho" ? { lithoRow: row } : {}) }, () => `${c.hole_id}\n${meta.label}: ${meta.numeric ? row.value : effectiveLabel(groupKey, row.value)}${row.extra != null ? ` (${row.extra}${meta.extraSuffix || ""})` : ""}\n${+row.from.toFixed(2)}–${+row.to.toFixed(2)} m${row.intensity ? ` · intensity ${row.intensity}` : ""}${Number.isFinite(row.alpha) ? ` · alpha ${row.alpha}°` : ""}${row.description ? `\n${row.description}` : ""}`); // lithoRow: TASKS.csv #599 picking
         groups[groupKey].add(mesh);
+        }
        } catch (err) { buildErrors.push(`${groupKey} ${c.hole_id} ${row.from}-${row.to}: ${err.message}`); }
       });
     };
@@ -683,6 +698,7 @@ export function buildDrillholeScene(ctx) {
   // #2176 — only the groups made again (a kept group's members are batched already)
   if (full) Object.values(layerGroupsRef.current).forEach((g) => { if (g) buildLayerBatches(g); });
   else [...(rebuildHoles ? [groups.holes] : []), ...[...rebuild].map((k) => customLayers.find((l) => l.id === k)?.group || groups[k])].forEach((g) => { if (g) buildLayerBatches(g); });
+  for (const l of lodRedo) primeLogLod(l.group, l, layerStyles); // #2802 — built on first need (logLod.js)
   // TASKS.csv #551 — assay spheres, geophysics points and surface samples have their own builders (each clears and
   // batches only its own group): run them on the traces and origin just built
   // #2176 — with the same traces and origin, only a builder whose own inputs changed since it last ran (a deferred commit, #1500)
@@ -715,7 +731,8 @@ export function buildDrillholeScene(ctx) {
     collarSize?.apply(groups.holes, labelAnchors); // TASKS.csv #2823 — the markers' size from the drilling / the setting, now they are batched
     syncHoleLabels(groups.hole_labels, labelAnchors, holeLabelModeRef.current, makeTextSprite);
   }
-  applyCategoryVisibility();
+  // TASKS.csv #3253 — the checked holes, then the category filters on top (applyHoleVisibility ends with them); the filters alone before
+  (applyHoleVisibilityRef?.current || applyCategoryVisibility)();
   // Same reasoning for legendOverride: build-time color now comes from baseColorForBuild (plain
   // default, no override), so a real rebuild's fresh meshes need any currently-active legend color
   // overrides reapplied here too, or they'd flash back to default colors until legendOverride itself

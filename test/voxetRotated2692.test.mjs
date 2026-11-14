@@ -48,7 +48,7 @@ test("a lattice past the node budget is coarsened evenly; flat axes are refused"
 });
 
 test("the drop resamples a rotated voxet and says so", () => {
-  const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(u, /const lattice = vx\.isVoxetAligned\(h\) \? null : vx\.alignedLattice\(h\)/);
   assert.match(u, /tr\("The Voxet is rotated \(\{deg\}° from east in plan\)/);
 });

@@ -18,6 +18,7 @@ import { changeElementBasis, rebaseRows, rebaseThresholds } from "./oxideBasisCh
 import { withImportLeftOut } from "./importLeftOut.js"; // TASKS.csv #2493
 import { cappedNotice, capRemovedMapLayers, vertexCount, BIG_VERTICES } from "./undoMapLayerCap.js"; // TASKS.csv #2806; vertexCount / BIG_VERTICES: #2814
 import { capUndoTables, tableCapNotice } from "./undoTableCap.js"; // TASKS.csv #2894
+import { calcUndoToken, applyCalcUndo } from "./calcUndo.js"; // TASKS.csv #3110
 import { useLatestCallback } from "./useLatestCallback.js"; // TASKS.csv #2769 follow-up — callbacks that keep only the current render's scope (the file says why)
 import { sectionWindowsMayClose, EXPORT_RESULT_EVENT } from "./desktop.js"; // TASKS.csv #2620; EXPORT_RESULT_EVENT: #2806
 import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveWriteParts /* #1975 */, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
@@ -1081,6 +1082,12 @@ export function StoreProvider({ children }) {
   }, []);
   const setProjectName = useCallback((name) => setProject((p) => ({ ...p, name })), []);
   const setDrillRates = useCallback((rates) => setProject((p) => ({ ...p, drillRates: (typeof rates === "function" ? rates(p.drillRates || {}) : rates) || null })), []); // TASKS.csv #2581 — $/m per hole type, kept with the project (a function: from the latest rates)
+  // TASKS.csv #3116 — a built-in log's valid range and despike ({ range: [lo, hi], despikeM }), kept with the project like the drill rates:
+  // project.logValidRange = { [layerKey]: ... } (an older project has none: read as {}). null / {} removes the log's entry.
+  const setLogValidRange = useCallback((key, entry) => setProject((p) => { const next = { ...(p.logValidRange || {}) }; if (entry && (entry.range || entry.despikeM > 0)) next[key] = entry; else delete next[key]; return { ...p, logValidRange: next }; }), []);
+  // TASKS.csv #3236 — a per-element display unit kept with the project: project.displayUnits = { [symbol]: "ppm" | "g/t" | "ppb" | "%" }
+  // (display only; stored values, calculations and saved thresholds keep their unit; an older project has none: read as {}). null removes the entry.
+  const setDisplayUnit = useCallback((symbol, unit) => setProject((p) => { const next = { ...(p.displayUnits || {}) }; if (unit) next[symbol] = unit; else delete next[symbol]; return { ...p, displayUnits: next }; }), []);
 
   // TASKS.csv #135 — desurvey method is a PROJECT setting, not a UI preference: it changes every
   // hole's computed geometry (and therefore every intercept, section, estimation sample and export
@@ -1568,6 +1575,7 @@ export function StoreProvider({ children }) {
   // TASKS.csv #2894 — big removed custom layers and replaced assay tables, as #2806 does for map layers (lib/undoTableCap.js)
   const capTables = (held) => { const r = capUndoTables(undoPast.current, held); if (r.steps !== undoPast.current) { undoPast.current = r.steps; const message = tableCapNotice(r); if (message) try { window.dispatchEvent(new CustomEvent(EXPORT_RESULT_EVENT, { detail: { ok: true, message } })); } catch { /* no window */ } } };
   const undoFuture = useRef([]);
+  const undoIntent = useRef(null); // TASKS.csv #3110 — { next, token }: the change setAssaysWithInverse is about to make
   const undoBeforeBurst = useRef(null); // snapshot from the moment the CURRENT quiet-period burst started
   const undoDebounceTimer = useRef(null);
   const undoApplying = useRef(false); // true while undo()/redo() itself is writing state, so that write doesn't get mistaken for a new user change
@@ -1640,12 +1648,19 @@ export function StoreProvider({ children }) {
     setActiveTabDirty(true); // TASKS.csv #34 — see activeTabDirty's own comment above for scope/limits
     if (!undoBeforeBurst.current) { undoBeforeBurst.current = undoPrevSnapshot.current; undoBurstAt.current = Date.now(); }
     undoPrevSnapshot.current = current;
+    // TASKS.csv #3110 — a calculated element's Add: its step keeps a token ('remove the element'), not the old assay table, and is its own step
+    if (undoIntent.current && current.assays === undoIntent.current.next) { undoBeforeBurst.current = { ...undoBeforeBurst.current, assays: undoIntent.current.token }; undoIntent.current = null; commitUndoBurst(); return; }
     if (undoDebounceTimer.current) clearTimeout(undoDebounceTimer.current);
     undoDebounceTimer.current = setTimeout(commitUndoBurst, UNDO_DEBOUNCE_MS);
   }, UNDO_KEYS.map((k) => live[k])); // #448 (always the same length); #463: layoutPages
 
   const applySnapshot = useCallback((snap) => {
     undoApplying.current = true;
+    if (snap.assays?.__inverse) { // TASKS.csv #3110 — the token of a calculated element's Add; a table that no longer matches it is left as it is
+      const live = undoSnapshotRef.current(), r = applyCalcUndo(snap.assays, live.assays), symbol = snap.assays.__inverse.removeElement;
+      if (r.failed) { snap = { ...snap, assays: live.assays, assayElements: live.assayElements }; try { window.dispatchEvent(new CustomEvent(EXPORT_RESULT_EVENT, { detail: { ok: false, message: tr("Undo could not remove {symbol}: the assay table has changed since it was added, so it was left as it is.", { symbol }) } })); } catch { /* no window */ } }
+      else snap = { ...snap, assays: r.assays };
+    }
     for (const f of FIELDS) if (f.track === "undo" && f.key !== "layoutPages") fieldState[f.key][1](snap[f.key] ?? f.empty());
     // #463 — whole pages list; keep the active page if it still exists, else the first one.
     if (snap.layoutPages) { setLayoutPages(snap.layoutPages); setActiveLayoutPageId((id) => (snap.layoutPages.some((p) => p.id === id) ? id : snap.layoutPages[0]?.id || id)); }
@@ -1754,7 +1769,7 @@ export function StoreProvider({ children }) {
   });
 
   const value = {
-    project, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setLocalGridDatum /* #2691 / #2661 */, setMineGrid /* #2586 */, setProjectName, setDrillRates /* #2581 */, reprojectProjectTo, reprojectObjectTo, // #485 / #486
+    project, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setLocalGridDatum /* #2691 / #2661 */, setMineGrid /* #2586 */, setProjectName, setDrillRates /* #2581 */, setLogValidRange /* #3116 */, setDisplayUnit /* #3236 */, reprojectProjectTo, reprojectObjectTo, // #485 / #486
     sampleRequest, requestSampleProject, clearSampleRequest, // TASKS.csv #1120
     projectIsEmpty: !hasWork, // TASKS.csv #607 — nothing loaded yet (same test as autosave): an import may adopt its CRS
     desurveyMethod, setDesurveyMethod, // TASKS.csv #135
@@ -1828,6 +1843,8 @@ export function StoreProvider({ children }) {
     checkAutosave, restoreAutosave, discardAutosave, recoveryStashed, // #465
     getProjectToken, isSameProject, addVoxelModelToTab, // #466
     undo, redo, canUndo: undoCount > 0, canRedo: redoCount > 0, undoCheckpoint: commitUndoBurst, // #3184
+    // TASKS.csv #3110 — a NEW calculated element's Add (GeochemModule): its own undo step, holding a token instead of the old assay table
+    setAssaysWithInverse: (next, symbol) => { commitUndoBurst(); undoIntent.current = { next, token: calcUndoToken(next, symbol) }; setAssays(next); },
   };
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }

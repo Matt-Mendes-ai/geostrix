@@ -2,7 +2,7 @@
 // against an element: every Geochem diagram is a fixed classification. The X-Y scatter takes any two axes: an assay element, or a
 // numeric downhole log / custom-layer field (numericSources.js), read for each sample at its mid-depth from the interval of the same
 // hole that covers it (a depth-only reading stands for its own short support, as sourceAssays gives it). Pure.
-import { valueIn } from "./geochem.js";
+import { valueIn, convertUnit } from "./geochem.js"; // convertUnit: #3219
 import { sourceAssays } from "./numericSources.js";
 import { correlate } from "./correlation.js"; // TASKS.csv #2353
 import { ternaryXY } from "./geochemDiagrams.js"; // TASKS.csv #3051
@@ -80,7 +80,8 @@ export function xyDiagram(xAxis, yAxis, samples, units, opts = {}) {
     id: "xy", label: "X–Y scatter (choose the axes)", requires: [],
     caption: "Any two axes: assay elements, or a downhole log / custom-layer field averaged over each sample's interval in the same hole (length-weighted).",
     xLabel: xAxis.label, yLabel: yAxis.label, logX: fx.log, logY: fy.log, xRange: fx.range, yRange: fy.range,
-    ...(opts.oneToOne ? (() => { const lo = Math.max(fx.range[0], fy.range[0]), hi = Math.min(fx.range[1], fy.range[1]); return hi > lo ? { tieLines: [{ from: [lo, lo], to: [hi, hi], label: "1:1" }] } : {}; })() : {}),
+    // #3219 — at equal concentration when the two axes are stored in different units (y = x / k in the stored numbers)
+    ...(opts.oneToOne ? (() => { const k = ratioFactor(xAxis, yAxis), lo = Math.max(fx.range[0], fy.range[0] * k), hi = Math.min(fx.range[1], fy.range[1] * k); return hi > lo ? { tieLines: [{ from: [lo, lo / k], to: [hi, hi / k], label: k === 1 ? "1:1" : "1:1 (equal ppm)" }] } : {}; })() : {}),
     project: (s, u) => { const x = xAxis.value(s, u), y = yAxis.value(s, u); return Number.isFinite(x) && Number.isFinite(y) && (!fx.log || x > 0) && (!fy.log || y > 0) ? { x, y } : null; },
   };
 }
@@ -108,21 +109,32 @@ export function ternaryDiagram(axes, factors = [1, 1, 1]) {
 
 // TASKS.csv #2353 — one line of numbers under an X-Y plot, over the samples with X >= xMin (when given): n, Spearman's r, the median of Y / X
 // and the length-weighted ratio sum(Y x length) / sum(X x length) (the metal ratio of a gamma log against its assays). Ratios over X > 0.
+// TASKS.csv #3219 (review #3195, Galore Creek) — Y / X of two elements stored in different units (soluble Cu in %, total Cu in ppm) was taken
+// on the raw numbers: 'median Y / X 0.0000133' for 0.133. Two element axes in plain concentration units are compared in ppm: -> the factor
+// that turns a Y / X on the stored numbers into one in ppm / ppm (1 when the units agree or either axis is not a plain concentration)
+const PLAIN = new Set(["%", "ppm", "ppb", "g/t"]);
+export function ratioFactor(xAxis, yAxis) {
+  const ux = String(xAxis?.unit || ""), uy = String(yAxis?.unit || "");
+  if (!xAxis?.element || !yAxis?.element || !PLAIN.has(ux) || !PLAIN.has(uy) || ux === uy) return 1;
+  const fx = convertUnit(1, ux, "ppm"), fy = convertUnit(1, uy, "ppm");
+  return Number.isFinite(fx) && Number.isFinite(fy) && fx > 0 ? fy / fx : 1;
+}
 export function xyStats(xAxis, yAxis, samples, units, { xMin = null } = {}) {
   const xs = [], ys = [], ratios = [];
   let sx = 0, sy = 0;
+  const k = ratioFactor(xAxis, yAxis); // #3219
   for (const s of samples || []) {
     const x = xAxis?.value(s, units), y = yAxis?.value(s, units);
     if (!Number.isFinite(x) || !Number.isFinite(y) || (xMin != null && !(x >= xMin))) continue;
     xs.push(x); ys.push(y);
     if (x > 0) {
-      ratios.push(y / x);
+      ratios.push((y / x) * k);
       const len = Number(s.to) - Number(s.from), w = Number.isFinite(len) && len > 0 ? len : 1;
       sx += x * w; sy += y * w;
     }
   }
   ratios.sort((a, b) => a - b);
-  return { n: xs.length, r: xs.length >= 3 ? correlate(xs, ys, "spearman").r : NaN, medianRatio: ratios.length ? ratios[ratios.length >> 1] : NaN, weightedRatio: sx > 0 ? sy / sx : NaN };
+  return { n: xs.length, r: xs.length >= 3 ? correlate(xs, ys, "spearman").r : NaN, medianRatio: ratios.length ? ratios[ratios.length >> 1] : NaN, weightedRatio: sx > 0 ? (sy / sx) * k : NaN, inPpm: k !== 1 };
 }
 
 // TASKS.csv #2719 — the elements with no numeric value in these samples (a pXRF-only element when the lab results are shown, or the

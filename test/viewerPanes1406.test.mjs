@@ -15,7 +15,8 @@ test("#1406: opening a pane scrolls the sidebar to it, after toolPane is declare
 test("#1405: the walls hang below the ground grid, as deep as the drilling", () => {
   // #2211 — moved to lib/viewer/gridGroup.js, the walls hang from the (possibly lifted) plane
   const g = readFileSync(new URL("../src/lib/viewer/gridGroup.js", import.meta.url), "utf8");
-  assert.ok(g.includes("back.position.set(0, lift - h / 2, -size / 2);") && g.includes("side.position.set(-size / 2, lift - h / 2, 0);"));
+  // #3277 — and up to the highest collar: the walls' middle is lift + up - (h + up) / 2
+  assert.ok(g.includes("const H = h + up, mid = lift + up - H / 2;") && g.includes("back.position.set(0, mid, -size / 2);") && g.includes("side.position.set(-size / 2, mid, 0);"));
   assert.ok(v.includes("buildGridGroup(gridConfig, gridPlacement(collars, survey), DEFAULT_GRID.color)") && v.includes("}, [gridConfig, collars, survey]);"));
 });
 

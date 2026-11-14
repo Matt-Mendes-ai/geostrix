@@ -52,7 +52,7 @@ test("wiring: the plan draws the merged paths, and its tooltips are made on hove
   assert.match(s, /ctx: data\.holes\.map\(\(h\) => ctxCache\(h\.hole_id, h\.context, path\)\)\.join\(" "\)/);
   assert.match(s, /\{dw\.ivPaths\.map\(\(\[c, d\]\) => <path key=\{c\} d=\{d\}/);
   assert.match(s, /hoverTitle\(e\.target, `\$\{iv\.hole_id\} \$\{iv\.from\}–\$\{iv\.to\} m — \$\{iv\.label\}`\)/);
-  assert.match(s, /data-pc=\{k\}/);
+  assert.match(s, /it = dw\.pierce\[dw\.findPc\(q\.x, q\.y, 6\)\]/); // #3191 — found by position (the circles became paths)
   assert.doesNotMatch(s, /<title>\{`\$\{iv\.hole_id\}/, "no <title> per interval");
   assert.doesNotMatch(s, /<title>\{\[tr\("\{hole_id\} pierces/, "no <title> per pierce point");
 });
@@ -60,7 +60,7 @@ test("wiring: the plan draws the merged paths, and its tooltips are made on hove
 test("wiring: an RL step reuses the trace points, the layer primitives and their grouping until the 3D view re-renders", () => {
   const v = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   const b = fs.readFileSync(new URL("../src/modules/viewer/levelPlanBuild.js", import.meta.url), "utf8"); // #3137 — the build moved here
-  assert.match(b, /if \(!pc \|\| pc\.fn !== ctx\.layerPrimitivesFor \|\| pc\.traces !== ctx\.traces \|\| pc\.vh !== ctx\.visibleHoles\) \{/);
+  assert.match(b, /if \(!pc \|\| pc\.fn !== ctx\.layerPrimitivesFor \|\| pc\.traces !== ctx\.traces \|\| pc\.vh !== ctx\.visibleHoles \|\| pc\.also !== also\) \{/); // also: #3248
   assert.match(b, /const intervals = pc\.prims\.intervals\.filter\(\(iv\) => holeIds\.has\(iv\.hole_id\)\), points = pc\.prims\.points\.filter\(\(pt\) => holeIds\.has\(pt\.hole_id\)\);/);
   assert.match(b, /const \{ ivBy, ptBy, rdBy \} = pc, pointLogs = \[\];/); // rdBy: #1706
   assert.match(b, /let b = pc\.base\.get\(t\.hole_id\);/);

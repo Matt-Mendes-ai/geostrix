@@ -34,7 +34,7 @@ test("Grade stats: a <DL % column, a warning over half, the Thresholds wording",
   assert.match(s, /lt: isBelowDetection\(s, symbol\)/);
   assert.match(s, /domain, lt: s\.lt \}/);
   assert.match(s, /ltN: rs\.reduce\(\(k, r\) => k \+ \((r\.lt|isLt\(r\)) \? 1 : 0\), 0\)/); // #2913: isLt = a '<' result or a value on the #1520 floor, as Thresholds
-  assert.match(s, /\{tr\("<DL %"\)\}<\/th>/);
+  assert.match(s, /tr\("<DL %"\)\}<\/th>/); // #3243: or 'On the floor %' when no result is flagged
   assert.match(s, /g\.ltN \/ g\.stats\.n > 0\.5/);
   assert.match(s, /is below detection: its statistics are mostly about the detection limit\./);
   assert.match(s, /Its percentiles and caps sit on the limit, not on measured grades\./);

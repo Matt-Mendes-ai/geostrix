@@ -11,7 +11,7 @@ test("weath.csv: the oxidation of every current lithology interval that has one"
   const w = t("weath.csv").rows, li = t("litho.csv").rows;
   assert.equal(w.length, li.filter((r) => String(r.oxidation ?? "").trim()).length);
   assert.deepEqual([...new Set(w.map((r) => r.weathering))].sort(), ["HR", "LR", "NR", "OX", "RD", "TR"]);
-  const u = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(u, /files: \["collars\.csv", "survey\.csv", "litho\.csv", "alt\.csv", "weath\.csv"\]/);
   const b = readFileSync(new URL("../scripts/samples/build-wa-uranium.mjs", import.meta.url), "utf8");
   assert.match(b, /write\("weath\.csv", \["hole_id", "from", "to", "weathering"\]/); // a rebuild keeps it

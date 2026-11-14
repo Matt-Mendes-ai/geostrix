@@ -15,6 +15,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import SourceCrsField from "./SourceCrsField.jsx"; // TASKS.csv #600
 import { crsName } from "../lib/reproject.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { conversionsOver100 } from "../lib/assayReimport.js"; // TASKS.csv #3217
 
 // TASKS.csv #845 — every stream program (Matt: "Do all stream programs"): moss mats, heavy-mineral concentrates, BLEG and
 // stream waters are different measurements from active sediment and are kept as their own media (never ranked together)
@@ -22,7 +23,13 @@ export const SURFACE_MEDIA = ["soil", "rock chip", "stream sediment", "moss mat"
 
 export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit, onJoinFile, projectEpsg, mineGrid = null }) { // onJoinFile: #1670; mineGrid: #2684 (lib/mineGrid.js mineSourceOf)
   const joinRef = useRef(null);
-  const crsUnset = useStore().project?.crsSet === false; // TASKS.csv #615
+  const svStore = useStore(), crsUnset = svStore.project?.crsSet === false; // TASKS.csv #615
+  // TASKS.csv #3217 (surface follow-up) — last time's choices said, and a conversion that would put readings over 100 % said before Import refuses it
+  const svUnits = useMemo(() => Object.fromEntries((svStore.surfaceElements || []).map((e) => [e.symbol, e.unit])), [svStore.surfaceElements]);
+  const svClashes = modal.elements.filter((e) => e.checked && svUnits[e.symbol] && svUnits[e.symbol] !== e.unit);
+  const svClashKey = svClashes.map((e) => `${e.symbol}:${e.header}:${e.unit}`).join("|");
+  const svOver = useMemo(() => conversionsOver100(modal.allRows || [], modal.elements.filter((e) => e.checked && svUnits[e.symbol] && svUnits[e.symbol] !== e.unit)), [modal.allRows, svClashKey, svUnits]); // svClashKey stands for the clashes
+  const svLast = modal.elements.filter((e) => e.checked && e.asLastTime);
   useEscapeKey(onCancel);
   useFocusTrap(); // TASKS.csv #238
   const checkedCount = modal.elements.filter((e) => e.checked).length;
@@ -33,8 +40,9 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
 
   const setMapping = (key, col) => onChange({ ...modal, mapping: { ...modal.mapping, [key]: col } });
   const toggleEl = (sym) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, checked: !e.checked } : e) });
-  const setUnit = (sym, unit) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, unit } : e) });
-  const setHeader = (sym, header) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, header } : e) });
+  // unitChosen: #3217 — kept on the project's element, so the next import of the file opens with it; a change is the user's, not last time's
+  const setUnit = (sym, unit) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, unit, unitChosen: true, asLastTime: e.asLastTime && e.unit === unit } : e) });
+  const setHeader = (sym, header) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, header, asLastTime: e.asLastTime && e.header === header } : e) });
   const removeEl = (sym) => onChange({ ...modal, elements: modal.elements.filter((e) => e.symbol !== sym) });
   const addElement = () => {
     const sym = addSymbol.trim();
@@ -146,6 +154,12 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
               <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAll(false)} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }}>{tr("None")}</span>
             </div>
           </div>
+          {svLast.length > 0 && ( /* TASKS.csv #3217 */
+            <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "0 0 6px", lineHeight: 1.45 }}>{tr("As last time in this project: {list}. Change any of them in the list below.", { list: svLast.slice(0, 12).map((e) => `${e.symbol} ${e.header} (${e.unit})`).join(", ") + (svLast.length > 12 ? ", …" : "") })}</div>
+          )}
+          {svOver.length > 0 && ( /* TASKS.csv #3217 */
+            <div role="alert" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-text)", margin: "0 0 6px", lineHeight: 1.45 }}>{tr("Converting {list} would put readings over 100 %: set their unit to the one the column is in, or Import will refuse them.", { list: svOver.map((b) => `${b.header} (${b.unit})`).join(", ") })}</div>
+          )}
           <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 280, overflowY: "auto", padding: 4, border: "1px solid var(--color-border)", borderRadius: 6 }}>
             {modal.elements.map((e) => (
               <div key={e.symbol} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 7px", background: e.checked ? "var(--color-bg-subtle)" : "transparent", borderRadius: 5 }}>

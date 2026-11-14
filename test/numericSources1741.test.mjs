@@ -56,7 +56,7 @@ test("the dialogs: a Source select in Estimation, the logs in the Grade shell el
   assert.match(p, /<optgroup label=\{tr\("Downhole logs and numeric layers"\)\}>/);
   assert.match(p, /const numSrc = findNumericSource\(numericSymbol, \{ layers, customLayers: customLayersAll \}\);/);
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
-  assert.match(r, /const numSrc = findNumericSource\(numericSymbol, \{ layers, customLayers \}\);/);
+  assert.match(r, /const numSrc = findNumericSource\(numericSymbol, \{ layers, customLayers, logValidRange \}\);/);
   assert.match(r, /const logInfo = numSrc\?\.logScale \? logPoints\(gridPoints\) : null;/);
   assert.match(r, /if \(logInfo\) unlogGrid\(grid\);/);
 });

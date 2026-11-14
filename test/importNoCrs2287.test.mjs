@@ -31,7 +31,7 @@ test("every Maps / Geophysics / drop importer uses the target, not project.epsg"
   const g = rd("../src/modules/GeophysicsModule.jsx");
   assert.ok(g.includes("buildRasterImport(file, { epsg: projectTargetEpsg(project),") && (g.match(/vectorToBoundaryPolylines\([a-z]+, projectTargetEpsg\(project\)(, \{[^}]*\})?\)/g) || []).length === 2);
   assert.ok(rd("../src/modules/MapsModule.jsx").includes("projectEpsg: projectTargetEpsg(project), qml: null"));
-  const p = rd("../src/modules/viewer/useImportPipeline.js");
+  const p = rd("../src/modules/viewer/importPipelineImpl.js");
   assert.ok(p.includes("projectEpsg: projectTargetEpsg(live.project)") && p.includes("epsg: projectTargetEpsg(live.project || project)"));
   assert.ok(rd("../src/components/SurfaceMappingPanel.jsx").includes("let projectEpsg = projectTargetEpsg(project), empty = projectIsEmpty;"));
 });

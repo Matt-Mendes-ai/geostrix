@@ -15,6 +15,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { saveFile } from "../lib/desktop.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #135 — project desurvey method
+import { useKeptState, keptIn, scopeOf } from "../lib/keptState.js"; // TASKS.csv #3223 — the dialog's settings kept with the project
 import { stampLines, withStamp, ASSAY_READING_RULES, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #404
 import { version as APP_VERSION } from "../../package.json";
 import { LAYER_META } from "../lib/layers.js";
@@ -24,11 +25,12 @@ import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every ex
 import { interceptRows, optionalInterceptColumns } from "../lib/drillReportExport.js"; // TASKS.csv #1083, #1290
 import { localDate } from "../lib/localDate.js"; // TASKS.csv #2358
 import { cutoffOnElementChange, rememberInterceptCutoff } from "../lib/interceptCutoff.js"; // TASKS.csv #2513; remember: #3069
-import { interceptTablePlan, interceptCount, columnFormat } from "../lib/interceptTable.js";
+import { interceptTablePlan, interceptCount, columnFormat, continuationRanges } from "../lib/interceptTable.js"; // continuationRanges: #2708
+import { DISPLAY_UNITS, isPlainUnit, displayFactor, toDisplay, fromDisplay, unitSlug } from "../lib/displayUnits.js"; // TASKS.csv #3236
 import { BULK_COMMODITIES } from "../lib/preferredElement.js"; // TASKS.csv #2923 — no metal equivalent for a bulk commodity
 import { elementOptionLabel, isLoiHeader } from "../lib/geochem.js"; // TASKS.csv #2923 — 'Si as SiO2' in the price rows; isLoiHeader: #2924 // TASKS.csv #2200 / #2479; columnFormat: #3019
 import { pagePx, pageFormatOf } from "../lib/pageFormats.js"; // TASKS.csv #2479
-import { holeTotals } from "../lib/accumulation.js"; // TASKS.csv #2419 — Total per hole
+import { holeTotals, holeTotalsDisplay } from "../lib/accumulation.js"; // TASKS.csv #2419 — Total per hole
 
 const RESULT_ROW_H = 26; // TASKS.csv #222 — matches AttributeTableModal's row-windowing pattern
 
@@ -43,7 +45,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
   const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
-  const { desurveyMethod, project, setLayoutElements, addLayoutPages, layoutElements = [], layoutPages = [], activeLayoutPageId, goToModule, geochemThresholds = [] } = useStore(); // addLayoutPages: #3019 // layoutElements / pages: #2479 // TASKS.csv #135 — true-width needs the project's own trace; layout: #911; geochemThresholds: #2347
+  const { desurveyMethod, project, getProjectToken, setLayoutElements, addLayoutPages, switchLayoutPage, setDisplayUnit, layoutElements = [], layoutPages = [], activeLayoutPageId, goToModule, geochemThresholds = [] } = useStore(); // addLayoutPages: #3019 // layoutElements / pages: #2479 // TASKS.csv #135 — true-width needs the project's own trace; layout: #911; geochemThresholds: #2347
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
   const lead = useLeadCommodity();
@@ -53,24 +55,43 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
   // TASKS.csv #1680 (review #1645, Copley) — what the reader sees: g/t for a precious metal in ppm, and on request % for a base metal in
   // ppm ('15.65 m @ 0.79 % Cu', not '7900 ppm'). Display only: the cutoff, the computation and the CSV's stored-unit columns are unchanged.
   const unitL = gradeUnitLabel(symbol, unit);
-  const [asPct, setAsPct] = useState(false);
+  // TASKS.csv #3223 (review #3195, Galore Creek) — every setting was lost when the dialog closed (cut-off back to the P90, dilution 2, no
+  // Also show, empty prices): they are kept per project for the session (lib/keptState, as Geochem's own choices are)
+  const keptScope = scopeOf(getProjectToken?.());
+  const [asPct, setAsPct] = useKeptState(keptScope, "bi.asPct", false);
+  const [continuePages, setContinuePages] = useKeptState(keptScope, "bi.continuePages", false); // TASKS.csv #2708
   const pctOk = unit === "ppm" && !PRECIOUS_METALS.has(symbol);
-  const pct = pctOk && asPct;
-  const dispUnit = pct ? "%" : unitL;
-  const dg = (v) => (pct ? v / 1e4 : v);
+  // TASKS.csv #3236 — the unit shown is the project's choice for the element (project.displayUnits, set in 'Show in' below, kept with the
+  // project); 'Show as %' (kept for the session, #3223) moves into it once. A project's choice is read whatever the build; before the store
+  // has the setter, 'Show as %' works as it did for an element with no choice.
+  const unitsKept = typeof setDisplayUnit === "function";
+  const chosen = project?.displayUnits?.[symbol];
+  const shownUnit = isPlainUnit(unit) && isPlainUnit(chosen) ? chosen : !unitsKept && pctOk && asPct ? "%" : null;
+  useEffect(() => { if (unitsKept && asPct) { if (pctOk && !chosen) setDisplayUnit(symbol, "%"); setAsPct(false); } }, [unitsKept, asPct, pctOk, chosen, symbol]);
+  const conv = shownUnit != null && displayFactor(unit, shownUnit) !== 1; // a converted value
+  const pct = conv; // the name the code below reads (#3221): 'the grades are shown converted'
+  const dispUnit = shownUnit || unitL; // a chosen unit, else the stored one's label (g/t for a precious metal in ppm, #1680)
+  const dg = (v) => (conv ? toDisplay(v, unit, shownUnit) : v);
+  // TASKS.csv #3221 (review #3195, Galore Creek) — 'Show as %' left the cut-off and 'Including at' boxes in ppm (a 0.2 typed for 0.2 % was a
+  // 0.2 ppm cut-off) and the CuEq column in ppm: with it on, the boxes are typed in % and stored in ppm, rounded so the box shows what was typed
+  const toStored = (v) => (conv ? fromDisplay(v, unit, shownUnit) : v), shownBox = (v) => (conv ? +toDisplay(v, unit, shownUnit).toPrecision(12) : v); // #3236 — any plain unit
   // TASKS.csv #1387 (review #1352) — a cutoff belongs to its element: Ag 30 ppm became "Cutoff (%) = 30" for Pb. Each element keeps
   // the cutoff last used with it; one not used yet starts at its 90th percentile (one significant figure), said in the box's tooltip.
   // #1678 — the element the tool opens on too (it opened at 0.5 whatever the element: every Cu interval in ppm passed)
-  const p90Of = (sym) => {
+  // #3223 — the median and Q3 too, offered beside the P90 suggestion (a porphyry is reported near its median, not its P90)
+  const quantileOf = (sym, q) => {
     const v = assays.map((a) => Number(a.values?.[sym])).filter((x) => Number.isFinite(x) && x > 0).sort((a, b) => a - b);
     if (!v.length) return null;
-    const p = v[Math.floor(0.9 * (v.length - 1))], mag = 10 ** Math.floor(Math.log10(p));
+    const p = v[Math.floor(q * (v.length - 1))], mag = 10 ** Math.floor(Math.log10(p));
     return Number((Math.round(p / mag) * mag).toPrecision(1));
   };
-  const [cutoff, setCutoff] = useState(() => p90Of(symbol) ?? 0.5);
-  const cutoffBySymbol = useRef({});
+  const p90Of = (sym) => quantileOf(sym, 0.9);
+  const [cutoff, setCutoff] = useKeptState(keptScope, "bi.cutoff", () => p90Of(symbol) ?? 0.5);
+  const kept0 = keptIn(keptScope);
+  if (!kept0.has("bi.cutoffBySymbol")) kept0.set("bi.cutoffBySymbol", {});
+  const cutoffBySymbol = useRef(kept0.get("bi.cutoffBySymbol")); // #3223 — kept with the rest
   const suggestCutoff = (sym) => p90Of(sym) ?? cutoff;
-  const [suggested, setSuggested] = useState(() => p90Of(symbol)); // #1678 — the tooltip says the opening cutoff is a suggestion too
+  const [suggested, setSuggested] = useKeptState(keptScope, "bi.suggested", () => p90Of(symbol)); // #1678 — the tooltip says the opening cutoff is a suggestion too
   const [cutoffNote, setCutoffNote] = useState(null); // TASKS.csv #2513 — what an element change did to the cut-off
   // TASKS.csv #3069 — a cut-off the user set (not the P90 suggestion) is offered in Grade stats for the same element, this session only
   useEffect(() => { if (suggested == null || cutoff !== suggested) rememberInterceptCutoff(project?.name, symbol, unit, cutoff); }, [cutoff, suggested, symbol, unit, project?.name]);
@@ -80,19 +101,19 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
     setSymbol(sym); setCutoff(r.cutoff); setSuggested(r.suggested ? r.cutoff : null);
     setCutoffNote(r.note ? { ...r.note, from: symbol, to: sym } : null);
   };
-  const [maxInternalDilution, setMaxInternalDilution] = useState(2);
-  const [minLength, setMinLength] = useState(0);
+  const [maxInternalDilution, setMaxInternalDilution] = useKeptState(keptScope, "bi.dilution", 2); // kept: #3223
+  const [minLength, setMinLength] = useKeptState(keptScope, "bi.minLength", 0);
   const [perHole, setPerHole] = useState(false); // TASKS.csv #2419 — the intercepts summed per hole (thickness, grade × thickness)
-  const [minGradeLen, setMinGradeLen] = useState(0); // grade × length screening cutoff, e.g. "gram-metres"
-  const [includeCutoff, setIncludeCutoff] = useState(""); // TASKS.csv #402 — "" = off
+  const [minGradeLen, setMinGradeLen] = useKeptState(keptScope, "bi.minGradeLen", 0); // grade × length screening cutoff, e.g. "gram-metres"
+  const [includeCutoff, setIncludeCutoff] = useKeptState(keptScope, "bi.includeCutoff", ""); // TASKS.csv #402 — "" = off
   // TASKS.csv #402 — metal equivalent: prices/recoveries are ENTERED, never defaulted.
-  const [meqOn, setMeqOn] = useState(false);
-  const [meqInputs, setMeqInputs] = useState({}); // symbol -> { price, recovery (%) }
+  const [meqOn, setMeqOn] = useKeptState(keptScope, "bi.meqOn", false);
+  const [meqInputs, setMeqInputs] = useKeptState(keptScope, "bi.meqInputs", {}); // symbol -> { price, recovery (%) }
   // TASKS.csv #230 — extra elements shown alongside the primary (compositing-anchor) element, e.g.
   // "what's the Ag and Cu over this Au intercept?" — the compositing/cutoff/dilution logic still only
   // ever runs against ONE element (`symbol`, below); these are just additional length-weighted
   // averages over each already-composited interval's fixed from/to window (see avgGradeInRange).
-  const [extraSymbols, setExtraSymbols] = useState([]);
+  const [extraSymbols, setExtraSymbols] = useKeptState(keptScope, "bi.extraSymbols", []);
   const toggleExtraSymbol = (s) => setExtraSymbols((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]));
   // TASKS.csv #219 — QC samples (standards/blanks/duplicates) default OUT of this report, same as
   // every other stat/report tool this pass touched — a synthetic standard has no business turning up
@@ -154,7 +175,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
   const meqSymbols = useMemo(() => [symbol, ...extraSymbols].filter((s) => !isLoiHeader(s)), [symbol, extraSymbols]); // #2924 — LOI is not a metal to price
   const meqMetals = useMemo(() => (meqOn && !bulkLead ? meqSymbols.map((s) => ({ symbol: s, unit: elementUnits[s] || "ppm", price: Number(meqInputs[s]?.price), recovery: Number(meqInputs[s]?.recovery) / 100, oxide: !!TRADED_OXIDE[s] && meqInputs[s]?.oxide !== false /* #2731 — per lb of the traded oxide unless unticked */ })) : []), [meqOn, symbol, extraSymbols, elementUnits, meqInputs, bulkLead, meqSymbols]);
   const meqReady = meqOn && meqMetals.length > 1 && meqMetals.every((m) => m.price > 0 && m.recovery > 0 && m.recovery <= 1);
-  const [cutOnEq, setCutOnEq] = useState(false);
+  const [cutOnEq, setCutOnEq] = useKeptState(keptScope, "bi.cutOnEq", false);
   const onEq = cutOnEq && meqReady;
   const gradeSym = onEq ? `${symbol}Eq` : symbol; // what the intercepts are cut on and what their grade is
   const shownExtras = useMemo(() => (onEq ? [symbol, ...extraSymbols] : extraSymbols), [onEq, symbol, extraSymbols]); // cut on the equivalent: the base metal's own grade is shown beside it
@@ -202,7 +223,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
   const { scrollRef, onScroll, startIndex, endIndex, topPad, bottomPad } = useVirtualRows(results.length, RESULT_ROW_H, { containerHeight: 380 });
   // TASKS.csv #3160 (#2925 (9), review #2876) — 'Total per hole' took 2.3 s on its first click: every hole's row was drawn (and summed again
   // on each render). The totals are kept with the results and the rows windowed as the intercepts' are
-  const holeRows = useMemo(() => (perHole && results.length ? holeTotals(results) : []), [perHole, results]);
+  const holeRows = useMemo(() => (perHole && results.length ? holeTotalsDisplay(holeTotals(results), dg) : []), [perHole, results, pct]); // #3218 — in the shown unit (dg reads pct)
   const hv = useVirtualRows(holeRows.length, RESULT_ROW_H, { containerHeight: 380 });
 
   // TASKS.csv #911 — the results as a table on the active Layout page (a copy: send again after changing the settings)
@@ -216,10 +237,13 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
     const ownPage = plan.overlaps && typeof addLayoutPages === "function";
     if (ownPage) plan = interceptTablePlan([], pageSize, { total: results.length, w: tableW });
     const columns = [tr("Hole"), tr("From (m)"), tr("To (m)"), tr("Length (m)"), ...(twEnabled ? [tr("True width (m)")] : []), `${gradeSym} (${dispUnit})`, tr("Grade × length ({unit} × m)", { unit: dispUnit }), ...shownExtras.map((s) => `${s} (${gradeUnitLabel(s, elementUnits[s])})`), ...(incOn ? [tr("Including")] : [])]; // dispUnit: #1680; extras: #3019
-    const open = interceptOpenEnds(results.slice(0, plan.shown), reportAssays, symbol, collars); // #2608 — a length that is a minimum
-    // #3019 — one number of decimals per column (the grade printed '56.07', '59', '58.6')
-    const shownRows = results.slice(0, plan.shown), fGrade = columnFormat(shownRows.map((r) => dg(r.avgGrade))), fGT = columnFormat(shownRows.map((r) => dg(interceptGradeLength(r)))), fExtra = Object.fromEntries(shownExtras.map((s) => [s, columnFormat(shownRows.map((r) => r.extras?.[s]))]));
-    const rows = results.slice(0, plan.shown).map((r, i) => [String(r.hole_id), Number(r.from).toFixed(2), Number(r.to).toFixed(2), `${r.unsampledM > 0.05 ? tr("{len} ({s} sampled)", { len: r.length.toFixed(2), s: interceptSampledM(r).toFixed(2) }) : r.length.toFixed(2)}${open[i].top || open[i].bottom ? "+" : ""}` /* #2475; + open: #2608 */, ...(twEnabled ? [r.tw ? r.tw.trueWidth.toFixed(2) : ""] : []), `${r.overRange ? "≥" : ""}${fGrade(dg(r.avgGrade))}`, fGT(dg(interceptGradeLength(r))) /* #2479; fixed decimals: #3019 */, ...shownExtras.map((s) => (r.extras?.[s] == null ? "—" : fExtra[s](r.extras[s]))), ...(incOn ? [r.including ? incText(r.including[0]) : ""] : [])]);
+    // TASKS.csv #2708 — with 'Continue on new pages' every intercept is printed: the first table's rows here, the rest on pages of their own
+    const cont = continuePages && plan.more > 0 && typeof addLayoutPages === "function";
+    const printed = cont ? results.length : plan.shown;
+    const open = interceptOpenEnds(results.slice(0, printed), reportAssays, symbol, collars); // #2608 — a length that is a minimum
+    // #3019 — one number of decimals per column (the grade printed '56.07', '59', '58.6'); #2708 — over every printed row, one format on all pages
+    const shownRows = results.slice(0, printed), fGrade = columnFormat(shownRows.map((r) => dg(r.avgGrade))), fGT = columnFormat(shownRows.map((r) => dg(interceptGradeLength(r)))), fExtra = Object.fromEntries(shownExtras.map((s) => [s, columnFormat(shownRows.map((r) => r.extras?.[s]))]));
+    const allRows = results.slice(0, printed).map((r, i) => [String(r.hole_id), Number(r.from).toFixed(2), Number(r.to).toFixed(2), `${r.unsampledM > 0.05 ? tr("{len} ({s} sampled)", { len: r.length.toFixed(2), s: interceptSampledM(r).toFixed(2) }) : r.length.toFixed(2)}${open[i].top || open[i].bottom ? "+" : ""}` /* #2475; + open: #2608 */, ...(twEnabled ? [r.tw ? r.tw.trueWidth.toFixed(2) : ""] : []), `${r.overRange ? "≥" : ""}${fGrade(dg(r.avgGrade))}`, fGT(dg(interceptGradeLength(r))) /* #2479; fixed decimals: #3019 */, ...shownExtras.map((s) => (r.extras?.[s] == null ? "—" : fExtra[s](r.extras[s]))), ...(incOn ? [r.including ? incText(r.including[0]) : ""] : [])]);
     const from = tr("{symbol} ≥ {cutoff} {unit}, dilution ≤ {dil} m, min {min} m", { symbol: gradeSym, cutoff, unit: unitL, dil: maxInternalDilution, min: minLength });
     // TASKS.csv #936 — a printed intercept table is what gets lifted into a report or a news release: it carries the
     // caveats the dialog and the CSV stamp give (QC, over-range, below detection, true width, screening)
@@ -227,15 +251,26 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
       includeQAQC ? tr("QC samples (standards, blanks, duplicates) are included.") : qaqcExcludedCount > 0 ? tr("{n} QC sample(s) (standards, blanks, duplicates) excluded.", { n: qaqcExcludedCount }) : "",
       results.some((r) => r.overRange) ? tr("≥: contains an over-range result counted at its ceiling; the true grade is at least this.") : "",
       tr("Below-detection results are taken at half the detection limit."),
-      results.slice(0, plan.shown).some((r) => r.unsampledM > 0.05) ? tr("Where a length shows its sampled metres, the rest of the interval has no result: the grade and grade × length are over the samples only.") : "", // #2475
+      results.slice(0, printed).some((r) => r.unsampledM > 0.05) ? tr("Where a length shows its sampled metres, the rest of the interval has no result: the grade and grade × length are over the samples only.") : "", // #2475
       open.some((o) => o.top || o.bottom) ? tr("+: the intercept starts at the hole's first sample or ends at its last sample or the end of the hole, so the mineralization may continue: the length is a minimum.") : "", // #2608
       twEnabled ? tr("True width to a structure dipping {dip}° towards {dipDir}°.", { dip: twDip, dipDir: twDipDir }) : tr("Lengths are downhole, not true widths."),
       tr("Screening tool: verify any intercept against the raw assay certificates before reporting it."),
     ].filter(Boolean).join(" ");
-    const table = { id: `table_${Date.now()}`, type: "table", source: "static", x: plan.x, y: plan.y /* #2479 — a free spot (was 60, 60 over the title); a second send takes the next free spot */, w: tableW /* #3019 */, fontPt: 7, frameWidth: 1,
-      title: tr("Best intercepts: {from}", { from }), from, note, columns, rows: plan.more > 0 ? [...rows, [tr("… and {n} more intercept(s), not shown on this sheet", { n: plan.more }) /* #2608 — the sheet's reader has no CSV */, ...columns.slice(1).map(() => "")]] : rows };
-    if (ownPage) addLayoutPages([{ name: tr("Best intercepts"), elements: [table] }]); // #3019 — the active page had no clear spot for it
-    else setLayoutElements((els) => [...els, table]);
+    const rows = allRows.slice(0, plan.shown);
+    const tail = (text) => [text, ...columns.slice(1).map(() => "")];
+    const carriesOn = tail(tr("Continued on the next page")); // #2708
+    const stamp = Date.now();
+    const table = { id: `table_${stamp}`, type: "table", source: "static", x: plan.x, y: plan.y /* #2479 — a free spot (was 60, 60 over the title); a second send takes the next free spot */, w: tableW /* #3019 */, fontPt: 7, frameWidth: 1,
+      title: tr("Best intercepts: {from}", { from }), from, note, columns, rows: plan.more > 0 ? [...rows, cont ? carriesOn : tail(tr("… and {n} more intercept(s), not shown on this sheet", { n: plan.more })) /* #2608 — the sheet's reader has no CSV */] : rows };
+    // #2708 — the continuation tables, one per new page, at the top-left margin; the caveats stay on the first table
+    const ranges = cont ? continuationRanges(plan.shown, results.length, pageSize, { w: tableW }) : [];
+    const contPages = ranges.map(([a, b], k) => ({ name: tr("Best intercepts ({n})", { n: k + 2 }), batch: `intercepts_${stamp}`,
+      elements: [{ ...table, id: `table_${stamp}_${k + 1}`, x: 40, y: 40, note: "", title: tr("Best intercepts, continued: {from}", { from }), rows: [...allRows.slice(a, b), ...(b < results.length ? [carriesOn] : [])] }] }));
+    if (ownPage) addLayoutPages([{ name: tr("Best intercepts"), elements: [table], ...(cont ? { batch: `intercepts_${stamp}` } : {}) }, ...contPages]); // #3019 — the active page had no clear spot for it
+    else {
+      setLayoutElements((els) => [...els, table]);
+      if (contPages.length) { addLayoutPages(contPages); switchLayoutPage?.(activeLayoutPageId); } // #2708 — back to the page the table starts on
+    }
     goToModule("layout");
     onClose();
   };
@@ -246,10 +281,12 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
     const loc = interceptLocations(results, collars, survey, desurveyMethod, tracesByHole);
     const rows = interceptRows(results, { symbol: gradeSym, unit, loc, trueWidth: twEnabled ? { dipDir: twDipDir, dip: twDip } : null, domain: !!domainLayer, // #1083 — in lib, tested
       extraSymbols: shownExtras, elementUnits, including: incOn ? { cutoff: includeCutoff, text: incText } : null, meq: meqCol ? meqFor : null });
-    if (pct) rows.forEach((row, i) => { row[`avg_${gradeSym}_pct`] = +(results[i].avgGrade / 1e4).toPrecision(6); }); // #1680 — beside the stored ppm column
+    // #1680 — beside the stored-unit column (avg_<sym>_<stored unit>); #3236 — named for the unit shown, and said in the header
+    if (conv) rows.forEach((row, i) => { row[`avg_${gradeSym}_${unitSlug(dispUnit)}`] = +dg(results[i].avgGrade).toPrecision(6); });
     // TASKS.csv #404 — the parameters behind these intercepts, at the top of the file.
     const stamp = stampLines({ tool: "Best intercepts", version: APP_VERSION, epsg: stampEpsg(project) /* #2195 */, params: [
       `Element: ${gradeSym} (${unit})${onEq ? " (per-sample metal equivalent)" : ""} | cutoff: ${cutoff} | max consecutive internal dilution: ${maxInternalDilution} m | min intercept length: ${minLength} m | min grade x length: ${minGradeLen}`,
+      ...(conv ? [`Display unit: ${gradeSym} is shown in ${dispUnit}; the avg_${gradeSym}_${unitSlug(dispUnit)} column is in ${dispUnit}, every other grade column and the cutoff above in ${unit} (as stored)`] : []), // TASKS.csv #3236
       // TASKS.csv #501/#502 — this now describes what computeBestIntercepts actually does (it used to dilute at zero)
       `Grades: length-weighted over assayed metres only; unsampled / not-assayed metres inside an intercept are left out of the grade and reported per row (unsampled_or_unassayed_m), not diluted in at zero. Empty cells were read at import as either not assayed or below detection ('<DL' at half), as chosen for each file.`,
       `QAQC inserts: ${includeQAQC ? "INCLUDED" : `excluded (${qaqcExcludedCount} rows)`}`,
@@ -287,9 +324,19 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
                 {symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, elementUnits[s])})</option>)}
               </select>
             </label>
-            {pctOk && <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 4, cursor: "pointer" }} title={tr("Show the grades as % (ppm / 10,000) in the table, the Layout table and an extra CSV column. The cutoff stays in ppm.")}><input type="checkbox" checked={asPct} onChange={(e) => setAsPct(e.target.checked)} />{tr("Show as %")}</label>}
-            <label style={fieldLabel}>{tr("Cutoff ({unit})", { unit: unitL })}<input type="number" step="any" value={cutoff} onChange={(e) => { setCutoff(Number(e.target.value) || 0); setSuggested(null); setCutoffNote(null); }} style={inp} title={suggested != null && cutoff === suggested ? tr("Suggested: this element's 90th percentile. Set the cutoff you report at.") : undefined} />
+            {!unitsKept && pctOk && <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 4, cursor: "pointer" }} title={tr("Show the grades as % (ppm / 10,000) in the table, the Layout table and an extra CSV column. The cut-off and 'Including at' are then typed in % too.")}><input type="checkbox" checked={asPct} onChange={(e) => setAsPct(e.target.checked)} />{tr("Show as %")}</label>}
+            {unitsKept && isPlainUnit(unit) && <label style={fieldLabel} title={tr("The unit {symbol} is shown in, kept with the project: this table, the Layout table and an extra CSV column. The stored values and the CSV's stored-unit columns are unchanged; the cut-off and 'Including at' are typed in the unit shown.", { symbol })}>{tr("Show in")}
+              <select value={shownUnit || ""} onChange={(e) => setDisplayUnit(symbol, e.target.value || null)} style={inp} aria-label={tr("Show in")}>
+                <option value="">{tr("As stored ({unit})", { unit: unitL })}</option>
+                {DISPLAY_UNITS.filter((u) => u !== unitL).map((u) => <option key={u} value={u}>{u}</option>)}
+              </select></label>}{/* TASKS.csv #3236 */}
+            <label style={fieldLabel}>{tr("Cutoff ({unit})", { unit: dispUnit /* #3221 */ })}<input type="number" step="any" value={shownBox(cutoff)} onChange={(e) => { setCutoff(toStored(Number(e.target.value) || 0)); setSuggested(null); setCutoffNote(null); }} style={inp} title={suggested != null && cutoff === suggested ? tr("Suggested: this element's 90th percentile. Set the cutoff you report at.") : undefined} />
             </label>
+            {suggested != null && cutoff === suggested && (() => { const med = quantileOf(symbol, 0.5), q3 = quantileOf(symbol, 0.75); return ( /* TASKS.csv #3223 — said beside the box, not only in its tooltip */
+              <div role="status" style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center", fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>
+                <span>{tr("Suggested: the 90th percentile. Set the cut-off you report at, or try:")}</span>
+                {[[tr("median"), med], [tr("Q3"), q3]].filter(([, v]) => v != null && v !== cutoff).map(([name, v]) => <button key={name} type="button" onClick={() => { setCutoff(v); setSuggested(null); setCutoffNote(null); }} style={{ ...inp, width: "auto", cursor: "pointer", padding: "1px 6px" }}>{`${name} ${+shownBox(v).toPrecision(4)}`}</button>)}
+              </div>); })()}
             {cutoffNote && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{/* TASKS.csv #2513 */}{cutoffNote.kind === "kept" ? tr("Cut-off {v} kept from {from} (the same unit).", { v: cutoffNote.value, from: cutoffNote.from }) : cutoffNote.kind === "restored" ? tr("Cut-off back to {v}, the one last used for {to}.", { v: cutoffNote.value, to: cutoffNote.to }) : tr("Cut-off reset to the suggestion for {to} ({v}): {to} is not in {from}'s unit.", { v: cutoffNote.value, to: cutoffNote.to, from: cutoffNote.from })}</div>}
             {(() => { const offers = sortedThresholdOffers(drillThresholdOffers(geochemThresholds, symbol, unit)); return offers.length ? <div style={{ display: "flex", flexWrap: "wrap", gap: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", alignItems: "center" }}>{/* #2347 — offered, never applied */}
               <span>{tr("Saved threshold:")}</span>
@@ -297,15 +344,15 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
                   population is offered, highest first, as buttons up to four and as a menu past that */}
               {offers.length > 4 && <select value="" onChange={(e) => { const o = offers.find((x) => x.key === e.target.value); if (o) { setCutoff(o.value); setSuggested(null); } }} aria-label={tr("Saved threshold")} style={{ ...inp, width: "auto", padding: "1px 4px" }}>
                 <option value="">{tr("{n} populations, highest first…", { n: offers.length })}</option>
-                {offers.map((o) => <option key={o.key} value={o.key}>{`${o.population ? `${o.population.split(": ").pop()} ` : ""}${+Number(o.value).toPrecision(4)}`}</option>)}
+                {offers.map((o) => <option key={o.key} value={o.key}>{`${o.population ? `${o.population.split(": ").pop()} ` : ""}${+shownBox(Number(o.value)).toPrecision(4)}`}</option>)}
               </select>}
-              {offers.length <= 4 && offers.map((o) => <button key={o.key} type="button" onClick={() => { setCutoff(o.value); setSuggested(null); }} style={{ ...inp, width: "auto", cursor: "pointer", padding: "1px 6px" }} title={tr("{rule}{pop}, decided {date}. Click to use it as the cutoff.", { rule: o.rule, pop: o.population ? ` (${o.population})` : "", date: o.decided })}>{o.population ? `${o.population.split(": ").pop()} ` : ""}{+Number(o.value).toPrecision(4)}</button>)}
+              {offers.length <= 4 && offers.map((o) => <button key={o.key} type="button" onClick={() => { setCutoff(o.value); setSuggested(null); }} style={{ ...inp, width: "auto", cursor: "pointer", padding: "1px 6px" }} title={tr("{rule}{pop}, decided {date}. Click to use it as the cutoff.", { rule: o.rule, pop: o.population ? ` (${o.population})` : "", date: o.decided })}>{o.population ? `${o.population.split(": ").pop()} ` : ""}{+shownBox(Number(o.value)).toPrecision(4)}</button>)}
             </div> : null; })()}
             <label style={fieldLabel} title={tr("How much below-cutoff ('waste') core between two above-cutoff samples is still folded into one intercept, diluting its grade, rather than splitting the intercept in two.")}>{tr("Max internal dilution (m)")}<input type="number" step="any" min="0" value={maxInternalDilution} onChange={(e) => setMaxInternalDilution(Math.max(0, Number(e.target.value) || 0))} style={inp} />
             </label>
             <label style={fieldLabel}>{tr("Min length (m)")}<input type="number" step="any" min="0" value={minLength} onChange={(e) => setMinLength(Math.max(0, Number(e.target.value) || 0))} style={inp} />
             </label>
-            <label style={fieldLabel} title={tr("'Including' sub-intercepts: intercepts at this higher cutoff, built with the same dilution and minimum-length rules, reported inside the intercept that contains them (e.g. 42 m @ 1.2, including 6 m @ 5.1). Leave empty for none.")}>{tr("Including at ≥")}<input type="number" step="any" min="0" value={includeCutoff} placeholder={tr("off")} onChange={(e) => setIncludeCutoff(e.target.value)} style={inp} aria-label={tr("Including cutoff")} />
+            <label style={fieldLabel} title={tr("'Including' sub-intercepts: intercepts at this higher cutoff, built with the same dilution and minimum-length rules, reported inside the intercept that contains them (e.g. 42 m @ 1.2, including 6 m @ 5.1). Leave empty for none.")}>{tr("Including at ≥")}<input type="number" step="any" min="0" value={includeCutoff === "" ? "" : shownBox(Number(includeCutoff))} placeholder={tr("off")} onChange={(e) => setIncludeCutoff(e.target.value === "" ? "" : String(toStored(Number(e.target.value))))} style={inp} aria-label={tr("Including cutoff")} />
             </label>
             <label style={fieldLabel} title={tr("Screen out intercepts below this grade × length (e.g. gram-metres for Au in g/t) — leave at 0 to show every intercept meeting the length/cutoff criteria above.")}>{tr("Min grade × length")}<input type="number" step="any" min="0" value={minGradeLen} onChange={(e) => setMinGradeLen(Math.max(0, Number(e.target.value) || 0))} style={inp} />
             </label>
@@ -351,7 +398,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
               {symbols.length - 1 > ALSO_MAX && (
                 <select aria-label={tr("Add an element")} value="" onChange={(e) => { if (e.target.value) toggleExtraSymbol(e.target.value); }} style={{ fontSize: "var(--font-size-sm)", padding: "3px 6px" }}>
                   <option value="">{tr("Add an element… ({n} more)", { n: symbols.filter((s) => s !== symbol && !extraSymbols.includes(s)).length })}</option>
-                  {symbols.filter((s) => s !== symbol && !extraSymbols.includes(s)).map((s) => <option key={s} value={s}>{`${s} (${elementUnits[s] || "ppm"})`}</option>)}
+                  {symbols.filter((s) => s !== symbol && !extraSymbols.includes(s)).map((s) => <option key={s} value={s}>{`${s} (${gradeUnitLabel(s, elementUnits[s])})`}</option>)}{/* #3280 (4) — as the Element menu: 'Au (g/t)', not 'Au (ppm)' */}
                 </select>
               )}
             </div>
@@ -418,9 +465,9 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
                     <th style={th}>{tr("Avg {symbol} ({unit})", { symbol: gradeSym, unit: dispUnit })}</th>
                     <th style={th}>{tr("Grade × length ({unit} × m)", { unit: dispUnit }) /* #2511 — its unit */}</th>
                     {optionalInterceptColumns({ including: incOn, metalEquivalent: meqCol }).map((c) => (c === "including"
-                      ? <th key={c} style={th}>{tr("Including (≥ {includeCutoff})", { includeCutoff })}</th>
-                      : <th key={c} style={th} title={metalEquivalentFormula(meqMetals)}>{tr("{symbol}Eq ({unit})", { symbol, unit })}</th>))}
-                    {shownExtras.map((s) => <th key={s} style={th}>{tr("Avg {s} ({v})", { s, v: elementUnits[s] || tr("ppm") })}</th>)}
+                      ? <th key={c} style={th}>{tr("Including (≥ {includeCutoff})", { includeCutoff: `${shownBox(Number(includeCutoff))} ${dispUnit}` /* #3221 */ })}</th>
+                      : <th key={c} style={th} title={metalEquivalentFormula(meqMetals)}>{tr("{symbol}Eq ({unit})", { symbol, unit: dispUnit /* #3221 */ })}</th>))}
+                    {shownExtras.map((s) => <th key={s} style={th}>{tr("Avg {s} ({v})", { s, v: s === symbol && pct ? dispUnit : elementUnits[s] || tr("ppm") /* #3221; #3236 — the unit shown */ })}</th>)}
                     <th style={th} title={tr("The assay intervals in the intercept at or above the cutoff")}>{tr("Samples ≥ cutoff")}</th>{/* #1393 — it counts those only */}
                   </tr>
                 </thead>
@@ -462,8 +509,8 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
                       {/* TASKS.csv #1164 — the same order as the header: Including, then the equivalent */}
                       {optionalInterceptColumns({ including: incOn, metalEquivalent: meqCol }).map((c) => (c === "including"
                         ? <td key={c} style={{ ...td, whiteSpace: "nowrap" }} title={r.including ? r.including.map(incText).join("; ") : undefined}>{r.including ? `${incText(r.including[0])}${r.including.length > 1 ? ` +${r.including.length - 1}` : ""}` : "—"}</td>
-                        : <td key={c} style={td}>{(() => { const v = meqFor(r); return v == null ? "—" : `${r.overRange ? "≥ " : ""}${+v.toPrecision(4)}`; })()}</td>))}
-                      {shownExtras.map((s) => <td key={s} style={td}>{r.extras[s] == null ? "—" : +r.extras[s].toPrecision(4)}</td>)}
+                        : <td key={c} style={td}>{(() => { const v = meqFor(r); return v == null ? "—" : `${r.overRange ? "≥ " : ""}${+dg(v).toPrecision(4)}`; })()}</td>))}{/* dg: #3221 */}
+                      {shownExtras.map((s) => <td key={s} style={td}>{r.extras[s] == null ? "—" : +(s === symbol ? dg(r.extras[s]) : r.extras[s]).toPrecision(4)}</td>)}
                       <td style={td}>{r.intervals}</td>
                     </tr>
                   ))}
@@ -488,6 +535,8 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
             <Download size={14} />{" "}{tr("Export report (CSV)")}</button>
           <button onClick={toLayout} disabled={results.length === 0} title={tr("Put the best of these intercepts on the current Layout page as a table, as many as fit a free spot on the page (the CSV has them all)")} style={{ ...btn(false), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: results.length === 0 ? 0.5 : 1 }}>
             <Sheet size={14} />{" "}{tr("To Layout")}</button>{/* TASKS.csv #911 */}
+          <label style={{ display: "flex", alignItems: "center", gap: 5, alignSelf: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }} title={tr("The intercepts that do not fit the sheet go on new Layout pages, as the collar table's continuation does, instead of a closing count row")}>
+            <input type="checkbox" checked={continuePages} onChange={(e) => setContinuePages(e.target.checked)} />{tr("Continue on new pages")}</label>{/* TASKS.csv #2708 */}
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>

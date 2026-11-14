@@ -298,7 +298,8 @@ function tsChunks(name, geometry, origin, provenance, extra) {
   const head = [`# ${name} — exported from GeoStrix`];
   provenanceLines(name, provenance, extra).forEach((l) => head.push(`# ${l}`));
   head.push("GOCAD TSurf 1", "HEADER {", `name:${String(name).replace(/[\r\n}]/g, " ")}`, "}",
-    "GOCAD_ORIGINAL_COORDINATE_SYSTEM", "NAME Default", 'AXIS_NAME "X" "Y" "Z"', 'AXIS_UNIT "m" "m" "m"', "ZPOSITIVE Elevation", "END_ORIGINAL_COORDINATE_SYSTEM", "TFACE");
+    // TASKS.csv #3283 (6) — the coordinate system is named by the project's EPSG code, not 'Default' (the CRS was only a comment line)
+    "GOCAD_ORIGINAL_COORDINATE_SYSTEM", `NAME ${extra?.epsg ? `EPSG:${extra.epsg}` : "Default"}`, 'AXIS_NAME "X" "Y" "Z"', 'AXIS_UNIT "m" "m" "m"', "ZPOSITIVE Elevation", "END_ORIGINAL_COORDINATE_SYSTEM", "TFACE");
   const out = [head.join("\n")];
   let buf = [];
   const flush = () => { if (buf.length) { out.push(buf.join("\n")); buf = []; } };

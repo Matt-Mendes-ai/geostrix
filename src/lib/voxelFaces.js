@@ -83,7 +83,19 @@ const FACES = faceTemplates();
 // TASKS.csv #1784 — the occupancy box is padded by one cell on every side (no bounds test per neighbour), the six neighbour
 // offsets are plain numbers, and the grid keeps its cell -> index map, so a cutoff change on the same model does not rebuild it.
 // Output identical to before.
-export function buildExposedFaces(cells, grid, origin, colorRGB, { maxGrid = 64e6, boundaries = false } = {}) {
+// TASKS.csv #3354 (Matt: 'when I make the resistivity voxel more opaque it slow down considerably, freezing the view. Also the voxel
+// becomes empty displaying just an outside shell depending on the angle of view'; a classified resistivity model, 60 classes) — the
+// contacts compared the cells' raw values, so on a continuous field every inner face was a 'contact' (a 100 x 100 x 40 model: 2.4M faces,
+// 4.8M blended triangles, 4-6 fps), and each contact was drawn twice, coplanar. classOf(value) -> the class (or band) a contact is between;
+// each contact once (from its lower-index cell), double-sided as before.
+export function voxelBands(model, maxBands = 12) {
+  const sv = (model?.stops || []).map((s) => Number(s.value)).filter(Number.isFinite).sort((a, b) => a - b);
+  if (!sv.length) return null;
+  const per = Math.max(1, Math.ceil(sv.length / maxBands));
+  return (v) => { let lo = 0, hi = sv.length - 1, k = 0; while (lo <= hi) { const m = (lo + hi) >> 1; if (v >= sv[m]) { k = m; lo = m + 1; } else hi = m - 1; } return Math.floor(k / per); }; // the discrete rule: the last stop at or below
+}
+
+export function buildExposedFaces(cells, grid, origin, colorRGB, { maxGrid = 64e6, boundaries = false, classOf = null } = {}) {
   if (!cells.length || !grid) return null;
   const nx = grid.ex.length - 1, ny = grid.ey.length - 1, nz = grid.ez.length - 1;
   if (nx * ny * nz > maxGrid) return null;
@@ -101,28 +113,31 @@ export function buildExposedFaces(cells, grid, origin, colorRGB, { maxGrid = 64e
   for (let t = 0; t < n; t++) occ[at(I[t], J[t], K[t])] = 1;
   // #904 — with boundaries, a neighbour of a different value counts as not shown (its face is drawn, from both sides)
   let val = null;
-  if (boundaries) { val = new Float64Array(px * py * pz); for (let t = 0; t < n; t++) val[at(I[t], J[t], K[t])] = cells[t].value; }
+  if (boundaries) { val = new Float64Array(px * py * pz); for (let t = 0; t < n; t++) val[at(I[t], J[t], K[t])] = classOf ? classOf(cells[t].value) : cells[t].value; } // #3354 — the class
   // scene-axis neighbour step in grid indices: scene X = +i (east), scene Y = +k (elevation), scene Z = -j (north), as an
   // offset in the padded box, one per face of FACES
   const step = [[1, 0, 0], [0, 0, 1], [0, -1, 0]];
   const off = FACES.map((f) => { const d = step[f.a]; return f.s * (d[0] + d[1] * px + d[2] * px * py); });
-  const hidden = (nb, v) => occ[nb] === 1 && (!val || val[nb] === v); // the neighbour shown (and the same value, with boundaries)
+  // the neighbour shown (and the same class, with boundaries); #3354 — a contact between two shown cells is drawn once, by the cell
+  // whose face points the negative way along its axis
+  const hidden = (nb, v, f) => occ[nb] === 1 && (!val || val[nb] === v || FACES[f].s > 0);
+  const keyOf = (t) => (val ? val[at(I[t], J[t], K[t])] : cells[t].value);
   let faces = 0;
-  for (let t = 0; t < n; t++) { const q = at(I[t], J[t], K[t]), v = cells[t].value; for (let f = 0; f < 6; f++) if (!hidden(q + off[f], v)) faces++; }
+  for (let t = 0; t < n; t++) { const q = at(I[t], J[t], K[t]), v = keyOf(t); for (let f = 0; f < 6; f++) if (!hidden(q + off[f], v, f)) faces++; }
   const positions = new Float32Array(faces * 12), normals = new Float32Array(faces * 12), colors = new Float32Array(faces * 12);
   const indices = new Uint32Array(faces * 6);
   const { ex, ey, ez } = grid;
   const B = [[0, 0], [0, 0], [0, 0]];
   let q4 = 0;
   for (let t = 0; t < n; t++) {
-    const i = I[t], j = J[t], k = K[t], q = at(i, j, k), v = cells[t].value;
+    const i = I[t], j = J[t], k = K[t], q = at(i, j, k), v = keyOf(t), cv = cells[t].value;
     // scene bounds [low, high] per scene axis (Z = -north, so north's high edge is scene Z's low bound)
     B[0][0] = ex[i] - origin.x; B[0][1] = ex[i + 1] - origin.x; B[1][0] = ez[k] - origin.z; B[1][1] = ez[k + 1] - origin.z; B[2][0] = -(ey[j + 1] - origin.y); B[2][1] = -(ey[j] - origin.y);
     let r = -1, g = 0, b = 0;
     for (let fi = 0; fi < 6; fi++) {
-      if (hidden(q + off[fi], v)) continue;
+      if (hidden(q + off[fi], v, fi)) continue;
       const f = FACES[fi];
-      if (r < 0) { const c = colorRGB(v); r = srgbToLinear(c[0] / 255); g = srgbToLinear(c[1] / 255); b = srgbToLinear(c[2] / 255); }
+      if (r < 0) { const c = colorRGB(cv); r = srgbToLinear(c[0] / 255); g = srgbToLinear(c[1] / 255); b = srgbToLinear(c[2] / 255); }
       for (let vv = 0; vv < 4; vv++) {
         const p = f.quad[vv], o = (q4 * 4 + vv) * 3;
         positions[o] = B[0][p[0]]; positions[o + 1] = B[1][p[1]]; positions[o + 2] = B[2][p[2]];
