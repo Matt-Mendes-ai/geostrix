@@ -45,6 +45,17 @@ export function levelsAddingNothing(bbox, nativeM = NATIVE_M) {
   return out;
 }
 
+// TASKS.csv #3450 (Matt, v0.1.117, northwest BC: "also only standard resolution available for imagery") — on an area up to about 10 km across,
+// Sentinel-2 (the default and the only source outside the USA) is already at its own 10 m pixels at Standard, so High, Very high and Full
+// were greyed out with no word why, and read as unavailable. -> null when every level differs, else { reached: the lowest level already at the
+// imagery's own pixels, levels: those that add nothing, nativeM } for the picker's sentence (what the higher levels give, what gives finer)
+export function levelsAtNative(bbox, nativeM = NATIVE_M) {
+  const same = levelsAddingNothing(bbox, nativeM);
+  if (!same.size) return null;
+  const keys = Object.keys(SAT_LEVELS), from = keys.findIndex((k) => same.has(k));
+  return { reached: keys[Math.max(0, from - 1)], nativeM, levels: [...same] };
+}
+
 // TASKS.csv #1474 (review #1352, Silvertip) — NAIP was offered at 59.9°N 130.3°W and failed only after the catalogue search. NAIP is flown over
 // the contiguous USA; a coarse box around it says, with no network, whether a drawn area [lonMin, latMin, lonMax, latMax] can have any:
 // "outside" (no overlap), "partial" (part of it is outside), "inside".

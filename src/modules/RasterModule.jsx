@@ -14,7 +14,7 @@ import SpectralIndexModal from "../components/SpectralIndexModal.jsx"; // TASKS.
 import { useStore } from "../lib/store.jsx";
 import { buildRasterImport, gridToSurveyRows, ternaryRaster, parseWorldFile, tieFetchedImage, dataUrlPixels } from "../lib/raster.js"; // dataUrlPixels: #1860; // parseWorldFile: TASKS.csv #1855; tieFetchedImage: #2648
 import { b64ToF32, gridDeclination } from "../lib/inversion.js"; // TASKS.csv #373
-import { SAT_LEVELS, planLatestFetch, levelsAddingNothing, naipCoverage } from "../lib/imageryLevels.js";
+import { SAT_LEVELS, planLatestFetch, levelsAddingNothing, naipCoverage, levelsAtNative } from "../lib/imageryLevels.js"; // levelsAtNative: #3450
 import { useMachineMemoryGB, fetchFits, fetchBudgetMB, centreBox } from "../lib/fetchMemory.js"; // TASKS.csv #3251 // TASKS.csv #781 / #837; naipCoverage: #1474
 const NAIP_FINEST_M = 0.6; // lib/naipFetch.js, which stays out of this module until NAIP is fetched
 import { gridToGeoTIFF, saveGeoTIFF, safeFileName, rasterExportNote, imageToGeoTIFF, pictureExportNote } from "../lib/gridExport.js"; // TASKS.csv #854; rasterExportNote: #1095; picture: #1860
@@ -579,6 +579,14 @@ export default function RasterModule({ embedded = false } = {}) {
                     <button type="button" onClick={() => setArea(centreBox(bbox, p.fullSideM))} style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)", cursor: "pointer" }}
                       title={tr("The imagery's own pixels at this resolution cover about {km} km across: keep the centre of the drawn area", { km: (p.fullSideM / 1000).toFixed(1) })}>{tr("Full resolution: centre {km} km", { km: (p.fullSideM / 1000).toFixed(1) })}</button>
                   )}
+                  {bbox && (() => { // TASKS.csv #3450 — why the higher levels are greyed out, and what gives finer detail
+                    const n = levelsAtNative(bbox, naip ? NAIP_FINEST_M : undefined);
+                    if (!n) return null;
+                    const level = tr("{label} resolution", { label: SAT_LEVELS[n.reached].label });
+                    return <span role="note" style={{ flexBasis: "100%", lineHeight: 1.4 }}>{naip
+                      ? tr("{level} already reaches NAIP's own pixels for an area this size: the higher levels would give the same picture.", { level })
+                      : tr("Sentinel-2's pixels are 10 m, and {level} already fetches them for an area this size: the higher levels would give the same picture. No finer free imagery is offered here (NAIP covers the USA only). For finer detail, import an orthophoto as a GeoTIFF (Maps > GeoTIFF / GXF).", { level })}</span>;
+                  })()}
                   {naip && satLevel === "full" && <span>{tr("Some states are flown at 0.3 m (Colorado since 2023): Full then fetches 0.3 m pixels, over a quarter of the area at the most.")}</span>}
                   {p && !p.nativeLimited && p.pixelM > 3 * (naip ? NAIP_FINEST_M : 10) && <span style={{ color: "var(--color-warn-text)" }}>{tr("Pixels {k} times coarser than the imagery's own: a smaller area gets finer ones.", { k: Math.round(p.pixelM / (naip ? NAIP_FINEST_M : 10)) })}</span>}{/* #2126 */}
                 </span>

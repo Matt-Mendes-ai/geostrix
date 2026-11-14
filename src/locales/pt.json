@@ -12579,5 +12579,7 @@
   "Reading detail ({n} tiles)…": "Lendo detalhe ({n} blocos)…",
   "{n} detail tile(s) could not be read (offline?): the fetched picture shows there": "Não foi possível ler {n} bloco(s) de detalhe (sem conexão?): ali aparece a imagem baixada",
   "Imagery fetched with a source (NAIP) shows finer detail where the Maps plan looks. The detail read is kept on this computer, up to 2 GB, so it shows again without a connection; the project file keeps only the fetched picture.": "As imagens baixadas com a sua fonte (NAIP) mostram mais detalhe onde a planta de Mapas olha. O detalhe lido fica neste computador, até 2 GB, para aparecer de novo sem conexão; o arquivo do projeto guarda só a imagem baixada.",
-  "Detail tiles on this computer: {size} of {cap} ({n} tiles)": "Blocos de detalhe neste computador: {size} de {cap} ({n} blocos)"
+  "Detail tiles on this computer: {size} of {cap} ({n} tiles)": "Blocos de detalhe neste computador: {size} de {cap} ({n} blocos)",
+  "{level} already reaches NAIP's own pixels for an area this size: the higher levels would give the same picture.": "{level} já alcança os pixels próprios do NAIP para uma área deste tamanho: os níveis mais altos dariam a mesma imagem.",
+  "Sentinel-2's pixels are 10 m, and {level} already fetches them for an area this size: the higher levels would give the same picture. No finer free imagery is offered here (NAIP covers the USA only). For finer detail, import an orthophoto as a GeoTIFF (Maps > GeoTIFF / GXF).": "Os pixels do Sentinel-2 são de 10 m, e {level} já os baixa para uma área deste tamanho: os níveis mais altos dariam a mesma imagem. Não há imagens gratuitas mais finas aqui (o NAIP cobre só os EUA). Para mais detalhe, importe uma ortofoto como GeoTIFF (Mapas > GeoTIFF / GXF)."
 }
