@@ -5074,6 +5074,8 @@
   "Predictive modelling (geoML)": "النمذجة التنبؤية (geoML)",
   "Models with": "نماذج مع",
   "uncertainty": "عدم اليقين",
+  "gate times": "أزمنة النوافذ",
+  "model": "نموذج",
   "from Gaussian processes (": "من العمليات الغاوسية (",
   ", Ítalo Gonçalves). Results appear in the 3D view beside your other models, named \"geoML — …\", so you can compare them. Everything runs on this computer.": "، Ítalo Gonçalves). تظهر النتائج في العرض ثلاثي الأبعاد بجانب نماذجك الأخرى باسم «geoML — …» لتقارنها. كل شيء يعمل على هذا الحاسوب.",
   "Checking the add-on…": "جارٍ فحص الإضافة…",

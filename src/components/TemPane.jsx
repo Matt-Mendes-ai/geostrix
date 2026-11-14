@@ -4,7 +4,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { Radio, Upload } from "./icons.js";
-import { readTemText, channelMatrix, linesOf, decayTau, tauAll, numbersIn, toMs, joinMatrices, noiseGroupFor, maskNoisy } from "../lib/temLines.js";
+import { readTemText, channelMatrix, linesOf, decayTau, tauAll, numbersIn, toMs, joinMatrices, noiseGroupFor, maskNoisy, stdKindGuess } from "../lib/temLines.js";
 import { SURVEY_METHODS, surveyKey } from "../lib/geophysSurveys.js";
 import { surveyGridDefaults } from "../lib/surveyGridDefaults.js";
 import { idwGridToRasterInput, snappedGridExtent, uniqueName } from "../lib/idw.js";
@@ -86,7 +86,7 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
   // TASKS.csv #3441 — a two-moment file whose header states both moments' gate times can be read as ONE decay (the gates of both, by time)
   const joinable = useMemo(() => {
     if (!data) return null;
-    const na = data.groups.filter((g) => !g.aux);
+    const na = data.groups.filter((g) => (g.role ? g.role === "data" : !g.aux)); // #3440: the decays only, not their gate times or a model
     if (na.length !== 2) return null;
     const ta = data.gateTimes(na[0]), tb = data.gateTimes(na[1]);
     return ta && tb ? { ga: na[0], gb: na[1], ta, tb } : null;
@@ -103,10 +103,11 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
     const n = noiseGroupFor(data.groups, group);
     return n ? channelMatrix(data, n) : null;
   }, [data, group, isJoin, joinable]);
+  const stdGuess = useMemo(() => (noiseMat ? stdKindGuess(noiseMat.v) : "relative"), [noiseMat]); // #3440 — the USGS / Aarhus export's STD is in the data's unit
   const noiseOpts = useMemo(() => {
     const floor = Number(st?.floor) > 0 ? Number(st.floor) : null, maxUnc = st?.useStd && noiseMat ? (Number(st.maxUnc) > 0 ? Number(st.maxUnc) / 100 : 0.33) : null;
-    return floor != null || maxUnc != null ? { floor, maxUnc, stdKind: st?.stdKind || "relative" } : null;
-  }, [st?.floor, st?.useStd, st?.maxUnc, st?.stdKind, noiseMat]);
+    return floor != null || maxUnc != null ? { floor, maxUnc, stdKind: st?.stdKind || stdGuess } : null;
+  }, [st?.floor, st?.useStd, st?.maxUnc, st?.stdKind, noiseMat, stdGuess]);
   const prepare = (i, row) => maskNoisy(row, noiseMat ? noiseMat.v.subarray(i * noiseMat.m, i * noiseMat.m + noiseMat.m) : null, noiseOpts).values;
   const lines = useMemo(() => (data ? linesOf(data) : []), [data]);
   const times = useMemo(() => { if (joined) return joined.times; const t = toMs(numbersIn(st?.timesText)); return group && t.length === group.cols.length ? t : null; }, [st?.timesText, group, joined]);
@@ -180,7 +181,7 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
         {st.posNote && <div style={{ ...note, marginBottom: 6 }}>{st.posNote}</div>}
         <div style={rowS}><span>{tr("Channels")}</span>
           <select value={st.g} onChange={(e) => { if (e.target.value === "join") { save({ ...st, g: "join" }); return; } const g = Number(e.target.value), t = data.gateTimes(data.groups[g]); save({ ...st, g, timesText: t ? t.join(" ") : st.timesText }); }} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("TEM channel group")}>
-            {data.groups.map((g, i) => <option key={g.prefix} value={i}>{tr("{name} ({m} gates)", { name: g.prefix, m: g.cols.length })}{g.aux ? ` — ${tr("uncertainty")}` : ""}</option>)}
+            {data.groups.map((g, i) => <option key={g.prefix} value={i}>{tr("{name} ({m} gates)", { name: g.prefix, m: g.cols.length })}{g.aux ? ` — ${tr("uncertainty")}` : g.role === "time" ? ` — ${tr("gate times")}` : g.role === "model" ? ` — ${tr("model")}` : ""}</option>)}
             {joinable && <option value="join">{tr("Both moments joined ({m} gates)", { m: joinable.ta.length + joinable.tb.length })}</option>}{/* #3441 */}
           </select>
         </div>
@@ -198,7 +199,7 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
           <label style={{ display: "flex", alignItems: "center", gap: 4 }}><input type="checkbox" checked={!!st.useStd} onChange={(e) => save({ ...st, useStd: e.target.checked })} />{tr("Leave out readings with an uncertainty over")}</label>
           <input type="number" min="1" max="1000" step="1" value={st.maxUnc ?? 33} onChange={(e) => save({ ...st, maxUnc: e.target.value })} style={{ ...smallSel, width: 52 }} aria-label={tr("Largest uncertainty kept, in per cent")} />
           <span>%</span>
-          <select value={st.stdKind || "relative"} onChange={(e) => save({ ...st, stdKind: e.target.value })} style={smallSel} aria-label={tr("What the uncertainty columns hold")}>
+          <select value={st.stdKind || stdGuess} onChange={(e) => save({ ...st, stdKind: e.target.value })} style={smallSel} aria-label={tr("What the uncertainty columns hold")}>
             <option value="relative">{tr("STD is a fraction of the reading")}</option><option value="absolute">{tr("STD is in the data's units")}</option>
           </select>
         </div>}
