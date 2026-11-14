@@ -9,7 +9,7 @@ import { LAYER_META, minMax } from "../../lib/layers.js";
 import { arrMin, arrMax } from "../../lib/arrayStats.js";
 import { desurveyHole, holeAttitudeAssumed } from "../../lib/desurvey.js";
 import { errorNotice, notice } from "../../lib/notices.js"; // notice: #2937
-import { resolveLayerStyle, TUBE_SEGMENTS } from "../../lib/layerStyle.js";
+import { resolveLayerStyle } from "../../lib/layerStyle.js";
 import { customColour } from "../../lib/customColour.js";
 import { PickStandIn } from "../../lib/viewer/pickStandIn.js";
 import { buildLayerBatches, collarMarkerMaterial, syncBatchedInstances } from "../../lib/viewer/layerBatches.js";
@@ -510,7 +510,7 @@ export function buildDrillholeScene(ctx) {
           }
           return true;
         })();
-        let geo, mesh_ = null;
+        let geo, mesh_ = null, pieces = null;
         if (straight) {
           const dx = p2.x - p1.x, dy = p2.y - p1.y, dz = p2.z - p1.z;
           const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
@@ -528,18 +528,30 @@ export function buildDrillholeScene(ctx) {
           mesh_.position.set(p1.x, p1.y, p1.z);
           mesh_.quaternion.setFromUnitVectors(UP_Y, DIR_TMP.set(dx / len, dy / len, dz / len)); // #1500 — shared vectors
         } else {
-          const vecs = [new THREE.Vector3(p1.x, p1.y, p1.z), ...mid.map((p) => new THREE.Vector3(p.x, p.y, p.z)), new THREE.Vector3(p2.x, p2.y, p2.z)]; // #1500 — only here
-          const curve = new THREE.CatmullRomCurve3(vecs);
-          geo = new THREE.TubeGeometry(curve, Math.max(2, vecs.length * 2), radius, TUBE_SEGMENTS[st.shape], false);
+          // TASKS.csv #3279 (Galore review) — a curved interval was a CatmullRomCurve3 + TubeGeometry + material of its own (one draw call
+          // each), all made again when a Desurvey switch moved the stations: 211 ms of a 539 ms build on WA gold (35,385 members). Now
+          // straight pieces between its own trace points on the shared prototype, batched with the straight intervals; the inner joints
+          // overlap by half a radius so a bend shows no wedge, the ends stay on the interval's own depths.
+          const pts = [p1, ...mid, p2], last = pts.length - 2, ext = radius * 0.5;
           const color = st.color || (meta.numeric ? numericIntervalColor(groupKey, row.value) : baseColorForBuild(groupKey, row.value));
-          const mat = new THREE.MeshLambertMaterial({ color, transparent: st.opacity < 1, opacity: st.opacity });
-          mesh_ = new THREE.Mesh(geo, mat);
+          pieces = [];
+          for (let i = 0; i <= last; i++) {
+            const a = pts[i], b = pts[i + 1], dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if (len < 1e-6) continue;
+            const e0 = i > 0 ? ext : 0, e1 = i < last ? ext : 0, ux = dx / len, uy = dy / len, uz = dz / len;
+            const m = new PickStandIn(INTERVAL_PROTO[st.shape], { color, transparent: st.opacity < 1, opacity: st.opacity });
+            m.scale.set(radius, len + e0 + e1, radius);
+            m.position.set(a.x - ux * e0, a.y - uy * e0, a.z - uz * e0);
+            m.quaternion.setFromUnitVectors(UP_Y, DIR_TMP.set(ux, uy, uz));
+            pieces.push(m);
+          }
         }
-        const mesh = mesh_;
         // TASKS.csv #208 — a mapped Description in the tooltip; #227 — catValue for the category pass; #1500 — the tooltip made on first
         // read (lazyTip), holeId for the visible-holes pass
+        for (const mesh of pieces || [mesh_]) {
         mesh.userData = lazyTip({ row, holeId: c.hole_id, catValue: row.value, ...(groupKey === "litho" ? { lithoRow: row } : {}) }, () => `${c.hole_id}\n${meta.label}: ${meta.numeric ? row.value : effectiveLabel(groupKey, row.value)}${row.extra != null ? ` (${row.extra}${meta.extraSuffix || ""})` : ""}\n${+row.from.toFixed(2)}–${+row.to.toFixed(2)} m${row.intensity ? ` · intensity ${row.intensity}` : ""}${Number.isFinite(row.alpha) ? ` · alpha ${row.alpha}°` : ""}${row.description ? `\n${row.description}` : ""}`); // lithoRow: TASKS.csv #599 picking
         groups[groupKey].add(mesh);
+        }
        } catch (err) { buildErrors.push(`${groupKey} ${c.hole_id} ${row.from}-${row.to}: ${err.message}`); }
       });
     };
