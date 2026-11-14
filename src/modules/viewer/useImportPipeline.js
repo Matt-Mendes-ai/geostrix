@@ -13,7 +13,7 @@ let implPromise = null;
 export const loadImportPipeline = () => (implPromise ||= import("./importPipelineImpl.js").catch((e) => { implPromise = null; throw e; }));
 
 export function useImportPipeline(ctx) {
-  const { addVoxelModel, fillCodeDictionary, recordImportLeftOut, assays: storeAssays } = useStore(); // assays: #3039 // #2632; fillCodeDictionary: #2163; recordImportLeftOut: #2493
+  const { addVoxelModel, fillCodeDictionary, recordImportLeftOut, assays: storeAssays, viewerUiState } = useStore(); // viewerUiState: #3043 // assays: #3039 // #2632; fillCodeDictionary: #2163; recordImportLeftOut: #2493
   const { importStateRef, setNotices, setDragOver, setImportModal, goToModule } = ctx;
   const [layerPicker, setLayerPicker] = useState(null); // TASKS.csv #288 — {file, forceTarget, options} while the layer picker is open
   const batchRowsRef = useRef(null);
@@ -27,7 +27,7 @@ export function useImportPipeline(ctx) {
   const dropOriginRef = useRef(null); // TASKS.csv #2660 — the tab a drop came from (Maps), for Cancel
   const [sampleLoading, setSampleLoading] = useState(false);
   const env = useRef(null);
-  env.current = { ctx, h: { addVoxelModel, fillCodeDictionary, recordImportLeftOut, storeAssays, layerPicker, setLayerPicker, batchRowsRef, commitBusyRef, importQueueRef, importQueueTotalRef, importActiveRef, assayHandoffRef, surfaceHandoffRef, queueLogRef, sampleLoading, setSampleLoading } };
+  env.current = { ctx, h: { viewerUiState, addVoxelModel, fillCodeDictionary, recordImportLeftOut, storeAssays, layerPicker, setLayerPicker, batchRowsRef, commitBusyRef, importQueueRef, importQueueTotalRef, importActiveRef, assayHandoffRef, surfaceHandoffRef, queueLogRef, sampleLoading, setSampleLoading } };
   // the body, built with the latest render's values, then the call; a failed chunk load is said, not swallowed
   const run = (fn) => loadImportPipeline().then((m) => fn(m.makeImportPipeline(env.current.ctx, env.current.h)), (e) => { setNotices((p) => [...p, errorNotice(String(e?.message || e))]); });
   useEffect(() => { // loaded on an idle moment after launch, so the first import does not wait for it
