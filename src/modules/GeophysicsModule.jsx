@@ -87,6 +87,7 @@ import { tableRefusal } from "../lib/tableRefusal.js"; // TASKS.csv #3320 — a 
 import { t as tr } from "../lib/i18n.js";
 import { decadesBetween, isLogSpaced, logViridisStops } from "../lib/pointSurveyScale.js"; // TASKS.csv #1787
 import { surveyMetaFor } from "../lib/surveyLegendDefault.js"; // TASKS.csv #3323
+import { sampleSurveyOnHoles, suggestHoleSampling } from "../lib/surveyOnHoles.js"; // TASKS.csv #3324
 import { defaultModelLegend } from "../lib/modelDefaultStops.js"; // TASKS.csv #2400
 import { guessVoxelProperty, isLogProperty, propertyRamp, parseGradeLabel } from "../lib/voxelProperty.js"; // TASKS.csv #1786; propertyRamp: #1788; parseGradeLabel: #2667
 import { cloudShape } from "../lib/cloudShape.js"; // TASKS.csv #1783
@@ -281,6 +282,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const [omfPick, setOmfPick] = useState({});
   const omfInput = useRef(null);
   const [idwOpen, setIdwOpen] = useState(false); // TASKS.csv #235 — grid geophys_pts to a raster (IDW)
+  // TASKS.csv #3324 — the pane's survey sampled along the drillholes, as a downhole layer
+  const [holeOpen, setHoleOpen] = useState(false);
+  const [holeOpts, setHoleOpts] = useState({ dist: "", step: "", mode: "nearest" });
+  const [holeBusy, setHoleBusy] = useState(false);
   const [idwCellText, setIdwCellText] = useState(""); // TASKS.csv #2562 — blank: from the station spacing (idwCellSize below)
   const [idwPower, setIdwPower] = useState(2);
   const [idwStretch, setIdwStretch] = useState("p2-98"); // TASKS.csv #372
@@ -378,6 +383,32 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const manySurveys = surveyList.length > 1;
   const legendKey = surveyList.some((s) => s.key === legendSurvey) ? legendSurvey : surveyList[0]?.key || "";
   const legendRows = useMemo(() => (manySurveys ? rows.filter((r) => surveyKey(r) === legendKey) : rows), [manySurveys, rows, legendKey]);
+  const holeShape = useMemo(() => (holeOpen && legendRows.length ? cloudShape(legendRows) : null), [holeOpen, legendRows]); // #3324
+  const holeSuggest = useMemo(() => (holeShape?.is3D ? suggestHoleSampling(legendRows) : null), [holeShape, legendRows]); // #3324 — from the cloud's 3D spacing
+  // TASKS.csv #3324 (review #3195, Galore Creek) — 'does chargeability follow the sulphide?': the survey's value at each step down every hole
+  // (the nearest point within the distance, or the inverse-distance mean of the points within it), a numeric layer 'On holes: <survey>'
+  // that Downhole logs ('against a model'), the strip logs and sections read like a block model evaluated onto the holes (#323)
+  const sampleSurveyAlongHoles = async (key) => {
+    if (holeBusy) return;
+    if (!(collars || []).some((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && Number.isFinite(c?.z))) { setError(tr("No drillholes can be placed: the project has no collar coordinates. Import the collars to sample \"{key}\" along the holes.", { key })); return; }
+    const pts = rows.filter((r) => surveyKey(r) === key);
+    const maxDist = Number(holeOpts.dist) > 0 ? Number(holeOpts.dist) : holeSuggest?.maxDist || 25;
+    const step = Number(holeOpts.step) > 0 ? Number(holeOpts.step) : holeSuggest?.step || 5;
+    const mode = holeOpts.mode === "idw" ? "idw" : "nearest";
+    setHoleBusy(true);
+    await new Promise((r) => setTimeout(r, 30)); // let the busy line paint
+    const t0 = performance.now();
+    let res;
+    try { res = sampleSurveyOnHoles({ points: pts, collars, survey, desurveyMethod, step, maxDist, mode }); } finally { setHoleBusy(false); }
+    const secs = (performance.now() - t0) / 1000;
+    if (!res.rows.length) { setError(tr("No drillhole passes within {d} m of a point of \"{key}\". A larger distance reaches farther, and the values are then less local.", { d: maxDist, key })); return; }
+    const name = uniqueName(`On holes: ${key}`, (customLayers || []).map((l) => l.name));
+    setCustomLayers((p) => [...p, { id: `custom_${Date.now()}`, name, rows: res.rows, sourceSurvey: key, unit: geophysSurveys?.[key]?.units || null }]);
+    const args = { name, holes: res.holes.toLocaleString(), rows: res.rows.length.toLocaleString(), d: maxDist, s: step };
+    setError({ info: true, text: (mode === "idw"
+      ? tr("Added \"{name}\": the inverse-distance mean of the points within {d} m, every {s} m down {holes} hole(s) ({rows} intervals). Downhole logs can now plot a log against it (against a model), and the strip logs show it.", args)
+      : tr("Added \"{name}\": the nearest point's value within {d} m, every {s} m down {holes} hole(s) ({rows} intervals). Downhole logs can now plot a log against it (against a model), and the strip logs show it.", args)) + " " + tr("({s} s)", { s: secs < 10 ? secs.toFixed(1) : Math.round(secs) }) });
+  };
   const legendDrawn = useMemo(() => robustRange(legendRows.map((r) => r.value)), [legendRows]);
   const legendRange = useMemo(() => { let a = null, b = null; for (const r of legendRows) { const v = r.value; if (typeof v !== "number" || isNaN(v)) continue; if (a === null || v < a) a = v; if (b === null || v > b) b = v; } return { min: a, max: b }; }, [legendRows]);
   // TASKS.csv #3323 — a survey's own legend (an import's log scale, or one edited while there were several) is the one drawn even as the only
@@ -2272,6 +2303,32 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 own guard), so only shown once points exist rather than as a separately-gated button. */}
             <button onClick={() => setSpatialOpen(true)} style={{ ...pBtn, marginTop: 8, marginBottom: 0, justifyContent: "center" }}>
               <Triangle size={14} />{" "}{tr("Spatial analysis (Voronoi / declustering)…")}</button>
+            {/* TASKS.csv #3324 — the survey's value along the holes, as a downhole layer */}
+            <button onClick={() => setHoleOpen((v) => !v)} title={tr("The survey's value along each drillhole (the nearest point, or an inverse-distance mean, within a distance), as a downhole layer that Downhole logs and the strip logs read.")} style={{ ...pBtn, marginTop: 8, marginBottom: 0, justifyContent: "center", background: holeOpen ? "var(--color-selected-bg)" : undefined }}>
+              <Waypoints size={14} />{" "}{tr("Sample along the drillholes…")}</button>
+            {holeOpen && (
+              <div style={{ marginTop: 8, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
+                {!holeShape?.is3D ? <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", lineHeight: 1.5 }}>{tr("\"{key}\" is a surface survey: its points lie on the ground, so only the top of a hole passes near them. Sampling along the holes is for a 3D point cloud (an inversion model or a pseudo-section imported as points).", { key: legendKey })}</div> : <>
+                  <div style={{ color: "var(--color-text-secondary)", marginBottom: 8, lineHeight: 1.5 }}>{tr("\"{key}\" along each hole: at every step down the hole, the value of the nearest point within the distance (or the inverse-distance mean of the points within it). Steps farther than that from every point are left empty.", { key: legendKey })}</div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+                    <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Distance (m)")}</span>
+                    <input type="number" min="0.1" step="any" value={holeOpts.dist} placeholder={holeSuggest ? String(holeSuggest.maxDist) : "25"} onChange={(e) => setHoleOpts((o) => ({ ...o, dist: e.target.value }))} style={numInput} aria-label={tr("Search distance from the hole")} />
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+                    <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Step (m)")}</span>
+                    <input type="number" min="0.1" step="any" value={holeOpts.step} placeholder={holeSuggest ? String(holeSuggest.step) : "5"} onChange={(e) => setHoleOpts((o) => ({ ...o, step: e.target.value }))} style={numInput} aria-label={tr("Step down the hole")} />
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+                    <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Value")}</span>
+                    <select value={holeOpts.mode} onChange={(e) => setHoleOpts((o) => ({ ...o, mode: e.target.value }))} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label={tr("Value taken at each step")}>
+                      <option value="nearest">{tr("Nearest point")}</option><option value="idw">{tr("Inverse-distance mean")}</option>
+                    </select>
+                  </div>
+                  {holeSuggest && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{holeSuggest.sectionSpacing ? tr("Defaults from the cloud's spacing: its points lie on sections about {l} m apart, so the distance is three quarters of that, which reaches the nearer section from a hole between two; the step is a quarter of the {s} m point spacing.", { l: Math.round(holeSuggest.sectionSpacing), s: +holeSuggest.spacing.toFixed(1) }) : tr("Defaults from the cloud's spacing ({s} m): a distance of 1.5 spacings and a step of a quarter spacing.", { s: +holeSuggest.spacing.toFixed(1) })}</div>}
+                  <button disabled={holeBusy} onClick={() => sampleSurveyAlongHoles(legendKey)} style={{ ...pBtn, marginTop: 4, marginBottom: 0, justifyContent: "center" }}>{holeBusy ? tr("Sampling…") : tr("Add as a downhole layer")}</button>
+                </>}
+              </div>
+            )}
             {/* TASKS.csv #235 — grid this point cloud into a raster (inverse-distance weighting), pure JS. */}
             <button onClick={() => setIdwOpen((v) => !v)} style={{ ...pBtn, marginTop: 8, marginBottom: 0, justifyContent: "center", background: idwOpen ? "var(--color-selected-bg)" : undefined }}>
               <Box size={14} />{" "}{tr("Grid to raster (IDW, minimum curvature, spline)…")}</button>
