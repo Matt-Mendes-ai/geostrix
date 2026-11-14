@@ -1084,7 +1084,7 @@ export default function LayoutModule() {
   const credits = useMemo(() => projectCredits(terrain, rasters), [terrain, rasters]); // TASKS.csv #949
   // TASKS.csv #1483 — a collar with no azimuth / dip of its own (Silvertip's) takes its shallowest survey station's, marked so
   const tableCollars = useMemo(() => collarsWithSurveyAttitude(collars, survey), [collars, survey]); // #1483 / #1771 / #2133 (lib/collarTable.js)
-  const textCtx = useMemo(() => ({ ...textContextFor(elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits), assays, assayElements /* #2473 — a drill plan coloured by grade */, surfaceSamples, surfaceElements, layers /* #1869 — the samples table; the holes without a collar */, plannedHoles /* #2259 */, survey, desurveyMethod: project?.desurveyMethod /* #3367 */ }), [elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits, assays, assayElements, surfaceSamples, surfaceElements, layers, plannedHoles, survey]);
+  const textCtx = useMemo(() => ({ ...textContextFor(elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits), assays, assayElements /* #2473 — a drill plan coloured by grade */, surfaceSamples, surfaceElements, layers /* #1869 — the samples table; the holes without a collar */, plannedHoles /* #2259 */, survey, desurveyMethod: project?.desurveyMethod /* #3367 */, displayUnits: project?.displayUnits /* #3382 */ }), [elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits, assays, assayElements, surfaceSamples, surfaceElements, layers, plannedHoles, survey]);
 
   // "Each viewport and cross section need an option to assign a scale bar to it" — previously there
   // was only ever ONE scale-bar element on a page (onSyncScaleBar found-or-created the single
@@ -1670,7 +1670,7 @@ export default function LayoutModule() {
             {/* TASKS.csv #19 — shape/annotation property editors */}
             {sel.type === "drillplan" && (() => { // TASKS.csv #1639 — the drill plan's scale, extent, labels and colours
               const traces = planTraces(tableCollars || [], survey, project?.desurveyMethod); // #3367 — kept per collars / survey / method
-              const dd = drillPlanDrawing(sel, tableCollars || [], assays, assayElements, plannedHoles, traces, project?.desurveyMethod); // assays: #2473; plannedHoles: #2259
+              const dd = drillPlanDrawing(sel, tableCollars || [], assays, assayElements, plannedHoles, traces, project?.desurveyMethod, project?.displayUnits /* #3382 */); // assays: #2473; plannedHoles: #2259
               return (<>
                 {dd.keyBox?.under > 0 && ( /* TASKS.csv #3376 — every corner of the frame holds a hole: the key covers some */
                   <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr("The key covers {n} hole(s) whichever corner it takes: make the frame larger, or move the plan's centre so a corner is clear.", { n: dd.keyBox.under })}</div>
@@ -2460,7 +2460,7 @@ const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, proje
         const f = pageFormatOf(pg), [w, h] = pageMm(f);
         return (
           <div key={pg.id} className={`ge-print-page ge-print-${pageCssName(f)}`} style={{ width: `${w}mm`, height: `${h}mm` }}>
-            {withLiveScaleBars(pg.elements).map((el) => <LayoutElement key={el.id} el={el} selected={false} multiSelected={false} print onDown={() => {}} ctx={{ ...textContextFor(pg.elements || [], project, pg, i + pageOffset, pageTotal ?? pages.length, collars, credits), assays, assayElements, surfaceSamples, surfaceElements, layers /* #1869 */, plannedHoles /* #2259 */, survey, desurveyMethod: project?.desurveyMethod /* #3367 */, continuedOn: (t, r) => { const j = continuationPageIndex(pages, i, t, r); return j == null ? null : j + pageOffset + 1; } /* #2718 */ }} />)}
+            {withLiveScaleBars(pg.elements).map((el) => <LayoutElement key={el.id} el={el} selected={false} multiSelected={false} print onDown={() => {}} ctx={{ ...textContextFor(pg.elements || [], project, pg, i + pageOffset, pageTotal ?? pages.length, collars, credits), assays, assayElements, surfaceSamples, surfaceElements, layers /* #1869 */, plannedHoles /* #2259 */, survey, desurveyMethod: project?.desurveyMethod /* #3367 */, displayUnits: project?.displayUnits /* #3382 */, continuedOn: (t, r) => { const j = continuationPageIndex(pages, i, t, r); return j == null ? null : j + pageOffset + 1; } /* #2718 */ }} />)}
           </div>
         );
       })}
@@ -2858,7 +2858,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   // TASKS.csv #19 — shapes/annotation tools
   if (el.type === "drillplan") return ( /* TASKS.csv #1639 */
     <div style={{ ...wrap, width: el.w, height: el.h, border: frameBorder(el), boxSizing: "content-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
-      <DrillPlanElement el={el} collars={ctx?.collars || []} gridCaption={ctx?.gridCaption || ""} assays={ctx?.assays || null} assayElements={ctx?.assayElements || null} plannedHoles={ctx?.plannedHoles || null} survey={ctx?.survey || null} desurveyMethod={ctx?.desurveyMethod || null} />{/* gridCaption: #2301; assays: #2473 */}
+      <DrillPlanElement el={el} collars={ctx?.collars || []} gridCaption={ctx?.gridCaption || ""} assays={ctx?.assays || null} assayElements={ctx?.assayElements || null} plannedHoles={ctx?.plannedHoles || null} survey={ctx?.survey || null} desurveyMethod={ctx?.desurveyMethod || null} displayUnits={ctx?.displayUnits || null} />{/* gridCaption: #2301; assays: #2473; displayUnits: #3382 */}
       {handles}
     </div>
   );

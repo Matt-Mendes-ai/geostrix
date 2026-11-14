@@ -6,6 +6,7 @@
 import { collarsMatching } from "./holeFilter.js"; // TASKS.csv #2141
 import { PAGE_PX_PER_PAPER_M, pxPerMetre } from "./pagePxScale.js";
 import { desurveyHole, normalizeDesurveyMethod, DESURVEY_METHODS } from "./desurvey.js"; // TASKS.csv #3367 (desurvey.js imports nothing)
+import { fmtSig3 } from "./numberFormat.js"; // TASKS.csv #3382
 export { PAGE_PX_PER_PAPER_M, pxPerMetre } from "./pagePxScale.js"; // TASKS.csv #3159 — moved there for the startup code
 
 // The hole in plan, straight from the collar's azimuth, dip and length (a survey bends it little at plan scale). Dip may be
@@ -310,10 +311,17 @@ export function gradeBreaks(values) {
   const v = [...values].filter(Number.isFinite).sort((a, b) => a - b);
   if (!v.length) return [];
   const q = (p) => v[Math.min(v.length - 1, Math.max(0, Math.ceil(p * v.length) - 1))];
-  return [...new Set([0.5, 0.75, 0.9].map(q).filter((b) => b > v[0]))];
+  const raw = [...new Set([0.5, 0.75, 0.9].map(q).filter((b) => b > v[0]))];
+  // TASKS.csv #3382 (review #3195) — two percentiles that nearly coincide (within 5 % of the bound: '514,406 – 518,514') are one class, not a
+  // sliver: a break that close to the one below it (or to the lowest value), or the top break that close to the highest value, is dropped
+  const near = (a, b) => Math.abs(b - a) < 0.05 * Math.max(Math.abs(a), Math.abs(b));
+  const out = [];
+  for (const b of raw) if (!near(out.length ? out[out.length - 1] : v[0], b)) out.push(b);
+  if (out.length && near(out[out.length - 1], v[v.length - 1]) && out[out.length - 1] !== v[v.length - 1]) out.pop();
+  return out;
 }
 export const classOf = (value, breaks) => { let i = 0; while (i < breaks.length && value >= breaks[i]) i++; return i; };
-export const fmtClassNumber = (x) => (Math.abs(x) >= 1000 ? Math.round(x).toLocaleString("en-US") : Number(x).toLocaleString("en-US", { maximumSignificantDigits: 3 }));
+export const fmtClassNumber = (x) => fmtSig3(x); // TASKS.csv #3382 — three significant figures everywhere ('1,530,000', was '1,531,044')
 export const GRADE_COLOURS = ["#8a9bb0", "#2b83ba", "#f08a24", "#c8102e"]; // low to high, each readable on the white sheet (no yellow: #2611)
 export const GRADE_RADIUS_MM = [0.6, 0.8, 1.05, 1.35]; // larger for higher classes, so the classes still read in a black-and-white print
 const NONE_COLOUR = "#9aa3ad";
