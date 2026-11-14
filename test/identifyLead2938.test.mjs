@@ -29,5 +29,5 @@ test("wiring: the element the bar shows first, then the lead; ViewerModule hands
   const s = fs.readFileSync(new URL("../src/lib/viewer/identify.js", import.meta.url), "utf8");
   assert.match(s, /orderedElements\(row\.values, \[\.\.\.\(shownSym \? \[shownSym\] : \[\]\), \.\.\.\(ctx\.leadFirst\?\.\(\) \|\| \[\]\)\]\)/);
   assert.match(s, /leadFirst: \(\) => leadFirst\(r\.assays, r\.units\), \/\/ #2938/);
-  assert.match(fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8"), /codeDictionary \/\* #2816 \*\/, assays \/\* #2938 \*\/, units:/);
+  assert.match(fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8"), /codeDictionary \/\* #2816 \*\/, assays \/\* #2938 \*\/, (voxelModels \/\* #3178[^*]*\*\/, )?units:/); // #3178 — voxelModels between them
 });

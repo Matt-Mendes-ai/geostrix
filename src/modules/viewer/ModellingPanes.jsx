@@ -1338,7 +1338,14 @@ export default function ModellingPanes(props) {
                   {BLOCK_BUDGETS.map((b) => <option key={b} value={b}>{tr("{b} blocks ({v})", { b: b.toLocaleString(), v: tr(gradeShellBudgetNote(b)) })}</option>)}
                 </select>
               </label>
-              {numericBudgetHint && (
+              {/* TASKS.csv #2882 — after a refitted run: the budget that keeps the default cell, one click away */}
+              {numericBudgetHint?.advice && (
+                <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 7px", marginBottom: 8, lineHeight: 1.45 }}>{tr("A {b}-block budget ({cost}) keeps the default {cs} m cells here.", { b: numericBudgetHint.budget.toLocaleString(), cost: tr(gradeShellBudgetNote(numericBudgetHint.budget)), cs: numericBudgetHint.cell })}<div style={{ display: "flex", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
+                    <button type="button" onClick={() => { setNumericMaxBlocks(numericBudgetHint.budget); setNumericCellSize(numericBudgetHint.cell); setNumericBudgetHint(null); }} style={{ ...smallSel, cursor: "pointer" }}>{tr("Use {b} blocks", { b: numericBudgetHint.budget.toLocaleString() })}</button>
+                  </div>
+                </div>
+              )}
+              {numericBudgetHint && !numericBudgetHint.advice && (
                 <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginBottom: 8, lineHeight: 1.45 }}>{tr("At {cell} m cells this extent needs {needed} blocks — over the {budget}-block budget.", { cell: numericBudgetHint.cell, needed: numericBudgetHint.needed.toLocaleString(), budget: numericBudgetHint.budget.toLocaleString() })}<div style={{ display: "flex", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
                     <button type="button" onClick={() => { setNumericCellSize(numericBudgetHint.fit); setNumericBudgetHint(null); }} style={{ ...smallSel, cursor: "pointer" }}>{tr("Use {n} m cells", { n: numericBudgetHint.fit })}</button>
                     {numericBudgetHint.budget < BLOCK_BUDGETS[BLOCK_BUDGETS.length - 1] && (
