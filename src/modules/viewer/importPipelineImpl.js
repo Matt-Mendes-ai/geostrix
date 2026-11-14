@@ -103,6 +103,7 @@ export function makeImportPipeline(ctx, h) {
     setTaskProgress,
     setVisibleHoles,
     connectDb = null, dbConnections = [], dbImports = [], setDbImports = null, // TASKS.csv #1963
+    mode = null, // TASKS.csv #3046 (1)
   } = ctx;
 
   // TASKS.csv #609 — a LINE or POLYGON shapefile (IP lines, claim outlines, a geology map) is map data, not a
@@ -1021,7 +1022,8 @@ export function makeImportPipeline(ctx, h) {
     const files = assayHandoffRef.current.splice(0);
     if (!files.length) return;
     goToModule("geochem");
-    requestModuleAction("import-assay-file", { files }); // #1652 — all of them, in turn
+    const surfaceOnly = files.every((f) => surfaceHandoffRef.current.has(f.name)); // #3046 (1) — surface samples dropped on Surface Geology: back there after the dialog
+    requestModuleAction("import-assay-file", { files, returnTo: mode === "surface" && surfaceOnly ? "surface" : null }); // #1652 — all of them, in turn
     const surface = surfaceHandoffRef.current.has(files[0].name); surfaceHandoffRef.current.clear();
     setNotices((p) => [...p, surface ? notice("{name} looks like a table of surface samples (coordinates, no from / to, no hole ID), so it opened in Geochem's surface-sample import, where you choose the elements. Not samples? Cancel there and use + Add CSV layer in the 3D View's sidebar to import it as a layer of your own.", { name: files[0].name }) /* #2268 */ : notice("{name} is assay data: it is open in the Geochem assay import, which asks which columns are elements. Not assays? Cancel there and use + Add CSV layer in the 3D View's sidebar to import it as a layer of your own.", { name: files[0].name }), // the way out: #2185
       ...(files.length > 1 ? [notice("{n} more assay file(s) follow in the Geochem import, one after another: {list}.", { n: files.length - 1, list: files.slice(1).map((f) => f.name).join(", ") })] : [])]);

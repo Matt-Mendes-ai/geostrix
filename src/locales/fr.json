@@ -12221,5 +12221,14 @@
   "cancelled {n}: {list}": "annulés {n} : {list}",
   "not imported {n}: {list}": "non importés {n} : {list}",
   "The Geochem tab opens next, for the assay file(s).": "L'onglet Géochimie s'ouvre ensuite, pour le ou les fichiers d'analyses.",
-  "{group}: {label}, values {range}": "{group} : {label}, valeurs {range}"
+  "{group}: {label}, values {range}": "{group} : {label}, valeurs {range}",
+  "Loaded {rows} surface samples (1 element): back on the Surface Geology tab, where they are drawn.{v}": "{rows} échantillons de surface chargés (1 élément) : retour à l'onglet Géologie de surface, où ils sont dessinés.{v}",
+  "Loaded {rows} surface samples ({chosen} elements): back on the Surface Geology tab, where they are drawn.{v}": "{rows} échantillons de surface chargés ({chosen} éléments) : retour à l'onglet Géologie de surface, où ils sont dessinés.{v}",
+  "At the project's collars true north and grid north coincide (no grid convergence): these azimuths are used as they are.": "Aux collets du projet, le nord géographique et le nord du quadrillage coïncident (pas de convergence) : ces azimuts sont utilisés tels quels.",
+  "At the project's collars true north lies {deg}° east of grid north (the grid convergence): these azimuths are turned by +{deg}° to grid north.": "Aux collets du projet, le nord géographique est à {deg}° à l'est du nord du quadrillage (la convergence) : ces azimuts sont tournés de +{deg}° vers le nord du quadrillage.",
+  "At the project's collars true north lies {deg}° west of grid north (the grid convergence): these azimuths are turned by −{deg}° to grid north.": "Aux collets du projet, le nord géographique est à {deg}° à l'ouest du nord du quadrillage (la convergence) : ces azimuts sont tournés de −{deg}° vers le nord du quadrillage.",
+  "These columns are read in ppm, but their median is thousands of times the element's average in the Earth's crust: {list}. They look like ppb. Pick the unit for each in the list below, or:": "Ces colonnes sont lues en ppm, mais leur médiane vaut des milliers de fois la moyenne de l'élément dans la croûte terrestre : {list}. Elles ressemblent à des ppb. Choisissez l'unité de chacune dans la liste ci-dessous, ou :",
+  "{header} (median {median} ppm; the crust averages about {crust} ppm)": "{header} (médiane {median} ppm ; la croûte en contient en moyenne environ {crust} ppm)",
+  "Read these {n} as ppb": "Lire ces {n} en ppb",
+  "Read {header} as ppb": "Lire {header} en ppb"
 }

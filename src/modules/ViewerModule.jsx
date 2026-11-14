@@ -1074,6 +1074,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const minePaneRef = useRef("pit"); // #1360 — the Mine Design pane last open
   useEffect(() => { setToolPane(pendingPaneRef.current || (mode === "targeting" ? "plan" : mode === "minedesign" ? minePaneRef.current : null)); pendingPaneRef.current = null; }, [mode]);
   useEffect(() => { if (mode === "minedesign" && toolPane) minePaneRef.current = toolPane; }, [mode, toolPane]);
+  const surfaceTopRef = useRef(false); // TASKS.csv #3046 (4) — a map reads north up: the tab's first visit opens in Top view (as the Top button)
+  useEffect(() => { if (mode !== "surface" || surfaceTopRef.current || !camState.current || !cameraRef.current?.__update) return; surfaceTopRef.current = true; camState.current.theta = 0; camState.current.phi = 0.02; cameraRef.current.__update(); }, [mode]);
   const paneProps = (id) => ({ active: toolPane === id, expanded: toolPane === id, onClick: () => setToolPane((p) => (p === id ? null : id)) }); // expanded: #595
   const paneHeader = (title, icon, tone) => <><TaskPaneHeader title={title} icon={icon} tone={tone} onClose={() => setToolPane(null)} /><PaneNotice key={toolPane} notices={notices} /></>; // #1602
   // TASKS.csv #572 — a modelling pane with nothing to model says what to load, instead of an empty "Choose…" select
@@ -1603,15 +1605,16 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     ];
     // TASKS.csv #843 / #948 — the surface samples as the view colours them (the anomaly map's rule and classes, one colour,
     // or by medium), then the Surface Geology map layers and the boundaries
-    if (sampleLegendGroup) groups.push({ ...sampleLegendGroup, items: sampleLegendGroup.items.map(([l, c, o]) => [tr(l), c, o]) });
+    const surfFirst = []; // TASKS.csv #3046 (3) — on the Surface Geology tab the map's own groups lead (the figure's cut fell on them)
+    if (sampleLegendGroup) groups.push({ ...sampleLegendGroup, items: sampleLegendGroup.items.map(([l, c, o]) => [tr(l), c, o]) }), surfFirst.push(groups[groups.length - 1]);
     const outcrop = outcropLegendGroup({ surfaceStructures }); // TASKS.csv #1437 — the outcrop sets' classes
-    if (outcrop) groups.push({ ...outcrop, label: tr(outcrop.label), items: outcrop.items.map(([l, c, o]) => [tr(l), c, o]) });
-    groups.push(...mapLayerLegendGroups(mapLayers), ...boundaryLegendGroups(boundaries));
+    if (outcrop) groups.push({ ...outcrop, label: tr(outcrop.label), items: outcrop.items.map(([l, c, o]) => [tr(l), c, o]) }), surfFirst.push(groups[groups.length - 1]);
+    { const mg = mapLayerLegendGroups(mapLayers); groups.push(...mg, ...boundaryLegendGroups(boundaries)); surfFirst.unshift(...mg); }
     { const hg = holeColourLegendGroup(holeScheme, tr("Holes by {field}", { field: holeColourBy }), tr("(no value)")); if (hg) groups.unshift(hg); } // #1504
     // TASKS.csv #451 / #2075 — one ramp per survey, the drawn points only; the builder is shared with the Layout legend since #2878
     groups.push(...geophysLegendGroups({ rows: layers?.geophys_pts, visible: !!layerVisible.geophys_pts, surveys: geophysSurveys, stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax, label: LAYER_META.geophys_pts?.label || "Geophysics points" }));
-    return groups;
-  }, [rasters, sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, numericLayerColor, isRowVisible, collars, customLayers, customVisible, holeScheme, holeColourBy, surfaceStructures, layoutPages /* #3296 */]); // #1398; collars: #1813; holeScheme: #1504; surfaceStructures: #3092
+    return mode === "surface" && surfFirst.length ? [...surfFirst, ...groups.filter((g) => !surfFirst.includes(g))] : groups; // #3046 (3)
+  }, [mode /* #3046 */, rasters, sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, numericLayerColor, isRowVisible, collars, customLayers, customVisible, holeScheme, holeColourBy, surfaceStructures, layoutPages /* #3296 */]); // #1398; collars: #1813; holeScheme: #1504; surfaceStructures: #3092
 
   // TASKS.csv #453 — the 3D slice's planes over the drilled extent: vertical (azimuth, position) or horizontal (an elevation); thickness 0 = a half-space
   const sliceExtent = useMemo(() => {
@@ -4248,7 +4251,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         const j = surfaceDrawnIdx ? surfaceDrawnIdx[i] : i; // #1819 — classes are per surfaceSamples index
         const cl = an ? (j >= 0 ? an.classOf[j] : -1) : -2;
         const color = an ? (cl >= 0 ? an.classes[cl].color : an.noDataColor) : (st.color || colorForMedium(row.medium));
-        const mesh = new PickStandIn(proto, { color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // #312; #1500
+        const mesh = new PickStandIn(proto, { color, transparent: true, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // #312; #1500; transparent: #3046 (5)
+        mesh.renderOrder = 7; // TASKS.csv #3046 (5) — DRAW_ORDER.lines (#2776): after a flat map drape (no depth write), so a sample under it is not dimmed
         mesh.scale.setScalar(Math.max(radiusOf(row.medium), minR) * st.size * (an?.isolated[j] ? 0.55 : 1)); // #843 — an isolated anomaly is drawn small; #849 size; minR: #1597
         mesh.position.set(row.x - ox, row.z - oz, -(row.y - oy));
         const mapped = mappedOfSample(an, layerStyles.surface_anomaly, j, surfaceElementUnits); // #1821
@@ -4257,7 +4261,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       } catch (err) { errors.push(err.message); }
     });
     buildLayerBatches(g);
-    { const lg = layerGroupsRef.current.sample_labels; if (lg) syncTextLabels(lg, sampleLabelItems(placedSurfaceSamples, layerStyles.surface_samples?.label || "none", { ox, oy, oz }), makeTextSprite, Math.max(minR, 1.8) * 2); } // TASKS.csv #1443 — a label beside each sample (id or one element's value), decluttered each frame
+    { const lg = layerGroupsRef.current.sample_labels; if (lg) syncTextLabels(lg, sampleLabelItems(placedSurfaceSamples, layerStyles.surface_samples?.label || "none", { ox, oy, oz, units: surfaceElementUnits /* #2641 */ }), makeTextSprite, Math.max(minR, 1.8) * 2); } // TASKS.csv #1443 — a label beside each sample (id or one element's value), decluttered each frame
     if (errors.length) setNotices((pv) => [...pv, errorNotice(tr("{errors} surface sample(s) failed to render: {v}", { errors: errors.length, v: errors.slice(0, 3).join(" · ") }))]);
   };
   const surfaceSymbolMppRef = useRef(NaN); // TASKS.csv #1597 — the metres-per-pixel the surface symbols were sized for
@@ -5078,6 +5082,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     addRaster,
     collars,
     goToModule, // TASKS.csv #917
+    mode, // TASKS.csv #3046 (1) — a sample drop on Surface Geology comes back there
     importModal,
     importSolidFile,
     importStateRef,
