@@ -37,6 +37,7 @@ import { parseDEMFiles, buildRasterImport, terrainToGeoTIFFArrayBuffer, parseWor
 import { rasterFileSet } from "../lib/rasterSideFiles.js"; // TASKS.csv #2901 — a world file / .prj / Geosoft .xml dropped with its raster
 import { geosoftXmlCrs } from "../lib/geosoftXml.js"; // TASKS.csv #2901
 import { boundaryAreaHectares } from "../lib/geoprocessing.js";
+import { groundArea } from "../lib/groundArea.js"; // TASKS.csv #3468 — areas on the ground, not on the grid
 import { saveFile, safeFileName, runPfieldsJob } from "../lib/desktop.js"; // safeFileName: #1114; runPfieldsJob: #2846 (the spline)
 import { blockModelCsvText, blockModelParamLines } from "../lib/blockModelExport.js"; // TASKS.csv #411; #1041
 import { stampLines, withStamp, stampBeside, stampPlacement, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #404/#411
@@ -692,7 +693,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (benchNote) msg += " " + benchNote; // #2589
     if (misfitAt?.length) { // #2589 — the surface against the collars it was built from
       const m = surfaceMisfit(misfitAt, built, BENCH_DZ_M);
-      if (m.n) msg += " " + tr("Against the {n} collars it was built from: median {med} m off, worst {worst} m ({id}), {over} more than {lim} m off.", { n: m.n.toLocaleString(), med: m.median.toFixed(2), worst: (m.worst.dz > 0 ? "+" : "") + m.worst.dz.toFixed(1), id: m.worst.id ?? "?", over: m.over.toLocaleString(), lim: BENCH_DZ_M })
+      // TASKS.csv #3462 — 'Against the 3,770 collars it was built from' after 'from ... 6388 collar(s)': the misfit is read where the surface has
+      // ground, so when some of the points lie where it has none, both numbers are said
+      if (m.n && m.noGround) msg += " " + tr("Against the {n} of the {total} points it was built from that lie on its ground: median {med} m off, worst {worst} m ({id}), {over} more than {lim} m off.", { n: m.n.toLocaleString(), total: (m.n + m.noGround).toLocaleString(), med: m.median.toFixed(2), worst: (m.worst.dz > 0 ? "+" : "") + m.worst.dz.toFixed(1), id: m.worst.id ?? "?", over: m.over.toLocaleString(), lim: BENCH_DZ_M }) + " " + tr("{n} collar(s) lie where the surface has no ground.", { n: m.noGround.toLocaleString() });
+      else if (m.n) msg += " " + tr("Against the {n} collars it was built from: median {med} m off, worst {worst} m ({id}), {over} more than {lim} m off.", { n: m.n.toLocaleString(), med: m.median.toFixed(2), worst: (m.worst.dz > 0 ? "+" : "") + m.worst.dz.toFixed(1), id: m.worst.id ?? "?", over: m.over.toLocaleString(), lim: BENCH_DZ_M })
         + (m.noGround ? " " + tr("{n} collar(s) lie where the surface has no ground.", { n: m.noGround.toLocaleString() }) : "");
     }
     setTerrainError({ info: true, text: msg });
@@ -1159,9 +1163,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const { features } = await readKmlFile(file);
       const tie = tieOf(project); // #2587
       if (tie) await getProj4Def(Number(tie.epsg)); // a registry code loads on demand (#834)
-      const { polylines, failed, featureOf, attributes } = kmlToProjectPolylines(features, project?.epsg, { toLocal: tie ? (x, y, from) => fileToLocal(tie, x, y, from) : null }); // featureOf, attributes: #2742
+      const { polylines, failed, featureOf, attributes, closedFlags, partNames } = kmlToProjectPolylines(features, project?.epsg, { toLocal: tie ? (x, y, from) => fileToLocal(tie, x, y, from) : null }); // featureOf, attributes: #2742
       if (!polylines.length) throw new Error(failed ? tr("KML coordinates could not be converted to EPSG:{v}.", { v: project?.epsg }) : tr("No lines or polygons found in this KML (points are imported through the 3D View importer)."));
-      return { polylines, featureOf, attributes, note: withLonLatSource(lonLatNote(tie)) }; // #2467; #2684; featureOf / attributes: #2742 — one claim per Placemark
+      return { polylines, closedFlags, featureOf, attributes, ...(partNames ? { partNames } : {}), note: withLonLatSource(lonLatNote(tie)) }; // #2467; #2684; featureOf / attributes: #2742 — one claim per Placemark; closedFlags (a road is not a claim, #3349) and partNames (#3454)
     }
     // TASKS.csv #1106 — GPX tracks / routes and GeoJSON lines / polygons, WGS 84 (or a GeoJSON "crs" EPSG) to the project CRS
     if (name.endsWith(".gpx") || name.endsWith(".geojson") || name.endsWith(".json")) {
@@ -1255,7 +1259,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           const st = await plainSourceTransform(); // #2684
           if (st) { polylines = st.map(polylines); if (st.note) dxfNotes.push(`${file.name}: ${st.note}`); }
         }
-        addBoundary({ name: fileStem(file.name), polylines, ...(closedFlags ? { closedFlags } : {}), ...(partNames ? { partNames } : {}), elevation: boundaryElevation }); // fileStem, partNames: #1767 — the claims path already named by the stem
+        addBoundary({ name: uniqueName(fileStem(file.name), boundaries.map((b) => b.name)) /* #3455 */, polylines, ...(closedFlags ? { closedFlags } : {}), ...(partNames ? { partNames } : {}), elevation: boundaryElevation }); // fileStem, partNames: #1767 — the claims path already named by the stem
         imported++;
       } catch (err) {
         if (err.facesOnly) { solids.push(file); continue; } // TASKS.csv #1503 — 3DFACE / polyface only: a solid, for the 3D View's solid import
@@ -1297,7 +1301,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         const shapePolylines = await shapeFileToPolylines(file);
         const base = file.name.replace(/\.(ply|dxf|zip|shp|gpkg|kml|kmz|gpx|geojson|json)$/i, "");
         const addClaim = (c) => {
-          addBoundary({ name: c.name, polylines: c.polylines, ...(c.closedFlags ? { closedFlags: c.closedFlags } : {}), elevation: boundaryElevation, kind: "claim", status: c.status || "active", tenureNumber: c.tenureNumber || "", expiryDate: c.expiryDate || "", color: claimStatusColor(c.status || "active") }); // status from the file: #2466
+          addBoundary({ name: uniqueName(c.name, boundaries.map((b) => b.name)) /* #3455 */, polylines: c.polylines, ...(c.closedFlags ? { closedFlags: c.closedFlags } : {}), elevation: boundaryElevation, kind: "claim", status: c.status || "active", tenureNumber: c.tenureNumber || "", expiryDate: c.expiryDate || "", color: claimStatusColor(c.status || "active") }); // status from the file: #2466
           imported++;
         };
         // TASKS.csv #2122 — a claim is an area: a file of open lines (the 9 IP lines became nine 0 ha 'claims') goes to Boundaries instead
@@ -2878,6 +2882,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               {polylinesBox(b.polylines) && <Crosshair role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Zoom the plan to \"{name}\"", { name: b.name })} title={tr("Zoom the plan to \"{name}\"", { name: b.name })} onClick={() => requestPlanZoom(polylinesBox(b.polylines))} />}{/* TASKS.csv #2657 */}
               <Trash2 aria-label={tr("Remove boundary \"{name}\"", { name: b.name })} title={tr("Remove boundary \"{name}\"", { name: b.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: b.name }))) removeBoundary(b.id); }} />
             </div>
+            {isAreaBoundary(b) && (() => { // TASKS.csv #3469 — a closed boundary has an area too, as a claim does (on the ground where the grid's scale factor matters, #3468)
+              const ga = groundArea(boundaryAreaHectares(b.polylines), b.polylines, project?.crsSet !== false ? project?.epsg : null), f = (v) => v.toLocaleString(undefined, { maximumFractionDigits: 1 });
+              return <div style={{ marginTop: 4, color: "var(--color-text-faint)", fontSize: "var(--font-size-sm)" }}>{ga.groundHa != null ? tr("Area {v} ha on the ground ({g} ha on the map grid)", { v: f(ga.groundHa), g: f(ga.gridHa) }) : tr("Area {v} ha", { v: f(ga.gridHa) })}</div>;
+            })()}
             {b.partNames?.some(Boolean) && ( /* TASKS.csv #2673 — the parts' names as labels in the 3D view (hovering a part names it anyway) */
               <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5, cursor: "pointer", color: "var(--color-text-caption)", fontSize: "var(--font-size-sm)" }}>
                 <input type="checkbox" checked={!!b.partLabels} onChange={(e) => updateBoundary(b.id, { partLabels: e.target.checked })} />{tr("Label the parts (3D view and Maps plan)")}
@@ -3003,7 +3011,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, fontSize: "var(--font-size-sm)", color: "var(--color-text-faint)" }}>
               <span style={{ width: 60, flexShrink: 0 }}>{tr("Area")}</span>
-              <span>{tr("{v} ha", { v: boundaryAreaHectares(c.polylines).toLocaleString(undefined, { maximumFractionDigits: 1 }) })}</span>
+              <span>{(() => { // #3468 — the grid area, and the ground area where the scale factor makes them differ
+                const ga = groundArea(boundaryAreaHectares(c.polylines), c.polylines, project?.crsSet !== false ? project?.epsg : null), f = (v) => v.toLocaleString(undefined, { maximumFractionDigits: 1 });
+                return ga.groundHa != null ? tr("{v} ha on the ground ({g} ha on the map grid)", { v: f(ga.groundHa), g: f(ga.gridHa) }) : tr("{v} ha", { v: f(ga.gridHa) });
+              })()}</span>
             </div>
             <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
               <input type="checkbox" checked={c.drapeMode === "terrain"} disabled={!terrain}

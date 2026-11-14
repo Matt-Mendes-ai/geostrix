@@ -28,7 +28,7 @@ import SourceCrsField from "../components/SourceCrsField.jsx";
 import { readShapefileLayers, reprojectShapefileZip, reportShapefileText, readGeoTiffInfo, reprojectGeoTiff, reportGeoTiffText, reprojectTableRows, degreesOutOfRange, utmOutOfRange, isUtmCrs, fileXYColumns, fromForGridPrefix , sridColumnEpsg, rowsToGeoJSON /* #2130 */ } from "../lib/fileReproject.js"; // #487; degreesOutOfRange: #2461; utmOutOfRange ... fromForGridPrefix: #2588
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { collarCentreLonLat, collarSpread, formatLonLat, medianPoint, crsCandidatesAt, offsetFrom } from "../lib/projectCrs.js"; // TASKS.csv #2291; medianPoint: #2463; crsCandidatesAt: #2465
-import { smallGridCoordinates } from "../lib/crsFromColumns.js"; // TASKS.csv #2291
+import { smallGridCoordinates, gridFrameFromRows } from "../lib/crsFromColumns.js"; // TASKS.csv #2291; gridFrameFromRows: #3446
 import { tieOf } from "../lib/localGridTie.js"; // TASKS.csv #2587
 import { gridToCrsChoice, isMineSource, MINE_SOURCE } from "../lib/mineGrid.js"; // TASKS.csv #2812 — 'A file' from the mine grid
 const LocalGridPanel = React.lazy(() => import("../components/LocalGridPanel.jsx")); // TASKS.csv #2288 — on demand
@@ -72,7 +72,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
     (generatedSurfaces || []).forEach((s) => items.push({ key: `generatedSurfaces:${s.id}`, kind: "generatedSurfaces", id: s.id, label: `Surface: ${s.name}` }));
     (rasters || []).forEach((r) => items.push({ key: `rasters:${r.id}`, kind: "rasters", id: r.id, label: `Raster: ${r.name}` }));
     if (terrain) items.push({ key: "terrain", kind: "terrain", label: `Terrain: ${terrain.name || "surface"}` });
-    (boundaries || []).forEach((b) => items.push({ key: `boundaries:${b.id}`, kind: "boundaries", id: b.id, label: `Boundary: ${b.name}` }));
+    (boundaries || []).forEach((b) => items.push({ key: `boundaries:${b.id}`, kind: "boundaries", id: b.id, label: `${b.kind === "claim" ? "Claim" : "Boundary"}: ${b.name}` /* TASKS.csv #3471 */ }));
     (mapLayers || []).forEach((l) => items.push({ key: `mapLayers:${l.id}`, kind: "mapLayers", id: l.id, label: `Map layer: ${l.name}` }));
     (surfaceStructures || []).forEach((st) => items.push({ key: `surfaceStructures:${st.id}`, kind: "surfaceStructures", id: st.id, label: `Outcrop structures: ${st.name}` }));
     (omfObjects || []).forEach((o) => items.push({ key: `omfObjects:${o.id}`, kind: "omfObjects", id: o.id, label: `OMF object: ${o.name}` }));
@@ -151,9 +151,16 @@ export default function CartographyModule({ embedded = false, forcePane = null }
     const g = fileXYColumns(t.headers); // #2588 — a map-grid pair (MGA_E / MGA_N) before a mine grid's (GBMG_East)
     setFile({ name: f.name, headers: t.headers, rows: t.rows, xCol: g.x, yCol: g.y });
     const srid = sridColumnEpsg(t.headers, t.rows); // #2130 — the table's own srid / epsg column, when every row agrees
-    const implied = srid ? srid.epsg : g.geographic ? 4326 : fromForGridPrefix(g.prefix, project?.crsSet !== false ? project?.epsg : null); // #2588 — MGA_ columns on an MGA project
+    // TASKS.csv #3446 (split from #2297) — a GRIDNAME-style column's VALUES (MGA94_51, NAT_Grid_ID = MGA94_Z50) name the file's CRS, as the collar import reads them
+    const frame = !srid ? gridFrameFromRows(t.headers, t.rows) : null;
+    const named = frame?.epsg && !frame.mixed ? frame.epsg : null;
+    const implied = srid ? srid.epsg : named || (g.geographic ? 4326 : fromForGridPrefix(g.prefix, project?.crsSet !== false ? project?.epsg : null)); // #2588 — MGA_ columns on an MGA project
     setFileFrom(implied || null);
-    setMsg({ ok: true, text: srid
+    setMsg({ ok: true, text: named
+      ? tr("\"{name}\": {rows} rows. X / Y are {x} / {y}, and From is {crs}, from the values of its {col} column: check both, then save.", { name: f.name, rows: t.rows.length.toLocaleString(), x: g.x || "?", y: g.y || "?", crs: nameOf(named), col: frame.cols.join(" / ") })
+      : frame?.mixed
+      ? tr("\"{name}\": {rows} rows. Its {col} column names more than one grid ({names}): the rows are not in one CRS, so From is left for you to choose. Check the X / Y columns, then save.", { name: f.name, rows: t.rows.length.toLocaleString(), col: frame.cols.join(" / "), names: frame.groups.slice(0, 4).map((x) => `${x.name} (${x.rows.toLocaleString()})`).join(", ") })
+      : srid
       ? tr("\"{name}\": {rows} rows. X / Y are {x} / {y}, and From is {crs}, from its {col} column: check both, then save.", { name: f.name, rows: t.rows.length.toLocaleString(), x: g.x || "?", y: g.y || "?", crs: nameOf(srid.epsg), col: srid.col })
       : implied && !g.geographic
       ? tr("\"{name}\": {rows} rows. X / Y are {x} / {y}, and From is the project's {crs}, as their names say: check both, then save.", { name: f.name, rows: t.rows.length.toLocaleString(), x: g.x, y: g.y, crs: nameOf(implied) })
@@ -176,6 +183,16 @@ export default function CartographyModule({ embedded = false, forcePane = null }
   // TASKS.csv #2461 — the X / Y under a geographic From, checked before Save
   const fromDegrees = useMemo(() => (file && !file.kind && file.xCol && file.yCol && fileFrom && isGeographicCrs(fileFrom) ? degreesOutOfRange(file.rows, file.xCol, file.yCol) : null), [file, fileFrom]);
   // TASKS.csv #2588 — and under a UTM / MGA From: eastings / northings no zone has (a local mine grid's) are not converted or stamped
+  // TASKS.csv #3460 (from #3001) — where the file's points land under the chosen From, and how far that is from the project's collars: a MGA 51
+  // From on zone 50 eastings said nothing (a geographic From is caught by fromDegrees, a UTM one only by an impossible easting)
+  const fromLanding = useMemo(() => {
+    if (!file || file.kind || !file.xCol || !file.yCol || !fileFrom || isMineSource(fileFrom) || isGeographicCrs(fileFrom)) return null;
+    const pts = file.rows.map((r) => ({ x: Number(r[file.xCol]), y: Number(r[file.yCol]) })).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+    const at = collarCentreLonLat(pts, fileFrom);
+    if (!at) return null;
+    const home = project?.crsSet !== false && project?.epsg && (store.collars || []).length ? collarCentreLonLat(store.collars, project.epsg) : null;
+    return { at, off: home ? offsetFrom(home, at) : null };
+  }, [file, fileFrom, project?.epsg, project?.crsSet, store.collars]);
   const fromUtm = useMemo(() => (file && !file.kind && file.xCol && file.yCol && fileFrom && isUtmCrs(fileFrom) ? utmOutOfRange(file.rows, file.xCol, file.yCol) : null), [file, fileFrom]);
   // TASKS.csv #2130 — the table as GeoJSON points (WGS 84 longitude / latitude, as the format requires), for web GIS
   const saveGeoJSON = () => run(async () => {
@@ -351,6 +368,12 @@ export default function CartographyModule({ embedded = false, forcePane = null }
                 {/* TASKS.csv #2461 — metres declared as degrees: said before Save, and Save held while most rows cannot be longitude / latitude */}
                 {fromDegrees && fromDegrees.outside > 0 && (
                   <div role="alert" style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("{n} of {m} rows checked have X / Y outside ±180 / ±90 (e.g. {x}, {y}), so they are not longitude / latitude: check the From CRS. Such rows are left blank.", { n: fromDegrees.outside.toLocaleString(), m: fromDegrees.checked.toLocaleString(), x: fromDegrees.example[0].toLocaleString(), y: fromDegrees.example[1].toLocaleString() })}</div>
+                )}
+                {fromLanding && ( /* TASKS.csv #3460 */
+                  <div role="note" style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: fromLanding.off && fromLanding.off.km > 50 ? "var(--color-warn-text)" : "var(--color-text-secondary)", lineHeight: 1.4 }}>
+                    {tr("Read as {v}, the file's points would be at {where}.", { v: nameOf(fileFrom), where: formatLonLat(fromLanding.at) })}
+                    {fromLanding.off && fromLanding.off.km > 50 ? " " + tr("That is about {km} km {dir} of the project's collars: probably the wrong From.", { km: fromLanding.off.km.toLocaleString(), dir: fromLanding.off.dir }) : ""}
+                  </div>
                 )}
                 {fromUtm && fromUtm.outside > 0 && ( /* TASKS.csv #2588 */
                   <div role="alert" style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("{n} of {m} rows checked have X / Y that no UTM / MGA zone has (e.g. {x}, {y}): they look like a local mine grid, not {crs}. Check the X / Y columns and the From CRS. Such rows are left blank.", { n: fromUtm.outside.toLocaleString(), m: fromUtm.checked.toLocaleString(), x: fromUtm.example[0].toLocaleString(), y: fromUtm.example[1].toLocaleString(), crs: nameOf(fileFrom) })}</div>

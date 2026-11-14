@@ -4,7 +4,7 @@
 // layers, boundaries, collars and surface samples; wheel to zoom, drag to pan, Fit, the cursor's E / N and a scale bar. Pictures are
 // decoded once and map layers drawn once per style into a cached bitmap, so a pan redraws bitmaps; the 3D scene is not touched.
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useStore } from "../lib/store.jsx";
+import { useStore, useSetCursor } from "../lib/store.jsx"; // useSetCursor: TASKS.csv #3467 — the status bar's E / N follow the plan's cursor
 import { t as tr } from "../lib/i18n.js";
 import { niceScaleBar } from "../lib/surfacePlan.js";
 import { hillshadeRGBA } from "../lib/hillshade.js"; // TASKS.csv #2990 — the no-data cells transparent
@@ -25,7 +25,8 @@ import { usePlanZoom, viewForBox } from "../lib/planZoom.js"; // TASKS.csv #2657
 import { usePlanGt, showGtOnPlan, gtRadius, gtLegend } from "../lib/planGt.js"; // TASKS.csv #2755
 import { topRasterValueAt } from "../lib/planRasterValue.js"; // TASKS.csv #2853 — the value under the cursor
 import { planLodTiles, tilesInView, tilePixelM, lodSourceKey, tileKey } from "../lib/lodTiles.js"; // TASKS.csv #3252 — detail tiles where the plan looks
-import { pointTransform, isGeographicCrs } from "../lib/reproject.js"; // TASKS.csv #2998 — longitude / latitude under the cursor
+import { pointTransform, isGeographicCrs } from "../lib/reproject.js";
+import { graticule, graticuleLabel } from "../lib/planGraticule.js"; // TASKS.csv #3466 // TASKS.csv #2998 — longitude / latitude under the cursor
 import { perHoleValuesOf, perHoleFigureAtIntercepts } from "../lib/holeValueGrid.js"; // TASKS.csv #2658; perHoleValuesOf: #2991 (a coded log's values too)
 
 const imageCache = new Map(); // dataUrl (+ key colour) -> { img, ready }
@@ -63,11 +64,13 @@ const lonLatText = (T, c) => {
 // TASKS.csv #2853 — the top visible grid's value at the cursor, after the E / N
 const cursorValueText = (rasters, c) => { const t = topRasterValueAt(rasters, c.x, c.y); return t ? `  ·  ${t.name.length > 28 ? `…${t.name.slice(-27)}` : t.name}: ${t.value.toLocaleString(undefined, { maximumSignificantDigits: 4 })}${t.unit ? ` ${t.unit}` : ""}` : ""; };
 export default function MapsPlanView() {
-  const { rasters = [], terrain, mapLayers = [], boundaries = [], collars = [], surfaceSamples = [], assays = [], assayElements = [], layers = {}, customLayers = [], project, survey = [], desurveyMethod, addLayoutImage, goToModule, addBoundary } = useStore(); // addBoundary: #3342 // addLayoutImage / goToModule: #3194 // assays: #2459; layers, customLayers: #2658; project: #2128; survey, desurveyMethod: #2991 (a coded RL figure)
+  const { rasters = [], terrain, mapLayers = [], boundaries = [], collars = [], surfaceSamples = [], assays = [], assayElements = [], layers = {}, customLayers = [], project, survey = [], desurveyMethod, addLayoutImage, goToModule, addBoundary, updateRaster, updateTerrain } = useStore(); // updateRaster, updateTerrain: #3463 // addBoundary: #3342 // addLayoutImage / goToModule: #3194 // assays: #2459; layers, customLayers: #2658; project: #2128; survey, desurveyMethod: #2991 (a coded RL figure)
   // TASKS.csv #2998 / #2298 — the cursor's longitude / latitude beside its E / N (a projected project CRS only), so a zone edge or a point from a
   // report in degrees can be found on the plan, and the readout says which frame its E / N are in
   const toLonLat = project?.crsSet !== false && project?.epsg && !isGeographicCrs(project.epsg) ? pointTransform(project.epsg, 4326) : null; // looked up as the cursor moves: the registry may load after the plan
   const frameText = project?.crsSet === false ? tr(" (local grid)") : "";
+  const [chipOpen, setChipOpen] = useState(true); // TASKS.csv #3458 — the Collars panel and its legend can be folded off the plan
+  const setStatusCursor = useSetCursor();
   const chipRef = useRef(null); // the Collars chip, for the callouts to keep clear of (#3405)
   // TASKS.csv #3252 phase 1 — a raster with a source description (raster.lod) gets detail tiles where the plan looks: the loader (and the
   // Planetary Computer reader behind it) is loaded the first time one is shown
@@ -100,6 +103,7 @@ export default function MapsPlanView() {
   const gtMax = useMemo(() => { let m = 0; for (const h of gtPlan?.holes || []) if (h.gt > m) m = h.gt; return m; }, [gtPlan]);
   // TASKS.csv #2128 — a coordinate grid (on by default) and a two-click measure (session state)
   const [showGrid, setShowGrid] = useState(true);
+  const [showLonLat, setShowLonLat] = useState(false); // TASKS.csv #3466 — a longitude / latitude graticule beside the E / N grid (a projected CRS only)
   const [measuring, setMeasuring] = useState(false);
   const [mPts, setMPts] = useState([]);
   const colourFields = useMemo(() => collarColourFields(collars), [collars]);
@@ -159,7 +163,7 @@ export default function MapsPlanView() {
     const X = (x) => (x - left) / v.mPerPx, Y = (y) => (top - y) / v.mPerPx;
     const drawAt = (img, b, alpha = 1) => { if (!img) return; ctx.globalAlpha = alpha; ctx.drawImage(img, X(b[0]), Y(b[3]), (b[2] - b[0]) / v.mPerPx, (b[3] - b[1]) / v.mPerPx); ctx.globalAlpha = 1; };
     const redraw = () => setTick((t) => t + 1);
-    if (hill) drawAt(hill, terrain.bbox, 0.9);
+    if (hill && terrain.visible !== false) drawAt(hill, terrain.bbox, 0.9); // #3463 — the terrain's eye is honoured on the plan
     const viewBoxL = [left, top - size.h * v.mPerPx, left + size.w * v.mPerPx, top];
     rasters.forEach((r) => {
       if (r.visible !== false && r.dataUrl && r.bbox) drawAt(cachedImage(r.dataUrl, !r.grid ? r.keyColour : null, redraw), r.bbox, r.opacity ?? 0.85);
@@ -208,6 +212,24 @@ export default function MapsPlanView() {
       ys.forEach((y) => ctx.fillText(gridLabel(y, "N"), 3, Y(y) - 2));
     }
     ctx.lineJoin = "round";
+    if (showLonLat && project?.crsSet !== false && project?.epsg && !isGeographicCrs(project.epsg)) { // #3466
+      const toLL = pointTransform(project.epsg, 4326), toXY = pointTransform(4326, project.epsg);
+      const g = toLL && toXY ? graticule([left, top - size.h * v.mPerPx, left + size.w * v.mPerPx, top], toLL, toXY) : null;
+      if (g) {
+        ctx.save(); ctx.strokeStyle = "rgba(30,90,170,0.55)"; ctx.setLineDash([5, 4]); ctx.lineWidth = 1; ctx.fillStyle = "rgba(20,70,140,0.95)"; ctx.font = "10px sans-serif";
+        ctx.beginPath();
+        for (const ln of g.lines) ln.pts.forEach((p, i) => (i ? ctx.lineTo(X(p.x), Y(p.y)) : ctx.moveTo(X(p.x), Y(p.y))));
+        ctx.stroke(); ctx.setLineDash([]);
+        for (const ln of g.lines) { // a label where the line enters the view: longitudes along the bottom, latitudes down the right
+          const pts = ln.pts.map((p) => [X(p.x), Y(p.y)]).filter(([px, py]) => px >= 0 && px <= size.w && py >= 0 && py <= size.h);
+          if (!pts.length) continue;
+          const pick = ln.kind === "lon" ? pts.reduce((a, b) => (b[1] > a[1] ? b : a)) : pts.reduce((a, b) => (b[0] > a[0] ? b : a));
+          ctx.textAlign = ln.kind === "lon" ? "center" : "right";
+          ctx.fillText(graticuleLabel(ln.kind, ln.value, g.step), ln.kind === "lon" ? pick[0] : pick[0] - 3, ln.kind === "lon" ? pick[1] - 3 : pick[1] - 2);
+        }
+        ctx.restore();
+      }
+    }
     // TASKS.csv #2988 — the lines in view only (each line's box computed once), one path and one stroke per boundary
     const viewBox = [left, top - size.h * v.mPerPx, left + size.w * v.mPerPx, top];
     boundaries.forEach((b) => {
@@ -276,7 +298,7 @@ export default function MapsPlanView() {
       ctx.fillStyle = "#c2185b"; mPts.forEach((p) => { ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 3.5, 0, Math.PI * 2); ctx.fill(); });
     }
     gridDrawn.current = showGrid; // #3194 — what the canvas holds now
-  }, [v?.cx, v?.cy, v?.mPerPx, size, lodReady /* #3252 */, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, spacingM /* #2989 */, showTraces, planT, dotCollars /* #3337 */, surveys, surveysHidden /* #3342 */, showIds, showGrid, measuring, mPts, gtPlan, gtMax]); // gtPlan: #2755
+  }, [v?.cx, v?.cy, v?.mPerPx, size, lodReady /* #3252 */, chipOpen /* #3458: its size changes the callouts */, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, spacingM /* #2989 */, showTraces, planT, dotCollars /* #3337 */, surveys, surveysHidden /* #3342 */, showIds, showGrid, showLonLat /* #3466 */, measuring, mPts, gtPlan, gtMax]); // gtPlan: #2755
 
   // TASKS.csv #3252 — once the view has settled (250 ms), ask for the detail tiles it shows; each one that arrives redraws the plan
   useEffect(() => {
@@ -310,7 +332,9 @@ export default function MapsPlanView() {
   };
   const onMove = (e) => {
     const r = canvasRef.current.getBoundingClientRect();
-    setCursor(toWorld(e.clientX - r.left, e.clientY - r.top));
+    const wp = toWorld(e.clientX - r.left, e.clientY - r.top);
+    setCursor(wp);
+    setStatusCursor({ x: wp.x, y: wp.y, z: null }); // #3467
     const d = drag.current;
     if (d) setView({ mPerPx: v.mPerPx, cx: d.cx - (e.clientX - d.x) * v.mPerPx, cy: d.cy + (e.clientY - d.y) * v.mPerPx });
   };
@@ -344,7 +368,7 @@ export default function MapsPlanView() {
   return (
     <div ref={wrapRef} className="ge-maps-plan" style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
       <canvas ref={canvasRef} style={{ width: size.w, height: size.h, display: "block", cursor: drag.current ? "grabbing" : "crosshair" }} aria-label={tr("Plan of the map data")}
-        onWheel={onWheel} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={() => { onUp(); setCursor(null); }} onDoubleClick={measuring ? undefined : fit /* #2128 — a double-click while measuring sets points */} />
+        onWheel={onWheel} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={() => { onUp(); setCursor(null); setStatusCursor({ x: null, y: null, z: null }); }} onDoubleClick={measuring ? undefined : fit /* #2128 — a double-click while measuring sets points */} />
       {figure && <FigureLegend f={figure} chip={chip} />}
       {collars.length > 0 && ( /* TASKS.csv #2459 / #2591 — the collars' colour and labels, and their legend */
         <div ref={chipRef} style={{ ...chip, left: 10, top: 10, maxWidth: 270, display: "flex", flexDirection: "column", gap: 4, lineHeight: 1.35 }} onMouseDown={(e) => e.stopPropagation()}>
@@ -358,7 +382,10 @@ export default function MapsPlanView() {
                 {assayElements.flatMap((e) => [<option key={`max:${e.symbol}`} value={`max:${e.symbol}`}>{tr("Highest {el} in the hole", { el: e.symbol })}</option>, <option key={`mean:${e.symbol}`} value={`mean:${e.symbol}`}>{tr("{el}, length-weighted mean of the hole", { el: e.symbol })}</option>])}
               </optgroup>}
             </select>
+            <button type="button" onClick={() => setChipOpen((o) => !o)} aria-expanded={chipOpen} aria-label={chipOpen ? tr("Fold the Collars panel") : tr("Unfold the Collars panel")} title={chipOpen ? tr("Fold the Collars panel and its legend out of the way") : tr("Unfold the Collars panel")}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: "0 2px", color: "inherit", fontSize: "var(--font-size-sm)" }}>{chipOpen ? "▾" : "▸"}</button>{/* TASKS.csv #3458 */}
           </label>
+          {chipOpen && <>
           {colouring?.kind === "number" && ( /* TASKS.csv #3050 — the class breaks typed, not only the quintiles */
             <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Class breaks")}
               <input value={breaksText} onChange={(e) => setBreaksText(e.target.value)} placeholder={tr("quintiles, or e.g. 50, 55, 60")} aria-label={tr("Class breaks of the collar colours")} style={{ fontSize: "var(--font-size-sm)", flex: 1, minWidth: 0 }} />
@@ -404,6 +431,7 @@ export default function MapsPlanView() {
               {(colourBy.startsWith("max:") || colourBy.startsWith("mean:")) && !breaks.length ? <span>{colouring.noValue ? tr("Classes at the quintiles of the holes' values; a grey ring is a hole with no value ({n}).", { n: colouring.noValue.toLocaleString() }) : tr("Classes at the quintiles of the holes' values; a grey ring is a hole with no value.")}{/* counts: #3351 */}</span> : null}
             </div>
           )}
+          </>}
         </div>
       )}
       <div style={{ ...chip, left: 10, bottom: 10, display: "flex", flexDirection: "column", gap: 3 }}>
@@ -414,6 +442,7 @@ export default function MapsPlanView() {
         <span style={{ fontWeight: 700 }} title={tr("Grid north: the plan is drawn on the project's grid, north up. True north differs by the grid convergence (Maps > Project CRS, or Measure).")}>{tr("N ↑")}</span>{/* TASKS.csv #3352 */}
         <button onClick={fit} style={{ fontSize: "var(--font-size-sm)", padding: "1px 7px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", cursor: "pointer" }}>{tr("Fit")}</button>
         <label style={{ display: "flex", alignItems: "center", gap: 3 }}><input type="checkbox" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} />{tr("Grid")}</label>{/* #2128 */}
+        {project?.crsSet !== false && project?.epsg && !isGeographicCrs(project.epsg) && <label style={{ display: "flex", alignItems: "center", gap: 3 }} title={tr("Longitude / latitude lines over the plan, to find a zone edge or a point given in degrees")}><input type="checkbox" checked={showLonLat} onChange={(e) => setShowLonLat(e.target.checked)} />{tr("Lon / lat")}</label>}{/* TASKS.csv #3466 */}
         <button onClick={toLayout} title={tr("Put this view on the Layout page, north up at its scale, with a legend of its layers")} style={{ fontSize: "var(--font-size-sm)", padding: "1px 7px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", cursor: "pointer" }}>{tr("Snapshot to Layout")}</button>{/* #3194 — the 3D View's own words for the same thing */}
         <button onClick={() => { setMeasuring((m) => !m); setMPts([]); }} aria-pressed={measuring} style={{ fontSize: "var(--font-size-sm)", padding: "1px 7px", border: `1px solid ${measuring ? "var(--color-selected-border)" : "var(--color-border)"}`, borderRadius: 4, background: measuring ? "var(--color-selected-bg)" : "var(--color-bg)", cursor: "pointer" }}>{tr("Measure")}</button>
       </div>
@@ -439,6 +468,13 @@ export default function MapsPlanView() {
           ))}
           {outlineNote && <span role="status" style={{ color: "var(--color-text-muted)" }}>{outlineNote}</span>}
         </div>
+      )}
+      {(rasters.length > 0 || terrain) && ( /* TASKS.csv #3463 — the plan's rasters and terrain switched on and off from the plan itself */
+        <details style={{ ...chip, right: 10, bottom: 40, maxWidth: 260, maxHeight: 220, overflowY: "auto", fontSize: "var(--font-size-xs)" }} onMouseDown={(e) => e.stopPropagation()}>
+          <summary style={{ cursor: "pointer", fontWeight: 600 }}>{tr("Layers on the plan")}</summary>
+          {terrain && <label style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}><input type="checkbox" checked={terrain.visible !== false} onChange={(e) => updateTerrain({ visible: e.target.checked })} aria-label={tr("Show the terrain on the plan")} /><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={terrain.name}>{tr("Terrain: {name}", { name: terrain.name || tr("hillshade") })}</span></label>}
+          {rasters.map((r) => <label key={r.id} style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}><input type="checkbox" checked={r.visible !== false} onChange={(e) => updateRaster(r.id, { visible: e.target.checked })} aria-label={tr("Show {name} on the plan", { name: r.name })} /><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.name}>{r.name}</span></label>)}
+        </details>
       )}
       {farLayers.length > 0 && ( /* TASKS.csv #2125 — what Fit leaves out */
         <div role="note" style={{ ...chip, right: 10, top: 44, maxWidth: 340, lineHeight: 1.4 }}>

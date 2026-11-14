@@ -60,3 +60,15 @@ test("the label-only landing is placed against the present position", () => {
   assert.equal(offsetFrom(now, now).km, 0);
   assert.match(readFileSync(new URL("../src/modules/CartographyModule.jsx", import.meta.url), "utf8"), /That is about \{km\} km \{dir\} of where the project says they are now\./);
 });
+
+// TASKS.csv #3460 — Maps > A file says where the points land under the chosen From, and how far from the collars
+test("A file: zone 50 eastings read as MGA 51 land about 6 degrees east, far from the collars", () => {
+  const pts = [{ x: 600000, y: 7500000 }, { x: 601000, y: 7501000 }];
+  const home = collarCentreLonLat(pts, 28350), as51 = collarCentreLonLat(pts, 28351);
+  const o = offsetFrom(home, as51);
+  assert.ok(o.km > 600 && o.dir === "E", `${o.km} ${o.dir}`);
+  const c = readFileSync(new URL("../src/modules/CartographyModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  assert.match(c, /const fromLanding = useMemo\(\(\) => \{/);
+  assert.match(c, /tr\("Read as \{v\}, the file's points would be at \{where\}\."/);
+  assert.match(c, /probably the wrong From\./);
+});
