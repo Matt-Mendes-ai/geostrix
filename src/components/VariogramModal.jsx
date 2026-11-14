@@ -13,7 +13,7 @@ import { makeRunCache } from "../lib/runCache.js"; // TASKS.csv #3061
 import { desurveyHole } from "../lib/desurvey.js";
 import {
   fitVariogramModel, /* experimentalVariogram, directionRow: in the worker since #3009 */ MIN_HOLE_PAIRS /* #3285 */, variogramModelValue, VARIOGRAM_MODELS, verticalShare /* #3015 */,
-  VALUE_TRANSFORMS, applyValueTransform, groupPointsByDomain, suggestLagDistance, suggestBetweenHoleLag, variogramStationarity, siteSpacingLag, lagsShortOfSpacing, downholeLinePoints /* #1843 */, DIRECTION_TABLE, longestDirection /* #1996 */ } from "../lib/variogram.js";
+  VALUE_TRANSFORMS, applyValueTransform, groupPointsByDomain, variogramStationarity, siteSpacingLag, lagsShortOfSpacing, downholeLinePoints /* #1843 */, DIRECTION_TABLE, longestDirection /* #1996 */ } from "../lib/variogram.js";
 import { holeSpacingSummary } from "../lib/holeSpacing.js"; // TASKS.csv #2221
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -192,12 +192,14 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
 
         const { points: tPoints, capValue, p95: tP95 = null, floor: tFloor = null } = pick.tf; // p95 / floor: #1746; kept: #3061
         // TASKS.csv #1027 — downhole pairs: the downhole spacing; all / between-hole pairs: the spacing between holes
-        const between = holeMode === "downhole" ? null : suggestBetweenHoleLag(tPoints);
+        // TASKS.csv #3403 — the two lag suggestions are grid searches over every point (128 + 117 ms on 147,601 composites): in the worker, which holds the points
+        const sug = await vgClient.current.suggest(tPoints, { between: holeMode !== "downhole", lag: true });
+        const between = holeMode === "downhole" ? null : sug.between;
         // TASKS.csv #2221 — the drill sites of the holes in this run (collars within 25 m are one site)
         const holesIn = new Set(tPoints.map((p) => p.hole_id));
         const spacing = holeMode === "downhole" ? null : holeSpacingSummary((collars || []).filter((c) => holesIn.has(c.hole_id)));
         const site = holeMode === "between" ? siteSpacingLag(spacing) : null;
-        const suggested = site ? site.lag : between != null ? between / 4 : suggestLagDistance(tPoints); // a quarter of it, as ordinary kriging's fit
+        const suggested = site ? site.lag : between != null ? between / 4 : sug.lag; // a quarter of it, as ordinary kriging's fit
         let lag = lagDistance > 0 ? lagDistance : Math.max(1, Math.round(suggested || 10));
         let nLagsUsed = site && !(lagDistance > 0) ? Math.max(nLags, site.nLags) : nLags; // #2221 — auto lag between sites: out to the farthest one
 

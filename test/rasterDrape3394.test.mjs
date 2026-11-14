@@ -58,6 +58,6 @@ test("the UVs map the raster's corners as the flat plane's did (u east, v north)
 
 test("wiring: the raster path uses terrainDrapeGrid; the bilinear plane is gone", () => {
   const s = fs.readFileSync(new URL("../src/lib/viewer/sceneBuilders.js", import.meta.url), "utf8");
-  assert.match(s, /const dg = terrainDrapeGrid\(terrain, r\.bbox, \{ adaptiveError \}\);/);
+  assert.match(s, /geometry = terrainDrapeGeometry\(terrain, r\.bbox, \{ cx, cy, oz, base: 0\.15 \}\);/); // the shared drape since #3449
   assert.doesNotMatch(s, /const SEG = Math\.round\(Math\.min\(160/);
 });
