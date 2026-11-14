@@ -109,7 +109,7 @@ export function readTemText(text, name = "TEM") {
   const notXY = (c) => !c || /tilt|angle|pitch|roll|std|err|yaw/i.test(c) ? null : c;
   const xCol = pickCol(/^(utmx|x|easting|east|e)$/i) || pickCol(/^(e|x|east(ing)?)[_ -]?(utm|mga|nad|wgs|gda|grid)[_ -]?\d*[a-z]?$/i) || notXY(cg.x);
   const yCol = pickCol(/^(utmy|y|northing|north|n)$/i) || pickCol(/^(n|y|north(ing)?)[_ -]?(utm|mga|nad|wgs|gda|grid)[_ -]?\d*[a-z]?$/i) || notXY(cg.y);
-  const zCol = pickCol(/^(topo|topography|elevation|elev|dem|ground|z)$/i) || null;
+  const zCol = pickCol(/^(topo|topography|elevation|elev|dem|ground|z)$/i) || pickCol(/^y?top(o|bath)|^dem[_\d]|elevation|^ground_?el/i) || null; // #3440: the USGS file's Ytopbathv2
   if (!xCol || !yCol) throw new Error(`No X / Y columns in ${name}.`);
   return {
     name, source, n, columns, groups, epsg, header, line,

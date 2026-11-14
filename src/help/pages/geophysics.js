@@ -75,7 +75,7 @@ export default [
     summary: "Ground loop-loop electromagnetic soundings (a DUALEM, a GEM-2, or an Aarhus Workbench export) inverted for electrical conductivity against depth: one smooth layered model under each sounding, a section along each line with the depth of investigation, each sounding's readings against what its model predicts, and the models in 3D as a point survey. Runs in the Python engine.",
     notFor: [
       "A 1D model assumes flat-lying layers. Under a dyke, a pipe, a fence, a buried tank or any 3D conductor it is wrong in place and value. Use it for cover thickness, regolith, clay layers and the water table.",
-      "Time-domain (TEM) line data opens in Geophysics > EM > TEM line data (channels, decays and the decay constant); a TEM inversion is not available yet.",
+      "Time-domain (TEM) line data opens in Geophysics > EM > TEM line data (channels, decays, the decay constant and a 1D inversion of its own).",
       "The tie to the neighbouring soundings pulls each model toward its neighbours' first models: a stand-in for a laterally constrained inversion (Aarhus Workbench's LCI), not the same thing.",
     ],
     fields: [
@@ -490,7 +490,7 @@ export default [
     title: "Electromagnetic surveys (EM)",
     summary: "Geophysics > EM: which kind of EM survey to read. EM measures how well the ground conducts electricity: massive sulphide, graphite, clay and salt water are conductors. Time-domain (TEM) line data opens in TEM line data (every channel along a line, the decay at a station, the decay constant mapped); frequency-domain loop-loop soundings (DUALEM, GEM-2) open in FDEM 1D.",
     notFor: [
-      "A TEM inversion (conductivity against depth from the decays) is not available yet.",
+      "A 1D model assumes flat-lying layers: under a 3D conductor (a plate, a pipe) it is wrong in place and value.",
       "MT / AMT soundings have their own button.",
     ],
     fields: [
@@ -514,7 +514,8 @@ export default [
     title: "TEM line data (multi-channel)",
     summary: "Geophysics > EM > TEM line data: time-domain electromagnetic data along lines, every gate of the decay at every station. The channels are stacked along a line, the decay at a clicked station is drawn with its late-time decay constant (tau), and tau at every station is mapped. A long decay (a large tau) marks a good conductor: massive sulphide, graphite, saline water.",
     notFor: [
-      "No TEM inversion yet: the decays are not turned into conductivity against depth (that needs the system's waveform and geometry).",
+      "The 1D inversion assumes flat-lying layers under each station: under a 3D conductor (a plate, a pipe, a dyke) it is wrong in place and value. Below the depth of investigation the model is the inversion's guess, not the data's.",
+      "The waveform presets are approximate shapes, not a system's real waveform: the on-time and ramp-off move the early gates. Take them from the survey's logistics report.",
       "The decay constant is fitted to the later half of each decay (the gates at or after the middle time of the positive readings). Where those gates are in the noise, tau is not reliable; read the decay plot.",
     ],
     fields: [
@@ -525,6 +526,14 @@ export default [
       { name: "Both moments joined", what: "A two-moment file (SkyTEM low and high moment) whose header states both gate lists can be read as one decay: the gates of both, sorted by time. Offered in the Channels list.", choose: "Use it for the decay constant when the late gates of the low moment are noisy: the high moment's later gates carry the tail." },
       { name: "Noise floor, and Leave out readings with an uncertainty over", what: "Readings under the noise floor (in the data's units), or whose uncertainty is over the limit (33 % by default), are left out of the decay-constant fit. The uncertainty comes from the file's STD columns. GeoStrix guesses what a STD column holds from its values: in the data's units when they fall with the decay (by a decade or more over a station's gates) or any is over 1.5, as in the USGS / Aarhus-processed SkyTEM exports; otherwise a fraction of the reading (0.05 is 5 %). Switch 'STD is a fraction of the reading' / 'STD is in the data's units' if the guess is wrong.", choose: "Check the decay plot: the fit should follow the clean part of the decay." },
       { name: "Add one gate as a point survey…", what: "One gate's readings at every station as a point survey (TEM: dB/dt), which Point survey can grid." },
+      { name: "1D inversion: System", what: "Airborne: the transmitter loop modelled as a dipole, with the receiver at a horizontal offset (13 m is typical of a SkyTEM frame; check the report). Ground: a central-loop system, its loop's radius.", choose: "The height above the ground from the file's altitude column (TX_ALTITUDE, ALT) when it has one, else one height for every station." },
+      { name: "Waveform", what: "Each moment's current: an on-time and a linear ramp-off, from a preset marked approximate. The response is convolved with it, the ramp-on included." },
+      { name: "Gate times start at", what: "The end of the turn-off, or the start of the ramp-down (Aarhus-processed exports and the USGS SkyTEM releases measure from there): the gates are shifted by the ramp-off. GeoStrix guesses and says why.", choose: "From the survey report or the export's description." },
+      { name: "Data unit", what: "SI, V/(A·m⁴), or pV/(A·m⁴) (SI x 1e12). GeoStrix guesses from the earliest gate's size and says why: the USGS release's dictionary says pV, but its values are SI." },
+      { name: "Weigh by the file's STD columns / Uncertainty (%)", what: "Each reading's weight in the fit: the file's standard deviations (as guessed: a fraction of the reading or in its unit), else one percentage for every reading." },
+      { name: "Layers", what: "The number of layers, the first's thickness and the depth of the last layer's top; the thicknesses grow with depth.", choose: "20 layers from 3 m to 300 m for an airborne survey." },
+      { name: "Stations", what: "Every station, or every 2nd, 5th, 10th, 20th along each line for a first look (a station takes about 0.5 to 1 s with three cores)." },
+      { name: "Invert the stations (Python engine)", what: "Inverts each station for conductivity against depth (smooth layers, Gauss-Newton), in the Python engine, with the time left shown. Cancel keeps the stations already finished. The section shows conductivity along the line with the depth of investigation; click a station for its readings against its model's response. Add the models to the 3D view puts them under the stations (above each one's depth of investigation) as a point survey." },
     ],
     warnings: [],
     howto: {
@@ -534,6 +543,7 @@ export default [
         "Check the channels and the gate times; type the times if the file does not state them.",
         "Pick a line; click a station on the stacked profiles to see its decay and tau.",
         "Map the decay constant (tau): the point survey and its grid are added.",
+        "For conductivity against depth: set the system, each moment's waveform, when the gate times start and the data's unit (check the guesses), then Invert the stations.",
       ],
     },
     related: ["em-surveys", "fdem-1d", "point-survey"],

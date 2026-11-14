@@ -207,6 +207,61 @@ def check_inversion():
     print("request validation: a good request passes, four bad ones are refused")
 
 
+def check_step3():
+    """step 3: two moments in one row, a height per station, partial results in the progress events, the validator's new fields"""
+    system = {"geom": "vmd", "r": 13.0, "h": 30.0}
+    lm = {"gates": np.logspace(-5, -3.5, 10).tolist(), "waveform": [[-0.0008, 0.0], [-0.00079, 1.0], [-5e-6, 1.0], [0.0, 0.0]]}
+    hm = {"gates": np.logspace(-4, math.log10(6e-3), 14).tolist(), "waveform": [[-0.004, 0.0], [-0.0039, 1.0], [-4e-5, 1.0], [0.0, 0.0]]}
+    true_c, true_t = [0.01, 0.3, 0.005], [30.0, 30.0]
+    rows, heights = [], [25.0, 30.0, 41.0, 30.4]
+    for h in heights:
+        s = {**system, "h": h}
+        a = tem1d.forward([true_c], true_t, s, lm["gates"], waveform=lm["waveform"])[0]
+        b = tem1d.forward([true_c], true_t, s, hm["gates"], waveform=hm["waveform"])[0]
+        rows.append((np.r_[a, b] * tem1d.PV).tolist())
+    # a station's own height in one call: the same as one call a height (the kernel's per-station weights)
+    cond = np.array([true_c] * 4)
+    one = tem1d.forward(cond, true_t, {**system, "h": np.array(heights)}, hm["gates"], waveform=hm["waveform"], jac=True)
+    for k, h in enumerate(heights):
+        ref = tem1d.forward(cond[k:k + 1], true_t, {**system, "h": h}, hm["gates"], waveform=hm["waveform"], jac=True)
+        assert np.allclose(one[0][k], ref[0][0], rtol=1e-12, atol=0) and np.allclose(one[1][k], ref[1][0], rtol=1e-12, atol=1e-30), k
+    events = []
+    out = tem1d.run_job({"system": system, "moments": [lm, hm], "data": rows, "heights": heights, "errRel": 0.03, "maxIter": 15}, events.append)
+    assert len(events) == 2 and events[0]["iter"] == 0 and "partials" not in events[0]  # started, then one batch: the four heights together
+    parts = events[-1]["partials"]
+    seen = sorted(i for pt in parts for i in pt["idx"])
+    assert seen == [0, 1, 2, 3], seen  # every station reported once
+    # more stations than a batch: the events carry the last few batches, each station once
+    ev2 = []
+    tem1d.run_job({"system": system, "moments": [hm], "data": [r[10:] for r in rows] * 20, "heights": heights * 20, "errRel": 0.03, "maxIter": 2}, ev2.append)
+    assert [e["iter"] for e in ev2] == [0, 32, 64, 80] and all(e["stations"] == 80 and e["passes"] == 1 for e in ev2)
+    assert ev2[1]["etaS"] is None and ev2[2]["etaS"] is not None and ev2[3]["etaS"] == 0
+    assert len(ev2) == 4 and [len(pt["idx"]) for pt in ev2[-1]["partials"]] == [32, 32, 16], [len(pt["idx"]) for pt in ev2[-1]["partials"]]
+    assert events[1]["etaS"] is None  # the first batch carries the compile: no time left from it
+    thick = np.asarray(out["thick"])
+    mids = np.r_[0.0, np.cumsum(thick)][:-1] + thick / 2
+    for k, (row, chi) in enumerate(zip(out["condMs"], out["chi"])):
+        c = np.asarray(row[:-1]) / 1000.0
+        conductance = float((c * thick)[(mids > 15) & (mids < 80)].sum())
+        assert 0.4 < chi < 1.6 and 0.6 * 9 < conductance < 1.4 * 9 and 30 <= mids[int(np.argmax(c))] <= 60, (k, chi, conductance)
+    # the partial rows are the final ones
+    by = {i: pt["condMs"][j] for pt in parts for j, i in enumerate(pt["idx"])}
+    assert all(by[i] == out["condMs"][i] for i in range(4))
+    print(f"two moments (10 + 14 gates) and four heights (25-41 m): chi {min(out['chi']):.2f}-{max(out['chi']):.2f}, one batch; per-station heights match one call a height")
+    from fastapi import HTTPException
+    from app.main import _validate_tem1d
+    good = {"system": system, "moments": [lm, hm], "data": rows, "heights": heights, "errRel": 0.03}
+    _validate_tem1d(good)
+    for bad, why in [({**good, "data": [r[:20] for r in rows]}, "rows of one moment only"), ({**good, "heights": heights[:2]}, "too few heights"),
+                     ({**good, "heights": [25.0, -3.0, 30.0, 30.0]}, "a negative height"), ({**good, "moments": [lm, {"gates": [1e-3, 1e-4, 1e-2]}]}, "decreasing gates")]:
+        try:
+            _validate_tem1d(bad)
+        except HTTPException:
+            continue
+        raise AssertionError(f"accepted {why}")
+    print("step 3 validation: two moments and heights pass, four bad requests are refused")
+
+
 if __name__ == "__main__":
     check_half_space()
     check_against_empymod()
@@ -215,4 +270,5 @@ if __name__ == "__main__":
     check_jacobian()
     check_speed()
     check_inversion()
+    check_step3()
     print("tem1d: all checks passed")

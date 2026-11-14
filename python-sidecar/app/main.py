@@ -535,20 +535,30 @@ def _validate_tem1d(req):
             raise ValueError
     except (KeyError, TypeError, ValueError, AttributeError):
         raise HTTPException(422, "system needs geom 'vmd' with an offset r (0-200 m) or 'loop' with a radius a (0-500 m), and a height h (0-200 m).")
-    gates = req.get("gates")
-    if not isinstance(gates, list) or not (3 <= len(gates) <= 80) or any(not isinstance(t, (int, float)) or not (1e-7 <= t <= 1.0) for t in gates) \
-            or any(b <= a for a, b in zip(gates, gates[1:])):
-        raise HTTPException(422, "gates must list 3 to 80 increasing times between 1e-7 and 1 s.")
-    w = req.get("widths")
-    if w is not None and (not isinstance(w, list) or len(w) != len(gates) or any(not isinstance(v, (int, float)) or v < 0 for v in w)):
-        raise HTTPException(422, "widths must give one non-negative width (s) per gate.")
-    wf = req.get("waveform")
-    if wf is not None:
-        if not isinstance(wf, list) or not (2 <= len(wf) <= 50) or any(not isinstance(p, list) or len(p) != 2 for p in wf):
-            raise HTTPException(422, "waveform must list 2 to 50 [time (s), current 0-1] points.")
-        ts = [float(p[0]) for p in wf]
-        if any(b <= a for a, b in zip(ts, ts[1:])) or abs(ts[-1]) > 1e-12 or abs(float(wf[-1][1])) > 1e-12 or ts[0] < -1.0:
-            raise HTTPException(422, "The waveform's times must increase and end at t = 0 with the current off (I = 0).")
+    # TASKS.csv #3440 step 3 — one moment (gates, widths, waveform) or several (moments: SkyTEM's low and high moment, each its own)
+    moments = req.get("moments")
+    if moments is None:
+        moments = [{"gates": req.get("gates"), "widths": req.get("widths"), "waveform": req.get("waveform")}]
+    if not isinstance(moments, list) or not (1 <= len(moments) <= 3):
+        raise HTTPException(422, "moments must list 1 to 3 moments, each with its gates.")
+    total = 0
+    for mo in moments:
+        gates = mo.get("gates") if isinstance(mo, dict) else None
+        if not isinstance(gates, list) or not (3 <= len(gates) <= 80) or any(not isinstance(t, (int, float)) or not (1e-7 <= t <= 1.0) for t in gates) \
+                or any(b <= a for a, b in zip(gates, gates[1:])):
+            raise HTTPException(422, "gates must list 3 to 80 increasing times between 1e-7 and 1 s.")
+        total += len(gates)
+        w = mo.get("widths")
+        if w is not None and (not isinstance(w, list) or len(w) != len(gates) or any(not isinstance(v, (int, float)) or v < 0 for v in w)):
+            raise HTTPException(422, "widths must give one non-negative width (s) per gate.")
+        wf = mo.get("waveform")
+        if wf is not None:
+            if not isinstance(wf, list) or not (2 <= len(wf) <= 50) or any(not isinstance(p, list) or len(p) != 2 for p in wf):
+                raise HTTPException(422, "waveform must list 2 to 50 [time (s), current 0-1] points.")
+            ts = [float(p[0]) for p in wf]
+            if any(b <= a for a, b in zip(ts, ts[1:])) or abs(ts[-1]) > 1e-12 or abs(float(wf[-1][1])) > 1e-12 or ts[0] < -1.0:
+                raise HTTPException(422, "The waveform's times must increase and end at t = 0 with the current off (I = 0).")
+    gates = [0] * total  # the row width below: every moment's gates, one after the other
     data = req.get("data")
     if not isinstance(data, list) or not (1 <= len(data) <= TEM1D_MAX_STATIONS):
         raise HTTPException(400, f"Between 1 and {TEM1D_MAX_STATIONS:,} stations.")
@@ -558,9 +568,11 @@ def _validate_tem1d(req):
     if std is not None and (not isinstance(std, list) or len(std) != len(data) or any(not isinstance(r, list) or len(r) != len(gates) for r in std)):
         raise HTTPException(422, "std must give one row of relative uncertainties per station, one per gate.")
     n = len(data)
-    for k in ("line", "x", "y"):
+    for k in ("line", "x", "y", "heights"):
         if req.get(k) is not None and (not isinstance(req[k], list) or len(req[k]) != n):
             raise HTTPException(422, f"{k} must have one value per station.")
+    if req.get("heights") is not None and any(v is not None and (not isinstance(v, (int, float)) or not (0 <= v <= 300)) for v in req["heights"]):
+        raise HTTPException(422, "heights must be 0-300 m (null: the system's height).")
     lay = req.get("layers") or {}
     try:
         nl, first, bottom = int(lay.get("n", 20)), float(lay.get("first", 3.0)), float(lay.get("bottom", 300.0))

@@ -40,21 +40,30 @@ from .em1d import MU0, _filt, _numba_kernel
 
 
 
-def _fourier(times):
+# TASKS.csv #3440 step 3 — airborne (the system 10 m or more above the ground), Key's 81-point 2009 sine filter: half the frequencies of the
+# 201-point one (122 against 259 for 10 us to 13 ms) for 6e-4 of the reading (measured against the 201-point result on a 4-layer airborne
+# model). On the ground it missed the half-space closed form by 1 %: the 201-point filter there. The kernel's work is frequencies x stations x layers.
+def _filter_for(system):
+    return "key_81_2009" if float(np.min(system.get("h", 0.0))) >= 10.0 else "key_201_2012"
+
+
+def _fourier(times, filt="key_201_2012"):
     """the frequencies (Hz) and the empymod transform arguments for these times (s), for the step-off of a quantity whose
     frequency-domain response is given (signal = -1)"""
     import empymod
 
     t = np.asarray(times, float)
-    time, freq, ft, ftarg = empymod.utils.check_time(t, -1, "dlf", {"dlf": "key_201_2012", "pts_per_dec": -1}, 0)
+    time, freq, ft, ftarg = empymod.utils.check_time(t, -1, "dlf", {"dlf": filt, "pts_per_dec": -1}, 0)
     return time, np.asarray(freq, float), ft, ftarg
 
 
 def _geometry(system, freqs):
-    """the filter abscissae (lam), weights (G, with the geometry's factor) and i omega mu0, one row per frequency, flattened"""
+    """the filter abscissae (lam), weights (G, with the geometry's factor) and i omega mu0, one row per frequency, flattened.
+    G is (1, F L), or (S, F L) when system h is an array of S heights (TASKS.csv #3440 step 3: a station's own height, so a batch of
+    stations at different heights is one kernel call)"""
     base, w0, w1 = _filt()
     F, L = len(freqs), len(base)
-    h = float(system.get("h", 0.0))
+    h = np.atleast_1d(np.asarray(system.get("h", 0.0), float))[:, None]
     g = system.get("geom", "vmd")
     if g == "vmd":
         r = float(system["r"])
@@ -71,7 +80,7 @@ def _geometry(system, freqs):
     else:
         raise ValueError(f"Unknown system geometry {g!r}: 'vmd' or 'loop'")
     lamF = np.ascontiguousarray(np.tile(lam, F))
-    GF = np.ascontiguousarray(np.tile(G, F))
+    GF = np.ascontiguousarray(np.tile(G, (1, F)))
     iwmu = np.ascontiguousarray(np.repeat(1j * MU0 * 2.0 * math.pi * np.asarray(freqs, float), L))
     return lamF, GF, iwmu, F, L
 
@@ -82,6 +91,8 @@ def fd_hz(cond, thick, freqs, system, jac=False):
     sig = np.ascontiguousarray(np.atleast_2d(np.asarray(cond, float)))
     S, N = sig.shape
     lam, G, iwmu, F, L = _geometry(system, freqs)
+    if G.shape[0] not in (1, S):
+        raise ValueError(f"{G.shape[0]} heights for {S} models")
     v = np.empty((S, F), np.complex128)
     J = np.empty((S, F, N), np.complex128)
     _numba_kernel()(sig, np.ascontiguousarray(np.asarray(thick, float)), lam, iwmu, G, F, L, bool(jac), v, J)
@@ -92,24 +103,22 @@ def step_off(cond, thick, system, times, jac=False):
     """-dBz/dt after an ideal step turn-off (V / (A m^4)), at times (s): (S, T) [and its Jacobian (S, T, N) d / d log10(cond)]"""
     import empymod
 
-    time, freq, ft, ftarg = _fourier(times)
+    time, freq, ft, ftarg = _fourier(times, _filter_for(system))
     out = fd_hz(cond, thick, freq, system, jac=jac)
     v, J = out if jac else (out, None)
-    S = v.shape[0]
-    res = np.empty((S, len(time)))
-    for s in range(S):
-        # B = mu0 H; the step-off of B from the frequency-domain H, then d/dt by the iw factor (empymod: signal -1 of iw mu0 H)
-        fEM = (2j * math.pi * freq * MU0 * v[s])[:, None]
-        tEM, _ = empymod.model.tem(fEM, np.array([1.0]), freq, time, -1, ft, ftarg)
-        res[s] = -np.real(np.squeeze(tEM))  # positive for a normal decay
+    S, T = v.shape[0], len(time)
+    iwmu = 2j * math.pi * freq * MU0
+    # B = mu0 H; the step-off of B from the frequency-domain H, then d/dt by the iw factor (empymod: signal -1 of iw mu0 H). Every station in
+    # one transform (step 3: one call, the stations as its columns, instead of one call a station)
+    fEM = iwmu[:, None] * v.T  # (F, S)
+    tEM, _ = empymod.model.tem(fEM, np.ones(S), freq, time, -1, ft, ftarg)
+    res = -np.real(np.asarray(tEM)).reshape(T, S).T  # positive for a normal decay
     if not jac:
         return res
     N = J.shape[2]
-    Jt = np.empty((S, len(time), N))
-    for s in range(S):
-        fEM = 2j * math.pi * freq[:, None] * MU0 * J[s]
-        tEM, _ = empymod.model.tem(fEM, np.ones(N), freq, time, -1, ft, ftarg)
-        Jt[s] = -np.real(np.asarray(tEM)).reshape(len(time), N)
+    fJ = iwmu[:, None] * J.transpose(1, 0, 2).reshape(len(freq), S * N)  # (F, S * N)
+    tJ, _ = empymod.model.tem(fJ, np.ones(S * N), freq, time, -1, ft, ftarg)
+    Jt = -np.real(np.asarray(tJ)).reshape(T, S, N).transpose(1, 0, 2)
     return res, Jt
 
 
@@ -192,35 +201,46 @@ TEM_LAYERS = {"n": 20, "first": 3.0, "bottom": 300.0}  # ~3 m at the top, a half
 
 
 class TemSurvey:
-    """A system and its gates as em1d.invert_batch expects a survey: kind 'log' and forward_fn(m (S, N) log10 S/m, thick, jac)"""
+    """A system and its moments as em1d.invert_batch expects a survey: kind 'log' and forward_fn(m (S, N) log10 S/m, thick, jac).
+    moments: [{gates (s), widths (s) or None, waveform or None}, ...]: one (a single moment) or two (SkyTEM's low and high moment, each with
+    its own gates and waveform, their readings one after the other in a station's row: step 3)."""
 
     kind = "log"
 
-    def __init__(self, system, gates, widths=None, waveform=None):
-        self.system, self.gates = dict(system), np.asarray(gates, float)
-        self.widths = None if widths is None else np.asarray(widths, float)
-        self.waveform = waveform
+    def __init__(self, system, gates=None, widths=None, waveform=None, moments=None):
+        self.system = dict(system)
+        ms = moments if moments else [{"gates": gates, "widths": widths, "waveform": waveform}]
+        self.moments = [{"gates": np.asarray(m["gates"], float), "widths": None if m.get("widths") is None else np.asarray(m["widths"], float),
+                         "waveform": m.get("waveform")} for m in ms]
 
     def forward_fn(self, m, thick, jac=False):
         cond = 10.0 ** np.atleast_2d(np.asarray(m, float))
-        out = forward(cond, thick, self.system, self.gates, self.widths, self.waveform, jac=jac)
+        system = self.system
+        h = np.atleast_1d(np.asarray(system.get("h", 0.0), float))
+        if len(h) > 1 and len(h) != len(cond):
+            # step 3 — the stations' own heights, but not one model a station (em1d.invert_batch's half-space search: a grid of 46 models):
+            # the mean height, for that starting guess only
+            system = {**system, "h": float(h.mean())}
+        outs = [forward(cond, thick, system, mo["gates"], mo["widths"], mo["waveform"], jac=jac) for mo in self.moments]
         if jac:
-            d, J = out
-            return d * PV, J * PV
-        return out * PV
+            return np.concatenate([o[0] for o in outs], axis=1) * PV, np.concatenate([o[1] for o in outs], axis=1) * PV
+        return np.concatenate(outs, axis=1) * PV
 
 
 def run_job(req, progress):
-    """req: system {geom 'vmd' | 'loop', r | a, h}, gates (s), widths (s, optional), waveform [[t, I], ...] (optional), data (rows of
-    pV / (A m^4), null = missing), std (rows of relative uncertainties, optional), errRel, errAbs (pV / (A m^4)), layers {n, first,
-    bottom}, lateral, window, gapM, maxIter, line, x, y.
-    -> thick, condMs (mS/m per layer), chi, doi, pred (pV / (A m^4)), seconds, leftOut (readings <= 0 or without an uncertainty)"""
+    """req: system {geom 'vmd' | 'loop', r | a, h}; either gates (s) [+ widths, waveform] or moments [{gates, widths?, waveform?}, ...]
+    (step 3: two moments in one station's row, one after the other); data (rows of pV / (A m^4), null = missing); std (rows of relative
+    uncertainties, optional) or errRel / errAbs (pV / (A m^4)); heights (m above the ground per station, optional: the system's h otherwise);
+    layers {n, first, bottom}; lateral, window, gapM, maxIter, line, x, y.
+    Progress events carry each finished batch ('partial': idx, condMs, chi, doi, pred), so a cancelled run keeps the stations it finished.
+    -> thick, condMs (mS/m per layer), chi, doi, pred (pV / (A m^4)), seconds, leftOut (readings <= 0)"""
     import time as _time
 
-    from .em1d import ALPHA, CHUNK, DOI_FRAC, depth_of_investigation, invert_batch, layer_thicknesses, neighbour_mean
+    from .em1d import ALPHA, DOI_FRAC, depth_of_investigation, invert_batch, layer_thicknesses, neighbour_mean
 
     t0 = _time.time()
-    sv = TemSurvey(req["system"], req["gates"], req.get("widths"), req.get("waveform"))
+    system = dict(req["system"])
+    moments = req.get("moments") or [{"gates": req["gates"], "widths": req.get("widths"), "waveform": req.get("waveform")}]
     data = np.array([[np.nan if v is None else float(v) for v in row] for row in req["data"]], float)
     rel, ab = float(req.get("errRel", 0.05)), float(req.get("errAbs", 0.0))
     if req.get("std") is not None:
@@ -236,27 +256,45 @@ def run_job(req, progress):
     line = req.get("line") or [0] * S
     x = np.asarray(req.get("x") or [0.0] * S, float)
     y = np.asarray(req.get("y") or [0.0] * S, float)
+    # TASKS.csv #3440 step 3 — the system's height at each station (a SkyTEM file's altitude column), each station modelled at its own
+    # height (the kernel takes a row of weights a station). Binning them per metre left batches of a station or two on a real survey (the
+    # USGS MudPot file: 60 heights from 19 to 81 m), so the cores sat idle. Without heights, every station at the system's h.
+    h0 = float(system.get("h", 0.0))
+    hs = np.asarray(req.get("heights") or [h0] * S, float)
+    hs = np.where(np.isfinite(hs) & (hs >= 0), hs, h0)
     left_out = int((np.isfinite(data) & (data <= 0)).sum())
     passes = 2 if lateral > 0 else 1
     m = np.full((S, len(thick) + 1), np.nan)
     chi = np.full(S, np.nan)
     pred = np.full_like(data, np.nan)
     doi = np.full(S, np.nan)
-    chunk = max(1, CHUNK // 4)  # a TEM forward is ~10x an FDEM one: report progress more often
+    # batches: in file order, BATCH stations at a time (numba spreads a batch over the engine's threads)
+    batches = [np.arange(c0, min(c0 + BATCH, S)) for c0 in range(0, S, BATCH)]
+    nan = lambda a: [None if not np.isfinite(v) else round(float(v), 6) for v in np.ravel(a)]
+    done = 0
+    first = None  # (seconds, stations) at the end of the first batch: it carries numba's compile, so the time left is timed from the next ones
+    recent = []  # the last few finished batches: the app reads the latest progress event about once a second, so one event carries several
+    # at once: the first batch (32 stations and numba's compile) takes a minute on a laptop, and the app should say it has started
+    progress({"stage": "inverting", "message": f"0 of {S:,} stations…", "iter": 0, "maxIter": passes * S, "etaS": None, "pass": 0, "passes": passes, "stations": S})
     for p in range(passes):
         ref = None if p == 0 else neighbour_mean(m, line, x, y, int(req.get("window", 3)), float(req.get("gapM", 100.0)))
-        for c0 in range(0, S, chunk):
-            c1 = min(S, c0 + chunk)
-            mr = None if ref is None else ref[c0:c1]
+        for idx in batches:
+            mr = None if ref is None else ref[idx]
             alpha = ALPHA if ref is None else np.where(np.isfinite(mr[:, 0]), max(lateral, ALPHA), ALPHA)
-            mm, cc, pp, JJ, ww = invert_batch(sv, data[c0:c1], sd[c0:c1], thick, m_ref=mr, alpha=alpha, max_iter=max_iter)
-            m[c0:c1], chi[c0:c1], pred[c0:c1] = mm, cc, pp
-            doi[c0:c1] = depth_of_investigation(JJ, ww, thick, float(req.get("doiFrac", DOI_FRAC)))
-            done = p * S + c1
+            mm, cc, pp, JJ, ww = invert_batch(TemSurvey({**system, "h": hs[idx]}, moments=moments), data[idx], sd[idx], thick, m_ref=mr, alpha=alpha, max_iter=max_iter)
+            m[idx], chi[idx], pred[idx] = mm, cc, pp
+            doi[idx] = depth_of_investigation(JJ, ww, thick, float(req.get("doiFrac", DOI_FRAC)))
+            pp_out = pp.copy()
+            pp_out[~np.isfinite(data[idx])] = np.nan
+            done += len(idx)
             el = _time.time() - t0
-            progress({"stage": "inverting", "message": (f"Pass {p + 1} of {passes}: " if passes > 1 else "") + f"station {c1:,} of {S:,}…",
-                      "iter": done, "maxIter": passes * S, "etaS": round(el / done * (passes * S - done))})
-    nan = lambda a: [None if not np.isfinite(v) else round(float(v), 6) for v in np.ravel(a)]
+            if first is None:
+                first = (el, done)
+            eta = round((el - first[0]) / (done - first[1]) * (passes * S - done)) if done > first[1] else None
+            recent = (recent + [{"idx": [int(i) for i in idx], "condMs": [nan(1000.0 * 10.0 ** row) for row in mm], "chi": nan(cc), "doi": nan(doi[idx]),
+                                 "pred": [nan(row) for row in pp_out], "pass": p}])[-RECENT_BATCHES:]
+            progress({"stage": "inverting", "message": (f"Pass {p + 1} of {passes}: " if passes > 1 else "") + f"{done - p * S:,} of {S:,} stations…",
+                      "iter": done, "maxIter": passes * S, "etaS": eta, "pass": p, "passes": passes, "stations": S, "partials": recent})
     pred[~np.isfinite(data)] = np.nan
     return {
         "thick": [round(float(t), 4) for t in thick],
@@ -266,3 +304,7 @@ def run_job(req, progress):
         "leftOut": left_out,
         "seconds": round(_time.time() - t0, 1),
     }
+
+
+RECENT_BATCHES = 4  # finished batches carried by each progress event (a batch takes seconds; the app polls every second)
+BATCH = 32  # stations a batch: numba's prange spreads them over the engine's threads (2.7x on 3 threads, measured)

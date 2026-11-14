@@ -42,7 +42,8 @@ export const SURVEY_METHODS = {
   tiltdepth_depth: { label: "Tilt-depth: contact depths below the sensor", units: "m", group: "other" }, // TASKS.csv #2639
   mt_bostick: { label: "MT / AMT: Niblett–Bostick resistivity (approximate depth)", units: "log₁₀ Ω·m", group: "em" }, // TASKS.csv #1989 — points under each station
   lidar: { label: "Lidar point cloud", units: "m", group: "other" },
-  em1d_cond: { label: "FDEM 1D models: conductivity at depth", units: "log₁₀ mS/m", group: "em" }, // TASKS.csv #1986 — points under each sounding // TASKS.csv #1994 — thinned returns of a LAS / LAZ / COPC file
+  em1d_cond: { label: "FDEM 1D models: conductivity at depth", units: "log₁₀ mS/m", group: "em" },
+  tem1d_cond: { label: "TEM 1D models: conductivity at depth", units: "log₁₀ mS/m", group: "em" }, // TASKS.csv #3440 — points under each station // TASKS.csv #1986 — points under each sounding // TASKS.csv #1994 — thinned returns of a LAS / LAZ / COPC file
   ip: { label: "IP chargeability", units: "mV/V", group: "el" },
   res: { label: "Resistivity", units: "Ω·m", group: "el" },
   sp: { label: "Self-potential", units: "mV", group: "el" },
