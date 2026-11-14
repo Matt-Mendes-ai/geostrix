@@ -16,7 +16,7 @@ test("bounds that cannot be longitude / latitude under a geographic tag", () => 
 
 test("the import says so and keeps the file's numbers", () => {
   const src = readFileSync(new URL("../src/lib/raster.js", import.meta.url), "utf8");
-  const i = src.indexOf("srcEpsg !== projEpsg && notDegrees(srcEpsg, parsed.bbox)"), j = src.indexOf("reprojectImageRGBA({ xmin, ymin, xmax, ymax, width, height, data }");
+  const i = src.indexOf("srcEpsg !== projEpsg && notDegrees(srcEpsg, parsed.bbox)"), j = src.indexOf("reprojectPictureOffThread({ xmin, ymin, xmax, ymax, width, height, data }"); // #3188 — the reprojection runs in the import worker
   assert.ok(i > 0 && i < j, `${i} ${j}`); // checked before the reprojection branch
   assert.match(src, /are not degrees: it was NOT reprojected and kept its own numbers/);
 });
