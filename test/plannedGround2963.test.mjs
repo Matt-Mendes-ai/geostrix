@@ -27,8 +27,8 @@ test("#2963 a sheet with no elevation column at all (Hole / E / N / Depth of a v
 
 test("#2963 the pane: the form's ground (not from underground collars), its words on each hole and in the notice", () => {
   const p = fs.readFileSync(new URL("../src/components/PlannedHoleParts.jsx", import.meta.url), "utf8");
-  assert.ok(p.includes("const groundForZ = ground && !underground ? ground : null;"));
+  assert.ok(p.includes("const groundForZ = ground && !underground ? groundFill : null;")); // #3335 — the collar ground as judged by the site spacing
   assert.ok(p.includes("plannedHolesFromRows(rows, headers, { groundAt: groundForZ })"));
   assert.ok(p.includes("{n} row(s) with a blank Elev took the terrain under the hole.") && p.includes("{n} row(s) with a blank Elev took the ground interpolated between the nearest collars (no terrain)."));
-  assert.ok(p.includes("zSource: zFromGround ? `${groundWords} (Elev blank in ${file.name})`"));
+  assert.ok(p.includes("zSource: zFromGround ? `${groundAt ? groundWords : collarFillSource(fillAt(h.x, h.y))} (Elev blank in ${file.name})`")); // #3335 — the collar ground's distance and range
 });

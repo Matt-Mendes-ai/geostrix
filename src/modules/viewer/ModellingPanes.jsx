@@ -45,6 +45,7 @@ import ShellCapNote from "./ShellCapNote.jsx"; // TASKS.csv #2222 — the Estima
 import { zoneAlphaPicks, customAlphaPicks } from "../../lib/alphaPicks.js"; // TASKS.csv #1686
 const ModelAreaRange = lazy(() => import("../../components/ModelAreaRange.jsx")); // TASKS.csv #2536
 const GradeThicknessModal = lazy(() => import("../../components/GradeThicknessModal.jsx")); // TASKS.csv #2419
+const LithoSuggestBox = lazy(() => import("../../components/LithoSuggestBox.jsx")); // TASKS.csv #2004
 
 export default function ModellingPanes(props) {
   const {
@@ -704,6 +705,7 @@ export default function ModellingPanes(props) {
             {sug.length > 8 && <span>{tr("({n} more not listed)", { n: sug.length - 8 })}</span>}
           </div>;
         })()}
+        <Suspense fallback={null}><LithoSuggestBox pBtn={pBtn} /></Suspense>{/* TASKS.csv #2004 — codes that name the same rock, proposed into groups from their meaning */}
         {groupOverlaps(lithoGroups).map((o) => ( // TASKS.csv #1685 — a saved project with a code in two groups: the tools would disagree
           <div key={o.code} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr("{code} is in {n} groups ({groups}): the tools would read different memberships. Click it in the group it belongs to, and it leaves the others.", { code: o.code, n: o.groups.length, groups: o.groups.join(", ") })}</div>
         ))}

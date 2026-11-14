@@ -20,7 +20,10 @@ test("per hole: GT and metres at or above 200 ppm; a hole assayed with nothing a
   const gt = holeIntervalPoints(rows, "U", "ppm", units, traces, { ...opts, how: "gt" });
   const by = Object.fromEntries(gt.map((p) => [p.hole_id, p]));
   assert.equal(by.A.value, 3000); assert.equal(by.B.value, 600); assert.equal(by.C.value, 0);
-  assert.equal(by.A.x, 0); assert.equal(by.B.x, 100); assert.equal(by.C.z, 90); // C at 10 m, the middle of its 0-20 m
+  assert.equal(by.A.x, 0); assert.equal(by.B.x, 100);
+  // #3334 — the intercepts' own elevation (A: 10-16 m down from RL 100 -> 87; B: 4-6 m -> 95); a hole with no intercept has none (it was its
+  // assayed middle, RL 90, and the only RL a handed-over target could take)
+  assert.equal(by.A.z, 87); assert.equal(by.B.z, 95); assert.equal(by.C.z, null); assert.equal(by.C.x, 200);
   const m = holeIntervalPoints(rows, "U", "ppm", units, traces, { ...opts, how: "m" });
   assert.deepEqual(Object.fromEntries(m.map((p) => [p.hole_id, p.value])), { A: 6, B: 2, C: 0 });
 });

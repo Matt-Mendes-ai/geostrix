@@ -28,7 +28,9 @@ test("#2481 axis numbers to n figures never print in exponent notation", () => {
 
 test("#2142 the section's title sits inside its SVG: the viewBox grows upward by what the scaled title needs", () => {
   const src = readFileSync(new URL("../src/components/SectionWindow.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.match(src, /topExtra = Math\.max\(0, Math\.ceil\(fs\(12\) \+ 4 - titleY\)\)/);
+  // #3410 — the layout moved to lib/sectionHeader.js (the title wrapped too); the same rule for the top
+  assert.match(readFileSync(new URL("../src/lib/sectionHeader.js", import.meta.url), "utf8"), /topExtra = Math\.max\(0, Math\.ceil\(fs\(12\) \+ 4 - titleY\)\)/);
+  assert.match(src, /const \{ titleLines, titleY, subtitleY, topExtra \} = sectionHeaderLayout\(/);
   assert.match(src, /viewBox=\{`0 \$\{-topExtra\} \$\{W\} \$\{totalH \+ topExtra\}`\}/);
   assert.match(src, /<text x=\{PAD\} y=\{titleY\}/);
   // the arithmetic: at text scale 2 with three subtitle lines the title would be above the old top edge

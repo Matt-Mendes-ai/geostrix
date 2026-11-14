@@ -46,6 +46,7 @@ import { sectionFromCentre, sectionThroughHole, fenceLinesWithData, fenceExtentP
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader, PaneNotice } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { Pickaxe, Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, PenTool, Rows3, Crosshair, Target, SquareSplitVertical, Sparkles } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
 import { solidBounds, SOLID_IMPORT_EXTENSIONS, SOLID_FACE_WARN } from "../lib/solidImportMeta.js"; // TASKS.csv #148; #552 split
+import { tieOf } from "../lib/localGridTie.js"; // TASKS.csv #3186
 import { parseSolidInWorker } from "../lib/solidImportClient.js"; // TASKS.csv #414
 // TASKS.csv #414 — imported solids, one tone per layer (grey-blue family: never the generated-surface gold).
 const IMPORTED_SOLID_COLORS = [0x8fa3b8, 0xa89bbd, 0x8fb8aa, 0xbfae92, 0x93b3c4, 0xb89aa4];
@@ -125,6 +126,7 @@ import { useSurfacePlacement } from "./viewer/useSurfacePlacement.js"; import Su
 let solidSeq = 0; // TASKS.csv #1887 — distinct ids for solids added within one millisecond
 import { hitLabel } from "../lib/viewer/hitLabel.js"; // TASKS.csv #1891 (moved out, #1084 size cap)
 import { customColour, customLegendGroups, customFields, sectionCustomLegendItems /* #2669 */ } from "../lib/customColour.js"; // TASKS.csv #1697
+import { sectionNumericLegendItems } from "../lib/sectionLegend.js"; // TASKS.csv #3413
 const DumpPane = React.lazy(() => import("../components/DumpPane.jsx")); // TASKS.csv #1880
 const InterpretPane = React.lazy(() => import("../components/InterpretPane.jsx")); // TASKS.csv #1152
 const UndrilledZonesPane = React.lazy(() => import("../components/UndrilledZonesPane.jsx")); // TASKS.csv #1139 // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
@@ -3526,6 +3528,14 @@ ${describeTrend(t)}` };
         setNotices((p) => [...p, notice("{name}: import cancelled ({triangleCount} triangles).", { name: file.name, triangleCount: solid.triangleCount.toLocaleString() })]);
         return;
       }
+      // TASKS.csv #3186 — on a local grid tied to a real CRS: the file's numbers are local metres or the tie's CRS (one question, lib/solidTie.js)
+      const gridTie = tieOf(project);
+      let viaTie = false;
+      if (gridTie) {
+        const g = (await import("../lib/solidTie.js")).solidTieGuess(solid.parts, gridTie, importStateRef.current?.collars);
+        viaTie = window.confirm(tr("The project's local grid is tied to EPSG:{epsg}. Are the coordinates in \"{name}\" in EPSG:{epsg}?{hint}\n\nOK: place them through the tie, onto the local grid. Cancel: use them as local-grid metres, as they are.", { epsg: gridTie.epsg, name: file.name, hint: g.suggest === "tie" ? tr("\n\nThe solid is about {d} m from the holes read that way, against {e} m as local metres: it looks like EPSG:{epsg}.", { d: Math.round(g.viaTieM).toLocaleString(), e: Math.round(g.asLocalM).toLocaleString(), epsg: gridTie.epsg }) : g.suggest === "local" ? tr("\n\nThe solid is about {e} m from the holes as local metres, against {d} m read through the tie: it looks like local-grid metres.", { d: Math.round(g.viaTieM).toLocaleString(), e: Math.round(g.asLocalM).toLocaleString() }) : "" }));
+        if (viaTie) solid.parts = (await import("../lib/solidTie.js")).solidPartsToLocal(solid.parts, gridTie);
+      }
       const bounds = solidBounds(solid.parts);
       const o = originRef.current;
       const label = file.name.replace(/\.(dxf|obj|msh|ts|gp)$/i, "");
@@ -3571,7 +3581,7 @@ ${describeTrend(t)}` };
           params: {
             tool: "imported solid", sourceFile: file.name, format: solid.format, ...(layered ? { layer: part.layer } : {}),
             detail: solid.note, vertices: nVerts, triangles: nTris,
-            crsAssumed: project?.crsSet === false ? "assumed on the project's local grid (CRS not set)" /* #2232 */ : project?.epsg ? `assumed already in EPSG:${project.epsg}` : "assumed already in the project CRS",
+            crsAssumed: viaTie ? `placed onto the local grid through its tie to EPSG:${gridTie.epsg} (x, y; elevation unchanged)` /* #3186 */ : project?.crsSet === false ? "assumed on the project's local grid (CRS not set)" /* #2232 */ : project?.epsg ? `assumed already in EPSG:${project.epsg}` : "assumed already in the project CRS",
             importedAt: new Date().toISOString(),
           },
         };
@@ -3581,14 +3591,14 @@ ${describeTrend(t)}` };
         ? ` Extent: E ${bounds.min.x.toFixed(0)}–${bounds.max.x.toFixed(0)}, N ${bounds.min.y.toFixed(0)}–${bounds.max.y.toFixed(0)}, Z ${bounds.min.z.toFixed(0)}–${bounds.max.z.toFixed(0)}.`
         : "";
       const layerNote = layered ? tr(" One surface per {v} ({v2}).", { v: solid.format === "DXF" ? "layer" : "object", v2: solid.parts.map((p) => p.layer).join(", ") }) : "";
-      setNotices((p) => [...p, notice("Imported \"{name}\" as a solid: {vertexCount} vertices / {triangleCount} triangles ({format}, {note}).{layerNote} It appears under Generated surfaces with the same show/hide, remove and query controls.{bb} Coordinates are used AS-IS — a DXF/OBJ carries no CRS, so GeoStrix does not reproject it; if it lands away from your holes, the file is in a different CRS.", { name: file.name, vertexCount: solid.vertexCount.toLocaleString(), triangleCount: solid.triangleCount.toLocaleString(), format: solid.format, note: solid.note, layerNote, bb })]);
+      setNotices((p) => [...p, viaTie ? notice("Imported \"{name}\" as a solid: {vertexCount} vertices / {triangleCount} triangles ({format}, {note}).{layerNote} It appears under Generated surfaces with the same show/hide, remove and query controls.{bb} Placed onto the local grid through its tie to EPSG:{epsg} (x and y; elevation unchanged).", { name: file.name, vertexCount: solid.vertexCount.toLocaleString(), triangleCount: solid.triangleCount.toLocaleString(), format: solid.format, note: solid.note, layerNote, bb, epsg: gridTie.epsg }) /* #3186 */ : notice("Imported \"{name}\" as a solid: {vertexCount} vertices / {triangleCount} triangles ({format}, {note}).{layerNote} It appears under Generated surfaces with the same show/hide, remove and query controls.{bb} Coordinates are used AS-IS — a DXF/OBJ carries no CRS, so GeoStrix does not reproject it; if it lands away from your holes, the file is in a different CRS.", { name: file.name, vertexCount: solid.vertexCount.toLocaleString(), triangleCount: solid.triangleCount.toLocaleString(), format: solid.format, note: solid.note, layerNote, bb })]);
       fitBox(box);
       import("../lib/solidCheckNote.js").then(({ solidCheckNote }) => { const t = solidCheckNote(solid.parts, (k) => (layered ? `${label} — ${solid.parts[k].layer}` : label)); if (t) setNotices((p) => [...p, infoNotice(t)]); }).catch(() => {}); // #2801 — on demand
     } catch (e) {
       clearProgress();
       setNotices((p) => [...p, errorNotice(tr("{name}: couldn't import as a solid ({v}).", { name: file.name, v: e.message || e }))]); // #739
     }
-  }, [fitBox, project?.epsg, setTaskProgress]);
+  }, [fitBox, project?.epsg, project?.crsSet, project?.localGrid, setTaskProgress]); // crsSet / localGrid: the tie (#3186)
   useModuleAction(["import-solid"], (a, payload) => { for (const f of payload?.files || []) importSolidFile(f); }); // TASKS.csv #1503 — a face-only DXF dropped on the Geophysics tab
 
 
@@ -5966,6 +5976,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     legendItems.sort((a, b) => a[0].localeCompare(b[0]));
     // TASKS.csv #2669 — the custom layers drawn on the section (a strat-unit ribbon, a gamma log): their classes, or their ramp
     legendItems.push(...sectionCustomLegendItems(customLayers, new Set([...intervals, ...points].map((r) => String(r.layer || "")).filter((k) => k.startsWith("custom:")).map((k) => k.slice(7))), layerStyles));
+    { const nk = ["sg", "geotech", "recovery", "magsusc"].filter((k) => intervals.some((r) => r.layer === k) || points.some((r) => r.layer === k)); if (nk.length) legendItems.push(...sectionNumericLegendItems(numericLayerLegendGroups({ keys: nk, layers, layerVisible: Object.fromEntries(nk.map((k) => [k, true])), isRowVisible, colorOf: numericLayerColor, symbology: numericSymbology, clips: numericClip }))); } // TASKS.csv #3377 / #3413 — the numeric ribbons' keys (SG, RQD %, recovery, mag susc), as the 3D legend's
 
     // TASKS.csv #357 — model surfaces and imported solids ON the section. Every visible implicit/solid mesh
     // is cut by the vertical section plane (per-triangle sign test, once per section): the geologist can
