@@ -18,8 +18,8 @@ import { pointOnTrace } from "../lib/desurvey.js"; // TASKS.csv #2964 — each t
 import { evidenceCoverage, LOW_COVERAGE, scoreBlockers } from "../lib/evidence.js"; // TASKS.csv #2252
 import { drilledTrainingMask, evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, trainingCoverage, bestCutoff, MIN_SIDE, posterior, predictionArea, scoreImage, scoreTop /* #1731 */, rocAuc, kdeEvidence /* #2001 */, isOverlayOutput, coveringLayers } from "../lib/evidence.js"; // coveringLayers: #1563
 import { cachedEvidence, evidenceDeps, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457, #1560
-import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, assaysOfHoles, gradeCardReads /* #2577 */, structureCodes, structureParts, drilledParts /* #1456 */, scoreRasterPlacement /* #2447 */, elementsWithValues, numericLayerFields, UNCERTAINTY_FIELD, codeLikeField /* #2260 */, depthTestedPoints /* #2643 */, gtRef, parseGtRef, holeIntervalPoints /* #2653 */, filterSources, groupSources /* #2654 */, siblingCodedFields, siblingRef, parseSiblingRef, siblingRows /* #2655 */, unloggedHoles, occurrenceSymbol /* #2656 */, gtlRef, parseGtlRef, logIntervals /* #2781 */, layerFieldPoints, zoneParts, levelSet, targetElevation /* #2326 */, codedFields, foldedCodes, zoneHolePoints, codedRef, parseCodedRef, codedRowsOf /* #2453 */, codesOf /* #2102 */ } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
-const LEVEL_KINDS = new Set(["grade", "pxrf", "numeric", "zone", "pick", "voxel"]); // TASKS.csv #2326 — the cards a Level filters
+import { DRILL_REACH_M, surveyNames, surveyPoints, surveyCloud, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, assaysOfHoles, gradeCardReads /* #2577 */, structureCodes, structureParts, drilledParts /* #1456 */, scoreRasterPlacement /* #2447 */, elementsWithValues, numericLayerFields, UNCERTAINTY_FIELD, codeLikeField /* #2260 */, depthTestedPoints /* #2643 */, gtRef, parseGtRef, holeIntervalPoints /* #2653 */, filterSources, groupSources /* #2654 */, siblingCodedFields, siblingRef, parseSiblingRef, siblingRows /* #2655 */, unloggedHoles, occurrenceSymbol /* #2656 */, gtlRef, parseGtlRef, logIntervals /* #2781 */, layerFieldPoints, zoneParts, levelSet, targetElevation /* #2326 */, codedFields, foldedCodes, zoneHolePoints, codedRef, parseCodedRef, codedRowsOf /* #2453 */, codesOf /* #2102 */ } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
+const LEVEL_KINDS = new Set(["grade", "pxrf", "numeric", "zone", "pick", "voxel"]); // TASKS.csv #2326 — the cards a Level filters (and a 3D survey: #3333, levelKind below)
 import { categoricalModels } from "../lib/geologyForward.js";
 import { PATHFINDER_PRESETS } from "../lib/anomalyMap.js";
 import { valueIn } from "../lib/geochem.js";
@@ -226,8 +226,12 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   // #2577 — a grade card's holes: every hole, or those whose collar field matches ('field = holes', value 'Drill_Code=RC')
   const holeAttrChoices = useMemo(() => collarAttrChoices(collars), [collars]);
   const gradeAssaysOf = (assays, opts) => (opts?.field === "holes" && opts.value ? assaysOfHoles(assays, new Set(collarsWithPick(collars, opts.value).map((c) => c.hole_id))) /* #2960 — the pick whole, spaces and all */ : assays);
+  // TASKS.csv #3333 — a survey stacked in elevation (surveyCloud) is read at the Level, as the hole cards are; worked out once per survey
+  const clouds = useMemo(() => new Map(), [geophysPts]); // a fresh cache whenever the surveys change
+  const cloudInfo = (key) => { if (!clouds.has(key)) clouds.set(key, surveyCloud(surveyPoints(geophysPts, key))); return clouds.get(key); };
+  const levelKind = (l) => LEVEL_KINDS.has(l.kind) || (l.kind === "survey" && !!cloudInfo(l.ref)?.cloud);
   const computeValues = (src, opts = {}, lv = level) => (grid ? cachedEvidence(
-    `${gridSignature(grid)}|${src.kind}|${src.ref}|${src.how || ""}|${opts.field || ""}|${opts.value ?? ""}|${opts.reach || ""}|${opts.zMin ?? ""}|${opts.zMax ?? ""}|${opts.lowest ? "lo" : ""}|L${LEVEL_KINDS.has(src.kind) ? `${lv?.zMin ?? ""}:${lv?.zMax ?? ""}` : ""}`, // L: #2326
+    `${gridSignature(grid)}|${src.kind}|${src.ref}|${src.how || ""}|${opts.field || ""}|${opts.value ?? ""}|${opts.reach || ""}|${opts.zMin ?? ""}|${opts.zMax ?? ""}|${opts.lowest ? "lo" : ""}|L${levelKind(src) ? `${lv?.zMin ?? ""}:${lv?.zMax ?? ""}` : ""}`, // L: #2326; levelKind: #3333
     evidenceDeps(src, opts, { rasters, mapLayers, surfaceSamples, surfaceElements, collars, survey, desurveyMethod: project?.desurveyMethod, assays, assayElements, voxelModels, geophysPts, structurePicks, projectLayers, customLayers, solids }), // #1560: only what this source reads
     () => computeValuesNow(src, opts, lv),
   ) : null);
@@ -247,7 +251,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     if (src.kind === "numeric") return pointEvidence(grid, numericPointsOf(src.ref, lv), { maxDistance: opts.reach || drillReach }); // #1728; lv: #2326; a code's per-hole measure: #2453
     if (src.kind === "zone" && parseCodedRef(src.ref)) { const z = parseCodedRef(src.ref); return distanceEvidence(grid, zoneParts(codedRowsOf(z.l, projectLayers, customLayers), z.c, traces, undefined, lv, { field: z.f, fold: !!z.fold })); } // #2453 / #2583
     if (src.kind === "zone") { const i = src.ref.indexOf(":"); return distanceEvidence(grid, zoneParts(projectLayers?.[src.ref.slice(0, i)], src.ref.slice(i + 1), traces, undefined, lv)); } // #1728 / #1455 — ref = layer:code
-    if (src.kind === "survey") { const pts = surveyPoints(geophysPts, src.ref); return pointEvidence(grid, pts, { maxDistance: opts.reach || reachFromSpacing(pts, 4) }); }
+    if (src.kind === "survey") { const all = surveyPoints(geophysPts, src.ref), pts = cloudInfo(src.ref)?.cloud && lv ? surveyPoints(geophysPts, src.ref, lv) : all; return pointEvidence(grid, pts, { maxDistance: opts.reach || reachFromSpacing(all, 4) }); } // #3333 — a 3D survey at the Level
     if (src.kind === "grade") return pointEvidence(grid, holeGradePoints(gradeAssaysOf(cleanAssays, opts), src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces, undefined, lv, !!opts.lowest), { maxDistance: opts.reach || drillReach });
     if (src.kind === "pxrf") return pointEvidence(grid, holeGradePoints(gradeAssaysOf(pxrfAssays, opts), src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces, undefined, lv, !!opts.lowest), { maxDistance: opts.reach || drillReach }); // #1723
     const all = sampleValues(surfaceSamples, src.kind === "element" ? { kind: "element", symbol: src.ref } : { kind: "index", preset: src.ref }, units);
@@ -322,10 +326,10 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     if (levelSeen.current === levelKey) return;
     levelSeen.current = levelKey;
     // #2575 — said first (the work is synchronous), then done once for the whole Level
-    if (!layers.some((l) => LEVEL_KINDS.has(l.kind))) { setResult(null); return undefined; }
+    if (!layers.some((l) => levelKind(l))) { setResult(null); return undefined; } // levelKind: #3333
     setLevelBusy(true);
     const t = setTimeout(() => {
-      setLayers((L) => L.map((l) => { if (!LEVEL_KINDS.has(l.kind)) return l; const v = computeValues(l, l); return v ? { ...l, values: v } : l; }));
+      setLayers((L) => L.map((l) => { if (!levelKind(l)) return l; const v = computeValues(l, l); return v ? { ...l, values: v } : l; }));
       setResult(null); setLevelBusy(false);
     }, 40);
     return () => clearTimeout(t);
@@ -482,6 +486,9 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     else if (trainingPoints.length) out.fewPoints = D.size;
     // #2326 — the hole-based point cards' points (with their elevation, inside the level), for the target handed to Planned holes
     out.level = level;
+    // TASKS.csv #3333 — 'Read at RL …' only when a card read the Level: rasters, maps, surface surveys and samples are plan data, and a block
+    // column with its own elevation band reads that band
+    out.levelUsed = levelSet(level) && layers.some((l) => levelKind(l) && !(l.kind === "voxel" && (l.zMin != null || l.zMax != null)));
     out.topShare = topScoreShare(fuzzy); // #2448 — said when over a third of the scored cells are at the top
     out.cardPts = layers.filter((l) => l.kind === "grade" || l.kind === "pxrf" || l.kind === "numeric").map((l) => {
       const reach = l.reach || drillReach;
@@ -569,6 +576,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
           <div key={l.id} style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: 6, display: "flex", flexDirection: "column", gap: 4 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text)" }} title={l.label}>{l.label}</span><button type="button" style={linkBtn} onClick={() => { setLayers((L) => L.filter((x) => x.id !== l.id)); setResult(null); }} aria-label={tr("Remove this evidence")}>×</button></div>
             {l.values?.length > 0 && (() => { const c = evidenceCoverage(l.values); return <div style={{ fontSize: "var(--font-size-xs)", color: c < LOW_COVERAGE ? "var(--color-warn-text)" : "var(--color-text-muted)" }}>{c < LOW_COVERAGE ? tr("Values on {p}% of the grid only: with fuzzy AND, the algebraic product or gamma every other cell scores nothing.", { p: (c * 100).toFixed(c < 0.01 ? 2 : 1) }) : tr("Values on {p}% of the grid.", { p: Math.round(c * 100) })}</div>; })()}{/* #2252 */}
+            {l.kind === "survey" && cloudInfo(l.ref)?.cloud && (() => { const ci = cloudInfo(l.ref), rl = { a: Math.round(ci.zMin).toLocaleString(), b: Math.round(ci.zMax).toLocaleString() }; return <div style={{ fontSize: "var(--font-size-xs)", color: levelSet(level) ? "var(--color-text-muted)" : "var(--color-warn-text)" }}>{levelSet(level) ? tr("A 3D survey (readings at RL {a} to {b} m): read inside the Level, {n} of its {total} readings.", { ...rl, n: surveyPoints(geophysPts, l.ref, level).length.toLocaleString(), total: ci.n.toLocaleString() }) : tr("A 3D survey (readings at RL {a} to {b} m): each cell takes the readings nearest in plan at every depth, mixed. Set a Level to read one depth band.", rl)}</div>; })()}{/* #3333 */}
             {l.kind === "distance" && (() => { const ml = mapLayers.find((x) => String(x.id) === String(l.ref)); const vals = l.field ? [...new Set((ml?.features || []).map((f) => String(f.attributes?.[l.field] ?? "")))].slice(0, 60) : []; return (
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                 <select value={l.field} onChange={(e) => updateLayer(l.id, { field: e.target.value, value: "" }, false)} style={sel} aria-label={tr("Only features where")}><option value="">{tr("every feature")}</option>{(ml?.fields || []).map((f) => <option key={f} value={f}>{f}</option>)}</select>
@@ -663,7 +671,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
               <button type="button" style={{ ...pBtn, display: "flex", alignItems: "center", gap: 4, opacity: result.nValid ? 1 : 0.5 }} disabled={!result.nValid} onClick={() => toTif("fuzzy")}><Download size={12} />GeoTIFF</button>{/* #2252 — never an empty score */}
             </div>
             {result.topShare && result.topShare.share > 1 / 3 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{pct} % of the scored cells are at the top score ({top}): the 1 = point of a card sits under most of what it maps, so these cells cannot be told apart. Raise the 1 = point.", { pct: Math.round(result.topShare.share * 100), top: fmt(result.topShare.top, 3) })}</div>}{/* #2448 */}
-            <TopPlaces score={result.fuzzy} grid={grid} onPlanTo={onPlanTo} note={note} pBtn={pBtn} cardPts={result.cardPts} level={result.level} /* #1456; cardPts / level: #2326 */ />
+            <TopPlaces score={result.fuzzy} grid={grid} onPlanTo={onPlanTo} note={note} pBtn={pBtn} cardPts={result.cardPts} level={result.level} levelUsed={result.levelUsed} /* #1456; cardPts / level: #2326; levelUsed: #3333 */ />
             {!result.wofe && result.wofeNone && ( /* TASKS.csv #2098 */
               <div style={{ ...note, color: "var(--color-warn-text)", marginTop: 4 }}>{tr("Weights of evidence: no card gives a weight with these {d} occurrence cells: {list}.", { d: result.wofeNone.ND, list: result.wofeNone.rows.map((r) => `${r.label} (${r.ndHere ?? 0} of them where it has a value)`).join("; ") })}</div>
             )}
@@ -703,7 +711,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
                   <button type="button" style={pBtn} onClick={() => toMap("posteriorSd")} title={tr("The posterior's standard deviation from the weights' own uncertainty (missing evidence not included): where it is large beside the posterior, the score is not sure.")}>{tr("Its standard deviation → map")}</button>{/* #2001 */}
                   <button type="button" style={{ ...pBtn, display: "flex", alignItems: "center", gap: 4 }} onClick={() => toTif("posterior")}><Download size={12} />GeoTIFF</button>
                 </div>
-                <TopPlaces score={result.wofe.post.prob} grid={grid} onPlanTo={onPlanTo} note={note} pBtn={pBtn} posterior cardPts={result.cardPts} level={result.level} /* #1456; #2326 */ />
+                <TopPlaces score={result.wofe.post.prob} grid={grid} onPlanTo={onPlanTo} note={note} pBtn={pBtn} posterior cardPts={result.cardPts} level={result.level} levelUsed={result.levelUsed} /* #1456; #2326; #3333 */ />
               </>
             )}
             {(result.pa || result.paPost) && <PAPlot fuzzy={result.pa} post={result.paPost} />}
@@ -720,14 +728,14 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
 // prediction rate and occupied area against the score threshold rank; the P-A point where they cross
 // TASKS.csv #1456 (review #1352, Silvertip) — the overlay's best places as a short list, each one a click from a planned hole: the
 // target's easting / northing go to Planned holes; a plan-view score has no depth, so the target elevation is left for the geologist
-function TopPlaces({ score, grid, onPlanTo, note, pBtn, posterior = false, cardPts = null, level = null /* #2326 */ }) {
+function TopPlaces({ score, grid, onPlanTo, note, pBtn, posterior = false, cardPts = null, level = null /* #2326 */, levelUsed = false /* #3333 */ }) {
   const top = useMemo(() => topCells(score, grid, { n: 5 }), [score, grid]);
   const zs = useMemo(() => top.map((c) => targetElevation(c, cardPts, grid, level)), [top, cardPts, grid, level]); // #2326
   if (!top.length) return null;
   return (
     <div style={{ marginTop: 4 }}>
       <div style={{ color: "var(--color-text-secondary)" }}>{posterior ? tr("Highest posterior (at least {d} m apart):", { d: Math.round(5 * Math.max(grid.dx, grid.dy)) }) : tr("Highest fuzzy scores (at least {d} m apart):", { d: Math.round(5 * Math.max(grid.dx, grid.dy)) })}</div>
-      {levelSet(level) && <div style={note}>{tr("Read at RL {a} to {b} m (the Level).", { a: level.zMin != null ? Math.round(level.zMin).toLocaleString() : "…", b: level.zMax != null ? Math.round(level.zMax).toLocaleString() : "…" })}</div>}{/* #2326 */}
+      {levelSet(level) && <div style={note}>{levelUsed ? tr("Read at RL {a} to {b} m (the Level).", { a: level.zMin != null ? Math.round(level.zMin).toLocaleString() : "…", b: level.zMax != null ? Math.round(level.zMax).toLocaleString() : "…" }) : tr("The Level (RL {a} to {b} m) was not used: none of these cards reads elevations.", { a: level.zMin != null ? Math.round(level.zMin).toLocaleString() : "…", b: level.zMax != null ? Math.round(level.zMax).toLocaleString() : "…" })}</div>}{/* #3333 */}{/* #2326 */}
       {top.some((c) => c.tied) && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Some of these score the same (a plateau of equal cells): those are ranked by the mean score of the cells around them, so treat their order as a tie.")}</div>}{/* #2255 */}
       {top.map((c, k) => (
         <div key={k} style={{ ...note, display: "flex", alignItems: "center", gap: 6, color: "var(--color-text-secondary)" }}>
