@@ -16,8 +16,9 @@ export const PLAN_HOLE_STEP = 400, PLAN_ROW_STEP = 15000;
 // or the layer primitives' inputs change
 function cacheOf(ctx) {
   let pc = ctx.cache.current;
-  if (!pc || pc.fn !== ctx.layerPrimitivesFor || pc.traces !== ctx.traces || pc.vh !== ctx.visibleHoles) {
-    pc = ctx.cache.current = { fn: ctx.layerPrimitivesFor, traces: ctx.traces, vh: ctx.visibleHoles, base: new Map(), prims: null, ivBy: null, ptBy: null, rdBy: null };
+  const also = (ctx.also || []).join("|"); // #3248
+  if (!pc || pc.fn !== ctx.layerPrimitivesFor || pc.traces !== ctx.traces || pc.vh !== ctx.visibleHoles || pc.also !== also) {
+    pc = ctx.cache.current = { fn: ctx.layerPrimitivesFor, traces: ctx.traces, vh: ctx.visibleHoles, also, base: new Map(), prims: null, ivBy: null, ptBy: null, rdBy: null };
   }
   return pc;
 }
@@ -46,7 +47,7 @@ export function* planBuild(ctx, rl, half, { holesOnly = false } = {}) {
     return { holes };
   }
   if (!pc.prims) { // #2982 — the layers' primitives over the shown holes (SG scaled over them), once per view state
-    const all = new Set(traces.filter((t) => visibleHoles[t.hole_id] !== false).map((t) => t.hole_id)), prims = ctx.layerPrimitivesFor(all, {});
+    const all = new Set(traces.filter((t) => visibleHoles[t.hole_id] !== false).map((t) => t.hole_id)), prims = ctx.layerPrimitivesFor(all, ctx.also?.length ? { also: ctx.also } : {}); // #3248 — and a layer hidden in 3D the plan is coloured by
     pc.prims = prims; pc.ivBy = groupByHole(prims.intervals.filter((iv) => !(iv.to - iv.from < 1e-6))); pc.ptBy = groupByHole(prims.points.filter((pt) => pt.assay));
     pc.rdBy = groupByHole(readingsOf(prims)); // #1706
     yield 0.15;
@@ -172,6 +173,16 @@ export function nearestReadings(rows, runs, md) {
 const f1 = (v) => (Math.round(v * 10) / 10).toFixed(1);
 
 // all at once (tests, and a caller that needs the plan now)
+// TASKS.csv #3248 — the logged layers hidden in the 3D View that have rows (a model layer such as Strat unit), offered greyed by the plan's
+// 'Colour holes by': picking one builds the plan with it, the 3D View unchanged. -> [{ key, label }]
+const PLAN_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "weath", "structzone", "geotech", "recovery", "sg", "litho_gc", "alt_gc", "mnlgy", "magsusc"];
+export function hiddenPlanLayers(ctx, meta) {
+  const out = [];
+  for (const k of PLAN_LAYER_KEYS) if (!ctx.layerVisible?.[k] && (ctx.layers?.[k] || []).length) out.push({ key: k, label: meta[k]?.label || k });
+  for (const l of ctx.customLayers || []) if (ctx.customVisible?.[l.id] === false && (l.rows || []).length) out.push({ key: `custom:${l.id}`, label: String(l.name) });
+  return out;
+}
+
 export function planBuildNow(ctx, rl, half, opts) { const g = planBuild(ctx, rl, half, opts); let r = g.next(); while (!r.done) r = g.next(); return r.value; }
 
 // a generator run in short slices between macrotasks: onProgress(the last value yielded), cancelled() -> true stops it (resolves null)

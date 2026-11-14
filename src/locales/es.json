@@ -12055,5 +12055,6 @@
   "{n} point": "{n} punto",
   "{n} points": "{n} puntos",
   "{n} structure": "{n} estructura",
-  "{n} structures": "{n} estructuras"
+  "{n} structures": "{n} estructuras",
+  "{layer} (hidden in 3D)": "{layer} (oculto en 3D)"
 }

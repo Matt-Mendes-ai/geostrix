@@ -80,7 +80,7 @@ test("wiring: ViewerModule hands the window its context, with no eager import of
   assert.ok(!/import[^\n]*levelPlanBuild/.test(v), "nor the build");
   assert.match(v, /planCtx=\{planCtx\}/);
   const w = fs.readFileSync(new URL("../src/components/LevelPlanWindow.jsx", import.meta.url), "utf8");
-  assert.match(w, /import \{ planBuild, runSliced \} from "\.\.\/modules\/viewer\/levelPlanBuild\.js";/);
+  assert.match(w, /import \{ planBuild, runSliced, hiddenPlanLayers \} from "\.\.\/modules\/viewer\/levelPlanBuild\.js";/);
   assert.match(w, /runSliced\(planBuild\(ctxRef\.current\(\), r0, 12\.5, \{ holesOnly: true \}\)/);
   assert.match(w, /cancelled: \(\) => buildGen\.current !== gen \}\)/);
 });
