@@ -44,7 +44,7 @@ test("#3266 the picks with a beta are oriented as a structure file's are, on the
 });
 
 test("#3266 wiring: the modelling layers, the Structures menu, the Stereonet and the Downhole plot take them", () => {
-  const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(v, /const layerPicks = useMemo\(\(\) => orientedLayerPicks\(\{ structure: layers\.structure, customLayers, veins: layers\.vein, collars, survey \}\)/);
   assert.match(v, /const modelLayers = useMemo\(\(\) => \(modelArea === "checked" \? restrictLayersToHoles\(unitLayersP, visibleHoles\) : unitLayersP\)/);
   assert.match(v, /const struct_types = distinctValues\(unitLayersP\.structure \|\| \[\]\)/);

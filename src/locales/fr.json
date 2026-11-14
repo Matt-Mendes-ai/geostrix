@@ -11947,5 +11947,7 @@
   "\"{label}\": {code} is logged in thin runs, but they do not line up along a flat layer between the holes (they lie {m} m off their best-fitting plane, which dips {dip}°), so the cells stay cubic ({cube} m): flat cells would spread each run sideways into a plate.": "« {label} » : {code} est décrit en passes minces, mais elles ne s'alignent pas sur une couche plane entre les sondages (elles sont à {m} m de leur plan le mieux ajusté, qui pend de {dip}°) ; les cellules restent donc cubiques ({cube} m) : des cellules aplaties étaleraient chaque passe latéralement en plaque.",
   "{m} m coded as not recorded (NR, not logged, unknown) were left out as unknown, not counted as outside \"{code}\".": "{m} m codés comme non relevés (NR, non décrit, inconnu) ont été laissés de côté comme inconnus, sans être comptés hors de « {code} ».",
   "{type} · {k} of {n} oriented in the model area ({k2} of {n2} in the project)": "{type} · {k} sur {n} orientées dans la zone du modèle ({k2} sur {n2} dans le projet)",
-  "Unit volume (closed)": "Volume d'unité (fermé)"
+  "Unit volume (closed)": "Volume d'unité (fermé)",
+  "{shown} of {count}": "{shown} sur {count}",
+  "{hidden} of {count} intervals hidden by the code filter (Filter / legend)": "{hidden} intervalles sur {count} masqués par le filtre de codes (Filtre / légende)"
 }

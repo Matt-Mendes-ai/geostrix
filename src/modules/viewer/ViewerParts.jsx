@@ -389,7 +389,8 @@ export const HoleRow = React.memo(function HoleRow({ hole_id, visible, onToggle,
   );
 });
 
-export function LayerRow({ label, count, visible, onToggle, onUpload, onInspect, onZoom, onClear, onContextMenu, input, expanded, onToggleExpand, children }) {
+// shown (TASKS.csv #3295): the rows the layer's code filter leaves shown, when it hides some (null otherwise)
+export function LayerRow({ label, count, shown = null, visible, onToggle, onUpload, onInspect, onZoom, onClear, onContextMenu, input, expanded, onToggleExpand, children }) {
   return (
     <div style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }} onContextMenu={onContextMenu}>
       {/* #386 — gap 9 (was 6): the zoom / filter / clear icons sat exactly on the WCAG 2.5.8 24 px spacing limit */}
@@ -409,7 +410,7 @@ export function LayerRow({ label, count, visible, onToggle, onUpload, onInspect,
             inside the inspector (ListFilter above) — this is the "I don't want this tab's data at all
             anymore" case, the inspector handles "just pull out one of several CSVs I merged in". */}
         {count > 0 && onClear && <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(onClear, tr("Remove all data from the {label} layer", { label }))} />}
-        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onUpload} style={{ cursor: "pointer", fontSize: "var(--font-size-sm)", color: count ? "var(--color-accent)" : "var(--color-text-muted)", flexShrink: 0 }} title={tr("Import CSV")} aria-label={count ? tr("Import CSV into {label} ({count} rows)", { label, count }) : tr("Import CSV into {label}", { label })}>{count ? `${count}` : <Upload size={12} />}</div>
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onUpload} style={{ cursor: "pointer", fontSize: "var(--font-size-sm)", color: count ? "var(--color-accent)" : "var(--color-text-muted)", flexShrink: 0 }} title={tr("Import CSV")} aria-label={count ? tr("Import CSV into {label} ({count} rows)", { label, count }) : tr("Import CSV into {label}", { label })}>{count ? (shown != null && shown < count ? <span title={tr("{hidden} of {count} intervals hidden by the code filter (Filter / legend)", { hidden: (count - shown).toLocaleString(), count: count.toLocaleString() })}>{tr("{shown} of {count}", { shown, count })}</span> /* #3295 — filtered to some codes: said on the row */ : `${count}`) : <Upload size={12} />}</div>
         {input}
       </div>
       {expanded && children && (

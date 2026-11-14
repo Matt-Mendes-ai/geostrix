@@ -11947,5 +11947,7 @@
   "\"{label}\": {code} is logged in thin runs, but they do not line up along a flat layer between the holes (they lie {m} m off their best-fitting plane, which dips {dip}°), so the cells stay cubic ({cube} m): flat cells would spread each run sideways into a plate.": "\"{label}\": سُجّل {code} في مقاطع رقيقة، لكنها لا تصطف على طبقة مستوية بين الثقوب (تبعد {m} م عن مستواها الأنسب الذي يميل {dip}°)، لذا تبقى الخلايا مكعبة ({cube} م): الخلايا المسطحة ستمدّ كل مقطع جانبيًا إلى صفيحة.",
   "{m} m coded as not recorded (NR, not logged, unknown) were left out as unknown, not counted as outside \"{code}\".": "{m} م مرمّزة على أنها غير مسجّلة (NR، غير موصوفة، مجهولة) استُبعدت بوصفها مجهولة، ولم تُحسب خارج \"{code}\".",
   "{type} · {k} of {n} oriented in the model area ({k2} of {n2} in the project)": "{type} · {k} من {n} موجّهة في منطقة النموذج ({k2} من {n2} في المشروع)",
-  "Unit volume (closed)": "حجم وحدة (مغلق)"
+  "Unit volume (closed)": "حجم وحدة (مغلق)",
+  "{shown} of {count}": "{shown} من {count}",
+  "{hidden} of {count} intervals hidden by the code filter (Filter / legend)": "{hidden} من {count} فترة مخفية بواسطة مرشّح الرموز (المرشّح / المفتاح)"
 }
