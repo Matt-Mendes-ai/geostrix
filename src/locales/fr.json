@@ -130,6 +130,7 @@
   "Inversion": "Inversion",
   "Lab certificates": "Certificats de labo",
   "Legend": "Légende",
+  "Drawn from the collars and surveys, not the 3D view; the sheet says how the traces were drawn. Insert > Scale bar binds to it.": "Dessiné à partir des collets et des levés, pas de la vue 3D ; la feuille indique comment les tracés ont été dessinés. Insérer > Barre d'échelle s'y lie.",
   "The unit {symbol} is shown in, kept with the project and shared with Best intercepts. The stored values are unchanged; the cut-offs and the cap are typed in the unit shown.": "L'unité dans laquelle {symbol} est affiché, gardée avec le projet et partagée avec Meilleures intersections. Les valeurs enregistrées ne changent pas ; les teneurs de coupure et le plafond se saisissent dans l'unité affichée.",
   "The background task could not start.": "La tâche en arrière-plan n'a pas pu démarrer.",
   "Triangulating {n} points…": "Triangulation de {n} points…",

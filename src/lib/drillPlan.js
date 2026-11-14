@@ -5,6 +5,7 @@
 
 import { collarsMatching } from "./holeFilter.js"; // TASKS.csv #2141
 import { PAGE_PX_PER_PAPER_M, pxPerMetre } from "./pagePxScale.js";
+import { desurveyHole, normalizeDesurveyMethod, DESURVEY_METHODS } from "./desurvey.js"; // TASKS.csv #3367 (desurvey.js imports nothing)
 export { PAGE_PX_PER_PAPER_M, pxPerMetre } from "./pagePxScale.js"; // TASKS.csv #3159 — moved there for the startup code
 
 // The hole in plan, straight from the collar's azimuth, dip and length (a survey bends it little at plan scale). Dip may be
@@ -16,6 +17,40 @@ export function holePlan(c) {
 }
 
 const finite = (c) => Number.isFinite(c?.x) && Number.isFinite(c?.y);
+
+// TASKS.csv #3367 (review #3195, Galore Creek) — every hole was drawn straight from its collar's planned azimuth and dip (holePlan, #1639):
+// on a gyro-surveyed project 25 of 70 traces ended more than 10 m from the surveyed toe (two about 60 m), a vertical hole that drifted 20 m
+// was a dot, and a top-down viewport on the same page drew the surveyed paths. A hole with survey stations is drawn along its desurveyed
+// path (the project's method), projected to plan; a hole with none, and a planned hole, stay straight. -> Map hole_id -> [[x, y], ...]
+// (null with no survey), kept per collars array for its survey and method
+const planMemo = new WeakMap();
+export function planTraces(collars, survey, method) {
+  if (!survey?.length || !collars?.length) return null;
+  const kept = planMemo.get(collars);
+  if (kept && kept.survey === survey && kept.method === method) return kept.out;
+  const by = new Map();
+  for (const st of survey) { const k = String(st.hole_id ?? ""); (by.get(k) || by.set(k, []).get(k)).push(st); }
+  const out = new Map();
+  for (const c of collars) {
+    const stations = by.get(String(c.hole_id ?? ""));
+    if (!stations?.length || !finite(c)) continue;
+    const t = desurveyHole({ ...c, z: Number.isFinite(c.z) ? c.z : 0 }, stations, method);
+    if (t.length > 1) out.set(String(c.hole_id), t.map((q) => [q.x, q.y]));
+  }
+  planMemo.set(collars, { survey, method, out });
+  return out;
+}
+// the sheet's line on how the traces were drawn (English: it is printed with the plan, as the grid caption is). surveyed / straight:
+// the drilled holes in the frame drawn each way; planned: planned holes shown; method: the project's desurvey method id
+export function traceCaption({ surveyed = 0, straight = 0, planned = 0, method = null } = {}) {
+  const m = (DESURVEY_METHODS.find((x) => x.id === normalizeDesurveyMethod(method))?.label || "minimum curvature").toLowerCase();
+  const parts = [];
+  if (surveyed && !straight) parts.push(`Traces along the downhole surveys (${m})`);
+  else if (surveyed) parts.push(`Traces along the downhole surveys (${m}); ${straight} hole(s) with no survey straight from the collar azimuth and dip`);
+  else if (straight) parts.push("Traces straight from each collar's azimuth and dip (no downhole surveys)");
+  if (planned) parts.push("planned holes straight from their design");
+  return parts.join("; ");
+}
 // TASKS.csv #2141 (review #2013) — a program's location plan in two clicks: the filter takes collar fields too ('year=2024', 'project=Woodjam'),
 // the hole-filter grammar of the hole list (#1504); a plain term still matches the hole id ('24-' kept Redgold's RG24-15 22 km north)
 export const filterHoles = (collars, filter) => {
@@ -24,11 +59,15 @@ export const filterHoles = (collars, filter) => {
 };
 
 // The scale (from `presets`, smallest first) and centre that show every hole (collar and trace) inside a w x h px frame with a margin.
-export function fitDrillPlan(collars, w, h, presets = [500, 1000, 2000, 2500, 5000, 10000, 20000, 25000, 50000, 100000]) {
+// traces: planTraces' Map (#3367) — a surveyed hole is framed along its path
+export function fitDrillPlan(collars, w, h, presets = [500, 1000, 2000, 2500, 5000, 10000, 20000, 25000, 50000, 100000], traces = null) {
   const cs = (collars || []).filter(finite);
   if (!cs.length) return null;
   let xmin = Infinity, ymin = Infinity, xmax = -Infinity, ymax = -Infinity;
-  for (const c of cs) { const p = holePlan(c); for (const [x, y] of [[p.x0, p.y0], [p.x1, p.y1]]) { if (x < xmin) xmin = x; if (x > xmax) xmax = x; if (y < ymin) ymin = y; if (y > ymax) ymax = y; } }
+  for (const c of cs) {
+    const t = traces?.get(String(c.hole_id)), p = t ? null : holePlan(c);
+    for (const [x, y] of t || [[p.x0, p.y0], [p.x1, p.y1]]) { if (x < xmin) xmin = x; if (x > xmax) xmax = x; if (y < ymin) ymin = y; if (y > ymax) ymax = y; }
+  }
   const spanX = Math.max(1, xmax - xmin), spanY = Math.max(1, ymax - ymin);
   // TASKS.csv #3181 (#3028 (6), review #2876) — the margin each side is 6 % of the frame or 5 mm (about two label heights), whichever is less:
   // 6 % of a 201 x 127 mm frame (12 mm a side) sent a field that 1:150,000 holds with 9 % to spare to 1:200,000
@@ -40,8 +79,8 @@ export function fitDrillPlan(collars, w, h, presets = [500, 1000, 2000, 2500, 50
 
 // TASKS.csv #2305 (review #2174, WA gold) — a north-south block fitted into a landscape frame printed 36 x 61 mm in a 201 x 127 mm frame at
 // 1:20,000, while the same frame turned would hold it at 1:10,000. -> the turned frame's fit when it is a larger scale (a smaller 1:N), else null
-export function turnedFrameFit(collars, w, h, presets) {
-  const now = fitDrillPlan(collars, w, h, presets), turned = fitDrillPlan(collars, h, w, presets);
+export function turnedFrameFit(collars, w, h, presets, traces = null) { // traces: #3367
+  const now = fitDrillPlan(collars, w, h, presets, traces), turned = fitDrillPlan(collars, h, w, presets, traces);
   return now && turned && turned.scale < now.scale ? { ...turned, w: h, h: w, from: now.scale } : null;
 }
 
@@ -132,14 +171,26 @@ export function placeLabels(points, { fontPx = 9, w, h, gap = 5, avoid = [] } = 
 }
 
 // Everything the element draws, in frame px (north up, centre of the frame = el.centre). Holes wholly outside are left out.
-export function drillPlanGeometry(el, collars) {
+// traces (#3367): planTraces' Map; a hole in it carries `path` (frame px from the collar to the toe) and surveyed: true
+export function drillPlanGeometry(el, collars, traces = null) {
   const w = el.w || 600, h = el.h || 400, ppm = pxPerMetre(el.scale), cx = el.centre?.x ?? 0, cy = el.centre?.y ?? 0;
   const toPx = (x, y) => [w / 2 + (x - cx) * ppm, h / 2 - (y - cy) * ppm];
   const holes = [];
   for (const c of filterHoles(collars, el.holeFilter)) {
-    const p = holePlan(c), [ax, ay] = toPx(p.x0, p.y0), [bx, by] = toPx(p.x1, p.y1);
-    if (Math.max(ax, bx) < 0 || Math.min(ax, bx) > w || Math.max(ay, by) < 0 || Math.min(ay, by) > h) continue;
-    holes.push({ id: String(c.hole_id ?? ""), series: holeSeries(c.hole_id), ax, ay, bx, by, inside: ax >= 0 && ax <= w && ay >= 0 && ay <= h });
+    const t = traces?.get(String(c.hole_id));
+    let ax, ay, bx, by, path = null;
+    if (t) {
+      path = t.map(([x, y]) => toPx(x, y));
+      [ax, ay] = toPx(c.x, c.y); [bx, by] = path[path.length - 1];
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      for (const [x, y] of path) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      if (x1 < 0 || x0 > w || y1 < 0 || y0 > h) continue;
+    } else {
+      const p = holePlan(c);
+      [ax, ay] = toPx(p.x0, p.y0); [bx, by] = toPx(p.x1, p.y1);
+      if (Math.max(ax, bx) < 0 || Math.min(ax, bx) > w || Math.max(ay, by) < 0 || Math.min(ay, by) > h) continue;
+    }
+    holes.push({ id: String(c.hole_id ?? ""), series: holeSeries(c.hole_id), ax, ay, bx, by, path, surveyed: !!t, inside: ax >= 0 && ax <= w && ay >= 0 && ay <= h });
   }
   return { w, h, ppm, holes };
 }
@@ -155,7 +206,7 @@ export function drillPlanPlanned(el, planned) {
   return drillPlanGeometry(el, plannedAsCollars(planned)).holes.map((h) => ({ ...h, planned: true }));
 }
 // the holes a 'Fit the holes' frames: the collars, and the planned holes when the plan shows them
-export const holesToFit = (el, collars, planned) => filterHoles([...(collars || []), ...(showsPlanned(el) ? plannedAsCollars(planned) : [])], el?.holeFilter);
+export const holesToFit = (el, collars, planned) => /* the fit's traces: #3367, passed beside */ filterHoles([...(collars || []), ...(showsPlanned(el) ? plannedAsCollars(planned) : [])], el?.holeFilter);
 
 // TASKS.csv #2301 (review #2174, WA gold) — the location plan had no coordinates at all. A grid at a round spacing (el.gridM, else about five
 // lines across the frame: 1 / 2 / 2.5 / 5 x 10^n m; 0 = no grid), with easting labels along the top and northing labels down the left, in the
