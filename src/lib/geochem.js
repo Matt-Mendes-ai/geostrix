@@ -926,6 +926,11 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
   const capByDomain = opts.capByDomain && domainRows ? opts.capByDomain : null;
   const EPS = 1e-6;
   if (length <= 0) return [];
+  // TASKS.csv #3269 (Galore Creek review) — opts.stats ({}): filled with { readings, leftOut }: the resolved readings with a value, and those no
+  // kept composite took (every window they fell in was under minCoverage). 141 of 144 SG pieces of ~0.11 m went in 2 m windows 5 % covered,
+  // and the run said '0 dropped'.
+  const stats = opts.stats || null, usedSegs = stats ? new Set() : null;
+  let statReadings = 0;
 
   const byHole = new Map();
   // TASKS.csv #286 (Micromine-specialist review) — exact-duplicate raw intervals are dropped BEFORE
@@ -976,6 +981,7 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
   byHole.forEach((rows, hole_id) => {
     const sorted = rows.slice().sort((a, b) => a.from - b.from);
     const segs = resolveAssaySegments(sorted, symbol, unit, elementUnits, null); // #532
+    if (stats) for (const g of segs) if (g.value != null) statReadings++; // #3269
     let segIdx = 0;
     const holeStart = sorted[0].from;
     const holeEnd = sorted.reduce((m, r) => Math.max(m, r.to), sorted[0].to);
@@ -1020,6 +1026,7 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
       // any minCoverage with 1 of 2 m sampled.
       while (segIdx < segs.length && segs[segIdx].to <= from + EPS) segIdx++;
       let gradeLen = 0, coveredLen = 0, conflictLen = 0;
+      const touched = stats ? [] : null; // TASKS.csv #3269 — the readings this window takes, marked used if it is kept
       const dHere = domRows ? domainAt(domRows, (from + to) / 2) : null;
       const capHere = capByDomain && dHere != null && Number(capByDomain[String(dHere)]) > 0 ? Number(capByDomain[String(dHere)]) : capValue; // #1571
       for (let k = segIdx; k < segs.length && segs[k].from < to - EPS; k++) {
@@ -1030,6 +1037,7 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
         gradeLen += v * ov;
         coveredLen += ov;
         if (g.conflict) conflictLen += ov;
+        if (touched) touched.push(g);
       }
       const segLen = to - from;
       const coverage = segLen > 0 ? Math.min(1, coveredLen / segLen) : 0;
@@ -1038,6 +1046,7 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
       // kept with grade 0 and coverage 0 (Harry Au, 2 m: 2,402 of 6,362 composites), and those zeros fed estimates,
       // grade shells, the variogram and the composite CSV.
       if (coveredLen <= EPS) continue;
+      if (touched) for (const g of touched) usedSegs.add(g); // #3269
       // Note: avgGrade is length-weighted across the COVERED material only (gradeLen / coveredLen),
       // not diluted by treating the uncovered remainder as zero grade — unlike computeBestIntercepts'
       // internal-dilution bridging above, an uncovered stretch here means "no data" (lost core, gap in
@@ -1055,6 +1064,7 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
   });
 
   composites.sort((a, b) => (a.hole_id < b.hole_id ? -1 : a.hole_id > b.hole_id ? 1 : a.from - b.from));
+  if (stats) { stats.readings = statReadings; stats.leftOut = statReadings - usedSegs.size; } // #3269
   return composites;
 }
 
