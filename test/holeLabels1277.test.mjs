@@ -30,7 +30,7 @@ test("#1277 sync clears the old sprites (textures disposed) and draws the mode's
 
 test("#1277 holeLabelMode is no longer a dependency of the drillhole rebuild effect", () => {
   const src = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  const deps = src.match(/\}, \[collars, survey, survey\.length \? desurveyMethod[^\n]*\]\);/)[0]; // #1528 — desurvey only with a survey
+  const deps = src.match(/\}, \[collars, survey, desurveyBites \? desurveyMethod[^\n]*\]\);/)[0]; // #1528 — desurvey only with a survey; #2371 — only when a hole's survey has two attitudes
   assert.ok(!deps.includes("holeLabelMode"), deps.slice(-120));
   assert.match(src.replace(/\r\n/g, '\n'), /useEffect\(\(\) => \{\n[^\n]*hole_labels[^\n]*\n[^\n]*\n\s+syncHoleLabels\([^\n]*\n\s+\}, \[holeLabelMode, holeScheme\]\);/); // #3399: and the colour-by scheme (the callouts' swatches)
 });

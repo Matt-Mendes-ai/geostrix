@@ -12251,5 +12251,6 @@
   "{list}: a partial (soluble) digest by the lab code in the header, kept as a measurement of its own, not as another method of the total.": "{list}: هضم جزئي (قابل للذوبان) بحسب رمز المختبر في العنوان، يُحتفظ به قياسًا مستقلًا لا طريقةً أخرى للإجمالي.",
   "≥ {min} {unit}": "≥ {min} {unit}",
   "{min}–{max} {unit}": "{min}–{max} {unit}",
-  "The physical range of a reading in {unit} (the column name states the unit): click to use it as the valid range.": "النطاق الفيزيائي لقراءة بوحدة {unit} (يذكر اسم العمود الوحدة): انقر لاستخدامه نطاقًا صالحًا."
+  "The physical range of a reading in {unit} (the column name states the unit): click to use it as the valid range.": "النطاق الفيزيائي لقراءة بوحدة {unit} (يذكر اسم العمود الوحدة): انقر لاستخدامه نطاقًا صالحًا.",
+  "Every hole keeps one attitude down its survey, so all desurvey methods give the same traces: nothing was redrawn.": "يحافظ كل ثقب على اتجاه واحد على طول مسحه، لذا تعطي جميع طرق حساب المسار المسارات نفسها: لم يُعَد رسم شيء."
 }

@@ -12251,5 +12251,6 @@
   "{list}: a partial (soluble) digest by the lab code in the header, kept as a measurement of its own, not as another method of the total.": "{list} : une mise en solution partielle (soluble) d'après le code de laboratoire de l'en-tête, gardée comme une mesure à part entière, pas comme une autre méthode du total.",
   "≥ {min} {unit}": "≥ {min} {unit}",
   "{min}–{max} {unit}": "{min}–{max} {unit}",
-  "The physical range of a reading in {unit} (the column name states the unit): click to use it as the valid range.": "La plage physique d'une lecture en {unit} (le nom de la colonne indique l'unité) : cliquez pour l'utiliser comme plage valide."
+  "The physical range of a reading in {unit} (the column name states the unit): click to use it as the valid range.": "La plage physique d'une lecture en {unit} (le nom de la colonne indique l'unité) : cliquez pour l'utiliser comme plage valide.",
+  "Every hole keeps one attitude down its survey, so all desurvey methods give the same traces: nothing was redrawn.": "Chaque sondage garde une seule attitude le long de son levé : toutes les méthodes de désurvey donnent les mêmes tracés, rien n'a été redessiné."
 }

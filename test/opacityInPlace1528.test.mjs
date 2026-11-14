@@ -18,8 +18,8 @@ test("mineralization and structures keep the rebuild (mixed opacities)", () => {
   assert.ok(line && !line.includes('"mnlgy"') && !line.includes('"structure"'));
 });
 
-test("desurvey method matters only with a survey", () => {
-  assert.ok(src.includes('survey.length ? desurveyMethod : ""'));
+test("desurvey method matters only with a survey (#2371: one where a hole's survey has two attitudes)", () => {
+  assert.ok(src.includes('desurveyBites ? desurveyMethod : ""'));
 });
 
 test("Size and Opacity commit once the slider rests", () => {
