@@ -27,7 +27,7 @@ test("'would cover': the whole legend before it is cut to fit; the review's twel
 
 test("wiring: only shortly after an open, not after the user chose; a bar that opens it; a button that collapses it; the fit re-runs", () => {
   assert.match(src, /if \(auto\.current\.key !== openKey\) auto\.current = \{ key: openKey, until: Date\.now\(\) \+ LEGEND_AUTO_MS, user: false \};/);
-  assert.match(src, /if \(!a\.user && Date\.now\(\) < a\.until && legendTooBig\(\.\.\.legendFullSize\(legendGroups\), boxW, boxH\)\) \{ a\.until = 0; setCollapsed\(true\); return; \}/);
+  assert.match(src, /if \(saved == null && !a\.user && Date\.now\(\) < a\.until && legendTooBig\(\.\.\.legendFullSize\(legendGroups\), boxW, boxH\)\) \{ a\.until = 0; setCollapsed\(true\); return; \}/); // saved: #3398, a choice kept with the view
   assert.match(src, /\{showLegend && collapsed && \(/);
   assert.match(src, /onClick=\{\(\) => toggleLegend\(false\)\}[^\n]*pointerEvents: "auto"/);
   assert.match(src, /tr\("Legend \(\{n\} rows\)", \{ n: itemTotal \+ allRamps\.length \+ images\.length \}\)/);

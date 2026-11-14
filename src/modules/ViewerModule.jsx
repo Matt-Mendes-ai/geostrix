@@ -7517,6 +7517,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             mountRef={mountRef}
             camSignalRef={figureOverlaySignalRef}
             openKey={viewerUiStateSeq} /* #3280 (1) */
+            onConfig={setFigureOverlay} /* #3398 — the legend's collapse and folds, saved with the view */
           />
         )}
         {/* TASKS.csv #294 — the fresh-project empty state. This used to be a single grey line

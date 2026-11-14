@@ -12242,5 +12242,8 @@
   "Text under 7 px: lower the VE, or untick to scroll": "Texto de menos de 7 px: baje la EV o desmarque para desplazarse",
   "Add a collar field pick to the filter": "Agregar una selección por campo del collar al filtro",
   "Values of one field: holes with either. Different fields: holes with both.": "Valores de un mismo campo: sondajes con cualquiera de ellos. Campos distintos: sondajes con ambos.",
-  "+ Add another…": "+ Agregar otro…"
+  "+ Add another…": "+ Agregar otro…",
+  "Show {group} in the legend": "Mostrar {group} en la leyenda",
+  "Fold {group} to its heading": "Plegar {group} a su título",
+  "({n} rows)": "({n} filas)"
 }

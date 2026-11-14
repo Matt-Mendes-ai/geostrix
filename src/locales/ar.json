@@ -12242,5 +12242,8 @@
   "Text under 7 px: lower the VE, or untick to scroll": "نص أقل من 7 بكسل: خفّض المبالغة الرأسية أو ألغِ التحديد للتمرير",
   "Add a collar field pick to the filter": "إضافة اختيار حسب حقل الفوهة إلى المرشّح",
   "Values of one field: holes with either. Different fields: holes with both.": "قيم الحقل نفسه: الثقوب التي تحمل أيّاً منها. حقول مختلفة: الثقوب التي تحمل كليهما.",
-  "+ Add another…": "+ إضافة آخر…"
+  "+ Add another…": "+ إضافة آخر…",
+  "Show {group} in the legend": "إظهار {group} في وسيلة الإيضاح",
+  "Fold {group} to its heading": "طيّ {group} إلى عنوانه",
+  "({n} rows)": "({n} صفوف)"
 }
