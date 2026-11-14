@@ -16,6 +16,10 @@ export const PANE_HELP = {
   "MT / AMT soundings (.edi)": "mt-soundings", // TASKS.csv #1989
   "FDEM 1D (DUALEM, GEM-2)": "fdem-1d", // TASKS.csv #1986
   "Open Mining Format (.omf)": "omf",
+  "Magnetic survey (CSV / XYZ)": "magnetics", // TASKS.csv #3400 — the Surveys method buttons
+  "Gravity survey (CSV / XYZ)": "gravity",
+  "Radiometric survey (CSV / XYZ)": "radiometrics",
+  "Electromagnetic surveys (EM)": "em-surveys",
   // Maps
   "Boundaries": "boundaries",
   "Map layers & outcrop structures": "map-layers",

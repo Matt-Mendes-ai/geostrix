@@ -24,7 +24,7 @@ import { lazyModal } from "../lib/lazyModal.jsx";
 import { withSetColumns } from "../lib/estimateSet.js"; // TASKS.csv #3014 part c — a set member exported with its siblings' columns
 import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
 import { logStops, SEQUENTIAL_ANCHORS, b64ToF32 } from "../lib/inversion.js"; // TASKS.csv #481; b64ToF32: #2846
-import { SURVEY_METHODS, unitsForMethod, robustRange, SURVEY_METHOD_GROUPS, guessSurveyMethodFrom, diurnalApplies /* #1586 */, Z_MEANINGS, surveyKey, surveyStats, aglToElevation, surveyNameClashes, uniqueSurveyKey, renameSurvey, soleValueColumn /* #3319 */, eqsApplies /* #3321 */, replaceSurveyPoints, surveyExportRows } from "../lib/geophysSurveys.js"; // surveyExportRows: #1094 // TASKS.csv #451; replaceSurveyPoints #600
+import { SURVEY_METHODS, unitsForMethod, robustRange, SURVEY_METHOD_GROUPS, guessSurveyMethodFrom, diurnalApplies /* #1586 */, Z_MEANINGS, surveyKey, surveyStats, aglToElevation, surveyNameClashes, uniqueSurveyKey, renameSurvey, soleValueColumn /* #3319 */, eqsApplies /* #3321 */, methodWithHint /* #3400 */, replaceSurveyPoints, surveyExportRows } from "../lib/geophysSurveys.js"; // surveyExportRows: #1094 // TASKS.csv #451; replaceSurveyPoints #600
 import { radiometricChannels, otherMeasurementColumns, isMultiRadiometric, channelKey, withValueChannel, tickedChannels, ratioJobs, ratioOf } from "../lib/radiometricChannels.js"; // TASKS.csv #2395
 import { terrainElevationAt } from "../lib/inversion.js";
 import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #1709
@@ -72,6 +72,8 @@ import InversionPanel from "../components/InversionPanel.jsx"; // TASKS.csv #321
 import DcipPanel from "../components/DcipPanel.jsx"; // TASKS.csv #322 — 2D DC resistivity / IP
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { Activity as RActivity } from "../components/icons.js"; // TASKS.csv #1425
+import { Gauge as RRadiation, ArrowDownToLine as RWeight } from "../components/icons.js"; // TASKS.csv #3400 — icons already in the app: a new lucide icon would add to the startup vendor chunk
+import { openHelp } from "../lib/help.js";
 const DownholeLogsPane = React.lazy(() => import("../components/DownholeLogsPane.jsx")); // TASKS.csv #1425
 const MtSoundingsPane = React.lazy(() => import("../components/MtSoundingsPane.jsx")); // TASKS.csv #1989
 const FdemPane = React.lazy(() => import("../components/FdemPane.jsx")); // TASKS.csv #1986
@@ -167,6 +169,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const [geoPaneState, setGeoPane] = useState("points"); // TASKS.csv #458 — the sidebar shows the tool picked on the ribbon
   const geoPane = forcePane || geoPaneState; // #749 — the Maps tab chooses the pane
   const geoBtn = (id) => ({ active: geoPane === id, onClick: () => setGeoPane(id) });
+  // TASKS.csv #3400 — the method a Surveys button opened the point importer with ("mag" | "grav" | "rad" | "tem" | null: Other point data)
+  const [methodHint, setMethodHint] = useState(null);
+  const methodBtn = (h) => ({ active: geoPane === "points" && methodHint === h, onClick: () => { setMethodHint(h); setGeoPane("points"); } });
   const [mtDrop, setMtDrop] = useState(null); // TASKS.csv #1989 — .edi files dropped on the tab, for the MT pane
   const [fdemDrop, setFdemDrop] = useState(null); // TASKS.csv #1986 — Aarhus Workbench .xyz exports dropped on the tab, for the FDEM pane
   const [eqsFor, setEqsFor] = useState(null); // TASKS.csv #1985 — the survey whose equivalent-source box is open
@@ -486,7 +491,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         { const named = keepOrReplace(good); good = named.rows; reprojectNote += named.note; } // #3319 — another file of the same name: asked
         const replacedN = replaceSurveyPoints(rows, good).replaced; // #600 — for the notice; the update below does the same
         setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, good).rows }));
-        { const g = guessSurveyMethodFrom(cols.value, good.map((r) => r.label)); if (g && !geophysSurveys[file.name]?.method) updateGeophysSurvey(file.name, { method: g, units: SURVEY_METHODS[g].units }); } // #1151 — from the value column's name
+        { const g = methodWithHint(guessSurveyMethodFrom(cols.value, good.map((r) => r.label)), methodHint) /* #3400 */; if (g && !geophysSurveys[file.name]?.method) updateGeophysSurvey(file.name, { method: g, units: SURVEY_METHODS[g].units }); } // #1151 — from the value column's name
         if (replacedN) reprojectNote += tr(" Replaced the {replacedN} point(s) of the earlier import of this file.", { replacedN: replacedN.toLocaleString() });
         const zNote = noZ ? tr(" {noZ} point(s) have no elevation: they are kept for modelling with \"sensor at a fixed height above terrain\", and are not drawn in 3D.", { noZ }) : ""; // #365
         const readNote = res.note ? ` ${res.note.trim()}` : ""; // #444 — comma decimals / encoding, said out loud
@@ -1511,7 +1516,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const colOf = new Map(ownColumns.map((o) => [o.file, o.col]));
       for (const src of new Set(points.map((r) => r._src))) {
         const orig = Object.keys(named.renamed).find((k) => named.renamed[k] === src) || src;
-        const g = guessSurveyMethodFrom(colOf.get(orig) || valueCol, [], { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }); // hints: #1586
+        const g = methodWithHint(guessSurveyMethodFrom(colOf.get(orig) || valueCol, [], { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }), methodHint); // hints: #1586; the method button: #3400
         if (g && !geophysSurveys[src]?.method) updateGeophysSurvey(src, { method: g, units: SURVEY_METHODS[g].units });
       }
     }
@@ -1636,7 +1641,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const replacedN = replaceSurveyPoints(rows, mapped).replaced; // #600 — re-import replaces, does not double
     setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, mapped).rows }));
     if (jobs) for (const j of jobs) if (j.method && SURVEY_METHODS[j.method] && !geophysSurveys[keyOf(j.src)]?.method) updateGeophysSurvey(keyOf(j.src), { method: j.method, units: SURVEY_METHODS[j.method].units }); // #2395; a channel whose name says nothing: #2081
-    if (!jobs) { const g = guessSurveyMethodFrom(valueCol, mapped.map((r) => r.label), { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }); if (g && !geophysSurveys[keyOf(fileName)]?.method) updateGeophysSurvey(keyOf(fileName), { method: g, units: SURVEY_METHODS[g].units }); } // #1151; hints: #1586
+    if (!jobs) { const g = methodWithHint(guessSurveyMethodFrom(valueCol, mapped.map((r) => r.label), { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }), methodHint) /* #3400 */; if (g && !geophysSurveys[keyOf(fileName)]?.method) updateGeophysSurvey(keyOf(fileName), { method: g, units: SURVEY_METHODS[g].units }); } // #1151; hints: #1586
     if (replacedN) reprojectNote += tr(" Replaced the {replacedN} point(s) of the earlier import of this file.", { replacedN: replacedN.toLocaleString() });
     const skipped = (jobs ? cleanedRows.length * jobs.length : cleanedRows.length) - mapped.length - noFix; // #538; #2395: per channel survey
     if (jobs) reprojectNote += tr(" As {k} survey(s): {list}.", { k: jobs.length, list: jobs.map((j) => j.src).join(", ") }); // #2395 — the no-fix readings are reported separately; #1583: after the cleaning
@@ -1933,11 +1938,17 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         {/* TASKS.csv #458 — Geophysics ribbon: each button shows that tool in the sidebar */}
         <Ribbon label="Geophysics tools" show={!embedded}>
           <RibbonGroup label="Surveys">
-            <RibbonButton icon={RRadar} label="Point survey" tone="data" title="Import a mag / gravity / IP / radiometric point survey (CSV or Geosoft .xyz)" {...geoBtn("points")} />
-            <RibbonButton advanced icon={RMagnet} label="Inversion" tone="model" title="Magnetics / gravity inversion and forward modelling (SimPEG)" {...geoBtn("inversion")} />
-            <RibbonButton advanced icon={RZap} label="DC / IP" tone="model" title="2D DC resistivity / IP line inversion (SimPEG)" {...geoBtn("dcip")} />
-            <RibbonButton advanced icon={RWaves} label="MT / AMT" tone="data" title="MT / AMT soundings from EDI files: curves, pseudosections and approximate depths" {...geoBtn("mt")} />{/* TASKS.csv #1989 */}
-            <RibbonButton advanced icon={RLayers} label="FDEM 1D" tone="model" title="Ground loop-loop EM (DUALEM, GEM-2): conductivity against depth under each sounding, a 1D inversion" {...geoBtn("fdem")} />{/* TASKS.csv #1986 */}
+            {/* TASKS.csv #3400 (Matt) — a button per survey method by name, in Simple mode too: a beginner finds the survey there. Magnetics,
+                Gravity and Radiometrics open the point importer set to that method; IP / Resistivity the DC / IP line; EM a chooser (FDEM 1D,
+                TEM); MT / AMT the EDI soundings. Point survey is the importer with no method set (its name kept: messages and help say 'Geophysics > Point survey'). */}
+            <RibbonButton icon={RMagnet} label="Magnetics" tone="data" title="Magnetics: the magnetite in the rocks, for intrusions, faults, iron formation and magnetite-destructive alteration. Import a ground or airborne survey (CSV / .xyz)." {...methodBtn("mag")} />
+            <RibbonButton icon={RWeight} label="Gravity" tone="data" title="Gravity: rock density, for dense massive sulphide, mafic intrusions, basins and faults. Import gravity stations (CSV / .xyz)." {...methodBtn("grav")} />
+            <RibbonButton icon={RRadiation} label="Radiometrics" tone="data" title="Radiometrics: potassium, thorium and uranium at the surface, for potassic alteration, granites and uranium. Import K / eTh / eU channels (CSV / .xyz)." {...methodBtn("rad")} />
+            <RibbonButton icon={RZap} label="IP / Resistivity" tone="model" title="IP / resistivity: chargeability (disseminated sulphide) and resistivity (silicification, clay, water) under a line; a 2D DC / IP inversion." {...geoBtn("dcip")} />
+            <RibbonButton icon={Radio} label="EM" tone="data" title="EM: electrical conductors (massive sulphide, graphite, clay, water). Ground loop-loop FDEM now; time-domain (TEM) line data is coming." active={geoPane === "em" || geoPane === "fdem"} onClick={() => setGeoPane("em")} />
+            <RibbonButton icon={RWaves} label="MT / AMT" tone="data" title="MT / AMT: resistivity to depth from natural fields, hundreds of metres to kilometres (EDI soundings)." {...geoBtn("mt")} />{/* TASKS.csv #1989 */}
+            <RibbonButton icon={RRadar} label="Point survey" tone="data" title="Any other survey measured at points (SP, VLF, a contractor's channel): CSV or Geosoft .xyz, with its method set on its card." {...methodBtn(null)} />
+            <RibbonButton advanced icon={RLayers} label="Inversion" tone="model" title="Magnetics / gravity inversion and forward modelling (SimPEG)" {...geoBtn("inversion")} />
           </RibbonGroup>
           {/* #749 — Terrain, map layers, web layers, boundaries and claims moved to the Maps tab */}
           <RibbonGroup label="Models">
@@ -1967,7 +1978,18 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           onChange={(e) => { const f = e.target.files[0]; importFile(f); e.target.value = ""; }}
         />
         {geoPane === "points" && (<>
-        <TaskPaneHeader title="Point survey (CSV / XYZ)" icon={RRadar} tone="data" />
+        {/* TASKS.csv #3400 — the pane opened by a method button says so, with that method's help page */}
+        {methodHint === "mag" ? <TaskPaneHeader title="Magnetic survey (CSV / XYZ)" icon={RMagnet} tone="data" />
+          : methodHint === "grav" ? <TaskPaneHeader title="Gravity survey (CSV / XYZ)" icon={RWeight} tone="data" />
+            : methodHint === "rad" ? <TaskPaneHeader title="Radiometric survey (CSV / XYZ)" icon={RRadiation} tone="data" />
+              : <TaskPaneHeader title="Point survey (CSV / XYZ)" icon={RRadar} tone="data" />}
+        {methodHint && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45, margin: "-4px 0 10px" }}>
+          {methodHint === "mag" ? tr("A survey imported here is labelled magnetics (total field), or the magnetic product its column names (reduced to pole, a derivative). Change it on the survey's card.")
+            : methodHint === "grav" ? tr("A survey imported here is labelled gravity (Bouguer anomaly), or the gravity product its column names (free air, Gzz). Change it on the survey's card.")
+              : methodHint === "rad" ? tr("A survey imported here is labelled radiometrics: each K, eTh, eU or total-count column the importer finds becomes its own survey. Change the method on the survey's card.")
+                : tr("A survey imported here is labelled a TEM channel (dB/dt), or B-field or decay constant when its column says so: one value a station. Change it on the survey's card.")}
+          {" "}<button type="button" onClick={() => setMethodHint(null)} style={{ border: "none", background: "none", padding: 0, color: "var(--color-info)", cursor: "pointer", fontSize: "inherit", textDecoration: "underline" }}>{tr("Import without a method")}</button>
+        </div>}
         <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Point cloud (CSV)")}<InfoButton title={tr("Point cloud (CSV)")} text={tr("Import a CSV point cloud (x, y, z, value) — mag, IP, gravity, radiometrics, or any other point-sampled survey. Points render in the same 3D scene as drillholes for co-visualization (see the \"Geophysics points\" layer on the Viewer’s Home tab).")} />
         </div>
 
@@ -2844,6 +2866,22 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             it and see how his own hardware handles it, applies to both the OMF and UBC import sections
             below (both already accepted a maxCells parameter, just previously always the same
             hardcoded default). */}
+        </>)}
+        {geoPane === "em" && (<>{/* TASKS.csv #3400 — EM: which kind of EM survey, each with its help page */}
+          <TaskPaneHeader title="Electromagnetic surveys (EM)" icon={Radio} tone="data" onClose={() => setGeoPane(null)} />
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5, marginBottom: 10 }}>{tr("EM measures how well the ground conducts electricity: massive sulphide, graphite, clay and salt water are conductors. Pick the kind of survey:")}</div>
+          {[
+            { label: tr("FDEM 1D: ground loop-loop (DUALEM, GEM-2)…"), text: tr("Frequency-domain readings along lines: conductivity against depth under each sounding, a 1D inversion."), go: () => setGeoPane("fdem"), help: "fdem-1d" },
+            { label: tr("TEM: one channel as points…"), text: tr("Time-domain EM: reading whole TEM lines (every channel, the decay at a station, a decay-constant grid) is coming. Today one channel (dB/dt, B-field or a decay constant) imports as a point survey."), go: () => { setMethodHint("tem"); setGeoPane("points"); }, help: "point-survey" },
+          ].map((o) => (
+            <div key={o.help} style={{ padding: "8px 10px", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 8, background: "var(--color-bg)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <button type="button" onClick={o.go} style={{ ...pBtn, flex: 1, marginBottom: 0 }}>{o.label}</button>
+                <button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp(o.help)} aria-label={tr("Help: {name}", { name: o.label })} title={tr("Help for this tool (F1, works offline)")}>?</button>
+              </div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45, marginTop: 5 }}>{o.text}</div>
+            </div>
+          ))}
         </>)}
         {geoPane === "mt" && (<Suspense fallback={null}><MtSoundingsPane layers={layers} setLayers={setLayers} geophysSurveys={geophysSurveys} updateGeophysSurvey={updateGeophysSurvey} project={project} setEpsg={setEpsg} projectIsEmpty={projectIsEmpty} pendingFiles={mtDrop} onPendingDone={() => setMtDrop(null)} onClose={() => setGeoPane(null)} /></Suspense>)}{/* TASKS.csv #1989 */}
         {geoPane === "fdem" && (<Suspense fallback={null}><FdemPane layers={layers} setLayers={setLayers} geophysSurveys={geophysSurveys} updateGeophysSurvey={updateGeophysSurvey} project={project} setEpsg={setEpsg} projectIsEmpty={projectIsEmpty} pendingFiles={fdemDrop} onPendingDone={() => setFdemDrop(null)} onClose={() => setGeoPane(null)} /></Suspense>)}{/* TASKS.csv #1986 */}

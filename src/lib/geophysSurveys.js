@@ -301,3 +301,15 @@ export function eqsApplies(method) {
   const g = SURVEY_METHODS[method]?.group;
   return g === "mag" || g === "grav" ? "ok" : "no";
 }
+
+// TASKS.csv #3400 (Matt: "I wanna have the ribbon menu with all the survey names or abbreviations. So a beginner will know where to find the
+// survey they want to work with") — the Surveys ribbon's Magnetics / Gravity / Radiometrics buttons (and EM > TEM channel) open the point
+// importer set to that method: a file read there takes the method its columns name when it is of that kind (a reduced-to-pole grid, eTh),
+// else the kind's usual one. -> a SURVEY_METHODS key, or the guess as before with no hint
+export const METHOD_HINTS = { mag: "mag", grav: "grav", rad: "rad_tc", tem: "em_dbdt" };
+const TEM_METHODS = new Set(["em_dbdt", "em_bfield", "em_tau"]);
+export function methodWithHint(guess, hint) {
+  if (!hint || !METHOD_HINTS[hint]) return guess || null;
+  const fits = hint === "tem" ? TEM_METHODS.has(guess) : SURVEY_METHODS[guess]?.group === hint;
+  return fits ? guess : METHOD_HINTS[hint];
+}
