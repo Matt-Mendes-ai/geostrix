@@ -12,7 +12,7 @@ import { samplePointsFromIntervals } from "../lib/estimation.js";
 import { makeRunCache } from "../lib/runCache.js"; // TASKS.csv #3061
 import { desurveyHole } from "../lib/desurvey.js";
 import {
-  fitVariogramModel, /* experimentalVariogram, directionRow: in the worker since #3009 */ variogramModelValue, VARIOGRAM_MODELS, verticalShare /* #3015 */,
+  fitVariogramModel, /* experimentalVariogram, directionRow: in the worker since #3009 */ MIN_HOLE_PAIRS /* #3285 */, variogramModelValue, VARIOGRAM_MODELS, verticalShare /* #3015 */,
   VALUE_TRANSFORMS, applyValueTransform, groupPointsByDomain, suggestLagDistance, suggestBetweenHoleLag, variogramStationarity, siteSpacingLag, lagsShortOfSpacing, downholeLinePoints /* #1843 */, DIRECTION_TABLE, longestDirection /* #1996 */ } from "../lib/variogram.js";
 import { holeSpacingSummary } from "../lib/holeSpacing.js"; // TASKS.csv #2221
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -263,6 +263,8 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
   }, [result]);
 
   const nPairsLow = result && result.vg.bins.some((b) => b.nPairs > 0 && b.nPairs < 30);
+  // TASKS.csv #3285 — between holes, lags with 30 pairs or more that come from under MIN_HOLE_PAIRS pairs of holes
+  const holePairsLow = result && result.holeMode === "between" && result.vg.bins.some((b) => b.nPairs >= 30 && b.holePairs != null && b.holePairs < MIN_HOLE_PAIRS);
   const fitWeak = result && result.fit && result.fit.rSquared != null && result.fit.rSquared < 0.5;
   // TASKS.csv #2065 — the first lag does not clear 30 pairs (Between holes on Woodjam Cu): the fitted nugget is not read from the data
   const nuggetFree = !!(result && result.fit && !(result.vg.reliableFromLag > 0 && result.vg.reliableFromLag <= result.lag * 1.01));
@@ -465,8 +467,8 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
                     the same measurement as one built from 4,000, and the plot should show that) */}
                 {plot.pts.map((b, i) => (
                   <circle key={i} cx={plot.X(b.h)} cy={plot.Y(b.gamma)} r={3 + 4 * Math.sqrt(b.nPairs / plot.maxPairs)}
-                    fill={b.nPairs >= 30 ? "#4a9be0" : "#d98f8f"} opacity="0.85">
-                    <title>{`h = ${b.h.toFixed(1)} m\nγ = ${b.gamma.toPrecision(4)}\n${b.nPairs.toLocaleString()} pairs${b.nPairs < 30 ? tr(" (under 30 — not a reliable measurement)") : ""}`}</title>
+                    fill={(b.reliable ?? b.nPairs >= 30) ? "#4a9be0" : "#d98f8f"} opacity="0.85">{/* reliable: #3285 */}
+                    <title>{`h = ${b.h.toFixed(1)} m\nγ = ${b.gamma.toPrecision(4)}\n${b.nPairs.toLocaleString()} pairs${b.holePairs != null && b.holePairs > 0 ? tr(" from {h} hole pair(s)", { h: b.holePairs.toLocaleString() }) : ""}${b.nPairs < 30 ? tr(" (under 30 — not a reliable measurement)") : result.holeMode === "between" && b.holePairs != null && b.holePairs < MIN_HOLE_PAIRS ? tr(" (from under {m} pairs of holes — not a reliable measurement between holes)", { m: MIN_HOLE_PAIRS }) : ""}`}</title>
                   </circle>
                 ))}
               </svg>
@@ -506,6 +508,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
               {result.transform === "log" && result.tP95 != null && result.tP95 < 0.2 && <div role="note" style={noteBox("#fdf7ea", "#e2a63c")}>{tr("95 % of these values are below {p} {unit}: there log10(value + 1) is close to 0.43 × value, so this variogram is nearly the raw one rescaled. Choose \"log10(value), zeros at half the smallest value\" instead.", { p: +result.tP95.toPrecision(2), unit: gradeUnitLabel(symbol, unit) })}</div>}{/* #1746 */}
               {result.transform === "logfloor" && result.tFloor != null && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Zeros and values below {f} {unit} (half the smallest positive value) were set to {f} before the log.", { f: +result.tFloor.toPrecision(3), unit: gradeUnitLabel(symbol, unit) })}</div>}{/* #1746 */}
 
+              {holePairsLow && <div role="note" style={noteBox("#fdf7ea", "#e2a63c")}>{tr("Between holes, each lag rests on the pairs of holes it spans: some lags here come from under {m} pairs of holes (shown in red), each counted many times over in the pairs of composites. Read them as a few hole-to-hole comparisons, not as that many measurements.", { m: MIN_HOLE_PAIRS })}</div>}{/* #3285 */}
               {nPairsLow && (
                 <div style={noteBox("#fdf7ea", "#e2a63c")}>{result.vg.reliableFromLag > result.lag * 1.01 && result.vg.maxReliableLag > 0 /* #2065 — the first lags fail: name the usable run */
                   ? (result.vg.maxReliableLag > result.vg.reliableFromLag
@@ -513,7 +516,11 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
                     : tr("Some lag bins hold fewer than 30 pairs (shown in red), the first ones among them. Below about 30 pairs a lag is not a measurement — Journel & Huijbregts' standard caution. Read only the {a} m lag, the one that clears 30 pairs, or widen the lag distance or loosen the angular tolerance.", { a: Math.round(result.vg.reliableFromLag) }))
                   : <>{tr("Some lag bins hold fewer than 30 pairs (shown in red). Below about 30 pairs a lag is not a measurement — Journel & Huijbregts' standard caution. Widen the lag distance, loosen the angular tolerance, or read only out to")}{" "}<b>{result.vg.maxReliableLag} m</b>{tr(", the furthest lag that clears 30 pairs contiguously.")}</>}</div>
               )}
-              {nuggetFree && <div role="note" style={noteBox("#fdf7ea", "#e2a63c")}>{result.vg.reliableFromLag > 0
+              {nuggetFree && <div role="note" style={noteBox("#fdf7ea", "#e2a63c")}>{result.holeMode === "between" /* #3285 — between holes a lag also needs MIN_HOLE_PAIRS pairs of holes */
+                ? (result.vg.reliableFromLag > 0
+                  ? tr("The nugget is not constrained: between holes, no lag closer than {h} m holds 30 pairs from {m} or more pairs of holes, so the fitted nugget is the model's guess, not a measurement.", { h: Math.round(result.vg.reliableFromLag), m: MIN_HOLE_PAIRS })
+                  : tr("The nugget is not constrained: between holes, no lag holds 30 pairs from {m} or more pairs of holes, so the fitted nugget is the model's guess, not a measurement.", { m: MIN_HOLE_PAIRS }))
+                : result.vg.reliableFromLag > 0
                 ? tr("The nugget is not constrained: no lag closer than {h} m holds 30 pairs, so the fitted nugget is the model's guess, not a measurement.", { h: Math.round(result.vg.reliableFromLag) })
                 : tr("The nugget is not constrained: no lag holds 30 pairs, so the fitted nugget is the model's guess, not a measurement.")}
                 {result.holeMode !== "downhole" ? " " + tr("Take it from Downhole only, where samples in one hole are close enough to see it.") : ""}</div>}{/* #2065 */}
