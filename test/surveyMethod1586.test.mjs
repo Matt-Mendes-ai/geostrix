@@ -26,8 +26,8 @@ test("GEM magnetics columns, and a magnetometer header for a column the words ca
   assert.equal(guessSurveyMethod("field", { instrument: GEM }), "mag");
   assert.equal(guessSurveyMethod("field"), null); // without the header, unknown
   assert.equal(guessSurveyMethod("sq", { instrument: GEM }), null); // the signal-quality column is not the field
-  assert.deepEqual(fileHints({ instrument: GEM, columns: VLF_COLS }), { magnetometer: true, vlfSet: true });
-  assert.deepEqual(fileHints({ instrument: "Scintrex CG-5", columns: ["x", "y", "boug"] }), { magnetometer: false, vlfSet: false });
+  assert.deepEqual(fileHints({ instrument: GEM, columns: VLF_COLS }), { magnetometer: true, vlfSet: true, mtSet: false }); // mtSet: #3323
+  assert.deepEqual(fileHints({ instrument: "Scintrex CG-5", columns: ["x", "y", "boug"] }), { magnetometer: false, vlfSet: false, mtSet: false });
   assert.equal(guessSurveyMethodFrom("value", ["rawmag"], { instrument: GEM }), "mag");
 });
 

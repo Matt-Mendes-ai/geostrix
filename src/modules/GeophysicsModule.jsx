@@ -86,6 +86,7 @@ import { unreadableFormatAdvice, textTableRefusal } from "../lib/unreadableForma
 import { tableRefusal } from "../lib/tableRefusal.js"; // TASKS.csv #3320 — a table the picker cannot use (one column, a DC / IP reading file)
 import { t as tr } from "../lib/i18n.js";
 import { decadesBetween, isLogSpaced, logViridisStops } from "../lib/pointSurveyScale.js"; // TASKS.csv #1787
+import { surveyMetaFor } from "../lib/surveyLegendDefault.js"; // TASKS.csv #3323
 import { defaultModelLegend } from "../lib/modelDefaultStops.js"; // TASKS.csv #2400
 import { guessVoxelProperty, isLogProperty, propertyRamp, parseGradeLabel } from "../lib/voxelProperty.js"; // TASKS.csv #1786; propertyRamp: #1788; parseGradeLabel: #2667
 import { cloudShape } from "../lib/cloudShape.js"; // TASKS.csv #1783
@@ -379,10 +380,13 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const legendRows = useMemo(() => (manySurveys ? rows.filter((r) => surveyKey(r) === legendKey) : rows), [manySurveys, rows, legendKey]);
   const legendDrawn = useMemo(() => robustRange(legendRows.map((r) => r.value)), [legendRows]);
   const legendRange = useMemo(() => { let a = null, b = null; for (const r of legendRows) { const v = r.value; if (typeof v !== "number" || isNaN(v)) continue; if (a === null || v < a) a = v; if (b === null || v > b) b = v; } return { min: a, max: b }; }, [legendRows]);
-  const legendMeta = (manySurveys && geophysSurveys[legendKey]?.legend) || null;
+  // TASKS.csv #3323 — a survey's own legend (an import's log scale, or one edited while there were several) is the one drawn even as the only
+  // survey (surveyColourModel), so it is the one shown and edited here too: the pane showed and wrote the flat layer's fields instead
+  const ownLegend = manySurveys || !!geophysSurveys[legendKey]?.legend;
+  const legendMeta = (ownLegend && geophysSurveys[legendKey]?.legend) || null;
   // TASKS.csv #1787 — the point-survey legend's edits, routed to the survey's own legend (#1587) or the one flat layer's store fields
   const ptsLegendUpdate = (_id, patch) => {
-    if (manySurveys) { updateGeophysSurvey(legendKey, { legend: { ...(geophysSurveys[legendKey]?.legend || {}), ...patch } }); return; } // #1587
+    if (ownLegend) { updateGeophysSurvey(legendKey, { legend: { ...(geophysSurveys[legendKey]?.legend || {}), ...patch } }); return; } // #1587; #3323
     if ("min" in patch) setGeophysPtsMin(patch.min);
     if ("max" in patch) setGeophysPtsMax(patch.max);
     if ("colorMode" in patch) setGeophysPtsColorMode(patch.colorMode);
@@ -496,7 +500,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         { const named = keepOrReplace(good); good = named.rows; reprojectNote += named.note; } // #3319 — another file of the same name: asked
         const replacedN = replaceSurveyPoints(rows, good).replaced; // #600 — for the notice; the update below does the same
         setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, good).rows }));
-        { const g = methodWithHint(guessSurveyMethodFrom(cols.value, good.map((r) => r.label)), methodHint) /* #3400 */; if (g && !geophysSurveys[file.name]?.method) updateGeophysSurvey(file.name, { method: g, units: SURVEY_METHODS[g].units }); } // #1151 — from the value column's name
+        { const g = methodWithHint(guessSurveyMethodFrom(cols.value, good.map((r) => r.label), { columns: res.meta.fields || [] } /* #3323 — MT columns */), methodHint) /* #3400 */; if (g && !geophysSurveys[file.name]?.method) updateGeophysSurvey(file.name, surveyMetaFor(g, good.map((r) => r.value))); } // #1151 — from the value column's name; #3323 — a log legend for resistivity
         if (replacedN) reprojectNote += tr(" Replaced the {replacedN} point(s) of the earlier import of this file.", { replacedN: replacedN.toLocaleString() });
         const zNote = noZ ? tr(" {noZ} point(s) have no elevation: they are kept for modelling with \"sensor at a fixed height above terrain\", and are not drawn in 3D.", { noZ }) : ""; // #365
         const readNote = res.note ? ` ${res.note.trim()}` : ""; // #444 — comma decimals / encoding, said out loud
@@ -1522,7 +1526,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       for (const src of new Set(points.map((r) => r._src))) {
         const orig = Object.keys(named.renamed).find((k) => named.renamed[k] === src) || src;
         const g = methodWithHint(guessSurveyMethodFrom(colOf.get(orig) || valueCol, [], { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }), methodHint); // hints: #1586; the method button: #3400
-        if (g && !geophysSurveys[src]?.method) updateGeophysSurvey(src, { method: g, units: SURVEY_METHODS[g].units });
+        if (g && !geophysSurveys[src]?.method) updateGeophysSurvey(src, surveyMetaFor(g, points.filter((r) => r._src === src).map((r) => r.value))); // #3323
       }
     }
     setXyzError({ info: !failed.length, text: [
@@ -1645,8 +1649,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     mapped = named.rows; reprojectNote += named.note;
     const replacedN = replaceSurveyPoints(rows, mapped).replaced; // #600 — re-import replaces, does not double
     setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, mapped).rows }));
-    if (jobs) for (const j of jobs) if (j.method && SURVEY_METHODS[j.method] && !geophysSurveys[keyOf(j.src)]?.method) updateGeophysSurvey(keyOf(j.src), { method: j.method, units: SURVEY_METHODS[j.method].units }); // #2395; a channel whose name says nothing: #2081
-    if (!jobs) { const g = methodWithHint(guessSurveyMethodFrom(valueCol, mapped.map((r) => r.label), { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }), methodHint) /* #3400 */; if (g && !geophysSurveys[keyOf(fileName)]?.method) updateGeophysSurvey(keyOf(fileName), { method: g, units: SURVEY_METHODS[g].units }); } // #1151; hints: #1586
+    if (jobs) for (const j of jobs) if (j.method && SURVEY_METHODS[j.method] && !geophysSurveys[keyOf(j.src)]?.method) updateGeophysSurvey(keyOf(j.src), surveyMetaFor(j.method, mapped.filter((r) => r._src === keyOf(j.src)).map((r) => r.value))); // #2395; #3323; a channel whose name says nothing: #2081
+    if (!jobs) { const g = methodWithHint(guessSurveyMethodFrom(valueCol, mapped.map((r) => r.label), { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }), methodHint) /* #3400 */; if (g && !geophysSurveys[keyOf(fileName)]?.method) updateGeophysSurvey(keyOf(fileName), surveyMetaFor(g, mapped.map((r) => r.value))); } // #1151; hints: #1586; #3323
     if (replacedN) reprojectNote += tr(" Replaced the {replacedN} point(s) of the earlier import of this file.", { replacedN: replacedN.toLocaleString() });
     const skipped = (jobs ? cleanedRows.length * jobs.length : cleanedRows.length) - mapped.length - noFix; // #538; #2395: per channel survey
     if (jobs) reprojectNote += tr(" As {k} survey(s): {list}.", { k: jobs.length, list: jobs.map((j) => j.src).join(", ") }); // #2395 — the no-fix readings are reported separately; #1583: after the cleaning
@@ -2220,7 +2224,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             {(manySurveys ? legendRange.min : min) !== null && (
               <div style={{ color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>{tr("Value range: {min} – {max}", { min: (manySurveys ? legendRange.min : min).toLocaleString(), max: (manySurveys ? legendRange.max : max).toLocaleString() })}{manySurveys && geophysSurveys[legendKey]?.units ? ` ${geophysSurveys[legendKey].units}` : ""}</div>
             )}
-            {min !== null && (manySurveys ? legendMeta?.min == null && legendMeta?.max == null : geophysPtsMin == null && geophysPtsMax == null) && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", marginTop: 2, lineHeight: 1.4 }}>{tr("Colours use the 2–98 percentile of the values, so a few extreme readings do not wash out the map. Edit a limit to change it.")}</div>/* #1177 */}
+            {min !== null && (ownLegend ? legendMeta?.min == null && legendMeta?.max == null : geophysPtsMin == null && geophysPtsMax == null) && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", marginTop: 2, lineHeight: 1.4 }}>{tr("Colours use the 2–98 percentile of the values, so a few extreme readings do not wash out the map. Edit a limit to change it.")}</div>/* #1177 */}
             {/* TASKS.csv #122 — same graduated/classed symbology (user-defined class breaks, adjustable
                 palette) voxel models already have, reused directly: geophysPtsModel below is shaped
                 exactly like a real voxel model ({min,max,colorMode,stops,cells}) so VoxelLegendEditor
@@ -2228,7 +2232,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 unchanged. geophysPtsOnUpdate routes its onUpdate(id, patch) calls to the store fields
                 instead of a per-model update, since geophys_pts is one flat layer, not a list. */}
             {min !== null && (() => { // TASKS.csv #1787 — Linear / Log colour scale for a positive survey (log: viridis on log-spaced stops)
-              const cur = manySurveys ? { min: legendMeta?.min ?? legendDrawn.min, max: legendMeta?.max ?? legendDrawn.max, stops: legendMeta?.stops || [] } : { min: geophysPtsMin ?? drawnRange.min, max: geophysPtsMax ?? drawnRange.max, stops: geophysPtsStops };
+              const cur = ownLegend ? { min: legendMeta?.min ?? legendDrawn.min, max: legendMeta?.max ?? legendDrawn.max, stops: legendMeta?.stops || [] } : { min: geophysPtsMin ?? drawnRange.min, max: geophysPtsMax ?? drawnRange.max, stops: geophysPtsStops };
               if (!((manySurveys ? legendRange.min : min) > 0) || !(cur.min > 0 && cur.max > cur.min)) return null;
               const isLog = isLogSpaced(cur.stops), dec = decadesBetween(cur.min, cur.max);
               return (
@@ -2249,7 +2253,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               <VoxelLegendEditor
                 key={manySurveys ? legendKey : "all"}
                 model={manySurveys
-                  ? { id: "geophys_pts", min: legendMeta?.min ?? legendDrawn.min, max: legendMeta?.max ?? legendDrawn.max, colorMode: legendMeta?.colorMode || "continuous", stops: legendMeta?.stops || [], cells: legendRows } // #1587 — this survey's own legend
+                  ? { id: "geophys_pts", min: legendMeta?.min ?? legendDrawn.min, max: legendMeta?.max ?? legendDrawn.max, colorMode: legendMeta?.colorMode || "continuous", stops: legendMeta?.stops || [], cells: legendRows } // #1587 — this survey's own legend (#3323: also as the only survey)
                   : { id: "geophys_pts", min: geophysPtsMin ?? drawnRange.min, max: geophysPtsMax ?? drawnRange.max, colorMode: geophysPtsColorMode, stops: geophysPtsStops, cells: rows }}
                 onUpdate={ptsLegendUpdate} /* #1787 — the same routing, shared with the colour-scale choice */
               />
