@@ -11606,6 +11606,8 @@
   "{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling, within the {h} m Vertical reach.": "{pct}% من المعدن المقدَّر ({k} من {n} كتلة) يقع تحت أعمق عينة لكل ثقب ضمن {r} م: محمول إلى الأسفل بعد الحفر، ضمن المدى الرأسي البالغ {h} م.",
   "Kriged before {n} block(s) were removed (above the ground, outside the area or outside the solid), so more were kriged than are kept.": "كُرِّجت قبل إزالة {n} كتلة (فوق الأرض أو خارج المنطقة أو خارج المجسم)، لذا كُرِّج أكثر مما حُفظ.",
   "Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.": "حد القطع {v}: المئين التسعون لقيم {symbol} البالغة {n}، مقترح عند اختيار {symbol}. اكتب قيمتك.",
+  "Cutoff {v}: the 90th percentile of the {n} {symbol} values in the holes the shell uses, proposed for the element it opened on. Type your own.": "الحد الأدنى {v}: المئين 90 لقيم {symbol} البالغة {n} في ثقوب الحفر التي يستخدمها الغلاف، مقترح للعنصر الذي فُتح عليه. اكتب قيمتك.",
+  "{v} ppm {symbol} is {p} %.": "{v} ppm من {symbol} تساوي {p} %.",
   "Report these grades too ({n})": "الإبلاغ عن هذه المحتويات أيضًا ({n})",
   "Report these grades too": "الإبلاغ عن هذه المحتويات أيضًا",
   "Each chosen model's grade over the ore of the pit (not priced), joined by block centre: a model on the same grid as the pit's block model.": "محتوى كل نموذج مختار على خام الحفرة (دون تسعير)، مربوطًا بمركز الكتلة: نموذج على الشبكة نفسها لنموذج كتل الحفرة.",

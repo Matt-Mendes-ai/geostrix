@@ -11606,6 +11606,8 @@
   "{pct}% of the estimated metal ({k} of {n} blocks) lies below the deepest sample of every hole within {r} m: carried down past the drilling, within the {h} m Vertical reach.": "{pct} % du métal estimé ({k} blocs sur {n}) se trouve sous l'échantillon le plus profond de chaque sondage à moins de {r} m : porté vers le bas au-delà des forages, dans la portée verticale de {h} m.",
   "Kriged before {n} block(s) were removed (above the ground, outside the area or outside the solid), so more were kriged than are kept.": "Krigés avant que {n} bloc(s) ne soient retirés (au-dessus du sol, hors de la zone ou hors du solide) : davantage ont été krigés que conservés.",
   "Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.": "Teneur de coupure {v} : le 90e centile des {n} valeurs de {symbol}, proposé au choix de {symbol}. Saisissez la vôtre.",
+  "Cutoff {v}: the 90th percentile of the {n} {symbol} values in the holes the shell uses, proposed for the element it opened on. Type your own.": "Teneur de coupure {v} : le 90e centile des {n} valeurs de {symbol} dans les sondages qu'utilise l'enveloppe, proposé pour l'élément à l'ouverture. Saisissez la vôtre.",
+  "{v} ppm {symbol} is {p} %.": "{v} ppm de {symbol} font {p} %.",
   "Report these grades too ({n})": "Rapporter aussi ces teneurs ({n})",
   "Report these grades too": "Rapporter aussi ces teneurs",
   "Each chosen model's grade over the ore of the pit (not priced), joined by block centre: a model on the same grid as the pit's block model.": "La teneur de chaque modèle choisi sur le minerai de la fosse (sans prix), jointe par le centre des blocs : un modèle sur la même grille que le modèle de blocs de la fosse.",

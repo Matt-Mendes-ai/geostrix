@@ -9,7 +9,7 @@ import { Activity, Calculator, ChevronDown, ChevronRight, ChevronUp, Compass, Dr
 import { BLOCK_BUDGETS, ESTIMATION_METHODS, gradeShellBudgetNote } from "../../lib/estimationMeta.js"; // gradeShellBudgetNote: #1416
 import InfoButton from "../../components/InfoButton.jsx";
 import { PRECIOUS_METALS, gradeUnitLabel } from "../../lib/geochem.js"; // gradeUnitLabel: #2218
-import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { withChangeLog } from "../../lib/explicitLog.js"; // TASKS.csv #878
 import { activateOnKey, iconAction } from "../../lib/a11y.js";
 import { colorForLithology, isCrossCuttingRole, roleForLithology, groupMemberRole, groupNameHint } from "../../lib/layers.js"; // group roles: #2052
@@ -37,7 +37,9 @@ import { numericLayerFields } from "../../lib/evidenceSources.js"; // TASKS.csv 
 import { intensityVocabFields } from "../../lib/intensityVocab.js"; // TASKS.csv #2230 — intensity letters (W / M / S / I) ranked
 import { numericSourceChoices, findNumericSource, sourceAssays } from "../../lib/numericSources.js"; // TASKS.csv #1741 — logs and numeric layer fields as a grade-shell source
 import { excludeQAQC, labAssays } from "../../lib/qaqc.js"; // labAssays: #1744; TASKS.csv #2060 — the proposed cutoff without the QC inserts (this file loads lazily, so qaqc.js stays off the startup path)
-import { checkedHoleCount } from "../../lib/modelArea.js"; // TASKS.csv #1546
+import { checkedHoleCount, restrictRowsToHoles } from "../../lib/modelArea.js"; // TASKS.csv #1546; restrictRowsToHoles: #3272
+import { holeSpacingSummary, searchFromSpacingM } from "../../lib/holeSpacing.js"; // TASKS.csv #3272 — the shell's search from the drilling, as Estimation's (#2420)
+import { cutoffPct } from "../../lib/gradeTonnage.js"; // TASKS.csv #3272 — a base metal's ppm cutoff in % too, as Grade-tonnage (#1747)
 import { GradeShellUnsampled } from "../../components/UnsampledChoice.jsx"; // TASKS.csv #2417 / #2542
 import ShellCapNote from "./ShellCapNote.jsx"; // TASKS.csv #2222 — the Estimation dialog's default cap (#1573) here too
 import { zoneAlphaPicks, customAlphaPicks } from "../../lib/alphaPicks.js"; // TASKS.csv #1686
@@ -298,6 +300,36 @@ export default function ModellingPanes(props) {
     if (!shellSymbols.length || findNumericSource(numericSymbol, { layers, customLayers: customLayersAll })) return;
     if (!numericSymbol || !shellSymbols.includes(numericSymbol)) setNumericSymbol(preferredElement(shellSymbols, "gradeShell", shellLead));
   }, [shellSymbols, shellLead]); // once per element list (the choice itself stays the user's)
+  // TASKS.csv #3272 (Galore Creek review) — the Grade shell opened on a porphyry at a 1 ppm Cu cutoff (the cutoff was proposed only on an element
+  // change, never for the element it opened on), a cap from all 46 assayed holes while it ran on the 14 checked ones (P99 22,900 against
+  // 25,600), and ViewerModule's fixed 50 m search (1,505 of 1,720 ore-grade composites outside the shell; Estimation proposed 500 m). Now the
+  // cutoff, the cap and the search are worked out on the holes the run uses (Model area), and proposed once for the opening element; a value
+  // the user typed is kept (the opening values are ViewerModule's 1 and 50).
+  const shellAreaAssays = useMemo(() => (modelArea === "checked" ? restrictRowsToHoles(assays || [], visibleHoles) : assays || []), [assays, modelArea, visibleHoles]);
+  const shellAreaCollars = useMemo(() => (modelArea === "checked" ? restrictRowsToHoles(collars || [], visibleHoles) : collars || []), [collars, modelArea, visibleHoles]);
+  const proposeShellCutoff = (next, onOpen = false) => {
+    const ns = findNumericSource(next, { layers, customLayers: customLayersAll }); // #1741
+    // #2060 (review #2013, Woodjam) — and without the QC inserts unless the pane includes them: Cu proposed 4470 ppm (a CRM's value), the drill samples' P90 is 4120
+    const base = ns ? sourceAssays(ns, { layers, customLayers: customLayersAll }).assays : shellAreaAssays;
+    const inArea = ns && modelArea === "checked" ? restrictRowsToHoles(base, visibleHoles) : base; // #3272 — the holes the run uses
+    const rowsFor = ns ? inArea : (numericIncludeQAQC ? inArea.filter((a) => a.source !== "pXRF") : excludeQAQC(inArea));
+    const v = rowsFor.map((a) => a.values?.[ns ? ns.symbol : next]).filter((x) => Number.isFinite(x) && x > 0).sort((x, y) => x - y);
+    if (v.length) { const p90 = +v[Math.floor(0.9 * (v.length - 1))].toPrecision(3); setNumericCutoff(p90); setShellCutoffAuto({ symbol: next, value: p90, n: v.length, onOpen }); } // said below: #3025 (6)
+  };
+  const shellSpacing = useMemo(() => {
+    if (toolPane !== "shell" || !numericSymbol) return null;
+    const has = new Set(); for (const a of shellAreaAssays) if (Number.isFinite(a.values?.[numericSymbol])) has.add(a.hole_id);
+    const c = shellAreaCollars.filter((x) => has.has(x.hole_id)); // #2062 — the holes that carry the element, not every collar
+    return holeSpacingSummary(c.length ? c : shellAreaCollars);
+  }, [toolPane, numericSymbol, shellAreaAssays, shellAreaCollars]);
+  const shellSearchAuto = shellSpacing?.medianM > 0 ? searchFromSpacingM(shellSpacing.medianM) : null;
+  const [shellSearchSet, setShellSearchSet] = useState(null); // { r, m }: the search this pane set from the spacing
+  const shellCapAuto = useRef({ symbol: null, value: null }); // #3272 — the cap ShellCapNote set, kept while the note itself unmounts with the pane
+  useEffect(() => {
+    if (toolPane !== "shell" || !numericSymbol) return;
+    if (numericCutoff === 1 && !shellCutoffAuto) proposeShellCutoff(numericSymbol, true); // ViewerModule's opening 1: never a cutoff anyone typed for a grade shell
+    if (shellSearchAuto && numericSearchRadius === 50 && !shellSearchSet) { setNumericSearchRadius(shellSearchAuto); setShellSearchSet({ r: shellSearchAuto, m: Math.round(shellSpacing.medianM) }); }
+  }, [toolPane, numericSymbol, shellSearchAuto]); // once the pane opens on an element, and again when the spacing first becomes known
   const [unitBody, setUnitBody] = useState({ iso: 0.5, largest: false, search: 0, cell: 0 }); // TASKS.csv #1340 — its own settings: a rock unit is not an alteration halo
   const sheetPositionAt = useMemo(() => positionFromTraces(tracesRef?.current || []), [tracesSeq]); // #2625: the traces change with tracesSeq (#888)
   const tracedHoles = useMemo(() => new Set((tracesRef?.current || []).filter((t) => t?.pts?.length >= 2).map((t) => t.hole_id)).size, [tracesSeq]); // #2053
@@ -1165,11 +1197,7 @@ export default function ModellingPanes(props) {
                     // across a switch. The cap is cleared; the cutoff is proposed as the new element's P90 of lab assays (pXRF left out).
                     const next = e.target.value;
                     setNumericSymbol(next); setNumericCapValue(NaN); if (!findNumericSource(next, { layers, customLayers: customLayersAll })) rememberElement("gradeShell", next); // #2552
-                    const ns = findNumericSource(next, { layers, customLayers: customLayersAll }); // #1741
-                    // #2060 (review #2013, Woodjam) — and without the QC inserts unless the pane includes them: Cu proposed 4470 ppm (a CRM's value), the drill samples' P90 is 4120
-                    const rowsFor = ns ? sourceAssays(ns, { layers, customLayers: customLayersAll }).assays : (numericIncludeQAQC ? (assays || []).filter((a) => a.source !== "pXRF") : excludeQAQC(assays || []));
-                    const v = rowsFor.map((a) => a.values?.[ns ? ns.symbol : next]).filter((x) => Number.isFinite(x) && x > 0).sort((x, y) => x - y);
-                    if (v.length) { const p90 = +v[Math.floor(0.9 * (v.length - 1))].toPrecision(3); setNumericCutoff(p90); setShellCutoffAuto({ symbol: next, value: p90, n: v.length }); } // said below: #3025 (6)
+                    proposeShellCutoff(next); // #3272 — the holes the run uses
                   }} style={{ ...smallSel, width: "100%" }} disabled={!symbols.length && !numericSources.length}>
                     {symbols.length === 0 && numericSources.length === 0 && <option value="">{tr("— no assays —")}</option>}
                     {symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, assayElements.find((e) => e.symbol === s)?.unit || "ppm")})</option>)}{/* #2218 */}
@@ -1183,7 +1211,8 @@ export default function ModellingPanes(props) {
                   <input type="number" step="any" value={numericCutoff} onChange={(e) => setNumericCutoff(e.target.value === "" ? NaN : Number(e.target.value))} style={{ ...smallSel, width: "100%" }} />
                 </label>
               </div>
-              {shellCutoffAuto && shellCutoffAuto.symbol === sym && numericCutoff === shellCutoffAuto.value && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.", { v: shellCutoffAuto.value, n: shellCutoffAuto.n.toLocaleString(), symbol: sym })}</div>}{/* #3025 (6) */}
+              {shellCutoffAuto && shellCutoffAuto.symbol === sym && numericCutoff === shellCutoffAuto.value && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{shellCutoffAuto.onOpen ? tr("Cutoff {v}: the 90th percentile of the {n} {symbol} values in the holes the shell uses, proposed for the element it opened on. Type your own.", { v: shellCutoffAuto.value, n: shellCutoffAuto.n.toLocaleString(), symbol: sym }) : tr("Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.", { v: shellCutoffAuto.value, n: shellCutoffAuto.n.toLocaleString(), symbol: sym })}</div>}{/* #3025 (6); onOpen: #3272 */}
+              {!numSrc && cutoffPct(numericCutoff, sym, unit) != null && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("{v} ppm {symbol} is {p} %.", { v: numericCutoff.toLocaleString(), symbol: sym, p: +cutoffPct(numericCutoff, sym, unit).toPrecision(4) })}</div>}{/* #3272 */}
               {!numSrc && (() => { const offers = drillThresholdOffers(geochemThresholds, sym, unit).slice(0, 4); return offers.length ? ( /* TASKS.csv #2689 (#2675 part 2) — saved drill thresholds offered as shell levels, never applied */
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", alignItems: "center", marginBottom: 6 }}>
                   <span>{tr("Saved threshold:")}</span>
@@ -1203,6 +1232,7 @@ export default function ModellingPanes(props) {
                 <label style={{ ...miniField }} title={tr("Extends the grid past the outermost sample so the shell can close beyond the last hole")}>{tr("Pad (m)")}<input type="number" min="0" step="any" value={numericPadding} onChange={(e) => setNumericPadding(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
                 </label>
               </div>
+              {shellSearchSet && numericSearchRadius === shellSearchSet.r && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Search radius {r} m: 2.5 times the {m} m typical spacing, so a block between two holes reaches both.", shellSearchSet)}</div>}{/* #3272 — as Estimation's (#2420) */}
               {(() => { /* TASKS.csv #3062 — a flat, thin body (a seam, a palaeochannel, a laterite): the cell height on its own and a flat search, as Estimation's (#2418); a structural trend shapes both instead */
                 const gt = trendFor("gradeShell"), reach = Number(numericFlatReach), flat = !gt && reach > 0 && numericSearchRadius > 0 && reach < numericSearchRadius;
                 return <>
@@ -1275,7 +1305,7 @@ export default function ModellingPanes(props) {
                 <label style={{ ...miniField }} title={tr("A grid cell is only estimated if samples from at least this many DISTINCT drillholes fall inside its search radius. 1 lets a single hole populate a whole 50m-radius sphere of 'mineralization' with continuity asserted rather than demonstrated; 2 (or 3) is the standard first sanity constraint.")}>{tr("Min holes")}<input type="number" min="1" step="1" value={numericMinHoles} onChange={(e) => setNumericMinHoles(Math.max(1, Math.round(Number(e.target.value) || 1)))} style={{ ...smallSel, width: "100%" }} />
                 </label>
               </div>
-              <ShellCapNote assays={assays} symbol={sym} unit={unit} assayElements={assayElements} includeQAQC={numericIncludeQAQC} isAssay={!numSrc && symbols.includes(sym)} capValue={numericCapValue} setCapValue={setNumericCapValue} />{/* #2222 */}
+              <ShellCapNote assays={shellAreaAssays /* #3272 — the holes the run uses */} symbol={sym} unit={unit} assayElements={assayElements} includeQAQC={numericIncludeQAQC} isAssay={!numSrc && symbols.includes(sym)} capValue={numericCapValue} setCapValue={setNumericCapValue} autoRef={shellCapAuto /* #3272 */} />{/* #2222 */}
               {/* TASKS.csv #266 — QC inserts were excluded from Best Intercepts / Compositing / Grade
                   Statistics but reached the grade shell unfiltered. */}
               <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title={tr("QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default, the same as the Best Intercepts, Compositing and Grade Statistics panels. A field duplicate logged under its parent hole's id would otherwise be double-counted in the estimate.")}>
