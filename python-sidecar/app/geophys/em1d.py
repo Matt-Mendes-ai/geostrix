@@ -123,6 +123,7 @@ def _numba_kernel():
     def kern(sig, thick, lam, iwmu, G, C, L, jac, v, J):
         S, N = sig.shape
         for s in numba.prange(S):
+            gs = np.int64(s) if G.shape[0] > 1 else np.int64(0)  # TASKS.csv #3440 — G has one row of weights, or one a sounding (TEM: each station's height)
             U = np.empty(N, np.complex128)
             dYdY = np.empty(N, np.complex128)
             dYdu = np.empty(N, np.complex128)
@@ -152,7 +153,7 @@ def _numba_kernel():
                             dden = 1.0 + Y * dt
                             dYdu[jj] = num / den + u * (dnum * den - num * dden) / (den * den)
                         Y = u * num / den
-                    g = G[k]
+                    g = G[gs, k]
                     acc += (lk - Y) / (lk + Y) * g
                     if jac:
                         P = -2.0 * lk / ((lk + Y) * (lk + Y)) * g
@@ -177,7 +178,7 @@ def forward(sv, m, thick, jac=False):
     S, N = m.shape
     v = np.empty((S, sv.C), np.complex128)
     J = np.empty((S, sv.C, N if jac else 1), np.complex128)
-    _numba_kernel()(10.0 ** m, np.ascontiguousarray(thick, float), sv.lam, sv.iwmu, sv.G, sv.C, sv.L, bool(jac), v, J if jac else np.empty((S, sv.C, N), np.complex128))
+    _numba_kernel()(10.0 ** m, np.ascontiguousarray(thick, float), sv.lam, sv.iwmu, sv.G.reshape(1, -1), sv.C, sv.L, bool(jac), v, J if jac else np.empty((S, sv.C, N), np.complex128))
     out = sv.data(v)
     return (out, sv.data(J)) if jac else out
 
