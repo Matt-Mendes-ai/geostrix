@@ -59,12 +59,24 @@ export function piercePoints(trace, rl) {
 }
 
 // the parts of a trace inside the md runs, as E/N polylines
+// TASKS.csv #3414 — the [x, y] pairs made directly (a point object per end and a second array per run were most of what a Level plan open on
+// WA iron's 6,390 holes allocated here); the same pairs as pointAtMd's
+function xyAtMd(trace, md) {
+  if (md <= trace[0].md) return [trace[0].x, trace[0].y];
+  for (let i = 1; i < trace.length; i++) {
+    const p = trace[i - 1], q = trace[i];
+    if (md <= q.md) { const f = (md - p.md) / (q.md - p.md || 1e-12); return [p.x + (q.x - p.x) * f, p.y + (q.y - p.y) * f]; }
+  }
+  const e = trace[trace.length - 1];
+  return [e.x, e.y];
+}
 export function tracePolylines(trace, runs) {
+  if (!trace.length) return runs.map(() => []);
   return runs.map(([a, b]) => {
-    const pts = [pointAtMd(trace, a)];
-    for (const p of trace) if (p.md > a && p.md < b) pts.push(p);
-    pts.push(pointAtMd(trace, b));
-    return pts.map((p) => [p.x, p.y]);
+    const out = [xyAtMd(trace, a)];
+    for (const p of trace) if (p.md > a && p.md < b) out.push([p.x, p.y]);
+    out.push(xyAtMd(trace, b));
+    return out;
   });
 }
 
