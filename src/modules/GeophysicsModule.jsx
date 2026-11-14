@@ -92,7 +92,7 @@ import { sampleSurveyOnHoles, suggestHoleSampling } from "../lib/surveyOnHoles.j
 import { defaultModelLegend } from "../lib/modelDefaultStops.js"; // TASKS.csv #2400
 import { guessVoxelProperty, isLogProperty, propertyRamp, parseGradeLabel } from "../lib/voxelProperty.js"; // TASKS.csv #1786; propertyRamp: #1788; parseGradeLabel: #2667
 import { cloudShape } from "../lib/cloudShape.js"; // TASKS.csv #1783
-import { surveyGridDefaults, proposeSlice, blankForCell } from "../lib/surveyGridDefaults.js"; // TASKS.csv #3322
+import { surveyGridDefaults, proposeSlice, blankForCell, levelSlices, inLevel } from "../lib/surveyGridDefaults.js"; // TASKS.csv #3322; levelSlices: #3420
 import { defaultDrapeElevation, rasterDrapeElevation, drapeElevationNote, planElevation } from "../lib/drapeElevation.js"; // planElevation: #2294; // TASKS.csv #1856; rasterDrapeElevation: #1505
 import { collarTerrainOffset } from "../lib/terrainCheck.js"; // TASKS.csv #1620
 import { voxelStretch, sortedShownValues } from "../lib/voxelStretch.js"; // TASKS.csv #1812 / #1781
@@ -441,6 +441,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // TASKS.csv #1783 (review #1646, Kodiak) — a 3D point cloud (an inversion model imported as points) is gridded one depth slice at a time
   const idwShape = useMemo(() => (idwRows.length ? cloudShape(idwRows) : null), [idwRows]);
   const [idwZ, setIdwZ] = useState({ lo: "", hi: "" });
+  const [levelSet, setLevelSet] = useState({ step: "", lo: "", hi: "" }); // TASKS.csv #3420 — every N m between lo and hi
   // TASKS.csv #3322 — both boxes empty: the proposed slice (the level with the most points), not every depth at once; one typed: the other end of the cloud
   const idwSliceProp = useMemo(() => (idwShape?.is3D ? proposeSlice(idwRows) : null), [idwRows, idwShape]);
   const idwZAuto = !!idwSliceProp && idwZ.lo === "" && idwZ.hi === "";
@@ -453,6 +454,33 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const idwAutoCell = idwSuggest?.cell || 25; // #2562 — a quarter to a half of the spacing; #3322 — never over the cell limit
   const idwCellSize = idwCellText === "" ? idwAutoCell : Math.max(0.1, Number(idwCellText) || idwAutoCell);
   const idwAutoBlank = idwSuggest ? blankForCell(idwSuggest.distance, idwCellSize) : null; // #3322 — a typed cell carries the blanking: at least 1.5 cells
+  // TASKS.csv #3420 (review #3195) — 'every N m between … and …': one IDW grid per level of a 3D cloud in one go, all at the pane's cell and blanking
+  // so the levels compare; named by their z range, each drawn at its points' median elevation. (IDW only: minimum curvature or a spline for a dozen levels is slow.)
+  const levelStepAuto = idwSliceProp ? (idwSliceProp.layered ? idwSliceProp.gap : idwSliceProp.thickness) : null;
+  const makeLevelGrids = () => {
+    const rows3 = idwRows.filter((r) => Number.isFinite(r.z));
+    const lo = levelSet.lo === "" ? idwShape.zMin : Number(levelSet.lo), hi = levelSet.hi === "" ? idwShape.zMax : Number(levelSet.hi);
+    const step = levelSet.step === "" ? levelStepAuto : Number(levelSet.step);
+    const wins = levelSlices(lo, hi, step);
+    if (!wins) { setError(tr("Give a step above zero and a range with the top above the bottom.")); return; }
+    const taken = rasters.map((x) => x.name), label = surveyLabel(idwKey), blank = idwBlank === "" ? idwAutoBlank ?? Infinity : Number(idwBlank) > 0 ? Number(idwBlank) : Infinity;
+    let made = 0, skipped = 0, tooBig = false;
+    for (const w of wins) {
+      const pts = rows3.filter((r) => inLevel(r.z, w));
+      if (pts.length < 3 || pointsAlongOneLine(pts, idwCellSize)) { skipped++; continue; }
+      const xs = pts.map((r) => r.x), ys = pts.map((r) => r.y);
+      const box = snappedGridExtent({ xmin: arrMin(xs), xmax: arrMax(xs), ymin: arrMin(ys), ymax: arrMax(ys) }, idwCellSize);
+      if (Math.round((box.xmax - box.xmin) / idwCellSize) * Math.round((box.ymax - box.ymin) / idwCellSize) > 4_000_000) { tooBig = true; break; }
+      const name = uniqueName(`${label} z ${+w.lo.toFixed(2)}–${+w.hi.toFixed(2)} m IDW ${idwCellSize} m${Number.isFinite(blank) ? `, blanked > ${Math.round(blank)} m` : ""}`, taken); taken.push(name);
+      const raster = idwGridToRasterInput(pts, { ...box, cellSize: idwCellSize, power: idwPower, stretch: idwStretch, maxDistance: blank, name });
+      const zs = pts.map((r) => r.z);
+      addRaster({ ...raster, elevation: median(zs), provenance: { tool: "IDW gridding (level set)", survey: idwKey, points: pts.length, cellM: idwCellSize, power: idwPower, blankingM: Number.isFinite(blank) ? Math.round(blank) : null, levelM: [w.lo, w.hi] }, surveyMethod: geophysSurveys?.[idwKey]?.method || undefined, units: geophysSurveys?.[idwKey]?.units || undefined });
+      made++;
+    }
+    if (tooBig) { setError(tr("That cell size would make a level grid over 4 million cells. Use a bigger cell size.")); return; }
+    setError({ info: made > 0, text: made ? tr("Added {k} level grid(s) from {lo} to {hi} m, every {step} m (IDW {c} m, blanked > {b} m).{v}", { k: made, lo: +lo.toFixed(2), hi: +hi.toFixed(2), step: +step.toFixed(2), c: idwCellSize, b: Number.isFinite(blank) ? Math.round(blank) : 0, v: skipped ? " " + tr("{n} level(s) with fewer than 3 points were skipped.", { n: skipped }) : "" }) : tr("No level had enough points to grid.") });
+    if (made) setIdwOpen(false);
+  };
   // #451 — radar-altimeter heights -> elevations on the loaded terrain
   const convertAgl = (key) => {
     if (!terrain) return;
@@ -2468,6 +2496,20 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   }}
                   style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}
                 >{tr("Generate raster")}</button>
+                {idwShape?.is3D && idwMethod === "idw" && ( // TASKS.csv #3420
+                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--color-border)" }}>
+                    <div style={{ color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{tr("Or a grid for every level of the cloud: one IDW grid per window, at this cell size and blanking.")}</div>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6, flexWrap: "wrap" }}>
+                      <span style={{ color: "var(--color-text-faint)" }}>{tr("Every")}</span>
+                      <input type="number" min="0.1" step="any" value={levelSet.step} placeholder={levelStepAuto != null ? String(+levelStepAuto.toFixed(2)) : ""} onChange={(e) => setLevelSet((v) => ({ ...v, step: e.target.value }))} style={{ ...numInput, width: 64 }} aria-label={tr("Level thickness")} />
+                      <span style={{ color: "var(--color-text-faint)" }}>{tr("m, from")}</span>
+                      <input type="number" step="any" value={levelSet.lo} placeholder={String(Math.round(idwShape.zMin))} onChange={(e) => setLevelSet((v) => ({ ...v, lo: e.target.value }))} style={{ ...numInput, width: 70 }} aria-label={tr("Lowest elevation of the levels")} />
+                      <span style={{ color: "var(--color-text-faint)" }}>{tr("to")}</span>
+                      <input type="number" step="any" value={levelSet.hi} placeholder={String(Math.round(idwShape.zMax))} onChange={(e) => setLevelSet((v) => ({ ...v, hi: e.target.value }))} style={{ ...numInput, width: 70 }} aria-label={tr("Highest elevation of the levels")} />
+                    </div>
+                    <button type="button" disabled={!!idwBusy} onClick={makeLevelGrids} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>{tr("Generate a grid per level")}</button>
+                  </div>
+                )}
               </div>
             )}
           </div>
