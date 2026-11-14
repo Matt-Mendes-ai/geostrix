@@ -12163,5 +12163,9 @@
   "Loaded {rows} surface samples ({chosen} elements): back on the Surface Geology tab, where they are drawn.{v}": "Carregadas {rows} amostras de superfície ({chosen} elementos): de volta à aba Geologia de superfície, onde são desenhadas.{v}",
   "At the project's collars true north and grid north coincide (no grid convergence): these azimuths are used as they are.": "Nos colares do projeto o norte verdadeiro e o norte da quadrícula coincidem (sem convergência de quadrícula): estes azimutes são usados como estão.",
   "At the project's collars true north lies {deg}° east of grid north (the grid convergence): these azimuths are turned by +{deg}° to grid north.": "Nos colares do projeto o norte verdadeiro fica {deg}° a leste do norte da quadrícula (a convergência de quadrícula): estes azimutes são girados +{deg}° para o norte da quadrícula.",
-  "At the project's collars true north lies {deg}° west of grid north (the grid convergence): these azimuths are turned by −{deg}° to grid north.": "Nos colares do projeto o norte verdadeiro fica {deg}° a oeste do norte da quadrícula (a convergência de quadrícula): estes azimutes são girados −{deg}° para o norte da quadrícula."
+  "At the project's collars true north lies {deg}° west of grid north (the grid convergence): these azimuths are turned by −{deg}° to grid north.": "Nos colares do projeto o norte verdadeiro fica {deg}° a oeste do norte da quadrícula (a convergência de quadrícula): estes azimutes são girados −{deg}° para o norte da quadrícula.",
+  "These columns are read in ppm, but their median is thousands of times the element's average in the Earth's crust: {list}. They look like ppb. Pick the unit for each in the list below, or:": "Estas colunas são lidas em ppm, mas sua mediana é milhares de vezes a média do elemento na crosta terrestre: {list}. Parecem ppb. Escolha a unidade de cada uma na lista abaixo, ou:",
+  "{header} (median {median} ppm; the crust averages about {crust} ppm)": "{header} (mediana {median} ppm; a crosta tem em média cerca de {crust} ppm)",
+  "Read these {n} as ppb": "Ler estas {n} em ppb",
+  "Read {header} as ppb": "Ler {header} em ppb"
 }
