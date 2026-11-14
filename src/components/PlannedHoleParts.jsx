@@ -129,7 +129,8 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
       holes.forEach((h) => { const { zFromGround, ...rest } = h; onAdd({ ...rest, zSource: zFromGround ? `${groundAt ? groundWords : collarFillSource(fillAt(h.x, h.y))} (Elev blank in ${file.name})` : `imported from ${file.name}` }); }); // #3335 — the collar ground's distance and range
       const sk = r.skipped.length ? " " + tr("{n} row(s) skipped (lines {list}): a missing or bad value.", { n: r.skipped.length, list: r.skipped.slice(0, 6).map((s) => `${s.row} (${s.why})`).join(", ") + (r.skipped.length > 6 ? ", …" : "") }) : "";
       const how = (r.usedFallback ? " " + tr("Every hole takes the form's Az {a}° / Dip {d}° (the file has no azimuth or dip column).", { a: Math.round(holes[0]?.azimuth * 10) / 10, d: holes[0]?.dip }) : "") + (r.verticalBlankAz ? " " + tr("{n} vertical row(s) with a blank azimuth read as azimuth 0.", { n: r.verticalBlankAz }) : "") + (r.zFromGround ? " " + (groundAt ? tr("{n} row(s) with a blank Elev took the terrain under the hole.", { n: r.zFromGround }) : tr("{n} row(s) with a blank Elev took the ground interpolated between the nearest collars (no terrain).", { n: r.zFromGround })) : ""); // #2963
-      setImportMsg({ warn: !holes.length || r.skipped.length > 0, text: tr("Added {n} planned hole(s) from {f}.", { n: holes.length, f: file.name }) + how + sk });
+      const up = r.lonePositive?.length && !r.allDipsPositive ? " " + tr("{n} hole(s) with a positive dip among negative ones were added as upward holes: {list}. Check them.", { n: r.lonePositive.length, list: r.lonePositive.slice(0, 6).join(", ") + (r.lonePositive.length > 6 ? ", …" : "") }) : ""; // #3348 (3)
+      setImportMsg({ warn: !holes.length || r.skipped.length > 0 || !!up, text: tr("Added {n} planned hole(s) from {f}.", { n: holes.length, f: file.name }) + how + up + sk });
     } catch (e) { setImportMsg({ warn: true, text: tr("Could not read {f}: {error}", { f: file.name, error: e?.message || String(e) }) }); }
   };
   useEffect(() => {
@@ -246,13 +247,13 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
         <NumField label={tr("Dip°")} value={draft.dip} onChange={(v) => set("dip", v)} />
         <NumField label={tr("Length m")} value={draft.length} onChange={(v) => set("length", v)} />
       </div>
-      {seed && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "-2px 0 5px", lineHeight: 1.4 }}>{tr("Az / Dip / Length start from the {n} drilled holes (median); each hole added is kept for the next.", { n: seed.n })}</div>}{/* #2450 */}
+      {seed && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "-2px 0 5px", lineHeight: 1.4 }}>{seed.azN > 0 ? tr("Dip / Length start from the {n} drilled holes (median), Az from the mean direction of the {m} inclined ones{spread}; each hole added is kept for the next.", { n: seed.n, m: seed.azN, spread: seed.azR != null && seed.azR < 0.7 ? tr(" (they point many ways: check it)") : "" }) : tr("Az / Dip / Length start from the {n} drilled holes (median); each hole added is kept for the next.", { n: seed.n })}{/* #3348 (4) */}</div>}{/* #2450 */}
       {shallow && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 5, lineHeight: 1.4 }}>{tr("Dip {d}° is shallow: flatter than about {s}° a rig is hard to set up and the hole wanders more. Keep a dip you can drill and solve the collar for it below, or accept this one knowingly.", { d: draft.dip, s: -SHALLOW_DIP_DEG })}</div>}{/* #1835 */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{/* #1729 */}
         <label>{tr("Azimuth from")} <select value={azRef} onChange={(e) => setAzRef(e.target.value)} aria-label={tr("North reference of the azimuth")} style={{ fontSize: "var(--font-size-xs)" }}>
           <option value="grid">{tr("grid north")}</option><option value="true">{tr("true north")}</option><option value="magnetic">{tr("magnetic north (today)")}</option>
         </select></label>
-        {azRef !== "grid" && (azOffset && gridAz != null ? <span>{tr("= {g}° grid at this collar", { g: gridAz })}</span> : <span style={{ color: "var(--color-warn-text)" }}>{tr("Enter the collar and a project CRS to convert it.")}</span>)}
+        {azRef !== "grid" && (azOffset && gridAz != null ? <span>{tr("= {g}° grid at this collar", { g: gridAz })}{Number.isFinite(azOffset.declination) ? tr(" (declination {d}° {ew}, IGRF, {date})", { d: Math.abs(Math.round(azOffset.declination * 100) / 100), ew: azOffset.declination >= 0 ? "E" : "W", date: today }) : ""}{/* #3348 (5) */}</span> : <span style={{ color: "var(--color-warn-text)" }}>{tr("Enter the collar and a project CRS to convert it.")}</span>)}
       </div>
       <div style={{ display: "flex", gap: 5 }}>
         <button

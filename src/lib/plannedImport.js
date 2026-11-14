@@ -13,7 +13,8 @@ const ALIASES = {
   tx: ["target_x"], ty: ["target_y"], tz: ["target_z"],
   lift: ["lift_deg_per_100m", "lift"], drift: ["drift_deg_per_100m", "drift"],
 };
-const norm = (h) => String(h || "").trim().toLowerCase().replace(/\s*\((m|°|deg)\)\s*$/, "").replace(/[\s-]+/g, "_");
+// TASKS.csv #3348 (1) — a unit suffix written with an underscore ('Depth_m', 'eoh_m', 'dip_deg') is the same column as '(m)' / '(deg)'
+const norm = (h) => String(h || "").trim().toLowerCase().replace(/\s*\((m|°|deg)\)\s*$/, "").replace(/[\s-]+/g, "_").replace(/_(m|deg)$/, "");
 // headers -> { field: header } (the first alias found)
 export function plannedColumns(headers) {
   const byNorm = new Map((headers || []).map((h) => [norm(h), h]));
@@ -52,7 +53,8 @@ export function plannedHolesFromRows(rows, headers, { fallback = null, groundAt 
     let fromGround = false;
     if (!usedFallback && !Number.isFinite(h.azimuth) && Number.isFinite(h.dip) && isVertical(h.dip)) { h.azimuth = 0; verticalBlankAz++; } // #2963
     if (!Number.isFinite(h.z) && groundAt && Number.isFinite(h.x) && Number.isFinite(h.y)) { const g = Number(groundAt(h.x, h.y)); if (Number.isFinite(g)) { h.z = Math.round(g * 10) / 10; fromGround = true; } } // #2963 blank Elev
-    const bad = Object.entries(h).filter(([k, v]) => !Number.isFinite(v) || (k === "length" && !(v > 0)) || (k === "dip" && Math.abs(v) > 90)).map(([k]) => k);
+    // #3348 (2) — an azimuth outside 0-360 (400) was wrapped (40) without a word: a typo is not a bearing, so the row is left out and said
+    const bad = Object.entries(h).filter(([k, v]) => !Number.isFinite(v) || (k === "length" && !(v > 0)) || (k === "dip" && Math.abs(v) > 90) || (k === "azimuth" && (v < 0 || v > 360))).map(([k]) => k);
     if (bad.length) { skipped.push({ row: i + 2, why: bad.join(", ") }); return; } // +2: the header is line 1
     if (fromGround) { h.zFromGround = true; zFromGround++; } // after the check: the flag is not a value
     h.azimuth = ((h.azimuth % 360) + 360) % 360;
@@ -63,7 +65,12 @@ export function plannedHolesFromRows(rows, headers, { fallback = null, groundAt 
     const t = cols.tx && cols.ty && cols.tz ? { x: num(r[cols.tx]), y: num(r[cols.ty]), z: num(r[cols.tz]) } : null;
     if (t && [t.x, t.y, t.z].every(Number.isFinite)) h.target = t;
     for (const k of ["lift", "drift"]) if (cols[k] && Number.isFinite(num(r[cols[k]])) && num(r[cols[k]]) !== 0) h[k] = num(r[cols[k]]);
+    h.line = i + 2; // #3348 — for the lone-positive list; dropped before the holes go out
     holes.push(h);
   });
-  return { holes, skipped, cols, missing, allDipsPositive: holes.length > 0 && holes.every((h) => h.dip > 0), onlyNonGridAzimuth, verticalBlankAz, usedFallback, noOrientation, zFromGround };
+  // #3348 (3) — a +60 among negative dips was imported as an uphole from a surface collar without a word (only a file of all-positive dips was
+  // asked about): the names / lines of such holes, for the pane to say
+  const lonePositive = holes.some((h) => h.dip < 0) ? holes.filter((h) => h.dip > 0).map((h) => h.name || `line ${h.line}`) : [];
+  holes.forEach((h) => { delete h.line; });
+  return { holes, skipped, cols, missing, allDipsPositive: holes.length > 0 && holes.every((h) => h.dip > 0), onlyNonGridAzimuth, verticalBlankAz, usedFallback, noOrientation, zFromGround, lonePositive };
 }

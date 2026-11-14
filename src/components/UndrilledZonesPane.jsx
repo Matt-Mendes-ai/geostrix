@@ -151,7 +151,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
             </optgroup>
           )}
         </select>
-        {choices.open.length > 0 && <div style={note}>{tr(OPEN_ROUTE, { n: choices.open.length })}</div>}
+        {choices.open.length > 0 && !unit && <div style={note}>{tr(OPEN_ROUTE, { n: choices.open.length })}</div>}{/* #3348 (13) — not while a closed shell is chosen */}
         {supportText && <div style={{ ...note, color: "var(--color-warn-text)" }}>{supportText}</div>}{/* #1725 */}
         {unit && !support && unit.type === "geophysical_shell" && <div style={note}>{tr("\"{name}\" was cut from a block model that records no drillhole support per cell (an imported or geophysical model), so nothing here says how well drilled its shape is.", { name: unit.name })}</div>}{/* #2096 */}
         <label style={row} title={tr("A block of the unit counts as covered when a drillhole passes within this distance of it")}>{tr("Covered within (m of a hole)")}
