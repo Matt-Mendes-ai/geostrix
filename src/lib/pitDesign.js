@@ -57,6 +57,22 @@ export function predictDesignCell({ boxW, boxH, depth, shellCell, benchH, berm, 
   while (n() > maxCells) { cell *= 1.25; coarsened = true; }
   return { cell, faceRun, reach, coarsened, facesDrawn: faceRun >= cell };
 }
+// TASKS.csv #3316 (review Galore Creek; a regression of #2278) — the depth the run counts its benches over: from the highest ground over the
+// shell's lattice (the ground the design uses: terrain, collars; the shell's own top where there is none) down to its lowest floor. #2278
+// took the shell mesh's crest-to-floor range, and on rising ground the widened design climbs past that crest (36 benches against the 32
+// predicted), so the line said the faces would be drawn and the run then said they were not. -> metres, or null
+export function designDepth(positions, groundAt = null) {
+  const shell = shellFloors(positions, groundAt);
+  if (!shell) return null;
+  let gTop = shell.top, fMin = Infinity;
+  for (let j = 0; j < shell.ny; j++) for (let i = 0; i < shell.nx; i++) {
+    const g = groundAt ? groundAt(shell.x0 + i * shell.dx, shell.y0 + j * shell.dy) : NaN;
+    if (Number.isFinite(g) && g > gTop) gTop = g;
+    const f = shell.floor[j * shell.nx + i];
+    if (Number.isFinite(f) && f < fMin) fMin = f;
+  }
+  return Number.isFinite(fMin) ? gTop - fMin : null;
+}
 // the smallest round bench height (5 m steps) whose face would be drawn at this box, or null
 export function benchHeightThatDraws(args) {
   for (let h = 5; h <= 60; h += 5) { const p = predictDesignCell({ ...args, benchH: h }); if (p && p.facesDrawn) return h; }

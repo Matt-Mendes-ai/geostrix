@@ -42,7 +42,14 @@ export function flatBodyCheck(levels, levelH, ratio = 10) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const [x, y] of best.s.outline) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   const a = Math.max(x1 - x0, y1 - y0), b = Math.min(x1 - x0, y1 - y0), h = best.l.top - best.l.rl || levelH;
-  return { a, b, h, tonnes: best.s.tonnes, rl: best.l.rl, flat: h > 0 && b > ratio * h };
+  // TASKS.csv #3317 (review Galore Creek) — a porphyry stock 700 m tall was called 'A flat-lying body' from one 25 m level's 500 x 500 m
+  // outline, and offered seam panels. The body's height too: the levels that hold stopes, from the lowest floor to the highest top. Wide on a
+  // level AND thin overall (its plan width more than 3 times that height) is flat; wide on a level over many levels is massive (a bulk-mining
+  // question, pit or cave), and gets no seam panels.
+  let lo = Infinity, hi = -Infinity, n = 0;
+  for (const l of levels || []) if (l.stopes?.length) { n++; if (l.rl < lo) lo = l.rl; const t = Number.isFinite(l.top) ? l.top : l.rl + (levelH || 0); if (t > hi) hi = t; }
+  const bodyH = Number.isFinite(hi - lo) ? hi - lo : h, wide = h > 0 && b > ratio * h;
+  return { a, b, h, tonnes: best.s.tonnes, rl: best.l.rl, bodyH, levels: n, flat: wide && b > 3 * bodyH, massive: wide && !(b > 3 * bodyH) };
 }
 
 // TASKS.csv #2284 (review #2174, WA lode gold) — the mine's own levels, plain in the RLs of collars drilled from underground (84, 116, 145, 162 ...
