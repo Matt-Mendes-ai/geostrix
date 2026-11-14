@@ -13,6 +13,14 @@ import { arrMax } from "./arrayStats.js";
 // never offered first.
 const CH_RE = /^(.*?)(\d+)\]?$/;
 const AUX_RE = /std|_sd\b|^sd_|err|unc|inuse|in_use|noise|weight/i;
+// TASKS.csv #3440 (the first real TEM file read: USGS Yellowstone 2016 SkyTEM, doi:10.5066/P9LVAU7W) — an Aarhus-processed CSV carries, beside the
+// decays (LM_Data[i], HM_Data[i]), their gate times (LM_Time[i]) and the inversion's model (RHO_I[i], THK[i], DEP_TOP[i], FWD_*): the decays
+// are offered first, and the times read as the gate times
+const TIME_RE = /time|gate_?t|^t_?gate/i, MODEL_RE = /^(rho|res|resistivity|thk|thick|dep|depth|cond|sigma|fwd|inv|mod)|fwd|_inv\b|model/i;
+const roleOf = (prefix) => (AUX_RE.test(prefix) ? "aux" : TIME_RE.test(prefix) ? "time" : MODEL_RE.test(prefix) ? "model" : "data");
+const ROLE_ORDER = { data: 0, aux: 1, time: 2, model: 3 };
+// no-data values written as numbers (-9999 in the USGS file, -10000 beside it, Geosoft's *: already null)
+export const isNoData = (v) => v === -9999 || v === -99999 || v === -10000 || v === -999999 || Math.abs(v) >= 1e30;
 const NOT_CH = /^(x|y|z|e|n|line|line_no|fid|fiducial|time|date|lat|lon|long|utmx|utmy|elev|elevation|topo|dem|height|alt|record|station|stn)$/i;
 export function temChannelGroups(columns) {
   const by = new Map();
@@ -27,10 +35,11 @@ export function temChannelGroups(columns) {
   for (const [prefix, list] of by) {
     if (list.length < 4) continue;
     list.sort((a, b) => a.idx - b.idx);
-    out.push({ prefix, cols: list.map((x) => x.col), idx: list.map((x) => x.idx), aux: AUX_RE.test(prefix) });
+    const role = roleOf(prefix);
+    out.push({ prefix, cols: list.map((x) => x.col), idx: list.map((x) => x.idx), aux: role === "aux", role });
   }
   // the data first (not an uncertainty), then the one with the most gates
-  return out.sort((a, b) => Number(a.aux) - Number(b.aux) || b.cols.length - a.cols.length);
+  return out.sort((a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role] || b.cols.length - a.cols.length);
 }
 
 // Numbers in a string: "1.0e-05 2.2e-05, 3.5e-05" -> [..]
@@ -80,14 +89,14 @@ export function readTemText(text, name = "TEM") {
     const p = Papa.parse(String(text).trim(), { header: true, dynamicTyping: true, skipEmptyLines: true });
     source = "CSV"; columns = p.meta.fields || [];
     const cache = new Map();
-    get = (c) => cache.get(c) || cache.set(c, Float64Array.from(p.data, (r) => (typeof r[c] === "number" ? r[c] : NaN))).get(c);
+    get = (c) => cache.get(c) || cache.set(c, Float64Array.from(p.data, (r) => (typeof r[c] === "number" && !isNoData(r[c]) ? r[c] : NaN))).get(c);
     const lc = guessGeophysColumns(columns).line;
     line = p.data.map((r) => (lc && r[lc] != null ? String(r[lc]) : "1"));
   } else {
     const g = parseXYZ(text);
     source = "Geosoft .xyz"; columns = g.columns;
     const cache = new Map();
-    get = (c) => cache.get(c) || cache.set(c, Float64Array.from(g.rows, (r) => (Number.isFinite(r[c]) ? r[c] : NaN))).get(c);
+    get = (c) => cache.get(c) || cache.set(c, Float64Array.from(g.rows, (r) => (Number.isFinite(r[c]) && !isNoData(r[c]) ? r[c] : NaN))).get(c);
     const lc = guessGeophysColumns(columns).line;
     line = g.rows.map((r) => (r._line != null ? String(r._line) : lc && r[lc] != null ? String(r[lc]) : "1"));
   }
@@ -96,14 +105,17 @@ export function readTemText(text, name = "TEM") {
   if (!groups.length) throw new Error(`No TEM channels in ${name}: expected four or more columns that share a name and end in a gate number (dBdt_Z[0] …, DBDT_CH1GT1 …, CH01 …).`);
   const cg = guessGeophysColumns(columns);
   const pickCol = (re) => columns.find((c) => re.test(c));
-  const xCol = pickCol(/^(utmx|x|easting|east|e)$/i) || cg.x, yCol = pickCol(/^(utmy|y|northing|north|n)$/i) || cg.y;
+  // a map-grid name first ('E_UTM12N', 'X_MGA'), never a tilt, angle or uncertainty column (the USGS file's TILT_X was taken as X)
+  const notXY = (c) => !c || /tilt|angle|pitch|roll|std|err|yaw/i.test(c) ? null : c;
+  const xCol = pickCol(/^(utmx|x|easting|east|e)$/i) || pickCol(/^(e|x|east(ing)?)[_ -]?(utm|mga|nad|wgs|gda|grid)[_ -]?\d*[a-z]?$/i) || notXY(cg.x);
+  const yCol = pickCol(/^(utmy|y|northing|north|n)$/i) || pickCol(/^(n|y|north(ing)?)[_ -]?(utm|mga|nad|wgs|gda|grid)[_ -]?\d*[a-z]?$/i) || notXY(cg.y);
   const zCol = pickCol(/^(topo|topography|elevation|elev|dem|ground|z)$/i) || null;
   if (!xCol || !yCol) throw new Error(`No X / Y columns in ${name}.`);
   return {
     name, source, n, columns, groups, epsg, header, line,
     x: get(xCol), y: get(yCol), z: zCol ? get(zCol) : null, xCol, yCol, zCol,
     get,
-    gateTimes: (g) => gateTimesFromText(text, g.cols.length, header, channelNumber(g.prefix)),
+    gateTimes: (g) => gateTimesFromText(text, g.cols.length, header, channelNumber(g.prefix)) || gateTimesFromColumns(groups, g, get),
   };
 }
 
@@ -176,7 +188,7 @@ const it0 = (x, a, b) => (x.s ? b.cols[x.k] : a.cols[x.k]);
 
 // The uncertainty columns of a data group: the aux group with the same prefix once STD / SD / error words are taken out ('DBDT_STD_CH1GT' for 'DBDT_CH1GT'), the same count
 export function noiseGroupFor(groups, group) {
-  const strip = (p) => String(p).toLowerCase().replace(/_?(std|sd|err|error|unc|uncertainty|noise)_?/g, "_").replace(/_+/g, "_");
+  const strip = (p) => String(p).toLowerCase().replace(/_?(std|sd|err|error|unc|uncertainty|noise)_?/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, ""); // 'LM_DataSTD' -> 'lm_data' (#3440)
   return (groups || []).find((g) => g.aux && g !== group && g.cols.length === group.cols.length && strip(g.prefix) === strip(group.prefix)) || null;
 }
 
@@ -195,4 +207,41 @@ export function maskNoisy(values, noise, { floor = null, maxUnc = null, stdKind 
     if (bad) { out[k] = NaN; dropped++; }
   }
   return { values: out, dropped };
+}
+
+// TASKS.csv #3440 — gate times kept as columns (the USGS / Aarhus CSV: LM_Time[i] beside LM_Data[i]): the time set of the same moment (the
+// same first word: LM, HM), else the only time set of that size; the first station where every time is a number. -> ms, or null
+export function gateTimesFromColumns(groups, g, get) {
+  const times = (groups || []).filter((t) => t.role === "time" && t.cols.length === g.cols.length);
+  if (!times.length) return null;
+  const word = (pfx) => String(pfx).split(/[_\s]/)[0].toLowerCase();
+  const t = times.find((x) => word(x.prefix) === word(g.prefix)) || (times.length === 1 ? times[0] : null);
+  if (!t) return null;
+  const cols = t.cols.map((c) => get(c));
+  const n = cols[0]?.length || 0;
+  for (let i = 0; i < n; i++) {
+    const row = cols.map((a) => a[i]);
+    if (row.every((v) => Number.isFinite(v) && v > 0) && row.every((v, k) => !k || v > row[k - 1])) return toMs(row);
+  }
+  return null;
+}
+// TASKS.csv #3440 — what a set of uncertainty columns holds. The real USGS / Aarhus export gives dB/dt's standard deviation in the data's own
+// unit, and in SI (1e-9 to 1e-12 V / (A m^4), though its dictionary says pV): every value is under 1, so size alone cannot tell it from a
+// fraction. An absolute uncertainty falls with the decay (by decades over a station's gates); a relative one stays near a few per cent.
+// noise: { m, n, v } (the STD matrix; a plain array is read as values only), any value over 1.5 is absolute.
+// -> "absolute" | "relative"
+export function stdKindGuess(noise) {
+  const v = noise?.v || noise || [];
+  for (const x of v) if (Number.isFinite(x) && Math.abs(x) > 1.5) return "absolute";
+  if (!noise?.m || !noise?.n) return "relative";
+  const spans = [];
+  const step = Math.max(1, Math.floor(noise.n / 200));
+  for (let i = 0; i < noise.n; i += step) {
+    let lo = Infinity, hi = -Infinity;
+    for (let k = 0; k < noise.m; k++) { const x = Math.abs(v[i * noise.m + k]); if (x > 0 && Number.isFinite(x)) { if (x < lo) lo = x; if (x > hi) hi = x; } }
+    if (hi > lo) spans.push(Math.log10(hi / lo));
+  }
+  if (!spans.length) return "relative";
+  spans.sort((a, b) => a - b);
+  return spans[Math.floor(spans.length / 2)] > 1 ? "absolute" : "relative"; // a station's uncertainties spanning a decade or more
 }

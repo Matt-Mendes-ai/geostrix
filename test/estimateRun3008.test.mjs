@@ -43,13 +43,13 @@ test("7,350 top composites against 300,000 flat cells: well under the 3.3 s it t
 test("points as columns: the same objects back (numbers, null, absent fields, strings)", () => {
   const pts = [{ x: 1, y: 2, z: 3, value: 4.5, hole_id: "A", length: null, domain: "OX" }, { x: 5, y: 6, z: 7, value: 0, hole_id: "B", length: 2, domain: null, logFrac: 0.5 }];
   const p = packPoints(pts);
-  assert.ok(p.num.x instanceof Float64Array && Array.isArray(p.other.hole_id));
+  assert.ok(p.num.x instanceof Float64Array && p.strs.hole_id.table.length === 2 && p.strs.domain.codes[1] === -2); // strings: a table and codes (#3389)
   assert.deepEqual(unpackPoints(structuredClone(p)), pts);
   assert.equal(packPoints(pts), p, "kept per points array: the second run reuses it");
 });
 
 test("wired: the client sends columns, the worker unpacks them; the run reuses the open's traces", () => {
-  assert.match(readFileSync(new URL("../src/lib/estimationClient.js", import.meta.url), "utf8"), /worker\.postMessage\(\{ kind, packed: packPoints\(points\), opts \}\)/);
+  assert.match(readFileSync(new URL("../src/lib/estimationClient.js", import.meta.url), "utf8"), /worker\.postMessage\(\{ kind, packed, opts: send, packedOpts \}\)/);
   assert.match(readFileSync(new URL("../src/lib/estimation.worker.js", import.meta.url), "utf8"), /const points = e\.data\?\.packed \? unpackPoints\(e\.data\.packed\) : e\.data\?\.points;/);
   assert.match(readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8"), /let pts = known\?\.get\(c\.hole_id\) \|\| null;/);
 });

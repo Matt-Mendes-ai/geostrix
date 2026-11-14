@@ -3,6 +3,7 @@ import { X, Download } from "./icons.js";
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — the project's lead commodity
 import { customDomainOptions, isCategoricalLayer, attributeDomainOptions, attributeDomainLabel } from "../lib/customDomains.js"; // TASKS.csv #1678; #1515; attributes: #2504
+import { displayUnitOf, toDisplay, fromDisplay } from "../lib/displayUnits.js"; // TASKS.csv #3475
 import { compositeDownhole, countDuplicateAssayIntervals, capAudit, capAuditText, gradeUnitLabel } from "../lib/geochem.js"; // gradeUnitLabel: #1680
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import { excludeQAQC, labAssays, classifyQAQCRow } from "../lib/qaqc.js"; // classifyQAQCRow: #1801
@@ -54,12 +55,16 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
   const [symbol, setSymbolRaw] = useState(() => preferredElement(symbols, "compositing", lead) || "Au");
   const setSymbol = (v) => { setSymbolRaw(v); rememberElement("compositing", typeof v === "string" ? v : null); }; // #1678 — kept for next time
   const unit = elementUnits[symbol] || "ppm";
-  const unitL = gradeUnitLabel(symbol, unit); // #1680 — the label (g/t for a precious metal in ppm); computations keep unit
+  // TASKS.csv #3475 (#3236 / #3290) — the project's display unit (project.displayUnits): the cap is typed and the average shown in it, everything is computed and the
+  // CSV written in the stored unit (the cap is converted back before it is used). Display only, as in Best intercepts and Grade stats.
+  const shownUnit = displayUnitOf(project, symbol, unit), sh = (v) => (v == null || !Number.isFinite(v) ? v : toDisplay(v, unit, shownUnit));
+  const unitL = gradeUnitLabel(symbol, shownUnit); // #1680 — the label (g/t for a precious metal in ppm); computations keep unit
   // TASKS.csv #1801 — the commonest sample length, not a fixed 2 m (3 m samples were split into 2 + 1 m pieces)
   const usual = useMemo(() => commonestSampleLength(assays, (a) => classifyQAQCRow(a) !== "regular"), [assays]);
   const [length, setLength] = useState(() => usual?.length || 2);
   const [minCoverage, setMinCoverage] = useState(0.5);
   const [capValue, setCapValue] = useState("");
+  const capStored = capValue === "" ? null : fromDisplay(Number(capValue), unit, shownUnit); // the cap box is in the shown unit
   const [domainKey, setDomainKey] = useState(""); // "" = no domain honoring
   // TASKS.csv #219 — QC samples (standards/blanks/duplicates) default OUT of compositing, same as
   // Best Intercepts — a QC insert has no business being composited into a resource-estimation input.
@@ -79,14 +84,14 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
     return compositeDownhole(compAssays, symbol, unit, elementUnits, {
       length,
       minCoverage,
-      capValue: capValue === "" ? null : Number(capValue),
+      capValue: capStored,
       domainRows,
     });
-  }, [compAssays, symbol, unit, elementUnits, length, minCoverage, capValue, domainRows]);
+  }, [compAssays, symbol, unit, elementUnits, length, minCoverage, capStored, domainRows]);
   // TASKS.csv #2224 — these settings, for Estimation and the grade shell to offer (this window and this project; not saved in the file)
   useEffect(() => {
     if (results.length) { // TASKS.csv #2883 — also kept in the project, so a reopen still offers them
-      const s = { symbol, length: Number(length), minCoverage: Number(minCoverage), cap: capValue === "" ? null : Number(capValue), domain: domainKey ? (customDomain ? customDomain.label : tr(domainMeta?.label || domainKey)) : null };
+      const s = { symbol, length: Number(length), minCoverage: Number(minCoverage), cap: capStored, domain: domainKey ? (customDomain ? customDomain.label : tr(domainMeta?.label || domainKey)) : null };
       rememberCompositing(getProjectToken?.(), s);
       setLastCompositing?.(compositingToSave(s));
     }
@@ -105,8 +110,9 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
     // TASKS.csv #404 — the parameters behind these composites, at the top of the file.
     const stamp = stampLines({ tool: "Downhole compositing", version: APP_VERSION, epsg: stampEpsg(project) /* #2195 */, params: [
       `Coordinates: from/to/mid of each composite on traces desurveyed by ${desurveyMethod || "minimum curvature"} (blank = hole has no collar)`,
-      `Element: ${symbol} (${unit}) | composite length: ${length} m | min coverage: ${Math.round(minCoverage * 100)}% | high-grade cap: ${capValue === "" ? "none" : `${capValue} ${unit} (applied to raw intervals before compositing)`}`,
-      ...(capValue === "" ? [] : [`Capping audit: ${capAuditText(capAudit(compAssays, symbol, unit, elementUnits, Number(capValue)), unit)}`]), // #533
+      `Element: ${symbol} (${unit}) | composite length: ${length} m | min coverage: ${Math.round(minCoverage * 100)}% | high-grade cap: ${capStored == null ? "none" : `${capStored} ${unit} (applied to raw intervals before compositing)`}`,
+      ...(shownUnit !== unit ? [`Display unit: ${symbol} is shown in ${shownUnit} on screen; every value in this file is in ${unit} (as stored)`] : []), // #3475
+      ...(capStored == null ? [] : [`Capping audit: ${capAuditText(capAudit(compAssays, symbol, unit, elementUnits, capStored), unit)}`]), // #533
       `Domain boundaries honoured: ${domainKey ? domainMeta.label : "no"}`,
       `QAQC inserts: ${includeQAQC ? "INCLUDED" : `excluded (${qaqcExcludedCount} rows)`}`,
       dupInfo?.exactDuplicates ? `Exact-duplicate raw intervals dropped before weighting: ${dupInfo.exactDuplicates}` : null,
@@ -162,7 +168,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
             <label style={fieldLabel} title={tr("Cap any single raw sample's grade at this value before it's folded into a composite average — applied per-sample, before compositing, matching standard practice.")}>{tr("High-grade cap ({unit})", { unit: unitL })}<input type="number" step="any" min="0" placeholder={tr("none")} value={capValue} onChange={(e) => setCapValue(e.target.value)} style={inp} />
             </label>
             <div style={{ gridColumn: "1 / -1", flexBasis: "100%" }}>
-              <CapAuditHint assays={compAssays} symbol={symbol} unit={unit} unitLabel={unitL} /* #2192: g/t beside the g/t field */ elementUnits={elementUnits} capValue={capValue === "" ? null : Number(capValue)} onSetCap={(v) => setCapValue(String(Number(v.toPrecision(4))))} />
+              <CapAuditHint assays={compAssays} symbol={symbol} unit={unit} unitLabel={unitL} /* #2192: g/t beside the g/t field */ elementUnits={elementUnits} capValue={capStored} toShown={sh} /* #3475 */ onSetCap={(v) => setCapValue(String(Number(sh(v).toPrecision(4))))} />
             </div>
             <label style={fieldLabel} title={tr("Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be reported.")}>{tr("Min coverage (%)")}<input type="number" step="1" min="0" max="100" value={Math.round(minCoverage * 100)} onChange={(e) => setMinCoverage(Math.max(0, Math.min(100, Number(e.target.value) || 0)) / 100)} style={inp} />
             </label>
@@ -194,7 +200,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
                       <td style={td}>{r.from.toFixed(2)}</td>
                       <td style={td}>{r.to.toFixed(2)}</td>
                       <td style={td}>{r.length.toFixed(2)}</td>
-                      <td style={{ ...td, fontWeight: 600, color: "var(--color-text)" }}>{+r.avgGrade.toPrecision(4)}</td>
+                      <td style={{ ...td, fontWeight: 600, color: "var(--color-text)" }}>{+sh(r.avgGrade).toPrecision(4)}</td>
                       <td style={{ ...td, color: r.coverage < 0.99 ? "#c9863d" : "var(--color-text-strong)" }}>{(r.coverage * 100).toFixed(0)}%</td>
                       {domainKey && <td style={td}>{r.domain != null ? domainLabel(r.domain) : "—"}</td>}
                     </tr>

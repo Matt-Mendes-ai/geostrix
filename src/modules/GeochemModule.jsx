@@ -1621,6 +1621,7 @@ export default function GeochemModule() {
       )}
       {altBoxOpen && (
         <AlterationBoxModal
+          meaningOf={(layer, code) => entryOf(store.codeDictionary?.[layer], code)?.desc || ""} /* #3482 */
           saved={alterationBoxes}
           lithoCodes={[...new Set((layers.litho || []).filter((r) => assayHoleIds.has(r.hole_id)).map((r) => String(r.value ?? "").trim()).filter(Boolean))].sort()}
           altCodes={[...new Set((layers.alt || []).filter((r) => assayHoleIds.has(r.hole_id)).map((r) => String(r.value ?? "").trim()).filter(Boolean))].sort()} /* #2028 */

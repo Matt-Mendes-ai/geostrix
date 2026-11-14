@@ -8,7 +8,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 const fmt = (v) => (v == null ? "—" : Math.abs(v) >= 100 ? v.toFixed(0) : Math.abs(v) >= 1 ? v.toFixed(2) : v.toPrecision(3));
 
-export default function CapAuditHint({ assays, symbol, unit, elementUnits, capValue, onSetCap, unitLabel }) {
+export default function CapAuditHint({ assays, symbol, unit, elementUnits, capValue, onSetCap, unitLabel, toShown = (v) => v }) { // toShown: the stored -> display-unit conversion (#3475); capValue and the work stay stored
   const pcts = useMemo(() => (symbol ? { p975: lengthWeightedPercentile(assays, symbol, unit, elementUnits, 97.5), p99: lengthWeightedPercentile(assays, symbol, unit, elementUnits, 99) } : null), [assays, symbol, unit, elementUnits]);
   const audit = useMemo(() => (symbol && capValue != null && capValue > 0 ? capAudit(assays, symbol, unit, elementUnits, capValue) : null), [assays, symbol, unit, elementUnits, capValue]);
   const warn = useMemo(() => (audit && audit.pctMetalRemoved > CAP_WARN_PCT ? capWarningText(audit.pctMetalRemoved, capAboveZone(resolvedSegments(assays, symbol, unit, elementUnits), audit.capValue)) : ""), [audit, assays, symbol, unit, elementUnits]); // #1676
@@ -18,13 +18,13 @@ export default function CapAuditHint({ assays, symbol, unit, elementUnits, capVa
     <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5, display: "flex", flexDirection: "column", gap: 3 }}>
       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
         <span title={tr("Length-weighted: a 10 m sample counts ten times a 1 m sample")}>{tr("Cap at the length-weighted")}</span>
-        <button type="button" style={btn} disabled={pcts.p975 == null} onClick={() => onSetCap(pcts.p975)}>P97.5 = {fmt(pcts.p975)}</button>
-        <button type="button" style={btn} disabled={pcts.p99 == null} onClick={() => onSetCap(pcts.p99)}>P99 = {fmt(pcts.p99)}</button>
+        <button type="button" style={btn} disabled={pcts.p975 == null} onClick={() => onSetCap(pcts.p975)}>P97.5 = {fmt(toShown(pcts.p975))}</button>
+        <button type="button" style={btn} disabled={pcts.p99 == null} onClick={() => onSetCap(pcts.p99)}>P99 = {fmt(toShown(pcts.p99))}</button>
         <span style={{ color: "var(--color-text-muted)" }}>{unitLabel || unit}</span>
       </div>
       {audit && (
         <div role="status" style={{ color: warn ? "var(--color-warn-text-strong)" : "var(--color-text-secondary)" }}>
-          {capAuditText(audit, unitLabel || unit)}.{warn ? " " + warn : ""}{/* #1676 — the same warning as Grade stats, from 10 % */}
+          {capAuditText({ ...audit, capValue: +toShown(audit.capValue).toPrecision(6) }, unitLabel || unit)}.{warn ? " " + warn : ""}{/* #1676 — the same warning as Grade stats, from 10 % */}
         </div>
       )}
     </div>
