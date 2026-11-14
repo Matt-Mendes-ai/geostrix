@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { t as tr } from "../lib/i18n.js";
 import { fontSizes } from "../lib/theme.js";
-import { swapInMethod } from "../lib/qaqc.js"; // TASKS.csv #2687
+import { swapInMethod, isDifferentMeasurement } from "../lib/qaqc.js"; // TASKS.csv #2687; isDifferentMeasurement: #3220
 
 const fmt = (x) => (x == null || !Number.isFinite(x) ? "—" : Math.abs(x) >= 1000 ? Math.round(x).toLocaleString() : String(+x.toPrecision(3)));
 const th = { textAlign: "right", padding: "3px 8px", borderBottom: "1px solid var(--color-border)" };
@@ -48,14 +48,15 @@ export default function MethodPairsTab({ methods, symbol, unit, assays = null, s
           {methods.map((m, i) => (
             <tr key={`${m.header}|${m.base}`} onClick={() => setPick(i)} style={{ cursor: "pointer", background: i === pick ? "var(--color-selected-bg)" : undefined }}>
               <td style={td}>{m.header}</td><td style={td}>{m.base || symbol}</td><td style={td}>{m.n.toLocaleString()}</td>
-              <td style={td}>{m.medianRpd == null ? "—" : `${m.medianRpd.toFixed(1)} %`}</td><td style={td}>{fmt(m.medianRatio)}</td>
+              <td style={td} title={isDifferentMeasurement(m) ? tr("Not a duplicate measurement: no RPD verdict") : undefined}>{m.medianRpd == null || isDifferentMeasurement(m) /* #3220 */ ? "—" : `${m.medianRpd.toFixed(1)} %`}</td><td style={td}>{fmt(m.medianRatio)}</td>
             </tr>
           ))}
         </tbody>
       </table>
       <MethodScatter g={g} unit={unit} symbol={symbol} />
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Green: the 1:1 line. Dashed: the median ratio. Censored ('<' / '>') results are left out.")}</div>
-      {setAssays && assays && ( /* TASKS.csv #2687 — use the other method's results as the element's value */
+      {isDifferentMeasurement(g) && <div role="status" style={{ color: "var(--color-warn-text)" }}>{tr("{m} reads {r} times {symbol} on the median sample: a different measurement (a partial or soluble digest, say), not a bias between two methods of one. It is not offered in place of {symbol}; Calc. element can take its ratio to {symbol}.", { m: g.header, r: fmt(g.medianRatio), symbol })}</div>}{/* #3220 */}
+      {setAssays && assays && !isDifferentMeasurement(g) /* #3220 — never offered over a total */ && ( /* TASKS.csv #2687 — use the other method's results as the element's value */
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
           {!asking ? <button type="button" onClick={() => { setAsking(true); setDone(""); }}>{tr("Use {m} instead", { m: g.header })}</button> : <>
             <span>{tr("On every sample with a {m} result, {m} becomes the {symbol} value; the value it replaces is kept as a method result, so this can be swapped back. Every tool then reads {m}.", { m: g.header, symbol })}</span>

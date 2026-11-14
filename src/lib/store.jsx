@@ -1081,6 +1081,12 @@ export function StoreProvider({ children }) {
   }, []);
   const setProjectName = useCallback((name) => setProject((p) => ({ ...p, name })), []);
   const setDrillRates = useCallback((rates) => setProject((p) => ({ ...p, drillRates: (typeof rates === "function" ? rates(p.drillRates || {}) : rates) || null })), []); // TASKS.csv #2581 — $/m per hole type, kept with the project (a function: from the latest rates)
+  // TASKS.csv #3116 — a built-in log's valid range and despike ({ range: [lo, hi], despikeM }), kept with the project like the drill rates:
+  // project.logValidRange = { [layerKey]: ... } (an older project has none: read as {}). null / {} removes the log's entry.
+  const setLogValidRange = useCallback((key, entry) => setProject((p) => { const next = { ...(p.logValidRange || {}) }; if (entry && (entry.range || entry.despikeM > 0)) next[key] = entry; else delete next[key]; return { ...p, logValidRange: next }; }), []);
+  // TASKS.csv #3236 — a per-element display unit kept with the project: project.displayUnits = { [symbol]: "ppm" | "g/t" | "ppb" | "%" }
+  // (display only; stored values, calculations and saved thresholds keep their unit; an older project has none: read as {}). null removes the entry.
+  const setDisplayUnit = useCallback((symbol, unit) => setProject((p) => { const next = { ...(p.displayUnits || {}) }; if (unit) next[symbol] = unit; else delete next[symbol]; return { ...p, displayUnits: next }; }), []);
 
   // TASKS.csv #135 — desurvey method is a PROJECT setting, not a UI preference: it changes every
   // hole's computed geometry (and therefore every intercept, section, estimation sample and export
@@ -1754,7 +1760,7 @@ export function StoreProvider({ children }) {
   });
 
   const value = {
-    project, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setLocalGridDatum /* #2691 / #2661 */, setMineGrid /* #2586 */, setProjectName, setDrillRates /* #2581 */, reprojectProjectTo, reprojectObjectTo, // #485 / #486
+    project, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setLocalGridDatum /* #2691 / #2661 */, setMineGrid /* #2586 */, setProjectName, setDrillRates /* #2581 */, setLogValidRange /* #3116 */, setDisplayUnit /* #3236 */, reprojectProjectTo, reprojectObjectTo, // #485 / #486
     sampleRequest, requestSampleProject, clearSampleRequest, // TASKS.csv #1120
     projectIsEmpty: !hasWork, // TASKS.csv #607 — nothing loaded yet (same test as autosave): an import may adopt its CRS
     desurveyMethod, setDesurveyMethod, // TASKS.csv #135

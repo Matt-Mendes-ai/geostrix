@@ -18,7 +18,21 @@ export function sortedShownValues(model) {
   const air = maskAirCells(Float64Array.from(v)).value;
   const kept = v.filter((x) => Number.isFinite(x) && x !== air).sort();
   cache.set(cells, kept);
+  airCache.set(cells, air);
   return kept;
+}
+
+// TASKS.csv #1872 (review #1646, Kodiak) — a model saved before #1659 still holds its -1 air slab, and the blocks averaged with it read a
+// little below 0: the printed chargeability key started at -0.035 mV/V when its range was typed or its colours edited (the default
+// 2-98 % stretch already left them out). Where the air flag is negative, the negatives above it are air-diluted, not rock: the low end of
+// the key is the lowest value at or above 0. -> lo, or that value. (A model imported since #1659 masks the air before averaging: none.)
+const airCache = new WeakMap();
+export function airDilutedFloor(model, lo) {
+  if (!(lo < 0)) return lo;
+  const s = sortedShownValues(model), air = s ? airCache.get(model.cells) : null;
+  if (!(air < 0)) return lo;
+  const i = s.findIndex((x) => x >= 0);
+  return i < 0 ? lo : Math.max(lo, s[i]);
 }
 
 // [lo, hi] for the colours, or null (use model.min / max): stops of its own, "minmax" chosen, too few values, or a flat model

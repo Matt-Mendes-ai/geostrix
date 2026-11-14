@@ -30,9 +30,9 @@ test("the chosen field becomes the value, the rock code is kept, blank rows are 
 
 test("the viewer feeds the chosen units to every modelling tool, the unit lists and the model check", () => {
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(v, /restrictLayersToHoles\(unitLayers, visibleHoles\) : unitLayers/);
+  assert.match(v, /restrictLayersToHoles\(unitLayersP, visibleHoles\) : unitLayersP/); // #3266 — the unit layers with the oriented layer picks
   assert.match(v, /const litho_units = distinctValues\(unitLayers\.litho/);
-  assert.match(v, /<ModellingPanes \{\.\.\.\{[^\n]* layers: unitLayers, unitField, setUnitField, unitFields,/);
+  assert.match(v, /<ModellingPanes \{\.\.\.\{[^\n]* layers: unitLayersP \/\* #3266 \*\/, unitField, setUnitField, unitFields,/);
   const m = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
   assert.match(m, /\(unitLitho \|\| importStateRef\.current\.layers\?\.litho \|\| \[\]\)/);
   assert.match(m, /unitsFrom: unitField/);

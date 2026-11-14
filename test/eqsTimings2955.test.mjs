@@ -17,7 +17,7 @@ test("the sidecar says the engine load first and returns the stage timings; the 
   assert.match(box, /: tr\("Of the time, loading the engine took \{a\} s \(it then stays loaded for about 3 minutes, so a run soon after skips it\), the fit \{b\} s and the grid \{c\} s\."/);
   // #3124 — the warm worker (python-sidecar/app/jobs.py; its behaviour in python-sidecar/tests/test_warm_jobs.py)
   const jobs = readFileSync(new URL("../python-sidecar/app/jobs.py", import.meta.url), "utf8");
-  assert.match(jobs, /WARM_KINDS = \{"pfields"\}/);
+  assert.match(jobs, /WARM_KINDS = \{"pfields"(, "implicit")?\}/); // "implicit": #3281
   assert.match(jobs, /WARM_IDLE_S = float\(os\.environ\.get\("GEOSTRIX_WARM_IDLE_S", "180"\)\)/);
   assert.match(jobs, /self\._retire_warm\(\)  # an inversion, another kind, or an expired worker: its memory back first/);
 });

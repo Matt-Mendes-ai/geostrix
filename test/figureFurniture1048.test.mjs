@@ -46,7 +46,8 @@ test("#1048 the strip log title block names the hole, collar and attitude", () =
   assert.equal(f.placement, "top");
   assert.equal(f.title, "Strip log: WJ23-01");
   assert.match(f.caption[0], /Collar E 612345\.6, N 5789012\.3, RL 1100\.0 · azimuth 45\.0°, dip -60\.0°/);
-  assert.match(f.caption[1], /^Depth 0-402\.5 m along the hole \(EOH 402\.5 m\) · 6 px per metre/);
+  assert.match(f.caption[1], /^Depth 0-402\.5 m along the hole \(EOH 402\.5 m\) · GeoStrix/); // #2481: no screen units on paper
+  assert.doesNotMatch(f.caption[1], /px per metre/);
 });
 
 test("#1048 the PNG scale stays under the canvas side limit", () => {

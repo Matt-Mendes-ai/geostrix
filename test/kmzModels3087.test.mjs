@@ -145,5 +145,5 @@ test("the dialog: a part added later starts ticked (the unticked parts are remem
   assert.deepEqual([...pickedFromPref(null, keys)], keys);
   const exp = readFileSync(new URL("../src/lib/projectKmzExport.js", import.meta.url), "utf8");
   assert.match(exp, /generatedSurfaces: store\.generatedSurfaces, voxelModels: store\.voxelModels, terrain: store\.terrain, sectionImages: store\.sectionImages/);
-  assert.match(exp, /include, imageBytes: dataUrlBytes \}\)/);
+  assert.match(exp, /include, imageBytes: \(u\) => dataUrlBytes\(asKmz\(u\)\) \}\)/); // #3250: through the PNG conversion
 });

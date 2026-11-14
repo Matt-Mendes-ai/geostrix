@@ -23,7 +23,8 @@ test("a corrected column filled on some rows only is a mix: the dialog asks", ()
 test("gyros only, no corrected column: a true-north hint (asked, not converted unseen); a compass among them says nothing", () => {
   const h = ["hole_id", "depth", "azimuth", "dip", "instrument"];
   assert.deepEqual(detectAzimuthRef(h, [{ instrument: "Gyro" }, { instrument: "north-seeking gyro" }]), { ref: "true", col: "instrument", mixed: false, hint: true });
-  assert.equal(detectAzimuthRef(h, [{ instrument: "gyro" }, { instrument: "compass" }]), null);
+  // TASKS.csv #3209 — widened deliberately: a gyro and a compass in one file read different norths, so the dialog asks (it said nothing)
+  assert.deepEqual(detectAzimuthRef(h, [{ instrument: "gyro" }, { instrument: "compass" }]), { ref: null, col: "instrument", mixed: true, hint: true, tools: true });
   assert.equal(detectAzimuthRef(["hole_id", "depth", "azimuth", "dip"], [{}]), null); // nothing stated: as before
 });
 test("an AZIMUTHTYPE column still decides first (#1647)", () => {

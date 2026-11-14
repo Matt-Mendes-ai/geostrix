@@ -216,3 +216,38 @@ export function planeDipDeg(points) {
   const b = (sxz * syy - syz * sxy) / det, c = (syz * sxx - sxz * sxy) / det;
   return (Math.atan(Math.hypot(b, c)) * 180) / Math.PI;
 }
+
+// TASKS.csv #3262 — the RMS distance (m, in z) of the points from that least-squares plane; NaN as planeDipDeg
+export function planeMisfitM(points) {
+  const P = (points || []).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z));
+  if (!Number.isFinite(planeDipDeg(P))) return NaN;
+  let mx = 0, my = 0, mz = 0;
+  for (const p of P) { mx += p.x; my += p.y; mz += p.z; }
+  mx /= P.length; my /= P.length; mz /= P.length;
+  let sxx = 0, sxy = 0, syy = 0, sxz = 0, syz = 0;
+  for (const p of P) { const x = p.x - mx, y = p.y - my, z = p.z - mz; sxx += x * x; sxy += x * y; syy += y * y; sxz += x * z; syz += y * z; }
+  const det = sxx * syy - sxy * sxy, b = (sxz * syy - syz * sxy) / det, c = (syz * sxx - sxz * sxy) / det;
+  let ss = 0;
+  for (const p of P) { const r = p.z - mz - b * (p.x - mx) - c * (p.y - my); ss += r * r; }
+  return Math.sqrt(ss / P.length);
+}
+
+// TASKS.csv #3262 (review #3195, Galore Creek) — 'thin beds of its neighbours in a flat pile' was concluded from the first tops' dip alone:
+// intrusive phases met by inclined holes collared at similar elevations have first tops that are flat ON AVERAGE (5.6°) but scattered far
+// off any one plane. A flat pile's first tops lie close to their plane: within twice the unit's median run (10 m at least). A unit whose
+// role cuts across (a Modelling codes intrusion / cross-cutting; a dyke, vein, breccia or fault) is never read as a pile.
+const NOT_A_PILE = new Set(["intrusion", "cross-cutting", "dyke", "vein", "breccia", "fault"]);
+export function looksLikeFlatPile({ dip, misfit, medianRunM, role }) {
+  if (NOT_A_PILE.has(role)) return false;
+  return Number.isFinite(dip) && dip <= 15 && Number.isFinite(misfit) && misfit <= Math.max(10, 2 * (Number(medianRunM) || 0));
+}
+
+// TASKS.csv #3263 (review #3195, Galore Creek) — Closed body flattened its cells (80 x 80 x 4 m) for any unit 'logged in thin runs' over a wide
+// area: an intrusive met by holes inclined 55-85° became a stack of flat plates. Flat cells only when the runs line up along a near-flat
+// layer: the inside points' plane dips 30° or less and they lie within max(20 m, 4 x the median run) of it, and the role does not cut
+// across. WA uranium's lignite (#2384): 0.1°, 4.6 m off its plane; its flat sands and clays 15-20 m. -> { flat, dip, misfit }
+export function runsLieFlat(points, medianRunM, role = null) {
+  const dip = planeDipDeg(points), misfit = planeMisfitM(points);
+  const flat = !NOT_A_PILE.has(role) && Number.isFinite(dip) && dip <= 30 && Number.isFinite(misfit) && misfit <= Math.max(20, 4 * (Number(medianRunM) || 0));
+  return { flat, dip, misfit };
+}

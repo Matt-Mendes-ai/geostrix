@@ -32,7 +32,8 @@ test("the plane's dip through the first tops: near flat, steep, or undefined", (
 
 test("wiring: the interbedded wording on a near-flat pile, the vein wording otherwise; interbeds first in the pick and fold-back checks", () => {
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
-  assert.match(r, /const ib = Number\.isFinite\(dip\) && dip <= 15 && unitVals \? interbeds\(/);
+  // #3262 — the dip test moved into looksLikeFlatPile (lib/pileTops.js: dip <= 15 and the first tops close to their plane, no cross-cutting role)
+  assert.match(r, /const ib = pile && unitVals \? interbeds\(/);
   assert.match(r, /const split = ib\.filter\(\(q\) => q\.holes >= 0\.5 \* ib\.of\)\.slice\(0, 3\);/);
   assert.ok(r.includes("interbedded with {list} (in {n} of those {m} holes)") && r.includes("it behaves like a steep body or a set of sheets"));
   assert.ok(r.includes(": usually interbeds of neighbouring units in a flat pile"));

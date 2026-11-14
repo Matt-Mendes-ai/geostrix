@@ -35,7 +35,7 @@ test("the modal offers the models on the same blocks and says what was used", ()
 
 test("with a density model and no single density typed: the tonnage columns and the CSV's tonnes", () => {
   const g = readFileSync(new URL("../src/components/GradeTonnageModal.jsx", import.meta.url), "utf8");
-  assert.match(g, /const tonnesOn = !!rho \|\| !!byModel;/);
+  assert.match(g, /const tonnesOn = !!rho \|\| !!byModel \|\| \(!!densityUse\?\.length && densityUse\.every\(\(d\) => d\.code != null\)\);/); // #2637: or every block by code
   assert.match(g, /\{tonnesOn && <th style=\{th\}>\{tr\("Tonnes"\)\}<\/th>\}/);
-  assert.match(g, /gradeTonnageRows\(rows, \{ vname, density: tonnesOn \? \(rho \|\| "from the density model"\) : null/);
+  assert.match(g, /gradeTonnageRows\(rows, \{ vname, density: tonnesOn \? \(rho \|\| \(byModel \? "from the density model" : "by code"\)\) : null/);
 });

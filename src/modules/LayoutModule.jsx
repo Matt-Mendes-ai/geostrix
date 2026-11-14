@@ -12,7 +12,7 @@ import { HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js"; // TASKS.csv #177
 import { scaleBarLabel, scaleBarMidLabel } from "../lib/scaleBarLabel.js"; // TASKS.csv #2140
 import { offSheetPages, rectSidesPast, elementCaption, elementKind } from "../lib/layoutEdges.js"; // elementKind: #3028
 import { DEFAULT_LAYOUT_ELEMENTS } from "../lib/projectFields.js"; // TASKS.csv #3028 (5)
-import { groupOrdersFromItems, applyCodeOrder, projectCodeOrders } from "../lib/legendCodeOrder.js"; // TASKS.csv #3130 — a code order set once // TASKS.csv #2482 / #2309; named elements: #2700
+import { groupOrdersFromItems, applyCodeOrder, projectCodeOrders, clearCodeOrders, pagesHoldingOrder, orderedGroupsOf } from "../lib/legendCodeOrder.js"; // TASKS.csv #3130 — a code order set once; clear*: #3199 // TASKS.csv #2482 / #2309; named elements: #2700
 import { fillPlaceholders, northName, pageConvergence, formatConvergence } from "../lib/layoutText.js";
 import { samplesTableRows, holesWithoutCollars } from "../lib/samplesTable.js"; // TASKS.csv #1869 // TASKS.csv #2139; north / convergence: #2712
 import { mergeCaseTwins } from "../lib/legendCaseTwins.js"; // TASKS.csv #2609
@@ -1471,6 +1471,25 @@ export default function LayoutModule() {
                     {tr("Out of step with its viewport: the viewport was refreshed after these rows were loaded, and they were edited (or loaded before this check existed), so they were kept. Load from view to update them.")}</div>
                 )}
                 {syncNotice && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div>}
+                {!!(sel.codeOrder || sel.loadedGroups?.length) && (() => { /* TASKS.csv #3199 — a recorded code order can be forgotten */
+                  // the groups this legend orders: its own record, or one of its loaded groups that a legend of the project records
+                  const groups = orderedGroupsOf(sel, projectCodeOrders(layoutPages, activeLayoutPageId, elements, sel.id));
+                  if (!groups.length) return null;
+                  const clear = () => {
+                    const others = pagesHoldingOrder(layoutPages, activeLayoutPageId, groups);
+                    // this page's legends are reachable here; another page's are cleared from that page (the line names them)
+                    setElements((els) => clearCodeOrders(els, groups));
+                    setSyncNotice(others.length
+                      ? tr("Cleared on this page's legends. Legends on {pages} still hold an order for these layers and would bring it back: clear it there too.", { pages: others.join(", ") })
+                      : tr("Cleared. Load from view lists the codes in their default order again."));
+                  };
+                  return (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", margin: "4px 0 8px", lineHeight: 1.4 }}>
+                      <span>{tr("Code order set with the arrows for {groups}: every legend loaded from a view takes it.", { groups: groups.join(", ") })}</span>
+                      <button type="button" onClick={clear} style={smallBtn} title={tr("Forget the order on this page's legends; the rows stay as they are until the next Load from view")}>{tr("Clear the set order")}</button>
+                    </div>
+                  );
+                })()}
                 {sel.items.map(([name, color, opt], i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
                     {opt?.heading || opt?.ramp || opt?.note || opt?.image /* TASKS.csv #725 — a group heading or a ramp has no single colour; #1633 a note; #2747 an image */

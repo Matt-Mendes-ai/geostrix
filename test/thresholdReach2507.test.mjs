@@ -40,7 +40,7 @@ test("the opening rule: the preferred one when every population reaches it, else
 
 test("the toolkit greys unusable cells, explains them, and will not save one", () => {
   const src = readFileSync(new URL("../src/components/ThresholdToolkit.jsx", import.meta.url), "utf8");
-  assert.match(src, /thresholdUnreachable\(p\.cand\.values\[m\.id\], p\.summary, unit\)/);
+  assert.match(src, /thresholdUnreachable\(p\.cand\.values\[m\.id\], p\.summary, unit(, !!m\.low)?\)/);
   assert.match(src, /textDecoration: off \? "line-through"/);
   assert.match(src, /disabled=\{!pops\.length \|\| chosenUnusable/);
   assert.match(src, /usableDefaultMethod\(pops, m \|\| \(logOn \? "median2mad" : null\), unit\)/); // #3070: no log rule by default off the log scale

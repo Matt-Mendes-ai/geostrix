@@ -31,14 +31,14 @@ test("trace elements keep the log rules, whatever their range", () => {
 
 test("the log rules are the four computed on log10 values", () => {
   assert.deepEqual([...LOG_RULES].sort(), ["mean2sd", "median2mad", "probbreak", "tukey"]);
-  assert.deepEqual(THRESHOLD_METHODS.filter((m) => !LOG_RULES.has(m.id)).map((m) => m.id), ["p90", "p95", "p98"]);
+  assert.deepEqual(THRESHOLD_METHODS.filter((m) => !LOG_RULES.has(m.id) && !m.arith).map((m) => m.id), ["p90", "p95", "p98"]); // #3173: and the rules on the values
 });
 
 test("wiring: the panel hides the log rules and draws arithmetic plots off the log scale", () => {
   const s = readFileSync(new URL("../src/components/ThresholdToolkit.jsx", import.meta.url), "utf8");
-  assert.match(s, /const shownMethods = logOn \? THRESHOLD_METHODS : THRESHOLD_METHODS\.filter\(\(m\) => !LOG_RULES\.has\(m\.id\)\)/);
+  assert.match(s, /const shownMethods = logOn \? (THRESHOLD_METHODS|THRESHOLD_METHODS\.filter\(\(m\) => !ARITH_RULES\.has\(m\.id\)\)) : THRESHOLD_METHODS\.filter\(\(m\) => !LOG_RULES\.has\(m\.id\)\)/);
   assert.match(s, /autoScale === "log" \|\| \(!!saved && LOG_RULES\.has\(saved\.method\)\)/);
-  assert.match(s, /if \(!logOn && LOG_RULES\.has\(method\)\) setMethod\(null\)/);
+  assert.match(s, /if \(\(?!logOn && LOG_RULES\.has\(method\)\)? (\|\| \(logOn && ARITH_RULES\.has\(method\)\)\) )?setMethod\(null\)/); // #3173: and the value rules on log axes
   assert.match(s, /<LogHistogram [^>]*log=\{logOn\} \/>/);
   assert.match(s, /<ProbabilityPlot [^>]*log=\{logOn\} \/>/);
   assert.equal((s.match(/shownMethods\.map\(/g) || []).length, 3, "header, cells and the rules list");

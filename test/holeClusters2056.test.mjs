@@ -32,5 +32,5 @@ test("'Only these' checks one cluster's holes and unchecks the rest; the pane of
   const m = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
   assert.match(m, /const areaClusters = useMemo\(\(\) => holeClusters\(loggedInArea\), \[loggedInArea\]\);/);
   assert.match(m, /onClick=\{\(\) => \{ setVisibleHoles\(onlyTheseHoles\(collars, c\.ids\)\); setModelArea\("checked"\); \}\}/);
-  assert.match(m, /\{areaClusters && areaClusters\.clusters\.length > 1 && \(<div role="note"/);
+  assert.match(m, /const clusterNote = \(\) => \(areaClusters && areaClusters\.clusters\.length > 1 \? \(<div role="note"/); // #3268: a render function, also in the Implicit and Stack panes
 });
