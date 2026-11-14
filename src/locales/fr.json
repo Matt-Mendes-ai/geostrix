@@ -3014,6 +3014,9 @@
   "Gridded \"{idwKey}\" ({pts} points) at {idwCellSize} m: {valid} of {cells} cells have a value{v}. The grid's values are kept, so the raster filters (RTP, derivatives…) work on it.": "« {idwKey} » ({pts} points) mis en grille à {idwCellSize} m : {valid} sur {cells} cellules ont une valeur{v}. Les valeurs de la grille sont conservées, les filtres raster (RTP, dérivées…) fonctionnent donc dessus.",
   "; cells more than {v} m from any point are left empty": "; les cellules à plus de {v} m de tout point restent vides",
   "Generate raster": "Générer le raster",
+  "Gridding {n} points by inverse distance…": "Maillage de {n} points par inverse de la distance…",
+  "Gridding {n} points by inverse distance: {pct} %": "Maillage de {n} points par inverse de la distance : {pct} %",
+  "Inverse-distance gridding failed: {message}": "Le maillage par inverse de la distance a échoué : {message}",
   "This grid has {cells} cells. IDW runs in this window and takes about {s} s here, during which it does not respond. Continue? A bigger cell size is faster.": "Cette grille compte {cells} cellules. L'IDW s'exécute dans cette fenêtre et prend environ {s} s, pendant lesquelles elle ne répond pas. Continuer ? Une cellule plus grande est plus rapide.",
   "Give a step above zero and a range with the top above the bottom.": "Indiquez un pas supérieur à zéro et une plage dont le haut est au-dessus du bas.",
   "That cell size would make a level grid over 4 million cells. Use a bigger cell size.": "Cette taille de cellule produirait une grille de niveau de plus de 4 millions de cellules. Utilisez une cellule plus grande.",
@@ -12441,5 +12444,8 @@
   "a close spelling of \"{word}\" ({d} letter(s) off)": "une orthographe proche de « {word} » ({d} lettre(s) d'écart)",
   "its meaning in the code dictionary: {meaning}": "son sens dans le dictionnaire des codes : {meaning}",
   "a common abbreviation": "une abréviation courante",
-  "the code read as a rock name": "le code lu comme un nom de roche"
+  "the code read as a rock name": "le code lu comme un nom de roche",
+  "Not EDI files, not read here: {names}. MT / AMT reads .edi soundings. A DC / IP line table (.csv, .dat, .txt) can be tried in the DC / IP pane, which lets you map its columns.": "Ce ne sont pas des fichiers EDI, non lus ici : {names}. MT / AMT lit des sondages .edi. Un tableau de ligne DC / IP (.csv, .dat, .txt) peut être essayé dans le panneau DC / IP, qui permet d'associer ses colonnes.",
+  "Choose the columns for A, M and the apparent resistivity in the lists above.": "Choisissez les colonnes de A, M et de la résistivité apparente dans les listes ci-dessus.",
+  "This limits block models only (OMF and UBC imports). Point surveys and rasters are not cut down by it.": "Cela ne limite que les modèles de blocs (imports OMF et UBC). Les levés ponctuels et les rasters ne sont pas réduits."
 }

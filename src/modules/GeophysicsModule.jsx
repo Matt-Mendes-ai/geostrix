@@ -60,6 +60,7 @@ import { parseGeoPackage } from "../lib/gpkg.js";
 import { idwGridToRasterInput, gridValuesToRasterInput, snappedGridExtent, uniqueName } from "../lib/idw.js"; // uniqueName: #2562; gridValuesToRasterInput, snappedGridExtent: #2846, #2872
 import { surveySplineRequest, splineFinish, gridMethodTag } from "../lib/surveyGrid.js"; // TASKS.csv #2846
 import { gridSurveyAsync } from "../lib/surveyGridClient.js"; // #2846 — minimum curvature in a worker
+import { idwGridAsync } from "../lib/idwGridClient.js"; // TASKS.csv #3444 — IDW in a worker, with progress and Cancel
 import { MINCURV_MAX_CELLS, SPLINE_MAX_CELLS } from "../lib/sampleGrid.js"; // #2846
 import { hillshadeToRasterInput, terrainDerivativeToRasterInput, autoZFactor, earlierDerivatives } from "../lib/hillshade.js"; // derivatives: TASKS.csv #797; autoZFactor: #2460; earlierDerivatives: #1764
 import { contourTerrain } from "../lib/contours.js";
@@ -2106,7 +2107,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     {/* TASKS.csv #2871 — buttons, not bare svg elements */}
                     <button type="button" aria-label={tr("Export the points of \"{key}\" (CSV)", { key: sv.key })} title={tr("Export the points of \"{key}\" (CSV)", { key: sv.key })} style={iconBtn} onClick={() => exportSurvey(sv.key)}><Download size={12} aria-hidden="true" /></button>{/* #1094 */}
                     <button type="button" aria-label={tr("Remove survey \"{key}\"", { key: sv.key })} title={tr("Remove survey \"{key}\"", { key: sv.key })} style={iconBtn}
-                      onClick={() => { if (window.confirm(tr("Remove the {count} points of \"{key}\"?", { count: sv.count.toLocaleString(), key: sv.key }))) { setLayers((l) => ({ ...l, geophys_pts: (l.geophys_pts || []).filter((r) => surveyKey(r) !== sv.key) })); setGeophysSurveys((m) => { const { [sv.key]: _gone, ...rest } = m || {}; return rest; }); /* TASKS.csv #3330 (2) — its Method, units and legend go with its last point: a later import under that name inherited them */ } }}><Trash2 size={12} aria-hidden="true" /></button>
+                      onClick={() => { if (window.confirm(tr("Remove the {count} points of \"{key}\"?", { count: sv.count.toLocaleString(), key: sv.key }))) { setLayers((l) => ({ ...l, geophys_pts: (l.geophys_pts || []).filter((r) => surveyKey(r) !== sv.key) })); setGeophysSurveys((m) => { const { [sv.key]: _gone, ...rest } = m || {}; return rest; }); const about = (e) => (e && typeof e === "object" && String(e.text || "").includes(`"${sv.key}"`) ? null : e); setXyzError(about); setError(about); /* #3442 (3) — 'Imported … from "x"' goes with x */ /* TASKS.csv #3330 (2) — its Method, units and legend go with its last point: a later import under that name inherited them */ } }}><Trash2 size={12} aria-hidden="true" /></button>
                   </div>
                   <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>
                     {tr("{count} points{v}, {withZ} with elevation · values {v2}{v3}", { count: sv.count.toLocaleString(), v: sv.lines ? `, ${sv.lines} line(s)` : "", withZ: sv.withZ.toLocaleString(), v2: Number.isFinite(sv.min) ? rangeText(sv.min, sv.max) /* #2402 — 57,392 to 57,571, not 5.739e+4 */ : "—", v3: meta.units ? ` ${meta.units}` : "" })}
@@ -2252,7 +2253,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
               <button onClick={() => confirmImportXYZ()} disabled={!!xyzPending.streaming} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>
                 {xyzPending.streaming ? <Loader2 size={14} className="spin" /> : <Upload size={14} />}{" "}{xyzPending.streaming ? tr("Reading…") : tr("Import")}</button>
-              <button onClick={() => setXyzPending(null)} style={{ ...pBtn, marginBottom: 0, width: 90, justifyContent: "center", color: "var(--color-text-secondary)" }}>{tr("Cancel")}</button>
+              <button onClick={() => { setXyzPending(null); setXyzError(null); setError(null); /* TASKS.csv #3442 (3) — a cancelled picker's message goes with it, not under the next file's picker */ }} style={{ ...pBtn, marginBottom: 0, width: 90, justifyContent: "center", color: "var(--color-text-secondary)" }}>{tr("Cancel")}</button>
             </div>
           </div>
         )}
@@ -2422,7 +2423,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     <option value="linear">{tr("Linear min-max")}</option>
                   </select>
                 </div>
-                {idwBusy && <div role="status" style={{ display: "flex", gap: 6, alignItems: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}><span style={{ flex: 1 }}>{idwBusy}</span>{idwMethod === "mincurv" && <button type="button" onClick={() => idwCancel.current?.()} style={{ ...pBtn, width: "auto", marginTop: 0, marginBottom: 0 }}>{tr("Cancel")}</button>}</div>}
+                {idwBusy && <div role="status" style={{ display: "flex", gap: 6, alignItems: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}><span style={{ flex: 1 }}>{idwBusy}</span>{idwMethod !== "spline" && <button type="button" onClick={() => idwCancel.current?.()} style={{ ...pBtn, width: "auto", marginTop: 0, marginBottom: 0 }}>{tr("Cancel")}</button>}</div>}
                 <button
                   disabled={!!idwBusy}
                   onClick={async () => {
@@ -2435,15 +2436,23 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     const { xmin, xmax, ymin, ymax } = snappedGridExtent({ xmin: arrMin(xs), xmax: arrMax(xs), ymin: arrMin(ys), ymax: arrMax(ys) }, idwCellSize); // #2872 — nodes on multiples of the cell, every station inside
                     const gridW = Math.round((xmax - xmin) / idwCellSize), gridH = Math.round((ymax - ymin) / idwCellSize);
                     if (gridW * gridH > 4_000_000) { setError(tr("That cell size would produce a {gridW}×{gridH} grid — too large. Use a bigger cell size.", { gridW, gridH })); return; }
-                    // TASKS.csv #3363 — IDW runs in this window and its time follows the CELLS, not the points (measured: ~10 microseconds a cell, 2.9 s at
-                    // 295,500 cells and 11.5 s at 1.2 million cells for 270,000 points of a 3D cloud, the same for 27,000): a large grid says so first
-                    if (idwMethod === "idw" && gridW * gridH > 500_000 && !window.confirm(tr("This grid has {cells} cells. IDW runs in this window and takes about {s} s here, during which it does not respond. Continue? A bigger cell size is faster.", { cells: (gridW * gridH).toLocaleString(), s: Math.max(5, Math.round((gridW * gridH) / 100_000)) }))) return;
+                    // (TASKS.csv #3363 measured IDW: its time follows the CELLS, about 10 microseconds each, 11.5 s at 1.2 million. #3444: it now runs in a worker, with progress and Cancel, so no gate)
                     const blank = idwBlank === "" ? idwAutoBlank ?? Infinity : Number(idwBlank) > 0 ? Number(idwBlank) : Infinity; // #538; #3322 — at least 1.5 cells
                     const label = surveyLabel(idwKey); // #2559 — 'file.csv · K_pct' kept its channel ('[^.]+$' took '.csv · K_pct' off)
                     const tag = gridMethodTag(idwMethod, idwTension); // #2846
                     const gName = uniqueName(`${label}${sliceTag} ${tag} ${idwCellSize} m${Number.isFinite(blank) ? `, blanked > ${Math.round(blank)} m` : ""}`, rasters.map((x) => x.name)); // sliceTag: #1783; uniqueName: #2562
                     let raster, how = {};
-                    if (idwMethod === "idw") raster = idwGridToRasterInput(pts, { xmin, ymin, xmax, ymax, cellSize: idwCellSize, power: idwPower, stretch: idwStretch, maxDistance: blank, name: gName });
+                    if (idwMethod === "idw") { // TASKS.csv #3444 — in a worker: the window keeps drawing, the rows done are shown, Cancel stops it
+                      setIdwBusy(tr("Gridding {n} points by inverse distance…", { n: pts.length.toLocaleString() }));
+                      let lastPct = -1;
+                      const job = idwGridAsync(pts, { xmin, ymin, xmax, ymax, cellSize: idwCellSize, power: idwPower, maxDistance: blank }, { onProgress: (f) => { const pct = Math.floor(f * 100); if (pct !== lastPct) { lastPct = pct; setIdwBusy(tr("Gridding {n} points by inverse distance: {pct} %", { n: pts.length.toLocaleString(), pct })); } } });
+                      idwCancel.current = job.cancel;
+                      let res;
+                      try { res = await job.promise; } catch (err) { setIdwBusy(null); idwCancel.current = null; setError(tr("Inverse-distance gridding failed: {message}", { message: err.message })); return; }
+                      setIdwBusy(null); idwCancel.current = null;
+                      if (res.cancelled) { setError({ info: true, text: tr("Cancelled.") }); return; }
+                      raster = gridValuesToRasterInput(res.values, res.gridW, res.gridH, { xmin, ymax, cellSize: idwCellSize, name: gName, stretch: idwStretch });
+                    }
                     else { // TASKS.csv #2846 — minimum curvature (here, in JS) or the spline (the Python engine), through Geochem's gridder
                       const gOpts = { cell: idwCellSize, blank, method: idwMethod, tension: idwTension };
                       let res;
@@ -3006,6 +3015,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         {geoPane === "logs" && (<Suspense fallback={null}><DownholeLogsPane layers={layers} customLayers={customLayers} assays={assays} assayElements={assayElements} onClose={() => setGeoPane(null)} onEstimate={() => goToModule("modelling")} /></Suspense>)}{/* TASKS.csv #1425 */}
         {geoPane === "budget" && (<>
         <TaskPaneHeader title="3D view cell budget" icon={RSettings2} tone="view" />
+        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5, marginTop: 10 }}>{tr("This limits block models only (OMF and UBC imports). Point surveys and rasters are not cut down by it.")}</div>{/* TASKS.csv #3442 (7) */}
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 8 }}>{tr("3D view cell budget")}<InfoButton title={tr("3D view cell budget")} text={tr("A large OMF/UBC block model gets block-averaged down to this many cells before it's rendered, to keep the 3D view responsive. Higher = more detail but slower to render (especially on older/integrated GPUs) and more memory: about 0.4 GB per million cells, so it stops at {max} cells, above which GeoStrix can run out of memory. Only affects new imports, not models already in the project. Remembered on this computer.", { max: MAX_BLOCK_MODEL_BUDGET.toLocaleString() })} />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>

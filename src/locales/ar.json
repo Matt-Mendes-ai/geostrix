@@ -3014,6 +3014,9 @@
   "Gridded \"{idwKey}\" ({pts} points) at {idwCellSize} m: {valid} of {cells} cells have a value{v}. The grid's values are kept, so the raster filters (RTP, derivatives…) work on it.": "حُوّل «{idwKey}» ({pts} نقطة) إلى شبكة بخلايا {idwCellSize} م: {valid} من {cells} خلية لها قيمة{v}. تُحفظ قيم الشبكة، لذا تعمل عليها مرشحات النقطيات (RTP، المشتقات…).",
   "; cells more than {v} m from any point are left empty": "؛ الخلايا الأبعد من {v} م عن أي نقطة تُترك فارغة",
   "Generate raster": "توليد النقطية",
+  "Gridding {n} points by inverse distance…": "جارٍ تشبيك {n} نقطة بمقلوب المسافة…",
+  "Gridding {n} points by inverse distance: {pct} %": "جارٍ تشبيك {n} نقطة بمقلوب المسافة: {pct}٪",
+  "Inverse-distance gridding failed: {message}": "فشل التشبيك بمقلوب المسافة: {message}",
   "This grid has {cells} cells. IDW runs in this window and takes about {s} s here, during which it does not respond. Continue? A bigger cell size is faster.": "تحتوي هذه الشبكة على {cells} خلية. يعمل IDW في هذه النافذة ويستغرق نحو {s} ث، لا تستجيب خلالها. هل تتابع؟ حجم خلية أكبر أسرع.",
   "Give a step above zero and a range with the top above the bottom.": "أدخل خطوة أكبر من صفر ونطاقًا تكون قمته فوق قاعدته.",
   "That cell size would make a level grid over 4 million cells. Use a bigger cell size.": "سيُنتج هذا الحجم للخلية شبكة مستوى تتجاوز 4 ملايين خلية. استخدم حجم خلية أكبر.",
@@ -12441,5 +12444,8 @@
   "a close spelling of \"{word}\" ({d} letter(s) off)": "كتابة قريبة من «{word}» (يختلف بـ {d} حرف)",
   "its meaning in the code dictionary: {meaning}": "معناه في قاموس الرموز: {meaning}",
   "a common abbreviation": "اختصار شائع",
-  "the code read as a rock name": "الرمز مقروءًا كاسم صخر"
+  "the code read as a rock name": "الرمز مقروءًا كاسم صخر",
+  "Not EDI files, not read here: {names}. MT / AMT reads .edi soundings. A DC / IP line table (.csv, .dat, .txt) can be tried in the DC / IP pane, which lets you map its columns.": "ليست ملفات EDI ولا تُقرأ هنا: {names}. يقرأ MT / AMT سبر .edi. يمكن تجربة جدول خط DC / IP (‏.csv و.dat و.txt) في لوحة DC / IP، التي تتيح ربط أعمدته.",
+  "Choose the columns for A, M and the apparent resistivity in the lists above.": "اختر أعمدة A وM والمقاومية الظاهرية من القوائم أعلاه.",
+  "This limits block models only (OMF and UBC imports). Point surveys and rasters are not cut down by it.": "هذا يحد نماذج الكتل فقط (استيراد OMF وUBC). لا تُقلَّص المسوح النقطية والنقطيات."
 }

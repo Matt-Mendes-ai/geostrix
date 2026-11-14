@@ -115,7 +115,7 @@ export default function MtSoundingsPane({ layers, setLayers, geophysSurveys, upd
     // TASKS.csv #2078 (review #2013, Woodjam) — a file that is not .edi was dropped without a word (the reviewer's 3050E.dat then reached the
     // drillhole importer): it is named, and a DC / IP .dat is sent to DC / IP
     const others = all.filter((f) => !/\.edi$/i.test(f.name));
-    const othersNote = others.length ? tr("Not EDI files, not read here: {names}. MT / AMT reads .edi soundings; a DC / IP line file (.dat, .txt) goes to the DC / IP pane.", { names: others.slice(0, 4).map((f) => f.name).join(", ") + (others.length > 4 ? " …" : "") }) : "";
+    const othersNote = others.length ? tr("Not EDI files, not read here: {names}. MT / AMT reads .edi soundings. A DC / IP line table (.csv, .dat, .txt) can be tried in the DC / IP pane, which lets you map its columns.", { names: others.slice(0, 4).map((f) => f.name).join(", ") + (others.length > 4 ? " …" : "") }) : "";
     if (!files.length) { if (othersNote) setMsg({ info: false, text: othersNote }); return; }
     setBusy(true);
     setMsg({ info: true, text: tr("Reading {n} EDI file(s)…", { n: files.length }) });

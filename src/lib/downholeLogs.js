@@ -248,3 +248,18 @@ export const allAboveZero = (values) => { let n = 0; for (const v of values || [
 export const countAtOrBelowZero = (values) => (values || []).reduce((k, v) => k + (Number.isFinite(v) && v <= 0 ? 1 : 0), 0);
 // a number to three significant figures, small ones included (0.000112, not the 0 that toLocaleString's three decimals gave)
 export const sig3 = (v) => (Number.isFinite(v) ? v.toLocaleString(undefined, { maximumSignificantDigits: 3 }) : "—");
+
+// TASKS.csv #3330 (6) / #3442 — the labels of a set of codes (already text), each cut to `max` characters, the cut widened (4 characters at a time) until no two different codes read the same
+export function shortCodes(full, max) {
+  const longest = Math.max(0, ...full.map((t) => t.length));
+  for (let m = max; ; m += 4) {
+    const cut = full.map((t) => (t.length > m ? shortenCode(t, m) : t));
+    if (m >= longest || new Set(cut).size === new Set(full).size) return cut;
+  }
+}
+export function shortenCode(t, max) {
+  const tail = String(t).match(/\s\([^)]*\)$/)?.[0];
+  if (tail && tail.length <= max - 6) return `${t.slice(0, max - tail.length - 1)}…${tail}`;
+  const head = Math.ceil((max - 1) / 2), end = Math.floor((max - 1) / 2);
+  return `${t.slice(0, head)}…${t.slice(t.length - end)}`;
+}
