@@ -12375,5 +12375,5 @@
   "The unit {symbol} is shown in here and in Best intercepts and Grade stats. Display only: the rules are worked in the stored unit.": "La unidad en que se muestra {symbol} aquí y en Intervalos de mejor ley y Estadísticas de ley. Solo de visualización: las reglas se calculan en la unidad guardada.",
   "{n} of them lie more than {d} m from the nearest collar (the farthest {m} m): the surface through the collars is a guess there. A terrain gives the real ground.": "{n} de ellas están a más de {d} m del collar más cercano (la más lejana a {m} m): allí la superficie a través de los collares es una suposición. Un terreno da el suelo real.",
   "{n} drillhole(s), handed to the 3D View's import": "{n} sondaje(s), entregados a la importación de la Vista 3D",
-  "{name}: {n} drillhole(s) read as {tables}, imported here as any table is.": "{name}: {n} sondaje(s) leídos como {tables}, importados aquí como cualquier tabla."
+  "{name}: {n} drillhole(s) with {s} survey station(s), read as {tables} and imported here as any table is. Dips are as geoh5 writes them, negative down, and are read that way.": "{name}: {n} sondaje(s) con {s} estación(es) de levantamiento, leídos como {tables} e importados aquí como cualquier tabla. Las inclinaciones están como las escribe geoh5, negativas hacia abajo, y se leen así."
 }

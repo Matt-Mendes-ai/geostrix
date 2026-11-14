@@ -12375,5 +12375,5 @@
   "The unit {symbol} is shown in here and in Best intercepts and Grade stats. Display only: the rules are worked in the stored unit.": "الوحدة التي يُعرض بها {symbol} هنا وفي أفضل المقاطع وإحصاءات العيار. للعرض فقط: تُحسب القواعد بالوحدة المخزنة.",
   "{n} of them lie more than {d} m from the nearest collar (the farthest {m} m): the surface through the collars is a guess there. A terrain gives the real ground.": "{n} منها تبعد أكثر من {d} م عن أقرب فوهة (الأبعد {m} م): السطح المار بالفوهات تخمين هناك. يعطي نموذج التضاريس الأرض الحقيقية.",
   "{n} drillhole(s), handed to the 3D View's import": "{n} ثقب حفر، سُلّمت إلى استيراد العرض ثلاثي الأبعاد",
-  "{name}: {n} drillhole(s) read as {tables}, imported here as any table is.": "{name}: قُرئ {n} ثقب حفر على هيئة {tables}، وتُستورد هنا كأي جدول."
+  "{name}: {n} drillhole(s) with {s} survey station(s), read as {tables} and imported here as any table is. Dips are as geoh5 writes them, negative down, and are read that way.": "{name}: {n} ثقب حفر مع {s} محطة مسح، قُرئت على هيئة {tables} وتُستورد هنا كأي جدول. الميول كما يكتبها geoh5، سالبة نحو الأسفل، وتُقرأ كذلك."
 }

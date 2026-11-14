@@ -42,3 +42,17 @@ test("wired: the Geophysics import hands the tables to the 3D View's import queu
   const g = fs.readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
   assert.match(g, /requestModuleAction\("import-dropped-files", \{ files: res\.drillholeTables\.map/);
 });
+
+test("two FROM / TO sets on one hole (lithology and assays on different intervals): one table per set, each column with its own set", async () => {
+  const ws = await parseGeoh5(buf(await geoh5FixtureBytes({ twoSets: true })));
+  const dh = ws.elements.find((e) => e.name === "DH-3");
+  assert.equal(dh.intervalSets.length, 2);
+  assert.deepEqual([dh.intervalSets[0].from, dh.intervalSets[0].to, dh.intervalSets[0].columns.Lithology], [[0, 30], [30, 60], ["BAS", "AND"]]);
+  assert.deepEqual([dh.intervalSets[1].from, Array.from(dh.intervalSets[1].columns.Au_ppm)], [[0, 2, 4], [0.1, 2.5, 0.3]]);
+  const r = await geoh5ToProjectObjects(buf(await geoh5FixtureBytes({ twoSets: true })), 1e6, { baseName: "two" });
+  const names = r.drillholeTables.map((f) => f.name);
+  assert.ok(names.some((n) => /^two_intervals_\d+_Cu_ppm/.test(n)) && names.some((n) => /^two_intervals_\d+_Au_ppm/.test(n)), names.join(" "));
+  assert.equal(r.drillholes, 3); assert.equal(r.surveyStations, 4);
+  const au = r.drillholeTables.find((f) => /Au_ppm/.test(f.name)).text.trim().split(/\r\n/);
+  assert.deepEqual(au, ["hole_id,from,to,Au_ppm", "DH-3,0,2,0.1", "DH-3,2,4,2.5", "DH-3,4,6,0.3"]);
+});

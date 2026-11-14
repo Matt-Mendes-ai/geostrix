@@ -67,7 +67,7 @@ function readData(dataNode) {
   if (prim === "referenced") { // codes keyed into the type's Value map (0 = Unknown)
     const map = new Map();
     for (const row of getSafe(type, "Value map")?.value || []) map.set(Number(row[0]), String(row[1]));
-    return { name, association, kind: "string", values: Array.from(raw, (k) => map.get(Number(k)) ?? (Number(k) === 0 ? "Unknown" : String(k))) };
+    return { name, association, kind: "string", values: Array.from(raw, (k) => (Number(k) === 0 && (!map.has(0) || /^unknown$/i.test(map.get(0))) ? "" /* #1993 step 1b — 0 is the format's no-data ("Unknown"): blank */ : map.get(Number(k)) ?? String(k))) };
   }
   if (prim === "text") return { name, association, kind: "string", values: Array.from(raw, (s) => String(s ?? "")) };
   return null;
@@ -129,6 +129,29 @@ function grid2d(obj, data) {
 // depths in the FROM / TO entries) and the point data (vertex data, at the DEPTH entry). Every other cell / vertex entry of the right length is one column.
 // -> { kind: "drillhole", name, collar, azimuth, dip, endOfHole, surveys: [[depth, azimuth, dip]], intervals: { from, to, columns } | null, points: { depth, columns } | null }
 const pick = (data, assoc, name) => data.find((a) => a.association === assoc && a.name.trim().toUpperCase() === name);
+// TASKS.csv #1993 step 1b — a hole may carry more than one FROM / TO set (lithology and assays on different intervals): each FROM entry is paired with the
+// TO of the same suffix ('FROM', 'TO'; 'FROM (1)', 'TO (1)'), a set is the cells where both are numbers, and every other cell entry goes to the set where it
+// holds the most values. -> [{ from, to, columns }] (numeric columns as Float64Array, text as arrays), in the file's order
+const isBlank = (v) => v == null || v === "" || (typeof v === "number" && !Number.isFinite(v));
+function fromToSets(data) {
+  const cells = data.filter((a) => a.association === "cell");
+  const key = (s, w) => { const m = new RegExp(`^${w}(.*)$`, "i").exec(s.trim()); return m ? m[1].trim().toUpperCase() : null; };
+  const pairs = [];
+  for (const f of cells) { const k = key(f.name, "FROM"); if (k == null) continue; const to = cells.find((a) => key(a.name, "TO") === k && a.values.length === f.values.length); if (to) pairs.push({ f, to, rows: [] }); }
+  if (!pairs.length) return [];
+  for (const p of pairs) for (let i = 0; i < p.f.values.length; i++) if (Number.isFinite(Number(p.f.values[i])) && Number.isFinite(Number(p.to.values[i]))) p.rows.push(i);
+  const used = new Set(pairs.flatMap((p) => [p.f, p.to])), owned = pairs.map(() => []);
+  for (const a of cells) {
+    if (used.has(a)) continue;
+    let best = -1, bestN = 0;
+    pairs.forEach((p, j) => { if (a.values.length !== p.f.values.length) return; const n = p.rows.reduce((s, i) => s + (isBlank(a.values[i]) ? 0 : 1), 0); if (n > bestN) { best = j; bestN = n; } });
+    if (best >= 0 && !owned[best].some((x) => x.name === a.name)) owned[best].push(a);
+  }
+  return pairs.filter((p) => p.rows.length).map((p) => {
+    const j = pairs.indexOf(p), pickRows = (vals) => (vals instanceof Float64Array ? Float64Array.from(p.rows, (i) => vals[i]) : p.rows.map((i) => vals[i]));
+    return { from: p.rows.map((i) => Number(p.f.values[i])), to: p.rows.map((i) => Number(p.to.values[i])), columns: Object.fromEntries(owned[j].map((a) => [a.name, pickRows(a.values)])) };
+  });
+}
 function drillhole(obj, data, name) {
   const collar = xyz(attrOf(obj, "Collar"));
   const surveys = [];
@@ -143,8 +166,8 @@ function drillhole(obj, data, name) {
     for (const a of data) if (a.association === assoc && !used.has(a) && a.values.length === n && !(a.name in columns)) columns[a.name] = a.values;
     return { ...Object.fromEntries(keys.map((k, i) => [k.toLowerCase(), Array.from(at[i].values, Number)])), columns };
   };
-  const intervals = table("cell", ["FROM", "TO"]), points = table("vertex", ["DEPTH"]);
-  return { kind: "drillhole", name, collar, azimuth: num(attrOf(obj, "Collar azimuth"), NaN), dip: num(attrOf(obj, "Collar dip"), NaN), endOfHole: num(attrOf(obj, "End of hole"), NaN), surveys, intervals, points };
+  const intervalSets = fromToSets(data), points = table("vertex", ["DEPTH"]);
+  return { kind: "drillhole", name, collar, azimuth: num(attrOf(obj, "Collar azimuth"), NaN), dip: num(attrOf(obj, "Collar dip"), NaN), endOfHole: num(attrOf(obj, "End of hole"), NaN), surveys, intervals: intervalSets[0] || null, intervalSets, points };
 }
 
 // bytes -> { version, distanceUnit, elements: [OMF-shaped elements, and { kind: "skipped", reason }] }

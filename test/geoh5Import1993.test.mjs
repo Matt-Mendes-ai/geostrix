@@ -24,7 +24,7 @@ test("points, curve, surface: vertices, cells, data by association; no-data, ref
   const att = Object.fromEntries(pts.attributes.map((a) => [a.name, a]));
   assert.ok(Number.isNaN(att.Cu_ppm.values[2]), "the float no-data value is blank"); assert.equal(att.Cu_ppm.max, 300);
   assert.ok(Number.isNaN(att.Rank.values[2]), "the integer no-data value is blank");
-  assert.deepEqual(att.Lith.values, ["Basalt", "Andesite", "Unknown", "Basalt", "Andesite"]); assert.equal(att.Lith.kind, "string");
+  assert.deepEqual(att.Lith.values, ["Basalt", "Andesite", "", "Basalt", "Andesite"], "code 0 (Unknown) is no data: blank (#1993 step 1b)"); assert.equal(att.Lith.kind, "string");
   assert.equal(att.Short, undefined, "a data entry of the wrong length is not read");
   assert.ok(Array.isArray(pts.vertices) && Array.isArray(att.Cu_ppm.values), "plain arrays: the objects are saved with the project");
   assert.equal(by.Contact.kind, "lines"); assert.deepEqual(by.Contact.segments, [0, 1, 1, 2, 2, 3]); assert.equal(by.Contact.attributes[0].location, "segments");

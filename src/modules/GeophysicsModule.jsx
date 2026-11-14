@@ -1292,7 +1292,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       // is sure of and opens the mapping dialog for the rest (assays to Geochem, logs to their layer); the dip sign is its own check's (#2886)
       if (res.drillholeTables?.length) {
         goToModule?.("viewer");
-        requestModuleAction("import-dropped-files", { files: res.drillholeTables.map((d) => new File([d.text], d.name, { type: "text/csv" })), origin: "geophysics", notes: [tr("{name}: {n} drillhole(s) read as {tables}, imported here as any table is.", { name: file.name, n: res.drillholes, tables: res.drillholeTables.map((d) => d.name).join(", ") })] });
+        requestModuleAction("import-dropped-files", { files: res.drillholeTables.map((d) => new File([d.text], d.name, { type: "text/csv" })), origin: "geophysics", notes: [tr("{name}: {n} drillhole(s) with {s} survey station(s), read as {tables} and imported here as any table is. Dips are as geoh5 writes them, negative down, and are read that way.", { name: file.name, n: res.drillholes, s: res.surveyStations ?? 0, tables: res.drillholeTables.map((d) => d.name).join(", ") })] }); // counts and the dip convention said: Main's ask, so a user can check them against ANALYST
       }
     } catch (err) {
       setOmfError({ info: false, text: err.message });
