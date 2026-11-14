@@ -12669,5 +12669,15 @@
   "Selecting a domain above only stops a single composite from spanning two domains. It does NOT stop the interpolation search itself from drawing samples across a contact or a fault — that search is {shape} through all the data, so grade will be smeared across geological boundaries. Tick the box above to restrict the search too.": "Selecionar um domínio acima apenas impede que um único composto atravesse dois domínios. NÃO impede que a busca de interpolação tome amostras através de um contato ou de uma falha: essa busca é {shape} através de todos os dados, de modo que o teor será espalhado entre limites geológicos. Marque a caixa acima para restringir também a busca.",
   "the ellipsoid above": "o elipsoide acima",
   "a plain sphere": "uma esfera simples",
-  "A setting has changed since this result was run: it is shown greyed. Run again to refresh it.": "Uma configuração mudou desde que este resultado foi obtido: ele aparece esmaecido. Execute novamente para atualizá-lo."
+  "A setting has changed since this result was run: it is shown greyed. Run again to refresh it.": "Uma configuração mudou desde que este resultado foi obtido: ele aparece esmaecido. Execute novamente para atualizá-lo.",
+  "Anisotropy of {el}": "Anisotropia de {el}",
+  "range down the holes {a} m ({ra} r²), across them {b} m ({rb} r²): the grade is continuous {x} times as far across as down.": "alcance ao longo dos furos {a} m (r² {ra}), entre eles {b} m (r² {rb}): o teor é contínuo {x} vezes mais longe entre furos do que ao longo deles.",
+  "A flat search fits: {b} m across and {a} m up and down.": "Uma busca plana se ajusta: {b} m na horizontal e {a} m para cima e para baixo.",
+  "The two ranges are close: a sphere is as good as a flat search.": "Os dois alcances são próximos: uma esfera é tão boa quanto uma busca plana.",
+  "The next Estimation dialog opens with this Search radius and Vertical reach. Nothing is applied until you run it.": "La próxima caixa de Estimativa abre com este Raio de busca e Alcance vertical. Nada é aplicado até você executar.",
+  "Use as the flat search in Estimation": "Usar como busca plana na Estimativa",
+  "Sent.": "Enviado.",
+  "Writes each block's density (the one value, or its code's or the density model's) into the block model, so its CSV, OMF and VTK exports carry a DENSITY column and tonnes agree everywhere.": "Grava a densidade de cada bloco (o valor único, o do seu código ou do modelo de densidade) no modelo de blocos, de modo que suas exportações CSV, OMF e VTK tragam uma coluna DENSITY e as toneladas coincidam em todo lugar.",
+  "Keep this density with the block model": "Manter esta densidade no modelo de blocos",
+  "Kept: the block model now carries a density per block (a DENSITY column in its exports).": "Mantida: o modelo de blocos agora traz uma densidade por bloco (uma coluna DENSITY nas suas exportações)."
 }
