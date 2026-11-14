@@ -12311,5 +12311,20 @@
   "The project's local grid is tied to EPSG:{epsg}. Are the coordinates in \"{name}\" in EPSG:{epsg}?{hint}\n\nOK: place them through the tie, onto the local grid. Cancel: use them as local-grid metres, as they are.": "الشبكة المحلية للمشروع مرتبطة بـ EPSG:{epsg}. هل إحداثيات «{name}» بنظام EPSG:{epsg}؟{hint}\n\nموافق: ضعها عبر الربط على الشبكة المحلية. إلغاء: استخدمها كأمتار الشبكة المحلية كما هي.",
   "\n\nThe solid is about {d} m from the holes read that way, against {e} m as local metres: it looks like EPSG:{epsg}.": "\n\nبهذه القراءة يبعد المجسم نحو {d} م عن الحفر، مقابل {e} م كأمتار محلية: يبدو بنظام EPSG:{epsg}.",
   "\n\nThe solid is about {e} m from the holes as local metres, against {d} m read through the tie: it looks like local-grid metres.": "\n\nكأمتار محلية يبعد المجسم نحو {e} م عن الحفر، مقابل {d} م بالقراءة عبر الربط: يبدو أنه بأمتار الشبكة المحلية.",
-  "Imported \"{name}\" as a solid: {vertexCount} vertices / {triangleCount} triangles ({format}, {note}).{layerNote} It appears under Generated surfaces with the same show/hide, remove and query controls.{bb} Placed onto the local grid through its tie to EPSG:{epsg} (x and y; elevation unchanged).": "تم استيراد «{name}» كمجسم: {vertexCount} رأسًا / {triangleCount} مثلثًا ({format}، {note}).{layerNote} يظهر ضمن الأسطح المولدة بنفس أدوات الإظهار/الإخفاء والحذف والاستعلام.{bb} وُضع على الشبكة المحلية عبر ربطها بـ EPSG:{epsg} (x وy؛ الارتفاع دون تغيير)."
+  "Imported \"{name}\" as a solid: {vertexCount} vertices / {triangleCount} triangles ({format}, {note}).{layerNote} It appears under Generated surfaces with the same show/hide, remove and query controls.{bb} Placed onto the local grid through its tie to EPSG:{epsg} (x and y; elevation unchanged).": "تم استيراد «{name}» كمجسم: {vertexCount} رأسًا / {triangleCount} مثلثًا ({format}، {note}).{layerNote} يظهر ضمن الأسطح المولدة بنفس أدوات الإظهار/الإخفاء والحذف والاستعلام.{bb} وُضع على الشبكة المحلية عبر ربطها بـ EPSG:{epsg} (x وy؛ الارتفاع دون تغيير).",
+  "Suggest groups from the rock names…": "اقتراح مجموعات من أسماء الصخور…",
+  "Propose groups for the ungrouped codes that name the same rock (BAS, Bslt and Basalt), from what each code means. Nothing changes until you apply it.": "يقترح مجموعات للرموز غير المجمّعة التي تسمّي الصخر نفسه (BAS وBslt وBasalt) بحسب معنى كل رمز. لا يتغير شيء حتى تطبّق.",
+  "Grouped {n} codes: {adds} new group(s), {ext} existing group(s) extended.": "جُمّع {n} رمزًا: {adds} مجموعة جديدة، وتوسّعت {ext} مجموعة قائمة.",
+  "Suggested groups": "المجموعات المقترحة",
+  "Each code is read by what it means: its meaning in the code dictionary, the code as a rock name, then a common abbreviation. A close spelling, or a code whose descriptions name different rocks, starts unticked. Nothing changes until you apply.": "يُقرأ كل رمز بحسب معناه: معناه في قاموس الرموز، ثم الرمز بوصفه اسم صخر، ثم اختصار شائع. وتبدأ غير محددة كتابةٌ قريبة أو رمز تسمّي أوصافه صخورًا مختلفة. لا يتغير شيء حتى تطبّق.",
+  "Nothing to suggest: no ungrouped code names a rock that another code names too, or that a group already holds.": "لا شيء للاقتراح: لا يسمّي أي رمز غير مجمّع صخرًا يسمّيه رمز آخر أيضًا أو تضمّه مجموعة بالفعل.",
+  "{name} (existing group)": "{name} (مجموعة قائمة)",
+  "{name} (new group)": "{name} (مجموعة جديدة)",
+  "Its descriptions also name: {rocks}.": "تسمّي أوصافه أيضًا: {rocks}.",
+  "{n} code(s) were not recognized and are left alone: {codes}": "{n} رمزًا لم يُتعرَّف عليه وتُرك كما هو: {codes}",
+  "Apply {n} ticked": "تطبيق {n} محددًا",
+  "a close spelling of \"{word}\" ({d} letter(s) off)": "كتابة قريبة من «{word}» (يختلف بـ {d} حرف)",
+  "its meaning in the code dictionary: {meaning}": "معناه في قاموس الرموز: {meaning}",
+  "a common abbreviation": "اختصار شائع",
+  "the code read as a rock name": "الرمز مقروءًا كاسم صخر"
 }
