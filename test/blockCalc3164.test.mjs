@@ -114,6 +114,23 @@ test("the new model: name and unit required, params.calc names the inputs it rea
   assert.ok(NOT_A_RESOURCE_SOURCE.test(m.source), "its exports say: not a Mineral Resource");
 });
 
+test("the block-model CSV of a calculated model: the not-a-resource line, its formula and inputs in the header, its values", async () => {
+  const { blockModelCsvText, blockModelParamLines } = await import("../src/lib/blockModelExport.js");
+  const { stampLines, withStamp, NOT_A_RESOURCE } = await import("../src/lib/provenance.js");
+  const inputs = [{ var: "Fe", model: Fe }, { var: "LOI", model: LOI }];
+  const result = await blockCalc(inputs, "Fe / (1 - LOI / 100)");
+  const m = calcModelRecord({ name: "Calcined Fe", unit: "%", formula: "Fe / (1 - LOI / 100)", inputs, result });
+  const text = withStamp(await blockModelCsvText(m, "datamine"), stampLines({ tool: "Block model export", epsg: 28350, params: blockModelParamLines(m) }));
+  const head = text.split("\n").filter((l) => l.startsWith("# "));
+  assert.equal(head[0], `# ${NOT_A_RESOURCE}`);
+  assert.ok(head.includes('# formula: Fe / (1 - LOI / 100) (in %); Fe = "Fe estimate" (%); LOI = "LOI estimate" (%)'), head.join("\n"));
+  assert.ok(head.includes("# Values: Calcined_Fe_pct in %"));
+  assert.ok(head.includes("# blocksLeftOutMissingInput: 2"));
+  const rows = text.split(/\r?\n/).filter((l) => l && !l.startsWith("#")); // the CSV body is CRLF
+  assert.equal(rows[0], "XC,YC,ZC,XINC,YINC,ZINC,Calcined_Fe_pct");
+  assert.equal(rows.length - 1, 22);
+});
+
 test("no default formula; the help's examples carry letters, not prices or factors", () => {
   const s = readFileSync(new URL("../src/components/BlockCalculatorModal.jsx", import.meta.url), "utf8");
   assert.match(s, /const \[formula, setFormula\] = useState\(""\);/);
