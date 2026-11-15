@@ -240,6 +240,7 @@ import CollarSizeControl from "./viewer/CollarSizeControl.jsx"; // #2823 — Mat
 import { useBuildDefer } from "../lib/viewer/buildDefer.js"; // #1500
 import { lazyTip } from "../lib/viewer/lazyTip.js"; // #1500
 import { useSavedCamera, applySavedCamera } from "./viewer/savedCamera.js"; // #3624
+import { decideLight, registerRenderer, lightDrawingNotice } from "../lib/viewer/lightDrawing.js"; // #3620
 import MiddleName from "../components/MiddleName.jsx"; // #2852
 import { partChoices, boundaryPart } from "../lib/boundaryParts.js"; // TASKS.csv #3234
 const IdentifyPanel = React.lazy(() => import("../components/IdentifyPanel.jsx"));
@@ -1887,8 +1888,10 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     // so that existing "render then immediately read, same task" pattern already produces a correct,
     // non-blank capture without needing the buffer preserved between frames at all. Verified live
     // (see this row's own commit) that both snapshot paths still work correctly with this removed.
-    const renderer = new THREE.WebGLRenderer({ antialias: true, stencil: true }); // stencil: TASKS.csv #3509 — the fetched picture is hidden under a loaded detail tile
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const light = decideLight(); // #3620 — a software renderer: light drawing (lib/viewer/lightDrawing.js), no antialiasing
+    const renderer = new THREE.WebGLRenderer({ antialias: !light, stencil: true }); // stencil: TASKS.csv #3509 — the fetched picture is hidden under a loaded detail tile
+    renderer.setPixelRatio(light ? 1 : Math.min(window.devicePixelRatio, 2));
+    registerRenderer(renderer); { const ln = lightDrawingNotice(); if (ln) setNotices((p) => [...p, ln]); } // #3620
     rendererRef.current = renderer; mount.appendChild(renderer.domElement);
     const warmId = typeof requestIdleCallback === "function" ? requestIdleCallback(() => import("../lib/viewer/surfaceWarmup.js").then((m) => { if (rendererRef.current === renderer) m.warmSurfacePrograms(renderer, scene, camera); }).catch(() => {}), { timeout: 10000 }) : null; // #3155 — the surface shaders compiled at idle
 
