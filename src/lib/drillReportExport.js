@@ -14,7 +14,7 @@ export function compositeRows(results, { symbol, unit, traces, domainColumn = nu
   return results.map((r) => ({
     hole_id: r.hole_id, from: r.from.toFixed(2), to: r.to.toFixed(2), length_m: r.length.toFixed(2),
     [`avg_${symbol}_${unit}`]: sig6(r.avgGrade),
-    coverage_pct: (r.coverage * 100).toFixed(0),
+    coverage_pct: r.coverage == null ? "" : (r.coverage * 100).toFixed(0), // #3567 — blank where the element's window was left out
     conflict_m: (r.conflictLength || 0).toFixed(2), // #532 — metres where overlapping assays disagreed (averaged)
     ...(() => { // #411 — XYZ; blank when the hole has no collar/trace
       const p = intervalXYZ(traces?.get(r.hole_id), r.from, r.to);
@@ -29,7 +29,7 @@ export function compositeRows(results, { symbol, unit, traces, domainColumn = nu
 // loc(r): the collar and midpoint columns (interceptLocation.js). Optional parts, each only when switched on:
 // trueWidth { dipDir, dip }, domain (a layer was chosen), including { cutoff, text(sub) }, extraSymbols + units,
 // meq(r) -> metal-equivalent grade or null.
-export function interceptRows(results, { symbol, unit, loc = () => ({}), trueWidth = null, domain = false, extraSymbols = [], elementUnits = {}, including = null, meq = null }) {
+export function interceptRows(results, { symbol, unit, loc = () => ({}), trueWidth = null, domain = false, extraSymbols = [], elementUnits = {}, including = null, meq = null, weighted = false }) {
   return results.map((r) => ({
     hole_id: r.hole_id, from: r.from, to: r.to, length_m: r.length.toFixed(2),
     ...loc(r),
@@ -46,6 +46,8 @@ export function interceptRows(results, { symbol, unit, loc = () => ({}), trueWid
       host_domain_log_overlaps: r.dom?.overlapping ? "yes" : "",
     } : {}),
     [`avg_${symbol}_${unit}`]: sig6(r.avgGrade),
+    // TASKS.csv #3562 — with the grade weighted by length x density: how each row was weighted, the length-weighted grade beside it, the density and the metres with none
+    ...(weighted ? { grade_weighting: r.weighting === "density" ? "length x density" : "length (no density here)", [`avg_${symbol}_${unit}_by_length`]: sig6(r.avgGradeByLength ?? r.avgGrade), mean_density_t_m3: r.meanDensity == null ? "" : sig6(r.meanDensity), assayed_m_without_density: r.noDensityM ? r.noDensityM.toFixed(2) : "0" } : {}),
     // TASKS.csv #331/#332/#402 — what the grade figure is built from, carried into the report itself
     grade_is_minimum: r.overRange ? "yes (contains an over-range '>' result read at its ceiling)" : "",
     unsampled_or_unassayed_m: r.unsampledM ? r.unsampledM.toFixed(2) : "0",

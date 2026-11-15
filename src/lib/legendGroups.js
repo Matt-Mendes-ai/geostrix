@@ -238,7 +238,7 @@ export function legendGroupsToItems(groups) {
   const multi = groups.length > 1;
   const items = [];
   groups.forEach((g) => {
-    if (g.ramp) { items.push([g.label, null, { ramp: { colors: g.ramp.colors, minLabel: g.ramp.minLabel, maxLabel: g.ramp.maxLabel, log: !!g.ramp.log } }]); return; }
+    if (g.ramp) { items.push([g.label, null, { ramp: { colors: g.ramp.colors, minLabel: g.ramp.minLabel, maxLabel: g.ramp.maxLabel, log: !!g.ramp.log, ...(g.unit ? { unit: g.unit } : {}) /* TASKS.csv #3529 */ } }]); return; }
     if (g.image) { items.push([g.label, null, { image: g.image.src }]); return; } // #2747 — a picture raster's colour bar
     if (multi || g.alwaysHead) items.push([g.label, null, { heading: true }]); // TASKS.csv #843 — the anomaly map's rule is always printed
     g.items.forEach(([label, color, opt]) => items.push(opt ? [label, color, opt] : [label, color]));

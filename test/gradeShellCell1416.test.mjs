@@ -32,7 +32,8 @@ test("Silvertip-like extent: the fitted cell is within budget", () => {
 });
 
 test("both budget menus give memory (the grade shell time too) in one form", () => {
-  for (const b of BLOCK_BUDGETS) assert.match(gradeShellBudgetNote(b), /^(fast|~[\d.]+ (s|min)), ~[\d.]+ (MB|GB) of memory$/);
+  // #3581 — the 10 / 20 / 50 million notes say "up to" and the window's pause at the end
+  for (const b of BLOCK_BUDGETS) assert.match(gradeShellBudgetNote(b), /^(fast|(up to )?~[\d.]+ (s|min)), ~[\d.]+ (MB|GB) of memory(; the window pauses [^;]+ at the end)?$/);
   // TASKS.csv #3256 — the block model's menu gives memory only (its time depends on the search and the composites in reach; the run says its time left)
   for (const b of BLOCK_MODEL_BUDGETS) assert.match(blockModelBudgetNote(b), /^~[\d.]+ (MB|GB) of memory$/);
   assert.match(panes, /tr\(gradeShellBudgetNote\(b\)\)/);

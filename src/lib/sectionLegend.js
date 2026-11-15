@@ -36,7 +36,7 @@ export function groupSectionLegend(items, ribbons = null) {
     if (long.get(g)) out.push([tr("+ {n} longer description(s) not listed (over {c} characters)", { n: long.get(g), c: LONG_VALUE }), null, { note: true }]);
   }
   // TASKS.csv #3377 — a ramp drawn as a ribbon (specific gravity, RQD) is numbered like the others: '(ribbon 1 of 6, from the left)'
-  for (const [label, , opt] of ramps) { const rr = rampRows(opt.ramp); if (rr.length) out.push([where(label), null, { heading: true }], ...rr); }
+  for (const [label, , opt] of ramps) { const rr = rampRows(opt.ramp); if (rr.length) out.push([opt.ramp.unit ? where(label).replace(label, `${label} (${opt.ramp.unit})`) /* TASKS.csv #3529 — 'Specific gravity (t/m³) (ribbon 1 of 6 ...)' */ : where(label), null, { heading: true }], ...rr); }
   return out;
 }
 
@@ -46,7 +46,7 @@ export function groupSectionLegend(items, ribbons = null) {
 // legend, rampRows), classes as 'Layer: class' rows. Their group names are the ribbons' (LAYER_META labels), so they are numbered too.
 export function sectionNumericLegendItems(groups) {
   return (groups || []).flatMap((g) => (g.ramp
-    ? [[g.label, null, { ramp: { colors: g.ramp.colors, min: g.ramp.min, max: g.ramp.max, minLabel: g.ramp.minLabel, maxLabel: g.ramp.maxLabel, log: !!g.ramp.log } }]]
+    ? [[g.label, null, { ramp: { colors: g.ramp.colors, min: g.ramp.min, max: g.ramp.max, minLabel: g.ramp.minLabel, maxLabel: g.ramp.maxLabel, log: !!g.ramp.log, ...(g.unit ? { unit: g.unit } : {}) /* TASKS.csv #3529 */ } }]]
     : (g.items || []).filter(([, c]) => c).map(([n, c]) => [`${g.label}: ${n}`, c])));
 }
 

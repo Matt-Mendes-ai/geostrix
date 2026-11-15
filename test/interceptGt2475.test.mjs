@@ -22,7 +22,7 @@ test("grade x length over the sampled metres, and the ranking follows", () => {
 
 test("the pane, the Layout table and the CSV use it", () => {
   const b = readFileSync(new URL("../src/components/BestIntercepts.jsx", import.meta.url), "utf8");
-  assert.match(b, /<td style=\{td\}>\{\+dg\(interceptGradeLength\(r\)\)\.toPrecision\(5\)\}<\/td>/);
+  assert.match(b, /<td style=\{td\}>\{glFmt\(dg\(interceptGradeLength\(r\)\)\)\}<\/td>/ /* #3565: one number of decimals down the column */);
   assert.match(b, /tr\("\{len\} \(\{s\} sampled\)"/);
   const d = readFileSync(new URL("../src/lib/drillReportExport.js", import.meta.url), "utf8");
   assert.match(d, /grade_x_length: sig6\(interceptGradeLength\(r\)\)/);

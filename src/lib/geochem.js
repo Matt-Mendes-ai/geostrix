@@ -1,5 +1,6 @@
 import { isMarkedQcRow } from "./qaqcCore.js"; // TASKS.csv #601; #3159: from qaqcCore (#1345), so geochem.js no longer pulls all of qaqc.js into startup
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { weightedGrade } from "./densityWeight.js"; // TASKS.csv #3562 — grades weighted by length x density
 import { ELEMENT_SYMBOLS, MAJOR_PCT, isElementColumn, oxideOfHeader, oxideUnit, unitBasis, oxideBasisUnit, oxidesOfElement, PRECIOUS_METALS, parseAssayValue } from "./geochemColumns.js"; // TASKS.csv #3159 — moved there for the startup code
 export * from "./geochemColumns.js"; // TASKS.csv #3159
 // ============================================================
@@ -567,6 +568,7 @@ export function interceptOpenEnds(rows, assays, symbol, collars = []) {
   });
 }
 export function computeBestIntercepts(assays, symbol, unit, elementUnits, opts = {}) {
+  const densityAt = opts.densityAt || null; // TASKS.csv #3562 — (hole, from, to) -> t/m3 | null: the reported grade is weighted by length x density (the limits and the bridging stay by length)
   const cutoff = opts.cutoff ?? 0;
   const maxInternalDilution = opts.maxInternalDilution ?? 2;
   const minLength = opts.minLength ?? 0;
@@ -589,9 +591,13 @@ export function computeBestIntercepts(assays, symbol, unit, elementUnits, opts =
       const length = current.to - current.from;
       if (length >= minLength - EPS) {
         const unsampled = current.subs.reduce((t, r) => t + (r.unsampled ? r.width : 0), 0);
+        const lengthGrade = current.assayedLen > 0 ? current.gradeLen / current.assayedLen : 0;
+        // TASKS.csv #3562 — length x density: each assayed piece weighs its metres times its density (the mean of the pieces that have one where it has none)
+        const wg = densityAt ? weightedGrade(current.subs.filter((r) => !r.unsampled && r.value != null).map((r) => ({ v: r.value, w: r.width, rho: densityAt(hole_id, r.from, r.to) }))) : null;
         composites.push({
           hole_id, from: current.from, to: current.to, length,
-          avgGrade: current.assayedLen > 0 ? current.gradeLen / current.assayedLen : 0, // #502 — over assayed metres
+          avgGrade: wg?.weighted ? wg.grade : lengthGrade, // #502 — over assayed metres
+          ...(wg ? { weighting: wg.weighted ? "density" : "length", avgGradeByLength: lengthGrade, meanDensity: wg.meanRho, noDensityM: wg.noDensityM, noDensityN: wg.noDensityN } : {}),
           intervals: current.subs.filter((r) => !r.unsampled && r.value != null && r.value >= cutoff && !r.lt).length,
           // TASKS.csv #332 — metres inside the intercept with no result for this element (unsampled core, or
           // not assayed / a negative no-data code); #502: excluded from the grade, reported here.
@@ -848,7 +854,7 @@ export function avgGradeInRange(assays, hole_id, from, to, symbol, unit, element
 // table is grouped by hole ONCE (same #331 duplicate rule), each hole's segments are resolved once per
 // element and unit (same resolveAssaySegments), and a window is a binary search plus a short sum. Same
 // numbers as avgGradeInRange (test/geochem.test.mjs compares them).
-export function makeRangeAverager(assays, elementUnits) {
+export function makeRangeAverager(assays, elementUnits, densityAt = null) { // densityAt: TASKS.csv #3562 — the average weighted by length x density
   const EPS = 1e-6;
   const { byHole } = groupAssayRowsByHole(assays);
   const cache = new Map(); // `${hole}|${symbol}|${unit}` -> segments sorted by depth
@@ -861,15 +867,19 @@ export function makeRangeAverager(assays, elementUnits) {
     let lo = 0, hi = segs.length; // first segment ending after `from`
     while (lo < hi) { const m = (lo + hi) >> 1; if (segs[m].to <= from + EPS) lo = m + 1; else hi = m; }
     let weighted = 0, coveredWidth = 0;
+    const parts = densityAt ? [] : null;
     for (let i = lo; i < segs.length && segs[i].from < to - EPS; i++) {
       const sg = segs[i];
       if (sg.value == null) continue;
-      const overlap = Math.min(sg.to, to) - Math.max(sg.from, from);
+      const a0 = Math.max(sg.from, from), b0 = Math.min(sg.to, to), overlap = b0 - a0;
       if (overlap <= EPS) continue;
       weighted += sg.value * overlap;
       coveredWidth += overlap;
+      if (parts) parts.push({ v: sg.value, w: overlap, rho: densityAt(hole_id, a0, b0) });
     }
-    return coveredWidth <= EPS ? null : weighted / coveredWidth;
+    if (coveredWidth <= EPS) return null;
+    if (parts) { const wg = weightedGrade(parts); if (wg.weighted) return wg.grade; }
+    return weighted / coveredWidth;
   };
 }
 
@@ -946,6 +956,7 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
   const domainRows = opts.domainRows ?? null; // [{hole_id, from, to, value}] | null — e.g. a litho layer
   // TASKS.csv #1571 — a cap per domain value ({ value: cap }); a composite never spans two domains, so its domain's cap applies, else capValue
   const capByDomain = opts.capByDomain && domainRows ? opts.capByDomain : null;
+  const densityAt = opts.densityAt || null; // TASKS.csv #3562 / #3567 — weight each composite's grade by length x density, and report the composite's density
   const EPS = 1e-6;
   if (length <= 0) return [];
   // TASKS.csv #3269 (Galore Creek review) — opts.stats ({}): filled with { readings, leftOut }: the resolved readings with a value, and those no
@@ -1032,15 +1043,31 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
       const segStart = sortedAnchors[a], segEnd = sortedAnchors[a + 1];
       for (let d = segStart + length; d < segEnd - EPS; d += length) breaks.add(round6(d));
     }
+    // TASKS.csv #3575 (Fireweed / Macpass rehearsal) — the short piece at the end of each hole (or domain interval) was always kept, down to a '0.00 m' composite:
+    // opts.shortEnd 'merge' joins a piece shorter than opts.minEnd to the composite above it (that one runs up to length + minEnd), 'drop' leaves it out, 'keep' (the default) keeps it
+    const shortEnd = opts.shortEnd === "merge" || opts.shortEnd === "drop" ? opts.shortEnd : "keep", minEnd = Math.min(Number(opts.minEnd) || 0, length);
+    const dropStarts = new Set();
+    if (shortEnd !== "keep" && minEnd > 0) {
+      for (let a = 0; a < sortedAnchors.length - 1; a++) {
+        const pts = Array.from(breaks).filter((d) => d >= sortedAnchors[a] - EPS && d <= sortedAnchors[a + 1] + EPS).sort((x, y) => x - y), n = pts.length;
+        if (n < 2) continue;
+        const last = pts[n - 1] - pts[n - 2];
+        if (!(last < length - EPS && last < minEnd - EPS)) continue;
+        if (shortEnd === "drop") { dropStarts.add(pts[n - 2]); if (stats) stats.shortEndsDropped = (stats.shortEndsDropped || 0) + 1; }
+        else if (n >= 3) { breaks.delete(pts[n - 2]); if (stats) stats.shortEndsMerged = (stats.shortEndsMerged || 0) + 1; }
+      }
+    }
+    const longest = length + (shortEnd === "merge" ? minEnd : 0);
     const sortedBreaks = Array.from(breaks).filter((d) => d >= holeStart - EPS && d <= holeEnd + EPS).sort((a, b) => a - b);
 
     for (let i = 0; i < sortedBreaks.length - 1; i++) {
       let from = sortedBreaks[i], to = sortedBreaks[i + 1];
       if (to - from <= EPS) continue;
+      if (dropStarts.has(from)) continue; // #3575
       // a segment between two consecutive fixed-length/domain breaks can still be longer than `length`
       // if no domain break fell inside it (the fixed-length breaks already prevent that in practice,
       // but guard anyway) — clip to `length` from `from` if so.
-      if (to - from > length + EPS) to = from + length;
+      if (to - from > longest + EPS) to = from + length;
 
       // TASKS.csv #532 — from the hole's resolved segments (resolveAssaySegments, as intercepts since #331): every metre
       // counted once, conflicting results averaged and their metres reported. Summing every overlapping row counted
@@ -1048,6 +1075,7 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
       // any minCoverage with 1 of 2 m sampled.
       while (segIdx < segs.length && segs[segIdx].to <= from + EPS) segIdx++;
       let gradeLen = 0, coveredLen = 0, conflictLen = 0;
+      const dparts = densityAt ? [] : null;
       const touched = stats ? [] : null; // TASKS.csv #3269 — the readings this window takes, marked used if it is kept
       const dHere = domRows ? domainAt(domRows, (from + to) / 2) : null;
       const capHere = capByDomain && dHere != null && Number(capByDomain[String(dHere)]) > 0 ? Number(capByDomain[String(dHere)]) : capValue; // #1571
@@ -1058,12 +1086,13 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
         const v = capHere != null && g.value > capHere ? capHere : g.value;
         gradeLen += v * ov;
         coveredLen += ov;
+        if (dparts) dparts.push({ v, w: ov, rho: densityAt(hole_id, Math.max(g.from, from), Math.min(g.to, to)) });
         if (g.conflict) conflictLen += ov;
         if (touched) touched.push(g);
       }
       const segLen = to - from;
       const coverage = segLen > 0 ? Math.min(1, coveredLen / segLen) : 0;
-      if (coverage < minCoverage - EPS) continue; // too little real sample material in this segment
+      if (coverage < minCoverage - EPS) { if (stats && coveredLen > EPS) stats.underCovered = (stats.underCovered || 0) + 1; continue; } // too little real sample material in this segment; #3575 — counted, so the dialog can say how many windows that held some sample were left out
       // TASKS.csv #657 — a window with NO assayed material is not a composite at any minCoverage: at 0 % it used to be
       // kept with grade 0 and coverage 0 (Harry Au, 2 m: 2,402 of 6,362 composites), and those zeros fed estimates,
       // grade shells, the variogram and the composite CSV.
@@ -1075,9 +1104,11 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
       // sampling), not "assayed and genuinely low-grade", so folding it in as a zero would understate
       // the composite. `coverage` is reported alongside so a caller can filter/flag thin-data composites
       // instead of having that silently baked into the grade number.
+      const wg = dparts ? weightedGrade(dparts) : null;
       composites.push({
         hole_id, from, to, length: segLen,
-        avgGrade: coveredLen > 0 ? gradeLen / coveredLen : 0,
+        avgGrade: wg?.weighted ? wg.grade : coveredLen > 0 ? gradeLen / coveredLen : 0,
+        ...(wg ? { weighting: wg.weighted ? "density" : "length", meanDensity: wg.meanRho, noDensityM: wg.noDensityM } : {}),
         coverage,
         conflictLength: conflictLen, // #532 — metres where overlapping rows disagreed (averaged)
         domain: domRows ? domainAt(domRows, (from + to) / 2) : null,

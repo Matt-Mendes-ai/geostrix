@@ -22,7 +22,7 @@ test("wiring: both boxes, their headings, the equivalent and the element's own c
   assert.match(s, /setIncludeCutoff\(e\.target\.value === "" \? "" : String\(toStored\(Number\(e\.target\.value\)\)\)\)/);
   assert.match(s, /tr\("\{symbol\}Eq \(\{unit\}\)", \{ symbol, unit: dispUnit/);
   assert.match(s, /\+dg\(v\)\.toPrecision\(4\)/);
-  assert.match(s, /s === symbol && pct \? dispUnit : elementUnits\[s\]/);
+  assert.match(s, /s === symbol && pct \? dispUnit : gradeUnitLabel\(s, elementUnits\[s\] \|\| \"ppm\"\)/);
   assert.match(s, /\(s === symbol \? dg\(r\.extras\[s\]\) : r\.extras\[s\]\)/);
   assert.doesNotMatch(s, /The cutoff stays in ppm\./);
 });

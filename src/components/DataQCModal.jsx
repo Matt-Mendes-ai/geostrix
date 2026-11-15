@@ -4,6 +4,8 @@ import { useStore } from "../lib/store.jsx";
 import { runDataQCSliced, collarTerrainOffsets, qcIssueRows, qcSorted, DOGLEG_ERROR_DEFAULT } from "../lib/dataQC.js"; // qcIssueRows: #1111; Sliced: #3136
 import { saveFile } from "../lib/desktop.js";
 import { openHelp } from "../lib/help.js"; // TASKS.csv #3528
+import { openDataTable } from "../lib/dataTableRequests.js"; // TASKS.csv #3569
+import { qcKey, qcTableRequest, loadChecked, saveChecked } from "../lib/qcActions.js";
 import { toExportCsv } from "../lib/tabular.js";
 import { stampLines, withStamp, stampEpsg } from "../lib/provenance.js";
 import { normalizeDesurveyMethod } from "../lib/desurvey.js";
@@ -35,10 +37,10 @@ const SEVERITY_META = {
 
 const NOT_YET = { issues: [], byCategory: new Map(), summary: {} }; // #3099 — before the check has run
 
-export default function DataQCModal({ onCancel }) {
+export default function DataQCModal({ onCancel, onZoomHole = null /* TASKS.csv #3569 — find the hole in 3D */ }) {
   useEscapeKey(onCancel); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
-  const { project, collars, survey, layers, boundaries, assays, terrain, setCollars, customLayers } = useStore(); // customLayers: #2493
+  const { project, collars, survey, layers, boundaries, assays, assayElements, terrain, setCollars, customLayers } = useStore(); // customLayers: #2493; assayElements: #3569
   // TASKS.csv #558 — collars vs the loaded terrain, with an adjustable threshold and an (undoable) snap
   const [terrainThreshold, setTerrainThreshold] = useState(15);
   // TASKS.csv #723 — the dogleg warning level (deg per 30 m), remembered on this computer: ordinary deviated
@@ -46,7 +48,7 @@ export default function DataQCModal({ onCancel }) {
   const [doglegWarn, setDoglegWarn] = useState(() => { try { return Number(localStorage.getItem("geostrix.qc.doglegWarn")) || 3; } catch { return 3; } });
   useEffect(() => { try { if (Number(doglegWarn) > 0) localStorage.setItem("geostrix.qc.doglegWarn", String(doglegWarn)); } catch { /* storage unavailable */ } }, [doglegWarn]);
   const warnDeg = Number(doglegWarn) > 0 ? Number(doglegWarn) : 3;
-  const qcArgs = () => ({ project, collars, survey, layers, boundaries, assays, terrain, customLayers, terrainThreshold: Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15, doglegWarn: warnDeg, doglegError: Math.max(DOGLEG_ERROR_DEFAULT, warnDeg) }); // #3526 — 20°/30 m, not 10
+  const qcArgs = () => ({ project, collars, survey, layers, boundaries, assays, assayElements, terrain, customLayers, terrainThreshold: Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15, doglegWarn: warnDeg, doglegError: Math.max(DOGLEG_ERROR_DEFAULT, warnDeg) }); // #3526 — 20°/30 m, not 10
   const ranWith = useRef(null); // TASKS.csv #1269 — the thresholds of the run on screen: the export's stamp must describe its issues, not the boxes
   // TASKS.csv #3136 — the check runs a slice at a time (lib/dataQC.js runDataQCSliced): the window keeps painting and taking input, the
   // status line says how far it is, and a newer run (Re-run, a snap to the terrain, closing the dialog) supersedes the one under way
@@ -75,11 +77,16 @@ export default function DataQCModal({ onCancel }) {
   const rerunAfterSnap = useRef(false);
   useEffect(() => { if (rerunAfterSnap.current) { rerunAfterSnap.current = false; check(); } }, [collars]);
   const [filter, setFilter] = useState(new Set(["error", "warning", "info"]));
+  // TASKS.csv #3569 — rows marked as checked (kept on this computer, per project): dimmed, or left out of the list with the box
+  const [checked, setChecked] = useState(() => loadChecked(project?.name));
+  const [hideChecked, setHideChecked] = useState(false);
+  const toggleChecked = (issue) => setChecked((p) => { const n = new Set(p); const k = qcKey(issue); if (n.has(k)) n.delete(k); else n.add(k); saveChecked(project?.name, n); return n; });
   const [categoryFilter, setCategoryFilter] = useState("all");
 
   const categories = useMemo(() => Array.from(result.byCategory.keys()).sort(), [result]);
   // TASKS.csv #3526 — worst first: errors, then warnings, then notes, and within each the ordinary rows before the survey bends (flagged minor, a row per hole); the order they came in otherwise
-  const shown = useMemo(() => qcSorted(result.issues.filter((i) => filter.has(i.severity) && (categoryFilter === "all" || i.category === categoryFilter))), [result, filter, categoryFilter]);
+  const shown = useMemo(() => qcSorted(result.issues.filter((i) => filter.has(i.severity) && (categoryFilter === "all" || i.category === categoryFilter) && !(hideChecked && checked.has(qcKey(i))))), [result, filter, categoryFilter, hideChecked, checked]);
+  const checkedHere = useMemo(() => result.issues.reduce((n, i) => n + (checked.has(qcKey(i)) ? 1 : 0), 0), [result, checked]);
 
   // TASKS.csv #1111 — every issue (not just the filtered view) as a CSV, stamped with the project, CRS, desurvey method,
   // the thresholds used and the counts
@@ -132,6 +139,7 @@ export default function DataQCModal({ onCancel }) {
               {categories.map((c) => <option key={c} value={c}>{tr(c)} ({result.byCategory.get(c).length})</option>)}
             </select>
           )}
+          {checkedHere > 0 && <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 10, cursor: "pointer" }}><input type="checkbox" checked={hideChecked} onChange={(e) => setHideChecked(e.target.checked)} />{tr("Hide the {n} rows marked as checked", { n: checkedHere })}</label> /* TASKS.csv #3569 */}
         </div>
 
         {!ran ? null /* #3532 — nothing is said (not "No issues found") until a result exists */ : result.issues.length === 0 ? (
@@ -145,11 +153,19 @@ export default function DataQCModal({ onCancel }) {
               const meta = SEVERITY_META[issue.severity];
               const Icon = meta.icon;
               return (
-                <div key={startIndex + i} style={{ display: "flex", gap: 8, padding: "7px 8px", borderBottom: "1px solid var(--color-border-subtle)", height: ISSUE_ROW_H, boxSizing: "border-box" }}>
+                <div key={startIndex + i} style={{ display: "flex", gap: 8, padding: "7px 8px", borderBottom: "1px solid var(--color-border-subtle)", height: ISSUE_ROW_H, boxSizing: "border-box", opacity: checked.has(qcKey(issue)) ? 0.5 : 1 }}>
                   <Icon size={14} color={meta.color} style={{ flexShrink: 0, marginTop: 2 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)", lineHeight: 1.5, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{issue.message}</div>
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 1 }}>{issue.category}{issue.holeId ? ` — ${issue.holeId}` : ""}</div>
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 1 }}>{issue.category}{issue.holeId ? ` — ${issue.holeId}` : ""}{checked.has(qcKey(issue)) ? ` · ${tr("checked")}` : ""}</div>
+                  </div>
+                  {/* TASKS.csv #3569 — a row can be acted on: its interval in the table, its hole in 3D, marked as checked (undone by the same button) */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2, flexShrink: 0, justifyContent: "center" }}>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      {qcTableRequest(issue) && <button type="button" style={rowBtn} onClick={() => openDataTable(qcTableRequest(issue))} title={tr("Open the table at this row")}>{tr("Table")}</button>}
+                      {onZoomHole && issue.holeId && <button type="button" style={rowBtn} onClick={() => onZoomHole(issue.holeId)} title={tr("Find the hole in the 3D view")}>{tr("Find")}</button>}
+                    </div>
+                    <button type="button" style={rowBtn} onClick={() => toggleChecked(issue)} aria-pressed={checked.has(qcKey(issue))} title={tr("Mark as checked and kept (kept on this computer; click again to undo)")}>{checked.has(qcKey(issue)) ? tr("Unmark") : tr("Checked")}</button>
                   </div>
                 </div>
               );
@@ -179,4 +195,5 @@ export default function DataQCModal({ onCancel }) {
 const panel = { width: "min(640px, 92vw)", maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "'Exo 2', system-ui, sans-serif" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 9px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
+const rowBtn = { padding: "1px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)", fontSize: "var(--font-size-xs)", cursor: "pointer", fontFamily: "inherit" };
 const rerunBtn = { display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer" };

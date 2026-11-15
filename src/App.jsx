@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, Suspense } from "react
 import { sampleStatus } from "./lib/desktop.js"; // TASKS.csv #3100
 import { BC_SAMPLE_INFO } from "./lib/bcSamples.js"; // TASKS.csv #3100
 import { markSampleDownloaded } from "./lib/sampleCards.js"; // TASKS.csv #3100
+import { onDataTableOpen } from "./lib/dataTableRequests.js"; // TASKS.csv #3563
 import { openHelp, onHelpOpen, onShortcutsOpen } from "./lib/help.js"; // TASKS.csv #1966; shortcuts from the Help panel: #3534
 import { t as tr, LANGUAGES, currentLanguage, setLanguage } from "./lib/i18n.js"; // TASKS.csv #786 — "tr": t is a common local name here
 import { oncePerWindow } from "./lib/oncePerWindow.js"; // TASKS.csv #1163
@@ -41,6 +42,7 @@ const LayoutModule = React.lazy(() => import("./modules/LayoutModule.jsx"));
 // as the tab modules above rather than pulling it (and papaparse's CSV-building path it shares with
 // everything else, already loaded regardless) into the eagerly-loaded main bundle for no benefit.
 const ShortcutsModal = React.lazy(() => import("./components/ShortcutsModal.jsx")); // TASKS.csv #476
+const DrillTableModal = React.lazy(() => import("./components/DrillTableModal.jsx")); // TASKS.csv #3563 — the assays / interval layers as a table
 const HelpPane = React.lazy(() => import("./components/HelpPane.jsx")); // TASKS.csv #1966 — offline help, loaded on first use
 const ReportProblemModal = React.lazy(() => import("./components/ReportProblemModal.jsx")); // TASKS.csv #598
 const LicensesModal = React.lazy(() => import("./components/LicensesModal.jsx")); // TASKS.csv #639
@@ -166,6 +168,8 @@ export default function App() {
   // TASKS.csv #2177 — a table too large for memory: its columns chosen before the read (lib/tabular.js asks)
   const [subsetRequest, setSubsetRequest] = useState(null);
   useEffect(() => onTableSubsetRequest((d) => setSubsetRequest(d)), []);
+  const [dataTable, setDataTable] = useState(null); // TASKS.csv #3563 — { source, hole, from, to } while the data table is open
+  useEffect(() => onDataTableOpen((req) => setDataTable({ ...req, n: Date.now() })), []);
   const [shortcutsTab, setShortcutsTab] = useState(null); // null | "shortcuts" | "python" (#391) | "about"
   const [helpAt, setHelpAt] = useState(null); // TASKS.csv #1966 — { id, n } while the Help panel is open (n re-opens it at a new page)
   useEffect(() => onHelpOpen((id) => setHelpAt({ id, n: Date.now() })), []);
@@ -646,6 +650,7 @@ export default function App() {
       {sampleAsk && <Suspense fallback={null}><SampleDownloadModal id={sampleAsk} onClose={() => setSampleAsk(null)} onReady={(which) => { setSampleAsk(null); markSampleDownloaded(which); requestSampleProject(which); setActive(which === "perk" ? "surface" : "viewer"); }} /></Suspense>}{/* #3100 */}
       {reportProblem && <Suspense fallback={null}><ReportProblemModal screenshot={reportProblem.screenshot} crashed={reportProblem.crashed} onClose={() => setReportProblem(null)} /></Suspense>}
       {helpAt && <Suspense fallback={null}><HelpPane key={helpAt.n} initialId={helpAt.id} onClose={() => setHelpAt(null)} /></Suspense>}{/* #1966 */}
+      {dataTable && <Suspense fallback={null}><DrillTableModal key={dataTable.n} request={dataTable} onClose={() => setDataTable(null)} /></Suspense>}
       {shortcutsTab && <Suspense fallback={null}><ShortcutsModal initialTab={shortcutsTab} pyStatus={pyStatus} onClose={() => setShortcutsTab(null)} /></Suspense>}
       {showUpdatePrompt && <Suspense fallback={null}><UpdatePrompt updater={upd} onLater={() => setUpdateLater((s) => new Set(s).add(`${upd.version || ""}|${updateStage}`))} /></Suspense>}{/* TASKS.csv #915 */}
       {kmzOpen && <Suspense fallback={null}><ProjectKmzDialog store={store} onExport={runKmzExport} onClose={() => setKmzOpen(false)} /></Suspense>}{/* TASKS.csv #3087 */}

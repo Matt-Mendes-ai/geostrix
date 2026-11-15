@@ -23,8 +23,9 @@ import view from "./pages/view.js";
 import surface from "./pages/surface.js";
 import targeting from "./pages/targeting.js";
 import data from "./pages/data.js"; // first project, importing drillholes / assays / density, Data QC
+import everyday from "./pages/everyday.js"; // TASKS.csv #3556 / #3578 — the everyday 3D view and the Geochem report tools
 
-export const PAGES = [...start, ...data, ...geophysics, ...maps, ...mineDesign, ...modelling, ...view, ...surface, ...targeting];
+export const PAGES = [...start, ...data, ...everyday, ...geophysics, ...maps, ...mineDesign, ...modelling, ...view, ...surface, ...targeting];
 export const pageById = (id) => PAGES.find((p) => p.id === id) || null;
 
 // every searchable string of a page, lower-cased, computed once

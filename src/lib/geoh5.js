@@ -152,10 +152,25 @@ function fromToSets(data) {
     return { from: p.rows.map((i) => Number(p.f.values[i])), to: p.rows.map((i) => Number(p.to.values[i])), columns: Object.fromEntries(owned[j].map((a) => [a.name, pickRows(a.values)])) };
   });
 }
+// the drillhole export step — every vertex carries a DEPTH (objects.rst), the intervals' ends too: the point rows are the vertices where some other vertex data has a
+// value; none with values (or no other vertex data) -> null
+function pointRows(t) {
+  if (!t) return null;
+  const cols = Object.entries(t.columns);
+  if (!cols.length) return null;
+  const keep = t.depth.map((_, i) => i).filter((i) => cols.some(([, v]) => !isBlank(v[i])));
+  if (!keep.length) return null;
+  if (keep.length === t.depth.length) return t;
+  return { depth: keep.map((i) => t.depth[i]), columns: Object.fromEntries(cols.map(([k, v]) => [k, v instanceof Float64Array ? Float64Array.from(keep, (i) => v[i]) : keep.map((i) => v[i])])) };
+}
 function drillhole(obj, data, name) {
   const collar = xyz(attrOf(obj, "Collar"));
   const surveys = [];
-  for (const row of getSafe(obj, "Surveys")?.value || []) { const r = Array.isArray(row) ? row : [row]; const d = Number(r[0]), az = Number(r[1]), dip = Number(r[2]); if (Number.isFinite(d)) surveys.push([d, az, dip]); }
+  // the drillhole export step — the members by name (objects.rst lists Depth, Dip, Azimuth; files in the wild have Depth, Azimuth, Dip): positions only when unnamed
+  const sds = getSafe(obj, "Surveys"), members = (() => { try { return (sds?.metadata?.compound_type?.members || []).map((m) => String(m?.name || "").trim().toLowerCase()); } catch { return []; } })();
+  const at = (n, d) => { const i = members.indexOf(n); return i >= 0 ? i : d; };
+  const iD = at("depth", 0), iAz = at("azimuth", members.length ? 2 : 1), iDip = at("dip", members.length ? 1 : 2);
+  for (const row of sds?.value || []) { const r = Array.isArray(row) ? row : [row]; const d = Number(r[iD]), az = Number(r[iAz]), dip = Number(r[iDip]); if (Number.isFinite(d)) surveys.push([d, az, dip]); }
   surveys.sort((a, b) => a[0] - b[0]);
   const table = (assoc, keys) => {
     const at = keys.map((k) => pick(data, assoc, k));
@@ -166,7 +181,7 @@ function drillhole(obj, data, name) {
     for (const a of data) if (a.association === assoc && !used.has(a) && a.values.length === n && !(a.name in columns)) columns[a.name] = a.values;
     return { ...Object.fromEntries(keys.map((k, i) => [k.toLowerCase(), Array.from(at[i].values, Number)])), columns };
   };
-  const intervalSets = fromToSets(data), points = table("vertex", ["DEPTH"]);
+  const intervalSets = fromToSets(data), points = pointRows(table("vertex", ["DEPTH"]));
   return { kind: "drillhole", name, collar, azimuth: num(attrOf(obj, "Collar azimuth"), NaN), dip: num(attrOf(obj, "Collar dip"), NaN), endOfHole: num(attrOf(obj, "End of hole"), NaN), surveys, intervals: intervalSets[0] || null, intervalSets, points };
 }
 

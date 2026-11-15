@@ -103,7 +103,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
   const [tiles, setTiles] = useState({});
   // TASKS.csv #1745 / #2426 — which interval log the columns (and the correlation bands) show: Lithology only, it joined sand to sand
   // across units on a palaeochannel whose stratigraphic unit is a custom layer
-  const { layers: storeLayers = {}, customLayers = [], assays = [], assayElements = [] } = useStore() || {}; // assays: #2786
+  const { layers: storeLayers = {}, customLayers = [], assays = [], assayElements = [], project: fenceProject } = useStore() || {}; // assays: #2786; project: #3573
   const showSources = useMemo(() => [
     { key: "litho", label: tr("Lithology") },
     ...((storeLayers.alt || []).length ? [{ key: "alt", label: tr("Alteration") }] : []),
@@ -117,7 +117,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
   const colorOf = (v) => (showSrc?.key === "alt" ? colorForAlteration(v) : showSrc?.key === "vein" ? colorForVein(v) : showSrc?.key === "weath" ? colorForWeathering(v) : showSrc?.layer ? customCodeColour(showSrc.layer, "value", v) : colorForLithology(v));
 
   // TASKS.csv #2786 — a numeric track beside each column: an assay element or a numeric log, one scale for the panel (lib/fenceTrack.js)
-  const trackSources = useMemo(() => numericTrackSources({ layers: storeLayers, customLayers, assays, assayElements }, tr), [storeLayers, customLayers, assays, assayElements]);
+  const trackSources = useMemo(() => numericTrackSources({ layers: storeLayers, customLayers, assays, assayElements, displayUnits: fenceProject?.displayUnits }, tr), [storeLayers, customLayers, assays, assayElements, fenceProject?.displayUnits]);
   const [trackKey, setTrackKey] = useState("");
   const [trackLog, setTrackLog] = useState(false); // #2813 — a log scale for skewed values (gamma, grades)
   const trackSrc = trackSources.find((x) => x.key === trackKey) || null;

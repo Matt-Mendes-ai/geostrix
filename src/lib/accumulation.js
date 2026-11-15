@@ -153,3 +153,19 @@ export function gtUnitLabel(gradeLabel, oxide = null) {
   const base = g === "%" ? "m%" : `m·${g}`;
   return oxide ? `${base} ${oxide}` : base;
 }
+
+// TASKS.csv #3566 (Fireweed / Macpass rehearsal) — 'Total per hole' left out the 'Also show' elements that were ticked. Each element's mean over a hole's intercepts,
+// weighted by the intercepts' downhole lengths (an intercept's value is already its own length-weighted mean over its window); an intercept with no value for the element
+// is left out of that element's mean. -> Map(hole_id -> { symbol: mean | null })
+export function holeExtraMeans(intercepts, symbols) {
+  const acc = new Map();
+  for (const r of intercepts || []) {
+    let h = acc.get(r.hole_id);
+    if (!h) acc.set(r.hole_id, (h = Object.fromEntries((symbols || []).map((s) => [s, { n: 0, w: 0 }]))));
+    const w = Number(r.length) || 0;
+    for (const s of symbols || []) { const v = r.extras?.[s]; if (v != null && Number.isFinite(Number(v)) && w > 0) { h[s].n += Number(v) * w; h[s].w += w; } }
+  }
+  const out = new Map();
+  acc.forEach((h, id) => out.set(id, Object.fromEntries(Object.entries(h).map(([s, a]) => [s, a.w > 0 ? a.n / a.w : null]))));
+  return out;
+}

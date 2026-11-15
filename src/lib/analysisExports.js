@@ -23,7 +23,7 @@ export function gradeStatsRows(groups, { unit, label = (k) => k, weighted }) {
   const u = String(unit).replace(/[^\w]+/g, "_");
   return groups.map((g) => ({
     domain: label(g.key),
-    n: g.stats.n, [`mean_${u}`]: g.stats.mean.toFixed(4), [`median_${u}`]: g.stats.median.toFixed(4),
+    n: g.stats.n, [`mean_${u}`]: g.stats.mean.toFixed(4), ...(weighted && g.plainMean != null ? { [`mean_unweighted_${u}`]: g.plainMean.toFixed(4) } : {}) /* #3576 */, [`median_${u}`]: g.stats.median.toFixed(4),
     [`stdev_${u}`]: g.stats.stdev.toFixed(4), cv_pct: g.stats.cv == null ? "" : g.stats.cv.toFixed(1),
     [`min_${u}`]: g.stats.min.toFixed(4), [`max_${u}`]: g.stats.max.toFixed(4), [`q1_${u}`]: g.stats.q1.toFixed(4), [`q3_${u}`]: g.stats.q3.toFixed(4),
     basis: weighted ? "length-weighted (assay interval length)" : "unweighted arithmetic",

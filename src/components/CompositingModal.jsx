@@ -1,17 +1,21 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { openHelp } from "../lib/help.js"; // TASKS.csv #3578
 import { unsampledWord } from "../lib/holeType.js"; // TASKS.csv #3513
 import { X, Download } from "./icons.js";
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — the project's lead commodity
 import { customDomainOptions, isCategoricalLayer, attributeDomainOptions, attributeDomainLabel } from "../lib/customDomains.js"; // TASKS.csv #1678; #1515; attributes: #2504
 import { displayUnitOf, toDisplay, fromDisplay } from "../lib/displayUnits.js"; // TASKS.csv #3475
-import { compositeDownhole, countDuplicateAssayIntervals, capAudit, capAuditText, gradeUnitLabel } from "../lib/geochem.js"; // gradeUnitLabel: #1680
+import { countDuplicateAssayIntervals, capAudit, capAuditText, gradeUnitLabel } from "../lib/geochem.js"; // gradeUnitLabel: #1680
+import { compositeSet, compositeLayerRows, compositeSetCsvRows } from "../lib/compositeSet.js"; // TASKS.csv #3567 — every element in one run
+import { densityLookup } from "../lib/densityWeight.js"; // TASKS.csv #3562 — grades weighted by length x density
+import { spreadFormat } from "../lib/interceptTable.js"; // TASKS.csv #3579 — one number of decimals per column
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import { excludeQAQC, labAssays, classifyQAQCRow } from "../lib/qaqc.js"; // classifyQAQCRow: #1801
 import { commonestSampleLength } from "../lib/sampleLength.js"; // TASKS.csv #1801
 import { stampLines, withStamp, ASSAY_READING_RULES, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #404
 import { desurveyHole } from "../lib/desurvey.js"; // TASKS.csv #411
-import { compositeRows } from "../lib/drillReportExport.js"; // TASKS.csv #1083
+import { compositeRows, sig6 } from "../lib/drillReportExport.js"; // TASKS.csv #1083
 import { useStore } from "../lib/store.jsx";
 import { version as APP_VERSION } from "../../package.json";
 import { useVirtualRows } from "../lib/useVirtualRows.js";
@@ -40,7 +44,7 @@ const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "weath", "structzo
 export default function CompositingModal({ assays: assaysIn, assayElements, layers, onClose }) {
   const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
   // TASKS.csv #411 — composites go out with from/to/mid XYZ on the project's own desurveyed traces.
-  const { collars, survey, desurveyMethod, project, getProjectToken, setLastCompositing } = useStore(); // getProjectToken: #2224; setLastCompositing: #2883
+  const { collars, survey, desurveyMethod, project, getProjectToken, setLastCompositing, setCustomLayers } = useStore(); // setCustomLayers: #3567 // getProjectToken: #2224; setLastCompositing: #2883
   const chips = unsampledWord(collars) === "chips"; // TASKS.csv #3513 — 'unsampled chips' on RC / aircore holes, as the Estimation says it (#3507)
   const tracesByHole = useMemo(() => {
     const byHole = new Map();
@@ -65,6 +69,15 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
   const usual = useMemo(() => commonestSampleLength(assays, (a) => classifyQAQCRow(a) !== "regular"), [assays]);
   const [length, setLength] = useState(() => usual?.length || 2);
   const [minCoverage, setMinCoverage] = useState(0.5);
+  // TASKS.csv #3567 — the other elements composited in the same run; #3562 — the weighting; #3575 — what to do with the short piece at a hole's (or domain's) end
+  const [extraSyms, setExtraSyms] = useState([]);
+  const syms = useMemo(() => [symbol, ...extraSyms.filter((x) => x !== symbol && symbols.includes(x))], [symbol, extraSyms, assayElements]);
+  const density = useMemo(() => densityLookup(layers?.sg), [layers?.sg]);
+  const [weightBy, setWeightBy] = useState("length");
+  const [shortEnd, setShortEnd] = useState("keep");
+  const [minEnd, setMinEnd] = useState(1);
+  const [kept, setKept] = useState(null); // the text under 'Keep in the project'
+
   const [capValue, setCapValue] = useState("");
   const capStored = capValue === "" ? null : fromDisplay(Number(capValue), unit, shownUnit); // the cap box is in the shown unit
   const [domainKey, setDomainKey] = useState(""); // "" = no domain honoring
@@ -81,15 +94,25 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
   const domainRows = domainKey ? (customDomain ? customDomain.rows : layers[domainKey]) : null;
   const domainMeta = domainKey ? (customDomain ? { label: customDomain.label } : LAYER_META[domainKey]) : null;
 
+  const sh0 = (s, v) => (v == null || !Number.isFinite(v) ? v : s === symbol ? sh(v) : v); // the primary in its shown unit; the others as stored
   const results = useMemo(() => {
     if (!symbol || length <= 0) return [];
-    return compositeDownhole(compAssays, symbol, unit, elementUnits, {
+    return compositeSet(compAssays, syms, elementUnits, {
       length,
       minCoverage,
       capValue: capStored,
       domainRows,
-    });
-  }, [compAssays, symbol, unit, elementUnits, length, minCoverage, capStored, domainRows]);
+      shortEnd, minEnd,
+      densityAt: weightBy === "density" && density ? density : null,
+    }, density);
+  }, [compAssays, syms, symbol, unit, elementUnits, length, minCoverage, capStored, domainRows, shortEnd, minEnd, weightBy, density]);
+  const cs = results.stats || { perElement: {} };
+  const weightedOn = weightBy === "density" && !!density && results.some((r) => r.weighting === "density");
+  const shortCount = useMemo(() => results.filter((r) => r.length < length - 1e-6).length, [results, length]);
+  const noDensityN = useMemo(() => (density ? results.filter((r) => r.density == null).length : 0), [results, density]);
+  // one number of decimals per element column (a grade printed '0.006', '0.04867', '0.1', '0.2433' down one column)
+  const fmt = useMemo(() => Object.fromEntries(syms.map((s) => [s, spreadFormat(results.map((r) => (r.values[s] ? sh0(s, r.values[s].grade) : null)))])), [results, syms, project]);
+  const fmtDensity = useMemo(() => spreadFormat(results.map((r) => r.density), 4), [results]);
   // TASKS.csv #2224 — these settings, for Estimation and the grade shell to offer (this window and this project; not saved in the file)
   useEffect(() => {
     if (results.length) { // TASKS.csv #2883 — also kept in the project, so a reopen still offers them
@@ -107,14 +130,28 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
 
   const domainLabel = (v) => (domainKey === "litho" ? (UNIT_NAMES[v] || v) : v);
 
+  // TASKS.csv #3567 — 'Keep as a layer in the project': the composites as one numeric layer (value = the first element, a field per element and its coverage, the density)
+  const keepAsLayer = () => {
+    const rows = compositeLayerRows(results, syms);
+    if (!rows.length) { setKept(tr("No composite has a {symbol} grade: no layer was made.", { symbol })); return; }
+    const name = `Composites ${length} m: ${syms.join(" ")}`;
+    const notes = `Composites of ${syms.join(", ")} at ${length} m, min coverage ${Math.round(minCoverage * 100)} %, grades ${weightedOn ? "weighted by length x density" : "length-weighted"}${capStored == null ? "" : `, ${symbol} capped at ${capStored} ${unit}`}${domainKey ? `, breaking at ${domainMeta.label}` : ""}; short end piece: ${shortEnd === "merge" ? `added above when under ${minEnd} m` : shortEnd === "drop" ? `dropped when under ${minEnd} m` : "kept"}. Value is ${symbol} (${unit}); each element is a field in its own stored unit, with coverage_<element> in %.`;
+    setCustomLayers((p) => [...p, { id: `custom_${Date.now()}`, name: p.some((c) => c.name === name) ? `${name} (${p.filter((c) => String(c.name).startsWith(name)).length + 1})` : name, rows, unit: unit, notes }]);
+    setKept(tr("Added the layer \"{name}\": {n} composites. Colour it by an element, its coverage or the density in the layer's style; Estimation, Grade shell, Geochem X-Y and Statistics can read it.", { name, n: rows.length.toLocaleString() }));
+  };
+
   const exportCSV = () => {
-    const rows = compositeRows(results, { symbol, unit, traces: tracesByHole, domainColumn: domainKey ? domainMeta.label : null, domainLabel }); // #1083 — in lib, tested
+    const base = compositeRows(results, { symbol, unit, traces: tracesByHole, domainColumn: domainKey ? domainMeta.label : null, domainLabel }); // #1083 — in lib, tested
+    const rows = compositeSetCsvRows(results, syms, elementUnits, { base, sig6 }); // #3567 — every element, its coverage, the density
     // TASKS.csv #404 — the parameters behind these composites, at the top of the file.
     const stamp = stampLines({ tool: "Downhole compositing", version: APP_VERSION, epsg: stampEpsg(project) /* #2195 */, params: [
       `Coordinates: from/to/mid of each composite on traces desurveyed by ${desurveyMethod || "minimum curvature"} (blank = hole has no collar)`,
       `Element: ${symbol} (${unit}) | composite length: ${length} m | min coverage: ${Math.round(minCoverage * 100)}% | high-grade cap: ${capStored == null ? "none" : `${capStored} ${unit} (applied to raw intervals before compositing)`}`,
       ...(shownUnit !== unit ? [`Display unit: ${symbol} is shown in ${shownUnit} on screen; every value in this file is in ${unit} (as stored)`] : []), // #3475
       ...(capStored == null ? [] : [`Capping audit: ${capAuditText(capAudit(compAssays, symbol, unit, elementUnits, capStored), unit)}`]), // #533
+      `Grades: ${weightedOn ? "weighted by length x density (the project's Specific gravity layer; a sample with no density takes the mean of the others in the composite)" : "length-weighted over the assayed metres"}${syms.length > 1 ? ` | elements composited together on the same windows: ${syms.join(", ")} (a window an element did not keep, for coverage, is blank in its columns)` : ""}`, // #3562; #3567
+      `Short piece at a hole's or domain's end: ${shortEnd === "merge" ? `added to the composite above when under ${minEnd} m` : shortEnd === "drop" ? `dropped when under ${minEnd} m` : "kept at any length"}`, // #3575
+      `Windows that held some sample, left out for being under ${Math.round(minCoverage * 100)} % covered (${symbol}): ${cs.perElement?.[symbol]?.underCovered ?? 0}`, // #3575
       `Domain boundaries honoured: ${domainKey ? domainMeta.label : "no"}`,
       `QAQC inserts: ${includeQAQC ? "INCLUDED" : `excluded (${qaqcExcludedCount} rows)`}`,
       dupInfo?.exactDuplicates ? `Exact-duplicate raw intervals dropped before weighting: ${dupInfo.exactDuplicates}` : null,
@@ -135,7 +172,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
             {pxrfLeft > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{n} pXRF reading(s) left out: the grades here come from lab assays only.", { n: pxrfLeft })}</div>}{/* #1673 */}
             </div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3578 — the help page of this dialog */}<button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("downhole-compositing")} aria-label={tr("Help: {name}", { name: tr("Downhole compositing") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
@@ -173,8 +210,27 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
               <CapAuditHint assays={compAssays} symbol={symbol} unit={unit} unitLabel={unitL} /* #2192: g/t beside the g/t field */ elementUnits={elementUnits} capValue={capStored} toShown={sh} /* #3475 */ onSetCap={(v) => setCapValue(String(Number(sh(v).toPrecision(4))))} />
             </div>
             <label style={fieldLabel} title={tr("Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be reported.")}>{tr("Min coverage (%)")}<input type="number" step="1" min="0" max="100" value={Math.round(minCoverage * 100)} onChange={(e) => setMinCoverage(Math.max(0, Math.min(100, Number(e.target.value) || 0)) / 100)} style={inp} />
+              {Math.round(minCoverage * 100) === 50 && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", fontWeight: 400 }}>{tr("50 is the tool's starting value")}</span>}{/* #3579 */}
             </label>
+            {density && <label style={fieldLabel} title={tr("How a composite's grade is averaged: by metres, or by metres times the density of each sample (the Specific gravity layer). A sample with no density takes the mean density of the others in the composite.")}>{tr("Weight grades by")}
+              <select value={weightBy} onChange={(e) => setWeightBy(e.target.value)} style={inp} aria-label={tr("Weight grades by")}>
+                <option value="length">{tr("Length")}</option>
+                <option value="density">{tr("Length × density")}</option>
+              </select>
+            </label>}
+            <label style={fieldLabel} title={tr("The short piece left at the end of a hole, or of a domain interval, when its length is not a whole number of composites: keep it as it is, add it to the composite above (that one runs a little longer), or leave it out.")}>{tr("Short end piece")}
+              <select value={shortEnd} onChange={(e) => setShortEnd(e.target.value)} style={inp} aria-label={tr("Short end piece")}>
+                <option value="keep">{tr("Keep")}</option>
+                <option value="merge">{tr("Add to the composite above")}</option>
+                <option value="drop">{tr("Drop")}</option>
+              </select>
+            </label>
+            {shortEnd !== "keep" && <label style={fieldLabel}>{tr("when under (m)")}<input type="number" step="any" min="0" value={minEnd} onChange={(e) => setMinEnd(Math.max(0, Number(e.target.value) || 0))} style={{ ...inp, width: 80 }} /></label>}
           </div>
+          {symbols.length > 1 && <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("Composite these elements in the same run, on the same windows: one table with each element's grade and coverage, and the density.")}>
+            <span>{tr("Also composite:")}</span>
+            {symbols.filter((s) => s !== symbol).slice(0, 16).map((s) => <label key={s} style={{ display: "flex", alignItems: "center", gap: 3, cursor: "pointer" }}><input type="checkbox" checked={extraSyms.includes(s)} onChange={() => setExtraSyms((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]))} />{s}</label>)}
+          </div>}{/* #3567 */}
 
           {symbols.length === 0 ? (
             <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No assay elements loaded — import assays first.")}</div>
@@ -189,25 +245,29 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
                     <th style={th}>{tr("From")}</th>
                     <th style={th}>{tr("To")}</th>
                     <th style={th}>{tr("Length (m)")}</th>
-                    <th style={th}>{tr("Avg {symbol} ({unit})", { symbol, unit: unitL })}</th>
+                    <th style={th}>{weightedOn ? tr("Avg {symbol} ({unit}, by length × density)", { symbol, unit: unitL }) : tr("Avg {symbol} ({unit})", { symbol, unit: unitL })}</th>
                     <th style={th}>{tr("Coverage")}</th>
+                    {syms.slice(1).map((s) => <React.Fragment key={s}><th style={th}>{tr("Avg {symbol} ({unit})", { symbol: s, unit: gradeUnitLabel(s, elementUnits[s] || "ppm") })}</th><th style={th}>{tr("{symbol} coverage", { symbol: s })}</th></React.Fragment>)}
+                    {density && <th style={th} title={tr("The Specific gravity layer's density over the composite, length-weighted")}>{tr("Density (t/m³)")}</th>}
                     {domainKey && <th style={th}>{domainMeta.label}</th>}
                   </tr>
                 </thead>
                 <tbody>
-                  {topPad > 0 && <tr style={{ height: topPad }}><td colSpan={domainKey ? 6 : 5} style={{ padding: 0, border: "none" }} /></tr>}
+                  {topPad > 0 && <tr style={{ height: topPad }}><td colSpan={5 + (syms.length - 1) * 2 + (density ? 1 : 0) + (domainKey ? 1 : 0)} style={{ padding: 0, border: "none" }} /></tr>}
                   {results.slice(startIndex, endIndex).map((r, i) => (
                     <tr key={startIndex + i} style={{ borderBottom: "1px solid var(--color-hover-bg)", height: RESULT_ROW_H, boxSizing: "border-box" }}>
                       <td style={td}>{r.hole_id}</td>
                       <td style={td}>{r.from.toFixed(2)}</td>
                       <td style={td}>{r.to.toFixed(2)}</td>
                       <td style={td}>{r.length.toFixed(2)}</td>
-                      <td style={{ ...td, fontWeight: 600, color: "var(--color-text)" }}>{+sh(r.avgGrade).toPrecision(4)}</td>
-                      <td style={{ ...td, color: r.coverage < 0.99 ? "#c9863d" : "var(--color-text-strong)" }}>{(r.coverage * 100).toFixed(0)}%</td>
+                      <td style={{ ...td, fontWeight: 600, color: "var(--color-text)" }}>{r.avgGrade == null ? "—" : fmt[symbol](sh(r.avgGrade))}</td>
+                      <td style={{ ...td, color: r.coverage != null && r.coverage < 0.99 ? "#c9863d" : "var(--color-text-strong)" }}>{r.coverage == null ? "—" : `${(r.coverage * 100).toFixed(0)}%`}</td>
+                      {syms.slice(1).map((s) => { const v = r.values[s]; return <React.Fragment key={s}><td style={td}>{v ? fmt[s](v.grade) : "—"}</td><td style={{ ...td, color: v && v.coverage < 0.99 ? "#c9863d" : "var(--color-text-strong)" }}>{v ? `${(v.coverage * 100).toFixed(0)}%` : "—"}</td></React.Fragment>; })}
+                      {density && <td style={td}>{r.density == null ? "—" : fmtDensity(r.density)}</td>}
                       {domainKey && <td style={td}>{r.domain != null ? domainLabel(r.domain) : "—"}</td>}
                     </tr>
                   ))}
-                  {bottomPad > 0 && <tr style={{ height: bottomPad }}><td colSpan={domainKey ? 6 : 5} style={{ padding: 0, border: "none" }} /></tr>}
+                  {bottomPad > 0 && <tr style={{ height: bottomPad }}><td colSpan={5 + (syms.length - 1) * 2 + (density ? 1 : 0) + (domainKey ? 1 : 0)} style={{ padding: 0, border: "none" }} /></tr>}
                 </tbody>
               </table>
             </div>
@@ -216,8 +276,18 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {tr(chips ? "{results} composite(s) from {assays} raw intervals. Composites are anchored to each hole's first sampled depth and stepped at the length above; a domain boundary or the hole's own start/end will shorten an individual composite below that length. Coverage below 100% means part of the composite falls in unsampled chips — its grade is the length-weighted average of the material that IS sampled (not diluted toward zero)." : "{results} composite(s) from {assays} raw intervals. Composites are anchored to each hole's first sampled depth and stepped at the length above; a domain boundary or the hole's own start/end will shorten an individual composite below that length. Coverage below 100% means part of the composite falls in unsampled core — its grade is the length-weighted average of the material that IS sampled (not diluted toward zero).", { results: results.length, assays: assays.length })}</div>
 
+          {results.length > 0 && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{/* TASKS.csv #3575 / #3562 / #3567 — what was done, counted */}
+            {(cs.perElement?.[symbol]?.underCovered || 0) > 0 && <div>{tr("{n} window(s) that held some {symbol} sample were left out for being under {pct} % covered.", { n: cs.perElement[symbol].underCovered.toLocaleString(), symbol, pct: Math.round(minCoverage * 100) })}</div>}
+            {shortCount > 0 && <div>{shortEnd === "keep" ? tr("{n} composite(s) are shorter than {len} m (the last piece of a hole or domain interval); 'Short end piece' can add them to the composite above or drop them.", { n: shortCount.toLocaleString(), len: length }) : tr("{n} composite(s) are shorter than {len} m (a piece that was not under {min} m, or a whole domain interval).", { n: shortCount.toLocaleString(), len: length, min: minEnd })}</div>}
+            {(cs.shortEndsMerged || 0) > 0 && <div>{tr("{n} short end piece(s) were added to the composite above.", { n: cs.shortEndsMerged.toLocaleString() })}</div>}
+            {(cs.shortEndsDropped || 0) > 0 && <div>{tr("{n} short end piece(s) were dropped.", { n: cs.shortEndsDropped.toLocaleString() })}</div>}
+            {weightedOn && <div>{tr("Grades are weighted by length × density (the project's Specific gravity layer).")}</div>}
+            {density && noDensityN > 0 && <div>{tr("{n} composite(s) have no density reading.", { n: noDensityN.toLocaleString() })}</div>}
+          </div>}
           <button onClick={exportCSV} disabled={results.length === 0} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: results.length === 0 ? 0.5 : 1 }}>
             <Download size={14} />{" "}{tr("Export composites (CSV)")}</button>
+          <button onClick={keepAsLayer} disabled={results.length === 0 || typeof setCustomLayers !== "function"} title={tr("Add these composites to the project as a numeric layer: the 3D View colours it by any field (each element, its coverage, the density), and Estimation, Grade shell, Geochem X-Y and Statistics read it.")} style={{ ...btn(false), alignSelf: "flex-start", padding: "7px 14px", opacity: results.length === 0 ? 0.5 : 1 }}>{tr("Keep as a layer in the project")}</button>{/* #3567 */}
+          {kept && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{kept}</div>}
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
@@ -228,7 +298,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
   );
 }
 
-const panel = { width: "min(920px, 95vw)", maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
+const panel = { width: "min(1300px, 96vw)", /* #3567 — room for each element's grade and coverage */ maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const fieldLabel = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", flexDirection: "column", gap: 4 };
 const inp = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit", width: 130 };

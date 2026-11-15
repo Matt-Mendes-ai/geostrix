@@ -1,0 +1,173 @@
+// The everyday 3D view (moving around, colouring, filtering, Identify, Measure, strip logs, sections) and the Geochem report tools (compositing, best intercepts, grade statistics,
+// QAQC), written from the notes the dialogs themselves carry (see src/help/content.js for the page format).
+export default [
+  {
+    id: "view-basics",
+    area: "3D View",
+    title: "3D view basics",
+    summary: "How to move around the 3D view, colour the holes by an assay, show only the holes you want, read a value, measure, cut a section and open a strip log. Most of it is a mouse gesture or a button of the 3D View ribbon; the Shortcuts list (the status bar's ? button, then Keyboard shortcuts) has every key.",
+    notFor: [
+      "It does not import data: for the collars, surveys, logs and assays see Import drillhole data and Import assays.",
+      "The mouse controls here are the 3D view's; Ctrl+= and Ctrl+- change the window's text size, not the view's zoom.",
+    ],
+    fields: [
+      { name: "Left-drag, right-drag, scroll", what: "Left-drag rotates (orbits) the view; right-drag, middle-drag or Shift+Left-drag pans; the scroll wheel zooms. With the 3D view focused (click it once), + and - zoom and Home fits the view.", choose: "Pan with right-drag when you are looking along a section; rotate with the left button to look at the pattern from another side." },
+      { name: "Fit / Top / vertical exaggeration", what: "Fit frames every hole shown; the view buttons put the camera looking down or along an axis; the vertical exaggeration stretches depth so thin units show.", choose: "Fit after changing what is shown; use exaggeration only to see flat units, and say so on a figure." },
+      { name: "Colour by an assay", what: "In the sidebar, turn an assay element on to colour the holes by its grade classes (the legend lists the classes and the unit); the classes are edited in its style dialog. A hole with no sample is left plain.", choose: "Pick the class limits from the distribution of your own grades (Grade statistics shows it), not from another project." },
+      { name: "Holes list and the hole filter", what: "The sidebar's Holes list ticks holes on and off; the filter box takes a hole id, a part of one, or a pick of a collar field (year, drill type, prospect). Check, Uncheck and Only these act on the holes listed.", choose: "Filter by year or hole type to compare campaigns; use Only these to isolate a fan of holes." },
+      { name: "Identify", what: "A click on a hole, interval, sample or surface reads its values: the interval's value with its unit, the layer, the depths and the fields kept with it (a density's method, a log's comment).", choose: "Use it before trusting a colour: it shows the number and the unit the colour stands for." },
+      { name: "Measure", what: "Click points on the model. Distance mode chains a running line and shows the total path length, the straight-line distance from the start, and the last segment's length, bearing and elevation change; Area mode builds a polygon and shows its plan-view area and perimeter. Switch with the Distance / Area pills in the readout; click the button again to stop.", choose: "Measure on the plan or on a clear 3D point; a perspective view is not a scale." },
+      { name: "Right-click menu", what: "A right-click (without dragging) on the view or a sidebar row opens its menu, for example Zoom to the holes. Shift+F10 or the Menu key opens it from the keyboard; arrows move, Enter chooses, Escape closes.", choose: "Right-click the row of a layer or a hole for the actions that apply to it." },
+      { name: "Strip log", what: "A hole's log: depth running down the page and parallel tracks, lithology and other logs as colour, the density and assays as bars with their units, a scale under each track's name. Fit scales a long hole to the window; Sampled draws just the sampled depths; Add to Layout puts it on a printed page.", choose: "Open it with the strip-log button on a hole's row in the Holes list, and use the depth range to show the interval of interest." },
+      { name: "Draw section", what: "Click two points on the view to draw a cross-section (Ctrl+Shift+C starts it); the section window has its own buffer, vertical exaggeration and export. Section by coordinates and Slice series make sections from numbers.", choose: "Draw it across the strike of the target, with a buffer about half the distance between your sections." },
+      { name: "Data table and Data QC", what: "Data table lists every row of the assays or a log to sort and filter; Data QC lists what is wrong or missing, and each row can be opened in the table or found in the view.", choose: "Use them together: find a doubtful value in Data QC, open it in the table, then correct the source file and import it again." },
+    ],
+    warnings: [
+      { says: "Nothing loaded yet", means: "The project has no holes, maps or surveys.", do: "Drop a collar file on the view, or load a sample project (the buttons under the message)." },
+    ],
+    howto: {
+      sample: "Macpass",
+      steps: [
+        "Open the Macpass sample and drag the view with the left button, then with the right button; scroll to zoom; press Home with the view focused to fit.",
+        "In the sidebar turn on an assay (Zn) and read the legend: the classes and the unit. Click an interval with Identify.",
+        "In the Holes list type a hole prefix (JS81) in the filter box and use Only these.",
+        "Open a hole's strip log from the strip-log button on its row in the Holes list and press Fit; then open Data QC and click Table on a row.",
+      ],
+    },
+    related: ["first-project", "import-drillholes", "data-qc"],
+  },
+  {
+    id: "downhole-compositing",
+    area: "Geochem",
+    title: "Downhole compositing",
+    summary: "Combines the assay intervals of each hole into composites of one length, so grades are compared over equal lengths. Each composite is the length-weighted average of the samples it covers; composites never straddle a change of the chosen domain layer, and a composite that is not covered by enough real assay data is not reported.",
+    notFor: [
+      "It does not change the assays: it makes a table of composites for the report, and the settings can be offered to Estimation and the grade shell.",
+      "Standards, blanks and duplicates (detected by hole id naming) are left out unless you tick the box: they must not turn up in an estimation input.",
+      "pXRF readings are left out: the grades come from lab assays only.",
+    ],
+    fields: [
+      { name: "Element", what: "The assay element composited, with the unit it is stored in.", choose: "One element at a time; the cap and the unit follow it." },
+      { name: "Composite length (m)", what: "The length of each composite. The window names the commonest sample length in the data.", choose: "Take the commonest sample length, or a multiple of it that fits the bench height or the block size you will estimate on." },
+      { name: "Min coverage (%)", what: "The smallest share of a composite interval that must hold real assay data (not missing or lost core) for it to be reported.", choose: "Higher keeps only well-sampled composites; lower reports composites over gaps. Lower it if the window says no composites meet the criteria." },
+      { name: "Honour domain", what: "A domain layer whose boundaries a composite will never cross, even if that leaves it shorter than the length asked for.", choose: "Pick the lithology or the mineralization domain you will estimate by; none composites each hole from collar to end." },
+      { name: "Cap", what: "A grade above which a single raw sample is cut back before it is averaged into a composite: applied per sample, before compositing.", choose: "Choose it from the distribution (Grade statistics' probability plot), not from a number you were given for another deposit." },
+    ],
+    warnings: [
+      { says: "No assay elements loaded — import assays first.", means: "There is no assay table in the project.", do: "Import the assays in Geochem." },
+      { says: "No composites meet these criteria — try a lower minimum coverage.", means: "Every composite is covered by less real data than the minimum.", do: "Lower Min coverage, or check the assays for gaps (Data QC lists the unsampled gaps)." },
+      { says: "{n} QC sample(s) (standards/blanks/duplicates) excluded.", means: "Control samples were found by their ids and left out.", do: "Tick Include QC samples only if you want them counted." },
+    ],
+    howto: {
+      sample: "Macpass",
+      steps: [
+        "Open the Macpass sample and open Downhole compositing.",
+        "Pick Zn, a composite length near the commonest sample length the window gives, and the minimum coverage you accept.",
+        "Read the table: each row is a hole, from and to, the composite's length, its coverage and its grade in the element's unit.",
+        "Use the cap field after looking at Grade statistics' probability plot, and watch the grades fall.",
+      ],
+    },
+    related: ["grade-statistics", "best-intercepts", "import-assays"],
+  },
+  {
+    id: "best-intercepts",
+    area: "Geochem",
+    title: "Best-intercept report",
+    summary: "Lists the composited downhole intersections above a cut-off, with an internal-dilution allowance, hole by hole. An intercept starts at a sample at or above the cut-off and runs through below-cut-off ('waste') core up to the dilution allowance to the next sample at or above it. Grades are length-weighted; lengths are downhole unless you ask for a true width.",
+    notFor: [
+      "It is a screening tool: verify any intercept against the raw assay certificates before it is reported.",
+      "Lengths are downhole, not true widths, until you enter the structure's dip and dip direction.",
+      "A sample with no result is not a sample at zero: where a length shows its sampled metres, the rest of the interval has no result and the grade is over the samples only.",
+    ],
+    fields: [
+      { name: "Element", what: "The element the intercepts are cut on, in the unit shown (the Show in box).", choose: "Cut on the metal you report; the extra elements are averaged over the same intervals." },
+      { name: "Cut-off", what: "The grade at or above which a sample starts or continues an intercept. A suggested value is the element's 90th percentile.", choose: "Set the cut-off you report at; the suggestion is only a start." },
+      { name: "Max internal dilution (m)", what: "How much below-cut-off core between two samples at or above the cut-off is still folded into one intercept, diluting its grade, rather than splitting the intercept in two.", choose: "Take the thickness of waste a mining method would take with the ore, about the minimum mining width." },
+      { name: "Min length (m)", what: "The shortest intercept reported.", choose: "The smallest width that could be mined, or the sample length for a screening list." },
+      { name: "Including at ≥", what: "Sub-intercepts at this higher cut-off, built with the same dilution and length rules, shown inside the intercept that contains them (42 m @ 1.2, including 6 m @ 5.1). Leave empty for none.", choose: "The grade that marks the high-grade core you quote." },
+      { name: "Min grade × length", what: "Hides intercepts below this grade times length (gram-metres for gold in g/t). 0 shows every intercept meeting the other criteria.", choose: "Leave it at 0 until you know what a reportable intercept is." },
+      { name: "Structure dip dir", what: "With the dip, the orientation of the structure for a true width: the downhole length is corrected to a thickness across it. Needs the collars (and ideally the survey).", choose: "Take them from the structure's mapped or modelled orientation; without them the lengths stay downhole." },
+      { name: "Show in", what: "The unit the element is shown in, kept with the project and shared with Grade statistics; the stored values are unchanged, and the cut-off is typed in the unit shown.", choose: "The unit your reports use; the file's own unit is the default." },
+    ],
+    warnings: [
+      { says: "≥: contains an over-range result counted at its ceiling; the true grade is at least this.", means: "A result above the lab's upper limit is in the intercept at the limit.", do: "Have it re-assayed before reporting a grade." },
+      { says: "+: the intercept starts at the hole's first sample or ends at its last sample or the end of the hole", means: "The mineralization may continue past the hole's sampling, so the length is a minimum.", do: "Quote it as at least that length." },
+      { says: "Below-detection results are taken at half the detection limit.", means: "A '<x' result counts as half the limit, not zero.", do: "Check how many results sit at the limit (QAQC and Grade statistics say)." },
+    ],
+    howto: {
+      sample: "Macpass",
+      steps: [
+        "Open the Macpass sample and open the Best-intercept report.",
+        "Pick Zn and set a cut-off in the unit shown, then a Max internal dilution and a Min length from the mining width you have in mind.",
+        "Read the table: each row is a hole's intercept with its from, to, length and length-weighted grade; a + marks an intercept that may continue.",
+        "Fill Including at ≥ with a higher grade to see the high-grade core inside each intercept.",
+      ],
+    },
+    related: ["downhole-compositing", "grade-statistics", "grade-thickness"],
+  },
+  {
+    id: "grade-statistics",
+    area: "Geochem",
+    title: "Grade statistics",
+    summary: "The univariate distribution of an element's grades, per domain: count, mean, median, standard deviation, CV, minimum and maximum, the share of samples and of metres above a cut-off, a histogram and a probability plot. Statistics are length-weighted on the assay intervals (a repeated or overlapping interval counted once), so a 0.3 m sample does not count as much as a 3 m one.",
+    notFor: [
+      "On surface samples there is no interval length, so no weighting applies.",
+      "It does not decide a cap: it shows where the high tail changes, which is where a cap is usually considered (the probability plot's break); check it on the plot before using it.",
+      "Standards, blanks and duplicates are excluded unless you tick the box; pXRF readings are left out.",
+    ],
+    fields: [
+      { name: "Domain", what: "The layer the statistics are split by; a sample takes the domain code it overlaps most. 'None' gives all intervals together.", choose: "The lithology or mineralization domain you will estimate by." },
+      { name: "Cut-off", what: "Adds the share of samples and of metres above a grade (the cut-off last set in Best intercepts is offered).", choose: "The grade you report intercepts at." },
+      { name: "Mean", what: "The length-weighted mean of the grades in the domain.", choose: "Read it with the median: a mean far above the median means a high tail." },
+      { name: "CV%", what: "The coefficient of variation: the standard deviation over the mean, in per cent.", choose: "A high CV says the grades are skewed, and a cap may be worth considering." },
+      { name: "% of metres", what: "The share of the sampled metres above the cut-off.", choose: "Compare it with the % of samples to see whether the high grades were sampled at short intervals." },
+    ],
+    warnings: [
+      { says: "Statistics on raw assay intervals — NOT length-weighted", means: "Some intervals have no usable from / to length, so weighting was skipped: a short interval counts as much as a long one.", do: "Composite first, or fix the depths." },
+      { says: "{n} more group(s) are over half below detection.", means: "More than half the results in a domain are below the detection limit, so its percentiles sit on the limit, not on measured grades.", do: "Do not cap or report these domains from the percentiles." },
+      { says: "{n} zero or negative values are not on the log scale.", means: "A log axis cannot draw a zero.", do: "They are still in the counts and statistics; switch the log scale off to see them." },
+    ],
+    howto: {
+      sample: "Macpass",
+      steps: [
+        "Open the Macpass sample and open Grade statistics.",
+        "Pick Zn with no domain, and read n, the mean and median and the CV.",
+        "Tick Log scale for the histogram and probability plot, and look for a bend in the high tail.",
+        "Set a cut-off to see the % of samples and of metres above it.",
+      ],
+    },
+    related: ["downhole-compositing", "best-intercepts", "qaqc"],
+  },
+  {
+    id: "qaqc",
+    area: "Geochem",
+    title: "QAQC — lab quality control",
+    summary: "Judges the control samples in the assays: standards (certified reference materials) on a control chart, blanks against a contamination limit, and duplicates by their relative difference. The control samples are found by the sample-type column if the assays have one, else by their ids; they are excluded from intercepts, compositing, estimation and statistics.",
+    notFor: [
+      "It does not correct anything: a failed standard or blank is a question for the lab, and the assays stay as imported.",
+      "A table of check-sample links with no results cannot be judged: import it as QC links and import the results later.",
+    ],
+    fields: [
+      { name: "Type", what: "A sample's detected type: standard, blank or duplicate.", choose: "If a sample is mistyped, give the assays a sample-type column and import again." },
+      { name: "Limit", what: "The lab's lower detection limit for the element: blanks are judged against a multiple of it and duplicate pairs near it are not counted. Saved with the project.", choose: "Take it from the lab's certificate; the dialog also reads it from the '<' results." },
+      { name: "Original", what: "The first sample of a duplicate pair; the duplicate is the later row for the same interval or the sample linked to it.", choose: "Tick the repeated-rows box only when the file stores duplicates as second rows with no sample-type column." },
+      { name: "RPD %", what: "The relative percent difference of a duplicate pair, shown on its plot; pairs below the mean limit are greyed and not counted.", choose: "Look at the pairs above the detection limit and compare their spread with what the lab's own precision statement says." },
+      { name: "Flag", what: "The result of a control sample: a standard outside the limits (the certified mean ± 2 or 3 SD, or the self-referencing mean ± 2 or 3 SD without a certificate), a blank above the contamination limit.", choose: "Enter the certificate's mean and SD for certified limits." },
+    ],
+    warnings: [
+      { says: "No repeated standard insertions found.", means: "No sample id contains the standard naming the dialog looks for.", do: "Give the standards a sample-type column or a recognizable id, then import again." },
+      { says: "No threshold set, so the {n} blank(s) are listed but not judged.", means: "A blank is judged against a multiple of the detection limit, and none is set.", do: "Enter the contamination threshold or the element's detection limit." },
+      { says: "{n} repeated same-interval row(s): tick to read them as duplicate pairs", means: "Older exports store a duplicate as a second row for the same hole and interval.", do: "Tick the box to measure them as duplicates; identical rows are double imports and are skipped." },
+    ],
+    howto: {
+      sample: "any",
+      steps: [
+        "Import assays that include standards, blanks and duplicates (with a sample-type column if you have one).",
+        "Open QAQC and read the line that counts the standards, blanks and duplicates it found.",
+        "Pick an element and read its control chart, the blanks table and the duplicates' RPD.",
+        "Enter the lab's detection limit and the certificate's values, then export the pages for the lab.",
+      ],
+    },
+    related: ["import-assays", "grade-statistics"],
+  },
+];

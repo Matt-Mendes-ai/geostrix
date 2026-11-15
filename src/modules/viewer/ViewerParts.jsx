@@ -1,6 +1,7 @@
 // TASKS.csv #1084 — the 3D View's toolbar and sidebar rows, moved out of ViewerModule.jsx when it reached its size cap
 // (test/viewerModuleSize1084.test.mjs). Unchanged code: ViewToolbar, ContextItem, HoleRow, LayerRow, LayerQuickPanel,
 // VoxelRangeRow, distToSegment and the shared sidebar styles, plus the two lazy modals only they use.
+import { openDataTable } from "../../lib/dataTableRequests.js"; // TASKS.csv #3563
 import { modelListName } from "../../lib/modelListName.js"; // TASKS.csv #1839
 // TASKS.csv #2585 — the unit beside Min / Max: the estimate's unit, else the "(unit)" of the property (blockModelExport.valueUnit would pull the
 // CSV library into the startup chunk)
@@ -219,6 +220,11 @@ export function ViewToolbar({
             <button className={`ge-ribbon-btn ${interpretOpen ? "active" : ""}`} aria-pressed={!!interpretOpen} onClick={onInterpret}><PenTool size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Interpret")}</span></button>
           </HoverToolInfo>
         </div>
+        <div className="ge-ribbon-cell">
+          <HoverToolInfo title={tr("Data table")} text={tr("The assays and each drillhole log as a table: every column with its unit, all rows, a click on a heading to sort, a filter under each heading (>= 6, 6..8, REG). Read only: a value is corrected in its source file and imported again.")}>
+            <button className="ge-ribbon-btn" onClick={() => openDataTable({})}><Rows3 size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Data table")}</span></button>{/* TASKS.csv #3563 */}
+          </HoverToolInfo>
+        </div>
         <div className={`ge-ribbon-cell${noHoles ? " ge-adv" : ""}`}>
           <HoverToolInfo title={tr("Run data QC")} text={qcDisabled ? tr("Load some drillhole data (collars, intervals or assays) first. Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modelling.") : tr("Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modelling.")}>
             <button className={`ge-ribbon-btn${qcDisabled ? " is-disabled" : ""}`} onClick={qcDisabled ? undefined : onQc} aria-disabled={qcDisabled || undefined}><ShieldAlert size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Data QC")}</span></button>
@@ -229,7 +235,7 @@ export function ViewToolbar({
             <button className={`ge-ribbon-btn${boundaryDisabled ? " is-disabled" : ""}`} onClick={boundaryDisabled ? undefined : onBoundaryIntercepts} aria-disabled={boundaryDisabled || undefined}><Milestone size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Contact picks")}</span></button>{/* #1702 — was "Intercepts" */}
           </HoverToolInfo>
         </div>
-        <RibbonButton advanced={noHoles} icon={FileBarChart2} label="Grade intercepts" tone="analyse" disabled={!gAssays.length} disabledReason="Load assays first (Geochem tab)" title="Best intercepts: length-weighted runs of the assays above a cut-off, as reported (e.g. 24 m @ 0.44 % Cu)" onClick={() => setGradeIntOpen(true)} />{/* #1702 */}
+        <RibbonButton advanced={noHoles} icon={FileBarChart2} label="Best intercepts" tone="analyse" disabled={!gAssays.length} disabledReason="Load assays first (Geochem tab)" title="Best intercepts: length-weighted runs of the assays above a cut-off, as reported (e.g. 24 m @ 0.44 % Cu)" onClick={() => setGradeIntOpen(true)} />{/* #1702 */}
         {gradeIntOpen && <BestIntercepts assays={gAssays} assayElements={gEls} collars={spacingCollars} survey={gSurvey} layers={gLayers} onClose={() => setGradeIntOpen(false)} />}
       </RibbonGroup>
       <RibbonGroup advanced label="Database">
