@@ -24,10 +24,10 @@ test("the '# ' lines are off by default and a stored choice turns them on; stora
 test("a table zip: clean CSVs, provenance.txt with the CRS, the dip sign and a line per file; no disclaimer on a data table; with no CRS no epsg column", () => {
   const collars = [{ hole_id: "H1", x: 1, y: 2, z: 3, azimuth: 90, dip: 60, length: 10, attrs: { year: "2023" } }];
   const f = drillholeTableFiles({ collars, survey: [{ hole_id: "H1", depth: 0, azimuth: 90, dip: 60 }], epsg: 26909, version: "1.2.3" });
-  assert.deepEqual(f.map((x) => x.name), ["collars.csv", "survey.csv", "provenance.txt"]);
+  assert.deepEqual(f.map((x) => x.name), ["collars.csv", "collars_fields.csv", "survey.csv", "provenance.txt"]); // collars_fields.csv: #3635's data dictionary
   assert.match(f[0].text, /^hole_id,x,y,z,azim_grid,dip,length,epsg,year\r?\n/);
   assert.match(f[0].text, /\n?H1,1,2,3,90,-60,10,26909,2023/);
-  const p = f[2].text;
+  const p = f.find((x) => x.name === "provenance.txt").text;
   assert.match(p, /^GeoStrix drillhole tables \| GeoStrix 1\.2\.3 \| generated /); assert.match(p, /Project CRS: EPSG:26909/); assert.match(p, /Dip: negative = down/);
   assert.match(p, /collars\.csv: one row per hole; the epsg column is the project CRS \(EPSG:26909\), which the import reads/);
   assert.match(p, /survey\.csv: survey stations/);
