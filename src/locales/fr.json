@@ -13276,5 +13276,9 @@
   "The file's height (and the receiver's) is the starting value, held to it by the uncertainty you type; each one solved for adds a forward model an iteration (about 40 % longer). With the model free, the height trades off against the shallow conductivities: on a real SkyTEM survey the fit was no better with the height solved for, and at ±3 m the height sat about 4 m above the altimeter (held to the contractor's own model it stayed within 0.2 m), so the default is ±1 m. The uncertainties shown and exported are linearised at the solution and depend on the regularisation: on that survey they were about a quarter of the contractor's.": "La hauteur du fichier (et celle du récepteur) est la valeur de départ, retenue par l'incertitude que vous tapez ; chacune résolue ajoute un modèle direct par itération (environ 40 % de temps en plus). Avec le modèle libre, la hauteur se compense avec les conductivités peu profondes : sur un vrai levé SkyTEM, l'ajustement n'était pas meilleur avec la hauteur résolue, et à ±3 m la hauteur se plaçait environ 4 m au-dessus de l'altimètre (tenue au modèle de l'entrepreneur, elle restait à moins de 0,2 m), d'où ±1 m par défaut. Les incertitudes affichées et exportées sont linéarisées à la solution et dépendent de la régularisation : sur ce levé, elles valaient environ le quart de celles de l'entrepreneur.",
   "No tested point has a sensitivity to show.": "Aucun point testé n'a de sensibilité à afficher.",
   "Added \"{name}\": {n} tested points in the 3D View, coloured by log₁₀ σ per m (the warm end: the survey sees that contact).": "« {name} » ajouté : {n} points testés dans la vue 3D, colorés par log₁₀ σ par m (l'extrémité chaude : le levé voit ce contact).",
-  "Show the tested points in the 3D View": "Afficher les points testés dans la vue 3D"
+  "Show the tested points in the 3D View": "Afficher les points testés dans la vue 3D",
+  "by a field of the Y layer": "par un champ de la couche Y",
+  "{axis} scale": "Échelle {axis}",
+  "{axis} axis scale": "Échelle de l'axe {axis}",
+  "Y layer field to colour by": "Champ de la couche Y pour la couleur"
 }
