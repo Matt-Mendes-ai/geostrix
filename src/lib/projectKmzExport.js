@@ -9,6 +9,7 @@ import { ensureExportCrs } from "./projectCrsRequest.js";
 import { tieOf, localToWorld } from "./localGridTie.js";
 import { rlOffsetOf, rlToElevation } from "./localGridDatum.js";
 import { rasterLegendGroups } from "./legendGroups.js";
+import { imageSize } from "./imageSize.js";
 import { b64ToBytes } from "./base64.js";
 import { rgbaToPng, strikeSymbolPng } from "./strikeIcon.js";
 import { structureIconSet } from "./structureKmzIcons.js"; // #3068 part 2 — the icon set the outcrop KMZ uses too
@@ -151,7 +152,10 @@ export async function exportProjectKmz(store, { confirm = (m) => window.confirm(
     const img = dataUrlBytes(finer.get(r.id) || asKmz(r.dataUrl)); // finer: #3252 phase 4
     if (!img) return null;
     const lg = r.legendImage?.dataUrl ? null : rasterLegendGroups([{ ...r, visible: true }])[0];
-    return { ...img, legend: lg && (lg.items?.length || lg.ramp) ? lg : null };
+    // TASKS.csv #3088 — the attached colour bar, written as the legend (before, the swatches were dropped for it and nothing took their place)
+    const lb = r.legendImage?.dataUrl ? dataUrlBytes(asKmz(r.legendImage.dataUrl)) : null;
+    const size = lb ? imageSize(lb.bytes) : null;
+    return { ...img, legend: lg && (lg.items?.length || lg.ramp) ? lg : null, legendImage: lb && size ? { ...lb, ...size } : null };
   };
   // the structures' USGS symbols (true strike from the project CRS; on a local grid, the grid bearing)
   const icons = (store.surfaceStructures || []).length ? await structureIconSet(store.surfaceStructures, { px: 64, epsg: tie ? null : ctx.epsg, symbolByType: project.structureSymbolByType /* #3094 */ }) : { files: [], iconOf: () => null };
