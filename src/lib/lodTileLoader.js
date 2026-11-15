@@ -103,3 +103,23 @@ export const lodTileImage = (key) => lodMemory.get(key);
 export const isEmptyTile = (v) => v === EMPTY;
 // after Clear: what is in memory goes too, so the next view reads again
 export function forgetLodTiles() { lodMemory.clear(); failedAt.clear(); queue.clear(); tiffs.clear(); tell(); }
+
+// TASKS.csv #3252 phase 4 — one tile now, for an export or 'Download for offline use': from memory, this computer, else the source (and kept
+// on this computer). -> the decoded picture (ImageBitmap), or null (nothing of the source there, or it could not be read)
+export async function fetchLodTile(key, lod, box) {
+  const have = lodMemory.get(key);
+  if (have) return have === EMPTY ? null : have;
+  let blob = await getLodTile(key);
+  if (!blob) { blob = await readTile(lod, box); if (blob) await putLodTile(key, blob); }
+  if (!blob) { lodMemory.set(key, EMPTY, 64); return null; }
+  const bmp = await createImageBitmap(blob);
+  lodMemory.set(key, bmp, TILE_PX * TILE_PX * 4);
+  return bmp;
+}
+// the same, kept on this computer only (no picture decoded or held): for 'Download for offline use'. -> true when the source had something there
+export async function storeLodTile(key, lod, box) {
+  if (await getLodTile(key)) return true;
+  const blob = await readTile(lod, box);
+  if (blob) await putLodTile(key, blob);
+  return !!blob;
+}

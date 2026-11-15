@@ -7,7 +7,8 @@ import { traceLookup } from "../../lib/viewer/modelHelpers.js";
 import { POINT_PROTO } from "../../lib/viewer/protos.js";
 import { resolveLayerStyle } from "../../lib/layerStyle.js";
 import { customColour } from "../../lib/customColour.js";
-import { isPoint, LOG_BIN_SPACINGS } from "./logLod.js";
+import { isPoint, pointAt, LOG_BIN_SPACINGS } from "./logLod.js";
+import { rowCount, fieldOf, rowAt } from "../../lib/layerColumns.js"; // TASKS.csv #3140
 
 // one hole's point readings -> bins along the hole [{ from, to, depth, n, value, row }]: a bin starts at a reading and takes the readings
 // within binM of it; numeric: the mean value, else the commonest
@@ -39,10 +40,14 @@ export function buildCoarse(group, L, traces, visibleHoles) {
   const st = resolveLayerStyle(L.layerStyles?.[`custom:${L.layer.id}`], "point");
   const markerM = 2 * 2.4 * st.size; // the full set's sphere: radius 2.4 x size (drillholeScene)
   const binM = Math.max(LOG_BIN_SPACINGS * (L.spacingM || 0), markerM);
-  const sample = (L.layer.rows || []).slice(0, 2000).filter(isPoint);
-  const numeric = sample.length > 0 && sample.every((r) => r.value !== "" && r.value != null && Number.isFinite(Number(r.value)));
+  // TASKS.csv #3140 — read by index (the layer's rows, or a Table of them): a Table's point readings become row objects here only for the coarse
+  // set's bins and tips (as the rows were), not through rowsOf, which would keep every row of the log with the Table
+  const rowsIn = L.layer.rows || [], N = rowCount(rowsIn), pt = pointAt(rowsIn), holeOf = fieldOf(rowsIn, "hole_id"), valueOf = fieldOf(rowsIn, "value");
+  let sampled = 0, numeric = true;
+  for (let i = 0; i < Math.min(2000, N); i++) { if (!pt(i)) continue; sampled++; const v = valueOf(i); if (!(v !== "" && v != null && Number.isFinite(Number(v)))) { numeric = false; break; } }
+  numeric = numeric && sampled > 0;
   const byHole = new Map();
-  for (const r of L.layer.rows || []) { if (!isPoint(r) || visibleHoles?.[r.hole_id] === false) continue; const a = byHole.get(r.hole_id); if (a) a.push(r); else byHole.set(r.hole_id, [r]); }
+  for (let i = 0; i < N; i++) { if (!pt(i)) continue; const h = holeOf(i); if (visibleHoles?.[h] === false) continue; const r = rowAt(rowsIn, i), a = byHole.get(h); if (a) a.push(r); else byHole.set(h, [r]); }
   const traceOf = new Map((traces || []).map((t) => [t.hole_id, t]));
   const tmp = new THREE.Group();
   for (const [hole, rows] of byHole) {

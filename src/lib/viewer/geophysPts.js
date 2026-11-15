@@ -139,5 +139,5 @@ function buildSurveyBatch(group, key, list, model, { style, proto, minR, origin,
 // a point's tooltip, made when it is read (the survey's units as they are then)
 export function geophysTipText(row, surveys) {
   const units = surveys?.[row._src]?.units;
-  return `${row._src || "Geophysics point"}${row.line != null ? ` · line ${row.line}` : ""}${row.fid != null ? ` · fid ${row.fid}` : ""}\n${row.label || "value"}: ${row.value}${units ? ` ${units}` : ""}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z`;
+  return `${row._src || "Geophysics point"}${row.line != null ? ` · line ${row.line}` : ""}${row.fid != null ? ` · fid ${row.fid}` : ""}\n${surveys?.[row._src]?.positionsOnly ? "no measured value (positions only)" : `${row.label || "value"}: ${row.value}${units ? ` ${units}` : ""}`}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z`;
 }

@@ -102,7 +102,7 @@ export function sampleWindow(out, win, g) {
 }
 
 // Read the window of one DEM that covers the node grid, at the level that suits it, and sample it into out.
-async function readInto(out, url, g, stats) {
+export async function readInto(out, url, g, stats) { // exported: TASKS.csv #3515 (the 3D terrain tiles)
   const dem = await openDem(url, stats);
   const { level, scale } = pickLevel(dem.levels, dem.rx, g.nodeM);
   const rx = dem.rx * scale, ry = dem.ry * scale;
@@ -116,7 +116,7 @@ async function readInto(out, url, g, stats) {
 }
 
 // HRDEM mosaic tiles (1 m terrain) over the box, from NRCan's STAC catalogue: [dtm COG url]
-async function hrdemTiles(bbox) {
+export async function hrdemTiles(bbox) { // exported: #3515
   const d = await stacSearch(NRCAN_STAC, { collections: ["hrdem-mosaic-1m"], bbox, limit: 100 });
   return (d.features || []).map((f) => f.assets?.dtm?.href).filter((u) => typeof u === "string" && u.startsWith(`${NRCAN_HOST}/`));
 }

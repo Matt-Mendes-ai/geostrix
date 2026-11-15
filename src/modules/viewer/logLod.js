@@ -8,17 +8,24 @@
 // hole hidden in the Holes list is left out of the coarse set (rebuilt when the shown holes change while it is drawn).
 // The builder (binReadings, buildCoarse) is logLodBuild.js, loaded the first time a coarse set is wanted: this part runs every frame.
 import { lodWanted } from "../../lib/viewer/assayLod.js";
+import { isTable, rowCount, fieldOf } from "../../lib/layerColumns.js"; // TASKS.csv #3140
 
 export const LOG_LOD_MIN = 20000, LOG_BIN_SPACINGS = 8;
 export const isPoint = (r) => r && !(r.to != null && !isNaN(r.to)) && r.depth != null && !isNaN(r.depth);
+// TASKS.csv #3140 — isPoint for row i of rows or a Table (a log held as columns is read by index, never as rows)
+export function pointAt(rows) {
+  if (!isTable(rows)) return (i) => isPoint(rows[i]);
+  const to = fieldOf(rows, "to"), depth = fieldOf(rows, "depth");
+  return (i) => { const t = to(i), d = depth(i); return !(t != null && !isNaN(t)) && d != null && !isNaN(d); };
+}
 
 // the median gap between consecutive readings of a hole (m), from at most ~4,000 gaps spread through the rows (in file order, by hole)
 export function readingSpacingM(rows) {
-  const step = Math.max(1, Math.floor((rows?.length || 0) / 4000)), gaps = [];
-  for (let i = step; i < (rows?.length || 0); i += step) {
-    const a = rows[i - 1], b = rows[i];
-    if (!isPoint(a) || !isPoint(b) || a.hole_id !== b.hole_id) continue;
-    const d = Math.abs(Number(b.depth) - Number(a.depth));
+  const n = rowCount(rows), step = Math.max(1, Math.floor(n / 4000)), gaps = [];
+  const pt = pointAt(rows), hole = fieldOf(rows, "hole_id"), depth = fieldOf(rows, "depth"); // #3140: rows or a Table
+  for (let i = step; i < n; i += step) {
+    if (!pt(i - 1) || !pt(i) || hole(i - 1) !== hole(i)) continue;
+    const d = Math.abs(Number(depth(i)) - Number(depth(i - 1)));
     if (d > 1e-6 && Number.isFinite(d)) gaps.push(d);
   }
   if (!gaps.length) return null;
@@ -41,7 +48,8 @@ export function primeLogLod(group, layer, layerStyles) {
   if (!group) return;
   dropLogCoarse(group);
   let n = 0;
-  for (const r of layer.rows || []) if (isPoint(r)) n++;
+  const pt = pointAt(layer.rows || []), N = rowCount(layer.rows); // #3140: counted by index (rows or a Table)
+  for (let i = 0; i < N; i++) if (pt(i)) n++;
   if (n < LOG_LOD_MIN) { delete group.userData.logLod; return; }
   group.userData.logLod = { layer, layerStyles, spacingM: readingSpacingM(layer.rows), coarse: null, lodOn: false, vh: null };
 }

@@ -12,8 +12,13 @@ import * as THREE from "three";
 import { lodRoot, tileBox, tileKey, TileLru } from "../lodTiles.js";
 import { chooseSceneTiles, tilesToDraw, pixelAtFor } from "./lodDrape.js";
 import { terrainMeshElevation } from "./terrainDrape.js";
+import { lodBudget, cameraHash } from "./lodBudget.js"; // the budget follows the frame time
 
 export const DEM_CELLS = 64, DEM_NODES = DEM_CELLS + 1;
+// TASKS.csv #3516 — a tile is READ with one more node all round (67 x 67): the heights beyond its edge, so the shading at its edge nodes uses both
+// sides (central differences) and two neighbours agree on the normal they share. The mesh is the 65 x 65 inside.
+export const DEM_READ = DEM_NODES + 2;
+
 export const TERRAIN_SPLIT_PX = 6; // a node spacing over 6 screen pixels: split
 export const TERRAIN_MAX_TILES = 64; // 64 tiles of 4,225 nodes (with skirts about 290,000 triangles), about the cost of a 513-node grid
 export const DEM_MEMORY_BYTES = 64 * 1024 * 1024; // the decoded tiles held (17 KB each: about 3,800)
@@ -31,21 +36,26 @@ export function terrainLodOf(terrain, epsg) {
   if (terrain.lod?.source && terrain.lod.nativeM > 0) lod = { ...terrain.lod };
   else {
     const s = terrain.source || {};
-    if (/^AWS Terrain Tiles/.test(String(s.service || "")) && s.sourcePixelM > 0 && Number.isFinite(s.zoom)) lod = { source: "aws", nativeM: s.sourcePixelM / 2 ** (AWS_MAX_ZOOM - s.zoom) };
+    const svc = String(s.service || "");
+    if (/^AWS Terrain Tiles/.test(svc) && s.sourcePixelM > 0 && Number.isFinite(s.zoom)) lod = { source: "aws", nativeM: s.sourcePixelM / 2 ** (AWS_MAX_ZOOM - s.zoom) };
+    // TASKS.csv #3515 — the COG elevation models, read by window as the fetch reads them (lodTerrainSources.js): GLO-30's 30 m pixel; NRCan's
+    // MRDEM-30, or HRDEM's 1 m lidar where the fetch found it (sourcePixelM says which)
+    else if (/^Copernicus DEM/.test(svc)) lod = { source: "copernicus", nativeM: 30 };
+    else if (/^NRCan/.test(svc) && s.sourcePixelM > 0) lod = { source: "nrcan", nativeM: s.sourcePixelM };
   }
   if (!lod || !(lod.nativeM < node * 0.99)) return null;
-  if (lod.source === "aws" && !(Number(epsg) > 0)) return null; // the tiles are read through the project CRS
+  if (lod.source !== "pattern" && !(Number(epsg) > 0)) return null; // the tiles are read through the project CRS
   return { ...lod, epsg: Number(epsg) || null };
 }
 
-// ---- reading a tile: 65 x 65 heights over its box, row 0 north ----
+// ---- reading a tile: 67 x 67 heights over its box and one node more all round, row 0 north ----
 // "pattern": the saved terrain (its drawn triangles) plus a ripple of a few metres, so the tiles can be checked live without a network
 export function patternHeights(terrain, box) {
-  const out = new Float32Array(DEM_NODES * DEM_NODES);
+  const out = new Float32Array(DEM_READ * DEM_READ);
   const dx = (box[2] - box[0]) / DEM_CELLS, dy = (box[3] - box[1]) / DEM_CELLS;
-  for (let j = 0; j < DEM_NODES; j++) for (let i = 0; i < DEM_NODES; i++) {
-    const x = box[0] + i * dx, y = box[3] - j * dy;
-    out[j * DEM_NODES + i] = terrainMeshElevation(terrain, x, y) + 6 * Math.sin(x / 23) * Math.cos(y / 31);
+  for (let j = 0; j < DEM_READ; j++) for (let i = 0; i < DEM_READ; i++) {
+    const x = box[0] + (i - 1) * dx, y = box[3] - (j - 1) * dy;
+    out[j * DEM_READ + i] = terrainMeshElevation(terrain, x, y) + 6 * Math.sin(x / 23) * Math.cos(y / 31);
   }
   return out;
 }
@@ -56,10 +66,10 @@ async function awsHeights(terrain, box, epsg) {
   const toLL = pointTransform(epsg, 4326);
   if (!toLL) throw new Error("no transform");
   const dx = (box[2] - box[0]) / DEM_CELLS, dy = (box[3] - box[1]) / DEM_CELLS;
-  const ll = new Float64Array(DEM_NODES * DEM_NODES * 2);
+  const ll = new Float64Array(DEM_READ * DEM_READ * 2);
   let lonMin = Infinity, lonMax = -Infinity, latMin = Infinity, latMax = -Infinity;
-  for (let j = 0; j < DEM_NODES; j++) for (let i = 0; i < DEM_NODES; i++) {
-    const p = toLL(box[0] + i * dx, box[3] - j * dy), k = (j * DEM_NODES + i) * 2;
+  for (let j = 0; j < DEM_READ; j++) for (let i = 0; i < DEM_READ; i++) {
+    const p = toLL(box[0] + (i - 1) * dx, box[3] - (j - 1) * dy), k = (j * DEM_READ + i) * 2;
     ll[k] = p[0]; ll[k + 1] = p[1];
     if (p[0] < lonMin) lonMin = p[0]; if (p[0] > lonMax) lonMax = p[0]; if (p[1] < latMin) latMin = p[1]; if (p[1] > latMax) latMax = p[1];
   }
@@ -77,13 +87,13 @@ async function awsHeights(terrain, box, epsg) {
   const tl = tileXYToLonLat(nw.x, nw.y, zoom), br = tileXYToLonLat(se.x + 1, se.y + 1, zoom);
   const mercY = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
   const yTop = mercY(tl.lat), yBot = mercY(br.lat);
-  const out = new Float32Array(DEM_NODES * DEM_NODES);
+  const out = new Float32Array(DEM_READ * DEM_READ);
   for (let n = 0; n < out.length; n++) {
     const fx = ((ll[n * 2] - tl.lon) / (br.lon - tl.lon)) * mw - 0.5, fy = ((yTop - mercY(ll[n * 2 + 1])) / (yTop - yBot)) * mh - 0.5;
     const x0 = Math.max(0, Math.min(mw - 2, Math.floor(fx))), y0 = Math.max(0, Math.min(mh - 2, Math.floor(fy))), u = Math.min(1, Math.max(0, fx - x0)), v = Math.min(1, Math.max(0, fy - y0));
     const k = y0 * mw + x0, top = mosaic[k] + (mosaic[k + 1] - mosaic[k]) * u, bot = mosaic[k + mw] + (mosaic[k + mw + 1] - mosaic[k + mw]) * u;
     const z = top + (bot - top) * v;
-    out[n] = Number.isFinite(z) ? z : terrainMeshElevation(terrain, box[0] + (n % DEM_NODES) * dx, box[3] - Math.floor(n / DEM_NODES) * dy);
+    out[n] = Number.isFinite(z) ? z : terrainMeshElevation(terrain, box[0] + ((n % DEM_READ) - 1) * dx, box[3] - (Math.floor(n / DEM_READ) - 1) * dy);
   }
   return out;
 }
@@ -91,8 +101,8 @@ async function awsHeights(terrain, box, epsg) {
 // ---- the tile's meshes ----
 // The ground: 65 x 65 nodes in scene coordinates and a skirt `skirtM` deep under its four edges. -> { geometry, wx, wy (world x / y of each
 // vertex), gridTris (the triangles of the grid alone, not the skirt) }
-export function terrainTileGeometry(heights, box, origin, skirtM) {
-  const N = DEM_NODES, dx = (box[2] - box[0]) / DEM_CELLS, dy = (box[3] - box[1]) / DEM_CELLS;
+export function terrainTileGeometry(heightsRead, box, origin, skirtM) {
+  const N = DEM_NODES, S = DEM_READ, dx = (box[2] - box[0]) / DEM_CELLS, dy = (box[3] - box[1]) / DEM_CELLS;
   const ring = [];
   for (let i = 0; i < N; i++) ring.push(i); // north edge, west to east
   for (let j = 1; j < N; j++) ring.push(j * N + N - 1); // east edge, north to south
@@ -103,10 +113,18 @@ export function terrainTileGeometry(heights, box, origin, skirtM) {
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
     const k = j * N + i, x = box[0] + i * dx, y = box[3] - j * dy;
     wx[k] = x; wy[k] = y;
-    pos[k * 3] = x - origin.x; pos[k * 3 + 1] = heights[k] - origin.z; pos[k * 3 + 2] = -(y - origin.y);
+    pos[k * 3] = x - origin.x; pos[k * 3 + 1] = heightsRead[(j + 1) * S + i + 1] - origin.z; pos[k * 3 + 2] = -(y - origin.y);
+  }
+  // TASKS.csv #3516 — the shading: central differences over the read grid (one node past every edge), so an edge node is lit as its
+  // neighbour's is. Scene axes: x east, y up, z south (= -north). The skirt's vertices take the normal of the edge node they hang from.
+  const nrm = new Float32Array(nv * 3), H = (j, i) => heightsRead[(j + 1) * S + i + 1];
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const dzE = (H(j, i + 1) - H(j, i - 1)) / (2 * dx), dzN = (H(j - 1, i) - H(j + 1, i)) / (2 * dy);
+    const nx = -dzE, ny = 1, nz = dzN, l = Math.hypot(nx, ny, nz), k = j * N + i;
+    nrm[k * 3] = nx / l; nrm[k * 3 + 1] = ny / l; nrm[k * 3 + 2] = nz / l;
   }
   ring.forEach((k, r) => {
-    for (const [q, down] of [[N * N + r, 0], [N * N + R + r, skirtM]]) { wx[q] = wx[k]; wy[q] = wy[k]; pos[q * 3] = pos[k * 3]; pos[q * 3 + 1] = pos[k * 3 + 1] - down; pos[q * 3 + 2] = pos[k * 3 + 2]; }
+    for (const [q, down] of [[N * N + r, 0], [N * N + R + r, skirtM]]) { wx[q] = wx[k]; wy[q] = wy[k]; pos[q * 3] = pos[k * 3]; pos[q * 3 + 1] = pos[k * 3 + 1] - down; pos[q * 3 + 2] = pos[k * 3 + 2]; nrm[q * 3] = nrm[k * 3]; nrm[q * 3 + 1] = nrm[k * 3 + 1]; nrm[q * 3 + 2] = nrm[k * 3 + 2]; }
   });
   const idx = [];
   for (let j = 0; j < N - 1; j++) for (let i = 0; i < N - 1; i++) { const a = j * N + i, b = a + 1, c = a + N, d = c + 1; idx.push(a, c, b, b, c, d); } // the terrain's diagonal (syncTerrain)
@@ -114,8 +132,8 @@ export function terrainTileGeometry(heights, box, origin, skirtM) {
   for (let r = 0; r < R; r++) { const a = N * N + r, b = N * N + ((r + 1) % R), a2 = a + R, b2 = b + R; idx.push(a, a2, b, b, a2, b2); }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  geometry.setAttribute("normal", new THREE.BufferAttribute(nrm, 3));
   geometry.setIndex(idx);
-  geometry.computeVertexNormals();
   geometry.computeBoundingSphere();
   return { geometry, wx, wy, gridTris };
 }
@@ -141,7 +159,7 @@ function overlayMesh(tile, ov) {
   g.setIndex(idx);
   g.computeBoundingSphere();
   const m = new THREE.MeshBasicMaterial({ map: ov.texture, transparent: true, opacity: ov.opacity, side: THREE.DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 - ov.layer, polygonOffsetUnits: -2 - ov.layer });
-  m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace("#include <map_fragment>", "if (vMapUv.x < 0.0 || vMapUv.x > 1.0 || vMapUv.y < 0.0 || vMapUv.y > 1.0) discard;\n#include <map_fragment>"); };
+  m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace("#include <map_fragment>", "if (vMapUv.x < -0.0004 || vMapUv.x > 1.0004 || vMapUv.y < -0.0004 || vMapUv.y > 1.0004) discard; /* #3517 a sliver past the edge: neighbours leave no hairline */\n#include <map_fragment>"); };
   m.customProgramCacheKey = () => "lodTerrainOverlay";
   if (ov.underImagery) { m.stencilWrite = true; m.stencilRef = 1; m.stencilFuncMask = 1; m.stencilFunc = THREE.NotEqualStencilFunc; m.stencilZPass = THREE.KeepStencilOp; } // #3509 on the tile too
   const mesh = new THREE.Mesh(g, m);
@@ -161,17 +179,25 @@ export function hideUnderTerrainTiles(material, alsoBit1 = false) {
 // One per 3D View: sync() with the scene's state, tick() from the render loop. ctx: { group, terrain, terrainMesh, epsg, origin, rasters,
 // rasterCache, mapLayers, mapLayerCache, lodDrape: () => the imagery tiles' instance or null, wake }
 export function createLodTerrain({ read = null } = {}) {
-  let ctx = null, lod = null, dirty = true, lastAt = 0, camSig = "", dsigLast = "", store = null;
+  let ctx = null, lod = null, dirty = true, lastAt = 0, camSig = "", dsigLast = "", store = null, lastHash = 0, lastFactor = 1;
   const memory = new TileLru(DEM_MEMORY_BYTES, () => {});
+  const readers = new Map(); // #3515
   const queue = new Map(), running = new Set(), failedAt = new Map();
   const tiles = new Map(); // key -> { ground, mark, overlays: Map, sig, box, wx, wy }
-  const st = { tiles: 0, wanted: 0, finestM: null, tickMs: 0, triangles: 0, memoryBytes: 0, loading: 0 };
+  const st = { tiles: 0, wanted: 0, finestM: null, tickMs: 0, triangles: 0, memoryBytes: 0, loading: 0, budget: 1 };
   globalThis.__geostrixLodTerrainStats = st; // read-only numbers, for measuring the tiles live
   const srcKey = () => `dem-${lod.source}-${ctx.terrain.id}`;
-  const readTile = read || (async (box) => (lod.source === "pattern" ? patternHeights(ctx.terrain, box) : lod.source === "aws" ? awsHeights(ctx.terrain, box, lod.epsg) : null));
+  const readTile = read || (async (box) => {
+    if (lod.source === "pattern") return patternHeights(ctx.terrain, box);
+    if (lod.source === "aws") return awsHeights(ctx.terrain, box, lod.epsg);
+    // TASKS.csv #3515 — Copernicus / NRCan: the reader is opened once per terrain and kept
+    const key = `${lod.source}:${ctx.terrain.id}`;
+    if (!readers.has(key)) { const m = await import("./lodTerrainSources.js"), mk = lod.source === "copernicus" ? m.copernicusReader() : m.nrcanReader(ctx.terrain); readers.set(key, mk.then((reader) => (b) => m.tileHeightsViaLonLat(ctx.terrain, b, lod.epsg, reader))); }
+    return (await readers.get(key))(box);
+  });
   const dropOverlays = (t) => { for (const m of t.overlays.values()) { m.parent?.remove(m); m.geometry.dispose(); m.material.dispose(); } t.overlays.clear(); };
   const drop = (key) => { const t = tiles.get(key); if (!t) return; dropOverlays(t); t.ground.parent?.remove(t.ground); t.ground.geometry.dispose(); t.ground.material.dispose(); t.mark.geometry.dispose(); t.mark.material.dispose(); tiles.delete(key); };
-  const dropAll = () => { for (const k of [...tiles.keys()]) drop(k); st.tiles = 0; st.triangles = 0; st.finestM = null; };
+  const dropAll = () => { for (const k of [...tiles.keys()]) drop(k); st.tiles = 0; st.triangles = 0; st.finestM = null; lodBudget.setTris("terrain", 0); };
   const load = async (key, box) => {
     running.add(key);
     try {
@@ -181,8 +207,8 @@ export function createLodTerrain({ read = null } = {}) {
         const blob = await store.getLodTile(key);
         if (blob) h = new Float32Array(await blob.arrayBuffer());
       } catch { /* no cache here */ }
-      if (!h || h.length !== DEM_NODES * DEM_NODES) {
-        h = await readTile(box);
+      if (!h || h.length !== DEM_READ * DEM_READ) { // (a tile kept before #3516 was 65 x 65: read again)
+        h = await readTile(box); // the tile's own box: the readers add the node all round
         if (h) try { store?.putLodTile(key, new Blob([h.buffer])); } catch { /* no cache here */ }
       }
       memory.set(key, h || "empty", h ? h.byteLength : 16);
@@ -198,22 +224,24 @@ export function createLodTerrain({ read = null } = {}) {
       if (!same) { dropAll(); memory.clear(); queue.clear(); }
       ctx = next; dirty = true;
       lod = terrainLodOf(ctx.terrain, ctx.epsg);
-      if (!lod || ctx.terrain?.visible === false) dropAll();
+      if (!lod || ctx.terrain?.visible === false || ctx.enabled === false /* the 'Detail tiles' switch */) { dropAll(); lod = ctx.enabled === false ? null : lod; }
     },
     tick(camera, viewportH) {
+      { const h = cameraHash(camera); lodBudget.sample(performance.now(), h !== lastHash); lastHash = h; }
       if (!ctx || !lod || !ctx.terrain || ctx.terrain.visible === false || !(viewportH > 0)) return;
       const now = performance.now();
       if (now - lastAt < TICK_MS) return;
       const sig = `${camera.matrixWorld.elements.map((v) => v.toFixed(2)).join(",")}|${camera.projectionMatrix.elements[0].toFixed(4)}|${camera.zoom}|${viewportH}`;
       const drapeTiles = ctx.lodDrape?.()?.tileMeshes?.() || [];
       const dsig = drapeTiles.map((d) => d.key).join(";");
-      if (!dirty && sig === camSig && dsig === dsigLast) return;
-      lastAt = now; camSig = sig; dirty = false; dsigLast = dsig;
+      const factor = lodBudget.factor();
+      if (!dirty && sig === camSig && dsig === dsigLast && factor === lastFactor) return;
+      lastAt = now; camSig = sig; dirty = false; dsigLast = dsig; lastFactor = factor;
       const t0 = performance.now();
       const { group, terrain, origin } = ctx;
       const base = terrainNodeM(terrain);
       const pseudo = { bbox: terrain.bbox, lod: { nativeM: lod.nativeM }, pixelM: base };
-      const chosen = chooseSceneTiles(pseudo, pixelAtFor(camera, viewportH, origin, terrain), { maxTiles: TERRAIN_MAX_TILES, ratio: TERRAIN_SPLIT_PX, tilePx: DEM_CELLS });
+      const chosen = chooseSceneTiles(pseudo, pixelAtFor(camera, viewportH, origin, terrain), { maxTiles: Math.max(4, Math.round(TERRAIN_MAX_TILES * factor)) /* the budget */, ratio: TERRAIN_SPLIT_PX, tilePx: DEM_CELLS });
       const src = srcKey();
       const want = chosen?.tiles || [];
       st.wanted = want.length;
@@ -283,9 +311,10 @@ export function createLodTerrain({ read = null } = {}) {
         }
         tris += t.ground.geometry.index.count / 3;
       }
+      lodBudget.setTris("terrain", tris); // #3518: what these tiles draw, for the budget's cost model
       st.tiles = tiles.size; st.triangles = tris; st.memoryBytes = memory.bytes;
       st.finestM = null; for (const t of tiles.values()) if (st.finestM == null || t.ground.userData.nodeM < st.finestM) st.finestM = t.ground.userData.nodeM;
-      st.tickMs = performance.now() - t0;
+      st.tickMs = performance.now() - t0; st.budget = factor;
     },
     stats: () => ({ ...st }),
     dispose() { dropAll(); memory.clear(); queue.clear(); ctx = null; },

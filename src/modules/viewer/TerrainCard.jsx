@@ -4,9 +4,11 @@ import React from "react";
 import { Eye, EyeOff, Mountain, ArrowUpRight } from "../../components/icons.js";
 import { t as tr } from "../../lib/i18n.js";
 import { iconAction, activateOnKey } from "../../lib/a11y.js";
+import DetailTilesToggle from "./DetailTilesToggle.jsx"; // TASKS.csv #3252
+import { tiledTerrain } from "./useLodTiles.js";
 
-export default function TerrainCard({ terrain, updateTerrain, openRowMenu, zoomTo, goToModule }) {
-  return (
+export default function TerrainCard({ terrain, updateTerrain, openRowMenu, zoomTo, goToModule, lodTiles = null }) { // lodTiles: #3252 (the 'Detail tiles' switch)
+  return (<>
     <div onContextMenu={(e) => openRowMenu(e, terrain.name, [
         { label: terrain.visible === false ? "Show" : "Hide", onClick: () => updateTerrain?.({ visible: terrain.visible === false }) },
         { label: tr("Zoom to"), onClick: () => zoomTo() },
@@ -27,5 +29,6 @@ export default function TerrainCard({ terrain, updateTerrain, openRowMenu, zoomT
           lives — for consistency with every other row's edit-jump icon. */}
       <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("maps"), tr("Edit or remove the terrain in the Maps tab"))} />
     </div>
-  );
+    {lodTiles && tiledTerrain(terrain) && <DetailTilesToggle kind="terrain" on={lodTiles.prefs.terrain} chosen={lodTiles.prefs.terrainChosen} offReason={lodTiles.offReason} onChange={(v) => lodTiles.setPref("terrain", v)} />}
+  </>);
 }
