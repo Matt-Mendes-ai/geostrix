@@ -1486,7 +1486,7 @@ export function StoreProvider({ children }) {
       const activeWorth = snap.hasWork && activeDirty;
       if (!activeWorth && !background.length) {
         // Nothing unsaved anywhere: a leftover recovery file would only offer already-saved work later.
-        if (lastAutosaveSigRef.current) { autosaveClear(); lastAutosaveSigRef.current = null; autosaveSentRef.current = new Map(); }
+        if (lastAutosaveSigRef.current) { autosaveClear(); lastAutosaveSigRef.current = null; autosaveSentRef.current = new Map(); try { window.dispatchEvent(new CustomEvent("geostrix:autosaved", { detail: { at: null } })); } catch { /* no window */ } } // #3619 — nothing unsaved: the line goes
         return;
       }
       const { hasWork: _drop, ...payload } = snap;
@@ -1511,7 +1511,7 @@ export function StoreProvider({ children }) {
         const sent = autosaveSentRef.current, changed = {};
         for (const [k, j] of parts) if (sent.get(k) !== j) changed[k] = j;
         return autosaveWriteParts({ order: parts.map((p) => p[0]), changed, reset: sent.size === 0 }).then((r) => {
-          if (r?.ok) { autosaveSentRef.current = new Map(parts); return; }
+          if (r?.ok) { autosaveSentRef.current = new Map(parts); try { window.dispatchEvent(new CustomEvent("geostrix:autosaved", { detail: { at: Date.now() } })); } catch { /* no window */ } /* TASKS.csv #3619 — the status bar says when */ return; }
           if (r?.unsupported) { autosaveWrite(joinParts(parts)); return; } // the browser build: one write, as before
           autosaveSentRef.current = new Map(); lastAutosaveSigRef.current = null; // a part was missing or the write failed: everything next tick
         });

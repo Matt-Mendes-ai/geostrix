@@ -11,6 +11,7 @@ import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js"; // TASKS.csv #1777 — listed with the page's placeholders
 import { scaleBarLabel, scaleBarMidLabel } from "../lib/scaleBarLabel.js"; // TASKS.csv #2140
 import { offSheetPages, rectSidesPast, elementCaption, elementKind } from "../lib/layoutEdges.js"; // elementKind: #3028
+import { withCreditPages } from "../lib/layoutCredits.js"; // TASKS.csv #3591
 import { DEFAULT_LAYOUT_ELEMENTS } from "../lib/projectFields.js"; // TASKS.csv #3028 (5)
 import { groupOrdersFromItems, applyCodeOrder, projectCodeOrders, clearCodeOrders, pagesHoldingOrder, orderedGroupsOf } from "../lib/legendCodeOrder.js"; // TASKS.csv #3130 — a code order set once; clear*: #3199 // TASKS.csv #2482 / #2309; named elements: #2700
 import { fillPlaceholders, northName, pageConvergence, formatConvergence } from "../lib/layoutText.js";
@@ -73,6 +74,7 @@ import { numericClips, numericLayerColorFn } from "../lib/numericClip.js"; // TA
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
 import { legendSyncState, staleBoundLegends } from "../lib/layoutLegendSync.js"; // TASKS.csv #2471
 import { roundLongNumbersInSnapshot } from "../lib/svgNumbers.js"; // TASKS.csv #2603
+import { openHelp } from "../lib/help.js"; // TASKS.csv #3603
 // (The page size used to be a fixed `const A4 = { w: 1123, h: 794 }` here; it is now per page — see
 // `A4` inside the component, kept under that name so every existing use follows the chosen format.)
 const SCALE_BAR_PX = 180; // default/initial bar length (px) for a freshly-added, never-synced scale bar
@@ -138,7 +140,7 @@ export default function LayoutModule() {
     // TASKS.csv #69 — multiple layout pages per project (see store.jsx's own comment on
     // layoutPages/layoutElements for how these two coexist: `elements`/`setElements` above already
     // transparently follow whichever page is active).
-    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat, mapLayoutPagesElements /* #3331 */, sendLayoutElement, // #1484
+    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages: addLayoutPagesRaw, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat, mapLayoutPagesElements /* #3331 */, sendLayoutElement, // #1484
     // Legend "load lithologies from the bound view" (below) needs the actual litho rows — a theme
     // only records which units were filtered/hidden at capture time, not the vocabulary itself.
     // TASKS.csv #130 — collars/sections needed for the Atlas batch-page-generation feature below.
@@ -162,6 +164,10 @@ export default function LayoutModule() {
     requestViewportBatch, printSrcs, setPrintSrcs, // TASKS.csv #2303 — the export's 300 dpi print pass
     undoCheckpoint, // TASKS.csv #3184 — each insert / duplicate / paste its own undo step
   } = useStore();
+  // TASKS.csv #3591 — every page the app makes itself (a snapshot's own page, a split's, an Atlas page, a table's continuation) prints the data credit when the project has one: the {credits}
+  // text is added to a page that does not print it (lib/layoutCredits.js); the credit line itself is read through a ref (it is computed further down)
+  const creditsRef = useRef("");
+  const addLayoutPages = (pgs) => addLayoutPagesRaw(withCreditPages(pgs, !!creditsRef.current));
   const setTaskProgress = useSetTaskProgress();
   useEffect(() => { if (viewportBatchDone) setTaskProgress?.(null); }, [viewportBatchDone, setTaskProgress]);
   const [selected, setSelected] = useState(null);
@@ -802,7 +808,7 @@ export default function LayoutModule() {
     const id = `${type}_${Date.now()}`;
     const base = { id, type, x: 100, y: 100 };
     if (type === "text") base.text = "Text", base.w = 200;
-    if (type === "titleblock") Object.assign(base, newTitleBlock(id, Math.max(20, A4.w - 400), Math.max(20, A4.h - 260))); // TASKS.csv #1868 — bottom right
+    if (type === "titleblock") Object.assign(base, newTitleBlock(id, Math.max(20, A4.w - 400), Math.max(20, A4.h - 260), { credit: !!credits })); // #3591 — a Data row when the project has a credit // TASKS.csv #1868 — bottom right
     if (type === "logo") logoInput.current.click();
     if (type === "scale") { base.meters = 100; base.pxPerMeter = DEFAULT_PX_PER_METER; Object.assign(base, insertScaleBar(base, elements, selected)); if (!base.boundTo) Object.assign(base, freeSpot(elements, 260, 50, A4)); /* #2135 */ base.y = Math.min(base.y, A4.h - 50); } // #1635 — bound to the selected / only view
     if (type === "north") { // TASKS.csv #1632 — tied to the selected view, else the page's only view with a camera azimuth
@@ -927,7 +933,7 @@ export default function LayoutModule() {
   const loadTemplate = (tpl) => {
     if (elements.length && !window.confirm(tr("Replace the current page with \"{name}\"? (Ctrl+Z undoes this.)", { name: tr(tpl.name) }))) return; // #1487 — layoutPages are in the undo history
     if (tpl.format) setLayoutPageFormat(activeLayoutPageId, tpl.format); // #1868 — a template keeps its paper size and orientation
-    if (tpl.stock) { setElements(stockTemplateElements(tpl)); setSelected(null); setTemplatesOpen(false); return; } // #1868 — a starter template
+    if (tpl.stock) { setElements(stockTemplateElements(tpl, Date.now(), { credit: !!credits })); setSelected(null); setTemplatesOpen(false); return; } // #1868 — a starter template
     const idMap = new Map(tpl.elements.map((el) => [el.id, `${el.type}_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`]));
     setElements(relinkCopies(tpl.elements.map((el) => ({ ...el, id: idMap.get(el.id) })), idMap, true)); // #924
     setSelected(null);
@@ -1089,7 +1095,7 @@ export default function LayoutModule() {
   // expressions, the few a figure's title block needs); {scale} is the page's first fixed-scale viewport, else its
   // first true-scale one, else the approximate scale of the first viewport
   const activePageIndex = Math.max(0, layoutPages.findIndex((pg) => pg.id === activeLayoutPageId));
-  const credits = useMemo(() => projectCredits(terrain, rasters, project?.dataCredit), [terrain, rasters, project?.dataCredit]); // TASKS.csv #949; dataCredit: #3496
+  const credits = useMemo(() => projectCredits(terrain, rasters, project?.dataCredit), [terrain, rasters, project?.dataCredit]); creditsRef.current = credits; // #3591 // TASKS.csv #949; dataCredit: #3496
   // TASKS.csv #1483 — a collar with no azimuth / dip of its own (Silvertip's) takes its shallowest survey station's, marked so
   const tableCollars = useMemo(() => collarsWithSurveyAttitude(collars, survey), [collars, survey]); // #1483 / #1771 / #2133 (lib/collarTable.js)
   const textCtx = useMemo(() => ({ ...textContextFor(elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits), assays, assayElements /* #2473 — a drill plan coloured by grade */, surfaceSamples, surfaceElements, layers /* #1869 — the samples table; the holes without a collar */, plannedHoles /* #2259 */, survey, desurveyMethod: project?.desurveyMethod /* #3367 */, displayUnits: project?.displayUnits /* #3382 */ }), [elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits, assays, assayElements, surfaceSamples, surfaceElements, layers, plannedHoles, survey]);
@@ -1930,6 +1936,8 @@ export default function LayoutModule() {
             <option value="portrait">{tr("Portrait")}</option>
           </select>
           {formatNote && <span role="status" style={{ marginLeft: 8, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", maxWidth: 360, lineHeight: 1.3 }}>{formatNote} <button type="button" onClick={() => setFormatNote("")} aria-label={tr("Dismiss")} style={{ border: "none", background: "none", cursor: "pointer", color: "inherit", padding: 0 }}>×</button></span>}{/* #2312 */}
+          {/* TASKS.csv #3603 — the Layout help page (F1 opens it too) */}
+          <button type="button" className="ge-pane-close ge-pane-help" style={{ marginInlineStart: 8 }} onClick={() => openHelp("layout")} aria-label={tr("Help: {name}", { name: tr("Layout") })} title={tr("Help for this tool (F1, works offline)")}>?</button>
           {/* TASKS.csv #909 — canvas zoom and the PNG export's resolution */}
           <select value={zoomChoice} onChange={(e) => setZoom(e.target.value)} aria-label={tr("Zoom")} title={tr("Zoom of the sheet on screen (the paper size does not change)")}
             style={{ height: 22, marginBottom: 2, marginLeft: 8, fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", color: "var(--color-text)" }}>

@@ -13166,5 +13166,14 @@
   "Fit line": "خط المطابقة",
   "n {n} · Spearman {r} · median Y {m} · mean Y {w}": "n {n} · سبيرمان {r} · وسيط Y {m} · متوسط Y {w}",
   "Fit: Y = {a} × X {sign} {b} · r² {r2} · n {n}": "المطابقة: Y = {a} × X {sign} {b} · r² {r2} · n {n}",
-  "Collar · {field} (decade)": "الفوهة · {field} (عقد)"
+  "Collar · {field} (decade)": "الفوهة · {field} (عقد)",
+  "Lines starting with # above the column names say which tool, CRS and parameters made the file. Leave off for a file an import wizard opens at its first row.": "تذكر الأسطر التي تبدأ بـ # فوق أسماء الأعمدة الأداة ونظام الإحداثيات والمعاملات التي أنتجت الملف. اتركها معطّلة لملف يفتحه معالج الاستيراد من صفّه الأول.",
+  "Add the # header lines (tool, CRS, parameters) to the CSV": "إضافة أسطر الترويسة # (الأداة، نظام الإحداثيات، المعاملات) إلى ملف CSV",
+  "Saved {file}: {h} drillhole(s), {l} line set(s), {p} point set(s), {s} surface(s), {b} block model(s).": "تم حفظ {file}: {h} حفرة (حفر)، {l} مجموعة (مجموعات) خطوط، {p} مجموعة (مجموعات) نقاط، {s} سطح (أسطح)، {b} نموذج (نماذج) كتلي.",
+  "{n} text column(s) of the drillhole logs are not in the OMF (it holds numbers): {list}.": "{n} عمود (أعمدة) نصية من سجلات الحفر ليست في ملف OMF (فهو يحمل أرقاماً فقط): {list}.",
+  "An OMF carries no coordinate system: these are the project's coordinates ({crs}).": "لا يحمل ملف OMF نظام إحداثيات: هذه إحداثيات المشروع ({crs}).",
+  "Nothing in this project can go to an OMF yet: drillholes, points, lines, surfaces and block models do.": "لا شيء في هذا المشروع يمكن تصديره بعد إلى OMF: الحفر والنقاط والخطوط والأسطح والنماذج الكتلية تُصدَّر.",
+  "Export for other software (zip): UBC mesh + model, an .omf of the block model (for Leapfrog, Micromine and Datamine), .obs observed/predicted data (SimPEG inversions), GeoTIFF depth slices, provenance.txt": "تصدير إلى برنامج آخر (zip): شبكة ونموذج UBC، وملف .omf للنموذج الكتلي (لبرامج Leapfrog وMicromine وDatamine)، وبيانات .obs المرصودة / المتنبَّأ بها (انعكاسات SimPEG)، وشرائح عمق GeoTIFF، وملف provenance.txt",
+  "Autosaved {time}": "حُفظ تلقائياً {time}",
+  "The unsaved work of this window was written to the recovery copy at {time}: after a crash GeoStrix offers it back. Save the project to put it in its file.": "كُتب العمل غير المحفوظ في هذه النافذة إلى نسخة الاسترداد عند {time}: بعد أي عطل يعرضه GeoStrix من جديد. احفظ المشروع لوضعه في ملفه."
 }

@@ -13,7 +13,7 @@ test("#1701 assays as one wide table: units in the headers, qualifiers kept, the
 test("#1701 the zip's files: one per custom layer (safe, unique names) and assays.csv", () => {
   const custom = [{ name: "Copley 2023 DH SWIR/Halo", rows: [{ hole_id: "H1", depth: 5, value: "ILL", Halo_AlOH: 2205 }] }, { name: "Copley 2023 DH SWIR/Halo", rows: [{ hole_id: "H1", from: 0, to: 1, value: "x" }] }, { name: "empty", rows: [] }];
   const files = drillholeTableFiles({ collars: [{ hole_id: "H1", x: 1, y: 2, z: 3, azimuth: 90, dip: 60, length: 10 }], customLayers: custom, assays, assayElements: els, epsg: 26910, version: "t" });
-  assert.deepEqual(files.map((f) => f.name), ["collars.csv", "custom_copley_2023_dh_swir_halo.csv", "custom_copley_2023_dh_swir_halo_2.csv", "assays.csv"]);
+  assert.deepEqual(files.map((f) => f.name), ["collars.csv", "custom_copley_2023_dh_swir_halo.csv", "custom_copley_2023_dh_swir_halo_2.csv", "assays.csv", "provenance.txt"]);
   const swir = files[1].text.split(/\r?\n/).filter((l) => l && !l.startsWith("#"));
   assert.deepEqual(swir, ["hole_id,depth,value,Halo_AlOH", "H1,5,ILL,2205"]);
   assert.equal(customLayerFileName("", 3), "custom_layer_4.csv");

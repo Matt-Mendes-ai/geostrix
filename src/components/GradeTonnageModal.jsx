@@ -10,6 +10,7 @@ import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
 import { saveFile } from "../lib/desktop.js";
+import { openHelp } from "../lib/help.js"; // TASKS.csv #3597
 import { toExportCsv } from "../lib/tabular.js";
 import { stampLines, withStamp, NOT_A_RESOURCE } from "../lib/provenance.js";
 import { valueUnit, valueColumnName } from "../lib/blockModelExport.js";
@@ -204,7 +205,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
       <div role="dialog" aria-modal="true" aria-label={tr("Grade-tonnage")} onClick={(e) => e.stopPropagation()} style={{ width: "min(640px, 94vw)", maxHeight: "90vh", overflowY: "auto", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 16, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600 }}>{tr("Grade-tonnage: {name}", { name: model.name })}</div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}><button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("grade-tonnage")} aria-label={tr("Help: {name}", { name: tr("Grade-tonnage") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
           <label style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 260 }}>{tr("Cutoffs ({unit})", { unit: unitL || tr("no unit stated") })}

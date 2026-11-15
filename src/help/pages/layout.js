@@ -1,0 +1,106 @@
+// The Layout tab (the report figure: pages, paper, title block, scale bar, credits, export) and the Maps plan view, written from the notes the tool itself carries (see src/help/content.js for
+// the page format).
+export default [
+  {
+    id: "layout",
+    area: "Layout",
+    title: "Layout",
+    summary: "Where figures for a report are put together: pages of a chosen paper size holding views of the model (a snapshot of the 3D view, a drill plan, a section, a strip log), a title block, a scale bar, a north arrow, a legend, tables and text, then printed as a PDF or saved as a PNG. Each page has its own paper size and orientation. A section or strip log sent to Layout from its own window makes a page of its own; a snapshot taken again keeps its scale. The data owner's credit is printed on every page the app makes itself.",
+    notFor: [
+      "It is not a map-making tool with a coordinate grid of its own: a drill plan or a snapshot is a picture of the view, with a scale bar you tie to it. For true map layers, export the layers to a GIS (see Export: what goes where).",
+      "A PNG is a picture of one page. It does not contain text you can select; the PDF is the vector figure, with each page at its own paper size.",
+      "A scale bar is only right for the view it is tied to. Resize or retake a view and the bar follows only if it is still assigned to that view.",
+    ],
+    fields: [
+      { name: "Add page / page size and orientation", what: "A page has its own paper: A4, A3, A2, A1, A0, Letter (8.5×11 in), Legal (8.5×14 in) or Tabloid (11×17 in), landscape or portrait. A document can mix sizes, and Export PDF prints each page on its own paper.", choose: "Choose the paper the report will be printed on (Letter or Tabloid for most assessment reports in North America; A3 or larger for sections at scale), before you place views, because changing it afterward moves nothing already on the page." },
+      { name: "Current view / Drill plan / Theme view", what: "Current view adds a snapshot of the 3D View as it is now. Drill plan adds a plan of the collars (and planned holes) coloured as you choose, with hole labels where they fit. Theme view adds a live view of a saved theme.", choose: "Use Drill plan for the location figure and Current view for a 3D figure. For a section or a strip log use Snapshot to Layout in its own window." },
+      { name: "Snapshot to Layout (sections, strip logs)", what: "Sends the section or strip log that is open to Layout as a page of its own, at its own aspect, with its scale and the title block and credit text.", choose: "Set the section's buffer, exaggeration and, for a strip log, the Depth 1 : scale before sending: the scale is part of the snapshot." },
+      { name: "Title block", what: "A ruled box of labelled rows (title, company, project, author, date, and more). The label is plain text; a value can use tokens that are filled in when the page is shown and printed: {project}, {date}, {page}, {pages}, {pagename}, {scale}, {crs}, {credits}, {north} and {convergence}. The first row prints bold.", choose: "Put {page} of {pages} and {scale} in rather than typing them, so they stay right when you add pages or retake a view. {crs} prints the project's coordinate system, {north} which north the maps are drawn to, and {convergence} the angle between grid north and true north (nothing when the project has no coordinate system)." },
+      { name: "{credits} and the data credit", what: "The project's data credit (a sample project carries its own) with the credits the licences of fetched terrain and imagery ask for. It prints in the title block's Data row and as a small line along the foot of the page. A page the app makes itself, a section or strip-log snapshot, an Atlas page or a table's continuation, gets the line too.", choose: "Leave it on. A page you build from nothing has it only if you add the {credits} token to a text or title block." },
+      { name: "Scale bar", what: "A bar in metres. Use \"Assign scale bar to this view\" in the view's panel, and the bar is tied to that view: it follows the view's scale, sits just under it, and its number can be edited, after which the bar resizes to match. A page with two views can have two bars. A bar added from the ribbon is free: it belongs to no view.", choose: "Assign a bar to every view whose scale a reader will measure from. On a strip log choose the depth scale (1 : n) so the paper height is exact." },
+      { name: "North arrow", what: "A north arrow with an optional declination and convergence readout, so the figure states which north it is drawn to.", choose: "Set it from the project's coordinate system; with a local grid the arrow says local grid north." },
+      { name: "Legend, text, rectangle, arrow, callout, freehand", what: "Annotation elements. The legend lists the colours the page's views use.", choose: "Add the legend after the views are final, since it reads what is shown at that moment." },
+      { name: "Templates", what: "Save template stores the page as a reusable template for this project; Templates lists the starter templates and the ones you saved.", choose: "Start a report from a starter template, and save your own once the title block and credit are right." },
+      { name: "Export PDF / Export PNG", what: "Export PDF prints every page as a vector PDF, each page at its own paper size and orientation. Export PNG saves the current page as a picture at the dpi chosen in the page bar (150, 200 or 300).", choose: "Use the PDF for the report and the PNG for a slide or a web page; 300 dpi for print, 150 for the screen." },
+    ],
+    warnings: [
+      { says: "Snapshot taken again with its text at print size, at the same plot scale.", means: "A snapshot was retaken: its text was resized for the paper and the plot scale was kept.", do: "Check the scale bar still reads right; reassign it if you moved or resized the view." },
+      { says: "Scale bar assigned (m): it follows this view's scale; edit the number any time and the bar resizes to match.", means: "The bar is now tied to that view.", do: "Nothing to do; to change the length, edit the number." },
+    ],
+    howto: {
+      sample: "Harry",
+      steps: [
+        "File > Open Sample Project > Harry, then open the Layout tab.",
+        "Choose the paper (for example Letter, landscape) for the page and add a Drill plan.",
+        "Add a Title block and read its rows: put {scale}, {page} of {pages} and {credits} in.",
+        "Select the plan and choose Assign scale bar to this view, then check the number against a known distance.",
+        "Export PDF for the report, or Export PNG at 300 dpi for a slide.",
+      ],
+    },
+    related: ["layout-title-block", "maps-plan-view", "export-formats", "view-basics"],
+  },
+  {
+    id: "layout-title-block",
+    area: "Layout",
+    title: "Title block and tokens",
+    summary: "The ruled box of labelled fields at the corner of a report figure. Each row has a label and a value, and a value can hold tokens that GeoStrix fills in when the page is shown and printed: the project's name, the date, the page number, the scale, the coordinate system, the data credit and which north the figure is drawn to. The same tokens work in any Layout text.",
+    notFor: [
+      "A token is filled from the project and the page, not from the file's metadata: if the project has no name, {project} prints nothing.",
+      "{scale} is the first fixed-scale view's, else the first true-scale one, else an approximate scale of the first view: a page with several different scales needs a scale bar on each view, not a single number.",
+    ],
+    fields: [
+      { name: "{project} and {date}", what: "The project's name and the date the page is shown or printed, so a PDF always carries its own print date.", choose: "Use {date} for a working figure; type a fixed date for a figure you have issued." },
+      { name: "{page}, {pages} and {pagename}", what: "This page's number, the number of pages, and the page's name.", choose: "Use them so a figure set renumbers itself when you add or move pages." },
+      { name: "{scale}", what: "The scale of the page's view, written as 1 : n.", choose: "Put a bar on the view too; a number alone cannot be checked on paper." },
+      { name: "{crs}", what: "The project's coordinate system, as named in the project (an EPSG code and its name).", choose: "Always include it on a map figure." },
+      { name: "{credits}", what: "The project's data credit and the credits the terrain and imagery licences ask for.", choose: "Keep it on every figure that shows another party's data." },
+      { name: "{north} and {convergence}", what: "Which north the page's maps are drawn to (grid north, or local grid north) and the angle between grid north and true north, from the page's own north arrow when it has one, else from the coordinate system at the centre of the collars.", choose: "Use both when the figure is used for fieldwork, where the difference between grid and true north matters." },
+    ],
+    warnings: [
+      { says: "Filled in when the page is shown and printed", means: "The tokens in the box are replaced only when the page is rendered.", do: "Look at the page, not the sidebar, to read the final text." },
+    ],
+    howto: {
+      sample: "Harry",
+      steps: [
+        "On the Layout tab choose Title block in the ribbon.",
+        "Open its rows in the sidebar and change the values to include {project}, {scale} and {crs}.",
+        "Add a row for the author and one for {credits}.",
+        "Save template, so the next report starts with the same block.",
+      ],
+    },
+    related: ["layout", "maps-plan-view"],
+  },
+  {
+    id: "maps-plan-view",
+    area: "Maps",
+    title: "Plan view of the drillholes",
+    summary: "The Maps tab's plan of the drilling: the collars coloured by a collar field or by an assay, labelled with their hole ids where there is room, optionally with each hole's trace in plan, over the map layers you have loaded (boundaries, claims, geology, imagery, terrain). It is for locating drilling in a report figure, and it can be sent to Layout as a picture that stays sharp at the size and resolution of the page.",
+    notFor: [
+      "It is not an interpretation: a hole's trace in plan shows where it goes, not what it hit. For that use a section.",
+      "A plan in degrees (a project with no projected coordinate system) is not to scale in metres; set the project's coordinate system first.",
+      "The plan is drawn on the project's grid with north up, which differs from true north by the grid convergence; the note beside the north arrow says so.",
+    ],
+    fields: [
+      { name: "Colour collars by", what: "The collar colours: one colour; a collar field (the commonest 15 values, the rest as Other); or, per hole from the assays, the highest value of an element in the hole or its length-weighted mean. The legend lists the classes with the unit.", choose: "Use a collar field such as year or drill type for a campaign figure; use grade only with its unit beside it, and the highest value only when you say it is the highest." },
+      { name: "Shape by / Size by the value's class", what: "Shapes the collars by a second field, and sizes them by the class of the colouring value.", choose: "Use shape for a second category (drill type); keep size for an ordered value such as grade." },
+      { name: "Class breaks / Colour at", what: "The breaks of the grade classes (quintiles, or numbers you type), and where the colour is drawn: at the collar or at the highest interval down the hole.", choose: "Type breaks from the grade distribution when the figure has to match a table; draw at the highest interval when you want to show where the best grade is." },
+      { name: "Hole ids", what: "Labels the holes where there is room; the note says how many were left out because they overlap, so zoom in to read more.", choose: "Zoom to the area that matters before capturing the figure." },
+      { name: "Hole traces (a tick at the toe)", what: "Draws each hole's trace in plan from its collar to its end, with a tick at the toe. A note counts holes that end more than 10 m from their collar in plan.", choose: "Turn it on for a location figure of inclined holes; leave it off for a clean collar map." },
+      { name: "Grade × thickness legend", what: "When a Grade × thickness result is shown in plan, circles sized by the product at each hole's intercept mid-point, and a hollow ring for a hole assayed with no intercept.", choose: "Clear it before a figure about something else." },
+    ],
+    warnings: [
+      { says: "({n} left out: they overlap, zoom in)", means: "More holes are in the frame than can be labelled without overlapping.", do: "Zoom in on the area you are showing." },
+      { says: "{n} of the holes end more than 10 m from their collar in plan (up to {m} m)", means: "Those holes lean far enough that their toes are not under their collars.", do: "Turn on the hole traces so the figure shows where they go." },
+    ],
+    howto: {
+      sample: "Harry",
+      steps: [
+        "File > Open Sample Project > Harry, then open the Maps tab.",
+        "Colour the collars by a collar field such as year, and turn on the hole ids and the hole traces.",
+        "Zoom to the area you want in the figure and send it to the Layout tab.",
+        "On the Layout tab add a title block and a scale bar, then Export PDF.",
+      ],
+    },
+    related: ["layout", "map-layers", "boundaries", "claims"],
+  },
+];

@@ -9,7 +9,7 @@
 // - every custom field (#208) is kept; internal "_" fields are not written.
 // - each file starts with a "#" stamp (skipped by the importer, #720) naming the CRS and the conventions.
 import { toExportCsv } from "./tabular.js";
-import { stampLines, withStamp } from "./provenance.js";
+import { collarAttrPairs, collarAttrNames } from "./collarAttrExport.js"; // TASKS.csv #3613
 import { LAYER_META } from "./layers.js";
 
 // the value column under a name the importer maps to that layer on its own (TARGET_SCHEMAS aliases), and a file name
@@ -26,9 +26,13 @@ const cell = (v) => (typeof v === "number" && !Number.isFinite(v) ? "" : v ?? ""
 const negDown = (d) => (Number.isFinite(d) ? -d : "");
 const rest = (r, skip) => Object.fromEntries(Object.entries(r).filter(([k, v]) => !k.startsWith("_") && !skip.has(k) && v !== undefined).map(([k, v]) => [k, cell(typeof v === "object" && v !== null ? JSON.stringify(v) : v)]));
 
-export function collarTableRows(collars) {
-  const skip = new Set(["hole_id", "x", "y", "z", "azimuth", "dip", "length"]);
-  return (collars || []).map((c) => ({ hole_id: c.hole_id, x: cell(c.x), y: cell(c.y), z: cell(c.z), azim_grid: cell(c.azimuth), dip: negDown(c.dip), length: cell(c.length), ...rest(c, skip) }));
+// TASKS.csv #3613 — the collar's own fields (collar.attrs) as one column each, the same columns on every row; #3615 — epsg: the project's CRS as a column, which the importer reads back, so the table set
+// opens with no question
+export function collarTableRows(collars, { epsg = null } = {}) {
+  const skip = new Set(["hole_id", "x", "y", "z", "azimuth", "dip", "length", "attrs"]);
+  const reserved = ["hole_id", "x", "y", "z", "azim_grid", "dip", "length", "epsg"];
+  const names = collarAttrNames(collars, reserved);
+  return (collars || []).map((c) => { const pairs = Object.fromEntries(collarAttrPairs(c, reserved)); return { hole_id: c.hole_id, x: cell(c.x), y: cell(c.y), z: cell(c.z), azim_grid: cell(c.azimuth), dip: negDown(c.dip), length: cell(c.length), ...(epsg ? { epsg } : {}), ...rest(c, skip), ...Object.fromEntries(names.map((n) => [n, cell(pairs[n])])) }; });
 }
 export function surveyTableRows(survey) {
   const skip = new Set(["hole_id", "depth", "azimuth", "dip"]);
@@ -71,18 +75,20 @@ export function assayTableRows(assays, assayElements = []) {
 // a custom layer's file: its own name, made safe, under custom_
 export const customLayerFileName = (name, i) => `custom_${String(name || `layer_${i + 1}`).replace(/[^\w-]+/g, "_").replace(/^_+|_+$/g, "").toLowerCase() || `layer_${i + 1}`}.csv`;
 
-// -> [{ name, text }]: collars.csv, survey.csv, one CSV per loaded hole log, one per custom layer (#1701) and assays.csv (#1701)
+// -> [{ name, text }]: collars.csv, survey.csv, one CSV per loaded hole log, one per custom layer (#1701), assays.csv (#1701) and provenance.txt
 // (geophysics points have no hole: not a table here)
+// TASKS.csv #3614 (Fireweed rehearsal) — the tables were exact but opened badly: four '#' lines (the first a Mineral Resource disclaimer on a collar table) above every header, so an import wizard's
+// first row was not the column names. Each CSV is now clean (row 1 = the column names); the conventions (CRS, dip sign, units, the tool and its version) are one provenance.txt beside them in the zip.
+// A collar, survey or assay table is data, not an estimate: the not-a-resource line is not on it.
 export function drillholeTableFiles({ collars = [], survey = [], layers = {}, customLayers = [], assays = [], assayElements = [], epsg, version }) {
-  const conv = (what) => stampLines({ tool: `Drillhole tables: ${what}`, version, epsg, params: [
-    "Dip: negative = down (import with the default \"Negative = down\"). Azimuths and dip directions: project-grid bearings (import as grid north).",
-  ] });
-  const files = [];
-  if (collars.length) files.push({ name: "collars.csv", text: withStamp(toExportCsv(collarTableRows(collars)), conv("collars")) });
-  if (survey.length) files.push({ name: "survey.csv", text: withStamp(toExportCsv(surveyTableRows(survey)), conv("survey")) });
+  const files = [], notes = [];
+  const add = (name, text, note) => { files.push({ name, text }); notes.push(`${name}: ${note}`); };
+  const epsgNum = Number.isFinite(Number(epsg)) && Number(epsg) > 0 ? Number(epsg) : null;
+  if (collars.length) add("collars.csv", toExportCsv(collarTableRows(collars, { epsg: epsgNum })), "one row per hole" + (epsgNum ? `; the epsg column is the project CRS (EPSG:${epsgNum}), which the import reads` : "") + "; one column for each of the collar's own fields");
+  if (survey.length) add("survey.csv", toExportCsv(surveyTableRows(survey)), "survey stations (depth, azimuth, dip)");
   for (const [key, rows] of Object.entries(layers || {})) {
     if (!Array.isArray(rows) || !rows.length || key === "geophys_pts") continue;
-    files.push({ name: layerTableFileName(key), text: withStamp(toExportCsv(layerTableRows(key, rows)), conv(LAYER_META[key]?.label || key)) });
+    add(layerTableFileName(key), toExportCsv(layerTableRows(key, rows)), LAYER_META[key]?.label || key);
   }
   const taken = new Set(files.map((f) => f.name));
   (customLayers || []).forEach((l, i) => {
@@ -90,10 +96,19 @@ export function drillholeTableFiles({ collars = [], survey = [], layers = {}, cu
     let name = customLayerFileName(l.name, i);
     for (let k = 2; taken.has(name); k++) name = customLayerFileName(`${l.name}_${k}`, i);
     taken.add(name);
-    files.push({ name, text: withStamp(toExportCsv(layerTableRows("custom", l.rows)), conv(`custom layer ${l.name || i + 1}`)) });
+    add(name, toExportCsv(layerTableRows("custom", l.rows)), `custom layer ${l.name || i + 1}`);
   });
   if ((assays || []).length && (assayElements || []).length) {
-    files.push({ name: "assays.csv", text: withStamp(toExportCsv(assayTableRows(assays, assayElements)), stampLines({ tool: "Drillhole tables: assays", version, epsg, params: ["One column per element, named with its unit (_pct = %). A '<' or '>' result keeps its qualifier in front of the value; a below-detection value is the one the app holds (half the limit when read from '<x')."] })) });
+    add("assays.csv", toExportCsv(assayTableRows(assays, assayElements)), "one column per element, named with its unit (_pct = %); a '<' or '>' result keeps its qualifier in front of the value; a below-detection value is the one the app holds (half the limit when read from '<x')");
+  }
+  if (files.length) {
+    const lines = [
+      `GeoStrix drillhole tables${version ? ` | GeoStrix ${version}` : ""} | generated ${new Date().toISOString()}`,
+      epsg === "unset" ? "Project CRS: not set (the coordinates are the project's own numbers, with no real-world reference)" : epsgNum ? `Project CRS: EPSG:${epsgNum}` : null,
+      "Dip: negative = down (import with the default \"Negative = down\"). Azimuths and dip directions: project-grid bearings (import as grid north).",
+      "", ...notes,
+    ].filter((l) => l !== null);
+    files.push({ name: "provenance.txt", text: `${lines.join("\r\n")}\r\n` });
   }
   return files;
 }

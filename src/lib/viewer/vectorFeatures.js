@@ -14,6 +14,8 @@ import { trueNorthBearingInGridDeg } from "../gridConvergence.js"; // TASKS.csv 
 // a row's own fields, without the app's internal "_" bookkeeping
 export function stripInternalFields(r) { return Object.fromEntries(Object.entries(r).filter(([k]) => !k.startsWith("_"))); }
 
+import { collarAttrPairs } from "../collarAttrExport.js"; // TASKS.csv #3613
+
 const COLLAR_CORE_KEYS = new Set(["hole_id", "x", "y", "z", "azimuth", "dip", "length"]);
 
 export function buildVectorFeatures(kind, key, { collars = [], traces = [], layers = {}, epsg = null } = {}) {
@@ -27,7 +29,8 @@ export function buildVectorFeatures(kind, key, { collars = [], traces = [], laye
         // TASKS.csv #577 — stored azimuths are GRID bearings (project CRS); the field name says so, with the true-north
         // bearing beside it (grid = true + convergence), so QGIS / a re-import can't take one for the other
         attributes: { hole_id: c.hole_id, azim_grid: c.azimuth ?? null, azim_true: Number.isFinite(c.azimuth) && epsg ? (() => { const cv = trueNorthBearingInGridDeg(c.x, c.y, epsg); return Number.isFinite(cv) ? +((((c.azimuth - cv) % 360) + 360) % 360).toFixed(2) : null; })() : null, dip: Number.isFinite(c.dip) ? -c.dip : null, length: c.length ?? null,
-          ...Object.fromEntries(Object.entries(c).filter(([k, v]) => !k.startsWith("_") && !COLLAR_CORE_KEYS.has(k) && v !== undefined)) }, // #1034 — custom collar fields (year, target, status ...)
+          ...Object.fromEntries(Object.entries(c).filter(([k, v]) => !k.startsWith("_") && !COLLAR_CORE_KEYS.has(k) && k !== "attrs" && v !== undefined && (v === null || typeof v !== "object"))), // #1034 — custom collar fields (year, target, status ...)
+          ...Object.fromEntries(collarAttrPairs(c, ["hole_id", "azim_grid", "azim_true", "dip", "length", ...Object.keys(c)])) }, // TASKS.csv #3613 — the collar's own fields (collar.attrs), one column each
       })),
       geomType: "point",
     };

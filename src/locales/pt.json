@@ -13166,5 +13166,14 @@
   "Fit line": "Reta de ajuste",
   "n {n} · Spearman {r} · median Y {m} · mean Y {w}": "n {n} · Spearman {r} · mediana de Y {m} · média de Y {w}",
   "Fit: Y = {a} × X {sign} {b} · r² {r2} · n {n}": "Ajuste: Y = {a} × X {sign} {b} · r² {r2} · n {n}",
-  "Collar · {field} (decade)": "Collar · {field} (década)"
+  "Collar · {field} (decade)": "Collar · {field} (década)",
+  "Lines starting with # above the column names say which tool, CRS and parameters made the file. Leave off for a file an import wizard opens at its first row.": "As linhas que começam com # acima dos nomes das colunas dizem qual ferramenta, SRC e parâmetros produziram o arquivo. Deixe desligado para um arquivo que um assistente de importação abre na primeira linha.",
+  "Add the # header lines (tool, CRS, parameters) to the CSV": "Adicionar ao CSV as linhas de cabeçalho # (ferramenta, SRC, parâmetros)",
+  "Saved {file}: {h} drillhole(s), {l} line set(s), {p} point set(s), {s} surface(s), {b} block model(s).": "{file} salvo: {h} furo(s), {l} conjunto(s) de linhas, {p} conjunto(s) de pontos, {s} superfície(s), {b} modelo(s) de blocos.",
+  "{n} text column(s) of the drillhole logs are not in the OMF (it holds numbers): {list}.": "{n} coluna(s) de texto dos registros de furos não estão no OMF (ele guarda números): {list}.",
+  "An OMF carries no coordinate system: these are the project's coordinates ({crs}).": "Um OMF não leva sistema de coordenadas: estas são as coordenadas do projeto ({crs}).",
+  "Nothing in this project can go to an OMF yet: drillholes, points, lines, surfaces and block models do.": "Nada deste projeto pode ir ainda para um OMF: podem os furos, os pontos, as linhas, as superfícies e os modelos de blocos.",
+  "Export for other software (zip): UBC mesh + model, an .omf of the block model (for Leapfrog, Micromine and Datamine), .obs observed/predicted data (SimPEG inversions), GeoTIFF depth slices, provenance.txt": "Exportar para outro software (zip): malha e modelo UBC, um .omf do modelo de blocos (para Leapfrog, Micromine e Datamine), dados .obs observados / previstos (inversões SimPEG), fatias de profundidade GeoTIFF, provenance.txt",
+  "Autosaved {time}": "Salvo automaticamente {time}",
+  "The unsaved work of this window was written to the recovery copy at {time}: after a crash GeoStrix offers it back. Save the project to put it in its file.": "O trabalho não salvo desta janela foi gravado na cópia de recuperação às {time}: após uma falha, o GeoStrix o oferece de volta. Salve o projeto para colocá-lo no arquivo."
 }

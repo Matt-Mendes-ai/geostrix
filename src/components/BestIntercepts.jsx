@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { openHelp } from "../lib/help.js"; // TASKS.csv #3578
+import { stampedCsv } from "../lib/csvStampPref.js"; // TASKS.csv #3614
+import CsvStampToggle from "./CsvStampToggle.jsx";
 import { drillThresholdOffers, sortedThresholdOffers } from "../lib/thresholds.js"; // TASKS.csv #2347; sorted: #3160
 import { X, Download, Sheet } from "./icons.js";
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
@@ -17,7 +19,7 @@ import { saveFile } from "../lib/desktop.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #135 — project desurvey method
 import { useKeptState, keptIn, scopeOf } from "../lib/keptState.js"; // TASKS.csv #3223 — the dialog's settings kept with the project
-import { stampLines, withStamp, ASSAY_READING_RULES, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #404
+import { stampLines, ASSAY_READING_RULES, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #404
 import { version as APP_VERSION } from "../../package.json";
 import { LAYER_META } from "../lib/layers.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
@@ -339,7 +341,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
       `Order: ${sortKey === "gl" && sortDesc ? "grade x length, best first" : `${sortKey === "hole" ? "hole, then depth" : sortKey} ${sortDesc ? "descending" : "ascending"}`}`, // #3565
       `Intercepts: ${results.length}`,
     ] });
-    saveFile({ suggestedName: `best_intercepts_${gradeSym}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(rows), stamp) });
+    saveFile({ suggestedName: `best_intercepts_${gradeSym}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: stampedCsv(toExportCsv(rows), stamp) /* TASKS.csv #3614 — the # lines only when asked */ });
   };
 
   return (
@@ -587,6 +589,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
 
           <button onClick={exportCSV} disabled={results.length === 0} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: results.length === 0 ? 0.5 : 1 }}>
             <Download size={14} />{" "}{tr("Export report (CSV)")}</button>
+          <CsvStampToggle />{/* TASKS.csv #3614 */}
           <button onClick={toLayout} disabled={results.length === 0} title={tr("Put the best of these intercepts on the current Layout page as a table, as many as fit a free spot on the page (the CSV has them all)")} style={{ ...btn(false), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: results.length === 0 ? 0.5 : 1 }}>
             <Sheet size={14} />{" "}{tr("To Layout")}</button>{/* TASKS.csv #911 */}
           <label style={{ display: "flex", alignItems: "center", gap: 5, alignSelf: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }} title={tr("The intercepts that do not fit the sheet go on new Layout pages, as the collar table's continuation does, instead of a closing count row")}>
