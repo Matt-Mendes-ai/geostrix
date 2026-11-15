@@ -34,6 +34,7 @@ import { BULK_COMMODITIES } from "../lib/preferredElement.js"; // TASKS.csv #292
 import { elementOptionLabel, isLoiHeader } from "../lib/geochem.js"; // TASKS.csv #2923 — 'Si as SiO2' in the price rows; isLoiHeader: #2924 // TASKS.csv #2200 / #2479; columnFormat: #3019
 import { pagePx, pageFormatOf, addPagesOnPaper } from "../lib/pageFormats.js"; // TASKS.csv #2479; addPagesOnPaper: #3370
 import { holeTotals, holeTotalsDisplay, holeExtraMeans } from "../lib/accumulation.js"; // TASKS.csv #2419 — Total per hole; holeExtraMeans: #3566
+import { compositeSourceAssays } from "../lib/compositeSources.js"; // TASKS.csv #3584
 import { densityLookup } from "../lib/densityWeight.js"; // TASKS.csv #3562 — grades weighted by length x density
 
 const RESULT_ROW_H = 26; // TASKS.csv #222 — matches AttributeTableModal's row-windowing pattern
@@ -45,7 +46,12 @@ const RESULT_ROW_H = 26; // TASKS.csv #222 — matches AttributeTableModal's row
 // just the control panel + results table + CSV export around it.
 const ALSO_MAX = 16; // TASKS.csv #2356 — above this many other elements, 'Also show' lists only the ticked ones
 
-export default function BestIntercepts({ assays: assaysIn, assayElements, collars, survey, layers, onClose }) {
+export default function BestIntercepts({ assays: assaysTable, assayElements: elementsTable, collars, survey, layers, onClose }) {
+  // TASKS.csv #3584 — the kept composites layers (Compositing > Keep as a layer) are elements too, cut at the composites' own length
+  const keptLayers = useStore().customLayers;
+  const kept = useMemo(() => compositeSourceAssays(keptLayers), [keptLayers]);
+  const assaysIn = useMemo(() => (kept.assays.length ? [...(assaysTable || []), ...kept.assays] : assaysTable), [assaysTable, kept]);
+  const assayElements = useMemo(() => (kept.assayElements.length ? [...(elementsTable || []), ...kept.assayElements.filter((e) => !(elementsTable || []).some((x) => x.symbol === e.symbol))] : elementsTable), [elementsTable, kept]);
   const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
