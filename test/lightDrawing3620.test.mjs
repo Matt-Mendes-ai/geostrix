@@ -66,5 +66,38 @@ test("#3620 wiring: the view decides before it makes the renderer, registers it,
   assert.match(v, /renderer\.setPixelRatio\(light \? 1 : Math\.min\(window\.devicePixelRatio, 2\)\);/);
   assert.match(v, /registerRenderer\(renderer\); \{ const ln = lightDrawingNotice\(\); if \(ln\) setNotices\(\(p\) => \[\.\.\.p, ln\]\); \}/);
   assert.match(read("../src/components/ReportProblemModal.jsx"), /info: \{ \.\.\.info, render: window\.__geostrixRenderInfo\?\.\(\) \?\? null/);
-  assert.match(read("../src/modules/viewer/drillholeScene.js"), /geo = intervalProto\(st\.shape\);/);
+  assert.match(read("../src/modules/viewer/drillholeScene.js"), /geo = intervalProto\(st\.shape, /);
+});
+
+import { PROTO_CROSS, PROTO_PRISM_4 as PRISM, PROTO_CYLINDER as CYL } from "../src/lib/viewer/protos.js";
+import { LIGHT_LINES_MIN, lightPref, applyLightPref } from "../src/lib/viewer/lightDrawing.js";
+
+test("#3620 a big interval layer is crossed ribbons in light drawing (4 triangles), a small one a prism; full drawing is unchanged", () => {
+  setLight(true);
+  assert.equal(tris(PROTO_CROSS), 4); assert.equal(PROTO_CROSS.attributes.normal.count, 8);
+  assert.equal(intervalProto("cylinder", LIGHT_LINES_MIN - 1), PRISM); assert.equal(intervalProto("cylinder", LIGHT_LINES_MIN), PROTO_CROSS);
+  assert.equal(intervalProto("smooth", 32498), PROTO_CROSS); assert.equal(intervalProto("square", 32498), PROTO_CROSS); assert.equal(intervalProto("square", 10), PRISM);
+  assert.equal(intervalProto("cylinder"), PRISM, "no count: the prism");
+  setLight(false);
+  assert.equal(intervalProto("cylinder", 99999), CYL); assert.equal(intervalProto("square", 99999), PRISM);
+});
+
+test("#3620 the choice: auto follows the GPU, on and off decide; applying it decides at once", () => {
+  const store = new Map();
+  globalThis.localStorage = { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
+  try {
+    assert.equal(lightPref(), "auto");
+    assert.equal(applyLightPref("on"), true); assert.equal(isLight(), true); assert.equal(lightPref(), "on");
+    assert.equal(applyLightPref("off"), false); assert.equal(isLight(), false); assert.equal(lightPref(), "off");
+    applyLightPref("auto"); assert.equal(lightPref(), "auto"); assert.equal(store.has("geostrix.lightDrawing"), false, "auto is the absence of a choice");
+  } finally { delete globalThis.localStorage; setLight(false); }
+});
+
+test("#3620 wiring: the sidebar control rebuilds the scene, the big layers take the ribbons with both sides drawn", () => {
+  assert.match(read("../src/modules/ViewerModule.jsx"), /<LightDrawingControl onChange=\{\(\) => setRebuildSeq\(\(n\) => n \+ 1\)\} \/>/);
+  const d = read("../src/modules/viewer/drillholeScene.js");
+  assert.match(d, /geo = intervalProto\(st\.shape, \(layers\?\.\[groupKey\] \|\| \[\]\)\.length\);/);
+  assert.match(d, /side: geo === PROTO_CROSS \? THREE\.DoubleSide : THREE\.FrontSide/);
+  assert.match(d, /side: iproto === PROTO_CROSS \? THREE\.DoubleSide : THREE\.FrontSide/);
+  assert.match(read("../src/modules/viewer/LightDrawingControl.jsx"), /applyLightPref\(v\); onChange\?\.\(\);/);
 });

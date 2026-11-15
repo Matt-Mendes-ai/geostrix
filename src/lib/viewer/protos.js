@@ -1,7 +1,7 @@
 // Shared prototype geometries of the 3D view's drillhole layers, moved out of ViewerModule.jsx unchanged (TASKS.csv #2176; its
 // #1084 size cap). One module instance, so ViewerModule and viewer/drillholeScene.js use the same geometry objects.
 import * as THREE from "three";
-import { isLight } from "./lightDrawing.js"; // TASKS.csv #3620 — light drawing: fewer triangles per marker
+import { isLight, LIGHT_LINES_MIN } from "./lightDrawing.js"; // TASKS.csv #3620 — light drawing: fewer triangles per marker
 
 // Shared prototype geometries. Batching requires the members of a family to share ONE geometry, so
 // the build code below creates unit-sized primitives and encodes the real size in the object's
@@ -30,7 +30,16 @@ export const INTERVAL_PROTO = { cylinder: PROTO_CYLINDER, smooth: PROTO_CYLINDER
 // TASKS.csv #3620 — light drawing (a software renderer, lib/viewer/lightDrawing.js): an interval is a 4-sided prism (16 triangles for the cylinder's 24, the smooth one's 64),
 // a sphere a 20-triangle solid (180 for the 10 x 10 sphere)
 export const PROTO_SOLID_LOW = sharedProto(new THREE.IcosahedronGeometry(1.05, 0), "ico20");
-export const intervalProto = (shape) => { const p = INTERVAL_PROTO[shape]; return isLight() && (p === PROTO_CYLINDER || p === PROTO_CYLINDER_16) ? PROTO_PRISM_4 : p; };
+// two crossed upright ribbons along the interval (width 2, as the prism's): 4 triangles, a line from any side; double-sided (its batch's material says so)
+export const PROTO_CROSS = (() => {
+  const g = new THREE.BufferGeometry();
+  const P = [-1, 0, 0, 1, 0, 0, 1, 1, 0, -1, 1, 0, 0, 0, -1, 0, 0, 1, 0, 1, 1, 0, 1, -1], N = [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0];
+  g.setAttribute("position", new THREE.Float32BufferAttribute(P, 3)); g.setAttribute("normal", new THREE.Float32BufferAttribute(N, 3));
+  g.setIndex([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]);
+  return sharedProto(g, "cross");
+})();
+// n: the layer's interval count; a big layer (LIGHT_LINES_MIN) is drawn as crossed ribbons
+export const intervalProto = (shape, n = 0) => { const p = INTERVAL_PROTO[shape]; return !isLight() ? p : n >= LIGHT_LINES_MIN && (p === PROTO_CYLINDER || p === PROTO_CYLINDER_16 || p === PROTO_PRISM_4) ? PROTO_CROSS : p === PROTO_CYLINDER || p === PROTO_CYLINDER_16 ? PROTO_PRISM_4 : p; };
 export const lightSolid = (p) => (isLight() && (p === PROTO_SPHERE_10 || p === PROTO_SPHERE_8 || p === PROTO_SPHERE_12) ? PROTO_SOLID_LOW : p);
 export const UP_Y = new THREE.Vector3(0, 1, 0), DIR_TMP = new THREE.Vector3(); // #1500 — an interval's rotation without two new vectors each
 export const POINT_PROTO = { sphere: PROTO_SPHERE_10, cube: PROTO_CUBE, disc: PROTO_DISC_FLAT, pillar: PROTO_PILLAR };

@@ -6,7 +6,7 @@
 // The 1 m and "more than half" are checks this pane applies, said in the messages, not facts about the data. Pure.
 import { t as tr } from "./i18n.js";
 import { LAYER_META } from "./layers.js";
-import { SKIP_REASONS } from "./viewer/importHelpers.js";
+import { SKIP_REASONS } from "./viewer/importHelpersCore.js";
 import { importLeftOutList } from "./importLeftOut.js";
 
 export const SHORT_M = 1;

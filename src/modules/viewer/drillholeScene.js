@@ -22,7 +22,7 @@ import { isTable, rowOf, tableOps } from "../../lib/rowTable.js"; // TASKS.csv #
 import { rowsRefOf } from "../../lib/tableFields.js"; // TASKS.csv #3424 step 2
 import { traceLookup } from "../../lib/viewer/modelHelpers.js";
 import { dropLogCoarse, primeLogLod } from "./logLod.js"; // TASKS.csv #2802
-import { PROTO_CYLINDER, PROTO_SPHERE_8, PROTO_SPHERE_12, PROTO_CIRCLE_24, PROTO_PRISM_4, PROTO_SQUARE, PIN_AXIS, dipPinDir, intervalProto, UP_Y, DIR_TMP, POINT_PROTO } from "../../lib/viewer/protos.js";
+import { PROTO_CYLINDER, PROTO_SPHERE_8, PROTO_SPHERE_12, PROTO_CIRCLE_24, PROTO_PRISM_4, PROTO_SQUARE, PIN_AXIS, dipPinDir, intervalProto, lightSolid, PROTO_CROSS, UP_Y, DIR_TMP, POINT_PROTO } from "../../lib/viewer/protos.js";
 
 const toRad = (d) => (d * Math.PI) / 180;
 
@@ -500,7 +500,7 @@ export function buildDrillholeScene(ctx) {
     const methodAssumed = c.attrs?.["survey method"] === "assumed";
     if (rebuildHoles) { // #2176 — the holes group is kept when no hole was desurveyed again
     if (!collarMaterialRef.current) collarMaterialRef.current = collarMarkerMaterial(new THREE.MeshBasicMaterial({ color: collarColorFor(bgColorRef.current), transparent: true })); // #378; #2623; transparent (opacity 1): #2776
-    const marker = new THREE.Mesh(PROTO_SPHERE_12, collarMaterialRef.current); // TASKS.csv #312 — shared prototype + scale (was SphereGeometry(3.2, 12, 12))
+    const marker = new THREE.Mesh(lightSolid(PROTO_SPHERE_12), collarMaterialRef.current); // #3620: a 20-triangle solid in light drawing // TASKS.csv #312 — shared prototype + scale (was SphereGeometry(3.2, 12, 12))
     marker.scale.setScalar(3.2);
     marker.renderOrder = DRAW_ORDER.collars; // TASKS.csv #2776 — over a flat raster (its batch takes it)
     marker.position.set(pts[0].x, pts[0].y, pts[0].z);
@@ -563,9 +563,9 @@ export function buildDrillholeScene(ctx) {
           // straight interval in a layer share ONE InstancedMesh draw call — see PROTO_CYLINDER
           // and buildLayerBatches. Same vertices, same placement; three.js raycasts in local
           // space, so picking is unchanged.
-          geo = intervalProto(st.shape); // #3620: a prism in light drawing
+          geo = intervalProto(st.shape, (layers?.[groupKey] || []).length); // #3620: a prism in light drawing, crossed ribbons for a big layer
           const color = st.color || (meta.numeric ? numericIntervalColor(groupKey, row.value) : baseColorForBuild(groupKey, row.value));
-          mesh_ = new PickStandIn(geo, { color, transparent: st.opacity < 1, opacity: st.opacity }); // #1500 — never drawn itself (its batch is)
+          mesh_ = new PickStandIn(geo, { color, transparent: st.opacity < 1, opacity: st.opacity, side: geo === PROTO_CROSS ? THREE.DoubleSide : THREE.FrontSide }); // #1500; the ribbons are seen from both sides (#3620) — never drawn itself (its batch is)
           mesh_.scale.set(radius, len, radius);
           mesh_.position.set(p1.x, p1.y, p1.z);
           mesh_.quaternion.setFromUnitVectors(UP_Y, DIR_TMP.set(dx / len, dy / len, dz / len)); // #1500 — shared vectors
@@ -701,7 +701,8 @@ export function buildDrillholeScene(ctx) {
           // It was a TubeGeometry + material per row: Lawyers' 5 custom layers were 16,860 meshes, ~14,700 draw calls, 9 fps orbit.
           const dx = p2.x - p1.x, dy = p2.y - p1.y, dz = p2.z - p1.z, len = Math.sqrt(dx * dx + dy * dy + dz * dz);
           if (!(len > 1e-6)) return;
-          const mesh = new PickStandIn(intervalProto(stI.shape) || PROTO_CYLINDER, { color: stI.color || row.modelColor || customColour(layer, layerStyles, row), transparent: stI.opacity < 1, opacity: stI.opacity }); // #1500; #1697
+          const iproto = intervalProto(stI.shape, (lt ? lt.length : layer.rows?.length) || 0) || PROTO_CYLINDER; // #3620
+          const mesh = new PickStandIn(iproto, { color: stI.color || row.modelColor || customColour(layer, layerStyles, row), transparent: stI.opacity < 1, opacity: stI.opacity, side: iproto === PROTO_CROSS ? THREE.DoubleSide : THREE.FrontSide }); // #1500; #1697
           mesh.scale.set(1.6 * stI.size, len, 1.6 * stI.size);
           mesh.position.set(p1.x, p1.y, p1.z);
           mesh.quaternion.setFromUnitVectors(PIN_AXIS, dipPinDir.set(dx / len, dy / len, dz / len));
