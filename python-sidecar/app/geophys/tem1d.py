@@ -334,6 +334,7 @@ class TemSurvey:
     and high moment, each with its own gates and waveform, their readings one after the other in a station's row: step 3)."""
 
     kind = "log"
+    per_station = True  # TASKS.csv #1987: forward_fn takes rows (the stations a call is for) and geo (a solved height / rz per row)
 
     def __init__(self, system, gates=None, widths=None, waveform=None, moments=None):
         self.system = dict(system)
@@ -341,12 +342,17 @@ class TemSurvey:
         self.moments = [{"gates": np.asarray(m["gates"], float), "widths": None if m.get("widths") is None else np.asarray(m["widths"], float),
                          "waveform": m.get("waveform"), "baseFreq": m.get("baseFreq")} for m in ms]
 
-    def forward_fn(self, m, thick, jac=False):
+    def forward_fn(self, m, thick, jac=False, rows=None, geo=None):
         cond = 10.0 ** np.atleast_2d(np.asarray(m, float))
         system = self.system
         for key in ("h", "rz", "tilt"):
+            if geo is not None and key in geo:
+                system = {**system, key: np.asarray(geo[key], float)}  # TASKS.csv #1987: the height / rz being solved for, one a row
+                continue
             v = np.atleast_1d(np.asarray(system.get(key, 0.0), float))
-            if len(v) > 1 and len(v) != len(cond):
+            if len(v) > 1 and rows is not None:
+                system = {**system, key: v[rows]}  # TASKS.csv #1987: the line search's stations (a subset of the batch)
+            elif len(v) > 1 and len(v) != len(cond):
                 # step 3 — the stations' own heights, but not one model a station (em1d.invert_batch's half-space search: a grid of 46 models):
                 # the mean, for that starting guess only
                 system = {**system, key: float(v.mean())}
@@ -365,8 +371,13 @@ def run_job(req, progress):
     (step 3: two moments in one station's row, one after the other); data (rows of pV / (A m^4), null = missing); std (rows of relative
     uncertainties, optional) or errRel / errAbs (pV / (A m^4)); heights (m above the ground per station, optional: the system's h otherwise);
     layers {n, first, bottom}; lateral, window, gapM, maxIter, line, x, y.
-    Progress events carry each finished batch ('partial': idx, condMs, chi, doi, pred), so a cancelled run keeps the stations it finished.
-    -> thick, condMs (mS/m per layer), chi, doi, pred (pV / (A m^4)), seconds, leftOut (readings <= 0)"""
+    TASKS.csv #1987 — prior {condMs: (N) or (S, N) mS/m, null = none on that layer; sdLog: decades, one, (N) or (S, N)}: a reference model
+    with its own uncertainty per layer; free {height: {sd}, rz: {sd}} (m): the height and the receiver's rz solved for, each with the
+    file's value as its prior mean and the typed sd.
+    Progress events carry each finished batch ('partial': idx, condMs, chi, doi, pred, sdLog [, heightM, heightSdM, rzM, rzSdM]), so a
+    cancelled run keeps the stations it finished.
+    -> thick, condMs (mS/m per layer), chi, doi, pred (pV / (A m^4)), sdLog (the posterior sd of log10 cond per layer, linearised: it
+    depends on the regularisation), [heightM, heightSdM, rzM, rzSdM], seconds, leftOut (readings <= 0)"""
     import time as _time
 
     from .em1d import ALPHA, DOI_FRAC, depth_of_investigation, invert_batch, layer_thicknesses, neighbour_mean
@@ -403,6 +414,21 @@ def run_job(req, progress):
     tilts = np.asarray([1.0 if v is None else v for v in req["tilt"]] if req.get("tilt") is not None else [1.0] * S, float)
     tilts = np.where(np.isfinite(tilts) & (tilts > 0), tilts, 1.0)
     left_out = int((np.isfinite(data) & (data <= 0)).sum())
+    N = len(thick) + 1
+    # TASKS.csv #1987 — the prior on the layers, broadcast to (S, N) (NaN: no prior on that layer)
+    pm = ps = None
+    pr = req.get("prior")
+    if pr:
+        pc = np.array([[np.nan if v is None else float(v) for v in row] for row in pr["condMs"]], float) if np.ndim(pr["condMs"]) == 2             else np.array([np.nan if v is None else float(v) for v in pr["condMs"]], float)
+        pm = np.broadcast_to(np.log10(np.where(pc > 0, pc, np.nan) / 1000.0), (S, N))
+        sdl = pr.get("sdLog")
+        sa = np.array(sdl if np.ndim(sdl) else [sdl], dtype=float) if sdl is not None else np.array([np.nan])
+        ps = np.broadcast_to(np.where(np.isfinite(sa), sa, np.nan), (S, N)) if sa.ndim < 2 else sa
+    fr = req.get("free") or {}
+    free_sd = {k: float(fr[name]["sd"]) for name, k in (("height", "h"), ("rz", "rz")) if fr.get(name)}
+    sd_log = np.full((S, N), np.nan)
+    geo_out = {k: np.full(S, np.nan) for k in free_sd}
+    geo_sd = {k: np.full(S, np.nan) for k in free_sd}
     passes = 2 if lateral > 0 else 1
     m = np.full((S, len(thick) + 1), np.nan)
     chi = np.full(S, np.nan)
@@ -421,8 +447,12 @@ def run_job(req, progress):
         for idx in batches:
             mr = None if ref is None else ref[idx]
             alpha = ALPHA if ref is None else np.where(np.isfinite(mr[:, 0]), max(lateral, ALPHA), ALPHA)
-            mm, cc, pp, JJ, ww = invert_batch(TemSurvey({**system, "h": hs[idx], "rz": rzs[idx], "tilt": tilts[idx]}, moments=moments), data[idx], sd[idx], thick, m_ref=mr, alpha=alpha, max_iter=max_iter)
-            m[idx], chi[idx], pred[idx] = mm, cc, pp
+            free = {k: ({"h": hs, "rz": rzs}[k][idx], v) for k, v in free_sd.items()} or None
+            mm, cc, pp, JJ, ww, inf = invert_batch(TemSurvey({**system, "h": hs[idx], "rz": rzs[idx], "tilt": tilts[idx]}, moments=moments), data[idx], sd[idx], thick,
+                                                   m_ref=mr, alpha=alpha, max_iter=max_iter, prior=None if pm is None else (pm[idx], ps[idx]), free=free, info=True)
+            m[idx], chi[idx], pred[idx], sd_log[idx] = mm, cc, pp, inf["sd"]
+            for k in free_sd:
+                geo_out[k][idx], geo_sd[k][idx] = inf["g"][k], inf["gsd"][k]
             doi[idx] = depth_of_investigation(JJ, ww, thick, float(req.get("doiFrac", DOI_FRAC)))
             pp_out = pp.copy()
             pp_out[~np.isfinite(data[idx])] = np.nan
@@ -431,8 +461,10 @@ def run_job(req, progress):
             if first is None:
                 first = (el, done)
             eta = round((el - first[0]) / (done - first[1]) * (passes * S - done)) if done > first[1] else None
-            recent = (recent + [{"idx": [int(i) for i in idx], "condMs": [nan(1000.0 * 10.0 ** row) for row in mm], "chi": nan(cc), "doi": nan(doi[idx]),
-                                 "pred": [nan(row) for row in pp_out], "pass": p}])[-RECENT_BATCHES:]
+            part = {"idx": [int(i) for i in idx], "condMs": [nan(1000.0 * 10.0 ** row) for row in mm], "chi": nan(cc), "doi": nan(doi[idx]),
+                    "pred": [nan(row) for row in pp_out], "sdLog": [nan(row) for row in inf["sd"]], "pass": p}
+            part.update(_geo_fields(free_sd, inf["g"], inf["gsd"], nan))
+            recent = (recent + [part])[-RECENT_BATCHES:]
             progress({"stage": "inverting", "message": (f"Pass {p + 1} of {passes}: " if passes > 1 else "") + f"{done - p * S:,} of {S:,} stations…",
                       "iter": done, "maxIter": passes * S, "etaS": eta, "pass": p, "passes": passes, "stations": S, "partials": recent})
     pred[~np.isfinite(data)] = np.nan
@@ -441,9 +473,20 @@ def run_job(req, progress):
         "condMs": [nan(1000.0 * 10.0 ** row) for row in m],
         "chi": nan(chi), "doi": nan(doi),
         "pred": [nan(row) for row in pred],
+        "sdLog": [nan(row) for row in sd_log],
+        **_geo_fields(free_sd, geo_out, geo_sd, nan),
         "leftOut": left_out,
         "seconds": round(_time.time() - t0, 1),
     }
+
+
+def _geo_fields(free_sd, g, gsd, nan):
+    """TASKS.csv #1987 — the solved height / rz and their posterior sd (m), under the names the app reads"""
+    out = {}
+    for k, name in (("h", "height"), ("rz", "rz")):
+        if k in free_sd:
+            out[name + "M"], out[name + "SdM"] = nan(g[k]), nan(gsd[k])
+    return out
 
 
 RECENT_BATCHES = 4  # finished batches carried by each progress event (a batch takes seconds; the app polls every second)
