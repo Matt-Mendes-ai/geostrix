@@ -112,6 +112,7 @@ export async function exportProjectKmz(store, { confirm = (m) => window.confirm(
     designLines: store.designLines, designStrings: store.designStrings, // #3087
     generatedSurfaces: store.generatedSurfaces, voxelModels: store.voxelModels, terrain: store.terrain, sectionImages: store.sectionImages, // #3087 part 2
     layerGroups: store.layerGroups, ui,
+    geophysSurveys: store.geophysSurveys, // TASKS.csv #3512 — a positions-only survey is written as grey points, not classed by its 0
   };
   const est = estimateProjectKmz(ctx);
   if (est > KMZ_WARN_BYTES && !confirm(tr("This project's KMZ would hold about {mb} MB of KML before compression. Google Earth may be slow to open a file this large. Export anyway?", { mb: Math.round(est / 1048576).toLocaleString() }))) return { ok: false, cancelled: true };
