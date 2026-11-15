@@ -11,7 +11,7 @@ import { pagePx, pageFormatOf } from "./pageFormats.js"; // TASKS.csv #2740 — 
 import { setKnownHoleIds } from "./qaqcCore.js"; // TASKS.csv #400; qaqcCore: #1345
 import { compactLayers } from "./compactRows.js"; // TASKS.csv #374
 import { readDbProfiles, writeDbProfiles, mergeDbProfiles, profilesFromFile } from "./dbProfiles.js"; // TASKS.csv #1081
-import { FIELD_KEYS, FIELDS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, expandPayloadSliced /* #3423 */, payloadFromFields, projectPartsSliced /* #3104 (projectParts before) */, joinParts, cachedJson /* #1975 */, extraDirtyValues, projectHasContent } from "./projectFields.js"; // TASKS.csv #448
+import { FIELD_KEYS, FIELDS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, expandPayloadSliced /* #3423 */, payloadHasTables /* #3492 */, payloadFromFields, projectPartsSliced /* #3104 (projectParts before) */, joinParts, cachedJson /* #1975 */, extraDirtyValues, projectHasContent } from "./projectFields.js"; // TASKS.csv #448
 import { datumPatch } from "./localGridDatum.js"; // TASKS.csv #2691 / #2661
 import { fillFromRows, setEntry } from "./codeDictionary.js"; // TASKS.csv #2163
 import { changeElementBasis, rebaseRows, rebaseThresholds } from "./oxideBasisChange.js"; // TASKS.csv #2627
@@ -1270,14 +1270,27 @@ export function StoreProvider({ children }) {
   // becomes active below, and dirty-checked via activeTabDirty instead of a payload diff. (workspaceTabs/
   // activeTabId/activeTabDirty themselves are declared earlier, just above saveProject — see that
   // comment for why.)
+  // TASKS.csv #3492 (side 5) — a tab whose stashed payload holds column tables is expanded into rows a slice at a time first (the switch was one
+  // main-thread task of the whole decode), then switched with the LATEST state (switchNow is a latest-callback). The switch is dropped if another
+  // click, a close or an open came meanwhile (the sequence number, the tab that was active at the click, and the stashed payload being the one
+  // that was expanded). The stashed payload itself stays compact; a small one switches at once, as before.
+  const switchSeqRef = useRef(0);
   const switchToTab = useLatestCallback((tabId) => {
+    const seq = ++switchSeqRef.current; // first: a click back on the active tab also cancels a switch still expanding
     if (tabId === activeTabId) return;
     const target = workspaceTabs.find((t) => t.id === tabId);
     if (!target) return;
     if (!sectionWindowsMayClose()) return; // #2620
+    if (!payloadHasTables(target.payload)) { switchNow(tabId, null, null); return; }
+    const from = activeTabIdRef.current, stashed = target.payload;
+    expandPayloadSliced(stashed).then((expanded) => { if (seq === switchSeqRef.current && activeTabIdRef.current === from) switchNow(tabId, stashed, expanded); });
+  });
+  const switchNow = useLatestCallback((tabId, stashed, expanded) => {
+    const target = workspaceTabs.find((t) => t.id === tabId);
+    if (!target || tabId === activeTabId) return;
     const current = snapshotCurrentPayload();
     setWorkspaceTabs(workspaceTabs.map((t) => (t.id === activeTabId ? { ...t, name: project?.name || t.name, payload: current, dirty: activeTabDirty } : t)));
-    loadProjectPayload(target.payload, target.name);
+    loadProjectPayload(expanded && target.payload === stashed ? expanded : target.payload, target.name);
     // TASKS.csv #479 — loadProjectPayload marks a project clean (right for Open), but a tab you switch to keeps
     // ITS OWN unsaved state: switching used to clear it, so an unsaved tab could be closed with no prompt and
     // dropped out of autosave. (Called after loadProjectPayload: the later setState in the batch wins.)
