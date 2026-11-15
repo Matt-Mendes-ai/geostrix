@@ -131,6 +131,9 @@ def _run_once(kind, req, q, cap, warm=False):
         elif kind == "em1d":  # TASKS.csv #1986 — 1D inversion of loop-loop FDEM soundings
             from app.geophys.em1d import run_job as run_em1d
             out = run_em1d(req, lambda ev: q.put(("progress", ev)))
+        elif kind == "structfit":  # TASKS.csv #2640 Stage 1 — which contacts a gravity / magnetic survey can see (GemPy + SimPEG)
+            from app.geophys.structfit import run_job as run_structfit
+            out = run_structfit(req, lambda ev: q.put(("progress", ev)))
         elif kind == "tem1d":  # TASKS.csv #3440 — 1D inversion of TEM decays (airborne dipole or ground central loop)
             from app.geophys.tem1d import run_job as run_tem1d
             out = run_tem1d(req, lambda ev: q.put(("progress", ev)))
