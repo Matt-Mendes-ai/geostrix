@@ -13284,5 +13284,21 @@
   "by a field of the Y layer": "por un campo de la capa Y",
   "{axis} scale": "Escala {axis}",
   "{axis} axis scale": "Escala del eje {axis}",
-  "Y layer field to colour by": "Campo de la capa Y para colorear"
+  "Y layer field to colour by": "Campo de la capa Y para colorear",
+  "Repeated intervals": "Intervalos repetidos",
+  "Repeated intervals: which are duplicates?": "Intervalos repetidos: ¿cuáles son duplicados?",
+  "These assay rows have no sample ids. Two rows over the same hole and interval may be a field duplicate and its original, a lab re-assay, or the same file imported twice: nothing is marked until you tick it. The earlier row is the original.": "Estas filas de ensayes no tienen identificadores de muestra. Dos filas sobre el mismo sondaje e intervalo pueden ser un duplicado de campo y su original, un reensaye de laboratorio o el mismo archivo importado dos veces: no se marca nada hasta que usted lo seleccione. La fila anterior es el original.",
+  "No pair of rows over one hole and interval was found.": "No se encontró ningún par de filas sobre un mismo sondaje e intervalo.",
+  "From–to (m)": "Desde–hasta (m)",
+  "{el} ({unit}), original": "{el} ({unit}), original",
+  "{el} ({unit}), repeat": "{el} ({unit}), repetición",
+  "Mark {hole} {from}–{to} as a duplicate": "Marcar {hole} {from}–{to} como duplicado",
+  "identical values: a double import?": "valores idénticos: ¿una importación doble?",
+  "The first {n} of {all} pairs are listed.": "Se listan los primeros {n} de {all} pares.",
+  "{n} rows sit on an interval met three or more times: not suggested (which one is the original?).": "{n} filas están en un intervalo que aparece tres o más veces: no se sugiere (¿cuál es el original?).",
+  "Tick the {n} pairs whose values differ": "Marcar los {n} pares con valores distintos",
+  "Mark {n} as duplicates": "Marcar {n} como duplicados",
+  "Review {n} repeated interval(s) and mark duplicates…": "Revisar {n} intervalo(s) repetido(s) y marcar duplicados…",
+  "Lists the pairs of rows over one hole and interval so you can mark the ones that are duplicates: it writes a sample type and a parent sample id onto the second row of each pair you tick, and nothing else.": "Lista los pares de filas sobre un mismo sondaje e intervalo para marcar los duplicados: escribe un tipo de muestra y un identificador de muestra padre en la segunda fila de cada par que marque, y nada más.",
+  "{n} pair(s) marked: the second row of each is now a field duplicate of the first.": "{n} par(es) marcado(s): la segunda fila de cada uno es ahora un duplicado de campo de la primera."
 }

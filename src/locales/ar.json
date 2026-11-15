@@ -13284,5 +13284,21 @@
   "by a field of the Y layer": "بحسب حقل من طبقة Y",
   "{axis} scale": "مقياس {axis}",
   "{axis} axis scale": "مقياس المحور {axis}",
-  "Y layer field to colour by": "حقل طبقة Y للتلوين"
+  "Y layer field to colour by": "حقل طبقة Y للتلوين",
+  "Repeated intervals": "فواصل مكررة",
+  "Repeated intervals: which are duplicates?": "فواصل مكررة: أيها نسخ مكررة؟",
+  "These assay rows have no sample ids. Two rows over the same hole and interval may be a field duplicate and its original, a lab re-assay, or the same file imported twice: nothing is marked until you tick it. The earlier row is the original.": "ليس لصفوف التحاليل هذه معرّفات عينات. قد يكون صفّان على الحفرة والفاصل نفسيهما نسخة مكررة حقلية وأصلها، أو إعادة تحليل مخبرية، أو الملف نفسه مستورداً مرتين: لا يُعلَّم شيء حتى تحدده. الصف الأسبق هو الأصل.",
+  "No pair of rows over one hole and interval was found.": "لم يُعثر على أي زوج من الصفوف على الحفرة والفاصل نفسيهما.",
+  "From–to (m)": "من–إلى (م)",
+  "{el} ({unit}), original": "{el} ({unit})، الأصل",
+  "{el} ({unit}), repeat": "{el} ({unit})، المكرر",
+  "Mark {hole} {from}–{to} as a duplicate": "تعليم {hole} {from}–{to} كنسخة مكررة",
+  "identical values: a double import?": "قيم متطابقة: استيراد مزدوج؟",
+  "The first {n} of {all} pairs are listed.": "عُرضت أول {n} من {all} زوجاً.",
+  "{n} rows sit on an interval met three or more times: not suggested (which one is the original?).": "{n} صفاً على فاصل تكرر ثلاث مرات أو أكثر: لا يُقترح (أيها الأصل؟).",
+  "Tick the {n} pairs whose values differ": "تحديد الأزواج ذات القيم المختلفة ({n})",
+  "Mark {n} as duplicates": "تعليم {n} كنسخ مكررة",
+  "Review {n} repeated interval(s) and mark duplicates…": "مراجعة {n} فاصل مكرر وتعليم النسخ المكررة…",
+  "Lists the pairs of rows over one hole and interval so you can mark the ones that are duplicates: it writes a sample type and a parent sample id onto the second row of each pair you tick, and nothing else.": "يعرض أزواج الصفوف على الحفرة والفاصل نفسيهما لتعلّم النسخ المكررة: يكتب نوع العينة ومعرّف العينة الأم على الصف الثاني من كل زوج تحدده، ولا شيء آخر.",
+  "{n} pair(s) marked: the second row of each is now a field duplicate of the first.": "عُلِّم {n} زوجاً: الصف الثاني من كل زوج صار الآن نسخة مكررة حقلية من الأول."
 }
