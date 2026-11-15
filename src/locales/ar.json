@@ -13207,5 +13207,9 @@
   "\"{page}\" prints no data credit, and this project has one. Add a text with {credits} to it (or a title block, which has a Data row) so the data owner is credited. Export without it?": "لا تطبع \"{page}\" إسناد البيانات ولهذا المشروع إسناد. أضف نصاً يحتوي على {credits} (أو جدول عنوان فيه صف البيانات) لإسناد البيانات إلى مالكها. هل تريد التصدير بدونه؟",
   "{n} pages print no data credit ({list}), and this project has one. Add a text with {credits} to them (or a title block, which has a Data row) so the data owner is credited. Export without it?": "{n} صفحات لا تطبع إسناد البيانات ({list}) ولهذا المشروع إسناد. أضف نصاً يحتوي على {credits} (أو جدول عنوان فيه صف البيانات) لإسناد البيانات إلى مالكها. هل تريد التصدير بدونه؟",
   "Part of this element reaches past the sheet's {sides} and will be cut off in the export: move it, or make it smaller.": "جزء من هذا العنصر يتجاوز {sides} للورقة وسيُقطع عند التصدير: انقله أو صغّره.",
-  "Then: {list}": "ثم: {list}"
+  "Then: {list}": "ثم: {list}",
+  "Save recovered work": "حفظ العمل المستعاد",
+  "This is work recovered from a previous session. It was open from \"{file}\", which holds the version you last saved. Save over that file, or keep both and save this as a new file?": "هذا عمل مستعاد من جلسة سابقة. كان مفتوحاً من \"{file}\" الذي يحتوي على آخر نسخة حفظتها. هل تريد الحفظ فوق ذلك الملف، أم الاحتفاظ بالاثنين وحفظ هذا كملف جديد؟",
+  "Save as a new file…": "حفظ كملف جديد…",
+  "Save over it": "الحفظ فوقه"
 }

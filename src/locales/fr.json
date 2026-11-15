@@ -13207,5 +13207,9 @@
   "\"{page}\" prints no data credit, and this project has one. Add a text with {credits} to it (or a title block, which has a Data row) so the data owner is credited. Export without it?": "« {page} » n'imprime pas le crédit des données et ce projet en a un. Ajoutez un texte avec {credits} (ou un cartouche, qui a une ligne Données) pour créditer le propriétaire des données. Exporter sans lui ?",
   "{n} pages print no data credit ({list}), and this project has one. Add a text with {credits} to them (or a title block, which has a Data row) so the data owner is credited. Export without it?": "{n} pages n'impriment pas le crédit des données ({list}) et ce projet en a un. Ajoutez un texte avec {credits} (ou un cartouche, qui a une ligne Données) pour créditer le propriétaire des données. Exporter sans lui ?",
   "Part of this element reaches past the sheet's {sides} and will be cut off in the export: move it, or make it smaller.": "Une partie de cet élément dépasse {sides} de la feuille et sera coupée à l'exportation : déplacez-le ou réduisez-le.",
-  "Then: {list}": "Ensuite : {list}"
+  "Then: {list}": "Ensuite : {list}",
+  "Save recovered work": "Enregistrer le travail récupéré",
+  "This is work recovered from a previous session. It was open from \"{file}\", which holds the version you last saved. Save over that file, or keep both and save this as a new file?": "Ceci est le travail récupéré d'une session précédente. Il était ouvert depuis « {file} », qui contient la dernière version que vous avez enregistrée. Écraser ce fichier, ou garder les deux et enregistrer ceci dans un nouveau fichier ?",
+  "Save as a new file…": "Enregistrer dans un nouveau fichier…",
+  "Save over it": "Écraser le fichier"
 }

@@ -1200,19 +1200,33 @@ export function StoreProvider({ children }) {
 
   // TASKS.csv #553 — Save writes straight back to the project's own file (the path it was opened from or last saved
   // to, kept per workspace tab); only a new project, Save As, or a path the main process won't allow asks where.
+  // TASKS.csv #3638 — a tab restored from the crash-recovery copy is tied to the file it was working on (`filePath`, `recovered: true`). Its first Save asks, in the app's own dialog (App draws it from
+  // saveChoice: components/SaveRecoveredModal.jsx): 'over' writes over the original, 'new' goes to Save As, 'cancel' leaves everything. The answer comes back through answerSaveChoice.
+  const [saveChoice, setSaveChoice] = useState(null); // { file } | null
+  const saveChoiceResolveRef = useRef(null);
+  const askSaveChoice = (file) => new Promise((resolve) => { saveChoiceResolveRef.current?.("cancel"); saveChoiceResolveRef.current = resolve; setSaveChoice({ file }); });
+  const answerSaveChoice = useCallback((choice) => { const r = saveChoiceResolveRef.current; saveChoiceResolveRef.current = null; setSaveChoice(null); r?.(choice); }, []);
   const saveProject = useLatestCallback(async ({ saveAs = false } = {}) => {
     // TASKS.csv #342 — last chance before an older build overwrites fields it can't see.
     if (newerFormatTabsRef.current.has(activeTabId) && !window.confirm(tr("This project came from a newer version of GeoStrix. Saving it with this version will permanently drop anything that version added. Save anyway?"))) return { ok: false, cancelled: true };
     // TASKS.csv #467 — a failed save (disk full, no permission, OneDrive lock, a project too big to
     // serialise) used to be an unhandled rejection whose only sign was a missing "Saved". It now returns
     // {ok:false, error} for the caller to show; nothing about the open project changes.
+    // TASKS.csv #3638 — before anything is built: a recovered tab asks once whether to write over the original file
+    let saveAsNew = saveAs;
+    const recoveredTab = workspaceTabs.find((t) => t.id === activeTabId);
+    if (!saveAs && recoveredTab?.recovered && recoveredTab.filePath) {
+      const answer = await askSaveChoice(recoveredTab.filePath.split(/[\\/]/).pop());
+      if (answer !== "over" && answer !== "new") return { ok: false, cancelled: true };
+      if (answer === "new") saveAsNew = true;
+    }
     let res;
     try {
     // TASKS.csv #3140 — the file's text from the per-field JSON the autosave caches (projectPartsSliced: the same characters as JSON.stringify of
     // snapshotCurrentPayload(), which is payloadFromFields(liveRef.current); test/forgetCompact3140): a big Table layer is not encoded a second time,
     // and the autosave can forget its compact copy. liveRef.current is this render's own object: an edit made while the build awaits is a new one.
     const content = joinParts(await projectPartsSliced(liveRef.current));
-    const knownPath = !saveAs ? workspaceTabs.find((t) => t.id === activeTabId)?.filePath : null;
+    const knownPath = !saveAsNew ? workspaceTabs.find((t) => t.id === activeTabId)?.filePath : null; // saveAsNew: #3638
     if (knownPath) res = await saveFileTo({ filePath: knownPath, content });
     if (!res || res.notAllowed) res = await saveFile({ quiet: true,
       // TASKS.csv #186 — project format renamed from .geox(.json) to .geostrix(.json). "json" stays
@@ -1244,7 +1258,7 @@ export function StoreProvider({ children }) {
       // live. Undo history deliberately still survives a save (you can undo past a save point, same
       // as most editors) — only the tab-dirty *indicator* resets here, tracked separately from undo
       // for exactly this reason.
-      setWorkspaceTabs((tabs) => tabs.map((t) => (t.id === activeTabId ? { ...t, name: displayName, dirty: false, ...(res.filePath ? { filePath: res.filePath } : {}) } : t)));
+      setWorkspaceTabs((tabs) => tabs.map((t) => (t.id === activeTabId ? { ...t, name: displayName, dirty: false, recovered: false /* #3638 */, ...(res.filePath ? { filePath: res.filePath } : {}) } : t)));
     }
     return res;
   });
@@ -1454,11 +1468,11 @@ export function StoreProvider({ children }) {
   const [recoveryStashed, setRecoveryStashed] = useState(null);
   // The recovered project (and its background tabs) as workspace tabs, marked unsaved.
   const recoveredTabs = (data) => {
-    const { version: _v, activeDirty: _a, backgroundTabs, autosavedAt: _t, ...payload } = data;
+    const { version: _v, activeDirty: _a, backgroundTabs, autosavedAt: _t, activeFilePath, ...payload } = data; // activeFilePath: #3638
     const stamp = Date.now();
     return [
-      { id: `tab_${stamp}_rec`, name: `Recovered: ${data.project?.name || "Untitled project"}`, payload, dirty: true },
-      ...(backgroundTabs || []).filter((t) => t && t.payload).map((t, i) => ({ id: `tab_${stamp}_r${i}`, name: t.name || "Recovered project", payload: t.payload, dirty: true })),
+      { id: `tab_${stamp}_rec`, name: `Recovered: ${data.project?.name || "Untitled project"}`, payload, dirty: true, ...(activeFilePath ? { filePath: activeFilePath, recovered: true } : {}) }, // filePath / recovered: #3638
+      ...(backgroundTabs || []).filter((t) => t && t.payload).map((t, i) => ({ id: `tab_${stamp}_r${i}`, name: t.name || "Recovered project", payload: t.payload, dirty: true, ...(t.filePath ? { filePath: t.filePath, recovered: true } : {}) })),
     ];
   };
   // TASKS.csv #341 — references of what was last written; an unchanged project is not re-serialised
@@ -1503,15 +1517,16 @@ export function StoreProvider({ children }) {
       // as JSON.stringify of the same payload (#448: layers #374 / voxel models #321 compact)
       // the background tabs' text is kept while the same tabs (same payload objects and names) are unsaved: a list of recovered
       // projects ran to 330 MB and was joined again every minute
-      const bgKey = background.flatMap((t) => [t.payload, t.name]), bgLast = autosaveBgRef.current;
+      const activeFile = tabs.find((t) => t.id === activeId)?.filePath || null; // TASKS.csv #3638 — the file the recovered work belongs to
+      const bgKey = background.flatMap((t) => [t.payload, t.name, t.filePath]), bgLast = autosaveBgRef.current;
       const bgText = bgLast && bgLast.key.length === bgKey.length && bgLast.key.every((v, i) => v === bgKey[i]) ? bgLast.text
-        : `[${background.map((t) => `{"name":${JSON.stringify(t.name)},"payload":${cachedJson(t.payload, (pl) => ({ ...pl, layers: compactLayers(pl.layers), voxelModels: compactVoxelModels(pl.voxelModels) }))}}`).join(",")}]`;
+        : `[${background.map((t) => `{"name":${JSON.stringify(t.name)},"filePath":${JSON.stringify(t.filePath || null)},"payload":${cachedJson(t.payload, (pl) => ({ ...pl, layers: compactLayers(pl.layers), voxelModels: compactVoxelModels(pl.voxelModels) }))}}`).join(",")}]`;
       autosaveBgRef.current = { key: bgKey, text: bgText };
       // TASKS.csv #3104 — built a piece at a time (projectPartsSliced: the same text as projectParts), not in one main-thread task; the payload
       // is the snapshot taken above, so a change meanwhile is simply the next tick's
       autosaveBuildingRef.current = true;
       projectPartsSliced(payload, { activeDirty: activeWorth }).then((parts) => {
-        parts.push(["backgroundTabs", bgText], ["autosavedAt", String(Date.now())]);
+        parts.push(["backgroundTabs", bgText], ["autosavedAt", String(Date.now())], ["activeFilePath", JSON.stringify(activeFile)]); // #3638
         // only the parts whose text changed cross to the main process, which keeps the rest and writes the file (#1975)
         const sent = autosaveSentRef.current, changed = {};
         for (const [k, j] of parts) if (sent.get(k) !== j) changed[k] = j;
@@ -1572,11 +1587,13 @@ export function StoreProvider({ children }) {
     const bg = (data.backgroundTabs || []).filter((t) => t && t.payload);
     if (bg.length) {
       const stamp = Date.now();
-      const tabs = bg.map((t, i) => ({ id: `tab_${stamp}_r${i}`, name: t.name || "Recovered project", payload: t.payload, dirty: true }));
+      const tabs = bg.map((t, i) => ({ id: `tab_${stamp}_r${i}`, name: t.name || "Recovered project", payload: t.payload, dirty: true, ...(t.filePath ? { filePath: t.filePath, recovered: true } : {}) })); // #3638
       if (newer) tabs.forEach((t) => newerFormatTabsRef.current.add(t.id));
       setWorkspaceTabs((prev) => [...prev, ...tabs]);
     }
     setActiveTabDirty(data.activeDirty !== false);
+    // TASKS.csv #3638 — the open tab takes the file the recovered work was on, so Save knows where it goes (and asks before writing over it)
+    if (data.activeFilePath) setWorkspaceTabs((prev) => prev.map((t) => (t.id === activeTabIdRef.current ? { ...t, filePath: data.activeFilePath, recovered: true } : t)));
     clearUndoHistory();
     return { intoNewTab: false };
   });
@@ -1928,6 +1945,7 @@ export function StoreProvider({ children }) {
     newProject, saveProject, openProject,
     workspaceTabs, activeTabId, activeTabDirty, switchToTab, newWorkspaceTab, closeWorkspaceTab,
     checkAutosave, restoreAutosave, discardAutosave, recoveryStashed, // #465
+    saveChoice, answerSaveChoice, // #3638 — the 'save over the recovered file?' question App draws
     getProjectToken, isSameProject, addVoxelModelToTab, // #466
     undo, redo, peekUndo, peekRedo, canUndo: undoCount > 0, canRedo: redoCount > 0, undoCheckpoint: commitUndoBurst, // #3184
     // TASKS.csv #3110 — a NEW calculated element's Add (GeochemModule): its own undo step, holding a token instead of the old assay table

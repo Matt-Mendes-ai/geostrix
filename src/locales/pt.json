@@ -13207,5 +13207,9 @@
   "\"{page}\" prints no data credit, and this project has one. Add a text with {credits} to it (or a title block, which has a Data row) so the data owner is credited. Export without it?": "\"{page}\" não imprime o crédito dos dados e este projeto tem um. Adicione um texto com {credits} (ou um carimbo, que tem uma linha Dados) para creditar o proprietário dos dados. Exportar sem ele?",
   "{n} pages print no data credit ({list}), and this project has one. Add a text with {credits} to them (or a title block, which has a Data row) so the data owner is credited. Export without it?": "{n} páginas não imprimem o crédito dos dados ({list}) e este projeto tem um. Adicione um texto com {credits} (ou um carimbo, que tem uma linha Dados) para creditar o proprietário dos dados. Exportar sem ele?",
   "Part of this element reaches past the sheet's {sides} and will be cut off in the export: move it, or make it smaller.": "Uma parte deste elemento passa de {sides} da folha e será cortada na exportação: mova-o ou diminua-o.",
-  "Then: {list}": "Depois: {list}"
+  "Then: {list}": "Depois: {list}",
+  "Save recovered work": "Salvar o trabalho recuperado",
+  "This is work recovered from a previous session. It was open from \"{file}\", which holds the version you last saved. Save over that file, or keep both and save this as a new file?": "Este é o trabalho recuperado de uma sessão anterior. Estava aberto a partir de \"{file}\", que contém a versão que você salvou por último. Salvar sobre esse arquivo, ou manter os dois e salvar isto como um arquivo novo?",
+  "Save as a new file…": "Salvar como arquivo novo…",
+  "Save over it": "Salvar sobre ele"
 }

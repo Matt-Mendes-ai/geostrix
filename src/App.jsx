@@ -1,3 +1,4 @@
+import SaveRecoveredModal from "./components/SaveRecoveredModal.jsx"; // TASKS.csv #3638 — small, drawn only while the question is open
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { sampleStatus } from "./lib/desktop.js"; // TASKS.csv #3100
 import { BC_SAMPLE_INFO } from "./lib/bcSamples.js"; // TASKS.csv #3100
@@ -103,6 +104,7 @@ export default function App() {
     saveProject, openProject, addLayoutImage, requestedModule, moduleRequestSeq, setSectionContacts, setSectionLabels, addPlannedHole,
     workspaceTabs, activeTabId, activeTabDirty, switchToTab, newWorkspaceTab, closeWorkspaceTab, project,
     checkAutosave, restoreAutosave, discardAutosave, recoveryStashed, // #465
+    saveChoice, answerSaveChoice, // TASKS.csv #3638 — the 'save over the recovered file?' question
     undo, redo, canUndo, canRedo, peekUndo, peekRedo, requestSampleProject, // requestSampleProject: #1120; peek: #3616
     requestLayoutPrint, // TASKS.csv #908 — Export PDF prints from Layout's print root
   } = store;
@@ -528,6 +530,7 @@ export default function App() {
           <button onClick={() => { setRecovery(null); recoveryCheck.settle(null); }} style={recoveryBtn}>{tr("Dismiss")}</button>
         </div>
       )}
+      {saveChoice && <SaveRecoveredModal file={saveChoice.file} onAnswer={answerSaveChoice} />}{/* TASKS.csv #3638 */}
       {recovery && !recovery.unreadable && (
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", background: "#241f14", borderBottom: "1px solid #4a3d1e", fontSize: "var(--font-size-base)", color: "#d8c080" }}>
           <RotateCcw size={14} style={{ flexShrink: 0 }} />
