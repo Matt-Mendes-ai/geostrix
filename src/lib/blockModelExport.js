@@ -20,7 +20,7 @@ export function derivedValue(model) {
   return null;
 }
 export function valueUnit(model) { const d = derivedValue(model); return d ? d.unit : model?.params?.unit || null; }
-export const NOT_A_RESOURCE_SOURCE = /^(estimate|support-index)-|^geoml$|^kriging-variance$/; // #1026 — kriging variance too
+export const NOT_A_RESOURCE_SOURCE = /^(estimate|support-index)-|^geoml$|^kriging-variance$|^calc$/; // #1026 — kriging variance too; calc: a block-calculator model (#3164)
 export function valueColumnName(model) {
   const d = !model.property && derivedValue(model);
   if (d) return d.property.replace(/[^\w]+/g, "_");
