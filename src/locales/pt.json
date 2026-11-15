@@ -170,6 +170,7 @@
   "Where the receiver's height comes from": "De onde vem a altura do receptor",
   "{c} less the height": "{c} menos a altura",
   "Receiver low-pass filters (kHz)": "Filtros passa-baixa do receptor (kHz)",
+  "Use the frame's tilt ({c}): each reading scaled by the cosines of pitch and roll; without a receiver height column, the receiver's height from the pitch": "Usar a inclinação do quadro ({c}): cada leitura é escalada pelos cossenos da arfagem e da rolagem; sem uma coluna de altura do receptor, a altura do receptor vem da arfagem",
   "The first filter is the receiver coil's: second order (a coil is a resonant circuit)": "O primeiro filtro é o da bobina receptora: de segunda ordem (uma bobina é um circuito ressonante)",
   "Waveform table of {m}": "Tabela da forma de onda de {m}",
   "time (s), current: one pair a line, from the start of the ramp-down": "tempo (s), corrente: um par por linha, a partir do início da rampa de descida",

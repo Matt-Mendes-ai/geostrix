@@ -589,13 +589,16 @@ def _validate_tem1d(req):
     if std is not None and (not isinstance(std, list) or len(std) != len(data) or any(not isinstance(r, list) or len(r) != len(gates) for r in std)):
         raise HTTPException(422, "std must give one row of relative uncertainties per station, one per gate.")
     n = len(data)
-    for k in ("line", "x", "y", "heights", "rz"):
+    for k in ("line", "x", "y", "heights", "rz", "tilt"):
         if req.get(k) is not None and (not isinstance(req[k], list) or len(req[k]) != n):
             raise HTTPException(422, f"{k} must have one value per station.")
     if req.get("heights") is not None and any(v is not None and (not isinstance(v, (int, float)) or not (0 <= v <= 300)) for v in req["heights"]):
         raise HTTPException(422, "heights must be 0-300 m (null: the system's height).")
     if req.get("rz") is not None and any(v is not None and (not isinstance(v, (int, float)) or not (-20 <= v <= 20)) for v in req["rz"]):
         raise HTTPException(422, "rz must be -20 to 20 m per station (null: the system's rz).")
+    # TASKS.csv #3502 — the frame's tilt factor per station, cos(pitch) cos(roll): 0.5 is a 60 degree tilt, past any survey's
+    if req.get("tilt") is not None and any(v is not None and (not isinstance(v, (int, float)) or not (0.5 <= v <= 1.0)) for v in req["tilt"]):
+        raise HTTPException(422, "tilt must be cos(pitch) cos(roll) per station, 0.5-1 (null: level).")
     lay = req.get("layers") or {}
     try:
         nl, first, bottom = int(lay.get("n", 20)), float(lay.get("first", 3.0)), float(lay.get("bottom", 300.0))

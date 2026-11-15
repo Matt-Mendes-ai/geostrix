@@ -5,7 +5,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { readTemText, channelMatrix } from "../src/lib/temLines.js";
-import { parseWaveformTable, parseFilters, rxColumn, buildTemRequest } from "../src/lib/temInvert.js";
+import { parseWaveformTable, parseFilters, rxColumn, tiltColumns, tiltOffset, buildTemRequest } from "../src/lib/temInvert.js";
 
 test("#3485 a waveform table: headings skipped, the current normalized to its peak, the end moved to t = 0, the ramp-off kept", () => {
   const txt = "Time [s]  Normalized current\n-8.0e-4 0\n-7.0e-4 2.0\n0 4.0\n1.0e-5 1.0\n1.5e-5 -0.08\n2.0e-5 0.0000E+000\n";
@@ -52,6 +52,25 @@ test("#3485 the request: the shift (raw to calibrated), the front gate, gates in
   const bw = buildTemRequest(data, { moments: [{ ...mo, widthsUs: [1, 2] }], timeZero: "rampStart", unit: "SI", system: {}, layers: {} });
   assert.equal(bw.request.moments[0].widths, undefined); assert.deepEqual(bw.widthsMismatch, [lm.prefix]);
   assert.equal(channelMatrix(data, lm).n, 4);
+});
+
+test("#3502 the frame's tilt: the columns, SkyTEM's 270 = level, each station's cos(pitch) cos(roll), the receiver's height from the pitch", () => {
+  assert.deepEqual(tiltColumns(["TILT_X", "TILT_Y", "X"]), { pitch: "TILT_X", roll: "TILT_Y" }); assert.deepEqual(tiltColumns(["ALT"]), { pitch: null, roll: null });
+  assert.equal(tiltOffset([267.4, 266.4, 273]), 270); assert.equal(tiltOffset([-2, 1.5, 3]), 0);
+  // a SYNTHETIC file with SkyTEM-style tilts and no receiver height column
+  const hd = ["LINE_NO", "X", "Y", "TX_ALTITUDE", "TILT_X", "TILT_Y", "T[0]", "T[1]", "T[2]", "T[3]", "D[0]", "D[1]", "D[2]", "D[3]"];
+  const rowsT = [[1, 0, 0, 30, 267, 270, 1e-4, 2e-4, 4e-4, 8e-4, 1e-9, 5e-10, 2e-10, 8e-11], [1, 20, 0, 30, 270, 264, 1e-4, 2e-4, 4e-4, 8e-4, 1e-9, 5e-10, 2e-10, 8e-11]];
+  const dt = readTemText([hd.join(","), ...rowsT.map((r) => r.join(","))].join("\n"), "SYNTHETIC_tilt.csv");
+  const g = dt.groups.find((x) => x.role === "data") || dt.groups[0];
+  const b = buildTemRequest(dt, { moments: [{ group: g, times: [0.1, 0.2, 0.4, 0.8], waveform: null, rampUs: 0 }], unit: "SI", heightsCol: "TX_ALTITUDE",
+    tilt: tiltColumns(dt.columns), system: { geom: "cloop", a: 10.36, r: 12.83, h: 30, rz: 2 }, layers: {} });
+  const c = (d) => Math.cos(d * Math.PI / 180), s = (d) => Math.sin(d * Math.PI / 180);
+  assert.deepEqual(b.request.tilt, [+(c(-3) * c(0)).toFixed(5), +(c(0) * c(-6)).toFixed(5)]);
+  assert.deepEqual(b.request.rz, [+(2 * c(-3) * c(0) - 12.83 * s(-3)).toFixed(2), +(2 * c(0) * c(-6)).toFixed(2)]); // pitched up 3 deg: the receiver 0.67 m higher
+  // with a receiver height column, the tilt only scales (the column already holds the receiver's height)
+  const b2 = buildTemRequest(dt, { moments: [{ group: g, times: [0.1, 0.2, 0.4, 0.8], waveform: null, rampUs: 0 }], unit: "SI", heightsCol: "TX_ALTITUDE", rxCol: "TX_ALTITUDE",
+    tilt: tiltColumns(dt.columns), system: { geom: "cloop", a: 10.36, r: 12.83, h: 30, rz: 2 }, layers: {} });
+  assert.deepEqual(b2.request.rz, [0, 0]); assert.equal(b2.request.tilt.length, 2);
 });
 
 test("#3501 the inversion panel is remounted when the channel set changes (one moment to both joined closed the tab)", () => {
