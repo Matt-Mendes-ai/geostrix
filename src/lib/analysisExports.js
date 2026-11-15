@@ -4,6 +4,7 @@
 // The provenance stamps stay with the dialogs, which know the settings.
 import { valueIn } from "./geochem.js";
 import { robustZ } from "./thresholds.js";
+import { collarsWithFirstStation, attFromText } from "./collarAttrExport.js"; // TASKS.csv #3623
 
 // QAQC — a standard's series, the blanks, the duplicate pairs
 export function qaqcStandardRows(points, standardId, symbol) {
@@ -79,8 +80,8 @@ export function isoconRows(table) {
 // The project report: sections of plain rows (arrays), each under a [TITLE] line ("=== TITLE ===" until #1083: a
 // leading "=" is a formula to a spreadsheet, so the CSV writer had to escape it as '=== ...). report: { totalMetres, layerCounts, assayStats, surfaceStats,
 // mediumCounts, qaqcExcluded }; generated: the timestamp text.
-export function projectReportRows({ project, collars, surfaceSampleCount, report, generated }) {
-  const rows = [];
+export function projectReportRows({ project, collars: collarsIn, survey, surfaceSampleCount, report, generated }) {
+  const rows = [], collars = collarsWithFirstStation(collarsIn, survey); // #3623 — an azimuth / dip the collar lacks comes from its first survey station
   rows.push(["[PROJECT]"]);
   rows.push(["Name", project.name || "Untitled project"]);
   rows.push(["EPSG", project.epsg ?? ""]);
@@ -91,8 +92,9 @@ export function projectReportRows({ project, collars, surfaceSampleCount, report
   rows.push([]);
 
   rows.push(["[DRILLHOLES]"]);
-  rows.push(["hole_id", "x", "y", "z", "azimuth", "dip", "length"]);
-  collars.forEach((c) => rows.push([c.hole_id, c.x, c.y, c.z, c.azimuth ?? "", Number.isFinite(c.dip) ? -c.dip : "", c.length ?? ""])); // #1033 — dip negative = down, as imported
+  const attFrom = collars.some((c) => c._attFrom);
+  rows.push(["hole_id", "x", "y", "z", "azimuth", "dip", "length", ...(attFrom ? ["attitude_from"] : [])]);
+  collars.forEach((c) => rows.push([c.hole_id, c.x, c.y, c.z, c.azimuth ?? "", Number.isFinite(c.dip) ? -c.dip : "", c.length ?? "", ...(attFrom ? [attFromText(c)] : [])])); // #1033 — dip negative = down, as imported
   rows.push([]);
 
   if (report.layerCounts.length) {

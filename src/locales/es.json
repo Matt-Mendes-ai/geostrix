@@ -705,7 +705,7 @@
   "Survey bends sharper than this are warned about. Ordinary deviated holes bend 3-7° per 30 m; bends of 10° per 30 m or more are always errors. Remembered on this computer.": "Se avisa de las curvas del survey más cerradas que esto. Los sondajes desviados normales se curvan 3-7° cada 30 m; las curvas de 10° cada 30 m o más siempre son errores. Se recuerda en este equipo.",
   "Survey date": "Fecha del survey",
   "Type the survey date above: magnetic azimuths need it to work out the declination.": "Escriba arriba la fecha del levantamiento: los azimuts magnéticos la necesitan para calcular la declinación.",
-  "Survey": "Survey",
+  "Survey": "Levantamiento",
   "This computer": "Este equipo",
   "Toggle all layers in this group": "Mostrar/ocultar todas las capas de este grupo",
   "Toggle locator map (shows your project's real-world location)": "Mostrar/ocultar el mapa de ubicación (muestra dónde está su proyecto en el mundo)",
@@ -13175,5 +13175,8 @@
   "Nothing in this project can go to an OMF yet: drillholes, points, lines, surfaces and block models do.": "Nada de este proyecto puede ir todavía a un OMF: sí pueden los sondajes, los puntos, las líneas, las superficies y los modelos de bloques.",
   "Export for other software (zip): UBC mesh + model, an .omf of the block model (for Leapfrog, Micromine and Datamine), .obs observed/predicted data (SimPEG inversions), GeoTIFF depth slices, provenance.txt": "Exportar para otro software (zip): malla y modelo UBC, un .omf del modelo de bloques (para Leapfrog, Micromine y Datamine), datos .obs observados / predichos (inversiones SimPEG), cortes de profundidad GeoTIFF, provenance.txt",
   "Autosaved {time}": "Autoguardado {time}",
-  "The unsaved work of this window was written to the recovery copy at {time}: after a crash GeoStrix offers it back. Save the project to put it in its file.": "El trabajo sin guardar de esta ventana se escribió en la copia de recuperación a las {time}: tras un fallo, GeoStrix lo ofrece de vuelta. Guarde el proyecto para ponerlo en su archivo."
+  "The unsaved work of this window was written to the recovery copy at {time}: after a crash GeoStrix offers it back. Save the project to put it in its file.": "El trabajo sin guardar de esta ventana se escribió en la copia de recuperación a las {time}: tras un fallo, GeoStrix lo ofrece de vuelta. Guarde el proyecto para ponerlo en su archivo.",
+  "The picture has no free room on this page (it would cover the title block, legend, scale bar or text), so it is on a new page, \"{name}\".": "La imagen no tiene espacio libre en esta página (cubriría el cuadro de título, la leyenda, la barra de escala o el texto), así que está en una página nueva, \"{name}\".",
+  "Plan a hole past this end": "Planificar un sondaje más allá de este extremo",
+  "Opens Planned holes with the end of this sample as the target (RL {z} m): plan a hole to reach past it.": "Abre Sondajes planificados con el final de esta muestra como objetivo (cota {z} m): planifique un sondaje que llegue más allá."
 }

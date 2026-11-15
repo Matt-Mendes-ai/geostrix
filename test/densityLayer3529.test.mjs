@@ -49,7 +49,7 @@ test("the layer carries its unit and purpose; its legend group carries the unit 
   assert.equal(g.find((x) => x.key === "numeric_sg").label, "Specific gravity", "the name stays: the section ribbons and the Layout legend match by it");
   assert.equal(g.find((x) => x.key === "numeric_sg").unit, "t/m³");
   assert.equal(g.find((x) => x.key === "numeric_magsusc").unit, undefined);
-  assert.ok(read("../src/components/ViewportFigureOverlay.jsx").includes('{g.label}{g.unit ? ` (${g.unit})` : ""'));
+  { const o = read("../src/components/ViewportFigureOverlay.jsx"); assert.ok(o.includes('{tr(g.label)') && o.includes('{g.unit ? ` (${g.unit})` : ""')); } // #3625 — the name is translated
 });
 
 test("Identify gives a density's value its unit: from the tooltip text and from the row alone; the hover tip carries it too", () => {

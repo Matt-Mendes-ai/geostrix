@@ -115,3 +115,13 @@ export function templateElements(elements) {
   });
   return { elements: out, dropped: gone.size, cleared };
 }
+
+// TASKS.csv #3612 (1) — the PDF's document title was 'GeoStrix' whatever the sheet said. It is the first page's title block Title (or its title text), else the project's name, else 'GeoStrix';
+// a value that is only a token ('{project}') is not a title.
+export function documentTitle(pages, project) {
+  const els = pages?.[0]?.elements || [];
+  const plain = (v) => { const t = String(v ?? "").trim(); return t && !/\{[a-z]+\}/i.test(t) ? t : ""; };
+  const tb = els.find((e) => e?.type === "titleblock"), row = tb?.rows?.find((r) => String(r?.[0] || "").trim().toLowerCase() === "title");
+  const text = els.find((e) => e?.type === "title");
+  return plain(row?.[1]) || plain(text?.text) || plain(project?.name) || "GeoStrix";
+}

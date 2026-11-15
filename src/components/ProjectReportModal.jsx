@@ -73,7 +73,7 @@ export default function ProjectReportModal({ store, onClose }) {
   }, [collars, survey, layers, assays, assayElements, surfaceSamples, surfaceElements]);
 
   const exportCSV = () => {
-    const rows = projectReportRows({ project, collars, surfaceSampleCount: surfaceSamples.length, report, generated: new Date().toISOString().slice(0, 19).replace("T", " ") }); // #1083 — in lib, tested
+    const rows = projectReportRows({ project, collars, survey, surfaceSampleCount: surfaceSamples.length, report, generated: new Date().toISOString().slice(0, 19).replace("T", " ") }); // #1083 — in lib, tested
 
     const csv = toExportCsv(rows);
     saveFile({ suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_report.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: csv });
