@@ -3433,6 +3433,8 @@
   "CV": "CV",
   "Top cut": "Corte superior",
   "Top cut for {el}": "Corte superior de {el}",
+  "the value": "o valor",
+  "Colour the intervals by the value, or by a text column the import kept (a method, a flag); each of its values can be hidden": "Colorir os intervalos pelo valor, ou por uma coluna de texto que a importação manteve (um método, uma marcação); cada um dos seus valores pode ser ocultado",
   "{hole} (collar {m} m beyond the left end)": "{hole} (boca {m} m além da extremidade esquerda)",
   "{hole} (collar {m} m beyond the right end)": "{hole} (boca {m} m além da extremidade direita)",
   "The {n} holes in the model area lie in {k} clusters more than {g} m apart: one model spans the gaps between them, and its box, cells and unit volumes cover them. Model one cluster at a time:": "Os {n} furos na área do modelo formam {k} grupos a mais de {g} m entre si: um só modelo cobre os vazios entre eles, e sua caixa, células e volumes de unidade os incluem. Modele um grupo por vez:",
