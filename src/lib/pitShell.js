@@ -225,7 +225,7 @@ export function joinAlso(cells, also, field = "also") { // field "pen": the pena
 
 // TASKS.csv #3159 — collarsLookUnderground, collarBenches, collarGround and idwGround live in collarGround.js (startup code needs
 // them without the pit solver); re-exported here for the pit tools, the workers and the tests.
-export { collarsLookUnderground, BENCH_PLAN_M, BENCH_RL_M, collarBenches, collarGround, idwGround } from "./collarGround.js";
+export { collarsLookUnderground, BENCH_PLAN_M, BENCH_RL_M, collarBenches, collarGround, idwGround, undergroundCollars, surfaceCollars, typedUnderground } from "./collarGround.js"; // the last three: #3551
 // TASKS.csv #2277 (review #2174, WA lode gold) — how far the ore-grade blocks (value at or above the cut-off grade) lie below the highest
 // collar, the nearest the surface the data knows: the pit's own depth is measured from its ground, which on a project drilled from
 // underground is a surface through the drill positions. -> null (no collar, no cut-off, no ore block) or { top, min, median, max, n, underground }

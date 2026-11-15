@@ -12979,5 +12979,12 @@
   "{n} holes ({ids}) share the same collar (within 1m) AND point the same way (within 3°) — a wedge or daughter hole, a twin or re-drill, a duplicate import, or a coordinate entry error.": "{n} sondajes ({ids}) comparten el mismo collar (a menos de 1 m) Y apuntan en la misma dirección (a menos de 3°): un sondaje cuña o hijo, un gemelo o reperforación, una importación duplicada o un error al ingresar coordenadas.",
   "{n} row(s) have coordinates already in the project CRS (EPSG:{epsg}), so they were not changed": "{n} fila(s) ya tienen coordenadas en el SRC del proyecto (EPSG:{epsg}), por lo que no se cambiaron",
   " (no source CRS given)": " (sin SRC de origen indicado)",
-  "Read from the {col} column of the file: {list}": "Leído de la columna {col} del archivo: {list}"
+  "Read from the {col} column of the file: {list}": "Leído de la columna {col} del archivo: {list}",
+  "{n} collar(s) look like underground drilling: {t} by their hole type (UDDH, UG …), {u} starting upward, {d} drilled flat or upward from a station far below a collar nearby ({ids}).": "{n} collar(es) parecen de sondajes subterráneos: {t} por su tipo de sondaje (UDDH, UG …), {u} que empiezan hacia arriba, {d} perforados horizontales o hacia arriba desde una estación muy por debajo de un collar cercano ({ids}).",
+  "They are left out of the ground between the collars.": "Quedan fuera del terreno entre los collares.",
+  "They were left out of the terrain; 'Underground collars' can keep them.": "Quedaron fuera del terreno; 'Collares subterráneos' puede conservarlos.",
+  "They were kept in the terrain, as chosen under 'Underground collars'.": "Se conservaron en el terreno, como se eligió en 'Collares subterráneos'.",
+  "Underground collars ({n}: by hole type, starting upward, or far under a collar nearby)": "Collares subterráneos ({n}: por tipo de sondaje, que empiezan hacia arriba, o muy por debajo de un collar cercano)",
+  "Leave them out of the ground": "Dejarlos fuera del terreno",
+  "{n} collars share a spot (within {r} m) with a collar {dz} m or more higher or lower, in {spots} place(s), up to {max} m apart: pit benches or mine levels? The surface through all of them is not the topography there; 'Where collars stack' can keep the lowest or the highest.": "{n} collares comparten un punto (a menos de {r} m) con un collar {dz} m o más arriba o abajo, en {spots} lugar(es), con hasta {max} m de diferencia: ¿bancos de tajo o niveles de mina? La superficie a través de todos ellos no es allí la topografía; 'Donde los collares se apilan' puede conservar el más bajo o el más alto."
 }
