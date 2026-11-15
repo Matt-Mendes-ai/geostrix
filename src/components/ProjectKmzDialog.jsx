@@ -42,11 +42,18 @@ export default function ProjectKmzDialog({ store, onExport, onClose }) {
     try { saved = JSON.parse(localStorage.getItem(PREF) || "null"); } catch { /* private window */ }
     return pickedFromPref(saved, KMZ_PARTS.map((p) => p.key));
   });
+  // TASKS.csv #3252 phase 4 — a raster with a source description (NAIP) can go in finer than it was fetched: its detail tiles at a pixel
+  // size chosen here, read now (from this computer, else the source), one picture of at most 8,192 px a side per raster
+  const lodRasters = (store.rasters || []).filter((r) => r.lod && r.bbox && r.lod.nativeM > 0);
+  const finest = lodRasters.length ? lodRasters.reduce((m, r) => Math.min(m, r.lod.nativeM), Infinity) : null;
+  const coarsest = lodRasters.length ? lodRasters.reduce((m, r) => Math.max(m, r.pixelM || 0), 0) : 0;
+  const lodChoices = [5, 2, 1, 0.5, 0.3].filter((p) => finest != null && p >= finest * 0.99 && (!(coarsest > 0) || p < coarsest));
+  const [lodPx, setLodPx] = useState("");
   const toggle = (k) => setPicked((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const chosen = KMZ_PARTS.filter((p) => picked.has(p.key) && present[p.key]);
   const go = () => {
     try { localStorage.setItem(PREF, JSON.stringify({ off: KMZ_PARTS.map((p) => p.key).filter((k) => !picked.has(k)) })); } catch { /* private window */ }
-    onExport(new Set(chosen.map((p) => p.key)));
+    onExport(new Set(chosen.map((p) => p.key)), { lodPixelM: lodPx === "" ? null : Number(lodPx) });
   };
   return (
     <div style={overlay} {...backdropProps(onClose)}>
@@ -63,6 +70,15 @@ export default function ProjectKmzDialog({ store, onExport, onClose }) {
               <span>{tr(p.label)}{present[p.key] ? "" : ` ${tr("(none in this project)")}`}</span>
             </label>
           ))}
+          {picked.has("rasters") && present.rasters && lodChoices.length > 0 && (
+            <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text)" }} title={tr("Imagery fetched with a source (NAIP) is written finer than it was fetched: its detail tiles at this pixel size, read now from this computer or the source. One picture of at most 8,192 px a side per raster.")}>
+              {tr("Imagery pixel size")}
+              <select value={lodPx} onChange={(e) => setLodPx(e.target.value)} aria-label={tr("Imagery pixel size")}>
+                <option value="">{tr("As fetched")}</option>
+                {lodChoices.map((p) => <option key={p} value={p}>{tr("{px} m", { px: p })}</option>)}
+              </select>
+            </label>
+          )}{/* TASKS.csv #3252 phase 4 */}
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "10px 16px", borderTop: "1px solid var(--color-border)" }}>
           <button type="button" onClick={onClose} style={btn(false)}>{tr("Cancel")}</button>

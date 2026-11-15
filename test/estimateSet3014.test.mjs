@@ -102,6 +102,6 @@ test("the Estimation dialog runs the set on the primary's grid and search, and a
   const src = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
   assert.match(src, /runEstimation\("block", mp, \{ \.\.\.baseOpts/); // the members share the grid, search, trend and domain rule
   assert.match(src, /m\.params\.set = set/);
-  assert.match(src, /onAddModel\(\{ name: memberName\(name, p0, m\.element, set, typed\)/);
+  assert.match(src, /onAddModel\(\{ name: memberName\(name, p0, m\.element, set, typed, m\.method, result\.params\?\.method\) \/\* #3164 \*\//);
   assert.match(src, /domainNameSuffix\(p\)/);
 });

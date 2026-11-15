@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import * as THREE from "three";
-import { terrainLodOf, terrainNodeM, patternHeights, terrainTileGeometry, quadsIn, createLodTerrain, terrainTileBox, DEM_NODES, DEM_CELLS } from "../src/lib/viewer/lodTerrain.js";
+import { terrainLodOf, terrainNodeM, patternHeights, terrainTileGeometry, quadsIn, createLodTerrain, terrainTileBox, DEM_NODES, DEM_CELLS, DEM_READ } from "../src/lib/viewer/lodTerrain.js";
 import { chooseSceneTiles } from "../src/lib/viewer/lodDrape.js";
 import { terrainMeshElevation } from "../src/lib/viewer/terrainDrape.js";
 
@@ -31,10 +31,10 @@ test("which terrains get tiles: AWS Terrain Tiles read again at their deepest zo
 test("a tile: 65 x 65 nodes at its heights, and a skirt hanging below its edges", () => {
   const box = terrainTileBox(terrain, 3, 2, 5);
   const h = patternHeights(terrain, box);
-  assert.equal(h.length, DEM_NODES * DEM_NODES);
+  assert.equal(h.length, DEM_READ * DEM_READ, "67 x 67: one node past every edge (#3516)");
   // the pattern is the saved ground plus a ripple of at most 6 m
   for (let k = 0; k < h.length; k += 97) {
-    const i = k % DEM_NODES, j = Math.floor(k / DEM_NODES), x = box[0] + (i * (box[2] - box[0])) / DEM_CELLS, y = box[3] - (j * (box[3] - box[1])) / DEM_CELLS;
+    const i = (k % DEM_READ) - 1, j = Math.floor(k / DEM_READ) - 1, x = box[0] + (i * (box[2] - box[0])) / DEM_CELLS, y = box[3] - (j * (box[3] - box[1])) / DEM_CELLS;
     assert.ok(Math.abs(h[k] - terrainMeshElevation(terrain, x, y)) <= 6 + 1e-3);
   }
   const { geometry, wx, wy, gridTris } = terrainTileGeometry(h, box, origin, 20);
@@ -42,7 +42,7 @@ test("a tile: 65 x 65 nodes at its heights, and a skirt hanging below its edges"
   assert.equal(gridTris, DEM_CELLS * DEM_CELLS * 6);
   assert.equal(pos.count, DEM_NODES * DEM_NODES + 2 * 4 * DEM_CELLS, "the grid, and the skirt's own top and bottom rows");
   for (let k = 0; k < DEM_NODES * DEM_NODES; k += 113) {
-    assert.ok(Math.abs(pos.getY(k) + origin.z - h[k]) < 1e-3, "a node at its height");
+    assert.ok(Math.abs(pos.getY(k) + origin.z - h[(Math.floor(k / DEM_NODES) + 1) * DEM_READ + (k % DEM_NODES) + 1]) < 1e-3, "a node at its height");
     assert.ok(Math.abs(pos.getX(k) + origin.x - wx[k]) < 1e-3 && Math.abs(origin.y - pos.getZ(k) - wy[k]) < 1e-3);
   }
   // the skirt: each edge node repeated 20 m lower
@@ -122,4 +122,50 @@ test("wiring: lazy, after the imagery tiles; the map layers keep their drape box
   assert.match(hk, /drapeRef\.current\?\.tick\(camera, h\); terrainRef\.current\?\.tick\(camera, h\);/);
   const s = fs.readFileSync(new URL("../src/lib/viewer/sceneBuilders.js", import.meta.url), "utf8");
   assert.match(s, /drapeOnTerrain \? \{ drapeBox: bbox \} : \{\}/);
+});
+
+test("#3516: two neighbouring tiles agree on the normal at the nodes they share (central differences over the read border), and the skirt takes its edge node's", () => {
+  const root = [terrain.bbox[0], terrain.bbox[3]], side = terrain.bbox[2] - terrain.bbox[0];
+  const boxOf = (x, y) => [root[0] + x * side / 8, root[1] - (y + 1) * side / 8, root[0] + (x + 1) * side / 8, root[1] - y * side / 8];
+  const A = boxOf(3, 3), B = boxOf(4, 3); // B east of A
+  const ga = terrainTileGeometry(patternHeights(terrain, A), A, origin, 10), gb = terrainTileGeometry(patternHeights(terrain, B), B, origin, 10);
+  const na = ga.geometry.getAttribute("normal"), nb = gb.geometry.getAttribute("normal");
+  for (let j = 0; j < DEM_NODES; j += 7) {
+    const ka = j * DEM_NODES + (DEM_NODES - 1), kb = j * DEM_NODES; // A's east edge, B's west edge: the same nodes
+    for (let c = 0; c < 3; c++) assert.ok(Math.abs(na.array[ka * 3 + c] - nb.array[kb * 3 + c]) < 1e-4, `row ${j} component ${c}: ${na.array[ka * 3 + c]} vs ${nb.array[kb * 3 + c]}`);
+  }
+  // unit length, pointing up
+  for (let k = 0; k < DEM_NODES * DEM_NODES; k += 211) { const l = Math.hypot(na.array[k * 3], na.array[k * 3 + 1], na.array[k * 3 + 2]); assert.ok(Math.abs(l - 1) < 1e-5 && na.array[k * 3 + 1] > 0); }
+  // the skirt vertices copy the edge node's normal
+  const R = 4 * DEM_CELLS;
+  for (let r = 0; r < R; r += 31) assert.equal(na.array[(DEM_NODES * DEM_NODES + r) * 3 + 1], na.array[(DEM_NODES * DEM_NODES + R + r) * 3 + 1]);
+});
+
+import { tileNodesLonLat, sampleLonLatGrid, tileHeightsViaLonLat } from "../src/lib/viewer/lodTerrainSources.js";
+import { pointTransform } from "../src/lib/reproject.js";
+
+test("#3515: terrain tiles from Copernicus GLO-30 and NRCan: which terrains, and the lon / lat grid sampled at the tile's project-CRS nodes", async () => {
+  const base = { ...terrain, bbox: [400000, 6200000, 400000 + 90 * (N - 1), 6200000 + 90 * (N - 1)] }; // 90 m nodes: finer sources exist
+  assert.deepEqual(terrainLodOf({ ...base, source: { service: "Copernicus DEM GLO-30 (ESA, surface model ~30 m)", sourcePixelM: 30 } }, 32609), { source: "copernicus", nativeM: 30, epsg: 32609 });
+  assert.equal(terrainLodOf({ ...base, source: { service: "Copernicus DEM GLO-30" } }, null), null, "a local grid: none");
+  const hr = terrainLodOf({ ...base, source: { service: "NRCan HRDEM lidar terrain (1 m) on 60% of the area, MRDEM-30 elsewhere", sourcePixelM: 1 } }, 3979);
+  assert.deepEqual([hr.source, hr.nativeM], ["nrcan", 1]);
+  assert.equal(terrainLodOf({ ...base, source: { service: "NRCan MRDEM-30 terrain (30 m, bare earth)", sourcePixelM: 30 } }, 3979).nativeM, 30);
+  assert.equal(terrainLodOf({ ...base, bbox: [0, 0, 30 * 199, 30 * 199], source: { service: "Copernicus DEM GLO-30" } }, 32609), null, "a saved grid already 30 m: nothing finer to read");
+  // a plane in lon / lat: z = 500 + 800 * (lon + 120) + 1200 * (lat - 45); the reader returns it on any lon / lat grid asked for
+  const plane = (lon, lat) => 500 + 800 * (lon + 120) + 1200 * (lat - 45);
+  const reader = async (bb, gw, gh) => { const g = new Float32Array(gw * gh); for (let r = 0; r < gh; r++) for (let c = 0; c < gw; c++) g[r * gw + c] = plane(bb.lonMin + (c / (gw - 1)) * (bb.lonMax - bb.lonMin), bb.latMax - (r / (gh - 1)) * (bb.latMax - bb.latMin)); return g; };
+  const t = { id: "tc", bbox: [600000, 5000000, 604000, 5004000], gridW: 5, gridH: 5, elevations: new Float32Array(25).fill(7) };
+  const box = [601000, 5001000, 601640, 5001640];
+  const h = await tileHeightsViaLonLat(t, box, 32611, reader);
+  assert.equal(h.length, DEM_READ * DEM_READ);
+  const toLL = pointTransform(32611, 4326), { ll } = tileNodesLonLat(box, toLL);
+  let worst = 0;
+  for (let n = 0; n < h.length; n += 37) worst = Math.max(worst, Math.abs(h[n] - plane(ll[n * 2], ll[n * 2 + 1])));
+  assert.ok(worst < 0.05, `the heights are the plane's at the nodes within ${worst.toFixed(3)} m (the bilinear sample of a plane is exact)`);
+  // a node the source has no value for (NaN) reads the saved terrain
+  const holey = async (bb, gw, gh) => { const g = await reader(bb, gw, gh); for (let r = 0; r < 20; r++) for (let c = 0; c < gw; c++) g[r * gw + c] = NaN; return g; };
+  const h2 = await tileHeightsViaLonLat(t, box, 32611, holey);
+  assert.equal(h2[0], 7, "the north-west node: no source value, the saved terrain's");
+  assert.ok(Math.abs(h2[h2.length - 1] - plane(ll[(h2.length - 1) * 2], ll[(h2.length - 1) * 2 + 1])) < 0.05, "the south-east node: the source");
 });

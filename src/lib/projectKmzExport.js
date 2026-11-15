@@ -84,7 +84,7 @@ export function legendCanvasPng(group) {
 }
 
 // store: the useStore() value. -> { ok, filePath?, counts?, cancelled? }
-export async function exportProjectKmz(store, { confirm = (m) => window.confirm(m), include = null } = {}) { // include: TASKS.csv #3087 — the parts ticked
+export async function exportProjectKmz(store, { confirm = (m) => window.confirm(m), include = null, lodPixelM = null } = {}) { // lodPixelM: TASKS.csv #3252 phase 4 — the imagery's pixel size chosen at export // include: TASKS.csv #3087 — the parts ticked
   const project = store.project || {};
   // where the coordinates are on Earth: a local grid through its tie, else the project CRS (asked for when never chosen)
   const tie = tieOf(project);
@@ -130,9 +130,25 @@ export async function exportProjectKmz(store, { confirm = (m) => window.confirm(
   const kmzUrl = new Map();
   const urls = [...(store.rasters || []).flatMap((r) => [r?.dataUrl, r?.legendImage?.dataUrl]), ...(store.sectionImages || []).map((im) => im?.dataUrl)]; // section images: #3087 part 2
   for (const u of urls) if (u && !kmzUrl.has(u)) kmzUrl.set(u, await kmzImageUrl(u));
+  // TASKS.csv #3252 phase 4 (Matt's decision 4) — a raster with a source description, at the pixel size chosen in the dialog: its detail tiles
+  // composed over the fetched picture (lodCompose.js), written as a JPEG in place of the fetched picture
+  const finer = new Map(), finerNotes = [];
+  if (lodPixelM > 0 && (!include || include.has("rasters"))) {
+    const lodRasters = (store.rasters || []).filter((r) => r.lod && r.bbox && r.dataUrl && !(r.pixelM > 0 && lodPixelM >= r.pixelM * 0.99));
+    if (lodRasters.length) {
+      const [{ composeLodPicture }, loader] = await Promise.all([import("./lodCompose.js"), import("./lodTileLoader.js")]);
+      for (const r of lodRasters) {
+        const img = new Image(); img.src = r.dataUrl;
+        try { await img.decode(); } catch { /* the tiles alone */ }
+        const out = await composeLodPicture(r, lodPixelM, { loader, baseImage: img.naturalWidth ? img : null });
+        finer.set(r.id, out.canvas.toDataURL("image/jpeg", 0.9));
+        finerNotes.push(tr("\"{name}\" at {px} m a pixel ({w} x {h} px; {read} of {n} detail tiles read{missing}).", { name: r.name || "", px: +out.pixelM.toPrecision(3), w: out.canvas.width.toLocaleString(), h: out.canvas.height.toLocaleString(), read: out.read.toLocaleString(), n: out.tiles.toLocaleString(), missing: out.missing ? tr(", the fetched picture where {m} could not be", { m: out.missing.toLocaleString() }) : "" }) + (out.capped ? " " + tr("Capped at {max} px a side.", { max: 8192 }) : ""));
+      }
+    }
+  }
   const asKmz = (u) => (kmzUrl.has(u) ? kmzUrl.get(u) : u);
   const rasterImage = (r) => {
-    const img = dataUrlBytes(asKmz(r.dataUrl));
+    const img = dataUrlBytes(finer.get(r.id) || asKmz(r.dataUrl)); // finer: #3252 phase 4
     if (!img) return null;
     const lg = r.legendImage?.dataUrl ? null : rasterLegendGroups([{ ...r, visible: true }])[0];
     return { ...img, legend: lg && (lg.items?.length || lg.ramp) ? lg : null };
@@ -158,7 +174,7 @@ export async function exportProjectKmz(store, { confirm = (m) => window.confirm(
           : s.kind === "image" ? tr("The section image \"{name}\" has no picture and is left out.", { name: s.name })
             : tr("The raster \"{name}\" has no image and is left out.", { name: s.name }));
     const left = [...(c.models ? [c.models === 1 ? tr("1 3D model.") : tr("{n} 3D models.", { n: c.models.toLocaleString() })] : []), ...c.skipped.map(skipText)];
-    const message = [tr("Saved {file} ({mb} MB): {h} drillholes, {l} layers, {r} rasters, {g} legends.", { file, mb: (kmz.length / 1048576).toFixed(1), h: c.holes.toLocaleString(), l: c.layers.toLocaleString(), r: c.rasters.toLocaleString(), g: c.legends.toLocaleString() }), ...left].join(" ");
+    const message = [tr("Saved {file} ({mb} MB): {h} drillholes, {l} layers, {r} rasters, {g} legends.", { file, mb: (kmz.length / 1048576).toFixed(1), h: c.holes.toLocaleString(), l: c.layers.toLocaleString(), r: c.rasters.toLocaleString(), g: c.legends.toLocaleString() }), ...finerNotes, ...left].join(" ");
     try { window.dispatchEvent(new CustomEvent(EXPORT_RESULT_EVENT, { detail: { ok: true, filePath: res.filePath || null, message } })); } catch { /* no window */ }
   } else if (res?.error) {
     try { window.dispatchEvent(new CustomEvent(EXPORT_RESULT_EVENT, { detail: { ok: false, error: res.error, name: "KMZ" } })); } catch { /* no window */ }

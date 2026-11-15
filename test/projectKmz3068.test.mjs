@@ -241,7 +241,7 @@ test("#3087 — mine design lines (start + segments) and strings at their elevat
   assert.deepEqual(KMZ_PARTS.map((k) => k.key), ["drillholes", "surface", "sections", "design", "models", "rasters"]); // models: #3087 part 2, in the KMZ's folder order
   const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
   assert.match(app, /const doExportKmz = useCallback\(\(\) => setKmzOpen\(true\), \[\]\);/);
-  assert.match(app, /m\.exportProjectKmz\(storeRef\.current, \{ include \}\)/);
+  assert.match(app, /m\.exportProjectKmz\(storeRef\.current, \{ include(, lodPixelM: opts\.lodPixelM \|\| null)? \}\)/ /* #3252 phase 4 */);
   const dlg = readFileSync(new URL("../src/components/ProjectKmzDialog.jsx", import.meta.url), "utf8");
   assert.match(dlg, /disabled=\{!present\[p\.key\]\}/, "a part with nothing in the project is greyed");
 });

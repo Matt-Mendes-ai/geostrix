@@ -31,6 +31,19 @@ export function expandTerrain(t) {
 import { compactLayers, expandLayers } from "./compactRows.js"; // TASKS.csv #374
 import { compactTable, compactTableSliced /* #3104 */, expandTable, expandTableSliced, budgetPause /* #3423 */, compactIntervalLayers, expandIntervalLayers, compactCustomLayers, expandCustomLayers } from "./compactTable.js"; // TASKS.csv #555; custom layers: #2334
 import { compactSurfaces, expandSurfaces } from "./compactSurfaces.js"; // TASKS.csv #483
+import { isTable, tableFromCompact, tableFromCompactSliced, compactFromTable, compactFromTableSliced } from "./rowTable.js"; // TASKS.csv #3424
+// TASKS.csv #3424 ((A) step 1, the store adapter) — the fields the store may hold as a Table (lib/rowTable.js): "assays", "survey",
+// "customLayers" (a layer's rows). A field in this set opens, restores and switches tab as a Table decoded from the file's columns (no rows
+// built); every other field, and every field while the set is empty (the default), loads rows exactly as before. A field goes in once its
+// open-time readers no longer force rows (they would build them all in one task: side-notes s5/3424.txt). Saving a Table writes the same
+// text as saving its rows (compactFromTable), whatever the set holds.
+export const TABLE_FIELDS = new Set();
+const tableSave = (v) => (isTable(v) ? compactFromTable(v) : compactTable(v));
+const loadTableField = (key, stored) => (isTable(stored) ? stored : TABLE_FIELDS.has(key) && stored?.__compactTable ? tableFromCompact(stored) : expandTable(stored)) || [];
+const customLayersSave = (list) => compactCustomLayers(Array.isArray(list) && list.some((l) => isTable(l?.rows))
+  ? list.map((l) => (isTable(l?.rows) ? { ...l, rows: compactFromTable(l.rows) } : l)) : list);
+const customLayersLoad = (list) => (TABLE_FIELDS.has("customLayers") && Array.isArray(list) && list.some((l) => l?.rows?.__compactTable)
+  ? list.map((l) => (l?.rows?.__compactTable ? { ...l, rows: tableFromCompact(l.rows) } : l)) : expandCustomLayers(list));
 import { DEFAULT_DESURVEY_METHOD, normalizeDesurveyMethod } from "./desurvey.js";
 import { poolLayoutImages, expandLayoutImages } from "./layoutImagePool.js"; // TASKS.csv #1631
 
@@ -211,13 +224,13 @@ export const FIELDS = [
       return { ...p, crsSet: p.crsSet ?? (p.epsg != null && Number(p.epsg) !== 3156), name: name || p.name || "Untitled project" };
     } },
   { key: "collars", track: "undo", empty: list },
-  { key: "survey", track: "undo", empty: list, save: compactTable, load: (data) => expandTable(data.survey) || [], tables: (v) => [v] /* #3104 */ }, // TASKS.csv #3423 — exact columns from 2,000 rows, as assays
+  { key: "survey", track: "undo", empty: list, save: tableSave /* #3424 */, load: (data) => loadTableField("survey", data.survey), tables: (v) => [v] /* #3104 */ }, // TASKS.csv #3423 — exact columns from 2,000 rows, as assays
   { key: "layers", track: "undo", empty: () => ({ ...EMPTY_LAYERS }),
     save: (l) => compactIntervalLayers(compactLayers(l)), load: (data) => ({ ...EMPTY_LAYERS, ...(expandIntervalLayers(expandLayers(data.layers)) || {}) }),
     tables: (l) => Object.entries(l || {}).filter(([k, v]) => k !== "geophys_pts" && Array.isArray(v)).map(([, v]) => v) /* #3104 — the interval tables compactIntervalLayers encodes */ }, // #374 point surveys (Float32); #555 big interval layers (exact columns)
-  { key: "assays", track: "undo", empty: list, save: compactTable, load: (data) => expandTable(data.assays) || [], tables: (v) => [v] /* #3104 */ }, // #555 — exact columns from 2,000 rows
+  { key: "assays", track: "undo", empty: list, save: tableSave /* #3424 */, load: (data) => loadTableField("assays", data.assays), tables: (v) => [v] /* #3104 */ }, // #555 — exact columns from 2,000 rows
   { key: "assayElements", track: "undo", empty: list },
-  { key: "customLayers", track: "undo", empty: list, save: compactCustomLayers, load: (data) => expandCustomLayers(data.customLayers) || [], tables: (v) => (Array.isArray(v) ? v.map((l) => l?.rows) : []) /* #3104 */ }, // #2334 — a layer of 2,000+ rows as exact columns
+  { key: "customLayers", track: "undo", empty: list, save: customLayersSave /* #3424 */, load: (data) => customLayersLoad(data.customLayers) || [], tables: (v) => (Array.isArray(v) ? v.map((l) => l?.rows) : []) /* #3104 */ }, // #2334 — a layer of 2,000+ rows as exact columns
   // Older project files (version < 2) won't have this — null, and ViewerModule falls back to its defaults.
   { key: "viewerUiState", track: "view", empty: () => null },
   { key: "themes", track: "dirty", empty: list },
@@ -316,7 +329,7 @@ export function emptyFields() {
 // function" on first render. checkProjectFile (#342) only looks at which keys exist. A compact table (#555) stands for a list.
 export function fieldShapeOk(value, empty) {
   if (value == null) return true; // absent: the empty value is used anyway
-  if (Array.isArray(empty)) return Array.isArray(value) || (typeof value === "object" && (!!value.__compactTable || !!value.__layoutImages)); // #1631
+  if (Array.isArray(empty)) return Array.isArray(value) || isTable(value) /* #3424 */ || (typeof value === "object" && (!!value.__compactTable || !!value.__layoutImages)); // #1631
   if (empty && typeof empty === "object") return typeof value === "object" && !Array.isArray(value);
   if (empty == null) return true; // an optional field (terrain, a number range...): its own load() guards it
   return typeof empty === typeof value;
@@ -342,7 +355,8 @@ export const payloadHasTables = (data) => !!data && typeof data === "object" && 
 export async function expandPayloadSliced(data, pause = budgetPause()) {
   if (!data || typeof data !== "object") return data;
   const out = { ...data };
-  for (const k of ["assays", "survey", "surfaceSamples"]) if (out[k]?.__compactTable) out[k] = await expandTableSliced(out[k], pause);
+  // #3424 — a field in TABLE_FIELDS is decoded into a Table (a column per step) instead of rows
+  for (const k of ["assays", "survey", "surfaceSamples"]) if (out[k]?.__compactTable) out[k] = TABLE_FIELDS.has(k) ? await tableFromCompactSliced(out[k], pause) : await expandTableSliced(out[k], pause);
   if (out.layers && typeof out.layers === "object") {
     let layers = out.layers;
     for (const [k, v] of Object.entries(out.layers)) if (v?.__compactTable) { if (layers === out.layers) layers = { ...out.layers }; layers[k] = await expandTableSliced(v, pause); }
@@ -350,7 +364,8 @@ export async function expandPayloadSliced(data, pause = budgetPause()) {
   }
   if (Array.isArray(out.customLayers) && out.customLayers.some((l) => l?.rows?.__compactTable)) {
     const list = [];
-    for (const l of out.customLayers) list.push(l?.rows?.__compactTable ? { ...l, rows: await expandTableSliced(l.rows, pause) } : l);
+    const asTable = TABLE_FIELDS.has("customLayers"); // #3424
+    for (const l of out.customLayers) list.push(l?.rows?.__compactTable ? { ...l, rows: asTable ? await tableFromCompactSliced(l.rows, pause) : await expandTableSliced(l.rows, pause) } : l);
     out.customLayers = list;
   }
   return out;
@@ -395,7 +410,7 @@ export async function projectPartsSliced(live, extra = {}, pause = nextTask) {
   const parts = [["version", JSON.stringify(PROJECT_VERSION)]];
   for (const f of FIELDS) {
     const v = live[f.key], cold = v !== null && typeof v === "object" && !fieldJson.has(v);
-    if (cold && f.tables) for (const rows of f.tables(v)) if (Array.isArray(rows)) await compactTableSliced(rows, pause);
+    if (cold && f.tables) for (const rows of f.tables(v)) { if (Array.isArray(rows)) await compactTableSliced(rows, pause); else if (isTable(rows)) await compactFromTableSliced(rows, pause); /* #3424 */ }
     const j = cachedJson(v, f.save || ((x) => x));
     if (j !== undefined) parts.push([f.key, j]);
     if (cold) await pause();
@@ -413,7 +428,7 @@ export const projectJson = (live, extra = {}) => joinParts(projectParts(live, ex
 // generated surfaces, boundaries..., so a project holding only an inversion was never autosaved. layoutPages
 // is skipped: a new project already has its default page.
 const NOT_CONTENT = new Set(["layoutPages"]);
-const isEmptyValue = (v) => v == null || (Array.isArray(v) ? v.length === 0 : typeof v === "object" ? Object.values(v).every(isEmptyValue) : false);
+const isEmptyValue = (v) => v == null || (isTable(v) ? v.length === 0 /* #3424 */ : Array.isArray(v) ? v.length === 0 : typeof v === "object" ? Object.values(v).every(isEmptyValue) : false);
 export function projectHasContent(live) {
   return FIELDS.some((f) => f.track !== "view" && !NOT_CONTENT.has(f.key) && !isEmptyValue(live[f.key]));
 }

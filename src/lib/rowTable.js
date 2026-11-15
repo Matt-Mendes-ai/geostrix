@@ -92,6 +92,23 @@ export function tableFromCompact(stored) {
   return { __table: 1, length: n, keys, cols: C, nested: N };
 }
 
+// TASKS.csv #3424 — the same decode, a column per step: pause() (lib/compactTable.js budgetPause) is awaited between columns, so the open of a
+// big project held as a Table is not one main-thread task. The same Table as tableFromCompact.
+export async function tableFromCompactSliced(stored, pause = null) {
+  if (!stored || !stored.__compactTable) return tableFromRows(stored);
+  const step = async () => { if (pause) { const w = pause(); if (w) await w; } };
+  const { n, cols, nested } = stored;
+  const keys = Object.keys(cols), C = {};
+  for (const k of keys) { C[k] = decodeColumn(cols[k], n); await step(); }
+  let N = null;
+  if (nested) {
+    const nkeys = Object.keys(nested.cols), NC = {};
+    for (const k of nkeys) { NC[k] = decodeColumn(nested.cols[k], n); await step(); }
+    N = { has: decodeColumn(nested.has, n), keys: nkeys, cols: NC };
+  }
+  return { __table: 1, length: n, keys, cols: C, nested: N };
+}
+
 // --- reading ---------------------------------------------------------------------------------------------------------------------------
 const present = (col, i) => (col.num ? col.num[i] === col.num[i] : col.codes[i] >= 0);
 const valueAt = (col, i) => { if (col.num) return col.num[i]; const v = col.dict[col.codes[i]]; return col.objects && v !== null && typeof v === "object" ? structuredClone(v) : v; };
@@ -131,6 +148,8 @@ export function rowsOf(x) {
   rowsCache.set(x, rows);
   return rows;
 }
+// TASKS.csv #3424 — has anything asked a table for its rows yet (the probe for "no reader forces rows")
+export const rowsBuilt = (t) => isTable(t) && rowsCache.has(t);
 // one row, built on its own (not the cached one: for a reader that wants a few rows of a big table)
 export const rowOf = (t, i) => (isTable(t) ? rowAt(t, i) : t?.[i]);
 export const lengthOf = (x) => (isTable(x) ? x.length : Array.isArray(x) ? x.length : 0);
@@ -149,19 +168,38 @@ function encodeCol(col, n) {
   if (col.num) { const a = new Array(n); for (let i = 0; i < n; i++) { const v = col.num[i]; a[i] = v === v ? String(v) : ""; } return { n: a.join(",") }; }
   return { d: col.dict, c: Array.from(col.codes).join(",") };
 }
+function* compactTableSteps(t) {
+  const cols = {};
+  for (const k of t.keys) { cols[k] = encodeCol(t.cols[k], t.length); yield; }
+  let nested = null;
+  if (t.nested) {
+    nested = { has: t.nested.has ? encodeCol(t.nested.has, t.length) : null, cols: {} };
+    for (const k of t.nested.keys) { nested.cols[k] = encodeCol(t.nested.cols[k], t.length); yield; }
+  }
+  return { __compactTable: 1, n: t.length, cols, ...(nested ? { nested } : {}) };
+}
 export function compactFromTable(t) {
   if (!isTable(t)) return t;
   if (t.length < COMPACT_TABLE_MIN_ROWS) return rowsOf(t);
   let out = compactCache.get(t);
   if (out) return out;
-  const cols = {};
-  for (const k of t.keys) cols[k] = encodeCol(t.cols[k], t.length);
-  let nested = null;
-  if (t.nested) {
-    nested = { has: t.nested.has ? encodeCol(t.nested.has, t.length) : null, cols: {} };
-    for (const k of t.nested.keys) nested.cols[k] = encodeCol(t.nested.cols[k], t.length);
-  }
-  out = { __compactTable: 1, n: t.length, cols, ...(nested ? { nested } : {}) };
+  const it = compactTableSteps(t);
+  let r = it.next();
+  while (!r.done) r = it.next();
+  out = r.value;
+  compactCache.set(t, out);
+  return out;
+}
+// TASKS.csv #3424 — the same encoding a column per step (the autosave's sliced parts, #3104): pause() awaited between columns; the result is
+// cached, so the save that follows writes it without encoding again
+export async function compactFromTableSliced(t, pause = null) {
+  if (!isTable(t) || t.length < COMPACT_TABLE_MIN_ROWS) return compactFromTable(t);
+  let out = compactCache.get(t);
+  if (out) return out;
+  const it = compactTableSteps(t);
+  let r = it.next();
+  while (!r.done) { if (pause) { const w = pause(); if (w) await w; } r = it.next(); }
+  out = r.value;
   compactCache.set(t, out);
   return out;
 }
