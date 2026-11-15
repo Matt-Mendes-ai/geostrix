@@ -5,7 +5,7 @@ import { interceptsDisabledText, noCollarsNotice } from "../lib/noCollars.js"; /
 import { levelPlanZRange, mainTraces } from "../lib/viewer/levelPlanRange.js"; // TASKS.csv #1782; mainTraces: #2936
 import { sampleUserData, mappedOfSample } from "../lib/viewer/sampleTip.js"; // TASKS.csv #1821; #1500
 import { markZoomedHole } from "./viewer/zoomMark.js"; // #3570
-import HoleFilterBar from "./viewer/HoleFilterBar.jsx"; import HiddenHolesNote from "./viewer/HiddenHolesNote.jsx"; // #3555
+import HoleFilterBar from "./viewer/HoleFilterBar.jsx"; import HiddenHolesNote from "./viewer/HiddenHolesNote.jsx"; import { publishHoleVisibility } from "../lib/holeVisibilityShare.js"; // #3555; #3605
 import { holesForFilter, holeSetsOf, fenceTracesOf } from "../lib/holeFilter.js"; // #1504; #1703; #3554; #3561
 import { holesWithoutField } from "../lib/viewer/holeFieldPicks.js"; // #3074
 import { holeColourScheme, applyHoleColours, holeColourLegendGroup } from "../lib/viewer/holeColours.js"; // #1504
@@ -623,6 +623,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // same category legendOverride already occupies, not project data.
   const [numericSymbology, setNumericSymbology] = useState({});
   const [visibleHoles, setVisibleHoles] = useState({});
+  useEffect(() => publishHoleVisibility(visibleHoles), [visibleHoles]); // TASKS.csv #3605
   const visibleHolesRef = useRef(visibleHoles); visibleHolesRef.current = visibleHoles; // #2930 — read by applyCategoryVisibility
   const holeSets = useMemo(() => holeSetsOf(assays, layers), [assays, layers]); // TASKS.csv #3554 — has:assays / no:assays
   const [holeFilter, setHoleFilter] = useState(""); // TASKS.csv #222 — sidebar Holes list filter, UI-only (not persisted)
