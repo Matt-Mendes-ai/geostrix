@@ -26,6 +26,7 @@ import { numericSourceChoices } from "../lib/numericSources.js"; // TASKS.csv #3
 import { densityMeansByCode } from "../lib/densityFromLog.js"; // TASKS.csv #3109 / #3081
 import { blockModelLattice } from "../lib/estimationMeta.js"; // TASKS.csv #3012
 import { sgMethodsText } from "../lib/sgMethodsText.js"; // TASKS.csv #3595
+import { poolBasis, poolBasisLine, decadesText, typesText } from "../lib/poolBasis.js"; // TASKS.csv #3598
 import { sameLattice, densityFromModel, isDensityModel } from "../lib/densityFromModel.js"; // TASKS.csv #3012; isDensityModel: #3172
 import { desurveyHole } from "../lib/desurvey.js"; // TASKS.csv #2550 — the code intervals placed in 3D
 import { setMembersOf } from "../lib/estimateSet.js"; // TASKS.csv #3014 part b
@@ -67,6 +68,8 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
   const [benchCutoff, setBenchCutoff] = useState("");
   // TASKS.csv #3595 — over the holes this model was estimated from (params.holeIds), not every hole of the project: a Tom West model offered the
   // mean of all 559 holes' densities (2.967) where Tom West's own is 3.03. A model made before #3595 has no list: the whole layer, said so.
+  // TASKS.csv #3598 — what the model pools: its holes' years and types, and whether a domain bounds it (lib/poolBasis.js)
+  const pooled = useMemo(() => (model?.params?.holeIds ? poolBasis(model.params.holeIds, collars, model.params) : null), [model, collars]);
   const modelHoles = useMemo(() => (Array.isArray(model?.params?.holeIds) && model.params.holeIds.length ? new Set(model.params.holeIds) : null), [model]);
   const densityRange = densityRangeOf(tonnageProject), densityRangeArr = [densityRange.min, densityRange.max], sgLayer = useMemo(() => { const s = modelHoles ? sgSummary((layers?.sg || []).filter((r) => modelHoles.has(r.hole_id)), densityRange) : sgSummary(layers?.sg, densityRange); return s ? { ...s, holes: modelHoles ? modelHoles.size : null } : null; }, [layers?.sg, modelHoles, densityRange.min, densityRange.max]); // #1216; the range: #3587; the model's holes: #3595
   const [fromSg, setFromSg] = useState(false); // the density is the SG layer's until it is typed over
@@ -179,6 +182,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
     const extraM = memberMetalOn ? memberMetalColumns(means, members, { perBlock, rho }) : null; // #3274 — the members' contained metal
     const out = extra ? out0.map((r, i) => ({ ...r, ...extra[i], ...(extraM ? extraM[i] : {}) })) : out0;
     const stamp = stampLines({ tool: "Grade-tonnage table", version: APP_VERSION, epsg, params: [
+      ...(pooled ? [poolBasisLine(pooled)] : []), // #3598
       `Block model: ${model.name} (${model.cells.length} blocks, source ${model.source || "import"}) | value ${vname}${unit ? ` in ${unit}` : " (no unit stated)"}`,
       ...(solid ? [`Inside the solid: ${solid.name}${solid.closure === "artificial" ? " (closed artificially at the search radius: its volume is an assumption)" : ""} | ${insideMode === "share" ? `each block counted by the share of it inside (2 x 2 x 2 sample points): ${inside.inside} wholly inside, ${inside.partial} partly, ${inside.outside} outside` : `blocks counted whole by their centre: ${inside.inside} inside, ${inside.outside} outside`}`] : []), // #1949
       ...(byBench && benchRows.length ? [`By bench: ${benchH} m benches from a datum of ${Number(benchDatum) || 0} m, at the ${benchCut} ${unit || ""} cutoff; a block spanning two benches is split by its vertical overlap`] : []), // #1957
@@ -322,6 +326,12 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
         {untypedCodes.length > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.5 }}>{/* #3013 */}{(() => { const list = untypedCodes.slice(0, 12).map(([c, n]) => tr("{code} ({n} blocks)", { code: c, n: n.toLocaleString() })).join(", ") + (untypedCodes.length > 12 ? ", …" : ""); return rho ? tr("No density typed for {list}: their blocks take the default ({rho} t/m³).", { list, rho }) : tr("No density typed for {list}: with no default density typed, their blocks have a volume but no tonnes.", { list }); })()}</div>}
         {densityUse && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{/* #2550 */}{tr("Density by {layer}, the nearest logged interval within {r} m: {list}.", { layer: densityLayer === "weath" ? tr("Weathering") : densityLayer === "litho" ? tr("Lithology") : tr("Alteration"), r: Math.round(reachM), list: densityUse.map((d) => tr("{code} {rho} t/m³ ({n} blocks)", { code: d.code ?? tr("the default"), rho: d.rho ?? "—", n: d.n })).join("; ") })}{!tonnesOn ? " " + tr("Enter the default density to show the tonnes.") : ""}</div>}
         {beyondKnown && shown?.beyondShare > 0.1 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.5 }}>{tr(chips ? "{p} % of the metal at the {c} cutoff is in blocks above or below every sample that informs them: the estimate carried grade up or down the holes past their samples (unsampled chips reads as not known unless the estimate filled it)." : "{p} % of the metal at the {c} cutoff is in blocks above or below every sample that informs them: the estimate carried grade up or down the holes past their samples (unsampled core reads as not known unless the estimate filled it).", { p: Math.round(shown.beyondShare * 100), c: sig(shown.cutoff) })}</div>}
+        {pooled && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{/* #3598 */}
+          {pooled.years ? tr("This model pools {n} holes drilled {from}–{to} ({decades}).", { n: pooled.holes, from: pooled.years.min, to: pooled.years.max, decades: decadesText(pooled.years) }) : tr("This model pools {n} holes.", { n: pooled.holes })}
+          {pooled.types ? " " + tr("Hole types: {types}.", { types: typesText(pooled.types) }) : ""}
+          {" "}{pooled.domain ? tr("Domain: {d}.", { d: pooled.domain }) : pooled.volume ? tr("Inside {v} only.", { v: pooled.volume }) : tr("One domain: no geology model or domain bounds the estimate, so every hole's grade informs every block it reaches.")}
+          {sgLayer?.methods && fromSg ? " " + sgMethodsText(sgLayer.methods) : ""}
+        </div>}
         {hasSupport && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", marginBottom: 6 }}><input type="checkbox" checked={interpOnly} onChange={(e) => setInterpOnly(e.target.checked)} />{tr("Only blocks classed interpolated")}</label>}
         {hasSupport && !interpOnly && lowSupport && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.5 }}>{tr("Most of this volume is in blocks the estimate carried outward from the holes (extrapolated or unsupported), not between them: the tonnage rests on grades the drilling does not surround.")}</div>}
         {rows.length > 1 && (
