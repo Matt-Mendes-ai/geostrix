@@ -115,3 +115,44 @@ test("#3140 a custom layer's colours read a Table as they read the rows: the fie
   const styles = { "custom:c1": { colourBy: "caliper" } };
   for (let i = 0; i < rows.length; i += 53) assert.equal(customColour(LT, styles, rows[i]), customColour(L, styles, rows[i]));
 });
+
+test("#3140 step 2: through the store's view of a Table layer the readers give the rows' answers and build none of its rows", async () => {
+  const { rowsBuilt } = await import("../src/lib/rowTable.js");
+  const { publishedLayers, rowsRefOf, layerRowCount } = await import("../src/lib/tableFields.js");
+  const { customFields, customScaleDefault, customCodeColour, customColour, customLegendGroups } = await import("../src/lib/customColour.js");
+  const { domainLayerChoices } = await import("../src/lib/domainLayers.js");
+  const THREE = await import("three");
+  const { primeLogLod } = await import("../src/modules/viewer/logLod.js");
+  const { buildCoarse } = await import("../src/modules/viewer/logLodBuild.js");
+  // a point log of 24,000 readings (the LOD's threshold) with a code column and a caliper column, and a binned density log
+  const pts = [], traces = [];
+  for (let h = 0; h < 20; h++) {
+    traces.push({ hole_id: `H${h}`, pts: [{ md: 0, x: h * 20, y: 0, z: 0 }, { md: 100, x: h * 20, y: -100, z: 0 }] });
+    for (let i = 0; i < 1200; i++) pts.push({ hole_id: `H${h}`, depth: +(i * 0.05).toFixed(2), value: 20 + (i % 10), caliper: 96 + (i % 7) * 0.3, code: i < 600 ? "SST" : "CLY", _src: "SYNTHETIC_gamma.csv" });
+  }
+  const bin = binnedLog();
+  const make = (id, name, rows, extra = {}) => ({ id, name, rows, ...extra });
+  const asRows = [make("g", "Gamma", pts, { unit: "ppm" }), make("d", "Density", bin, { unit: "g/cc", binM: 0.5, validRange: [2.1, 3.9] })];
+  const tables = asRows.map((l) => tableFromRows(l.rows));
+  const internal = asRows.map((l, i) => ({ ...l, rows: tables[i] }));
+  const views = publishedLayers(internal);
+  assert.equal(rowsRefOf(views[0]), tables[0]); assert.equal(layerRowCount(views[1]), bin.length);
+  const styles = { "custom:g": { colourBy: "caliper" }, "custom:d": {} };
+  // the answers equal the rows' answers
+  assert.deepEqual(numericSourceChoices({ customLayers: views }), numericSourceChoices({ customLayers: asRows }));
+  for (const ch of numericSourceChoices({ customLayers: asRows })) assert.deepEqual(sourceAssays(ch, { customLayers: views }), sourceAssays(ch, { customLayers: asRows }), ch.key);
+  assert.deepEqual(customFields(views[0]), customFields(asRows[0]));
+  assert.deepEqual(customScaleDefault(views[0], "caliper"), customScaleDefault(asRows[0], "caliper"));
+  assert.equal(customCodeColour(views[0], "code", "SST"), customCodeColour(asRows[0], "code", "SST"));
+  assert.equal(customColour(views[0], styles, pts[7]), customColour(asRows[0], styles, pts[7]));
+  assert.deepEqual(customLegendGroups(views, {}, styles), customLegendGroups(asRows, {}, styles));
+  assert.deepEqual(domainLayerChoices({}, views), domainLayerChoices({}, asRows));
+  const tips = (layers) => {
+    const g = new THREE.Group(); primeLogLod(g, layers[0], styles); assert.ok(g.userData.logLod);
+    buildCoarse(g, g.userData.logLod, traces, {});
+    return g.userData.logLod.coarse.flatMap((c) => (c.userData?.compact?.rows || []).map((r) => r.tip));
+  };
+  assert.deepEqual(tips(views), tips(asRows));
+  // and none of it built a Table's rows
+  assert.equal(rowsBuilt(tables[0]), false, "the point log's rows were built"); assert.equal(rowsBuilt(tables[1]), false, "the binned log's rows were built");
+});
