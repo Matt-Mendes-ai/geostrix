@@ -150,7 +150,7 @@ test("wiring: the 3D View ticks the detail tiles each frame and syncs them with 
   assert.match(s, /export function terrainDrapeGeometry\(terrain, bbox, \{ cx, cy, oz, base, uvBox = null, near = false \}\)/);
   const ld = fs.readFileSync(new URL("../src/lib/viewer/lodDrape.js", import.meta.url), "utf8");
   assert.ok(ld.includes("stencilFunc: THREE.AlwaysStencilFunc") && ld.includes("base.stencilFunc = THREE.NotEqualStencilFunc"), "the fetched picture is hidden under a tile: #3509");
-  assert.match(v, /new THREE\.WebGLRenderer\(\{ antialias: true, stencil: true \}\)/);
+  assert.match(v, /new THREE\.WebGLRenderer\(\{ antialias: !light, stencil: true \}\)/);
 });
 
 import { edgePadM } from "../src/lib/viewer/lodDrape.js";
