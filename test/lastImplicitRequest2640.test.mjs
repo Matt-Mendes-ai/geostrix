@@ -85,13 +85,13 @@ test("the store: kept for the session, the same object every read, not saved, no
 });
 
 test("wiring: the run records the GemPy request before the call (not the layer-cake); useModelling hands the setter over; the store lines", () => {
-  const runs = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
+  const runs = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8").replace(/\r\n/g, "\n"); // CRLF checkout
   assert.match(runs, /if \(!cakeRun\) setLastImplicitRequest\?\.\(implicitRequestRecord\(\{ tool: label, extent, resolution, trendFrame: anisotropy\.enabled, origin: originRef\.current, specs, sent: sidecarSpecs \}\)\);\n\s*const res = cakeRun \?/);
   assert.match(readFileSync(new URL("../src/modules/viewer/useModelling.js", import.meta.url), "utf8"), /setLastImplicitRequest: store\.setLastImplicitRequest \/\* #2640 \*\//);
-  const s = readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8");
+  const s = readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(s, /const \[lastImplicitRequest, setLastImplicitRequestRaw\] = useState\(null\);/);
   assert.match(s, /setLastImplicitRequestRaw\(r \? \{ \.\.\.r, projectToken: getProjectToken\(\) \} : null\), \[\]\);/);
   assert.match(s, /lastImplicitRequest: lastImplicitRequest && isSameProject\(lastImplicitRequest\.projectToken\) \? lastImplicitRequest : null, setLastImplicitRequest, \/\/ TASKS\.csv #2640/);
-  const pf = readFileSync(new URL("../src/lib/projectFields.js", import.meta.url), "utf8");
+  const pf = readFileSync(new URL("../src/lib/projectFields.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.doesNotMatch(pf, /lastImplicitRequest/, "not a project field");
 });
