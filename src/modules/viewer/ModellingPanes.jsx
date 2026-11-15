@@ -332,6 +332,16 @@ export default function ModellingPanes(props) {
   // hole), not between collar sites: holes fanned from one pad or station share a site, and Tom West's 15 m between sites gave a 40 m search
   // against 24 m between samples, so a third of the composites at the cutoff sat on blocks Min holes 2 never estimated. The collar
   // spacing stays the fallback (a log or a layer field as the source, no traces yet).
+  // TASKS.csv #3593 — an element's samples at or above their 90th percentile (the Grade shell pane's proposed cut-off, #3272), placed on the traces,
+  // in the model area: the trend panel fits its plane, pitch and ratios to them (lib/samplesTrend.js)
+  const trendSamplePoints = (sym) => {
+    const rows = excludeQAQC(shellAreaAssays).filter((a) => Number.isFinite(a.values?.[sym]) && a.values[sym] > 0 && Number.isFinite(a.from) && Number.isFinite(a.to));
+    if (!rows.length) return null;
+    const v = rows.map((a) => a.values[sym]).sort((x, y) => x - y), cutoff = +v[Math.floor(0.9 * (v.length - 1))].toPrecision(3);
+    const pts = [];
+    for (const a of rows) { if (a.values[sym] < cutoff) continue; const p = sheetPositionAt(a.hole_id, (a.from + a.to) / 2); if (p) pts.push(p); }
+    return { pts, cutoff, unit: (assayElements || []).find((e) => e.symbol === sym)?.unit || "" };
+  };
   const shellSampleSpacing = useMemo(() => {
     if (toolPane !== "shell" || !numericSymbol) return null;
     const pts = [];
@@ -640,6 +650,7 @@ export default function ModellingPanes(props) {
           <TrendsPanel structuralTrends={structuralTrends} setStructuralTrends={setStructuralTrends}
             structurePicks={structurePicksWithHoleAttitude}
             units={litho_units} unitTopPoints={(code) => (topsOfUnit(code)?.tops || []).map((t) => sheetPositionAt(t.hole_id, t.md)).filter(Boolean)} /* #2428 */
+            sampleElements={shellSymbols} samplePoints={trendSamplePoints} /* #3593 — a trend from the grades */
             surfaces={implicitSurfaces.map((x) => ({ id: x.id, name: x.name }))}
             surfacePoints={(id) => {
               const geo = implicitMeshesRef.current[id]?.geometry; if (!geo) return [];
@@ -1265,7 +1276,8 @@ export default function ModellingPanes(props) {
                 <label style={{ ...miniField }} title={tr("Extends the grid past the outermost sample so the shell can close beyond the last hole")}>{tr("Pad (m)")}<input type="number" min="0" step="any" value={numericPadding} onChange={(e) => setNumericPadding(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
                 </label>
               </div>
-              {shellSearchSet && numericSearchRadius === shellSearchSet.r && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{shellSearchSet.at === "samples" ? tr("Search radius {r} m: 2.5 times the {m} m typical distance from a sample to the nearest sample of another hole, so a block between two holes reaches both.", shellSearchSet) : tr("Search radius {r} m: 2.5 times the {m} m typical spacing, so a block between two holes reaches both.", shellSearchSet)}</div>}{/* #3272 — as Estimation's (#2420) */}
+              {shellSearchSet && numericSearchRadius === shellSearchSet.r && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{shellSearchSet.at === "samples" ? tr("Search radius {r} m: 2.5 times the {m} m typical distance from a sample to the nearest sample of another hole, so a block between two holes reaches both.", shellSearchSet) : tr("Search radius {r} m: 2.5 times the {m} m typical spacing, so a block between two holes reaches both.", shellSearchSet)}</div>}
+              {!trendFor("gradeShell") && !(Number(numericFlatReach) > 0) && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Isotropic: the search is a sphere, no structural trend is chosen for grade shells (Model settings › Structural trends › Used by).")}</div>}{/* TASKS.csv #3593 */}{/* #3272 — as Estimation's (#2420) */}
               {(() => { /* TASKS.csv #3062 — a flat, thin body (a seam, a palaeochannel, a laterite): the cell height on its own and a flat search, as Estimation's (#2418); a structural trend shapes both instead */
                 const gt = trendFor("gradeShell"), reach = Number(numericFlatReach), flat = !gt && reach > 0 && numericSearchRadius > 0 && reach < numericSearchRadius;
                 return <>

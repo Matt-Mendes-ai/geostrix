@@ -13,7 +13,7 @@ test("the wording rule alone would have called these errors; an explicit level w
 
 test("the card names kriging variance and geoML; both notices pass an info level", () => {
   const g = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
-  assert.match(g, /model\.source === "kriging-variance" \? tr\("Kriging variance"\) : model\.source === "geoml" \? "geoML" : "CSV"/);
+  assert.match(g, /model\.source === "kriging-variance" \? tr\("Kriging variance"\) : model\.source === "geoml" \? "geoML" : model\.source === "calc" \? tr\("Calculated"\) \/\* #3596 \*\/ : "CSV"/);
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(v, /\{ \.\.\.notice\("Added block model \\"\{name\}\\" \(\{cells\} cells\)\.", \{[^}]*\}\), level: "info"/);
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");

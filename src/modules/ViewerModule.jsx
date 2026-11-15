@@ -7837,6 +7837,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       )}
       {gradeEstOpen && (
         <GradeEstimationModal
+          assayStyle={assayStyle} // #3596
           assays={assays}
           assayElements={assayElements}
           layers={layers}
