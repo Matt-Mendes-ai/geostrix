@@ -12938,7 +12938,6 @@
   "The USGS library could not be loaded": "تعذر تحميل مكتبة USGS",
   "Or pick a mineral from the USGS spectral library…": "أو اختر معدنًا من المكتبة الطيفية لـ USGS…",
   "USGS Spectral Library Version 7, public domain (Kokaly et al., 2017).": "المكتبة الطيفية لـ USGS الإصدار 7، ملكية عامة (Kokaly وآخرون، 2017).",
-<<<<<<< HEAD
   "{n} collar(s) look like underground drilling: {t} by their hole type (UDDH, UG …), {u} starting upward, {d} drilled flat or upward from a station far below a collar nearby ({ids}).": "{n} من الفوهات تبدو فوهات حفر تحت الأرض: {t} بحسب نوع الثقب (UDDH، UG …)، و{u} تبدأ صاعدة، و{d} محفورة أفقيًا أو صاعدة من محطة تقع بعيدًا تحت فوهة قريبة ({ids}).",
   "They are left out of the ground between the collars.": "استُبعدت من سطح الأرض بين الفوهات.",
   "They were left out of the terrain; 'Underground collars' can keep them.": "استُبعدت من التضاريس؛ ويمكن إبقاؤها من «الفوهات تحت الأرض».",
@@ -12946,8 +12945,6 @@
   "Underground collars ({n}: by hole type, starting upward, or far under a collar nearby)": "الفوهات تحت الأرض ({n}: بحسب نوع الثقب، أو تبدأ صاعدة، أو تقع بعيدًا تحت فوهة قريبة)",
   "Leave them out of the ground": "استبعادها من سطح الأرض",
   "{n} collars share a spot (within {r} m) with a collar {dz} m or more higher or lower, in {spots} place(s), up to {max} m apart: pit benches or mine levels? The surface through all of them is not the topography there; 'Where collars stack' can keep the lowest or the highest.": "{n} من الفوهات تشترك في موضع (ضمن {r} م) مع فوهة أعلى أو أدنى بمقدار {dz} م أو أكثر، في {spots} موضع، بفارق يصل إلى {max} م: مدرجات حفرة مفتوحة أم مستويات منجم؟ السطح المار بها جميعًا ليس هو التضاريس هناك؛ ويمكن لخيار «حيث تتراكب الفوهات» أن يُبقي الأدنى أو الأعلى.",
-=======
->>>>>>> master
   "{n} survey point(s) with no elevation.": "{n} نقطة مسح بلا ارتفاع.",
   "{n} surface sample(s) with no elevation and no terrain under them.": "{n} عينة سطحية بلا ارتفاع ولا تضاريس تحتها.",
   "Lines with no elevation and no terrain under them: {list}.": "خطوط بلا ارتفاع ولا تضاريس تحتها: {list}.",
@@ -12999,8 +12996,6 @@
   "{n} row(s) have coordinates already in the project CRS (EPSG:{epsg}), so they were not changed": "{n} صف (صفوف) إحداثياتها بنظام إحداثيات المشروع أصلاً (EPSG:{epsg})، فلم تُغيَّر",
   " (no source CRS given)": " (لم يُحدَّد نظام إحداثيات المصدر)",
   "Read from the {col} column of the file: {list}": "مقروء من عمود {col} في الملف: {list}",
-<<<<<<< HEAD
-=======
   "{n} collar(s) look like underground drilling: {t} by their hole type (UDDH, UG …), {u} starting upward, {d} drilled flat or upward from a station far below a collar nearby ({ids}).": "{n} من الفوهات تبدو فوهات حفر تحت الأرض: {t} بحسب نوع الثقب (UDDH، UG …)، و{u} تبدأ صاعدة، و{d} محفورة أفقيًا أو صاعدة من محطة تقع بعيدًا تحت فوهة قريبة ({ids}).",
   "They are left out of the ground between the collars.": "استُبعدت من سطح الأرض بين الفوهات.",
   "They were left out of the terrain; 'Underground collars' can keep them.": "استُبعدت من التضاريس؛ ويمكن إبقاؤها من «الفوهات تحت الأرض».",
@@ -13045,7 +13040,6 @@
   "Mark as checked and kept (kept on this computer; click again to undo)": "وضع علامة «تمت المراجعة» مع الإبقاء (يُحفظ على هذا الحاسوب؛ انقر مجدداً للتراجع)",
   "Hide the {n} rows marked as checked": "إخفاء الصفوف الـ {n} المعلَّمة بأنها تمت مراجعتها",
   "3D view basics": "أساسيات العرض ثلاثي الأبعاد",
->>>>>>> master
   "By what holes have…": "بحسب ما تحتويه الثقوب…",
   "Holes with {what}": "ثقوب فيها {what}",
   "Holes with no {what}": "ثقوب بلا {what}",
@@ -13054,7 +13048,6 @@
   "{shown} of {total} holes shown": "{shown} من {total} ثقبًا معروضة",
   "Over the {shown} of {total} holes shown.": "على الثقوب المعروضة وعددها {shown} من {total}.",
   "Filter holes by what they have": "تصفية الثقوب بحسب ما تحتويه",
-<<<<<<< HEAD
   "{n} collar(s) look like underground drilling: {t} by their hole type (UDDH, UG …), {u} starting upward, {d} drilled flat or upward from a station far below a collar nearby ({ids}).": "{n} من الفوهات تبدو فوهات حفر تحت الأرض: {t} بحسب نوع الثقب (UDDH، UG …)، و{u} تبدأ صاعدة، و{d} محفورة أفقيًا أو صاعدة من محطة تقع بعيدًا تحت فوهة قريبة ({ids}).",
   "They are left out of the ground between the collars.": "استُبعدت من سطح الأرض بين الفوهات.",
   "They were left out of the terrain; 'Underground collars' can keep them.": "استُبعدت من التضاريس؛ ويمكن إبقاؤها من «الفوهات تحت الأرض».",
@@ -13071,8 +13064,7 @@
   "Fill the page": "ملء الصفحة",
   "The frame takes the whole page inside 10 mm margins (the title block and key can be moved over it).": "يشغل الإطار الصفحة كاملة ضمن هوامش 10 مم (يمكن نقل لوحة العنوان والمفتاح فوقه).",
   "Use on the whole page": "استخدامه في الصفحة كلها",
-  "Most of the grid is empty because the points lie in a few clusters far apart: 'Limit to a drawn area…' over one cluster gives it finer nodes.": "معظم الشبكة فارغ لأن النقاط تقع في بضع مجموعات متباعدة: «تقييد بمنطقة مرسومة…» فوق إحدى المجموعات يعطيها عقدًا أدق."
-=======
+  "Most of the grid is empty because the points lie in a few clusters far apart: 'Limit to a drawn area…' over one cluster gives it finer nodes.": "معظم الشبكة فارغ لأن النقاط تقع في بضع مجموعات متباعدة: «تقييد بمنطقة مرسومة…» فوق إحدى المجموعات يعطيها عقدًا أدق.",
   "Set up the survey first.": "اضبط المسح أولًا.",
   "Point {k} of {n}.": "النقطة {k} من {n}.",
   "Tested {n} point(s) in {s} s.": "اختُبرت {n} نقطة في {s} ث.",
@@ -13194,5 +13186,4 @@
   "n {n} · Spearman {r} · median Y {m} · mean Y {w}": "n {n} · سبيرمان {r} · وسيط Y {m} · متوسط Y {w}",
   "Fit: Y = {a} × X {sign} {b} · r² {r2} · n {n}": "المطابقة: Y = {a} × X {sign} {b} · r² {r2} · n {n}",
   "Collar · {field} (decade)": "الفوهة · {field} (عقد)"
->>>>>>> master
 }
