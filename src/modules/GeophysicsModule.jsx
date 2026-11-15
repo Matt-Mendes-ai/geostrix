@@ -445,7 +445,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const { rows: out, valueName } = surveyExportRows(pts, meta);
     const stamp = stampLines({ tool: "Geophysics survey points", version: APP_VERSION, epsg: stampEpsg(project) /* #2195 */, params: [
       `Survey: ${key} | ${pts.length} point(s) | method: ${meta.method ? SURVEY_METHODS[meta.method]?.label || meta.method : "not set"} | units: ${meta.units || "not set"}`,
-      `${valueName}: the value as stored in GeoStrix (after any diurnal correction or levelling applied at import) | z: ${Z_MEANINGS[meta.zMeaning] || "as imported"}${pts.some((r) => Number.isFinite(r.zAgl)) ? " | height_agl: the radar-altimeter height the elevation was computed from" : ""}`,
+      `${valueName ? `${valueName}: the value as stored in GeoStrix (after any diurnal correction or levelling applied at import)` : "no value column: positions only"} | z: ${Z_MEANINGS[meta.zMeaning] || "as imported"}${pts.some((r) => Number.isFinite(r.zAgl)) ? " | height_agl: the radar-altimeter height the elevation was computed from" : ""}`,
     ] });
     saveFile({ suggestedName: `${String(key).replace(/\.[^.]+$/, "").replace(/[^a-z0-9_-]+/gi, "_")}_points.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(out), stamp) });
   };

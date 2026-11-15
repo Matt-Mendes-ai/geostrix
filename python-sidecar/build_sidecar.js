@@ -16,6 +16,11 @@ const path = require("path");
 const fs = require("fs");
 
 const sidecarDir = __dirname;
+// TASKS.csv #3445 (b) — GEOSTRIX_BUILD_DIR, when set, moves this build's output out of the synced folder: the frozen engine goes to <dir>/sidecar/dist and PyInstaller's
+// work files to <dir>/sidecar/build. Unset (CI, scripts/sign-release.ps1, a plain `npm run build:sidecar`): python-sidecar/dist and python-sidecar/build, as before.
+const buildRoot = process.env.GEOSTRIX_BUILD_DIR ? path.resolve(process.env.GEOSTRIX_BUILD_DIR, "sidecar") : null;
+const distDir = buildRoot ? path.join(buildRoot, "dist") : path.join(sidecarDir, "dist");
+const workDir = buildRoot ? path.join(buildRoot, "build") : path.join(sidecarDir, "build");
 const isWin = process.platform === "win32";
 const venvPython = path.join(sidecarDir, "venv", isWin ? "Scripts" : "bin", isWin ? "python.exe" : "python");
 
@@ -35,14 +40,14 @@ if (!fs.existsSync(venvPython)) {
 // stops with "Access is denied". On Windows the flag is cleared on both folders first (attrib -R, files and folders, recursive), with no
 // manual step; a folder that does not exist yet is skipped, and a failure only warns (PyInstaller then says what it could not remove).
 if (isWin) {
-  for (const d of ["dist", "build"].map((n) => path.join(sidecarDir, n))) {
+  for (const d of [distDir, workDir]) {
     if (!fs.existsSync(d)) continue;
     const r = spawnSync("attrib", ["-R", path.join(d, "*"), "/S", "/D"], { encoding: "utf8" });
     if (r.status !== 0) console.warn(`[build:sidecar] Could not clear the Read-only flag under ${d}: ${(r.stderr || r.stdout || "").trim()}`);
   }
 }
 
-const oldOnefile = path.join(sidecarDir, "dist", isWin ? "geostrix-sidecar.exe" : "geostrix-sidecar");
+const oldOnefile = path.join(distDir, isWin ? "geostrix-sidecar.exe" : "geostrix-sidecar");
 if (fs.existsSync(oldOnefile) && fs.statSync(oldOnefile).isFile()) fs.rmSync(oldOnefile);
 
 // TASKS.csv #456 — antivirus false positives (Bitdefender held the v0.1.20 installer). Heuristic scanners
@@ -62,7 +67,7 @@ if (fs.existsSync(oldOnefile) && fs.statSync(oldOnefile).isFile()) fs.rmSync(old
 const pkg = JSON.parse(fs.readFileSync(path.join(sidecarDir, "..", "package.json"), "utf8"));
 const verParts = (pkg.version.split(/[.-]/).map((n) => parseInt(n, 10)).filter(Number.isFinite).concat([0, 0, 0, 0])).slice(0, 4);
 const author = typeof pkg.author === "string" ? pkg.author.replace(/\s*<.*>/, "") : (pkg.author?.name || "GeoStrix");
-const versionFile = path.join(sidecarDir, "build", "version_info.txt");
+const versionFile = path.join(workDir, "version_info.txt");
 fs.mkdirSync(path.dirname(versionFile), { recursive: true });
 const q = (s) => JSON.stringify(String(s));
 fs.writeFileSync(versionFile, `VSVersionInfo(
@@ -98,6 +103,7 @@ checkBootloaderCompiled();
 
 const args = [
   "-m", "PyInstaller", "--noconfirm", "--onedir", "--name", "geostrix-sidecar",
+  ...(buildRoot ? ["--distpath", distDir, "--workpath", workDir] : []), // #3445 (b)
   "--noupx", "--version-file", versionFile, // #456
   ...(fs.existsSync(path.join(sidecarDir, "..", "build", "icon.ico")) ? ["--icon", path.join(sidecarDir, "..", "build", "icon.ico")] : []), // #456
   // uvicorn/gempy both do a lot of dynamic/plugin-style importing that PyInstaller's static analysis
@@ -131,7 +137,7 @@ if (result.status !== 0) {
 }
 
 const exeName = isWin ? "geostrix-sidecar.exe" : "geostrix-sidecar";
-const builtPath = path.join(sidecarDir, "dist", "geostrix-sidecar", exeName);
+const builtPath = path.join(distDir, "geostrix-sidecar", exeName);
 if (!fs.existsSync(builtPath)) {
   console.error(`[build:sidecar] Build reported success but ${builtPath} doesn't exist — something's wrong.`);
   process.exit(1);
