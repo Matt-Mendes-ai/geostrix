@@ -1201,16 +1201,19 @@ export function StoreProvider({ children }) {
     // {ok:false, error} for the caller to show; nothing about the open project changes.
     let res;
     try {
-    const payload = snapshotCurrentPayload();
+    // TASKS.csv #3140 — the file's text from the per-field JSON the autosave caches (projectPartsSliced: the same characters as JSON.stringify of
+    // snapshotCurrentPayload(), which is payloadFromFields(liveRef.current); test/forgetCompact3140): a big Table layer is not encoded a second time,
+    // and the autosave can forget its compact copy. liveRef.current is this render's own object: an edit made while the build awaits is a new one.
+    const content = joinParts(await projectPartsSliced(liveRef.current));
     const knownPath = !saveAs ? workspaceTabs.find((t) => t.id === activeTabId)?.filePath : null;
-    if (knownPath) res = await saveFileTo({ filePath: knownPath, content: JSON.stringify(payload) });
+    if (knownPath) res = await saveFileTo({ filePath: knownPath, content });
     if (!res || res.notAllowed) res = await saveFile({ quiet: true,
       // TASKS.csv #186 — project format renamed from .geox(.json) to .geostrix(.json). "json" stays
       // in the filter list so old .geox.json project files the user already has on disk still show up
       // and open fine (JSON.parse doesn't care about the filename, and both extensions end in "json").
       suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}.geostrix.json`,
       filters: [{ name: "GeoStrix Project", extensions: ["geostrix.json", "geox.json", "json"] }],
-      content: JSON.stringify(payload),
+      content,
     });
     } catch (err) {
       // strip Electron's IPC wrapper ("Error invoking remote method 'save-file': Error: ...") so the user sees the OS message
