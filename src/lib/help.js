@@ -70,6 +70,11 @@ export const PANE_HELP = {
   "Import assays": "import-assays",
   "Import density (Specific gravity)": "import-density",
   "Drillhole data QA/QC": "data-qc",
+  "3D view basics": "view-basics", // TASKS.csv #3556 / #3578 — the everyday 3D view and the Geochem report tools
+  "Downhole compositing": "downhole-compositing",
+  "Best-intercept report": "best-intercepts",
+  "Grade statistics": "grade-statistics",
+  "QAQC — lab quality control": "qaqc",
 };
 
 // The order the contents list shows the areas in

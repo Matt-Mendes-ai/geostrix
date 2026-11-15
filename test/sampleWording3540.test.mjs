@@ -29,3 +29,12 @@ test("the changed sentences are in every language", () => {
     for (const k of ["Macpass (Fireweed Metals Corp., Yukon): 559 holes drilled 1952-2023 on the Macpass project, with down-hole surveys, 32,546 sampled intervals (Ag, Pb, Zn) and 32,498 bulk densities — nothing synthesized."]) assert.ok(d[k], `${lang}`);
   }
 });
+
+test("#3541 each sample's description is its button's second line (SampleButtons), the full text its tooltip", () => {
+  const b = read("../src/modules/viewer/SampleButtons.jsx");
+  assert.match(b, /const descriptionOf = \(title\) => \{ const s = String\(title \|\| ""\), i = s\.indexOf\(" — "\);/);
+  assert.match(b, /title=\{c\.title\}/); assert.match(b, /<span style=\{second\}>\{descriptionOf\(c\.title\)\}<\/span>/);
+  const v = read("../src/modules/ViewerModule.jsx");
+  assert.match(v, /secondary=\{<SampleButtons cards=\{sampleCards\.slice\(1\)\} onLoad=\{loadSample\} loading=\{sampleLoading\} \/>/);
+  assert.match(v, /import SampleButtons from "\.\/viewer\/SampleButtons\.jsx";/);
+});

@@ -66,8 +66,8 @@ test("the file follows the geoh5 format description: workspace, Root group, type
     assert.equal(top.get("Objects").keys().length, 4, "the objects are the root group's children");
     // object types with the specification's GUIDs (objects.rst)
     assert.deepEqual(Object.fromEntries(Object.entries(GEOH5_WRITE_TYPES).map(([k, v]) => [k, v.id])), {
-      points: "{202C5DB1-A56D-4004-9CAD-BAAFD8899406}", curve: "{6A057FDC-B355-11E3-95BE-FD84A7FFCB88}", surface: "{F26FEBA3-ADED-494B-B9E9-B2BBCBE298E1}", blockmodel: "{B020A277-90E2-4CD7-84D6-612EE3F25051}" });
-    assert.deepEqual(f.get("GEOSCIENCE/Types/Object types").keys().sort(), Object.values(GEOH5_WRITE_TYPES).map((t) => t.id).sort());
+      points: "{202C5DB1-A56D-4004-9CAD-BAAFD8899406}", curve: "{6A057FDC-B355-11E3-95BE-FD84A7FFCB88}", surface: "{F26FEBA3-ADED-494B-B9E9-B2BBCBE298E1}", blockmodel: "{B020A277-90E2-4CD7-84D6-612EE3F25051}", drillhole: "{7CAEBF0E-D16E-11E3-BC69-E4632694AA37}" });
+    assert.deepEqual(f.get("GEOSCIENCE/Types/Object types").keys().sort(), ["points", "curve", "surface", "blockmodel"].map((k) => GEOH5_WRITE_TYPES[k].id).sort(), "the types of the kinds written (the drillhole type comes with a drillhole)");
     const objs = f.get("GEOSCIENCE/Objects"), byName = {};
     for (const k of objs.keys()) { const o = objs.get(k); byName[o.attrs.Name.value] = o; }
     for (const o of Object.values(byName)) {

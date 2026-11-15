@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { openHelp } from "../lib/help.js"; // TASKS.csv #3578
 import { isBelowDetection } from "../lib/assayFlags.js"; // TASKS.csv #2505
 import { X, Download } from "./icons.js";
 import { valueIn, resolvedSegments, histogramWantsLog, gradeUnitLabel, elementOptionLabel } from "../lib/geochem.js"; // elementOptionLabel: #2914 // gradeUnitLabel: #1680 // resolvedSegments: #1099; histogramWantsLog: #1524
@@ -325,7 +326,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
             {pxrfLeft > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{n} pXRF reading(s) left out: the grades here come from lab assays only.", { n: pxrfLeft })}</div>}{/* #1673 */}
             </div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3578 — the help page of this dialog */}<button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("grade-statistics")} aria-label={tr("Help: {name}", { name: tr("Grade statistics") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
