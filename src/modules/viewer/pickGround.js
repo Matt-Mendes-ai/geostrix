@@ -4,6 +4,7 @@
 // the camera to the first place it goes under that surface, then bisected there. A fixed-point walk would bounce on a step in the surface.
 import { collarGround } from "../../lib/collarGround.js"; // TASKS.csv #3159: not pitShell.js, which put the pit solver in startup
 import { hitLabel } from "../../lib/viewer/hitLabel.js"; // #2447
+import { LAYER_META } from "../../lib/layers.js"; // TASKS.csv #3652
 
 const cache = new WeakMap();
 const groundOf = (collars) => { if (!cache.has(collars)) cache.set(collars, collarGround(collars)); return cache.get(collars); };
@@ -55,5 +56,26 @@ export function pickOnView(ray, hits, toWorld, collars, origin) {
   // TASKS.csv #2978 (7) — a drawn collar marker hit first: the collar itself (the sphere's surface read 450.6 for a collar at 448.0)
   const c = s?.object?.userData?.collarMarker ? s.object.userData.collar : null;
   if (c && [c.x, c.y, c.z].every(Number.isFinite)) return { x: c.x, y: c.y, z: c.z, on: hitLabel(s.object) || "a collar", onCollar: c.hole_id ?? true };
+  // TASKS.csv #3652 (Fireweed re-test R1) — with no terrain a click on a drill trace or interval took that point as the planned collar: from 1,500 m out it
+  // gave Elev 1371.1, 163 m under the ground and 75 m from the click. A collar is on the ground: the hits on the hole's own drawing (traces, intervals,
+  // assays) are skipped, so the click line meets the collar surface; the hole it was on is named in the result (fromHole) for the form's note.
+  if (collars?.length) {
+    const ground = solid.filter((h) => !drillObjectOf(h.object));
+    if (ground.length < solid.length) {
+      const first = solid.find(drawn), hole = first ? drillObjectOf(first.object) : null;
+      const w = pickOnCollarSurface(ray, toWorld(ground), collars, origin);
+      return w?.onCollarSurface && hole ? { ...w, fromHole: hole } : w;
+    }
+  }
   return pickOnCollarSurface(ray, toWorld(solid), collars, origin);
+}
+// the hole a drawn object belongs to when it is the hole's own drawing (a trace chunk's hit, an interval tube, an assay mark), else null.
+// A collar marker is not one (a click on a collar is the collar, #2978 (7)).
+export function drillObjectOf(obj) {
+  if (obj?.userData?.collarMarker) return null;
+  for (let n = obj; n; n = n.parent) {
+    if (n.userData?.holeId != null) return String(n.userData.holeId);
+    if (n.parent?.name === "root" && (LAYER_META[n.name] || n.name === "holes" || n.name === "assay")) return String(obj?.userData?.hole_id ?? "a hole");
+  }
+  return null;
 }
