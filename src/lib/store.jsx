@@ -1109,6 +1109,11 @@ export function StoreProvider({ children }) {
   const setProjectQcLinks = useCallback((qcLinks) => setProject((p) => { const { qcLinks: _old, ...rest } = p; return qcLinks && (Array.isArray(qcLinks) ? qcLinks.length : qcLinks.ids?.length) ? { ...rest, qcLinks } : rest; }), []); // the packed shape of lib/qcLinks.js packLinks: parallel arrays
   // TASKS.csv #3588 (6) — the north a file's azimuths were measured from, kept with the project ({ ref, date } per target; lib/azimuthNorthText.js)
   const setProjectAzimuthNorth = useCallback((target, ref, date) => setProject((p) => ({ ...p, azimuthNorth: { ...(p.azimuthNorth || {}), [target]: { ref, ...(date ? { date } : {}) } } })), []);
+  // TASKS.csv #3587 (store grant, Main 2026-11-15) — the plausible density range in t/m³ { min, max } a user can raise (default 1-6, lib/densityRange.js), kept with the project: Data QC flags by it
+  // and the tonnage tools leave a value outside it out of the density mean; null / the default removes it
+  const setProjectDensityRange = useCallback((range) => setProject((p) => { const { densityRange: _old, ...rest } = p; const min = Number(range?.min), max = Number(range?.max); return range && Number.isFinite(min) && Number.isFinite(max) && min >= 0 && max > min && !(min === 1 && max === 6) ? { ...rest, densityRange: { min, max } } : rest; }), []);
+  // TASKS.csv #3569 / #3587 (store grant) — the Data QC rows a user marked as checked and kept: project.qcChecked = [key, ...] (lib/qcActions.js qcKey), so the marks travel with the project file; [] removes it
+  const setProjectQcChecked = useCallback((list) => setProject((p) => { const { qcChecked: _old, ...rest } = p; const keys = [...new Set((list || []).filter((k) => typeof k === "string"))]; return keys.length ? { ...rest, qcChecked: keys } : rest; }), []);
   const setProjectDataCredit = useCallback((dataCredit) => setProject((p) => { const { dataCredit: _old, ...rest } = p; return dataCredit ? { ...rest, dataCredit: String(dataCredit) } : rest; }), []);
   const setDrillRates = useCallback((rates) => setProject((p) => ({ ...p, drillRates: (typeof rates === "function" ? rates(p.drillRates || {}) : rates) || null })), []); // TASKS.csv #2581 — $/m per hole type, kept with the project (a function: from the latest rates)
   // TASKS.csv #3116 — a built-in log's valid range and despike ({ range: [lo, hi], despikeM }), kept with the project like the drill rates:
@@ -1486,7 +1491,7 @@ export function StoreProvider({ children }) {
       const activeWorth = snap.hasWork && activeDirty;
       if (!activeWorth && !background.length) {
         // Nothing unsaved anywhere: a leftover recovery file would only offer already-saved work later.
-        if (lastAutosaveSigRef.current) { autosaveClear(); lastAutosaveSigRef.current = null; autosaveSentRef.current = new Map(); }
+        if (lastAutosaveSigRef.current) { autosaveClear(); lastAutosaveSigRef.current = null; autosaveSentRef.current = new Map(); try { window.dispatchEvent(new CustomEvent("geostrix:autosaved", { detail: { at: null } })); } catch { /* no window */ } } // #3619 — nothing unsaved: the line goes
         return;
       }
       const { hasWork: _drop, ...payload } = snap;
@@ -1511,7 +1516,7 @@ export function StoreProvider({ children }) {
         const sent = autosaveSentRef.current, changed = {};
         for (const [k, j] of parts) if (sent.get(k) !== j) changed[k] = j;
         return autosaveWriteParts({ order: parts.map((p) => p[0]), changed, reset: sent.size === 0 }).then((r) => {
-          if (r?.ok) { autosaveSentRef.current = new Map(parts); return; }
+          if (r?.ok) { autosaveSentRef.current = new Map(parts); try { window.dispatchEvent(new CustomEvent("geostrix:autosaved", { detail: { at: Date.now() } })); } catch { /* no window */ } /* TASKS.csv #3619 — the status bar says when */ return; }
           if (r?.unsupported) { autosaveWrite(joinParts(parts)); return; } // the browser build: one write, as before
           autosaveSentRef.current = new Map(); lastAutosaveSigRef.current = null; // a part was missing or the write failed: everything next tick
         });
@@ -1835,7 +1840,7 @@ export function StoreProvider({ children }) {
   });
 
   const value = {
-    project, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setLocalGridDatum /* #2691 / #2661 */, setMineGrid /* #2586 */, setProjectName, setProjectDataCredit /* #3496 */, setProjectAzimuthNorth /* #3588 (6) */, setProjectQcLinks /* #3409 */, setDrillRates /* #2581 */, setLogValidRange /* #3116 */, setDisplayUnit /* #3236 */, reprojectProjectTo, reprojectObjectTo, // #485 / #486
+    project, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setLocalGridDatum /* #2691 / #2661 */, setMineGrid /* #2586 */, setProjectName, setProjectDataCredit /* #3496 */, setProjectAzimuthNorth /* #3588 (6) */, setProjectQcLinks /* #3409 */, setProjectDensityRange /* #3587 */, setProjectQcChecked /* #3569 */, setDrillRates /* #2581 */, setLogValidRange /* #3116 */, setDisplayUnit /* #3236 */, reprojectProjectTo, reprojectObjectTo, // #485 / #486
     sampleRequest, requestSampleProject, clearSampleRequest, // TASKS.csv #1120
     projectIsEmpty: !hasWork, // TASKS.csv #607 — nothing loaded yet (same test as autosave): an import may adopt its CRS
     desurveyMethod, setDesurveyMethod, // TASKS.csv #135

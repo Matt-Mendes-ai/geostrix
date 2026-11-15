@@ -37,6 +37,7 @@ import { embedFigureFont } from "../lib/svgFontEmbed.js"; // TASKS.csv #2610 —
 import { localDate } from "../lib/localDate.js";
 import { stripLogFurniture, pngScaleFor } from "../lib/figureFurniture.js"; // TASKS.csv #1048
 import { stripLogTextPt } from "../lib/atlas.js"; // TASKS.csv #1480 — the size its labels print at
+import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3586 — g/t for Au / Ag / Pt / Pd stored in ppm
 import { assayAxis } from "../lib/striplogSvg.js"; // TASKS.csv #3141 — the Atlas's linear / log axis rule (#3024)
 import { suspectIdsOf, collarAttrLine } from "../lib/collarTable.js"; // TASKS.csv #3131 — #3004's rule, cached per collar list (the Layout collar table's)
 import { elevationTrust } from "../lib/collarElevationTrust.js";
@@ -208,7 +209,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     ...(geotech.length ? [{ key: "geotech", label: "RQD%", rows: geotech, kind: "bar", max: 100 }] : []), // #1698 — only when the hole has RQD rows
     ...customTrackDefs, // #1698
     ...(recovery.length ? [{ key: "recovery", label: "Rec.%", title: "Recovery %", rows: recovery, kind: "bar", max: recoveryMax(recovery), scaleLabel: true, colorOf: () => "#5aa469" }] : []), // #1400 — beside RQD, over 100 % kept
-    ...(shownSymbols.length ? shownSymbols : [""]).map((sym) => ({ key: `assay_${sym}`, sym, label: sym ? `${sym} (${elementUnits[sym] || "ppm"})` : "Assay", rows: holeAssays, kind: "assaybar" })),
+    ...(shownSymbols.length ? shownSymbols : [""]).map((sym) => ({ key: `assay_${sym}`, sym, label: sym ? `${sym} (${gradeUnitLabel(sym, elementUnits[sym])})` /* #3586 */ : "Assay", rows: holeAssays, kind: "assaybar" })),
     ...shownSymbols.filter((sym) => pxrfRange[sym] > 0).map((sym) => ({ key: `pxrf_${sym}`, sym, label: `${sym} pXRF`, rows: pxrfAssays, kind: "pxrfdots" })), // #1695
   ];
 
@@ -312,7 +313,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
         <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 16px", borderBottom: "1px solid #d9dce1", flexWrap: "wrap" }}>
           <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 6 }}>{tr("Assay element")}<select value={assaySymbol} onChange={(e) => setAssaySymbol(e.target.value)} style={selStyle}>
               <option value="">{tr("— none —")}</option>
-              {symbols.map((s) => <option key={s} value={s}>{s} ({elementUnits[s] || "ppm"})</option>)}
+              {symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, elementUnits[s])})</option>)}
             </select>
           </label>
           {[0, 1, 2, 3].map((k) => (k <= extraSymbols.length) && ( /* #3141 — up to four more, one empty select at a time */

@@ -1,6 +1,7 @@
 // TASKS.csv #1425 / #1708 — the Geophysics tab's downhole logs: mag susc, SG, RQD, recovery or a numeric custom field by a logged
 // code (box plot) and against an assay element (scatter, Spearman). The same sources Estimation and Grade shell take (#1741).
 import React, { useMemo } from "react";
+import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3586 — g/t for Au / Ag / Pt / Pd stored in ppm
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { Activity } from "./icons.js";
 import { numericSourceChoices, sourceAssays } from "../lib/numericSources.js";
@@ -368,7 +369,7 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
             <>
               <label style={{ ...row, marginTop: 8 }}>{tr("Against element")}
                 <select value={el} onChange={(e) => setElement(e.target.value)} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Assay element to compare")}>
-                  {symbols.map((s) => <option key={s} value={s}>{s} ({elementUnits[s] || "ppm"})</option>)}
+                  {symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, elementUnits[s])})</option>)}
                 </select></label>
               <label style={row}>{tr("Pair on")}
                 <select value={pairOn} onChange={(e) => setPairOn(e.target.value)} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Pair the log with the assays on")}>

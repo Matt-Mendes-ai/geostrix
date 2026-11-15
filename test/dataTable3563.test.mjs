@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import Papa from "papaparse";
 import { tableSources, buildTable, parseColumnFilter, applyTable, depthsInMessage } from "../src/lib/dataTable.js";
-import { qcKey, qcTableSource, qcTableRequest, loadChecked, saveChecked } from "../src/lib/qcActions.js";
+import { qcKey, qcTableSource, qcTableRequest } from "../src/lib/qcActions.js";
 import { runDataQC, gradesAtFn } from "../src/lib/dataQC.js";
 
 const read = (p) => fs.readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
@@ -72,17 +72,15 @@ test("a QC row's actions: the table source from its category, the hole and the i
   assert.equal(qcKey(issue), `Specific gravity|NB23-007|${issue.message}`);
 });
 
-test("the checked marks are kept per project on this computer and read back; nothing when storage is unavailable", () => {
-  const mem = new Map();
-  globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, v), removeItem: (k) => mem.delete(k) };
-  try {
-    assert.equal(loadChecked("P1").size, 0);
-    saveChecked("P1", new Set(["a|b|c", "d||e"])); saveChecked("P2", new Set(["z"]));
-    assert.deepEqual([...loadChecked("P1")].sort(), ["a|b|c", "d||e"]); assert.deepEqual([...loadChecked("P2")], ["z"]);
-    saveChecked("P1", new Set()); assert.equal(loadChecked("P1").size, 0); assert.equal(mem.has("geostrix.qc.checked:P1"), false, "an empty set leaves nothing behind");
-    mem.set("geostrix.qc.checked:P3", "not json"); assert.equal(loadChecked("P3").size, 0);
-  } finally { delete globalThis.localStorage; }
-  assert.equal(loadChecked("X").size, 0, "no localStorage at all");
+test("the checked marks are kept in the project file (project.qcChecked): a store setter, read by Data QC, reversible", () => {
+  const st = read("../src/lib/store.jsx");
+  assert.match(st, /const setProjectQcChecked = useCallback\(\(list\) => setProject\(\(p\) => \{ const \{ qcChecked: _old, \.\.\.rest \} = p;/);
+  assert.match(st, /setProjectDensityRange \/\* #3587 \*\/, setProjectQcChecked \/\* #3569 \*\/,/);
+  const q = read("../src/components/DataQCModal.jsx");
+  assert.match(q, /const checked = useMemo\(\(\) => new Set\(project\?\.qcChecked \|\| \[\]\), \[project\?\.qcChecked\]\);/);
+  assert.match(q, /setProjectQcChecked\?\.\(\[\.\.\.n\]\)/);
+  assert.doesNotMatch(q, /localStorage\.\w+\(`?"?geostrix\.qc\.checked/);
+  assert.doesNotMatch(read("../src/lib/qcActions.js"), /localStorage/);
 });
 
 test("a density flag with its unit and the sample's grades: the real Macpass six", () => {

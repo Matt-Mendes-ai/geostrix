@@ -17,6 +17,7 @@ import { terrainGroundAt } from "./viewer/geomath.js"; // TASKS.csv #558; #927 �
 
 import { didYouMean } from "./holeIds.js"; // TASKS.csv #541 (own module: dataQC stays out of the startup bundle)
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { DEFAULT_DENSITY_RANGE } from "./densityRange.js"; // TASKS.csv #3587
 import { surveyAzimuthDipAt } from "./desurvey.js"; // TASKS.csv #1109
 import { surveyMethodByHole } from "./surveyMethod.js"; // TASKS.csv #2494
 import { coverageInfos } from "./dataQcCoverage.js"; // TASKS.csv #2493
@@ -290,7 +291,7 @@ function* validateSurveyAndTrajectorySteps(collars, survey, { doglegWarn = 3, do
 // blank / non-numeric to, from > to, negative depths, past the end of the hole, or a hole with no collar). Import
 // stays non-blocking; Data QC has the per-row list. O(rows); collars / survey give hole lengths.
 // TASKS.csv #1531 / #1508 — the plausible value range of a numeric interval layer, for Data QC and for the import notice
-export const PLAUSIBLE_RANGE = { geotech: { min: 0, max: 110 }, recovery: { min: 0, max: 110 }, sg: { min: 1, max: 6 } }; // TASKS.csv #3587 — Matt's decision (2026-11-15): 1-6 t/m³ by default in Data QC AND the tonnage tools, a project setting a user can raise (barite / massive sulphide); #3579 had moved this to 8
+export const PLAUSIBLE_RANGE = { geotech: { min: 0, max: 110 }, recovery: { min: 0, max: 110 }, sg: DEFAULT_DENSITY_RANGE /* TASKS.csv #3587 — 1-6 t/m³ unless the project sets another (project.densityRange) */ };
 // range (#1508): { min, max } of a plausible value: an SG of -7.27 went in with only 'Loaded 1240 rows'; Data QC listed it, the notice did not
 // TASKS.csv #2167 (WA review #2148, T19) — a hole's length for the past-the-end checks: the deeper of the collar's length and the deepest
 // survey station (#339), ONLY for a hole that has a collar and a length above 0 m. The uranium run flagged 22,404 of 22,407 lithology rows
@@ -693,7 +694,7 @@ export function customIntervalLayers(customLayers) {
   });
 }
 
-export function* runDataQCSteps({ project, collars, survey, layers, boundaries, assays, assayElements = [], terrain = null, terrainThreshold = 15, doglegWarn = 3, doglegError = DOGLEG_ERROR_DEFAULT, customLayers = [] }) { // customLayers: #2493
+export function* runDataQCSteps({ project, collars, survey, layers, boundaries, assays, assayElements = [], densityRange = null, terrain = null, terrainThreshold = 15, doglegWarn = 3, doglegError = DOGLEG_ERROR_DEFAULT, customLayers = [] }) { // customLayers: #2493
   const collarIds = new Set(collars.map((c) => c.hole_id));
   // TASKS.csv #339 — end of hole = the DEEPER of the collar length and the last survey station. Letting the
   // survey win outright flagged every interval below the last shot (surveys usually stop short of EOH) as
@@ -706,7 +707,7 @@ export function* runDataQCSteps({ project, collars, survey, layers, boundaries, 
   parts.push(validateProject(project), validateCollars(collars, survey), validateCollarsVsTerrain(collars, terrain, terrainThreshold)); yield step(1);
   parts.push(yield* validateSurveyAndTrajectorySteps(collars, survey, { doglegWarn, doglegError })); yield step(2); // #545
   const gradesAt = gradesAtFn(assays, assayElements); // TASKS.csv #3569 — the sample's grades beside a density flag
-  for (const [k, label, opt] of INTERVAL_CHECKS) { parts.push(yield* validateIntervalLayerSteps(layers[k] || [], label, collarIds, holeLengths, opt?.unit ? { ...opt, gradesAt } : opt)); }
+  for (const [k, label, opt] of INTERVAL_CHECKS) { parts.push(yield* validateIntervalLayerSteps(layers[k] || [], label, collarIds, holeLengths, opt?.unit ? { ...opt, gradesAt, range: densityRange || opt.range /* #3587 — the project's density range */ } : opt)); }
   // TASKS.csv #3211 (#3195, Galore Creek) — the custom interval layers get the same checks (holes, from / to, reversed, overlaps, past the end of
   // the hole); not a binned log (its bins are the import's) nor a modelled layer (made by the app)
   for (const l of customIntervalLayers(customLayers)) parts.push(yield* validateIntervalLayerSteps(l.rows, tr("Custom layer: {name}", { name: l.name }), collarIds, holeLengths, { gaps: false }));

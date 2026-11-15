@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { openHelp } from "../lib/help.js"; // TASKS.csv #3578
+import { stampedCsv } from "../lib/csvStampPref.js"; // TASKS.csv #3614
+import CsvStampToggle from "./CsvStampToggle.jsx";
 import { unsampledWord } from "../lib/holeType.js"; // TASKS.csv #3513
 import { X, Download } from "./icons.js";
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
@@ -13,7 +15,7 @@ import { spreadFormat } from "../lib/interceptTable.js"; // TASKS.csv #3579 — 
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import { excludeQAQC, labAssays, classifyQAQCRow } from "../lib/qaqc.js"; // classifyQAQCRow: #1801
 import { commonestSampleLength } from "../lib/sampleLength.js"; // TASKS.csv #1801
-import { stampLines, withStamp, ASSAY_READING_RULES, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #404
+import { stampLines, ASSAY_READING_RULES, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #404
 import { desurveyHole } from "../lib/desurvey.js"; // TASKS.csv #411
 import { compositeRows, sig6 } from "../lib/drillReportExport.js"; // TASKS.csv #1083
 import { useStore } from "../lib/store.jsx";
@@ -155,11 +157,11 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
       `Domain boundaries honoured: ${domainKey ? domainMeta.label : "no"}`,
       `QAQC inserts: ${includeQAQC ? "INCLUDED" : `excluded (${qaqcExcludedCount} rows)`}`,
       dupInfo?.exactDuplicates ? `Exact-duplicate raw intervals dropped before weighting: ${dupInfo.exactDuplicates}` : null,
-      "Overlapping assays: each metre counted once; where overlapping results disagree they are averaged and the metres reported in conflict_m (#532)",
+      "Overlapping assays: each metre counted once; where overlapping results disagree they are averaged and the metres reported in conflict_m",
       ASSAY_READING_RULES,
       `Composites: ${results.length}`,
     ] });
-    saveFile({ suggestedName: `composites_${symbol}_${length}m.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(rows), stamp) });
+    saveFile({ suggestedName: `composites_${symbol}_${length}m.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: stampedCsv(toExportCsv(rows), stamp) /* TASKS.csv #3614 — the # lines only when asked */ });
   };
 
   return (
@@ -286,6 +288,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
           </div>}
           <button onClick={exportCSV} disabled={results.length === 0} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: results.length === 0 ? 0.5 : 1 }}>
             <Download size={14} />{" "}{tr("Export composites (CSV)")}</button>
+          <CsvStampToggle />{/* TASKS.csv #3614 */}
           <button onClick={keepAsLayer} disabled={results.length === 0 || typeof setCustomLayers !== "function"} title={tr("Add these composites to the project as a numeric layer: the 3D View colours it by any field (each element, its coverage, the density), and Estimation, Grade shell, Geochem X-Y and Statistics read it.")} style={{ ...btn(false), alignSelf: "flex-start", padding: "7px 14px", opacity: results.length === 0 ? 0.5 : 1 }}>{tr("Keep as a layer in the project")}</button>{/* #3567 */}
           {kept && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{kept}</div>}
         </div>

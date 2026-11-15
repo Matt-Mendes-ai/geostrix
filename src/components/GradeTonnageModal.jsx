@@ -10,6 +10,7 @@ import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
 import { saveFile } from "../lib/desktop.js";
+import { openHelp } from "../lib/help.js"; // TASKS.csv #3597
 import { toExportCsv } from "../lib/tabular.js";
 import { stampLines, withStamp, NOT_A_RESOURCE } from "../lib/provenance.js";
 import { valueUnit, valueColumnName } from "../lib/blockModelExport.js";
@@ -19,6 +20,7 @@ import { useStore } from "../lib/store.jsx"; // TASKS.csv #1216
 import { isMeshClosed } from "../lib/meshQuery.js"; // TASKS.csv #2061
 import { version as APP_VERSION } from "../../package.json";
 import { gradeUnitLabel } from "../lib/geochem.js"; // TASKS.csv #2218
+import { densityRangeOf } from "../lib/densityRange.js"; // TASKS.csv #3587
 import { nearestCodeLookup, densityByCode, intervalCodePoints, codesByMetres } from "../lib/densityByCode.js"; // TASKS.csv #2550; codesByMetres: #3013
 import { numericSourceChoices } from "../lib/numericSources.js"; // TASKS.csv #3109
 import { densityMeansByCode } from "../lib/densityFromLog.js"; // TASKS.csv #3109 / #3081
@@ -45,7 +47,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
   const unitL = element && unit ? gradeUnitLabel(element, unit) : unit; // TASKS.csv #2218 — the label (g/t for gold in ppm); unit stays for the sums and the CSV — kg and troy oz for a precious metal, t otherwise
   const [cutoffText, setCutoffText] = useState(() => autoCutoffs(model.cells, { element, unit }).join(", "));
   const [density, setDensity] = useState("");
-  const { layers, customLayers = [], generatedSurfaces = [], collars = [], survey = [], desurveyMethod, voxelModels = [], updateVoxelModel } = useStore(); // collars / survey: #2550; voxelModels: #3012; customLayers: #3109
+  const { layers, customLayers = [], generatedSurfaces = [], collars = [], survey = [], desurveyMethod, voxelModels = [], updateVoxelModel, project: tonnageProject } = useStore(); // project: #3587 — the density range // collars / survey: #2550; voxelModels: #3012; customLayers: #3109
   const chips = unsampledWord(collars) === "chips"; // TASKS.csv #3513 — 'unsampled chips' on RC / aircore holes, as the Estimation says it (#3507)
   // TASKS.csv #1949 (Vulcan review) — the table inside a chosen closed solid, by block centre or by the share of each block inside
   // TASKS.csv #2061 (review #2013, Woodjam) — any watertight solid, as the Estimation dialog's 'Restrict to a modelled volume' takes: only Mine
@@ -62,7 +64,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
   const [benchH, setBenchH] = useState("");
   const [benchDatum, setBenchDatum] = useState("");
   const [benchCutoff, setBenchCutoff] = useState("");
-  const sgLayer = useMemo(() => sgSummary(layers?.sg), [layers?.sg]); // #1216
+  const densityRange = densityRangeOf(tonnageProject), sgLayer = useMemo(() => sgSummary(layers?.sg, densityRange), [layers?.sg, densityRange.min, densityRange.max]); // #1216; the range: #3587
   const [fromSg, setFromSg] = useState(false); // the density is the SG layer's until it is typed over
   const [interpOnly, setInterpOnly] = useState(false); // #1409 — count only blocks the estimate classed interpolated
   const hasSupport = useMemo(() => model.cells.some((c) => typeof c.support === "string"), [model.cells]);
@@ -180,7 +182,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
       // TASKS.csv #3109 — the per-code densities in the header (they were not written anywhere in the file)
       ...(byCode ? [`Density by ${densityLayer === "weath" ? "Weathering" : densityLayer === "litho" ? "Lithology" : "Alteration"}: each block takes the nearest logged interval within ${Math.round(reachM)} m and its code's density: ${Object.entries(codeDensity).filter(([, v]) => Number(v) > 0).map(([c, v]) => `${c} ${Number(v)}`).join(", ") || "none typed"}; other blocks take the Density below${logFill && logFill.layer === densityLayer && logFill.taken.length ? ` | filled from the mean of the log "${logFill.label}" per code (${logFill.readings} readings${logFill.validRange ? `, its valid range ${logFill.validRange.map((v) => (Number.isFinite(v) ? v : "open")).join(" to ")}` : ""}; means outside ${logFill.range[0]}-${logFill.range[1]} t/m3 not taken${logFill.outside.length ? `: ${logFill.outside.map((t) => t.code).join(", ")}` : ""}), then as shown` : ""}`] : []),
       ...(byModel ? [`Density by block: the block model "${densityModel.name}" on the same blocks, its value where it is ${DENSITY_RANGE[0]}-${DENSITY_RANGE[1]} t/m3 (${byModel.stats().taken} of the model's blocks), else the Density below`] : []), // #3012
-      `Density: ${rho ? (fromSg ? `${rho} t/m3, length-weighted mean of ${sgLayer.n} Specific gravity rows, ${sgLayer.min}-${sgLayer.max}${sgLayer.left ? `, ${sgLayer.left} outside 1-8 left out` : ""} (one value for every block)` : `${rho} t/m3, entered by the user (${byModel ? "the blocks the density model does not cover" : "one value for every block"})`) : byModel ? "no default entered: a block the density model does not cover has no tonnes" /* #3012 */ : tonnesOn ? "no default entered: every block counted takes its code's density (above)" /* #2637 */ : "not entered: volumes only"}${merged ? " | merged blocks counted at their COVERAGE share" : ""}`,
+      `Density: ${rho ? (fromSg ? `${rho} t/m3, length-weighted mean of ${sgLayer.n} Specific gravity rows, ${sgLayer.min}-${sgLayer.max}${sgLayer.left ? `, ${sgLayer.left} outside ${sgLayer.range.min}-${sgLayer.range.max} t/m3 left out` : ""} (one value for every block)` : `${rho} t/m3, entered by the user (${byModel ? "the blocks the density model does not cover" : "one value for every block"})`) : byModel ? "no default entered: a block the density model does not cover has no tonnes" /* #3012 */ : tonnesOn ? "no default entered: every block counted takes its code's density (above)" /* #2637 */ : "not entered: volumes only"}${merged ? " | merged blocks counted at their COVERAGE share" : ""}`,
       perBlock && rows.some((r) => r.tonnes != null) ? `Mean grade: tonnage-weighted (block volume x its density) over the blocks with a density at or above the cutoff; blocks, volume and tonnes count those blocks only${noDensCol ? "; blocks_no_density / volume_no_density_m3: the blocks at the cutoff left out for want of a density" : ""}` : "Mean grade: volume-weighted over the blocks at or above the cutoff", // #3270
       ...(hasSupport ? [interpOnly ? "Blocks: only those the estimate classed interpolated" : "Blocks: every estimated block; interpolated_pct / one_hole_pct give the volume share by support"] : []), // #1409
       ...(logKnown ? [`from_log_metal_pct: about the share of the metal from the readings of the log "${model.params.unsampledLog}" x ${model.params.unsampledLogFactor} that filled the unsampled metres (picked by the user)`] : []), // #2721
@@ -203,7 +205,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
       <div role="dialog" aria-modal="true" aria-label={tr("Grade-tonnage")} onClick={(e) => e.stopPropagation()} style={{ width: "min(640px, 94vw)", maxHeight: "90vh", overflowY: "auto", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 16, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600 }}>{tr("Grade-tonnage: {name}", { name: model.name })}</div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}><button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("grade-tonnage")} aria-label={tr("Help: {name}", { name: tr("Grade-tonnage") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
           <label style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 260 }}>{tr("Cutoffs ({unit})", { unit: unitL || tr("no unit stated") })}
@@ -213,6 +215,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
           {(codeLayers.length > 0 || densityModels.length > 0) && <label style={{ display: "flex", alignItems: "center", gap: 6 }} title={tr("A density per code of a logged layer: each block takes the nearest logged interval within {r} m; the Density field is the default for the rest", { r: Math.round(reachM) })}>{tr("Density by")}{/* #2550 */}
             <select value={densityLayer} onChange={(e) => setDensityLayer(e.target.value)} style={{ ...inp, maxWidth: 260 }} aria-label={tr("Density by")}><option value="">{tr("one value")}</option>{codeLayers.map((k) => <option key={k} value={k}>{k === "weath" ? tr("Weathering") : k === "litho" ? tr("Lithology") : tr("Alteration")}</option>)}{densityModels.map((m) => <option key={m.id} value={`model:${m.id}`}>{tr("the block model \"{name}\" (same blocks)", { name: m.name })}</option>)/* #3012 */}</select></label>}
           {sgLayer && <button type="button" style={{ ...inp, cursor: "pointer" }} title={tr("The length-weighted mean of the Specific gravity layer: {n} rows, {min} to {max}. One value for every block.", { n: sgLayer.n, min: sgLayer.min, max: sgLayer.max })} onClick={() => { setDensity(String(sgLayer.mean)); setFromSg(true); }}>{tr("Use the SG layer's mean ({v})", { v: sgLayer.mean })}</button>}
+          {sgLayer?.left > 0 && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)" }}>{tr("{n} density value(s) outside {min}–{max} t/m³ left out of the mean (the range is set in Data QC).", { n: sgLayer.left.toLocaleString(), min: sgLayer.range.min, max: sgLayer.range.max })}</span> /* TASKS.csv #3587 — the tonnage line says how many */}
         </div>
         {/* TASKS.csv #3297 (#2637's rest) — the density used here kept with the saved block model: a DENSITY column per block in its exports */}
         {updateVoxelModel && model.id != null && voxelModels.some((m) => m.id === model.id) && (rho || byModel || byCode) && (

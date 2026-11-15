@@ -16,10 +16,10 @@ test("(1) back to Assays, the remembered element; (5) the set's other elements a
   assert.match(m, /tr\("no declustering, no variogram \(the method chosen uses none; ordinary kriging does\), and no resource classification\./);
 });
 
-test("(3) gold, silver and palladium in g/t in the Block models list (the Fence track says the unit the file has, #3573)", () => {
+test("(3) gold, silver and palladium in g/t in the Block models list (and the Fence track: g/t everywhere, #3586)", () => {
   const tracks = numericTrackSources({ assays: [{ hole_id: "H", from: 0, to: 1, values: { Au: 1.2, Cu: 3000 } }], assayElements: [{ symbol: "Au", unit: "ppm" }, { symbol: "Cu", unit: "ppm" }], layers: {}, customLayers: [] });
   const au = tracks.find((t) => t.key === "assay:Au"), cu = tracks.find((t) => t.key === "assay:Cu");
-  if (au) assert.equal(au.label, "Au (ppm)", "#3573: the file's own unit, as the legend and the strip log say it");
+  if (au) assert.equal(au.label, "Au (g/t)", "#3586: g/t in every tool");
   if (cu) assert.equal(cu.label, "Cu (ppm)");
   assert.ok(au || cu, JSON.stringify(tracks.map((t) => t.key)));
   assert.match(src("modules/GeophysicsModule.jsx"), /unit: gradeUnitLabel\(model\.params\.element, model\.params\.unit\) \/\* #3286 \(3\) \*\//);

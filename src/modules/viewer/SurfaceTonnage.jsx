@@ -7,6 +7,8 @@ import React, { useMemo } from "react";
 import { t as tr } from "../../lib/i18n.js";
 import { computeTonnage } from "../../lib/volumetrics.js";
 import { sgSummary } from "../../lib/gradeTonnage.js";
+import { densityRangeOf } from "../../lib/densityRange.js"; // TASKS.csv #3587
+import { useStore } from "../../lib/store.jsx";
 import { sgInsideSolid } from "../../lib/sgInSolid.js";
 
 // TASKS.csv #2068 (review #2013, Woodjam) — sgSummary's min / max are the raw logged values (1.766666666666667): two decimals here
@@ -14,8 +16,9 @@ const r2 = (v) => String(+Number(v).toFixed(2));
 const range = (s) => `${r2(s.min)}–${r2(s.max)}`;
 
 export default function SurfaceTonnage({ s, volumeM3, sgRows, traces, geometry, onDensity, smallSel }) {
-  const whole = useMemo(() => sgSummary(sgRows), [sgRows]);
-  const inside = useMemo(() => (whole ? sgInsideSolid(sgRows, traces, geometry?.attributes?.position?.array, geometry?.index?.array) : null), [whole, sgRows, traces, geometry]);
+  const { project } = useStore(), dRange = densityRangeOf(project); // TASKS.csv #3587 — the project's density range
+  const whole = useMemo(() => sgSummary(sgRows, dRange), [sgRows, dRange.min, dRange.max]);
+  const inside = useMemo(() => (whole ? sgInsideSolid(sgRows, traces, geometry?.attributes?.position?.array, geometry?.index?.array, dRange) : null), [whole, sgRows, traces, geometry, dRange.min, dRange.max]);
   const tonnage = computeTonnage(volumeM3, Number(s.density));
   const from = s.densityFrom && Number(s.density) === s.densityFrom.mean ? s.densityFrom : null;
   const btn = { ...smallSel, cursor: "pointer", width: "auto" };
@@ -39,6 +42,7 @@ export default function SurfaceTonnage({ s, volumeM3, sgRows, traces, geometry, 
       {tonnage != null ? (
         <>
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{tr("Tonnage:")}{" "}<strong title={`${Math.round(tonnage).toLocaleString()} t`}>{Number(tonnage.toPrecision(3)).toLocaleString()} t</strong>{/* TASKS.csv #3284 — 3 significant figures, exact on hover (as Grade-tonnage) */}</div>
+          {from?.left > 0 && <div style={muted}>{tr("{n} density value(s) outside {min}–{max} t/m³ left out of this mean (the range is set in Data QC).", { n: from.left.toLocaleString(), min: from.range.min, max: from.range.max })}</div> /* TASKS.csv #3587 */}
           {from && <div style={muted}>{from.kind === "inside"
             ? tr("Density: the length-weighted mean of {n} measured SG intervals inside this solid ({range}).", { n: from.n, range: range(from) })
             : tr("Density: the length-weighted mean of the whole Specific gravity layer, {n} intervals ({range}), not only those inside this solid.", { n: from.n, range: range(from) })}</div>}
