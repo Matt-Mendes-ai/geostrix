@@ -30,3 +30,17 @@ export function normalizeHoleType(raw) {
   if (/^(NR|NOTRECORDED|UNKNOWN|UNK|DRILLHOLE|N\/A|NA)$/.test(t)) return "Not stated";
   return s; // a method this table does not know: kept as written
 }
+
+// TASKS.csv #3507 (from #3497) — what the unsampled stretches of these holes are: chips where the holes are mostly cuttings drilling (RC, aircore,
+// RAB, rotary, vacuum, auger, dual rotary), core otherwise (diamond, or no hole type recorded). Of the collars that state a type (attrs 'hole type').
+const CHIP_CLASSES = /^(Reverse circulation|RC \/ aircore|Aircore|RAB|Vacuum|Auger|Percussion|Dual rotary)/;
+export function unsampledWord(collars) {
+  let typed = 0, chips = 0;
+  for (const c of collars || []) {
+    const t = c?.attrs?.["hole type"];
+    if (!t) continue;
+    typed++;
+    if (CHIP_CLASSES.test(String(t))) chips++;
+  }
+  return typed > 0 && chips / typed >= 0.5 ? "chips" : "core";
+}

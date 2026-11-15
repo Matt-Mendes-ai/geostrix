@@ -35,3 +35,7 @@ export function anisotropyFromFits(downhole, across) {
 const anisotropyMemory = new Map();
 export function rememberAnisotropy(project, symbol, an) { if (an && symbol) anisotropyMemory.set(`${estimateSettingsKey(project)}|${symbol}`, an); }
 export const anisotropyFor = (project, symbol) => anisotropyMemory.get(`${estimateSettingsKey(project)}|${symbol}`) || null;
+
+// TASKS.csv #3508 (from #3499) - the block height that goes with a flat search from the downhole range: a quarter of it (four cells down a range),
+// to the half metre, at least half a metre. A suggestion the geologist applies with the flat search; never by itself.
+export const cellHeightFromRange = (downholeM) => (Number(downholeM) > 0 ? Math.max(0.5, Math.round((Number(downholeM) / 4) * 2) / 2) : null);
