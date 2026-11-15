@@ -60,7 +60,7 @@ import { capFieldAtGround, sumInsideShell } from "../../lib/groundCap.js"; // TA
 import { explicitInterfacePoints } from "../../lib/explicitUnits.js"; // TASKS.csv #867
 import { pinchOutPoints } from "../../lib/pinchOut.js"; // TASKS.csv #1030
 import { fisherStats } from "../../lib/stereonet.js"; // TASKS.csv #1066
-import { captureInputs, implicitRequestRecord } from "../../lib/gempyInputs.js"; // TASKS.csv #1101; implicitRequestRecord: #2640
+import { captureInputs, implicitRequestRecord, withSolveFacts } from "../../lib/gempyInputs.js"; // TASKS.csv #1101; implicitRequestRecord: #2640
 import { inversionCheck, FOLD_CONTACT_TYPES } from "../../lib/topology.js"; // TASKS.csv #2058 — the fold-back check in the run's own notice
 import { shellBudgetAdvice, sharePct } from "../../lib/shellBudget.js"; // TASKS.csv #2223
 import { findNumericSource, sourceAssays, logPoints, unlogGrid } from "../../lib/numericSources.js"; // TASKS.csv #1741 — a log or a numeric layer field as the grade-shell source
@@ -499,7 +499,9 @@ export function createModellingRuns(ctx, mcRef) {
     const solveStartedAt = performance.now(); // TASKS.csv #52 (a) — the measured per-run cost that budgets the sensitivity ensemble
     const projectToken = getProjectToken(); // #466
     // TASKS.csv #2640 — the GemPy request as sent, kept in the store for the session (the Geophysics panel reads it)
-    if (!cakeRun) setLastImplicitRequest?.(implicitRequestRecord({ tool: label, extent, resolution, trendFrame: anisotropy.enabled, origin: originRef.current, specs, sent: sidecarSpecs }));
+    // #3633 — with the relation, packages, fault offsets, range multiplier and detail the run sends; the solve's precision and range are added below
+    const requestRecord = !cakeRun ? implicitRequestRecord({ tool: label, extent, resolution, trendFrame: anisotropy.enabled, origin: originRef.current, specs, sent: sidecarSpecs, relation, rangeMultiplier, surfaceDetail, packages: stackOpts.packages }) : null;
+    if (requestRecord) setLastImplicitRequest?.(requestRecord);
     const res = cakeRun ? await (async () => { // #2905; #3085 — in a worker, its progress on the status bar (one grid per top)
       clearInterval(rampTimer);
       const { runLayerCake } = await import("../../lib/layerCakeClient.js");
@@ -517,6 +519,7 @@ export function createModellingRuns(ctx, mcRef) {
     );
     clearInterval(rampTimer);
     const baseSolveSeconds = (performance.now() - solveStartedAt) / 1000;
+    if (requestRecord && res.ok && isSameProject(projectToken)) setLastImplicitRequest?.(withSolveFacts(requestRecord, res)); // #3633
     if (!cakeRun && res.ok) recordGempyRate(baseSolveSeconds, gempyWork(specs, workOpts)); // #3215 — this computer's rate, for the next estimate
     setImplicitBusy(false);
     modelAbortControllerRef.current = null;
