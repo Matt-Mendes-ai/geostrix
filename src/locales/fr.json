@@ -13107,5 +13107,14 @@
   "Fit line": "Droite d'ajustement",
   "n {n} · Spearman {r} · median Y {m} · mean Y {w}": "n {n} · Spearman {r} · médiane de Y {m} · moyenne de Y {w}",
   "Fit: Y = {a} × X {sign} {b} · r² {r2} · n {n}": "Ajustement : Y = {a} × X {sign} {b} · r² {r2} · n {n}",
-  "Collar · {field} (decade)": "Collet · {field} (décennie)"
+  "Collar · {field} (decade)": "Collet · {field} (décennie)",
+  "The history holds collars, surveys, logs, assays, surface samples, sections, planned holes, design lines and strings, explicit surfaces, map layers and interpretation lines, Layout pages ... Rasters, terrain, block models, generated surfaces and view changes are not undoable.": "L'historique contient les collets, levés, journaux, analyses, échantillons de surface, sections, sondages planifiés, lignes et chaînes de conception, surfaces explicites, couches de carte et lignes d'interprétation, pages de mise en page ... Les rasters, le terrain, les modèles de blocs, les surfaces générées et les changements de vue ne sont pas annulables.",
+  "the last step": "la dernière étape",
+  "nothing to undo.": "rien à annuler.",
+  "nothing to redo.": "rien à rétablir.",
+  "the last thing done was a view change (colours, checked holes, layers shown), which is not undone: press once to be told, again to undo: {what}.": "la dernière action était un changement de vue (couleurs, sondages cochés, couches affichées), qui n'est pas annulé : appuyez une fois pour en être averti, puis de nouveau pour annuler : {what}.",
+  "takes back: {what}.": "annule : {what}.",
+  "puts back: {what}.": "rétablit : {what}.",
+  "View changes (colours, checked holes, layers shown) are not undone. Press Undo again to undo: {what}.": "Les changements de vue (couleurs, sondages cochés, couches affichées) ne sont pas annulés. Appuyez de nouveau sur Annuler pour annuler : {what}.",
+  "View changes (colours, checked holes, layers shown) are not undone. Press Undo again to undo the last step.": "Les changements de vue (couleurs, sondages cochés, couches affichées) ne sont pas annulés. Appuyez de nouveau sur Annuler pour annuler la dernière étape."
 }

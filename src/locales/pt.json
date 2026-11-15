@@ -13107,5 +13107,14 @@
   "Fit line": "Reta de ajuste",
   "n {n} · Spearman {r} · median Y {m} · mean Y {w}": "n {n} · Spearman {r} · mediana de Y {m} · média de Y {w}",
   "Fit: Y = {a} × X {sign} {b} · r² {r2} · n {n}": "Ajuste: Y = {a} × X {sign} {b} · r² {r2} · n {n}",
-  "Collar · {field} (decade)": "Collar · {field} (década)"
+  "Collar · {field} (decade)": "Collar · {field} (década)",
+  "The history holds collars, surveys, logs, assays, surface samples, sections, planned holes, design lines and strings, explicit surfaces, map layers and interpretation lines, Layout pages ... Rasters, terrain, block models, generated surfaces and view changes are not undoable.": "O histórico guarda colares, levantamentos, perfis, análises, amostras de superfície, seções, furos planejados, linhas e cadeias de projeto, superfícies explícitas, camadas de mapa e linhas de interpretação, páginas do Layout ... Rasters, terreno, modelos de blocos, superfícies geradas e mudanças de visualização não podem ser desfeitos.",
+  "the last step": "o último passo",
+  "nothing to undo.": "não há nada para desfazer.",
+  "nothing to redo.": "não há nada para refazer.",
+  "the last thing done was a view change (colours, checked holes, layers shown), which is not undone: press once to be told, again to undo: {what}.": "a última coisa feita foi uma mudança de visualização (cores, furos marcados, camadas mostradas), que não é desfeita: pressione uma vez para ser avisado e outra para desfazer: {what}.",
+  "takes back: {what}.": "desfaz: {what}.",
+  "puts back: {what}.": "refaz: {what}.",
+  "View changes (colours, checked holes, layers shown) are not undone. Press Undo again to undo: {what}.": "As mudanças de visualização (cores, furos marcados, camadas mostradas) não são desfeitas. Pressione Desfazer novamente para desfazer: {what}.",
+  "View changes (colours, checked holes, layers shown) are not undone. Press Undo again to undo the last step.": "As mudanças de visualização (cores, furos marcados, camadas mostradas) não são desfeitas. Pressione Desfazer novamente para desfazer o último passo."
 }

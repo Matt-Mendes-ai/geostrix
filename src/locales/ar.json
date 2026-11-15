@@ -13107,5 +13107,14 @@
   "Fit line": "خط المطابقة",
   "n {n} · Spearman {r} · median Y {m} · mean Y {w}": "n {n} · سبيرمان {r} · وسيط Y {m} · متوسط Y {w}",
   "Fit: Y = {a} × X {sign} {b} · r² {r2} · n {n}": "المطابقة: Y = {a} × X {sign} {b} · r² {r2} · n {n}",
-  "Collar · {field} (decade)": "الفوهة · {field} (عقد)"
+  "Collar · {field} (decade)": "الفوهة · {field} (عقد)",
+  "The history holds collars, surveys, logs, assays, surface samples, sections, planned holes, design lines and strings, explicit surfaces, map layers and interpretation lines, Layout pages ... Rasters, terrain, block models, generated surfaces and view changes are not undoable.": "يحتوي السجل على الفوهات والمسوحات والسجلات والتحاليل وعينات السطح والمقاطع والثقوب المخططة وخطوط التصميم وسلاسله والأسطح الصريحة وطبقات الخريطة وخطوط التفسير وصفحات التخطيط ... لا يمكن التراجع عن الرسترات والتضاريس ونماذج الكتل والأسطح المولَّدة وتغييرات العرض.",
+  "the last step": "الخطوة الأخيرة",
+  "nothing to undo.": "لا شيء للتراجع عنه.",
+  "nothing to redo.": "لا شيء لإعادته.",
+  "the last thing done was a view change (colours, checked holes, layers shown), which is not undone: press once to be told, again to undo: {what}.": "آخر ما فُعل كان تغييراً في العرض (الألوان والثقوب المحددة والطبقات المعروضة) ولا يُتراجع عنه: اضغط مرة للإعلام ومرة أخرى للتراجع عن: {what}.",
+  "takes back: {what}.": "يتراجع عن: {what}.",
+  "puts back: {what}.": "يعيد: {what}.",
+  "View changes (colours, checked holes, layers shown) are not undone. Press Undo again to undo: {what}.": "لا يُتراجع عن تغييرات العرض (الألوان والثقوب المحددة والطبقات المعروضة). اضغط تراجع مرة أخرى للتراجع عن: {what}.",
+  "View changes (colours, checked holes, layers shown) are not undone. Press Undo again to undo the last step.": "لا يُتراجع عن تغييرات العرض (الألوان والثقوب المحددة والطبقات المعروضة). اضغط تراجع مرة أخرى للتراجع عن الخطوة الأخيرة."
 }

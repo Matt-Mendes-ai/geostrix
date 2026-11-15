@@ -13107,5 +13107,14 @@
   "Fit line": "Recta de ajuste",
   "n {n} · Spearman {r} · median Y {m} · mean Y {w}": "n {n} · Spearman {r} · mediana de Y {m} · media de Y {w}",
   "Fit: Y = {a} × X {sign} {b} · r² {r2} · n {n}": "Ajuste: Y = {a} × X {sign} {b} · r² {r2} · n {n}",
-  "Collar · {field} (decade)": "Collar · {field} (década)"
+  "Collar · {field} (decade)": "Collar · {field} (década)",
+  "The history holds collars, surveys, logs, assays, surface samples, sections, planned holes, design lines and strings, explicit surfaces, map layers and interpretation lines, Layout pages ... Rasters, terrain, block models, generated surfaces and view changes are not undoable.": "El historial guarda collares, levantamientos, registros, ensayes, muestras de superficie, secciones, sondajes planificados, líneas y cadenas de diseño, superficies explícitas, capas de mapa y líneas de interpretación, páginas del Layout ... Los ráster, el terreno, los modelos de bloques, las superficies generadas y los cambios de vista no se pueden deshacer.",
+  "the last step": "el último paso",
+  "nothing to undo.": "no hay nada que deshacer.",
+  "nothing to redo.": "no hay nada que rehacer.",
+  "the last thing done was a view change (colours, checked holes, layers shown), which is not undone: press once to be told, again to undo: {what}.": "lo último que se hizo fue un cambio de vista (colores, sondajes marcados, capas mostradas), que no se deshace: pulse una vez para que se le avise, otra para deshacer: {what}.",
+  "takes back: {what}.": "deshace: {what}.",
+  "puts back: {what}.": "rehace: {what}.",
+  "View changes (colours, checked holes, layers shown) are not undone. Press Undo again to undo: {what}.": "Los cambios de vista (colores, sondajes marcados, capas mostradas) no se deshacen. Pulse Deshacer otra vez para deshacer: {what}.",
+  "View changes (colours, checked holes, layers shown) are not undone. Press Undo again to undo the last step.": "Los cambios de vista (colores, sondajes marcados, capas mostradas) no se deshacen. Pulse Deshacer otra vez para deshacer el último paso."
 }

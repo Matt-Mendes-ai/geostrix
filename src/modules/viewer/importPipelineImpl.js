@@ -95,7 +95,7 @@ function customOverlapText(rows) {
 // TASKS.csv #3535 — ids of the holes a collar file of a multi-file drop left without a survey while more files were queued (see reportDeferredAssumed)
 const deferredAssumed = new Set();
 export function makeImportPipeline(ctx, h) {
-  const { viewerUiState, addVoxelModel, fillCodeDictionary, recordImportLeftOut, storeAssays, layerPicker, setLayerPicker, batchRowsRef, commitBusyRef, importQueueRef, importQueueTotalRef, importActiveRef, assayHandoffRef, surfaceHandoffRef, queueLogRef, sampleLoading, setSampleLoading } = h;
+  const { viewerUiState, addVoxelModel, fillCodeDictionary, recordImportLeftOut, storeAssays, layerPicker, setLayerPicker, batchRowsRef, commitBusyRef, importQueueRef, importQueueTotalRef, importActiveRef, assayHandoffRef, surfaceHandoffRef, queueLogRef, sampleLoading, setSampleLoading, undoCheckpoint } = h;
   const {
     addBoundary,
     addRaster,
@@ -1011,6 +1011,7 @@ export function makeImportPipeline(ctx, h) {
     try { await commitImportOnce(); } finally { commitBusyRef.current = false; }
   };
   const commitImportOnce = async () => {
+    undoCheckpoint?.(); // TASKS.csv #3616 — the edit before this import is its own undo step, and each file of a drop is one (survey + density went in one Undo)
     await askCrsForCollars(importModal); // #615
     await loadPerMineral(importModal.target); // #3205
     if (!tableBuild && (importModal.logTable || (importModal.allRows?.length || 0) >= LOG_TABLE_MIN)) tableBuild = (await import("../../lib/rowTableBuild.js")).tableFromRows; // #3140 step 2
