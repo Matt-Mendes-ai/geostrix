@@ -3429,6 +3429,8 @@
   "CV": "CV",
   "Top cut": "Corte superior",
   "Top cut for {el}": "Corte superior de {el}",
+  "Drawing the imported data…": "Dibujando los datos importados…",
+  "Loading the {name} sample's assays and extras…": "Cargando los ensayes y extras de la muestra {name}…",
   "Calculating… {p} %": "Calculando… {p} %",
   "Colour it as {model} (the same ramp and range)": "Colorearlo como {model} (la misma rampa y rango)",
   "Letters, digits and _, starting with a letter": "Letras, dígitos y _, empezando por una letra",

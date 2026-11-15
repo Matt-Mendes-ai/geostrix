@@ -3429,6 +3429,8 @@
   "CV": "CV",
   "Top cut": "Écrêtage",
   "Top cut for {el}": "Écrêtage de {el}",
+  "Drawing the imported data…": "Affichage des données importées…",
+  "Loading the {name} sample's assays and extras…": "Chargement des teneurs et extras de l'échantillon {name}…",
   "Calculating… {p} %": "Calcul… {p} %",
   "Colour it as {model} (the same ramp and range)": "Le colorer comme {model} (la même rampe et la même plage)",
   "Letters, digits and _, starting with a letter": "Lettres, chiffres et _, en commençant par une lettre",
