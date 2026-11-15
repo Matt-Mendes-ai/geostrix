@@ -716,6 +716,7 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, worldCursor = 
   return (
     <div className="ge-status">
       <span>{!project.name || project.name === "Untitled project" ? tr("Untitled project") : project.name}</span>{/* #1448 */}
+      {project.dataCredit && <span className="ge-credit" title={project.dataCredit}>{project.dataCredit}</span> /* TASKS.csv #3527 — the data owner's credit stays on the open project (saved with it), not only in the notice that opens the sample */}
       <span>{tr("Holes:")} <span className="val">{collars.length}</span></span>
       <span>E <span className="val">{fmt(cursor.x)}</span></span>
       <span>N <span className="val">{fmt(cursor.y)}</span></span>
