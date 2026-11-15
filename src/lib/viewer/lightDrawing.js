@@ -16,9 +16,14 @@ export const isLight = () => light;
 export const setLight = (on) => { light = !!on; };
 export const LIGHT_LOD_SCALE = 4; // a sample under 3 x 4 = 12 px is drawn coarse (and back to full above 4.5 x 4)
 export const LIGHT_ASSAY_AUTO_LIMIT = 4000;
+export const LIGHT_LINES_MIN = 10000; // an interval layer of this many intervals is drawn as crossed ribbons (4 triangles) in light drawing: at the whole-project view each is under 2 px
 
 const readPref = () => { try { const v = localStorage.getItem(KEY); return v === "on" || v === "off" ? v : "auto"; } catch { return "auto"; } };
 export const setLightPref = (v) => { try { if (v === "auto") localStorage.removeItem(KEY); else localStorage.setItem(KEY, v); } catch { /* private window: this session only */ } };
+
+// the choice on this computer: 'auto' (a software renderer: light) | 'on' | 'off'; applying it decides again at once (the 3D View then rebuilds its drawing)
+export const lightPref = () => readPref();
+export function applyLightPref(v) { setLightPref(v); return decideLight(probeRendererName(), v); }
 
 // the GPU's name from a throwaway context, before the 3D View's own renderer exists (antialiasing is chosen at its creation)
 export function probeRendererName() {
@@ -41,7 +46,7 @@ export function decideLight(name = probeRendererName(), pref = readPref()) {
 // the notice at the start: what was found and how to change it (null when light drawing is off, or was asked for)
 export function lightDrawingNotice(name = probeRendererName(), pref = readPref()) {
   if (!light || pref === "on") return null;
-  return notice("Software rendering detected ({name}): the 3D View draws fewer triangles (assays along the hole, simpler solids, coarser detail from afar). A graphics driver update restores full drawing.", { name: name || "no graphics driver" });
+  return notice("Software rendering detected ({name}): the 3D View draws fewer triangles (assays along the hole, simpler solids, coarser detail from afar). A graphics driver update restores full drawing; the Drawing choice in the sidebar changes this.", { name: name || "no graphics driver" });
 }
 
 // the 3D View's renderer: its draw counts are read from here (window.__geostrixRenderInfo, the problem report, tests)

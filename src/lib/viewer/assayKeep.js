@@ -4,6 +4,7 @@
 // is moved in place (its instance matrices' translation), so adding an element builds only that element's markers.
 import * as THREE from "three";
 import { lodWanted } from "./assayLod.js"; // TASKS.csv #3144
+import { syncCompact } from "./layerBatches.js"; // TASKS.csv #3628
 
 // as ViewerModule's clearGroup: a shared prototype geometry is never disposed
 const disposeChild = (c) => { if (!c.geometry?.userData?.sharedProto) c.geometry?.dispose?.(); c.material?.map?.dispose?.(); c.material?.dispose?.(); c.dispose?.(); };
@@ -17,8 +18,8 @@ export function shiftMarkers(c, dx, dz) {
   const cp = c.userData?.compact;
   if (cp) { // a compact batch (#1643 / #3055): its base matrices and the drawn ones (a hidden row keeps its translation)
     const a = c.instanceMatrix.array;
-    for (let o = 0; o < cp.base.length; o += 16) { cp.base[o + 12] += dx; cp.base[o + 14] += dz; a[o + 12] += dx; a[o + 14] += dz; }
-    c.instanceMatrix.needsUpdate = true; c.boundingBox = null; c.boundingSphere = null;
+    for (let o = 0; o < a.length; o += 16) { a[o + 12] += dx; a[o + 14] += dz; } // the drawn matrices are the placements (a hidden row keeps its translation): #3628
+    cp.baseCache = null; c.instanceMatrix.needsUpdate = true; c.boundingBox = null; c.boundingSphere = null;
     cp.moves = (cp.moves || 0) + 1;
     return true;
   }
@@ -92,12 +93,12 @@ export function copyHidden(full, coarse) {
   for (const c of coarse) {
     const cp = c.userData?.compact;
     if (!cp) continue;
-    const a = c.instanceMatrix.array, col = c.instanceColor?.array;
+    const col = c.instanceColor?.array;
     for (let i = 0; i < cp.rows.length; i++) {
       const e = seen.get(cp.rows[i]?.holeId)?.get(rgbInt(col, i));
-      if (e && e[0] === e[1]) { cp.hidden[i] = 1; const o = i * 16; a[o] = a[o + 1] = a[o + 2] = a[o + 4] = a[o + 5] = a[o + 6] = a[o + 8] = a[o + 9] = a[o + 10] = 0; }
+      if (e && e[0] === e[1]) cp.hidden[i] = 1;
     }
-    c.instanceMatrix.needsUpdate = true;
+    syncCompact(c); // hides them as every hidden row is (its block kept to restore: #3628)
   }
 }
 

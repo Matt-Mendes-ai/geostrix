@@ -13211,5 +13211,10 @@
   "Save recovered work": "Enregistrer le travail récupéré",
   "This is work recovered from a previous session. It was open from \"{file}\", which holds the version you last saved. Save over that file, or keep both and save this as a new file?": "Ceci est le travail récupéré d'une session précédente. Il était ouvert depuis « {file} », qui contient la dernière version que vous avez enregistrée. Écraser ce fichier, ou garder les deux et enregistrer ceci dans un nouveau fichier ?",
   "Save as a new file…": "Enregistrer dans un nouveau fichier…",
-  "Save over it": "Écraser le fichier"
+  "Save over it": "Écraser le fichier",
+  "Software rendering detected ({name}): the 3D View draws fewer triangles (assays along the hole, simpler solids, coarser detail from afar). A graphics driver update restores full drawing; the Drawing choice in the sidebar changes this.": "Rendu logiciel détecté ({name}) : la vue 3D dessine moins de triangles (analyses le long du sondage, solides plus simples, moins de détail de loin). Une mise à jour du pilote graphique rétablit le dessin complet ; le choix Dessin de la barre latérale le modifie.",
+  "Light drawing uses fewer triangles (assays along the hole, simpler solids, big interval layers as ribbons, coarser detail from afar): for a computer without a working graphics driver. Auto turns it on for a software renderer.": "Le dessin léger utilise moins de triangles (analyses le long du sondage, solides plus simples, grandes couches d'intervalles en rubans, moins de détail de loin) : pour un ordinateur sans pilote graphique fonctionnel. Auto l'active avec un rendu logiciel.",
+  "Drawing": "Dessin",
+  "Auto (light: software renderer)": "Auto (léger : rendu logiciel)",
+  "Light": "Léger"
 }

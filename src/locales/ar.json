@@ -13211,5 +13211,10 @@
   "Save recovered work": "حفظ العمل المستعاد",
   "This is work recovered from a previous session. It was open from \"{file}\", which holds the version you last saved. Save over that file, or keep both and save this as a new file?": "هذا عمل مستعاد من جلسة سابقة. كان مفتوحاً من \"{file}\" الذي يحتوي على آخر نسخة حفظتها. هل تريد الحفظ فوق ذلك الملف، أم الاحتفاظ بالاثنين وحفظ هذا كملف جديد؟",
   "Save as a new file…": "حفظ كملف جديد…",
-  "Save over it": "الحفظ فوقه"
+  "Save over it": "الحفظ فوقه",
+  "Software rendering detected ({name}): the 3D View draws fewer triangles (assays along the hole, simpler solids, coarser detail from afar). A graphics driver update restores full drawing; the Drawing choice in the sidebar changes this.": "تم اكتشاف التصيير البرمجي ({name}): يرسم العرض ثلاثي الأبعاد مثلثات أقل (التحاليل على امتداد الثقب ومجسمات أبسط وتفاصيل أقل من بعيد). يعيد تحديث تعريف الرسوميات الرسم الكامل؛ ويغيّر خيار الرسم في الشريط الجانبي ذلك.",
+  "Light drawing uses fewer triangles (assays along the hole, simpler solids, big interval layers as ribbons, coarser detail from afar): for a computer without a working graphics driver. Auto turns it on for a software renderer.": "يستخدم الرسم الخفيف مثلثات أقل (التحاليل على امتداد الثقب ومجسمات أبسط وطبقات المقاطع الكبيرة كأشرطة وتفاصيل أقل من بعيد): لحاسوب بلا تعريف رسوميات يعمل. يفعّله الوضع التلقائي مع التصيير البرمجي.",
+  "Drawing": "الرسم",
+  "Auto (light: software renderer)": "تلقائي (خفيف: تصيير برمجي)",
+  "Light": "خفيف"
 }

@@ -231,7 +231,7 @@ import { useDrillLineDefaults } from "./viewer/drillLines.js"; // #2366
 import { pBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704 // TASKS.csv #445 step 2
 import { isMarkedQcRow } from "../lib/qaqcCore.js"; // TASKS.csv #601; qaqcCore: #1345
 import { isAreaBoundary } from "../lib/areaBoundary.js"; // TASKS.csv #1466; #3159: not boundaryImport.js (the vector / CRS import code)
-import { loadGpkg, groupShapefileParts, codeList } from "../lib/viewer/importHelpers.js"; // TASKS.csv #445 step 3; groupShapefileParts #600; codeList #1650
+import { loadGpkg, groupShapefileParts, codeList } from "../lib/viewer/importHelpersCore.js"; // TASKS.csv #445 step 3; groupShapefileParts #600; codeList #1650
 import { useImportPipeline } from "./viewer/useImportPipeline.js"; // TASKS.csv #445 step 3
 import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #1034 — the drillhole tables' stamp
 import { alphaOnlyFan, meanPole } from "../lib/sectionStructures.js"; // TASKS.csv #1130 — alpha-only picks on sections
@@ -240,6 +240,7 @@ import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1
 import { useIdentify } from "./viewer/useIdentify.js"; // TASKS.csv #1324
 import { useCollarMarkerSize } from "./viewer/useCollarMarkerSize.js"; // TASKS.csv #2823
 import { useModellingSimple } from "./viewer/useModellingSimple.js"; // TASKS.csv #2390 / #2773
+import LightDrawingControl from "./viewer/LightDrawingControl.jsx"; // #3620 — Auto / Light / Full
 import CollarSizeControl from "./viewer/CollarSizeControl.jsx"; // #2823 — Matt: the size beside the Collars switch
 import { useBuildDefer } from "../lib/viewer/buildDefer.js"; // #1500
 import { lazyTip } from "../lib/viewer/lazyTip.js"; // #1500
@@ -6331,6 +6332,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           </div>
         )}
         {collars.length > 0 && !figureOverlay.collarsOff && <CollarSizeControl figureOverlay={figureOverlay} setFigureOverlay={setFigureOverlay} label={tr("Collar size")} />}
+        {collars.length > 0 && <LightDrawingControl onChange={() => setRebuildSeq((n) => n + 1)} />}{/* #3620 */}
 
         {/* TASKS.csv #155 — Connect database / Run data QC / Boundary intercepts moved to the toolbar
             above (they're tools/dialogs, not data) — see the ge-subtoolbar block near the top of this
