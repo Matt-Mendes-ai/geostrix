@@ -8,7 +8,7 @@ const p = readFileSync(new URL("../src/components/InversionPanel.jsx", import.me
 test("#2638 the run's ground stands in for the project's terrain in the panel", () => {
   assert.match(p, /terrain: projectTerrain \/\* #2638/);
   assert.match(p, /const terrain = runGround && runGround\.survey === activeSurvey \? runGround\.t : projectTerrain;/);
-  assert.match(p, /const topo = terrain \? terrainPoints\(terrain, box, 40000\) : null;/); // what the engine gets
+  assert.match(p, /const topo = terrain && kind !== "structfit" \? terrainPoints\(terrain, box, 40000\) : null;/); // #2640: the structure-fit pass uses the model's own grid // what the engine gets
 });
 
 test("#2638 the station ground no longer replaces the project's terrain", () => {

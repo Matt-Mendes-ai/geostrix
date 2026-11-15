@@ -65,6 +65,7 @@ import { projectTargetEpsg } from "../../lib/projectTarget.js"; // TASKS.csv #22
 import { looksLikeUbcMesh } from "../../lib/leapfrogMsh.js"; // TASKS.csv #1991
 import { perHoleJoinOf, perHoleAttrs } from "../../lib/perHoleJoin.js"; // TASKS.csv #2399
 import { MACPASS_CREDIT } from "../../lib/sampleCredits.js"; // TASKS.csv #3496
+import { isTable } from "../../lib/rowTable.js"; import { publishedLayers } from "../../lib/tableFields.js"; // TASKS.csv #3140 step 2 — a big log layer held as columns
 import { busyUntilQuiet } from "../../lib/busyUntilQuiet.js"; // TASKS.csv #3539
 
 // TASKS.csv #3496 — the sample files whose dip sign the sample itself states (negative = down, with real up-holes: positive dips), by File object: the queue
@@ -78,6 +79,11 @@ const dipColOf = (target, mapping) => (target === "collars" || target === "surve
 // TASKS.csv #3205 — the per-mineral layers' rules (lib/perMineralColumns.js), loaded on demand before a commit that may need them (a Mineralization
 // or Custom interval table): kept here, not in the import's data, which a database import saves as its choices
 let perMineralLib = null;
+// TASKS.csv #3140 step 2 — a big downhole log's layers are held as typed columns (a rowTable Table), not millions of row objects: measured on a
+// 2.58 M-reading log, 412 MB of rows as objects against 111 MB as columns. The builder (rowTableBuild.js) is loaded before a big import commits
+// (the commit itself is synchronous); a layer under LOG_TABLE_MIN rows keeps its rows (nothing to save, and nothing new to go wrong).
+const LOG_TABLE_MIN = 20000;
+let tableBuild = null;
 const loadPerMineral = async (target) => { if (!perMineralLib && (target === "mnlgy" || target === "custom" || target === "litho" /* a composition: #3052 */)) { try { perMineralLib = await import("../../lib/perMineralColumns.js"); } catch { /* offline chunk: the import goes on without the per-mineral layers */ } } };
 
 // TASKS.csv #3211 — a custom interval layer's overlaps, counted for every one (the interval import says them only with a column that may explain them)
@@ -863,7 +869,11 @@ export function makeImportPipeline(ctx, h) {
         const mid = !mapping.depth && mapping.from && mapping.to ? `Each reading placed at the middle of its ${mapping.from}-${mapping.to} interval.` : "";
         const binNote = !out.binned ? "" : binM === "assay" ? `Binned on import to the assay sample intervals: mean of ${out.readings} reading(s) per sample, with its min and max (fields min, max, n); ${out.unsampled || 0} reading(s) in no sample were left out. Source: ${fileName}.` /* #3039 */ : `Binned on import to ${binM} m: mean of ${out.readings} reading(s), with each bin's min and max (fields min, max, n). Source: ${fileName}.`;
         const ndNote = (nd && out.dropped ? `Left out on import as no-data codes: ${out.dropped} value(s) (${noDataText(nd)}).` : "") + (out.outside ? `${nd && out.dropped ? " " : ""}Left out on import by the typed range: ${out.outside} value(s) ${rangeText(rg)}.` : ""); // #2332; range: #3041
-        setCustomLayers((p) => [...p, { id, name, rows: rowsOut, group, unit: unit || undefined, ...(out.binned ? { binM } : {}), ...(binNote || mid || ndNote ? { notes: [binNote, mid, ndNote].filter(Boolean).join(" ") } : {}) }]);
+        const layerOut = { id, name, rows: rowsOut, group, unit: unit || undefined, ...(out.binned ? { binM } : {}), ...(binNote || mid || ndNote ? { notes: [binNote, mid, ndNote].filter(Boolean).join(" ") } : {}) };
+        // a big layer: its rows made into columns and the rows dropped; the layer the view holds is the store's own view of it (the rows a lazy getter), so a
+        // reader that has not moved still reads rows, and the mirror to the store carries the Table (lib/tableFields.js, #3424)
+        if (tableBuild && rowsOut.length >= LOG_TABLE_MIN) { const table = tableBuild(rowsOut); if (isTable(table)) layerOut.rows = table; }
+        setCustomLayers((p) => [...p, isTable(layerOut.rows) ? publishedLayers([layerOut])[0] : layerOut]);
         setCustomVisible((p) => ({ ...p, [id]: k === 0 }));
         made.push(`${col}${unit ? ` (${unit})` : ""}: ${out.rows.length.toLocaleString()}${out.skipped ? ` (${out.skipped} without a number)` : ""}${out.dropped ? ` (${out.dropped.toLocaleString()} no-data value(s) left out: ${noDataText(nd)})` : ""}${out.outside ? ` (${out.outside.toLocaleString()} ${rangeText(rg)} left out)` : ""}`); // dropped: #2332; outside: #3041
       });
@@ -1004,6 +1014,7 @@ export function makeImportPipeline(ctx, h) {
   const commitImportOnce = async () => {
     await askCrsForCollars(importModal); // #615
     await loadPerMineral(importModal.target); // #3205
+    if (!tableBuild && (importModal.logTable || (importModal.allRows?.length || 0) >= LOG_TABLE_MIN)) tableBuild = (await import("../../lib/rowTableBuild.js")).tableFromRows; // #3140 step 2
     if (importModal.azimuthRef === "magnetic") { try { await loadIgrf(); } catch { /* offline chunk load failed: the conversion reports the holes it couldn't convert */ } } // #552
     // TASKS.csv #412 — feet and local mine grid are applied to the raw rows before the normal import.
     let modalData = importModal;

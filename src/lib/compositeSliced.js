@@ -27,7 +27,7 @@ export async function compositeDownholeSliced(assays, symbol, unit, elementUnits
       stats: st || undefined,
     });
     for (const c of part) out.push(c);
-    if (st) { stats.readings += st.readings || 0; stats.leftOut += st.leftOut || 0; }
+    if (st) { stats.readings += st.readings || 0; stats.leftOut += st.leftOut || 0; for (const k of ["underCovered", "shortEndsMerged", "shortEndsDropped"]) if (st[k]) stats[k] = (stats[k] || 0) + st[k]; } // #3575
     batch = []; batchHoles = [];
   };
   for (let i = 0; i < holes.length; i++) {

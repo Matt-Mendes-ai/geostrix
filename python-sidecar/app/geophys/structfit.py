@@ -163,9 +163,12 @@ def run_job(req, progress):
 
     resolved = None
     if req.get("resolve"):
-        # the whole model's response a unit (its cells at 1), then the unit properties within their bounds and a base level
+        # the whole model's response a unit (its cells at 1), then the unit properties within their bounds and a base level. The properties are
+        # absolute (g/cc, SI) and unit 1, the space above every top, is the background: the reference, kept as entered (the forward is of each
+        # unit's contrast with it; a uniform background is the base level's). Bounds are on the absolute values.
         from scipy.optimize import lsq_linear
-        bounds = {int(k): (float(v[0]), float(v[1])) for k, v in req["resolve"].items()}  # JSON keys are strings
+        bg = props.get(1, 0.0)
+        bounds = {int(k): (float(v[0]), float(v[1])) for k, v in req["resolve"].items() if int(k) != 1}  # JSON keys are strings
         units = sorted(bounds)
         cols = []
         for uid in units:
@@ -175,15 +178,15 @@ def run_job(req, progress):
         if obs is None:
             raise ValueError("Re-solving the unit properties needs the observed readings.")
         A = np.column_stack(cols + [np.ones(len(stations))]) / sigma[:, None]
-        lob = [bounds[uid][0] for uid in units] + [-np.inf]
-        hib = [bounds[uid][1] for uid in units] + [np.inf]
+        lob = [bounds[uid][0] - bg for uid in units] + [-np.inf]
+        hib = [bounds[uid][1] - bg for uid in units] + [np.inf]
         fit = lsq_linear(A, obs / sigma, bounds=(lob, hib))
-        resolved = {"properties": {str(uid): float(v) for uid, v in zip(units, fit.x[:-1])}, "baseLevel": float(fit.x[-1]),
-                    "rms": float(np.sqrt(np.mean((A @ fit.x - obs / sigma) ** 2)))}
-        entered = np.array([props.get(uid, 0.0) for uid in units] + [0.0])
+        resolved = {"properties": {str(uid): float(v) + bg for uid, v in zip(units, fit.x[:-1])}, "baseLevel": float(fit.x[-1]),
+                    "rms": float(np.sqrt(np.mean((A @ fit.x - obs / sigma) ** 2))), "background": bg}
+        entered = np.array([props.get(uid, 0.0) - bg for uid in units] + [0.0])
         entered[-1] = float(np.mean(obs - (A[:, :-1] * sigma[:, None]) @ entered[:-1]))
         resolved["rmsEntered"] = float(np.sqrt(np.mean((A @ entered - obs / sigma) ** 2)))
-        props = {**props, **{uid: v for uid, v in zip(units, fit.x[:-1])}}
+        props = {**props, **{uid: float(v) + bg for uid, v in zip(units, fit.x[:-1])}}
 
     out = []
     for k, mv in enumerate(movable):

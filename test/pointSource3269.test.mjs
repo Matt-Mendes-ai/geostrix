@@ -10,7 +10,7 @@ const pieces = (n, step, len) => { const out = []; for (let h = 0; h < 3; h++) f
 test("compositeDownhole counts the readings no kept composite took (opts.stats)", () => {
   const st = {};
   assert.equal(compositeDownhole(pieces(20, 3, 0.11), "SG", "g/cc", {}, { length: 2, minCoverage: 0.5, stats: st }).length, 0);
-  assert.deepEqual(st, { readings: 60, leftOut: 60 });
+  assert.deepEqual(st, { readings: 60, leftOut: 60, underCovered: 60 }); // #3575: the windows that held some sample, left out for coverage, counted
   const st0 = {};
   assert.equal(compositeDownhole(pieces(20, 3, 0.11), "SG", "g/cc", {}, { length: 2, minCoverage: 0, stats: st0 }).length, 60);
   assert.deepEqual(st0, { readings: 60, leftOut: 0 });
