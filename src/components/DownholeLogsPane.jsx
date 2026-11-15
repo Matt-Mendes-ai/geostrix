@@ -20,6 +20,7 @@ import { useDeferredMemo, DEFER_ROWS } from "../lib/useDeferredMemo.js"; // TASK
 import { logUnitChoices } from "../lib/logUnits.js"; // TASKS.csv #2952
 import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #2953 — the whiskers
 import { implausibleReadings } from "../lib/logUnits.js"; // TASKS.csv #2953
+import { someWhere, rowSome } from "../lib/layerColumns.js"; // TASKS.csv #3140 — a log layer may be held as columns
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", fontSize: "var(--font-size-sm)", marginBottom: 6 };
@@ -186,7 +187,7 @@ function codeLabel(k, max = 0) {
 // a trailing parenthesis is kept whole and the words before it shortened, else the middle is cut so the end shows too
 export default function DownholeLogsPane({ layers, customLayers = [], assays = [], assayElements = [], onClose, onEstimate = null }) {
   // TASKS.csv #2558 — a model evaluated onto the holes is not a log: it opened as the Log and was then compared with itself (Spearman 1.00)
-  const modelIds = useMemo(() => new Set(customLayers.filter((l) => l.sourceModel != null || (l.rows || []).some((r) => r.modelled)).map((l) => l.id)), [customLayers]);
+  const modelIds = useMemo(() => new Set(customLayers.filter((l) => l.sourceModel != null || someWhere(l.rows, "modelled", Boolean)).map((l) => l.id)), [customLayers]); // someWhere: rows or a Table (#3140)
   // TASKS.csv #2967 — built-in and imported logs in one list, the most readings first (orderLogSources): it opened on 'Recovery (3,408)'
   const { project, setLogValidRange } = useStore(); // #3116 — the built-in logs' range / despike
   const logValidRange = project?.logValidRange || null;
@@ -285,7 +286,7 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
   const unitOf = (u) => (u === "as logged" ? "" : u);
   const implausible = useMemo(() => implausibleReadings(logValues, unitOf(source?.unit || "")), [logValues, source]); // #2953 — after unitOf (declared above: a render-time TDZ otherwise)
   // TASKS.csv #1595 — against a block model evaluated onto the holes (Block models > Evaluate onto drillholes)
-  const onHoles = useMemo(() => customLayers.filter((l) => (l.rows || []).some((r) => r.modelled && (r.numeric || (typeof r.value === "number" && Number.isFinite(r.value))))) /* rows from Evaluate (the store's copy keeps only id / name / rows). #2240: and drops 'numeric', so a modelled row with a number counts (categorical evaluations carry text) */, [customLayers]);
+  const onHoles = useMemo(() => customLayers.filter((l) => rowSome(l.rows, (r) => r.modelled && (r.numeric || (typeof r.value === "number" && Number.isFinite(r.value))), "modelled")) /* rows from Evaluate (the store's copy keeps only id / name / rows). #2240: and drops 'numeric', so a modelled row with a number counts (categorical evaluations carry text) */, [customLayers]);
   const [modelLayerId, setModelLayerId] = useKeptState(keptScope, "dhlogs.model", "");
   const modelLayer = onHoles.find((l) => String(l.id) === modelLayerId) || onHoles[0] || null;
   const { value: vm, pending: vmPending } = useDeferredMemo(() => (data && modelLayer ? logVsModel(data.assays, data.symbol, modelLayer.rows) : null), [data, modelLayer], heavy); // #2948

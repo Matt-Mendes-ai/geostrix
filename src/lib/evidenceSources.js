@@ -10,6 +10,7 @@ import { modelGround } from "./modelGround.js"; // TASKS.csv #2447
 import { median } from "./arrayStats.js"; // TASKS.csv #2447
 import { drillSiteSpacing } from "./drillSpacing.js"; // TASKS.csv #2949
 import { drilledCollars } from "./collarStatus.js"; // TASKS.csv #2949
+import { isTable, countWhere, firstWhere } from "./layerColumns.js"; // TASKS.csv #3140
 
 export const DRILL_REACH_M = 250;
 const GRADE_BIN_M = 25;
@@ -403,6 +404,7 @@ const ROW_KEYS = new Set(["hole_id", "from", "to", "depth", "_src", "id"]);
 const BOOKKEEPING_FIELD = /(^|[_\s-])(t?stamp|timestamp|date|time|iteration|iter|rank|objectid|object_?id|uuid|fid|id|year|version|row)$|^_/i;
 export const numericCell = (v) => (typeof v === "number" ? (Number.isFinite(v) ? v : null) : typeof v === "string" && /^\s*[-+]?\d+(\.\d+)?\s*$/.test(v) ? Number(v) : null);
 export function numericLayerFields(rows, { min = 5 } = {}) {
+  if (isTable(rows)) return numericTableFields(rows, min); // TASKS.csv #3140: a big log held as columns, read without its rows
   const counts = new Map(), filled = new Map();
   for (const r of rows || []) for (const k of Object.keys(r)) {
     if (ROW_KEYS.has(k) || BOOKKEEPING_FIELD.test(k)) continue;
@@ -412,6 +414,19 @@ export function numericLayerFields(rows, { min = 5 } = {}) {
     if (numericCell(v) != null) counts.set(k, (counts.get(k) || 0) + 1);
   }
   const keys = [...counts].filter(([k, n]) => n >= min && n >= 0.9 * filled.get(k)).map(([k]) => k);
+  return keys.sort((a, b) => (/intensity|^int$|_int(_|$)/i.test(b) ? 1 : 0) - (/intensity|^int$|_int(_|$)/i.test(a) ? 1 : 0));
+}
+// TASKS.csv #3140 — the same over a rowTable Table: per column, the filled and numeric counts (a coded column's values judged once each), the
+// fields in the order their first numeric value appears (as the row loop's Map fills), then the same sort
+function numericTableFields(t, min) {
+  const filledP = (v) => !(v == null || v === ""), numP = (v) => v != null && v !== "" && numericCell(v) != null;
+  const kept = [];
+  t.keys.forEach((k, order) => {
+    if (ROW_KEYS.has(k) || BOOKKEEPING_FIELD.test(k)) return;
+    const n = countWhere(t, k, numP);
+    if (n >= min && n >= 0.9 * countWhere(t, k, filledP)) kept.push([k, firstWhere(t, k, numP), order]);
+  });
+  const keys = kept.sort((a, b) => a[1] - b[1] || a[2] - b[2]).map(([k]) => k);
   return keys.sort((a, b) => (/intensity|^int$|_int(_|$)/i.test(b) ? 1 : 0) - (/intensity|^int$|_int(_|$)/i.test(a) ? 1 : 0));
 }
 // TASKS.csv #2260 (review #2174, WA lode gold) — a field that measures how wrong another is (a spectral fit's TSA_Error, a standard
