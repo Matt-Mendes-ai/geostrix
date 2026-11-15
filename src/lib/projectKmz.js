@@ -26,6 +26,7 @@ import { plannedTrace } from "./holePlanning.js"; // #3068 — planned holes as 
 import { computeLine } from "./designLines.js"; // TASKS.csv #3087 — Mine Design's lines (start + segments -> vertices)
 import { splitRings } from "./ringSplit.js"; // TASKS.csv #3126 — a ring crossing itself as written, split into simple loops (Perk-Rocky's And unit)
 import { MODEL_MAX_TRIANGLES, buildModel, modelKml, surfaceMesh, terrainMesh, voxelMeshes, sectionImageMesh } from "./kmzModels.js"; // TASKS.csv #3087 part 2
+import { isTable, rowCount, rowsForOnce } from "./layerColumns.js"; // TASKS.csv #3140
 
 export const MAX_CLASSES = 16; // a numeric log with more colours than this is grouped into equal bins
 const BINS = 12;
@@ -307,10 +308,12 @@ export function buildProjectKml(ctx, opts) {
     }
     DRILLHOLE_LAYER_KEYS.filter((k) => !grouped.has(k)).forEach(builtIn);
     // custom layers
-    const customs = (ctx.customLayers || []).filter((l) => (l.rows || []).length);
+    const customs = (ctx.customLayers || []).filter((l) => rowCount(l.rows)); // #3140: rows or a Table
     if (customs.length) {
       w.open("Custom layers");
-      for (const L of customs) {
+      for (const L0 of customs) {
+        // TASKS.csv #3140 — a log held as columns: its rows built for this export only and freed with it. Not rowsOf, which keeps them with the Table for its life (a cold reader must not leave 412 MB resident)
+        const L = isTable(L0.rows) ? { ...L0, rows: rowsForOnce(L0.rows) } : L0;
         const st = ui.layerStyles?.[`custom:${L.id}`] || {}, field = st.colourBy || "value";
         const raw = L.rows.map((r) => r?.[field]);
         const nums = raw.map(num), numeric = nums.filter(fin).length >= Math.max(1, raw.filter((v) => v != null && v !== "").length * 0.9);

@@ -350,6 +350,21 @@ def check_system_3485():
     assert np.isfinite(cc[0]) and cc[0] <= 1.05 * chi_g.min() and abs(mm[0, 0] - grid[np.argmin(chi_g)]) < 0.06, (mm, cc, chi_g.min(), grid[np.argmin(chi_g)])
     print(f"one gate predicted below zero over much of the range: the fit lands near the floored misfit's minimum (log10 sigma {mm[0, 0]:.3f}, "
           f"brute force {grid[np.argmin(chi_g)]:.3f}; chi {cc[0]:.2f} vs {chi_g.min():.2f})")
+    # #3502 — the frame's tilt: with the receiver's position held (its height is rz), tilting both coils with the frame scales the reading by
+    # cos(tilt) (against empymod: src and rec dipoles tilted by the pitch; roll likewise); the survey applies a per-station factor
+    import empymod
+    T3 = np.array([2e-5, 2e-4, 2e-3])
+    z0 = [0.0] * 4
+    kw = dict(depth=np.r_[0.0, np.cumsum(thick)], res=np.r_[2e14, 1.0 / np.asarray(cond)], freqtime=T3, signal=-1, msrc="loop", mrec="loop", verb=0, epermH=z0, epermV=z0, xdirect=None)
+    level = -np.asarray(empymod.bipole(src=[0, 0, -40.0, 0, 90], rec=[-13.0, 0, -42.0, 0, 90], **kw))
+    for az, ang in ((0.0, 6.0), (90.0, 6.0)):
+        tilted = -np.asarray(empymod.bipole(src=[0, 0, -40.0, az, 90 - ang], rec=[-13.0, 0, -42.0, az, 90 - ang], **kw))
+        assert np.all(np.abs(tilted / level / math.cos(math.radians(ang)) - 1) < 1.5e-3), tilted / level
+    sv1 = tem1d.TemSurvey({"geom": "vmd", "r": 13.0, "h": np.array([30.0, 30.0]), "tilt": np.array([1.0, 0.99])}, gates=[1e-4, 1e-3])
+    m2 = np.log10(np.array([cond, cond]))
+    p2, J2 = sv1.forward_fn(m2, np.asarray(thick), jac=True)
+    assert abs(p2[1, 0] / p2[0, 0] - 0.99) < 1e-12 and abs(J2[1, 0, 0] / J2[0, 0, 0] - 0.99) < 1e-12
+    print("frame tilt: both coils tilted 6 degrees (pitch, roll) / level = cos(6 deg) within 1.5e-3 (empymod); a station's factor scales its data and Jacobian")
     # 4. gates inside a 20 us linear turn-off (no filter: the instantaneous part counted), against a direct integration
     wf = [[-2.002e-3, 0.0], [-2.0e-3, 1.0], [-2e-5, 1.0], [0.0, 0.0]]
     g = np.array([-1.2e-5, -4e-6, 3e-6, 2e-5])
@@ -395,17 +410,19 @@ def check_system_3485():
             "moments": [{"gates": g.tolist(), "widths": [1e-6] * 4, "waveform": wf, "baseFreq": 210.0}], "data": [[1.0] * 4], "rz": [1.5], "errRel": 0.05}
     _validate_tem1d(good)
     _validate_tem1d({**good, "system": {**good["system"], "filters": [[2.1e5, 2], 3e5]}})  # #3501: the coil's, second order
+    _validate_tem1d({**good, "tilt": [0.995]})  # #3502
     for bad, why in [({**good, "system": {**good["system"], "filters": [10.0]}}, "a 10 Hz filter"),
                      ({**good, "moments": [{**good["moments"][0], "gates": [-3e-3, 1e-5, 2e-5, 3e-5]}]}, "a gate before the waveform"),
                      ({**good, "moments": [{**good["moments"][0], "baseFreq": 400.0}]}, "a half-period shorter than the waveform"),
                      ({**good, "rz": [50.0]}, "a receiver 50 m above"),
-                     ({**good, "system": {**good["system"], "filters": [[2.1e5, 3]]}}, "a third-order filter")]:
+                     ({**good, "system": {**good["system"], "filters": [[2.1e5, 3]]}}, "a third-order filter"),
+                     ({**good, "tilt": [0.3]}, "a tilt factor of 0.3")]:
         try:
             _validate_tem1d(bad)
         except HTTPException:
             continue
         raise AssertionError(f"accepted {why}")
-    print("system validation: a loop, filters (one second order), receiver heights and a base frequency pass; five bad requests are refused")
+    print("system validation: a loop, filters (one second order), receiver heights, a tilt and a base frequency pass; six bad requests are refused")
 
 
 if __name__ == "__main__":

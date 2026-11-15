@@ -8,6 +8,7 @@ export { logFilterOf, filterLogRows, withFilteredLogs } from "./logFilter.js";
 import { numericLayerFields } from "./evidenceSources.js";
 import { isNumericLayer } from "./domainLayers.js";
 import { suscUnitHint } from "./drillholeConstraints.js"; // TASKS.csv #2079
+import { isTable, rowCount, fieldOf, countWhere } from "./layerColumns.js"; // TASKS.csv #3140
 
 export const LOG_SOURCES = {
   magsusc: { label: "Mag. susc.", unit: "SI", logScale: true },
@@ -71,7 +72,7 @@ export function numericSourceChoices({ layers, customLayers, models = true, buil
     const fields = numericLayerFields(rows, { min: MIN_ROWS }).filter((f) => f !== "from" && f !== "to" && f !== "value" && !(c.binM && f === "n"));
     if (isNumericLayer(rows)) fields.unshift("value");
     for (const f of fields) {
-      const n = rows.filter((r) => Number.isFinite(num(r[f]))).length;
+      const n = countWhere(rows, f, (v) => Number.isFinite(num(v))); // TASKS.csv #3140: rows or a Table, the same count
       if (n < MIN_ROWS) continue;
       const label = f === "value" ? String(c.name) : `${c.name} › ${f}`;
       const unit = c.unit && (f === "value" || (c.binM && (f === "min" || f === "max"))) ? String(c.unit) : CUSTOM_UNIT;
@@ -120,7 +121,17 @@ export function sourceAssays(choice, { layers, customLayers } = {}, { pointSuppo
   const assays = [];
   let skipped = 0;
   const kept = []; // [r, v]: in range, with a hole
-  for (const r of rows) {
+  if (isTable(rows)) {
+    // TASKS.csv #3140 — a big log held as columns: read by index; a kept reading carries only what the steps below read (its hole and depths),
+    // so the layer's rows are never built
+    const N = rowCount(rows), gV = fieldOf(rows, field), gH = fieldOf(rows, "hole_id"), gF = fieldOf(rows, "from"), gT = fieldOf(rows, "to"), gD = fieldOf(rows, "depth"), gN = fieldOf(rows, "n");
+    for (let i = 0; i < N; i++) {
+      const v = num(gV(i)), hole = gH(i);
+      if (!Number.isFinite(v) || hole == null) { skipped++; continue; }
+      if (outside && outside(v)) { outOfRange++; continue; }
+      kept.push([{ hole_id: hole, from: gF(i), to: gT(i), depth: gD(i), n: gN(i) }, v]);
+    }
+  } else for (const r of rows) {
     const v = num(r[field]);
     if (!Number.isFinite(v) || r.hole_id == null) { skipped++; continue; }
     if (outside && outside(v)) { outOfRange++; continue; } // #2953

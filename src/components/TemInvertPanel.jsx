@@ -5,7 +5,7 @@
 // station's data against its model's response, the models in 3D.
 import React, { useMemo, useRef, useState } from "react";
 import { channelMatrix, noiseGroupFor, stdKindGuess } from "../lib/temLines.js";
-import { WAVEFORM_PRESETS, waveformFrom, parseWaveformTable, parseFilters, timeZeroGuess, unitGuess, heightColumn, rxColumn, buildTemRequest, mergePartials, partialResult, layerThicknesses } from "../lib/temInvert.js";
+import { WAVEFORM_PRESETS, waveformFrom, parseWaveformTable, parseFilters, timeZeroGuess, unitGuess, heightColumn, rxColumn, tiltColumns, buildTemRequest, mergePartials, partialResult, layerThicknesses } from "../lib/temInvert.js";
 import { modelPoints } from "../lib/fdem.js";
 import { SURVEY_METHODS, surveyKey } from "../lib/geophysSurveys.js";
 import { runTem1dJob } from "../lib/desktop.js";
@@ -105,9 +105,10 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
   const ug = useMemo(() => unitGuess(mats[0]), [mats]);
   const hc = useMemo(() => heightColumn(data.columns), [data]);
   const rxc = useMemo(() => rxColumn(data.columns), [data]);
+  const tiltc = useMemo(() => tiltColumns(data.columns), [data]); // #3502
   const stdGuess = useMemo(() => (noiseMats[0] ? stdKindGuess(noiseMats[0]) : "relative"), [noiseMats]);
   const fresh = () => ({
-    key, geom: "vmd", r: 13, a: 20, area: 314, h: 30, rz: 0, rzCol: rxc && hc ? rxc : "", filters: "", coil2: true, heightsCol: hc || "", timeZero: tz.zero, unit: ug.unit, useStd: noiseMats.every(Boolean), stdKind: stdGuess, errRel: 5, every: 1,
+    key, geom: "vmd", r: 13, a: 20, area: 314, h: 30, rz: 0, rzCol: rxc && hc ? rxc : "", filters: "", coil2: true, useTilt: !!(tiltc.pitch || tiltc.roll), heightsCol: hc || "", timeZero: tz.zero, unit: ug.unit, useStd: noiseMats.every(Boolean), stdKind: stdGuess, errRel: 5, every: 1,
     layers: { n: 20, first: 3, bottom: 300 },
     wave: groups.map((g, k) => { const p = groups.length > 1 ? (k === 0 ? "airLow" : "airHigh") : "airHigh"; return { preset: p, onMs: WAVEFORM_PRESETS[p].onMs, rampUs: WAVEFORM_PRESETS[p].rampUs, table: "", baseFreq: "", shiftUs: "", frontUs: "", widthsUs: "" }; }),
     result: null, pick: null, sel: null,
@@ -132,7 +133,7 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
   const build = () => buildTemRequest(data, {
     moments: groups.map((g, k) => ({ group: g, times: times[k], ...waveOf(k), baseFreq: st.wave[k].baseFreq, shiftUs: st.wave[k].shiftUs, frontUs: st.wave[k].frontUs,
       widthsUs: String(st.wave[k].widthsUs || "").trim() ? numList(st.wave[k].widthsUs) : null })),
-    timeZero: st.timeZero, unit: st.unit, every: st.every, heightsCol: st.heightsCol || null, rxCol: st.rzCol || null,
+    timeZero: st.timeZero, unit: st.unit, every: st.every, heightsCol: st.heightsCol || null, rxCol: st.rzCol || null, tilt: st.useTilt && (tiltc.pitch || tiltc.roll) ? tiltc : null,
     noise: { use: st.useStd, kind: st.stdKind, mats: noiseMats },
     system: st.geom === "loop" ? { geom: "loop", a: Number(st.a) || 20, h: Number(st.h) || 0, filters: filters || [] }
       : { ...(st.geom === "cloop" ? { geom: "cloop", a: Math.sqrt((Number(st.area) || 314) / Math.PI) } : { geom: "vmd" }), r: Number(st.r) || 13, h: Number(st.h) || 30, rz: Number(st.rz) || 0, filters: filters || [] },
@@ -225,6 +226,9 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
           {!(rxc && st.heightsCol && st.rzCol) && <input type="number" min="-20" max="20" step="any" value={st.rz} onChange={(e) => set({ rz: e.target.value })} style={num} aria-label={tr("Receiver above the transmitter (m)")} />}
         </span>
       </div>}
+      {st.geom !== "loop" && (tiltc.pitch || tiltc.roll) && <label style={{ ...rowS, justifyContent: "flex-start", gap: 4, fontSize: "var(--font-size-xs)" }}>
+        <input type="checkbox" checked={!!st.useTilt} onChange={(e) => set({ useTilt: e.target.checked })} />{tr("Use the frame's tilt ({c}): each reading scaled by the cosines of pitch and roll; without a receiver height column, the receiver's height from the pitch", { c: [tiltc.pitch, tiltc.roll].filter(Boolean).join(", ") })}
+      </label>}
       <div style={rowS}><span>{tr("Receiver low-pass filters (kHz)")}</span>
         <input type="text" value={st.filters} placeholder={tr("none")} onChange={(e) => set({ filters: e.target.value })} style={{ ...num, width: 90 }} aria-label={tr("Receiver low-pass filters (kHz)")} />
       </div>

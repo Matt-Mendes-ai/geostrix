@@ -30,7 +30,7 @@ const MAX_ZOOM = 14; // Terrarium tiles top out around here in most regions — 
 const GRID_MAX = 200; // same mesh-resolution budget raster.js's DEM_MAX_GRID uses for manual imports
 const TILE = 256; // a Terrarium tile's pixels (#3251: the planner; fetchSRTMTerrain keeps its own)
 
-function lonLatToTileXY(lon, lat, zoom) {
+export function lonLatToTileXY(lon, lat, zoom) { // exported: TASKS.csv #3252 phase 3 (the terrain tile reader)
   const n = 2 ** zoom;
   const x = Math.floor(((lon + 180) / 360) * n);
   const latRad = (lat * Math.PI) / 180;
@@ -41,7 +41,7 @@ function lonLatToTileXY(lon, lat, zoom) {
 // Returns the (lon, lat) of a tile corner's NW pixel — i.e. tileXYToLonLat(x, y) is tile (x,y)'s own
 // NW corner, and tileXYToLonLat(x+1, y+1) is its SE corner (standard slippy-map tile convention: x
 // grows east, y grows south).
-function tileXYToLonLat(x, y, zoom) {
+export function tileXYToLonLat(x, y, zoom) {
   const n = 2 ** zoom;
   const lon = (x / n) * 360 - 180;
   const latRad = Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / n)));
@@ -90,7 +90,7 @@ export function planTerrainFetch([lonMin, latMin, lonMax, latMax], gridMax = GRI
   return { nodeM, sourcePixelM, nativeM, zoom, tiles, downloadMB: source === "aws" ? +(tiles * 0.1).toFixed(1) : null, memoryMB, fullSideKm: (nativeM * (gridMax - 1)) / 1000, effectiveM: Math.max(nodeM, sourcePixelM) };
 }
 
-async function decodeTerrariumTile(z, x, y) {
+export async function decodeTerrariumTile(z, x, y) {
   const bytes = await fetchSRTMTile(z, x, y);
   const bitmap = await createImageBitmap(new Blob([bytes], { type: "image/png" }));
   const canvas = document.createElement("canvas");
