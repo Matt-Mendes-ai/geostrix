@@ -50,8 +50,33 @@ export function anchorOnRay(ray, camera, anchors, rect, clientX, clientY, radius
   return t > 0 ? { x: o.x + r.x * t, y: o.y + r.y * t, z: o.z + r.z * t } : null;
 }
 
+// TASKS.csv #3669 — boxes: minx, miny, minz, maxx, maxy, maxz, … (scene coordinates: the shown block models' and OMF models' own extents) -> the point of the ray where it
+// enters the nearest box it crosses ahead of the camera (from inside a box: halfway to where it leaves), or null. A cursor in a gap of a block model, with no
+// hole near it, zooms on the block, not on the plane behind it.
+export function boxOnRay(ray, boxes) {
+  if (!boxes || boxes.length < 6) return null;
+  const o = ray.origin, d = ray.direction;
+  let best = Infinity;
+  for (let i = 0; i + 5 < boxes.length; i += 6) {
+    let t0 = 0, t1 = Infinity, ok = true;
+    for (let a = 0; a < 3 && ok; a++) {
+      const oa = a === 0 ? o.x : a === 1 ? o.y : o.z, da = a === 0 ? d.x : a === 1 ? d.y : d.z, lo = boxes[i + a], hi = boxes[i + 3 + a];
+      if (Math.abs(da) < 1e-12) { if (oa < lo || oa > hi) ok = false; continue; }
+      let s0 = (lo - oa) / da, s1 = (hi - oa) / da;
+      if (s0 > s1) { const x = s0; s0 = s1; s1 = x; }
+      if (s0 > t0) t0 = s0;
+      if (s1 < t1) t1 = s1;
+      if (t0 > t1) ok = false;
+    }
+    if (!ok || !(t1 > 0)) continue;
+    const t = t0 > 0 ? t0 : t1 / 2; // outside: the entry; inside (t0 is 0): halfway to the exit
+    if (t < best) best = t;
+  }
+  return best < Infinity ? { x: o.x + d.x * best, y: o.y + d.y * best, z: o.z + d.z * best } : null;
+}
+
 // e: the wheel event; el: the canvas; raycaster: a THREE.Raycaster; cs: { radius, target }; hitPoint(raycaster) -> a point or null
-export function wheelZoom(e, el, camera, raycaster, cs, hitPoint, { min = 0.05, max = 4000000, rate = 0.0012, anchors = null } = {}) {
+export function wheelZoom(e, el, camera, raycaster, cs, hitPoint, { min = 0.05, max = 4000000, rate = 0.0012, anchors = null, boxes = null } = {}) {
   const r0 = cs.radius, r1 = Math.max(min, Math.min(max, r0 * (1 + e.deltaY * rate)));
   cs.radius = r1;
   if (r1 === r0 || !el || !camera || !raycaster) return;
@@ -61,5 +86,6 @@ export function wheelZoom(e, el, camera, raycaster, cs, hitPoint, { min = 0.05, 
   let p = null;
   try { p = hitPoint ? hitPoint(raycaster) : null; } catch { p = null; }
   if (!p && anchors) { try { p = anchorOnRay(raycaster.ray, camera, typeof anchors === "function" ? anchors() : anchors, rect, e.clientX, e.clientY); } catch { p = null; } } // #3247 — a miss: the holes' own depth before the plane
+  if (!p && boxes) { try { p = boxOnRay(raycaster.ray, typeof boxes === "function" ? boxes() : boxes); } catch { p = null; } } // #3669 — no hole near: a block model it crosses
   scaleTargetAbout(cs.target, p || rayPlaneY(raycaster.ray, cs.target.y), r0, r1);
 }

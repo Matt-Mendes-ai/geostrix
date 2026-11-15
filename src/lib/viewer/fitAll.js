@@ -6,8 +6,8 @@ import * as THREE from "three";
 
 const SKIP_GROUPS = new Set(["hole_labels", "outcrop_labels", "sample_labels", "measure"]);
 
-// The object's own extent (not its children's), in world coordinates; false when it has none
-function ownBox(o, out) {
+// The object's own extent (not its children's), in world coordinates; false when it has none (exported for the wheel zoom's block boxes, #3669)
+export function ownBox(o, out) {
   if (o.isSprite) return false;
   if (o.boundingBox !== undefined) { // InstancedMesh / BatchedMesh: the box over every instance
     if (o.boundingBox === null) o.computeBoundingBox();
