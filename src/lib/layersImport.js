@@ -497,7 +497,10 @@ function guessTargetForRaw(headers, name, rows) {
   // readings, a downhole log, before any name hint ("density.csv" would keep Specific gravity: millions of zero-length intervals)
   // TASKS.csv #3204 (#3195, Galore Creek) — not a table of oriented structure picks: Point Structures (GEOLFROM = GEOLTO; PTSTR_STR_TYPE, PTSTR_ALPHA,
   // PTSTR_BETA) has numbers in every row too, and went to Custom layer while the same columns of Fault Structures were read as Structure planes
-  if (rows && zeroLengthRows(headers, rows) === true && looksLikeLogTable(headers, rows) && !structurePicks(headers)) return "custom";
+  // TASKS.csv #3245 — a file NAMED for magnetic susceptibility ('Mag Sus.csv') whose From equals To on every row is a table of point readings, which is what the Mag susc layer holds: it keeps that layer (it was opened as
+  // a Custom layer, as 'Specific Gravity.csv' with From = To still is: a zero-length density interval has no length to weight, and the tonnage tools leave it out). A downhole log's channel names (Density_Best ...) are not this.
+  const pointMagSus = targetFromName(name) === "magsusc" && schemaSatisfied("magsusc", guessMapping("magsusc", headers)) && !(headers || []).some((h) => /_best$/i.test(String(h).trim()));
+  if (rows && !pointMagSus && zeroLengthRows(headers, rows) === true && looksLikeLogTable(headers, rows) && !structurePicks(headers)) return "custom";
   if (spectralColumns(headers) >= 4) return "custom"; // #2339 — a mineral table from spectra, not Mineralization (ore minerals)
   // TASKS.csv #2317 — regolith boundary events (BOCO, TOFR, ... at one depth per hole, no from / to): a custom point layer of codes, not
   // structure picks without an orientation (where 'Event_Code + Depth' used to land)
