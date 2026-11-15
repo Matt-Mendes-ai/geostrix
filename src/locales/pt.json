@@ -9956,7 +9956,7 @@
   "One contact to model: {surface}. The stack has no second surface to keep it from crossing, so it is solved on its own.": "Um contato para modelar: {surface}. A pilha não tem uma segunda superfície que impeça cruzamentos, então ele é resolvido sozinho.",
   "{surface} (the base of {ovb})": "{surface} (a base de {ovb})",
   "{surface} (the base of {unit})": "{surface} (a base de {unit})",
-  "Writes the level on the index contours in the 3D View (every fifth level of a regular series, every level of a few chosen ones); the other levels are drawn fainter.": "Escreve o nível nas curvas mestras na Vista 3D (a cada quinto nível de uma série regular, todos os níveis se forem poucos escolhidos); os demais níveis são desenhados mais claros.",
+  "Writes the level on the index contours in the 3D View and on the Maps plan (every fifth level of a regular series, every level of a few chosen ones); the other levels are drawn fainter in the 3D View.": "Escreve o nível nas curvas mestras na Vista 3D e no plano de Mapas (a cada quinto nível de uma série regular, todos os níveis se forem poucos escolhidos); os demais níveis são desenhados mais claros na Vista 3D.",
   "Label index contours": "Rotular curvas mestras",
   "No hole has a logged unit under its overburden / casing to place.": "Nenhum furo tem uma unidade descrita sob o capeamento / revestimento para posicionar.",
   "Subcrop from collars": "Subafloramento a partir dos colares",
@@ -12801,6 +12801,10 @@
   "Keep this density with the block model": "Manter esta densidade no modelo de blocos",
   "Kept: the block model now carries a density per block (a DENSITY column in its exports).": "Mantida: o modelo de blocos agora traz uma densidade por bloco (uma coluna DENSITY nas suas exportações).",
   "Added \"{name}\" to the model surfaces: export it, slice it in sections, or turn it off there. Ctrl+Z takes it back.": "\"{name}\" foi adicionado às superfícies do modelo: exporte, corte em seções ou desative ali. Ctrl+Z o desfaz.",
+  "(none: positions only)": "(nenhuma: apenas posições)",
+  "{count} points{v}, {withZ} with elevation · positions only, no measured value": "{count} pontos{v}, {withZ} com elevação · apenas posições, sem valor medido",
+  "Positions only: it has no measured value, so every point is drawn in one colour and the survey cannot be gridded or inverted.": "Apenas posições: não tem valor medido, então todos os pontos são desenhados em uma cor e o levantamento não pode ser interpolado nem invertido.",
+  "If the file only lists positions (electrodes, stations), choose \"(none: positions only)\" for Value.": "Se o arquivo apenas lista posições (eletrodos, estações), escolha «(nenhuma: apenas posições)» em Valor.",
   "About {p} % of the estimated value comes from the readings of the log \"{log}\" that filled the unsampled metres (Grade-tonnage gives it per cutoff).": "Cerca de {p} % do valor estimado vem das leituras da perfilagem \"{log}\" que preencheram os metros sem amostra (Teor-tonelagem o dá por teor de corte).",
   "{p} % of the estimated value is in blocks above or below every sample that informs them (Grade-tonnage gives it per cutoff).": "{p} % do valor estimado está em blocos acima ou abaixo de todas as amostras que os informam (Teor-tonelagem dá isso por teor de corte).",
   "{p} % of the estimated value ({n} blocks) is in blocks whose nearest drilling was never sampled for {el}: the grade was carried across unsampled core, which is unknown here, not barren (Unsampled metres inside a sampled hole reads it as barren).": "{p} % do valor estimado ({n} blocos) está em blocos cujo furo mais próximo nunca foi amostrado para {el}: o teor foi levado através de testemunho sem amostra, que aqui é desconhecido, não estéril (Metros sem amostra dentro de um furo amostrado o lê como estéril).",
@@ -12810,5 +12814,8 @@
   "Computes the downhole variogram and then the in-plane one, and states the anisotropy between them. Needs a plane (the trend, or horizontal).": "Calcula o variograma ao longo do furo e depois o do plano, e indica a anisotropia entre eles. Precisa de um plano (a tendência, ou a horizontal).",
   "Compute both: downhole and in the plane": "Calcular ambos: ao longo do furo e no plano",
   "The Variogram tool found {b} m of continuity across the holes and {a} m down them: a flat search fits.": "A ferramenta Variograma encontrou {b} m de continuidade entre os furos e {a} m ao longo deles: uma busca plana se ajusta.",
-  "Use it as the flat search": "Use-a como busca plana"
+  "Use it as the flat search": "Use-a como busca plana",
+  "({n} left out: they overlap, zoom in)": "({n} omitidos: se sobrepõem, aproxime a vista)",
+  "nodes ~{n} m apart at {level}": "nós a ~{n} m no nível {level}",
+  "Its middle moved from {from} to {to}: {d}.": "Seu centro se moveu de {from} para {to}: {d}."
 }

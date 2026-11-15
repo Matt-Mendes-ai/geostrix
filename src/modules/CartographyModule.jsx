@@ -30,7 +30,8 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the 
 import { collarCentreLonLat, collarSpread, formatLonLat, medianPoint, crsCandidatesAt, offsetFrom } from "../lib/projectCrs.js"; // TASKS.csv #2291; medianPoint: #2463; crsCandidatesAt: #2465
 import { smallGridCoordinates, gridFrameFromRows } from "../lib/crsFromColumns.js"; // TASKS.csv #2291; gridFrameFromRows: #3446
 import { tieOf } from "../lib/localGridTie.js"; // TASKS.csv #2587
-import { gridToCrsChoice, isMineSource, MINE_SOURCE, mineGridOf } from "../lib/mineGrid.js"; // TASKS.csv #2812 — 'A file' from the mine grid
+import { gridToCrsChoice, isMineSource, MINE_SOURCE, mineGridOf, mineToProject } from "../lib/mineGrid.js"; // TASKS.csv #2812 — 'A file' from the mine grid; mineToProject: #3503
+import { layerCentre, distanceM, eastNorth, distanceText } from "../lib/layerCentre.js"; // TASKS.csv #3503
 const LocalGridPanel = React.lazy(() => import("../components/LocalGridPanel.jsx")); // TASKS.csv #2288 — on demand
 const MineGridPanel = React.lazy(() => import("../components/MineGridPanel.jsx")); // TASKS.csv #2586 — on demand
 
@@ -118,9 +119,20 @@ export default function CartographyModule({ embedded = false, forcePane = null }
   const moveObject = () => run(async () => {
     if (project?.crsSet === false) throw new Error(tr("The project's coordinate system is not chosen yet, so there is no CRS to reproject a layer into. Choose it under Project CRS first.")); // #2290
     const fromMine = isMineSource(objFrom); // TASKS.csv #2826 — the layer's coordinates are the project's mine grid's
+    // TASKS.csv #3503 — where the layer's middle was, and where the same transform puts it (the numbers it moves by, as the move does)
+    const before = layerCentre(obj.kind, obj.id, store);
+    let after = null;
+    if (before) {
+      try {
+        const mg = fromMine ? mineGridOf(project) : null;
+        if (fromMine && mg) { const [x, y] = mineToProject(mg, project.epsg)(before.x, before.y); after = Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null; }
+        else if (!fromMine) { const r = pointTransform(Number(objFrom), project.epsg)?.(before.x, before.y); after = r && Number.isFinite(r[0]) && Number.isFinite(r[1]) ? { x: r[0], y: r[1] } : null; }
+      } catch { after = null; }
+    }
     const report = await reprojectObjectTo({ kind: obj.kind, id: obj.id }, fromMine ? MINE_SOURCE : Number(objFrom), { rotateAzimuths: rotate });
     const dn = fromMine ? "" : datumNote(objFrom) || datumNote(project.epsg); // TASKS.csv #2467 — the datum shift applied, said (AGD84 -> GDA94: EPSG's national fit, ~1 m)
-    setMsg({ ok: true, text: reportText(report, `${obj.label} moved from ${fromMine ? `the mine grid${fileGrid?.name ? ` (${fileGrid.name})` : ""}` : nameOf(objFrom)} into the project CRS, ${nameOf(project.epsg)}`) + (dn ? ` ${dn}` : "") });
+    const movedNote = before && after ? " " + tr("Its middle moved from {from} to {to}: {d}.", { from: eastNorth(before), to: eastNorth(after), d: distanceText(distanceM(before, after)) }) : ""; // TASKS.csv #3503
+    setMsg({ ok: true, text: reportText(report, `${obj.label} moved from ${fromMine ? `the mine grid${fileGrid?.name ? ` (${fileGrid.name})` : ""}` : nameOf(objFrom)} into the project CRS, ${nameOf(project.epsg)}`) + movedNote + (dn ? ` ${dn}` : "") });
   });
 
   // ---- reproject a file pane ----
