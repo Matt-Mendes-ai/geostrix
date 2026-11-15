@@ -7,7 +7,7 @@
 //     goes back to { ..., rows: Table }. A spread copy has run the getter: it keeps its plain rows. That is correct, only without the saving.
 //   - layerTableOf(l): a layer's Table without forcing rows.
 //   - elementsWithValuesOf(elements, assays): #1679's elements with a value, read from the element columns of a Table.
-import { isTable, rowsOf, tableOf, valuesOf } from "./rowTable.js";
+import { isTable, rowsOf, tableOf, valuesOf, lengthOf } from "./rowTable.js";
 import { elementsWithValues } from "./presentElements.js";
 
 const viewOfLayer = new WeakMap(); // internal layer -> its view
@@ -63,6 +63,36 @@ export function internalLayers(list) {
     return o;
   });
   return changed ? out : list;
+}
+
+// TASKS.csv #3424 step 2 — for code that copies or compares layers without reading their rows:
+// - layerWith(l, patch): a copy of l with patch's properties, made from l's property descriptors, so a lazy rows getter is carried, not run
+//   (the 3D View's `{ ...l, group }` built every row of a big log at the open);
+// - rowsRefOf(l): what l's rows ARE without building them: the Table behind a lazy getter, else l.rows (for identity compares and lengths);
+// - layerRowCount(l): the number of rows, without building them.
+export function layerWith(l, patch = {}) {
+  const o = Object.defineProperties({}, Object.getOwnPropertyDescriptors(l));
+  for (const k of Object.keys(patch)) Object.defineProperty(o, k, { value: patch[k], enumerable: true, writable: true, configurable: true });
+  return o;
+}
+export const rowsRefOf = (l) => (l ? getterTable(l) || l.rows : undefined);
+export const layerRowCount = (l) => lengthOf(rowsRefOf(l));
+
+// TASKS.csv #3424 step 2 — a Table's row indices grouped by hole_id (the drillhole scene's groupByHole without rows), in row order; a row with
+// no hole_id is left out, as groupByHole does. keep: an optional Set of hole ids (a patch of moved holes). Cached per table when keep is null.
+const byHoleCache = new WeakMap();
+export function indicesByHole(t, keep = null) {
+  if (!keep) { const c = byHoleCache.get(t); if (c) return c; }
+  const m = new Map(), col = t?.cols?.hole_id;
+  if (col?.codes) {
+    const lists = col.dict.map((d) => (d && (!keep || keep.has(d)) ? [] : null));
+    for (let i = 0; i < col.codes.length; i++) { const c = col.codes[i]; if (c >= 0 && lists[c]) lists[c].push(i); }
+    col.dict.forEach((d, c) => { if (lists[c]?.length) m.set(d, lists[c]); });
+  } else if (col?.num) { // numeric hole ids (a numbered hole list)
+    for (let i = 0; i < col.num.length; i++) { const v = col.num[i]; if (!(v === v) || v === 0 || (keep && !keep.has(v))) continue; let a = m.get(v); if (!a) { a = []; m.set(v, a); } a.push(i); }
+  }
+  if (!keep && t) byHoleCache.set(t, m);
+  return m;
 }
 
 export function layerTableOf(l) {

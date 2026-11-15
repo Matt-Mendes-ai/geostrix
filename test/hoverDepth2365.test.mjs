@@ -7,7 +7,7 @@ import { viewerSource } from "./helpers/viewerSource.mjs"; // #2176 — the dril
 test("no 3D tooltip rounds a depth to whole metres", () => {
   const v = viewerSource();
   assert.doesNotMatch(v, /\.from\.toFixed\(0\)\}–\$\{[a-z]+\.to\.toFixed\(0\)\} m/);
-  assert.equal((v.match(/\$\{\+(a|row)\.from\.toFixed\(2\)\}–\$\{\+(a|row)\.to\.toFixed\(2\)\} m/g) || []).length, 3); // assays, logged layers, custom layers
+  assert.equal((v.match(/\$\{\+(a|row|r)\.from\.toFixed\(2\)\}–\$\{\+(a|row|r)\.to\.toFixed\(2\)\} m/g) || []).length, 3); // assays, logged layers, custom layers (r: #3424 step 2's tooltip from the row read by index)
   // the format itself: 50.5 -> "50.5", 51 -> "51", 12.345 -> "12.35" (two decimals at most, no trailing zeros)
   assert.deepEqual([50.5, 51, 12.345, 0.25].map((x) => `${+x.toFixed(2)}`), ["50.5", "51", "12.35", "0.25"]);
 });

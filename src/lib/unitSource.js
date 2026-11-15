@@ -2,6 +2,7 @@
 // carries the rock code and the stratigraphic unit on the same intervals (WA palaeochannel: lithology SST / SAN / LIG ... and strat QA /
 // I / H ... E1); every tool read the Lithology value only, so modelling the stack meant re-importing with the unit as the value, after
 // which the rock code (and the lignite body) could no longer be modelled in the same project. Pure: no React.
+import { isTable, colOf, cellOf } from "./rowTable.js"; import { rowsRefOf } from "./tableFields.js"; // TASKS.csv #3424 step 2
 
 // row keys that are not extra fields of an interval row (normInterval / applyCustomFields put custom fields on the row by name)
 const NOT_FIELDS = new Set(["hole_id", "from", "to", "value", "depth", "id", "tip", "color", "colour", "extra", "values", "description", "logged", "source", "dataset", "_src", "_file"]);
@@ -39,6 +40,27 @@ export function unitSourceFields(rows, { maxDistinct = 300, sample = 6000 } = {}
 // "@custom:<id>" (a field name never starts with "@"). -> [{ name, label, distinct, rows }]
 const BUILTIN_UNIT_LAYERS = [["weath", "Weathering"], ["alt", "Alteration"], ["breccia", "Breccia"]];
 const BUILTIN_KEYS = new Set(BUILTIN_UNIT_LAYERS.map(([k]) => `@${k}`));
+// TASKS.csv #3424 step 2 — the same test on a custom layer held as a Table (lib/rowTable.js), read from its columns without building rows:
+// a layer with no from / to column (a downhole log of depths) is not a unit layer, at once; numeric from / to columns and a coded value
+// column are counted as codes() counts the rows. -> the same { distinct, rows } or null
+function tableCodes(t) {
+  const F = colOf(t, "from"), T = colOf(t, "to"), V = colOf(t, "value");
+  if (!F || !T || !V) return null;
+  const num = (col, i) => (col.num ? col.num[i] : Number(cellOf(col, i)));
+  const dictText = V.codes ? V.dict.map((d) => (d == null ? "" : String(d).trim())) : null;
+  let n = 0, text = 0;
+  const set = new Set();
+  for (let i = 0; i < t.length; i++) {
+    const a = num(F, i), b = num(T, i);
+    if (!Number.isFinite(a) || !Number.isFinite(b) || !(b > a)) continue;
+    const s = dictText ? (V.codes[i] >= 0 ? dictText[V.codes[i]] : "") : V.num[i] === V.num[i] ? String(V.num[i]) : "";
+    if (!s) continue;
+    n++;
+    if (!Number.isFinite(Number(s))) text++;
+    if (set.size <= 300) set.add(s);
+  }
+  return n && text >= n / 2 && set.size <= 300 ? { distinct: set.size, rows: n } : null;
+}
 export function unitSourceLayers(layers, customLayers = []) {
   const out = [];
   const codes = (rows) => {
@@ -57,7 +79,7 @@ export function unitSourceLayers(layers, customLayers = []) {
   // TASKS.csv #3267 (review #3195, Galore Creek) — the Alteration layer (the high-T assemblage, 1,238 intervals, the ore control there) and
   // the Breccia layer too: only a second assemblage imported as a custom layer could be modelled, grouped or built as one body
   for (const [k, label] of BUILTIN_UNIT_LAYERS) { const w = codes(layers?.[k]); if (w) out.push({ name: `@${k}`, label, ...w }); }
-  for (const c of customLayers || []) { const k = codes(c.rows); if (k) out.push({ name: `@custom:${c.id}`, label: c.name, ...k }); }
+  for (const c of customLayers || []) { const r = rowsRefOf(c), k = isTable(r) ? tableCodes(r) : codes(r); if (k) out.push({ name: `@custom:${c.id}`, label: c.name, ...k }); } // a Table: #3424
   return out;
 }
 
