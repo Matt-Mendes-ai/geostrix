@@ -7,7 +7,7 @@ import { diagramExportRows, DIAGRAMS } from "../src/lib/geochemDiagrams.js";
 const read = (f) => readFileSync(f, "utf8");
 test("#1216 the SG layer's mean is length-weighted, and leaves out what is not a density", () => {
   const r = sgSummary([{ from: 0, to: 1, value: 2 }, { from: 1, to: 4, value: 3 }, { from: 4, to: 5, value: -99 }, { from: 5, to: 6, value: 27 }, { from: 6, to: 7, value: "" }, { from: 7, to: 7, value: 3 }]);
-  assert.deepEqual(r, { mean: 2.75, n: 2, left: 2, min: 2, max: 3 });
+  assert.deepEqual(r, { mean: 2.75, n: 2, left: 2, min: 2, max: 3, range: { min: 1, max: 6 } });
   assert.equal(sgSummary([]), null);
   assert.equal(sgSummary(undefined), null);
   assert.equal(sgSummary([{ from: 0, to: 1, value: -99 }]), null);

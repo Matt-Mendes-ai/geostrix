@@ -3,10 +3,11 @@
 // range, left-out count). traces: [{ hole_id, pts }] in the same frame as positions (the scene frame of the viewer's
 // meshes). -> null when the mesh has no faces or no usable interval falls inside.
 import { sgSummary } from "./gradeTonnage.js";
+import { DEFAULT_DENSITY_RANGE } from "./densityRange.js"; // TASKS.csv #3587
 import { buildMeshQuery, isPointInsideMesh } from "./meshQuery.js";
 import { pointOnTrace } from "./desurvey.js";
 
-export function sgInsideSolid(rows, traces, positions, indices) {
+export function sgInsideSolid(rows, traces, positions, indices, range = DEFAULT_DENSITY_RANGE) { // range: the project's density range (#3587)
   if (!rows?.length || !traces?.length) return null;
   const q = buildMeshQuery(positions, indices);
   if (!q) return null;
@@ -18,5 +19,5 @@ export function sgInsideSolid(rows, traces, positions, indices) {
     const p = pointOnTrace(pts, (f + t) / 2);
     if (p && isPointInsideMesh(q, p)) inside.push(r);
   }
-  return sgSummary(inside);
+  return sgSummary(inside, range);
 }

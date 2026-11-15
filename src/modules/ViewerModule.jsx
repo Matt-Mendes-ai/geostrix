@@ -180,7 +180,7 @@ const MODELLING_PANES = new Set(["mapmodel", "settings", "gradeEst", "explicit",
 // TASKS.csv #793 — a model's rectilinear grid (or null) depends only on its cell list: built once per list
 const voxelGridCache = new WeakMap();
 const voxelGridOf = (model) => { let G = voxelGridCache.get(model.cells); if (G === undefined) { G = rectilinearGrid(model.cells); voxelGridCache.set(model.cells, G); } return G; };
-import { PRECIOUS_METALS } from "../lib/geochemColumns.js"; // TASKS.csv #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
+import { PRECIOUS_METALS, gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 import ClosureNote from "./viewer/ClosureNote.jsx"; // TASKS.csv #1689
 const SurfaceTonnage = lazyModal(() => import("./viewer/SurfaceTonnage.jsx")); // TASKS.csv #1690; #3159: lazy (shown only for an expanded closed surface), it brought gradeTonnage.js into startup
 import RasterLegend from "../components/RasterLegend.jsx"; // TASKS.csv #2011
@@ -4183,7 +4183,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       key: [assays, assaySource, assayStyle[sym], idx, assayShapeFor(assayStyle[sym], drawnAssays), ranges[sym], collars, traces, elementUnits[sym]], buildCoarse: assayShapeFor(assayStyle[sym], drawnAssays) === "trace" ? coarseOf : null })); // #3117; coarseOf: #3144 — what the element's markers depend on, besides the offset
     // TASKS.csv #3144 — the level of detail: a hole's consecutive same-colour samples as one marker
     function coarseOf(sym, into, offX, offZ) {
-      const { idx } = specs.find((x) => x.sym === sym), style = assayStyle[sym], batcher = makeAssayBatcher({ minBatch: 1 }), op = style?.opacity ?? 1, u = elementUnits[sym] || "";
+      const { idx } = specs.find((x) => x.sym === sym), style = assayStyle[sym], batcher = makeAssayBatcher({ minBatch: 1 }), op = style?.opacity ?? 1, u = elementUnits[sym] ? gradeUnitLabel(sym, elementUnits[sym]) : ""; // #3586
       collars.forEach((c) => {
         const rows = holesOf().get(c.hole_id), pts = rows && traceOf.get(c.hole_id);
         if (!pts?.length) return;
@@ -4213,7 +4213,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             const px = isPxrfRow(a), op = style?.opacity ?? 1, shape = assayShapeFor(style, drawnAssays, px);
             batcher.add(assayProto(shape), { color: assayColorFor(v, idx, style), transparent: op < 1, opacity: op, side: shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }, // #3055 — no object per sample
               (t) => placeAssayMarker(t, shape, look.at, a, assaySizeFor(v, ranges[sym], style), offX, offZ), // #306 size
-              () => lazyTip({ row: a, holeId: c.hole_id }, () => `${c.hole_id}\n${sym}: ${gradeText(v)} ${elementUnits[sym] || ""}${px ? " (pXRF)" : ""}\n${+a.from.toFixed(2)}–${+a.to.toFixed(2)} m`)); // #1500; #2365 as stored
+              () => lazyTip({ row: a, holeId: c.hole_id }, () => `${c.hole_id}\n${sym}: ${gradeText(v)} ${elementUnits[sym] ? gradeUnitLabel(sym, elementUnits[sym]) : ""}${px ? " (pXRF)" : ""}\n${+a.from.toFixed(2)}–${+a.to.toFixed(2)} m`)); // #1500; #2365 as stored
           });
         } catch (err) { errors.push(`${c.hole_id}: ${err.message}`); }
       });

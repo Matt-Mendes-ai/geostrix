@@ -366,6 +366,12 @@ export default function App() {
     catch (err) { try { window.dispatchEvent(new CustomEvent(EXPORT_RESULT_EVENT, { detail: { ok: false, name: "geoh5", error: String(err?.message || err) } })); } catch { /* no window */ } }
   }, []);
 
+  // TASKS.csv #3617 — File > Export Project as OMF: lib/omfProjectExport.js, loaded on use
+  const runOmfExport = useCallback(async () => {
+    try { await (await import("./lib/omfProjectExport.js")).exportProjectOmf(storeRef.current); }
+    catch (err) { try { window.dispatchEvent(new CustomEvent(EXPORT_RESULT_EVENT, { detail: { ok: false, name: "OMF", error: String(err?.message || err) } })); } catch { /* no window */ } }
+  }, []);
+
   // A "Snapshot to Layout" click in the cross-section pop-out window can't touch this window's
   // React store directly (separate Electron renderer process) — it comes back over IPC instead.
   // See electron/main.js "section-snapshot" and src/components/SectionWindow.jsx.
@@ -414,7 +420,8 @@ export default function App() {
       if (action.startsWith("module-")) { const m = action.replace("module-", ""); setActive(TAB_ALIAS[m] || m); if (m === "predictive") requestModuleAction("open-geoml"); }
       else if (action === "export-pdf") doExportPdf();
       else if (action === "export-kmz") doExportKmz(); // TASKS.csv #3068
-      else if (action === "export-geoh5") runGeoh5Export(); // TASKS.csv #1993 (export step)
+      else if (action === "export-geoh5") runGeoh5Export(); // TASKS.csv #19
+      else if (action === "export-omf") runOmfExport(); // TASKS.csv #361793 (export step)
       else if (action === "set-epsg") { setActive("maps"); requestModuleAction("maps-crs"); } // #485 / #749 — the CRS lives in the Maps tab
       // TASKS.csv #565 — these used to do nothing (import-*) or only switch tab (cross-section)
       else if (action === "cross-section") { setActive("viewer"); requestModuleAction("draw-section"); }
@@ -438,7 +445,7 @@ export default function App() {
       else if (action === "redo") redoSay();
     });
     return off;
-  }, [doNew, doOpen, doSave, doExportPdf, doExportKmz, runGeoh5Export, undoSay, redoSay, requestSampleProject]);
+  }, [doNew, doOpen, doSave, doExportPdf, doExportKmz, runGeoh5Export, runOmfExport, undoSay, redoSay, requestSampleProject]);
 
   // TASKS.csv #31 — Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z (also Ctrl+Y for redo, a common Windows habit).
   // Deliberately a plain window keydown listener rather than an Electron menu accelerator (see the
@@ -704,6 +711,9 @@ function WorkspaceTabBar({ tabs, activeTabId, activeDirty, activeName, onSwitch,
 
 function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, worldCursor = true }) {
   const { project, collars, desurveyMethod, setDesurveyMethod } = useStore();
+  // TASKS.csv #3619 (Fireweed rehearsal) — autosave worked and survived a kill, but nothing on screen said it ran: the time of the last one beside the project name (store.jsx announces it)
+  const [autosavedAt, setAutosavedAt] = useState(null);
+  useEffect(() => { const h = (e) => setAutosavedAt(e.detail && "at" in e.detail ? e.detail.at : Date.now()); window.addEventListener("geostrix:autosaved", h); return () => window.removeEventListener("geostrix:autosaved", h); }, []);
   // TASKS.csv #226/#214 — cursor and taskProgress both live in their own tiny contexts now (see
   // store.jsx's own comments on CursorProvider/TaskProgressProvider), not the big shared store,
   // specifically so this component re-renders on every mousemove-driven cursor update / progress tick
@@ -722,6 +732,7 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, worldCursor = 
   return (
     <div className="ge-status">
       <span>{!project.name || project.name === "Untitled project" ? tr("Untitled project") : project.name}</span>{/* #1448 */}
+      {autosavedAt && <span title={tr("The unsaved work of this window was written to the recovery copy at {time}: after a crash GeoStrix offers it back. Save the project to put it in its file.", { time: new Date(autosavedAt).toLocaleTimeString() })} style={{ color: "var(--color-text-muted)" }}>{tr("Autosaved {time}", { time: new Date(autosavedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) })}</span> /* TASKS.csv #3619 */}
       {project.dataCredit && <span className="ge-credit" title={project.dataCredit}>{project.dataCredit}</span> /* TASKS.csv #3527 — the data owner's credit stays on the open project (saved with it), not only in the notice that opens the sample */}
       <span>{tr("Holes:")} <span className="val">{collars.length}</span></span>
       <span>E <span className="val">{fmt(cursor.x)}</span></span>

@@ -8,6 +8,7 @@
 // unit: the value's unit ("ppm", "g/t", "ppb", "%", ...) — decides the metal column, or none for anything else.
 
 import { unitBasis } from "./geochem.js"; // TASKS.csv #2487
+import { DEFAULT_DENSITY_RANGE } from "./densityRange.js"; // TASKS.csv #3587
 
 export const blockVolume = (c) => (Number.isFinite(c.coverage) ? c.coverage : 1) * c.dx * c.dy * c.dz;
 
@@ -230,15 +231,16 @@ export function gradeTonnageRows(rows, { vname, density = null, metal = null, co
     ...(r.interpolatedShare != null ? { interpolated_pct: Math.round(r.interpolatedShare * 100) } : {}), ...(r.singleHoleShare != null ? { one_hole_pct: Math.round(r.singleHoleShare * 100) } : {}), ...(r.beyondShare != null ? { beyond_samples_metal_pct: Math.round(r.beyondShare * 100) } : {}), ...(r.logShare != null ? { from_log_metal_pct: Math.round(r.logShare * 100) } : {}) })); // #1409; #2417; #2721
 }
 
-// TASKS.csv #1216 — the project's measured specific gravity as one density: the length-weighted mean, with what it rests on. A value outside 1-8 t/m3 is
-// left out and counted (a percent, or a missing-data code). One figure for every block: it says nothing of density varying with the rock. -> null with no usable row.
-export function sgSummary(rows) {
+// TASKS.csv #1216 — the project's measured specific gravity as one density: the length-weighted mean, with what it rests on. A value outside the project's density range
+// (1-6 t/m3 unless it set another, #3587: the range Data QC flags by) is left out and counted (a percent, or a missing-data code). One figure for every block: it says nothing of density
+// varying with the rock. -> { mean, n, left, min, max, range } | null with no usable row.
+export function sgSummary(rows, range = DEFAULT_DENSITY_RANGE) {
   let sum = 0, len = 0, n = 0, left = 0, min = Infinity, max = -Infinity;
   for (const r of rows || []) {
     const v = Number(r.value), l = Number(r.to) - Number(r.from);
     if (!(l > 0) || r.value == null || r.value === "" || !Number.isFinite(v)) continue;
-    if (v < 1 || v > 8) { left++; continue; }
+    if (v < range.min || v > range.max) { left++; continue; }
     sum += v * l; len += l; n++; min = Math.min(min, v); max = Math.max(max, v);
   }
-  return n ? { mean: +(sum / len).toFixed(3), n, left, min, max } : null;
+  return n ? { mean: +(sum / len).toFixed(3), n, left, min, max, range } : null;
 }

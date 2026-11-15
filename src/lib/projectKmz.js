@@ -28,6 +28,7 @@ import { splitRings } from "./ringSplit.js"; // TASKS.csv #3126 — a ring cross
 import { MODEL_MAX_TRIANGLES, buildModel, modelKml, surfaceMesh, terrainMesh, voxelMeshes, sectionImageMesh } from "./kmzModels.js"; // TASKS.csv #3087 part 2
 import { isTable, rowsForOnce } from "./layerColumns.js"; // TASKS.csv #3140
 import { rowsRefOf, layerRowCount, layerWith } from "./tableFields.js"; // TASKS.csv #3140 step 2
+import { collarAttrPairs } from "./collarAttrExport.js"; // TASKS.csv #3613
 
 export const MAX_CLASSES = 16; // a numeric log with more colours than this is grouped into equal bins
 const BINS = 12;
@@ -291,7 +292,7 @@ export function buildProjectKml(ctx, opts) {
     counts.holes = traces.size;
     const collarStyle = w.style({ color: "#1f2933", iconScale: 0.6, label: ui.holeLabelMode && ui.holeLabelMode !== "none" ? 0.7 : 0 });
     w.open("Collars");
-    for (const [h, { c }] of traces) w.placemark(h, collarStyle, w.point3d(num(c.x), num(c.y), num(c.z)), { visible: holeShown(h), data: { hole_id: h, elevation: num(c.z), azimuth: num(c.azimuth), dip: num(c.dip), length: num(c.length), angles: "azimuth from GRID north (clockwise); dip in degrees below horizontal, positive down" /* TASKS.csv #3353 (10) */ } });
+    for (const [h, { c }] of traces) w.placemark(h, collarStyle, w.point3d(num(c.x), num(c.y), num(c.z)), { visible: holeShown(h), data: { hole_id: h, elevation: num(c.z), azimuth: num(c.azimuth), dip: num(c.dip), length: num(c.length), ...Object.fromEntries(collarAttrPairs(c, ["hole_id", "elevation", "azimuth", "dip", "length", "angles"])) /* TASKS.csv #3613 — the collar's own fields in the balloon */, angles: "azimuth from GRID north (clockwise); dip in degrees below horizontal, positive down" /* TASKS.csv #3353 (10) */ } });
     w.close();
     const traceStyle = w.style({ color: "#5b6573", width: 1.5 });
     w.open("Traces");

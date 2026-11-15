@@ -96,7 +96,7 @@ export function assayLegendGroups({ assays, assayElements, assayVisible, assayDi
     // TASKS.csv #3236 - the unit the project shows this element in (displayUnits), the classes' limits converted; else #3305's % for a ppm element of percent-sized grades
     const shown = displayUnitOf({ displayUnits }, sym, unitOf[sym]), chosen = !!unitOf[sym] && shown !== unitOf[sym];
     const pct = !chosen && ppmAsPercent(assays, sym, unitOf[sym]); // #3305
-    const unit = chosen ? shown : pct ? "%" : unitOf[sym] || "", fmt = chosen ? (v) => fmtLegendValue(toDisplay(v, unitOf[sym], shown)) : pct ? (v) => fmtLegendValue(v / 1e4) : fmtLegendValue;
+    const unit = chosen ? shown : pct ? "%" : unitOf[sym] ? gradeUnitLabel(sym, unitOf[sym]) /* #3586 — g/t for Au / Ag / Pt / Pd stored in ppm, in every tool */ : "", fmt = chosen ? (v) => fmtLegendValue(toDisplay(v, unitOf[sym], shown)) : pct ? (v) => fmtLegendValue(v / 1e4) : fmtLegendValue;
     const items = style?.breaks?.length
       ? style.breaks.map((b, i) => {
         const lo = i ? style.breaks[i - 1].max : null;

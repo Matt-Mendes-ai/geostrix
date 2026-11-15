@@ -5,7 +5,8 @@ import { runDataQCSliced, collarTerrainOffsets, qcIssueRows, qcSorted, DOGLEG_ER
 import { saveFile } from "../lib/desktop.js";
 import { openHelp } from "../lib/help.js"; // TASKS.csv #3528
 import { openDataTable } from "../lib/dataTableRequests.js"; // TASKS.csv #3569
-import { qcKey, qcTableRequest, loadChecked, saveChecked } from "../lib/qcActions.js";
+import { qcKey, qcTableRequest } from "../lib/qcActions.js";
+import { densityRangeOf } from "../lib/densityRange.js"; // TASKS.csv #3587
 import { toExportCsv } from "../lib/tabular.js";
 import { stampLines, withStamp, stampEpsg } from "../lib/provenance.js";
 import { normalizeDesurveyMethod } from "../lib/desurvey.js";
@@ -40,7 +41,7 @@ const NOT_YET = { issues: [], byCategory: new Map(), summary: {} }; // #3099 —
 export default function DataQCModal({ onCancel, onZoomHole = null /* TASKS.csv #3569 — find the hole in 3D */ }) {
   useEscapeKey(onCancel); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
-  const { project, collars, survey, layers, boundaries, assays, assayElements, terrain, setCollars, customLayers } = useStore(); // customLayers: #2493; assayElements: #3569
+  const { project, collars, survey, layers, boundaries, assays, assayElements, terrain, setCollars, customLayers, setProjectDensityRange, setProjectQcChecked } = useStore(); // customLayers: #2493; assayElements: #3569; the setters: #3587 / #3569
   // TASKS.csv #558 — collars vs the loaded terrain, with an adjustable threshold and an (undoable) snap
   const [terrainThreshold, setTerrainThreshold] = useState(15);
   // TASKS.csv #723 — the dogleg warning level (deg per 30 m), remembered on this computer: ordinary deviated
@@ -48,7 +49,8 @@ export default function DataQCModal({ onCancel, onZoomHole = null /* TASKS.csv #
   const [doglegWarn, setDoglegWarn] = useState(() => { try { return Number(localStorage.getItem("geostrix.qc.doglegWarn")) || 3; } catch { return 3; } });
   useEffect(() => { try { if (Number(doglegWarn) > 0) localStorage.setItem("geostrix.qc.doglegWarn", String(doglegWarn)); } catch { /* storage unavailable */ } }, [doglegWarn]);
   const warnDeg = Number(doglegWarn) > 0 ? Number(doglegWarn) : 3;
-  const qcArgs = () => ({ project, collars, survey, layers, boundaries, assays, assayElements, terrain, customLayers, terrainThreshold: Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15, doglegWarn: warnDeg, doglegError: Math.max(DOGLEG_ERROR_DEFAULT, warnDeg) }); // #3526 — 20°/30 m, not 10
+  const densityRange = densityRangeOf(project); // TASKS.csv #3587 — the plausible density (t/m³), a project setting
+  const qcArgs = () => ({ project, collars, survey, layers, boundaries, assays, assayElements, densityRange, terrain, customLayers, terrainThreshold: Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15, doglegWarn: warnDeg, doglegError: Math.max(DOGLEG_ERROR_DEFAULT, warnDeg) }); // #3526 — 20°/30 m, not 10
   const ranWith = useRef(null); // TASKS.csv #1269 — the thresholds of the run on screen: the export's stamp must describe its issues, not the boxes
   // TASKS.csv #3136 — the check runs a slice at a time (lib/dataQC.js runDataQCSliced): the window keeps painting and taking input, the
   // status line says how far it is, and a newer run (Re-run, a snap to the terrain, closing the dialog) supersedes the one under way
@@ -74,13 +76,16 @@ export default function DataQCModal({ onCancel, onZoomHole = null /* TASKS.csv #
     setCollars((prev) => prev.map((c) => (byId.has(c.hole_id) ? { ...c, z_before_snap: c.z, z: Math.round(byId.get(c.hole_id).dem * 100) / 100, z_source: `terrain: ${terrain.name || "DEM"}` } : c)));
     rerunAfterSnap.current = true; // re-run once the new collars are in (an immediate re-run saw the old ones)
   };
-  const rerunAfterSnap = useRef(false);
+  const rerunAfterSnap = useRef(false), rerunAfterRange = useRef(false);
+  useEffect(() => { if (rerunAfterRange.current) { rerunAfterRange.current = false; check(); } }, [project?.densityRange]); // the new range, then the check (an immediate re-run read the old one)
+  const [dMin, setDMin] = useState(String(densityRange.min)), [dMax, setDMax] = useState(String(densityRange.max));
+  const applyDensity = () => { const a = Number(dMin), b = Number(dMax); if (!(Number.isFinite(a) && Number.isFinite(b) && a >= 0 && b > a)) { setDMin(String(densityRange.min)); setDMax(String(densityRange.max)); return; } if (a === densityRange.min && b === densityRange.max) return; rerunAfterRange.current = true; setProjectDensityRange?.({ min: a, max: b }); };
   useEffect(() => { if (rerunAfterSnap.current) { rerunAfterSnap.current = false; check(); } }, [collars]);
   const [filter, setFilter] = useState(new Set(["error", "warning", "info"]));
   // TASKS.csv #3569 — rows marked as checked (kept on this computer, per project): dimmed, or left out of the list with the box
-  const [checked, setChecked] = useState(() => loadChecked(project?.name));
+  const checked = useMemo(() => new Set(project?.qcChecked || []), [project?.qcChecked]); // TASKS.csv #3587 (store grant) — kept in the project file, so the marks travel with it
   const [hideChecked, setHideChecked] = useState(false);
-  const toggleChecked = (issue) => setChecked((p) => { const n = new Set(p); const k = qcKey(issue); if (n.has(k)) n.delete(k); else n.add(k); saveChecked(project?.name, n); return n; });
+  const toggleChecked = (issue) => { const n = new Set(checked), k = qcKey(issue); if (n.has(k)) n.delete(k); else n.add(k); setProjectQcChecked?.([...n]); };
   const [categoryFilter, setCategoryFilter] = useState("all");
 
   const categories = useMemo(() => Array.from(result.byCategory.keys()).sort(), [result]);
@@ -165,7 +170,7 @@ export default function DataQCModal({ onCancel, onZoomHole = null /* TASKS.csv #
                       {qcTableRequest(issue) && <button type="button" style={rowBtn} onClick={() => openDataTable(qcTableRequest(issue))} title={tr("Open the table at this row")}>{tr("Table")}</button>}
                       {onZoomHole && issue.holeId && <button type="button" style={rowBtn} onClick={() => onZoomHole(issue.holeId)} title={tr("Find the hole in the 3D view")}>{tr("Find")}</button>}
                     </div>
-                    <button type="button" style={rowBtn} onClick={() => toggleChecked(issue)} aria-pressed={checked.has(qcKey(issue))} title={tr("Mark as checked and kept (kept on this computer; click again to undo)")}>{checked.has(qcKey(issue)) ? tr("Unmark") : tr("Checked")}</button>
+                    <button type="button" style={rowBtn} onClick={() => toggleChecked(issue)} aria-pressed={checked.has(qcKey(issue))} title={tr("Mark as checked and kept (kept with the project; click again to undo)")}>{checked.has(qcKey(issue)) ? tr("Unmark") : tr("Checked")}</button>
                   </div>
                 </div>
               );
@@ -174,7 +179,12 @@ export default function DataQCModal({ onCancel, onZoomHole = null /* TASKS.csv #
           </div>
         )}
 
-        <div style={{ padding: "10px 16px", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "flex-end" }}>
+        <div style={{ padding: "10px 16px", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "flex-end", flexWrap: "wrap", rowGap: 6 }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginRight: 8 }} title={tr("The densities this project accepts, in t/m³. A value outside it is flagged here and left out of the density mean the tonnage tools use. Raise the top for barite or massive sulphide. Kept with the project.")}>{/* TASKS.csv #3587 */}
+            {tr("Density (t/m³)")}
+            <input type="number" step="any" min="0" value={dMin} onChange={(e) => setDMin(e.target.value)} onBlur={applyDensity} onKeyDown={(e) => { if (e.key === "Enter") applyDensity(); }} aria-label={tr("Plausible density, lowest (t/m³)")} style={{ ...sel, width: 56, padding: "3px 6px" }} />–
+            <input type="number" step="any" min="0" value={dMax} onChange={(e) => setDMax(e.target.value)} onBlur={applyDensity} onKeyDown={(e) => { if (e.key === "Enter") applyDensity(); }} aria-label={tr("Plausible density, highest (t/m³)")} style={{ ...sel, width: 56, padding: "3px 6px" }} />
+          </span>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginRight: 8 }} title={tr("Survey bends sharper than this are warned about, one row per hole (its sharpest). Ordinary deviated holes bend 3-7° per 30 m; a bend of under 2° is within what a survey tool reads and is not counted; 20° per 30 m or more, over at least 5°, is an error. Remembered on this computer.")}>{tr("Dogleg over")}<input type="number" min="0.5" step="0.5" value={doglegWarn} onChange={(e) => setDoglegWarn(e.target.value)} style={{ width: 54, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "2px 4px", color: "var(--color-text)", fontFamily: "inherit" }} aria-label={tr("Dogleg warning threshold (degrees per 30 m)")} /> °/30 m
           </span>
           {terrain && (
