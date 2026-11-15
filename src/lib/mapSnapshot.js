@@ -24,6 +24,7 @@ export function mapSnapshotPayload({ src, pxW, pxH, view, size, mapLayers = [], 
     label, src, naturalW: pxW, naturalH: pxH,
     worldWidthAtCaptureM: widthM, // the scale bar and the plan '1 : n' (a planMap image, #1864)
     planMap: true, mapsView: true,
+    mapsCapture: { mPerPx: view.mPerPx, cssW: size.w, cssH: size.h }, // TASKS.csv #3491 — what a fresh capture at the frame's size draws from (lib/planRecapture.js)
     // a north-up, true-scale plan: what layoutGeometry's utmGridReady / vpToWorld read for the coordinate grid
     planView: true, trueScale: true, targetWorld: { x: view.cx, y: view.cy }, worldHeightAtTarget: heightM, cameraAzimuthDeg: 0,
     legendItems: legendGroupsToItems(groups),

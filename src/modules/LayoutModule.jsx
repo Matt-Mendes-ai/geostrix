@@ -95,6 +95,7 @@ const SCALE_PRESETS = [500, 1000, 1500, 2000, 2500, 5000, 10000, 15000, 20000, 2
 
 // TASKS.csv #923 — the seq of the last print request carried out; module scope, so it outlives a remount
 import { printPassItems, pagesWithPrintSrcs, PAGE_DPI } from "../lib/layoutPrintPass.js"; // TASKS.csv #2303
+import MapRedrawControl from "../components/MapRedrawControl.jsx"; // TASKS.csv #3491
 let handledPrintSeq = null;
 // TASKS.csv #2303 — an export waiting for its print pass (this module unmounts while the 3D View renders the viewports at 300 dpi)
 let pendingPrint = null;
@@ -419,7 +420,7 @@ export default function LayoutModule() {
       // ViewerModule's buildSectionPayload): the exact {label,color} pairs actually drawn in this
       // section, so a legend bound to this image (see syncLegendFromView below) can match it
       // without needing a live theme, which a flattened snapshot doesn't have.
-      return { id: img.id, type: "image", label: img.label || "Snapshot", src: img.src, aspect, x: spot.x, y: spot.y, w, h, worldWidthAtCaptureM: img.worldWidthAtCaptureM ?? null, verticalExaggeration: img.verticalExaggeration ?? null /* #944 */, sectionAzimuth: Number.isFinite(img.sectionAzimuth) ? img.sectionAzimuth : null /* #1489 */, depthHeightAtCaptureM: img.depthHeightAtCaptureM ?? null /* #1480 */, planMap: !!img.planMap /* #1864 */, ...(img.planView && img.targetWorld && img.worldHeightAtTarget ? { mapsView: !!img.mapsView, planView: true, trueScale: true, targetWorld: img.targetWorld, worldHeightAtTarget: img.worldHeightAtTarget, cameraAzimuthDeg: 0, utmGrid: !!img.utmGrid } : {}) /* #3194 — a Maps snapshot: north up at a known scale, for the coordinate grid */, naturalW: img.naturalW, naturalH: img.naturalH, legendItems: img.legendItems || null, sectionTabId: img.sectionTabId || null, textFactor: img.textFactor || 1 /* #1485 */, ...(img.keyDrawn ? { keyDrawn: true } : {}) /* #2739 — the image draws its own key */ };
+      return { id: img.id, type: "image", label: img.label || "Snapshot", src: img.src, aspect, x: spot.x, y: spot.y, w, h, worldWidthAtCaptureM: img.worldWidthAtCaptureM ?? null, verticalExaggeration: img.verticalExaggeration ?? null /* #944 */, sectionAzimuth: Number.isFinite(img.sectionAzimuth) ? img.sectionAzimuth : null /* #1489 */, depthHeightAtCaptureM: img.depthHeightAtCaptureM ?? null /* #1480 */, planMap: !!img.planMap /* #1864 */, ...(img.planView && img.targetWorld && img.worldHeightAtTarget ? { mapsView: !!img.mapsView, planView: true, trueScale: true, targetWorld: img.targetWorld, worldHeightAtTarget: img.worldHeightAtTarget, cameraAzimuthDeg: 0, utmGrid: !!img.utmGrid, ...(img.mapsCapture ? { mapsCapture: img.mapsCapture } : {}) /* #3491 */ } : {}) /* #3194 — a Maps snapshot: north up at a known scale, for the coordinate grid */, naturalW: img.naturalW, naturalH: img.naturalH, legendItems: img.legendItems || null, sectionTabId: img.sectionTabId || null, textFactor: img.textFactor || 1 /* #1485 */, ...(img.keyDrawn ? { keyDrawn: true } : {}) /* #2739 — the image draws its own key */ };
     });
     // TASKS.csv #1128 — a cross-section snapshot comes with its legend as a Layout element (movable, editable, bound to
     // the snapshot so "Sync" refreshes it), right of the image when it fits on the sheet, else below it
@@ -1088,7 +1089,7 @@ export default function LayoutModule() {
   // expressions, the few a figure's title block needs); {scale} is the page's first fixed-scale viewport, else its
   // first true-scale one, else the approximate scale of the first viewport
   const activePageIndex = Math.max(0, layoutPages.findIndex((pg) => pg.id === activeLayoutPageId));
-  const credits = useMemo(() => projectCredits(terrain, rasters), [terrain, rasters]); // TASKS.csv #949
+  const credits = useMemo(() => projectCredits(terrain, rasters, project?.dataCredit), [terrain, rasters, project?.dataCredit]); // TASKS.csv #949; dataCredit: #3496
   // TASKS.csv #1483 — a collar with no azimuth / dip of its own (Silvertip's) takes its shallowest survey station's, marked so
   const tableCollars = useMemo(() => collarsWithSurveyAttitude(collars, survey), [collars, survey]); // #1483 / #1771 / #2133 (lib/collarTable.js)
   const textCtx = useMemo(() => ({ ...textContextFor(elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits), assays, assayElements /* #2473 — a drill plan coloured by grade */, surfaceSamples, surfaceElements, layers /* #1869 — the samples table; the holes without a collar */, plannedHoles /* #2259 */, survey, desurveyMethod: project?.desurveyMethod /* #3367 */, displayUnits: project?.displayUnits /* #3382 */ }), [elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits, assays, assayElements, surfaceSamples, surfaceElements, layers, plannedHoles, survey]);
@@ -2266,6 +2267,7 @@ function SectionScaleControls({ sel, pageW, pageH, updateSelected, onResize = nu
         );
       })()}
       {tooBig && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4, lineHeight: 1.4 }}>{tr("At this scale the section is larger than the page: choose a smaller scale (a larger number), a larger page, or the other orientation.")}</div>}
+      {sel.mapsView && <MapRedrawControl sel={sel} /> /* #3491 */}
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 }}>{sel.mapsView ? tr("A view of the Maps tab, drawn as it was when sent: to change it, send it again from Maps. It is north up; resizing it changes its scale.") /* #3194 */ : sel.planMap ? tr("A plan map from Geochem, drawn as it was when sent: to change it, make a new one from Geochem > Plan map. Resizing it changes its scale.") : tr("A cross-section snapshot is a drawing of the section as it was when taken, so it has no theme, refresh or 3D camera to adjust. To change what it shows, take a new snapshot from the cross-section window. The scale is horizontal, along the section; resizing the snapshot changes it.")}</div>
     </div>
   );

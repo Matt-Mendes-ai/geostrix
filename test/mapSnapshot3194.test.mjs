@@ -39,14 +39,14 @@ test("wiring: Maps loads the payload on use; Layout keeps the fields, draws the 
   const m = readFileSync(new URL("../src/components/MapsPlanView.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n"); // CRLF checkout
   assert.match(m, /const \{ mapSnapshotPayload \} = await import\("\.\.\/lib\/mapSnapshot\.js"\);/);
   assert.doesNotMatch(m, /^import .*mapSnapshot/m);
-  assert.match(m, /addLayoutImage\(\{ \.\.\.mapSnapshotPayload\(\{ src, pxW: cv\.width, pxH: cv\.height, view: v, size,/);
+  assert.match(m, /addLayoutImage\(\{ \.\.\.snapshotPayloadOf\(mapSnapshotPayload, src, cv\.width, cv\.height, v, size, collarTitle\), utmGrid: hadGrid \}\);/); // #3491 — one payload helper (Snapshot to Layout and the fresh capture at a frame's size)
+  assert.match(m, /mapSnapshotPayload\(\{ src, pxW, pxH, view: vv, size: sz,/);
   // the plan's own grid is left off the picture and Layout's ticked instead when it was on
   assert.match(m, /if \(hadGrid\) \{\n      setShowGrid\(false\);\n      for \(let i = 0; i < 30 && gridDrawn\.current; i\+\+\)/);
-  assert.match(m, /\}\), utmGrid: hadGrid \}\);/);
   assert.match(m, /gridDrawn\.current = showGrid;/);
   assert.match(m, /<button onClick=\{toLayout\}[^>]*>\{tr\("Snapshot to Layout"\)\}<\/button>/);
   const l = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n"); // CRLF checkout
-  assert.match(l, /\.\.\.\(img\.planView && img\.targetWorld && img\.worldHeightAtTarget \? \{ mapsView: !!img\.mapsView, planView: true, trueScale: true, targetWorld: img\.targetWorld, worldHeightAtTarget: img\.worldHeightAtTarget, cameraAzimuthDeg: 0, utmGrid: !!img\.utmGrid \} : \{\}\)/);
+  assert.match(l, /\.\.\.\(img\.planView && img\.targetWorld && img\.worldHeightAtTarget \? \{ mapsView: !!img\.mapsView, planView: true, trueScale: true, targetWorld: img\.targetWorld, worldHeightAtTarget: img\.worldHeightAtTarget, cameraAzimuthDeg: 0, utmGrid: !!img\.utmGrid, \.\.\.\(img\.mapsCapture \? \{ mapsCapture: img\.mapsCapture \} : \{\}\) \/\* #3491 \*\/ \} : \{\}\)/); // #3491 — keeps the plan scale
   assert.match(l, /\{el\.utmGrid && utmGridReady\(el\) && <div style=\{\{ position: "absolute", inset: 0 \}\}><UtmGridOverlay el=\{el\} crs=\{ctx\?\.crs \|\| ""\} \/><\/div>\}/);
   assert.match(l, /\{sel\.planView && \(/);
   assert.match(l, /sel\.mapsView \? tr\("A view of the Maps tab, drawn as it was when sent/);
