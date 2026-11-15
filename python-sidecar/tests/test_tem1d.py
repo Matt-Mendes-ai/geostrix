@@ -318,6 +318,38 @@ def check_system_3485():
     assert worst_late < 2e-3 and worst_early < 1e-2, (worst_late, worst_early)
     print(f"low-pass filters (300 kHz; 210 + 300 kHz) vs the time-domain convolution: from 5 us within {worst_late:.1e}; at 1.5-3 us, where the "
           f"parts cancel, within {worst_early:.1e} of their size")
+    # #3501 — a filter given with its order: [fc, 2] is two first-order filters at fc (a receiver coil, a resonant circuit)
+    two = tem1d.forward([cond], thick, {**base, "filters": [[2.1e5, 2], 3e5]}, tt)[0]
+    same = tem1d.forward([cond], thick, {**base, "filters": [2.1e5, 2.1e5, 3e5]}, tt)[0]
+    assert np.allclose(two, same, rtol=1e-12), two / same
+    print("a second-order filter = two first-order ones at its cut-off")
+    # #3501 — a decay predicted below zero at one gate (inside a turn-off, past a filter's zero crossing) must not derail the fit: the
+    # log-space misfit floors it at a thousandth of its reading, with no gradient (it was log(1e-9), whose gradient swamped the station)
+    from app.geophys.em1d import invert_batch
+
+    class _OneGateBelowZero:
+        kind = "log"
+
+        def forward_fn(self, m, thick, jac=False):
+            m = np.atleast_2d(np.asarray(m, float))
+            c = 2e4 * 10.0 ** m[:, :1]
+            p = np.hstack([0.5 * c - 300.0, c * np.array([1.0, 0.5, 0.25])])
+            J = np.zeros(p.shape + (m.shape[1],))
+            J[:, 0, 0] = 0.5 * c[:, 0] * math.log(10)
+            J[:, 1:, 0] = c * np.array([1.0, 0.5, 0.25]) * math.log(10)
+            return (p, J) if jac else p
+
+    d = np.array([[100.0, 200.0, 100.0, 50.0]])  # the first gate is predicted below zero over much of the range
+    mm, cc, pp, _, _ = invert_batch(_OneGateBelowZero(), d, 0.05 * d, np.array([]), max_iter=15)
+    # the stated objective (the floored log misfit), by brute force over the one parameter: the fit must land near its minimum (within the
+    # pull toward the reference that invert_batch keeps while chi stays above 1)
+    grid = np.linspace(-4.0, 0.5, 4501)
+    pg = _OneGateBelowZero().forward_fn(grid[:, None], None)
+    lw = 1.0 / np.log1p(0.05)
+    chi_g = np.sqrt((((np.log(np.maximum(pg, 1e-3 * d)) - np.log(d)) * lw) ** 2).mean(axis=1))
+    assert np.isfinite(cc[0]) and cc[0] <= 1.05 * chi_g.min() and abs(mm[0, 0] - grid[np.argmin(chi_g)]) < 0.06, (mm, cc, chi_g.min(), grid[np.argmin(chi_g)])
+    print(f"one gate predicted below zero over much of the range: the fit lands near the floored misfit's minimum (log10 sigma {mm[0, 0]:.3f}, "
+          f"brute force {grid[np.argmin(chi_g)]:.3f}; chi {cc[0]:.2f} vs {chi_g.min():.2f})")
     # 4. gates inside a 20 us linear turn-off (no filter: the instantaneous part counted), against a direct integration
     wf = [[-2.002e-3, 0.0], [-2.0e-3, 1.0], [-2e-5, 1.0], [0.0, 0.0]]
     g = np.array([-1.2e-5, -4e-6, 3e-6, 2e-5])
@@ -362,16 +394,18 @@ def check_system_3485():
     good = {"system": {"geom": "cloop", "a": 10.36, "r": 12.83, "h": 30.0, "rz": 2.0, "filters": [2.1e5, 3e5]},
             "moments": [{"gates": g.tolist(), "widths": [1e-6] * 4, "waveform": wf, "baseFreq": 210.0}], "data": [[1.0] * 4], "rz": [1.5], "errRel": 0.05}
     _validate_tem1d(good)
+    _validate_tem1d({**good, "system": {**good["system"], "filters": [[2.1e5, 2], 3e5]}})  # #3501: the coil's, second order
     for bad, why in [({**good, "system": {**good["system"], "filters": [10.0]}}, "a 10 Hz filter"),
                      ({**good, "moments": [{**good["moments"][0], "gates": [-3e-3, 1e-5, 2e-5, 3e-5]}]}, "a gate before the waveform"),
                      ({**good, "moments": [{**good["moments"][0], "baseFreq": 400.0}]}, "a half-period shorter than the waveform"),
-                     ({**good, "rz": [50.0]}, "a receiver 50 m above")]:
+                     ({**good, "rz": [50.0]}, "a receiver 50 m above"),
+                     ({**good, "system": {**good["system"], "filters": [[2.1e5, 3]]}}, "a third-order filter")]:
         try:
             _validate_tem1d(bad)
         except HTTPException:
             continue
         raise AssertionError(f"accepted {why}")
-    print("system validation: a loop, filters, receiver heights and a base frequency pass; four bad requests are refused")
+    print("system validation: a loop, filters (one second order), receiver heights and a base frequency pass; five bad requests are refused")
 
 
 if __name__ == "__main__":

@@ -541,10 +541,15 @@ def _validate_tem1d(req):
     try:
         rz = float(sysm.get("rz", 0.0))
         filters = sysm.get("filters") or []
-        if not (-20 <= rz <= 20) or not isinstance(filters, list) or len(filters) > 3 or any(not (1e3 <= float(f) <= 1e8) for f in filters):
+        # a cut-off (first order) or [cut-off, order 1 or 2] (TASKS.csv #3501: a receiver coil, second order)
+        def _ok(f):
+            if isinstance(f, (list, tuple)):
+                return len(f) == 2 and 1e3 <= float(f[0]) <= 1e8 and f[1] in (1, 2)
+            return 1e3 <= float(f) <= 1e8
+        if not (-20 <= rz <= 20) or not isinstance(filters, list) or len(filters) > 3 or not all(_ok(f) for f in filters):
             raise ValueError
     except (TypeError, ValueError):
-        raise HTTPException(422, "rz must be -20 to 20 m and filters list at most 3 cut-offs of 1 kHz to 100 MHz.")
+        raise HTTPException(422, "rz must be -20 to 20 m and filters list at most 3 cut-offs of 1 kHz to 100 MHz (or [cut-off, order 1 or 2]).")
     # TASKS.csv #3440 step 3 — one moment (gates, widths, waveform) or several (moments: SkyTEM's low and high moment, each its own)
     moments = req.get("moments")
     if moments is None:
