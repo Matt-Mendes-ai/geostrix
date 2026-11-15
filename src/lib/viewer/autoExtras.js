@@ -5,7 +5,6 @@
 
 const RESERVED = new Set(["hole_id", "from", "to", "depth", "value", "extra", "values", "id", "tip", "color", "dip", "azimuth", "alpha", "beta", "type", "x", "y", "z"]);
 const FREE_TEXT = /desc|comment|note|remark|observ/i;
-const num = (v) => Number(String(v).trim().replace(",", "."));
 
 // -> [{ column, name, type: "number" | "category" }] for every column the mapping leaves out that carries values: numbers when 90 %
 // of the filled cells are numbers, else categories (up to maxDistinct values, or a description / comment column of any length).
@@ -18,10 +17,12 @@ export function autoExtraFields(headers, rows, mapping, { maxDistinct = 100, exc
     const distinct = new Set();
     for (const r of rows || []) {
       const v = r[h];
-      if (v == null || String(v).trim() === "") continue;
+      if (v == null) continue;
+      const t = String(v).trim(); // TASKS.csv #3544 (C2) — trimmed once (it was trimmed three times per cell: the test, num() and the set)
+      if (t === "") continue;
       filled++;
-      if (Number.isFinite(num(v))) numeric++;
-      if (distinct.size <= maxDistinct) distinct.add(String(v).trim());
+      if (Number.isFinite(Number(t.replace(",", ".")))) numeric++; // num(v), on the trimmed text
+      if (distinct.size <= maxDistinct) distinct.add(t);
     }
     if (!filled) continue;
     const name = RESERVED.has(String(h).trim().toLowerCase()) ? `${h} (file)` : String(h);
@@ -44,6 +45,14 @@ export function surveyMethodFields(headers, rows) {
 // opens with the same fields ticked (listed under Extra fields, each removable) for every layer a table can fill except collars (which keep their own
 // attributes), surveys and mag-susc logs (their own pre-set, above) and a custom layer (the user chooses its columns).
 const NO_AUTO_EXTRAS = new Set(["collars", "survey", "magsusc", "custom"]);
+// TASKS.csv #3544 (C2, the import queue) — a queued file was scanned twice: dialogExtraFields for the dialog's preset, then autoExtraFields again for
+// the commit with one more column excluded (a companion layer's, a Geotech table's Recovery %). A column's entry does not depend on the others, so the
+// commit's list is the dialog's less the excluded columns; a target the dialog presets nothing for (NO_AUTO_EXTRAS) is scanned here as before.
+export function queueExtraFields(target, headers, rows, mapping, dialog, exclude = []) {
+  if (!target || NO_AUTO_EXTRAS.has(target)) return autoExtraFields(headers, rows, mapping, { exclude });
+  const drop = new Set(exclude.filter(Boolean));
+  return (dialog?.customFields || []).filter((f) => !drop.has(f.column));
+}
 export function dialogExtraFields(target, headers, rows, mapping, exclude = []) {
   if (!target || NO_AUTO_EXTRAS.has(target)) return {};
   const customFields = autoExtraFields(headers, rows, mapping, { exclude });
