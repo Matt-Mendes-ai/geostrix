@@ -13023,5 +13023,13 @@
   "Checked": "Verificado",
   "Mark as checked and kept (kept on this computer; click again to undo)": "Marcar como verificado e mantido (guardado neste computador; clique de novo para desfazer)",
   "Hide the {n} rows marked as checked": "Ocultar as {n} linhas marcadas como verificadas",
-  "3D view basics": "Noções básicas da vista 3D"
+  "3D view basics": "Noções básicas da vista 3D",
+  "By what holes have…": "Pelo que os furos têm…",
+  "Holes with {what}": "Furos com {what}",
+  "Holes with no {what}": "Furos sem {what}",
+  "No data called {name} here: has:assays, no:assays, or the name of a layer of this project.": "Não há dados chamados {name} aqui: has:assays, no:assays ou o nome de uma camada deste projeto.",
+  "No hole matches. The box reads part of a hole id, field=value, a number test such as year>=2017, length>300 or year=2017..2023, and has:assays or no:assays.": "Nenhum furo corresponde. A caixa lê parte de um id de furo, campo=valor, um teste numérico como year>=2017, length>300 ou year=2017..2023, e has:assays ou no:assays.",
+  "{shown} of {total} holes shown": "{shown} de {total} furos mostrados",
+  "Over the {shown} of {total} holes shown.": "Sobre os {shown} de {total} furos mostrados.",
+  "Filter holes by what they have": "Filtrar furos pelo que têm"
 }

@@ -13023,5 +13023,13 @@
   "Checked": "تمت المراجعة",
   "Mark as checked and kept (kept on this computer; click again to undo)": "وضع علامة «تمت المراجعة» مع الإبقاء (يُحفظ على هذا الحاسوب؛ انقر مجدداً للتراجع)",
   "Hide the {n} rows marked as checked": "إخفاء الصفوف الـ {n} المعلَّمة بأنها تمت مراجعتها",
-  "3D view basics": "أساسيات العرض ثلاثي الأبعاد"
+  "3D view basics": "أساسيات العرض ثلاثي الأبعاد",
+  "By what holes have…": "بحسب ما تحتويه الثقوب…",
+  "Holes with {what}": "ثقوب فيها {what}",
+  "Holes with no {what}": "ثقوب بلا {what}",
+  "No data called {name} here: has:assays, no:assays, or the name of a layer of this project.": "لا توجد بيانات باسم {name} هنا: has:assays أو no:assays أو اسم طبقة في هذا المشروع.",
+  "No hole matches. The box reads part of a hole id, field=value, a number test such as year>=2017, length>300 or year=2017..2023, and has:assays or no:assays.": "لا يطابق أي ثقب. يقرأ الصندوق جزءًا من معرّف الثقب، أو حقل=قيمة، أو اختبارًا رقميًا مثل year>=2017 أو length>300 أو year=2017..2023، وكذلك has:assays أو no:assays.",
+  "{shown} of {total} holes shown": "{shown} من {total} ثقبًا معروضة",
+  "Over the {shown} of {total} holes shown.": "على الثقوب المعروضة وعددها {shown} من {total}.",
+  "Filter holes by what they have": "تصفية الثقوب بحسب ما تحتويه"
 }

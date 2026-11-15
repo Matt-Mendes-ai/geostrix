@@ -13023,5 +13023,13 @@
   "Checked": "Revisado",
   "Mark as checked and kept (kept on this computer; click again to undo)": "Marcar como revisado y conservado (se guarda en este equipo; clic de nuevo para deshacer)",
   "Hide the {n} rows marked as checked": "Ocultar las {n} filas marcadas como revisadas",
-  "3D view basics": "Conceptos básicos de la vista 3D"
+  "3D view basics": "Conceptos básicos de la vista 3D",
+  "By what holes have…": "Por lo que tienen los sondajes…",
+  "Holes with {what}": "Sondajes con {what}",
+  "Holes with no {what}": "Sondajes sin {what}",
+  "No data called {name} here: has:assays, no:assays, or the name of a layer of this project.": "No hay datos llamados {name} aquí: has:assays, no:assays o el nombre de una capa de este proyecto.",
+  "No hole matches. The box reads part of a hole id, field=value, a number test such as year>=2017, length>300 or year=2017..2023, and has:assays or no:assays.": "Ningún sondaje coincide. El cuadro lee parte de un id de sondaje, campo=valor, una prueba numérica como year>=2017, length>300 o year=2017..2023, y has:assays o no:assays.",
+  "{shown} of {total} holes shown": "{shown} de {total} sondajes mostrados",
+  "Over the {shown} of {total} holes shown.": "Sobre los {shown} de {total} sondajes mostrados.",
+  "Filter holes by what they have": "Filtrar sondajes por lo que tienen"
 }

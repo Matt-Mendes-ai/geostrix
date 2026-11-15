@@ -34,7 +34,7 @@ test("the WA collars: fences near 120 degrees", () => {
 
 test("the viewer takes the seeded state and the median collar", () => {
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(v, /= useDrillLineDefaults\(collars\); \/\/ #2366/);
+  assert.match(v, /= useDrillLineDefaults\((collars|shownCollars)\); \/\/ #2366/);
   assert.match(v, /e = lineCentre\?\.x \?\? \(arrMin\(xs\) \+ arrMax\(xs\)\) \/ 2/);
 });
 
