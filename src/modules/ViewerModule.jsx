@@ -212,6 +212,7 @@ import { closedShellsOf } from "./viewer/estimationShells.js"; // TASKS.csv #269
 import { findOnTraceWorld, findOnTrace, traceLookup, traceOfHole /* #2931 */, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
 import { syncDrawLods } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
+import { createLodDrape } from "../lib/viewer/lodDrape.js"; // TASKS.csv #3252 phase 2 — imagery detail tiles over the terrain
 import { useSurfaceUndo, stashSurface } from "./viewer/surfaceUndo.js"; // TASKS.csv #3494 — Undo / Redo for the model surfaces
 import { useModelling } from "./viewer/useModelling.js";
 import { useUnitSource } from "./viewer/useUnitSource.js"; // TASKS.csv #2378
@@ -872,6 +873,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // surfaces), not by the frequent layer-visibility/filter churn that rebuilds layerGroupsRef.
   const rasterGroupRef = useRef(null);
   const rasterMeshesRef = useRef({}); // id -> THREE.Mesh
+  const lodDrapeRef = useRef(null); // TASKS.csv #3252 — the imagery detail tiles (lib/viewer/lodDrape.js)
   // Boundary polylines (Geosoft .ply import) — own group/refs, same reasoning as rasters above: driven
   // by the store's persisted `boundaries` list, not by layer-visibility churn.
   const boundaryGroupRef = useRef(null);
@@ -2297,6 +2299,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
           }
         }
         if (gridGroupRef.current?.userData.labels) fitScreenLabels(gridGroupRef.current.userData.labels, camera, mount.clientHeight); // #2211
+        lodDrapeRef.current?.tick(camera, mount.clientHeight); // TASKS.csv #3252 — the detail tiles the camera wants (throttled inside, and only when it moved)
         { const sl = sectionLinesGroupRef.current?.userData.labels; if (sl?.children.length) { fitScreenLabels(sl, camera, mount.clientHeight); declutterHoleLabels(sl, camera, mount.clientWidth, mount.clientHeight); } } // #1126 section end labels; #3246
         fitContourLabels(boundaryGroupRef.current, camera, mount.clientWidth, mount.clientHeight); // #1466 / #1622
         renderer.setViewport(0, 0, mount.clientWidth, mount.clientHeight);
@@ -4691,6 +4694,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // ---------- rebuild raster drapes (TASKS.csv #24, #81) ----------
   // moved to lib/viewer/sceneBuilders.js syncRasterDrapes (TASKS.csv #693); its comments explain the build
   useEffect(() => { if (rasterGroupRef.current && !buildDefer.skip()) syncRasterDrapes(rasterGroupRef.current, rasterMeshesRef.current, rasters, { origin: originRef.current, terrain, renderer: rendererRef.current, collars }); }, [rasters, collars, terrain, rebuildSeq, deferRound]);
+  // TASKS.csv #3252 phase 2 — the detail tiles follow the rasters, the terrain and the origin; wake: a tile that arrives redraws an idle view
+  useEffect(() => { if (!rasterGroupRef.current || buildDefer.skip()) return; if (!lodDrapeRef.current) lodDrapeRef.current = createLodDrape(); lodDrapeRef.current.sync({ group: rasterGroupRef.current, rasters, terrain, origin: originRef.current, renderer: rendererRef.current, wake: () => { lastActivityRef.current = Date.now(); } }); }, [rasters, terrain, rebuildSeq, deferRound]);
+  useEffect(() => () => lodDrapeRef.current?.dispose(), []);
 
   // ---------- rebuild boundary polylines (Geosoft .ply import) ----------
   // moved to lib/viewer/sceneBuilders.js syncBoundaries (TASKS.csv #693); its comments explain the build
