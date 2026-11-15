@@ -21,9 +21,9 @@ test("each numeric ribbon drawn on the section is a ramp row in its legend items
   const ribbons = ["Specific gravity", "Breccia", "Alteration", "Lithology", "Veins", "Geotech (RQD%)"];
   const rows = groupSectionLegend([["Lithology: Andesite", "#c44"], ["Alteration: Potassic", "#e9a"], ...items], ribbons);
   const heads = rows.filter((r) => r[2]?.heading).map((r) => r[0]);
-  assert.ok(heads.includes("Specific gravity (ribbon 1 of 6, from the left)"), heads.join(" | "));
+  assert.ok(heads.includes("Specific gravity (t/m³) (ribbon 1 of 6, from the left)"), heads.join(" | "));
   assert.ok(heads.includes("Geotech (RQD%) (ribbon 6 of 6, from the left)"), heads.join(" | "));
-  const sgAt = rows.findIndex((r) => r[0] === "Specific gravity (ribbon 1 of 6, from the left)");
+  const sgAt = rows.findIndex((r) => r[0] === "Specific gravity (t/m³) (ribbon 1 of 6, from the left)");
   const sgRows = rows.slice(sgAt + 1, sgAt + 6).map((r) => r[0]);
   assert.equal(sgRows[0], "≤ 2.42"); assert.equal(sgRows[4], "≥ 3.04");
 });

@@ -29,12 +29,12 @@ test("#3624 the camera is not a styling field: orbiting does not mark the projec
   assert.equal(stylingKey({ layerVisible: { a: 1 }, camera: { radius: 1 } }), stylingKey({ layerVisible: { a: 1 }, camera: { radius: 99999 } }));
 });
 
-test("#3624 the view reads the saved camera on open, keeps it across its own state pushes, and frames a filter's holes", () => {
+test("#3624 the view reads the saved camera on open, keeps it across its own state pushes, and (master's #3555) frames a filter's holes", () => {
   const v = read("../src/modules/ViewerModule.jsx");
   assert.match(v, /setSavedCamera\(s\?\.camera \|\| null\); if \(s\?\.camera\) applySavedCamera\(s\.camera, camState, cameraRef, hasAutoFitRef\);/);
   assert.match(v, /holeFilter, camera: savedCamera, \/\/ #3624[^\n]*\n      modelArea, \/\/ #2535\n    \};\n    setViewerUiState\(ui\);/); // the one writer of viewerUiState (#1287) carries both
   assert.match(v, /useSavedCamera\(camState, hydratedFor === viewerUiStateSeq, setSavedCamera\);/);
-  assert.match(v, /fitView\(shownTraces\(\) \|\| \(nHoles \? traces\.slice\(0, nHoles\) : traces\)\)/);
+  assert.match(v, /autoFitInitial = useCallback\(\(traces, nHoles\) => \{ const hole = nHoles \? traces\.slice\(0, nHoles\) : traces,/); // #3555 (master): the holes shown, when some are hidden
 });
 
 test("#3624 the hole filter's rule is saved with the checks and read back (and cleared for a new project)", () => {

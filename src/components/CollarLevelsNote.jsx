@@ -7,8 +7,8 @@ import { collarLevelsText } from "../lib/collarLevelsText.js";
 
 export { collarLevelsText };
 
-export default function CollarLevelsNote({ collars, style = null }) {
-  const text = useMemo(() => collarLevelsText(collars), [collars]);
+export default function CollarLevelsNote({ collars, survey = null /* TASKS.csv #3589: #3551's upward / station check */, style = null }) {
+  const text = useMemo(() => collarLevelsText(collars, survey), [collars, survey]);
   if (!text) return null;
   return <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4, marginTop: 4, ...(style || {}) }}>{text}</div>;
 }

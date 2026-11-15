@@ -13,6 +13,7 @@ import { useStore } from "../lib/store.jsx";
 import { runPitSeriesAsync } from "../lib/pitSeriesClient.js";
 import { gradeCandidate } from "../lib/gradeCandidate.js"; // #1848
 import { categoricalModels } from "../lib/geologyForward.js";
+import { collarsForGround } from "../lib/collarGround.js"; // TASKS.csv #3582
 import { PRICE_UNITS, pitMetalOf, elementOfModel, priceUnitsFor, metalAmountText, wallAngles, gradeUnitText /* #3326 */ } from "../lib/pitShell.js"; // priceUnitsFor / metalAmountText: TASKS.csv #2434; wallAngles: #2433
 import { slopeName } from "../lib/pitWalls.js"; // TASKS.csv #2433
 import { valueUnit } from "../lib/blockModelExport.js";
@@ -91,7 +92,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
     const t0 = performance.now();
     try {
       const coded = modelWithCodeDensity(model, inputs, layers, collars, survey, desurveyMethod); // #2647 — weighed as the shell was
-      job.current = runPitSeriesAsync(coded.model, { ...inputs, unit, element, alsoPrices /* #3311 */, ...(inputs.weathered?.freshCode ? { weathered: { ...inputs.weathered, points: weatheredBasePoints(layers?.weath || [], holeTraces(collars, survey, desurveyMethod), inputs.weathered.freshCode).points } } : {}) /* #2597 — the shell's weathered zone, rebuilt from the log */ }, factors, { rate, discountPct: Number.isFinite(discount) ? discount : null, terrain, collars, byModel /* #1917 */, penaltyModels: (inputs.priceBasis === "product" ? inputs.penalties || [] : []).map((l) => models.find((m) => (m.id ?? m.name) === l.modelId) || models.find((m) => m.name === l.modelName) || { cells: [] }) /* #2986 part 2 — the shell's penalty lines; a model gone joins nothing */, alsoModels: alsoPairs.map(({ m }) => m) /* #3084 */, onProgress: (p) => setBusy(p) });
+      job.current = runPitSeriesAsync(coded.model, { ...inputs, unit, element, alsoPrices /* #3311 */, ...(inputs.weathered?.freshCode ? { weathered: { ...inputs.weathered, points: weatheredBasePoints(layers?.weath || [], holeTraces(collars, survey, desurveyMethod), inputs.weathered.freshCode).points } } : {}) /* #2597 — the shell's weathered zone, rebuilt from the log */ }, factors, { rate, discountPct: Number.isFinite(discount) ? discount : null, terrain, collars: collarsForGround(collars, survey), byModel /* #1917 */, penaltyModels: (inputs.priceBasis === "product" ? inputs.penalties || [] : []).map((l) => models.find((m) => (m.id ?? m.name) === l.modelId) || models.find((m) => m.name === l.modelName) || { cells: [] }) /* #2986 part 2 — the shell's penalty lines; a model gone joins nothing */, alsoModels: alsoPairs.map(({ m }) => m) /* #3084 */, onProgress: (p) => setBusy(p) });
       const r = await job.current.promise;
       if (r.cancelled) { setMsg(tr("Cancelled: nothing was added.")); return; }
       if (r.failed === "underground") { setMsg(tr("The collars look like underground drill positions ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): no ground surface is known, so no pit is cut from them. Load a terrain (Maps > Terrain) for the real surface.", { upward: r.underground?.upward ?? 0, stacked: r.underground?.stacked ?? 0 })); return; } // #2276

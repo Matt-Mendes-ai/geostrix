@@ -70,10 +70,24 @@ export const PANE_HELP = {
   "Import assays": "import-assays",
   "Import density (Specific gravity)": "import-density",
   "Drillhole data QA/QC": "data-qc",
+  "3D view basics": "view-basics", // TASKS.csv #3556 / #3578 — the everyday 3D view and the Geochem report tools
+  "Downhole compositing": "downhole-compositing",
+  "Best-intercept report": "best-intercepts",
+  "Grade statistics": "grade-statistics",
+  "QAQC — lab quality control": "qaqc",
+  // TASKS.csv #3597 / #3603 / #3622 — the dialogs' own titles; their "?" opens them
+  "Grade-tonnage": "grade-tonnage",
+  "Block calculator": "block-calculator",
+  "Unsampled metres inside a sampled hole": "unsampled-metres",
+  "Layout": "layout",
+  "Title block and tokens": "layout-title-block",
+  "Plan view of the drillholes": "maps-plan-view",
+  "Export: what goes where (Leapfrog, Micromine, GIS, Google Earth)": "export-formats",
+  "Save, autosave and recovery; Undo": "save-recovery",
 };
 
 // The order the contents list shows the areas in
-export const HELP_AREAS = ["Getting started", "Geophysics", "Maps", "Mine Design", "3D Modelling", "3D View", "Geochem", "Surface Geology", "Targeting"];
+export const HELP_AREAS = ["Getting started", "Geophysics", "Maps", "Mine Design", "3D Modelling", "3D View", "Geochem", "Layout", "Surface Geology", "Targeting"];
 
 export const helpIdForPane = (title) => PANE_HELP[title] || null;
 

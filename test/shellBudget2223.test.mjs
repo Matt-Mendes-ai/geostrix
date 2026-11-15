@@ -16,17 +16,20 @@ test("the review's run: 9,984 of 198,440 nodes reachable after a refit from 759,
 test("no advice without a refit, or when most of the box is reachable; none of the budgets fits: null budget", () => {
   assert.equal(shellBudgetAdvice({ refit: false, neededAtDefault: 759552, estimated: 9984, skipped: 188456, budget: 200000 }), null);
   assert.equal(shellBudgetAdvice({ refit: true, neededAtDefault: 300000, estimated: 150000, skipped: 48000, budget: 200000 }), null);
-  const big = shellBudgetAdvice({ refit: true, neededAtDefault: 9e6, estimated: 1000, skipped: 199000, budget: 200000 });
+  const big = shellBudgetAdvice({ refit: true, neededAtDefault: 6e7, estimated: 1000, skipped: 199000, budget: 200000 }); // over 50 M (#3581)
   assert.equal(big.budget, null);
   assert.equal(sharePct(big.pct), "<1");
   // a budget already raised: the next one up
   assert.equal(shellBudgetAdvice({ refit: true, neededAtDefault: 1.5e6, estimated: 10000, skipped: 990000, budget: 1000000 }).budget, 2000000);
+  // #3581 — 9 million: the 10 million budget, unless this computer's budgets stop at 5 million
+  assert.equal(shellBudgetAdvice({ refit: true, neededAtDefault: 9e6, estimated: 1000, skipped: 199000, budget: 200000 }).budget, 10000000);
+  assert.equal(shellBudgetAdvice({ refit: true, neededAtDefault: 9e6, estimated: 1000, skipped: 199000, budget: 200000, budgets: [200000, 1000000, 2000000, 5000000] }).budget, null);
 });
 
 test("the run remembers the default cell's blocks before the refit and says the advice after the result", () => {
   const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
   assert.match(s, /neededAtDefault = blocksNeeded; \/\/ #2223\s+cs = fit; blocksNeeded = blocksOf\(cs\); cellRefit = true;/);
-  assert.match(s, /shellBudgetAdvice\(\{ refit: cellRefit, neededAtDefault, estimated: grid\.estimated, skipped: grid\.skipped, budget: blockBudget \}\)/);
+  assert.match(s, /shellBudgetAdvice\(\{ refit: cellRefit, neededAtDefault, estimated: gridSum\.estimated, skipped: gridSum\.skipped, budget: blockBudget, budgets: shellBudgets /);
   for (const l of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
     assert.ok(Object.keys(d).filter((k) => k.startsWith("Only {p}% of the grid lies within the search radius")).length === 2, l);

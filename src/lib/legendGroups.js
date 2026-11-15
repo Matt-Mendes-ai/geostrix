@@ -96,7 +96,7 @@ export function assayLegendGroups({ assays, assayElements, assayVisible, assayDi
     // TASKS.csv #3236 - the unit the project shows this element in (displayUnits), the classes' limits converted; else #3305's % for a ppm element of percent-sized grades
     const shown = displayUnitOf({ displayUnits }, sym, unitOf[sym]), chosen = !!unitOf[sym] && shown !== unitOf[sym];
     const pct = !chosen && ppmAsPercent(assays, sym, unitOf[sym]); // #3305
-    const unit = chosen ? shown : pct ? "%" : unitOf[sym] || "", fmt = chosen ? (v) => fmtLegendValue(toDisplay(v, unitOf[sym], shown)) : pct ? (v) => fmtLegendValue(v / 1e4) : fmtLegendValue;
+    const unit = chosen ? shown : pct ? "%" : unitOf[sym] ? gradeUnitLabel(sym, unitOf[sym]) /* #3586 — g/t for Au / Ag / Pt / Pd stored in ppm, in every tool */ : "", fmt = chosen ? (v) => fmtLegendValue(toDisplay(v, unitOf[sym], shown)) : pct ? (v) => fmtLegendValue(v / 1e4) : fmtLegendValue;
     const items = style?.breaks?.length
       ? style.breaks.map((b, i) => {
         const lo = i ? style.breaks[i - 1].max : null;
@@ -238,7 +238,7 @@ export function legendGroupsToItems(groups) {
   const multi = groups.length > 1;
   const items = [];
   groups.forEach((g) => {
-    if (g.ramp) { items.push([g.label, null, { ramp: { colors: g.ramp.colors, minLabel: g.ramp.minLabel, maxLabel: g.ramp.maxLabel, log: !!g.ramp.log } }]); return; }
+    if (g.ramp) { items.push([g.label, null, { ramp: { colors: g.ramp.colors, minLabel: g.ramp.minLabel, maxLabel: g.ramp.maxLabel, log: !!g.ramp.log, ...(g.unit ? { unit: g.unit } : {}) /* TASKS.csv #3529 */ } }]); return; }
     if (g.image) { items.push([g.label, null, { image: g.image.src }]); return; } // #2747 — a picture raster's colour bar
     if (multi || g.alwaysHead) items.push([g.label, null, { heading: true }]); // TASKS.csv #843 — the anomaly map's rule is always printed
     g.items.forEach(([label, color, opt]) => items.push(opt ? [label, color, opt] : [label, color]));

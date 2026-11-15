@@ -1,4 +1,5 @@
 import { qcColumns, qcFields } from "../lib/assayQcColumns.js"; // TASKS.csv #1184
+import { openDataTable } from "../lib/dataTableRequests.js"; // TASKS.csv #3563
 import { correlationDefaults, bestPartner, BULK_COMMODITIES } from "../lib/preferredElement.js"; // BULK_COMMODITIES: #2911; // TASKS.csv #2512; bestPartner: #2741
 import { orderElements } from "../lib/elementOrder.js"; // TASKS.csv #2032
 import { leadFor } from "../lib/useLeadCommodity.js"; // TASKS.csv #2032
@@ -1391,6 +1392,7 @@ export default function GeochemModule() {
         <div style={{ fontSize: 11, color: "#65717e", margin: "10px 0 4px" }}>
           {assays.length ? (headCounts.qc || headCounts.calc ? headerCounts(headCounts) : tr(assayElements.length === 1 ? "{assays} intervals · 1 element" : "{assays} intervals · {assayElements} elements", { assays: assays.length, assayElements: assayElements.length })) : tr("No assays loaded")}{/* #2201 — a singular / plural pair; QC / calculated apart: #2035 */}
         </div>
+        {assays.length > 0 && <div style={{ margin: "0 0 6px" }}><button type="button" onClick={() => openDataTable({ source: "assays" })} style={{ background: "none", border: "none", padding: 0, color: "var(--color-accent)", cursor: "pointer", font: "inherit", fontSize: 11, textDecoration: "underline" }} title={tr("Every assay row as a table: the units in the headings, sort, filter, find")}>{tr("Assay table")}</button></div> /* TASKS.csv #3563 */}
         {/* TASKS.csv #624 — remove what was imported: a whole file, one element, or everything (all undoable) */}
         {assays.length > 0 && <AssayRemovePanel assays={assays} assayElements={assayElements} setAssays={setAssays} setAssayElements={setAssayElements} setNotices={setNotices} colorElement={colorElement} setColorElement={setColorElement} />}
         <div className="ge-section-label" style={{ marginTop: 14 }}>{tr("Surface samples")}</div>

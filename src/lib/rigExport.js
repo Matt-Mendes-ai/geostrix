@@ -39,10 +39,11 @@ export function rigRows(holes, epsg, isoDate, trace) {
       azimuth_grid: r2(h.azimuth),
       azimuth_true: Number.isFinite(conv) && !vertical ? r2(wrap360(h.azimuth - conv)) : "",
       azimuth_magnetic: mag && !vertical ? r2(wrap360(h.azimuth - mag.offset)) : "",
-      declination_deg: mag ? r2(mag.declination) : "", convergence_deg: Number.isFinite(conv) ? r2(conv) : "",
+      declination_deg: mag ? r2(mag.declination) : "", convergence_deg: Number.isFinite(conv) ? r2(-conv) : "", // TASKS.csv #3610 — the usual sign, as Maps prints it (negative west of the central meridian, northern hemisphere)
       // TASKS.csv #2978 (4) — the sign convention, in the file: convergence is the bearing of true north in the grid (grid = true + convergence;
-      // the (lambda - lambda0) sin(phi) formula has the other sign), declination east-positive
-      azimuth_rule: Number.isFinite(conv) ? (mag ? "true = grid - convergence_deg; magnetic = true - declination_deg" : "true = grid - convergence_deg") : "",
+      // the (lambda - lambda0) sin(phi) formula has the other sign), declination east-positive. #3610: the COLUMN is grid convergence, the usual sign
+      // (grid north's angle from true north: true = grid + convergence_deg), as Maps > Project CRS prints it; it was the bearing of true north (the opposite)
+      azimuth_rule: Number.isFinite(conv) ? (mag ? "true = grid + convergence_deg; magnetic = true - declination_deg" : "true = grid + convergence_deg") : "",
       declination_date: mag ? isoDate : "",
       dip: h.dip, length: h.length,
       // TASKS.csv #1835 — where the collar's z came from (typed / picked on the view / a collar / solved on the terrain), and the target the hole was solved to (#1456 keeps it on the hole)

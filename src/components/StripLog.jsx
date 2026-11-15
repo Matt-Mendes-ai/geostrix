@@ -1,5 +1,6 @@
 import { fillLanes } from "../lib/stripLanes.js"; // TASKS.csv #1254
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { isCalculatedMethod, densityLo, fitPxPerMetre, openRange, FIT_MIN_PX, FIT_MAX_PX } from "../lib/stripDensity.js"; // TASKS.csv #3558 / #3559
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { lithoPatternMap, loadPatternTiles, patternDefs, patternFill, FGDC_PATTERNS, patternForUnit } from "../lib/lithoPatterns.js"; // TASKS.csv #1995
 import { X, Download } from "./icons.js";
 import { LAYER_META, UNIT_NAMES, colorForAlteration, colorForVein, colorForBreccia, colorForStructZone, colorForStructure, colorForWeathering } from "../lib/layers.js"; // weathering: #2162
@@ -36,6 +37,7 @@ import { embedFigureFont } from "../lib/svgFontEmbed.js"; // TASKS.csv #2610 —
 import { localDate } from "../lib/localDate.js";
 import { stripLogFurniture, pngScaleFor } from "../lib/figureFurniture.js"; // TASKS.csv #1048
 import { stripLogTextPt } from "../lib/atlas.js"; // TASKS.csv #1480 — the size its labels print at
+import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3586 — g/t for Au / Ag / Pt / Pd stored in ppm
 import { assayAxis } from "../lib/striplogSvg.js"; // TASKS.csv #3141 — the Atlas's linear / log axis rule (#3024)
 import { suspectIdsOf, collarAttrLine } from "../lib/collarTable.js"; // TASKS.csv #3131 — #3004's rule, cached per collar list (the Layout collar table's)
 import { elevationTrust } from "../lib/collarElevationTrust.js";
@@ -51,6 +53,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   useFocusTrap(); // TASKS.csv #238
   const svgRef = useRef(null);
   const [pxPerMeter, setPxPerMeter] = useState(6);
+  const scrollRef = useRef(null); // TASKS.csv #3559 — the drawing's pane: its height is what a long hole is fitted to
   const symbols = assayElements.map((e) => e.symbol);
   // TASKS.csv #1698 (review #1645, Copley) — the log opened on the first element of the file (Ag) while Cu and Au were on in 3D:
   // the elements shown in 3D come first, in their order
@@ -169,13 +172,29 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const ranged = d0 > 0 || d1 < maxDepth;
   const sy = (d) => PAD_TOP + (d - d0) * pxPerMeter;
   const H = sy(d1) + 30;
+  // TASKS.csv #3559 (Fireweed rehearsal) — a 1,000 m hole at 6 px/m was ten screens of mostly empty tracks, with no way under 1 px/m: Fit, the sampled stretch, the whole hole, and the log opens fitted
+  const paneH = () => scrollRef.current?.clientHeight || 560;
+  const fit = () => setPxPerMeter(fitPxPerMetre(d1 - d0, paneH()));
+  const sampled = holeAssays.length ? { from: holeAssays[0].from, to: arrMax(holeAssays.map((a) => a.to)) } : null;
+  const showSampled = () => { if (!sampled) return; const pad = Math.max(5, 0.03 * maxDepth); const a = Math.max(0, Math.floor(sampled.from - pad)), b = Math.min(Math.ceil(maxDepth), Math.ceil(sampled.to + pad)); setRangeFrom(String(a)); setRangeTo(String(b)); setPxPerMeter(fitPxPerMetre(b - a, paneH())); };
+  const wholeHole = () => { setRangeFrom(""); setRangeTo(""); setPxPerMeter(fitPxPerMetre(maxDepth, paneH())); };
+  const openedRef = useRef(false);
+  useLayoutEffect(() => { // once, when the pane has its height
+    if (openedRef.current) return;
+    openedRef.current = true;
+    const h = paneH();
+    if (!(maxDepth * 6 + 110 > h)) return; // it fits at the default scale
+    const r = sampled ? openRange(maxDepth, sampled.from, sampled.to, h) : null;
+    if (r) { setRangeFrom(String(r.from)); setRangeTo(String(r.to)); setPxPerMeter(fitPxPerMetre(r.to - r.from, h)); } else setPxPerMeter(fitPxPerMetre(maxDepth, h));
+  }, []);
 
   const allTracks = [
-    { key: "litho", label: "Litho", rows: litho, kind: "fill", colorFn: (v) => fill("litho", LAYER_META.litho.colorFn, v), nameFn: (v) => (labelFor ? labelFor("litho", v) : UNIT_NAMES[v] || v) },
+    // TASKS.csv #3557 (Fireweed rehearsal) — a project with no lithology log drew a blank "Litho" column on every hole; as for Alt. / Vein / Rec.% (#3141) it is drawn when the project has the log
+    ...(litho.length || (layers.litho || []).length ? [{ key: "litho", label: "Litho", rows: litho, kind: "fill", colorFn: (v) => fill("litho", LAYER_META.litho.colorFn, v), nameFn: (v) => (labelFor ? labelFor("litho", v) : UNIT_NAMES[v] || v) }] : []),
     // TASKS.csv #356 — the implicit model's unit at each logged interval, right beside the logged litho.
     ...modelledLayers.filter((ml) => !ml.rows?.[0]?.numeric).map((ml, i, arr) => { const rows = (ml.rows || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); const col = Object.fromEntries(rows.map((r) => [r.value, r.modelColor])); return { key: `modelled_${ml.id}`, label: arr.length > 1 ? `Model ${i + 1}` : "Modelled", title: ml.name, rows, kind: "fill", colorFn: (v) => col[v] || "#d9dce1", nameFn: (v) => v }; }).filter((t) => t.rows.length),
     // TASKS.csv #323 — logged susceptibility / SG and a numeric model evaluated onto the hole, side by side
-    ...[["magsusc", "Mag. susc."], ["sg", "SG"]].map(([k, label]) => { const rows = filterLogRows((layers[k] || []).filter((r) => r.hole_id === holeId), stripProject?.logValidRange?.[k]).rows /* #3288 — range and despike, as Downhole logs and Estimation read it */.filter((r) => r.hole_id === holeId && Number.isFinite(Number(r.value))).map((r) => (Number.isFinite(r.depth) && !Number.isFinite(r.to) ? { ...r, from: r.depth - 0.25, to: r.depth + 0.25 } : r)).sort((a, b) => a.from - b.from); return { key: `log_${k}`, label, title: `${label} as logged`, rows, kind: "bar", max: rows.reduce((m, r) => Math.max(m, Number(r.value)), 0), scaleLabel: true, ...(k === "magsusc" ? { logOk: true, minPos: valueRange(rows).minPos } : {}) }; }).filter((t) => t.rows.length), // logOk: #1400 — mag susc follows the Log scale box
+    ...[["magsusc", "Mag. susc."], ["sg", "Density (t/m³)"]].map(([k, label]) => { const rows = filterLogRows((layers[k] || []).filter((r) => r.hole_id === holeId), stripProject?.logValidRange?.[k]).rows /* #3288 — range and despike, as Downhole logs and Estimation read it */.filter((r) => r.hole_id === holeId && Number.isFinite(Number(r.value))).map((r) => (Number.isFinite(r.depth) && !Number.isFinite(r.to) ? { ...r, from: r.depth - 0.25, to: r.depth + 0.25 } : r)).sort((a, b) => a.from - b.from); const vmax = rows.reduce((m, r) => Math.max(m, Number(r.value)), 0); return { key: `log_${k}`, label, title: `${label} as logged`, rows, kind: "bar", max: vmax, scaleLabel: true, ...(k === "magsusc" ? { logOk: true, minPos: valueRange(rows).minPos } : { lo: densityLo(rows.map((r) => r.value)) /* TASKS.csv #3558 — from the data's low end, not 0 */, unit: LAYER_META.sg.unit, methodOf: (r) => (typeof r.method === "string" ? r.method.trim() : "") }) }; }).filter((t) => t.rows.length), // logOk: #1400 — mag susc follows the Log scale box
     ...modelledLayers.filter((ml) => ml.rows?.[0]?.numeric).map((ml) => { const rows = (ml.rows || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); return { key: `modelledN_${ml.id}`, label: "Model", title: `${ml.name}${ml.unit ? ` (${ml.unit})` : ""}`, rows, kind: "bar", max: rows.reduce((m, r) => Math.max(m, r.value), 0), scaleLabel: true, colorOf: (r) => r.modelColor }; }).filter((t) => t.rows.length),
     // TASKS.csv #3141 — a built-in track only when this hole has rows (an iron hole drew empty Alt. / Vein / Rec.% columns on every log)
     ...(alt.length ? [{ key: "alt", label: "Alt.", rows: alt, kind: "fill", colorFn: (v) => fill("alt", colorForAlteration, v), nameFn: labelFor ? (v) => labelFor("alt", v) : null }] : []),
@@ -190,13 +209,17 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     ...(geotech.length ? [{ key: "geotech", label: "RQD%", rows: geotech, kind: "bar", max: 100 }] : []), // #1698 — only when the hole has RQD rows
     ...customTrackDefs, // #1698
     ...(recovery.length ? [{ key: "recovery", label: "Rec.%", title: "Recovery %", rows: recovery, kind: "bar", max: recoveryMax(recovery), scaleLabel: true, colorOf: () => "#5aa469" }] : []), // #1400 — beside RQD, over 100 % kept
-    ...(shownSymbols.length ? shownSymbols : [""]).map((sym) => ({ key: `assay_${sym}`, sym, label: sym ? `${sym} (${elementUnits[sym] || "ppm"})` : "Assay", rows: holeAssays, kind: "assaybar" })),
+    ...(shownSymbols.length ? shownSymbols : [""]).map((sym) => ({ key: `assay_${sym}`, sym, label: sym ? `${sym} (${gradeUnitLabel(sym, elementUnits[sym])})` /* #3586 */ : "Assay", rows: holeAssays, kind: "assaybar" })),
     ...shownSymbols.filter((sym) => pxrfRange[sym] > 0).map((sym) => ({ key: `pxrf_${sym}`, sym, label: `${sym} pXRF`, rows: pxrfAssays, kind: "pxrfdots" })), // #1695
   ];
 
   // #1480 — each track's rows inside the range, an interval cut at its ends; a structure pick or a point row kept when inside
   const clip = (rows) => rows.filter((r) => r.to >= d0 && r.from <= d1).map((r) => (r.from < d0 || r.to > d1 ? { ...r, from: Math.max(d0, r.from), to: Math.min(d1, r.to) } : r));
+  const noData = allTracks.every((t) => t.rows.length === 0); // TASKS.csv #3557 — nothing to draw: the message stands in place of empty tracks
   const tracks = ranged ? allTracks.map((t) => ({ ...t, rows: t.kind === "struct" ? t.rows.filter((s) => s.depth >= d0 && s.depth <= d1) : clip(t.rows) })) : allTracks;
+
+  // a bar track's scale caption: its own range, or the log range
+  const barCaption = (t) => (t.lo != null ? `${sigText(t.lo, 4)}–${sigText(t.max, 4)}` : t.logOk && logOn && t.minPos > 0 ? tr("log {minPos}–{max}", { minPos: sigText(t.minPos, 2), max: sigText(t.max, 3) }) : `0–${sigText(t.max, 3)}`);
 
   const baseName = `striplog_${holeId}`.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase();
   const svgDims = () => {
@@ -290,7 +313,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
         <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 16px", borderBottom: "1px solid #d9dce1", flexWrap: "wrap" }}>
           <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 6 }}>{tr("Assay element")}<select value={assaySymbol} onChange={(e) => setAssaySymbol(e.target.value)} style={selStyle}>
               <option value="">{tr("— none —")}</option>
-              {symbols.map((s) => <option key={s} value={s}>{s} ({elementUnits[s] || "ppm"})</option>)}
+              {symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, elementUnits[s])})</option>)}
             </select>
           </label>
           {[0, 1, 2, 3].map((k) => (k <= extraSymbols.length) && ( /* #3141 — up to four more, one empty select at a time */
@@ -309,8 +332,11 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
           <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 4 }} title={tr("Draw only these depths (blank: the whole hole); the exports and Add to Layout follow")}>{tr("Depth (m)")}<input type="number" min="0" step="any" value={rangeFrom} placeholder="0" onChange={(e) => setRangeFrom(e.target.value)} style={{ ...selStyle, width: 64 }} aria-label={tr("Depth range from (m)")} />–<input type="number" min="0" step="any" value={rangeTo} placeholder={String(+maxDepth.toFixed(1))} onChange={(e) => setRangeTo(e.target.value)} style={{ ...selStyle, width: 64 }} aria-label={tr("Depth range to (m)")} /></label>
           {litho.length > 0 && <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 5 }} title={tr("FGDC lithology patterns over the lithology colours, as on printed logs")}>
             <input type="checkbox" checked={patternsOn} onChange={(e) => setPatterns(e.target.checked)} />{" "}{tr("Patterns")}</label>}{/* TASKS.csv #1995 */}
-          <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 6 }}>{tr("Vertical scale (px/m)")}<input type="number" min="1" max="40" value={pxPerMeter} onChange={(e) => setPxPerMeter(Math.max(1, Math.min(40, Number(e.target.value) || 6)))} style={{ ...selStyle, width: 60 }} />
+          <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 6 }}>{tr("Vertical scale (px/m)")}<input type="number" min={FIT_MIN_PX} max={FIT_MAX_PX} step="any" value={pxPerMeter} onChange={(e) => setPxPerMeter(Math.max(FIT_MIN_PX, Math.min(FIT_MAX_PX, Number(e.target.value) || 6)))} style={{ ...selStyle, width: 60 }} />
           </label>
+          <button type="button" onClick={fit} style={{ ...btn(false), padding: "4px 8px", fontSize: 11 }} title={tr("Scale the depths drawn to fit this window")}>{tr("Fit")}</button>{/* TASKS.csv #3559 */}
+          {sampled && <button type="button" onClick={showSampled} style={{ ...btn(false), padding: "4px 8px", fontSize: 11 }} title={tr("Draw the sampled depths ({from}–{to} m) only, fitted", { from: +sampled.from.toFixed(1), to: +sampled.to.toFixed(1) })}>{tr("Sampled")}</button>}
+          {ranged && <button type="button" onClick={wholeHole} style={{ ...btn(false), padding: "4px 8px", fontSize: 11 }} title={tr("Draw the whole hole, fitted")}>{tr("Whole hole")}</button>}
           <div style={{ flex: 1 }} />
           <button onClick={exportSVG} style={{ ...btn(false), padding: "6px 10px", display: "flex", alignItems: "center", gap: 5 }}><Download size={12} />{" "}{tr("SVG")}</button>
           <button onClick={exportPNG} style={{ ...btn(false), padding: "6px 10px", display: "flex", alignItems: "center", gap: 5 }}><Download size={12} />{" "}{tr("PNG")}</button>
@@ -340,8 +366,9 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
         )}
         {pngNote && <div role="status" style={{ padding: "6px 16px", fontSize: 11, color: "#7a4a1f", background: "#fdf4e6", borderBottom: "1px solid #edd9b7" }}>{pngNote}</div>}
 
-        <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
-          <svg ref={svgRef} viewBox={`0 0 ${DEPTH_COL_W + tracks.length * TRACK_W + 40} ${H}`} width={DEPTH_COL_W + tracks.length * TRACK_W + 40} height={H} style={{ background: "#ffffff" }}>
+        <div ref={scrollRef} style={{ flex: 1, overflow: "auto", padding: 16 }}>
+          {noData && <div style={{ fontSize: 12, color: "#65717e", marginBottom: 12 }}>{tr("{holeId} has no samples and no logs ({length} m).", { holeId, length: +maxDepth.toFixed(1) }) /* TASKS.csv #3557 — said plainly, at the top */}</div>}
+          {!noData && <svg ref={svgRef} viewBox={`0 0 ${DEPTH_COL_W + tracks.length * TRACK_W + 40} ${H}`} width={DEPTH_COL_W + tracks.length * TRACK_W + 40} height={H} style={{ background: "#ffffff" }}>
             {patternsOn && Object.keys(tiles).length > 0 && <defs dangerouslySetInnerHTML={{ __html: patternDefs(tiles) }} />}{/* #1995 — shapes only (lithoPatterns.sanitizeTile) */}
             {/* depth ticks */}
             {depthTicks(d0, d1, pxPerMeter).map((d, i) => (
@@ -358,6 +385,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                 <g key={t.key}>
                   {(() => { const hl = headerLines(t.label, TRACK_W - 8), hs = headerSize(hl.reduce((p, l) => (l.length > p.length ? l : p))) /* the longer line sets the size */; return <text x={x0 + TRACK_W / 2} y={PAD_TOP - 14 - (hl.length - 1) * (hs + 1)} fontSize={hs} fontWeight="600" textAnchor="middle" fill="#1a2028">{hl.map((l, k) => <tspan key={k} x={x0 + TRACK_W / 2} dy={k ? hs + 1 : 0}>{l}</tspan>)}<title>{t.title || t.label}</title></text>; })() /* two lines: #2481 */}{/* #3141 — sized to its track (a 14-letter custom name ran under the next header) */}
                   <rect x={x0} y={sy(d0)} width={TRACK_W - 6} height={sy(d1) - sy(d0)} fill="none" stroke="#dde1e6" />
+                  {t.kind === "bar" && t.scaleLabel && t.max > 0 && <text x={x0 + TRACK_W / 2} y={PAD_TOP - 3} fontSize="7" textAnchor="middle" fill="#65717e">{barCaption(t)}</text> /* TASKS.csv #3558 — the scale where the track starts, not only 3,000 px down */}
                   {t.kind === "fill" && (() => { // #1254 — rows on the same depths side by side, with their percent where the log gives one
                     const { rows, lanes } = t.key === "mnlgy" ? fillLanes(t.rows) : { rows: t.rows, lanes: 1 };
                     const w = (TRACK_W - 6) / lanes;
@@ -385,10 +413,11 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                   {t.kind === "bar" && t.rows.map((r, i) => {
                     const lg = t.logOk && logOn; // #1400; logOn: #3141
                     const w = (t.lo != null ? Math.max(0, Math.min(1, (Number(r.value) - t.lo) / (t.max - t.lo || 1))) : lg ? logFrac(Number(r.value), t.minPos, t.max) : t.max > 0 ? Math.max(0, Math.min(1, (Number(r.value) || 0) / t.max)) : 0) * (TRACK_W - 8); // t.lo: #1698
-                    return <rect key={i} x={x0 + 2} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={(t.colorOf && t.colorOf(r)) || "#4a9be0"} opacity="0.75"><title>{`${r.from}-${r.to} m: ${sigText(Number(r.value), 3)}`}</title></rect>;
+                    const meth = t.methodOf ? t.methodOf(r) : "", calc = isCalculatedMethod(meth); // TASKS.csv #3558 — a calculated value is paler with a dashed edge, and its tip says so
+                    return <rect key={i} x={x0 + 2} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={(t.colorOf && t.colorOf(r)) || "#4a9be0"} opacity={calc ? 0.3 : 0.75} stroke={calc ? "#4a9be0" : undefined} strokeDasharray={calc ? "2 1.5" : undefined} strokeWidth={calc ? 0.8 : undefined}><title>{`${r.from}-${r.to} m: ${sigText(Number(r.value), 3)}${t.unit ? ` ${t.unit}` : ""}${meth ? ` (${meth}${calc ? tr(": calculated, not measured") : ""})` : ""}`}</title></rect>;
                   })}
                   {t.kind === "bar" && t.scaleLabel && t.max > 0 && ( // #323 — each bar track's own full-scale value
-                    <text x={x0 + TRACK_W / 2} y={sy(d1) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{t.lo != null ? `${sigText(t.lo, 4)}–${sigText(t.max, 4)}` : t.logOk && logOn && t.minPos > 0 ? tr("log {minPos}–{max}", { minPos: sigText(t.minPos, 2), max: sigText(t.max, 3) }) : `0–${sigText(t.max, 3)}`}</text>
+                    <text x={x0 + TRACK_W / 2} y={sy(d1) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{barCaption(t)}</text>
                   )}
                   {t.kind === "struct" && t.rows.map((s, i) => { // #1400
                     const cx = x0 + (TRACK_W - 6) / 2, y = sy(s.depth), tk = alphaTick(s.alpha, (TRACK_W - 6) / 2 - 4), c = t.colorFn(s.value);
@@ -420,10 +449,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                 </g>
               );
             })}
-          </svg>
-          {tracks.every((t) => t.rows.length === 0) && (
-            <div style={{ fontSize: 12, color: "#65717e", marginTop: 12 }}>{tr("No interval data logged for this hole yet — import litho/alt/vein/geotech/assay data with matching hole_id \"{holeId}\".", { holeId })}</div>
-          )}
+          </svg>}
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid #d9dce1" }}>
@@ -445,7 +471,7 @@ function depthTicks(from, to, pxPerMeter) { // from / to: #1480
   return ticks;
 }
 
-const panel = { width: "min(760px, 95vw)", height: "min(820px, 92vh)", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
+const panel = { width: "min(760px, 95vw)", height: "min(820px, 92vh)", minWidth: 480, minHeight: 360, maxWidth: "98vw", maxHeight: "98vh", resize: "both" /* TASKS.csv #3559 — the log can be made as big as the window */, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #d9dce1" };
 const selStyle = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 7px", color: "#1a2028", fontSize: 11.5, fontFamily: "inherit" };
 const btn = (primary) => ({ borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? "1px solid #3d6b52" : "1px solid #c7ccd3", background: primary ? "#1e3629" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });

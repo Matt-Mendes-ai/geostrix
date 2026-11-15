@@ -7,7 +7,8 @@ import { t as tr } from "./i18n.js";
 // The labelled rows of a new title block. Values may hold the page placeholders ({project}, {date}, {scale}, {crs}, {page},
 // {pages}); the empty ones are for the geologist to fill (no company, tenure or author is invented, #264). Saved in the project,
 // so the labels stay English like the rest of the project data; they are edited on the page.
-export function defaultTitleBlockRows() {
+// TASKS.csv #3591 — { credit: true }: a last row 'Data' = {credits}, for a project that has a data credit (left out when it has none)
+export function defaultTitleBlockRows({ credit = false } = {}) {
   return [
     ["Title", ""],
     ["Company", ""],
@@ -20,10 +21,11 @@ export function defaultTitleBlockRows() {
     ["Scale", "{scale}"],
     ["Grid / coordinate system", "{crs}"], // #2306 — a local grid has no datum / projection; {crs} names it
     ["Page", "{page} of {pages}"],
+    ...(credit ? [["Data", "{credits}"]] : []),
   ];
 }
-export function newTitleBlock(id, x, y) {
-  return { id, type: "titleblock", x, y, w: 340, rows: defaultTitleBlockRows(), fontPt: 8, frameWidth: 1 };
+export function newTitleBlock(id, x, y, opts = {}) {
+  return { id, type: "titleblock", x, y, w: 340, rows: defaultTitleBlockRows(opts), fontPt: 8, frameWidth: 1 };
 }
 
 // Starter templates: built in, at a set paper size, laid out from that page's size. A neatline 10 mm in, the figure title at
@@ -33,9 +35,9 @@ export const STOCK_TEMPLATES = [
   { id: "stock_plan_a4", name: "Plan figure (A4 landscape)", format: { size: "a4", orientation: "landscape" }, kind: "plan" },
   { id: "stock_section_a3", name: "Section figure (A3 landscape)", format: { size: "a3", orientation: "landscape" }, kind: "section" },
 ];
-export function stockTemplateElements(tpl, stamp = Date.now()) {
+export function stockTemplateElements(tpl, stamp = Date.now(), opts = {}) { // opts.credit: #3591
   const { w: W, h: H } = pagePx(tpl.format), m = Math.round(10 * MM), id = (k) => `${k}_${stamp}_${tpl.kind}`;
-  const tb = newTitleBlock(id("titleblock"), 0, 0), tbW = tpl.kind === "section" ? 380 : 340, tbH = 11 * 19 + 4; // about 19 px a row at 8 pt
+  const tb = newTitleBlock(id("titleblock"), 0, 0, opts), tbW = tpl.kind === "section" ? 380 : 340, tbH = (opts.credit ? 12 : 11) * 19 + 4; // about 19 px a row at 8 pt
   tb.w = tbW; tb.x = W - m - tbW - 8; tb.y = H - m - tbH - 8;
   const els = [
     { id: id("rect"), type: "rect", x: m, y: m, w: W - 2 * m, h: H - 2 * m, stroke: "#1a2028", strokeWidth: 1.5, fill: "#ffffff", fillOpacity: 0, locked: true },

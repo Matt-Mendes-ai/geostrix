@@ -11,6 +11,7 @@ import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js"; // TASKS.csv #1777 — listed with the page's placeholders
 import { scaleBarLabel, scaleBarMidLabel } from "../lib/scaleBarLabel.js"; // TASKS.csv #2140
 import { offSheetPages, rectSidesPast, elementCaption, elementKind } from "../lib/layoutEdges.js"; // elementKind: #3028
+import { withCreditPages } from "../lib/layoutCredits.js"; // TASKS.csv #3591
 import { DEFAULT_LAYOUT_ELEMENTS } from "../lib/projectFields.js"; // TASKS.csv #3028 (5)
 import { groupOrdersFromItems, applyCodeOrder, projectCodeOrders, clearCodeOrders, pagesHoldingOrder, orderedGroupsOf } from "../lib/legendCodeOrder.js"; // TASKS.csv #3130 — a code order set once; clear*: #3199 // TASKS.csv #2482 / #2309; named elements: #2700
 import { fillPlaceholders, northName, pageConvergence, formatConvergence } from "../lib/layoutText.js";
@@ -28,7 +29,8 @@ import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — s
 import { planKeyItems } from "../lib/planKeyLegend.js"; // TASKS.csv #3419
 import { tableTextFit, collarTableCells, splitHalvesFit } from "../lib/collarTable.js"; // TASKS.csv #3374; collarTableCells / splitHalvesFit: #3411
 import { collarTableSlice, continuationTables, collarsWithSurveyAttitude, continuationPageIndex, collarTableFieldChoices, defaultCollarTableFields, splitTableRows, suspectIdsOf, elevationCell, elevationNotes } from "../lib/collarTable.js"; // elevation*: #3023 // splitTableRows: #2770; // field columns: #2717; // continuationPageIndex: #2718 // TASKS.csv #1638; collarsWithSurveyAttitude: #2133
-import { fitDrillPlan, filterHoles, allHolesSteep, STEEP_DIP, turnedFrameFit, labelBackdrop, plannedAsCollars, holesToFit, showsPlanned, planTraces } from "../lib/drillPlan.js"; // planTraces: #3367; // planned: #2259; // labelBackdrop: #2738; // TASKS.csv #1639; allHolesSteep: #2473; turnedFrameFit: #2305
+import { fitDrillPlan, filterHoles, filterSuggestion, allHolesSteep, STEEP_DIP, turnedFrameFit, labelBackdrop, plannedAsCollars, holesToFit, showsPlanned, planTraces } from "../lib/drillPlan.js"; // planTraces: #3367; // planned: #2259; // labelBackdrop: #2738; // TASKS.csv #1639; allHolesSteep: #2473; turnedFrameFit: #2305
+import { useHoleVisibility, holeVisibilityNow, hiddenIn, checkedOnly } from "../lib/holeVisibilityShare.js"; // TASKS.csv #3605
 import DrillPlanColourControls from "../components/DrillPlanColourControls.jsx"; // TASKS.csv #2473
 import DrillPlanElement, { drillPlanDrawing } from "../components/DrillPlanElement.jsx"; // TASKS.csv #1639
 import { withLiveScaleBars, relinkCopies, tieStarterFurniture, northRotationOf, insertScaleBar, scaleBarTargets, bindScaleBar } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924 / #1632
@@ -73,6 +75,7 @@ import { numericClips, numericLayerColorFn } from "../lib/numericClip.js"; // TA
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
 import { legendSyncState, staleBoundLegends } from "../lib/layoutLegendSync.js"; // TASKS.csv #2471
 import { roundLongNumbersInSnapshot } from "../lib/svgNumbers.js"; // TASKS.csv #2603
+import { openHelp } from "../lib/help.js"; // TASKS.csv #3603
 // (The page size used to be a fixed `const A4 = { w: 1123, h: 794 }` here; it is now per page — see
 // `A4` inside the component, kept under that name so every existing use follows the chosen format.)
 const SCALE_BAR_PX = 180; // default/initial bar length (px) for a freshly-added, never-synced scale bar
@@ -138,7 +141,7 @@ export default function LayoutModule() {
     // TASKS.csv #69 — multiple layout pages per project (see store.jsx's own comment on
     // layoutPages/layoutElements for how these two coexist: `elements`/`setElements` above already
     // transparently follow whichever page is active).
-    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat, mapLayoutPagesElements /* #3331 */, sendLayoutElement, // #1484
+    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages: addLayoutPagesRaw, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat, mapLayoutPagesElements /* #3331 */, sendLayoutElement, // #1484
     // Legend "load lithologies from the bound view" (below) needs the actual litho rows — a theme
     // only records which units were filtered/hidden at capture time, not the vocabulary itself.
     // TASKS.csv #130 — collars/sections needed for the Atlas batch-page-generation feature below.
@@ -162,6 +165,10 @@ export default function LayoutModule() {
     requestViewportBatch, printSrcs, setPrintSrcs, // TASKS.csv #2303 — the export's 300 dpi print pass
     undoCheckpoint, // TASKS.csv #3184 — each insert / duplicate / paste its own undo step
   } = useStore();
+  // TASKS.csv #3591 — every page the app makes itself (a snapshot's own page, a split's, an Atlas page, a table's continuation) prints the data credit when the project has one: the {credits}
+  // text is added to a page that does not print it (lib/layoutCredits.js); the credit line itself is read through a ref (it is computed further down)
+  const creditsRef = useRef("");
+  const addLayoutPages = (pgs) => addLayoutPagesRaw(withCreditPages(pgs, !!creditsRef.current));
   const setTaskProgress = useSetTaskProgress();
   useEffect(() => { if (viewportBatchDone) setTaskProgress?.(null); }, [viewportBatchDone, setTaskProgress]);
   const [selected, setSelected] = useState(null);
@@ -802,7 +809,7 @@ export default function LayoutModule() {
     const id = `${type}_${Date.now()}`;
     const base = { id, type, x: 100, y: 100 };
     if (type === "text") base.text = "Text", base.w = 200;
-    if (type === "titleblock") Object.assign(base, newTitleBlock(id, Math.max(20, A4.w - 400), Math.max(20, A4.h - 260))); // TASKS.csv #1868 — bottom right
+    if (type === "titleblock") Object.assign(base, newTitleBlock(id, Math.max(20, A4.w - 400), Math.max(20, A4.h - 260), { credit: !!credits })); // #3591 — a Data row when the project has a credit // TASKS.csv #1868 — bottom right
     if (type === "logo") logoInput.current.click();
     if (type === "scale") { base.meters = 100; base.pxPerMeter = DEFAULT_PX_PER_METER; Object.assign(base, insertScaleBar(base, elements, selected)); if (!base.boundTo) Object.assign(base, freeSpot(elements, 260, 50, A4)); /* #2135 */ base.y = Math.min(base.y, A4.h - 50); } // #1635 — bound to the selected / only view
     if (type === "north") { // TASKS.csv #1632 — tied to the selected view, else the page's only view with a camera azimuth
@@ -841,7 +848,9 @@ export default function LayoutModule() {
     if (type === "drillplan") { // TASKS.csv #1639 — every hole at a round scale
       Object.assign(base, { x: 60, y: 80, w: Math.min(760, A4.w - 120), h: Math.min(480, A4.h - 180), labels: "all", fontPt: 7, frameWidth: 1 });
       Object.assign(base, freeSpot(elements, base.w, base.h, A4)); // #2135 — it landed at (60, 80) over the views
-      Object.assign(base, fitDrillPlan([...collars, ...plannedAsCollars(plannedHoles)] /* #2259 */, base.w, base.h, SCALE_PRESETS, planTraces(collars, survey, project?.desurveyMethod) /* #3367 */) || { scale: 10000, centre: { x: 0, y: 0 } });
+      // TASKS.csv #3605 — with holes unchecked in the 3D View the new plan is of the checked ones (a switch in its pane shows them all)
+      const vis = holeVisibilityNow(), chk = hiddenIn(collars, vis) > 0; if (chk) base.onlyChecked = true;
+      Object.assign(base, fitDrillPlan([...checkedOnly(collars, vis), ...plannedAsCollars(plannedHoles)] /* #2259 */, base.w, base.h, SCALE_PRESETS, planTraces(collars, survey, project?.desurveyMethod) /* #3367 */) || { scale: 10000, centre: { x: 0, y: 0 } });
     }
     if (type === "samplestable") { type = "table"; base.type = "table"; base.source = "samples"; base.title = "Surface samples"; base.w = 460; base.fontPt = 7; base.maxRows = 25; base.frameWidth = 1; base.symbol = surfaceElements[0]?.symbol || ""; Object.assign(base, freeSpot(elements, 460, 25 * 16 + 60, A4)); } // TASKS.csv #1869
     else if (type === "table") { base.source = "collars"; base.title = "Drillhole collars"; base.w = 520; base.fontPt = 7; Object.assign(base, placeCollarTable(elements, A4, { w: 520, fontPt: 7, total: collars.length })); /* #1638 fits the sheet; #2135 free space */ base.frameWidth = 1; const f = defaultCollarTableFields(collars); if (f.length) base.extraCols = f; /* #2717 — the hole type, when there is one */ }
@@ -927,7 +936,7 @@ export default function LayoutModule() {
   const loadTemplate = (tpl) => {
     if (elements.length && !window.confirm(tr("Replace the current page with \"{name}\"? (Ctrl+Z undoes this.)", { name: tr(tpl.name) }))) return; // #1487 — layoutPages are in the undo history
     if (tpl.format) setLayoutPageFormat(activeLayoutPageId, tpl.format); // #1868 — a template keeps its paper size and orientation
-    if (tpl.stock) { setElements(stockTemplateElements(tpl)); setSelected(null); setTemplatesOpen(false); return; } // #1868 — a starter template
+    if (tpl.stock) { setElements(stockTemplateElements(tpl, Date.now(), { credit: !!credits })); setSelected(null); setTemplatesOpen(false); return; } // #1868 — a starter template
     const idMap = new Map(tpl.elements.map((el) => [el.id, `${el.type}_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`]));
     setElements(relinkCopies(tpl.elements.map((el) => ({ ...el, id: idMap.get(el.id) })), idMap, true)); // #924
     setSelected(null);
@@ -1089,8 +1098,9 @@ export default function LayoutModule() {
   // expressions, the few a figure's title block needs); {scale} is the page's first fixed-scale viewport, else its
   // first true-scale one, else the approximate scale of the first viewport
   const activePageIndex = Math.max(0, layoutPages.findIndex((pg) => pg.id === activeLayoutPageId));
-  const credits = useMemo(() => projectCredits(terrain, rasters, project?.dataCredit), [terrain, rasters, project?.dataCredit]); // TASKS.csv #949; dataCredit: #3496
+  const credits = useMemo(() => projectCredits(terrain, rasters, project?.dataCredit), [terrain, rasters, project?.dataCredit]); creditsRef.current = credits; // #3591 // TASKS.csv #949; dataCredit: #3496
   // TASKS.csv #1483 — a collar with no azimuth / dip of its own (Silvertip's) takes its shallowest survey station's, marked so
+  useHoleVisibility(); // TASKS.csv #3605 — a plan that follows the checked holes redraws when they change
   const tableCollars = useMemo(() => collarsWithSurveyAttitude(collars, survey), [collars, survey]); // #1483 / #1771 / #2133 (lib/collarTable.js)
   const textCtx = useMemo(() => ({ ...textContextFor(elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits), assays, assayElements /* #2473 — a drill plan coloured by grade */, surfaceSamples, surfaceElements, layers /* #1869 — the samples table; the holes without a collar */, plannedHoles /* #2259 */, survey, desurveyMethod: project?.desurveyMethod /* #3367 */, displayUnits: project?.displayUnits /* #3382 */ }), [elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits, assays, assayElements, surfaceSamples, surfaceElements, layers, plannedHoles, survey]);
 
@@ -1360,7 +1370,7 @@ export default function LayoutModule() {
                     {LAYOUT_FONTS.map((f) => <option key={f.label} value={f.label} style={{ fontFamily: f.stack }}>{f.label}</option>)}
                   </select>
                 </label>
-                <button type="button" style={{ ...pBtn, marginBottom: 0 }} onClick={() => setElements((els) => withPageFont(els, LAYOUT_FONTS.some((f) => f.label === sel.fontFamily) ? sel.fontFamily : LAYOUT_DEFAULT_FONT))} title={tr("Every title, text, legend, table, title block, scale bar, north arrow and drill plan on this page takes this typeface.")}>{tr("Whole page")}</button>
+                <button type="button" style={{ ...pBtn, marginBottom: 0 }} onClick={() => setElements((els) => withPageFont(els, LAYOUT_FONTS.some((f) => f.label === sel.fontFamily) ? sel.fontFamily : LAYOUT_DEFAULT_FONT))} title={tr("Every title, text, legend, table, title block, scale bar, north arrow and drill plan on this page takes this typeface.")}>{tr("Use on the whole page")}</button>
               </div>
             )}
             {"text" in sel && (sel.type === "text" /* #1868 — several lines (a title block, a note) */
@@ -1695,6 +1705,10 @@ export default function LayoutModule() {
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Scale 1 :")}<select value={String(sel.scale)} onChange={(e) => updateSelected({ scale: Number(e.target.value) })} style={{ ...inp, marginTop: 4 }}>
                   {[...new Set([...SCALE_PRESETS, sel.scale])].sort((a, b) => a - b).map((s) => <option key={s} value={String(s)}>{Number(s).toLocaleString()}</option>)}
                 </select></label>
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title={tr("Any scale: 1 : 6,000 and 1 : 7,500 are not in the list.")}>{/* TASKS.csv #3611 — a typed scale, as the section picture has */}
+                  {tr("Typed scale 1 :")}<input type="number" min="1" step="100" value={Math.round(sel.scale) || ""} onChange={(e) => { const v = Number(e.target.value); if (v >= 1) updateSelected({ scale: v }); }} style={{ ...inp, marginBottom: 0, flex: 1, minWidth: 0 }} />
+                </label>
+                <button type="button" onClick={() => updateSelected({ x: 10 * PX_PER_MM, y: 10 * PX_PER_MM, w: A4.w - 20 * PX_PER_MM, h: A4.h - 20 * PX_PER_MM })} title={tr("The frame takes the whole page inside 10 mm margins (the title block and key can be moved over it).")} style={{ ...pBtn, width: "100%", justifyContent: "center", marginBottom: 6 }}>{tr("Fill the page")}</button>{/* TASKS.csv #3611 */}
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title={tr("The coordinate grid's spacing in metres. Blank: about five lines across the frame; 0: no grid.")}>{tr("Grid (m)")}<input type="number" min="0" step="any" value={sel.gridM ?? ""} placeholder={tr("auto")} onChange={(e) => updateSelected({ gridM: e.target.value === "" ? undefined : Number(e.target.value) })} style={{ width: 80 }} aria-label={tr("Grid spacing (m)")} /></label>{/* #2301 */}
                 <div style={{ display: "flex", gap: 6 }}>
                   <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Centre E")}<input type="number" value={Math.round(sel.centre?.x || 0)} onChange={(e) => updateSelected({ centre: { ...sel.centre, x: Number(e.target.value) } })} style={inp} /></label>
@@ -1708,7 +1722,11 @@ export default function LayoutModule() {
                       {tr("Turned, it runs off this page: turn the page as well.")}{" "}
                       <button type="button" onClick={() => { const P = { w: A4.h, h: A4.w }; changePageFormat({ ...pageFormat, orientation: pageFormat.orientation === "landscape" ? "portrait" : "landscape" }); updateSelected({ w: t.w, h: t.h, scale: t.scale, centre: t.centre, ...(sel.x + t.w > P.w - 10 || sel.y + t.h > P.h - 10 ? { x: 40, y: 60 } : {}) }); }} style={{ ...pBtn, display: "inline-flex", marginBottom: 0, padding: "1px 6px" }}>{tr("Turn the frame and the page")}</button></>}
                   </div>) : null; })()}
+                {(sel.onlyChecked || hiddenIn(tableCollars, holeVisibilityNow()) > 0) && ( /* TASKS.csv #3605 */
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}><input type="checkbox" checked={!!sel.onlyChecked} onChange={(e) => updateSelected({ onlyChecked: e.target.checked })} />{tr("Only the {shown} of {total} holes checked in the 3D View", { shown: ((tableCollars || []).length - hiddenIn(tableCollars, holeVisibilityNow())).toLocaleString(), total: (tableCollars || []).length.toLocaleString() })}</label>
+                )}
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Holes containing")}<input type="text" value={sel.holeFilter || ""} placeholder={tr("all")} title={tr("Text in the hole id, or a collar field such as year=2024 (every field term must match)")} /* #2141 */ onChange={(e) => updateSelected({ holeFilter: e.target.value })} style={{ ...inp, marginTop: 4 }} /></label>
+                {(() => { const sg = sel.holeFilter ? filterSuggestion(tableCollars, sel.holeFilter) : null; return sg ? <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr("A space ends a term: did you mean {term}? (_ stands for a space in a value.)", { term: sg })}</div> : null; })()}{/* TASKS.csv #3601 */}
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Labels")}<select value={sel.labels || "all"} onChange={(e) => updateSelected({ labels: e.target.value })} style={{ ...inp, marginTop: 4 }}>
                   <option value="all">{tr("Every hole with room for one")}</option>
                   <option value="none">{tr("None")}</option>
@@ -1930,6 +1948,8 @@ export default function LayoutModule() {
             <option value="portrait">{tr("Portrait")}</option>
           </select>
           {formatNote && <span role="status" style={{ marginLeft: 8, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", maxWidth: 360, lineHeight: 1.3 }}>{formatNote} <button type="button" onClick={() => setFormatNote("")} aria-label={tr("Dismiss")} style={{ border: "none", background: "none", cursor: "pointer", color: "inherit", padding: 0 }}>×</button></span>}{/* #2312 */}
+          {/* TASKS.csv #3603 — the Layout help page (F1 opens it too) */}
+          <button type="button" className="ge-pane-close ge-pane-help" style={{ marginInlineStart: 8 }} onClick={() => openHelp("layout")} aria-label={tr("Help: {name}", { name: tr("Layout") })} title={tr("Help for this tool (F1, works offline)")}>?</button>
           {/* TASKS.csv #909 — canvas zoom and the PNG export's resolution */}
           <select value={zoomChoice} onChange={(e) => setZoom(e.target.value)} aria-label={tr("Zoom")} title={tr("Zoom of the sheet on screen (the paper size does not change)")}
             style={{ height: 22, marginBottom: 2, marginLeft: 8, fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", color: "var(--color-text)" }}>
@@ -2507,7 +2527,7 @@ const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, proje
 
 // TASKS.csv #906 — resize handles: 8 for a free box, the 4 corners where the aspect is locked, left / right for an
 // element that wraps text to its width, the tip of an arrow. Drawn on the single selected element only.
-const BOX_TYPES = new Set(["viewport", "image", "rect", "logo"]);
+const BOX_TYPES = new Set(["viewport", "image", "rect", "logo", "drillplan"]); // drillplan: TASKS.csv #3611 — W / H boxes beside X / Y
 const ASPECT_LOCKED = new Set(["image", "logo"]);
 const WIDTH_ONLY = new Set(["title", "text", "callout", "legend", "table", "titleblock"]); // titleblock: #1868
 // TASKS.csv #3374 — a cell's text width in page px at `px` (canvas measureText at 100 px, scaled; kept per typeface, weight and text)
@@ -2800,7 +2820,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
         </div>
       ) : opt?.ramp ? ( /* a block model's continuous scale */
         <div key={i} style={{ marginBottom: 4, breakInside: "avoid" }}>
-          <div style={{ fontSize: printPx(printPt.small), fontWeight: 700, color: INK, marginTop: i ? 6 : 0 }}>{name}{opt.ramp.log ? tr(" · log scale") : ""}</div>
+          <div style={{ fontSize: printPx(printPt.small), fontWeight: 700, color: INK, marginTop: i ? 6 : 0 }}>{name}{opt.ramp.unit ? ` (${opt.ramp.unit})` : "" /* TASKS.csv #3529 */}{opt.ramp.log ? tr(" · log scale") : ""}</div>
           <div style={{ height: 10, width: 150, border: "1px solid #999", background: `linear-gradient(to right, ${opt.ramp.colors.join(", ")})` }} />
           <div style={{ display: "flex", justifyContent: "space-between", width: 152, fontSize: printPx(printPt.small), color: INK }}><span>{opt.ramp.minLabel}</span><span>{opt.ramp.maxLabel}</span></div>
         </div>

@@ -9,7 +9,7 @@ const sg = [2.8, -7.27, -0.00016, 1.0, 3.68].map((value, i) => ({ hole_id: "H1",
 
 test("SG rows with impossible values: counted, with the values seen, in the import notice", () => {
   const msg = importCheckSummary(sg, collars, [], "Specific gravity rows from sg.csv", PLAUSIBLE_RANGE.sg);
-  assert.match(msg, /2 with a value outside the plausible 1–8 \(-7\.27 … -0\.00016: a keying or unit error\?\)/);
+  assert.match(msg, /2 with a value outside the plausible 1–6 \(-7\.27 … -0\.00016: a keying or unit error\?\)/);
   assert.match(msg, /^Check these Specific gravity rows from sg\.csv:/);
 });
 
@@ -22,7 +22,7 @@ test("in range, no range, or a layer without one: nothing said about values", ()
 });
 
 test("the importer passes the layer's range; Data QC uses the same table", () => {
-  assert.match(fs.readFileSync("src/modules/viewer/importPipelineImpl.js", "utf8"), /PLAUSIBLE_RANGE\[target\] \|\| null\)/);
+  assert.match(fs.readFileSync("src/modules/viewer/importPipelineImpl.js", "utf8"), /\(target === "sg" \? densityRangeOf\(liveAtImport\.project\) : PLAUSIBLE_RANGE\[target\]\) \|\| null\)/);
   const q = fs.readFileSync("src/lib/dataQC.js", "utf8");
-  assert.match(q, /\["sg", "Specific gravity", \{ gaps: false, range: PLAUSIBLE_RANGE\.sg \}\]/); // #3136: the interval checks are a list now
+  assert.match(q, /\["sg", "Specific gravity", \{ gaps: false, range: PLAUSIBLE_RANGE\.sg(, unit: "t\/m³")? \}\]/); // #3136: the interval checks are a list now
 });

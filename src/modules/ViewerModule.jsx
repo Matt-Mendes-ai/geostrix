@@ -4,8 +4,9 @@ import { exportDrillholeTablesWith } from "./viewer/drillholeExport.js"; // TASK
 import { interceptsDisabledText, noCollarsNotice } from "../lib/noCollars.js"; // TASKS.csv #1810, #1841
 import { levelPlanZRange, mainTraces } from "../lib/viewer/levelPlanRange.js"; // TASKS.csv #1782; mainTraces: #2936
 import { sampleUserData, mappedOfSample } from "../lib/viewer/sampleTip.js"; // TASKS.csv #1821; #1500
-import HoleFilterBar from "./viewer/HoleFilterBar.jsx";
-import { holesForFilter } from "../lib/holeFilter.js"; // #1504; #1703
+import { markZoomedHole } from "./viewer/zoomMark.js"; // #3570
+import HoleFilterBar from "./viewer/HoleFilterBar.jsx"; import { useSurfaceChecks } from "./viewer/useSurfaceChecks.js"; import HiddenHolesNote from "./viewer/HiddenHolesNote.jsx"; import { publishHoleVisibility } from "../lib/holeVisibilityShare.js"; // #3555; #3605
+import { holesForFilter, holeSetsOf, fenceTracesOf } from "../lib/holeFilter.js"; // #1504; #1703; #3554; #3561
 import { holesWithoutField } from "../lib/viewer/holeFieldPicks.js"; // #3074
 import { holeColourScheme, applyHoleColours, holeColourLegendGroup } from "../lib/viewer/holeColours.js"; // #1504
 import FenceOptions from "./viewer/FenceOptions.jsx";
@@ -44,6 +45,7 @@ import { blockToCells, modelledIntervals, ABOVE_TOPS, unitAt } from "../lib/mode
 import { sectionGrid, sameLine, unpackUnits, sectionPixels, blockSpacing, sectionZRange } from "../lib/modelSection.js"; // TASKS.csv #759
 import { openSectionWindow, saveFile, copyText, loadSampleFiles } from "../lib/desktop.js"; // copyText: TASKS.csv #589
 import { sampleProjectName } from "../lib/sampleProjectName.js"; // TASKS.csv #1218
+import SampleButtons from "./viewer/SampleButtons.jsx"; // TASKS.csv #3541
 import { sampleCardsFor, sampleFootnote, askSampleDownload } from "../lib/sampleCards.js"; // TASKS.csv #1346; askSampleDownload: #3133
 import { symbolRadiusByMedium } from "../lib/viewer/surfaceSymbols.js"; // TASKS.csv #1346
 import { sectionFromCentre, sectionThroughHole, fenceLinesWithData, fenceExtentPoints } from "../lib/sectionDefs.js"; // fenceLinesWithData: #2040
@@ -178,7 +180,7 @@ const MODELLING_PANES = new Set(["mapmodel", "settings", "gradeEst", "explicit",
 // TASKS.csv #793 — a model's rectilinear grid (or null) depends only on its cell list: built once per list
 const voxelGridCache = new WeakMap();
 const voxelGridOf = (model) => { let G = voxelGridCache.get(model.cells); if (G === undefined) { G = rectilinearGrid(model.cells); voxelGridCache.set(model.cells, G); } return G; };
-import { PRECIOUS_METALS } from "../lib/geochemColumns.js"; // TASKS.csv #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
+import { PRECIOUS_METALS, gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 import ClosureNote from "./viewer/ClosureNote.jsx"; // TASKS.csv #1689
 const SurfaceTonnage = lazyModal(() => import("./viewer/SurfaceTonnage.jsx")); // TASKS.csv #1690; #3159: lazy (shown only for an expanded closed surface), it brought gradeTonnage.js into startup
 import RasterLegend from "../components/RasterLegend.jsx"; // TASKS.csv #2011
@@ -292,7 +294,7 @@ const CATEGORY_LAYER_KEYS = LEGEND_CATEGORY_KEYS; // TASKS.csv #725 — one list
 const CAPTURE_LONG_PX = 3000;
 // TASKS.csv #906 — outW x outH (CSS px): the size the capture is drawn at, when it is not the canvas's own (a Layout
 // frame's aspect); the renderer goes back to cssW x cssH afterwards.
-const tickedShown = (collars, f) => holesWithoutField(collars, f) ?? holesForFilter(collars, f).holes; // holesWithoutField: #3074 // #1504 — by id parts, or field=value; #1703 — else text in a collar field
+const tickedShown = (collars, f, holeSets) => holesWithoutField(collars, f) ?? holesForFilter(collars, f, { holeSets }).holes; // holeSets: #3554 // holesWithoutField: #3074 // #1504 — by id parts, or field=value; #1703 — else text in a collar field
 function captureHiRes(renderer, cssW, cssH, draw, outW = cssW, outH = cssH, longPx = CAPTURE_LONG_PX) {
   const gl = renderer.getContext();
   const maxRb = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) || 4096;
@@ -624,7 +626,9 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // same category legendOverride already occupies, not project data.
   const [numericSymbology, setNumericSymbology] = useState({});
   const [visibleHoles, setVisibleHoles] = useState({});
+  useEffect(() => publishHoleVisibility(visibleHoles), [visibleHoles]); // TASKS.csv #3605
   const visibleHolesRef = useRef(visibleHoles); visibleHolesRef.current = visibleHoles; // #2930 — read by applyCategoryVisibility
+  const holeSets = useMemo(() => holeSetsOf(assays, layers), [assays, layers]); // TASKS.csv #3554 — has:assays / no:assays
   const [holeFilter, setHoleFilter] = useState(""); // TASKS.csv #222 — sidebar Holes list filter, UI-only (not persisted)
   const [holeColourBy, setHoleColourBy] = useState(""); // TASKS.csv #1504 — a collar field the holes are coloured by ("" = none), UI-only
   const holeScheme = useMemo(() => holeColourScheme(collars, holeColourBy), [collars, holeColourBy]);
@@ -790,7 +794,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const [measurePts, setMeasurePts] = useState([]); // [{x,y,z}, ...] world coordinates
   // TASKS.csv — "slice series" / fence-section generator (user request: "I wanna be able to slice the
   // voxel in equal parts on a specified azi and width"). See generateSliceSeries below.
-  const { sliceSeriesAzimuth, setSliceSeriesAzimuth, sliceSeriesWidth, setSliceSeriesWidth, typedSection, setTypedSection, lineCentre, lineNote } = useDrillLineDefaults(collars); // #2366
+  const shownCollars = useMemo(() => (collars.some((c) => visibleHoles[c.hole_id] === false) ? collars.filter((c) => visibleHoles[c.hole_id] !== false) : collars), [collars, visibleHoles]); // TASKS.csv #3561 — the series follows the holes shown
+  const { sliceSeriesAzimuth, setSliceSeriesAzimuth, sliceSeriesWidth, setSliceSeriesWidth, typedSection, setTypedSection, lineCentre, lineNote } = useDrillLineDefaults(shownCollars); // #2366
   const [fenceCoverModels, setFenceCoverModels] = useState(false); // #1180
 
   const [gridConfig, setGridConfig] = useState({ ...DEFAULT_GRID });
@@ -2395,7 +2400,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   }, [fitBox]);
   const fitView = useCallback((traces) => { const box = new THREE.Box3(); traces.forEach((pts) => pts.forEach((p) => box.expandByPoint(new THREE.Vector3(p.x, p.y, p.z)))); fitBox(box); }, [fitBox]);
   // TASKS.csv #1319 — Matt: "have the project open at a zoom level to include all holes" (models only in a project with no holes; was #313's clamp)
-  const autoFitInitial = useCallback((traces, nHoles) => { fitView(shownTraces() || (nHoles ? traces.slice(0, nHoles) : traces)); }, [fitView]); // #3624 — a filter's holes, not the field
+  // TASKS.csv #3555 — a project saved with holes unchecked opens framed on the shown ones (it framed all 559 collars: the 143 shown were a speck)
+  const autoFitInitial = useCallback((traces, nHoles) => { const hole = nHoles ? traces.slice(0, nHoles) : traces, v = visibleHolesRef.current, shown = (tracesRef.current || []).filter((x) => v?.[x.hole_id] !== false).map((x) => x.pts); fitView(shown.length && shown.length < (tracesRef.current || []).length ? shown : hole); }, [fitView]);
   const zoomToLayer = useCallback((key) => {
     const group = layerGroupsRef.current[key];
     if (!group || !group.children.length) { setNotices((p) => [...p, notice(!collars.length && layers[key]?.length ? "{v}: not drawn, its holes have no collars." : "{v}: nothing rendered to zoom to.", { v: LAYER_META[key]?.label || key })]); return; } // #1813
@@ -2411,7 +2417,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const zoomToSurface = (id) => zoomToObject(implicitMeshesRef.current[id]); // #2996 — a Mine Design result row's zoom
   const fitButton = () => (mode === "surface" ? zoomToFitAll() : zoomToHoles()); // #2092 — Fit on the Surface Geology tab: everything shown
   // TASKS.csv #393 — zoom to one hole (Holes list)
-  const zoomToHole = useCallback((holeId) => { const t = tracesRef.current.find((x) => x.hole_id === holeId); if (!t?.pts?.length) return; const cs = camState.current, ph = holeZoomPhi(t.pts, cs.phi, cs.theta); if (ph != null) cs.phi = ph; /* #2375 — not end-on */ fitBox(new THREE.Box3().setFromPoints(t.pts.map((p) => new THREE.Vector3(p.x, p.y, p.z))), 1.6 /* #2375 — the collar not cut by the top edge */); }, [fitBox]);
+  const zoomToHole = useCallback((holeId) => { const t = tracesRef.current.find((x) => x.hole_id === holeId); if (!t?.pts?.length) return; const cs = camState.current, ph = holeZoomPhi(t.pts, cs.phi, cs.theta); if (ph != null) cs.phi = ph; /* #2375 — not end-on */ fitBox(new THREE.Box3().setFromPoints(t.pts.map((p) => new THREE.Vector3(p.x, p.y, p.z))), 1.6 /* #2375 — the collar not cut by the top edge */); markZoomedHole(sceneRef.current?.getObjectByName("root"), cameraRef.current, mountRef.current, t); /* #3570 */ }, [fitBox]);
   const zoomToPoint = (point) => fitBox(new THREE.Box3().setFromCenterAndSize(point, new THREE.Vector3(80, 80, 80)));
   const resetView = () => { camState.current.theta = Math.PI / 4; camState.current.phi = Math.PI / 3; cameraRef.current?.__update?.(); };
 
@@ -3113,7 +3119,7 @@ ${describeTrend(t)}` };
   // solid changed (#2695, viewer/estimationShells.js)
   const shellsRef = useRef(null);
   const closedShellsForEstimation = () => (shellsRef.current = closedShellsOf(implicitSurfaces, implicitMeshesRef.current, originRef.current, shellsRef.current));
-  const estGround = useMemo(() => (!gradeEstOpen ? null : terrain ? (x, y) => terrainGroundAt(terrain, x, y) : collarGround(collars)), [gradeEstOpen, terrain, collars]); // #2695
+  const estGround = useMemo(() => (!gradeEstOpen ? null : terrain ? (x, y) => terrainGroundAt(terrain, x, y) : collarGround(collars, survey)), [gradeEstOpen, terrain, collars, survey]); // #2695; survey: #3589
   const checkedHoleIds = useMemo(() => new Set(collars.filter((c) => visibleHoles[c.hole_id] !== false).map((c) => c.hole_id)), [collars, visibleHoles]); // #2544; one Set per change: #2695
   // TASKS.csv #802 — a generated / imported surface's mesh in WORLD coordinates (E, N, Z) with its colour, for
   // "Solid blocks from surfaces"
@@ -4186,7 +4192,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       key: [assays, assaySource, assayStyle[sym], idx, assayShapeFor(assayStyle[sym], drawnAssays), ranges[sym], collars, traces, elementUnits[sym]], buildCoarse: assayShapeFor(assayStyle[sym], drawnAssays) === "trace" ? coarseOf : null })); // #3117; coarseOf: #3144 — what the element's markers depend on, besides the offset
     // TASKS.csv #3144 — the level of detail: a hole's consecutive same-colour samples as one marker
     function coarseOf(sym, into, offX, offZ) {
-      const { idx } = specs.find((x) => x.sym === sym), style = assayStyle[sym], batcher = makeAssayBatcher({ minBatch: 1 }), op = style?.opacity ?? 1, u = elementUnits[sym] || "";
+      const { idx } = specs.find((x) => x.sym === sym), style = assayStyle[sym], batcher = makeAssayBatcher({ minBatch: 1 }), op = style?.opacity ?? 1, u = elementUnits[sym] ? gradeUnitLabel(sym, elementUnits[sym]) : ""; // #3586
       collars.forEach((c) => {
         const rows = holesOf().get(c.hole_id), pts = rows && traceOf.get(c.hole_id);
         if (!pts?.length) return;
@@ -4216,7 +4222,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             const px = isPxrfRow(a), op = style?.opacity ?? 1, shape = assayShapeFor(style, drawnAssays, px);
             batcher.add(assayProto(shape), { color: assayColorFor(v, idx, style), transparent: op < 1, opacity: op, side: shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }, // #3055 — no object per sample
               (t) => placeAssayMarker(t, shape, look.at, a, assaySizeFor(v, ranges[sym], style), offX, offZ), // #306 size
-              () => lazyTip({ row: a, holeId: c.hole_id }, () => `${c.hole_id}\n${sym}: ${gradeText(v)} ${elementUnits[sym] || ""}${px ? " (pXRF)" : ""}\n${+a.from.toFixed(2)}–${+a.to.toFixed(2)} m`)); // #1500; #2365 as stored
+              () => lazyTip({ row: a, holeId: c.hole_id }, () => `${c.hole_id}\n${sym}: ${gradeText(v)} ${elementUnits[sym] ? gradeUnitLabel(sym, elementUnits[sym]) : ""}${px ? " (pXRF)" : ""}\n${+a.from.toFixed(2)}–${+a.to.toFixed(2)} m`)); // #1500; #2365 as stored
           });
         } catch (err) { errors.push(`${c.hole_id}: ${err.message}`); }
       });
@@ -4541,7 +4547,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // was wired up — see the TASKS.csv #145 notes for the numbers.
   // TASKS.csv #1324 — what is under a click
   const codeDictRef = useRef(codeDictionary); codeDictRef.current = codeDictionary; // #2816 — for the mount-once hover handler
-  const identify = useIdentify({ mountRef, cameraRef, sceneRef, pickHits, lastActivityRef, originRef, tracesRef, layerGroupsRef, rasterMeshesRef, mapLayerMeshesRef, surfStructObjsRef, mapLayerGroupRef, surfStructGroupRef, terrainMeshRef, rasters, mapLayers, surfaceStructures, codeDictionary /* #2816 */, assays /* #2938 */, voxelModels /* #3178 — a set's members at the picked block */, units: Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit])),
+  const identify = useIdentify({ collars, mountRef, cameraRef, sceneRef, pickHits, lastActivityRef, originRef, tracesRef, layerGroupsRef, rasterMeshesRef, mapLayerMeshesRef, surfStructObjsRef, mapLayerGroupRef, surfStructGroupRef, terrainMeshRef, rasters, mapLayers, surfaceStructures, codeDictionary /* #2816 */, assays /* #2938 */, voxelModels /* #3178 — a set's members at the picked block */, units: Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit])),
     layerLabel: (k) => tr(LAYER_META[k]?.label || customLayers.find((l) => l.id === k)?.name || { assay: "Assays", geophys_pts: "Geophysics points", surface_samples: "Surface samples", holes: "Drillholes" /* #2041 */ }[k] || k),
     kinds: [[implicitGroupRef, tr("Generated surfaces")], [omfGroupRef, tr("OMF objects")], [plannedGroupRef, tr("Planned holes")], [boundaryGroupRef, tr("Boundaries")]], rlOffset: rlOffsetOf(project) /* #2809 */ });
   identifyStopRef.current = () => { if (!identify.on) return false; identify.stop(); return true; };
@@ -4554,157 +4560,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     onGeometryEdited: useCallback((id) => { delete surfaceGeomCacheRef.current[id]; }, []),
   });
 
-  // ---------- TASKS.csv #90 — topological relationship checking ----------
-  // The consumer #83 was missing. Runs src/lib/topology.js over every surface currently in the scene,
-  // using their #83 declared relationships, and reports the ones the GEOMETRY contradicts. Meshes are
-  // handed over in SCENE space (up = +Y) — the check is scale/frame-agnostic, and this avoids
-  // converting tens of thousands of vertices just to ask a yes/no question.
-  const [topologyBusy, setTopologyBusy] = useState(false);
-  const runTopologyCheck = useCallback(() => {
-    if (!implicitSurfaces.length) { setNotices((p) => [...p, notice("No generated surfaces to check yet.")]); return; }
-    setTopologyBusy(true);
-    // Deferred a tick so the "Checking..." state actually paints before a multi-second check on large
-    // meshes blocks the main thread — same pattern the modelling tools use for their own busy state.
-    setTimeout(async () => {
-      try {
-        const { checkTopology } = await import("../lib/topology.js"); // #90; loaded on first use (#476)
-        const input = implicitSurfaces.map((s) => {
-          const geo = implicitMeshesRef.current[s.id]?.geometry;
-          const pos = geo?.attributes?.position?.array;
-          const idx = geo?.index?.array;
-          return {
-            id: s.id, name: surfaceLabels.get(s.id) ?? s.name, type: s.type, closure: s.closure, // #1550
-            relationships: s.relationships || [],
-            positions: pos || [], indices: idx || [],
-          };
-        });
-        const res = checkTopology(input, { up: "y" });
-        if (!res.checked) {
-          setNotices((p) => replaceNotices(p, "topologyCheck", notice("Nothing to check: none of the {surfacesChecked} surface(s) declare a relationship that implies a geometric constraint. Declare \"is below\" / \"is above\" / \"must not cross\" on a surface (expand its row) and run this again.", { surfacesChecked: res.surfacesChecked }))); // #3114
-        } else if (!res.violations.length) {
-          setNotices((p) => replaceNotices(p, "topologyCheck", notice("Topology check passed: {checked} check(s) across {surfacesChecked} surface(s), no violations.{v}", { checked: res.checked, surfacesChecked: res.surfacesChecked, v: res.skipped ? tr(" {skipped} declared relationship(s) skipped — either the target surface no longer exists, or the relationship (truncates / terminates against / cuts) is one where an intersection is expected and so has nothing to violate.", { skipped: res.skipped }) : "" }))); // #3114
-        } else {
-          setNotices((p) => replaceNotices(p, "topologyCheck", appendNotice(notice("Topology check found {violations} violation(s) in {checked} check(s):", { violations: res.violations.length, checked: res.checked }), res.violations.map((v) => ` • ${v.message}`).join("")))); // #3114 — replaces the last check's notice // #1542 — one notice: the count and the list stay together
-        }
-      } catch (err) {
-        setNotices((p) => replaceNotices(p, "topologyCheck", errorNotice(tr("Topology check failed: {message}", { message: err.message }))));
-      } finally {
-        setTopologyBusy(false);
-      }
-    }, 40);
-  }, [implicitSurfaces, surfaceLabels]);
-
-  // ---------- TASKS.csv #52 (d) — CROSS-CUTTING: truncate a surface against a dyke, split it on a fault ----------
-  // A stack (#61) leaves veins and dykes out by design, so cross-cutting is applied after the fact to the finished meshes (src/lib/crosscut.js,
-  // checked against planted cases: TASKS.csv #52). The cutter's geometry decides: a closed body truncates the host, an open surface splits it
-  // into two fault blocks. Meshes in SCENE space (up = +Y), as #90's checker.
-  const [crossCutBusy, setCrossCutBusy] = useState(false);
-  const runCrossCut = useCallback((hostId, cutterId) => {
-    const host = implicitSurfaces.find((s) => s.id === hostId);
-    const cutter = implicitSurfaces.find((s) => s.id === cutterId);
-    if (!host || !cutter || hostId === cutterId) return;
-    const hostMesh = implicitMeshesRef.current[hostId], cutMesh = implicitMeshesRef.current[cutterId];
-    if (!hostMesh || !cutMesh) { setNotices((p) => [...p, notice("Cross-cut failed: one of the two surfaces has no mesh in the scene.")]); return; }
-    const geoOf = (m) => ({ positions: m.geometry?.attributes?.position?.array || [], indices: m.geometry?.index?.array || [] });
-    setCrossCutBusy(true);
-    setTimeout(async () => {
-      try {
-        const { truncateAgainstSolid, splitAcrossSurface } = await import("../lib/crosscut.js"); // #52 (d); loaded on first use (#476)
-        const h = geoOf(hostMesh), c = geoOf(cutMesh);
-        const mkGeo = (positions, indices) => {
-          const g = new THREE.BufferGeometry();
-          g.setAttribute("position", new THREE.Float32BufferAttribute(Float32Array.from(positions), 3));
-          g.setIndex(Array.from(indices));
-          g.computeVertexNormals();
-          return g;
-        };
-        const res = truncateAgainstSolid(h, c);
-        if (!res.ok && res.reason === "cutter-not-closed") {
-          // Not an error — it is the fault case, and the fault case is a SPLIT, not a truncation.
-          const { orientMesh } = await import("../lib/meshValidate.js"); // #1058 — the side test reads each fault triangle's normal
-          const sp = splitAcrossSurface(h, { positions: c.positions, indices: orientMesh(c.positions, c.indices).indices });
-          if (!sp.ok || !sp.changed) {
-            setNotices((p) => [...p, notice("\"{name}\" does not divide \"{name2}\": {v}. Nothing was changed.", { name: cutter.name, name2: host.name, v: sp.reason === "no-overlap" ? tr("the two surfaces are nowhere near each other") : tr("the whole surface falls on one side of it") })]);
-            return;
-          }
-          const stamp = (part, suffix, sense) => {
-            const mesh = new THREE.Mesh(mkGeo(part.positions, part.indices), new THREE.MeshLambertMaterial({
-              color: hostMesh.material?.color?.getHex?.() ?? 0xc8a24a, side: THREE.DoubleSide, transparent: true, opacity: hostMesh.material?.opacity ?? 0.75,
-            }));
-            const name = `${host.name} — ${suffix}`;
-            mesh.userData = { tip: `${name}\n${Math.floor(part.positions.length / 3)} vertices, ${Math.floor(part.indices.length / 3)} faces` };
-            implicitGroupRef.current?.add(mesh);
-            const id = `impl_${Date.now()}_block_${sense}_${Math.random().toString(36).slice(2, 7)}`;
-            implicitMeshesRef.current[id] = mesh;
-            return {
-              id, name, visible: true, type: host.type || "other",
-              vertexCount: Math.floor(part.positions.length / 3), faceCount: Math.floor(part.indices.length / 3),
-              relationships: [{ relation: "terminates_against", targetId: cutterId }],
-              params: {
-                tool: "fault block split" /* TASKS.csv #52 */, derivedFrom: host.name, fault: cutter.name, block: sense,
-                triangles: Math.floor(part.indices.length / 3), components: sense === "+" ? sp.stats.positiveComponents : sp.stats.negativeComponents,
-                edgesBeyondTheFaultTip: sp.stats.unresolvedEdges,
-                note: tr("Geometry only: the surface is divided where the fault mesh cuts it. NO fault displacement is applied — the blocks are not offset along the fault, because no slip has been measured here."),
-                sourceParams: host.params || null, generatedAt: new Date().toISOString(),
-              },
-            };
-          };
-          const a = stamp(sp.positive, "block (+ side of fault)", "+");
-          const b = stamp(sp.negative, "block (− side of fault)", "-");
-          hostMesh.visible = false;
-          setImplicitSurfaces((p) => [...p.map((s) => (s.id === hostId ? { ...s, visible: false } : s)), a, b]);
-          setNotices((p) => [...p, notice("Split \"{name}\" along fault \"{name2}\": {faceCount} + {faceCount2} triangles in two blocks. The original surface is kept but hidden, so nothing is lost. NO displacement has been applied — the blocks are exactly where the surface already was, just separated at the fault.", { name: host.name, name2: cutter.name, faceCount: a.faceCount.toLocaleString(), faceCount2: b.faceCount.toLocaleString() })]);
-          if (sp.stats.unresolvedEdges > 0) {
-            setNotices((p) => [...p, notice("\"{name}\" does not span the whole of \"{name2}\": {unresolvedEdges} edge(s) change sides beyond the fault's own extent, where it has no surface to cut against. Those triangles were left whole and assigned to the block holding most of their corners rather than cut at an invented position, so read the division as approximate near the fault's tip.", { name: cutter.name, name2: host.name, unresolvedEdges: sp.stats.unresolvedEdges })]);
-          }
-          return;
-        }
-        if (!res.ok) { setNotices((p) => [...p, errorNotice(tr("Cross-cut failed ({reason}).", { reason: res.reason }))]); return; }
-        if (!res.changed) {
-          setNotices((p) => [...p, notice("\"{name}\" does not cut \"{name2}\" — {v}. Nothing was changed, which is the correct result: a dyke that stops short of a contact does not truncate it.", { name: cutter.name, name2: host.name, v: res.reason === "no-overlap" ? tr("the two bodies do not even overlap in space") : tr("no part of the surface falls inside it") })]);
-          return;
-        }
-        // Replace the geometry (a NEW BufferGeometry, so the #52 sync-out cache keyed on geometry uuid
-        // re-serialises it and the truncation actually reaches the project file).
-        const old = hostMesh.geometry;
-        hostMesh.geometry = mkGeo(res.positions, res.indices);
-        old?.dispose?.();
-        delete surfaceGeomCacheRef.current[hostId];
-        const st = res.stats;
-        const vertexCount = Math.floor(res.positions.length / 3), faceCount = Math.floor(res.indices.length / 3);
-        hostMesh.userData = { tip: `${host.name}\n${vertexCount} vertices, ${faceCount} faces (truncated against ${cutter.name})` };
-        setImplicitSurfaces((p) => p.map((s) => {
-          if (s.id === hostId) {
-            return {
-              ...s, vertexCount, faceCount,
-              relationships: [...(s.relationships || []).filter((r) => !(r.relation === "cuts" && r.targetId === cutterId)), { relation: "cuts", targetId: cutterId }],
-              params: {
-                ...(s.params || {}),
-                truncatedBy: [...((s.params || {}).truncatedBy || []), {
-                  cutter: cutter.name, cutterId,
-                  trianglesRemoved: st.trianglesDropped, trianglesClipped: st.trianglesClipped,
-                  componentsBefore: st.componentsBefore, componentsAfter: st.componentsAfter,
-                  openEdgeLengthBeforeM: st.boundaryLengthBeforeM, openEdgeLengthAfterM: st.boundaryLengthAfterM,
-                  at: new Date().toISOString(),
-                }],
-              },
-            };
-          }
-          if (s.id === cutterId) {
-            return { ...s, relationships: [...(s.relationships || []).filter((r) => !(r.relation === "truncates" && r.targetId === hostId)), { relation: "truncates", targetId: hostId }] };
-          }
-          return s;
-        }));
-        const fmt = (n) => Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
-        setNotices((p) => [...p, notice("Truncated \"{name}\" against \"{name2}\": {v} triangle(s) removed and {v2} cut at the contact, leaving {v3}. {v4} Its open edge went from {v5} m to {v6} m.", { name: host.name, name2: cutter.name, v: fmt(st.trianglesDropped), v2: fmt(st.trianglesClipped), v3: fmt(faceCount), v4: st.componentsAfter > st.componentsBefore ? tr("The body cuts right through it — the surface is now {componentsAfter} separate pieces (was {componentsBefore}).", { componentsAfter: st.componentsAfter, componentsBefore: st.componentsBefore }) : tr("The surface is still {componentsAfter} connected piece(s), so the cut is a notch rather than a full severance.", { componentsAfter: st.componentsAfter }), v5: fmt(st.boundaryLengthBeforeM), v6: fmt(st.boundaryLengthAfterM) })]);
-        setNotices((p) => [...p, notice("The truncation is not re-run automatically: regenerating either surface produces a fresh, untruncated mesh, and the cut has to be applied again. What was cut is recorded in \"{name}\"'s Parameters used.", { name: host.name })]);
-      } catch (err) {
-        setNotices((p) => [...p, errorNotice(tr("Cross-cut failed: {message}", { message: err.message }))]);
-      } finally {
-        setCrossCutBusy(false);
-      }
-    }, 40);
-  }, [implicitSurfaces]);
+  const { topologyBusy, runTopologyCheck, crossCutBusy, runCrossCut } = useSurfaceChecks({ implicitSurfaces, surfaceLabels, implicitMeshesRef, implicitGroupRef, surfaceGeomCacheRef, setNotices, setImplicitSurfaces }); // TASKS.csv #90 / #52 (d): src/modules/viewer/useSurfaceChecks.js
 
   // ---------- rebuild raster drapes (TASKS.csv #24, #81) ----------
   // moved to lib/viewer/sceneBuilders.js syncRasterDrapes (TASKS.csv #693); its comments explain the build
@@ -5487,7 +5343,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const shown = filteredShown[key] ?? null; // #3295
     const isGeophys = key === "geophys_pts";
     return (
-      <LayerRow key={key} label={tr(meta.label)} count={(layers[key] || []).length} shown={shown} visible={layerVisible[key]}
+      <LayerRow key={key} label={tr(meta.label) + (meta.unit ? ` (${meta.unit})` : "") /* TASKS.csv #3529 */} count={(layers[key] || []).length} shown={shown} visible={layerVisible[key]}
         onToggle={() => toggleLayer(key)}
         onUpload={isGeophys ? () => goToModule("geophysics") : () => fileInputs.current[key].click()}
         onInspect={() => setInspectLayer(key)} onZoom={() => zoomToLayer(key)} onClear={() => clearLayer(key)}
@@ -6217,7 +6073,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const dirX = Math.sin(az), dirY = Math.cos(az);
     const perpX = Math.cos(az), perpY = -Math.sin(az);
 
-    const pts = fenceExtentPoints(voxelModels, tracesRef.current, fenceCoverModels); // #1180
+    const shownT = fenceTracesOf(tracesRef.current, visibleHolesRef.current); // #3561 — the holes shown, not every trace
+    const pts = fenceExtentPoints(voxelModels, shownT, fenceCoverModels); // #1180
 
     if (!pts.length) {
       setNotices((p) => [...p, notice("Slice series needs a visible voxel/block model or at least one drillhole to know what extent to cover — nothing found.")]);
@@ -6235,7 +6092,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     sMin -= alongPad; sMax += alongPad;
 
     // TASKS.csv #393 — lines on round multiples of the spacing, as on a paper plan. #2040 — only the slabs that hold data
-    const { lines, empty: emptySlabs } = fenceLinesWithData(pts, sliceSeriesAzimuth, width, tracesRef.current);
+    const { lines, empty: emptySlabs } = fenceLinesWithData(pts, sliceSeriesAzimuth, width, shownT);
     const n = lines.length;
     if (n > 50 && !window.confirm(tr("This will create {n} sections. Continue?", { n }))) return; // #1180
 
@@ -6253,7 +6110,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     }
     if (emptySlabs) setNotices((p) => [...p, notice("{e} slab(s) with no hole or model cell were skipped.", { e: emptySlabs })]); // #2040
     setNotices((p) => [...p, notice(created === 1 ? "Generated {created} section at azimuth {sliceSeriesAzimuth}° — in the Cross-sections list." : "Generated {created} sections spaced {width}m apart at azimuth {sliceSeriesAzimuth}° — grouped together in the Cross-sections list.", { created, width, sliceSeriesAzimuth: sliceSeriesAzimuth.toFixed(0) })]);
-  }, [fenceCoverModels, sliceSeriesAzimuth, sliceSeriesWidth, voxelModels, upsertSection, addSectionGroup]);
+  }, [fenceCoverModels, sliceSeriesAzimuth, sliceSeriesWidth, voxelModels, upsertSection, addSectionGroup]); // visibleHolesRef: #3561
 
   // TASKS.csv #441 — any commit of this component may have changed the scene (its effects just ran), so
   // wake the render loop from deep idle. Deliberately no dependency array.
@@ -6436,7 +6293,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <button onClick={generateSliceSeries} style={{ ...pBtn, width: "auto", flex: "1 0 auto", marginBottom: 0, alignSelf: "flex-end", padding: "6px 10px" }} title={tr("Generate the slice series")}><Scissors size={14} />{" "}{tr("Generate")}</button>
         </div>
 
-        <FenceOptions {...{ voxelModels, tracesRef, tracesSeq }} azimuth={sliceSeriesAzimuth} width={sliceSeriesWidth} cover={fenceCoverModels} setCover={setFenceCoverModels} labelStyle={miniField} />
+        <FenceOptions {...{ voxelModels, tracesRef, tracesSeq, visibleHoles }} azimuth={sliceSeriesAzimuth} width={sliceSeriesWidth} cover={fenceCoverModels} setCover={setFenceCoverModels} labelStyle={miniField} />
         </>)}
         {toolPane && <div className="ge-pane-end" role="separator" />}{/* #458 */}
         <div className="ge-section-label">{tr("Geometry")}</div>
@@ -7539,8 +7396,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             {/* TASKS.csv #222 — a filter box, the other half of the audit's "no virtualization/filter"
                 finding; finding one hole by ID in a 200+ hole project by eye alone was the real
                 usability gap, not just the render cost (fixed separately via HoleRow's memoization). */}
-            {collars.length > 1 && <HoleFilterBar collars={collars} filter={holeFilter} setFilter={setHoleFilter} visibleHoles={visibleHoles} setVisibleHoles={setVisibleHoles} colourBy={holeColourBy} setColourBy={setHoleColourBy} /* #1504 */ />}
-            <HoleRowList holes={tickedShown(collars, holeFilter)} filterKey={JSON.stringify(holeFilter)} visibleHoles={visibleHoles} onToggle={toggleHole} onOpenStripLog={setStripLogHoleId} onSection={openHoleSection} onZoom={zoomToHole} />{/* #2173 */}
+            {collars.length > 1 && <HoleFilterBar holeSets={holeSets} collars={collars} filter={holeFilter} setFilter={setHoleFilter} visibleHoles={visibleHoles} setVisibleHoles={setVisibleHoles} colourBy={holeColourBy} setColourBy={setHoleColourBy} /* #1504 */ />}
+            <HoleRowList holes={tickedShown(collars, holeFilter, holeSets)} filterKey={JSON.stringify(holeFilter)} visibleHoles={visibleHoles} onToggle={toggleHole} onOpenStripLog={setStripLogHoleId} onSection={openHoleSection} onZoom={zoomToHole} />{/* #2173 */}
           </>
         )}
 
@@ -7624,7 +7481,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             onAction={() => loadSample(sampleCards[0].id)}
             actionDisabled={sampleLoading}
             actionTitle={sampleCards[0].title}
-            secondary={<>{sampleCards.slice(1).map((c, i) => <button key={c.id} type="button" onClick={() => loadSample(c.id)} disabled={sampleLoading} title={c.title} style={{ marginLeft: i ? 8 : 0, padding: "8px 14px", borderRadius: 6, border: "1px solid var(--color-accent)", background: "var(--color-bg)", color: "var(--color-accent-dark)", fontSize: "var(--font-size-base)", fontWeight: 600, cursor: sampleLoading ? "default" : "pointer", opacity: sampleLoading ? 0.6 : 1 }}>{c.label}</button>)}</>}
+            secondary={<SampleButtons cards={sampleCards.slice(1)} onLoad={loadSample} loading={sampleLoading} /> /* TASKS.csv #3541 — each sample's description as its second line */}
             footnote={sampleFootnote()}
           >
             <EmptyViewerBody mode={mode} />{/* #1448 */}
@@ -7665,6 +7522,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             replaced by axisGizmo (created above, rendered every frame via the same viewport/scissor
             technique CompassRose uses), a real camera-synced N/E/Z arrow-triad drawn directly onto
             the canvas at this same bottom-left corner — no DOM element needed for it anymore. */}
+        <HiddenHolesNote collars={collars} visibleHoles={visibleHoles} setVisibleHoles={setVisibleHoles} />{/* #3555 */}
         {sectionMode && sectionPreview && (
           <div style={{ position: "absolute", top: 12, left: 12, fontSize: "var(--font-size-sm)", color: "var(--color-success-fg)", background: "var(--color-bg)", padding: "6px 10px", borderRadius: 6, border: "1px solid var(--color-success-border)" }}>{tr("Start point set — click the end point")}</div>
         )}
@@ -7924,7 +7782,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           />
         );
       })()}
-      {qcModalOpen && <DataQCModal onCancel={() => setQcModalOpen(false)} />}
+      {qcModalOpen && <DataQCModal onCancel={() => setQcModalOpen(false)} onZoomHole={(id) => { zoomToHole(id); setQcModalOpen(false); } /* TASKS.csv #3569 */} />}
       {sectionGeorefOpen && (
         <Suspense fallback={null}>
           <SectionGeorefModal sections={sections} onClose={() => setSectionGeorefOpen(false)}

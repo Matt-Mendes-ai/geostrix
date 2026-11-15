@@ -17,6 +17,7 @@ import { terrainGroundAt } from "./viewer/geomath.js"; // TASKS.csv #558; #927 �
 
 import { didYouMean } from "./holeIds.js"; // TASKS.csv #541 (own module: dataQC stays out of the startup bundle)
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { DEFAULT_DENSITY_RANGE } from "./densityRange.js"; // TASKS.csv #3587
 import { surveyAzimuthDipAt } from "./desurvey.js"; // TASKS.csv #1109
 import { surveyMethodByHole } from "./surveyMethod.js"; // TASKS.csv #2494
 import { coverageInfos } from "./dataQcCoverage.js"; // TASKS.csv #2493
@@ -139,6 +140,20 @@ function validateCollars(collars, survey = []) { // survey: #2186
 // rows, 318 of them bends under 2°, and the errors short-station readings scaled up (3.4° over 3.0 m rated over 10 m = 10°/30 m). A bend counts only when the angle
 // itself is above what a survey tool reads (DOGLEG_MIN_DEG); it is an ERROR only when the angle is more than reading noise (DOGLEG_ERROR_MIN_DEG) AND the rate is one
 // no drill string makes (doglegError, 20°/30 m); and a hole's bends are ONE row (the sharpest, with how many there are), sorted below the other warnings.
+// TASKS.csv #3569 — (hole, from, to) -> 'Zn 0.02 %, Pb 0.05 %': the first three elements (in the project's element order) with a value in the assay interval that holds the middle of the
+// interval; '' when no assay does. The unit is the element's own.
+export function gradesAtFn(assays, assayElements) {
+  const els = (assayElements || []).filter((e) => e?.symbol).slice(0, 12), by = new Map();
+  if (!els.length) return () => "";
+  const lazy = (hole) => { if (by.size === 0 && assays) for (const a of assays) { if (!Number.isFinite(a.from) || !Number.isFinite(a.to)) continue; (by.get(a.hole_id) || by.set(a.hole_id, []).get(a.hole_id)).push(a); } return by.get(hole) || []; };
+  return (hole, from, to) => {
+    const mid = (from + to) / 2, a = lazy(hole).find((x) => x.from <= mid && mid <= x.to);
+    if (!a) return "";
+    const out = [];
+    for (const e of els) { const v = a.values?.[e.symbol]; if (typeof v === "number" && Number.isFinite(v)) out.push(`${e.symbol} ${+v.toPrecision(3)}${e.unit ? ` ${e.unit}` : ""}`); if (out.length === 3) break; }
+    return out.join(", ");
+  };
+}
 export const DOGLEG_MIN_DEG = 2, DOGLEG_ERROR_MIN_DEG = 5, DOGLEG_ERROR_DEFAULT = 20;
 function* validateSurveyAndTrajectorySteps(collars, survey, { doglegWarn = 3, doglegError = DOGLEG_ERROR_DEFAULT } = {}) { // TASKS.csv #3136 — pauses (yield) for the sliced run
   const issues = [];
@@ -276,7 +291,7 @@ function* validateSurveyAndTrajectorySteps(collars, survey, { doglegWarn = 3, do
 // blank / non-numeric to, from > to, negative depths, past the end of the hole, or a hole with no collar). Import
 // stays non-blocking; Data QC has the per-row list. O(rows); collars / survey give hole lengths.
 // TASKS.csv #1531 / #1508 — the plausible value range of a numeric interval layer, for Data QC and for the import notice
-export const PLAUSIBLE_RANGE = { geotech: { min: 0, max: 110 }, recovery: { min: 0, max: 110 }, sg: { min: 1, max: 8 } }; // TASKS.csv #3579 — sg 1-8 t/m³, the range Grade-tonnage reads (sgSummary): 6 flagged real massive galena-sphalerite readings (Macpass has 6.918); 8 is above any rock but a native-metal one
+export const PLAUSIBLE_RANGE = { geotech: { min: 0, max: 110 }, recovery: { min: 0, max: 110 }, sg: DEFAULT_DENSITY_RANGE /* TASKS.csv #3587 — 1-6 t/m³ unless the project sets another (project.densityRange) */ };
 // range (#1508): { min, max } of a plausible value: an SG of -7.27 went in with only 'Loaded 1240 rows'; Data QC listed it, the notice did not
 // TASKS.csv #2167 (WA review #2148, T19) — a hole's length for the past-the-end checks: the deeper of the collar's length and the deepest
 // survey station (#339), ONLY for a hole that has a collar and a length above 0 m. The uranium run flagged 22,404 of 22,407 lithology rows
@@ -338,7 +353,7 @@ export function importCheckSummary(rows, collars, survey, label = "rows", range 
 // TASKS.csv #1531 (review #1497, Lawyers) — range: { min, max } of a plausible value for the layer (RQD 0-110 %, recovery 0-110 %, SG
 // 1-6): a value outside it is reported with its hole and depth. 20 RQD values up to 295 %, recoveries up to 20,000 % (138 m keyed as
 // the recovery of a 1.5 m run) and an SG of -7.27 passed, then drove the numeric legends and classes.
-function* validateIntervalLayerSteps(rows, layerLabel, collarIds, holeLengths, { gaps = true, range = null } = {}) { // #3136
+function* validateIntervalLayerSteps(rows, layerLabel, collarIds, holeLengths, { gaps = true, range = null, unit = "", gradesAt = null } = {}) { // unit / gradesAt: #3569 // #3136
   const issues = [];
   let tick = 0;
   const orphans = new Map(); // TASKS.csv #1663 — rows of holes with no collar, counted per hole
@@ -375,7 +390,11 @@ function* validateIntervalLayerSteps(rows, layerLabel, collarIds, holeLengths, {
     if (Number.isFinite(maxDepth) && Number.isFinite(r.to) && r.to > maxDepth + 0.5) {
       pushIssue(issues, "warning", layerLabel, r.hole_id, tr("Interval to={to}m extends past this hole's own recorded length/survey extent (~{maxDepth}m) — depth may be measured-depth vs true-vertical-depth confusion, or a mis-keyed hole ID.", { to: r.to, maxDepth: maxDepth.toFixed(0) }));
     }
-    if (range && typeof r.value === "number" && Number.isFinite(r.value) && (r.value < range.min || r.value > range.max)) pushIssue(issues, "warning", layerLabel, r.hole_id, tr("Value {v} at {from}–{to}m is outside the plausible {min}–{max} range for {layer} — a keying or unit error?", { v: r.value, from: r.from, to: r.to, min: range.min, max: range.max, layer: layerLabel })); // #1531
+    if (range && typeof r.value === "number" && Number.isFinite(r.value) && (r.value < range.min || r.value > range.max)) {
+      // TASKS.csv #3569 (Fireweed rehearsal) — a density flag with its unit and the sample's grades: 6.31 t/m³ with Zn 0.02 %, Pb 0.05 % is a fair question; the numbers that answer it are held
+      const gr = gradesAt && unit ? gradesAt(r.hole_id, r.from, r.to) : "";
+      pushIssue(issues, "warning", layerLabel, r.hole_id, unit ? tr("Value {v} {unit} at {from}–{to}m is outside the plausible {min}–{max} range for {layer}{grades} — a keying or unit error?", { v: r.value, unit, from: r.from, to: r.to, min: range.min, max: range.max, layer: layerLabel, grades: gr ? tr(" (the sample there: {g})", { g: gr }) : "" }) : tr("Value {v} at {from}–{to}m is outside the plausible {min}–{max} range for {layer} — a keying or unit error?", { v: r.value, from: r.from, to: r.to, min: range.min, max: range.max, layer: layerLabel })); // #1531
+    }
     // #1395 — a 0 (0 % RQD, 0 % recovery) is a measurement, not a missing value: only blank, NaN or "Unknown" counts
     // TASKS.csv #3359 — counted per hole (with the shallowest depth), one line each, as the zero-length rows are (#3037)
     if (r.value == null || r.value === "" || (typeof r.value === "number" && !Number.isFinite(r.value)) || r.value === "Unknown") {
@@ -659,7 +678,7 @@ const INTERVAL_CHECKS = [
   ["structzone", "Structural zones", { gaps: false }], // #604: zones are logged where they occur
   ["geotech", "Geotech", { range: PLAUSIBLE_RANGE.geotech }], // range: #1531
   ["recovery", "Recovery %", { range: PLAUSIBLE_RANGE.recovery }],
-  ["sg", "Specific gravity", { gaps: false, range: PLAUSIBLE_RANGE.sg }],
+  ["sg", "Specific gravity", { gaps: false, range: PLAUSIBLE_RANGE.sg, unit: "t/m³" }], // unit: #3569
   ["litho_gc", "Litho (geochem-derived)"],
   ["alt_gc", "Alteration (geochem-derived)"],
 ];
@@ -675,7 +694,7 @@ export function customIntervalLayers(customLayers) {
   });
 }
 
-export function* runDataQCSteps({ project, collars, survey, layers, boundaries, assays, terrain = null, terrainThreshold = 15, doglegWarn = 3, doglegError = DOGLEG_ERROR_DEFAULT, customLayers = [] }) { // customLayers: #2493
+export function* runDataQCSteps({ project, collars, survey, layers, boundaries, assays, assayElements = [], densityRange = null, terrain = null, terrainThreshold = 15, doglegWarn = 3, doglegError = DOGLEG_ERROR_DEFAULT, customLayers = [] }) { // customLayers: #2493
   const collarIds = new Set(collars.map((c) => c.hole_id));
   // TASKS.csv #339 — end of hole = the DEEPER of the collar length and the last survey station. Letting the
   // survey win outright flagged every interval below the last shot (surveys usually stop short of EOH) as
@@ -687,7 +706,8 @@ export function* runDataQCSteps({ project, collars, survey, layers, boundaries, 
   const parts = [];
   parts.push(validateProject(project), validateCollars(collars, survey), validateCollarsVsTerrain(collars, terrain, terrainThreshold)); yield step(1);
   parts.push(yield* validateSurveyAndTrajectorySteps(collars, survey, { doglegWarn, doglegError })); yield step(2); // #545
-  for (const [k, label, opt] of INTERVAL_CHECKS) { parts.push(yield* validateIntervalLayerSteps(layers[k] || [], label, collarIds, holeLengths, opt)); }
+  const gradesAt = gradesAtFn(assays, assayElements); // TASKS.csv #3569 — the sample's grades beside a density flag
+  for (const [k, label, opt] of INTERVAL_CHECKS) { parts.push(yield* validateIntervalLayerSteps(layers[k] || [], label, collarIds, holeLengths, opt?.unit ? { ...opt, gradesAt, range: densityRange || opt.range /* #3587 — the project's density range */ } : opt)); }
   // TASKS.csv #3211 (#3195, Galore Creek) — the custom interval layers get the same checks (holes, from / to, reversed, overlaps, past the end of
   // the hole); not a binned log (its bins are the import's) nor a modelled layer (made by the app)
   for (const l of customIntervalLayers(customLayers)) parts.push(yield* validateIntervalLayerSteps(l.rows, tr("Custom layer: {name}", { name: l.name }), collarIds, holeLengths, { gaps: false }));

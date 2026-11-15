@@ -14,6 +14,7 @@ import { solidChoices } from "../lib/solidChoices.js"; // TASKS.csv #1564
 import { unitShell } from "../lib/unitVolumes.js";
 import { defaultCellSize, defaultCoverM, undrilledBlockCount, shellOwnCells, shellCellsVolume /* #2966 */ } from "../lib/undrilledZones.js"; // defaultCoverM: #2452; the run itself is in a worker (#2258)
 import { drilledSiteSpacing } from "../lib/evidenceSources.js"; // TASKS.csv #2452; drilledSiteSpacing: #2949
+import { collarsForGround } from "../lib/collarGround.js"; // TASKS.csv #3582
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #1557 — the ground between the collars (collarGround, in the worker since #2258); #2249: unless they are underground
 import { unitSupport } from "../lib/unitSupport.js"; // TASKS.csv #1725 — a one-hole / extrapolated shell is said
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
@@ -114,7 +115,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
     const args = { solid: { positions: unit.positions, indices: unit.indices }, traces: t.traces, coverM: Number(coverM), cellM: Number(cellText) > 0 ? Number(cellText) : own ? own.cellM : 0, cellZM: cellZ > 0 ? cellZ : 0 /* #2966 */, insideOnly, minZoneM3: minText === "" ? null : Number(minText) || 0, minZoneBlocks: MIN_ZONE_BLOCKS /* #2256 — blank: under 8 blocks */ };
     const inputs = { unitId, coverM, cellText, cellZText, insideOnly, withPlanned, minText, assayedOnly /* #3345 */ }, unitName = unit.name;
     job.current?.cancel();
-    const j = runUndrilledZonesAsync(args, terrain ? { terrain } : onCollars ? { collars } : null);
+    const j = runUndrilledZonesAsync(args, terrain ? { terrain } : onCollars ? { collars: collarsForGround(collars, survey) } : null); // #3582
     job.current = j;
     j.promise.then((r) => {
       if (job.current !== j || r?.cancelled) return;

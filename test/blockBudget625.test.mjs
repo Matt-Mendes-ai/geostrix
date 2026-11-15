@@ -9,20 +9,24 @@ const box = { xmin: 0, xmax: 5280, ymin: 0, ymax: 4550, zmin: 0, zmax: 2330 };
 
 test("#625 block count and the smallest cell that fits a budget", () => {
   assert.equal(gridBlockCount(box, 10), 55975920);
-  const fit = cellToFit(box, MAX_BLOCK_BUDGET, 10);
-  assert.ok(gridBlockCount(box, fit) <= MAX_BLOCK_BUDGET && gridBlockCount(box, fit - 0.5) > MAX_BLOCK_BUDGET, `fit ${fit}`);
+  const fit = cellToFit(box, 5000000, 10);
+  assert.ok(gridBlockCount(box, fit) <= 5000000 && gridBlockCount(box, fit - 0.5) > 5000000, `fit ${fit}`);
   assert.ok(fit >= 22 && fit <= 24, `fit ${fit}`); // ~23 m for 5 M blocks
+  // #3581 — up to 50 million: Matt's box at about 10.5 m
+  const fitMax = cellToFit(box, MAX_BLOCK_BUDGET, 10);
+  assert.equal(MAX_BLOCK_BUDGET, 50000000);
+  assert.ok(gridBlockCount(box, fitMax) <= MAX_BLOCK_BUDGET && fitMax >= 10 && fitMax <= 11, `fitMax ${fitMax}`);
   const fitDefault = cellToFit(box, MAX_BLOCKS, 10);
   assert.ok(gridBlockCount(box, fitDefault) <= MAX_BLOCKS && fitDefault > 60);
 });
 
-test("#625 the estimator honours maxBlocks (default 200,000; never above 5 M)", () => {
+test("#625 the estimator honours maxBlocks (default 200,000; never above 50 M since #3581)", () => {
   const pts = [{ x: 50, y: 50, z: 50, value: 1, hole_id: "A" }];
   const b = { xmin: 0, xmax: 300, ymin: 0, ymax: 300, zmin: 0, zmax: 300 }; // 300^3 at 1 m = 27 M; at 5 m = 216,000
   assert.throws(() => estimateDenseGrid(pts, { bounds: b, cellSize: { dx: 5, dy: 5, dz: 5 }, searchRadius: 10 }), /200,000-block limit/);
   const g = estimateDenseGrid(pts, { bounds: b, cellSize: { dx: 5, dy: 5, dz: 5 }, searchRadius: 10, maxBlocks: 1000000 });
   assert.equal(g.nx * g.ny * g.nz, 216000);
-  assert.throws(() => estimateDenseGrid(pts, { bounds: b, cellSize: { dx: 1.5, dy: 1.5, dz: 1.5 }, searchRadius: 10, maxBlocks: 1e9 }), /5,000,000-block limit/);
+  assert.throws(() => estimateDenseGrid(pts, { bounds: b, cellSize: { dx: 0.5, dy: 0.5, dz: 0.5 }, searchRadius: 10, maxBlocks: 1e9 }), /50,000,000-block limit|too many to even mark/); // 216 M blocks
 });
 
 import { estimateBlockModel } from "../src/lib/estimation.js";
