@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { timeAgo } from "../src/lib/timeAgo.js";
 import { sampleProjectName } from "../src/lib/sampleProjectName.js";
-import { guessSurveyMethodFrom } from "../src/lib/geophysSurveys.js";
+import { guessSurveyMethodFrom } from "../src/lib/geophysSurveyTools.js"; // TASKS.csv #3590
 import { surfaceStructureRows, surfaceStructureFeatures, featuresToKml } from "../src/lib/overlayExport.js";
 
 test("#1274 the recovery time is elapsed, not a clock time that depends on the zone", () => {

@@ -34,10 +34,12 @@ import { categoricalModels, modelUnits, unitMedians, modelBody } from "../lib/ge
 const StructFitPanel = React.lazy(() => import("./StructFitPanel.jsx")); // TASKS.csv #2640 Stage 1 — loaded when the section is opened
 import { t as tr } from "../lib/i18n.js";
 import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #1709 // TASKS.csv #786
-import { SURVEY_METHODS, methodIsInvertible, inversionSurveyCounts } from "../lib/geophysSurveys.js"; // TASKS.csv #1151; inversionSurveyCounts: #2403
+import { SURVEY_METHODS } from "../lib/geophysSurveys.js";
+import { methodIsInvertible, inversionSurveyCounts } from "../lib/geophysSurveyTools.js"; // TASKS.csv #3590 // TASKS.csv #1151; inversionSurveyCounts: #2403
 import { terrainFromSurveyElevations } from "../lib/terrainFromPoints.js"; // TASKS.csv #1589
 import { defaultPlannedExtent, generatePlannedStations, DEFAULT_PLANNED, fitPlannedSpacing } from "../lib/plannedGrid.js"; // TASKS.csv #1710; fit: #2969
-import { replaceSurveyPoints, SURVEY_METHODS as SM } from "../lib/geophysSurveys.js"; // TASKS.csv #1710 — the predicted anomaly as a survey
+import { SURVEY_METHODS as SM } from "../lib/geophysSurveys.js";
+import { replaceSurveyPoints } from "../lib/geophysSurveyTools.js"; // TASKS.csv #3590 // TASKS.csv #1710 — the predicted anomaly as a survey
 import { requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #1429
 import { coreCellHint } from "../lib/coreCellHint.js"; // TASKS.csv #1590
 import { inversionLogSources, defaultLogSource, logReadingCounts } from "../lib/inversionLogSources.js"; // TASKS.csv #2950

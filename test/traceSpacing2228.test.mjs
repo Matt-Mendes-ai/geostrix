@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { traceSpacing, autoHaloParams, medianCollarSpacing } from "../src/lib/viewer/geomath.js";
+import { traceSpacing, autoHaloParams, medianCollarSpacing } from "../src/lib/viewer/geomathModelling.js"; // TASKS.csv #3590
 
 // a trace: md every 5 m, world coordinates down a straight line from (x0, y0, z0) towards (dx, dy, dz) per metre
 const trace = (hole_id, x0, y0, z0, dx, dy, dz, len = 300) => {

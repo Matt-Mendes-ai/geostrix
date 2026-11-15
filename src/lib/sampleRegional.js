@@ -6,7 +6,8 @@
 import Papa from "papaparse";
 import { parseShapefileZip } from "./shapefile.js";
 import { buildLayer, autoColorFor } from "./mapLayerBuild.js";
-import { autoCategories, parseStructureRows } from "./mapLayers.js";
+import { autoCategories } from "./mapLayers.js";
+import { parseStructureRows } from "./mapStructures.js"; // TASKS.csv #3590
 import { bearingsToGrid } from "./azimuthRef.js";
 import { mergeSurfaceSamples } from "./geochem.js";
 import { waSurface } from "./sampleWa.js";

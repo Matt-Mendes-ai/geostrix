@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { unitsForMethod } from "../src/lib/geophysSurveys.js";
+import { unitsForMethod } from "../src/lib/geophysSurveyTools.js"; // TASKS.csv #3590
 
 const read = (p) => fs.readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 

@@ -43,7 +43,7 @@ import RasterPictureLegend from "../components/RasterPictureLegend.jsx"; // TASK
 import { tieOf, localToWorld } from "../lib/localGridTie.js"; // TASKS.csv #2587 — a tied local grid's way in; localToWorld: #2648
 import { geosoftXmlCrs } from "../lib/geosoftXml.js"; // TASKS.csv #2830 (sideXmlFor: lib/rasterSideFiles.js since #2857)
 import { rasterFileSet } from "../lib/rasterSideFiles.js"; // TASKS.csv #2857 — the dialog, the sidebar drop and the plan drop pair alike
-import { guessEpsgFromPrjWkt } from "../lib/reproject.js"; // TASKS.csv #2857
+import { guessEpsgFromPrjWkt } from "../lib/reprojectMore.js"; // TASKS.csv #3590 // TASKS.csv #2857
 import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.csv #2854
 import { mineSourceOf, isMineSource } from "../lib/mineGrid.js"; // TASKS.csv #2684 — 'Local mine grid' as the Source CRS
 import { farFromCollars, farLabel } from "../lib/landingCheck.js"; // TASKS.csv #2590

@@ -5,7 +5,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { sameSurveyFile, surveyNameClashes, uniqueSurveyKey, renameSurvey, soleValueColumn, surveyExtent, replaceSurveyPoints } from "../src/lib/geophysSurveys.js";
+import { sameSurveyFile, surveyNameClashes, uniqueSurveyKey, renameSurvey, soleValueColumn, surveyExtent, replaceSurveyPoints } from "../src/lib/geophysSurveyTools.js"; // TASKS.csv #3590
 
 const grid = (n, x0, y0, src, step = 25) => Array.from({ length: n }, (_, i) => ({ x: x0 + (i % 100) * step, y: y0 + Math.floor(i / 100) * step, z: 1000, value: i, _src: src }));
 const main = grid(5000, 400000, 6300000, "IP.xyz"), again = main.map((r) => ({ ...r })), ext = grid(830, 404000, 6302000, "IP.xyz");

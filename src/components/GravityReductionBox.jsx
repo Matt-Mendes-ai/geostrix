@@ -6,7 +6,8 @@ import React, { useMemo, useRef, useState } from "react";
 import { runPfieldsJob } from "../lib/desktop.js";
 import { getProj4Def, reprojectXY } from "../lib/reproject.js";
 import { terrainGrid, looksAbsoluteGravity, alreadyBouguer, grs67FreeAir } from "../lib/gravityReduction.js"; // grs67FreeAir: #2867
-import { surveyKey, replaceSurveyPoints } from "../lib/geophysSurveys.js";
+import { surveyKey } from "../lib/geophysSurveys.js";
+import { replaceSurveyPoints } from "../lib/geophysSurveyTools.js"; // TASKS.csv #3590
 import { t as tr } from "../lib/i18n.js";
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45, marginTop: 4 };

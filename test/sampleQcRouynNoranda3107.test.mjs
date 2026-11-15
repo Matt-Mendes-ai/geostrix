@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import Papa from "papaparse";
 import { REGIONAL_SAMPLES, loadRegionalSample } from "../src/lib/sampleRegional.js";
-import { parseStructureRows } from "../src/lib/mapLayers.js";
+import { parseStructureRows } from "../src/lib/mapStructures.js"; // TASKS.csv #3590
 import { parseShapefileZip } from "../src/lib/shapefile.js";
 import { BLAKE_EPSG } from "../src/lib/sampleBlakeRiver.js";
 import { read, exists, table, folderBytes, tiff, fileOf, said, checkOffered } from "./sampleChecks3107.mjs";

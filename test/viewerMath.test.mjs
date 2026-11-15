@@ -2,10 +2,8 @@
 // for the first time. Each case states the geometric fact it checks.
 import test from "node:test";
 import assert from "node:assert/strict";
-import {
-  searchEllipsoidBasis, searchEllipsoidDistSq, filterBySearchSupport, anisoScales, anisoWarpPoint, invScales, anisoWarpDirection,
-  medianCollarSpacing, autoHaloParams, splitIntervalForSampling, spatialClusters, voxelCellSupported, sampleTerrainElevation,
-} from "../src/lib/viewer/geomath.js";
+import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellSupported, sampleTerrainElevation } from "../src/lib/viewer/geomath.js";
+import { filterBySearchSupport, anisoScales, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, splitIntervalForSampling, spatialClusters } from "../src/lib/viewer/geomathModelling.js"; // TASKS.csv #3590
 import { depthKey, intervalEndIndex, continuesUnitAbove, mergeTouchingIntervals } from "../src/lib/viewer/intervals.js";
 
 const near = (a, b, tol = 1e-9) => Math.abs(a - b) <= tol;

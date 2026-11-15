@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { bodyCellPastRuns, autoBodyParams } from "../src/lib/viewer/geomath.js";
+import { bodyCellPastRuns, autoBodyParams } from "../src/lib/viewer/geomathModelling.js"; // TASKS.csv #3590
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
 test("only a coarsened cell thicker than the thickest run, with runs known", () => {

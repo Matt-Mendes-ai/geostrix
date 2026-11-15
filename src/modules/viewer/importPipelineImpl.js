@@ -15,7 +15,8 @@ import { lonLatForCollars } from "../../lib/projectCrs.js"; // TASKS.csv #1235
 import { featureCountText } from "../../lib/featureCount.js"; // TASKS.csv #1116
 import { errorNotice, notice, appendNotice } from "../../lib/notices.js"; // TASKS.csv #739 — caught errors show as errors whatever their wording
 import * as THREE from "three";
-import { reprojectXY, pointTransform, turnGridBearing, bearingTurn, crsName, guessEpsgFromPrjWkt } from "../../lib/reproject.js";
+import { reprojectXY, pointTransform, turnGridBearing, bearingTurn, crsName } from "../../lib/reproject.js";
+import { guessEpsgFromPrjWkt } from "../../lib/reprojectMore.js"; // TASKS.csv #3590
 import { surveyAzimuthDipAt, holeAttitudeAssumed } from "../../lib/desurvey.js"; // holeAttitudeAssumed: #2014
 import { fillMissingCollarZ, settleAssumedZ } from "../../lib/collarElevation.js"; // TASKS.csv #2169
 import { markSuspectElevations } from "../../lib/collarElevationTrust.js"; // TASKS.csv #3004 / #2896

@@ -4,7 +4,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { eqsApplies, SURVEY_METHODS } from "../src/lib/geophysSurveys.js";
+import { SURVEY_METHODS } from "../src/lib/geophysSurveys.js";
+import { eqsApplies } from "../src/lib/geophysSurveyTools.js"; // TASKS.csv #3590
 import { cloudShape } from "../src/lib/cloudShape.js";
 
 test("which surveys get equivalent sources", () => {

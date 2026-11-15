@@ -4,7 +4,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { SURVEY_METHODS, guessSurveyMethod, guessSurveyMethodFrom, fileHints, diurnalApplies } from "../src/lib/geophysSurveys.js";
+import { SURVEY_METHODS } from "../src/lib/geophysSurveys.js";
+import { guessSurveyMethod, guessSurveyMethodFrom, fileHints, diurnalApplies } from "../src/lib/geophysSurveyTools.js"; // TASKS.csv #3590
 
 const VLF_COLS = ["X", "Y", "elev", "sat", "time", "station", "f_21p4", "ip_21p4", "op_21p4", "h1_21p4", "f_25p2", "ip_25p2", "op_25p2", "pT_25p2"];
 const GEM = "Gem Systems GSM-19WV 5026975 v7.0 6 V 2019 M ewv6flu..v7o";

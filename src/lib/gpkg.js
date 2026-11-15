@@ -26,7 +26,8 @@
 import initSqlJs from "sql.js";
 import sqlWasmUrl from "sql.js/dist/sql-wasm.wasm?url";
 import { prjWktFor } from "./shapefile.js";
-import { crsName, guessEpsgFromPrjWkt } from "./reproject.js"; // TASKS.csv #415
+import { crsName } from "./reproject.js";
+import { guessEpsgFromPrjWkt } from "./reprojectMore.js"; // TASKS.csv #3590 // TASKS.csv #415
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { polygonsFromRings, closeRing } from "./polygonRings.js"; // TASKS.csv #728 / #1025
 

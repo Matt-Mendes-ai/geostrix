@@ -1,7 +1,8 @@
 // TASKS.csv #814 — what every online terrain source does once it has elevations on a lon/lat node grid: the grid size
 // (#796), the reprojection into the project CRS the way parseDEMFiles does for a geographic source, and the no-data fill
 // (#421). Moved out of srtmFetch.js unchanged so the AWS Terrain Tiles and the Copernicus GLO-30 sources share it.
-import { getProj4Def, reprojectGrid } from "./reproject.js";
+import { getProj4Def } from "./reproject.js";
+import { reprojectGrid } from "./reprojectMore.js"; // TASKS.csv #3590
 import { fillNoData, noDataNote } from "./demFill.js"; // TASKS.csv #421
 
 // TASKS.csv #796 — in ground distance: a degree of longitude is cos(latitude) of a degree of latitude, so a square

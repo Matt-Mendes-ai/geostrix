@@ -3,7 +3,8 @@
 import { CATEGORICAL_SAFE_COLORS } from "./layers.js";
 import { readsAsMineGrid, mineToProject, partsBox, isMineSource, mineChoiceToProject } from "./mineGrid.js"; // TASKS.csv #2586; isMineSource, mineChoiceToProject: #2684
 import { fileToLocal } from "./localGridTie.js"; // TASKS.csv #2320
-import { reprojectXY, getProj4DefSync, prjRefusal, datumNote, crsName } from "./reproject.js"; // crsName: #2774
+import { reprojectXY, getProj4DefSync, datumNote, crsName } from "./reproject.js";
+import { prjRefusal } from "./reprojectMore.js"; // TASKS.csv #3590 // crsName: #2774
 // TASKS.csv #2774 (split from #2467) — the file's CRS by name, as Boundaries / Claims say it (lib/boundaryImport.js crsLabel): "EPSG:26909" alone
 // told a geologist nothing; the datum caveat (datumNote) was already there
 const crsLabel = (c) => { const n = crsName(Number(c)); return n ? `${n} (EPSG:${c})` : `EPSG:${c}`; };

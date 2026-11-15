@@ -2,7 +2,7 @@
 // coordinates; the drill assay import knows samp_num as the sample ID
 import test from "node:test";
 import assert from "node:assert/strict";
-import { guessStructureColumns } from "../src/lib/mapLayers.js";
+import { guessStructureColumns } from "../src/lib/mapStructures.js"; // TASKS.csv #3590
 import { qcColumns } from "../src/lib/assayQcColumns.js";
 
 test("Lawyers' rock-station headers: dip1 / strike1 / dip_dir1, not their confidence columns; e_utm / n_utm as X / Y", () => {

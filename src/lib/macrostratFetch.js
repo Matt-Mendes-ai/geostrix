@@ -1,7 +1,8 @@
 // TASKS.csv #2005 — the browser side of the Macrostrat layer (lib/macrostrat.js holds the pure parts): the tiles over the area, two at a
 // time through the main process, stitched, resampled to longitude / latitude and warped into the project CRS (as a WMS map, #418).
 import { macrostratFetch } from "./desktop.js";
-import { reprojectImageRGBA, getProj4DefSync } from "./reproject.js";
+import { getProj4DefSync } from "./reproject.js";
+import { reprojectImageRGBA } from "./reprojectMore.js"; // TASKS.csv #3590
 import { wmsImageSize, wmsPixelMetres } from "./webLayers.js";
 import { MACROSTRAT_TILE_URL, MACROSTRAT_MVT_URL, MACROSTRAT_API, MACROSTRAT_CREDIT, planMacrostratTiles, mercatorToLonLat, parseMacrostratUnits, parseMacrostratSources, tilePixelMetres, outputLongPx, macrostratLegend, macrostratUnitFeatures, macrostratLayersInArea } from "./macrostrat.js"; // MVT / legend: #2011; unit features: #2012
 import { parseLithologies } from "./macrostratColours.js";

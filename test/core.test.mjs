@@ -57,7 +57,8 @@ test("#416 reprojection still gives the same coordinates", () => {
 });
 
 import proj4 from "proj4";
-import { reprojectGrid, bilinearSample, getProj4DefSync } from "../src/lib/reproject.js";
+import { getProj4DefSync } from "../src/lib/reproject.js";
+import { reprojectGrid, bilinearSample } from "../src/lib/reprojectMore.js"; // TASKS.csv #3590
 test("#450 approximate grid warp matches exact per-pixel projection", () => {
   const N = 300, from = getProj4DefSync(4326), to = getProj4DefSync(32609);
   const src = { xmin: -131, ymin: 56, xmax: -130, ymax: 57, gridW: N, gridH: N, band: new Float32Array(N * N).map((_, i) => Math.sin((i % N) / 7) * 100 + ((i / N) | 0)) };
@@ -99,7 +100,7 @@ test("#427 alpha/beta -> dip/dip direction round-trips through the forward model
   assert.ok(orientFromAlphaBeta({ alphaDeg: 40, betaDeg: 100, holeAzDeg: 0, holeDipDeg: 89.5 }).error); // near-vertical: refused
 });
 
-import { parseStructureRows } from "../src/lib/mapLayers.js";
+import { parseStructureRows } from "../src/lib/mapStructures.js"; // TASKS.csv #3590
 import { isOverturnedValue } from "../src/lib/layers.js";
 test("#430 outcrop numbers with units or labels parse; quadrant strikes stay skipped; overturned values", () => {
   const cols = { x: "x", y: "y", dip: "dip", dipDir: "dd" };
@@ -201,7 +202,8 @@ test("#397 planned holes for the rig: lat/lon, true and magnetic azimuth, KML/GP
   assert.match(rigGPX([r]), /<wpt lat="55\.\d+" lon="-129\.\d+">/);
 });
 
-import { reprojectXY as rxy419, guessEpsgFromPrjWkt } from "../src/lib/reproject.js";
+import { reprojectXY as rxy419 } from "../src/lib/reproject.js";
+import { guessEpsgFromPrjWkt } from "../src/lib/reprojectMore.js"; // TASKS.csv #3590
 import proj4b from "proj4";
 test("#419 EPSG 4617 / 3979 / 3857 and WKT AUTHORITY detection", () => {
   // 4617 -> 3156 (both NAD83(CSRS)) must be a pure projection: same as projecting on GRS80 with no datum shift.
@@ -488,7 +490,8 @@ test("#375 ternary channels stretch independently and sample across different gr
   assert.equal(suggestThinSpacing(xs.slice(0, 100), ys.slice(0, 100)), null);
 });
 
-import { surveyStats, makeSurveyColorer, aglToElevation } from "../src/lib/geophysSurveys.js";
+import { makeSurveyColorer } from "../src/lib/geophysSurveys.js";
+import { surveyStats, aglToElevation } from "../src/lib/geophysSurveyTools.js"; // TASKS.csv #3590
 test("#451 surveys: stats per survey, colours on each survey's own range, radar-altimeter heights -> elevations", () => {
   const rows = [
     { _src: "mag.csv", x: 0, y: 0, z: 100, value: 50000, line: "10" }, { _src: "mag.csv", x: 1, y: 0, z: 100, value: 50100, line: "20" },

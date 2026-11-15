@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { gridCellText } from "../src/lib/raster.js";
-import { prjRefusal } from "../src/lib/reproject.js";
+import { prjRefusal } from "../src/lib/reprojectMore.js"; // TASKS.csv #3590
 import { columnHasNoNumbers, fieldNeedsNumber } from "../src/lib/importChecks.js";
 import { pickReport } from "../src/lib/pickDiagnostics.js";
 import { mapLayerFeatures } from "../src/lib/overlayExport.js";

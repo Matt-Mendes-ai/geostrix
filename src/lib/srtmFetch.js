@@ -18,7 +18,8 @@
 // Actual tile bytes are fetched via desktop.js's fetchSRTMTile (proxied through Electron's main
 // process when available, direct fetch as a browser/dev fallback) — see that file's header comment.
 import { fetchSRTMTile } from "./desktop.js";
-import { pointTransform, neighbourUtmZones } from "./reproject.js";
+import { pointTransform } from "./reproject.js";
+import { neighbourUtmZones } from "./reprojectMore.js"; // TASKS.csv #3590
 import { terrainGroundAt } from "./viewer/geomath.js"; // TASKS.csv #614; #927 — never compared with the fill
 import { gridDims, finishTerrain } from "./terrainGrid.js"; // TASKS.csv #814 — shared with the Copernicus source
 import { copernicusRise, isArtifactCone } from "./copernicusDem.js"; // TASKS.csv #814

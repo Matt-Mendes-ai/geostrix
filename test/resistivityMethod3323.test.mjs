@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { guessSurveyMethod, guessSurveyMethodFrom, fileHints } from "../src/lib/geophysSurveys.js";
+import { guessSurveyMethod, guessSurveyMethodFrom, fileHints } from "../src/lib/geophysSurveyTools.js"; // TASKS.csv #3590
 import { surveyMetaFor } from "../src/lib/surveyLegendDefault.js";
 import { isLogSpaced } from "../src/lib/pointSurveyScale.js";
 

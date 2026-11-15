@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { onlyValueLeft } from "../src/lib/geosoft.js";
-import { guessSurveyMethod } from "../src/lib/geophysSurveys.js";
+import { guessSurveyMethod } from "../src/lib/geophysSurveyTools.js"; // TASKS.csv #3590
 
 test("#3208 the one usable column the coordinates leave is the Value", () => {
   const rows = Array.from({ length: 50 }, (_, i) => ({ X: i, Y: i, Z: 100, AppMx: i * 0.3, _line: 1 }));

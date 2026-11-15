@@ -3,7 +3,7 @@
 // modules/viewer/useImportPipeline.js and ViewerModule.jsx.
 import { loadGpkg, SKIP_REASONS } from "./importHelpersCore.js"; // TASKS.csv #3590
 export { SHAPEFILE_SIDECAR, groupShapefileParts, loadGpkg, SKIP_REASONS, codeList } from "./importHelpersCore.js";
-import { guessEpsgFromPrjWkt } from "../reproject.js";
+import { guessEpsgFromPrjWkt } from "../reprojectMore.js"; // TASKS.csv #3590
 import { isElementColumn, parseAssayValue } from "../geochemColumns.js"; // TASKS.csv #600; parseAssayValue: #2185; #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 // TASKS.csv #552 — the KML / xlsx / shapefile readers load on first use (they were ~20 kB of startup JavaScript)
 const loadKml = () => import("../kml.js");

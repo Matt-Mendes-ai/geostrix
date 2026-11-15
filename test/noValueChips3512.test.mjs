@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { geophysTipText } from "../src/lib/viewer/geophysPts.js";
-import { surveyExportRows } from "../src/lib/geophysSurveys.js";
+import { surveyExportRows } from "../src/lib/geophysSurveyTools.js"; // TASKS.csv #3590
 
 const read = (p) => fs.readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 

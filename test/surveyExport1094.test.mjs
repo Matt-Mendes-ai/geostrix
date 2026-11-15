@@ -1,7 +1,7 @@
 // TASKS.csv #1094 — a geophysics survey's points as CSV rows
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { surveyExportRows } from "../src/lib/geophysSurveys.js";
+import { surveyExportRows } from "../src/lib/geophysSurveyTools.js"; // TASKS.csv #3590
 
 test("#1094 value named by method and unit; line / fiducial kept; absent columns left out", () => {
   const pts = [{ x: 1, y: 2, z: 900, value: 57012.4, line: "L10", fid: 1, _src: "mag.xyz" }, { x: 3, y: 4, z: null, value: 57020.1, line: "L10", fid: 2, _src: "mag.xyz" }];

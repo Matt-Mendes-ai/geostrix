@@ -7,7 +7,7 @@
 // one failing does not stop the other.
 import { parseTableText } from "./tabular.js";
 import { rowsToGeophysPoints } from "./geophysColumns.js";
-import { replaceSurveyPoints } from "./geophysSurveys.js";
+import { replaceSurveyPoints } from "./geophysSurveyTools.js"; // TASKS.csv #3590
 import { reprojectXY } from "./reproject.js";
 import { notice, errorNotice } from "./notices.js";
 import { t as tr } from "./i18n.js";

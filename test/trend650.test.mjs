@@ -2,7 +2,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { trendBasis, trendScales, trendSearchScales, fromLegacyAnisotropy, planeFromPoles, poleOf, planeFromPoints, cleanTrend } from "../src/lib/trend.js";
-import { searchEllipsoidBasis, anisoScales } from "../src/lib/viewer/geomath.js";
+import { searchEllipsoidBasis } from "../src/lib/viewer/geomath.js";
+import { anisoScales } from "../src/lib/viewer/geomathModelling.js"; // TASKS.csv #3590
 
 const close = (a, b, tol = 1e-9) => Math.abs(a - b) <= tol;
 const vclose = (u, v, tol = 1e-9) => close(u.x, v.x, tol) && close(u.y, v.y, tol) && close(u.z, v.z, tol);
@@ -78,7 +79,7 @@ test("geoML terms: a down-dip trend is azimuth = dip azimuth, dip = dip, rake 0;
 
 // TASKS.csv #653 — an orientation must come out of the warp as the plane its warped POINTS lie on
 test("anisoWarpDirection gives the plane the warped points lie on (normals transform by the inverse)", async () => {
-  const { anisoWarpPoint, anisoWarpDirection } = await import("../src/lib/viewer/geomath.js");
+  const { anisoWarpPoint, anisoWarpDirection } = await import("../src/lib/viewer/geomathModelling.js");
   const planeOfPoints = (a, b, c) => {
     const u = { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z }, v = { x: c.x - a.x, y: c.y - a.y, z: c.z - a.z };
     return { x: u.y * v.z - u.z * v.y, y: u.z * v.x - u.x * v.z, z: u.x * v.y - u.y * v.x };

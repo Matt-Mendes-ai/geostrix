@@ -14,7 +14,8 @@
 import { BaseClient, BaseResponse, fromCustomClient } from "geotiff";
 import { writeGeoTiff } from "./geotiffWrite.js"; // TASKS.csv #1038 — geotiff.js header, one loop for the pixels
 import { remoteSensingFetch } from "./desktop.js";
-import { reprojectXY, reprojectGrid, getProj4DefSync } from "./reproject.js";
+import { reprojectXY, getProj4DefSync } from "./reproject.js";
+import { reprojectGrid } from "./reprojectMore.js"; // TASKS.csv #3590
 import { pointInRings } from "./mapLayers.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 

@@ -3,7 +3,8 @@
 // area through the table's R-tree index. The 791 MB BC surficial geology file read whole froze the window 55 s and took the heap to
 // 2.7 GB; read this way, a project's area comes back in well under a second.
 import { epsgBySrsRows, layerFromRows } from "./gpkg.js";
-import { getProj4Def, projectedBounds } from "./reproject.js";
+import { getProj4Def } from "./reproject.js";
+import { projectedBounds } from "./reprojectMore.js"; // TASKS.csv #3590
 import { gpkgIndex, gpkgRead } from "./desktop.js";
 import { t as tr } from "./i18n.js";
 

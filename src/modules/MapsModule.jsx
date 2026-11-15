@@ -20,7 +20,7 @@ import CartographyModule from "./CartographyModule.jsx";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { groupShapefileParts, parseVectorFile } from "../lib/viewer/importHelpers.js"; // TASKS.csv #2019
 import { buildLayer, sameMapLayer, mapsDropRoutes } from "../lib/mapLayerBuild.js"; // TASKS.csv #2019
-import { guessEpsgFromPrjWkt } from "../lib/reproject.js";
+import { guessEpsgFromPrjWkt } from "../lib/reprojectMore.js"; // TASKS.csv #3590
 import { featureCountText } from "../lib/featureCount.js";
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 

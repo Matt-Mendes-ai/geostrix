@@ -2,7 +2,8 @@
 // reprojectImageRGBA (the same nearest-neighbour warp raster import uses) and re-encoded, with its new bbox.
 // Numeric value grids were already re-gridded by projectReproject.js. Kept apart from that pure module
 // because it needs a canvas.
-import { getProj4DefSync, reprojectImageRGBA } from "./reproject.js";
+import { getProj4DefSync } from "./reproject.js";
+import { reprojectImageRGBA } from "./reprojectMore.js"; // TASKS.csv #3590
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 async function decode(dataUrl) {

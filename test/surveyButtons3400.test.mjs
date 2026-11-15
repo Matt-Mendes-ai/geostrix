@@ -4,7 +4,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { methodWithHint, METHOD_HINTS, SURVEY_METHODS } from "../src/lib/geophysSurveys.js";
+import { SURVEY_METHODS } from "../src/lib/geophysSurveys.js";
+import { methodWithHint, METHOD_HINTS } from "../src/lib/geophysSurveyTools.js"; // TASKS.csv #3590
 import { PANE_HELP } from "../src/lib/help.js";
 import { pageById } from "../src/help/content.js";
 

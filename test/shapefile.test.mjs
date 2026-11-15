@@ -3,7 +3,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { prjWktFor, buildShapefileZip, parseShapefileZip, parseShapefileParts, readZipEntries, dbfEncoding } from "../src/lib/shapefile.js";
-import { listSupportedCrs, guessEpsgFromPrjWkt } from "../src/lib/reproject.js";
+import { listSupportedCrs } from "../src/lib/reproject.js";
+import { guessEpsgFromPrjWkt } from "../src/lib/reprojectMore.js"; // TASKS.csv #3590
 
 test("#415 a .prj for every listed CRS, read back as the same code", () => {
   // (PROJ 9.8 also identifies all 273 as the right EPSG code with identical projection maths — TASKS.csv #415)

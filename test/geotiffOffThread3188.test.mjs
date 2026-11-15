@@ -12,7 +12,7 @@ globalThis.document = { createElement: () => ({ width: 0, height: 0, getContext:
 class FakeOffscreen { constructor(w, h) { this.width = w; this.height = h; } getContext() { return ctx2d(); } async convertToBlob({ type }) { return new Blob([new Uint8Array([1, 2, 3])], { type }); } }
 globalThis.ImageData = class { constructor(data, w, h) { this.data = data; this.width = w; this.height = h; } };
 const { parseGeoTIFF, parseGeoTiffOffThread, reprojectPictureOffThread, geotiffImportWork } = await import("../src/lib/raster.js");
-const { reprojectImageRGBA, getProj4Def } = await import("../src/lib/reproject.js");
+const { getProj4Def } = await import("../src/lib/reproject.js"); const { reprojectImageRGBA } = await import("../src/lib/reprojectMore.js");
 
 // a worker that runs the real job in this process, as the browser would (structured clone of the message both ways), with no document
 function fakeWorker({ fail = null } = {}) {

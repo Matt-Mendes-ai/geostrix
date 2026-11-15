@@ -20,7 +20,8 @@ test("#420 terrain GeoTIFF: pixel centres are the grid nodes, and it re-imports 
 });
 
 import { fillNoData, decodeNoDataMask, isNoData, noDataNote } from "../src/lib/demFill.js";
-import { reprojectGrid, getProj4DefSync } from "../src/lib/reproject.js";
+import { getProj4DefSync } from "../src/lib/reproject.js";
+import { reprojectGrid } from "../src/lib/reprojectMore.js"; // TASKS.csv #3590
 test("#421 reprojection wedges are recorded as no-data, not silently flattened", () => {
   const N = 200, band = new Float32Array(N * N).fill(1500);
   const r = reprojectGrid({ xmin: -130.5, ymin: 56, xmax: -129.5, ymax: 57, gridW: N, gridH: N, band }, getProj4DefSync(4326), getProj4DefSync(32609), N, N);

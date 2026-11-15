@@ -35,7 +35,8 @@ import { assayIndicatorInGaps } from "../../lib/assayInGaps.js"; // TASKS.csv #2
 import { excludeQAQC } from "../../lib/qaqc.js";
 import { errorNotice, notice, appendNotice, infoNotice } from "../../lib/notices.js"; // infoNotice: #2047
 import { noCollarsNotice } from "../../lib/noCollars.js"; // TASKS.csv #1841 — what is waiting for collars
-import { filterBySearchSupport, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, autoBodyParams, bodyCellPastRuns, seamCells /* #2384 */, mergedRuns, splitIntervalForSampling, spatialClusters, terrainGroundAt } from "../../lib/viewer/geomath.js";
+import { terrainGroundAt } from "../../lib/viewer/geomath.js";
+import { filterBySearchSupport, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, autoBodyParams, bodyCellPastRuns, seamCells /* #2384 */, mergedRuns, splitIntervalForSampling, spatialClusters } from "../../lib/viewer/geomathModelling.js"; // TASKS.csv #3590
 import { intervalEndIndex, intervalStartIndex, upperContactOf, mergeTouchingIntervals, depthIndexAt } from "../../lib/viewer/intervals.js";
 import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode, inTargetUnit, startsBelowNonUnit, startsBelowOverburden, overburdenBases } from "../../lib/modellingCodes.js"; // TASKS.csv #599; #1367; #1684
 import { samplesInsideShell } from "../../lib/shellSupport.js"; // TASKS.csv #1735

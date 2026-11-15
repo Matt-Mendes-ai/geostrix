@@ -7,7 +7,8 @@
 import Papa from "papaparse";
 import { parseShapefileParts } from "./shapefile.js";
 import { buildLayer, autoColorFor } from "./mapLayerBuild.js";
-import { autoCategories, parseStructureRows } from "./mapLayers.js";
+import { autoCategories } from "./mapLayers.js";
+import { parseStructureRows } from "./mapStructures.js"; // TASKS.csv #3590
 import { bearingsToGrid } from "./azimuthRef.js";
 import { parseDEMFiles } from "./raster.js";
 import { notice, errorNotice } from "./notices.js";

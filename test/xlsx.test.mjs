@@ -256,7 +256,7 @@ test("#600 point colours: default range is the 2nd-98th percentile, spikes clamp
 });
 
 test("#600 re-importing a survey file replaces its points instead of doubling them", async () => {
-  const { replaceSurveyPoints } = await import("../src/lib/geophysSurveys.js");
+  const { replaceSurveyPoints } = await import("../src/lib/geophysSurveyTools.js");
   const a = [{ value: 1, _src: "day1.xyz" }, { value: 2, _src: "day1.xyz" }, { value: 9, _src: "day2.xyz" }];
   const r = replaceSurveyPoints(a, [{ value: 3, _src: "day1.xyz" }]);
   assert.deepEqual(r.rows.map((x) => x.value), [9, 3]);

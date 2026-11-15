@@ -3,7 +3,8 @@
 // a .prj for the new CRS. Nothing is imported into the project. Heights (z) are unchanged, as everywhere in
 // GeoStrix (no vertical datum model). Pure apart from the zip / DBF work in shapefile.js.
 import { parseShapefileZip, buildZip, readZipEntries, prjWktFor } from "./shapefile.js";
-import { guessEpsgFromPrjWkt, pointTransform, crsName, getProj4DefSync, reprojectGrid } from "./reproject.js";
+import { pointTransform, crsName, getProj4DefSync } from "./reproject.js";
+import { guessEpsgFromPrjWkt, reprojectGrid } from "./reprojectMore.js"; // TASKS.csv #3590
 import { fromArrayBuffer } from "geotiff";
 import { writeGeoTiff } from "./geotiffWrite.js"; // TASKS.csv #1038 — geotiff.js header, one loop for the pixels
 import { demNodeBbox, epsgFromGeoKeys } from "./raster.js";

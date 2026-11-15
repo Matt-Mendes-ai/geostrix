@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { structureClass, structureCodeKey, parseStructureRows, STRUCTURE_CLASSES } from "../src/lib/mapLayers.js";
+import { structureClass, structureCodeKey, parseStructureRows, STRUCTURE_CLASSES } from "../src/lib/mapStructures.js"; // TASKS.csv #3590
 
 test("the WA log's codes: shear, S-C, the VN family, crenulation, S-zero, dyke", () => {
   for (const c of ["SH", "SHZ", "SC", "SCZ", "Shear"]) assert.equal(structureClass(c), "fault", c);

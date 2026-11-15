@@ -6,7 +6,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { seamCells } from "../src/lib/viewer/geomath.js";
+import { seamCells } from "../src/lib/viewer/geomathModelling.js"; // TASKS.csv #3590
 import { surfacesToBlock } from "../src/lib/surfaceSolids.js";
 import { medianStackThickness } from "../src/lib/stackResolution.js";
 

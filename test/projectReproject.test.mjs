@@ -2,7 +2,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { reprojectProject } from "../src/lib/projectReproject.js";
-import { reprojectXY, listSupportedCrs, crsName, getProj4DefSync, datumNote, guessEpsgFromPrjWkt } from "../src/lib/reproject.js";
+import { reprojectXY, listSupportedCrs, crsName, getProj4DefSync, datumNote } from "../src/lib/reproject.js";
+import { guessEpsgFromPrjWkt } from "../src/lib/reprojectMore.js"; // TASKS.csv #3590
 import { f32ToB64, b64ToF32 } from "../src/lib/inversion.js";
 import { emptyFields } from "../src/lib/projectFields.js";
 
