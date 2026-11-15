@@ -1,5 +1,5 @@
 // TASKS.csv #3588 (8) — the adaptive terrain mesh is built in a worker while the user is in Maps (Macpass: 813 ms main-thread task on the first entry to the 3D
-// View after the terrain was built). The worker answers exactly what buildAdaptiveTerrain does; the viewer asks for it when the terrain changes.
+// View after the terrain was built). The worker answers exactly what buildAdaptiveTerrain does; the app asks for it when the terrain changes.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -24,10 +24,10 @@ test("the worker's answer is buildAdaptiveTerrain's, with the buffers transferre
   assert.equal(tr.length, 2);
 });
 
-test("the viewer asks for it when the terrain changes, the cache keeps the first result, and a small grid is left to the full mesh (source pins)", () => {
+test("the app asks for it when the terrain changes, the cache keeps the first result, and a small grid is left to the full mesh (source pins)", () => {
   const sb = read("../src/lib/viewer/sceneBuilders.js");
   assert.match(sb, /export function prewarmAdaptiveMesh\(terrain\)/);
   assert.match(sb, /if \(e\.data\.am && !adaptiveTerrainCache\.has\(terrain\)\) adaptiveTerrainCache\.set\(terrain, e\.data\.am\);/);
   assert.match(sb, /!\(gridW \* gridH > ADAPTIVE_TERRAIN_NODES\) \|\| adaptiveTerrainCache\.has\(terrain\)/);
-  assert.match(read("../src/modules/ViewerModule.jsx"), /useEffect\(\(\) => \{ prewarmAdaptiveMesh\(terrain\); \}, \[terrain\]\);/);
+  assert.match(read("../src/App.jsx"), /useEffect\(\(\) => \{ prewarmAdaptiveMesh\(store\.terrain\); \}, \[store\.terrain\]\);/); // App, not the viewer: its effect ran only once the 3D View was shown
 });

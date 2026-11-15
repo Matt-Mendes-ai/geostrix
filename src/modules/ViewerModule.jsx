@@ -218,7 +218,7 @@ import { viewNdc } from "../lib/viewer/clickPoint.js"; // TASKS.csv #2803
 import { hideTraceHoles } from "../lib/viewer/traceBatch.js"; // TASKS.csv #2176
 import { closedShellsOf } from "./viewer/estimationShells.js"; // TASKS.csv #2695
 import { findOnTraceWorld, findOnTrace, traceLookup, traceOfHole /* #2931 */, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
-import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, prewarmAdaptiveMesh, outcropLabelItems } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
+import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
 import { syncDrawLods } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
 import { useLodTiles } from "./viewer/useLodTiles.js"; // TASKS.csv #3252
 import TerrainCard from "./viewer/TerrainCard.jsx";
@@ -4598,7 +4598,6 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // ---------- rebuild terrain surface (TASKS.csv #77) ----------
   // moved to lib/viewer/sceneBuilders.js syncTerrain (TASKS.csv #693); its comments explain the build
-  useEffect(() => { prewarmAdaptiveMesh(terrain); }, [terrain]); // TASKS.csv #3588 (8) — the adaptive terrain mesh built in a worker, ready for the 3D View
   useEffect(() => { if (terrainGroupRef.current && !buildDefer.skip()) terrainMeshRef.current = syncTerrain(terrainGroupRef.current, terrainMeshRef.current, terrain, { origin: originRef.current }); }, [terrain, collars, rebuildSeq, deferRound]);
   // TASKS.csv #3252 — the imagery and terrain detail tiles, after the raster drapes and the terrain they read (viewer/useLodTiles.js)
   const lodTiles = useLodTiles({ rasterGroupRef, rasterMeshesRef, terrainGroupRef, terrainMeshRef, mapLayerMeshesRef, rendererRef, originRef, lastActivityRef }, { rasters, terrain, collars, mapLayers, project, rebuildSeq, deferRound, skip: buildDefer.skip });

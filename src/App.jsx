@@ -1,3 +1,4 @@
+import { prewarmAdaptiveMesh } from "./lib/viewer/sceneBuilders.js"; // TASKS.csv #3588 (8)
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { sampleStatus } from "./lib/desktop.js"; // TASKS.csv #3100
 import { BC_SAMPLE_INFO } from "./lib/bcSamples.js"; // TASKS.csv #3100
@@ -99,6 +100,7 @@ const uncleanExitCheck = oncePerWindow(() => problemReportInfo());
 
 export default function App() {
   const store = useStore();
+  useEffect(() => { prewarmAdaptiveMesh(store.terrain); }, [store.terrain]); // TASKS.csv #3588 (8) — the 3D View's adaptive terrain mesh built in a worker from the moment the terrain exists, wherever the user is (the viewer's own effect ran only once it was shown)
   const {
     saveProject, openProject, addLayoutImage, requestedModule, moduleRequestSeq, setSectionContacts, setSectionLabels, addPlannedHole,
     workspaceTabs, activeTabId, activeTabDirty, switchToTab, newWorkspaceTab, closeWorkspaceTab, project,
