@@ -212,6 +212,8 @@ import { closedShellsOf } from "./viewer/estimationShells.js"; // TASKS.csv #269
 import { findOnTraceWorld, findOnTrace, traceLookup, traceOfHole /* #2931 */, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
 import { syncDrawLods } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
+import { useLodTiles } from "./viewer/useLodTiles.js"; // TASKS.csv #3252
+import TerrainCard from "./viewer/TerrainCard.jsx"; // the terrain row of Rasters & terrain (moved out at the #1084 cap, #3252)
 import { useSurfaceUndo, stashSurface } from "./viewer/surfaceUndo.js"; // TASKS.csv #3494 — Undo / Redo for the model surfaces
 import { useModelling } from "./viewer/useModelling.js";
 import { useUnitSource } from "./viewer/useUnitSource.js"; // TASKS.csv #2378
@@ -872,8 +874,6 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // surfaces), not by the frequent layer-visibility/filter churn that rebuilds layerGroupsRef.
   const rasterGroupRef = useRef(null);
   const rasterMeshesRef = useRef({}); // id -> THREE.Mesh
-  const lodDrapeRef = useRef(null); // TASKS.csv #3252 — the imagery detail tiles (lib/viewer/lodDrape.js)
-  const lodTerrainRef = useRef(null); // TASKS.csv #3252 phase 3 — the terrain detail tiles (lib/viewer/lodTerrain.js)
   // Boundary polylines (Geosoft .ply import) — own group/refs, same reasoning as rasters above: driven
   // by the store's persisted `boundaries` list, not by layer-visibility churn.
   const boundaryGroupRef = useRef(null);
@@ -2299,7 +2299,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
           }
         }
         if (gridGroupRef.current?.userData.labels) fitScreenLabels(gridGroupRef.current.userData.labels, camera, mount.clientHeight); // #2211
-        lodDrapeRef.current?.tick(camera, mount.clientHeight); lodTerrainRef.current?.tick(camera, mount.clientHeight); // TASKS.csv #3252 (phase 3: the terrain tiles, after the imagery ones they draw) — the detail tiles the camera wants (throttled inside, and only when it moved)
+        lodTiles.tick(camera, mount.clientHeight); // TASKS.csv #3252 — the detail tiles (viewer/useLodTiles.js)
         { const sl = sectionLinesGroupRef.current?.userData.labels; if (sl?.children.length) { fitScreenLabels(sl, camera, mount.clientHeight); declutterHoleLabels(sl, camera, mount.clientWidth, mount.clientHeight); } } // #1126 section end labels; #3246
         fitContourLabels(boundaryGroupRef.current, camera, mount.clientWidth, mount.clientHeight); // #1466 / #1622
         renderer.setViewport(0, 0, mount.clientWidth, mount.clientHeight);
@@ -4694,17 +4694,6 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // ---------- rebuild raster drapes (TASKS.csv #24, #81) ----------
   // moved to lib/viewer/sceneBuilders.js syncRasterDrapes (TASKS.csv #693); its comments explain the build
   useEffect(() => { if (rasterGroupRef.current && !buildDefer.skip()) syncRasterDrapes(rasterGroupRef.current, rasterMeshesRef.current, rasters, { origin: originRef.current, terrain, renderer: rendererRef.current, collars }); }, [rasters, collars, terrain, rebuildSeq, deferRound]);
-  // TASKS.csv #3252 phase 2 — the detail tiles follow the rasters, the terrain and the origin; wake: a tile that arrives redraws an idle view
-  useEffect(() => { // TASKS.csv #3252 / #3509 - lib/viewer/lodDrape.js (and the tile cache it pulls in) is loaded the first time a raster with a source description is draped: not at startup
-    if (!rasterGroupRef.current || buildDefer.skip()) return;
-    const ctx = { group: rasterGroupRef.current, cache: rasterMeshesRef.current, rasters, terrain, origin: originRef.current, renderer: rendererRef.current, wake: () => { lastActivityRef.current = Date.now(); } };
-    if (lodDrapeRef.current) { lodDrapeRef.current.sync(ctx); return; }
-    if (!terrain || !rasters.some((r) => r.lod)) return;
-    let live = true;
-    import("../lib/viewer/lodDrape.js").then((m) => { if (!live) return; lodDrapeRef.current = lodDrapeRef.current || m.createLodDrape(); lodDrapeRef.current.sync(ctx); });
-    return () => { live = false; };
-  }, [rasters, terrain, rebuildSeq, deferRound]);
-  useEffect(() => () => lodDrapeRef.current?.dispose(), []);
 
   // ---------- rebuild boundary polylines (Geosoft .ply import) ----------
   // moved to lib/viewer/sceneBuilders.js syncBoundaries (TASKS.csv #693); its comments explain the build
@@ -4736,17 +4725,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // ---------- rebuild terrain surface (TASKS.csv #77) ----------
   // moved to lib/viewer/sceneBuilders.js syncTerrain (TASKS.csv #693); its comments explain the build
   useEffect(() => { if (terrainGroupRef.current && !buildDefer.skip()) terrainMeshRef.current = syncTerrain(terrainGroupRef.current, terrainMeshRef.current, terrain, { origin: originRef.current }); }, [terrain, collars, rebuildSeq, deferRound]);
-  // TASKS.csv #3252 phase 3 — the terrain detail tiles (display only), loaded the first time a terrain whose source can be read by window is shown
-  useEffect(() => {
-    if (!terrainGroupRef.current || buildDefer.skip()) return;
-    const ctx = { group: terrainGroupRef.current, terrain, terrainMesh: terrainMeshRef.current, epsg: project?.crsSet === false ? null : project?.epsg, origin: originRef.current, rasters, rasterCache: rasterMeshesRef.current, mapLayers, mapLayerCache: mapLayerMeshesRef.current, lodDrape: () => lodDrapeRef.current, wake: () => { lastActivityRef.current = Date.now(); } };
-    if (lodTerrainRef.current) { lodTerrainRef.current.sync(ctx); return; }
-    if (!terrain || !(terrain.lod || /^AWS Terrain Tiles/.test(String(terrain.source?.service || "")))) return;
-    let live = true;
-    import("../lib/viewer/lodTerrain.js").then((m) => { if (!live) return; lodTerrainRef.current = lodTerrainRef.current || m.createLodTerrain(); lodTerrainRef.current.sync(ctx); });
-    return () => { live = false; };
-  }, [terrain, collars, rasters, mapLayers, project?.epsg, project?.crsSet, rebuildSeq, deferRound]);
-  useEffect(() => () => lodTerrainRef.current?.dispose(), []);
+  // TASKS.csv #3252 — the imagery and terrain detail tiles, after the raster drapes and the terrain they read (viewer/useLodTiles.js)
+  const lodTiles = useLodTiles({ rasterGroupRef, rasterMeshesRef, terrainGroupRef, terrainMeshRef, mapLayerMeshesRef, rendererRef, originRef, lastActivityRef }, { rasters, terrain, collars, mapLayers, project, rebuildSeq, deferRound, skip: buildDefer.skip });
 
   // Keeps the locator mini-map's real-world position in sync with wherever the scene's origin actually
   // sits — same trigger set as the origin-computing effect above (collars/terrain changes, or a manual
@@ -6558,28 +6538,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {(rasters.length > 0 || terrain) && (
           <>
             <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Rasters & terrain")}</div>
-            {terrain && (
-              <div onContextMenu={(e) => openRowMenu(e, terrain.name, [
-                  { label: terrain.visible === false ? "Show" : "Hide", onClick: () => updateTerrain?.({ visible: terrain.visible === false }) },
-                  { label: tr("Zoom to"), onClick: () => zoomToObject(terrainMeshRef.current) },
-                  "-", { label: tr("Colour, drape and remove — Maps tab"), onClick: () => goToModule("maps") }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
-                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateTerrain?.({ visible: terrain.visible === false })} style={{ cursor: "pointer", color: terrain.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
-                  {terrain.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
-                </div>
-                <Mountain size={14} style={{ color: terrain.color || "var(--color-text-secondary)", flexShrink: 0 }} />
-                <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{terrain.name}</span>
-                <input
-                  type="range" min={0.1} max={1} step={0.05} value={terrain.opacity ?? 1}
-                  onChange={(e) => updateTerrain?.({ opacity: Number(e.target.value) })}
-                  style={{ width: 46, flexShrink: 0 }} title={tr("Opacity")}
-                />
-                {/* Color/opacity are also editable right here inline (terrain has no other exotic
-                    settings the way rasters' drape-mode/elevation do), but the jump still goes to
-                    Geophysics — that's where SRTM/DEM was imported from and where "Remove terrain"
-                    lives — for consistency with every other row's edit-jump icon. */}
-                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("maps"), tr("Edit or remove the terrain in the Maps tab"))} />
-              </div>
-            )}
+            {terrain && <TerrainCard terrain={terrain} updateTerrain={updateTerrain} openRowMenu={openRowMenu} zoomTo={() => zoomToObject(terrainMeshRef.current)} goToModule={goToModule} />}{/* viewer/TerrainCard.jsx (moved out at the #1084 cap) */}
             {rasters.map((r) => (<React.Fragment key={r.id}>{/* fragment: #2011 — the legend under the row */}
               <div onContextMenu={(e) => openRowMenu(e, r.name, [
                   { label: r.visible === false ? "Show" : "Hide", onClick: () => updateRaster(r.id, { visible: r.visible === false }) },

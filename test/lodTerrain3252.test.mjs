@@ -117,8 +117,9 @@ test("the choice for terrain tiles: 64 cells a tile, near finer than far, stops 
 
 test("wiring: lazy, after the imagery tiles; the map layers keep their drape box", () => {
   const v = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.ok(v.includes('import("../lib/viewer/lodTerrain.js")') && !/^import .*lodTerrain\.js/m.test(v));
-  assert.match(v, /lodDrapeRef\.current\?\.tick\(camera, mount\.clientHeight\); lodTerrainRef\.current\?\.tick\(camera, mount\.clientHeight\);/);
+  const hk = fs.readFileSync(new URL("../src/modules/viewer/useLodTiles.js", import.meta.url), "utf8");
+  assert.ok(hk.includes('import("../../lib/viewer/lodTerrain.js")') && !/^import .*lodTerrain\.js/m.test(v));
+  assert.match(hk, /drapeRef\.current\?\.tick\(camera, h\); terrainRef\.current\?\.tick\(camera, h\);/);
   const s = fs.readFileSync(new URL("../src/lib/viewer/sceneBuilders.js", import.meta.url), "utf8");
   assert.match(s, /drapeOnTerrain \? \{ drapeBox: bbox \} : \{\}/);
 });
