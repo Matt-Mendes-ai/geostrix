@@ -8,6 +8,7 @@ import { isNotLogged } from "../../lib/notLogged.js"; // TASKS.csv #1740
 import { Activity, Calculator, ChevronDown, ChevronRight, ChevronUp, Compass, Droplets, FileBarChart2, Gem, GitCompare, Group, Layers, Layers3, Milestone, Mountain, Settings, Shapes, Sparkles, Trash2, Waves, Waypoints, X, PenTool } from "../../components/icons.js";
 import { BLOCK_BUDGETS, ESTIMATION_METHODS, gradeShellBudgetNote } from "../../lib/estimationMeta.js"; // gradeShellBudgetNote: #1416
 import InfoButton from "../../components/InfoButton.jsx";
+import { anisotropyFor, cellHeightFromRange } from "../../lib/estimateMemory.js"; // TASKS.csv #3499; #3508
 import { PRECIOUS_METALS, gradeUnitLabel } from "../../lib/geochem.js"; // gradeUnitLabel: #2218
 import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { withChangeLog } from "../../lib/explicitLog.js"; // TASKS.csv #878
@@ -1254,6 +1255,7 @@ export default function ModellingPanes(props) {
                     </label>
                   </div>
                   {!gt && reach > 0 && !flat && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6 }}>{numericSearchRadius > 0 ? tr("Less than the search radius, or it is a sphere.") : tr("A flat search needs a search radius.")}</div>}
+                  {!gt && (() => { const an = anisotropyFor(storeProject, numericSymbol); return an && an.flat && !(flat && Math.round(an.acrossM) === Number(numericSearchRadius) && Math.round(an.downholeM) === reach) ? <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{/* TASKS.csv #3499 — the Variogram tool's anisotropy, offered, never applied by itself */}{tr("The Variogram tool found {b} m of continuity across the holes and {a} m down them: a flat search fits.", { a: Math.round(an.downholeM), b: Math.round(an.acrossM) })}{" "}{tr("A cell height of {h} m (a quarter of the downhole range) goes with it.", { h: cellHeightFromRange(an.downholeM) })}{" "}<button type="button" onClick={() => { setNumericSearchRadius(Math.round(an.acrossM)); setNumericFlatReach(Math.round(an.downholeM)); setNumericCellHeight(cellHeightFromRange(an.downholeM)); /* TASKS.csv #3508 */ }} style={{ fontSize: "var(--font-size-xs)" }}>{tr("Use it as the flat search")}</button></div> : null; })()}
                   {flat && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("A flat search: {r} m across and {v} m up and down from each cell.", { r: numericSearchRadius, v: reach })}</div>}
                 </>;
               })()}

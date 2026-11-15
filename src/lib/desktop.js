@@ -669,6 +669,7 @@ export const JOB_POLL_MAX_MISSES = 5;
 export const runPfieldsJob = (request, opts) => runSidecarJobKind("pfields", request, opts);
 // TASKS.csv #1986 — the 1D inversion of loop-loop FDEM soundings (python-sidecar/app/geophys/em1d.py), the same way
 export const runEm1dJob = (request, opts) => runSidecarJobKind("em1d", request, opts);
+export const runTem1dJob = (request, opts) => runSidecarJobKind("tem1d", request, opts); // TASKS.csv #3440
 async function runSidecarJobKind(kind, request, { signal = null, onProgress = null } = {}) {
   const start = await startSidecarJob(kind, request);
   if (!start.ok) return { ok: false, error: start.status === 400 && /jobKind/i.test(start.error || "") ? tr("This Python engine is older than the app: restart GeoStrix so it starts the engine that came with it.") : start.error };

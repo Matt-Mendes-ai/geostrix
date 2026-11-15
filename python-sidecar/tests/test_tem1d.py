@@ -207,6 +207,224 @@ def check_inversion():
     print("request validation: a good request passes, four bad ones are refused")
 
 
+def check_step3():
+    """step 3: two moments in one row, a height per station, partial results in the progress events, the validator's new fields"""
+    system = {"geom": "vmd", "r": 13.0, "h": 30.0}
+    lm = {"gates": np.logspace(-5, -3.5, 10).tolist(), "waveform": [[-0.0008, 0.0], [-0.00079, 1.0], [-5e-6, 1.0], [0.0, 0.0]]}
+    hm = {"gates": np.logspace(-4, math.log10(6e-3), 14).tolist(), "waveform": [[-0.004, 0.0], [-0.0039, 1.0], [-4e-5, 1.0], [0.0, 0.0]]}
+    true_c, true_t = [0.01, 0.3, 0.005], [30.0, 30.0]
+    rows, heights = [], [25.0, 30.0, 41.0, 30.4]
+    for h in heights:
+        s = {**system, "h": h}
+        a = tem1d.forward([true_c], true_t, s, lm["gates"], waveform=lm["waveform"])[0]
+        b = tem1d.forward([true_c], true_t, s, hm["gates"], waveform=hm["waveform"])[0]
+        rows.append((np.r_[a, b] * tem1d.PV).tolist())
+    # a station's own height in one call: the same as one call a height (the kernel's per-station weights)
+    cond = np.array([true_c] * 4)
+    one = tem1d.forward(cond, true_t, {**system, "h": np.array(heights)}, hm["gates"], waveform=hm["waveform"], jac=True)
+    for k, h in enumerate(heights):
+        ref = tem1d.forward(cond[k:k + 1], true_t, {**system, "h": h}, hm["gates"], waveform=hm["waveform"], jac=True)
+        assert np.allclose(one[0][k], ref[0][0], rtol=1e-12, atol=0) and np.allclose(one[1][k], ref[1][0], rtol=1e-12, atol=1e-30), k
+    events = []
+    out = tem1d.run_job({"system": system, "moments": [lm, hm], "data": rows, "heights": heights, "errRel": 0.03, "maxIter": 15}, events.append)
+    assert len(events) == 2 and events[0]["iter"] == 0 and "partials" not in events[0]  # started, then one batch: the four heights together
+    parts = events[-1]["partials"]
+    seen = sorted(i for pt in parts for i in pt["idx"])
+    assert seen == [0, 1, 2, 3], seen  # every station reported once
+    # more stations than a batch: the events carry the last few batches, each station once
+    ev2 = []
+    tem1d.run_job({"system": system, "moments": [hm], "data": [r[10:] for r in rows] * 20, "heights": heights * 20, "errRel": 0.03, "maxIter": 2}, ev2.append)
+    assert [e["iter"] for e in ev2] == [0, 32, 64, 80] and all(e["stations"] == 80 and e["passes"] == 1 for e in ev2)
+    assert ev2[1]["etaS"] is None and ev2[2]["etaS"] is not None and ev2[3]["etaS"] == 0
+    assert len(ev2) == 4 and [len(pt["idx"]) for pt in ev2[-1]["partials"]] == [32, 32, 16], [len(pt["idx"]) for pt in ev2[-1]["partials"]]
+    assert events[1]["etaS"] is None  # the first batch carries the compile: no time left from it
+    thick = np.asarray(out["thick"])
+    mids = np.r_[0.0, np.cumsum(thick)][:-1] + thick / 2
+    for k, (row, chi) in enumerate(zip(out["condMs"], out["chi"])):
+        c = np.asarray(row[:-1]) / 1000.0
+        conductance = float((c * thick)[(mids > 15) & (mids < 80)].sum())
+        assert 0.4 < chi < 1.6 and 0.6 * 9 < conductance < 1.4 * 9 and 30 <= mids[int(np.argmax(c))] <= 60, (k, chi, conductance)
+    # the partial rows are the final ones
+    by = {i: pt["condMs"][j] for pt in parts for j, i in enumerate(pt["idx"])}
+    assert all(by[i] == out["condMs"][i] for i in range(4))
+    print(f"two moments (10 + 14 gates) and four heights (25-41 m): chi {min(out['chi']):.2f}-{max(out['chi']):.2f}, one batch; per-station heights match one call a height")
+    from fastapi import HTTPException
+    from app.main import _validate_tem1d
+    good = {"system": system, "moments": [lm, hm], "data": rows, "heights": heights, "errRel": 0.03}
+    _validate_tem1d(good)
+    for bad, why in [({**good, "data": [r[:20] for r in rows]}, "rows of one moment only"), ({**good, "heights": heights[:2]}, "too few heights"),
+                     ({**good, "heights": [25.0, -3.0, 30.0, 30.0]}, "a negative height"), ({**good, "moments": [lm, {"gates": [1e-3, 1e-4, 1e-2]}]}, "decreasing gates")]:
+        try:
+            _validate_tem1d(bad)
+        except HTTPException:
+            continue
+        raise AssertionError(f"accepted {why}")
+    print("step 3 validation: two moments and heights pass, four bad requests are refused")
+
+
+def check_system_3485():
+    """#3485: a loop of the frame's area with an offset receiver, the receiver above the transmitter, the receiver's low-pass filters, gates
+    inside the turn-off, a bipolar waveform's earlier half-periods, and the gates as one fixed map of the frequencies"""
+    cond, thick = [0.02, 0.2, 0.005], [25.0, 40.0]
+    times = np.array([2e-6, 5e-6, 2e-5, 1e-4, 1e-3])
+    # 1. the circular loop with an offset receiver against the loop's area integrated as dipoles (polar Gauss-Legendre, 8 x 24 points)
+    a, r, h, rz = 10.36, 12.83, 35.0, 2.0
+    loop = tem1d.step_off([cond], thick, {"geom": "cloop", "a": a, "r": r, "h": h, "rz": rz}, times)[0]
+    xr, wr = np.polynomial.legendre.leggauss(8)
+    rho = 0.5 * a * (xr + 1.0); wrho = 0.5 * a * wr
+    phi = 2 * math.pi * (np.arange(24) + 0.5) / 24
+    acc = np.zeros_like(times)
+    for rr, wq in zip(rho, wrho):
+        for ph in phi:
+            d = math.hypot(r - rr * math.cos(ph), rr * math.sin(ph))
+            acc += wq * rr * (2 * math.pi / 24) * tem1d.step_off([cond], thick, {"geom": "vmd", "r": d, "h": h, "rz": rz}, times)[0]
+    ratio = loop / (acc / (math.pi * a * a))
+    assert np.all(np.abs(ratio - 1) < 3e-3), ratio
+    small = tem1d.step_off([cond], thick, {"geom": "cloop", "a": 0.05, "r": r, "h": h}, times)[0] / tem1d.step_off([cond], thick, {"geom": "vmd", "r": r, "h": h}, times)[0]
+    assert np.all(np.abs(small - 1) < 1e-4), small
+    print(f"loop of radius {a} m, receiver {r} m off and {rz} m up, vs its area as 192 dipoles: ratio {ratio.min():.4f} to {ratio.max():.4f}; a 5 cm loop is the dipole")
+    # 2. the receiver's height: against empymod with the receiver 3 m above the source
+    import empymod
+    T = np.array([1e-5, 1e-4, 1e-3])
+    ours = tem1d.step_off([cond], thick, {"geom": "vmd", "r": 13.0, "h": 30.0, "rz": 3.0}, T)[0]
+    z0 = [0.0] * 4
+    emp = -np.asarray(empymod.bipole(src=[0, 0, -30.0, 0, 90], rec=[-13.0, 0, -33.0, 0, 90], depth=np.r_[0.0, np.cumsum(thick)], res=np.r_[2e14, 1.0 / np.asarray(cond)],
+                                     freqtime=T, signal=-1, msrc="loop", mrec="loop", verb=0, epermH=z0, epermV=z0, xdirect=None))
+    assert np.all(np.abs(ours / emp - 1) < 3e-3), ours / emp
+    print(f"receiver 3 m above the transmitter vs empymod: ratio {np.min(ours / emp):.4f} to {np.max(ours / emp):.4f}")
+    # 3. the receiver's first-order low-pass filters (one at 300 kHz; SkyTEM's 210 and 300 kHz), against the unfiltered step-off convolved with
+    #    the filters' impulse response, the image field's instantaneous part included: y_f(t) = Int h(s) y(t - s) ds + mu0 Hs_inf h(t).
+    #    Within ~2 us of the turn-off the two parts nearly cancel (the filtered response crosses zero), so there the error is measured
+    #    against the parts' size; no system uses those times (SkyTEM's transition zone)
+    base = {"geom": "vmd", "r": 13.0, "h": 30.0}
+    hinf = tem1d.hs_inf(base)[0]
+    tt = np.array([1.5e-6, 3e-6, 5e-6, 8e-6, 3e-5])
+    u, wu = np.polynomial.legendre.leggauss(80)
+    worst_late, worst_early = 0.0, 0.0
+    for fcs in ([3e5], [2.1e5, 3e5]):
+        taus = [1.0 / (2 * math.pi * f) for f in fcs]
+        hf = (lambda s, a=taus[0]: np.exp(-s / a) / a) if len(taus) == 1 else (lambda s, a=taus[0], b=taus[1]: (np.exp(-s / a) - np.exp(-s / b)) / (a - b))
+        ours = tem1d.forward([cond], thick, {**base, "filters": fcs}, tt)[0]
+        for t, o in zip(tt, ours):
+            lo = math.log(1e-10 / t)
+            x = t * np.exp(0.5 * lo * (1 - u))  # graded toward the response's sharp start
+            y = tem1d.step_off([cond], thick, base, x)[0]
+            inst = MU0 * hinf * hf(t)
+            ref = np.sum(-0.5 * lo * wu * x * hf(t - x) * y) + inst
+            if t >= 5e-6:
+                worst_late = max(worst_late, abs(o / ref - 1))
+            else:
+                worst_early = max(worst_early, abs(o - ref) / (abs(ref) + abs(inst)))
+    assert worst_late < 2e-3 and worst_early < 1e-2, (worst_late, worst_early)
+    print(f"low-pass filters (300 kHz; 210 + 300 kHz) vs the time-domain convolution: from 5 us within {worst_late:.1e}; at 1.5-3 us, where the "
+          f"parts cancel, within {worst_early:.1e} of their size")
+    # #3501 — a filter given with its order: [fc, 2] is two first-order filters at fc (a receiver coil, a resonant circuit)
+    two = tem1d.forward([cond], thick, {**base, "filters": [[2.1e5, 2], 3e5]}, tt)[0]
+    same = tem1d.forward([cond], thick, {**base, "filters": [2.1e5, 2.1e5, 3e5]}, tt)[0]
+    assert np.allclose(two, same, rtol=1e-12), two / same
+    print("a second-order filter = two first-order ones at its cut-off")
+    # #3501 — a decay predicted below zero at one gate (inside a turn-off, past a filter's zero crossing) must not derail the fit: the
+    # log-space misfit floors it at a thousandth of its reading, with no gradient (it was log(1e-9), whose gradient swamped the station)
+    from app.geophys.em1d import invert_batch
+
+    class _OneGateBelowZero:
+        kind = "log"
+
+        def forward_fn(self, m, thick, jac=False):
+            m = np.atleast_2d(np.asarray(m, float))
+            c = 2e4 * 10.0 ** m[:, :1]
+            p = np.hstack([0.5 * c - 300.0, c * np.array([1.0, 0.5, 0.25])])
+            J = np.zeros(p.shape + (m.shape[1],))
+            J[:, 0, 0] = 0.5 * c[:, 0] * math.log(10)
+            J[:, 1:, 0] = c * np.array([1.0, 0.5, 0.25]) * math.log(10)
+            return (p, J) if jac else p
+
+    d = np.array([[100.0, 200.0, 100.0, 50.0]])  # the first gate is predicted below zero over much of the range
+    mm, cc, pp, _, _ = invert_batch(_OneGateBelowZero(), d, 0.05 * d, np.array([]), max_iter=15)
+    # the stated objective (the floored log misfit), by brute force over the one parameter: the fit must land near its minimum (within the
+    # pull toward the reference that invert_batch keeps while chi stays above 1)
+    grid = np.linspace(-4.0, 0.5, 4501)
+    pg = _OneGateBelowZero().forward_fn(grid[:, None], None)
+    lw = 1.0 / np.log1p(0.05)
+    chi_g = np.sqrt((((np.log(np.maximum(pg, 1e-3 * d)) - np.log(d)) * lw) ** 2).mean(axis=1))
+    assert np.isfinite(cc[0]) and cc[0] <= 1.05 * chi_g.min() and abs(mm[0, 0] - grid[np.argmin(chi_g)]) < 0.06, (mm, cc, chi_g.min(), grid[np.argmin(chi_g)])
+    print(f"one gate predicted below zero over much of the range: the fit lands near the floored misfit's minimum (log10 sigma {mm[0, 0]:.3f}, "
+          f"brute force {grid[np.argmin(chi_g)]:.3f}; chi {cc[0]:.2f} vs {chi_g.min():.2f})")
+    # #3502 — the frame's tilt: with the receiver's position held (its height is rz), tilting both coils with the frame scales the reading by
+    # cos(tilt) (against empymod: src and rec dipoles tilted by the pitch; roll likewise); the survey applies a per-station factor
+    import empymod
+    T3 = np.array([2e-5, 2e-4, 2e-3])
+    z0 = [0.0] * 4
+    kw = dict(depth=np.r_[0.0, np.cumsum(thick)], res=np.r_[2e14, 1.0 / np.asarray(cond)], freqtime=T3, signal=-1, msrc="loop", mrec="loop", verb=0, epermH=z0, epermV=z0, xdirect=None)
+    level = -np.asarray(empymod.bipole(src=[0, 0, -40.0, 0, 90], rec=[-13.0, 0, -42.0, 0, 90], **kw))
+    for az, ang in ((0.0, 6.0), (90.0, 6.0)):
+        tilted = -np.asarray(empymod.bipole(src=[0, 0, -40.0, az, 90 - ang], rec=[-13.0, 0, -42.0, az, 90 - ang], **kw))
+        assert np.all(np.abs(tilted / level / math.cos(math.radians(ang)) - 1) < 1.5e-3), tilted / level
+    sv1 = tem1d.TemSurvey({"geom": "vmd", "r": 13.0, "h": np.array([30.0, 30.0]), "tilt": np.array([1.0, 0.99])}, gates=[1e-4, 1e-3])
+    m2 = np.log10(np.array([cond, cond]))
+    p2, J2 = sv1.forward_fn(m2, np.asarray(thick), jac=True)
+    assert abs(p2[1, 0] / p2[0, 0] - 0.99) < 1e-12 and abs(J2[1, 0, 0] / J2[0, 0, 0] - 0.99) < 1e-12
+    print("frame tilt: both coils tilted 6 degrees (pitch, roll) / level = cos(6 deg) within 1.5e-3 (empymod); a station's factor scales its data and Jacobian")
+    # 4. gates inside a 20 us linear turn-off (no filter: the instantaneous part counted), against a direct integration
+    wf = [[-2.002e-3, 0.0], [-2.0e-3, 1.0], [-2e-5, 1.0], [0.0, 0.0]]
+    g = np.array([-1.2e-5, -4e-6, 3e-6, 2e-5])
+    sysr = {"geom": "vmd", "r": 13.0, "h": 30.0}
+    ours = tem1d.forward([cond], thick, sysr, g, waveform=wf)[0]
+    hinf = tem1d.hs_inf(sysr)[0]
+    ref = []
+    for t in g:
+        tot = 0.0
+        for a0, b0, sl in ((-2.002e-3, -2.0e-3, 500.0), (-2e-5, 0.0, -5e4)):
+            hi = min(b0, t)
+            if hi <= a0:
+                continue
+            u, wu = np.polynomial.legendre.leggauss(60)
+            # s = t - tau in [t - hi, t - a0], graded toward its lower end
+            lo_s, hi_s = t - hi, t - a0
+            v = np.linspace(0, 1, 2)
+            q = 0.5 * (u + 1)
+            sgrid = lo_s + (hi_s - lo_s) * q ** 3 if lo_s < 1e-7 else lo_s + (hi_s - lo_s) * q
+            jac = (hi_s - lo_s) * 3 * q ** 2 * 0.5 if lo_s < 1e-7 else 0.5 * (hi_s - lo_s) * np.ones_like(q)
+            sgrid = np.maximum(sgrid, 1e-10)
+            y = tem1d.step_off([cond], thick, sysr, sgrid)[0]
+            tot += -sl * np.sum(wu * jac * y)
+            if a0 < t < b0:
+                tot += -MU0 * hinf * sl
+        ref.append(tot)
+    rr = ours / np.array(ref)
+    assert np.all(np.abs(rr - 1) < 5e-3), rr
+    print(f"gates inside a 20 us turn-off (-12 and -4 us) and after it vs a direct integration: ratio {rr.min():.4f} to {rr.max():.4f}")
+    # 5. a bipolar waveform at 25 Hz: the steady state is the alternating sum of the earlier half-periods' pulses
+    g2 = np.array([1e-5, 1e-4, 1e-3, 5e-3])
+    rep = tem1d.forward([cond], thick, sysr, g2, waveform=wf, base_freq=25.0)[0]
+    half = 0.5 / 25.0
+    manual = sum((-1) ** k * tem1d.forward([cond], thick, sysr, g2 + k * half, waveform=wf)[0] for k in range(tem1d.N_HALF_PERIODS))
+    assert np.allclose(rep, manual, rtol=2e-3), rep / manual
+    one = tem1d.forward([cond], thick, sysr, g2, waveform=wf)[0]
+    print(f"a 25 Hz bipolar waveform = the alternating sum of {tem1d.N_HALF_PERIODS} half-periods (worst {np.max(np.abs(rep / manual - 1)):.1e}); "
+          f"the earlier pulses lower the 5 ms gate to {rep[-1] / one[-1]:.3f} of one pulse's")
+    # 6. the validator takes the new system and moment fields, and refuses bad ones
+    from fastapi import HTTPException
+    from app.main import _validate_tem1d
+    good = {"system": {"geom": "cloop", "a": 10.36, "r": 12.83, "h": 30.0, "rz": 2.0, "filters": [2.1e5, 3e5]},
+            "moments": [{"gates": g.tolist(), "widths": [1e-6] * 4, "waveform": wf, "baseFreq": 210.0}], "data": [[1.0] * 4], "rz": [1.5], "errRel": 0.05}
+    _validate_tem1d(good)
+    _validate_tem1d({**good, "system": {**good["system"], "filters": [[2.1e5, 2], 3e5]}})  # #3501: the coil's, second order
+    _validate_tem1d({**good, "tilt": [0.995]})  # #3502
+    for bad, why in [({**good, "system": {**good["system"], "filters": [10.0]}}, "a 10 Hz filter"),
+                     ({**good, "moments": [{**good["moments"][0], "gates": [-3e-3, 1e-5, 2e-5, 3e-5]}]}, "a gate before the waveform"),
+                     ({**good, "moments": [{**good["moments"][0], "baseFreq": 400.0}]}, "a half-period shorter than the waveform"),
+                     ({**good, "rz": [50.0]}, "a receiver 50 m above"),
+                     ({**good, "system": {**good["system"], "filters": [[2.1e5, 3]]}}, "a third-order filter"),
+                     ({**good, "tilt": [0.3]}, "a tilt factor of 0.3")]:
+        try:
+            _validate_tem1d(bad)
+        except HTTPException:
+            continue
+        raise AssertionError(f"accepted {why}")
+    print("system validation: a loop, filters (one second order), receiver heights, a tilt and a base frequency pass; six bad requests are refused")
+
+
 if __name__ == "__main__":
     check_half_space()
     check_against_empymod()
@@ -215,4 +433,6 @@ if __name__ == "__main__":
     check_jacobian()
     check_speed()
     check_inversion()
+    check_step3()
+    check_system_3485()
     print("tem1d: all checks passed")

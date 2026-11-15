@@ -14,3 +14,28 @@ export function sendVariogramToEstimation(project, { symbol, model, nugget, sill
   lastEstimateSettings.set(key, next);
   return next;
 }
+
+// TASKS.csv #3079 (from #3011) — the downhole range as the flat search's vertical reach: the next Estimation dialog opens with a flat search of
+// `radiusM` across and `reachM` up and down (the dialog's Search radius and Vertical reach). Never applied by itself: this is the geologist's click.
+export function sendFlatSearchToEstimation(project, { radiusM, reachM }) {
+  const key = estimateSettingsKey(project), prev = lastEstimateSettings.get(key) || {};
+  const next = { ...prev, searchRadius: +Number(radiusM).toPrecision(4), flatReach: +Number(reachM).toPrecision(4) };
+  lastEstimateSettings.set(key, next);
+  return next;
+}
+// the continuity down the holes against the continuity between them, from two fits (each { range }): the ratio and a flat search that follows it
+export function anisotropyFromFits(downhole, across) {
+  const a = Number(downhole?.range), b = Number(across?.range);
+  if (!(a > 0) || !(b > 0)) return null;
+  return { downholeM: a, acrossM: b, ratio: b / a, flat: b / a >= 2 };
+}
+
+// TASKS.csv #3499 (from #3079) — the Variogram tool's last anisotropy (downhole and across ranges) per project and element, for the Grade shell
+// pane's offer of the flat search. Session only, like the rest of this module.
+const anisotropyMemory = new Map();
+export function rememberAnisotropy(project, symbol, an) { if (an && symbol) anisotropyMemory.set(`${estimateSettingsKey(project)}|${symbol}`, an); }
+export const anisotropyFor = (project, symbol) => anisotropyMemory.get(`${estimateSettingsKey(project)}|${symbol}`) || null;
+
+// TASKS.csv #3508 (from #3499) - the block height that goes with a flat search from the downhole range: a quarter of it (four cells down a range),
+// to the half metre, at least half a metre. A suggestion the geologist applies with the flat search; never by itself.
+export const cellHeightFromRange = (downholeM) => (Number(downholeM) > 0 ? Math.max(0.5, Math.round((Number(downholeM) / 4) * 2) / 2) : null);

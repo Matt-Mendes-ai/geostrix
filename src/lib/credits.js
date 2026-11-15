@@ -26,8 +26,10 @@ export function rasterCredit(raster) {
   return "";
 }
 // one line per distinct credit; Sentinel-2 years are merged ("2021, 2023")
-export function projectCredits(terrain, rasters = []) {
+// dataCredit: project.dataCredit (a sample's data owner's own words, #3496)
+export function projectCredits(terrain, rasters = [], dataCredit = "") {
   const out = [], s2 = new Set();
+  if (dataCredit) out.push(String(dataCredit));
   const t = terrainCredit(terrain);
   if (t) out.push(t);
   for (const r of rasters || []) {

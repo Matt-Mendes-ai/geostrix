@@ -1,0 +1,214 @@
+// TASKS.csv #3440 (step 3 of 3) — what TEM line data's 1D inversion needs from the pane, in pure functions: the two things a file rarely says
+// and that change the answer (when the gate times start, and the data's unit), each guessed with its reason; the system's waveform from a
+// preset (approximate: the real numbers are in the survey's logistics report); the job request (lib: python-sidecar/app/geophys/tem1d.py
+// run_job); and the finished stations gathered from the progress events, so a cancelled run keeps them.
+import { channelMatrix } from "./temLines.js";
+
+// The current waveform per moment: a long on-time (a sharp switch-on, then flat), a linear ramp-off ending at t = 0. Approximate shapes for a
+// first model, NOT a system's real waveform (SkyTEM / VTEM / a ground transmitter each have their own; the report gives them).
+export const WAVEFORM_PRESETS = {
+  step: { label: "Ideal step-off", onMs: null, rampUs: 0 },
+  airLow: { label: "Airborne, low moment (approximate)", onMs: 0.8, rampUs: 5 },
+  airHigh: { label: "Airborne, high moment (approximate)", onMs: 4, rampUs: 40 },
+  ground: { label: "Ground loop (approximate)", onMs: 10, rampUs: 50 },
+  // TASKS.csv #3485 — the measured waveform from the survey's report (SkyTEM and Workbench reports list it as time and normalized current)
+  table: { label: "A table from the survey report", onMs: null, rampUs: null, table: true },
+};
+
+// TASKS.csv #3485 — a waveform table typed or pasted from a survey report: one "time (s), current" pair a line, times from the start of the
+// ramp-down (the reports' zero, and the gate times'). The current is normalized to its peak; it must end off. -> { waveform (ending at
+// t = 0, as the engine takes it), rampUs (the table's zero to the end of the turn-off), n } or { error }
+export function parseWaveformTable(text) {
+  const pts = [];
+  for (const raw of String(text || "").split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    const nums = line.split(/[\s,;]+/).map(Number);
+    if (nums.length < 2 || !Number.isFinite(nums[0]) || !Number.isFinite(nums[1])) continue; // a heading or a caption
+    pts.push([nums[0], nums[1]]);
+  }
+  if (pts.length < 3 || pts.some((q, k) => k && !(q[0] > pts[k - 1][0]))) return { error: "The table needs at least 3 lines of time (s) and current, the times increasing." };
+  let peak = 0;
+  for (const q of pts) peak = Math.max(peak, Math.abs(q[1]));
+  if (!(peak > 0)) return { error: "The table needs at least 3 lines of time (s) and current, the times increasing." };
+  const last = pts[pts.length - 1];
+  if (Math.abs(last[1]) / peak > 0.01) return { error: "The table must end with the current off." };
+  if (pts[pts.length - 1][0] - pts[0][0] > 1) return { error: "The table's times look like microseconds or milliseconds: give them in seconds." };
+  const tEnd = last[0];
+  const waveform = pts.map(([t, I], k) => [+(t - tEnd).toPrecision(10), k === pts.length - 1 ? 0 : +(I / peak).toPrecision(8)]);
+  waveform[waveform.length - 1][0] = 0;
+  return { waveform, rampUs: +(tEnd * 1e6).toPrecision(8), n: pts.length };
+}
+// -> [[t (s), I], …] ending at t = 0 with the current off, or null for an ideal step-off
+export function waveformFrom(onMs, rampUs) {
+  if (!(onMs > 0)) return null;
+  const r = Math.max(0, Number(rampUs) || 0) * 1e-6, on = onMs * 1e-3;
+  if (!(r > 0)) return [[-on - 1e-6, 0], [-on, 1], [-1e-7, 1], [0, 0]];
+  return [[-(on + r) - 1e-6, 0], [-(on + r), 1], [-r, 1], [0, 0]];
+}
+
+// When the file's gate times start. Aarhus-processed exports (Workbench .xyz, and CSVs with time columns such as the USGS SkyTEM releases)
+// measure them from the START of the ramp-down; times typed or read from a comment are taken as from the end of the turn-off.
+// data: readTemText's result; group: the channel set. -> { zero: "rampStart" | "rampEnd", reason }
+export function timeZeroGuess(data, group) {
+  const timeCols = (data?.groups || []).some((g) => g.role === "time" && g.cols.length === group?.cols?.length);
+  if (timeCols) return { zero: "rampStart", reason: "The gate times are columns of an Aarhus-processed export (as the USGS SkyTEM releases), which measure them from the start of the ramp-down." };
+  if (/Workbench/i.test(data?.source || "")) return { zero: "rampStart", reason: "Aarhus Workbench measures gate times from the start of the ramp-down." };
+  return { zero: "rampEnd", reason: "The times were typed or read from a comment: taken as from the end of the turn-off." };
+}
+
+// The data's unit: dB/dt per unit moment and receiver area is about 1e-6 to 1e-15 V / (A m^4) in SI, the same x 1e12 in pV. The median of
+// the earliest gate with readings decides. -> { unit: "SI" | "pV", reason, early }
+export function unitGuess(mat) {
+  const m = mat?.m || 0, n = mat?.n || 0;
+  for (let k = 0; k < m; k++) {
+    const v = [];
+    for (let i = 0; i < n; i++) { const x = Math.abs(mat.v[i * m + k]); if (x > 0 && Number.isFinite(x)) v.push(x); }
+    if (v.length >= Math.max(3, n / 10)) {
+      v.sort((a, b) => a - b);
+      const med = v[Math.floor(v.length / 2)];
+      return med < 1e-3
+        ? { unit: "SI", reason: "The earliest gate reads about {v}: SI, V/(A·m⁴) (in pV it would be over 1).", early: med }
+        : { unit: "pV", reason: "The earliest gate reads about {v}: pV/(A·m⁴) (in SI it would be under 0.001).", early: med };
+    }
+  }
+  return { unit: "pV", reason: "No early readings to judge by: taken as pV/(A·m⁴).", early: null };
+}
+
+// TASKS.csv #3485 — a column of the receiver's height above the ground (SkyTEM: RX_ALTITUDE, the Z coil), else null
+export function rxColumn(columns) {
+  return (columns || []).find((c) => /^rx_?alt(itude)?$/i.test(String(c))) || null;
+}
+
+// TASKS.csv #3502 — the frame's pitch and roll columns (SkyTEM: TILT_X along the line, TILT_Y across), or { pitch: null, roll: null }
+export function tiltColumns(columns) {
+  const cs = columns || [];
+  const find = (res) => { for (const re of res) { const c = cs.find((x) => re.test(String(x))); if (c) return c; } return null; };
+  return { pitch: find([/^tilt_?x$/i, /^pitch$/i, /^tx_?pitch$/i]), roll: find([/^tilt_?y$/i, /^roll$/i, /^tx_?roll$/i]) };
+}
+// a tilt column's angle in degrees from level: SkyTEM's (as the USGS release's data dictionary describes it) is measured with 270 as
+// level, z down; others are taken as degrees from level. The column's median decides.
+export function tiltOffset(values) {
+  const v = [];
+  for (const x of values || []) if (Number.isFinite(x)) v.push(x);
+  if (!v.length) return 0;
+  v.sort((a, b) => a - b);
+  return v[Math.floor(v.length / 2)] > 180 ? 270 : 0;
+}
+
+// "210, 300" (kHz) -> [210000, 300000] (Hz), at most three; null when a value is not a number
+export function parseFilters(text) {
+  const parts = String(text || "").split(/[\s,;]+/).filter(Boolean);
+  const v = parts.map(Number);
+  if (v.some((x) => !(x >= 1 && x <= 1e5)) || v.length > 3) return null;
+  return v.map((x) => x * 1000);
+}
+
+// A column of the system's height above the ground at each station (SkyTEM: TX_ALTITUDE, ALT, INVALT), else null
+export function heightColumn(columns) {
+  const cs = columns || [];
+  for (const re of [/^tx_?alt(itude)?$/i, /^alt(itude)?$/i, /^(height|agl|radar_?alt(imeter)?|laser_?alt(imeter)?)$/i, /^inv_?alt$/i]) { const c = cs.find((x) => re.test(String(x))); if (c) return c; }
+  return null;
+}
+
+// The job request. moments: [{ group, times (ms, the file's), waveform, rampUs, and from the survey report (TASKS.csv #3485): shiftUs (added to
+// the file's gate times: raw to calibrated), frontUs (gates before it are left out; null: those at or before the end of the turn-off),
+// baseFreq (Hz: a bipolar waveform's earlier half-periods), widthsUs (one per gate) }] (one, or two joined); timeZero: "rampStart" |
+// "rampEnd"; unit: "SI" | "pV"; noise: { use, kind ("absolute" | "relative") } with the moments' uncertainty matrices (or null); every: 1, 2,
+// 5 …; heightsCol, rxCol (the receiver's height: rz = rx - h a station); system { geom, r | a, h, rz, filters }; layers; errRel.
+// -> { request, pick (the stations sent), dropped (gates left out), widthsMismatch (moments whose widths were not used) }
+// TASKS.csv #3502: tilt { pitch, roll } columns: each station's factor cos(pitch) cos(roll), and without rxCol the receiver's height from the
+// pitch (SkyTEM: rz cos(pitch) cos(roll) - r sin(pitch), the receiver r metres behind the loop's centre: the USGS file's RX_ALTITUDE less its
+// TX_ALTITUDE follows it to 3 cm, median).
+export function buildTemRequest(data, { moments, timeZero = "rampEnd", unit = "pV", noise = null, every = 1, heightsCol = null, rxCol = null, tilt = null, system, layers, errRel = 0.05, lateral = 0 }) {
+  const scale = unit === "SI" ? 1e12 : 1;
+  const widthsMismatch = [];
+  const ms = moments.map((mo) => {
+    const shift = timeZero === "rampStart" ? (Number(mo.rampUs) || 0) * 1e-6 : 0;
+    const dt = (Number(mo.shiftUs) || 0) * 1e-6;
+    const front = mo.frontUs == null || mo.frontUs === "" || !Number.isFinite(Number(mo.frontUs)) ? null : Number(mo.frontUs) * 1e-6;
+    const start = mo.waveform ? mo.waveform[0][0] : 0; // a gate may sit inside the turn-off, after the waveform's start
+    const keep = [], gates = [];
+    mo.times.forEach((t, k) => {
+      const own = t / 1000 + dt; // the file's time, corrected, in its own reference
+      const g = own - shift;
+      const ok = front == null ? g > 1e-7 : own >= front - 1e-12 && g > start + 1e-9;
+      if (ok) { keep.push(k); gates.push(+g.toPrecision(8)); }
+    });
+    let widths = null;
+    if (Array.isArray(mo.widthsUs) && mo.widthsUs.length) {
+      if (mo.widthsUs.length === mo.times.length && mo.widthsUs.every((w) => w >= 0)) widths = keep.map((k) => +(mo.widthsUs[k] * 1e-6).toPrecision(6));
+      else widthsMismatch.push(mo.group.prefix);
+    }
+    return { ...mo, keep, gates, widths, mat: channelMatrix(data, mo.group) };
+  });
+  const dropped = ms.reduce((s, mo) => s + (mo.times.length - mo.keep.length), 0);
+  // stations: every Nth along each line, in file order
+  const pick = [], count = new Map();
+  for (let i = 0; i < data.n; i++) {
+    if (!Number.isFinite(data.x[i]) || !Number.isFinite(data.y[i])) continue;
+    const k = count.get(data.line[i]) || 0;
+    count.set(data.line[i], k + 1);
+    if (k % Math.max(1, every) === 0) pick.push(i);
+  }
+  const row = (i) => ms.flatMap((mo) => mo.keep.map((k) => { const v = mo.mat.v[i * mo.mat.m + k]; return Number.isFinite(v) ? +(v * scale).toPrecision(7) : null; }));
+  const dataRows = pick.map(row);
+  let std = null;
+  if (noise?.use && noise.mats?.length === ms.length && noise.mats.every(Boolean)) {
+    std = pick.map((i) => ms.flatMap((mo, j) => mo.keep.map((k) => {
+      const sd = noise.mats[j].v[i * noise.mats[j].m + k], v = mo.mat.v[i * mo.mat.m + k];
+      if (!Number.isFinite(sd) || !Number.isFinite(v) || v === 0) return null;
+      return +(noise.kind === "absolute" ? Math.abs(sd / v) : Math.abs(sd)).toPrecision(5); // the job takes relative uncertainties
+    })));
+  }
+  const hcol = heightsCol ? data.get(heightsCol) : null;
+  const rxc = rxCol && hcol ? data.get(rxCol) : null;
+  const request = {
+    system, moments: ms.map((mo) => ({ gates: mo.gates, waveform: mo.waveform || null, ...(mo.widths ? { widths: mo.widths } : {}), ...(Number(mo.baseFreq) > 0 ? { baseFreq: Number(mo.baseFreq) } : {}) })),
+    data: dataRows, ...(std ? { std } : {}), errRel, layers, lateral,
+    heights: hcol ? pick.map((i) => (Number.isFinite(hcol[i]) && hcol[i] >= 0 && hcol[i] <= 300 ? +hcol[i].toFixed(2) : null)) : undefined,
+    line: pick.map((i) => String(data.line[i])), x: pick.map((i) => data.x[i]), y: pick.map((i) => data.y[i]),
+  };
+  if (!request.heights) delete request.heights;
+  if (rxc) request.rz = pick.map((i) => { const d = rxc[i] - hcol[i]; return Number.isFinite(d) && Math.abs(d) <= 20 ? +d.toFixed(2) : null; });
+  const pc = tilt?.pitch ? data.get(tilt.pitch) : null, rc = tilt?.roll ? data.get(tilt.roll) : null;
+  if (pc || rc) {
+    const p0 = pc ? tiltOffset(pc) : 0, r0 = rc ? tiltOffset(rc) : 0, rad = Math.PI / 180;
+    const ang = (col, i, off) => (col && Number.isFinite(col[i]) && Math.abs(col[i] - off) <= 45 ? (col[i] - off) * rad : 0);
+    request.tilt = pick.map((i) => +(Math.cos(ang(pc, i, p0)) * Math.cos(ang(rc, i, r0))).toFixed(5));
+    if (!rxc && pc && system && system.geom !== "loop") {
+      const rz0 = Number(system.rz) || 0, r = Number(system.r) || 0;
+      request.rz = pick.map((i) => { const p = ang(pc, i, p0), q = ang(rc, i, r0); return +(rz0 * Math.cos(p) * Math.cos(q) - r * Math.sin(p)).toFixed(2); });
+    }
+  }
+  return { request, pick, dropped, gatesPerMoment: ms.map((mo) => mo.gates.length), scale, widthsMismatch };
+}
+
+// The finished stations from the progress events (each carries the last few batches; a later pass replaces an earlier one).
+// state: { condMs: Map, chi: Map, doi: Map, pred: Map, pass: Map } (or null) -> the same, updated
+export function mergePartials(state, partials) {
+  const s = state || { condMs: new Map(), chi: new Map(), doi: new Map(), pred: new Map(), pass: new Map() };
+  for (const p of partials || []) {
+    p.idx.forEach((j, k) => {
+      if ((s.pass.get(j) ?? -1) > (p.pass ?? 0)) return;
+      s.pass.set(j, p.pass ?? 0); s.condMs.set(j, p.condMs[k]); s.chi.set(j, p.chi[k]); s.doi.set(j, p.doi[k]); s.pred.set(j, p.pred[k]);
+    });
+  }
+  return s;
+}
+// gathered partials as a result shaped like the job's (stations not finished: null rows)
+export function partialResult(state, n, thick) {
+  const at = (m, j) => (m.has(j) ? m.get(j) : null);
+  return { thick, condMs: Array.from({ length: n }, (_, j) => at(state.condMs, j)), chi: Array.from({ length: n }, (_, j) => at(state.chi, j)), doi: Array.from({ length: n }, (_, j) => at(state.doi, j)), pred: Array.from({ length: n }, (_, j) => at(state.pred, j)), partial: true, finished: state.condMs.size };
+}
+
+// the engine's layer_thicknesses (python-sidecar/app/geophys/em1d.py), here so partial results can be drawn before the job returns its own:
+// n - 1 layers from `first` thick down to `bottom`, growing geometrically, then the half-space
+export function layerThicknesses(n = 20, first = 3, bottom = 300) {
+  if (n < 2) return [];
+  const k = n - 1;
+  if (first * k >= bottom) return Array(k).fill(bottom / k);
+  let lo = 1 + 1e-12, hi = 4, q = 2;
+  for (let it = 0; it < 200; it++) { q = 0.5 * (lo + hi); const s = first * (q ** k - 1) / (q - 1); if (s < bottom) lo = q; else hi = q; }
+  return Array.from({ length: k }, (_, i) => first * q ** i);
+}

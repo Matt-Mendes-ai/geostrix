@@ -213,7 +213,10 @@ import { hideTraceHoles } from "../lib/viewer/traceBatch.js"; // TASKS.csv #2176
 import { closedShellsOf } from "./viewer/estimationShells.js"; // TASKS.csv #2695
 import { findOnTraceWorld, findOnTrace, traceLookup, traceOfHole /* #2931 */, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
-import { syncDrawLods, dropDrawLod } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
+import { syncDrawLods } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
+import { useLodTiles } from "./viewer/useLodTiles.js"; // TASKS.csv #3252
+import TerrainCard from "./viewer/TerrainCard.jsx"; // the terrain row of Rasters & terrain (moved out at the #1084 cap, #3252)
+import { useSurfaceUndo, stashSurface } from "./viewer/surfaceUndo.js"; // TASKS.csv #3494 — Undo / Redo for the model surfaces
 import { useModelling } from "./viewer/useModelling.js";
 import { useUnitSource } from "./viewer/useUnitSource.js"; // TASKS.csv #2378
 import { wheelZoom } from "./viewer/wheelZoom.js"; // #2368
@@ -496,6 +499,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     surfaceSamples, surfaceElements, codeDictionary, // #2816
     designLines, /* TASKS.csv #1342 */ designStrings, /* TASKS.csv #1876 */ plannedHoles, addPlannedHole, updatePlannedHole, removePlannedHole,
     generatedSurfaces, setGeneratedSurfaces, modelDomains, setModelDomains, // TASKS.csv #52 — persisted implicit surfaces + domains
+    surfaceIds, setSurfaceIds, undoCheckpoint, // TASKS.csv #3494 — the ids of the model surfaces in the undo history
     getProjectToken, isSameProject, // TASKS.csv #466
     customLayers: storeCustomLayers, setCustomLayers: setStoreCustomLayers,
     layoutPages, // TASKS.csv #3296 — the code order set on a Layout legend (#3130)
@@ -1002,6 +1006,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const plannedMeshesRef = useRef({}); // id -> THREE.Group (line + toe marker)
   const measureGroupRef = useRef(null); // TASKS.csv #121 — line/polygon + vertex markers for the active measurement
   const [implicitSurfaces, setImplicitSurfaces] = useState([]); // [{id, name, visible, vertexCount, faceCount}]
+  const surfacesNowRef = useRef([]); surfacesNowRef.current = implicitSurfaces; const surfaceGrave = useRef(new Map()); // TASKS.csv #3494 — the removed surfaces kept for Undo
   const [implicitTarget, setImplicitTarget] = useState("");
   // TASKS.csv #52 (a) — sensitivity-spread inputs. The two sigmas deliberately start EMPTY and the run
   // button stays disabled until both are typed: #52's gate is that the input uncertainty must come from
@@ -1605,7 +1610,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     const groups = [
       // TASKS.csv #3296 — the codes in one order with the inspector: the project's set order (#3130) first, then by count (the figure's cut keeps the commonest)
       ...viewCodeOrder(categoryLegendGroups({ keys: CATEGORY_LAYER_KEYS, layers, layerVisible, hidden: categoryFilter, visibleHoles, singleColor, labelFor: effectiveLabel, colorFor: effectiveColor, placed: new Set(collars.map((c) => String(c.hole_id))) }), projectCodeOrders(layoutPages, null, null, null)), // #1813
-      ...assayLegendGroups({ assays, assayElements, assayVisible: assayVisible && collars.length > 0 /* #1813 */, assayDisplayElements, assayStyle }),
+      ...assayLegendGroups({ assays, assayElements, assayVisible: assayVisible && collars.length > 0 /* #1813 */, assayDisplayElements, assayStyle, displayUnits: project?.displayUnits /* #3236 */ }),
       ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), ...scoreRasterLegendGroups(rasters) /* #2670 — score maps */, // #1236
       ...numericLayerLegendGroups({ layers, layerVisible, isRowVisible, colorOf: numericLayerColor, symbology: numericSymbology, clips: numericClip }), // #1398 — the RQD / recovery / SG / mag susc ramps
       ...customLegendGroups(customLayers, customVisible, layerStyles), // #1697
@@ -1873,7 +1878,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     // so that existing "render then immediately read, same task" pattern already produces a correct,
     // non-blank capture without needing the buffer preserved between frames at all. Verified live
     // (see this row's own commit) that both snapshot paths still work correctly with this removed.
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, stencil: true }); // stencil: TASKS.csv #3509 — the fetched picture is hidden under a loaded detail tile
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     rendererRef.current = renderer; mount.appendChild(renderer.domElement);
     const warmId = typeof requestIdleCallback === "function" ? requestIdleCallback(() => import("../lib/viewer/surfaceWarmup.js").then((m) => { if (rendererRef.current === renderer) m.warmSurfacePrograms(renderer, scene, camera); }).catch(() => {}), { timeout: 10000 }) : null; // #3155 — the surface shaders compiled at idle
@@ -2297,6 +2302,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
           }
         }
         if (gridGroupRef.current?.userData.labels) fitScreenLabels(gridGroupRef.current.userData.labels, camera, mount.clientHeight); // #2211
+        lodTiles.tick(camera, mount.clientHeight); // TASKS.csv #3252 — the detail tiles (viewer/useLodTiles.js)
         { const sl = sectionLinesGroupRef.current?.userData.labels; if (sl?.children.length) { fitScreenLabels(sl, camera, mount.clientHeight); declutterHoleLabels(sl, camera, mount.clientWidth, mount.clientHeight); } } // #1126 section end labels; #3246
         fitContourLabels(boundaryGroupRef.current, camera, mount.clientWidth, mount.clientHeight); // #1466 / #1622
         renderer.setViewport(0, 0, mount.clientWidth, mount.clientHeight);
@@ -3785,8 +3791,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     ? confirmDestructive(tr("Remove the explicit surface \"{name}\" with its picks and lines?", { name: s.name }), { undoable: true })
     : confirmDestructive(tr("Remove surface \"{name}\"?", { name: s.name }), { recover: tr("getting it back means re-running the model.") }));
   const removeImplicitSurface = useCallback((id) => {
-    const mesh = implicitMeshesRef.current[id];
-    if (mesh) { dropDrawLod(mesh); implicitGroupRef.current?.remove(mesh); mesh.geometry?.dispose?.(); mesh.material?.dispose?.(); delete implicitMeshesRef.current[id]; } // dropDrawLod: #795
+    stashSurface({ grave: surfaceGrave.current, meshes: implicitMeshesRef.current, group: implicitGroupRef.current, surfaces: surfacesNowRef.current }, id); // TASKS.csv #3494 — kept for Undo, not disposed (dropDrawLod: #795, inside)
     // TASKS.csv #83 — drop any relationship pointing AT the surface being removed too, so the
     // remaining surfaces don't end up referencing a dangling id.
     // TASKS.csv #93 — and HEAL THE VERSION CHAIN in the same pass: if the removed surface was a middle
@@ -4375,6 +4380,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // don't touch geometry at all. Keying the cache on the geometry's own uuid means a metadata edit
   // re-serialises nothing; only a genuinely new/regenerated mesh pays the conversion.
   const surfaceGeomCacheRef = useRef({});
+  useSurfaceUndo({ implicitSurfaces, setImplicitSurfaces, implicitMeshesRef, implicitGroupRef, grave: surfaceGrave, hydrationRef: surfaceHydrationRef, viewerUiStateSeq, surfaceIds, setSurfaceIds, undoCheckpoint }); // TASKS.csv #3494
 
   useEffect(() => {
     // Only ever hydrate ONCE per project load. viewerUiStateSeq is the store's existing
@@ -4722,6 +4728,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // ---------- rebuild terrain surface (TASKS.csv #77) ----------
   // moved to lib/viewer/sceneBuilders.js syncTerrain (TASKS.csv #693); its comments explain the build
   useEffect(() => { if (terrainGroupRef.current && !buildDefer.skip()) terrainMeshRef.current = syncTerrain(terrainGroupRef.current, terrainMeshRef.current, terrain, { origin: originRef.current }); }, [terrain, collars, rebuildSeq, deferRound]);
+  // TASKS.csv #3252 — the imagery and terrain detail tiles, after the raster drapes and the terrain they read (viewer/useLodTiles.js)
+  const lodTiles = useLodTiles({ rasterGroupRef, rasterMeshesRef, terrainGroupRef, terrainMeshRef, mapLayerMeshesRef, rendererRef, originRef, lastActivityRef }, { rasters, terrain, collars, mapLayers, project, rebuildSeq, deferRound, skip: buildDefer.skip });
 
   // Keeps the locator mini-map's real-world position in sync with wherever the scene's origin actually
   // sits — same trigger set as the origin-computing effect above (collars/terrain changes, or a manual
@@ -5194,10 +5202,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       return;
     }
     const ok = await loadSampleProject(which);
-    if (ok && which !== "wa_uranium" && (which.startsWith("wa_") || which.startsWith("qld_"))) { // TASKS.csv #3107 — assays, surface samples, downhole logs and a grid: lib/sampleWa.js
+    if (ok && which !== "wa_uranium" && (which.startsWith("wa_") || which.startsWith("qld_") || which.startsWith("yk_" /* #3496 */))) { // TASKS.csv #3107 — assays, surface samples, downhole logs and a grid: lib/sampleWa.js
       try {
         const { loadWaSampleExtras, WA_SAMPLES } = await import("../lib/sampleWa.js");
-        const notes = await loadWaSampleExtras(which, async (rel) => (await loadSampleFiles(WA_SAMPLES[which].dir, [rel]))[0], { setAssays, setAssayElements, setSurfaceSamples: store.setSurfaceSamples, setSurfaceElements: store.setSurfaceElements, addCustomLayer: (l) => setStoreCustomLayers((p) => [...(p || []), l]), addRaster: store.addRaster },
+        const notes = await loadWaSampleExtras(which, async (rel) => (await loadSampleFiles(WA_SAMPLES[which].dir, [rel]))[0], { setAssays, setAssayElements, setSurfaceSamples: store.setSurfaceSamples, setSurfaceElements: store.setSurfaceElements, addCustomLayer: (l) => setStoreCustomLayers((p) => [...(p || []), l]), addRaster: store.addRaster, setProjectDataCredit: store.setProjectDataCredit /* #3496 */ },
           { existingElements: assayElements, existingSurfaceElements: surfaceElements, project: importStateRef.current?.project || store.project });
         setNotices((p) => [...p, ...notes]);
       } catch (e) { setNotices((p) => [...p, errorNotice(tr("Couldn't load the sample project: {message}", { message: e.message }))]); }
@@ -5401,6 +5409,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     { label: tr("Export Shapefile (.zip)…"), onClick: async () => exportVectorShapefile(null, null, label, await build()) },
     { label: tr("Export GeoPackage (.gpkg)…"), onClick: async () => exportVectorGeoPackage(null, null, label, await build()) },
     { label: tr("Export DXF (.dxf)…"), onClick: async () => exportVectorDXF(null, null, label, (await import("../lib/overlayExport.js")).explodeParts(await build())) },
+    { label: tr("Export GOCAD (.vs / .pl)…"), onClick: async () => exportVectorGocad(null, null, label, await build()) }, // #2631
     { label: tr("Export KML (Google Earth)…"), onClick: async () => exportVectorKML(label, await build(), typeof kml === "function" ? await kml() : kml) },
     { label: tr("Export GeoJSON (WGS 84)…"), onClick: async () => exportVectorKML(label, await build(), {}, "geojson") }, // #2759
     csvRows && { label: tr("Export CSV…"), onClick: async () => { const rows = await csvRows(); if (rows.length) saveFile({ quiet: "success", suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: await toExportCsv(rows), encoding: "text" }); } },
@@ -5426,6 +5435,25 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       setNotices((p) => [...p, notice("Exported {features} feature(s) from \"{label}\" as a DXF (.dxf, R12, elevations kept). A DXF carries only layer names{v}: use Shapefile or GeoPackage for every attribute.", { features: features.length, label, v: valueLayer ? tr(" (one per logged value{v2})", { v2: pickLabel ? tr(", picks labelled dip/dip direction") : "" }) : "" })]); // #1060
     } catch (err) {
       setNotices((p) => [...p, errorNotice(tr("DXF export failed: {message}", { message: err.message }))]);
+    }
+  };
+  // TASKS.csv #2631 — GOCAD ASCII: points as a VSet (.vs) with the numeric attributes as properties, lines as a PLine (.pl); lib/gocadWrite.js
+  const exportVectorGocad = async (kind, key, label, built = null) => {
+    const { features, geomType } = built || buildVectorFeatures(kind, key);
+    if (!features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
+    try {
+      const tx = await import("../lib/tiedExport.js"), ex = project?.crsSet === false && !tx.tieOf(project) ? null : await tx.exportCrs(project); if (!ex && project?.crsSet !== false) return; // as the Shapefile export: a tied grid through its tie, no CRS = 'Default'
+      const { vectorGocadText } = await import("../lib/viewer/vectorGocad.js");
+      const g = vectorGocadText({ features: tx.featuresToWorld(features, ex?.tie), geomType }, { label, epsg: ex?.epsg ?? null, crs: crsCell(project) });
+      const res = await saveFile({ quiet: true, suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.${g.ext}`, filters: [{ name: g.ext === "vs" ? "GOCAD VSet" : "GOCAD PLine", extensions: [g.ext] }], content: g.text });
+      if (!res?.ok) { if (res?.error) throw new Error(res.error); return; }
+      setNotices((p) => [...p,
+        g.ext === "pl" ? notice("Exported {n} line(s) from \"{label}\" as a GOCAD PLine (.pl).", { n: g.count, label })
+          : g.properties.length ? notice("Exported {n} point(s) from \"{label}\" as a GOCAD VSet (.vs), with these numeric attributes as properties: {props}.", { n: g.count, label, props: g.properties.join(", ") })
+            : notice("Exported {n} point(s) from \"{label}\" as a GOCAD VSet (.vs).", { n: g.count, label }),
+        ...(g.zMissing ? [notice("{n} vertex/vertices of \"{label}\" have no elevation: written at 0 in the GOCAD file.", { n: g.zMissing, label })] : [])]);
+    } catch (err) {
+      setNotices((p) => [...p, errorNotice(tr("GOCAD export failed: {message}", { message: err.message }))]);
     }
   };
   // TASKS.csv #1034 — tables the CSV importer reads back (modules/viewer/drillholeExport.js)
@@ -6038,7 +6066,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
     const modelBackdrop = modelBackdropFor(a, b, secId, showTerrain, corridor); // #759
     if (modelBackdrop) modelBackdrop.legend.forEach((it) => legendItems.push(it));
-    const assayLegend = assayLegendGroups({ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle }); // #1475 — the section window keys the grades it draws
+    const assayLegend = assayLegendGroups({ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle, displayUnits: project?.displayUnits }); // #3236 // #1475 — the section window keys the grades it draws
     const scatter = corridorScatter({ geophysPts: layerVisible.geophys_pts ? layers.geophys_pts : null, geophysStyle: { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax, surveys: geophysSurveys /* #1587 */ }, samples: layerVisible.surface_samples ? placedSurfaceSamples : null }, a, b, corridor); // #1807
     return { azimuth, holes, intervals, points, planes, elevationProfile, legendItems, assayLegend, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop, scatter, scatterCounts: scatter.counts };
   };
@@ -6049,7 +6077,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const planCacheRef = useRef(null);
   const planCtx = () => ({ traces: tracesRef.current, visibleHoles, layerPrimitivesFor, primsVersion: primsVersion() /* #3298 */, cache: planCacheRef, layerVisible, layers, customLayers, customVisible, isRowVisible, effectiveColor, effectiveLabel,
     voxelModels, voxelCellShown, colorForVoxelValue, origin: originRef.current, implicitSurfaces, implicitMeshes: implicitMeshesRef.current, plannedHoles, plannedHoleTrace,
-    assayLegend: () => assayLegendGroups({ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle }), projectValues: (sym) => assays.map((a) => a.values[sym]).filter((v) => v != null) }); // #1537
+    assayLegend: () => assayLegendGroups({ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle, displayUnits: project?.displayUnits }), projectValues: (sym) => assays.map((a) => a.values[sym]).filter((v) => v != null) }); // #1537
 
   // TASKS.csv — cross-section contact drawing. Every launched section is auto-registered in
   // store.sections (id/name/geometry, no contacts yet) the moment it opens, so the pop-out window
@@ -6533,28 +6561,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {(rasters.length > 0 || terrain) && (
           <>
             <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Rasters & terrain")}</div>
-            {terrain && (
-              <div onContextMenu={(e) => openRowMenu(e, terrain.name, [
-                  { label: terrain.visible === false ? "Show" : "Hide", onClick: () => updateTerrain?.({ visible: terrain.visible === false }) },
-                  { label: tr("Zoom to"), onClick: () => zoomToObject(terrainMeshRef.current) },
-                  "-", { label: tr("Colour, drape and remove — Maps tab"), onClick: () => goToModule("maps") }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
-                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateTerrain?.({ visible: terrain.visible === false })} style={{ cursor: "pointer", color: terrain.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
-                  {terrain.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
-                </div>
-                <Mountain size={14} style={{ color: terrain.color || "var(--color-text-secondary)", flexShrink: 0 }} />
-                <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{terrain.name}</span>
-                <input
-                  type="range" min={0.1} max={1} step={0.05} value={terrain.opacity ?? 1}
-                  onChange={(e) => updateTerrain?.({ opacity: Number(e.target.value) })}
-                  style={{ width: 46, flexShrink: 0 }} title={tr("Opacity")}
-                />
-                {/* Color/opacity are also editable right here inline (terrain has no other exotic
-                    settings the way rasters' drape-mode/elevation do), but the jump still goes to
-                    Geophysics — that's where SRTM/DEM was imported from and where "Remove terrain"
-                    lives — for consistency with every other row's edit-jump icon. */}
-                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("maps"), tr("Edit or remove the terrain in the Maps tab"))} />
-              </div>
-            )}
+            {terrain && <TerrainCard terrain={terrain} updateTerrain={updateTerrain} openRowMenu={openRowMenu} zoomTo={() => zoomToObject(terrainMeshRef.current)} goToModule={goToModule} />}{/* viewer/TerrainCard.jsx (moved out at the #1084 cap) */}
             {rasters.map((r) => (<React.Fragment key={r.id}>{/* fragment: #2011 — the legend under the row */}
               <div onContextMenu={(e) => openRowMenu(e, r.name, [
                   { label: r.visible === false ? "Show" : "Hide", onClick: () => updateRaster(r.id, { visible: r.visible === false }) },
@@ -7756,7 +7763,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         if (layerContextMenu.key === "__drillholes__") {
           const nTr = tracesRef.current.filter((t) => t.pts.length > 1).length, close = () => setLayerContextMenu(null);
           const head = (t) => <div style={{ padding: "6px 10px 2px", color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>{t}</div>;
-          const three = (kind, key, label, none) => [["Export Shapefile (.zip)…", exportVectorShapefile], ["Export GeoPackage (.gpkg)…", exportVectorGeoPackage], ["Export DXF (.dxf)…", exportVectorDXF]].map(([l, fn]) => <ContextItem key={kind + l} label={tr(l)} disabled={none} title={none ? tr("Nothing to export yet.") : undefined} onClick={() => { fn(kind, key, label); close(); }} />);
+          const three = (kind, key, label, none) => [["Export Shapefile (.zip)…", exportVectorShapefile], ["Export GeoPackage (.gpkg)…", exportVectorGeoPackage], ["Export DXF (.dxf)…", exportVectorDXF], ["Export GOCAD (.vs / .pl)…", exportVectorGocad /* #2631 */]].map(([l, fn]) => <ContextItem key={kind + l} label={tr(l)} disabled={none} title={none ? tr("Nothing to export yet.") : undefined} onClick={() => { fn(kind, key, label); close(); }} />);
           return (
             <div style={{ position: "fixed", inset: 0, zIndex: 55 }} onClick={close} onContextMenu={(e) => { e.preventDefault(); close(); }}>
               <div ref={layerMenuKeys.menuRef} role="menu" aria-label={layerContextMenu.label} onKeyDown={layerMenuKeys.onKeyDown} onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: layerContextMenu.x, top: layerContextMenu.y, width: 310, background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 8, padding: 6, fontSize: "var(--font-size-base)", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
@@ -7787,6 +7794,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             <ContextItem label={tr("Export Shapefile (.zip)…")} onClick={() => { exportVectorShapefile(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
             <ContextItem label={tr("Export GeoPackage (.gpkg)…")} onClick={() => { exportVectorGeoPackage(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
             <ContextItem label={tr("Export DXF (.dxf)…")} onClick={() => { exportVectorDXF(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
+            <ContextItem label={tr("Export GOCAD (.vs / .pl)…")} onClick={() => { exportVectorGocad(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} /> {/* #2631 */}
             {layerContextMenu.key !== "geophys_pts" && <ContextItem label={tr("Export CSV table (imports back)…")} onClick={() => { exportDrillholeTables(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />}
             <ContextItem label={tr("Export all drillhole tables (.zip of CSV)…")} title={tr("Loads into Postgres with COPY and into MySQL with LOAD DATA")} onClick={() => { exportDrillholeTables("all"); setLayerContextMenu(null); }} />
             <ContextItem label={tr("Inspect / edit table…")} onClick={() => { setAttrTableTarget({ kind: vectorKind, key: layerContextMenu.key, label: layerContextMenu.label }); setLayerContextMenu(null); }} />

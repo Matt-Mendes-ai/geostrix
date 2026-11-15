@@ -5,7 +5,7 @@ import { makeVariogramClient } from "../lib/variogramClient.js"; // TASKS.csv #3
 import { X, Play } from "./icons.js";
 import { gradeUnitLabel } from "../lib/geochem.js";
 import { compositeDownholeSliced, samplePointsSliced } from "../lib/compositeSliced.js"; // TASKS.csv #3111 — compositing and placing in slices of holes // gradeUnitLabel: #2429
-import { sendVariogramToEstimation } from "../lib/estimateMemory.js"; // TASKS.csv #3273
+import { sendVariogramToEstimation, sendFlatSearchToEstimation, anisotropyFromFits, rememberAnisotropy } from "../lib/estimateMemory.js"; // TASKS.csv #3273; the rest: #3079 / #3080
 import { excludeQAQC, labAssays } from "../lib/qaqc.js"; // TASKS.csv #266 — same QAQC exclusion the estimator uses; labAssays: #1744
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #2552
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2552
@@ -13,7 +13,8 @@ import { makeRunCache } from "../lib/runCache.js"; // TASKS.csv #3061
 import { desurveyHole } from "../lib/desurvey.js";
 import {
   fitVariogramModel, /* experimentalVariogram, directionRow: in the worker since #3009 */ MIN_HOLE_PAIRS /* #3285 */, variogramModelValue, VARIOGRAM_MODELS, verticalShare /* #3015 */,
-  VALUE_TRANSFORMS, applyValueTransform, groupPointsByDomain, variogramStationarity, siteSpacingLag, lagsShortOfSpacing, downholeLinePoints /* #1843 */, DIRECTION_TABLE, longestDirection /* #1996 */ } from "../lib/variogram.js";
+  VALUE_TRANSFORMS, applyValueTransform, groupPointsByDomain, variogramStationarity, siteSpacingLag, lagsShortOfSpacing, downholeLinePoints /* #1843 */, DIRECTION_TABLE, longestDirection /* #1996 */, wellFittedDirections, directionVector /* #3385 */ } from "../lib/variogram.js";
+import { trendFromDirections, describeTrend } from "../lib/trend.js"; // TASKS.csv #3385
 import { holeSpacingSummary } from "../lib/holeSpacing.js"; // TASKS.csv #2221
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -57,7 +58,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
   // and silently fell back to the default method — meaning a project set to, say, tangential would
   // have had its variogram computed on minimum-curvature traces. Same store field GradeEstimationModal
   // reads.
-  const { desurveyMethod, customLayers = [], structuralTrends, generatedSurfaces = [], project } = useStore(); // project: #3273 // customLayers: TASKS.csv #1571; structuralTrends: #2424 (read only); generatedSurfaces: #2710
+  const { desurveyMethod, customLayers = [], structuralTrends, setStructuralTrends, generatedSurfaces = [], project } = useStore(); // project: #3273 // customLayers: TASKS.csv #1571; structuralTrends: #2424 (read only); generatedSurfaces: #2710
   // TASKS.csv #2710 — a generated surface (a Top of a unit) the in-plane pairs may follow: the composites flattened on it
   const flatSurfaces = useMemo(() => generatedSurfaces.filter((x) => x.vertices?.length >= 9 && x.indices?.length >= 3), [generatedSurfaces]);
   const flatLabels = useMemo(() => surfaceOptionLabels(flatSurfaces), [flatSurfaces]);
@@ -108,6 +109,10 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
   const vertical = useMemo(() => verticalShare(collars, survey) >= 0.9, [collars, survey]);
   const [holeMode, setHoleMode] = useState(() => (verticalShare(collars, survey) >= 0.9 ? "downhole" : "all"));
   const [directional, setDirectional] = useState(false);
+  const [trendMade, setTrendMade] = useState(null); // TASKS.csv #3385
+  const [kept, setKept] = useState({ symbol: "", downhole: null, across: null, flatSent: false });
+  useEffect(() => { if (kept.symbol === symbol) rememberAnisotropy(project, symbol, anisotropyFromFits(kept.downhole, kept.across)); }, [kept, symbol, project]); // TASKS.csv #3499 — the Grade shell pane offers it too
+  // (kept: see #3080) // TASKS.csv #3080 — the last downhole fit and the last between-holes / in-plane fit of this element, side by side
   const [azimuth, setAzimuth] = useState(0);
   const [dip, setDip] = useState(0);
   const [angleTol, setAngleTol] = useState(22.5);
@@ -146,7 +151,9 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
     return Array.from(s).sort();
   }, [domainKey, domainChoice]);
 
-  const run = () => {
+  // TASKS.csv #3500 — the body takes the hole mode and the plane choice as arguments (they shadow the dialog's own), so Compute both can run Downhole pairs and then In the plane
+  const run = () => runAs(holeMode, inPlane);
+  const runAs = (holeMode, inPlane) => new Promise((done) => {
     setError(""); setResult(null); setRunning(true);
     // Deferred so "Running…" actually paints before the O(n^2) pair loop blocks the main thread. A
     // timer, not requestAnimationFrame — rAF never fires in a hidden window, which strands the run
@@ -170,8 +177,8 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
           return { filled, intervals, byDepth, allPoints: byDepth.points.length ? [...placed3d, ...byDepth.points] : placed3d, dropped: Math.max(0, dropped3d - byDepth.points.length) };
         })).value;
         const { filled, intervals, byDepth, allPoints, dropped } = comp;
-        if (!intervals.length) { setError(tr("Compositing produced no intervals — check the element and composite length.")); setRunning(false); return; }
-        if (!allPoints.length) { setError(collars.length ? tr("No composite could be placed in 3D — check that holes have collars and (ideally) survey data.") : noCollarsNotice(tr("the variogram"), layers, srcAssays).text); setRunning(false); return; } // #1841 — no collars at all: say what is waiting
+        if (!intervals.length) { setError(tr("Compositing produced no intervals — check the element and composite length.")); setRunning(false); done(); return; }
+        if (!allPoints.length) { setError(collars.length ? tr("No composite could be placed in 3D — check that holes have collars and (ideally) survey data.") : noCollarsNotice(tr("the variogram"), layers, srcAssays).text); setRunning(false); done(); return; } // #1841 — no collars at all: say what is waiting
 
         // #3061 — the domain's points and their transform, kept with the composites they come from
         const pick = pointCache.current.get([allPoints, domainKey, domainValue, transform, capPercentile], () => {
@@ -186,7 +193,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
         if (domainLabel) {
           if (points.length < 20) {
             setError(tr("Domain \"{domainLabel}\" has only {points} composites — too few for a variogram worth reading (a lag bin needs ~30 pairs to mean anything).", { domainLabel, points: points.length }));
-            setRunning(false); return;
+            setRunning(false); done(); return;
           }
         }
 
@@ -222,7 +229,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
         if (usePlane?.surface) {
           const fl = flatCache.current.get([tPoints, usePlane.surface], () => flattenOnSurface(tPoints, surfaceElevation(usePlane.surface.vertices, usePlane.surface.indices))).value; // #3061 — kept too
           vgPoints = fl.points; flatOutside = fl.outside;
-          if (vgPoints.length < 20) { setError(tr("Only {n} composites lie over \"{name}\": too few to pair below it.", { n: vgPoints.length, name: flatLabels.get(usePlane.surface.id) ?? usePlane.surface.name })); setRunning(false); return; }
+          if (vgPoints.length < 20) { setError(tr("Only {n} composites lie over \"{name}\": too few to pair below it.", { n: vgPoints.length, name: flatLabels.get(usePlane.surface.id) ?? usePlane.surface.name })); setRunning(false); done(); return; }
         }
         const direction = usePlane ? { plane: { normal: usePlane.normal, halfWidth: half } } : directional
           ? { azimuth, dip, angleTol, bandwidth: bandwidth > 0 ? bandwidth : null }
@@ -230,6 +237,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
         const vg = await vgClient.current.variogram(vgPoints, { lagDistance: lag, nLags: nLagsUsed, lagTolerance, holeMode, direction, estimator }); // estimator: #1996; vgPoints: #2710; in the worker: #3009
         lastRun.current = { points: vgPoints, base: { lagDistance: lag, nLags: nLagsUsed, lagTolerance, holeMode, estimator }, model }; setDirTable(null); // #1996
         const fit = fitVariogramModel(vg.bins, { model });
+        if (fit && transform === "none" && fit.range > 0) { const f = { range: fit.range, nugget: fit.nugget, sill: fit.sill, rSquared: fit.rSquared, lag, label: usePlane ? usePlane.label : "" }; setKept((k) => { const base = k.symbol === symbol ? k : { symbol, downhole: null, across: null }; return holeMode === "downhole" ? { ...base, downhole: f, flatSent: false } : holeMode === "between" || usePlane ? { ...base, across: f, flatSent: false } : base; }); } // #3080
         setResult({
           vg, fit, lag, suggested, capValue, domainLabel, spacing, nLagsUsed, fromSites: !!site, planeLagFrom, // #2221; planeLagFrom: #3015
           nLagsTyped: nLags, plane: usePlane ? { label: usePlane.label, half, outside: flatOutside } : null, holeMode, compositeLength, medianSampleM: medianSampleLength(srcAssays, symbol), // #2424
@@ -241,8 +249,10 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
         if (!e?.cancelled) setError(e.message || tr("Variogram calculation failed.")); // #3009 — Cancel says nothing
       }
       setRunning(false);
+      done();
     }, 40);
-  };
+  });
+  const runBoth = async () => { await runAs("downhole", false); await runAs("all", true); }; // #3500: the second result stays on screen, with the Anisotropy line under it
 
   // ---------------------------------------------------------------------------------------------
   // Plot. Plain inline SVG (no chart dependency — same approach as the other small plots in here).
@@ -394,6 +404,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
           </div>
 
           <UnsampledChoice u={uns} selStyle={{ ...inp, width: "auto", padding: "3px 6px" }} />{/* TASKS.csv #2417 / #2542 */}
+          {verticalShare(collars, survey) >= 0.5 && <button onClick={runBoth} disabled={running || !symbols.length || !uns.ready} title={tr("Computes the downhole variogram and then the in-plane one, and states the anisotropy between them. Needs a plane (the trend, or horizontal).")} style={{ ...btn(false), display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>{tr("Compute both: downhole and in the plane")}</button>}{/* TASKS.csv #3500 */}
           <button onClick={run} disabled={running || !symbols.length || !uns.ready} style={{ ...btn(true), display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: running || !symbols.length || !uns.ready ? 0.6 : 1 }}>
             <Play size={14} /> {running ? tr("Running…") : tr("Compute variogram")}
           </button>
@@ -415,6 +426,10 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
                   <tbody>{dirTable.rows.map((r) => <tr key={`${r.azimuth}_${r.dip}`} style={{ background: best && r === best ? "#eef6ee" : undefined }}><td style={{ padding: "1px 8px" }}>{r.dip === 90 ? "—" : r.azimuth}</td><td style={{ padding: "1px 8px" }}>{r.dip}</td><td style={{ padding: "1px 8px" }}>{r.nPairs.toLocaleString()}</td><td style={{ padding: "1px 8px", color: r.range != null && r.maxReliableLag > 0 && r.range > r.maxReliableLag ? "var(--color-warn-text)" : undefined }}>{r.range == null ? "—" : Math.round(r.range)}</td><td style={{ padding: "1px 8px" }}>{r.sill > 0 ? `${Math.round((100 * r.nugget) / r.sill)}%` : "—"}</td><td style={{ padding: "1px 8px" }}>{r.rSquared != null ? r.rSquared.toFixed(2) : "—"}</td></tr>)}</tbody></table>
                   {!dirTable.done && <div>{tr("Computing {n} of {m}…", { n: dirTable.rows.length + 1, m: DIRECTION_TABLE.length })}</div>}
                   {best && <div style={{ marginTop: 3 }}>{tr("Longest well-fitted range: azimuth {a}°, dip {d}°, {r} m (shaded; fits with r² 0.5 or more, within their reliable lags). A range in amber is past that direction's reliable lags; a weak r² is no direction at all. Read it as a guide to the anisotropy, then check that direction with its own variogram.", { a: best.azimuth, d: best.dip, r: Math.round(best.range) })}</div>}
+                  {best && (() => { const tr3 = trendFromDirections(wellFittedDirections(dirTable.rows), directionVector); return tr3 ? <div style={{ marginTop: 4, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>{/* TASKS.csv #3385 — the table's axes as a structural trend, so kriging's anisotropy follows what it measured */}
+                    <button type="button" onClick={() => { setStructuralTrends((st) => ({ ...st, trends: [...(st.trends || []), { ...tr3, name: tr("Trend from the direction table ({symbol})", { symbol }), id: `trend_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}` }] })); setTrendMade(describeTrend(tr3)); }} style={{ fontSize: "var(--font-size-sm)" }} title={tr("Adds a structural trend whose major axis is the longest well-fitted direction and whose ratios are the ranges along its three axes; choose it in Estimation to krige with that anisotropy.")}>{tr("Make a structural trend from this table")}</button>
+                    {trendMade && <span>{tr("Added: {t}. Choose it for block estimation in Trends.", { t: trendMade })}</span>}
+                  </div> : null; })()}
                   {dirTable.done && !best && <div style={{ marginTop: 3, color: "var(--color-warn-text)" }}>{tr("No direction has a fit good enough (r² 0.5 or more, within its reliable lags) to name a long axis: this variable shows no clear anisotropy at these lags.")}</div>}
                 </>; })()}
               </div>}
@@ -501,6 +516,10 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
                   {sentToEst && sentToEst.symbol === symbol && <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Sent: the next Estimation dialog for {el} opens on ordinary kriging with it ({how}). With a structural trend chosen for block estimation, its range is along the trend's major axis.", { el: symbol, how: sentToEst.how })}{sentToEst.downhole ? ` ${tr("Its range ({r} m) is measured down the holes; between holes the grade may reach further or less far. Compare All pairs or Between holes only before kriging with it.", { r: +Number(sentToEst.range).toPrecision(3) })}` : ""}</span>}
                 </div>
               )}
+              {(() => { const an = kept.symbol === symbol ? anisotropyFromFits(kept.downhole, kept.across) : null; return an ? <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.55, padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6 }}>{/* TASKS.csv #3080 / #3079 — downhole and across-the-holes fits of this element together, the anisotropy stated */}
+                <b>{tr("Anisotropy of {el}", { el: symbol })}</b>{": "}{tr("range down the holes {a} m ({ra} r²), across them {b} m ({rb} r²): the grade is continuous {x} times as far across as down.", { a: Math.round(an.downholeM), ra: kept.downhole.rSquared != null ? kept.downhole.rSquared.toFixed(2) : "—", b: Math.round(an.acrossM), rb: kept.across.rSquared != null ? kept.across.rSquared.toFixed(2) : "—", x: +an.ratio.toFixed(1) })}{" "}{an.flat ? tr("A flat search fits: {b} m across and {a} m up and down.", { a: Math.round(an.downholeM), b: Math.round(an.acrossM) }) : tr("The two ranges are close: a sphere is as good as a flat search.")}
+                {an.flat && <> <button type="button" onClick={() => { sendFlatSearchToEstimation(project, { radiusM: an.acrossM, reachM: an.downholeM }); setKept((k) => ({ ...k, flatSent: true })); }} style={{ fontSize: "var(--font-size-sm)" }} title={tr("The next Estimation dialog opens with this Search radius and Vertical reach. Nothing is applied until you run it.")}>{tr("Use as the flat search in Estimation")}</button>{kept.flatSent && <span> {tr("Sent.")}</span>}</>}
+              </div> : null; })()}
               {result.fit && (
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.55 }}>
                   {tr("{v} The fit is a weighted least-squares starting point, not an answer — read the plot and override it if the curve does not follow the points you trust.", { v: VARIOGRAM_MODELS[result.fit.model] ? tr(VARIOGRAM_MODELS[result.fit.model].note) : "" })}</div>

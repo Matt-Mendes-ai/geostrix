@@ -114,7 +114,7 @@ const nearLines = (p, lines, d) => lines.some((ln) => { for (let i = 0; i < ln.l
 // borders are half-way between holes, not contacts, so they give no order evidence (each is listed as such, with no votes); roleOf: a role
 // for a code the name and description leave stratigraphic (the logs' role, mapRoleFromLog), so an intrusive phase or a dyke code starts as
 // on any map instead of all 19 units in a stratigraphic pile
-export function suggestPileOrder({ layer, field, descField = null, bedding = [], faults = [], groundAt = null, nearestHole = false, roleOf = null, radiusM = 400, faultBufferM = 150, faultContactM = 300, sampleStepM = 25, windowM = 800, traceVoteWeight = 20 }) {
+export function suggestPileOrder({ layer, field, descField = null, bedding = [], faults = [], groundAt = null, nearestHole = false, roleOf = null, loggedContacts = null, radiusM = 400, faultBufferM = 150, faultContactM = 300, sampleStepM = 25, windowM = 800, traceVoteWeight = 20 }) {
   const units = new Map(); // unit -> { area, desc, polys: [parts] }
   const ringArea = (r) => { let a = 0; for (let i = 0; i < r.length - 1; i++) a += r[i][0] * r[i + 1][1] - r[i + 1][0] * r[i][1]; return Math.abs(a) / 2; };
   for (const f of layer.features) {
@@ -216,6 +216,22 @@ export function suggestPileOrder({ layer, field, descField = null, bedding = [],
     pairs.push({ a, b, younger: weight ? (wa >= wb ? a : b) : null, older: weight ? (wa >= wb ? b : a) : null, weight, agreement: weight ? Math.max(wa, wb) / weight : 0, measurements: used.size, samples, lengthM: c.lengthM,
       bedding: { a: bedA, b: bedB }, trace: { a: ta, b: tb, planes }, fittedPlanes: fitted });
   }
+  // TASKS.csv #3391 — on nearest-hole outlines the order comes from the LOGGED contacts instead of the area: every change downhole from one
+  // unit to another says the upper (shallower) unit is the younger, as for upright beds in a down-hole. A pair met both ways votes by its
+  // majority (the weight is the number of contacts), as a bedding pair does. Overturned or up-hole logging is not told apart: a suggestion.
+  if (nearestHole && loggedContacts?.length) {
+    const tally = new Map();
+    for (const c of loggedContacts) {
+      if (!units.has(c.upper) || !units.has(c.lower) || c.upper === c.lower) continue;
+      const [a, b] = c.upper < c.lower ? [c.upper, c.lower] : [c.lower, c.upper], k = `${a}\u0000${b}`, e = tally.get(k) || { a, b, ab: 0, ba: 0 };
+      if (c.upper === a) e.ab++; else e.ba++;
+      tally.set(k, e);
+    }
+    for (const { a, b, ab, ba } of tally.values()) {
+      const n = ab + ba;
+      pairs.push({ a, b, younger: ab >= ba ? a : b, older: ab >= ba ? b : a, weight: n, agreement: Math.max(ab, ba) / n, measurements: 0, samples: 0, lengthM: 0, logged: { contacts: n, aboveBelow: ab, belowAbove: ba } });
+    }
+  }
   // rank the stratigraphic units
   const strat = [...units.keys()].filter((u) => roles[u] === "stratigraphic");
   const score = new Map(strat.map((u) => [u, 0])), took = new Map(strat.map((u) => [u, 0]));
@@ -240,7 +256,7 @@ export function suggestPileOrder({ layer, field, descField = null, bedding = [],
   const { order, above, below } = orderFromPairs(info.map((i) => i.unit), pairs); // TASKS.csv #1311
   const unitsOut = [...units.entries()].map(([u, e]) => {
     const i = info.find((x) => x.unit === u);
-    return { unit: u, description: e.desc, role: roles[u], areaKm2: e.area / 1e6, score: i?.norm ?? null, overOthers: above.get(u) || 0, underOthers: below.get(u) || 0, meanElevation: meanElev(u), evidence: i?.norm != null ? "bedding" : meanElev(u) != null ? "elevation" : roles[u] === "stratigraphic" ? "area" : "role" };
+    return { unit: u, description: e.desc, role: roles[u], areaKm2: e.area / 1e6, score: i?.norm ?? null, overOthers: above.get(u) || 0, underOthers: below.get(u) || 0, meanElevation: meanElev(u), evidence: i?.norm != null ? (nearestHole && loggedContacts?.length ? "logged" : "bedding") : meanElev(u) != null ? "elevation" : roles[u] === "stratigraphic" ? "area" : "role" };
   });
   return { order, roles, pairs, units: unitsOut };
 }

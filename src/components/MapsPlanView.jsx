@@ -17,11 +17,14 @@ import { collarColourFields, collarFieldsLeftOut, perHoleAssay, collarColouring,
 import { planTraces, highestAt, drawTraces } from "../lib/planTraces.js"; // TASKS.csv #3337 — the holes' traces in plan
 import { surveysOnPlan, surveyOutlineBoundary, ringArea } from "../lib/planSurveys.js"; // TASKS.csv #3342 — the point surveys on the plan
 import { drawCallouts } from "../lib/collarCallouts.js"; // TASKS.csv #3397 — holes from one pad: one ring and a callout listing them
+import { contourLabelSpots } from "../lib/contourLabels.js"; // TASKS.csv #3505 — the index contours' levels on the plan
 import { collarSpacing, dotStyle, dotsInView, drawDots, polylineInView, drawShapedDots, dotKey, SIZE_SCALE, shapePath } from "../lib/planDots.js"; // TASKS.csv #2988 / #2989
 import HoleValueGridPanel from "./HoleValueGridPanel.jsx"; // TASKS.csv #2658
 import { planGridStep, planGridLines, gridLabel, measureLine, distanceText } from "../lib/planGrid.js"; // TASKS.csv #2128
 import { trueNorthBearingInGridDeg } from "../lib/inversion.js"; // TASKS.csv #2128 — the convergence at the measured line
 import { usePlanZoom, viewForBox } from "../lib/planZoom.js"; // TASKS.csv #2657
+import { errorNotice } from "../lib/notices.js"; // TASKS.csv #3491
+import { usePlanRecapture, recaptureFields } from "../lib/planRecapture.js"; // TASKS.csv #3491 — Layout asks for a fresh capture at a placed snapshot's size
 import { usePlanGt, showGtOnPlan, gtRadius, gtLegend } from "../lib/planGt.js"; // TASKS.csv #2755
 import { topRasterValueAt } from "../lib/planRasterValue.js"; // TASKS.csv #2853 — the value under the cursor
 import { planLodTiles, tilesInView, tilePixelM, lodSourceKey, tileKey } from "../lib/lodTiles.js"; // TASKS.csv #3252 — detail tiles where the plan looks
@@ -64,6 +67,7 @@ function ShapeGlyph({ shape }) {
 // TASKS.csv #3484 — the pixel ratio of a Layout snapshot of a w x h (CSS px) plan: 300 dpi of A3's long side, in [2 dpr, 8], within 36 megapixels
 export const SHEET_LONG_PX = 4961; // 420 mm at 300 dpi
 export const snapshotRatio = (w, h, dpr = 1) => Math.min(8, Math.max(2 * dpr, SHEET_LONG_PX / Math.max(1, w, h)), Math.sqrt(36e6 / Math.max(1, w * h)));
+const CONTOUR_SPOTS = new WeakMap(); // TASKS.csv #3505 — a contour layer's label spots, worked out once per layer object
 const SURVEY_COLOURS = ["#0e7490", "#b45309", "#7c3aed", "#be185d", "#15803d", "#1d4ed8"];
 // TASKS.csv #2998 — '  ·  57.1291°N 131.4509°W' (null transform or a failed conversion: nothing)
 const lonLatText = (T, c) => {
@@ -73,7 +77,7 @@ const lonLatText = (T, c) => {
 // TASKS.csv #2853 — the top visible grid's value at the cursor, after the E / N
 const cursorValueText = (rasters, c) => { const t = topRasterValueAt(rasters, c.x, c.y); return t ? `  ·  ${t.name.length > 28 ? `…${t.name.slice(-27)}` : t.name}: ${t.value.toLocaleString(undefined, { maximumSignificantDigits: 4 })}${t.unit ? ` ${t.unit}` : ""}` : ""; };
 export default function MapsPlanView() {
-  const { rasters = [], terrain, mapLayers = [], boundaries = [], collars = [], surfaceSamples = [], assays = [], assayElements = [], layers = {}, customLayers = [], project, survey = [], desurveyMethod, addLayoutImage, goToModule, addBoundary, updateRaster, updateTerrain } = useStore(); // updateRaster, updateTerrain: #3463 // addBoundary: #3342 // addLayoutImage / goToModule: #3194 // assays: #2459; layers, customLayers: #2658; project: #2128; survey, desurveyMethod: #2991 (a coded RL figure)
+  const { rasters = [], terrain, mapLayers = [], boundaries = [], collars = [], surfaceSamples = [], assays = [], assayElements = [], layers = {}, customLayers = [], project, survey = [], desurveyMethod, addLayoutImage, goToModule, mapLayoutPagesElements /* #3491 */, setNotices /* #3491 */, addBoundary, updateRaster, updateTerrain } = useStore(); // updateRaster, updateTerrain: #3463 // addBoundary: #3342 // addLayoutImage / goToModule: #3194 // assays: #2459; layers, customLayers: #2658; project: #2128; survey, desurveyMethod: #2991 (a coded RL figure)
   // TASKS.csv #2998 / #2298 — the cursor's longitude / latitude beside its E / N (a projected project CRS only), so a zone edge or a point from a
   // report in degrees can be found on the plan, and the readout says which frame its E / N are in
   const toLonLat = project?.crsSet !== false && project?.epsg && !isGeographicCrs(project.epsg) ? pointTransform(project.epsg, 4326) : null; // looked up as the cursor moves: the registry may load after the plan
@@ -97,7 +101,10 @@ export default function MapsPlanView() {
     return () => { live = false; off?.(); };
   }, [lodRasters.length > 0]);
   const wrapRef = useRef(null), canvasRef = useRef(null), layerCache = useRef(new Map()), drag = useRef(null), gridDrawn = useRef(false); // gridDrawn: #3194
-  const [size, setSize] = useState({ w: 800, h: 600 });
+  const [liveSize, setSize] = useState({ w: 800, h: 600 });
+  // TASKS.csv #3491 — while Layout's fresh capture is drawn the plan is drawn at the size and view it asked for (the picture's own, not the screen's)
+  const [recapture, setRecapture] = useState(null); // { w, h, view } | null
+  const size = useMemo(() => (recapture ? { w: recapture.w, h: recapture.h } : liveSize), [recapture, liveSize]);
   const [view, setView] = useState(null); // { cx, cy, mPerPx }
   const [cursor, setCursor] = useState(null);
   const [tick, setTick] = useState(0); // an image finished decoding
@@ -110,6 +117,7 @@ export default function MapsPlanView() {
   // TASKS.csv #2459 / #2591 — collars coloured by a collar field or a per-hole assay statistic, and labelled with their ids
   const [colourBy, setColourBy] = useState(""); // "" | "f:<field>" | "max:<element>" | "mean:<element>"
   const [showIds, setShowIds] = useState(false);
+  const [idsLeftOut, setIdsLeftOut] = useState(0); // TASKS.csv #3505 — hole ids with no room at this zoom
   // TASKS.csv #2755 — 3D Modelling > Grade × thickness in plan's per-hole totals, sent with 'Show on the Maps plan': circles sized by GT
   const gtPlan = usePlanGt();
   const gtMax = useMemo(() => { let m = 0; for (const h of gtPlan?.holes || []) if (h.gt > m) m = h.gt; return m; }, [gtPlan]);
@@ -166,7 +174,39 @@ export default function MapsPlanView() {
   }, [!!extent]); // the frame exists only once there is data
   const fit = () => { if (extent) setView({ cx: (extent[0] + extent[2]) / 2, cy: (extent[1] + extent[3]) / 2, mPerPx: Math.max((extent[2] - extent[0]) / size.w, (extent[3] - extent[1]) / size.h) * 1.08 }); };
   usePlanZoom((bbox) => setView(viewForBox(bbox, size.w, size.h))); // #2657 — a card's 'Zoom to'
-  const v = view || (extent ? { cx: (extent[0] + extent[2]) / 2, cy: (extent[1] + extent[3]) / 2, mPerPx: Math.max((extent[2] - extent[0]) / size.w, (extent[3] - extent[1]) / size.h) * 1.08 } : null);
+  // TASKS.csv #3491 (a hook: before the plan's early return; it reads the plan's state when the request arrives) — Layout asks for the picture again at a placed snapshot's frame size and dpi (lib/planRecapture.js): the same ground and centre, the
+  // plan as it is now (its layers and colours), then back to Layout with the element's picture replaced
+  const recaptureBusy = useRef(false);
+  usePlanRecapture(async (spec) => {
+    if (!spec || recaptureBusy.current) return;
+    recaptureBusy.current = true;
+    const frame = () => new Promise((r) => requestAnimationFrame(r));
+    const hadGrid = showGrid;
+    let ok = false;
+    try {
+      const { mapSnapshotPayload } = await import("../lib/mapSnapshot.js");
+      if (hadGrid) { setShowGrid(false); for (let i = 0; i < 30 && gridDrawn.current; i++) await frame(); }
+      setRecapture({ w: spec.w, h: spec.h, view: spec.view });
+      setCaptureDpr(spec.ratio);
+      const wantW = Math.round(spec.w * spec.ratio);
+      for (let i = 0; i < 120 && !(canvasRef.current?.width === wantW && drawnDpr.current === spec.ratio); i++) await frame();
+      const cv = canvasRef.current;
+      if (!cv || cv.width !== wantW) throw new Error(tr("The map did not finish drawing at that size."));
+      const src = cv.toDataURL("image/png");
+      const collarTitle = colouring ? (colourBy.startsWith("f:") ? colourBy.slice(2) : colourBy.replace(/^(max|mean):/, "")) : "";
+      const fields = recaptureFields(snapshotPayloadOf(mapSnapshotPayload, src, cv.width, cv.height, spec.view, { w: spec.w, h: spec.h }, collarTitle));
+      mapLayoutPagesElements((els) => els.map((e) => (e.id === spec.elementId ? { ...e, ...fields } : e)));
+      ok = true;
+    } catch (err) {
+      setNotices((p) => [...p, errorNotice(tr("Could not draw the map again for Layout: {message}", { message: err.message }))]);
+    } finally {
+      setRecapture(null); setCaptureDpr(null);
+      if (hadGrid) setShowGrid(true);
+      recaptureBusy.current = false;
+    }
+    if (ok) goToModule("layout");
+  });
+  const v = recapture?.view || view || (extent ? { cx: (extent[0] + extent[2]) / 2, cy: (extent[1] + extent[3]) / 2, mPerPx: Math.max((extent[2] - extent[0]) / size.w, (extent[3] - extent[1]) / size.h) * 1.08 } : null);
 
   useEffect(() => {
     const cv = canvasRef.current;
@@ -266,6 +306,18 @@ export default function MapsPlanView() {
       ctx.beginPath();
       (b.polylines || []).forEach((pl) => { if (pl.length < 2 || !polylineInView(pl, viewBox)) return; pl.forEach((p, i) => (i ? ctx.lineTo(X(p.x), Y(p.y)) : ctx.moveTo(X(p.x), Y(p.y)))); });
       ctx.stroke();
+      // TASKS.csv #3505 — a contour layer's index contours labelled with their level, as in 3D, when its 'Label index contours' is ticked
+      if (b.contourLevels?.length && b.contourLabels !== false) {
+        let spots = CONTOUR_SPOTS.get(b);
+        if (!spots) { spots = contourLabelSpots(b); CONTOUR_SPOTS.set(b, spots); }
+        ctx.save(); ctx.font = "10px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.fillStyle = "#1a2028";
+        for (const s of spots) {
+          const sx = X(s.x), sy = Y(s.y);
+          if (sx < -20 || sy < -10 || sx > size.w + 20 || sy > size.h + 10) continue;
+          ctx.strokeText(s.text, sx, sy); ctx.fillText(s.text, sx, sy);
+        }
+        ctx.restore();
+      }
       // TASKS.csv #3234 — the parts' names at each part's centre, when the boundary's row asks for them (#2673's 'Label the parts'), as in 3D
       if (b.partLabels && b.partNames?.some(Boolean)) {
         ctx.save(); ctx.font = "11px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.fillStyle = "#1a2028";
@@ -322,7 +374,7 @@ export default function MapsPlanView() {
       const cr = chipRef.current;
       if (cr) keepClear.push({ x0: cr.offsetLeft, y0: cr.offsetTop, x1: cr.offsetLeft + cr.offsetWidth, y1: cr.offsetTop + cr.offsetHeight });
       if (showGrid) keepClear.push({ x0: 0, y0: 0, x1: size.w, y1: 14 }, { x0: 0, y0: 0, x1: 58, y1: size.h });
-      drawCallouts(ctx, collars, X, Y, size, { colourOf: colouring ? (c) => colouring.colourOf(c) : undefined, dotR: ds.r, mPerPx: v.mPerPx, more: (n) => tr("+{n} more", { n }), keepClear });
+      drawCallouts(ctx, collars, X, Y, size, { colourOf: colouring ? (c) => colouring.colourOf(c) : undefined, dotR: ds.r, mPerPx: v.mPerPx, more: (n) => tr("+{n} more", { n }), keepClear, report: (r) => setIdsLeftOut(r.leftOut) });
     }
     if (measuring && mPts.length) { // #2128 — the measured line
       ctx.strokeStyle = "#c2185b"; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
@@ -382,6 +434,8 @@ export default function MapsPlanView() {
     const conv = project?.crsSet !== false && project?.epsg ? trueNorthBearingInGridDeg((mPts[0].x + mPts[1].x) / 2, (mPts[0].y + mPts[1].y) / 2, project.epsg) : null;
     return { ...m, conv: Number.isFinite(conv) ? conv : null };
   })() : null;
+  // the payload of a picture of the plan as it is drawn now (Snapshot to Layout, and Layout's fresh capture at a frame's size, #3491)
+  const snapshotPayloadOf = (mapSnapshotPayload, src, pxW, pxH, vv, sz, collarTitle) => mapSnapshotPayload({ src, pxW, pxH, view: vv, size: sz, mapLayers, boundaries, rasters, collarLegend: colouring?.legend ? colouring.legend.map((l) => (l.other ? { ...l, label: tr("Other: {n} values ({holes} holes)", { n: l.other.length, holes: l.holes.toLocaleString() }) } : l)) : null, /* #3340 */ collarTitle, collars: collars.filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y)).length, samples: surfaceSamples.filter((s) => Number.isFinite(s.x)).length, label: project?.name ? `Map view: ${project.name}` : "Map view" });
   // TASKS.csv #3194 (Matt) — the view as it is on screen, to the Layout page (lib/mapSnapshot.js, loaded on use): north up, at its scale,
   // with its centre and extent for Layout's scale bar and coordinate grid, and a legend of what it draws
   const toLayout = async () => {
@@ -404,7 +458,7 @@ export default function MapsPlanView() {
     const src = cv.toDataURL("image/png");
     setCaptureDpr(null);
     if (hadGrid) setShowGrid(true);
-    addLayoutImage({ ...mapSnapshotPayload({ src, pxW: cv.width, pxH: cv.height, view: v, size, mapLayers, boundaries, rasters, collarLegend: colouring?.legend ? colouring.legend.map((l) => (l.other ? { ...l, label: tr("Other: {n} values ({holes} holes)", { n: l.other.length, holes: l.holes.toLocaleString() }) } : l)) : null, /* #3340 */ collarTitle, collars: collars.filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y)).length, samples: surfaceSamples.filter((s) => Number.isFinite(s.x)).length, label: project?.name ? `Map view: ${project.name}` : "Map view" }), utmGrid: hadGrid });
+    addLayoutImage({ ...snapshotPayloadOf(mapSnapshotPayload, src, cv.width, cv.height, v, size, collarTitle), utmGrid: hadGrid });
     goToModule("layout");
   };
   const chip = { position: "absolute", background: "rgba(255,255,255,0.9)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "3px 7px", fontSize: "var(--font-size-sm)", color: "#1a2028" };
@@ -453,7 +507,7 @@ export default function MapsPlanView() {
               </select>
             </label>
           )}
-          <label style={{ display: "flex", alignItems: "center", gap: 5 }}><input type="checkbox" checked={showIds} onChange={(e) => setShowIds(e.target.checked)} />{tr("Hole ids")}</label>
+          <label style={{ display: "flex", alignItems: "center", gap: 5 }}><input type="checkbox" checked={showIds} onChange={(e) => setShowIds(e.target.checked)} />{tr("Hole ids")}{showIds && idsLeftOut > 0 && <span style={{ color: "var(--color-text-muted)" }}> {tr("({n} left out: they overlap, zoom in)", { n: idsLeftOut.toLocaleString() }) /* TASKS.csv #3505 */}</span>}</label>
           {planT.traces.size > 0 && ( /* TASKS.csv #3337 */
             <label style={{ display: "flex", alignItems: "center", gap: 5 }} title={tr("{n} of the holes end more than 10 m from their collar in plan (up to {m} m)", { n: planT.longReach.toLocaleString(), m: Math.round(planT.reachMax).toLocaleString() })}>
               <input type="checkbox" checked={showTraces} onChange={(e) => setTracesPicked(e.target.checked)} />{tr("Hole traces (a tick at the toe)")}</label>

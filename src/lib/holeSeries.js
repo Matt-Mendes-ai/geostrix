@@ -3,7 +3,7 @@
 // width 4); the prefix with the most ids wins (ties: the one with the highest number); the next number is one past the highest id of that
 // prefix among the holes and the planned holes, padded to the series' usual width. -> 'GC23-0989', or null when no id ends in digits.
 const SPLIT = /^(.*?)(\d+)$/;
-export function nextHoleId(ids) {
+export function holeSeries(ids) {
   const by = new Map();
   for (const raw of ids || []) {
     const m = SPLIT.exec(String(raw ?? "").trim());
@@ -16,5 +16,9 @@ export function nextHoleId(ids) {
   if (!by.size) return null;
   const best = [...by.values()].sort((a, b) => b.n - a.n || b.max - a.max)[0];
   const width = [...best.widths].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0][0];
-  return `${best.prefix}${String(best.max + 1).padStart(width, "0")}`;
+  return { prefix: best.prefix, next: best.max + 1, width }; // #3433: the parts, for the planned-holes line / grid
+}
+export function nextHoleId(ids) {
+  const s = holeSeries(ids);
+  return s ? `${s.prefix}${String(s.next).padStart(s.width, "0")}` : null;
 }

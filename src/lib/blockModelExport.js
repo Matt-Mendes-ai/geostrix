@@ -42,6 +42,7 @@ const CELL_FIELDS = [
   // TASKS.csv #1044 — a vector (MVI) inversion's magnetization direction per cell: inclination positive down, declination
   // clockwise from GRID north (potential.py _inc_dec); the direction is the point of choosing MVI, and no writer kept it
   ["INC_DEG", (c) => num(c.inc)], ["DEC_GRID_DEG", (c) => num(c.dec)],
+  ["DENSITY", (c) => num(c.density)], // TASKS.csv #3297 — the density Grade-tonnage kept with the model, t/m3
 ];
 // TASKS.csv #1093 (review #1016, geophysicist) — a single DC/IP line's cells are the axis-aligned boxes around its
 // rotated 2D cells (dcip.js sectionCells: dx = |ux| ds + |uy| T, dy = |uy| ds + |ux| T): on Woodjam's 330-degree lines
@@ -107,6 +108,7 @@ export function blockModelRows(model, names = "datamine") {
     if (Number.isFinite(c.inc)) row.INC_DEG = +c.inc.toFixed(1); // #1044
     if (Number.isFinite(c.dec)) row.DEC_GRID_DEG = +c.dec.toFixed(1);
     if (c.domain != null) row.DOMAIN = c.domain; // TASKS.csv #3014 — a hard-boundary estimate: the domain each block took
+    if (Number.isFinite(c.density)) row.DENSITY = +c.density.toFixed(3); // #3297
     return row;
   });
 }
@@ -129,8 +131,8 @@ export function* blockModelCsvChunks(model, names = "datamine", chunk = 50000) {
   const cells = model.cells || [];
   if (!cells.length) return;
   const valueName = valueColumnName(model);
-  const OPT = ["N_SAMPLES", "N_HOLES", "SUPPORT", "SUPPORT_CODE", "SUPPORT_INDEX", "COVERAGE", "VOLUME_M3", "KV", "NEAREST_M", "INC_DEG", "DEC_GRID_DEG", "HOLE_SHARE", "DOMAIN"]; // KV / NEAREST_M: #1049; INC / DEC: #1044; HOLE_SHARE: #1617
-  const has = (c) => [c.nSamples != null, c.nHoles != null, c.support != null, typeof c.support === "string" && SUPPORT_CODES[c.support] != null, Number.isFinite(c.supportIndex), Number.isFinite(c.coverage), Number.isFinite(c.coverage) || !!sectionTrueSize(model, c) /* #1093 */, Number.isFinite(c.kv), Number.isFinite(c.nearestSampleM), Number.isFinite(c.inc), Number.isFinite(c.dec), Number.isFinite(c.holeShare), c.domain != null]; // DOMAIN: #3014
+  const OPT = ["N_SAMPLES", "N_HOLES", "SUPPORT", "SUPPORT_CODE", "SUPPORT_INDEX", "COVERAGE", "VOLUME_M3", "KV", "NEAREST_M", "INC_DEG", "DEC_GRID_DEG", "HOLE_SHARE", "DOMAIN", "DENSITY"]; // DENSITY: #3297; KV / NEAREST_M: #1049; INC / DEC: #1044; HOLE_SHARE: #1617
+  const has = (c) => [c.nSamples != null, c.nHoles != null, c.support != null, typeof c.support === "string" && SUPPORT_CODES[c.support] != null, Number.isFinite(c.supportIndex), Number.isFinite(c.coverage), Number.isFinite(c.coverage) || !!sectionTrueSize(model, c) /* #1093 */, Number.isFinite(c.kv), Number.isFinite(c.nearestSampleM), Number.isFinite(c.inc), Number.isFinite(c.dec), Number.isFinite(c.holeShare), c.domain != null, Number.isFinite(c.density)]; // DOMAIN: #3014
   // the columns in the order toExportCsv's union of row keys gives: the base seven, then each optional one where it first appears
   const extra = model.exportExtra || []; // #3014 part c — the set's other elements, right after the value
   const fields = [...(BLOCK_COLUMN_NAMES[names] || BLOCK_COLUMN_NAMES.datamine), valueName, ...extra.map((e) => e.name)], seen = new Set();
@@ -159,6 +161,7 @@ export function* blockModelCsvChunks(model, names = "datamine", chunk = 50000) {
     if (Number.isFinite(c.inc)) row[col.INC_DEG] = String(+c.inc.toFixed(1));
     if (Number.isFinite(c.dec)) row[col.DEC_GRID_DEG] = String(+c.dec.toFixed(1));
     if (c.domain != null) row[col.DOMAIN] = csvCell(c.domain); // #3014
+    if (Number.isFinite(c.density)) row[col.DENSITY] = String(+c.density.toFixed(3)); // #3297 — the density Grade-tonnage kept with the model (t/m3)
     lines.push(row.join(","));
     if (lines.length >= chunk) { yield lines.join("\r\n"); lines = []; }
   }

@@ -17,7 +17,7 @@ import { contourLabelSpots, indexLevels } from "../contourLabels.js"; // TASKS.c
 import { makeTextSprite } from "./textSprite.js"; // TASKS.csv #1466 / #1622
 import { collarGround, collarsLookUnderground } from "../collarGround.js"; // TASKS.csv #2447; #3159: not pitShell.js, which put the pit solver in startup; collarsLookUnderground: #3368
 import { outcropNoTerrainGround } from "./surfacePlacement.js"; // TASKS.csv #3368
-import { terrainDrapeGrid, adaptiveDrape } from "./terrainDrape.js"; // TASKS.csv #3380; adaptiveDrape: #3449
+import { terrainDrapeGrid, adaptiveDrape, trianglesNear } from "./terrainDrape.js"; // TASKS.csv #3380; adaptiveDrape: #3449; trianglesNear: #3252
 import { DRAW_ORDER } from "./drawOrder.js"; // TASKS.csv #2776
 
 // TASKS.csv #2447 / #2576 (reviews #2325 / #2486) — a raster drawn on the collar surface (drapeMode "collars", a project with no terrain): a
@@ -346,7 +346,7 @@ export function syncMapLayers(group, cache, mapLayers, { origin, terrain, render
       mesh.rotation.x = -Math.PI / 2; // plane local +Y (image top = north) becomes scene -z, the app's north
       mesh.position.set(cx - ox, drapeOnTerrain || onCollars ? 0 : (l.elevation || 0) - oz + lift - 0.3, -(cy - oy));
       mesh.renderOrder = 2 + li;
-      mesh.userData = { geoKey, styleKey: null, canvas };
+      mesh.userData = { geoKey, styleKey: null, canvas, ...(drapeOnTerrain ? { drapeBox: bbox } : {}) }; // drapeBox: TASKS.csv #3252 phase 3 (the terrain tiles draw it on their own surface)
       group.add(mesh);
       cache[l.id] = mesh;
     }
@@ -603,11 +603,14 @@ function adaptiveMeshOf(terrain) {
 // z up; the caller turns it -90 degrees about x), `base` metres above the ground; UVs u east, v north over the box. On a decimated terrain
 // mesh it is that mesh's triangles inside the box (adaptiveDrape: exact, no lift); on a full grid the grid drape, each vertex lifted by its
 // own rise (terrainDrapeGrid). Matt's #3449: a hillshade and imagery floated ~380-500 m over a Copernicus terrain, lifted by one number.
-function terrainDrapeGeometry(terrain, bbox, { cx, cy, oz, base }) {
-  const [x0, y0, x1, y1] = bbox, w = Math.max(0.001, x1 - x0), h = Math.max(0.001, y1 - y0);
-  const am = adaptiveMeshOf(terrain);
+// TASKS.csv #3252 phase 2 — exported for the 3D detail tiles (lib/viewer/lodDrape.js), which drape each tile on this same path: uvBox is the box
+// the picture covers (a tile's, of which `bbox` may be the part inside the raster), and `near` takes only the adaptive mesh's triangles near
+// the box (trianglesNear: the same triangles adaptiveDrape would keep, without walking the whole mesh).
+export function terrainDrapeGeometry(terrain, bbox, { cx, cy, oz, base, uvBox = null, near = false }) {
+  const [x0, y0, x1, y1] = uvBox || bbox, w = Math.max(0.001, x1 - x0), h = Math.max(0.001, y1 - y0);
+  const am = adaptiveMeshOf(terrain); // #3449
   let n, X, Y, Z, L = null, index;
-  if (am) { const d = adaptiveDrape(terrain, am, bbox); n = d.x.length; X = (q) => d.x[q]; Y = (q) => d.y[q]; Z = d.z; index = d.indices; }
+  if (am) { const d = adaptiveDrape(terrain, near ? trianglesNear(terrain, am, bbox) : am, bbox); n = d.x.length; X = (q) => d.x[q]; Y = (q) => d.y[q]; Z = d.z; index = d.indices; }
   else { const dg = terrainDrapeGrid(terrain, bbox), W = dg.xs.length; n = W * dg.ys.length; X = (q) => dg.xs[q % W]; Y = (q) => dg.ys[(q - (q % W)) / W]; Z = dg.z; L = dg.lift; index = dg.indices; }
   const positions = new Float32Array(n * 3), uvs = new Float32Array(n * 2);
   for (let q = 0; q < n; q++) {

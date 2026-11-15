@@ -83,3 +83,52 @@ export function matchedFilter(pixels, target, bg = background(pixels)) {
   }
   return out;
 }
+
+// ---- TASKS.csv #2003 (UI step) — a reference spectrum from pasted text, and the three maps on a cube read as one array per band ----
+// parseSpectrum: lines of 'wavelength reflectance' (comma, tab, semicolon or space; a header line is skipped); wavelengths in micrometres
+// (largest under 10) become nanometres. -> { wl: number[] (ascending, nm), value: number[] }, or null when fewer than 3 pairs
+export function parseSpectrum(text) {
+  const wl = [], value = [];
+  for (const line of String(text || "").split(/\r?\n/)) {
+    const p = line.trim().split(/[\s,;]+/).map(Number);
+    if (p.length >= 2 && Number.isFinite(p[0]) && Number.isFinite(p[1])) { wl.push(p[0]); value.push(p[1]); }
+  }
+  if (wl.length < 3) return null;
+  let top = -Infinity; for (const w of wl) if (w > top) top = w; /* no Math.max(...spread): #371 */
+  const um = top < 10, idx = wl.map((_, i) => i).sort((a, b) => wl[a] - wl[b]);
+  return { wl: idx.map((i) => wl[i] * (um ? 1000 : 1)), value: idx.map((i) => value[i]) };
+}
+// the spectrum at the cube's band wavelengths by linear interpolation: NaN outside its own range. -> { value: Float64Array, covered: share of bands inside }
+export function resampleSpectrum(ref, wl) {
+  const out = new Float64Array(wl.length).fill(NaN);
+  let inside = 0;
+  for (let k = 0; k < wl.length; k++) {
+    const w = wl[k];
+    if (w < ref.wl[0] || w > ref.wl[ref.wl.length - 1]) continue;
+    let j = 0;
+    while (j < ref.wl.length - 2 && ref.wl[j + 1] < w) j++;
+    const t = (w - ref.wl[j]) / (ref.wl[j + 1] - ref.wl[j] || 1);
+    out[k] = ref.value[j] + t * (ref.value[j + 1] - ref.value[j]);
+    inside++;
+  }
+  return { value: out, covered: wl.length ? inside / wl.length : 0 };
+}
+// bands: one array per band (same length = the pixels), kind 'sam' (the angle in DEGREES, low = like the reference) | 'mf' (matched filter, 0 background to 1
+// target) | 'rx' (anomaly, high = unlike the background); ref: the reference at the bands (sam / mf). A pixel with a non-positive or masked value in any
+// band is masked (NaN). -> { map: Float32Array, valid }
+export function matchMap(bands, kind, ref = null, { isNoData = () => false } = {}) {
+  const m = bands.length, n = bands[0]?.length || 0;
+  const pixels = new Array(n);
+  let valid = 0;
+  for (let p = 0; p < n; p++) {
+    const s = new Float32Array(m);
+    let ok = true;
+    for (let b = 0; b < m; b++) { const v = bands[b][p]; if (!Number.isFinite(v) || isNoData(v)) { ok = false; break; } s[b] = v; }
+    if (ok) { pixels[p] = s; valid++; } else pixels[p] = null;
+  }
+  let map;
+  if (kind === "sam") map = sam(pixels, ref).map((a) => a * (180 / Math.PI));
+  else if (kind === "mf") map = matchedFilter(pixels, ref);
+  else map = rx(pixels);
+  return { map: map instanceof Float32Array ? map : Float32Array.from(map), valid };
+}

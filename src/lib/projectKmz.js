@@ -283,7 +283,7 @@ export function buildProjectKml(ctx, opts) {
     counts.holes = traces.size;
     const collarStyle = w.style({ color: "#1f2933", iconScale: 0.6, label: ui.holeLabelMode && ui.holeLabelMode !== "none" ? 0.7 : 0 });
     w.open("Collars");
-    for (const [h, { c }] of traces) w.placemark(h, collarStyle, w.point3d(num(c.x), num(c.y), num(c.z)), { visible: holeShown(h), data: { hole_id: h, elevation: num(c.z), azimuth: num(c.azimuth), dip: num(c.dip), length: num(c.length) } });
+    for (const [h, { c }] of traces) w.placemark(h, collarStyle, w.point3d(num(c.x), num(c.y), num(c.z)), { visible: holeShown(h), data: { hole_id: h, elevation: num(c.z), azimuth: num(c.azimuth), dip: num(c.dip), length: num(c.length), angles: "azimuth from GRID north (clockwise); dip in degrees below horizontal, positive down" /* TASKS.csv #3353 (10) */ } });
     w.close();
     const traceStyle = w.style({ color: "#5b6573", width: 1.5 });
     w.open("Traces");
@@ -346,7 +346,7 @@ export function buildProjectKml(ctx, opts) {
       // holePlanning.plannedTrace: a planned hole's dip is stored NEGATIVE downward (the user's convention, unlike a collar's), and its lift /
       // drift curve it — the one trace builder the 3D View and the other exports use (passing the dip to desurveyHole drew it upward)
       const pts = plannedTrace({ ...p, x: num(p.x), y: num(p.y), z: num(p.z), azimuth: num(p.azimuth), dip: num(p.dip), length: num(p.length) });
-      if (pts.length >= 2) w.placemark(p.name || "planned", st, w.line3d(pts), { data: { azimuth: num(p.azimuth), dip: num(p.dip), length: num(p.length), notes: p.notes || "" } });
+      if (pts.length >= 2) w.placemark(p.name || "planned", st, w.line3d(pts), { data: { azimuth: num(p.azimuth), dip: num(p.dip), length: num(p.length), angles: "azimuth from GRID north (clockwise); dip in degrees from horizontal, negative down (a planned hole)" /* #3353 (10) */, notes: p.notes || "" } });
     }
     w.close();
   }

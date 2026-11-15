@@ -167,7 +167,7 @@ test("wiring: the raster and map-layer drapes share terrainDrapeGeometry: the ad
   const s = fs.readFileSync(new URL("../src/lib/viewer/sceneBuilders.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(s, /geometry = terrainDrapeGeometry\(terrain, r\.bbox, \{ cx, cy, oz, base: 0\.15 \}\);/);
   assert.match(s, /geometry = terrainDrapeGeometry\(terrain, bbox, \{ cx, cy, oz, base: lift \}\);/);
-  assert.match(s, /if \(am\) \{ const d = adaptiveDrape\(terrain, am, bbox\);/);
+  assert.match(s, /if \(am\) \{ const d = adaptiveDrape\(terrain, near \? trianglesNear\(terrain, am, bbox\) : am, bbox\);/ /* #3252: near, for a tile */);
   assert.match(s, /positions\[q \* 3 \+ 2\] = Z\[q\] - oz \+ base \+ \(L \? L\[q\] : 0\);/);
   assert.match(s, /const am = adaptiveMeshOf\(terrain\); \/\/ #3449/);
   assert.doesNotMatch(s, /extraLift/);
