@@ -22,7 +22,7 @@ const CUSTOM = "custom";
 
 // tie (TASKS.csv #2648): a tied local grid (lib/localGridTie.js tieOf), epsg null: scenes are fetched in the tie's CRS and the index comes
 // into the grid through it (buildRasterImport's tie path, #2587)
-export default function SpectralIndexModal({ epsg, tie = null, defaultElevation, sourceEpsg, areaOptions = [], onImport, onClose }) {
+export default function SpectralIndexModal({ epsg, tie = null, defaultElevation, sourceEpsg, areaOptions = [], defaultPreset = "s2_clay", onImport, onClose }) { // defaultPreset: TASKS.csv #3479 — from the loaded assays
   useEscapeKey(onClose);
   useFocusTrap();
   const fileInput = useRef(null);
@@ -30,7 +30,7 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
   const [file, setFile] = useState(null); // { file, bands, width, height }
   const [dnEnc, setDnEnc] = useState("auto"); // TASKS.csv #928 — how the file's pixel values become reflectance
   const [sensor, setSensor] = useState("sentinel2");
-  const [presetId, setPresetId] = useState("s2_clay");
+  const [presetId, setPresetId] = useState(defaultPreset);
   const [custom, setCustom] = useState("b1/b2");
   const [mapping, setMapping] = useState({});
   const [error, setError] = useState(null);
@@ -182,7 +182,7 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
                 </select>
               )}
               <div style={{ ...small, marginTop: 6 }}>{source === "sentinel2"
-                ? tr("Copernicus Sentinel-2 surface reflectance from Element 84's Earth Search (AWS Open Data), free, no account. Summer dates keep snow off the ground; cloud, shadow, snow and water are masked with the scene's own classification. Only the area's window of the bands the index uses is downloaded.")
+                ? tr("Copernicus Sentinel-2 surface reflectance from Element 84's Earth Search (AWS Open Data), free, no account. Choose dates with the least cloud and snow (summer in the north, the dry season in the tropics); cloud, shadow, snow and water are masked with the scene's own classification. Only the area's window of the bands the index uses is downloaded.")
                 : tr("ASTER L1T from Microsoft's Planetary Computer, free, no account: the 2000-2006 archive, thermal bands 10-14 at 90 m as at-sensor radiance (not emissivity: compare values within one scene). Only the area's window is downloaded.")}</div>
             </div>
           ) : (

@@ -31,7 +31,7 @@ test("matching settings: the button gives way to 'the same as here'", () => {
 
 test("Compositing remembers; Estimation and the grade shell show the note and take the settings", () => {
   const cm = readFileSync(new URL("../src/components/CompositingModal.jsx", import.meta.url), "utf8");
-  assert.match(cm, /if \(results\.length\) rememberCompositing\(getProjectToken\?\.\(\), \{ symbol, length: Number\(length\), minCoverage: Number\(minCoverage\), cap: capValue === "" \? null : Number\(capValue\)/);
+  assert.match(cm, /if \(results\.length\) \{[^\n]*\n\s*const s = \{ symbol, length: Number\(length\), minCoverage: Number\(minCoverage\), cap: (capValue === "" \? null : Number\(capValue\)|capStored)[\s\S]*?rememberCompositing\(getProjectToken\?\.\(\), s\);/);
   const ge = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
   assert.match(ge, /\{useComposites && <GeochemCompositingNote symbol=\{symbol\} length=\{compositeLength\} minCoverage=\{minCoverage\} cap=\{capValue\}/);
   assert.match(ge, /setCompositeLength\(g\.length\); setMinCoverage\(g\.minCoverage\); setCapValue\(g\.cap \?\? NaN\); setCapAuto\(false\);/);

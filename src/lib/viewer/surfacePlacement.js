@@ -74,6 +74,24 @@ export function samePlacement(a, b) {
   });
 }
 
+// TASKS.csv #3392 (#3368) — with no terrain, samples placed on the collar surface that lie far from every collar sit on a guess (the surface through the
+// collars is only drilled ground): how many lie more than FAR_FROM_COLLAR_M from the nearest collar, and the farthest. Samples are sampled evenly (at most
+// 2,000) so a big file stays quick. -> { far, of, maxM } or null when none is placed on the collars
+export const FAR_FROM_COLLAR_M = 500;
+export function collarGapStats(placed, collars) {
+  const pts = (collars || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y));
+  const on = (placed || []).filter((r) => r.zCollars);
+  if (!pts.length || !on.length) return null;
+  const step = Math.max(1, Math.ceil(on.length / 2000));
+  let far = 0, maxM = 0;
+  for (let i = 0; i < on.length; i += step) {
+    let best = Infinity;
+    for (const c of pts) { const d = Math.hypot(on[i].x - c.x, on[i].y - c.y); if (d < best) best = d; }
+    if (best > FAR_FROM_COLLAR_M) far++; if (best > maxM) maxM = best;
+  }
+  return { far: far * step > on.length ? on.length : far * step, of: on.length, maxM };
+}
+
 // What the notices say: drawn flat with no terrain, flat outside the terrain, flat over a TIN's gap, not drawn.
 export function surfacePlacementCounts(samples, placed) {
   let noTerrain = 0, outside = 0, tinGap = 0, collars = 0;

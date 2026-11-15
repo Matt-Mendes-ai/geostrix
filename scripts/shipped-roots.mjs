@@ -2,7 +2,9 @@
 // and third-party-licenses.mjs (Help > Third-party Licences). They had drifted: the audit's own copy left out
 // pdfjs-dist, the one bundled library that parses untrusted files (a report PDF from a third party), so a future
 // PDF.js advisory would not have failed CI.
-export const BUNDLED_FROM_DEV = ["react", "react-dom", "pdfjs-dist", "electron"]; // in devDependencies, but they ship
+// TASKS.csv #3443 — the renderer-only libraries that Vite bundles into dist/ moved from "dependencies" to "devDependencies", so electron-builder leaves them out of app.asar (-53 MB: the app
+// loads dist/, never node_modules/, for these). They still ship inside the bundle, so the audit and the licence page keep reading them from here.
+export const BUNDLED_FROM_DEV = ["react", "react-dom", "pdfjs-dist", "electron", "@fontsource/exo-2", "d3-delaunay", "geotiff", "h5wasm", "laz-perf", "lucide-react", "meshoptimizer", "proj4", "sql.js", "three"]; // in devDependencies, but they ship
 // pdfjs-dist's optional Node canvas (and its per-platform binaries): never bundled into the app
 export const isNotShipped = (name) => name === "@napi-rs/canvas" || name.startsWith("@napi-rs/canvas-");
 // TASKS.csv #1332 — an advisory counts only if it hits a copy that ships. npm audit names the affected copies in `nodes`: undici 7 ships, while the undici 6 under node-gyp is

@@ -3,7 +3,7 @@
 //   npx vite --port 5173            (dev only; leave it running)
 //   NODE_ENV=development npx electron . --remote-debugging-port=9333 --user-data-dir=<scratch folder>
 // (unset NODE_ENV to load dist/ over app://, as an installed copy does), then:
-//   node scripts/drive-electron.mjs eval "document.title"
+//   node scripts/drive-electron.mjs eval "document.title"       (awaits a returned promise; evalnow does not, #3169)
 //   node scripts/drive-electron.mjs click 640,360          (mouse click at x,y)
 //   node scripts/drive-electron.mjs drag 640,360 700,300   (press, move, release - #813)
 //   node scripts/drive-electron.mjs key Shift+F10          (real key events: F10, ArrowDown/Up, Home, End, Enter, Escape, Tab, ContextMenu)
@@ -12,6 +12,8 @@
 //   node scripts/drive-electron.mjs accept                 (accept a window.confirm / alert, which otherwise freezes the page)
 //   node scripts/drive-electron.mjs front                  (bring the window forward: a hidden window throttles timers and rAF)
 //   node scripts/drive-electron.mjs shot out.png
+// CDP_TIMEOUT_MS (default 60000, #3169): a command whose answer does not come in that time exits 3 saying so, instead of waiting for ever (a page held by a
+// native dialog or a long task answers nothing: try `accept` or `front`; `evalnow` is Runtime.evaluate without awaitPromise, which still answers when a promise would not).
 // CDP_VIEWPORT=1024x700 emulates that window size during the command. CDP_PORT (default 9333) picks the port; CDP_HASH targets a window by its #/route (e.g. "section" for a section window).
 // Git Bash rewrites an argument starting with \\ or //: build such strings inside the page (String.fromCharCode(92)).
 import fs from "node:fs";
@@ -25,7 +27,13 @@ await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = rejec
 let id = 0;
 const pending = new Map();
 ws.onmessage = (m) => { const d = JSON.parse(m.data); if (pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id); } };
-const send = (method, params = {}) => new Promise((resolve) => { const i = ++id; pending.set(i, resolve); ws.send(JSON.stringify({ id: i, method, params })); });
+const TIMEOUT_MS = Number(process.env.CDP_TIMEOUT_MS || 60000);
+const send = (method, params = {}) => new Promise((resolve) => {
+  const i = ++id;
+  const timer = setTimeout(() => { pending.delete(i); console.error(`no answer to ${method} in ${TIMEOUT_MS} ms (CDP_TIMEOUT_MS): the page may be held by a dialog or a long task; try accept / front, or evalnow`); process.exit(3); }, TIMEOUT_MS);
+  pending.set(i, (d) => { clearTimeout(timer); resolve(d); });
+  ws.send(JSON.stringify({ id: i, method, params }));
+});
 
 const KEYS = { F10: 121, ArrowDown: 40, ArrowUp: 38, Escape: 27, Enter: 13, Tab: 9, ContextMenu: 93, Home: 36, End: 35 };
 const [cmd, arg, arg2] = process.argv.slice(2);
@@ -35,8 +43,8 @@ if (process.env.CDP_VIEWPORT) {
   await send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
   await new Promise((r) => setTimeout(r, 300)); // let layout settle
 }
-if (cmd === "eval") {
-  const r = await send("Runtime.evaluate", { expression: arg, awaitPromise: true, returnByValue: true });
+if (cmd === "eval" || cmd === "evalnow") {
+  const r = await send("Runtime.evaluate", { expression: arg, awaitPromise: cmd === "eval", returnByValue: true });
   console.log(JSON.stringify(r.result?.result?.value ?? r.result?.exceptionDetails ?? r, null, 1));
 } else if (cmd === "click") {
   const [x, y] = arg.split(",").map(Number);
@@ -76,7 +84,7 @@ if (cmd === "eval") {
   fs.writeFileSync(arg, Buffer.from(r.result.data, "base64"));
   console.log("saved", arg);
 } else {
-  console.error("commands: eval | click | key | type | file | accept | front | shot");
+  console.error("commands: eval | evalnow | click | key | type | file | accept | front | shot");
   process.exitCode = 2;
 }
 ws.close();

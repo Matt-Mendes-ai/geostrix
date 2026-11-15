@@ -30,5 +30,5 @@ test("the field is offered grouped, and the populations are its 12 commonest cod
 test("wiring: Thresholds adds the custom options to its drill populations", () => {
   const s = readFileSync(new URL("../src/components/ThresholdToolkit.jsx", import.meta.url), "utf8");
   assert.match(s, /\.\.\.customDomainOptions\(customLayers, \{ layers: projectLayers, labelOf: \(k\) => tr\(LAYER_META\[k\]\?\.label \|\| k\) \}, \{ groupTop: 12 \}\)/);
-  assert.match(s, /const \{ collars = \[\], customLayers = \[\] \} = useStore\(\)/);
+  assert.match(s, /const \{ collars = \[\], customLayers = \[\](, project, setDisplayUnit)? \} = useStore\(\)/);
 });

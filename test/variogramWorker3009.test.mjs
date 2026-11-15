@@ -41,7 +41,8 @@ test("Cancel rejects what is running with .cancelled; the next request sends the
     c.cancel();
     await assert.rejects(p, (e) => e.cancelled === true);
     c.variogram(pts, base).catch(() => {});
-    assert.ok(posted[1].packed, "after a cancel the new worker gets the composites");
+    await new Promise((r) => setTimeout(r, 50)); // packed in slices, posted after (#3403)
+    assert.ok(posted.at(-1)?.packed, "after a cancel the new worker gets the composites");
     c.stop();
   } finally { delete globalThis.Worker; }
 });

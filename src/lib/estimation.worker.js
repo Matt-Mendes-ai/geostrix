@@ -8,7 +8,12 @@ import { columnBuffers } from "./estimationCells.js"; // #661
 import { unpackPoints } from "./pointColumns.js"; // TASKS.csv #3008
 
 self.onmessage = (e) => {
-  const { kind, opts } = e.data || {};
+  const { kind } = e.data || {};
+  let opts = e.data?.opts;
+  // TASKS.csv #3389 — the unsampled drill points (and each set member's) came as columns
+  const po = e.data?.packedOpts;
+  if (po?.unsampledPoints) opts = { ...opts, unsampledPoints: unpackPoints(po.unsampledPoints) };
+  if (po?.memberUnsampled) opts = { ...opts, members: { ...opts.members, unsampled: po.memberUnsampled.map((u) => (u ? unpackPoints(u) : null)) } };
   const points = e.data?.packed ? unpackPoints(e.data.packed) : e.data?.points; // #3008 — columns from the UI thread
   try {
     let last = 0;

@@ -11,7 +11,7 @@ import { holeTraces } from "../lib/evidenceSources.js"; // #1878 — the drillho
 import { plannedTrace } from "../lib/holePlanning.js"; // #1878 — a planned hole's toe as a target
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { collarGround, collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2600
-import { buildDXF } from "../lib/dxf.js";
+import { buildDXF, dxfGridNote } from "../lib/dxf.js";
 import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
 import { iconAction } from "../lib/a11y.js";
@@ -261,7 +261,7 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
   const wallSelf = clearance ? Math.max(0, clearance.distance - 2 * profileHalfAlong(clearance, line?.profile)) : null; // #1889 (declared after clearance: TDZ otherwise); along the pass: #1924
 
   const exportCsv = () => saveFile({ suggestedName: "design_lines.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(designLineRows(designLines).map((r) => ({ ...r, crs: crsCell(project) }))) });
-  const exportDxf = () => saveFile({ suggestedName: "design_lines.dxf", filters: [{ name: "DXF", extensions: ["dxf"] }], content: buildDXF({ features: designLineFeatures(designLines), geomType: "line", layerOf: (f) => f.attributes.name, colorOf: (f) => f.attributes.color }) });
+  const exportDxf = () => saveFile({ suggestedName: "design_lines.dxf", filters: [{ name: "DXF", extensions: ["dxf"] }], content: buildDXF({ comment: dxfGridNote(project, "Mine Design lines"), features: designLineFeatures(designLines), geomType: "line", layerOf: (f) => f.attributes.name, colorOf: (f) => f.attributes.color }) });
 
   return (
     <div>

@@ -60,7 +60,7 @@ test("rasterFromGridAsync: the worker makes the picture, the record is assembled
 
 test("wired: every grid made by a filter in Maps goes through the worker; the worker's picture op", () => {
   const m = readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8");
-  assert.equal((m.match(/rasterFromGridAsync\(\{/g) || []).length, 4, "the filter, worms, tilt-depth and the matched filter");
+  assert.equal((m.match(/rasterFromGridAsync\(\{/g) || []).length, 5, "the filter, worms, tilt-depth, the matched filter and the clip to a boundary (#3470)");
   assert.doesNotMatch(m, /[^.]rasterFromGrid\(\{/);
   const w = readFileSync(new URL("../src/lib/gridFilter.worker.js", import.meta.url), "utf8");
   assert.match(w, /if \(e\.data\?\.op === "picture"\)/);

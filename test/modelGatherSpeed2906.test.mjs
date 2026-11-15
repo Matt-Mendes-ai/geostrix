@@ -54,7 +54,7 @@ test("rows by hole: the hole's rows in their order, built once per array", () =>
 
 test("wiring: the gatherer reads the hole's rows; 'Add modelled unit layer' skips the samples when the run gave intervals, one pass otherwise", () => {
   const r = fs.readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
-  assert.match(r, /\(rowsByHole\(layers\.litho\)\.get\(t\.hole_id\) \|\| \[\]\)\.filter\(\(r\) => !isNaN\(r\.from\)\)\.forEach/);
+  assert.match(r, /\(hasAssign \? rowsByHole\(layers\.litho\)\.get\(t\.hole_id\) \|\| \[\] : holeRowsOfCodes\(layers\.litho, t\.hole_id, codes\)\)\.filter\(\(r\) => !isNaN\(r\.from\)\)\.forEach/); // the unit's own codes' rows with no assignments: #3387
   assert.ok(!/\(layers\.litho \|\| \[\]\)\.filter\(\(r\) => r\.hole_id === t\.hole_id/.test(r));
   const v = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(v, /const samples = \[\], traceOf = exactRows \? null : new Map\(tracesRef\.current\.map\(\(t\) => \[t\.hole_id, t\]\)\);/);

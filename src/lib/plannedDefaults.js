@@ -26,10 +26,12 @@ export function drilledDefaults(collars, survey = []) {
   if (dips.length < 3 && lens.length < 3) return null;
   const d = dips.length >= 3 ? median(dips) : 60;
   // the azimuth matters only when the holes are inclined: a circular mean of the inclined ones
-  let azimuth = 0;
+  let azimuth = 0, azR = null;
   if (d < 85 && azs.length) {
     const sx = azs.reduce((s, a) => s + Math.sin((a * Math.PI) / 180), 0), cy = azs.reduce((s, a) => s + Math.cos((a * Math.PI) / 180), 0);
     azimuth = Math.round((((Math.atan2(sx, cy) * 180) / Math.PI) + 360) % 360);
+    azR = Math.round((Math.hypot(sx, cy) / azs.length) * 100) / 100; // TASKS.csv #3348 (4) — how well they agree: 1 = one direction, 0 = every way
   }
-  return { azimuth, dip: -Math.round(d), length: lens.length >= 3 ? Math.max(1, Math.round(median(lens))) : 100, n: Math.max(dips.length, lens.length) };
+  // #3348 (4) — azN / azR: the azimuth is the mean DIRECTION of azN inclined holes (resultant length azR), not a median like the dip and length
+  return { azimuth, dip: -Math.round(d), length: lens.length >= 3 ? Math.max(1, Math.round(median(lens))) : 100, n: Math.max(dips.length, lens.length), azN: d < 85 ? azs.length : 0, azR };
 }

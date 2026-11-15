@@ -140,6 +140,27 @@ export function perHoleValuesOf(g, { assayElements = [], layers = {}, customLaye
   return new Map(placed.samples.map((p) => [p.hole_id, p.values.value]));
 }
 
+// TASKS.csv #3350 (Galore Creek review) — a grid made 'at the intercepts' drew its figure's dots at the collars, up to 220 m from the cells holding
+// their value. The plan's figure needs where each hole's value was placed: the same spans the grid was made from (geochem: sourceId, stat,
+// threshold, codes), the dots at the middle of the span on the desurveyed trace. -> [{ x, y, v }] (holes whose trace cannot be built stay at their collar)
+export function perHoleFigureAtIntercepts(g, ctx) {
+  const { assayElements = [], layers = {}, customLayers = [], assays = [], collars = [], survey = [], desurveyMethod } = ctx || {};
+  const src = holeValueSources({ assayElements, layers, customLayers }).find((s) => s.id === g?.sourceId);
+  if (!src) return [];
+  let values, spans;
+  if (src.kind !== "coded") {
+    const rows = holeValueRows(src, { assays, layers, customLayers });
+    values = perHoleValue(rows, src.symbol, g.stat, { threshold: g.threshold });
+    spans = perHoleSpan(rows, src.symbol, g.stat, { threshold: g.threshold });
+  } else {
+    const base = g.stat === "topRL" ? "top" : g.stat === "baseRL" ? "base" : g.stat;
+    const res = perHoleCoded(src.rows, g.codes || [], base);
+    values = res.values; spans = res.spans;
+  }
+  const rl = g.stat === "topRL" || g.stat === "baseRL";
+  return holeSamplesAt(collars, values, spans, { at: "intercept", survey, desurveyMethod, rl, verticalDepth: !!g.verticalDepth }).samples.map((p) => ({ x: p.x, y: p.y, v: p.values.value }));
+}
+
 // rl (#2991): the value becomes the elevation (RL) of the interval's top on the desurveyed trace (a hole with no trace or no collar
 // elevation is left out and counted in noRl)
 export function holeSamplesAt(collars, values, spans, { key = "value", survey = [], desurveyMethod, verticalDepth = false, at = "intercept", rl = false } = {}) {

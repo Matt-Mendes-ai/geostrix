@@ -10,10 +10,13 @@ export function rememberCompositing(token, s) {
 }
 
 // isSameProject: the store's isSameProject(token) -> the settings, or null (none yet, another project, another element)
-export function lastCompositing(isSameProject, symbol) {
-  if (!last || !isSameProject?.(last.token)) return null;
-  return symbol && last.symbol !== symbol ? null : last;
+// TASKS.csv #2883 — saved: project.lastCompositing (the same settings, kept in the project file), offered after a reopen when this window has none
+export function lastCompositing(isSameProject, symbol, saved = null) {
+  if (last && isSameProject?.(last.token)) return symbol && last.symbol !== symbol ? null : last;
+  return saved && saved.symbol && saved.length > 0 && (!symbol || saved.symbol === symbol) ? saved : null;
 }
+// the settings as they are kept in the project: no token
+export const compositingToSave = (s) => (s && s.symbol && s.length > 0 ? { symbol: s.symbol, length: s.length, minCoverage: s.minCoverage, cap: s.cap ?? null, domain: s.domain ?? null } : null);
 
 // does a tool's own setting already match? (cap: null / NaN / blank = no cap)
 const capOf = (v) => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v)) || !(Number(v) > 0) ? null : Number(v));

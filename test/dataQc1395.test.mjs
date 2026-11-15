@@ -8,6 +8,7 @@ test("0 is a measurement; blank, NaN and Unknown are reported as missing", () =>
   const rows = [0, 35, "", NaN, "Unknown", "LST"].map((value, i) => ({ hole_id: "H1", from: i * 5, to: i * 5 + 5, value }));
   const { issues } = runDataQC({ project: {}, collars, survey: [], layers: { geotech: rows }, boundaries: [], assays: [] });
   const missing = issues.filter((x) => /no code\/value/.test(x.message));
-  assert.equal(missing.length, 3, JSON.stringify(missing.map((x) => x.message)));
-  assert.ok(!missing.some((x) => /at 0–5m/.test(x.message)), "the 0 % interval is not missing");
+  // #3359 — counted per hole: the three missing values of H1 are one line, the shallowest at 10 m (the 0 % at 0 m is not one of them)
+  assert.equal(missing.length, 1, JSON.stringify(missing.map((x) => x.message)));
+  assert.match(missing[0].message, /^3 intervals in this hole have no code\/value, the shallowest at 10m\./);
 });

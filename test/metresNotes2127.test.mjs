@@ -14,7 +14,7 @@ test("metres on a metric projected CRS, world units otherwise", () => {
 test("the raster and both terrain notices branch on the project's CRS", () => {
   const r = readFileSync(new URL("../src/lib/raster.js", import.meta.url), "utf8");
   assert.match(r, /tr\("Imported \\"\{name\}\\" \(\{width\}×\{height\}px, \{v\} × \{v2\} m\)\."/);
-  assert.match(r, /the drape's footprint moved \$\{sizeText\(/);
+  assert.match(r, /the numbers of its corner changed by \$\{sizeText\(/);
   const g = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
   assert.match(g, /terrain mesh \(source \{srcWidth\}×\{srcHeight\}px, \{v\} × \{v2\} m\)\{v3\}\./);
   assert.match(g, /terrain mesh covering \{v\} × \{v2\} m for the area you drew\./);

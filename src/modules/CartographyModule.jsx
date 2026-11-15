@@ -19,17 +19,19 @@ import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader } from "../components
 import CrsPicker from "../components/CrsPicker.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
-import { crsName, isMetricProjectedEpsg, pointTransform, getProj4DefSync, isGeographicCrs, datumNote } from "../lib/reproject.js"; // datumNote: #2467
+import { crsName, isMetricProjectedEpsg, pointTransform, getProj4DefSync, isGeographicCrs, datumNote, crsAreaOf, loadEpsgRegistry, onEpsgRegistry } from "../lib/reproject.js"; // datumNote: #2467; area, registry: #3339
+import { crsMapArea, inCrsArea, areaText } from "../lib/crsMapArea.js"; // TASKS.csv #3339
 import { trueNorthBearingInGridDeg } from "../lib/inversion.js";
 import { parseTableFile, toExportCsv } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
 import SourceCrsField from "../components/SourceCrsField.jsx";
 import { readShapefileLayers, reprojectShapefileZip, reportShapefileText, readGeoTiffInfo, reprojectGeoTiff, reportGeoTiffText, reprojectTableRows, degreesOutOfRange, utmOutOfRange, isUtmCrs, fileXYColumns, fromForGridPrefix , sridColumnEpsg, rowsToGeoJSON /* #2130 */ } from "../lib/fileReproject.js"; // #487; degreesOutOfRange: #2461; utmOutOfRange ... fromForGridPrefix: #2588
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
-import { collarCentreLonLat, collarSpread, formatLonLat, medianPoint, crsCandidatesAt } from "../lib/projectCrs.js"; // TASKS.csv #2291; medianPoint: #2463; crsCandidatesAt: #2465
-import { smallGridCoordinates } from "../lib/crsFromColumns.js"; // TASKS.csv #2291
+import { collarCentreLonLat, collarSpread, formatLonLat, medianPoint, crsCandidatesAt, offsetFrom } from "../lib/projectCrs.js"; // TASKS.csv #2291; medianPoint: #2463; crsCandidatesAt: #2465
+import { smallGridCoordinates, gridFrameFromRows } from "../lib/crsFromColumns.js"; // TASKS.csv #2291; gridFrameFromRows: #3446
 import { tieOf } from "../lib/localGridTie.js"; // TASKS.csv #2587
-import { gridToCrsChoice, isMineSource, MINE_SOURCE } from "../lib/mineGrid.js"; // TASKS.csv #2812 — 'A file' from the mine grid
+import { gridToCrsChoice, isMineSource, MINE_SOURCE, mineGridOf, mineToProject } from "../lib/mineGrid.js"; // TASKS.csv #2812 — 'A file' from the mine grid; mineToProject: #3503
+import { layerCentre, distanceM, eastNorth, distanceText } from "../lib/layerCentre.js"; // TASKS.csv #3503
 const LocalGridPanel = React.lazy(() => import("../components/LocalGridPanel.jsx")); // TASKS.csv #2288 — on demand
 const MineGridPanel = React.lazy(() => import("../components/MineGridPanel.jsx")); // TASKS.csv #2586 — on demand
 
@@ -71,7 +73,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
     (generatedSurfaces || []).forEach((s) => items.push({ key: `generatedSurfaces:${s.id}`, kind: "generatedSurfaces", id: s.id, label: `Surface: ${s.name}` }));
     (rasters || []).forEach((r) => items.push({ key: `rasters:${r.id}`, kind: "rasters", id: r.id, label: `Raster: ${r.name}` }));
     if (terrain) items.push({ key: "terrain", kind: "terrain", label: `Terrain: ${terrain.name || "surface"}` });
-    (boundaries || []).forEach((b) => items.push({ key: `boundaries:${b.id}`, kind: "boundaries", id: b.id, label: `Boundary: ${b.name}` }));
+    (boundaries || []).forEach((b) => items.push({ key: `boundaries:${b.id}`, kind: "boundaries", id: b.id, label: `${b.kind === "claim" ? "Claim" : "Boundary"}: ${b.name}` /* TASKS.csv #3471 */ }));
     (mapLayers || []).forEach((l) => items.push({ key: `mapLayers:${l.id}`, kind: "mapLayers", id: l.id, label: `Map layer: ${l.name}` }));
     (surfaceStructures || []).forEach((st) => items.push({ key: `surfaceStructures:${st.id}`, kind: "surfaceStructures", id: st.id, label: `Outcrop structures: ${st.name}` }));
     (omfObjects || []).forEach((o) => items.push({ key: `omfObjects:${o.id}`, kind: "omfObjects", id: o.id, label: `OMF object: ${o.name}` }));
@@ -94,6 +96,9 @@ export default function CartographyModule({ embedded = false, forcePane = null }
   const [newCrs, setNewCrs] = useState(null);
   const [rotate, setRotate] = useState(true);
   const changing = newCrs && Number(newCrs) !== Number(project.epsg);
+  // TASKS.csv #3339 — the CRS's area of use, from the EPSG registry (loaded on use), for the landing note
+  const [, setRegTick] = useState(0);
+  useEffect(() => { if (!newCrs) return undefined; const off = onEpsgRegistry(() => setRegTick((n) => n + 1)); loadEpsgRegistry().catch(() => {}); return off; }, [!!newCrs]);
   const setOnly = () => { setEpsg(Number(newCrs)); setMsg({ ok: true, text: tr("Project CRS set to {v}. No coordinates were changed.", { v: nameOf(newCrs) }) }); setNewCrs(null); };
   const moveAll = () => {
     // TASKS.csv #528 — one click moved every object and cleared Undo, picked from a long list of look-alike names
@@ -113,9 +118,21 @@ export default function CartographyModule({ embedded = false, forcePane = null }
   const obj = inventory.find((i) => i.key === objKey);
   const moveObject = () => run(async () => {
     if (project?.crsSet === false) throw new Error(tr("The project's coordinate system is not chosen yet, so there is no CRS to reproject a layer into. Choose it under Project CRS first.")); // #2290
-    const report = await reprojectObjectTo({ kind: obj.kind, id: obj.id }, Number(objFrom), { rotateAzimuths: rotate });
-    const dn = datumNote(objFrom) || datumNote(project.epsg); // TASKS.csv #2467 — the datum shift applied, said (AGD84 -> GDA94: EPSG's national fit, ~1 m)
-    setMsg({ ok: true, text: reportText(report, `${obj.label} moved from ${nameOf(objFrom)} into the project CRS, ${nameOf(project.epsg)}`) + (dn ? ` ${dn}` : "") });
+    const fromMine = isMineSource(objFrom); // TASKS.csv #2826 — the layer's coordinates are the project's mine grid's
+    // TASKS.csv #3503 — where the layer's middle was, and where the same transform puts it (the numbers it moves by, as the move does)
+    const before = layerCentre(obj.kind, obj.id, store);
+    let after = null;
+    if (before) {
+      try {
+        const mg = fromMine ? mineGridOf(project) : null;
+        if (fromMine && mg) { const [x, y] = mineToProject(mg, project.epsg)(before.x, before.y); after = Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null; }
+        else if (!fromMine) { const r = pointTransform(Number(objFrom), project.epsg)?.(before.x, before.y); after = r && Number.isFinite(r[0]) && Number.isFinite(r[1]) ? { x: r[0], y: r[1] } : null; }
+      } catch { after = null; }
+    }
+    const report = await reprojectObjectTo({ kind: obj.kind, id: obj.id }, fromMine ? MINE_SOURCE : Number(objFrom), { rotateAzimuths: rotate });
+    const dn = fromMine ? "" : datumNote(objFrom) || datumNote(project.epsg); // TASKS.csv #2467 — the datum shift applied, said (AGD84 -> GDA94: EPSG's national fit, ~1 m)
+    const movedNote = before && after ? " " + tr("Its middle moved from {from} to {to}: {d}.", { from: eastNorth(before), to: eastNorth(after), d: distanceText(distanceM(before, after)) }) : ""; // TASKS.csv #3503
+    setMsg({ ok: true, text: reportText(report, `${obj.label} moved from ${fromMine ? `the mine grid${fileGrid?.name ? ` (${fileGrid.name})` : ""}` : nameOf(objFrom)} into the project CRS, ${nameOf(project.epsg)}`) + movedNote + (dn ? ` ${dn}` : "") });
   });
 
   // ---- reproject a file pane ----
@@ -147,9 +164,25 @@ export default function CartographyModule({ embedded = false, forcePane = null }
     const g = fileXYColumns(t.headers); // #2588 — a map-grid pair (MGA_E / MGA_N) before a mine grid's (GBMG_East)
     setFile({ name: f.name, headers: t.headers, rows: t.rows, xCol: g.x, yCol: g.y });
     const srid = sridColumnEpsg(t.headers, t.rows); // #2130 — the table's own srid / epsg column, when every row agrees
-    const implied = srid ? srid.epsg : g.geographic ? 4326 : fromForGridPrefix(g.prefix, project?.crsSet !== false ? project?.epsg : null); // #2588 — MGA_ columns on an MGA project
+    // TASKS.csv #3446 (split from #2297) — a GRIDNAME-style column's VALUES (MGA94_51, NAT_Grid_ID = MGA94_Z50) name the file's CRS, as the collar import reads them
+    const frame = !srid ? gridFrameFromRows(t.headers, t.rows) : null;
+    const named = frame?.epsg && !frame.mixed ? frame.epsg : null;
+    let implied = srid ? srid.epsg : named || (g.geographic ? 4326 : fromForGridPrefix(g.prefix, project?.crsSet !== false ? project?.epsg : null)); // #2588 — MGA_ columns on an MGA project
+    // TASKS.csv #3476 (from #3460) — plain Easting / Northing columns that land within 50 km of the project's collars when read in the project CRS: From is that CRS
+    let landed = false;
+    if (!implied && !g.geographic && g.x && g.y && project?.crsSet !== false && project?.epsg && (store.collars || []).length) {
+      const pts = t.rows.map((r) => ({ x: Number(r[g.x]), y: Number(r[g.y]) })).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+      const at = collarCentreLonLat(pts, project.epsg), home = collarCentreLonLat(store.collars, project.epsg), off = at && home ? offsetFrom(home, at) : null;
+      if (off && off.km <= 50) { implied = project.epsg; landed = true; }
+    }
     setFileFrom(implied || null);
-    setMsg({ ok: true, text: srid
+    setMsg({ ok: true, text: landed
+      ? tr("\"{name}\": {rows} rows. X / Y are {x} / {y}, and From is the project's {crs}: the points land beside the project's collars when read in it. Check both, then save.", { name: f.name, rows: t.rows.length.toLocaleString(), x: g.x, y: g.y, crs: nameOf(implied) })
+      : named
+      ? tr("\"{name}\": {rows} rows. X / Y are {x} / {y}, and From is {crs}, from the values of its {col} column: check both, then save.", { name: f.name, rows: t.rows.length.toLocaleString(), x: g.x || "?", y: g.y || "?", crs: nameOf(named), col: frame.cols.join(" / ") })
+      : frame?.mixed
+      ? tr("\"{name}\": {rows} rows. Its {col} column names more than one grid ({names}): the rows are not in one CRS, so From is left for you to choose. Check the X / Y columns, then save.", { name: f.name, rows: t.rows.length.toLocaleString(), col: frame.cols.join(" / "), names: frame.groups.slice(0, 4).map((x) => `${x.name} (${x.rows.toLocaleString()})`).join(", ") })
+      : srid
       ? tr("\"{name}\": {rows} rows. X / Y are {x} / {y}, and From is {crs}, from its {col} column: check both, then save.", { name: f.name, rows: t.rows.length.toLocaleString(), x: g.x || "?", y: g.y || "?", crs: nameOf(srid.epsg), col: srid.col })
       : implied && !g.geographic
       ? tr("\"{name}\": {rows} rows. X / Y are {x} / {y}, and From is the project's {crs}, as their names say: check both, then save.", { name: f.name, rows: t.rows.length.toLocaleString(), x: g.x, y: g.y, crs: nameOf(implied) })
@@ -172,6 +205,16 @@ export default function CartographyModule({ embedded = false, forcePane = null }
   // TASKS.csv #2461 — the X / Y under a geographic From, checked before Save
   const fromDegrees = useMemo(() => (file && !file.kind && file.xCol && file.yCol && fileFrom && isGeographicCrs(fileFrom) ? degreesOutOfRange(file.rows, file.xCol, file.yCol) : null), [file, fileFrom]);
   // TASKS.csv #2588 — and under a UTM / MGA From: eastings / northings no zone has (a local mine grid's) are not converted or stamped
+  // TASKS.csv #3460 (from #3001) — where the file's points land under the chosen From, and how far that is from the project's collars: a MGA 51
+  // From on zone 50 eastings said nothing (a geographic From is caught by fromDegrees, a UTM one only by an impossible easting)
+  const fromLanding = useMemo(() => {
+    if (!file || file.kind || !file.xCol || !file.yCol || !fileFrom || isMineSource(fileFrom) || isGeographicCrs(fileFrom)) return null;
+    const pts = file.rows.map((r) => ({ x: Number(r[file.xCol]), y: Number(r[file.yCol]) })).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+    const at = collarCentreLonLat(pts, fileFrom);
+    if (!at) return null;
+    const home = project?.crsSet !== false && project?.epsg && (store.collars || []).length ? collarCentreLonLat(store.collars, project.epsg) : null;
+    return { at, off: home ? offsetFrom(home, at) : null };
+  }, [file, fileFrom, project?.epsg, project?.crsSet, store.collars]);
   const fromUtm = useMemo(() => (file && !file.kind && file.xCol && file.yCol && fileFrom && isUtmCrs(fileFrom) ? utmOutOfRange(file.rows, file.xCol, file.yCol) : null), [file, fileFrom]);
   // TASKS.csv #2130 — the table as GeoJSON points (WGS 84 longitude / latitude, as the format requires), for web GIS
   const saveGeoJSON = () => run(async () => {
@@ -225,14 +268,36 @@ export default function CartographyModule({ embedded = false, forcePane = null }
             {/* TASKS.csv #2291 (review #2174) — the status-bar dialog's landing check, here too: the pane set GDA94 / MGA 51 on a local mine grid
                 with no word, and the 245 collars "were" in the Southern Ocean */}
             {(changing || project.crsSet === false) && newCrs && !isGeographic(newCrs) && (store.collars || []).length > 0 && (() => {
-              const cols = store.collars, at = collarCentreLonLat(cols, newCrs), spread = at ? collarSpread(cols, newCrs) : null, small = smallGridCoordinates(cols);
+              // TASKS.csv #3339 (Galore Creek review) — the note read the UTM numbers as if they already were the new CRS's numbers (true only for
+              // 'Only change the label'), and from that position, outside the CRS's own area, the #2181 test said the collars mixed frames. With data
+              // to move it now says what each button does: Reproject keeps the collars where they are; the label alone puts them where the numbers
+              // read in the new CRS land. The frame test runs only on a landing inside the CRS's area.
+              const cols = store.collars, at = collarCentreLonLat(cols, newCrs), small = smallGridCoordinates(cols);
+              const area = crsMapArea(crsAreaOf(newCrs), crsName(newCrs), getProj4DefSync(newCrs)), inside = !!at && inCrsArea(area, at);
+              const spread = inside ? collarSpread(cols, newCrs) : null;
               const odd = !at || Math.abs(at.lat) > 75;
+              const both = hasData && project.crsSet !== false && changing; // both buttons are offered
+              const here = both ? collarCentreLonLat(cols, project.epsg) : null;
+              const labelWrong = odd || !inside || spread?.far || small;
+              const problems = <>
+                {at && odd ? " " + tr("That is near a pole: almost certainly not the CRS these coordinates are in.") : ""}
+                {at && !odd && !inside ? " " + tr("Read as {v}, these numbers fall outside the area it is used in ({area}): they are not in it.", { v: crsName(newCrs) || tr("EPSG:{newCrs}", { newCrs }), area: areaText(area) }) : ""}
+                {spread?.far ? " " + tr("{far} of the {total} collars land more than 50 km from the others (up to {km} km): they are not all in one coordinate frame, so no single CRS places them all.", { far: spread.far, total: spread.total, km: spread.km.toLocaleString() }) : ""}
+                {small ? " " + tr("{n} of {of} collars have eastings {x0}–{x1} and northings {y0}–{y1}, which no UTM / MGA zone has: they look like a local mine grid.", { n: small.n, of: small.of, x0: Math.round(small.x[0]).toLocaleString(), x1: Math.round(small.x[1]).toLocaleString(), y0: Math.round(small.y[0]).toLocaleString(), y1: Math.round(small.y[1]).toLocaleString() }) : ""}
+              </>;
+              if (both) return (
+                <div role="note" style={note}>
+                  {here ? tr("Reproject keeps your {n} collars where they are ({where}) and gives them {v} numbers.", { n: cols.length, where: formatLonLat(here), v: crsName(newCrs) || tr("EPSG:{newCrs}", { newCrs }) }) : null}
+                  <span style={{ color: labelWrong ? "var(--color-warn-text-strong)" : undefined }}>{" "}
+                    {at ? tr("Only changing the label would put them at {where}.", { where: formatLonLat(at) }) + ((off) => (off && off.km >= 1 ? " " + tr("That is about {km} km {dir} of where the project says they are now.", { km: off.km.toLocaleString(), dir: tr(off.dir) }) : ""))(offsetFrom(here, at)) /* #2999 */ : tr("Only changing the label: your collars do not fit this CRS (they land off the globe).")}
+                    {problems}
+                  </span>
+                </div>
+              );
               return (
-                <div role="note" style={{ ...note, color: odd || spread?.far || small ? "var(--color-warn-text-strong)" : undefined }}>
+                <div role="note" style={{ ...note, color: labelWrong ? "var(--color-warn-text-strong)" : undefined }}>
                   {at ? tr("Your {n} collars would be at {where}.", { n: cols.length, where: formatLonLat(at) }) : tr("Your collars do not fit this CRS (they land off the globe).")}
-                  {at && odd ? " " + tr("That is near a pole: almost certainly not the CRS these coordinates are in.") : ""}
-                  {spread?.far ? " " + tr("{far} of the {total} collars land more than 50 km from the others (up to {km} km): they are not all in one coordinate frame, so no single CRS places them all.", { far: spread.far, total: spread.total, km: spread.km.toLocaleString() }) : ""}
-                  {small ? " " + tr("{n} of {of} collars have eastings {x0}–{x1} and northings {y0}–{y1}, which no UTM / MGA zone has: they look like a local mine grid.", { n: small.n, of: small.of, x0: Math.round(small.x[0]).toLocaleString(), x1: Math.round(small.x[1]).toLocaleString(), y0: Math.round(small.y[0]).toLocaleString(), y1: Math.round(small.y[1]).toLocaleString() }) : ""}
+                  {problems}
                 </div>
               );
             })()}
@@ -266,8 +331,10 @@ export default function CartographyModule({ embedded = false, forcePane = null }
                   <option value="">{tr("Choose a layer…")}</option>
                   {inventory.map((i) => <option key={i.key} value={i.key}>{i.label}</option>)}
                 </select>
-                <div style={{ marginTop: 10 }}><CrsPicker label={tr("Its coordinates are really in")} value={objFrom} onChange={setObjFrom} height={150} /></div>
-                <button style={primary} disabled={busy || !obj || !objFrom || Number(objFrom) === Number(project.epsg)} onClick={moveObject}>
+                {mineGridOf(project) /* #2826 — a project with a mine grid reads a layer on it too */
+                  ? <div style={{ marginTop: 10 }}><SourceCrsField label={tr("Its coordinates are really in")} value={objFrom ?? ""} onChange={(c) => setObjFrom(c === "" ? null : isMineSource(c) ? MINE_SOURCE : Number(c))} mineGrid={fileGrid} defaultText={tr("Choose…")} title={tr("The CRS the layer's numbers are really in, or the project's local mine grid.")} /></div>
+                  : <div style={{ marginTop: 10 }}><CrsPicker label={tr("Its coordinates are really in")} value={objFrom} onChange={setObjFrom} height={150} /></div>}
+                <button style={primary} disabled={busy || !obj || !objFrom || (!isMineSource(objFrom) && Number(objFrom) === Number(project.epsg))} onClick={moveObject}>
                   {busy ? <Loader2 size={14} className="spin" /> : <Layers size={14} />}{" "}{tr("Reproject into the project CRS")}</button>
               </>
             ) : <div style={box(true)}>{tr("Nothing with map coordinates is loaded yet.")}</div>}
@@ -326,6 +393,12 @@ export default function CartographyModule({ embedded = false, forcePane = null }
                 {fromDegrees && fromDegrees.outside > 0 && (
                   <div role="alert" style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("{n} of {m} rows checked have X / Y outside ±180 / ±90 (e.g. {x}, {y}), so they are not longitude / latitude: check the From CRS. Such rows are left blank.", { n: fromDegrees.outside.toLocaleString(), m: fromDegrees.checked.toLocaleString(), x: fromDegrees.example[0].toLocaleString(), y: fromDegrees.example[1].toLocaleString() })}</div>
                 )}
+                {fromLanding && ( /* TASKS.csv #3460 */
+                  <div role="note" style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: fromLanding.off && fromLanding.off.km > 50 ? "var(--color-warn-text)" : "var(--color-text-secondary)", lineHeight: 1.4 }}>
+                    {tr("Read as {v}, the file's points would be at {where}.", { v: nameOf(fileFrom), where: formatLonLat(fromLanding.at) })}
+                    {fromLanding.off && fromLanding.off.km > 50 ? " " + tr("That is about {km} km {dir} of the project's collars: probably the wrong From.", { km: fromLanding.off.km.toLocaleString(), dir: fromLanding.off.dir }) : ""}
+                  </div>
+                )}
                 {fromUtm && fromUtm.outside > 0 && ( /* TASKS.csv #2588 */
                   <div role="alert" style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("{n} of {m} rows checked have X / Y that no UTM / MGA zone has (e.g. {x}, {y}): they look like a local mine grid, not {crs}. Check the X / Y columns and the From CRS. Such rows are left blank.", { n: fromUtm.outside.toLocaleString(), m: fromUtm.checked.toLocaleString(), x: fromUtm.example[0].toLocaleString(), y: fromUtm.example[1].toLocaleString(), crs: nameOf(fileFrom) })}</div>
                 )}
@@ -360,7 +433,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
         <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("EPSG:{epsg} · {v}", { epsg: project.epsg, v: metric === true ? tr("projected, metres") : metric === false ? tr("geographic (degrees) — distances, volumes and grids need a projected CRS") : tr("GeoStrix has no definition for this code: imports cannot be reprojected into it") })}</div>
         {lonLat && (
           <div style={{ ...note, fontSize: "var(--font-size-base)" }}>{tr("Project location: {v}°{v2}, {v3}°{v4}", { v: Math.abs(lonLat[1]).toFixed(4), v2: lonLat[1] >= 0 ? "N" : "S", v3: Math.abs(lonLat[0]).toFixed(4), v4: lonLat[0] >= 0 ? "E" : "W" })}
-            {convergence != null && <>{" "}{tr("· grid convergence here {v}{convergence}° (true north is {v2}° {v3} of grid north)", { v: convergence >= 0 ? "+" : "", convergence: convergence.toFixed(2), v2: Math.abs(convergence).toFixed(2), v3: convergence >= 0 ? tr("east") : tr("west") })}</>}
+            {convergence != null && <>{" "}{/* TASKS.csv #3352 — the usual sign: grid convergence is grid north's angle from true north, negative west of the central meridian (the bearing of true north, the opposite, was printed) */}{tr("· grid convergence here {v}{convergence}° (grid north is {v2}° {v3} of true north)", { v: -convergence >= 0 ? "+" : "-", convergence: Math.abs(convergence).toFixed(2), v2: Math.abs(convergence).toFixed(2), v3: -convergence >= 0 ? tr("east") : tr("west") })}</>}
           </div>
         )}
         </>)}

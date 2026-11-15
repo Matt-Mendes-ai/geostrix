@@ -54,6 +54,14 @@ export function collarTableHeight(rows, fontPt = 7) {
   return Math.ceil(2 * r + printPx(fontPt + 2) * 1.2 + 4 + 12 + Math.max(1, rows) * r);
 }
 
+// TASKS.csv #3408 (#2399) — the per-hole values joined onto a hole (a calibration table's probe, K factor, date) as one header line: 'Probe: GR-12 · K_factor: 1.02', at most
+// `max` of them, the rest counted. -> { text, all } ('' when the hole has none)
+export function collarAttrLine(collar, max = 6) {
+  const list = Object.entries(collar?.attrs || {}).map(([k, v]) => [String(k).trim(), String(v ?? "").trim()]).filter(([k, v]) => k && v);
+  const shown = list.slice(0, max).map(([k, v]) => `${k}: ${v}`);
+  return { text: shown.join(" · ") + (list.length > max ? ` · +${list.length - max}` : ""), all: list.map(([k, v]) => `${k}: ${v}`).join("\n") };
+}
+
 // TASKS.csv #2770 (split from #2717) — a long collar list in two table columns side by side, read down then across: the first half of a
 // page's rows on the left, the rest on the right (half the pages for a 400-hole appendix). -> [rows] or [left, right]
 export function splitTableRows(rows, parts = 1) {
@@ -119,6 +127,19 @@ export function elevationNotes(rows, suspect) {
   if (assumed.length) { const how = {}; for (const c of assumed) how[c.zAssumed] = (how[c.zAssumed] || 0) + 1; out.push({ mark: "‡", kind: "assumed", ids: assumed.map((c) => c.hole_id), how }); }
   if (sus.length) out.push({ mark: "§", kind: "suspect", ids: sus.map((c) => c.hole_id) });
   return out;
+}
+
+// TASKS.csv #3411 (review #3374) — 'Two table columns side by side' offered itself when the two halves could not fit the doubled frame even at
+// 5 pt (a long collar field as a column) and then said so under the frame. collarTableCells(rows, extraCols): the text the table prints for each
+// collar (the footnote marks counted as one character each: * on a value from the survey), as arrays by column; splitHalvesFit(...): whether the
+// halves of a split table fit widthPx at the smallest size (minPt, 5) -> { fits, fs }
+export function collarTableCells(collars, extra = []) {
+  const f = (v, d) => (Number.isFinite(Number(v)) && v !== "" && v != null ? Number(v).toFixed(d) : "");
+  return (collars || []).map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), `${f(c.z, 1)}\u2021`, `${f(c.azimuth, 0)}*`, `${f(Number.isFinite(c.dip) ? -c.dip : "", 0)}*`, f(c.length, 1), ...(extra || []).map((k) => String(c.attrs?.[k] ?? "").trim())]);
+}
+export function splitHalvesFit({ columns, rows, fontPt, widthPx, measure, minPt = 5 }) {
+  const r = tableTextFit({ columns, parts: splitTableRows(rows, 2), fsPx: printPx(fontPt), widthPx, gap: 14, minPx: printPx(minPt), measure });
+  return { fits: r.fits, fs: r.fs };
 }
 
 // TASKS.csv #3374 (review #3195) — 'Two table columns side by side' with two collar fields as columns ran its right half 86 mm off an A4

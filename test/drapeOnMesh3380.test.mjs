@@ -56,6 +56,7 @@ test("a box too big for every node: nodes skipped, and the drape lifted clear of
 
 test("the 3D View drapes map layers on that grid, with a polygon offset", () => {
   const s = fs.readFileSync(new URL("../src/lib/viewer/sceneBuilders.js", import.meta.url), "utf8");
-  assert.match(s, /const dg = terrainDrapeGrid\(terrain, bbox, \{ adaptiveError \}\);/);
+  assert.match(s, /geometry = terrainDrapeGeometry\(terrain, bbox, \{ cx, cy, oz, base: lift \}\);/); // the shared drape since #3449
+  assert.match(s, /const dg = terrainDrapeGrid\(terrain, bbox\), W = dg\.xs\.length;/);
   assert.match(s, /polygonOffset: drapeOnTerrain, polygonOffsetFactor: -2, polygonOffsetUnits: -2/);
 });

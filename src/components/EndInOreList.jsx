@@ -9,10 +9,15 @@ import { valueIn } from "../lib/geochem.js";
 import { t as tr } from "../lib/i18n.js";
 
 const SHOWN = 12;
+// TASKS.csv #3435 — the element and cut-off outlive the pane, as the overlay's cards and result do (EvidenceOverlayPane keptResult, #2706): a hand-over
+// to Planned holes closed the pane and the list came back empty
+let kept = { symbol: "", cut: "" };
 
 export default function EndInOreList({ assays, elements, units, traces, collars, survey, onPlanTo, sel, pBtn, note }) {
-  const [symbol, setSymbol] = useState(elements?.[0]?.symbol || "");
-  const [cut, setCut] = useState("");
+  const [symbol, setSymbolState] = useState(() => ((elements || []).some((e) => e.symbol === kept.symbol) ? kept.symbol : elements?.[0]?.symbol || ""));
+  const [cut, setCutState] = useState(() => kept.cut);
+  const setSymbol = (v) => { kept = { ...kept, symbol: v }; setSymbolState(v); };
+  const setCut = (v) => { kept = { ...kept, cut: v }; setCutState(v); };
   const lengths = useMemo(() => checkableHoleLengths(collars, survey), [collars, survey]);
   const c = cut === "" ? NaN : Number(cut);
   const list = useMemo(() => {

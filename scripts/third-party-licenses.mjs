@@ -27,6 +27,10 @@ function vendoredText(name) {
   try { return readFileSync(path.join(ROOT, "scripts", "licence-texts", `${name.replace(/\//g, "__")}.txt`), "utf8").trim(); } catch { return null; }
 }
 
+// TASKS.csv #1993 — a package whose licence field only points at its file ("SEE LICENSE IN LICENSE.txt"): the licence named from that file
+// (read when it was added). The full text is still taken from the package folder.
+const LICENSE_NAMES = { h5wasm: "NIST software notice and the HDF5 licence (BSD-style)" };
+
 function javascriptPackages() {
   const lock = JSON.parse(readFileSync(path.join(ROOT, "package-lock.json"), "utf8"));
   const pkgs = lock.packages || {};
@@ -62,7 +66,7 @@ function javascriptPackages() {
     let meta = {};
     try { meta = JSON.parse(readFileSync(path.join(ROOT, k, "package.json"), "utf8")); } catch { /* not installed here */ }
     const repo = typeof meta.repository === "string" ? meta.repository : meta.repository?.url;
-    return { name, version: p.version, license: p.license || meta.license || "see text", url: meta.homepage || (repo ? repo.replace(/^git\+/, "").replace(/\.git$/, "") : null), text: licenseText(path.join(ROOT, k)) ?? vendoredText(name) };
+    return { name, version: p.version, license: LICENSE_NAMES[name] || p.license || meta.license || "see text", url: meta.homepage || (repo ? repo.replace(/^git\+/, "").replace(/\.git$/, "") : null), text: licenseText(path.join(ROOT, k)) ?? vendoredText(name) };
   }).sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -148,6 +152,10 @@ export function bundledData() {
   { const p = path.join(ROOT, "sample_data", "wa_gold", "README.md");
     if (existsSync(p)) out.push({ name: "WA lode gold sample (WAMEX company mineral drillhole database, Department of Energy, Mines, Industry Regulation and Safety, Western Australia)", version: "2024", license: "CC-BY-4.0",
       url: "https://catalogue.data.wa.gov.au/dataset/mineral-exploration-drillholes-open-file", text: readFileSync(p, "utf8").trim() }); }
+  // TASKS.csv #3496 — Fireweed Metals Corp.'s Macpass drilling, redistributed with its written permission (not an open licence): the credit it chose, word for word, is the README's first line
+  { const p = path.join(ROOT, "sample_data", "yk_macpass", "README.md");
+    if (existsSync(p)) out.push({ name: "Macpass sample (drilling data courtesy of Fireweed Metals Corp., Macpass Project, Yukon)", version: "2024-02-27", license: "Used with permission of Fireweed Metals Corp.",
+      url: "https://fireweedmetals.com", text: readFileSync(p, "utf8").trim() }); }
   // TASKS.csv #3107 — listed like the Blake River and WA uranium samples: its README carries the attribution and says what was done
   { const p = path.join(ROOT, "sample_data", "fi_lapland", "README.md");
     if (existsSync(p)) out.push({ name: "Central Lapland sample (Rock geochemical data of Finland and Bedrock of Finland 1:1 000 000, Geological Survey of Finland)", version: "2026-11", license: "CC-BY-4.0",

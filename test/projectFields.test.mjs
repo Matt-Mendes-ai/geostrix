@@ -37,7 +37,7 @@ test("#448 store.jsx wires exactly the table's fields to their own state", () =>
     assert.match(src, new RegExp(`const \\[${k}, ${setter}\\] = useState\\(`), `${k}: no useState`);
   }
   // the generated paths really are used (not a table beside the old hand-written lists)
-  for (const use of ["payloadFromFields(liveRef.current)", "setFields(fieldsFromPayload(data, fallbackName, dropped))", "setFields(emptyFields())", "extraDirtyValues(live)", "UNDO_KEYS.map((k) => live[k])", "autosaveRef.current = { ...live, hasWork }"]) assert.ok(src.includes(use), use);
+  for (const use of ["payloadFromFields(liveRef.current)", "const vals = fieldsFromPayload(data, fallbackName, dropped)", "applyLoadedFields(vals)", "setFields(vals)" /* #3493: loadProjectPayload -> applyLoadedFields */, "setFields(emptyFields())", "extraDirtyValues(live)", "UNDO_KEYS.map((k) => live[k])", "autosaveRef.current = { ...live, hasWork }"]) assert.ok(src.includes(use), use);
 });
 
 // A project with a non-empty value in every field.
@@ -163,6 +163,7 @@ test("#514 the file format is pinned to PROJECT_VERSION: change FIELDS -> bump t
     27: "project+load,collars,survey,layers+save+load,assays+save+load,assayElements,customLayers+save+load,viewerUiState,themes,rasters,boundaries,mapLayers,sectionImages,surfaceStructures,fieldStructuralRefs,lithoGroups,codeDictionary,geophysSurveys,crmCertificates,dcipLines,alterationBoxes+load,modellingCodes+load,structuralTrends+load,explicitSurfaces,omfObjects,terrain+save+load,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+save+load,activeLayoutPageId,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates+save+load,plannedHoles,designLines,designStrings,surfaceSamples+save+load,surfaceElements,geochemThresholds,surfaceQc,evidenceOverlay,generatedSurfaces+save+load,modelDomains,dbImports", // #2163 — codeDictionary
     28: "project+load,collars,survey,layers+save+load,assays+save+load,assayElements,customLayers+save+load,viewerUiState,themes,rasters,boundaries,mapLayers,sectionImages,surfaceStructures,fieldStructuralRefs,lithoGroups,codeDictionary,geophysSurveys,crmCertificates,dcipLines,alterationBoxes+load,modellingCodes+load,structuralTrends+load,explicitSurfaces,omfObjects,terrain+save+load,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+save+load,activeLayoutPageId,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates+save+load,plannedHoles,designLines,designStrings,surfaceSamples+save+load,surfaceElements,geochemThresholds,surfaceQc,evidenceOverlay,generatedSurfaces+save+load,modelDomains,dbImports", // #2493 — same fields; project.importLeftOut inside project
     29: "project+load,collars,survey,layers+save+load,assays+save+load,assayElements,customLayers+save+load,viewerUiState,themes,rasters,boundaries,mapLayers,sectionImages,surfaceStructures,fieldStructuralRefs,lithoGroups,codeDictionary,geophysSurveys,crmCertificates,dcipLines,alterationBoxes+load,modellingCodes+load,structuralTrends+load,explicitSurfaces,omfObjects,terrain+save+load,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+save+load,activeLayoutPageId,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates+save+load,plannedHoles,designLines,designStrings,surfaceSamples+save+load,surfaceElements,geochemThresholds,surfaceQc,evidenceOverlay,generatedSurfaces+save+load,modelDomains,dbImports", // #3257 — same fields; voxel models' optional cell keys as columns (has / nul bitsets, bool)
+    30: "project+load,collars,survey+save+load,layers+save+load,assays+save+load,assayElements,customLayers+save+load,viewerUiState,themes,rasters,boundaries,mapLayers,sectionImages,surfaceStructures,fieldStructuralRefs,lithoGroups,codeDictionary,geophysSurveys,crmCertificates,dcipLines,alterationBoxes+load,modellingCodes+load,structuralTrends+load,explicitSurfaces,omfObjects,terrain+save+load,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+save+load,activeLayoutPageId,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates+save+load,plannedHoles,designLines,designStrings,surfaceSamples+save+load,surfaceElements,geochemThresholds,surfaceQc,evidenceOverlay,generatedSurfaces+save+load,modelDomains,dbImports", // #3423 — the survey as columns
   };
   assert.ok(PINNED[PROJECT_VERSION], `PROJECT_VERSION ${PROJECT_VERSION} has no pinned fingerprint — add it`);
   assert.equal(formatFingerprint(), PINNED[PROJECT_VERSION], "the project format changed: bump PROJECT_VERSION and pin the new fingerprint");
@@ -185,6 +186,7 @@ function goldenLive() {
   for (let j = 0; j < side - 1; j++) for (let i = 0; i < side - 1; i++) { const k = j * side + i; indices.push(k, k + 1, k + side, k + 1, k + side + 1, k + side); }
   live.generatedSurfaces = [{ id: "s1", name: "Contact", vertices, indices }];
   live.surfaceSamples = Array.from({ length: n }, (_, i) => ({ sample_id: `SS${i}`, x: 500000 + (i % 50) * 25, y: 6200000 + Math.floor(i / 50) * 25, z: i % 9 ? 1000 : null, medium: i % 3 ? "soil" : "rock chip", values: { Cu: (i % 89) * 1.5, Au: i % 4 ? (i % 11) * 0.7 : undefined }, ...(i % 5 ? {} : { bdl: ["Au"] }) })); // #1073
+  live.survey = Array.from({ length: n }, (_, i) => ({ hole_id: `H${i % 7}`, depth: Math.floor(i / 7) * 3, azimuth: (i * 37) % 360, dip: -60 - (i % 25), method: i % 4 ? "gyro" : "single shot" })); // #3423 (v30): the survey as columns
   live.voxelModels = [{ id: "v1", name: "inv", source: "simpeg", cells: Array.from({ length: 300 }, (_, i) => ({ x: 500000 + (i % 10) * 25, y: 6200000 + Math.floor(i / 10) * 25, z: 1000, dx: 25, dy: 25, dz: 12.5, value: 0.01 * (i % 37), support: i % 2 })) }];
   return live;
 }
@@ -212,6 +214,7 @@ test("#742 the saved and re-loaded bytes of a golden project are pinned to PROJE
     27: { saved: "8539d250cdee2ea3", loaded: "93d1773bc57ad2ab" }, // #2163 — "version" and an empty codeDictionary
     28: { saved: "28cc981a26157190", loaded: "93d1773bc57ad2ab" }, // #2493 — only "version" changed (the golden project has no importLeftOut)
     29: { saved: "b48ae791890158f7", loaded: "93d1773bc57ad2ab" }, // #3257 — "version", and the golden voxel model's dx / dy / dz (the same in every cell) as one value each; it loads the same
+    30: { saved: "d9dc30099bebf6b4", loaded: "f987cc28801775e6" }, // #3423 — "version", and 2,400 survey stations added to the golden project, saved as columns
   };
   const p = JSON.parse(saved); // every encoder must actually have run, or the pin guards nothing
   assert.ok(p.assays?.__compactTable, "assays not compacted - make the golden project bigger");
@@ -220,6 +223,7 @@ test("#742 the saved and re-loaded bytes of a golden project are pinned to PROJE
   assert.ok(p.generatedSurfaces?.[0]?.compactMesh, "mesh not compacted");
   assert.ok(p.voxelModels?.[0]?.compactCells, "voxel model not compacted");
   if (PROJECT_VERSION >= 19) assert.ok(p.surfaceSamples?.__compactTable, "surface samples not compacted"); // #1073
+  if (PROJECT_VERSION >= 30) assert.ok(p.survey?.__compactTable, "survey not compacted"); // #3423
   assert.deepEqual({ saved: sha(saved), loaded: sha(loaded) }, PINNED[PROJECT_VERSION], "the project file's encoding changed: bump PROJECT_VERSION and pin the new hashes");
 });
 

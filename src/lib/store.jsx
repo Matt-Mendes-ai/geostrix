@@ -11,7 +11,7 @@ import { pagePx, pageFormatOf } from "./pageFormats.js"; // TASKS.csv #2740 — 
 import { setKnownHoleIds } from "./qaqcCore.js"; // TASKS.csv #400; qaqcCore: #1345
 import { compactLayers } from "./compactRows.js"; // TASKS.csv #374
 import { readDbProfiles, writeDbProfiles, mergeDbProfiles, profilesFromFile } from "./dbProfiles.js"; // TASKS.csv #1081
-import { FIELD_KEYS, FIELDS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, payloadFromFields, projectPartsSliced /* #3104 (projectParts before) */, joinParts, cachedJson /* #1975 */, extraDirtyValues, projectHasContent } from "./projectFields.js"; // TASKS.csv #448
+import { FIELD_KEYS, FIELDS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, expandPayloadSliced /* #3423 */, payloadHasTables /* #3492 */, payloadFromFields, projectPartsSliced /* #3104 (projectParts before) */, joinParts, cachedJson /* #1975 */, extraDirtyValues, projectHasContent } from "./projectFields.js"; // TASKS.csv #448
 import { datumPatch } from "./localGridDatum.js"; // TASKS.csv #2691 / #2661
 import { fillFromRows, setEntry } from "./codeDictionary.js"; // TASKS.csv #2163
 import { changeElementBasis, rebaseRows, rebaseThresholds } from "./oxideBasisChange.js"; // TASKS.csv #2627
@@ -25,7 +25,7 @@ import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveWriteParts /* #1
 import { normalizeDesurveyMethod } from "./desurvey.js";
 import { readCellBudget, saveCellBudget } from "./estimationMeta.js"; // TASKS.csv #1970
 import { nextGroupColour, lithologyNoteRoles, setLithologyNoteRoles } from "./layers.js"; // TASKS.csv #1377; note roles: #2046
-import { freeSpot } from "./layoutPlace.js"; // TASKS.csv #1484
+import { freeSpot, viewportFrameOnPaper /* #3418 */, spotIsFree /* #3451 */ } from "./layoutPlace.js"; // TASKS.csv #1484
 
 const StoreContext = createContext(null);
 export const useStore = () => useContext(StoreContext);
@@ -676,6 +676,7 @@ export function StoreProvider({ children }) {
   // a colleague or attach to an assessment report, and the measured cost doesn't justify it — see this
   // row's TASKS.csv notes for the actual byte counts.
   const [generatedSurfaces, setGeneratedSurfaces] = useState([]);
+  const [surfaceIds, setSurfaceIds] = useState([]); // TASKS.csv #3494 (#3082) — the ids of the model surfaces, so Undo / Redo can take one away or bring it back (the meshes stay in ViewerModule)
   // TASKS.csv #89's own note deferred domain persistence to #52 ("a domain referencing a fault by id
   // can't outlive a session regardless" while surfaces themselves weren't saved). Now that surfaces
   // persist, their ids are stable across a save/reload, so the domains that reference them can persist
@@ -882,18 +883,27 @@ export function StoreProvider({ children }) {
     }
     const aspect = res.naturalW && res.naturalH ? res.naturalW / res.naturalH : 16 / 9;
     if (targetElementId === "new") {
-      const w = Math.min(1123 - 160, 700); // 1123 = A4-landscape page width in px @ ~96dpi (LayoutModule's A4.w)
-      const h = Math.round(w / aspect);
+      // TASKS.csv #3418 — the frame is sized to, and placed on, the ACTIVE page's own paper (a portrait or A3 page took an A4-landscape
+      // frame and spot: 1123 x 794 px): at most 700 px wide, within the paper's margins both ways
+      const paper = pagePx(pageFormatOf(layoutPages.find((p) => p.id === activeLayoutPageId)));
+      const { w, h } = viewportFrameOnPaper(paper, aspect);
       const id = `viewport_${Date.now()}`;
-      setLayoutElements((els) => addViewportToPage(els, {
+      const mkView = (spot) => ({
         id, type: "viewport", themeId: viewportPendingRequest.themeId,
-        ...freeSpot(els, w, h) /* #1484 — the page's free space, not (90, 90) */, w, h, capW: w, capH: h, aspect, src: res.src, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, ve: res.ve > 1 ? res.ve : 1 /* #2628 */, // capW / capH: #906
+        ...spot /* #1484 — the page's free space, not (90, 90); #3418 — on its paper */, w, h, capW: w, capH: h, aspect, src: res.src, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, ve: res.ve > 1 ? res.ve : 1 /* #2628 */, // capW / capH: #906
         trueScale: !!res.trueScale, targetWorld: res.targetWorld || null, planView: !!res.planView, // #399
         viewState: res.viewState || null, // #948 — a theme-less capture's own view settings, for its legend
         capturedAt: Date.now(), // TASKS.csv #2471 — when; a bound legend loaded from an older capture is out of step
         samplesUnplaced: res.samplesUnplaced || 0, // TASKS.csv #1864
         rotation: 0, frameWidth: 1, frameColor: "#1a2028" /* #966: the page ink, colors.text */, frameStyle: "solid", refreshing: false,
-      }));
+      });
+      // TASKS.csv #3451 — with nothing free on this page's paper the frame goes on a new page of the same paper, clear of everything, instead of over what is there
+      const here = freeSpot(layoutElements, w, h, paper);
+      if (layoutElements.length > 0 && !spotIsFree(layoutElements, here, w, h)) {
+        const pageId = `page_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, fmt = layoutPages.find((p) => p.id === activeLayoutPageId)?.format;
+        setLayoutPages((pages) => [...pages, { id: pageId, name: `Page ${pages.length + 1}`, elements: addViewportToPage([], mkView(freeSpot([], w, h, paper))), ...(fmt ? { format: fmt } : {}) }]);
+        setActiveLayoutPageId(pageId);
+      } else setLayoutElements((els) => addViewportToPage(els, mkView(freeSpot(els, w, h, paper))));
       setLayoutSelectRequest(id);
     } else {
       applyEls((els) => els.map((el) => el.id === targetElementId
@@ -982,7 +992,7 @@ export function StoreProvider({ children }) {
   const liveRef = useRef(live);
   liveRef.current = live;
   // Setters never change identity, so the first render's table is safe inside []-dependency callbacks.
-  const setFields = (vals) => { for (const k of FIELD_KEYS) fieldState[k][1](vals[k]); };
+  const setFields = (vals) => { for (const k of FIELD_KEYS) fieldState[k][1](vals[k]); setSurfaceIds((vals.generatedSurfaces || []).map((x) => x?.id).filter((id) => id != null)); /* TASKS.csv #3494 — a load / New starts the model surfaces' undo ids over */ };
 
   const setEpsg = useCallback((epsg) => setProject((p) => ({ ...p, epsg, crsSet: true, localGrid: null })), []); // #615 — any explicit choice sets it (and ends a local grid, #2180)
   // TASKS.csv #2180 (review #2174, WA gold) — a local mine grid with no CRS is a project state of its own: coordinates kept as they are, no
@@ -1033,7 +1043,7 @@ export function StoreProvider({ children }) {
       fields.rasters = await reprojectRasterImages(fields.rasters || live.rasters, fromEpsg, toEpsg, opts.onProgress);
       report.counts.rasters = fields.rasters.length;
     }
-    loadProjectPayload(payloadFromFields({ ...liveRef.current, ...fields }), live.project?.name);
+    applyLoadedFields({ ...liveRef.current, ...fields }); // TASKS.csv #3493 — the moved fields as they are (was a write to columns and a read back of the whole project)
     setActiveTabDirty(true); // after the load (which marks a loaded project clean): this one has changed
     clearUndoHistory();
     return report;
@@ -1047,6 +1057,14 @@ export function StoreProvider({ children }) {
     const live = liveRef.current;
     const toEpsg = live.project?.epsg;
     const { reprojectProject } = await import("./projectReproject.js");
+    // TASKS.csv #2826 (Main's OK, 2026-11-14) — Maps > A layer 'Its coordinates are really in: Local mine grid': the layer moves through the project's
+    // mine grid tie (mineToProject) instead of a CRS; the bearings turn with it (reprojectProject builds each from two transformed points)
+    if (String(fromEpsg).toLowerCase() === "mine") {
+      const { mineGridOf, mineToProject } = await import("./mineGrid.js"), mg = mineGridOf(live.project);
+      if (!mg) throw new Error("This project has no mine grid to read the layer on.");
+      if (target.kind === "rasters" || target.kind === "terrain") throw new Error("A raster or a terrain is resampled between two CRSs, not through a mine grid's tie: bring it in with Maps > Georeference, or reproject the file (A file) first.");
+      opts = { ...opts, transform: mineToProject(mg, toEpsg) }; fromEpsg = Number(mg.tie.epsg);
+    }
     let sub, merge;
     const k = target.kind;
     if (k === "drillholes") {
@@ -1075,16 +1093,18 @@ export function StoreProvider({ children }) {
       const [moved] = await reprojectRasterImages([r], fromEpsg, toEpsg);
       changed.rasters = changed.rasters.map((x) => (x.id === target.id ? moved : x));
     }
-    loadProjectPayload(payloadFromFields({ ...liveRef.current, ...changed }), live.project?.name);
+    applyLoadedFields({ ...liveRef.current, ...changed }); // TASKS.csv #3493 — as reprojectProjectTo
     setActiveTabDirty(true);
     clearUndoHistory();
     return report;
   }, []);
   const setProjectName = useCallback((name) => setProject((p) => ({ ...p, name })), []);
+  // TASKS.csv #3496 — a sample's data owner's credit, kept with the project (saved in the project file; Layout's {credits} prints it); "" removes it
+  const setProjectDataCredit = useCallback((dataCredit) => setProject((p) => { const { dataCredit: _old, ...rest } = p; return dataCredit ? { ...rest, dataCredit: String(dataCredit) } : rest; }), []);
   const setDrillRates = useCallback((rates) => setProject((p) => ({ ...p, drillRates: (typeof rates === "function" ? rates(p.drillRates || {}) : rates) || null })), []); // TASKS.csv #2581 — $/m per hole type, kept with the project (a function: from the latest rates)
   // TASKS.csv #3116 — a built-in log's valid range and despike ({ range: [lo, hi], despikeM }), kept with the project like the drill rates:
   // project.logValidRange = { [layerKey]: ... } (an older project has none: read as {}). null / {} removes the log's entry.
-  const setLogValidRange = useCallback((key, entry) => setProject((p) => { const next = { ...(p.logValidRange || {}) }; if (entry && (entry.range || entry.despikeM > 0)) next[key] = entry; else delete next[key]; return { ...p, logValidRange: next }; }), []);
+  const setLogValidRange = useCallback((key, entry) => setProject((p) => { const next = { ...(p.logValidRange || {}) }; if (entry && (entry.range || entry.despikeM > 0 || entry.unit)) next[key] = entry; /* TASKS.csv #3448 — entry.unit: a built-in log's unit, kept beside its range */ else delete next[key]; return { ...p, logValidRange: next }; }), []);
   // TASKS.csv #3236 — a per-element display unit kept with the project: project.displayUnits = { [symbol]: "ppm" | "g/t" | "ppb" | "%" }
   // (display only; stored values, calculations and saved thresholds keep their unit; an older project has none: read as {}). null removes the entry.
   const setDisplayUnit = useCallback((symbol, unit) => setProject((p) => { const next = { ...(p.displayUnits || {}) }; if (unit) next[symbol] = unit; else delete next[symbol]; return { ...p, displayUnits: next }; }), []);
@@ -1222,10 +1242,17 @@ export function StoreProvider({ children }) {
     // Every field from the table (projectFields.js): older files just lack newer keys and get that field's empty
     // value; layers / voxel models are expanded from their compact form; pre-#69 flat layouts become "Page 1".
     const dropped = [];
-    setFields(fieldsFromPayload(data, fallbackName, dropped));
+    const vals = fieldsFromPayload(data, fallbackName, dropped);
     lastDroppedFieldsRef.current = dropped; // #1262 — openProject reports them
     // TASKS.csv #1081 — a file from before version 20 may carry connection profiles: moved to this computer's list
     { const fromFile = profilesFromFile(data); if (fromFile.length) setDbConnections((prev) => mergeDbProfiles(prev, fromFile)); } // #1263
+    applyLoadedFields(vals);
+  }, []);
+  // TASKS.csv #3493 — what every load does with a complete set of field values: set them, and treat it as a loaded project (the 3D View re-reads
+  // everything, the camera and the clean state reset). loadProjectPayload builds the values from a file's payload; a reprojection has them
+  // already (the live fields with the moved ones) and gives them here, without writing the whole project to columns and reading it back.
+  const applyLoadedFields = useCallback((vals) => {
+    setFields(vals);
     setViewerUiStateSeq((s) => s + 1);
     setLastCamState(null); // a different project's saved camera has no meaning here — fall back to the default view
     setPendingLayoutImages([]);
@@ -1246,14 +1273,27 @@ export function StoreProvider({ children }) {
   // becomes active below, and dirty-checked via activeTabDirty instead of a payload diff. (workspaceTabs/
   // activeTabId/activeTabDirty themselves are declared earlier, just above saveProject — see that
   // comment for why.)
+  // TASKS.csv #3492 (side 5) — a tab whose stashed payload holds column tables is expanded into rows a slice at a time first (the switch was one
+  // main-thread task of the whole decode), then switched with the LATEST state (switchNow is a latest-callback). The switch is dropped if another
+  // click, a close or an open came meanwhile (the sequence number, the tab that was active at the click, and the stashed payload being the one
+  // that was expanded). The stashed payload itself stays compact; a small one switches at once, as before.
+  const switchSeqRef = useRef(0);
   const switchToTab = useLatestCallback((tabId) => {
+    const seq = ++switchSeqRef.current; // first: a click back on the active tab also cancels a switch still expanding
     if (tabId === activeTabId) return;
     const target = workspaceTabs.find((t) => t.id === tabId);
     if (!target) return;
     if (!sectionWindowsMayClose()) return; // #2620
+    if (!payloadHasTables(target.payload)) { switchNow(tabId, null, null); return; }
+    const from = activeTabIdRef.current, stashed = target.payload;
+    expandPayloadSliced(stashed).then((expanded) => { if (seq === switchSeqRef.current && activeTabIdRef.current === from) switchNow(tabId, stashed, expanded); });
+  });
+  const switchNow = useLatestCallback((tabId, stashed, expanded) => {
+    const target = workspaceTabs.find((t) => t.id === tabId);
+    if (!target || tabId === activeTabId) return;
     const current = snapshotCurrentPayload();
     setWorkspaceTabs(workspaceTabs.map((t) => (t.id === activeTabId ? { ...t, name: project?.name || t.name, payload: current, dirty: activeTabDirty } : t)));
-    loadProjectPayload(target.payload, target.name);
+    loadProjectPayload(expanded && target.payload === stashed ? expanded : target.payload, target.name);
     // TASKS.csv #479 — loadProjectPayload marks a project clean (right for Open), but a tab you switch to keeps
     // ITS OWN unsaved state: switching used to clear it, so an unsaved tab could be closed with no prompt and
     // dropped out of autosave. (Called after loadProjectPayload: the later setState in the batch wins.)
@@ -1308,11 +1348,12 @@ export function StoreProvider({ children }) {
       // TASKS.csv #1657 — the open's two costs as performance measures (DevTools > Performance, or performance.getEntriesByType("measure")),
       // so a slow open can say which: the file's JSON.parse, then loadProjectPayload (expanding the compact tables, every collection set)
       const tParse = performance.now();
-      const data = JSON.parse(res.content);
+      let data = JSON.parse(res.content);
       performance.measure?.("GeoStrix: project JSON.parse", { start: tParse, detail: { bytes: res.content.length } });
       const check = checkProjectFile(data); // TASKS.csv #342
       if (!check.ok) return { ok: false, error: check.error };
       if (check.newer && !window.confirm(tr("This project was saved by a newer version of GeoStrix (file format {newer}; this version reads up to {reads}). Anything that newer version added will not be shown, and saving it here would remove it from the file for good.\n\nOpen it anyway? (Update GeoStrix to keep everything.)", { newer: check.newer, reads: PROJECT_VERSION }))) return { ok: false, cancelled: true };
+      data = await expandPayloadSliced(data); // TASKS.csv #3423 — the column tables built into rows a slice at a time (one 1.4-1.9 s task before), before anything changes
       const current = snapshotCurrentPayload();
       const id = `tab_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       // TASKS.csv #199 — the tab/title should show the actual opened file's name, not whatever
@@ -1480,6 +1521,7 @@ export function StoreProvider({ children }) {
     try {
       const chk = checkProjectFile(data);
       if (!chk.ok) return null; // #342
+      data = await expandPayloadSliced(data); // TASKS.csv #3423 — expanded a slice at a time here, so restoreAutosave (synchronous: App reads its result) finds rows
       autosaveHoldRef.current = true; // #340 — keep it intact until the user chooses
       heldAutosaveRef.current = data; // #465
       const bgNames = (data.backgroundTabs || []).map((t) => t.name);
@@ -1547,7 +1589,7 @@ export function StoreProvider({ children }) {
   // the first render's setLayoutElements bound to "page_initial", so undo did nothing on other pages or wrote
   // one page's elements over another's; and a page SWITCH changed layoutElements' identity and recorded a
   // spurious undo step. The pages list is unchanged by switching and restores exactly.
-  const undoSnapshot = () => { const snap = {}; for (const k of UNDO_KEYS) snap[k] = live[k]; return snap; }; // #448: fields with track "undo"
+  const undoSnapshot = () => { const snap = {}; for (const k of UNDO_KEYS) snap[k] = live[k]; snap.surfaceIds = surfaceIds; /* TASKS.csv #3494 — not a project field: the ids of the model surfaces, so Undo can take one away or bring it back */ return snap; }; // #448: fields with track "undo"
   // Bug fix (found while adding plannedHoles to undo-tracking for #188 and testing redo end-to-end —
   // NOT a new bug, this affected every undo-tracked field, not just plannedHoles): `undo`/`redo` below
   // were `useCallback(fn, [applySnapshot])` (useLatestCallback since #2769's heap check, which runs the latest render's body), and `applySnapshot` never changes identity, so `undo`/
@@ -1655,7 +1697,7 @@ export function StoreProvider({ children }) {
     if (undoIntent.current && current.assays === undoIntent.current.next) { undoBeforeBurst.current = { ...undoBeforeBurst.current, assays: undoIntent.current.token }; undoIntent.current = null; commitUndoBurst(); return; }
     if (undoDebounceTimer.current) clearTimeout(undoDebounceTimer.current);
     undoDebounceTimer.current = setTimeout(commitUndoBurst, UNDO_DEBOUNCE_MS);
-  }, UNDO_KEYS.map((k) => live[k])); // #448 (always the same length); #463: layoutPages
+  }, [...UNDO_KEYS.map((k) => live[k]), surfaceIds]); // #448 (always the same length); #463: layoutPages; surfaceIds: #3494
 
   const applySnapshot = useCallback((snap) => {
     undoApplying.current = true;
@@ -1665,6 +1707,7 @@ export function StoreProvider({ children }) {
       else snap = { ...snap, assays: r.assays };
     }
     for (const f of FIELDS) if (f.track === "undo" && f.key !== "layoutPages") fieldState[f.key][1](snap[f.key] ?? f.empty());
+    if (snap.surfaceIds) setSurfaceIds(snap.surfaceIds); // TASKS.csv #3494 — ViewerModule takes the surfaces away / back to match
     // #463 — whole pages list; keep the active page if it still exists, else the first one.
     if (snap.layoutPages) { setLayoutPages(snap.layoutPages); setActiveLayoutPageId((id) => (snap.layoutPages.some((p) => p.id === id) ? id : snap.layoutPages[0]?.id || id)); }
     // React batches these, but the flag needs to survive until AFTER the effect above re-runs on the
@@ -1739,6 +1782,10 @@ export function StoreProvider({ children }) {
   // TASKS.csv #398 — per-page paper size / orientation ({size, orientation}, see lib/pageFormats.js). Saved
   // with the page; a page without one is A4 landscape, exactly as before.
   const setLayoutPageFormat = useCallback((id, format) => setLayoutPages((p) => p.map((pg) => (pg.id === id ? { ...pg, format } : pg))), []);
+  // TASKS.csv #3331 — one change to the elements of EVERY page (Layout's "Clear the set order" on all pages in one click); one undo step
+  // TASKS.csv #2883 — Geochem > Compositing's last settings, kept in the project file (project.lastCompositing; no token), unchanged = no new state
+  const setLastCompositing = useCallback((s) => setProject((p) => (JSON.stringify(p.lastCompositing ?? null) === JSON.stringify(s ?? null) ? p : { ...p, lastCompositing: s || undefined })), []);
+  const mapLayoutPagesElements = useCallback((fn) => setLayoutPages((p) => p.map((pg) => ({ ...pg, elements: fn(pg.elements || []) }))), []);
   // TASKS.csv #130 — Atlas (batch page generation, one page per drillhole/section). Deliberately a
   // separate bulk method rather than N calls to addLayoutPage(): that always seeds DEFAULT_LAYOUT_
   // ELEMENTS (wrong — atlas pages carry their own generated `elements`) and switches the active page +
@@ -1749,7 +1796,7 @@ export function StoreProvider({ children }) {
   const addLayoutPages = useLatestCallback((pages) => {
     if (!pages || !pages.length) return [];
     // TASKS.csv #1636 — batch: the run that generated the page (an atlas, a collar table's continuation), removable in one action
-    const withIds = pages.map((pg, i) => ({ id: `page_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}`, name: pg.name, elements: pg.elements, ...(pg.batch ? { batch: pg.batch } : {}) }));
+    const withIds = pages.map((pg, i) => ({ id: `page_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}`, name: pg.name, elements: pg.elements, ...(pg.batch ? { batch: pg.batch } : {}), ...(pg.format ? { format: pg.format } : {}) /* #3404 — its paper, so callers need not set it afterwards */ }));
     setLayoutPages((p) => [...p, ...withIds]);
     setActiveLayoutPageId(withIds[0].id);
     clearUndoHistory();
@@ -1772,7 +1819,7 @@ export function StoreProvider({ children }) {
   });
 
   const value = {
-    project, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setLocalGridDatum /* #2691 / #2661 */, setMineGrid /* #2586 */, setProjectName, setDrillRates /* #2581 */, setLogValidRange /* #3116 */, setDisplayUnit /* #3236 */, reprojectProjectTo, reprojectObjectTo, // #485 / #486
+    project, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setLocalGridDatum /* #2691 / #2661 */, setMineGrid /* #2586 */, setProjectName, setProjectDataCredit /* #3496 */, setDrillRates /* #2581 */, setLogValidRange /* #3116 */, setDisplayUnit /* #3236 */, reprojectProjectTo, reprojectObjectTo, // #485 / #486
     sampleRequest, requestSampleProject, clearSampleRequest, // TASKS.csv #1120
     projectIsEmpty: !hasWork, // TASKS.csv #607 — nothing loaded yet (same test as autosave): an import may adopt its CRS
     desurveyMethod, setDesurveyMethod, // TASKS.csv #135
@@ -1830,10 +1877,10 @@ export function StoreProvider({ children }) {
     voxelModels, addVoxelModel, updateVoxelModel, removeVoxelModel,
     voxelCellBudget, setVoxelCellBudget,
     plannedHoles, addPlannedHole, updatePlannedHole, removePlannedHole,
-    generatedSurfaces, setGeneratedSurfaces, modelDomains, setModelDomains, // TASKS.csv #52
+    generatedSurfaces, setGeneratedSurfaces, surfaceIds, setSurfaceIds /* #3494 */, modelDomains, setModelDomains, // TASKS.csv #52
     layerGroups, addLayerGroup, renameLayerGroup, deleteLayerGroup, toggleLayerGroupCollapsed, setLayerGroupFor,
     layoutElements, setLayoutElements,
-    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat, sendLayoutElement, // sendLayoutElement: #1484
+    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat, mapLayoutPagesElements /* #3331 */, setLastCompositing /* #2883 */, sendLayoutElement, // sendLayoutElement: #1484
     layoutTemplates, addLayoutTemplate, renameLayoutTemplate, deleteLayoutTemplate,
     viewportRenderRequest, viewportRenderRequestSeq, requestViewportRender, viewportPendingRequest,
     requestViewportBatch, cancelViewportBatch, viewportBatchDone, setViewportBatchDone, // TASKS.csv #1644

@@ -3,7 +3,7 @@
 // (exactly what the old useCallback closures saw), and mcRef is the hook's live ref (#599).
 import * as THREE from "three";
 import { layerStamp } from "../../lib/layerStamp.js"; // TASKS.csv #2388
-import { rowsByHole } from "../../lib/rowsByHole.js"; // TASKS.csv #2906
+import { rowsByHole, holeRowsOfCodes, firstFromByHole } from "../../lib/rowsByHole.js"; // TASKS.csv #2906; holeRowsOfCodes / firstFromByHole: #3387
 import { isNotRecorded } from "../../lib/notRecorded.js"; // TASKS.csv #3267
 import { interbeds, planeDipDeg, planeMisfitM, looksLikeFlatPile, runsLieFlat } from "../../lib/pileTops.js"; // TASKS.csv #2927; #3262; #3263
 import { stackCellCheck, medianStackThickness } from "../../lib/stackResolution.js"; // TASKS.csv #2905; medianStackThickness: #2922
@@ -76,6 +76,17 @@ function groundCappedGrid(grid, iso, groundAt, toReal = null) {
 // TASKS.csv #2782 — the layer an envelope was built from, as saved in its provenance (project data: English)
 const SOURCE_NAME = { litho: "Lithology", alt: "Alteration", vein: "Veins", weath: "Weathering" };
 
+// TASKS.csv #3082 (6) — three grade shells run with the same element, cutoff, trend and holes were all named alike in the list and in 'New version of':
+// a name already in use gets the cell size, then a number
+export function distinctShellName(label, taken, cellM = null) {
+  const used = new Set(taken || []);
+  if (!used.has(label)) return label;
+  const withCells = Number.isFinite(cellM) && cellM > 0 ? `${label}, ${+Number(cellM).toFixed(2)} m cells` : label;
+  if (!used.has(withCells)) return withCells;
+  let n = 2;
+  while (used.has(`${withCells} #${n}`)) n++;
+  return `${withCells} #${n}`;
+}
 export function createModellingRuns(ctx, mcRef) {
   const {
     activeInterceptSetRef,
@@ -459,7 +470,7 @@ export function createModellingRuns(ctx, mcRef) {
         const words = { g: gb < 10 ? gb.toFixed(1) : Math.round(gb), warn: "", m: mins.toLocaleString(), how, x: x < 10 ? x.toFixed(1) : Math.round(x), p: solid.reduce((t, q) => t + q.points.length, 0).toLocaleString(), o: new Set(solid.flatMap((q) => q.orientations.map((r) => `${r.x},${r.y},${r.z},${r.dip},${r.azimuth}`))).size.toLocaleString(), s: solid.length, b: workOpts.blockCells.toLocaleString() };
         if (!window.confirm(tr("This GemPy run is about {x} times the work of a run sized for a few minutes ({p} contact points, {o} orientations, {s} surfaces, a block of {b} cells): about {m} minutes {how}, and about {g} GB of memory{warn}. The 15-minute stop is off for it: Cancel on the status bar stops it. Fewer units, a smaller Model area or a lower Resolution (Model settings) shorten it. Run it?", words))) {
           setImplicitBusy(false);
-          setNotices((p) => [...p, notice("Not run: about {x} times the work of a run sized for a few minutes ({p} contact points, {o} orientations, {s} surfaces, a block of {b} cells). Fewer units, a smaller Model area or a lower Resolution (Model settings) shorten it.", words)]);
+          setNotices((p) => [...p, notice("Not run: about {x} times the work of a run sized for a few minutes ({p} contact points, {o} orientations, {s} surfaces, a block of {b} cells): about {m} minutes {how}, and about {g} GB of memory{warn}. Fewer units, a smaller Model area or a lower Resolution (Model settings) shorten it.", words)]);
           return;
         }
         overWork = x;
@@ -548,6 +559,8 @@ export function createModellingRuns(ctx, mcRef) {
     specs.forEach((spec, specIndex) => {
       let surf = byName[spec.meshName];
       if (!surf || !surf.vertices?.length) { missing.push(spec.label); return; }
+      // TASKS.csv #3238 — a surface back with vertices but no triangles was named in 'Added … surfaces' and added nothing, with no notice: said like the other no-mesh cases
+      if (!surf.faces?.length) { missing.push(`${spec.label} (GemPy returned vertices but no triangles)`); return; }
       // TASKS.csv #314 — NaN from GemPy arrives as null with HTTP 200: drop what touches it, and say so.
       const clean = sanitizeMesh(surf.vertices, surf.faces);
       if (clean.badVertices) {
@@ -1155,8 +1168,7 @@ export function createModellingRuns(ctx, mcRef) {
     // depth it is the collar (bench holes collared in pegmatite: 180 of 254 'Top of P'), after an unlogged start or a gap it is unknown. The
     // Modelling-codes branch (topsForCode) and the Explicit surface tool already left them out; this branch took every start.
     let holeStartSkipped = 0, gapSkipped = 0;
-    const firstFrom = new Map();
-    for (const r of layers.litho || []) { const f = Number(r.from); if (r.hole_id != null && Number.isFinite(f) && !(firstFrom.get(r.hole_id) <= f)) firstFrom.set(r.hole_id, f); }
+    const firstFrom = firstFromByHole(layers.litho || []); // #3387 — kept per log, not rebuilt per unit
     const isOverburdenUnit = unitRoleOf(target) === "overburden"; // #1684
     // #1367 — the logged codes around each depth, for the roles of what sits right above an interval (raw values, not IN tokens)
     const rawEnds = isMcode ? null : intervalEndIndex(layers.litho), rawStarts = isMcode ? null : intervalStartIndex(layers.litho);
@@ -1211,7 +1223,8 @@ export function createModellingRuns(ctx, mcRef) {
     }
     if (!isMcode && !isOverburdenUnit) traces.forEach((t) => {
       const zAt = (md) => findOnTrace(t.pts, md)?.y; // scene y = elevation
-      (rowsByHole(layers.litho).get(t.hole_id) || []).filter((r) => !isNaN(r.from)).forEach((r) => { // #2906 — the hole's rows, not a scan of the whole log per hole
+      // #3387 — without assignments only the unit's own codes count (inUnit is codes.has(value)): read those rows, not all of the hole's
+      (hasAssign ? rowsByHole(layers.litho).get(t.hole_id) || [] : holeRowsOfCodes(layers.litho, t.hole_id, codes)).filter((r) => !isNaN(r.from)).forEach((r) => { // #2906 — the hole's rows, not a scan of the whole log per hole
         const isIn = inUnit(r);
         if (hasAssign && isIn !== codes.has(r.value)) { if (isIn) assignedIn++; else assignedOut++; }
         if (!isIn) return;
@@ -2769,9 +2782,9 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         implicitGroupRef.current?.add(mesh);
         const id = `impl_${Date.now()}_numeric_${symbol}`;
         implicitMeshesRef.current[id] = mesh;
-        setImplicitSurfaces((p) => [...p, { id, name: label, visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: "mineralization_envelope", relationships: [], closure, params, surfaceSupportCounts: surfCounts, supportColored: false }]); // surfaceSupportCounts/supportColored: TASKS.csv #91
+        setImplicitSurfaces((p) => [...p, { id, name: distinctShellName(label, p.map((x) => x.name), cs), visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: "mineralization_envelope", relationships: [], closure, params, surfaceSupportCounts: surfCounts, supportColored: false }]); // surfaceSupportCounts/supportColored: TASKS.csv #91
         setNotices((p) => [...p, notice("Added \"{label}\": {points} ({intervals}{v4}, {dropped} dropped{v5}, {above} at/above cutoff{v6}) → {nx}×{ny}×{nz} grid ({estimated} cells estimated, {skipped} outside the search radius{v7}{v8}) → {vertices} vertices / {faces} faces{v9}. Exploration target volume only — not a Mineral Resource.", { label, points: tr(points.length === 1 ? "{n} sample point" : "{n} sample points", { n: points.length }) /* #1116 */,
-          intervals: numericUseComposites ? tr(intervals.length === 1 ? "{n} {len} m composite" : "{n} {len} m composites", { n: intervals.length, len: numericCompositeLength }) : tr(intervals.length === 1 ? "{n} raw interval" : "{n} raw intervals", { n: intervals.length }), v4: rawStats && (rawStats.duplicatesSkipped || rawStats.overlappingRows) ? tr(" after {duplicatesSkipped} exact duplicate(s) left out and {overlappingRows} overlapping row(s) resolved", { duplicatesSkipped: rawStats.duplicatesSkipped, overlappingRows: rawStats.overlappingRows }) : "", dropped, v5: beyondTrace ? tr(" ({beyondTrace} deeper than the hole's trace)", { beyondTrace }) : "", above, v6: clamped ? tr(clamped === 1 ? ", {clamped} negative grade clamped to zero" : ", {clamped} negative grades clamped to zero", { clamped }) : "", nx: grid.nx, ny: grid.ny, nz: grid.nz, estimated: grid.estimated.toLocaleString(), skipped: grid.skipped.toLocaleString(), v7: grid.singleHoleCells ? tr(", {singleHoleCells} informed by only ONE hole", { singleHoleCells: grid.singleHoleCells.toLocaleString() }) : "", v8: gsVariogram ? tr("; kriged with a {model} variogram {v}: nugget {v2}, sill {v3}, range {v4} m", { model: gsVariogram.model, v: gsVariogram.fitted ? tr("fitted to the samples") : tr("as entered"), v2: +gsVariogram.nugget.toPrecision(3), v3: +gsVariogram.sill.toPrecision(3), v4: Math.round(gsVariogram.range) }) + (anisotropy.enabled ? tr(" (along the trend \"{name}\")", { name: anisotropy.trend?.name || "" }) : "") : "" /* #935 */, vertices: mc.vertices.length.toLocaleString(), faces: mc.faces.length.toLocaleString(), v9: vol.watertight ? tr(", closed ({volumeM3} m³)", { volumeM3: vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 }) }) : tr(", open ({openEdgeCount} open edges — shell reaches the edge of the estimated region)", { openEdgeCount: vol.openEdgeCount }) })]);
+          intervals: numericUseComposites ? tr(intervals.length === 1 ? "{n} {len} m composite" : "{n} {len} m composites", { n: intervals.length, len: numericCompositeLength }) : tr(intervals.length === 1 ? "{n} raw interval" : "{n} raw intervals", { n: intervals.length }), v4: rawStats && (rawStats.duplicatesSkipped || rawStats.overlappingRows) ? tr(" after {duplicatesSkipped} exact duplicate(s) left out and {overlappingRows} overlapping row(s) resolved", { duplicatesSkipped: rawStats.duplicatesSkipped, overlappingRows: rawStats.overlappingRows }) : "", dropped, v5: beyondTrace ? tr(" ({beyondTrace} deeper than the hole's trace)", { beyondTrace }) : "", above, v6: clamped ? tr(clamped === 1 ? ", {clamped} negative grade clamped to zero" : ", {clamped} negative grades clamped to zero", { clamped }) : "", nx: grid.nx, ny: grid.ny, nz: grid.nz, estimated: grid.estimated.toLocaleString(), skipped: grid.skipped.toLocaleString(), v7: grid.singleHoleCells ? tr(", {singleHoleCells} informed by only ONE hole", { singleHoleCells: grid.singleHoleCells.toLocaleString() }) : "", v8: gsVariogram ? tr("; kriged with a {model} variogram {v}: nugget {v2}, sill {v3}, range {v4} m", { model: gsVariogram.model, v: gsVariogram.fitted ? tr("fitted to the samples") : tr("as entered"), v2: +gsVariogram.nugget.toPrecision(3), v3: +gsVariogram.sill.toPrecision(3), v4: Math.round(gsVariogram.range) }) + (anisotropy.enabled ? tr(" (along the trend \"{name}\")", { name: anisotropy.trend?.name || "" }) : "") : "" /* #935 */, vertices: mc.vertices.length.toLocaleString(), faces: mc.faces.length.toLocaleString(), v9: vol.watertight ? tr(", closed ({volumeM3} m³)", { volumeM3: Number(vol.volumeM3.toPrecision(3)).toLocaleString() /* TASKS.csv #3082 (7) — 3 significant figures, as the Volume row and the Tonnage (#3284) */ }) : tr(", open ({openEdgeCount} open edges — shell reaches the edge of the estimated region)", { openEdgeCount: vol.openEdgeCount }) })]);
         // TASKS.csv #2223 — the refit above counted the whole box; say how little of it the search reaches, and the budget that keeps the
         // default cell (marching cubes needs every node, so the shell cannot budget on reachable blocks as Estimation does)
         const budgetAdvice = shellBudgetAdvice({ refit: cellRefit, neededAtDefault, estimated: grid.estimated, skipped: grid.skipped, budget: blockBudget });

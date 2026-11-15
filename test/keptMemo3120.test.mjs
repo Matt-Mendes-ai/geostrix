@@ -39,7 +39,7 @@ test("wiring: the Geochem tab's derived samples and the plot's projection are ke
   const g = readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8");
   for (const re of [/keptMemo\(\[assays\], "kept"/, /keptMemo\(\[assaysKept\], `src\|\$\{plotSource\}\|\$\{hasPxrf\}`/, /keptMemo\(\[sourceAll\], `rows\|\$\{plotQc\}\|\$\{qcInSource\}`/,
     /keptMemo\(\[sourceRows, assayElements\], `pair\|\$\{xyLead\}`/, /keptMemo\(\[assays\], "holeColors"/, /keptMemo\(\[assays, layers\?\.litho\], "lith"/,
-    /keptMemo\(\[sourceRows, sampleLith\], `plot\|/, /keptMemo\(\[plotted, assayElements, store\.layers, store\.customLayers\], `stat\|/, /keptMemo\(\[plotted, diagram\], `count\|\$\{unitsKey\}`/]) assert.match(g, re);
+    /keptMemo\(\[sourceRows, sampleLith\], `plot\|/, /keptMemo\(\[plotted, assayElements, store\.layers, store\.customLayers(, store\.project\?\.displayUnits)?\], `stat\|/, /keptMemo\(\[plotted, diagram\], `count\|\$\{unitsKey\}`/]) assert.match(g, re);
   const p = readFileSync(new URL("../src/components/GeochemPlot.jsx", import.meta.url), "utf8");
   assert.match(p, /keptMemo\(\[samples, diagram\], `proj\|\$\{JSON\.stringify\(elementUnits \|\| \{\}\)\}`/);
 });

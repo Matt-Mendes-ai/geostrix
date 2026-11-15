@@ -17,7 +17,7 @@ test("the rule the strip log uses: the project's own meaning, nothing when the e
 
 test("wiring: the dictionary from the store, the meaning in each interval's hover, the pattern list and the figure key", () => {
   assert.match(s, /import \{ codeMeaning \} from "\.\.\/lib\/viewer\/codeMeaning\.js";/);
-  assert.match(s, /const \{ customLayers: allCustom = \[\], codeDictionary \} = useStore\(\);/);
+  assert.match(s, /const \{ customLayers: allCustom = \[\], codeDictionary(, project: stripProject)? \} = useStore\(\);/);
   assert.match(s, /const meaningOf = \(t, v, shown = ""\) => \(codeDictionary \? codeMeaning\(codeDictionary, t\.key, v, shown\) : null\);/);
   assert.match(s, /return \(lanes > 1 \|\| m \|\| d\) \? <title>\{`\$\{r\.value\}\$\{name\}\$\{m \? ` — \$\{m\}` : ""\}/, "the hover of an interval"); // d: the interval's description, #3308
   assert.match(s, /meaningOf\(\{ key: "litho" \}, v, lithoName\(v\)\)/, "beside the code in the pattern list");

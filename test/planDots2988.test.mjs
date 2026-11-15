@@ -44,7 +44,7 @@ test("a line is skipped when its box misses the view", () => {
 
 test("wired: the plan uses them, and the legend says what it shows", () => {
   const p = readFileSync(new URL("../src/components/MapsPlanView.jsx", import.meta.url), "utf8");
-  assert.match(p, /drawDots\(ctx, dotsInView\(collars,/);
+  assert.match(p, /drawDots\(ctx, dotsInView\((collars|dotCollars),/);
   assert.match(p, /if \(pl\.length < 2 \|\| !polylineInView\(pl, viewBox\)\) return;/);
   assert.doesNotMatch(p, /collars\.forEach\(\(c\) => \{\s*if \(!Number\.isFinite\(c\.x\)\) return;/);
   assert.match(p, /tr\("Highest \{el\} in the hole\{u\}", \{ el: key, u \}\)/);

@@ -17,7 +17,7 @@ import { contourLabelSpots, indexLevels } from "../contourLabels.js"; // TASKS.c
 import { makeTextSprite } from "./textSprite.js"; // TASKS.csv #1466 / #1622
 import { collarGround, collarsLookUnderground } from "../collarGround.js"; // TASKS.csv #2447; #3159: not pitShell.js, which put the pit solver in startup; collarsLookUnderground: #3368
 import { outcropNoTerrainGround } from "./surfacePlacement.js"; // TASKS.csv #3368
-import { terrainDrapeGrid } from "./terrainDrape.js"; // TASKS.csv #3380
+import { terrainDrapeGrid, adaptiveDrape, trianglesNear } from "./terrainDrape.js"; // TASKS.csv #3380; adaptiveDrape: #3449; trianglesNear: #3252
 import { DRAW_ORDER } from "./drawOrder.js"; // TASKS.csv #2776
 
 // TASKS.csv #2447 / #2576 (reviews #2325 / #2486) — a raster drawn on the collar surface (drapeMode "collars", a project with no terrain): a
@@ -103,23 +103,9 @@ export function syncRasterDrapes(group, cache, rasters, { origin, terrain, rende
         // TASKS.csv #3394 (#3380's follow-up) — on the terrain's own nodes and triangles (lib/viewer/terrainDrape.js), as the map layers are
         // since #3380. The plane of 48-160 even segments read bilinearly (#81's fix for 'zones of discrepancies') parted from the drawn
         // triangles inside twisted cells by up to a quarter of a cell's twist, far more than its 0.15 m lift, and the ground showed through.
-        // Lifted 0.15 m (#81's z-fight margin) plus what the drape cannot match exactly (a decimated terrain mesh, nodes skipped on a very
-        // large raster, the box's edge cells), and drawn ahead of the ground in the depth test.
-        const am = terrain.gridW * terrain.gridH > ADAPTIVE_TERRAIN_NODES ? adaptiveTerrainCache.get(terrain) : null;
-        const adaptiveError = terrain.gridW * terrain.gridH > ADAPTIVE_TERRAIN_NODES ? (am?.maxError ?? 2) : 0;
-        const dg = terrainDrapeGrid(terrain, r.bbox, { adaptiveError });
-        const W = dg.xs.length, H = dg.ys.length, positions = new Float32Array(W * H * 3), uvs = new Float32Array(W * H * 2), up = 0.15 + dg.extraLift;
-        for (let row = 0; row < H; row++) for (let k = 0; k < W; k++) {
-          const q = row * W + k;
-          positions[q * 3] = dg.xs[k] - cx; positions[q * 3 + 1] = dg.ys[row] - cy; positions[q * 3 + 2] = dg.z[q] - oz + up; // the plane's local frame (rotated below)
-          uvs[q * 2] = (dg.xs[k] - xmin) / w; uvs[q * 2 + 1] = (dg.ys[row] - ymin) / h; // as PlaneGeometry's: u east, v north
-        }
-        geometry = new THREE.BufferGeometry();
-        geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-        geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
-        geometry.setIndex(new THREE.BufferAttribute(dg.indices, 1));
-        geometry.computeBoundingSphere();
-        geometry.userData.drapeLift = up;
+        // Lifted 0.15 m (#81's z-fight margin) plus what the drape cannot match exactly, and drawn ahead of the ground in the depth test.
+        // TASKS.csv #3449 — on a decimated (adaptive) terrain mesh the drape is that mesh's own triangles; see terrainDrapeGeometry.
+        geometry = terrainDrapeGeometry(terrain, r.bbox, { cx, cy, oz, base: 0.15 });
         material.polygonOffset = true; material.polygonOffsetFactor = -2; material.polygonOffsetUnits = -2; // as the map layers' (#3380)
       } else {
         geometry = new THREE.PlaneGeometry(w, h);
@@ -345,22 +331,8 @@ export function syncMapLayers(group, cache, mapLayers, { origin, terrain, render
       if (drapeOnTerrain) {
         // TASKS.csv #3380 — the drape on the terrain's own nodes and triangles (lib/viewer/terrainDrape.js): an even plane read bilinearly
         // parted from the drawn triangles inside twisted cells and the ground showed through the polygons. Lifted clear of what it cannot
-        // match exactly (a decimated terrain mesh, nodes skipped on a very large box, the box's edge cells).
-        const am = terrain.gridW * terrain.gridH > ADAPTIVE_TERRAIN_NODES ? adaptiveTerrainCache.get(terrain) : null;
-        const adaptiveError = terrain.gridW * terrain.gridH > ADAPTIVE_TERRAIN_NODES ? (am?.maxError ?? 2) : 0;
-        const dg = terrainDrapeGrid(terrain, bbox, { adaptiveError });
-        const W = dg.xs.length, H = dg.ys.length, positions = new Float32Array(W * H * 3), uvs = new Float32Array(W * H * 2), up = lift + dg.extraLift;
-        for (let r = 0; r < H; r++) for (let k = 0; k < W; k++) {
-          const q = r * W + k;
-          positions[q * 3] = dg.xs[k] - cx; positions[q * 3 + 1] = dg.ys[r] - cy; positions[q * 3 + 2] = dg.z[q] - oz + up; // the plane's local frame (rotated below)
-          uvs[q * 2] = (dg.xs[k] - bbox[0]) / w; uvs[q * 2 + 1] = (dg.ys[r] - bbox[1]) / h;
-        }
-        geometry = new THREE.BufferGeometry();
-        geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-        geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
-        geometry.setIndex(new THREE.BufferAttribute(dg.indices, 1));
-        geometry.computeBoundingSphere();
-        geometry.userData.drapeLift = up; // #3380
+        // match exactly (the box's edge cells, nodes skipped on a very large box). #3449: on a decimated terrain mesh, that mesh's own triangles.
+        geometry = terrainDrapeGeometry(terrain, bbox, { cx, cy, oz, base: lift });
       } else if (onCollars) { // #2768 — on the surface through the collar elevations
         const ground = collarGround(collars);
         geometry = new THREE.PlaneGeometry(w, h, COLLAR_DRAPE_SEG, COLLAR_DRAPE_SEG);
@@ -614,6 +586,47 @@ export function syncOmfObjects(group, cache, omfObjects, { origin }) {
 // so a re-centred scene does not rebuild it.
 const ADAPTIVE_TERRAIN_NODES = 90000;
 const adaptiveTerrainCache = new WeakMap();
+// TASKS.csv #3449 — the adaptive mesh a terrain is drawn with (null: drawn as its full grid), built once per terrain object; the drapes
+// read the same one, so they are built on the very triangles drawn (it was read only if syncTerrain had run first).
+function adaptiveMeshOf(terrain) {
+  const { gridW, gridH, elevations } = terrain;
+  if (gridW * gridH <= ADAPTIVE_TERRAIN_NODES) return null;
+  let am = adaptiveTerrainCache.get(terrain);
+  if (!am) {
+    const mask = decodeNoDataMask(terrain.noDataMask);
+    am = buildAdaptiveTerrain(gridW, gridH, elevations, mask ? (k) => isNoData(mask, k) : null, { maxTriangles: gridW * gridH > 1100 * 1100 ? 480000 : 160000 } /* TASKS.csv #3251 — a Full (2,049-node) grid: three times the triangles, or it draws no finer than Very high */);
+    adaptiveTerrainCache.set(terrain, am);
+  }
+  return am;
+}
+// TASKS.csv #3380 / #3394 / #3449 — a raster's or a map layer's drape on the terrain, in the plane's local frame (x east of cx, y north of cy,
+// z up; the caller turns it -90 degrees about x), `base` metres above the ground; UVs u east, v north over the box. On a decimated terrain
+// mesh it is that mesh's triangles inside the box (adaptiveDrape: exact, no lift); on a full grid the grid drape, each vertex lifted by its
+// own rise (terrainDrapeGrid). Matt's #3449: a hillshade and imagery floated ~380-500 m over a Copernicus terrain, lifted by one number.
+// TASKS.csv #3252 phase 2 — exported for the 3D detail tiles (lib/viewer/lodDrape.js), which drape each tile on this same path: uvBox is the box
+// the picture covers (a tile's, of which `bbox` may be the part inside the raster), and `near` takes only the adaptive mesh's triangles near
+// the box (trianglesNear: the same triangles adaptiveDrape would keep, without walking the whole mesh).
+export function terrainDrapeGeometry(terrain, bbox, { cx, cy, oz, base, uvBox = null, near = false }) {
+  const [x0, y0, x1, y1] = uvBox || bbox, w = Math.max(0.001, x1 - x0), h = Math.max(0.001, y1 - y0);
+  const am = adaptiveMeshOf(terrain); // #3449
+  let n, X, Y, Z, L = null, index;
+  if (am) { const d = adaptiveDrape(terrain, near ? trianglesNear(terrain, am, bbox) : am, bbox); n = d.x.length; X = (q) => d.x[q]; Y = (q) => d.y[q]; Z = d.z; index = d.indices; }
+  else { const dg = terrainDrapeGrid(terrain, bbox), W = dg.xs.length; n = W * dg.ys.length; X = (q) => dg.xs[q % W]; Y = (q) => dg.ys[(q - (q % W)) / W]; Z = dg.z; L = dg.lift; index = dg.indices; }
+  const positions = new Float32Array(n * 3), uvs = new Float32Array(n * 2);
+  for (let q = 0; q < n; q++) {
+    const x = X(q), y = Y(q);
+    positions[q * 3] = x - cx; positions[q * 3 + 1] = y - cy; positions[q * 3 + 2] = Z[q] - oz + base + (L ? L[q] : 0);
+    uvs[q * 2] = (x - x0) / w; uvs[q * 2 + 1] = (y - y0) / h;
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+  geometry.setIndex(new THREE.BufferAttribute(index, 1));
+  geometry.computeBoundingSphere();
+  geometry.userData.drapeLift = base;
+  geometry.userData.drapeOn = am ? "adaptive mesh" : "grid";
+  return geometry;
+}
 export function syncTerrain(group, previous, terrain, { origin }) {
   if (previous) {
     group.remove(previous);
@@ -631,8 +644,7 @@ export function syncTerrain(group, previous, terrain, { origin }) {
   const mask = decodeNoDataMask(terrain.noDataMask);
   if (gridW * gridH > ADAPTIVE_TERRAIN_NODES) {
     // TASKS.csv #796 — High / Very high detail grids: only the nodes an adaptive mesh needs (lib/terrainMesh.js)
-    let am = adaptiveTerrainCache.get(terrain);
-    if (!am) { am = buildAdaptiveTerrain(gridW, gridH, elevations, mask ? (k) => isNoData(mask, k) : null, { maxTriangles: gridW * gridH > 1100 * 1100 ? 480000 : 160000 } /* TASKS.csv #3251 — a Full (2,049-node) grid: three times the triangles, or it draws no finer than Very high */); adaptiveTerrainCache.set(terrain, am); }
+    const am = adaptiveMeshOf(terrain); // #3449 — the one the drapes read
     const nv = am.vertexIds.length;
     const positions = new Float32Array(nv * 3), uvs = new Float32Array(nv * 2);
     for (let n = 0; n < nv; n++) {

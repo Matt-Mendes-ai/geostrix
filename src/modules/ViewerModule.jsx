@@ -10,7 +10,8 @@ import { holesWithoutField } from "../lib/viewer/holeFieldPicks.js"; // #3074
 import { holeColourScheme, applyHoleColours, holeColourLegendGroup } from "../lib/viewer/holeColours.js"; // #1504
 import FenceOptions from "./viewer/FenceOptions.jsx";
 import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js";
-import React, { useRef, useEffect, useState, useCallback, useMemo, Suspense } from "react";
+import React, { useRef, useEffect, useState, Suspense } from "react";
+import { useDataGeneration, generationTables, useCallbackGen as useCallback, useMemoGen as useMemo } from "./viewer/dataGeneration.js"; // TASKS.csv #3483 — the memos made again when a big table is replaced (a leak of every earlier generation)
 import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565; requestModuleAction: #1417
 import { isPxrfRow } from "../lib/qaqcCore.js"; // TASKS.csv #1695; #3159: qaqcCore, not qaqc.js (the QAQC charts' code, not needed at startup)
 import { describeDbImport } from "../lib/dbImports.js"; // TASKS.csv #1963
@@ -32,6 +33,7 @@ import PromptModal from "../components/PromptModal.jsx";
 import { toLonLat, isMetricProjectedEpsg } from "../lib/reproject.js";
 import { mirrorCustomLayers } from "../lib/viewerDirty.js"; // #1656
 import { customLayerSync, detachCustomGroups } from "./viewer/customLayerSync.js"; // #2361
+import { rlOffsetOf } from "../lib/localGridDatum.js"; // TASKS.csv #2809 — the grid RL in Identify and the section
 import { useStore, useSetCursor, useSetTaskProgress } from "../lib/store.jsx";
 import { surveyAzimuthDipAt, desurveyMatters } from "../lib/desurvey.js"; // desurveyMatters: #2371; // desurveyHole, holeAttitudeAssumed (#2014): used by viewer/drillholeScene.js (#2176)
 import { unitSupport } from "../lib/unitSupport.js"; // #2096
@@ -47,6 +49,7 @@ import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader, PaneNotice } from ".
 import { Pickaxe, Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, PenTool, Rows3, Crosshair, Target, SquareSplitVertical, Sparkles } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
 import { solidBounds, SOLID_IMPORT_EXTENSIONS, SOLID_FACE_WARN } from "../lib/solidImportMeta.js"; // TASKS.csv #148; #552 split
 import { tieOf } from "../lib/localGridTie.js"; // TASKS.csv #3186
+import { withFilteredLogs } from "../lib/logFilter.js"; // TASKS.csv #3241 (not numericSources.js: its imports would join the startup bundle)
 import { parseSolidInWorker } from "../lib/solidImportClient.js"; // TASKS.csv #414
 // TASKS.csv #414 — imported solids, one tone per layer (grey-blue family: never the generated-surface gold).
 const IMPORTED_SOLID_COLORS = [0x8fa3b8, 0xa89bbd, 0x8fb8aa, 0xbfae92, 0x93b3c4, 0xb89aa4];
@@ -114,6 +117,7 @@ import { outcropLegendGroup /* TASKS.csv #1437 */, ASSAY_ELEMENT_COLORS, assayCo
 // TASKS.csv #843 — the anomaly map (lib/anomalyMap.js + lib/thresholds.js) and its controls load only when used: off the startup bundle
 const SurfaceAnomalyControls = React.lazy(() => import("../components/SurfaceAnomalyControls.jsx"));
 const EvidenceOverlayPane = React.lazy(() => import("../components/EvidenceOverlayPane.jsx"));
+const SlicePlaceRow = React.lazy(() => import("../components/SlicePlaceRow.jsx")); // TASKS.csv #3431
 const PitShellPane = React.lazy(() => import("../components/PitShellPane.jsx")); // TASKS.csv #1341
 const DesignLinesPane = React.lazy(() => import("../components/DesignLinesPane.jsx")); // TASKS.csv #1342
 const PitDesignPane = React.lazy(() => import("../components/PitDesignPane.jsx")); // TASKS.csv #1874
@@ -209,7 +213,8 @@ import { hideTraceHoles } from "../lib/viewer/traceBatch.js"; // TASKS.csv #2176
 import { closedShellsOf } from "./viewer/estimationShells.js"; // TASKS.csv #2695
 import { findOnTraceWorld, findOnTrace, traceLookup, traceOfHole /* #2931 */, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
-import { syncDrawLods, dropDrawLod } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
+import { syncDrawLods } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
+import { useSurfaceUndo, stashSurface } from "./viewer/surfaceUndo.js"; // TASKS.csv #3494 — Undo / Redo for the model surfaces
 import { useModelling } from "./viewer/useModelling.js";
 import { useUnitSource } from "./viewer/useUnitSource.js"; // TASKS.csv #2378
 import { wheelZoom } from "./viewer/wheelZoom.js"; // #2368
@@ -472,6 +477,7 @@ const faceLook = (mesh, op) => { const m = mesh.material, t = op < 1; m.opacity 
 
 export default function ViewerModule({ mode = "view", visible = true, bare = false }) { // bare: #1979 — the viewport alone, beside the Geophysics sidebar
   const store = useStore();
+  useDataGeneration(generationTables(store)); // TASKS.csv #3483 — before every useCallback / useMemo below
   // TASKS.csv #336 — latest survey/layers for import notices. commitImportData is reached through the
   // multi-file queue's long-lived callback, whose closure can hold stale store values.
   const importStateRef = useRef({});
@@ -491,6 +497,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     surfaceSamples, surfaceElements, codeDictionary, // #2816
     designLines, /* TASKS.csv #1342 */ designStrings, /* TASKS.csv #1876 */ plannedHoles, addPlannedHole, updatePlannedHole, removePlannedHole,
     generatedSurfaces, setGeneratedSurfaces, modelDomains, setModelDomains, // TASKS.csv #52 — persisted implicit surfaces + domains
+    surfaceIds, setSurfaceIds, undoCheckpoint, // TASKS.csv #3494 — the ids of the model surfaces in the undo history
     getProjectToken, isSameProject, // TASKS.csv #466
     customLayers: storeCustomLayers, setCustomLayers: setStoreCustomLayers,
     layoutPages, // TASKS.csv #3296 — the code order set on a Layout legend (#3130)
@@ -868,6 +875,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // surfaces), not by the frequent layer-visibility/filter churn that rebuilds layerGroupsRef.
   const rasterGroupRef = useRef(null);
   const rasterMeshesRef = useRef({}); // id -> THREE.Mesh
+  const lodDrapeRef = useRef(null); // TASKS.csv #3252 — the imagery detail tiles (lib/viewer/lodDrape.js)
   // Boundary polylines (Geosoft .ply import) — own group/refs, same reasoning as rasters above: driven
   // by the store's persisted `boundaries` list, not by layer-visibility churn.
   const boundaryGroupRef = useRef(null);
@@ -997,6 +1005,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const plannedMeshesRef = useRef({}); // id -> THREE.Group (line + toe marker)
   const measureGroupRef = useRef(null); // TASKS.csv #121 — line/polygon + vertex markers for the active measurement
   const [implicitSurfaces, setImplicitSurfaces] = useState([]); // [{id, name, visible, vertexCount, faceCount}]
+  const surfacesNowRef = useRef([]); surfacesNowRef.current = implicitSurfaces; const surfaceGrave = useRef(new Map()); // TASKS.csv #3494 — the removed surfaces kept for Undo
   const [implicitTarget, setImplicitTarget] = useState("");
   // TASKS.csv #52 (a) — sensitivity-spread inputs. The two sigmas deliberately start EMPTY and the run
   // button stays disabled until both are typed: #52's gate is that the input uncertainty must come from
@@ -1600,7 +1609,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     const groups = [
       // TASKS.csv #3296 — the codes in one order with the inspector: the project's set order (#3130) first, then by count (the figure's cut keeps the commonest)
       ...viewCodeOrder(categoryLegendGroups({ keys: CATEGORY_LAYER_KEYS, layers, layerVisible, hidden: categoryFilter, visibleHoles, singleColor, labelFor: effectiveLabel, colorFor: effectiveColor, placed: new Set(collars.map((c) => String(c.hole_id))) }), projectCodeOrders(layoutPages, null, null, null)), // #1813
-      ...assayLegendGroups({ assays, assayElements, assayVisible: assayVisible && collars.length > 0 /* #1813 */, assayDisplayElements, assayStyle }),
+      ...assayLegendGroups({ assays, assayElements, assayVisible: assayVisible && collars.length > 0 /* #1813 */, assayDisplayElements, assayStyle, displayUnits: project?.displayUnits /* #3236 */ }),
       ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), ...scoreRasterLegendGroups(rasters) /* #2670 — score maps */, // #1236
       ...numericLayerLegendGroups({ layers, layerVisible, isRowVisible, colorOf: numericLayerColor, symbology: numericSymbology, clips: numericClip }), // #1398 — the RQD / recovery / SG / mag susc ramps
       ...customLegendGroups(customLayers, customVisible, layerStyles), // #1697
@@ -1868,7 +1877,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     // so that existing "render then immediately read, same task" pattern already produces a correct,
     // non-blank capture without needing the buffer preserved between frames at all. Verified live
     // (see this row's own commit) that both snapshot paths still work correctly with this removed.
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, stencil: true }); // stencil: TASKS.csv #3509 — the fetched picture is hidden under a loaded detail tile
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     rendererRef.current = renderer; mount.appendChild(renderer.domElement);
     const warmId = typeof requestIdleCallback === "function" ? requestIdleCallback(() => import("../lib/viewer/surfaceWarmup.js").then((m) => { if (rendererRef.current === renderer) m.warmSurfacePrograms(renderer, scene, camera); }).catch(() => {}), { timeout: 10000 }) : null; // #3155 — the surface shaders compiled at idle
@@ -2292,6 +2301,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
           }
         }
         if (gridGroupRef.current?.userData.labels) fitScreenLabels(gridGroupRef.current.userData.labels, camera, mount.clientHeight); // #2211
+        lodDrapeRef.current?.tick(camera, mount.clientHeight); // TASKS.csv #3252 — the detail tiles the camera wants (throttled inside, and only when it moved)
         { const sl = sectionLinesGroupRef.current?.userData.labels; if (sl?.children.length) { fitScreenLabels(sl, camera, mount.clientHeight); declutterHoleLabels(sl, camera, mount.clientWidth, mount.clientHeight); } } // #1126 section end labels; #3246
         fitContourLabels(boundaryGroupRef.current, camera, mount.clientWidth, mount.clientHeight); // #1466 / #1622
         renderer.setViewport(0, 0, mount.clientWidth, mount.clientHeight);
@@ -3537,6 +3547,13 @@ ${describeTrend(t)}` };
         if (viaTie) solid.parts = (await import("../lib/solidTie.js")).solidPartsToLocal(solid.parts, gridTie);
       }
       const bounds = solidBounds(solid.parts);
+      // TASKS.csv #3428 — more than 100 km from the holes froze the view for about a minute (fitted, with a scene origin that far): asked first, and
+      // when imported anyway the view stays where it is
+      const farSolid = (await import("../lib/solidFar.js")).solidFarFromHoles(bounds, importStateRef.current?.collars);
+      if (farSolid?.far && !window.confirm(tr("\"{name}\" lies about {km} km from your holes (E {e}, N {n}): its coordinates look like another coordinate system, or a local grid read as real coordinates. A solid that far can freeze the 3D view. Import it anyway? OK: import it and leave the view where it is. Cancel: don't import it.", { name: file.name, km: Math.round(farSolid.distM / 1000).toLocaleString(), e: Math.round(farSolid.solid[0]).toLocaleString(), n: Math.round(farSolid.solid[1]).toLocaleString() }))) {
+        setNotices((p) => [...p, notice("{name}: import cancelled (it lies about {km} km from the holes).", { name: file.name, km: Math.round(farSolid.distM / 1000).toLocaleString() })]);
+        return;
+      }
       const o = originRef.current;
       const label = file.name.replace(/\.(dxf|obj|msh|ts|gp)$/i, "");
       const stamp = Date.now();
@@ -3592,7 +3609,7 @@ ${describeTrend(t)}` };
         : "";
       const layerNote = layered ? tr(" One surface per {v} ({v2}).", { v: solid.format === "DXF" ? "layer" : "object", v2: solid.parts.map((p) => p.layer).join(", ") }) : "";
       setNotices((p) => [...p, viaTie ? notice("Imported \"{name}\" as a solid: {vertexCount} vertices / {triangleCount} triangles ({format}, {note}).{layerNote} It appears under Generated surfaces with the same show/hide, remove and query controls.{bb} Placed onto the local grid through its tie to EPSG:{epsg} (x and y; elevation unchanged).", { name: file.name, vertexCount: solid.vertexCount.toLocaleString(), triangleCount: solid.triangleCount.toLocaleString(), format: solid.format, note: solid.note, layerNote, bb, epsg: gridTie.epsg }) /* #3186 */ : notice("Imported \"{name}\" as a solid: {vertexCount} vertices / {triangleCount} triangles ({format}, {note}).{layerNote} It appears under Generated surfaces with the same show/hide, remove and query controls.{bb} Coordinates are used AS-IS — a DXF/OBJ carries no CRS, so GeoStrix does not reproject it; if it lands away from your holes, the file is in a different CRS.", { name: file.name, vertexCount: solid.vertexCount.toLocaleString(), triangleCount: solid.triangleCount.toLocaleString(), format: solid.format, note: solid.note, layerNote, bb })]);
-      fitBox(box);
+      if (!farSolid?.far) fitBox(box); // #3428 — a far solid is imported where it is; the view is not moved to it
       import("../lib/solidCheckNote.js").then(({ solidCheckNote }) => { const t = solidCheckNote(solid.parts, (k) => (layered ? `${label} — ${solid.parts[k].layer}` : label)); if (t) setNotices((p) => [...p, infoNotice(t)]); }).catch(() => {}); // #2801 — on demand
     } catch (e) {
       clearProgress();
@@ -3773,8 +3790,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     ? confirmDestructive(tr("Remove the explicit surface \"{name}\" with its picks and lines?", { name: s.name }), { undoable: true })
     : confirmDestructive(tr("Remove surface \"{name}\"?", { name: s.name }), { recover: tr("getting it back means re-running the model.") }));
   const removeImplicitSurface = useCallback((id) => {
-    const mesh = implicitMeshesRef.current[id];
-    if (mesh) { dropDrawLod(mesh); implicitGroupRef.current?.remove(mesh); mesh.geometry?.dispose?.(); mesh.material?.dispose?.(); delete implicitMeshesRef.current[id]; } // dropDrawLod: #795
+    stashSurface({ grave: surfaceGrave.current, meshes: implicitMeshesRef.current, group: implicitGroupRef.current, surfaces: surfacesNowRef.current }, id); // TASKS.csv #3494 — kept for Undo, not disposed (dropDrawLod: #795, inside)
     // TASKS.csv #83 — drop any relationship pointing AT the surface being removed too, so the
     // remaining surfaces don't end up referencing a dangling id.
     // TASKS.csv #93 — and HEAL THE VERSION CHAIN in the same pass: if the removed surface was a middle
@@ -4290,12 +4306,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // TASKS.csv #1582 (review #1497, Lawyers) — geophysics readings live in layers.geophys_pts but are built by their own builder;
   // with holes the big build never reads them, so a survey import or removal keeps the same object here (23-30 s on Lawyers)
   const layersBuildRef = useRef(null);
+  // TASKS.csv #3241 — the 3D ribbons draw the built-in logs (Mag. susc., SG) as Downhole logs read them: the valid range and the despike applied
+  const sceneLayers = useMemo(() => withFilteredLogs(layers, project?.logValidRange), [layers, project?.logValidRange]);
   const layersForBuild = useMemo(() => {
     const prev = layersBuildRef.current;
-    if (prev && Object.keys({ ...prev, ...layers }).every((k) => k === "geophys_pts" || prev[k] === layers[k])) return prev;
-    layersBuildRef.current = layers;
-    return layers;
-  }, [layers]);
+    if (prev && Object.keys({ ...prev, ...sceneLayers }).every((k) => k === "geophys_pts" || prev[k] === sceneLayers[k])) return prev;
+    layersBuildRef.current = sceneLayers;
+    return sceneLayers;
+  }, [sceneLayers]);
   // TASKS.csv #2371 — the desurvey method changes a trace only where a hole's survey has two attitudes; otherwise a switch redraws nothing and says why
   const desurveyBites = useMemo(() => desurveyMatters(collars, survey), [collars, survey]);
   const desurveySeenRef = useRef(desurveyMethod);
@@ -4305,8 +4323,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   }, [desurveyMethod]);
   useEffect(() => {
     // TASKS.csv #2176 step 1 — the drillhole scene build, moved unchanged into viewer/drillholeScene.js (#1084 size cap)
-    buildDrillholeScene({ applyCategoryVisibility, applyHoleVisibilityRef /* #3253 */, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collarSize, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels, pointBuildersStale: () => [!sameInputs(assayBuiltRef.current, assayInputs), !sameInputs(geophysBuiltRef.current, geophysInputs), !sameInputs(surfaceBuiltRef.current, surfaceInputs)] /* #2176 */ });
-  }, [collars, survey, desurveyBites ? desurveyMethod : "" /* #135 — switching method must rebuild every trace; #1528 / #2371 — not when every hole keeps one attitude (straight holes, the same for every method) */, noHoles ? layers : layersForBuild /* #1582 */, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, layerStylesBuildKey /* #635; #1528 — not the in-place opacities */, noHoles && anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, noHoles && mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, noHoles && voxelGeomSignature /* #1569 — with holes, only the fit box below */, fitBox, rebuildSeq, noHoles && placedSurfaceSamples /* #606 — and the no-drillhole camera anchor */]); // #551: assay / geophysics-legend / surface-visibility inputs moved to their own builders
+    buildDrillholeScene({ applyCategoryVisibility, applyHoleVisibilityRef /* #3253 */, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collarSize, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers: sceneLayers /* #3241 */, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels, pointBuildersStale: () => [!sameInputs(assayBuiltRef.current, assayInputs), !sameInputs(geophysBuiltRef.current, geophysInputs), !sameInputs(surfaceBuiltRef.current, surfaceInputs)] /* #2176 */ });
+  }, [collars, survey, desurveyBites ? desurveyMethod : "" /* #135 — switching method must rebuild every trace; #1528 / #2371 — not when every hole keeps one attitude (straight holes, the same for every method) */, noHoles ? sceneLayers : layersForBuild /* #1582; sceneLayers: #3241 */, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, layerStylesBuildKey /* #635; #1528 — not the in-place opacities */, noHoles && anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, noHoles && mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, noHoles && voxelGeomSignature /* #1569 — with holes, only the fit box below */, fitBox, rebuildSeq, noHoles && placedSurfaceSamples /* #606 — and the no-drillhole camera anchor */]); // #551: assay / geophysics-legend / surface-visibility inputs moved to their own builders
   // TASKS.csv #1569 (review #1497, Lawyers) — with drillholes, a block model only widens the fit box (the origin and the first
   // fit come from the holes): adding one re-derives that box here instead of rebuilding every drillhole and custom layer
   // (25-26 s per 'Add as block model' on Lawyers). Without holes the build above still runs, since the models anchor it.
@@ -4361,6 +4379,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // don't touch geometry at all. Keying the cache on the geometry's own uuid means a metadata edit
   // re-serialises nothing; only a genuinely new/regenerated mesh pays the conversion.
   const surfaceGeomCacheRef = useRef({});
+  useSurfaceUndo({ implicitSurfaces, setImplicitSurfaces, implicitMeshesRef, implicitGroupRef, grave: surfaceGrave, hydrationRef: surfaceHydrationRef, viewerUiStateSeq, surfaceIds, setSurfaceIds, undoCheckpoint }); // TASKS.csv #3494
 
   useEffect(() => {
     // Only ever hydrate ONCE per project load. viewerUiStateSeq is the store's existing
@@ -4511,7 +4530,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const codeDictRef = useRef(codeDictionary); codeDictRef.current = codeDictionary; // #2816 — for the mount-once hover handler
   const identify = useIdentify({ mountRef, cameraRef, sceneRef, pickHits, lastActivityRef, originRef, tracesRef, layerGroupsRef, rasterMeshesRef, mapLayerMeshesRef, surfStructObjsRef, mapLayerGroupRef, surfStructGroupRef, terrainMeshRef, rasters, mapLayers, surfaceStructures, codeDictionary /* #2816 */, assays /* #2938 */, voxelModels /* #3178 — a set's members at the picked block */, units: Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit])),
     layerLabel: (k) => tr(LAYER_META[k]?.label || customLayers.find((l) => l.id === k)?.name || { assay: "Assays", geophys_pts: "Geophysics points", surface_samples: "Surface samples", holes: "Drillholes" /* #2041 */ }[k] || k),
-    kinds: [[implicitGroupRef, tr("Generated surfaces")], [omfGroupRef, tr("OMF objects")], [plannedGroupRef, tr("Planned holes")], [boundaryGroupRef, tr("Boundaries")]] });
+    kinds: [[implicitGroupRef, tr("Generated surfaces")], [omfGroupRef, tr("OMF objects")], [plannedGroupRef, tr("Planned holes")], [boundaryGroupRef, tr("Boundaries")]], rlOffset: rlOffsetOf(project) /* #2809 */ });
   identifyStopRef.current = () => { if (!identify.on) return false; identify.stop(); return true; };
   const sculpt = useSculpt({
     surfaces: implicitSurfaces, // so sculpt mode can't be left pointing at a surface that no longer exists
@@ -4677,6 +4696,17 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // ---------- rebuild raster drapes (TASKS.csv #24, #81) ----------
   // moved to lib/viewer/sceneBuilders.js syncRasterDrapes (TASKS.csv #693); its comments explain the build
   useEffect(() => { if (rasterGroupRef.current && !buildDefer.skip()) syncRasterDrapes(rasterGroupRef.current, rasterMeshesRef.current, rasters, { origin: originRef.current, terrain, renderer: rendererRef.current, collars }); }, [rasters, collars, terrain, rebuildSeq, deferRound]);
+  // TASKS.csv #3252 phase 2 — the detail tiles follow the rasters, the terrain and the origin; wake: a tile that arrives redraws an idle view
+  useEffect(() => { // TASKS.csv #3252 / #3509 - lib/viewer/lodDrape.js (and the tile cache it pulls in) is loaded the first time a raster with a source description is draped: not at startup
+    if (!rasterGroupRef.current || buildDefer.skip()) return;
+    const ctx = { group: rasterGroupRef.current, cache: rasterMeshesRef.current, rasters, terrain, origin: originRef.current, renderer: rendererRef.current, wake: () => { lastActivityRef.current = Date.now(); } };
+    if (lodDrapeRef.current) { lodDrapeRef.current.sync(ctx); return; }
+    if (!terrain || !rasters.some((r) => r.lod)) return;
+    let live = true;
+    import("../lib/viewer/lodDrape.js").then((m) => { if (!live) return; lodDrapeRef.current = lodDrapeRef.current || m.createLodDrape(); lodDrapeRef.current.sync(ctx); });
+    return () => { live = false; };
+  }, [rasters, terrain, rebuildSeq, deferRound]);
+  useEffect(() => () => lodDrapeRef.current?.dispose(), []);
 
   // ---------- rebuild boundary polylines (Geosoft .ply import) ----------
   // moved to lib/viewer/sceneBuilders.js syncBoundaries (TASKS.csv #693); its comments explain the build
@@ -5180,10 +5210,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       return;
     }
     const ok = await loadSampleProject(which);
-    if (ok && which !== "wa_uranium" && (which.startsWith("wa_") || which.startsWith("qld_"))) { // TASKS.csv #3107 — assays, surface samples, downhole logs and a grid: lib/sampleWa.js
+    if (ok && which !== "wa_uranium" && (which.startsWith("wa_") || which.startsWith("qld_") || which.startsWith("yk_" /* #3496 */))) { // TASKS.csv #3107 — assays, surface samples, downhole logs and a grid: lib/sampleWa.js
       try {
         const { loadWaSampleExtras, WA_SAMPLES } = await import("../lib/sampleWa.js");
-        const notes = await loadWaSampleExtras(which, async (rel) => (await loadSampleFiles(WA_SAMPLES[which].dir, [rel]))[0], { setAssays, setAssayElements, setSurfaceSamples: store.setSurfaceSamples, setSurfaceElements: store.setSurfaceElements, addCustomLayer: (l) => setStoreCustomLayers((p) => [...(p || []), l]), addRaster: store.addRaster },
+        const notes = await loadWaSampleExtras(which, async (rel) => (await loadSampleFiles(WA_SAMPLES[which].dir, [rel]))[0], { setAssays, setAssayElements, setSurfaceSamples: store.setSurfaceSamples, setSurfaceElements: store.setSurfaceElements, addCustomLayer: (l) => setStoreCustomLayers((p) => [...(p || []), l]), addRaster: store.addRaster, setProjectDataCredit: store.setProjectDataCredit /* #3496 */ },
           { existingElements: assayElements, existingSurfaceElements: surfaceElements, project: importStateRef.current?.project || store.project });
         setNotices((p) => [...p, ...notes]);
       } catch (e) { setNotices((p) => [...p, errorNotice(tr("Couldn't load the sample project: {message}", { message: e.message }))]); }
@@ -5338,7 +5368,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         content: zipBytes /* #1040 bytes */,
       });
       if (!res?.ok) { if (res?.error) throw new Error(res.error); return; } // cancelled: say nothing
-      setNotices((p) => [...p, notice("Exported {features} feature(s) from \"{label}\" as a shapefile (.zip — .shp/.shx/.dbf{v}).", { features: features.length, label, v: project?.epsg ? tr("/.prj") : "" })]);
+      setNotices((p) => [...p, appendNotice(notice("Exported {features} feature(s) from \"{label}\" as a shapefile (.zip — .shp/.shx/.dbf{v}).", { features: features.length, label, v: project?.epsg ? tr("/.prj") : "" }), tx.bearingAttributeNote(features, ex?.tie) /* #3187 */)]);
     } catch (err) {
       setNotices((p) => [...p, errorNotice(tr("Shapefile export failed: {message}", { message: err.message }))]);
     }
@@ -5359,7 +5389,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         content: gpkgBytes /* #1040 bytes */,
       });
       if (!res?.ok) { if (res?.error) throw new Error(res.error); return; } // cancelled: say nothing
-      setNotices((p) => [...p, notice("Exported {features} feature(s) from \"{label}\" as a GeoPackage (.gpkg).", { features: features.length, label })]);
+      setNotices((p) => [...p, appendNotice(notice("Exported {features} feature(s) from \"{label}\" as a GeoPackage (.gpkg).", { features: features.length, label }), tx.bearingAttributeNote(features, ex?.tie) /* #3187 */)]);
     } catch (err) {
       setNotices((p) => [...p, errorNotice(tr("GeoPackage export failed: {message}", { message: err.message }))]);
     }
@@ -5387,6 +5417,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     { label: tr("Export Shapefile (.zip)…"), onClick: async () => exportVectorShapefile(null, null, label, await build()) },
     { label: tr("Export GeoPackage (.gpkg)…"), onClick: async () => exportVectorGeoPackage(null, null, label, await build()) },
     { label: tr("Export DXF (.dxf)…"), onClick: async () => exportVectorDXF(null, null, label, (await import("../lib/overlayExport.js")).explodeParts(await build())) },
+    { label: tr("Export GOCAD (.vs / .pl)…"), onClick: async () => exportVectorGocad(null, null, label, await build()) }, // #2631
     { label: tr("Export KML (Google Earth)…"), onClick: async () => exportVectorKML(label, await build(), typeof kml === "function" ? await kml() : kml) },
     { label: tr("Export GeoJSON (WGS 84)…"), onClick: async () => exportVectorKML(label, await build(), {}, "geojson") }, // #2759
     csvRows && { label: tr("Export CSV…"), onClick: async () => { const rows = await csvRows(); if (rows.length) saveFile({ quiet: "success", suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: await toExportCsv(rows), encoding: "text" }); } },
@@ -5412,6 +5443,25 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       setNotices((p) => [...p, notice("Exported {features} feature(s) from \"{label}\" as a DXF (.dxf, R12, elevations kept). A DXF carries only layer names{v}: use Shapefile or GeoPackage for every attribute.", { features: features.length, label, v: valueLayer ? tr(" (one per logged value{v2})", { v2: pickLabel ? tr(", picks labelled dip/dip direction") : "" }) : "" })]); // #1060
     } catch (err) {
       setNotices((p) => [...p, errorNotice(tr("DXF export failed: {message}", { message: err.message }))]);
+    }
+  };
+  // TASKS.csv #2631 — GOCAD ASCII: points as a VSet (.vs) with the numeric attributes as properties, lines as a PLine (.pl); lib/gocadWrite.js
+  const exportVectorGocad = async (kind, key, label, built = null) => {
+    const { features, geomType } = built || buildVectorFeatures(kind, key);
+    if (!features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
+    try {
+      const tx = await import("../lib/tiedExport.js"), ex = project?.crsSet === false && !tx.tieOf(project) ? null : await tx.exportCrs(project); if (!ex && project?.crsSet !== false) return; // as the Shapefile export: a tied grid through its tie, no CRS = 'Default'
+      const { vectorGocadText } = await import("../lib/viewer/vectorGocad.js");
+      const g = vectorGocadText({ features: tx.featuresToWorld(features, ex?.tie), geomType }, { label, epsg: ex?.epsg ?? null, crs: crsCell(project) });
+      const res = await saveFile({ quiet: true, suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.${g.ext}`, filters: [{ name: g.ext === "vs" ? "GOCAD VSet" : "GOCAD PLine", extensions: [g.ext] }], content: g.text });
+      if (!res?.ok) { if (res?.error) throw new Error(res.error); return; }
+      setNotices((p) => [...p,
+        g.ext === "pl" ? notice("Exported {n} line(s) from \"{label}\" as a GOCAD PLine (.pl).", { n: g.count, label })
+          : g.properties.length ? notice("Exported {n} point(s) from \"{label}\" as a GOCAD VSet (.vs), with these numeric attributes as properties: {props}.", { n: g.count, label, props: g.properties.join(", ") })
+            : notice("Exported {n} point(s) from \"{label}\" as a GOCAD VSet (.vs).", { n: g.count, label }),
+        ...(g.zMissing ? [notice("{n} vertex/vertices of \"{label}\" have no elevation: written at 0 in the GOCAD file.", { n: g.zMissing, label })] : [])]);
+    } catch (err) {
+      setNotices((p) => [...p, errorNotice(tr("GOCAD export failed: {message}", { message: err.message }))]);
     }
   };
   // TASKS.csv #1034 — tables the CSV importer reads back (modules/viewer/drillholeExport.js)
@@ -5826,7 +5876,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // TASKS.csv #1276 — the main process refuses a new section window past what this computer can hold
   // TASKS.csv #1995 — the litho patterns go with the payload. TASKS.csv #3159: lithoPatterns.js loads with the first section opened
   // (on use, like sectionDigitise.js #903), not at startup; this already returned a promise
-  const openSectionOrSay = async (payload) => { const { lithoPatternMap, withSectionPatterns } = await import("../lib/lithoPatterns.js"); return openSectionWindow(withSectionPatterns(payload, lithoPatternMap(layers.litho, (v) => effectiveLabel("litho", v), legendOverride.litho))).then((r) => { if (r?.refused) setNotices((p) => [...p, notice("{max} sections are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.", { max: r.max })]); return r; }); };
+  const openSectionOrSay = async (payload) => { const { lithoPatternMap, withSectionPatterns } = await import("../lib/lithoPatterns.js"); return openSectionWindow(withSectionPatterns({ ...payload, rlOffset: rlOffsetOf(project) /* #2809 */ }, lithoPatternMap(layers.litho, (v) => effectiveLabel("litho", v), legendOverride.litho))).then((r) => { if (r?.refused) setNotices((p) => [...p, notice("{max} sections are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.", { max: r.max })]); return r; }); };
   const buildSectionPayload = (a, b, corridor, scope = {}, secId = null) => {
     const azimuth = (Math.atan2(b.x - a.x, b.y - a.y) * 180 / Math.PI + 360) % 360;
     const holesInBand = tracesRef.current.filter((t) => visibleHoles[t.hole_id] !== false && t.wx.some((wx, i) => distToSegment(wx, t.wy[i], a.x, a.y, b.x, b.y) <= corridor));
@@ -6024,7 +6074,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
     const modelBackdrop = modelBackdropFor(a, b, secId, showTerrain, corridor); // #759
     if (modelBackdrop) modelBackdrop.legend.forEach((it) => legendItems.push(it));
-    const assayLegend = assayLegendGroups({ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle }); // #1475 — the section window keys the grades it draws
+    const assayLegend = assayLegendGroups({ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle, displayUnits: project?.displayUnits }); // #3236 // #1475 — the section window keys the grades it draws
     const scatter = corridorScatter({ geophysPts: layerVisible.geophys_pts ? layers.geophys_pts : null, geophysStyle: { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax, surveys: geophysSurveys /* #1587 */ }, samples: layerVisible.surface_samples ? placedSurfaceSamples : null }, a, b, corridor); // #1807
     return { azimuth, holes, intervals, points, planes, elevationProfile, legendItems, assayLegend, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop, scatter, scatterCounts: scatter.counts };
   };
@@ -6035,7 +6085,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const planCacheRef = useRef(null);
   const planCtx = () => ({ traces: tracesRef.current, visibleHoles, layerPrimitivesFor, primsVersion: primsVersion() /* #3298 */, cache: planCacheRef, layerVisible, layers, customLayers, customVisible, isRowVisible, effectiveColor, effectiveLabel,
     voxelModels, voxelCellShown, colorForVoxelValue, origin: originRef.current, implicitSurfaces, implicitMeshes: implicitMeshesRef.current, plannedHoles, plannedHoleTrace,
-    assayLegend: () => assayLegendGroups({ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle }), projectValues: (sym) => assays.map((a) => a.values[sym]).filter((v) => v != null) }); // #1537
+    assayLegend: () => assayLegendGroups({ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle, displayUnits: project?.displayUnits }), projectValues: (sym) => assays.map((a) => a.values[sym]).filter((v) => v != null) }); // #1537
 
   // TASKS.csv — cross-section contact drawing. Every launched section is auto-registered in
   // store.sections (id/name/geometry, no contacts yet) the moment it opens, so the pop-out window
@@ -6361,6 +6411,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               )}
             </div>
             <input type="range" min="0" max="1" step="0.002" value={slice3d.pos} onChange={(e) => setSlice3d((s) => ({ ...s, pos: Number(e.target.value) }))} aria-label={tr("Slice position")} />
+            <Suspense fallback={null}><SlicePlaceRow slice3d={slice3d} setSlice3d={setSlice3d} ext={sliceExtent} origin={originRef.current} collars={collars} /></Suspense>{/* #3431 — by a hole or a coordinate */}
             <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Thickness")}{" "}<input type="number" min="0" step="5" value={slice3d.thickness} onChange={(e) => setSlice3d((s) => ({ ...s, thickness: Math.max(0, Number(e.target.value) || 0) }))} style={{ width: 64 }} aria-label={tr("Slice thickness")} /> m
               <span style={{ color: "var(--color-text-muted)" }}>{slice3d.thickness > 0 ? tr("slab") : tr("0 = everything beyond the cut")}</span>
             </label>
@@ -7459,7 +7510,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
         </>)}
         {toolPane === "overlay" && ( // TASKS.csv #851
-          <Suspense fallback={null}><EvidenceOverlayPane solids={implicitSurfaces} solidMesh={(id) => sceneVertsToWorldFlat(implicitMeshesRef.current[id]?.geometry, originRef.current)} /* #1567 */ onClose={() => setToolPane(null)} onPlanTo={(c) => { setPlanTarget({ x: c.x, y: c.y, z: c.z }); setToolPane("plan"); }} /* #1456 */ /></Suspense>
+          <Suspense fallback={null}><EvidenceOverlayPane solids={implicitSurfaces} solidMesh={(id) => sceneVertsToWorldFlat(implicitMeshesRef.current[id]?.geometry, originRef.current)} /* #1567 */ onClose={() => setToolPane(null)} onPlanTo={(c) => { setPlanTarget({ x: c.x, y: c.y, z: c.z }); setToolPane("plan"); }} /* #1456 */ checkedHoleIds={checkedHoleIds} /* #3344 */ /></Suspense>
         )}
         {toolPane === "undrilled" && ( // TASKS.csv #1139
           <Suspense fallback={null}><UndrilledZonesPane solids={closedShellsForEstimation()} onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} onPlanTo={(c) => { setPlanTarget({ x: c.x, y: c.y, z: c.z }); setToolPane("plan"); }} /* #1456 */ /></Suspense>
@@ -7741,7 +7792,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         if (layerContextMenu.key === "__drillholes__") {
           const nTr = tracesRef.current.filter((t) => t.pts.length > 1).length, close = () => setLayerContextMenu(null);
           const head = (t) => <div style={{ padding: "6px 10px 2px", color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>{t}</div>;
-          const three = (kind, key, label, none) => [["Export Shapefile (.zip)…", exportVectorShapefile], ["Export GeoPackage (.gpkg)…", exportVectorGeoPackage], ["Export DXF (.dxf)…", exportVectorDXF]].map(([l, fn]) => <ContextItem key={kind + l} label={tr(l)} disabled={none} title={none ? tr("Nothing to export yet.") : undefined} onClick={() => { fn(kind, key, label); close(); }} />);
+          const three = (kind, key, label, none) => [["Export Shapefile (.zip)…", exportVectorShapefile], ["Export GeoPackage (.gpkg)…", exportVectorGeoPackage], ["Export DXF (.dxf)…", exportVectorDXF], ["Export GOCAD (.vs / .pl)…", exportVectorGocad /* #2631 */]].map(([l, fn]) => <ContextItem key={kind + l} label={tr(l)} disabled={none} title={none ? tr("Nothing to export yet.") : undefined} onClick={() => { fn(kind, key, label); close(); }} />);
           return (
             <div style={{ position: "fixed", inset: 0, zIndex: 55 }} onClick={close} onContextMenu={(e) => { e.preventDefault(); close(); }}>
               <div ref={layerMenuKeys.menuRef} role="menu" aria-label={layerContextMenu.label} onKeyDown={layerMenuKeys.onKeyDown} onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: layerContextMenu.x, top: layerContextMenu.y, width: 310, background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 8, padding: 6, fontSize: "var(--font-size-base)", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
@@ -7772,6 +7823,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             <ContextItem label={tr("Export Shapefile (.zip)…")} onClick={() => { exportVectorShapefile(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
             <ContextItem label={tr("Export GeoPackage (.gpkg)…")} onClick={() => { exportVectorGeoPackage(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
             <ContextItem label={tr("Export DXF (.dxf)…")} onClick={() => { exportVectorDXF(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
+            <ContextItem label={tr("Export GOCAD (.vs / .pl)…")} onClick={() => { exportVectorGocad(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} /> {/* #2631 */}
             {layerContextMenu.key !== "geophys_pts" && <ContextItem label={tr("Export CSV table (imports back)…")} onClick={() => { exportDrillholeTables(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />}
             <ContextItem label={tr("Export all drillhole tables (.zip of CSV)…")} title={tr("Loads into Postgres with COPY and into MySQL with LOAD DATA")} onClick={() => { exportDrillholeTables("all"); setLayerContextMenu(null); }} />
             <ContextItem label={tr("Inspect / edit table…")} onClick={() => { setAttrTableTarget({ kind: vectorKind, key: layerContextMenu.key, label: layerContextMenu.label }); setLayerContextMenu(null); }} />

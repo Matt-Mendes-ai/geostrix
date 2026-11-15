@@ -342,13 +342,15 @@ export function convertUnit(v, fromUnit, toUnit) {
 // the stored base (per cent) through the import's own factors: Si stored as '% SiO2' -> SiO2 = the stored value; Fe stored
 // as element % -> Fe2O3 = Fe x 1.4297 and FeO = Fe x 1.2865. A name already taken by an element is left to that element.
 // -> [{ name, symbol, factor, unit }]: alias value = stored value x factor
+const MAJOR_OXIDE_ELEMENTS = new Set(["Si", "Al", "Fe", "Ca", "Mg", "Na", "K", "Ti", "Mn", "P"]); // #3291
 export function oxideAliases(assayElements) {
   const taken = new Set((assayElements || []).map((e) => String(e?.symbol ?? "").toLowerCase()));
   const out = [];
   for (const e of assayElements || []) {
     if (!e?.symbol || e.calculated) continue;
     const u = String(e.unit || "ppm"), b = unitBasis(u);
-    if (b.oxide ? b.symbol !== e.symbol : u !== "%") continue; // per cent or an oxide basis: a ppm trace element is not given CuO, PbO, ZnO ...
+    // TASKS.csv #3291 (#3226 (3)) — the rock-forming majors answer to their oxides when stored in ppm too (a lab file giving K, Al, Ca in ppm): K2O, Al2O3, CaO ...
+    if (b.oxide ? b.symbol !== e.symbol : u !== "%" && !(u === "ppm" && MAJOR_OXIDE_ELEMENTS.has(e.symbol))) continue; // per cent or an oxide basis: a ppm trace element is not given CuO, PbO, ZnO ...
     for (const { oxide } of oxidesOfElement(e.symbol)) {
       if (taken.has(oxide.toLowerCase())) continue;
       const unit = oxideBasisUnit(b.base, oxide), f = convertUnit(1, u, unit);

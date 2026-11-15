@@ -85,7 +85,14 @@ export function densify(polylines, step) {
 // 100 m apart) — spacingFit: the grid is sized from the points' median nearest-neighbour spacing (one node per spacing), never coarser than
 // gridMax (the Terrain detail chosen) and never finer than maxNodes along the long side; stats.spacingM / gridFromSpacing say so.
 export const SPACING_FIT_MAX_NODES = 1025;
-export function terrainFromPoints({ points = [], lines = [] } = {}, { gridMax = 200, maxEdgeFactor = 10, spacingFit = false, maxNodes = SPACING_FIT_MAX_NODES } = {}) {
+// TASKS.csv #3338 (Galore Creek review) — reach: on one drilled cluster with far-flung holes the long-edge limit (10 x the median edge) was 6.3 km,
+// and the TIN drew 41.5 km² of ground, 61 % of it more than 500 m from any collar (2.4 km at most), while the message said no ground was
+// invented. `reach` ("auto" | metres | null) blanks the nodes further than that from every point ("auto": 5 x the points' median nearest-
+// neighbour spacing, never under two nodes or REACH_FLOOR_M: soil lines 200 m apart with samples every 25 m keep the ground between their
+// lines, which a nearest-neighbour spacing alone does not see); the stats always say how far the ground reaches from its nearest point
+// (reachMaxM, reachMedianM) and what was blanked.
+export const REACH_SPACINGS = 5, REACH_FLOOR_M = 500;
+export function terrainFromPoints({ points = [], lines = [] } = {}, { gridMax = 200, maxEdgeFactor = 10, spacingFit = false, maxNodes = SPACING_FIT_MAX_NODES, reach = null } = {}) {
   const ok = (p) => p && Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z);
   const raw = [...points.filter(ok), ...lines.flatMap((l) => l.filter(ok))];
   if (raw.length < 3) throw new Error("At least 3 points with elevations are needed to build a terrain.");
@@ -177,11 +184,30 @@ export function terrainFromPoints({ points = [], lines = [] } = {}, { gridMax = 
     }
     for (const [k, [sw, swz]] of acc) { E[k] = swz / sw; pointNodes++; }
   }
+  // TASKS.csv #3338 — each ground node's distance to its nearest point (Delaunay.find, walking from the last node's answer), the nodes beyond
+  // `reach` blanked, and the reach of what is left
+  const reachM = reach === "auto" ? Math.max(REACH_SPACINGS * (spacingM > 0 ? spacingM : collarSpacing(P) || sorted[sorted.length >> 1]), 2 * Math.max(dx, dy), REACH_FLOOR_M) : Number(reach) > 0 ? Number(reach) : null;
+  let beyondReach = 0, reachMaxM = 0, reachMedianM = 0;
+  {
+    const dist = new Float32Array(gridW * gridH);
+    let n = 0, hint = 0;
+    for (let j = 0; j < gridH; j++) for (let i = 0; i < gridW; i++) {
+      const k = j * gridW + i;
+      if (E[k] !== E[k]) continue;
+      const px = x0 + i * dx, py = y1 - j * dy;
+      hint = del.find(px, py, hint);
+      const d = Math.hypot(P[hint].x - px, P[hint].y - py);
+      if (reachM && d > reachM) { E[k] = NaN; beyondReach++; continue; }
+      dist[n++] = d;
+      if (d > reachMaxM) reachMaxM = d;
+    }
+    if (n) { const s = dist.subarray(0, n).sort(); reachMedianM = s[n >> 1]; }
+  }
   const fill = fillNoData(Array.from(E));
   return {
     // no noDataNote: demFill's sentence is about reprojection corners and failed tiles; the caller says "outside the points"
     bbox: [x0, y0, x1, y1], gridW, gridH, elevations: fill.elevations, noDataMask: fill.noDataMask,
-    stats: { points: P.length, given: raw.length, densifyStepM: step, halfCellM: halfCell, densifyCapped: step > halfCell, triangles: kept, longDropped: dropped, maxEdgeM: maxEdge, flatPct: kept ? (100 * flat) / kept : 0, cellM: Math.max(dx, dy), filledPct: fill.filledPct || 0, filledCount: fill.filledCount || 0, fillValue: fill.fillValue, pointNodes, spacingM, gridFromSpacing: gridMax > chosen, nodes: gridMax }, // densify*: #986; pointNodes: #3034; spacingM / gridFromSpacing / nodes: #3036
+    stats: { points: P.length, given: raw.length, densifyStepM: step, halfCellM: halfCell, densifyCapped: step > halfCell, triangles: kept, longDropped: dropped, maxEdgeM: maxEdge, flatPct: kept ? (100 * flat) / kept : 0, cellM: Math.max(dx, dy), filledPct: fill.filledPct || 0, filledCount: fill.filledCount || 0, fillValue: fill.fillValue, pointNodes, spacingM, gridFromSpacing: gridMax > chosen, nodes: gridMax, reachM, beyondReach, reachMaxM, reachMedianM }, // reach*: #3338; densify*: #986; pointNodes: #3034; spacingM / gridFromSpacing / nodes: #3036
   };
 }
 

@@ -10,7 +10,8 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
-import { crsName, datumNote, loadEpsgRegistry, onEpsgRegistry } from "../lib/reproject.js";
+import { crsName, datumNote, loadEpsgRegistry, onEpsgRegistry, crsAreaOf, getProj4DefSync } from "../lib/reproject.js"; // crsAreaOf: #3339
+import { crsMapArea, inCrsArea, areaText } from "../lib/crsMapArea.js"; // TASKS.csv #3339
 import { crsCandidatesAt, crsCandidatesByLanding, localCrsAt, parseLatLon, collarCentreLonLat, formatLonLat, collarSpread } from "../lib/projectCrs.js"; // collarSpread: #2181; ByLanding: #2892
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { smallGridCoordinates } from "../lib/crsFromColumns.js"; // TASKS.csv #2180 — a local grid pre-selected by the magnitude check
@@ -18,7 +19,7 @@ import { smallGridCoordinates } from "../lib/crsFromColumns.js"; // TASKS.csv #2
 const CrsWorldMap = React.lazy(() => import("./CrsWorldMap.jsx")); // #1330
 
 export default function ProjectCrsModal({ reason, points, suggested = null, noLocalGrid = false, family = null, onDone }) { // noLocalGrid: #2621; family: #2495
-  const { project, collars: storeCollars, setEpsg, setLocalGrid, projectIsEmpty } = useStore();
+  const { project, collars: storeCollars, setEpsg, setLocalGrid, setLocalGridDatum, projectIsEmpty } = useStore();
   const collars = points?.length ? points : storeCollars; // the file being imported, when there is one
   const [where, setWhere] = useState("");
   const [choice, setChoiceRaw] = useState(project.crsSet ? Number(project.epsg) : suggested ? Number(suggested) : null); // suggested: #1345
@@ -27,6 +28,7 @@ export default function ProjectCrsModal({ reason, points, suggested = null, noLo
   const smallGrid = useMemo(() => smallGridCoordinates((points?.length ? points : storeCollars) || []), [points, storeCollars]);
   const [localMode, setLocalMode] = useState(() => !noLocalGrid && !project.crsSet && (!!project.localGrid || (!suggested && !!smallGrid)));
   const [gridName, setGridName] = useState(project.localGrid?.name || "");
+  const [gridRl, setGridRl] = useState(project.localGrid?.rlOffset != null ? String(project.localGrid.rlOffset) : ""), [gridNorth, setGridNorth] = useState(project.localGrid?.northDeg != null ? String(project.localGrid.northDeg) : ""); // TASKS.csv #3495 (#2809) — the RL datum and the typed north, as the Local grid panel has them
   const setChoice = (c) => { setChoiceRaw(c); setLocalMode(false); };
   const [searchAll, setSearchAll] = useState(false);
   const cancel = () => onDone(null);
@@ -51,12 +53,15 @@ export default function ProjectCrsModal({ reason, points, suggested = null, noLo
     </div>
   );
   const landing = choice ? collarCentreLonLat(collars, choice) : null;
-  const spread = landing ? collarSpread(collars, choice) : null; // #2181
+  // TASKS.csv #3339 — the mixed-frame test (#2181) only on a landing inside the CRS's own area: outside it the numbers are simply not in it
+  const area = choice ? crsMapArea(crsAreaOf(choice), crsName(choice), getProj4DefSync(choice)) : null;
+  const outside = !!landing && !inCrsArea(area, landing);
+  const spread = landing && !outside ? collarSpread(collars, choice) : null; // #2181
   const relabel = project.crsSet && !projectIsEmpty && choice && choice !== Number(project.epsg);
   const kmFromStated = landing && at ? Math.round(Math.hypot((landing.lat - at.lat) * 111, (landing.lon - at.lon) * 111 * Math.cos((at.lat * Math.PI) / 180))) : null;
 
   const use = () => { if (!choice) return; setEpsg(choice); onDone(choice); };
-  const keepLocal = () => { setLocalGrid(gridName); onDone(null); }; // #2180 — no CRS: callers place the coordinates as they are
+  const keepLocal = () => { setLocalGrid(gridName); const d = { rlOffset: gridRl, ...(project.localGrid?.tie ? {} : { northDeg: gridNorth }) }; if ((gridRl !== "" || project.localGrid?.rlOffset != null) || (gridNorth !== "" || project.localGrid?.northDeg != null)) setLocalGridDatum?.(d); onDone(null); }; // #3495 — the datum and north with the name // #2180 — no CRS: callers place the coordinates as they are
 
   return (
     <div style={overlay}>
@@ -88,6 +93,10 @@ export default function ProjectCrsModal({ reason, points, suggested = null, noLo
             <div style={{ color: "var(--color-text)", fontWeight: 600 }}>{tr("These are local mine-grid coordinates: keep them, no CRS")}</div>
             <div style={{ color: "var(--color-text-muted)" }}>{smallGrid && !project.localGrid ? tr("{n} of {of} coordinates are ones no UTM / MGA zone has (eastings {x0}–{x1}), so this is chosen.", { n: smallGrid.n, of: smallGrid.of, x0: Math.round(smallGrid.x[0]).toLocaleString(), x1: Math.round(smallGrid.x[1]).toLocaleString() }) + " " : ""}{tr("Everything stays in the grid's own metres and later files are not asked again. Terrain and imagery downloads, basemaps, Macrostrat, true / magnetic north and exports with a coordinate system (.prj, KML, GeoPackage) say they are not available until a CRS is chosen.")}</div>
             {localMode && <input value={gridName} onClick={(e) => e.stopPropagation()} onChange={(e) => setGridName(e.target.value)} placeholder={tr("Grid name (optional), e.g. Wallaby mine grid")} aria-label={tr("Local grid name")} style={{ ...inp, marginTop: 6 }} />}
+            {localMode && <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 6 }}>{/* TASKS.csv #3495 */}
+              <label title={tr("Grid RL = elevation + this offset (a mine datum of +1000: RL 1,250 is 250 m above sea level). Blank: the RLs are elevations.")}>{tr("RL datum: grid RL = elevation +")} <input type="number" step="any" value={gridRl} onChange={(e) => setGridRl(e.target.value)} placeholder={tr("blank")} aria-label={tr("RL datum offset (m)")} style={{ ...inp, width: 80 }} /> {tr("m")}</label>
+              {!project.localGrid?.tie && <label title={tr("For a grid not tied to a CRS: how far grid north is turned from true north, east positive (west negative). A true-north survey is converted with it on import. A tie, when there is one, knows its own rotation.")}>{tr("Grid north is")} <input type="number" step="any" value={gridNorth} onChange={(e) => setGridNorth(e.target.value)} placeholder={tr("blank")} aria-label={tr("Grid north from true north (degrees, east positive)")} style={{ ...inp, width: 80 }} /> {tr("° east of true north")}</label>}
+            </div>}
           </div>}
 
           <div>
@@ -125,6 +134,7 @@ export default function ProjectCrsModal({ reason, points, suggested = null, noLo
                     ? <span style={{ color: "var(--color-danger-fg)", fontWeight: 600 }}>{" "}{tr("That is {kmFromStated} km from where you said: almost certainly the wrong CRS or UTM zone.", { kmFromStated: kmFromStated.toLocaleString() })}</span>
                     : tr(" If that isn't the project, this is the wrong CRS or zone.")}</div>
                 : <div style={{ color: "var(--color-danger-fg)" }}>{tr("The collar coordinates don't fit this CRS (they land off the globe), so it is the wrong one.")}</div>)}
+              {outside && !(kmFromStated > 50) && <div style={{ color: "var(--color-danger-fg)", fontWeight: 600 }}>{tr("Read as {v}, these numbers fall outside the area it is used in ({area}): they are not in it.", { v: crsName(choice) || tr("EPSG:{newCrs}", { newCrs: choice }), area: areaText(area) })}</div>}{/* #3339 */}
               {spread?.far > 0 && <div style={{ color: "var(--color-danger-fg)", fontWeight: 600 }}>{tr("{far} of the {total} collars land more than 50 km from the others (up to {km} km): they are not all in one coordinate frame, so no single CRS places them all.", { far: spread.far, total: spread.total, km: spread.km.toLocaleString() })}</div>}{/* #2181 */}
               {datumNote(choice) && <div style={{ color: "var(--color-warn-text)" }}>⚠ {datumNote(choice)}</div>}
               {relabel && <div style={{ color: "var(--color-text-secondary)" }}>{tr("This relabels the project: no coordinates change. To convert data into another CRS, use \"Reproject all data\" in the Maps tab (Project CRS).")}</div>}

@@ -73,6 +73,7 @@ export function partsBox(parts) {
 }
 
 // collars carrying a second pair of coordinates (GBMG_East / GBMG_North beside MGA): the numeric fields in attrs on most collars
+export const DATE_FIELD = /date|year|month|time(stamp)?$|^yr$|_yr$/i;
 export function collarCoordinateFields(collars) {
   const n = new Map();
   let total = 0;
@@ -80,7 +81,8 @@ export function collarCoordinateFields(collars) {
     total++;
     for (const [k, v] of Object.entries(c?.attrs || {})) if (v !== "" && v != null && Number.isFinite(Number(v))) n.set(k, (n.get(k) || 0) + 1);
   }
-  return [...n.entries()].filter(([, k]) => total && k >= total * 0.9).map(([k]) => k);
+  // TASKS.csv #3353 (8) — a date or a year read as a number (STARTDATE, ENDDATE, DH_YEAR) is not an easting or a northing
+  return [...n.entries()].filter(([k, c]) => total && c >= total * 0.9 && !DATE_FIELD.test(k)).map(([k]) => k);
 }
 
 // control-point text from the collars: "mineE mineN projE projN" per collar that has both

@@ -147,6 +147,10 @@ export function parseNumberList(str, n) {
   }
   return out;
 }
+// TASKS.csv #2206 Phase 2 — rowTable.js decodes the file's columns into a table with this, and finds the columns a rows array already has
+// (decoded from a file, or encoded by a save): its table is then a decode, not a walk of the rows
+export const decodeColumn = (col, n) => decodeAll(col, n);
+export const storedFor = (rows) => cache.get(rows) || null;
 function decodeAll(col, n) {
   if (typeof col.n === "string") return { num: parseNumberList(col.n, n) };
   const codes = new Int32Array(n);
@@ -157,15 +161,42 @@ function decodeAll(col, n) {
 }
 export function expandTable(stored) {
   if (!stored || !stored.__compactTable) return stored;
+  const it = expandSteps(stored);
+  let r = it.next();
+  while (!r.done) r = it.next();
+  return r.value;
+}
+// TASKS.csv #3423 (#2206 Phase 1) — the same expansion in steps (one column decoded per step, rows built EXPAND_SLICE at a time), so the
+// open of a big project is not one main-thread task: building the row objects is most of it (assays: 1.1-1.6 s of 1.4-1.9 s on 200,336
+// rows x 10 elements; decoding the columns 0.2-0.3 s). pause(): awaited between steps (budgetPause yields only once a budget is spent).
+// The same rows, and the same cache seeding (#3118), as expandTable.
+export async function expandTableSliced(stored, pause = budgetPause()) {
+  if (!stored || !stored.__compactTable) return stored;
+  const it = expandSteps(stored);
+  let r = it.next();
+  while (!r.done) { await pause(); r = it.next(); }
+  return r.value;
+}
+const EXPAND_SLICE = 2048;
+// a pause that lets the window paint only once `ms` of work have passed since the last one (each yield is a macrotask: one per step would be
+// thousands of them on a big open)
+export function budgetPause(ms = 12) {
+  let last = performance.now();
+  return () => { if (performance.now() - last < ms) return null; return new Promise((r) => setTimeout(r, 0)).then(() => { last = performance.now(); }); };
+}
+function* expandSteps(stored) {
   const { n, cols, nested } = stored;
-  const keys = Object.keys(cols), C = keys.map((k) => decodeAll(cols[k], n));
-  const nkeys = nested ? Object.keys(nested.cols) : [], NC = nkeys.map((k) => decodeAll(nested.cols[k], n));
+  const keys = Object.keys(cols), C = [];
+  for (const k of keys) { C.push(decodeAll(cols[k], n)); yield; }
+  const nkeys = nested ? Object.keys(nested.cols) : [], NC = [];
+  for (const k of nkeys) { NC.push(decodeAll(nested.cols[k], n)); yield; }
   const has = nested ? decodeAll(nested.has, n) : null;
   const present = (col, i) => (col.num ? col.num[i] === col.num[i] : col.codes[i] >= 0);
   // TASKS.csv #721 — an object value (an assay's qualifiers { Au: "<" }) is a copy per row, never the shared dictionary entry
   const value = (col, i) => { if (col.num) return col.num[i]; const v = col.dict[col.codes[i]]; return col.objects && v !== null && typeof v === "object" ? structuredClone(v) : v; };
   const rows = new Array(n);
   for (let i = 0; i < n; i++) {
+    if (i % EXPAND_SLICE === EXPAND_SLICE - 1) yield;
     const r = {};
     for (let c = 0; c < C.length; c++) { const col = C[c]; if (present(col, i)) r[keys[c]] = value(col, i); }
     if (has && present(has, i)) {

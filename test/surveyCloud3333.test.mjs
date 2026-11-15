@@ -48,13 +48,13 @@ test("surveyPoints keeps z and, given a level, only the readings inside it", () 
 test("wiring: a 3D survey is a Level card; the card says how it is read; 'Read at RL' only when a card read the Level; keys", () => {
   const p = readFileSync(new URL("../src/components/EvidenceOverlayPane.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(p, /const levelKind = \(l\) => LEVEL_KINDS\.has\(l\.kind\) \|\| \(l\.kind === "survey" && !!cloudInfo\(l\.ref\)\?\.cloud\);/);
-  assert.match(p, /pts = cloudInfo\(src\.ref\)\?\.cloud && lv \? surveyPoints\(geophysPts, src\.ref, lv\) : all;/);
+  assert.match(p, /let pts = cloud && lv \? surveyPoints\(geophysPts, src\.ref, lv\) : all;/); // #3421 — a stated reduction without a Level follows
   assert.match(p, /\|L\$\{levelKind\(src\) \?/);
   assert.equal((p.match(/LEVEL_KINDS\.has\(l\.kind\)/g) || []).length, 1, "every other Level test goes through levelKind");
   assert.match(p, /out\.levelUsed = levelSet\(level\) && layers\.some\(\(l\) => levelKind\(l\) && !\(l\.kind === "voxel" && \(l\.zMin != null \|\| l\.zMax != null\)\)\);/);
   assert.equal((p.match(/levelUsed=\{result\.levelUsed\}/g) || []).length, 2);
-  assert.match(p, /levelUsed \? tr\("Read at RL \{a\} to \{b\} m \(the Level\)\."/);
-  const keys = ["The Level (RL {a} to {b} m) was not used: none of these cards reads elevations.", "A 3D survey (readings at RL {a} to {b} m): read inside the Level, {n} of its {total} readings.", "A 3D survey (readings at RL {a} to {b} m): each cell takes the readings nearest in plan at every depth, mixed. Set a Level to read one depth band."];
+  assert.match(p, /levelUsed \? tr\("Read at \{band\} \(the Level\)\."/);
+  const keys = ["The Level ({band}) was not used: none of these cards reads elevations.", "A 3D survey (readings at RL {a} to {b} m): read inside the Level, {n} of its {total} readings.", "A 3D survey (readings at RL {a} to {b} m): each cell takes the readings nearest in plan at every depth, mixed. Set a Level to read one depth band."];
   for (const k of keys) assert.ok(p.includes(`tr("${k}"`), k);
   for (const l of ["es", "pt", "fr", "ar"]) { const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8")); for (const k of keys) assert.ok(d[k], `${l}: ${k}`); }
 });

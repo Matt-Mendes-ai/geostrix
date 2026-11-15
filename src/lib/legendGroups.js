@@ -8,10 +8,11 @@ import { lineScaleOf } from "./structureSymbols.js"; // TASKS.csv #3091
 import { LAYER_META, CATEGORICAL_SAFE_COLORS, colorForMedium } from "./layers.js";
 import { STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS } from "./mapLayers.js"; // TASKS.csv #1437
 import { legendScale } from "./legendScale.js";
+import { displayUnitOf, toDisplay } from "./displayUnits.js"; // TASKS.csv #3236
 import { gradeUnitLabel } from "./geochemColumns.js"; // TASKS.csv #2218; #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 import { rasterUnitOf } from "./rasterMethod.js"; // TASKS.csv #2747
 import { idwColourFields } from "./idwColour.js"; // TASKS.csv #2845; #3159: not idw.js, which put the IDW gridding in startup
-import { makeSurveyColorer } from "./geophysSurveys.js"; // TASKS.csv #2878
+import { makeSurveyColorer, surveyKey } from "./geophysSurveys.js"; // TASKS.csv #2878; surveyKey: #3447
 import { airDilutedFloor } from "./voxelStretch.js"; // TASKS.csv #1872
 import { fmtSig3 } from "./numberFormat.js"; // TASKS.csv #3382
 
@@ -87,13 +88,15 @@ export function ppmAsPercent(assays, sym, unit) {
 
 // Assay grade classes are discrete swatches (one per class, with its range); an element with no classes gets one swatch
 // saying size shows grade.
-export function assayLegendGroups({ assays, assayElements, assayVisible, assayDisplayElements = [], assayStyle = {} }) {
+export function assayLegendGroups({ assays, assayElements, assayVisible, assayDisplayElements = [], assayStyle = {}, displayUnits = null }) { // displayUnits: TASKS.csv #3236 - project.displayUnits
   if (!assayVisible || !assayDisplayElements.length || !(assays || []).length) return [];
   const unitOf = Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit]));
   return assayDisplayElements.map((sym, idx) => {
     const style = assayStyle[sym];
-    const pct = ppmAsPercent(assays, sym, unitOf[sym]); // #3305
-    const unit = pct ? "%" : unitOf[sym] || "", fmt = pct ? (v) => fmtLegendValue(v / 1e4) : fmtLegendValue;
+    // TASKS.csv #3236 - the unit the project shows this element in (displayUnits), the classes' limits converted; else #3305's % for a ppm element of percent-sized grades
+    const shown = displayUnitOf({ displayUnits }, sym, unitOf[sym]), chosen = !!unitOf[sym] && shown !== unitOf[sym];
+    const pct = !chosen && ppmAsPercent(assays, sym, unitOf[sym]); // #3305
+    const unit = chosen ? shown : pct ? "%" : unitOf[sym] || "", fmt = chosen ? (v) => fmtLegendValue(toDisplay(v, unitOf[sym], shown)) : pct ? (v) => fmtLegendValue(v / 1e4) : fmtLegendValue;
     const items = style?.breaks?.length
       ? style.breaks.map((b, i) => {
         const lo = i ? style.breaks[i - 1].max : null;
@@ -175,7 +178,9 @@ export function mapLayerLegendGroups(mapLayers) {
       : cats.length
       ? cats.map((c) => [c.label ?? (c.value == null ? "(no value)" : numeric ? `${l.styleField} ${c.value}` : String(c.value)), c.color, o])
       : [[l.name || "map layer", l.color || "#e2a63c", o]];
-    groups.push({ key: `map_${l.id ?? i}`, label: l.name || "Map layer", items, ...(graduated && cats.length ? { grade: true } : {}) });
+    // TASKS.csv #3393 (#3378) — a graduated layer's heading names the field and its unit ('Subcrop — cover_m, m'): classes of a bare number said nothing on a figure
+    const unit = graduated && l.styleField ? (/_m$/.test(l.styleField) ? ", m" : "") : "";
+    groups.push({ key: `map_${l.id ?? i}`, label: graduated && cats.length && l.styleField ? `${l.name || "Map layer"} — ${l.styleField}${unit}` : l.name || "Map layer", items, ...(graduated && cats.length ? { grade: true } : {}) });
   });
   return groups;
 }
@@ -369,6 +374,11 @@ export function geophysLegendGroups({ rows = [], visible = true, surveys = {}, s
   for (const [key, model] of colorer.models) {
     if (surveys?.[key]?.hidden) continue; // TASKS.csv #3325 — a survey hidden from its card has no ramp (the others keep the colours they are drawn in)
     const units = surveys?.[key]?.units;
+    if (surveys?.[key]?.positionsOnly) { // TASKS.csv #3447 — no measured value: one swatch in the one colour it is drawn in, no ramp
+      const sample = pts.find((r) => surveyKey(r) === key);
+      out.push({ key: `geophys_pts_${key}`, label: key, items: [[`${key} (${rows.filter((r) => surveyKey(r) === key).length.toLocaleString("en-US")})`, colorer.colorOf(sample)?.color || colorer.colorOf(sample), { kind: "point" }]] });
+      continue;
+    }
     out.push(scaleLegendGroup(`geophys_pts_${key}`, colorer.perSurvey ? `${key}${units ? ` (${units})` : ""}` : `${label}${units ? ` (${units})` : ""}`, model, model.min, model.max));
   }
   return out;

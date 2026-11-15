@@ -145,7 +145,7 @@ test("a drillhole stack over the work budget is asked about before the run (afte
   for (const l of ["es", "pt", "fr", "ar"]) {
     const j = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
     for (const k of ["This GemPy run is about {x} times the work of a run sized for a few minutes ({p} contact points, {o} orientations, {s} surfaces, a block of {b} cells): about {m} minutes {how}, and about {g} GB of memory{warn}. The 15-minute stop is off for it: Cancel on the status bar stops it. Fewer units, a smaller Model area or a lower Resolution (Model settings) shorten it. Run it?", ", more than a 16 GB computer can give it: the run may fail or stall the computer", "by this computer's last {n} GemPy run(s)", "at the rate measured on a busy desktop (no GemPy run timed on this computer yet)",
-      "Not run: about {x} times the work of a run sized for a few minutes ({p} contact points, {o} orientations, {s} surfaces, a block of {b} cells). Fewer units, a smaller Model area or a lower Resolution (Model settings) shorten it."]) assert.ok(j[k], `${l}: ${k}`);
+      "Not run: about {x} times the work of a run sized for a few minutes ({p} contact points, {o} orientations, {s} surfaces, a block of {b} cells): about {m} minutes {how}, and about {g} GB of memory{warn}. Fewer units, a smaller Model area or a lower Resolution (Model settings) shorten it."]) assert.ok(j[k], `${l}: ${k}`);
   }
 });
 
