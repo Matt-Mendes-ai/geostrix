@@ -21,7 +21,7 @@ test("(3) at least two digits in every pattern", () => {
 test("(4) the rig sheet states its azimuth rule", () => {
   const [r] = rigRows([{ name: "P", x: 500000, y: 5000000, z: 100, azimuth: 45, dip: -60, length: 100 }], 32610, "2026-11-12", () => [{ x: 500000, y: 5000000, z: 100, md: 0 }]);
   assert.ok(Number.isFinite(r.convergence_deg));
-  assert.match(r.azimuth_rule, /^true = grid - convergence_deg/);
+  assert.match(r.azimuth_rule, /^true = grid \+ convergence_deg/);
   assert.equal(Object.keys(r).indexOf("azimuth_rule"), Object.keys(r).indexOf("convergence_deg") + 1);
   const [l] = rigRows([{ name: "P", x: 0, y: 0, z: 0, azimuth: 0, dip: -90, length: 10 }], null, "2026-11-12", () => [{ x: 0, y: 0, z: 0, md: 0 }]);
   assert.equal(l.azimuth_rule, "", "no CRS: no rule");

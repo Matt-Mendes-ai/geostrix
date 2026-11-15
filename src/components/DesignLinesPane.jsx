@@ -100,7 +100,7 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
   // TASKS.csv #3327 (review Galore Creek) — the start took the nearest collar's RL (445 m away) and the pane's own check the ground between the
   // collars, so the portal hung 10.8 m in the air: the start now takes that same ground (collarGround, as Strings and the pits), the nearest
   // collar only where the collars look underground
-  const collarSurf = useMemo(() => (terrain || collarsLookUnderground(collars).underground ? null : collarGround(collars)), [terrain, collars]);
+  const collarSurf = useMemo(() => (terrain || collarsLookUnderground(collars).underground ? null : collarGround(collars, survey)), [terrain, collars, survey]); // survey: #3582
   const groundAt = (x, y) => { const g = terrain ? terrainGroundAt(terrain, x, y) : collarSurf ? collarSurf(x, y) : nearestZ(collars, x, y); return Number.isFinite(g) ? g : null; };
   const groundKnown = !!terrain || collars.some((k) => Number.isFinite(k.z));
   const collarZs = collars.map((k) => k.z).filter(Number.isFinite);

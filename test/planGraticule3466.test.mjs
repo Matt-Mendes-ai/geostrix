@@ -23,7 +23,7 @@ test("over a 6 km view in UTM 9N the lines are real meridians and parallels: eac
 
 test("the plan draws it behind a checkbox, for a projected CRS only", () => {
   const p = readFileSync(new URL("../src/components/MapsPlanView.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.match(p, /const \[showLonLat, setShowLonLat\] = useState\(false\);/);
+  assert.match(p, /const \[showLonLat, setShowLonLat\] = useKept\(scope, "showLonLat", false\);/ /* #3604 */);
   assert.match(p, /if \(showLonLat && project\?\.crsSet !== false && project\?\.epsg && !isGeographicCrs\(project\.epsg\)\)/);
   assert.match(p, /tr\("Lon \/ lat"\)/);
 });

@@ -24,7 +24,7 @@ import ViewerModule from "./modules/ViewerModule.jsx";
 // TASKS.csv #438 — memoised so a store write while the viewer is hidden (FreezeStore below) skips it entirely
 const MemoViewerModule = React.memo(ViewerModule);
 import { RibbonSlotContext } from "./components/Ribbon.jsx"; // TASKS.csv #458
-import { undoMessage } from "./lib/undoLabels.js"; // TASKS.csv #1087
+import { undoMessage, undoTooltip } from "./lib/undoLabels.js"; // TASKS.csv #1087; undoTooltip: #3616
 import { UiModeContext, initialUiMode, saveUiMode } from "./lib/uiMode.js"; // TASKS.csv #748 — Simple / Advanced
 import { timeAgo } from "./lib/timeAgo.js"; // TASKS.csv #1274
 import { recoveryTabNames } from "./lib/recoveryNames.js"; // TASKS.csv #3047
@@ -103,7 +103,7 @@ export default function App() {
     saveProject, openProject, addLayoutImage, requestedModule, moduleRequestSeq, setSectionContacts, setSectionLabels, addPlannedHole,
     workspaceTabs, activeTabId, activeTabDirty, switchToTab, newWorkspaceTab, closeWorkspaceTab, project,
     checkAutosave, restoreAutosave, discardAutosave, recoveryStashed, // #465
-    undo, redo, canUndo, canRedo, requestSampleProject, // requestSampleProject: #1120
+    undo, redo, canUndo, canRedo, peekUndo, peekRedo, requestSampleProject, // requestSampleProject: #1120; peek: #3616
     requestLayoutPrint, // TASKS.csv #908 — Export PDF prints from Layout's print root
   } = store;
   // TASKS.csv #1087 — undo / redo say what they changed (or that there was nothing to undo), in the bottom-right toast
@@ -588,8 +588,8 @@ export default function App() {
         <button className="ge-tool-btn" onClick={doOpen} title={tr("Open project")} aria-label={tr("Open project")}><FolderOpen size={14} /> <span className="ge-tool-label-opt">{tr("Open")}</span></button>
         <button className="ge-tool-btn" onClick={() => doSave()} title={tr("Save project (Ctrl+S — to its own file; Ctrl+Shift+S: Save As)")} aria-label={tr("Save project")}><Save size={14} /> <span className="ge-tool-label-opt">{savedFlash ? tr("Saved ✓") : tr("Save")}</span></button>
         <div className="ge-tool-sep" />
-        <button className="ge-tool-btn" onClick={undoSay} disabled={!canUndo} title={tr("Undo (Ctrl/Cmd+Z): collars, surveys, logs, assays, surface samples, sections, planned holes, design lines and strings, explicit surfaces, map layers and interpretation lines, Layout pages ... Rasters, terrain, block models and generated surfaces are not undoable.")} aria-label={tr("Undo")} style={{ opacity: canUndo ? 1 : 0.4 }}><Undo2 size={14} /></button>
-        <button className="ge-tool-btn" onClick={redoSay} disabled={!canRedo} title={tr("Redo (Ctrl/Cmd+Shift+Z)")} aria-label={tr("Redo")} style={{ opacity: canRedo ? 1 : 0.4 }}><Redo2 size={14} /></button>
+        <button className="ge-tool-btn" onClick={undoSay} disabled={!canUndo} title={undoTooltip("undo", peekUndo?.(), tr("The history holds collars, surveys, logs, assays, surface samples, sections, planned holes, design lines and strings, explicit surfaces, map layers and interpretation lines, Layout pages ... Rasters, terrain, block models, generated surfaces and view changes are not undoable."))} aria-label={tr("Undo")} style={{ opacity: canUndo ? 1 : 0.4 }}><Undo2 size={14} /></button>
+        <button className="ge-tool-btn" onClick={redoSay} disabled={!canRedo} title={undoTooltip("redo", peekRedo?.(), "")} aria-label={tr("Redo")} style={{ opacity: canRedo ? 1 : 0.4 }}><Redo2 size={14} /></button>
         <div className="ge-tool-sep" />
         <button className="ge-tool-btn" onClick={doExportPdf} title={tr("Exports the Layout page (switches to it first if needed)")} aria-label={tr("Export PDF")}><FileDown size={14} /> <span className="ge-tool-label-opt ge-tool-label-first">{tr("Export PDF")}</span></button>
         <button className="ge-tool-btn" onClick={doExportKmz} title={tr("Export the whole project as one KMZ for Google Earth: every layer with a map position, in folders, with its colours and classes")} aria-label={tr("Export project as KMZ")}><Globe size={14} /> <span className="ge-tool-label-opt ge-tool-label-first">{tr("KMZ")}</span></button>{/* TASKS.csv #3068 */}

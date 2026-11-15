@@ -14,6 +14,7 @@ import { densityRangeOf } from "../lib/densityRange.js"; // TASKS.csv #3587
 import { valueUnit } from "../lib/blockModelExport.js";
 import { categoricalModels } from "../lib/geologyForward.js";
 import { gradeCandidate } from "../lib/gradeCandidate.js"; // #1848
+import { collarsForGround } from "../lib/collarGround.js"; // TASKS.csv #3582
 import { runPitShellAsync } from "../lib/pitShellClient.js";
 import { slopeName } from "../lib/pitWalls.js"; // TASKS.csv #2433
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
@@ -246,7 +247,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
       const penModels = isProduct ? penRows.map((r) => clip(penModelOf(r))) : []; // #2986 part 2 — in the order of inputs.penalties
       if (alsoPrices.some(Boolean)) { inputs.alsoPrices = alsoPrices; runInputs.alsoPrices = alsoPrices; } // #3311 — aligned with alsoIn (its first entries)
       for (const r of isProduct ? penRows : []) { const m = penModelOf(r); if (m && !alsoChosen.includes(m)) alsoIn.push({ model: clip(m), label: alsoLabel(m), unit: valueUnit(m) || "", element: valueUnit(m) ? elementOfModel(m) : null, modelName: m.name }); } // a penalty's grade is reported too
-      job.current = runPitShellAsync(mIn, runInputs, terrain, (phases) => setBusy(phases), collars, byIn, alsoIn, penModels); // collars: the ground when there is no terrain (#1353); byModel: #1917; clipped to the pit area: #2120
+      job.current = runPitShellAsync(mIn, runInputs, terrain, (phases) => setBusy(phases), collarsForGround(collars, survey), byIn, alsoIn, penModels); // collars: the ground when there is no terrain (#1353); byModel: #1917; clipped to the pit area: #2120
       const r = await job.current.promise;
       if (r.cancelled) { setMsg(tr("Cancelled: nothing was added.")); return; }
       setRes(null); kept = null;

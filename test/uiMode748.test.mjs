@@ -13,3 +13,14 @@ test("fresh install -> Simple; a computer that has used GeoStrix -> Advanced; a 
   const s = store(); saveUiMode("advanced", s); assert.equal(initialUiMode(s), "advanced");
   assert.equal(initialUiMode({ getItem: () => { throw new Error("blocked"); } }), "advanced"); // storage unavailable
 });
+
+test("#3618 the default is stored when it is applied: a key the app writes later does not turn the next start into Advanced", () => {
+  const s = store();
+  assert.equal(initialUiMode(s), "simple");
+  s.setItem("geostrix.sectionFit", "1"); // what opening a section window writes
+  assert.equal(initialUiMode(s), "simple");
+  const old = store({ "geostrix-sidebar-width": "300" }); // a computer that used GeoStrix before: Advanced, and it stays so
+  assert.equal(initialUiMode(old), "advanced"); assert.equal(old.getItem(UI_MODE_KEY), "advanced");
+  const blocked = { length: 0, key: () => null, getItem: () => null, setItem: () => { throw new Error("full"); } };
+  assert.equal(initialUiMode(blocked), "simple"); // a storage that refuses the write still answers
+});

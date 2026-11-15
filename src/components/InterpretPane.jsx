@@ -76,7 +76,7 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
   useEffect(() => { setEditIdx(null); }, [layerId, drawing.on]);
   // TASKS.csv #2768 — with no terrain the layer is draped on the collars' ground unless it is set flat; the handles follow the same ground
   const onCollars = interpretationOnCollars(layer || { interpretation: true }, terrain, collars);
-  const collarG = useMemo(() => (onCollars ? collarGround(collars) : null), [onCollars, collars]);
+  const collarG = useMemo(() => (onCollars ? collarGround(collars, holeSurvey) : null), [onCollars, collars, holeSurvey]); // survey: #3582
   const groundAt = useMemo(() => (terrain ? (x, y) => terrainGroundAt(terrain, x, y) : collarG), [terrain, collarG]);
   // TASKS.csv #3044 — a click also snaps to a vertex of a shown map layer or an outcrop station (lib/viewer/interpretSnap.js): each on the ground
   // its layer is drawn on (its own z, else the terrain / the collars' ground, else its Elev.)

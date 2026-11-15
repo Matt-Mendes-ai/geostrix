@@ -134,6 +134,10 @@ export function compactFromTable(t) {
   compactCache.set(t, out);
   return out;
 }
+// TASKS.csv #3140 (profile, side 2) — once a field's JSON text is cached (projectFields.js cachedJson) the compact object's column strings are a second
+// copy of the same text: 94 MB beside a 76 MB cache on four 516,600-row log layers. The sliced autosave build drops them after it has the text; a later
+// compactFromTable re-encodes (5.2 s for those four layers), so a Save must take the cached text (projectPartsSliced), not the compact object.
+export function forgetCompact(t) { if (isTable(t)) compactCache.delete(t); }
 // TASKS.csv #3424 — the same encoding a column per step (the autosave's sliced parts, #3104): pause() awaited between columns; the result is
 // cached, so the save that follows writes it without encoding again
 export async function compactFromTableSliced(t, pause = null) {
@@ -264,4 +268,4 @@ function patchCol(col, changed, get) {
 export const layerTableOf = (l) => (l ? tableOf(rowsRefOf(l)) : null);
 
 // TASKS.csv #3424 — for code that meets a Table without importing this file
-Object.assign(tableOps, { compactFromTable, compactFromTableSliced, tableFromCompact, tableOf, indicesByHole, presentElements, unitCodes });
+Object.assign(tableOps, { compactFromTable, compactFromTableSliced, forgetCompact, tableFromCompact, tableOf, indicesByHole, presentElements, unitCodes });

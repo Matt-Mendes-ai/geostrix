@@ -225,7 +225,7 @@ export function joinAlso(cells, also, field = "also") { // field "pen": the pena
 
 // TASKS.csv #3159 — collarsLookUnderground, collarBenches, collarGround and idwGround live in collarGround.js (startup code needs
 // them without the pit solver); re-exported here for the pit tools, the workers and the tests.
-export { collarsLookUnderground, BENCH_PLAN_M, BENCH_RL_M, collarBenches, collarGround, idwGround, undergroundCollars, surfaceCollars, typedUnderground } from "./collarGround.js"; // the last three: #3551
+export { collarsLookUnderground, BENCH_PLAN_M, BENCH_RL_M, collarBenches, collarGround, idwGround, undergroundCollars, surfaceCollars, typedUnderground, collarsForGround } from "./collarGround.js"; // the last three: #3551
 // TASKS.csv #2277 (review #2174, WA lode gold) — how far the ore-grade blocks (value at or above the cut-off grade) lie below the highest
 // collar, the nearest the surface the data knows: the pit's own depth is measured from its ground, which on a project drilled from
 // underground is a surface through the drill positions. -> null (no collar, no cut-off, no ore block) or { top, min, median, max, n, underground }
@@ -241,7 +241,7 @@ export function oreDepthBelowCollars(cells, cutoff, collars, survey = [], ground
   let top = -Infinity;
   for (const z of zs) if (z > top) top = z;
   const underground = zs.length ? collarsLookUnderground(collars, survey).underground : false;
-  const local = underground ? null : groundAt || (zs.length ? collarGround(collars) : null);
+  const local = underground ? null : groundAt || (zs.length ? collarGround(collars, survey) : null); // survey: #3551 / #3582
   const from = underground || !local ? "highest collar" : groundAt ? "terrain" : "collars";
   const d = [];
   for (const c of cells || []) {
@@ -746,7 +746,7 @@ export function farFromCollars(grid, mined, collars) {
   return { reachM, cols, colsAll, wasteT, wasteShare: wasteAll > 0 ? wasteT / wasteAll : 0, groundMin: Number.isFinite(gMin) ? gMin : null, groundMax: Number.isFinite(gMax) ? gMax : null };
 }
 // the whole run, for the worker and the tests. inputs: { cells, unit, price, priceUnit, recovery, miningCost, processingCost, density, slopeDeg, revenueFactor, size }; ground as for buildPitGrid
-export function runPitShell(inputs, { groundAt = null, collars = null, onProgress = null } = {}) {
+export function runPitShell(inputs, { groundAt = null, collars = null, survey = null, onProgress = null } = {}) { // survey: #3582
   const economics = pitEconomics(inputs);
   if (!economics) return { failed: "units" };
   if (economics.byFailed) return { failed: "by-units" }; // #1917
@@ -763,7 +763,7 @@ export function runPitShell(inputs, { groundAt = null, collars = null, onProgres
   // TASKS.csv #2276 — collars drilled from underground are not the ground: a pit cut from the cuddies (2.38 Moz, $2.94B, 50-320 m below the real
   // surface) is refused, with the counts, instead of being priced
   if (!groundAt && collars?.length) { const ug = collarsLookUnderground(collars); if (ug.underground) return { failed: "underground", underground: ug }; }
-  const fromCollars = !groundAt ? collarGround(collars) : null; // #1353
+  const fromCollars = !groundAt ? collarGround(collars, survey || undefined) : null; // #1353; survey: #3582
   const fromModel = !groundAt && !fromCollars ? modelTopGround(cells) : null; // #1850 — the model's own column tops, never one flat plane
   const grid = buildPitGrid(cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes, density: inputs.density, wasteDensity: inputs.wasteDensity, weathered: weatheredOf(inputs.weathered) /* #2597 */, limitM: inputs.limitM ?? null /* #2665 */, economics, miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: groundAt || fromCollars || fromModel });
   if (!grid) return { failed: "no-cells" };
@@ -795,7 +795,7 @@ export function pitValueAt(grid, mined, economics, miningCost, processingCost) {
 // down, at `rate` tonnes of rock a year, every cell's cash discounted at `discountPct` a year from the time it is mined (the
 // cumulative rock before it, over the rate). -> { runs: [{ rf, ...summary, moneyBase, years, npv, undiscounted, positions, indices,
 // ... }], yearly: [{ year, rockT, oreT, cash }], cell, grid, groundSource, bestNpv, bestMoney } or { failed } / { empty }
-export function runPitSeries(inputs, rfs, { groundAt = null, collars = null, rate = null, discountPct = null, onProgress = null } = {}) {
+export function runPitSeries(inputs, rfs, { groundAt = null, collars = null, survey = null, rate = null, discountPct = null, onProgress = null } = {}) {
   const base = pitEconomics({ ...inputs, revenueFactor: 1 });
   if (!base) return { failed: "units" };
   if (base.byFailed) return { failed: "by-units" }; // #1917
@@ -806,7 +806,7 @@ export function runPitSeries(inputs, rfs, { groundAt = null, collars = null, rat
   const list = [...new Set(rfs.filter((r) => Number.isFinite(r) && r > 0))].sort((a, b) => a - b);
   if (!list.length) return { failed: "factors" };
   if (!groundAt && collars?.length) { const ug = collarsLookUnderground(collars); if (ug.underground) return { failed: "underground", underground: ug }; } // #2276
-  const fromCollars = !groundAt ? collarGround(collars) : null, ground = groundAt || fromCollars || modelTopGround(cells); // model top: #1850
+  const fromCollars = !groundAt ? collarGround(collars, survey || undefined) : null, ground = groundAt || fromCollars || modelTopGround(cells); // model top: #1850
   const eco = (rf) => pitEconomics({ ...inputs, revenueFactor: rf });
   const topRf = list[list.length - 1];
   const top = buildPitGrid(cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes, density: inputs.density, wasteDensity: inputs.wasteDensity, weathered: weatheredOf(inputs.weathered) /* #2597 */, limitM: inputs.limitM ?? null /* #2665 */, economics: eco(topRf), miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: ground });

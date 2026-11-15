@@ -49,7 +49,7 @@ test("#2986 part 2 a pit and a series: the penalty model joined by centre, the s
 test("#2986 part 2 the pane: the basis, the product fields, Mass yield, penalty lines, saved and restored; Nested pits passes them", () => {
   const p = fs.readFileSync(new URL("../src/components/PitShellPane.jsx", import.meta.url), "utf8");
   for (const k of ['aria-label={tr("Price basis")}', 'tr("Product price ($/dmt)")', 'tr("Mass yield (%)")', 'tr("Specification grade ({unit})"', 'tr("+ add a penalty line")', 'priceBasis: "metal", refGrade: "", adjPerUnit: "", penalties: []']) assert.ok(p.includes(k), k);
-  assert.ok(p.includes("runPitShellAsync(mIn, runInputs, terrain, (phases) => setBusy(phases), collars, byIn, alsoIn, penModels)"));
+  assert.ok(p.includes("runPitShellAsync(mIn, runInputs, terrain, (phases) => setBusy(phases), collarsForGround(collars, survey), byIn, alsoIn, penModels)"));
   assert.ok(p.includes('k !== "sectorSlopes" && k !== "penalties"'), "the penalty lines restored as rows, not String(array)");
   assert.ok(p.includes("{model && !isProduct && <label style={row}>{tr(\"By-product (optional)\")}"), "no by-product with the product basis");
   const n = fs.readFileSync(new URL("../src/components/NestedPitsPane.jsx", import.meta.url), "utf8");
