@@ -24,7 +24,10 @@ import { preferredElement, rememberElement } from "../lib/preferredElement.js"; 
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2552
 import { sampledByHole, unsampledDrillPoints } from "../lib/insideSampling.js"; // TASKS.csv #2596
 import { verticalReach } from "../lib/blockReach.js"; // TASKS.csv #2422 — a flat trend's vertical reach, as the estimator counts it
-import { desurveyHole } from "../lib/desurvey.js";
+import { desurveyHole, pointOnTrace } from "../lib/desurvey.js"; // pointOnTrace: #3592
+import { sampleSpacing } from "../lib/sampleSpacing.js"; // TASKS.csv #3592 — the spacing at the samples
+import { classStops, visibleOnLattice } from "../lib/viewer/modelLegendOnAdd.js"; // TASKS.csv #3596
+import { sameLattice } from "../lib/densityFromModel.js"; // TASKS.csv #3596 — one model of a grid shown
 import { gradeStops } from "../lib/inversion.js"; // TASKS.csv #702
 import { LAYER_META } from "../lib/layers.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -66,10 +69,10 @@ import { lastEstimateSettings, estimateSettingsKey } from "../lib/estimateMemory
 export { estimateSettingsKey };
 // TASKS.csv #3273 — a semivariance with separators (22,800,000, not 22800000)
 const fmtSemi = (v) => (!Number.isFinite(v) ? "—" : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : String(+v.toPrecision(3)));
-export default function GradeEstimationModal({ modelArea = null /* #2544 */, assays: assaysProp, assayElements: assayElementsProp, layers, collars, survey, onAddModel, onClose, volumeShells = [], trend: modelTrend = null, groundAt = null, groundSource = null, checkedHoleIds = null, areaStrings = [] }) { // groundAt: TASKS.csv #803; groundSource "terrain" | "collars": #1616
+export default function GradeEstimationModal({ modelArea = null /* #2544 */, assayStyle = null /* #3596: the holes' classes of each element */, assays: assaysProp, assayElements: assayElementsProp, layers, collars, survey, onAddModel, onClose, volumeShells = [], trend: modelTrend = null, groundAt = null, groundSource = null, checkedHoleIds = null, areaStrings = [] }) { // groundAt: TASKS.csv #803; groundSource "terrain" | "collars": #1616
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
-  const { desurveyMethod, voxelModels, project, customLayers = [] } = useStore(); // TASKS.csv #135 — estimation samples must sit on the same trace the 3D view draws; customLayers: #1571
+  const { desurveyMethod, voxelModels, project, customLayers = [], updateVoxelModel } = useStore(); // updateVoxelModel: #3596 // TASKS.csv #135 — estimation samples must sit on the same trace the 3D view draws; customLayers: #1571
   // TASKS.csv #1741 / #1708 (review #1645, Copley) — a numeric downhole log (mag susc, SG) or a numeric field of a custom layer (a SWIR
   // wavelength, a chalcopyrite %) is estimated like a grade: its rows become assay-shaped intervals under one "element"
   const saved = useRef(lastEstimateSettings.get(estimateSettingsKey(project)) || null).current; // #1580
@@ -302,7 +305,23 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   // TASKS.csv #2420 (review #2325, WA uranium) — the search opens from the drilling: 2.5 x the typical site spacing (sites 77 m apart ->
   // 190 m), not 50 m beside a line saying the holes are 77 m apart (0.45 % of the grid estimated, 137 of the 294 highest composites with
   // no block). A remembered or typed radius is kept.
-  const searchFromSpacing = !(saved && saved.searchRadius !== undefined) && spacing?.medianM > 0 ? searchFromSpacingM(spacing.medianM) : null;
+  // TASKS.csv #3592 (Fireweed rehearsal, Macpass Tom West) — and from the spacing AT THE SAMPLES (from a sample, the nearest sample of another hole,
+  // lib/sampleSpacing.js, as the grade shell's since #3580), not between collar sites: Tom West's holes fan from 76 pads and stations 15 m apart,
+  // so the search opened at 40 m against 24 m between the samples, and with Min holes 2 394 of the 735 blocks the holes pass through stayed
+  // empty. The collar sites stay the fallback (no traces).
+  const samplesSpacing = useMemo(() => {
+    const tof = traceBounds?.traceOf;
+    if (!tof || !symbol) return null;
+    const pts = [];
+    for (const a of srcAssays) {
+      if (!Number.isFinite(a.values?.[symbol]) || !Number.isFinite(a.from) || !Number.isFinite(a.to)) continue;
+      const t = tof.get(a.hole_id), q = t && pointOnTrace(t, (a.from + a.to) / 2);
+      if (q) pts.push({ hole_id: a.hole_id, x: q.x, y: q.y, z: q.z });
+    }
+    return sampleSpacing(pts);
+  }, [traceBounds, srcAssays, symbol]);
+  const searchFrom = samplesSpacing?.medianM > 0 ? { medianM: samplesSpacing.medianM, at: "samples" } : spacing?.medianM > 0 ? { medianM: spacing.medianM, at: "collars" } : null;
+  const searchFromSpacing = !(saved && saved.searchRadius !== undefined) && searchFrom ? searchFromSpacingM(searchFrom.medianM) : null;
   const searchTouched = useRef(false);
   useEffect(() => { if (searchFromSpacing && !searchTouched.current) setSearchRadius(searchFromSpacing); }, [searchFromSpacing]);
 
@@ -599,6 +618,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         // "Add to project"), and travel with the block model into the project file.
         let outsideArea = 0; // #1570 — set below when a design-string area drops blocks; params read it, so it is declared first
         const params = {
+          holeIds: [...new Set(points.map((p) => p.hole_id))], // TASKS.csv #3595 — the holes the estimate used: the grade-tonnage table's SG mean is theirs
           tool: "Grade estimation", element: symbol, method, samplesFrom: samplesFrom === "checked" && checkedHoleIds?.size ? `holes checked in the Holes list (${checkedCount} of ${collars.length})` : "every hole", /* #2544 */ cellSizeM: matched || cell3.dz !== cell3.dx ? [cell3.dx, cell3.dy, cell3.dz] : cellSize, paddingM: padding, // #2423: the #2544 note had commented out cellSizeM and paddingM
           ...(lattice ? { gridOrigin: [lattice.ox, lattice.oy, lattice.oz], gridMatched: matched ? matched.m.name : "typed origin" } : {}), // #724
           gridFrom: shellBox ? `box of the restricting solid "${shellBox.name}" within the drilling` : areaString ? `inside the closed design string "${areaString.name}" (${outsideArea} block(s) outside it dropped)` : gridMode === "checked" && checkedBounds ? `desurveyed traces of the ${checkedBounds.holes} checked hole(s)` : traceBounds ? `desurveyed traces of ${traceBounds.holes} assayed hole(s)` : "collar box (no hole could be desurveyed)", // #521; #1570
@@ -728,7 +748,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         }
         setStage(null);
         const withBlocks = members.filter((m) => m.cells.length);
-        if (withBlocks.length) { const set = setRecord(newSetId(), symbol, withBlocks.map((m) => m.element)); params.set = set; for (const m of withBlocks) m.params.set = set; }
+        if (withBlocks.length) { const set = setRecord(newSetId(), symbol, withBlocks.map((m) => m.element)); params.set = set; for (const m of withBlocks) { m.params.set = set; if (!m.params.holeIds) m.params.holeIds = params.holeIds; /* #3595 */ } }
         setResult({ ...est, params, members, nnCells: nnCheck /* #3060 */, checkPoints: points, compositingSkipped, coverageLeftOut: coverageStats.leftOut > 0 ? { leftOut: coverageStats.leftOut, readings: coverageStats.readings, minCoverage } : null /* #3269 */, samplePointCount: points.length, noCodeComposites: domainKey ? points.filter((p) => p.domain == null).length : 0 /* #2541 */, droppedCount: dropped, clampedCount: clamped, beyondTraceCount: beyondTrace, rawStats, intervalCount: intervals.length });
         setResultSig(runSig.current);
         setAdded(false); setAddedSupport(false); setAddedKv(false); // a fresh run invalidates every "Added ✓" state
@@ -781,19 +801,25 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
     setAddedKv(true);
   };
   // TASKS.csv #702 — the shared grade ramp (lib/inversion.js gradeStops), the one a geoML estimate gets too
-  const rampOf = (cells) => {
+  // TASKS.csv #3596 — an element's estimate in the holes' classes of that element (assayStyle breaks: the same colours and limits as the intercepts),
+  // when the holes have them; the grade ramp otherwise (a log or a layer field as the source, an element never shown on the holes)
+  const rampOf = (cells, element = null) => {
     let gMin = Infinity, gMax = -Infinity;
     for (const c of cells) { if (Number.isFinite(c.value)) { if (c.value < gMin) gMin = c.value; if (c.value > gMax) gMax = c.value; } }
-    return gMin <= gMax ? { min: gMin, max: gMax, colorMode: "continuous", stops: gradeStops(gMin, gMax) } : {};
+    if (!(gMin <= gMax)) return {};
+    const classes = element ? classStops(assayStyle?.[element]?.breaks, gMin) : null;
+    return classes ? { min: gMin, max: gMax, ...classes, legendFrom: `the classes of ${element} on the holes` } : { min: gMin, max: gMax, colorMode: "continuous", stops: gradeStops(gMin, gMax) };
   };
   const addToProject = () => {
     if (!result || !result.cells.length) return;
     const name = resultName(); // #1737
     const set = result.params?.set; // #3014 — the set's models are added together, each named for its element and the set
     const p0 = result.params?.element || symbol, typed = !!modelName.trim();
-    onAddModel({ name: set ? memberName(name, p0, p0, set, typed) : name, source: `estimate-${method}`, cells: result.cells, ...rampOf(result.cells), params: result.params }); // params: TASKS.csv #404
+    // TASKS.csv #3596 — one model of a grid shown at a time: the others on the same blocks are hidden (a density or calculated model drew over Zn)
+    for (const m of visibleOnLattice(voxelModels, result.cells, { latticeOf: blockModelLattice, sameLattice })) updateVoxelModel?.(m.id, { visible: false });
+    onAddModel({ name: set ? memberName(name, p0, p0, set, typed) : name, source: `estimate-${method}`, cells: result.cells, ...rampOf(result.cells, sourceKey === "assay" ? p0 : null), params: result.params }); // params: TASKS.csv #404
     // TASKS.csv #3286 (5) — the set's other elements are added hidden: all shown, they share the blocks and each row warned 'the two colour each other's blocks'
-    if (set) for (const m of result.members || []) if (m.cells.length) onAddModel({ name: memberName(name, p0, m.element, set, typed, m.method, result.params?.method) /* #3164 */, source: `estimate-${m.method || method}` /* #3164 */, cells: m.cells, ...rampOf(m.cells), params: m.params, visible: false });
+    if (set) for (const m of result.members || []) if (m.cells.length) onAddModel({ name: memberName(name, p0, m.element, set, typed, m.method, result.params?.method) /* #3164 */, source: `estimate-${m.method || method}` /* #3164 */, cells: m.cells, ...rampOf(m.cells, sourceKey === "assay" ? m.element : null) /* #3596 */, params: m.params, visible: false });
     setAdded(true);
   };
 
@@ -889,7 +915,8 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
               </div>
             )}
             {spacing && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr(spacing.sites === 2 ? "Holes: the two drill sites are {near} m apart. Two holes must both lie within the search radius of a block for it to count (Min distinct holes)." : "Holes: {sites} drill sites, the nearest {near} m apart, typically {median} m from the next (up to {far} m). Two holes must both lie within the search radius of a block for it to count (Min distinct holes).", { sites: spacing.sites, near: Math.round(spacing.nearestM), median: Math.round(spacing.medianM), far: Math.round(spacing.farthestM) })}</div>}{/* #1738 */}
-            {searchFromSpacing && !searchTouched.current && searchRadius === searchFromSpacing && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr("Search radius {r} m: 2.5 times the {m} m typical spacing, so a block between two holes reaches both.", { r: searchFromSpacing, m: Math.round(spacing.medianM) })}</div>}{/* #2420 */}
+            {searchFromSpacing && !searchTouched.current && searchRadius === searchFromSpacing && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{searchFrom.at === "samples" ? tr("Search radius {r} m: 2.5 times the {m} m typical distance from a sample to the nearest sample of another hole, so a block between two holes reaches both.", { r: searchFromSpacing, m: Math.round(searchFrom.medianM) }) : tr("Search radius {r} m: 2.5 times the {m} m typical spacing, so a block between two holes reaches both.", { r: searchFromSpacing, m: Math.round(searchFrom.medianM) })}</div>}
+            {!modelTrend && !(Number(flatReach) > 0) && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr("Isotropic: the search is a sphere, no structural trend is chosen for block estimation (Model settings › Structural trends › Used by).")}</div>}{/* TASKS.csv #3593 */}{/* #2420 */}
             <label style={fieldLabel} title={tr("No sample within this distance of a block leaves it un-estimated (no cell), rather than extrapolating grade far from any real data. 0 = no radius assumption, capped internally at the grid's own diagonal so the run can't hang.")}>{tr("Search radius (m, 0 = no limit)")}<input type="number" min="0" step="any" value={searchRadius} onChange={(e) => { searchTouched.current = true; setSearchRadius(Math.max(0, Number(e.target.value) || 0)); }} style={inp} />
               {trend && !(searchRadius > 0) && gridDiagonalM > 0 && ( /* #710: 0 is not "no limit" across the trend */
                 <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", fontWeight: 400 }}>{tr("Along trend \"{name}\": with no radius the search reaches the grid diagonal ({d} m) along the trend but only {v} × {v2} m across it ({v3}); a sample farther across the trend is left out.", { name: trend.name, d: gridDiagonalM, v: Math.round((gridDiagonalM * trend.ratios.int) / trend.ratios.max), v2: Math.round((gridDiagonalM * trend.ratios.min) / trend.ratios.max), v3: describeTrend(trend) })}</span>

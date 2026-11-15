@@ -588,13 +588,35 @@ const ADAPTIVE_TERRAIN_NODES = 90000;
 const adaptiveTerrainCache = new WeakMap();
 // TASKS.csv #3449 — the adaptive mesh a terrain is drawn with (null: drawn as its full grid), built once per terrain object; the drapes
 // read the same one, so they are built on the very triangles drawn (it was read only if syncTerrain had run first).
+// TASKS.csv #3588 (8) — the triangle budget by grid size (shared by the synchronous build and the worker's)
+const adaptiveBudget = (gridW, gridH) => (gridW * gridH > 1100 * 1100 ? 480000 : 160000);
+// TASKS.csv #3588 (8) — the same mesh built in a worker while the user is elsewhere (Maps, where the terrain is made): the 3D View's first entry after a
+// terrain then finds it in the cache. A later synchronous build (adaptiveMeshOf) does not wait for it and the first result kept wins; a newer terrain
+// stops the older request. No Worker (Node, a test): nothing happens and the synchronous path is as it was.
+let prewarmWorker = null, prewarmSeq = 0;
+export function prewarmAdaptiveMesh(terrain) {
+  if (!terrain || typeof Worker === "undefined") return;
+  const { gridW, gridH, elevations } = terrain;
+  if (!(gridW * gridH > ADAPTIVE_TERRAIN_NODES) || adaptiveTerrainCache.has(terrain)) return;
+  try {
+    prewarmWorker?.terminate();
+    const w = prewarmWorker = new Worker(new URL("../terrainMesh.worker.js", import.meta.url), { type: "module" }), id = ++prewarmSeq;
+    w.onmessage = (e) => {
+      if (e.data.id !== id) return;
+      if (e.data.am && !adaptiveTerrainCache.has(terrain)) adaptiveTerrainCache.set(terrain, e.data.am);
+      w.terminate(); if (prewarmWorker === w) prewarmWorker = null;
+    };
+    w.onerror = () => { w.terminate(); if (prewarmWorker === w) prewarmWorker = null; };
+    w.postMessage({ id, gridW, gridH, elevations, noDataMask: terrain.noDataMask, maxTriangles: adaptiveBudget(gridW, gridH) });
+  } catch { prewarmWorker = null; }
+}
 function adaptiveMeshOf(terrain) {
   const { gridW, gridH, elevations } = terrain;
   if (gridW * gridH <= ADAPTIVE_TERRAIN_NODES) return null;
   let am = adaptiveTerrainCache.get(terrain);
   if (!am) {
     const mask = decodeNoDataMask(terrain.noDataMask);
-    am = buildAdaptiveTerrain(gridW, gridH, elevations, mask ? (k) => isNoData(mask, k) : null, { maxTriangles: gridW * gridH > 1100 * 1100 ? 480000 : 160000 } /* TASKS.csv #3251 — a Full (2,049-node) grid: three times the triangles, or it draws no finer than Very high */);
+    am = buildAdaptiveTerrain(gridW, gridH, elevations, mask ? (k) => isNoData(mask, k) : null, { maxTriangles: adaptiveBudget(gridW, gridH) } /* TASKS.csv #3251 — a Full (2,049-node) grid: three times the triangles, or it draws no finer than Very high */);
     adaptiveTerrainCache.set(terrain, am);
   }
   return am;

@@ -10,6 +10,8 @@ import { overlay, backdropProps, panel, header as headerStyle, sel } from "../li
 import { useStore } from "../lib/store.jsx";
 import { openHelp } from "../lib/help.js"; // TASKS.csv #3597
 import { blockModelLattice } from "../lib/estimationMeta.js";
+import { visibleOnLattice } from "../lib/viewer/modelLegendOnAdd.js"; // TASKS.csv #3596
+import { sameLattice } from "../lib/densityFromModel.js"; // TASKS.csv #3596
 import { blockCalc, calcModelRecord, calcVarFor, isCalcVar, joinRefusal, MAX_CALC_INPUTS } from "../lib/blockCalc.js";
 import { setMembersOf } from "../lib/estimateSet.js";
 import { budgetPause } from "../lib/compactTable.js";
@@ -27,7 +29,7 @@ const rampOf = (cells) => {
 export default function BlockCalculatorModal({ onClose }) {
   useEscapeKey(onClose);
   useFocusTrap();
-  const { voxelModels = [], addVoxelModel } = useStore();
+  const { voxelModels = [], addVoxelModel, updateVoxelModel } = useStore(); // updateVoxelModel: #3596
   const models = useMemo(() => voxelModels.filter((m) => m.cells?.length), [voxelModels]);
   const [inputs, setInputs] = useState([]); // [{ key, var }]
   const [formula, setFormula] = useState("");
@@ -65,6 +67,7 @@ export default function BlockCalculatorModal({ onClose }) {
   const addModel = () => {
     try {
       const rec = calcModelRecord({ name, unit, formula, inputs: picked, result });
+      for (const m of visibleOnLattice(voxelModels, rec.cells, { latticeOf: blockModelLattice, sameLattice })) updateVoxelModel?.(m.id, { visible: false }); // #3596: one model of a grid shown
       addVoxelModel({ ...rec, ...(rampLike || rampOf(rec.cells)) }); // #3522: the first input's colours when asked
       setAdded(rec.name);
     } catch (err) { setError(err.message); }

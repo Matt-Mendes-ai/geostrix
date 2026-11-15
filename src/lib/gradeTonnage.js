@@ -234,13 +234,24 @@ export function gradeTonnageRows(rows, { vname, density = null, metal = null, co
 // TASKS.csv #1216 — the project's measured specific gravity as one density: the length-weighted mean, with what it rests on. A value outside the project's density range
 // (1-6 t/m3 unless it set another, #3587: the range Data QC flags by) is left out and counted (a percent, or a missing-data code). One figure for every block: it says nothing of density
 // varying with the rock. -> { mean, n, left, min, max, range } | null with no usable row.
+// TASKS.csv #3595 (Fireweed rehearsal, Macpass) — 'the length-weighted mean of 2495 measured SG intervals' where 42 % of Tom West's densities
+// are REGRESSED from the grades: the file's method column (kept with each row as an extra field, #1501 / #3525) is counted now, so a density
+// says what it rests on. methods: { field, measured, calculated, other } when the rows carry a method column (absent otherwise).
+const SG_METHOD_FIELD = /^((sg|density|bd)[\s_-]*)?(method|determination|type)$/i;
+const SG_CALCULATED = /^(reg|regr|regress|calc|estim|assum|default|formula|derived|est\b)/i;
+const SG_MEASURED = /^(meas|lab|pyc|immers|archim|wax|water|spg|gas|hydro|caliper)/i;
 export function sgSummary(rows, range = DEFAULT_DENSITY_RANGE) {
   let sum = 0, len = 0, n = 0, left = 0, min = Infinity, max = -Infinity;
+  let field;
+  const methods = { measured: 0, calculated: 0, other: 0 };
   for (const r of rows || []) {
     const v = Number(r.value), l = Number(r.to) - Number(r.from);
     if (!(l > 0) || r.value == null || r.value === "" || !Number.isFinite(v)) continue;
     if (v < range.min || v > range.max) { left++; continue; }
     sum += v * l; len += l; n++; min = Math.min(min, v); max = Math.max(max, v);
+    if (field === undefined) field = Object.keys(r).find((k) => SG_METHOD_FIELD.test(k.trim())) || null;
+    if (field) { const m = String(r[field] ?? "").trim(); if (m) methods[SG_CALCULATED.test(m) ? "calculated" : SG_MEASURED.test(m) ? "measured" : "other"]++; }
   }
-  return n ? { mean: +(sum / len).toFixed(3), n, left, min, max, range } : null;
+  const counted = methods.measured + methods.calculated + methods.other;
+  return n ? { mean: +(sum / len).toFixed(3), n, left, min, max, range, ...(field && counted ? { methods: { field, ...methods } } : {}) } : null;
 }

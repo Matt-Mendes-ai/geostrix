@@ -10,6 +10,7 @@ import { sgSummary } from "../../lib/gradeTonnage.js";
 import { densityRangeOf } from "../../lib/densityRange.js"; // TASKS.csv #3587
 import { useStore } from "../../lib/store.jsx";
 import { sgInsideSolid } from "../../lib/sgInSolid.js";
+import { sgMethodsText } from "../../lib/sgMethodsText.js"; // TASKS.csv #3595
 
 // TASKS.csv #2068 (review #2013, Woodjam) — sgSummary's min / max are the raw logged values (1.766666666666667): two decimals here
 const r2 = (v) => String(+Number(v).toFixed(2));
@@ -44,8 +45,8 @@ export default function SurfaceTonnage({ s, volumeM3, sgRows, traces, geometry, 
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{tr("Tonnage:")}{" "}<strong title={`${Math.round(tonnage).toLocaleString()} t`}>{Number(tonnage.toPrecision(3)).toLocaleString()} t</strong>{/* TASKS.csv #3284 — 3 significant figures, exact on hover (as Grade-tonnage) */}</div>
           {from?.left > 0 && <div style={muted}>{tr("{n} density value(s) outside {min}–{max} t/m³ left out of this mean (the range is set in Data QC).", { n: from.left.toLocaleString(), min: from.range.min, max: from.range.max })}</div> /* TASKS.csv #3587 */}
           {from && <div style={muted}>{from.kind === "inside"
-            ? tr("Density: the length-weighted mean of {n} measured SG intervals inside this solid ({range}).", { n: from.n, range: range(from) })
-            : tr("Density: the length-weighted mean of the whole Specific gravity layer, {n} intervals ({range}), not only those inside this solid.", { n: from.n, range: range(from) })}</div>}
+            ? (from.methods ? tr("Density: the length-weighted mean of {n} SG intervals inside this solid ({range}).", { n: from.n, range: range(from) }) : tr("Density: the length-weighted mean of {n} measured SG intervals inside this solid ({range}).", { n: from.n, range: range(from) }))
+            : tr("Density: the length-weighted mean of the whole Specific gravity layer, {n} intervals ({range}), not only those inside this solid.", { n: from.n, range: range(from) })}{from.methods ? " " + sgMethodsText(from.methods) : ""}</div>}{/* #3595: what the densities are, by the file's method column */}
           {/* TASKS.csv #269 — permanent, beside the figure, not buried in helper text. */}
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginTop: 5, lineHeight: 1.45 }}>
             <strong>{tr("Exploration target volume only — not a Mineral Resource.")}</strong>{" "}{tr("Public disclosure of a tonnage requires an estimate prepared by a Qualified Person.")}

@@ -5,7 +5,7 @@
 // station's data against its model's response, the models in 3D.
 import React, { useMemo, useRef, useState } from "react";
 import { channelMatrix, noiseGroupFor, stdKindGuess } from "../lib/temLines.js";
-import { WAVEFORM_PRESETS, waveformFrom, parseWaveformTable, parseFilters, timeZeroGuess, unitGuess, heightColumn, rxColumn, tiltColumns, buildTemRequest, modelsCsv, mergePartials, partialResult, layerThicknesses } from "../lib/temInvert.js";
+import { WAVEFORM_PRESETS, waveformFrom, parseWaveformTable, parseFilters, timeZeroGuess, unitGuess, heightColumn, rxColumn, tiltColumns, buildTemRequest, modelsCsv, mergePartials, partialResult, layerThicknesses, parsePriorTable } from "../lib/temInvert.js";
 import { modelPoints } from "../lib/fdem.js";
 import { SURVEY_METHODS, surveyKey } from "../lib/geophysSurveys.js";
 import { runTem1dJob, saveFile } from "../lib/desktop.js";
@@ -112,6 +112,7 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
   const fresh = () => ({
     key, geom: "vmd", r: 13, a: 20, area: 314, h: 30, rz: 0, rzCol: rxc && hc ? rxc : "", filters: "", coil2: true, lateral: 0, useTilt: !!(tiltc.pitch || tiltc.roll), heightsCol: hc || "", timeZero: tz.zero, unit: ug.unit, useStd: noiseMats.every(Boolean), stdKind: stdGuess, errRel: 5, every: 1,
     layers: { n: 20, first: 3, bottom: 300 },
+    priorText: "", freeH: false, hSd: 1, freeRz: false, rzSd: 0.5, // TASKS.csv #1987 (1 m: on the USGS SkyTEM file 3 m let the height take up a 4 m bias)
     wave: groups.map((g, k) => { const p = groups.length > 1 ? (k === 0 ? "airLow" : "airHigh") : "airHigh"; return { preset: p, onMs: WAVEFORM_PRESETS[p].onMs, rampUs: WAVEFORM_PRESETS[p].rampUs, table: "", baseFreq: "", shiftUs: "", frontUs: "", widthsUs: "" }; }),
     result: null, pick: null, sel: null,
   });
@@ -131,11 +132,14 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
   // brought the low moment's first gates after the turn-off from 8-20 % to within 6 % of Workbench's forward
   const parsedFilters = parseFilters(st.filters);
   const filters = parsedFilters && parsedFilters.length && st.coil2 !== false ? [[parsedFilters[0], 2], ...parsedFilters.slice(1)] : parsedFilters;
-  const sysErr = tables.find((t) => t && t.error)?.error || (filters == null ? "Filters: up to three cut-offs in kHz (1 to 100,000), separated by commas." : null);
+  // TASKS.csv #1987 — the reference model (a typed or pasted table) and the geometry solved for
+  const priorParsed = parsePriorTable(st.priorText);
+  const sysErr = tables.find((t) => t && t.error)?.error || (filters == null ? "Filters: up to three cut-offs in kHz (1 to 100,000), separated by commas." : null) || priorParsed.error;
   const build = () => buildTemRequest(data, {
     moments: groups.map((g, k) => ({ group: g, times: times[k], ...waveOf(k), baseFreq: st.wave[k].baseFreq, shiftUs: st.wave[k].shiftUs, frontUs: st.wave[k].frontUs,
       widthsUs: String(st.wave[k].widthsUs || "").trim() ? numList(st.wave[k].widthsUs) : null })),
     lateral: Number(st.lateral) || 0, // #3486
+    prior: priorParsed.rows, free: { height: st.freeH ? Number(st.hSd) : null, rz: st.freeRz && st.geom !== "loop" ? Number(st.rzSd) : null }, // #1987
     timeZero: st.timeZero, unit: st.unit, every: st.every, heightsCol: st.heightsCol || null, rxCol: st.rzCol || null, tilt: st.useTilt && (tiltc.pitch || tiltc.roll) ? tiltc : null,
     noise: { use: st.useStd, kind: st.stdKind, mats: noiseMats },
     system: st.geom === "loop" ? { geom: "loop", a: Number(st.a) || 20, h: Number(st.h) || 0, filters: filters || [] }
@@ -169,13 +173,16 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
     setBusy(null);
     const secs = Math.round((Date.now() - t0) / 1000);
     if (res.ok) {
-      save({ ...st, result: { ...res.data, partial: false }, pick: b.pick, scale: b.scale, gates: b.request.moments.map((m) => m.gates), obs: b.request.data, sel: null });
+      save({ ...st, result: { ...res.data, partial: false }, pick: b.pick, scale: b.scale, gates: b.request.moments.map((m) => m.gates), obs: b.request.data, fileH: b.request.heights || null, sel: null });
       const chi = (res.data.chi || []).filter(Number.isFinite).sort((x, y) => x - y);
-      setMsg({ info: true, text: tr("Inverted {n} stations in {s} s; misfit (chi) median {c}.", { n: b.pick.length.toLocaleString(), s: secs.toLocaleString(), c: chi.length ? chi[Math.floor(chi.length / 2)].toFixed(2) : "–" }) + (b.dropped ? " " + tr("{k} gate(s) before the front gate (or the end of the turn-off) were left out.", { k: b.dropped }) : "") + (b.widthsMismatch?.length ? " " + tr("The gate widths of {m} do not match its gates (one a gate): they were not used.", { m: b.widthsMismatch.join(", ") }) : "") + (res.data.leftOut ? " " + tr("{k} reading(s) at or below zero were left out.", { k: res.data.leftOut }) : "") });
+      // TASKS.csv #1987 — the solved heights against the file's, in one line
+      const med = (a) => { const v = a.filter(Number.isFinite).sort((x, y) => x - y); return v.length ? v[Math.floor(v.length / 2)] : null; };
+      const hMsg = Array.isArray(res.data.heightM) ? " " + tr("Height solved: median change {d} m from the file's (median uncertainty ±{s} m).", { d: fmt(med(res.data.heightM.map((h, j) => h - (b.request.heights?.[j] ?? b.request.system.h)))), s: fmt(med(res.data.heightSdM || [])) }) : "";
+      setMsg({ info: true, text: tr("Inverted {n} stations in {s} s; misfit (chi) median {c}.", { n: b.pick.length.toLocaleString(), s: secs.toLocaleString(), c: chi.length ? chi[Math.floor(chi.length / 2)].toFixed(2) : "–" }) + hMsg + (b.dropped ? " " + tr("{k} gate(s) before the front gate (or the end of the turn-off) were left out.", { k: b.dropped }) : "") + (b.widthsMismatch?.length ? " " + tr("The gate widths of {m} do not match its gates (one a gate): they were not used.", { m: b.widthsMismatch.join(", ") }) : "") + (res.data.leftOut ? " " + tr("{k} reading(s) at or below zero were left out.", { k: res.data.leftOut }) : "") });
       return;
     }
     if (res.cancelled && gathered && gathered.condMs.size) {
-      save({ ...st, result: partialResult(gathered, b.pick.length, thick), pick: b.pick, scale: b.scale, gates: b.request.moments.map((m) => m.gates), obs: b.request.data, sel: null });
+      save({ ...st, result: partialResult(gathered, b.pick.length, thick), pick: b.pick, scale: b.scale, gates: b.request.moments.map((m) => m.gates), obs: b.request.data, fileH: b.request.heights || null, sel: null });
       setMsg({ info: true, text: gathered.condMs.size === 1 ? tr("Cancelled: the one station already finished (of {n}) is kept.", { n: b.pick.length.toLocaleString() }) : tr("Cancelled: the {k} of {n} stations already finished are kept.", { k: gathered.condMs.size.toLocaleString(), n: b.pick.length.toLocaleString() }) });
       return;
     }
@@ -191,6 +198,23 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
   const sel = st.sel != null ? st.sel : lineStations[0]?.j;
   const bottomDraw = useMemo(() => { if (!R) return 300; const d = R.doi.filter(Number.isFinite).sort((a, b) => a - b); const med = d.length ? d[Math.floor(d.length / 2)] : 200; return Math.min(R.thick.reduce((a, b) => a + b, 0), Math.max(50, Math.ceil(1.5 * med / 50) * 50)); }, [R]);
   // the readings the job was given (pV / (A m^4), the kept gates of each moment) against the model's response
+  // TASKS.csv #1987 — the selected station's solved height and its layers' uncertainty above the depth of investigation
+  const stationExtra = useMemo(() => {
+    if (!R || sel == null) return null;
+    const parts = [];
+    const h = R.heightM?.[sel];
+    if (Number.isFinite(h)) parts.push(tr("Height {h} m ± {s} (the file's {f} m).", { h: fmt(h), s: fmt(R.heightSdM?.[sel]), f: fmt(st.fileH?.[sel]) }));
+    const rz = R.rzM?.[sel];
+    if (Number.isFinite(rz)) parts.push(tr("Receiver {r} m ± {s} above the loop.", { r: fmt(rz), s: fmt(R.rzSdM?.[sel]) }));
+    const sdl = R.sdLog?.[sel], doi = R.doi?.[sel];
+    if (Array.isArray(sdl) && Number.isFinite(doi)) {
+      let top = 0; const v = [];
+      sdl.forEach((x, k) => { if (top < doi && Number.isFinite(x)) v.push(x); top += R.thick[k] ?? Infinity; });
+      v.sort((a, b) => a - b);
+      if (v.length) parts.push(tr("Layers above the depth of investigation: uncertainty ±{s} decades (median).", { s: v[Math.floor(v.length / 2)].toFixed(2) }));
+    }
+    return parts.length ? parts.join(" ") : null;
+  }, [R, sel, st.fileH]);
   const fit = useMemo(() => (R && sel != null && R.pred?.[sel] && st.gates && st.obs?.[sel] ? { times: st.gates.flat().map((g) => g * 1000), obs: st.obs[sel], pred: R.pred[sel], station: st.pick[sel] } : null), [R, sel, st.gates, st.obs, st.pick]);
   // TASKS.csv #3486 — the models (every inverted station, not only this line's) as a CSV table
   const exportCsv = async () => {
@@ -316,6 +340,22 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
         </select>
       </div>
       {Number(st.lateral) > 0 && <div style={{ ...note, marginBottom: 6 }}>{tr("A tie reaches neighbours up to three stations away, at most 500 m, so a sparse first look ties nothing. It smooths the section; on a real SkyTEM survey a weak tie left the fit as it was and a medium one made it worse. It takes about twice as long.")}</div>}
+      <details open={!!(st.priorText || st.freeH || st.freeRz)} style={{ marginBottom: 6, fontSize: "var(--font-size-sm)" }}>
+        <summary style={{ cursor: "pointer" }}>{tr("Reference model and geometry (priors)")}</summary>
+        <div style={{ ...note, margin: "4px 0" }}>{tr("A reference model, one line a depth: depth from (m), resistivity (ohm m) and its uncertainty in decades (0.3 is a factor of 2). Each line holds down to the next. The layers are pulled toward it as far as that uncertainty allows; leave it empty for none.")}</div>
+        <textarea value={st.priorText || ""} onChange={(e) => set({ priorText: e.target.value })} rows={3} spellCheck={false} style={{ ...smallSel, width: "100%", fontFamily: "var(--font-mono, monospace)", fontSize: "var(--font-size-xs)", boxSizing: "border-box" }}
+          aria-label={tr("Reference model: depth, resistivity, uncertainty")} placeholder={tr("depth (m), resistivity (ohm m), uncertainty (decades)")} />
+        <div role={priorParsed.error ? "alert" : undefined} style={{ ...note, color: priorParsed.error ? "var(--color-warn-text)" : note.color }}>{priorParsed.error ? tr(priorParsed.error) : priorParsed.rows.length ? (priorParsed.rows.length === 1 ? tr("One row read.") : tr("{n} rows read.", { n: priorParsed.rows.length })) : ""}</div>
+        <div style={{ ...rowS, marginTop: 4 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 4 }}><input type="checkbox" checked={!!st.freeH} onChange={(e) => set({ freeH: e.target.checked })} />{tr("Solve for the height")}</label>
+          <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-xs)", whiteSpace: "nowrap", flexShrink: 0 }}>{tr("± (m)")}<input type="number" min="0.01" max="50" step="any" value={st.hSd ?? 1} disabled={!st.freeH} onChange={(e) => set({ hSd: e.target.value })} style={{ ...num, width: 52 }} aria-label={tr("Uncertainty of the file's height (m)")} /></span>
+        </div>
+        {st.geom !== "loop" && <div style={rowS}>
+          <label style={{ display: "flex", alignItems: "center", gap: 4 }}><input type="checkbox" checked={!!st.freeRz} onChange={(e) => set({ freeRz: e.target.checked })} />{tr("Solve for the receiver's height above the loop")}</label>
+          <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-xs)", whiteSpace: "nowrap", flexShrink: 0 }}>{tr("± (m)")}<input type="number" min="0.01" max="50" step="any" value={st.rzSd ?? 0.5} disabled={!st.freeRz} onChange={(e) => set({ rzSd: e.target.value })} style={{ ...num, width: 52 }} aria-label={tr("Uncertainty of the receiver's height above the loop (m)")} /></span>
+        </div>}
+        <div style={note}>{tr("The file's height (and the receiver's) is the starting value, held to it by the uncertainty you type; each one solved for adds a forward model an iteration (about 40 % longer). On a real SkyTEM survey the fit was no better with the height solved for, and at ±3 m the height sat about 4 m above the altimeter, taking up what the system's description gets wrong; ±1 m kept it within about 1.5 m. The uncertainties shown and exported are linearised at the solution and depend on the regularisation: on that survey they were about a quarter of the contractor's.")}</div>
+      </details>
       <div style={rowS}><span>{tr("Stations")}</span>
         <select value={st.every} onChange={(e) => set({ every: Number(e.target.value) })} style={smallSel} aria-label={tr("Every Nth station")}>
           {EVERY.map((k) => <option key={k} value={k}>{k === 1 ? tr("every station") : tr("every {k}th station (a first look)", { k })}</option>)}
@@ -335,6 +375,7 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
         <div style={{ ...note, margin: "3px 0 6px" }}>{tr("Conductive red, resistive blue; below the dashed line (the depth of investigation) the model is the inversion's guess, not the data's. A 1D model is wrong under a 3D conductor (a plate, a pipe).")}</div>
         {fit && <>
           <div style={{ fontSize: "var(--font-size-sm)", marginBottom: 4 }}>{tr("Station {i}: misfit (chi) {c}, depth of investigation {d} m", { i: fit.station + 1, c: fmt(R.chi[sel]), d: fmt(R.doi[sel]) })}</div>
+          {stationExtra && <div style={{ ...note, marginBottom: 4 }}>{stationExtra}</div>}
           <Fit times={fit.times} obs={fit.obs} pred={fit.pred} />
         </>}
         <button type="button" onClick={add3d} style={{ ...pBtn, justifyContent: "center", marginTop: 8 }}>{tr("Add the models to the 3D view")}</button>
