@@ -5,7 +5,7 @@ import { BC_SAMPLE_INFO } from "./lib/bcSamples.js"; // TASKS.csv #3100
 import { markSampleDownloaded } from "./lib/sampleCards.js"; // TASKS.csv #3100
 import { onDataTableOpen } from "./lib/dataTableRequests.js"; // TASKS.csv #3563
 import { openHelp, onHelpOpen, onShortcutsOpen } from "./lib/help.js"; // TASKS.csv #1966; shortcuts from the Help panel: #3534
-import { t as tr, LANGUAGES, currentLanguage, setLanguage } from "./lib/i18n.js"; // TASKS.csv #786 — "tr": t is a common local name here
+import { t as tr, LANGUAGES, currentLanguage, setLanguage, fmtNum } from "./lib/i18n.js"; // TASKS.csv #786 — "tr": t is a common local name here
 import { oncePerWindow } from "./lib/oncePerWindow.js"; // TASKS.csv #1163
 import { requestModuleAction } from "./lib/menuRequests.js"; // TASKS.csv #565
 import { onProjectCrsRequest, requestProjectCrs } from "./lib/projectCrsRequest.js"; // TASKS.csv #615
@@ -726,7 +726,7 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, worldCursor = 
   // TASKS.csv #3235 — off the world views (Layout, Geochem…) the shared cursor is stale or a page position: E / N / Z read "—" there
   const cursor = worldCursor ? liveCursor : { x: null, y: null, z: null };
   const taskProgress = useTaskProgressValue();
-  const fmt = (v) => (v == null ? "—" : v.toLocaleString(undefined, { maximumFractionDigits: 1 }));
+  const fmt = (v) => (v == null ? "—" : fmtNum(v, { maximumFractionDigits: 1 }));
   const pyColor = pyStatus === "connected" ? "#e2a63c" : pyStatus === "checking" || pyStatus === "standby" ? "#55606e" : "#94a1b0";
   // #391 — interpolation no longer uses Python (#406); the README the old text pointed at isn't installed
   const pyLabel = (pyStatus === "connected" ? tr("Python engine: running") : pyStatus === "checking" ? tr("Python engine: checking…") : pyStatus === "standby" ? tr("Python engine: idle — starts when implicit modelling or a geophysics inversion needs it") : tr("Python engine: not available"))
@@ -741,7 +741,7 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, worldCursor = 
       <span>E <span className="val">{fmt(cursor.x)}</span></span>
       <span>N <span className="val">{fmt(cursor.y)}</span></span>
       <span>Z <span className="val">{fmt(cursor.z)}</span></span>
-      {(() => { const off = rlOffsetOf(project), rl = gridRlOf(cursor.z, off); return rl == null ? null : <span title={tr("Grid RL: the elevation plus the project's RL datum ({off} m, set under Project coordinate system)", { off: off.toLocaleString() })}>RL <span className="val">{fmt(rl)}</span></span>; })()}{/* TASKS.csv #2809 */}
+      {(() => { const off = rlOffsetOf(project), rl = gridRlOf(cursor.z, off); return rl == null ? null : <span title={tr("Grid RL: the elevation plus the project's RL datum ({off} m, set under Project coordinate system)", { off: fmtNum(off) })}>RL <span className="val">{fmt(rl)}</span></span>; })()}{/* TASKS.csv #2809 */}
       {/* TASKS.csv #2808 (split from #2526) — latitude / longitude (WGS 84) beside E / N when the project has a real CRS (not a local or unset one) */}
       {(() => { const ll = worldCursor /* TASKS.csv #3229 — not on Layout, whose cursor is a page position */ && cursor.x != null && cursor.y != null && project.crsSet !== false && project.epsg && isMetricProjectedEpsg(project.epsg) && getProj4DefSync(project.epsg) ? reprojectXY(cursor.x, cursor.y, project.epsg, 4326) : null;
         return ll && Number.isFinite(ll.x) && Number.isFinite(ll.y) ? <span title={tr("Latitude, longitude (WGS 84) of the cursor")}><span className="val">{ll.y.toFixed(5)}, {ll.x.toFixed(5)}</span></span> : null; })()}

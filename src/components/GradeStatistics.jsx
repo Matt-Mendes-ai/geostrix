@@ -24,7 +24,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "weath", "structzone", "geotech"]; // weath: #2162
 import { arrMin, arrMax, sortedWeighted } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread); sortedWeighted: #2910
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
-import { t as tr } from "../lib/i18n.js";
+import { t as tr, fmtNum } from "../lib/i18n.js";
 import { axisFig, axisTicks } from "../lib/numberFormat.js"; // TASKS.csv #3293 — axis ends in plain digits // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { gradeStatsRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
@@ -411,13 +411,13 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
               <div>
                 <div style={label}>{tr("Distribution — {symbol} ({v}){v2}", { symbol: symLabel, v: dispLabel, v2: logScale ? tr(", log₁₀ scale") : "" })}</div>
                 <Histogram data={histogram} unit={dispLabel} logScale={logScale} />{/* #3576 — titled and ticked */}
-                {logScale && histogram?.leftOut > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("{n} zero or negative values are not on the log scale.", { n: histogram.leftOut.toLocaleString() })}</div>}
+                {logScale && histogram?.leftOut > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("{n} zero or negative values are not on the log scale.", { n: fmtNum(histogram.leftOut) })}</div>}
               </div>
 
               <div>
                 <div style={label}>{tr("By domain — {groups} {v}", { groups: groups.length, v: tr(groups.length === 1 ? "group" : "groups") })}</div>
                 <BoxPlots groups={shownGroups} domainLabel={domainLabel} logScale={logScale} unit={dispLabel} />
-                {groups.length > SHOWN_MAX && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("The {shown} largest of {n} groups are drawn and listed; {more} more are in the CSV export.", { shown: SHOWN_MAX, n: groups.length.toLocaleString(), more: (groups.length - SHOWN_MAX).toLocaleString() })}</div>}{/* #2508 */}
+                {groups.length > SHOWN_MAX && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("The {shown} largest of {n} groups are drawn and listed; {more} more are in the CSV export.", { shown: SHOWN_MAX, n: fmtNum(groups.length), more: fmtNum((groups.length - SHOWN_MAX)) })}</div>}{/* #2508 */}
               </div>
 
               {/* TASKS.csv #1388 */}
@@ -448,7 +448,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                       <tr key={g.key}>
                         <td style={td}>{domainLabel(g.key)}</td>
                         <td style={td}>{g.stats.n}</td>
-                        <td style={{ ...td, ...(g.stats.n && g.ltN / g.stats.n > 0.5 ? { color: "var(--color-warn-text)", fontWeight: 600 } : {}) }}>{g.stats.n ? (g.zeroN ? <span title={tr("{n} of these results are reported as 0 (below detection or not analysed: the file does not say). They are in n and in the statistics, at 0.", { n: g.zeroN.toLocaleString() })}>{tr("{pct} ({n} at 0)", { pct: Math.round((100 * g.ltN) / g.stats.n), n: g.zeroN.toLocaleString() })}</span> : Math.round((100 * g.ltN) / g.stats.n)) : "—"}</td>{/* #2505; zeros: #3083, as Thresholds' '+N at 0' */}
+                        <td style={{ ...td, ...(g.stats.n && g.ltN / g.stats.n > 0.5 ? { color: "var(--color-warn-text)", fontWeight: 600 } : {}) }}>{g.stats.n ? (g.zeroN ? <span title={tr("{n} of these results are reported as 0 (below detection or not analysed: the file does not say). They are in n and in the statistics, at 0.", { n: fmtNum(g.zeroN) })}>{tr("{pct} ({n} at 0)", { pct: Math.round((100 * g.ltN) / g.stats.n), n: fmtNum(g.zeroN) })}</span> : Math.round((100 * g.ltN) / g.stats.n)) : "—"}</td>{/* #2505; zeros: #3083, as Thresholds' '+N at 0' */}
                         <td style={td}>{gradeText(g.stats.mean)}</td>
                         {weightingActive && <td style={td}>{gradeText(g.plainMean)}</td>}
                         <td style={td}>{gradeText(g.stats.median)}</td>
@@ -489,7 +489,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                       <tbody>
                         {cutRows.map((r) => (
                           <tr key={r.cutoff}>
-                            <td style={td}>≥ {gradeText(r.cutoff)}</td><td style={td}>{r.n.toLocaleString()}</td><td style={td}>{r.pctN.toFixed(1)}</td>
+                            <td style={td}>≥ {gradeText(r.cutoff)}</td><td style={td}>{fmtNum(r.n)}</td><td style={td}>{r.pctN.toFixed(1)}</td>
                             {source === "assays" && <><td style={td}>{r.length == null ? "—" : r.length.toFixed(1)}</td><td style={td}>{r.pctLength == null ? "—" : r.pctLength.toFixed(1)}</td></>}
                             <td style={td}>{r.mean == null ? "—" : gradeText(r.mean)}</td>
                             {alsoShown.map((x) => <td key={x} style={td}>{r.also[x] == null ? "—" : gradeText(r.also[x])}</td>)}

@@ -20,7 +20,7 @@ import { distinctValues } from "../../lib/layers.js";
 import { confirmDestructive } from "../../lib/confirmDestructive.js";
 import { chipLook } from "../../lib/viewer/modelHelpers.js";
 import { lazyModal } from "../../lib/lazyModal.jsx";
-import { t as tr } from "../../lib/i18n.js";
+import { t as tr, fmtNum } from "../../lib/i18n.js";
 import { orphanHoleIds } from "../../lib/noCollars.js"; // TASKS.csv #1809
 import { VE_CHOICES, veOf } from "./verticalExaggeration.js"; // TASKS.csv #2623
 import { drillSiteSpacing } from "../../lib/drillSpacing.js"; // TASKS.csv #2517
@@ -84,7 +84,7 @@ export function ViewToolbar({
                 <input type="color" title={tr("Grid colour")} value={gridConfig.color} onChange={(e) => setGridConfig((g) => ({ ...g, color: e.target.value }))} style={{ width: 30, height: 28, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
               </div>
               {gridAuto && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }} title={tr("Size and centre the grid from the collars' extent, with a round cell; a size you type turns this off")}>{/* #2318 */}
-                <input type="checkbox" checked={gridOnAuto} onChange={(e) => setGridConfig((g) => (e.target.checked ? { ...g, sizeAuto: true } : { ...g, sizeAuto: false, size: gridAuto.size, divisions: gridAuto.divisions }))} />{tr("Size from the data ({cell} m cells)", { cell: (gridAuto.size / gridAuto.divisions).toLocaleString() })}</label>}
+                <input type="checkbox" checked={gridOnAuto} onChange={(e) => setGridConfig((g) => (e.target.checked ? { ...g, sizeAuto: true } : { ...g, sizeAuto: false, size: gridAuto.size, divisions: gridAuto.divisions }))} />{tr("Size from the data ({cell} m cells)", { cell: fmtNum((gridAuto.size / gridAuto.divisions)) })}</label>}
               {/* TASKS.csv #311 — the origin axis lines: off by default (debug-looking in a screenshot); colours as the gizmo's (#189) */}
               <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 8, cursor: "pointer" }} title={tr("Draw the red/green/blue X/Y/Z axis lines at the project origin. Off by default — the corner gizmo already shows orientation, and these sit at an arbitrary point relative to your data.")}>
                 <input type="checkbox" checked={!!gridConfig.axes} onChange={(e) => setGridConfig((g) => ({ ...g, axes: e.target.checked }))} />{" "}{tr("Origin axis lines")}</label>
@@ -196,7 +196,7 @@ export function ViewToolbar({
         </div>
         {sectionMode && (
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginLeft: 4 }} title={tr("Every currently visible layer (litho, alteration, assays, structure, custom…) gets carried into the section")}>{tr("Buffer (m)")}<input type="number" value={sectionCorridor} onChange={(e) => { bufferTyped.current = true; setSectionCorridor(Math.max(1, Number(e.target.value) || 100)); }} style={{ width: 60, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" }} />
-            {spacing && !bufferTyped.current && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }} title={tr("Measured from the collars: {n} drill sites (collars within 2 m are one site), median distance to the nearest site {s} m. Type a buffer to keep your own.", { n: spacing.sites.toLocaleString(), s: Math.round(spacing.spacing * 10) / 10 })}>{tr("half the {s} m drill spacing", { s: Math.round(spacing.spacing * 10) / 10 })}</span>}{/* #2517 */}
+            {spacing && !bufferTyped.current && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }} title={tr("Measured from the collars: {n} drill sites (collars within 2 m are one site), median distance to the nearest site {s} m. Type a buffer to keep your own.", { n: fmtNum(spacing.sites), s: Math.round(spacing.spacing * 10) / 10 })}>{tr("half the {s} m drill spacing", { s: Math.round(spacing.spacing * 10) / 10 })}</span>}{/* #2517 */}
           </label>
         )}
         <RibbonButton advanced icon={Crosshair} label="By coordinates" tone="section" title="Open a section from a centre, azimuth and length — or through a hole (scissors in the Holes list)" {...paneProps("sectionCoords")} />
@@ -358,7 +358,7 @@ export function HoleRowList({ holes: given, filterKey, visibleHoles, onToggle, o
       ))}
       {rest > 0 && (
         <button onClick={() => setLimit((n) => n + HOLE_ROWS_STEP)} style={{ ...pBtn, marginTop: 4 }} title={tr("The list shows {n} holes at a time; the filter above finds any hole by its ID", { n: HOLE_ROWS_STEP })}>
-          {tr("Show {n} more ({rest} not listed)", { n: Math.min(HOLE_ROWS_STEP, rest), rest: rest.toLocaleString() })}
+          {tr("Show {n} more ({rest} not listed)", { n: Math.min(HOLE_ROWS_STEP, rest), rest: fmtNum(rest) })}
         </button>
       )}
     </>
@@ -426,7 +426,7 @@ export function LayerRow({ label, count, shown = null, visible, onToggle, onUplo
             inside the inspector (ListFilter above) — this is the "I don't want this tab's data at all
             anymore" case, the inspector handles "just pull out one of several CSVs I merged in". */}
         {count > 0 && onClear && <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(onClear, tr("Remove all data from the {label} layer", { label }))} />}
-        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onUpload} style={{ cursor: "pointer", fontSize: "var(--font-size-sm)", color: count ? "var(--color-accent)" : "var(--color-text-muted)", flexShrink: 0 }} title={tr("Import CSV")} aria-label={count ? tr("Import CSV into {label} ({count} rows)", { label, count }) : tr("Import CSV into {label}", { label })}>{count ? (shown != null && shown < count ? <span title={tr("{hidden} of {count} intervals hidden by the code filter (Filter / legend)", { hidden: (count - shown).toLocaleString(), count: count.toLocaleString() })}>{tr("{shown} of {count}", { shown, count })}</span> /* #3295 — filtered to some codes: said on the row */ : `${count}`) : <Upload size={12} />}</div>
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onUpload} style={{ cursor: "pointer", fontSize: "var(--font-size-sm)", color: count ? "var(--color-accent)" : "var(--color-text-muted)", flexShrink: 0 }} title={tr("Import CSV")} aria-label={count ? tr("Import CSV into {label} ({count} rows)", { label, count }) : tr("Import CSV into {label}", { label })}>{count ? (shown != null && shown < count ? <span title={tr("{hidden} of {count} intervals hidden by the code filter (Filter / legend)", { hidden: fmtNum((count - shown)), count: fmtNum(count) })}>{tr("{shown} of {count}", { shown, count })}</span> /* #3295 — filtered to some codes: said on the row */ : `${count}`) : <Upload size={12} />}</div>
         {input}
       </div>
       {expanded && children && (
@@ -566,7 +566,7 @@ export function VoxelRangeRow({ model, onUpdate, compact = false, onShell = null
         <VoxelRangeNumber value={dispMax} label={tr("Highest value shown of \"{name}\"", { name: model.name })} onCommit={(v) => { const x = Math.max(Math.min(v, model.max), dispMin); setDispMax(x); onUpdate(model.id, { rangeMax: storeMax(x) }); }} />{valueUnit(model) && <span style={{ color: "var(--color-text-faint)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{valueUnit(model)}</span>}{/* #2585 / #2457 */}
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>
-        <span>{tr("Showing {visibleCount} of {cells} cell(s)", { visibleCount: visibleCount.toLocaleString(), cells: model.cells.length.toLocaleString() })}</span>
+        <span>{tr("Showing {visibleCount} of {cells} cell(s)", { visibleCount: fmtNum(visibleCount), cells: fmtNum(model.cells.length) })}</span>
         {isFiltered && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={reset} style={{ cursor: "pointer", color: "var(--color-info)" }}>{tr("Reset")}</span>}
       </div>
       {sameCells.length > 0 && ( // TASKS.csv #1808 (review #1646, Kodiak) — two inversions on one mesh drew a mosaic of two palettes
