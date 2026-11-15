@@ -12,7 +12,7 @@ import { errorNotice, notice } from "../../lib/notices.js"; // notice: #2937
 import { resolveLayerStyle } from "../../lib/layerStyle.js";
 import { customColour } from "../../lib/customColour.js";
 import { PickStandIn } from "../../lib/viewer/pickStandIn.js";
-import { buildLayerBatches, collarMarkerMaterial, syncBatchedInstances } from "../../lib/viewer/layerBatches.js";
+import { buildLayerBatches, collarMarkerMaterial, syncBatchedInstances, zeroRow } from "../../lib/viewer/layerBatches.js"; // zeroRow: #3628
 import { syncHoleLabels } from "../../lib/viewer/holeLabels.js";
 import { addTraceChunks } from "../../lib/viewer/traceBatch.js"; // #2176 step 3
 import { makeTextSprite } from "../../lib/viewer/textSprite.js";
@@ -116,7 +116,7 @@ export function retireHoles(g, holes) {
     const cp = c.userData?.compact;
     if (cp) {
       let hit = false;
-      for (let i = 0; i < cp.rows.length; i++) if (cp.rows[i] !== RETIRED_ROW && holes.has(cp.rows[i]?.holeId)) { cp.rows[i] = RETIRED_ROW; cp.base.fill(0, i * 16, i * 16 + 16); cp.hidden[i] = 1; hit = true; }
+      for (let i = 0; i < cp.rows.length; i++) if (cp.rows[i] !== RETIRED_ROW && holes.has(cp.rows[i]?.holeId)) { cp.rows[i] = RETIRED_ROW; zeroRow(c, i); hit = true; }
       if (hit) syncBatchedInstances(c);
       return true;
     }
