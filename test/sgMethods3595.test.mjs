@@ -16,7 +16,7 @@ test("sgSummary: the method column counted (measured / calculated / other); no m
   assert.equal(sgSummary([r(2.8), r(3.0)]).methods, undefined, "no method column: the summary as before");
   assert.equal(sgMethodsText(s.methods), 'By the file\'s "method" column: 3 measured, 2 calculated (33 %), 1 other.');
   assert.equal(sgMethodsText(null), "");
-  assert.deepEqual(DENSITY_RANGE, [1, 8]);
+  assert.deepEqual(DENSITY_RANGE, [1, 6], "Matt's #3587: 1-6 by default (a project setting will raise it)");
 });
 
 test("Macpass: Tom West's densities 42 % regressed; its own mean against the whole project's", () => {

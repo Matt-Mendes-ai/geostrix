@@ -2,7 +2,7 @@
 // the grade model's lattice ('Match <model>'), but Grade-tonnage took one typed density or one per logged code. Pure.
 
 // the densities a block may take from a model, t/m³ (a value outside is not a density: the block takes the typed default)
-export const DENSITY_RANGE = [1, 8]; // TASKS.csv #3595 — was 1-6: Macpass holds measured 6.0-6.9 t/m3 (massive sulphide); sgSummary's 1-8
+export const DENSITY_RANGE = [1, 6];
 
 // TASKS.csv #3172 (split from #3014 part b) — the density choice offered any model on the same blocks, and a grade whose values fall in 1-6
 // (Fe in an iron project's waste, Al2O3 at 1.8-10 %, Cu in %) read as a density there. Only a model named or estimated as one is offered:

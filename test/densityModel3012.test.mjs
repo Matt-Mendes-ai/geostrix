@@ -19,7 +19,7 @@ test("the same lattice, or not", () => {
 test("each block its own density; out of range or missing: the typed default; the tonnage by hand", () => {
   const d = densityFromModel(dens.cells, blockModelLattice(grade), 2.7);
   assert.deepEqual(grade.cells.map((c) => d.of(c)), [3.2, 2.8, 2.7, 2.7]);
-  assert.deepEqual(d.stats(), { taken: 3, outOfRange: 1 }); assert.deepEqual(DENSITY_RANGE, [1, 8]); // #3595: 1-8 (massive sulphide)
+  assert.deepEqual(d.stats(), { taken: 3, outOfRange: 1 }); assert.deepEqual(DENSITY_RANGE, [1, 6]);
   const rows = gradeTonnageTable(grade.cells, { cutoffs: [55], density: 2.7, unit: "%", densityOf: d.of });
   // at 55 %: the 60 % block (3.2) and the 58 % block (2.7), each 500 m3 -> 1,600 + 1,350 = 2,950 t
   assert.ok(Math.abs(rows[0].tonnes - 2950) < 1e-6, String(rows[0].tonnes));
