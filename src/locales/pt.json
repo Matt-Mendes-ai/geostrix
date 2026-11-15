@@ -13300,5 +13300,7 @@
   "Mark {n} as duplicates": "Marcar {n} como duplicatas",
   "Review {n} repeated interval(s) and mark duplicates…": "Revisar {n} intervalo(s) repetido(s) e marcar duplicatas…",
   "Lists the pairs of rows over one hole and interval so you can mark the ones that are duplicates: it writes a sample type and a parent sample id onto the second row of each pair you tick, and nothing else.": "Lista os pares de linhas sobre um mesmo furo e intervalo para você marcar as duplicatas: grava um tipo de amostra e um identificador de amostra de origem na segunda linha de cada par marcado, e nada mais.",
-  "{n} pair(s) marked: the second row of each is now a field duplicate of the first.": "{n} par(es) marcado(s): a segunda linha de cada um agora é uma duplicata de campo da primeira."
+  "{n} pair(s) marked: the second row of each is now a field duplicate of the first.": "{n} par(es) marcado(s): a segunda linha de cada um agora é uma duplicata de campo da primeira.",
+  "{n} point is on a hole's axis ({where}); Shift-click keeps the surface point": "{n} ponto está sobre o eixo de um furo ({where}); com Shift mantém-se o ponto da superfície",
+  "{n} points are on a hole's axis ({where}); Shift-click keeps the surface point": "{n} pontos estão sobre o eixo de um furo ({where}); com Shift mantém-se o ponto da superfície"
 }

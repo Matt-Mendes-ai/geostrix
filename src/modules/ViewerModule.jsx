@@ -217,6 +217,7 @@ import { buildDrillholeScene, collarColorFor, voxelFitCorners, isIntervalRow } f
 import { viewNdc } from "../lib/viewer/clickPoint.js"; // TASKS.csv #2803
 import { hideTraceHoles } from "../lib/viewer/traceBatch.js"; // TASKS.csv #2176
 import { closedShellsOf } from "./viewer/estimationShells.js"; // TASKS.csv #2695
+import { snapMeasurePoint } from "../lib/viewer/measureSnap.js"; // TASKS.csv #3643
 import { findOnTraceWorld, findOnTrace, traceLookup, traceOfHole /* #2931 */, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
 import { syncDrawLods } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
@@ -227,6 +228,7 @@ import { useSurfaceUndo, stashSurface } from "./viewer/surfaceUndo.js"; // TASKS
 import { useModelling } from "./viewer/useModelling.js";
 import { useUnitSource } from "./viewer/useUnitSource.js"; // TASKS.csv #2378
 import { wheelZoom } from "./viewer/wheelZoom.js"; // #2368
+import { makeWheelAnchors } from "./viewer/wheelAnchors.js"; // TASKS.csv #3247
 import { useDrillLineDefaults } from "./viewer/drillLines.js"; // #2366
 import { sectionTopView, viewCentreEN } from "./viewer/sectionView.js"; // TASKS.csv #3574
 import { pBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704 // TASKS.csv #445 step 2
@@ -2209,7 +2211,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     // practical ceiling a user would ever actually reach for a mine-scale (or even regional-scale)
     // property — a true Infinity isn't meaningful here since floating-point precision and the
     // camera's far plane both have real limits regardless.
-    const onWheel = (e) => { e.preventDefault(); wheelZoom(e, renderer.domElement, camera, raycasterRef.current, camState.current, (rc) => firstVisibleLayerHit(pickHits(rc))?.point); updateCamera(); }; // #2368 toward the cursor
+    const wheelAnchorsFor = makeWheelAnchors(); // #3247 — the holes' points a missed zoom ray falls back on
+    const onWheel = (e) => { e.preventDefault(); wheelZoom(e, renderer.domElement, camera, raycasterRef.current, camState.current, (rc) => firstVisibleLayerHit(pickHits(rc))?.point, { anchors: () => wheelAnchorsFor(tracesRef.current, visibleHolesRef.current) }); updateCamera(); }; // #2368 toward the cursor
     const onContextMenuEvt = (e) => {
       e.preventDefault();
       const rd = rightDrag.onMenu(Date.now(), { clientX: e.clientX, clientY: e.clientY }); if (rd !== "open") return; // #2043 — no menu after a right-drag (pan)
@@ -5429,10 +5432,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const { x: mx, y: my } = viewNdc(e, rect, mcDownRef.current); // #2803 — the press's own point
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2(mx, my), cameraRef.current);
-    const world = raycastWorldPoint(raycaster); // the status bar's nearest-feature raycast; plane: true off everything (#2807)
+    const hits = pickHits(raycaster), found = worldPointFromHits(raycaster, hits); // the status bar's nearest-feature raycast; plane: true off everything (#2807)
+    const world = snapMeasurePoint(found, hits, tracesRef.current, { shift: e.shiftKey }); // #3643 — on a hole's own drawing the point is on its axis (Shift: the surface)
     if (!world) return;
     setMeasurePts((pts) => [...pts, world]);
-  }, [measureMode, raycastWorldPoint]);
+  }, [measureMode, pickHits, worldPointFromHits]);
   const clearMeasure = () => setMeasurePts([]);
   const onPickHoleClick = useCallback((e) => {
     if (!pickHoleMode) return;

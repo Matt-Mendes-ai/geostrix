@@ -3,6 +3,13 @@
 // about ten notches with a pan between each few. Now the whole orbit (camera and target) is scaled about the point under the cursor, so
 // that point keeps its place on screen: the first object hit, else the horizontal plane through the orbit target; with neither, the
 // centre as before. Pure geometry plus one raycast; no React.
+// TASKS.csv #3247 (review #2325, #2941 (6); reproduced on Macpass at VE 10x, 2026-11-15) — over a dense block seen obliquely the cursor sits in the
+// gaps between 1-2 px traces: the ray misses all of them (34 of 36 cursor positions over the Macpass cluster), the zoom closes on the reference
+// plane through the orbit target, which lies BEHIND the block, so six notches fly the camera through the block and the 100 m view is empty. Now
+// a miss tries the drawn holes' own points first: the one nearest the cursor on screen (within ANCHOR_RADIUS_PX) sets the zoom's depth — the point
+// of the cursor's ray nearest to it — so the camera converges on the block, not past it; the cursor's own point stays put (the ray is the same).
+import * as THREE from "three";
+export const ANCHOR_RADIUS_PX = 60;
 
 // target moved toward p as the radius goes r0 -> r1 (a homothety about p, ratio r1 / r0, applied to the target; the camera follows from
 // the radius and angles). Mutates and returns target.
@@ -23,8 +30,28 @@ export function rayPlaneY(ray, h) {
   return t > 0 ? { x: ray.origin.x + ray.direction.x * t, y: h, z: ray.origin.z + ray.direction.z * t } : null;
 }
 
+// anchors: x, y, z, x, y, z… (scene coordinates; Float32Array or array) -> the point of the ray (true frame) nearest in depth to the anchor that is nearest the
+// cursor on screen and within radiusPx, or null. One pass of projections: a few tenths of a ms for 30,000 anchors.
+const _M = new THREE.Matrix4();
+export function anchorOnRay(ray, camera, anchors, rect, clientX, clientY, radiusPx = ANCHOR_RADIUS_PX) {
+  if (!anchors || anchors.length < 3 || !camera || !(rect.width > 0) || !(rect.height > 0)) return null;
+  const m = _M.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse).elements; // the view matrix carries the vertical exaggeration (#2623)
+  const cx = ((clientX - rect.left) / rect.width) * 2 - 1, cy = -((clientY - rect.top) / rect.height) * 2 + 1, kx = rect.width / 2, ky = rect.height / 2;
+  let best = -1, bd = radiusPx * radiusPx;
+  for (let i = 0; i + 2 < anchors.length; i += 3) {
+    const x = anchors[i], y = anchors[i + 1], z = anchors[i + 2];
+    const w = m[3] * x + m[7] * y + m[11] * z + m[15];
+    if (!(w > 0)) continue; // behind the camera
+    const dx = ((m[0] * x + m[4] * y + m[8] * z + m[12]) / w - cx) * kx, dy = ((m[1] * x + m[5] * y + m[9] * z + m[13]) / w - cy) * ky, d = dx * dx + dy * dy;
+    if (d < bd) { bd = d; best = i; }
+  }
+  if (best < 0) return null;
+  const o = ray.origin, r = ray.direction, t = (anchors[best] - o.x) * r.x + (anchors[best + 1] - o.y) * r.y + (anchors[best + 2] - o.z) * r.z;
+  return t > 0 ? { x: o.x + r.x * t, y: o.y + r.y * t, z: o.z + r.z * t } : null;
+}
+
 // e: the wheel event; el: the canvas; raycaster: a THREE.Raycaster; cs: { radius, target }; hitPoint(raycaster) -> a point or null
-export function wheelZoom(e, el, camera, raycaster, cs, hitPoint, { min = 0.05, max = 4000000, rate = 0.0012 } = {}) {
+export function wheelZoom(e, el, camera, raycaster, cs, hitPoint, { min = 0.05, max = 4000000, rate = 0.0012, anchors = null } = {}) {
   const r0 = cs.radius, r1 = Math.max(min, Math.min(max, r0 * (1 + e.deltaY * rate)));
   cs.radius = r1;
   if (r1 === r0 || !el || !camera || !raycaster) return;
@@ -33,5 +60,6 @@ export function wheelZoom(e, el, camera, raycaster, cs, hitPoint, { min = 0.05, 
   raycaster.setFromCamera({ x: ((e.clientX - rect.left) / rect.width) * 2 - 1, y: -((e.clientY - rect.top) / rect.height) * 2 + 1 }, camera);
   let p = null;
   try { p = hitPoint ? hitPoint(raycaster) : null; } catch { p = null; }
+  if (!p && anchors) { try { p = anchorOnRay(raycaster.ray, camera, typeof anchors === "function" ? anchors() : anchors, rect, e.clientX, e.clientY); } catch { p = null; } } // #3247 — a miss: the holes' own depth before the plane
   scaleTargetAbout(cs.target, p || rayPlaneY(raycaster.ray, cs.target.y), r0, r1);
 }

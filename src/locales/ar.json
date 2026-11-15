@@ -13300,5 +13300,7 @@
   "Mark {n} as duplicates": "تعليم {n} كنسخ مكررة",
   "Review {n} repeated interval(s) and mark duplicates…": "مراجعة {n} فاصل مكرر وتعليم النسخ المكررة…",
   "Lists the pairs of rows over one hole and interval so you can mark the ones that are duplicates: it writes a sample type and a parent sample id onto the second row of each pair you tick, and nothing else.": "يعرض أزواج الصفوف على الحفرة والفاصل نفسيهما لتعلّم النسخ المكررة: يكتب نوع العينة ومعرّف العينة الأم على الصف الثاني من كل زوج تحدده، ولا شيء آخر.",
-  "{n} pair(s) marked: the second row of each is now a field duplicate of the first.": "عُلِّم {n} زوجاً: الصف الثاني من كل زوج صار الآن نسخة مكررة حقلية من الأول."
+  "{n} pair(s) marked: the second row of each is now a field duplicate of the first.": "عُلِّم {n} زوجاً: الصف الثاني من كل زوج صار الآن نسخة مكررة حقلية من الأول.",
+  "{n} point is on a hole's axis ({where}); Shift-click keeps the surface point": "نقطة {n} على محور ثقب حفر ({where})؛ النقر مع Shift يُبقي نقطة السطح",
+  "{n} points are on a hole's axis ({where}); Shift-click keeps the surface point": "{n} نقاط على محور ثقب حفر ({where})؛ النقر مع Shift يُبقي نقطة السطح"
 }
