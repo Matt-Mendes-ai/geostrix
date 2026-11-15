@@ -12,6 +12,7 @@ import * as THREE from "three";
 import { lodRoot, tileBox, tileKey, TileLru } from "../lodTiles.js";
 import { chooseSceneTiles, tilesToDraw, pixelAtFor } from "./lodDrape.js";
 import { terrainMeshElevation } from "./terrainDrape.js";
+import { lodBudget, cameraHash } from "./lodBudget.js"; // the budget follows the frame time
 
 export const DEM_CELLS = 64, DEM_NODES = DEM_CELLS + 1;
 export const TERRAIN_SPLIT_PX = 6; // a node spacing over 6 screen pixels: split
@@ -161,11 +162,11 @@ export function hideUnderTerrainTiles(material, alsoBit1 = false) {
 // One per 3D View: sync() with the scene's state, tick() from the render loop. ctx: { group, terrain, terrainMesh, epsg, origin, rasters,
 // rasterCache, mapLayers, mapLayerCache, lodDrape: () => the imagery tiles' instance or null, wake }
 export function createLodTerrain({ read = null } = {}) {
-  let ctx = null, lod = null, dirty = true, lastAt = 0, camSig = "", dsigLast = "", store = null;
+  let ctx = null, lod = null, dirty = true, lastAt = 0, camSig = "", dsigLast = "", store = null, lastHash = 0, lastFactor = 1;
   const memory = new TileLru(DEM_MEMORY_BYTES, () => {});
   const queue = new Map(), running = new Set(), failedAt = new Map();
   const tiles = new Map(); // key -> { ground, mark, overlays: Map, sig, box, wx, wy }
-  const st = { tiles: 0, wanted: 0, finestM: null, tickMs: 0, triangles: 0, memoryBytes: 0, loading: 0 };
+  const st = { tiles: 0, wanted: 0, finestM: null, tickMs: 0, triangles: 0, memoryBytes: 0, loading: 0, budget: 1 };
   globalThis.__geostrixLodTerrainStats = st; // read-only numbers, for measuring the tiles live
   const srcKey = () => `dem-${lod.source}-${ctx.terrain.id}`;
   const readTile = read || (async (box) => (lod.source === "pattern" ? patternHeights(ctx.terrain, box) : lod.source === "aws" ? awsHeights(ctx.terrain, box, lod.epsg) : null));
@@ -198,22 +199,24 @@ export function createLodTerrain({ read = null } = {}) {
       if (!same) { dropAll(); memory.clear(); queue.clear(); }
       ctx = next; dirty = true;
       lod = terrainLodOf(ctx.terrain, ctx.epsg);
-      if (!lod || ctx.terrain?.visible === false) dropAll();
+      if (!lod || ctx.terrain?.visible === false || ctx.enabled === false /* the 'Detail tiles' switch */) { dropAll(); lod = ctx.enabled === false ? null : lod; }
     },
     tick(camera, viewportH) {
+      { const h = cameraHash(camera); lodBudget.sample(performance.now(), h !== lastHash); lastHash = h; }
       if (!ctx || !lod || !ctx.terrain || ctx.terrain.visible === false || !(viewportH > 0)) return;
       const now = performance.now();
       if (now - lastAt < TICK_MS) return;
       const sig = `${camera.matrixWorld.elements.map((v) => v.toFixed(2)).join(",")}|${camera.projectionMatrix.elements[0].toFixed(4)}|${camera.zoom}|${viewportH}`;
       const drapeTiles = ctx.lodDrape?.()?.tileMeshes?.() || [];
       const dsig = drapeTiles.map((d) => d.key).join(";");
-      if (!dirty && sig === camSig && dsig === dsigLast) return;
-      lastAt = now; camSig = sig; dirty = false; dsigLast = dsig;
+      const factor = lodBudget.factor();
+      if (!dirty && sig === camSig && dsig === dsigLast && factor === lastFactor) return;
+      lastAt = now; camSig = sig; dirty = false; dsigLast = dsig; lastFactor = factor;
       const t0 = performance.now();
       const { group, terrain, origin } = ctx;
       const base = terrainNodeM(terrain);
       const pseudo = { bbox: terrain.bbox, lod: { nativeM: lod.nativeM }, pixelM: base };
-      const chosen = chooseSceneTiles(pseudo, pixelAtFor(camera, viewportH, origin, terrain), { maxTiles: TERRAIN_MAX_TILES, ratio: TERRAIN_SPLIT_PX, tilePx: DEM_CELLS });
+      const chosen = chooseSceneTiles(pseudo, pixelAtFor(camera, viewportH, origin, terrain), { maxTiles: Math.max(4, Math.round(TERRAIN_MAX_TILES * factor)) /* the budget */, ratio: TERRAIN_SPLIT_PX, tilePx: DEM_CELLS });
       const src = srcKey();
       const want = chosen?.tiles || [];
       st.wanted = want.length;
@@ -285,7 +288,7 @@ export function createLodTerrain({ read = null } = {}) {
       }
       st.tiles = tiles.size; st.triangles = tris; st.memoryBytes = memory.bytes;
       st.finestM = null; for (const t of tiles.values()) if (st.finestM == null || t.ground.userData.nodeM < st.finestM) st.finestM = t.ground.userData.nodeM;
-      st.tickMs = performance.now() - t0;
+      st.tickMs = performance.now() - t0; st.budget = factor;
     },
     stats: () => ({ ...st }),
     dispose() { dropAll(); memory.clear(); queue.clear(); ctx = null; },

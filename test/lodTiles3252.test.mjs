@@ -78,9 +78,9 @@ test("wired: the fetch keeps the source with the raster, the plan draws and asks
   const read = (p) => readFileSync(new URL(`../src/${p}`, import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(read("lib/naipFetch.js"), /const lod = \{ source: "naip", epsg: dst, nativeM: finest, items: items\.map/);
   assert.match(read("modules/RasterModule.jsx"), /\.\.\.\(r\.lod && !tie \? \{ lod: r\.lod \} : \{\}\)/);
-  assert.match(read("modules/RasterModule.jsx"), /<LodCacheLine hasLod=\{rasters\.some\(\(r\) => r\.lod\)\} \/>/);
+  assert.match(read("modules/RasterModule.jsx"), /<LodCacheLine hasLod=\{rasters\.some\(\(r\) => r\.lod\)\}( rasters=\{rasters\})? \/>/ /* rasters: #3252 phase 4 */);
   const p = read("components/MapsPlanView.jsx");
-  assert.match(p, /const plan = planLodTiles\(r, viewBoxL, v\.mPerPx\);/);
+  assert.match(p, /plan = planLodTiles\(r, viewBoxL, v\.mPerPx \* capFactor, capFactor < 1 \? \{ maxTiles: CAPTURE_MAX_TILES \} : undefined\);/ /* #3252 phase 4: the snapshot's own pixel */);
   assert.match(p, /L\.wantLodTiles\(wanted, \[v\.cx, v\.cy\], \(\) => setTick\(\(t\) => t \+ 1\)\);/);
   assert.match(p, /import\("\.\.\/lib\/lodTileLoader\.js"\)/); // loaded on first use
   assert.doesNotMatch(p, /^import .*lodTileLoader/m);

@@ -344,11 +344,11 @@ export default function App() {
   // TASKS.csv #3087 — the dialog first (which parts of the project), then the export
   const [kmzOpen, setKmzOpen] = useState(false);
   const doExportKmz = useCallback(() => setKmzOpen(true), []);
-  const runKmzExport = useCallback(async (include) => {
+  const runKmzExport = useCallback(async (include, opts = {}) => { // opts.lodPixelM: TASKS.csv #3252 phase 4
     setKmzOpen(false);
     try {
       const m = await import("./lib/projectKmzExport.js");
-      await m.exportProjectKmz(storeRef.current, { include });
+      await m.exportProjectKmz(storeRef.current, { include, lodPixelM: opts.lodPixelM || null });
     } catch (err) {
       try { window.dispatchEvent(new CustomEvent(EXPORT_RESULT_EVENT, { detail: { ok: false, name: "KMZ", error: String(err?.message || err) } })); } catch { /* no window */ }
     }
