@@ -9,7 +9,7 @@ const vm = rd("../src/modules/ViewerModule.jsx"), parts = rd("../src/modules/vie
 const ribbon = rd("../src/components/Ribbon.jsx"), overlay = rd("../src/components/ViewportFigureOverlay.jsx");
 
 test("the hole list is capped, with Show more, and starts again on a new filter", () => {
-  assert.ok(vm.includes("<HoleRowList holes={tickedShown(collars, holeFilter)} filterKey={JSON.stringify(holeFilter)}"));
+  assert.ok(vm.includes("<HoleRowList holes={tickedShown(collars, holeFilter, holeSets)} filterKey={JSON.stringify(holeFilter)}"));
   assert.ok(!vm.includes("tickedShown(collars, holeFilter).map("));
   assert.ok(parts.includes("export const HOLE_ROWS_STEP = 300;"));
   assert.ok(parts.includes("{holes.slice(0, limit).map((c) => ("));

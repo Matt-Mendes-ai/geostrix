@@ -12986,5 +12986,13 @@
   "{n} holes ({ids}) share the same collar (within 1m) AND point the same way (within 3°) — a wedge or daughter hole, a twin or re-drill, a duplicate import, or a coordinate entry error.": "{n} sondages ({ids}) partagent le même collet (à moins de 1 m) ET pointent dans la même direction (à moins de 3°) : un sondage de déviation ou fils, un jumeau ou un reforage, une importation en double ou une erreur de saisie de coordonnées.",
   "{n} row(s) have coordinates already in the project CRS (EPSG:{epsg}), so they were not changed": "{n} ligne(s) ont déjà leurs coordonnées dans le SCR du projet (EPSG:{epsg}) et n'ont donc pas été modifiées",
   " (no source CRS given)": " (aucun SCR source indiqué)",
-  "Read from the {col} column of the file: {list}": "Lu dans la colonne {col} du fichier : {list}"
+  "Read from the {col} column of the file: {list}": "Lu dans la colonne {col} du fichier : {list}",
+  "By what holes have…": "Par ce que les sondages ont…",
+  "Holes with {what}": "Sondages avec {what}",
+  "Holes with no {what}": "Sondages sans {what}",
+  "No data called {name} here: has:assays, no:assays, or the name of a layer of this project.": "Aucune donnée nommée {name} ici : has:assays, no:assays ou le nom d'une couche de ce projet.",
+  "No hole matches. The box reads part of a hole id, field=value, a number test such as year>=2017, length>300 or year=2017..2023, and has:assays or no:assays.": "Aucun sondage ne correspond. La zone lit une partie d'un identifiant de sondage, champ=valeur, un test numérique comme year>=2017, length>300 ou year=2017..2023, et has:assays ou no:assays.",
+  "{shown} of {total} holes shown": "{shown} sondages sur {total} affichés",
+  "Over the {shown} of {total} holes shown.": "Sur les {shown} sondages affichés sur {total}.",
+  "Filter holes by what they have": "Filtrer les sondages par ce qu'ils ont"
 }

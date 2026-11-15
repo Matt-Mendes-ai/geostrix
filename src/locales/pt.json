@@ -12986,5 +12986,13 @@
   "{n} holes ({ids}) share the same collar (within 1m) AND point the same way (within 3°) — a wedge or daughter hole, a twin or re-drill, a duplicate import, or a coordinate entry error.": "{n} furos ({ids}) compartilham o mesmo colar (a menos de 1 m) E apontam na mesma direção (a menos de 3°): um furo de cunha ou filho, um gêmeo ou reperfuração, uma importação duplicada ou um erro de digitação de coordenadas.",
   "{n} row(s) have coordinates already in the project CRS (EPSG:{epsg}), so they were not changed": "{n} linha(s) já têm coordenadas no SRC do projeto (EPSG:{epsg}), então não foram alteradas",
   " (no source CRS given)": " (sem SRC de origem informado)",
-  "Read from the {col} column of the file: {list}": "Lido da coluna {col} do arquivo: {list}"
+  "Read from the {col} column of the file: {list}": "Lido da coluna {col} do arquivo: {list}",
+  "By what holes have…": "Pelo que os furos têm…",
+  "Holes with {what}": "Furos com {what}",
+  "Holes with no {what}": "Furos sem {what}",
+  "No data called {name} here: has:assays, no:assays, or the name of a layer of this project.": "Não há dados chamados {name} aqui: has:assays, no:assays ou o nome de uma camada deste projeto.",
+  "No hole matches. The box reads part of a hole id, field=value, a number test such as year>=2017, length>300 or year=2017..2023, and has:assays or no:assays.": "Nenhum furo corresponde. A caixa lê parte de um id de furo, campo=valor, um teste numérico como year>=2017, length>300 ou year=2017..2023, e has:assays ou no:assays.",
+  "{shown} of {total} holes shown": "{shown} de {total} furos mostrados",
+  "Over the {shown} of {total} holes shown.": "Sobre os {shown} de {total} furos mostrados.",
+  "Filter holes by what they have": "Filtrar furos pelo que têm"
 }

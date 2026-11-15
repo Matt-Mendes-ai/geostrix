@@ -1,3 +1,4 @@
+import { rowsOf, lengthOf } from "./rowTable.js"; // TASKS.csv #3554
 // TASKS.csv #1316 — the hole list's filter: parts of a hole id, separated by commas or spaces; a hole matches any of them.
 export function holesMatching(ids, filter) {
   const terms = String(filter || "").toLowerCase().split(/[,\s]+/).filter(Boolean);
@@ -72,7 +73,73 @@ export function collarsMatchingList(collars, filter) {
   });
 }
 
-export function holesForFilter(collars, filter) {
+// TASKS.csv #3554 (Fireweed rehearsal, Macpass) — 'year >= 2017' took seven menu picks, a typed 'year>=2017' listed nothing without a word, and the
+// 127 holes with no assays could not be picked at all. Terms the box now reads besides ids and 'field=value':
+//   year>=2017  year>2016  length<=300  length>300   a number compared with a collar field whose value reads as one (a collar's own length,
+//                                                    depth, z, x, y too); the terms AND together, so 'year>=2017 year<=2019' is a range;
+//   year=2017..2023                                  the same range in one term (both ends in);
+//   has:assays  no:assays  has:litho  no:sg ...      holes that do / do not appear in the assays or in a layer (holeSets, below).
+// -> { numeric: [{ key, op, a, b }], sets: [{ has, name }], rest: the other terms as the text the existing rules read }
+const CMP = /^([^<>=:,\s]+?)(>=|<=|>|<)(-?\d+(?:\.\d+)?)$/, RANGE = /^([^<>=:,\s]+?)=(-?\d+(?:\.\d+)?)\.\.(-?\d+(?:\.\d+)?)$/, SETT = /^(has|no):(.+)$/i;
+export function parseFilterTerms(filter) {
+  const numeric = [], sets = [], rest = [];
+  for (const t of String(filter || "").split(/[,\s]+/).filter(Boolean)) {
+    let m;
+    if ((m = SETT.exec(t))) sets.push({ has: m[1].toLowerCase() === "has", name: norm(m[2]) });
+    else if ((m = RANGE.exec(t))) numeric.push({ key: norm(m[1]), op: "..", a: Math.min(+m[2], +m[3]), b: Math.max(+m[2], +m[3]) });
+    else if ((m = CMP.exec(t))) numeric.push({ key: norm(m[1]), op: m[2], a: +m[3] });
+    else rest.push(t);
+  }
+  return { numeric, sets, rest: rest.join(" ") };
+}
+// the number a collar holds in a field: its own (length, depth, z, x, y, elevation) or a collar attribute that reads as a number
+const OWN = { length: "length", depth: "length", z: "z", elevation: "z", rl: "z", x: "x", y: "y", easting: "x", northing: "y" };
+export function collarNumber(c, key) {
+  const vals = [];
+  const a = c?.attrs || {};
+  for (const k of Object.keys(a)) if (norm(k) === key) vals.push(a[k]);
+  if (!vals.length && OWN[key] && c?.[OWN[key]] != null) vals.push(c[OWN[key]]);
+  for (const v of vals) { const t = String(v ?? "").trim(); if (t !== "" && Number.isFinite(+t)) return +t; }
+  return NaN;
+}
+const passes = (n, { op, a, b }) => Number.isFinite(n) && (op === ">=" ? n >= a : op === "<=" ? n <= a : op === ">" ? n > a : op === "<" ? n < a : n >= a && n <= b);
+// the ids of the holes that appear in the assays and in each layer: { assays: Set, litho: Set ... } (rows with a hole_id), for 'has:' / 'no:'
+const SETS_SEEN = new WeakMap();
+export function holeSetsOf(assays, layers) {
+  const key = Array.isArray(assays) || (assays && typeof assays === "object") ? assays : NO_SETS_KEY;
+  const lm = layers && typeof layers === "object" ? layers : NO_SETS_KEY;
+  let byLayers = SETS_SEEN.get(key);
+  if (byLayers?.has(lm)) return byLayers.get(lm);
+  const ids = (rows) => { const out = new Set(); for (const r of rowsOf(rows) || []) if (r?.hole_id != null) out.add(String(r.hole_id)); return out; };
+  const out = { assays: ids(assays) };
+  for (const k of Object.keys(lm)) { const rows = lm[k]; if (lengthOf(rows) > 0) out[norm(k)] = ids(rows); }
+  if (!byLayers) SETS_SEEN.set(key, (byLayers = new Map()));
+  byLayers.set(lm, out);
+  return out;
+}
+const NO_SETS_KEY = {};
+
+// TASKS.csv #3555 / #3561 — the holes hidden in the Holes list (a hole is hidden only when its entry is false), and the traces of those shown
+// (the same array when none is hidden)
+export function hiddenHoleCount(collars, visibleHoles) { let n = 0; for (const c of collars || []) if (visibleHoles?.[c.hole_id] === false) n++; return n; }
+export const fenceTracesOf = (traces, visibleHoles) => { const t = traces || []; return t.some((x) => visibleHoles?.[x.hole_id] === false) ? t.filter((x) => visibleHoles?.[x.hole_id] !== false) : t; };
+
+// ctx: { holeSets } (holeSetsOf). -> { holes, byField, hint }: hint = null, or { kind: "set", names: [unknown set names] } / { kind: "none" } when a typed number or has / no term matched nothing
+export function holesForFilter(collars, filter, ctx = {}) {
+  const p = parseFilterTerms(filter);
+  if (!p.numeric.length && !p.sets.length) return plain(collars, filter);
+  const base = plain(collars, p.rest);
+  let holes = base.holes;
+  for (const n of p.numeric) holes = holes.filter((c) => passes(collarNumber(c, n.key), n));
+  const unknown = [];
+  for (const s of p.sets) {
+    const set = ctx.holeSets?.[s.name];
+    if (!set) { unknown.push(s.name); holes = []; continue; }
+    holes = holes.filter((c) => set.has(String(c.hole_id)) === s.has);
+  }
+  return { holes, byField: base.byField && !!holes.length, hint: unknown.length ? { kind: "set", names: unknown } : null };
+}
+function plain(collars, filter) {
   const holes = collarsMatchingList(collars, filter); // #3278
   const text = norm(filter).replace(/\s+/g, " ");
   if (holes.length || !text || String(filter).includes("=")) return { holes, byField: false };

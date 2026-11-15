@@ -4,8 +4,9 @@ import { exportDrillholeTablesWith } from "./viewer/drillholeExport.js"; // TASK
 import { interceptsDisabledText, noCollarsNotice } from "../lib/noCollars.js"; // TASKS.csv #1810, #1841
 import { levelPlanZRange, mainTraces } from "../lib/viewer/levelPlanRange.js"; // TASKS.csv #1782; mainTraces: #2936
 import { sampleUserData, mappedOfSample } from "../lib/viewer/sampleTip.js"; // TASKS.csv #1821; #1500
-import HoleFilterBar from "./viewer/HoleFilterBar.jsx";
-import { holesForFilter } from "../lib/holeFilter.js"; // #1504; #1703
+import { markZoomedHole } from "./viewer/zoomMark.js"; // #3570
+import HoleFilterBar from "./viewer/HoleFilterBar.jsx"; import HiddenHolesNote from "./viewer/HiddenHolesNote.jsx"; // #3555
+import { holesForFilter, holeSetsOf, fenceTracesOf } from "../lib/holeFilter.js"; // #1504; #1703; #3554; #3561
 import { holesWithoutField } from "../lib/viewer/holeFieldPicks.js"; // #3074
 import { holeColourScheme, applyHoleColours, holeColourLegendGroup } from "../lib/viewer/holeColours.js"; // #1504
 import FenceOptions from "./viewer/FenceOptions.jsx";
@@ -290,7 +291,7 @@ const CATEGORY_LAYER_KEYS = LEGEND_CATEGORY_KEYS; // TASKS.csv #725 — one list
 const CAPTURE_LONG_PX = 3000;
 // TASKS.csv #906 — outW x outH (CSS px): the size the capture is drawn at, when it is not the canvas's own (a Layout
 // frame's aspect); the renderer goes back to cssW x cssH afterwards.
-const tickedShown = (collars, f) => holesWithoutField(collars, f) ?? holesForFilter(collars, f).holes; // holesWithoutField: #3074 // #1504 — by id parts, or field=value; #1703 — else text in a collar field
+const tickedShown = (collars, f, holeSets) => holesWithoutField(collars, f) ?? holesForFilter(collars, f, { holeSets }).holes; // holeSets: #3554 // holesWithoutField: #3074 // #1504 — by id parts, or field=value; #1703 — else text in a collar field
 function captureHiRes(renderer, cssW, cssH, draw, outW = cssW, outH = cssH, longPx = CAPTURE_LONG_PX) {
   const gl = renderer.getContext();
   const maxRb = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) || 4096;
@@ -623,6 +624,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const [numericSymbology, setNumericSymbology] = useState({});
   const [visibleHoles, setVisibleHoles] = useState({});
   const visibleHolesRef = useRef(visibleHoles); visibleHolesRef.current = visibleHoles; // #2930 — read by applyCategoryVisibility
+  const holeSets = useMemo(() => holeSetsOf(assays, layers), [assays, layers]); // TASKS.csv #3554 — has:assays / no:assays
   const [holeFilter, setHoleFilter] = useState(""); // TASKS.csv #222 — sidebar Holes list filter, UI-only (not persisted)
   const [holeColourBy, setHoleColourBy] = useState(""); // TASKS.csv #1504 — a collar field the holes are coloured by ("" = none), UI-only
   const holeScheme = useMemo(() => holeColourScheme(collars, holeColourBy), [collars, holeColourBy]);
@@ -788,7 +790,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const [measurePts, setMeasurePts] = useState([]); // [{x,y,z}, ...] world coordinates
   // TASKS.csv — "slice series" / fence-section generator (user request: "I wanna be able to slice the
   // voxel in equal parts on a specified azi and width"). See generateSliceSeries below.
-  const { sliceSeriesAzimuth, setSliceSeriesAzimuth, sliceSeriesWidth, setSliceSeriesWidth, typedSection, setTypedSection, lineCentre, lineNote } = useDrillLineDefaults(collars); // #2366
+  const shownCollars = useMemo(() => (collars.some((c) => visibleHoles[c.hole_id] === false) ? collars.filter((c) => visibleHoles[c.hole_id] !== false) : collars), [collars, visibleHoles]); // TASKS.csv #3561 — the series follows the holes shown
+  const { sliceSeriesAzimuth, setSliceSeriesAzimuth, sliceSeriesWidth, setSliceSeriesWidth, typedSection, setTypedSection, lineCentre, lineNote } = useDrillLineDefaults(shownCollars); // #2366
   const [fenceCoverModels, setFenceCoverModels] = useState(false); // #1180
 
   const [gridConfig, setGridConfig] = useState({ ...DEFAULT_GRID });
@@ -2386,7 +2389,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   }, [fitBox]);
   const fitView = useCallback((traces) => { const box = new THREE.Box3(); traces.forEach((pts) => pts.forEach((p) => box.expandByPoint(new THREE.Vector3(p.x, p.y, p.z)))); fitBox(box); }, [fitBox]);
   // TASKS.csv #1319 — Matt: "have the project open at a zoom level to include all holes" (models only in a project with no holes; was #313's clamp)
-  const autoFitInitial = useCallback((traces, nHoles) => { fitView(nHoles ? traces.slice(0, nHoles) : traces); }, [fitView]);
+  // TASKS.csv #3555 — a project saved with holes unchecked opens framed on the shown ones (it framed all 559 collars: the 143 shown were a speck)
+  const autoFitInitial = useCallback((traces, nHoles) => { const hole = nHoles ? traces.slice(0, nHoles) : traces, v = visibleHolesRef.current, shown = (tracesRef.current || []).filter((x) => v?.[x.hole_id] !== false).map((x) => x.pts); fitView(shown.length && shown.length < (tracesRef.current || []).length ? shown : hole); }, [fitView]);
   const zoomToLayer = useCallback((key) => {
     const group = layerGroupsRef.current[key];
     if (!group || !group.children.length) { setNotices((p) => [...p, notice(!collars.length && layers[key]?.length ? "{v}: not drawn, its holes have no collars." : "{v}: nothing rendered to zoom to.", { v: LAYER_META[key]?.label || key })]); return; } // #1813
@@ -2402,7 +2406,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const zoomToSurface = (id) => zoomToObject(implicitMeshesRef.current[id]); // #2996 — a Mine Design result row's zoom
   const fitButton = () => (mode === "surface" ? zoomToFitAll() : zoomToHoles()); // #2092 — Fit on the Surface Geology tab: everything shown
   // TASKS.csv #393 — zoom to one hole (Holes list)
-  const zoomToHole = useCallback((holeId) => { const t = tracesRef.current.find((x) => x.hole_id === holeId); if (!t?.pts?.length) return; const cs = camState.current, ph = holeZoomPhi(t.pts, cs.phi, cs.theta); if (ph != null) cs.phi = ph; /* #2375 — not end-on */ fitBox(new THREE.Box3().setFromPoints(t.pts.map((p) => new THREE.Vector3(p.x, p.y, p.z))), 1.6 /* #2375 — the collar not cut by the top edge */); }, [fitBox]);
+  const zoomToHole = useCallback((holeId) => { const t = tracesRef.current.find((x) => x.hole_id === holeId); if (!t?.pts?.length) return; const cs = camState.current, ph = holeZoomPhi(t.pts, cs.phi, cs.theta); if (ph != null) cs.phi = ph; /* #2375 — not end-on */ fitBox(new THREE.Box3().setFromPoints(t.pts.map((p) => new THREE.Vector3(p.x, p.y, p.z))), 1.6 /* #2375 — the collar not cut by the top edge */); markZoomedHole(sceneRef.current?.getObjectByName("root"), cameraRef.current, mountRef.current, t); /* #3570 */ }, [fitBox]);
   const zoomToPoint = (point) => fitBox(new THREE.Box3().setFromCenterAndSize(point, new THREE.Vector3(80, 80, 80)));
   const resetView = () => { camState.current.theta = Math.PI / 4; camState.current.phi = Math.PI / 3; cameraRef.current?.__update?.(); };
 
@@ -4532,7 +4536,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // was wired up — see the TASKS.csv #145 notes for the numbers.
   // TASKS.csv #1324 — what is under a click
   const codeDictRef = useRef(codeDictionary); codeDictRef.current = codeDictionary; // #2816 — for the mount-once hover handler
-  const identify = useIdentify({ mountRef, cameraRef, sceneRef, pickHits, lastActivityRef, originRef, tracesRef, layerGroupsRef, rasterMeshesRef, mapLayerMeshesRef, surfStructObjsRef, mapLayerGroupRef, surfStructGroupRef, terrainMeshRef, rasters, mapLayers, surfaceStructures, codeDictionary /* #2816 */, assays /* #2938 */, voxelModels /* #3178 — a set's members at the picked block */, units: Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit])),
+  const identify = useIdentify({ collars, mountRef, cameraRef, sceneRef, pickHits, lastActivityRef, originRef, tracesRef, layerGroupsRef, rasterMeshesRef, mapLayerMeshesRef, surfStructObjsRef, mapLayerGroupRef, surfStructGroupRef, terrainMeshRef, rasters, mapLayers, surfaceStructures, codeDictionary /* #2816 */, assays /* #2938 */, voxelModels /* #3178 — a set's members at the picked block */, units: Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit])),
     layerLabel: (k) => tr(LAYER_META[k]?.label || customLayers.find((l) => l.id === k)?.name || { assay: "Assays", geophys_pts: "Geophysics points", surface_samples: "Surface samples", holes: "Drillholes" /* #2041 */ }[k] || k),
     kinds: [[implicitGroupRef, tr("Generated surfaces")], [omfGroupRef, tr("OMF objects")], [plannedGroupRef, tr("Planned holes")], [boundaryGroupRef, tr("Boundaries")]], rlOffset: rlOffsetOf(project) /* #2809 */ });
   identifyStopRef.current = () => { if (!identify.on) return false; identify.stop(); return true; };
@@ -6208,7 +6212,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const dirX = Math.sin(az), dirY = Math.cos(az);
     const perpX = Math.cos(az), perpY = -Math.sin(az);
 
-    const pts = fenceExtentPoints(voxelModels, tracesRef.current, fenceCoverModels); // #1180
+    const shownT = fenceTracesOf(tracesRef.current, visibleHolesRef.current); // #3561 — the holes shown, not every trace
+    const pts = fenceExtentPoints(voxelModels, shownT, fenceCoverModels); // #1180
 
     if (!pts.length) {
       setNotices((p) => [...p, notice("Slice series needs a visible voxel/block model or at least one drillhole to know what extent to cover — nothing found.")]);
@@ -6226,7 +6231,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     sMin -= alongPad; sMax += alongPad;
 
     // TASKS.csv #393 — lines on round multiples of the spacing, as on a paper plan. #2040 — only the slabs that hold data
-    const { lines, empty: emptySlabs } = fenceLinesWithData(pts, sliceSeriesAzimuth, width, tracesRef.current);
+    const { lines, empty: emptySlabs } = fenceLinesWithData(pts, sliceSeriesAzimuth, width, shownT);
     const n = lines.length;
     if (n > 50 && !window.confirm(tr("This will create {n} sections. Continue?", { n }))) return; // #1180
 
@@ -6244,7 +6249,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     }
     if (emptySlabs) setNotices((p) => [...p, notice("{e} slab(s) with no hole or model cell were skipped.", { e: emptySlabs })]); // #2040
     setNotices((p) => [...p, notice(created === 1 ? "Generated {created} section at azimuth {sliceSeriesAzimuth}° — in the Cross-sections list." : "Generated {created} sections spaced {width}m apart at azimuth {sliceSeriesAzimuth}° — grouped together in the Cross-sections list.", { created, width, sliceSeriesAzimuth: sliceSeriesAzimuth.toFixed(0) })]);
-  }, [fenceCoverModels, sliceSeriesAzimuth, sliceSeriesWidth, voxelModels, upsertSection, addSectionGroup]);
+  }, [fenceCoverModels, sliceSeriesAzimuth, sliceSeriesWidth, voxelModels, upsertSection, addSectionGroup]); // visibleHolesRef: #3561
 
   // TASKS.csv #441 — any commit of this component may have changed the scene (its effects just ran), so
   // wake the render loop from deep idle. Deliberately no dependency array.
@@ -6427,7 +6432,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <button onClick={generateSliceSeries} style={{ ...pBtn, width: "auto", flex: "1 0 auto", marginBottom: 0, alignSelf: "flex-end", padding: "6px 10px" }} title={tr("Generate the slice series")}><Scissors size={14} />{" "}{tr("Generate")}</button>
         </div>
 
-        <FenceOptions {...{ voxelModels, tracesRef, tracesSeq }} azimuth={sliceSeriesAzimuth} width={sliceSeriesWidth} cover={fenceCoverModels} setCover={setFenceCoverModels} labelStyle={miniField} />
+        <FenceOptions {...{ voxelModels, tracesRef, tracesSeq, visibleHoles }} azimuth={sliceSeriesAzimuth} width={sliceSeriesWidth} cover={fenceCoverModels} setCover={setFenceCoverModels} labelStyle={miniField} />
         </>)}
         {toolPane && <div className="ge-pane-end" role="separator" />}{/* #458 */}
         <div className="ge-section-label">{tr("Geometry")}</div>
@@ -7530,8 +7535,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             {/* TASKS.csv #222 — a filter box, the other half of the audit's "no virtualization/filter"
                 finding; finding one hole by ID in a 200+ hole project by eye alone was the real
                 usability gap, not just the render cost (fixed separately via HoleRow's memoization). */}
-            {collars.length > 1 && <HoleFilterBar collars={collars} filter={holeFilter} setFilter={setHoleFilter} visibleHoles={visibleHoles} setVisibleHoles={setVisibleHoles} colourBy={holeColourBy} setColourBy={setHoleColourBy} /* #1504 */ />}
-            <HoleRowList holes={tickedShown(collars, holeFilter)} filterKey={JSON.stringify(holeFilter)} visibleHoles={visibleHoles} onToggle={toggleHole} onOpenStripLog={setStripLogHoleId} onSection={openHoleSection} onZoom={zoomToHole} />{/* #2173 */}
+            {collars.length > 1 && <HoleFilterBar holeSets={holeSets} collars={collars} filter={holeFilter} setFilter={setHoleFilter} visibleHoles={visibleHoles} setVisibleHoles={setVisibleHoles} colourBy={holeColourBy} setColourBy={setHoleColourBy} /* #1504 */ />}
+            <HoleRowList holes={tickedShown(collars, holeFilter, holeSets)} filterKey={JSON.stringify(holeFilter)} visibleHoles={visibleHoles} onToggle={toggleHole} onOpenStripLog={setStripLogHoleId} onSection={openHoleSection} onZoom={zoomToHole} />{/* #2173 */}
           </>
         )}
 
@@ -7656,6 +7661,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             replaced by axisGizmo (created above, rendered every frame via the same viewport/scissor
             technique CompassRose uses), a real camera-synced N/E/Z arrow-triad drawn directly onto
             the canvas at this same bottom-left corner — no DOM element needed for it anymore. */}
+        <HiddenHolesNote collars={collars} visibleHoles={visibleHoles} setVisibleHoles={setVisibleHoles} />{/* #3555 */}
         {sectionMode && sectionPreview && (
           <div style={{ position: "absolute", top: 12, left: 12, fontSize: "var(--font-size-sm)", color: "var(--color-success-fg)", background: "var(--color-bg)", padding: "6px 10px", borderRadius: 6, border: "1px solid var(--color-success-border)" }}>{tr("Start point set — click the end point")}</div>
         )}

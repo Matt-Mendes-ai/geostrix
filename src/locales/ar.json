@@ -12986,5 +12986,13 @@
   "{n} holes ({ids}) share the same collar (within 1m) AND point the same way (within 3°) — a wedge or daughter hole, a twin or re-drill, a duplicate import, or a coordinate entry error.": "{n} حفر ({ids}) تشترك في الفوهة نفسها (ضمن 1 م) وتتجه الاتجاه نفسه (ضمن 3°): حفرة إسفينية أو فرعية، أو توأم أو إعادة حفر، أو استيراد مكرر، أو خطأ في إدخال الإحداثيات.",
   "{n} row(s) have coordinates already in the project CRS (EPSG:{epsg}), so they were not changed": "{n} صف (صفوف) إحداثياتها بنظام إحداثيات المشروع أصلاً (EPSG:{epsg})، فلم تُغيَّر",
   " (no source CRS given)": " (لم يُحدَّد نظام إحداثيات المصدر)",
-  "Read from the {col} column of the file: {list}": "مقروء من عمود {col} في الملف: {list}"
+  "Read from the {col} column of the file: {list}": "مقروء من عمود {col} في الملف: {list}",
+  "By what holes have…": "بحسب ما تحتويه الثقوب…",
+  "Holes with {what}": "ثقوب فيها {what}",
+  "Holes with no {what}": "ثقوب بلا {what}",
+  "No data called {name} here: has:assays, no:assays, or the name of a layer of this project.": "لا توجد بيانات باسم {name} هنا: has:assays أو no:assays أو اسم طبقة في هذا المشروع.",
+  "No hole matches. The box reads part of a hole id, field=value, a number test such as year>=2017, length>300 or year=2017..2023, and has:assays or no:assays.": "لا يطابق أي ثقب. يقرأ الصندوق جزءًا من معرّف الثقب، أو حقل=قيمة، أو اختبارًا رقميًا مثل year>=2017 أو length>300 أو year=2017..2023، وكذلك has:assays أو no:assays.",
+  "{shown} of {total} holes shown": "{shown} من {total} ثقبًا معروضة",
+  "Over the {shown} of {total} holes shown.": "على الثقوب المعروضة وعددها {shown} من {total}.",
+  "Filter holes by what they have": "تصفية الثقوب بحسب ما تحتويه"
 }
