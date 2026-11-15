@@ -5,7 +5,7 @@ import { makeVariogramClient } from "../lib/variogramClient.js"; // TASKS.csv #3
 import { X, Play } from "./icons.js";
 import { gradeUnitLabel } from "../lib/geochem.js";
 import { compositeDownholeSliced, samplePointsSliced } from "../lib/compositeSliced.js"; // TASKS.csv #3111 — compositing and placing in slices of holes // gradeUnitLabel: #2429
-import { sendVariogramToEstimation, sendFlatSearchToEstimation, anisotropyFromFits } from "../lib/estimateMemory.js"; // TASKS.csv #3273; the rest: #3079 / #3080
+import { sendVariogramToEstimation, sendFlatSearchToEstimation, anisotropyFromFits, rememberAnisotropy } from "../lib/estimateMemory.js"; // TASKS.csv #3273; the rest: #3079 / #3080
 import { excludeQAQC, labAssays } from "../lib/qaqc.js"; // TASKS.csv #266 — same QAQC exclusion the estimator uses; labAssays: #1744
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #2552
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2552
@@ -110,7 +110,9 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
   const [holeMode, setHoleMode] = useState(() => (verticalShare(collars, survey) >= 0.9 ? "downhole" : "all"));
   const [directional, setDirectional] = useState(false);
   const [trendMade, setTrendMade] = useState(null); // TASKS.csv #3385
-  const [kept, setKept] = useState({ symbol: "", downhole: null, across: null, flatSent: false }); // TASKS.csv #3080 — the last downhole fit and the last between-holes / in-plane fit of this element, side by side
+  const [kept, setKept] = useState({ symbol: "", downhole: null, across: null, flatSent: false });
+  useEffect(() => { if (kept.symbol === symbol) rememberAnisotropy(project, symbol, anisotropyFromFits(kept.downhole, kept.across)); }, [kept, symbol, project]); // TASKS.csv #3499 — the Grade shell pane offers it too
+  // (kept: see #3080) // TASKS.csv #3080 — the last downhole fit and the last between-holes / in-plane fit of this element, side by side
   const [azimuth, setAzimuth] = useState(0);
   const [dip, setDip] = useState(0);
   const [angleTol, setAngleTol] = useState(22.5);
@@ -149,7 +151,9 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
     return Array.from(s).sort();
   }, [domainKey, domainChoice]);
 
-  const run = () => {
+  // TASKS.csv #3500 — the body takes the hole mode and the plane choice as arguments (they shadow the dialog's own), so Compute both can run Downhole pairs and then In the plane
+  const run = () => runAs(holeMode, inPlane);
+  const runAs = (holeMode, inPlane) => new Promise((done) => {
     setError(""); setResult(null); setRunning(true);
     // Deferred so "Running…" actually paints before the O(n^2) pair loop blocks the main thread. A
     // timer, not requestAnimationFrame — rAF never fires in a hidden window, which strands the run
@@ -173,8 +177,8 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
           return { filled, intervals, byDepth, allPoints: byDepth.points.length ? [...placed3d, ...byDepth.points] : placed3d, dropped: Math.max(0, dropped3d - byDepth.points.length) };
         })).value;
         const { filled, intervals, byDepth, allPoints, dropped } = comp;
-        if (!intervals.length) { setError(tr("Compositing produced no intervals — check the element and composite length.")); setRunning(false); return; }
-        if (!allPoints.length) { setError(collars.length ? tr("No composite could be placed in 3D — check that holes have collars and (ideally) survey data.") : noCollarsNotice(tr("the variogram"), layers, srcAssays).text); setRunning(false); return; } // #1841 — no collars at all: say what is waiting
+        if (!intervals.length) { setError(tr("Compositing produced no intervals — check the element and composite length.")); setRunning(false); done(); return; }
+        if (!allPoints.length) { setError(collars.length ? tr("No composite could be placed in 3D — check that holes have collars and (ideally) survey data.") : noCollarsNotice(tr("the variogram"), layers, srcAssays).text); setRunning(false); done(); return; } // #1841 — no collars at all: say what is waiting
 
         // #3061 — the domain's points and their transform, kept with the composites they come from
         const pick = pointCache.current.get([allPoints, domainKey, domainValue, transform, capPercentile], () => {
@@ -189,7 +193,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
         if (domainLabel) {
           if (points.length < 20) {
             setError(tr("Domain \"{domainLabel}\" has only {points} composites — too few for a variogram worth reading (a lag bin needs ~30 pairs to mean anything).", { domainLabel, points: points.length }));
-            setRunning(false); return;
+            setRunning(false); done(); return;
           }
         }
 
@@ -225,7 +229,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
         if (usePlane?.surface) {
           const fl = flatCache.current.get([tPoints, usePlane.surface], () => flattenOnSurface(tPoints, surfaceElevation(usePlane.surface.vertices, usePlane.surface.indices))).value; // #3061 — kept too
           vgPoints = fl.points; flatOutside = fl.outside;
-          if (vgPoints.length < 20) { setError(tr("Only {n} composites lie over \"{name}\": too few to pair below it.", { n: vgPoints.length, name: flatLabels.get(usePlane.surface.id) ?? usePlane.surface.name })); setRunning(false); return; }
+          if (vgPoints.length < 20) { setError(tr("Only {n} composites lie over \"{name}\": too few to pair below it.", { n: vgPoints.length, name: flatLabels.get(usePlane.surface.id) ?? usePlane.surface.name })); setRunning(false); done(); return; }
         }
         const direction = usePlane ? { plane: { normal: usePlane.normal, halfWidth: half } } : directional
           ? { azimuth, dip, angleTol, bandwidth: bandwidth > 0 ? bandwidth : null }
@@ -245,8 +249,10 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
         if (!e?.cancelled) setError(e.message || tr("Variogram calculation failed.")); // #3009 — Cancel says nothing
       }
       setRunning(false);
+      done();
     }, 40);
-  };
+  });
+  const runBoth = async () => { await runAs("downhole", false); await runAs("all", true); }; // #3500: the second result stays on screen, with the Anisotropy line under it
 
   // ---------------------------------------------------------------------------------------------
   // Plot. Plain inline SVG (no chart dependency — same approach as the other small plots in here).
@@ -398,6 +404,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
           </div>
 
           <UnsampledChoice u={uns} selStyle={{ ...inp, width: "auto", padding: "3px 6px" }} />{/* TASKS.csv #2417 / #2542 */}
+          {verticalShare(collars, survey) >= 0.5 && <button onClick={runBoth} disabled={running || !symbols.length || !uns.ready} title={tr("Computes the downhole variogram and then the in-plane one, and states the anisotropy between them. Needs a plane (the trend, or horizontal).")} style={{ ...btn(false), display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>{tr("Compute both: downhole and in the plane")}</button>}{/* TASKS.csv #3500 */}
           <button onClick={run} disabled={running || !symbols.length || !uns.ready} style={{ ...btn(true), display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: running || !symbols.length || !uns.ready ? 0.6 : 1 }}>
             <Play size={14} /> {running ? tr("Running…") : tr("Compute variogram")}
           </button>

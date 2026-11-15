@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 
 test("(1) and (9) in the Estimation dialog", () => {
   const e = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
-  assert.match(e, /: Number\(flatReach\) > 0 \? tr\("\{pct\}% of the estimated metal \(\{k\} of \{n\} blocks\) lies below the deepest sample of every hole within \{r\} m: carried down past the drilling, within the \{h\} m Vertical reach\."/);
+  assert.match(e, /: Number\(flatReach\) > 0 \? tr\(nonMetal \? "(?:[^"\\]|\\.)*" : "\{pct\}% of the estimated metal \(\{k\} of \{n\} blocks\) lies below the deepest sample of every hole within \{r\} m: carried down past the drilling, within the \{h\} m Vertical reach\."/);
   assert.match(e, /result\.okCounts\.kriged > result\.blocksEstimated \? ` \$\{tr\("Kriged before \{n\} block\(s\) were removed/);
 });
 

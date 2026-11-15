@@ -29,7 +29,7 @@ test("#1744: only elements with a lab value are offered", () => {
 test("#2429 / #2697: the kriging line says 'fitted' once; under a trend the advice names the trend", () => {
   const est = read("src/components/GradeEstimationModal.jsx");
   assert.ok(est.includes('tr("Kriged with the {model} variogram{v}:') && !est.includes("Kriged with the fitted"));
-  assert.match(est, /modelTrend \? tr\("\{pct\}% of the estimated metal \(\{k\} of \{n\} blocks\) lies below the deepest sample of every hole within \{r\} m: carried down past the drilling\. The structural trend/);
+  assert.match(est, /modelTrend \? tr\(nonMetal \? "(?:[^"\\]|\\.)*" : "\{pct\}% of the estimated metal \(\{k\} of \{n\} blocks\) lies below the deepest sample of every hole within \{r\} m: carried down past the drilling\. The structural trend/);
 });
 
 test("#2720: Surface query's CSV has the sampled metres for a grade shell's element", () => {
