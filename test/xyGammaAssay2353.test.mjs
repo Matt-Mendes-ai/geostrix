@@ -45,7 +45,7 @@ test("Downhole logs against an element give the ratios too; the Geochem and pane
   assert.ok(Math.abs(v.medianRatio - 0.75) < 1e-12);
   assert.ok(Math.abs(v.weightedRatio - (70 + 80 + 150) / (100 + 100 + 200)) < 1e-12);
   const g = readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8");
-  assert.match(g, /xyDiagram\(xyAxes\[0\], xyAxes\[1\], sourceRows, elementUnits, \{ oneToOne: !!xyOne \}\)/);
+  assert.match(g, /xyDiagram\(xyAxes\[0\], xyAxes\[1\], sourceRows, elementUnits, \{ oneToOne: !!xyOne, scaleX: xyScaleX, scaleY: xyScaleY \/\* #3585 \*\/ \}\)/);
   assert.match(g, /n \{n\} · Spearman \{r\} · median Y \/ X \{m\} · length-weighted Y \/ X \{w\}/);
   const p = readFileSync(new URL("../src/components/DownholeLogsPane.jsx", import.meta.url), "utf8");
   assert.match(p, /Log \/ assay: median \{m\}, length-weighted \{w\}/);
