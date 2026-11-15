@@ -17,6 +17,17 @@ export function inversionSurveyCounts(rows, surveys) {
   return { total: (rows || []).length, n: by.size, usable, usableReadings: usable.reduce((s, x) => s + x.count, 0), skipped };
 }
 
+// TASKS.csv #3664 (live check of #3632) — the surveys the Inversion pane asks the user to choose among: the ones it could invert (a magnetic or gravity
+// survey, or one whose Method is not set). A model product added to the 3D View (the contact sensitivity of #2640, TEM / FDEM 1D models) is a point
+// survey too, and counting it made the pane say '2 imported: choose one' and hide its form, results included, as soon as one was added. With none
+// invertible the list is every survey, as before (the pane then says why none can be inverted). -> [source names]
+export function inversionSurveyChoices(rows, surveys) {
+  const all = Array.from(new Set((rows || []).map((r) => r._src || "(unnamed import)")));
+  const usable = new Set(inversionSurveyCounts(rows, surveys).usable.map((x) => x.key));
+  const mine = all.filter((k) => usable.has(k));
+  return mine.length ? mine : all;
+}
+
 // A method read from the value column's header at import ("TMI_nT", "Bouguer", "eTh_ppm", "Cond_mSm"...). Words are
 // matched whole, so "ip" never fires on "dip" and "k" never on "kelvin"; null when nothing fits (the select stays
 // "Method…"). The order matters: a specific product before its family.
