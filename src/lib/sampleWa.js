@@ -98,7 +98,7 @@ const mergeElements = (prev, elements, unitOf = null) => { const m = new Map((pr
 export async function loadWaSampleExtras(which, readFile, store, { existingElements = [], existingSurfaceElements = [], project = null } = {}) {
   const S = WA_SAMPLES[which], notes = [];
   if (!S) return notes;
-  if (S.credit && typeof store.setProject === "function") store.setProject((p) => ({ ...p, dataCredit: S.credit })); // #3496 — saved with the project; Layout's {credits} prints it
+  if (S.credit && typeof store.setProjectDataCredit === "function") store.setProjectDataCredit(S.credit); // #3496 — saved with the project; Layout's {credits} prints it
   if (S.assays) {
     try {
       const raw = waAssays(await (await readFile(S.assays)).text(), S.assays);

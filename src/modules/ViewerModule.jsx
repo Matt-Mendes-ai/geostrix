@@ -5200,7 +5200,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (ok && which !== "wa_uranium" && (which.startsWith("wa_") || which.startsWith("qld_") || which.startsWith("yk_" /* #3496 */))) { // TASKS.csv #3107 — assays, surface samples, downhole logs and a grid: lib/sampleWa.js
       try {
         const { loadWaSampleExtras, WA_SAMPLES } = await import("../lib/sampleWa.js");
-        const notes = await loadWaSampleExtras(which, async (rel) => (await loadSampleFiles(WA_SAMPLES[which].dir, [rel]))[0], { setAssays, setAssayElements, setSurfaceSamples: store.setSurfaceSamples, setSurfaceElements: store.setSurfaceElements, addCustomLayer: (l) => setStoreCustomLayers((p) => [...(p || []), l]), addRaster: store.addRaster, setProject: store.setProject /* #3496 */ },
+        const notes = await loadWaSampleExtras(which, async (rel) => (await loadSampleFiles(WA_SAMPLES[which].dir, [rel]))[0], { setAssays, setAssayElements, setSurfaceSamples: store.setSurfaceSamples, setSurfaceElements: store.setSurfaceElements, addCustomLayer: (l) => setStoreCustomLayers((p) => [...(p || []), l]), addRaster: store.addRaster, setProjectDataCredit: store.setProjectDataCredit /* #3496 */ },
           { existingElements: assayElements, existingSurfaceElements: surfaceElements, project: importStateRef.current?.project || store.project });
         setNotices((p) => [...p, ...notes]);
       } catch (e) { setNotices((p) => [...p, errorNotice(tr("Couldn't load the sample project: {message}", { message: e.message }))]); }

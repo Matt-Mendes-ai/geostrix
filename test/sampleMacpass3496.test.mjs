@@ -95,7 +95,7 @@ test("the credit is kept with the project and printed by Layout; the project is 
   assert.equal(projectCredits(null, [], CREDIT), CREDIT);
   assert.equal(projectCredits(null, []), "");
   assert.match(read("../src/modules/LayoutModule.jsx"), /projectCredits\(terrain, rasters, project\?\.dataCredit\)/);
-  assert.match(read("../src/lib/sampleWa.js"), /store\.setProject\(\(p\) => \(\{ \.\.\.p, dataCredit: S\.credit \}\)\)/);
+  assert.match(read("../src/lib/sampleWa.js"), /store\.setProjectDataCredit\(S\.credit\)/);
   assert.equal(sampleProjectName("yk_macpass", "Untitled project"), "Macpass zinc-lead-silver (sample)");
   assert.ok(text("README.md").includes(`**${CREDIT}**`), "the README's credit line");
   assert.ok(text("README.md").includes("Matt confirmed to Main on 2026-11-14 that he holds Fireweed's written permission"));
