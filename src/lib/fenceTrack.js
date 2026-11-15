@@ -2,7 +2,8 @@
 // a numeric custom layer), drawn on the hole's own depth as bars (intervals) or a line (point readings). One scale for the whole panel,
 // so a bar means the same in every hole; its top end is the 98th percentile of the shown values, so one spike does not flatten the rest.
 import { LAYER_META } from "./layers.js";
-import { displayUnitOf, toDisplay } from "./displayUnits.js"; // TASKS.csv #3573 — the unit the project shows an element in; else the unit the file has (as the legend, the hover and the strip log say it)
+import { displayUnitOf, toDisplay } from "./displayUnits.js"; // TASKS.csv #3573 — the unit the project shows an element in
+import { gradeUnitLabel } from "./geochemColumns.js"; // TASKS.csv #3586 — else g/t for Au / Ag / Pt / Pd stored in ppm, as in every tool
 import { isNumericLayer } from "./domainLayers.js";
 
 // -> [{ key, label, kind: "assay" | "layer", symbol?, rows? }]; label(text) translates a built-in layer's label
@@ -12,10 +13,9 @@ export function numericTrackSources({ layers = {}, customLayers = [], assays = [
     for (const e of assayElements || []) {
       const symbol = typeof e === "string" ? e : e?.symbol;
       if (!symbol) continue;
-      // TASKS.csv #3573 (Fireweed rehearsal) — silver read 'ppm' in the legend, the hover, Identify and the strip log and 'g/t' here: one name for one column, the file's own unless the project
-      // shows the element in another (#3236); the values follow the unit shown
-      const shown = e?.unit ? displayUnitOf({ displayUnits }, symbol, e.unit) : undefined;
-      out.push({ key: `assay:${symbol}`, label: shown ? `${symbol} (${shown})` : symbol, kind: "assay", symbol, ...(shown && shown !== e.unit ? { unit: e.unit, shown } : {}) });
+      // TASKS.csv #3573 / #3586 — one name for one column in every tool: the unit the project shows the element in (#3236; the values follow it), else g/t for a precious metal stored in ppm (1 ppm = 1 g/t), else the file's own
+      const shown = e?.unit ? displayUnitOf({ displayUnits }, symbol, e.unit) : undefined, chosen = !!shown && shown !== e.unit;
+      out.push({ key: `assay:${symbol}`, label: shown ? `${symbol} (${chosen ? shown : gradeUnitLabel(symbol, e.unit)})` : symbol, kind: "assay", symbol, ...(chosen ? { unit: e.unit, shown } : {}) });
     }
   }
   for (const [k, m] of Object.entries(LAYER_META)) {

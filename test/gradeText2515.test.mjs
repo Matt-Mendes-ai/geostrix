@@ -19,7 +19,7 @@ test("four significant figures, never fewer than the whole-number digits, whole 
 
 test("the tooltip, the section labels, the level plan, Identify and the Style range use it", () => {
   const src = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
-  assert.match(src("../src/modules/ViewerModule.jsx"), /\$\{sym\}: \$\{gradeText\(v\)\} \$\{elementUnits\[sym\] \|\| ""\}/);
+  assert.match(src("../src/modules/ViewerModule.jsx"), /\$\{sym\}: \$\{gradeText\(v\)\} \$\{elementUnits\[sym\] \? gradeUnitLabel\(sym, elementUnits\[sym\]\) : ""\}/);
   assert.match(src("../src/modules/ViewerModule.jsx"), /label: `\$\{sym\}: \$\{gradeText\(v\)\}/);
   assert.match(src("../src/components/SectionWindow.jsx"), /`\$\{gradeText\(a\.value\)\} \$\{a\.u\} \$\{a\.sym\}`/);
   assert.match(src("../src/lib/levelPlan.js"), /label = `\$\{sym\}: \$\{gradeText\(value\)\}/);

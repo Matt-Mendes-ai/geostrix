@@ -4,6 +4,7 @@
 // few key elements and says how many more there are, and Identify lists every element and the sample's own fields (Lithology,
 // Alteration, Description). Moved out of ViewerModule (#1084 size cap).
 import { t as tr } from "../i18n.js";
+import { gradeUnitLabel } from "../geochemColumns.js"; // TASKS.csv #3586 — g/t for Au / Ag / Pt / Pd stored in ppm
 
 // commodity and common pathfinder elements, read first; the rest keep the file's order
 const KEY = ["Cu", "Au", "Ag", "Zn", "Pb", "Mo", "As", "Sb", "Ni", "Co", "Bi", "Te", "W", "Sn", "Hg", "Mn"];
@@ -24,7 +25,7 @@ const fmt = (v) => (!Number.isFinite(v) ? String(v ?? "") : Math.abs(v) >= 1000 
 export function mappedOfSample(an, cfg, j, units = {}) {
   if (!an || !cfg || j < 0) return null;
   const cl = an.classOf[j], cls = cl >= 0 ? tr(an.classes[cl].label) : tr("no value"), isolated = !!an.isolated?.[j];
-  if (an.mode === "element" && cfg.symbol) return { sym: cfg.symbol, label: `${cfg.symbol} (${units[cfg.symbol] || "ppm"})`, value: an.values?.[j], cls, isolated };
+  if (an.mode === "element" && cfg.symbol) return { sym: cfg.symbol, label: `${cfg.symbol} (${gradeUnitLabel(cfg.symbol, units[cfg.symbol])})`, value: an.values?.[j], cls, isolated };
   if (an.mode === "hotspot") return { sym: cfg.symbol || null, label: tr("Hot-spot z (Gi*)"), value: an.stat?.[j], cls, isolated };
   if (an.mode === "field") return { sym: null, label: an.fieldName || cfg.field || tr("Field"), value: NaN, text: an.textOf?.[j] || "", cls, isolated }; // #1822
   return { sym: null, label: tr("Pathfinder index"), value: an.values?.[j], cls, isolated };
@@ -40,7 +41,7 @@ export function surfaceSampleTip(row, { units = {}, mapped = null, max = 8 } = {
     lines.push(`${mapped.cls}${mapped.isolated ? ` · ${tr("isolated anomaly")}` : ""}`);
   }
   const els = orderedElements(row.values).filter((s) => s !== mapped?.sym);
-  for (const s of els.slice(0, max)) lines.push(`${s}: ${row.bdl?.includes(s) ? sampleValueText(row, s) : row.values[s]}${units[s] || "ppm"}`); // #2565: '<limit' below detection; otherwise as before
+  for (const s of els.slice(0, max)) lines.push(`${s}: ${row.bdl?.includes(s) ? sampleValueText(row, s) : row.values[s]}${gradeUnitLabel(s, units[s])}`); // #2565: '<limit' below detection; otherwise as before
   if (els.length > max) lines.push(tr("+{n} more elements (Identify lists them all)", { n: els.length - max }));
   // #606, #1818; TASKS.csv #2273 — zOutside: a terrain is loaded but has no ground here (outside it, or a gap of a terrain made from points)
   lines.push(`${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z${row.zDraped ? " (from the terrain — no elevation in the file)" : row.zFlat && row.zOutside ? " " + tr("(flat at the plan elevation — no elevation in the file, and the terrain has no ground here)") : row.zFlat ? " (flat at the plan elevation — no elevation in the file and no terrain)" : ""}`);
@@ -60,7 +61,7 @@ export function sampleUserData(row, mapped, units = {}) {
 export function sampleIdentifyFields(row, mapped, units = {}) {
   const f = [];
   if (mapped) { f.push([mapped.label, Number.isFinite(mapped.value) ? String(fmt(mapped.value)) : mapped.text || tr("no value")], [tr("Class"), `${mapped.cls}${mapped.isolated ? ` · ${tr("isolated anomaly")}` : ""}`]); } // text: #1822
-  for (const s of orderedElements(row.values, mapped?.sym ? [mapped.sym] : [])) if (s !== mapped?.sym) f.push([s, `${sampleValueText(row, s)} ${units[s] || "ppm"}`]); // #2565
+  for (const s of orderedElements(row.values, mapped?.sym ? [mapped.sym] : [])) if (s !== mapped?.sym) f.push([s, `${sampleValueText(row, s)} ${gradeUnitLabel(s, units[s])}`]); // #2565
   for (const [k, v] of Object.entries(row.attrs || {})) if (v != null && v !== "") f.push([k, String(v)]);
   return f;
 }

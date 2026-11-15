@@ -392,7 +392,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
               {(symbols.length - 1 > ALSO_MAX ? extraSymbols.filter((s) => s !== symbol) : symbols.filter((s) => s !== symbol)).map((s) => (
                 <label key={s} style={{ fontSize: "var(--font-size-sm)", color: extraSymbols.includes(s) ? "var(--color-text)" : "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 3, cursor: "pointer", padding: "3px 7px", borderRadius: 5, border: `1px solid ${extraSymbols.includes(s) ? "var(--color-success-border)" : "var(--color-border)"}` }}>
                   <input type="checkbox" checked={extraSymbols.includes(s)} onChange={() => toggleExtraSymbol(s)} style={{ margin: 0 }} />
-                  {s} ({elementUnits[s] || "ppm"})
+                  {s} ({gradeUnitLabel(s, elementUnits[s])})
                 </label>
               ))}
               {symbols.length - 1 > ALSO_MAX && (

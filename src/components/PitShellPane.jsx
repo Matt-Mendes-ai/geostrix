@@ -10,6 +10,7 @@ import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
 import { cutoffUnits /* #3318 */, joinByProduct /* #2115 */, pitEconomics, pitMetalOf, elementOfModel, SECTORS, hasSectorSlopes, slopeForSector, priceUnitsFor, PRICED_MASS_T, metalAmountText, gradeWithElement, oxideSuffix /* #2594 */, gradeUnitText /* #2111 */, planCellForSlope /* #2985 */, UNIT_PRICED /* #2986 */, unitWithElement /* #2995 */ } from "../lib/pitShell.js"; // pitMetalOf / elementOfModel: #1748; SECTORS: #1881
 import { sgSummary } from "../lib/gradeTonnage.js";
+import { densityRangeOf } from "../lib/densityRange.js"; // TASKS.csv #3587
 import { valueUnit } from "../lib/blockModelExport.js";
 import { categoricalModels } from "../lib/geologyForward.js";
 import { gradeCandidate } from "../lib/gradeCandidate.js"; // #1848
@@ -51,7 +52,7 @@ let kept = null; // #1356 — the last result, shown again when the pane or the 
 // onAdd({ name, positions, indices, params, tip, type, closure, color, tag }) puts the pit in the 3D view; onToggle(id) shows/hides a surface;
 // onRemove(id) deletes one (#1498).
 export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove, onClose, onZoomTo = null }) { // onZoomTo: #2996
-  const { voxelModels = [], terrain, layers, collars = [], assays = [], assayElements = [], survey = [], desurveyMethod, designStrings = [] } = useStore(); // assays..desurveyMethod: #2593; designStrings: #2120
+  const { voxelModels = [], terrain, layers, collars = [], assays = [], assayElements = [], survey = [], desurveyMethod, designStrings = [], project: shellProject } = useStore(); // project: #3587 // assays..desurveyMethod: #2593; designStrings: #2120
   const chips = unsampledWord(collars) === "chips"; // TASKS.csv #3513 — 'unsampled chips' on RC / aircore holes, as the Estimation says it (#3507)
   // a grade: a unit that counts metal first, then none stated (an import may simply not say); never a resistivity, a variance, an inversion or a category
   const models = useMemo(() => {
@@ -137,7 +138,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
   const alsoMetal = (m) => { const u = valueUnit(m), el = elementOfModel(m); const met = u ? pitMetalOf(u, el) : null; return met ? { unit: u, element: el, metal: met, prices: priceUnitsFor(met, el) } : null; };
   const alsoPriceOf = (m) => { const am = isProduct ? null : alsoMetal(m), px = alsoPx[m.id ?? m.name]; if (!am || !px || !(Number(px.price) > 0)) return null; const pu = am.prices?.some(([k]) => k === px.priceUnit) ? px.priceUnit : am.prices?.[0]?.[0]; return { unit: am.unit, element: am.element, price: Number(px.price), priceUnit: pu, recovery: Number(px.recovery) > 0 ? Number(px.recovery) : 100 }; };
   const alsoPrices = alsoChosen.map(alsoPriceOf);
-  const sg = useMemo(() => sgSummary(layers?.sg), [layers?.sg]);
+  const shellDensityRange = densityRangeOf(shellProject), sg = useMemo(() => sgSummary(layers?.sg, shellDensityRange), [layers?.sg, shellDensityRange.min, shellDensityRange.max]); // the range: #3587
   // TASKS.csv #2120 (review #2013, Woodjam) — a PIT AREA (a closed design string, not a stope outline): only the blocks whose centre lies inside
   // it are priced, so one prospect of a property-wide model gets its own grid (Woodjam's 10 m model was forced to 30.5 m cells over three)
   const areas = useMemo(() => designStrings.filter((s) => s.closed && s.vertices.length > 2 && !s.stopeRun), [designStrings]);
@@ -384,7 +385,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
         {f.weathMode === "log" && <label style={row}>{tr("Fresh rock is logged as")}<select value={f.weathCode} onChange={set("weathCode")} style={num} aria-label={tr("Code of fresh rock in the Weathering log")}><option value="">{tr("— choose —")}</option>{weathCodes.map((c) => <option key={c} value={c}>{c}</option>)}</select></label>}
         {f.weathMode === "log" && weathBase?.points.length > 0 && <div style={note}>{tr("Its top in {n} of the {l} logged holes: {a}–{b} m below the collar (median {m}); between the holes it is interpolated. {w} hole(s) never reach it.", { n: weathBase.points.length, l: weathBase.logged, a: Math.round(weathBase.min), b: Math.round(weathBase.max), m: Math.round(weathBase.median), w: weathBase.without })}</div>}
         {f.weathMode && field("weathDensity", tr("Weathered density (t/m³)"), { title: tr("Every tonne above the base of the weathered zone, ore or waste, at this density.") })}
-        {sg && !f.density && <div style={{ ...note, marginTop: 2 }}><button onClick={() => setF((p) => ({ ...p, density: String(sg.mean) }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the logged mean, {v} (all {n} measurements, every hole)", { v: sg.mean, n: sg.n })}</button></div>}{/* every hole: #1755 */}
+        {sg && !f.density && <div style={{ ...note, marginTop: 2 }}><button onClick={() => setF((p) => ({ ...p, density: String(sg.mean) }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the logged mean, {v} (all {n} measurements, every hole)", { v: sg.mean, n: sg.n })}</button>{sg.left > 0 && <span style={{ marginLeft: 6 }}>{tr("{n} density value(s) outside {min}–{max} t/m³ left out (the range is set in Data QC).", { n: sg.left.toLocaleString(), min: sg.range.min, max: sg.range.max })}</span> /* #3587 */}</div>}{/* every hole: #1755 */}
         {field("slopeDeg", tr("Overall slope (°)"))}
         {/* TASKS.csv #2439 — a slope for the ground above an RL (soft cover over the ore): both blank, the overall slope everywhere */}
         <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>

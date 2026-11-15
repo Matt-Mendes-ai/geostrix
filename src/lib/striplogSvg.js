@@ -16,6 +16,7 @@
 // per-hole in an unattended batch run).
 import { LAYER_META, UNIT_NAMES, colorForAlteration, colorForVein, colorForBreccia, colorForStructZone, colorForWeathering, rqdColor } from "./layers.js"; // weathering: #2162
 import { headerLines, sigText } from "./stripHeader.js"; // TASKS.csv #2481
+import { gradeUnitLabel } from "./geochemColumns.js"; // TASKS.csv #3586 — g/t for Au / Ag / Pt / Pd stored in ppm
 import { arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { FIGURE_FONT } from "./svgExport.js"; // TASKS.csv #1089
@@ -145,7 +146,7 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride
     { label: "Rec.%", rows: recovery, kind: "bar", max: 100 }, // #3024 — a hole without recovery gets no track (the filter below)
   ].filter((t) => t.rows.length);
   // #1480 — the chosen assay elements, always drawn (a hole with none says so under its track, so every page has the same columns)
-  syms.forEach((sym) => tracks.push({ label: `${sym} (${elementUnits[sym] || "ppm"})`, rows: holeAssays, kind: "assay", sym, unit: elementUnits[sym] || "ppm" }));
+  syms.forEach((sym) => tracks.push({ label: `${sym} (${gradeUnitLabel(sym, elementUnits[sym])})`, rows: holeAssays, kind: "assay", sym, unit: elementUnits[sym] || "ppm" }));
   // TASKS.csv #2477 (review #2325) — custom-layer tracks (a stratigraphic unit, a gamma log) as the strip-log window's '+ track' gives them:
   // [{ layer, numeric, max }] — a category as coloured blocks (the 3D view's colours, #2476), a numeric log as bars over `max` (the atlas's
   // holes together, so every page has the same scale)

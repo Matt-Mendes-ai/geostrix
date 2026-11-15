@@ -1,5 +1,5 @@
-// TASKS.csv #3569 (Fireweed rehearsal) — what a Data QC row can be done with: opened in the data table at its interval, its hole found in 3D, and marked as checked (kept on
-// this computer per project, shown dimmed or hidden the next time QC runs, reversible). Pure but for localStorage, which is always guarded.
+// TASKS.csv #3569 (Fireweed rehearsal) — what a Data QC row can be done with: opened in the data table at its interval, its hole found in 3D, and marked as checked (kept
+// in the project file as project.qcChecked, shown dimmed or hidden the next time QC runs, reversible). Pure.
 import { LAYER_META } from "./layers.js";
 import { depthsInMessage } from "./dataTable.js";
 
@@ -19,12 +19,4 @@ export function qcTableRequest(issue) {
   if (!source || !issue.holeId) return null;
   const d = depthsInMessage(issue.message);
   return { source, hole: String(issue.holeId), ...(d ? { from: d.from, to: d.to } : {}) };
-}
-
-const storageKey = (project) => `geostrix.qc.checked:${String(project || "")}`;
-export function loadChecked(projectName) {
-  try { const raw = localStorage.getItem(storageKey(projectName)); const a = raw ? JSON.parse(raw) : []; return new Set(Array.isArray(a) ? a.filter((x) => typeof x === "string") : []); } catch { return new Set(); }
-}
-export function saveChecked(projectName, set) {
-  try { const a = [...set]; if (a.length) localStorage.setItem(storageKey(projectName), JSON.stringify(a)); else localStorage.removeItem(storageKey(projectName)); } catch { /* storage unavailable: the marks last until the dialog closes */ }
 }
