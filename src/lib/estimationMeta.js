@@ -38,9 +38,12 @@ export const blockModelBudgetNote = (b) => (b <= 200000 ? "~0.1 GB of memory" : 
 // TASKS.csv #3581 — 10, 20 and 50 million: the same rate (#625: about 30 s per million where most of the box is within the search; much less
 // where little of it is, 50 million over Macpass's 27 x 18 km in 18 s), and the memory measured at its peak with the cut and the iso-surface
 // (Macpass, Node: 19.5 million blocks 450 MB, 49 million 990 MB, about 21 bytes per block; 24 taken). The cut at the ground and the
-// iso-surface still run in the window: 8 s at 20 million and 17 s at 50 million on the 32 GB development machine, so the notes say so.
-export const gradeShellBudgetNote = (b) => (b <= 200000 ? "fast, ~3 MB of memory" : b <= 1000000 ? "~20 s, ~13 MB of memory" : b <= 2000000 ? "~40 s, ~26 MB of memory" : b <= 5000000 ? "~2.5 min, ~65 MB of memory"
-  : b <= 10000000 ? "up to ~5 min, ~0.25 GB of memory; the window pauses a few seconds at the end" : b <= 20000000 ? "up to ~10 min, ~0.5 GB of memory; the window pauses about 10 s at the end" : "up to ~25 min, ~1.2 GB of memory; the window pauses 20 s or more at the end");
+// iso-surface ran in the window then (8 s at 20 million, 17 s at 50 million); since #3580 (b) they run in the worker.
+// TASKS.csv #3654 (5) — re-timed on the build after #3580 (b) / #3655 (Macpass, the whole property, Ag, 10 m cells, ~4 million nodes): 29-58 s
+// (Review 50-58 s), the longest window pause 0.12-0.43 s; the 'window pauses ... at the end' clauses are gone. The 10 / 20 / 50 million
+// times stay upper bounds, not re-measured (the development machine was at 100 % CPU then).
+export const gradeShellBudgetNote = (b) => (b <= 200000 ? "fast, ~3 MB of memory" : b <= 1000000 ? "~20 s, ~13 MB of memory" : b <= 2000000 ? "~40 s, ~26 MB of memory" : b <= 5000000 ? "~1 min, ~65 MB of memory"
+  : b <= 10000000 ? "up to ~5 min, ~0.25 GB of memory" : b <= 20000000 ? "up to ~10 min, ~0.5 GB of memory" : "up to ~25 min, ~1.2 GB of memory");
 export const SHELL_BYTES_PER_BLOCK = 24;
 export const gradeShellBudgetMB = (b) => Math.ceil((b * SHELL_BYTES_PER_BLOCK) / 1e6);
 // the budgets offered on a computer: up to 5 million always (as before #3581), the larger ones where fits(MB) says this computer's memory can

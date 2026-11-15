@@ -2666,7 +2666,11 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // TASKS.csv #3286 (2) — the spacing Estimation and this pane's search say (holeSpacingSummary: the typical distance from a site to the next);
         // the halo rule's own spacing gave 160 m beside Estimation's 200 m for the same 14 holes
         const gsCollars = collars.filter((c) => holesOfPoints.has(c.hole_id));
-        const gsSpacing = (await import("../../lib/holeSpacing.js")).holeSpacingSummary(gsCollars)?.medianM || autoHaloParams(gsCollars, tracesRef.current || null).spacing;
+        // TASKS.csv #3654 (4) — the spacing at the samples, as the pane's search is taken from (#3580: lib/sampleSpacing.js): the share 'beyond
+        // the drilling' was said against the 15 m between Tom West's collar sites beside a search from its 24 m between samples. The sites'
+        // spacing stays the fallback (no two holes' samples within reach of each other).
+        const gsSampleSpacing = (await import("../../lib/sampleSpacing.js")).sampleSpacing(points)?.medianM;
+        const gsSpacing = gsSampleSpacing > 0 ? gsSampleSpacing : (await import("../../lib/holeSpacing.js")).holeSpacingSummary(gsCollars)?.medianM || autoHaloParams(gsCollars, tracesRef.current || null).spacing;
         // TASKS.csv #3580 (b) — with no trend warp and no log values the cut, the iso-surface and the counts run in the worker after the estimate
         // (lib/viewer/shellPost.js): the window gets the mesh and the counts, not the grid. The ground goes per column of each box's lattice.
         const workerPost = !anisotropy.enabled && !logInfo;
@@ -2854,7 +2858,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           singleHoleCells: gridSum.singleHoleCells, meanGradeInShell,
           ...(grids.length > 1 ? { drilledAreas: { grids: grids.length, nodes: boxTotal, wholeBoxNodes: boxBlocks(bounds, cs), note: "one grid per drilled cluster: the box round all the samples would have had wholeBoxNodes" } } : {}),
           compositesInShell: inShell, // #1735 — { above, inside, outside, noData }: the at/above-cutoff composites against the shell
-          ...(gsBeyond ? { beyondDrilling: { share: +gsBeyond.share.toFixed(3), holeSpacingM: Math.round(gsSpacing) } } : {}), // #2757
+          ...(gsBeyond ? { beyondDrilling: { share: +gsBeyond.share.toFixed(3), holeSpacingM: Math.round(gsSpacing), spacingAt: gsSampleSpacing > 0 ? "samples" : "collars" } } : {}), // #2757; spacingAt: #3654 (4)
           // TASKS.csv #91/#92 — grid-wide classification, and the same classification restricted to the
           // shell's own surface. The second is the one that matters for a reported volume: it says what
           // fraction of the BOUNDARY is bracketed by data rather than carried out beyond it.

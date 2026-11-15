@@ -61,7 +61,7 @@ test("Macpass: with no terrain, the ground between the collars stands above ever
   const note = collarLevelsText(collars);
   assert.match(note, /^80 collar\(s\) look like underground drilling: 80 by their hole type \(UDDH, UG …\), 0 starting upward, 0 drilled flat or upward from a station far below a collar nearby \(TU001, /);
   assert.match(note, /They are left out of the ground between the collars\./);
-  assert.match(note, /4 collars have another collar within 15 m in plan that is more than 5 m lower \(a pit or benches\?\)/, "#2584's check, now over the 479 surface collars only (steep pads)");
+  assert.match(note, /4 collars have another collar within 15 m in plan that is more than 5 m lower \(steep ground, benches or a pit\?\)/ /* #3654 (3) */, "#2584's check, now over the 479 surface collars only (steep pads)");
 });
 
 test("Macpass with its hole-type column removed: the holes that start upward and the flat-drilled stations under the hills are still found, no surface hole", () => {
