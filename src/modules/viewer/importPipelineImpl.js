@@ -60,6 +60,7 @@ import { requestModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #9
 import { densityNote } from "../../lib/densityNote.js"; // TASKS.csv #3529
 import { densityRangeOf } from "../../lib/densityRange.js"; // TASKS.csv #3587
 import { companionLayer, surveyMethodFields, columnsLeftOut, suscInstrumentFields, dialogExtraFields, queueExtraFields } from "../../lib/viewer/autoExtras.js"; // queueExtraFields: #3544 (C2) // suscInstrumentFields: #2668 // TASKS.csv #1501; surveyMethodFields: #2187
+import { yearsAsNumbers } from "../../lib/collarYear.js"; // TASKS.csv #3545
 import { surfaceAttrColumns, surfaceAttrs } from "../../lib/geochemColumns.js"; // TASKS.csv #1504 — unmapped collar columns kept as attrs; #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 import { rasterDrapeElevation, drapeElevationNote, planElevation } from "../../lib/drapeElevation.js"; // TASKS.csv #1505; planElevation: #2294
 import { projectTargetEpsg } from "../../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
@@ -554,6 +555,7 @@ export function makeImportPipeline(ctx, h) {
         _rowEpsg: perRowEpsgCol ? String(r[perRowEpsgCol] ?? "").trim() : "",
         ...withHoleType(withDates(surfaceAttrs(r, attrCols)), r), // #1504; hole type: #2161; dates: #3075
       }, r, customFields));
+      rows = yearsAsNumbers(rows); // TASKS.csv #3545 (#3538) — a year field of whole years stored as numbers: 'Colour holes by' draws it as a ramp
       // TASKS.csv #337 — a collar without all three coordinates can't be placed; skip it and say which,
       // instead of the old behaviour of keeping it at z = 0.
       // TASKS.csv #2169 — a blank ELEVATION no longer skips the collar: it gets an assumed one after reprojection (fillMissingCollarZ below)
