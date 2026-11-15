@@ -46,10 +46,15 @@ test("Macpass, Ag > 29.8 g/t (the bundled sample, no terrain): no composite at o
   const { points } = samplePointsFromIntervals(iv, collars, survey, desurveyHole, "minimumCurvature");
   const hi = points.filter((p) => p.value >= 29.8);
   assert.equal(hi.length, 1597, "composites at/above the cutoff (the app, through its import, counts 1,595)");
+  // #3551 (side 1) — with the collar file's hole type, its 80 UDDH collars (an adit's, under the hills) are left out of the collar surface, and on
+  // Macpass that alone keeps every composite under it; a project without a hole-type column is the case the raise below still has to cover
+  const typed = read("collars").map((r) => ({ hole_id: r.hole_id, x: +r.x, y: +r.y, z: +r.z, attrs: { hole_type: r.hole_type } }));
+  const withTypes = groundAtInFrame(modelGround(null, typed, survey).ground);
+  assert.equal(hi.filter((p) => p.z > withTypes(p.x, p.y)).length, 0, "with hole types: none above the collar surface (#3551)");
   const ground = modelGround(null, collars, survey).ground;
   assert.equal(ground?.kind, "collars");
   const before = groundAtInFrame(ground);
-  assert.equal(hi.filter((p) => p.z > before(p.x, p.y)).length, 312, "the collar surface ran below 312 of them (311 of the 1,595 the app counts)");
+  assert.equal(hi.filter((p) => p.z > before(p.x, p.y)).length, 47, "without hole types (the survey's upward / station check of #3551 only) the collar surface runs below 47 of them; 312 before #3551");
   const cell = 95; // the run's 47.5 m cells, doubled to keep the test quick
   const lift = groundNotBelowSamples(before, points, { reachM: cell, marginM: cell });
   assert.equal(hi.filter((p) => !(lift.at(p.x, p.y) >= p.z + cell)).length, 0, "now a cell below the ground, every one");
@@ -63,4 +68,19 @@ test("Macpass, Ag > 29.8 g/t (the bundled sample, no terrain): no composite at o
   const uncut = inside(g.values), was = inside(cutOld), now = inside(cutNew);
   assert.ok(was < uncut, `the old cut lost composites (${was} of ${uncut})`);
   assert.equal(now, uncut, "the raised cut loses none");
+});
+
+test("capFieldAtGround: the ground looked up once per column gives the per-node values and count exactly (Review: a 16 s freeze on Macpass)", () => {
+  const nx = 23, ny = 17, nz = 11, values = new Float64Array(nx * ny * nz);
+  let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < values.length; i++) values[i] = rnd() < 0.2 ? NaN : rnd() * 100;
+  const origin = { x: 1000.5, y: 2000.25, z: 300 }, spacing = { dx: 7.5, dy: 7.5, dz: 4 };
+  let calls = 0;
+  const groundAt = (x, y) => { calls++; return x > 1150 ? NaN : 330 + 0.1 * (x - 1000) - 0.05 * (y - 2000); };
+  const col = capFieldAtGround(values, nx, ny, nz, origin, spacing, 40, groundAt);
+  assert.equal(calls, nx * ny, "one lookup per column");
+  const node = capFieldAtGround(values, nx, ny, nz, origin, spacing, 40, groundAt, { toReal: (p) => p }); // the per-node path
+  assert.equal(col.capped, node.capped);
+  assert.ok(col.capped > 0);
+  assert.deepEqual(Array.from(col.values), Array.from(node.values));
 });

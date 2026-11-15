@@ -24,6 +24,23 @@ export function capFieldAtGround(values, nx, ny, nz, origin, spacing, iso, groun
   const s = Math.max(vmax - iso, Math.abs(iso) * 0.01, 1e-9) / Math.max(dx, dy, dz);
   const out = Float32Array.from(values);
   let capped = 0;
+  // TASKS.csv #3580 (Review's batch 3: the whole-property Macpass shell froze the window ~16 s cut, 1.3 s uncut) — with no warp the ground
+  // depends on x and y only: looked up once per column (nx x ny, 190 k on Macpass) instead of once per node (4.9 M, each a collar-surface
+  // query). Same values: the same groundAt(x, y) for every node of a column.
+  if (!toReal) {
+    const G = new Float64Array(nx * ny);
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) G[i + nx * j] = groundAt(origin.x + i * dx, origin.y + j * dy);
+    for (let k = 0; k < nz; k++) {
+      const z = origin.z + k * dz;
+      for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+        const g = G[i + nx * j];
+        if (!Number.isFinite(g)) continue;
+        const at = i + nx * (j + ny * k), cap = iso + s * (g - z), v = out[at];
+        if (Number.isFinite(v) ? v > cap : z > g) { out[at] = cap; capped++; }
+      }
+    }
+    return { values: out, capped };
+  }
   const p = { x: 0, y: 0, z: 0 };
   for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
     p.x = origin.x + i * dx; p.y = origin.y + j * dy; p.z = origin.z + k * dz;
