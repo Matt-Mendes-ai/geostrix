@@ -29,3 +29,9 @@ export function anisotropyFromFits(downhole, across) {
   if (!(a > 0) || !(b > 0)) return null;
   return { downholeM: a, acrossM: b, ratio: b / a, flat: b / a >= 2 };
 }
+
+// TASKS.csv #3499 (from #3079) — the Variogram tool's last anisotropy (downhole and across ranges) per project and element, for the Grade shell
+// pane's offer of the flat search. Session only, like the rest of this module.
+const anisotropyMemory = new Map();
+export function rememberAnisotropy(project, symbol, an) { if (an && symbol) anisotropyMemory.set(`${estimateSettingsKey(project)}|${symbol}`, an); }
+export const anisotropyFor = (project, symbol) => anisotropyMemory.get(`${estimateSettingsKey(project)}|${symbol}`) || null;
