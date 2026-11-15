@@ -49,6 +49,7 @@
 
 import * as THREE from "three";
 import { sphereHitDistance, instanceSphere } from "./viewer/layerBatches.js";
+import { tubePixelScale, TUBE_PICK_PX } from "./viewer/tubePick.js"; // TASKS.csv #3667
 
 const LEAF_SIZE = 8; // objects per leaf; below this a linear scan is cheaper than more traversal
 
@@ -202,7 +203,7 @@ function refit(t, items) {
  */
 export function buildPickIndex(objects) {
   const items = [], rest = [], surveys = [];
-  let boxedCount = 0;
+  let boxedCount = 0, tubes = false; // tubes: #3667 — a batch of pixel-floor tubes is among them
   for (let i = 0; i < objects.length; i++) {
     const o = objects[i];
     if (!o) continue;
@@ -216,7 +217,7 @@ export function buildPickIndex(objects) {
     }
     if (o.userData?.compact) {
       const sub = batchTree(o);
-      if (sub.root >= 0) { items.push({ obj: o, slot: i, sub }); boxedCount += o.userData.compact.rows.length; }
+      if (sub.root >= 0) { items.push({ obj: o, slot: i, sub }); boxedCount += o.userData.compact.rows.length; if (o.userData.tubeFloor) tubes = true; }
       continue;
     }
     if (isBoxBounded(o)) {
@@ -244,6 +245,7 @@ export function buildPickIndex(objects) {
     subs: items.map((t) => t.sub),
     surveys,
     rest,
+    tubes,
     total: objects.length,
     boxedCount,
   };
@@ -252,26 +254,26 @@ export function buildPickIndex(objects) {
 // Ray/AABB slab test. Zero direction components are handled with an explicit in-range check rather
 // than 1/0 = Infinity, which would produce a NaN (and a silently missed hit) whenever the ray origin
 // sits exactly on a slab plane. -> the distance where the ray enters the box (0 from inside), or -1 (#3360: nearest-first pruning).
-function hitsBox(b, nb, ox, oy, oz, dx, dy, dz) {
+function hitsBox(b, nb, ox, oy, oz, dx, dy, dz, m = 0) { // m: #3667 — the box widened by m on every side (a tube batch's pixels at the box's depth)
   let tmin = -Infinity, tmax = Infinity;
   if (dx !== 0) {
     const i = 1 / dx;
-    let t1 = (b[nb] - ox) * i, t2 = (b[nb + 3] - ox) * i;
+    let t1 = (b[nb] - m - ox) * i, t2 = (b[nb + 3] + m - ox) * i;
     if (t1 > t2) { const t = t1; t1 = t2; t2 = t; }
     if (t1 > tmin) tmin = t1; if (t2 < tmax) tmax = t2;
-  } else if (ox < b[nb] || ox > b[nb + 3]) return -1;
+  } else if (ox < b[nb] - m || ox > b[nb + 3] + m) return -1;
   if (dy !== 0) {
     const i = 1 / dy;
-    let t1 = (b[nb + 1] - oy) * i, t2 = (b[nb + 4] - oy) * i;
+    let t1 = (b[nb + 1] - m - oy) * i, t2 = (b[nb + 4] + m - oy) * i;
     if (t1 > t2) { const t = t1; t1 = t2; t2 = t; }
     if (t1 > tmin) tmin = t1; if (t2 < tmax) tmax = t2;
-  } else if (oy < b[nb + 1] || oy > b[nb + 4]) return -1;
+  } else if (oy < b[nb + 1] - m || oy > b[nb + 4] + m) return -1;
   if (dz !== 0) {
     const i = 1 / dz;
-    let t1 = (b[nb + 2] - oz) * i, t2 = (b[nb + 5] - oz) * i;
+    let t1 = (b[nb + 2] - m - oz) * i, t2 = (b[nb + 5] + m - oz) * i;
     if (t1 > t2) { const t = t1; t1 = t2; t2 = t; }
     if (t1 > tmin) tmin = t1; if (t2 < tmax) tmax = t2;
-  } else if (oz < b[nb + 2] || oz > b[nb + 5]) return -1;
+  } else if (oz < b[nb + 2] - m || oz > b[nb + 5] + m) return -1;
   const t0 = tmin > 0 ? tmin : 0;
   return tmax >= t0 ? t0 : -1;
 }
@@ -279,12 +281,16 @@ function hitsBox(b, nb, ox, oy, oz, dx, dy, dz) {
 const _stack = new Int32Array(128), _subStack = new Int32Array(128);
 
 // each item of tree t whose leaf the ray's box tests let through: visit(item index)
-function walk(t, stack, ox, oy, oz, dx, dy, dz, visit) {
+// TASKS.csv #3667 — scale { k, c } (tubePixelScale): each node's box is widened by TUBE_PICK_PX pixels at the depth of its far corner, so the tubes a ray
+// passes within a few pixels of (drawn at the pixel floor, tubeShader.js) are candidates; null: the boxes as they are
+function walk(t, stack, ox, oy, oz, dx, dy, dz, visit, scale = null) {
   let sp = 0;
   stack[sp++] = t.root;
   while (sp > 0) {
     const node = stack[--sp];
-    if (hitsBox(t.bounds, node * 6, ox, oy, oz, dx, dy, dz) < 0) continue;
+    let m = 0;
+    if (scale) { const B = t.bounds, o = node * 6, cx = (B[o] + B[o + 3]) / 2 - ox, cy = (B[o + 1] + B[o + 4]) / 2 - oy, cz = (B[o + 2] + B[o + 5]) / 2 - oz, hx = (B[o + 3] - B[o]) / 2, hy = (B[o + 4] - B[o + 1]) / 2, hz = (B[o + 5] - B[o + 2]) / 2; m = TUBE_PICK_PX * (scale.c + scale.k * (Math.sqrt(cx * cx + cy * cy + cz * cz) + Math.sqrt(hx * hx + hy * hy + hz * hz))); }
+    if (hitsBox(t.bounds, node * 6, ox, oy, oz, dx, dy, dz, m) < 0) continue;
     const a = t.nodeA[node];
     if (a < 0) {
       const start = t.nodeStart[node], count = t.nodeCount[node];
@@ -360,12 +366,13 @@ export function queryPickIndex(idx, raycaster) {
   const dx = ray.direction.x, dy = ray.direction.y, dz = ray.direction.z;
   const picked = [];
   if (idx.root >= 0) {
+    const px = idx.tubes ? tubePixelScale(raycaster.camera) : null; // #3667 — only with a pixel-floor tube batch in the index
     walk(idx, _stack, ox, oy, oz, dx, dy, dz, (oi) => {
       const obj = idx.objects[oi], sub = idx.subs[oi], slot = idx.slots[oi];
       if (!sub) { picked.push({ obj, slot }); return; }
       const cp = obj.userData.compact, n = cp.rows.length;
-      walk(sub, _subStack, ox, oy, oz, dx, dy, dz, (k) => picked.push({ obj: cp.view(k), slot: slot + (k + 1) / (n + 2) })); // #1643: an instance's view; its slot its batch's plus a fraction, so list order still breaks ties
-    });
+      walk(sub, _subStack, ox, oy, oz, dx, dy, dz, (k) => picked.push({ obj: cp.view(k), slot: slot + (k + 1) / (n + 2) }), obj.userData.tubeFloor ? px : null); // #1643: an instance's view; its slot its batch's plus a fraction, so list order still breaks ties
+    }, px);
   }
   for (const { obj, slot } of idx.surveys || []) { // #3360
     if (obj.visible === false) continue;

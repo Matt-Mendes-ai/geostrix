@@ -228,7 +228,7 @@ import { useSurfaceUndo, stashSurface } from "./viewer/surfaceUndo.js"; // TASKS
 import { useModelling } from "./viewer/useModelling.js";
 import { useUnitSource } from "./viewer/useUnitSource.js"; // TASKS.csv #2378
 import { wheelZoom } from "./viewer/wheelZoom.js"; // #2368
-import { makeWheelAnchors } from "./viewer/wheelAnchors.js"; // TASKS.csv #3247
+import { makeWheelAnchors, wheelBoxes } from "./viewer/wheelAnchors.js"; // TASKS.csv #3247; #3669
 import { useDrillLineDefaults } from "./viewer/drillLines.js"; // #2366
 import { sectionTopView, viewCentreEN } from "./viewer/sectionView.js"; // TASKS.csv #3574
 import { pBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704 // TASKS.csv #445 step 2
@@ -2212,7 +2212,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     // property — a true Infinity isn't meaningful here since floating-point precision and the
     // camera's far plane both have real limits regardless.
     const wheelAnchorsFor = makeWheelAnchors(); // #3247 — the holes' points a missed zoom ray falls back on
-    const onWheel = (e) => { e.preventDefault(); wheelZoom(e, renderer.domElement, camera, raycasterRef.current, camState.current, (rc) => firstVisibleLayerHit(pickHits(rc))?.point, { anchors: () => wheelAnchorsFor(tracesRef.current, visibleHolesRef.current) }); updateCamera(); }; // #2368 toward the cursor
+    const onWheel = (e) => { e.preventDefault(); wheelZoom(e, renderer.domElement, camera, raycasterRef.current, camState.current, (rc) => firstVisibleLayerHit(pickHits(rc))?.point, { anchors: () => wheelAnchorsFor(tracesRef.current, visibleHolesRef.current), boxes: () => wheelBoxes([voxelGroupRef.current, omfGroupRef.current]) /* #3669 */ }); updateCamera(); }; // #2368 toward the cursor
     const onContextMenuEvt = (e) => {
       e.preventDefault();
       const rd = rightDrag.onMenu(Date.now(), { clientX: e.clientX, clientY: e.clientY }); if (rd !== "open") return; // #2043 — no menu after a right-drag (pan)

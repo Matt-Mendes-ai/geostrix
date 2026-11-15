@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { PICK_ONLY_LAYER } from "./pickStandIn.js";
 import { collarMarkerMaterial } from "./collarMarkerShader.js"; // TASKS.csv #2623
 import { pixelTubeMaterial, isTubeProto } from "./tubeShader.js"; // TASKS.csv #3643
+import { tubeAxisHit, tubePixelScale } from "./tubePick.js"; // TASKS.csv #3667
 export { collarMarkerMaterial }; // for ViewerModule (its size cap)
 
 // Below this, an InstancedMesh (and its per-instance buffers) costs more than the draw calls it
@@ -78,7 +79,16 @@ export function sphereHitDistance(batch, i, ray, at = _sh) {
   return t;
 }
 InstanceView.prototype.raycast = function (raycaster, hits) {
-  if (this.batch.userData.geophysSurvey == null) return THREE.Mesh.prototype.raycast.call(this, raycaster, hits);
+  if (this.batch.userData.geophysSurvey == null) {
+    const before = hits.length;
+    THREE.Mesh.prototype.raycast.call(this, raycaster, hits);
+    // TASKS.csv #3667 — a tube drawn at the pixel floor is also hit within a few pixels of its axis when its real (sub-pixel) geometry is missed
+    if (hits.length === before && this.batch.userData.tubeFloor) {
+      const h = tubeAxisHit(this.batch.userData.compact.base, this.i, this.batch.matrixWorld.elements, raycaster.ray, tubePixelScale(raycaster.camera));
+      if (h && h.distance >= raycaster.near && h.distance <= raycaster.far) hits.push({ distance: h.distance, point: new THREE.Vector3(h.point.x, h.point.y, h.point.z), object: this, face: null, faceIndex: null });
+    }
+    return undefined;
+  }
   const d = sphereHitDistance(this.batch, this.i, raycaster.ray);
   if (d >= raycaster.near && d <= raycaster.far) hits.push({ distance: d, point: _sh.clone(), object: this, face: null, faceIndex: null });
 };
@@ -223,6 +233,7 @@ export function buildLayerBatches(group) {
     // per-interval object and never to the batch (which could not answer "which interval?").
     inst.userData.pickIgnore = true;
     inst.userData.batchMembers = fam.members;
+    if (isTubeProto(fam.geometry)) inst.userData.tubeFloor = true; // #3667 — its tubes are also picked within a few pixels of their axis
     // TASKS.csv #436 — a pick-only member never moves after the build (syncBatchedInstances calls
     // updateMatrix() itself on any change), so three.js need not re-compose its local matrix from
     // position/quaternion/scale on every rendered frame: measured 10.5 -> 6.2 ms per frame of pure CPU

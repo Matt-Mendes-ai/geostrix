@@ -2,6 +2,8 @@
 // trace points, in scene coordinates, thinned to at most `cap` so the per-notch pass stays a few tenths of a millisecond on a 20,000-hole project.
 // Hidden holes (the Holes list's unchecked ones) are left out. Kept until the traces or the visibility change (same objects), so a burst of
 // notches builds it once.
+import * as THREE from "three";
+import { ownBox } from "../../lib/viewer/fitAll.js"; // TASKS.csv #3669
 export const WHEEL_ANCHOR_CAP = 30000;
 export function wheelAnchors(traces, visible, cap = WHEEL_ANCHOR_CAP) {
   const shown = (traces || []).filter((t) => t?.pts?.length && visible?.[t.hole_id] !== false);
@@ -20,4 +22,20 @@ export function wheelAnchors(traces, visible, cap = WHEEL_ANCHOR_CAP) {
 export function makeWheelAnchors() {
   let kt = null, kv = null, val = null;
   return (traces, visible) => { if (val && kt === traces && kv === visible) return val; kt = traces; kv = visible; return (val = wheelAnchors(traces, visible)); };
+}
+
+// TASKS.csv #3669 — the own extent of every SHOWN child of the given groups (the block models' and OMF models' groups), in scene coordinates, as minx, miny, minz,
+// maxx, maxy, maxz per box: what a missed wheel zoom falls back on when no hole point is near the cursor (wheelZoom.js boxOnRay). A model's box is cached on its
+// mesh by three (InstancedMesh.boundingBox); the groups are walked on a miss only.
+const _b = new THREE.Box3();
+export function wheelBoxes(groups) {
+  const out = [];
+  for (const g of groups || []) {
+    if (!g || g.visible === false) continue;
+    for (const c of g.children) {
+      if (c.visible === false || !ownBox(c, _b)) continue;
+      out.push(_b.min.x, _b.min.y, _b.min.z, _b.max.x, _b.max.y, _b.max.z);
+    }
+  }
+  return Float32Array.from(out);
 }
