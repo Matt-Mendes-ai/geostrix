@@ -12966,5 +12966,9 @@
   "{n} holes ({ids}) share the same collar (within 1m) AND point the same way (within 3°) — a wedge or daughter hole, a twin or re-drill, a duplicate import, or a coordinate entry error.": "{n} furos ({ids}) compartilham o mesmo colar (a menos de 1 m) E apontam na mesma direção (a menos de 3°): um furo de cunha ou filho, um gêmeo ou reperfuração, uma importação duplicada ou um erro de digitação de coordenadas.",
   "{n} row(s) have coordinates already in the project CRS (EPSG:{epsg}), so they were not changed": "{n} linha(s) já têm coordenadas no SRC do projeto (EPSG:{epsg}), então não foram alteradas",
   " (no source CRS given)": " (sem SRC de origem informado)",
-  "Read from the {col} column of the file: {list}": "Lido da coluna {col} do arquivo: {list}"
+  "Read from the {col} column of the file: {list}": "Lido da coluna {col} do arquivo: {list}",
+  "Saved {file}: {d} drillhole(s), {p} point object(s), {c} curve(s), {s} surface(s), {b} block model(s).": "{file} salvo: {d} furo(s), {p} objeto(s) de pontos, {c} curva(s), {s} superfície(s), {b} modelo(s) de blocos.",
+  "{n} collar(s) without x, y and z.": "{n} colar(es) sem x, y e z.",
+  "Nothing in this project can go to a .geoh5 yet: drillholes, point surveys, surface samples, lines, surfaces and block models do.": "Nada deste projeto pode ir ainda para um .geoh5: podem os furos, os levantamentos de pontos, as amostras de superfície, as linhas, as superfícies e os modelos de blocos.",
+  "A .geoh5 carries no coordinate system: these are the project's coordinates ({crs}).": "Um .geoh5 não leva sistema de coordenadas: estas são as coordenadas do projeto ({crs})."
 }

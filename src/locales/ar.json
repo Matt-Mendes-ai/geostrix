@@ -12966,5 +12966,9 @@
   "{n} holes ({ids}) share the same collar (within 1m) AND point the same way (within 3°) — a wedge or daughter hole, a twin or re-drill, a duplicate import, or a coordinate entry error.": "{n} حفر ({ids}) تشترك في الفوهة نفسها (ضمن 1 م) وتتجه الاتجاه نفسه (ضمن 3°): حفرة إسفينية أو فرعية، أو توأم أو إعادة حفر، أو استيراد مكرر، أو خطأ في إدخال الإحداثيات.",
   "{n} row(s) have coordinates already in the project CRS (EPSG:{epsg}), so they were not changed": "{n} صف (صفوف) إحداثياتها بنظام إحداثيات المشروع أصلاً (EPSG:{epsg})، فلم تُغيَّر",
   " (no source CRS given)": " (لم يُحدَّد نظام إحداثيات المصدر)",
-  "Read from the {col} column of the file: {list}": "مقروء من عمود {col} في الملف: {list}"
+  "Read from the {col} column of the file: {list}": "مقروء من عمود {col} في الملف: {list}",
+  "Saved {file}: {d} drillhole(s), {p} point object(s), {c} curve(s), {s} surface(s), {b} block model(s).": "تم حفظ {file}: {d} حفرة (حفر)، {p} كائن (كائنات) نقاط، {c} منحنى (منحنيات)، {s} سطح (أسطح)، {b} نموذج (نماذج) كتلي.",
+  "{n} collar(s) without x, y and z.": "{n} فوهة (فوهات) بلا x وy وz.",
+  "Nothing in this project can go to a .geoh5 yet: drillholes, point surveys, surface samples, lines, surfaces and block models do.": "لا شيء في هذا المشروع يمكن تصديره بعد إلى ملف .geoh5: الحفر ومسوح النقاط وعيّنات السطح والخطوط والأسطح والنماذج الكتلية تُصدَّر.",
+  "A .geoh5 carries no coordinate system: these are the project's coordinates ({crs}).": "لا يحمل ملف .geoh5 نظام إحداثيات: هذه إحداثيات المشروع ({crs})."
 }
