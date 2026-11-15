@@ -42,3 +42,7 @@ test("the table shows an empty cell, never NaN; the call passes the survey", () 
   assert.match(read("../src/components/AttributeTableModal.jsx"), /typeof r\[c\] === "number" && !Number\.isFinite\(r\[c\]\) \? ""/);
   assert.match(read("../src/components/ProjectReportModal.jsx"), /projectReportRows\(\{ project, collars, survey,/);
 });
+
+test("ViewerModule passes the survey to the collar features (the one-call grant)", () => {
+  assert.match(read("../src/modules/ViewerModule.jsx"), /buildVectorFeaturesOf\(kind, key, \{ collars, survey \/\* #3623/);
+});

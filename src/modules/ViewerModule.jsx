@@ -5214,7 +5214,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const flipDipOf = (r) => { const d = typeof r.dip === "string" && r.dip.trim() !== "" ? Number(r.dip) : r.dip; return Number.isFinite(d) ? { ...r, dip: -d } : r; };
   const dipShown = flipDipOf, dipStored = flipDipOf;
   // TASKS.csv #1083 — the features themselves are built in lib/viewer/vectorFeatures.js (tested there)
-  const buildVectorFeatures = (kind, key) => buildVectorFeaturesOf(kind, key, { collars, traces: tracesRef.current, layers, epsg: project?.epsg });
+  const buildVectorFeatures = (kind, key) => buildVectorFeaturesOf(kind, key, { collars, survey /* #3623 — AZIM_GRID / DIP from the first station */, traces: tracesRef.current, layers, epsg: project?.epsg });
 
   const exportVectorShapefile = async (kind, key, label, built = null) => { // built: #1025 — a map layer / boundary / sample set
     const { features, geomType } = built || buildVectorFeatures(kind, key);

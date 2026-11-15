@@ -2822,7 +2822,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           modelArea: inArea ? `holes checked in the Holes list (${area.checked} of ${area.all})` : "whole property", // #2059
           samplePoints: points.length, cellsEstimated: gridSum.estimated, ...(gsVariogram ? { variogram: gsVariogram } : {}), // #709; #935 — range in m along the trend
           singleHoleCells: gridSum.singleHoleCells, meanGradeInShell,
-          ...(grids.length > 1 ? { drilledAreas: { grids: grids.length, nodes: boxTotal, wholeBoxNodes: boxBlocks(bounds, cs), note: "one grid per drilled cluster (#3580): the box round all the samples would have had wholeBoxNodes" } } : {}),
+          ...(grids.length > 1 ? { drilledAreas: { grids: grids.length, nodes: boxTotal, wholeBoxNodes: boxBlocks(bounds, cs), note: "one grid per drilled cluster: the box round all the samples would have had wholeBoxNodes" } } : {}),
           compositesInShell: inShell, // #1735 — { above, inside, outside, noData }: the at/above-cutoff composites against the shell
           ...(gsBeyond ? { beyondDrilling: { share: +gsBeyond.share.toFixed(3), holeSpacingM: Math.round(gsSpacing) } } : {}), // #2757
           // TASKS.csv #91/#92 — grid-wide classification, and the same classification restricted to the

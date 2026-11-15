@@ -31,6 +31,6 @@ test("a density by its element, value, column, property or name; a grade is not 
 
 test("wiring: the density choice keeps only density models (besides the same lattice and not the set's other elements)", () => {
   const g = readFileSync(new URL("../src/components/GradeTonnageModal.jsx", import.meta.url), "utf8");
-  assert.match(g, /import \{ sameLattice, densityFromModel, DENSITY_RANGE, isDensityModel \} from "\.\.\/lib\/densityFromModel\.js";/);
+  assert.match(g, /import \{ sameLattice, densityFromModel, isDensityModel \} from "\.\.\/lib\/densityFromModel\.js";/);
   assert.match(g, /const densityModels = useMemo\(\(\) => \(latticeOf \? voxelModels\.filter\(\(m\) => [^\n]*isDensityModel\(m\) \/\* #3172 \*\/ && sameLattice\(blockModelLattice\(m\), latticeOf\)\)/);
 });
