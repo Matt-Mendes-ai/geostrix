@@ -1364,7 +1364,7 @@ export default function LayoutModule() {
                     {LAYOUT_FONTS.map((f) => <option key={f.label} value={f.label} style={{ fontFamily: f.stack }}>{f.label}</option>)}
                   </select>
                 </label>
-                <button type="button" style={{ ...pBtn, marginBottom: 0 }} onClick={() => setElements((els) => withPageFont(els, LAYOUT_FONTS.some((f) => f.label === sel.fontFamily) ? sel.fontFamily : LAYOUT_DEFAULT_FONT))} title={tr("Every title, text, legend, table, title block, scale bar, north arrow and drill plan on this page takes this typeface.")}>{tr("Whole page")}</button>
+                <button type="button" style={{ ...pBtn, marginBottom: 0 }} onClick={() => setElements((els) => withPageFont(els, LAYOUT_FONTS.some((f) => f.label === sel.fontFamily) ? sel.fontFamily : LAYOUT_DEFAULT_FONT))} title={tr("Every title, text, legend, table, title block, scale bar, north arrow and drill plan on this page takes this typeface.")}>{tr("Use on the whole page")}</button>
               </div>
             )}
             {"text" in sel && (sel.type === "text" /* #1868 — several lines (a title block, a note) */
@@ -1699,6 +1699,10 @@ export default function LayoutModule() {
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Scale 1 :")}<select value={String(sel.scale)} onChange={(e) => updateSelected({ scale: Number(e.target.value) })} style={{ ...inp, marginTop: 4 }}>
                   {[...new Set([...SCALE_PRESETS, sel.scale])].sort((a, b) => a - b).map((s) => <option key={s} value={String(s)}>{Number(s).toLocaleString()}</option>)}
                 </select></label>
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title={tr("Any scale: 1 : 6,000 and 1 : 7,500 are not in the list.")}>{/* TASKS.csv #3611 — a typed scale, as the section picture has */}
+                  {tr("Typed scale 1 :")}<input type="number" min="1" step="100" value={Math.round(sel.scale) || ""} onChange={(e) => { const v = Number(e.target.value); if (v >= 1) updateSelected({ scale: v }); }} style={{ ...inp, marginBottom: 0, flex: 1, minWidth: 0 }} />
+                </label>
+                <button type="button" onClick={() => updateSelected({ x: 10 * PX_PER_MM, y: 10 * PX_PER_MM, w: A4.w - 20 * PX_PER_MM, h: A4.h - 20 * PX_PER_MM })} title={tr("The frame takes the whole page inside 10 mm margins (the title block and key can be moved over it).")} style={{ ...pBtn, width: "100%", justifyContent: "center", marginBottom: 6 }}>{tr("Fill the page")}</button>{/* TASKS.csv #3611 */}
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title={tr("The coordinate grid's spacing in metres. Blank: about five lines across the frame; 0: no grid.")}>{tr("Grid (m)")}<input type="number" min="0" step="any" value={sel.gridM ?? ""} placeholder={tr("auto")} onChange={(e) => updateSelected({ gridM: e.target.value === "" ? undefined : Number(e.target.value) })} style={{ width: 80 }} aria-label={tr("Grid spacing (m)")} /></label>{/* #2301 */}
                 <div style={{ display: "flex", gap: 6 }}>
                   <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Centre E")}<input type="number" value={Math.round(sel.centre?.x || 0)} onChange={(e) => updateSelected({ centre: { ...sel.centre, x: Number(e.target.value) } })} style={inp} /></label>
@@ -2515,7 +2519,7 @@ const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, proje
 
 // TASKS.csv #906 — resize handles: 8 for a free box, the 4 corners where the aspect is locked, left / right for an
 // element that wraps text to its width, the tip of an arrow. Drawn on the single selected element only.
-const BOX_TYPES = new Set(["viewport", "image", "rect", "logo"]);
+const BOX_TYPES = new Set(["viewport", "image", "rect", "logo", "drillplan"]); // drillplan: TASKS.csv #3611 — W / H boxes beside X / Y
 const ASPECT_LOCKED = new Set(["image", "logo"]);
 const WIDTH_ONLY = new Set(["title", "text", "callout", "legend", "table", "titleblock"]); // titleblock: #1868
 // TASKS.csv #3374 — a cell's text width in page px at `px` (canvas measureText at 100 px, scaled; kept per typeface, weight and text)

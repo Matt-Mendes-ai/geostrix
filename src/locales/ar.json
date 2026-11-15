@@ -13005,5 +13005,11 @@
   "A positive dip points UP (negative = down): normal from an underground collar.": "الميل الموجب يتجه إلى الأعلى (السالب = إلى الأسفل): أمر طبيعي من فوهة تحت الأرض.",
   "A positive dip points UP (negative = down): this hole would rise from the collar into the air. For a hole going down at {d}°, type -{d}.": "الميل الموجب يتجه إلى الأعلى (السالب = إلى الأسفل): سيرتفع هذا الثقب من الفوهة إلى الهواء. لثقب ينزل بزاوية {d}° اكتب -{d}.",
   "Only the {shown} of {total} holes checked in the 3D View": "فقط الثقوب المحددة في العرض ثلاثي الأبعاد وعددها {shown} من {total}",
-  "A space ends a term: did you mean {term}? (_ stands for a space in a value.)": "المسافة تنهي المصطلح: هل تقصد {term}؟ (الرمز _ يمثل مسافة داخل القيمة.)"
+  "A space ends a term: did you mean {term}? (_ stands for a space in a value.)": "المسافة تنهي المصطلح: هل تقصد {term}؟ (الرمز _ يمثل مسافة داخل القيمة.)",
+  "Typed scale 1 :": "مقياس مكتوب 1 :",
+  "Any scale: 1 : 6,000 and 1 : 7,500 are not in the list.": "أي مقياس: 1 : 6,000 و1 : 7,500 ليسا في القائمة.",
+  "Fill the page": "ملء الصفحة",
+  "The frame takes the whole page inside 10 mm margins (the title block and key can be moved over it).": "يشغل الإطار الصفحة كاملة ضمن هوامش 10 مم (يمكن نقل لوحة العنوان والمفتاح فوقه).",
+  "Use on the whole page": "استخدامه في الصفحة كلها",
+  "Most of the grid is empty because the points lie in a few clusters far apart: 'Limit to a drawn area…' over one cluster gives it finer nodes.": "معظم الشبكة فارغ لأن النقاط تقع في بضع مجموعات متباعدة: «تقييد بمنطقة مرسومة…» فوق إحدى المجموعات يعطيها عقدًا أدق."
 }

@@ -13005,5 +13005,11 @@
   "A positive dip points UP (negative = down): normal from an underground collar.": "Un buzamiento positivo apunta hacia ARRIBA (negativo = hacia abajo): normal desde un collar subterráneo.",
   "A positive dip points UP (negative = down): this hole would rise from the collar into the air. For a hole going down at {d}°, type -{d}.": "Un buzamiento positivo apunta hacia ARRIBA (negativo = hacia abajo): este sondaje subiría desde el collar al aire. Para un sondaje que baja a {d}°, escriba -{d}.",
   "Only the {shown} of {total} holes checked in the 3D View": "Solo los {shown} de {total} sondajes marcados en la vista 3D",
-  "A space ends a term: did you mean {term}? (_ stands for a space in a value.)": "Un espacio termina un término: ¿quiso decir {term}? (_ representa un espacio dentro de un valor.)"
+  "A space ends a term: did you mean {term}? (_ stands for a space in a value.)": "Un espacio termina un término: ¿quiso decir {term}? (_ representa un espacio dentro de un valor.)",
+  "Typed scale 1 :": "Escala escrita 1 :",
+  "Any scale: 1 : 6,000 and 1 : 7,500 are not in the list.": "Cualquier escala: 1 : 6.000 y 1 : 7.500 no están en la lista.",
+  "Fill the page": "Llenar la página",
+  "The frame takes the whole page inside 10 mm margins (the title block and key can be moved over it).": "El marco ocupa toda la página dentro de márgenes de 10 mm (el cajetín y la leyenda pueden moverse sobre él).",
+  "Use on the whole page": "Usar en toda la página",
+  "Most of the grid is empty because the points lie in a few clusters far apart: 'Limit to a drawn area…' over one cluster gives it finer nodes.": "La mayor parte de la grilla está vacía porque los puntos están en pocos grupos muy separados: 'Limitar a un área dibujada…' sobre un grupo da nodos más finos."
 }

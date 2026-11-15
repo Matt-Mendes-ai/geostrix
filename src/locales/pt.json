@@ -13005,5 +13005,11 @@
   "A positive dip points UP (negative = down): normal from an underground collar.": "Um mergulho positivo aponta para CIMA (negativo = para baixo): normal a partir de uma boca de furo subterrânea.",
   "A positive dip points UP (negative = down): this hole would rise from the collar into the air. For a hole going down at {d}°, type -{d}.": "Um mergulho positivo aponta para CIMA (negativo = para baixo): este furo subiria da boca de furo para o ar. Para um furo descendo a {d}°, digite -{d}.",
   "Only the {shown} of {total} holes checked in the 3D View": "Somente os {shown} de {total} furos marcados na vista 3D",
-  "A space ends a term: did you mean {term}? (_ stands for a space in a value.)": "Um espaço encerra um termo: você quis dizer {term}? (_ representa um espaço dentro de um valor.)"
+  "A space ends a term: did you mean {term}? (_ stands for a space in a value.)": "Um espaço encerra um termo: você quis dizer {term}? (_ representa um espaço dentro de um valor.)",
+  "Typed scale 1 :": "Escala digitada 1 :",
+  "Any scale: 1 : 6,000 and 1 : 7,500 are not in the list.": "Qualquer escala: 1 : 6.000 e 1 : 7.500 não estão na lista.",
+  "Fill the page": "Preencher a página",
+  "The frame takes the whole page inside 10 mm margins (the title block and key can be moved over it).": "O quadro ocupa toda a página dentro de margens de 10 mm (o carimbo e a legenda podem ser movidos sobre ele).",
+  "Use on the whole page": "Usar em toda a página",
+  "Most of the grid is empty because the points lie in a few clusters far apart: 'Limit to a drawn area…' over one cluster gives it finer nodes.": "A maior parte da grade está vazia porque os pontos estão em poucos grupos distantes: 'Limitar a uma área desenhada…' sobre um grupo dá nós mais finos."
 }
