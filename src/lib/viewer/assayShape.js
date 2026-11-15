@@ -3,7 +3,8 @@
 // (6-sided cylinders, 24 triangles) orbit at 43-55. An assay can now be drawn "along the hole": the same shared 6-sided cylinder from
 // the sample's from to its to, as thick as its sphere would be wide (grade still sets the size). The default shape (none stored) is
 // automatic: spheres up to ASSAY_AUTO_LIMIT samples to draw, along the hole above it; the user's own shape always wins.
-import { PIN_AXIS, dipPinDir, PROTO_CYLINDER, PROTO_SPHERE_10, POINT_PROTO } from "./protos.js";
+import { PIN_AXIS, dipPinDir, PROTO_CYLINDER, PROTO_PRISM_4, PROTO_SPHERE_10, POINT_PROTO, lightSolid } from "./protos.js";
+import { isLight, LIGHT_ASSAY_AUTO_LIMIT } from "./lightDrawing.js"; // TASKS.csv #3620
 
 export const ASSAY_AUTO_LIMIT = 40000;
 export const ASSAY_TRACE = "trace";
@@ -13,10 +14,10 @@ export function assayShapeFor(style, drawnCount, pxrf = false) {
   if (pxrf) return "cube";
   const s = style?.shape;
   if (s === ASSAY_TRACE || POINT_PROTO[s]) return s;
-  return drawnCount > ASSAY_AUTO_LIMIT ? ASSAY_TRACE : "sphere";
+  return drawnCount > (isLight() ? LIGHT_ASSAY_AUTO_LIMIT : ASSAY_AUTO_LIMIT) ? ASSAY_TRACE : "sphere"; // light drawing: from 4,000 samples (#3620)
 }
 
-export const assayProto = (shape) => (shape === ASSAY_TRACE ? PROTO_CYLINDER : POINT_PROTO[shape] || PROTO_SPHERE_10);
+export const assayProto = (shape) => (shape === ASSAY_TRACE ? (isLight() ? PROTO_PRISM_4 : PROTO_CYLINDER) : lightSolid(POINT_PROTO[shape] || PROTO_SPHERE_10)); // #3620: light drawing
 
 // places one marker: a point shape at the sample's mid-depth, scaled by `size`; along the hole, a cylinder of radius `size` from `from`
 // to `to` (at = the trace lookup, traceLookup(pts).at). off = the element's offset around the trace. false when nothing can be drawn.

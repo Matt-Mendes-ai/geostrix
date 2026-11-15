@@ -13,5 +13,5 @@ test("mapLayers is undo-tracked (reference-compared, #432), no longer dirty-only
 
 test("the Undo tooltip lists map layers and interpretation lines as undoable", () => {
   const a = fs.readFileSync("src/App.jsx", "utf8");
-  assert.ok(a.includes("explicit surfaces, map layers and interpretation lines, Layout pages ... Rasters, terrain, block models and generated surfaces are not undoable."));
+  assert.ok(a.includes("explicit surfaces, map layers and interpretation lines, Layout pages ... Rasters, terrain, block models, generated surfaces and view changes are not undoable."));
 });

@@ -5,6 +5,7 @@
 // switch does not flicker at the threshold. Only the view changes: every sample stays in the full set, and a merged marker's tip names
 // its range and the number of samples.
 
+import { isLight, LIGHT_LOD_SCALE } from "./lightDrawing.js"; // TASKS.csv #3620
 export const LOD_ON_PX = 3, LOD_OFF_PX = 4.5; // a typical sample under 3 px: coarse; back to full above 4.5 px
 export const RUN_GAP_M = 0.05; // consecutive: the next sample starts within 5 cm of the last one's end
 
@@ -48,6 +49,6 @@ export function typicalSampleM(rows) {
 // which set to draw: coarse under LOD_ON_PX a sample, full again above LOD_OFF_PX (was: the current state)
 export const lodWanted = (sampleM, metresPerPx, was) => {
   if (!(sampleM > 0) || !(metresPerPx > 0)) return false;
-  const px = sampleM / metresPerPx;
-  return was ? px < LOD_OFF_PX : px < LOD_ON_PX;
+  const px = sampleM / metresPerPx, k = isLight() ? LIGHT_LOD_SCALE : 1; // #3620: light drawing goes coarse from 12 px a sample
+  return was ? px < LOD_OFF_PX * k : px < LOD_ON_PX * k;
 };
