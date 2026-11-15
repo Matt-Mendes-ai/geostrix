@@ -4,6 +4,7 @@
 // dialog's 'Colour by' picks the field (style.colourBy, default the value column): a numeric field takes a viridis ramp over its
 // range, anything else its category colours; an empty reading is grey 'no value'. The overlay legend gets a group per visible layer.
 import { hashColor, magColor, CATEGORICAL_SAFE_COLORS } from "./layers.js";
+import { isTable, rowCount, rowAt, fieldOf as columnOf } from "./layerColumns.js"; // TASKS.csv #3140 — a log layer may be held as columns
 
 export const NO_VALUE_COLOUR = "#b8bec7";
 const empty = (v) => v == null || v === "" || (typeof v === "number" && !Number.isFinite(v));
@@ -12,7 +13,8 @@ const num = (v) => (typeof v === "number" ? v : typeof v === "string" && v.trim(
 // the fields a layer's rows carry that could colour it (not the position columns)
 export function customFields(layer) {
   const keys = new Set();
-  for (const r of (layer?.rows || []).slice(0, 500)) for (const k of Object.keys(r || {})) if (!["hole_id", "from", "to", "depth", "_src", "modelColor"].includes(k)) keys.add(k);
+  const rows = layer?.rows || [], n = Math.min(500, rowCount(rows));
+  for (let i = 0; i < n; i++) for (const k of Object.keys(rowAt(rows, i) || {})) if (!["hole_id", "from", "to", "depth", "_src", "modelColor"].includes(k)) keys.add(k); // #3140: rows or a Table
   return [...keys];
 }
 
@@ -26,7 +28,8 @@ function scaleOf(layer, field) {
   if (s) return s;
   let filled = 0;
   const vals = [];
-  for (const r of rows) { const v = r?.[field]; if (empty(v)) continue; filled++; const n = num(v); if (Number.isFinite(n)) vals.push(n); }
+  const get = columnOf(rows, field), N = rowCount(rows); // #3140: by index, rows or a Table (cached per rows array or Table, as before)
+  for (let i = 0; i < N; i++) { const v = get(i); if (empty(v)) continue; filled++; const n = num(v); if (Number.isFinite(n)) vals.push(n); }
   vals.sort((a, b) => a - b);
   // TASKS.csv #1539 (review #1497, Lawyers) — the ramp spans the 2nd-98th percentile, on a log scale when that spans more than a
   // decade (as the built-in numeric layers, #1699): Lawyers' vein % (median 2, p98 65, max 95) was one dark purple from min to max
@@ -77,12 +80,13 @@ const atT = (s, t) => (s.log ? 10 ** (Math.log10(s.min) + t * (Math.log10(s.max)
 const codeColourCache = new WeakMap(); // rows array -> Map(field -> Map(code -> colour))
 export function customCodeColour(layer, field, v) {
   const rows = layer?.rows;
-  if (!Array.isArray(rows)) return hashColor(v);
+  if (!Array.isArray(rows) && !isTable(rows)) return hashColor(v);
   let byField = codeColourCache.get(rows);
   if (!byField) { byField = new Map(); codeColourCache.set(rows, byField); }
   let m = byField.get(field);
   if (!m) {
-    const codes = [...new Set(rows.map((r) => r?.[field]).filter((x) => !empty(x)).map(String))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+    const get = columnOf(rows, field); // #3140: rows or a Table
+    const codes = [...new Set(Array.from({ length: rowCount(rows) }, (_, i) => get(i)).filter((x) => !empty(x)).map(String))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
     m = new Map(codes.map((c, i) => [c, i < CATEGORICAL_SAFE_COLORS.length ? CATEGORICAL_SAFE_COLORS[i] : hashColor(c)]));
     byField.set(field, m);
   }

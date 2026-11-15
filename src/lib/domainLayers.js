@@ -4,9 +4,15 @@
 // interval to be in, and a layer whose intervals overlap in the same hole (vein types) has no single domain at a depth: offered,
 // flagged, with the share of overlapping intervals so the dialogs can say how a depth is resolved. Pure.
 import { caseVariantGroups } from "./lithoGroups.js"; // #2427
+import { isTable, countWhere } from "./layerColumns.js"; // TASKS.csv #3140
 const BUILT_IN = ["litho", "alt", "vein", "breccia", "weath", "structzone", "geotech"]; // weath: #2162
 
 export function isNumericLayer(rows) {
+  if (isTable(rows)) { // TASKS.csv #3140: a big log held as columns
+    const filled = (v) => !(v == null || v === "");
+    const n = countWhere(rows, "value", filled), num = countWhere(rows, "value", (v) => filled(v) && Number.isFinite(Number(v)));
+    return n > 0 && num / n > 0.8;
+  }
   let n = 0, num = 0;
   for (const r of rows || []) { if (r.value == null || r.value === "") continue; n++; if (Number.isFinite(Number(r.value))) num++; }
   return n > 0 && num / n > 0.8;
