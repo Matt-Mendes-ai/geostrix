@@ -18,7 +18,7 @@ import { MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport, suppo
 import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit, blockModelLattice, snapBoundsToLattice, overlapBox, blockModelExtent /* #2729 */ } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
 import { runEstimation } from "../lib/estimationClient.js"; // TASKS.csv #520 — off the UI thread
 import { memberCapProposal } from "../lib/memberCaps.js"; // TASKS.csv #3271
-import { setChoices, setOthers, newSetId, setRecord, memberName, domainNameSuffix, trimLike, memberSummary, MAX_SET_ELEMENTS, MEMBER_OWN_KEYS } from "../lib/estimateSet.js"; // TASKS.csv #3014 — several elements in one run
+import { setChoices, setOthers, newSetId, setRecord, memberName, domainNameSuffix, trimLike, memberSummary, MAX_SET_ELEMENTS, MEMBER_OWN_KEYS, memberMethodFor, sharesPrimarySearch } from "../lib/estimateSet.js"; // TASKS.csv #3014 — several elements in one run
 import { makeReachClient } from "../lib/blockReachClient.js"; // TASKS.csv #1416; in a worker: #1579
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #2552
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2552
@@ -277,6 +277,9 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   const srcAssays = useMemo(() => (includeQAQC ? sampleAssays : excludeQAQC(sampleAssays)), [sampleAssays, includeQAQC]);
   const memberProposals = useMemo(() => Object.fromEntries(others.map((el) => [el, memberCapProposal(srcAssays, el, elementUnits[el] || "ppm", elementUnits)])), [others, srcAssays, elementUnits]); // #3271
   const memberCapOf = (el) => (el in memberCaps ? memberCaps[el] : memberProposals[el]?.proposed ?? ""); // #3271
+  // TASKS.csv #3164 (Matt, 2026-11-13) — a set member may use its own method (e.g. kriging for Au, IDW for Fe); "" = as the primary (the default)
+  const [memberMethods, setMemberMethods] = useState(() => keep("memberMethods", {}, (v) => !!v && typeof v === "object" && !Array.isArray(v)));
+  const memberMethodOf = (el) => memberMethodFor(memberMethods[el], method, ESTIMATION_METHODS.map((m) => m.id)); // TASKS.csv #3164
   // TASKS.csv #3006 (WA iron review) — with the samples from the checked holes, the holes the run uses are the checked ones: every unchecked hole
   // was a hole 'never assayed' (5,968 of them, 288,935 m written at 0 % Fe by the barren option, the composite mean 38.3 -> 1.78 %) and its
   // drilled metres 'unsampled drilling' nearer than a block's samples. A hole left out of the run is neither sampled nor unsampled.
@@ -422,7 +425,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
 
   // #1580 — what to restore next time: kept current every render, stored when the dialog closes
   const remember = useRef(null);
-  remember.current = { sourceKey, logValues, symbol, useComposites, compositeLength, minCoverage, domainKey, noCodeAsDomain, capByDomain, padding, cellSize, cellHeight, flatReach, gridMode, originE, originN, originZ, method, vgModel, vgNugget, vgSill, vgRange, searchRadius, minSamples, minHoles, materialHoles, maxSamples, maxPerHole, capValue, capAuto, includeQAQC, restrictToDomain, classifySupport, shellId, belowGround, setOthers: setPicked /* #3014 */ };
+  remember.current = { memberMethods /* #3164 */, sourceKey, logValues, symbol, useComposites, compositeLength, minCoverage, domainKey, noCodeAsDomain, capByDomain, padding, cellSize, cellHeight, flatReach, gridMode, originE, originN, originZ, method, vgModel, vgNugget, vgSill, vgRange, searchRadius, minSamples, minHoles, materialHoles, maxSamples, maxPerHole, capValue, capAuto, includeQAQC, restrictToDomain, classifySupport, shellId, belowGround, setOthers: setPicked /* #3014 */ };
   const settingsKey = estimateSettingsKey(project);
   useEffect(() => () => { lastEstimateSettings.set(settingsKey, remember.current); }, [settingsKey]);
   // TASKS.csv #520 — the estimate runs in a worker: the window keeps repainting, shows progress and can be cancelled
@@ -569,7 +572,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           prep.push({ el, u, unsM, fm, rows, mCap, mp, mUns: mp.length ? unsampledPointsFor(rows, el, u) : [] });
         }
         const samePoints = (a, b) => a.length === b.length && a.every((q, i) => { const r = b[i]; return q.hole_id === r.hole_id && q.x === r.x && q.y === r.y && q.z === r.z && (q.length ?? null) === (r.length ?? null) && (q.domain ?? null) === (r.domain ?? null); });
-        const sharedIdx = method !== "ok" && !logInfo ? prep.map((q, k) => (q.mp.length && samePoints(q.mp, estPts) ? k : -1)).filter((k) => k >= 0) : [];
+        const sharedIdx = prep.map((q, k) => (q.mp.length && sharesPrimarySearch(memberMethodOf(q.el), method, !!logInfo) /* #3164 */ && samePoints(q.mp, estPts) ? k : -1)).filter((k) => k >= 0);
         const sharedValues = sharedIdx.length ? sharedIdx.map((k) => Float64Array.from(prep[k].mp, (q) => q.value)) : null;
         const share = others.length ? 1 / (1 + others.length - sharedIdx.length) : 1; // #3014 — the primary's part of the progress bar (#3163: shared members take none)
         setStage(others.length ? symbol : null);
@@ -690,32 +693,33 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           await new Promise((r) => setTimeout(r, 0));
           if (!mp.length) { members.push({ ...memberSummary(el, u, [], 0), cells: [], cap: mCap }); continue; }
           const j = sharedIdx.indexOf(k); // #3163 — estimated in the primary's search
+          const mMethod = memberMethodOf(el); // #3164 — its own method, or the primary's
           let me;
           if (j >= 0) me = { cells: sharedRun.cells[j], supportCounts: sharedRun.supportCounts, dominatedCells: sharedRun.dominated, mlsCounts: sharedRun.mlsCounts };
           else {
             try {
-              me = await runEstimation("block", mp, { ...baseOpts, ...(method === "ok" ? { variogram: { model: vgModel } } : {}), ...(mUns.length ? { unsampledPoints: mUns } : {}) }, { onProgress: (f) => setProgress(share * (1 + ownRuns + f)), signal: ac.signal });
+              me = await runEstimation("block", mp, { ...baseOpts, method: mMethod /* #3164 */, ...(mMethod === "ok" ? { variogram: { model: vgModel } } : {}), ...(mUns.length ? { unsampledPoints: mUns } : {}) }, { onProgress: (f) => setProgress(share * (1 + ownRuns + f)), signal: ac.signal });
             } catch (err) { if (err.cancelled) throw err; throw new Error(`${el}: ${err.message}`); }
             ownRuns++;
           }
           const t = trimLike(me.cells, { inShell, inArea, groundAt: groundAt && cutAtGround ? groundAt : null });
           // #3271 — the member's own check: composites, nearest neighbour and estimate means over its blocks
-          const mNn = method === "nn" ? null : j >= 0 ? { checkColumns: nnEst.memberCheckColumns[j] } /* #3163 */ : await runEstimation("block", mp, nnOpts, { signal: ac.signal, checkOnly: true });
+          const mNn = mMethod === "nn" /* #3164 */ ? null : j >= 0 ? { checkColumns: nnEst.memberCheckColumns[j] } /* #3163 */ : await runEstimation("block", mp, nnOpts, { signal: ac.signal, checkOnly: true });
           await new Promise((r) => setTimeout(r, 0));
           const mCheck = t.cells.length ? estimateCheck(t.cells, mNn ? mNn.checkColumns : t.cells, mp) : null;
           const mAudit = mCap != null ? capAudit(srcAssays, el, u, elementUnits, mCap) : null;
           let supportCounts = me.supportCounts, dominated = me.dominatedCells;
-          if (t.dropped) { const rt = retallyKeptCells(t.cells, { method, supportCounts, dropUnsupported: !!inShell }); if (rt.supportCounts) supportCounts = rt.supportCounts; dominated = rt.dominatedCells; }
+          if (t.dropped) { const rt = retallyKeptCells(t.cells, { method: mMethod /* #3164 */, supportCounts, dropUnsupported: !!inShell }); if (rt.supportCounts) supportCounts = rt.supportCounts; dominated = rt.dominatedCells; }
           const mParams = { ...params };
           for (const key of MEMBER_OWN_KEYS) delete mParams[key];
           Object.assign(mParams, {
-            element: el, unit: u, capValue: mCap, capUnit: mCap != null ? u : null, ...(mAudit ? { capAudit: mAudit } : {}), samplePoints: mp.length, ...unsM.params(fm), unsampledDrillPoints: mUns.length, // cap: #3271
-            ...(me.variogram ? { variogram: { ...me.variogram, frame: params.variogram?.frame }, krigingBlocks: me.okCounts } : {}), ...(me.mlsCounts ? { mlsBlocks: me.mlsCounts } : {}),
+            element: el, unit: u, method: mMethod /* #3164 */, capValue: mCap, capUnit: mCap != null ? u : null, ...(mAudit ? { capAudit: mAudit } : {}), samplePoints: mp.length, ...unsM.params(fm), unsampledDrillPoints: mUns.length, // cap: #3271
+            ...(me.variogram ? { variogram: { ...me.variogram, frame: params.variogram?.frame || (trend ? `in the trend "${trend.name}" frame: the range is along its major axis` : "isotropic") /* #3164: a kriged member of a non-kriged run */ }, krigingBlocks: me.okCounts } : {}), ...(me.mlsCounts ? { mlsBlocks: me.mlsCounts } : {}),
             ...(dominated ? { effectivelyOneHoleBlocks: dominated } : {}),
             ...(t.dropped ? { trimmedLikeThePrimary: `${t.dropped} block(s) dropped by the primary's limits (the restricting solid, the area string, the ground)` } : {}),
             ...(j >= 0 ? { searchSharedWith: `${symbol}: estimated in the same neighbour search, on the same sample points` } : {}), // #3163
           });
-          members.push({ ...memberSummary(el, u, t.cells, mp.length), cells: t.cells, params: mParams, supportCounts, cap: mCap, capAudit: mAudit, check: mCheck, checkNn: mNn ? mNn.checkColumns : t.cells, checkPoints: mp }); // cap / check: #3271; checkNn / checkPoints: the member's swaths, #3384
+          members.push({ ...memberSummary(el, u, t.cells, mp.length), method: mMethod /* #3164 */, cells: t.cells, params: mParams, supportCounts, cap: mCap, capAudit: mAudit, check: mCheck, checkNn: mNn ? mNn.checkColumns : t.cells, checkPoints: mp }); // cap / check: #3271; checkNn / checkPoints: the member's swaths, #3384
         }
         setStage(null);
         const withBlocks = members.filter((m) => m.cells.length);
@@ -784,7 +788,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
     const p0 = result.params?.element || symbol, typed = !!modelName.trim();
     onAddModel({ name: set ? memberName(name, p0, p0, set, typed) : name, source: `estimate-${method}`, cells: result.cells, ...rampOf(result.cells), params: result.params }); // params: TASKS.csv #404
     // TASKS.csv #3286 (5) — the set's other elements are added hidden: all shown, they share the blocks and each row warned 'the two colour each other's blocks'
-    if (set) for (const m of result.members || []) if (m.cells.length) onAddModel({ name: memberName(name, p0, m.element, set, typed), source: `estimate-${method}`, cells: m.cells, ...rampOf(m.cells), params: m.params, visible: false });
+    if (set) for (const m of result.members || []) if (m.cells.length) onAddModel({ name: memberName(name, p0, m.element, set, typed, m.method, result.params?.method) /* #3164 */, source: `estimate-${m.method || method}` /* #3164 */, cells: m.cells, ...rampOf(m.cells), params: m.params, visible: false });
     setAdded(true);
   };
 
@@ -830,11 +834,15 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
                 {others.length >= MAX_SET_ELEMENTS - 1 && <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Up to {n} elements in one run.", { n: MAX_SET_ELEMENTS })}</div>}
                 {others.length > 0 && ( /* TASKS.csv #3271 — each other element's top cut, by the rule a run on it alone would use */
                   <table style={{ marginTop: 6, borderCollapse: "collapse" }} aria-label={tr("Top cut of the other elements")}>
-                    <thead><tr><th style={{ textAlign: "start", paddingInlineEnd: 10 }}>{tr("Element")}</th><th style={{ textAlign: "start", paddingInlineEnd: 10 }} title={tr("Coefficient of variation of the assays (standard deviation / mean)")}>{tr("CV")}</th><th style={{ textAlign: "start", paddingInlineEnd: 10 }}>{tr("Top cut")}</th><th /></tr></thead>
+                    <thead><tr><th style={{ textAlign: "start", paddingInlineEnd: 10 }}>{tr("Element")}</th><th style={{ textAlign: "start", paddingInlineEnd: 10 }} title={tr("Each element can be estimated by its own method, on the same blocks, search and domain rule. As the main element, it shares the main element's neighbour search.")}>{tr("Method")}</th><th style={{ textAlign: "start", paddingInlineEnd: 10 }} title={tr("Coefficient of variation of the assays (standard deviation / mean)")}>{tr("CV")}</th><th style={{ textAlign: "start", paddingInlineEnd: 10 }}>{tr("Top cut")}</th><th /></tr></thead>
                     <tbody>{others.map((el) => {
                       const pr = memberProposals[el], v = memberCapOf(el), capped = Number(v) > 0, high = pr?.cv > 150;
                       return <tr key={el}>
                         <td style={{ paddingInlineEnd: 10 }}>{el}</td>
+                        <td style={{ paddingInlineEnd: 10 }}>{/* TASKS.csv #3164 */}<select value={memberMethods[el] || ""} onChange={(e) => { const x = e.target.value; setMemberMethods((mm) => { const n = { ...mm }; if (x) n[el] = x; else delete n[el]; return n; }); setResult(null); }} aria-label={tr("Method for {el}", { el })} style={{ ...inp, width: "auto" }}>
+                          <option value="">{tr("as {el}", { el: symbol })}</option>
+                          {ESTIMATION_METHODS.map((mm) => <option key={mm.id} value={mm.id}>{tr(mm.label)}</option>)}
+                        </select></td>
                         <td style={{ paddingInlineEnd: 10 }}>{pr?.cv != null ? `${Math.round(pr.cv)} %` : "—"}</td>
                         <td style={{ paddingInlineEnd: 10, whiteSpace: "nowrap" }}><input type="number" min="0" step="any" value={v} onChange={(e) => { const x = e.target.value; setMemberCaps((m) => ({ ...m, [el]: x })); setResult(null); }} aria-label={tr("Top cut for {el}", { el })} style={{ ...inp, width: 90 }} /> {gradeUnitLabel(el, elementUnits[el] || "ppm")}</td>
                         <td style={{ color: !capped && high ? "var(--color-warn-text)" : "var(--color-text-muted)" }}>{capped ? (pr?.proposed != null && Number(v) === pr.proposed ? tr("its P99: the CV is over 150 %") : tr("typed")) : high ? tr("not capped, though the CV is over 150 %") : tr("not capped: the CV is 150 % or under")}</td>
@@ -1208,10 +1216,10 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
               {result.members?.length > 0 && (
                 <div style={{ marginTop: 4, color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
                   <div style={{ fontWeight: 600 }}>{tr("Also estimated on the same grid (added with {symbol} as a set):", { symbol: result.params?.element || symbol })}</div>
-                  {result.members.map((m) => <div key={m.element} style={{ color: m.blocks ? undefined : "var(--color-warn-text)" }}>{m.blocks ? tr("{el}: {blocks} blocks from {n} composites, mean {mean} {unit}", { el: m.element, blocks: m.blocks.toLocaleString(), n: m.composites.toLocaleString(), mean: m.mean != null ? +m.mean.toPrecision(3) : "—", unit: gradeUnitLabel(m.element, m.unit) }) : tr("{el}: no samples to estimate from; not added.", { el: m.element })}
+                  {result.members.map((m) => <div key={m.element} style={{ color: m.blocks ? undefined : "var(--color-warn-text)" }}>{m.blocks ? tr("{el} ({method}): {blocks} blocks from {n} composites, mean {mean} {unit}", { method: tr(ESTIMATION_METHODS.find((x) => x.id === (m.method || method))?.label || m.method || method) /* #3164 */, el: m.element, blocks: m.blocks.toLocaleString(), n: m.composites.toLocaleString(), mean: m.mean != null ? +m.mean.toPrecision(3) : "—", unit: gradeUnitLabel(m.element, m.unit) }) : tr("{el}: no samples to estimate from; not added.", { el: m.element })}
                     {m.blocks > 0 && <span>{"; "}{m.cap != null ? tr("capped at {cap} {unit} ({k} of {n} samples)", { cap: m.cap, unit: gradeUnitLabel(m.element, m.unit), k: (m.capAudit?.nCapped ?? 0).toLocaleString(), n: (m.capAudit?.nSamples ?? 0).toLocaleString() }) : tr("not capped")}</span>}{/* #3271 */}
                     {m.check?.estimate?.mean != null && <div style={{ paddingInlineStart: 12 }}>{tr("check: composites {c}, nearest neighbour {nn}, estimate {e} {unit} ({d} against the nearest neighbour)", { c: m.check.composites.mean != null ? +m.check.composites.mean.toPrecision(3) : "—", nn: m.check.nn.mean != null ? +m.check.nn.mean.toPrecision(3) : "—", e: +m.check.estimate.mean.toPrecision(3), unit: gradeUnitLabel(m.element, m.unit), d: m.check.departPct != null ? `${m.check.departPct > 0 ? "+" : ""}${m.check.departPct.toFixed(1)} %` : "—" })}</div>}{/* #3271 */}
-                    {m.blocks > 0 && m.checkNn && m.checkPoints && <details style={{ paddingInlineStart: 12 }}><summary style={{ cursor: "pointer" }}>{tr("Swath plots for {el}", { el: m.element })}</summary>{/* TASKS.csv #3384 — the swaths of each member, as the primary has */}<EstimateCheck cells={m.cells} nnCells={m.checkNn} points={m.checkPoints} unit={gradeUnitLabel(m.element, m.unit)} symbol={m.element} method={result.params.method} epsg={stampEpsg(project)} composited={result.params.composited !== false} /></details>}
+                    {m.blocks > 0 && m.checkNn && m.checkPoints && <details style={{ paddingInlineStart: 12 }}><summary style={{ cursor: "pointer" }}>{tr("Swath plots for {el}", { el: m.element })}</summary>{/* TASKS.csv #3384 — the swaths of each member, as the primary has */}<EstimateCheck cells={m.cells} nnCells={m.checkNn} points={m.checkPoints} unit={gradeUnitLabel(m.element, m.unit)} symbol={m.element} method={m.method || result.params.method /* #3164: the member's own method */} epsg={stampEpsg(project)} composited={result.params.composited !== false} /></details>}
                   </div>)}
                 </div>
               )}

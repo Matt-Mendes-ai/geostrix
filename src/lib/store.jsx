@@ -3,7 +3,6 @@ import { stylingTracker } from "./viewerDirty.js"; // TASKS.csv #1286
 import { defaultDrapeElevation } from "./drapeElevation.js"; // TASKS.csv #1823
 import { t as tr } from "./i18n.js"; // TASKS.csv #1285
 import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect, useRef, useMemo } from "react"; // useMemo: #1679
-import { elementsWithValues } from "./presentElements.js"; // TASKS.csv #1679
 import { changedKeys } from "./undoLabels.js"; // TASKS.csv #1087
 import { capturedFrameFields } from "./layoutGeometry.js"; // TASKS.csv #906 / #961
 import { tieStarterFurniture, sendElementWithFurniture } from "./layoutLinks.js"; // TASKS.csv #1320, #1634
@@ -19,6 +18,7 @@ import { withImportLeftOut } from "./importLeftOut.js"; // TASKS.csv #2493
 import { cappedNotice, capRemovedMapLayers, vertexCount, BIG_VERTICES } from "./undoMapLayerCap.js"; // TASKS.csv #2806; vertexCount / BIG_VERTICES: #2814
 import { capUndoTables, tableCapNotice } from "./undoTableCap.js"; // TASKS.csv #2894
 import { calcUndoToken, applyCalcUndo } from "./calcUndo.js"; // TASKS.csv #3110
+import { rowsOf, tableOf } from "./rowTable.js"; import { publishedLayers, internalLayers, elementsWithValuesOf } from "./tableFields.js"; // TASKS.csv #3424 — the store adapter
 import { useLatestCallback } from "./useLatestCallback.js"; // TASKS.csv #2769 follow-up — callbacks that keep only the current render's scope (the file says why)
 import { sectionWindowsMayClose, EXPORT_RESULT_EVENT } from "./desktop.js"; // TASKS.csv #2620; EXPORT_RESULT_EVENT: #2806
 import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveWriteParts /* #1975 */, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
@@ -161,7 +161,7 @@ export function StoreProvider({ children }) {
   useMemo(() => setLithologyNoteRoles(lithologyNoteRoles(layers.litho)), [layers.litho]);
   const [assays, setAssays] = useState([]);
   const [assayElements, setAssayElements] = useState([]);
-  const presentAssayElements = useMemo(() => elementsWithValues(assayElements, assays), [assayElements, assays]); // TASKS.csv #1679
+  const presentAssayElements = useMemo(() => elementsWithValuesOf(assayElements, assays), [assayElements, assays]); // TASKS.csv #1679; a Table: #3424
   // TASKS.csv #228 — surface geochemistry (soil/rock-chip/stream-sediment/talus-fines samples), the
   // single highest-value gap the mineral-exploration-specialist audit found: early-stage programs
   // very commonly run surface geochem before ever drilling, and until now the app had nowhere to put
@@ -183,6 +183,11 @@ export function StoreProvider({ children }) {
   const [codeDictionary, setCodeDictionary] = useState({}); // TASKS.csv #2163 — the project's own meaning of each logging code (lib/codeDictionary.js)
   const [evidenceOverlay, setEvidenceOverlay] = useState(null); // TASKS.csv #1003 — the Evidence overlay pane's recipe
   const [customLayers, setCustomLayers] = useState([]); // plain {id,name,rows} mirror for save/load; ViewerModule owns the live three.js groups
+  // TASKS.csv #3424 — assays, survey and a custom layer's rows may be held as a Table (lib/rowTable.js): readers get rows on demand (rowsOf, the
+  // same array every call), setters take rows or a function of the rows, as before; save / load / undo / tabs keep the value as held (fieldState)
+  const setAssaysRows = useCallback((u) => setAssays(typeof u === "function" ? (p) => u(rowsOf(p)) : u), []);
+  const setSurveyRows = useCallback((u) => setSurvey(typeof u === "function" ? (p) => u(rowsOf(p)) : u), []);
+  const setCustomLayersRows = useCallback((u) => setCustomLayers((p) => internalLayers(typeof u === "function" ? u(publishedLayers(p)) : u)), []);
   // saved (non-secret) connection profiles — TASKS.csv #1081: kept on this computer (lib/dbProfiles.js), not in the project
   const [dbConnections, setDbConnectionsState] = useState(() => readDbProfiles());
   const setDbConnections = useCallback((upd) => setDbConnectionsState((prev) => { const next = typeof upd === "function" ? upd(prev) : upd; writeDbProfiles(next); return next; }), []);
@@ -1009,7 +1014,7 @@ export function StoreProvider({ children }) {
   // samples and their QC records; the threshold rules decided for it follow. -> the lib's result ({ changed, factor, from, to } or { error })
   const setElementBasis = useCallback((symbol, toUnit, { surface = false } = {}) => {
     const l = liveRef.current;
-    const r = changeElementBasis(surface ? l.surfaceElements : l.assayElements, surface ? l.surfaceSamples : l.assays, symbol, toUnit);
+    const r = changeElementBasis(surface ? l.surfaceElements : l.assayElements, surface ? l.surfaceSamples : rowsOf(l.assays) /* #3424 */, symbol, toUnit);
     if (r.error) return r;
     if (surface) {
       setSurfaceElements(r.elements); setSurfaceSamples(r.rows);
@@ -1068,7 +1073,7 @@ export function StoreProvider({ children }) {
     let sub, merge;
     const k = target.kind;
     if (k === "drillholes") {
-      sub = { collars: live.collars, survey: live.survey, layers: { structure: live.layers.structure || [] } };
+      sub = { collars: live.collars, survey: rowsOf(live.survey) /* #3424 */, layers: { structure: live.layers.structure || [] } };
       merge = (f) => ({ collars: f.collars || live.collars, survey: f.survey || live.survey, layers: f.layers?.structure ? { ...live.layers, structure: f.layers.structure } : live.layers });
     } else if (k === "plannedHoles" || k === "surfaceSamples") {
       sub = { [k]: live[k] }; merge = (f) => ({ [k]: f[k] || live[k] });
@@ -1702,7 +1707,7 @@ export function StoreProvider({ children }) {
   const applySnapshot = useCallback((snap) => {
     undoApplying.current = true;
     if (snap.assays?.__inverse) { // TASKS.csv #3110 — the token of a calculated element's Add; a table that no longer matches it is left as it is
-      const live = undoSnapshotRef.current(), r = applyCalcUndo(snap.assays, live.assays), symbol = snap.assays.__inverse.removeElement;
+      const live = undoSnapshotRef.current(), r = applyCalcUndo(snap.assays, rowsOf(live.assays) /* #3424 */), symbol = snap.assays.__inverse.removeElement;
       if (r.failed) { snap = { ...snap, assays: live.assays, assayElements: live.assayElements }; try { window.dispatchEvent(new CustomEvent(EXPORT_RESULT_EVENT, { detail: { ok: false, message: tr("Undo could not remove {symbol}: the assay table has changed since it was added, so it was left as it is.", { symbol }) } })); } catch { /* no window */ } }
       else snap = { ...snap, assays: r.assays };
     }
@@ -1825,9 +1830,9 @@ export function StoreProvider({ children }) {
     desurveyMethod, setDesurveyMethod, // TASKS.csv #135
     setStructureCodeClasses, setStructureSymbolByType /* #3094 */, // #2266
     collars, setCollars,
-    survey, setSurvey,
+    get survey() { return rowsOf(survey); }, get surveyTable() { return tableOf(survey); }, setSurvey: setSurveyRows, // TASKS.csv #3424
     layers, setLayers, mergeLayer, replaceLayer,
-    assays, setAssays,
+    get assays() { return rowsOf(assays); }, get assaysTable() { return tableOf(assays); }, setAssays: setAssaysRows, // TASKS.csv #3424
     assayElements: presentAssayElements, setAssayElements, // #1679 — only the elements some assay row has a value for
     surfaceSamples, setSurfaceSamples,
     surfaceElements, setSurfaceElements,
@@ -1841,7 +1846,7 @@ export function StoreProvider({ children }) {
     recordImportLeftOut, // TASKS.csv #2493
     designLines, setDesignLines, // TASKS.csv #1342
     designStrings, setDesignStrings, // TASKS.csv #1876
-    customLayers, setCustomLayers,
+    get customLayers() { return publishedLayers(customLayers); }, setCustomLayers: setCustomLayersRows, // TASKS.csv #3424
     dbConnections, setDbConnections,
     getProjectPayload: snapshotCurrentPayload, // TASKS.csv #598 — the project, as Save would write it, for an opt-in problem report
     liveDbConnections, connectDb, disconnectDb,

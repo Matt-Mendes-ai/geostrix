@@ -10,12 +10,13 @@
 //   were at that later point, never an empty table.
 // Small tables are never dropped. Dropping is said once, in one notice (store.jsx). Pure.
 import { t as tr } from "./i18n.js";
+import { lengthOf } from "./rowTable.js"; // TASKS.csv #3424
 
 export const KEEP_REMOVED = 3; // big removed custom layers the history keeps (the newest)
 export const KEEP_ASSAY_TABLES = 1; // big replaced assay tables the history keeps (the newest)
 export const BIG_ROWS = 100000; // a table this long or longer counts; smaller ones are kept whatever their number
 
-const len = (a) => (Array.isArray(a) ? a.length : 0);
+const len = (a) => lengthOf(a); // TASKS.csv #3424 — a Table counts its rows (it counted 0)
 
 // steps: the undo steps, oldest first ({ customLayers, assays, ... }); held: the snapshots that must stay whole (the project now, the redo
 // steps). -> { steps (the same array when nothing changed), layers (names of the custom layers dropped), assayRows (rows of each assay

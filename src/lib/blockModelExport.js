@@ -20,7 +20,7 @@ export function derivedValue(model) {
   return null;
 }
 export function valueUnit(model) { const d = derivedValue(model); return d ? d.unit : model?.params?.unit || null; }
-export const NOT_A_RESOURCE_SOURCE = /^(estimate|support-index)-|^geoml$|^kriging-variance$/; // #1026 — kriging variance too
+export const NOT_A_RESOURCE_SOURCE = /^(estimate|support-index)-|^geoml$|^kriging-variance$|^calc$/; // #1026 — kriging variance too; calc: a block-calculator model (#3164)
 export function valueColumnName(model) {
   const d = !model.property && derivedValue(model);
   if (d) return d.property.replace(/[^\w]+/g, "_");
@@ -225,5 +225,8 @@ export function blockModelParamLines(model) {
   if (t) lines.push(`searchTrend: "${t.name}" dip ${t.dip} towards ${t.dipAzimuth}, pitch ${t.pitch}, ratios ${t.ratios?.max} : ${t.ratios?.int} : ${t.ratios?.min}${t.ellipsoidM ? `; search ellipsoid ${t.ellipsoidM.join(" x ")} m` : ""}`);
   if (p.capAudit) lines.push(`capAudit: ${capAuditText(p.capAudit, p.unit || "")}`);
   if (p.mlsBlocks) lines.push(`mlsBlocks: ${Object.entries(p.mlsBlocks).map(([k, v]) => `${k} ${v}`).join(", ")}`);
+  // TASKS.csv #3164 — a block-calculator model: its formula and what each name in it was (an object param, so not in the loop above)
+  const calc = p.calc;
+  if (calc?.formula) lines.push(`formula: ${calc.formula}${calc.unit ? ` (in ${calc.unit})` : ""}; ${(calc.inputs || []).map((x) => `${x.var} = "${x.model}"${x.unit ? ` (${x.unit})` : ""}`).join("; ")}`);
   return lines;
 }

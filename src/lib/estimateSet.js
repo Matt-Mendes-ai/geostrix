@@ -22,12 +22,15 @@ export const setRecord = (id, primary, others) => ({ id, elements: [primary, ...
 // the name a hard-boundary estimate carries: "…, by Lithology" (#2876's review: it did not say it)
 export const domainNameSuffix = (p) => (p?.restrictToDomain && p.domain ? `, by ${p.domain}` : "");
 // a member's name from the primary's: the element swapped at the front ("Fe estimate (…)" -> "SiO2 estimate (…)"), the set said after it.
-// A name typed in the dialog keeps its text and takes the element after it.
-export function memberName(primaryName, primary, element, set, typed = false) {
+// A name typed in the dialog keeps its text and takes the element after it. #3164: a member estimated by its own method says that method in
+// place of the primary's ("LOI estimate (ok, …)"), or after its element in a typed name.
+export function memberName(primaryName, primary, element, set, typed = false, method = null, primaryMethod = null) {
   const list = set.elements.join(", ");
-  if (typed) return element === primary ? `${primaryName} (set: ${list})` : `${primaryName} — ${element} (set: ${list})`;
+  const own = element !== primary && method && primaryMethod && method !== primaryMethod;
+  if (typed) return element === primary ? `${primaryName} (set: ${list})` : `${primaryName} — ${element}${own ? `, ${method}` : ""} (set: ${list})`;
   const lead = `${primary} estimate`;
-  const base = element !== primary && primaryName.startsWith(lead) ? `${element} estimate${primaryName.slice(lead.length)}` : primaryName;
+  let base = element !== primary && primaryName.startsWith(lead) ? `${element} estimate${primaryName.slice(lead.length)}` : primaryName;
+  if (own && base.startsWith(`${element} estimate (${primaryMethod},`)) base = `${element} estimate (${method},${base.slice(`${element} estimate (${primaryMethod},`.length)}`;
   return `${base} (set: ${list})`;
 }
 
@@ -54,6 +57,11 @@ export function setMembersOf(model, models) {
 }
 
 // the primary's params that belong to its element, not to the set's shared grid and search: a member drops them and records its own
+// TASKS.csv #3164 — a method per element. A member's method is its own choice when that is one of the methods offered, else the primary's (the
+// default, "as the primary"). It shares the primary's neighbour search (#3163) only with the primary's method, never under kriging (each member
+// fits its own variogram) or in a log10 run.
+export const memberMethodFor = (chosen, primary, offered) => (chosen && (offered || []).includes(chosen) ? chosen : primary);
+export const sharesPrimarySearch = (memberMethod, primary, logRun = false) => memberMethod === primary && primary !== "ok" && !logRun;
 export const MEMBER_OWN_KEYS = ["capValue", "capUnit", "capAudit", "capByDomain", "unsampledMetres", "sampledShareOfHoles", "unsampledValue", "unsampledUnit", "unsampledFilledM", "unsampledHolesFilled", "unsampledUnassayedHoles", "unsampledUnassayedM", "unsampledLog", "unsampledLogUnit", "unsampledLogFactor", "unsampledLogFilledM", "unsampledLogNoReadingM", "unsampledLeftOutM", "unsampledDrillPoints", "mlsBlocks", "variogram", "krigingBlocks", "effectivelyOneHoleBlocks", "cutAtTerrain", "restrictedToVolume", "samplePoints", "set"];
 
 // TASKS.csv #3014 part c — a set member exported "with the other elements of its set": the same model, with exportExtra (one value column per other

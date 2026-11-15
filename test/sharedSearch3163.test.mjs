@@ -78,7 +78,7 @@ test("runEstimation: the members' cells and check columns beside the primary's (
 
 test("wiring: the dialog shares the search with the members on the primary's points, not under kriging or log10", () => {
   const m = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.match(m, /const sharedIdx = method !== "ok" && !logInfo \? prep\.map\(\(q, k\) => \(q\.mp\.length && samePoints\(q\.mp, estPts\) \? k : -1\)\)/);
+  assert.match(m, /const sharedIdx = prep\.map\(\(q, k\) => \(q\.mp\.length && sharesPrimarySearch\(memberMethodOf\(q\.el\), method, !!logInfo\) \/\* #3164 \*\/ && samePoints\(q\.mp, estPts\) \? k : -1\)\)/);
   assert.match(m, /q\.hole_id === r\.hole_id && q\.x === r\.x && q\.y === r\.y && q\.z === r\.z && \(q\.length \?\? null\) === \(r\.length \?\? null\) && \(q\.domain \?\? null\) === \(r\.domain \?\? null\)/);
   assert.match(m, /\.\.\.\(sharedValues \? \{ members: \{ values: sharedValues, unsampled: sharedIdx\.map\(\(k\) => prep\[k\]\.mUns\) \} \} : \{\}\), \/\/ #3163/);
   assert.match(m, /if \(j >= 0\) me = \{ cells: sharedRun\.cells\[j\], supportCounts: sharedRun\.supportCounts, dominatedCells: sharedRun\.dominated, mlsCounts: sharedRun\.mlsCounts \};/);
