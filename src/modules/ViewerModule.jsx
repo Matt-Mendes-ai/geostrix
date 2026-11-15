@@ -217,6 +217,7 @@ import { buildDrillholeScene, collarColorFor, voxelFitCorners, isIntervalRow } f
 import { viewNdc } from "../lib/viewer/clickPoint.js"; // TASKS.csv #2803
 import { hideTraceHoles } from "../lib/viewer/traceBatch.js"; // TASKS.csv #2176
 import { closedShellsOf } from "./viewer/estimationShells.js"; // TASKS.csv #2695
+import { snapMeasurePoint } from "../lib/viewer/measureSnap.js"; // TASKS.csv #3643
 import { findOnTraceWorld, findOnTrace, traceLookup, traceOfHole /* #2931 */, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
 import { syncDrawLods } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
@@ -5429,10 +5430,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const { x: mx, y: my } = viewNdc(e, rect, mcDownRef.current); // #2803 — the press's own point
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2(mx, my), cameraRef.current);
-    const world = raycastWorldPoint(raycaster); // the status bar's nearest-feature raycast; plane: true off everything (#2807)
+    const hits = pickHits(raycaster), found = worldPointFromHits(raycaster, hits); // the status bar's nearest-feature raycast; plane: true off everything (#2807)
+    const world = snapMeasurePoint(found, hits, tracesRef.current, { shift: e.shiftKey }); // #3643 — on a hole's own drawing the point is on its axis (Shift: the surface)
     if (!world) return;
     setMeasurePts((pts) => [...pts, world]);
-  }, [measureMode, raycastWorldPoint]);
+  }, [measureMode, pickHits, worldPointFromHits]);
   const clearMeasure = () => setMeasurePts([]);
   const onPickHoleClick = useCallback((e) => {
     if (!pickHoleMode) return;

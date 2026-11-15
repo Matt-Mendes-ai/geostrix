@@ -13280,5 +13280,7 @@
   "by a field of the Y layer": "por um campo da camada Y",
   "{axis} scale": "Escala {axis}",
   "{axis} axis scale": "Escala do eixo {axis}",
-  "Y layer field to colour by": "Campo da camada Y para colorir"
+  "Y layer field to colour by": "Campo da camada Y para colorir",
+  "{n} point is on a hole's axis ({where}); Shift-click keeps the surface point": "{n} ponto está sobre o eixo de um furo ({where}); com Shift mantém-se o ponto da superfície",
+  "{n} points are on a hole's axis ({where}); Shift-click keeps the surface point": "{n} pontos estão sobre o eixo de um furo ({where}); com Shift mantém-se o ponto da superfície"
 }

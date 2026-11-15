@@ -13280,5 +13280,7 @@
   "by a field of the Y layer": "بحسب حقل من طبقة Y",
   "{axis} scale": "مقياس {axis}",
   "{axis} axis scale": "مقياس المحور {axis}",
-  "Y layer field to colour by": "حقل طبقة Y للتلوين"
+  "Y layer field to colour by": "حقل طبقة Y للتلوين",
+  "{n} point is on a hole's axis ({where}); Shift-click keeps the surface point": "نقطة {n} على محور ثقب حفر ({where})؛ النقر مع Shift يُبقي نقطة السطح",
+  "{n} points are on a hole's axis ({where}); Shift-click keeps the surface point": "{n} نقاط على محور ثقب حفر ({where})؛ النقر مع Shift يُبقي نقطة السطح"
 }

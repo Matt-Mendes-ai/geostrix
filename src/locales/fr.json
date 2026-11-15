@@ -13280,5 +13280,7 @@
   "by a field of the Y layer": "par un champ de la couche Y",
   "{axis} scale": "Échelle {axis}",
   "{axis} axis scale": "Échelle de l'axe {axis}",
-  "Y layer field to colour by": "Champ de la couche Y pour la couleur"
+  "Y layer field to colour by": "Champ de la couche Y pour la couleur",
+  "{n} point is on a hole's axis ({where}); Shift-click keeps the surface point": "{n} point est sur l'axe d'un sondage ({where}) ; Maj + clic garde le point de la surface",
+  "{n} points are on a hole's axis ({where}); Shift-click keeps the surface point": "{n} points sont sur l'axe d'un sondage ({where}) ; Maj + clic garde le point de la surface"
 }

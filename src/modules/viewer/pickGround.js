@@ -38,7 +38,7 @@ export function pickOnCollarSurface(ray, world, collars, origin) {
 // skipped (#1453: its sheet's elevation is not the ground) and the ray went on to the ground, 60-122 m from the hot cell clicked. Now a drawn
 // raster hit nearer than any other drawn object gives the E / N; the Elev comes from the collar surface (no terrain) as before.
 // hits: the ray's hits, nearest first; toWorld(hits) -> ViewerModule's worldPointFromHits (the nearest drawn hit, else the flat plane)
-const drawn = (h) => {
+export const drawn = (h) => { // exported for lib/viewer/measureSnap.js (#3643)
   const m = h.object.material;
   if (m && (m.visible === false || (m.opacity < 0.02 && (m.transparent || m.blending === 5)))) return false; // 5: CustomBlending (#2447 collar drapes)
   for (let n = h.object; n; n = n.parent) if (n.visible === false) return false;

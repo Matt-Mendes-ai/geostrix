@@ -81,6 +81,14 @@ function MeasureCard({ mode, pts, onClear, onSwitchMode }) {
       {tr(onPlane.length === 1 ? "{n} point is on the reference level at {z} m (no ground under the click): its elevation is that level's" : "{n} points are on the reference level at {z} m (no ground under the click): their elevations are that level's", { n: onPlane.length, z: onPlane[0].z.toFixed(1) })}
     </span>
   );
+  // TASKS.csv #3643 — a click on a hole's own drawing (trace, interval tube, assay mark) lands on the hole's axis, not on the tube's surface
+  // (a radius off): said with the hole and depth; Shift on the click keeps the surface point
+  const onAxis = pts.filter((p) => p.axis), where = onAxis.slice(0, 3).map((p) => `${p.axis.hole} ${p.axis.md.toFixed(1)} m`).join(", ") + (onAxis.length > 3 ? " …" : "");
+  const axisNote = onAxis.length > 0 && (
+    <span style={{ color: "var(--color-text-muted)" }}>
+      {tr(onAxis.length === 1 ? "{n} point is on a hole's axis ({where}); Shift-click keeps the surface point" : "{n} points are on a hole's axis ({where}); Shift-click keeps the surface point", { n: onAxis.length, where })}
+    </span>
+  );
   if (mode === "distance") {
     if (pts.length < 2) {
       return (
@@ -88,6 +96,7 @@ function MeasureCard({ mode, pts, onClear, onSwitchMode }) {
           {modeSwitch}
           <span>{pts.length === 0 ? tr("Click on the model to start measuring…") : tr("1 point placed — click to add the next.")}</span>
           {planeNote}
+          {axisNote}
           {pts.length > 0 && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onClear} style={clearBtn}><X size={12} />{" "}{tr("Clear")}</span>}
         </div>
       );
@@ -106,6 +115,7 @@ function MeasureCard({ mode, pts, onClear, onSwitchMode }) {
         <span><b style={{ color: "var(--color-text)" }}>{tr("Last segment (3D):")}</b> {tr("{v} @ {azimuth}° grid, {h} in plan (Δelev {v2}{vert} m)", { v: fmtLen(last.dist3d), azimuth: last.azimuth.toFixed(1), h: fmtLen(last.horiz), v2: last.vert >= 0 ? "+" : "", vert: last.vert.toFixed(1) }) /* #1471 — the bearing is grid north (atan2 of easting / northing), not true */}</span>
         <span style={{ color: "var(--color-text-muted)" }}>{tr("{pts} pt(s)", { pts: pts.length })}</span>
         {planeNote}
+        {axisNote}
         <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onClear} style={clearBtn}><X size={12} />{" "}{tr("Clear")}</span>
       </div>
     );
@@ -129,6 +139,7 @@ function MeasureCard({ mode, pts, onClear, onSwitchMode }) {
       <span><b style={{ color: "var(--color-text)" }}>{tr("Area:")}</b> {fmtArea(area)}</span>
       <span><b style={{ color: "var(--color-text)" }}>{tr("Perimeter:")}</b> {fmtLen(perimeter)}</span>
       <span style={{ color: "var(--color-text-muted)" }}>{tr("{pts} pt(s)", { pts: pts.length })}</span>
+      {axisNote}
       <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onClear} style={clearBtn}><X size={12} />{" "}{tr("Clear")}</span>
     </div>
   );

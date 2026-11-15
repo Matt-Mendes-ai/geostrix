@@ -13280,5 +13280,7 @@
   "by a field of the Y layer": "por un campo de la capa Y",
   "{axis} scale": "Escala {axis}",
   "{axis} axis scale": "Escala del eje {axis}",
-  "Y layer field to colour by": "Campo de la capa Y para colorear"
+  "Y layer field to colour by": "Campo de la capa Y para colorear",
+  "{n} point is on a hole's axis ({where}); Shift-click keeps the surface point": "{n} punto está sobre el eje de un sondaje ({where}); con Shift se conserva el punto de la superficie",
+  "{n} points are on a hole's axis ({where}); Shift-click keeps the surface point": "{n} puntos están sobre el eje de un sondaje ({where}); con Shift se conserva el punto de la superficie"
 }
