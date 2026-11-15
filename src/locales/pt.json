@@ -12924,5 +12924,16 @@
   "Nothing in this project can go to a .geoh5 yet: point surveys, surface samples, lines, surfaces and block models do (drillholes come later).": "Nada neste projeto pode ir para um .geoh5 ainda: podem os levantamentos de pontos, as amostras de superfície, as linhas, as superfícies e os modelos de blocos (os furos virão depois).",
   "Saved {file}: {p} point object(s), {c} curve(s), {s} surface(s), {b} block model(s).": "{file} salvo: {p} objeto(s) de pontos, {c} curva(s), {s} superfície(s), {b} modelo(s) de blocos.",
   "A .geoh5 carries no coordinate system: these are the project's coordinates ({crs}). Drillholes are not written yet.": "Um .geoh5 não carrega sistema de coordenadas: estas são as coordenadas do projeto ({crs}). Os furos ainda não são gravados.",
-  "Not written: {name} ({why}).": "Não gravado: {name} ({why})."
+  "Not written: {name} ({why}).": "Não gravado: {name} ({why}).",
+  "Import as QC links ({n} rows)": "Importar como vínculos de controle de qualidade ({n} linhas)",
+  "Match this table's sample ids to the assays already in the project and fill their QC category and parent sample. The links are kept: assays imported later with these sample ids pair up too.": "Associa os ids de amostra desta tabela às análises que já estão no projeto e preenche sua categoria de controle e a amostra mãe. Os vínculos são mantidos: as análises importadas depois com estes ids também se associam.",
+  "No link in this table: each row needs a sample id and a parent sample id or a QC category.": "Nenhum vínculo nesta tabela: cada linha precisa de um id de amostra e de um id de amostra mãe ou de uma categoria de controle.",
+  "Matched 0 of {m}: the check samples' results are not in the project. The {m} links are kept: assays imported later with these sample ids pair up.": "Correspondências 0 de {m}: os resultados das amostras de controle não estão no projeto. Os {m} vínculos são mantidos: as análises importadas depois com estes ids de amostra se associam.",
+  "Matched {n} of {m} link(s): {c} assay row(s) now carry their QC category and parent sample.": "Correspondências {n} de {m} vínculo(s): {c} linha(s) de análise agora trazem sua categoria de controle e a amostra mãe.",
+  "The other {k} are kept: assays imported later with their sample ids pair up.": "Os outros {k} são mantidos: as análises importadas depois com seus ids de amostra se associam.",
+  "None of the {n} assay rows has a sample id, so no link can reach them: import the assays with their sample id column.": "Nenhuma das {n} linhas de análise tem id de amostra, então nenhum vínculo pode alcançá-las: importe as análises com a coluna de id de amostra.",
+  "{n} assay row(s) have no sample id and cannot be reached.": "{n} linha(s) de análise não têm id de amostra e não podem ser alcançadas.",
+  "{n} row(s) of the table had no sample id, or neither a parent nor a category, and were left out.": "{n} linha(s) da tabela não tinham id de amostra, nem mãe nem categoria, e foram deixadas de fora.",
+  "The QC tools do not recognise these categories, so rows linked with them are not marked as check samples: {list}.": "As ferramentas de controle de qualidade não reconhecem estas categorias, então as linhas vinculadas a elas não são marcadas como amostras de controle: {list}.",
+  "{n} sample id(s) appeared more than once: the last row of each was kept.": "{n} id(s) de amostra apareceram mais de uma vez: a última linha de cada um foi mantida."
 }

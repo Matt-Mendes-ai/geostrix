@@ -14,7 +14,7 @@ import { pointReadings } from "../lib/pxrfPoints.js"; // TASKS.csv #1653
 import { pxrfSignature } from "../lib/pxrfSignature.js"; // TASKS.csv #2198
 import RowFilterBox from "./RowFilterBox.jsx"; // TASKS.csv #2391 — the row filter of the drillhole import (#2330), here too
 
-export default function AssayImportModal({ modal, onChange, onCancel, onCommit, existingUnits = {} }) {
+export default function AssayImportModal({ modal, onChange, onCancel, onCommit, onQcLinks = null, existingUnits = {} }) { // onQcLinks: TASKS.csv #3409
   // TASKS.csv #2037 — the columns an interval import cannot do without (a long file also needs its analyte and value columns)
   const unmapped = [["hole_id", tr("Hole ID")], ["from", tr("From")], ["to", tr("To")], ...(modal.format === "long" ? [["analyte", tr("Analyte")], ["value", tr("Value")]] : [])].filter(([k]) => !modal.mapping?.[k]).map(([, label]) => label);
   useEscapeKey(onCancel); // TASKS.csv #238
@@ -244,7 +244,8 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
               ))}
               {modal.elements.length === 0 && (<>
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", padding: "6px 4px" }}>{tr("No element columns recognized — add one manually below.")}</div>
-                {(modal.qc?.parent_id || modal.qc?.sample_type) && modal.qc?.sample_id && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", padding: "0 4px 6px", lineHeight: 1.45 }}>{tr("This table links check samples to their originals ({cols}) but holds no results: import the table with the check samples' results, and its sample id, sample type and parent columns tie them to the originals.", { cols: [modal.qc.sample_id, modal.qc.parent_id, modal.qc.sample_type].filter(Boolean).join(", ") })}</div>}{/* TASKS.csv #2340 */}</>
+                {(modal.qc?.parent_id || modal.qc?.sample_type) && modal.qc?.sample_id && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", padding: "0 4px 6px", lineHeight: 1.45 }}>{tr("This table links check samples to their originals ({cols}) but holds no results: import the table with the check samples' results, and its sample id, sample type and parent columns tie them to the originals.", { cols: [modal.qc.sample_id, modal.qc.parent_id, modal.qc.sample_type].filter(Boolean).join(", ") })}</div>}{/* TASKS.csv #2340 */}
+                {onQcLinks && (modal.qc?.parent_id || modal.qc?.sample_type) && modal.qc?.sample_id && <div style={{ padding: "0 4px 8px" }}><button type="button" onClick={onQcLinks} style={{ ...btn(true), padding: "6px 14px" }} title={tr("Match this table's sample ids to the assays already in the project and fill their QC category and parent sample. The links are kept: assays imported later with these sample ids pair up too.")}>{tr("Import as QC links ({n} rows)", { n: (modal.allRows || []).length.toLocaleString() })}</button></div>}</>
               )}
             </div>
           ) : (
