@@ -24,7 +24,8 @@ import { preferredElement, rememberElement } from "../lib/preferredElement.js"; 
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2552
 import { sampledByHole, unsampledDrillPoints } from "../lib/insideSampling.js"; // TASKS.csv #2596
 import { verticalReach } from "../lib/blockReach.js"; // TASKS.csv #2422 — a flat trend's vertical reach, as the estimator counts it
-import { desurveyHole } from "../lib/desurvey.js";
+import { desurveyHole, pointOnTrace } from "../lib/desurvey.js"; // pointOnTrace: #3592
+import { sampleSpacing } from "../lib/sampleSpacing.js"; // TASKS.csv #3592 — the spacing at the samples
 import { gradeStops } from "../lib/inversion.js"; // TASKS.csv #702
 import { LAYER_META } from "../lib/layers.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -302,7 +303,23 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   // TASKS.csv #2420 (review #2325, WA uranium) — the search opens from the drilling: 2.5 x the typical site spacing (sites 77 m apart ->
   // 190 m), not 50 m beside a line saying the holes are 77 m apart (0.45 % of the grid estimated, 137 of the 294 highest composites with
   // no block). A remembered or typed radius is kept.
-  const searchFromSpacing = !(saved && saved.searchRadius !== undefined) && spacing?.medianM > 0 ? searchFromSpacingM(spacing.medianM) : null;
+  // TASKS.csv #3592 (Fireweed rehearsal, Macpass Tom West) — and from the spacing AT THE SAMPLES (from a sample, the nearest sample of another hole,
+  // lib/sampleSpacing.js, as the grade shell's since #3580), not between collar sites: Tom West's holes fan from 76 pads and stations 15 m apart,
+  // so the search opened at 40 m against 24 m between the samples, and with Min holes 2 394 of the 735 blocks the holes pass through stayed
+  // empty. The collar sites stay the fallback (no traces).
+  const samplesSpacing = useMemo(() => {
+    const tof = traceBounds?.traceOf;
+    if (!tof || !symbol) return null;
+    const pts = [];
+    for (const a of srcAssays) {
+      if (!Number.isFinite(a.values?.[symbol]) || !Number.isFinite(a.from) || !Number.isFinite(a.to)) continue;
+      const t = tof.get(a.hole_id), q = t && pointOnTrace(t, (a.from + a.to) / 2);
+      if (q) pts.push({ hole_id: a.hole_id, x: q.x, y: q.y, z: q.z });
+    }
+    return sampleSpacing(pts);
+  }, [traceBounds, srcAssays, symbol]);
+  const searchFrom = samplesSpacing?.medianM > 0 ? { medianM: samplesSpacing.medianM, at: "samples" } : spacing?.medianM > 0 ? { medianM: spacing.medianM, at: "collars" } : null;
+  const searchFromSpacing = !(saved && saved.searchRadius !== undefined) && searchFrom ? searchFromSpacingM(searchFrom.medianM) : null;
   const searchTouched = useRef(false);
   useEffect(() => { if (searchFromSpacing && !searchTouched.current) setSearchRadius(searchFromSpacing); }, [searchFromSpacing]);
 
@@ -889,7 +906,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
               </div>
             )}
             {spacing && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr(spacing.sites === 2 ? "Holes: the two drill sites are {near} m apart. Two holes must both lie within the search radius of a block for it to count (Min distinct holes)." : "Holes: {sites} drill sites, the nearest {near} m apart, typically {median} m from the next (up to {far} m). Two holes must both lie within the search radius of a block for it to count (Min distinct holes).", { sites: spacing.sites, near: Math.round(spacing.nearestM), median: Math.round(spacing.medianM), far: Math.round(spacing.farthestM) })}</div>}{/* #1738 */}
-            {searchFromSpacing && !searchTouched.current && searchRadius === searchFromSpacing && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr("Search radius {r} m: 2.5 times the {m} m typical spacing, so a block between two holes reaches both.", { r: searchFromSpacing, m: Math.round(spacing.medianM) })}</div>}{/* #2420 */}
+            {searchFromSpacing && !searchTouched.current && searchRadius === searchFromSpacing && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{searchFrom.at === "samples" ? tr("Search radius {r} m: 2.5 times the {m} m typical distance from a sample to the nearest sample of another hole, so a block between two holes reaches both.", { r: searchFromSpacing, m: Math.round(searchFrom.medianM) }) : tr("Search radius {r} m: 2.5 times the {m} m typical spacing, so a block between two holes reaches both.", { r: searchFromSpacing, m: Math.round(searchFrom.medianM) })}</div>}{/* #2420 */}
             <label style={fieldLabel} title={tr("No sample within this distance of a block leaves it un-estimated (no cell), rather than extrapolating grade far from any real data. 0 = no radius assumption, capped internally at the grid's own diagonal so the run can't hang.")}>{tr("Search radius (m, 0 = no limit)")}<input type="number" min="0" step="any" value={searchRadius} onChange={(e) => { searchTouched.current = true; setSearchRadius(Math.max(0, Number(e.target.value) || 0)); }} style={inp} />
               {trend && !(searchRadius > 0) && gridDiagonalM > 0 && ( /* #710: 0 is not "no limit" across the trend */
                 <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", fontWeight: 400 }}>{tr("Along trend \"{name}\": with no radius the search reaches the grid diagonal ({d} m) along the trend but only {v} × {v2} m across it ({v3}); a sample farther across the trend is left out.", { name: trend.name, d: gridDiagonalM, v: Math.round((gridDiagonalM * trend.ratios.int) / trend.ratios.max), v2: Math.round((gridDiagonalM * trend.ratios.min) / trend.ratios.max), v3: describeTrend(trend) })}</span>
