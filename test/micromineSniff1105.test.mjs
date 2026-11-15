@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { looksLikeAssay } from "../src/lib/viewer/importHelpers.js";
-import { guessTargetFor } from "../src/lib/layers.js";
+import { guessTargetFor } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 
 test("#1105 gold-project assay tables with fewer than four elements are assays", () => {
   assert.equal(looksLikeAssay(["HOLE", "FROM", "TO", "SAMPLE", "AU", "CU"]), true);

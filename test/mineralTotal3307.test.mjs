@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { isSumMineralColumn, mineralCode, companionColumns, perMineralOffer, mineralPlan, singleMineralRows, MIN_CODE_COL, MIN_TOTAL_COL } from "../src/lib/perMineralColumns.js";
-import { guessMapping } from "../src/lib/layers.js";
+import { guessMapping } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 import { codeColumnGuess } from "../src/lib/valueGuess.js";
 import { normInterval } from "../src/lib/viewer/importHelpers.js";
 

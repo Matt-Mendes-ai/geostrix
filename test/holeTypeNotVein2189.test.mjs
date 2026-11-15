@@ -1,7 +1,7 @@
 // TASKS.csv #2189 — a hole / drilling type anywhere in a column name is not a vein type (WAMEX dsHoleType), and such a table is a custom layer
 import test from "node:test";
 import assert from "node:assert/strict";
-import { guessTarget, guessTargetFor } from "../src/lib/layers.js";
+import { guessTarget, guessTargetFor } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 
 test("dsHoleType, DrillType, Rig_Type tables are custom layers, not Veins", () => {
   const dd = ["HOLEID", "GEOLFROM", "GEOLTO", "PROJECTCODE", "PROSPECT", "TENEMENTID", "dsHoleType"];

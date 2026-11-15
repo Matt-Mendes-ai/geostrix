@@ -1,7 +1,7 @@
 // TASKS.csv #2339 (review #2325, WA uranium) — a hyperspectral (TSA) mineral table is not an assay table: a custom layer of its dominant mineral
 import test from "node:test";
 import assert from "node:assert/strict";
-import { guessTargetFor, guessMapping, spectralColumns } from "../src/lib/layers.js";
+import { guessTargetFor, guessMapping, spectralColumns } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 import { looksLikeAssay } from "../src/lib/viewer/importHelpers.js";
 
 // geophysics_1.csv's columns, as the review lists them

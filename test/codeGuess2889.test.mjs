@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { codeColumnGuess, numberColumnsLeft } from "../src/lib/valueGuess.js";
-import { guessMapping } from "../src/lib/layers.js";
+import { guessMapping } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 
 const MET = ["Met_ASB_pct", "Met_CLA_pct", "Met_GOE_pct", "Met_HEM_pct"];
 const H = ["Hole_id", "Depth From", "Depth To", "Projectcode", "PRIORITY", "Logged_Strand", ...MET, "Pyrite_Found", "Cmnts"];

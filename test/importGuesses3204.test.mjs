@@ -3,7 +3,7 @@
 // names (an acQuire-style export), not the review's files.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { guessTargetFor, guessMapping, schemaSatisfied } from "../src/lib/layers.js";
+import { guessTargetFor, guessMapping, schemaSatisfied } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 import { codeColumnGuess } from "../src/lib/valueGuess.js";
 
 const kind = (name, headers) => { const t = guessTargetFor(headers, name); return { t, m: guessMapping(t, headers) }; };

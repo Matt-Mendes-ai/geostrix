@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { guessMapping } from "../src/lib/layers.js";
+import { guessMapping } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 import { skippedRowsText } from "../src/lib/viewer/importHelpers.js";
 
 test("drilldetail.csv: From and To found, so Casing_Depth is not the Depth", () => {

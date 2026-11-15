@@ -3,7 +3,7 @@
 // built-in layer, were all guessed as Lithology too. The review's own files are not on this computer: headers shaped like them.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { guessTargetFor, guessMapping, schemaSatisfied } from "../src/lib/layers.js";
+import { guessTargetFor, guessMapping, schemaSatisfied } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 
 const H = (s) => s.split(",");
 

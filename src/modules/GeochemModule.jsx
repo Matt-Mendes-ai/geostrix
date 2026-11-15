@@ -9,7 +9,8 @@ import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #1284
 import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { joinBySampleId } from "../lib/surfaceJoin.js"; // TASKS.csv #1670
 import { parseTableOrWorkbook, isXlsxName } from "../lib/xlsx.js"; // TASKS.csv #444 shared reader; #605 .xlsx
-import { num, guessColumn, TARGET_SCHEMAS, colorForLithology, CATEGORICAL_SAFE_COLORS, hashColor, colorForVoxelValue, LAYER_META } from "../lib/layers.js"; // colours: #1091; LAYER_META: #2915
+import { colorForLithology, CATEGORICAL_SAFE_COLORS, hashColor, colorForVoxelValue, LAYER_META } from "../lib/layers.js"; // colours: #1091; LAYER_META: #2915
+import { num, guessColumn, TARGET_SCHEMAS } from "../lib/layersImport.js"; // TASKS.csv #3590
 import { gradeStops } from "../lib/inversion.js"; // TASKS.csv #1091 — the grade ramp block models use (#702) // TASKS.csv #508; guessColumn #600 — blank / "NA" -> NaN, never 0
 import { didYouMean } from "../lib/holeIds.js"; // TASKS.csv #541
 import { reprojectXY, crsName } from "../lib/reproject.js"; // TASKS.csv #600 — surface samples into the project CRS

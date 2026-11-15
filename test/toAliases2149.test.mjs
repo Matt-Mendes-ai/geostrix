@@ -1,7 +1,7 @@
 // TASKS.csv #2149 — mTo / ToDepth / DepthTo / dTo / EndDepth read as the interval To column (WAMEX and DMIRS headers)
 import test from "node:test";
 import assert from "node:assert/strict";
-import { TARGET_SCHEMAS, guessColumn, guessMapping } from "../src/lib/layers.js";
+import { TARGET_SCHEMAS, guessColumn, guessMapping } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 import { looksLikeAssay } from "../src/lib/viewer/importHelpers.js";
 import { detectLongAssay } from "../src/lib/longAssays.js";
 

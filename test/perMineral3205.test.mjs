@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { isPercentColumn, styleColumnFor, percentColumns, perMineralOffer, perMineralChoice, mineralRows, sumRows, mineralPlan, mineralLayerName, sumLayerName, UNIT } from "../src/lib/perMineralColumns.js";
-import { guessTargetFor, guessMapping } from "../src/lib/layers.js";
+import { guessTargetFor, guessMapping } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 import { codeColumnGuess } from "../src/lib/valueGuess.js";
 
 const headers = ["HOLE_ID", "FROM", "TO", "MN_CPY_pct", "MN_CPY_style", "MN_BN_pct", "MN_PY_pct", "MN_MAG_pct", "MN_COMMENT"];

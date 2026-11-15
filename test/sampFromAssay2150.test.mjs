@@ -2,7 +2,7 @@
 // sample-type column or element columns never send a file to Veins through the bare "type" rule
 import test from "node:test";
 import assert from "node:assert/strict";
-import { guessTarget, guessTargetFor } from "../src/lib/layers.js";
+import { guessTarget, guessTargetFor } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 import { looksLikeAssay } from "../src/lib/viewer/importHelpers.js";
 
 const GOLD = ["HOLEID", "SAMPLEID", "SAMPFROM", "SAMPTO", "SAMPLETYPE", "Au", "AuRp1", "Au1"];
