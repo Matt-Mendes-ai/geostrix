@@ -3433,6 +3433,7 @@
   "CV": "CV",
   "Top cut": "Écrêtage",
   "Top cut for {el}": "Écrêtage de {el}",
+  "\"{label}\" was gridded over its {n} drilled areas only: {nodes} grid nodes at {cs} m instead of the {whole} of one box round all of them.": "« {label} » a été maillé sur ses {n} zones forées seulement : {nodes} nœuds de grille à {cs} m au lieu des {whole} d'une seule boîte autour de toutes.",
   "up to ~5 min, ~0.25 GB of memory; the window pauses a few seconds at the end": "jusqu'à ~5 min, ~0,25 Go de mémoire ; la fenêtre se fige quelques secondes à la fin",
   "up to ~10 min, ~0.5 GB of memory; the window pauses about 10 s at the end": "jusqu'à ~10 min, ~0,5 Go de mémoire ; la fenêtre se fige environ 10 s à la fin",
   "up to ~25 min, ~1.2 GB of memory; the window pauses 20 s or more at the end": "jusqu'à ~25 min, ~1,2 Go de mémoire ; la fenêtre se fige 20 s ou plus à la fin",

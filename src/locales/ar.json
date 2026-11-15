@@ -3433,6 +3433,7 @@
   "CV": "معامل التباين",
   "Top cut": "القطع الأعلى",
   "Top cut for {el}": "القطع الأعلى لـ{el}",
+  "\"{label}\" was gridded over its {n} drilled areas only: {nodes} grid nodes at {cs} m instead of the {whole} of one box round all of them.": "حُسب «{label}» على مناطقه المحفورة الـ{n} فقط: {nodes} عقدة شبكة بخلايا {cs} م بدل {whole} في صندوق واحد يحيط بها كلها.",
   "up to ~5 min, ~0.25 GB of memory; the window pauses a few seconds at the end": "حتى ~5 دقائق، ~0.25 غيغابايت من الذاكرة؛ تتوقف النافذة بضع ثوانٍ في النهاية",
   "up to ~10 min, ~0.5 GB of memory; the window pauses about 10 s at the end": "حتى ~10 دقائق، ~0.5 غيغابايت من الذاكرة؛ تتوقف النافذة نحو 10 ثوانٍ في النهاية",
   "up to ~25 min, ~1.2 GB of memory; the window pauses 20 s or more at the end": "حتى ~25 دقيقة، ~1.2 غيغابايت من الذاكرة؛ تتوقف النافذة 20 ثانية أو أكثر في النهاية",

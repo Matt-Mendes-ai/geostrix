@@ -55,7 +55,7 @@ import { pickReport } from "../../lib/pickDiagnostics.js"; // TASKS.csv #762
 import { gempyLimitCheck, mapContactStep, MAP_CONTACT_STEP_M, plainEngineError, thinForWork, gempyWork, GEMPY_WORK_BUDGET, gempyRate, recordGempyRate, gempyPeakGB, GEMPY_RAM_SHARE, GEMPY_ASSUMED_RAM_GB } from "../../lib/gempyLimits.js"; // TASKS.csv #3162
 import { findOnTraceWorld, findOnTrace, traceOfHole /* #2931 */, interceptId, SOFT_NUGGET, MODEL_EXTENT_PAD_M, guessSurfaceType, pointInDomain } from "../../lib/viewer/modelHelpers.js";
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
-import { capFieldAtGround, meanInsideShell } from "../../lib/groundCap.js"; // TASKS.csv #803
+import { capFieldAtGround, sumInsideShell } from "../../lib/groundCap.js"; // TASKS.csv #803; sumInsideShell: #3580 (a)
 import { explicitInterfacePoints } from "../../lib/explicitUnits.js"; // TASKS.csv #867
 import { pinchOutPoints } from "../../lib/pinchOut.js"; // TASKS.csv #1030
 import { fisherStats } from "../../lib/stereonet.js"; // TASKS.csv #1066
@@ -2597,7 +2597,8 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // warp stays axis-aligned), so the grid's cell is the typed one in real metres.
         const cz = !anisotropy.enabled || anisotropy.flat ? (Number(numericCellHeight) > 0 ? Math.max(0.25, Number(numericCellHeight)) : null) : null;
         const cellOf = (c) => (anisotropy.flat ? { dx: c * gsScl.major, dy: c * gsScl.major, dz: (cz ?? c) * gsScl.minor } : { dx: c, dy: c, dz: anisotropy.enabled ? c : cz ?? c });
-        const blocksOf = (c) => { const g = cellOf(c), n = (a, b, d) => Math.max(1, Math.round((b - a) / Math.max(0.01, d))); return n(bounds.xmin, bounds.xmax, g.dx) * n(bounds.ymin, bounds.ymax, g.dy) * n(bounds.zmin, bounds.zmax, g.dz); }; // gridBlockCount per axis
+        const boxBlocks = (b, c) => { const g = cellOf(c), n = (a, z, d) => Math.max(1, Math.round((z - a) / Math.max(0.01, d))); return n(b.xmin, b.xmax, g.dx) * n(b.ymin, b.ymax, g.dy) * n(b.zmin, b.zmax, g.dz); }; // gridBlockCount per axis
+        const blocksOf = (c) => gridBoxes.reduce((s, b) => s + boxBlocks(b.bounds, c), 0); // #3580 (a): over the drilled clusters' boxes (gridBoxes, below)
         const fitOf = (budget, from) => { let c = Math.max(0.5, from); while (blocksOf(c) > budget && c < 1e5) c = Math.ceil((c * 1.02) * 2) / 2; return c; }; // cellToFit per axis
         let cellRefit = false; // #2063 — the budget chose the cell: a smaller one is not on offer
         let neededAtDefault = null; // #2223 — the blocks the default cell would have needed
@@ -2619,6 +2620,10 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         const shellEllipsoidM = numericSearchRadius > 0 && anisotropy.enabled
           ? [1, gsScl.major / gsScl.semiMajor, gsScl.major / gsScl.minor].map((f) => Math.round(numericSearchRadius * f * 10) / 10)
           : null;
+        // TASKS.csv #3580 (a) — one grid per drilled cluster, not one box round all of them (lib/viewer/shellBoxes.js): clusters more than twice
+        // the search (or the pad) apart share no node, so each gets its own box; the block budget counts those boxes, so the cells can be finer.
+        // Each box's run still gets every sample: its nodes take the values the single box gave them.
+        const gridBoxes = (await import("../../lib/viewer/shellBoxes.js")).drilledBoxes(gridPoints, { bounds, padM: pad, linkM: 2 * Math.max(searchInGrid, pad) });
         // TASKS.csv #625 — the block budget is the user's (200,000 by default, up to 5 million); checked here, before
         // the worker starts, so an over-budget run says which cell size WOULD fit (the pane offers it as a button)
         // TASKS.csv #3581 — up to 50 million, but only the budgets this computer's memory allows (the pane offers no others; a budget remembered on
@@ -2647,8 +2652,12 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         }
         setNumericBudgetHint?.(null);
         const ac = new AbortController(); // TASKS.csv #520 — worker + status-bar progress and Cancel
-        const grid = await runEstimation("dense", estPoints, {
-          bounds, cellSize: cellOf(cs), method: numericMethod, // cellOf: #3062
+        // #3580 (a) — one run per box, in turn, the progress shared by their blocks; a kriging variogram fitted in the first (every sample) is
+        // given to the others, so all use the same one
+        const grids = [], boxN = gridBoxes.map((b) => boxBlocks(b.bounds, cs)), boxTotal = boxN.reduce((s, x) => s + x, 0);
+        for (let bi = 0, before = 0; bi < gridBoxes.length; before += boxN[bi], bi++) {
+        const g = await runEstimation("dense", estPoints, {
+          bounds: gridBoxes[bi].bounds, cellSize: cellOf(cs), method: numericMethod, // cellOf: #3062
           searchRadius: searchInGrid, minSamples: 1, maxSamples: 16, // #656
           minHoles: Math.max(1, numericMinHoles), // TASKS.csv #258
           support: true, // TASKS.csv #91/#92 — classify every grid node so the shell can be coloured by it
@@ -2656,18 +2665,28 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           // TASKS.csv #1015 — an entered variogram (all three numbers), else fitted at run time. The range is entered in metres
           // along the trend's major axis, as reported (#935); the samples sit in the volume-keeping warp, where that is
           // range x scales.major
-          ...(numericMethod === "ok" && numericVariogram && ["nugget", "sill", "range"].every((k) => numericVariogram[k] !== "" && Number.isFinite(Number(numericVariogram[k])))
+          ...(numericMethod === "ok" && grids[0]?.variogram ? { variogram: grids[0].variogram } /* #3580 (a): the first box's, for every box */
+            : numericMethod === "ok" && numericVariogram && ["nugget", "sill", "range"].every((k) => numericVariogram[k] !== "" && Number.isFinite(Number(numericVariogram[k])))
             ? { variogram: { model: numericVariogram.model || "spherical", nugget: Number(numericVariogram.nugget), sill: Number(numericVariogram.sill), range: Number(numericVariogram.range) * (anisotropy.enabled ? gsScl.major : 1) } }
             : numericMethod === "ok" ? { variogram: { model: numericVariogram?.model || "spherical" } } : {}),
-        }, { signal: ac.signal, onProgress: (f) => ownTask(label).set(20 + 60 * f, () => ac.abort()) });
-        if (logInfo) unlogGrid(grid); // #1741 — back to data units: the iso-surface at the cutoff is unchanged, each node a geometric mean
+        }, { signal: ac.signal, onProgress: (f) => ownTask(label).set(20 + (60 * (before + f * boxN[bi])) / boxTotal, () => ac.abort()) });
+        if (logInfo) unlogGrid(g); // #1741 — back to data units: the iso-surface at the cutoff is unchanged, each node a geometric mean
+        grids.push(g);
+        }
+        // #3580 (a) — `grid`: the largest box's (its cell, its dimensions in the notice, its variogram); gridSum: the counts over every box
+        const grid = grids[0];
+        const gridSum = { estimated: 0, skipped: 0, singleHoleCells: 0, supportCounts: grid.supportCounts ? {} : null };
+        for (const g of grids) {
+          gridSum.estimated += g.estimated || 0; gridSum.skipped += g.skipped || 0; gridSum.singleHoleCells += g.singleHoleCells || 0;
+          if (gridSum.supportCounts && g.supportCounts) for (const [k, v] of Object.entries(g.supportCounts)) gridSum.supportCounts[k] = (gridSum.supportCounts[k] || 0) + (Number(v) || 0);
+        }
         // TASKS.csv #935 — kriging with a trend runs in the volume-keeping warp, so the variogram is fitted (and its range
         // read) in units where 1 m along the major axis is scales.major m: a 115 m range along the trend printed as "70 m"
         // at 3:2:1. The warp is a uniform rescaling of the block model's (trendSearchScales: major = 1), so the weights are
         // the block model's; only the reported range was in the wrong unit. It is reported, and saved, in metres along
         // the trend's major axis, as the block model reports it.
         const gsVariogram = grid.variogram && anisotropy.enabled ? { ...grid.variogram, range: grid.variogram.range / gsScl.major, rangeAlong: "the trend's major axis (m)" } : grid.variogram;
-        if (!grid.estimated) throw new Error(numericMinHoles > 1
+        if (!gridSum.estimated) throw new Error(numericMinHoles > 1
           ? tr("No grid cell had samples from at least {numericMinHoles} distinct holes within the search radius — widen the search, or lower \"Min holes\".", { numericMinHoles })
           : tr("No grid cell had a sample within the search radius — widen it."));
         // TASKS.csv #803 — Matt: "I can't get my grade shell block model to end at surface, it's going above surface".
@@ -2679,19 +2698,22 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // composites (311 of 1,595 at/above 29.8 g/t), and the cut took them for air: raised over the samples, within a real cell of them
         const gsCellReal = Math.max(grid.cellSize.dx, grid.cellSize.dy, grid.cellSize.dz) / (anisotropy.enabled ? Math.min(gsScl.major, gsScl.semiMajor, gsScl.minor) : 1);
         const gsLift = gsGround?.kind === "collars" ? (await import("../../lib/groundNotBelowSamples.js")).groundNotBelowSamples(groundAtInFrame(gsGround), points, { reachM: gsCellReal, marginM: gsCellReal }) : null;
-        const gsCap = groundCappedGrid(grid, numericCutoff, gsLift ? gsLift.at : groundAtInFrame(gsGround), gsRealOf); // this grid is in world coordinates
+        // #3580 (a) — each box cut on its own; gsCap.capped: over all of them
+        const gsCaps = grids.map((g) => groundCappedGrid(g, numericCutoff, gsLift ? gsLift.at : groundAtInFrame(gsGround), gsRealOf)); // these grids are in world coordinates
+        const gsCap = { capped: gsCaps.reduce((s, c) => s + c.capped, 0) };
         if (gsLift?.lifted) setNotices((p) => [...p, notice("The collar surface ran below {n} of the samples \"{label}\" was built from (rock the holes went through, in steep ground between collars): the cut was raised over them, so they stay in it. A terrain (Maps > Terrain) gives the real ground.", { n: gsLift.lifted.toLocaleString(), label })]);
         if (gsCap.capped && gsGround?.kind === "collars") setNotices((p) => [...p, notice("No terrain is loaded, so \"{label}\" was cut at the collar surface: the ground interpolated between the {n} collars, inside their footprint. A terrain (Maps > Terrain) gives the real ground.", { label, n: gsG.collars })]); // #2634
-        const mc = marchingCubes(gsCap.values, grid.nx, grid.ny, grid.nz, numericCutoff, {
-          origin: grid.origin, spacing: grid.cellSize, noData: numericCloseShell ? "outside" : "skip",
-        });
+        // #3580 (a) — the iso-surface of each box, as one mesh (parts: each box's vertices, for the support colours)
+        const mc = (await import("../../lib/viewer/shellBoxes.js")).mergeMeshes(grids.map((g, gi) => marchingCubes(gsCaps[gi].values, g.nx, g.ny, g.nz, numericCutoff, {
+          origin: g.origin, spacing: g.cellSize, noData: numericCloseShell ? "outside" : "skip",
+        })));
         // TASKS.csv #2063 (review #2013, Woodjam) — say what the run found and what removed it: with Min holes 2 at a 50 m search on holes
         // 67-360 m apart no block round the 132 composites above 3000 ppm saw two holes, and the message blamed the cutoff, the radius and
         // a cell size the block budget had just chosen
         if (!mc.faces.length) {
-          let hi = -Infinity; for (const v of grid.values) if (Number.isFinite(v) && v > hi) hi = v;
+          let hi = -Infinity; for (const g of grids) for (const v of g.values) if (Number.isFinite(v) && v > hi) hi = v;
           const mh = Math.max(1, numericMinHoles), r = Math.round(effectiveRadius);
-          const facts = " " + tr("{above} composite(s) are at or above the cutoff; {e} grid cell(s) were estimated, the highest at {hi} {unit}.", { above, e: grid.estimated.toLocaleString(), hi: Number.isFinite(hi) ? +hi.toPrecision(3) : "—", unit: unitL });
+          const facts = " " + tr("{above} composite(s) are at or above the cutoff; {e} grid cell(s) were estimated, the highest at {hi} {unit}.", { above, e: gridSum.estimated.toLocaleString(), hi: Number.isFinite(hi) ? +hi.toPrecision(3) : "—", unit: unitL });
           // #2063 — cells above the cutoff with no estimated neighbour: the surface has nothing to close against (Woodjam: 36 cells, the highest 8,330 ppm)
           const isolated = hi >= numericCutoff && !numericCloseShell;
           const advice = " " + (isolated ? tr("The cells at or above the cutoff have no estimated neighbours to close a surface against: tick \"Close shell artificially at the search-radius boundary\" (its volume is then an assumption), widen the search{v}.", { v: mh > 1 ? tr(", or lower Min holes from {k} to 1", { k: mh }) : "" })
@@ -2703,13 +2725,21 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // TASKS.csv #1735 (review #1645, Copley) — are the composites at/above the cutoff INSIDE the shell built to show them? With
         // Min holes 2 on holes 100-1,350 m apart, the blocks round the only Cu intercept had one hole and were not estimated, so
         // the "Cu > 1000 ppm" shell closed where two holes converge, 90-110 m away, and held no composite at all.
-        const inShell = samplesInsideShell(gridPoints, grid, gsCap.values, numericCutoff);
+        // #3580 (a) — each box's own samples against its own grid (a sample is looked up at its nearest node, clamped into the grid)
+        const inShell = { above: 0, inside: 0, outside: 0, noData: 0 };
+        grids.forEach((g, gi) => { const r = samplesInsideShell(gridBoxes[gi].idx.map((k) => gridPoints[k]), g, gsCaps[gi].values, numericCutoff); for (const k in inShell) inShell[k] += r[k]; });
         // TASKS.csv #2757 — the shell's share more than one hole spacing from every sample (real frame), as the unit body says it
         // TASKS.csv #3286 (2) — the spacing Estimation and this pane's search say (holeSpacingSummary: the typical distance from a site to the next);
         // the halo rule's own spacing gave 160 m beside Estimation's 200 m for the same 14 holes
         const gsCollars = collars.filter((c) => holesOfPoints.has(c.hole_id));
         const gsSpacing = (await import("../../lib/holeSpacing.js")).holeSpacingSummary(gsCollars)?.medianM || autoHaloParams(gsCollars, tracesRef.current || null).spacing;
-        const gsBeyond = gsSpacing > 0 ? (await import("../../lib/haloSupport.js")).farFromSamples(gsCap.values, grid.nx, grid.ny, grid.nz, grid.origin, grid.cellSize, numericCutoff, points, gsSpacing, { toReal: anisotropy.enabled ? (q) => anisoWarpPoint(q, gsCenter, gsBasis, invScales(gsScl)) : null }) : null;
+        // #3580 (a) — over every box: the far share of all the inside nodes
+        const gsBeyond = gsSpacing > 0 ? await (async () => {
+          const { farFromSamples } = await import("../../lib/haloSupport.js"), toReal = anisotropy.enabled ? (q) => anisoWarpPoint(q, gsCenter, gsBasis, invScales(gsScl)) : null;
+          let inside = 0, far = 0;
+          grids.forEach((g, gi) => { const r = farFromSamples(gsCaps[gi].values, g.nx, g.ny, g.nz, g.origin, g.cellSize, numericCutoff, points, gsSpacing, { toReal }); inside += r.inside; far += r.far; });
+          return { inside, far, share: inside ? far / inside : 0, dist: gsSpacing };
+        })() : null;
 
         const o = originRef.current;
         const pos = new Float32Array(mc.vertices.length * 3);
@@ -2733,20 +2763,24 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // estimate, but all the informing data lies to one side), red = unsupported.
         const supColors = new Float32Array(mc.vertices.length * 3);
         const surfCounts = { interpolated: 0, extrapolated: 0, unsupported: 0 };
-        if (grid.supportCode) {
+        if (grids.every((g) => g.supportCode)) {
           const rgb = {};
           Object.entries(SUPPORT_COLORS).forEach(([k, hex]) => { const c = new THREE.Color(hex); rgb[k] = [c.r, c.g, c.b]; });
           const clampI = (n, hi) => (n < 0 ? 0 : n > hi ? hi : n);
           const NAMES = ["unsupported", "extrapolated", "interpolated"];
-          mc.vertices.forEach((v, i) => {
-            const gx = clampI(Math.round((v[0] - grid.origin.x) / grid.cellSize.dx), grid.nx - 1);
-            const gy = clampI(Math.round((v[1] - grid.origin.y) / grid.cellSize.dy), grid.ny - 1);
-            const gz = clampI(Math.round((v[2] - grid.origin.z) / grid.cellSize.dz), grid.nz - 1);
-            const name = NAMES[grid.supportCode[gx + grid.nx * (gy + grid.ny * gz)]] || "unsupported";
-            surfCounts[name]++;
-            const c = rgb[name];
-            supColors[i * 3] = c[0]; supColors[i * 3 + 1] = c[1]; supColors[i * 3 + 2] = c[2];
-          });
+          for (const part of mc.parts) { // #3580 (a) — each box's vertices in its own grid
+            const grid = grids[part.gi];
+            for (let i = part.start; i < part.end; i++) {
+              const v = mc.vertices[i];
+              const gx = clampI(Math.round((v[0] - grid.origin.x) / grid.cellSize.dx), grid.nx - 1);
+              const gy = clampI(Math.round((v[1] - grid.origin.y) / grid.cellSize.dy), grid.ny - 1);
+              const gz = clampI(Math.round((v[2] - grid.origin.z) / grid.cellSize.dz), grid.nz - 1);
+              const name = NAMES[grid.supportCode[gx + grid.nx * (gy + grid.ny * gz)]] || "unsupported";
+              surfCounts[name]++;
+              const c = rgb[name];
+              supColors[i * 3] = c[0]; supColors[i * 3 + 1] = c[1]; supColors[i * 3 + 2] = c[2];
+            }
+          }
           geo.setAttribute("color", new THREE.BufferAttribute(supColors, 3));
         }
         const mat = new THREE.MeshLambertMaterial({ color: 0xe2a63c, side: THREE.DoubleSide, transparent: true, opacity: 0.75 });
@@ -2765,8 +2799,9 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // at/above-cutoff cells IS the volume-weighted mean.
         // TASKS.csv #1100 — with "cut at topography" the shell is drawn from the capped copy (#803): a node counts only when
         // it is inside the shell after the cap too (nodes in the air left out), at its own interpolated grade
-        const capV = gsCap.values;
-        const meanGradeInShell = meanInsideShell(grid.values, capV, numericCutoff);
+        // #3580 (a) — one mean over every box's inside nodes
+        const meanParts = grids.map((g, gi) => sumInsideShell(g.values, gsCaps[gi].values, numericCutoff));
+        const meanN = meanParts.reduce((t, m) => t + m.n, 0), meanGradeInShell = meanN > 0 ? meanParts.reduce((t, m) => t + m.sum, 0) / meanN : null;
         // TASKS.csv #270 (LOW-3) / #269 - the parameter block that produced this surface, kept ON the
         // surface so the panel can show it and every export can stamp it. A tonnage with no record of
         // the cutoff/method/radius/cell size/closure mode behind it can't be reproduced or audited.
@@ -2785,14 +2820,15 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           anisotropy: anisotropy.enabled ? anisotropy.params : null,
           domain: gradeDomain ? gradeDomain.name : null,
           modelArea: inArea ? `holes checked in the Holes list (${area.checked} of ${area.all})` : "whole property", // #2059
-          samplePoints: points.length, cellsEstimated: grid.estimated, ...(gsVariogram ? { variogram: gsVariogram } : {}), // #709; #935 — range in m along the trend
-          singleHoleCells: grid.singleHoleCells, meanGradeInShell,
+          samplePoints: points.length, cellsEstimated: gridSum.estimated, ...(gsVariogram ? { variogram: gsVariogram } : {}), // #709; #935 — range in m along the trend
+          singleHoleCells: gridSum.singleHoleCells, meanGradeInShell,
+          ...(grids.length > 1 ? { drilledAreas: { grids: grids.length, nodes: boxTotal, wholeBoxNodes: boxBlocks(bounds, cs), note: "one grid per drilled cluster (#3580): the box round all the samples would have had wholeBoxNodes" } } : {}),
           compositesInShell: inShell, // #1735 — { above, inside, outside, noData }: the at/above-cutoff composites against the shell
           ...(gsBeyond ? { beyondDrilling: { share: +gsBeyond.share.toFixed(3), holeSpacingM: Math.round(gsSpacing) } } : {}), // #2757
           // TASKS.csv #91/#92 — grid-wide classification, and the same classification restricted to the
           // shell's own surface. The second is the one that matters for a reported volume: it says what
           // fraction of the BOUNDARY is bracketed by data rather than carried out beyond it.
-          supportCounts: grid.supportCounts, surfaceSupportCounts: surfCounts,
+          supportCounts: gridSum.supportCounts, surfaceSupportCounts: surfCounts,
           generatedAt: new Date().toISOString(),
         };
         mesh.userData = { tip: `${label}\n${mc.vertices.length} vertices, ${mc.faces.length} faces\n${numericMethod.toUpperCase()} on ${points.length} points, ${anisotropy.enabled ? `cells of about ${trendCellText(trendCellM(anisotropy.trend, cs))} m along the trend` : `${cs} m cells`}${vol.watertight ? `\n${vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 })} m³ enclosed${closure === "artificial" ? " (artificially closed — see panel)" : ""}` : "\n(open shell)"}` };
@@ -2800,11 +2836,13 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         const id = `impl_${Date.now()}_numeric_${symbol}`;
         implicitMeshesRef.current[id] = mesh;
         setImplicitSurfaces((p) => [...p, { id, name: distinctShellName(label, p.map((x) => x.name), cs), visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: "mineralization_envelope", relationships: [], closure, params, surfaceSupportCounts: surfCounts, supportColored: false }]); // surfaceSupportCounts/supportColored: TASKS.csv #91
+        // #3580 (a) — said when the grid was split: the nodes it took against the single box's, and the cell that bought
+        if (grids.length > 1) setNotices((p) => [...p, { ...notice("\"{label}\" was gridded over its {n} drilled areas only: {nodes} grid nodes at {cs} m instead of the {whole} of one box round all of them.", { label, n: grids.length, nodes: boxTotal.toLocaleString(), cs, whole: boxBlocks(bounds, cs).toLocaleString() }), level: "info" }]);
         setNotices((p) => [...p, notice("Added \"{label}\": {points} ({intervals}{v4}, {dropped} dropped{v5}, {above} at/above cutoff{v6}) → {nx}×{ny}×{nz} grid ({estimated} cells estimated, {skipped} outside the search radius{v7}{v8}) → {vertices} vertices / {faces} faces{v9}. Exploration target volume only — not a Mineral Resource.", { label, points: tr(points.length === 1 ? "{n} sample point" : "{n} sample points", { n: points.length }) /* #1116 */,
-          intervals: numericUseComposites ? tr(intervals.length === 1 ? "{n} {len} m composite" : "{n} {len} m composites", { n: intervals.length, len: numericCompositeLength }) : tr(intervals.length === 1 ? "{n} raw interval" : "{n} raw intervals", { n: intervals.length }), v4: rawStats && (rawStats.duplicatesSkipped || rawStats.overlappingRows) ? tr(" after {duplicatesSkipped} exact duplicate(s) left out and {overlappingRows} overlapping row(s) resolved", { duplicatesSkipped: rawStats.duplicatesSkipped, overlappingRows: rawStats.overlappingRows }) : "", dropped, v5: beyondTrace ? tr(" ({beyondTrace} deeper than the hole's trace)", { beyondTrace }) : "", above, v6: clamped ? tr(clamped === 1 ? ", {clamped} negative grade clamped to zero" : ", {clamped} negative grades clamped to zero", { clamped }) : "", nx: grid.nx, ny: grid.ny, nz: grid.nz, estimated: grid.estimated.toLocaleString(), skipped: grid.skipped.toLocaleString(), v7: grid.singleHoleCells ? tr(", {singleHoleCells} informed by only ONE hole", { singleHoleCells: grid.singleHoleCells.toLocaleString() }) : "", v8: gsVariogram ? tr("; kriged with a {model} variogram {v}: nugget {v2}, sill {v3}, range {v4} m", { model: gsVariogram.model, v: gsVariogram.fitted ? tr("fitted to the samples") : tr("as entered"), v2: +gsVariogram.nugget.toPrecision(3), v3: +gsVariogram.sill.toPrecision(3), v4: Math.round(gsVariogram.range) }) + (anisotropy.enabled ? tr(" (along the trend \"{name}\")", { name: anisotropy.trend?.name || "" }) : "") : "" /* #935 */, vertices: mc.vertices.length.toLocaleString(), faces: mc.faces.length.toLocaleString(), v9: vol.watertight ? tr(", closed ({volumeM3} m³)", { volumeM3: Number(vol.volumeM3.toPrecision(3)).toLocaleString() /* TASKS.csv #3082 (7) — 3 significant figures, as the Volume row and the Tonnage (#3284) */ }) : tr(", open ({openEdgeCount} open edges — shell reaches the edge of the estimated region)", { openEdgeCount: vol.openEdgeCount }) })]);
+          intervals: numericUseComposites ? tr(intervals.length === 1 ? "{n} {len} m composite" : "{n} {len} m composites", { n: intervals.length, len: numericCompositeLength }) : tr(intervals.length === 1 ? "{n} raw interval" : "{n} raw intervals", { n: intervals.length }), v4: rawStats && (rawStats.duplicatesSkipped || rawStats.overlappingRows) ? tr(" after {duplicatesSkipped} exact duplicate(s) left out and {overlappingRows} overlapping row(s) resolved", { duplicatesSkipped: rawStats.duplicatesSkipped, overlappingRows: rawStats.overlappingRows }) : "", dropped, v5: beyondTrace ? tr(" ({beyondTrace} deeper than the hole's trace)", { beyondTrace }) : "", above, v6: clamped ? tr(clamped === 1 ? ", {clamped} negative grade clamped to zero" : ", {clamped} negative grades clamped to zero", { clamped }) : "", nx: grid.nx, ny: grid.ny, nz: grid.nz, estimated: gridSum.estimated.toLocaleString(), skipped: gridSum.skipped.toLocaleString(), v7: gridSum.singleHoleCells ? tr(", {singleHoleCells} informed by only ONE hole", { singleHoleCells: gridSum.singleHoleCells.toLocaleString() }) : "", v8: gsVariogram ? tr("; kriged with a {model} variogram {v}: nugget {v2}, sill {v3}, range {v4} m", { model: gsVariogram.model, v: gsVariogram.fitted ? tr("fitted to the samples") : tr("as entered"), v2: +gsVariogram.nugget.toPrecision(3), v3: +gsVariogram.sill.toPrecision(3), v4: Math.round(gsVariogram.range) }) + (anisotropy.enabled ? tr(" (along the trend \"{name}\")", { name: anisotropy.trend?.name || "" }) : "") : "" /* #935 */, vertices: mc.vertices.length.toLocaleString(), faces: mc.faces.length.toLocaleString(), v9: vol.watertight ? tr(", closed ({volumeM3} m³)", { volumeM3: Number(vol.volumeM3.toPrecision(3)).toLocaleString() /* TASKS.csv #3082 (7) — 3 significant figures, as the Volume row and the Tonnage (#3284) */ }) : tr(", open ({openEdgeCount} open edges — shell reaches the edge of the estimated region)", { openEdgeCount: vol.openEdgeCount }) })]);
         // TASKS.csv #2223 — the refit above counted the whole box; say how little of it the search reaches, and the budget that keeps the
         // default cell (marching cubes needs every node, so the shell cannot budget on reachable blocks as Estimation does)
-        const budgetAdvice = shellBudgetAdvice({ refit: cellRefit, neededAtDefault, estimated: grid.estimated, skipped: grid.skipped, budget: blockBudget, budgets: shellBudgets /* #3581 — those that fit here */ });
+        const budgetAdvice = shellBudgetAdvice({ refit: cellRefit, neededAtDefault, estimated: gridSum.estimated, skipped: gridSum.skipped, budget: blockBudget, budgets: shellBudgets /* #3581 — those that fit here */ });
         if (budgetAdvice) setNotices((p) => [...p, { ...notice(budgetAdvice.budget
           ? "Only {p}% of the grid lies within the search radius of a sample, but the iso-surface needs every node of the box, so the block budget counts the empty part too (Estimation counts only reachable blocks). A {b}-block budget ({cost}) keeps the default {cs} m cells here."
           : "Only {p}% of the grid lies within the search radius of a sample, but the iso-surface needs every node of the box, so the block budget counts the empty part too (Estimation counts only reachable blocks). The default {cs} m cells need {n} blocks here, over the largest budget.",

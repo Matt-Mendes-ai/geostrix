@@ -3433,6 +3433,7 @@
   "CV": "CV",
   "Top cut": "Corte superior",
   "Top cut for {el}": "Corte superior de {el}",
+  "\"{label}\" was gridded over its {n} drilled areas only: {nodes} grid nodes at {cs} m instead of the {whole} of one box round all of them.": "«{label}» foi calculado só sobre as suas {n} áreas perfuradas: {nodes} nós de grade a {cs} m em vez dos {whole} de uma única caixa em volta de todas.",
   "up to ~5 min, ~0.25 GB of memory; the window pauses a few seconds at the end": "até ~5 min, ~0,25 GB de memória; a janela pausa alguns segundos no final",
   "up to ~10 min, ~0.5 GB of memory; the window pauses about 10 s at the end": "até ~10 min, ~0,5 GB de memória; a janela pausa cerca de 10 s no final",
   "up to ~25 min, ~1.2 GB of memory; the window pauses 20 s or more at the end": "até ~25 min, ~1,2 GB de memória; a janela pausa 20 s ou mais no final",

@@ -58,5 +58,5 @@ test("the dialogs: a Source select in Estimation, the logs in the Grade shell el
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
   assert.match(r, /const numSrc = findNumericSource\(numericSymbol, \{ layers, customLayers, logValidRange \}\);/);
   assert.match(r, /const logInfo = numSrc\?\.logScale \? logPoints\(gridPoints\) : null;/);
-  assert.match(r, /if \(logInfo\) unlogGrid\(grid\);/);
+  assert.match(r, /if \(logInfo\) unlogGrid\(g\);/);
 });
