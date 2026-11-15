@@ -10,6 +10,11 @@ import { alignAssayUnits } from "./sampleWoodjam.js";
 import { notice, errorNotice } from "./notices.js";
 import { t as tr } from "./i18n.js";
 import { MACPASS_CREDIT } from "./sampleCredits.js"; // TASKS.csv #3496
+// TASKS.csv #3539 (Fireweed rehearsal) — the extras load beside the import queue (one status-bar slot: the queue's label wins while it
+// runs): their own label is set again before each step and kept until the main thread is quiet (lib/busyUntilQuiet.js), and the
+// assays step yields between its parse, its unit alignment and its commit (three tasks, not one).
+import { whenQuiet, showBusy } from "./busyUntilQuiet.js";
+const nextTask = () => new Promise((r) => setTimeout(r, 0));
 
 // which -> what its folder holds beside the drillhole tables. label: the sample's short name in notices (project data, English).
 export const WA_SAMPLES = {
@@ -98,11 +103,18 @@ const mergeElements = (prev, elements, unitOf = null) => { const m = new Map((pr
 export async function loadWaSampleExtras(which, readFile, store, { existingElements = [], existingSurfaceElements = [], project = null } = {}) {
   const S = WA_SAMPLES[which], notes = [];
   if (!S) return notes;
+  const label = tr("Loading the {name} sample's assays and extras…", { name: S.label }); // #3539
+  showBusy(store.setTaskProgress, label);
+  try {
   if (S.credit && typeof store.setProjectDataCredit === "function") store.setProjectDataCredit(S.credit); // #3496 — saved with the project; Layout's {credits} prints it
   if (S.assays) {
     try {
-      const raw = waAssays(await (await readFile(S.assays)).text(), S.assays);
+      const text = await (await readFile(S.assays)).text();
+      showBusy(store.setTaskProgress, label); // #3539 — again: the queue's label may have replaced it
+      const raw = waAssays(text, S.assays);
+      await nextTask(); // #3539
       const { rows, elements, converted } = alignAssayUnits(raw.rows, raw.elements, existingElements);
+      await nextTask(); // #3539
       store.setAssays((prev) => mergeAssayRows(prev || [], rows).rows);
       store.setAssayElements((prev) => mergeElements(prev, elements));
       notes.push(notice("{name} assays: {rows} samples, {elements} columns ({list}) — in the Geochem tab.{v}", { name: S.label, rows: rows.length.toLocaleString(), elements: elements.length, list: elements.slice(0, 8).map((e) => `${e.symbol} ${e.unit}`).join(", ") + (elements.length > 8 ? " …" : ""),
@@ -144,6 +156,11 @@ export async function loadWaSampleExtras(which, readFile, store, { existingEleme
       store.addRaster({ ...raster, surveyMethod: S.grid.method, units: S.grid.units, drapeMode: "flat", provenance: { tool: "Bundled sample", source: S.grid.source } });
       notes.push(notice("{name} grid: {grid} — in Maps, and in Geophysics for filters and an inversion against the holes.", { name: S.label, grid: S.grid.name }));
     } catch (e) { notes.push(errorNotice(tr("The {name} grid could not be loaded: {message}", { name: S.label, message: e.message }))); }
+  }
+  } finally {
+    showBusy(store.setTaskProgress, label); // #3539 — shown while the builds these commits start run
+    await whenQuiet(); // then it goes (only ours: a later task's label stays)
+    store.setTaskProgress?.((cur) => (cur && cur.label === label ? null : cur));
   }
   return notes;
 }

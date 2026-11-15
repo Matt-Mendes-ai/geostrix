@@ -63,6 +63,7 @@ import { projectTargetEpsg } from "../../lib/projectTarget.js"; // TASKS.csv #22
 import { looksLikeUbcMesh } from "../../lib/leapfrogMsh.js"; // TASKS.csv #1991
 import { perHoleJoinOf, perHoleAttrs } from "../../lib/perHoleJoin.js"; // TASKS.csv #2399
 import { MACPASS_CREDIT } from "../../lib/sampleCredits.js"; // TASKS.csv #3496
+import { busyUntilQuiet } from "../../lib/busyUntilQuiet.js"; // TASKS.csv #3539
 
 // TASKS.csv #3496 — the sample files whose dip sign the sample itself states (negative = down, with real up-holes: positive dips), by File object: the queue
 // goes in unseen on them although a dip is above 0 (#335 asks otherwise). Nothing a user drops is in it.
@@ -1096,7 +1097,7 @@ export function makeImportPipeline(ctx, h) {
   };
   const processImportQueue = () => { // #3159 split: a plain function here; the hook keeps the useCallback
     const file = importQueueRef.current.shift();
-    if (!file) { importActiveRef.current = false; batchRowsRef.current = null; setTaskProgress?.(null); importQueueTotalRef.current = 0; queueSummary(); /* #3071 */ handOverAssays(); return; } // #1350
+    if (!file) { importActiveRef.current = false; batchRowsRef.current = null; busyUntilQuiet(setTaskProgress, tr("Drawing the imported data…")) /* #3539: until the builds the commits started are done (was cleared at once) */; importQueueTotalRef.current = 0; queueSummary(); /* #3071 */ handOverAssays(); return; } // #1350
     const total = importQueueTotalRef.current || importQueueRef.current.length + 1;
     const doneCount = total - importQueueRef.current.length; // this file counts as "now processing"
     setTaskProgress?.({ label: `Importing files (${doneCount}/${total}): ${file.name}`, pct: Math.round((doneCount / total) * 100) });

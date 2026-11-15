@@ -3433,6 +3433,10 @@
   "CV": "CV",
   "Top cut": "Corte superior",
   "Top cut for {el}": "Corte superior de {el}",
+  "Drawing the imported data…": "Desenhando os dados importados…",
+  "Loading the {name} sample's assays and extras…": "Carregando as análises e extras da amostra {name}…",
+  "Calculating… {p} %": "Calculando… {p} %",
+  "Colour it as {model} (the same ramp and range)": "Colori-lo como {model} (a mesma rampa e intervalo)",
   "Letters, digits and _, starting with a letter": "Letras, dígitos e _, começando por uma letra",
   "Used twice": "Usado duas vezes",
   "Block calculator": "Calculadora de blocos",
@@ -12919,5 +12923,10 @@
   "Cut back to {pct} % to keep the view smooth.": "Reduzido a {pct} % para manter a vista fluida.",
   "{p} % of this ore is in blocks whose nearest drilling was never sampled: the estimate carried sampled grade across unsampled chips, which is unknown, not ore. Drilled metres with no sample can be estimated as barren: 3D Modelling › Estimation, \"Unsampled metres inside a sampled hole\".": "{p} % deste minério está em blocos cujo furo mais próximo nunca foi amostrado: a estimativa levou o teor amostrado através de chips sem amostra, que é desconhecido, não minério. Metros perfurados sem amostra podem ser estimados como estéreis: Modelagem 3D › Estimativa, \"Metros sem amostra dentro de um furo amostrado\".",
   "{p} % of the metal at the {c} cutoff is in blocks above or below every sample that informs them: the estimate carried grade up or down the holes past their samples (unsampled chips reads as not known unless the estimate filled it).": "{p} % do metal no teor de corte {c} está em blocos acima ou abaixo de todas as amostras que os informam: a estimativa levou teor para cima ou para baixo dos furos além de suas amostras (o chips sem amostra é lido como desconhecido, a menos que a estimativa o tenha preenchido).",
-  "{results} composite(s) from {assays} raw intervals. Composites are anchored to each hole's first sampled depth and stepped at the length above; a domain boundary or the hole's own start/end will shorten an individual composite below that length. Coverage below 100% means part of the composite falls in unsampled chips — its grade is the length-weighted average of the material that IS sampled (not diluted toward zero).": "{results} composto(s) a partir de {assays} intervalos brutos. Os compostos são ancorados na primeira profundidade amostrada de cada furo e avançam pelo comprimento acima; um limite de domínio ou o próprio início/fim do furo encurta um composto abaixo desse comprimento. Cobertura abaixo de 100% significa que parte do composto cai em chips sem amostra — o teor é a média ponderada pelo comprimento do material que FOI amostrado (não diluída em direção a zero)."
+  "{results} composite(s) from {assays} raw intervals. Composites are anchored to each hole's first sampled depth and stepped at the length above; a domain boundary or the hole's own start/end will shorten an individual composite below that length. Coverage below 100% means part of the composite falls in unsampled chips — its grade is the length-weighted average of the material that IS sampled (not diluted toward zero).": "{results} composto(s) a partir de {assays} intervalos brutos. Os compostos são ancorados na primeira profundidade amostrada de cada furo e avançam pelo comprimento acima; um limite de domínio ou o próprio início/fim do furo encurta um composto abaixo desse comprimento. Cobertura abaixo de 100% significa que parte do composto cai em chips sem amostra — o teor é a média ponderada pelo comprimento do material que FOI amostrado (não diluída em direção a zero).",
+  "Reference: {name}. {credit}": "Referência: {name}. {credit}",
+  "Mineral from the USGS spectral library": "Mineral da biblioteca espectral do USGS",
+  "The USGS library could not be loaded": "Não foi possível carregar a biblioteca do USGS",
+  "Or pick a mineral from the USGS spectral library…": "Ou escolha um mineral da biblioteca espectral do USGS…",
+  "USGS Spectral Library Version 7, public domain (Kokaly et al., 2017).": "Biblioteca espectral do USGS, versão 7, domínio público (Kokaly et al., 2017)."
 }

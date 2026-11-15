@@ -19,7 +19,9 @@ function fakeWorker({ fail = null } = {}) {
   const w = { terminate() {}, onmessage: null, onerror: null };
   w.postMessage = (msg) => {
     queueMicrotask(async () => {
-      const d = structuredClone(msg);
+      // a browser's postMessage keeps a File a File (name included); Node 22's structuredClone turns it into a nameless Blob (Node 24 does not),
+      // which lost the reader's 'a table goes to Geochem' hint on CI (v0.1.118): clone the rest, pass the File itself as a worker receives it
+      const d = { ...structuredClone({ ...msg, file: undefined }), file: msg.file };
       if (fail) { w.onmessage({ data: { id: d.id, failed: fail } }); return; }
       const doc = globalThis.document; delete globalThis.document; globalThis.OffscreenCanvas = FakeOffscreen;
       let out;
