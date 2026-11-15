@@ -9,6 +9,7 @@ import { Plus, Trash2, Pencil } from "./icons.js";
 import { cleanTrend, describeTrend, DEFAULT_TREND, planeFromPoles, poleOf, planeFromPoints } from "../lib/trend.js";
 import { fisherStats, fabricShape } from "../lib/stereonet.js"; // TASKS.csv #672
 import { fitPlane } from "../lib/vein.js"; // TASKS.csv #672 — planarity / collinearity
+import { samplesTrendByArea } from "../lib/samplesTrend.js"; // TASKS.csv #3593 — a trend from the grades
 import { startingTrendPlane, MIN_TOP_HOLES } from "../lib/trendStart.js"; // TASKS.csv #2428
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #2779 — the drill spacing and the sample length
@@ -78,7 +79,7 @@ function RatiosEditor({ trend, onApply, field, inputStyle, small }) {
 
 // structurePicks: [{ value (code), dip, azimuth (dip direction) }]; surfaces: [{ id, name }]; surfacePoints(id) -> [{x, y, z}]
 // units: the logged lithology codes; unitTopPoints(code) -> [{x, y, z}] (east, north, up) of each hole's top of it (#2428)
-export default function TrendsPanel({ structuralTrends, setStructuralTrends, structurePicks, surfaces, surfacePoints, units = [], unitTopPoints = null, onView, viewingId, small, inputStyle, btnStyle }) {
+export default function TrendsPanel({ structuralTrends, setStructuralTrends, structurePicks, surfaces, surfacePoints, units = [], unitTopPoints = null, sampleElements = [], samplePoints = null /* #3593 */, onView, viewingId, small, inputStyle, btnStyle }) {
   const { trends = [], use = {} } = structuralTrends || {};
   const [editId, setEditId] = useState(null);
   const [note, setNote] = useState(null);
@@ -113,6 +114,19 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
   const setFrom = (t, src) => {
     if (!src) return;
     const [kind, key] = src.split(":");
+    // TASKS.csv #3593 — the samples of an element at or above a cut-off: the plane, its pitch and its ratios from their three spreads (lib/samplesTrend.js)
+    if (kind === "samples") {
+      const r = samplePoints?.(key);
+      // grouped first: one plane through bodies km apart joins them (all of Macpass gave spreads of 19,945 m); the main area alone, or none
+      const area = r?.pts?.length ? samplesTrendByArea(r.pts) : null, st = area?.trend || null;
+      if (!st && area?.groups?.length > 1) { setNote({ id: t.id, text: tr("Not set: the {n} {el} samples at or above {cut} {unit} lie in {k} areas more than 500 m apart ({sizes} samples), and one plane through them would join separate bodies. Check one area's holes in the Holes list, set Model area to the checked holes, then set the plane again.", { n: r.pts.length.toLocaleString(), el: key, cut: r.cutoff, unit: r.unit || "", k: area.groups.length, sizes: area.groups.slice(0, 6).join(", ") + (area.groups.length > 6 ? ", …" : "") }) }); return; }
+      if (!st) { setNote({ id: t.id, text: tr("Not set: too few {el} samples at or above the cut-off, or they lie along one line, to fix a plane.", { el: key }) }); return; }
+      const namedAuto = /^(Stereonet mean|Mean of .+|Plane of .+) \(\d+° → \d+°\)$/.test(t.name || "") || /^Trend \d+$/.test(t.name || "");
+      update(t.id, { dip: Math.round(st.dip * 10) / 10, dipAzimuth: Math.round(st.dipAzimuth * 10) / 10, pitch: st.pitch, ratios: st.ratios, ...(namedAuto ? { name: `Plane of ${key} >= ${r.cutoff} (${st.dip.toFixed(0)}° → ${st.dipAzimuth.toFixed(0)}°)` } : {}) });
+      setNote({ id: t.id, text: tr("Dip {dip}° → {az}°, pitch {pitch}°, ratios {max} : {int} : {min} from the {n} {el} samples at or above {cut} {unit} (their 90th percentile): their spreads are {a} × {b} × {c} m. A trend from the grades, not from structure: check it in 3D (View) before modelling with it.", { dip: st.dip.toFixed(1), az: st.dipAzimuth.toFixed(1), pitch: st.pitch, max: st.ratios.max, int: st.ratios.int, min: st.ratios.min, n: st.n.toLocaleString(), el: key, cut: r.cutoff, unit: r.unit || "", a: Math.round(2 * st.spreads[0]), b: Math.round(2 * st.spreads[1]), c: Math.round(2 * st.spreads[2]) })
+        + (area.leftOut ? " " + tr("{n} samples in other areas more than 500 m away were left out.", { n: area.leftOut.toLocaleString() }) : "") });
+      return;
+    }
     let plane = null, what = "";
     if (kind === "code") {
       const all = (structurePicks || []).filter((p) => String(p.value ?? "?") === key);
@@ -208,6 +222,7 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
                   <option value="flat">{tr("Horizontal (dip 0°)")}</option>{/* #2428 */}
                   {unitTopPoints && (units || []).length > 0 && <optgroup label={tr("Tops of a logged unit (best-fit plane)")}>{units.map((u) => <option key={u} value={`tops:${u}`}>{u}</option>)}</optgroup>}
                   {codes.length > 0 && <optgroup label={tr("Structure measurements (mean)")}>{codes.map(([c, n]) => <option key={c} value={`code:${c}`}>{c} ({n})</option>)}</optgroup>}
+                  {samplePoints && (sampleElements || []).length > 0 && <optgroup label={tr("Samples at or above their 90th percentile (best-fit plane and ratios)")}>{sampleElements.map((el) => <option key={el} value={`samples:${el}`}>{el}</option>)}</optgroup>}{/* #3593 */}
                   {(surfaces || []).length > 0 && <optgroup label={tr("Generated surface (best-fit plane)")}>{surfaces.map((s) => <option key={s.id} value={`surface:${s.id}`}>{surfaceOptionLabels(surfaces).get(s.id) ?? s.name}</option>)}</optgroup>}
                 </select>
                 {note?.id === t.id && <div style={{ ...small, marginTop: 4 }}>{note.text}</div>}

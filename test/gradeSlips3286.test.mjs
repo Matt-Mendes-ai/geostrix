@@ -11,7 +11,7 @@ test("(1) back to Assays, the remembered element; (5) the set's other elements a
   const m = src("components/GradeEstimationModal.jsx");
   assert.match(m, /setSourceKey\(k\); if \(s\) setSymbolRaw\(s\.symbol\); else setSymbol\(preferredElement\(\(assayElementsProp \|\| \[\]\)\.map\(\(x\) => x\.symbol\), "estimate", lead\) \|\| assayElementsProp\[0\]\?\.symbol \|\| "Au"\);/); // found live: setSymbol remembered the log's name
   assert.ok(!m.includes('setSymbol(s ? s.symbol : (assayElementsProp[0]?.symbol || "Au"))'));
-  assert.match(m, /cells: m\.cells, \.\.\.rampOf\(m\.cells\), params: m\.params, visible: false \}\);/);
+  assert.match(m, /cells: m\.cells, \.\.\.rampOf\(m\.cells, sourceKey === \"assay\" \? m\.element : null\) \/\* #3596 \*\/, params: m\.params, visible: false \}\);/);
   assert.match(m, /\{added && result\.params\?\.set && <span[^>]*>\{tr\("\{el\} is shown; the set's other elements are added hidden/);
   assert.match(m, /tr\("no declustering, no variogram \(the method chosen uses none; ordinary kriging does\), and no resource classification\./);
 });
