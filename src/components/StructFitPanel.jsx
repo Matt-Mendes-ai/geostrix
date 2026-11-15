@@ -7,13 +7,14 @@ import React, { useMemo, useRef, useState } from "react";
 import { useStore } from "../lib/store.jsx";
 import { useKeptState } from "../lib/keptState.js";
 import { runStructfitJob } from "../lib/desktop.js";
-import { movableSurfaces, propertyUnits, modelProblem, buildStructfitRequest, everyNth, resultRows } from "../lib/structFit.js";
+import { movableSurfaces, propertyUnits, modelProblem, buildStructfitRequest, everyNth, resultRows, verdictPoints } from "../lib/structFit.js";
+import { SURVEY_METHODS, surveyKey } from "../lib/geophysSurveys.js";
 import { t as tr } from "../lib/i18n.js";
 
 const fmt = (v, d = 3) => (v == null || !Number.isFinite(v) ? "–" : Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : Number(v.toPrecision(d)).toLocaleString());
 
 export default function StructFitPanel({ method, unit, keptScope, prepareForward, unc, setUnc, field, ui }) {
-  const { lastImplicitRequest: record } = useStore();
+  const { lastImplicitRequest: record, setLayers, updateGeophysSurvey } = useStore();
   const { small, inp, row, lbl, pBtn } = ui;
   const [st, setSt] = useKeptState(keptScope, "inversion.structfit", { props: {}, surface: "", picked: [], maxM: "", resolve: false, bounds: {} });
   const [busy, setBusy] = useState(null);
@@ -29,6 +30,15 @@ export default function StructFitPanel({ method, unit, keptScope, prepareForward
   const isPicked = (index) => pickedHere.some((m) => m.index === index);
   const toggle = (index) => set({ picked: isPicked(index) ? st.picked.filter((m) => !(m.surface === surf.name && m.index === index)) : (st.picked.length >= 20 ? st.picked : [...st.picked, { surface: surf.name, index }]) });
 
+  // TASKS.csv #3632 — the tested points into the 3D View, coloured by their sensitivity (a geophysics point survey, replaced by a new run)
+  const show3d = () => {
+    const name = `${method === "mag" ? "Magnetics" : "Gravity"} · contact sensitivity`;
+    const rows = verdictPoints(out.rows, name);
+    if (!rows.length) { setMsg({ ok: false, text: tr("No tested point has a sensitivity to show.") }); return; }
+    setLayers((l) => ({ ...l, geophys_pts: [...(l.geophys_pts || []).filter((r) => surveyKey(r) !== name), ...rows] }));
+    updateGeophysSurvey(name, { method: "structfit_sens", units: SURVEY_METHODS.structfit_sens.units });
+    setMsg({ ok: true, text: tr("Added \"{name}\": {n} tested points in the 3D View, coloured by log₁₀ σ per m (the warm end: the survey sees that contact).", { name, n: rows.length }) });
+  };
   const run = async () => {
     setMsg(null);
     const p = prepareForward?.();
@@ -113,6 +123,7 @@ export default function StructFitPanel({ method, unit, keptScope, prepareForward
                 <td style={{ color: r.verdict === "seen" ? "var(--color-text)" : "var(--color-text-muted)" }}>{r.verdict === "seen" ? tr("seen") : r.verdict === "none" ? tr("no contact here") : tr("not constrained by this survey")}</td>
               </tr>))}</tbody>
           </table>
+          <button type="button" onClick={show3d} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}>{tr("Show the tested points in the 3D View")}</button>
           <div style={{ ...small, marginTop: 4 }}>{tr("Seen: the survey would notice a move within the distance you gave. Not constrained: it would not, so a fit could move that contact without the data objecting. A move of a quarter of a model cell was tested; the response is linear in it.")}</div>
           {out.result.resolved && (
             <div style={{ marginTop: 6 }}>

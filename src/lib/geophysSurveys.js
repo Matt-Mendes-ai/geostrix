@@ -44,6 +44,7 @@ export const SURVEY_METHODS = {
   lidar: { label: "Lidar point cloud", units: "m", group: "other" },
   em1d_cond: { label: "FDEM 1D models: conductivity at depth", units: "log₁₀ mS/m", group: "em" },
   tem1d_cond: { label: "TEM 1D models: conductivity at depth", units: "log₁₀ mS/m", group: "em" }, // TASKS.csv #3440 — points under each station // TASKS.csv #1986 — points under each sounding // TASKS.csv #1994 — thinned returns of a LAS / LAZ / COPC file
+  structfit_sens: { label: "Contact sensitivity: which interpreted contacts the survey can see", units: "log₁₀ σ per m", group: "other" }, // TASKS.csv #3632 — the tested points of #2640, coloured in the 3D View by their sensitivity
   ip: { label: "IP chargeability", units: "mV/V", group: "el" },
   res: { label: "Resistivity", units: "Ω·m", group: "el" },
   sp: { label: "Self-potential", units: "mV", group: "el" },
