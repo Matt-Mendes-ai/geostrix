@@ -93,6 +93,7 @@ export function makeImportPipeline(ctx, h) {
   const {
     addBoundary,
     addRaster,
+    buildDefer, // TASKS.csv #3544 — the queue holds the drillhole build until its end
     collars,
     goToModule,
     importModal,
@@ -1117,8 +1118,11 @@ export function makeImportPipeline(ctx, h) {
   };
   const processImportQueue = () => { // #3159 split: a plain function here; the hook keeps the useCallback
     const file = importQueueRef.current.shift();
-    if (!file) { importActiveRef.current = false; batchRowsRef.current = null; busyUntilQuiet(setTaskProgress, tr("Drawing the imported data…")) /* #3539: until the builds the commits started are done (was cleared at once) */; importQueueTotalRef.current = 0; queueSummary(); /* #3071 */ handOverAssays(); reportDeferredAssumed(); return; } // #1350; #3535
+    if (!file) { importActiveRef.current = false; batchRowsRef.current = null; buildDefer?.release?.() /* #3544: the held build runs once */; busyUntilQuiet(setTaskProgress, tr("Drawing the imported data…")) /* #3539: until the builds the commits started are done (was cleared at once) */; importQueueTotalRef.current = 0; queueSummary(); /* #3071 */ handOverAssays(); reportDeferredAssumed(); return; } // #1350; #3535
     const total = importQueueTotalRef.current || importQueueRef.current.length + 1;
+    // TASKS.csv #3544 — a drop of two or more files: the 3D View builds once, after the last (it was built after each commit: on the Macpass
+    // sample five builds, every hole desurveyed twice). A single file builds at once, as before. Each file restarts the hold's 30 s guard.
+    if (total > 1) buildDefer?.hold?.();
     const doneCount = total - importQueueRef.current.length; // this file counts as "now processing"
     setTaskProgress?.({ label: `Importing files (${doneCount}/${total}): ${file.name}`, pct: Math.round((doneCount / total) * 100) });
     parseVectorFile(file, (data, err, meta) => {
@@ -1170,7 +1174,7 @@ export function makeImportPipeline(ctx, h) {
         // theirs as attrs, #1504; a survey has no others worth keeping)
         const comp = companionLayer(target, headers);
         const extras = target === "collars" ? [] : target === "survey" ? surveyMethodFields(headers, data) /* #2187 */ : autoExtraFields(headers, data, mapping, { exclude: [modalData.perRowEpsgCol, comp?.column].filter(Boolean) });
-        askCrsForCollars(modalData).then(() => {
+        askCrsForCollars(modalData).then(() => new Promise((r) => setTimeout(r, 0)) /* #3544 (C1): the commit in its own task, not the parse's */).then(() => {
           logQueue(file.name, "imported"); // #3071
           commitImportData({ ...modalData, customFields: extras, unseen: true }); // #615; unseen: #715 — no dialog, so its defaults are assumptions
           if (comp) commitImportData({ ...modalData, target: comp.target, mapping: { ...mapping, value: comp.column }, customFields: [], unseen: true });

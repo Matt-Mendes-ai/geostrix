@@ -26,6 +26,21 @@ test("hold / release: held between them; the release moves the round once; a rel
   assert.equal(HOLD_MAX_MS, 30000);
 });
 
+test("the queue: holds only for two or more files (a single file builds at once); releases at its one end, which a cancel reaches too", () => {
+  const imp = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  const q = imp.slice(imp.indexOf("const processImportQueue = () =>"), imp.indexOf("parseVectorFile(file", imp.indexOf("const processImportQueue = () =>")));
+  assert.match(q, /const total = importQueueTotalRef\.current \|\| importQueueRef\.current\.length \+ 1;\n[\s\S]*if \(total > 1\) buildDefer\?\.hold\?\.\(\);/, "a hold only for two or more files");
+  assert.match(q, /if \(!file\) \{ importActiveRef\.current = false; batchRowsRef\.current = null; buildDefer\?\.release\?\.\(\)/, "released at the queue's end");
+  assert.equal((imp.match(/buildDefer\?\.hold\?\.\(\)/g) || []).length, 1, "held in one place only");
+  const hook = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  assert.match(hook, /const cancelImport = \(\) => \{\n    setImportModal\(null\);\n[\s\S]*?processImportQueue\(\);/, "a cancel goes on to the queue's end");
+  // a single file never holds: the build is not skipped
+  const d = buildDeferModel(); d.render();
+  assert.equal(d.skip() || d.held(), false);
+  // C1: a parsed file's commit in its own task
+  assert.match(imp, /askCrsForCollars\(modalData\)\.then\(\(\) => new Promise\(\(r\) => setTimeout\(r, 0\)\) \/\* #3544 \(C1\)/);
+});
+
 test("wiring: the hook's hold ends by itself; the drillhole build asks held(); its effect lists the round", () => {
   const b = readFileSync(new URL("../src/lib/viewer/buildDefer.js", import.meta.url), "utf8");
   assert.match(b, /hold: \(\) => \{ held\.current = true; clearTimeout\(holdTimer\.current\); holdTimer\.current = setTimeout\(release, HOLD_MAX_MS\); \}/);

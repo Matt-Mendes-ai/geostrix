@@ -5129,6 +5129,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     connectDb: store.connectDb, dbConnections: store.dbConnections, dbImports: store.dbImports, setDbImports: store.setDbImports, // TASKS.csv #1963
     addBoundary,
     addRaster,
+    buildDefer, // #3544
     collars,
     goToModule, // TASKS.csv #917
     mode, // TASKS.csv #3046 (1) — a sample drop on Surface Geology comes back there
