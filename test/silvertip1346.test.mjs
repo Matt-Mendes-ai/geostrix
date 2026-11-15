@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseTableText } from "../src/lib/tabular.js";
-import { guessTargetFor, guessMapping, schemaSatisfied } from "../src/lib/layers.js";
+import { guessTargetFor, guessMapping, schemaSatisfied } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 import { silvertipAssays, silvertipSurface, SILVERTIP_SURFACE } from "../src/lib/sampleSilvertip.js";
 import { sampleProjectName } from "../src/lib/sampleProjectName.js";
 

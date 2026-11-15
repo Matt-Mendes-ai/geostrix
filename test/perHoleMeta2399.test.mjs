@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { perHoleJoinOf, perHoleAttrs } from "../src/lib/perHoleJoin.js";
-import { isNullSentinel } from "../src/lib/layers.js";
+import { isNullSentinel } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 
 const collars = [{ hole_id: "NNA5269", x: 1, y: 2 }, { hole_id: "NNA5270", x: 3, y: 4 }];
 const rows = [

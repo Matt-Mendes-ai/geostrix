@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { looksLikeEventTable, eventMapping, eventNotes, eventPickOptions, defaultEventOption } from "../src/lib/downholeEvents.js";
-import { guessTargetFor, guessMapping } from "../src/lib/layers.js";
+import { guessTargetFor, guessMapping } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 import { seedPicksFromTops } from "../src/lib/explicitUnits.js";
 
 test("an event table is a custom layer of depth picks, not structures", () => {

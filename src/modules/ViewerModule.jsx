@@ -5,6 +5,8 @@ import { interceptsDisabledText, noCollarsNotice } from "../lib/noCollars.js"; /
 import { levelPlanZRange, mainTraces } from "../lib/viewer/levelPlanRange.js"; // TASKS.csv #1782; mainTraces: #2936
 import { sampleUserData, mappedOfSample } from "../lib/viewer/sampleTip.js"; // TASKS.csv #1821; #1500
 import { markZoomedHole } from "./viewer/zoomMark.js"; // #3570
+import { useShowOnLoad } from "./viewer/useShowOnLoad.js"; // #3588 (1)
+import { azimuthNorthText } from "../lib/azimuthNorthText.js"; // #3588 (6)
 import HoleFilterBar from "./viewer/HoleFilterBar.jsx"; import { useSurfaceChecks } from "./viewer/useSurfaceChecks.js"; import HiddenHolesNote from "./viewer/HiddenHolesNote.jsx"; import { publishHoleVisibility } from "../lib/holeVisibilityShare.js"; // #3555; #3605
 import { holesForFilter, holeSetsOf, fenceTracesOf } from "../lib/holeFilter.js"; // #1504; #1703; #3554; #3561
 import { holesWithoutField } from "../lib/viewer/holeFieldPicks.js"; // #3074
@@ -490,7 +492,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // TASKS.csv #336 — latest survey/layers for import notices. commitImportData is reached through the
   // multi-file queue's long-lived callback, whose closure can hold stale store values.
   const importStateRef = useRef({});
-  importStateRef.current = { survey: store.survey, layers: store.layers, collars: store.collars, project: store.project, terrain: store.terrain, addMapLayer: store.addMapLayer, projectIsEmpty: store.projectIsEmpty, setEpsg: store.setEpsg, rasters: store.rasters, voxelModels: store.voxelModels, surfaceSamples: store.surfaceSamples, mapLayers: store.mapLayers /* #2019 */ }; // rasters / voxelModels / surfaceSamples: #1505 // terrain/addMapLayer: #609; projectIsEmpty/setEpsg: #607
+  importStateRef.current = { survey: store.survey, layers: store.layers, collars: store.collars, project: store.project, terrain: store.terrain, addMapLayer: store.addMapLayer, projectIsEmpty: store.projectIsEmpty, setEpsg: store.setEpsg, setAzimuthNorth: store.setProjectAzimuthNorth /* #3588 (6) */, rasters: store.rasters, voxelModels: store.voxelModels, surfaceSamples: store.surfaceSamples, mapLayers: store.mapLayers /* #2019 */ }; // rasters / voxelModels / surfaceSamples: #1505 // terrain/addMapLayer: #609; projectIsEmpty/setEpsg: #607
   // TASKS.csv #226/#214 — cursor's own tiny context (see store.jsx's CursorProvider comment): this
   // component calls setCursor() on every pointermove but never actually reads the live cursor VALUE
   // anywhere in its own render output (only the status bar in App.jsx does), so subscribing here only
@@ -666,6 +668,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       });
     }
   };
+  const showOnLoad = useShowOnLoad(assayElements, toggleAssayElement); // TASKS.csv #3588 (1): src/modules/viewer/useShowOnLoad.js
   // User request: "I wanna be able to change the assay legend. Change colour, size, recategorize,
   // ignore values lower than (what the user specifies)". Per-symbol styling, keyed by element symbol:
   // { color: "#rrggbb" | null (null = use the default pick-order color), sizeMult: number (default 1,
@@ -1625,7 +1628,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     const groups = [
       // TASKS.csv #3296 — the codes in one order with the inspector: the project's set order (#3130) first, then by count (the figure's cut keeps the commonest)
       ...viewCodeOrder(categoryLegendGroups({ keys: CATEGORY_LAYER_KEYS, layers, layerVisible, hidden: categoryFilter, visibleHoles, singleColor, labelFor: effectiveLabel, colorFor: effectiveColor, placed: new Set(collars.map((c) => String(c.hole_id))) }), projectCodeOrders(layoutPages, null, null, null)), // #1813
-      ...assayLegendGroups({ assays, assayElements, assayVisible: assayVisible && collars.length > 0 /* #1813 */, assayDisplayElements, assayStyle, displayUnits: project?.displayUnits /* #3236 */ }),
+      ...assayLegendGroups({ withNote: true /* #3588 (2) */, assays, assayElements, assayVisible: assayVisible && collars.length > 0 /* #1813 */, assayDisplayElements, assayStyle, displayUnits: project?.displayUnits /* #3236 */ }),
       ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), ...scoreRasterLegendGroups(rasters) /* #2670 — score maps */, // #1236
       ...numericLayerLegendGroups({ layers, layerVisible, isRowVisible, colorOf: numericLayerColor, symbology: numericSymbology, clips: numericClip }), // #1398 — the RQD / recovery / SG / mag susc ramps
       ...customLegendGroups(customLayers, customVisible, layerStyles), // #1697
@@ -5074,6 +5077,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (ok && which !== "wa_uranium" && (which.startsWith("wa_") || which.startsWith("qld_") || which.startsWith("yk_" /* #3496 */))) { // TASKS.csv #3107 — assays, surface samples, downhole logs and a grid: lib/sampleWa.js
       try {
         const { loadWaSampleExtras, WA_SAMPLES } = await import("../lib/sampleWa.js");
+        if (WA_SAMPLES[which].showFirst) showOnLoad.current = WA_SAMPLES[which].showFirst; // #3588 (1) — before the load: the element is switched on when its assays land
         const notes = await loadWaSampleExtras(which, async (rel) => (await loadSampleFiles(WA_SAMPLES[which].dir, [rel]))[0], { setAssays, setAssayElements, setSurfaceSamples: store.setSurfaceSamples, setSurfaceElements: store.setSurfaceElements, addCustomLayer: (l) => setStoreCustomLayers((p) => [...(p || []), l]), addRaster: store.addRaster, setProjectDataCredit: store.setProjectDataCredit /* #3496 */, setTaskProgress /* #3539 */ },
           { existingElements: assayElements, existingSurfaceElements: surfaceElements, project: importStateRef.current?.project || store.project });
         setNotices((p) => [...p, ...notes]);
@@ -6303,7 +6307,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </div>
         <input ref={setInputRef("collar")} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz,.las" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, "collars"); e.target.value = ""; }} />
         <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-          <button onClick={() => fileInputs.current.survey.click()} onContextMenu={(e) => { if (!survey.length) return; e.preventDefault(); setLayerContextMenu({ key: "__survey__", label: tr("Survey"), x: e.clientX, y: e.clientY }); }} style={{ ...pBtn, marginBottom: 0, flex: 1 }} title={tr("Import survey — CSV, shapefile (.zip/.shp), or GeoPackage (.gpkg) — right-click for export/inspect")}><Upload size={14} />{" "}{tr("Survey {v}", { v: survey.length ? `(${survey.length})` : "" })}</button>
+          <button onClick={() => fileInputs.current.survey.click()} onContextMenu={(e) => { if (!survey.length) return; e.preventDefault(); setLayerContextMenu({ key: "__survey__", label: tr("Survey"), x: e.clientX, y: e.clientY }); }} style={{ ...pBtn, marginBottom: 0, flex: 1 }} title={tr("Import survey — CSV, shapefile (.zip/.shp), or GeoPackage (.gpkg) — right-click for export/inspect") + azimuthNorthText(store.project) /* #3588 (6) */}><Upload size={14} />{" "}{tr("Survey {v}", { v: survey.length ? `(${survey.length})` : "" })}</button>
           {survey.length > 0 && <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={clearSurvey} style={iconBtn} title={tr("Remove all survey stations")}><Trash2 size={14} /></div>}
         </div>
         <input ref={setInputRef("survey")} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz,.las" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, "survey"); e.target.value = ""; }} />

@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fullestTypeColumn } from "../src/lib/downholeTableGuess.js";
-import { guessMapping } from "../src/lib/layers.js";
+import { guessMapping } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 
 test("Planar_StrucType (filled on all rows) over Linear_StrucType (blank on most)", () => {
   const headers = ["HOLEID", "GEOLFROM", "GEOLTO", "Struc_Alpha", "Struc_Beta", "Linear_StrucType", "Planar_StrucType"];

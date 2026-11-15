@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { looksLikeLogTable, logChannelColumns, logChannelsFor, logChannelRows, readingDepth } from "../src/lib/downholeLogChannels.js";
-import { guessTargetFor, guessMapping } from "../src/lib/layers.js";
+import { guessTargetFor, guessMapping } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 
 const H = ["Hole_ID", "mFrom", "mTo", "Priority", "Raw_cps", "eU3O8_cased_ppm"];
 const rows = Array.from({ length: 40 }, (_, i) => ({ Hole_ID: i < 20 ? "A" : "B", mFrom: +(0.05 * (i % 20)).toFixed(2), mTo: +(0.05 * (i % 20) + 0.05).toFixed(2), Priority: 1, Raw_cps: 100 + i, eU3O8_cased_ppm: i % 7 }));

@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { replaceRowsByHole, replaceNote } from "../src/lib/layers.js";
+import { replaceRowsByHole, replaceNote } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 
 const sv = (h, d, az = 90, dip = 60) => ({ hole_id: h, depth: d, azimuth: az, dip, _src: "survey_1.csv" });
 

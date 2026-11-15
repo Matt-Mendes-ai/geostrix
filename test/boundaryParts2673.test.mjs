@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { perHoleJoinOf } from "../src/lib/perHoleJoin.js";
-import { guessMapping } from "../src/lib/layers.js";
+import { guessMapping } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 
 const read = (p) => fs.readFileSync(new URL(p, import.meta.url), "utf8");
 

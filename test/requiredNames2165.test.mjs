@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { TARGET_SCHEMAS } from "../src/lib/layers.js";
+import { TARGET_SCHEMAS } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 
 test("the dialog lists the aliases of an unmatched required field", () => {
   const m = readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8");

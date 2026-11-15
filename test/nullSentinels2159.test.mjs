@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { num, isNullSentinel } from "../src/lib/layers.js";
+import { num, isNullSentinel } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 
 test("#2159 num(): the no-data codes are missing, exact values only", () => {
   for (const v of [-999, "-999", "-999.25", " -9999 ", "-99999", -999999, "-999.0"]) assert.ok(Number.isNaN(num(v)), String(v));

@@ -1,4 +1,4 @@
-import { getCol } from "./layers.js";
+import { getCol } from "./layersImport.js"; // TASKS.csv #3590
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { NODATA_MAX, COARSEN_NODATA_SENTINEL } from "./voxelAir.js"; // TASKS.csv #3159
 

@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { buildZip } from "../src/lib/shapefile.js";
 import { isXlsxName, readXlsxSheets, xlsxToCsvFiles } from "../src/lib/xlsx.js";
-import { guessTargetFor, guessMapping, schemaSatisfied, targetFromName } from "../src/lib/layers.js";
+import { guessTargetFor, guessMapping, schemaSatisfied, targetFromName } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 import { normNumericInterval } from "../src/lib/viewer/importHelpers.js";
 
 const enc = (s) => new TextEncoder().encode(s);
@@ -103,7 +103,7 @@ test("#605 mag sus point readings: Depth instead of From/To, placed at that dept
 });
 
 test("#605 replaceRowsByHole keepRows: a later file of the same drop adds to its rows; earlier imports are still replaced", async () => {
-  const { replaceRowsByHole } = await import("../src/lib/layers.js");
+  const { replaceRowsByHole } = await import("../src/lib/layersImport.js");
   const old = [{ hole_id: "A", from: 0, to: 5, value: "old" }];
   const alt = [{ hole_id: "A", from: 0, to: 10, value: "ser" }, { hole_id: "B", from: 0, to: 4, value: "chl" }];
   const keep = new WeakSet();
@@ -130,7 +130,7 @@ test("#600 groupShapefileParts: loose .shp/.dbf/.prj pair by basename; unmatched
 });
 
 test("#600 pickRankedCollarRows: lowest rank wins per hole; no rank column leaves rows alone; diff counts holes once", async () => {
-  const { pickRankedCollarRows, diffCollarImport } = await import("../src/lib/layers.js");
+  const { pickRankedCollarRows, diffCollarImport } = await import("../src/lib/layersImport.js");
   const raw = [
     { hole_id: "DH24-119", rank: 1, depth: 700, x: 1 }, { hole_id: "DH24-119", rank: 0, depth: 700, x: 2 },
     { hole_id: "DH24-119", rank: 6, depth: 118.9, x: 3 }, { hole_id: "A", rank: "", depth: 50, x: 9 }, { hole_id: "A", rank: 2, depth: 60, x: 8 },
@@ -149,7 +149,7 @@ test("#600 pickRankedCollarRows: lowest rank wins per hole; no rank column leave
 });
 
 test("#608 breccia logs are their own layer (MX Breccia table), not Alteration", async () => {
-  const { guessTarget, guessTargetFor, guessMapping, colorForBreccia, LAYER_META } = await import("../src/lib/layers.js");
+  const { colorForBreccia, LAYER_META } = await import("../src/lib/layers.js"); const { guessTarget, guessTargetFor, guessMapping } = await import("../src/lib/layersImport.js");
   const h = ["project", "hole_id", "from", "to", "assemblage", "support", "sorting", "framework_pct", "genesis", "brecc_lith", "note"];
   assert.equal(guessTarget(h), "breccia");
   assert.equal(guessTargetFor(["hole_id", "from", "to", "assemblage"], "Book - Breccia.csv"), "breccia");
@@ -174,7 +174,7 @@ test("#607 an empty project may adopt the file's declared CRS", async () => {
 });
 
 test("#600 (40958Z) unit-suffixed / spaced headers map: To (m), Mag Avg, RQD %, Specific Gravity; domain and Vein Min logs", async () => {
-  const { normHeader, guessColumn, guessTarget, guessTargetFor, guessMapping } = await import("../src/lib/layers.js");
+  const { normHeader, guessColumn, guessTarget, guessTargetFor, guessMapping } = await import("../src/lib/layersImport.js");
   assert.equal(normHeader("To (m)"), "to");
   assert.equal(normHeader("RQD %"), "rqd_pct");
   assert.equal(normHeader("Depth [m]"), "depth");
@@ -200,7 +200,7 @@ test("#600 parseTableText: comma-decimal scan skipped only when impossible", asy
 
 test("#600 a multi-file drop imports collars, then surveys, then the rest (alphabetical order put structures first)", async () => {
   const { orderImportFiles } = await import("../src/lib/viewer/importHelpers.js");
-  const { guessTargetFor } = await import("../src/lib/layers.js");
+  const { guessTargetFor } = await import("../src/lib/layersImport.js");
   const f = (name, header) => new File([header + "\n1,2,3\n"], name);
   const files = [
     f("2021 & 2022 DDH Structures.csv", '"Hole ID","Depth (m)","Structure Type","Alpha","Beta"'),
@@ -265,7 +265,7 @@ test("#600 re-importing a survey file replaces its points instead of doubling th
 });
 
 test("#546 Micromine / Datamine survey and litho headers are recognised", async () => {
-  const { guessTarget, guessMapping } = await import("../src/lib/layers.js");
+  const { guessTarget, guessMapping } = await import("../src/lib/layersImport.js");
   assert.equal(guessTarget(["HOLE", "DEPTH", "AZI", "DIP"]), "survey"); // Micromine (was Structure planes)
   assert.equal(guessTarget(["BHID", "AT", "BRG", "DIP"]), "survey"); // Datamine (was Custom)
   assert.deepEqual(guessMapping("survey", ["BHID", "AT", "BRG", "DIP"]), { hole_id: "BHID", depth: "AT", azimuth: "BRG", dip: "DIP" });

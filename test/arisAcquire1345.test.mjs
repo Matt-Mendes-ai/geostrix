@@ -2,7 +2,7 @@
 // folder: the layer each table is recognised as, and the column that becomes its value
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { guessTarget, guessTargetFor, guessMapping, guessColumn } from "../src/lib/layers.js";
+import { guessTarget, guessTargetFor, guessMapping, guessColumn } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 import { epsgFromColumns } from "../src/lib/crsFromColumns.js";
 
 const H = {

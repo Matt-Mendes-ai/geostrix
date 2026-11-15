@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { logChannelColumns, looksLikeLogTable, unitFromHeader, logChannelRows, defaultLogChannels, defaultLogBin, needsBinning, LOG_RAW_BUDGET } from "../src/lib/downholeLogChannels.js";
-import { guessTargetFor } from "../src/lib/layers.js";
+import { guessTargetFor } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 
 // the WA iron log's shape (Density_Best, Gamma_Best, Suscep_Best) and the uranium one (Raw_cps, eU3O8_cased_ppm)
 const iron = ["HOLEID", "DEPTH", "Density_Best", "Gamma_Best", "Suscep_Best"];

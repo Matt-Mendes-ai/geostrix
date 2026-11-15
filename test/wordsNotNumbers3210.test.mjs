@@ -3,7 +3,7 @@
 // Synthetic table with the same column-name pattern.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { guessTargetFor, valueColumnIsWords } from "../src/lib/layers.js";
+import { guessTargetFor, valueColumnIsWords } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 import { overlapSummary } from "../src/lib/importRowFilter.js";
 
 const H = ["HOLE_ID", "FROM", "TO", "Relative Density (for non cohesive soils)", "Dry Strength", "Moisture"];
