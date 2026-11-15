@@ -31,19 +31,44 @@ test("'Download for offline use': every level finer than the fetched picture, do
   assert.ok(part.tiles.length < 40, `${part.tiles.length} tiles over a 1 km corner`);
 });
 
-test("the frame budget: halved while frames run over 33 ms, back up slowly when they are quick; idle frames are not counted", () => {
+// a simulated machine: a frame takes base ms plus c ms for each million triangles the tiles draw (a million at the full budget, loading in over the
+// first 20 s, a few ms of jitter); returns the level it settles at and how long it spent at each
+function simulate({ base, c, seconds = 300 }) {
+  const b = createBudget();
+  let t = 1000, seed = 7;
+  const t0 = t, end = t + seconds * 1000, last = [];
+  while (t < end) {
+    const f = b.factor(), ramp = Math.min(1, 0.3 + (t - t0) / 28000), tris = 1e6 * f * ramp;
+    b.setTris("drape", tris * 0.4); b.setTris("terrain", tris * 0.6);
+    seed = (seed * 16807) % 2147483647;
+    const ms = base + c * (tris / 1e6) + ((seed % 1000) / 1000 - 0.5) * 6;
+    t += ms; b.sample(t, true);
+    last.push(b.factor());
+  }
+  const tail = last.slice(-600);
+  return { factor: b.factor(), min: Math.min(...tail), max: Math.max(...tail) };
+}
+test("the frame budget (#3518): it follows the tiles' own cost: heavy tiles on a fast machine are cut, a slow machine with cheap tiles keeps them", () => {
+  // a fast machine, heavy tiles: 10 ms + 50 ms a million triangles = 60 ms: cut to a half (35 ms) or a quarter (22 ms)
+  const heavy = simulate({ base: 10, c: 50 });
+  assert.ok(heavy.factor <= 0.5 && heavy.factor >= 0.125, `heavy tiles cut to ${heavy.factor}`);
+  // this laptop: 63 ms with no tiles at all, the tiles cost 2 ms a million: cutting saves under 2 ms, so the tiles are kept
+  const slow = simulate({ base: 63, c: 2 });
+  assert.equal(slow.factor, 1, `a slow machine kept all of them (it was cut to 0.125 by the whole-frame rule)`);
+  assert.equal(slow.min, 1, "and did not hunt up and down at the end");
+  // a light scene: nothing cut
+  assert.equal(simulate({ base: 8, c: 10 }).factor, 1);
+  // a slow machine WITH costly tiles (60 + 40 a million): halving saves 20 ms, so it is cut
+  assert.ok(simulate({ base: 60, c: 40 }).factor < 1);
+  assert.equal(FRAME_BUDGET_MS, 33);
+});
+test("the frame budget: idle frames are not counted, and the same frame from two callers counts once", () => {
   const b = createBudget();
   let t = 0;
-  for (let i = 0; i < 20; i++) { t += 50; b.sample(t, false); }
+  for (let i = 0; i < 100; i++) { t += 80; b.sample(t, false); }
   assert.equal(b.factor(), 1, "not moving: no samples");
-  for (let i = 0; i < 60; i++) { t += 50; b.sample(t, true); }
-  assert.ok(b.factor() <= 0.5, `slow frames: ${b.factor()}`);
-  const low = b.factor();
-  for (let i = 0; i < 3000; i++) { t += 16; b.sample(t, true); } // about 50 s of quick frames
-  assert.ok(b.factor() > low && b.factor() <= 1, `recovered to ${b.factor()} from ${low}`);
-  assert.equal(FRAME_BUDGET_MS, 33);
-  b.sample(t + 0.2, true); // the same frame, from the second caller
-  assert.ok(b.state().lastAt === t);
+  b.sample(t + 0.2, true);
+  assert.equal(b.state().lastAt, t, "the same frame, from the second caller");
 });
 
 test("the terrain tiles start off on software / integrated graphics or 8 GB or less", () => {

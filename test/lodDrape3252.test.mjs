@@ -152,3 +152,21 @@ test("wiring: the 3D View ticks the detail tiles each frame and syncs them with 
   assert.ok(ld.includes("stencilFunc: THREE.AlwaysStencilFunc") && ld.includes("base.stencilFunc = THREE.NotEqualStencilFunc"), "the fetched picture is hidden under a tile: #3509");
   assert.match(v, /new THREE\.WebGLRenderer\(\{ antialias: true, stencil: true \}\)/);
 });
+
+import { edgePadM } from "../src/lib/viewer/lodDrape.js";
+test("#3517: neighbouring tiles overlap by a sliver at their shared edge (no hairline from float32 rounding), the UVs stay the true box, the texture clamps", () => {
+  const root = lodRoot(raster.bbox);
+  const a = tileBox(root, 4, 7, 6), b = tileBox(root, 4, 8, 6), c = tileBox(root, 4, 7, 7); // b east of a, c south of a
+  const mk = (box, key) => lodTileMesh(big, origin, { z: 4, key, box }, raster, null);
+  const [ma, mb, mc] = [mk(a, "a"), mk(b, "b"), mk(c, "c")];
+  const ext = (m) => { const p = m.geometry.getAttribute("position"); let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity; for (let q = 0; q < p.count; q++) { const x = p.getX(q) + m.position.x, y = -(p.getY(q) + m.position.z); x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); } return { x0, x1, y0, y1 }; };
+  const ea = ext(ma), eb = ext(mb), ec = ext(mc);
+  const pad = edgePadM((a[2] - a[0]) / 256);
+  assert.ok(pad > 0.003 && pad < 0.1 * ((a[2] - a[0]) / 256), `the sliver ${pad} m is a few percent of a texel`);
+  assert.ok(ea.x1 - eb.x0 >= pad * 0.9, `a reaches past the shared edge into b by the sliver (${ea.x1 - eb.x0})`);
+  assert.ok(ec.y1 - ea.y0 >= pad * 0.9, `and c reaches north past the shared edge into a (${ec.y1 - ea.y0})`);
+  // the UVs are the tile's true box: the padded vertices are a hair outside 0..1 (clamped to the edge texel)
+  const uv = ma.geometry.getAttribute("uv"); let lo = Infinity, hi = -Infinity;
+  for (let q = 0; q < uv.count; q++) { lo = Math.min(lo, uv.getX(q)); hi = Math.max(hi, uv.getX(q)); }
+  assert.ok(lo < 0 && lo > -0.001 && hi > 1 && hi < 1.001, `UV ${lo} to ${hi}`);
+});
