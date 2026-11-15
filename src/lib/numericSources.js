@@ -9,6 +9,7 @@ import { numericLayerFields } from "./evidenceSources.js";
 import { isNumericLayer } from "./domainLayers.js";
 import { suscUnitHint } from "./drillholeConstraints.js"; // TASKS.csv #2079
 import { isTable, rowCount, fieldOf, countWhere } from "./layerColumns.js"; // TASKS.csv #3140
+import { rowsRefOf } from "./tableFields.js"; // TASKS.csv #3140 step 2 — a layer's rows or its Table, without building the rows
 
 export const LOG_SOURCES = {
   magsusc: { label: "Mag. susc.", unit: "SI", logScale: true },
@@ -68,7 +69,7 @@ export function numericSourceChoices({ layers, customLayers, models = true, buil
   const custom = [];
   for (const c of customLayers || []) {
     if (c.sourceModel != null && !models) continue;
-    const rows = c.rows || [];
+    const rows = rowsRefOf(c) || []; // #3140 step 2: a Table layer's Table, its rows not built
     const fields = numericLayerFields(rows, { min: MIN_ROWS }).filter((f) => f !== "from" && f !== "to" && f !== "value" && !(c.binM && f === "n"));
     if (isNumericLayer(rows)) fields.unshift("value");
     for (const f of fields) {
@@ -107,7 +108,7 @@ function medianPointSpacing(rows) {
 // spacing when that is shorter), so the estimation can length-weight it like any other sample instead of dropping it as zero-length.
 export function sourceAssays(choice, { layers, customLayers } = {}, { pointSupport = POINT_SUPPORT_M } = {}) {
   const layer = choice.layerKey ? null : (customLayers || []).find((c) => c.id === choice.layerId);
-  const rows = choice.layerKey ? layers?.[choice.layerKey] || [] : layer?.rows || [];
+  const rows = choice.layerKey ? layers?.[choice.layerKey] || [] : rowsRefOf(layer) || []; // #3140 step 2
   const symbol = choice.symbol, field = choice.field || "value";
   // TASKS.csv #2953 (review #2876, WA iron: one bin of -821,754.9 flattened the susceptibility box plot) — the log layer's valid range
   // (customLayers[].validRange [lo, hi], either end blank), set in Downhole logs: readings outside it are left out here, so Downhole logs,

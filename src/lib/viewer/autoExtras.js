@@ -39,6 +39,17 @@ export function surveyMethodFields(headers, rows) {
     .map((h) => ({ column: h, name: String(h), type: "category" }));
 }
 
+// TASKS.csv #3525 (Fireweed rehearsal) — the same file gave two layers: dropped, a density table kept its method / low_recovery / comment columns as extra
+// fields (autoExtraFields, above); through + Add layer > Specific gravity the dialog opened with none and said "3 column(s) were not imported". The dialog now
+// opens with the same fields ticked (listed under Extra fields, each removable) for every layer a table can fill except collars (which keep their own
+// attributes), surveys and mag-susc logs (their own pre-set, above) and a custom layer (the user chooses its columns).
+const NO_AUTO_EXTRAS = new Set(["collars", "survey", "magsusc", "custom"]);
+export function dialogExtraFields(target, headers, rows, mapping, exclude = []) {
+  if (!target || NO_AUTO_EXTRAS.has(target)) return {};
+  const customFields = autoExtraFields(headers, rows, mapping, { exclude });
+  return customFields.length ? { customFields } : {};
+}
+
 // A second layer the same file fills: a Geotech (RQD %) table's recovery percentage column -> Recovery %. -> { target, column } or null
 export function companionLayer(target, headers) {
   if (target !== "geotech") return null;

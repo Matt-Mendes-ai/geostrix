@@ -10,22 +10,35 @@
 // again (their own inputs had not changed), so a project's block models were built kilometres off screen. `round` goes up in the
 // render after a marked commit: those effects skip the marked commit and list `round` in their dependencies, so they run once,
 // after the big build, with the new origin. mark() also schedules a render, so that next render always comes.
+// TASKS.csv #3544 — a hold for a run of commits: the import queue holds the drillhole build while it commits its files (on the Macpass sample
+// the 3D View was built after each one: five builds, desurveying every hole twice) and releases it at its end; release marks the commit, so
+// `round` moves in the next render and the held build runs once there (the build effect lists the round). Only the drillhole build asks
+// held(): the other effects that ask skip() keep their own updates. A hold ends by itself after HOLD_MAX_MS (a dialog left open mid-queue).
 import { useMemo, useRef, useState } from "react";
+export const HOLD_MAX_MS = 30000;
 
 export function useBuildDefer() {
-  const seq = useRef(0), marked = useRef(-1), rounds = useRef(0);
+  const seq = useRef(0), marked = useRef(-1), rounds = useRef(0), held = useRef(false), holdTimer = useRef(null);
   const [, poke] = useState(0);
   if (marked.current === seq.current) rounds.current++; // the commit before this render was marked
   seq.current++; // once per render: every effect of one commit reads the same value
-  return useMemo(() => ({
-    mark: () => { if (marked.current !== seq.current) poke((n) => n + 1); marked.current = seq.current; },
-    skip: () => marked.current === seq.current,
-    get round() { return rounds.current; },
-  }), []);
+  return useMemo(() => {
+    const mark = () => { if (marked.current !== seq.current) poke((n) => n + 1); marked.current = seq.current; };
+    const release = () => { clearTimeout(holdTimer.current); holdTimer.current = null; if (!held.current) return; held.current = false; mark(); };
+    return {
+      mark,
+      skip: () => marked.current === seq.current,
+      get round() { return rounds.current; },
+      hold: () => { held.current = true; clearTimeout(holdTimer.current); holdTimer.current = setTimeout(release, HOLD_MAX_MS); }, // #3544
+      release, // #3544
+      held: () => held.current, // #3544
+    };
+  }, []);
 }
 
 // the same rule without React, for the tests: render() starts a new commit
 export function buildDeferModel() {
-  let seq = 0, marked = -1, rounds = 0;
-  return { render: () => { if (marked === seq) rounds++; seq++; }, mark: () => { marked = seq; }, skip: () => marked === seq, get round() { return rounds; } };
+  let seq = 0, marked = -1, rounds = 0, held = false;
+  return { render: () => { if (marked === seq) rounds++; seq++; }, mark: () => { marked = seq; }, skip: () => marked === seq, get round() { return rounds; },
+    hold: () => { held = true; }, release: () => { if (held) { held = false; marked = seq; } }, held: () => held }; // #3544
 }

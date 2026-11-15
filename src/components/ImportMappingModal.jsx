@@ -49,6 +49,8 @@ import { logChannelsFor } from "../lib/downholeLogChannels.js";
 import { numberColumnsLeft } from "../lib/valueGuess.js"; // TASKS.csv #2889
 import { recoveryColumns } from "../lib/recoveryCalc.js"; // TASKS.csv #2891
 import { codeOverlap, otherCodeSystem } from "../lib/codeOverlap.js"; // TASKS.csv #2893
+import { densityUnitDoubt } from "../lib/densityNote.js"; // TASKS.csv #3529
+import { openHelp } from "../lib/help.js"; // TASKS.csv #3528
 
 
 export default function ImportMappingModal({ modal, onChange, onCancel, onCommit, projectEpsg, replaceInfo = null }) { // replaceInfo: #1649
@@ -74,6 +76,18 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
   // TASKS.csv #3202 — a survey file's ids with no collar, counted here so they can be left out (the collars read on a line of their own)
   const svCollars = useStore().collars;
   const uncollared = useMemo(() => (modal.target === "survey" && modal.mapping?.hole_id ? surveyIdsWithoutCollar(modal.allRows || modal.sampleRows || [], svCollars, modal.mapping.hole_id) : null), [modal.target, modal.mapping?.hole_id, modal.allRows, modal.sampleRows, svCollars]);
+  // TASKS.csv #3529 — a density column whose middle value is not a t/m³ figure (kg/m³, a weight) is said before the import, not after the tonnes are wrong
+  // TASKS.csv #3542 — a per-row Source CRS column is chosen: the Source CRS line says what that column holds (EPSG:26909, NAD83 / UTM zone 9N) instead of saying GeoStrix will ask
+  const perRowCrsText = useMemo(() => {
+    const col = modal.perRowEpsgCol;
+    if (!col) return "";
+    const seen = new Map();
+    for (const r of modal.allRows || modal.sampleRows || []) { const v = String(r?.[col] ?? "").trim().replace(/^epsg:/i, ""); if (v) seen.set(v, (seen.get(v) || 0) + 1); }
+    if (!seen.size) return "";
+    const list = [...seen.keys()].slice(0, 3).map((v) => (crsName(Number(v)) ? `EPSG:${v} (${crsName(Number(v))})` : `EPSG:${v}`)).join(", ") + (seen.size > 3 ? ", …" : "");
+    return tr("Read from the {col} column of the file: {list}", { col, list });
+  }, [modal.perRowEpsgCol, modal.allRows, modal.sampleRows]);
+  const densityDoubt = useMemo(() => (modal.target === "sg" ? densityUnitDoubt(modal.allRows || modal.sampleRows || [], modal.mapping?.value) : null), [modal.target, modal.mapping?.value, modal.allRows, modal.sampleRows]);
   const [addName, setAddName] = useState("");
   const [addColumn, setAddColumn] = useState("");
   // TASKS.csv #213 — user request: "other software will let the user assign a data type to the added
@@ -123,7 +137,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Import {fileName}", { fileName: modal.fileName })}</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{rowCount} rows detected · match each field to a column below", { rowCount: modal.rowCount })}</div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3528 — the help page of this dialog */}<button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp(modal.target === "sg" ? "import-density" : "import-drillholes")} aria-label={tr("Help: {name}", { name: tr("Import drillhole data") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} /></span>
         </div>
 
         <div style={{ padding: 16, overflowY: "auto" }}>
@@ -204,6 +218,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
           <LogChannelsBox modal={modal} onChange={onChange} sel={sel} />{/* #2160 */}
           {!logChannelsFor(modal.target, modal.headers, modal.allRows || modal.sampleRows || [], modal.mapping, modal.logChannels) && <MineralPercentBox modal={modal} onChange={onChange} sel={sel} />}{/* #3205 */}
           <RowFilterBox modal={modal} onChange={onChange} sel={sel} />{/* #2330 */}
+          {densityDoubt && <div role="alert" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "0 0 12px", lineHeight: 1.4 }}>{tr("The middle value of this column is {m}, which is not a density in t/m³ (usually 1.5 to 6): the Specific gravity layer is the density the tonnes use. If it is in kg/m³, divide it by 1000 in the file first.", { m: String(+densityDoubt.median.toPrecision(4)) })}</div> /* #3529 */}
           {uncollared && ( /* TASKS.csv #3202 */
             <label style={{ display: "flex", gap: 6, alignItems: "flex-start", fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "0 0 12px", lineHeight: 1.4, cursor: "pointer" }}>
               <input type="checkbox" checked={modal.dropUncollared !== false} onChange={(e) => onChange({ ...modal, dropUncollared: e.target.checked })} style={{ marginTop: 2 }} />
@@ -255,7 +270,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
             <div style={{ marginTop: 14 }}>
               <SourceCrsField
                 value={modal.sourceEpsg || ""} onChange={(c) => onChange({ ...modal, sourceEpsg: c === "" ? "" : String(c) })} mineGrid={modal.target === "collars" ? mineSourceOf(storeProject) : null /* #2811 — collars are what this import reprojects */}
-                defaultText={crsUnset ? tr("The project CRS isn't chosen yet — pick these coordinates' CRS here, or GeoStrix asks on import") : tr("Same as project — {v}", { v: crsName(projectEpsg) || tr("EPSG:{v}", { v: projectEpsg ?? "?" }) })}
+                defaultText={perRowCrsText ? perRowCrsText /* TASKS.csv #3542 — the file's own CRS column says it */ : crsUnset ? tr("The project CRS isn't chosen yet — pick these coordinates' CRS here, or GeoStrix asks on import") : tr("Same as project — {v}", { v: crsName(projectEpsg) || tr("EPSG:{v}", { v: projectEpsg ?? "?" }) })}
               />
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: -4, lineHeight: 1.4 }}>{tr("If this file's x/y is in another CRS (a collar list or claim boundary in a different UTM zone or datum), pick it here and it is reprojected into the project CRS on import so it lines up with everything else.")}</div>
 
@@ -291,7 +306,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
             </div>
           )}
 
-          {schema.dipConvention && (
+          {schema.dipConvention && (modal.target !== "collars" || modal.mapping?.dip) /* TASKS.csv #3542 — a collar file with no dip column has no sign to choose */ && (
             <div style={{ marginTop: 14 }}>
               <div style={label}>{tr("Dip sign convention")}</div>
               <div style={{ display: "flex", gap: 14, fontSize: "var(--font-size-base)" }}>
@@ -361,7 +376,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
 
           {/* TASKS.csv #396 — which north the file's azimuths are measured from. GeoStrix draws against the
               project grid; magnetic azimuths at Harry are ~17-19 deg off grid north. */}
-          {["collars", "survey", "structure"].includes(modal.target) && (
+          {["collars", "survey", "structure"].includes(modal.target) && (modal.target !== "collars" || modal.mapping?.azimuth) /* #3542 — no azimuth column, no north to choose */ && (
             <div style={{ marginTop: 14 }}>
               <div style={label}>{tr("Azimuths in this file are measured from")}</div>
               {modal.azimuthRefFrom && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4 }}>{tr("Set from the file's {col} column.", { col: modal.azimuthRefFrom })}</div>}{/* #1647 */}
@@ -486,7 +501,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={onCancel} style={{ ...btn(false), flex: 1 }}>{tr("Cancel")}</button>
                 <button
-                  onClick={onCommit}
+                  onClick={onCommit} data-autofocus /* TASKS.csv #3533 — Enter accepts the guesses; focus no longer opens on Close */
                   disabled={blocked} // 0 rows: TASKS.csv #2431 — the row filter keeps none; the survey date: #2895
                   style={{ ...btn(true), flex: 2, opacity: blocked ? 0.5 : 1, cursor: blocked ? "not-allowed" : "pointer" }}
                   title={importCount(modal) === 0 ? tr("The row filter keeps no row: tick at least one value under Rows.") : undefined}

@@ -5,6 +5,7 @@
 // range, anything else its category colours; an empty reading is grey 'no value'. The overlay legend gets a group per visible layer.
 import { hashColor, magColor, CATEGORICAL_SAFE_COLORS } from "./layers.js";
 import { isTable, rowCount, rowAt, fieldOf as columnOf } from "./layerColumns.js"; // TASKS.csv #3140 — a log layer may be held as columns
+import { rowsRefOf, layerRowCount } from "./tableFields.js"; // TASKS.csv #3140 step 2 — a layer's rows or its Table, without building the rows
 
 export const NO_VALUE_COLOUR = "#b8bec7";
 const empty = (v) => v == null || v === "" || (typeof v === "number" && !Number.isFinite(v));
@@ -13,7 +14,7 @@ const num = (v) => (typeof v === "number" ? v : typeof v === "string" && v.trim(
 // the fields a layer's rows carry that could colour it (not the position columns)
 export function customFields(layer) {
   const keys = new Set();
-  const rows = layer?.rows || [], n = Math.min(500, rowCount(rows));
+  const rows = rowsRefOf(layer) || [], n = Math.min(500, rowCount(rows)); // rowsRefOf: the Table behind a view, not its rows (#3140)
   for (let i = 0; i < n; i++) for (const k of Object.keys(rowAt(rows, i) || {})) if (!["hole_id", "from", "to", "depth", "_src", "modelColor"].includes(k)) keys.add(k); // #3140: rows or a Table
   return [...keys];
 }
@@ -21,7 +22,7 @@ export function customFields(layer) {
 // per layer rows + field: numeric (>= 80 % of the filled values are numbers) with its range, else categorical
 const cache = new WeakMap();
 function scaleOf(layer, field) {
-  const rows = layer?.rows || [];
+  const rows = rowsRefOf(layer) || []; // the cache key: a Table layer's Table, else its rows array (a view, a { group } copy and the store's layer share one)
   let byField = cache.get(rows);
   if (!byField) { byField = new Map(); cache.set(rows, byField); }
   let s = byField.get(field);
@@ -52,7 +53,7 @@ export function customScale(layer, field, st) {
   const base = scaleOf(layer, field);
   if (!base.numeric || !st || (!Number.isFinite(st.rampMin) && !Number.isFinite(st.rampMax) && !st.rampScale && !(st.classes >= 2))) return base;
   let byRows = styled.get(st); if (!byRows) { byRows = new WeakMap(); styled.set(st, byRows); }
-  const rows = layer?.rows || [];
+  const rows = rowsRefOf(layer) || [];
   let byField = byRows.get(rows); if (!byField) { byField = new Map(); byRows.set(rows, byField); }
   let s = byField.get(field);
   if (s) return s;
@@ -79,7 +80,7 @@ const atT = (s, t) => (s.log ? 10 ** (Math.log10(s.min) + t * (Math.log10(s.max)
 // codes one character apart one degree of hue apart (E1 / E2 / E3 at hues 260 / 261 / 262: twelve units in about five colours)
 const codeColourCache = new WeakMap(); // rows array -> Map(field -> Map(code -> colour))
 export function customCodeColour(layer, field, v) {
-  const rows = layer?.rows;
+  const rows = rowsRefOf(layer);
   if (!Array.isArray(rows) && !isTable(rows)) return hashColor(v);
   let byField = codeColourCache.get(rows);
   if (!byField) { byField = new Map(); codeColourCache.set(rows, byField); }
@@ -104,7 +105,7 @@ export function customColour(layer, layerStyles, row) {
 export function customLegendGroups(customLayers, customVisible = {}, layerStyles = {}) {
   const out = [], fmt = (v) => String(+Number(v).toPrecision(4));
   for (const L of customLayers || []) {
-    if (customVisible[L.id] === false || !(L.rows || []).length) continue;
+    if (customVisible[L.id] === false || !layerRowCount(L)) continue; // layerRowCount: no rows built (#3140)
     const st = layerStyles[`custom:${L.id}`] || {}, field = st.colourBy || "value";
     // #2367 — the unit the log import kept (ppm, cps), when the name does not already say it
     const unit = field === "value" && L.unit && !String(L.name).includes(`(${L.unit})`) ? ` (${L.unit})` : "";
@@ -126,7 +127,8 @@ export function customLegendGroups(customLayers, customVisible = {}, layerStyles
       continue;
     }
     const counts = new Map(); let none = 0;
-    for (const r of L.rows) { const v = r?.[field]; if (empty(v)) { none++; continue; } const k = String(v); counts.set(k, (counts.get(k) || 0) + 1); }
+    const rowsRef = rowsRefOf(L), get = columnOf(rowsRef, field), N = rowCount(rowsRef); // by index: a Table's rows are not built
+    for (let i = 0; i < N; i++) { const v = get(i); if (empty(v)) { none++; continue; } const k = String(v); counts.set(k, (counts.get(k) || 0) + 1); }
     const items = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 24).map(([k]) => [k, customCodeColour(L, field, k)]); // #2476
     if (none) items.push(["no value", NO_VALUE_COLOUR]);
     if (items.length) out.push({ key: `custom_${L.id}`, label, items });

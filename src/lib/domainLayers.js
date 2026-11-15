@@ -5,6 +5,7 @@
 // flagged, with the share of overlapping intervals so the dialogs can say how a depth is resolved. Pure.
 import { caseVariantGroups } from "./lithoGroups.js"; // #2427
 import { isTable, countWhere } from "./layerColumns.js"; // TASKS.csv #3140
+import { rowsRefOf } from "./tableFields.js"; // TASKS.csv #3140 step 2
 const BUILT_IN = ["litho", "alt", "vein", "breccia", "weath", "structzone", "geotech"]; // weath: #2162
 
 export function isNumericLayer(rows) {
@@ -39,6 +40,10 @@ export function domainLayerChoices(layers, customLayers, labelOf = (k) => k) {
   const out = [];
   for (const k of BUILT_IN) { const rows = layers?.[k] || []; if (rows.length && !isNumericLayer(rows)) out.push({ key: k, label: labelOf(k), rows, custom: false, overlap: overlapShare(rows) }); }
   for (const c of [...(customLayers || [])].sort((a, b) => String(a.name).localeCompare(String(b.name)))) {
+    // TASKS.csv #3140 step 2 — a layer of numbers is no domain (#1413): a Table layer that is numeric is skipped before any of its rows is built
+    // (a big downhole log held as columns; the test over the Table's value column, the same as on its rows)
+    const ref = rowsRefOf(c);
+    if (isTable(ref) && isNumericLayer(ref)) continue;
     const rows = (c.rows || []).filter((r) => Number.isFinite(Number(r.from)) && Number.isFinite(Number(r.to)) && Number(r.to) > Number(r.from));
     if (rows.length < 2 || isNumericLayer(rows)) continue;
     out.push({ key: `custom:${c.id}`, label: c.name, rows: rows.map((r) => ({ hole_id: r.hole_id, from: Number(r.from), to: Number(r.to), value: r.value == null ? r.value : String(r.value) })), custom: true, overlap: overlapShare(rows) });

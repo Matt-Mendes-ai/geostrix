@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X, ShieldAlert, AlertTriangle, Info, RefreshCw, Download } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
-import { runDataQCSliced, collarTerrainOffsets, qcIssueRows } from "../lib/dataQC.js"; // qcIssueRows: #1111; Sliced: #3136
+import { runDataQCSliced, collarTerrainOffsets, qcIssueRows, qcSorted, DOGLEG_ERROR_DEFAULT } from "../lib/dataQC.js"; // qcIssueRows: #1111; Sliced: #3136
 import { saveFile } from "../lib/desktop.js";
+import { openHelp } from "../lib/help.js"; // TASKS.csv #3528
 import { toExportCsv } from "../lib/tabular.js";
 import { stampLines, withStamp, stampEpsg } from "../lib/provenance.js";
 import { normalizeDesurveyMethod } from "../lib/desurvey.js";
@@ -45,7 +46,7 @@ export default function DataQCModal({ onCancel }) {
   const [doglegWarn, setDoglegWarn] = useState(() => { try { return Number(localStorage.getItem("geostrix.qc.doglegWarn")) || 3; } catch { return 3; } });
   useEffect(() => { try { if (Number(doglegWarn) > 0) localStorage.setItem("geostrix.qc.doglegWarn", String(doglegWarn)); } catch { /* storage unavailable */ } }, [doglegWarn]);
   const warnDeg = Number(doglegWarn) > 0 ? Number(doglegWarn) : 3;
-  const qcArgs = () => ({ project, collars, survey, layers, boundaries, assays, terrain, customLayers, terrainThreshold: Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15, doglegWarn: warnDeg, doglegError: Math.max(10, warnDeg) });
+  const qcArgs = () => ({ project, collars, survey, layers, boundaries, assays, terrain, customLayers, terrainThreshold: Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15, doglegWarn: warnDeg, doglegError: Math.max(DOGLEG_ERROR_DEFAULT, warnDeg) }); // #3526 — 20°/30 m, not 10
   const ranWith = useRef(null); // TASKS.csv #1269 — the thresholds of the run on screen: the export's stamp must describe its issues, not the boxes
   // TASKS.csv #3136 — the check runs a slice at a time (lib/dataQC.js runDataQCSliced): the window keeps painting and taking input, the
   // status line says how far it is, and a newer run (Re-run, a snap to the terrain, closing the dialog) supersedes the one under way
@@ -77,14 +78,15 @@ export default function DataQCModal({ onCancel }) {
   const [categoryFilter, setCategoryFilter] = useState("all");
 
   const categories = useMemo(() => Array.from(result.byCategory.keys()).sort(), [result]);
-  const shown = useMemo(() => result.issues.filter((i) => filter.has(i.severity) && (categoryFilter === "all" || i.category === categoryFilter)), [result, filter, categoryFilter]);
+  // TASKS.csv #3526 — worst first: errors, then warnings, then notes, and within each the ordinary rows before the survey bends (flagged minor, a row per hole); the order they came in otherwise
+  const shown = useMemo(() => qcSorted(result.issues.filter((i) => filter.has(i.severity) && (categoryFilter === "all" || i.category === categoryFilter))), [result, filter, categoryFilter]);
 
   // TASKS.csv #1111 — every issue (not just the filtered view) as a CSV, stamped with the project, CRS, desurvey method,
   // the thresholds used and the counts
   const exportIssues = () => {
     const stamp = stampLines({ tool: "Drillhole data QA/QC", version: APP_VERSION, epsg: stampEpsg(project) /* #2195 */, params: [
       `Project: ${project?.name || "untitled"} | desurvey: ${normalizeDesurveyMethod(project?.desurveyMethod)}`,
-      `Holes: ${collars.length} collars, ${survey.length} survey stations | dogleg warning ${ranWith.current.warnDeg} deg / 30 m, error ${Math.max(10, ranWith.current.warnDeg)}${terrain ? ` | collar vs terrain threshold ${ranWith.current.terrainThreshold} m` : ""}`,
+      `Holes: ${collars.length} collars, ${survey.length} survey stations | dogleg warning ${ranWith.current.warnDeg} deg / 30 m, error ${Math.max(DOGLEG_ERROR_DEFAULT, ranWith.current.warnDeg)}${terrain ? ` | collar vs terrain threshold ${ranWith.current.terrainThreshold} m` : ""}`,
       `Issues: ${result.summary.error || 0} error(s), ${result.summary.warning || 0} warning(s), ${result.summary.info || 0} information`,
     ] });
     const name = String(project?.name || "project").replace(/[^a-z0-9_-]+/gi, "_");
@@ -101,7 +103,7 @@ export default function DataQCModal({ onCancel }) {
             <ShieldAlert size={18} color="#55606e" />
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Drillhole data QA/QC")}</div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3528 — the help page of this dialog */}<button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("data-qc")} aria-label={tr("Help: {name}", { name: tr("Drillhole data QA/QC") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} /></span>
         </div>
 
         <div style={{ padding: "16px 16px 0", flexShrink: 0 }}>
@@ -117,7 +119,7 @@ export default function DataQCModal({ onCancel }) {
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} key={sev} onClick={() => toggleSeverity(sev)}
                   style={{ flex: 1, cursor: "pointer", padding: "9px 10px", borderRadius: 7, background: active ? "var(--color-bg-subtle)" : "var(--color-bg)", border: `1px solid ${active ? meta.color : "var(--color-border)"}`, opacity: active ? 1 : 0.5, textAlign: "center" }}>
                   <Icon size={14} color={meta.color} style={{ marginBottom: 3 }} />
-                  <div style={{ fontSize: "var(--font-size-xl)", color: "var(--color-text)", fontWeight: 600 }}>{result.summary[sev] || 0}</div>
+                  <div style={{ fontSize: "var(--font-size-xl)", color: "var(--color-text)", fontWeight: 600 }}>{ran ? (result.summary[sev] || 0) : "…" /* TASKS.csv #3532 — no verdict before the first check has run */}</div>
                   <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{tr(result.summary[sev] === 1 ? meta.label : meta.plural)}</div>
                 </div>
               );
@@ -132,7 +134,7 @@ export default function DataQCModal({ onCancel }) {
           )}
         </div>
 
-        {result.issues.length === 0 ? (
+        {!ran ? null /* #3532 — nothing is said (not "No issues found") until a result exists */ : result.issues.length === 0 ? (
           <div style={{ padding: "20px 10px", textAlign: "center", color: "#7fd9c9", fontSize: "var(--font-size-base)" }}>{tr("No issues found — collars, survey, and every layer look internally consistent.")}</div>
         ) : shown.length === 0 ? (
           <div style={{ padding: "16px 10px", textAlign: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-base)" }}>{tr("No issues match the current filters.")}</div>
@@ -157,7 +159,7 @@ export default function DataQCModal({ onCancel }) {
         )}
 
         <div style={{ padding: "10px 16px", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "flex-end" }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginRight: 8 }} title={tr("Survey bends sharper than this are warned about. Ordinary deviated holes bend 3-7° per 30 m; bends of 10° per 30 m or more are always errors. Remembered on this computer.")}>{tr("Dogleg over")}<input type="number" min="0.5" step="0.5" value={doglegWarn} onChange={(e) => setDoglegWarn(e.target.value)} style={{ width: 54, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "2px 4px", color: "var(--color-text)", fontFamily: "inherit" }} aria-label={tr("Dogleg warning threshold (degrees per 30 m)")} /> °/30 m
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginRight: 8 }} title={tr("Survey bends sharper than this are warned about, one row per hole (its sharpest). Ordinary deviated holes bend 3-7° per 30 m; a bend of under 2° is within what a survey tool reads and is not counted; 20° per 30 m or more, over at least 5°, is an error. Remembered on this computer.")}>{tr("Dogleg over")}<input type="number" min="0.5" step="0.5" value={doglegWarn} onChange={(e) => setDoglegWarn(e.target.value)} style={{ width: 54, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "2px 4px", color: "var(--color-text)", fontFamily: "inherit" }} aria-label={tr("Dogleg warning threshold (degrees per 30 m)")} /> °/30 m
           </span>
           {terrain && (
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginRight: 8 }} title={tr("Collars further than this from the loaded terrain are flagged (an auto-fetched terrain: ~15 m or more; LiDAR: a few metres){v}", { v: terrain.source?.nodeM ? tr(". This terrain's nodes are ~{v} m apart.", { v: Math.round(terrain.source.nodeM) }) : "" })}>{tr("Collar vs terrain over")}<input type="number" min="0.5" step="0.5" value={terrainThreshold} onChange={(e) => setTerrainThreshold(e.target.value)} style={{ width: 54, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "2px 4px", color: "var(--color-text)", fontFamily: "inherit" }} aria-label={tr("Collar vs terrain threshold (m)")} /> m

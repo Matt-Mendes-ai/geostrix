@@ -13,8 +13,9 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { pointReadings } from "../lib/pxrfPoints.js"; // TASKS.csv #1653
 import { pxrfSignature } from "../lib/pxrfSignature.js"; // TASKS.csv #2198
 import RowFilterBox from "./RowFilterBox.jsx"; // TASKS.csv #2391 — the row filter of the drillhole import (#2330), here too
+import { openHelp } from "../lib/help.js"; // TASKS.csv #3528
 
-export default function AssayImportModal({ modal, onChange, onCancel, onCommit, existingUnits = {} }) {
+export default function AssayImportModal({ modal, onChange, onCancel, onCommit, onQcLinks = null, existingUnits = {} }) { // onQcLinks: TASKS.csv #3409
   // TASKS.csv #2037 — the columns an interval import cannot do without (a long file also needs its analyte and value columns)
   const unmapped = [["hole_id", tr("Hole ID")], ["from", tr("From")], ["to", tr("To")], ...(modal.format === "long" ? [["analyte", tr("Analyte")], ["value", tr("Value")]] : [])].filter(([k]) => !modal.mapping?.[k]).map(([, label]) => label);
   useEscapeKey(onCancel); // TASKS.csv #238
@@ -116,7 +117,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
             {(() => { const none = modal.format === "long" ? [] : modal.elements.filter((e) => e.n === 0); return none.length ? <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Empty on every row, so left unticked: {list} ({n} columns).", { list: none.map((e) => e.symbol).join(", "), n: none.length })}</div> : null; })()}{/* TASKS.csv #1679 */}
             {labLike?.looksLikeLab && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginTop: 4, lineHeight: 1.4 }}>{tr("This file looks like lab assays ({cols}, and no pXRF instrument or reading columns). Imported here, its results are pXRF screening readings, kept out of grades, intercepts and composites: Import assays is the route for lab results.", { cols: labLike.lab.join(", ") })}</div>}{/* TASKS.csv #2198 */}
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3528 — the help page of this dialog */}<button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("import-assays")} aria-label={tr("Help: {name}", { name: tr("Import assays") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} /></span>
         </div>
 
         <div style={{ padding: 16, overflowY: "auto" }}>
@@ -244,7 +245,8 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
               ))}
               {modal.elements.length === 0 && (<>
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", padding: "6px 4px" }}>{tr("No element columns recognized — add one manually below.")}</div>
-                {(modal.qc?.parent_id || modal.qc?.sample_type) && modal.qc?.sample_id && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", padding: "0 4px 6px", lineHeight: 1.45 }}>{tr("This table links check samples to their originals ({cols}) but holds no results: import the table with the check samples' results, and its sample id, sample type and parent columns tie them to the originals.", { cols: [modal.qc.sample_id, modal.qc.parent_id, modal.qc.sample_type].filter(Boolean).join(", ") })}</div>}{/* TASKS.csv #2340 */}</>
+                {(modal.qc?.parent_id || modal.qc?.sample_type) && modal.qc?.sample_id && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", padding: "0 4px 6px", lineHeight: 1.45 }}>{tr("This table links check samples to their originals ({cols}) but holds no results: import the table with the check samples' results, and its sample id, sample type and parent columns tie them to the originals.", { cols: [modal.qc.sample_id, modal.qc.parent_id, modal.qc.sample_type].filter(Boolean).join(", ") })}</div>}{/* TASKS.csv #2340 */}
+                {onQcLinks && (modal.qc?.parent_id || modal.qc?.sample_type) && modal.qc?.sample_id && <div style={{ padding: "0 4px 8px" }}><button type="button" onClick={onQcLinks} style={{ ...btn(true), padding: "6px 14px" }} title={tr("Match this table's sample ids to the assays already in the project and fill their QC category and parent sample. The links are kept: assays imported later with these sample ids pair up too.")}>{tr("Import as QC links ({n} rows)", { n: (modal.allRows || []).length.toLocaleString() })}</button></div>}</>
               )}
             </div>
           ) : (
@@ -351,7 +353,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
               them, and the reason is said here, not in the panel behind the dialog */}
           {unmapped.length > 0 && !modal.busy && scan && <div role="note" style={{ alignSelf: "center", flex: 2, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("Map the {cols} column(s) to import.", { cols: unmapped.join(", ") })}</div>}
           {checkedCount === 0 && unmapped.length === 0 && !modal.busy && scan && <div role="note" style={{ alignSelf: "center", flex: 2, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("Tick or add at least one element to import.")}</div>}
-          <button onClick={onCommit} disabled={!!modal.busy || !scan || checkedCount === 0 || unmapped.length > 0} /* !scan: #2164; 0 elements: #2183; unmapped: #2037 */ aria-busy={!scan || !!modal.busy} title={!scan ? tr("The values are being checked for negatives, zeros and empty cells: the questions below depend on them.") : undefined} /* #3072 */ style={{ ...btn(true), flex: 2, opacity: modal.busy || !scan || checkedCount === 0 || unmapped.length > 0 ? 0.6 : 1 }}>{modal.busy ? tr("Importing…") : !scan && (modal.allRows || []).length > 0 ? tr("Checking the values… {pct}%", { pct: Math.round(scanPct * 100) }) /* TASKS.csv #3072 — why the button waits, on the button: the status line above can be scrolled out of view */ : tr(checkedCount === 1 ? "Import {checkedCount} element" : "Import {checkedCount} elements", { checkedCount })}</button>{/* busy: #583 */}
+          <button onClick={onCommit} data-autofocus /* TASKS.csv #3533 */ disabled={!!modal.busy || !scan || checkedCount === 0 || unmapped.length > 0} /* !scan: #2164; 0 elements: #2183; unmapped: #2037 */ aria-busy={!scan || !!modal.busy} title={!scan ? tr("The values are being checked for negatives, zeros and empty cells: the questions below depend on them.") : undefined} /* #3072 */ style={{ ...btn(true), flex: 2, opacity: modal.busy || !scan || checkedCount === 0 || unmapped.length > 0 ? 0.6 : 1 }}>{modal.busy ? tr("Importing…") : !scan && (modal.allRows || []).length > 0 ? tr("Checking the values… {pct}%", { pct: Math.round(scanPct * 100) }) /* TASKS.csv #3072 — why the button waits, on the button: the status line above can be scrolled out of view */ : tr(checkedCount === 1 ? "Import {checkedCount} element" : "Import {checkedCount} elements", { checkedCount })}</button>{/* busy: #583 */}
         </div>
       </div>
     </div>

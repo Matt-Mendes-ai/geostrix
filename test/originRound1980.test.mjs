@@ -17,7 +17,7 @@ test("round goes up in the render after a marked commit only", () => {
 
 test("mark() schedules a render, so the round after it always comes", () => {
   const s = readFileSync(new URL("../src/lib/viewer/buildDefer.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.match(s, /mark: \(\) => \{ if \(marked\.current !== seq\.current\) poke\(\(n\) => n \+ 1\); marked\.current = seq\.current; \}/);
+  assert.match(s, /const mark = \(\) => \{ if \(marked\.current !== seq\.current\) poke\(\(n\) => n \+ 1\); marked\.current = seq\.current; \}/);
   assert.match(s, /if \(marked\.current === seq\.current\) rounds\.current\+\+;/);
 });
 
@@ -28,7 +28,7 @@ test("the viewer's origin-placed objects skip the deferred commit and list defer
   for (const g of ["voxelGroupRef", "sectionStringsGroupRef", "sectionLinesGroupRef", "plannedGroupRef"]) assert.ok(v.includes(`const group = ${g}.current;\n    if (!group || buildDefer.skip()) return; // #1980`), g);
   for (const deps of ["[rasters, collars, terrain, rebuildSeq, deferRound]", "[voxelModels, collars, slice3d.on, deferRound]", "[plannedHoles, deferRound]", "[designLines, collars, deferRound]", "[designStrings, collars, deferRound]", "[omfObjects, collars, rebuildSeq, deferRound]", "[terrain, collars, rebuildSeq, deferRound]", "[sections, showSectionLines, terrain, collars, deferRound]"]) assert.ok(v.includes(deps), deps);
   // they are declared after the big build effect, so in the round's render the build sets the origin first
-  assert.ok(v.includes("if (!groups.litho || buildDefer.skip()) return;")); // in viewer/drillholeScene.js since #2176
+  assert.ok(v.includes("if (!groups.litho || buildDefer.skip() || buildDefer.held?.()) return;")); // held: #3544 // in viewer/drillholeScene.js since #2176
   const big = v.indexOf("buildDrillholeScene({"); // ViewerModule's big build effect, which calls it
   assert.ok(big > 0 && big < v.indexOf("[voxelModels, collars, slice3d.on, deferRound]") && big < v.indexOf("[rasters, collars, terrain, rebuildSeq, deferRound]"));
 });

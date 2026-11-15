@@ -44,7 +44,7 @@ export default function EmptyState({ icon, headline, children, actionLabel, onAc
         </div>
         {children}
         {(actionLabel || secondary) && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <div className="ge-empty-actions" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>{/* TASKS.csv #3541 — the buttons share one grid (the css below drops a caller's own left margin) */}
             {actionLabel && (
               <button onClick={onAction} disabled={actionDisabled} title={trText(actionTitle)} style={{ ...primaryBtn, cursor: actionDisabled ? "default" : "pointer", opacity: actionDisabled ? 0.6 : 1 }}>
                 {trText(actionLabel)}
@@ -53,7 +53,7 @@ export default function EmptyState({ icon, headline, children, actionLabel, onAc
             {secondary}
           </div>
         )}
-        {footnote && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 7 }}>{trText(footnote)}</div>}
+        {footnote && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 7, whiteSpace: "pre-line" /* #3541 — a footnote of several lines keeps them */ }}>{trText(footnote)}</div>}
       </div>
     </div>
   );
