@@ -12994,5 +12994,12 @@
   "No hole matches. The box reads part of a hole id, field=value, a number test such as year>=2017, length>300 or year=2017..2023, and has:assays or no:assays.": "Ningún sondaje coincide. El cuadro lee parte de un id de sondaje, campo=valor, una prueba numérica como year>=2017, length>300 o year=2017..2023, y has:assays o no:assays.",
   "{shown} of {total} holes shown": "{shown} de {total} sondajes mostrados",
   "Over the {shown} of {total} holes shown.": "Sobre los {shown} de {total} sondajes mostrados.",
-  "Filter holes by what they have": "Filtrar sondajes por lo que tienen"
+  "Filter holes by what they have": "Filtrar sondajes por lo que tienen",
+  "{n} collar(s) look like underground drilling: {t} by their hole type (UDDH, UG …), {u} starting upward, {d} drilled flat or upward from a station far below a collar nearby ({ids}).": "{n} collar(es) parecen de sondajes subterráneos: {t} por su tipo de sondaje (UDDH, UG …), {u} que empiezan hacia arriba, {d} perforados horizontales o hacia arriba desde una estación muy por debajo de un collar cercano ({ids}).",
+  "They are left out of the ground between the collars.": "Quedan fuera del terreno entre los collares.",
+  "They were left out of the terrain; 'Underground collars' can keep them.": "Quedaron fuera del terreno; 'Collares subterráneos' puede conservarlos.",
+  "They were kept in the terrain, as chosen under 'Underground collars'.": "Se conservaron en el terreno, como se eligió en 'Collares subterráneos'.",
+  "Underground collars ({n}: by hole type, starting upward, or far under a collar nearby)": "Collares subterráneos ({n}: por tipo de sondaje, que empiezan hacia arriba, o muy por debajo de un collar cercano)",
+  "Leave them out of the ground": "Dejarlos fuera del terreno",
+  "{n} collars share a spot (within {r} m) with a collar {dz} m or more higher or lower, in {spots} place(s), up to {max} m apart: pit benches or mine levels? The surface through all of them is not the topography there; 'Where collars stack' can keep the lowest or the highest.": "{n} collares comparten un punto (a menos de {r} m) con un collar {dz} m o más arriba o abajo, en {spots} lugar(es), con hasta {max} m de diferencia: ¿bancos de tajo o niveles de mina? La superficie a través de todos ellos no es allí la topografía; 'Donde los collares se apilan' puede conservar el más bajo o el más alto."
 }
