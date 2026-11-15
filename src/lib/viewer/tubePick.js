@@ -3,6 +3,7 @@
 // passes within TUBE_PICK_PX pixels of its AXIS: the nearest points of the ray and the axis segment, at that point's depth. The true geometry still
 // decides when it is hit (a wide tube near the camera is unchanged); the pick tree (pickIndex.js) widens the boxes of a tube batch by the same
 // pixels at the box's depth, so the extra candidates are found without a scan.
+import * as THREE from "three";
 import { TUBE_UNIFORMS } from "./tubeShader.js";
 
 export const TUBE_PICK_PX = 4;
@@ -50,4 +51,15 @@ export function tubeAxisHit(base, i, mw, ray, scale, px = TUBE_PICK_PX) {
   if (!h) return null;
   if (h.dist > Math.max(A.r, px * (scale.c + scale.k * h.t))) return null;
   return { distance: h.t, point: { x: o.x + d.x * h.t, y: o.y + d.y * h.t, z: o.z + d.z * h.t } };
+}
+
+// TASKS.csv #3670 — a family of fewer than 24 tubes is not batched: each is a real Mesh (layerBatches.js promote) with the pixel-floor material, and this is its
+// raycast: the true geometry first, then the axis within TUBE_PICK_PX pixels (the mesh's world matrix is the placement: its Y column the axis, its X column the radius)
+const _I = new THREE.Matrix4().elements;
+export function tubeMeshRaycast(raycaster, hits) {
+  const before = hits.length;
+  THREE.Mesh.prototype.raycast.call(this, raycaster, hits);
+  if (hits.length !== before || this.visible === false) return;
+  const h = tubeAxisHit(this.matrixWorld.elements, 0, _I, raycaster.ray, tubePixelScale(raycaster.camera));
+  if (h && h.distance >= raycaster.near && h.distance <= raycaster.far) hits.push({ distance: h.distance, point: new THREE.Vector3(h.point.x, h.point.y, h.point.z), object: this, face: null, faceIndex: null });
 }
