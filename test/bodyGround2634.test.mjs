@@ -49,8 +49,11 @@ test("#2634: an origin-relative body grid is cut at the collar surface (it was n
 
 test("#2634: the runs pass the ground in each grid's frame, and say when it was the collar surface", () => {
   const s = fs.readFileSync(path.join(root, "src", "modules", "viewer", "modellingRuns.js"), "utf8");
-  assert.match(s, /groundCappedGrid\(grid, iso, groundAtInFrame\(altGround, o\)/); // unit body / halo: origin-relative
-  assert.match(s, /groundCappedGrid\(grid, numericCutoff, groundAtInFrame\(gsGround\)/); // grade shell: world
+  // #3580 — the collar surface raised over the run's samples first (lib/groundNotBelowSamples.js), in the same frame
+  assert.match(s, /groundCappedGrid\(grid, iso, altLift \? altLift\.at : groundAtInFrame\(altGround, o\)/); // unit body / halo: origin-relative
+  assert.match(s, /groundNotBelowSamples\(groundAtInFrame\(altGround, o\), pts, /);
+  assert.match(s, /groundCappedGrid\(grid, numericCutoff, gsLift \? gsLift\.at : groundAtInFrame\(gsGround\)/); // grade shell: world
+  assert.match(s, /groundNotBelowSamples\(groundAtInFrame\(gsGround\), points, /);
   assert.doesNotMatch(s, /groundCappedGrid\([^)]*terrainForClipRef\.current/);
   assert.equal((s.match(/was cut at the collar surface: the ground interpolated between the \{n\} collars/g) || []).length, 2);
 });

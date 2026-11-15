@@ -2158,7 +2158,11 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // TASKS.csv #2634 — this grid is origin-relative: the ground is looked up in its frame (it was looked up at origin-relative x, y, so a
         // body or halo was never cut); with no terrain, the collar surface (as the GemPy cut, #2470), unless the collars look drilled from underground
         const altG = clipToTopo ? modelGround(terrainForClipRef.current, collars, survey) : null, altGround = altG?.ground || null;
-        const altCap = groundCappedGrid(grid, iso, groundAtInFrame(altGround, o), anisotropy.enabled ? (q) => anisoWarpPoint(q, center, basis, altUnwarp) : null);
+        // TASKS.csv #3580 — the collar surface raised over the logged samples (a drilled sample is never air), within a real cell of them
+        const altCellReal = Math.max(cell, cellZ) / (anisotropy.enabled ? Math.min(scl.major, scl.semiMajor, scl.minor) : 1);
+        const altLift = altGround?.kind === "collars" ? (await import("../../lib/groundNotBelowSamples.js")).groundNotBelowSamples(groundAtInFrame(altGround, o), pts, { reachM: altCellReal, marginM: altCellReal }) : null;
+        const altCap = groundCappedGrid(grid, iso, altLift ? altLift.at : groundAtInFrame(altGround, o), anisotropy.enabled ? (q) => anisoWarpPoint(q, center, basis, altUnwarp) : null);
+        if (altLift?.lifted) setNotices((p) => [...p, notice("The collar surface ran below {n} of the samples \"{label}\" was built from (rock the holes went through, in steep ground between collars): the cut was raised over them, so they stay in it. A terrain (Maps > Terrain) gives the real ground.", { n: altLift.lifted.toLocaleString(), label })]);
         // TASKS.csv #2711 (split from #2634) — the cut closes within a cell of the ground: 37-43 m cells on Harry kept up to a cell of air
         if (altCap.capped && cellZ >= 10) setNotices((p) => [...p, notice("\"{label}\" is cut at the ground on {z} m tall cells, so its top follows the ground only to within about a cell: up to {z} m of air kept, or of rock lost, where it meets the surface. A smaller cell height follows the ground closer.", { label, z: +(+cellZ).toFixed(1) })]);
         if (altCap.capped && altGround?.kind === "collars") setNotices((p) => [...p, notice("No terrain is loaded, so \"{label}\" was cut at the collar surface: the ground interpolated between the {n} collars, inside their footprint. A terrain (Maps > Terrain) gives the real ground.", { label, n: altG.collars })]); // #2634
@@ -2666,7 +2670,12 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // on, the field is intersected with "below the terrain" and the shell closes on the ground (still watertight).
         const gsRealOf = anisotropy.enabled ? ((u) => (q) => anisoWarpPoint(q, gsCenter, gsBasis, u))(invScales(gsScl)) : null;
         const gsG = clipToTopo ? modelGround(terrainForClipRef.current, collars, survey) : null, gsGround = gsG?.ground || null; // #2634: or the collar surface
-        const gsCap = groundCappedGrid(grid, numericCutoff, groundAtInFrame(gsGround), gsRealOf); // this grid is in world coordinates
+        // TASKS.csv #3580 (Matt: "where min is present the grade shell doesn't model it") — the collar surface ran up to 189 m below Macpass's
+        // composites (311 of 1,595 at/above 29.8 g/t), and the cut took them for air: raised over the samples, within a real cell of them
+        const gsCellReal = Math.max(grid.cellSize.dx, grid.cellSize.dy, grid.cellSize.dz) / (anisotropy.enabled ? Math.min(gsScl.major, gsScl.semiMajor, gsScl.minor) : 1);
+        const gsLift = gsGround?.kind === "collars" ? (await import("../../lib/groundNotBelowSamples.js")).groundNotBelowSamples(groundAtInFrame(gsGround), points, { reachM: gsCellReal, marginM: gsCellReal }) : null;
+        const gsCap = groundCappedGrid(grid, numericCutoff, gsLift ? gsLift.at : groundAtInFrame(gsGround), gsRealOf); // this grid is in world coordinates
+        if (gsLift?.lifted) setNotices((p) => [...p, notice("The collar surface ran below {n} of the samples \"{label}\" was built from (rock the holes went through, in steep ground between collars): the cut was raised over them, so they stay in it. A terrain (Maps > Terrain) gives the real ground.", { n: gsLift.lifted.toLocaleString(), label })]);
         if (gsCap.capped && gsGround?.kind === "collars") setNotices((p) => [...p, notice("No terrain is loaded, so \"{label}\" was cut at the collar surface: the ground interpolated between the {n} collars, inside their footprint. A terrain (Maps > Terrain) gives the real ground.", { label, n: gsG.collars })]); // #2634
         const mc = marchingCubes(gsCap.values, grid.nx, grid.ny, grid.nz, numericCutoff, {
           origin: grid.origin, spacing: grid.cellSize, noData: numericCloseShell ? "outside" : "skip",
@@ -2809,7 +2818,9 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
             // TASKS.csv #3010 (WA iron review) — two causes, each said for its own composites: blocks not estimated (Min holes, the search) and
             // blocks estimated BELOW the cutoff (a cell and a search that average a 2 m sample with its neighbours): 448 of the review's 464
             // were the second kind, all blamed on the first
-          else setNotices((p) => [...p, { level: "info", text: [inShell.noData ? tr("\"{label}\" leaves {n} of its {above} composite(s) at/above {cutoff} {unit} outside the shell on blocks that were not estimated: the Min holes rule ({minHoles}) or the search radius removed the blocks around them.", { label, n: inShell.noData, above: inShell.above, cutoff: numericCutoff, unit: unitL, minHoles: mh }) : "",
+            // TASKS.csv #3580 — a shell that misses most of them stays on screen (an error notice is not dismissed by itself): Matt's Macpass shell held
+            // 731 of 1,595 and the grey note went by unread
+          else setNotices((p) => [...p, { level: inShell.inside * 2 < inShell.above ? "error" : "info", text: [inShell.noData ? tr("\"{label}\" leaves {n} of its {above} composite(s) at/above {cutoff} {unit} outside the shell on blocks that were not estimated: the Min holes rule ({minHoles}) or the search radius removed the blocks around them.", { label, n: inShell.noData, above: inShell.above, cutoff: numericCutoff, unit: unitL, minHoles: mh }) : "",
               inShell.outside ? tr("\"{label}\": {n} of its {above} composite(s) at/above {cutoff} {unit} sit on blocks estimated below it: the {cell} cells and the search average each sample with its neighbours, so a high sample thinner than a cell is diluted. A smaller cell (or a flatter one across the bedding) keeps more of them.", { label, n: inShell.outside, above: inShell.above, cutoff: numericCutoff, unit: unitL, cell: anisotropy.enabled && !anisotropy.flat ? `${trendCellText(trendCellM(anisotropy.trend, cs))} m` : cz ? `${cs} × ${cs} × ${cz} m` : `${cs} m` }) : ""].filter(Boolean).join(" "), }]);
         }
         // TASKS.csv #533 — say what the cap did: samples cut and share of metal removed (on the same QC-excluded raw samples)
