@@ -12928,5 +12928,12 @@
   "Mineral from the USGS spectral library": "Minéral de la bibliothèque spectrale de l'USGS",
   "The USGS library could not be loaded": "La bibliothèque de l'USGS n'a pas pu être chargée",
   "Or pick a mineral from the USGS spectral library…": "Ou choisissez un minéral dans la bibliothèque spectrale de l'USGS…",
-  "USGS Spectral Library Version 7, public domain (Kokaly et al., 2017).": "Bibliothèque spectrale de l'USGS, version 7, domaine public (Kokaly et al., 2017)."
+  "USGS Spectral Library Version 7, public domain (Kokaly et al., 2017).": "Bibliothèque spectrale de l'USGS, version 7, domaine public (Kokaly et al., 2017).",
+  "{n} collar(s) look like underground drilling: {t} by their hole type (UDDH, UG …), {u} starting upward, {d} drilled flat or upward from a station far below a collar nearby ({ids}).": "{n} collet(s) semblent être des sondages souterrains : {t} d'après leur type de sondage (UDDH, UG …), {u} qui partent vers le haut, {d} forés à l'horizontale ou vers le haut depuis une station loin sous un collet voisin ({ids}).",
+  "They are left out of the ground between the collars.": "Ils sont exclus du terrain entre les collets.",
+  "They were left out of the terrain; 'Underground collars' can keep them.": "Ils ont été exclus du terrain ; « Collets souterrains » peut les garder.",
+  "They were kept in the terrain, as chosen under 'Underground collars'.": "Ils ont été gardés dans le terrain, comme choisi sous « Collets souterrains ».",
+  "Underground collars ({n}: by hole type, starting upward, or far under a collar nearby)": "Collets souterrains ({n} : d'après le type de sondage, partant vers le haut, ou loin sous un collet voisin)",
+  "Leave them out of the ground": "Les exclure du terrain",
+  "{n} collars share a spot (within {r} m) with a collar {dz} m or more higher or lower, in {spots} place(s), up to {max} m apart: pit benches or mine levels? The surface through all of them is not the topography there; 'Where collars stack' can keep the lowest or the highest.": "{n} collets partagent un emplacement (à moins de {r} m) avec un collet plus haut ou plus bas d'au moins {dz} m, en {spots} endroit(s), jusqu'à {max} m d'écart : des gradins de fosse ou des niveaux de mine ? La surface passant par tous n'est pas là la topographie ; « Où les collets s'empilent » peut garder le plus bas ou le plus haut."
 }
