@@ -39,6 +39,6 @@ test("(3) a sent table is a table, not a collar table", () => {
 
 test("(5) a new page takes the current page's paper, its starter placed for it", () => {
   const L = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
-  assert.match(L, /addLayoutPages\(\[\{ name: `Page \$\{layoutPages\.length \+ 1\}`, elements: starterFor\(fmt\) \}\]\);\r?\n\s*if \(id\) setLayoutPageFormat\(id, fmt\);/);
-  assert.match(L, /el\.id === "north" \? \{ \.\.\.el, x: w - 123 \} : el\.id === "scale" \? \{ \.\.\.el, y: h - 74 \}/);
+  assert.match(L, /addLayoutPages\(\[\{ name: `Page \$\{layoutPages\.length \+ 1\}`, elements: starterFor\(fmt, creditsRef\.current\) \}\]\);\r?\n\s*if \(id\) setLayoutPageFormat\(id, fmt\);/);
+  assert.match(L, /el\.id === "north" \? \{ \.\.\.el, \.\.\.L\.north \} : el\.id === "scale" \? \{ \.\.\.el, \.\.\.L\.scale \} : el\.id === "credits" \? \{ \.\.\.el, \.\.\.L\.credits \}/); // #3657 — from starterLayout
 });

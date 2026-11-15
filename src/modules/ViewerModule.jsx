@@ -5227,7 +5227,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     try {
       const { buildShapefileZip } = await import("../lib/shapefile.js"); // #552 — on demand
       const tx = await import("../lib/tiedExport.js"), ex = project?.crsSet === false && !tx.tieOf(project) ? null : await tx.exportCrs(project); if (!ex && project?.crsSet !== false) return; const epsg = ex?.epsg ?? null; // #1021; #2295: no CRS = no .prj; #2322: a tied grid through its tie
-      const zipBytes = buildShapefileZip({ features: tx.featuresToWorld(features, ex?.tie), geomType, epsg, baseName: label, keepFieldCase: !!built, flat: !!built?.flat }); // #1025; #1246 — a map layer keeps its field names
+      const zipBytes = buildShapefileZip({ features: tx.featuresToWorld(features, ex?.tie), geomType, epsg, baseName: label, keepFieldCase: !!built, flat: !!built?.flat, credit: project?.dataCredit /* #3659 */ }); // #1025; #1246 — a map layer keeps its field names
       const res = await saveFile({ quiet: true, // TASKS.csv #576 — awaited: success only when it was written
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.zip`,
         filters: [{ name: "Shapefile (zipped)", extensions: ["zip"] }],
@@ -5248,7 +5248,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     try {
       const tableName = label.replace(/[^a-zA-Z0-9_]+/g, "_") || "layer";
       const tx = await import("../lib/tiedExport.js"), ex = project?.crsSet === false && !tx.tieOf(project) ? null : await tx.exportCrs(project); if (!ex && project?.crsSet !== false) return; const epsg = ex?.epsg ?? null; // #1021; #2295: srs -1; #2322: a tied grid through its tie
-      const gpkgBytes = await (await loadGpkg()).buildGeoPackage([{ name: tableName, features: tx.featuresToWorld(features, ex?.tie), geomType, epsg }]); // #439 lazy
+      const gpkgBytes = await (await loadGpkg()).buildGeoPackage([{ name: tableName, features: tx.featuresToWorld(features, ex?.tie), geomType, epsg, credit: project?.dataCredit /* #3659 */ }]); // #439 lazy
       const res = await saveFile({ quiet: true, // TASKS.csv #576 — awaited: success only when it was written
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.gpkg`,
         filters: [{ name: "GeoPackage", extensions: ["gpkg"] }],

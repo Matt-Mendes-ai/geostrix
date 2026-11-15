@@ -1,6 +1,7 @@
 // TASKS.csv #1868 (review #1646, Kodiak) — a report figure's TITLE BLOCK, two starter templates, and templates as small files.
 // The reviewer built an ARIS title block from about eight single-line Text boxes and rectangles placed by hand, a fresh project
 // offered 'Templates (0)', and a saved template lived inside that one project. Pure: no React.
+import { creditsElement, PAGE_MARGIN } from "./layoutCredits.js"; // TASKS.csv #3658
 import { pagePx } from "./pageFormats.js";
 import { t as tr } from "./i18n.js";
 
@@ -24,6 +25,17 @@ export function defaultTitleBlockRows({ credit = false } = {}) {
     ...(credit ? [["Data", "{credits}"]] : []),
   ];
 }
+// TASKS.csv #3658 (re-test R2) — the block was placed for 12 one-line rows (232 px) while its Data row wraps over four lines (256 px), so its frame ended 1 mm from the foot of the sheet. Its height now counts the
+// credit's wrapped lines (the value column is about 60 % of the 340 px block, at 8 pt about 4.9 px a letter), and it is placed above the credit, inside the page margin (lib/layoutCredits.js).
+export function titleBlockHeight({ credit = false, creditText = "", w = 340 } = {}) {
+  const lines = credit ? Math.max(1, Math.ceil((String(creditText || "").length * 4.9) / (w * 0.58))) : 1;
+  return (credit ? 12 : 11) * 19 + 4 + (lines - 1) * 11;
+}
+// where a new title block goes on a page of this paper: the bottom-right corner, above the credit line when the project has one -> { x, y }
+export function titleBlockSpot(format, { credit = false, creditText = "" } = {}) {
+  const { w, h } = pagePx(format), tbW = 340, bottom = credit ? creditsElement(format, creditText).y - 8 : h - PAGE_MARGIN;
+  return { x: Math.max(20, w - PAGE_MARGIN - tbW), y: Math.max(20, bottom - titleBlockHeight({ credit, creditText, w: tbW })) };
+}
 export function newTitleBlock(id, x, y, opts = {}) {
   return { id, type: "titleblock", x, y, w: 340, rows: defaultTitleBlockRows(opts), fontPt: 8, frameWidth: 1 };
 }
@@ -37,7 +49,7 @@ export const STOCK_TEMPLATES = [
 ];
 export function stockTemplateElements(tpl, stamp = Date.now(), opts = {}) { // opts.credit: #3591
   const { w: W, h: H } = pagePx(tpl.format), m = Math.round(10 * MM), id = (k) => `${k}_${stamp}_${tpl.kind}`;
-  const tb = newTitleBlock(id("titleblock"), 0, 0, opts), tbW = tpl.kind === "section" ? 380 : 340, tbH = (opts.credit ? 12 : 11) * 19 + 4; // about 19 px a row at 8 pt
+  const tb = newTitleBlock(id("titleblock"), 0, 0, opts), tbW = tpl.kind === "section" ? 380 : 340, tbH = titleBlockHeight({ credit: opts.credit, creditText: opts.creditText, w: tbW }); // about 19 px a row at 8 pt; the wrapped Data row: #3658
   tb.w = tbW; tb.x = W - m - tbW - 8; tb.y = H - m - tbH - 8;
   const els = [
     { id: id("rect"), type: "rect", x: m, y: m, w: W - 2 * m, h: H - 2 * m, stroke: "#1a2028", strokeWidth: 1.5, fill: "#ffffff", fillOpacity: 0, locked: true },

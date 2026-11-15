@@ -3,7 +3,7 @@ import { customLegendGroups } from "../lib/customColour.js"; // TASKS.csv #2472
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { MapPinned, Plus, X, Maximize2, Sheet, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid, Lock, LayoutTemplate, Download, Upload, HardDrive } from "../components/icons.js";
-import { newTitleBlock, STOCK_TEMPLATES, stockTemplateElements, templateFile, parseTemplateFile, templateElements, refitStockTemplate, documentTitle /* #3612 */ } from "../lib/layoutTitleBlock.js"; // refitStockTemplate: #2312; // TASKS.csv #1868; templateElements: #1487
+import { newTitleBlock, STOCK_TEMPLATES, stockTemplateElements, templateFile, parseTemplateFile, templateElements, refitStockTemplate, documentTitle /* #3612 */, titleBlockSpot } from "../lib/layoutTitleBlock.js"; // refitStockTemplate: #2312; // TASKS.csv #1868; templateElements: #1487
 import ComputerTemplates from "../components/ComputerTemplates.jsx"; // TASKS.csv #1487
 import { keepTemplateOnComputer } from "../lib/computerTemplates.js"; // TASKS.csv #1487
 import { hasComputerTemplates } from "../lib/desktop.js"; // TASKS.csv #1487
@@ -11,7 +11,7 @@ import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js"; // TASKS.csv #1777 — listed with the page's placeholders
 import { scaleBarLabel, scaleBarMidLabel } from "../lib/scaleBarLabel.js"; // TASKS.csv #2140
 import { offSheetPages, rectSidesPast, elementCaption, elementKind } from "../lib/layoutEdges.js"; // elementKind: #3028
-import { withCreditPages, pagesWithoutCredit } from "../lib/layoutCredits.js"; // TASKS.csv #3591
+import { withCreditPages, pagesWithoutCredit, starterLayout, refitStarter } from "../lib/layoutCredits.js"; // TASKS.csv #3591
 import { DEFAULT_LAYOUT_ELEMENTS } from "../lib/projectFields.js"; // TASKS.csv #3028 (5)
 import { groupOrdersFromItems, applyCodeOrder, projectCodeOrders, clearCodeOrders, pagesHoldingOrder, orderedGroupsOf } from "../lib/legendCodeOrder.js"; // TASKS.csv #3130 — a code order set once; clear*: #3199 // TASKS.csv #2482 / #2309; named elements: #2700
 import { fillPlaceholders, northName, pageConvergence, formatConvergence } from "../lib/layoutText.js";
@@ -121,7 +121,10 @@ let layoutClipboard = null;
 // TASKS.csv #2700 — an element kind as the ribbon names it (the export's 'past the edge' confirm)
 // TASKS.csv #3028 (5) — a new page's starter (the project's title, a north arrow, a scale bar) placed for its paper: north and scale keep the
 // A4-landscape starter's distance from the right and bottom edges (1123 x 794 px: x 1000, y 720)
-const starterFor = (format) => { const { w, h } = pagePx(format); return DEFAULT_LAYOUT_ELEMENTS.map((el) => (el.id === "north" ? { ...el, x: w - 123 } : el.id === "scale" ? { ...el, y: h - 74 } : el)); };
+const starterFor = (format, creditText = "") => { // TASKS.csv #3657 — the credit and the scale bar follow the paper (lib/layoutCredits.js starterLayout), inside a 10 mm margin
+  const L = starterLayout(format, creditText);
+  return DEFAULT_LAYOUT_ELEMENTS.map((el) => (el.id === "north" ? { ...el, ...L.north } : el.id === "scale" ? { ...el, ...L.scale } : el.id === "credits" ? { ...el, ...L.credits } : el));
+};
 const ELEMENT_KIND_NAMES = { title: "Title" /* #3374 */, text: "Text", rect: "Rectangle", north: "North arrow", scale: "Scale bar", legend: "Legend", viewport: "Viewport", image: "Image", table: "Collar table", statictable: "Table" /* #3028 (3) */, titleblock: "Title block", drillplan: "Drill plan", logo: "Logo", arrow: "Arrow", callout: "Callout" };
 
 export default function LayoutModule() {
@@ -168,7 +171,7 @@ export default function LayoutModule() {
   // TASKS.csv #3591 — every page the app makes itself (a snapshot's own page, a split's, an Atlas page, a table's continuation) prints the data credit when the project has one: the {credits}
   // text is added to a page that does not print it (lib/layoutCredits.js); the credit line itself is read through a ref (it is computed further down)
   const creditsRef = useRef("");
-  const addLayoutPages = (pgs) => addLayoutPagesRaw(withCreditPages(pgs, !!creditsRef.current));
+  const addLayoutPages = (pgs) => addLayoutPagesRaw(withCreditPages(pgs, creditsRef.current || false)); // the credit's text: its length sizes the box (#3657)
   const setTaskProgress = useSetTaskProgress();
   useEffect(() => { if (viewportBatchDone) setTaskProgress?.(null); }, [viewportBatchDone, setTaskProgress]);
   const [selected, setSelected] = useState(null);
@@ -324,8 +327,9 @@ export default function LayoutModule() {
   const [formatNote, setFormatNote] = useState("");
   const changePageFormat = (f) => {
     const r = refitStockTemplate(elements, f);
+    const oldFormat = pageFormatOf(activePage), starter = refitStarter(r.refitted ? r.elements : elements, oldFormat, f, creditsRef.current); // #3657 — the starter's north arrow, scale bar and credit follow the paper
     setLayoutPageFormat(activeLayoutPageId, f);
-    if (r.refitted) setElements(r.elements);
+    if (r.refitted || starter.some((el, i) => el !== (r.refitted ? r.elements : elements)[i])) setElements(starter);
     setFormatNote(r.refitted ? tr("The starter template's frame, title, title block and north arrow were laid out again for the new paper; the other elements stay where they were.") : "");
   };
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
@@ -819,7 +823,7 @@ export default function LayoutModule() {
     const id = `${type}_${Date.now()}`;
     const base = { id, type, x: 100, y: 100 };
     if (type === "text") base.text = "Text", base.w = 200;
-    if (type === "titleblock") Object.assign(base, newTitleBlock(id, Math.max(20, A4.w - 400), Math.max(20, A4.h - 260), { credit: !!credits })); // #3591 — a Data row when the project has a credit // TASKS.csv #1868 — bottom right
+    if (type === "titleblock") { const tbSpot = titleBlockSpot(pageFormatOf(activePage), { credit: !!credits, creditText: credits }); Object.assign(base, newTitleBlock(id, tbSpot.x, tbSpot.y, { credit: !!credits, creditText: credits })); } // #3658 — above the credit, inside the page margin, as tall as its wrapped Data row // #3591 — a Data row when the project has a credit // TASKS.csv #1868 — bottom right
     if (type === "logo") logoInput.current.click();
     if (type === "scale") { base.meters = 100; base.pxPerMeter = DEFAULT_PX_PER_METER; Object.assign(base, insertScaleBar(base, elements, selected)); if (!base.boundTo) Object.assign(base, freeSpot(elements, 260, 50, A4)); /* #2135 */ base.y = Math.min(base.y, A4.h - 50); } // #1635 — bound to the selected / only view
     if (type === "north") { // TASKS.csv #1632 — tied to the selected view, else the page's only view with a camera azimuth
@@ -946,7 +950,7 @@ export default function LayoutModule() {
   const loadTemplate = (tpl) => {
     if (elements.length && !window.confirm(tr("Replace the current page with \"{name}\"? (Ctrl+Z undoes this.)", { name: tr(tpl.name) }))) return; // #1487 — layoutPages are in the undo history
     if (tpl.format) setLayoutPageFormat(activeLayoutPageId, tpl.format); // #1868 — a template keeps its paper size and orientation
-    if (tpl.stock) { setElements(stockTemplateElements(tpl, Date.now(), { credit: !!credits })); setSelected(null); setTemplatesOpen(false); return; } // #1868 — a starter template
+    if (tpl.stock) { setElements(stockTemplateElements(tpl, Date.now(), { credit: !!credits, creditText: credits })); setSelected(null); setTemplatesOpen(false); return; } // #1868 — a starter template
     const idMap = new Map(tpl.elements.map((el) => [el.id, `${el.type}_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`]));
     setElements(relinkCopies(tpl.elements.map((el) => ({ ...el, id: idMap.get(el.id) })), idMap, true)); // #924
     setSelected(null);
@@ -1109,6 +1113,12 @@ export default function LayoutModule() {
   // first true-scale one, else the approximate scale of the first viewport
   const activePageIndex = Math.max(0, layoutPages.findIndex((pg) => pg.id === activeLayoutPageId));
   const credits = useMemo(() => projectCredits(terrain, rasters, project?.dataCredit), [terrain, rasters, project?.dataCredit]); creditsRef.current = credits; // #3591 // TASKS.csv #949; dataCredit: #3496
+  // TASKS.csv #3657 — a data credit that arrives after the page (a sample project sets it as it opens) lengthens the credit's box: the starter's scale bar and credit, still where a credit-less layout put them, move up to fit it
+  useEffect(() => {
+    if (!credits) return;
+    const f = pageFormatOf(activePage), next = refitStarter(elements, f, f, credits, "");
+    if (next.some((el, i) => el !== elements[i])) setElements(next);
+  }, [credits, activeLayoutPageId]);
   // TASKS.csv #1483 — a collar with no azimuth / dip of its own (Silvertip's) takes its shallowest survey station's, marked so
   useHoleVisibility(); // TASKS.csv #3605 — a plan that follows the checked holes redraws when they change
   const tableCollars = useMemo(() => collarsWithSurveyAttitude(collars, survey), [collars, survey]); // #1483 / #1771 / #2133 (lib/collarTable.js)
@@ -1931,7 +1941,7 @@ export default function LayoutModule() {
             onClick={() => { // TASKS.csv #3028 (5) — the current page's paper (an A3 project's second page was A4 landscape), its starter laid out for it
               const fmt = activePage?.format;
               if (!fmt) { addLayoutPage(); return; }
-              const [id] = addLayoutPages([{ name: `Page ${layoutPages.length + 1}`, elements: starterFor(fmt) }]);
+              const [id] = addLayoutPages([{ name: `Page ${layoutPages.length + 1}`, elements: starterFor(fmt, creditsRef.current) }]);
               if (id) setLayoutPageFormat(id, fmt);
             }}
             title={tr("Add page")}
@@ -2540,7 +2550,10 @@ const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, proje
         const f = pageFormatOf(pg), [w, h] = pageMm(f);
         return (
           <div key={pg.id} className={`ge-print-page ge-print-${pageCssName(f)}`} style={{ width: `${w}mm`, height: `${h}mm` }}>
+            {/* TASKS.csv #3656 — an element far past the sheet made the print engine shrink EVERY page to fit its width (74.4 % when one reached x 1509 px): the page's elements sit in a box of its own size that clips, which the engine honours, where overflow:hidden on the page itself it does not (measured in Electron's printToPDF) */}
+            <div className="ge-print-clip" style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
             {withLiveScaleBars(pg.elements).map((el) => <LayoutElement key={el.id} el={el} selected={false} multiSelected={false} print onDown={() => {}} ctx={{ ...textContextFor(pg.elements || [], project, pg, i + pageOffset, pageTotal ?? pages.length, collars, credits), assays, assayElements, surfaceSamples, surfaceElements, layers /* #1869 */, plannedHoles /* #2259 */, survey, desurveyMethod: project?.desurveyMethod /* #3367 */, displayUnits: project?.displayUnits /* #3382 */, continuedOn: (t, r) => { const j = continuationPageIndex(pages, i, t, r); return j == null ? null : j + pageOffset + 1; } /* #2718 */ }} />)}
+            </div>
           </div>
         );
       })}

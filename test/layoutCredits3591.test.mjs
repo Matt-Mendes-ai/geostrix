@@ -13,7 +13,7 @@ test("a page made by the app gets the {credits} text along its foot, sized to it
   const pages = [{ name: "Snapshot 2", elements: [{ id: "img1", type: "image" }], format: a3 }, { name: "has it", elements: [{ id: "t", type: "text", text: "Data: {credits}" }] }, { name: "blank" }];
   const out = withCreditPages(pages, true);
   const c = out[0].elements.find((e) => e.id === "credits");
-  assert.equal(c.type, "text"); assert.equal(c.text, "{credits}"); assert.equal(c.x, 40); assert.equal(c.w, w - 80); assert.equal(c.y, h - 30);
+  assert.equal(c.type, "text"); assert.equal(c.text, "{credits}"); assert.equal(c.x, 40); assert.equal(c.w, w - 80); assert.equal(c.y, h - 40 - 15, "one line, ending at the 40 px margin (#3658)");
   assert.equal(out[1].elements.length, 1, "already printed: not twice");
   assert.equal(out[2].elements.length, 1, "a page with no elements still gets it");
   assert.equal(pages[0].elements.length, 1, "the input is not changed");
@@ -29,7 +29,7 @@ test("the title block: a last 'Data' row = {credits} for a project with a credit
   for (const tpl of STOCK_TEMPLATES) {
     const els = stockTemplateElements(tpl, 1, { credit: true }), tb = els.find((e) => e.type === "titleblock");
     assert.equal(tb.rows[tb.rows.length - 1][0], "Data");
-    const { h } = pagePx(tpl.format); assert.ok(tb.y + 12 * 19 + 4 <= h, "the taller block still fits the sheet");
+    const { h } = pagePx(tpl.format); assert.ok(tb.y + 12 * 19 + 4 <= h - 40, "the taller block still fits the sheet, inside the margin");
     assert.equal(stockTemplateElements(tpl, 1).find((e) => e.type === "titleblock").rows.length, 11);
   }
 });
@@ -37,10 +37,10 @@ test("the title block: a last 'Data' row = {credits} for a project with a credit
 test("the starter page, the sheets the app makes and the title block are wired", () => {
   const m = read("../src/modules/LayoutModule.jsx");
   assert.match(m, /addLayoutPages: addLayoutPagesRaw/);
-  assert.match(m, /const addLayoutPages = \(pgs\) => addLayoutPagesRaw\(withCreditPages\(pgs, !!creditsRef\.current\)\);/);
+  assert.match(m, /const addLayoutPages = \(pgs\) => addLayoutPagesRaw\(withCreditPages\(pgs, creditsRef\.current \|\| false\)\);/);
   assert.match(m, /creditsRef\.current = credits; \/\/ #3591/);
-  assert.match(m, /newTitleBlock\(id, Math\.max\(20, A4\.w - 400\), Math\.max\(20, A4\.h - 260\), \{ credit: !!credits \}\)/);
-  assert.match(m, /stockTemplateElements\(tpl, Date\.now\(\), \{ credit: !!credits \}\)/);
+  assert.match(m, /newTitleBlock\(id, tbSpot\.x, tbSpot\.y, \{ credit: !!credits, creditText: credits \}\)/);
+  assert.match(m, /stockTemplateElements\(tpl, Date\.now\(\), \{ credit: !!credits, creditText: credits \}\)/);
   assert.ok(creditsElement().id === "credits");
 });
 
