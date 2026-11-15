@@ -873,6 +873,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const rasterGroupRef = useRef(null);
   const rasterMeshesRef = useRef({}); // id -> THREE.Mesh
   const lodDrapeRef = useRef(null); // TASKS.csv #3252 — the imagery detail tiles (lib/viewer/lodDrape.js)
+  const lodTerrainRef = useRef(null); // TASKS.csv #3252 phase 3 — the terrain detail tiles (lib/viewer/lodTerrain.js)
   // Boundary polylines (Geosoft .ply import) — own group/refs, same reasoning as rasters above: driven
   // by the store's persisted `boundaries` list, not by layer-visibility churn.
   const boundaryGroupRef = useRef(null);
@@ -2298,7 +2299,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
           }
         }
         if (gridGroupRef.current?.userData.labels) fitScreenLabels(gridGroupRef.current.userData.labels, camera, mount.clientHeight); // #2211
-        lodDrapeRef.current?.tick(camera, mount.clientHeight); // TASKS.csv #3252 — the detail tiles the camera wants (throttled inside, and only when it moved)
+        lodDrapeRef.current?.tick(camera, mount.clientHeight); lodTerrainRef.current?.tick(camera, mount.clientHeight); // TASKS.csv #3252 (phase 3: the terrain tiles, after the imagery ones they draw) — the detail tiles the camera wants (throttled inside, and only when it moved)
         { const sl = sectionLinesGroupRef.current?.userData.labels; if (sl?.children.length) { fitScreenLabels(sl, camera, mount.clientHeight); declutterHoleLabels(sl, camera, mount.clientWidth, mount.clientHeight); } } // #1126 section end labels; #3246
         fitContourLabels(boundaryGroupRef.current, camera, mount.clientWidth, mount.clientHeight); // #1466 / #1622
         renderer.setViewport(0, 0, mount.clientWidth, mount.clientHeight);
@@ -4735,6 +4736,17 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // ---------- rebuild terrain surface (TASKS.csv #77) ----------
   // moved to lib/viewer/sceneBuilders.js syncTerrain (TASKS.csv #693); its comments explain the build
   useEffect(() => { if (terrainGroupRef.current && !buildDefer.skip()) terrainMeshRef.current = syncTerrain(terrainGroupRef.current, terrainMeshRef.current, terrain, { origin: originRef.current }); }, [terrain, collars, rebuildSeq, deferRound]);
+  // TASKS.csv #3252 phase 3 — the terrain detail tiles (display only), loaded the first time a terrain whose source can be read by window is shown
+  useEffect(() => {
+    if (!terrainGroupRef.current || buildDefer.skip()) return;
+    const ctx = { group: terrainGroupRef.current, terrain, terrainMesh: terrainMeshRef.current, epsg: project?.crsSet === false ? null : project?.epsg, origin: originRef.current, rasters, rasterCache: rasterMeshesRef.current, mapLayers, mapLayerCache: mapLayerMeshesRef.current, lodDrape: () => lodDrapeRef.current, wake: () => { lastActivityRef.current = Date.now(); } };
+    if (lodTerrainRef.current) { lodTerrainRef.current.sync(ctx); return; }
+    if (!terrain || !(terrain.lod || /^AWS Terrain Tiles/.test(String(terrain.source?.service || "")))) return;
+    let live = true;
+    import("../lib/viewer/lodTerrain.js").then((m) => { if (!live) return; lodTerrainRef.current = lodTerrainRef.current || m.createLodTerrain(); lodTerrainRef.current.sync(ctx); });
+    return () => { live = false; };
+  }, [terrain, collars, rasters, mapLayers, project?.epsg, project?.crsSet, rebuildSeq, deferRound]);
+  useEffect(() => () => lodTerrainRef.current?.dispose(), []);
 
   // Keeps the locator mini-map's real-world position in sync with wherever the scene's origin actually
   // sits — same trigger set as the origin-computing effect above (collars/terrain changes, or a manual
