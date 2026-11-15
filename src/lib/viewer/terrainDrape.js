@@ -173,3 +173,35 @@ export function adaptiveDrape(terrain, { vertexIds, indices }, bbox) {
   }
   return { x: Float64Array.from(X), y: Float64Array.from(Y), z: Float64Array.from(Z), indices: Uint32Array.from(out) };
 }
+
+// TASKS.csv #3252 phase 2 — the adaptive mesh's triangles near a small box (a detail tile), so a tile's drape (adaptiveDrape over them) does
+// not walk all 160,000-480,000 triangles: each triangle is listed in the cells of a 64 x 64 grid over the terrain its own box touches. The
+// subset holds every triangle that can reach the box, so adaptiveDrape over it gives exactly what it gives over the whole mesh.
+const BUCKETS = 64;
+const bucketCache = new WeakMap();
+function triangleBuckets(terrain, am) {
+  let b = bucketCache.get(am);
+  if (b) return b;
+  const { gridW, gridH } = terrain, { vertexIds, indices } = am;
+  const cell = new Array(BUCKETS * BUCKETS);
+  for (let k = 0; k < cell.length; k++) cell[k] = [];
+  const bi = (i) => Math.min(BUCKETS - 1, Math.floor((i / Math.max(1, gridW - 1)) * BUCKETS)), bj = (j) => Math.min(BUCKETS - 1, Math.floor((j / Math.max(1, gridH - 1)) * BUCKETS));
+  for (let t = 0; t < indices.length; t += 3) {
+    let i0 = Infinity, i1 = -Infinity, j0 = Infinity, j1 = -Infinity;
+    for (let q = 0; q < 3; q++) { const id = vertexIds[indices[t + q]], i = id % gridW, j = (id - i) / gridW; if (i < i0) i0 = i; if (i > i1) i1 = i; if (j < j0) j0 = j; if (j > j1) j1 = j; }
+    for (let v = bj(j0); v <= bj(j1); v++) for (let u = bi(i0); u <= bi(i1); u++) cell[v * BUCKETS + u].push(t);
+  }
+  b = { cell, mark: new Uint32Array(indices.length / 3), pass: 0 };
+  bucketCache.set(am, b);
+  return b;
+}
+export function trianglesNear(terrain, am, bbox) {
+  const [xmin, ymin, xmax, ymax] = terrain.bbox;
+  const b = triangleBuckets(terrain, am);
+  const fi = (x) => Math.min(BUCKETS - 1, Math.max(0, Math.floor(((x - xmin) / (xmax - xmin)) * BUCKETS)));
+  const fj = (y) => Math.min(BUCKETS - 1, Math.max(0, Math.floor(((ymax - y) / (ymax - ymin)) * BUCKETS)));
+  const u0 = fi(bbox[0]), u1 = fi(bbox[2]), v0 = fj(bbox[3]), v1 = fj(bbox[1]);
+  const pass = ++b.pass, out = [];
+  for (let v = v0; v <= v1; v++) for (let u = u0; u <= u1; u++) for (const t of b.cell[v * BUCKETS + u]) { const k = t / 3; if (b.mark[k] === pass) continue; b.mark[k] = pass; out.push(am.indices[t], am.indices[t + 1], am.indices[t + 2]); }
+  return { vertexIds: am.vertexIds, indices: Uint32Array.from(out) };
+}
