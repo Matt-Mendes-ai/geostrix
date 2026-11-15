@@ -96,6 +96,7 @@ import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #1212
 import { useTabNotices } from "../lib/useTabNotices.js"; // TASKS.csv #1203
 import SampleGridPanel from "../components/SampleGridPanel.jsx"; // TASKS.csv #1622
 import { methodColumnFor, methodsIn, partialDigestionFor } from "../lib/digestion.js"; // TASKS.csv #1518
+import { colourFields, fieldColouring, AXIS_SCALES } from "../lib/geochemXYColour.js"; // TASKS.csv #3585
 import { axisOf, xyDiagram, xyStats, elementsWithoutValues, ternaryDiagram, TERNARY_LABEL, TERNARY_CAPTION } from "../lib/geochemXY.js"; // ternary: #3051 // TASKS.csv #1678; xyStats: #2353; elementsWithoutValues: #2719
 import { numericSourceChoices } from "../lib/numericSources.js"; // TASKS.csv #1678
 import { keptMemo } from "../lib/keptMemo.js"; // TASKS.csv #3120 — the derived samples kept across tab visits
@@ -153,6 +154,9 @@ export default function GeochemModule() {
   const [ternK, setTernK] = useKeptState(keptScope, "geochem.ternK", ["1", "1", "1"]); // #3051 — each corner's factor
   const [xyY, setXyY] = useKeptState(keptScope, "geochem.xyY", "");
   const [xyOne, setXyOne] = useKeptState(keptScope, "geochem.xyOne", false); // #2353 — a 1:1 line
+  const [xyScaleX, setXyScaleX] = useKeptState(keptScope, "geochem.xyScaleX", "auto"); // TASKS.csv #3585 — auto | log | linear per axis
+  const [xyScaleY, setXyScaleY] = useKeptState(keptScope, "geochem.xyScaleY", "auto");
+  const [colorField, setColorField] = useKeptState(keptScope, "geochem.colorField", ""); // #3585 — colour by a field of the Y layer
   const [xyFit, setXyFit] = useKeptState(keptScope, "geochem.xyFit", false); // TASKS.csv #3577 — a least-squares line of Y on X, with its equation
   const [xyMin, setXyMin] = useKeptState(keptScope, "geochem.xyMin", ""); // #2353 — the statistics over X >= this
   const [colorMode, setColorMode] = useKeptState(keptScope, "geochem.colorMode", "hole"); // hole | element | lithology (#619) | uniform
@@ -286,7 +290,7 @@ export default function GeochemModule() {
   // TASKS.csv #2030 (review #2013) — a spider of two elements (La, Ce from a four-acid digestion) drew 247 two-point 'patterns' and counted
   // 1964 'plottable' samples: below SPIDER_MIN of its elements in the samples shown, the diagram says so instead of drawing
   const spiderPresent = useMemo(() => { const d = ALL_DIAGRAMS[diagramId]; return d?.spider ? d.order.filter((sym) => sourceRows.some((r) => Number.isFinite(r.values?.[sym]))) : null; }, [diagramId, sourceRows]);
-  const xyDiag = useMemo(() => (xyAxes ? keptMemo([sourceRows, assayElements, store.layers, store.customLayers, store.project?.displayUnits], `fit|${xyKeyX}|${xyKeyY}|${!!xyOne}`, () => xyDiagram(xyAxes[0], xyAxes[1], sourceRows, elementUnits, { oneToOne: !!xyOne })) : null), [xyAxes, sourceRows, elementUnits, xyOne]); // kept: #3120
+  const xyDiag = useMemo(() => (xyAxes ? keptMemo([sourceRows, assayElements, store.layers, store.customLayers, store.project?.displayUnits], `fit|${xyKeyX}|${xyKeyY}|${!!xyOne}|${xyScaleX}|${xyScaleY}`, () => xyDiagram(xyAxes[0], xyAxes[1], sourceRows, elementUnits, { oneToOne: !!xyOne, scaleX: xyScaleX, scaleY: xyScaleY /* #3585 */ })) : null), [xyAxes, sourceRows, elementUnits, xyOne, xyScaleX, xyScaleY]); // kept: #3120
   // TASKS.csv #1091 (review #1016, software artist) — holes from the colour-blind-safe categorical palette, in name order
   // (golden-angle HSL at one lightness put neighbouring hues at the same lightness, not dichromat-safe)
   const holeColors = useMemo(() => keptMemo([assays], "holeColors", () => { // kept: #3120 (6,390 ids sorted with a numeric collation: 0.13 s a visit)
@@ -340,8 +344,14 @@ export default function GeochemModule() {
   }, [colorMode, colorEl, colorUnit, assays, elementUnits]);
   // TASKS.csv #1519 — one function per colour choice (not per render), so the plot's cached points image is redrawn only when the
   // colours change: a new function every render redrew 83,670 points on any re-render of this tab
+  // TASKS.csv #3585 — colour by a field of the Y layer (the density method, the low-recovery flag, a year): the layer behind a Y axis that is not an element
+  const yLayerChoice = useMemo(() => (diagramId === "xy" && xyKeyY && !xyKeyY.startsWith("el:") ? xyChoices.find((c) => c.key === xyKeyY) || null : null), [diagramId, xyKeyY, xyChoices]);
+  const yFields = useMemo(() => (yLayerChoice ? colourFields(yLayerChoice, { layers: store.layers, customLayers: store.customLayers }) : []), [yLayerChoice, store.layers, store.customLayers]);
+  const yFieldName = yFields.some((f) => f.field === colorField) ? colorField : yFields[0]?.field || "";
+  const yColouring = useMemo(() => (colorMode === "yfield" && yLayerChoice && yFieldName ? fieldColouring(yLayerChoice, yFieldName, { layers: store.layers, customLayers: store.customLayers }) : null), [colorMode, yLayerChoice, yFieldName, store.layers, store.customLayers]);
   const colorBy = useMemo(() => { const fn = (sample) => {
     if (colorMode === "uniform") return "#4a9be0";
+    if (colorMode === "yfield") return yColouring ? yColouring.colourOf(sample) : holeColors[sample.hole_id] || "#55606e"; // #3585 — without a Y layer field (another diagram): by hole
     if (colorMode === "hole") return holeColors[sample.hole_id] || "#55606e";
     if (colorMode === "lithology") return lithColors[sampleLith.get(sourceRow(sample)) ?? NOT_LOGGED] || "#b8bec7"; // sourceRow: #2942
     if (colorMode === "element" && colorEl) {
@@ -353,7 +363,7 @@ export default function GeochemModule() {
   };
   // with colour by element, the plot draws low values first and high values on top
   fn.rank = colorMode === "element" && colorEl ? (sample) => valueIn(sample, colorEl, colorUnit, elementUnits) ?? -Infinity : null;
-  return fn; }, [colorMode, colorEl, colorUnit, holeColors, lithColors, sampleLith, colorRange, elementUnits]);
+  return fn; }, [colorMode, colorEl, colorUnit, holeColors, lithColors, sampleLith, colorRange, elementUnits, yColouring]);
 
   // TASKS.csv #3577 — the least-squares line (over the samples the statistics line counts), drawn across the plot's X range as the 1:1 line is
   const xyDiagFit = useMemo(() => {
@@ -1285,8 +1295,9 @@ export default function GeochemModule() {
     const keyItems = colorMode === "hole" ? [...new Set(plotted.map((a) => a.hole_id))].map((h) => ({ label: String(h), color: holeColors[h] || "#55606e", shape: "dot" }))
       : colorMode === "lithology" ? lithCounts.filter(([k]) => !lithFilter || lithFilter.has(k)).map(([k]) => ({ label: k === NOT_LOGGED ? "no code logged" /* #2510 */ : String(k), color: lithColors[k] || "#b8bec7", shape: "dot" }))
       : colorMode === "element" && colorRange ? elementKey().map(({ v, color }) => ({ label: `${+v.toPrecision(3)} ${colorUnit}`, color, shape: "dot" }))
+      : colorMode === "yfield" && yColouring ? yColouring.values.map((v) => ({ label: v, color: yColouring.colours.get(v), shape: "dot" })) /* #3585 */
       : [];
-    const keyTitle = colorMode === "hole" ? "Hole" : colorMode === "lithology" ? "Lithology" : colorMode === "element" ? `${colorEl} (${colorRange?.log ? "log" : "linear"} scale)` : "";
+    const keyTitle = colorMode === "yfield" && yColouring ? `${yLayerChoice?.label || "Y layer"} › ${yColouring.field}` /* #3585 */ : colorMode === "hole" ? "Hole" : colorMode === "lithology" ? "Lithology" : colorMode === "element" ? `${colorEl} (${colorRange?.log ? "log" : "linear"} scale)` : "";
     const pdx = partialDigestionFor(assayElements, diagram.requires); // #1518 — the warning travels with the exported figure
     return geochemFurniture({ title: diagram.label, caption: (carbonateNote ? `${carbonateNote} ` : "") + (volcanicNote ? `${volcanicNote} ` : "") /* #2911 */ + (anhydrousOn ? `${tr("Major oxides recalculated to 100 % volatile-free.")} ` : "") /* #2942 */ + (pdx.length ? `${diagram.caption} ${tr("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pdx.map(([s, m]) => `${s} ${m}`).join(", ") })}` : diagram.caption), plotted: n, total: assays.length, spider: !!diagram.spider, hidden: lithFilter ? assays.length - plotted.length : null, keyTitle, keyItems, date: new Date().toISOString().slice(0, 10), censored: censoredCount }); // #1017 — in lib, tested; censored: #2018
   };
@@ -1503,6 +1514,13 @@ export default function GeochemModule() {
                   </select>
                 </label>
               ))}
+              {[["X", xyScaleX, setXyScaleX], ["Y", xyScaleY, setXyScaleY]].map(([axis, value, set]) => ( /* TASKS.csv #3585 — log / linear per axis: a grade axis went log whenever its values spanned a decade, with nothing to turn it off */
+                <label key={`scale${axis}`} style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{tr("{axis} scale", { axis })}
+                  <select aria-label={tr("{axis} axis scale", { axis })} value={value} onChange={(e) => set(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
+                    {AXIS_SCALES.map((k) => <option key={k} value={k}>{k === "auto" ? tr("auto") : k === "log" ? tr("log") : tr("linear")}</option>)}
+                  </select>
+                </label>
+              ))}
               {/* TASKS.csv #2353 — a 1:1 line and the numbers a log-against-assay check reads */}
               <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }}><input type="checkbox" checked={!!xyOne} onChange={(e) => setXyOne(e.target.checked)} />{tr("1:1 line")}</label>
               <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{tr("Statistics where X ≥")}<input type="number" step="any" value={xyMin} onChange={(e) => setXyMin(e.target.value)} aria-label={tr("Statistics where X is at least")} style={{ ...selectStyle, width: 80, padding: "4px 6px" }} /></label>
@@ -1543,8 +1561,19 @@ export default function GeochemModule() {
               <option value="hole">{tr("by hole")}</option>
               <option value="element">{tr("by element")}</option>
               <option value="lithology" disabled={!hasLithLog}>{tr("by logged lithology")}</option>
+              <option value="yfield" disabled={!yFields.length}>{tr("by a field of the Y layer")}</option>{/* TASKS.csv #3585 */}
               <option value="uniform">{tr("uniform")}</option>
             </select>
+            {colorMode === "yfield" && yFields.length > 0 && (
+              <select aria-label={tr("Y layer field to colour by")} value={yFieldName} onChange={(e) => setColorField(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
+                {yFields.map((f) => <option key={f.field} value={f.field}>{f.field}</option>)}
+              </select>
+            )}
+            {colorMode === "yfield" && yColouring && (
+              <span style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontSize: "var(--font-size-xs)", color: "#55606e" }}>
+                {yColouring.values.map((v) => <span key={v} style={{ display: "flex", alignItems: "center", gap: 3 }}><span style={{ width: 9, height: 9, borderRadius: 5, background: yColouring.colours.get(v), border: "1px solid rgba(0,0,0,0.15)" }} />{v}</span>)}
+              </span>
+            )}
             {colorMode === "element" && (
               <select value={colorEl || ""} onChange={(e) => setColorElement(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
                 {assayElements.map((el) => <option key={el.symbol} value={el.symbol}>{el.symbol}</option>)}

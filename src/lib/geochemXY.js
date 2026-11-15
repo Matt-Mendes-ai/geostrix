@@ -67,16 +67,24 @@ export function xyDiagram(xAxis, yAxis, samples, units, opts = {}) {
   for (const s of samples || []) { const x = xAxis.value(s, units), y = yAxis.value(s, units); if (Number.isFinite(x) && Number.isFinite(y)) { xs.push(x); ys.push(y); } }
   // TASKS.csv #2203 (review #2174) — a grade axis started at a -0.0217 g/t tick and an RQD axis ran past 100 %: a linear axis of values that
   // are never negative stops at 0, a percentage at 100; an element whose positive values span a decade or more is drawn on a log axis
-  const fit = (v, axis) => {
+  // TASKS.csv #3585 — scale: 'auto' (the rule above), 'log' or 'linear' per axis. 'log' draws only the positive values (zeros and negatives are not on a log axis
+  // and are left off, as the auto log axis already leaves them); 'linear' keeps a decade-wide grade axis linear.
+  const fit = (v, axis, scale = "auto") => {
     if (!v.length) return { range: [0, 1], log: false };
     let lo = Infinity, hi = -Infinity; for (const a of v) { if (a < lo) lo = a; if (a > hi) hi = a; }
-    const log = lo > 0 && hi / lo >= (axis?.element ? 10 : 100);
+    let log = lo > 0 && hi / lo >= (axis?.element ? 10 : 100);
+    if (scale === "linear") log = false;
+    else if (scale === "log") {
+      let plo = Infinity, phi = -Infinity; for (const a of v) if (a > 0) { if (a < plo) plo = a; if (a > phi) phi = a; }
+      if (plo === Infinity) return { range: [0, 1], log: false };
+      return { range: [plo / 1.15, phi * 1.15 > plo / 1.15 ? phi * 1.15 : plo * 2], log: true };
+    }
     if (log) return { range: [lo / 1.15, hi * 1.15], log };
     const pad = (hi - lo) * 0.06 || Math.abs(hi) * 0.1 || 1;
     const pct = /^%|^pct$|percent/i.test(String(axis?.unit || "").trim()) || /%\)$/.test(String(axis?.label || ""));
     return { range: [lo >= 0 ? Math.max(0, lo - pad) : lo - pad, pct && hi <= 100 ? Math.min(100, hi + pad) : hi + pad], log };
   };
-  const fx = fit(xs, xAxis), fy = fit(ys, yAxis);
+  const fx = fit(xs, xAxis, opts.scaleX), fy = fit(ys, yAxis, opts.scaleY);
   return {
     id: "xy", label: "X–Y scatter (choose the axes)", requires: [],
     caption: "Any two axes: assay elements, or a downhole log / custom-layer field averaged over each sample's interval in the same hole (length-weighted).",
