@@ -239,6 +239,7 @@ import { useModellingSimple } from "./viewer/useModellingSimple.js"; // TASKS.cs
 import CollarSizeControl from "./viewer/CollarSizeControl.jsx"; // #2823 — Matt: the size beside the Collars switch
 import { useBuildDefer } from "../lib/viewer/buildDefer.js"; // #1500
 import { lazyTip } from "../lib/viewer/lazyTip.js"; // #1500
+import { useSavedCamera, applySavedCamera } from "./viewer/savedCamera.js"; // #3624
 import MiddleName from "../components/MiddleName.jsx"; // #2852
 import { partChoices, boundaryPart } from "../lib/boundaryParts.js"; // TASKS.csv #3234
 const IdentifyPanel = React.lazy(() => import("../components/IdentifyPanel.jsx"));
@@ -1495,6 +1496,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const lastHydratedSeq = useRef(-1);
   const [hydratedFor, setHydratedFor] = useState(-1); // #1656 — the project the local UI state below was read from
   const baselineFor = useRef(-1);
+  const [savedCamera, setSavedCamera] = useState(null); // #3624 — the camera as saved with the project; useSavedCamera keeps it current, the one writer below puts it in viewerUiState
+  useSavedCamera(camState, hydratedFor === viewerUiStateSeq, setSavedCamera);
   useEffect(() => {
     if (viewerUiStateSeq === lastHydratedSeq.current) return;
     lastHydratedSeq.current = viewerUiStateSeq;
@@ -1508,6 +1511,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       cameraRef.current?.__update?.();
     }
     const s = viewerUiState;
+    setSavedCamera(s?.camera || null); if (s?.camera) applySavedCamera(s.camera, camState, cameraRef, hasAutoFitRef); // #3624
     if (!s) {
       // New project (or an older save with no saved UI state) — reset to defaults rather than
       // leaving stale filters/visibility from whatever was open before.
@@ -1520,7 +1524,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       setHoleLabelMode("none");
       setFigureOverlay({ ...DEFAULT_FIGURE_OVERLAY }); // TASKS.csv #311
       setLayerStyles({}); // #635
-      setModelArea("all"); // #2535
+      setModelArea("all"); setHoleFilter(""); // #2535; #3624
       return;
     }
     if (s.layerVisible) setLayerVisible({ ...DEFAULT_LAYER_VISIBLE, ...s.layerVisible });
@@ -1544,6 +1548,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     setFigureOverlay({ ...DEFAULT_FIGURE_OVERLAY, ...(s.figureOverlay || {}) });
     setLayerStyles(s.layerStyles || {}); // #635
     setModelArea(s.modelArea === "checked" ? "checked" : "all"); // #2535 — saved with the project
+    setHoleFilter(s.holeFilter || ""); // #3624
   }, [viewerUiStateSeq, viewerUiState, lastCamState]);
 
   // Push local UI state up to the store on every relevant change, so it's captured whenever
@@ -1566,11 +1571,12 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       holeLabelMode,
       figureOverlay, // TASKS.csv #311
       layerStyles, // TASKS.csv #635
+      holeFilter, camera: savedCamera, // #3624 — the rule that made the checks; the camera
       modelArea, // #2535
     };
     setViewerUiState(ui);
     if (baselineFor.current !== hydratedFor) { baselineFor.current = hydratedFor; markViewerUiBaseline?.(ui, hydratedFor); } // #1656 — this project's own styling
-  }, [hydratedFor, viewerUiStateSeq, layerVisible, categoryFilter, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, assaySource, gridConfig, bgColor, holeLabelMode, figureOverlay, layerStyles, setViewerUiState, markViewerUiBaseline, modelArea]);
+  }, [hydratedFor, viewerUiStateSeq, layerVisible, categoryFilter, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, assaySource, gridConfig, bgColor, holeLabelMode, figureOverlay, layerStyles, setViewerUiState, markViewerUiBaseline, modelArea, holeFilter, savedCamera]);
 
   // Applies bgColor to the live three.js scene whenever it changes — separate from the push-to-store
   // effect above since this one needs sceneRef.current (set up in the big scene-setup effect further
@@ -2386,7 +2392,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   }, [fitBox]);
   const fitView = useCallback((traces) => { const box = new THREE.Box3(); traces.forEach((pts) => pts.forEach((p) => box.expandByPoint(new THREE.Vector3(p.x, p.y, p.z)))); fitBox(box); }, [fitBox]);
   // TASKS.csv #1319 — Matt: "have the project open at a zoom level to include all holes" (models only in a project with no holes; was #313's clamp)
-  const autoFitInitial = useCallback((traces, nHoles) => { fitView(nHoles ? traces.slice(0, nHoles) : traces); }, [fitView]);
+  const autoFitInitial = useCallback((traces, nHoles) => { fitView(shownTraces() || (nHoles ? traces.slice(0, nHoles) : traces)); }, [fitView]); // #3624 — a filter's holes, not the field
   const zoomToLayer = useCallback((key) => {
     const group = layerGroupsRef.current[key];
     if (!group || !group.children.length) { setNotices((p) => [...p, notice(!collars.length && layers[key]?.length ? "{v}: not drawn, its holes have no collars." : "{v}: nothing rendered to zoom to.", { v: LAYER_META[key]?.label || key })]); return; } // #1813
