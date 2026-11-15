@@ -29,7 +29,8 @@ test("groundNotBelowSamples: raised to a margin over the samples within reach, u
 test("wiring: the grade shell and the alteration envelope raise the collar surface over their samples (never a terrain)", () => {
   const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
   assert.match(s, /const gsLift = gsGround\?\.kind === "collars" \? \(await import\("\.\.\/\.\.\/lib\/groundNotBelowSamples\.js"\)\)\.groundNotBelowSamples\(groundAtInFrame\(gsGround\), points, /);
-  assert.match(s, /groundCappedGrid\(g, numericCutoff, gsLift \? gsLift\.at : groundAtInFrame\(gsGround\), gsRealOf\)/);
+  assert.match(s, /const gsGroundAt = gsLift \? gsLift\.at : groundAtInFrame\(gsGround\);/); // #3580 (b): one ground for the window's cut and the worker's columns
+  assert.match(s, /groundCappedGrid\(g, numericCutoff, gsGroundAt, gsRealOf\)/);
   assert.match(s, /const altLift = altGround\?\.kind === "collars" \? \(await import\("\.\.\/\.\.\/lib\/groundNotBelowSamples\.js"\)\)\.groundNotBelowSamples\(groundAtInFrame\(altGround, o\), pts, /);
   assert.match(s, /groundCappedGrid\(grid, iso, altLift \? altLift\.at : groundAtInFrame\(altGround, o\), /);
   assert.match(s, /level: inShell\.inside \* 2 < inShell\.above \? "error" : "info"/, "a shell missing most of its composites says so in an error notice");

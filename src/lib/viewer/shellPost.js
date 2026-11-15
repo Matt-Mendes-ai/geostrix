@@ -1,0 +1,56 @@
+// TASKS.csv #3580 (b) (Main: "the cut, marching cubes and counts in the worker") — after the estimate, the grade shell cut its grid at the ground,
+// drew the iso-surface and counted on the WINDOW's thread: at 20 million blocks on Macpass ~8 s of frozen window (cut 2.8, marching cubes 4.2,
+// beyond-drilling 0.7), ~17 s at 50 million. The worker does it now, right after the estimate, and hands back the mesh and the counts, not the
+// grid (its values never cross back). The ground comes looked up once per column of the grid's lattice (groundColumns, in the window, in slices):
+// a function cannot cross to a worker, and with no trend the ground depends on x and y only. A trend-warped shell keeps the window's path.
+//
+// shellPost(grid, post) — post: { iso, closeOutside, ground: Float64Array(nx * ny) | null, inShellPoints: [{ x, y, z, value }] (the box's samples at
+// or above the iso), farPoints: [{ x, y, z }] | null, farDist } -> { positions: Float64Array (x y z per vertex, the grid's frame), faces: Uint32Array,
+// closingVertices, skippedCubes, vertexSupport: Uint8Array (0 / 1 / 2, 255 = none), capped, inShell, far: { inside, far } | null, sum, n, hi }
+import { marchingCubes } from "../marchingCubes.js";
+import { capFieldAtColumns, sumInsideShell } from "../groundCap.js";
+import { samplesInsideShell } from "../shellSupport.js";
+import { farFromSamples } from "../haloSupport.js";
+import { gridShape } from "../blockReach.js";
+
+export function shellPost(grid, post) {
+  const { nx, ny, nz, origin, cellSize } = grid, iso = post.iso;
+  const cut = post.ground ? capFieldAtColumns(grid.values, nx, ny, nz, origin, cellSize, iso, post.ground) : { values: grid.values, capped: 0 };
+  const mc = marchingCubes(cut.values, nx, ny, nz, iso, { origin, spacing: cellSize, noData: post.closeOutside ? "outside" : "skip" });
+  const nv = mc.vertices.length, positions = new Float64Array(nv * 3) /* world coordinates: Float32 keeps a northing of 7,004,000 only to ~0.5 m */, faces = new Uint32Array(mc.faces.length * 3), vertexSupport = new Uint8Array(nv).fill(255);
+  const clampI = (n, hi) => (n < 0 ? 0 : n > hi ? hi : n);
+  mc.vertices.forEach((v, i) => {
+    positions[i * 3] = v[0]; positions[i * 3 + 1] = v[1]; positions[i * 3 + 2] = v[2];
+    if (grid.supportCode) { // the nearest grid node's class, as the window did (#91)
+      const gx = clampI(Math.round((v[0] - origin.x) / cellSize.dx), nx - 1), gy = clampI(Math.round((v[1] - origin.y) / cellSize.dy), ny - 1), gz = clampI(Math.round((v[2] - origin.z) / cellSize.dz), nz - 1);
+      vertexSupport[i] = grid.supportCode[gx + nx * (gy + ny * gz)];
+    }
+  });
+  mc.faces.forEach((f, i) => { faces[i * 3] = f[0]; faces[i * 3 + 1] = f[1]; faces[i * 3 + 2] = f[2]; });
+  const inShell = samplesInsideShell(post.inShellPoints || [], grid, cut.values, iso);
+  const far = post.farPoints && post.farDist > 0 ? farFromSamples(cut.values, nx, ny, nz, origin, cellSize, iso, post.farPoints, post.farDist, {}) : null;
+  const { sum, n } = sumInsideShell(grid.values, cut.values, iso);
+  let hi = -Infinity; for (const v of grid.values) if (Number.isFinite(v) && v > hi) hi = v;
+  return { positions, faces, closingVertices: mc.closingVertices || 0, skippedCubes: mc.skippedCubes || 0, vertexSupport, capped: cut.capped, inShell, far: far ? { inside: far.inside, far: far.far } : null, sum, n, hi };
+}
+
+// the ground per column of the lattice a dense grid over `bounds` at `cellSize` will have (estimation.js: gridShape, origin at the lower bound plus
+// half a cell), in slices of `slice` columns with the window painting between them. groundAt(x, y) -> elevation or NaN. -> Float64Array(nx * ny)
+export async function groundColumns(groundAt, bounds, cellSize, { slice = 20000, pause = () => new Promise((r) => setTimeout(r, 0)) } = {}) {
+  const { dx, dy, nx, ny } = gridShape(bounds, cellSize), ox = bounds.xmin + 0.5 * dx, oy = bounds.ymin + 0.5 * dy;
+  const G = new Float64Array(nx * ny);
+  for (let at = 0; at < nx * ny; at++) {
+    const i = at % nx, j = (at - i) / nx;
+    G[at] = groundAt(ox + i * dx, oy + j * dy);
+    if (at % slice === slice - 1) await pause();
+  }
+  return G;
+}
+
+// the worker's mesh in the shape the window's code reads (marchingCubes': vertices [[x, y, z]], faces [[a, b, c]]); a shell mesh is small
+export function meshOfPost(post) {
+  const P = post.positions, F = post.faces, vertices = new Array(P.length / 3), faces = new Array(F.length / 3);
+  for (let i = 0; i < vertices.length; i++) vertices[i] = [P[3 * i], P[3 * i + 1], P[3 * i + 2]];
+  for (let i = 0; i < faces.length; i++) faces[i] = [F[3 * i], F[3 * i + 1], F[3 * i + 2]];
+  return { vertices, faces, closingVertices: post.closingVertices, skippedCubes: post.skippedCubes };
+}

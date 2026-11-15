@@ -27,6 +27,8 @@ export function runEstimation(kind, points, opts, { onProgress, signal, checkOnl
     const inline = () => import("./estimation.js").then((m) => {
       if (signal?.aborted) throw cancelledError();
       const fn = kind === "dense" ? m.estimateDenseGrid : m.estimateBlockModel;
+      // #3580 (b) — no worker: the shell's post-process here, the same result as the worker's
+      if (kind === "dense" && opts.post) return import("./viewer/shellPost.js").then(({ shellPost }) => { const g = fn(points, { ...opts, onProgress }); const { values: _v, supportCode: _c, supportIndex: _i, ...rest } = g; return { ...rest, post: shellPost(g, { ...opts.post, inShellPoints: opts.post.inShellPoints || [], farPoints: opts.post.farPoints || null }) }; });
       return (checkOnly || opts.members) && kind !== "dense" ? withCells(fn(points, { ...opts, onProgress, columns: true }), { checkOnly }) : fn(points, { ...opts, onProgress }); // #3060; members (columns only): #3163
     }).then(resolve, reject);
     let worker;
@@ -64,6 +66,8 @@ export function runEstimation(kind, points, opts, { onProgress, signal, checkOnl
     (async () => {
       const packed = await packPointsSliced(points, { signal });
       const send = { ...opts }, packedOpts = {};
+      // #3580 (b) — the shell post-process's points as columns too
+      if (opts.post) { send.post = { ...opts.post }; delete send.post.inShellPoints; delete send.post.farPoints; if (opts.post.inShellPoints?.length) packedOpts.postIn = await packPointsSliced(opts.post.inShellPoints, { signal }); if (opts.post.farPoints?.length) packedOpts.postFar = await packPointsSliced(opts.post.farPoints, { signal }); }
       if (opts.unsampledPoints?.length) { packedOpts.unsampledPoints = await packPointsSliced(opts.unsampledPoints, { signal }); delete send.unsampledPoints; }
       if (opts.members?.unsampled?.some((u) => u?.length)) {
         packedOpts.memberUnsampled = [];

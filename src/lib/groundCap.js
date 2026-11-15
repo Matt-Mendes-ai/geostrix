@@ -30,16 +30,7 @@ export function capFieldAtGround(values, nx, ny, nz, origin, spacing, iso, groun
   if (!toReal) {
     const G = new Float64Array(nx * ny);
     for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) G[i + nx * j] = groundAt(origin.x + i * dx, origin.y + j * dy);
-    for (let k = 0; k < nz; k++) {
-      const z = origin.z + k * dz;
-      for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
-        const g = G[i + nx * j];
-        if (!Number.isFinite(g)) continue;
-        const at = i + nx * (j + ny * k), cap = iso + s * (g - z), v = out[at];
-        if (Number.isFinite(v) ? v > cap : z > g) { out[at] = cap; capped++; }
-      }
-    }
-    return { values: out, capped };
+    return capFieldAtColumns(values, nx, ny, nz, origin, spacing, iso, G, { out, s });
   }
   const p = { x: 0, y: 0, z: 0 };
   for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
@@ -49,6 +40,25 @@ export function capFieldAtGround(values, nx, ny, nz, origin, spacing, iso, groun
     if (!Number.isFinite(g)) continue;
     const at = i + nx * (j + ny * k), cap = iso + s * (g - r.z), v = out[at];
     if (Number.isFinite(v) ? v > cap : r.z > g) { out[at] = cap; capped++; }
+  }
+  return { values: out, capped };
+}
+
+// TASKS.csv #3580 (b) — the same cut with the ground already looked up per column (G[i + nx * j], NaN = no cut there): the grade shell's worker
+// gets G from the window (lib/viewer/shellPost.js) and cuts its grid there. out / s: capFieldAtGround's copy and slope, when it calls this.
+export function capFieldAtColumns(values, nx, ny, nz, origin, spacing, iso, G, { out = null, s = null } = {}) {
+  const dx = spacing.x ?? spacing.dx, dy = spacing.y ?? spacing.dy, dz = spacing.z ?? spacing.dz;
+  if (s == null) { let vmax = -Infinity; for (let i = 0; i < values.length; i++) if (values[i] > vmax) vmax = values[i]; s = Math.max(vmax - iso, Math.abs(iso) * 0.01, 1e-9) / Math.max(dx, dy, dz); }
+  if (!out) out = Float32Array.from(values);
+  let capped = 0;
+  for (let k = 0; k < nz; k++) {
+    const z = origin.z + k * dz;
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      const g = G[i + nx * j];
+      if (!Number.isFinite(g)) continue;
+      const at = i + nx * (j + ny * k), cap = iso + s * (g - z), v = out[at];
+      if (Number.isFinite(v) ? v > cap : z > g) { out[at] = cap; capped++; }
+    }
   }
   return { values: out, capped };
 }
