@@ -11,6 +11,7 @@ import * as THREE from "three";
 import { lodRoot, lodMaxLevel, tileBox, tilePixelM, lodSourceKey, tileKey, TILE_PX } from "../lodTiles.js";
 import { terrainDrapeGeometry } from "./sceneBuilders.js";
 import { terrainMeshElevation } from "./terrainDrape.js";
+import { lodBudget, cameraHash } from "./lodBudget.js"; // TASKS.csv #3252 — the budget follows the frame time
 
 export const SCENE_MAX_TILES = 96; // 96 x 256 KB of texture (with mipmaps about 33 MB of GPU memory) at most per view
 export const SPLIT_RATIO = 1.5; // a tile pixel over 1.5 screen pixels: split (the doc's 'about 1.5')
@@ -104,13 +105,13 @@ export function lodTileMesh(terrain, origin, tile, raster, texture) {
 
 // One per 3D View: sync() with the scene's state when rasters / terrain / origin change, tick() from the render loop.
 export function createLodDrape() {
-  let ctx = null, loader = null, loading = false, dirty = true, lastAt = 0, camSig = "";
+  let ctx = null, loader = null, loading = false, dirty = true, lastAt = 0, camSig = "", lastHash = 0, lastFactor = 1;
   const meshes = new Map(); // key -> mesh
-  const st = { tiles: 0, gpuBytes: 0, finestM: null, tickMs: 0, wanted: 0 };
+  const st = { tiles: 0, gpuBytes: 0, finestM: null, tickMs: 0, wanted: 0, budget: 1 };
   globalThis.__geostrixLodStats = st; // read-only numbers, for measuring the tiles live (no data of the project)
   const drop = (key) => { const m = meshes.get(key); if (!m) return; m.parent?.remove(m); for (const c of m.children) c.material?.dispose?.(); m.geometry.dispose(); m.material.map?.dispose(); m.material.dispose(); meshes.delete(key); };
   const dropAll = () => { for (const k of [...meshes.keys()]) drop(k); st.tiles = 0; st.gpuBytes = 0; st.finestM = null; };
-  const rastersOf = (c) => (c?.terrain && c.group ? (c.rasters || []).filter((r) => r.lod && r.bbox && r.drapeMode === "terrain" && r.visible !== false) : []);
+  const rastersOf = (c) => (c?.terrain && c.group && c.enabled !== false /* the 'Detail tiles' switch */ ? (c.rasters || []).filter((r) => r.lod && r.bbox && r.drapeMode === "terrain" && r.visible !== false) : []);
   return {
     sync(next) {
       const o = ctx?.origin, n = next?.origin;
@@ -125,13 +126,15 @@ export function createLodDrape() {
       }
     },
     tick(camera, viewportH) {
+      const now = performance.now(), h = cameraHash(camera);
+      lodBudget.sample(now, h !== lastHash); lastHash = h; // every drawn frame, while the camera moves
       const list = rastersOf(ctx);
       if (!loader || !list.length || !(viewportH > 0)) return;
-      const now = performance.now();
       if (now - lastAt < TICK_MS) return;
       const sig = `${camera.matrixWorld.elements.map((v) => v.toFixed(2)).join(",")}|${camera.projectionMatrix.elements[0].toFixed(4)}|${camera.zoom}|${viewportH}`;
-      if (!dirty && sig === camSig) return;
-      lastAt = now; camSig = sig; dirty = false;
+      const factor = lodBudget.factor();
+      if (!dirty && sig === camSig && factor === lastFactor) return;
+      lastAt = now; camSig = sig; dirty = false; lastFactor = factor;
       const t0 = performance.now();
       const { group, terrain, origin } = ctx, pixelAt = pixelAtFor(camera, viewportH, origin, terrain);
       const wanted = [], draw = new Map();
@@ -139,7 +142,7 @@ export function createLodDrape() {
       for (const r of list) {
         const base = ctx.cache?.[r.id]?.material; // #3509 — the fetched picture draws only where no tile does
         if (base && !base.stencilWrite) { base.stencilWrite = true; base.stencilRef = 1; base.stencilFunc = THREE.NotEqualStencilFunc; base.stencilFail = THREE.KeepStencilOp; base.stencilZFail = THREE.KeepStencilOp; base.stencilZPass = THREE.KeepStencilOp; base.needsUpdate = true; }
-        const chosen = chooseSceneTiles(r, pixelAt);
+        const chosen = chooseSceneTiles(r, pixelAt, { maxTiles: Math.max(8, Math.round(SCENE_MAX_TILES * factor)) }); // the budget: #3252
         if (chosen) { st.maxLevel = chosen.maxLevel; st.wantedMaxZ = chosen.tiles.reduce((m, t) => Math.max(m, t.z), -1); st.nearestPixelM = chosen.tiles.reduce((m, t) => Math.min(m, pixelAt(t.box)), Infinity); }
         if (!chosen || !chosen.tiles.length) continue;
         const src = lodSourceKey(r);
@@ -168,7 +171,7 @@ export function createLodDrape() {
       st.gpuBytes = Math.round((meshes.size * TILE_PX * TILE_PX * 4 * 4) / 3); // RGBA with mipmaps
       st.finestM = null;
       for (const x of meshes.values()) if (st.finestM == null || x.userData.pixelM < st.finestM) st.finestM = x.userData.pixelM; // no Math.min(...spread): #371
-      st.tickMs = performance.now() - t0;
+      st.tickMs = performance.now() - t0; st.budget = factor;
     },
     stats: () => ({ ...st, memoryBytes: loader?.lodMemory?.bytes ?? 0 }),
     // TASKS.csv #3252 phase 3 — the drawn tiles, for the terrain tiles to show on their own surface: [{ key, box, texture, opacity, z, mesh }]

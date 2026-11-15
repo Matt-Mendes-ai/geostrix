@@ -664,7 +664,7 @@ export default function RasterModule({ embedded = false } = {}) {
         {rasters.length === 0 && (
           <div style={{ marginTop: 14, fontSize: "var(--font-size-base)", color: "var(--color-text-muted)" }}>{tr("No rasters imported yet.")}</div>
         )}
-        <LodCacheLine hasLod={rasters.some((r) => r.lod)} />{/* TASKS.csv #3252 */}
+        <LodCacheLine hasLod={rasters.some((r) => r.lod)} rasters={rasters} />{/* TASKS.csv #3252 */}
         {rasters.length > 1 && <div style={{ marginTop: 8, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("The Maps plan draws these in order, the last on top; the arrows on a card move it.")}</div>}{/* #2853 */}
         {rasters.map((r) => (
           <div key={r.id} style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>

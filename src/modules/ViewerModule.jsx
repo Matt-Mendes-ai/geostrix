@@ -215,7 +215,8 @@ import { findOnTraceWorld, findOnTrace, traceLookup, traceOfHole /* #2931 */, po
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
 import { syncDrawLods } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
 import { useLodTiles } from "./viewer/useLodTiles.js"; // TASKS.csv #3252
-import TerrainCard from "./viewer/TerrainCard.jsx"; // the terrain row of Rasters & terrain (moved out at the #1084 cap, #3252)
+import TerrainCard from "./viewer/TerrainCard.jsx";
+import DetailTilesToggle from "./viewer/DetailTilesToggle.jsx"; // #3252 // the terrain row of Rasters & terrain (moved out at the #1084 cap, #3252)
 import { useSurfaceUndo, stashSurface } from "./viewer/surfaceUndo.js"; // TASKS.csv #3494 — Undo / Redo for the model surfaces
 import { useModelling } from "./viewer/useModelling.js";
 import { useUnitSource } from "./viewer/useUnitSource.js"; // TASKS.csv #2378
@@ -6561,7 +6562,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {(rasters.length > 0 || terrain) && (
           <>
             <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Rasters & terrain")}</div>
-            {terrain && <TerrainCard terrain={terrain} updateTerrain={updateTerrain} openRowMenu={openRowMenu} zoomTo={() => zoomToObject(terrainMeshRef.current)} goToModule={goToModule} />}{/* viewer/TerrainCard.jsx (moved out at the #1084 cap) */}
+            {terrain && <TerrainCard terrain={terrain} updateTerrain={updateTerrain} openRowMenu={openRowMenu} zoomTo={() => zoomToObject(terrainMeshRef.current)} goToModule={goToModule} lodTiles={lodTiles} />}{/* viewer/TerrainCard.jsx (moved out at the #1084 cap) */}
             {rasters.map((r) => (<React.Fragment key={r.id}>{/* fragment: #2011 — the legend under the row */}
               <div onContextMenu={(e) => openRowMenu(e, r.name, [
                   { label: r.visible === false ? "Show" : "Hide", onClick: () => updateRaster(r.id, { visible: r.visible === false }) },
@@ -6587,6 +6588,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove raster \"{name}\"?", { name: r.name }))) removeRaster(r.id); }, tr("Remove raster \"{name}\"", { name: r.name }))} />{/* #1088 — confirmed like its menu's Remove… (rasters are not undoable) */}
               </div>
               <RasterLegend raster={r} updateRaster={updateRaster} compact />
+              {r.lod && r.drapeMode === "terrain" && <DetailTilesToggle kind="imagery" on={lodTiles.prefs.imagery} chosen onChange={(v) => lodTiles.setPref("imagery", v)} />}{/* #3252 */}
             </React.Fragment>))}
             <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10 }}>{tr("Managed under Maps: colours, drape and elevation.")}</div>
           </>

@@ -145,7 +145,7 @@ test("wiring: the 3D View ticks the detail tiles each frame and syncs them with 
   assert.match(v, /const lodTiles = useLodTiles\(\{ rasterGroupRef, rasterMeshesRef, terrainGroupRef, terrainMeshRef/);
   const hk = fs.readFileSync(new URL("../src/modules/viewer/useLodTiles.js", import.meta.url), "utf8").replace(/\r\n/g, "\n"); // the wiring moved into a hook at the #1084 cap
   assert.ok(hk.includes('import("../../lib/viewer/lodDrape.js")') && !/^import .*lodDrape\.js/m.test(v) && !/^import .*lodDrape\.js/m.test(hk), "loaded lazily, the first time a raster with a source description is draped: #3509");
-  assert.match(hk, /const ctx = \{ group: refs\.rasterGroupRef\.current, cache: refs\.rasterMeshesRef\.current, rasters, terrain/);
+  assert.match(hk, /const ctx = \{ enabled: prefs\.imagery, group: refs\.rasterGroupRef\.current, cache: refs\.rasterMeshesRef\.current, rasters, terrain/);
   const s = fs.readFileSync(new URL("../src/lib/viewer/sceneBuilders.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(s, /export function terrainDrapeGeometry\(terrain, bbox, \{ cx, cy, oz, base, uvBox = null, near = false \}\)/);
   const ld = fs.readFileSync(new URL("../src/lib/viewer/lodDrape.js", import.meta.url), "utf8");
