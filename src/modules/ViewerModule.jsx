@@ -228,6 +228,7 @@ import { useModelling } from "./viewer/useModelling.js";
 import { useUnitSource } from "./viewer/useUnitSource.js"; // TASKS.csv #2378
 import { wheelZoom } from "./viewer/wheelZoom.js"; // #2368
 import { useDrillLineDefaults } from "./viewer/drillLines.js"; // #2366
+import { sectionTopView, viewCentreEN } from "./viewer/sectionView.js"; // TASKS.csv #3574
 import { pBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704 // TASKS.csv #445 step 2
 import { isMarkedQcRow } from "../lib/qaqcCore.js"; // TASKS.csv #601; qaqcCore: #1345
 import { isAreaBoundary } from "../lib/areaBoundary.js"; // TASKS.csv #1466; #3159: not boundaryImport.js (the vector / CRS import code)
@@ -5227,7 +5228,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     try {
       const { buildShapefileZip } = await import("../lib/shapefile.js"); // #552 — on demand
       const tx = await import("../lib/tiedExport.js"), ex = project?.crsSet === false && !tx.tieOf(project) ? null : await tx.exportCrs(project); if (!ex && project?.crsSet !== false) return; const epsg = ex?.epsg ?? null; // #1021; #2295: no CRS = no .prj; #2322: a tied grid through its tie
-      const zipBytes = buildShapefileZip({ features: tx.featuresToWorld(features, ex?.tie), geomType, epsg, baseName: label, keepFieldCase: !!built, flat: !!built?.flat }); // #1025; #1246 — a map layer keeps its field names
+      const zipBytes = buildShapefileZip({ features: tx.featuresToWorld(features, ex?.tie), geomType, epsg, baseName: label, keepFieldCase: !!built, flat: !!built?.flat, credit: project?.dataCredit /* #3659 */ }); // #1025; #1246 — a map layer keeps its field names
       const res = await saveFile({ quiet: true, // TASKS.csv #576 — awaited: success only when it was written
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.zip`,
         filters: [{ name: "Shapefile (zipped)", extensions: ["zip"] }],
@@ -5248,7 +5249,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     try {
       const tableName = label.replace(/[^a-zA-Z0-9_]+/g, "_") || "layer";
       const tx = await import("../lib/tiedExport.js"), ex = project?.crsSet === false && !tx.tieOf(project) ? null : await tx.exportCrs(project); if (!ex && project?.crsSet !== false) return; const epsg = ex?.epsg ?? null; // #1021; #2295: srs -1; #2322: a tied grid through its tie
-      const gpkgBytes = await (await loadGpkg()).buildGeoPackage([{ name: tableName, features: tx.featuresToWorld(features, ex?.tie), geomType, epsg }]); // #439 lazy
+      const gpkgBytes = await (await loadGpkg()).buildGeoPackage([{ name: tableName, features: tx.featuresToWorld(features, ex?.tie), geomType, epsg, credit: project?.dataCredit /* #3659 */ }]); // #439 lazy
       const res = await saveFile({ quiet: true, // TASKS.csv #576 — awaited: success only when it was written
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.gpkg`,
         filters: [{ name: "GeoPackage", extensions: ["gpkg"] }],
@@ -5892,7 +5893,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     legendItems.sort((a, b) => a[0].localeCompare(b[0]));
     // TASKS.csv #2669 — the custom layers drawn on the section (a strat-unit ribbon, a gamma log): their classes, or their ramp
     legendItems.push(...sectionCustomLegendItems(customLayers, new Set([...intervals, ...points].map((r) => String(r.layer || "")).filter((k) => k.startsWith("custom:")).map((k) => k.slice(7))), layerStyles));
-    { const nk = ["sg", "geotech", "recovery", "magsusc"].filter((k) => intervals.some((r) => r.layer === k) || points.some((r) => r.layer === k)); if (nk.length) legendItems.push(...sectionNumericLegendItems(numericLayerLegendGroups({ keys: nk, layers, layerVisible: Object.fromEntries(nk.map((k) => [k, true])), isRowVisible, colorOf: numericLayerColor, symbology: numericSymbology, clips: numericClip }))); } // TASKS.csv #3377 / #3413 — the numeric ribbons' keys (SG, RQD %, recovery, mag susc), as the 3D legend's
+    { const nk = ["sg", "geotech", "recovery", "magsusc"].filter((k) => intervals.some((r) => r.layer === k) || points.some((r) => r.layer === k)); if (nk.length) legendItems.push(...sectionNumericLegendItems(numericLayerLegendGroups({ keys: nk, layers, layerVisible: Object.fromEntries(nk.map((k) => [k, true])), isRowVisible, colorOf: numericLayerColor, symbology: numericSymbology, clips: numericClip, fieldColours: false /* #3553 */ }))); } // TASKS.csv #3377 / #3413 — the numeric ribbons' keys (SG, RQD %, recovery, mag susc), as the 3D legend's
 
     // TASKS.csv #357 — model surfaces and imported solids ON the section. Every visible implicit/solid mesh
     // is cut by the vertical section plane (per-triangle sign test, once per section): the geologist can
@@ -6054,8 +6055,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         if (bx.isEmpty()) { setNotices((p) => [...p, notice("Enter a centre easting and northing — there are no drillholes to centre the section on.")]); return; }
         const c = bx.getCenter(new THREE.Vector3()); e = c.x + o.x; n = o.y - c.z;
       } else {
-      const xs = ts.flatMap((t) => t.wx), ys = ts.flatMap((t) => t.wy);
-      e = lineCentre?.x ?? (arrMin(xs) + arrMax(xs)) / 2; n = lineCentre?.y ?? (arrMin(ys) + arrMax(ys)) / 2; // #2366 the median collar
+      const xs = ts.flatMap((t) => t.wx), ys = ts.flatMap((t) => t.wy), vc = viewCentreEN(camState.current, originRef.current); // vc: #3574 — the view's centre first
+      e = vc?.e ?? lineCentre?.x ?? (arrMin(xs) + arrMax(xs)) / 2; n = vc?.n ?? lineCentre?.y ?? (arrMin(ys) + arrMax(ys)) / 2; // #2366 the median collar
       }
     }
     const g = sectionFromCentre({ e, n, azimuth: Number(typedSection.azimuth) || 0, length: Number(typedSection.length) || 500 });
@@ -6150,7 +6151,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           onSnapshot={snapshotToLayout} snapshotDisabled={!dataLoaded} exportDisabled={!collars.length} /* #1803 — drillhole exports need holes */
           onExportHoles={(e) => { const r = e.currentTarget.getBoundingClientRect(); setLayerContextMenu({ key: "__drillholes__", label: tr("Export drillholes"), x: Math.max(8, Math.min(r.left, window.innerWidth - 320)), y: r.bottom + 4 }); }} /* #1085 */
           sectionMode={sectionMode}
-          onToggleSection={() => { setRectZoomMode(false); setMeasureMode(null); setMeasurePts([]); setSectionMode((s) => !s); sectionPts.current = []; setSectionPreview(null); }}
+          onToggleSection={() => { setRectZoomMode(false); setMeasureMode(null); setMeasurePts([]); if (!sectionMode) sectionTopView(camState.current, cameraRef.current, setNotices); /* #3574 */ setSectionMode((s) => !s); sectionPts.current = []; setSectionPreview(null); }}
           sectionCorridor={sectionCorridor} setSectionCorridor={setSectionCorridor}
           identifyOn={identify.on} onToggleIdentify={toggleIdentify}
           measureMode={measureMode} onToggleMeasure={toggleMeasureOnOff} onSwitchMeasureMode={switchMeasureMode} measurePts={measurePts} clearMeasure={clearMeasure}
@@ -6249,8 +6250,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {paneHeader("Section by coordinates", Crosshair, "section")}
         {/* TASKS.csv #393 — a section typed as numbers (blank centre = centre of the drilling) */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)" }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Centre E")}<input value={typedSection.e} placeholder={tr("data centre")} onChange={(e) => setTypedSection((s) => ({ ...s, e: e.target.value.replace(/[^0-9.\-]/g, "") }))} style={typedSectionInput} aria-label={tr("Section centre easting")} /></label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Centre N")}<input value={typedSection.n} placeholder={tr("data centre")} onChange={(e) => setTypedSection((s) => ({ ...s, n: e.target.value.replace(/[^0-9.\-]/g, "") }))} style={typedSectionInput} aria-label={tr("Section centre northing")} /></label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Centre E")}<input value={typedSection.e} placeholder={tr("view centre") /* #3574 */} onChange={(e) => setTypedSection((s) => ({ ...s, e: e.target.value.replace(/[^0-9.\-]/g, "") }))} style={typedSectionInput} aria-label={tr("Section centre easting")} /></label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Centre N")}<input value={typedSection.n} placeholder={tr("view centre") /* #3574 */} onChange={(e) => setTypedSection((s) => ({ ...s, n: e.target.value.replace(/[^0-9.\-]/g, "") }))} style={typedSectionInput} aria-label={tr("Section centre northing")} /></label>
           <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Azimuth (°)")}<input type="number" min="0" max="360" value={typedSection.azimuth} onChange={(e) => setTypedSection((s) => ({ ...s, azimuth: e.target.value }))} style={typedSectionInput} aria-label={tr("Section azimuth")} /></label>
           <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Length (m)")}<input type="number" min="10" step="50" value={typedSection.length} onChange={(e) => setTypedSection((s) => ({ ...s, length: e.target.value }))} style={typedSectionInput} aria-label={tr("Section length")} /></label>
         </div>

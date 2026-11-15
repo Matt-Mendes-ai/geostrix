@@ -28,11 +28,11 @@ const rest = (r, skip) => Object.fromEntries(Object.entries(r).filter(([k, v]) =
 
 // TASKS.csv #3613 — the collar's own fields (collar.attrs) as one column each, the same columns on every row; #3615 — epsg: the project's CRS as a column, which the importer reads back, so the table set
 // opens with no question
-export function collarTableRows(collars, { epsg = null } = {}) {
+export function collarTableRows(collars, { epsg = null, dataCredit = "" } = {}) { // dataCredit: #3659 — the data owner's credit as a column, so a project rebuilt from these tables gets it back
   const skip = new Set(["hole_id", "x", "y", "z", "azimuth", "dip", "length", "attrs"]);
-  const reserved = ["hole_id", "x", "y", "z", "azim_grid", "dip", "length", "epsg"];
+  const reserved = ["hole_id", "x", "y", "z", "azim_grid", "dip", "length", "epsg", "data_credit"];
   const names = collarAttrNames(collars, reserved), attFrom = (collars || []).some((c) => c?._attFrom);
-  return (collars || []).map((c) => { const pairs = Object.fromEntries(collarAttrPairs(c, reserved)); return { hole_id: c.hole_id, x: cell(c.x), y: cell(c.y), z: cell(c.z), azim_grid: cell(c.azimuth), dip: negDown(c.dip), length: cell(c.length), ...(epsg ? { epsg } : {}), ...(attFrom ? { attitude_from: attFromText(c) } : {}), ...rest(c, skip), ...Object.fromEntries(names.map((n) => [n, cell(pairs[n])])) }; });
+  return (collars || []).map((c) => { const pairs = Object.fromEntries(collarAttrPairs(c, reserved)); return { hole_id: c.hole_id, x: cell(c.x), y: cell(c.y), z: cell(c.z), azim_grid: cell(c.azimuth), dip: negDown(c.dip), length: cell(c.length), ...(epsg ? { epsg } : {}), ...(dataCredit ? { data_credit: dataCredit } : {}), ...(attFrom ? { attitude_from: attFromText(c) } : {}), ...rest(c, skip), ...Object.fromEntries(names.map((n) => [n, cell(pairs[n])])) }; });
 }
 export function surveyTableRows(survey) {
   const skip = new Set(["hole_id", "depth", "azimuth", "dip"]);
@@ -80,19 +80,21 @@ export const customLayerFileName = (name, i) => `custom_${String(name || `layer_
 // TASKS.csv #3614 (Fireweed rehearsal) — the tables were exact but opened badly: four '#' lines (the first a Mineral Resource disclaimer on a collar table) above every header, so an import wizard's
 // first row was not the column names. Each CSV is now clean (row 1 = the column names); the conventions (CRS, dip sign, units, the tool and its version) are one provenance.txt beside them in the zip.
 // A collar, survey or assay table is data, not an estimate: the not-a-resource line is not on it.
-export function drillholeTableFiles({ collars = [], survey = [], layers = {}, customLayers = [], assays = [], assayElements = [], epsg, version }) {
+export function drillholeTableFiles({ collars = [], survey = [], layers = {}, customLayers = [], assays = [], assayElements = [], epsg, version, dataCredit = "" }) { // dataCredit: TASKS.csv #3659
   const files = [], notes = [];
   collars = collarsWithFirstStation(collars, survey); // #3623
   const add = (name, text, note) => { files.push({ name, text }); notes.push(`${name}: ${note}`); };
   const epsgNum = Number.isFinite(Number(epsg)) && Number(epsg) > 0 ? Number(epsg) : null;
-  if (collars.length) add("collars.csv", toExportCsv(collarTableRows(collars, { epsg: epsgNum })), "one row per hole" + (epsgNum ? `; the epsg column is the project CRS (EPSG:${epsgNum}), which the import reads` : "") + "; one column for each of the collar's own fields");
+  if (collars.length) add("collars.csv", toExportCsv(collarTableRows(collars, { epsg: epsgNum, dataCredit })), "one row per hole" + (epsgNum ? `; the epsg column is the project CRS (EPSG:${epsgNum}), which the import reads` : "") + "; one column for each of the collar's own fields");
   if (collars.length) { // TASKS.csv #3635 — a data dictionary of the collar columns beside collars.csv: what each field is, how many holes have it
-    const rows = collarTableRows(collars, { epsg: epsgNum }), cols = [...new Set(rows.flatMap((r) => Object.keys(r)))];
-    const core = { hole_id: "the hole's id", x: "easting (project coordinates)", y: "northing (project coordinates)", z: "collar elevation (m)", azim_grid: "azimuth of the hole, a grid bearing", dip: "dip, negative = down", length: "hole length (m)", epsg: "the project's coordinate system (EPSG code)", attitude_from: "where an azimuth / dip the collar did not carry came from" };
-    const dict = cols.map((c) => {
-      const vals = rows.map((r) => r[c]).filter((v) => v !== "" && v != null), nums = vals.filter((v) => Number.isFinite(Number(v)) && String(v).trim() !== "");
-      const kind = !vals.length ? "empty" : nums.length === vals.length ? "number" : "text";
-      return { field: c, meaning: core[c] || "the hole's own field from the file", type: kind, holes_with_a_value: vals.length, holes: rows.length, distinct_values: new Set(vals.map(String)).size, example: vals.length ? String(vals[0]) : "" };
+    const rows = collarTableRows(collars, { epsg: epsgNum, dataCredit }), cols = [...new Set(rows.flatMap((r) => Object.keys(r)))];
+    const core = { hole_id: "the hole's id", x: "easting (project coordinates)", y: "northing (project coordinates)", z: "collar elevation (m)", azim_grid: "azimuth of the hole, a grid bearing", dip: "dip, negative = down", length: "hole length (m)", epsg: "the project's coordinate system (EPSG code)", attitude_from: "where an azimuth / dip the collar did not carry came from", data_credit: "the data owner's credit (the project's data credit; a re-import restores it)" };
+    const dict = cols.map((c0) => { const c = c0;
+      const vals = rows.map((r) => r[c]).filter((v) => v !== "" && v != null);
+      // the type the Shapefile / GeoPackage give the field: a number only where the value IS a number (a year kept as the text '2023' is text there too, so the dictionary says so)
+      const raw = (collars || []).map((c) => (collarAttrPairs(c, ["hole_id", "x", "y", "z", "azim_grid", "dip", "length", "epsg", "data_credit"]).find(([k]) => k === c0)?.[1])).filter((v) => v !== undefined && v !== "" && v != null);
+      const isCore = ["x", "y", "z", "azim_grid", "dip", "length", "epsg"].includes(c), kind = !vals.length ? "empty" : isCore ? "number" : ["hole_id", "attitude_from", "data_credit"].includes(c) ? "text" : raw.length && raw.every((v) => typeof v === "number") ? "number" : "text";
+      return { field: c0, meaning: core[c] || "the hole's own field from the file", type: kind, holes_with_a_value: vals.length, holes: rows.length, distinct_values: new Set(vals.map(String)).size, example: vals.length ? String(vals[0]) : "" };
     });
     add("collars_fields.csv", toExportCsv(dict), "one row per column of collars.csv: its meaning, type, how many holes have a value and an example");
   }
@@ -115,6 +117,7 @@ export function drillholeTableFiles({ collars = [], survey = [], layers = {}, cu
   if (files.length) {
     const lines = [
       `GeoStrix drillhole tables${version ? ` | GeoStrix ${version}` : ""} | generated ${new Date().toISOString()}`,
+      dataCredit ? `Data credit: ${String(dataCredit).replace(/\s+/g, " ")}` : null, // #3659
       epsg === "unset" ? "Project CRS: not set (the coordinates are the project's own numbers, with no real-world reference)" : epsgNum ? `Project CRS: EPSG:${epsgNum}` : null,
       "Dip: negative = down (import with the default \"Negative = down\"). Azimuths and dip directions: project-grid bearings (import as grid north).",
       "", ...notes,

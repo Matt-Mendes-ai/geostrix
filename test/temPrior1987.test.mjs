@@ -81,3 +81,12 @@ test("#1987 the panel: the table, the two checkboxes with their sd, the station'
   assert.match(p, /tr\("Height \{h\} m ± \{s\} \(the file's \{f\} m\)\."/);
   assert.match(p, /fileH: b\.request\.heights \|\| null/);
 });
+
+test("#3647 the section fades layers whose posterior sd is over the chosen threshold (only when the result carries sd)", () => {
+  const p = readFileSync(new URL("../src/components/TemInvertPanel.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  assert.match(p, /function Section\(\{ stations, result, bottom, onPick, sel, fadeSd = 0 \}\)/);
+  assert.match(p, /ctx\.globalAlpha = fadeSd > 0 && Number\.isFinite\(sd\) && sd > fadeSd \? 0\.25 : 1;/);
+  assert.match(p, /ctx\.globalAlpha = 1;\n\s+ctx\.strokeStyle = "#222"/); // the DOI line is drawn solid
+  assert.match(p, /fadeSd=\{R\.sdLog \? Number\(st\.fadeSd\) \|\| 0 : 0\}/);
+  assert.match(p, /\{R\.sdLog && <div style=\{rowS\}><span>\{tr\("Fade layers more uncertain than"\)\}/);
+});

@@ -101,7 +101,7 @@ test("the exports that write through the tie: catchments GPX / GeoTIFF, the surv
   assert.doesNotMatch(v, /^import .*tiedExport/m);
   assert.match(v, /rigRows\(ex\?\.tie \? tx\.rowsToWorld\(plannedHoles, ex\.tie, \{ points: \["target"\] \}\) : plannedHoles, epsg, today, plannedHoleTrace\)/);
   assert.match(v, /buildShapefileZip\(\{ features: tx\.featuresToWorld\(features, ex\?\.tie\), geomType, epsg,/);
-  assert.match(v, /buildGeoPackage\(\[\{ name: tableName, features: tx\.featuresToWorld\(features, ex\?\.tie\), geomType, epsg \}\]\)/);
+  assert.match(v, /buildGeoPackage\(\[\{ name: tableName, features: tx\.featuresToWorld\(features, ex\?\.tie\), geomType, epsg(, credit: project\?\.dataCredit[^}]*?)? \}\]\)/);
   assert.match(v, /const toLonLat = tx\.lonLatThrough\(ex\.tie, await ox\.lonLatTransform\(epsg\)\);/);
   const d = read("modules/viewer/drillholeExport.js");
   assert.match(d, /const tx = await import\("\.\.\/\.\.\/lib\/tiedExport\.js"\), ex = await tx\.exportCrs\(project\); if \(!ex\) return; const epsg = ex\.epsg;/);

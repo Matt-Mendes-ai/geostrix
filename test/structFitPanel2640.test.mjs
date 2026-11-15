@@ -81,8 +81,48 @@ test("#2640 the pane: a lazy section that reads the last run, vertical moves sai
   assert.match(ip, /<StructFitPanel method=\{method\} unit=\{M\?\.unit \|\| ""\} keptScope=\{keptScope\} prepareForward=\{\(\) => prepare\("structfit"\)\}/);
   assert.match(ip, /if \(kind !== "structfit" && !\(num\(mesh\.coreCell\) >= 1\)\)/); // the model's own grid: no mesh to size
   const sp = readFileSync(new URL("../src/components/StructFitPanel.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.match(sp, /const \{ lastImplicitRequest: record \} = useStore\(\);/);
+  assert.match(sp, /const \{ lastImplicitRequest: record, setLayers, updateGeophysSurvey \} = useStore\(\);/);
   assert.match(sp, /runStructfitJob\(built\.request, \{ signal: ctl\.signal/);
   assert.match(sp, /Points move vertically only\. Points from drillhole contacts are observations and never move\./);
   assert.match(sp, /never the answer\./);
+});
+
+test("#3632 the tested points as a geophysics point survey: log10 sensitivity as the value, the verdict as a column, no-contact points left out", async () => {
+  const { verdictPoints } = await import("../src/lib/structFit.js");
+  const rows = [
+    { surface: "top_B", index: 4, x: 540010.123, y: 4930020.456, z: 950.5, rmsPerM: 0.0286, shiftForOneSigma: 35.04, verdict: "seen" },
+    { surface: "top_C", index: 4, x: 540100, y: 4930100, z: 900, rmsPerM: 0.0007, shiftForOneSigma: 1508, verdict: "not constrained" },
+    { surface: "top_B", index: 5, x: 1, y: 2, z: 3, rmsPerM: 0, shiftForOneSigma: null, verdict: "none" },
+    { surface: "top_B", index: 6, x: NaN, y: 2, z: 3, rmsPerM: 0.1, shiftForOneSigma: 5, verdict: "seen" },
+  ];
+  const pts = verdictPoints(rows, "Gravity · contact sensitivity");
+  assert.equal(pts.length, 2);
+  assert.deepEqual(pts[0], { x: 540010.12, y: 4930020.46, z: 950.5, value: -1.544, surface: "top_B", point: 5, verdict: "seen", shift_for_one_sigma_m: 35.04, _src: "Gravity · contact sensitivity" });
+  assert.equal(pts[1].value, -3.155); assert.equal(pts[1].verdict, "not constrained");
+  assert.deepEqual(verdictPoints(null, "x"), []);
+  const p = readFileSync(new URL("../src/components/StructFitPanel.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  assert.match(p, /updateGeophysSurvey\(name, \{ method: "structfit_sens", units: SURVEY_METHODS\.structfit_sens\.units \}\)/);
+  assert.match(p, /tr\("Show the tested points in the 3D View"\)/);
+});
+
+test("#3632 the 3D View's own point-survey builder draws the verdict points, warm for the seen contact and cool for the unconstrained one, with a tooltip", async () => {
+  const THREE = await import("three");
+  const { syncGeophysPts, geophysTipText } = await import("../src/lib/viewer/geophysPts.js");
+  const { verdictPoints } = await import("../src/lib/structFit.js");
+  const name = "Gravity · contact sensitivity";
+  const rows = verdictPoints([
+    { surface: "top_B", index: 0, x: 540010, y: 4930020, z: 950, rmsPerM: 0.3, shiftForOneSigma: 3, verdict: "seen" },
+    { surface: "top_B", index: 1, x: 540110, y: 4930020, z: 940, rmsPerM: 0.001, shiftForOneSigma: 900, verdict: "not constrained" },
+    { surface: "top_C", index: 0, x: 540210, y: 4930020, z: 900, rmsPerM: 0.02, shiftForOneSigma: 40, verdict: "seen" },
+  ], name);
+  const surveys = { [name]: { method: "structfit_sens", units: "log₁₀ σ per m" } };
+  const g = new THREE.Group(), tips = [];
+  const out = syncGeophysPts(g, rows, { opts: {}, surveys, style: { color: null, opacity: 1, size: 1, shape: "sphere" }, proto: new THREE.SphereGeometry(1, 8, 6), minR: 0.5, origin: { x: 540000, y: 4930000, z: 0 }, tipOf: (row) => { tips.push(geophysTipText(row, surveys)); return tips[tips.length - 1]; } });
+  assert.deepEqual(out.rebuilt, [name]);
+  const inst = g.children.find((c) => c.userData.geophysSurvey === name);
+  assert.equal(inst.count, 3);
+  const c = inst.instanceColor.array, lum = (i) => c[i * 3] + c[i * 3 + 1] + c[i * 3 + 2];
+  assert.notDeepEqual([c[0], c[1], c[2]], [c[3], c[4], c[5]], "the seen and the unconstrained contact differ in colour");
+  assert.ok(Math.abs(lum(0) - lum(1)) > 0.05);
+  assert.match(geophysTipText(rows[0], surveys), /Gravity · contact sensitivity\n.*log₁₀ σ per m/s);
 });

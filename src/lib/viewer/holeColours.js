@@ -3,7 +3,7 @@
 // never a rebuild: it runs again after each rebuild (ViewerModule keys it on tracesSeq), and clearing the field puts the shared
 // collar material and the grey trace back.
 import * as THREE from "three";
-import { CATEGORICAL_SAFE_COLORS } from "../layers.js";
+import { CATEGORICAL_SAFE_COLORS, magColorRGB } from "../layers.js"; // magColorRGB: #3545
 import { pickOnlyMaterial, syncBatchedInstances, eachLayerMember } from "./layerBatches.js";
 import { collarMarkerMaterial } from "./collarMarkerShader.js"; // TASKS.csv #2623
 import { setTraceHoleColour } from "./traceBatch.js"; // TASKS.csv #2176
@@ -11,7 +11,13 @@ import { setTraceHoleColour } from "./traceBatch.js"; // TASKS.csv #2176
 export const NO_VALUE_COLOUR = "#9aa3ad";
 export const TRACE_GREY = 0x445064;
 
-// -> { field, colourOf(collar) -> hex, items: [[value, hex, count]] } or null (no field / no collar has it)
+// TASKS.csv #3545 (#3538, Fireweed rehearsal) — a field of numbers (a year: Macpass's 28 drilling years, 1966-2023) took the categorical palette,
+// whose 16 colours came round twice: 1979 and 2014 alike. Six or more values, all numbers: the 3D view's ramp from the smallest to the largest
+// (ramp: { min, max }), the legend a colour bar; fewer, or any text, stay classes.
+const RAMP_MIN_VALUES = 6;
+const rgbHex = (c) => `#${c.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+
+// -> { field, colourOf(collar) -> hex, items: [[value, hex, count]], ramp: { min, max } | null } or null (no field / no collar has it)
 export function holeColourScheme(collars, field) {
   if (!field) return null;
   const counts = new Map();
@@ -19,11 +25,15 @@ export function holeColourScheme(collars, field) {
   for (const c of collars || []) { const v = String(c?.attrs?.[field] ?? "").trim(); if (v) counts.set(v, (counts.get(v) || 0) + 1); else missing++; }
   if (!counts.size) return null;
   const values = [...counts.keys()].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-  const hex = new Map(values.map((v, i) => [v, CATEGORICAL_SAFE_COLORS[i % CATEGORICAL_SAFE_COLORS.length]]));
+  const nums = values.map(Number), numeric = values.length >= RAMP_MIN_VALUES && nums.every(Number.isFinite);
+  let lo = Infinity, hi = -Infinity;
+  if (numeric) for (const v of nums) { if (v < lo) lo = v; if (v > hi) hi = v; }
+  const hex = new Map(values.map((v, i) => [v, numeric ? rgbHex(magColorRGB(Number(v), lo, hi)) : CATEGORICAL_SAFE_COLORS[i % CATEGORICAL_SAFE_COLORS.length]]));
   return {
     field,
     colourOf: (c) => hex.get(String(c?.attrs?.[field] ?? "").trim()) || NO_VALUE_COLOUR,
     items: [...values.map((v) => [v, hex.get(v), counts.get(v)]), ...(missing ? [[null, NO_VALUE_COLOUR, missing]] : [])],
+    ramp: numeric ? { min: lo, max: hi } : null,
   };
 }
 
@@ -61,5 +71,10 @@ export function applyHoleColours(group, scheme, { collarMaterial, collarsById } 
 // the legend section: "Holes by {field}", one row per value (with its hole count), "(no value)" last
 export function holeColourLegendGroup(scheme, label, noValueLabel) {
   if (!scheme) return null;
+  if (scheme.ramp) { // #3545 — a colour bar from the smallest value to the largest; the holes with no value as a row
+    const { min, max } = scheme.ramp, colors = Array.from({ length: 17 }, (_, i) => rgbHex(magColorRGB(min + (i / 16) * (max - min), min, max)));
+    const none = scheme.items.find(([v]) => v == null);
+    return { key: "hole_colour", label, items: none ? [[`${noValueLabel} (${none[2]})`, none[1]]] : [], ramp: { kind: "ramp", log: false, min, max, minLabel: String(min), maxLabel: String(max), colors, ticks: [] } };
+  }
   return { key: "hole_colour", label, items: scheme.items.map(([v, hex, n]) => [`${v == null ? noValueLabel : v} (${n})`, hex]), counts: scheme.items.map(([, , n]) => n) }; // counts: #2214 — a cut keeps the commonest rows, not "(no value)" last
 }

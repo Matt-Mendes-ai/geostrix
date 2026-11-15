@@ -156,11 +156,12 @@ export function buildProjectKml(ctx, opts) {
   const files = [];
   const counts = { holes: 0, layers: 0, rasters: 0, legends: 0, models: 0, skipped: [] };
   const legendSlots = [];
-  const legend = (group, visible) => {
-    if (!opts.legendPng || !(group?.items?.length || group?.ramp?.colors?.length)) return; // swatches, or a value raster's colour ramp
-    const img = opts.legendPng(group);
+  const legend = (group, visible, picture = null) => {
+    // TASKS.csv #3088 — picture: a picture raster's own attached legend image ({ bytes, ext, width, height }), stacked like a drawn one
+    if (!picture && (!opts.legendPng || !(group?.items?.length || group?.ramp?.colors?.length))) return; // swatches, or a value raster's colour ramp
+    const img = picture || opts.legendPng(group);
     if (!img?.bytes) return;
-    const name = `files/legend_${legendSlots.length}.png`;
+    const name = `files/legend_${legendSlots.length}.${picture?.ext || "png"}`;
     files.push({ name, data: img.bytes });
     // stacked down the left of the screen, in columns of about 640 px
     const prev = legendSlots[legendSlots.length - 1];
@@ -578,13 +579,14 @@ export function buildProjectKml(ctx, opts) {
       w.open(r.name || `Raster ${i + 1}`, { visible: r.visible !== false });
       w.push(`<GroundOverlay><name>${esc(r.name || `Raster ${i + 1}`)}</name><color>${kmlColor("#ffffff", op)}</color><Icon><href>${name}</href></Icon><gx:LatLonQuad><coordinates>${quad}</coordinates></gx:LatLonQuad></GroundOverlay>`);
       if (img.legend) legend(img.legend, r.visible !== false);
+      else if (img.legendImage?.bytes && img.legendImage.width > 0) legend({ label: r.name || `Raster ${i + 1}` }, r.visible !== false, img.legendImage);
       w.close();
     });
     w.close();
   }
 
   const styles = [...w.styles.values()].map((s) => s.xml).join("\n");
-  const desc = `Exported from GeoStrix${opts.crsLabel ? ` (project CRS ${opts.crsLabel})` : ""}. Drillholes are drawn at their elevations, below the ground: untick Terrain in Google Earth's Layers to see them.`;
+  const desc = `Exported from GeoStrix${opts.crsLabel ? ` (project CRS ${opts.crsLabel})` : ""}. Drillholes are drawn at their elevations, below the ground: untick Terrain in Google Earth's Layers to see them.${ctx.dataCredit ? ` Data: ${ctx.dataCredit}` : ""}`; // TASKS.csv #3659 — the data owner's credit leaves with the data
   const kml = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">\n<Document><name>${esc(ctx.projectName || "GeoStrix project")}</name><open>1</open><description>${esc(desc)}</description>\n${styles}\n${w.parts.join("\n")}\n</Document>\n</kml>\n`;
   counts.placemarks = w.placemarks;
   counts.ringsSplit = w.ringsSplit; // rings that crossed themselves as written, split into this many more loops

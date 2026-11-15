@@ -101,6 +101,15 @@ const uncleanExitCheck = oncePerWindow(() => problemReportInfo());
 
 export default function App() {
   const store = useStore();
+  // TASKS.csv #3659 — a project rebuilt from GeoStrix's own exported tables: collars.csv carries the data owner's credit as a data_credit column (one value on every hole); the importer keeps it as a collar field,
+  // and here it becomes the project's data credit again (when the project has none) and leaves the collar fields, so the credit prints on the next figure
+  useEffect(() => {
+    if (store.project?.dataCredit) return;
+    const hit = (store.collars || []).find((c) => c?.attrs && typeof c.attrs.data_credit === "string" && c.attrs.data_credit.trim());
+    if (!hit) return;
+    store.setProjectDataCredit(hit.attrs.data_credit.trim());
+    store.setCollars((cs) => cs.map((c) => { if (!c?.attrs || !("data_credit" in c.attrs)) return c; const { data_credit: _d, ...rest } = c.attrs; return { ...c, attrs: rest }; }));
+  }, [store.collars, store.project?.dataCredit]);
   useEffect(() => { prewarmAdaptiveMesh(store.terrain); }, [store.terrain]); // TASKS.csv #3588 (8) — the 3D View's adaptive terrain mesh built in a worker from the moment the terrain exists, wherever the user is (the viewer's own effect ran only once it was shown)
   const {
     saveProject, openProject, addLayoutImage, requestedModule, moduleRequestSeq, setSectionContacts, setSectionLabels, addPlannedHole,

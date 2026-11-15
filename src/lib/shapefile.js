@@ -406,7 +406,7 @@ export function buildShapefileZip(layer) {
   return buildZip(shapefileZipFiles(layer));
 }
 // TASKS.csv #487 — the zip entries of one layer (several layers can share a zip: Cartography's file tool)
-export function shapefileZipFiles({ features, geomType, epsg, baseName = "export", keepFieldCase = false, flat = false }) {
+export function shapefileZipFiles({ features, geomType, epsg, baseName = "export", keepFieldCase = false, flat = false, credit = "" }) { // credit: TASKS.csv #3659 — the data owner's credit, as a text beside the layer
   if (!features || !features.length) throw new Error(tr("Nothing to export — this layer has no rows with usable coordinates."));
   const columns = Array.from(features.reduce((set, f) => { Object.keys(f.attributes || {}).forEach((k) => set.add(k)); return set; }, new Set()));
   const { shp, shx } = buildShpShx(features, geomType, flat);
@@ -418,6 +418,8 @@ export function shapefileZipFiles({ features, geomType, epsg, baseName = "export
     { name: `${name}.dbf`, data: dbf },
     { name: `${name}.cpg`, data: strBytes("UTF-8") }, // #415 — the .dbf text is UTF-8
   ];
+  if (credit) zipFiles.push({ name: `${name}_CREDIT.txt`, data: strBytes(`${String(credit)}
+`) }); // #3659
   const wkt = prjWktFor(epsg);
   if (wkt) zipFiles.push({ name: `${name}.prj`, data: strBytes(wkt) });
   else if (epsg == null) zipFiles.push({ name: `${name}_READ_ME.txt`, data: strBytes("No .prj: the project's coordinate system was not chosen, so these are the project's own grid coordinates (a local mine grid, perhaps), with no real-world reference. Give the layer its CRS in your GIS if you know it.") }); // TASKS.csv #2295

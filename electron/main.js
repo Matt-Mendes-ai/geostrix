@@ -586,10 +586,21 @@ ipcMain.handle("get-section-data", (ev) => {
   const win = BrowserWindow.fromWebContents(ev.sender);
   return [...sectionTabs].filter(([, w]) => w === win).map(([id]) => sectionPayloads.get(id));
 });
+// TASKS.csv #3574 (2) (Fireweed rehearsal, Macpass) — the section window opened at 1,100 x 720, where a Tom West section's labels were 5 to 6 px
+// high ('Text under 7 px'); enlarged to 1,700 x 1,000 the same section read well. It opens up to 1,700 x 1,050 within 90 % of the screen's work
+// area (never under 900 x 600), or at the size the last section window was left at in this session.
+let lastSectionSize = null;
+function sectionWindowSize() {
+  if (lastSectionSize) return lastSectionSize;
+  try {
+    const { screen } = require("electron");
+    const wa = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workAreaSize;
+    return { width: Math.max(900, Math.min(1700, Math.round(wa.width * 0.9))), height: Math.max(600, Math.min(1050, Math.round(wa.height * 0.9))) };
+  } catch { return { width: 1100, height: 720 }; }
+}
 function createSectionHost(title) {
   const win = new BrowserWindow({
-    width: 1100,
-    height: 720,
+    ...sectionWindowSize(), // #3574
     backgroundColor: "#0c0f14",
     title: title || "Cross-section",
     icon: path.join(__dirname, "../build/icon.png"),
@@ -609,6 +620,7 @@ function createSectionHost(title) {
     },
   });
   sectionHosts.add(win);
+  win.on("resize", () => { if (!win.isMaximized() && !win.isMinimized() && !win.isFullScreen()) { const [width, height] = win.getSize(); lastSectionSize = { width, height }; } }); // #3574
   win.loadURL(resolveUrl("/section"));
   win.on("close", (e) => { if (!mayCloseSections(win, [...sectionTabs].filter(([, w]) => w === win).map(([id]) => id))) e.preventDefault(); }); // #1323
   win.on("closed", () => {

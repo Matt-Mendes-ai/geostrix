@@ -13,7 +13,7 @@ export async function exportDrillholeTablesWith(ctx, kind, key, label) {
     const tx = await import("../../lib/tiedExport.js"), ex = await tx.exportCrs(project); if (!ex) return; const epsg = ex.epsg; // #1021 — the stamp's CRS
     const W = (rows) => tx.rowsToWorld(rows, ex.tie); // #2322 — a tied local grid: collar x / y and the azimuths through its tie (unchanged otherwise)
     if (kind === "all") {
-      const files = T.drillholeTableFiles({ collars: W(collars), survey: W(survey), layers, customLayers, assays, assayElements, epsg, version: APP_VERSION }); // custom layers, assays: #1701
+      const files = T.drillholeTableFiles({ collars: W(collars), survey: W(survey), layers, customLayers, assays, assayElements, epsg, version: APP_VERSION, dataCredit: project?.dataCredit }); // custom layers, assays: #1701; dataCredit: #3659
       if (!files.length) { setNotices((p) => [...p, notice("Nothing to export: no collars, survey or hole logs are loaded.")]); return; }
       const { buildZip } = await import("../../lib/shapefile.js");
       const enc = new TextEncoder();
@@ -23,7 +23,7 @@ export async function exportDrillholeTablesWith(ctx, kind, key, label) {
       setNotices((p) => [...p, notice("Exported {n} drillhole tables ({files}) as CSV in a .zip. Dips are negative = down and azimuths grid, so they import back with the defaults.", { n: files.length, files: files.map((f) => f.name).join(", ") })]);
       return;
     }
-    const files = T.drillholeTableFiles({ collars: kind === "collars" ? W(collars) : [], survey: kind === "survey" ? W(survey) : [], layers: kind === "layer" ? { [key]: layers[key] || [] } : {}, epsg, version: APP_VERSION });
+    const files = T.drillholeTableFiles({ collars: kind === "collars" ? W(collars) : [], survey: kind === "survey" ? W(survey) : [], layers: kind === "layer" ? { [key]: layers[key] || [] } : {}, epsg, version: APP_VERSION, dataCredit: project?.dataCredit });
     if (!files.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — it has no rows.", { label })]); return; }
     const res = await saveFile({ quiet: "success", suggestedName: files[0].name, filters: [{ name: "CSV", extensions: ["csv"] }], content: files[0].text });
     if (res?.ok) setNotices((p) => [...p, notice("Exported \"{label}\" as a CSV table that imports back with the defaults (dips negative = down, azimuths grid).", { label })]);

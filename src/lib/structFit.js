@@ -92,6 +92,17 @@ export function everyNth(points, surface, limit = 20) {
 }
 
 // the engine's points as table rows in project coordinates: { surface, index, x, y, z, rmsPerM, shiftForOneSigma, verdict }
+// TASKS.csv #3632 — the tested points as rows of a geophysics point survey (layers.geophys_pts), so the 3D View draws them with its own colour
+// ramp and tooltip: value = log10 of the readings' change per metre the contact moves (in the survey's uncertainty), so the contacts the
+// survey sees are the warm end and the ones it cannot constrain the cool end; the verdict rides along as a column. Points with no
+// sensitivity number (no contact there) are left out. -> rows
+export function verdictPoints(rows, src) {
+  return (rows || []).filter((r) => Number.isFinite(r.rmsPerM) && r.rmsPerM > 0 && [r.x, r.y, r.z].every(Number.isFinite)).map((r) => ({
+    x: +r.x.toFixed(2), y: +r.y.toFixed(2), z: +r.z.toFixed(2), value: +Math.log10(r.rmsPerM).toFixed(3),
+    surface: r.surface, point: r.index + 1, verdict: r.verdict, shift_for_one_sigma_m: r.shiftForOneSigma == null ? "" : +r.shiftForOneSigma.toFixed(2), _src: src,
+  }));
+}
+
 export function resultRows(result, record) {
   const o = record?.origin || { x: 0, y: 0, z: 0 };
   return (result?.points || []).map((p) => ({

@@ -33,6 +33,7 @@ const BestIntercepts = lazyModal(() => import("../../components/BestIntercepts.j
 
 export const MeasureResults = lazyModal(() => import("../../components/MeasureResults.jsx"));
 const NumericSymbologyEditor = lazyModal(() => import("../../components/NumericSymbologyEditor.jsx"));
+const FieldColourPanel = lazyModal(() => import("../../components/FieldColourPanel.jsx")); // TASKS.csv #3553
 export function ViewToolbar({
   openPopover, setOpenPopover, gridConfig, setGridConfig,
   figureOverlay, setFigureOverlay, projectName, legendCount, legendShown, // TASKS.csv #311
@@ -452,7 +453,9 @@ export function LayerQuickPanel({ rows, meta, layerKey, categoryFilter, onToggle
     <div style={{ paddingTop: 8 }}>
       {meta.purpose && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.4, marginBottom: 8 }}>{tr(meta.purpose)}</div> /* TASKS.csv #3529 — what this layer is used for */}
       {meta.numeric && onNumericSymChange && (
-        <NumericSymbologyEditor layerKey={layerKey} rows={rows} sym={numericSym} onChange={onNumericSymChange} />
+        <FieldColourPanel rows={rows} sym={numericSym} onChange={onNumericSymChange}>{/* #3553 — or by a kept text column (the density's method) */}
+          <NumericSymbologyEditor layerKey={layerKey} rows={rows} sym={numericSym} onChange={onNumericSymChange} />
+        </FieldColourPanel>
       )}
       {!meta.numeric && categories.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: sources.length > 1 ? 8 : 0 }}>

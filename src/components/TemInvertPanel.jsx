@@ -32,7 +32,7 @@ const TIES = [{ v: 0, label: "None: each sounding alone" }, { v: 0.3, label: "We
 let LAST = null; // the panel's state between visits
 
 // conductivity against depth for the line's stations that have a model, the depth of investigation dashed
-function Section({ stations, result, bottom, onPick, sel }) {
+function Section({ stations, result, bottom, onPick, sel, fadeSd = 0 }) {
   const W = 300, H = 170, pl = 30, pb = 16, pt = 4;
   const ref = useRef(null);
   const tops = useMemo(() => { const t = [0]; for (const d of result.thick) t.push(t[t.length - 1] + d); return t; }, [result.thick]);
@@ -51,9 +51,13 @@ function Section({ stations, result, bottom, onPick, sel }) {
         const z0 = tops[i], z1 = i < tops.length - 1 ? tops[i + 1] : bottom;
         if (z0 >= bottom) return;
         const [r, g, b] = rampRgb((Math.log10(v) - lo) / Math.max(1e-9, hi - lo));
+        // TASKS.csv #3647 — a layer whose posterior sd (decades, linearised) is over the chosen threshold is drawn faint
+        const sd = result.sdLog?.[s.j]?.[i];
+        ctx.globalAlpha = fadeSd > 0 && Number.isFinite(sd) && sd > fadeSd ? 0.25 : 1;
         ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fillRect(xa, sy(z0), Math.max(1, xb - xa), Math.max(1, sy(Math.min(z1, bottom)) - sy(z0)));
       });
     });
+    ctx.globalAlpha = 1;
     ctx.strokeStyle = "#222"; ctx.setLineDash([3, 2]); ctx.beginPath();
     withM.forEach((s, k) => { const z = result.doi[s.j]; if (Number.isFinite(z)) { if (k) ctx.lineTo(sx(s.d), sy(Math.min(z, bottom))); else ctx.moveTo(sx(s.d), sy(Math.min(z, bottom))); } });
     ctx.stroke(); ctx.setLineDash([]);
@@ -354,7 +358,7 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
           <label style={{ display: "flex", alignItems: "center", gap: 4 }}><input type="checkbox" checked={!!st.freeRz} onChange={(e) => set({ freeRz: e.target.checked })} />{tr("Solve for the receiver's height above the loop")}</label>
           <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-xs)", whiteSpace: "nowrap", flexShrink: 0 }}>{tr("± (m)")}<input type="number" min="0.01" max="50" step="any" value={st.rzSd ?? 0.5} disabled={!st.freeRz} onChange={(e) => set({ rzSd: e.target.value })} style={{ ...num, width: 52 }} aria-label={tr("Uncertainty of the receiver's height above the loop (m)")} /></span>
         </div>}
-        <div style={note}>{tr("The file's height (and the receiver's) is the starting value, held to it by the uncertainty you type; each one solved for adds a forward model an iteration (about 40 % longer). On a real SkyTEM survey the fit was no better with the height solved for, and at ±3 m the height sat about 4 m above the altimeter, taking up what the system's description gets wrong; ±1 m kept it within about 1.5 m. The uncertainties shown and exported are linearised at the solution and depend on the regularisation: on that survey they were about a quarter of the contractor's.")}</div>
+        <div style={note}>{tr("The file's height (and the receiver's) is the starting value, held to it by the uncertainty you type; each one solved for adds a forward model an iteration (about 40 % longer). With the model free, the height trades off against the shallow conductivities: on a real SkyTEM survey the fit was no better with the height solved for, and at ±3 m the height sat about 4 m above the altimeter (held to the contractor's own model it stayed within 0.2 m), so the default is ±1 m. The uncertainties shown and exported are linearised at the solution and depend on the regularisation: on that survey they were about a quarter of the contractor's.")}</div>
       </details>
       <div style={rowS}><span>{tr("Stations")}</span>
         <select value={st.every} onChange={(e) => set({ every: Number(e.target.value) })} style={smallSel} aria-label={tr("Every Nth station")}>
@@ -371,7 +375,13 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
       )}
       {msg && <div role={msg.info ? "status" : "alert"} style={{ ...note, color: msg.info ? "var(--color-text-secondary)" : "var(--color-warn-text)", margin: "4px 0 8px" }}>{msg.text}</div>}
       {R && lineStations.length > 0 && (<>
-        <Section stations={lineStations} result={R} bottom={bottomDraw} sel={sel} onPick={(j) => set({ sel: j })} />
+        <Section stations={lineStations} result={R} bottom={bottomDraw} sel={sel} onPick={(j) => set({ sel: j })} fadeSd={R.sdLog ? Number(st.fadeSd) || 0 : 0} />
+        {R.sdLog && <div style={rowS}><span>{tr("Fade layers more uncertain than")}</span>
+          <select value={st.fadeSd ?? 0} onChange={(e) => set({ fadeSd: Number(e.target.value) })} style={smallSel} aria-label={tr("Fade layers more uncertain than")}>
+            <option value={0}>{tr("Off")}</option>
+            {[0.1, 0.2, 0.3, 0.5].map((v) => <option key={v} value={v}>{tr("{v} decades", { v })}</option>)}
+          </select>
+        </div>}
         <div style={{ ...note, margin: "3px 0 6px" }}>{tr("Conductive red, resistive blue; below the dashed line (the depth of investigation) the model is the inversion's guess, not the data's. A 1D model is wrong under a 3D conductor (a plate, a pipe).")}</div>
         {fit && <>
           <div style={{ fontSize: "var(--font-size-sm)", marginBottom: 4 }}>{tr("Station {i}: misfit (chi) {c}, depth of investigation {d} m", { i: fit.station + 1, c: fmt(R.chi[sel]), d: fmt(R.doi[sel]) })}</div>

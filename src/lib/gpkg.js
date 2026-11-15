@@ -251,7 +251,7 @@ export async function buildGeoPackage(layers) {
     });
     stmt.free();
     if (!Number.isFinite(xmin)) { xmin = ymin = xmax = ymax = 0; }
-    db.run("INSERT INTO gpkg_contents (table_name, data_type, identifier, min_x, min_y, max_x, max_y, srs_id) VALUES (?, 'features', ?, ?, ?, ?, ?, ?);", [tableName, layer.name || tableName, xmin, ymin, xmax, ymax, srsId]);
+    db.run("INSERT INTO gpkg_contents (table_name, data_type, identifier, description, min_x, min_y, max_x, max_y, srs_id) VALUES (?, 'features', ?, ?, ?, ?, ?, ?, ?);", [tableName, layer.name || tableName, layer.credit ? String(layer.credit) : "", xmin, ymin, xmax, ymax, srsId]); // description: the data owner's credit (TASKS.csv #3659)
   });
 
   const bytes = db.export();

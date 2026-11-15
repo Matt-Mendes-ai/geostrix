@@ -44,7 +44,9 @@ test("wiring: 'Set the plane from' offers an element's samples; the panes say 'i
   assert.match(p, /update\(t\.id, \{ dip: Math\.round\(st\.dip \* 10\) \/ 10, dipAzimuth: Math\.round\(st\.dipAzimuth \* 10\) \/ 10, pitch: st\.pitch, ratios: st\.ratios/);
   const m = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
   assert.match(m, /sampleElements=\{shellSymbols\} samplePoints=\{trendSamplePoints\}/);
-  assert.match(m, /\{!trendFor\("gradeShell"\) && !\(Number\(numericFlatReach\) > 0\) && <div[^>]*>\{tr\("Isotropic: the search is a sphere, no structural trend is chosen for grade shells/);
+  // #3655 — with no trend and no flat search the grade shell searches along its composites' plane unless unticked; unticked, it says 'isotropic'
+  assert.match(m, /\{!trendFor\("gradeShell"\) && !\(Number\(numericFlatReach\) > 0\) && <>/);
+  assert.match(m, /\{shellPlaneSearch \? tr\("The plane is fitted at each run[^"]*"\) : tr\("Isotropic: the search is a sphere, no structural trend is chosen for grade shells/);
   const e = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
   assert.match(e, /\{!modelTrend && !\(Number\(flatReach\) > 0\) && <div[^>]*>\{tr\("Isotropic: the search is a sphere, no structural trend is chosen for block estimation/);
 });
