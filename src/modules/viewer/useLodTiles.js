@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { detailTilesPrefs, setDetailTiles, gpuClass, rendererName, terrainOffReason } from "../../lib/viewer/detailTilesPref.js"; // the 'Detail tiles' switches
 import { problemReportInfo } from "../../lib/desktop.js"; // this computer's memory, for the terrain tiles' default
 
-const tiledTerrain = (t) => !!t && !!(t.lod || /^AWS Terrain Tiles/.test(String(t.source?.service || "")));
+const tiledTerrain = (t) => !!t && !!(t.lod || /^(AWS Terrain Tiles|Copernicus DEM|NRCan)/.test(String(t.source?.service || ""))); // #3515: the COG models too
 
 // refs: { rasterGroupRef, rasterMeshesRef, terrainGroupRef, terrainMeshRef, mapLayerMeshesRef, rendererRef, originRef, lastActivityRef };
 // state: { rasters, terrain, collars, mapLayers, project, rebuildSeq, deferRound, skip: () => buildDefer.skip() }

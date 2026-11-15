@@ -47,7 +47,7 @@ GeoStrix only makes network requests as a direct result of features you use:
 | You connect to a database | The host **you** enter | Query your own PostgreSQL or MySQL / MariaDB database |
 | You fetch Macrostrat geology (Maps → Web layers), or the map units at the project centre | `tiles.macrostrat.org`, `macrostrat.org` | Fetch the geology map tiles for the project area and the units and map sources at one point (data CC BY 4.0) |
 | You open a BC sample project that is not on your computer yet (Harry, Perk-Rocky, Silvertip), after confirming the download | `apps.nrs.gov.bc.ca`, `cmscontent.nrs.gov.bc.ca` | Download that sample's public data from the Province of British Columbia (the assessment report's data package, or the BC Geological Survey's drillhole database for Harry) and convert it on your computer; BC's terms do not let GeoStrix include it in the installer |
-| You add a WMS / WMTS / WFS layer | The server **you** enter, or the one you pick under *Common services* (`openmaps.gov.bc.ca`, `services.ga.gov.au`) | Fetch the layer you requested |
+| You add a WMS / WMTS / WFS layer | The server **you** enter, or the one you pick under *Common services* (`openmaps.gov.bc.ca`, `services.ga.gov.au`, `public-services.slip.wa.gov.au`) | Fetch the layer you requested |
 
 These requests necessarily reveal your IP address to the operator of the service being contacted
 (OpenStreetMap, Amazon S3, GitHub, or a server you chose), in the same way that visiting any website

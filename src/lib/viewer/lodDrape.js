@@ -86,8 +86,15 @@ export function pixelAtFor(camera, viewportH, origin, terrain) {
 }
 
 // The tile's mesh: its picture on the terrain over the part of the tile inside the raster, by the drapes' own path
+// TASKS.csv #3517 — faint lines along the tile edges up close: two neighbours' meshes each stop at the shared edge in their own float32 frame
+// (positions are held relative to the tile's own centre), and a rounding apart left a hairline where the ground showed (the fetched picture
+// being hidden under a tile). Each tile's drape is padded by a fraction of a texel (EDGE_PAD_TEXEL, never past the raster's own box) with its UVs
+// still the true box: the edge texel is repeated there (clamp to edge), and the sliver two neighbours both draw is far under a texel.
+export const EDGE_PAD_TEXEL = 0.03;
+export const edgePadM = (pixelM) => Math.max(0.003, pixelM * EDGE_PAD_TEXEL);
 export function lodTileMesh(terrain, origin, tile, raster, texture) {
-  const part = clipTo(tile.box, raster.bbox), cx = (part[0] + part[2]) / 2, cy = (part[1] + part[3]) / 2;
+  const pad = edgePadM((tile.box[2] - tile.box[0]) / TILE_PX), b = tile.box;
+  const part = clipTo([b[0] - pad, b[1] - pad, b[2] + pad, b[3] + pad], raster.bbox), cx = (part[0] + part[2]) / 2, cy = (part[1] + part[3]) / 2;
   const geometry = terrainDrapeGeometry(terrain, part, { cx, cy, oz: origin.z, base: 0.15, uvBox: tile.box, near: true }); // #3449's path: the drawn ground
   const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: raster.opacity ?? 0.85, side: THREE.DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
   const m = new THREE.Mesh(geometry, material);
@@ -110,7 +117,7 @@ export function createLodDrape() {
   const st = { tiles: 0, gpuBytes: 0, finestM: null, tickMs: 0, wanted: 0, budget: 1 };
   globalThis.__geostrixLodStats = st; // read-only numbers, for measuring the tiles live (no data of the project)
   const drop = (key) => { const m = meshes.get(key); if (!m) return; m.parent?.remove(m); for (const c of m.children) c.material?.dispose?.(); m.geometry.dispose(); m.material.map?.dispose(); m.material.dispose(); meshes.delete(key); };
-  const dropAll = () => { for (const k of [...meshes.keys()]) drop(k); st.tiles = 0; st.gpuBytes = 0; st.finestM = null; };
+  const dropAll = () => { for (const k of [...meshes.keys()]) drop(k); st.tiles = 0; st.gpuBytes = 0; st.finestM = null; lodBudget.setTris("drape", 0); };
   const rastersOf = (c) => (c?.terrain && c.group && c.enabled !== false /* the 'Detail tiles' switch */ ? (c.rasters || []).filter((r) => r.lod && r.bbox && r.drapeMode === "terrain" && r.visible !== false) : []);
   return {
     sync(next) {
@@ -161,12 +168,14 @@ export function createLodDrape() {
           c.getContext("2d").drawImage(img, 0, 0); // a copy: the memory cache may close its bitmap when it drops it
           const tex = new THREE.CanvasTexture(c);
           tex.colorSpace = THREE.SRGBColorSpace;
+          tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping; // the padded sliver repeats the edge texel (#3517)
           tex.anisotropy = ctx.renderer?.capabilities?.getMaxAnisotropy?.() ?? 1;
           m = lodTileMesh(terrain, origin, t, t.r, tex);
           group.add(m); meshes.set(key, m);
         }
         m.material.opacity = t.r.opacity ?? 0.85;
       }
+      { let tri = 0; for (const x of meshes.values()) tri += (x.geometry.index?.count || 0) / 3; lodBudget.setTris("drape", tri); } // #3518: what these tiles draw, for the budget's cost model
       st.tiles = meshes.size;
       st.gpuBytes = Math.round((meshes.size * TILE_PX * TILE_PX * 4 * 4) / 3); // RGBA with mipmaps
       st.finestM = null;
