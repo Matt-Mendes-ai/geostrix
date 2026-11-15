@@ -59,7 +59,7 @@ import { layerOverlapOf } from "../../lib/viewer/layerOverlap.js"; // #1649
 import { requestModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #917; useModuleAction: #2019
 import { densityNote } from "../../lib/densityNote.js"; // TASKS.csv #3529
 import { densityRangeOf } from "../../lib/densityRange.js"; // TASKS.csv #3587
-import { autoExtraFields, companionLayer, surveyMethodFields, columnsLeftOut, suscInstrumentFields, dialogExtraFields } from "../../lib/viewer/autoExtras.js"; // suscInstrumentFields: #2668 // TASKS.csv #1501; surveyMethodFields: #2187
+import { companionLayer, surveyMethodFields, columnsLeftOut, suscInstrumentFields, dialogExtraFields, queueExtraFields } from "../../lib/viewer/autoExtras.js"; // queueExtraFields: #3544 (C2) // suscInstrumentFields: #2668 // TASKS.csv #1501; surveyMethodFields: #2187
 import { surfaceAttrColumns, surfaceAttrs } from "../../lib/geochemColumns.js"; // TASKS.csv #1504 — unmapped collar columns kept as attrs; #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 import { rasterDrapeElevation, drapeElevationNote, planElevation } from "../../lib/drapeElevation.js"; // TASKS.csv #1505; planElevation: #2294
 import { projectTargetEpsg } from "../../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
@@ -1188,7 +1188,7 @@ export function makeImportPipeline(ctx, h) {
         // TASKS.csv #1501 — a log's other columns as extra fields, and a Geotech table's Recovery % as that layer too (collars keep
         // theirs as attrs, #1504; a survey has no others worth keeping)
         const comp = companionLayer(target, headers);
-        const extras = target === "collars" ? [] : target === "survey" ? surveyMethodFields(headers, data) /* #2187 */ : autoExtraFields(headers, data, mapping, { exclude: [modalData.perRowEpsgCol, comp?.column].filter(Boolean) });
+        const extras = target === "collars" ? [] : target === "survey" ? surveyMethodFields(headers, data) /* #2187 */ : queueExtraFields(target, headers, data, mapping, modalData, [modalData.perRowEpsgCol, comp?.column].filter(Boolean)); // #3544 (C2): the dialog's preset less these, not a second scan
         askCrsForCollars(modalData).then(() => new Promise((r) => setTimeout(r, 0)) /* #3544 (C1): the commit in its own task, not the parse's */).then(() => {
           logQueue(file.name, "imported"); // #3071
           commitImportData({ ...modalData, customFields: extras, unseen: true }); // #615; unseen: #715 — no dialog, so its defaults are assumptions
