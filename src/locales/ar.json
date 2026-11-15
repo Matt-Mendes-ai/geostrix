@@ -12935,5 +12935,7 @@
   "{n} assay row(s) have no sample id and cannot be reached.": "لا يملك {n} صفًا من التحاليل معرّف عيّنة ولا يمكن الوصول إليها.",
   "{n} row(s) of the table had no sample id, or neither a parent nor a category, and were left out.": "{n} صفًا من الجدول بلا معرّف عيّنة، أو بلا أم ولا فئة، واستُبعدت.",
   "The QC tools do not recognise these categories, so rows linked with them are not marked as check samples: {list}.": "لا تتعرف أدوات مراقبة الجودة على هذه الفئات، فلا تُعلَّم الصفوف المرتبطة بها كعيّنات مراقبة: {list}.",
-  "{n} sample id(s) appeared more than once: the last row of each was kept.": "ظهر {n} معرّف عيّنة أكثر من مرة: احتُفظ بآخر صف لكل منها."
+  "{n} sample id(s) appeared more than once: the last row of each was kept.": "ظهر {n} معرّف عيّنة أكثر من مرة: احتُفظ بآخر صف لكل منها.",
+  "{n} check sample(s) in this file paired with the QC links kept with the project (their category and parent sample were filled).": "اقترنت {n} عيّنة مراقبة في هذا الملف بروابط مراقبة الجودة المحفوظة مع المشروع (مُلئت فئتها وعيّنتها الأم).",
+  "Matched {n} of {m} link(s): their assay rows already carry the QC category and parent sample.": "المطابقات {n} من {m} رابط: تحمل صفوف تحاليلها فئة المراقبة والعيّنة الأم بالفعل."
 }

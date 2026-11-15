@@ -12935,5 +12935,7 @@
   "{n} assay row(s) have no sample id and cannot be reached.": "{n} ligne(s) d'analyse n'ont pas d'identifiant d'échantillon et ne peuvent pas être atteintes.",
   "{n} row(s) of the table had no sample id, or neither a parent nor a category, and were left out.": "{n} ligne(s) du tableau n'avaient pas d'identifiant d'échantillon, ni parent ni catégorie, et ont été écartées.",
   "The QC tools do not recognise these categories, so rows linked with them are not marked as check samples: {list}.": "Les outils de contrôle qualité ne reconnaissent pas ces catégories : les lignes liées avec elles ne sont pas marquées comme échantillons de contrôle : {list}.",
-  "{n} sample id(s) appeared more than once: the last row of each was kept.": "{n} identifiant(s) d'échantillon sont apparus plus d'une fois : la dernière ligne de chacun a été conservée."
+  "{n} sample id(s) appeared more than once: the last row of each was kept.": "{n} identifiant(s) d'échantillon sont apparus plus d'une fois : la dernière ligne de chacun a été conservée.",
+  "{n} check sample(s) in this file paired with the QC links kept with the project (their category and parent sample were filled).": "{n} échantillon(s) de contrôle de ce fichier se sont associés aux liens de contrôle qualité conservés dans le projet (leur catégorie et leur échantillon parent ont été renseignés).",
+  "Matched {n} of {m} link(s): their assay rows already carry the QC category and parent sample.": "Correspondances {n} sur {m} lien(s) : leurs lignes d'analyse portent déjà la catégorie de contrôle et l'échantillon parent."
 }

@@ -12935,5 +12935,7 @@
   "{n} assay row(s) have no sample id and cannot be reached.": "{n} linha(s) de análise não têm id de amostra e não podem ser alcançadas.",
   "{n} row(s) of the table had no sample id, or neither a parent nor a category, and were left out.": "{n} linha(s) da tabela não tinham id de amostra, nem mãe nem categoria, e foram deixadas de fora.",
   "The QC tools do not recognise these categories, so rows linked with them are not marked as check samples: {list}.": "As ferramentas de controle de qualidade não reconhecem estas categorias, então as linhas vinculadas a elas não são marcadas como amostras de controle: {list}.",
-  "{n} sample id(s) appeared more than once: the last row of each was kept.": "{n} id(s) de amostra apareceram mais de uma vez: a última linha de cada um foi mantida."
+  "{n} sample id(s) appeared more than once: the last row of each was kept.": "{n} id(s) de amostra apareceram mais de uma vez: a última linha de cada um foi mantida.",
+  "{n} check sample(s) in this file paired with the QC links kept with the project (their category and parent sample were filled).": "{n} amostra(s) de controle deste arquivo se associaram aos vínculos de controle de qualidade guardados no projeto (sua categoria e a amostra mãe foram preenchidas).",
+  "Matched {n} of {m} link(s): their assay rows already carry the QC category and parent sample.": "Correspondências {n} de {m} vínculo(s): suas linhas de análise já trazem a categoria de controle e a amostra mãe."
 }

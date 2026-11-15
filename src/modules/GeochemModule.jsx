@@ -19,7 +19,7 @@ import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 
 import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma, FileCheck, X, AlertTriangle, Globe, Database, Radar } from "../components/icons.js"; // Radar: #1999
 const McdAnomalyPanel = React.lazy(() => import("../components/McdAnomalyPanel.jsx")); // TASKS.csv #1999 — a lazy chunk: opened rarely
 import { noticeText, noticeLevel, errorNotice, notice, infoNotice } from "../lib/notices.js"; // TASKS.csv #729; infoNotice: #3409
-import { readLinks, mergeLinks, applyLinks, linkReport } from "../lib/qcLinks.js"; // TASKS.csv #3409
+import { readLinks, mergeLinks, applyLinks, linkReport, packLinks, unpackLinks, linkCount } from "../lib/qcLinks.js"; // TASKS.csv #3409
 import { addCalculatedElement, CALC_PRESETS, presetUnitsFor, oxideTotalPreset, mixedUnitReads } from "../lib/calcElement.js"; // mixedUnitReads: #3219 // TASKS.csv #401; presetUnitsFor: #2619; oxideTotalPreset: #2914
 import { majorOxides, MIN_MAJORS, anhydrousRows, sourceRow } from "../lib/oxideTotals.js"; // anhydrousRows / sourceRow: #2942 // TASKS.csv #2914 — the 'Oxide total' preset sums QAQC > Totals' majors
 import { useStore, useSetTaskProgress } from "../lib/store.jsx"; // useSetTaskProgress: #2164
@@ -593,9 +593,9 @@ export default function GeochemModule() {
   const commitQcLinks = (modal) => {
     const { links, blank, repeated, unknownTypes } = readLinks(modal.allRows, modal.qc || {});
     if (!links.length) { setAssayModal(null); setNotices((p) => [...p, infoNotice(linkReport({ links, applied: null, blank, repeated, unknownTypes, assayCount: assays.length }, tr))]); return; }
-    const all = mergeLinks(project?.qcLinks, links), applied = applyLinks(assays, all);
+    const all = mergeLinks(unpackLinks(project?.qcLinks), links), applied = applyLinks(assays, all);
     if (applied.rows !== assays) setAssays((prev) => applyLinks(prev, all).rows);
-    store.setProjectQcLinks?.(all);
+    store.setProjectQcLinks?.(packLinks(all));
     setAssayModal(null);
     setNotices((p) => [...p, infoNotice(`${modal.fileName || ""}: ${linkReport({ links, applied, blank, repeated, unknownTypes, assayCount: assays.length }, tr)}`)]);
   };
@@ -818,7 +818,8 @@ export default function GeochemModule() {
       skippedNoDepth = all.length - rows.length;
     }
     // TASKS.csv #3409 — the QC links the project keeps (a link table imported earlier): the check samples in this file pair up with their originals
-    if (project?.qcLinks?.length) rows = applyLinks(rows, project.qcLinks).rows;
+    let pairedLinks = 0;
+    if (linkCount(project?.qcLinks)) { const ap = applyLinks(rows, unpackLinks(project.qcLinks)); rows = ap.rows; pairedLinks = ap.matched; }
     // TASKS.csv #336 — same hole/from/to merges into the existing row instead of duplicating it.
     // TASKS.csv #530 — a corrected file whose intervals changed for some holes: replace those holes (asked), else
     // the stale intervals stay beside the new ones and every intercept averages both
@@ -852,6 +853,7 @@ export default function GeochemModule() {
       textCodes.nodl ? tr("{n} cell(s) written as below detection left blank: their column ({list}) states no detection limit to use.", { n: textCodes.nodl.toLocaleString(), list: [...textCodes.nodlCols].join(", ") }) : null,
       textCodes.na ? tr("{n} cell(s) marked not assayed (NULL, X, N/A, NS, -...) left blank.", { n: textCodes.na.toLocaleString() }) : null,
       mergedCount ? tr("{n} interval(s) were already loaded and were updated in place, not duplicated.", { n: mergedCount }) : null,
+      pairedLinks ? tr("{n} check sample(s) in this file paired with the QC links kept with the project (their category and parent sample were filled).", { n: pairedLinks.toLocaleString() }) : null, // TASKS.csv #3409
       (() => { // #541 — ids that miss a collar only by case / spaces / hyphens
         const ids = new Set(collars.map((c) => c.hole_id)); if (!ids.size) return null;
         const near = new Map(); rows.forEach((r) => { if (ids.has(r.hole_id) || near.has(r.hole_id)) return; const m = /Did you mean "([^"]+)"/.exec(didYouMean(ids, r.hole_id)); if (m) near.set(r.hole_id, m[1]); });

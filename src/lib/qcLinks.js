@@ -25,6 +25,25 @@ export function readLinks(rows, cols = {}) {
   return { links: [...byId.values()], blank, repeated, unknownTypes: [...unknown] };
 }
 
+// How the project keeps its links (project.qcLinks, saved with it): three parallel arrays and a small dictionary of the categories (a table has a handful),
+// { ids: [sample id], parents: [parent sample id], types: [index into dict], dict: [category text] }: a 988-row (or 40,000-row) table is a few strings per link,
+// not an object per link with its three key names, so a save does not grow with it as row objects would. The older array-of-objects shape reads too.
+export function packLinks(links) {
+  const dict = [], at = new Map(), ids = [], parents = [], types = [];
+  for (const l of links || []) {
+    const t = String(l.sample_type ?? "");
+    if (!at.has(t)) { at.set(t, dict.length); dict.push(t); }
+    ids.push(String(l.sample_id)); parents.push(String(l.parent_id ?? "")); types.push(at.get(t));
+  }
+  return { ids, parents, types, dict };
+}
+export function unpackLinks(p) {
+  if (Array.isArray(p)) return p;
+  const ids = p?.ids || [];
+  return ids.map((id, i) => ({ sample_id: id, parent_id: p.parents?.[i] ?? "", sample_type: p.dict?.[p.types?.[i]] ?? "" }));
+}
+export const linkCount = (p) => (Array.isArray(p) ? p.length : p?.ids?.length || 0);
+
 // the links the project already keeps and new ones: a later link for the same sample id replaces the earlier
 export function mergeLinks(prev, add) {
   const m = new Map();
@@ -62,7 +81,7 @@ export function linkReport({ links, applied, blank, repeated, unknownTypes = [],
   const m = links.length, out = [];
   if (!m) return tr("No link in this table: each row needs a sample id and a parent sample id or a QC category.");
   if (!applied.matched) out.push(tr("Matched 0 of {m}: the check samples' results are not in the project. The {m} links are kept: assays imported later with these sample ids pair up.", { m: m.toLocaleString() }));
-  else out.push(tr("Matched {n} of {m} link(s): {c} assay row(s) now carry their QC category and parent sample.", { n: applied.matched.toLocaleString(), m: m.toLocaleString(), c: applied.changed.toLocaleString() }) + (applied.matched < m ? " " + tr("The other {k} are kept: assays imported later with their sample ids pair up.", { k: (m - applied.matched).toLocaleString() }) : ""));
+  else out.push((applied.changed ? tr("Matched {n} of {m} link(s): {c} assay row(s) now carry their QC category and parent sample.", { n: applied.matched.toLocaleString(), m: m.toLocaleString(), c: applied.changed.toLocaleString() }) : tr("Matched {n} of {m} link(s): their assay rows already carry the QC category and parent sample.", { n: applied.matched.toLocaleString(), m: m.toLocaleString() })) + (applied.matched < m ? " " + tr("The other {k} are kept: assays imported later with their sample ids pair up.", { k: (m - applied.matched).toLocaleString() }) : ""));
   if (assayCount > 0 && applied.noId === assayCount) out.push(tr("None of the {n} assay rows has a sample id, so no link can reach them: import the assays with their sample id column.", { n: assayCount.toLocaleString() }));
   else if (applied.noId > 0 && applied.matched) out.push(tr("{n} assay row(s) have no sample id and cannot be reached.", { n: applied.noId.toLocaleString() }));
   if (blank) out.push(tr("{n} row(s) of the table had no sample id, or neither a parent nor a category, and were left out.", { n: blank.toLocaleString() }));

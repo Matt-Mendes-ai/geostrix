@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { idKey, readLinks, mergeLinks, applyLinks, linkReport } from "../src/lib/qcLinks.js";
+import { idKey, readLinks, mergeLinks, applyLinks, linkReport, packLinks, unpackLinks, linkCount } from "../src/lib/qcLinks.js";
 import { isMarkedQcRow } from "../src/lib/qaqcCore.js";
 
 const tr = (s, v = {}) => s.replace(/\{(\w+)\}/g, (_, k) => v[k]);
@@ -64,6 +64,18 @@ test("the review's shape: 988 links, no check sample's result in the project -> 
   assert.deepEqual(b.rows.map((r) => [r.parent_id, r.sample_type]), [["O5", "lab check"], ["O" + (900 % 964), "field duplicate"]]);
 });
 
+test("the project keeps the links compactly: parallel arrays and a dictionary of categories, round-trip, the older shape read, far smaller than objects", () => {
+  const links = Array.from({ length: 40000 }, (_, i) => ({ sample_id: `C${i}`, parent_id: `O${i}`, sample_type: i % 3 ? "field duplicate" : "lab check" }));
+  const p = packLinks(links);
+  assert.deepEqual(Object.keys(p), ["ids", "parents", "types", "dict"]);
+  assert.deepEqual(p.dict, ["lab check", "field duplicate"]);
+  assert.deepEqual(unpackLinks(p), links);
+  assert.equal(linkCount(p), 40000); assert.equal(linkCount(links), 40000); assert.equal(linkCount(null), 0);
+  assert.equal(unpackLinks(links), links, "an array of links (an earlier shape) reads as it is");
+  assert.deepEqual(unpackLinks(packLinks([])), []);
+  assert.ok(JSON.stringify(p).length < JSON.stringify(links).length * 0.6, `${JSON.stringify(p).length} bytes packed against ${JSON.stringify(links).length} as objects`);
+});
+
 test("the sentences: partial matches, no sample ids at all, rows left out, nothing to link", () => {
   const links = [{ sample_id: "A" }, { sample_id: "B" }, { sample_id: "C" }];
   const some = linkReport({ links, applied: { matched: 2, changed: 2, noId: 5, unmatched: ["C"] }, blank: 3, repeated: 1, unknownTypes: ["Mystery"], assayCount: 100 }, tr);
@@ -79,9 +91,10 @@ test("wired: a button in the link-table note, the commit in Geochem, the project
   assert.match(m, /onQcLinks && \(modal\.qc\?\.parent_id \|\| modal\.qc\?\.sample_type\) && modal\.qc\?\.sample_id && <div[^\n]*<button type="button" onClick=\{onQcLinks\}/);
   assert.match(m, /tr\("Import as QC links \(\{n\} rows\)"/);
   assert.match(g, /const commitQcLinks = \(modal\) => \{/);
-  assert.match(g, /store\.setProjectQcLinks\?\.\(all\);/);
+  assert.match(g, /store\.setProjectQcLinks\?\.\(packLinks\(all\)\);/);
+  assert.match(g, /pairedLinks \? tr\("\{n\} check sample\(s\) in this file paired with the QC links kept with the project/);
   assert.match(g, /onQcLinks=\{\(\) => commitQcLinks\(assayModal\)\}/);
-  assert.match(g, /if \(project\?\.qcLinks\?\.length\) rows = applyLinks\(rows, project\.qcLinks\)\.rows;\n\s+\/\/ TASKS\.csv #336/);
+  assert.match(g, /if \(linkCount\(project\?\.qcLinks\)\) \{ const ap = applyLinks\(rows, unpackLinks\(project\.qcLinks\)\); rows = ap\.rows; pairedLinks = ap\.matched; \}\n\s+\/\/ TASKS\.csv #336/);
   assert.match(s, /const setProjectQcLinks = useCallback\(\(qcLinks\) => setProject\(/);
   assert.match(s, /setProjectDataCredit \/\* #3496 \*\/, setProjectQcLinks \/\* #3409 \*\/,/);
   for (const lang of ["es", "pt", "fr", "ar"]) {
