@@ -416,13 +416,14 @@ def check_system_3485():
                      ({**good, "moments": [{**good["moments"][0], "baseFreq": 400.0}]}, "a half-period shorter than the waveform"),
                      ({**good, "rz": [50.0]}, "a receiver 50 m above"),
                      ({**good, "system": {**good["system"], "filters": [[2.1e5, 3]]}}, "a third-order filter"),
-                     ({**good, "tilt": [0.3]}, "a tilt factor of 0.3")]:
+                     ({**good, "tilt": [0.3]}, "a tilt factor of 0.3"),
+                     ({**good, "gapM": -5}, "a negative tie gap")]:
         try:
             _validate_tem1d(bad)
         except HTTPException:
             continue
         raise AssertionError(f"accepted {why}")
-    print("system validation: a loop, filters (one second order), receiver heights, a tilt and a base frequency pass; six bad requests are refused")
+    print("system validation: a loop, filters (one second order), receiver heights, a tilt and a base frequency pass; seven bad requests are refused")
 
 
 if __name__ == "__main__":
