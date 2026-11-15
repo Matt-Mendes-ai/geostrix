@@ -5,17 +5,20 @@
 // a function cannot cross to a worker, and with no trend the ground depends on x and y only. A trend-warped shell keeps the window's path.
 //
 // shellPost(grid, post) — post: { iso, closeOutside, ground: Float64Array(nx * ny) | null, inShellPoints: [{ x, y, z, value }] (the box's samples at
-// or above the iso), farPoints: [{ x, y, z }] | null, farDist } -> { positions: Float64Array (x y z per vertex, the grid's frame), faces: Uint32Array,
+// or above the iso), farPoints: [{ x, y, z }] | null, farDist, reach: { points, basis, scales, limM } | null (#3655: the shell kept within that
+// reach of the composites at the cut-off, lib/viewer/shellPlane.js) } -> { positions: Float64Array (x y z per vertex, the grid's frame), faces: Uint32Array,
 // closingVertices, skippedCubes, vertexSupport: Uint8Array (0 / 1 / 2, 255 = none), capped, inShell, far: { inside, far } | null, sum, n, hi }
 import { marchingCubes } from "../marchingCubes.js";
 import { capFieldAtColumns, sumInsideShell } from "../groundCap.js";
 import { samplesInsideShell } from "../shellSupport.js";
 import { farFromSamples } from "../haloSupport.js";
 import { gridShape } from "../blockReach.js";
+import { reachCutField } from "./shellPlane.js"; // TASKS.csv #3655
 
 export function shellPost(grid, post) {
   const { nx, ny, nz, origin, cellSize } = grid, iso = post.iso;
-  const cut = post.ground ? capFieldAtColumns(grid.values, nx, ny, nz, origin, cellSize, iso, post.ground) : { values: grid.values, capped: 0 };
+  const reached = post.reach ? reachCutField(grid.values, grid, iso, post.reach) : { values: grid.values, cut: 0 }; // #3655 — before the ground
+  const cut = post.ground ? capFieldAtColumns(reached.values, nx, ny, nz, origin, cellSize, iso, post.ground) : { values: reached.values, capped: 0 };
   const mc = marchingCubes(cut.values, nx, ny, nz, iso, { origin, spacing: cellSize, noData: post.closeOutside ? "outside" : "skip" });
   const nv = mc.vertices.length, positions = new Float64Array(nv * 3) /* world coordinates: Float32 keeps a northing of 7,004,000 only to ~0.5 m */, faces = new Uint32Array(mc.faces.length * 3), vertexSupport = new Uint8Array(nv).fill(255);
   const clampI = (n, hi) => (n < 0 ? 0 : n > hi ? hi : n);
@@ -31,7 +34,7 @@ export function shellPost(grid, post) {
   const far = post.farPoints && post.farDist > 0 ? farFromSamples(cut.values, nx, ny, nz, origin, cellSize, iso, post.farPoints, post.farDist, {}) : null;
   const { sum, n } = sumInsideShell(grid.values, cut.values, iso);
   let hi = -Infinity; for (const v of grid.values) if (Number.isFinite(v) && v > hi) hi = v;
-  return { positions, faces, closingVertices: mc.closingVertices || 0, skippedCubes: mc.skippedCubes || 0, vertexSupport, capped: cut.capped, inShell, far: far ? { inside: far.inside, far: far.far } : null, sum, n, hi };
+  return { positions, faces, closingVertices: mc.closingVertices || 0, skippedCubes: mc.skippedCubes || 0, vertexSupport, capped: cut.capped, reachCut: reached.cut, inShell, far: far ? { inside: far.inside, far: far.far } : null, sum, n, hi };
 }
 
 // the ground per column of the lattice a dense grid over `bounds` at `cellSize` will have (estimation.js: gridShape, origin at the lower bound plus

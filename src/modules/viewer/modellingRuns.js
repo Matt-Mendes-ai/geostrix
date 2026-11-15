@@ -2482,6 +2482,8 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
   // window/tab is hidden (caught during #142's own live verification: the run sat on "Running…"
   // forever in a background preview tab), which would silently strand a run started right before
   // the user alt-tabs away.
+  // TASKS.csv #3655 — the Grade shell pane's 'Search along the composites' plane' (on unless unticked; a per-user preference)
+  const shellPlaneSearchOn = () => { try { return localStorage.getItem("geostrix.shellPlaneSearch") !== "0"; } catch { return true; } };
   const runNumericModel = () => {
     const shellTrend = trendWarp("gradeShell"); // TASKS.csv #650
     // TASKS.csv #3062 — no trend: a flat search typed in the pane (the search radius across, the vertical reach up and down), as
@@ -2668,23 +2670,30 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // (lib/viewer/shellPost.js): the window gets the mesh and the counts, not the grid. The ground goes per column of each box's lattice.
         const workerPost = !anisotropy.enabled && !logInfo;
         const shellPostLib = workerPost ? await import("../../lib/viewer/shellPost.js") : null;
+        // TASKS.csv #3655 — with no trend, no flat search and a search radius, each drilled area is searched along the plane of its composites at
+        // the cut-off (an ellipsoid of the search sphere's volume) and its shell kept within REACH_SHARE of that from them (lib/viewer/shellPlane.js);
+        // an area with too few of them keeps the sphere. Off with the pane's tick (shellPlaneSearchOn).
+        const planeLib = workerPost && numericSearchRadius > 0 && shellPlaneSearchOn() ? await import("../../lib/viewer/shellPlane.js") : null;
+        const planes = gridBoxes.map((b) => (planeLib ? planeLib.shellPlaneSearch(b.idx.map((k) => gridPoints[k]).filter((q) => q.value >= numericCutoff), numericSearchRadius) : null));
         // #3580 (a) — one run per box, in turn, the progress shared by their blocks; a kriging variogram fitted in the first (every sample) is
         // given to the others, so all use the same one
         const grids = [], boxN = gridBoxes.map((b) => boxBlocks(b.bounds, cs)), boxTotal = boxN.reduce((s, x) => s + x, 0);
         for (let bi = 0, before = 0; bi < gridBoxes.length; before += boxN[bi], bi++) {
         const post = workerPost ? { iso: numericCutoff, closeOutside: !!numericCloseShell, ground: gsGround ? await shellPostLib.groundColumns(gsGroundAt, gridBoxes[bi].bounds, cellOf(cs)) : null,
-          inShellPoints: gridBoxes[bi].idx.map((k) => gridPoints[k]).filter((q) => q.value >= numericCutoff), farPoints: gsSpacing > 0 ? points : null, farDist: gsSpacing } : null; // #3580 (b)
+          inShellPoints: gridBoxes[bi].idx.map((k) => gridPoints[k]).filter((q) => q.value >= numericCutoff), farPoints: gsSpacing > 0 ? points : null, farDist: gsSpacing, // #3580 (b)
+          reach: planes[bi] ? { points: gridBoxes[bi].idx.map((k) => gridPoints[k]).filter((q) => q.value >= numericCutoff).map((q) => ({ x: q.x, y: q.y, z: q.z })), basis: planes[bi].basis, scales: planes[bi].scales, limM: planes[bi].majorM * planes[bi].reachShare } : null } : null; // #3655
         const g = await runEstimation("dense", estPoints, {
           ...(post ? { post } : {}),
           bounds: gridBoxes[bi].bounds, cellSize: cellOf(cs), method: numericMethod, // cellOf: #3062
-          searchRadius: searchInGrid, minSamples: 1, maxSamples: 16, // #656
+          searchRadius: planes[bi] ? planes[bi].majorM : searchInGrid, minSamples: 1, maxSamples: 16, // #656
+          ...(planes[bi] ? { trend: { basis: planes[bi].basis, scales: planes[bi].scales } } : {}), // #3655 — the ellipsoid along the plane, on the real grid
           minHoles: Math.max(1, numericMinHoles), // TASKS.csv #258
           support: true, // TASKS.csv #91/#92 — classify every grid node so the shell can be coloured by it
           maxBlocks: blockBudget, // TASKS.csv #625
           // TASKS.csv #1015 — an entered variogram (all three numbers), else fitted at run time. The range is entered in metres
           // along the trend's major axis, as reported (#935); the samples sit in the volume-keeping warp, where that is
           // range x scales.major
-          ...(numericMethod === "ok" && grids[0]?.variogram ? { variogram: grids[0].variogram } /* #3580 (a): the first box's, for every box */
+          ...(numericMethod === "ok" && grids[0]?.variogram && !planes.some(Boolean) ? { variogram: grids[0].variogram } /* #3580 (a): the first box's, for every box (#3655: not across planes, each fitted in its own frame) */
             : numericMethod === "ok" && numericVariogram && ["nugget", "sill", "range"].every((k) => numericVariogram[k] !== "" && Number.isFinite(Number(numericVariogram[k])))
             ? { variogram: { model: numericVariogram.model || "spherical", nugget: Number(numericVariogram.nugget), sill: Number(numericVariogram.sill), range: Number(numericVariogram.range) * (anisotropy.enabled ? gsScl.major : 1) } }
             : numericMethod === "ok" ? { variogram: { model: numericVariogram?.model || "spherical" } } : {}),
@@ -2836,6 +2845,8 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           minHoles: Math.max(1, numericMinHoles), includeQAQC: numericIncludeQAQC, ...(unsParams || {}), // #2417
           // TASKS.csv #273 — the shared controls this tool now honours, recorded like every other param.
           anisotropy: anisotropy.enabled ? anisotropy.params : null,
+          // TASKS.csv #3655 — the plane each drilled area was searched along (null: the sphere), and the reach the shell was kept within
+          ...(planes.some(Boolean) ? { searchPlanes: planes.map((pl) => (pl ? { dip: +pl.trend.dip.toFixed(1), dipAzimuth: +pl.trend.dipAzimuth.toFixed(1), pitch: pl.trend.pitch, ratios: pl.trend.ratios, ellipsoidM: pl.axesM, reachM: pl.reachM, composites: pl.n, holes: pl.holes } : null)), searchPlaneNote: "an ellipsoid along the plane of each area's composites at the cut-off, with the volume of the searchRadiusM sphere; the shell kept within reachM of those composites" } : {}),
           domain: gradeDomain ? gradeDomain.name : null,
           modelArea: inArea ? `holes checked in the Holes list (${area.checked} of ${area.all})` : "whole property", // #2059
           samplePoints: points.length, cellsEstimated: gridSum.estimated, ...(gsVariogram ? { variogram: gsVariogram } : {}), // #709; #935 — range in m along the trend
@@ -2854,6 +2865,11 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         const id = `impl_${Date.now()}_numeric_${symbol}`;
         implicitMeshesRef.current[id] = mesh;
         setImplicitSurfaces((p) => [...p, { id, name: distinctShellName(label, p.map((x) => x.name), cs), visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: "mineralization_envelope", relationships: [], closure, params, surfaceSupportCounts: surfCounts, supportColored: false }]); // surfaceSupportCounts/supportColored: TASKS.csv #91
+        // TASKS.csv #3655 — the search said: the plane, the ellipsoid and the reach (the largest area's; the others counted)
+        { const used = planes.map((pl, bi) => (pl ? { pl, bi } : null)).filter(Boolean).sort((a, b) => b.pl.n - a.pl.n);
+          if (used.length) { const pl = used[0].pl, more = used.length - 1, sphere = planes.filter((q, bi) => !q && gridBoxes[bi].idx.some((k) => gridPoints[k].value >= numericCutoff)).length; // areas with composites at the cut-off but no plane
+            setNotices((p) => [...p, notice("\"{label}\" was searched along the plane of its {n} composites at or above {cutoff} {unit} ({dip}° towards {dir}°, {holes} holes): an ellipsoid of {a} × {b} × {c} m, the volume of the {r} m search, and the shell is kept within {ra} × {rb} × {rc} m of them.{more}{sphere} Untick \"Search along the composites' plane\" in the Grade shell pane for the sphere.", { label, n: pl.n, cutoff: numericCutoff, unit: unitL, dip: Math.round(pl.trend.dip), dir: Math.round(pl.trend.dipAzimuth), holes: pl.holes, a: pl.axesM[0], b: pl.axesM[1], c: pl.axesM[2], r: numericSearchRadius, ra: pl.reachM[0], rb: pl.reachM[1], rc: pl.reachM[2], more: more ? " " + tr(more === 1 ? "One other drilled area had a plane of its own." : "{k} other drilled areas had planes of their own.", { k: more }) : "", sphere: sphere ? " " + tr(sphere === 1 ? "One area with too few composites at the cut-off for a plane kept the sphere." : "{k} areas with too few composites at the cut-off for a plane kept the sphere.", { k: sphere }) : "" })]);
+          } }
         // #3580 (a) — said when the grid was split: the nodes it took against the single box's, and the cell that bought
         if (grids.length > 1) setNotices((p) => [...p, { ...notice("\"{label}\" was gridded over its {n} drilled areas only: {nodes} grid nodes at {cs} m instead of the {whole} of one box round all of them.", { label, n: grids.length, nodes: boxTotal.toLocaleString(), cs, whole: boxBlocks(bounds, cs).toLocaleString() }), level: "info" }]);
         setNotices((p) => [...p, notice("Added \"{label}\": {points} ({intervals}{v4}, {dropped} dropped{v5}, {above} at/above cutoff{v6}) → {nx}×{ny}×{nz} grid ({estimated} cells estimated, {skipped} outside the search radius{v7}{v8}) → {vertices} vertices / {faces} faces{v9}. Exploration target volume only — not a Mineral Resource.", { label, points: tr(points.length === 1 ? "{n} sample point" : "{n} sample points", { n: points.length }) /* #1116 */,
