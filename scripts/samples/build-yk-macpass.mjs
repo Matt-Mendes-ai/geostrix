@@ -1,7 +1,7 @@
 // TASKS.csv #3496 — builds sample_data/yk_macpass/ from three of the files of Fireweed Metals Corp.'s Macpass dataset (FW_Dataset_20240227):
 // MPA_Collar_20240227.csv, MPA_Survey_20240227.csv and MPA_Samples_BD_20240227.csv. 559 holes of the Macpass project, Yukon, drilled 1952-2023,
 // on NAD83 / UTM zone 9N (EPSG:26909), with their down-hole surveys and 32,546 sampled intervals (Ag, Pb, Zn and a bulk density). Used with
-// Fireweed's permission (Matt confirmed to Main on 2026-11-14 that he holds Fireweed's written permission for these three files). Nothing else of
+// Fireweed's written permission for these three files (2026-11-14). Nothing else of
 // the dataset's folder (interpretations, topography, sections, PDFs) is read or shipped. The script renames the columns to GeoStrix's own, sorts
 // one hole's survey stations by depth and drops nothing else; every count it prints is in the sample's README.
 //
