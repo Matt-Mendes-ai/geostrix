@@ -26,7 +26,7 @@ test("#1821 the tooltip: id and medium, the coloured element and its class, 8 ke
   assert.equal(lines[0], "Surface sample 222229 (rock chip)");
   assert.equal(lines[1], "Cu (ppm): 1,295");
   assert.equal(lines[2], "at or above the threshold (anomalous)");
-  assert.deepEqual(lines.slice(3, 6), ["Au: 3.5ppb", "Ag: 0.93ppm", "Zn: 48.5ppm"]);
+  assert.deepEqual(lines.slice(3, 6), ["Au: 3.5ppb", "Ag: 0.93g/t", "Zn: 48.5ppm"]);
   assert.equal(lines[11], "+40 more elements (Identify lists them all)");
   assert.equal(lines.length, 13);
   assert.match(lines[12], /^684100E 5511201N 1600Z$/);

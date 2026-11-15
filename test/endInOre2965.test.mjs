@@ -1,5 +1,5 @@
 // TASKS.csv #2965 (review #2876, WA iron) — which holes stopped in ore had no route at all in Targeting (6 of 6,031 assayed holes there end
-// with their last Fe sample at or above 55 %). Evidence overlay now lists them for a typed cut-off, each with 'Plan a deeper hole here'.
+// with their last Fe sample at or above 55 %). Evidence overlay now lists them for a typed cut-off, each with 'Plan a hole past this end'.
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -28,7 +28,7 @@ test("#2965 the holes whose last sample of the element is at or above the cut-of
   assert.equal(holesEndingAbove(rows, (a) => a.g, 55, traces)[0].atEnd, null, "no length known: not said");
 });
 
-test("#2965 the list in Evidence overlay: a typed cut-off, Plan a deeper hole here", () => {
+test("#2965 the list in Evidence overlay: a typed cut-off, Plan a hole past this end", () => {
   const p = fs.readFileSync(new URL("../src/components/EvidenceOverlayPane.jsx", import.meta.url), "utf8");
   assert.ok(p.includes("<EndInOreList assays={cleanAssays} elements={labElements} units={assayUnits} traces={traces} collars={collars} survey={survey} onPlanTo={onPlanTo}"));
   const c = fs.readFileSync(new URL("../src/components/EndInOreList.jsx", import.meta.url), "utf8");

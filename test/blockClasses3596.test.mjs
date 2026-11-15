@@ -35,7 +35,7 @@ test("wiring: the estimate's colours from the classes, the others on the grid hi
   const c = readFileSync(new URL("../src/components/BlockCalculatorModal.jsx", import.meta.url), "utf8");
   assert.match(c, /for \(const m of visibleOnLattice\(voxelModels, rec\.cells, \{ latticeOf: blockModelLattice, sameLattice \}\)\) updateVoxelModel\?\.\(m\.id, \{ visible: false \}\);/);
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(v, /<GradeEstimationModal\n\s+assayStyle=\{assayStyle\} \/\/ #3596/);
+  assert.match(v, /<GradeEstimationModal\r?\n\s+assayStyle=\{assayStyle\} \/\/ #3596/);
   const g = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
   assert.match(g, /model\.source === "calc" \? tr\("Calculated"\)/);
 });

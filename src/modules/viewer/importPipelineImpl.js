@@ -49,7 +49,8 @@ import { loggedCodeSpellings, withLogColours } from "../../lib/logColours.js"; /
 import { surveyIdsWithoutCollar, idList } from "../../lib/surveyCollarCheck.js"; // TASKS.csv #3202
 import { eventNotes } from "../../lib/downholeEvents.js"; // TASKS.csv #2317
 import { applyRowFilter, defaultRowFilter, overlapSummary, overlapWorthSaying } from "../../lib/importRowFilter.js"; // TASKS.csv #2330; overlap: #2391
-import { categoryColor /* #3043 */, isNullSentinel, LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, keepDerivedPicks, isDerivedPick, replaceNote, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
+import { categoryColor /* #3043 */, LAYER_META, minMax } from "../../lib/layers.js";
+import { isNullSentinel, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, keepDerivedPicks, isDerivedPick, replaceNote, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, pickRankedCollarRows } from "../../lib/layersImport.js"; // TASKS.csv #3590
 import { alterationStyleFromName, styledAltValue, isBlankCode, NO_CODE, blankCodeText, skipBlankValue, mineralListValue } from "../../lib/viewer/importHelpers.js"; // TASKS.csv #1511; isBlankCode: #2182; skipBlankValue: #2021
 import { fillDownHoleIds, numberedSiblings, allCodesOf, normInterval, applyCustomFields, normNumericInterval, normStructure, skippedRowsText, strikeStats, loadRaster, looksLikeAssay, isSurfaceSampleTable, looksLikeSurfaceSamples /* #2268 */, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
 import { unreadableFormatAdvice } from "../../lib/unreadableFormats.js"; // TASKS.csv #603
@@ -57,6 +58,7 @@ import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { layerOverlapOf } from "../../lib/viewer/layerOverlap.js"; // #1649
 import { requestModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #917; useModuleAction: #2019
 import { densityNote } from "../../lib/densityNote.js"; // TASKS.csv #3529
+import { densityRangeOf } from "../../lib/densityRange.js"; // TASKS.csv #3587
 import { autoExtraFields, companionLayer, surveyMethodFields, columnsLeftOut, suscInstrumentFields, dialogExtraFields } from "../../lib/viewer/autoExtras.js"; // suscInstrumentFields: #2668 // TASKS.csv #1501; surveyMethodFields: #2187
 import { surfaceAttrColumns, surfaceAttrs } from "../../lib/geochemColumns.js"; // TASKS.csv #1504 — unmapped collar columns kept as attrs; #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 import { rasterDrapeElevation, drapeElevationNote, planElevation } from "../../lib/drapeElevation.js"; // TASKS.csv #1505; planElevation: #2294
@@ -64,6 +66,7 @@ import { projectTargetEpsg } from "../../lib/projectTarget.js"; // TASKS.csv #22
 import { looksLikeUbcMesh } from "../../lib/leapfrogMsh.js"; // TASKS.csv #1991
 import { perHoleJoinOf, perHoleAttrs } from "../../lib/perHoleJoin.js"; // TASKS.csv #2399
 import { MACPASS_CREDIT } from "../../lib/sampleCredits.js"; // TASKS.csv #3496
+import { isTable } from "../../lib/rowTable.js"; import { publishedLayers } from "../../lib/tableFields.js"; // TASKS.csv #3140 step 2 — a big log layer held as columns
 import { busyUntilQuiet } from "../../lib/busyUntilQuiet.js"; // TASKS.csv #3539
 
 // TASKS.csv #3496 — the sample files whose dip sign the sample itself states (negative = down, with real up-holes: positive dips), by File object: the queue
@@ -77,6 +80,11 @@ const dipColOf = (target, mapping) => (target === "collars" || target === "surve
 // TASKS.csv #3205 — the per-mineral layers' rules (lib/perMineralColumns.js), loaded on demand before a commit that may need them (a Mineralization
 // or Custom interval table): kept here, not in the import's data, which a database import saves as its choices
 let perMineralLib = null;
+// TASKS.csv #3140 step 2 — a big downhole log's layers are held as typed columns (a rowTable Table), not millions of row objects: measured on a
+// 2.58 M-reading log, 412 MB of rows as objects against 111 MB as columns. The builder (rowTableBuild.js) is loaded before a big import commits
+// (the commit itself is synchronous); a layer under LOG_TABLE_MIN rows keeps its rows (nothing to save, and nothing new to go wrong).
+const LOG_TABLE_MIN = 20000;
+let tableBuild = null;
 const loadPerMineral = async (target) => { if (!perMineralLib && (target === "mnlgy" || target === "custom" || target === "litho" /* a composition: #3052 */)) { try { perMineralLib = await import("../../lib/perMineralColumns.js"); } catch { /* offline chunk: the import goes on without the per-mineral layers */ } } };
 
 // TASKS.csv #3211 — a custom interval layer's overlaps, counted for every one (the interval import says them only with a column that may explain them)
@@ -89,7 +97,7 @@ function customOverlapText(rows) {
 // TASKS.csv #3535 — ids of the holes a collar file of a multi-file drop left without a survey while more files were queued (see reportDeferredAssumed)
 const deferredAssumed = new Set();
 export function makeImportPipeline(ctx, h) {
-  const { viewerUiState, addVoxelModel, fillCodeDictionary, recordImportLeftOut, storeAssays, layerPicker, setLayerPicker, batchRowsRef, commitBusyRef, importQueueRef, importQueueTotalRef, importActiveRef, assayHandoffRef, surfaceHandoffRef, queueLogRef, sampleLoading, setSampleLoading } = h;
+  const { viewerUiState, addVoxelModel, fillCodeDictionary, recordImportLeftOut, storeAssays, layerPicker, setLayerPicker, batchRowsRef, commitBusyRef, importQueueRef, importQueueTotalRef, importActiveRef, assayHandoffRef, surfaceHandoffRef, queueLogRef, sampleLoading, setSampleLoading, undoCheckpoint } = h;
   const {
     addBoundary,
     addRaster,
@@ -457,6 +465,7 @@ export function makeImportPipeline(ctx, h) {
       setNotices((p) => [...p, notice("{fileName}: magnetic azimuths need the survey date to work out the declination — nothing was imported.", { fileName })]);
       return false;
     }
+    if (AZ_TARGETS.has(target) && azimuthRef) importStateRef.current.setAzimuthNorth?.(target, azimuthRef, azimuthDate); // TASKS.csv #3588 (6) — kept with the project, read back in the Survey row's tooltip
     const liveCollarAt = (() => { const m = new Map((importStateRef.current.collars || []).map((c) => [c.hole_id, c])); return (r) => m.get(r.hole_id) || null; })();
     const schema = TARGET_SCHEMAS[target];
     const logChans = logChannelsFor(target, Object.keys(allRows[0] || {}), allRows, mapping, data.logChannels); // #2160 — the channels are the values
@@ -862,7 +871,11 @@ export function makeImportPipeline(ctx, h) {
         const mid = !mapping.depth && mapping.from && mapping.to ? `Each reading placed at the middle of its ${mapping.from}-${mapping.to} interval.` : "";
         const binNote = !out.binned ? "" : binM === "assay" ? `Binned on import to the assay sample intervals: mean of ${out.readings} reading(s) per sample, with its min and max (fields min, max, n); ${out.unsampled || 0} reading(s) in no sample were left out. Source: ${fileName}.` /* #3039 */ : `Binned on import to ${binM} m: mean of ${out.readings} reading(s), with each bin's min and max (fields min, max, n). Source: ${fileName}.`;
         const ndNote = (nd && out.dropped ? `Left out on import as no-data codes: ${out.dropped} value(s) (${noDataText(nd)}).` : "") + (out.outside ? `${nd && out.dropped ? " " : ""}Left out on import by the typed range: ${out.outside} value(s) ${rangeText(rg)}.` : ""); // #2332; range: #3041
-        setCustomLayers((p) => [...p, { id, name, rows: rowsOut, group, unit: unit || undefined, ...(out.binned ? { binM } : {}), ...(binNote || mid || ndNote ? { notes: [binNote, mid, ndNote].filter(Boolean).join(" ") } : {}) }]);
+        const layerOut = { id, name, rows: rowsOut, group, unit: unit || undefined, ...(out.binned ? { binM } : {}), ...(binNote || mid || ndNote ? { notes: [binNote, mid, ndNote].filter(Boolean).join(" ") } : {}) };
+        // a big layer: its rows made into columns and the rows dropped; the layer the view holds is the store's own view of it (the rows a lazy getter), so a
+        // reader that has not moved still reads rows, and the mirror to the store carries the Table (lib/tableFields.js, #3424)
+        if (tableBuild && rowsOut.length >= LOG_TABLE_MIN) { const table = tableBuild(rowsOut); if (isTable(table)) layerOut.rows = table; }
+        setCustomLayers((p) => [...p, isTable(layerOut.rows) ? publishedLayers([layerOut])[0] : layerOut]);
         setCustomVisible((p) => ({ ...p, [id]: k === 0 }));
         made.push(`${col}${unit ? ` (${unit})` : ""}: ${out.rows.length.toLocaleString()}${out.skipped ? ` (${out.skipped} without a number)` : ""}${out.dropped ? ` (${out.dropped.toLocaleString()} no-data value(s) left out: ${noDataText(nd)})` : ""}${out.outside ? ` (${out.outside.toLocaleString()} ${rangeText(rg)} left out)` : ""}`); // dropped: #2332; outside: #3041
       });
@@ -942,7 +955,7 @@ export function makeImportPipeline(ctx, h) {
       // TASKS.csv #540 — what is wrong with these rows, said now (Data QC loads on demand: not in the startup bundle)
       const liveAtImport = importStateRef.current;
       import("../../lib/dataQC.js").then(({ importCheckSummary, PLAUSIBLE_RANGE }) => {
-        const msg = importCheckSummary(rows, liveAtImport.collars, liveAtImport.survey, `${LAYER_META[target].label} rows from ${fileName}`, PLAUSIBLE_RANGE[target] || null); // #1508 — and values no rock has
+        const msg = importCheckSummary(rows, liveAtImport.collars, liveAtImport.survey, `${LAYER_META[target].label} rows from ${fileName}`, (target === "sg" ? densityRangeOf(liveAtImport.project) : PLAUSIBLE_RANGE[target]) || null); // the project's density range: #3587 // #1508 — and values no rock has
         if (msg) setNotices((p) => [...p, msg]);
       }).catch(() => {});
       setNotices((p) => [...p, tr("Loaded {rows} rows into {label} from {fileName}.", { rows: rows.length, label: LAYER_META[target].label, fileName })
@@ -1001,8 +1014,10 @@ export function makeImportPipeline(ctx, h) {
     try { await commitImportOnce(); } finally { commitBusyRef.current = false; }
   };
   const commitImportOnce = async () => {
+    undoCheckpoint?.(); // TASKS.csv #3616 — the edit before this import is its own undo step, and each file of a drop is one (survey + density went in one Undo)
     await askCrsForCollars(importModal); // #615
     await loadPerMineral(importModal.target); // #3205
+    if (!tableBuild && (importModal.logTable || (importModal.allRows?.length || 0) >= LOG_TABLE_MIN)) tableBuild = (await import("../../lib/rowTableBuild.js")).tableFromRows; // #3140 step 2
     if (importModal.azimuthRef === "magnetic") { try { await loadIgrf(); } catch { /* offline chunk load failed: the conversion reports the holes it couldn't convert */ } } // #552
     // TASKS.csv #412 — feet and local mine grid are applied to the raw rows before the normal import.
     let modalData = importModal;

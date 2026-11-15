@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { parseTableText, parseColumnsRaw } from "../src/lib/tabular.js";
-import { guessMapping } from "../src/lib/layers.js";
+import { guessMapping } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 
 test("#1071 a zero-padded id stays text under any header; measurements stay numbers", () => {
   for (const h of ["DDH", "Collar", "Name", "Site_ID", "Lab_ID", "Well"]) {

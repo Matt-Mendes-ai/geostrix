@@ -12,6 +12,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { gradeText } from "../lib/gradeText.js"; // TASKS.csv #2515
 import { useStore } from "../lib/store.jsx";
 import { drillThresholdOffers } from "../lib/thresholds.js"; // TASKS.csv #2688
+import { relabelAfterLimit } from "../lib/classLabels.js"; // TASKS.csv #3571
 
 // seedBreaks moved to lib/colorRamp.js (TASKS.csv #476) so the 3D view can seed breaks without loading this modal.
 
@@ -53,7 +54,8 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
   const updateBreak = (i, patch) => {
     // #319 — a break the user has touched is theirs: drop the `seeded` tag so nothing later treats it
     // as something GeoStrix picked and is free to replace.
-    const breaks = local.breaks.map((b, bi) => (bi === i ? { ...b, ...patch, seeded: false } : b));
+    let breaks = local.breaks.map((b, bi) => (bi === i ? { ...b, ...patch, seeded: false } : b));
+    if ("max" in patch && !("label" in patch)) breaks = relabelAfterLimit(local.breaks, breaks, i); // TASKS.csv #3571 — a generated label follows its limit
     commit({ ...local, breaks });
   };
   const removeBreak = (i) => commit({ ...local, breaks: local.breaks.filter((_, bi) => bi !== i) });

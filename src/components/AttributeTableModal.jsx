@@ -171,7 +171,7 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
                     <td key={c} style={td}>
                       <input
                         className="ge-attr-cell"
-                        value={r[c] ?? ""}
+                        value={typeof r[c] === "number" && !Number.isFinite(r[c]) ? "" : r[c] ?? ""}
                         onChange={(e) => setCell(rowIdx, c, e.target.value)}
                         style={cellInput}
                       />

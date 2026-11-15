@@ -8,6 +8,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps, panel, header as headerStyle, sel } from "../lib/modalStyles.js";
 import { useStore } from "../lib/store.jsx";
+import { openHelp } from "../lib/help.js"; // TASKS.csv #3597
 import { blockModelLattice } from "../lib/estimationMeta.js";
 import { visibleOnLattice } from "../lib/viewer/modelLegendOnAdd.js"; // TASKS.csv #3596
 import { sameLattice } from "../lib/densityFromModel.js"; // TASKS.csv #3596
@@ -77,7 +78,7 @@ export default function BlockCalculatorModal({ onClose }) {
       <div role="dialog" aria-modal="true" aria-label={tr("Block calculator")} style={{ ...panel(), width: 620, maxHeight: "88vh" }}>
         <div style={headerStyle}>
           <span style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600 }}><Calculator size={18} />{" "}{tr("Block calculator")}</span>
-          <button type="button" onClick={onClose} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={18} /></button>
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}><button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("block-calculator")} aria-label={tr("Help: {name}", { name: tr("Block calculator") })} title={tr("Help for this tool (F1, works offline)")}>?</button><button type="button" onClick={onClose} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={18} /></button></span>
         </div>
         <div style={{ padding: 16, overflowY: "auto", fontSize: "var(--font-size-base)" }}>
           <div style={{ ...small, marginBottom: 12, lineHeight: 1.45 }}>{tr("A new block model whose value is a formula over block models on the same blocks. A block gets a value only where every model the formula reads has one; elsewhere it is left out, never set to zero.")}</div>

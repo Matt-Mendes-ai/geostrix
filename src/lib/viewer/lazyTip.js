@@ -17,13 +17,19 @@ export function lazyTip(ud, make) {
 // TASKS.csv #3424 step 2 — the same for a row of a Table (lib/rowTable.js): the object keeps the table and the row's index, not the row.
 // `row` is a getter that builds that one row when read (identify, the code meaning, a repaint); the tooltip is made from it on first read.
 // make(row) -> the tooltip text. A row set later (ud.row = r) replaces the index.
+// TASKS.csv #3628 (heap snapshot of a 2.06 M-interval log: RowTipData was 71 MB) — an object per interval held five fields (the table, the index, the tip maker, and the
+// tip and row slots, both null until read). The table and the maker are the same for every row of a layer's hole, so they sit in one shared context; the tip and row slots are
+// only added to an object that is read (the object then changes shape, once). Two fields and the hole id are what is left per interval.
 class RowTipData {
-  constructor(t, i, make) { this._t = t; this._i = i; this._make = make; this._tip = null; this._row = null; }
-  get row() { return this._row ?? rowOf(this._t, this._i); }
+  constructor(c, i) { this._c = c; this._i = i; }
+  get row() { return this._row ?? rowOf(this._c.t, this._i); }
   set row(v) { this._row = v; }
-  get tip() { return this._tip ?? (this._tip = this._make(this.row)); }
+  get tip() { return this._tip ?? (this._tip = this._c.make(this.row)); }
   set tip(v) { this._tip = v; }
 }
+const tipContexts = new WeakMap(); // make -> { t, make }: one per (table, maker), held while the maker is
 export function rowTip(t, i, ud, make) {
-  return Object.assign(new RowTipData(t, i, make), ud);
+  let c = tipContexts.get(make);
+  if (!c || c.t !== t) { c = { t, make }; tipContexts.set(make, c); }
+  return Object.assign(new RowTipData(c, i), ud);
 }

@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { importCheckSummary } from "../src/lib/dataQC.js";
-import { replaceRowsByHole, keepDerivedPicks } from "../src/lib/layers.js";
+import { replaceRowsByHole, keepDerivedPicks } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 import { surfaceOptionLabels } from "../src/lib/viewer/surfaceLabels.js";
 import { pickDefaultReachM } from "../src/lib/evidenceSources.js";
 

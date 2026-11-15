@@ -6,9 +6,9 @@ import { holeFieldPicks, holesWithoutField, noValuePick } from "../../lib/viewer
 
 const btn = { flex: 1, minWidth: 0, padding: "3px 4px", fontSize: "var(--font-size-xs)", background: "var(--color-bg)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)", borderRadius: 4, cursor: "pointer" };
 
-export default function HoleFilterBar({ collars, filter, setFilter, visibleHoles, setVisibleHoles, colourBy = "", setColourBy = null }) { // colourBy: #1504
+export default function HoleFilterBar({ collars, filter, setFilter, visibleHoles, setVisibleHoles, colourBy = "", setColourBy = null, holeSets = null }) { // colourBy: #1504; holeSets: #3554
   const ids = collars.map((c) => c.hole_id);
-  const none = holesWithoutField(collars, filter), found = none ? { holes: none, byField: false } : holesForFilter(collars, filter); // #1504; none: #3074 — "drill_type=RC" picks by a collar field; #1703 — or text in one
+  const none = holesWithoutField(collars, filter), found = none ? { holes: none, byField: false } : holesForFilter(collars, filter, { holeSets }); // #1504; none: #3074 — "drill_type=RC" picks by a collar field; #1703 — or text in one
   const shown = found.holes.map((c) => c.hole_id);
   const choices = useMemo(() => collarAttrChoices(collars), [collars]);
   const picks = useMemo(() => holeFieldPicks(collars, choices), [collars, choices]); // #3074 — one field per split, with its (no value)
@@ -35,6 +35,12 @@ export default function HoleFilterBar({ collars, filter, setFilter, visibleHoles
           {fieldOptions(true)}
         </select>
       )}
+      {holeSets && Object.keys(holeSets).length > 0 && ( /* TASKS.csv #3554 — holes with / without data: the typed 'has:assays' / 'no:assays' as picks */
+        <select value="" aria-label={tr("Filter holes by what they have")} onChange={(e) => { if (e.target.value) setFilter(e.target.value); }} style={selStyle}>
+          <option value="">{tr("By what holes have…")}</option>
+          {Object.keys(holeSets).flatMap((k) => [<option key={`has:${k}`} value={`has:${k.replace(/\s+/g, "_")}`}>{tr("Holes with {what}", { what: k })}</option>, <option key={`no:${k}`} value={`no:${k.replace(/\s+/g, "_")}`}>{tr("Holes with no {what}", { what: k })}</option>])}
+        </select>
+      )}
       {choices.length > 0 && setColourBy && ( /* TASKS.csv #1504 — colour the collars and traces by a collar field; the legend lists the values */
         <select value={colourBy} aria-label={tr("Colour holes by a collar field")} onChange={(e) => setColourBy(e.target.value)}
           style={{ width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 6px", fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>
@@ -48,6 +54,9 @@ export default function HoleFilterBar({ collars, filter, setFilter, visibleHoles
         <button type="button" style={btn} onClick={() => apply("only")} title={tr("Show the holes listed below and hide all the others")}>{tr("Only these")}</button>
       </div>
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3 }}>{tr("{ticked} of {total} checked", { ticked, total: ids.length })}</div>
+      {!shown.length && filter.trim() && ( /* TASKS.csv #3554 — nothing listed: say what the box reads (it said nothing for 'year>=2017') */
+        <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 2, lineHeight: 1.4 }}>{found.hint?.kind === "set" ? tr("No data called {name} here: has:assays, no:assays, or the name of a layer of this project.", { name: found.hint.names.join(", ") }) : tr("No hole matches. The box reads part of a hole id, field=value, a number test such as year>=2017, length>300 or year=2017..2023, and has:assays or no:assays.")}</div>
+      )}
       {found.byField && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("No hole id contains this text: listing the {n} hole(s) with it in a collar field.", { n: shown.length })}</div>}{/* #1703 */}
     </div>
   );

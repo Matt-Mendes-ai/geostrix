@@ -28,7 +28,7 @@ const SYN = {
 const NOT_ATTR = new Set(["ijk", "i", "j", "k", "ix", "iy", "iz", "index", "idx", "id", "block_id", "blockid", "nx", "ny", "nz", "xmorig", "ymorig", "zmorig", "parent", "sub_block", "subblock"]);
 const GRADE_HINT = /^(au|ag|cu|zn|pb|mo|ni|co|u3o8|fe|grade|value|val|density|sg|resistivity|susceptibility|chargeability)(_|$)/;
 
-import { num } from "./layers.js";
+import { num } from "./layersImport.js"; // TASKS.csv #3590
 
 export function numericColumns(headers, rows, sample = 200) {
   const out = [];

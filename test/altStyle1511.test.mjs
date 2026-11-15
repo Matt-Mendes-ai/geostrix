@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { alterationStyleFromName, styledAltValue, normInterval } from "../src/lib/viewer/importHelpers.js";
-import { TARGET_SCHEMAS, guessMapping } from "../src/lib/layers.js";
+import { TARGET_SCHEMAS, guessMapping } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 
 test("the style is read from a file name that names one, never from a generic alteration log", () => {
   assert.equal(alterationStyleFromName("Oxidation.csv"), "Oxidation");

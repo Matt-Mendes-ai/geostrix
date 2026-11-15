@@ -1,7 +1,7 @@
 // TASKS.csv #2151 — collar files with Australian grid names (MGA_East / MGA_North, GDA94_E / GDA94_N, GBMG_East / GBMG_North, *_RL)
 import test from "node:test";
 import assert from "node:assert/strict";
-import { guessTarget, guessTargetFor, guessMapping, gridCoordinateColumns } from "../src/lib/layers.js";
+import { guessTarget, guessTargetFor, guessMapping, gridCoordinateColumns } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 
 const FILES = [
   [["HoleID", "MGA_East", "MGA_North", "MGA_RL", "Dip", "Azimuth", "TD"], ["MGA_East", "MGA_North", "MGA_RL"]],

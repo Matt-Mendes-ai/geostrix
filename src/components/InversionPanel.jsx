@@ -31,6 +31,7 @@ import { orientationAt } from "../lib/mapLayers.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { constraintSamples, SUSC_UNITS, suscUnitHint, PHYSICAL_MAX_SI, EXTREME_X, suscUnitFromRows } from "../lib/drillholeConstraints.js"; // suscUnitFromRows: #2668 // TASKS.csv #323; suscUnitHint: #1435; EXTREME_X: #1713
 import { categoricalModels, modelUnits, unitMedians, modelBody } from "../lib/geologyForward.js"; // TASKS.csv #760
+const StructFitPanel = React.lazy(() => import("./StructFitPanel.jsx")); // TASKS.csv #2640 Stage 1 — loaded when the section is opened
 import { t as tr } from "../lib/i18n.js";
 import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #1709 // TASKS.csv #786
 import { SURVEY_METHODS, methodIsInvertible, inversionSurveyCounts } from "../lib/geophysSurveys.js"; // TASKS.csv #1151; inversionSurveyCounts: #2403
@@ -119,6 +120,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
   const [plate, setPlate] = useKeptState(keptScope, "inversion.plate", { open: false, cx: "", cy: "", cz: "", dipDirection: "", dip: "", strikeLength: "", dipExtent: "", thickness: "", contrast: "", sweep: false });
   // TASKS.csv #760 — test a geology model against the survey: a categorical block model, a property per unit, a background
   const [geo, setGeo] = useKeptState(keptScope, "inversion.geo", { open: false, modelId: "", props: {}, background: "" });
+  const [sfOpen, setSfOpen] = useKeptState(keptScope, "inversion.sfOpen", false); // TASKS.csv #2640 — which contacts the survey can see
   const [plan, setPlan] = useState(null);
   const [planBusy, setPlanBusy] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -239,8 +241,9 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
     }
     if (method === "mag" && baseLevel === "igrf" && !(field.igrfPlane && field.igrfPlane.date === field.date)) problems.push(tr("'Subtract the IGRF field' needs the field computed for this survey's date: press 'Compute from IGRF-14 for the survey date'.")); // #1591
     if (kind === "inversion" && !(num(unc.floor) > 0)) problems.push(tr("Enter the data uncertainty floor ({v}).", { v: M?.unit || "units" }));
-    if (!(num(mesh.coreCell) >= 1)) problems.push(tr("Enter the core cell size."));
-    if (!(num(mesh.depth) >= num(mesh.coreCell))) problems.push(tr("Enter the model depth (at least one cell)."));
+    // TASKS.csv #2640 — "structfit" (which contacts the survey can see) works on the geology model's own grid: no mesh to size here
+    if (kind !== "structfit" && !(num(mesh.coreCell) >= 1)) problems.push(tr("Enter the core cell size."));
+    if (kind !== "structfit" && !(num(mesh.depth) >= num(mesh.coreCell))) problems.push(tr("Enter the model depth (at least one cell)."));
     if (problems.length) return { problems };
 
     let idx = rows.map((_, i) => i);
@@ -274,7 +277,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
     const padReach = cell * (1.3 + 1.69 + 2.197 + 2.856 + 3.713 + 4.827) + 3 * cell;
     const sx = stations.map((p) => p[0]), sy = stations.map((p) => p[1]);
     const box = [arrMin(sx) - padReach, arrMin(sy) - padReach, arrMax(sx) + padReach, arrMax(sy) + padReach];
-    const topo = terrain ? terrainPoints(terrain, box, 40000) : null;
+    const topo = terrain && kind !== "structfit" ? terrainPoints(terrain, box, 40000) : null;
     let dhMeta = null; // #323
     const request = {
       method, kind, stations, stationsDraped: zModeEff === "drape", // #1173
@@ -814,6 +817,15 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                     </>)}
                   </>)}
                 </div>
+              )}
+
+              {/* TASKS.csv #2640 Stage 1 — which contacts of the last geology model this survey can see (a sensitivity pass; no fit) */}
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSfOpen((o) => !o)} aria-expanded={sfOpen} style={{ ...row, cursor: "pointer", marginTop: 8, color: "var(--color-text)" }}>
+                {sfOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}{" "}{tr("Which contacts can this survey see?")}</div>
+              {sfOpen && (
+                <React.Suspense fallback={<div style={small}>{tr("Loading…")}</div>}>
+                  <StructFitPanel method={method} unit={M?.unit || ""} keptScope={keptScope} prepareForward={() => prepare("structfit")} unc={unc} setUnc={setUnc} field={field} ui={{ small, inp, row, lbl, pBtn }} />
+                </React.Suspense>
               )}
 
               {running && (

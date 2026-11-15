@@ -24,7 +24,7 @@ test("Macpass: Tom West's densities 42 % regressed; its own mean against the who
   const tw = new Set(read("collars").filter((c) => c.prospect === "Tom West").map((c) => c.hole_id));
   const sg = read("sg").map((r) => ({ hole_id: r.hole_id, from: +r.from, to: +r.to, value: r.sg === "" ? null : +r.sg, method: r.method }));
   const all = sgSummary(sg), own = sgSummary(sg.filter((r) => tw.has(r.hole_id)));
-  assert.deepEqual(own.methods, { field: "method", measured: 2479, calculated: 1760, other: 0 }, "Tom West: 1,760 of 4,239 regressed");
+  assert.deepEqual(own.methods, { field: "method", measured: 2478, calculated: 1760, other: 0 }, "Tom West: 1,760 of the 4,238 within the default 1-6 t/m3 range (#3587) regressed");
   assert.equal(Math.round((100 * own.methods.calculated) / own.n), 42);
   assert.ok(Math.abs(own.mean - all.mean) > 0.05, `Tom West's own mean ${own.mean} against the whole project's ${all.mean}`);
 });
@@ -34,7 +34,7 @@ test("wiring: the estimate keeps its holes; the table's SG over them, with the m
   assert.match(e, /holeIds: \[\.\.\.new Set\(points\.map\(\(p\) => p\.hole_id\)\)\], \/\/ TASKS\.csv #3595/);
   assert.match(e, /if \(!m\.params\.holeIds\) m\.params\.holeIds = params\.holeIds;/);
   const g = readFileSync(new URL("../src/components/GradeTonnageModal.jsx", import.meta.url), "utf8");
-  assert.match(g, /sgSummary\(modelHoles \? \(layers\?\.sg \|\| \[\]\)\.filter\(\(r\) => modelHoles\.has\(r\.hole_id\)\) : layers\?\.sg\)/);
+  assert.match(g, /modelHoles \? sgSummary\(\(layers\?\.sg \|\| \[\]\)\.filter\(\(r\) => modelHoles\.has\(r\.hole_id\)\), densityRange\) : sgSummary\(layers\?\.sg, densityRange\)/);
   assert.match(g, /tr\("Use the SG of this model's holes \(\{v\}\)"/);
   const s = readFileSync(new URL("../src/modules/viewer/SurfaceTonnage.jsx", import.meta.url), "utf8");
   assert.match(s, /\{from\.methods \? " " \+ sgMethodsText\(from\.methods\) : ""\}/);

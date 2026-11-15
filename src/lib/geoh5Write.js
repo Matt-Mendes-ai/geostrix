@@ -1,17 +1,21 @@
-// TASKS.csv #1993 (export step) — a Geoscience ANALYST .geoh5 written from plain elements (points with data, curves, surfaces, block models; drillholes are a
-// later step), through h5wasm (loaded on demand, as lib/geoh5.js reads it: never in the startup bundle). Written from Mira Geoscience's public geoh5 format
-// description (the geoh5py documentation, docs/content/geoh5_format: workspace.rst, groups.rst, objects.rst, data.rst, types.rst; read 2026-11-14), not
+// TASKS.csv #1993 (export step) — a Geoscience ANALYST .geoh5 written from plain elements (points with data, curves, surfaces, block models and, since the
+// drillhole step, drillholes), through h5wasm (loaded on demand, as lib/geoh5.js reads it: never in the startup bundle). Written from Mira Geoscience's public geoh5
+// format description (the geoh5py documentation, docs/content/geoh5_format: workspace.rst, groups.rst, objects.rst, data.rst, types.rst; read 2026-11-14), not
 // from geoh5py's code:
 //   workspace.rst  GEOSCIENCE: attributes Version (double), Distance unit, Contributors (1D array of str); flat groups Data, Groups, Objects, Types (Data
 //                  types, Group types, Object types); Root, a hard link to the top group of the tree. 'All groups, objects and data must include a hard
 //                  link to their type'; parents hold links to their children.
 //   groups.rst     group attributes Name, ID, Visible, Public, Allow delete, Allow move, Allow rename; the No Type (Root) group type
-//                  {dd99b610-be92-48c0-873c-5b5946ea2840}.
+//                  {dd99b610-be92-48c0-873c-5b5946ea2840}; Drillholes {825424FB-C2C6-4FEA-9F2B-6CD00023D393}, a container restricted to drillhole objects.
 //   objects.rst    object attributes Name, ID, Visible, Public, Allow delete, Allow move, Allow rename. Points {202C5DB1-A56D-4004-9CAD-BAAFD8899406}:
 //                  Vertices, a 1D compound [x, y, z double]. Curve {6A057FDC-B355-11E3-95BE-FD84A7FFCB88}: Cells int32 shape (N, 2). Surface
 //                  {F26FEBA3-ADED-494B-B9E9-B2BBCBE298E1}: Cells int32 shape (N, 3). Block model {B020A277-90E2-4CD7-84D6-612EE3F25051}: U / V / Z cell
 //                  delimiters (double; distances of the cell edges from Origin, the first 0; Z upwards), attributes Origin (compound X, Y, Z) and Rotation
 //                  (double, degrees counter-clockwise); cell index = k + i·nZ + j·nU·nZ.
+//                  Drillhole {7CAEBF0E-D16E-11E3-BC69-E4632694AA37}: attribute Collar (compound X, Y, Z double); datasets Surveys (compound Depth, Dip,
+//                  Azimuth double) and Trace (compound X, Y, Z: the path from collar to end of hole, at least two points). Its Vertices are points along the
+//                  path that carry data and 'must have a Depth property value'; its Cells are vertex pairs, the intervals (they may overlap, for data
+//                  sampled on different intervals).
 //   data.rst       data attributes Association (Vertex / Cell / Object ...), Name, ID, Visible, Public, Allow delete, Allow rename; data always a 1D array.
 //                  Float: 32-bit, no-data 1.175494351e-38 (FLT_MIN). Text: UTF-8 variable-length strings, no-data the empty string.
 //   types.rst      object types: Name, ID (Description optional); data types: Name, ID, Primitive type (Units, Description, Hidden, Transparent no data
@@ -24,13 +28,18 @@
 //   { kind: "surface", name, vertices, cells: [a, b, c, ...], data? }
 //   { kind: "blockmodel", name, origin: [x, y, z], u: [widths], v: [widths], z: [widths], data: [{ name, values, units? }] }
 //                                                                                                                values in geoh5's order, k + i·nZ + j·nU·nZ (z upwards)
+//   { kind: "drillhole", name, collar: [x, y, z], trace: [[x, y, z], ...] (>= 2), surveys?: [[depth, azimuth, dip]] (dip negative down, as geoh5 has it),
+//     endOfHole?, vertices?: [x, y, z, ...] (points along the path, each with its DEPTH among the data), cells?: [a, b, ...] (intervals), data? (vertex / cell) }
+//   Drillholes go into one Drillholes group under the workspace.
 export const GEOH5_WRITE_TYPES = {
   points: { id: "{202C5DB1-A56D-4004-9CAD-BAAFD8899406}", name: "Points" },
   curve: { id: "{6A057FDC-B355-11E3-95BE-FD84A7FFCB88}", name: "Curve" },
   surface: { id: "{F26FEBA3-ADED-494B-B9E9-B2BBCBE298E1}", name: "Surface" },
   blockmodel: { id: "{B020A277-90E2-4CD7-84D6-612EE3F25051}", name: "Block model" },
+  drillhole: { id: "{7CAEBF0E-D16E-11E3-BC69-E4632694AA37}", name: "Drillhole" }, // the drillhole step
 };
 export const ROOT_GROUP_TYPE = "{dd99b610-be92-48c0-873c-5b5946ea2840}";
+export const DRILLHOLES_GROUP_TYPE = "{825424FB-C2C6-4FEA-9F2B-6CD00023D393}";
 export const FLOAT_NO_DATA = 1.175494351e-38;
 export const GEOH5_VERSION = 2.0;
 
@@ -40,7 +49,8 @@ async function h5() { if (!h5Ready) h5Ready = import("h5wasm").then(async (m) =>
 const newId = () => `{${(globalThis.crypto?.randomUUID?.() || "xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx".replace(/x/g, () => ((Math.random() * 16) | 0).toString(16)))}}`;
 const flags = (node, keys) => { for (const [k, v] of keys) node.create_attribute(k, v, null, "<i"); };
 const xyzCompound = (rows) => new Map([["x", Float64Array.from(rows, (r) => r[0])], ["y", Float64Array.from(rows, (r) => r[1])], ["z", Float64Array.from(rows, (r) => r[2])]]);
-const XYZ = (p) => new Map([["X", new Float64Array([p[0]])], ["Y", new Float64Array([p[1]])], ["Z", new Float64Array([p[2]])]]); // objects.rst: Origin [X, Y, Z]
+const XYZCompound = (rows) => new Map([["X", Float64Array.from(rows, (r) => r[0])], ["Y", Float64Array.from(rows, (r) => r[1])], ["Z", Float64Array.from(rows, (r) => r[2])]]); // objects.rst: Trace [X, Y, Z]
+const XYZ = (p) => new Map([["X", new Float64Array([p[0]])], ["Y", new Float64Array([p[1]])], ["Z", new Float64Array([p[2]])]]); // objects.rst: Origin / Collar [X, Y, Z]
 const triples = (flat) => { const out = []; for (let i = 0; i + 2 < flat.length; i += 3) out.push([+flat[i], +flat[i + 1], +flat[i + 2]]); return out; };
 
 // a data entry's values -> { prim, data, dtype } (Float: 32-bit, blanks and non-numbers the no-data value; Text: variable-length strings)
@@ -65,44 +75,73 @@ export async function writeGeoh5(elements, { distanceUnit = "meter", contributor
     root.create_attribute("Distance unit", distanceUnit);
     if (contributors?.length) root.create_attribute("Contributors", contributors.map(String));
     for (const g of ["Data", "Groups", "Objects", "Types", "Types/Data types", "Types/Group types", "Types/Object types"]) f.create_group(`GEOSCIENCE/${g}`);
+    // the flat groups, opened once (the drillhole step: a path looked up per entry cost seconds on 559 holes)
+    const G = { data: f.get("GEOSCIENCE/Data"), groups: f.get("GEOSCIENCE/Groups"), objects: f.get("GEOSCIENCE/Objects"), dataTypes: f.get("GEOSCIENCE/Types/Data types"), groupTypes: f.get("GEOSCIENCE/Types/Group types"), objectTypes: f.get("GEOSCIENCE/Types/Object types") };
+    // a group of the tree: its type (once), the group, linked under its parent's Groups
+    const groupTypes = new Set();
+    const makeGroup = (typeId, typeName, name, parentId, { fixed = false } = {}) => {
+      if (!groupTypes.has(typeId)) {
+        const gt = G.groupTypes.create_group(typeId);
+        gt.create_attribute("ID", typeId); gt.create_attribute("Name", typeName); gt.create_attribute("Description", typeName === "NoType" ? "<Unknown>" : typeName);
+        flags(gt, [["Allow move contents", 1], ["Allow delete contents", 1]]);
+        groupTypes.add(typeId);
+      }
+      const id = newId(), g = G.groups.create_group(id);
+      g.create_attribute("ID", id); g.create_attribute("Name", name);
+      flags(g, [["Visible", 1], ["Public", 1], ["Allow delete", fixed ? 0 : 1], ["Allow move", fixed ? 0 : 1], ["Allow rename", fixed ? 0 : 1]]);
+      g.create_hard_link(`/GEOSCIENCE/Types/Group types/${typeId}`, "Type");
+      for (const s of ["Data", "Groups", "Objects"]) g.create_group(s);
+      if (parentId) f.get(`GEOSCIENCE/Groups/${parentId}/Groups`).create_hard_link(`/GEOSCIENCE/Groups/${id}`, id);
+      return id;
+    };
     // the workspace's top group (groups.rst: No Type (Root)), linked as GEOSCIENCE/Root
-    const gt = f.get("GEOSCIENCE/Types/Group types").create_group(ROOT_GROUP_TYPE);
-    gt.create_attribute("ID", ROOT_GROUP_TYPE); gt.create_attribute("Name", "NoType"); gt.create_attribute("Description", "<Unknown>");
-    flags(gt, [["Allow move contents", 1], ["Allow delete contents", 1]]);
-    const rootId = newId(), rg = f.get("GEOSCIENCE/Groups").create_group(rootId);
-    rg.create_attribute("ID", rootId); rg.create_attribute("Name", "Workspace");
-    flags(rg, [["Visible", 1], ["Public", 1], ["Allow delete", 0], ["Allow move", 0], ["Allow rename", 0]]);
-    rg.create_hard_link(`/GEOSCIENCE/Types/Group types/${ROOT_GROUP_TYPE}`, "Type");
-    for (const g of ["Data", "Groups", "Objects"]) rg.create_group(g);
+    const rootId = makeGroup(ROOT_GROUP_TYPE, "NoType", "Workspace", null, { fixed: true });
     root.create_hard_link(`/GEOSCIENCE/Groups/${rootId}`, "Root");
+    let holesId = null; // the Drillholes group, made with the first drillhole
     const objTypes = new Set();
     const objectType = (kind) => {
       const t = GEOH5_WRITE_TYPES[kind];
-      if (!objTypes.has(kind)) { const g = f.get("GEOSCIENCE/Types/Object types").create_group(t.id); g.create_attribute("ID", t.id); g.create_attribute("Name", t.name); g.create_attribute("Description", t.name); objTypes.add(kind); }
+      if (!objTypes.has(kind)) { const g = G.objectTypes.create_group(t.id); g.create_attribute("ID", t.id); g.create_attribute("Name", t.name); g.create_attribute("Description", t.name); objTypes.add(kind); }
       return t.id;
+    };
+    // the drillhole step — one data type per name, primitive and unit, shared by every object that carries such data (559 holes' 'Lithology' are one property)
+    const dataTypes = new Map();
+    const dataType = (name, prim, units) => {
+      const key = `${name}\u0000${prim}\u0000${units || ""}`;
+      if (dataTypes.has(key)) return dataTypes.get(key);
+      const tId = newId(), t = G.dataTypes.create_group(tId);
+      t.create_attribute("ID", tId); t.create_attribute("Name", String(name)); t.create_attribute("Primitive type", prim);
+      if (units) t.create_attribute("Units", String(units));
+      flags(t, [["Hidden", 0], ["Transparent no data", 1]]);
+      dataTypes.set(key, tId);
+      return tId;
     };
     for (const el of elements || []) {
       const name = String(el?.name || el?.kind || "object");
       try {
         const kind = el?.kind;
         if (!GEOH5_WRITE_TYPES[kind]) { skipped.push({ name, reason: `a ${kind || "?"} (not written)` }); continue; }
+        const hole = kind === "drillhole";
         const verts = kind === "blockmodel" ? [] : triples(el.vertices || []);
-        if (kind !== "blockmodel" && !verts.length) { skipped.push({ name, reason: "no vertices" }); continue; }
-        const per = kind === "curve" ? 2 : kind === "surface" ? 3 : 0;
+        if (!hole && kind !== "blockmodel" && !verts.length) { skipped.push({ name, reason: "no vertices" }); continue; }
+        const per = kind === "curve" || hole ? 2 : kind === "surface" ? 3 : 0;
         const cells = per ? Array.from(el.cells || [], Number) : [];
-        if (per && (!cells.length || cells.length % per || cells.some((c) => !(Number.isInteger(c) && c >= 0 && c < verts.length)))) { skipped.push({ name, reason: "cells missing, or pointing past the vertices" }); continue; }
+        if (!hole && per && !cells.length) { skipped.push({ name, reason: "cells missing, or pointing past the vertices" }); continue; }
+        if (per && (cells.length % per || cells.some((c) => !(Number.isInteger(c) && c >= 0 && c < verts.length)))) { skipped.push({ name, reason: "cells missing, or pointing past the vertices" }); continue; }
         let nCells = per ? cells.length / per : 0;
         if (kind === "blockmodel") {
           const ok = ["u", "v", "z"].every((a) => Array.isArray(el[a]) && el[a].length && el[a].every((w) => Number.isFinite(w) && w > 0));
           if (!ok || !Array.isArray(el.origin) || el.origin.length < 3) { skipped.push({ name, reason: "a block model without its cell widths or origin" }); continue; }
           nCells = el.u.length * el.v.length * el.z.length;
         }
+        const trace = hole ? (el.trace || []).filter((p) => p && [0, 1, 2].every((k) => Number.isFinite(+p[k]))) : [];
+        if (hole && (!Array.isArray(el.collar) || el.collar.length < 3 || !el.collar.slice(0, 3).every((v) => Number.isFinite(+v)) || trace.length < 2)) { skipped.push({ name, reason: "a drillhole without its collar or a path of two points" }); continue; }
         const typeId = objectType(kind);
-        const id = newId(), o = f.get("GEOSCIENCE/Objects").create_group(id);
+        const id = newId(), o = G.objects.create_group(id);
         o.create_attribute("ID", id); o.create_attribute("Name", name);
         flags(o, [["Visible", 1], ["Public", 1], ["Allow delete", 1], ["Allow move", 1], ["Allow rename", 1]]);
         o.create_hard_link(`/GEOSCIENCE/Types/Object types/${typeId}`, "Type");
-        o.create_group("Data");
+        const oData = o.create_group("Data");
         if (kind === "blockmodel") {
           o.create_attribute("Origin", XYZ(el.origin));
           o.create_attribute("Rotation", 0, null, "<d");
@@ -110,31 +149,39 @@ export async function writeGeoh5(elements, { distanceUnit = "meter", contributor
           o.create_dataset({ name: "U cell delimiters", data: delims(el.u) });
           o.create_dataset({ name: "V cell delimiters", data: delims(el.v) });
           o.create_dataset({ name: "Z cell delimiters", data: delims(el.z) });
+        } else if (hole) {
+          o.create_attribute("Collar", XYZ(el.collar.map(Number)));
+          if (Number.isFinite(el.endOfHole)) o.create_attribute("End of hole", Number(el.endOfHole), null, "<d");
+          const sv = (el.surveys || []).filter((s) => Number.isFinite(+s[0]) && Number.isFinite(+s[1]) && Number.isFinite(+s[2]));
+          if (sv.length) o.create_dataset({ name: "Surveys", data: new Map([["Depth", Float64Array.from(sv, (s) => +s[0])], ["Dip", Float64Array.from(sv, (s) => +s[2])], ["Azimuth", Float64Array.from(sv, (s) => +s[1])]]) }); // objects.rst order
+          o.create_dataset({ name: "Trace", data: XYZCompound(trace.map((p) => p.map(Number))) });
+          if (verts.length) o.create_dataset({ name: "Vertices", data: xyzCompound(verts) });
+          if (nCells) o.create_dataset({ name: "Cells", data: Int32Array.from(cells), shape: [nCells, 2], dtype: "<i" });
         } else {
           o.create_dataset({ name: "Vertices", data: xyzCompound(verts) });
           if (per) o.create_dataset({ name: "Cells", data: Int32Array.from(cells), shape: [nCells, per], dtype: "<i" });
         }
-        f.get("GEOSCIENCE/Groups").get(rootId).get("Objects").create_hard_link(`/GEOSCIENCE/Objects/${id}`, id);
+        if (hole) {
+          holesId ??= makeGroup(DRILLHOLES_GROUP_TYPE, "Drillholes", "Drillholes", rootId);
+          f.get(`GEOSCIENCE/Groups/${holesId}/Objects`).create_hard_link(`/GEOSCIENCE/Objects/${id}`, id);
+        } else f.get(`GEOSCIENCE/Groups/${rootId}/Objects`).create_hard_link(`/GEOSCIENCE/Objects/${id}`, id);
         let nData = 0;
         for (const d of el.data || []) {
           const assoc = kind === "blockmodel" ? "Cell" : d.association === "cell" ? "Cell" : "Vertex";
           const n = assoc === "Cell" ? nCells : verts.length;
           const vals = Array.from(d.values || []);
-          if (vals.length !== n) { skipped.push({ name: `${name} / ${d.name}`, reason: `${vals.length} values for ${n} ${assoc === "Cell" ? "cells" : "vertices"}` }); continue; }
+          if (vals.length !== n || !n) { skipped.push({ name: `${name} / ${d.name}`, reason: `${vals.length} values for ${n} ${assoc === "Cell" ? "cells" : "vertices"}` }); continue; }
           const { prim, data, dtype } = dataArray(vals);
-          const tId = newId(), t = f.get("GEOSCIENCE/Types/Data types").create_group(tId);
-          t.create_attribute("ID", tId); t.create_attribute("Name", String(d.name)); t.create_attribute("Primitive type", prim);
-          if (d.units) t.create_attribute("Units", String(d.units));
-          flags(t, [["Hidden", 0], ["Transparent no data", 1]]);
-          const dId = newId(), g = f.get("GEOSCIENCE/Data").create_group(dId);
+          const tId = dataType(d.name, prim, d.units);
+          const dId = newId(), g = G.data.create_group(dId);
           g.create_attribute("ID", dId); g.create_attribute("Name", String(d.name)); g.create_attribute("Association", assoc);
           flags(g, [["Visible", 0], ["Public", 1], ["Allow delete", 1], ["Allow rename", 1]]);
           g.create_hard_link(`/GEOSCIENCE/Types/Data types/${tId}`, "Type");
           g.create_dataset(dtype ? { name: "Data", data, dtype } : { name: "Data", data });
-          o.get("Data").create_hard_link(`/GEOSCIENCE/Data/${dId}`, dId);
+          oData.create_hard_link(`/GEOSCIENCE/Data/${dId}`, dId);
           nData++;
         }
-        written.push({ kind, name, count: kind === "blockmodel" ? nCells : verts.length, data: nData });
+        written.push({ kind, name, count: kind === "blockmodel" ? nCells : hole ? nCells + verts.length : verts.length, data: nData });
       } catch (e) { skipped.push({ name, reason: e?.message || String(e) }); }
     }
   } finally {

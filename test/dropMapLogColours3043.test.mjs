@@ -27,6 +27,6 @@ test("the drop's map path applies them; the hook passes the legend overrides", (
   assert.match(impl, /if \(!layer\.styleBreaks && layer\.categories\?\.length > 1\) \{\n\s*const spell = loggedCodeSpellings\(live\.layers\?\.litho\);/);
   assert.match(impl, /withLogColours\(layer\.categories, spell, \(u\) => categoryColor\(viewerUiState\?\.legendOverride\?\.litho\?\.\[u\], LAYER_META\.litho, u\)\)/);
   const hook = fs.readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
-  assert.match(hook, /assays: storeAssays, viewerUiState \} = useStore\(\);/);
+  assert.match(hook, /assays: storeAssays, viewerUiState, undoCheckpoint \} = useStore\(\);/);
   assert.match(hook, /h: \{ viewerUiState, addVoxelModel,/);
 });

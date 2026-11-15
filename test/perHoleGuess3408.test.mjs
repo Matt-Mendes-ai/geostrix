@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { guessTargetFor, guessMapping } from "../src/lib/layers.js";
+import { guessTargetFor, guessMapping } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 import { perHoleJoinOf } from "../src/lib/perHoleJoin.js";
 const headers = ["Hole_ID", "Probe", "K_factor", "Dead_time_us", "Date_logged"];
 const rows = [{ Hole_ID: "H1", Probe: "GR-12", K_factor: "1.02", Dead_time_us: "5.1", Date_logged: "2024-03-01" }, { Hole_ID: "H2", Probe: "GR-12", K_factor: "1.01", Dead_time_us: "5.0", Date_logged: "2024-03-02" }];

@@ -1,7 +1,7 @@
 // TASKS.csv #443 — import detection / normalisation / desurvey regression tests (run: npm test).
 import test from "node:test";
 import assert from "node:assert/strict";
-import { guessTarget, guessMapping, num, replaceRowsByHole } from "../src/lib/layers.js";
+import { guessTarget, guessMapping, num, replaceRowsByHole } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 import { desurveyHole } from "../src/lib/desurvey.js";
 
 test("#335 collar files with a depth column are collars, not survey", () => {
@@ -107,7 +107,7 @@ test("#600 Data QC: no gap notes on sparse logs (veins, SG); still on lithology"
 });
 
 test("#600 collars in two files (Coordinates, then Headers with depth): fills merge without a conflict; missing never wipes", async () => {
-  const { diffCollarImport, mergeCollar } = await import("../src/lib/layers.js");
+  const { diffCollarImport, mergeCollar } = await import("../src/lib/layersImport.js");
   const coords = [{ hole_id: "MT23-118", x: 615006.498, y: 5789576.468, z: 965.237 }];
   const headers = [{ hole_id: "MT23-118", x: 615006.498, y: 5789576.468, z: 965.237, length: 452, azimuth: 330, dip: 70 }];
   const d = diffCollarImport(coords, headers);
@@ -126,7 +126,7 @@ test("#600 collars in two files (Coordinates, then Headers with depth): fills me
 });
 
 test("#582 a hole-extension file is appended below the existing rows; an overlapping one still replaces", async () => {
-  const { replaceRowsByHole } = await import("../src/lib/layers.js");
+  const { replaceRowsByHole } = await import("../src/lib/layersImport.js");
   const old = [{ hole_id: "A", from: 0, to: 80, value: "AND" }, { hole_id: "A", from: 80, to: 150, value: "DACT" }, { hole_id: "B", from: 0, to: 50, value: "AND" }];
   const ext = replaceRowsByHole(old, [{ hole_id: "A", from: 150, to: 300, value: "VCL" }]);
   assert.deepEqual(ext.appendedHoles, ["A"]); assert.deepEqual(ext.replacedHoles, []);

@@ -6,7 +6,7 @@ import { viewerSource } from "./helpers/viewerSource.mjs"; // #2176 — the dril
 // TASKS.csv #1319 — the opening view frames every hole, not the densest drilling, and not a block model 25 km across
 const src = viewerSource().replace(/\r\n/g, "\n"); // a Windows checkout has CRLF
 test("the opening fit takes the hole traces, counted before the block models are added", () => {
-  assert.match(src, /autoFitInitial = useCallback\(\(traces, nHoles\) => \{ fitView\(nHoles \? traces\.slice\(0, nHoles\) : traces\); \}/);
+  assert.match(src, /autoFitInitial = useCallback\(\(traces, nHoles\) => \{ const hole = nHoles \? traces\.slice\(0, nHoles\) : traces,/); // #3555: the holes shown, when some are hidden
   const count = src.indexOf("const nHoleTraces = allTraces.length;"), voxels = src.indexOf("allTraces.push(...voxelFitCorners(voxelModels, { x: ox, y: oy, z: oz }));"); // #1569 — the corners come from a helper now
   assert.ok(count > 0 && count < voxels);
   assert.match(src, /autoFitInitial\(allTraces, nHoleTraces\)/);

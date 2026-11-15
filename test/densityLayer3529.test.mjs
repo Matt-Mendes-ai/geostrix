@@ -49,7 +49,7 @@ test("the layer carries its unit and purpose; its legend group carries the unit 
   assert.equal(g.find((x) => x.key === "numeric_sg").label, "Specific gravity", "the name stays: the section ribbons and the Layout legend match by it");
   assert.equal(g.find((x) => x.key === "numeric_sg").unit, "t/m³");
   assert.equal(g.find((x) => x.key === "numeric_magsusc").unit, undefined);
-  assert.ok(read("../src/components/ViewportFigureOverlay.jsx").includes('{g.label}{g.unit ? ` (${g.unit})` : ""'));
+  { const o = read("../src/components/ViewportFigureOverlay.jsx"); assert.ok(o.includes('{tr(g.label)') && o.includes('{g.unit ? ` (${g.unit})` : ""')); } // #3625 — the name is translated
 });
 
 test("Identify gives a density's value its unit: from the tooltip text and from the row alone; the hover tip carries it too", () => {
@@ -76,4 +76,18 @@ test("wired: the notice, the dialog's check, the layer's panel and Identify's ke
     const d = JSON.parse(fs.readFileSync(new URL(`../src/locales/${lang}.json`, import.meta.url), "utf8"));
     for (const k of [LAYER_META.sg.purpose, "{n} interval(s) are flagged {name}.", "These values do not look like t/m³ (the middle value is {m}): a density in kg/m³ needs dividing by 1000 before it is used for tonnes."]) assert.ok(d[k], `${lang}: ${k.slice(0, 30)}`);
   }
+});
+
+test("the unit reaches the sidebar row, the Layout legend and the section legend's ramp heading", async () => {
+  assert.ok(read("../src/modules/ViewerModule.jsx").includes("label={tr(meta.label) + (meta.unit ? ` (${meta.unit})` : \"\") /* TASKS.csv #3529 */}"));
+  assert.ok(read("../src/modules/LayoutModule.jsx").includes("{name}{opt.ramp.unit ? ` (${opt.ramp.unit})` : \"\""));
+  const { legendGroupsToItems } = await import("../src/lib/legendGroups.js");
+  const { sectionNumericLegendItems, groupSectionLegend } = await import("../src/lib/sectionLegend.js");
+  const layers = { sg: [{ hole_id: "A", from: 0, to: 1, value: 2.5 }, { hole_id: "A", from: 1, to: 2, value: 3.5 }] };
+  const groups = numericLayerLegendGroups({ layers, layerVisible: { sg: true }, colorOf: () => "#888" });
+  assert.equal(legendGroupsToItems(groups)[0][2].ramp.unit, "t/m³", "the Layout legend's ramp row carries it");
+  const items = sectionNumericLegendItems(groups);
+  assert.equal(items[0][2].ramp.unit, "t/m³");
+  const rows = groupSectionLegend(items, ["Specific gravity", "Lithology"]);
+  assert.ok(rows.some((r) => r[0] === "Specific gravity (t/m³) (ribbon 1 of 2, from the left)"), rows.map((r) => r[0]).join(" | "));
 });

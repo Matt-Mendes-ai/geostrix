@@ -34,12 +34,4 @@ export async function buildWorkspaceDatabase(data, onProgress) {
   return { db, tables };
 }
 
-// Runs an arbitrary query and returns { columns, rows } (rows as plain arrays, matching columns'
-// order) or throws sql.js's own error message directly — a SQL syntax/reference error is exactly the
-// kind of thing that should surface verbatim to a user who just typed the query themselves, not get
-// wrapped/genericized.
-export function runQuery(db, sql) {
-  const res = db.exec(sql);
-  if (!res.length) return { columns: [], rows: [] };
-  return { columns: res[0].columns, rows: res[0].values };
-}
+export { runQuery } from "./sqlRun.js"; // TASKS.csv #3579 — in its own file so a test can run it without the wasm import

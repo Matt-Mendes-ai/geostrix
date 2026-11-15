@@ -188,9 +188,11 @@ test("#397 planned holes for the rig: lat/lon, true and magnetic azimuth, KML/GP
   const trace = () => [{ x: 463333, y: 6178148, z: 1160 }, { x: 463483, y: 6178148, z: 900 }];
   const [r] = rigRows([hole], 3156, "2026-09-25", trace);
   assert.ok(r.lat > 55.5 && r.lat < 56 && r.lon > -130 && r.lon < -129.4, `${r.lat},${r.lon}`);
+  // TASKS.csv #3610 — grid convergence in the usual sign, as Maps prints it: negative west of the central meridian (UTM 9 is 129 W; this is 129.7 W)
+  assert.ok(r.convergence_deg < -0.4 && r.convergence_deg > -0.8, `convergence ${r.convergence_deg}`);
   // grid = true + c  and  grid = magnetic + D + c
-  assert.ok(Math.abs(r.azimuth_true + r.convergence_deg - 90) < 0.02);
-  assert.ok(Math.abs(r.azimuth_magnetic + r.declination_deg + r.convergence_deg - 90) < 0.02);
+  assert.ok(Math.abs(r.azimuth_true - r.convergence_deg - 90) < 0.02);
+  assert.ok(Math.abs(r.azimuth_magnetic + r.declination_deg - r.convergence_deg - 90) < 0.02);
   assert.ok(r.declination_deg > 12 && r.declination_deg < 22, `declination ${r.declination_deg}`);
   const kml = rigKML([r], "Test");
   assert.match(kml, /<Point><coordinates>-129\.\d+,55\.\d+,0<\/coordinates>/);
@@ -309,7 +311,7 @@ test("#400 QAQC: sample_type decides; collar holes are never QC by name; exclude
   setKnownHoleIds(null);
 });
 
-import { guessMapping, TARGET_SCHEMAS } from "../src/lib/layers.js";
+import { guessMapping, TARGET_SCHEMAS } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 test("#320 interval import maps a column literally named 'value'; real names still win", () => {
   const intervalTargets = Object.keys(TARGET_SCHEMAS).filter((k) => TARGET_SCHEMAS[k].fields.some((f) => f.key === "from") && TARGET_SCHEMAS[k].fields.some((f) => f.key === "value"));
   assert.ok(intervalTargets.includes("litho"));
@@ -672,7 +674,7 @@ test("#500 a sparse estimate (gaps of whole cells) is still one tensor grid; a r
 });
 
 test("#600 real ARIS logging exports are recognised and mapped (headers from BC assessment reports)", async () => {
-  const { guessTarget, guessMapping } = await import("../src/lib/layers.js");
+  const { guessTarget, guessMapping } = await import("../src/lib/layersImport.js");
   const { looksLikeAssay } = await import("../src/lib/viewer/importHelpers.js");
   const H = (s) => s.split("|");
   const cases = [

@@ -2,6 +2,7 @@
 // every hole's trace, collar marker, interval tubes, point markers, structure discs and custom-layer rows, the camera anchor of a
 // project with no holes, the layer batches and the passes that follow a rebuild. ViewerModule's effect calls buildDrillholeScene with
 // the values and refs the body used to close over, on the same dependency list. The comments below are the effect's own.
+import { unsurveyedTailStart } from "../../lib/viewer/unsurveyedTail.js"; // TASKS.csv #3588 (5)
 import * as THREE from "three";
 import { DRAW_ORDER } from "../../lib/viewer/drawOrder.js"; // TASKS.csv #2776
 import { t as tr } from "../../lib/i18n.js";
@@ -12,7 +13,7 @@ import { errorNotice, notice } from "../../lib/notices.js"; // notice: #2937
 import { resolveLayerStyle } from "../../lib/layerStyle.js";
 import { customColour } from "../../lib/customColour.js";
 import { PickStandIn } from "../../lib/viewer/pickStandIn.js";
-import { buildLayerBatches, collarMarkerMaterial, syncBatchedInstances } from "../../lib/viewer/layerBatches.js";
+import { buildLayerBatches, collarMarkerMaterial, syncBatchedInstances, zeroRow } from "../../lib/viewer/layerBatches.js"; // zeroRow: #3628
 import { syncHoleLabels } from "../../lib/viewer/holeLabels.js";
 import { addTraceChunks } from "../../lib/viewer/traceBatch.js"; // #2176 step 3
 import { makeTextSprite } from "../../lib/viewer/textSprite.js";
@@ -21,7 +22,7 @@ import { isTable, rowOf, tableOps } from "../../lib/rowTable.js"; // TASKS.csv #
 import { rowsRefOf } from "../../lib/tableFields.js"; // TASKS.csv #3424 step 2
 import { traceLookup } from "../../lib/viewer/modelHelpers.js";
 import { dropLogCoarse, primeLogLod } from "./logLod.js"; // TASKS.csv #2802
-import { PROTO_CYLINDER, PROTO_SPHERE_8, PROTO_SPHERE_12, PROTO_CIRCLE_24, PROTO_PRISM_4, PROTO_SQUARE, PIN_AXIS, dipPinDir, INTERVAL_PROTO, UP_Y, DIR_TMP, POINT_PROTO } from "../../lib/viewer/protos.js";
+import { PROTO_CYLINDER, PROTO_SPHERE_8, PROTO_SPHERE_12, PROTO_CIRCLE_24, PROTO_PRISM_4, PROTO_SQUARE, PIN_AXIS, dipPinDir, intervalProto, UP_Y, DIR_TMP, POINT_PROTO } from "../../lib/viewer/protos.js";
 
 const toRad = (d) => (d * Math.PI) / 180;
 
@@ -116,7 +117,7 @@ export function retireHoles(g, holes) {
     const cp = c.userData?.compact;
     if (cp) {
       let hit = false;
-      for (let i = 0; i < cp.rows.length; i++) if (cp.rows[i] !== RETIRED_ROW && holes.has(cp.rows[i]?.holeId)) { cp.rows[i] = RETIRED_ROW; cp.base.fill(0, i * 16, i * 16 + 16); cp.hidden[i] = 1; hit = true; }
+      for (let i = 0; i < cp.rows.length; i++) if (cp.rows[i] !== RETIRED_ROW && holes.has(cp.rows[i]?.holeId)) { cp.rows[i] = RETIRED_ROW; zeroRow(c, i); hit = true; }
       if (hit) syncBatchedInstances(c);
       return true;
     }
@@ -509,7 +510,12 @@ export function buildDrillholeScene(ctx) {
     // TASKS.csv #2176 step 3 — the trace goes into a merged LineSegments chunk (lib/viewer/traceBatch.js, after the loop): one THREE.Line
     // and material per hole was ~20,000 draw calls a frame at 20,544 holes. Dashed when the hole is an assumed vertical stick (#2014);
     // its hole id rides on the chunk's per-hole hits (#1533)
-    traceHoles.push({ holeId: c.hole_id, pts, dashed: assumedVertical || methodAssumed }); // #2662: an 'assumed' survey method too
+    // TASKS.csv #3588 (5) (Fireweed rehearsal, Macpass: NB91-22 has one survey at 0 m and is 262.4 m long, drawn solid to the end of hole on its
+    // last measured attitude) — the part of a surveyed hole below its last station is an assumption: drawn dashed, as an assumed hole is (a hole
+    // is two entries of the trace chunks: the solid part and the dashed tail share its id, and the chunks' hide / colour calls cover both)
+    const tailAt = assumedVertical || methodAssumed ? -1 : unsurveyedTailStart(e.hs, pts);
+    if (tailAt >= 0) { traceHoles.push({ holeId: c.hole_id, pts: pts.slice(0, tailAt + 1), dashed: false }, { holeId: c.hole_id, pts: pts.slice(tailAt), dashed: true }); }
+    else traceHoles.push({ holeId: c.hole_id, pts, dashed: assumedVertical || methodAssumed }); // #2662: an 'assumed' survey method too
     }
 
     // TASKS.csv #137 — geotech/recovery are both known 0-100 percentages, so rqdColor's fixed
@@ -557,7 +563,7 @@ export function buildDrillholeScene(ctx) {
           // straight interval in a layer share ONE InstancedMesh draw call — see PROTO_CYLINDER
           // and buildLayerBatches. Same vertices, same placement; three.js raycasts in local
           // space, so picking is unchanged.
-          geo = INTERVAL_PROTO[st.shape];
+          geo = intervalProto(st.shape); // #3620: a prism in light drawing
           const color = st.color || (meta.numeric ? numericIntervalColor(groupKey, row.value) : baseColorForBuild(groupKey, row.value));
           mesh_ = new PickStandIn(geo, { color, transparent: st.opacity < 1, opacity: st.opacity }); // #1500 — never drawn itself (its batch is)
           mesh_.scale.set(radius, len, radius);
@@ -575,7 +581,7 @@ export function buildDrillholeScene(ctx) {
             const a = pts[i], b = pts[i + 1], dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, len = Math.sqrt(dx * dx + dy * dy + dz * dz);
             if (len < 1e-6) continue;
             const e0 = i > 0 ? ext : 0, e1 = i < last ? ext : 0, ux = dx / len, uy = dy / len, uz = dz / len;
-            const m = new PickStandIn(INTERVAL_PROTO[st.shape], { color, transparent: st.opacity < 1, opacity: st.opacity });
+            const m = new PickStandIn(intervalProto(st.shape), { color, transparent: st.opacity < 1, opacity: st.opacity });
             m.scale.set(radius, len + e0 + e1, radius);
             m.position.set(a.x - ux * e0, a.y - uy * e0, a.z - uz * e0);
             m.quaternion.setFromUnitVectors(UP_Y, DIR_TMP.set(ux, uy, uz));
@@ -695,7 +701,7 @@ export function buildDrillholeScene(ctx) {
           // It was a TubeGeometry + material per row: Lawyers' 5 custom layers were 16,860 meshes, ~14,700 draw calls, 9 fps orbit.
           const dx = p2.x - p1.x, dy = p2.y - p1.y, dz = p2.z - p1.z, len = Math.sqrt(dx * dx + dy * dy + dz * dz);
           if (!(len > 1e-6)) return;
-          const mesh = new PickStandIn(INTERVAL_PROTO[stI.shape] || PROTO_CYLINDER, { color: stI.color || row.modelColor || customColour(layer, layerStyles, row), transparent: stI.opacity < 1, opacity: stI.opacity }); // #1500; #1697
+          const mesh = new PickStandIn(intervalProto(stI.shape) || PROTO_CYLINDER, { color: stI.color || row.modelColor || customColour(layer, layerStyles, row), transparent: stI.opacity < 1, opacity: stI.opacity }); // #1500; #1697
           mesh.scale.set(1.6 * stI.size, len, 1.6 * stI.size);
           mesh.position.set(p1.x, p1.y, p1.z);
           mesh.quaternion.setFromUnitVectors(PIN_AXIS, dipPinDir.set(dx / len, dy / len, dz / len));

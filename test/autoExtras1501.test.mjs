@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { autoExtraFields, companionLayer } from "../src/lib/viewer/autoExtras.js";
-import { guessMapping } from "../src/lib/layers.js";
+import { guessMapping } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 
 const geoHeaders = ["Hole ID", "From", "To", "Length", "Recovery (m)", "Recovery %", "RQD (m)", "RQD %"];
 const geoRows = Array.from({ length: 50 }, (_, i) => ({ "Hole ID": "H1", From: String(i * 3), To: String(i * 3 + 3), Length: "3", "Recovery (m)": "2.7", "Recovery %": "90", "RQD (m)": "0.7", "RQD %": "22.5" }));

@@ -82,7 +82,7 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
   const [zSource, setZSource] = useState("typed");
   // TASKS.csv #2100 (review #2013, Woodjam) — no terrain: the ground interpolated between the nearest collars (as Undrilled zones, the pit
   // and the dump already use, #1557 / #1616), before a flat plane: Woodjam's pick read 967 m where the collars around stand at 1,001-1,019 m
-  const collarZ = useMemo(() => (!groundAt && collars?.length ? collarGround(collars) : null), [groundAt, collars]);
+  const collarZ = useMemo(() => (!groundAt && collars?.length ? collarGround(collars, survey || undefined) : null), [groundAt, collars, survey]); // survey: #3582
   const ground = groundAt || collarZ;
   // TASKS.csv #3335 — the collar ground judged by the site spacing: rounded to the metre past one spacing, nothing past three (a terrain as before)
   const siteSpacing = useMemo(() => (collarZ ? drilledSiteSpacing(collars) : null), [collarZ, collars]);
@@ -248,6 +248,9 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
         <NumField label={tr("Length m")} value={draft.length} onChange={(v) => set("length", v)} />
       </div>
       {seed && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "-2px 0 5px", lineHeight: 1.4 }}>{seed.azN > 0 ? tr("Dip / Length start from the {n} drilled holes (median), Az from the mean direction of the {m} inclined ones{spread}; each hole added is kept for the next.", { n: seed.n, m: seed.azN, spread: seed.azR != null && seed.azR < 0.7 ? tr(" (they point many ways: check it)") : "" }) : tr("Az / Dip / Length start from the {n} drilled holes (median); each hole added is kept for the next.", { n: seed.n })}{/* #3348 (4) */}</div>}{/* #2450 */}
+      {Number(draft.dip) > 0 && Number(draft.dip) <= 90 && ( /* TASKS.csv #3600 — a positive dip is an up-hole here: 'Dip 60' from a ground collar gave a toe 130 m in the air, with no word (the rig CSV import asks) */
+        <div role="note" style={{ fontSize: "var(--font-size-xs)", color: underground ? "var(--color-text-secondary)" : "var(--color-warn-text)", marginBottom: 5, lineHeight: 1.4 }}>{underground ? tr("A positive dip points UP (negative = down): normal from an underground collar.") : tr("A positive dip points UP (negative = down): this hole would rise from the collar into the air. For a hole going down at {d}°, type -{d}.", { d: Number(draft.dip) })}</div>
+      )}
       {shallow && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 5, lineHeight: 1.4 }}>{tr("Dip {d}° is shallow: flatter than about {s}° a rig is hard to set up and the hole wanders more. Keep a dip you can drill and solve the collar for it below, or accept this one knowingly.", { d: draft.dip, s: -SHALLOW_DIP_DEG })}</div>}{/* #1835 */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{/* #1729 */}
         <label>{tr("Azimuth from")} <select value={azRef} onChange={(e) => setAzRef(e.target.value)} aria-label={tr("North reference of the azimuth")} style={{ fontSize: "var(--font-size-xs)" }}>

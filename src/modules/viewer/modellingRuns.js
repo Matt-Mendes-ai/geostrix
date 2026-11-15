@@ -2212,8 +2212,8 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           ...(minField ? { intensityFloor: { field: minField.field, atLeast: minField.vocab ? (minField.label || minField.min) : minField.min, ...(minField.vocab ? { rank: minField.min, scale: INTENSITY_SCALE } : {}) } } : {}), // #2230 ...(bodies.count > 1 ? { bodies: bodies.count, keptLargestOnly: !!bodyOpts.largest } : {}), // #1339
           method: "idw2", searchRadiusM: radius, searchRadiusAuto: !(searchSetting > 0),
           ...(anisotropy.enabled ? { searchEllipsoidM: [1, scl.major / scl.semiMajor, scl.major / scl.minor].map((f) => Math.round(radius * f * 10) / 10) } : {}), // #656
-          cellSizeM: cellText, ...(seam ? { cellHeightM: cellZ, cellHeightFrom: "the median logged run (#2384)" } : {}), cellSizeAuto: !(cellSetting > 0), cellSizeCoarsened: coarsened,
-          paddingM: pad, closure, holeSpacingM: auto.spacing, cutAtTopography: altCap.capped ? `${altGround?.name || "terrain"}: ${altCap.capped} grid node(s) capped (#803)` : false,
+          cellSizeM: cellText, ...(seam ? { cellHeightM: cellZ, cellHeightFrom: "the median logged run" } : {}), cellSizeAuto: !(cellSetting > 0), cellSizeCoarsened: coarsened,
+          paddingM: pad, closure, holeSpacingM: auto.spacing, cutAtTopography: altCap.capped ? `${altGround?.name || "terrain"}: ${altCap.capped} grid node(s) capped` : false,
           anisotropy: anisotropy.enabled ? anisotropy.params : null,
           domain: domain ? domain.name : null,
           interceptSet: activeInterceptSetRef.current ? { name: activeInterceptSetRef.current.name, intercepts: (activeInterceptSetRef.current.ids || []).length } : null, // TASKS.csv #52 (c)
@@ -2811,7 +2811,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           searchRadiusWasUnlimited: !(numericSearchRadius > 0),
           ...(shellEllipsoidM ? { searchEllipsoidM: shellEllipsoidM } : {}), // #656 — semi-axes along the trend's axes
           cellSizeM: cs, ...(cz || anisotropy.flat ? { cellM: [cs, cs, cz ?? cs], ...(anisotropy.flat ? { flatSearch: { acrossM: numericSearchRadius, verticalM: Number(numericFlatReach) } } : {}) } : {}), // #3062
-          ...(anisotropy.enabled && !anisotropy.flat ? { cellAlongTrendM: trendCellM(anisotropy.trend, cs).map((v) => Math.round(v * 10) / 10), cellSizeIs: "the cubic cell in the trend's volume-keeping frame; cellAlongTrendM is its size along the trend's long, intermediate and short axes (#3010)" } : {}), paddingM: pad, closure, cutAtTopography: gsCap.capped ? `${gsGround?.name || "terrain"}: ${gsCap.capped} grid node(s) above or just below the ground capped (#803)` : false,
+          ...(anisotropy.enabled && !anisotropy.flat ? { cellAlongTrendM: trendCellM(anisotropy.trend, cs).map((v) => Math.round(v * 10) / 10), cellSizeIs: "the cubic cell in the trend's volume-keeping frame; cellAlongTrendM is its size along the trend's long, intermediate and short axes" } : {}), paddingM: pad, closure, cutAtTopography: gsCap.capped ? `${gsGround?.name || "terrain"}: ${gsCap.capped} grid node(s) above or just below the ground capped` : false,
           composited: numericUseComposites, compositeLengthM: numericUseComposites ? numericCompositeLength : null,
           minCoverage: numericUseComposites ? numericMinCoverage : null, // TASKS.csv #262
           capValue: Number.isFinite(numericCapValue) && numericCapValue > 0 ? numericCapValue : null,
@@ -2822,7 +2822,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           modelArea: inArea ? `holes checked in the Holes list (${area.checked} of ${area.all})` : "whole property", // #2059
           samplePoints: points.length, cellsEstimated: gridSum.estimated, ...(gsVariogram ? { variogram: gsVariogram } : {}), // #709; #935 — range in m along the trend
           singleHoleCells: gridSum.singleHoleCells, meanGradeInShell,
-          ...(grids.length > 1 ? { drilledAreas: { grids: grids.length, nodes: boxTotal, wholeBoxNodes: boxBlocks(bounds, cs), note: "one grid per drilled cluster (#3580): the box round all the samples would have had wholeBoxNodes" } } : {}),
+          ...(grids.length > 1 ? { drilledAreas: { grids: grids.length, nodes: boxTotal, wholeBoxNodes: boxBlocks(bounds, cs), note: "one grid per drilled cluster: the box round all the samples would have had wholeBoxNodes" } } : {}),
           compositesInShell: inShell, // #1735 — { above, inside, outside, noData }: the at/above-cutoff composites against the shell
           ...(gsBeyond ? { beyondDrilling: { share: +gsBeyond.share.toFixed(3), holeSpacingM: Math.round(gsSpacing) } } : {}), // #2757
           // TASKS.csv #91/#92 — grid-wide classification, and the same classification restricted to the

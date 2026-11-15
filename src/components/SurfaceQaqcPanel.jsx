@@ -4,6 +4,7 @@
 // Lab certificates (ALS-style "Finalized" and "QC" CSVs) are read here; QC rows of a sample file arrive at import.
 // Maths in lib/surfaceQaqc.js; certified values are shared with the drillhole QA/QC (store.crmCertificates).
 import React, { useMemo, useRef, useState } from "react";
+import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3586 — g/t for Au / Ag / Pt / Pd stored in ppm
 import { preferredElement } from "../lib/preferredElement.js"; // TASKS.csv #1523
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — Au on an Au-Ag project
 import { X, Download } from "./icons.js";
@@ -107,7 +108,7 @@ export default function SurfaceQaqcPanel({ onClose }) {
             <button type="button" style={btn(true)} onClick={() => fileRef.current?.click()}>{tr("Add lab certificates…")}</button>
             <input ref={fileRef} type="file" accept=".csv" multiple style={{ display: "none" }} onChange={(e) => { const f = [...e.target.files]; e.target.value = ""; if (f.length) addCertificates(f); }} />
             <label style={ctl}>{tr("Element")}<select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
-              {elementList.map((s) => <option key={s} value={s}>{s}{units[s] ? ` (${units[s]})` : ""}</option>)}
+              {elementList.map((s) => <option key={s} value={s}>{s}{units[s] ? ` (${gradeUnitLabel(s, units[s])})` : ""}</option>)}
             </select></label>
             <button type="button" style={btn(false)} onClick={() => setShowSettings((v) => !v)} aria-expanded={showSettings}>{showSettings ? tr("Hide program settings") : tr("Program settings")}</button>
             <span style={{ flex: 1 }} />

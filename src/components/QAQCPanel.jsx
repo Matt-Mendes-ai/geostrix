@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { openHelp } from "../lib/help.js"; // TASKS.csv #3578
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2351
 import { preferredElement } from "../lib/preferredElement.js"; // TASKS.csv #2351
 import OxideTotalsTab from "./OxideTotalsTab.jsx"; // TASKS.csv #2506
@@ -138,7 +139,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
               )}
             </div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3578 — the help page of this dialog */}<button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("qaqc")} aria-label={tr("Help: {name}", { name: tr("QAQC — lab quality control") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
@@ -202,7 +203,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
                   <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No {symbol} values found for this standard.", { symbol })}</div>
                 ) : (
                   <>
-                    <div style={label}>{tr("Control chart — {symbol} ({v}), {v2}", { symbol, v: elementUnits[symbol] || tr("ppm"), v2: series.limits.certified ? tr("CERTIFIED mean ± 2SD/3SD (from the certificate)") : tr("self-referencing mean ± 2SD/3SD (enter the certificate values below for certified limits)") })}
+                    <div style={label}>{tr("Control chart — {symbol} ({v}), {v2}", { symbol, v: gradeUnitLabel(symbol, elementUnits[symbol]) /* #3586 */, v2: series.limits.certified ? tr("CERTIFIED mean ± 2SD/3SD (from the certificate)") : tr("self-referencing mean ± 2SD/3SD (enter the certificate values below for certified limits)") })}
                     </div>
                     {/* TASKS.csv #400 — certificate values, saved with the project */}
                     <CertInputs key={`${activeGroup.id}|${symbol}`} cert={cert} unit={unitL} onSave={(c) => setCrmCertificate?.(activeGroup.id, symbol, c)} />

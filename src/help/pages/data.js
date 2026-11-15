@@ -112,6 +112,7 @@ export default [
     warnings: [
       { says: "This layer is the density the tonnes use (t/m³): {n} intervals, {min} to {max}.", means: "The import says what the layer is for, the number of intervals, and their range.", do: "Check the range against what you expect for the rock; then see the counts by method that follow." },
       { says: "The middle value of this column is {m}, which is not a density in t/m³ (usually 1.5 to 6)", means: "The mapped column is probably in kg/m³ or is not a density at all.", do: "Divide the column by 1000 in the file, or map the right column, before importing." },
+      { says: "Value {v} at {from}–{to}m is outside the plausible 1–8 range for Specific gravity — a keying or unit error?", means: "Data QC checks every density against one range for any deposit type: 1 to 8 t/m³ (a coal or a tailings reads near 1.3; massive galena and sphalerite near 6 to 7.5). A value outside it is almost always a typing error, a percent, or kg/m³.", do: "Open the hole and depth the line names; correct the file, or leave a real reading if the rock really is that dense." },
       { says: "{n} assayed interval(s) in {h} hole(s) that have densities have no Specific gravity interval overlapping them", means: "A tonnage over these intervals has no measured density.", do: "Measure or import densities for them, or choose a density by hand in Grade-tonnage." },
     ],
     howto: {
@@ -136,6 +137,7 @@ export default [
     ],
     fields: [
       { name: "Dogleg over", what: "The survey bend rate, in degrees per 30 m, above which a bend is warned about. A hole's bends are one row (its sharpest, with how many there are). A bend of under 2° is within what a survey tool reads and is not counted; 20° per 30 m or more, over at least 5°, is an error.", choose: "Ordinary deviated holes bend 3 to 7° per 30 m; set the level from your own drilling, and treat a short spacing rated over 10 m with care." },
+      { name: "Density (t/m³)", what: "The densities this project accepts, lowest and highest, 1 to 6 until you change it. A density outside it is flagged here and is left out of the density mean the tonnage tools use (Grade-tonnage, Pit shell, Stopes, a solid's tonnage), which say how many were left out. Kept with the project.", choose: "Raise the top for barite or massive sulphide; keep the bottom above the density of the lightest rock you log." },
       { name: "Collar vs terrain over", what: "How far a collar's elevation may differ from the terrain surface (in metres) before it is listed. The button beside it sets those collars to the terrain, and it can be undone.", choose: "Choose a level above your terrain model's own error; a coarse model flags honest collars." },
       { name: "Filter by category", what: "Shows only the issues of one category: Collars, Survey, a layer, Assays, Specific gravity and so on.", choose: "Work through one category at a time." },
       { name: "Export CSV", what: "Saves every issue with its severity, category, hole and message, and a header with the project, coordinate system, desurvey method and thresholds.", choose: "Use it to hand the list to the person who owns the data." },

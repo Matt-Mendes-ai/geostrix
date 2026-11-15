@@ -200,6 +200,9 @@ function describe(hit, ctx) {
     else for (const line of tipLines.slice(hole ? 2 : 1)) fields.push(["", line]);
     const trace = hole && ctx.traceOf(hole);
     if (trace && !(row?.from != null) && row?.depth == null) { const md = depthOnTrace(trace, p); if (md != null) fields.push([tr("Depth at this point"), metres(md)]); }
+    // TASKS.csv #3572 (4) — a click on the bare trace of a hole listed only its name and depth; the collar's own record (type, year, prospect,
+    // length...) was in the card only for the collar dot. Beneath the depth, under the same names.
+    if (hole && !row && o.userData?.holeId) { const cc = ctx.collarOf?.(hole); if (cc) fields.push(...(Number.isFinite(cc.length) ? [[tr("Length"), metres(cc.length)]] : []), ...attributeFields(cc.attrs, new Set())); }
     const at = row?.from != null && row?.to != null ? `${num(row.from, 2)}–${num(row.to, 2)} m` : row?.depth != null ? `${num(row.depth, 2)} m` : null; // #2520 — told apart in 'Under this click'
     // TASKS.csv #2041 — a layer's drawn batch (no row, no hole, no tip) says nothing: 'bare', dropped when the layer has a real entry here
     const bare = !row && !hole && !tipLines.length && !fields.length;
@@ -292,6 +295,7 @@ export function identifyAt(r, clientX, clientY) {
     setMembersOf: (m) => setMembersOf(m, r.voxelModels || []), // #3178
     isHole: (id) => r.tracesRef.current.some((t) => t.hole_id === id),
     traceOf: (id) => r.tracesRef.current.find((t) => t.hole_id === id)?.pts,
+    collarOf: (id) => (r.collars || []).find((c) => c.hole_id === id) || null, // #3572 (4)
     layerOf: (o) => { const k = groups.get(o.parent); return k == null ? null : r.layerLabel(k); },
     layerKeyOf: (o) => groups.get(o.parent) ?? null, // #3529
     rasterOf: (o) => { const id = rasterIds.get(o); return id == null ? null : r.rasters.find((x) => String(x.id) === id); },

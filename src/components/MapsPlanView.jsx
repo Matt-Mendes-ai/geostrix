@@ -4,6 +4,8 @@
 // layers, boundaries, collars and surface samples; wheel to zoom, drag to pan, Fit, the cursor's E / N and a scale bar. Pictures are
 // decoded once and map layers drawn once per style into a cached bitmap, so a pan redraws bitmaps; the 3D scene is not touched.
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useKept, planScope } from "../lib/planKept.js"; // TASKS.csv #3604
+import { useHoleVisibility, hiddenIn, checkedOnly } from "../lib/holeVisibilityShare.js"; // TASKS.csv #3605
 import { useStore, useSetCursor } from "../lib/store.jsx"; // useSetCursor: TASKS.csv #3467 — the status bar's E / N follow the plan's cursor
 import { t as tr } from "../lib/i18n.js";
 import { niceScaleBar } from "../lib/surfacePlan.js";
@@ -78,7 +80,11 @@ const lonLatText = (T, c) => {
 // TASKS.csv #2853 — the top visible grid's value at the cursor, after the E / N
 const cursorValueText = (rasters, c) => { const t = topRasterValueAt(rasters, c.x, c.y); return t ? `  ·  ${t.name.length > 28 ? `…${t.name.slice(-27)}` : t.name}: ${t.value.toLocaleString(undefined, { maximumSignificantDigits: 4 })}${t.unit ? ` ${t.unit}` : ""}` : ""; };
 export default function MapsPlanView() {
-  const { rasters = [], terrain, mapLayers = [], boundaries = [], collars = [], surfaceSamples = [], assays = [], assayElements = [], layers = {}, customLayers = [], project, survey = [], desurveyMethod, addLayoutImage, goToModule, mapLayoutPagesElements /* #3491 */, setNotices /* #3491 */, addBoundary, updateRaster, updateTerrain } = useStore(); // updateRaster, updateTerrain: #3463 // addBoundary: #3342 // addLayoutImage / goToModule: #3194 // assays: #2459; layers, customLayers: #2658; project: #2128; survey, desurveyMethod: #2991 (a coded RL figure)
+  const { rasters = [], terrain, mapLayers = [], boundaries = [], collars: allCollars = [], surfaceSamples = [], assays = [], assayElements = [], layers = {}, customLayers = [], project, survey = [], desurveyMethod, addLayoutImage, goToModule, mapLayoutPagesElements /* #3491 */, setNotices /* #3491 */, addBoundary, updateRaster, updateTerrain } = useStore(); // updateRaster, updateTerrain: #3463 // addBoundary: #3342 // addLayoutImage / goToModule: #3194 // assays: #2459; layers, customLayers: #2658; project: #2128; survey, desurveyMethod: #2991 (a coded RL figure)
+  const scope = planScope(project, allCollars); // TASKS.csv #3604 — the set-up kept for the session
+  // TASKS.csv #3605 — the plan follows the holes checked in the 3D View (a switch below says so and shows them all)
+  const vis = useHoleVisibility(), hiddenN = hiddenIn(allCollars, vis), [onlyChecked, setOnlyChecked] = useKept(scope, "onlyChecked", true);
+  const collars = useMemo(() => (onlyChecked ? checkedOnly(allCollars, vis) : allCollars), [allCollars, vis, onlyChecked]);
   // TASKS.csv #2998 / #2298 — the cursor's longitude / latitude beside its E / N (a projected project CRS only), so a zone edge or a point from a
   // report in degrees can be found on the plan, and the readout says which frame its E / N are in
   const toLonLat = project?.crsSet !== false && project?.epsg && !isGeographicCrs(project.epsg) ? pointTransform(project.epsg, 4326) : null; // looked up as the cursor moves: the registry may load after the plan
@@ -106,7 +112,7 @@ export default function MapsPlanView() {
   // TASKS.csv #3491 — while Layout's fresh capture is drawn the plan is drawn at the size and view it asked for (the picture's own, not the screen's)
   const [recapture, setRecapture] = useState(null); // { w, h, view } | null
   const size = useMemo(() => (recapture ? { w: recapture.w, h: recapture.h } : liveSize), [recapture, liveSize]);
-  const [view, setView] = useState(null); // { cx, cy, mPerPx }
+  const [view, setView] = useKept(scope, "view", null); // { cx, cy, mPerPx }
   const [cursor, setCursor] = useState(null);
   const [tick, setTick] = useState(0); // an image finished decoding
   // TASKS.csv #3342 — the Geophysics point surveys (thinned to 5,000 points each), drawn on the plan in a colour each, listed with their outline
@@ -116,15 +122,15 @@ export default function MapsPlanView() {
   const extent = useMemo(() => planDataExtent({ rasters, terrain, mapLayers, boundaries, collars, surfaceSamples, surveys }), [rasters, terrain, mapLayers, boundaries, collars, surfaceSamples, surveys]);
   const farLayers = useMemo(() => planFarLayers({ rasters, terrain, mapLayers, boundaries, collars, surveys }), [rasters, terrain, mapLayers, boundaries, collars, surveys]); // #2125
   // TASKS.csv #2459 / #2591 — collars coloured by a collar field or a per-hole assay statistic, and labelled with their ids
-  const [colourBy, setColourBy] = useState(""); // "" | "f:<field>" | "max:<element>" | "mean:<element>"
-  const [showIds, setShowIds] = useState(false);
+  const [colourBy, setColourBy] = useKept(scope, "colourBy", ""); // "" | "f:<field>" | "max:<element>" | "mean:<element>"
+  const [showIds, setShowIds] = useKept(scope, "showIds", false);
   const [idsLeftOut, setIdsLeftOut] = useState(0); // TASKS.csv #3505 — hole ids with no room at this zoom
   // TASKS.csv #2755 — 3D Modelling > Grade × thickness in plan's per-hole totals, sent with 'Show on the Maps plan': circles sized by GT
   const gtPlan = usePlanGt();
   const gtMax = useMemo(() => { let m = 0; for (const h of gtPlan?.holes || []) if (h.gt > m) m = h.gt; return m; }, [gtPlan]);
   // TASKS.csv #2128 — a coordinate grid (on by default) and a two-click measure (session state)
-  const [showGrid, setShowGrid] = useState(true);
-  const [showLonLat, setShowLonLat] = useState(false); // TASKS.csv #3466 — a longitude / latitude graticule beside the E / N grid (a projected CRS only)
+  const [showGrid, setShowGrid] = useKept(scope, "showGrid", true);
+  const [showLonLat, setShowLonLat] = useKept(scope, "showLonLat", false); // TASKS.csv #3466 — a longitude / latitude graticule beside the E / N grid (a projected CRS only)
   const [measuring, setMeasuring] = useState(false);
   const [mPts, setMPts] = useState([]);
   const colourFields = useMemo(() => collarColourFields(collars), [collars]);
@@ -132,16 +138,16 @@ export default function MapsPlanView() {
   // TASKS.csv #3337 — each hole's desurveyed trace in plan with a tick at its toe, on by default when any hole ends more than 10 m from its
   // collar; with a per-hole highest value the dot can sit where that value is down the hole ('at the intercept')
   const planT = useMemo(() => planTraces(collars, survey, desurveyMethod), [collars, survey, desurveyMethod]);
-  const [tracesPicked, setTracesPicked] = useState(null); // null: the default above
+  const [tracesPicked, setTracesPicked] = useKept(scope, "tracesPicked", null); // null: the default above
   const showTraces = tracesPicked ?? planT.longReach > 0;
-  const [colourAt, setColourAt] = useState("collar"); // "collar" | "intercept"
+  const [colourAt, setColourAt] = useKept(scope, "colourAt", "collar"); // "collar" | "intercept"
   const spacingM = useMemo(() => collarSpacing(collars), [collars]); // #2989 — the holes' typical spacing, for the dot size
   // TASKS.csv #3456 / #3457 — the symbol: a shape by a collar field of up to 5 values, a size by the per-hole value's class
   const shapeFields = useMemo(() => collarShapeFields(collars), [collars]);
-  const [shapeBy, setShapeBy] = useState("");
+  const [shapeBy, setShapeBy] = useKept(scope, "shapeBy", "");
   const shapes = useMemo(() => (shapeBy ? collarShapes(collars, shapeBy) : null), [collars, shapeBy]);
-  const [sizeBy, setSizeBy] = useState(false);
-  const [breaksText, setBreaksText] = useState(""); // #3050 — typed class breaks for a numeric colouring
+  const [sizeBy, setSizeBy] = useKept(scope, "sizeBy", false);
+  const [breaksText, setBreaksText] = useKept(scope, "breaksText", ""); // #3050 — typed class breaks for a numeric colouring
   const breaks = useMemo(() => parseBreaks(breaksText), [breaksText]);
   const colouring = useMemo(() => {
     if (!colourBy) return null;
@@ -487,8 +493,11 @@ export default function MapsPlanView() {
       <canvas ref={canvasRef} style={{ width: size.w, height: size.h, display: "block", cursor: drag.current ? "grabbing" : "crosshair" }} aria-label={tr("Plan of the map data")}
         onWheel={onWheel} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={() => { onUp(); setCursor(null); setStatusCursor({ x: null, y: null, z: null }); }} onDoubleClick={measuring ? undefined : fit /* #2128 — a double-click while measuring sets points */} />
       {figure && <FigureLegend f={figure} chip={chip} />}
-      {collars.length > 0 && ( /* TASKS.csv #2459 / #2591 — the collars' colour and labels, and their legend */
+      {(collars.length > 0 || hiddenN > 0) && ( /* TASKS.csv #2459 / #2591 — the collars' colour and labels, and their legend */
         <div ref={chipRef} style={{ ...chip, left: 10, top: 10, maxWidth: 270, display: "flex", flexDirection: "column", gap: 4, lineHeight: 1.35 }} onMouseDown={(e) => e.stopPropagation()}>
+          {hiddenN > 0 && ( /* TASKS.csv #3605 */
+            <label style={{ display: "flex", alignItems: "center", gap: 5 }}><input type="checkbox" checked={onlyChecked} onChange={(e) => setOnlyChecked(e.target.checked)} />{tr("Only the {shown} of {total} holes checked in the 3D View", { shown: (allCollars.length - hiddenN).toLocaleString(), total: allCollars.length.toLocaleString() })}</label>
+          )}
           <label style={{ display: "flex", alignItems: "center", gap: 5 }}>
             {tr("Collars")}
             <select value={colourBy} onChange={(e) => setColourBy(e.target.value)} aria-label={tr("Colour collars by")} style={{ fontSize: "var(--font-size-sm)", flex: 1, minWidth: 0 }}>

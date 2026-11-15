@@ -83,13 +83,18 @@ def check_resolve_and_guard():
     mesh, idx, lo = structfit._mesh(mreq, res, base["xyz"])
     st = np.asarray(req["stations"], float) - lo
     vm = np.zeros(mesh.n_cells); mm = np.ones(mesh.n_cells, bool)
+    # absolute densities with a background of 2.67 (the reference, kept as entered): the contrasts 0.25 and 0.40 are densities 2.92 and 3.07
     vals = np.select([base["lith"] == 2, base["lith"] == 3], [0.25, 0.40], 0.0)
     vm[idx] = vals
     obs = structfit._forward("grav", mesh, mm, vm, st, {}) + 1.5
-    out = structfit.run_job({**req, "observed": obs.tolist(), "movable": req["movable"][:1], "resolve": {"2": [0.0, 1.0], "3": [0.0, 1.0]}}, lambda e: None)
+    areq = {**req, "properties": {"1": 2.67, "2": 2.80, "3": 2.85}, "observed": obs.tolist(), "movable": req["movable"][:1], "resolve": {"2": [2.67, 4.0], "3": [2.67, 4.0]}}
+    out = structfit.run_job(areq, lambda e: None)
     r = out["resolved"]
-    print(f"re-solved: {r['properties']} (true 0.25, 0.40), base level {r['baseLevel']:.3f} (1.5); rms {r['rms']:.2e} vs entered {r['rmsEntered']:.1f}")
-    assert abs(r["properties"]["2"] - 0.25) < 0.01 and abs(r["properties"]["3"] - 0.40) < 0.02 and r["rms"] < 0.1 * r["rmsEntered"]
+    print(f"re-solved: {r['properties']} (true 2.92, 3.07; background {r['background']} kept), base level {r['baseLevel']:.3f} (1.5); rms {r['rms']:.2e} vs entered {r['rmsEntered']:.1f}")
+    assert abs(r["properties"]["2"] - 2.92) < 0.01 and abs(r["properties"]["3"] - 3.07) < 0.02 and r["rms"] < 0.1 * r["rmsEntered"] and r["background"] == 2.67
+    # a bound on the background is ignored (it is the reference)
+    out2 = structfit.run_job({**areq, "resolve": {**areq["resolve"], "1": [0.0, 1.0]}}, lambda e: None)
+    assert set(out2["resolved"]["properties"]) == {"2", "3"}
     # the size guard: a 10-minute limit at about the measured solve time refuses before the points are run
     old = structfit.MAX_SECONDS
     structfit.MAX_SECONDS = 0.5

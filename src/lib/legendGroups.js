@@ -88,15 +88,15 @@ export function ppmAsPercent(assays, sym, unit) {
 
 // Assay grade classes are discrete swatches (one per class, with its range); an element with no classes gets one swatch
 // saying size shows grade.
-export function assayLegendGroups({ assays, assayElements, assayVisible, assayDisplayElements = [], assayStyle = {}, displayUnits = null }) { // displayUnits: TASKS.csv #3236 - project.displayUnits
+export function assayLegendGroups({ assays, assayElements, assayVisible, assayDisplayElements = [], assayStyle = {}, displayUnits = null, withNote = false }) { // withNote: #3588 (2) // displayUnits: TASKS.csv #3236 - project.displayUnits
   if (!assayVisible || !assayDisplayElements.length || !(assays || []).length) return [];
   const unitOf = Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit]));
-  return assayDisplayElements.map((sym, idx) => {
+  const groups = assayDisplayElements.map((sym, idx) => {
     const style = assayStyle[sym];
     // TASKS.csv #3236 - the unit the project shows this element in (displayUnits), the classes' limits converted; else #3305's % for a ppm element of percent-sized grades
     const shown = displayUnitOf({ displayUnits }, sym, unitOf[sym]), chosen = !!unitOf[sym] && shown !== unitOf[sym];
     const pct = !chosen && ppmAsPercent(assays, sym, unitOf[sym]); // #3305
-    const unit = chosen ? shown : pct ? "%" : unitOf[sym] || "", fmt = chosen ? (v) => fmtLegendValue(toDisplay(v, unitOf[sym], shown)) : pct ? (v) => fmtLegendValue(v / 1e4) : fmtLegendValue;
+    const unit = chosen ? shown : pct ? "%" : unitOf[sym] ? gradeUnitLabel(sym, unitOf[sym]) /* #3586 — g/t for Au / Ag / Pt / Pd stored in ppm, in every tool */ : "", fmt = chosen ? (v) => fmtLegendValue(toDisplay(v, unitOf[sym], shown)) : pct ? (v) => fmtLegendValue(v / 1e4) : fmtLegendValue;
     const items = style?.breaks?.length
       ? style.breaks.map((b, i) => {
         const lo = i ? style.breaks[i - 1].max : null;
@@ -107,6 +107,10 @@ export function assayLegendGroups({ assays, assayElements, assayVisible, assayDi
     if (style?.minCutoff != null && Number.isFinite(style.minCutoff)) items.push([`below ${fmt(style.minCutoff)} ${unit} hidden`, "transparent"]);
     return { key: `assay_${sym}`, label: `${sym} (${unit})`, items, grade: !!style?.breaks?.length, alwaysHead: true }; // grade: #1534 — classes low to high; alwaysHead: #2370, a one-element key named
   });
+  // TASKS.csv #3588 (2) (Fireweed rehearsal) — a blank interval and an unsampled hole are a bare grey trace and nothing said so. Its own group (one swatch), after the
+  // elements' and never one of their classes, so the class logic (#1534 / #3306: grade groups read low to high and are cut to their ends) is untouched.
+  if (withNote && groups.some((g) => g.grade)) groups.push({ key: "assay_unsampled", label: "Not sampled", items: [["bare trace: no sample here", "#9aa0a6"]], alwaysHead: true });
+  return groups;
 }
 
 // A model's own stops: classes as swatches, a continuous model as a ramp (log or linear, #498 / #522)
@@ -238,7 +242,7 @@ export function legendGroupsToItems(groups) {
   const multi = groups.length > 1;
   const items = [];
   groups.forEach((g) => {
-    if (g.ramp) { items.push([g.label, null, { ramp: { colors: g.ramp.colors, minLabel: g.ramp.minLabel, maxLabel: g.ramp.maxLabel, log: !!g.ramp.log } }]); return; }
+    if (g.ramp) { items.push([g.label, null, { ramp: { colors: g.ramp.colors, minLabel: g.ramp.minLabel, maxLabel: g.ramp.maxLabel, log: !!g.ramp.log, ...(g.unit ? { unit: g.unit } : {}) /* TASKS.csv #3529 */ } }]); return; }
     if (g.image) { items.push([g.label, null, { image: g.image.src }]); return; } // #2747 — a picture raster's colour bar
     if (multi || g.alwaysHead) items.push([g.label, null, { heading: true }]); // TASKS.csv #843 — the anomaly map's rule is always printed
     g.items.forEach(([label, color, opt]) => items.push(opt ? [label, color, opt] : [label, color]));

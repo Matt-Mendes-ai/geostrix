@@ -13,6 +13,7 @@ import { gradeCandidate } from "../lib/gradeCandidate.js"; // #1848
 import { categoricalModels } from "../lib/geologyForward.js";
 import { valueUnit } from "../lib/blockModelExport.js";
 import { sgSummary } from "../lib/gradeTonnage.js";
+import { densityRangeOf } from "../lib/densityRange.js"; // TASKS.csv #3587
 import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
@@ -55,7 +56,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
   const pit = pits.find((s) => s.id === f.pitId) || null;
   const unit = model ? valueUnit(model) || "" : "";
   const element = model ? elementOfModel(model) : null; // #2594 — 'Cut-off (% Li)', not 'Cut-off (%)'
-  const sg = useMemo(() => sgSummary(layers?.sg), [layers?.sg]);
+  const stopeDensityRange = densityRangeOf(project), sg = useMemo(() => sgSummary(layers?.sg, stopeDensityRange), [layers?.sg, stopeDensityRange.min, stopeDensityRange.max]); // the range: #3587
   const ground = useMemo(() => stopeGroundSource(terrain, collars), [terrain, collars]); // #2438 — the ground the pit tools use
   const levels = useMemo(() => (ground.underground ? drillLevels(collars) : null), [ground.underground, collars]); // #2284 — the mine's drill levels
   const zRange = useMemo(() => { if (!model) return null; let lo = Infinity, hi = -Infinity; for (const c of model.cells) { if (c.z - c.dz / 2 < lo) lo = c.z - c.dz / 2; if (c.z + c.dz / 2 > hi) hi = c.z + c.dz / 2; } return [lo, hi]; }, [model]);
@@ -174,7 +175,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
         {!ground.at && <div style={note}>{ground.underground ? tr("The collars look like underground drill positions, so no ground is known: the levels are not checked against the surface. Load a terrain (Maps > Terrain).") : tr("No terrain or collar elevations: the levels are not checked against the ground.")}</div>}
         {ground.source === "collars" && <CollarLevelsNote collars={collars} />}
         {dipBad && <div style={warn}>{tr("A dip needs both the dip (0–90°) and the dip direction (0–360°).")}</div>}
-        {sg && !f.density && <div style={{ ...note, marginTop: 2 }}><button onClick={() => setF((p) => ({ ...p, density: String(sg.mean) }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the logged mean, {v}", { v: sg.mean })}</button></div>}
+        {sg && !f.density && <div style={{ ...note, marginTop: 2 }}><button onClick={() => setF((p) => ({ ...p, density: String(sg.mean) }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the logged mean, {v}", { v: sg.mean })}</button>{sg.left > 0 && <span style={{ marginLeft: 6 }}>{tr("{n} density value(s) outside {min}–{max} t/m³ left out (the range is set in Data QC).", { n: sg.left.toLocaleString(), min: sg.range.min, max: sg.range.max })}</span> /* #3587 */}</div>}
         {model && <div style={note}>{tr("Columns of {dx} × {dy} m (the model's blocks); widths and skins round to whole columns.", { dx: model.cells[0]?.dx ?? "?", dy: model.cells[0]?.dy ?? "?" })}</div>}
         {rangeBad && <div style={warn}>{tr("From RL must be below To RL.")}</div>}
         {!busy

@@ -55,6 +55,6 @@ test("wired: both legend paths pass the frame; the notice counts the assumed hol
   assert.match(m, /holeAttitudeAssumed\(c, surveyed\.has\(c\.hole_id\) \? \[\{\}\] : \[\]\)/);
   assert.match(m, /const legendRow = \(\[name, color, opt\], i\) =>/); // #3395: the rows grouped (a heading with its first row)
   assert.match(m, /pageW: pagePx\(pageFormatOf\(page\)\)\.w/);
-  assert.match(m, /assayLegendGroups\(\{ assays: inFrame\(assays\)/);
+  assert.match(m, /assayLegendGroups\(\{ (withNote: true \/\* #3588 \(2\) \*\/, )?assays: inFrame\(assays\)/);
   assert.match(m, /numericLayerLegendGroups\(\{ layers: frameLayers,/);
 });

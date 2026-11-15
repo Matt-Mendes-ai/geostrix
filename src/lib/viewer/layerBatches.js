@@ -84,9 +84,31 @@ InstanceView.prototype.raycast = function (raycaster, hits) {
 InstanceView.prototype._computeIntersections = THREE.Mesh.prototype._computeIntersections;
 InstanceView.prototype.getVertexPosition = THREE.Mesh.prototype.getVertexPosition;
 
+// TASKS.csv #3628 (side 2's heap snapshot of a 2.06 M-interval log, 2026-11-15) — `base`, each row's placement (16 floats), was a second copy of the matrices the InstancedMesh
+// already holds: 126 MB on four 516,600-row layers. The drawn matrices ARE the placements except for a hidden row, whose 3 x 3 block is zeroed (zero scale: nothing
+// rasterises); so that block alone is kept, per hidden row, in `saved`, and `base` is a getter: the drawn array itself while no row is hidden, else a copy with the
+// saved blocks put back (made on the first read after a change, dropped at the next sync). Writers use the drawn array (shiftMarkers, retireHoles / zeroRow, copyHidden).
+function baseOf(inst, cp) {
+  const a = inst.instanceMatrix.array;
+  if (!cp.saved.size) return a;
+  if (!cp.baseCache) { const b = a.slice(); for (const [i, v] of cp.saved) { const o = i * 16; b[o] = v[0]; b[o + 1] = v[1]; b[o + 2] = v[2]; b[o + 4] = v[3]; b[o + 5] = v[4]; b[o + 6] = v[5]; b[o + 8] = v[6]; b[o + 9] = v[7]; b[o + 10] = v[8]; } cp.baseCache = b; }
+  return cp.baseCache;
+}
+function attachCompact(inst, fields) {
+  const cp = { ...fields, saved: new Map(), baseCache: null };
+  Object.defineProperty(cp, "base", { enumerable: true, get() { return baseOf(inst, cp); } });
+  inst.userData.compact = cp;
+  return cp;
+}
+// a row emptied for good (a retired hole): its placement zeroed, hidden, nothing to restore
+export function zeroRow(inst, i) {
+  const cp = inst.userData.compact;
+  inst.instanceMatrix.array.fill(0, i * 16, i * 16 + 16);
+  cp.saved.delete(i); cp.hidden[i] = 1; cp.baseCache = null;
+}
 // stand-ins (all of one family) -> the batch's compact record; their colours go into its instanceColor
 function makeCompact(inst, members, material) {
-  const n = members.length, base = new Float32Array(n * 16), rows = new Array(n), hidden = new Uint8Array(n), col = new Float32Array(n * 3);
+  const n = members.length, base = inst.instanceMatrix.array, rows = new Array(n), hidden = new Uint8Array(n), col = new Float32Array(n * 3);
   for (let k = 0; k < n; k++) {
     const m = members[k];
     _batchMatrix.compose(m.position, m.quaternion, m.scale).toArray(base, k * 16);
@@ -95,12 +117,20 @@ function makeCompact(inst, members, material) {
     const c = m.material.baseColor || m.material.color; col[k * 3] = c.r; col[k * 3 + 1] = c.g; col[k * 3 + 2] = c.b; // baseColor: no copy (#1643)
   }
   inst.instanceColor = new THREE.InstancedBufferAttribute(col, 3);
-  inst.userData.compact = { rows, base, hidden, side: material.side, transparent: material.transparent, opacity: material.opacity, view: (i) => new InstanceView(inst, i) };
+  attachCompact(inst, { rows, hidden, side: material.side, transparent: material.transparent, opacity: material.opacity, view: (i) => new InstanceView(inst, i) });
 }
-function syncCompact(inst) {
-  const { base, hidden } = inst.userData.compact, a = inst.instanceMatrix.array;
-  a.set(base);
-  for (let i = 0; i < hidden.length; i++) if (hidden[i]) { const o = i * 16; a[o] = a[o + 1] = a[o + 2] = a[o + 4] = a[o + 5] = a[o + 6] = a[o + 8] = a[o + 9] = a[o + 10] = 0; } // zero scale, as below
+export function syncCompact(inst) {
+  const cp = inst.userData.compact, { hidden, saved } = cp, a = inst.instanceMatrix.array;
+  if (saved.size || hidden.includes(1)) {
+    let changed = false;
+    for (let i = 0; i < hidden.length; i++) {
+      const o = i * 16, was = saved.get(i);
+      if (hidden[i]) {
+        if (!was) { saved.set(i, [a[o], a[o + 1], a[o + 2], a[o + 4], a[o + 5], a[o + 6], a[o + 8], a[o + 9], a[o + 10]]); a[o] = a[o + 1] = a[o + 2] = a[o + 4] = a[o + 5] = a[o + 6] = a[o + 8] = a[o + 9] = a[o + 10] = 0; changed = true; } // zero scale: the 3 x 3 block kept
+      } else if (was) { a[o] = was[0]; a[o + 1] = was[1]; a[o + 2] = was[2]; a[o + 4] = was[3]; a[o + 5] = was[4]; a[o + 6] = was[5]; a[o + 8] = was[6]; a[o + 9] = was[7]; a[o + 10] = was[8]; saved.delete(i); changed = true; }
+    }
+    if (changed) { cp.baseCache = null; cp.moves = (cp.moves || 0) + 1; } // the pick tree (#3361) is keyed on moves: a row hidden or shown changes its box
+  }
   inst.instanceMatrix.needsUpdate = true;
   if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
   inst.boundingBox = null;
@@ -250,7 +280,8 @@ export function addCompactBatch(group, geometry, { transparent = false, opacity 
   group.updateWorldMatrix(true, false);
   group.matrixAutoUpdate = false; // #695
   inst.instanceColor = new THREE.InstancedBufferAttribute(col, 3);
-  inst.userData.compact = { rows, base, hidden: new Uint8Array(rows.length), side, transparent, opacity, view: (i) => new InstanceView(inst, i) };
+  inst.instanceMatrix.array.set(base); // the caller's matrices go into the mesh's own array: no second copy is kept (#3628)
+  attachCompact(inst, { rows, hidden: new Uint8Array(rows.length), side, transparent, opacity, view: (i) => new InstanceView(inst, i) });
   group.add(inst);
   syncCompact(inst);
   return inst;

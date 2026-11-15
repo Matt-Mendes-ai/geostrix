@@ -1,0 +1,115 @@
+// The grade-tonnage table, the Block calculator and the choice of how unsampled metres are read, written from the notes the dialogs themselves carry (see src/help/content.js for the
+// page format). Density in block models is on the Grade-tonnage page, where the tonnes are made.
+export default [
+  {
+    id: "grade-tonnage",
+    area: "3D Modelling",
+    title: "Grade-tonnage",
+    summary: "A table for one block model: at each cutoff you type, how many blocks, what volume, what mean grade and, with a density, how many tonnes and how much metal lie at or above it. It is opened from the block model's row in the Estimation pane, reads only the blocks of that model and never changes its grades. The density can be one value, a value per logged code, a value per block from a density model, or the length-weighted mean of a Specific gravity layer. The table can be limited to a solid, split by bench and saved as a CSV. It is a conceptual figure for comparing cutoffs and scenarios, not a reported resource.",
+    notFor: [
+      "Not a Mineral Resource or Reserve under NI 43-101 or JORC: there is no classification, price, recovery, dilution or mining shape. Report nothing from it as a resource.",
+      "The tonnes are only as good as the density. With no density the table gives blocks, volume and grade and leaves the tonnes out; the app never picks a density for you.",
+      "A cutoff table of a model with only a few holes behind it describes the interpolator's blocks. Read the Interpolated and Beyond the samples columns before the tonnes.",
+      "For a pit-constrained figure use Pit shell; for blocks inside a stope outline use Stope outlines. This table counts every block of the model at or above each cutoff.",
+    ],
+    fields: [
+      { name: "Cutoffs (g/t, ppm or % — the model's unit)", what: "The grades the table is made at, typed as numbers separated by commas. The heading shows the unit of the model; precious metals stored in ppm are shown as g/t, the same number.", choose: "Choose cutoffs that bracket the grades that matter for your target, from the distribution in Geochem > Grade stats, not a round list. Several cutoffs show how fast tonnes fall away." },
+      { name: "Density (t/m³)", what: "One density for every block. Tonnes are volume times density; with the box empty the table has no tonnes and says so.", choose: "Use a measured value for the rock the blocks are in: the Specific gravity button below gives the length-weighted mean of your measurements, and the density range it counts is the project's (Data QC)." },
+      { name: "Specific gravity (button)", what: "Fills the Density box with the length-weighted mean of the project's Specific gravity layer, and says how many rows were used and their range. A value outside the project's density range is left out of the mean and the count is shown beside it.", choose: "Use it when the rock is one unit. For several units with different densities use Density by." },
+      { name: "Density by", what: "A density per code of a logged layer: each block takes the density of the nearest logged interval within the distance shown, and the Density box is the default for the rest. Or a density model: a block model of densities on the same blocks. Each code can be typed, or filled from a downhole log's mean per code.", choose: "Prefer a density per unit when the units differ by more than a few per cent (massive sulphide against its host rock). A code with no density takes the default and is listed so you can see it was not measured." },
+      { name: "Fill the densities from a log's mean per code", what: "Takes each code's mean of a downhole density log over the readings inside its intervals. A code whose mean falls outside the density range, or has fewer than three readings, is left as it is, and both are listed.", choose: "Check the list of codes it did not take; they usually mean a log in kg/m³ or a code with almost no readings." },
+      { name: "Keep density in the block model", what: "Writes each block's density (the one value, or its code's or the density model's) into the block model, so its CSV, OMF and VTK exports carry a DENSITY column and the tonnes agree everywhere.", choose: "Do it before exporting to another program, so it does not need the density again." },
+      { name: "Limits from the set", what: "When the model was estimated with other elements, a limit (at most, or at least) on each: a block counts only when it meets every limit you type, and a block with no value of a limited element is left out.", choose: "Use limits for a penalty element (for example arsenic) you must stay under; the notice says how many blocks meet the limits and how many fail." },
+      { name: "Inside the solid / Count", what: "Counts only the blocks inside a closed solid of the project. Count chooses whole blocks by their centre, or the share of each block inside the solid (sampled at 2 × 2 × 2 points).", choose: "Use the share of each block for a small solid, where a block cut by the surface would otherwise be wholly in or wholly out." },
+      { name: "By bench / Bench height (m) / Datum (m) / at cutoff", what: "Splits the figures into benches: the floors sit at the datum plus whole benches, and the bench table is for one of the cutoffs.", choose: "Enter the height of the bench you would mine; a block that spans two benches is shared between them." },
+      { name: "Table columns", what: "Blocks, Volume (m³), Mean grade, Tonnes and metal (kg and troy oz) when there is a density; Interpolated is the share of the volume the estimate classed as between holes; Beyond the samples is the share of the metal in blocks lying wholly above or below every sample that informs them; From the log is the share from a log that filled unsampled metres; No density counts blocks left out for want of a density.", choose: "Read the support columns first: a high tonnage with a low Interpolated share is mostly extrapolation." },
+      { name: "Export CSV", what: "Saves the table as it is shown, with the cutoffs, the density used and the notes.", choose: "Keep the file with the project so the figures can be reproduced." },
+    ],
+    warnings: [
+      { says: "Enter the bench height: the floors sit at the datum plus whole benches.", means: "By bench is ticked and the bench height is empty.", do: "Type the bench height in metres." },
+      { says: "Blocks at this cutoff with no density: left out of the row (its blocks, volume, grade and tonnes)", means: "A density per code or a density model did not cover some blocks and there is no default.", do: "Type a default Density, or fill the missing codes." },
+      { says: "The solid was closed artificially at the search radius, so its volume is an assumption.", means: "The solid you counted inside is a grade shell sealed at its search radius.", do: "Treat the figures inside it as conceptual, not as a measured volume." },
+      { says: "n density value(s) outside min–max t/m³ left out of the mean (the range is set in Data QC).", means: "Some Specific gravity rows are outside the plausible range and were not used.", do: "Open Data QC, look at those rows and fix or accept them; the range itself is a project setting." },
+    ],
+    howto: {
+      sample: "Harry",
+      steps: [
+        "File > Open Sample Project > Harry, then estimate Au into a block model (Estimation > Estimate grade into block model…).",
+        "Add it as a block model and open its Grade-tonnage table from the Estimation pane.",
+        "Type a few cutoffs from the Au distribution in Geochem > Grade stats, separated by commas.",
+        "Press the Specific gravity button to fill the density from the sample's measurements, and read the tonnes.",
+        "Look at the Interpolated and Beyond the samples columns, then Export CSV.",
+      ],
+    },
+    related: ["grade-estimation", "block-calculator", "unsampled-metres", "pit-shell", "block-models"],
+  },
+  {
+    id: "block-calculator",
+    area: "3D Modelling",
+    title: "Block calculator",
+    summary: "Makes a new block model whose value is a formula over block models that sit on the same blocks: a zinc equivalent, a revenue per tonne, a penalty, a flag. A block gets a value only where every model the formula reads has one; elsewhere it is left out, never set to zero. The result is added as an ordinary block model, a snapshot that does not change when its inputs do.",
+    notFor: [
+      "GeoStrix proposes no price, recovery or penalty: every number in the formula is yours, and an equivalent grade built on prices you chose is only as defensible as those prices.",
+      "It does not estimate anything: it combines models already estimated (or imported) on identical blocks. Models on different blocks must be put on the same grid first.",
+      "Not a resource or reserve figure. Its output is for colouring, filtering and comparing.",
+    ],
+    fields: [
+      { name: "Block models in the formula", what: "The models the formula reads. The first one sets the blocks; each has a name in the formula (letters, digits and _, starting with a letter, and not used twice).", choose: "Add the models of one estimated set with Add the rest of its set, then rename the letters to something you will recognize." },
+      { name: "Formula", what: "Numbers, + - * / ^ ( ), comparisons (< <= > >= = !=), and / or / not, if(condition, value if true, value if false), and min, max, abs, sqrt, log, log10, exp, round, floor, ceil.", choose: "Write it with your own factors, for example a metal-equivalent as the main grade plus each other grade times its own factor, and keep the factors in the model's name so the figure is traceable." },
+      { name: "Name of the new block model / Unit of the new value", what: "Both are required: the unit is not guessed, because a formula can turn grades into anything (a grade, a value per tonne).", choose: "State the unit as you will read it, for example %, g/t or $/t." },
+      { name: "Colour it as the first model (same ramp and range)", what: "Gives the new model the first input's colour ramp and range, so the two can be compared by eye.", choose: "Leave it on for a grade-like result; turn it off for a value on a different scale." },
+      { name: "Calculate / Add as block model", what: "Calculate runs the formula and shows how many blocks were calculated with their mean and range; Add as block model keeps the result in the project.", choose: "Check the count and range against what you expect before adding it." },
+    ],
+    warnings: [
+      { says: "Letters, digits and _, starting with a letter", means: "A name in the formula is not a valid name.", do: "Rename it, for example Au or au_gt." },
+      { says: "Used twice", means: "Two models have the same name in the formula.", do: "Give each a different name." },
+      { says: "State the unit of the new value first", means: "The unit box is empty and Add as block model is off.", do: "Type the unit of what the formula produces." },
+      { says: "Added \"name\". It is a snapshot: it does not change when its inputs do.", means: "The result is a copy of the calculation at this moment.", do: "Run the calculator again if you re-estimate an input." },
+    ],
+    howto: {
+      sample: "Harry",
+      steps: [
+        "Estimate Au and a second element the sample carries into block models on the same grid (Estimate grade into block model…, Also estimate other elements…).",
+        "Open the Block calculator in the Estimation pane and add the Au model first, then Add the rest of its set.",
+        "Write a formula with your own factor, for example Au + k * X, with X the second element and k with the factor you have decided on.",
+        "Name the new model and state its unit, press Calculate, and read the count, mean and range.",
+        "Add it as a block model and colour it as the Au model to compare.",
+      ],
+    },
+    related: ["grade-estimation", "grade-tonnage", "block-models"],
+  },
+  {
+    id: "unsampled-metres",
+    area: "3D Modelling",
+    title: "Unsampled metres inside a sampled hole",
+    summary: "The choice a grade shell or an estimation asks for before it will run: how core that was logged but not assayed is read. A geologist often leaves core unsampled because it looked barren. Read as not known, those metres are left out and the estimate carries the grade of the samples around them into that core. Read as barren, they are filled with a value you type. Or they can take their value from a downhole log you pick. The tool refuses to guess which is true, because the answer changes the grade and the tonnes.",
+    notFor: [
+      "It is not a way to remove assays: only the metres with no sample at all are affected, and the ones with a result are never changed.",
+      "There is no default. Not known, barren and from a log give different grades, and only you know why that core was not sampled.",
+      "Holes that were never assayed for the element are not filled unless you tick the option for them: a hole may not have been assayed for reasons other than looking barren.",
+    ],
+    fields: [
+      { name: "Unsampled metres inside a sampled hole", what: "not known: left out (the metres are skipped and the estimate may carry grade into them); barren: a value I type (the metres are filled with that value); from a downhole log I pick (the metres take the reading of a log that measures the same metal, times a factor you give).", choose: "Choose not known when you do not know why core was skipped; barren when the logs say it was visibly barren, with a detection limit, a background or 0; a log when a measurement such as a handheld reading covers the gaps." },
+      { name: "Value of the unsampled metres", what: "The number the barren metres take, in the element's unit. None is chosen for you.", choose: "A detection limit or a background value you can defend; 0 only if you mean zero." },
+      { name: "Downhole log that fills the unsampled metres / factor", what: "The log's unit is turned into the element's unit by the factor you give: 1 when the log already reads the element. When the log's unit and the element's unit are a known pair (uranium and its oxide), the factor is offered and you press it to use it.", choose: "Pick the log that reads the same metal; none is matched for you. Readings of a different instrument or unit need the factor checked, not assumed." },
+      { name: "Also fill holes with no sample of the element", what: "Off by default. On: a hole with no sample of the element is filled to its collar length, or else to its deepest logged interval.", choose: "Tick it only when those holes were meant to be assayed and the gaps are really barren." },
+      { name: "The percent line", what: "Says how many of the metres drilled in the holes that carry the element are sampled. Under 60 % sampled, it asks you to choose before running.", choose: "A low share is the main reason to think about this choice before you read the shell or the tonnes." },
+    ],
+    warnings: [
+      { says: "Under 60 % are sampled: choose how the unsampled metres are read before running.", means: "A large part of the drilling has no sample.", do: "Choose one of the three readings; the run stays disabled until you do." },
+      { says: "Type the value they take (a detection limit, a background or 0): none is chosen for you.", means: "Barren is chosen but no value is typed.", do: "Type the value." },
+      { says: "Pick the log that reads the same metal; none is matched for you.", means: "From a downhole log is chosen but no log is picked.", do: "Pick a log, or choose another reading." },
+    ],
+    howto: {
+      sample: "Harry",
+      steps: [
+        "File > Open Sample Project > Harry, then 3D Modelling > Estimation.",
+        "Open Grade shell or Estimate grade into block model… for Au.",
+        "Read the line that says how much of the drilled core is sampled.",
+        "Run it once as not known, once as barren with a value you can defend, and compare the notices.",
+        "Keep the choice the notice names in your notes: the result depends on it.",
+      ],
+    },
+    related: ["grade-shell", "grade-estimation", "grade-tonnage", "downhole-logs"],
+  },
+];

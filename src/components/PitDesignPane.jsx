@@ -5,6 +5,7 @@
 import { unsampledWord } from "../lib/holeType.js"; // TASKS.csv #3513
 import { nearUnsampledMayBeStale } from "../lib/unsampledFlags.js"; // TASKS.csv #3065
 import React, { useMemo, useRef, useState } from "react";
+import { collarsForGround } from "../lib/collarGround.js"; // TASKS.csv #3582
 import { metalAmountText, elementOfModel, gradeWithElement, gradeUnitText /* #3328 */ } from "../lib/pitShell.js"; // TASKS.csv #2434
 import { shellWallCompare } from "../lib/pitWalls.js"; // TASKS.csv #2433
 import { Layers3, Eye, EyeOff, Trash2, Download, Maximize2 } from "./icons.js"; // Maximize2: #2996
@@ -115,7 +116,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
     const t0 = performance.now();
     try {
       const coded = modelWithCodeDensity(model, pit.params?.inputs, layers, collars, survey, desurveyMethod); // #2647 — weighed as the shell was
-      job.current = runPitDesignAsync(positions, coded.model, opts, terrain, collars, (p) => setBusy(p && (p.k || p.stage) ? p : true) /* #2286; stage: #3002 */, byIn ? byModel : null, alsoPairs.map(({ m }) => m) /* #3084 */); // byModel: #1917
+      job.current = runPitDesignAsync(positions, coded.model, opts, terrain, collarsForGround(collars, survey), (p) => setBusy(p && (p.k || p.stage) ? p : true) /* #2286; stage: #3002 */, byIn ? byModel : null, alsoPairs.map(({ m }) => m) /* #3084 */); // byModel: #1917
       const r = await job.current.promise;
       if (r.cancelled) { setMsg(tr("Cancelled: nothing was added.")); return; }
       if (r.failed === "area-empty") { setMsg(tr("No column of the shell lies inside \"{name}\": move or enlarge the area, or pick another.", { name: area?.name || "?" })); return; } // #1916

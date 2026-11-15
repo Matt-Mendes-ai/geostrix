@@ -15,6 +15,7 @@ import Papa from "papaparse";
 import { codeDescriptions } from "../lib/codeDescriptions.js"; // TASKS.csv #1778
 import CodeDictionaryTable from "./CodeDictionaryTable.jsx"; // TASKS.csv #2163
 import { entriesInCodeOrder } from "../lib/legendCodeOrder.js"; // TASKS.csv #3296
+import { openDataTable } from "../lib/dataTableRequests.js"; // TASKS.csv #3563
 
 // TASKS.csv #123 — QGIS-specialist audit finding: "Themes save whole-view state per-project; there's
 // no reusable style definition (color ramp + classification + symbol) that travels between projects
@@ -101,7 +102,10 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{meta.label} <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-base)", fontWeight: 400 }}>{tr("({rows} rows)", { rows: rows.length })}</span></div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <span style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button type="button" onClick={() => { openDataTable({ source: layerKey }); onClose(); }} title={tr("Every row of this layer as a table to sort and filter")} style={{ padding: "4px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-sm)", cursor: "pointer", fontFamily: "inherit" }}>{tr("Table")}</button>{/* TASKS.csv #3563 — all the rows, not the first 400 */}
+            <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          </span>
         </div>
         <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
           <div style={{ width: 280, borderRight: "1px solid var(--color-border)", padding: 14, overflowY: "auto" }}>

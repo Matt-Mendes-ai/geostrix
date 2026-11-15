@@ -122,7 +122,7 @@ export default function SQLWorkspaceModal({ collars, survey, layers, assays, ass
             )}
             {result && (
               <div style={{ overflow: "auto", flex: 1, minHeight: 0 }}>
-                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 4 }}>{result.rows.length}{" "}{tr(result.rows.length === 1 ? "row" : "rows")}</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 4 }}>{result.rows.length}{" "}{tr(result.rows.length === 1 ? "row" : "rows")}{result.omitted?.length > 0 && ` · ${tr("{list} are computed oxide columns, left out of SELECT *: name them to include them.", { list: result.omitted.join(", ") })}`}</div>
                 {result.rows.length > 0 && (
                   <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
                     <thead><tr>{result.columns.map((c) => <th key={c} style={th}>{c}</th>)}</tr></thead>

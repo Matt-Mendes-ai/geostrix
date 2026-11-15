@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { replaceRowsByHole } from "../src/lib/layers.js";
+import { replaceRowsByHole } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 
 const rows = (tag, f = (r) => r) => { const out = []; for (let h = 0; h < 5; h++) for (let i = 0; i < 4; i++) out.push(f({ hole_id: `H${h}`, from: i, to: i + 1, value: ["A", "B"][i % 2], extra: null, obj: { a: [1, 2] }, _src: tag })); return out; };
 

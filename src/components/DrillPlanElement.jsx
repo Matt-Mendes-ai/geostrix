@@ -115,7 +115,7 @@ export function drillPlanDrawing(el, collars, assays = null, assayElements = nul
   const collarBoxes = [...g.holes, ...planned].filter((hh) => hh.inside).map((hh) => ({ x0: hh.ax - r, y0: hh.ay - r, x1: hh.ax + r, y1: hh.ay + r }));
   const labels = placeLabels(toLabel, { fontPx, w: g.w, h: g.h, avoid: [...(keyBox ? [{ x0: keyBox.x, y0: keyBox.y, x1: keyBox.x + keyBox.w, y1: keyBox.y + keyBox.h }] : []), ...collarBoxes] });
   // TASKS.csv #3367 — the sheet says how the traces were drawn: along the surveys, straight, or both
-  const caption = traceCaption({ surveyed: g.holes.filter((hh) => hh.surveyed).length, straight: g.holes.filter((hh) => !hh.surveyed).length, planned: planned.length, method });
+  const caption = traceCaption({ surveyed: g.holes.filter((hh) => hh.surveyed).length, straight: g.holes.filter((hh) => !hh.surveyed).length, planned: planned.length, plannedDeviated: planned.filter((hh) => hh.deviated).length /* #3602 */, method });
   const keyOriginal = { title: colouringRaw.title || "", note: colouringRaw.note || "", rows: (colouringRaw.key || []).map((k) => k.label) }; // #3415 — the plan's own wording, for the sidebar's boxes
   return { ...g, planned, plannedKey, caption, colouring, shapes, shapeKey, fontPx, labels, labelled: toLabel.length, keyBox, keyOriginal };
 }
@@ -136,6 +136,10 @@ export default function DrillPlanElement({ el, collars, gridCaption = "", assays
   const traces = useMemo(() => planTraces(collars, survey, desurveyMethod), [collars, survey, desurveyMethod]); // #3367 — kept per collars / survey / method
   const d = useMemo(() => drillPlanDrawing(el, collars, assays, assayElements, plannedHoles, traces, desurveyMethod, displayUnits), [el, collars, assays, assayElements, plannedHoles, traces, desurveyMethod, displayUnits]);
   const grid = useMemo(() => drillPlanGrid(el), [el]);
+  // TASKS.csv #3599 (Fireweed rehearsal) — a hole never assayed and an assayed hole below the cut-off were both a plain black trace the key did not list:
+  // a reader took the black line through the zone as 'tested, nothing'. Never assayed: a dashed grey trace; assayed, nothing at the cut-off: a solid grey one;
+  // the key lines say so. A graded hole keeps its class colour.
+  const traceInk = (s) => (s.cross ? "#8a8f98" : s.hollow ? "#5f6670" : s.colour);
   const line = 0.3 * MM, { colouring, keyBox } = d; // keyBox: placed in drillPlanDrawing (#2611)
   const styles = useMemo(() => new Map(d.holes.map((hh) => [hh.id, d.colouring.styleOf(hh.id, hh.series)])), [d]);
   // TASKS.csv #3017 (review #2876, WA iron) — at 1:100,000 holes 25 m apart are 0.9 px apart: each collar's white outline painted over the one
@@ -169,8 +173,8 @@ export default function DrillPlanElement({ el, collars, gridCaption = "", assays
           return <g fontSize={gf} fill="#55606e" fontFamily={FONT}><rect x={b.x} y={b.y} width={b.w} height={b.h} fill="#ffffff" fillOpacity="0.85" /><text x={d.w - GRID_INSET} y={y} textAnchor="end">{d.caption}</text></g>;
         })()}
         {d.holes.map((hh) => hh.path /* #3367 — along the survey */
-          ? <polyline key={`t${hh.id}`} points={hh.path.map(([x, y]) => `${x},${y}`).join(" ")} fill="none" stroke={styles.get(hh.id).hollow ? INK : styles.get(hh.id).colour} strokeWidth={line} strokeLinecap="round" strokeLinejoin="round" />
-          : <line key={`t${hh.id}`} x1={hh.ax} y1={hh.ay} x2={hh.bx} y2={hh.by} stroke={styles.get(hh.id).hollow ? INK : styles.get(hh.id).colour} strokeWidth={line} strokeLinecap="round" />)}
+          ? <polyline key={`t${hh.id}`} points={hh.path.map(([x, y]) => `${x},${y}`).join(" ")} fill="none" stroke={traceInk(styles.get(hh.id))} strokeWidth={line} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={styles.get(hh.id).cross ? `${3 * line} ${2 * line}` : undefined} />
+          : <line key={`t${hh.id}`} x1={hh.ax} y1={hh.ay} x2={hh.bx} y2={hh.by} stroke={traceInk(styles.get(hh.id))} strokeWidth={line} strokeLinecap="round" strokeDasharray={styles.get(hh.id).cross ? `${3 * line} ${2 * line}` : undefined} />)}
         {/* #2473 — a hole with no value is a hollow ring; higher grade classes are drawn last, on top */}
         {d.holes.filter((hh) => hh.inside).sort((a, b) => styles.get(a.id).rMm - styles.get(b.id).rMm).map((hh) => { const s = styles.get(hh.id), r = rOf(s), path = symbolPath(d.shapes.shapeOf(hh.id), hh.ax, hh.ay, r); /* #2686; r: #3017 */ const hollowFill = dense.halo ? "#ffffff" : "none"; return path
           ? <g key={`c${hh.id}`}><path d={path} fill={s.hollow ? hollowFill : s.colour} stroke={s.hollow ? s.colour : dense.halo ? "#ffffff" : "none"} strokeWidth={s.hollow ? 0.9 : 0.6} />{s.cross && <path d={crossPath(hh.ax, hh.ay, r)} stroke={s.colour} strokeWidth={0.8} fill="none" /> /* #3375 */}</g>

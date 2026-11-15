@@ -1107,6 +1107,13 @@ export function StoreProvider({ children }) {
   // TASKS.csv #3496 — a sample's data owner's credit, kept with the project (saved in the project file; Layout's {credits} prints it); "" removes it
   // TASKS.csv #3409 — the QC links a link table gave (sample id -> parent sample id / QC category), kept with the project so assays imported later pair up; null / empty removes them
   const setProjectQcLinks = useCallback((qcLinks) => setProject((p) => { const { qcLinks: _old, ...rest } = p; return qcLinks && (Array.isArray(qcLinks) ? qcLinks.length : qcLinks.ids?.length) ? { ...rest, qcLinks } : rest; }), []); // the packed shape of lib/qcLinks.js packLinks: parallel arrays
+  // TASKS.csv #3588 (6) — the north a file's azimuths were measured from, kept with the project ({ ref, date } per target; lib/azimuthNorthText.js)
+  const setProjectAzimuthNorth = useCallback((target, ref, date) => setProject((p) => ({ ...p, azimuthNorth: { ...(p.azimuthNorth || {}), [target]: { ref, ...(date ? { date } : {}) } } })), []);
+  // TASKS.csv #3587 (store grant, Main 2026-11-15) — the plausible density range in t/m³ { min, max } a user can raise (default 1-6, lib/densityRange.js), kept with the project: Data QC flags by it
+  // and the tonnage tools leave a value outside it out of the density mean; null / the default removes it
+  const setProjectDensityRange = useCallback((range) => setProject((p) => { const { densityRange: _old, ...rest } = p; const min = Number(range?.min), max = Number(range?.max); return range && Number.isFinite(min) && Number.isFinite(max) && min >= 0 && max > min && !(min === 1 && max === 6) ? { ...rest, densityRange: { min, max } } : rest; }), []);
+  // TASKS.csv #3569 / #3587 (store grant) — the Data QC rows a user marked as checked and kept: project.qcChecked = [key, ...] (lib/qcActions.js qcKey), so the marks travel with the project file; [] removes it
+  const setProjectQcChecked = useCallback((list) => setProject((p) => { const { qcChecked: _old, ...rest } = p; const keys = [...new Set((list || []).filter((k) => typeof k === "string"))]; return keys.length ? { ...rest, qcChecked: keys } : rest; }), []);
   const setProjectDataCredit = useCallback((dataCredit) => setProject((p) => { const { dataCredit: _old, ...rest } = p; return dataCredit ? { ...rest, dataCredit: String(dataCredit) } : rest; }), []);
   const setDrillRates = useCallback((rates) => setProject((p) => ({ ...p, drillRates: (typeof rates === "function" ? rates(p.drillRates || {}) : rates) || null })), []); // TASKS.csv #2581 — $/m per hole type, kept with the project (a function: from the latest rates)
   // TASKS.csv #3116 — a built-in log's valid range and despike ({ range: [lo, hi], despikeM }), kept with the project like the drill rates:
@@ -1201,16 +1208,19 @@ export function StoreProvider({ children }) {
     // {ok:false, error} for the caller to show; nothing about the open project changes.
     let res;
     try {
-    const payload = snapshotCurrentPayload();
+    // TASKS.csv #3140 — the file's text from the per-field JSON the autosave caches (projectPartsSliced: the same characters as JSON.stringify of
+    // snapshotCurrentPayload(), which is payloadFromFields(liveRef.current); test/forgetCompact3140): a big Table layer is not encoded a second time,
+    // and the autosave can forget its compact copy. liveRef.current is this render's own object: an edit made while the build awaits is a new one.
+    const content = joinParts(await projectPartsSliced(liveRef.current));
     const knownPath = !saveAs ? workspaceTabs.find((t) => t.id === activeTabId)?.filePath : null;
-    if (knownPath) res = await saveFileTo({ filePath: knownPath, content: JSON.stringify(payload) });
+    if (knownPath) res = await saveFileTo({ filePath: knownPath, content });
     if (!res || res.notAllowed) res = await saveFile({ quiet: true,
       // TASKS.csv #186 — project format renamed from .geox(.json) to .geostrix(.json). "json" stays
       // in the filter list so old .geox.json project files the user already has on disk still show up
       // and open fine (JSON.parse doesn't care about the filename, and both extensions end in "json").
       suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}.geostrix.json`,
       filters: [{ name: "GeoStrix Project", extensions: ["geostrix.json", "geox.json", "json"] }],
-      content: JSON.stringify(payload),
+      content,
     });
     } catch (err) {
       // strip Electron's IPC wrapper ("Error invoking remote method 'save-file': Error: ...") so the user sees the OS message
@@ -1481,7 +1491,7 @@ export function StoreProvider({ children }) {
       const activeWorth = snap.hasWork && activeDirty;
       if (!activeWorth && !background.length) {
         // Nothing unsaved anywhere: a leftover recovery file would only offer already-saved work later.
-        if (lastAutosaveSigRef.current) { autosaveClear(); lastAutosaveSigRef.current = null; autosaveSentRef.current = new Map(); }
+        if (lastAutosaveSigRef.current) { autosaveClear(); lastAutosaveSigRef.current = null; autosaveSentRef.current = new Map(); try { window.dispatchEvent(new CustomEvent("geostrix:autosaved", { detail: { at: null } })); } catch { /* no window */ } } // #3619 — nothing unsaved: the line goes
         return;
       }
       const { hasWork: _drop, ...payload } = snap;
@@ -1506,7 +1516,7 @@ export function StoreProvider({ children }) {
         const sent = autosaveSentRef.current, changed = {};
         for (const [k, j] of parts) if (sent.get(k) !== j) changed[k] = j;
         return autosaveWriteParts({ order: parts.map((p) => p[0]), changed, reset: sent.size === 0 }).then((r) => {
-          if (r?.ok) { autosaveSentRef.current = new Map(parts); return; }
+          if (r?.ok) { autosaveSentRef.current = new Map(parts); try { window.dispatchEvent(new CustomEvent("geostrix:autosaved", { detail: { at: Date.now() } })); } catch { /* no window */ } /* TASKS.csv #3619 — the status bar says when */ return; }
           if (r?.unsupported) { autosaveWrite(joinParts(parts)); return; } // the browser build: one write, as before
           autosaveSentRef.current = new Map(); lastAutosaveSigRef.current = null; // a part was missing or the write failed: everything next tick
         });
@@ -1640,6 +1650,8 @@ export function StoreProvider({ children }) {
   // one changed AFTER the step being undone began, undo() names it so the window can say it stays: Undo after 'Stopes to the
   // view' removed the strings drawn before it while the 64 stope solids stayed, and said only 'Undone: design strings.'
   const lastOutsideUndo = useRef(null); // { at, keys }
+  const [, setViewSeq] = useState(0); // a view change / its notice re-renders the window, so the Undo tooltip (peekUndo) reads the new state
+  const lastViewChangeAt = useRef(0), viewNoticeFor = useRef(0); // TASKS.csv #3616 — when the last view change (colours, checked holes, layers shown) was, and the one the first Ctrl+Z already told about
   const undoPastAt = useRef([]); // when each step of undoPast began (parallel to it)
   const undoBurstAt = useRef(0);
 
@@ -1657,7 +1669,7 @@ export function StoreProvider({ children }) {
   // TASKS.csv #1286 — a recoloured legend or layer style is work: unsaved, autosaved, asked about on quit. Orbiting still is not.
   const stylingChanged = useRef(stylingTracker());
   const markViewerUiBaseline = useCallback((s, seq) => stylingChanged.current.rebase(s, seq), []); // #1656
-  useEffect(() => { if (stylingChanged.current(viewerUiState, viewerUiStateSeq)) setActiveTabDirty(true); }, [viewerUiState, viewerUiStateSeq]);
+  useEffect(() => { if (stylingChanged.current(viewerUiState, viewerUiStateSeq)) { lastViewChangeAt.current = Date.now(); setViewSeq((n) => n + 1); setActiveTabDirty(true); } }, [viewerUiState, viewerUiStateSeq]);
   useEffect(() => {
     const prev = extraDirtyBaseline.current;
     extraDirtyBaseline.current = extraDirtyFields;
@@ -1738,6 +1750,10 @@ export function StoreProvider({ children }) {
       capTables([undoSnapshotRef.current(), ...undoFuture.current]); // #2894
     }
     if (!undoPast.current.length) return null;
+    // TASKS.csv #3616 — the last thing done was a view change (not in this history): the first Ctrl+Z says so (the window shows it: undoMessage's viewOnly),
+    // the next one takes the data step. 2 s of grace: an import's own auto-styling is not "the last thing done".
+    const topAt = undoPastAt.current[undoPastAt.current.length - 1] ?? 0;
+    if (lastViewChangeAt.current > topAt + 2000 && viewNoticeFor.current !== lastViewChangeAt.current) { viewNoticeFor.current = lastViewChangeAt.current; setViewSeq((n) => n + 1); return { viewOnly: true, keys: changedKeys(undoSnapshotRef.current(), undoPast.current[undoPast.current.length - 1]), later: [] }; }
     const prev = undoPast.current.pop(), at = undoPastAt.current.pop() ?? 0, cur = undoSnapshotRef.current();
     undoFuture.current.push(cur);
     applySnapshot(prev);
@@ -1756,6 +1772,15 @@ export function StoreProvider({ children }) {
     setRedoCount(undoFuture.current.length);
     return { keys: changedKeys(cur, next), later: [] }; // #1087
   });
+
+  // TASKS.csv #3616 — what the next Undo / Redo will take, for the buttons' tooltips: { keys, viewFirst } (null: nothing)
+  const peekUndo = useLatestCallback(() => {
+    const top = undoBeforeBurst.current || undoPast.current[undoPast.current.length - 1];
+    if (!top) return null;
+    const at = undoBeforeBurst.current ? undoBurstAt.current : undoPastAt.current[undoPast.current.length - 1] ?? 0;
+    return { keys: changedKeys(undoSnapshotRef.current(), top), viewFirst: lastViewChangeAt.current > at + 2000 && viewNoticeFor.current !== lastViewChangeAt.current };
+  });
+  const peekRedo = useLatestCallback(() => { const top = undoFuture.current[undoFuture.current.length - 1]; return top ? { keys: changedKeys(undoSnapshotRef.current(), top) } : null; });
 
   const clearUndoHistory = useCallback(() => {
     undoPast.current = []; undoPastAt.current = []; undoFuture.current = []; undoBeforeBurst.current = null; lastOutsideUndo.current = null;
@@ -1830,7 +1855,7 @@ export function StoreProvider({ children }) {
   });
 
   const value = {
-    project, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setLocalGridDatum /* #2691 / #2661 */, setMineGrid /* #2586 */, setProjectName, setProjectDataCredit /* #3496 */, setProjectQcLinks /* #3409 */, setDrillRates /* #2581 */, setLogValidRange /* #3116 */, setDisplayUnit /* #3236 */, reprojectProjectTo, reprojectObjectTo, // #485 / #486
+    project, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setLocalGridDatum /* #2691 / #2661 */, setMineGrid /* #2586 */, setProjectName, setProjectDataCredit /* #3496 */, setProjectAzimuthNorth /* #3588 (6) */, setProjectQcLinks /* #3409 */, setProjectDensityRange /* #3587 */, setProjectQcChecked /* #3569 */, setDrillRates /* #2581 */, setLogValidRange /* #3116 */, setDisplayUnit /* #3236 */, reprojectProjectTo, reprojectObjectTo, // #485 / #486
     sampleRequest, requestSampleProject, clearSampleRequest, // TASKS.csv #1120
     projectIsEmpty: !hasWork, // TASKS.csv #607 — nothing loaded yet (same test as autosave): an import may adopt its CRS
     desurveyMethod, setDesurveyMethod, // TASKS.csv #135
@@ -1904,7 +1929,7 @@ export function StoreProvider({ children }) {
     workspaceTabs, activeTabId, activeTabDirty, switchToTab, newWorkspaceTab, closeWorkspaceTab,
     checkAutosave, restoreAutosave, discardAutosave, recoveryStashed, // #465
     getProjectToken, isSameProject, addVoxelModelToTab, // #466
-    undo, redo, canUndo: undoCount > 0, canRedo: redoCount > 0, undoCheckpoint: commitUndoBurst, // #3184
+    undo, redo, peekUndo, peekRedo, canUndo: undoCount > 0, canRedo: redoCount > 0, undoCheckpoint: commitUndoBurst, // #3184
     // TASKS.csv #3110 — a NEW calculated element's Add (GeochemModule): its own undo step, holding a token instead of the old assay table
     setAssaysWithInverse: (next, symbol) => { commitUndoBurst(); undoIntent.current = { next, token: calcUndoToken(next, symbol) }; setAssays(next); },
   };
