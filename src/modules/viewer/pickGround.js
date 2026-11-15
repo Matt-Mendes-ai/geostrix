@@ -63,7 +63,10 @@ export function pickOnView(ray, hits, toWorld, collars, origin) {
     const ground = solid.filter((h) => !drillObjectOf(h.object));
     if (ground.length < solid.length) {
       const first = solid.find(drawn), hole = first ? drillObjectOf(first.object) : null;
-      const w = pickOnCollarSurface(ray, toWorld(ground), collars, origin);
+      // no hit and no flat plane along the ray (a top view above the reference level): a far point on the ray stands in for the plane, only to bound the march
+      let w0 = toWorld(ground);
+      if (!w0 && ray?.origin && ray?.direction) { const t0 = Math.max(2000, Math.abs(ray.origin.y) * 4); w0 = { x: ray.origin.x + ray.direction.x * t0 + origin.x, y: -(ray.origin.z + ray.direction.z * t0) + origin.y, z: ray.origin.y + ray.direction.y * t0 + origin.z, on: null, plane: true }; }
+      const w = pickOnCollarSurface(ray, w0, collars, origin);
       return w?.onCollarSurface && hole ? { ...w, fromHole: hole } : w;
     }
   }

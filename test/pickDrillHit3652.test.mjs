@@ -26,6 +26,11 @@ test("a click on a hole trace gives the collar surface under the click line, and
   assert.ok(p.z > 1500, `Elev ${p.z}, not the trace's 1371.1`);
 });
 
+test("no flat plane along the ray (nothing else hit): the collar surface is still found", () => {
+  const p = pickOnView(ray, [traceHit], (hits) => (hits.length ? { x: 1, y: 2, z: 3, on: "a drillhole" } : null), collars, origin);
+  assert.ok(p && p.onCollarSurface && p.fromHole === "TS23-009", JSON.stringify(p));
+});
+
 test("a hole's drawing is recognized (trace chunk hit, interval tube in a layer group, an assay); a collar marker and anything else is not", () => {
   const root = { name: "root", parent: null, userData: {} };
   const tube = { userData: {}, parent: { name: "litho", parent: root, userData: {} } };
