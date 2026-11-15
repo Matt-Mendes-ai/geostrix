@@ -6,7 +6,8 @@
 // Babel scope analysis, not by hand); module imports are re-imported here.
 import { isNotLogged } from "../../lib/notLogged.js"; // TASKS.csv #1740
 import { Activity, Calculator, ChevronDown, ChevronRight, ChevronUp, Compass, Droplets, FileBarChart2, Gem, GitCompare, Group, Layers, Layers3, Milestone, Mountain, Settings, Shapes, Sparkles, Trash2, Waves, Waypoints, X, PenTool } from "../../components/icons.js";
-import { BLOCK_BUDGETS, ESTIMATION_METHODS, gradeShellBudgetNote } from "../../lib/estimationMeta.js"; // gradeShellBudgetNote: #1416
+import { BLOCK_BUDGETS, ESTIMATION_METHODS, gradeShellBudgetNote, gradeShellBudgetMB, shellBudgetsFor } from "../../lib/estimationMeta.js"; // gradeShellBudgetMB, shellBudgetsFor: #3581
+import { useMachineMemoryGB, fetchFits, fetchBudgetMB } from "../../lib/fetchMemory.js"; // TASKS.csv #3581 // gradeShellBudgetNote: #1416
 import InfoButton from "../../components/InfoButton.jsx";
 import { anisotropyFor, cellHeightFromRange } from "../../lib/estimateMemory.js"; // TASKS.csv #3499; #3508
 import { PRECIOUS_METALS, gradeUnitLabel } from "../../lib/geochem.js"; // gradeUnitLabel: #2218
@@ -343,6 +344,8 @@ export default function ModellingPanes(props) {
   }, [toolPane, numericSymbol, shellAreaAssays, sheetPositionAt]);
   const shellSearchFrom = shellSampleSpacing?.medianM > 0 ? { m: Math.round(shellSampleSpacing.medianM), at: "samples" } : shellSpacing?.medianM > 0 ? { m: Math.round(shellSpacing.medianM), at: "collars" } : null;
   const shellSearchAuto = shellSearchFrom ? searchFromSpacingM(shellSampleSpacing?.medianM > 0 ? shellSampleSpacing.medianM : shellSpacing.medianM) : null;
+  const ramGB = useMachineMemoryGB(); // TASKS.csv #3581 — the budgets this computer's memory allows (#3251's share of it)
+  const shellBudgetOk = useMemo(() => new Set(shellBudgetsFor((mb) => fetchFits(mb, ramGB))), [ramGB]);
   const [shellSearchSet, setShellSearchSet] = useState(null); // { r, m, at }: the search this pane set from the spacing (at: "samples" | "collars")
   const shellCapAuto = useRef({ symbol: null, value: null }); // #3272 — the cap ShellCapNote set, kept while the note itself unmounts with the pane
   useEffect(() => {
@@ -1360,7 +1363,8 @@ export default function ModellingPanes(props) {
                 title={tr("How many grid cells the grade shell may use. Bigger budgets allow smaller cells over a large area, at the cost of time and memory (the run stays cancellable from the status bar). The grade shell keeps one value per cell, so a million cells take far less memory here than a million blocks in a grade estimate, which keeps a full record for each. Remembered on this computer.")}>
                 <span style={{ flexShrink: 0 }}>{tr("Block budget")}</span>
                 <select value={numericMaxBlocks} onChange={(e) => { setNumericMaxBlocks(Number(e.target.value)); setNumericBudgetHint(null); }} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Grade shell block budget")}>
-                  {BLOCK_BUDGETS.map((b) => <option key={b} value={b}>{tr("{b} blocks ({v})", { b: b.toLocaleString(), v: tr(gradeShellBudgetNote(b)) })}</option>)}
+                  {/* TASKS.csv #3581 — up to 50 million; one this computer's memory cannot take is listed, disabled, with the reason */}
+                  {BLOCK_BUDGETS.map((b) => { const ok = shellBudgetOk.has(b); return <option key={b} value={b} disabled={!ok}>{ok ? tr("{b} blocks ({v})", { b: b.toLocaleString(), v: tr(gradeShellBudgetNote(b)) }) : tr("{b} blocks: needs about {mb} MB, more than this computer can spare ({max} MB)", { b: b.toLocaleString(), mb: gradeShellBudgetMB(b).toLocaleString(), max: fetchBudgetMB(ramGB).toLocaleString() })}</option>; })}
                 </select>
               </label>
               {/* TASKS.csv #2882 — after a refitted run: the budget that keeps the default cell, one click away */}
@@ -1373,8 +1377,8 @@ export default function ModellingPanes(props) {
               {numericBudgetHint && !numericBudgetHint.advice && (
                 <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginBottom: 8, lineHeight: 1.45 }}>{tr("At {cell} m cells this extent needs {needed} blocks — over the {budget}-block budget.", { cell: numericBudgetHint.cell, needed: numericBudgetHint.needed.toLocaleString(), budget: numericBudgetHint.budget.toLocaleString() })}<div style={{ display: "flex", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
                     <button type="button" onClick={() => { setNumericCellSize(numericBudgetHint.fit); setNumericBudgetHint(null); }} style={{ ...smallSel, cursor: "pointer" }}>{tr("Use {n} m cells", { n: numericBudgetHint.fit })}</button>
-                    {numericBudgetHint.budget < BLOCK_BUDGETS[BLOCK_BUDGETS.length - 1] && (
-                      <button type="button" onClick={() => { setNumericMaxBlocks(BLOCK_BUDGETS[BLOCK_BUDGETS.length - 1]); setNumericCellSize(numericBudgetHint.fitMax); setNumericBudgetHint(null); }} style={{ ...smallSel, cursor: "pointer" }}>{tr("Largest budget + {n} m cells", { n: numericBudgetHint.fitMax })}</button>
+                    {numericBudgetHint.budget < (numericBudgetHint.maxBudget || BLOCK_BUDGETS[BLOCK_BUDGETS.length - 1]) && (
+                      <button type="button" onClick={() => { setNumericMaxBlocks(numericBudgetHint.maxBudget || BLOCK_BUDGETS[BLOCK_BUDGETS.length - 1]) /* #3581: the largest this computer allows */; setNumericCellSize(numericBudgetHint.fitMax); setNumericBudgetHint(null); }} style={{ ...smallSel, cursor: "pointer" }}>{tr("Largest budget + {n} m cells", { n: numericBudgetHint.fitMax })}</button>
                     )}
                   </div>
                 </div>

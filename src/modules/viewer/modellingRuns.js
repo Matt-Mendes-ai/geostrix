@@ -29,7 +29,7 @@ import { pythonImplicitModel, problemReportInfo } from "../../lib/desktop.js"; /
 import { makeRng, perturbPoints, perturbOrientation, pointsToMeshDistance, spreadSummary, spreadColor, SPREAD_NOT_REPRODUCED } from "../../lib/surfaceSpread.js";
 import { colorForLithology, colorForAlteration, colorForStructure, minMax, roleForLithology, groupMcodeRole } from "../../lib/layers.js";
 import { computeMeshVolume } from "../../lib/volumetrics.js";
-import { MAX_BLOCKS, SUPPORT_COLORS, MAX_BLOCK_BUDGET, NUMERIC_CELL_DEFAULT, gradeShellBudgetNote } from "../../lib/estimationMeta.js"; // gradeShellBudgetNote: #2223 // NUMERIC_CELL_DEFAULT: #1416; // budget: #625 // #552 — the estimator itself loads in the run functions
+import { MAX_BLOCKS, SUPPORT_COLORS, NUMERIC_CELL_DEFAULT, gradeShellBudgetNote, shellBudgetsFor } from "../../lib/estimationMeta.js"; // shellBudgetsFor: #3581 // gradeShellBudgetNote: #2223 // NUMERIC_CELL_DEFAULT: #1416; // budget: #625 // #552 — the estimator itself loads in the run functions
 import { compositeDownhole, rawSampleIntervals, capAudit, capAuditText, gradeUnitLabel, resolvedSegments } from "../../lib/geochem.js"; // capAudit: #533; rawSampleIntervals: #571; resolvedSegments: #2634
 import { assayIndicatorInGaps } from "../../lib/assayInGaps.js"; // TASKS.csv #2634
 import { excludeQAQC } from "../../lib/qaqc.js";
@@ -2621,7 +2621,12 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           : null;
         // TASKS.csv #625 — the block budget is the user's (200,000 by default, up to 5 million); checked here, before
         // the worker starts, so an over-budget run says which cell size WOULD fit (the pane offers it as a button)
-        const blockBudget = Math.min(MAX_BLOCK_BUDGET, Math.max(MAX_BLOCKS, Number(numericMaxBlocks) || MAX_BLOCKS));
+        // TASKS.csv #3581 — up to 50 million, but only the budgets this computer's memory allows (the pane offers no others; a budget remembered on
+        // a larger computer is brought down to the largest that fits here)
+        const { fetchFits } = await import("../../lib/fetchMemory.js");
+        const ramInfo = await problemReportInfo().catch(() => null), shellRamGB = ramInfo?.memoryGB?.total > 0 ? ramInfo.memoryGB.total : null;
+        const shellBudgets = shellBudgetsFor((mb) => fetchFits(mb, shellRamGB)), maxBudget = shellBudgets[shellBudgets.length - 1];
+        const blockBudget = Math.min(maxBudget, Math.max(MAX_BLOCKS, Number(numericMaxBlocks) || MAX_BLOCKS));
         let blocksNeeded = blocksOf(cs);
         // TASKS.csv #1416 (review #1352, Silvertip) — the untouched default (10 m) failed on Silvertip's three pads (2,152,305 blocks): as
         // Grade estimation does, it now runs at the cell size that fits the budget and says so; a cell size the user chose still stops here
@@ -2636,9 +2641,9 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         }
         if (blocksNeeded > blockBudget) {
           const fit = fitOf(blockBudget, cs);
-          const fitMax = fitOf(MAX_BLOCK_BUDGET, cs);
-          setNumericBudgetHint?.({ needed: blocksNeeded, budget: blockBudget, cell: cs, fit, fitMax });
-          throw new Error(tr("At {cs} m cells this extent needs {blocksNeeded} blocks — over the {blockBudget}-block budget. {fit} m cells fit this budget{v}. Change the cell size or the block budget in the Grade shell pane.", { cs, blocksNeeded: blocksNeeded.toLocaleString(), blockBudget: blockBudget.toLocaleString(), fit, v: blockBudget < MAX_BLOCK_BUDGET ? tr("; with the largest budget ({MAX_BLOCK_BUDGET}) {fitMax} m cells fit", { MAX_BLOCK_BUDGET: MAX_BLOCK_BUDGET.toLocaleString(), fitMax }) : "" }));
+          const fitMax = fitOf(maxBudget, cs);
+          setNumericBudgetHint?.({ needed: blocksNeeded, budget: blockBudget, cell: cs, fit, fitMax, maxBudget }); // maxBudget: #3581
+          throw new Error(tr("At {cs} m cells this extent needs {blocksNeeded} blocks — over the {blockBudget}-block budget. {fit} m cells fit this budget{v}. Change the cell size or the block budget in the Grade shell pane.", { cs, blocksNeeded: blocksNeeded.toLocaleString(), blockBudget: blockBudget.toLocaleString(), fit, v: blockBudget < maxBudget ? tr("; with the largest budget ({MAX_BLOCK_BUDGET}) {fitMax} m cells fit", { MAX_BLOCK_BUDGET: maxBudget.toLocaleString(), fitMax }) : "" }));
         }
         setNumericBudgetHint?.(null);
         const ac = new AbortController(); // TASKS.csv #520 — worker + status-bar progress and Cancel
@@ -2799,7 +2804,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           intervals: numericUseComposites ? tr(intervals.length === 1 ? "{n} {len} m composite" : "{n} {len} m composites", { n: intervals.length, len: numericCompositeLength }) : tr(intervals.length === 1 ? "{n} raw interval" : "{n} raw intervals", { n: intervals.length }), v4: rawStats && (rawStats.duplicatesSkipped || rawStats.overlappingRows) ? tr(" after {duplicatesSkipped} exact duplicate(s) left out and {overlappingRows} overlapping row(s) resolved", { duplicatesSkipped: rawStats.duplicatesSkipped, overlappingRows: rawStats.overlappingRows }) : "", dropped, v5: beyondTrace ? tr(" ({beyondTrace} deeper than the hole's trace)", { beyondTrace }) : "", above, v6: clamped ? tr(clamped === 1 ? ", {clamped} negative grade clamped to zero" : ", {clamped} negative grades clamped to zero", { clamped }) : "", nx: grid.nx, ny: grid.ny, nz: grid.nz, estimated: grid.estimated.toLocaleString(), skipped: grid.skipped.toLocaleString(), v7: grid.singleHoleCells ? tr(", {singleHoleCells} informed by only ONE hole", { singleHoleCells: grid.singleHoleCells.toLocaleString() }) : "", v8: gsVariogram ? tr("; kriged with a {model} variogram {v}: nugget {v2}, sill {v3}, range {v4} m", { model: gsVariogram.model, v: gsVariogram.fitted ? tr("fitted to the samples") : tr("as entered"), v2: +gsVariogram.nugget.toPrecision(3), v3: +gsVariogram.sill.toPrecision(3), v4: Math.round(gsVariogram.range) }) + (anisotropy.enabled ? tr(" (along the trend \"{name}\")", { name: anisotropy.trend?.name || "" }) : "") : "" /* #935 */, vertices: mc.vertices.length.toLocaleString(), faces: mc.faces.length.toLocaleString(), v9: vol.watertight ? tr(", closed ({volumeM3} m³)", { volumeM3: Number(vol.volumeM3.toPrecision(3)).toLocaleString() /* TASKS.csv #3082 (7) — 3 significant figures, as the Volume row and the Tonnage (#3284) */ }) : tr(", open ({openEdgeCount} open edges — shell reaches the edge of the estimated region)", { openEdgeCount: vol.openEdgeCount }) })]);
         // TASKS.csv #2223 — the refit above counted the whole box; say how little of it the search reaches, and the budget that keeps the
         // default cell (marching cubes needs every node, so the shell cannot budget on reachable blocks as Estimation does)
-        const budgetAdvice = shellBudgetAdvice({ refit: cellRefit, neededAtDefault, estimated: grid.estimated, skipped: grid.skipped, budget: blockBudget });
+        const budgetAdvice = shellBudgetAdvice({ refit: cellRefit, neededAtDefault, estimated: grid.estimated, skipped: grid.skipped, budget: blockBudget, budgets: shellBudgets /* #3581 — those that fit here */ });
         if (budgetAdvice) setNotices((p) => [...p, { ...notice(budgetAdvice.budget
           ? "Only {p}% of the grid lies within the search radius of a sample, but the iso-surface needs every node of the box, so the block budget counts the empty part too (Estimation counts only reachable blocks). A {b}-block budget ({cost}) keeps the default {cs} m cells here."
           : "Only {p}% of the grid lies within the search radius of a sample, but the iso-surface needs every node of the box, so the block budget counts the empty part too (Estimation counts only reachable blocks). The default {cs} m cells need {n} blocks here, over the largest budget.",

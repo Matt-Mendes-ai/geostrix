@@ -7,13 +7,14 @@ import { BLOCK_BUDGETS } from "./estimationMeta.js";
 // refit: the budget chose the cell; neededAtDefault: blocks at the default cell; estimated / skipped: the run's nodes within / beyond the
 // search; budget: the budget in force. -> null (no refit, or most of the box reachable) or { pct, budget: the smallest larger budget that
 // holds the default cell, or null when none does, needed }
-export function shellBudgetAdvice({ refit, neededAtDefault, estimated, skipped, budget }) {
+// budgets: the menu's budgets this computer allows (#3581; all of them by default)
+export function shellBudgetAdvice({ refit, neededAtDefault, estimated, skipped, budget, budgets = BLOCK_BUDGETS }) {
   if (!refit || !(neededAtDefault > 0)) return null;
   const total = (Number(estimated) || 0) + (Number(skipped) || 0);
   if (!total) return null;
   const share = estimated / total;
   if (share > 0.5) return null;
-  return { pct: share * 100, budget: BLOCK_BUDGETS.find((b) => b >= neededAtDefault && b > budget) ?? null, needed: neededAtDefault };
+  return { pct: share * 100, budget: budgets.find((b) => b >= neededAtDefault && b > budget) ?? null, needed: neededAtDefault };
 }
 
 // '4.7', '<1' — the share as said in the notice
