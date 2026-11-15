@@ -52,6 +52,7 @@ const SHORTCUT_GROUPS = [
     items: [
       ["Ctrl/Cmd+Shift+C", "Draw a cross-section (click two points on the view)"], // #565
       ["Ctrl/Cmd+/", "This shortcuts reference"],
+      ["F1", "The help pages (offline), opened at the tool you are in when it has a page"], // TASKS.csv #3534
     ],
   },
   {

@@ -88,6 +88,9 @@ export const DEFAULT_LAYOUT_ELEMENTS = [
   { id: "title", type: "title", x: 40, y: 30, text: "{project}", w: 400 }, // #1489 — was "Untitled Section" on every page, plan or section
   { id: "north", type: "north", x: 1000, y: 40 },
   { id: "scale", type: "scale", x: 40, y: 720, meters: 100 },
+  // TASKS.csv #3527 — the data owner's credit (and the terrain / imagery credits the licences ask for) print on every new page by default: {credits}
+  // is empty on a project with none, so nothing shows
+  { id: "credits", type: "text", x: 40, y: 764, w: 1040, fontSize: 11, text: "{credits}" },
   // TASKS.csv #1224 — no stock legend here: "Lithology / Alteration / Fault" in made-up colours printed on figures of projects that have other units
 ];
 

@@ -7,6 +7,7 @@ import { pointInRings, STRUCTURE_CLASS_LABELS } from "../mapLayers.js"; // label
 import { t as tr } from "../i18n.js";
 import { sampleIdentifyFields, orderedElements } from "./sampleTip.js"; // TASKS.csv #1821; orderedElements: #2520
 import { gradeText } from "../gradeText.js"; // TASKS.csv #2515
+import { LAYER_META } from "../layers.js"; // TASKS.csv #3529 — a layer's unit
 import { rasterUnitOf } from "../rasterMethod.js"; // TASKS.csv #2747
 import { blockExtremesAt } from "../gridMeans.js"; // TASKS.csv #2879
 import { codeMeaning } from "./codeMeaning.js"; // TASKS.csv #2816
@@ -185,7 +186,7 @@ function describe(hit, ctx) {
     // "Ag: 0.25–1.8 ppm over …" said "Value" with two elements on show, now "Ag"; a Lithology line on the Lithology card stays "Value"
     const nameKey = nameLine ? tipLines[1].slice(0, tipLines[1].indexOf(":")).trim() : "";
     if (nameLine) fields.push([nameKey && nameKey.length <= 40 && nameKey !== group ? nameKey : tr("Value"), nameLine]);
-    else if (row?.value != null) fields.push([tr("Value"), gradeText(row.value)]); // #2515
+    else if (row?.value != null) { const unit = LAYER_META[ctx.layerKeyOf?.(o)]?.unit; fields.push([tr("Value"), gradeText(row.value) + (unit ? " " + unit : "")]); } // #2515; the unit of a density: #3529
     const meaning = ctx.meaningOf?.(o, o.userData?.catValue ?? row?.value, nameLine || ""); // #2816 — the project's code dictionary
     if (meaning) fields.push([tr("Meaning"), meaning]);
     if (row?.from != null && row?.to != null) { fields.push([tr("From"), metres(row.from)], [tr("To"), metres(row.to)], [tr("Length"), metres(row.to - row.from)]); } else if (row?.depth != null) fields.push([tr("Depth"), metres(row.depth)]);
@@ -292,6 +293,7 @@ export function identifyAt(r, clientX, clientY) {
     isHole: (id) => r.tracesRef.current.some((t) => t.hole_id === id),
     traceOf: (id) => r.tracesRef.current.find((t) => t.hole_id === id)?.pts,
     layerOf: (o) => { const k = groups.get(o.parent); return k == null ? null : r.layerLabel(k); },
+    layerKeyOf: (o) => groups.get(o.parent) ?? null, // #3529
     rasterOf: (o) => { const id = rasterIds.get(o); return id == null ? null : r.rasters.find((x) => String(x.id) === id); },
     mapLayerOf: (o) => { const id = mapIds.get(o); return id == null ? null : r.mapLayers.find((x) => String(x.id) === id); },
     structureSetOf: (o) => { const id = setIds.get(o.parent); return id == null ? null : r.surfaceStructures.find((x) => String(x.id) === id); },
