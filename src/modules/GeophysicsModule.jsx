@@ -253,6 +253,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const [srtmProgress, setSrtmProgress] = useState(null); // { done, total } | null
   // TASKS.csv #796 — nodes on the terrain's long side for the next fetch / import; a per-computer preference
   // (localStorage), Standard by default so a modest laptop never gets a big grid it did not ask for
+  const TERRAIN_DETAIL_NAMES = { 200: "Standard", 513: "High", 1025: "Very high", 2049: "Full" }; // TASKS.csv #3504 — the Terrain detail select's own names
   const [terrainDetail, setTerrainDetailState] = useState(() => { try { return Number(localStorage.getItem("geostrix.terrainDetail")) || 200; } catch { return 200; } });
   const setTerrainDetail = (v) => { setTerrainDetailState(v); try { localStorage.setItem("geostrix.terrainDetail", String(v)); } catch { /* private window */ } };
   const ramGB = useMachineMemoryGB(); // #3251 — what a Full fetch may take on this computer
@@ -2719,6 +2720,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 8, marginRight: 10, fontSize: "var(--font-size-sm)", color: "#5a6472" }}>
                   <span title={tr("Nodes {n} m apart; the source's pixels here {s} m (its finest {f} m){tiles}", { n: p.nodeM.toFixed(1), s: p.sourcePixelM.toFixed(1), f: p.nativeM.toFixed(1), tiles: p.tiles ? tr(", {t} tiles, about {mb} MB to download", { t: p.tiles, mb: p.downloadMB }) : "" })}>
                     {tr("~{m} m ground detail · {mem} MB", { m: p.effectiveM < 10 ? p.effectiveM.toFixed(1) : Math.round(p.effectiveM), mem: p.memoryMB.toLocaleString() })}</span>
+                  {/* TASKS.csv #3504 — the spacing of the grid's nodes at the chosen Terrain detail, beside the area's size: '~44 km × 23 km, nodes ~220 m apart at Standard' */}
+                  <span>{tr("nodes ~{n} m apart at {level}", { n: p.nodeM < 10 ? p.nodeM.toFixed(1) : Math.round(p.nodeM).toLocaleString(), level: tr(TERRAIN_DETAIL_NAMES[terrainDetail] || "Standard") })}</span>
                   {!fits && <span style={{ color: "var(--color-warn-text)" }}>{tr("over this computer's {max} MB", { max: fetchBudgetMB(ramGB).toLocaleString() })}</span>}
                   {coarse && p.fullSideKm * 1000 < Math.max((bbox[2] - bbox[0]) * 111320 * Math.cos(((bbox[1] + bbox[3]) / 2) * Math.PI / 180), (bbox[3] - bbox[1]) * 110574) && (
                     <button type="button" onClick={() => setArea(centreBox(bbox, p.fullSideKm * 1000))} style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)", cursor: "pointer" }}
@@ -2947,7 +2950,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             </div>
             {(b.contourLevels || []).length > 0 && ( /* TASKS.csv #1466 / #1622 — a contour layer's labels in the 3D View */
               <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: "pointer" }}
-                title={tr("Writes the level on the index contours in the 3D View (every fifth level of a regular series, every level of a few chosen ones); the other levels are drawn fainter.")}>
+                title={tr("Writes the level on the index contours in the 3D View and on the Maps plan (every fifth level of a regular series, every level of a few chosen ones); the other levels are drawn fainter in the 3D View.")}>
                 <input type="checkbox" checked={b.contourLabels !== false} onChange={(e) => updateBoundary(b.id, { contourLabels: e.target.checked })} />
                 <span style={{ color: "var(--color-text-caption)" }}>{tr("Label index contours")}</span>
               </label>

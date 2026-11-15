@@ -9955,7 +9955,7 @@
   "One contact to model: {surface}. The stack has no second surface to keep it from crossing, so it is solved on its own.": "ملامس واحد للنمذجة: {surface}. لا يحتوي التتابع على سطح ثانٍ يمنع التقاطع، لذا يُحَل وحده.",
   "{surface} (the base of {ovb})": "{surface} (قاعدة {ovb})",
   "{surface} (the base of {unit})": "{surface} (قاعدة {unit})",
-  "Writes the level on the index contours in the 3D View (every fifth level of a regular series, every level of a few chosen ones); the other levels are drawn fainter.": "يكتب قيمة المستوى على خطوط الكنتور الرئيسية في العرض ثلاثي الأبعاد (كل خامس مستوى في سلسلة منتظمة، وكل مستوى إن كانت مستويات قليلة مختارة)؛ وتُرسم المستويات الأخرى بلون أخفت.",
+  "Writes the level on the index contours in the 3D View and on the Maps plan (every fifth level of a regular series, every level of a few chosen ones); the other levels are drawn fainter in the 3D View.": "يكتب قيمة المستوى على خطوط الكنتور الرئيسية في العرض ثلاثي الأبعاد وعلى مخطط الخرائط (كل خامس مستوى في سلسلة منتظمة، وكل مستوى إن كانت مستويات قليلة مختارة)؛ وتُرسم المستويات الأخرى أخفت في العرض ثلاثي الأبعاد.",
   "Label index contours": "تسمية خطوط الكنتور الرئيسية",
   "No hole has a logged unit under its overburden / casing to place.": "لا يوجد ثقب حفر فيه وحدة مسجّلة تحت الغطاء / التغليف لوضعها.",
   "Subcrop from collars": "التكشّف تحت الغطاء من فوهات الثقوب",
@@ -12813,5 +12813,8 @@
   "Computes the downhole variogram and then the in-plane one, and states the anisotropy between them. Needs a plane (the trend, or horizontal).": "يحسب المتغاير على طول الثقب ثم في المستوى، ويذكر التباين بينهما. يحتاج مستويًا (الاتجاه أو الأفقي).",
   "Compute both: downhole and in the plane": "احسب الاثنين: على طول الثقب وفي المستوى",
   "The Variogram tool found {b} m of continuity across the holes and {a} m down them: a flat search fits.": "وجدت أداة المتغاير {b} م من الاستمرارية بين الثقوب و{a} م على طولها: بحث مسطح مناسب.",
-  "Use it as the flat search": "استخدامه كبحث مسطح"
+  "Use it as the flat search": "استخدامه كبحث مسطح",
+  "({n} left out: they overlap, zoom in)": "(استُبعد {n}: متداخلة، قرّب العرض)",
+  "nodes ~{n} m apart at {level}": "العُقد على بُعد ~{n} م عند المستوى {level}",
+  "Its middle moved from {from} to {to}: {d}.": "انتقل مركزها من {from} إلى {to}: {d}."
 }

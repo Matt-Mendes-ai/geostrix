@@ -9955,7 +9955,7 @@
   "One contact to model: {surface}. The stack has no second surface to keep it from crossing, so it is solved on its own.": "Un contacto para modelar: {surface}. La pila no tiene una segunda superficie que impida cruces, así que se resuelve por sí solo.",
   "{surface} (the base of {ovb})": "{surface} (la base de {ovb})",
   "{surface} (the base of {unit})": "{surface} (la base de {unit})",
-  "Writes the level on the index contours in the 3D View (every fifth level of a regular series, every level of a few chosen ones); the other levels are drawn fainter.": "Escribe el nivel en las curvas maestras en la Vista 3D (cada quinto nivel de una serie regular, cada nivel si son pocos elegidos); los demás niveles se dibujan más tenues.",
+  "Writes the level on the index contours in the 3D View and on the Maps plan (every fifth level of a regular series, every level of a few chosen ones); the other levels are drawn fainter in the 3D View.": "Escribe el nivel en las curvas maestras en la Vista 3D y en el plano de Mapas (cada quinto nivel de una serie regular, cada nivel si son pocos elegidos); los demás niveles se dibujan más tenues en la Vista 3D.",
   "Label index contours": "Rotular curvas maestras",
   "No hole has a logged unit under its overburden / casing to place.": "Ningún sondaje tiene una unidad registrada bajo su sobrecarga / encamisado para ubicar.",
   "Subcrop from collars": "Subafloramiento desde los collares",
@@ -12813,5 +12813,8 @@
   "Computes the downhole variogram and then the in-plane one, and states the anisotropy between them. Needs a plane (the trend, or horizontal).": "Calcula el variograma a lo largo del sondaje y luego el del plano, e indica la anisotropía entre ambos. Necesita un plano (la tendencia, o la horizontal).",
   "Compute both: downhole and in the plane": "Calcular ambos: a lo largo del sondaje y en el plano",
   "The Variogram tool found {b} m of continuity across the holes and {a} m down them: a flat search fits.": "La herramienta Variograma encontró {b} m de continuidad entre los sondajes y {a} m a lo largo de ellos: una búsqueda plana encaja.",
-  "Use it as the flat search": "Usarla como búsqueda plana"
+  "Use it as the flat search": "Usarla como búsqueda plana",
+  "({n} left out: they overlap, zoom in)": "({n} omitidos: se superponen, acerque la vista)",
+  "nodes ~{n} m apart at {level}": "nodos a ~{n} m a nivel {level}",
+  "Its middle moved from {from} to {to}: {d}.": "Su centro se movió de {from} a {to}: {d}."
 }
