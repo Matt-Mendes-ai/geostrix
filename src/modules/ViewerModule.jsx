@@ -3110,7 +3110,7 @@ ${describeTrend(t)}` };
   // solid changed (#2695, viewer/estimationShells.js)
   const shellsRef = useRef(null);
   const closedShellsForEstimation = () => (shellsRef.current = closedShellsOf(implicitSurfaces, implicitMeshesRef.current, originRef.current, shellsRef.current));
-  const estGround = useMemo(() => (!gradeEstOpen ? null : terrain ? (x, y) => terrainGroundAt(terrain, x, y) : collarGround(collars)), [gradeEstOpen, terrain, collars]); // #2695
+  const estGround = useMemo(() => (!gradeEstOpen ? null : terrain ? (x, y) => terrainGroundAt(terrain, x, y) : collarGround(collars, survey)), [gradeEstOpen, terrain, collars, survey]); // #2695; survey: #3589
   const checkedHoleIds = useMemo(() => new Set(collars.filter((c) => visibleHoles[c.hole_id] !== false).map((c) => c.hole_id)), [collars, visibleHoles]); // #2544; one Set per change: #2695
   // TASKS.csv #802 — a generated / imported surface's mesh in WORLD coordinates (E, N, Z) with its colour, for
   // "Solid blocks from surfaces"

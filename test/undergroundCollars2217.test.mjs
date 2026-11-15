@@ -28,7 +28,7 @@ test("the dialog turns the cut off and says why", () => {
   const m = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
   assert.ok(m.includes('const underground = useMemo(() => (groundSource === "collars" ? collarsLookUnderground(collars, survey) : null), [groundSource, collars, survey]);'));
   assert.ok(m.includes("const cutAtGround = belowGround && !underground?.underground;"));
-  assert.ok(m.includes("if (groundAt && cutAtGround) {"));
+  assert.ok(m.includes("const cutGround = groundAt && cutAtGround ? ") && m.includes("if (cutGround) { // cutAtGround: #2217")); // #3589: the ground raised over the samples
   assert.ok(m.includes("disabled={!!underground?.underground}"));
   assert.ok(m.includes('tr("Off: the collars look like underground collars ({upward} hole(s) drilled upward'));
 });
