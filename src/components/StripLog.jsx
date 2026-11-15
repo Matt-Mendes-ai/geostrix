@@ -370,6 +370,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
           {noData && <div style={{ fontSize: 12, color: "#65717e", marginBottom: 12 }}>{tr("{holeId} has no samples and no logs ({length} m).", { holeId, length: +maxDepth.toFixed(1) }) /* TASKS.csv #3557 — said plainly, at the top */}</div>}
           {!noData && <svg ref={svgRef} viewBox={`0 0 ${DEPTH_COL_W + tracks.length * TRACK_W + 40} ${H}`} width={DEPTH_COL_W + tracks.length * TRACK_W + 40} height={H} style={{ background: "#ffffff" }}>
             {patternsOn && Object.keys(tiles).length > 0 && <defs dangerouslySetInnerHTML={{ __html: patternDefs(tiles) }} />}{/* #1995 — shapes only (lithoPatterns.sanitizeTile) */}
+            <defs><pattern id="sl-calc-hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="4" stroke="#4a9be0" strokeWidth="1" /></pattern></defs>{/* TASKS.csv #3558 follow-up — the hatch of a calculated density bar: a colour-blind and black-and-white print reads it, not only the paler fill */}
             {/* depth ticks */}
             {depthTicks(d0, d1, pxPerMeter).map((d, i) => (
               <g key={i}>
@@ -414,7 +415,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                     const lg = t.logOk && logOn; // #1400; logOn: #3141
                     const w = (t.lo != null ? Math.max(0, Math.min(1, (Number(r.value) - t.lo) / (t.max - t.lo || 1))) : lg ? logFrac(Number(r.value), t.minPos, t.max) : t.max > 0 ? Math.max(0, Math.min(1, (Number(r.value) || 0) / t.max)) : 0) * (TRACK_W - 8); // t.lo: #1698
                     const meth = t.methodOf ? t.methodOf(r) : "", calc = isCalculatedMethod(meth); // TASKS.csv #3558 — a calculated value is paler with a dashed edge, and its tip says so
-                    return <rect key={i} x={x0 + 2} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={(t.colorOf && t.colorOf(r)) || "#4a9be0"} opacity={calc ? 0.3 : 0.75} stroke={calc ? "#4a9be0" : undefined} strokeDasharray={calc ? "2 1.5" : undefined} strokeWidth={calc ? 0.8 : undefined}><title>{`${r.from}-${r.to} m: ${sigText(Number(r.value), 3)}${t.unit ? ` ${t.unit}` : ""}${meth ? ` (${meth}${calc ? tr(": calculated, not measured") : ""})` : ""}`}</title></rect>;
+                    return <React.Fragment key={i}><rect x={x0 + 2} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={(t.colorOf && t.colorOf(r)) || "#4a9be0"} opacity={calc ? 0.3 : 0.75} stroke={calc ? "#4a9be0" : undefined} strokeDasharray={calc ? "2 1.5" : undefined} strokeWidth={calc ? 0.8 : undefined}><title>{`${r.from}-${r.to} m: ${sigText(Number(r.value), 3)}${t.unit ? ` ${t.unit}` : ""}${meth ? ` (${meth}${calc ? tr(": calculated, not measured") : ""})` : ""}`}</title></rect>{calc && w > 0 && <rect x={x0 + 2} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill="url(#sl-calc-hatch)" opacity="0.6" pointerEvents="none" />}</React.Fragment>;
                   })}
                   {t.kind === "bar" && t.scaleLabel && t.max > 0 && ( // #323 — each bar track's own full-scale value
                     <text x={x0 + TRACK_W / 2} y={sy(d1) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{barCaption(t)}</text>

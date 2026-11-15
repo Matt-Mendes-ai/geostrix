@@ -49,7 +49,7 @@ import { loggedCodeSpellings, withLogColours } from "../../lib/logColours.js"; /
 import { surveyIdsWithoutCollar, idList } from "../../lib/surveyCollarCheck.js"; // TASKS.csv #3202
 import { eventNotes } from "../../lib/downholeEvents.js"; // TASKS.csv #2317
 import { applyRowFilter, defaultRowFilter, overlapSummary, overlapWorthSaying } from "../../lib/importRowFilter.js"; // TASKS.csv #2330; overlap: #2391
-import { categoryColor /* #3043 */, LAYER_META, minMax } from "../../lib/layers.js";
+import { categoryColor /* #3043 */, LAYER_META, minMax } from "../../lib/layers.js";
 import { isNullSentinel, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, keepDerivedPicks, isDerivedPick, replaceNote, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, pickRankedCollarRows } from "../../lib/layersImport.js"; // TASKS.csv #3590
 import { alterationStyleFromName, styledAltValue, isBlankCode, NO_CODE, blankCodeText, skipBlankValue, mineralListValue } from "../../lib/viewer/importHelpers.js"; // TASKS.csv #1511; isBlankCode: #2182; skipBlankValue: #2021
 import { fillDownHoleIds, numberedSiblings, allCodesOf, normInterval, applyCustomFields, normNumericInterval, normStructure, skippedRowsText, strikeStats, loadRaster, looksLikeAssay, isSurfaceSampleTable, looksLikeSurfaceSamples /* #2268 */, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
@@ -97,7 +97,7 @@ function customOverlapText(rows) {
 // TASKS.csv #3535 — ids of the holes a collar file of a multi-file drop left without a survey while more files were queued (see reportDeferredAssumed)
 const deferredAssumed = new Set();
 export function makeImportPipeline(ctx, h) {
-  const { viewerUiState, addVoxelModel, fillCodeDictionary, recordImportLeftOut, storeAssays, layerPicker, setLayerPicker, batchRowsRef, commitBusyRef, importQueueRef, importQueueTotalRef, importActiveRef, assayHandoffRef, surfaceHandoffRef, queueLogRef, sampleLoading, setSampleLoading } = h;
+  const { viewerUiState, addVoxelModel, fillCodeDictionary, recordImportLeftOut, storeAssays, layerPicker, setLayerPicker, batchRowsRef, commitBusyRef, importQueueRef, importQueueTotalRef, importActiveRef, assayHandoffRef, surfaceHandoffRef, queueLogRef, sampleLoading, setSampleLoading, undoCheckpoint } = h;
   const {
     addBoundary,
     addRaster,
@@ -1014,6 +1014,7 @@ export function makeImportPipeline(ctx, h) {
     try { await commitImportOnce(); } finally { commitBusyRef.current = false; }
   };
   const commitImportOnce = async () => {
+    undoCheckpoint?.(); // TASKS.csv #3616 — the edit before this import is its own undo step, and each file of a drop is one (survey + density went in one Undo)
     await askCrsForCollars(importModal); // #615
     await loadPerMineral(importModal.target); // #3205
     if (!tableBuild && (importModal.logTable || (importModal.allRows?.length || 0) >= LOG_TABLE_MIN)) tableBuild = (await import("../../lib/rowTableBuild.js")).tableFromRows; // #3140 step 2

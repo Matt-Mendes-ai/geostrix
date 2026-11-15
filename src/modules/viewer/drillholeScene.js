@@ -22,7 +22,7 @@ import { isTable, rowOf, tableOps } from "../../lib/rowTable.js"; // TASKS.csv #
 import { rowsRefOf } from "../../lib/tableFields.js"; // TASKS.csv #3424 step 2
 import { traceLookup } from "../../lib/viewer/modelHelpers.js";
 import { dropLogCoarse, primeLogLod } from "./logLod.js"; // TASKS.csv #2802
-import { PROTO_CYLINDER, PROTO_SPHERE_8, PROTO_SPHERE_12, PROTO_CIRCLE_24, PROTO_PRISM_4, PROTO_SQUARE, PIN_AXIS, dipPinDir, INTERVAL_PROTO, UP_Y, DIR_TMP, POINT_PROTO } from "../../lib/viewer/protos.js";
+import { PROTO_CYLINDER, PROTO_SPHERE_8, PROTO_SPHERE_12, PROTO_CIRCLE_24, PROTO_PRISM_4, PROTO_SQUARE, PIN_AXIS, dipPinDir, intervalProto, UP_Y, DIR_TMP, POINT_PROTO } from "../../lib/viewer/protos.js";
 
 const toRad = (d) => (d * Math.PI) / 180;
 
@@ -563,7 +563,7 @@ export function buildDrillholeScene(ctx) {
           // straight interval in a layer share ONE InstancedMesh draw call — see PROTO_CYLINDER
           // and buildLayerBatches. Same vertices, same placement; three.js raycasts in local
           // space, so picking is unchanged.
-          geo = INTERVAL_PROTO[st.shape];
+          geo = intervalProto(st.shape); // #3620: a prism in light drawing
           const color = st.color || (meta.numeric ? numericIntervalColor(groupKey, row.value) : baseColorForBuild(groupKey, row.value));
           mesh_ = new PickStandIn(geo, { color, transparent: st.opacity < 1, opacity: st.opacity }); // #1500 — never drawn itself (its batch is)
           mesh_.scale.set(radius, len, radius);
@@ -581,7 +581,7 @@ export function buildDrillholeScene(ctx) {
             const a = pts[i], b = pts[i + 1], dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, len = Math.sqrt(dx * dx + dy * dy + dz * dz);
             if (len < 1e-6) continue;
             const e0 = i > 0 ? ext : 0, e1 = i < last ? ext : 0, ux = dx / len, uy = dy / len, uz = dz / len;
-            const m = new PickStandIn(INTERVAL_PROTO[st.shape], { color, transparent: st.opacity < 1, opacity: st.opacity });
+            const m = new PickStandIn(intervalProto(st.shape), { color, transparent: st.opacity < 1, opacity: st.opacity });
             m.scale.set(radius, len + e0 + e1, radius);
             m.position.set(a.x - ux * e0, a.y - uy * e0, a.z - uz * e0);
             m.quaternion.setFromUnitVectors(UP_Y, DIR_TMP.set(ux, uy, uz));
@@ -701,7 +701,7 @@ export function buildDrillholeScene(ctx) {
           // It was a TubeGeometry + material per row: Lawyers' 5 custom layers were 16,860 meshes, ~14,700 draw calls, 9 fps orbit.
           const dx = p2.x - p1.x, dy = p2.y - p1.y, dz = p2.z - p1.z, len = Math.sqrt(dx * dx + dy * dy + dz * dz);
           if (!(len > 1e-6)) return;
-          const mesh = new PickStandIn(INTERVAL_PROTO[stI.shape] || PROTO_CYLINDER, { color: stI.color || row.modelColor || customColour(layer, layerStyles, row), transparent: stI.opacity < 1, opacity: stI.opacity }); // #1500; #1697
+          const mesh = new PickStandIn(intervalProto(stI.shape) || PROTO_CYLINDER, { color: stI.color || row.modelColor || customColour(layer, layerStyles, row), transparent: stI.opacity < 1, opacity: stI.opacity }); // #1500; #1697
           mesh.scale.set(1.6 * stI.size, len, 1.6 * stI.size);
           mesh.position.set(p1.x, p1.y, p1.z);
           mesh.quaternion.setFromUnitVectors(PIN_AXIS, dipPinDir.set(dx / len, dy / len, dz / len));

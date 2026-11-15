@@ -23,7 +23,7 @@ test("a new item takes free space; with none, the least-covered spot", () => {
 
 test("snapshots, views, inserts and logos use it; Ctrl+C / Ctrl+V copy between pages", () => {
   const L = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
-  assert.match(L, /const spot = freeSpot\(placedSoFar, w, h, A4\); placedSoFar\.push\(\{ \.\.\.spot, w, h \}\);/);
+  assert.match(L, /const spot = freeSpot\(placedSoFar, w, h, A4\); if \(!spotIsFree\(placedSoFar, spot, w, h\)\) noRoom\.add\(img\.id\);[^\n]*placedSoFar\.push\(\{ \.\.\.spot, w, h \}\);/); // #3608 — the picture that finds no free spot
   assert.ok(!/x: 90 \+ stagger/.test(L) && !/x: 100, y: 100, src: reader\.result/.test(L));
   assert.match(L, /if \(type === "text" \|\| type === "north"\) Object\.assign\(base, freeSpot\(/);
   assert.match(L, /\(e\.key === "c" \|\| e\.key === "C"\)\) \{ if \(copySelected\(\)\) e\.preventDefault\(\); return; \}/);

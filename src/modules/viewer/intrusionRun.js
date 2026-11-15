@@ -97,7 +97,7 @@ ${p.sheet ? tr("{v} Mm³, {d} m below the outcrop, a sheet dipping {dip}° towar
         params: { tool: "intrusion body from the geological map (mapped outline extruded to a chosen depth; a construction, not a fitted model)", unit, layer: p.layer.name, field: p.field, polygons: polys,
           depthBelowOutcropM: p.depthM, ...(p.sheet ? { shape: "sheet (both walls dip one way)", sheetDipDeg: p.sheet.dip, sheetDipDirDeg: p.sheet.dipDir } : { wallDipDeg: p.wallDip }) /* #2642 */, walls: p.sheet ? `sheet dipping ${p.sheet.dip} toward ${p.sheet.dipDir}` : p.wallDip >= 89.99 ? "vertical" : p.flare === "in" ? "narrowing with depth" : "widening with depth", volumeM3: Math.round(vol), builtAt: new Date().toISOString(),
           ...(dips.length && !p.sheet ? { wallDipAchievedDeg: [Math.round(Math.min(...dips.map((d) => d[0]))), Math.round(Math.max(...dips.map((d) => d[1])))] } : {}), // #939
-          ...(num ? { separateBecause: "this unit's outcrop bodies cross at depth, so each outcrop is its own closed body (#938)" } : {}) },
+          ...(num ? { separateBecause: "this unit's outcrop bodies cross at depth, so each outcrop is its own closed body" } : {}) },
       });
       lines.push(tr("{unit} {v} Mm³ ({n} polygon(s))", { unit: num ? `${unit} ${num}` : unit, v: (vol / 1e6).toFixed(2), n: polys }));
     });

@@ -243,6 +243,8 @@ import { useModellingSimple } from "./viewer/useModellingSimple.js"; // TASKS.cs
 import CollarSizeControl from "./viewer/CollarSizeControl.jsx"; // #2823 — Matt: the size beside the Collars switch
 import { useBuildDefer } from "../lib/viewer/buildDefer.js"; // #1500
 import { lazyTip } from "../lib/viewer/lazyTip.js"; // #1500
+import { useSavedCamera, applySavedCamera } from "./viewer/savedCamera.js"; // #3624
+import { decideLight, registerRenderer, lightDrawingNotice } from "../lib/viewer/lightDrawing.js"; // #3620
 import MiddleName from "../components/MiddleName.jsx"; // #2852
 import { partChoices, boundaryPart } from "../lib/boundaryParts.js"; // TASKS.csv #3234
 const IdentifyPanel = React.lazy(() => import("../components/IdentifyPanel.jsx"));
@@ -1503,6 +1505,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const lastHydratedSeq = useRef(-1);
   const [hydratedFor, setHydratedFor] = useState(-1); // #1656 — the project the local UI state below was read from
   const baselineFor = useRef(-1);
+  const [savedCamera, setSavedCamera] = useState(null); // #3624 — the camera as saved with the project; useSavedCamera keeps it current, the one writer below puts it in viewerUiState
+  useSavedCamera(camState, hydratedFor === viewerUiStateSeq, setSavedCamera);
   useEffect(() => {
     if (viewerUiStateSeq === lastHydratedSeq.current) return;
     lastHydratedSeq.current = viewerUiStateSeq;
@@ -1516,6 +1520,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       cameraRef.current?.__update?.();
     }
     const s = viewerUiState;
+    setSavedCamera(s?.camera || null); if (s?.camera) applySavedCamera(s.camera, camState, cameraRef, hasAutoFitRef); // #3624
     if (!s) {
       // New project (or an older save with no saved UI state) — reset to defaults rather than
       // leaving stale filters/visibility from whatever was open before.
@@ -1528,7 +1533,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       setHoleLabelMode("none");
       setFigureOverlay({ ...DEFAULT_FIGURE_OVERLAY }); // TASKS.csv #311
       setLayerStyles({}); // #635
-      setModelArea("all"); // #2535
+      setModelArea("all"); setHoleFilter(""); // #2535; #3624
       return;
     }
     if (s.layerVisible) setLayerVisible({ ...DEFAULT_LAYER_VISIBLE, ...s.layerVisible });
@@ -1552,6 +1557,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     setFigureOverlay({ ...DEFAULT_FIGURE_OVERLAY, ...(s.figureOverlay || {}) });
     setLayerStyles(s.layerStyles || {}); // #635
     setModelArea(s.modelArea === "checked" ? "checked" : "all"); // #2535 — saved with the project
+    setHoleFilter(s.holeFilter || ""); // #3624
   }, [viewerUiStateSeq, viewerUiState, lastCamState]);
 
   // Push local UI state up to the store on every relevant change, so it's captured whenever
@@ -1574,11 +1580,12 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       holeLabelMode,
       figureOverlay, // TASKS.csv #311
       layerStyles, // TASKS.csv #635
+      holeFilter, camera: savedCamera, // #3624 — the rule that made the checks; the camera
       modelArea, // #2535
     };
     setViewerUiState(ui);
     if (baselineFor.current !== hydratedFor) { baselineFor.current = hydratedFor; markViewerUiBaseline?.(ui, hydratedFor); } // #1656 — this project's own styling
-  }, [hydratedFor, viewerUiStateSeq, layerVisible, categoryFilter, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, assaySource, gridConfig, bgColor, holeLabelMode, figureOverlay, layerStyles, setViewerUiState, markViewerUiBaseline, modelArea]);
+  }, [hydratedFor, viewerUiStateSeq, layerVisible, categoryFilter, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, assaySource, gridConfig, bgColor, holeLabelMode, figureOverlay, layerStyles, setViewerUiState, markViewerUiBaseline, modelArea, holeFilter, savedCamera]);
 
   // Applies bgColor to the live three.js scene whenever it changes — separate from the push-to-store
   // effect above since this one needs sceneRef.current (set up in the big scene-setup effect further
@@ -1889,8 +1896,10 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     // so that existing "render then immediately read, same task" pattern already produces a correct,
     // non-blank capture without needing the buffer preserved between frames at all. Verified live
     // (see this row's own commit) that both snapshot paths still work correctly with this removed.
-    const renderer = new THREE.WebGLRenderer({ antialias: true, stencil: true }); // stencil: TASKS.csv #3509 — the fetched picture is hidden under a loaded detail tile
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const light = decideLight(); // #3620 — a software renderer: light drawing (lib/viewer/lightDrawing.js), no antialiasing
+    const renderer = new THREE.WebGLRenderer({ antialias: !light, stencil: true }); // stencil: TASKS.csv #3509 — the fetched picture is hidden under a loaded detail tile
+    renderer.setPixelRatio(light ? 1 : Math.min(window.devicePixelRatio, 2));
+    registerRenderer(renderer); { const ln = lightDrawingNotice(); if (ln) setNotices((p) => [...p, ln]); } // #3620
     rendererRef.current = renderer; mount.appendChild(renderer.domElement);
     const warmId = typeof requestIdleCallback === "function" ? requestIdleCallback(() => import("../lib/viewer/surfaceWarmup.js").then((m) => { if (rendererRef.current === renderer) m.warmSurfacePrograms(renderer, scene, camera); }).catch(() => {}), { timeout: 10000 }) : null; // #3155 — the surface shaders compiled at idle
 
@@ -5209,7 +5218,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const flipDipOf = (r) => { const d = typeof r.dip === "string" && r.dip.trim() !== "" ? Number(r.dip) : r.dip; return Number.isFinite(d) ? { ...r, dip: -d } : r; };
   const dipShown = flipDipOf, dipStored = flipDipOf;
   // TASKS.csv #1083 — the features themselves are built in lib/viewer/vectorFeatures.js (tested there)
-  const buildVectorFeatures = (kind, key) => buildVectorFeaturesOf(kind, key, { collars, traces: tracesRef.current, layers, epsg: project?.epsg });
+  const buildVectorFeatures = (kind, key) => buildVectorFeaturesOf(kind, key, { collars, survey /* #3623 — AZIM_GRID / DIP from the first station */, traces: tracesRef.current, layers, epsg: project?.epsg });
 
   const exportVectorShapefile = async (kind, key, label, built = null) => { // built: #1025 — a map layer / boundary / sample set
     const { features, geomType } = built || buildVectorFeatures(kind, key);

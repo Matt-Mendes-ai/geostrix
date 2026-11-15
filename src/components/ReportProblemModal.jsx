@@ -47,7 +47,7 @@ export default function ReportProblemModal({ screenshot, crashed = false, onClos
       const fileData = [];
       for (const f of files) fileData.push({ name: f.name, data: new Uint8Array(await f.arrayBuffer()) });
       const { buildProblemReport, problemReportEmail } = await import("../lib/problemReport.js");
-      const { bytes } = buildProblemReport({ what, steps, crashed, info, screenshot, includeShot, includeLog, includeProject, projectPayload: includeProject ? getProjectPayload() : null, files: fileData, errors, project, userAgent: navigator.userAgent });
+      const { bytes } = buildProblemReport({ what, steps, crashed, info: { ...info, render: window.__geostrixRenderInfo?.() ?? null /* #3620 */ }, screenshot, includeShot, includeLog, includeProject, projectPayload: includeProject ? getProjectPayload() : null, files: fileData, errors, project, userAgent: navigator.userAgent });
       const res = await saveProblemReport(bytes, `GeoStrix-report-${stamp()}.zip`);
       if (!res?.ok) throw new Error(res?.error || tr("The report could not be saved."));
       const { subject, body } = problemReportEmail({ what, steps, version, fileName: res.name, bytes: bytes.length, emailLimit: EMAIL_LIMIT });

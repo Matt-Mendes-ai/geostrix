@@ -57,7 +57,7 @@ test("#2637 the bench table: per-block density, tonnes summed block by block, th
 
 test("wiring: the dialog's fill from a log, the bench table's density, the CSV header line; keys", () => {
   const p = readFileSync(new URL("../src/components/GradeTonnageModal.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.match(p, /const r = densityMeansByCode\(ch, \{ layers, customLayers \}, layers\?\.\[densityLayer\] \|\| \[\]\);/);
+  assert.match(p, /const r = densityMeansByCode\(ch, \{ layers, customLayers \}, layers\?\.\[densityLayer\] \|\| \[\], \{ range: densityRangeArr \}\);/);
   assert.match(p, /setCodeDensity\(\(p\) => \(\{ \.\.\.p, \.\.\.r\.fill \}\)\);/);
   assert.match(p, /gradeTonnageByBench\(cellsUsed, \{[^}]*densityOf: byModel\?\.of \|\| byCode\?\.of \|\| null \}\)/);
   assert.doesNotMatch(p, /The bench table uses the one density above/);

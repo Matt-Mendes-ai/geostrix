@@ -32,3 +32,19 @@ export function collarAttrNames(collars, reserved = []) {
   for (const c of collars || []) for (const [k] of collarAttrPairs(c, reserved)) if (!seen.has(k)) seen.set(k, true);
   return [...seen.keys()];
 }
+
+// TASKS.csv #3623 (Fireweed rehearsal) — a collar with no azimuth / dip of its own (Macpass's 559: the attitude is in the survey) left every export with two empty columns. Each collar missing one
+// takes the hole's first (shallowest) survey station's, as the Layout collar table does (lib/collarTable.js collarsWithSurveyAttitude), and says so in `_attFrom` ('azimuth', 'dip' or 'azimuth and dip'),
+// which the exports write as an attitude_from column. A value the collar has is never replaced; the collars are not changed.
+export function collarsWithFirstStation(collars, survey) {
+  const first = new Map();
+  for (const s of survey || []) { if (!Number.isFinite(s?.depth)) continue; const f = first.get(s.hole_id); if (!f || s.depth < f.depth) first.set(s.hole_id, s); }
+  return (collars || []).map((c) => {
+    const s = first.get(c?.hole_id);
+    if (!s) return c;
+    const az = !Number.isFinite(c.azimuth) && Number.isFinite(s.azimuth), dip = !Number.isFinite(c.dip) && Number.isFinite(s.dip);
+    if (!az && !dip) return c;
+    return { ...c, ...(az ? { azimuth: s.azimuth } : {}), ...(dip ? { dip: s.dip } : {}), _attFrom: az && dip ? "azimuth and dip" : az ? "azimuth" : "dip" };
+  });
+}
+export const attFromText = (c) => (c?._attFrom ? `first survey station: ${c._attFrom}` : "");

@@ -11,7 +11,7 @@ test("the overlap test counts frames only (viewports, drill plans, placed sectio
 });
 
 test("an overlapping snapshot goes to a new page with its legend, and the page keeps its own elements", () => {
-  assert.match(m, /if \(frames\.length && additions\.some\(overlapsFrame\)\) \{/);
+  assert.match(m, /if \(\(frames\.length && additions\.some\(overlapsFrame\)\) \|\| additions\.some\(\(a\) => noRoom\.has\(a\.id\)\)\) \{/); // #3608 — a picture with no free room goes to a new page too
   assert.match(m, /addLayoutPages(\(|, setLayoutPageFormat, )\[\{ name, elements: \[\.\.\.atTop, \.\.\.moved\] \}\](\)|, paper\));/); // #3370: on its paper
   assert.match(m, /The snapshot would have covered a frame on this page, so it is on a new page, \\"\{name\}\\"\./);
   for (const lang of ["es", "pt", "fr", "ar"]) {

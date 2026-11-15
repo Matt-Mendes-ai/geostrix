@@ -1650,6 +1650,8 @@ export function StoreProvider({ children }) {
   // one changed AFTER the step being undone began, undo() names it so the window can say it stays: Undo after 'Stopes to the
   // view' removed the strings drawn before it while the 64 stope solids stayed, and said only 'Undone: design strings.'
   const lastOutsideUndo = useRef(null); // { at, keys }
+  const [, setViewSeq] = useState(0); // a view change / its notice re-renders the window, so the Undo tooltip (peekUndo) reads the new state
+  const lastViewChangeAt = useRef(0), viewNoticeFor = useRef(0); // TASKS.csv #3616 — when the last view change (colours, checked holes, layers shown) was, and the one the first Ctrl+Z already told about
   const undoPastAt = useRef([]); // when each step of undoPast began (parallel to it)
   const undoBurstAt = useRef(0);
 
@@ -1667,7 +1669,7 @@ export function StoreProvider({ children }) {
   // TASKS.csv #1286 — a recoloured legend or layer style is work: unsaved, autosaved, asked about on quit. Orbiting still is not.
   const stylingChanged = useRef(stylingTracker());
   const markViewerUiBaseline = useCallback((s, seq) => stylingChanged.current.rebase(s, seq), []); // #1656
-  useEffect(() => { if (stylingChanged.current(viewerUiState, viewerUiStateSeq)) setActiveTabDirty(true); }, [viewerUiState, viewerUiStateSeq]);
+  useEffect(() => { if (stylingChanged.current(viewerUiState, viewerUiStateSeq)) { lastViewChangeAt.current = Date.now(); setViewSeq((n) => n + 1); setActiveTabDirty(true); } }, [viewerUiState, viewerUiStateSeq]);
   useEffect(() => {
     const prev = extraDirtyBaseline.current;
     extraDirtyBaseline.current = extraDirtyFields;
@@ -1748,6 +1750,10 @@ export function StoreProvider({ children }) {
       capTables([undoSnapshotRef.current(), ...undoFuture.current]); // #2894
     }
     if (!undoPast.current.length) return null;
+    // TASKS.csv #3616 — the last thing done was a view change (not in this history): the first Ctrl+Z says so (the window shows it: undoMessage's viewOnly),
+    // the next one takes the data step. 2 s of grace: an import's own auto-styling is not "the last thing done".
+    const topAt = undoPastAt.current[undoPastAt.current.length - 1] ?? 0;
+    if (lastViewChangeAt.current > topAt + 2000 && viewNoticeFor.current !== lastViewChangeAt.current) { viewNoticeFor.current = lastViewChangeAt.current; setViewSeq((n) => n + 1); return { viewOnly: true, keys: changedKeys(undoSnapshotRef.current(), undoPast.current[undoPast.current.length - 1]), later: [] }; }
     const prev = undoPast.current.pop(), at = undoPastAt.current.pop() ?? 0, cur = undoSnapshotRef.current();
     undoFuture.current.push(cur);
     applySnapshot(prev);
@@ -1766,6 +1772,15 @@ export function StoreProvider({ children }) {
     setRedoCount(undoFuture.current.length);
     return { keys: changedKeys(cur, next), later: [] }; // #1087
   });
+
+  // TASKS.csv #3616 — what the next Undo / Redo will take, for the buttons' tooltips: { keys, viewFirst } (null: nothing)
+  const peekUndo = useLatestCallback(() => {
+    const top = undoBeforeBurst.current || undoPast.current[undoPast.current.length - 1];
+    if (!top) return null;
+    const at = undoBeforeBurst.current ? undoBurstAt.current : undoPastAt.current[undoPast.current.length - 1] ?? 0;
+    return { keys: changedKeys(undoSnapshotRef.current(), top), viewFirst: lastViewChangeAt.current > at + 2000 && viewNoticeFor.current !== lastViewChangeAt.current };
+  });
+  const peekRedo = useLatestCallback(() => { const top = undoFuture.current[undoFuture.current.length - 1]; return top ? { keys: changedKeys(undoSnapshotRef.current(), top) } : null; });
 
   const clearUndoHistory = useCallback(() => {
     undoPast.current = []; undoPastAt.current = []; undoFuture.current = []; undoBeforeBurst.current = null; lastOutsideUndo.current = null;
@@ -1914,7 +1929,7 @@ export function StoreProvider({ children }) {
     workspaceTabs, activeTabId, activeTabDirty, switchToTab, newWorkspaceTab, closeWorkspaceTab,
     checkAutosave, restoreAutosave, discardAutosave, recoveryStashed, // #465
     getProjectToken, isSameProject, addVoxelModelToTab, // #466
-    undo, redo, canUndo: undoCount > 0, canRedo: redoCount > 0, undoCheckpoint: commitUndoBurst, // #3184
+    undo, redo, peekUndo, peekRedo, canUndo: undoCount > 0, canRedo: redoCount > 0, undoCheckpoint: commitUndoBurst, // #3184
     // TASKS.csv #3110 — a NEW calculated element's Add (GeochemModule): its own undo step, holding a token instead of the old assay table
     setAssaysWithInverse: (next, symbol) => { commitUndoBurst(); undoIntent.current = { next, token: calcUndoToken(next, symbol) }; setAssays(next); },
   };
