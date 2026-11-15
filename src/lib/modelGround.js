@@ -25,7 +25,7 @@ function collarModelGround(collars, survey) {
   const pts = (collars || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && Number.isFinite(c?.z));
   if (pts.length < 3) return { ground: null, why: "few" };
   if (collarsLookUnderground(pts, survey).underground) return { ground: null, why: "underground" };
-  const g = collarGround(pts);
+  const g = collarGround(pts, survey); // survey: #3582
   if (!g) return { ground: null, why: "few" };
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const c of pts) { if (c.x < x0) x0 = c.x; if (c.x > x1) x1 = c.x; if (c.y < y0) y0 = c.y; if (c.y > y1) y1 = c.y; }

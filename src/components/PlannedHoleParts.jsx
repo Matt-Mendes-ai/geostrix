@@ -82,7 +82,7 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
   const [zSource, setZSource] = useState("typed");
   // TASKS.csv #2100 (review #2013, Woodjam) — no terrain: the ground interpolated between the nearest collars (as Undrilled zones, the pit
   // and the dump already use, #1557 / #1616), before a flat plane: Woodjam's pick read 967 m where the collars around stand at 1,001-1,019 m
-  const collarZ = useMemo(() => (!groundAt && collars?.length ? collarGround(collars) : null), [groundAt, collars]);
+  const collarZ = useMemo(() => (!groundAt && collars?.length ? collarGround(collars, survey || undefined) : null), [groundAt, collars, survey]); // survey: #3582
   const ground = groundAt || collarZ;
   // TASKS.csv #3335 — the collar ground judged by the site spacing: rounded to the metre past one spacing, nothing past three (a terrain as before)
   const siteSpacing = useMemo(() => (collarZ ? drilledSiteSpacing(collars) : null), [collarZ, collars]);

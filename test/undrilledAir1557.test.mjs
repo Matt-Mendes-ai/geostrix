@@ -30,7 +30,7 @@ test("a ground of NaN (off the terrain) keeps the block", () => {
 
 test("the pane passes the terrain or the collar ground; the planned-hole form warns on an upward solve", () => {
   const pane = readFileSync(new URL("../src/components/UndrilledZonesPane.jsx", import.meta.url), "utf8");
-  assert.ok(pane.includes("const onCollars = !terrain && !ug?.underground && collars.some(") && pane.includes("runUndrilledZonesAsync(args, terrain ? { terrain } : onCollars ? { collars } : null)")); // #2249: not when the collars are underground; the worker builds the ground (#2258)
+  assert.ok(pane.includes("const onCollars = !terrain && !ug?.underground && collars.some(") && pane.includes("runUndrilledZonesAsync(args, terrain ? { terrain } : onCollars ? { collars: collarsForGround(collars, survey) } : null)")); // #2249: not when the collars are underground; the worker builds the ground (#2258)
   const form = readFileSync(new URL("../src/components/PlannedHoleParts.jsx", import.meta.url), "utf8");
   assert.match(form, /setUpward\(dip > 0\);/);
 });
