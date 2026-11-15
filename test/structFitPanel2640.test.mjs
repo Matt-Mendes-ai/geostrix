@@ -4,7 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { movableSurfaces, propertyUnits, modelProblem, buildStructfitRequest, everyNth, resultRows } from "../src/lib/structFit.js";
+import { movableSurfaces, propertyUnits, modelProblem, buildStructfitRequest, everyNth, resultRows, recordIsFull, engineName } from "../src/lib/structFit.js";
 
 const O = { x: 540000, y: 4930000, z: 1000 };
 const pts = (z0, n, holes = 0) => Array.from({ length: n }, (_, i) => ({ x: O.x + 300 + i * 150, y: O.y + 500, z: O.z + z0 - i * 5, hole_id: i < holes ? `DDH-${i}` : null, nugget: i === 2 ? 0.01 : null }));
@@ -135,4 +135,48 @@ test("#3664 the Inversion pane's survey choice counts only surveys it could inve
   assert.deepEqual(inversionSurveyChoices([...rows, { x: 1, y: 1, value: 3, _src: "mag.csv" }], { ...surveys, "mag.csv": { method: "mag" } }), ["SYN_gravity.csv", "mag.csv"], "two invertible surveys: the choice stays");
   assert.deepEqual(inversionSurveyChoices(rows.slice(1), surveys), ["Gravity · contact sensitivity", "TEM 1D"], "none invertible: all of them, as before");
   assert.deepEqual(inversionSurveyChoices([{ x: 0, y: 0, value: 1 }], {}), ["(unnamed import)"]);
+});
+
+// TASKS.csv #3633 (side 5's d09b53cc) — a record that carries what the run sent: the pass rebuilds that model, not an erosional stack with GemPy's range
+const fullRecord = () => {
+  const r = record();
+  return { ...r, relation: "onlap", rangeMultiplier: 0.6, surfaceDetail: 4, packages: 2, precision: "float32", rangeUsed: 1.02, rangeDefault: 1.7,
+    surfaces: [{ ...r.surfaces[0], name: "Top of B", meshName: "B", package: 0 }, { ...r.surfaces[1], name: "Fault 1", meshName: "F1", offsets: ["B", "C"] },
+      { ...r.surfaces[2], name: "Top of C", meshName: "C", package: 1 }] };
+};
+const askFull = (record, movable) => buildStructfitRequest({ record, method: "grav", stations, observed: [1, 2, 3], uncertainty: { floor: 0.05 }, props: { 1: 2.67, 2: 2.9, 3: 3.1 }, movable, maxM: 100 });
+
+test("#3633 a full record is rebuilt as the run sent it: relation, packages, the run's own surface names and fault offsets, range multiplier, precision", () => {
+  assert.equal(recordIsFull(fullRecord()), true); assert.equal(recordIsFull(record()), false); assert.equal(recordIsFull(null), false);
+  assert.equal(engineName({ name: "Top of B", meshName: "B" }), "B"); assert.equal(engineName({ name: "top_B" }), "top_B");
+  const b = askFull(fullRecord(), [{ surface: "Top of B", index: 3 }]);
+  assert.equal(b.problems, undefined);
+  const m = b.request.model;
+  assert.equal(m.relation, "onlap"); assert.equal(m.range_multiplier, 0.6); assert.equal(m.precision, "float32");
+  assert.deepEqual(m.surfaces.map((x) => [x.name, x.package]), [["B", 0], ["C", 1]]);
+  assert.deepEqual(m.faults.map((x) => [x.name, x.offsets]), [["F1", ["B", "C"]]]);
+  assert.deepEqual(b.request.movable, [{ surface: "B", index: 3, maxM: 100 }], "the point is named by the engine's name, not the label shown");
+  // a fault with no offsets list (every unit) sends none; no multiplier (Auto) and no precision send none
+  const r = fullRecord(); r.rangeMultiplier = null; r.precision = null; r.surfaces[1].offsets = null;
+  const m2 = askFull(r, [{ surface: "Top of C", index: 0 }]).request.model;
+  assert.equal(m2.range_multiplier, undefined); assert.equal(m2.precision, undefined); assert.equal(m2.faults[0].offsets, undefined);
+  assert.equal(m2.surfaces[0].package, 0);
+});
+
+test("#3633 an older record (no relation or meshName) is rebuilt as before: erode, the labels, no packages, GemPy's own range", () => {
+  const m = askFull(record(), [{ surface: "top_B", index: 3 }]).request;
+  assert.equal(m.model.relation, "erode"); assert.deepEqual(m.model.surfaces.map((x) => x.name), ["top_B", "top_C"]);
+  assert.equal(m.model.surfaces[0].package, undefined); assert.equal(m.model.range_multiplier, undefined); assert.equal(m.model.precision, undefined);
+  assert.deepEqual(m.movable, [{ surface: "top_B", index: 3, maxM: 100 }]);
+  // a record with some of the fields but no meshName is not 'full': nothing half-applied
+  assert.equal(recordIsFull({ ...record(), relation: "onlap" }), false);
+  assert.equal(askFull({ ...record(), relation: "onlap", rangeMultiplier: 2 }, [{ surface: "top_B", index: 3 }]).request.model.relation, "erode");
+});
+
+test("#3633 the engine's names go back to the labels in the table, and the panel says which caveat applies", () => {
+  const rows = resultRows({ points: [{ surface: "B", index: 3, x: 1, y: 2, z: 3, maxM: 100, stepM: 5, rmsPerM: 0.1, shiftForOneSigma: 10, seen: true }, { surface: "C", index: 0, x: 1, y: 2, z: 3, rmsPerM: 0.001, seen: false }] }, fullRecord());
+  assert.deepEqual(rows.map((r) => r.surface), ["Top of B", "Top of C"]);
+  assert.equal(resultRows({ points: [{ surface: "top_B", index: 1, x: 0, y: 0, z: 0 }] }, record())[0].surface, "top_B"); // an older record: the label was the name
+  const p = readFileSync(new URL("../src/components/StructFitPanel.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  assert.ok(p.includes('recordIsFull(record) ? tr("The model is rebuilt from the last model run in this project as it was sent: its relation (erode or onlap), conformable packages, fault offsets, potential-field range and precision.") : tr("The model is rebuilt from the last model run in this project with each unit eroding the ones below it; a model run with onlap, conformable packages or a custom range may differ.")'));
 });

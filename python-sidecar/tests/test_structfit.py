@@ -128,9 +128,68 @@ def check_validation():
     print("validation: a good request passes; a drillhole point, no distance, no floor, magnetics without a field are refused")
 
 
+def check_full_record_3633():
+    """TASKS.csv #3633 — what the app sends from a record that carries the run's relation, packages, fault offsets, range multiplier and precision:
+    onlap, two surfaces sharing one conformable package ahead of a second package, a fault offsetting all three, range x0.7, float64. The engine
+    builds it as sent (a vertical column reads units 1, 2, 3, 4 top-down: the pass numbers a unit by the surface whose top it is, packages
+    included), the range multiplier changes the field it solves, and the sensitivity job runs on a point of the second surface of a package."""
+    from app.main import ImplicitModelRequest
+
+    def surf(name, z0, dip, pts, **extra):
+        g = math.tan(math.radians(dip))
+        return {"name": name, "points": [{"x": x, "y": y, "z": z0 - g * (x - 1000)} for x, y in pts],
+                "orientations": [{"x": 1000.0, "y": 1000.0, "z": z0, "dip": dip, "azimuth": 90.0, "polarity": 1}], **extra}
+    pts = [(x, y) for x in (300.0, 700.0, 1000.0, 1300.0, 1700.0) for y in (500.0, 1500.0)]
+    fpts = [(900.0, y) for y in (300.0, 900.0, 1500.0)]
+    fault = {"name": "F1", "points": [{"x": x, "y": y, "z": -z} for (x, y) in fpts for z in (100.0, 500.0, 900.0)],
+             "orientations": [{"x": 900.0, "y": 900.0, "z": -500.0, "dip": 85.0, "azimuth": 270.0, "polarity": 1}], "offsets": ["top_B", "top_B2", "top_C"]}
+    model = {"extent": [0, 2000, 0, 2000, -1000, 0], "resolution": [20, 20, 20], "relation": "onlap", "range_multiplier": 0.7, "precision": "float64",
+             "surfaces": [surf("top_B", -150.0, 8.0, pts, package=0), surf("top_B2", -350.0, 8.0, pts, package=0), surf("top_C", -750.0, 4.0, pts, package=1)],
+             "faults": [fault]}
+    req = ImplicitModelRequest(**model)
+    assert req.relation == "onlap" and req.range_multiplier == 0.7 and req.precision == "float64" and [s.package for s in req.surfaces] == [0, 0, 1]
+    res = [20, 20, 20]
+    sol = structfit._solve(req, res)
+    xyz, lith = sol["xyz"], sol["lith"]
+    col = np.flatnonzero((np.abs(xyz[:, 0] - xyz[:, 0][np.argmin(np.abs(xyz[:, 0] - 400))]) < 1e-6) & (np.abs(xyz[:, 1] - xyz[:, 1][np.argmin(np.abs(xyz[:, 1] - 400))]) < 1e-6))
+    order = col[np.argsort(-xyz[col, 2])]
+    seq = [int(lith[order[0]])]
+    for i in order[1:]:
+        if int(lith[i]) != seq[-1]:
+            seq.append(int(lith[i]))
+    print(f"onlap + two packages + a fault + range x0.7 + float64: unit ids down a column {seq}")
+    assert seq == [1, 2, 3, 4], seq
+    plain = structfit._solve(ImplicitModelRequest(**{**model, "range_multiplier": None, "precision": "float32"}), res)
+    d = float(np.abs(sol["phi"] - plain["phi"]).max())
+    print(f"the range multiplier / precision change the solved field: max |d phi| {d:.3g}")
+    assert d > 1e-6
+    st = [[x, y, 30.0] for x in np.linspace(150, 1850, 8) for y in np.linspace(150, 1850, 8)]
+    out = structfit.run_job({"model": model, "method": "grav", "stations": st, "uncertainty": {"floor": 0.05, "percent": 0.0},
+                             "properties": {"1": 0.0, "2": 0.30, "3": 0.35, "4": 0.40}, "movable": [{"surface": "top_B2", "index": 4, "maxM": 100.0}]}, lambda ev: None)
+    a = out["points"][0]
+    print(f"top_B2 (second surface of package 0): {a['rmsPerM']:.4f} sigma a metre, one sigma at {a['shiftForOneSigma']:.1f} m, seen {a['seen']}, units {a['units']}")
+    assert a["units"] == [2, 3] and a["rmsPerM"] > 0
+
+
+def check_magnetics():
+    """TASKS.csv #3664 follow-up — the same two-contact model under a magnetic survey (induced only): a shallow contact with a strong susceptibility
+    contrast is seen, a deep one with a small contrast is not; the job runs end to end with the field as sent by the panel"""
+    req = base_request()
+    req["method"] = "mag"
+    req["field"] = {"strength": 57000.0, "inclination": 70.0, "declination": 15.0}
+    req["properties"] = {"1": 0.0, "2": 0.05, "3": 0.052}  # SI
+    req["uncertainty"] = {"floor": 1.0, "percent": 0.0}   # nT
+    out = structfit.run_job(req, lambda ev: None)
+    a, b = out["points"]
+    print(f"magnetics: top_B {a['rmsPerM']:.4f} sigma a metre, one sigma at {a['shiftForOneSigma']:.1f} m, seen {a['seen']}; top_C {b['rmsPerM']:.5f} sigma a metre, seen {b['seen']}")
+    assert a["seen"] and not b["seen"] and a["rmsPerM"] > 10 * b["rmsPerM"], (a, b)
+
+
 if __name__ == "__main__":
     check_validation()
     check_sensitivity()
     check_step_stable()
     check_resolve_and_guard()
+    check_full_record_3633()
+    check_magnetics()
     print("structfit: all checks passed")

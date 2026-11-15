@@ -6,6 +6,14 @@
 // the model's extent already is, so points and stations are moved into it here. The unit numbering is the engine's: id 1 is the space above
 // every top (the background), and id k + 1 is the unit whose top is the k-th (non-fault) surface, in the run's order.
 
+// TASKS.csv #3633 (side 5's d09b53cc) — the name the engine knows a surface by: the run's meshName (what the request sent, and what a fault's
+// `offsets` lists); the label the panel shows is the record's `name`. Records from before #3633 have no meshName: the label, as always.
+export const engineName = (s) => s?.meshName || s?.name;
+
+// TASKS.csv #3633 — whether the record carries what the run sent (its relation, the packages, each fault's offsets, the range multiplier) so the
+// pass can rebuild the same model; an older record does not, and the pass assumes each unit erodes the ones below it with GemPy's own range
+export const recordIsFull = (record) => !!record && typeof record.relation === "string" && (record.surfaces || []).length > 0 && record.surfaces.every((s) => !!s.meshName);
+
 // the surfaces a point can be moved on (not faults), each with its unit id and its points that may move: interpreted points only — a point
 // from a drillhole contact (hole_id) is an observation and never moves
 export function movableSurfaces(record) {
@@ -63,13 +71,18 @@ export function buildStructfitRequest({ record, method, stations, observed, unce
   if (problems.length) return { problems };
   const o = record.origin || { x: 0, y: 0, z: 0 };
   const inFrame = (p) => ({ x: p.x - o.x, y: p.y - o.y, z: p.z - o.z });
+  // TASKS.csv #3633 — the run's own surface names, packages and fault offsets when the record has them
+  const full = recordIsFull(record);
   const surfaceOf = (s) => ({
-    name: s.name,
+    name: full ? engineName(s) : s.name,
+    ...(full && s.package != null ? { package: s.package } : {}), ...(full && s.fault && Array.isArray(s.offsets) ? { offsets: s.offsets } : {}),
     points: (s.points || []).map((p) => ({ ...inFrame(p), ...(Number.isFinite(p.nugget) ? { nugget: p.nugget } : {}), hole_id: p.hole_id ?? null })),
     orientations: (s.orientations || []).map((q) => ({ ...inFrame(q), dip: q.dip, azimuth: q.azimuth })),
   });
   const model = {
-    extent: record.extent, resolution: record.resolution, relation: "erode",
+    extent: record.extent, resolution: record.resolution, relation: full && record.relation === "onlap" ? "onlap" : "erode",
+    ...(full && Number(record.rangeMultiplier) > 0 ? { range_multiplier: Number(record.rangeMultiplier) } : {}),
+    ...(full && (record.precision === "float32" || record.precision === "float64") ? { precision: record.precision } : {}),
     surfaces: record.surfaces.filter((s) => !s.fault).map(surfaceOf), faults: record.surfaces.filter((s) => s.fault).map(surfaceOf),
   };
   const request = {
@@ -77,7 +90,7 @@ export function buildStructfitRequest({ record, method, stations, observed, unce
     ...(Array.isArray(observed) && observed.length === stations.length ? { observed } : {}),
     uncertainty: { floor: num(uncertainty.floor), percent: Number.isFinite(num(uncertainty.percent)) ? num(uncertainty.percent) : 0 },
     properties: Object.fromEntries(units.map((u) => [String(u.id), num(props[u.id])])),
-    movable: movable.map((m) => ({ surface: m.surface, index: m.index, maxM: num(maxM) })),
+    movable: movable.map((m) => ({ surface: full ? engineName(record.surfaces.find((s) => s.name === m.surface)) || m.surface : m.surface, index: m.index, maxM: num(maxM) })),
     ...(method === "mag" ? { field } : {}),
   };
   if (resolve) request.resolve = Object.fromEntries(Object.entries(resolve).filter(([k]) => Number(k) !== 1).map(([k, v]) => [String(k), [num(v[0]), num(v[1])]]));
@@ -105,8 +118,9 @@ export function verdictPoints(rows, src) {
 
 export function resultRows(result, record) {
   const o = record?.origin || { x: 0, y: 0, z: 0 };
+  const label = (n) => (record?.surfaces || []).find((s) => engineName(s) === n)?.name ?? n; // #3633: the engine's meshName back to the label shown
   return (result?.points || []).map((p) => ({
-    surface: p.surface, index: p.index, x: p.x + o.x, y: p.y + o.y, z: p.z + o.z, maxM: p.maxM, stepM: p.stepM,
+    surface: label(p.surface), index: p.index, x: p.x + o.x, y: p.y + o.y, z: p.z + o.z, maxM: p.maxM, stepM: p.stepM,
     rmsPerM: p.rmsPerM, shiftForOneSigma: p.shiftForOneSigma, bandCells: p.bandCells, note: p.note || null,
     verdict: p.note ? "none" : p.seen ? "seen" : "not constrained",
   }));
