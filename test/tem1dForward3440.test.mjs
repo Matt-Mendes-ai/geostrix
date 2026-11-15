@@ -51,6 +51,10 @@ test("#3440 step 3 (engine): one transform for every station, the filter by heig
   assert.match(rd("../python-sidecar/app/geophys/em1d.py"), /gs = np\.int64\(s\) if G\.shape\[0\] > 1 else np\.int64\(0\)/);
   // the time left is timed from the second batch on: the first carries numba's compile
   assert.match(py, /"etaS": eta,/);
+  // #3501: a TEM decay predicted at or below zero is floored at a thousandth of its reading in the log misfit, with no gradient
+  const em = rd("../python-sidecar/app/geophys/em1d.py");
+  assert.match(em, /floor_rows = np\.where\(np\.isfinite\(dpos\), 1e-3 \* dpos, 1e-9\)/);
+  assert.match(em, /return np\.log\(pp\), np\.where\(\(p > fl\)\[:, :, None\], Jm \/ pp\[:, :, None\], 0\.0\)/);
   assert.match(py, /"partials": recent\}\)/);
   assert.match(py, /^RECENT_BATCHES = 4/m); assert.match(py, /^BATCH = 32/m);
   const main = rd("../python-sidecar/app/main.py");

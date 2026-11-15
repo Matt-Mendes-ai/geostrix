@@ -170,6 +170,7 @@
   "Where the receiver's height comes from": "De onde vem a altura do receptor",
   "{c} less the height": "{c} menos a altura",
   "Receiver low-pass filters (kHz)": "Filtros passa-baixa do receptor (kHz)",
+  "The first filter is the receiver coil's: second order (a coil is a resonant circuit)": "O primeiro filtro é o da bobina receptora: de segunda ordem (uma bobina é um circuito ressonante)",
   "Waveform table of {m}": "Tabela da forma de onda de {m}",
   "time (s), current: one pair a line, from the start of the ramp-down": "tempo (s), corrente: um par por linha, a partir do início da rampa de descida",
   "{n} points; the turn-off ends {us} µs after the table's zero.": "{n} pontos; o desligamento termina {us} µs após o zero da tabela.",

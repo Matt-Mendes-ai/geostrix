@@ -170,6 +170,7 @@
   "Where the receiver's height comes from": "مصدر ارتفاع المستقبل",
   "{c} less the height": "{c} ناقص الارتفاع",
   "Receiver low-pass filters (kHz)": "مرشحات التمرير المنخفض للمستقبل (كيلوهرتز)",
+  "The first filter is the receiver coil's: second order (a coil is a resonant circuit)": "المرشح الأول هو مرشح ملف الاستقبال: من الرتبة الثانية (الملف دارة رنينية)",
   "Waveform table of {m}": "جدول شكل الموجة لـ {m}",
   "time (s), current: one pair a line, from the start of the ramp-down": "الزمن (ث)، التيار: زوج في كل سطر، من بداية منحدر الهبوط",
   "{n} points; the turn-off ends {us} µs after the table's zero.": "{n} نقطة؛ ينتهي الإطفاء بعد {us} ميكروثانية من صفر الجدول.",

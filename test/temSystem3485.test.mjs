@@ -54,10 +54,17 @@ test("#3485 the request: the shift (raw to calibrated), the front gate, gates in
   assert.equal(channelMatrix(data, lm).n, 4);
 });
 
+test("#3501 the inversion panel is remounted when the channel set changes (one moment to both joined closed the tab)", () => {
+  const t = readFileSync(new URL("../src/components/TemPane.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  assert.match(t, /<TemInvertPanel \/\*[\s\S]*?\*\/ key=\{`\$\{data\.name\}\|\$\{isJoin \? `\$\{joinable\.ga\.prefix\}\+\$\{joinable\.gb\.prefix\}` : group\.prefix\}`\}/);
+});
+
 test("#3485 the pane offers the report's system: the loop of the frame's area, the receiver's height and filters, the table, the report's fields", () => {
   const p = readFileSync(new URL("../src/components/TemInvertPanel.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(p, /\{ geom: "cloop", a: Math\.sqrt\(\(Number\(st\.area\) \|\| 314\) \/ Math\.PI\) \}/);
   assert.match(p, /rz: Number\(st\.rz\) \|\| 0, filters: filters \|\| \[\]/);
   assert.match(p, /baseFreq: st\.wave\[k\]\.baseFreq, shiftUs: st\.wave\[k\]\.shiftUs, frontUs: st\.wave\[k\]\.frontUs,/);
   assert.match(p, /if \(sysErr\) \{ setMsg\(\{ text: tr\(sysErr\) \}\); return; \}/);
+  // #3501: the first filter sent as the receiver coil's, second order, unless the box is cleared
+  assert.match(p, /const filters = parsedFilters && parsedFilters\.length && st\.coil2 !== false \? \[\[parsedFilters\[0\], 2\], \.\.\.parsedFilters\.slice\(1\)\] : parsedFilters;/);
 });

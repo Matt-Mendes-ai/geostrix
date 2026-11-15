@@ -107,7 +107,7 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
   const rxc = useMemo(() => rxColumn(data.columns), [data]);
   const stdGuess = useMemo(() => (noiseMats[0] ? stdKindGuess(noiseMats[0]) : "relative"), [noiseMats]);
   const fresh = () => ({
-    key, geom: "vmd", r: 13, a: 20, area: 314, h: 30, rz: 0, rzCol: rxc && hc ? rxc : "", filters: "", heightsCol: hc || "", timeZero: tz.zero, unit: ug.unit, useStd: noiseMats.every(Boolean), stdKind: stdGuess, errRel: 5, every: 1,
+    key, geom: "vmd", r: 13, a: 20, area: 314, h: 30, rz: 0, rzCol: rxc && hc ? rxc : "", filters: "", coil2: true, heightsCol: hc || "", timeZero: tz.zero, unit: ug.unit, useStd: noiseMats.every(Boolean), stdKind: stdGuess, errRel: 5, every: 1,
     layers: { n: 20, first: 3, bottom: 300 },
     wave: groups.map((g, k) => { const p = groups.length > 1 ? (k === 0 ? "airLow" : "airHigh") : "airHigh"; return { preset: p, onMs: WAVEFORM_PRESETS[p].onMs, rampUs: WAVEFORM_PRESETS[p].rampUs, table: "", baseFreq: "", shiftUs: "", frontUs: "", widthsUs: "" }; }),
     result: null, pick: null, sel: null,
@@ -124,7 +124,10 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
   const tables = (st.wave || []).map((w) => (w.preset === "table" ? parseWaveformTable(w.table) : null));
   const waveOf = (k) => (tables[k] ? { waveform: tables[k].waveform || null, rampUs: tables[k].rampUs || 0 } : { waveform: waveformFrom(st.wave[k].onMs, st.wave[k].rampUs), rampUs: st.wave[k].rampUs });
   const numList = (text) => String(text || "").split(/[\s,;]+/).filter(Boolean).map(Number);
-  const filters = parseFilters(st.filters);
+  // TASKS.csv #3501 — the first filter as the receiver coil's, second order (a coil is a resonant circuit): on the USGS SkyTEM file it
+  // brought the low moment's first gates after the turn-off from 8-20 % to within 6 % of Workbench's forward
+  const parsedFilters = parseFilters(st.filters);
+  const filters = parsedFilters && parsedFilters.length && st.coil2 !== false ? [[parsedFilters[0], 2], ...parsedFilters.slice(1)] : parsedFilters;
   const sysErr = tables.find((t) => t && t.error)?.error || (filters == null ? "Filters: up to three cut-offs in kHz (1 to 100,000), separated by commas." : null);
   const build = () => buildTemRequest(data, {
     moments: groups.map((g, k) => ({ group: g, times: times[k], ...waveOf(k), baseFreq: st.wave[k].baseFreq, shiftUs: st.wave[k].shiftUs, frontUs: st.wave[k].frontUs,
@@ -225,6 +228,9 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
       <div style={rowS}><span>{tr("Receiver low-pass filters (kHz)")}</span>
         <input type="text" value={st.filters} placeholder={tr("none")} onChange={(e) => set({ filters: e.target.value })} style={{ ...num, width: 90 }} aria-label={tr("Receiver low-pass filters (kHz)")} />
       </div>
+      {parsedFilters?.length > 0 && <label style={{ ...rowS, justifyContent: "flex-start", gap: 4, fontSize: "var(--font-size-xs)" }}>
+        <input type="checkbox" checked={st.coil2 !== false} onChange={(e) => set({ coil2: e.target.checked })} />{tr("The first filter is the receiver coil's: second order (a coil is a resonant circuit)")}
+      </label>}
       <div style={rowS}><span>{tr("Height above ground")}</span>
         <span style={{ display: "flex", gap: 4 }}>
           <select value={st.heightsCol} onChange={(e) => set({ heightsCol: e.target.value })} style={{ ...smallSel, maxWidth: 120 }} aria-label={tr("Column of the height above ground")}>

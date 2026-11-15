@@ -276,10 +276,16 @@ def _operator(gates, widths, waveform, base_freq, filt):
 
 
 def _filters(system, freq):
-    """the receiver's first-order low-pass filters (cut-offs in Hz; SkyTEM: the coil's and the instrument's), e^(i w t) convention"""
+    """the receiver's low-pass filters, e^(i w t) convention: a cut-off in Hz (first order), or [cut-off, order] (TASKS.csv #3501: a
+    receiver coil is a resonant circuit, a second-order low-pass; SkyTEM lists the coil's and the instrument's cut-offs). Measured on
+    the USGS 2016 Yellowstone SkyTEM file against Workbench's forward of the USGS models: the report's 210 kHz coil and 300 kHz
+    instrument cut-offs, both first order, left the low moment's first gates after the turn-off 8-20 % low (log-ratio rms 0.083 over
+    20-110 us); the coil as second order brings them within 6 % and the later gates within 0.9 % (rms 0.030)"""
     H = np.ones(len(freq), np.complex128)
-    for fc in system.get("filters") or []:
-        H = H / (1.0 + 1j * np.asarray(freq, float) / float(fc))
+    f = np.asarray(freq, float)
+    for spec in system.get("filters") or []:
+        fc, order = (float(spec[0]), int(spec[1])) if isinstance(spec, (list, tuple)) else (float(spec), 1)
+        H = H / (1.0 + 1j * f / fc) ** order
     return H
 
 

@@ -227,15 +227,28 @@ def invert_batch(sv, d, sd, thick, m_ref=None, alpha=ALPHA, max_iter=15, smooth=
         dd = np.where(ok, d, 0.0)
         w = np.where(ok, 1.0 / np.where(ok, sd, 1.0), 0.0)
     nd = np.maximum(ok.sum(1), 1)
+    # TASKS.csv #3501 — a TEM decay (kind "log") predicted at or below zero (a gate inside the turn-off, where a receiver's filters make the
+    # response cross zero: Workbench's own forward does too) is floored at a thousandth of its own reading, not at 1e-9: its misfit then
+    # saturates (ln 1000 over its log uncertainty) and gives no gradient, instead of one gate's log(1e-9) swamping the station (measured on
+    # the USGS SkyTEM file: chi median 2.33 with the two gates inside the ramp, against 1.20 without them)
+    floor_rows = floor_any = 1e-9
+    if sv.kind == "log":
+        dpos = np.where(ok, np.abs(d), np.nan)
+        floor_rows = np.where(np.isfinite(dpos), 1e-3 * dpos, 1e-9)
+        floor_any = 1e-3 * float(np.nanmin(dpos)) if np.isfinite(dpos).any() else 1e-9
+
+    def _floor(p):
+        return floor_rows if np.shape(floor_rows) == p.shape else floor_any  # the half-space search's grid rows take one floor
 
     def F(mm, jac=False):
         if not jac:
             p = fw(mm, thick)
-            return np.log(np.maximum(p, 1e-9)) if logd else p
+            return np.log(np.maximum(p, _floor(p))) if logd else p
         p, Jm = fw(mm, thick, jac=True)
         if logd:
-            pp = np.maximum(p, 1e-9)
-            return np.log(pp), Jm / pp[:, :, None]
+            fl = _floor(p)
+            pp = np.maximum(p, fl)
+            return np.log(pp), np.where((p > fl)[:, :, None], Jm / pp[:, :, None], 0.0)
         return p, Jm
 
     grid = np.linspace(-4.0, 0.5, 46)

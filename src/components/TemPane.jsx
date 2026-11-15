@@ -224,7 +224,8 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
         </div>
         {/* TASKS.csv #3440 step 3 — the 1D inversion, for a set of decays (one, or both moments joined) */}
         {(isJoin || group.role === "data" || (!group.role && !group.aux)) && (
-          <TemInvertPanel data={data} groups={isJoin ? [joinable.ga, joinable.gb] : [group]} timesOf={(g) => (isJoin ? (g === joinable.ga ? joinable.ta : joinable.tb) : times)} line={line} setLayers={setLayers} updateGeophysSurvey={updateGeophysSurvey} />
+          <TemInvertPanel /* TASKS.csv #3501 — keyed by the file and its channel set: switching from one moment to both joined remounts the
+              panel (its state holds a waveform per moment; reused for two moments it read the second's as undefined and closed the tab) */ key={`${data.name}|${isJoin ? `${joinable.ga.prefix}+${joinable.gb.prefix}` : group.prefix}`} data={data} groups={isJoin ? [joinable.ga, joinable.gb] : [group]} timesOf={(g) => (isJoin ? (g === joinable.ga ? joinable.ta : joinable.tb) : times)} line={line} setLayers={setLayers} updateGeophysSurvey={updateGeophysSurvey} />
         )}
       </>)}
     </div>
