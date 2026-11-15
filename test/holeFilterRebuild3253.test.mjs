@@ -18,7 +18,7 @@ test("the hole pass is a function reading the checks through the ref, still run 
 
 test("each rebuild ends with it: the drillhole build, the assay markers, the hole labels", () => {
   assert.match(d, /\(applyHoleVisibilityRef\?\.current \|\| applyCategoryVisibility\)\(\);/);
-  assert.match(v, /buildDrillholeScene\(\{ applyCategoryVisibility, applyHoleVisibilityRef \/\* #3253 \*\//);
+  assert.match(v, /buildDrillholeScene\(\{ slice: true \/\* #3648 \*\/, applyCategoryVisibility, applyHoleVisibilityRef \/\* #3253 \*\//);
   assert.match(v, /setAssayLod\(g, assayKeptRef\.current, g\.userData\.lodOn\); \/\/ #3144 — new elements too\r?\n\s+applyHoleVisibilityRef\.current\?\.\(\);/);
   assert.match(v, /syncHoleLabels\(g, holeLabelAnchorsRef\.current, holeLabelMode, makeTextSprite\); applyHoleVisibilityRef\.current\?\.\(\);/); // g: the hole_labels group (#3399)
 });
