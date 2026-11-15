@@ -3433,6 +3433,7 @@
   "CV": "CV",
   "Top cut": "Écrêtage",
   "Top cut for {el}": "Écrêtage de {el}",
+  "The {n} holes in the model area lie in {k} clusters more than {g} m apart: one model spans the gaps between them, and its box, cells and unit volumes cover them. Model one cluster at a time:": "Les {n} sondages de la zone du modèle forment {k} groupes à plus de {g} m les uns des autres : un seul modèle couvre les vides entre eux, et sa boîte, ses cellules et ses volumes d'unité les englobent. Modélisez un groupe à la fois :",
   "This model pools {n} holes drilled {from}–{to} ({decades}).": "Ce modèle regroupe {n} sondages forés de {from} à {to} ({decades}).",
   "This model pools {n} holes.": "Ce modèle regroupe {n} sondages.",
   "Hole types: {types}.": "Types de sondage : {types}.",

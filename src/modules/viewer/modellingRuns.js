@@ -2529,7 +2529,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         if (!numSrc) {
           const { resolveUnsampled } = await import("../../components/UnsampledChoice.jsx");
           const u = resolveUnsampled("gradeShell", { assays: srcAssays, collars: inArea ? restrictRowsToHoles(collars, visibleHoles) : collars /* #3006 — the holes the run uses */, symbol, unit, elementUnits, logCtx: { layers, customLayers, logValidRange } }); // logCtx: a picked log, #2721
-          if (!u.ready) throw new Error(tr("Choose how the unsampled metres inside the sampled holes are read (and, for barren, type their value) before running."));
+          if (!u.ready) throw Object.assign(new Error(tr("Choose how the unsampled metres inside the sampled holes are read (and, for barren, type their value) before running.")), { prompt: true }); // #3607 (1): a choice to make before the run, said as a prompt, not 'failed'
           unsFill = u.apply(srcAssays); unsParams = u.params(unsFill);
           if (unsFill.filledM > 0 && u.mode === "log") setNotices((q) => [...q, notice("Unsampled metres read from the log \"{log}\" × {f} ({lu} to {u}, the factor you gave): {m} m in {n} hole(s) filled from its readings; {r} m had no reading and stay not known.", { log: unsParams.unsampledLog, f: unsParams.unsampledLogFactor, lu: unsParams.unsampledLogUnit, u: unsParams.unsampledUnit, m: unsParams.unsampledLogFilledM.toLocaleString(), n: unsParams.unsampledHolesFilled, r: unsParams.unsampledLogNoReadingM.toLocaleString() })]); // #2721
           else if (unsFill.filledM > 0) setNotices((q) => [...q, notice("Unsampled metres read as barren: {m} m in {n} hole(s) filled at the value typed ({v}).", { m: unsParams.unsampledFilledM.toLocaleString(), n: unsParams.unsampledHolesFilled, v: `${unsParams.unsampledValue} ${unit}` })]);
@@ -2875,7 +2875,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         if (closure === "artificial") setNotices((p) => [...p, notice(!(numericSearchRadius > 0) ? "\"{label}\" was closed ARTIFICIALLY at the edge of the grid ({closingVertices} of its vertices sit on that wall, not on a grade boundary). With no search radius its volume depends on how far the grid reaches past the drilling, not only on the data. Treat it as a visualization of where grades might extend, not a measured volume." /* #1423 — no radius: the wall is the grid edge */ : "\"{label}\" was closed ARTIFICIALLY at the search-radius boundary ({closingVertices} of its vertices sit on that wall, not on a grade boundary). Its volume depends on your search radius, not only on the data — doubling the radius can multiply the volume by up to eight (less where the shell's top and base are real grade boundaries, as in a flat body). Treat it as a visualization of where grades might extend, not a measured volume.", { label, closingVertices: mc.closingVertices.toLocaleString() })]);
         fitBox(new THREE.Box3().setFromObject(mesh));
       } catch (e) {
-        setNotices((p) => [...p, e?.cancelled ? notice("Numeric model cancelled.") : errorNotice(tr("Numeric model failed: {v}", { v: e.message || e }))]);
+        setNotices((p) => [...p, e?.cancelled ? notice("Numeric model cancelled.") : e?.prompt ? { text: e.message, level: "info" } /* #3607 (1) */ : errorNotice(tr("Numeric model failed: {v}", { v: e.message || e }))]);
       }
       ownTask(label).clear(); // #2379 — only this tool's entry
       setNumericBusy(false);
