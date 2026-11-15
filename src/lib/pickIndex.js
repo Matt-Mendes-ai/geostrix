@@ -221,6 +221,7 @@ export function buildPickIndex(objects) {
       continue;
     }
     if (isBoxBounded(o)) {
+      if (o.tubeFloor) tubes = true; // #3670 — a short family's tube (a real Mesh): its box is widened by the same pixels
       if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
       // computeBoundingBox can still yield NaN for a degenerate/empty geometry — treat that as
       // "cannot be bounded" rather than trusting a NaN box that would swallow or drop hits.

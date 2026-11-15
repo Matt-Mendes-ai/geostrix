@@ -100,3 +100,25 @@ test("wiring: the tubes are flagged where the batch is made; the index widens on
   const pi = readFileSync(new URL("../src/lib/pickIndex.js", import.meta.url), "utf8");
   assert.match(pi, /obj\.userData\.tubeFloor \? px : null/);
 });
+
+// ---- TASKS.csv #3670 — a family under 24 tubes (drawn as real Meshes) has the floor and the axis pick too
+test("a short family: real Meshes with the pixel-floor material, picked within 4 px of the axis; a sphere family and a long family unchanged", () => {
+  const cam = scene();
+  const px = (n) => (n * 2) / 1600;
+  const { group } = batches(PROTO_CYLINDER, 5);
+  assert.ok(!group.children.some((c) => c.isInstancedMesh), "5 tubes are not batched");
+  const tubes = group.children.filter((c) => c.isMesh);
+  assert.equal(tubes.length, 5);
+  assert.ok(tubes.every((m) => m.tubeFloor === true && m.material.userData.pixelTube === true), "each carries the floor material and the flag");
+  const mid = tubes[2]; // the camera goes to tube 2's x: the ray through the screen centre then runs along its axis' neighbourhood
+  cam.position.set(mid.position.x, 0, 5000); cam.lookAt(mid.position.x, 0, 0); cam.updateMatrixWorld(true); cam.updateProjectionMatrix();
+  const near = pick(cam, px(3), 0, tubes), far = pick(cam, px(9), 0, tubes);
+  assert.ok(near.hits.length === 1 && near.hits[0].object === mid, "3 px off the axis hits the short family's tube");
+  assert.equal(far.hits.length, 0, "9 px off hits nothing");
+  const spheres = batches(PROTO_SPHERE_10, 5).group.children.filter((c) => c.isMesh);
+  assert.ok(spheres.length === 5 && spheres.every((m) => !m.tubeFloor));
+  cam.position.set(spheres[2].position.x, 0, 5000); cam.lookAt(spheres[2].position.x, 0, 0); cam.updateMatrixWorld(true);
+  assert.equal(pick(cam, px(3), 0, spheres).hits.length, 0, "a short family of spheres is picked as before");
+  const lb = readFileSync(new URL("../src/lib/viewer/layerBatches.js", import.meta.url), "utf8");
+  assert.match(lb, /promote\.set\(m, floorTube\(m\.toMesh\(\)\)\)/);
+});

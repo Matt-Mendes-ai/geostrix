@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { PICK_ONLY_LAYER } from "./pickStandIn.js";
 import { collarMarkerMaterial } from "./collarMarkerShader.js"; // TASKS.csv #2623
 import { pixelTubeMaterial, isTubeProto } from "./tubeShader.js"; // TASKS.csv #3643
-import { tubeAxisHit, tubePixelScale } from "./tubePick.js"; // TASKS.csv #3667
+import { tubeAxisHit, tubePixelScale, tubeMeshRaycast } from "./tubePick.js"; // TASKS.csv #3667; tubeMeshRaycast: #3670
 export { collarMarkerMaterial }; // for ViewerModule (its size cap)
 
 // Below this, an InstancedMesh (and its per-instance buffers) costs more than the draw calls it
@@ -188,6 +188,15 @@ export function syncBatchedInstances(inst) {
 // only ever share a draw call when they would have rendered identically apart from colour and
 // transform. Anything without a shared prototype geometry (a curved TubeGeometry interval, a
 // drillhole trace Line, a hole-label Sprite) is simply not a candidate and keeps drawing as before.
+// TASKS.csv #3670 — a short family of tubes (under BATCH_MIN_MEMBERS: drawn as real Meshes) keeps what a batched tube has: the pixel floor of its drawing (#3643) and the pick
+// within a few pixels of its axis (#3667), so a hole's few intervals are not thinner and harder to hover than a long layer's
+function floorTube(mesh) {
+  if (!isTubeProto(mesh.geometry)) return mesh;
+  pixelTubeMaterial(mesh.material);
+  mesh.tubeFloor = true; // read by the pick index: a box widened by the pixels (pickIndex.js)
+  mesh.raycast = tubeMeshRaycast;
+  return mesh;
+}
 export function buildLayerBatches(group) {
   const families = new Map(), dropped = new Set(); // dropped: #1540
   let prev = null, prevFam = null; // TASKS.csv #1643 — a row drawn like the one before joins its family without a key string
@@ -207,7 +216,7 @@ export function buildLayerBatches(group) {
   }
   const promote = new Map(); // #1500 — a stand-in in a family too small to batch becomes a real Mesh, drawn on its own
   for (const fam of families.values()) {
-    if (fam.members.length < BATCH_MIN_MEMBERS) { for (const m of fam.members) if (m.isPickStandIn) promote.set(m, m.toMesh()); continue; }
+    if (fam.members.length < BATCH_MIN_MEMBERS) { for (const m of fam.members) if (m.isPickStandIn) promote.set(m, floorTube(m.toMesh())); continue; }
     const material = fam.material.isPickOnlyMaterial
       ? new THREE.MeshLambertMaterial({ transparent: fam.material.transparent, opacity: fam.material.opacity, side: fam.material.side }) // a stand-in family (#1500)
       : fam.material.clone();
