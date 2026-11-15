@@ -55,7 +55,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
   // TASKS.csv #364 — every imported point file lands in the one geophys_pts layer, so a mag survey and a
   // gravity or radiometric survey used to be inverted TOGETHER as "TMI in nT". The inversion now uses
   // exactly one imported survey (by source file); with more than one loaded, the user must pick.
-  const allRows = useMemo(() => (layers.geophys_pts || []).filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value)), [layers.geophys_pts]);
+  const allRows = useMemo(() => (layers.geophys_pts || []).filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value) && !geophysSurveys?.[r._src || ""]?.positionsOnly /* TASKS.csv #3447 — no measured value */), [layers.geophys_pts, geophysSurveys]);
   const surveys = useMemo(() => Array.from(new Set(allRows.map((r) => r._src || "(unnamed import)"))), [allRows]);
   const [survey, setSurvey] = useKeptState(keptScope, "inversion.survey", "");
   const activeSurvey = surveys.length === 1 ? surveys[0] : survey; // (the planned grid stands in below, #1710)

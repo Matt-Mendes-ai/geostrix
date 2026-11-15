@@ -24,6 +24,7 @@ import { lazyModal } from "../lib/lazyModal.jsx";
 import { withSetColumns } from "../lib/estimateSet.js"; // TASKS.csv #3014 part c — a set member exported with its siblings' columns
 import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
 import { logStops, SEQUENTIAL_ANCHORS, b64ToF32 } from "../lib/inversion.js"; // TASKS.csv #481; b64ToF32: #2846
+import { NO_VALUE, withPositionsValue } from "../lib/positionsOnly.js"; // TASKS.csv #3447
 import { SURVEY_METHODS, unitsForMethod, robustRange, SURVEY_METHOD_GROUPS, guessSurveyMethodFrom, diurnalApplies /* #1586 */, Z_MEANINGS, surveyKey, surveyStats, aglToElevation, surveyNameClashes, uniqueSurveyKey, renameSurvey, soleValueColumn /* #3319 */, eqsApplies /* #3321 */, methodWithHint /* #3400 */, replaceSurveyPoints, surveyExportRows } from "../lib/geophysSurveys.js"; // surveyExportRows: #1094 // TASKS.csv #451; replaceSurveyPoints #600
 import { radiometricChannels, otherMeasurementColumns, isMultiRadiometric, channelKey, withValueChannel, tickedChannels, ratioJobs, ratioOf } from "../lib/radiometricChannels.js"; // TASKS.csv #2395
 import { terrainElevationAt } from "../lib/inversion.js";
@@ -525,7 +526,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         };
         if (!cols.ok) {
           const missing = [!cols.x && "X / easting", !cols.y && "Y / northing", !cols.value && "the measured value"].filter(Boolean).join(", ");
-          openPicker(tr("\"{name}\": couldn't tell which column is {missing} from the headers ({fields}).", { name: file.name, missing, fields: (res.meta.fields || []).join(", ") || tr("none") }));
+          openPicker(tr("\"{name}\": couldn't tell which column is {missing} from the headers ({fields}).", { name: file.name, missing, fields: (res.meta.fields || []).join(", ") || tr("none") }) + (cols.x && cols.y && !cols.value ? " " + tr("If the file only lists positions (electrodes, stations), choose \"(none: positions only)\" for Value.") : "")); // #3447
           return;
         }
         // TASKS.csv #2395 — several radiometric channels (TC, K, eU, eTh): the picker, each ticked channel its own survey
@@ -1672,7 +1673,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (xyzPending.stream && !Array.isArray(streamedRows)) { confirmStreamed(); return; } // #1351 — read the whole file first, thinned
     const { fileName, xCol, yCol, zCol, valueCol } = xyzPending;
     const thinBy = !Array.isArray(streamedRows) && xyzPending.thin?.keepEvery > 1 ? xyzPending.thin.keepEvery : 1; // #3208
-    const parsedRows = Array.isArray(streamedRows) ? streamedRows : everyNth(xyzPending.rows, thinBy);
+    const parsedRows = withPositionsValue(Array.isArray(streamedRows) ? streamedRows : everyNth(xyzPending.rows, thinBy), valueCol); // #3447 — positions only: every value 0
     if (thinBy > 1) streamNote = `${streamNote || ""}${tr(" Kept 1 in {n} of the file's {seen} readings.", { n: thinBy, seen: xyzPending.rows.length.toLocaleString() })}`;
     if (!xCol || !yCol || !valueCol) {
       setXyzError({ info: false, text: tr("Pick an X, Y, and Value column before importing.") });
@@ -1758,7 +1759,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const replacedN = replaceSurveyPoints(rows, mapped).replaced; // #600 — re-import replaces, does not double
     setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, mapped).rows }));
     if (jobs) for (const j of jobs) if (j.method && SURVEY_METHODS[j.method] && !geophysSurveys[keyOf(j.src)]?.method) updateGeophysSurvey(keyOf(j.src), surveyMetaFor(j.method, mapped.filter((r) => r._src === keyOf(j.src)).map((r) => r.value))); // #2395; #3323; a channel whose name says nothing: #2081
-    if (!jobs) { const g = methodWithHint(guessSurveyMethodFrom(valueCol, mapped.map((r) => r.label), { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }), methodHint) /* #3400 */; if (g && !geophysSurveys[keyOf(fileName)]?.method) updateGeophysSurvey(keyOf(fileName), surveyMetaFor(g, mapped.map((r) => r.value))); } // #1151; hints: #1586; #3323
+    if (!jobs && valueCol !== NO_VALUE /* #3447 — no value, no method to guess */) { const g = methodWithHint(guessSurveyMethodFrom(valueCol, mapped.map((r) => r.label), { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }), methodHint) /* #3400 */; if (g && !geophysSurveys[keyOf(fileName)]?.method) updateGeophysSurvey(keyOf(fileName), surveyMetaFor(g, mapped.map((r) => r.value))); } // #1151; hints: #1586; #3323
+    if (valueCol === NO_VALUE) { updateGeophysSurvey(keyOf(fileName), { positionsOnly: true, units: "" }); reprojectNote += " " + tr("Positions only: it has no measured value, so every point is drawn in one colour and the survey cannot be gridded or inverted."); } // TASKS.csv #3447
     if (replacedN) reprojectNote += tr(" Replaced the {replacedN} point(s) of the earlier import of this file.", { replacedN: replacedN.toLocaleString() });
     const skipped = (jobs ? cleanedRows.length * jobs.length : cleanedRows.length) - mapped.length - noFix; // #538; #2395: per channel survey
     if (jobs) reprojectNote += tr(" As {k} survey(s): {list}.", { k: jobs.length, list: jobs.map((j) => j.src).join(", ") }); // #2395 — the no-fix readings are reported separately; #1583: after the cleaning
@@ -2159,7 +2161,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                       onClick={() => { if (window.confirm(tr("Remove the {count} points of \"{key}\"?", { count: sv.count.toLocaleString(), key: sv.key }))) { setLayers((l) => ({ ...l, geophys_pts: (l.geophys_pts || []).filter((r) => surveyKey(r) !== sv.key) })); setGeophysSurveys((m) => { const { [sv.key]: _gone, ...rest } = m || {}; return rest; }); const about = (e) => (e && typeof e === "object" && String(e.text || "").includes(`"${sv.key}"`) ? null : e); setXyzError(about); setError(about); /* #3442 (3) — 'Imported … from "x"' goes with x */ /* TASKS.csv #3330 (2) — its Method, units and legend go with its last point: a later import under that name inherited them */ } }}><Trash2 size={12} aria-hidden="true" /></button>
                   </div>
                   <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>
-                    {tr("{count} points{v}, {withZ} with elevation · values {v2}{v3}", { count: sv.count.toLocaleString(), v: sv.lines ? `, ${sv.lines} line(s)` : "", withZ: sv.withZ.toLocaleString(), v2: Number.isFinite(sv.min) ? rangeText(sv.min, sv.max) /* #2402 — 57,392 to 57,571, not 5.739e+4 */ : "—", v3: meta.units ? ` ${meta.units}` : "" })}
+                    {meta.positionsOnly ? tr("{count} points{v}, {withZ} with elevation · positions only, no measured value", { count: sv.count.toLocaleString(), v: sv.lines ? `, ${sv.lines} line(s)` : "", withZ: sv.withZ.toLocaleString() }) /* TASKS.csv #3447 */ : tr("{count} points{v}, {withZ} with elevation · values {v2}{v3}", { count: sv.count.toLocaleString(), v: sv.lines ? `, ${sv.lines} line(s)` : "", withZ: sv.withZ.toLocaleString(), v2: Number.isFinite(sv.min) ? rangeText(sv.min, sv.max) /* #2402 — 57,392 to 57,571, not 5.739e+4 */ : "—", v3: meta.units ? ` ${meta.units}` : "" })}
                   </div>
                   <div style={{ display: "flex", gap: 6, marginTop: 5 }}>
                     <select value={meta.method || ""} aria-label={tr("Method of \"{key}\"", { key: sv.key })} style={{ ...numInput, width: "auto", flex: 1, minWidth: 0 }}
@@ -2212,6 +2214,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 >
                   <option value="">{key === "zCol" ? tr("(none — elevation not recorded)") : tr("(choose a column)")}</option>
                   {xyzPending.columns.map((c) => <option key={c} value={c}>{c}</option>)}
+                  {key === "valueCol" && !xyzPending.batch && !xyzPending.stream && <option value={NO_VALUE}>{tr("(none: positions only)")}</option> /* TASKS.csv #3447 — an electrode or station list */}
                 </select>
               </div>
             ))}

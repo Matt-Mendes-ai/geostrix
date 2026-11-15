@@ -11,7 +11,7 @@ import { legendScale } from "./legendScale.js";
 import { gradeUnitLabel } from "./geochemColumns.js"; // TASKS.csv #2218; #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 import { rasterUnitOf } from "./rasterMethod.js"; // TASKS.csv #2747
 import { idwColourFields } from "./idwColour.js"; // TASKS.csv #2845; #3159: not idw.js, which put the IDW gridding in startup
-import { makeSurveyColorer } from "./geophysSurveys.js"; // TASKS.csv #2878
+import { makeSurveyColorer, surveyKey } from "./geophysSurveys.js"; // TASKS.csv #2878; surveyKey: #3447
 import { airDilutedFloor } from "./voxelStretch.js"; // TASKS.csv #1872
 import { fmtSig3 } from "./numberFormat.js"; // TASKS.csv #3382
 
@@ -371,6 +371,11 @@ export function geophysLegendGroups({ rows = [], visible = true, surveys = {}, s
   for (const [key, model] of colorer.models) {
     if (surveys?.[key]?.hidden) continue; // TASKS.csv #3325 — a survey hidden from its card has no ramp (the others keep the colours they are drawn in)
     const units = surveys?.[key]?.units;
+    if (surveys?.[key]?.positionsOnly) { // TASKS.csv #3447 — no measured value: one swatch in the one colour it is drawn in, no ramp
+      const sample = pts.find((r) => surveyKey(r) === key);
+      out.push({ key: `geophys_pts_${key}`, label: key, items: [[`${key} (${rows.filter((r) => surveyKey(r) === key).length.toLocaleString("en-US")})`, colorer.colorOf(sample)?.color || colorer.colorOf(sample), { kind: "point" }]] });
+      continue;
+    }
     out.push(scaleLegendGroup(`geophys_pts_${key}`, colorer.perSurvey ? `${key}${units ? ` (${units})` : ""}` : `${label}${units ? ` (${units})` : ""}`, model, model.min, model.max));
   }
   return out;

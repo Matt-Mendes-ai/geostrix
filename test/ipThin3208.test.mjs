@@ -22,6 +22,6 @@ test("#3208 wiring: thinning offered for a file read whole over 100,000 readings
   const g = fs.readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
   assert.match(g, /const THIN_FROM_ROWS = 100000;/);
   assert.match(g, /\.\.\.\(parsedRows\.length > THIN_FROM_ROWS \? \{ thin: \{ total: parsedRows\.length, keepEvery: suggestKeepEvery\(parsedRows\.length, undefined, \(layers\.geophys_pts \|\| \[\]\)\.length\) \} \} : \{\}\)/);
-  assert.match(g, /const parsedRows = Array\.isArray\(streamedRows\) \? streamedRows : everyNth\(xyzPending\.rows, thinBy\);/);
+  assert.match(g, /const parsedRows = withPositionsValue\(Array\.isArray\(streamedRows\) \? streamedRows : everyNth\(xyzPending\.rows, thinBy\), valueCol\);/); // #3447 — the value column of a positions-only file
   assert.match(g, /valueCol: g\.value \|\| onlyValueLeft\(columns, \[gx, gy, g\.z\]\.filter\(Boolean\), parsedRows\)/);
 });
