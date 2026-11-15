@@ -9,7 +9,7 @@
 // The same rules as compactTable: a column whose present values are all finite numbers is numeric; anything else is coded, strings by
 // themselves and other values by their JSON, a non-finite number as null; `values` (assay elements) is split into nested columns when it is
 // an object on every row that has it. rowsOf(table) builds exactly expandTable's rows (the same key order: `values` last).
-import { decodeColumn, COMPACT_TABLE_MIN_ROWS } from "./compactTable.js";
+import { decodeColumn, storedFor, COMPACT_TABLE_MIN_ROWS } from "./compactTable.js";
 
 const NESTED = "values";
 export const isTable = (x) => !!x && typeof x === "object" && x.__table === 1;
@@ -164,4 +164,115 @@ export function compactFromTable(t) {
   out = { __compactTable: 1, n: t.length, cols, ...(nested ? { nested } : {}) };
   compactCache.set(t, out);
   return out;
+}
+
+// --- the table of a rows array -----------------------------------------------------------------------------------------------------------
+// TASKS.csv #2206 Phase 2 (Main's conditions: rows keep their identity across edits; an edit must not pay a full rebuild) — the store keeps
+// rows; a reader that wants columns asks tableOf(rows). Kept per rows array, and its rowsOf is those very rows (the same objects). Made
+//   - from the columns the rows already have (decoded from the file at open, or encoded by a save: compactTable's cache): a decode;
+//   - else by patching a recent table of the same length for only the rows whose identity changed (an edit of a few rows: copy-on-write of
+//     the touched columns);
+//   - else from the rows (an import, a delete).
+const tableCache = new WeakMap();
+const recent = []; // [{ rows: WeakRef, table }], the last few tables made, for patching
+const RECENT = 4, PATCH_SHARE = 0.05;
+export function tableOf(rows) {
+  if (isTable(rows)) return rows;
+  if (!Array.isArray(rows)) return null;
+  let t = tableCache.get(rows);
+  if (t) return t;
+  const stored = storedFor(rows);
+  t = stored ? tableFromCompact(stored) : (patchFromRecent(rows) || tableFromRows(rows));
+  if (!isTable(t)) return null;
+  rowsCache.set(t, rows);
+  tableCache.set(rows, t);
+  recent.unshift({ rows: new WeakRef(rows), table: t });
+  if (recent.length > RECENT) recent.length = RECENT;
+  return t;
+}
+
+function patchFromRecent(rows) {
+  const n = rows.length;
+  for (const e of recent) {
+    const old = e.rows.deref();
+    if (!old || old.length !== n || n === 0) continue;
+    let same = 0;
+    const probes = Math.min(32, n);
+    for (let p = 0; p < probes; p++) { const i = Math.floor((p * (n - 1)) / Math.max(1, probes - 1)); if (rows[i] === old[i]) same++; }
+    if (same < probes * 0.75) continue;
+    const changed = [];
+    for (let i = 0; i < n; i++) if (rows[i] !== old[i]) { changed.push(i); if (changed.length > n * PATCH_SHARE) break; }
+    if (changed.length > n * PATCH_SHARE) continue;
+    const t = patchTable(e.table, rows, changed);
+    if (t) return t;
+  }
+  return null;
+}
+
+// a copy of t with the rows at `changed` replaced by rows[i]; null when the change does not fit the columns (a new field, a number column
+// given text, `values` no longer an object): the caller rebuilds
+function patchTable(t, rows, changed) {
+  if (!changed.length) return { ...t }; // a new array of the same rows
+  const keySet = new Set(t.keys), N = t.nested, nkeySet = new Set(N ? N.keys : []);
+  for (const i of changed) {
+    const r = rows[i];
+    if (!(r && typeof r === "object" && !Array.isArray(r))) return null;
+    for (const k in r) {
+      if (k === NESTED && N) continue;
+      if (!keySet.has(k)) return null;
+    }
+    const v = r[NESTED];
+    if (N) { if (v !== undefined && (!v || typeof v !== "object" || Array.isArray(v))) return null; if (v) for (const k in v) if (!nkeySet.has(k)) return null; }
+    else if (v !== undefined && !keySet.has(NESTED)) return null;
+  }
+  const cols = {};
+  for (const k of t.keys) { const c = patchCol(t.cols[k], changed, (i) => rows[i][k]); if (!c) return null; cols[k] = c; }
+  let nested = null;
+  if (N) {
+    const has = N.has ? patchCol(N.has, changed, (i) => (rows[i][NESTED] === undefined ? undefined : 1)) : null;
+    if (N.has && !has) return null;
+    nested = { has, keys: N.keys, cols: {} };
+    for (const k of N.keys) { const c = patchCol(N.cols[k], changed, (i) => rows[i][NESTED]?.[k]); if (!c) return null; nested.cols[k] = c; }
+  }
+  return { __table: 1, length: t.length, keys: t.keys, cols, nested };
+}
+// the column with the values at `changed` set; the same column object when none of them differs; null when a value does not fit
+function patchCol(col, changed, get) {
+  if (col.num) {
+    let out = null;
+    for (const i of changed) {
+      const v = get(i);
+      if (v !== undefined && (typeof v !== "number" || !Number.isFinite(v))) return null;
+      const x = v === undefined ? NaN : v, cur = col.num[i];
+      if (x === cur || (x !== x && cur !== cur)) continue;
+      if (!out) out = col.num.slice();
+      out[i] = x;
+    }
+    return out ? { num: out } : col;
+  }
+  let codes = null, dict = col.dict, objects = col.objects, index = null;
+  const keyOf = (v) => (typeof v === "string" ? "s" + v : "j" + JSON.stringify(v));
+  for (const i of changed) {
+    const v = get(i);
+    // unchanged (the usual case for the columns an edit did not touch): no dictionary lookup
+    const k0 = col.codes[i], cur = k0 >= 0 ? col.dict[k0] : undefined;
+    if (v === cur && (v === undefined || v === null || typeof v !== "object") && !(typeof v === "number" && !Number.isFinite(v))) continue;
+    if (v !== null && cur !== null && typeof v === "object" && typeof cur === "object" && v !== undefined && cur !== undefined && JSON.stringify(v) === JSON.stringify(cur)) continue;
+    let c;
+    if (v === undefined) c = -1;
+    else {
+      if (!index) { index = new Map(); dict.forEach((d, k) => { const key = keyOf(d); if (!index.has(key)) index.set(key, k); }); }
+      const key = typeof v === "number" && !Number.isFinite(v) ? keyOf(null) : keyOf(v);
+      c = index.get(key);
+      if (c === undefined) {
+        if (dict === col.dict) dict = col.dict.slice();
+        c = dict.length; const d = typeof v === "number" && !Number.isFinite(v) ? null : v; dict.push(d); index.set(key, c);
+        if (d !== null && typeof d === "object") objects = true;
+      }
+    }
+    if (col.codes[i] === c && !(objects && c >= 0 && dict[c] !== null && typeof dict[c] === "object")) continue;
+    if (!codes) codes = col.codes.slice();
+    codes[i] = c;
+  }
+  return codes || dict !== col.dict ? { codes: codes || col.codes, dict, objects } : col;
 }

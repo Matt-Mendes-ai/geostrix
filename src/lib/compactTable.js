@@ -147,8 +147,10 @@ export function parseNumberList(str, n) {
   }
   return out;
 }
-// TASKS.csv #2206 Phase 2 — rowTable.js decodes the file's columns into a table with this
+// TASKS.csv #2206 Phase 2 — rowTable.js decodes the file's columns into a table with this, and finds the columns a rows array already has
+// (decoded from a file, or encoded by a save): its table is then a decode, not a walk of the rows
 export const decodeColumn = (col, n) => decodeAll(col, n);
+export const storedFor = (rows) => cache.get(rows) || null;
 function decodeAll(col, n) {
   if (typeof col.n === "string") return { num: parseNumberList(col.n, n) };
   const codes = new Int32Array(n);
