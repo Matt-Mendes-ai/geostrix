@@ -9,7 +9,7 @@ import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import React from "react";
 import TestRenderer, { act } from "react-test-renderer";
-import { implicitRequestRecord } from "../src/lib/gempyInputs.js";
+import { implicitRequestRecord, withSolveFacts } from "../src/lib/gempyInputs.js";
 import { payloadFromFields, emptyFields } from "../src/lib/projectFields.js";
 
 const origin = { x: 500000, y: 6200000, z: 1000 };
@@ -86,7 +86,9 @@ test("the store: kept for the session, the same object every read, not saved, no
 
 test("wiring: the run records the GemPy request before the call (not the layer-cake); useModelling hands the setter over; the store lines", () => {
   const runs = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8").replace(/\r\n/g, "\n"); // CRLF checkout
-  assert.match(runs, /if \(!cakeRun\) setLastImplicitRequest\?\.\(implicitRequestRecord\(\{ tool: label, extent, resolution, trendFrame: anisotropy\.enabled, origin: originRef\.current, specs, sent: sidecarSpecs \}\)\);\n\s*const res = cakeRun \?/);
+  // #3633 — the record carries the relation, range multiplier, detail and packages; the solve's facts are added when it returns
+  assert.match(runs, /const requestRecord = !cakeRun \? implicitRequestRecord\(\{ tool: label, extent, resolution, trendFrame: anisotropy\.enabled, origin: originRef\.current, specs, sent: sidecarSpecs, relation, rangeMultiplier, surfaceDetail, packages: stackOpts\.packages \}\) : null;\n\s*if \(requestRecord\) setLastImplicitRequest\?\.\(requestRecord\);\n\s*const res = cakeRun \?/);
+  assert.match(runs, /if \(requestRecord && res\.ok && isSameProject\(projectToken\)\) setLastImplicitRequest\?\.\(withSolveFacts\(requestRecord, res\)\);/);
   assert.match(readFileSync(new URL("../src/modules/viewer/useModelling.js", import.meta.url), "utf8"), /setLastImplicitRequest: store\.setLastImplicitRequest \/\* #2640 \*\//);
   const s = readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(s, /const \[lastImplicitRequest, setLastImplicitRequestRaw\] = useState\(null\);/);
@@ -94,4 +96,22 @@ test("wiring: the run records the GemPy request before the call (not the layer-c
   assert.match(s, /lastImplicitRequest: lastImplicitRequest && isSameProject\(lastImplicitRequest\.projectToken\) \? lastImplicitRequest : null, setLastImplicitRequest, \/\/ TASKS\.csv #2640/);
   const pf = readFileSync(new URL("../src/lib/projectFields.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.doesNotMatch(pf, /lastImplicitRequest/, "not a project field");
+});
+
+test("#3633: the relation, packages, fault offsets, range multiplier and detail are recorded; the solve adds precision and range", () => {
+  const sp = [
+    { label: "Top of A", meshName: "top_a", package: 0, points: [{ x: 1, y: 2, z: 3 }], orientations: [] },
+    { label: "Top of B", meshName: "top_b", package: 1, points: [{ x: 1, y: 2, z: -3 }], orientations: [] },
+    { label: "F", meshName: "f1", fault: true, offsets: ["top_b"], points: [{ x: 0, y: 0, z: 0 }], orientations: [] },
+    { label: "G", meshName: "f2", fault: true, points: [{ x: 0, y: 0, z: 0 }], orientations: [] },
+  ];
+  const r = implicitRequestRecord({ tool: "Stack", extent: [0, 1, 0, 1, 0, 1], resolution: [10, 10, 10], origin, specs: sp, sent: [], relation: "onlap", rangeMultiplier: 1.5, surfaceDetail: 5, packages: 2 });
+  assert.deepEqual([r.relation, r.rangeMultiplier, r.surfaceDetail, r.packages, r.precision], ["onlap", 1.5, 5, 2, null]);
+  assert.deepEqual(r.surfaces.map((x) => [x.meshName, x.package ?? null, x.offsets === undefined ? "n/a" : x.offsets]), [["top_a", 0, "n/a"], ["top_b", 1, "n/a"], ["f1", null, ["top_b"]], ["f2", null, null]]);
+  const d = implicitRequestRecord({ tool: "x", extent: [], resolution: [], origin, specs: [], sent: [] });
+  assert.deepEqual([d.relation, d.rangeMultiplier, d.surfaceDetail, d.packages], ["erode", null, null, 1], "defaults: Auto range, no detail, one package");
+  const w = withSolveFacts(r, { precision: "float32", rangeUsed: 812.5, rangeDefault: 700 });
+  assert.deepEqual([w.precision, w.rangeUsed, w.rangeDefault, w.relation], ["float32", 812.5, 700, "onlap"]);
+  assert.equal(withSolveFacts(r, {}).precision, "float64", "an older engine solved in float64");
+  assert.equal(withSolveFacts(null, {}), null);
 });

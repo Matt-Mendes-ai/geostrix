@@ -2,6 +2,7 @@
 // 'Snapshot' page, a page a split or a table continues onto, an Atlas page, and the title block's own last row. Only when the project has a credit (a data credit, or a terrain / imagery
 // licence line: lib/credits.js). Pure.
 import { pagePx } from "./pageFormats.js";
+import { layoutFontStack } from "./layoutFonts.js"; // TASKS.csv #3662
 
 const CREDIT_TEXT = /\{credits\}/;
 // does a page already print the credit (a text box or a title block row with the token)?
@@ -11,11 +12,37 @@ export const pagePrintsCredit = (elements) => (elements || []).some((e) => (e?.t
 // wrapped second line printed 1.6 mm from the edge, inside a printer's unprintable margin. Now: a margin of 40 px (10.6 mm) round the page, the credit's box the page's width inside it, and its top where
 // its own lines (estimated from the text, 11 px type) end at the margin.
 export const PAGE_MARGIN = 40;
-export const creditLines = (text, widthPx) => Math.max(1, Math.ceil((String(text || "").length * 5.9) / Math.max(120, widthPx)));
+// TASKS.csv #3662 — the lines of the credit by MEASURING its words with canvas text in the figure's font (11 px, 4 % over for the print's own rounding), word-wrapped to the box; with no canvas (a test, a worker) the
+// estimate of 5.9 px a letter as before. `measure` (text -> px) can be given.
+let measureCtx;
+const canvasMeasure = (px) => {
+  try {
+    if (measureCtx === undefined) measureCtx = typeof document !== "undefined" ? document.createElement("canvas").getContext("2d") : null;
+    if (!measureCtx) return null;
+    return (t) => { measureCtx.font = `${px}px ${layoutFontStack()}`; return measureCtx.measureText(t).width * 1.04; };
+  } catch { measureCtx = null; return null; }
+};
+// the lines `text` takes in a box `widthPx` wide at `px` type: words measured and wrapped, or with no canvas the estimate (about 0.54 em a letter)
+export function textLines(text, widthPx, px = 11, measure = canvasMeasure(px)) {
+  const t = String(text || ""), width = Math.max(60, widthPx);
+  if (!measure) return Math.max(1, Math.ceil((t.length * px * 0.5364) / width));
+  let lines = 0;
+  for (const para of t.split(/\r?\n/)) {
+    let line = "", n = 1;
+    for (const word of para.split(/\s+/).filter(Boolean)) {
+      const next = line ? `${line} ${word}` : word;
+      if (line && measure(next) > width) { n++; line = word; } else line = next;
+    }
+    lines += n;
+  }
+  return Math.max(1, lines);
+}
+export const creditLines = (text, widthPx, measure) => textLines(text, Math.max(120, widthPx), 11, measure);
+
 // the small {credits} text along the foot of a page of this paper; `text` is the credit as it prints (its length sets how many lines the box needs)
-export function creditsElement(format, text = "") {
+export function creditsElement(format, text = "", measure) {
   const { w, h } = pagePx(format), cw = Math.max(200, w - 2 * PAGE_MARGIN);
-  return { id: "credits", type: "text", x: PAGE_MARGIN, y: Math.max(PAGE_MARGIN, h - PAGE_MARGIN - creditLines(text, cw) * 15), w: cw, fontSize: 11, text: "{credits}" };
+  return { id: "credits", type: "text", x: PAGE_MARGIN, y: Math.max(PAGE_MARGIN, h - PAGE_MARGIN - creditLines(text, cw, measure) * 15), w: cw, fontSize: 11, text: "{credits}" };
 }
 // the starter page's furniture laid out for a paper: the north arrow at the top right, the scale bar just above the credit, the credit along the foot -> { north: {x, y}, scale: {y}, credits: {x, y, w} }
 export function starterLayout(format, text = "") {

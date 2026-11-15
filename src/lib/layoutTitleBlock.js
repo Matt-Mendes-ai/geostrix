@@ -1,7 +1,7 @@
 // TASKS.csv #1868 (review #1646, Kodiak) — a report figure's TITLE BLOCK, two starter templates, and templates as small files.
 // The reviewer built an ARIS title block from about eight single-line Text boxes and rectangles placed by hand, a fresh project
 // offered 'Templates (0)', and a saved template lived inside that one project. Pure: no React.
-import { creditsElement, PAGE_MARGIN } from "./layoutCredits.js"; // TASKS.csv #3658
+import { creditsElement, PAGE_MARGIN, textLines } from "./layoutCredits.js"; // TASKS.csv #3658
 import { pagePx } from "./pageFormats.js";
 import { t as tr } from "./i18n.js";
 
@@ -28,7 +28,7 @@ export function defaultTitleBlockRows({ credit = false } = {}) {
 // TASKS.csv #3658 (re-test R2) — the block was placed for 12 one-line rows (232 px) while its Data row wraps over four lines (256 px), so its frame ended 1 mm from the foot of the sheet. Its height now counts the
 // credit's wrapped lines (the value column is about 60 % of the 340 px block, at 8 pt about 4.9 px a letter), and it is placed above the credit, inside the page margin (lib/layoutCredits.js).
 export function titleBlockHeight({ credit = false, creditText = "", w = 340 } = {}) {
-  const lines = credit ? Math.max(1, Math.ceil((String(creditText || "").length * 4.9) / (w * 0.58))) : 1;
+  const lines = credit ? textLines(creditText, w * 0.58 - 8, 10.67) : 1; // measured with canvas text at 8 pt (#3662); the estimate where there is no canvas
   return (credit ? 12 : 11) * 19 + 4 + (lines - 1) * 11;
 }
 // where a new title block goes on a page of this paper: the bottom-right corner, above the credit line when the project has one -> { x, y }

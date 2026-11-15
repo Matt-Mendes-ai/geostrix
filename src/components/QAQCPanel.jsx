@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { openHelp } from "../lib/help.js"; // TASKS.csv #3578
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2351
 import { preferredElement } from "../lib/preferredElement.js"; // TASKS.csv #2351
+import QcPairReview from "./QcPairReview.jsx"; // TASKS.csv #3549
 import OxideTotalsTab from "./OxideTotalsTab.jsx"; // TASKS.csv #2506
 import MethodPairsTab from "./MethodPairsTab.jsx"; // TASKS.csv #2629
 import { majorOxides, MIN_MAJORS } from "../lib/oxideTotals.js"; // TASKS.csv #2506
@@ -23,7 +24,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 const TABS = ["standards", "blanks", "duplicates"];
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
-import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { t as tr, fmtNum } from "../lib/i18n.js"; // TASKS.csv #786
 import { gradeUnitLabel, elementOptionLabel } from "../lib/geochem.js"; // elementOptionLabel: #2914 — // TASKS.csv #2192 — g/t for a precious metal stored in ppm (#1680)
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { qaqcStandardRows, qaqcBlankRows, qaqcDuplicateRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
@@ -41,6 +42,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
   const { crmCertificates = {}, setCrmCertificate, setAssayElements, project, setAssays } = useStore() || {}; // #400; setAssays: #2506
   const majors = useMemo(() => majorOxides(assayElements), [assayElements]); // #2506 — the oxide-total check needs six majors
   const [dupMin, setDupMin] = useState(""); // #400 — ignore pairs whose mean is below this (~10x detection limit)
+  const [reviewOpen, setReviewOpen] = useState(false), [reviewNote, setReviewNote] = useState(""); // #3549
   const [repeatedAsDup, setRepeatedAsDup] = useState(false); // #579 — same-interval second rows as duplicate pairs
   // TASKS.csv #534 — a detection limit PER ELEMENT, saved with the element list (assayElements[].detectionLimit, so the
   // project format does not change). The blank limit becomes a multiple of it (default 5x DL) and the duplicate pair
@@ -277,6 +279,14 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
               <input type="checkbox" checked={repeatedAsDup} onChange={(e) => setRepeatedAsDup(e.target.checked)} style={{ marginTop: 2 }} />
               <span>{!repeatedAsDup && dups.repeatedRows > 0 ? tr("{n} repeated same-interval row(s): tick to read them as duplicate pairs (the lower sample id, else the first row, is the original)", { n: dups.repeatedRows.toLocaleString() }) /* #3230 */ : tr("Treat repeated same-interval rows as duplicate pairs (1st = original, 2nd = duplicate){v}", { v: repeatedAsDup ? tr(" — {n} pair(s) found{v}", { n: dups.filter((p) => p.how === "repeated interval").length, v: dups.identicalRepeats ? tr(", {identicalRepeats} identical repeat(s) skipped as double imports", { identicalRepeats: dups.identicalRepeats }) : "" }) : "" })}</span>
             </label>
+          )}
+          {tab === "duplicates" && dups.repeatedRows > 0 && ( /* TASKS.csv #3549 — QC links step 2: the repeated intervals of assays with no sample ids, suggested as duplicate pairs and marked only as the user confirms them */
+            <div style={{ margin: "4px 0" }}>
+              {!reviewOpen && <button type="button" onClick={() => setReviewOpen(true)} title={tr("Lists the pairs of rows over one hole and interval so you can mark the ones that are duplicates: it writes a sample type and a parent sample id onto the second row of each pair you tick, and nothing else.")}>{tr("Review {n} repeated interval(s) and mark duplicates…", { n: fmtNum(dups.repeatedRows) })}</button>}
+              {reviewOpen && <QcPairReview assays={assays} symbol={symbol} unit={unit} elementUnits={elementUnits} unitLabel={unitL} onClose={() => setReviewOpen(false)}
+                onApply={(rows, marked) => { setAssays?.(rows); setReviewNote(tr("{n} pair(s) marked: the second row of each is now a field duplicate of the first.", { n: fmtNum(marked) })); setReviewOpen(false); }} />}
+              {reviewNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-success-text)", marginTop: 4 }}>{reviewNote}</div>}
+            </div>
           )}
           {tab === "duplicates" && (
             dups.length === 0 ? (

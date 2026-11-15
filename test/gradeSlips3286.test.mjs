@@ -26,7 +26,7 @@ test("(3) gold, silver and palladium in g/t in the Block models list (and the Fe
 });
 
 test("(2) the shell's spacing is Estimation's; (4) gold's metal named for it; (7) coverage in %", () => {
-  assert.match(src("modules/viewer/modellingRuns.js"), /const gsSpacing = \(await import\("\.\.\/\.\.\/lib\/holeSpacing\.js"\)\)\.holeSpacingSummary\(gsCollars\)\?\.medianM \|\| autoHaloParams\(gsCollars, tracesRef\.current \|\| null\)\.spacing;/);
+  assert.match(src("modules/viewer/modellingRuns.js"), /const gsSpacing = gsSampleSpacing > 0 \? gsSampleSpacing : \(await import\("\.\.\/\.\.\/lib\/holeSpacing\.js"\)\)\.holeSpacingSummary\(gsCollars\)\?\.medianM \|\| autoHaloParams\(gsCollars, tracesRef\.current \|\| null\)\.spacing;/ /* #3654 (4): the samples' spacing first, as the search's */);
   const g = src("components/GradeTonnageModal.jsx");
   assert.equal((g.match(/\{element \? memberMetalLabel\(c, element\) : tr\(c\.label, c\.args\)\}/g) || []).length, 2);
   const v = src("components/VariogramModal.jsx");

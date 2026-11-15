@@ -9,7 +9,7 @@ const v = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta
 
 test("the reference-level fall-back marks its point, and the Measure click keeps that point as it is", () => {
   assert.match(v, /on: null, plane: true \}; \/\/ plane: #2526/);
-  assert.match(v, /const world = raycastWorldPoint\(raycaster\);[^\r\n]*\r?\n\s+if \(!world\) return;\r?\n\s+setMeasurePts\(\(pts\) => \[\.\.\.pts, world\]\);/);
+  assert.match(v, /const hits = pickHits\(raycaster\), found = worldPointFromHits\(raycaster, hits\);[^\r\n]*\r?\n\s+const world = snapMeasurePoint\(found, hits, tracesRef\.current, \{ shift: e\.shiftKey \}\);[^\r\n]*\r?\n\s+if \(!world\) return;\r?\n\s+setMeasurePts\(\(pts\) => \[\.\.\.pts, world\]\);/);
 });
 
 test("the readout counts the points on the reference level and says their elevation is that level's, with one point and with a segment", () => {

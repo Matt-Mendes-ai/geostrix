@@ -56,7 +56,8 @@ test("wiring: the import queue's end and the sample extras keep a label until qu
   assert.match(wa, /const label = tr\("Loading the \{name\} sample's assays and extras…", \{ name: S\.label \}\);/);
   assert.match(wa, /await whenQuiet\(\); \/\/ then it goes/);
   assert.match(wa, /store\.setTaskProgress\?\.\(\(cur\) => \(cur && cur\.label === label \? null : cur\)\);/);
-  assert.equal((wa.match(/await nextTask\(\); \/\/ #3539/g) || []).length, 2, "the assays step: parse | align | commit");
+  assert.equal((wa.match(/await nextTask\(\); \/\/ #3539/g) || []).length, 1, "the assays step: parse (in slices, #3649) | align | commit");
+  assert.match(wa, /await waAssaysSliced\(text, S\.assays\)/);
   const vm = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(vm, /setProjectDataCredit: store\.setProjectDataCredit \/\* #3496 \*\/, setTaskProgress \/\* #3539 \*\/ \}/);
   for (const l of ["es", "pt", "fr", "ar"]) {

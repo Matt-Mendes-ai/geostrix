@@ -30,19 +30,29 @@ export function captureInputs(spec, sent, origin) {
 // sent (one point per spec point; a smoothed point carries its nugget); extent / resolution as sent (in the trend's frame when trendFrame).
 // -> { at, tool, trendFrame, origin, extent, resolution, surfaces: [{ name, fault, points: [{ x, y, z, hole_id, nugget }],
 //      orientations: [{ x, y, z, dip, azimuth, hole_id }] }] }, points and orientations in project coordinates
-export function implicitRequestRecord({ tool, extent, resolution, trendFrame, origin, specs, sent }) {
+// TASKS.csv #3633 (side 2's follow-up) — and what else the engine was told, so a pass that rebuilds the model matches the run: relation ("erode" |
+// "onlap"), rangeMultiplier (null: Auto), surfaceDetail, packages (the number of conformable packages), per surface its package index, and per
+// fault the units it offsets (names; null: every unit); precision / rangeUsed / rangeDefault are known only after the solve (see withSolveFacts).
+export function implicitRequestRecord({ tool, extent, resolution, trendFrame, origin, specs, sent, relation, rangeMultiplier, surfaceDetail, packages }) {
   const o = origin || { x: 0, y: 0, z: 0 };
   const at = (p) => ({ x: r3(p.x + o.x), y: r3(p.y + o.y), z: r3(p.z + o.z), hole_id: p.hole_id ?? null });
   return {
     at: new Date().toISOString(), tool: tool || null, trendFrame: !!trendFrame, origin: { x: o.x, y: o.y, z: o.z },
     extent: [...(extent || [])], resolution: [...(resolution || [])],
+    relation: relation === "onlap" ? "onlap" : "erode", rangeMultiplier: Number(rangeMultiplier) > 0 ? Number(rangeMultiplier) : null,
+    surfaceDetail: Number.isFinite(surfaceDetail) ? surfaceDetail : null, packages: Number(packages) > 0 ? Number(packages) : 1,
+    precision: null, rangeUsed: null, rangeDefault: null,
     surfaces: (specs || []).map((s, k) => ({
-      name: s.label || s.meshName || null, fault: !!s.fault,
+      name: s.label || s.meshName || null, fault: !!s.fault, meshName: s.meshName || null,
+      ...(s.package != null ? { package: s.package } : {}), ...(s.fault ? { offsets: Array.isArray(s.offsets) ? [...s.offsets] : null } : {}),
       points: (s.points || []).map((p, i) => { const n = sent?.[k]?.points?.[i]?.nugget ?? p.nugget; return { ...at(p), nugget: Number.isFinite(n) ? n : null }; }),
       orientations: (s.orientations || []).map((q) => ({ ...at(q), dip: +Number(q.dip).toFixed(2), azimuth: +Number(q.azimuth).toFixed(2) })),
     })),
   };
 }
+
+// the record with what the solve reported (the engine's precision and the potential-field range it used / would have used), for the same pass
+export const withSolveFacts = (record, res) => (record ? { ...record, precision: res?.precision ?? "float64", rangeUsed: res?.rangeUsed ?? null, rangeDefault: res?.rangeDefault ?? null } : record);
 
 const csvName = (s) => (/[",\r\n]/.test(s) ? `"${String(s).replace(/"/g, '""')}"` : String(s));
 

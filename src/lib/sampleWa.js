@@ -56,15 +56,48 @@ function valuesOf(r, elements) {
 const withValues = (elements, rows) => elements.filter((e) => rows.some((r) => r.values?.[e.symbol] != null));
 
 // assays.csv (hole_id, from, to, sample_id, <El>_ppm | <El>_pct | <Oxide>_pct | LOI_pct ...) -> Geochem rows + element list
-export function waAssays(text, srcFile = "assays.csv") {
-  const t = Papa.parse(text, { header: true, skipEmptyLines: true, dynamicTyping: false });
-  const elements = elementsOf(t.meta.fields, t.data);
-  const rows = [];
-  for (const r of t.data) {
+// TASKS.csv #3649 — the rows of a parsed table are built by assayRowsOf, which waAssays does in one go and waAssaysSliced in slices.
+function assayRowsOf(data, elements, srcFile, rows, a, b) {
+  for (let i = a; i < b; i++) {
+    const r = data[i];
     const from = Number(r.from), to = Number(r.to), hole = String(r.hole_id || "").trim();
     if (!hole || !Number.isFinite(from) || !Number.isFinite(to) || !(to > from)) continue;
     const { values, qualifiers } = valuesOf(r, elements);
     rows.push({ hole_id: hole, from, to, values, source: "assay", srcFile, ...(Object.keys(qualifiers).length ? { qualifiers } : {}), ...(r.sample_id ? { sample_id: String(r.sample_id).trim() } : {}) });
+  }
+}
+export function waAssays(text, srcFile = "assays.csv") {
+  const t = Papa.parse(text, { header: true, skipEmptyLines: true, dynamicTyping: false });
+  const elements = elementsOf(t.meta.fields, t.data);
+  const rows = [];
+  assayRowsOf(t.data, elements, srcFile, rows, 0, t.data.length);
+  return { rows, elements: withValues(elements, rows) };
+}
+// TASKS.csv #3649 — the same result as waAssays, in slices: the CSV is parsed ~PARSE_CHUNK characters at a time (Papa's chunk mode, paused
+// and resumed after a task break) and the rows are built ROW_SLICE at a time, so the sample load's longest main-thread task is a slice, not the
+// whole ~1 MB table (~280 ms measured on Macpass). yieldTask() is the break (a setTimeout 0 by default).
+export const PARSE_CHUNK = 128 * 1024, ROW_SLICE = 1500;
+export async function waAssaysSliced(text, srcFile = "assays.csv", yieldTask = nextTask) {
+  const data = []; let fields = null;
+  await new Promise((resolve, reject) => {
+    Papa.parse(text, {
+      header: true, skipEmptyLines: true, dynamicTyping: false, chunkSize: PARSE_CHUNK,
+      chunk: (res, parser) => {
+        if (!fields) fields = res.meta.fields;
+        for (const r of res.data) data.push(r);
+        parser.pause();
+        yieldTask().then(() => parser.resume(), reject);
+      },
+      complete: () => resolve(),
+      error: reject,
+    });
+  });
+  const elements = elementsOf(fields || [], data);
+  await yieldTask();
+  const rows = [];
+  for (let a = 0; a < data.length; a += ROW_SLICE) {
+    assayRowsOf(data, elements, srcFile, rows, a, Math.min(data.length, a + ROW_SLICE));
+    await yieldTask();
   }
   return { rows, elements: withValues(elements, rows) };
 }
@@ -111,8 +144,7 @@ export async function loadWaSampleExtras(which, readFile, store, { existingEleme
     try {
       const text = await (await readFile(S.assays)).text();
       showBusy(store.setTaskProgress, label); // #3539 — again: the queue's label may have replaced it
-      const raw = waAssays(text, S.assays);
-      await nextTask(); // #3539
+      const raw = await waAssaysSliced(text, S.assays); // #3649 — in slices
       const { rows, elements, converted } = alignAssayUnits(raw.rows, raw.elements, existingElements);
       await nextTask(); // #3539
       store.setAssays((prev) => mergeAssayRows(prev || [], rows).rows);

@@ -4,6 +4,7 @@
 import * as THREE from "three";
 import { PICK_ONLY_LAYER } from "./pickStandIn.js";
 import { collarMarkerMaterial } from "./collarMarkerShader.js"; // TASKS.csv #2623
+import { pixelTubeMaterial, isTubeProto } from "./tubeShader.js"; // TASKS.csv #3643
 export { collarMarkerMaterial }; // for ViewerModule (its size cap)
 
 // Below this, an InstancedMesh (and its per-instance buffers) costs more than the draw calls it
@@ -201,6 +202,7 @@ export function buildLayerBatches(group) {
       ? new THREE.MeshLambertMaterial({ transparent: fam.material.transparent, opacity: fam.material.opacity, side: fam.material.side }) // a stand-in family (#1500)
       : fam.material.clone();
     if (fam.material.userData?.collarMarker) collarMarkerMaterial(material); // #2623 — a clone keeps the flag, not the shader hook
+    if (isTubeProto(fam.geometry)) pixelTubeMaterial(material); // #3643 — an interval tube is never thinner than a few pixels on screen (vertex shader; the matrices keep the metres)
     // Per-instance colour comes from instanceColor, which the shader MULTIPLIES by the material's
     // own diffuse colour — so the batch material must be white or every interval would be tinted by
     // whichever member happened to be cloned. (Do NOT set vertexColors:true here either; see the

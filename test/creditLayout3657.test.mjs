@@ -39,3 +39,17 @@ test("the print page clips its elements in a box of its own, and the pieces are 
   assert.match(l, /const starterFor = \(format, creditText = ""\)/); assert.match(l, /titleBlockSpot\(pageFormatOf\(activePage\)/);
   assert.match(l, /refitStarter\(r\.refitted \? r\.elements : elements, oldFormat, f, creditsRef\.current\)/);
 });
+
+// TASKS.csv #3662 — the credit's lines are measured (canvas text in the app) and word-wrapped, not estimated from its length; with no canvas the old estimate
+import { textLines, creditLines } from "../src/lib/layoutCredits.js";
+test("#3662 words are measured and wrapped to the box; a very long word-free run does not fake extra lines; with no canvas the estimate", () => {
+  const m = (t) => t.length * 10; // 10 px a letter
+  assert.equal(textLines("aaa bbb ccc", 60, 11, m), 3, "each word on its own line at 60 px");
+  assert.equal(textLines("aaa bbb ccc", 100, 11, m), 2, "aaa bbb (70) fits, then ccc");
+  assert.equal(textLines("aaa bbb ccc", 400, 11, m), 1);
+  assert.equal(textLines("one\ntwo three", 400, 11, m), 2, "a new line in the credit is a new line");
+  assert.equal(textLines("", 400, 11, m), 1);
+  assert.equal(creditLines(LONG, 1043, (t) => t.length * 3), 1, "a narrow letter fits the long credit on one A4 line"); assert.ok(creditLines(LONG, 1043, (t) => t.length * 12) >= 3);
+  assert.equal(creditLines(LONG, 1043), Math.max(1, Math.ceil((LONG.length * 5.9) / 1043)), "no canvas in Node: the estimate");
+  assert.match(fs.readFileSync(new URL("../src/lib/layoutCredits.js", import.meta.url), "utf8"), /document\.createElement\("canvas"\)\.getContext\("2d"\)/);
+});
