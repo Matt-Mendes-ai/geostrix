@@ -344,16 +344,20 @@ class TemSurvey:
     def forward_fn(self, m, thick, jac=False):
         cond = 10.0 ** np.atleast_2d(np.asarray(m, float))
         system = self.system
-        for key in ("h", "rz"):
+        for key in ("h", "rz", "tilt"):
             v = np.atleast_1d(np.asarray(system.get(key, 0.0), float))
             if len(v) > 1 and len(v) != len(cond):
                 # step 3 — the stations' own heights, but not one model a station (em1d.invert_batch's half-space search: a grid of 46 models):
                 # the mean, for that starting guess only
                 system = {**system, key: float(v.mean())}
         outs = [forward(cond, thick, system, mo["gates"], mo["widths"], mo["waveform"], jac=jac, base_freq=mo["baseFreq"]) for mo in self.moments]
+        # TASKS.csv #3502 — the frame's tilt: the transmitter and the receiver coil tilt together, which scales the reading by cos(pitch) cos(roll)
+        # (empymod, a SkyTEM frame 40 m up: 0.9986 at 3 degrees of pitch, 0.9945 at 6, 0.9987 at 3 of roll; the cross-couplings cancel). The
+        # receiver's move up or down with the pitch is its height (rz), which matters far more (1.7 % at 3 degrees) and is set apart.
+        k = np.atleast_1d(np.asarray(system.get("tilt", 1.0), float))[:, None] * PV
         if jac:
-            return np.concatenate([o[0] for o in outs], axis=1) * PV, np.concatenate([o[1] for o in outs], axis=1) * PV
-        return np.concatenate(outs, axis=1) * PV
+            return np.concatenate([o[0] for o in outs], axis=1) * k, np.concatenate([o[1] for o in outs], axis=1) * k[:, :, None]
+        return np.concatenate(outs, axis=1) * k
 
 
 def run_job(req, progress):
@@ -395,6 +399,9 @@ def run_job(req, progress):
     rz0 = float(system.get("rz", 0.0))
     rzs = np.asarray([rz0 if v is None else v for v in req["rz"]] if req.get("rz") is not None else [rz0] * S, float)
     rzs = np.where(np.isfinite(rzs), rzs, rz0)
+    # TASKS.csv #3502 — each station's tilt factor, cos(pitch) cos(roll) (1 without)
+    tilts = np.asarray([1.0 if v is None else v for v in req["tilt"]] if req.get("tilt") is not None else [1.0] * S, float)
+    tilts = np.where(np.isfinite(tilts) & (tilts > 0), tilts, 1.0)
     left_out = int((np.isfinite(data) & (data <= 0)).sum())
     passes = 2 if lateral > 0 else 1
     m = np.full((S, len(thick) + 1), np.nan)
@@ -414,7 +421,7 @@ def run_job(req, progress):
         for idx in batches:
             mr = None if ref is None else ref[idx]
             alpha = ALPHA if ref is None else np.where(np.isfinite(mr[:, 0]), max(lateral, ALPHA), ALPHA)
-            mm, cc, pp, JJ, ww = invert_batch(TemSurvey({**system, "h": hs[idx], "rz": rzs[idx]}, moments=moments), data[idx], sd[idx], thick, m_ref=mr, alpha=alpha, max_iter=max_iter)
+            mm, cc, pp, JJ, ww = invert_batch(TemSurvey({**system, "h": hs[idx], "rz": rzs[idx], "tilt": tilts[idx]}, moments=moments), data[idx], sd[idx], thick, m_ref=mr, alpha=alpha, max_iter=max_iter)
             m[idx], chi[idx], pred[idx] = mm, cc, pp
             doi[idx] = depth_of_investigation(JJ, ww, thick, float(req.get("doiFrac", DOI_FRAC)))
             pp_out = pp.copy()

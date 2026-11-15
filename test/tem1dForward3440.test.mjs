@@ -46,7 +46,7 @@ test("#3440 step 3 (engine): one transform for every station, the filter by heig
   assert.match(py, /return "key_81_2009" if float\(np\.min\(system\.get\("h", 0\.0\)\)\) >= 10\.0 else "key_201_2012"/);
   assert.match(py, /def __init__\(self, system, gates=None, widths=None, waveform=None, moments=None\):/);
   // each station at its own height, in full batches (1 m bins left a station or two a batch on the real USGS file), the kernel a row of weights a station
-  assert.match(py, /invert_batch\(TemSurvey\(\{\*\*system, "h": hs\[idx\], "rz": rzs\[idx\]\}, moments=moments\)/);
+  assert.match(py, /invert_batch\(TemSurvey\(\{\*\*system, "h": hs\[idx\], "rz": rzs\[idx\], "tilt": tilts\[idx\]\}, moments=moments\)/); // #3502: the tilt factor
   assert.match(py, /batches = \[np\.arange\(c0, min\(c0 \+ BATCH, S\)\) for c0 in range\(0, S, BATCH\)\]/);
   assert.match(rd("../python-sidecar/app/geophys/em1d.py"), /gs = np\.int64\(s\) if G\.shape\[0\] > 1 else np\.int64\(0\)/);
   // the time left is timed from the second batch on: the first carries numba's compile

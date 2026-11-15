@@ -170,6 +170,7 @@
   "Where the receiver's height comes from": "مصدر ارتفاع المستقبل",
   "{c} less the height": "{c} ناقص الارتفاع",
   "Receiver low-pass filters (kHz)": "مرشحات التمرير المنخفض للمستقبل (كيلوهرتز)",
+  "Use the frame's tilt ({c}): each reading scaled by the cosines of pitch and roll; without a receiver height column, the receiver's height from the pitch": "استخدام ميل الإطار ({c}): تُضرب كل قراءة في جيبَي تمام الانحدار والدوران؛ وبلا عمود لارتفاع المستقبل، يُحسب ارتفاع المستقبل من الانحدار",
   "The first filter is the receiver coil's: second order (a coil is a resonant circuit)": "المرشح الأول هو مرشح ملف الاستقبال: من الرتبة الثانية (الملف دارة رنينية)",
   "Waveform table of {m}": "جدول شكل الموجة لـ {m}",
   "time (s), current: one pair a line, from the start of the ramp-down": "الزمن (ث)، التيار: زوج في كل سطر، من بداية منحدر الهبوط",

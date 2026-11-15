@@ -80,6 +80,22 @@ export function rxColumn(columns) {
   return (columns || []).find((c) => /^rx_?alt(itude)?$/i.test(String(c))) || null;
 }
 
+// TASKS.csv #3502 — the frame's pitch and roll columns (SkyTEM: TILT_X along the line, TILT_Y across), or { pitch: null, roll: null }
+export function tiltColumns(columns) {
+  const cs = columns || [];
+  const find = (res) => { for (const re of res) { const c = cs.find((x) => re.test(String(x))); if (c) return c; } return null; };
+  return { pitch: find([/^tilt_?x$/i, /^pitch$/i, /^tx_?pitch$/i]), roll: find([/^tilt_?y$/i, /^roll$/i, /^tx_?roll$/i]) };
+}
+// a tilt column's angle in degrees from level: SkyTEM's (as the USGS release's data dictionary describes it) is measured with 270 as
+// level, z down; others are taken as degrees from level. The column's median decides.
+export function tiltOffset(values) {
+  const v = [];
+  for (const x of values || []) if (Number.isFinite(x)) v.push(x);
+  if (!v.length) return 0;
+  v.sort((a, b) => a - b);
+  return v[Math.floor(v.length / 2)] > 180 ? 270 : 0;
+}
+
 // "210, 300" (kHz) -> [210000, 300000] (Hz), at most three; null when a value is not a number
 export function parseFilters(text) {
   const parts = String(text || "").split(/[\s,;]+/).filter(Boolean);
@@ -101,7 +117,10 @@ export function heightColumn(columns) {
 // "rampEnd"; unit: "SI" | "pV"; noise: { use, kind ("absolute" | "relative") } with the moments' uncertainty matrices (or null); every: 1, 2,
 // 5 …; heightsCol, rxCol (the receiver's height: rz = rx - h a station); system { geom, r | a, h, rz, filters }; layers; errRel.
 // -> { request, pick (the stations sent), dropped (gates left out), widthsMismatch (moments whose widths were not used) }
-export function buildTemRequest(data, { moments, timeZero = "rampEnd", unit = "pV", noise = null, every = 1, heightsCol = null, rxCol = null, system, layers, errRel = 0.05, lateral = 0 }) {
+// TASKS.csv #3502: tilt { pitch, roll } columns: each station's factor cos(pitch) cos(roll), and without rxCol the receiver's height from the
+// pitch (SkyTEM: rz cos(pitch) cos(roll) - r sin(pitch), the receiver r metres behind the loop's centre: the USGS file's RX_ALTITUDE less its
+// TX_ALTITUDE follows it to 3 cm, median).
+export function buildTemRequest(data, { moments, timeZero = "rampEnd", unit = "pV", noise = null, every = 1, heightsCol = null, rxCol = null, tilt = null, system, layers, errRel = 0.05, lateral = 0 }) {
   const scale = unit === "SI" ? 1e12 : 1;
   const widthsMismatch = [];
   const ms = moments.map((mo) => {
@@ -152,6 +171,16 @@ export function buildTemRequest(data, { moments, timeZero = "rampEnd", unit = "p
   };
   if (!request.heights) delete request.heights;
   if (rxc) request.rz = pick.map((i) => { const d = rxc[i] - hcol[i]; return Number.isFinite(d) && Math.abs(d) <= 20 ? +d.toFixed(2) : null; });
+  const pc = tilt?.pitch ? data.get(tilt.pitch) : null, rc = tilt?.roll ? data.get(tilt.roll) : null;
+  if (pc || rc) {
+    const p0 = pc ? tiltOffset(pc) : 0, r0 = rc ? tiltOffset(rc) : 0, rad = Math.PI / 180;
+    const ang = (col, i, off) => (col && Number.isFinite(col[i]) && Math.abs(col[i] - off) <= 45 ? (col[i] - off) * rad : 0);
+    request.tilt = pick.map((i) => +(Math.cos(ang(pc, i, p0)) * Math.cos(ang(rc, i, r0))).toFixed(5));
+    if (!rxc && pc && system && system.geom !== "loop") {
+      const rz0 = Number(system.rz) || 0, r = Number(system.r) || 0;
+      request.rz = pick.map((i) => { const p = ang(pc, i, p0), q = ang(rc, i, r0); return +(rz0 * Math.cos(p) * Math.cos(q) - r * Math.sin(p)).toFixed(2); });
+    }
+  }
   return { request, pick, dropped, gatesPerMoment: ms.map((mo) => mo.gates.length), scale, widthsMismatch };
 }
 
