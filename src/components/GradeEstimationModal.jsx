@@ -49,7 +49,8 @@ import { numericSourceChoices, sourceAssays, logPoints, unlogValue } from "../li
 import DomainCaps from "./DomainCaps.jsx"; // TASKS.csv #1571
 import { solidChoices } from "../lib/solidChoices.js"; // TASKS.csv #1578
 import { lazyModal } from "../lib/lazyModal.jsx";
-import { collarsLookUnderground, collarBenches } from "../lib/pitShell.js"; // TASKS.csv #2217; collarBenches: #2584
+import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2217
+import { collarGroundRecord } from "../lib/collarLevelsText.js"; // TASKS.csv #3653 — the record's clause, as the dialog's note
 import { stampEpsg } from "../lib/provenance.js"; // TASKS.csv #2195
 import UnsampledChoice, { useUnsampled, unsampledResultLine, resolveUnsampled } from "./UnsampledChoice.jsx"; // resolveUnsampled: #3014 // TASKS.csv #2417 / #2542
 const GradeTonnageModal = lazyModal(() => import("./GradeTonnageModal.jsx")); // TASKS.csv #1577 — from the result, not only from Geophysics
@@ -678,7 +679,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           est.cells = est.cells.filter((c) => { const g = cutGround(c.x, c.y); return !(Number.isFinite(g) && c.z > g); });
           const cut = before - est.cells.length;
           est.blocksSkipped += cut; est.blocksEstimated = est.cells.length;
-          params.cutAtTerrain = groundSource === "collars" ? `${cut} block(s) whose centre is above the ground interpolated between the collars dropped (no terrain)${((b) => (b.higher.length ? `; ${b.higher.length} collar(s) with another collar within ${b.planM} m in plan over ${b.rlM} m lower left out of that ground, so the lowest collar is used there (benches)` : ""))(collarBenches(collars))}` /* #2584 */ : `${cut} block(s) whose centre is above the terrain dropped`; // #1616
+          params.cutAtTerrain = groundSource === "collars" ? `${cut} block(s) whose centre is above the ground interpolated between the collars dropped (no terrain)${collarGroundRecord(levelCollars, survey)}` /* #2584; #3653: the collars and checks the dialog's note and the cut use */ : `${cut} block(s) whose centre is above the terrain dropped`; // #1616
           params.groundFrom = groundSource || "terrain";
           est.cutAboveGround = cut;
         }
