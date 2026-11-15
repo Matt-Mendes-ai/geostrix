@@ -2,6 +2,7 @@
 // carries the rock code and the stratigraphic unit on the same intervals (WA palaeochannel: lithology SST / SAN / LIG ... and strat QA /
 // I / H ... E1); every tool read the Lithology value only, so modelling the stack meant re-importing with the unit as the value, after
 // which the rock code (and the lignite body) could no longer be modelled in the same project. Pure: no React.
+import { isTable, tableOps } from "./rowTable.js"; import { rowsRefOf } from "./tableFields.js"; // TASKS.csv #3424 step 2
 
 // row keys that are not extra fields of an interval row (normInterval / applyCustomFields put custom fields on the row by name)
 const NOT_FIELDS = new Set(["hole_id", "from", "to", "value", "depth", "id", "tip", "color", "colour", "extra", "values", "description", "logged", "source", "dataset", "_src", "_file"]);
@@ -57,7 +58,7 @@ export function unitSourceLayers(layers, customLayers = []) {
   // TASKS.csv #3267 (review #3195, Galore Creek) — the Alteration layer (the high-T assemblage, 1,238 intervals, the ore control there) and
   // the Breccia layer too: only a second assemblage imported as a custom layer could be modelled, grouped or built as one body
   for (const [k, label] of BUILTIN_UNIT_LAYERS) { const w = codes(layers?.[k]); if (w) out.push({ name: `@${k}`, label, ...w }); }
-  for (const c of customLayers || []) { const k = codes(c.rows); if (k) out.push({ name: `@custom:${c.id}`, label: c.name, ...k }); }
+  for (const c of customLayers || []) { const r = rowsRefOf(c), k = isTable(r) ? tableOps.unitCodes(r) : codes(r); if (k) out.push({ name: `@custom:${c.id}`, label: c.name, ...k }); } // a Table: #3424
   return out;
 }
 

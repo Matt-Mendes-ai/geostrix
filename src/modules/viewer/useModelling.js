@@ -32,8 +32,8 @@ export function useModelling(ctx) {
   // TASKS.csv #697 — the run functions live in ./modellingRuns.js and load on the first run. Each wrapper is stable and
   // hands the run the context of the render it was clicked in (ctxRef is refreshed every render).
   const ctxRef = useRef(ctx);
-  const logValidRange = useStore().project?.logValidRange; // #3116
-  ctxRef.current = { ...ctx, logValidRange };
+  const store = useStore(), logValidRange = store.project?.logValidRange; // #3116
+  ctxRef.current = { ...ctx, logValidRange, setLastImplicitRequest: store.setLastImplicitRequest /* #2640 */ };
   const lazyRun = useCallback((name) => async (...args) => {
     let create;
     try {

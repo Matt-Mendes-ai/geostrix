@@ -33,6 +33,7 @@ import PromptModal from "../components/PromptModal.jsx";
 import { toLonLat, isMetricProjectedEpsg } from "../lib/reproject.js";
 import { mirrorCustomLayers } from "../lib/viewerDirty.js"; // #1656
 import { customLayerSync, detachCustomGroups } from "./viewer/customLayerSync.js"; // #2361
+import { layerWith, layerRowCount } from "../lib/tableFields.js"; // #3424 — a copy that keeps a log's rows unbuilt
 import { rlOffsetOf } from "../lib/localGridDatum.js"; // TASKS.csv #2809 — the grid RL in Identify and the section
 import { useStore, useSetCursor, useSetTaskProgress } from "../lib/store.jsx";
 import { surveyAzimuthDipAt, desurveyMatters } from "../lib/desurvey.js"; // desurveyMatters: #2371; // desurveyHole, holeAttitudeAssumed (#2014): used by viewer/drillholeScene.js (#2176)
@@ -214,6 +215,9 @@ import { closedShellsOf } from "./viewer/estimationShells.js"; // TASKS.csv #269
 import { findOnTraceWorld, findOnTrace, traceLookup, traceOfHole /* #2931 */, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
 import { syncDrawLods } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
+import { useLodTiles } from "./viewer/useLodTiles.js"; // TASKS.csv #3252
+import TerrainCard from "./viewer/TerrainCard.jsx";
+import DetailTilesToggle from "./viewer/DetailTilesToggle.jsx"; // #3252 // the terrain row of Rasters & terrain (moved out at the #1084 cap, #3252)
 import { useSurfaceUndo, stashSurface } from "./viewer/surfaceUndo.js"; // TASKS.csv #3494 — Undo / Redo for the model surfaces
 import { useModelling } from "./viewer/useModelling.js";
 import { useUnitSource } from "./viewer/useUnitSource.js"; // TASKS.csv #2378
@@ -875,7 +879,6 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // surfaces), not by the frequent layer-visibility/filter churn that rebuilds layerGroupsRef.
   const rasterGroupRef = useRef(null);
   const rasterMeshesRef = useRef({}); // id -> THREE.Mesh
-  const lodDrapeRef = useRef(null); // TASKS.csv #3252 — the imagery detail tiles (lib/viewer/lodDrape.js)
   // Boundary polylines (Geosoft .ply import) — own group/refs, same reasoning as rasters above: driven
   // by the store's persisted `boundaries` list, not by layer-visibility churn.
   const boundaryGroupRef = useRef(null);
@@ -1702,7 +1705,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       const group = new THREE.Group(); group.name = l.id;
       layerGroupsRef.current[l.id] = group;
       root.add(group);
-      return { ...l, group };
+      return layerWith(l, { group }); // #3424 (was { ...l, group }: it built a Table layer's rows)
     });
     setCustomLayers((p) => (fresh ? rebuilt : [...p, ...rebuilt]));
     setCustomVisible((p) => ({ ...p, ...Object.fromEntries(missing.map((l) => [l.id, true])) }));
@@ -2301,7 +2304,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
           }
         }
         if (gridGroupRef.current?.userData.labels) fitScreenLabels(gridGroupRef.current.userData.labels, camera, mount.clientHeight); // #2211
-        lodDrapeRef.current?.tick(camera, mount.clientHeight); // TASKS.csv #3252 — the detail tiles the camera wants (throttled inside, and only when it moved)
+        lodTiles.tick(camera, mount.clientHeight); // TASKS.csv #3252 — the detail tiles (viewer/useLodTiles.js)
         { const sl = sectionLinesGroupRef.current?.userData.labels; if (sl?.children.length) { fitScreenLabels(sl, camera, mount.clientHeight); declutterHoleLabels(sl, camera, mount.clientWidth, mount.clientHeight); } } // #1126 section end labels; #3246
         fitContourLabels(boundaryGroupRef.current, camera, mount.clientWidth, mount.clientHeight); // #1466 / #1622
         renderer.setViewport(0, 0, mount.clientWidth, mount.clientHeight);
@@ -4696,17 +4699,6 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // ---------- rebuild raster drapes (TASKS.csv #24, #81) ----------
   // moved to lib/viewer/sceneBuilders.js syncRasterDrapes (TASKS.csv #693); its comments explain the build
   useEffect(() => { if (rasterGroupRef.current && !buildDefer.skip()) syncRasterDrapes(rasterGroupRef.current, rasterMeshesRef.current, rasters, { origin: originRef.current, terrain, renderer: rendererRef.current, collars }); }, [rasters, collars, terrain, rebuildSeq, deferRound]);
-  // TASKS.csv #3252 phase 2 — the detail tiles follow the rasters, the terrain and the origin; wake: a tile that arrives redraws an idle view
-  useEffect(() => { // TASKS.csv #3252 / #3509 - lib/viewer/lodDrape.js (and the tile cache it pulls in) is loaded the first time a raster with a source description is draped: not at startup
-    if (!rasterGroupRef.current || buildDefer.skip()) return;
-    const ctx = { group: rasterGroupRef.current, cache: rasterMeshesRef.current, rasters, terrain, origin: originRef.current, renderer: rendererRef.current, wake: () => { lastActivityRef.current = Date.now(); } };
-    if (lodDrapeRef.current) { lodDrapeRef.current.sync(ctx); return; }
-    if (!terrain || !rasters.some((r) => r.lod)) return;
-    let live = true;
-    import("../lib/viewer/lodDrape.js").then((m) => { if (!live) return; lodDrapeRef.current = lodDrapeRef.current || m.createLodDrape(); lodDrapeRef.current.sync(ctx); });
-    return () => { live = false; };
-  }, [rasters, terrain, rebuildSeq, deferRound]);
-  useEffect(() => () => lodDrapeRef.current?.dispose(), []);
 
   // ---------- rebuild boundary polylines (Geosoft .ply import) ----------
   // moved to lib/viewer/sceneBuilders.js syncBoundaries (TASKS.csv #693); its comments explain the build
@@ -4738,6 +4730,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // ---------- rebuild terrain surface (TASKS.csv #77) ----------
   // moved to lib/viewer/sceneBuilders.js syncTerrain (TASKS.csv #693); its comments explain the build
   useEffect(() => { if (terrainGroupRef.current && !buildDefer.skip()) terrainMeshRef.current = syncTerrain(terrainGroupRef.current, terrainMeshRef.current, terrain, { origin: originRef.current }); }, [terrain, collars, rebuildSeq, deferRound]);
+  // TASKS.csv #3252 — the imagery and terrain detail tiles, after the raster drapes and the terrain they read (viewer/useLodTiles.js)
+  const lodTiles = useLodTiles({ rasterGroupRef, rasterMeshesRef, terrainGroupRef, terrainMeshRef, mapLayerMeshesRef, rendererRef, originRef, lastActivityRef }, { rasters, terrain, collars, mapLayers, project, rebuildSeq, deferRound, skip: buildDefer.skip });
 
   // Keeps the locator mini-map's real-world position in sync with wherever the scene's origin actually
   // sits — same trigger set as the origin-computing effect above (collars/terrain changes, or a manual
@@ -6569,28 +6563,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {(rasters.length > 0 || terrain) && (
           <>
             <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Rasters & terrain")}</div>
-            {terrain && (
-              <div onContextMenu={(e) => openRowMenu(e, terrain.name, [
-                  { label: terrain.visible === false ? "Show" : "Hide", onClick: () => updateTerrain?.({ visible: terrain.visible === false }) },
-                  { label: tr("Zoom to"), onClick: () => zoomToObject(terrainMeshRef.current) },
-                  "-", { label: tr("Colour, drape and remove — Maps tab"), onClick: () => goToModule("maps") }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
-                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateTerrain?.({ visible: terrain.visible === false })} style={{ cursor: "pointer", color: terrain.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
-                  {terrain.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
-                </div>
-                <Mountain size={14} style={{ color: terrain.color || "var(--color-text-secondary)", flexShrink: 0 }} />
-                <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{terrain.name}</span>
-                <input
-                  type="range" min={0.1} max={1} step={0.05} value={terrain.opacity ?? 1}
-                  onChange={(e) => updateTerrain?.({ opacity: Number(e.target.value) })}
-                  style={{ width: 46, flexShrink: 0 }} title={tr("Opacity")}
-                />
-                {/* Color/opacity are also editable right here inline (terrain has no other exotic
-                    settings the way rasters' drape-mode/elevation do), but the jump still goes to
-                    Geophysics — that's where SRTM/DEM was imported from and where "Remove terrain"
-                    lives — for consistency with every other row's edit-jump icon. */}
-                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("maps"), tr("Edit or remove the terrain in the Maps tab"))} />
-              </div>
-            )}
+            {terrain && <TerrainCard terrain={terrain} updateTerrain={updateTerrain} openRowMenu={openRowMenu} zoomTo={() => zoomToObject(terrainMeshRef.current)} goToModule={goToModule} lodTiles={lodTiles} />}{/* viewer/TerrainCard.jsx (moved out at the #1084 cap) */}
             {rasters.map((r) => (<React.Fragment key={r.id}>{/* fragment: #2011 — the legend under the row */}
               <div onContextMenu={(e) => openRowMenu(e, r.name, [
                   { label: r.visible === false ? "Show" : "Hide", onClick: () => updateRaster(r.id, { visible: r.visible === false }) },
@@ -6616,6 +6589,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove raster \"{name}\"?", { name: r.name }))) removeRaster(r.id); }, tr("Remove raster \"{name}\"", { name: r.name }))} />{/* #1088 — confirmed like its menu's Remove… (rasters are not undoable) */}
               </div>
               <RasterLegend raster={r} updateRaster={updateRaster} compact />
+              {r.lod && r.drapeMode === "terrain" && <DetailTilesToggle kind="imagery" on={lodTiles.prefs.imagery} chosen onChange={(v) => lodTiles.setPref("imagery", v)} />}{/* #3252 */}
             </React.Fragment>))}
             <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10 }}>{tr("Managed under Maps: colours, drape and elevation.")}</div>
           </>
@@ -6813,7 +6787,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             { label: tr("Style (colour, size, shape)…"), onClick: () => openCustomStyle(l) },
             "-", { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove the custom layer \"{name}\"?", { name: l.name }), { undoable: true })) removeCustomLayer(l.id); } }])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
             <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => toggleCustom(l.id)} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: customVisible[l.id] === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-              {customVisible[l.id] === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={l.notes ? `${l.name}\n${l.notes}` : l.name}>{l.name}</span> <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({l.rows.length})</span>{l.notes && <span title={l.notes} style={{ display: "inline-flex", flexShrink: 0, color: "var(--color-text-muted)" }}><Info size={12} aria-label={tr("Layer notes: {v}", { v: l.notes })} /></span>}{/* #2432 — what the import left out or assumed */}
+              {customVisible[l.id] === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={l.notes ? `${l.name}\n${l.notes}` : l.name}>{l.name}</span> <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({layerRowCount(l) /* #3424 */})</span>{l.notes && <span title={l.notes} style={{ display: "inline-flex", flexShrink: 0, color: "var(--color-text-muted)" }}><Info size={12} aria-label={tr("Layer notes: {v}", { v: l.notes })} /></span>}{/* #2432 — what the import left out or assumed */}
             </div>
             <Settings2 size={12} style={{ cursor: "pointer", flexShrink: 0 }} {...iconAction(() => openCustomStyle(l), tr("Style"))} /><Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToCustom(l.id), tr("Zoom to custom layer \"{name}\"", { name: l.name }))} />
             <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove the custom layer \"{name}\"?", { name: l.name }), { undoable: true })) removeCustomLayer(l.id); } /* #2338 — asks, as the menu does */, tr("Remove custom layer \"{name}\"", { name: l.name }))} />

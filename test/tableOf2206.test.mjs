@@ -4,7 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { compactTable, expandTable } from "../src/lib/compactTable.js";
-import { tableOf, tableFromRows, rowsOf, colOf, valuesOf, cellOf } from "../src/lib/rowTable.js";
+import { rowsOf, colOf, valuesOf, cellOf } from "../src/lib/rowTable.js"; import { tableOf, tableFromRows } from "../src/lib/rowTableBuild.js";
 
 const EL = ["Au", "Ag", "Cu", "Pb", "Zn", "As", "Sb", "Bi", "Mo", "S"];
 const assays = (n, els = EL) => Array.from({ length: n }, (_, i) => ({ hole_id: `RH${i % 997}`, from: i * 2, to: i * 2 + 2, sample_id: `S${i}`, values: Object.fromEntries(els.map((e, k) => [e, ((i * (k + 3)) % 997) / 100])), ...(i % 9 === 0 ? { qualifiers: { Au: "<" } } : {}) }));

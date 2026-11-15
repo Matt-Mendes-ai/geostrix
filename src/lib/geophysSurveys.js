@@ -237,11 +237,12 @@ export function aglToElevation(rows, key, terrainAt) {
 // meta: the survey's geophysSurveys entry ({ method, units, zMeaning }). -> { rows, valueName }
 export function surveyExportRows(points, meta = {}) {
   const unit = String(meta.units || "").replace(/[^A-Za-z0-9]+/g, "") || null;
-  const valueName = [meta.method || "value", unit].filter(Boolean).join("_");
+  const noValue = !!meta.positionsOnly; // TASKS.csv #3512 — an electrode list has no value column: its 0 is not exported
+  const valueName = noValue ? "" : [meta.method || "value", unit].filter(Boolean).join("_");
   const has = (k) => points.some((r) => r[k] != null && r[k] !== "");
   const keep = { line: has("line"), fid: has("fid"), label: has("label"), zAgl: points.some((r) => Number.isFinite(r.zAgl)) };
   const rows = points.map((r) => ({
-    x: r.x, y: r.y, z: Number.isFinite(r.z) ? r.z : "", [valueName]: Number.isFinite(r.value) ? r.value : "",
+    x: r.x, y: r.y, z: Number.isFinite(r.z) ? r.z : "", ...(noValue ? {} : { [valueName]: Number.isFinite(r.value) ? r.value : "" }),
     ...(keep.line ? { line: r.line ?? "" } : {}), ...(keep.fid ? { fiducial: r.fid ?? "" } : {}), ...(keep.label ? { label: r.label ?? "" } : {}),
     ...(keep.zAgl ? { height_agl: Number.isFinite(r.zAgl) ? r.zAgl : "" } : {}),
   }));

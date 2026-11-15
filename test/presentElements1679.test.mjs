@@ -21,7 +21,7 @@ test("the same array when every element has a value; empty input passes through"
 test("the store hands out the present list, the diagram caption says why nothing plotted, the dialog lists empty columns", () => {
   const store = fs.readFileSync("src/lib/store.jsx", "utf8");
   assert.match(store, /assayElements: presentAssayElements, setAssayElements,/);
-  assert.match(store, /useMemo\(\(\) => elementsWithValues\(assayElements, assays\), \[assayElements, assays\]\)/);
+  assert.match(store, /useMemo\(\(\) => elementsWithValuesOf\(assayElements, assays\), \[assayElements, assays\]\)/ /* #3424: a Table's element columns too */);
   assert.match(fs.readFileSync("src/modules/GeochemModule.jsx", "utf8"), /plottedCount === 0 && sourceRows\.length && !missingForDiagram\.length && diagram\.requires\.length/);
   assert.match(fs.readFileSync("src/components/AssayImportModal.jsx", "utf8"), /Empty on every row, so left unticked: \{list\} \(\{n\} columns\)\./);
 });

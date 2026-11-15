@@ -18,7 +18,10 @@ test("lazyTip: built once on first read, assignable, the other fields kept as ow
 
 test("the build: intervals, point logs, custom layers and assay markers use lazyTip with their hole id; vectors only for a bent interval", () => {
   const s = viewerSource().replace(/\r\n/g, "\n");
-  assert.equal((s.match(/mesh\.userData = lazyTip\(\{ row(: a)?, holeId: c\.hole_id/g) || []).length, 4);
+  assert.equal((s.match(/mesh\.userData = lazyTip\(\{ row(: a)?, holeId: c\.hole_id/g) || []).length, 2);
+  // #3424 step 2 — a custom layer's two kinds (interval, point) go through tipData: rowTip (a Table's row by index) or lazyTip({ row, ...ud })
+  assert.equal((s.match(/mesh\.userData = tipData\(\{ holeId: c\.hole_id \}, \(r\) =>/g) || []).length, 2);
+  assert.match(s, /const tipData = \(ud, text\) => \(lt \? rowTip\(lt, entry, ud, text\) : lazyTip\(\{ row, \.\.\.ud \}, \(\) => text\(row\)\)\);/);
   assert.match(s, /\(\) => lazyTip\(\{ row: a, holeId: c\.hole_id \}/, "#3055 — the assay marker's lazy tip, made only for a row that is drawn (lib/viewer/assayBatcher.js)");
   assert.ok(!/mesh\.userData = \{ row, tip: `\$\{c\.hole_id\}/.test(s), "no eager per-row drillhole tooltip left");
   assert.match(s, /mesh_\.quaternion\.setFromUnitVectors\(UP_Y, DIR_TMP\.set\(dx \/ len, dy \/ len, dz \/ len\)\);/);

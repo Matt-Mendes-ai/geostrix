@@ -32,3 +32,11 @@ test("the dialog offers them and the placeholder follows the service type", () =
   assert.match(s, /fetchCapabilities\(s, p\[s\], p\.layer\)/);
   assert.match(s, /tr\("Licence: \{v\}\. Credit the publisher in figures you share\.", \{ v: preset\.licence \}\)/);
 });
+
+import { servicesFirst } from "../src/lib/webServices.js";
+test("#3472: the Western Australian geology preset (checked 2026-11-15 with Matt's yes), first on a Pilbara project, CC BY 4.0", () => {
+  const wa = COMMON_WEB_SERVICES.find((p) => p.id === "wa-bedrock");
+  assert.ok(wa && /Creative Commons Attribution 4\.0/.test(wa.licence) && wa.layer === "16" && /public-services\.slip\.wa\.gov\.au/.test(wa.wms));
+  const first = servicesFirst(COMMON_WEB_SERVICES, { lon: 120, lat: -22.5 }).slice(0, 2).map((p) => p.id);
+  assert.deepEqual(first.sort(), ["ga-surface", "wa-bedrock"], "the two Australian services lead on a WA project");
+});

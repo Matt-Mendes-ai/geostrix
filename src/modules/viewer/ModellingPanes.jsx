@@ -33,6 +33,7 @@ import { betaReferenceCounts } from "../../lib/coreOrientation.js"; // TASKS.csv
 import { holeClusters, onlyTheseHoles } from "../../lib/holeClusters.js"; // TASKS.csv #2056
 import { groupOverlaps, groupOfCode, caseVariantGroups, subdivisionGroups } from "../../lib/lithoGroups.js"; // TASKS.csv #1685; caseVariantGroups: #2386; subdivisionGroups: #2928
 import GradeTonnageLauncher from "../../components/GradeTonnageLauncher.jsx"; // TASKS.csv #1577
+import BlockCalculatorLauncher from "../../components/BlockCalculatorLauncher.jsx"; // TASKS.csv #3164 — its dialog is lazy
 import { useStore } from "../../lib/store.jsx";
 import { numericLayerFields } from "../../lib/evidenceSources.js"; // TASKS.csv #1574 — the numeric fields of a log (intensity 1-3)
 import { intensityVocabFields } from "../../lib/intensityVocab.js"; // TASKS.csv #2230 — intensity letters (W / M / S / I) ranked
@@ -647,6 +648,7 @@ export default function ModellingPanes(props) {
         <button onClick={() => setVariogramOpen(true)} disabled={!assayElements.length} style={{ ...pBtn, opacity: assayElements.length ? 1 : 0.5, marginBottom: 16 }}>
           <Activity size={14} />{" "}{tr("Variogram / spatial continuity…")}</button>
         <GradeTonnageLauncher />{/* TASKS.csv #1577 */}
+        <BlockCalculatorLauncher />{/* TASKS.csv #3164 */}
 
         {/* TASKS.csv #176 — lithology groups: lump codes logged differently for the same real unit
             (AND + BAS, SLT + GWK...) into one modelled unit. Same terse add/remove-list style as the

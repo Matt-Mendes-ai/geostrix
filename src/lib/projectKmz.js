@@ -253,16 +253,22 @@ export function buildProjectKml(ctx, opts) {
     if (!meta || !rows.length) return;
     const style = ui.layerStyles?.[key] || {};
     if (key === "geophys_pts") { // points with their own coordinates, not on a hole
-      const vals = rows.map((r) => num(r.value));
+      // TASKS.csv #3512 — a positions-only survey (an electrode list: its points carry 0) is written as its own placemark of grey points, not classed by that 0
+      const noValue = (r) => ctx.geophysSurveys?.[r._src || "(unnamed import)"]?.positionsOnly;
+      const measured = rows.filter((r) => !noValue(r)), posOnly = rows.filter(noValue);
+      const vals = measured.map((r) => num(r.value));
       let lo = Infinity, hi = -Infinity; vals.forEach((v) => { if (fin(v)) { lo = Math.min(lo, v); hi = Math.max(hi, v); } });
       const cls = numericClasses(vals, (v) => style.color || numColour(key, v, { min: lo, max: hi }));
       const by = new Map();
-      rows.forEach((r, i) => { const k = cls.classOf(vals[i]); if (k == null || !fin(num(r.x)) || !fin(num(r.y))) return; (by.get(k) || by.set(k, []).get(k)).push(fin(num(r.z)) ? w.point3d(num(r.x), num(r.y), num(r.z)) : w.pointGround(num(r.x), num(r.y))); });
-      if (!by.size) return;
+      measured.forEach((r, i) => { const k = cls.classOf(vals[i]); if (k == null || !fin(num(r.x)) || !fin(num(r.y))) return; (by.get(k) || by.set(k, []).get(k)).push(fin(num(r.z)) ? w.point3d(num(r.x), num(r.y), num(r.z)) : w.pointGround(num(r.x), num(r.y))); });
+      const posBy = new Map();
+      posOnly.forEach((r) => { if (!fin(num(r.x)) || !fin(num(r.y))) return; const k = r._src || "(unnamed import)"; (posBy.get(k) || posBy.set(k, []).get(k)).push(fin(num(r.z)) ? w.point3d(num(r.x), num(r.y), num(r.z)) : w.pointGround(num(r.x), num(r.y))); });
+      if (!by.size && !posBy.size) return;
       counts.layers++;
       w.open(meta.label, { visible: !!layerVisible[key] });
       [...cls.classes].sort((a, b) => a[1].order - b[1].order).forEach(([k, c]) => { if (by.has(k)) w.placemark(c.label, w.style({ color: c.color, iconScale: 0.5 }), w.multi(by.get(k))); });
-      legend({ label: meta.label, items: [...cls.classes].filter(([k]) => by.has(k)).map(([, c]) => [c.label, c.color]) }, !!layerVisible[key]);
+      posBy.forEach((pts, k) => w.placemark(`${k} (positions only, no value)`, w.style({ color: "#6b7280", iconScale: 0.5 }), w.multi(pts)));
+      legend({ label: meta.label, items: [...[...cls.classes].filter(([k]) => by.has(k)).map(([, c]) => [c.label, c.color]), ...[...posBy.keys()].map((k) => [`${k} (positions only)`, "#6b7280"])] }, !!layerVisible[key]);
       w.close();
       return;
     }

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { unsampledWord } from "../lib/holeType.js"; // TASKS.csv #3513
 import { X, Download } from "./icons.js";
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — the project's lead commodity
@@ -40,6 +41,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
   const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
   // TASKS.csv #411 — composites go out with from/to/mid XYZ on the project's own desurveyed traces.
   const { collars, survey, desurveyMethod, project, getProjectToken, setLastCompositing } = useStore(); // getProjectToken: #2224; setLastCompositing: #2883
+  const chips = unsampledWord(collars) === "chips"; // TASKS.csv #3513 — 'unsampled chips' on RC / aircore holes, as the Estimation says it (#3507)
   const tracesByHole = useMemo(() => {
     const byHole = new Map();
     (survey || []).forEach((s) => { if (!byHole.has(s.hole_id)) byHole.set(s.hole_id, []); byHole.get(s.hole_id).push(s); });
@@ -212,7 +214,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
           )}
 
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-            {tr("{results} composite(s) from {assays} raw intervals. Composites are anchored to each hole's first sampled depth and stepped at the length above; a domain boundary or the hole's own start/end will shorten an individual composite below that length. Coverage below 100% means part of the composite falls in unsampled core — its grade is the length-weighted average of the material that IS sampled (not diluted toward zero).", { results: results.length, assays: assays.length })}</div>
+            {tr(chips ? "{results} composite(s) from {assays} raw intervals. Composites are anchored to each hole's first sampled depth and stepped at the length above; a domain boundary or the hole's own start/end will shorten an individual composite below that length. Coverage below 100% means part of the composite falls in unsampled chips — its grade is the length-weighted average of the material that IS sampled (not diluted toward zero)." : "{results} composite(s) from {assays} raw intervals. Composites are anchored to each hole's first sampled depth and stepped at the length above; a domain boundary or the hole's own start/end will shorten an individual composite below that length. Coverage below 100% means part of the composite falls in unsampled core — its grade is the length-weighted average of the material that IS sampled (not diluted toward zero).", { results: results.length, assays: assays.length })}</div>
 
           <button onClick={exportCSV} disabled={results.length === 0} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: results.length === 0 ? 0.5 : 1 }}>
             <Download size={14} />{" "}{tr("Export composites (CSV)")}</button>

@@ -4,6 +4,7 @@
 // had 'a measured alpha'). They are alpha-only picks (no dip direction without oriented core): { hole_id, depth, value, alpha },
 // added beside the structure picks for the tools that take alpha-only picks (#527, #1108, #1130). Nothing is invented: no dip,
 // no azimuth, no beta.
+import { isTable, rowsOf, cellOf } from "./rowTable.js"; import { rowsRefOf } from "./tableFields.js"; // TASKS.csv #3424 step 2
 const fin = (v) => v !== null && v !== "" && Number.isFinite(Number(v));
 const ANGLE_NAME = /(^|[^a-z])(tca\d*|alpha\d*)([^a-z]|$)|angle.?to.?core|core.?axis.?angle/i;
 
@@ -33,7 +34,11 @@ export function customAlphaPicks(customLayers, veins = null) {
   const out = [];
   const sources = [...(customLayers || []), ...(Array.isArray(veins) && veins.length ? [{ name: "Veins", rows: veins }] : [])];
   for (const L of sources) {
-    const rows = Array.isArray(L?.rows) ? L.rows : [];
+    // TASKS.csv #3424 step 2 — a layer held as a Table with no angle-named column in its first 500 rows gives no picks (as the rows would):
+    // skipped without building its rows (a downhole log); one that has such a column is read through its rows, as before
+    const ref = rowsRefOf(L);
+    if (isTable(ref) && !ref.keys.some((k) => ANGLE_NAME.test(k) && [...Array(Math.min(500, ref.length)).keys()].some((i) => cellOf(ref.cols[k], i) !== undefined))) continue;
+    const rows = Array.isArray(ref) ? ref : isTable(ref) ? rowsOf(ref) : [];
     const keys = [...new Set(rows.slice(0, 500).flatMap((r) => Object.keys(r || {})))];
     for (const col of angleColumns(rows)) {
       const bcol = betaColumnOf(col, keys); // #3266

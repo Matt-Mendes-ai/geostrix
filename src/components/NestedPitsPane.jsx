@@ -4,6 +4,7 @@
 // at a mining rate, each block's cash discounted from the time it is mined, giving an NPV per shell. A screen of how much the
 // pit depends on price and on time, not a mine plan or a valuation. Maths in lib/pitShell.js runPitSeries; every number is the
 // user's (#264: no price, rate or discount is assumed).
+import { unsampledWord } from "../lib/holeType.js"; // TASKS.csv #3513
 import { nearUnsampledMayBeStale } from "../lib/unsampledFlags.js"; // TASKS.csv #3065
 import React, { useMemo, useRef, useState } from "react";
 import { Layers, Download, Eye, EyeOff } from "./icons.js";
@@ -56,6 +57,7 @@ const sameShells = (runs) => runs.length > 2 && runs.every((r) => Math.abs(r.ore
 
 export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemove, onClose }) {
   const { voxelModels = [], terrain, collars = [], project, layers, survey = [], desurveyMethod } = useStore(); // layers..desurveyMethod: #2597
+  const chips = unsampledWord(collars) === "chips"; // TASKS.csv #3513 — 'unsampled chips' on RC / aircore holes, as the Estimation says it (#3507)
   const models = useMemo(() => { const cat = new Set(categoricalModels(voxelModels)); return voxelModels.filter((m) => gradeCandidate(m, (x) => cat.has(x))); }, [voxelModels]);
   // TASKS.csv #1971 — the shell whose inputs the series takes: picked, the latest by default (a shell of a series is not an inputs' source)
   const pitChoices = useMemo(() => surfaces.filter((s) => s.type === "pit_shell" && s.params?.inputs && !s.params?.seriesId), [surfaces]);
@@ -202,7 +204,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
             if (!(model?.params?.nearUnsampledFlagged || model?.cells?.some((c) => c.nearUnsampled))) return null;
             const largest = [...res.runs].reverse().find((r) => r.oreT > 0), p = largest?.oreNearUnsampledShare || 0;
             if (!(p > 0)) return null;
-            return <><div style={p > 0.2 ? warn : note}>{tr("Largest pit (revenue factor {rf}): {text}", { rf: largest.rf, text: p > 0.2 ? tr("{p} % of this ore is in blocks whose nearest drilling was never sampled: the estimate carried sampled grade across unsampled core, which is unknown, not ore. Drilled metres with no sample can be estimated as barren: 3D Modelling › Estimation, \"Unsampled metres inside a sampled hole\".", { p: Math.round(p * 100) }) : tr("{p} % of the ore is in blocks whose nearest drilling was never sampled.", { p: Math.round(p * 100) }) })}</div>{nearUnsampledMayBeStale(model?.params) && <div style={note}>{tr("This block model was estimated from the checked holes by an earlier version, which counted every unchecked hole as drilling with no sample: some of these flags may be wrong. Estimate it again to refresh them.")}</div>}</>; // #3065
+            return <><div style={p > 0.2 ? warn : note}>{tr("Largest pit (revenue factor {rf}): {text}", { rf: largest.rf, text: p > 0.2 ? tr(chips ? "{p} % of this ore is in blocks whose nearest drilling was never sampled: the estimate carried sampled grade across unsampled chips, which is unknown, not ore. Drilled metres with no sample can be estimated as barren: 3D Modelling › Estimation, \"Unsampled metres inside a sampled hole\"." : "{p} % of this ore is in blocks whose nearest drilling was never sampled: the estimate carried sampled grade across unsampled core, which is unknown, not ore. Drilled metres with no sample can be estimated as barren: 3D Modelling › Estimation, \"Unsampled metres inside a sampled hole\".", { p: Math.round(p * 100) }) : tr("{p} % of the ore is in blocks whose nearest drilling was never sampled.", { p: Math.round(p * 100) }) })}</div>{nearUnsampledMayBeStale(model?.params) && <div style={note}>{tr("This block model was estimated from the checked holes by an earlier version, which counted every unchecked hole as drilling with no sample: some of these flags may be wrong. Estimate it again to refresh them.")}</div>}</>; // #3065
           })()}
           {(() => { // TASKS.csv #2645 — as the Pit shell (#2435): the largest pit's ore in blocks beyond every sample informing them
             if (!(model?.params?.beyondFlagged || model?.cells?.some((c) => c.beyond))) return null;

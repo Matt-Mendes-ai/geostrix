@@ -27,7 +27,8 @@ import { errorNotice } from "../lib/notices.js"; // TASKS.csv #3491
 import { usePlanRecapture, recaptureFields } from "../lib/planRecapture.js"; // TASKS.csv #3491 — Layout asks for a fresh capture at a placed snapshot's size
 import { usePlanGt, showGtOnPlan, gtRadius, gtLegend } from "../lib/planGt.js"; // TASKS.csv #2755
 import { topRasterValueAt } from "../lib/planRasterValue.js"; // TASKS.csv #2853 — the value under the cursor
-import { planLodTiles, tilesInView, tilePixelM, lodSourceKey, tileKey } from "../lib/lodTiles.js"; // TASKS.csv #3252 — detail tiles where the plan looks
+import { planLodTiles, tilesInView, tilePixelM, lodSourceKey, tileKey } from "../lib/lodTiles.js";
+const CAPTURE_MAX_TILES = 600, CAPTURE_WAIT_MS = 20000; // TASKS.csv #3252 phase 4 — Snapshot to Layout's detail tiles (600 x 256 KB in memory at most) // TASKS.csv #3252 — detail tiles where the plan looks
 import { pointTransform, isGeographicCrs } from "../lib/reproject.js";
 import { graticule, graticuleLabel } from "../lib/planGraticule.js"; // TASKS.csv #3466 // TASKS.csv #2998 — longitude / latitude under the cursor
 import { perHoleValuesOf, perHoleFigureAtIntercepts } from "../lib/holeValueGrid.js"; // TASKS.csv #2658; perHoleValuesOf: #2991 (a coded log's values too)
@@ -238,7 +239,8 @@ export default function MapsPlanView() {
       // #3252 — the detail tiles already read, over the fetched picture, coarse to fine, inside the raster's own box
       const L = lodLoader.current;
       if (!L || !r.lod || r.visible === false || !r.bbox) return;
-      const plan = planLodTiles(r, viewBoxL, v.mPerPx);
+      // TASKS.csv #3252 phase 4 — while Snapshot to Layout draws at its finer pixel ratio, the tiles of that pixel (not the screen's)
+      const capFactor = (window.devicePixelRatio || 1) / dpr, plan = planLodTiles(r, viewBoxL, v.mPerPx * capFactor, capFactor < 1 ? { maxTiles: CAPTURE_MAX_TILES } : undefined);
       if (!plan) return;
       const src = lodSourceKey(r), base = r.pixelM > 0 ? r.pixelM : plan.root.side / 4096;
       ctx.save();
@@ -455,6 +457,24 @@ export default function MapsPlanView() {
     // 36 megapixels; then back. The drawing is the screen's, scaled (dots, lines and text keep their size on the sheet).
     const want = snapshotRatio(size.w, size.h, window.devicePixelRatio || 1);
     if (want > (window.devicePixelRatio || 1)) { setCaptureDpr(want); for (let i = 0; i < 60 && drawnDpr.current !== want; i++) await new Promise((r) => requestAnimationFrame(r)); }
+    // TASKS.csv #3252 phase 4 (Matt's decision 4) — the imagery's detail tiles at the snapshot's own pixel (its mPerPx over the capture ratio), read
+    // before the picture is taken (at most CAPTURE_WAIT_MS; what is not read by then keeps the coarser tile or the fetched picture)
+    const L = lodLoader.current;
+    if (L && lodRasters.length && want > (window.devicePixelRatio || 1)) {
+      const mpp = (v.mPerPx * (window.devicePixelRatio || 1)) / want, left = v.cx - (size.w / 2) * v.mPerPx, top = v.cy + (size.h / 2) * v.mPerPx;
+      const viewBox = [left, top - size.h * v.mPerPx, left + size.w * v.mPerPx, top], wanted = [];
+      for (const r of lodRasters) { const plan = planLodTiles(r, viewBox, mpp, { maxTiles: CAPTURE_MAX_TILES }); if (plan) wanted.push({ src: lodSourceKey(r), lod: r.lod, tiles: plan.tiles }); }
+      if (wanted.length) {
+        await new Promise((resolve) => {
+          let off = null;
+          const end = setTimeout(() => { off?.(); resolve(); }, CAPTURE_WAIT_MS);
+          off = L.onLodStatus((st) => { if (st.loading === 0) { clearTimeout(end); off?.(); resolve(); } });
+          L.wantLodTiles(wanted, [v.cx, v.cy], () => setTick((t) => t + 1));
+        });
+        setTick((t) => t + 1);
+        for (let i = 0; i < 3; i++) await new Promise((r) => requestAnimationFrame(r));
+      }
+    }
     const src = cv.toDataURL("image/png");
     setCaptureDpr(null);
     if (hadGrid) setShowGrid(true);

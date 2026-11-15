@@ -12,6 +12,7 @@
     "build": "vite build && electron-builder",
     "build:dir": "vite build && electron-builder --dir",
     "build:full": "npm run build:sidecar && npm run build",
+    "build:local": "node scripts/build-local.mjs",
     "preview": "vite preview",
     "test": "node --no-warnings --test \"test/*.test.mjs\"",
     "lint": "eslint . --max-warnings 0"

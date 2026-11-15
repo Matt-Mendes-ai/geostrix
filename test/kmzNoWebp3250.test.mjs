@@ -19,7 +19,7 @@ test("the export converts raster, colour-bar and section pictures, and never wri
   assert.match(src, /const m = \/\^data:image\\\/\(png\|jpe\?g\);base64,\(\.\*\)\$\/i/, "dataUrlBytes refuses webp");
   assert.match(src, /r\?\.dataUrl, r\?\.legendImage\?\.dataUrl/);
   assert.match(src, /store\.sectionImages \|\| \[\]\)\.map\(\(im\) => im\?\.dataUrl\)/);
-  assert.match(src, /const img = dataUrlBytes\(asKmz\(r\.dataUrl\)\);/);
+  assert.match(src, /const img = dataUrlBytes\((?:finer\.get\(r\.id\) \|\| )?asKmz\(r\.dataUrl\)\);/ /* #3252 phase 4: a finer picture when one was composed */);
   assert.match(src, /imageBytes: \(u\) => dataUrlBytes\(asKmz\(u\)\)/);
   assert.match(src, /cv\.toDataURL\("image\/png"\)/);
 });
