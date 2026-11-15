@@ -16,6 +16,8 @@ export function normalizeHoleType(raw) {
   if (!s) return null;
   const t = s.replace(/[\s_-]+/g, "");
   if (/^(RC\/?DD|RCD|RCDD|RC\+DD|RCDDH|RC\/DDH|RCDT)$/.test(t)) return "RC + diamond tail";
+  // TASKS.csv #3538 (Fireweed rehearsal) — UDDH / UGDD: an underground diamond hole (the ones that go up and sideways) is named as that, not left as a code
+  if (/^(UDDH|UDD|UGDD|UGDDH|UGD|UGDIAMOND|UNDERGROUNDDIAMOND|UNDERGROUNDDDH)$/.test(t)) return "Diamond, underground";
   if (/^(DD|DDH|D|DIAMOND|DIA|CORE|NQ\d?|HQ\d?|PQ\d?|BQ|DDT|DDHW|DDW)$/.test(t)) return "Diamond (DD)";
   if (/^(RC|GCRC|RCGC|REVERSECIRCULATION|RCP|RCH)$/.test(t)) return "Reverse circulation (RC)"; // in full like the others: #2488
   if (/^(RCAC|ACRC)$/.test(t)) return "RC / aircore";

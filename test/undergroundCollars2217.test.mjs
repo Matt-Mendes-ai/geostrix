@@ -8,7 +8,7 @@ const surface = Array.from({ length: 30 }, (_, i) => ({ hole_id: `S${i}`, x: 100
 
 test("a surface program is not underground", () => {
   const r = collarsLookUnderground(surface, surface.map((c) => ({ hole_id: c.hole_id, depth: 0, dip: 60 })));
-  assert.deepEqual(r, { underground: false, upward: 0, stacked: 0 });
+  assert.deepEqual(r, { underground: false, upward: 0, stacked: 0, typed: 0 }); // typed: #3551, the collars set aside by their hole type
 });
 
 test("upward holes (collar or survey dip below 0) or collars stacked on levels make it underground", () => {

@@ -56,7 +56,8 @@ import { unreadableFormatAdvice } from "../../lib/unreadableFormats.js"; // TASK
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { layerOverlapOf } from "../../lib/viewer/layerOverlap.js"; // #1649
 import { requestModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #917; useModuleAction: #2019
-import { autoExtraFields, companionLayer, surveyMethodFields, columnsLeftOut, suscInstrumentFields } from "../../lib/viewer/autoExtras.js"; // suscInstrumentFields: #2668 // TASKS.csv #1501; surveyMethodFields: #2187
+import { densityNote } from "../../lib/densityNote.js"; // TASKS.csv #3529
+import { autoExtraFields, companionLayer, surveyMethodFields, columnsLeftOut, suscInstrumentFields, dialogExtraFields } from "../../lib/viewer/autoExtras.js"; // suscInstrumentFields: #2668 // TASKS.csv #1501; surveyMethodFields: #2187
 import { surfaceAttrColumns, surfaceAttrs } from "../../lib/geochemColumns.js"; // TASKS.csv #1504 — unmapped collar columns kept as attrs; #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 import { rasterDrapeElevation, drapeElevationNote, planElevation } from "../../lib/drapeElevation.js"; // TASKS.csv #1505; planElevation: #2294
 import { projectTargetEpsg } from "../../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
@@ -85,11 +86,14 @@ function customOverlapText(rows) {
   return o.n ? " " + tr("{n} of the {total} interval(s) overlap another of the same hole, in {holes} hole(s): Data QC lists them.", { n: o.n.toLocaleString(), total: o.total.toLocaleString(), holes: o.holes }) : "";
 }
 
+// TASKS.csv #3535 — ids of the holes a collar file of a multi-file drop left without a survey while more files were queued (see reportDeferredAssumed)
+const deferredAssumed = new Set();
 export function makeImportPipeline(ctx, h) {
   const { viewerUiState, addVoxelModel, fillCodeDictionary, recordImportLeftOut, storeAssays, layerPicker, setLayerPicker, batchRowsRef, commitBusyRef, importQueueRef, importQueueTotalRef, importActiveRef, assayHandoffRef, surfaceHandoffRef, queueLogRef, sampleLoading, setSampleLoading } = h;
   const {
     addBoundary,
     addRaster,
+    buildDefer, // TASKS.csv #3544 — the queue holds the drillhole build until its end
     collars,
     goToModule,
     importModal,
@@ -186,7 +190,7 @@ export function makeImportPipeline(ctx, h) {
       const mapping0 = azColFor(target, headers, data, ll ? ll.mapping : guessMapping(target, headers)); // #426; #2015
       const codeGuess = codeColumnGuess(target, headers, data, mapping0), mapping = codeGuess ? { ...mapping0, value: codeGuess.col } : mapping0; // #2889 — no name matched: the file's one code column, said as a guess
       const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
-      setImportModal({ ...(codeGuess ? { valueGuess: codeGuess } : {}), ...azRefFor(target, headers, data), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : target === "magsusc" ? { customFields: suscInstrumentFields(headers, data) } /* #2668 */ : {}) /* #2187 */, file, fileName: file.name, headers, rowCount: meta?.logTable ? meta.logTable.n : data.length, sampleRows: data.slice(0, 5), allRows: data, ...(meta?.logTable ? { logTable: meta.logTable } : {}) /* #3038 */, target, mapping, ...(forceTarget ? {} : guardGuess(target, mapping, headers, data, file.name)), ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */, perRowEpsgCol, sourceEpsg: ll ? ll.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
+      setImportModal({ ...(codeGuess ? { valueGuess: codeGuess } : {}), ...azRefFor(target, headers, data), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : target === "magsusc" ? { customFields: suscInstrumentFields(headers, data) } /* #2668 */ : dialogExtraFields(target, headers, data, mapping, [perRowEpsgCol]) /* #3525 */) /* #2187 */, file, fileName: file.name, headers, rowCount: meta?.logTable ? meta.logTable.n : data.length, sampleRows: data.slice(0, 5), allRows: data, ...(meta?.logTable ? { logTable: meta.logTable } : {}) /* #3038 */, target, mapping, ...(forceTarget ? {} : guardGuess(target, mapping, headers, data, file.name)), ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */, perRowEpsgCol, sourceEpsg: ll ? ll.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
     }, chosenLayer);
   };
@@ -275,7 +279,7 @@ export function makeImportPipeline(ctx, h) {
     const mapping0 = azColFor(target, headers, rows, ll ? ll.mapping : guessMapping(target, headers)); // #426; #2015
     const codeGuess = codeColumnGuess(target, headers, rows, mapping0), mapping = codeGuess ? { ...mapping0, value: codeGuess.col } : mapping0; // #2889
     const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
-    setImportModal({ dbSource, ...(codeGuess ? { valueGuess: codeGuess } : {}), ...azRefFor(target, headers, rows), fileName: sourceName, headers, rowCount: rows.length, sampleRows: rows.slice(0, 5), allRows: rows, target, mapping, ...guardGuess(target, mapping, headers, rows, sourceName), ...dipConventionFields(rows, dipColOf(target, mapping)) /* #2886 */, perRowEpsgCol, ...(ll ? { sourceEpsg: ll.sourceEpsg } : {}) });
+    setImportModal({ dbSource, ...(codeGuess ? { valueGuess: codeGuess } : {}), ...dialogExtraFields(target, headers, rows, mapping, [perRowEpsgCol]) /* #3525 */, ...azRefFor(target, headers, rows), fileName: sourceName, headers, rowCount: rows.length, sampleRows: rows.slice(0, 5), allRows: rows, target, mapping, ...guardGuess(target, mapping, headers, rows, sourceName), ...dipConventionFields(rows, dipColOf(target, mapping)) /* #2886 */, perRowEpsgCol, ...(ll ? { sourceEpsg: ll.sourceEpsg } : {}) });
     setDbModalOpen(false);
   };
 
@@ -603,14 +607,15 @@ export function makeImportPipeline(ctx, h) {
           if (!groups.has(key)) groups.set(key, []);
           groups.get(key).push(r);
         });
-        let reprojectedCount = 0, unreprojectedCount = 0, turned = 0, maxTurn = 0;
+        let reprojectedCount = 0, unreprojectedCount = 0, alreadyCount = 0, turned = 0, maxTurn = 0; // alreadyCount: #3535
         const okEpsgs = [], badEpsgs = [];
         // TASKS.csv #490 — a grid azimuth is relative to the SOURCE grid's north; turn it with the convergence
         // difference (true / magnetic azimuths are converted from the project-CRS location further down).
         const gridAz = !azimuthRef || azimuthRef === "grid";
         for (const [rowEpsgKey, groupRows] of groups) {
           const fromEpsg = rowEpsgKey || srcEpsg;
-          if (!fromEpsg || Number(fromEpsg) === Number(toEpsg)) { unreprojectedCount += groupRows.length; continue; }
+          if (fromEpsg && Number(fromEpsg) === Number(toEpsg)) { alreadyCount += groupRows.length; continue; } // #3535 — declared, and the project's own
+          if (!fromEpsg) { unreprojectedCount += groupRows.length; continue; }
           let groupFailed = 0;
           const T = gridAz ? pointTransform(fromEpsg, toEpsg) : null;
           groupRows.forEach((r) => {
@@ -630,7 +635,8 @@ export function makeImportPipeline(ctx, h) {
         }
         const parts = [];
         if (reprojectedCount) parts.push(tr("reprojected {reprojectedCount} row(s) from EPSG:{okEpsgs} to the project's EPSG:{toEpsg}", { reprojectedCount, okEpsgs: okEpsgs.join("/"), toEpsg }));
-        if (unreprojectedCount) parts.push(tr("left {unreprojectedCount} row(s) unchanged{v}", { unreprojectedCount, v: badEpsgs.length ? tr(" (unrecognized EPSG:{badEpsgs})", { badEpsgs: badEpsgs.join("/") }) : tr(" (already the project CRS, or no source CRS given)") }));
+        if (alreadyCount) parts.push(tr("{n} row(s) have coordinates already in the project CRS (EPSG:{epsg}), so they were not changed", { n: alreadyCount, epsg: toEpsg })); // #3535
+        if (unreprojectedCount) parts.push(tr("left {unreprojectedCount} row(s) unchanged{v}", { unreprojectedCount, v: badEpsgs.length ? tr(" (unrecognized EPSG:{badEpsgs})", { badEpsgs: badEpsgs.join("/") }) : tr(" (no source CRS given)") }));
         if (turned) parts.push(tr("turned {turned} grid azimuth(s) to the project grid (up to {maxTurn}°)", { turned, maxTurn: maxTurn.toFixed(2) }));
         reprojectNote = parts.length ? tr(" On import: {parts}.", { parts: parts.join("; ") }) : "";
       }
@@ -695,8 +701,12 @@ export function makeImportPipeline(ctx, h) {
       // ("Holes: 544") and never drawn, and this notice did not say so. They are now drawn as assumed vertical holes; say it here.
       const surveyedHoles = new Set((importStateRef.current.survey || []).map((sv) => sv.hole_id));
       const assumedVertical = applied.filter((c) => !surveyedHoles.has(c.hole_id) && holeAttitudeAssumed(c, []));
-      if (assumedVertical.length) parts.push(tr("{n} hole(s) have no azimuth / dip and no survey: drawn as ASSUMED vertical holes (a collar marker and a dashed stick of the hole length), flagged in Data QC", { n: assumedVertical.length }));
-      if (!surveyedHoles.size && assumedVertical.length < applied.length) parts.push(tr("no survey loaded, so each hole is drawn straight from its collar azimuth, dip and length")); // #1504
+      // TASKS.csv #3535 — the survey of the same drop (a sample's four files, collars first) is not in yet: the 'no survey' lines would describe a half-loaded project and stay in the
+      // list after the survey arrives. While files of this drop are still queued, the check waits for the end of the queue (deferredAssumed -> reportDeferredAssumed)
+      const moreToCome = !!batchRowsRef.current && importQueueRef.current.length > 0;
+      if (moreToCome) assumedVertical.forEach((c) => deferredAssumed.add(c.hole_id));
+      if (assumedVertical.length && !moreToCome) parts.push(tr("{n} hole(s) have no azimuth / dip and no survey: drawn as ASSUMED vertical holes (a collar marker and a dashed stick of the hole length), flagged in Data QC", { n: assumedVertical.length }));
+      if (!surveyedHoles.size && assumedVertical.length < applied.length && !moreToCome) parts.push(tr("no survey loaded, so each hole is drawn straight from its collar azimuth, dip and length")); // #1504
       { // TASKS.csv #2169 — said in the notice, with how each was placed
         const zc = zFill.counts, how = [];
         if (zc.terrain) how.push(tr("{n} on the terrain", { n: zc.terrain }));
@@ -936,6 +946,7 @@ export function makeImportPipeline(ctx, h) {
         if (msg) setNotices((p) => [...p, msg]);
       }).catch(() => {});
       setNotices((p) => [...p, tr("Loaded {rows} rows into {label} from {fileName}.", { rows: rows.length, label: LAYER_META[target].label, fileName })
+        + (target === "sg" ? densityNote(rows, customFields, tr).replace(/^(?=.)/, " ") : "") /* #3529 — this layer is the density the tonnes use, in t/m³ */
         + (recCalc ? " " + (recCalc.loss // #2891 — said: the file had no percentage
           ? tr("Recovery % computed from {loss} and {run}: (run − loss) / run × 100.", { loss: recCalc.loss, run: recCalc.drilled || tr("To − From") })
           : tr("Recovery % computed from {rec} and {run}: recovered / run × 100.", { rec: recCalc.recovered, run: recCalc.drilled || tr("To − From") })) : "")
@@ -1095,10 +1106,23 @@ export function makeImportPipeline(ctx, h) {
     setNotices((p) => [...p, notice("{n} files dropped: {parts}.", { n: log.length, parts: parts.join("; ") }),
       ...(of("geochem").length ? [notice("The Geochem tab opens next, for the assay file(s).")] : [])]);
   };
+  // TASKS.csv #3535 — the holes a collar file of a multi-file drop left without a survey, checked once the whole drop is in (after the stores have taken the last file)
+  const reportDeferredAssumed = () => {
+    if (!deferredAssumed.size) return;
+    const ids = [...deferredAssumed]; deferredAssumed.clear();
+    setTimeout(() => {
+      const live = importStateRef.current, surveyed = new Set((live.survey || []).map((sv) => sv.hole_id)), byId = new Map((live.collars || []).map((c) => [c.hole_id, c]));
+      const still = ids.filter((id) => byId.has(id) && !surveyed.has(id) && holeAttitudeAssumed(byId.get(id), []));
+      if (still.length) setNotices((p) => [...p, tr("{n} hole(s) have no azimuth / dip and no survey: drawn as ASSUMED vertical holes (a collar marker and a dashed stick of the hole length), flagged in Data QC", { n: still.length })]);
+    }, 150);
+  };
   const processImportQueue = () => { // #3159 split: a plain function here; the hook keeps the useCallback
     const file = importQueueRef.current.shift();
-    if (!file) { importActiveRef.current = false; batchRowsRef.current = null; busyUntilQuiet(setTaskProgress, tr("Drawing the imported data…")) /* #3539: until the builds the commits started are done (was cleared at once) */; importQueueTotalRef.current = 0; queueSummary(); /* #3071 */ handOverAssays(); return; } // #1350
+    if (!file) { importActiveRef.current = false; batchRowsRef.current = null; buildDefer?.release?.() /* #3544: the held build runs once */; busyUntilQuiet(setTaskProgress, tr("Drawing the imported data…")) /* #3539: until the builds the commits started are done (was cleared at once) */; importQueueTotalRef.current = 0; queueSummary(); /* #3071 */ handOverAssays(); reportDeferredAssumed(); return; } // #1350; #3535
     const total = importQueueTotalRef.current || importQueueRef.current.length + 1;
+    // TASKS.csv #3544 — a drop of two or more files: the 3D View builds once, after the last (it was built after each commit: on the Macpass
+    // sample five builds, every hole desurveyed twice). A single file builds at once, as before. Each file restarts the hold's 30 s guard.
+    if (total > 1) buildDefer?.hold?.();
     const doneCount = total - importQueueRef.current.length; // this file counts as "now processing"
     setTaskProgress?.({ label: `Importing files (${doneCount}/${total}): ${file.name}`, pct: Math.round((doneCount / total) * 100) });
     parseVectorFile(file, (data, err, meta) => {
@@ -1143,14 +1167,14 @@ export function makeImportPipeline(ctx, h) {
       // them: a queued shapefile used to be committed with no Source CRS, so its collars stayed in their own UTM
       // zone's numbers inside a project in another zone (~400 km from the same drop's reprojected map layers).
       // TASKS.csv #2899 — a queued survey gets the same pre-added instrument / method field as one dropped alone (#2187)
-      const modalData = { ...(codeGuess ? { valueGuess: codeGuess } : {}), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : target === "magsusc" ? { customFields: suscInstrumentFields(headers, data) } /* #2668 */ : {}), ...azRefFor(target, headers, data), file, fileName: file.name, headers, rowCount: meta?.logTable ? meta.logTable.n : data.length, sampleRows: data.slice(0, 5), allRows: data, ...(meta?.logTable ? { logTable: meta.logTable } : {}) /* #3038 */, target, mapping, ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */,
+      const modalData = { ...(codeGuess ? { valueGuess: codeGuess } : {}), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : target === "magsusc" ? { customFields: suscInstrumentFields(headers, data) } /* #2668 */ : dialogExtraFields(target, headers, data, mapping, [guessColumn(headers, EPSG_COL_ALIASES)]) /* #3525 */), ...azRefFor(target, headers, data), file, fileName: file.name, headers, rowCount: meta?.logTable ? meta.logTable.n : data.length, sampleRows: data.slice(0, 5), allRows: data, ...(meta?.logTable ? { logTable: meta.logTable } : {}) /* #3038 */, target, mapping, ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */,
         sourceEpsg: queueLl ? queueLl.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "", perRowEpsgCol: guessColumn(headers, EPSG_COL_ALIASES), ...guarded };
       if (confident) {
         // TASKS.csv #1501 — a log's other columns as extra fields, and a Geotech table's Recovery % as that layer too (collars keep
         // theirs as attrs, #1504; a survey has no others worth keeping)
         const comp = companionLayer(target, headers);
         const extras = target === "collars" ? [] : target === "survey" ? surveyMethodFields(headers, data) /* #2187 */ : autoExtraFields(headers, data, mapping, { exclude: [modalData.perRowEpsgCol, comp?.column].filter(Boolean) });
-        askCrsForCollars(modalData).then(() => {
+        askCrsForCollars(modalData).then(() => new Promise((r) => setTimeout(r, 0)) /* #3544 (C1): the commit in its own task, not the parse's */).then(() => {
           logQueue(file.name, "imported"); // #3071
           commitImportData({ ...modalData, customFields: extras, unseen: true }); // #615; unseen: #715 — no dialog, so its defaults are assumptions
           if (comp) commitImportData({ ...modalData, target: comp.target, mapping: { ...mapping, value: comp.column }, customFields: [], unseen: true });

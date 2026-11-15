@@ -125,6 +125,8 @@ import { lidarResultToProject, CLASS_NAMES } from "../lib/lidar.js"; // TASKS.cs
 import { fillNoData } from "../lib/demFill.js"; // TASKS.csv #1994
 import { offersGradeTonnage } from "../lib/gradeTonnage.js"; // TASKS.csv #1592
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2263
+import { undergroundCollars } from "../lib/collarGround.js"; // TASKS.csv #3551
+import { undergroundCollarsText } from "../lib/collarLevelsText.js"; // TASKS.csv #3551
 import { collarBenches, pickBenchGround, surfaceMisfit, BENCH_DZ_M, BENCH_R_M } from "../lib/collarBenches.js"; // TASKS.csv #2589
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 import { pointsAlongOneLine, surveyLabel } from "../lib/rasterMethod.js"; // TASKS.csv #2557; surveyLabel: #2559
@@ -729,13 +731,19 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // are plainly outside Canada (its bounding box, with a degree to spare)
   const outsideCanada = useMemo(() => { const at = project?.crsSet !== false && project?.epsg ? collarCentreLonLat(collars, project.epsg) : null; return !!at && !(at.lat > 40.5 && at.lat < 84 && at.lon > -142 && at.lon < -51); }, [collars, project?.epsg, project?.crsSet]);
   // TASKS.csv #2589 — collars stacked at one spot at different RLs (pit benches of different dates): which ground the terrain takes
-  const benches = useMemo(() => collarBenches(projectZPoints.collarPts), [projectZPoints]);
+  // TASKS.csv #3551 (Fireweed rehearsal, Macpass) — the collars drilled from underground (by hole type, starting upward, or a flat-drilled
+  // station far under a collar nearby: collarGround.js undergroundCollars) are not the ground. 80 UDDH collars of 559 took the surface 163.6 m
+  // down to TU078 with no word, as the per-project check (#2263) stays quiet at 1.8 % upward holes. Left out unless 'Underground collars' keeps them.
+  const ugCollars = useMemo(() => undergroundCollars(collars, survey), [collars, survey]);
+  const [ugMode, setUgMode] = useState("out");
+  const groundCollarPts = useMemo(() => (ugMode === "out" && ugCollars.ids.size ? projectZPoints.collarPts.filter((p) => !ugCollars.ids.has(p.hole_id)) : projectZPoints.collarPts), [projectZPoints, ugCollars, ugMode]);
+  const benches = useMemo(() => collarBenches(groundCollarPts), [groundCollarPts]); // #3551: of the collars that can be ground
   // TASKS.csv #3381 (#3195, Galore Creek) — the samples' heights (hand-held GPS, often) went into the ground beside the surveyed collars without
   // asking: with both, which of them the terrain is built from is a choice (both, the default as before; collars only; samples only)
   const [zSource, setZSource] = useState("both");
   const zBoth = projectZPoints.samples > 0 && projectZPoints.collars > 0;
   const zUse = zBoth ? zSource : "both";
-  const zCount = (zUse === "collars" ? 0 : projectZPoints.samples) + (zUse === "samples" ? 0 : projectZPoints.collars);
+  const zCount = (zUse === "collars" ? 0 : projectZPoints.samples) + (zUse === "samples" ? 0 : groundCollarPts.length); // #3551
   const [benchMode, setBenchMode] = useState("all");
   // TASKS.csv #3338 — how far from a sample or collar the project's terrain draws ground: "" = auto (lib/terrainFromPoints.js REACH_*), else metres
   const [reachText, setReachText] = useState("");
@@ -750,7 +758,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     setTerrainError(null);
     setTerrainBusy(true);
     try {
-      const { samplePts: allSamplePts, collarPts: allCollarPts } = projectZPoints;
+      const { samplePts: allSamplePts } = projectZPoints, allCollarPts = groundCollarPts; // #3551 — without the underground collars unless kept
       const areaBox = projAreaBox(projArea, project?.epsg); // #3095 — the drawn area in project coordinates
       const inArea = (p) => !areaBox || (p.x >= areaBox[0] && p.x <= areaBox[2] && p.y >= areaBox[1] && p.y <= areaBox[3]);
       const samplePts = zUse === "collars" ? [] : allSamplePts.filter(inArea), collarPts = zUse === "samples" ? [] : allCollarPts.filter(inArea), samples = samplePts.length; // #3381; #3095
@@ -759,12 +767,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const benchNote = !benches.n ? ""
         : benchMode === "lowest" ? tr("Where collars stack at one spot, the lowest was kept ({n} higher collar(s) left out): the surface is the latest pit floor there, not the original topography.", { n: picked.dropped.toLocaleString() })
         : benchMode === "highest" ? tr("Where collars stack at one spot, the highest was kept ({n} lower collar(s) left out): the surface is the nearest to the original ground there, and the pit floor is not in it.", { n: picked.dropped.toLocaleString() })
-        : tr("{n} collars share a spot (within {r} m) with a collar {dz} m or more higher or lower, in {spots} place(s), up to {max} m apart: benches drilled at different dates? The surface through all of them is a mined surface there, not the topography; 'Where collars stack' can keep the lowest or the highest.", { n: benches.n.toLocaleString(), r: BENCH_R_M, dz: BENCH_DZ_M, spots: benches.spots.toLocaleString(), max: benches.maxDz.toFixed(1) });
+        : tr("{n} collars share a spot (within {r} m) with a collar {dz} m or more higher or lower, in {spots} place(s), up to {max} m apart: pit benches or mine levels? The surface through all of them is not the topography there; 'Where collars stack' can keep the lowest or the highest." /* #3551: no pit assumed */, { n: benches.n.toLocaleString(), r: BENCH_R_M, dz: BENCH_DZ_M, spots: benches.spots.toLocaleString(), max: benches.maxDz.toFixed(1) });
       // TASKS.csv #2263 (review #2174) — collars drilled from underground levels make a surface through the mine, not the ground (a TIN at
       // RL 102-351 under a surface near 400): ask, and name it for what it is
       const ug = collarsLookUnderground(collars, survey);
       if (ug.underground && !window.confirm(tr("The collars look like underground collars ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): a surface through them runs through the mine levels, not the ground.", { upward: ug.upward, stacked: ug.stacked }) + "\n\n" + tr("OK — build it anyway, named 'Surface through the collars'.") + "\n" + tr("Cancel — don't build it (import a DEM or fetch SRTM for the real ground)."))) return;
-      await finishPointsTerrain({ points, lines: [], what: tr("{s} surface sample(s) and {c} collar(s) of this project", { s: samples, c: nc }), name: ug.underground ? "Surface through the collars" : zUse === "collars" ? "Terrain from collars" : zUse === "samples" ? "Terrain from samples" : "Terrain from samples and collars" /* the source in the name: #3381 */, sourceFile: "project surface samples and collars", reprojected: false, misfitAt: picked.points, benchNote, leftOutNote: collarsOutNote(projectZPoints.collarsOut), spacingFit: true, reach: Number(reachText) > 0 ? Number(reachText) : "auto" /* #3338 */ }); // name: #2263; misfitAt, benchNote: #2589; leftOutNote: #2987; spacingFit: #3036
+      await finishPointsTerrain({ points, lines: [], what: tr("{s} surface sample(s) and {c} collar(s) of this project", { s: samples, c: nc }), name: ug.underground ? "Surface through the collars" : zUse === "collars" ? "Terrain from collars" : zUse === "samples" ? "Terrain from samples" : "Terrain from samples and collars" /* the source in the name: #3381 */, sourceFile: "project surface samples and collars", reprojected: false, misfitAt: picked.points, benchNote, leftOutNote: [collarsOutNote(projectZPoints.collarsOut), ugCollars.ids.size ? `${undergroundCollarsText(ugCollars)} ${ugMode === "out" ? tr("They were left out of the terrain; 'Underground collars' can keep them.") : tr("They were kept in the terrain, as chosen under 'Underground collars'.")}` : ""].filter(Boolean).join(" ") /* #3551 */, spacingFit: true, reach: Number(reachText) > 0 ? Number(reachText) : "auto" /* #3338 */ }); // name: #2263; misfitAt, benchNote: #2589; leftOutNote: #2987; spacingFit: #3036
     } catch (err) {
       setTerrainError({ info: false, text: err.message });
     } finally {
@@ -2696,6 +2704,16 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           </label>
         )}
         {projectZPoints.collarsOut.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{collarsOutNote(projectZPoints.collarsOut)}</div>}{/* TASKS.csv #2987 */}
+        {projectZPoints.points.length >= 3 && ugCollars.ids.size > 0 && ( /* TASKS.csv #3551 */
+          <label style={{ display: "block", marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.4 }}
+            title={undergroundCollarsText(ugCollars)}>
+            {tr("Underground collars ({n}: by hole type, starting upward, or far under a collar nearby)", { n: ugCollars.ids.size.toLocaleString() })}
+            <select value={ugMode} onChange={(e) => setUgMode(e.target.value)} style={{ ...numInput, width: "100%", marginTop: 3 }}>
+              <option value="out">{tr("Leave them out of the ground")}</option>
+              <option value="keep">{tr("Keep them all")}</option>
+            </select>
+          </label>
+        )}
         {projectZPoints.points.length >= 3 && benches.n > 0 && ( /* TASKS.csv #2589 */
           <label style={{ display: "block", marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.4 }}>
             {tr("Where collars stack ({n} collars share a spot with one {dz} m or more higher or lower, up to {max} m)", { n: benches.n.toLocaleString(), dz: BENCH_DZ_M, max: benches.maxDz.toFixed(1) })}

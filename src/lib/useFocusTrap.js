@@ -67,7 +67,11 @@ export function useFocusTrap(enabled = true) {
       const dialog = topDialog();
       if (!dialog) return;
       const focusables = visibleFocusables(dialog);
-      (focusables[0] || dialog).focus?.();
+      // TASKS.csv #3533 — focus opened on the Close (x), so Enter cancelled an import whose guesses were right. A control marked data-autofocus (the primary
+      // button) takes it; else the first control that is not the Close icon or a "?" help button; else the first, as before
+      const mark = dialog.querySelector("[data-autofocus]:not([disabled])");
+      const first = mark && mark.offsetParent !== null ? mark : focusables.find((el) => el.tagName.toLowerCase() !== "svg" && !el.classList?.contains("ge-pane-help"));
+      (first || focusables[0] || dialog).focus?.();
     });
     const handler = (e) => {
       if (e.key !== "Tab") return;

@@ -107,6 +107,6 @@ test("wired: the id reaches the extras loader, the Sample menu and every languag
   assert.match(read("../electron/main.js"), /"sample:yk_macpass"/);
   for (const lang of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(fs.readFileSync(new URL(`../src/locales/${lang}.json`, import.meta.url), "utf8"));
-    for (const k of ["Sample: Macpass zinc-lead-silver (Yukon; 559 holes, 32,546 assays)", "Macpass (Fireweed Metals Corp., Yukon): 559 holes drilled 1952-2023 on a zinc-lead-silver prospect, with down-hole surveys, 32,546 sampled intervals (Ag, Pb, Zn) and their bulk density — nothing synthesized."]) assert.ok(d[k], `${lang}: ${k.slice(0, 40)}`);
+    for (const k of ["Sample: Macpass zinc-lead-silver (Yukon; 559 holes, 32,546 assays)", "Macpass (Fireweed Metals Corp., Yukon): 559 holes drilled 1952-2023 on the Macpass project, with down-hole surveys, 32,546 sampled intervals (Ag, Pb, Zn) and 32,498 bulk densities — nothing synthesized."]) assert.ok(d[k], `${lang}: ${k.slice(0, 40)}`);
   }
 });

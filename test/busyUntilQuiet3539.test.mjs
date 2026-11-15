@@ -51,7 +51,7 @@ test("whenQuiet resolves after the quiet time, and by maxMs at the latest", asyn
 
 test("wiring: the import queue's end and the sample extras keep a label until quiet", () => {
   const imp = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
-  assert.match(imp, /if \(!file\) \{ importActiveRef\.current = false; batchRowsRef\.current = null; busyUntilQuiet\(setTaskProgress, tr\("Drawing the imported data…"\)\)/);
+  assert.match(imp, /if \(!file\) \{ importActiveRef\.current = false; batchRowsRef\.current = null; buildDefer\?\.release\?\.\(\) \/\* #3544: the held build runs once \*\/; busyUntilQuiet\(setTaskProgress, tr\("Drawing the imported data…"\)\)/);
   const wa = readFileSync(new URL("../src/lib/sampleWa.js", import.meta.url), "utf8");
   assert.match(wa, /const label = tr\("Loading the \{name\} sample's assays and extras…", \{ name: S\.label \}\);/);
   assert.match(wa, /await whenQuiet\(\); \/\/ then it goes/);

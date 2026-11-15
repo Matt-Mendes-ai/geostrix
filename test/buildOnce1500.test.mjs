@@ -19,7 +19,7 @@ test("the viewer marks in the UI-state restore and the custom-layer restore, and
   const s = viewerSource().replace(/\r\n/g, "\n");
   assert.match(s, /lastHydratedSeq\.current = viewerUiStateSeq;\n {4}buildDefer\.mark\(\);/);
   assert.match(s, /if \(!missing\.length\) \{ if \(fresh && drop\.length\) setCustomLayers\(\[\]\); return; \}\n {4}buildDefer\.mark\(\);/ /* #2361: a project change with nothing to build clears the list */);
-  assert.match(s, /if \(!groups\.litho \|\| buildDefer\.skip\(\)\) return;/);
+  assert.match(s, /if \(!groups\.litho \|\| buildDefer\.skip\(\) \|\| buildDefer\.held\?\.\(\)\) return;/ /* held: #3544 */);
   // the effects that mark are declared before the build effect, so they run before it in a commit
   assert.ok(s.indexOf("buildDefer.mark();") < s.indexOf("buildDefer.skip()"));
   assert.ok(s.lastIndexOf("buildDefer.mark();") < s.indexOf("buildDefer.skip()"));

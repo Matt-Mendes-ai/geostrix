@@ -27,7 +27,7 @@ test("a line the card's layer already names stays 'Value'; a long name too; the 
   assert.deepEqual(f.find(([k]) => k === "Value"), ["Value", "2.708 t/m³"]);
 });
 
-test("wiring: the scene's numeric tooltips add the layer's unit", () => {
+test("wiring: the scene's numeric tooltips add the layer's unit (side 3's #3529 form, the same text)", () => {
   const s = readFileSync(new URL("../src/modules/viewer/drillholeScene.js", import.meta.url), "utf8");
-  assert.equal((s.match(/\$\{meta\.numeric \? `\$\{row\.value\}\$\{meta\.unit \? ` \$\{meta\.unit\}` : ""\}` \/\* unit: #3536 \*\/ : effectiveLabel\(groupKey, row\.value\)\}/g) || []).length, 2);
+  assert.equal((s.match(/\$\{meta\.numeric \? row\.value \+ \(meta\.unit \? " " \+ meta\.unit : ""\) \/\* #3529 \*\/ : effectiveLabel\(groupKey, row\.value\)\}/g) || []).length, 2);
 });
