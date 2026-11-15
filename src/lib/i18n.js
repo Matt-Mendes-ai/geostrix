@@ -28,6 +28,15 @@ export function savedLanguage() {
 const loaders = { es: () => import("../locales/es.json"), pt: () => import("../locales/pt.json"), fr: () => import("../locales/fr.json"), ar: () => import("../locales/ar.json") };
 export const RTL = new Set(["ar"]); // written right to left: the page gets dir="rtl"
 
+// TASKS.csv #3625 (Fireweed rehearsal) — numbers in the interface language's format: a Brazilian or French reader read 'n 32,426' as 32.4. fmtNum(n, options) is the one explicit formatter for a number SHOWN
+// to the user in the interface: es 32.426, pt-BR 32.426, fr 32 426, ar Western digits (the rehearsal read them as right); English keeps the system's format. It is never used by a file writer (CSV, KMZ,
+// DXF, report, SQL, clipboard): those keep their fixed format, and a bare toLocaleString() is NOT changed (an earlier global wrap of it was withdrawn: it would have written '1.234,5' into files).
+export const NUMBER_LOCALES = { es: "es", pt: "pt-BR", fr: "fr", ar: "ar-u-nu-latn" };
+export function fmtNum(n, options) {
+  const v = typeof n === "number" ? n : Number(n);
+  return v.toLocaleString(NUMBER_LOCALES[current], options);
+}
+
 // Before the first render: load the dictionary of the saved (or system) language. Never throws: English on any failure.
 export async function initLanguage(code = savedLanguage()) {
   current = loaders[code] ? code : "en";

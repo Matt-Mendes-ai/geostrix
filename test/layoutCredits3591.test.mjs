@@ -43,3 +43,14 @@ test("the starter page, the sheets the app makes and the title block are wired",
   assert.match(m, /stockTemplateElements\(tpl, Date\.now\(\), \{ credit: !!credits \}\)/);
   assert.ok(creditsElement().id === "credits");
 });
+
+// TASKS.csv #3636 — a pre-export check: the pages about to print that carry no {credits} while the project has a credit
+import { pagesWithoutCredit } from "../src/lib/layoutCredits.js";
+test("#3636 pagesWithoutCredit names the pages (the open page by its live elements) and the export asks", async () => {
+  const pages = [{ id: "a", name: "Plan", elements: [] }, { id: "b", name: "Section", elements: [{ type: "text", text: "{credits}" }] }, { id: "c", name: "Log", elements: [{ type: "titleblock", rows: [["Data", "{credits}"]] }] }];
+  assert.deepEqual(pagesWithoutCredit(pages, "z", []), ["Plan"]);
+  assert.deepEqual(pagesWithoutCredit(pages, "a", [{ type: "text", text: "Data: {credits}" }]), []);
+  assert.deepEqual(pagesWithoutCredit(pages, "b", []), ["Plan", "Section"]);
+  const src = (await import("node:fs")).readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  assert.match(src, /if \(creditsRef\.current\) \{\n\s+const toCheck = layoutPrintRequest\.kind === "png"/); assert.match(src, /pagesWithoutCredit\(toCheck, activeLayoutPageId, elements\)/);
+});

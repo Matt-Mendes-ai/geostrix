@@ -167,6 +167,18 @@ function nearestOf(pts, drilled, target = null) {
     const spread = new Map(); let counted = 0;
     if (drilled?.n) for (const p of pts) { if ((p.md ?? 0) < skipMd) continue; counted++; const { best, hole: h } = nearestDrilled(drilled, p); if (h != null) { const r = spread.get(h) || { lo: Infinity, hi: -Infinity, n: 0 }; r.lo = Math.min(r.lo, best); r.hi = Math.max(r.hi, best); r.n++; spread.set(h, r); } if (h != null && (!nearestReal || best < nearestReal.distance)) nearestReal = { hole_id: h, distance: best, md: p.md ?? 0, assumed: !!drilled.assumed?.has(h) }; } // assumed: #2097
     if (nearestReal) { const r = spread.get(nearestReal.hole_id); nearestReal.steady = !!r && r.n >= 0.8 * counted && r.hi - r.lo < 1; }
+    // TASKS.csv #3612 (8) — the check named one nearest hole; a planned hole beside a pad's own hole did not say that the second (34 m away, the pad's own) was there. The next two nearest HOLES, each at its
+    // own closest point (the search again with the holes already named left out), are kept with the first as `also`
+    if (nearestReal && drilled?.n) {
+      const skip = new Set([nearestReal.hole_id]), also = [];
+      for (let k = 0; k < 2; k++) {
+        let best = null;
+        for (const p of pts) { if ((p.md ?? 0) < skipMd) continue; const { best: d, hole: h } = nearestDrilled(drilled, p, skip); if (h != null && (!best || d < best.distance)) best = { hole_id: h, distance: d, md: p.md ?? 0 }; }
+        if (!best) break;
+        also.push(best); skip.add(best.hole_id);
+      }
+      if (also.length) nearestReal.also = also;
+    }
     // TASKS.csv #3336 (review #3195, Galore Creek) — a hole fanned from a shared pad always failed the spacing check: its nearest point was, by
     // construction, one metre past the 50 m left out ('PD23-013 — 12.8 m … at 51 m down this hole' for a hole 123 m from it at the toe). The
     // pad's own holes are now followed down the whole hole (padProfile: the separation at every point of this one), so the pane can say from

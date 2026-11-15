@@ -10,7 +10,7 @@ import { LAYER_META } from "../lib/layers.js";
 import { groupLogByCode, rankLogGroups, shortenCode, shortCodes /* #3442 */, codeTable, ratioComparable, assayIndex, logVsAssayIndexed, logVsModel, NOT_LOGGED, strideSample, SCATTER_MAX, allAboveZero, countAtOrBelowZero, sig3, orderLogSources, logScaleFor } from "../lib/downholeLogs.js"; // logVsModel: #1595; strideSample: #2331; logScaleSuits...: #2558; groupLogByCode / rankLogGroups: #2948
 import { BoxPlots } from "./GradeStatistics.jsx";
 import { smallSel } from "../lib/sidebarStyles.js";
-import { t as tr } from "../lib/i18n.js";
+import { t as tr, fmtNum } from "../lib/i18n.js";
 import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #2394 — the choices survive the pane closing (per project)
 import { useStore } from "../lib/store.jsx";
 import { codeTableCells, codeTableCsv, codeTableText } from "../lib/codeTableCsv.js"; // TASKS.csv #3289
@@ -57,7 +57,7 @@ function Scatter({ pairs = null, xs = null, ys = null, xLabel, yLabel, logX, log
   }, [pairs, xs, ys, logX, logY]);
   if (pts.length < 3) return <div style={note}>{tr("Too few readings above zero for a log-scale plot.")}</div>;
   const sx = (x) => pl + ((x - x0) / ((x1 - x0) || 1)) * (w - pl - pr), sy = (y) => h - pb - ((y - y0) / ((y1 - y0) || 1)) * (h - pb - pt);
-  const lab = (v, log) => (log ? 10 ** v : v).toLocaleString(undefined, { maximumSignificantDigits: log ? 2 : 3 }); // #2558 — 0.000457, not 0
+  const lab = (v, log) => fmtNum((log ? 10 ** v : v), { maximumSignificantDigits: log ? 2 : 3 }); // #2558 — 0.000457, not 0
   return (
     <>
     <svg viewBox={`0 0 ${w} ${h}`} width="100%" role="img" aria-label={tr("{y} against {x}", { x: xLabel, y: yLabel })} style={{ display: "block", background: "#fff", border: "1px solid var(--color-border)", borderRadius: 6 }}>
@@ -74,7 +74,7 @@ function Scatter({ pairs = null, xs = null, ys = null, xLabel, yLabel, logX, log
       <text x={pl - 3} y={pt + 8} fontSize="8" fill="#55606e" textAnchor="end">{lab(y1, logY)}</text>
       <text x={10} y={(pt + h - pb) / 2} fontSize="9" fill="#55606e" textAnchor="middle" transform={`rotate(-90 10 ${(pt + h - pb) / 2})`}>{yLabel}{logY ? ` (${tr("log scale")})` : ""}</text>
     </svg>
-    {drawn.step > 1 && <div style={note}>{tr("{k} of {n} pairs drawn (one in every {s}, and the extremes); the statistics use all of them.", { k: drawn.points.length.toLocaleString(), n: pts.length.toLocaleString(), s: drawn.step })}</div>}
+    {drawn.step > 1 && <div style={note}>{tr("{k} of {n} pairs drawn (one in every {s}, and the extremes); the statistics use all of them.", { k: fmtNum(drawn.points.length), n: fmtNum(pts.length), s: drawn.step })}</div>}
     </>
   );
 }
@@ -110,7 +110,7 @@ function CodeTable({ rows, order, minCount, unit, binned, keptScope }) {
           <tbody>{sorted.map((r, ri) => (
             <tr key={String(r.key)} style={{ color: r.n < minCount ? "var(--color-text-muted)" : "inherit", opacity: r.n < minCount ? 0.7 : 1 }}>
               <td style={{ padding: "1px 4px" }} title={codeLabel(r.key)}>{short[ri]}</td>
-              <td style={{ padding: "1px 4px", textAlign: "right" }} title={binned ? tr("{n} readings", { n: r.readings.toLocaleString() }) : undefined}>{r.n.toLocaleString()}</td>
+              <td style={{ padding: "1px 4px", textAlign: "right" }} title={binned ? tr("{n} readings", { n: fmtNum(r.readings) }) : undefined}>{fmtNum(r.n)}</td>
               {["mean", "median", "p10", "p90"].map((k) => <td key={k} style={{ padding: "1px 4px", textAlign: "right" }}>{fig(r[k])}</td>)}
             </tr>
           ))}</tbody>
@@ -223,7 +223,7 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
     const name = lib.compositeLayerName(source.symbol, customLayers);
     const unit = source.unit && source.unit !== "as logged" ? source.unit : undefined;
     setCustomLayers((p) => [...p, { id: `custom_${Date.now()}`, name, rows: res.rows, ...(unit ? { unit } : {}), binM: "assay", notes: lib.compositeNotes(source.label, res, { despikeM: dataAll.despikeM, outOfRange: dataAll.outOfRange }) }]);
-    say(tr("Added the layer \"{name}\". Assay samples: {s}; readings in them: {r}. Left out: {t} sample(s) under half covered by readings, {u} reading(s) in no sample. Estimation, Grade shell, Geochem X-Y and Statistics can read it.", { name, s: res.samples.toLocaleString(), r: res.readings.toLocaleString(), t: res.thin.toLocaleString(), u: res.unsampled.toLocaleString() }));
+    say(tr("Added the layer \"{name}\". Assay samples: {s}; readings in them: {r}. Left out: {t} sample(s) under half covered by readings, {u} reading(s) in no sample. Estimation, Grade shell, Geochem X-Y and Statistics can read it.", { name, s: fmtNum(res.samples), r: fmtNum(res.readings), t: fmtNum(res.thin), u: fmtNum(res.unsampled) }));
   };
   const logLayer = source?.layerId != null && source.field === "value" ? customLayers.find((c) => c.id === source.layerId) : null;
   const builtinKey = source?.layerKey && source.field === "value" && source.key === `log:${source.layerKey}` ? source.layerKey : null; // #3116 — a built-in log (not one of its extra fields)
@@ -304,7 +304,7 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
           <div style={note}>{tr("Petrophysics from the holes: a log by the logged code at each reading (magnetite destruction shows as a low mag-susc class), and against an assay element reading by reading.")}</div>
           <label style={row}>{tr("Log")}
             <select value={source?.key || ""} onChange={(e) => setSourceKey(e.target.value)} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Downhole log")}>
-              {sources.map((s) => <option key={s.key} value={s.key}>{s.label} ({s.n.toLocaleString()})</option>)}
+              {sources.map((s) => <option key={s.key} value={s.key}>{s.label} ({fmtNum(s.n)})</option>)}
             </select></label>
           {holeChoices.length > 1 && ( /* TASKS.csv #3132 */
             <label style={row}>{tr("Holes")}
@@ -312,8 +312,8 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
                 {holeChoices.map((c) => <option key={c.key} value={c.key}>{c.kind === "all" ? tr("All holes") : c.kind === "checked" ? tr("Holes checked in the 3D View") : tr("Collars inside \"{name}\"", { name: c.name })}</option>)}
               </select></label>
           )}
-          {data?.holeFilter && <div style={note}>{tr("Readings kept: {r} of {t} (holes chosen: {h}; with readings: {k}).", { r: data.holeFilter.readings.toLocaleString(), t: data.holeFilter.of.toLocaleString(), h: data.holeFilter.holes.toLocaleString(), k: data.holeFilter.holesWithReadings.toLocaleString() })}</div>}
-          {data && <div style={note}>{tr(source?.binM === "assay" ? "{n} assay-interval bins, in {u}{v}." /* #3039 */ : source?.binM ? "{n} bins of {b} m, in {u}{v}." : unitOf(source?.unit) ? "{n} readings, in {u}{v}." : "{n} readings, values as logged{v}.", { n: data.assays.length.toLocaleString(), b: source?.binM, u: unitOf(source?.unit) || tr("the layer's own units"), v: data.pointRows ? tr("; {p} depth-only readings are given {s} m of core each", { p: data.pointRows.toLocaleString(), s: data.pointSupport }) : "" })}</div>}
+          {data?.holeFilter && <div style={note}>{tr("Readings kept: {r} of {t} (holes chosen: {h}; with readings: {k}).", { r: fmtNum(data.holeFilter.readings), t: fmtNum(data.holeFilter.of), h: fmtNum(data.holeFilter.holes), k: fmtNum(data.holeFilter.holesWithReadings) })}</div>}
+          {data && <div style={note}>{tr(source?.binM === "assay" ? "{n} assay-interval bins, in {u}{v}." /* #3039 */ : source?.binM ? "{n} bins of {b} m, in {u}{v}." : unitOf(source?.unit) ? "{n} readings, in {u}{v}." : "{n} readings, values as logged{v}.", { n: fmtNum(data.assays.length), b: source?.binM, u: unitOf(source?.unit) || tr("the layer's own units"), v: data.pointRows ? tr("; {p} depth-only readings are given {s} m of core each", { p: fmtNum(data.pointRows), s: data.pointSupport }) : "" })}</div>}
           {logLayer && <LogUnitField layer={logLayer} onSet={(u) => setCustomLayers((p) => p.map((c) => (c.id === logLayer.id ? { ...c, unit: u || undefined } : c)))} />}{/* #2952 */}
           {logLayer && <ValidRangeField range={logLayer.validRange} idKey={logLayer.id} onSet={(r) => setCustomLayers((p) => p.map((c) => (c.id === logLayer.id ? { ...c, validRange: r } : c)))} />}{/* #2953 */}
           {logLayer && <DespikeField value={logLayer.despikeM} idKey={logLayer.id} onSet={(d) => setCustomLayers((p) => p.map((c) => (c.id === logLayer.id ? { ...c, despikeM: d } : c)))} />}{/* #3116 */}
@@ -321,8 +321,8 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
           {builtinKey && <ValidRangeField range={logValidRange?.[builtinKey]?.range} idKey={builtinKey} onSet={(r) => setLogValidRange(builtinKey, { ...(logValidRange?.[builtinKey] || {}), range: r })} />}{/* #3116 */}
           {builtinKey && <DespikeField value={logValidRange?.[builtinKey]?.despikeM} idKey={builtinKey} onSet={(d) => setLogValidRange(builtinKey, { ...(logValidRange?.[builtinKey] || {}), despikeM: d })} />}
           {data?.despikeM > 0 && <div style={note}>{tr("Despiked: each reading is the median of its hole's readings within {m} m, here and in Estimation and Grade shell.", { m: data.despikeM })}</div>}
-          {data?.outOfRange > 0 && <div style={note}>{tr("{k} reading(s) outside the valid range ({lo} to {hi}) are left out here and in Estimation and Grade shell.", { k: data.outOfRange.toLocaleString(), lo: Number.isFinite(data.validRange[0]) ? data.validRange[0] : "…", hi: Number.isFinite(data.validRange[1]) ? data.validRange[1] : "…" })}</div>}
-          {implausible && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr(implausible.rule === "density" ? "{n} reading(s) are outside {lo} to {hi} {u}, denser or lighter than any rock: check them, or set a valid range." : "{n} reading(s) are below 0, which a reading in {u} cannot be: check them, or set a valid range.", { n: implausible.n.toLocaleString(), lo: implausible.lo, hi: implausible.hi, u: implausible.unit })}</div>}
+          {data?.outOfRange > 0 && <div style={note}>{tr("{k} reading(s) outside the valid range ({lo} to {hi}) are left out here and in Estimation and Grade shell.", { k: fmtNum(data.outOfRange), lo: Number.isFinite(data.validRange[0]) ? data.validRange[0] : "…", hi: Number.isFinite(data.validRange[1]) ? data.validRange[1] : "…" })}</div>}
+          {implausible && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr(implausible.rule === "density" ? "{n} reading(s) are outside {lo} to {hi} {u}, denser or lighter than any rock: check them, or set a valid range." : "{n} reading(s) are below 0, which a reading in {u} cannot be: check them, or set a valid range.", { n: fmtNum(implausible.n), lo: implausible.lo, hi: implausible.hi, u: implausible.unit })}</div>}
           {layerNotes && <div style={{ ...note, color: "var(--color-text-muted)", whiteSpace: "pre-wrap" }}>{tr("Layer notes: {v}", { v: layerNotes })}</div>}{/* TASKS.csv #2775 — the import's notes (what was left out, where readings sit), as the 3D View's row shows them (#2432); English project text */}
           {assays.length > 0 && source && ( /* TASKS.csv #2968 */
             <div style={{ ...note, display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
@@ -330,7 +330,7 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
               {compositeMsg?.key === source.key && <div role="status">{compositeMsg.text}</div>}
             </div>
           )}
-          {overPct > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{n} reading(s) are above 100 %, which a percentage cannot be: check them (Data QC lists them). They are drawn as logged.", { n: overPct.toLocaleString() })}</div>}{/* #2245 */}
+          {overPct > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{n} reading(s) are above 100 %, which a percentage cannot be: check them (Data QC lists them). They are drawn as logged.", { n: fmtNum(overPct) })}</div>}{/* #2245 */}
           <label style={row}>{tr("By code of")}
             <select value={domain?.key || ""} onChange={(e) => setDomainKey(e.target.value)} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Group readings by")} disabled={!domains.length}>
               {!domains.length && <option value="">{tr("— no logged codes —")}</option>}
@@ -343,11 +343,11 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
               <option value="log">{tr("Logarithmic")}</option>
               <option value="linear">{tr("Linear")}</option>
             </select></label>
-          {logHidden > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{k} of {n} readings are zero or negative and are not shown on the log scale.", { k: logHidden.toLocaleString(), n: logValues.filter(Number.isFinite).length.toLocaleString() })}</div>}
-          {groupPending ? working(tr("Grouping {n} readings by {layer}…", { n: nRows.toLocaleString(), layer: domain?.label || "" })) : groups.length > 0 ? (
+          {logHidden > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{k} of {n} readings are zero or negative and are not shown on the log scale.", { k: fmtNum(logHidden), n: fmtNum(logValues.filter(Number.isFinite).length) })}</div>}
+          {groupPending ? working(tr("Grouping {n} readings by {layer}…", { n: fmtNum(nRows), layer: domain?.label || "" })) : groups.length > 0 ? (
             <>
-              <BoxPlots fit groups={boxes.groups} /* #2951: common codes first; #2953: whiskers P2-P98 */ domainLabel={(k) => `${codeLabel(k, 16)} (${nOfCode.get(k)?.toLocaleString()})`} /* #2401 */ logScale={logScale} unit={unitOf(source.unit)} />
-              {boxes.beyond > 0 && <div style={note}>{tr("Whiskers run from P2 to P98 of each code, so a stray reading cannot squash the plot; {k} reading(s) lie beyond them.", { k: boxes.beyond.toLocaleString() })}</div>}{/* #2953 */}
+              <BoxPlots fit groups={boxes.groups} /* #2951: common codes first; #2953: whiskers P2-P98 */ domainLabel={(k) => `${codeLabel(k, 16)} (${fmtNum(nOfCode.get(k) ?? 0)})`} /* #2401 */ logScale={logScale} unit={unitOf(source.unit)} />
+              {boxes.beyond > 0 && <div style={note}>{tr("Whiskers run from P2 to P98 of each code, so a stray reading cannot squash the plot; {k} reading(s) lie beyond them.", { k: fmtNum(boxes.beyond) })}</div>}{/* #2953 */}
               <label style={{ ...row, justifyContent: "flex-start", gap: 6 }}>{tr("Rank codes by")}
                 <select value={rankStat} onChange={(e) => setRankStat(e.target.value)} style={smallSel} aria-label={tr("Rank codes by")}>
                   <option value="median">{tr("Median")}</option><option value="mean">{tr("Mean")}</option><option value="p90">P90</option><option value="above">{tr("Share above a value")}</option>
@@ -355,12 +355,12 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
                 {rankStat === "above" && <input type="number" step="any" value={rankAbove} onChange={(e) => setRankAbove(e.target.value)} aria-label={tr("Value the share is counted above")} style={{ ...smallSel, width: 70 }} />}
               </label>{/* #2393 */}
               <div style={note}>{rankStat === "above"
-                ? tr("Share of readings above {v} per code, highest first: {list}.", { v: rankAbove, list: (ranked.common.length ? ranked.common : groups).slice(0, 8).map((g) => `${g.key === NOT_LOGGED ? tr("(not logged)") : g.key} ${Math.round(g.value)}% (${(g.nAbove ?? 0).toLocaleString()} of ${g.n.toLocaleString()})`).join(" · ") })
+                ? tr("Share of readings above {v} per code, highest first: {list}.", { v: rankAbove, list: (ranked.common.length ? ranked.common : groups).slice(0, 8).map((g) => `${g.key === NOT_LOGGED ? tr("(not logged)") : g.key} ${Math.round(g.value)}% (${fmtNum((g.nAbove ?? 0))} of ${fmtNum(g.n)})`).join(" · ") })
                 : tr(rankStat === "mean" ? "Mean per code, highest first: {list}." : rankStat === "p90" ? "P90 per code, highest first: {list}." : "Median per code, highest first: {list}.", { list: (ranked.common.length ? ranked.common : groups).slice(0, 8).map((g) => `${codeLabel(g.key)} ${Number(g.value.toPrecision(3))}`).join(" · ") /* #2401; #2951: codes under the minimum count left out */ })}</div>
               <label style={{ ...row, justifyContent: "flex-start", gap: 6 }}>{tr("Minimum count")}
                 <input type="number" min={1} step={1} value={minCountText} onChange={(e) => setMinCountText(e.target.value)} style={{ ...smallSel, width: 70 }} aria-label={tr("Minimum count of a code")} />
               </label>
-              {table.some((r) => r.n < minCount) && <div style={note}>{tr(source?.binM ? "{k} code(s) with fewer than {n} bins are greyed and listed last." : "{k} code(s) with fewer than {n} readings are greyed and listed last.", { k: table.filter((r) => r.n < minCount).length, n: minCount.toLocaleString() })}</div>}{/* counted in the table: it lists every code, the box plot only those of 3 or more */}
+              {table.some((r) => r.n < minCount) && <div style={note}>{tr(source?.binM ? "{k} code(s) with fewer than {n} bins are greyed and listed last." : "{k} code(s) with fewer than {n} readings are greyed and listed last.", { k: table.filter((r) => r.n < minCount).length, n: fmtNum(minCount) })}</div>}{/* counted in the table: it lists every code, the box plot only those of 3 or more */}
               <CodeTable rows={table} order={ranked.all.map((g) => g.key)} minCount={minCount} unit={unitOf(source.unit)} binned={!!source?.binM} keptScope={keptScope} />
               {tableWeighted && <div style={note}>{tr("Means weigh each bin by its number of readings; the median and percentiles are of the bins.")}</div>}
             </>
@@ -375,17 +375,17 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
                 <select value={pairOn} onChange={(e) => setPairOn(e.target.value)} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Pair the log with the assays on")}>
                   <option value="reading">{tr("Each reading")}</option><option value="sample">{tr("The log's mean over each sample")}</option>
                 </select></label>{/* #2954 */}
-              {vsPending ? working(tr("Pairing {n} readings with the {el} assays…", { n: nRows.toLocaleString(), el })) : vs && vs.n >= 3 ? (
+              {vsPending ? working(tr("Pairing {n} readings with the {el} assays…", { n: fmtNum(nRows), el })) : vs && vs.n >= 3 ? (
                 <>
-                  {logScale && !vsLogX && <div style={note}>{tr("The scatter keeps a linear axis for the log: {n} of its readings are zero or negative.", { n: vs.xs.reduce((k, x) => k + (x > 0 ? 0 : 1), 0).toLocaleString() })}</div>}{/* #2953 */}
+                  {logScale && !vsLogX && <div style={note}>{tr("The scatter keeps a linear axis for the log: {n} of its readings are zero or negative.", { n: fmtNum(vs.xs.reduce((k, x) => k + (x > 0 ? 0 : 1), 0)) })}</div>}{/* #2953 */}
                   <Scatter xs={vs.xs} ys={vs.ys} xLabel={`${source.label}${unitOf(source.unit) && !source.label.includes(`(${unitOf(source.unit)})`) ? ` (${unitOf(source.unit)})` : ""}`} yLabel={`${el} (${vs.unit})`} logX={logScale && vsLogX} logY={logScale && vsLogY} fit={vs.fit} />
                   <div style={note}>{vs.perSample ? (logScale
-                    ? tr("{n} assay samples, each paired with the log's mean over the readings inside it. Spearman rank correlation {r}; Pearson on log10 values {rLog} ({k} pairs above zero).", { n: vs.n.toLocaleString(), r: Number.isFinite(vs.r) ? vs.r.toFixed(2) : "—", rLog: Number.isFinite(vs.rLog) ? vs.rLog.toFixed(2) : "—", k: (vs.nLog ?? 0).toLocaleString() })
-                    : tr("{n} assay samples, each paired with the log's mean over the readings inside it. Spearman rank correlation {r}; Pearson {rLin}.", { n: vs.n.toLocaleString(), r: Number.isFinite(vs.r) ? vs.r.toFixed(2) : "—", rLin: Number.isFinite(vs.rLin) ? vs.rLin.toFixed(2) : "—" }))
+                    ? tr("{n} assay samples, each paired with the log's mean over the readings inside it. Spearman rank correlation {r}; Pearson on log10 values {rLog} ({k} pairs above zero).", { n: fmtNum(vs.n), r: Number.isFinite(vs.r) ? vs.r.toFixed(2) : "—", rLog: Number.isFinite(vs.rLog) ? vs.rLog.toFixed(2) : "—", k: fmtNum((vs.nLog ?? 0)) })
+                    : tr("{n} assay samples, each paired with the log's mean over the readings inside it. Spearman rank correlation {r}; Pearson {rLin}.", { n: fmtNum(vs.n), r: Number.isFinite(vs.r) ? vs.r.toFixed(2) : "—", rLin: Number.isFinite(vs.rLin) ? vs.rLin.toFixed(2) : "—" }))
                     : logScale
-                    ? tr("{n} readings inside an assay interval of the same hole. Spearman rank correlation {r}; Pearson on log10 values {rLog} ({k} pairs above zero).", { n: vs.n.toLocaleString(), r: Number.isFinite(vs.r) ? vs.r.toFixed(2) : "—", rLog: Number.isFinite(vs.rLog) ? vs.rLog.toFixed(2) : "—", k: (vs.nLog ?? 0).toLocaleString() })
-                    : tr("{n} readings inside an assay interval of the same hole. Spearman rank correlation {r}; Pearson {rLin}.", { n: vs.n.toLocaleString(), r: Number.isFinite(vs.r) ? vs.r.toFixed(2) : "—", rLin: Number.isFinite(vs.rLin) ? vs.rLin.toFixed(2) : "—" })}{Number.isFinite(vs.medianRatio) && ratioComparable(`${source.label} ${source.unit || ""}`, el) /* #2954 — only one quantity against itself (eU3O8 against U3O8) */ ? " " + tr("Log / assay: median {m}, length-weighted {w} (in the units shown; a gamma log against its assays reads the disequilibrium here).", { m: vs.medianRatio.toPrecision(3), w: Number.isFinite(vs.weightedRatio) ? vs.weightedRatio.toPrecision(3) : "—" }) : ""}</div>{/* ratios: #2353 */}
-                  {vs.fit && <div style={note}>{tr("Least-squares line: {log} = {a} + {b} × {el} ({n} pairs).", { log: source.label, a: sig3(vs.fit.a), b: sig3(vs.fit.b), el, n: vs.fit.n.toLocaleString() })}</div>}{/* #2954 */}
+                    ? tr("{n} readings inside an assay interval of the same hole. Spearman rank correlation {r}; Pearson on log10 values {rLog} ({k} pairs above zero).", { n: fmtNum(vs.n), r: Number.isFinite(vs.r) ? vs.r.toFixed(2) : "—", rLog: Number.isFinite(vs.rLog) ? vs.rLog.toFixed(2) : "—", k: fmtNum((vs.nLog ?? 0)) })
+                    : tr("{n} readings inside an assay interval of the same hole. Spearman rank correlation {r}; Pearson {rLin}.", { n: fmtNum(vs.n), r: Number.isFinite(vs.r) ? vs.r.toFixed(2) : "—", rLin: Number.isFinite(vs.rLin) ? vs.rLin.toFixed(2) : "—" })}{Number.isFinite(vs.medianRatio) && ratioComparable(`${source.label} ${source.unit || ""}`, el) /* #2954 — only one quantity against itself (eU3O8 against U3O8) */ ? " " + tr("Log / assay: median {m}, length-weighted {w} (in the units shown; a gamma log against its assays reads the disequilibrium here).", { m: vs.medianRatio.toPrecision(3), w: Number.isFinite(vs.weightedRatio) ? vs.weightedRatio.toPrecision(3) : "—" }) : ""}</div>{/* ratios: #2353 */}
+                  {vs.fit && <div style={note}>{tr("Least-squares line: {log} = {a} + {b} × {el} ({n} pairs).", { log: source.label, a: sig3(vs.fit.a), b: sig3(vs.fit.b), el, n: fmtNum(vs.fit.n) })}</div>}{/* #2954 */}
                 </>
               ) : <div style={note}>{tr("Fewer than three readings fall inside an assay interval of the same hole.")}</div>}
             </>
@@ -396,12 +396,12 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
                 <select value={modelLayer ? String(modelLayer.id) : ""} onChange={(e) => setModelLayerId(e.target.value)} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Block model evaluated onto the holes")}>
                   {onHoles.map((l) => <option key={l.id} value={String(l.id)}>{l.name}</option>)}
                 </select></label>
-              {vmPending ? working(tr("Pairing {n} readings with the model…", { n: nRows.toLocaleString() })) : vm && vm.n >= 3 ? (
+              {vmPending ? working(tr("Pairing {n} readings with the model…", { n: fmtNum(nRows) })) : vm && vm.n >= 3 ? (
                 <>
                   <Scatter pairs={vm.pairs} xLabel={`${source.label}${unitOf(source.unit) && !source.label.includes(`(${unitOf(source.unit)})`) ? ` (${unitOf(source.unit)})` : ""}`} yLabel={modelLayer.unit ? `${tr("Model")} (${modelLayer.unit})` : tr("Model")} logX={logScale && vmLogX} logY={logScale && vmLogY} />
                   <div style={note}>{logScale
-                    ? tr("{n} readings inside a model cell the same hole crosses. Spearman rank correlation {r} (the same in any units); Pearson on log10 values {rLog} ({k} pairs above zero). Median of the log {a}, of the model {b}, each in its own unit.", { n: vm.n.toLocaleString(), r: Number.isFinite(vm.r) ? vm.r.toFixed(2) : "—", rLog: Number.isFinite(vm.rLog) ? vm.rLog.toFixed(2) : "—", k: (vm.nLog ?? 0).toLocaleString(), a: sig3(vm.medianLog), b: sig3(vm.medianModel) })
-                    : tr("{n} readings inside a model cell the same hole crosses. Spearman rank correlation {r} (the same in any units); Pearson {rLin}. Median of the log {a}, of the model {b}, each in its own unit.", { n: vm.n.toLocaleString(), r: Number.isFinite(vm.r) ? vm.r.toFixed(2) : "—", rLin: Number.isFinite(vm.rLin) ? vm.rLin.toFixed(2) : "—", a: sig3(vm.medianLog), b: sig3(vm.medianModel) })}</div>
+                    ? tr("{n} readings inside a model cell the same hole crosses. Spearman rank correlation {r} (the same in any units); Pearson on log10 values {rLog} ({k} pairs above zero). Median of the log {a}, of the model {b}, each in its own unit.", { n: fmtNum(vm.n), r: Number.isFinite(vm.r) ? vm.r.toFixed(2) : "—", rLog: Number.isFinite(vm.rLog) ? vm.rLog.toFixed(2) : "—", k: fmtNum((vm.nLog ?? 0)), a: sig3(vm.medianLog), b: sig3(vm.medianModel) })
+                    : tr("{n} readings inside a model cell the same hole crosses. Spearman rank correlation {r} (the same in any units); Pearson {rLin}. Median of the log {a}, of the model {b}, each in its own unit.", { n: fmtNum(vm.n), r: Number.isFinite(vm.r) ? vm.r.toFixed(2) : "—", rLin: Number.isFinite(vm.rLin) ? vm.rLin.toFixed(2) : "—", a: sig3(vm.medianLog), b: sig3(vm.medianModel) })}</div>
                   {Number.isFinite(vm.r) && Math.abs(vm.r) < 0.2 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("The model hardly follows the logged values along the holes (|Spearman| under 0.2): its cells may be too coarse, or it images something the core does not record.")}</div>}
                 </>
               ) : <div style={note}>{tr("Fewer than three readings fall inside a cell of this model.")}</div>}

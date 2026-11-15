@@ -21,5 +21,5 @@ test("Grade stats: the data decides unless the box was ticked for this source an
   assert.match(g, /const logScale = logChoice\?\.key === logKey \? logChoice\.on : histogramWantsLog\(overallStats\);/);
   assert.match(g, /const logKey = `\$\{source\}:\$\{symbol\}`;/);
   assert.match(g, /leftOut: allValues\.length - vals\.length/);
-  assert.match(g, /tr\("\{n\} zero or negative values are not on the log scale\.", \{ n: histogram\.leftOut\.toLocaleString\(\) \}\)/);
+  assert.match(g, /tr\("\{n\} zero or negative values are not on the log scale\.", \{ n: fmtNum\(histogram\.leftOut\) \}\)/);
 });

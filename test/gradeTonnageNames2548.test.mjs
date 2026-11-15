@@ -38,6 +38,6 @@ test("the table's headers name the unit; a typed cut-off keeps four figures", ()
   assert.match(s, /unitL \? tr\("Mean grade \(\{unit\}\)", \{ unit: unitL \}\)/);
   assert.match(s, /unitL \? tr\("Cutoff \(\{unit\}\)", \{ unit: unitL \}\)/);
   assert.match(s, /<td style=\{td\}>\{sig4\(r\.cutoff\)\}\{cutoffPct\(r\.cutoff, element, unit\) != null \? /); // + the cut-off in % for a base metal in ppm: #1747
-  assert.match(s, /Number\(v\.toPrecision\(4\)\)\.toLocaleString\(undefined, \{ maximumFractionDigits: 10 \}\)/, "toLocaleString would round to 3 decimals");
+  assert.match(s, /fmtNum\(Number\(v\.toPrecision\(4\)\), \{ maximumFractionDigits: 10 \}\)/, "toLocaleString would round to 3 decimals");
   assert.equal(Number((0.2323).toPrecision(4)).toLocaleString("en", { maximumFractionDigits: 10 }), "0.2323");
 });
