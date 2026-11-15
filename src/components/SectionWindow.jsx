@@ -871,8 +871,19 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
       {(() => { // the frame's ends (#2979); #3410 — the right one a line lower when the two would overprint (a narrow re-drawn section)
         const left = `${Math.round(ax + minL * ux).toLocaleString()} E  ${Math.round(ay + minL * uy).toLocaleString()} N`, right = `${Math.round(ax + maxL * ux).toLocaleString()} E  ${Math.round(ay + maxL * uy).toLocaleString()} N`;
         const y = H - PAD + 4 + fs(26), stack = stackEndLabels(left, right, W, PAD, fs(10));
+        // TASKS.csv #3574 (3) (Fireweed rehearsal) — no scale on screen (the ratio came only on the Layout sheet): a bar of a round length (1, 2 or 5 x
+        // 10^n m, about a seventh of the frame) between the two end labels, on screen only (Layout draws its own bound scale bar), where it fits
+        const bar = (() => {
+          if (printing || !(hScale > 0)) return null;
+          const x0 = PAD + labelWidth(left, fs(10)) + fs(12), x1 = stack ? W - PAD : W - PAD - labelWidth(right, fs(10)) - fs(12), room = x1 - x0 - fs(9) * 4;
+          const want = Math.min((W - 2 * PAD) / 7, room) / hScale;
+          if (!(want > 0)) return null;
+          const p10 = 10 ** Math.floor(Math.log10(want)), m = [5, 2, 1].map((k) => k * p10).find((v) => v <= want) || p10, len = m * hScale, h = Math.max(3, fs(3));
+          return (<g pointerEvents="none"><rect x={x0} y={y - h - 1} width={len / 2} height={h} fill="#1a2028" stroke="#1a2028" strokeWidth="0.6" /><rect x={x0 + len / 2} y={y - h - 1} width={len / 2} height={h} fill="#ffffff" stroke="#1a2028" strokeWidth="0.6" />
+            <text x={x0 + len + fs(4)} y={y} fill="#55606e" fontSize={fs(10)}>{`${m.toLocaleString()} m`}</text></g>);
+        })();
         return (<><text x={PAD} y={y} fill="#55606e" fontSize={fs(10)} textAnchor="start">{left}</text>
-          <text x={W - PAD} y={stack ? y + fs(12) : y} fill="#55606e" fontSize={fs(10)} textAnchor="end">{right}</text></>);
+          <text x={W - PAD} y={stack ? y + fs(12) : y} fill="#55606e" fontSize={fs(10)} textAnchor="end">{right}</text>{bar}</>);
       })()}
       <text x={PAD} y={titleY} fill="#1a2028" fontSize={fs(12)} fontWeight="600">{titleLines.map((l, i) => <tspan key={i} x={PAD} dy={i ? fs(14) : 0}>{l}</tspan>)}</text>{/* #3410 — wrapped */}
       <text x={PAD} y={subtitleY} fill="#55606e" fontSize={fs(10)}>{subtitleLines.map((l, i) => <tspan key={i} x={PAD} dy={i ? fs(12) : 0}>{l}</tspan>)}</text>

@@ -3433,6 +3433,7 @@
   "CV": "معامل التباين",
   "Top cut": "القطع الأعلى",
   "Top cut for {el}": "القطع الأعلى لـ{el}",
+  "Draw section: the view turned to Top. Click the section's two ends on the plan.": "رسم مقطع: تحوّل العرض إلى العرض العلوي (الأعلى). انقر طرفي المقطع على المسقط.",
   "the value": "القيمة",
   "Colour the intervals by the value, or by a text column the import kept (a method, a flag); each of its values can be hidden": "تلوين الفترات حسب القيمة، أو حسب عمود نصي احتفظ به الاستيراد (طريقة، علامة)؛ ويمكن إخفاء كل قيمة من قيمه",
   "{hole} (collar {m} m beyond the left end)": "{hole} (الفوهة على بعد {m} م بعد الطرف الأيسر)",

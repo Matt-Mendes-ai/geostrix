@@ -53,7 +53,7 @@ export default [
       "For a section in the plane of one hole, use the scissors on that hole in the Holes list.",
     ],
     fields: [
-      { name: "Centre E / Centre N", what: "The middle of the section line. Blank uses the centre of the drilling (the placeholder says data centre).", choose: "Type the point you want in the middle: a target, a hole's intercept, a geophysical anomaly." },
+      { name: "Centre E / Centre N", what: "The middle of the section line. Blank uses the centre of the view, the point the camera turns about (the placeholder says view centre).", choose: "Type the point you want in the middle: a target, a hole's intercept, a geophysical anomaly." },
       { name: "Azimuth (°)", what: "The direction the section line runs, clockwise from north.", choose: "Across the strike of the target, so the holes and the body are seen in their true dip. On a grid program, the azimuth of your drill lines." },
       { name: "Length (m)", what: "The full length of the line, half on each side of the centre.", choose: "Long enough to show the target and the holes either side of it, with some margin." },
       { name: "Open section", what: "Opens the section in its window, with the buffer set on the Draw section tool (Buffer (m) on the ribbon while it is active). The same line opened again reopens the saved section.", choose: "Set the buffer first (press Draw section to see Buffer (m) on the ribbon), or change it afterwards with Buffer ± in the window." },
