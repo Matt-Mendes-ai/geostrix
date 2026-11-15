@@ -3429,6 +3429,8 @@
   "CV": "CV",
   "Top cut": "Corte superior",
   "Top cut for {el}": "Corte superior de {el}",
+  "Calculating… {p} %": "Calculando… {p} %",
+  "Colour it as {model} (the same ramp and range)": "Colorearlo como {model} (la misma rampa y rango)",
   "Letters, digits and _, starting with a letter": "Letras, dígitos y _, empezando por una letra",
   "Used twice": "Usado dos veces",
   "Block calculator": "Calculadora de bloques",

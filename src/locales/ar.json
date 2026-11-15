@@ -3429,6 +3429,8 @@
   "CV": "معامل التباين",
   "Top cut": "القطع الأعلى",
   "Top cut for {el}": "القطع الأعلى لـ{el}",
+  "Calculating… {p} %": "جارٍ الحساب… {p} %",
+  "Colour it as {model} (the same ramp and range)": "لوّنه مثل {model} (التدرّج والمدى نفسيهما)",
   "Letters, digits and _, starting with a letter": "حروف وأرقام و_، تبدأ بحرف",
   "Used twice": "مستخدم مرتين",
   "Block calculator": "حاسبة الكتل",

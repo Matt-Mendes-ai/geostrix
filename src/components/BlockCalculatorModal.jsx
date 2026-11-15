@@ -35,6 +35,8 @@ export default function BlockCalculatorModal({ onClose }) {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState(null); // TASKS.csv #3521 — the share done, 0-1
+  const [likeFirst, setLikeFirst] = useState(false); // TASKS.csv #3522
   const [added, setAdded] = useState(null);
   const acRef = useRef(null);
   const picked = inputs.map((x) => ({ ...x, model: models.find((m) => keyOf(m) === x.key) })).filter((x) => x.model);
@@ -47,18 +49,22 @@ export default function BlockCalculatorModal({ onClose }) {
   const namesOk = picked.length > 0 && picked.every((x, i) => !varError(x, i));
   const ready = namesOk && formula.trim() && !running;
   const run = async () => {
-    setError(null); setResult(null); setAdded(null); setRunning(true);
+    setError(null); setResult(null); setAdded(null); setRunning(true); setProgress(null);
     const ac = new AbortController(); acRef.current = ac;
-    try { setResult(await blockCalc(picked.map((x) => ({ var: x.var, model: x.model })), formula, { pause: budgetPause(), signal: ac.signal })); }
+    try { setResult(await blockCalc(picked.map((x) => ({ var: x.var, model: x.model })), formula, { pause: budgetPause(), signal: ac.signal, onProgress: setProgress /* #3521 */ })); }
     catch (err) { if (!err.cancelled) setError(err.message); }
     finally { setRunning(false); acRef.current = null; }
   };
   const mean = result?.cells.length ? result.cells.reduce((a, c) => a + c.value, 0) / result.cells.length : NaN;
   const canAdd = result && result.cells.length && name.trim() && unit.trim() && !added;
+  // TASKS.csv #3522 — colour the new model as its first input (its ramp, range and stops) when the new value is in the same unit: a calcined Fe
+  // in % beside the Fe estimate in %. Offered only then; otherwise the grade ramp over its own values
+  const first = picked[0]?.model, sameUnit = !!(first?.stops?.length && first.params?.unit && unit.trim() && first.params.unit === unit.trim());
+  const rampLike = sameUnit && likeFirst ? { min: first.min, max: first.max, colorMode: first.colorMode, stops: first.stops } : null;
   const addModel = () => {
     try {
       const rec = calcModelRecord({ name, unit, formula, inputs: picked, result });
-      addVoxelModel({ ...rec, ...rampOf(rec.cells) });
+      addVoxelModel({ ...rec, ...(rampLike || rampOf(rec.cells)) }); // #3522: the first input's colours when asked
       setAdded(rec.name);
     } catch (err) { setError(err.message); }
   };
@@ -121,6 +127,12 @@ export default function BlockCalculatorModal({ onClose }) {
             <label style={{ display: "flex", flexDirection: "column", gap: 3, ...small }}>{tr("Unit of the new value")} *
               <input value={unit} onChange={(e) => { setUnit(e.target.value); setAdded(null); }} placeholder={tr("e.g. %, g/t, $/t")} style={sel} /></label>
           </div>
+          {sameUnit && (
+            <label style={{ display: "flex", alignItems: "center", gap: 6, ...small, marginBottom: 12 }}>{/* TASKS.csv #3522 */}
+              <input type="checkbox" checked={likeFirst} onChange={(e) => { setLikeFirst(e.target.checked); setAdded(null); }} />
+              {tr("Colour it as {model} (the same ramp and range)", { model: first.name })}
+            </label>
+          )}
           {error && <div role="alert" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-text)", background: "var(--color-danger-bg)", border: "1px solid var(--color-danger-border)", borderRadius: 6, padding: "7px 9px", marginBottom: 10 }}>{error}</div>}
           {result && (
             <div style={{ fontSize: "var(--font-size-sm)", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 9px", marginBottom: 10, lineHeight: 1.5 }}>
@@ -132,7 +144,7 @@ export default function BlockCalculatorModal({ onClose }) {
           )}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             {running && <button type="button" onClick={() => acRef.current?.abort()} style={{ ...sel, cursor: "pointer" }}>{tr("Cancel")}</button>}
-            <button type="button" disabled={!ready} onClick={run} style={{ ...sel, cursor: ready ? "pointer" : "default", opacity: ready ? 1 : 0.5 }}>{running ? tr("Calculating…") : tr("Calculate")}</button>
+            <button type="button" disabled={!ready} onClick={run} style={{ ...sel, cursor: ready ? "pointer" : "default", opacity: ready ? 1 : 0.5 }}>{running ? (progress != null ? tr("Calculating… {p} %", { p: Math.round(progress * 100) }) : tr("Calculating…")) : tr("Calculate")}</button>
             <button type="button" disabled={!canAdd} onClick={addModel} title={!unit.trim() ? tr("State the unit of the new value first") : undefined} style={{ ...sel, cursor: canAdd ? "pointer" : "default", opacity: canAdd ? 1 : 0.5, background: "var(--color-success-bg)", color: "var(--color-success-text)", border: "1px solid var(--color-success-border)" }}>{tr("Add block model")}</button>
           </div>
         </div>
