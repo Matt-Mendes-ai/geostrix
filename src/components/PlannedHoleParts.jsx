@@ -241,7 +241,7 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
           {zOffer.z != null && <button type="button" onClick={() => { set("z", zOffer.z); setZSource(groundAt ? "the terrain at the typed E / N" : collarFillSource(zOffer)); }} style={{ ...miniBtn, flex: "none" }}>{tr("Use it")}</button>}
         </div>
       )}
-      {!groundAt && !underground && (zOffer || /collars/.test(zSource)) && <CollarLevelsNote collars={collars} />}{/* #2584 */}
+      {!groundAt && !underground && (zOffer || /collars/.test(zSource)) && <CollarLevelsNote collars={collars} survey={survey} />}{/* #2584; survey: #3634 */}
       <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
         <NumField label={tr("Az°")} value={draft.azimuth} onChange={(v) => set("azimuth", v)} />
         <NumField label={tr("Dip°")} value={draft.dip} onChange={(v) => set("dip", v)} />
