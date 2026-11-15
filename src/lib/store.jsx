@@ -1174,6 +1174,10 @@ export function StoreProvider({ children }) {
   const projectSeqRef = useRef(0);
   const getProjectToken = useCallback(() => ({ tabId: activeTabIdRef.current, seq: projectSeqRef.current }), []);
   const isSameProject = useCallback((tok) => !!tok && tok.tabId === activeTabIdRef.current && tok.seq === projectSeqRef.current, []);
+  // TASKS.csv #2640 (side 2's Stage 1) — the last GemPy request as sent (modellingRuns.js): session only, not in FIELDS (never saved, never in
+  // undo); tagged with the project it was made in, and read as null once another project is showing
+  const [lastImplicitRequest, setLastImplicitRequestRaw] = useState(null);
+  const setLastImplicitRequest = useCallback((r) => setLastImplicitRequestRaw(r ? { ...r, projectToken: getProjectToken() } : null), []); // getProjectToken is stable (#2769: no deps here)
   const newerFormatTabsRef = useRef(new Set()); // TASKS.csv #342 — tabs opened from a newer file format
   // Whether the active tab has changed since it was last loaded/created/saved. Piggybacks on the
   // undo-tracking effect further down (which already detects "a real tracked change happened" on
@@ -1847,6 +1851,7 @@ export function StoreProvider({ children }) {
     designLines, setDesignLines, // TASKS.csv #1342
     designStrings, setDesignStrings, // TASKS.csv #1876
     get customLayers() { return publishedLayers(customLayers); }, setCustomLayers: setCustomLayersRows, // TASKS.csv #3424
+    lastImplicitRequest: lastImplicitRequest && isSameProject(lastImplicitRequest.projectToken) ? lastImplicitRequest : null, setLastImplicitRequest, // TASKS.csv #2640
     dbConnections, setDbConnections,
     getProjectPayload: snapshotCurrentPayload, // TASKS.csv #598 — the project, as Save would write it, for an opt-in problem report
     liveDbConnections, connectDb, disconnectDb,
