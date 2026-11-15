@@ -34,9 +34,11 @@ const PALETTE = [[0.1, 0.5, 0.9], [0.8, 0.2, 0.1], [0.33333334, 0.66666669, 0.1]
 function batch(n, holes, pHidden) {
   const color = new Float32Array(n * 3), rows = [], hidden = new Uint8Array(n), m = new Float32Array(n * 16).fill(1);
   for (let i = 0; i < n; i++) { const c = PALETTE[Math.floor(rnd() * PALETTE.length)]; color.set(c, i * 3); rows.push({ holeId: `H${Math.floor(rnd() * holes)}` }); hidden[i] = rnd() < pHidden ? 1 : 0; }
-  return { userData: { compact: { rows, hidden } }, instanceColor: { array: color }, instanceMatrix: { array: m, needsUpdate: false } };
+  // saved: the hidden rows' 3 x 3 blocks, as layerBatches.js attachCompact makes it (#3628: syncCompact keeps them to restore)
+  return { userData: { compact: { rows, hidden, saved: new Map() } }, instanceColor: { array: color }, instanceMatrix: { array: m, needsUpdate: false } };
 }
-const clone = (b) => ({ userData: { compact: { rows: b.userData.compact.rows, hidden: b.userData.compact.hidden.slice() } }, instanceColor: b.instanceColor, instanceMatrix: { array: b.instanceMatrix.array.slice(), needsUpdate: false } });
+const clone = (b) => ({ userData: { compact: { rows: b.userData.compact.rows, hidden: b.userData.compact.hidden.slice(), saved: new Map(b.userData.compact.saved) } }, instanceColor: b.instanceColor, instanceMatrix: { array: b.instanceMatrix.array.slice(), needsUpdate: false } });
+const BLOCK = [0, 1, 2, 4, 5, 6, 8, 9, 10]; // a row's 3 x 3 (rotation and scale): zero = drawn as a point, nothing visible
 
 test("with markers hidden, the coarse sets get the same hidden flags and zeroed matrices as before (random batches, colours, holes)", () => {
   let hiddenCoarse = 0;
@@ -49,6 +51,13 @@ test("with markers hidden, the coarse sets get the same hidden flags and zeroed 
       assert.deepEqual(Array.from(b[k].userData.compact.hidden), Array.from(a[k].userData.compact.hidden), `hidden flags (p ${pHidden})`);
       assert.deepEqual(Array.from(b[k].instanceMatrix.array), Array.from(a[k].instanceMatrix.array), "matrices");
       assert.equal(b[k].instanceMatrix.needsUpdate, a[k].instanceMatrix.needsUpdate);
+      // what matters: a hidden row draws nothing (its 3 x 3 block zero), a shown row is untouched, and the hidden row's block is kept
+      const cp = b[k].userData.compact, arr = b[k].instanceMatrix.array;
+      for (let i = 0; i < cp.hidden.length; i++) {
+        const blk = BLOCK.map((j) => arr[i * 16 + j]);
+        if (cp.hidden[i]) { assert.ok(blk.every((v) => v === 0), `hidden row ${i} draws nothing`); assert.deepEqual(cp.saved.get(i), BLOCK.map(() => 1), `row ${i}'s block kept`); }
+        else { assert.ok(blk.every((v) => v === 1), `shown row ${i} untouched`); assert.ok(!cp.saved.has(i)); }
+      }
     }
     hiddenCoarse += b.reduce((n, c) => n + c.userData.compact.hidden.reduce((x, h) => x + h, 0), 0);
   }
