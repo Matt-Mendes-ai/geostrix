@@ -214,18 +214,40 @@ export function fastLogScan(text, logRead, dynamicTyping) {
   const f = lr.finish();
   return { data: f.sample, logTable: f.table, errors: [], meta: { fields, delimiter: d } };
 }
-export function parseTableText(text, { comments = "#", columnar = false, keep = null, holes = null, composite = null, logRead = null } = {}) {
+// TASKS.csv #3544 — the text's preparation (comments, a space-separated table, a preamble) and the per-header typing rule, shared by
+// parseTableText and parseTableTextSliced so the two read every file the same way
+function tablePrologue(text, comments) {
   ({ text } = stripLeadingComments(text, comments)); // #720
   const spaced = spaceTableToTabs(text); // #2017
   if (spaced != null) text = spaced;
   let preamble = 0, banner = false;
   ({ text, skipped: preamble, banner } = skipPreamble(text)); // #1666; banner: #1665
-  // TASKS.csv #611 — a big table can be held as COLUMNS (see parseTableColumns); null = not eligible, read as rows
-  if (columnar && !composite && !logRead && text.length >= COLUMNAR_MIN_CHARS) { const c = parseTableColumns(text, { comments: false, keep, holes }); if (c) return c; }
+  return { text, spaced, preamble, banner };
+}
+function typingRule(text) {
   // #600 (performance) — Papa asks once per CELL; the answer depends only on the header, so cache it per header.
   const typed = new Map();
   const idLike = ID_LIKE_VALUE_IN.test(text) ? idLikeColumns(text) : null; // #1071 — only scanned when such a value exists
-  const dynamicTyping = (field) => { let v = typed.get(field); if (v === undefined) { v = !isIdentifierHeader(field) && !idLike?.has(field); typed.set(field, v); } return v; };
+  return (field) => { let v = typed.get(field); if (v === undefined) { v = !isIdentifierHeader(field) && !idLike?.has(field); typed.set(field, v); } return v; };
+}
+// the rows from Papa's result: comma decimals, the notes; shared by both readers (#3544)
+function tableEpilogue(res, text, { spaced, preamble, banner }, extra) {
+  // TASKS.csv #600 (40958Z, performance) — in a COMMA-delimited file a comma-decimal value can only exist quoted
+  // ("1,5"), so when the raw text has no quoted comma number the column-by-column scan (every row x column:
+  // 1.4 s of a 4.4 s parse on an 83,670 x 109 assay export) is skipped. Semicolon / tab files are scanned as before.
+  const commaFree = res.meta.delimiter === "," && !QUOTED_COMMA_NUMBER.test(text);
+  const { rows, note } = commaFree ? { rows: res.data, note: "" } : normalizeCommaDecimals(res.data);
+  const pre = banner ? tr("The first row was a banner of group names over the field names: the second row is used as the header.") : preamble ? tr("Skipped {n} line(s) of notes above the header row.", { n: preamble }) : ""; // #1666; #1665
+  const sp = spaced != null ? tr("Read as a space-separated table ({n} columns).", { n: (res.meta.fields || []).length }) : ""; // #2017
+  return { rows, headers: res.meta.fields || [], note: [note, pre, sp].filter(Boolean).join(" "), errors: res.errors || [], ...extra };
+}
+
+export function parseTableText(text, { comments = "#", columnar = false, keep = null, holes = null, composite = null, logRead = null } = {}) {
+  const prep = tablePrologue(text, comments);
+  text = prep.text;
+  // TASKS.csv #611 — a big table can be held as COLUMNS (see parseTableColumns); null = not eligible, read as rows
+  if (columnar && !composite && !logRead && text.length >= COLUMNAR_MIN_CHARS) { const c = parseTableColumns(text, { comments: false, keep, holes }); if (c) return c; }
+  const dynamicTyping = typingRule(text);
   let res, droppedByHole = 0;
   const hf = holes?.col && holes.ids ? { col: holes.col, ids: new Set([...holes.ids].map((v) => String(v).trim())) } : null; // #2321
   let composited = null, logTable = null;
@@ -249,14 +271,40 @@ export function parseTableText(text, { comments = "#", columnar = false, keep = 
     res = { data: out, errors, meta: { ...meta, fields: kept || (meta.fields || []).filter((f) => !want || want.has(f)) } };
     void fields;
   } else res = Papa.parse(text, { header: true, dynamicTyping, skipEmptyLines: true, comments: false });
-  // TASKS.csv #600 (40958Z, performance) — in a COMMA-delimited file a comma-decimal value can only exist quoted
-  // ("1,5"), so when the raw text has no quoted comma number the column-by-column scan (every row x column:
-  // 1.4 s of a 4.4 s parse on an 83,670 x 109 assay export) is skipped. Semicolon / tab files are scanned as before.
-  const commaFree = res.meta.delimiter === "," && !QUOTED_COMMA_NUMBER.test(text);
-  const { rows, note } = commaFree ? { rows: res.data, note: "" } : normalizeCommaDecimals(res.data);
-  const pre = banner ? tr("The first row was a banner of group names over the field names: the second row is used as the header.") : preamble ? tr("Skipped {n} line(s) of notes above the header row.", { n: preamble }) : ""; // #1666; #1665
-  const sp = spaced != null ? tr("Read as a space-separated table ({n} columns).", { n: (res.meta.fields || []).length }) : ""; // #2017
-  return { rows, headers: res.meta.fields || [], note: [note, pre, sp].filter(Boolean).join(" "), errors: res.errors || [], ...(hf ? { droppedByHole } : {}), ...(composited ? { composited } : {}), ...(logTable ? { logTable } : {}) };
+  return tableEpilogue(res, text, prep, { ...(hf ? { droppedByHole } : {}), ...(composited ? { composited } : {}), ...(logTable ? { logTable } : {}) });
+}
+
+// TASKS.csv #3544 — the same read of a plain table (no column / hole subset, no compositing, no log, not held as columns, no quote character
+// anywhere) in parts: the text is cut at line ends into parts of about PART_CHARS, each part parsed with the header line in front and the
+// first part's delimiter and line ending, and the next part waits for the next task. A 32,000-row file (the Macpass sample's sg.csv, 0.23 s
+// at 4 x CPU) is no longer one main-thread task. A file with quotes (a quoted field may span lines) and every other read are
+// parseTableText's, unchanged. The same rows, headers, note and errors (error rows numbered across the parts).
+// (Papa's own pause / resume with header: true renamed values in the rows after a resume, as duplicate headers: not used.)
+const PART_CHARS = 200_000;
+export async function parseTableTextSliced(text, opts = {}) {
+  const { comments = "#", columnar = false, keep = null, holes = null, composite = null, logRead = null } = opts;
+  const prep = tablePrologue(text, comments);
+  const t = prep.text;
+  const plain = !keep?.length && !(holes?.col && holes.ids) && !composite && !logRead && !(columnar && t.length >= COLUMNAR_MIN_CHARS);
+  if (!plain || t.length <= PART_CHARS || t.includes('"')) return parseTableText(text, opts);
+  const headEnd = t.indexOf("\n");
+  if (headEnd < 0) return parseTableText(text, opts);
+  const head = t.slice(0, headEnd + 1), dynamicTyping = typingRule(t);
+  const data = [], errors = [];
+  let meta = null, pos = headEnd + 1;
+  while (pos < t.length) {
+    let end = Math.min(t.length, pos + PART_CHARS);
+    if (end < t.length) { const nl = t.indexOf("\n", end); end = nl < 0 ? t.length : nl + 1; }
+    const cfg = { header: true, dynamicTyping, skipEmptyLines: true, comments: false, ...(meta ? { delimiter: meta.delimiter, newline: meta.linebreak } : {}) };
+    const r = Papa.parse(head + t.slice(pos, end), cfg);
+    if (!meta) meta = r.meta;
+    const base = data.length;
+    for (const e of r.errors || []) errors.push(typeof e.row === "number" ? { ...e, row: e.row + base } : e);
+    for (const row of r.data) data.push(row);
+    pos = end;
+    if (pos < t.length) await new Promise((res) => setTimeout(res, 0));
+  }
+  return tableEpilogue({ data, errors, meta }, t, prep, {});
 }
 
 // TASKS.csv #611 — large assay exports held as columns. parseTableText's rows are one object per row, and a 60 MB
@@ -563,7 +611,7 @@ export async function parseTableFile(file, opts) {
     }
   }
   const { text, encoding } = decodeTableBytes(await file.arrayBuffer());
-  return subsetNote(encodingNote(parseTableText(text, opts), encoding), opts);
+  return subsetNote(encodingNote(await parseTableTextSliced(text, opts || {}), encoding), opts); // #3544 — a plain table a slice at a time
 }
 // #2177 — said with the rows, so the import notice can carry it
 function subsetNote(out, opts) {

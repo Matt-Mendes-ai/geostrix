@@ -206,7 +206,7 @@ export function keptOrigin(prev, mean, tol = ORIGIN_KEEP_M) {
 export function buildDrillholeScene(ctx) {
   const { applyCategoryVisibility, applyHoleVisibilityRef, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collarSize /* #2823 */, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, pointBuildersStale, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels } = ctx;
   const groups = layerGroupsRef.current;
-  if (!groups.litho || buildDefer.skip()) return; // #1500 — a restore just scheduled its state: build once, next render
+  if (!groups.litho || buildDefer.skip() || buildDefer.held?.()) return; // #1500 — a restore just scheduled its state: build once, next render; held: #3544 — the import queue builds once, at its end
   // TASKS.csv #131 — c.material?.map?.dispose?.() added alongside the existing geometry/material
   // disposal: every OTHER mesh type built into these groups uses a plain color-only material (no
   // .map), so this was a harmless no-op for all of them, but hole-label Sprites use a CanvasTexture
