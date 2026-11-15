@@ -61,22 +61,40 @@ export function syncAssayElements(group, kept, specs, build) {
 
 // TASKS.csv #3144 — a coarse set built after holes were hidden (the Holes list) or classes filtered keeps that: a merged marker is hidden when
 // every full-set marker of its hole and colour is. Keyed by hole id and instance colour (both sets colour a class alike).
-const rgbKey = (a, i) => (a ? `${a[i * 3].toFixed(3)},${a[i * 3 + 1].toFixed(3)},${a[i * 3 + 2].toFixed(3)}` : "");
-function copyHidden(full, coarse) {
-  const seen = new Map();
+// TASKS.csv #3506 (side 5, from #2206's profile of switching Fe on, WA iron: copyHidden 202 ms, rgbKey 124 ms of a 1.2 s task) — usually nothing is
+// hidden, and the keys were built (three toFixed and a template string per marker, 148,000 times) before that was checked. Now: (1) a first pass
+// that only asks whether anything is hidden, and returns at once when not; (2) with something hidden, the colour as one integer (each channel to
+// 0.001, as toFixed(3) had it) and a Map per hole, so no string is built per marker. Both sets go through the same function, so equal colours
+// still meet.
+const rgbInt = (a, i) => (a ? ((Math.round(a[i * 3] * 1000) * 1001 + Math.round(a[i * 3 + 1] * 1000)) * 1001 + Math.round(a[i * 3 + 2] * 1000)) : -1);
+export function copyHidden(full, coarse) {
   let any = false;
   for (const f of full) {
     const cp = f.userData?.compact;
-    if (cp) for (let i = 0; i < cp.rows.length; i++) { const k = `${cp.rows[i]?.holeId}|${rgbKey(f.instanceColor?.array, i)}`, e = seen.get(k) || [0, 0]; e[1]++; if (cp.hidden[i]) { e[0]++; any = true; } seen.set(k, e); }
+    if (cp) { const h = cp.hidden; for (let i = 0; i < h.length; i++) if (h[i]) { any = true; break; } }
     else if (f.isMesh && f.visible === false) any = true;
+    if (any) break;
   }
   if (!any) return;
+  const seen = new Map(); // hole id -> Map(colour -> [hidden, total])
+  for (const f of full) {
+    const cp = f.userData?.compact;
+    if (!cp) continue;
+    const col = f.instanceColor?.array;
+    for (let i = 0; i < cp.rows.length; i++) {
+      const id = cp.rows[i]?.holeId;
+      let byCol = seen.get(id); if (!byCol) seen.set(id, (byCol = new Map()));
+      const k = rgbInt(col, i);
+      let e = byCol.get(k); if (!e) byCol.set(k, (e = [0, 0]));
+      e[1]++; if (cp.hidden[i]) e[0]++;
+    }
+  }
   for (const c of coarse) {
     const cp = c.userData?.compact;
     if (!cp) continue;
-    const a = c.instanceMatrix.array;
+    const a = c.instanceMatrix.array, col = c.instanceColor?.array;
     for (let i = 0; i < cp.rows.length; i++) {
-      const e = seen.get(`${cp.rows[i]?.holeId}|${rgbKey(c.instanceColor?.array, i)}`);
+      const e = seen.get(cp.rows[i]?.holeId)?.get(rgbInt(col, i));
       if (e && e[0] === e[1]) { cp.hidden[i] = 1; const o = i * 16; a[o] = a[o + 1] = a[o + 2] = a[o + 4] = a[o + 5] = a[o + 6] = a[o + 8] = a[o + 9] = a[o + 10] = 0; }
     }
     c.instanceMatrix.needsUpdate = true;
