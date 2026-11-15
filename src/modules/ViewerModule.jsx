@@ -33,7 +33,8 @@ import PromptModal from "../components/PromptModal.jsx";
 import { toLonLat, isMetricProjectedEpsg } from "../lib/reproject.js";
 import { mirrorCustomLayers } from "../lib/viewerDirty.js"; // #1656
 import { customLayerSync, detachCustomGroups } from "./viewer/customLayerSync.js"; // #2361
-import { layerWith, layerRowCount } from "../lib/tableFields.js"; // #3424 — a copy that keeps a log's rows unbuilt
+import { layerWith, layerRowCount } from "../lib/tableFields.js"; // #3424
+import { toastBoxStyle } from "../lib/viewer/toastBox.js"; // #3537 — a copy that keeps a log's rows unbuilt
 import { rlOffsetOf } from "../lib/localGridDatum.js"; // TASKS.csv #2809 — the grid RL in Identify and the section
 import { useStore, useSetCursor, useSetTaskProgress } from "../lib/store.jsx";
 import { surveyAzimuthDipAt, desurveyMatters } from "../lib/desurvey.js"; // desurveyMatters: #2371; // desurveyHole, holeAttitudeAssumed (#2014): used by viewer/drillholeScene.js (#2176)
@@ -7670,7 +7671,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <div
           aria-live={toast?.level === "error" ? "assertive" : "polite"}
           aria-atomic="true"
-          style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", maxWidth: "70%", pointerEvents: "none" }}
+          style={toastBoxStyle(identify.on) /* #3537: clear of the Identify panel while it is open */}
         >
           {toast && toast.level === "error" && (
             // #390 — errors: danger colours, an icon, and a close button (pointer events back on for it)
