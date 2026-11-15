@@ -355,6 +355,12 @@ export default function App() {
     }
   }, []);
 
+  // TASKS.csv #1993 (export step) — File > Export Project as Geoscience ANALYST (.geoh5): lib/geoh5Export.js and h5wasm, loaded on use
+  const runGeoh5Export = useCallback(async () => {
+    try { await (await import("./lib/geoh5Export.js")).exportProjectGeoh5(storeRef.current); }
+    catch (err) { try { window.dispatchEvent(new CustomEvent(EXPORT_RESULT_EVENT, { detail: { ok: false, name: "geoh5", error: String(err?.message || err) } })); } catch { /* no window */ } }
+  }, []);
+
   // A "Snapshot to Layout" click in the cross-section pop-out window can't touch this window's
   // React store directly (separate Electron renderer process) — it comes back over IPC instead.
   // See electron/main.js "section-snapshot" and src/components/SectionWindow.jsx.
@@ -403,6 +409,7 @@ export default function App() {
       if (action.startsWith("module-")) { const m = action.replace("module-", ""); setActive(TAB_ALIAS[m] || m); if (m === "predictive") requestModuleAction("open-geoml"); }
       else if (action === "export-pdf") doExportPdf();
       else if (action === "export-kmz") doExportKmz(); // TASKS.csv #3068
+      else if (action === "export-geoh5") runGeoh5Export(); // TASKS.csv #1993 (export step)
       else if (action === "set-epsg") { setActive("maps"); requestModuleAction("maps-crs"); } // #485 / #749 — the CRS lives in the Maps tab
       // TASKS.csv #565 — these used to do nothing (import-*) or only switch tab (cross-section)
       else if (action === "cross-section") { setActive("viewer"); requestModuleAction("draw-section"); }
@@ -426,7 +433,7 @@ export default function App() {
       else if (action === "redo") redoSay();
     });
     return off;
-  }, [doNew, doOpen, doSave, doExportPdf, doExportKmz, undoSay, redoSay, requestSampleProject]);
+  }, [doNew, doOpen, doSave, doExportPdf, doExportKmz, runGeoh5Export, undoSay, redoSay, requestSampleProject]);
 
   // TASKS.csv #31 — Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z (also Ctrl+Y for redo, a common Windows habit).
   // Deliberately a plain window keydown listener rather than an Electron menu accelerator (see the
