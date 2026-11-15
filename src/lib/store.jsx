@@ -18,7 +18,7 @@ import { withImportLeftOut } from "./importLeftOut.js"; // TASKS.csv #2493
 import { cappedNotice, capRemovedMapLayers, vertexCount, BIG_VERTICES } from "./undoMapLayerCap.js"; // TASKS.csv #2806; vertexCount / BIG_VERTICES: #2814
 import { capUndoTables, tableCapNotice } from "./undoTableCap.js"; // TASKS.csv #2894
 import { calcUndoToken, applyCalcUndo } from "./calcUndo.js"; // TASKS.csv #3110
-import { rowsOf, tableOf } from "./rowTable.js"; import { publishedLayers, internalLayers, elementsWithValuesOf } from "./tableFields.js"; // TASKS.csv #3424 — the store adapter
+import { rowsOf, isTable } from "./rowTable.js"; import { publishedLayers, internalLayers, elementsWithValuesOf } from "./tableFields.js"; // TASKS.csv #3424 — the store adapter
 import { useLatestCallback } from "./useLatestCallback.js"; // TASKS.csv #2769 follow-up — callbacks that keep only the current render's scope (the file says why)
 import { sectionWindowsMayClose, EXPORT_RESULT_EVENT } from "./desktop.js"; // TASKS.csv #2620; EXPORT_RESULT_EVENT: #2806
 import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveWriteParts /* #1975 */, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
@@ -1174,6 +1174,10 @@ export function StoreProvider({ children }) {
   const projectSeqRef = useRef(0);
   const getProjectToken = useCallback(() => ({ tabId: activeTabIdRef.current, seq: projectSeqRef.current }), []);
   const isSameProject = useCallback((tok) => !!tok && tok.tabId === activeTabIdRef.current && tok.seq === projectSeqRef.current, []);
+  // TASKS.csv #2640 (side 2's Stage 1) — the last GemPy request as sent (modellingRuns.js): session only, not in FIELDS (never saved, never in
+  // undo); tagged with the project it was made in, and read as null once another project is showing
+  const [lastImplicitRequest, setLastImplicitRequestRaw] = useState(null);
+  const setLastImplicitRequest = useCallback((r) => setLastImplicitRequestRaw(r ? { ...r, projectToken: getProjectToken() } : null), []); // getProjectToken is stable (#2769: no deps here)
   const newerFormatTabsRef = useRef(new Set()); // TASKS.csv #342 — tabs opened from a newer file format
   // Whether the active tab has changed since it was last loaded/created/saved. Piggybacks on the
   // undo-tracking effect further down (which already detects "a real tracked change happened" on
@@ -1830,9 +1834,9 @@ export function StoreProvider({ children }) {
     desurveyMethod, setDesurveyMethod, // TASKS.csv #135
     setStructureCodeClasses, setStructureSymbolByType /* #3094 */, // #2266
     collars, setCollars,
-    get survey() { return rowsOf(survey); }, get surveyTable() { return tableOf(survey); }, setSurvey: setSurveyRows, // TASKS.csv #3424
+    get survey() { return rowsOf(survey); }, get surveyTable() { return isTable(survey) ? survey : null; }, setSurvey: setSurveyRows, // TASKS.csv #3424
     layers, setLayers, mergeLayer, replaceLayer,
-    get assays() { return rowsOf(assays); }, get assaysTable() { return tableOf(assays); }, setAssays: setAssaysRows, // TASKS.csv #3424
+    get assays() { return rowsOf(assays); }, get assaysTable() { return isTable(assays) ? assays : null; }, setAssays: setAssaysRows, // TASKS.csv #3424
     assayElements: presentAssayElements, setAssayElements, // #1679 — only the elements some assay row has a value for
     surfaceSamples, setSurfaceSamples,
     surfaceElements, setSurfaceElements,
@@ -1847,6 +1851,7 @@ export function StoreProvider({ children }) {
     designLines, setDesignLines, // TASKS.csv #1342
     designStrings, setDesignStrings, // TASKS.csv #1876
     get customLayers() { return publishedLayers(customLayers); }, setCustomLayers: setCustomLayersRows, // TASKS.csv #3424
+    lastImplicitRequest: lastImplicitRequest && isSameProject(lastImplicitRequest.projectToken) ? lastImplicitRequest : null, setLastImplicitRequest, // TASKS.csv #2640
     dbConnections, setDbConnections,
     getProjectPayload: snapshotCurrentPayload, // TASKS.csv #598 — the project, as Save would write it, for an opt-in problem report
     liveDbConnections, connectDb, disconnectDb,

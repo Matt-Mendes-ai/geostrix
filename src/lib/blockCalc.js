@@ -51,10 +51,10 @@ export function joinRefusal(lattice, model) {
 const cancelled = () => Object.assign(new Error("cancelled"), { cancelled: true });
 
 // inputs: [{ var, model }] (the first fixes the lattice); formula: the calcExpr text.
-// opts.pause: () => null | Promise (lib/compactTable.js budgetPause), opts.signal: an AbortSignal.
+// opts.pause: () => null | Promise (lib/compactTable.js budgetPause), opts.signal: an AbortSignal, opts.onProgress(fraction 0-1) at each slice (#3521).
 // -> { cells: [{ x, y, z, dx, dy, dz, value }], read: [vars], blocks, missing (blocks with some read input but not all), blank (the formula gave no number) }
 // Throws a readable Error before any block for an empty formula, an unknown name, a formula that reads no model or a model off the lattice.
-export async function blockCalc(inputs, formula, { pause = null, signal = null } = {}) {
+export async function blockCalc(inputs, formula, { pause = null, signal = null, onProgress = null } = {}) {
   if (!String(formula || "").trim()) throw new Error(tr("Enter a formula."));
   const vars = inputs.map((x) => x.var);
   const bad = vars.find((v) => !isCalcVar(v));
@@ -73,7 +73,9 @@ export async function blockCalc(inputs, formula, { pause = null, signal = null }
   for (const x of used) for (const c of x.model.cells) { const i = ix(c), j = iy(c), k = iz(c); if (i < i0) i0 = i; if (i > i1) i1 = i; if (j < j0) j0 = j; if (j > j1) j1 = j; if (k < k0) k0 = k; }
   const nx = i1 - i0 + 1, ny = j1 - j0 + 1;
   const key = (c) => (ix(c) - i0) + nx * ((iy(c) - j0) + ny * (iz(c) - k0));
-  const step = async (n) => { if (signal?.aborted) throw cancelled(); if (pause && n % BLOCK_CALC_SLICE === 0) { const w = pause(); if (w) await w; } };
+  // TASKS.csv #3521 — the work: every input's blocks once (the maps), then the blocks of the input with the fewest (the evaluation)
+  const total = used.reduce((a, x) => a + x.model.cells.length, 0) + used.reduce((a, x) => Math.min(a, x.model.cells.length), Infinity); // no Math.min(...spread): #371
+  const step = async (n) => { if (signal?.aborted) throw cancelled(); if (n % BLOCK_CALC_SLICE === 0) { onProgress?.(Math.min(1, n / total)); if (pause) { const w = pause(); if (w) await w; } } };
   const maps = [];
   let n = 0;
   for (const x of used) {

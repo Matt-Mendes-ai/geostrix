@@ -16,7 +16,9 @@ import { buildLayerBatches, collarMarkerMaterial, syncBatchedInstances } from ".
 import { syncHoleLabels } from "../../lib/viewer/holeLabels.js";
 import { addTraceChunks } from "../../lib/viewer/traceBatch.js"; // #2176 step 3
 import { makeTextSprite } from "../../lib/viewer/textSprite.js";
-import { lazyTip } from "../../lib/viewer/lazyTip.js";
+import { lazyTip, rowTip } from "../../lib/viewer/lazyTip.js"; // rowTip: #3424 step 2
+import { isTable, rowOf, tableOps } from "../../lib/rowTable.js"; // TASKS.csv #3424 step 2 — a custom layer's rows may be a Table
+import { rowsRefOf } from "../../lib/tableFields.js"; // TASKS.csv #3424 step 2
 import { traceLookup } from "../../lib/viewer/modelHelpers.js";
 import { dropLogCoarse, primeLogLod } from "./logLod.js"; // TASKS.csv #2802
 import { PROTO_CYLINDER, PROTO_SPHERE_8, PROTO_SPHERE_12, PROTO_CIRCLE_24, PROTO_PRISM_4, PROTO_SQUARE, PIN_AXIS, dipPinDir, INTERVAL_PROTO, UP_Y, DIR_TMP, POINT_PROTO } from "../../lib/viewer/protos.js";
@@ -434,7 +436,9 @@ export function buildDrillholeScene(ctx) {
     mnlgy: byHoleIf("mnlgy", layers.mnlgy), magsusc: byHoleIf("magsusc", layers.magsusc), structure: byHoleIf("structure", layers.structure),
     recovery: byHoleIf("recovery", layers.recovery), sg: byHoleIf("sg", layers.sg), breccia: byHoleIf("breccia", layers.breccia), weath: byHoleIf("weath", layers.weath), structzone: byHoleIf("structzone", layers.structzone), // #608, #2162, #604
   };
-  const customRowsByHoleByLayer = new Map(customLayers.map((l) => [l.id, byHoleIf(l.id, l.rows)]));
+  // TASKS.csv #3424 step 2 — a layer held as a Table is grouped by row INDEX (tableReaders.js indicesByHole, via tableOps), never by building its rows
+  const tableOfLayer = (l) => { const r = rowsRefOf(l); return isTable(r) ? r : null; };
+  const customRowsByHoleByLayer = new Map(customLayers.map((l) => { const t = tableOfLayer(l); return [l.id, !t ? byHoleIf(l.id, l.rows) : !rebuild.has(l.id) ? NO_HOLES : tableOps.indicesByHole(t, patched.has(l.id) ? patchHoles(l.id) : null)]; }));
   // the holes each group has rows in, for the next build's planGroups (a kept group keeps its set)
   const holeSets = new Map();
   for (const k of sigs.keys()) holeSets.set(k, rebuild.has(k) && !patched.has(k) ? new Set((rowsByHole[k] || customRowsByHoleByLayer.get(k) || NO_HOLES).keys()) : prev.holeSets.get(k));
@@ -581,7 +585,7 @@ export function buildDrillholeScene(ctx) {
         // TASKS.csv #208 — a mapped Description in the tooltip; #227 — catValue for the category pass; #1500 — the tooltip made on first
         // read (lazyTip), holeId for the visible-holes pass
         for (const mesh of pieces || [mesh_]) {
-        mesh.userData = lazyTip({ row, holeId: c.hole_id, catValue: row.value, ...(groupKey === "litho" ? { lithoRow: row } : {}) }, () => `${c.hole_id}\n${meta.label}: ${meta.numeric ? row.value : effectiveLabel(groupKey, row.value)}${row.extra != null ? ` (${row.extra}${meta.extraSuffix || ""})` : ""}\n${+row.from.toFixed(2)}–${+row.to.toFixed(2)} m${row.intensity ? ` · intensity ${row.intensity}` : ""}${Number.isFinite(row.alpha) ? ` · alpha ${row.alpha}°` : ""}${row.description ? `\n${row.description}` : ""}`); // lithoRow: TASKS.csv #599 picking
+        mesh.userData = lazyTip({ row, holeId: c.hole_id, catValue: row.value, ...(groupKey === "litho" ? { lithoRow: row } : {}) }, () => `${c.hole_id}\n${meta.label}: ${meta.numeric ? `${row.value}${meta.unit ? ` ${meta.unit}` : ""}` /* unit: #3536 */ : effectiveLabel(groupKey, row.value)}${row.extra != null ? ` (${row.extra}${meta.extraSuffix || ""})` : ""}\n${+row.from.toFixed(2)}–${+row.to.toFixed(2)} m${row.intensity ? ` · intensity ${row.intensity}` : ""}${Number.isFinite(row.alpha) ? ` · alpha ${row.alpha}°` : ""}${row.description ? `\n${row.description}` : ""}`); // lithoRow: TASKS.csv #599 picking
         groups[groupKey].add(mesh);
         }
        } catch (err) { buildErrors.push(`${groupKey} ${c.hole_id} ${row.from}-${row.to}: ${err.message}`); }
@@ -614,7 +618,7 @@ export function buildDrillholeScene(ctx) {
         const mesh = new PickStandIn(POINT_PROTO[st.shape], { color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // TASKS.csv #312 — shared prototype + scale; #635 style; #1500 a stand-in
         mesh.scale.setScalar(size * st.size);
         mesh.position.set(p.x, p.y, p.z);
-        mesh.userData = lazyTip({ row, holeId: c.hole_id, catValue: row.value }, () => `${c.hole_id}\n${meta.label}: ${meta.numeric ? row.value : effectiveLabel(groupKey, row.value)}${row.extra != null ? ` (${row.extra}%)` : ""}\n@ ${mid.toFixed(0)} m`); // #1500
+        mesh.userData = lazyTip({ row, holeId: c.hole_id, catValue: row.value }, () => `${c.hole_id}\n${meta.label}: ${meta.numeric ? `${row.value}${meta.unit ? ` ${meta.unit}` : ""}` /* unit: #3536 */ : effectiveLabel(groupKey, row.value)}${row.extra != null ? ` (${row.extra}%)` : ""}\n@ ${mid.toFixed(0)} m`); // #1500
         groups[groupKey].add(mesh);
        } catch (err) { buildErrors.push(`${groupKey} ${c.hole_id}: ${err.message}`); }
       });
@@ -675,7 +679,10 @@ export function buildDrillholeScene(ctx) {
       // cheaply afterward via the layer's own group.visible, see the small effect near layerVisible's
       // own visibility effect) so this rebuild no longer needs to re-run every time a custom layer's
       // checkbox is toggled — see customVisible's removal from this effect's own dependency array.
-      (customRowsByHoleByLayer.get(layer.id)?.get(c.hole_id) || []).forEach((row) => {
+      const lt = tableOfLayer(layer); // #3424 step 2 — the entries are row indices: each row is built for this pass only, and its tooltip keeps the index
+      (customRowsByHoleByLayer.get(layer.id)?.get(c.hole_id) || []).forEach((entry) => {
+        const row = lt ? rowOf(lt, entry) : entry;
+        const tipData = (ud, text) => (lt ? rowTip(lt, entry, ud, text) : lazyTip({ row, ...ud }, () => text(row)));
         if (row.to != null && !isNaN(row.to)) {
           const p1 = look.at(row.from), p2 = look.at(row.to);
           // TASKS.csv #1529 (review #1497, Lawyers) — a custom interval runs straight between its two ends, so it is the shared
@@ -687,14 +694,14 @@ export function buildDrillholeScene(ctx) {
           mesh.scale.set(1.6 * stI.size, len, 1.6 * stI.size);
           mesh.position.set(p1.x, p1.y, p1.z);
           mesh.quaternion.setFromUnitVectors(PIN_AXIS, dipPinDir.set(dx / len, dy / len, dz / len));
-          mesh.userData = lazyTip({ row, holeId: c.hole_id }, () => `${c.hole_id}\n${layer.name}: ${row.value ?? "—"}\n${+row.from.toFixed(2)}–${+row.to.toFixed(2)} m`); // #1500
+          mesh.userData = tipData({ holeId: c.hole_id }, (r) => `${c.hole_id}\n${layer.name}: ${r.value ?? "—"}\n${+r.from.toFixed(2)}–${+r.to.toFixed(2)} m`); // #1500; a Table's row by index: #3424
           layer.group.add(mesh);
         } else if (row.depth != null && !isNaN(row.depth)) {
           const p = look.at(row.depth);
           const mesh = new PickStandIn(POINT_PROTO[stP.shape], { color: stP.color || customColour(layer, layerStyles, row), transparent: stP.opacity < 1, opacity: stP.opacity, side: stP.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // TASKS.csv #312 — shared prototype + scale; #635 style; #1500 a stand-in
           mesh.scale.setScalar(2.4 * stP.size);
           mesh.position.set(p.x, p.y, p.z);
-          mesh.userData = lazyTip({ row, holeId: c.hole_id }, () => `${c.hole_id}\n${layer.name}: ${row.value ?? "—"}\n@ ${row.depth.toFixed(0)} m`); // #1500
+          mesh.userData = tipData({ holeId: c.hole_id }, (r) => `${c.hole_id}\n${layer.name}: ${r.value ?? "—"}\n@ ${r.depth.toFixed(0)} m`); // #1500; a Table's row by index: #3424
           layer.group.add(mesh);
         }
       });

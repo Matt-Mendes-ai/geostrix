@@ -1,6 +1,7 @@
 // TASKS.csv #1286 — recolouring the legend, per-layer styles, the grid and the figure overlay never marked a project unsaved: viewerUiState is tracked
 // as "view" so that orbiting never prompts, and the quit prompt and autosave then skipped all of that work. The camera is not in viewerUiState. Only the
 // parts a geologist would lose count: layer visibility, filters and which holes are shown stay out, as before.
+import { layerWith, rowsRefOf } from "./tableFields.js"; // TASKS.csv #3424 step 2
 export const STYLING_FIELDS = ["legendOverride", "numericSymbology", "layerStyles", "assayStyle", "gridConfig", "bgColor", "holeLabelMode", "figureOverlay"];
 
 export const stylingKey = (state) => (state ? JSON.stringify(STYLING_FIELDS.map((k) => state[k] ?? null)) : null);
@@ -36,15 +37,22 @@ const STORE_WINS = ["unit", "validRange", "despikeM"]; // despikeM: #3116, set i
 // (VIEW_SETS) come from it; the rest is the store's copy, as it is now. A layer new to the store takes every field but the view's own.
 const VIEW_SETS = ["name", "rows", ...KEEP.filter((k) => !STORE_WINS.includes(k))]; // name, rows, binM, notes
 const VIEW_ONLY = new Set(["group"]); // the three.js group: never into the store (the project file)
-const sameLayer = (a, b) => { const ka = Object.keys(a), kb = Object.keys(b); return ka.length === kb.length && ka.every((k) => a[k] === b[k]); };
+// TASKS.csv #3424 step 2 — a layer's rows may be a lazy getter over a Table (lib/tableFields.js): this mirror runs after every open, so it
+// reads rows by reference (rowsRefOf: the Table, not its rows) and copies by property descriptor (the getter carried, not run)
+const field = (x, k) => (k === "rows" ? rowsRefOf(x) : x[k]);
+const sameLayer = (a, b) => { const ka = Object.keys(a), kb = Object.keys(b); return ka.length === kb.length && ka.every((k) => field(a, k) === field(b, k)); };
+const copyProp = (o, from, k) => Object.defineProperty(o, k, { ...Object.getOwnPropertyDescriptor(from, k), enumerable: true, configurable: true });
 export function mirrorCustomLayers(prev, local) {
   const p = prev || [];
   const byId = new Map(p.map((x) => [x?.id, x]));
   const next = local.map((l) => {
     const old = byId.get(l.id);
-    if (!old) { const o = {}; for (const k of Object.keys(l)) if (!VIEW_ONLY.has(k) && l[k] !== undefined) o[k] = l[k]; return o; }
-    const o = { ...old, id: l.id };
-    for (const k of VIEW_SETS) { if (l[k] != null) o[k] = l[k]; else if (k !== "name" && k !== "rows") delete o[k]; }
+    if (!old) { const o = {}; for (const k of Object.keys(l)) if (!VIEW_ONLY.has(k) && field(l, k) !== undefined) copyProp(o, l, k); return o; }
+    const o = layerWith(old, { id: l.id });
+    for (const k of VIEW_SETS) {
+      const v = field(l, k);
+      if (v != null) { if (k === "rows") { if (v !== rowsRefOf(o)) copyProp(o, l, k); } else o[k] = v; } else if (k !== "name" && k !== "rows") delete o[k];
+    }
     return o;
   });
   return p.length === next.length && next.every((l, i) => p[i] && sameLayer(p[i], l)) ? prev : next;

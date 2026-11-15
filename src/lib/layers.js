@@ -822,7 +822,7 @@ export const LAYER_META = {
   // intervals feeding tonnage/density calculations for resource estimates, alongside RQD/lithology —
   // same "interval" kind/rendering as geotech above, just a different numeric field.
   recovery: { label: "Recovery %", kind: "interval", radius: 4.2, opacity: 0.35, colorFn: null, numeric: true },
-  sg:       { label: "Specific gravity", kind: "interval", radius: 3.8, opacity: 0.35, colorFn: null, numeric: true },
+  sg:       { label: "Specific gravity", kind: "interval", radius: 3.8, opacity: 0.35, colorFn: null, numeric: true, unit: "t/m³" /* #3536: said with its value */ },
   mnlgy:    { label: "Mineralization", kind: "point",    colorFn: colorForMineral, numeric: false },
   magsusc:  { label: "Mag. susc.",     kind: "point",    colorFn: null, numeric: true },
   structure:{ label: "Structure planes", kind: "plane",  colorFn: colorForStructure, numeric: false },

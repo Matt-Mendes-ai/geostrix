@@ -16,9 +16,9 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 import React from "react";
 import TestRenderer, { act } from "react-test-renderer";
 import { payloadFromFields, emptyFields, projectPartsSliced, projectJson, joinParts, fieldsFromPayload, expandPayloadSliced, TABLE_FIELDS as LIB_TABLE_FIELDS } from "../src/lib/projectFields.js";
-import { tableFromCompact, tableFromCompactSliced, compactFromTable, compactFromTableSliced, isTable as isTableLib } from "../src/lib/rowTable.js";
+import { isTable as isTableLib } from "../src/lib/rowTable.js"; import { tableFromCompact, tableFromCompactSliced, compactFromTable, compactFromTableSliced } from "../src/lib/rowTableBuild.js";
 import { compactTable } from "../src/lib/compactTable.js";
-import { publishedLayers, internalLayers, layerTableOf, elementsWithValuesOf } from "../src/lib/tableFields.js";
+import { publishedLayers, internalLayers, elementsWithValuesOf } from "../src/lib/tableFields.js"; import { layerTableOf } from "../src/lib/rowTableBuild.js";
 import { elementsWithValues } from "../src/lib/presentElements.js";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -42,7 +42,7 @@ writeFileSync(entry, [
   `export * from ${JSON.stringify(src("store.jsx"))};`,
   `export { TABLE_FIELDS } from ${JSON.stringify(src("projectFields.js"))};`,
   `export { isTable, rowsBuilt } from ${JSON.stringify(src("rowTable.js"))};`,
-  `export { layerTableOf } from ${JSON.stringify(src("tableFields.js"))};`,
+  `export { layerTableOf } from ${JSON.stringify(src("rowTableBuild.js"))};`,
 ].join("\n"));
 const out = path.join(dir, "store.bundle.mjs");
 writeFileSync(out, buildSync({ entryPoints: [entry], bundle: true, write: false, format: "esm", platform: "node", jsx: "transform",
@@ -117,7 +117,9 @@ for (const on of [false, true]) {
       assert.equal(m.s.customLayers, a.layers, "the layer list, after a render"); assert.equal(m.s.customLayers[0], g, "the layer view");
       assert.equal(m.s.customLayers[0].rows, gRows); assert.equal(m.s.assaysTable, a.assaysTable);
       assert.ok(Array.isArray(a.assays) && Array.isArray(a.survey) && Array.isArray(gRows), "readers get arrays");
-      assert.equal(isTable(a.assaysTable), true); assert.equal(isTable(a.surveyTable), true);
+      // #3424 (startup size) — the held Table, or null when the store holds rows (a reader wanting columns calls tableOf itself)
+      assert.equal(isTable(a.assaysTable), on); assert.equal(isTable(a.surveyTable), on);
+      if (!on) { assert.equal(a.assaysTable, null); assert.equal(a.surveyTable, null); }
     } finally { await m.unmount(); }
   });
 }
@@ -263,7 +265,7 @@ test("tableFields: views, descriptor copies, spreads, layerTableOf, present elem
 
 test("wiring: the 9 store edits", () => {
   const s = readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8");
-  assert.match(s, /import \{ rowsOf, tableOf \} from "\.\/rowTable\.js"; import \{ publishedLayers, internalLayers, elementsWithValuesOf \} from "\.\/tableFields\.js"; \/\/ TASKS\.csv #3424/);
+  assert.match(s, /import \{ rowsOf, isTable \} from "\.\/rowTable\.js"; import \{ publishedLayers, internalLayers, elementsWithValuesOf \} from "\.\/tableFields\.js"; \/\/ TASKS\.csv #3424/);
   assert.doesNotMatch(s, /import \{ elementsWithValues \}/);
   assert.match(s, /useMemo\(\(\) => elementsWithValuesOf\(assayElements, assays\), \[assayElements, assays\]\)/);
   assert.match(s, /const setAssaysRows = useCallback\(\(u\) => setAssays\(typeof u === "function" \? \(p\) => u\(rowsOf\(p\)\) : u\), \[\]\);/);
@@ -272,8 +274,8 @@ test("wiring: the 9 store edits", () => {
   assert.match(s, /surface \? l\.surfaceSamples : rowsOf\(l\.assays\) \/\* #3424 \*\//);
   assert.match(s, /survey: rowsOf\(live\.survey\) \/\* #3424 \*\//);
   assert.match(s, /applyCalcUndo\(snap\.assays, rowsOf\(live\.assays\) \/\* #3424 \*\/\)/);
-  assert.match(s, /get survey\(\) \{ return rowsOf\(survey\); \}, get surveyTable\(\) \{ return tableOf\(survey\); \}, setSurvey: setSurveyRows, \/\/ TASKS\.csv #3424/);
-  assert.match(s, /get assays\(\) \{ return rowsOf\(assays\); \}, get assaysTable\(\) \{ return tableOf\(assays\); \}, setAssays: setAssaysRows, \/\/ TASKS\.csv #3424/);
+  assert.match(s, /get survey\(\) \{ return rowsOf\(survey\); \}, get surveyTable\(\) \{ return isTable\(survey\) \? survey : null; \}, setSurvey: setSurveyRows, \/\/ TASKS\.csv #3424/);
+  assert.match(s, /get assays\(\) \{ return rowsOf\(assays\); \}, get assaysTable\(\) \{ return isTable\(assays\) \? assays : null; \}, setAssays: setAssaysRows, \/\/ TASKS\.csv #3424/);
   assert.match(s, /get customLayers\(\) \{ return publishedLayers\(customLayers\); \}, setCustomLayers: setCustomLayersRows, \/\/ TASKS\.csv #3424/);
   assert.match(s, /survey: \[survey, setSurvey\]/, "fieldState keeps the raw pairs");
   assert.match(s, /assays: \[assays, setAssays\], assayElements: \[assayElements, setAssayElements\], customLayers: \[customLayers, setCustomLayers\]/);

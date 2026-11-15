@@ -3,7 +3,7 @@
 // nulls, codes and missing fields, binned (from / to / n) and point (depth) logs.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { tableFromRows, isTable } from "../src/lib/rowTable.js";
+import { isTable } from "../src/lib/rowTable.js"; import { tableFromRows } from "../src/lib/rowTableBuild.js";
 import { fieldOf, fieldNames, countWhere, someWhere, firstWhere, rowAt, indicesWhere, rowsWhere, rowCount } from "../src/lib/layerColumns.js";
 import { numericLayerFields } from "../src/lib/evidenceSources.js";
 import { isNumericLayer } from "../src/lib/domainLayers.js";
