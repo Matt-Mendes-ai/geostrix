@@ -4,6 +4,7 @@
 // underground levels are not (#2217), and then nothing is cut.
 import { terrainGroundAt } from "./viewer/geomath.js";
 import { collarGround, collarsLookUnderground } from "./pitShell.js";
+import { surfaceCollars } from "./collarGround.js"; // TASKS.csv #3654
 
 // -> { ground: { kind, name, bbox: [x0, y0, x1, y1], at(x, y) } | null, kind, collars, why }
 // TASKS.csv #2410 (review #2325, WA uranium) — opts.fallbackZ: where the terrain has no data (a collar TIN's gaps, 88 % of its grid) or
@@ -29,7 +30,9 @@ function collarModelGround(collars, survey) {
   if (!g) return { ground: null, why: "few" };
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const c of pts) { if (c.x < x0) x0 = c.x; if (c.x > x1) x1 = c.x; if (c.y < y0) y0 = c.y; if (c.y > y1) y1 = c.y; }
-  return { kind: "collars", collars: pts.length, ground: { kind: "collars", name: "collar surface", bbox: [x0, y0, x1, y1], at: g } };
+  // TASKS.csv #3654 (1) — `collars`: the collars the ground is built from, once the underground ones are set aside (#3551): the cut notices said
+  // 'between the 559 collars' on Macpass while the ground was the 479 surface collars'
+  return { kind: "collars", collars: surfaceCollars(pts, survey).length, ground: { kind: "collars", name: "collar surface", bbox: [x0, y0, x1, y1], at: g } };
 }
 
 // extent [x0, x1, y0, y1, z0, z1] (the solver's frame, z up); traces [{ pts: [{ y }] }] (scene: y = elevation - origin) -> the box height

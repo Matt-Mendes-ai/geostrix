@@ -6,12 +6,12 @@
 // Babel scope analysis, not by hand); module imports are re-imported here.
 import { isNotLogged } from "../../lib/notLogged.js"; // TASKS.csv #1740
 import { Activity, Calculator, ChevronDown, ChevronRight, ChevronUp, Compass, Droplets, FileBarChart2, Gem, GitCompare, Group, Layers, Layers3, Milestone, Mountain, Settings, Shapes, Sparkles, Trash2, Waves, Waypoints, X, PenTool } from "../../components/icons.js";
-import { BLOCK_BUDGETS, ESTIMATION_METHODS, gradeShellBudgetNote, gradeShellBudgetMB, shellBudgetsFor } from "../../lib/estimationMeta.js"; // gradeShellBudgetMB, shellBudgetsFor: #3581
+import { BLOCK_BUDGETS, ESTIMATION_METHODS, gradeShellBudgetNote, gradeShellBudgetMB, shellBudgetsFor, NUMERIC_CELL_DEFAULT } from "../../lib/estimationMeta.js"; // NUMERIC_CELL_DEFAULT: #3651 // gradeShellBudgetMB, shellBudgetsFor: #3581
 import { useMachineMemoryGB, fetchFits, fetchBudgetMB } from "../../lib/fetchMemory.js"; // TASKS.csv #3581 // gradeShellBudgetNote: #1416
 import InfoButton from "../../components/InfoButton.jsx";
 import { anisotropyFor, cellHeightFromRange } from "../../lib/estimateMemory.js"; // TASKS.csv #3499; #3508
 import { PRECIOUS_METALS, gradeUnitLabel } from "../../lib/geochem.js"; // gradeUnitLabel: #2218
-import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import { withChangeLog } from "../../lib/explicitLog.js"; // TASKS.csv #878
 import { activateOnKey, iconAction } from "../../lib/a11y.js";
 import { colorForLithology, isCrossCuttingRole, roleForLithology, groupMemberRole, groupNameHint } from "../../lib/layers.js"; // group roles: #2052
@@ -45,7 +45,8 @@ import { holeSpacingSummary, searchFromSpacingM } from "../../lib/holeSpacing.js
 import { sampleSpacing } from "../../lib/sampleSpacing.js"; // TASKS.csv #3580 — the spacing at the samples
 import { cutoffPct } from "../../lib/gradeTonnage.js"; // TASKS.csv #3272 — a base metal's ppm cutoff in % too, as Grade-tonnage (#1747)
 import { GradeShellUnsampled } from "../../components/UnsampledChoice.jsx"; // TASKS.csv #2417 / #2542
-import ShellCapNote from "./ShellCapNote.jsx"; // TASKS.csv #2222 — the Estimation dialog's default cap (#1573) here too
+import ShellCapNote from "./ShellCapNote.jsx";
+import { shellPaneMemory, memoryRef } from "./shellPaneMemory.js"; // TASKS.csv #3651 // TASKS.csv #2222 — the Estimation dialog's default cap (#1573) here too
 import { zoneAlphaPicks, customAlphaPicks } from "../../lib/alphaPicks.js"; // TASKS.csv #1686
 const ModelAreaRange = lazy(() => import("../../components/ModelAreaRange.jsx")); // TASKS.csv #2536
 const GradeThicknessModal = lazy(() => import("../../components/GradeThicknessModal.jsx")); // TASKS.csv #2419
@@ -265,7 +266,10 @@ export default function ModellingPanes(props) {
   } = props;
   // TASKS.csv #3025 (6) — the Grade shell's cutoff proposed on an element change (the 90th percentile of its assays) said as such: 57.3 % Fe
   // appeared with no word
-  const [shellCutoffAuto, setShellCutoffAuto] = useState(null); // { symbol, value }
+  // TASKS.csv #3651 — the pane's memory of its own proposals outlives the pane (shellPaneMemory.js: one per 3D View)
+  const shellMem = useMemo(() => shellPaneMemory(tracesRef), [tracesRef]);
+  const [shellCutoffAuto, setShellCutoffAutoState] = useState(() => shellMem.cutoff ?? null); // { symbol, value }
+  const setShellCutoffAuto = (v) => { shellMem.cutoff = v; setShellCutoffAutoState(v); };
   // TASKS.csv #871 — the logged tops of a unit for the Explicit surface pane, by the implicit tool's rules (#354 / #495 /
   // #599); recomputed only when the logs, the modelling codes or the groups change
   // TASKS.csv #2532 (review #2486) — a raw lithology code's role: the one set for it in Modelling codes when listed there, else the guess from its name
@@ -356,20 +360,32 @@ export default function ModellingPanes(props) {
   const shellSearchAuto = shellSearchFrom ? searchFromSpacingM(shellSampleSpacing?.medianM > 0 ? shellSampleSpacing.medianM : shellSpacing.medianM) : null;
   const ramGB = useMachineMemoryGB(); // TASKS.csv #3581 — the budgets this computer's memory allows (#3251's share of it)
   const shellBudgetOk = useMemo(() => new Set(shellBudgetsFor((mb) => fetchFits(mb, ramGB))), [ramGB]);
-  const [shellSearchSet, setShellSearchSet] = useState(null);
+  const [shellSearchSet, setShellSearchSetState] = useState(() => shellMem.search ?? null);
+  const setShellSearchSet = (v) => { shellMem.search = v; setShellSearchSetState(v); }; // #3651
   // TASKS.csv #3655 — search along the plane of the composites at the cut-off (modellingRuns.js, lib/viewer/shellPlane.js); a per-user preference
   const [shellPlaneSearch, setShellPlaneSearchState] = useState(() => { try { return localStorage.getItem("geostrix.shellPlaneSearch") !== "0"; } catch { return true; } });
   const setShellPlaneSearch = (on) => { setShellPlaneSearchState(on); try { localStorage.setItem("geostrix.shellPlaneSearch", on ? "1" : "0"); } catch { /* storage off */ } };
-  const shellSearchTyped = useRef(false); // TASKS.csv #3607 (3) — a typed 50 m was replaced by 120 m when the pane reopened (50 is the untouched opening value) // { r, m, at }: the search this pane set from the spacing (at: "samples" | "collars")
-  const shellCapAuto = useRef({ symbol: null, value: null }); // #3272 — the cap ShellCapNote set, kept while the note itself unmounts with the pane
+  const shellSearchTyped = useMemo(() => memoryRef(shellMem, "searchTyped", false), [shellMem]); // #3651: was useRef(false) // TASKS.csv #3607 (3) — a typed 50 m was replaced by 120 m when the pane reopened (50 is the untouched opening value) // { r, m, at }: the search this pane set from the spacing (at: "samples" | "collars")
+  const shellCapAuto = useMemo(() => memoryRef(shellMem, "cap", { symbol: null, value: null }), [shellMem]); // #3651: was useRef; #3272 — the cap ShellCapNote set, kept while the note itself unmounts with the pane
   useEffect(() => {
     if (toolPane !== "shell" || !numericSymbol) return;
-    if (numericCutoff === 1 && !shellCutoffAuto) proposeShellCutoff(numericSymbol, true); // ViewerModule's opening 1: never a cutoff anyone typed for a grade shell
+    if (numericCutoff === 1 && shellCutoffAuto?.value !== 1) proposeShellCutoff(numericSymbol, true); // #3651: the memory outlives a project load, so not '!shellCutoffAuto' // ViewerModule's opening 1: never a cutoff anyone typed for a grade shell
     // the opening 50, or a search this pane set from the collars and nobody changed since, once the samples' spacing is known (#3580)
     const untouchedCollarSearch = shellSearchSet?.at === "collars" && shellSearchFrom?.at === "samples" && numericSearchRadius === shellSearchSet.r;
     // #3607 (3) — a search the user typed (even the opening 50) is never replaced
-    if (shellSearchAuto && !shellSearchTyped.current && ((numericSearchRadius === 50 && !shellSearchSet) || untouchedCollarSearch)) { setNumericSearchRadius(shellSearchAuto); setShellSearchSet({ r: shellSearchAuto, ...shellSearchFrom }); }
+    // #3651 — and a search this pane set, untouched, when the model area or the checked holes change (80 m for the property kept on Tom West's 143 holes)
+    const untouchedOtherArea = shellSearchSet && numericSearchRadius === shellSearchSet.r && shellSearchAuto !== shellSearchSet.r;
+    if (shellSearchAuto && !shellSearchTyped.current && ((numericSearchRadius === 50 && shellSearchSet?.r !== 50) || untouchedCollarSearch || untouchedOtherArea)) { setNumericSearchRadius(shellSearchAuto); setShellSearchSet({ r: shellSearchAuto, ...shellSearchFrom }); }
   }, [toolPane, numericSymbol, shellSearchAuto]); // once the pane opens on an element, and again when the spacing first becomes known
+  // TASKS.csv #3651 — the cut-off this pane proposed, untouched, is proposed again for the holes the run now uses (Model area, the checked holes)
+  const shellAreaSeen = useMemo(() => memoryRef(shellMem, "area", null), [shellMem]); // #3651 — survives the pane; null: none proposed for yet
+  useEffect(() => {
+    if (toolPane !== "shell" || shellAreaSeen.current === shellAreaAssays) return; // an area changed in Model settings is seen when the pane opens
+    const first = shellAreaSeen.current == null;
+    shellAreaSeen.current = shellAreaAssays;
+    if (first) return; // the pane's first look: the opening proposals are made by the effect below
+    if (numericSymbol && shellCutoffAuto && shellCutoffAuto.symbol === numericSymbol && numericCutoff === shellCutoffAuto.value) proposeShellCutoff(numericSymbol, shellCutoffAuto.onOpen);
+  }, [shellAreaAssays, toolPane]);
   const [unitBody, setUnitBody] = useState({ iso: 0.5, largest: false, search: 0, cell: 0 }); // TASKS.csv #1340 — its own settings: a rock unit is not an alteration halo
   const tracedHoles = useMemo(() => new Set((tracesRef?.current || []).filter((t) => t?.pts?.length >= 2).map((t) => t.hole_id)).size, [tracesSeq]); // #2053
   // TASKS.csv #1574 (review #1497, Lawyers) — the alteration halo from the Alteration log OR a categorical custom layer, and only
@@ -1248,7 +1264,7 @@ export default function ModellingPanes(props) {
                     // TASKS.csv #1736 (review #1645, Copley) — a cap and a cutoff belong to their element: Au's 0.078 cap and Cu's 1000 cutoff were kept
                     // across a switch. The cap is cleared; the cutoff is proposed as the new element's P90 of lab assays (pXRF left out).
                     const next = e.target.value;
-                    setNumericSymbol(next); setNumericCapValue(NaN); if (!findNumericSource(next, { layers, customLayers: customLayersAll })) rememberElement("gradeShell", next); // #2552
+                    setNumericSymbol(next); setNumericCapValue(NaN); shellCapAuto.current = { symbol: null, value: null }; /* #3650 — a pick is never an emptied box */ if (!findNumericSource(next, { layers, customLayers: customLayersAll })) rememberElement("gradeShell", next); // #2552
                     proposeShellCutoff(next); // #3272 — the holes the run uses; logValidRange (#3116) is applied inside
                   }} style={{ ...smallSel, width: "100%" }} disabled={!symbols.length && !numericSources.length}>
                     {symbols.length === 0 && numericSources.length === 0 && <option value="">{tr("— no assays —")}</option>}
@@ -1284,6 +1300,7 @@ export default function ModellingPanes(props) {
                 <label style={{ ...miniField }} title={tr("Extends the grid past the outermost sample so the shell can close beyond the last hole")}>{tr("Pad (m)")}<input type="number" min="0" step="any" value={numericPadding} onChange={(e) => setNumericPadding(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
                 </label>
               </div>
+              {numericBudgetHint?.ranAt && numericCellSize === NUMERIC_CELL_DEFAULT && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("The last run used {c} m cells: {cs} m cells did not fit its {b}-block budget. A larger budget below gives smaller cells; the box keeps {cs} m.", { c: numericBudgetHint.ranAt, cs: NUMERIC_CELL_DEFAULT, b: (numericBudgetHint.ranBudget || 0).toLocaleString() })}</div>}{/* TASKS.csv #3651 */}
               {shellSearchSet && numericSearchRadius === shellSearchSet.r && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{shellSearchSet.at === "samples" ? tr("Search radius {r} m: 2.5 times the {m} m typical distance from a sample to the nearest sample of another hole, so a block between two holes reaches both.", shellSearchSet) : tr("Search radius {r} m: 2.5 times the {m} m typical spacing, so a block between two holes reaches both.", shellSearchSet)}</div>}
               {!trendFor("gradeShell") && !(Number(numericFlatReach) > 0) && <>{/* TASKS.csv #3655 — by default along the plane of the composites at the cut-off */}
                 <label style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title={tr("Each drilled area is searched along the plane its composites at or above the cut-off lie on (as the Trends panel fits them): an ellipsoid with the volume of this search's sphere. The shell is kept within 0.3 of that ellipsoid from those composites, so it follows them instead of swelling round single holes. An area with fewer than 30 such composites, or from fewer than 4 holes, keeps the sphere.")}>
@@ -1399,7 +1416,7 @@ export default function ModellingPanes(props) {
                   </div>
                 </div>
               )}
-              {numericBudgetHint && !numericBudgetHint.advice && (
+              {numericBudgetHint && !numericBudgetHint.advice && numericBudgetHint.needed > 0 && ( /* #3651 — not a 'ran at' note */
                 <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginBottom: 8, lineHeight: 1.45 }}>{tr("At {cell} m cells this extent needs {needed} blocks — over the {budget}-block budget.", { cell: numericBudgetHint.cell, needed: numericBudgetHint.needed.toLocaleString(), budget: numericBudgetHint.budget.toLocaleString() })}<div style={{ display: "flex", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
                     <button type="button" onClick={() => { setNumericCellSize(numericBudgetHint.fit); setNumericBudgetHint(null); }} style={{ ...smallSel, cursor: "pointer" }}>{tr("Use {n} m cells", { n: numericBudgetHint.fit })}</button>
                     {numericBudgetHint.budget < (numericBudgetHint.maxBudget || BLOCK_BUDGETS[BLOCK_BUDGETS.length - 1]) && (

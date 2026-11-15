@@ -2721,10 +2721,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         {projectZPoints.points.length >= 3 && benches.n > 0 && ( /* TASKS.csv #2589 */
           <label style={{ display: "block", marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.4 }}>
             {tr("Where collars stack ({n} collars share a spot with one {dz} m or more higher or lower, up to {max} m)", { n: benches.n.toLocaleString(), dz: BENCH_DZ_M, max: benches.maxDz.toFixed(1) })}
-            <select value={benchMode} onChange={(e) => setBenchMode(e.target.value)} style={{ ...numInput, width: "100%", marginTop: 3 }}>
+            {/* TASKS.csv #3654 (2) — the choices name no pit (Macpass's stacked collars are mine levels and a hillside); why, in the tooltip */}
+            <select value={benchMode} onChange={(e) => setBenchMode(e.target.value)} style={{ ...numInput, width: "100%", marginTop: 3 }} title={tr("Where collars stack, the lowest is the latest floor of a pit or the lowest level, the highest is nearest the original ground. Keep them all when they are mine levels or a steep hillside.")}>
               <option value="all">{tr("Keep them all")}</option>
-              <option value="lowest">{tr("Keep the lowest (the latest pit floor)")}</option>
-              <option value="highest">{tr("Keep the highest (nearest the original ground)")}</option>
+              <option value="lowest">{tr("Keep the lowest")}</option>
+              <option value="highest">{tr("Keep the highest")}</option>
             </select>
           </label>
         )}

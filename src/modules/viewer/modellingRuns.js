@@ -134,7 +134,7 @@ export function createModellingRuns(ctx, mcRef) {
     numericCellHeight, numericFlatReach, // TASKS.csv #3062
     numericMaxBlocks, // TASKS.csv #625
     setNumericBudgetHint, // TASKS.csv #625
-    setNumericCellSize, // TASKS.csv #1416
+    // setNumericCellSize: no longer written by a run (#3651: the box keeps the user's cell; the run's is said as numericBudgetHint.ranAt)
     numericCloseShell,
     numericCompositeLength,
     numericCutoff,
@@ -2643,7 +2643,8 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           // built here, not inside the updater: that runs later, after cs and blocksNeeded are reassigned below
           const fitNotice = { ...notice("Cell size set to {fit} m: at the default {cs} m this extent needs {n} blocks, over the {budget}-block budget. A finer cell needs a larger block budget in the Grade shell pane.", { fit, cs, n: blocksNeeded.toLocaleString(), budget: blockBudget.toLocaleString() }), level: "info" };
           setNotices((p) => [...p, fitNotice]);
-          setNumericCellSize?.(fit);
+          // TASKS.csv #3651 — the box keeps the default: a run at the refitted cell is said beside it (numericBudgetHint.ranAt), so a larger budget
+          // picked afterwards gives smaller cells by itself (the 27.5 m refit stayed in the box and a 5,000,000 budget then still ran at 27.5 m)
           neededAtDefault = blocksNeeded; // #2223
           cs = fit; blocksNeeded = blocksOf(cs); cellRefit = true;
         }
@@ -2666,7 +2667,11 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // TASKS.csv #3286 (2) — the spacing Estimation and this pane's search say (holeSpacingSummary: the typical distance from a site to the next);
         // the halo rule's own spacing gave 160 m beside Estimation's 200 m for the same 14 holes
         const gsCollars = collars.filter((c) => holesOfPoints.has(c.hole_id));
-        const gsSpacing = (await import("../../lib/holeSpacing.js")).holeSpacingSummary(gsCollars)?.medianM || autoHaloParams(gsCollars, tracesRef.current || null).spacing;
+        // TASKS.csv #3654 (4) — the spacing at the samples, as the pane's search is taken from (#3580: lib/sampleSpacing.js): the share 'beyond
+        // the drilling' was said against the 15 m between Tom West's collar sites beside a search from its 24 m between samples. The sites'
+        // spacing stays the fallback (no two holes' samples within reach of each other).
+        const gsSampleSpacing = (await import("../../lib/sampleSpacing.js")).sampleSpacing(points)?.medianM;
+        const gsSpacing = gsSampleSpacing > 0 ? gsSampleSpacing : (await import("../../lib/holeSpacing.js")).holeSpacingSummary(gsCollars)?.medianM || autoHaloParams(gsCollars, tracesRef.current || null).spacing;
         // TASKS.csv #3580 (b) — with no trend warp and no log values the cut, the iso-surface and the counts run in the worker after the estimate
         // (lib/viewer/shellPost.js): the window gets the mesh and the counts, not the grid. The ground goes per column of each box's lattice.
         const workerPost = !anisotropy.enabled && !logInfo;
@@ -2854,7 +2859,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           singleHoleCells: gridSum.singleHoleCells, meanGradeInShell,
           ...(grids.length > 1 ? { drilledAreas: { grids: grids.length, nodes: boxTotal, wholeBoxNodes: boxBlocks(bounds, cs), note: "one grid per drilled cluster: the box round all the samples would have had wholeBoxNodes" } } : {}),
           compositesInShell: inShell, // #1735 — { above, inside, outside, noData }: the at/above-cutoff composites against the shell
-          ...(gsBeyond ? { beyondDrilling: { share: +gsBeyond.share.toFixed(3), holeSpacingM: Math.round(gsSpacing) } } : {}), // #2757
+          ...(gsBeyond ? { beyondDrilling: { share: +gsBeyond.share.toFixed(3), holeSpacingM: Math.round(gsSpacing), spacingAt: gsSampleSpacing > 0 ? "samples" : "collars" } } : {}), // #2757; spacingAt: #3654 (4)
           // TASKS.csv #91/#92 — grid-wide classification, and the same classification restricted to the
           // shell's own surface. The second is the one that matters for a reported volume: it says what
           // fraction of the BOUNDARY is bracketed by data rather than carried out beyond it.
@@ -2883,7 +2888,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           : "Only {p}% of the grid lies within the search radius of a sample, but the iso-surface needs every node of the box, so the block budget counts the empty part too (Estimation counts only reachable blocks). The default {cs} m cells need {n} blocks here, over the largest budget.",
         { p: sharePct(budgetAdvice.pct), b: budgetAdvice.budget?.toLocaleString(), cost: budgetAdvice.budget ? tr(gradeShellBudgetNote(budgetAdvice.budget)) : "", cs: NUMERIC_CELL_DEFAULT, n: budgetAdvice.needed.toLocaleString() }), level: "info" }]);
         // TASKS.csv #2882 — the advice offered in the pane too, as a button (the over-budget hint's way, #625): that budget and the default cell
-        if (budgetAdvice?.budget) setNumericBudgetHint?.({ advice: true, budget: budgetAdvice.budget, cell: NUMERIC_CELL_DEFAULT });
+        if (budgetAdvice?.budget || cellRefit) setNumericBudgetHint?.({ ...(budgetAdvice?.budget ? { advice: true, budget: budgetAdvice.budget, cell: NUMERIC_CELL_DEFAULT } : {}), ...(cellRefit ? { ranAt: cs, ranBudget: blockBudget } : {}) }); // ranAt: #3651
         if (gsBeyond && gsBeyond.inside && gsBeyond.share >= 0.05) setNotices((p) => [...p, (gsBeyond.share >= 0.5 ? errorNotice : notice)(tr("\"{label}\": {p}% of its volume lies more than one hole spacing ({s} m) from any sample: beyond the drilling, where its shape comes from the search and the cells, not from assayed rock.", { label, p: Math.round(gsBeyond.share * 100), s: Math.round(gsSpacing) }))]); // #2757
         // #2059 — which holes it was modelled from, when not all of them
         if (inArea && area.checked < area.all) setNotices((p) => [...p, notice("\"{label}\" was modelled from the {n} hole(s) checked in the Holes list (Model settings › Model area); the other {m} were left out.", { label, n: area.checked, m: area.all - area.checked })]);

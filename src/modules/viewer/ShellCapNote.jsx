@@ -5,6 +5,7 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import { lengthWeightedPercentile, elementCvPct, CAP_CV_PCT } from "../../lib/geochem.js"; // elementCvPct / CAP_CV_PCT: #2222
 import { excludeQAQC } from "../../lib/qaqc.js";
+import { shellCapAction } from "../../lib/viewer/shellCapRule.js"; // TASKS.csv #3650
 import { t as tr } from "../../lib/i18n.js";
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", lineHeight: 1.45, marginTop: -2, marginBottom: 6 };
@@ -18,13 +19,13 @@ export default function ShellCapNote({ assays, symbol, unit, assayElements, incl
   // 14 checked holes' are 25,600 / 154 %. A cap this note set follows them when they change (the area, the checks); a typed or emptied cap stays.
   useEffect(() => {
     if (!isAssay || !symbol) return;
-    const own = auto.current.symbol === symbol, has = Number.isFinite(capValue) && capValue > 0, mine = own && has && capValue === auto.current.value;
-    if (!(cv > CAP_CV_PCT)) { if (mine) { auto.current = { symbol: null, value: null }; setCapValue(NaN); } return; } // #3272 — the rule no longer holds there
-    if (has && !mine) return; // a typed cap
-    if (own && !has) return; // set once for this element: an emptied field stays empty
+    // #3272 / #3650 — keep a typed or emptied cap; refill or clear one this note set (for this element, or for another: lib/viewer/shellCapRule.js)
+    const act = shellCapAction({ symbol, auto: auto.current, capValue, over: cv > CAP_CV_PCT });
+    if (act === "clear") { auto.current = { symbol: null, value: null }; setCapValue(NaN); return; }
+    if (act === "keep") return;
     const units = Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit]));
     const p99 = lengthWeightedPercentile(src, symbol, unit, units, 99);
-    if (Number.isFinite(p99) && p99 > 0) { const v = Number(p99.toPrecision(4)); if (v !== capValue) { auto.current = { symbol, value: v }; setCapValue(v); } }
+    if (Number.isFinite(p99) && p99 > 0) { const v = Number(p99.toPrecision(4)); auto.current = { symbol, value: v }; if (v !== capValue) setCapValue(v); }
   }, [symbol, cv, src]); // the element, its CV, or the holes (#3272), as in the Estimation dialog
   if (!isAssay || !(cv > CAP_CV_PCT)) return null;
   const cvText = Math.round(cv);

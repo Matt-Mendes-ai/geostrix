@@ -19,7 +19,9 @@ test("only the untouched default is resized, and the over-budget failure is kept
   assert.ok(i > 0);
   const tail = runs.slice(i, i + 1400);
   assert.match(tail, /fitOf\(blockBudget, cs\)/); // #3062: cellToFit per axis (the same steps for a cubic cell)
-  assert.match(tail, /setNumericCellSize\?\.\(fit\)/);
+  // #3651 — the run uses the fitted cell but leaves the box at the default, and says the cell beside it (numericBudgetHint.ranAt)
+  assert.doesNotMatch(tail, /setNumericCellSize\?\.\(fit\)/);
+  assert.match(runs, /\.\.\.\(cellRefit \? \{ ranAt: cs, ranBudget: blockBudget \} : \{\}\)/);
   assert.match(tail, /if \(blocksNeeded > blockBudget\)/); // the existing failure still follows
 });
 
