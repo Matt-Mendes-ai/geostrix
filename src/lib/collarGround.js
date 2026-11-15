@@ -2,6 +2,7 @@
 // the picking need them at startup, and importing them from pitShell.js put the whole pit solver (and gradeTonnage.js) in the
 // startup bundle. pitShell.js re-exports them, so the pit tools and the workers are unchanged.
 import { suspectElevationIds } from "./collarElevationTrust.js"; // TASKS.csv #2962 — the shared rule (#3004)
+import { holeTypeColumn } from "./holeType.js"; // TASKS.csv #3551
 
 // TASKS.csv #1353 (review #1352, Silvertip) — with no terrain the pit took ONE flat ground at the top of the highest block,
 // above every collar: 100-140 m of air was costed as waste and a paying Zn pit came out empty. The collars are surveyed points on
@@ -16,10 +17,18 @@ import { suspectElevationIds } from "./collarElevationTrust.js"; // TASKS.csv #2
 // replaces them, never edits them in place), so the last answers are kept per collars / survey array; and the grid key is a number, not a
 // string per neighbour cell. A key collision only adds candidates: the distance test decides.
 const UG_SEEN = new WeakMap(), NO_SURVEY = {}, NO_CELL = [];
+// TASKS.csv #3551 (Fireweed rehearsal, Macpass: 80 UDDH collars of 559, 10 upward holes = 1.8 %) — the verdict is for the collars that are
+// left once those whose hole type says underground (UDDH, UG ...) are set aside: they are explained, and a project of surface holes with a
+// few typed underground ones is a surface project (its ground: the other collars). When fewer than 3 collars are left, it is underground.
+// The upward and stacked counts are still over every other collar, so an untyped underground mine (#2217) is called one as before.
 export function collarsLookUnderground(collars, survey) {
   const a = collars || NO_SURVEY, b = survey || NO_SURVEY;
   if (typeof a === "object") { const m = UG_SEEN.get(a); if (m?.has(b)) return { ...m.get(b) }; }
-  const r = lookUnderground(collars, survey || []);
+  const typed = Array.isArray(collars) ? collars.filter(typedUnderground) : [];
+  const rest = typed.length ? collars.filter((c) => !typedUnderground(c)) : collars;
+  const keep = typed.length ? new Set(rest.map((c) => c?.hole_id)) : null, sv = keep ? (survey || []).filter((s) => keep.has(s?.hole_id)) : survey || [];
+  const r = typed.length && rest.length < 3 ? { underground: true, upward: 0, stacked: 0 } : lookUnderground(rest, sv);
+  r.typed = typed.length;
   if (typeof a === "object") { let m = UG_SEEN.get(a); if (!m) UG_SEEN.set(a, (m = new Map())); if (m.size > 4) m.clear(); m.set(b, r); }
   return { ...r };
 }
@@ -43,6 +52,87 @@ function lookUnderground(collars, survey) {
   }
   const n = Math.max(1, (collars || []).length);
   return { underground: up.size >= Math.max(2, 0.02 * n) || stacked >= Math.max(3, 0.05 * n), upward: up.size, stacked };
+}
+
+// TASKS.csv #3551 (Fireweed rehearsal, Macpass) — underground PER COLLAR, not per project. A mine with an adit drills from surface and from
+// underground: Macpass's 80 UDDH collars at 1,301-1,445 m lie under hills of 1,500-1,750 m, and the ground through every collar dipped 163.6 m
+// to TU078. A collar is left out of the collar ground when
+//   - its hole type reads underground (UDDH, UGDD, UG, U/G, 'underground': the normalized 'hole type' or the file's own column), "type";
+//   - its hole STARTS upward (the collar's dip, or the shallowest survey station's, below 0, #339), "upward": a hole from surface cannot; one
+//     that turns up at depth (Macpass TS015, +4 degrees at 150 m) is still a surface hole;
+//   - it starts flat or upward (under FLAT_DIP degrees), or shares a station (STATION_M in plan, STATION_RL_M in elevation) with a hole that
+//     does, and lies more than UNDER_RL_M and twice the plan distance under a collar within UNDER_PLAN_M, "under": a drill station under the
+//     ground. A pit floor is drilled steeply down and its walls are under 2:1, so pit benches (#2584) are not taken for mine levels.
+// -> { ids: Map hole_id -> why, typed, upward, under }. Kept per collars / survey array like collarsLookUnderground (#2798).
+export const UNDER_PLAN_M = 100, UNDER_RL_M = 30, FLAT_DIP = 10, STATION_M = 10, STATION_RL_M = 5;
+const UG_TYPE = /^(UG|U\/G|UDD|UDH)|UNDERGROUND/;
+const ugTypeWord = (v) => UG_TYPE.test(String(v ?? "").trim().toUpperCase().replace(/[\s_.-]+/g, ""));
+const typeKeys = new Map(); // attrs key -> is a hole-type column
+export function typedUnderground(c) {
+  const a = c?.attrs;
+  if (!a || typeof a !== "object") return false;
+  for (const k in a) {
+    let t = typeKeys.get(k);
+    if (t === undefined) { t = k === "hole type" || !!holeTypeColumn([k]); if (typeKeys.size < 2000) typeKeys.set(k, t); }
+    if (t && ugTypeWord(a[k])) return true;
+  }
+  return false;
+}
+const UGC_SEEN = new WeakMap(), NO_IDS = { ids: new Map(), typed: 0, upward: 0, under: 0 };
+export function undergroundCollars(collars, survey) {
+  if (!Array.isArray(collars) || !collars.length) return NO_IDS;
+  const b = survey || NO_SURVEY;
+  let m = UGC_SEEN.get(collars);
+  if (m?.has(b)) return m.get(b);
+  const r = findUnderground(collars, survey || []);
+  if (!m) UGC_SEEN.set(collars, (m = new Map()));
+  if (m.size > 4) m.clear();
+  m.set(b, r);
+  return r;
+}
+function findUnderground(collars, survey) {
+  const first = new Map();
+  for (const s of survey) {
+    if (!Number.isFinite(s?.dip)) continue;
+    const d = Number.isFinite(s.depth) ? s.depth : 0, f = first.get(s.hole_id);
+    if (!f || d < f.depth) first.set(s.hole_id, { depth: d, dip: s.dip });
+  }
+  const ids = new Map();
+  let typed = 0, upward = 0, under = 0;
+  for (const c of collars) {
+    if (c?.hole_id == null) continue;
+    const d0 = Number.isFinite(c.dip) ? c.dip : first.get(c.hole_id)?.dip;
+    if (typedUnderground(c)) { ids.set(c.hole_id, "type"); typed++; } else if (d0 < 0) { ids.set(c.hole_id, "upward"); upward++; }
+  }
+  const suspect = suspectOf(collars);
+  const pts = collars.filter((c) => c?.hole_id != null && Number.isFinite(c.x) && Number.isFinite(c.y) && Number.isFinite(c.z) && !c.zSuspect && !suspect.has(c.hole_id) && !(c.zAssumed && c.zAssumed !== "terrain"));
+  const startDip = (c) => (Number.isFinite(c.dip) ? c.dip : first.get(c.hole_id)?.dip);
+  const flat = pts.filter((c) => { const d = startDip(c); return Number.isFinite(d) && d < FLAT_DIP; });
+  if (flat.length) {
+    const cell = (size) => { const g = new Map(); for (const c of pts) { const k = Math.floor(c.x / size) * 67108864 + Math.floor(c.y / size); (g.get(k) || g.set(k, []).get(k)).push(c); } return g; };
+    const near = (g, size, c, r, fn) => { const i = Math.floor(c.x / size), j = Math.floor(c.y / size); for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) for (const o of g.get((i + di) * 67108864 + j + dj) || NO_CELL) { const d2 = (o.x - c.x) ** 2 + (o.y - c.y) ** 2; if (d2 <= r * r && fn(o, Math.sqrt(d2))) return true; } return false; };
+    const gS = cell(STATION_M), gU = cell(UNDER_PLAN_M), station = new Set();
+    for (const f of flat) { station.add(f); near(gS, STATION_M, f, STATION_M, (o) => { if (Math.abs(o.z - f.z) <= STATION_RL_M) station.add(o); return false; }); }
+    for (const c of station) {
+      if (ids.has(c.hole_id)) continue;
+      if (near(gU, UNDER_PLAN_M, c, UNDER_PLAN_M, (o, d) => o.z - c.z > Math.max(UNDER_RL_M, 2 * d))) { ids.set(c.hole_id, "under"); under++; }
+    }
+  }
+  return { ids, typed, upward, under };
+}
+// the collars that can be ground: those undergroundCollars leaves (the same array when none is left out)
+const SURF_SEEN = new WeakMap();
+export function surfaceCollars(collars, survey) {
+  const u = undergroundCollars(collars, survey);
+  if (!u.ids.size) return collars || [];
+  const b = survey || NO_SURVEY;
+  let m = SURF_SEEN.get(collars);
+  if (m?.has(b)) return m.get(b);
+  const out = collars.filter((c) => !(c?.hole_id != null && u.ids.has(c.hole_id)));
+  if (!m) SURF_SEEN.set(collars, (m = new Map()));
+  if (m.size > 4) m.clear();
+  m.set(b, out);
+  return out;
 }
 
 // TASKS.csv #2584 (review #2486, WA lithium pegmatite; Matt's decision 2026-11-11) — in a mined pit the collars stand on benches of
@@ -82,9 +172,10 @@ export function collarBenches(collars, { planM = BENCH_PLAN_M, rlM = BENCH_RL_M 
   }
   return { kept, higher, untrusted, planM, rlM }; // untrusted: #2962
 }
-// the collar ground: the four nearest collars, inverse distance squared, over the collars collarBenches keeps (#2584)
-export function collarGround(collars) {
-  return idwGround(collarBenches(collars).kept);
+// the collar ground: the four nearest collars, inverse distance squared, over the collars collarBenches keeps (#2584), of the collars that are
+// not underground (#3551: per collar; survey, when the caller has it, tells the holes that start flat or upward when the collar has no dip)
+export function collarGround(collars, survey) {
+  return idwGround(collarBenches(surfaceCollars(collars, survey)).kept);
 }
 // the same interpolation over any points (a weathered base, the block model's column tops), with no bench check
 export function idwGround(points) {

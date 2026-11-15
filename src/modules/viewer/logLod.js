@@ -9,6 +9,7 @@
 // The builder (binReadings, buildCoarse) is logLodBuild.js, loaded the first time a coarse set is wanted: this part runs every frame.
 import { lodWanted } from "../../lib/viewer/assayLod.js";
 import { isTable, rowCount, fieldOf } from "../../lib/layerColumns.js"; // TASKS.csv #3140
+import { rowsRefOf } from "../../lib/tableFields.js"; // TASKS.csv #3140 step 2
 
 export const LOG_LOD_MIN = 20000, LOG_BIN_SPACINGS = 8;
 export const isPoint = (r) => r && !(r.to != null && !isNaN(r.to)) && r.depth != null && !isNaN(r.depth);
@@ -48,10 +49,10 @@ export function primeLogLod(group, layer, layerStyles) {
   if (!group) return;
   dropLogCoarse(group);
   let n = 0;
-  const pt = pointAt(layer.rows || []), N = rowCount(layer.rows); // #3140: counted by index (rows or a Table)
+  const rowsRef = rowsRefOf(layer) || [], pt = pointAt(rowsRef), N = rowCount(rowsRef); // #3140: counted by index (rows or a Table; a view's rows are not built)
   for (let i = 0; i < N; i++) if (pt(i)) n++;
   if (n < LOG_LOD_MIN) { delete group.userData.logLod; return; }
-  group.userData.logLod = { layer, layerStyles, spacingM: readingSpacingM(layer.rows), coarse: null, lodOn: false, vh: null };
+  group.userData.logLod = { layer, layerStyles, spacingM: readingSpacingM(rowsRef), coarse: null, lodOn: false, vh: null };
 }
 
 let builder = null, loading = null;

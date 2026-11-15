@@ -2,6 +2,7 @@
 import React from "react";
 import { X } from "./icons.js";
 import { identifyText } from "../lib/viewer/identify.js";
+import { IDENTIFY_PANEL } from "../lib/viewer/toastBox.js"; // TASKS.csv #3537 — its place, shared with the toast
 import { copyText } from "../lib/desktop.js";
 import { t as tr } from "../lib/i18n.js";
 
@@ -11,7 +12,7 @@ const act = { padding: "4px 8px", borderRadius: 5, border: "1px solid var(--colo
 export default function IdentifyPanel({ result, onShow, onClose, onZoom, onStripLog }) {
   const items = result?.items || [], it = items[result?.shown ?? 0];
   return (
-    <div role="region" aria-label={tr("Identify")} style={{ position: "absolute", top: 12, right: 132, width: 300, maxHeight: "calc(100% - 24px)", display: "flex", flexDirection: "column", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8, boxShadow: "0 4px 18px rgba(0,0,0,0.18)", color: "var(--color-text)", fontSize: "var(--font-size-base)", zIndex: 5 }}>
+    <div role="region" aria-label={tr("Identify")} style={{ position: "absolute", ...IDENTIFY_PANEL, maxHeight: "calc(100% - 24px)", display: "flex", flexDirection: "column", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8, boxShadow: "0 4px 18px rgba(0,0,0,0.18)", color: "var(--color-text)", fontSize: "var(--font-size-base)", zIndex: 5 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", borderBottom: "1px solid var(--color-border)" }}>
         <span style={{ fontWeight: 600 }}>{tr("Identify")}</span>
         <button type="button" onClick={onClose} aria-label={tr("Close")} title={tr("Close (Esc)")} style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--color-text-secondary)", padding: 0, display: "flex" }}><X size={15} /></button>

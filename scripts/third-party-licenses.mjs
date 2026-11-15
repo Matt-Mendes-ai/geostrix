@@ -172,6 +172,10 @@ export function bundledData() {
   if (existsSync(path.join(ROOT, "sample_data", "perk_rocky", "terrain_copernicus_glo30.tif"))) out.push({ name: "Perk-Rocky sample terrain (Copernicus DEM GLO-30)", version: "2026-11", license: "Copernicus DEM licence",
     url: "https://spacedata.copernicus.eu/collections/copernicus-digital-elevation-model",
     text: "Produced using Copernicus WorldDEM-30 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved. Read from the Copernicus DEM GLO-30 on AWS Open Data and resampled to a 30 m grid in NAD83 / UTM zone 10N (sample_data/perk_rocky/terrain_copernicus_glo30.tif)." });
+  // TASKS.csv #3514 — the USGS Spectral Library v7 subset shipped in src/lib/usgsSpectraSubset.json (36 minerals): public domain, the USGS asks for the acknowledgement and citation
+  if (existsSync(path.join(ROOT, "src", "lib", "usgsSpectraSubset.json"))) out.push({ name: "USGS Spectral Library Version 7 (36-mineral subset, Hyperspectral tab reference spectra)", version: "splib07", license: "Public domain (U.S. Government work)",
+    url: "https://doi.org/10.5066/F7RR1WDJ",
+    text: "Spectra from the USGS Spectral Library Version 7, a U.S. Geological Survey data release in the public domain; acknowledgement of the USGS is appreciated. Citation: Kokaly, R.F., Clark, R.N., Swayze, G.A., Livo, K.E., Hoefen, T.M., Pearson, N.C., Wise, R.A., Benzel, W.M., Lowers, H.A., Driscoll, R.L., and Klein, A.J., 2017, USGS Spectral Library Version 7: U.S. Geological Survey Data Series 1035, 61 p., https://doi.org/10.3133/ds1035. One spectrum per mineral (ASD field or Beckman laboratory measurement), resampled to 5 nm from 350 to 2500 nm by scripts/spectral/build-usgs-splib-subset.py; no other change. Provided without warranty." });
   return out;
 }
 

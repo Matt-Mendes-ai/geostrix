@@ -5,10 +5,10 @@
 // station's data against its model's response, the models in 3D.
 import React, { useMemo, useRef, useState } from "react";
 import { channelMatrix, noiseGroupFor, stdKindGuess } from "../lib/temLines.js";
-import { WAVEFORM_PRESETS, waveformFrom, parseWaveformTable, parseFilters, timeZeroGuess, unitGuess, heightColumn, rxColumn, tiltColumns, buildTemRequest, mergePartials, partialResult, layerThicknesses } from "../lib/temInvert.js";
+import { WAVEFORM_PRESETS, waveformFrom, parseWaveformTable, parseFilters, timeZeroGuess, unitGuess, heightColumn, rxColumn, tiltColumns, buildTemRequest, modelsCsv, mergePartials, partialResult, layerThicknesses } from "../lib/temInvert.js";
 import { modelPoints } from "../lib/fdem.js";
 import { SURVEY_METHODS, surveyKey } from "../lib/geophysSurveys.js";
-import { runTem1dJob } from "../lib/desktop.js";
+import { runTem1dJob, saveFile } from "../lib/desktop.js";
 import { smallSel, pBtn } from "../lib/sidebarStyles.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js";
 import { t as tr } from "../lib/i18n.js";
@@ -27,6 +27,8 @@ function rampRgb(t) {
 const fmt = (v) => (v == null || !Number.isFinite(v) ? "–" : Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : Number(v.toPrecision(3)).toLocaleString());
 const sci = (v) => (v == null || !Number.isFinite(v) ? "–" : v.toExponential(1));
 const EVERY = [1, 2, 5, 10, 20];
+// TASKS.csv #3486 — the neighbour tie, as FDEM 1D's (FdemPane TIES): the engine's second pass pulls each station toward its neighbours' models
+const TIES = [{ v: 0, label: "None: each sounding alone" }, { v: 0.3, label: "Weak" }, { v: 1, label: "Medium" }, { v: 3, label: "Strong" }];
 let LAST = null; // the panel's state between visits
 
 // conductivity against depth for the line's stations that have a model, the depth of investigation dashed
@@ -108,7 +110,7 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
   const tiltc = useMemo(() => tiltColumns(data.columns), [data]); // #3502
   const stdGuess = useMemo(() => (noiseMats[0] ? stdKindGuess(noiseMats[0]) : "relative"), [noiseMats]);
   const fresh = () => ({
-    key, geom: "vmd", r: 13, a: 20, area: 314, h: 30, rz: 0, rzCol: rxc && hc ? rxc : "", filters: "", coil2: true, useTilt: !!(tiltc.pitch || tiltc.roll), heightsCol: hc || "", timeZero: tz.zero, unit: ug.unit, useStd: noiseMats.every(Boolean), stdKind: stdGuess, errRel: 5, every: 1,
+    key, geom: "vmd", r: 13, a: 20, area: 314, h: 30, rz: 0, rzCol: rxc && hc ? rxc : "", filters: "", coil2: true, lateral: 0, useTilt: !!(tiltc.pitch || tiltc.roll), heightsCol: hc || "", timeZero: tz.zero, unit: ug.unit, useStd: noiseMats.every(Boolean), stdKind: stdGuess, errRel: 5, every: 1,
     layers: { n: 20, first: 3, bottom: 300 },
     wave: groups.map((g, k) => { const p = groups.length > 1 ? (k === 0 ? "airLow" : "airHigh") : "airHigh"; return { preset: p, onMs: WAVEFORM_PRESETS[p].onMs, rampUs: WAVEFORM_PRESETS[p].rampUs, table: "", baseFreq: "", shiftUs: "", frontUs: "", widthsUs: "" }; }),
     result: null, pick: null, sel: null,
@@ -133,6 +135,7 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
   const build = () => buildTemRequest(data, {
     moments: groups.map((g, k) => ({ group: g, times: times[k], ...waveOf(k), baseFreq: st.wave[k].baseFreq, shiftUs: st.wave[k].shiftUs, frontUs: st.wave[k].frontUs,
       widthsUs: String(st.wave[k].widthsUs || "").trim() ? numList(st.wave[k].widthsUs) : null })),
+    lateral: Number(st.lateral) || 0, // #3486
     timeZero: st.timeZero, unit: st.unit, every: st.every, heightsCol: st.heightsCol || null, rxCol: st.rzCol || null, tilt: st.useTilt && (tiltc.pitch || tiltc.roll) ? tiltc : null,
     noise: { use: st.useStd, kind: st.stdKind, mats: noiseMats },
     system: st.geom === "loop" ? { geom: "loop", a: Number(st.a) || 20, h: Number(st.h) || 0, filters: filters || [] }
@@ -189,6 +192,15 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
   const bottomDraw = useMemo(() => { if (!R) return 300; const d = R.doi.filter(Number.isFinite).sort((a, b) => a - b); const med = d.length ? d[Math.floor(d.length / 2)] : 200; return Math.min(R.thick.reduce((a, b) => a + b, 0), Math.max(50, Math.ceil(1.5 * med / 50) * 50)); }, [R]);
   // the readings the job was given (pV / (A m^4), the kept gates of each moment) against the model's response
   const fit = useMemo(() => (R && sel != null && R.pred?.[sel] && st.gates && st.obs?.[sel] ? { times: st.gates.flat().map((g) => g * 1000), obs: st.obs[sel], pred: R.pred[sel], station: st.pick[sel] } : null), [R, sel, st.gates, st.obs, st.pick]);
+  // TASKS.csv #3486 — the models (every inverted station, not only this line's) as a CSV table
+  const exportCsv = async () => {
+    if (!R) return;
+    const { text, rows } = modelsCsv(data, R, st.pick);
+    const base = String(data.name || "tem").replace(/\.[^.]+$/, "");
+    const res = await saveFile({ suggestedName: `${base}_tem1d_models.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: text });
+    if (res?.ok) setMsg({ info: true, text: tr("Exported {n} rows (one a station and layer).", { n: rows.toLocaleString() }) });
+    else if (res && !res.cancelled && res.error) setMsg({ text: tr("The export failed: {v}", { v: res.error }) });
+  };
   const add3d = () => {
     if (!R) return;
     const name = `${data.name} · TEM 1D model`;
@@ -298,6 +310,12 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
           {tr("to (m)")}<input type="number" min="10" step="any" value={st.layers.bottom} onChange={(e) => set({ layers: { ...st.layers, bottom: e.target.value } })} style={{ ...num, width: 52 }} aria-label={tr("Depth of the last layer's top (m)")} />
         </span>
       </div>
+      <div style={rowS}><span>{tr("Tie to the neighbouring soundings")}</span>
+        <select value={st.lateral ?? 0} onChange={(e) => set({ lateral: Number(e.target.value) })} style={smallSel} aria-label={tr("Tie to the neighbouring soundings")}>
+          {TIES.map((t) => <option key={t.v} value={t.v}>{tr(t.label)}</option>)}
+        </select>
+      </div>
+      {Number(st.lateral) > 0 && <div style={{ ...note, marginBottom: 6 }}>{tr("A tie reaches neighbours up to three stations away, at most 500 m, so a sparse first look ties nothing. It smooths the section; on a real SkyTEM survey a weak tie left the fit as it was and a medium one made it worse. It takes about twice as long.")}</div>}
       <div style={rowS}><span>{tr("Stations")}</span>
         <select value={st.every} onChange={(e) => set({ every: Number(e.target.value) })} style={smallSel} aria-label={tr("Every Nth station")}>
           {EVERY.map((k) => <option key={k} value={k}>{k === 1 ? tr("every station") : tr("every {k}th station (a first look)", { k })}</option>)}
@@ -320,6 +338,7 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
           <Fit times={fit.times} obs={fit.obs} pred={fit.pred} />
         </>}
         <button type="button" onClick={add3d} style={{ ...pBtn, justifyContent: "center", marginTop: 8 }}>{tr("Add the models to the 3D view")}</button>
+        <button type="button" onClick={exportCsv} style={{ ...pBtn, justifyContent: "center", marginTop: 6 }}>{tr("Export the models (CSV)")}</button>
       </>)}
       {R && !lineStations.length && <div style={note}>{tr("No model on this line: pick another line, or run with every station.")}</div>}
     </div>

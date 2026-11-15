@@ -147,7 +147,7 @@ test("wiring: the launcher beside grade-tonnage, the lazy modal, the strings in 
   const l = readFileSync(new URL("../src/components/BlockCalculatorLauncher.jsx", import.meta.url), "utf8");
   assert.match(l, /lazyModal\(\(\) => import\("\.\/BlockCalculatorModal\.jsx"\)\)/);
   const m = readFileSync(new URL("../src/components/BlockCalculatorModal.jsx", import.meta.url), "utf8");
-  assert.match(m, /addVoxelModel\(\{ \.\.\.rec, \.\.\.rampOf\(rec\.cells\) \}\)/);
+  assert.match(m, /addVoxelModel\(\{ \.\.\.rec, \.\.\.\(rampLike \|\| rampOf\(rec\.cells\)\) \}\)/); // #3522: the first input's colours when asked
   const all = m + l + readFileSync(new URL("../src/lib/blockCalc.js", import.meta.url), "utf8");
   const str = String.raw`"((?:[^"\\]|\\.)*)"`;
   const keys = [...all.matchAll(new RegExp(String.raw`\btr\(` + str, "g"))].map((x) => x[1])

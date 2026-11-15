@@ -16,7 +16,9 @@ import { buildLayerBatches, collarMarkerMaterial, syncBatchedInstances } from ".
 import { syncHoleLabels } from "../../lib/viewer/holeLabels.js";
 import { addTraceChunks } from "../../lib/viewer/traceBatch.js"; // #2176 step 3
 import { makeTextSprite } from "../../lib/viewer/textSprite.js";
-import { lazyTip } from "../../lib/viewer/lazyTip.js";
+import { lazyTip, rowTip } from "../../lib/viewer/lazyTip.js"; // rowTip: #3424 step 2
+import { isTable, rowOf, tableOps } from "../../lib/rowTable.js"; // TASKS.csv #3424 step 2 — a custom layer's rows may be a Table
+import { rowsRefOf } from "../../lib/tableFields.js"; // TASKS.csv #3424 step 2
 import { traceLookup } from "../../lib/viewer/modelHelpers.js";
 import { dropLogCoarse, primeLogLod } from "./logLod.js"; // TASKS.csv #2802
 import { PROTO_CYLINDER, PROTO_SPHERE_8, PROTO_SPHERE_12, PROTO_CIRCLE_24, PROTO_PRISM_4, PROTO_SQUARE, PIN_AXIS, dipPinDir, INTERVAL_PROTO, UP_Y, DIR_TMP, POINT_PROTO } from "../../lib/viewer/protos.js";
@@ -204,7 +206,7 @@ export function keptOrigin(prev, mean, tol = ORIGIN_KEEP_M) {
 export function buildDrillholeScene(ctx) {
   const { applyCategoryVisibility, applyHoleVisibilityRef, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collarSize /* #2823 */, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, pointBuildersStale, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels } = ctx;
   const groups = layerGroupsRef.current;
-  if (!groups.litho || buildDefer.skip()) return; // #1500 — a restore just scheduled its state: build once, next render
+  if (!groups.litho || buildDefer.skip() || buildDefer.held?.()) return; // #1500 — a restore just scheduled its state: build once, next render; held: #3544 — the import queue builds once, at its end
   // TASKS.csv #131 — c.material?.map?.dispose?.() added alongside the existing geometry/material
   // disposal: every OTHER mesh type built into these groups uses a plain color-only material (no
   // .map), so this was a harmless no-op for all of them, but hole-label Sprites use a CanvasTexture
@@ -434,7 +436,9 @@ export function buildDrillholeScene(ctx) {
     mnlgy: byHoleIf("mnlgy", layers.mnlgy), magsusc: byHoleIf("magsusc", layers.magsusc), structure: byHoleIf("structure", layers.structure),
     recovery: byHoleIf("recovery", layers.recovery), sg: byHoleIf("sg", layers.sg), breccia: byHoleIf("breccia", layers.breccia), weath: byHoleIf("weath", layers.weath), structzone: byHoleIf("structzone", layers.structzone), // #608, #2162, #604
   };
-  const customRowsByHoleByLayer = new Map(customLayers.map((l) => [l.id, byHoleIf(l.id, l.rows)]));
+  // TASKS.csv #3424 step 2 — a layer held as a Table is grouped by row INDEX (tableReaders.js indicesByHole, via tableOps), never by building its rows
+  const tableOfLayer = (l) => { const r = rowsRefOf(l); return isTable(r) ? r : null; };
+  const customRowsByHoleByLayer = new Map(customLayers.map((l) => { const t = tableOfLayer(l); return [l.id, !t ? byHoleIf(l.id, l.rows) : !rebuild.has(l.id) ? NO_HOLES : tableOps.indicesByHole(t, patched.has(l.id) ? patchHoles(l.id) : null)]; }));
   // the holes each group has rows in, for the next build's planGroups (a kept group keeps its set)
   const holeSets = new Map();
   for (const k of sigs.keys()) holeSets.set(k, rebuild.has(k) && !patched.has(k) ? new Set((rowsByHole[k] || customRowsByHoleByLayer.get(k) || NO_HOLES).keys()) : prev.holeSets.get(k));
@@ -675,7 +679,15 @@ export function buildDrillholeScene(ctx) {
       // cheaply afterward via the layer's own group.visible, see the small effect near layerVisible's
       // own visibility effect) so this rebuild no longer needs to re-run every time a custom layer's
       // checkbox is toggled — see customVisible's removal from this effect's own dependency array.
-      (customRowsByHoleByLayer.get(layer.id)?.get(c.hole_id) || []).forEach((row) => {
+      const lt = tableOfLayer(layer); // #3424 step 2 — the entries are row indices: each row is built for this pass only, and its tooltip keeps the index
+      // #3424 (side 2's heap profile: 196 MB of rows from rowOf below were still alive after the build) — the tooltip texts are made HERE, once
+      // per hole and layer, not in the row loop: a closure made in the loop shared the loop body's context, which held `row` (the rows path's
+      // own closure captures it), so every Table row a tooltip function was made beside stayed alive through it. In the Table branch the loop
+      // makes no closure at all.
+      const intervalText = (r) => `${c.hole_id}\n${layer.name}: ${r.value ?? "—"}\n${+r.from.toFixed(2)}–${+r.to.toFixed(2)} m`;
+      const pointText = (r) => `${c.hole_id}\n${layer.name}: ${r.value ?? "—"}\n@ ${r.depth.toFixed(0)} m`;
+      (customRowsByHoleByLayer.get(layer.id)?.get(c.hole_id) || []).forEach((entry) => {
+        const row = lt ? rowOf(lt, entry) : entry;
         if (row.to != null && !isNaN(row.to)) {
           const p1 = look.at(row.from), p2 = look.at(row.to);
           // TASKS.csv #1529 (review #1497, Lawyers) — a custom interval runs straight between its two ends, so it is the shared
@@ -687,14 +699,14 @@ export function buildDrillholeScene(ctx) {
           mesh.scale.set(1.6 * stI.size, len, 1.6 * stI.size);
           mesh.position.set(p1.x, p1.y, p1.z);
           mesh.quaternion.setFromUnitVectors(PIN_AXIS, dipPinDir.set(dx / len, dy / len, dz / len));
-          mesh.userData = lazyTip({ row, holeId: c.hole_id }, () => `${c.hole_id}\n${layer.name}: ${row.value ?? "—"}\n${+row.from.toFixed(2)}–${+row.to.toFixed(2)} m`); // #1500
+          mesh.userData = lt ? rowTip(lt, entry, { holeId: c.hole_id }, intervalText) : lazyTip({ row, holeId: c.hole_id }, () => intervalText(row)); // #1500; a Table's row by index: #3424
           layer.group.add(mesh);
         } else if (row.depth != null && !isNaN(row.depth)) {
           const p = look.at(row.depth);
           const mesh = new PickStandIn(POINT_PROTO[stP.shape], { color: stP.color || customColour(layer, layerStyles, row), transparent: stP.opacity < 1, opacity: stP.opacity, side: stP.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // TASKS.csv #312 — shared prototype + scale; #635 style; #1500 a stand-in
           mesh.scale.setScalar(2.4 * stP.size);
           mesh.position.set(p.x, p.y, p.z);
-          mesh.userData = lazyTip({ row, holeId: c.hole_id }, () => `${c.hole_id}\n${layer.name}: ${row.value ?? "—"}\n@ ${row.depth.toFixed(0)} m`); // #1500
+          mesh.userData = lt ? rowTip(lt, entry, { holeId: c.hole_id }, pointText) : lazyTip({ row, holeId: c.hole_id }, () => pointText(row)); // #1500; a Table's row by index: #3424
           layer.group.add(mesh);
         }
       });

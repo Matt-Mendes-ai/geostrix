@@ -18,7 +18,14 @@ test("lazyTip: built once on first read, assignable, the other fields kept as ow
 
 test("the build: intervals, point logs, custom layers and assay markers use lazyTip with their hole id; vectors only for a bent interval", () => {
   const s = viewerSource().replace(/\r\n/g, "\n");
-  assert.equal((s.match(/mesh\.userData = lazyTip\(\{ row(: a)?, holeId: c\.hole_id/g) || []).length, 4);
+  assert.equal((s.match(/mesh\.userData = lazyTip\(\{ row(: a)?, holeId: c\.hole_id/g) || []).length, 2);
+  // #3424 — a custom layer's two kinds (interval, point): a Table's row by index (rowTip) or lazyTip({ row, holeId }), their texts made once per
+  // hole and layer outside the row loop (a closure made in the loop kept the loop's rows alive: side 2's heap profile)
+  assert.match(s, /const intervalText = \(r\) => `\$\{c\.hole_id\}/);
+  assert.match(s, /const pointText = \(r\) => `\$\{c\.hole_id\}/);
+  assert.match(s, /mesh\.userData = lt \? rowTip\(lt, entry, \{ holeId: c\.hole_id \}, intervalText\) : lazyTip\(\{ row, holeId: c\.hole_id \}, \(\) => intervalText\(row\)\);/);
+  assert.match(s, /mesh\.userData = lt \? rowTip\(lt, entry, \{ holeId: c\.hole_id \}, pointText\) : lazyTip\(\{ row, holeId: c\.hole_id \}, \(\) => pointText\(row\)\);/);
+  assert.doesNotMatch(s, /const tipData = /, "no closure made per row in the loop");
   assert.match(s, /\(\) => lazyTip\(\{ row: a, holeId: c\.hole_id \}/, "#3055 — the assay marker's lazy tip, made only for a row that is drawn (lib/viewer/assayBatcher.js)");
   assert.ok(!/mesh\.userData = \{ row, tip: `\$\{c\.hole_id\}/.test(s), "no eager per-row drillhole tooltip left");
   assert.match(s, /mesh_\.quaternion\.setFromUnitVectors\(UP_Y, DIR_TMP\.set\(dx \/ len, dy \/ len, dz \/ len\)\);/);

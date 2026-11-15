@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import v8 from "node:v8";
 import vm from "node:vm";
 import { compactTable, expandTable } from "../src/lib/compactTable.js";
-import { tableFromRows, tableFromCompact, compactFromTable, rowsOf, rowOf, colOf, valuesOf, cellOf, isTable, lengthOf } from "../src/lib/rowTable.js";
+import { rowsOf, rowOf, colOf, valuesOf, cellOf, isTable, lengthOf } from "../src/lib/rowTable.js"; import { tableFromRows, tableFromCompact, compactFromTable } from "../src/lib/rowTableBuild.js";
 
 const EL = ["Au", "Ag", "Cu", "As"];
 // awkward on purpose: absent fields, null, NaN / Infinity, a mixed number / string column, booleans, qualifier objects, an element absent

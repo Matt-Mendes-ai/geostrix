@@ -31,19 +31,20 @@ export function expandTerrain(t) {
 import { compactLayers, expandLayers } from "./compactRows.js"; // TASKS.csv #374
 import { compactTable, compactTableSliced /* #3104 */, expandTable, expandTableSliced, budgetPause /* #3423 */, compactIntervalLayers, expandIntervalLayers, compactCustomLayers, expandCustomLayers } from "./compactTable.js"; // TASKS.csv #555; custom layers: #2334
 import { compactSurfaces, expandSurfaces } from "./compactSurfaces.js"; // TASKS.csv #483
-import { isTable, tableFromCompact, tableFromCompactSliced, compactFromTable, compactFromTableSliced } from "./rowTable.js"; // TASKS.csv #3424
+import { isTable, tableOps } from "./rowTable.js"; // TASKS.csv #3424 — the light half: a Table's save and decode go through tableOps (filled
+// by ./rowTableBuild.js when it loads; a Table exists only once it has), and the sliced decode imports it on demand (startup size)
 // TASKS.csv #3424 ((A) step 1, the store adapter) — the fields the store may hold as a Table (lib/rowTable.js): "assays", "survey",
 // "customLayers" (a layer's rows). A field in this set opens, restores and switches tab as a Table decoded from the file's columns (no rows
 // built); every other field, and every field while the set is empty (the default), loads rows exactly as before. A field goes in once its
 // open-time readers no longer force rows (they would build them all in one task: side-notes s5/3424.txt). Saving a Table writes the same
 // text as saving its rows (compactFromTable), whatever the set holds.
 export const TABLE_FIELDS = new Set();
-const tableSave = (v) => (isTable(v) ? compactFromTable(v) : compactTable(v));
-const loadTableField = (key, stored) => (isTable(stored) ? stored : TABLE_FIELDS.has(key) && stored?.__compactTable ? tableFromCompact(stored) : expandTable(stored)) || [];
+const tableSave = (v) => (isTable(v) ? tableOps.compactFromTable(v) : compactTable(v));
+const loadTableField = (key, stored) => (isTable(stored) ? stored : TABLE_FIELDS.has(key) && stored?.__compactTable && tableOps.tableFromCompact ? tableOps.tableFromCompact(stored) : expandTable(stored)) || [];
 const customLayersSave = (list) => compactCustomLayers(Array.isArray(list) && list.some((l) => isTable(l?.rows))
-  ? list.map((l) => (isTable(l?.rows) ? { ...l, rows: compactFromTable(l.rows) } : l)) : list);
-const customLayersLoad = (list) => (TABLE_FIELDS.has("customLayers") && Array.isArray(list) && list.some((l) => l?.rows?.__compactTable)
-  ? list.map((l) => (l?.rows?.__compactTable ? { ...l, rows: tableFromCompact(l.rows) } : l)) : expandCustomLayers(list));
+  ? list.map((l) => (isTable(l?.rows) ? { ...l, rows: tableOps.compactFromTable(l.rows) } : l)) : list);
+const customLayersLoad = (list) => (TABLE_FIELDS.has("customLayers") && tableOps.tableFromCompact && Array.isArray(list) && list.some((l) => l?.rows?.__compactTable)
+  ? list.map((l) => (l?.rows?.__compactTable ? { ...l, rows: tableOps.tableFromCompact(l.rows) } : l)) : expandCustomLayers(list));
 import { DEFAULT_DESURVEY_METHOD, normalizeDesurveyMethod } from "./desurvey.js";
 import { poolLayoutImages, expandLayoutImages } from "./layoutImagePool.js"; // TASKS.csv #1631
 
@@ -358,7 +359,9 @@ export const payloadHasTables = (data) => !!data && typeof data === "object" && 
 export async function expandPayloadSliced(data, pause = budgetPause()) {
   if (!data || typeof data !== "object") return data;
   const out = { ...data };
-  // #3424 — a field in TABLE_FIELDS is decoded into a Table (a column per step) instead of rows
+  // #3424 — a field in TABLE_FIELDS is decoded into a Table (a column per step) instead of rows; the decoder loads only then
+  const wantsTable = (["assays", "survey"].some((k) => TABLE_FIELDS.has(k) && out[k]?.__compactTable)) || (TABLE_FIELDS.has("customLayers") && Array.isArray(out.customLayers) && out.customLayers.some((l) => l?.rows?.__compactTable));
+  const { tableFromCompactSliced } = wantsTable ? await import("./rowTableBuild.js") : {};
   for (const k of ["assays", "survey", "surfaceSamples"]) if (out[k]?.__compactTable) out[k] = TABLE_FIELDS.has(k) ? await tableFromCompactSliced(out[k], pause) : await expandTableSliced(out[k], pause);
   if (out.layers && typeof out.layers === "object") {
     let layers = out.layers;
@@ -413,7 +416,7 @@ export async function projectPartsSliced(live, extra = {}, pause = nextTask) {
   const parts = [["version", JSON.stringify(PROJECT_VERSION)]];
   for (const f of FIELDS) {
     const v = live[f.key], cold = v !== null && typeof v === "object" && !fieldJson.has(v);
-    if (cold && f.tables) for (const rows of f.tables(v)) { if (Array.isArray(rows)) await compactTableSliced(rows, pause); else if (isTable(rows)) await compactFromTableSliced(rows, pause); /* #3424 */ }
+    if (cold && f.tables) for (const rows of f.tables(v)) { if (Array.isArray(rows)) await compactTableSliced(rows, pause); else if (isTable(rows)) await tableOps.compactFromTableSliced(rows, pause); /* #3424 */ }
     const j = cachedJson(v, f.save || ((x) => x));
     if (j !== undefined) parts.push([f.key, j]);
     if (cold) await pause();
