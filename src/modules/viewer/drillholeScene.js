@@ -51,6 +51,8 @@ export const isIntervalRow = (r) => Number.isFinite(r.from) && Number.isFinite(r
 // What the last build made, per viewer (its layer-groups object, so a remounted scene starts with a full build):
 // { ox, oy, oz, rebuildSeq, holes: Map(hole_id -> entry), sigs: Map(group key -> signature), holeSets: Map(group key -> Set of hole ids) }
 const sceneCaches = new WeakMap();
+// TASKS.csv #3648 — the latest sliced build of each scene (its groups object): an older one stops at its next slice
+const buildTokens = new WeakMap(), SLICE_MS = 40;
 const NO_HOLES = new Map();
 // the drillhole layers this build fills from `layers` (custom layers are keyed by their id)
 export const BUILT_ROW_KEYS = ["litho", "alt", "vein", "breccia", "structzone", "weath", "geotech", "recovery", "sg", "litho_gc", "alt_gc", "mnlgy", "magsusc", "structure"];
@@ -204,7 +206,7 @@ export function keptOrigin(prev, mean, tol = ORIGIN_KEEP_M) {
   return mean;
 }
 
-export function buildDrillholeScene(ctx) {
+export async function buildDrillholeScene(ctx) { // async: #3648 (slices only when ctx.slice)
   const { applyCategoryVisibility, applyHoleVisibilityRef, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collarSize /* #2823 */, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, pointBuildersStale, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels } = ctx;
   const groups = layerGroupsRef.current;
   if (!groups.litho || buildDefer.skip() || buildDefer.held?.()) return; // #1500 — a restore just scheduled its state: build once, next render; held: #3544 — the import queue builds once, at its end
@@ -470,7 +472,7 @@ export function buildDrillholeScene(ctx) {
   const buildErrors = [];
   const traceHoles = []; // #2176 step 3 — { holeId, pts, dashed } for addTraceChunks
   const traceById = new Map(tracesRef.current.map((t) => [t.hole_id, t])); // #2170: was a filter per hole, O(holes²) (11.8 s at 20,544)
-  collars.forEach((c) => {
+  const perHole = (c) => { // TASKS.csv #3648 — one hole; the loop below runs them all, in slices when ctx.slice
    try {
     // #2176 — the hole's kept desurvey, trace and lookup when its collar, survey rows, method and the origin are the same
     const e = holeEntries?.get(c.hole_id) || { collar: c, hs: surveyByHole.get(c.hole_id) || [], method: desurveyMethod };
@@ -721,7 +723,27 @@ export function buildDrillholeScene(ctx) {
    } catch (err) {
      buildErrors.push(`${c.hole_id}: ${err.message}`);
    }
-  });
+  };
+  // TASKS.csv #3648 (Fireweed rehearsal #3627: switching back to a project tab froze the window ~0.4-1 s, most of it this loop; the import queue's
+  // one held build ~2.4 s at 4x CPU, #3544) — with ctx.slice (the 3D View's build) the holes are built in slices of ~40 ms, the window painting
+  // between them; a newer build abandons this one (its token), and the scene's cache is dropped until it ends, so the next build is a full one and
+  // never reuses a half-built group. Without ctx.slice (the tests, any other caller) it runs straight through, as before: an async function runs
+  // synchronously until its first await.
+  if (!ctx.slice) collars.forEach(perHole);
+  else {
+    const token = (buildTokens.get(groups) || 0) + 1;
+    buildTokens.set(groups, token);
+    sceneCaches.delete(groups);
+    let t0 = performance.now();
+    for (let i = 0; i < collars.length; i++) {
+      perHole(collars[i]);
+      if (performance.now() - t0 > SLICE_MS && i < collars.length - 1) {
+        await new Promise((r) => setTimeout(r, 0));
+        if (buildTokens.get(groups) !== token) return; // a newer build started: it clears and builds again
+        t0 = performance.now();
+      }
+    }
+  }
   if (rebuildHoles || plan.shift?.kept) tracesRef.current = [...traceById.values()]; // #2176 — the same list otherwise; #2937 — the new method's traces
   if (rebuildHoles) addTraceChunks(groups.holes, traceHoles); // #2176 step 3
   for (const l of repaint) paintCustomLayer(l, layerStyles); // #2373
