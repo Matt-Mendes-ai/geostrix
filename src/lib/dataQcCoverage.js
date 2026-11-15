@@ -10,6 +10,8 @@ import { SKIP_REASONS } from "./viewer/importHelpers.js";
 import { importLeftOutList } from "./importLeftOut.js";
 
 export const SHORT_M = 1;
+const LOG_KEYS = ["litho", "alt", "vein", "breccia", "weath", "structzone", "mnlgy", "structure", "geotech", "recovery", "litho_gc", "alt_gc", "magsusc"]; // any of these is a log (#3530); density is not: it is a measurement
+const METHOD_FIELD = /^(sg_?)?method$/i, GAP_M = 0.05; // GAP_M: 5 cm: a gap smaller than a sample's rounding is not unsampled core
 const SHORT_LAYERS = ["litho"]; // lithology logs run the whole hole; alteration is often logged only where present, so "short" there is noise
 const list = (ids, k = 6) => ids.slice(0, k).join(", ") + (ids.length > k ? ", …" : "");
 const label = (key) => LAYER_META[key]?.label || key; // the category: English, like validateIntervalLayer's ("Lithology"), so the groups match
@@ -41,6 +43,53 @@ export function coverageInfos({ collars = [], layers = {}, assays = [], lengths 
   if (ids.length && assays.length) {
     const without = ids.filter((id) => !assayed.has(id)), have = ids.length - without.length;
     if (have * 2 > ids.length && without.length) out.push({ category: "Assays", holeId: null, message: tr("{n} of {m} holes with a collar have no assays (checked because more than half the holes have assays): {list}.", { n: without.length.toLocaleString(), m: ids.length.toLocaleString(), list: list(without) }) });
+  }
+  // TASKS.csv #3530 (Fireweed rehearsal, Macpass: no logs at all, 48 assayed intervals with no density, 6,489 regressed densities, 960 gaps between samples; none said)
+  // (4) no log of any kind: the drillholes carry assays and densities only, so nothing to model contacts from
+  // (said only once something other than collars is in: a project of collars alone has not got as far as logs)
+  if (ids.length && (assays.length || (layers?.sg || []).length) && !LOG_KEYS.some((k) => (layers?.[k] || []).length) && !(customLayers || []).some((l) => l?.rows?.length)) {
+    const hasA = assays.length > 0, hasD = (layers?.sg || []).length > 0, v = { n: ids.length.toLocaleString() };
+    out.push({ category: "Logs", holeId: null, message: hasA && hasD ? tr("No lithology, alteration, vein, structure or other log is in the project: the {n} holes carry only assays and densities, so modelling tools have no logged contacts to build from.", v)
+      : hasA ? tr("No lithology, alteration, vein, structure or other log is in the project: the {n} holes carry only assays, so modelling tools have no logged contacts to build from.", v)
+      : tr("No lithology, alteration, vein, structure or other log is in the project: the {n} holes carry only densities, so modelling tools have no logged contacts to build from.", v) });
+  }
+  // (5) assayed intervals no density interval overlaps
+  if (assays.length && (layers?.sg || []).length) {
+    const sgBy = new Map();
+    for (const r of layers.sg) if (Number.isFinite(r.from) && Number.isFinite(r.to)) { if (!sgBy.has(r.hole_id)) sgBy.set(r.hole_id, []); sgBy.get(r.hole_id).push(r); }
+    const bare = new Map();
+    for (const a of assays) {
+      if (!Number.isFinite(a.from) || !Number.isFinite(a.to)) continue;
+      const sg = sgBy.get(a.hole_id);
+      if (!sg || !sg.some((r) => r.from < a.to && r.to > a.from)) bare.set(a.hole_id, (bare.get(a.hole_id) || 0) + 1);
+    }
+    // holes with no density at all are the 'no Specific gravity rows' line above; this counts the intervals of holes that do have densities
+    const part = [...bare].filter(([id]) => sgBy.has(id)).sort((x, y) => y[1] - x[1]), n = part.reduce((t, [, c]) => t + c, 0);
+    if (n) out.push({ category: label("sg"), holeId: null, message: tr("{n} assayed interval(s) in {h} hole(s) that have densities have no {layer} interval overlapping them ({list}): a tonnage there has no measured density to use.", { n: n.toLocaleString(), h: part.length.toLocaleString(), layer: named("sg"), list: list(part.map(([id, c]) => `${id} ${c}`), 4) }) });
+  }
+  // (6) the values of a 'method' field kept with a layer: how many rows are of each kind (a regressed or calculated value is not a measurement)
+  for (const [key, rows] of Object.entries(layers || {})) {
+    if (!Array.isArray(rows) || rows.length < 2 || key === "geophys_pts") continue;
+    const field = Object.keys(rows[0] || {}).find((k) => METHOD_FIELD.test(k));
+    if (!field) continue;
+    const by = new Map();
+    for (const r of rows) { const v = String(r?.[field] ?? "").trim(); if (v) by.set(v, (by.get(v) || 0) + 1); }
+    if (by.size < 2 || by.size > 8) continue;
+    const total = [...by.values()].reduce((a, b) => a + b, 0);
+    out.push({ category: label(key), holeId: null, message: tr("{layer} rows by '{field}': {list}.", { layer: named(key), field, list: [...by].sort((x, y) => y[1] - x[1]).map(([v, c]) => `${v} ${c.toLocaleString()} (${Math.round((c / total) * 100)}%)`).join(", ") }) });
+  }
+  // (7) the unsampled metres between samples inside a hole's sampled range
+  if (assays.length) {
+    const byHole = new Map();
+    for (const a of assays) if (Number.isFinite(a.from) && Number.isFinite(a.to) && a.to > a.from) { if (!byHole.has(a.hole_id)) byHole.set(a.hole_id, []); byHole.get(a.hole_id).push(a); }
+    let gaps = 0, metres = 0, holes = 0;
+    for (const arr of byHole.values()) {
+      arr.sort((x, y) => x.from - y.from);
+      let end = arr[0].to, here = 0;
+      for (let i = 1; i < arr.length; i++) { if (arr[i].from - end > GAP_M) { here++; metres += arr[i].from - end; } if (arr[i].to > end) end = arr[i].to; }
+      if (here) { gaps += here; holes++; }
+    }
+    if (gaps) out.push({ category: "Assays", holeId: null, message: tr("{n} unsampled gap(s) of more than {d} m lie between samples inside the sampled range of {h} hole(s), {m} m in all: that core was not assayed (or its results are not in the table).", { n: gaps.toLocaleString(), d: GAP_M, h: holes.toLocaleString(), m: Math.round(metres).toLocaleString() }) });
   }
   // (3) what the imports left out
   for (const e of importLeftOutList(project)) {

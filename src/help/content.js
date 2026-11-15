@@ -22,8 +22,9 @@ import modelling from "./pages/modelling.js";
 import view from "./pages/view.js";
 import surface from "./pages/surface.js";
 import targeting from "./pages/targeting.js";
+import data from "./pages/data.js"; // first project, importing drillholes / assays / density, Data QC
 
-export const PAGES = [...start, ...geophysics, ...maps, ...mineDesign, ...modelling, ...view, ...surface, ...targeting];
+export const PAGES = [...start, ...data, ...geophysics, ...maps, ...mineDesign, ...modelling, ...view, ...surface, ...targeting];
 export const pageById = (id) => PAGES.find((p) => p.id === id) || null;
 
 // every searchable string of a page, lower-cased, computed once

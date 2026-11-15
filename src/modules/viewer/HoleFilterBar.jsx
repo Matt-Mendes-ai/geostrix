@@ -39,7 +39,7 @@ export default function HoleFilterBar({ collars, filter, setFilter, visibleHoles
         <select value={colourBy} aria-label={tr("Colour holes by a collar field")} onChange={(e) => setColourBy(e.target.value)}
           style={{ width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 6px", fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>
           <option value="">{tr("Colour holes: one colour")}</option>
-          {choices.map((ch) => <option key={ch.key} value={ch.key}>{tr("Colour holes by {field}", { field: ch.key })}</option>)}
+          {picks.map((p) => { const key = p.also.includes("hole type") ? "hole type" : p.key; /* TASKS.csv #3538 — one entry per split (hole_type and 'hole type' split the holes alike); the app's own normalized field wins */ return <option key={key} value={key}>{tr("Colour holes by {field}", { field: key })}</option>; })}
         </select>
       )}
       <div style={{ display: "flex", gap: 4 }}>

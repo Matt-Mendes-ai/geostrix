@@ -24,6 +24,24 @@ import { suspectElevationIds } from "./collarElevationTrust.js"; // TASKS.csv #3
 
 // TASKS.csv #2939 — a hole's direction as a unit vector (E, N, up) from its azimuth and dip below the horizontal (up: an uphole), and the
 // angle between two such directions in degrees
+// TASKS.csv #3531 — a wedge / daughter hole's id is its parent's plus W, WD, D or A and a number (JS81-068W1, NB23-022D1, TS028A, JS80-056AW1: the daughter of JS80-056A)
+const WEDGE_SUFFIX = /^[-_.]?(?:W|WD|D|A)\d*$/i;
+// -> { parent, kids } when the group is one parent and daughters that all part from their own parent down the hole, else null. survey: the project's stations
+export function wedgeFamily(ids, byId, survey) {
+  const set = new Set(ids), parentOf = (id) => ids.filter((p) => p !== id && id.startsWith(p) && WEDGE_SUFFIX.test(id.slice(p.length))).sort((a, b) => b.length - a.length)[0] || null;
+  const roots = ids.filter((id) => !parentOf(id));
+  if (roots.length !== 1) return null;
+  const last = new Map();
+  for (const s of survey || []) { if (!set.has(s.hole_id) || !Number.isFinite(s.depth) || !Number.isFinite(s.azimuth) || !Number.isFinite(s.dip)) continue; const l = last.get(s.hole_id); if (!l || s.depth > l.depth) last.set(s.hole_id, s); }
+  const parts = (kid, par) => {
+    const a = byId.get(kid) || {}, b = byId.get(par) || {};
+    if (Number.isFinite(a.length) && Number.isFinite(b.length) && Math.abs(a.length - b.length) > 1) return true; // another length
+    const x = last.get(kid), y = last.get(par);
+    return !!(x && y && angleBetween(holeDirection(x.azimuth, Math.abs(x.dip), x.dip < 0), holeDirection(y.azimuth, Math.abs(y.dip), y.dip < 0)) > SAME_DIRECTION_DEG); // another direction at the last station
+  };
+  const kids = ids.filter((id) => id !== roots[0]);
+  return kids.every((k) => parts(k, parentOf(k))) ? { parent: roots[0], kids } : null;
+}
 export const SAME_DIRECTION_DEG = 3; // the reviewer's 'about 3 degrees'; a pad's fan holes differ by more
 export function holeDirection(azimuth, dipDown, up = false) {
   const a = (azimuth * Math.PI) / 180, d = (dipDown * Math.PI) / 180, h = Math.cos(d);
@@ -101,7 +119,13 @@ function validateCollars(collars, survey = []) { // survey: #2186
       const groups = []; // [{ dir, ids }]: a hole joins the first group whose first hole points within SAME_DIRECTION_DEG of it
       unique.forEach((id) => { const d = orient(id), g = groups.find((x) => angleBetween(x.dir, d) <= SAME_DIRECTION_DEG); if (g) g.ids.push(id); else groups.push({ dir: d, ids: [id] }); });
       const same = groups.map((g) => g.ids).filter((g) => g.length > 1);
-      same.forEach((g) => pushIssue(issues, "warning", "Collars", null, tr("{n} holes ({ids}) share the same collar (within 1m) AND point the same way (within 3°) — a twin or re-drill, a duplicate import, or a coordinate entry error.", { n: g.length, ids: g.join(", ") })));
+      // TASKS.csv #3531 (Fireweed rehearsal: 20 of 24 'twin or re-drill' warnings were a parent and its wedges / daughters by name) — a hole whose id is its parent's plus
+      // W / D / A and a number, that parts from the parent down the hole (another length, or another direction at the last station), is a wedge: an info that says so
+      same.forEach((g) => {
+        const w = wedgeFamily(g, byId, survey);
+        if (w) pushIssue(issues, "info", "Collars", null, tr("{n} holes ({ids}) start at the same collar and point the same way: {parent} and its wedge / daughter hole(s) {kids}, which part from it down the hole — normal for wedged holes.", { n: g.length, ids: g.join(", "), parent: w.parent, kids: w.kids.join(", ") }));
+        else pushIssue(issues, "warning", "Collars", null, tr("{n} holes ({ids}) share the same collar (within 1m) AND point the same way (within 3°) — a wedge or daughter hole, a twin or re-drill, a duplicate import, or a coordinate entry error.", { n: g.length, ids: g.join(", ") }));
+      });
       if (same.flat().length < unique.length) pushIssue(issues, "info", "Collars", null, tr("{n} holes ({ids}) start within 1m of each other with different azimuths or dips: a drill pad (fan), not a duplicate.", { n: unique.length, ids: unique.join(", ") }));
       return;
     }
@@ -111,7 +135,12 @@ function validateCollars(collars, survey = []) { // survey: #2186
 }
 
 // ---- Survey / trajectory ----
-function* validateSurveyAndTrajectorySteps(collars, survey, { doglegWarn = 3, doglegError = 10 } = {}) { // TASKS.csv #3136 — pauses (yield) for the sliced run
+// TASKS.csv #3526 (Fireweed rehearsal) — the Macpass survey (a company's own validated database) opened with 105 dogleg ERRORS and 1,030 warnings: 1,081 of the 1,228
+// rows, 318 of them bends under 2°, and the errors short-station readings scaled up (3.4° over 3.0 m rated over 10 m = 10°/30 m). A bend counts only when the angle
+// itself is above what a survey tool reads (DOGLEG_MIN_DEG); it is an ERROR only when the angle is more than reading noise (DOGLEG_ERROR_MIN_DEG) AND the rate is one
+// no drill string makes (doglegError, 20°/30 m); and a hole's bends are ONE row (the sharpest, with how many there are), sorted below the other warnings.
+export const DOGLEG_MIN_DEG = 2, DOGLEG_ERROR_MIN_DEG = 5, DOGLEG_ERROR_DEFAULT = 20;
+function* validateSurveyAndTrajectorySteps(collars, survey, { doglegWarn = 3, doglegError = DOGLEG_ERROR_DEFAULT } = {}) { // TASKS.csv #3136 — pauses (yield) for the sliced run
   const issues = [];
   let tick = 0;
   const collarIds = new Set(collars.map((c) => c.hole_id));
@@ -165,6 +194,7 @@ function* validateSurveyAndTrajectorySteps(collars, survey, { doglegWarn = 3, do
     // 60 -> 45 over 3 m (a 23° bend, ~233°/30 m — a typo or a bad shot) was not. Same cos-dogleg formula as the
     // minimum-curvature desurvey (desurvey.js); inclination from vertical = 90 - |dip|.
     const rad = Math.PI / 180;
+    let bends = 0, sharpest = null, hardError = false; // #3526 — one row per hole
     for (let i = 1; i < sorted.length; i++) {
       const a = sorted[i - 1], b = sorted[i];
       if (!Number.isFinite(a.azimuth) || !Number.isFinite(b.azimuth) || !Number.isFinite(a.dip) || !Number.isFinite(b.dip)) continue;
@@ -173,12 +203,20 @@ function* validateSurveyAndTrajectorySteps(collars, survey, { doglegWarn = 3, do
       const I1 = (90 - Math.abs(a.dip)) * rad, I2 = (90 - Math.abs(b.dip)) * rad, dAz = (b.azimuth - a.azimuth) * rad;
       const cosDL = Math.min(1, Math.max(-1, Math.cos(I2 - I1) - Math.sin(I1) * Math.sin(I2) * (1 - Math.cos(dAz))));
       const dl = Math.acos(cosDL) / rad;
-      // the rate over at least 10 m and only for a bend of >= 1°: stations a few cm or metres apart (repeat shots,
+      // the rate over at least 10 m and only for a bend of >= DOGLEG_MIN_DEG: stations a few cm or metres apart (repeat shots,
       // tie-in readings) turned instrument noise into 15-25°/30 m "errors" on the real 41597Z and Copley surveys
       const dls = (dl * 30) / Math.max(dMD, 10);
-      if (dl >= 1 && dls > doglegWarn) {
-        pushIssue(issues, dls > doglegError ? "error" : "warning", "Survey", holeId, tr("Dogleg {dl}° over {dMD} m between {depth} m and {depth2} m ({dls}°/30 m{v}, over {v2}°/30 m) — check for a typo or a bad shot, or a real deflection (wedge).", { dl: dl.toFixed(1), dMD: dMD.toFixed(1), depth: a.depth, depth2: b.depth, dls: dls.toFixed(1), v: dMD < 10 ? tr(", rated over 10 m") : "", v2: dls > doglegError ? doglegError : doglegWarn }));
+      if (dl >= DOGLEG_MIN_DEG && dls > doglegWarn) {
+        bends++;
+        if (dls > doglegError && dl >= DOGLEG_ERROR_MIN_DEG) hardError = true;
+        if (!sharpest || dls > sharpest.dls) sharpest = { dl, dMD, dls, depth: a.depth, depth2: b.depth };
       }
+    }
+    if (sharpest) {
+      const msg = tr("Dogleg {dl}° over {dMD} m between {depth} m and {depth2} m ({dls}°/30 m{v}, over {v2}°/30 m) — check for a typo or a bad shot, or a real deflection (wedge).", { dl: sharpest.dl.toFixed(1), dMD: sharpest.dMD.toFixed(1), depth: sharpest.depth, depth2: sharpest.depth2, dls: sharpest.dls.toFixed(1), v: sharpest.dMD < 10 ? tr(", rated over 10 m") : "", v2: hardError ? doglegError : doglegWarn })
+        + (bends > 1 ? " " + tr("{n} bends on this hole are over {v}°/30 m; this is the sharpest.", { n: bends, v: doglegWarn }) : "");
+      pushIssue(issues, hardError ? "error" : "warning", "Survey", holeId, msg);
+      issues[issues.length - 1].minor = true; // sorted below the other issues of its severity (Data QC's list)
     }
   }
   if (collarOnly.length) { // #2335 — one note for every hole with a collar station only
@@ -637,7 +675,7 @@ export function customIntervalLayers(customLayers) {
   });
 }
 
-export function* runDataQCSteps({ project, collars, survey, layers, boundaries, assays, terrain = null, terrainThreshold = 15, doglegWarn = 3, doglegError = 10, customLayers = [] }) { // customLayers: #2493
+export function* runDataQCSteps({ project, collars, survey, layers, boundaries, assays, terrain = null, terrainThreshold = 15, doglegWarn = 3, doglegError = DOGLEG_ERROR_DEFAULT, customLayers = [] }) { // customLayers: #2493
   const collarIds = new Set(collars.map((c) => c.hole_id));
   // TASKS.csv #339 — end of hole = the DEEPER of the collar length and the last survey station. Letting the
   // survey win outright flagged every interval below the last shot (surveys usually stop short of EOH) as
@@ -710,9 +748,14 @@ export { clampSeverityIcon as severityIcon };
 // or the database manager asks for; it existed only on screen until the dialog closed. Errors first, then warnings, then
 // information, each in the order found.
 const SEVERITY_ORDER = { error: 0, warning: 1, info: 2 };
+// TASKS.csv #3526 — worst first: errors, then warnings, then notes; within a severity the ordinary rows before the survey bends (minor); otherwise the order they came in
+export function qcSorted(issues) {
+  const key = (i) => (SEVERITY_ORDER[i.severity] ?? 3) * 2 + (i.minor ? 1 : 0);
+  return (issues || []).map((i, n) => ({ i, n })).sort((a, b) => key(a.i) - key(b.i) || a.n - b.n).map(({ i }) => i);
+}
 export function qcIssueRows(issues) {
-  return (issues || []).map((i, n) => ({ i, n })).sort((a, b) => (SEVERITY_ORDER[a.i.severity] ?? 3) - (SEVERITY_ORDER[b.i.severity] ?? 3) || a.n - b.n)
-    .map(({ i }) => ({ severity: i.severity, category: i.category, hole_id: i.holeId || "", message: i.message }));
+  return qcSorted(issues)
+    .map((i) => ({ severity: i.severity, category: i.category, hole_id: i.holeId || "", message: i.message }));
 }
 
 // TASKS.csv #1109 (review #1016, structural geologist) — calculator picks (#429: they carry beta_scribed and the hole

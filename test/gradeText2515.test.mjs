@@ -23,6 +23,6 @@ test("the tooltip, the section labels, the level plan, Identify and the Style ra
   assert.match(src("../src/modules/ViewerModule.jsx"), /label: `\$\{sym\}: \$\{gradeText\(v\)\}/);
   assert.match(src("../src/components/SectionWindow.jsx"), /`\$\{gradeText\(a\.value\)\} \$\{a\.u\} \$\{a\.sym\}`/);
   assert.match(src("../src/lib/levelPlan.js"), /label = `\$\{sym\}: \$\{gradeText\(value\)\}/);
-  assert.match(src("../src/lib/viewer/identify.js"), /fields\.push\(\[tr\("Value"\), gradeText\(row\.value\)\]\)/);
+  assert.match(src("../src/lib/viewer/identify.js"), /fields\.push\(\[tr\("Value"\), gradeText\(row\.value\) \+ \(unit \? " " \+ unit : ""\)\]\)/);
   assert.match(src("../src/components/AssayStyleModal.jsx"), /min: gradeText\(range\.min\), max: gradeText\(range\.max\)/);
 });

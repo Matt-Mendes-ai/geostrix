@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, Suspense } from "react
 import { sampleStatus } from "./lib/desktop.js"; // TASKS.csv #3100
 import { BC_SAMPLE_INFO } from "./lib/bcSamples.js"; // TASKS.csv #3100
 import { markSampleDownloaded } from "./lib/sampleCards.js"; // TASKS.csv #3100
-import { openHelp, onHelpOpen } from "./lib/help.js"; // TASKS.csv #1966
+import { openHelp, onHelpOpen, onShortcutsOpen } from "./lib/help.js"; // TASKS.csv #1966; shortcuts from the Help panel: #3534
 import { t as tr, LANGUAGES, currentLanguage, setLanguage } from "./lib/i18n.js"; // TASKS.csv #786 — "tr": t is a common local name here
 import { oncePerWindow } from "./lib/oncePerWindow.js"; // TASKS.csv #1163
 import { requestModuleAction } from "./lib/menuRequests.js"; // TASKS.csv #565
@@ -169,6 +169,7 @@ export default function App() {
   const [shortcutsTab, setShortcutsTab] = useState(null); // null | "shortcuts" | "python" (#391) | "about"
   const [helpAt, setHelpAt] = useState(null); // TASKS.csv #1966 — { id, n } while the Help panel is open (n re-opens it at a new page)
   useEffect(() => onHelpOpen((id) => setHelpAt({ id, n: Date.now() })), []);
+  useEffect(() => onShortcutsOpen((tab) => setShortcutsTab(tab)), []); // TASKS.csv #3534 — the Help panel's shortcuts and About buttons
   // F1: the page of the tool pane that is open (its "?"), else the contents
   useEffect(() => {
     const onKey = (e) => { if (e.key !== "F1") return; e.preventDefault(); const q = [...document.querySelectorAll(".ge-pane-help")].find((b) => b.offsetParent !== null); if (q) q.click(); else openHelp(null); };
@@ -355,6 +356,12 @@ export default function App() {
     }
   }, []);
 
+  // TASKS.csv #1993 (export step) — File > Export Project as Geoscience ANALYST (.geoh5): lib/geoh5Export.js and h5wasm, loaded on use
+  const runGeoh5Export = useCallback(async () => {
+    try { await (await import("./lib/geoh5Export.js")).exportProjectGeoh5(storeRef.current); }
+    catch (err) { try { window.dispatchEvent(new CustomEvent(EXPORT_RESULT_EVENT, { detail: { ok: false, name: "geoh5", error: String(err?.message || err) } })); } catch { /* no window */ } }
+  }, []);
+
   // A "Snapshot to Layout" click in the cross-section pop-out window can't touch this window's
   // React store directly (separate Electron renderer process) — it comes back over IPC instead.
   // See electron/main.js "section-snapshot" and src/components/SectionWindow.jsx.
@@ -403,6 +410,7 @@ export default function App() {
       if (action.startsWith("module-")) { const m = action.replace("module-", ""); setActive(TAB_ALIAS[m] || m); if (m === "predictive") requestModuleAction("open-geoml"); }
       else if (action === "export-pdf") doExportPdf();
       else if (action === "export-kmz") doExportKmz(); // TASKS.csv #3068
+      else if (action === "export-geoh5") runGeoh5Export(); // TASKS.csv #1993 (export step)
       else if (action === "set-epsg") { setActive("maps"); requestModuleAction("maps-crs"); } // #485 / #749 — the CRS lives in the Maps tab
       // TASKS.csv #565 — these used to do nothing (import-*) or only switch tab (cross-section)
       else if (action === "cross-section") { setActive("viewer"); requestModuleAction("draw-section"); }
@@ -426,7 +434,7 @@ export default function App() {
       else if (action === "redo") redoSay();
     });
     return off;
-  }, [doNew, doOpen, doSave, doExportPdf, doExportKmz, undoSay, redoSay, requestSampleProject]);
+  }, [doNew, doOpen, doSave, doExportPdf, doExportKmz, runGeoh5Export, undoSay, redoSay, requestSampleProject]);
 
   // TASKS.csv #31 — Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z (also Ctrl+Y for redo, a common Windows habit).
   // Deliberately a plain window keydown listener rather than an Electron menu accelerator (see the
@@ -630,7 +638,7 @@ export default function App() {
       </div>
       </RibbonSlotContext.Provider>
 
-      <StatusBar worldCursor={viewerShown || active === "maps"} /* #3229 — Layout's cursor is in page units */ onEpsg={() => requestProjectCrs()} pyStatus={pyStatus} updater={updater} onHelp={() => setShortcutsTab("shortcuts")} onPython={() => setShortcutsTab("python")} />
+      <StatusBar worldCursor={viewerShown || active === "maps"} /* #3229 — Layout's cursor is in page units */ onEpsg={() => requestProjectCrs()} pyStatus={pyStatus} updater={updater} onHelp={() => openHelp(null) /* TASKS.csv #3534 — the Help button opens Help; shortcuts and About are one click inside it */} onPython={() => setShortcutsTab("python")} />
       <ExportToast />
       {subsetRequest && <Suspense fallback={null}><TableColumnsModal name={subsetRequest.name} preview={subsetRequest.preview} budget={subsetRequest.budget} onDone={(v) => { subsetRequest.resolve(v); setSubsetRequest(null); }} /></Suspense>}
       {crsRequest && <Suspense fallback={null}><ProjectCrsModal reason={crsRequest.reason} points={crsRequest.points} suggested={crsRequest.suggested} noLocalGrid={!!crsRequest.noLocalGrid} family={crsRequest.family || null} onDone={finishCrsRequest} /></Suspense>}
@@ -709,6 +717,7 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, worldCursor = 
   return (
     <div className="ge-status">
       <span>{!project.name || project.name === "Untitled project" ? tr("Untitled project") : project.name}</span>{/* #1448 */}
+      {project.dataCredit && <span className="ge-credit" title={project.dataCredit}>{project.dataCredit}</span> /* TASKS.csv #3527 — the data owner's credit stays on the open project (saved with it), not only in the notice that opens the sample */}
       <span>{tr("Holes:")} <span className="val">{collars.length}</span></span>
       <span>E <span className="val">{fmt(cursor.x)}</span></span>
       <span>N <span className="val">{fmt(cursor.y)}</span></span>
@@ -729,8 +738,8 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, worldCursor = 
           exact same modal the Help menu opens, from a spot that's visible on every screen. */}
       <button
         onClick={() => onHelp?.()}
-        title={tr("Help — keyboard shortcuts & about GeoStrix")}
-        aria-label={tr("Help — keyboard shortcuts and about GeoStrix")}
+        title={tr("Help (F1) — the help pages, keyboard shortcuts and about GeoStrix")}
+        aria-label={tr("Help (F1) — the help pages, keyboard shortcuts and about GeoStrix")}
         // TASKS.csv #386 — a 24 px target (WCAG 2.5.8) around the same 16 px circle: the bare circle sat
         // within 12 px of the sidebar's last row and failed the target-spacing rule.
         style={{ background: "none", border: "none", color: "inherit", width: 24, height: 24, padding: 0, margin: "-4px 0", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", cursor: "pointer", flexShrink: 0 }}

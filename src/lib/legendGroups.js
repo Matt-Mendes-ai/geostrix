@@ -297,6 +297,10 @@ export const legendGroupCount = (items) => (items || []).filter((it) => it?.[2]?
 // symbology (TASKS.csv #1699, review #1645): a layer classified in its quick panel (numericSymbology[key].stops) gets its classes as
 // swatches with their break values ('0.391 – 0.797', '≥ 0.797'), or its own continuous stops as the ramp; Copley's mag susc classified
 // by quantile still showed a -0.845 to 310 min-max ramp that was 99 % one colour.
+// TASKS.csv #3529 — a layer with a unit carries it as `unit` on its group (the 3D view's legend heading says 'Specific gravity (t/m³)'); the label stays the layer's name,
+// which the section ribbons and the Layout legend match by
+const layerLegendLabel = (key) => LAYER_META[key]?.label || key;
+const layerUnit = (key) => (LAYER_META[key]?.unit ? { unit: LAYER_META[key].unit } : {});
 export function numericLayerLegendGroups({ keys = ["geotech", "recovery", "sg", "magsusc"], layers = {}, layerVisible = {}, isRowVisible = () => true, colorOf, symbology = {}, clips = {} }) { // clips: #1699
   const out = [];
   for (const key of keys) {
@@ -310,15 +314,15 @@ export function numericLayerLegendGroups({ keys = ["geotech", "recovery", "sg", 
     const fmt = (v) => String(+Number(v).toPrecision(3));
     const sym = symbology?.[key];
     if (sym?.stops?.length) { // #1699 — the breaks to 3 significant figures (0.163, not 0.16: a quantile break is read as typed)
-      const L = legendScale({ stops: sym.stops, colorMode: sym.colorMode }, lo, hi, fmt), label = LAYER_META[key]?.label || key;
-      out.push(L.kind === "classes" ? { key: `numeric_${key}`, label, items: L.items, grade: true } : { key: `numeric_${key}`, label, items: [], ramp: L });
+      const L = legendScale({ stops: sym.stops, colorMode: sym.colorMode }, lo, hi, fmt), label = layerLegendLabel(key);
+      out.push(L.kind === "classes" ? { key: `numeric_${key}`, label, ...layerUnit(key), items: L.items, grade: true } : { key: `numeric_${key}`, label, ...layerUnit(key), items: [], ramp: L });
       continue;
     }
     // TASKS.csv #1699 — the default ramp spans the 2nd-98th percentile (lib/numericClip.js); the ends say the rest is clamped there
     const c = clips?.[key], clipped = c && !sym?.fullRange && key !== "geotech" && key !== "recovery";
     const a = clipped ? c.lo : lo, b = clipped ? c.hi : hi;
     const colors = Array.from({ length: 17 }, (_, i) => colorOf(key, a + (i / 16) * (b - a), { min: lo, max: hi }));
-    out.push({ key: `numeric_${key}`, label: LAYER_META[key]?.label || key, items: [], ramp: { kind: "ramp", log: false, min: a, max: b, minLabel: clipped && c.lo > c.min ? `≤ ${fmt(a)}` : fmt(a), maxLabel: clipped && c.hi < c.max ? `≥ ${fmt(b)}` : fmt(b), colors, ticks: [] } });
+    out.push({ key: `numeric_${key}`, label: layerLegendLabel(key), ...layerUnit(key), items: [], ramp: { kind: "ramp", log: false, min: a, max: b, minLabel: clipped && c.lo > c.min ? `≤ ${fmt(a)}` : fmt(a), maxLabel: clipped && c.hi < c.max ? `≥ ${fmt(b)}` : fmt(b), colors, ticks: [] } });
   }
   return out;
 }

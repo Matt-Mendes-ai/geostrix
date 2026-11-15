@@ -4,7 +4,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X, Search } from "./icons.js";
 import { t as tr, currentLanguage } from "../lib/i18n.js";
-import { HELP_AREAS } from "../lib/help.js";
+import { HELP_AREAS, openShortcuts } from "../lib/help.js"; // openShortcuts: TASKS.csv #3534
 import { PAGES, pageById, searchPages } from "../help/content.js";
 
 const sectionHead = { fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--color-text)", margin: "14px 0 6px" };
@@ -51,8 +51,10 @@ export default function HelpPane({ initialId = null, onClose }) {
 
 function Contents({ onOpen }) {
   const byArea = HELP_AREAS.map((a) => [a, PAGES.filter((p) => p.area === a)]).filter(([, ps]) => ps.length);
+  const link = { background: "none", border: "none", padding: 0, color: "var(--color-accent)", cursor: "pointer", font: "inherit", textDecoration: "underline" };
   return (
     <div>
+      <div style={{ ...muted, fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{/* TASKS.csv #3534 — what the status bar's ? used to open */}<button type="button" style={link} onClick={() => openShortcuts("shortcuts")}>{tr("Keyboard shortcuts")}</button> · <button type="button" style={link} onClick={() => openShortcuts("about")}>{tr("About GeoStrix")}</button></div>
       <div style={{ ...muted, fontSize: "var(--font-size-sm)", lineHeight: 1.45, marginBottom: 6 }}>{tr("One page per tool: what it does, what it is not, each field and how to choose a value, the warnings it can show, and a short walk-through. Works with no internet connection.")}</div>
       {byArea.map(([area, ps]) => (
         <div key={area}>
