@@ -88,10 +88,10 @@ export function ppmAsPercent(assays, sym, unit) {
 
 // Assay grade classes are discrete swatches (one per class, with its range); an element with no classes gets one swatch
 // saying size shows grade.
-export function assayLegendGroups({ assays, assayElements, assayVisible, assayDisplayElements = [], assayStyle = {}, displayUnits = null }) { // displayUnits: TASKS.csv #3236 - project.displayUnits
+export function assayLegendGroups({ assays, assayElements, assayVisible, assayDisplayElements = [], assayStyle = {}, displayUnits = null, withNote = false }) { // withNote: #3588 (2) // displayUnits: TASKS.csv #3236 - project.displayUnits
   if (!assayVisible || !assayDisplayElements.length || !(assays || []).length) return [];
   const unitOf = Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit]));
-  return assayDisplayElements.map((sym, idx) => {
+  const groups = assayDisplayElements.map((sym, idx) => {
     const style = assayStyle[sym];
     // TASKS.csv #3236 - the unit the project shows this element in (displayUnits), the classes' limits converted; else #3305's % for a ppm element of percent-sized grades
     const shown = displayUnitOf({ displayUnits }, sym, unitOf[sym]), chosen = !!unitOf[sym] && shown !== unitOf[sym];
@@ -107,6 +107,10 @@ export function assayLegendGroups({ assays, assayElements, assayVisible, assayDi
     if (style?.minCutoff != null && Number.isFinite(style.minCutoff)) items.push([`below ${fmt(style.minCutoff)} ${unit} hidden`, "transparent"]);
     return { key: `assay_${sym}`, label: `${sym} (${unit})`, items, grade: !!style?.breaks?.length, alwaysHead: true }; // grade: #1534 — classes low to high; alwaysHead: #2370, a one-element key named
   });
+  // TASKS.csv #3588 (2) (Fireweed rehearsal) — a blank interval and an unsampled hole are a bare grey trace and nothing said so. Its own group (one swatch), after the
+  // elements' and never one of their classes, so the class logic (#1534 / #3306: grade groups read low to high and are cut to their ends) is untouched.
+  if (withNote && groups.some((g) => g.grade)) groups.push({ key: "assay_unsampled", label: "Not sampled", items: [["bare trace: no sample here", "#9aa0a6"]], alwaysHead: true });
+  return groups;
 }
 
 // A model's own stops: classes as swatches, a continuous model as a ramp (log or linear, #498 / #522)

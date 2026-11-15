@@ -13185,5 +13185,8 @@
   "Fit line": "خط المطابقة",
   "n {n} · Spearman {r} · median Y {m} · mean Y {w}": "n {n} · سبيرمان {r} · وسيط Y {m} · متوسط Y {w}",
   "Fit: Y = {a} × X {sign} {b} · r² {r2} · n {n}": "المطابقة: Y = {a} × X {sign} {b} · r² {r2} · n {n}",
-  "Collar · {field} (decade)": "الفوهة · {field} (عقد)"
+  "Collar · {field} (decade)": "الفوهة · {field} (عقد)",
+  "Azimuths were read from magnetic north ({date}) and converted to grid north.": "قُرئت السموت من الشمال المغناطيسي ({date}) وحُوّلت إلى شمال الشبكة.",
+  "Azimuths were read from true north and converted to grid north.": "قُرئت السموت من الشمال الحقيقي وحُوّلت إلى شمال الشبكة.",
+  "Azimuths were read as grid north (no conversion).": "قُرئت السموت كشمال الشبكة (دون تحويل)."
 }

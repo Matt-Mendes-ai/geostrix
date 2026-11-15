@@ -1107,6 +1107,8 @@ export function StoreProvider({ children }) {
   // TASKS.csv #3496 — a sample's data owner's credit, kept with the project (saved in the project file; Layout's {credits} prints it); "" removes it
   // TASKS.csv #3409 — the QC links a link table gave (sample id -> parent sample id / QC category), kept with the project so assays imported later pair up; null / empty removes them
   const setProjectQcLinks = useCallback((qcLinks) => setProject((p) => { const { qcLinks: _old, ...rest } = p; return qcLinks && (Array.isArray(qcLinks) ? qcLinks.length : qcLinks.ids?.length) ? { ...rest, qcLinks } : rest; }), []); // the packed shape of lib/qcLinks.js packLinks: parallel arrays
+  // TASKS.csv #3588 (6) — the north a file's azimuths were measured from, kept with the project ({ ref, date } per target; lib/azimuthNorthText.js)
+  const setProjectAzimuthNorth = useCallback((target, ref, date) => setProject((p) => ({ ...p, azimuthNorth: { ...(p.azimuthNorth || {}), [target]: { ref, ...(date ? { date } : {}) } } })), []);
   const setProjectDataCredit = useCallback((dataCredit) => setProject((p) => { const { dataCredit: _old, ...rest } = p; return dataCredit ? { ...rest, dataCredit: String(dataCredit) } : rest; }), []);
   const setDrillRates = useCallback((rates) => setProject((p) => ({ ...p, drillRates: (typeof rates === "function" ? rates(p.drillRates || {}) : rates) || null })), []); // TASKS.csv #2581 — $/m per hole type, kept with the project (a function: from the latest rates)
   // TASKS.csv #3116 — a built-in log's valid range and despike ({ range: [lo, hi], despikeM }), kept with the project like the drill rates:
@@ -1833,7 +1835,7 @@ export function StoreProvider({ children }) {
   });
 
   const value = {
-    project, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setLocalGridDatum /* #2691 / #2661 */, setMineGrid /* #2586 */, setProjectName, setProjectDataCredit /* #3496 */, setProjectQcLinks /* #3409 */, setDrillRates /* #2581 */, setLogValidRange /* #3116 */, setDisplayUnit /* #3236 */, reprojectProjectTo, reprojectObjectTo, // #485 / #486
+    project, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setLocalGridDatum /* #2691 / #2661 */, setMineGrid /* #2586 */, setProjectName, setProjectDataCredit /* #3496 */, setProjectAzimuthNorth /* #3588 (6) */, setProjectQcLinks /* #3409 */, setDrillRates /* #2581 */, setLogValidRange /* #3116 */, setDisplayUnit /* #3236 */, reprojectProjectTo, reprojectObjectTo, // #485 / #486
     sampleRequest, requestSampleProject, clearSampleRequest, // TASKS.csv #1120
     projectIsEmpty: !hasWork, // TASKS.csv #607 — nothing loaded yet (same test as autosave): an import may adopt its CRS
     desurveyMethod, setDesurveyMethod, // TASKS.csv #135

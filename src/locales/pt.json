@@ -13185,5 +13185,8 @@
   "Fit line": "Reta de ajuste",
   "n {n} · Spearman {r} · median Y {m} · mean Y {w}": "n {n} · Spearman {r} · mediana de Y {m} · média de Y {w}",
   "Fit: Y = {a} × X {sign} {b} · r² {r2} · n {n}": "Ajuste: Y = {a} × X {sign} {b} · r² {r2} · n {n}",
-  "Collar · {field} (decade)": "Collar · {field} (década)"
+  "Collar · {field} (decade)": "Collar · {field} (década)",
+  "Azimuths were read from magnetic north ({date}) and converted to grid north.": "Os azimutes foram lidos a partir do norte magnético ({date}) e convertidos para o norte da grade.",
+  "Azimuths were read from true north and converted to grid north.": "Os azimutes foram lidos a partir do norte verdadeiro e convertidos para o norte da grade.",
+  "Azimuths were read as grid north (no conversion).": "Os azimutes foram lidos como norte da grade (sem conversão)."
 }

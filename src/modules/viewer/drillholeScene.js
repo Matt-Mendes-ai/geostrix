@@ -2,6 +2,7 @@
 // every hole's trace, collar marker, interval tubes, point markers, structure discs and custom-layer rows, the camera anchor of a
 // project with no holes, the layer batches and the passes that follow a rebuild. ViewerModule's effect calls buildDrillholeScene with
 // the values and refs the body used to close over, on the same dependency list. The comments below are the effect's own.
+import { unsurveyedTailStart } from "../../lib/viewer/unsurveyedTail.js"; // TASKS.csv #3588 (5)
 import * as THREE from "three";
 import { DRAW_ORDER } from "../../lib/viewer/drawOrder.js"; // TASKS.csv #2776
 import { t as tr } from "../../lib/i18n.js";
@@ -509,7 +510,12 @@ export function buildDrillholeScene(ctx) {
     // TASKS.csv #2176 step 3 — the trace goes into a merged LineSegments chunk (lib/viewer/traceBatch.js, after the loop): one THREE.Line
     // and material per hole was ~20,000 draw calls a frame at 20,544 holes. Dashed when the hole is an assumed vertical stick (#2014);
     // its hole id rides on the chunk's per-hole hits (#1533)
-    traceHoles.push({ holeId: c.hole_id, pts, dashed: assumedVertical || methodAssumed }); // #2662: an 'assumed' survey method too
+    // TASKS.csv #3588 (5) (Fireweed rehearsal, Macpass: NB91-22 has one survey at 0 m and is 262.4 m long, drawn solid to the end of hole on its
+    // last measured attitude) — the part of a surveyed hole below its last station is an assumption: drawn dashed, as an assumed hole is (a hole
+    // is two entries of the trace chunks: the solid part and the dashed tail share its id, and the chunks' hide / colour calls cover both)
+    const tailAt = assumedVertical || methodAssumed ? -1 : unsurveyedTailStart(e.hs, pts);
+    if (tailAt >= 0) { traceHoles.push({ holeId: c.hole_id, pts: pts.slice(0, tailAt + 1), dashed: false }, { holeId: c.hole_id, pts: pts.slice(tailAt), dashed: true }); }
+    else traceHoles.push({ holeId: c.hole_id, pts, dashed: assumedVertical || methodAssumed }); // #2662: an 'assumed' survey method too
     }
 
     // TASKS.csv #137 — geotech/recovery are both known 0-100 percentages, so rqdColor's fixed

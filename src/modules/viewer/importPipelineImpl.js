@@ -463,6 +463,7 @@ export function makeImportPipeline(ctx, h) {
       setNotices((p) => [...p, notice("{fileName}: magnetic azimuths need the survey date to work out the declination — nothing was imported.", { fileName })]);
       return false;
     }
+    if (AZ_TARGETS.has(target) && azimuthRef) importStateRef.current.setAzimuthNorth?.(target, azimuthRef, azimuthDate); // TASKS.csv #3588 (6) — kept with the project, read back in the Survey row's tooltip
     const liveCollarAt = (() => { const m = new Map((importStateRef.current.collars || []).map((c) => [c.hole_id, c])); return (r) => m.get(r.hole_id) || null; })();
     const schema = TARGET_SCHEMAS[target];
     const logChans = logChannelsFor(target, Object.keys(allRows[0] || {}), allRows, mapping, data.logChannels); // #2160 — the channels are the values
