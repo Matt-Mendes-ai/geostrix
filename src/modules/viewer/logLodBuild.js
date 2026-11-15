@@ -9,6 +9,7 @@ import { resolveLayerStyle } from "../../lib/layerStyle.js";
 import { customColour } from "../../lib/customColour.js";
 import { isPoint, pointAt, LOG_BIN_SPACINGS } from "./logLod.js";
 import { rowCount, fieldOf, rowAt } from "../../lib/layerColumns.js"; // TASKS.csv #3140
+import { rowsRefOf } from "../../lib/tableFields.js"; // TASKS.csv #3140 step 2
 
 // one hole's point readings -> bins along the hole [{ from, to, depth, n, value, row }]: a bin starts at a reading and takes the readings
 // within binM of it; numeric: the mean value, else the commonest
@@ -42,7 +43,7 @@ export function buildCoarse(group, L, traces, visibleHoles) {
   const binM = Math.max(LOG_BIN_SPACINGS * (L.spacingM || 0), markerM);
   // TASKS.csv #3140 — read by index (the layer's rows, or a Table of them): a Table's point readings become row objects here only for the coarse
   // set's bins and tips (as the rows were), not through rowsOf, which would keep every row of the log with the Table
-  const rowsIn = L.layer.rows || [], N = rowCount(rowsIn), pt = pointAt(rowsIn), holeOf = fieldOf(rowsIn, "hole_id"), valueOf = fieldOf(rowsIn, "value");
+  const rowsIn = rowsRefOf(L.layer) || [], N = rowCount(rowsIn), pt = pointAt(rowsIn), holeOf = fieldOf(rowsIn, "hole_id"), valueOf = fieldOf(rowsIn, "value");
   let sampled = 0, numeric = true;
   for (let i = 0; i < Math.min(2000, N); i++) { if (!pt(i)) continue; sampled++; const v = valueOf(i); if (!(v !== "" && v != null && Number.isFinite(Number(v)))) { numeric = false; break; } }
   numeric = numeric && sampled > 0;

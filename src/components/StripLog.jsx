@@ -41,6 +41,7 @@ import { suspectIdsOf, collarAttrLine } from "../lib/collarTable.js"; // TASKS.c
 import { elevationTrust } from "../lib/collarElevationTrust.js";
 import { headerLines, sigText } from "../lib/stripHeader.js"; // TASKS.csv #2481
 import { rowAt, someWhere, rowsWhere } from "../lib/layerColumns.js"; // TASKS.csv #3140 — a log layer may be held as columns
+import { rowsRefOf } from "../lib/tableFields.js"; // TASKS.csv #3140 step 2
 // TASKS.csv #2481 — a value at n significant figures without exponent notation ('7460', not '7.46e+3'), for the printed axes
 const DEPTH_COL_W = 50;
 const PAD_TOP = 40;
@@ -101,7 +102,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const customChoices = useMemo(() => {
     const out = [];
     for (const l of allCustom) {
-      const rows = l.rows || [];
+      const rows = rowsRefOf(l) || []; // #3140 step 2
       if (rowAt(rows, 0)?.modelled || !someWhere(rows, "hole_id", (h) => h === holeId)) continue; // #3140: rows or a Table
       const numFields = numericLayerFields(rows, { min: 3 }).filter((f) => f !== "from" && f !== "to" && f !== "modelColor");
       if (!numFields.includes("value")) out.push({ key: `${l.id}:value`, layer: l, field: "value", numeric: false, label: String(l.name) });
@@ -112,7 +113,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const [customTracks, setCustomTracks] = useState([]);
   const customTrackDefs = useMemo(() => customTracks.map((k) => customChoices.find((c) => c.key === k)).filter(Boolean).map((c) => {
     const depthOf = (r) => (Number.isFinite(Number(r.depth)) ? Number(r.depth) : Number(r.from));
-    const holeRows = rowsWhere(c.layer.rows, "hole_id", (h) => h === holeId); // #3140: this hole's rows only (a Table builds just these)
+    const holeRows = rowsWhere(rowsRefOf(c.layer), "hole_id", (h) => h === holeId); // #3140: this hole's rows only (a Table builds just these)
     const rows = (c.numeric && c.field === "value" ? filterLogRows(holeRows, { range: c.layer.validRange, despikeM: c.layer.despikeM }).rows /* #3288 */ : holeRows).map((r) => (Number(r.to) > Number(r.from) ? { ...r, from: Number(r.from), to: Number(r.to) } : { ...r, from: depthOf(r) - 0.25, to: depthOf(r) + 0.25 })).filter((r) => Number.isFinite(r.from) && Number.isFinite(r.to)).sort((a, b) => a.from - b.from);
     const name = c.field === "value" ? String(c.layer.name) : c.field, short = name.length > 14 ? "…" + name.slice(-13) : name; // the tail: "Copley_2023_DH_SWIR_Halo" -> "...2023_DH_SWIR_Halo"
     if (c.numeric) {
