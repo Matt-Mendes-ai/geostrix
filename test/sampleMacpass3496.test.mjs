@@ -98,7 +98,7 @@ test("the credit is kept with the project and printed by Layout; the project is 
   assert.match(read("../src/lib/sampleWa.js"), /store\.setProjectDataCredit\(S\.credit\)/);
   assert.equal(sampleProjectName("yk_macpass", "Untitled project"), "Macpass zinc-lead-silver (sample)");
   assert.ok(text("README.md").includes(`**${CREDIT}**`), "the README's credit line");
-  assert.ok(text("README.md").includes("Matt confirmed to Main on 2026-11-14 that he holds Fireweed's written permission"));
+  assert.ok(text("README.md").includes("with Fireweed Metals Corp.'s written permission (2026-11-14)"));
   assert.match(read("../scripts/third-party-licenses.mjs"), /"sample_data", "yk_macpass", "README\.md"/);
 });
 
