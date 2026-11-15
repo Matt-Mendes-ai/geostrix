@@ -419,6 +419,7 @@ export async function projectPartsSliced(live, extra = {}, pause = nextTask) {
     if (cold && f.tables) for (const rows of f.tables(v)) { if (Array.isArray(rows)) await compactTableSliced(rows, pause); else if (isTable(rows)) await tableOps.compactFromTableSliced(rows, pause); /* #3424 */ }
     const j = cachedJson(v, f.save || ((x) => x));
     if (j !== undefined) parts.push([f.key, j]);
+    if (cold && f.tables && tableOps.forgetCompact) for (const rows of f.tables(v)) if (isTable(rows)) tableOps.forgetCompact(rows); // #3140: the text is cached: not a second copy of it
     if (cold) await pause();
   }
   for (const [k, v] of Object.entries(extra)) { const j = JSON.stringify(v); if (j !== undefined) parts.push([k, j]); }

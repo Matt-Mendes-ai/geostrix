@@ -15,7 +15,11 @@ export function initialUiMode(storage = typeof localStorage !== "undefined" ? lo
     if (v === "simple" || v === "advanced") return v;
     const keys = [];
     for (let i = 0; i < (storage?.length || 0); i++) keys.push(storage.key(i));
-    return keys.some((k) => /^(geostrix|geox)/i.test(k || "")) ? "advanced" : "simple";
+    const mode = keys.some((k) => /^(geostrix|geox)/i.test(k || "")) ? "advanced" : "simple";
+    // TASKS.csv #3618 (Fireweed rehearsal) — the default, once applied, is the saved choice: the Simple default was never stored, so the first thing the app
+    // itself wrote (a section fit, a language, a sidebar width) was a 'geostrix' key that turned the next start into Advanced for someone who never touched the switch
+    try { storage?.setItem(UI_MODE_KEY, mode); } catch { /* private window: per session only */ }
+    return mode;
   } catch { return "advanced"; }
 }
 export function saveUiMode(mode, storage = typeof localStorage !== "undefined" ? localStorage : null) {
