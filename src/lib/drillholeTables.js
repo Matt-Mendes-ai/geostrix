@@ -86,6 +86,16 @@ export function drillholeTableFiles({ collars = [], survey = [], layers = {}, cu
   const add = (name, text, note) => { files.push({ name, text }); notes.push(`${name}: ${note}`); };
   const epsgNum = Number.isFinite(Number(epsg)) && Number(epsg) > 0 ? Number(epsg) : null;
   if (collars.length) add("collars.csv", toExportCsv(collarTableRows(collars, { epsg: epsgNum })), "one row per hole" + (epsgNum ? `; the epsg column is the project CRS (EPSG:${epsgNum}), which the import reads` : "") + "; one column for each of the collar's own fields");
+  if (collars.length) { // TASKS.csv #3635 — a data dictionary of the collar columns beside collars.csv: what each field is, how many holes have it
+    const rows = collarTableRows(collars, { epsg: epsgNum }), cols = [...new Set(rows.flatMap((r) => Object.keys(r)))];
+    const core = { hole_id: "the hole's id", x: "easting (project coordinates)", y: "northing (project coordinates)", z: "collar elevation (m)", azim_grid: "azimuth of the hole, a grid bearing", dip: "dip, negative = down", length: "hole length (m)", epsg: "the project's coordinate system (EPSG code)", attitude_from: "where an azimuth / dip the collar did not carry came from" };
+    const dict = cols.map((c) => {
+      const vals = rows.map((r) => r[c]).filter((v) => v !== "" && v != null), nums = vals.filter((v) => Number.isFinite(Number(v)) && String(v).trim() !== "");
+      const kind = !vals.length ? "empty" : nums.length === vals.length ? "number" : "text";
+      return { field: c, meaning: core[c] || "the hole's own field from the file", type: kind, holes_with_a_value: vals.length, holes: rows.length, distinct_values: new Set(vals.map(String)).size, example: vals.length ? String(vals[0]) : "" };
+    });
+    add("collars_fields.csv", toExportCsv(dict), "one row per column of collars.csv: its meaning, type, how many holes have a value and an example");
+  }
   if (survey.length) add("survey.csv", toExportCsv(surveyTableRows(survey)), "survey stations (depth, azimuth, dip)");
   for (const [key, rows] of Object.entries(layers || {})) {
     if (!Array.isArray(rows) || !rows.length || key === "geophys_pts") continue;

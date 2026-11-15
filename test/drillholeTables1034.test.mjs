@@ -23,8 +23,8 @@ const byName = Object.fromEntries(files.map((f) => [f.name, f.text]));
 const read = (name) => { const t = parseTableText(byName[name]); const target = guessTargetFor(t.headers, name); return { ...t, target, mapping: guessMapping(target, t.headers) }; };
 
 test("#1034 one CSV per table; geophysics points (no hole) are not a hole table; the CRS and conventions in one provenance.txt beside them, row 1 of each CSV the column names (#3614)", () => {
-  assert.deepEqual(files.map((f) => f.name).sort(), ["collars.csv", "geotech_rqd.csv", "lithology.csv", "mineralization.csv", "provenance.txt", "structure.csv", "survey.csv"]);
-  for (const f of files.filter((x) => x.name.endsWith(".csv"))) { assert.doesNotMatch(f.text, /^#/); assert.match(f.text.split(/\r?\n/)[0], /^hole_id,/); assert.doesNotMatch(f.text, /not a Mineral Resource/); }
+  assert.deepEqual(files.map((f) => f.name).sort(), ["collars.csv", "collars_fields.csv", "geotech_rqd.csv", "lithology.csv", "mineralization.csv", "provenance.txt", "structure.csv", "survey.csv"]);
+  for (const f of files.filter((x) => x.name.endsWith(".csv") && x.name !== "collars_fields.csv" /* #3635 — the dictionary is not a hole table */)) { assert.doesNotMatch(f.text, /^#/); assert.match(f.text.split(/\r?\n/)[0], /^hole_id,/); assert.doesNotMatch(f.text, /not a Mineral Resource/); }
   const prov = byName["provenance.txt"]; assert.match(prov, /EPSG:32610/); assert.match(prov, /negative = down/); assert.match(prov, /collars\.csv: /);
 });
 

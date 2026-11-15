@@ -24,6 +24,7 @@ export default [
       { name: "By bench / Bench height (m) / Datum (m) / at cutoff", what: "Splits the figures into benches: the floors sit at the datum plus whole benches, and the bench table is for one of the cutoffs.", choose: "Enter the height of the bench you would mine; a block that spans two benches is shared between them." },
       { name: "Table columns", what: "Blocks, Volume (m³), Mean grade, Tonnes and metal (kg and troy oz) when there is a density; Interpolated is the share of the volume the estimate classed as between holes; Beyond the samples is the share of the metal in blocks lying wholly above or below every sample that informs them; From the log is the share from a log that filled unsampled metres; No density counts blocks left out for want of a density.", choose: "Read the support columns first: a high tonnage with a low Interpolated share is mostly extrapolation." },
       { name: "Export CSV", what: "Saves the table as it is shown, with the cutoffs, the density used and the notes.", choose: "Keep the file with the project so the figures can be reproduced." },
+      { name: "Export", what: "A block model is exported from its row in the model list as a CSV, a VTK or an OMF (with a DENSITY column when the density was kept in the model). A grade-tonnage table has its own Export CSV.", choose: "Use OMF to move the blocks into Leapfrog, Micromine or Datamine, and see the page Export: what goes where for what each file carries." },
     ],
     warnings: [
       { says: "Enter the bench height: the floors sit at the datum plus whole benches.", means: "By bench is ticked and the bench height is empty.", do: "Type the bench height in metres." },
@@ -59,6 +60,7 @@ export default [
       { name: "Name of the new block model / Unit of the new value", what: "Both are required: the unit is not guessed, because a formula can turn grades into anything (a grade, a value per tonne).", choose: "State the unit as you will read it, for example %, g/t or $/t." },
       { name: "Colour it as the first model (same ramp and range)", what: "Gives the new model the first input's colour ramp and range, so the two can be compared by eye.", choose: "Leave it on for a grade-like result; turn it off for a value on a different scale." },
       { name: "Calculate / Add as block model", what: "Calculate runs the formula and shows how many blocks were calculated with their mean and range; Add as block model keeps the result in the project.", choose: "Check the count and range against what you expect before adding it." },
+      { name: "Export", what: "A block model is exported from its row in the model list as a CSV, a VTK or an OMF (with a DENSITY column when the density was kept in the model). A grade-tonnage table has its own Export CSV.", choose: "Use OMF to move the blocks into Leapfrog, Micromine or Datamine, and see the page Export: what goes where for what each file carries." },
     ],
     warnings: [
       { says: "Letters, digits and _, starting with a letter", means: "A name in the formula is not a valid name.", do: "Rename it, for example Au or au_gt." },
