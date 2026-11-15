@@ -3433,6 +3433,7 @@
   "CV": "CV",
   "Top cut": "Corte superior",
   "Top cut for {el}": "Corte superior de {el}",
+  "The last run used {c} m cells: {cs} m cells did not fit its {b}-block budget. A larger budget below gives smaller cells; the box keeps {cs} m.": "A última execução usou células de {c} m: células de {cs} m não cabiam no seu orçamento de {b} blocos. Um orçamento maior abaixo dá células menores; a caixa mantém {cs} m.",
   "\"{label}\" was searched along the plane of its {n} composites at or above {cutoff} {unit} ({dip}° towards {dir}°, {holes} holes): an ellipsoid of {a} × {b} × {c} m, the volume of the {r} m search, and the shell is kept within {ra} × {rb} × {rc} m of them.{more}{sphere} Untick \"Search along the composites' plane\" in the Grade shell pane for the sphere.": "\"{label}\" foi buscado ao longo do plano dos seus {n} compósitos iguais ou acima de {cutoff} {unit} ({dip}° para {dir}°, {holes} furos): um elipsoide de {a} × {b} × {c} m, com o volume da busca de {r} m, e o envelope fica a até {ra} × {rb} × {rc} m deles.{more}{sphere} Desmarque \"Buscar ao longo do plano dos compósitos\" no painel Envelope de teor para usar a esfera.",
   "One other drilled area had a plane of its own.": "Outra área perfurada teve o seu próprio plano.",
   "{k} other drilled areas had planes of their own.": "Outras {k} áreas perfuradas tiveram o seu próprio plano.",

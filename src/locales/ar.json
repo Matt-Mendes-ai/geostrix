@@ -3433,6 +3433,7 @@
   "CV": "معامل التباين",
   "Top cut": "القطع الأعلى",
   "Top cut for {el}": "القطع الأعلى لـ{el}",
+  "The last run used {c} m cells: {cs} m cells did not fit its {b}-block budget. A larger budget below gives smaller cells; the box keeps {cs} m.": "استخدم التشغيل الأخير خلايا بحجم {c} م: لم تتسع خلايا {cs} م لميزانيته البالغة {b} كتلة. ميزانية أكبر أدناه تعطي خلايا أصغر؛ ويحتفظ الحقل بـ{cs} م.",
   "\"{label}\" was searched along the plane of its {n} composites at or above {cutoff} {unit} ({dip}° towards {dir}°, {holes} holes): an ellipsoid of {a} × {b} × {c} m, the volume of the {r} m search, and the shell is kept within {ra} × {rb} × {rc} m of them.{more}{sphere} Untick \"Search along the composites' plane\" in the Grade shell pane for the sphere.": "بُحث \"{label}\" على امتداد مستوى مركّباته الـ{n} التي تساوي {cutoff} {unit} أو تزيد ({dip}° نحو {dir}°، {holes} ثقوب): مجسم إهليلجي أبعاده {a} × {b} × {c} م، بحجم بحث {r} م، ويبقى الغلاف ضمن {ra} × {rb} × {rc} م منها.{more}{sphere} ألغِ تحديد \"البحث على امتداد مستوى المركّبات\" في لوحة غلاف المحتوى لاستخدام الكرة.",
   "One other drilled area had a plane of its own.": "كان لمنطقة محفورة أخرى مستواها الخاص.",
   "{k} other drilled areas had planes of their own.": "كان لـ{k} مناطق محفورة أخرى مستوياتها الخاصة.",

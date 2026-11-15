@@ -3480,7 +3480,7 @@ ${describeTrend(t)}` };
     modelResolution,
     numericCapValue,
     numericCellSize,
-    numericMaxBlocks, setNumericBudgetHint, setNumericCellSize, // TASKS.csv #625; setNumericCellSize: #1416
+    numericMaxBlocks, setNumericBudgetHint, // TASKS.csv #625; setNumericCellSize (#1416) no longer: a run leaves the Cell box alone (#3651)
     numericCellHeight, numericFlatReach, // #3062
     numericCloseShell,
     numericCompositeLength,

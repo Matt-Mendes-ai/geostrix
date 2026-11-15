@@ -21,9 +21,9 @@ test("the helpers the pane uses: the Model area's rows, a base metal's ppm in %,
 test("wiring: the opening cutoff, the cap and the search from the holes the run uses; the % hint; the notes", () => {
   const m = src("modules/viewer/ModellingPanes.jsx");
   assert.match(m, /const shellAreaAssays = useMemo\(\(\) => \(modelArea === "checked" \? restrictRowsToHoles\(assays \|\| \[\], visibleHoles\) : assays \|\| \[\]\)/);
-  assert.match(m, /if \(numericCutoff === 1 && !shellCutoffAuto\) proposeShellCutoff\(numericSymbol, true\);/);
+  assert.match(m, /if \(numericCutoff === 1 && shellCutoffAuto\?\.value !== 1\) proposeShellCutoff\(numericSymbol, true\);/); // #3651: the memory outlives a project load
   // #3580 — or a search it set from the collars that nobody changed, once the samples' spacing is known; from the samples first
-  assert.match(m, /if \(shellSearchAuto && !shellSearchTyped\.current && \(\(numericSearchRadius === 50 && !shellSearchSet\) \|\| untouchedCollarSearch\)\) \{ setNumericSearchRadius\(shellSearchAuto\);/); // #3607 (3): never a typed search
+  assert.match(m, /if \(shellSearchAuto && !shellSearchTyped\.current && \(\(numericSearchRadius === 50 && shellSearchSet\?\.r !== 50\) \|\| untouchedCollarSearch \|\| untouchedOtherArea\)\) \{ setNumericSearchRadius\(shellSearchAuto\);/); // #3607 (3): never a typed search; #3651: another area's untouched search
   assert.match(m, /const shellSearchFrom = shellSampleSpacing\?\.medianM > 0 \? \{ m: Math\.round\(shellSampleSpacing\.medianM\), at: "samples" \} : shellSpacing\?\.medianM > 0 \? /);
   assert.match(m, /proposeShellCutoff\(next\); \/\/ #3272/);
   assert.equal((m.match(/const p90 = /g) || []).length, 1, "one proposal, for the element change and the opening");
@@ -32,8 +32,10 @@ test("wiring: the opening cutoff, the cap and the search from the holes the run 
   assert.match(m, /shellSearchSet && numericSearchRadius === shellSearchSet\.r && <div[^>]*>\{shellSearchSet\.at === "samples" \? tr\("Search radius \{r\} m: 2\.5 times the \{m\} m typical distance from a sample to the nearest sample of another hole[^"]*", shellSearchSet\) : tr\("Search radius \{r\} m: 2\.5 times the \{m\} m typical spacing/);
   const c = src("modules/viewer/ShellCapNote.jsx");
   assert.match(c, /\}, \[symbol, cv, src\]\);/);
-  assert.match(c, /if \(has && !mine\) return; \/\/ a typed cap/);
-  assert.match(c, /if \(own && !has\) return;/);
+  const rule = src("lib/viewer/shellCapRule.js"); // #3650 — the decision, asked by the note
+  assert.match(c, /shellCapAction\(\{ symbol, auto: auto\.current, capValue/);
+  assert.match(rule, /if \(has && !mine && !stale\) return "keep"; \/\/ a typed cap/);
+  assert.match(rule, /if \(own && !has\) return "keep";/);
   // the cap the note set is kept by the pane: the note unmounts with the pane, and a reopened pane treated its own cap as typed (found live)
   assert.match(c, /const auto = autoRef \|\| ownRef;/);
   assert.match(m, /autoRef=\{shellCapAuto \/\* #3272 \*\/\}/);
