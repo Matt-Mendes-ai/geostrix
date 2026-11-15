@@ -41,6 +41,7 @@ import { numericSourceChoices, findNumericSource, sourceAssays } from "../../lib
 import { excludeQAQC, labAssays } from "../../lib/qaqc.js"; // labAssays: #1744; TASKS.csv #2060 — the proposed cutoff without the QC inserts (this file loads lazily, so qaqc.js stays off the startup path)
 import { checkedHoleCount, restrictRowsToHoles } from "../../lib/modelArea.js"; // TASKS.csv #1546; restrictRowsToHoles: #3272
 import { holeSpacingSummary, searchFromSpacingM } from "../../lib/holeSpacing.js"; // TASKS.csv #3272 — the shell's search from the drilling, as Estimation's (#2420)
+import { sampleSpacing } from "../../lib/sampleSpacing.js"; // TASKS.csv #3580 — the spacing at the samples
 import { cutoffPct } from "../../lib/gradeTonnage.js"; // TASKS.csv #3272 — a base metal's ppm cutoff in % too, as Grade-tonnage (#1747)
 import { GradeShellUnsampled } from "../../components/UnsampledChoice.jsx"; // TASKS.csv #2417 / #2542
 import ShellCapNote from "./ShellCapNote.jsx"; // TASKS.csv #2222 — the Estimation dialog's default cap (#1573) here too
@@ -325,16 +326,33 @@ export default function ModellingPanes(props) {
     const c = shellAreaCollars.filter((x) => has.has(x.hole_id)); // #2062 — the holes that carry the element, not every collar
     return holeSpacingSummary(c.length ? c : shellAreaCollars);
   }, [toolPane, numericSymbol, shellAreaAssays, shellAreaCollars]);
-  const shellSearchAuto = shellSpacing?.medianM > 0 ? searchFromSpacingM(shellSpacing.medianM) : null;
-  const [shellSearchSet, setShellSearchSet] = useState(null); // { r, m }: the search this pane set from the spacing
+  const sheetPositionAt = useMemo(() => positionFromTraces(tracesRef?.current || []), [tracesSeq]); // #2625: the traces change with tracesSeq (#888)
+  // TASKS.csv #3580 (cause 2, Review on Macpass Tom West) — the search from the spacing AT THE SAMPLES (from a sample, the nearest sample of another
+  // hole), not between collar sites: holes fanned from one pad or station share a site, and Tom West's 15 m between sites gave a 40 m search
+  // against 24 m between samples, so a third of the composites at the cutoff sat on blocks Min holes 2 never estimated. The collar
+  // spacing stays the fallback (a log or a layer field as the source, no traces yet).
+  const shellSampleSpacing = useMemo(() => {
+    if (toolPane !== "shell" || !numericSymbol) return null;
+    const pts = [];
+    for (const a of shellAreaAssays) {
+      if (!Number.isFinite(a.values?.[numericSymbol]) || !Number.isFinite(a.from) || !Number.isFinite(a.to)) continue;
+      const p = sheetPositionAt(a.hole_id, (a.from + a.to) / 2);
+      if (p) pts.push({ hole_id: a.hole_id, x: p.x, y: p.y, z: p.z });
+    }
+    return sampleSpacing(pts);
+  }, [toolPane, numericSymbol, shellAreaAssays, sheetPositionAt]);
+  const shellSearchFrom = shellSampleSpacing?.medianM > 0 ? { m: Math.round(shellSampleSpacing.medianM), at: "samples" } : shellSpacing?.medianM > 0 ? { m: Math.round(shellSpacing.medianM), at: "collars" } : null;
+  const shellSearchAuto = shellSearchFrom ? searchFromSpacingM(shellSampleSpacing?.medianM > 0 ? shellSampleSpacing.medianM : shellSpacing.medianM) : null;
+  const [shellSearchSet, setShellSearchSet] = useState(null); // { r, m, at }: the search this pane set from the spacing (at: "samples" | "collars")
   const shellCapAuto = useRef({ symbol: null, value: null }); // #3272 — the cap ShellCapNote set, kept while the note itself unmounts with the pane
   useEffect(() => {
     if (toolPane !== "shell" || !numericSymbol) return;
     if (numericCutoff === 1 && !shellCutoffAuto) proposeShellCutoff(numericSymbol, true); // ViewerModule's opening 1: never a cutoff anyone typed for a grade shell
-    if (shellSearchAuto && numericSearchRadius === 50 && !shellSearchSet) { setNumericSearchRadius(shellSearchAuto); setShellSearchSet({ r: shellSearchAuto, m: Math.round(shellSpacing.medianM) }); }
+    // the opening 50, or a search this pane set from the collars and nobody changed since, once the samples' spacing is known (#3580)
+    const untouchedCollarSearch = shellSearchSet?.at === "collars" && shellSearchFrom?.at === "samples" && numericSearchRadius === shellSearchSet.r;
+    if (shellSearchAuto && ((numericSearchRadius === 50 && !shellSearchSet) || untouchedCollarSearch)) { setNumericSearchRadius(shellSearchAuto); setShellSearchSet({ r: shellSearchAuto, ...shellSearchFrom }); }
   }, [toolPane, numericSymbol, shellSearchAuto]); // once the pane opens on an element, and again when the spacing first becomes known
   const [unitBody, setUnitBody] = useState({ iso: 0.5, largest: false, search: 0, cell: 0 }); // TASKS.csv #1340 — its own settings: a rock unit is not an alteration halo
-  const sheetPositionAt = useMemo(() => positionFromTraces(tracesRef?.current || []), [tracesSeq]); // #2625: the traces change with tracesSeq (#888)
   const tracedHoles = useMemo(() => new Set((tracesRef?.current || []).filter((t) => t?.pts?.length >= 2).map((t) => t.hole_id)).size, [tracesSeq]); // #2053
   // TASKS.csv #1574 (review #1497, Lawyers) — the alteration halo from the Alteration log OR a categorical custom layer, and only
   // the intervals whose numeric field is at or above a value (Silicification intensity >= 2)
@@ -1244,7 +1262,7 @@ export default function ModellingPanes(props) {
                 <label style={{ ...miniField }} title={tr("Extends the grid past the outermost sample so the shell can close beyond the last hole")}>{tr("Pad (m)")}<input type="number" min="0" step="any" value={numericPadding} onChange={(e) => setNumericPadding(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
                 </label>
               </div>
-              {shellSearchSet && numericSearchRadius === shellSearchSet.r && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Search radius {r} m: 2.5 times the {m} m typical spacing, so a block between two holes reaches both.", shellSearchSet)}</div>}{/* #3272 — as Estimation's (#2420) */}
+              {shellSearchSet && numericSearchRadius === shellSearchSet.r && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{shellSearchSet.at === "samples" ? tr("Search radius {r} m: 2.5 times the {m} m typical distance from a sample to the nearest sample of another hole, so a block between two holes reaches both.", shellSearchSet) : tr("Search radius {r} m: 2.5 times the {m} m typical spacing, so a block between two holes reaches both.", shellSearchSet)}</div>}{/* #3272 — as Estimation's (#2420) */}
               {(() => { /* TASKS.csv #3062 — a flat, thin body (a seam, a palaeochannel, a laterite): the cell height on its own and a flat search, as Estimation's (#2418); a structural trend shapes both instead */
                 const gt = trendFor("gradeShell"), reach = Number(numericFlatReach), flat = !gt && reach > 0 && numericSearchRadius > 0 && reach < numericSearchRadius;
                 return <>

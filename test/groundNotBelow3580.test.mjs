@@ -84,3 +84,16 @@ test("capFieldAtGround: the ground looked up once per column gives the per-node 
   assert.ok(col.capped > 0);
   assert.deepEqual(Array.from(col.values), Array.from(node.values));
 });
+
+test("sampleSpacing: from a sample, the nearest sample of another hole (own hole left out); fanned holes from one site read apart, as at the samples", async () => {
+  const { sampleSpacing } = await import("../src/lib/sampleSpacing.js");
+  // two vertical holes 30 m apart, 2 m samples: 30 m
+  const holes = (dx) => [0, dx].flatMap((x, h) => Array.from({ length: 50 }, (_, k) => ({ hole_id: `H${h}`, x, y: 0, z: -2 * k })));
+  assert.equal(Math.round(sampleSpacing(holes(30)).medianM), 30);
+  // a fan from one collar (the collar sites say 0 m apart): the samples spread with depth
+  const fan = [0, 1].flatMap((h) => Array.from({ length: 50 }, (_, k) => ({ hole_id: `F${h}`, x: (h ? 1 : -1) * 0.5 * 2 * k, y: 0, z: -2 * k })));
+  const s = sampleSpacing(fan);
+  assert.ok(s.medianM > 40 && s.medianM < 60, `the fan's median at the samples: ${s.medianM}`);
+  assert.equal(sampleSpacing(holes(30).filter((p) => p.hole_id === "H0")), null, "one hole: no spacing");
+  assert.equal(sampleSpacing(holes(400)), null, "no other hole within reach (250 m)");
+});
