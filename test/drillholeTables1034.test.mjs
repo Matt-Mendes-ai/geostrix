@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { drillholeTableFiles } from "../src/lib/drillholeTables.js";
 import { parseTableText } from "../src/lib/tabular.js";
-import { guessTargetFor, guessMapping, schemaSatisfied, num } from "../src/lib/layers.js";
+import { guessTargetFor, guessMapping, schemaSatisfied, num } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 import { normInterval, normNumericInterval, normStructure } from "../src/lib/viewer/importHelpers.js";
 
 // as stored in the app: dips positive-down, grid azimuths, custom fields as plain keys, internal "_" fields

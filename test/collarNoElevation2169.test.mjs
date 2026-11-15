@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fillMissingCollarZ, settleAssumedZ } from "../src/lib/collarElevation.js";
-import { mergeCollar } from "../src/lib/layers.js";
+import { mergeCollar } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 import { runDataQC } from "../src/lib/dataQC.js";
 
 const rows = [

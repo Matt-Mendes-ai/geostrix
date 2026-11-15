@@ -311,7 +311,7 @@ test("#400 QAQC: sample_type decides; collar holes are never QC by name; exclude
   setKnownHoleIds(null);
 });
 
-import { guessMapping, TARGET_SCHEMAS } from "../src/lib/layers.js";
+import { guessMapping, TARGET_SCHEMAS } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 test("#320 interval import maps a column literally named 'value'; real names still win", () => {
   const intervalTargets = Object.keys(TARGET_SCHEMAS).filter((k) => TARGET_SCHEMAS[k].fields.some((f) => f.key === "from") && TARGET_SCHEMAS[k].fields.some((f) => f.key === "value"));
   assert.ok(intervalTargets.includes("litho"));
@@ -674,7 +674,7 @@ test("#500 a sparse estimate (gaps of whole cells) is still one tensor grid; a r
 });
 
 test("#600 real ARIS logging exports are recognised and mapped (headers from BC assessment reports)", async () => {
-  const { guessTarget, guessMapping } = await import("../src/lib/layers.js");
+  const { guessTarget, guessMapping } = await import("../src/lib/layersImport.js");
   const { looksLikeAssay } = await import("../src/lib/viewer/importHelpers.js");
   const H = (s) => s.split("|");
   const cases = [

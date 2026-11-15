@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 import Papa from "papaparse";
-import { TARGET_SCHEMAS } from "../src/lib/layers.js";
+import { TARGET_SCHEMAS } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 
 const csv = (p) => Papa.parse(readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n"), { header: true, skipEmptyLines: true });
 

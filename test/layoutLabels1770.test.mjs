@@ -12,7 +12,7 @@ const sprite = (x, y, aspect = 4) => ({ position: { x, y, z: 0 }, visible: true,
 test("#1770 labelBoxes projects each label to pixels with its aspect", () => {
   const group = { visible: true, children: [sprite(0, 0), sprite(50, 0), sprite(0, -100)] };
   const b = labelBoxes(group, camera, 1000, 1000, 16);
-  assert.deepEqual(b[0], { x: 0, y: 0, w: 64, h: 16 });
+  assert.deepEqual(b[0], { x: 0, y: 0, w: 64, h: 16, d: 1 }); // d: the depth, #3588 (7)
   assert.deepEqual([b[1].x, b[1].y], [250, 0], "50 m east = a quarter of the half-width = 250 px");
   assert.deepEqual([b[2].x, b[2].y], [0, -500]);
 });

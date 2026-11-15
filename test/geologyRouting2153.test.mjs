@@ -2,7 +2,7 @@
 // its mineral / alteration columns are read; WAMEX alteration, vein and density names are recognized.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { guessTarget, guessMapping } from "../src/lib/layers.js";
+import { guessTarget, guessMapping } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 const g = (h) => { const t = guessTarget(h); const m = guessMapping(t, h); return [t, m.value, m.intensity || ""]; };
 const H = ["Hole_ID", "From", "To"];
 

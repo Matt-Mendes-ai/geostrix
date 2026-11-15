@@ -2,7 +2,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { guessTarget, guessTargetFor, guessMapping, LAYER_META, TARGET_SCHEMAS, colorForWeathering } from "../src/lib/layers.js";
+import { LAYER_META, colorForWeathering } from "../src/lib/layers.js";
+import { guessTarget, guessTargetFor, guessMapping, TARGET_SCHEMAS } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 import { viewerSource } from "./helpers/viewerSource.mjs"; // #2176 — the drillhole build moved out of ViewerModule
 const H = (s) => s.split(",");
 

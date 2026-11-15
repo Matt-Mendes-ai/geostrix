@@ -16,20 +16,25 @@
 //   (the full mesh's winding: a, c, b for a quad's upper-left triangle); maxError: the tolerance it settled on.
 // The tolerance starts at 0.25 m and doubles until the mesh fits in `maxTriangles`.
 
-function rtinCoords(size) {
+// TASKS.csv #3588 (8) (Fireweed rehearsal: 'coming back to the 3D View froze for 1.07 s' after the first terrain) — profiled in the app on
+// Macpass's 670 x 439 grid (a 1025 square, 2.1 M triangles): this function took 518 ms of an 813 ms main-thread task, the errors below 340 ms.
+// Every triangle's corners were found by walking its id's bits from the root (about 20 steps each); a triangle's two children are the next
+// level's, so the corners are now handed down from the parent: the same Uint16Array (identical for every size tried, 3 to 513), 5 times faster.
+// A triangle's id = (1 << D) + low: bit 0 of low picks the root triangle, bit k (1 <= k < D) is its k-th split; a child adds bit D.
+export function rtinCoords(size) {
   const tile = size - 1, n = tile * tile * 2 - 2;
   const coords = new Uint16Array(n * 4);
-  for (let i = 0; i < n; i++) {
-    let id = i + 2, ax = 0, ay = 0, bx = 0, by = 0, cx = 0, cy = 0;
-    if (id & 1) { bx = by = cx = tile; } else { ax = ay = cy = tile; }
-    while ((id >>= 1) > 1) {
-      const mx = (ax + bx) >> 1, my = (ay + by) >> 1;
-      if (id & 1) { bx = ax; by = ay; ax = cx; ay = cy; } else { ax = bx; ay = by; bx = cx; by = cy; }
-      cx = mx; cy = my;
-    }
-    const k = i * 4;
+  const rec = (ax, ay, bx, by, cx, cy, low, D) => {
+    const idx = (1 << D) + low - 2;
+    if (idx >= n) return;
+    const k = idx * 4;
     coords[k] = ax; coords[k + 1] = ay; coords[k + 2] = bx; coords[k + 3] = by;
-  }
+    const mx = (ax + bx) >> 1, my = (ay + by) >> 1;
+    rec(bx, by, cx, cy, mx, my, low, D + 1);
+    rec(cx, cy, ax, ay, mx, my, low | (1 << D), D + 1);
+  };
+  rec(tile, tile, 0, 0, 0, tile, 0, 1);
+  rec(0, 0, tile, tile, tile, 0, 1, 1);
   return coords;
 }
 

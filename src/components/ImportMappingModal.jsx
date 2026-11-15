@@ -4,7 +4,8 @@ import { crsName } from "../lib/reproject.js"; // TASKS.csv #488
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import { mineSourceOf, isMineSource } from "../lib/mineGrid.js"; // TASKS.csv #2811 — 'Local mine grid (no CRS)' in the 3D View's import
 import { X } from "./icons.js";
-import { TARGET_SCHEMAS, guessMapping, LAYER_META } from "../lib/layers.js";
+import { LAYER_META } from "../lib/layers.js";
+import { TARGET_SCHEMAS, guessMapping } from "../lib/layersImport.js"; // TASKS.csv #3590
 import { alterationStyleFromName, blankShare } from "../lib/viewer/importHelpers.js"; // TASKS.csv #1511; blankShare: #2182
 import { AZIMUTH_REFS, azimuthToGridOffset } from "../lib/azimuthRef.js"; // TASKS.csv #396; azimuthToGridOffset: #3302
 import { fitSimilarity, parseControlPoints } from "../lib/localGrid.js"; // TASKS.csv #412

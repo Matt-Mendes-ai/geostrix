@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { rowChangedHoles, ROW_PATCH_MAX_SHARE } from "../src/modules/viewer/drillholeScene.js";
-import { replaceRowsByHole } from "../src/lib/layers.js";
+import { replaceRowsByHole } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 
 const big = [];
 for (let h = 0; h < 2000; h++) for (let i = 0; i < 25; i++) big.push({ hole_id: `WA${h}`, from: i * 2, to: i * 2 + 2, value: i % 2 ? "SH" : "BIF" });

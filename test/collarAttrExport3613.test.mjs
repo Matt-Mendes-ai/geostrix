@@ -11,7 +11,7 @@ import { buildVectorFeatures } from "../src/lib/viewer/vectorFeatures.js";
 import { shapefileZipFiles } from "../src/lib/shapefile.js";
 import { surfaceAttrColumns } from "../src/lib/geochemColumns.js";
 import { normalizeHoleType } from "../src/lib/holeType.js";
-import { EPSG_COL_ALIASES } from "../src/lib/layers.js";
+import { EPSG_COL_ALIASES } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 
 const read = (p) => fs.readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const rd = (f) => Papa.parse(read(`../sample_data/yk_macpass/${f}`), { header: true, skipEmptyLines: true }).data;

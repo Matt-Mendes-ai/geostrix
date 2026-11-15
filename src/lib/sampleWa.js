@@ -28,7 +28,7 @@ export const WA_SAMPLES = {
   wa_zinc_copper: { dir: "wa_zinc_copper", epsg: 28350, label: "WA zinc-copper", assays: "assays.csv", surface: [["soils.csv", "soil"], ["streams.csv", "stream sediment"]] },
   wa_gold: { dir: "wa_gold", epsg: 28351, label: "WA lode gold", assays: "assays.csv" },
   // TASKS.csv #3496 — Fireweed Metals' Macpass drilling, used with their permission: Ag in ppm, Pb and Zn in %; the credit is kept with the project (Layout prints it)
-  yk_macpass: { dir: "yk_macpass", epsg: 26909, label: "Macpass", assays: "assays.csv", credit: MACPASS_CREDIT },
+  yk_macpass: { dir: "yk_macpass", epsg: 26909, label: "Macpass", assays: "assays.csv", credit: MACPASS_CREDIT, showFirst: "Zn" /* #3588 (1) */ },
   // Century (Geological Survey of Queensland, CC BY 4.0): the same parts as a WA sample, from Queensland's database
   qld_century: {
     dir: "qld_century", epsg: 7854, label: "Century", assays: "assays.csv", surface: [["soils.csv", "soil"]],

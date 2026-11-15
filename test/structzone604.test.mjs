@@ -1,7 +1,8 @@
 // TASKS.csv #604 — structure logged by interval imports as a layer of structural zones (Matt, 2026-10-21)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { guessTargetFor, guessMapping, LAYER_META, colorForStructZone } from "../src/lib/layers.js";
+import { LAYER_META, colorForStructZone } from "../src/lib/layers.js";
+import { guessTargetFor, guessMapping } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 import { normInterval } from "../src/lib/viewer/importHelpers.js";
 
 // headers of the real ARIS files: 43020Z Copley 2023 and 41597Z Woodjam 2023

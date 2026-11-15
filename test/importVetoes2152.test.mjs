@@ -2,7 +2,7 @@
 // and a hole attribute (type, status, parent, purpose, path, diameter) never wins the Hole ID.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { guessMapping } from "../src/lib/layers.js";
+import { guessMapping } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 
 const pick = (t, h, keys) => { const m = guessMapping(t, h); return Object.fromEntries(keys.map((k) => [k, m[k]])); };
 

@@ -1,7 +1,7 @@
 // TASKS.csv #1655 — Collar_Az_D is guessed as the azimuth; a re-import that adds fields is not 'identical'.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { guessMapping, diffCollarImport, mergeCollar } from "../src/lib/layers.js";
+import { guessMapping, diffCollarImport, mergeCollar } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 
 test("acQuire collar headers: azimuth and dip both guessed", () => {
   const m = guessMapping("collars", ["HOLEID", "EAST", "NORTH", "RL", "DEPTH", "Collar_Type", "Collar_Az_D", "Collar_Dip_D"]);

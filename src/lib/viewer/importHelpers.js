@@ -8,9 +8,11 @@ const loadKml = () => import("../kml.js");
 const loadLas = () => import("../las.js"); // TASKS.csv #492 — on demand
 const loadXlsx = () => import("../xlsx.js");
 const loadShapefile = () => import("../shapefile.js");
-import { spectralColumns, guessMapping } from "../layers.js"; // TASKS.csv #2339; guessMapping: #3038
+import { spectralColumns, guessMapping } from "../layersImport.js"; // TASKS.csv #3590 // TASKS.csv #2339; guessMapping: #3038
 import { logReadSpec, LOG_READ_MIN_BYTES } from "../logOnRead.js"; // TASKS.csv #3038
-import { num, isOverturnedValue, targetFromName, guessTargetFor, guessColumn, guessColumnExact /* #2268 */, TARGET_SCHEMAS, INTERVAL_FROM_ALIASES, INTERVAL_TO_ALIASES, normHeader } from "../layers.js"; // INTERVAL_*: #2150
+import { isOverturnedValue } from "../layers.js";
+import { guessColumnExact /* #2268 */ } from "../layersImport.js"; // TASKS.csv #3590 // INTERVAL_*: #2150
+import { num, targetFromName, guessTargetFor, guessColumn, TARGET_SCHEMAS, INTERVAL_FROM_ALIASES, INTERVAL_TO_ALIASES, normHeader } from "../layersImport.js"; // TASKS.csv #3590
 import { gridXY } from "../gridColumns.js"; // TASKS.csv #2564
 const tabular = () => import("../tabular.js"); // TASKS.csv #1493 — the CSV engine (papaparse) loads with the first table, not at launch
 import { t as tr } from "../i18n.js"; // TASKS.csv #786 — messages in the interface language
