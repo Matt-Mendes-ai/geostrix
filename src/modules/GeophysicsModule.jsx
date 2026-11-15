@@ -357,8 +357,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const gridGpsInput = useRef(null); // #1326
   const batchBaseInput = useRef(null); // #1585 — base-station files for a multi-file walk-mag import
   const rows = layers.geophys_pts || [];
-  const drawnRange = useMemo(() => robustRange(rows.map((r) => r.value)), [rows]); // TASKS.csv #1177 — the range the 3D colours use
   const surveyList = useMemo(() => surveyStats(rows), [rows]); // TASKS.csv #451
+  // TASKS.csv #3511 (of #3447) — a positions-only survey (an electrode list) has no measured value: the tools that read a survey's value (the legend, gridding, sampling along
+  // the holes, the spatial analysis, the colour range) read these, not every survey's
+  const measuredList = useMemo(() => surveyList.filter((s) => !geophysSurveys[s.key]?.positionsOnly), [surveyList, geophysSurveys]);
+  const measuredRows = useMemo(() => (measuredList.length === surveyList.length ? rows : rows.filter((r) => !geophysSurveys[surveyKey(r)]?.positionsOnly)), [rows, surveyList, measuredList, geophysSurveys]);
+  const drawnRange = useMemo(() => robustRange(measuredRows.map((r) => r.value)), [measuredRows]); // TASKS.csv #1177 — the range the 3D colours use; #3511: measured surveys only
   // TASKS.csv #3319 — an import whose survey name is already loaded from ANOTHER file (another row count or extent: the Extension grid's
   // IP.xyz over the Main grid's) is asked about: OK replaces it, Cancel keeps both, the new one named 'IP.xyz (2)'. The same file read again
   // still replaces it (#600). -> { rows, note, renamed: { old key: new key } }
@@ -392,9 +396,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // (geophysSurveys[key].legend, read by makeSurveyColorer); the global stops / mode / range were ignored in 3D then, and the
   // classes were cut across nT and % values together.
   const [legendSurvey, setLegendSurvey] = useState("");
-  const manySurveys = surveyList.length > 1;
-  const legendKey = surveyList.some((s) => s.key === legendSurvey) ? legendSurvey : surveyList[0]?.key || "";
-  const legendRows = useMemo(() => (manySurveys ? rows.filter((r) => surveyKey(r) === legendKey) : rows), [manySurveys, rows, legendKey]);
+  const manySurveys = measuredList.length > 1; // #3511 — measured surveys only: a positions-only one has no legend to edit
+  const legendKey = measuredList.some((s) => s.key === legendSurvey) ? legendSurvey : measuredList[0]?.key || "";
+  const legendRows = useMemo(() => (manySurveys ? rows.filter((r) => surveyKey(r) === legendKey) : measuredRows), [manySurveys, rows, measuredRows, legendKey]);
   const holeShape = useMemo(() => (holeOpen && legendRows.length ? cloudShape(legendRows) : null), [holeOpen, legendRows]); // #3324
   const holeSuggest = useMemo(() => (holeShape?.is3D ? suggestHoleSampling(legendRows) : null), [holeShape, legendRows]); // #3324 — from the cloud's 3D spacing
   // TASKS.csv #3324 (review #3195, Galore Creek) — 'does chargeability follow the sulphide?': the survey's value at each step down every hole
@@ -447,7 +451,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   };
   // TASKS.csv #538 — gridding used EVERY imported survey at once (a mag survey in nT blended with a gravity or
   // radiometric one) and filled the whole bounding box. Now one survey, blanked beyond a distance from the data.
-  const idwKey = surveyList.some((s) => s.key === idwSurvey) ? idwSurvey : surveyList[0]?.key || "";
+  const idwKey = measuredList.some((s) => s.key === idwSurvey) ? idwSurvey : measuredList[0]?.key || ""; // #3511 — a positions-only survey is not gridded
   const idwRows = useMemo(() => (idwOpen ? rows.filter((r) => surveyKey(r) === idwKey) : []), [idwOpen, rows, idwKey]);
   // TASKS.csv #1783 (review #1646, Kodiak) — a 3D point cloud (an inversion model imported as points) is gridded one depth slice at a time
   const idwShape = useMemo(() => (idwRows.length ? cloudShape(idwRows) : null), [idwRows]);
@@ -2145,7 +2149,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           <div style={{ marginTop: 10 }}>
             <div className="ge-section-label" style={{ marginBottom: 6 }}>{tr("Surveys loaded")}</div>
             {surveyList.map((sv) => {
-              const meta = geophysSurveys[sv.key] || {};
+              const meta = geophysSurveys[sv.key] || {}, noValue = !!meta.positionsOnly; // noValue: TASKS.csv #3511 — no method, units, equivalent sources or gravity reduction for a survey with no measured value
               return (
                 <div key={sv.key} style={{ marginBottom: 8, padding: "8px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -2164,18 +2168,19 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>
                     {meta.positionsOnly ? tr("{count} points{v}, {withZ} with elevation · positions only, no measured value", { count: sv.count.toLocaleString(), v: sv.lines ? `, ${sv.lines} line(s)` : "", withZ: sv.withZ.toLocaleString() }) /* TASKS.csv #3447 */ : tr("{count} points{v}, {withZ} with elevation · values {v2}{v3}", { count: sv.count.toLocaleString(), v: sv.lines ? `, ${sv.lines} line(s)` : "", withZ: sv.withZ.toLocaleString(), v2: Number.isFinite(sv.min) ? rangeText(sv.min, sv.max) /* #2402 — 57,392 to 57,571, not 5.739e+4 */ : "—", v3: meta.units ? ` ${meta.units}` : "" })}
                   </div>
-                  <div style={{ display: "flex", gap: 6, marginTop: 5 }}>
+                  {!noValue && <div style={{ display: "flex", gap: 6, marginTop: 5 }}>
                     <select value={meta.method || ""} aria-label={tr("Method of \"{key}\"", { key: sv.key })} style={{ ...numInput, width: "auto", flex: 1, minWidth: 0 }}
                       onChange={(e) => updateGeophysSurvey(sv.key, { method: e.target.value, ...unitsForMethod(meta, e.target.value) })}>
                       <option value="">{tr("Method…")}</option>
                       {Object.entries(SURVEY_METHOD_GROUPS).map(([g, gl]) => <optgroup key={g} label={tr(gl)}>{Object.entries(SURVEY_METHODS).filter(([, m]) => m.group === g).map(([k, m]) => <option key={k} value={k}>{tr(m.label)}</option>)}</optgroup>)}{/* #1151 */}
                     </select>
                     <input value={meta.units || ""} placeholder={tr("units")} aria-label={tr("Units of \"{key}\"", { key: sv.key })} onChange={(e) => updateGeophysSurvey(sv.key, { units: e.target.value })} style={{ ...numInput, width: 58, flex: "none" }} />
-                  </div>
+                  </div>}
                   <select value={meta.zMeaning || (sv.withZ ? "elevation" : "none")} aria-label={tr("What z means in \"{key}\"", { key: sv.key })} style={{ ...numInput, width: "100%", marginTop: 5 }}
                     onChange={(e) => updateGeophysSurvey(sv.key, { zMeaning: e.target.value })}>
                     {Object.entries(Z_MEANINGS).map(([k, label]) => <option key={k} value={k}>{tr(label)}</option>)}{/* #1974 */}
                   </select>
+                  {!noValue && <>
                   {/* TASKS.csv #1985 — gridded on one level with equivalent sources (Harmonica, in the Python engine) */}
                   {/* TASKS.csv #3321 — not for a survey that is not a potential field (IP, resistivity, EM, radiometrics ...): said in one line */}
                   {eqsApplies(meta.method) === "no" && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 5, lineHeight: 1.4 }}>{tr("Equivalent sources: for magnetic and gravity surveys only (a field measured on or above the ground); this survey is {label}.", { label: tr(SURVEY_METHODS[meta.method]?.label || meta.method) })}</div>}
@@ -2184,6 +2189,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   {/* TASKS.csv #1985 — free-air and Bouguer anomalies of a gravity survey (or of values that look like absolute gravity) */}
                   {(["grav", "grav_fa"].includes(meta.method) || (Number.isFinite(sv.min) && sv.min > 900000)) && <button type="button" onClick={() => setGravFor(gravFor === sv.key ? null : sv.key)} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Free-air anomaly (observed less normal gravity) and Bouguer anomaly (less the Bouguer plate or the terrain's gravity), in the Python engine")}><Scale size={14} />{tr("Gravity reductions…")}</button>}
                   {gravFor === sv.key && <Suspense fallback={null}><GravityReductionBox survey={sv.key} method={meta.method || null} /* #2841 */ rows={rows} epsg={project?.epsg} terrain={terrain} setLayers={setLayers} updateGeophysSurvey={updateGeophysSurvey} numInput={numInput} pBtn={pBtn} /></Suspense>}
+                  </>}
                   {/* TASKS.csv #1152 — interpretation lines over this survey, drawn in the 3D view */}
                   <button type="button" onClick={() => { goToModule("viewer"); requestModuleAction("interpret-lines", { survey: sv.key }); }} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Draw faults, contacts and lineaments over this survey in the 3D view; they become a map layer")}>{tr("Draw interpretation lines…")}</button>
                   {(meta.zMeaning === "agl") && (
@@ -2333,7 +2339,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4, marginBottom: 4, fontSize: "var(--font-size-sm)" }}>
                 <span style={{ color: "var(--color-text-faint)", flexShrink: 0 }}>{tr("Survey")}</span>
                 <select value={legendKey} onChange={(e) => { setLegendSurvey(e.target.value); setIdwSurvey(e.target.value); /* #2562 — one choice for the pane */ }} aria-label={tr("Survey whose legend to edit")} style={{ ...numInput, flex: 1, minWidth: 0 }}>
-                  {surveyList.map((s) => <option key={s.key} value={s.key}>{s.key} ({s.count.toLocaleString()}{geophysSurveys[s.key]?.units ? `, ${geophysSurveys[s.key].units}` : ""})</option>)}
+                  {measuredList.map((s) => <option key={s.key} value={s.key}>{s.key} ({s.count.toLocaleString()}{geophysSurveys[s.key]?.units ? `, ${geophysSurveys[s.key].units}` : ""})</option>)}
                 </select>
               </div>
             )}
@@ -2454,11 +2460,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   <input type="number" min="0" max="1" step="0.05" value={idwTension} onChange={(e) => setIdwTension(Math.min(1, Math.max(0, Number(e.target.value) || 0)))} style={numInput} aria-label={tr("Tension")} />
                 </div>}
                 {/* TASKS.csv #538 — which survey, and how far from the data a cell may be */}
-                {surveyList.length > 1 && (
+                {measuredList.length > 1 && (
                   <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
                     <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Survey")}</span>
                     <select value={idwKey} onChange={(e) => { setIdwSurvey(e.target.value); setLegendSurvey(e.target.value); /* #2562 */ }} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label={tr("Survey to grid")}>
-                      {surveyList.map((s) => <option key={s.key} value={s.key}>{s.key} ({s.count.toLocaleString()})</option>)}
+                      {measuredList.map((s) => <option key={s.key} value={s.key}>{s.key} ({s.count.toLocaleString()})</option>)}
                     </select>
                   </div>
                 )}
@@ -3309,7 +3315,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         </div>
       </div>)}
 
-      {spatialOpen && <SpatialAnalysis points={rows} surveys={surveyList.map((s) => ({ ...s, units: geophysSurveys[s.key]?.units || "", method: geophysSurveys[s.key]?.method || null }))} /* #1588 — one survey at a time */ onClose={() => setSpatialOpen(false)} />}
+      {spatialOpen && <SpatialAnalysis points={measuredRows} surveys={measuredList.map((s) => ({ ...s, units: geophysSurveys[s.key]?.units || "", method: geophysSurveys[s.key]?.method || null }))} /* #1588 — one survey at a time */ onClose={() => setSpatialOpen(false)} />}
     </div>
   );
 }

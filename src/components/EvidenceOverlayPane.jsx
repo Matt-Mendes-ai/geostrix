@@ -236,7 +236,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     surfaceElements.forEach((e) => out.push({ key: `el:${e.symbol}`, label: tr("Samples: {sym} (robust z)", { sym: e.symbol }), kind: "element", ref: e.symbol }));
     if (surfaceElements.length) PATHFINDER_PRESETS.forEach((p) => out.push({ key: `ix:${p.id}`, label: tr("Samples: {name} index", { name: tr(p.label) }), kind: "index", ref: p.id }));
     // TASKS.csv #1154 — what a drilling project holds: surveys, block models, grades along the holes, logged structures
-    surveyNames(geophysPts).forEach((k) => out.push({ key: `geo:${k}`, label: tr("Geophysics: {name}", { name: SURVEY_METHODS[geophysSurveys[k]?.method] ? `${tr(SURVEY_METHODS[geophysSurveys[k].method].label)} — ${k}` : k }), kind: "survey", ref: k } /* #1209 */));
+    surveyNames(geophysPts).forEach((k) => geophysSurveys[k]?.positionsOnly /* TASKS.csv #3511 — no measured value to weigh */ || out.push({ key: `geo:${k}`, label: tr("Geophysics: {name}", { name: SURVEY_METHODS[geophysSurveys[k]?.method] ? `${tr(SURVEY_METHODS[geophysSurveys[k].method].label)} — ${k}` : k }), kind: "survey", ref: k } /* #1209 */));
     const categorical = new Set(categoricalModels(voxelModels));
     voxelModels.filter((m) => m.cells?.length && !categorical.has(m)).forEach((m) => {
       out.push({ key: `vox:max:${m.id ?? m.name}`, label: tr("Block model: {name} (highest in each column)", { name: modelListName(m, voxelModels) /* #1839 */ }), kind: "voxel", ref: m.id ?? m.name, how: "max" });
