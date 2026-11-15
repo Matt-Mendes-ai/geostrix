@@ -346,7 +346,7 @@ export function syncMapLayers(group, cache, mapLayers, { origin, terrain, render
       mesh.rotation.x = -Math.PI / 2; // plane local +Y (image top = north) becomes scene -z, the app's north
       mesh.position.set(cx - ox, drapeOnTerrain || onCollars ? 0 : (l.elevation || 0) - oz + lift - 0.3, -(cy - oy));
       mesh.renderOrder = 2 + li;
-      mesh.userData = { geoKey, styleKey: null, canvas };
+      mesh.userData = { geoKey, styleKey: null, canvas, ...(drapeOnTerrain ? { drapeBox: bbox } : {}) }; // drapeBox: TASKS.csv #3252 phase 3 (the terrain tiles draw it on their own surface)
       group.add(mesh);
       cache[l.id] = mesh;
     }

@@ -22,15 +22,18 @@ const clipTo = (a, b) => [Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.min(a
 // Which tiles of one raster to draw. pixelAt(box) -> the metres a screen pixel covers at the box's nearest point, or Infinity when the box is
 // out of view. The worst tile (its pixel over the screen's the most) is split first, until none is over `ratio` or `maxTiles` would be passed.
 // -> { root, maxLevel, base, tiles: [{ z, x, y, box }] } (only tiles finer than the fetched picture, in view), or null (no source description)
-export function chooseSceneTiles(raster, pixelAt, { maxTiles = SCENE_MAX_TILES, ratio = SPLIT_RATIO } = {}) {
+// tilePx (TASKS.csv #3252 phase 3): the tile's cells a side (256 for imagery, 64 for terrain tiles), so the same choice serves both
+export function chooseSceneTiles(raster, pixelAt, { maxTiles = SCENE_MAX_TILES, ratio = SPLIT_RATIO, tilePx = TILE_PX } = {}) {
   const nativeM = raster?.lod?.nativeM;
   if (!(nativeM > 0) || !raster.bbox) return null;
-  const root = lodRoot(raster.bbox), maxLevel = lodMaxLevel(root, nativeM);
+  const root = lodRoot(raster.bbox);
+  const pxM = (z) => root.side / 2 ** z / tilePx;
+  const maxLevel = tilePx === TILE_PX ? lodMaxLevel(root, nativeM) : Math.max(0, Math.ceil(Math.log2(root.side / (tilePx * nativeM)) - 1e-9));
   const base = raster.pixelM > 0 ? raster.pixelM : root.side / 4096;
   const clip = raster.bbox;
   const make = (z, x, y) => {
     const box = tileBox(root, z, x, y), m = pixelAt(clipTo(box, clip));
-    return { z, x, y, box, err: Number.isFinite(m) && m > 0 ? tilePixelM(root, z) / m : 0, seen: Number.isFinite(m) };
+    return { z, x, y, box, err: Number.isFinite(m) && m > 0 ? pxM(z) / m : 0, seen: Number.isFinite(m) };
   };
   let leaves = [make(0, 0, 0)];
   for (;;) {
@@ -42,7 +45,7 @@ export function chooseSceneTiles(raster, pixelAt, { maxTiles = SCENE_MAX_TILES, 
     if (leaves.length - 1 + kids.length > maxTiles) break;
     leaves = [...leaves.slice(0, worst), ...kids, ...leaves.slice(worst + 1)];
   }
-  return { root, maxLevel, base, tiles: leaves.filter((l) => l.seen && tilePixelM(root, l.z) < base * 0.99).map(({ z, x, y, box }) => ({ z, x, y, box })) };
+  return { root, maxLevel, base, pxM, tiles: leaves.filter((l) => l.seen && pxM(l.z) < base * 0.99).map(({ z, x, y, box }) => ({ z, x, y, box })) };
 }
 
 // The tiles to draw for the wanted ones: each wanted tile if it is loaded, else its nearest loaded parent finer than the fetched picture.
@@ -51,7 +54,7 @@ export function tilesToDraw(chosen, src, loaded) {
   const out = new Map();
   for (const t of chosen.tiles) {
     let { z, x, y } = t;
-    while (z >= 0 && tilePixelM(chosen.root, z) < chosen.base * 0.99) {
+    while (z >= 0 && (chosen.pxM ? chosen.pxM(z) : tilePixelM(chosen.root, z)) < chosen.base * 0.99) {
       const key = tileKey(src, z, x, y);
       if (loaded(key)) { if (!out.has(key)) out.set(key, { z, x, y, box: tileBox(chosen.root, z, x, y), key }); break; }
       z--; x >>= 1; y >>= 1;
@@ -92,10 +95,10 @@ export function lodTileMesh(terrain, origin, tile, raster, texture) {
   m.renderOrder = 0.1 + tile.z / 100; // over the fetched picture (0) and coarser tiles, under the map layers (2 +) and the flat rasters
   // TASKS.csv #3509 — the fetched picture is hidden under a loaded tile (it showed through at the raster's opacity): the tile's twin writes
   // stencil 1 before anything transparent is drawn (no colour, no depth), and the fetched picture's mesh draws only where the stencil is not 1
-  const mark = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, depthTest: false, stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp, side: THREE.DoubleSide }));
+  const mark = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, depthTest: false, stencilWrite: true, stencilRef: 1, stencilWriteMask: 1 /* bit 1: imagery tiles; bit 2: terrain tiles (#3252 phase 3) */, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp, side: THREE.DoubleSide }));
   mark.renderOrder = -10; mark.userData.lodMark = true;
   m.add(mark);
-  m.userData = { lodTile: tile.key, z: tile.z, pixelM: tilePixelM(lodRoot(raster.bbox), tile.z) };
+  m.userData = { lodTile: tile.key, z: tile.z, pixelM: tilePixelM(lodRoot(raster.bbox), tile.z), box: tile.box };
   return m;
 }
 
@@ -168,6 +171,8 @@ export function createLodDrape() {
       st.tickMs = performance.now() - t0;
     },
     stats: () => ({ ...st, memoryBytes: loader?.lodMemory?.bytes ?? 0 }),
+    // TASKS.csv #3252 phase 3 — the drawn tiles, for the terrain tiles to show on their own surface: [{ key, box, texture, opacity, z, mesh }]
+    tileMeshes: () => [...meshes.values()].map((m) => ({ key: m.userData.lodTile, box: m.userData.box, texture: m.material.map, opacity: m.material.opacity, z: m.userData.z, mesh: m, visible: m.visible })),
     dispose() { dropAll(); ctx = null; },
   };
 }
