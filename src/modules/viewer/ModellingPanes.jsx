@@ -356,14 +356,16 @@ export default function ModellingPanes(props) {
   const shellSearchAuto = shellSearchFrom ? searchFromSpacingM(shellSampleSpacing?.medianM > 0 ? shellSampleSpacing.medianM : shellSpacing.medianM) : null;
   const ramGB = useMachineMemoryGB(); // TASKS.csv #3581 — the budgets this computer's memory allows (#3251's share of it)
   const shellBudgetOk = useMemo(() => new Set(shellBudgetsFor((mb) => fetchFits(mb, ramGB))), [ramGB]);
-  const [shellSearchSet, setShellSearchSet] = useState(null); // { r, m, at }: the search this pane set from the spacing (at: "samples" | "collars")
+  const [shellSearchSet, setShellSearchSet] = useState(null);
+  const shellSearchTyped = useRef(false); // TASKS.csv #3607 (3) — a typed 50 m was replaced by 120 m when the pane reopened (50 is the untouched opening value) // { r, m, at }: the search this pane set from the spacing (at: "samples" | "collars")
   const shellCapAuto = useRef({ symbol: null, value: null }); // #3272 — the cap ShellCapNote set, kept while the note itself unmounts with the pane
   useEffect(() => {
     if (toolPane !== "shell" || !numericSymbol) return;
     if (numericCutoff === 1 && !shellCutoffAuto) proposeShellCutoff(numericSymbol, true); // ViewerModule's opening 1: never a cutoff anyone typed for a grade shell
     // the opening 50, or a search this pane set from the collars and nobody changed since, once the samples' spacing is known (#3580)
     const untouchedCollarSearch = shellSearchSet?.at === "collars" && shellSearchFrom?.at === "samples" && numericSearchRadius === shellSearchSet.r;
-    if (shellSearchAuto && ((numericSearchRadius === 50 && !shellSearchSet) || untouchedCollarSearch)) { setNumericSearchRadius(shellSearchAuto); setShellSearchSet({ r: shellSearchAuto, ...shellSearchFrom }); }
+    // #3607 (3) — a search the user typed (even the opening 50) is never replaced
+    if (shellSearchAuto && !shellSearchTyped.current && ((numericSearchRadius === 50 && !shellSearchSet) || untouchedCollarSearch)) { setNumericSearchRadius(shellSearchAuto); setShellSearchSet({ r: shellSearchAuto, ...shellSearchFrom }); }
   }, [toolPane, numericSymbol, shellSearchAuto]); // once the pane opens on an element, and again when the spacing first becomes known
   const [unitBody, setUnitBody] = useState({ iso: 0.5, largest: false, search: 0, cell: 0 }); // TASKS.csv #1340 — its own settings: a rock unit is not an alteration halo
   const tracedHoles = useMemo(() => new Set((tracesRef?.current || []).filter((t) => t?.pts?.length >= 2).map((t) => t.hole_id)).size, [tracesSeq]); // #2053
@@ -1271,7 +1273,7 @@ export default function ModellingPanes(props) {
                     blocked main thread at 62,500 cells x 5,000 points, 250 s at the block cap). 0 now
                     means "cap at the grid diagonal", which is a no-op mathematically and a real bound
                     computationally. */}
-                <label style={{ ...miniField }} title={tr("No sample within this distance of a grid cell leaves it un-estimated (no shell there) rather than extrapolating grade far from real data. 0 = no radius assumption, capped internally at the grid's own diagonal so the run can't hang — but a real radius is both faster and far more defensible.")}>{tr("Search (m)")}<input type="number" min="0" step="any" value={numericSearchRadius} onChange={(e) => setNumericSearchRadius(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
+                <label style={{ ...miniField }} title={tr("No sample within this distance of a grid cell leaves it un-estimated (no shell there) rather than extrapolating grade far from real data. 0 = no radius assumption, capped internally at the grid's own diagonal so the run can't hang — but a real radius is both faster and far more defensible.")}>{tr("Search (m)")}<input type="number" min="0" step="any" value={numericSearchRadius} onChange={(e) => { shellSearchTyped.current = true; /* #3607 (3) */ setNumericSearchRadius(Math.max(0, Number(e.target.value) || 0)); }} style={{ ...smallSel, width: "100%" }} />
                 </label>
                 <label style={{ ...miniField }} title={tr("Extends the grid past the outermost sample so the shell can close beyond the last hole")}>{tr("Pad (m)")}<input type="number" min="0" step="any" value={numericPadding} onChange={(e) => setNumericPadding(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
                 </label>

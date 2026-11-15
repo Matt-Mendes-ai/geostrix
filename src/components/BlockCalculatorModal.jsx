@@ -64,6 +64,7 @@ export default function BlockCalculatorModal({ onClose }) {
   // in % beside the Fe estimate in %. Offered only then; otherwise the grade ramp over its own values
   const first = picked[0]?.model, sameUnit = !!(first?.stops?.length && first.params?.unit && unit.trim() && first.params.unit === unit.trim());
   const rampLike = sameUnit && likeFirst ? { min: first.min, max: first.max, colorMode: first.colorMode, stops: first.stops } : null;
+  const unitSuffix = unit.trim() ? ` ${unit.trim()}` : ""; // TASKS.csv #3607 (7) — the summary's numbers in the new model's unit
   const addModel = () => {
     try {
       const rec = calcModelRecord({ name, unit, formula, inputs: picked, result });
@@ -140,7 +141,7 @@ export default function BlockCalculatorModal({ onClose }) {
           {error && <div role="alert" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-text)", background: "var(--color-danger-bg)", border: "1px solid var(--color-danger-border)", borderRadius: 6, padding: "7px 9px", marginBottom: 10 }}>{error}</div>}
           {result && (
             <div style={{ fontSize: "var(--font-size-sm)", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 9px", marginBottom: 10, lineHeight: 1.5 }}>
-              <div>{result.cells.length ? tr(result.blocks === 1 ? "1 block calculated; value {mean}." : "{blocks} blocks calculated; mean {mean}, from {min} to {max}.", { blocks: result.blocks.toLocaleString(), mean: fmt(mean), min: fmt(rampOf(result.cells).min), max: fmt(rampOf(result.cells).max) }) : tr("No block got a value.")}</div>
+              <div>{result.cells.length ? tr(result.blocks === 1 ? "1 block calculated; value {mean}." : "{blocks} blocks calculated; mean {mean}, from {min} to {max}.", { blocks: result.blocks.toLocaleString(), mean: fmt(mean) + unitSuffix, min: fmt(rampOf(result.cells).min) + unitSuffix, max: fmt(rampOf(result.cells).max) + unitSuffix } /* #3607 (7): with its unit */) : tr("No block got a value.")}</div>
               {result.missing > 0 && <div>{tr(result.missing === 1 ? "1 block left out: a model the formula reads has no value there." : "{n} blocks left out: a model the formula reads has no value there.", { n: result.missing.toLocaleString() })}</div>}
               {result.blank > 0 && <div>{tr(result.blank === 1 ? "1 block left out: the formula gives no number there (e.g. a division by zero)." : "{n} blocks left out: the formula gives no number there (e.g. a division by zero).", { n: result.blank.toLocaleString() })}</div>}
               {added && <div style={{ color: "var(--color-success-text)" }}>{tr("Added \"{name}\". It is a snapshot: it does not change when its inputs do.", { name: added })}</div>}

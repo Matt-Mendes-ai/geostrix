@@ -23,7 +23,7 @@ test("wiring: the opening cutoff, the cap and the search from the holes the run 
   assert.match(m, /const shellAreaAssays = useMemo\(\(\) => \(modelArea === "checked" \? restrictRowsToHoles\(assays \|\| \[\], visibleHoles\) : assays \|\| \[\]\)/);
   assert.match(m, /if \(numericCutoff === 1 && !shellCutoffAuto\) proposeShellCutoff\(numericSymbol, true\);/);
   // #3580 — or a search it set from the collars that nobody changed, once the samples' spacing is known; from the samples first
-  assert.match(m, /if \(shellSearchAuto && \(\(numericSearchRadius === 50 && !shellSearchSet\) \|\| untouchedCollarSearch\)\) \{ setNumericSearchRadius\(shellSearchAuto\);/);
+  assert.match(m, /if \(shellSearchAuto && !shellSearchTyped\.current && \(\(numericSearchRadius === 50 && !shellSearchSet\) \|\| untouchedCollarSearch\)\) \{ setNumericSearchRadius\(shellSearchAuto\);/); // #3607 (3): never a typed search
   assert.match(m, /const shellSearchFrom = shellSampleSpacing\?\.medianM > 0 \? \{ m: Math\.round\(shellSampleSpacing\.medianM\), at: "samples" \} : shellSpacing\?\.medianM > 0 \? /);
   assert.match(m, /proposeShellCutoff\(next\); \/\/ #3272/);
   assert.equal((m.match(/const p90 = /g) || []).length, 1, "one proposal, for the element change and the opening");
