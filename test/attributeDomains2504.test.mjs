@@ -26,7 +26,7 @@ const assays = [
 test("sample type and every categorical collar field become domain options, hole type first", () => {
   const o = attributeDomainOptions(assays, collars);
   // Drill_Code groups the holes exactly as hole type does (RC / DD / AC): not offered twice
-  assert.deepEqual(o.map((d) => d.key), ["attr:sample_type", "collar:hole type", "collar:Tenement", "collar:Year"]);
+  assert.deepEqual(o.map((d) => d.key), ["attr:sample_type", "collar:hole type", "collar:Tenement", "collar:Year", "collar:Year:decade"] /* #3579: a year field is also offered by decade */);
   const st = o[0];
   assert.equal(st.rows.length, 4);
   assert.deepEqual(st.rows[2], { hole_id: "DD1", from: 0, to: 2, value: "CORE" });

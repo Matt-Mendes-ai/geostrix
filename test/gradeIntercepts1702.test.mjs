@@ -8,10 +8,10 @@ test("#1702 the boundary-picks button says 'Contact picks'; 'Grade intercepts' o
   assert.match(p, /<span className="ge-ribbon-label">\{tr\("Contact picks"\)\}<\/span>/);
   assert.ok(!p.includes('tr("Intercepts")'));
   assert.match(p, /const BestIntercepts = lazyModal\(\(\) => import\("\.\.\/\.\.\/components\/BestIntercepts\.jsx"\)\);/);
-  assert.match(p, /<RibbonButton advanced=\{noHoles\} icon=\{FileBarChart2\} label="Grade intercepts" tone="analyse" disabled=\{!gAssays\.length\}/); // advanced with no holes: #2778
+  assert.match(p, /<RibbonButton advanced=\{noHoles\} icon=\{FileBarChart2\} label="Best intercepts" tone="analyse" disabled=\{!gAssays\.length\}/); // advanced with no holes: #2778
   assert.match(p, /\{gradeIntOpen && <BestIntercepts assays=\{gAssays\} assayElements=\{gEls\} collars=\{spacingCollars\} survey=\{gSurvey\} layers=\{gLayers\}/);
   for (const l of ["es", "pt", "fr", "ar"]) {
     const j = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
-    for (const k of ["Contact picks", "Grade intercepts", "Load assays first (Geochem tab)"]) assert.ok(j[k], `${l}: ${k}`);
+    for (const k of ["Contact picks", "Best intercepts", "Load assays first (Geochem tab)"]) assert.ok(j[k], `${l}: ${k}`);
   }
 });

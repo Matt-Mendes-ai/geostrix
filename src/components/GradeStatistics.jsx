@@ -27,6 +27,7 @@ import { t as tr } from "../lib/i18n.js";
 import { axisFig, axisTicks } from "../lib/numberFormat.js"; // TASKS.csv #3293 — axis ends in plain digits // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { gradeStatsRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
+import { sourceAssays } from "../lib/numericSources.js"; // TASKS.csv #3564 — a numeric interval layer (the density first) read as an element
 import { weightedProbPoints, weightedPercentile, capEffect, thinToPixels } from "../lib/probPlot.js"; // TASKS.csv #1388; thinToPixels: #1512
 import { normalQuantile, probabilityBreak } from "../lib/thresholds.js"; // probabilityBreak: #2675
 import { capAboveZone, capWarningText } from "../lib/capWarning.js"; // TASKS.csv #1676
@@ -118,7 +119,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
-  const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
+  const elementUnitsBase = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const { project, geochemThresholds = [], setDisplayUnit } = useStore(); // #1099 — the CRS line of the export stamp; geochemThresholds: #3069; setDisplayUnit: #3236
   // TASKS.csv #228 — surface geochemistry has no downhole domain (litho/alt/etc are interval layers
   // tied to hole_id/from/to, which surface samples don't have) but DOES have its own natural grouping
@@ -131,7 +132,6 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   const activeElements = source === "surface" ? surfaceElements : assayElements;
   const lead = useLeadCommodity();
   const [symbol, setSymbolRaw] = useState(() => preferredElement(assayElements.map((e) => e.symbol), "gradestats", lead));
-  const setSymbol = (v) => { setSymbolRaw(v); rememberElement("gradestats", typeof v === "string" ? v : null); }; // #1678
   const [domainKey, setDomainKey] = useState("");
   const [logChoice, setLogChoice] = useState(null); // #1524 — { key, on }: a tick for this source and element; otherwise the data decides
   const [lengthWeighted, setLengthWeighted] = useState(true); // TASKS.csv #267
@@ -140,7 +140,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   // mean/stdev/CV.
   const [includeQAQC, setIncludeQAQC] = useState(false);
   const qaqcExcludedCount = useMemo(() => assays.length - excludeQAQC(assays).length, [assays]);
-  const statsAssays = useMemo(() => (includeQAQC ? assays : excludeQAQC(assays)), [assays, includeQAQC]);
+  const labStats = useMemo(() => (includeQAQC ? assays : excludeQAQC(assays)), [assays, includeQAQC]);
 
   const { customLayers = [], collars: storeCollars = [], layers: storeLayers = {}, project: storeProject } = useStore(); // project: #3116 // layers: #2349 // #1678; collars: #2504
   const customDomains = useMemo(() => (source === "assays" ? [...attributeDomainOptions(assays, storeCollars), ...customDomainOptions(customLayers, { layers: storeLayers, labelOf: (k) => tr(LAYER_META[k]?.label || k) }, { groupTop: 12 } /* #2915 */) /* the built-in logs' extra fields: #2349 */] : []), [customLayers, source, assays, storeCollars, storeLayers]); // #2504 — sample type, collar fields
@@ -148,6 +148,12 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   const customDomain = customDomains.find((d) => d.key === domainKey) || null;
   // TASKS.csv #2672 — a numeric downhole log (mag susc, SG, gamma…) as the grouping: the samples by the log's quartiles
   const logChoices = useMemo(() => (source === "assays" ? numericSourceChoices({ layers: storeLayers, customLayers, models: false, logValidRange: storeProject?.logValidRange /* #3116 */, builtinFields: { labelOf: (k) => tr(LAYER_META[k]?.label || k) } /* #2915 */ }) : []), [source, storeLayers, customLayers, storeProject?.logValidRange]);
+  // TASKS.csv #3564 — the density (and any numeric interval layer or field) in the Element list: its readings as assay-shaped intervals under one name
+  const logSrc = source === "assays" ? logChoices.find((c) => c.key === symbol) || null : null;
+  const logAssays = useMemo(() => (logSrc ? sourceAssays(logSrc, { layers: storeLayers, customLayers }).assays.map((a) => ({ ...a, values: { [logSrc.key]: a.values[logSrc.symbol] } })) : null), [logSrc, storeLayers, customLayers]);
+  const statsAssays = logAssays || labStats;
+  const elementUnits = useMemo(() => (logSrc ? { ...elementUnitsBase, [logSrc.key]: logSrc.unit } : elementUnitsBase), [elementUnitsBase, logSrc]);
+  const symLabel = logSrc ? logSrc.label : symbol; // what the reader sees for the element
   const covLog = domainKey.startsWith?.("numlog:") ? logChoices.find((c) => `numlog:${c.key}` === domainKey) || null : null;
   // TASKS.csv #2029 (review #2013, Geochem) — group by hole (and hole + lithology): a per-hole mean needed the SQL workspace
   const byHole = domainKey === HOLE_KEY || domainKey === HOLE_LITHO_KEY;
@@ -215,9 +221,9 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
       byDomain.get(key).push(r);
     });
     return Array.from(byDomain.entries())
-      .map(([key, rs]) => ({ key, stats: byDomain.size === 1 ? computeStats(allValues, allWeights) /* #2910 — the one group is every row */ : computeStats(rs.map((r) => r.value), weightingActive ? rs.map((r) => r.weight) : null), ltN: rs.reduce((k, r) => k + (isLt(r) ? 1 : 0), 0), zeroN: rs.reduce((k, r) => k + (r.value === 0 ? 1 : 0), 0) })) // ltN: #2505; isLt: #2913; zeroN: #3083
+      .map(([key, rs]) => ({ key, plainMean: rs.length ? rs.reduce((t, r) => t + r.value, 0) / rs.length : null /* #3576 */, stats: byDomain.size === 1 ? computeStats(allValues, allWeights) /* #2910 — the one group is every row */ : computeStats(rs.map((r) => r.value), weightingActive ? rs.map((r) => r.weight) : null), ltN: rs.reduce((k, r) => k + (isLt(r) ? 1 : 0), 0), zeroN: rs.reduce((k, r) => k + (r.value === 0 ? 1 : 0), 0) })) // ltN: #2505; isLt: #2913; zeroN: #3083
       .filter((g) => g.stats)
-      .sort(byHole ? (a, b) => String(a.key).localeCompare(String(b.key), undefined, { numeric: true }) : covLog ? (a, b) => logClassRank(a.key) - logClassRank(b.key) /* #2672 — low to high */ : (a, b) => b.stats.n - a.stats.n); // #2029 — holes in id order
+      .sort(byHole || (byDomain.size > 1 && [...byDomain.keys()].every((k) => /^\d{4}s?$/.test(String(k)))) /* #3579 — years, and decades, in order */ ? (a, b) => String(a.key).localeCompare(String(b.key), undefined, { numeric: true }) : covLog ? (a, b) => logClassRank(a.key) - logClassRank(b.key) /* #2672 — low to high */ : (a, b) => b.stats.n - a.stats.n); // #2029 — holes in id order
   }, [rows, weightingActive, byHole, covLog, ltFloor, allValues, allWeights]); // covLog: #2672; ltFloor: #2913; all*: #2910
 
   const shownGroups = useMemo(() => groups.slice(0, SHOWN_MAX), [groups]); // #2508
@@ -246,7 +252,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   // TASKS.csv #2912 — the cut-off table: the user's cut-offs (the data's median / Q3 / P90 until typed) and the 'Also show' elements' means
   const [cutText, setCutText] = useState("");
   const [alsoSyms, setAlsoSyms] = useState([]);
-  const alsoShown = alsoSyms.filter((x) => x !== symbol && activeElements.some((e) => e.symbol === x));
+  const alsoShown = logSrc ? [] : alsoSyms.filter((x) => x !== symbol && activeElements.some((e) => e.symbol === x)); // a layer's readings have no other element (#3564)
   const cutDefaults = useMemo(() => defaultCutoffs({ median: overallStats?.median, q3: overallStats?.q3, p90: weightedPercentile(prob.vs, prob.ws, 90) }), [overallStats, prob]);
   const cutTyped = parseCutoffs(cutText);
   const cutoffs = cutTyped.length ? cutTyped : cutDefaults;
@@ -285,14 +291,16 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
     const width = (max - min) || 1;
     const binW = width / binCount;
     const bins = new Array(binCount).fill(0);
-    vals.forEach((v) => {
+    // TASKS.csv #3576 — with the statistics length-weighted the bars are metres, not a count of samples (a 0.3 m and a 3 m sample were one bar-unit each)
+    const w = allWeights, wv = logScale && w ? allValues.map((v, i) => (v > 0 ? w[i] : null)).filter((x) => x != null) : w;
+    vals.forEach((v, k) => {
       let i = Math.floor((v - min) / binW);
       if (i >= binCount) i = binCount - 1;
       if (i < 0) i = 0;
-      bins[i]++;
+      bins[i] += wv ? wv[k] : 1;
     });
-    return { bins, min, max, binW, maxCount: arrMax(bins), leftOut: allValues.length - vals.length }; // leftOut: #1524
-  }, [allValues, logScale, overallStats]);
+    return { bins, min, max, binW, maxCount: arrMax(bins), leftOut: allValues.length - vals.length, metres: !!wv }; // leftOut: #1524
+  }, [allValues, allWeights, logScale, overallStats]);
 
   const exportCSV = () => {
     // TASKS.csv #1099 — the unit in the column names and a provenance stamp, as every other estimation-adjacent CSV (#404)
@@ -302,8 +310,8 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
     const rowsOut = gradeStatsCsvRows(domainRows, cutRows, { unit, alsoUnits, lengths: source === "assays", weighted: weightingActive }); // #3069 — and the Above cut-off table
     const stamp = stampLines({ tool: "Grade statistics", version: APP_VERSION, epsg: stampEpsg(project) /* #2195 */, params: [
       ...(dk !== 1 ? [`Display unit: every ${symbol} value in this file is in ${shownUnit} (stored in ${storedUnit}); the other elements' columns are in their stored units`] : []), // #3236
-      `Element: ${symbol} (${unit}) | source: ${source === "surface" ? "surface samples (one sample = weight 1)" : "drillhole assays"} | domains: ${domainKey ? domainName(domainKey) : "none (all samples)"}`,
-      `Basis: ${weightingActive ? "length-weighted (interval length)" : "unweighted arithmetic"}; sample (n-1) variance`,
+      `Element: ${symLabel} (${unit}) | source: ${source === "surface" ? "surface samples (one sample = weight 1)" : "drillhole assays"} | domains: ${domainKey ? domainName(domainKey) : "none (all samples)"}`,
+      `Basis: ${weightingActive ? "length-weighted (interval length); the plain (unweighted) mean is in the column beside the mean" : "unweighted arithmetic"}; sample (n-1) variance`,
       ...(source === "surface" ? [] : [
         `QAQC inserts: ${includeQAQC ? "INCLUDED" : `excluded (${qaqcExcludedCount} rows)`}`,
         "Samples: resolved assay segments as compositing uses them (overlapping or repeated intervals counted once, exact duplicates dropped, negative lab codes not assayed)",
@@ -312,7 +320,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
       "No high-grade cap applied",
       ...(cutRows.length ? [`Above cut-off: ${cutTyped.length ? "cut-offs typed" : "the samples' median, Q3 and P90 (none typed)"}; samples at or above each cut-off, every domain together`] : []), // #3069
     ] });
-    saveFile({ suggestedName: `${symbol}_grade_statistics.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(rowsOut), stamp) });
+    saveFile({ suggestedName: `${String(symLabel).replace(/[^A-Za-z0-9._-]+/g, "_")}_grade_statistics.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(rowsOut), stamp) });
   };
 
   return (
@@ -353,8 +361,9 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
               <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />{tr("Include QC samples (standards/blanks/duplicates) in this report")}</label>
           )}
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
-            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Element")}<select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Element")}<select value={symbol} onChange={(e) => { setSymbolRaw(e.target.value); if (!logChoices.some((c) => c.key === e.target.value)) rememberElement("gradestats", e.target.value); setDomainKey((k) => (k.startsWith("numlog:") && k === `numlog:${e.target.value}` ? "" : k)); }} style={{ ...sel, display: "block", marginTop: 4 }}>
                 {activeElements.map((e) => <option key={e.symbol} value={e.symbol}>{elementOptionLabel(e.symbol, e.unit) /* #2914 */}</option>)}
+                {logChoices.length > 0 && <optgroup label={tr("Numeric interval layers (density first)")}>{[...logChoices].sort((a, b) => (a.key === "log:sg" ? -1 : b.key === "log:sg" ? 1 : 0)).map((c) => <option key={c.key} value={c.key}>{c.unit && c.unit !== "as logged" && !String(c.label).includes(`(${c.unit})`) ? `${c.label} (${c.unit})` : c.label}</option>)}</optgroup>}{/* #3564 */}
               </select>
             </label>
             {isPlainUnit(storedUnit) && typeof setDisplayUnit === "function" && <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("The unit {symbol} is shown in, kept with the project and shared with Best intercepts. The stored values are unchanged; the cut-offs and the cap are typed in the unit shown.", { symbol })}>{tr("Show in")}
@@ -362,7 +371,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                 <option value="">{tr("As stored ({unit})", { unit: gradeUnitLabel(symbol, storedUnit) })}</option>
                 {DISPLAY_UNITS.filter((u) => u !== gradeUnitLabel(symbol, storedUnit)).map((u) => <option key={u} value={u}>{u}</option>)}
               </select></label>}{/* TASKS.csv #3236 */}
-            {source === "assays" && symbol && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr("n counts the samples with a {symbol} result, each metre once; a sample takes the domain code it overlaps most.", { symbol })}</div>}{/* TASKS.csv #2752 */}
+            {source === "assays" && symbol && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr("n counts the samples with a {symbol} result, each metre once; a sample takes the domain code it overlaps most.", { symbol: symLabel })}</div>}{/* TASKS.csv #2752 */}
             {source === "assays" ? (
               <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Domain (optional)")}<select value={domainKey} onChange={(e) => setDomainKey(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
                   <option value="">{tr("— none, all intervals together —")}</option>
@@ -395,12 +404,12 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
           </div>
 
           {!overallStats ? (
-            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No {symbol} values found in the loaded {v} data.", { symbol, v: source === "surface" ? tr("surface sample") : tr("assay") })}</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No {symbol} values found in the loaded {v} data.", { symbol: symLabel, v: source === "surface" ? tr("surface sample") : logSrc ? tr("interval layer") : tr("assay") })}</div>
           ) : (
             <>
               <div>
-                <div style={label}>{tr("Distribution — {symbol} ({v}){v2}", { symbol, v: dispLabel, v2: logScale ? tr(", log₁₀ scale") : "" })}</div>
-                <Histogram data={histogram} unit={dispLabel} logScale={logScale} />
+                <div style={label}>{tr("Distribution — {symbol} ({v}){v2}", { symbol: symLabel, v: dispLabel, v2: logScale ? tr(", log₁₀ scale") : "" })}</div>
+                <Histogram data={histogram} unit={dispLabel} logScale={logScale} />{/* #3576 — titled and ticked */}
                 {logScale && histogram?.leftOut > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("{n} zero or negative values are not on the log scale.", { n: histogram.leftOut.toLocaleString() })}</div>}
               </div>
 
@@ -412,10 +421,10 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
 
               {/* TASKS.csv #1388 */}
               <div>
-                <div style={label}>{logScale ? tr("Log-probability plot — {symbol} ({v}){v2}", { symbol, v: dispLabel /* #2192 */, v2: weightingActive ? tr(", length-weighted") : "" }) : tr("Probability plot — {symbol} ({v}){v2}", { symbol, v: dispLabel, v2: weightingActive ? tr(", length-weighted") : "" }) /* #2912 */}</div>
+                <div style={label}>{logScale ? tr("Log-probability plot — {symbol} ({v}){v2}", { symbol: symLabel, v: dispLabel /* #2192 */, v2: weightingActive ? tr(", length-weighted") : "" }) : tr("Probability plot — {symbol} ({v}){v2}", { symbol: symLabel, v: dispLabel, v2: weightingActive ? tr(", length-weighted") : "" }) /* #2912 */}</div>
                 <ProbPlot prob={prob} cap={capFx ? capValue : null} domainLabel={domainLabel} unit={dispLabel} />
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>
-                  <span>{tr("P97.5 = {a}, P99 = {b} {unit} (the percentiles Compositing offers as caps)", { a: gradeText(prob.p975), b: gradeText(prob.p99), unit: dispLabel })}</span>
+                  <span>{tr("P97.5 = {a}, P99 = {b} {unit} (the percentiles Compositing offers as caps)", { a: capText(prob.p975), b: capText(prob.p99), unit: dispLabel })}</span>
                   {brkAsCap && <button type="button" onClick={() => setCapTest(String(+prob.brk.toPrecision(4)))} style={{ ...sel, cursor: "pointer" }} title={tr("The bend between two populations that the two-line fit finds in the high tail (Sinclair 1976), as Thresholds suggests it. Check it on the plot before using it as a cap.")}>{tr("Test the probability-plot break: {v} {unit}", { v: gradeText(prob.brk), unit: dispLabel })}</button>}{/* #2675 */}
                   <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Cap to test")}<input type="number" min="0" step="any" value={capTest} onChange={(e) => setCapTest(e.target.value)} style={{ ...sel, width: 80 }} aria-label={tr("Cap to test")} /></label>
                   {capFx && <span>{weightingActive ? tr("{above} of {n} samples above it; {pct}% of the metal (grade × length) removed", { above: capFx.above, n: capFx.n, pct: capFx.pctMetalRemoved.toFixed(1) }) : tr("{above} of {n} samples above it", { above: capFx.above, n: capFx.n })}</span>}
@@ -429,8 +438,8 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                 <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
                   <thead>
                     <tr>
-                      <th style={th}>{tr("Domain")}</th><th style={th}>n</th><th style={th} title={floorOnly ? tr("No result in the file is flagged '<': this is the share on the column's lowest value, read as half a substituted limit (a guess from the data)") : tr("Share of values reported below the detection limit (stored at half the limit)")}>{floorOnly ? tr("On the floor %") : tr("<DL %")}</th>{/* #3243 */}<th style={th}>{tr("Mean")}</th><th style={th}>{tr("Median")}</th>
-                      <th style={th}>{tr("Stdev")}</th><th style={th}>{tr("CV%")}</th><th style={th}>{tr("Min")}</th><th style={th}>Q1</th><th style={th}>Q3</th><th style={th}>{tr("Max")}</th>
+                      <th style={th}>{tr("Domain")}</th><th style={th}>n</th><th style={th} title={floorOnly ? tr("No result in the file is flagged '<': this is the share on the column's lowest value, read as half a substituted limit (a guess from the data)") : tr("Share of values reported below the detection limit (stored at half the limit)")}>{floorOnly ? tr("On the floor %") : tr("<DL %")}</th>{/* #3243 */}<th style={th} title={weightingActive ? tr("Mean weighted by each sample's length (the Length-weight box)") : tr("Plain mean of the samples")}>{weightingActive ? tr("Mean (length-weighted)") : tr("Mean")}</th>{weightingActive && <th style={th} title={tr("The plain mean: every sample counts once, whatever its length")}>{tr("Mean (unweighted)")}</th>}<th style={th}>{weightingActive ? tr("Median (length-weighted)") : tr("Median")}</th>
+                      <th style={th}>{weightingActive ? tr("Stdev (length-weighted)") : tr("Stdev")}</th><th style={th}>{tr("CV%")}</th><th style={th}>{tr("Min")}</th><th style={th}>Q1</th><th style={th}>Q3</th><th style={th}>{tr("Max")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -440,6 +449,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                         <td style={td}>{g.stats.n}</td>
                         <td style={{ ...td, ...(g.stats.n && g.ltN / g.stats.n > 0.5 ? { color: "var(--color-warn-text)", fontWeight: 600 } : {}) }}>{g.stats.n ? (g.zeroN ? <span title={tr("{n} of these results are reported as 0 (below detection or not analysed: the file does not say). They are in n and in the statistics, at 0.", { n: g.zeroN.toLocaleString() })}>{tr("{pct} ({n} at 0)", { pct: Math.round((100 * g.ltN) / g.stats.n), n: g.zeroN.toLocaleString() })}</span> : Math.round((100 * g.ltN) / g.stats.n)) : "—"}</td>{/* #2505; zeros: #3083, as Thresholds' '+N at 0' */}
                         <td style={td}>{gradeText(g.stats.mean)}</td>
+                        {weightingActive && <td style={td}>{gradeText(g.plainMean)}</td>}
                         <td style={td}>{gradeText(g.stats.median)}</td>
                         <td style={td}>{gradeText(g.stats.stdev)}</td>
                         <td style={td}>{g.stats.cv == null ? "—" : g.stats.cv.toFixed(0)}</td>
@@ -456,7 +466,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
 
               {/* TASKS.csv #2912 — above each cut-off: what a bulk commodity is read by */}
               <div>
-                <div style={label}>{tr("Above cut-off — {symbol} ({v})", { symbol, v: dispLabel })}</div>
+                <div style={label}>{tr("Above cut-off — {symbol} ({v})", { symbol: symLabel, v: dispLabel })}</div>
                 <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}>
                   <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Cut-offs")}<input type="text" value={cutText} onChange={(e) => setCutText(e.target.value)} placeholder={cutDefaults.join(", ")} style={{ ...sel, width: 140 }} aria-label={tr("Cut-offs")} /></label>
                   <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Also show")}<select value="" onChange={(e) => { const v = e.target.value; if (v) setAlsoSyms((a) => (a.includes(v) ? a : [...a, v])); }} style={sel} aria-label={tr("Also show")}>
@@ -472,7 +482,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                       <thead><tr>
                         <th style={th}>{tr("Cut-off")}</th><th style={th}>n</th><th style={th}>{tr("% of samples")}</th>
                         {source === "assays" && <><th style={th}>{tr("Metres")}</th><th style={th}>{tr("% of metres")}</th></>}
-                        <th style={th}>{tr("Mean {symbol}", { symbol })}</th>
+                        <th style={th}>{tr("Mean {symbol}", { symbol: symLabel })}</th>
                         {alsoShown.map((x) => <th key={x} style={th}>{tr("Mean {symbol}", { symbol: x })} ({gradeUnitLabel(x, (source === "surface" ? surfaceElementUnits : elementUnits)[x])})</th>)}
                       </tr></thead>
                       <tbody>
@@ -507,7 +517,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
 
 function Histogram({ data, unit, logScale }) {
   if (!data) return <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No values to plot.")}</div>;
-  const w = 640, h = 160, padL = 40, padB = 20;
+  const w = 640, h = 176, padL = 52, padB = 34;
   const plotW = w - padL - 10, plotH = h - padB - 10;
   const barW = plotW / data.bins.length;
   return (
@@ -519,9 +529,11 @@ function Histogram({ data, unit, logScale }) {
         );
       })}
       <line x1={padL} y1={10 + plotH} x2={padL + plotW} y2={10 + plotH} stroke="#c7ccd3" />
-      <text x={padL} y={h - 4} fontSize={fontSizes.xs} fill="#55606e">{logScale ? +Math.pow(10, data.min).toPrecision(3) /* #1393: 0.00004 read '0.000' */ : data.min.toFixed(2)}</text>
-      <text x={padL + plotW} y={h - 4} fontSize={fontSizes.xs} fill="#55606e" textAnchor="end">{logScale ? +Math.pow(10, data.max).toPrecision(3) : data.max.toFixed(2)} {unit}</text>
-      <text x={4} y={16} fontSize={fontSizes.xs} fill="#55606e">{data.maxCount}</text>
+      {/* TASKS.csv #3576 — ticks along the grade axis (six values between the ends), the vertical axis titled and ticked, the unit under the axis */}
+      {[0, 1, 2, 3, 4, 5].map((k) => { const x = padL + (k / 5) * plotW, v = data.min + (k / 5) * (data.max - data.min); return <g key={k}><line x1={x} y1={10 + plotH} x2={x} y2={10 + plotH + 4} stroke="#c7ccd3" /><text x={x} y={10 + plotH + 15} fontSize={fontSizes.xs} fill="#55606e" textAnchor={k === 0 ? "start" : k === 5 ? "end" : "middle"}>{logScale ? +Math.pow(10, v).toPrecision(3) /* #1393: 0.00004 read '0.000' */ : +v.toFixed(3)}</text></g>; })}
+      <text x={padL + plotW / 2} y={h - 3} fontSize={fontSizes.xs} fill="#55606e" textAnchor="middle">{unit}{logScale ? ` (${tr("log scale")})` : ""}</text>
+      {[0, 0.5, 1].map((f) => <g key={f}><line x1={padL - 4} y1={10 + plotH - f * plotH} x2={padL} y2={10 + plotH - f * plotH} stroke="#c7ccd3" /><text x={padL - 6} y={10 + plotH - f * plotH + 4} fontSize={fontSizes.xs} fill="#55606e" textAnchor="end">{+(data.maxCount * f).toPrecision(3)}</text></g>)}
+      <text transform={`translate(10 ${10 + plotH / 2}) rotate(-90)`} fontSize={fontSizes.xs} fill="#55606e" textAnchor="middle">{data.metres ? tr("metres") : tr("samples")}</text>
     </svg>
   );
 }
@@ -530,6 +542,8 @@ function Histogram({ data, unit, logScale }) {
 // separate outlier points — a lighter first pass; worth revisiting if capping/outlier work needs the
 // distinction later).
 // TASKS.csv #1213 — half a detection limit of 0.0005 g/t printed as 0.001. Small values keep their significant figures.
+// TASKS.csv #3576 — a cap candidate as computed, to four significant figures ('14.72', not '14.720')
+export const capText = (v) => (Number.isFinite(v) ? String(+Number(v).toPrecision(4)) : "—");
 export const gradeText = (v) => (Number.isFinite(v) ? (v !== 0 && Math.abs(v) < 0.01 ? String(Number(v.toPrecision(3))) : v.toFixed(3)) : "—");
 // TASKS.csv #1185 — the same log axis as the histogram: on a linear axis a four-decade Cu distribution left every median in a corner. A value
 // of zero or below sits at the smallest positive one.

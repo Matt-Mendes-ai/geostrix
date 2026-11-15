@@ -98,6 +98,8 @@ export function attributeDomainOptions(assays, collars) {
     const rows = [];
     for (const c of collars) { const t = String(c?.attrs?.[k] ?? "").trim(); if (t) rows.push({ hole_id: c.hole_id, from: -WHOLE_HOLE, to: WHOLE_HOLE, value: t }); }
     out.push({ key: `collar:${k}`, label: `Collar · ${k}`, attribute: true, rows });
+    // TASKS.csv #3579 (Fireweed / Macpass rehearsal) — a field of years (28 single years from 1952 to 2023) is also offered by decade: 1970s core against 2020s core without a hand sum
+    if (rows.length && rows.every((r) => /^(18|19|20)\d\d$/.test(r.value))) out.push({ key: `collar:${k}:decade`, label: `Collar · ${k} (decade)`, attribute: true, rows: rows.map((r) => ({ ...r, value: `${r.value.slice(0, 3)}0s` })) });
   }
   return out;
 }
@@ -105,6 +107,7 @@ export function attributeDomainOptions(assays, collars) {
 export function attributeDomainLabel(d, tr) {
   if (d?.grouped) return tr("{label}: the {kept} commonest of {n} codes, the rest as \"other\"", { label: d.label, kept: d.grouped.kept, n: d.grouped.of }); // #2915
   if (d?.key === "attr:sample_type") return tr("Sample type");
+  if (String(d?.key || "").endsWith(":decade") && String(d.key).startsWith("collar:")) return tr("Collar · {field} (decade)", { field: d.key.slice(7, -7) }); // #3579
   if (String(d?.key || "").startsWith("collar:")) return tr("Collar · {field}", { field: d.key.slice(7) });
   return d?.label;
 }

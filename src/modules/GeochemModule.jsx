@@ -151,6 +151,7 @@ export default function GeochemModule() {
   const [ternK, setTernK] = useKeptState(keptScope, "geochem.ternK", ["1", "1", "1"]); // #3051 — each corner's factor
   const [xyY, setXyY] = useKeptState(keptScope, "geochem.xyY", "");
   const [xyOne, setXyOne] = useKeptState(keptScope, "geochem.xyOne", false); // #2353 — a 1:1 line
+  const [xyFit, setXyFit] = useKeptState(keptScope, "geochem.xyFit", false); // TASKS.csv #3577 — a least-squares line of Y on X, with its equation
   const [xyMin, setXyMin] = useKeptState(keptScope, "geochem.xyMin", ""); // #2353 — the statistics over X >= this
   const [colorMode, setColorMode] = useKeptState(keptScope, "geochem.colorMode", "hole"); // hole | element | lithology (#619) | uniform
   // TASKS.csv #619 — plot only samples from chosen logged lithologies (null = every sample)
@@ -352,7 +353,20 @@ export default function GeochemModule() {
   fn.rank = colorMode === "element" && colorEl ? (sample) => valueIn(sample, colorEl, colorUnit, elementUnits) ?? -Infinity : null;
   return fn; }, [colorMode, colorEl, colorUnit, holeColors, lithColors, sampleLith, colorRange, elementUnits]);
 
-  const diagram = diagramId === "xy" ? xyDiag || XY_ENTRY : diagramId === "ternary" ? ternDiag || TERNARY_ENTRY /* #3051 */ : ALL_DIAGRAMS[diagramId]; // xy: #1678
+  // TASKS.csv #3577 — the least-squares line (over the samples the statistics line counts), drawn across the plot's X range as the 1:1 line is
+  const xyDiagFit = useMemo(() => {
+    const f = xyFit && xyStat?.fit;
+    if (!xyDiag || !f) return xyDiag;
+    // a straight line is a curve on a log axis: drawn as short segments (equal steps in the axis's own scale), those inside the plot's Y range kept
+    const [x0, x1] = xyDiag.xRange, [y0, y1] = xyDiag.yRange, N = 48, segs = [];
+    const xAt = (k) => (xyDiag.logX && x0 > 0 ? x0 * (x1 / x0) ** (k / N) : x0 + ((x1 - x0) * k) / N);
+    for (let k = 0; k < N; k++) {
+      const a = xAt(k), b = xAt(k + 1), ya = f.intercept + f.slope * a, yb = f.intercept + f.slope * b;
+      if ([ya, yb].every((y) => y >= y0 && y <= y1)) segs.push({ from: [a, ya], to: [b, yb], label: k === 0 ? tr("fit") : "" });
+    }
+    return segs.length ? { ...xyDiag, tieLines: [...(xyDiag.tieLines || []), ...segs] } : xyDiag;
+  }, [xyDiag, xyFit, xyStat]);
+  const diagram = diagramId === "xy" ? xyDiagFit || XY_ENTRY : diagramId === "ternary" ? ternDiag || TERNARY_ENTRY /* #3051 */ : ALL_DIAGRAMS[diagramId]; // xy: #1678
   // TASKS.csv #1392 — a volcanic-protolith diagram on mostly calcareous samples says so (see carbonateShare)
   const carbShare = useMemo(() => carbonateShare(assays, elementUnits), [assays, elementUnits]);
   // TASKS.csv #2911 — the volcanic diagrams say when no logged code is a volcanic rock (TAS drew alluvium and iron formation across its fields)
@@ -1482,14 +1496,17 @@ export default function GeochemModule() {
                   <select aria-label={tr("{axis} axis", { axis })} value={value} onChange={(e) => set(e.target.value)} style={{ ...selectStyle, padding: "5px 8px", maxWidth: 220 }}>
                     {!value && <option value="">{tr("— choose —")}</option>}{/* #2193 */}
                     <optgroup label={tr("Elements")}>{assayElements.map((e) => { const none = xyEmptyElements.has(e.symbol), name = e.unit ? `${e.symbol} (${e.unit})` : e.symbol; return <option key={e.symbol} value={`el:${e.symbol}`} disabled={none && value !== `el:${e.symbol}`}>{none ? tr("{name} — no value in these samples", { name }) : name}</option>; })}</optgroup>{/* none: #2719 */}
-                    {xyChoices.length > 0 && <optgroup label={tr("Downhole logs and custom fields (at each sample's depth)")}>{xyChoices.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}</optgroup>}
+                    {xyChoices.length > 0 && <optgroup label={tr("Downhole logs and custom fields (at each sample's depth)")}>{xyChoices.map((c) => <option key={c.key} value={c.key}>{c.unit && c.unit !== "as logged" && !String(c.label).includes(`(${c.unit})`) ? `${c.label} (${c.unit})` : c.label /* #3564 — one name and one unit for a log wherever it is listed */}</option>)}</optgroup>}
                   </select>
                 </label>
               ))}
               {/* TASKS.csv #2353 — a 1:1 line and the numbers a log-against-assay check reads */}
               <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }}><input type="checkbox" checked={!!xyOne} onChange={(e) => setXyOne(e.target.checked)} />{tr("1:1 line")}</label>
               <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{tr("Statistics where X ≥")}<input type="number" step="any" value={xyMin} onChange={(e) => setXyMin(e.target.value)} aria-label={tr("Statistics where X is at least")} style={{ ...selectStyle, width: 80, padding: "4px 6px" }} /></label>
-              {xyStat && <span style={{ fontSize: 11.5, color: "#2a3444" }} role="status">{tr("n {n} · Spearman {r} · median Y / X {m} · length-weighted Y / X {w}", { n: xyStat.n.toLocaleString(), r: Number.isFinite(xyStat.r) ? xyStat.r.toFixed(2) : "—", m: Number.isFinite(xyStat.medianRatio) ? xyStat.medianRatio.toPrecision(3) : "—", w: Number.isFinite(xyStat.weightedRatio) ? xyStat.weightedRatio.toPrecision(3) : "—" })}{xyStat.inPpm ? ` ${tr("(ratios in ppm / ppm: the two axes are stored in different units)")}` : "" /* #3219 */}</span>}
+              <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }} title={tr("A least-squares line of Y on X over the samples counted below (X ≥ the value typed), with its equation and r²")}><input type="checkbox" checked={!!xyFit} onChange={(e) => setXyFit(e.target.checked)} />{tr("Fit line")}</label>{/* #3577 */}
+              {xyStat && !xyStat.ratioOk && <span style={{ fontSize: 11.5, color: "#2a3444" }} role="status">{tr("n {n} · Spearman {r} · median Y {m} · mean Y {w}", { n: xyStat.n.toLocaleString(), r: Number.isFinite(xyStat.r) ? xyStat.r.toFixed(2) : "—", m: Number.isFinite(xyStat.medianY) ? +xyStat.medianY.toPrecision(4) : "—", w: Number.isFinite(xyStat.meanY) ? +xyStat.meanY.toPrecision(4) : "—" })}</span>}{/* #3577 — a density against a grade has no Y / X */}
+              {xyFit && xyStat?.fit && <span style={{ fontSize: 11.5, color: "#2a3444" }} role="status">{tr("Fit: Y = {a} × X {sign} {b} · r² {r2} · n {n}", { a: +xyStat.fit.slope.toPrecision(4), sign: xyStat.fit.intercept < 0 ? "−" : "+", b: +Math.abs(xyStat.fit.intercept).toPrecision(4), r2: xyStat.fit.r2.toFixed(3), n: xyStat.fit.n.toLocaleString() })}</span>}
+              {xyStat && xyStat.ratioOk && <span style={{ fontSize: 11.5, color: "#2a3444" }} role="status">{tr("n {n} · Spearman {r} · median Y / X {m} · length-weighted Y / X {w}", { n: xyStat.n.toLocaleString(), r: Number.isFinite(xyStat.r) ? xyStat.r.toFixed(2) : "—", m: Number.isFinite(xyStat.medianRatio) ? xyStat.medianRatio.toPrecision(3) : "—", w: Number.isFinite(xyStat.weightedRatio) ? xyStat.weightedRatio.toPrecision(3) : "—" })}{xyStat.inPpm ? ` ${tr("(ratios in ppm / ppm: the two axes are stored in different units)")}` : "" /* #3219 */}</span>}
             </>
           )}
           {diagramId === "ternary" && ( /* TASKS.csv #3051 — the three corners and their factors */
@@ -1499,7 +1516,7 @@ export default function GeochemModule() {
                   <select aria-label={tr("{corner} corner", { corner })} value={ternKeysNow[i]} onChange={(e) => setTernKeys(ternKeysNow.map((k, j) => (j === i ? e.target.value : k)))} style={{ ...selectStyle, padding: "5px 8px", maxWidth: 180 }}>
                     {!ternKeysNow[i] && <option value="">{tr("— choose —")}</option>}
                     <optgroup label={tr("Elements")}>{assayElements.map((e) => <option key={e.symbol} value={`el:${e.symbol}`}>{e.unit ? `${e.symbol} (${e.unit})` : e.symbol}</option>)}</optgroup>
-                    {xyChoices.length > 0 && <optgroup label={tr("Downhole logs and custom fields (at each sample's depth)")}>{xyChoices.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}</optgroup>}
+                    {xyChoices.length > 0 && <optgroup label={tr("Downhole logs and custom fields (at each sample's depth)")}>{xyChoices.map((c) => <option key={c.key} value={c.key}>{c.unit && c.unit !== "as logged" && !String(c.label).includes(`(${c.unit})`) ? `${c.label} (${c.unit})` : c.label /* #3564 — one name and one unit for a log wherever it is listed */}</option>)}</optgroup>}
                   </select>
                   <span aria-hidden="true">×</span><input type="number" min="0" step="any" value={ternK?.[i] ?? "1"} onChange={(e) => setTernK([0, 1, 2].map((j) => (j === i ? e.target.value : ternK?.[j] ?? "1")))} aria-label={tr("{corner} factor", { corner })} title={tr("A factor for this corner (0.01 for Ti/100, 3 for Y×3)")} style={{ ...selectStyle, width: 58, padding: "4px 6px" }} />
                 </label>

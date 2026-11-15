@@ -13,7 +13,7 @@ test("the Simple set follows whether the project has collars", () => {
   assert.match(src, /<RibbonButton advanced=\{!noHoles\} icon=\{Layers3\} label="Level plan"/);
   assert.match(src, /<div className=\{`ge-ribbon-cell\$\{noHoles \? " ge-adv" : ""\}`\}>\n\s+<HoverToolInfo title=\{tr\("Run data QC"\)\}/);
   assert.match(src, /<div className=\{`ge-ribbon-cell\$\{noHoles \? " ge-adv" : ""\}`\}>\n\s+<HoverToolInfo title=\{tr\("Boundary intercepts"\)\}/);
-  assert.match(src, /<RibbonButton advanced=\{noHoles\} icon=\{FileBarChart2\} label="Grade intercepts"/);
+  assert.match(src, /<RibbonButton advanced=\{noHoles\} icon=\{FileBarChart2\} label="Best intercepts"/);
 });
 
 test("Grid, Figure overlay and Themes stay Advanced either way (so the View group shows only 3D slice in Simple)", () => {
