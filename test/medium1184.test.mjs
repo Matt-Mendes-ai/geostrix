@@ -28,7 +28,10 @@ test("#1184 one PARENT column: a standard's is its CRM, a duplicate's is its ori
 test("#1286 styling edits count, the first value and other fields do not", () => {
   const t = stylingTracker();
   assert.equal(t({ legendOverride: {}, layerVisible: { a: 1 } }, 1), false, "the baseline");
-  assert.equal(t({ legendOverride: {}, layerVisible: { a: 0 } }, 1), false, "visibility is a view");
+  assert.equal(t({ legendOverride: {}, layerVisible: { a: 0 } }, 1), true, "visibility is saved with the project (#3621)");
+  assert.equal(t({ legendOverride: {}, layerVisible: { a: 0 }, visibleHoles: { H1: false } }, 1), true, "so are the checked holes (#3621)");
+  assert.equal(t({ legendOverride: {}, layerVisible: { a: 0 }, visibleHoles: { H1: false } }, 1), false, "unchanged");
+  assert.equal(t({ legendOverride: {}, layerVisible: { a: 0 }, visibleHoles: { H1: false }, camera: 5 }, 1), false, "the camera is not in the state");
   assert.equal(t({ legendOverride: { x: "#f00" } }, 1), true);
   assert.equal(t({ legendOverride: { x: "#f00" } }, 1), false, "unchanged");
   assert.equal(t({ legendOverride: { x: "#0f0" } }, 2), false, "another project: a new baseline");
