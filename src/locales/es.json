@@ -3433,6 +3433,8 @@
   "CV": "CV",
   "Top cut": "Corte superior",
   "Top cut for {el}": "Corte superior de {el}",
+  "{hole} (collar {m} m beyond the left end)": "{hole} (collar {m} m más allá del extremo izquierdo)",
+  "{hole} (collar {m} m beyond the right end)": "{hole} (collar {m} m más allá del extremo derecho)",
   "The {n} holes in the model area lie in {k} clusters more than {g} m apart: one model spans the gaps between them, and its box, cells and unit volumes cover them. Model one cluster at a time:": "Los {n} sondajes del área del modelo forman {k} grupos separados más de {g} m: un solo modelo cubre los vacíos entre ellos, y su caja, celdas y volúmenes de unidad los incluyen. Modele un grupo a la vez:",
   "This model pools {n} holes drilled {from}–{to} ({decades}).": "Este modelo agrupa {n} sondajes perforados entre {from} y {to} ({decades}).",
   "This model pools {n} holes.": "Este modelo agrupa {n} sondajes.",

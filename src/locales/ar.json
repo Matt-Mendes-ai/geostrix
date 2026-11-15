@@ -3433,6 +3433,8 @@
   "CV": "معامل التباين",
   "Top cut": "القطع الأعلى",
   "Top cut for {el}": "القطع الأعلى لـ{el}",
+  "{hole} (collar {m} m beyond the left end)": "{hole} (الفوهة على بعد {m} م بعد الطرف الأيسر)",
+  "{hole} (collar {m} m beyond the right end)": "{hole} (الفوهة على بعد {m} م بعد الطرف الأيمن)",
   "The {n} holes in the model area lie in {k} clusters more than {g} m apart: one model spans the gaps between them, and its box, cells and unit volumes cover them. Model one cluster at a time:": "تقع الثقوب الـ{n} في منطقة النموذج ضمن {k} مجموعات تفصل بينها أكثر من {g} م: نموذج واحد يمتد عبر الفجوات بينها، ويشملها صندوقه وخلاياه وأحجام وحداته. نمذج مجموعة واحدة في كل مرة:",
   "This model pools {n} holes drilled {from}–{to} ({decades}).": "يجمع هذا النموذج {n} ثقباً حُفرت من {from} إلى {to} ({decades}).",
   "This model pools {n} holes.": "يجمع هذا النموذج {n} ثقباً.",
