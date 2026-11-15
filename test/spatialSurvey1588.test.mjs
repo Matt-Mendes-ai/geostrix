@@ -22,5 +22,5 @@ test("the component filters to the chosen survey, offers the select for several,
   assert.match(s, /<StatRow label=\{tr\("Declustered mean"\)\} value=\{fmt\(stats\.declusteredMean\)\} highlight \/>/);
   assert.doesNotMatch(s, /cloudShape\(points\)/); // the shape of the chosen survey, not of everything
   const g = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
-  assert.match(g, /<SpatialAnalysis points=\{rows\} surveys=\{surveyList\.map\(\(s\) => \(\{ \.\.\.s, units: geophysSurveys\[s\.key\]\?\.units \|\| ""/);
+  assert.match(g, /<SpatialAnalysis points=\{measuredRows\} surveys=\{measuredList\.map\(\(s\) => \(\{ \.\.\.s, units: geophysSurveys\[s\.key\]\?\.units \|\| ""/);
 });
