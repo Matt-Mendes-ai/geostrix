@@ -105,7 +105,7 @@ export async function exportProjectKmz(store, { confirm = (m) => window.confirm(
   const altOf = rl == null ? (z) => z : (z) => rlToElevation(z, rl);
   const ui = store.viewerUiState || {};
   const ctx = {
-    projectName: project.name || "GeoStrix project", epsg: tie ? null : epsgUsed,
+    projectName: project.name || "GeoStrix project", dataCredit: project.dataCredit || "" /* TASKS.csv #3659 */, epsg: tie ? null : epsgUsed,
     collars: store.collars, survey: store.survey, desurveyMethod: store.desurveyMethod, layers: store.layers, customLayers: store.customLayers,
     assays: store.assays, assayElements: store.assayElements, surfaceSamples: store.surfaceSamples, surfaceStructures: store.surfaceStructures,
     mapLayers: store.mapLayers, boundaries: store.boundaries, plannedHoles: store.plannedHoles, sections: store.sections, rasters: store.rasters,

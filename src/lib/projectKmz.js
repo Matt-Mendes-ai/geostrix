@@ -584,7 +584,7 @@ export function buildProjectKml(ctx, opts) {
   }
 
   const styles = [...w.styles.values()].map((s) => s.xml).join("\n");
-  const desc = `Exported from GeoStrix${opts.crsLabel ? ` (project CRS ${opts.crsLabel})` : ""}. Drillholes are drawn at their elevations, below the ground: untick Terrain in Google Earth's Layers to see them.`;
+  const desc = `Exported from GeoStrix${opts.crsLabel ? ` (project CRS ${opts.crsLabel})` : ""}. Drillholes are drawn at their elevations, below the ground: untick Terrain in Google Earth's Layers to see them.${ctx.dataCredit ? ` Data: ${ctx.dataCredit}` : ""}`; // TASKS.csv #3659 — the data owner's credit leaves with the data
   const kml = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">\n<Document><name>${esc(ctx.projectName || "GeoStrix project")}</name><open>1</open><description>${esc(desc)}</description>\n${styles}\n${w.parts.join("\n")}\n</Document>\n</kml>\n`;
   counts.placemarks = w.placemarks;
   counts.ringsSplit = w.ringsSplit; // rings that crossed themselves as written, split into this many more loops
