@@ -231,7 +231,7 @@ import { useDrillLineDefaults } from "./viewer/drillLines.js"; // #2366
 import { pBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704 // TASKS.csv #445 step 2
 import { isMarkedQcRow } from "../lib/qaqcCore.js"; // TASKS.csv #601; qaqcCore: #1345
 import { isAreaBoundary } from "../lib/areaBoundary.js"; // TASKS.csv #1466; #3159: not boundaryImport.js (the vector / CRS import code)
-import { loadGpkg, groupShapefileParts, codeList } from "../lib/viewer/importHelpers.js"; // TASKS.csv #445 step 3; groupShapefileParts #600; codeList #1650
+import { loadGpkg, groupShapefileParts, codeList } from "../lib/viewer/importHelpersCore.js"; // TASKS.csv #445 step 3; groupShapefileParts #600; codeList #1650
 import { useImportPipeline } from "./viewer/useImportPipeline.js"; // TASKS.csv #445 step 3
 import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #1034 — the drillhole tables' stamp
 import { alphaOnlyFan, meanPole } from "../lib/sectionStructures.js"; // TASKS.csv #1130 — alpha-only picks on sections
