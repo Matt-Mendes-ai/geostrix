@@ -200,7 +200,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
           })()}
           {line(tr("Solved in"), `${res.seconds} s`)}
           {res.densityUsed && <div style={note}>{densityUsedText(res.densityUsed)}</div>}{/* #2647 */}
-          {res.groundSource === "collars" && <><div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div><CollarLevelsNote collars={collars} /></>}
+          {res.groundSource === "collars" && <><div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div><CollarLevelsNote collars={collars} survey={survey} /* TASKS.csv #3634: #3551's upward / station check too */ /></>}
           {(() => { // TASKS.csv #2735 — as the Pit shell (#2596): the largest pit's ore in blocks whose nearest drilling was never sampled
             if (!(model?.params?.nearUnsampledFlagged || model?.cells?.some((c) => c.nearUnsampled))) return null;
             const largest = [...res.runs].reverse().find((r) => r.oreT > 0), p = largest?.oreNearUnsampledShare || 0;

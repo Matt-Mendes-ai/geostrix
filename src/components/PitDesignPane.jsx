@@ -293,7 +293,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
           {!res.daylights && <div style={warn}>{tr("The walls never met the ground: the design stops at the top bench.")}</div>}
           {res.densityUsed && <div style={note}>{densityUsedText(res.densityUsed)}</div>}{/* #2647 */}
           {res.totals?.weatheredT > 0 && line(tr("Of the rock, weathered"), tr("{t} t at {d} t/m³", { t: big(res.totals.weatheredT), d: res.totals.weatheredDensity }))}{/* #2671 — as the Pit shell (#2597) */}
-          {res.groundSource === "collars" && <><div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div><CollarLevelsNote collars={collars} /></>}
+          {res.groundSource === "collars" && <><div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div><CollarLevelsNote collars={collars} survey={survey} /* TASKS.csv #3634: #3551's upward / station check too */ /></>}
           {(() => { // TASKS.csv #2735 — as the Pit shell (#2596): the design's ore in blocks whose nearest drilling was never sampled
             const p = res.totals?.oreNearUnsampledShare || 0;
             if (!(p > 0) || !(model?.params?.nearUnsampledFlagged || model?.cells?.some((c) => c.nearUnsampled))) return null;

@@ -38,7 +38,7 @@ let kept = null; // #1356 — the last result outlives the pane (this session)
 // stopes this pane put in the view)
 // surfaces / meshOf (#1964): the generated surfaces (pit shells and designs to start below) and a surface's mesh in world E, N, Z
 export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onShow = null, onRemoveMany = null, surfaces = [], meshOf = null }) { // stopes / onShow / onRemoveMany: TASKS.csv #1968
-  const { voxelModels = [], layers, project, terrain, collars = [] /* #2438 */, setDesignStrings, designStrings = [], generatedSurfaces = [] } = useStore(); // generatedSurfaces: #1968 — the saved copy a Restore rebuilds from
+  const { voxelModels = [], layers, project, terrain, collars = [] /* #2438 */, survey = [] /* #3634 */, setDesignStrings, designStrings = [], generatedSurfaces = [] } = useStore(); // generatedSurfaces: #1968 — the saved copy a Restore rebuilds from
   const models = useMemo(() => { const cat = new Set(categoricalModels(voxelModels)); return voxelModels.filter((m) => gradeCandidate(m, (x) => cat.has(x))); }, [voxelModels]);
   const [f, setF] = useState(() => ({ ...EMPTY, ...(kept?.inputs || {}), modelId: kept?.inputs?.modelId && models.some((m) => (m.id ?? m.name) === kept.inputs.modelId) ? kept.inputs.modelId : models[0]?.id ?? models[0]?.name ?? "" }));
   const [res, setRes] = useState(() => kept);
@@ -173,7 +173,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
         {/* TASKS.csv #2438 — the ground the levels stop under, and an optional crown */}
         {ground.at && field("crown", tr("Crown under the ground (m)"), { placeholder: "0", title: tr("Rock left between the ground and the top of the highest stope. Blank: none; no stope reaches above the ground.") })}
         {!ground.at && <div style={note}>{ground.underground ? tr("The collars look like underground drill positions, so no ground is known: the levels are not checked against the surface. Load a terrain (Maps > Terrain).") : tr("No terrain or collar elevations: the levels are not checked against the ground.")}</div>}
-        {ground.source === "collars" && <CollarLevelsNote collars={collars} />}
+        {ground.source === "collars" && <CollarLevelsNote collars={collars} survey={survey} /* TASKS.csv #3634: #3551's upward / station check too */ />}
         {dipBad && <div style={warn}>{tr("A dip needs both the dip (0–90°) and the dip direction (0–360°).")}</div>}
         {sg && !f.density && <div style={{ ...note, marginTop: 2 }}><button onClick={() => setF((p) => ({ ...p, density: String(sg.mean) }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the logged mean, {v}", { v: sg.mean })}</button>{sg.left > 0 && <span style={{ marginLeft: 6 }}>{tr("{n} density value(s) outside {min}–{max} t/m³ left out (the range is set in Data QC).", { n: sg.left.toLocaleString(), min: sg.range.min, max: sg.range.max })}</span> /* #3587 */}</div>}
         {model && <div style={note}>{tr("Columns of {dx} × {dy} m (the model's blocks); widths and skins round to whole columns.", { dx: model.cells[0]?.dx ?? "?", dy: model.cells[0]?.dy ?? "?" })}</div>}

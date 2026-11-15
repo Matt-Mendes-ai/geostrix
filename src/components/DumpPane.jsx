@@ -26,7 +26,7 @@ let kept = null; // #1356 — the last inputs and result outlive the pane (this 
 
 // surfaces: the generated surfaces (pit shells for the comparison); onAdd as the pit pane's
 export default function DumpPane({ surfaces = [], onAdd, onToggle, onRemove, onClose, onZoomTo = null }) { // onToggle / onRemove: #2285; onZoomTo: #2996
-  const { designStrings = [], terrain, collars = [] } = useStore();
+  const { designStrings = [], terrain, collars = [], survey = [] } = useStore(); // survey: #3634
   const footprints = useMemo(() => designStrings.filter((s) => s.closed && s.vertices.length > 2 && !s.stopeRun /* #2601 — not a stope outline */), [designStrings]);
   // TASKS.csv #2444 (review #2325) — the benched designs too: their waste (with the walls stepped out) is what the dump must hold, not the shell's
   const pits = useMemo(() => surfaces.filter((s) => (s.type === "pit_shell" || s.type === "pit_design") && Number.isFinite(s.params?.wasteTonnes)), [surfaces]);
@@ -88,7 +88,7 @@ export default function DumpPane({ surfaces = [], onAdd, onToggle, onRemove, onC
         <label style={row}>{tr("Footprint")}<select value={footprint?.id || ""} onChange={set("stringId")} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Footprint string")}>{footprints.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
         {ug?.underground && <div style={note}>{tr("The collars look like underground drill positions ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): they are not used as the ground. Load a terrain (Maps > Terrain) for the real surface.", { upward: ug.upward, stacked: ug.stacked })}</div>}{/* #2276 */}
         {centre && <div style={note}>{tr("{a} ha; the ground at its centre is {g} m ({src}).", { a: (centre.area / 10000).toFixed(2), g: Math.round(centre.ground), src: groundSource === "terrain" ? tr("the terrain") : groundSource === "collars" ? tr("interpolated between the collars") : tr("no terrain or collars: the footprint's own elevation, flat") })}</div>}
-        {centre && groundSource === "collars" && <CollarLevelsNote collars={collars} />}
+        {centre && groundSource === "collars" && <CollarLevelsNote collars={collars} survey={survey} /* TASKS.csv #3634: #3551's upward / station check too */ />}
         {field("crestZ", tr("Crest elevation (m)"), { placeholder: centre ? String(Math.round(centre.ground)) : "" })}
         {field("repose", tr("Angle of repose (°)"), { min: 1, max: 89 })}
         {field("density", tr("In-situ density (t/m³)"), { min: 0, placeholder: tr("optional") })}
