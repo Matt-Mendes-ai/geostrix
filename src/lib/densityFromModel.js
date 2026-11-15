@@ -2,7 +2,9 @@
 // the grade model's lattice ('Match <model>'), but Grade-tonnage took one typed density or one per logged code. Pure.
 
 // the densities a block may take from a model, t/m³ (a value outside is not a density: the block takes the typed default)
-export const DENSITY_RANGE = [1, 6];
+// TASKS.csv #3587 — the DEFAULT of the one project density range (lib/densityRange.js); the functions below take the project's own range as an argument, so Data QC and every tonnage tool read one value
+import { DEFAULT_DENSITY_RANGE } from "./densityRange.js";
+export const DENSITY_RANGE = [DEFAULT_DENSITY_RANGE.min, DEFAULT_DENSITY_RANGE.max];
 
 // TASKS.csv #3172 (split from #3014 part b) — the density choice offered any model on the same blocks, and a grade whose values fall in 1-6
 // (Fe in an iron project's waste, Al2O3 at 1.8-10 %, Cu in %) read as a density there. Only a model named or estimated as one is offered:
@@ -24,14 +26,14 @@ export function sameLattice(a, b) {
 
 // densityCells: the density model's cells; lattice: the grade model's; fallback: the typed density (or null) ->
 // { of(cell) -> t/m³ | fallback, stats() -> { taken (density blocks in range), outOfRange } }
-export function densityFromModel(densityCells, lattice, fallback = null) {
+export function densityFromModel(densityCells, lattice, fallback = null, range = DENSITY_RANGE) {
   const { dx, dy, dz, ox, oy, oz } = lattice;
   const key = (c) => { const i = Math.round((c.x - ox) / dx - 0.5), j = Math.round((c.y - oy) / dy - 0.5), k = Math.round((c.z - oz) / dz - 0.5); return (i * 2000003 + j) * 2000003 + k; };
   const by = new Map();
   let taken = 0, outOfRange = 0;
   for (const c of densityCells || []) {
     const v = Number(c.value);
-    if (!(v >= DENSITY_RANGE[0] && v <= DENSITY_RANGE[1])) { if (Number.isFinite(v)) outOfRange++; continue; }
+    if (!(v >= range[0] && v <= range[1])) { if (Number.isFinite(v)) outOfRange++; continue; }
     by.set(key(c), v); taken++;
   }
   const def = Number(fallback) > 0 ? Number(fallback) : null;

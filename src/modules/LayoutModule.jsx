@@ -3,7 +3,7 @@ import { customLegendGroups } from "../lib/customColour.js"; // TASKS.csv #2472
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { MapPinned, Plus, X, Maximize2, Sheet, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid, Lock, LayoutTemplate, Download, Upload, HardDrive } from "../components/icons.js";
-import { newTitleBlock, STOCK_TEMPLATES, stockTemplateElements, templateFile, parseTemplateFile, templateElements, refitStockTemplate } from "../lib/layoutTitleBlock.js"; // refitStockTemplate: #2312; // TASKS.csv #1868; templateElements: #1487
+import { newTitleBlock, STOCK_TEMPLATES, stockTemplateElements, templateFile, parseTemplateFile, templateElements, refitStockTemplate, documentTitle /* #3612 */ } from "../lib/layoutTitleBlock.js"; // refitStockTemplate: #2312; // TASKS.csv #1868; templateElements: #1487
 import ComputerTemplates from "../components/ComputerTemplates.jsx"; // TASKS.csv #1487
 import { keepTemplateOnComputer } from "../lib/computerTemplates.js"; // TASKS.csv #1487
 import { hasComputerTemplates } from "../lib/desktop.js"; // TASKS.csv #1487
@@ -69,7 +69,7 @@ import { LAYOUT_FONTS, LAYOUT_FONT_TYPES, LAYOUT_DEFAULT_FONT, layoutFontStack, 
 import { legendFit, legendRowH, legendLabelW, legendBoxSize, legendBoxFit, isLegendBox } from "../lib/legendFit.js"; // TASKS.csv #2134; row rules and box: #2869; a sized box: #3395
 import { scoreRasterLegendGroups, isScoreRaster } from "../lib/viewer/scoreRasterLegend.js"; // TASKS.csv #2794
 import { holeAttitudeAssumed } from "../lib/desurvey.js"; // TASKS.csv #2134 — the notice counts the assumed-vertical holes
-import { freeSpot, placeCollarTable, elementBox, copyOffset, followResize /* #2483 */ } from "../lib/layoutPlace.js"; // copyOffset: #2715 // elementBox: #1870 // TASKS.csv #1484 — new items into free space; #2135 the collar table
+import { freeSpot, spotIsFree, placeCollarTable, elementBox, copyOffset, followResize /* #2483 */ } from "../lib/layoutPlace.js"; // copyOffset: #2715 // elementBox: #1870 // TASKS.csv #1484 — new items into free space; #2135 the collar table
 import { roundScale } from "../lib/layoutGeometry.js"; // TASKS.csv #1486
 import { numericClips, numericLayerColorFn } from "../lib/numericClip.js"; // TASKS.csv #1482
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
@@ -290,7 +290,8 @@ export default function LayoutModule() {
           return;
         }
         const name = `${base}.pdf`;
-        const res = await savePDF(name, { ...pdfOptions(layoutPages[0]?.format), preferCSSPageSize: true });
+        const oldTitle = document.title; document.title = documentTitle(layoutPages, project); // #3612 (1) — the PDF's document title
+        let res; try { res = await savePDF(name, { ...pdfOptions(layoutPages[0]?.format), preferCSSPageSize: true }); } finally { document.title = oldTitle; }
         if (res?.ok) setExportNote({ text: tr("Exported {n} page(s) to {path}.", { n: layoutPages.length, path: res.filePath || name }) + printFailedText(printing), error: false });
       } catch (e) { setExportNote({ text: e.message || String(e), error: true }); }
       finally { if (!cancelled) { setPrinting(null); setPrintSrcs({}); /* #2303 — the print images are for this export only */ } }
@@ -412,13 +413,14 @@ export default function LayoutModule() {
       replacing.forEach((img) => consumeLayoutImage(img.id));
       setSyncNotice(again ? tr("Snapshot taken again; adjusting its text once more for the plot scale…") : tr("Snapshot taken again with its text at print size, at the same plot scale."));
     }
+    const noRoom = new Set(); // #3608 — the ids of the pictures that found no free space on this page
     const placedSoFar = [...elements]; // #1484 — each snapshot into the page's free space, not stacked at (90, 90)
     const additions = pendingLayoutImages.filter((img) => !replacing.includes(img)).map((img) => {
       const aspect = img.naturalW && img.naturalH ? img.naturalW / img.naturalH : 16 / 9;
       // TASKS.csv #1480 — a tall image (a strip log) fits the sheet's height too; it ran off the page at 700 px wide
       const maxH = A4.h - 160, w = Math.round(Math.min(maxW, 700, maxH * aspect));
       const h = Math.round(w / aspect);
-      const spot = freeSpot(placedSoFar, w, h, A4); placedSoFar.push({ ...spot, w, h });
+      const spot = freeSpot(placedSoFar, w, h, A4); if (!spotIsFree(placedSoFar, spot, w, h)) noRoom.add(img.id); /* #3608 — nothing free: it would sit over the title block / legend / scale bar */ placedSoFar.push({ ...spot, w, h });
       // worldWidthAtCaptureM (cross-section snapshots only — see SectionWindow.jsx's
       // snapshotToLayout) is the real-world horizontal span the image represented at its native
       // naturalW pixel width; carried through so a scale bar can be assigned to it below, the same
@@ -446,7 +448,7 @@ export default function LayoutModule() {
     // the page had no free room: a snapshot that would overlap another frame goes onto a new page of its own, and the notice says which
     const frames = elements.filter((e) => e.type === "viewport" || e.type === "drillplan" || (e.type === "image" && e.worldWidthAtCaptureM != null)).map(elementBox);
     const overlapsFrame = (a) => frames.some((f) => Math.min(a.x + a.w, f.x + f.w) - Math.max(a.x, f.x) > 4 && Math.min(a.y + a.h, f.y + f.h) - Math.max(a.y, f.y) > 4);
-    if (frames.length && additions.some(overlapsFrame)) {
+    if ((frames.length && additions.some(overlapsFrame)) || additions.some((a) => noRoom.has(a.id))) { // #3608 — also when the page's furniture (title block, legend, scale bar, table, text) leaves it no room
       // TASKS.csv #3370 (review #3195) — the new page was A4 landscape whatever this page's paper: a section fitted to an A3 portrait page
       // ran 378 mm down a 210 mm sheet. It takes this page's paper (portrait when the pictures are taller than wide), fitted to it.
       const paper = snapshotPagePaper(activePage?.format, additions.map((a) => a.aspect)), P = pagePx(paper);
@@ -454,7 +456,7 @@ export default function LayoutModule() {
       const moved = atTop.map((a) => { const l = legends.find((g) => g.boundViewportId === a.id); if (!l) return null; const right = a.x + a.w + 16; return { ...l, x: right + 170 <= P.w ? right : a.x, y: right + 170 <= P.w ? a.y : a.y + a.h + 16 }; }).filter(Boolean);
       const name = tr("Snapshot {n}", { n: layoutPages.length + 1 });
       addPagesOnPaper(addLayoutPages, setLayoutPageFormat, [{ name, elements: [...atTop, ...moved] }], paper);
-      setSyncNotice(tr("The snapshot would have covered a frame on this page, so it is on a new page, \"{name}\".", { name }));
+      setSyncNotice(frames.length && additions.some(overlapsFrame) ? tr("The snapshot would have covered a frame on this page, so it is on a new page, \"{name}\".", { name }) : tr("The picture has no free room on this page (it would cover the title block, legend, scale bar or text), so it is on a new page, \"{name}\".", { name })); // #3608
       additions.forEach((img) => consumeLayoutImage(img.id));
       return;
     }

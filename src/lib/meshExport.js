@@ -152,7 +152,7 @@ export function provenanceLines(name, provenance, extra = {}) {
     out.push(`Closure mode: ${q.closure}${q.closure === "artificial" ? " (part of the boundary is the search-radius wall, NOT a grade boundary — volume depends on the search radius)" : ""}`);
     out.push(`Sample points: ${q.samplePoints} | cells estimated: ${q.cellsEstimated}${q.singleHoleCells ? ` (${q.singleHoleCells} informed by a single hole)` : ""}`);
     if (q.anisotropy) out.push(anisotropyLine(q.anisotropy)); // #674
-    if (q.searchEllipsoidM) out.push(`Search ellipsoid semi-axes along the trend: ${q.searchEllipsoidM.join(" x ")} m (#656 — the block model's ellipsoid for the same radius)`);
+    if (q.searchEllipsoidM) out.push(`Search ellipsoid semi-axes along the trend: ${q.searchEllipsoidM.join(" x ")} m (the block model's ellipsoid for the same radius)`);
     if (q.meanGradeInShell != null) out.push(`Mean interpolated grade inside the shell: ${q.meanGradeInShell.toFixed(3)} ${q.unit} (not a resource grade)`);
     out.push(`Generated: ${q.generatedAt}`);
   }

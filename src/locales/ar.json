@@ -13197,5 +13197,8 @@
   "Export for other software (zip): UBC mesh + model, an .omf of the block model (for Leapfrog, Micromine and Datamine), .obs observed/predicted data (SimPEG inversions), GeoTIFF depth slices, provenance.txt": "تصدير إلى برنامج آخر (zip): شبكة ونموذج UBC، وملف .omf للنموذج الكتلي (لبرامج Leapfrog وMicromine وDatamine)، وبيانات .obs المرصودة / المتنبَّأ بها (انعكاسات SimPEG)، وشرائح عمق GeoTIFF، وملف provenance.txt",
   "Autosaved {time}": "حُفظ تلقائياً {time}",
   "The unsaved work of this window was written to the recovery copy at {time}: after a crash GeoStrix offers it back. Save the project to put it in its file.": "كُتب العمل غير المحفوظ في هذه النافذة إلى نسخة الاسترداد عند {time}: بعد أي عطل يعرضه GeoStrix من جديد. احفظ المشروع لوضعه في ملفه.",
+  "The picture has no free room on this page (it would cover the title block, legend, scale bar or text), so it is on a new page, \"{name}\".": "لا توجد مساحة خالية للصورة في هذه الصفحة (ستغطي جدول العنوان أو المفتاح أو شريط المقياس أو النص)، لذا وُضعت في صفحة جديدة \"{name}\".",
+  "Plan a hole past this end": "تخطيط حفرة تتجاوز هذه النهاية",
+  "Opens Planned holes with the end of this sample as the target (RL {z} m): plan a hole to reach past it.": "يفتح الحفر المخططة مع نهاية هذه العينة هدفاً (المنسوب {z} م): خطّط حفرة تتجاوزها.",
   "Software rendering detected ({name}): the 3D View draws fewer triangles (assays along the hole, simpler solids, coarser detail from afar). A graphics driver update restores full drawing.": "تم اكتشاف التصيير البرمجي ({name}): يرسم العرض ثلاثي الأبعاد مثلثات أقل (التحاليل على امتداد الثقب ومجسمات أبسط وتفاصيل أقل من بعيد). يعيد تحديث تعريف الرسوميات الرسم الكامل."
 }
