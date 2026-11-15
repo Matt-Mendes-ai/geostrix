@@ -17,7 +17,7 @@ test("#1284 kept state is per project, and old projects are forgotten", () => {
 
 test("#1284 Geochem's diagram, colours and filter survive a tab switch", () => {
   const src = read("src/modules/GeochemModule.jsx");
-  for (const k of ["diagramId", "colorMode", "lithFilter", "colorElement"]) assert.match(src, new RegExp(`\\[${k}, set\\w+\\] = useKeptState\\(`), k);
+  for (const k of ["diagramKept" /* #3541: diagramId is derived from it */, "colorMode", "lithFilter", "colorElement"]) assert.match(src, new RegExp(`\\[${k}, set\\w+\\] = useKeptState\\(`), k);
 });
 
 test("#1174 the inversion form and the DC/IP result survive a tab switch; a running job and its plan do not pretend to", () => {

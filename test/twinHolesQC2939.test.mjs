@@ -18,7 +18,7 @@ test("the review's pair: an RC hole and its diamond twin, both vertical, are one
   const out = run([collar("RHRCMET_0005_A", 0, -90), collar("RHDMET_0005", 279.5, -89)]);
   assert.ok(!out.some((i) => /drill pad \(fan\)/.test(i.message)), JSON.stringify(out));
   const w = out.find((i) => i.severity === "warning");
-  assert.match(w.message, /2 holes \(RHRCMET_0005_A, RHDMET_0005\) share the same collar \(within 1m\) AND point the same way \(within 3°\) — a twin or re-drill/);
+  assert.match(w.message, /2 holes \(RHRCMET_0005_A, RHDMET_0005\) share the same collar \(within 1m\) AND point the same way \(within 3°\) — a wedge or daughter hole, a twin or re-drill/);
 });
 
 test("a fan from one pad stays a pad note; a twin within a fan is named and the pad still noted", () => {

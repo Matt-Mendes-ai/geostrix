@@ -444,6 +444,7 @@ export function LayerQuickPanel({ rows, meta, layerKey, categoryFilter, onToggle
   })();
   return (
     <div style={{ paddingTop: 8 }}>
+      {meta.purpose && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.4, marginBottom: 8 }}>{tr(meta.purpose)}</div> /* TASKS.csv #3529 — what this layer is used for */}
       {meta.numeric && onNumericSymChange && (
         <NumericSymbologyEditor layerKey={layerKey} rows={rows} sym={numericSym} onChange={onNumericSymChange} />
       )}

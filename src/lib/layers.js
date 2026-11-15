@@ -822,7 +822,8 @@ export const LAYER_META = {
   // intervals feeding tonnage/density calculations for resource estimates, alongside RQD/lithology —
   // same "interval" kind/rendering as geotech above, just a different numeric field.
   recovery: { label: "Recovery %", kind: "interval", radius: 4.2, opacity: 0.35, colorFn: null, numeric: true },
-  sg:       { label: "Specific gravity", kind: "interval", radius: 3.8, opacity: 0.35, colorFn: null, numeric: true },
+  // TASKS.csv #3529 — unit / purpose: this layer IS the density the tonnes use (Grade-tonnage, solid tonnages), in t/m³ (= g/cc); said in the import notice, the legend, Identify and the layer's panel
+  sg:       { label: "Specific gravity", kind: "interval", radius: 3.8, opacity: 0.35, colorFn: null, numeric: true, unit: "t/m³", purpose: "The project's density (t/m³): the Grade-tonnage dialog and the tonnages of solids take their tonnes from this layer." },
   mnlgy:    { label: "Mineralization", kind: "point",    colorFn: colorForMineral, numeric: false },
   magsusc:  { label: "Mag. susc.",     kind: "point",    colorFn: null, numeric: true },
   structure:{ label: "Structure planes", kind: "plane",  colorFn: colorForStructure, numeric: false },

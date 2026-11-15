@@ -64,10 +64,16 @@ export const PANE_HELP = {
   "Undrilled zones": "undrilled-zones",
   "Planned drillholes": "planned-drillholes",
   "Voxel value ranges": "voxel-ranges",
+  // Getting started and the data pages (TASKS.csv #3528) — the dialogs' own titles; their "?" opens them
+  "First project": "first-project",
+  "Import drillhole data": "import-drillholes",
+  "Import assays": "import-assays",
+  "Import density (Specific gravity)": "import-density",
+  "Drillhole data QA/QC": "data-qc",
 };
 
 // The order the contents list shows the areas in
-export const HELP_AREAS = ["Getting started", "Geophysics", "Maps", "Mine Design", "3D Modelling", "3D View", "Surface Geology", "Targeting"];
+export const HELP_AREAS = ["Getting started", "Geophysics", "Maps", "Mine Design", "3D Modelling", "3D View", "Geochem", "Surface Geology", "Targeting"];
 
 export const helpIdForPane = (title) => PANE_HELP[title] || null;
 
@@ -75,6 +81,16 @@ const EVENT = "geostrix:help";
 // open the Help panel at a page (or at the contents with no id)
 export function openHelp(id = null) {
   try { window.dispatchEvent(new CustomEvent(EVENT, { detail: { id } })); } catch (_) { /* no window (tests) */ }
+}
+// TASKS.csv #3534 — the shortcuts / About dialog, opened from inside the Help panel (the status bar's "?" opens Help itself now)
+const SHORTCUTS_EVENT = "geostrix:shortcuts";
+export function openShortcuts(tab = "shortcuts") {
+  try { window.dispatchEvent(new CustomEvent(SHORTCUTS_EVENT, { detail: { tab } })); } catch (_) { /* no window (tests) */ }
+}
+export function onShortcutsOpen(cb) {
+  const h = (e) => cb(e.detail?.tab || "shortcuts");
+  window.addEventListener(SHORTCUTS_EVENT, h);
+  return () => window.removeEventListener(SHORTCUTS_EVENT, h);
 }
 export function onHelpOpen(cb) {
   const h = (e) => cb(e.detail?.id ?? null);

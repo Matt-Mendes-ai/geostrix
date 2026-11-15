@@ -128,7 +128,10 @@ export default function GeochemModule() {
   const [volcModal, setVolcModal] = useState(null); // TASKS.csv #2352 — { methodKey, codes } while asking which logged codes are volcanic
   const assayHoleIds = useMemo(() => new Set(assays.map((a) => a.hole_id)), [assays]);
 
-  const [diagramId, setDiagramId] = useKeptState(keptScope, "geochem.diagramId", "boxplot");
+  const [diagramKept, setDiagramId] = useKeptState(keptScope, "geochem.diagramId", "boxplot");
+  // TASKS.csv #3541 (Fireweed rehearsal) — before any assay is loaded the tab showed the VMS Alteration Box Plot, a diagram for one kind of deposit; the neutral X-Y scatter stands in
+  // until there is data (the kept choice is untouched, so the opening check below still picks the box plot for a project that suits it)
+  const diagramId = !assayElements.length && diagramKept === "boxplot" ? "xy" : diagramKept;
   // TASKS.csv #2205 (review #2174) — a one-element gold project opened on the Alteration Box Plot (a VMS diagram that plotted 0 of 10,757). On
   // the first look at a project whose assays lack the diagram's elements entirely, the tab opens on the X-Y scatter instead.
   const assaySymSet = useMemo(() => new Set(assayElements.map((e) => e.symbol)), [assayElements]);

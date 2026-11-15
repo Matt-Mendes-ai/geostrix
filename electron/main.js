@@ -1506,21 +1506,21 @@ function buildMenu() {
         // TASKS.csv #3100 — the BC samples are not shipped: one not on this computer opens with "…" (it asks to download it first);
         // Woodjam is listed only where it is bundled (a dev run): its ARIS package is 1.94 GB
         { label: L("Open Sample Project"), submenu: ((st) => [
-          { label: L("Harry property (37 drillholes, assays)") + (st.harry === "missing" ? "…" : ""), click: () => mainWindow?.webContents.send("menu", "sample:harry") },
-          ...(st.woodjam === "missing" ? [] : [{ label: L("Woodjam (19 drillholes, IP lines, ZTEM)"), click: () => mainWindow?.webContents.send("menu", "sample:woodjam") }]),
-          { label: L("Perk-Rocky (geological mapping, no drillholes)") + (st.perk === "missing" ? "…" : ""), click: () => mainWindow?.webContents.send("menu", "sample:perk") },
-          { label: L("Silvertip (9 deep drillholes, soils, streams)") + (st.silvertip === "missing" ? "…" : ""), click: () => mainWindow?.webContents.send("menu", "sample:silvertip") }, // TASKS.csv #1346
-          { label: L("WA palaeochannel uranium (430 drillholes, gamma log)"), click: () => mainWindow?.webContents.send("menu", "sample:wa_uranium") }, // TASKS.csv #2168
-          { label: L("Blake River gravity (7,810 stations, no drillholes)"), click: () => mainWindow?.webContents.send("menu", "sample:blake") }, // TASKS.csv #2829
-          { label: L("Mount Raymond (geological mapping, Yukon, no drillholes)"), click: () => mainWindow?.webContents.send("menu", "sample:mount_raymond") }, // TASKS.csv #3107
-          { label: L("WA bedded iron (147 drillholes, downhole logs, magnetics)"), click: () => mainWindow?.webContents.send("menu", "sample:wa_iron") }, // TASKS.csv #3107
-          { label: L("WA lead-silver-zinc (99 drillholes, assays)"), click: () => mainWindow?.webContents.send("menu", "sample:wa_lead_zinc") }, // TASKS.csv #3107
-          { label: L("WA zinc-copper (32 drillholes, soils, streams)"), click: () => mainWindow?.webContents.send("menu", "sample:wa_zinc_copper") }, // TASKS.csv #3107
           { label: L("WA lode gold (66 drillholes, oriented structures)"), click: () => mainWindow?.webContents.send("menu", "sample:wa_gold") }, // TASKS.csv #3107
           { label: L("Macpass zinc-lead-silver, Yukon (559 drillholes, assays, bulk density)"), click: () => mainWindow?.webContents.send("menu", "sample:yk_macpass") }, // TASKS.csv #3496
-          { label: L("Central Lapland, Finland (bedrock map, rock geochemistry, no drillholes)"), click: () => mainWindow?.webContents.send("menu", "sample:fi_lapland") }, // TASKS.csv #3107
-          { label: L("Rouyn-Noranda, Quebec (geology, structures, 280 drillhole traces)"), click: () => mainWindow?.webContents.send("menu", "sample:qc_rouyn_noranda") }, // TASKS.csv #3107
           { label: L("Century zinc-lead-silver, Queensland (37 drillholes, soils, magnetics)"), click: () => mainWindow?.webContents.send("menu", "sample:qld_century") }, // TASKS.csv #3107
+          { label: L("WA bedded iron (147 drillholes, downhole logs, magnetics)"), click: () => mainWindow?.webContents.send("menu", "sample:wa_iron") }, // TASKS.csv #3107
+          { label: L("WA zinc-copper (32 drillholes, soils, streams)"), click: () => mainWindow?.webContents.send("menu", "sample:wa_zinc_copper") }, // TASKS.csv #3107
+          { label: L("Silvertip (9 deep drillholes, soils, streams)") + (st.silvertip === "missing" ? "…" : ""), click: () => mainWindow?.webContents.send("menu", "sample:silvertip") }, // TASKS.csv #1346
+          { label: L("Harry property (37 drillholes, assays)") + (st.harry === "missing" ? "…" : ""), click: () => mainWindow?.webContents.send("menu", "sample:harry") },
+          ...(st.woodjam === "missing" ? [] : [{ label: L("Woodjam (19 drillholes, IP lines, ZTEM)"), click: () => mainWindow?.webContents.send("menu", "sample:woodjam") }]),
+          { label: L("Rouyn-Noranda, Quebec (geology, structures, 280 drillhole traces)"), click: () => mainWindow?.webContents.send("menu", "sample:qc_rouyn_noranda") }, // TASKS.csv #3107
+          { label: L("WA lead-silver-zinc (99 drillholes, assays)"), click: () => mainWindow?.webContents.send("menu", "sample:wa_lead_zinc") }, // TASKS.csv #3107
+          { label: L("WA palaeochannel uranium (430 drillholes, gamma log)"), click: () => mainWindow?.webContents.send("menu", "sample:wa_uranium") }, // TASKS.csv #2168
+          { label: L("Mount Raymond (geological mapping, Yukon, no drillholes)"), click: () => mainWindow?.webContents.send("menu", "sample:mount_raymond") }, // TASKS.csv #3107
+          { label: L("Perk-Rocky (geological mapping, no drillholes)") + (st.perk === "missing" ? "…" : ""), click: () => mainWindow?.webContents.send("menu", "sample:perk") },
+          { label: L("Central Lapland, Finland (bedrock map, rock geochemistry, no drillholes)"), click: () => mainWindow?.webContents.send("menu", "sample:fi_lapland") }, // TASKS.csv #3107
+          { label: L("Blake River gravity (7,810 stations, no drillholes)"), click: () => mainWindow?.webContents.send("menu", "sample:blake") }, // TASKS.csv #2829
         ])((() => { try { return sampleStatus(); } catch (_) { return {}; } })()) },
         { label: L("Save Project"), accelerator: "CmdOrCtrl+S", click: () => mainWindow?.webContents.send("menu", "save-project") }, // #553 — to its own file
         { label: L("Save Project As…"), accelerator: "CmdOrCtrl+Shift+S", click: () => mainWindow?.webContents.send("menu", "save-project-as") },
