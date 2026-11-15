@@ -22,6 +22,7 @@ import { isTable, rowOf, tableOps } from "../../lib/rowTable.js"; // TASKS.csv #
 import { rowsRefOf } from "../../lib/tableFields.js"; // TASKS.csv #3424 step 2
 import { traceLookup } from "../../lib/viewer/modelHelpers.js";
 import { dropLogCoarse, primeLogLod } from "./logLod.js"; // TASKS.csv #2802
+import { fieldColourer } from "../../lib/fieldColours.js"; // TASKS.csv #3553
 import { PROTO_CYLINDER, PROTO_SPHERE_8, PROTO_SPHERE_12, PROTO_CIRCLE_24, PROTO_PRISM_4, PROTO_SQUARE, PIN_AXIS, dipPinDir, intervalProto, lightSolid, PROTO_CROSS, UP_Y, DIR_TMP, POINT_PROTO } from "../../lib/viewer/protos.js";
 
 const toRad = (d) => (d * Math.PI) / 180;
@@ -469,6 +470,9 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
     // (which would render almost every real SG value, ~2-5, as a near-identical dark red).
     sg: numericRangeFor("sg", layers.sg),
   };
+  // TASKS.csv #3553 — a numeric layer coloured by one of its kept text columns (the density's method): the colour and the shown values per row
+  const byFieldCache = new Map();
+  const byField = (k) => { if (!byFieldCache.has(k)) byFieldCache.set(k, LAYER_META[k]?.numeric ? fieldColourer(numericSymbology?.[k], layers[k]) : null); return byFieldCache.get(k); };
   const buildErrors = [];
   const traceHoles = []; // #2176 step 3 — { holeId, pts, dashed } for addTraceChunks
   const traceById = new Map(tracesRef.current.map((t) => [t.hole_id, t])); // #2170: was a filter per hole, O(holes²) (11.8 s at 20,544)
@@ -531,8 +535,8 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
     const buildIntervalTube = (groupKey, opt = {}) => { // opt (#684): { filter, meta } — a point layer drawing its real intervals
       const meta = { ...LAYER_META[groupKey], ...(opt.meta || {}) };
       const st = resolveLayerStyle(layerStyles[groupKey], "interval", { opacity: meta.opacity }); // TASKS.csv #635
-      const radius = meta.radius * st.size;
-      (rowsByHole[groupKey]?.get(c.hole_id) || []).filter((r) => isRowVisibleForBuild(groupKey, r) && (!opt.filter || opt.filter(r))).forEach((row) => {
+      const radius = meta.radius * st.size, bf = byField(groupKey);
+      (rowsByHole[groupKey]?.get(c.hole_id) || []).filter((r) => isRowVisibleForBuild(groupKey, r) && (!opt.filter || opt.filter(r)) && (!bf || bf.shown(r))).forEach((row) => { // bf: #3553
        try {
         if (!Number.isFinite(row.from) || !Number.isFinite(row.to)) return; // #613 — null (a blank "to" after a JSON round-trip) passed isNaN
         const p1 = look.at(row.from), p2 = look.at(row.to);
@@ -566,7 +570,7 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
           // and buildLayerBatches. Same vertices, same placement; three.js raycasts in local
           // space, so picking is unchanged.
           geo = intervalProto(st.shape, (layers?.[groupKey] || []).length); // #3620: a prism in light drawing, crossed ribbons for a big layer
-          const color = st.color || (meta.numeric ? numericIntervalColor(groupKey, row.value) : baseColorForBuild(groupKey, row.value));
+          const color = st.color || (bf ? bf.colourOf(row) : meta.numeric ? numericIntervalColor(groupKey, row.value) : baseColorForBuild(groupKey, row.value));
           mesh_ = new PickStandIn(geo, { color, transparent: st.opacity < 1, opacity: st.opacity, side: geo === PROTO_CROSS ? THREE.DoubleSide : THREE.FrontSide }); // #1500; the ribbons are seen from both sides (#3620) — never drawn itself (its batch is)
           mesh_.scale.set(radius, len, radius);
           mesh_.position.set(p1.x, p1.y, p1.z);
@@ -577,7 +581,7 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
           // straight pieces between its own trace points on the shared prototype, batched with the straight intervals; the inner joints
           // overlap by half a radius so a bend shows no wedge, the ends stay on the interval's own depths.
           const pts = [p1, ...mid, p2], last = pts.length - 2, ext = radius * 0.5;
-          const color = st.color || (meta.numeric ? numericIntervalColor(groupKey, row.value) : baseColorForBuild(groupKey, row.value));
+          const color = st.color || (bf ? bf.colourOf(row) : meta.numeric ? numericIntervalColor(groupKey, row.value) : baseColorForBuild(groupKey, row.value));
           pieces = [];
           for (let i = 0; i <= last; i++) {
             const a = pts[i], b = pts[i + 1], dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, len = Math.sqrt(dx * dx + dy * dy + dz * dz);
@@ -614,7 +618,8 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
     const buildPointMarkers = (groupKey, filter = null) => {
       const meta = LAYER_META[groupKey];
       const st = resolveLayerStyle(layerStyles[groupKey], "point"); // TASKS.csv #635
-      const vals = (rowsByHole[groupKey]?.get(c.hole_id) || []).filter((r) => isRowVisibleForBuild(groupKey, r) && (!filter || filter(r)));
+      const bf = byField(groupKey); // #3553
+      const vals = (rowsByHole[groupKey]?.get(c.hole_id) || []).filter((r) => isRowVisibleForBuild(groupKey, r) && (!filter || filter(r)) && (!bf || bf.shown(r)));
       const { min, max } = globalPointRanges[groupKey] || { min: 0, max: 0 };
       vals.forEach((row) => {
        try {
@@ -622,7 +627,7 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
         const p = look.at(mid);
         if (!p) return;
         const size = meta.numeric ? 1.6 + 3.5 * (max > min ? (row.value - min) / (max - min) : 0.3) : 2 + Math.min(3, (row.extra || 1) * 0.4);
-        const color = st.color || (meta.numeric ? numericLayerColor(groupKey, row.value, { min, max }) : baseColorForBuild(groupKey, row.value));
+        const color = st.color || (bf ? bf.colourOf(row) : meta.numeric ? numericLayerColor(groupKey, row.value, { min, max }) : baseColorForBuild(groupKey, row.value));
         const mesh = new PickStandIn(POINT_PROTO[st.shape], { color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // TASKS.csv #312 — shared prototype + scale; #635 style; #1500 a stand-in
         mesh.scale.setScalar(size * st.size);
         mesh.position.set(p.x, p.y, p.z);

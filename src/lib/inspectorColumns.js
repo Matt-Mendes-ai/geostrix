@@ -20,7 +20,28 @@ export function inspectorColumns(layerKey, rows) {
     if (has(rows, "extra")) cols.push({ key: "extra", label: layerKey === "mnlgy" ? "%" : "extra", get: (r) => r.extra });
   }
   if (has(rows, "description")) cols.push({ key: "description", label: "Description", get: (r) => r.description, wide: true });
+  // TASKS.csv #3553 (Fireweed rehearsal, Macpass) — the columns the import kept (the density's method, low_recovery, comment) were searched but
+  // not shown: 'REG' matched 6,489 rows that looked like any others. They follow, by their own names, at most MAX_KEPT of them.
+  for (const k of keptColumnNames(rows, new Set(cols.map((c) => c.key)))) cols.push({ key: `kept:${k}`, label: k, kept: true, get: (r) => (r[k] != null && typeof r[k] !== "object" ? r[k] : null), wide: true });
   return cols;
+}
+
+const MAX_KEPT = 6, NOT_KEPT = new Set(["hole_id", "from", "to", "depth", "value", "extra", "intensity", "alpha", "beta", "dip", "azimuth", "description", "id", "layer"]);
+// the other columns the rows carry (not bookkeeping: _src and the like), in the order first met
+export function keptColumnNames(rows, shown = new Set()) {
+  const seen = new Set(), out = [];
+  for (const r of rows || []) {
+    if (!r || typeof r !== "object") continue;
+    for (const k in r) {
+      if (seen.has(k)) continue;
+      if (NOT_KEPT.has(k) || shown.has(k) || k.startsWith("_")) { seen.add(k); continue; }
+      if (r[k] == null || r[k] === "" || typeof r[k] === "object") continue; // blank here: a later row may fill it
+      seen.add(k);
+      out.push(k);
+      if (out.length >= MAX_KEPT) return out;
+    }
+  }
+  return out;
 }
 
 // a cell's text: depths to 2 decimals, blanks as a dash

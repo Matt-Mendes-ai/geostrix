@@ -357,6 +357,9 @@ export default function ModellingPanes(props) {
   const ramGB = useMachineMemoryGB(); // TASKS.csv #3581 — the budgets this computer's memory allows (#3251's share of it)
   const shellBudgetOk = useMemo(() => new Set(shellBudgetsFor((mb) => fetchFits(mb, ramGB))), [ramGB]);
   const [shellSearchSet, setShellSearchSet] = useState(null);
+  // TASKS.csv #3655 — search along the plane of the composites at the cut-off (modellingRuns.js, lib/viewer/shellPlane.js); a per-user preference
+  const [shellPlaneSearch, setShellPlaneSearchState] = useState(() => { try { return localStorage.getItem("geostrix.shellPlaneSearch") !== "0"; } catch { return true; } });
+  const setShellPlaneSearch = (on) => { setShellPlaneSearchState(on); try { localStorage.setItem("geostrix.shellPlaneSearch", on ? "1" : "0"); } catch { /* storage off */ } };
   const shellSearchTyped = useRef(false); // TASKS.csv #3607 (3) — a typed 50 m was replaced by 120 m when the pane reopened (50 is the untouched opening value) // { r, m, at }: the search this pane set from the spacing (at: "samples" | "collars")
   const shellCapAuto = useRef({ symbol: null, value: null }); // #3272 — the cap ShellCapNote set, kept while the note itself unmounts with the pane
   useEffect(() => {
@@ -1282,7 +1285,12 @@ export default function ModellingPanes(props) {
                 </label>
               </div>
               {shellSearchSet && numericSearchRadius === shellSearchSet.r && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{shellSearchSet.at === "samples" ? tr("Search radius {r} m: 2.5 times the {m} m typical distance from a sample to the nearest sample of another hole, so a block between two holes reaches both.", shellSearchSet) : tr("Search radius {r} m: 2.5 times the {m} m typical spacing, so a block between two holes reaches both.", shellSearchSet)}</div>}
-              {!trendFor("gradeShell") && !(Number(numericFlatReach) > 0) && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Isotropic: the search is a sphere, no structural trend is chosen for grade shells (Model settings › Structural trends › Used by).")}</div>}{/* TASKS.csv #3593 */}{/* #3272 — as Estimation's (#2420) */}
+              {!trendFor("gradeShell") && !(Number(numericFlatReach) > 0) && <>{/* TASKS.csv #3655 — by default along the plane of the composites at the cut-off */}
+                <label style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title={tr("Each drilled area is searched along the plane its composites at or above the cut-off lie on (as the Trends panel fits them): an ellipsoid with the volume of this search's sphere. The shell is kept within 0.3 of that ellipsoid from those composites, so it follows them instead of swelling round single holes. An area with fewer than 30 such composites, or from fewer than 4 holes, keeps the sphere.")}>
+                  <input type="checkbox" checked={shellPlaneSearch} onChange={(e) => setShellPlaneSearch(e.target.checked)} style={{ marginTop: 2 }} />{tr("Search along the composites' plane")}
+                </label>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{shellPlaneSearch ? tr("The plane is fitted at each run to the composites at or above the cut-off; the result says its attitude and the ellipsoid. A structural trend chosen for grade shells (Model settings › Structural trends › Used by) replaces it.") : tr("Isotropic: the search is a sphere, no structural trend is chosen for grade shells (Model settings › Structural trends › Used by).")}</div>
+              </>}{/* TASKS.csv #3593 */}{/* #3272 — as Estimation's (#2420) */}
               {(() => { /* TASKS.csv #3062 — a flat, thin body (a seam, a palaeochannel, a laterite): the cell height on its own and a flat search, as Estimation's (#2418); a structural trend shapes both instead */
                 const gt = trendFor("gradeShell"), reach = Number(numericFlatReach), flat = !gt && reach > 0 && numericSearchRadius > 0 && reach < numericSearchRadius;
                 return <>

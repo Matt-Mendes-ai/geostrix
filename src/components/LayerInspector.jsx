@@ -190,7 +190,7 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
             </div>
             <div style={{ flex: 1, overflowY: "auto", padding: "0 14px" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
-                <thead><tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>{columns.map((c) => <th key={c.key} style={th}>{/^[αβ%]$/.test(c.label) ? c.label : tr(c.label)}</th>)}</tr></thead>
+                <thead><tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>{columns.map((c) => <th key={c.key} style={th}>{c.kept /* #3553: the file's own column name */ || /^[αβ%]$/.test(c.label) ? c.label : tr(c.label)}</th>)}</tr></thead>
                 <tbody>
                   {searched.slice(0, 400).map((r, i) => (
                     <tr key={i} style={{ borderBottom: "1px solid var(--color-hover-bg)", opacity: !meta.numeric && categoryFilter.has(String(r.value)) ? 0.35 : 1 }}>

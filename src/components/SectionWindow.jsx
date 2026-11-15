@@ -605,6 +605,21 @@ const selectStyle = { padding: "5px 8px", background: "#f4f5f7", border: "1px so
 const countText = (n, one, many) => tr(n === 1 ? one : many, { n: n || 0 });
 const signedM = (v) => { const r = Math.round(v); return r > 0 ? `+${r}` : String(r === 0 ? 0 : r); };
 
+// TASKS.csv #3552 — a label's drawn width in the section's font (a canvas measures it; the estimate left a short name in capitals 2-4 px past the
+// frame), plus 4 px each side (the drawn text's box reaches ~3 px past its advance each side: 'TS058 (collar …)' 158 px measured, 164 drawn);
+// null with no canvas (the estimate)
+let measureCtx = null;
+function measureLabel(size, font) {
+  try { measureCtx = measureCtx || document.createElement("canvas").getContext("2d"); } catch { return null; }
+  if (!measureCtx) return null;
+  const memo = new Map();
+  return (text) => {
+    let w = memo.get(text);
+    if (w == null) { measureCtx.font = `${size}px ${font}`; w = Math.ceil(measureCtx.measureText(String(text)).width) + 8; memo.set(text, w); }
+    return w;
+  };
+}
+
 function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidth = 5, structOpacity = 1, showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag: vExagIn, onAutoVE = null, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onLeftOut = null, onMoveLabel, onCopyGhost = null, projectSnaps = false }) {
   const plotClipId = `sectionPlotArea${useId().replace(/:/g, "")}`, patId = `${plotClipId}p`; // patId: #1995 // #1303 — a hidden tab's clip path would hide this one's drawing
   const fs = (n) => +(n * textScale).toFixed(2); // TASKS.csv #1129 — every label at the chosen text size
@@ -856,8 +871,19 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
       {(() => { // the frame's ends (#2979); #3410 — the right one a line lower when the two would overprint (a narrow re-drawn section)
         const left = `${Math.round(ax + minL * ux).toLocaleString()} E  ${Math.round(ay + minL * uy).toLocaleString()} N`, right = `${Math.round(ax + maxL * ux).toLocaleString()} E  ${Math.round(ay + maxL * uy).toLocaleString()} N`;
         const y = H - PAD + 4 + fs(26), stack = stackEndLabels(left, right, W, PAD, fs(10));
+        // TASKS.csv #3574 (3) (Fireweed rehearsal) — no scale on screen (the ratio came only on the Layout sheet): a bar of a round length (1, 2 or 5 x
+        // 10^n m, about a seventh of the frame) between the two end labels, on screen only (Layout draws its own bound scale bar), where it fits
+        const bar = (() => {
+          if (printing || !(hScale > 0)) return null;
+          const x0 = PAD + labelWidth(left, fs(10)) + fs(12), x1 = stack ? W - PAD : W - PAD - labelWidth(right, fs(10)) - fs(12), room = x1 - x0 - fs(9) * 4;
+          const want = Math.min((W - 2 * PAD) / 7, room) / hScale;
+          if (!(want > 0)) return null;
+          const p10 = 10 ** Math.floor(Math.log10(want)), m = [5, 2, 1].map((k) => k * p10).find((v) => v <= want) || p10, len = m * hScale, h = Math.max(3, fs(3));
+          return (<g pointerEvents="none"><rect x={x0} y={y - h - 1} width={len / 2} height={h} fill="#1a2028" stroke="#1a2028" strokeWidth="0.6" /><rect x={x0 + len / 2} y={y - h - 1} width={len / 2} height={h} fill="#ffffff" stroke="#1a2028" strokeWidth="0.6" />
+            <text x={x0 + len + fs(4)} y={y} fill="#55606e" fontSize={fs(10)}>{`${m.toLocaleString()} m`}</text></g>);
+        })();
         return (<><text x={PAD} y={y} fill="#55606e" fontSize={fs(10)} textAnchor="start">{left}</text>
-          <text x={W - PAD} y={stack ? y + fs(12) : y} fill="#55606e" fontSize={fs(10)} textAnchor="end">{right}</text></>);
+          <text x={W - PAD} y={stack ? y + fs(12) : y} fill="#55606e" fontSize={fs(10)} textAnchor="end">{right}</text>{bar}</>);
       })()}
       <text x={PAD} y={titleY} fill="#1a2028" fontSize={fs(12)} fontWeight="600">{titleLines.map((l, i) => <tspan key={i} x={PAD} dy={i ? fs(14) : 0}>{l}</tspan>)}</text>{/* #3410 — wrapped */}
       <text x={PAD} y={subtitleY} fill="#55606e" fontSize={fs(10)}>{subtitleLines.map((l, i) => <tspan key={i} x={PAD} dy={i ? fs(12) : 0}>{l}</tspan>)}</text>
@@ -1133,8 +1159,18 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
           const t = h.trace;
           if (!t?.length) return;
           const first = t[0], last = t[t.length - 1];
-          if (labels.mode === "collar" || labels.mode === "both") items.push({ key: `${h.hole_id}|collar`, text: h.hole_id, ax: sx(along(first.x, first.y)), ay: sz(first.z), dir: -1, color: "#1a2028" });
-          if (labels.mode === "end" || labels.mode === "both") items.push({ key: `${h.hole_id}|end`, text: tr("{hole} · EOH {v} m", { hole: h.hole_id, v: Math.round(last.md ?? 0) }), ax: sx(along(last.x, last.y)), ay: sz(last.z), dir: 1, color: "#1a2028" });
+          // TASKS.csv #3552 (Fireweed rehearsal, Macpass: TS18-013 collared 103 m past the line's end, drilling back into the slab) — #2979 widened the
+          // frame to the holes' in-buffer runs, not to a collar outside the buffer: its name and leader dot were drawn beyond the frame, over the
+          // elevation labels, and printed on the Layout sheet. A label is anchored at the first (or last) point of the hole inside the frame; a collar
+          // beyond the frame says how far, and a hole with no point inside has no label.
+          const at = (q) => [sx(along(q.x, q.y)), sz(q.z)];
+          const firstIn = t.find((q) => inPlot(at(q))), lastIn = firstIn ? [...t].reverse().find((q) => inPlot(at(q))) : null;
+          if (!firstIn) return;
+          const offEnd = (q) => { const l = along(q.x, q.y); return l < minL ? { side: "left", m: Math.round(minL - l) } : l > maxL ? { side: "right", m: Math.round(l - maxL) } : null; };
+          const collarOff = firstIn !== first ? offEnd(first) : null;
+          const collarText = !collarOff ? h.hole_id : collarOff.side === "left" ? tr("{hole} (collar {m} m beyond the left end)", { hole: h.hole_id, m: collarOff.m }) : tr("{hole} (collar {m} m beyond the right end)", { hole: h.hole_id, m: collarOff.m });
+          if (labels.mode === "collar" || labels.mode === "both") items.push({ key: `${h.hole_id}|collar`, text: collarText, ax: at(firstIn)[0], ay: at(firstIn)[1], dir: -1, color: "#1a2028" });
+          if (labels.mode === "end" || labels.mode === "both") items.push({ key: `${h.hole_id}|end`, text: tr("{hole} · EOH {v} m", { hole: h.hole_id, v: Math.round(last.md ?? 0) }), ax: at(lastIn)[0], ay: at(lastIn)[1], dir: 1, color: "#1a2028" });
         });
         plannedHoles.forEach((ph) => {
           const t = ph.trace;
@@ -1148,7 +1184,7 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
         if (collarLabelsCrowded(collarGap, items.filter((it) => it.dir < 0).map((it) => labelWidth(it.text, fs(9))))) items.forEach((it) => { if (it.dir < 0) it.noFlip = true; });
         const fixed = { ...labels.offsets, ...(labelDrag ? { [labelDrag.key]: { dx: labelDrag.dx, dy: labelDrag.dy } } : {}) };
         const color = Object.fromEntries(items.map((it) => [it.key, it.color]));
-        const placed = placeLabels(items, { fontSize: fs(9), bounds: [4, W - 4], yBounds: [2, totalH - 2], fixed, avoid: axisLabelBoxes, dropCrowded: true, fixedYield: printing /* #2761 */ });
+        const placed = placeLabels(items, { fontSize: fs(9), bounds: [PAD, W - PAD] /* #3552: within the frame's width (was the page's: names past either end, over the elevation labels) */, yBounds: [2, totalH - 2], fixed, avoid: axisLabelBoxes, dropCrowded: true, fixedYield: printing /* #2761 */, widthOf: measureLabel(fs(9), textFont) /* #3552 */ });
         leftOutRef.current += items.length - placed.length; // #1536 // the whole drawing: holes run past the plot frame
         holeLabelBoxes = placed; // #1134 — obstacles for the other labels
         return (

@@ -15,6 +15,7 @@ import { idwColourFields } from "./idwColour.js"; // TASKS.csv #2845; #3159: not
 import { makeSurveyColorer, surveyKey } from "./geophysSurveys.js"; // TASKS.csv #2878; surveyKey: #3447
 import { airDilutedFloor } from "./voxelStretch.js"; // TASKS.csv #1872
 import { fmtSig3 } from "./numberFormat.js"; // TASKS.csv #3382
+import { fieldColourer } from "./fieldColours.js"; // TASKS.csv #3553
 
 // the per-element identity hues of assay markers (moved from ViewerModule; TASKS.csv #306)
 export const ASSAY_ELEMENT_COLORS = [0, 1, 2, 3, 4, 5, 6, 7, 11, 14, 15, 8, 10, 13].map((i) => CATEGORICAL_SAFE_COLORS[i]);
@@ -305,10 +306,17 @@ export const legendGroupCount = (items) => (items || []).filter((it) => it?.[2]?
 // which the section ribbons and the Layout legend match by
 const layerLegendLabel = (key) => LAYER_META[key]?.label || key;
 const layerUnit = (key) => (LAYER_META[key]?.unit ? { unit: LAYER_META[key].unit } : {});
-export function numericLayerLegendGroups({ keys = ["geotech", "recovery", "sg", "magsusc"], layers = {}, layerVisible = {}, isRowVisible = () => true, colorOf, symbology = {}, clips = {} }) { // clips: #1699
+export function numericLayerLegendGroups({ keys = ["geotech", "recovery", "sg", "magsusc"], layers = {}, layerVisible = {}, isRowVisible = () => true, colorOf, symbology = {}, clips = {}, fieldColours = true }) { // clips: #1699
   const out = [];
   for (const key of keys) {
     if (!layerVisible[key] || !(layers[key] || []).length || !colorOf) continue;
+    // TASKS.csv #3553 — coloured by a kept text column (the density's method): its shown values, with their colours and counts, as the 3D view
+    // draws them (fieldColours: false where the drawing colours by the value: the section ribbons)
+    const fc = fieldColours && symbology?.[key]?.byField?.field ? fieldColourer(symbology[key], layers[key]) : null;
+    if (fc) {
+      out.push({ key: `numeric_${key}`, label: layerLegendLabel(key), ...layerUnit(key), items: fc.values.filter((v) => !v.hidden).map((v) => [`${fc.field}: ${v.value || "(blank)"} (${v.n.toLocaleString("en-US")})`, v.colour]) });
+      continue;
+    }
     let lo = 0, hi = 100;
     if (key !== "geotech" && key !== "recovery") {
       lo = Infinity; hi = -Infinity;
