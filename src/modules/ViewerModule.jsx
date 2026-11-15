@@ -238,6 +238,7 @@ import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1
 import { useIdentify } from "./viewer/useIdentify.js"; // TASKS.csv #1324
 import { useCollarMarkerSize } from "./viewer/useCollarMarkerSize.js"; // TASKS.csv #2823
 import { useModellingSimple } from "./viewer/useModellingSimple.js"; // TASKS.csv #2390 / #2773
+import LightDrawingControl from "./viewer/LightDrawingControl.jsx"; // #3620 — Auto / Light / Full
 import CollarSizeControl from "./viewer/CollarSizeControl.jsx"; // #2823 — Matt: the size beside the Collars switch
 import { useBuildDefer } from "../lib/viewer/buildDefer.js"; // #1500
 import { lazyTip } from "../lib/viewer/lazyTip.js"; // #1500
@@ -6327,6 +6328,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           </div>
         )}
         {collars.length > 0 && !figureOverlay.collarsOff && <CollarSizeControl figureOverlay={figureOverlay} setFigureOverlay={setFigureOverlay} label={tr("Collar size")} />}
+        {collars.length > 0 && <LightDrawingControl onChange={() => setRebuildSeq((n) => n + 1)} />}{/* #3620 */}
 
         {/* TASKS.csv #155 — Connect database / Run data QC / Boundary intercepts moved to the toolbar
             above (they're tools/dialogs, not data) — see the ge-subtoolbar block near the top of this
