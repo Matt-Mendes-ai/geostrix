@@ -2,7 +2,7 @@
 // but the GSC deliver a Geosoft .xml beside each one: <geosoft><dataset><georeference><projection name="NAD83 / UTM zone 19N"
 // wellknown_epsg="26919">… with the same CRS as ESRI WKT. This reads it, and pairs it with its grid by name ('x.GRD.xml' or 'x.xml' for
 // 'x.GRD'). Pure.
-import { guessEpsgFromPrjWkt } from "./reproject.js";
+import { guessEpsgFromPrjWkt } from "./reprojectMore.js"; // TASKS.csv #3590
 
 // the .xml's text -> { epsg, name } | null
 export function geosoftXmlCrs(text) {

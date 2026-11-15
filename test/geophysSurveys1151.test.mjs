@@ -1,7 +1,8 @@
 // TASKS.csv #1151 — the survey types: the old keys unchanged, every entry complete, and a method read from a column header.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { SURVEY_METHODS, SURVEY_METHOD_GROUPS, guessSurveyMethod, methodIsInvertible, surveyExportRows } from "../src/lib/geophysSurveys.js";
+import { SURVEY_METHODS, SURVEY_METHOD_GROUPS } from "../src/lib/geophysSurveys.js";
+import { guessSurveyMethod, methodIsInvertible, surveyExportRows } from "../src/lib/geophysSurveyTools.js"; // TASKS.csv #3590
 
 test("#1151 the first nine keys saved projects use are still there, and every method has a label, units and a group", () => {
   for (const k of ["mag", "grav", "rad_k", "rad_th", "rad_u", "rad_tc", "ip", "res", "other"]) assert.ok(SURVEY_METHODS[k], k);

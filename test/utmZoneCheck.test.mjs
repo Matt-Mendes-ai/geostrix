@@ -1,7 +1,7 @@
 // TASKS.csv #614 — wrong-UTM-zone detection: neighbouring zones of the same family, collar-vs-ground misfit.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { neighbourUtmZones } from "../src/lib/reproject.js";
+import { neighbourUtmZones } from "../src/lib/reprojectMore.js"; // TASKS.csv #3590
 import { collarGroundMisfit } from "../src/lib/srtmFetch.js";
 
 test("#614 neighbourUtmZones keeps the datum family and hemisphere", () => {

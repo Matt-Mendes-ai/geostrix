@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { grs67FreeAir, grs67Normal } from "../src/lib/gravityReduction.js";
-import { guessSurveyMethod } from "../src/lib/geophysSurveys.js";
+import { guessSurveyMethod } from "../src/lib/geophysSurveyTools.js"; // TASKS.csv #3590
 import { geophysLegendGroups } from "../src/lib/legendGroups.js";
 
 const read = (p) => fs.readFileSync(new URL(p, import.meta.url), "utf8");

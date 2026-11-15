@@ -2,7 +2,8 @@
 // keeps its southern strip in UTM.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { projectedBounds, getProj4DefSync, reprojectGrid, pointTransform } from "../src/lib/reproject.js";
+import { getProj4DefSync, pointTransform } from "../src/lib/reproject.js";
+import { projectedBounds, reprojectGrid } from "../src/lib/reprojectMore.js"; // TASKS.csv #3590
 
 const g = getProj4DefSync(4326), utm9 = getProj4DefSync(3156); // UTM 9N: central meridian -129
 

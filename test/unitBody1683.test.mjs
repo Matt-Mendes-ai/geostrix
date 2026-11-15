@@ -1,7 +1,7 @@
 // TASKS.csv #1683 (review #1645, Copley) — a unit body's auto cell and search from its own logged runs, and the containment check
 import test from "node:test";
 import assert from "node:assert/strict";
-import { autoBodyParams, mergedRuns, autoHaloParams } from "../src/lib/viewer/geomath.js";
+import { autoBodyParams, mergedRuns, autoHaloParams } from "../src/lib/viewer/geomathModelling.js"; // TASKS.csv #3590
 import { samplesInsideShell } from "../src/lib/shellSupport.js";
 
 test("#1683 runs merge touching rows per hole; the auto cell is half the median run and the search twice it, within the hole-spacing values", () => {

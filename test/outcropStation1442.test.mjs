@@ -1,7 +1,7 @@
 // TASKS.csv #1442 — an outcrop file's station column is kept and exported
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { guessStructureColumns, parseStructureRows } from "../src/lib/mapLayers.js";
+import { guessStructureColumns, parseStructureRows } from "../src/lib/mapStructures.js"; // TASKS.csv #3590
 
 test("Station is guessed, kept on each row, and absent when the file has none", () => {
   const headers = ["Station", "Easting", "Northing", "Dip", "Dip Direction", "Type"];

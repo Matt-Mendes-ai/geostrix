@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { downholeTableColumns, structureCodeColumn } from "../src/lib/downholeTableGuess.js";
-import { guessStructureColumns } from "../src/lib/mapLayers.js";
+import { guessStructureColumns } from "../src/lib/mapStructures.js"; // TASKS.csv #3590
 
 const COPLEY = ["HOLEID", "GEOLFROM", "GEOLTO", "Struc_Code", "Struc_Intensity", "Struc_Alpha", "Struc_Desc"];
 

@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { inversionSurveyCounts } from "../src/lib/geophysSurveys.js";
+import { inversionSurveyCounts } from "../src/lib/geophysSurveyTools.js"; // TASKS.csv #3590
 
 const mk = (src, n) => Array.from({ length: n }, (_, i) => ({ x: i, y: 0, value: 1, _src: src }));
 

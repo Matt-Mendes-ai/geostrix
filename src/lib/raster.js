@@ -20,7 +20,8 @@ import { GRID_MAX, makeValueGrid, gxfRows, grdRows, rowsPicture } from "./raster
 import GeoTIFF, { fromArrayBuffer } from "geotiff"; // GeoTIFF.fromSource: #1351
 import { writeGeoTiff } from "./geotiffWrite.js"; // TASKS.csv #1038 — geotiff.js header, one loop for the pixels
 import { f32ToB64, b64ToF32 } from "./inversion.js"; // TASKS.csv #326 — compact grid values
-import { getProj4Def, getProj4DefSync, reprojectGrid, reprojectImageRGBA, bilinearSample, reprojectXY, guessEpsgFromPrjWkt, isGeographicCrs, isMetricProjectedEpsg } from "./reproject.js"; // isGeographicCrs: #1862; isMetricProjectedEpsg: #2127
+import { getProj4Def, getProj4DefSync, reprojectXY, isGeographicCrs, isMetricProjectedEpsg } from "./reproject.js";
+import { reprojectGrid, reprojectImageRGBA, bilinearSample, guessEpsgFromPrjWkt } from "./reprojectMore.js"; // TASKS.csv #3590 // isGeographicCrs: #1862; isMetricProjectedEpsg: #2127
 import { arrMin, arrMax, percentileSorted } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread); #740 percentileSorted
 import { fillNoData, noDataNote } from "./demFill.js"; // TASKS.csv #421
 import { VIRIDIS_ANCHORS } from "./layers.js"; // TASKS.csv #740

@@ -15,13 +15,12 @@ import { useStore } from "../lib/store.jsx";
 import InfoButton from "./InfoButton.jsx";
 import { parseShapefileZip, parseShapefileParts, listZipNames, readZipEntries } from "../lib/shapefile.js";
 import { parseGeoPackage } from "../lib/gpkg.js";
-import { guessEpsgFromPrjWkt, reprojectXY, getProj4DefSync, crsName, pointTransform, turnGridBearing, bearingTurn } from "../lib/reproject.js";
+import { reprojectXY, getProj4DefSync, crsName, pointTransform, turnGridBearing, bearingTurn } from "../lib/reproject.js";
+import { guessEpsgFromPrjWkt } from "../lib/reprojectMore.js"; // TASKS.csv #3590
 import { buildLayer, findField, autoColorFor, projectClipBox } from "../lib/mapLayerBuild.js"; // TASKS.csv #609 — shared with the 3D-view drop
 import { askAdoptCrs } from "../lib/adoptCrs.js"; // TASKS.csv #607
-import {
-  parseQmlStyle, autoCategories, applyQmlToCategories,
-  guessStructureColumns, parseStructureRows, bestStationColumn /* #1826 */, STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS, STRUCTURE_CLASSES, structureClass, structureCodeKey, /* #2266 */
-} from "../lib/mapLayers.js";
+import { parseQmlStyle, autoCategories, applyQmlToCategories, STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS, /* #2266 */ } from "../lib/mapLayers.js";
+import { guessStructureColumns, parseStructureRows, bestStationColumn /* #1826 */, STRUCTURE_CLASSES, structureClass, structureCodeKey } from "../lib/mapStructures.js"; // TASKS.csv #3590
 import { downholeTableColumns, structureCodeColumn } from "../lib/downholeTableGuess.js"; // TASKS.csv #1722
 import { uniqueLayerName } from "../lib/interpretation.js"; // TASKS.csv #2573
 import { defaultDiscSize, discSizeMax } from "../lib/outcropDiscSize.js"; // TASKS.csv #2412

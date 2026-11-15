@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { parseStructureRows, bestStationColumn, guessStructureColumns } from "../src/lib/mapLayers.js";
+import { parseStructureRows, bestStationColumn, guessStructureColumns } from "../src/lib/mapStructures.js"; // TASKS.csv #3590
 
 const cols = { x: "E", y: "N", dip: "Dip", dipDir: "DD", strike: "Strike" };
 test("each skipped row has one reason", () => {

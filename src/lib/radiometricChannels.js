@@ -3,7 +3,7 @@
 // file could never sit side by side; the 'eU / eTh' and 'K / eTh' methods were labels nothing computed. A multi-channel radiometric file
 // now opens the column picker with its channels: each ticked one is imported as its own survey (file · channel), and the two ratios can
 // be made from the same stations. Pure.
-import { guessSurveyMethod } from "./geophysSurveys.js";
+import { guessSurveyMethod } from "./geophysSurveyTools.js"; // TASKS.csv #3590
 
 const RAD = new Set(["rad_tc", "rad_k", "rad_u", "rad_th"]);
 // the radiometric channels among a file's measurement columns -> [{ col, method }]

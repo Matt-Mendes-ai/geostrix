@@ -2,7 +2,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { parseStructureRows, upwardPole } from "../src/lib/mapLayers.js";
+import { upwardPole } from "../src/lib/mapLayers.js";
+import { parseStructureRows } from "../src/lib/mapStructures.js"; // TASKS.csv #3590
 
 const cols = { x: "E", y: "N", dip: "Dip", dipDir: "DD", strike: null, type: "Type", station: "Stn" };
 const rows = [

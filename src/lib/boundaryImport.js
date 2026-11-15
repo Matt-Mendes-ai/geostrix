@@ -2,7 +2,8 @@
 // every feature (outer rings, holes, the other parts of a multi-part claim), reprojected from the file's own CRS (.prj
 // or GeoPackage srs_id) to the project CRS. Before, only each feature's first ring was kept and the coordinates were
 // assumed to be in the project CRS: a BC Albers (EPSG:3005) tenure shapefile landed 5,036 km away with 77 of 131 rings.
-import { getProj4Def, guessEpsgFromPrjWkt, pointTransform, crsName, datumNote } from "./reproject.js"; // crsName, datumNote: #2467
+import { getProj4Def, pointTransform, crsName, datumNote } from "./reproject.js";
+import { guessEpsgFromPrjWkt } from "./reprojectMore.js"; // TASKS.csv #3590 // crsName, datumNote: #2467
 
 // TASKS.csv #2467 (review #2325, WA uranium) — what an import says about its CRS depended on the file type: a GDA94 shapefile and a lon / lat
 // KML said nothing, another CRS read 'reprojected from EPSG:20351 to EPSG:28351' in bare codes, and the AGD84 datum-shift caveat was never

@@ -5,7 +5,8 @@
 // ground, so "Model from map" (#817) works offline. Each part is independent: one failing does not stop the others.
 import { parseMapInfoTab } from "./mapinfoTab.js";
 import { buildLayer, autoColorFor } from "./mapLayerBuild.js";
-import { autoCategories, guessStructureColumns, parseStructureRows } from "./mapLayers.js";
+import { autoCategories } from "./mapLayers.js";
+import { guessStructureColumns, parseStructureRows } from "./mapStructures.js"; // TASKS.csv #3590
 import { parseDEMFiles } from "./raster.js";
 import { notice, errorNotice } from "./notices.js";
 import { t as tr } from "./i18n.js";

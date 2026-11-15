@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { guessStructureColumns, parseStructureRows } from "../src/lib/mapLayers.js";
+import { guessStructureColumns, parseStructureRows } from "../src/lib/mapStructures.js"; // TASKS.csv #3590
 
 const HEADERS = ["Station", "Easting", "Northing", "Elevation", "Type", "Dip", "Dip direction", "Comments"];
 

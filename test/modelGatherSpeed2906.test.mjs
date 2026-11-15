@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { medianCollarSpacing } from "../src/lib/viewer/geomath.js";
+import { medianCollarSpacing } from "../src/lib/viewer/geomathModelling.js"; // TASKS.csv #3590
 import { rowsByHole } from "../src/lib/rowsByHole.js";
 
 // the previous all-pairs version, for comparison

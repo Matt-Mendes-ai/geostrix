@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { seamCells } from "../src/lib/viewer/geomath.js";
+import { seamCells } from "../src/lib/viewer/geomathModelling.js"; // TASKS.csv #3590
 
 // the LIG case: a 10 x 9.8 km footprint, 60 m of box height, runs of 3.5 m median (13 m at most), holes 100 m apart
 const box = { w: 10000, h: 9800, z: 60 };

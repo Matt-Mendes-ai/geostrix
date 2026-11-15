@@ -5,7 +5,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { estimateBlockModel, estimateDenseGrid } from "../src/lib/estimation.js";
 import { trendBasis, trendScales, trendSearchScales, DEFAULT_TREND } from "../src/lib/trend.js";
-import { anisoWarpPoint } from "../src/lib/viewer/geomath.js";
+import { anisoWarpPoint } from "../src/lib/viewer/geomathModelling.js"; // TASKS.csv #3590
 
 let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 const field = (x, y, z) => 1 + 0.6 * Math.sin(x / 40) * Math.cos(y / 20) + 0.4 * Math.sin(z / 13 + x / 60) + 0.2 * Math.cos((x + 2 * y) / 35);

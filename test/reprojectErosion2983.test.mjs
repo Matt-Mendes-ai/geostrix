@@ -5,7 +5,8 @@
 // Value grids and the terrain are now sampled NaN-aware: the finite corners are averaged when the nearest corner is finite. SYNTHETIC.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { getProj4DefSync, reprojectGrid, bilinearSample, bilinearSampleNaN } from "../src/lib/reproject.js";
+import { getProj4DefSync } from "../src/lib/reproject.js";
+import { reprojectGrid, bilinearSample, bilinearSampleNaN } from "../src/lib/reprojectMore.js"; // TASKS.csv #3590
 import { reprojectValueGrid, reprojectProject } from "../src/lib/projectReproject.js";
 import { f32ToB64, b64ToF32 } from "../src/lib/inversion.js";
 import { fillNoData } from "../src/lib/demFill.js";

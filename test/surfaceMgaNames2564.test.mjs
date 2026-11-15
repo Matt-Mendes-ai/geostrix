@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { looksLikeSurfaceSamples, isSurfaceSampleTable, surfaceXYColumns } from "../src/lib/viewer/importHelpers.js";
-import { guessStructureColumns } from "../src/lib/mapLayers.js";
+import { guessStructureColumns } from "../src/lib/mapStructures.js"; // TASKS.csv #3590
 import { gridCoordinateColumns } from "../src/lib/layersImport.js"; // TASKS.csv #3590
 
 const chips = ["Sample_ID", "MGA_E", "MGA_N", "MGA_Z", "Sample_Type", "Li2O_pct", "Cs_ppm", "Ta_ppm"];

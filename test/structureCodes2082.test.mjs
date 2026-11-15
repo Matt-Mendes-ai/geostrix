@@ -3,7 +3,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { structureClass, STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS } from "../src/lib/mapLayers.js";
+import { STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS } from "../src/lib/mapLayers.js";
+import { structureClass } from "../src/lib/mapStructures.js"; // TASKS.csv #3590
 const p = readFileSync(new URL("../src/components/SurfaceMappingPanel.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
 test("Woodjam's structure codes class as the reviewer expected; unknown codes stay Other", () => {

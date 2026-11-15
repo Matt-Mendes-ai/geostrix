@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { flatSearchTrend } from "../src/lib/estimationShape.js";
 import { trendBasis, trendScales } from "../src/lib/trend.js";
-import { anisoWarpPoint, invScales } from "../src/lib/viewer/geomath.js";
+import { anisoWarpPoint, invScales } from "../src/lib/viewer/geomathModelling.js"; // TASKS.csv #3590
 
 test("a flat search's warp: the search reaches R across and the reach up and down; the typed cell comes back in real metres", () => {
   const t = flatSearchTrend(100, 10), s = trendScales(t), b = trendBasis(t), c = { x: 0, y: 0, z: 0 };

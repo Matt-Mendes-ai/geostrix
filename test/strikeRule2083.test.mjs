@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { parseStructureRows, guessStructureColumns } from "../src/lib/mapLayers.js";
+import { parseStructureRows, guessStructureColumns } from "../src/lib/mapStructures.js"; // TASKS.csv #3590
 const p = readFileSync(new URL("../src/components/SurfaceMappingPanel.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const cols = { x: "x", y: "y", dip: "dip", strike: "strike", dipDir: "dd", dipQuad: "q" };
 const rows = [{ x: 1, y: 1, dip: 40, strike: 250 }, { x: 1, y: 1, dip: 40, strike: 250, q: "N" }, { x: 1, y: 1, dip: 40, strike: 250, q: "s" }, { x: 1, y: 1, dip: 40, strike: 135, dd: 45 }];

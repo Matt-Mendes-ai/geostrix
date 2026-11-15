@@ -15,7 +15,8 @@
 //
 // Returns { fields: { <only the fields that changed> }, report: { counts, notes, maxRotationDeg } }. Every
 // changed object is a NEW object (the #321 / #374 compaction caches are keyed by object identity).
-import { pointTransform, getProj4DefSync, reprojectGrid, turnGridBearing, bearingTurn } from "./reproject.js";
+import { pointTransform, getProj4DefSync, turnGridBearing, bearingTurn } from "./reproject.js";
+import { reprojectGrid } from "./reprojectMore.js"; // TASKS.csv #3590
 import { f32ToB64, b64ToF32 } from "./inversion.js";
 import { fillNoData } from "./demFill.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language

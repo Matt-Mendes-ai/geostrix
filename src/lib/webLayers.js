@@ -15,7 +15,8 @@
 // real vector features (imported as a `boundaries` polylines layer) since that's exactly what GetFeature
 // returns.
 import { fetchWebLayerUrl } from "./desktop.js";
-import { reprojectXY, reprojectImageRGBA, getProj4DefSync } from "./reproject.js";
+import { reprojectXY, getProj4DefSync } from "./reproject.js";
+import { reprojectImageRGBA } from "./reprojectMore.js"; // TASKS.csv #3590
 import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 

@@ -4,7 +4,7 @@
 // (This file imports what it needs from layers.js; layers.js does not import this one.)
 import { looksLikeLogTable, zeroLengthRows } from "./downholeLogChannels.js"; // TASKS.csv #2160; zeroLengthRows: #2884
 import { looksLikeEventTable } from "./downholeEvents.js"; // TASKS.csv #2317
-import { guessStructureColumns } from "./mapLayers.js"; // TASKS.csv #426
+import { guessStructureColumns } from "./mapStructures.js"; // TASKS.csv #3590 // TASKS.csv #426
 import { gridCoordinateColumns, gridElevation } from "./gridColumns.js"; // TASKS.csv #2151, moved: #2564
 import { isElementColumn } from "./geochemColumns.js"; // TASKS.csv #2150; #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
