@@ -9,7 +9,7 @@ const sg = [2.8, -7.27, -0.00016, 1.0, 3.68].map((value, i) => ({ hole_id: "H1",
 
 test("SG rows with impossible values: counted, with the values seen, in the import notice", () => {
   const msg = importCheckSummary(sg, collars, [], "Specific gravity rows from sg.csv", PLAUSIBLE_RANGE.sg);
-  assert.match(msg, /2 with a value outside the plausible 1–8 \(-7\.27 … -0\.00016: a keying or unit error\?\)/);
+  assert.match(msg, /2 with a value outside the plausible 1–6 \(-7\.27 … -0\.00016: a keying or unit error\?\)/);
   assert.match(msg, /^Check these Specific gravity rows from sg\.csv:/);
 });
 
