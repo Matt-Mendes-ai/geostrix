@@ -78,7 +78,7 @@ test("the file follows the format description: Collar, Surveys [Depth, Dip, Azim
   mod.FS.writeFile(path, bytes);
   const f = new h5wasm.File(path, "r");
   try {
-    assert.equal(GEOH5_WRITE_TYPES.drillhole.id, "{7CAEBF0E-D16E-11E3-BC69-E4632694AA37}"); assert.equal(DRILLHOLES_GROUP_TYPE, "{825424FB-C2C6-4FEA-9F2B-6CD00023D393}");
+    assert.equal(GEOH5_WRITE_TYPES.drillhole.id, "{7CAEBF0E-D16E-11E3-BC69-E4632694AA37}"); assert.equal(DRILLHOLES_GROUP_TYPE, "{61FBB4E8-A480-11E3-8D5A-2776BDF4F982}", "a plain container: geoh5py reads the {825424FB-...} Drillholes group as a concatenator (#3429)");
     const top = f.get("GEOSCIENCE/Root");
     assert.equal(top.get("Objects").keys().length, 0, "drillholes are in their own group, not the root's objects");
     const groups = top.get("Groups").keys();
@@ -88,9 +88,10 @@ test("the file follows the format description: Collar, Surveys [Depth, Dip, Azim
     assert.equal(g.get("Objects").keys().length, 2);
     const oid = g.get("Objects").keys().find((k) => f.get(`GEOSCIENCE/Objects/${k}`).attrs.Name.value === "H1"), o = f.get(`GEOSCIENCE/Objects/${oid}`);
     assert.equal(o.get("Type").attrs.ID.value, "{7CAEBF0E-D16E-11E3-BC69-E4632694AA37}");
-    assert.deepEqual(Array.from(o.attrs.Collar.value[0] ?? o.attrs.Collar.value), [1000, 2000, 500]);
+    { const cv = o.attrs.Collar.value; assert.deepEqual(Array.from(Array.isArray(cv[0]) || ArrayBuffer.isView(cv[0]) ? cv[0] : cv), [1000, 2000, 500], "a scalar compound (#3429)"); assert.deepEqual(o.attrs.Collar.shape, []); }
     const sv = o.get("Surveys");
-    assert.deepEqual(Object.keys(sv.metadata.compound_type.members ? Object.fromEntries(sv.metadata.compound_type.members.map((m) => [m.name, 1])) : {}), ["Depth", "Dip", "Azimuth"], "objects.rst order");
+    assert.deepEqual(Object.keys(sv.metadata.compound_type.members ? Object.fromEntries(sv.metadata.compound_type.members.map((m) => [m.name, 1])) : {}), ["Depth", "Azimuth", "Dip"], "the order geoh5py requires (#3429)");
+    assert.equal(sv.metadata.compound_type.members[0].type, 1, "float32 (#3429)"); assert.equal(o.get("Cells").dtype, "<I", "uint32 cells, as geoh5py checks (#3429)");
     assert.equal(o.get("Trace").shape[0] >= 2, true);
     const vertices = o.get("Vertices"), cells = o.get("Cells"), nV = vertices.shape[0];
     assert.deepEqual(cells.shape[1], 2); assert.ok(Array.from(cells.value).every((c) => c >= 0 && c < nV), "cells point at vertices");
@@ -120,7 +121,7 @@ test("a subset of the Macpass sample: 12 holes, every survey station, density an
   assert.equal(holes.reduce((n, h) => n + h.surveys.length, 0), survey.length);
   assert.ok(count("Ag_ppm") >= assays.filter((r) => Number.isFinite(r.Ag_ppm)).length && count("Ag_ppm") <= assays.length);
   const first = holes.find((h) => h.name === collars[0].hole_id), c0 = collars[0], s0 = survey.find((s) => s.hole_id === c0.hole_id);
-  assert.deepEqual(first.collar, [c0.x, c0.y, c0.z]); assert.deepEqual(first.surveys[0], [s0.depth, s0.azimuth, s0.dip], "the file has dip negative down: the same numbers come back");
+  assert.deepEqual(first.collar, [c0.x, c0.y, c0.z]); assert.deepEqual(first.surveys[0], [s0.depth, s0.azimuth, s0.dip].map(Math.fround), "the file has dip negative down: the same numbers come back, as float32 (geoh5py reads Depth / Azimuth / Dip as f4)");
 });
 
 test("wired: the export builds drillholes first, the sentence counts them, the no-data case says them too, and the writer opens each flat group once", () => {

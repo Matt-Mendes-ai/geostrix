@@ -39,7 +39,7 @@ export const GEOH5_WRITE_TYPES = {
   drillhole: { id: "{7CAEBF0E-D16E-11E3-BC69-E4632694AA37}", name: "Drillhole" }, // the drillhole step
 };
 export const ROOT_GROUP_TYPE = "{dd99b610-be92-48c0-873c-5b5946ea2840}";
-export const DRILLHOLES_GROUP_TYPE = "{825424FB-C2C6-4FEA-9F2B-6CD00023D393}";
+export const DRILLHOLES_GROUP_TYPE = "{61FBB4E8-A480-11E3-8D5A-2776BDF4F982}"; // a plain container: geoh5py (Mira's reference reader) reads the {825424FB-...} Drillholes group as a CONCATENATOR (drillholes stored in its own Attributes / Data / Index tables), which these one-object-per-hole drillholes are not
 export const FLOAT_NO_DATA = 1.175494351e-38;
 export const GEOH5_VERSION = 2.0;
 
@@ -49,8 +49,8 @@ async function h5() { if (!h5Ready) h5Ready = import("h5wasm").then(async (m) =>
 const newId = () => `{${(globalThis.crypto?.randomUUID?.() || "xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx".replace(/x/g, () => ((Math.random() * 16) | 0).toString(16)))}}`;
 const flags = (node, keys) => { for (const [k, v] of keys) node.create_attribute(k, v, null, "<i"); };
 const xyzCompound = (rows) => new Map([["x", Float64Array.from(rows, (r) => r[0])], ["y", Float64Array.from(rows, (r) => r[1])], ["z", Float64Array.from(rows, (r) => r[2])]]);
-const XYZCompound = (rows) => new Map([["X", Float64Array.from(rows, (r) => r[0])], ["Y", Float64Array.from(rows, (r) => r[1])], ["Z", Float64Array.from(rows, (r) => r[2])]]); // objects.rst: Trace [X, Y, Z]
-const XYZ = (p) => new Map([["X", new Float64Array([p[0]])], ["Y", new Float64Array([p[1]])], ["Z", new Float64Array([p[2]])]]); // objects.rst: Origin / Collar [X, Y, Z]
+const XYZCompound = (rows) => new Map([["x", Float64Array.from(rows, (r) => r[0])], ["y", Float64Array.from(rows, (r) => r[1])], ["z", Float64Array.from(rows, (r) => r[2])]]); // lower-case x, y, z, as geoh5py (Mira's reference reader, and the files in the wild) names them and requires them
+const XYZ = (p) => new Map([["x", new Float64Array([p[0]])], ["y", new Float64Array([p[1]])], ["z", new Float64Array([p[2]])]]); // lower-case x, y, z (see XYZCompound); Origin and Collar are written as scalar compounds (shape [])
 const triples = (flat) => { const out = []; for (let i = 0; i + 2 < flat.length; i += 3) out.push([+flat[i], +flat[i + 1], +flat[i + 2]]); return out; };
 
 // a data entry's values -> { prim, data, dtype } (Float: 32-bit, blanks and non-numbers the no-data value; Text: variable-length strings)
@@ -143,20 +143,20 @@ export async function writeGeoh5(elements, { distanceUnit = "meter", contributor
         o.create_hard_link(`/GEOSCIENCE/Types/Object types/${typeId}`, "Type");
         const oData = o.create_group("Data");
         if (kind === "blockmodel") {
-          o.create_attribute("Origin", XYZ(el.origin));
+          o.create_attribute("Origin", XYZ(el.origin), []);
           o.create_attribute("Rotation", 0, null, "<d");
           const delims = (w) => { const d = [0]; for (const x of w) d.push(d[d.length - 1] + x); return Float64Array.from(d); };
           o.create_dataset({ name: "U cell delimiters", data: delims(el.u) });
           o.create_dataset({ name: "V cell delimiters", data: delims(el.v) });
           o.create_dataset({ name: "Z cell delimiters", data: delims(el.z) });
         } else if (hole) {
-          o.create_attribute("Collar", XYZ(el.collar.map(Number)));
+          o.create_attribute("Collar", XYZ(el.collar.map(Number)), []); // a scalar compound (shape []), as geoh5py writes and reads it; a 1-element array was refused by geoh5py
           if (Number.isFinite(el.endOfHole)) o.create_attribute("End of hole", Number(el.endOfHole), null, "<d");
           const sv = (el.surveys || []).filter((s) => Number.isFinite(+s[0]) && Number.isFinite(+s[1]) && Number.isFinite(+s[2]));
-          if (sv.length) o.create_dataset({ name: "Surveys", data: new Map([["Depth", Float64Array.from(sv, (s) => +s[0])], ["Dip", Float64Array.from(sv, (s) => +s[2])], ["Azimuth", Float64Array.from(sv, (s) => +s[1])]]) }); // objects.rst order
+          if (sv.length) o.create_dataset({ name: "Surveys", data: new Map([["Depth", Float32Array.from(sv, (s) => +s[0])], ["Azimuth", Float32Array.from(sv, (s) => +s[1])], ["Dip", Float32Array.from(sv, (s) => +s[2])]]) }); // the field order and float32 geoh5py (Mira's reference reader) requires: Depth, Azimuth, Dip (the spec page lists Depth, Dip, Azimuth; the fields are named, and GeoStrix's reader goes by name)
           o.create_dataset({ name: "Trace", data: XYZCompound(trace.map((p) => p.map(Number))) });
           if (verts.length) o.create_dataset({ name: "Vertices", data: xyzCompound(verts) });
-          if (nCells) o.create_dataset({ name: "Cells", data: Int32Array.from(cells), shape: [nCells, 2], dtype: "<i" });
+          if (nCells) o.create_dataset({ name: "Cells", data: Uint32Array.from(cells), shape: [nCells, 2], dtype: "<I" });
         } else {
           o.create_dataset({ name: "Vertices", data: xyzCompound(verts) });
           if (per) o.create_dataset({ name: "Cells", data: Int32Array.from(cells), shape: [nCells, per], dtype: "<i" });

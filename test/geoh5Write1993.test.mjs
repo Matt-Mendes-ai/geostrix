@@ -83,7 +83,7 @@ test("the file follows the geoh5 format description: workspace, Root group, type
     assert.deepEqual(byName.Pit.get("Cells").shape, [2, 3]); assert.equal(byName.Pit.get("Cells").dtype, "<i");
     // block model: Origin compound X, Y, Z; Rotation double; delimiters from 0, Z upwards
     const bm = byName.Rho;
-    assert.deepEqual(bm.attrs.Origin.metadata.compound_type.members.map((m) => m.name), ["X", "Y", "Z"]);
+    assert.deepEqual(bm.attrs.Origin.metadata.compound_type.members.map((m) => m.name), ["x", "y", "z"], "lower case, as geoh5py names and requires them (#3429)");
     assert.equal(bm.attrs.Rotation.value, 0);
     assert.deepEqual(Array.from(bm.get("U cell delimiters").value), [0, 10, 20, 30]);
     assert.deepEqual(Array.from(bm.get("V cell delimiters").value), [0, 10, 30]);
