@@ -520,6 +520,55 @@ def _validate_em1d(req):
 TEM1D_MAX_STATIONS = 50_000
 
 
+def _validate_structfit(req):
+    """TASKS.csv #2640 Stage 1 — the structure-fit sensitivity request: the model (an /implicit-model request), the survey, the unit
+    properties, and the movable points: interpreted points only (a drillhole contact, sent with its hole_id, is an observation and never
+    moves), each with the distance the user allows it (never assumed)"""
+    from app.geophys.structfit import MAX_POINTS
+    m = req.get("model")
+    try:
+        parsed = ImplicitModelRequest(**(m or {}))
+    except Exception as exc:
+        raise HTTPException(422, getattr(exc, "errors", lambda: str(exc))())
+    if req.get("method") not in ("grav", "mag"):
+        raise HTTPException(422, "method must be 'grav' or 'mag'.")
+    st = req.get("stations")
+    if not isinstance(st, list) or not (1 <= len(st) <= 20000) or any(not isinstance(p, list) or len(p) != 3 or any(not isinstance(v, (int, float)) or not math.isfinite(v) for v in p) for p in st):
+        raise HTTPException(422, "stations must list 1 to 20,000 [x, y, z] points.")
+    obs = req.get("observed")
+    if obs is not None and (not isinstance(obs, list) or len(obs) != len(st) or any(not isinstance(v, (int, float)) or not math.isfinite(v) for v in obs)):
+        raise HTTPException(422, "observed must give one finite reading per station.")
+    u = req.get("uncertainty") or {}
+    if not isinstance(u.get("floor"), (int, float)) or not (u["floor"] > 0) or not (0 <= float(u.get("percent", 0) or 0) <= 100):
+        raise HTTPException(400, "uncertainty.floor is required and must be above zero — GeoStrix never assumes it.")
+    if req["method"] == "mag":
+        f = req.get("field") or {}
+        if any(not isinstance(f.get(k), (int, float)) for k in ("strength", "inclination", "declination")):
+            raise HTTPException(422, "field needs strength, inclination and declination for a magnetic survey.")
+    props = req.get("properties")
+    if not isinstance(props, dict) or not props or any(not isinstance(v, (int, float)) or not math.isfinite(v) for v in props.values()):
+        raise HTTPException(422, "properties must give each unit's density or susceptibility contrast.")
+    mv = req.get("movable")
+    if not isinstance(mv, list) or not (1 <= len(mv) <= MAX_POINTS):
+        raise HTTPException(422, f"movable must list 1 to {MAX_POINTS} points.")
+    raw = {s.get("name"): s for s in (m.get("surfaces") or []) if isinstance(s, dict)}
+    for p in mv:
+        s = raw.get(p.get("surface")) if isinstance(p, dict) else None
+        k = p.get("index") if isinstance(p, dict) else None
+        if s is None or not isinstance(k, int) or not (0 <= k < len(s.get("points") or [])):
+            raise HTTPException(422, "Each movable point must name a surface of the model and one of its points.")
+        if s["points"][k].get("hole_id") is not None:
+            raise HTTPException(400, f"Point {k} of {p['surface']} is a drillhole contact ({s['points'][k]['hole_id']}): an observation, so it never moves.")
+        if not isinstance(p.get("maxM"), (int, float)) or not (0 < p["maxM"] <= 5000):
+            raise HTTPException(422, "Each movable point needs the distance it may move (above 0, at most 5,000 m): GeoStrix never assumes it.")
+    rs = req.get("resolve")
+    if rs is not None and (not isinstance(rs, dict) or any(not isinstance(v, list) or len(v) != 2 or not (v[0] < v[1]) for v in rs.values())):
+        raise HTTPException(422, "resolve must give each unit's [lowest, highest] property.")
+    if rs is not None and obs is None:
+        raise HTTPException(422, "Re-solving the unit properties needs the observed readings.")
+    del parsed
+
+
 def _validate_tem1d(req):
     sysm = req.get("system")
     try:
@@ -687,6 +736,14 @@ def start_job(req: dict = Body(...)):
         _validate_em1d(payload)
         from app.jobs import manager
         job_id = manager.start("em1d", payload)
+        if job_id is None:
+            return _job_slot_busy(manager)
+        return {"id": job_id}
+    if req.get("jobKind") == "structfit":  # TASKS.csv #2640 Stage 1 — which contacts a gravity / magnetic survey can see
+        payload = req.get("request") or {}
+        _validate_structfit(payload)
+        from app.jobs import manager
+        job_id = manager.start("structfit", payload)
         if job_id is None:
             return _job_slot_busy(manager)
         return {"id": job_id}
@@ -953,27 +1010,14 @@ def _dedupe_onlap_orientations(surfaces):
     return out, dropped
 
 
-@app.post("/implicit-model", response_model=ImplicitModelResponse)
-def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
-    res = [max(4, min(96, r)) for r in req.resolution]
-    if res[0] * res[1] * res[2] > MAX_RESOLUTION_CELLS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Resolution {res} exceeds the sidecar's cap ({MAX_RESOLUTION_CELLS} cells) — "
-                   "use a coarser grid (this is a local single-process server; a very fine grid "
-                   "would block it for a long time on one request).",
-        )
-    try:
-        import gempy as gp
-        from gempy.core.data import SurfacePointsTable, OrientationsTable, StructuralFrame, StructuralGroup, StructuralElement
-        from gempy_engine.core.data.stack_relation_type import StackRelationType
-        from gempy.core.data.structural_group import FaultsRelationSpecialCase  # TASKS.csv #1054
-    except ImportError as err:
-        raise HTTPException(
-            status_code=503,
-            detail=f"gempy is not installed in this sidecar's environment ({err}). "
-                   "Run: pip install -r python-sidecar/requirements.txt",
-        )
+def _implicit_frame(req):
+    """TASKS.csv #2640 — the GemPy structural frame of an implicit-model request (the surfaces' points and orientations, packages #1309,
+    the shared onlap orientations #512, faults #360 with what they offset #1054), as /implicit-model builds it; shared with the
+    structure-fit job (app/geophys/structfit.py), which re-solves the model with a point moved. -> (frame, fault group names,
+    fault elements, orientations deduplicated)"""
+    import gempy as gp
+    from gempy.core.data import SurfacePointsTable, OrientationsTable, StructuralFrame, StructuralGroup, StructuralElement
+    from gempy_engine.core.data.stack_relation_type import StackRelationType
 
     elements = []
     fault_elements = []  # TASKS.csv #360
@@ -1060,27 +1104,63 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
     fault_group_names = [f"fault_{i}_{el.name}" for i, el in enumerate(fault_elements)]
     groups = [StructuralGroup(name=n, elements=[el], structural_relation=StackRelationType.FAULT) for n, el in zip(fault_group_names, fault_elements)] + groups
     frame = StructuralFrame(structural_groups=groups, color_gen=gp.data.ColorsGenerator())
+    return frame, fault_group_names, fault_elements, deduped
+
+
+def _implicit_geomodel(req, res, frame, fault_group_names):
+    """TASKS.csv #2640 — the GemPy model from that frame: the extent and resolution, faults and their offsets, and the isotropic
+    rescale (#655); evaluation options are the caller's"""
+    import gempy as gp
+    from gempy.core.data.structural_group import FaultsRelationSpecialCase  # TASKS.csv #1054
+
+    model = gp.create_geomodel(project_name="geostrix_implicit", extent=req.extent, resolution=res, structural_frame=frame)
+    if fault_group_names:
+        gp.set_is_fault(model, fault_group_names)  # #360
+        # TASKS.csv #1054 — a fault that names what it offsets: GemPy's list form of fault_relations (groups AFTER it
+        # in the frame only: the stack, and faults listed after it). An empty selection offsets nothing.
+        sg = model.structural_frame.structural_groups
+        for gname, f in zip(fault_group_names, req.faults):
+            if f.offsets is None:
+                continue
+            i = next(k for k, g in enumerate(sg) if g.name == gname)
+            targets = [g for g in sg[i + 1:] if any(e.name in f.offsets for e in g.elements)]
+            sg[i].fault_relations = targets if targets else FaultsRelationSpecialCase.OFFSET_NONE
+    # TASKS.csv #655 — GemPy's input rescale is NOT isotropic as built: transforms.py computes its per-axis
+    # ratios once and rewrites them with a stale list, so whenever the vertical span lies between the two
+    # horizontal spans the shorter horizontal axis is stretched (control points 500 x 1000 x 700 m -> scale
+    # ratios 1.429 : 1 : 1; a 300 x 2000 x 350 m fence 5.7 : 1; a third of random data boxes, worst 22 : 1)
+    # — a hidden anisotropy on top of the one the user chose. Re-running the transform with NONE (what
+    # GemPy's own examples_generator does) gives 1 : 1 : 1 for every span (checked on 20,000 random boxes).
+    model.update_transform(gp.data.GlobalAnisotropy.NONE)
+    return model
+
+
+@app.post("/implicit-model", response_model=ImplicitModelResponse)
+def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
+    res = [max(4, min(96, r)) for r in req.resolution]
+    if res[0] * res[1] * res[2] > MAX_RESOLUTION_CELLS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Resolution {res} exceeds the sidecar's cap ({MAX_RESOLUTION_CELLS} cells) — "
+                   "use a coarser grid (this is a local single-process server; a very fine grid "
+                   "would block it for a long time on one request).",
+        )
+    try:
+        import gempy as gp
+        from gempy.core.data import SurfacePointsTable, OrientationsTable, StructuralFrame, StructuralGroup, StructuralElement
+        from gempy_engine.core.data.stack_relation_type import StackRelationType
+        from gempy.core.data.structural_group import FaultsRelationSpecialCase  # TASKS.csv #1054
+    except ImportError as err:
+        raise HTTPException(
+            status_code=503,
+            detail=f"gempy is not installed in this sidecar's environment ({err}). "
+                   "Run: pip install -r python-sidecar/requirements.txt",
+        )
+
+    frame, fault_group_names, fault_elements, deduped = _implicit_frame(req)  # TASKS.csv #2640 — shared with the structure-fit job
 
     try:
-        model = gp.create_geomodel(project_name="geostrix_implicit", extent=req.extent, resolution=res, structural_frame=frame)
-        if fault_group_names:
-            gp.set_is_fault(model, fault_group_names)  # #360
-            # TASKS.csv #1054 — a fault that names what it offsets: GemPy's list form of fault_relations (groups AFTER it
-            # in the frame only: the stack, and faults listed after it). An empty selection offsets nothing.
-            sg = model.structural_frame.structural_groups
-            for gname, f in zip(fault_group_names, req.faults):
-                if f.offsets is None:
-                    continue
-                i = next(k for k, g in enumerate(sg) if g.name == gname)
-                targets = [g for g in sg[i + 1:] if any(e.name in f.offsets for e in g.elements)]
-                sg[i].fault_relations = targets if targets else FaultsRelationSpecialCase.OFFSET_NONE
-        # TASKS.csv #655 — GemPy's input rescale is NOT isotropic as built: transforms.py computes its per-axis
-        # ratios once and rewrites them with a stale list, so whenever the vertical span lies between the two
-        # horizontal spans the shorter horizontal axis is stretched (control points 500 x 1000 x 700 m -> scale
-        # ratios 1.429 : 1 : 1; a 300 x 2000 x 350 m fence 5.7 : 1; a third of random data boxes, worst 22 : 1)
-        # — a hidden anisotropy on top of the one the user chose. Re-running the transform with NONE (what
-        # GemPy's own examples_generator does) gives 1 : 1 : 1 for every span (checked on 20,000 random boxes).
-        model.update_transform(gp.data.GlobalAnisotropy.NONE)
+        model = _implicit_geomodel(req, res, frame, fault_group_names)
         if req.evaluate_at:  # TASKS.csv #756 — the exact points, in the SAME solve as the block (dense + custom grids)
             from gempy.core.data import Grid
             pts = np.asarray(req.evaluate_at, dtype=float)

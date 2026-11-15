@@ -140,6 +140,15 @@ def main():
     r = run_job("tem1d", tem2)
     assert len(r.get("condMs") or []) == 3 and all(v is not None for v in r["condMs"][2]) and len(r["pred"][0]) == 15, f"tem1d (report system): {list(r)[:8]}"
 
+    # TASKS.csv #2640 — the structure-fit sensitivity pass: GemPy and SimPEG's gravity forward in one job (both must import frozen)
+    sf_pts = [{"x": x, "y": y, "z": -200.0 - 0.27 * (x - 1000)} for x in (300.0, 1000.0, 1700.0) for y in (500.0, 1500.0)]
+    sf = {"model": {"extent": [0, 2000, 0, 2000, -1000, 0], "resolution": [12, 12, 12], "relation": "erode",
+                    "surfaces": [{"name": "top_B", "points": sf_pts, "orientations": [{"x": 1000.0, "y": 1000.0, "z": -200.0, "dip": 15.0, "azimuth": 90.0, "polarity": 1}]}]},
+          "method": "grav", "stations": [[x, y, 30.0] for x in (300.0, 1000.0, 1700.0) for y in (300.0, 1000.0, 1700.0)],
+          "uncertainty": {"floor": 0.05}, "properties": {"1": 0.0, "2": 0.3}, "movable": [{"surface": "top_B", "index": 2, "maxM": 100.0}]}
+    r = run_job("structfit", sf)
+    assert len(r.get("points") or []) == 1 and r["points"][0]["rmsPerM"] > 0, f"structfit: {r}"
+
     # TASKS.csv #1985 — Boule's normal gravity and Harmonica's prism layer (gravred), Verde's SplineCV (spline): frozen, they need
     # their submodules and metadata; a flat 500 m terrain of 21 x 21 nodes at 1 km
     import base64, struct
