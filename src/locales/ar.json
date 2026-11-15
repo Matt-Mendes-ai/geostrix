@@ -12735,5 +12735,10 @@
   "Finer ground near the camera, read from the terrain's source as you look (display only: checks, sections and mine design keep the saved grid).": "أرض أدق قرب الكاميرا تُقرأ من مصدر التضاريس أثناء النظر (للعرض فقط: الفحوص والمقاطع وتصميم المنجم تبقى على الشبكة المحفوظة).",
   "Finer imagery near the camera, read from the picture's source as you look.": "صور أدق قرب الكاميرا تُقرأ من مصدر الصورة أثناء النظر.",
   "Detail tiles": "بلاطات التفاصيل",
-  "Cut back to {pct} % to keep the view smooth.": "خُفِّض إلى {pct} % لإبقاء العرض سلسًا."
+  "Cut back to {pct} % to keep the view smooth.": "خُفِّض إلى {pct} % لإبقاء العرض سلسًا.",
+  "Reference: {name}. {credit}": "المرجع: {name}. {credit}",
+  "Mineral from the USGS spectral library": "معدن من المكتبة الطيفية لـ USGS",
+  "The USGS library could not be loaded": "تعذر تحميل مكتبة USGS",
+  "Or pick a mineral from the USGS spectral library…": "أو اختر معدنًا من المكتبة الطيفية لـ USGS…",
+  "USGS Spectral Library Version 7, public domain (Kokaly et al., 2017).": "المكتبة الطيفية لـ USGS الإصدار 7، ملكية عامة (Kokaly وآخرون، 2017)."
 }

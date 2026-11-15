@@ -12735,5 +12735,10 @@
   "Finer ground near the camera, read from the terrain's source as you look (display only: checks, sections and mine design keep the saved grid).": "Un sol plus fin près de la caméra, lu à la source du terrain pendant que vous regardez (affichage seulement : contrôles, coupes et conception minière gardent la grille enregistrée).",
   "Finer imagery near the camera, read from the picture's source as you look.": "Une imagerie plus fine près de la caméra, lue à la source de l'image pendant que vous regardez.",
   "Detail tiles": "Tuiles de détail",
-  "Cut back to {pct} % to keep the view smooth.": "Réduit à {pct} % pour garder la vue fluide."
+  "Cut back to {pct} % to keep the view smooth.": "Réduit à {pct} % pour garder la vue fluide.",
+  "Reference: {name}. {credit}": "Référence : {name}. {credit}",
+  "Mineral from the USGS spectral library": "Minéral de la bibliothèque spectrale de l'USGS",
+  "The USGS library could not be loaded": "La bibliothèque de l'USGS n'a pas pu être chargée",
+  "Or pick a mineral from the USGS spectral library…": "Ou choisissez un minéral dans la bibliothèque spectrale de l'USGS…",
+  "USGS Spectral Library Version 7, public domain (Kokaly et al., 2017).": "Bibliothèque spectrale de l'USGS, version 7, domaine public (Kokaly et al., 2017)."
 }

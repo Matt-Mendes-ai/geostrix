@@ -8,6 +8,7 @@ import { label, sel, btn } from "../lib/modalStyles.js";
 import { buildRasterImport } from "../lib/raster.js";
 import { FEATURES, parseWavelengths, wavelengthsFromGdalMetadata, featureBands, featureMap } from "../lib/hyperspectral.js";
 import { parseSpectrum, resampleSpectrum, matchMap } from "../lib/spectralMatch.js"; // TASKS.csv #2003
+import { loadUsgsSubset, spectrumText, USGS_CREDIT } from "../lib/usgsSpectra.js"; // TASKS.csv #3514
 import { t as tr } from "../lib/i18n.js";
 
 export default function HyperspectralTab({ epsg, tie = null, defaultElevation, sourceEpsg, onImport, onClose }) { // tie: TASKS.csv #2648
@@ -20,6 +21,7 @@ export default function HyperspectralTab({ epsg, tie = null, defaultElevation, s
   const [mode, setMode] = useState("feature"); // TASKS.csv #2003 - "feature" (continuum removal) | "match" (a reference spectrum, or anomalies)
   const [kind, setKind] = useState("sam"); // sam | mf | rx
   const [refText, setRefText] = useState("");
+  const [usgs, setUsgs] = useState(null), [refName, setRefName] = useState(""); // #3514 — the USGS library subset (loaded when the picker opens), and which mineral is in the box
   const [products, setProducts] = useState({ depth: true, wavelength: true });
   const [minDepth, setMinDepth] = useState("0.02");
   const [error, setError] = useState(null);
@@ -66,7 +68,7 @@ export default function HyperspectralTab({ epsg, tie = null, defaultElevation, s
         bandFn: (bands, isNoData) => { const r = matchMap(bands, kind, refv, { isNoData }); stats = r; return r.map; },
       });
       const note = " " + tr("{what}: {n} bands, {valid} valid pixels. {how}", { what: tr(what), n: use.length, valid: (stats?.valid ?? 0).toLocaleString(), how: kind === "sam" ? tr("A small angle means a spectrum shaped like the reference, whatever its brightness.") : kind === "mf" ? tr("0 is the scene's background and 1 the reference; a score is relative to this scene's own background.") : tr("High where a pixel's spectrum is unlike the scene's background: an anomaly, not a mineral.") });
-      onImport([{ ...raster, spectralIndex: { hyperspectral: true, match: kind, bands: use.length } }], msg + note);
+      onImport([{ ...raster, spectralIndex: { hyperspectral: true, match: kind, bands: use.length, ...(refName && kind !== "rx" ? { reference: refName } : {}) } }], msg + note + (refName && kind !== "rx" ? " " + tr("Reference: {name}. {credit}", { name: refName, credit: USGS_CREDIT }) : ""));
     } catch (e) { setError(e.message); } finally { setBusy(false); }
   };
   const run = async () => {
@@ -128,7 +130,12 @@ export default function HyperspectralTab({ epsg, tie = null, defaultElevation, s
             <option value="rx">{tr("RX anomaly: pixels unlike the scene's background (no reference)")}</option>
           </select>
           {kind !== "rx" && <>
-            <textarea value={refText} onChange={(e) => setRefText(e.target.value)} rows={4} style={{ ...sel, width: "100%", fontFamily: "monospace", marginTop: 6 }} aria-label={tr("Reference spectrum")} placeholder={"wavelength, reflectance\n2.20, 0.31\n2.25, 0.28"} />
+            <select value="" onFocus={() => { if (!usgs) loadUsgsSubset().then(setUsgs).catch(() => setUsgs(false)); }} onChange={(e) => { const sp = usgs?.spectra.find((x) => x.name === e.target.value); if (sp) { setRefText(spectrumText(usgs, sp)); setRefName(`USGS splib07 ${sp.name} (${sp.record})`); } }} style={{ ...sel, marginTop: 6 }} aria-label={tr("Mineral from the USGS spectral library")}>{/* TASKS.csv #3514 */}
+              <option value="">{usgs === false ? tr("The USGS library could not be loaded") : tr("Or pick a mineral from the USGS spectral library…")}</option>
+              {(usgs?.spectra || []).map((x) => <option key={x.name} value={x.name}>{x.name}</option>)}
+            </select>
+            {refName && <div style={{ ...small, marginTop: 2 }}>{refName} · {tr("USGS Spectral Library Version 7, public domain (Kokaly et al., 2017).")}</div>}
+            <textarea value={refText} onChange={(e) => { setRefText(e.target.value); setRefName(""); }} rows={4} style={{ ...sel, width: "100%", fontFamily: "monospace", marginTop: 6 }} aria-label={tr("Reference spectrum")} placeholder={"wavelength, reflectance\n2.20, 0.31\n2.25, 0.28"} />
             <div style={{ ...small, marginTop: 4 }}>{tr("Paste the spectrum as lines of wavelength and reflectance (micrometres or nm), as a library export gives it (USGS, ASTER, ECOSTRESS). It is interpolated to the file's bands.")}</div>
             {refText.trim() && !ref && <div style={{ ...small, color: "var(--color-danger-fg)" }}>{tr("Fewer than three wavelength and reflectance pairs found.")}</div>}
             {ref && wl && <div style={{ ...small, color: refAt.covered >= 0.8 ? undefined : "var(--color-danger-fg)" }}>{refAt.covered >= 0.8 ? tr("{n} pairs, {lo}-{hi} nm, covering {pct} % of the file's bands.", { n: ref.wl.length, lo: Math.round(ref.wl[0]), hi: Math.round(ref.wl[ref.wl.length - 1]), pct: Math.round(refAt.covered * 100) }) : tr("The spectrum covers only {pct} % of the file's bands (at least 80 % is needed).", { pct: Math.round(refAt.covered * 100) })}</div>}
