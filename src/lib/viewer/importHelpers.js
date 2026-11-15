@@ -1,6 +1,8 @@
 // TASKS.csv #445 step 3 — the import pipeline's plain helpers (row normalisers, file-type sniffing, the vector /
 // GeoPackage / raster loaders), moved unchanged from the top of ViewerModule.jsx with their comments; used by
 // modules/viewer/useImportPipeline.js and ViewerModule.jsx.
+import { loadGpkg, SKIP_REASONS } from "./importHelpersCore.js"; // TASKS.csv #3590
+export { SHAPEFILE_SIDECAR, groupShapefileParts, loadGpkg, SKIP_REASONS, codeList } from "./importHelpersCore.js";
 import { guessEpsgFromPrjWkt } from "../reproject.js";
 import { isElementColumn, parseAssayValue } from "../geochemColumns.js"; // TASKS.csv #600; parseAssayValue: #2185; #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 // TASKS.csv #552 — the KML / xlsx / shapefile readers load on first use (they were ~20 kB of startup JavaScript)
@@ -11,7 +13,7 @@ const loadShapefile = () => import("../shapefile.js");
 import { spectralColumns, guessMapping } from "../layersImport.js"; // TASKS.csv #3590 // TASKS.csv #2339; guessMapping: #3038
 import { logReadSpec, LOG_READ_MIN_BYTES } from "../logOnRead.js"; // TASKS.csv #3038
 import { isOverturnedValue } from "../layers.js";
-import { guessColumnExact /* #2268 */ } from "../layersImport.js"; // TASKS.csv #3590 // INTERVAL_*: #2150
+import { guessColumnExact /* #2268 */ } from "../layersImport.js"; // TASKS.csv #3590 // INTERVAL_*: #2150
 import { num, targetFromName, guessTargetFor, guessColumn, TARGET_SCHEMAS, INTERVAL_FROM_ALIASES, INTERVAL_TO_ALIASES, normHeader } from "../layersImport.js"; // TASKS.csv #3590
 import { gridXY } from "../gridColumns.js"; // TASKS.csv #2564
 const tabular = () => import("../tabular.js"); // TASKS.csv #1493 — the CSV engine (papaparse) loads with the first table, not at launch
@@ -248,21 +250,6 @@ export async function orderImportFiles(files) {
   return keyed.sort((a, b) => a.r - b.r || (a.r === 0 ? (b.f.size || 0) - (a.f.size || 0) : 0) || a.i - b.i).map((k) => k.f);
 }
 
-export const SHAPEFILE_SIDECAR = /\.(dbf|prj|cpg|shx|qix|sbn|sbx|xml)$/i;
-export function groupShapefileParts(list) {
-  const base = (n) => n.toLowerCase().replace(/\.shp\.xml$|\.[^.]+$/, "");
-  const shps = new Map();
-  list.forEach((f) => { if (/\.shp$/i.test(f.name)) shps.set(base(f.name), f); });
-  const files = [], unmatched = [];
-  list.forEach((f) => {
-    if (!SHAPEFILE_SIDECAR.test(f.name)) { files.push(f); return; }
-    const shp = shps.get(base(f.name));
-    if (!shp) { unmatched.push(f); return; }
-    const ext = f.name.toLowerCase().match(/\.([^.]+)$/)[1];
-    if (["dbf", "prj", "cpg"].includes(ext)) shp.shpParts = { ...(shp.shpParts || {}), [ext]: f };
-  });
-  return { files, unmatched };
-}
 async function readLooseShapefile(file) {
   const parts = file.shpParts || {};
   const { parseShapefileParts } = await loadShapefile();
@@ -395,9 +382,6 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
   parseCSV(file, (data, err, localeNote, extra) => onDone(data, err, { headers: extra?.logTable ? extra.headers : data && data.length ? Object.keys(data[0]) : [], note: localeNote || "", ...(extra?.logTable ? { logTable: extra.logTable } : {}) })); // logTable: #3038
 }
 
-// TASKS.csv #439 — gpkg.js (and with it sql.js) is loaded on first GeoPackage import/export, not at
-// startup: it was pulling sql.js into the eagerly-loaded bundle for a feature most sessions never touch.
-export const loadGpkg = () => import("../gpkg.js");
 
 // onDone(rows, errorMessage, localeNote) — TASKS.csv #284: Papa's dynamicTyping leaves a
 // European-locale value like "1,5" as the literal STRING "1,5", and Number("1,5") is NaN, so every
@@ -427,15 +411,6 @@ async function sniffLog(file, m) {
 // "NR", "<10" and a blank kept 2 of 5 rows and the notice said only "Loaded 2 rows". dropped: [{ reason, example }]
 // (reason: a short English key below; example: the cell as written). -> " Skipped 3 of 5 row(s): value not a number
 // (NR, <10, (blank))." or "".
-export const SKIP_REASONS = { // exported: #2493 (Data QC names the reasons the import left rows out)
-  "no hole id": () => tr("no hole id"),
-  "no depth": () => tr("blank or non-numeric depth"),
-  "no from": () => tr("blank or non-numeric From"),
-  "no value": () => tr("value not a number"),
-  "no code": () => tr("blank code"), // #2182
-  "no interval": () => tr("no To and no Depth, so no interval or point to draw"), // #2338
-  "reversed": () => tr("To less than From (a reversed interval)"), // #3211
-};
 // TASKS.csv #2182 (review #2174, WA gold) — a coded log's row with a blank code cell is not a logged interval: it was imported as 'Unknown'
 // (11,432 of geology_4's 11,558 rows as Mineralization) and drew an 'Unknown' tube down every hole. The share blank, for the dialog.
 export const isBlankCode = (v) => v == null || String(v).trim() === "";
@@ -504,13 +479,6 @@ export function allCodesOf(raw, sib) {
   const code = (c) => { const v = String(raw?.[c] ?? "").trim(); return v || null; };
   const codes = [code(sib.first), ...sib.codes.map(code)].filter(Boolean);
   return { all: first || rest.length ? [first, ...rest].filter(Boolean).join(" · ") : null, extra: rest.length, codes };
-}
-// TASKS.csv #1650 — an interval's codes, first first: its stored list, else read back from all_codes ('PY 1 · CP 0.3' -> PY, CP; a
-// project imported before the list existed); [] for a one-code interval
-export function codeList(row) {
-  if (Array.isArray(row?.codes)) return row.codes;
-  if (!row?.all_codes) return [];
-  return String(row.all_codes).split(" · ").map((p) => p.trim().split(/\s+/)[0]).filter(Boolean);
 }
 
 // TASKS.csv #2021 (review #2013, Woodjam) — a mapping's value column that is blank on every row (a sheet's empty style_value) was preselected,
