@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { openHelp } from "../lib/help.js"; // TASKS.csv #3578
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2351
 import { preferredElement } from "../lib/preferredElement.js"; // TASKS.csv #2351
 import OxideTotalsTab from "./OxideTotalsTab.jsx"; // TASKS.csv #2506
@@ -138,7 +139,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
               )}
             </div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3578 — the help page of this dialog */}<button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("qaqc")} aria-label={tr("Help: {name}", { name: tr("QAQC — lab quality control") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>

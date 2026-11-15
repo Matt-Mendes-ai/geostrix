@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { openHelp } from "../lib/help.js"; // TASKS.csv #3578
 import { drillThresholdOffers, sortedThresholdOffers } from "../lib/thresholds.js"; // TASKS.csv #2347; sorted: #3160
 import { X, Download, Sheet } from "./icons.js";
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
@@ -311,7 +312,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
             {pxrfLeft > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{n} pXRF reading(s) left out: the grades here come from lab assays only.", { n: pxrfLeft })}</div>}{/* #1673 */}
             </div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3578 — the help page of this dialog */}<button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("best-intercepts")} aria-label={tr("Help: {name}", { name: tr("Best-intercept report") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>

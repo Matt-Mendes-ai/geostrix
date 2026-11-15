@@ -48,7 +48,7 @@ test("one spike does not flatten the rest: the top of the scale is the 98th perc
 
 test("the Fence diagram offers the track and draws it beside each column", () => {
   const m = readFileSync(new URL("../src/components/FenceDiagramModal.jsx", import.meta.url), "utf8");
-  assert.match(m, /numericTrackSources\(\{ layers: storeLayers, customLayers, assays, assayElements \}, tr\)/);
+  assert.match(m, /numericTrackSources\(\{ layers: storeLayers, customLayers, assays, assayElements(, displayUnits: fenceProject\?\.displayUnits)? \}, tr\)/);
   assert.match(m, /aria-label=\{tr\("Numeric track"\)\}/);
   assert.match(m, /numericTrackRows\(trackSrc, panel\.holes\.map\(\(h\) => h\.hole_id\), assays(, \{ log: trackLog \})?\)/); // + the log option: #2813
   assert.match(m, /tr\("Track: \{name\}, the full width is \{hi\} \(the 98th percentile of the panel's values\)"/);

@@ -1,6 +1,7 @@
 // TASKS.csv #1084 — the 3D View's toolbar and sidebar rows, moved out of ViewerModule.jsx when it reached its size cap
 // (test/viewerModuleSize1084.test.mjs). Unchanged code: ViewToolbar, ContextItem, HoleRow, LayerRow, LayerQuickPanel,
 // VoxelRangeRow, distToSegment and the shared sidebar styles, plus the two lazy modals only they use.
+import { openDataTable } from "../../lib/dataTableRequests.js"; // TASKS.csv #3563
 import { modelListName } from "../../lib/modelListName.js"; // TASKS.csv #1839
 // TASKS.csv #2585 — the unit beside Min / Max: the estimate's unit, else the "(unit)" of the property (blockModelExport.valueUnit would pull the
 // CSV library into the startup chunk)
@@ -217,6 +218,11 @@ export function ViewToolbar({
         <div className="ge-ribbon-cell">{/* TASKS.csv #1152 */}
           <HoverToolInfo title={tr("Interpretation lines")} text={tr("Draw faults, contacts and lineaments over a geophysics survey. Each set of lines is a map layer: it drapes on the terrain, exports as Shapefile, GeoPackage, KML or DXF, and prints in the Layout legend.")}>
             <button className={`ge-ribbon-btn ${interpretOpen ? "active" : ""}`} aria-pressed={!!interpretOpen} onClick={onInterpret}><PenTool size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Interpret")}</span></button>
+          </HoverToolInfo>
+        </div>
+        <div className="ge-ribbon-cell">
+          <HoverToolInfo title={tr("Data table")} text={tr("The assays and each drillhole log as a table: every column with its unit, all rows, a click on a heading to sort, a filter under each heading (>= 6, 6..8, REG). Read only: a value is corrected in its source file and imported again.")}>
+            <button className="ge-ribbon-btn" onClick={() => openDataTable({})}><Rows3 size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Data table")}</span></button>{/* TASKS.csv #3563 */}
           </HoverToolInfo>
         </div>
         <div className={`ge-ribbon-cell${noHoles ? " ge-adv" : ""}`}>

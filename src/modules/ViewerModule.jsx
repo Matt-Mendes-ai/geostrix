@@ -7913,7 +7913,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           />
         );
       })()}
-      {qcModalOpen && <DataQCModal onCancel={() => setQcModalOpen(false)} />}
+      {qcModalOpen && <DataQCModal onCancel={() => setQcModalOpen(false)} onZoomHole={(id) => { zoomToHole(id); setQcModalOpen(false); } /* TASKS.csv #3569 */} />}
       {sectionGeorefOpen && (
         <Suspense fallback={null}>
           <SectionGeorefModal sections={sections} onClose={() => setSectionGeorefOpen(false)}
