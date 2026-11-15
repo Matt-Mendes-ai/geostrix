@@ -585,7 +585,7 @@ export function buildDrillholeScene(ctx) {
         // TASKS.csv #208 — a mapped Description in the tooltip; #227 — catValue for the category pass; #1500 — the tooltip made on first
         // read (lazyTip), holeId for the visible-holes pass
         for (const mesh of pieces || [mesh_]) {
-        mesh.userData = lazyTip({ row, holeId: c.hole_id, catValue: row.value, ...(groupKey === "litho" ? { lithoRow: row } : {}) }, () => `${c.hole_id}\n${meta.label}: ${meta.numeric ? row.value : effectiveLabel(groupKey, row.value)}${row.extra != null ? ` (${row.extra}${meta.extraSuffix || ""})` : ""}\n${+row.from.toFixed(2)}–${+row.to.toFixed(2)} m${row.intensity ? ` · intensity ${row.intensity}` : ""}${Number.isFinite(row.alpha) ? ` · alpha ${row.alpha}°` : ""}${row.description ? `\n${row.description}` : ""}`); // lithoRow: TASKS.csv #599 picking
+        mesh.userData = lazyTip({ row, holeId: c.hole_id, catValue: row.value, ...(groupKey === "litho" ? { lithoRow: row } : {}) }, () => `${c.hole_id}\n${meta.label}: ${meta.numeric ? `${row.value}${meta.unit ? ` ${meta.unit}` : ""}` /* unit: #3536 */ : effectiveLabel(groupKey, row.value)}${row.extra != null ? ` (${row.extra}${meta.extraSuffix || ""})` : ""}\n${+row.from.toFixed(2)}–${+row.to.toFixed(2)} m${row.intensity ? ` · intensity ${row.intensity}` : ""}${Number.isFinite(row.alpha) ? ` · alpha ${row.alpha}°` : ""}${row.description ? `\n${row.description}` : ""}`); // lithoRow: TASKS.csv #599 picking
         groups[groupKey].add(mesh);
         }
        } catch (err) { buildErrors.push(`${groupKey} ${c.hole_id} ${row.from}-${row.to}: ${err.message}`); }
@@ -618,7 +618,7 @@ export function buildDrillholeScene(ctx) {
         const mesh = new PickStandIn(POINT_PROTO[st.shape], { color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // TASKS.csv #312 — shared prototype + scale; #635 style; #1500 a stand-in
         mesh.scale.setScalar(size * st.size);
         mesh.position.set(p.x, p.y, p.z);
-        mesh.userData = lazyTip({ row, holeId: c.hole_id, catValue: row.value }, () => `${c.hole_id}\n${meta.label}: ${meta.numeric ? row.value : effectiveLabel(groupKey, row.value)}${row.extra != null ? ` (${row.extra}%)` : ""}\n@ ${mid.toFixed(0)} m`); // #1500
+        mesh.userData = lazyTip({ row, holeId: c.hole_id, catValue: row.value }, () => `${c.hole_id}\n${meta.label}: ${meta.numeric ? `${row.value}${meta.unit ? ` ${meta.unit}` : ""}` /* unit: #3536 */ : effectiveLabel(groupKey, row.value)}${row.extra != null ? ` (${row.extra}%)` : ""}\n@ ${mid.toFixed(0)} m`); // #1500
         groups[groupKey].add(mesh);
        } catch (err) { buildErrors.push(`${groupKey} ${c.hole_id}: ${err.message}`); }
       });

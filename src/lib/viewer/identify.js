@@ -181,7 +181,10 @@ function describe(hit, ctx) {
     // #1821 — a surface sample: the element it is coloured by and its class first, every element, its own fields
     if (o.userData?.units && row?.medium != null) return { ...base, layer: group, title: tipLines[0] || group, hole: null, fields: [...sampleIdentifyFields(row, o.userData.mapped, o.userData.units), ...attributeFields(row, new Set([...SKIP, "attrs", ...PLACEMENT_KEYS])), recordedElevationField(row)] }; // placement: #2271
     const nameLine = tipLines[1]?.includes(":") ? tipLines[1].slice(tipLines[1].indexOf(":") + 1).trim() : null;
-    if (nameLine) fields.push([tr("Value"), nameLine]);
+    // TASKS.csv #3536 (Fireweed rehearsal) — the line's own name is its label when the card's layer does not already say it: an assay bar's
+    // "Ag: 0.25–1.8 ppm over …" said "Value" with two elements on show, now "Ag"; a Lithology line on the Lithology card stays "Value"
+    const nameKey = nameLine ? tipLines[1].slice(0, tipLines[1].indexOf(":")).trim() : "";
+    if (nameLine) fields.push([nameKey && nameKey.length <= 40 && nameKey !== group ? nameKey : tr("Value"), nameLine]);
     else if (row?.value != null) fields.push([tr("Value"), gradeText(row.value)]); // #2515
     const meaning = ctx.meaningOf?.(o, o.userData?.catValue ?? row?.value, nameLine || ""); // #2816 — the project's code dictionary
     if (meaning) fields.push([tr("Meaning"), meaning]);
