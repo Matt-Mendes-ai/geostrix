@@ -18,3 +18,9 @@ export function withCreditPages(pages, hasCredit, defaultFormat = null) {
   if (!hasCredit) return pages;
   return (pages || []).map((pg) => (pagePrintsCredit(pg.elements) ? pg : { ...pg, elements: [...(pg.elements || []), creditsElement(pg.format || defaultFormat)] }));
 }
+
+// TASKS.csv #3636 — before Export PDF / PNG: the pages (those that will be printed) that print no {credits} while the project has a data credit. `activeElements` are the open page's live elements
+// (its stored copy lags); -> [name]
+export function pagesWithoutCredit(pages, activeId, activeElements) {
+  return (pages || []).filter((pg) => !pagePrintsCredit(pg.id === activeId ? activeElements : pg.elements)).map((pg, i) => pg.name || `Page ${i + 1}`);
+}

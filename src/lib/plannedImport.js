@@ -11,6 +11,7 @@ const ALIASES = {
   type: ["hole_type", "type", "rig"],
   notes: ["notes", "note", "comment", "comments"],
   tx: ["target_x"], ty: ["target_y"], tz: ["target_z"],
+  zsource: ["z_source"], // TASKS.csv #3612 (6) — where the elevation came from, as GeoStrix's own rig sheet writes it: kept on a round trip
   lift: ["lift_deg_per_100m", "lift"], drift: ["drift_deg_per_100m", "drift"],
 };
 // TASKS.csv #3348 (1) — a unit suffix written with an underscore ('Depth_m', 'eoh_m', 'dip_deg') is the same column as '(m)' / '(deg)'
@@ -61,6 +62,7 @@ export function plannedHolesFromRows(rows, headers, { fallback = null, groundAt 
     const name = cols.name ? String(r[cols.name] ?? "").trim() : "";
     if (name) h.name = name;
     if (cols.type && String(r[cols.type] ?? "").trim()) h.type = String(r[cols.type]).trim();
+    if (!fromGround && cols.zsource && String(r[cols.zsource] ?? "").trim()) h.zSourceFile = String(r[cols.zsource]).trim(); // #3612 (6)
     if (cols.notes && String(r[cols.notes] ?? "").trim()) h.notes = String(r[cols.notes]).trim();
     const t = cols.tx && cols.ty && cols.tz ? { x: num(r[cols.tx]), y: num(r[cols.ty]), z: num(r[cols.tz]) } : null;
     if (t && [t.x, t.y, t.z].every(Number.isFinite)) h.target = t;

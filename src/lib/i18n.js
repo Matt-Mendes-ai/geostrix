@@ -28,9 +28,23 @@ export function savedLanguage() {
 const loaders = { es: () => import("../locales/es.json"), pt: () => import("../locales/pt.json"), fr: () => import("../locales/fr.json"), ar: () => import("../locales/ar.json") };
 export const RTL = new Set(["ar"]); // written right to left: the page gets dir="rtl"
 
+// TASKS.csv #3625 (Fireweed rehearsal) — numbers in the interface language's format: a Brazilian or French reader read 'n 32,426' as 32.4. Every toLocaleString() with no locale of its own (the interface's
+// counts and sizes; the places that must stay English say "en-US" themselves) takes the language's: 32.426 (es, pt-BR), 32 426 (fr), 32,426 Western digits (ar: the rehearsal read its Western digits as right).
+// Installed the first time a language other than English is chosen; English keeps the system's format as before. toFixed() numbers keep their point.
+export const NUMBER_LOCALES = { es: "es", pt: "pt-BR", fr: "fr", ar: "ar-u-nu-latn" };
+let numberLocale = null, numbersPatched = false;
+const nativeNumberLocale = Number.prototype.toLocaleString;
+function setNumberLocale(code) {
+  numberLocale = NUMBER_LOCALES[code] || null;
+  if (!numberLocale || numbersPatched) return;
+  numbersPatched = true;
+  Number.prototype.toLocaleString = function toLocaleString(locales, options) { return nativeNumberLocale.call(this, locales === undefined && numberLocale ? numberLocale : locales, options); };
+}
+
 // Before the first render: load the dictionary of the saved (or system) language. Never throws: English on any failure.
 export async function initLanguage(code = savedLanguage()) {
   current = loaders[code] ? code : "en";
+  setNumberLocale(current);
   if (typeof document !== "undefined") document.documentElement.dir = RTL.has(current) ? "rtl" : "ltr";
   if (current === "en") { if (typeof document !== "undefined") document.documentElement.lang = "en"; dict = null; return current; }
   try { dict = (await loaders[current]()).default; } catch { dict = null; current = "en"; }

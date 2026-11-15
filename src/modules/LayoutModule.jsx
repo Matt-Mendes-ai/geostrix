@@ -11,7 +11,7 @@ import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js"; // TASKS.csv #1777 — listed with the page's placeholders
 import { scaleBarLabel, scaleBarMidLabel } from "../lib/scaleBarLabel.js"; // TASKS.csv #2140
 import { offSheetPages, rectSidesPast, elementCaption, elementKind } from "../lib/layoutEdges.js"; // elementKind: #3028
-import { withCreditPages } from "../lib/layoutCredits.js"; // TASKS.csv #3591
+import { withCreditPages, pagesWithoutCredit } from "../lib/layoutCredits.js"; // TASKS.csv #3591
 import { DEFAULT_LAYOUT_ELEMENTS } from "../lib/projectFields.js"; // TASKS.csv #3028 (5)
 import { groupOrdersFromItems, applyCodeOrder, projectCodeOrders, clearCodeOrders, pagesHoldingOrder, orderedGroupsOf } from "../lib/legendCodeOrder.js"; // TASKS.csv #3130 — a code order set once; clear*: #3199 // TASKS.csv #2482 / #2309; named elements: #2700
 import { fillPlaceholders, northName, pageConvergence, formatConvergence } from "../lib/layoutText.js";
@@ -239,6 +239,14 @@ export default function LayoutModule() {
     // TASKS.csv #2471 — a legend whose viewport was refreshed after it was loaded, and whose rows were edited, still lists the old view
     const staleLegends = staleBoundLegends(layoutPages).length;
     if (staleLegends && !window.confirm(tr(staleLegends === 1 ? "{n} legend is out of step with its viewport: the viewport was refreshed after the legend was loaded, and the legend's rows were edited, so they were kept. Export anyway?" : "{n} legends are out of step with their viewports: each viewport was refreshed after its legend was loaded, and the legend's rows were edited, so they were kept. Export anyway?", { n: staleLegends }))) return;
+    // TASKS.csv #3636 — the project has a data credit and a page that is about to print does not carry it: say which, and let the user add it or export anyway
+    if (creditsRef.current) {
+      const toCheck = layoutPrintRequest.kind === "png" ? layoutPages.filter((pg) => pg.id === activeLayoutPageId) : layoutPages;
+      const bare = pagesWithoutCredit(toCheck, activeLayoutPageId, elements);
+      if (bare.length && !window.confirm(bare.length === 1
+        ? tr("\"{page}\" prints no data credit, and this project has one. Add a text with {credits} to it (or a title block, which has a Data row) so the data owner is credited. Export without it?", { page: bare[0] })
+        : tr("{n} pages print no data credit ({list}), and this project has one. Add a text with {credits} to them (or a title block, which has a Data row) so the data owner is credited. Export without it?", { n: bare.length, list: bare.slice(0, 5).join(", ") + (bare.length > 5 ? ", …" : "") }))) return;
+    }
     // TASKS.csv #2303 — the page's viewports are 200 dpi captures: the export renders each again at 300 dpi first (in the 3D View, as an
     // atlas batch), then prints from those images; the page keeps its own
     const toPrint = layoutPrintRequest.kind === "png" ? layoutPages.filter((pg) => pg.id === activeLayoutPageId) : layoutPages;
@@ -1268,6 +1276,18 @@ export default function LayoutModule() {
     });
   };
 
+  // TASKS.csv #3612 (7) — a title block that grows (a row added, a long value wrapping to four lines) ran past the bottom of the sheet with no word on the page; the export had its own check.
+  // The selected element is measured after it is drawn, and the sidebar says which edge(s) it passes.
+  const [selPast, setSelPast] = useState([]);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      const pg = pageRef.current, node = pg && selected ? pg.querySelector(`[data-el-id="${selected}"]`) : null;
+      if (!node) { setSelPast((p) => (p.length ? [] : p)); return; }
+      const sd = rectSidesPast([node, ...node.querySelectorAll("text, td, th")].map((n) => n.getBoundingClientRect()), pg.getBoundingClientRect());
+      setSelPast((p) => (p.join() === sd.join() ? p : sd));
+    });
+    return () => cancelAnimationFrame(id);
+  }, [elements, selected, activeLayoutPageId]);
   const sel = elements.find((el) => el.id === selected);
 
   return (
@@ -1353,6 +1373,7 @@ export default function LayoutModule() {
           <>
             <div className="ge-section-label" style={{ marginTop: 18 }}>{tr("Selected: {type}", { type: sel.type })}</div>
             <PlaceControls sel={sel} updateSelected={updateSelected} />{/* TASKS.csv #906 — position and size in mm */}
+            {selPast.length > 0 && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Part of this element reaches past the sheet's {sides} and will be cut off in the export: move it, or make it smaller.", { sides: selPast.map((sd) => ({ left: tr("left edge"), top: tr("top edge"), right: tr("right edge"), bottom: tr("bottom edge") })[sd]).join(" / ") })}</div>}{/* #3612 (7) */}
             <div style={{ display: "flex", gap: 4, marginBottom: 8, flexWrap: "wrap" }}>{/* TASKS.csv #909 */}
               <button onClick={() => reorderSelected("front")} title={tr("Bring to front")} style={smallBtn}>{tr("To front")}</button>
               <button onClick={() => reorderSelected("back")} title={tr("Send to back")} style={smallBtn}>{tr("To back")}</button>
