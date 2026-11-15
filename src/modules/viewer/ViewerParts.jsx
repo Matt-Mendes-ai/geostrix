@@ -235,7 +235,7 @@ export function ViewToolbar({
             <button className={`ge-ribbon-btn${boundaryDisabled ? " is-disabled" : ""}`} onClick={boundaryDisabled ? undefined : onBoundaryIntercepts} aria-disabled={boundaryDisabled || undefined}><Milestone size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Contact picks")}</span></button>{/* #1702 — was "Intercepts" */}
           </HoverToolInfo>
         </div>
-        <RibbonButton advanced={noHoles} icon={FileBarChart2} label="Grade intercepts" tone="analyse" disabled={!gAssays.length} disabledReason="Load assays first (Geochem tab)" title="Best intercepts: length-weighted runs of the assays above a cut-off, as reported (e.g. 24 m @ 0.44 % Cu)" onClick={() => setGradeIntOpen(true)} />{/* #1702 */}
+        <RibbonButton advanced={noHoles} icon={FileBarChart2} label="Best intercepts" tone="analyse" disabled={!gAssays.length} disabledReason="Load assays first (Geochem tab)" title="Best intercepts: length-weighted runs of the assays above a cut-off, as reported (e.g. 24 m @ 0.44 % Cu)" onClick={() => setGradeIntOpen(true)} />{/* #1702 */}
         {gradeIntOpen && <BestIntercepts assays={gAssays} assayElements={gEls} collars={spacingCollars} survey={gSurvey} layers={gLayers} onClose={() => setGradeIntOpen(false)} />}
       </RibbonGroup>
       <RibbonGroup advanced label="Database">

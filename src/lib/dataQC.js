@@ -290,7 +290,7 @@ function* validateSurveyAndTrajectorySteps(collars, survey, { doglegWarn = 3, do
 // blank / non-numeric to, from > to, negative depths, past the end of the hole, or a hole with no collar). Import
 // stays non-blocking; Data QC has the per-row list. O(rows); collars / survey give hole lengths.
 // TASKS.csv #1531 / #1508 — the plausible value range of a numeric interval layer, for Data QC and for the import notice
-export const PLAUSIBLE_RANGE = { geotech: { min: 0, max: 110 }, recovery: { min: 0, max: 110 }, sg: { min: 1, max: 6 } };
+export const PLAUSIBLE_RANGE = { geotech: { min: 0, max: 110 }, recovery: { min: 0, max: 110 }, sg: { min: 1, max: 8 } }; // TASKS.csv #3579 — sg 1-8 t/m³, the range Grade-tonnage reads (sgSummary): 6 flagged real massive galena-sphalerite readings (Macpass has 6.918); 8 is above any rock but a native-metal one
 // range (#1508): { min, max } of a plausible value: an SG of -7.27 went in with only 'Loaded 1240 rows'; Data QC listed it, the notice did not
 // TASKS.csv #2167 (WA review #2148, T19) — a hole's length for the past-the-end checks: the deeper of the collar's length and the deepest
 // survey station (#339), ONLY for a hole that has a collar and a length above 0 m. The uranium run flagged 22,404 of 22,407 lithology rows

@@ -5,6 +5,7 @@
 import { valueIn, convertUnit } from "./geochem.js"; // convertUnit: #3219
 import { sourceAssays } from "./numericSources.js";
 import { correlate } from "./correlation.js"; // TASKS.csv #2353
+import { median } from "./arrayStats.js"; // TASKS.csv #3577 — the shared median
 import { ternaryXY } from "./geochemDiagrams.js"; // TASKS.csv #3051
 
 // intervals [{ hole_id, from, to, values: { [symbol]: v } }] -> (sample) => the value at the sample's mid-depth, or null
@@ -119,6 +120,22 @@ export function ratioFactor(xAxis, yAxis) {
   const fx = convertUnit(1, ux, "ppm"), fy = convertUnit(1, uy, "ppm");
   return Number.isFinite(fx) && Number.isFinite(fy) && fx > 0 ? fy / fx : 1;
 }
+// TASKS.csv #3577 (Fireweed / Macpass rehearsal) — Y / X means something for two concentrations (Zn against Pb), not for a density over a grade ('median Y / X 17.7'):
+// a ratio is printed only when both axes are elements in plain concentration units
+export const ratioMeaningful = (xAxis, yAxis) => !!(xAxis?.element && yAxis?.element && PLAIN.has(String(xAxis.unit || "")) && PLAIN.has(String(yAxis.unit || "")));
+// least squares of y on x: -> { slope, intercept, r2, n } or null with fewer than 3 points or no spread in x
+export function fitLine(xs, ys) {
+  const n = xs.length;
+  if (n < 3) return null;
+  let sx = 0, sy = 0;
+  for (let i = 0; i < n; i++) { sx += xs[i]; sy += ys[i]; }
+  const mx = sx / n, my = sy / n;
+  let sxx = 0, sxy = 0, syy = 0;
+  for (let i = 0; i < n; i++) { const dx = xs[i] - mx, dy = ys[i] - my; sxx += dx * dx; sxy += dx * dy; syy += dy * dy; }
+  if (!(sxx > 0)) return null;
+  const slope = sxy / sxx;
+  return { slope, intercept: my - slope * mx, r2: syy > 0 ? (sxy * sxy) / (sxx * syy) : 1, n };
+}
 export function xyStats(xAxis, yAxis, samples, units, { xMin = null } = {}) {
   const xs = [], ys = [], ratios = [];
   let sx = 0, sy = 0;
@@ -134,7 +151,8 @@ export function xyStats(xAxis, yAxis, samples, units, { xMin = null } = {}) {
     }
   }
   ratios.sort((a, b) => a - b);
-  return { n: xs.length, r: xs.length >= 3 ? correlate(xs, ys, "spearman").r : NaN, medianRatio: ratios.length ? ratios[ratios.length >> 1] : NaN, weightedRatio: sx > 0 ? (sy / sx) * k : NaN, inPpm: k !== 1 };
+  const ratioOk = ratioMeaningful(xAxis, yAxis);
+  return { n: xs.length, ratioOk, medianY: median(ys), meanY: xs.length ? ys.reduce((t, v) => t + v, 0) / xs.length : NaN, fit: fitLine(xs, ys), r: xs.length >= 3 ? correlate(xs, ys, "spearman").r : NaN, medianRatio: ratios.length ? ratios[ratios.length >> 1] : NaN, weightedRatio: sx > 0 ? (sy / sx) * k : NaN, inPpm: k !== 1 };
 }
 
 // TASKS.csv #2719 — the elements with no numeric value in these samples (a pXRF-only element when the lab results are shown, or the

@@ -14,14 +14,13 @@ test("1: no lone '.' when nothing was counted; no 'see it' for an empty layer", 
 
 test("2: Including rounds like the grade column; the count column says what it counts", () => {
   const b = read("../src/components/BestIntercepts.jsx");
-  assert.match(b, /\$\{\+dg\(h\.avgGrade\)\.toPrecision\(4\)\} \(/); // dg: #1680 (shown in % on request)
+  assert.match(b, /\$\{\+dg\(h\.avgGrade\)\.toPrecision\(4\)\} \$\{dispUnit\} \(/); // dg: #1680 (shown in % on request)
   assert.ok(b.includes('tr("Samples ≥ cutoff")') && !b.includes('{tr("Assay intervals")}'));
 });
 
 test("3: the log histogram's end labels in significant figures", () => {
   const s = read("../src/components/GradeStatistics.jsx");
-  assert.match(s, /logScale \? \+Math\.pow\(10, data\.min\)\.toPrecision\(3\)/);
-  assert.match(s, /logScale \? \+Math\.pow\(10, data\.max\)\.toPrecision\(3\)/);
+  assert.match(s, /logScale \? \+Math\.pow\(10, v\)\.toPrecision\(3\)/ /* #3576: the axis ticks, the ends among them */);
 });
 
 test("4: colour by element in the element's own unit", () => {
