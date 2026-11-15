@@ -126,3 +126,13 @@ test("#3632 the 3D View's own point-survey builder draws the verdict points, war
   assert.ok(Math.abs(lum(0) - lum(1)) > 0.05);
   assert.match(geophysTipText(rows[0], surveys), /Gravity · contact sensitivity\n.*log₁₀ σ per m/s);
 });
+
+test("#3664 the Inversion pane's survey choice counts only surveys it could invert: a contact-sensitivity or TEM model product does not hide its form", async () => {
+  const { inversionSurveyChoices } = await import("../src/lib/geophysSurveyTools.js");
+  const rows = [{ x: 0, y: 0, value: 1, _src: "SYN_gravity.csv" }, { x: 0, y: 0, value: -1.5, _src: "Gravity · contact sensitivity" }, { x: 0, y: 0, value: 2, _src: "TEM 1D" }];
+  const surveys = { "SYN_gravity.csv": { method: "grav" }, "Gravity · contact sensitivity": { method: "structfit_sens" }, "TEM 1D": { method: "tem1d_cond" } };
+  assert.deepEqual(inversionSurveyChoices(rows, surveys), ["SYN_gravity.csv"]);
+  assert.deepEqual(inversionSurveyChoices([...rows, { x: 1, y: 1, value: 3, _src: "mag.csv" }], { ...surveys, "mag.csv": { method: "mag" } }), ["SYN_gravity.csv", "mag.csv"], "two invertible surveys: the choice stays");
+  assert.deepEqual(inversionSurveyChoices(rows.slice(1), surveys), ["Gravity · contact sensitivity", "TEM 1D"], "none invertible: all of them, as before");
+  assert.deepEqual(inversionSurveyChoices([{ x: 0, y: 0, value: 1 }], {}), ["(unnamed import)"]);
+});

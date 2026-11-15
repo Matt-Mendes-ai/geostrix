@@ -35,7 +35,7 @@ const StructFitPanel = React.lazy(() => import("./StructFitPanel.jsx")); // TASK
 import { t as tr } from "../lib/i18n.js";
 import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #1709 // TASKS.csv #786
 import { SURVEY_METHODS } from "../lib/geophysSurveys.js";
-import { methodIsInvertible, inversionSurveyCounts } from "../lib/geophysSurveyTools.js"; // TASKS.csv #3590 // TASKS.csv #1151; inversionSurveyCounts: #2403
+import { methodIsInvertible, inversionSurveyCounts, inversionSurveyChoices } from "../lib/geophysSurveyTools.js"; // TASKS.csv #3590 // TASKS.csv #1151; inversionSurveyCounts: #2403
 import { terrainFromSurveyElevations } from "../lib/terrainFromPoints.js"; // TASKS.csv #1589
 import { defaultPlannedExtent, generatePlannedStations, DEFAULT_PLANNED, fitPlannedSpacing } from "../lib/plannedGrid.js"; // TASKS.csv #1710; fit: #2969
 import { SURVEY_METHODS as SM } from "../lib/geophysSurveys.js";
@@ -59,7 +59,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
   // gravity or radiometric survey used to be inverted TOGETHER as "TMI in nT". The inversion now uses
   // exactly one imported survey (by source file); with more than one loaded, the user must pick.
   const allRows = useMemo(() => (layers.geophys_pts || []).filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value) && !geophysSurveys?.[r._src || ""]?.positionsOnly /* TASKS.csv #3447 — no measured value */), [layers.geophys_pts, geophysSurveys]);
-  const surveys = useMemo(() => Array.from(new Set(allRows.map((r) => r._src || "(unnamed import)"))), [allRows]);
+  const surveys = useMemo(() => inversionSurveyChoices(allRows, geophysSurveys), [allRows, geophysSurveys]); // TASKS.csv #3664 — the invertible ones only
   const [survey, setSurvey] = useKeptState(keptScope, "inversion.survey", "");
   const activeSurvey = surveys.length === 1 ? surveys[0] : survey; // (the planned grid stands in below, #1710)
   // TASKS.csv #2638 — a ground from the stations' own elevations is this run's ground (passed to the engine, named in the run's record), not
