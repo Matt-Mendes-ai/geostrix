@@ -336,6 +336,9 @@ export function fieldsFromPayload(data, name, dropped = []) {
 // expanded into rows a slice at a time, before fieldsFromPayload: building 200,000 assay rows was one 1.4-1.9 s main-thread task of the open.
 // -> a shallow copy of data with those tables as rows; fieldsFromPayload then finds rows (expandTable passes them through) and builds the
 // same fields. The rows are expandTable's (same cache seeding, #3118).
+// does the payload hold a column table that expandPayloadSliced would expand (a small project's tab switches at once, as before)
+export const payloadHasTables = (data) => !!data && typeof data === "object" && (["assays", "survey", "surfaceSamples"].some((k) => data[k]?.__compactTable)
+  || Object.values(data.layers || {}).some((v) => v?.__compactTable) || (Array.isArray(data.customLayers) && data.customLayers.some((l) => l?.rows?.__compactTable)));
 export async function expandPayloadSliced(data, pause = budgetPause()) {
   if (!data || typeof data !== "object") return data;
   const out = { ...data };
