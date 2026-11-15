@@ -209,8 +209,22 @@ def hs_hp_empymod(cond, thick, coils, height):
     return out
 
 
-def invert_batch(sv, d, sd, thick, m_ref=None, alpha=ALPHA, max_iter=15, smooth=1.0):
-    """d, sd: (S, D) data and standard deviations (NaN = missing). -> m (S, N), chi (S,), pred (S, D), J (S, D, N), w (S, D)"""
+GEO_STEP = 0.1  # m: the finite-difference step of a freed geometry parameter's Jacobian column (TASKS.csv #1987)
+
+
+def invert_batch(sv, d, sd, thick, m_ref=None, alpha=ALPHA, max_iter=15, smooth=1.0, prior=None, free=None, info=False):
+    """d, sd: (S, D) data and standard deviations (NaN = missing). -> m (S, N), chi (S,), pred (S, D), J (S, D, N), w (S, D)
+    [, and with info=True a dict: sd (S, N) the posterior standard deviation of log10 cond (decades), g {name: (S,)} the solved geometry,
+    gsd {name: (S,)} its posterior sd].
+    TASKS.csv #1987 (Stage A) —
+    prior: (m_pr, s_pr), each (N,) or (S, N): a reference model (log10 S/m) with its own uncertainty per layer (decades); the term
+      |(m - m_pr) / s_pr|^2 is added as it is, not scaled by the trade-off beta (a typed uncertainty keeps its meaning while beta cools),
+      so s -> 0 returns the reference and s -> inf today's result. NaN or a non-positive sd: no prior on that layer.
+    free: {name: (g0, s)} geometry solved for beside the model (a survey with per_station geometry: TEM's 'h' and 'rz'), each with its
+      prior mean (g0 (S,): the file's value) and sd (m, (S,) or one), its Jacobian column by a finite difference (one more forward a
+      parameter an iteration).
+    The posterior is linearised at the solution, C = (J' W^2 J + beta R + Q)^-1, so it depends on the regularisation: a figure of the
+    same kind as Workbench's, not a sampled uncertainty."""
     S, Dn = d.shape
     N = len(thick) + 1
     # apparent conductivity is fitted in log space (Workbench's choice too): sd becomes the log of 1 + the relative error, so a
@@ -219,6 +233,25 @@ def invert_batch(sv, d, sd, thick, m_ref=None, alpha=ALPHA, max_iter=15, smooth=
     # TASKS.csv #3440 — a TEM survey (app/geophys/tem1d.py TemSurvey) brings its own forward (forward_fn) and kind "log": its decays span decades
     logd = sv.kind in ("eca", "log")
     fw = getattr(sv, "forward_fn", None) or (lambda mm, th, jac=False: forward(sv, mm, th, jac=jac))
+    # TASKS.csv #1987 — a survey with a geometry per station (TEM: height, rz, tilt) takes the rows a call is for: the line search runs on
+    # the stations still moving, and before this each such call fell back to the batch's mean height (the half-space grid's rule)
+    per_station = bool(getattr(sv, "per_station", False))
+    keys = list(free or {})
+    K = len(keys)
+    if K and not per_station:
+        raise ValueError("Geometry can be solved for only on a survey with a geometry per station.")
+    g0 = np.zeros((S, K))
+    sg = np.ones((S, K))
+    for k, name in enumerate(keys):
+        a0, s0 = free[name]
+        g0[:, k] = np.broadcast_to(np.asarray(a0, float), (S,))
+        sg[:, k] = np.broadcast_to(np.asarray(s0, float), (S,))
+    if K and not (np.all(np.isfinite(g0)) and np.all(np.isfinite(sg)) and np.all(sg > 0)):
+        raise ValueError("A freed geometry parameter needs a prior value and a positive uncertainty at every station.")
+    glo, ghi = g0 - 6.0 * sg, g0 + 6.0 * sg
+    for k, name in enumerate(keys):
+        if name == "h":
+            glo[:, k] = np.maximum(glo[:, k], 1.0)  # the system stays above the ground
     ok = np.isfinite(d) & np.isfinite(sd) & (sd > 0) & ((d > 0) if logd else True)
     if logd:
         dd = np.where(ok, np.log(np.where(ok, d, 1.0)), 0.0)
@@ -237,19 +270,40 @@ def invert_batch(sv, d, sd, thick, m_ref=None, alpha=ALPHA, max_iter=15, smooth=
         floor_rows = np.where(np.isfinite(dpos), 1e-3 * dpos, 1e-9)
         floor_any = 1e-3 * float(np.nanmin(dpos)) if np.isfinite(dpos).any() else 1e-9
 
-    def _floor(p):
-        return floor_rows if np.shape(floor_rows) == p.shape else floor_any  # the half-space search's grid rows take one floor
+    def _floor(p, rows):
+        if np.ndim(floor_rows) == 2:
+            fr = floor_rows if rows is None else floor_rows[rows]
+            if fr.shape == p.shape:
+                return fr
+        return floor_any  # the half-space search's grid rows take one floor
 
-    def F(mm, jac=False):
+    def F(mm, jac=False, rows=None, gg=None):
+        kw = {}
+        if per_station:
+            kw["rows"] = rows
+            if K and gg is not None:
+                kw["geo"] = {name: gg[:, k] for k, name in enumerate(keys)}
         if not jac:
-            p = fw(mm, thick)
-            return np.log(np.maximum(p, _floor(p))) if logd else p
-        p, Jm = fw(mm, thick, jac=True)
+            p = fw(mm, thick, **kw)
+            return np.log(np.maximum(p, _floor(p, rows))) if logd else p
+        p, Jm = fw(mm, thick, jac=True, **kw)
         if logd:
-            fl = _floor(p)
+            fl = _floor(p, rows)
             pp = np.maximum(p, fl)
             return np.log(pp), np.where((p > fl)[:, :, None], Jm / pp[:, :, None], 0.0)
         return p, Jm
+
+    def FJ(mm, gg):
+        """the prediction and the Jacobian of the model and the freed geometry (S, D, N + K)"""
+        p, Jm = F(mm, jac=True, gg=gg)
+        if not K:
+            return p, Jm, Jm
+        Jg = np.empty((S, Dn, K))
+        for k in range(K):
+            gk = gg.copy()
+            gk[:, k] += GEO_STEP
+            Jg[:, :, k] = (F(mm, gg=gk) - p) / GEO_STEP
+        return p, Jm, np.concatenate([Jm, Jg], axis=2)
 
     grid = np.linspace(-4.0, 0.5, 46)
     gp = F(np.repeat(grid[:, None], N, 1))  # the best half-space (as N equal layers)
@@ -260,45 +314,71 @@ def invert_batch(sv, d, sd, thick, m_ref=None, alpha=ALPHA, max_iter=15, smooth=
     Dm = np.diff(np.eye(N), axis=0) * smooth
     R = Dm.T @ Dm
     Rs = R[None, :, :] + a[:, None, None] * np.eye(N)[None, :, :]  # (S, N, N)
+    P = N + K
+    Rb = np.zeros((S, P, P))
+    Rb[:, :N, :N] = Rs
+    # the prior's precision per unknown (not scaled by beta) and its mean: the typed reference on the layers, the file's geometry
+    q = np.zeros((S, P))
+    xp = np.zeros((S, P))
+    if prior is not None:
+        pm = np.broadcast_to(np.asarray(prior[0], float), (S, N))
+        ps = np.broadcast_to(np.asarray(prior[1], float), (S, N))
+        okp = np.isfinite(pm) & np.isfinite(ps) & (ps > 0)
+        q[:, :N] = np.where(okp, 1.0 / np.where(okp, ps, 1.0) ** 2, 0.0)
+        xp[:, :N] = np.where(okp, pm, 0.0)
+    if K:
+        q[:, N:] = 1.0 / sg ** 2
+        xp[:, N:] = g0
+    refx = np.concatenate([ref, np.zeros((S, K))], axis=1)
+    lo = np.concatenate([np.full((S, N), LOG_BOUNDS[0]), glo], axis=1)
+    hi = np.concatenate([np.full((S, N), LOG_BOUNDS[1]), ghi], axis=1)
+    x = np.concatenate([m, g0], axis=1)
     beta = None
     active = ok.any(1)
-    pred = F(m)
+    pred = F(m, gg=g0 if K else None)
     chi = np.sqrt((((pred - dd) * w) ** 2).sum(1) / nd)
-    J = None
+
+    def _penalty(xx, rows):
+        dr = xx - refx[rows]
+        dp = xx - xp[rows]
+        return beta[rows] * np.einsum("si,sij,sj->s", dr, Rb[rows], dr) + (q[rows] * dp * dp).sum(1)
+
+    allrows = np.arange(S)
     for _ in range(max_iter):
         if not active.any():
             break
-        pred, J = F(m, jac=True)
+        pred, _, J = FJ(x[:, :N], x[:, N:])
         JW = J * w[:, :, None]
         A = np.einsum("sdi,sdj->sij", JW, JW)
         if beta is None:
-            beta = 10.0 * np.trace(A, axis1=1, axis2=2) / np.trace(Rs, axis1=1, axis2=2)
+            beta = 10.0 * np.trace(A[:, :N, :N], axis1=1, axis2=2) / np.trace(Rs, axis1=1, axis2=2)
             beta = np.maximum(beta, 1e-12)
             beta0 = beta.copy()
             frozen = np.zeros(S, bool)
         res = (dd - pred) * w
-        dm = m - ref
-        g = np.einsum("sdi,sd->si", JW, res) - beta[:, None] * np.einsum("sij,sj->si", Rs, dm)
-        step = np.linalg.solve(A + beta[:, None, None] * Rs, g[:, :, None])[:, :, 0]
-        phi0 = (res ** 2).sum(1) + beta * np.einsum("si,sij,sj->s", dm, Rs, dm)
+        grad = np.einsum("sdi,sd->si", JW, res) - beta[:, None] * np.einsum("sij,sj->si", Rb, x - refx) - q * (x - xp)
+        H = A + beta[:, None, None] * Rb + q[:, :, None] * np.eye(P)[None, :, :]
+        step = np.linalg.solve(H, grad[:, :, None])[:, :, 0]
+        phi0 = (res ** 2).sum(1) + _penalty(x, allrows)
         t = np.ones(S)
         accepted = np.zeros(S, bool)
-        m_new, p_new = m.copy(), pred.copy()
+        x_new, p_new = x.copy(), pred.copy()
         for _ls in range(8):
             todo = active & ~accepted
             if not todo.any():
                 break
-            mt = np.clip(m[todo] + t[todo][:, None] * step[todo], *LOG_BOUNDS)
-            pt = F(mt)
-            dmt = mt - ref[todo]
-            phi = (((dd[todo] - pt) * w[todo]) ** 2).sum(1) + beta[todo] * np.einsum("si,sij,sj->s", dmt, Rs[todo], dmt)
-            good = phi < phi0[todo]
             idx = np.flatnonzero(todo)
-            m_new[idx[good]], p_new[idx[good]] = mt[good], pt[good]
+            xt = np.clip(x[idx] + t[idx][:, None] * step[idx], lo[idx], hi[idx])
+            pt = F(xt[:, :N], rows=idx, gg=xt[:, N:] if K else None)
+            phi = (((dd[idx] - pt) * w[idx]) ** 2).sum(1) + _penalty(xt, idx)
+            good = phi < phi0[idx]
+            x_new[idx[good]], p_new[idx[good]] = xt[good], pt[good]
             accepted[idx[good]] = True
             t[idx[~good]] *= 0.5
-        moved = np.abs(m_new - m).max(1)
-        m, pred = m_new, p_new
+        moved = np.abs(x_new[:, :N] - x[:, :N]).max(1)
+        if K:
+            moved = np.maximum(moved, 0.1 * np.abs(x_new[:, N:] - x[:, N:]).max(1))  # 1 cm of height counts as 1e-3 decades
+        x, pred = x_new, p_new
         chi_prev = chi
         chi = np.sqrt((((pred - dd) * w) ** 2).sum(1) / nd)
         active &= accepted
@@ -310,8 +390,33 @@ def invert_batch(sv, d, sd, thick, m_ref=None, alpha=ALPHA, max_iter=15, smooth=
         active &= ~(~cool & (moved < 1e-3))
         active &= ~((chi > 1.0) & ~improving & (frozen))
         frozen = frozen | ((chi > 1.0) & ~improving)
-    pred, J = F(m, jac=True)  # the final model's sensitivities, for the depth of investigation
+    m, g = x[:, :N].copy(), x[:, N:].copy()
+    # the final model's sensitivities, for the depth of investigation (and the posterior)
+    if info:
+        pred, J, Jx = FJ(m, g)
+    else:
+        pred, J = F(m, jac=True, gg=g if K else None)
     chi = np.sqrt((((pred - dd) * w) ** 2).sum(1) / nd)
+    out_info = None
+    if info:
+        JW = Jx * w[:, :, None]
+        A = np.einsum("sdi,sdj->sij", JW, JW)
+        if beta is None:  # no iteration ran
+            beta = np.maximum(10.0 * np.trace(A[:, :N, :N], axis1=1, axis2=2) / np.trace(Rs, axis1=1, axis2=2), 1e-12)
+        H = A + beta[:, None, None] * Rb + q[:, :, None] * np.eye(P)[None, :, :]
+        try:
+            C = np.linalg.inv(H)
+            var = np.diagonal(C, axis1=1, axis2=2).copy()
+        except np.linalg.LinAlgError:
+            var = np.full((S, P), np.nan)
+            for i in range(S):
+                try:
+                    var[i] = np.diag(np.linalg.inv(H[i]))
+                except np.linalg.LinAlgError:
+                    pass
+        psd = np.sqrt(np.where(var > 0, var, np.nan))
+        out_info = {"sd": psd[:, :N], "g": {name: g[:, k] for k, name in enumerate(keys)},
+                    "gsd": {name: psd[:, N + k] for k, name in enumerate(keys)}, "beta": beta}
     if logd:
         pred = np.exp(pred)  # back to mS/m for the caller
         J = J * pred[:, :, None]  # and the Jacobian with it (the depth of investigation weighs it by w, so in log terms again below)
@@ -319,6 +424,12 @@ def invert_batch(sv, d, sd, thick, m_ref=None, alpha=ALPHA, max_iter=15, smooth=
     bad = ~ok.any(1)
     m[bad] = np.nan
     chi[bad] = np.nan
+    if info:
+        out_info["sd"][bad] = np.nan
+        for name in keys:
+            out_info["g"][name][bad] = np.nan
+            out_info["gsd"][name][bad] = np.nan
+        return m, chi, pred, J, w, out_info
     return m, chi, pred, J, w
 
 

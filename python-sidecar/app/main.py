@@ -662,6 +662,24 @@ def _validate_tem1d(req):
         raise HTTPException(400, "2 to 40 layers, the first thinner than the bottom depth (at most 2,000 m).")
     if not (0 <= rel <= 1 and ab >= 0 and (rel > 0 or ab > 0 or std is not None) and 0 <= lat <= 100):
         raise HTTPException(400, "The relative error must be 0-1 and the absolute error >= 0 (not both 0 without std); lateral 0-100.")
+    # TASKS.csv #1987 — a reference model per layer with its uncertainty (decades), and the height / rz solved for with a typed sd
+    pr = req.get("prior")
+    if pr is not None:
+        def _row(r, ok):
+            return isinstance(r, list) and len(r) == nl and all(v is None or (isinstance(v, (int, float)) and ok(v)) for v in r)
+        cond_ok = lambda v: 0.01 <= v <= 10000  # mS/m: the engine's bounds
+        sd_ok = lambda v: 0 < v <= 10
+        c = pr.get("condMs") if isinstance(pr, dict) else None
+        sdl = pr.get("sdLog") if isinstance(pr, dict) else None
+        c_ok = _row(c, cond_ok) or (isinstance(c, list) and len(c) == n and all(_row(r, cond_ok) for r in c))
+        s_ok = (isinstance(sdl, (int, float)) and sd_ok(sdl)) or _row(sdl, sd_ok) or (isinstance(sdl, list) and len(sdl) == n and all(_row(r, sd_ok) for r in sdl))
+        if not (c_ok and s_ok):
+            raise HTTPException(422, f"prior needs condMs (0.01-10,000 mS/m, null = none) and sdLog (decades, above 0 and at most 10): one value, {nl} (one a layer, the half-space last) or one such row per station.")
+    fr = req.get("free")
+    if fr is not None:
+        if not isinstance(fr, dict) or not set(fr) <= {"height", "rz"} or any(
+                not isinstance(v, dict) or not isinstance(v.get("sd"), (int, float)) or not (0.01 <= v["sd"] <= 50) for v in fr.values()):
+            raise HTTPException(422, "free may hold height and rz, each with its prior uncertainty sd of 0.01-50 m.")
 
 
 @app.post("/v1/geophys/dcip3d/plan")

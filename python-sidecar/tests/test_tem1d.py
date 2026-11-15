@@ -10,6 +10,7 @@ Plain script (no pytest in the venv): python tests/test_tem1d.py
   - the Jacobian (d data / d log10 conductivity) against finite differences
   - step 2: the inversion recovers a synthetic 3-layer earth (a conductor at 30-60 m) from its own data, with and without 3 % noise,
     through run_job; the request validation (app.main._validate_tem1d)
+  - TASKS.csv #1987: the height (and rz) solved for with a prior, the posterior sd, a per-layer reference prior
 """
 import math
 import os
@@ -426,6 +427,81 @@ def check_system_3485():
     print("system validation: a loop, filters (one second order), receiver heights, a tilt and a base frequency pass; seven bad requests are refused")
 
 
+def check_prior_geometry_1987():
+    """TASKS.csv #1987 (Stage A) — a 4-layer earth seen from 40 m by a SkyTEM-like frame, the altimeter reading 43 m: the height solved
+    for (prior: the altimeter, sd 3 m) lands within its posterior sd; the sd shrinks with lower noise; a tight per-layer prior returns the
+    reference and a wide one today's result; the line search's stations keep their own heights (rows); the time a station with each piece."""
+    system = {"geom": "cloop", "a": 10.36, "r": 12.83, "h": 40.0, "rz": 2.0}
+    gates = np.logspace(math.log10(1e-5), math.log10(5e-3), 24)
+    wf = [[-0.004, 0.0], [-0.0039, 1.0], [-3e-5, 1.0], [0.0, 0.0]]
+    d0 = tem1d.forward([[0.02, 0.005, 0.2, 0.01]], [20.0, 40.0, 40.0], system, gates, waveform=wf)[0] * tem1d.PV
+    S = 16
+
+    def run(extra, rel=0.03, seed=1):
+        rng = np.random.default_rng(seed)
+        data = [(d0 * (1 + rel * rng.standard_normal(d0.size))).tolist() for _ in range(S)]
+        t0 = time.perf_counter()
+        out = tem1d.run_job({"system": {**system, "h": 43.0}, "gates": gates.tolist(), "waveform": wf, "heights": [43.0] * S, "data": data,
+                             "errRel": rel, "maxIter": 15, **extra}, lambda ev: None)
+        return out, (time.perf_counter() - t0) / S * 1000
+
+    fixed, t_fix = run({})
+    free, t_h = run({"free": {"height": {"sd": 3.0}}})
+    both, t_hr = run({"free": {"height": {"sd": 3.0}, "rz": {"sd": 0.5}}})
+    h, hsd = np.array(free["heightM"]), np.array(free["heightSdM"])
+    rms = float(np.sqrt(np.mean((h - 40.0) ** 2)))
+    print(f"height free (true 40 m, altimeter 43, prior sd 3): solved {h.mean():.2f} m (spread {h.std():.2f}), posterior sd {np.median(hsd):.2f}, "
+          f"rms error {rms:.2f}; chi {np.median(fixed['chi']):.2f} fixed, {np.median(free['chi']):.2f} free; "
+          f"rz (prior 2.0, sd 0.5) {np.mean(both['rzM']):.2f} sd {np.median(both['rzSdM']):.2f}: the data do not resolve it")
+    assert abs(h.mean() - 40.0) < np.median(hsd) < 3.0 and rms < 1.5 * np.median(hsd)
+    assert 0.6 < np.median(free["chi"]) < 1.4
+    assert np.median(both["rzSdM"]) > 0.9 * 0.5  # rz is left at its prior: its sd stays the prior's
+    sd_lay = np.array(fixed["sdLog"], float)
+    print(f"posterior sd (decades): {np.median(sd_lay[:, 0]):.3f} at the top, {np.median(sd_lay[:, 10]):.3f} at layer 11, "
+          f"{np.median(sd_lay[:, -1]):.3f} in the half-space below the DOI")
+    assert np.median(sd_lay[:, -1]) > 3 * np.median(sd_lay[:, 10])
+    lo, _ = run({"free": {"height": {"sd": 3.0}}}, rel=0.01, seed=2)
+    hi, _ = run({"free": {"height": {"sd": 3.0}}}, rel=0.05, seed=2)
+    print(f"noise 1 % / 5 %: layer sd median {np.median(lo['sdLog']):.3f} / {np.median(hi['sdLog']):.3f}, height sd {np.median(lo['heightSdM']):.2f} / {np.median(hi['heightSdM']):.2f}")
+    assert np.median(lo["sdLog"]) < np.median(hi["sdLog"]) and np.median(lo["heightSdM"]) < np.median(hi["heightSdM"])
+    N = len(fixed["thick"]) + 1
+    m0 = np.log10(np.array(fixed["condMs"], float))
+    tight, _ = run({"prior": {"condMs": [30.0] * N, "sdLog": 1e-3}})
+    wide, _ = run({"prior": {"condMs": [30.0] * N, "sdLog": 10.0}})
+    d_tight = float(np.abs(np.log10(np.array(tight["condMs"], float)) - math.log10(30.0)).max())
+    d_wide = float(np.abs(np.log10(np.array(wide["condMs"], float)) - m0).max())
+    print(f"prior 30 mS/m: sd 0.001 decades -> within {d_tight:.4f} of it (chi {np.median(tight['chi']):.1f}); sd 10 -> within {d_wide:.4f} of no prior")
+    assert d_tight < 0.01 and d_wide < 0.02
+    # the line search runs on a subset of the batch: each station keeps its own height (before #1987 the subset took the batch's mean)
+    sv = tem1d.TemSurvey({**system, "h": np.array([25.0, 40.0, 60.0, 80.0])}, gates=gates, waveform=wf)
+    mm = np.full((4, 3), -2.0)
+    thick = np.array([20.0, 40.0])
+    rows = np.array([1, 3])
+    assert np.allclose(sv.forward_fn(mm[rows], thick, rows=rows), sv.forward_fn(mm, thick)[rows])
+    assert np.allclose(sv.forward_fn(mm[rows], thick, rows=rows, geo={"h": np.array([60.0, 25.0])}), sv.forward_fn(mm, thick)[[2, 0]])
+    print(f"time a station: {t_fix:.0f} ms, height free {t_h:.0f} ms (+{100 * (t_h / t_fix - 1):.0f} %), height and rz {t_hr:.0f} ms (+{100 * (t_hr / t_fix - 1):.0f} %)")
+    try:
+        from fastapi import HTTPException
+        from app.main import _validate_tem1d
+    except Exception as e:  # noqa: BLE001
+        print(f"#1987 validation: not checked ({e})")
+        return
+    good = {"system": system, "gates": gates.tolist(), "data": [d0.tolist()] * 2, "errRel": 0.05, "layers": {"n": 5, "first": 3, "bottom": 100},
+            "prior": {"condMs": [30, None, 30, 30, 30], "sdLog": [0.3] * 5}, "free": {"height": {"sd": 3}, "rz": {"sd": 0.5}}}
+    _validate_tem1d(good)
+    _validate_tem1d({**good, "prior": {"condMs": [[30] * 5] * 2, "sdLog": 0.5}})
+    for bad, why in [({**good, "prior": {"condMs": [30] * 6, "sdLog": 0.3}}, "a prior of the wrong length (one a layer: n, the half-space included)"),
+                     ({**good, "prior": {"condMs": [30] * 5}}, "a prior with no uncertainty"),
+                     ({**good, "prior": {"condMs": [30] * 5, "sdLog": 0}}, "a zero uncertainty"),
+                     ({**good, "free": {"height": {}}}, "a freed height with no sd"), ({**good, "free": {"pitch": {"sd": 1}}}, "pitch (Stage B)")]:
+        try:
+            _validate_tem1d(bad)
+        except HTTPException:
+            continue
+        raise AssertionError(f"accepted {why}")
+    print("#1987 validation: a prior (a row, or one a station) and a freed height / rz pass; five bad requests are refused")
+
+
 if __name__ == "__main__":
     check_half_space()
     check_against_empymod()
@@ -436,4 +512,5 @@ if __name__ == "__main__":
     check_inversion()
     check_step3()
     check_system_3485()
+    check_prior_geometry_1987()
     print("tem1d: all checks passed")

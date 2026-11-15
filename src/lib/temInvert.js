@@ -120,7 +120,9 @@ export function heightColumn(columns) {
 // TASKS.csv #3502: tilt { pitch, roll } columns: each station's factor cos(pitch) cos(roll), and without rxCol the receiver's height from the
 // pitch (SkyTEM: rz cos(pitch) cos(roll) - r sin(pitch), the receiver r metres behind the loop's centre: the USGS file's RX_ALTITUDE less its
 // TX_ALTITUDE follows it to 3 cm, median).
-export function buildTemRequest(data, { moments, timeZero = "rampEnd", unit = "pV", noise = null, every = 1, heightsCol = null, rxCol = null, tilt = null, system, layers, errRel = 0.05, lateral = 0 }) {
+// TASKS.csv #1987 — prior: rows from parsePriorTable (a reference model with its uncertainty), put on the layers; free: { height, rz } (each
+// the prior sd in metres, or null): the height and the receiver's rz solved for, the file's values as their prior means.
+export function buildTemRequest(data, { moments, timeZero = "rampEnd", unit = "pV", noise = null, every = 1, heightsCol = null, rxCol = null, tilt = null, system, layers, errRel = 0.05, lateral = 0, prior = null, free = null }) {
   const scale = unit === "SI" ? 1e12 : 1;
   const widthsMismatch = [];
   const ms = moments.map((mo) => {
@@ -187,6 +189,14 @@ export function buildTemRequest(data, { moments, timeZero = "rampEnd", unit = "p
     request.gapM = +Math.min(500, Math.max(100, 3 * med)).toFixed(1);
   }
   if (rxc) request.rz = pick.map((i) => { const d = rxc[i] - hcol[i]; return Number.isFinite(d) && Math.abs(d) <= 20 ? +d.toFixed(2) : null; });
+  if (prior?.length && layers) {
+    const pl = priorOnLayers(prior, layers);
+    if (pl.condMs.some((v) => v != null)) request.prior = pl;
+  }
+  const fr = {};
+  if (Number(free?.height) > 0) fr.height = { sd: Number(free.height) };
+  if (Number(free?.rz) > 0 && system?.geom !== "loop") fr.rz = { sd: Number(free.rz) };
+  if (Object.keys(fr).length) request.free = fr;
   const pc = tilt?.pitch ? data.get(tilt.pitch) : null, rc = tilt?.roll ? data.get(tilt.roll) : null;
   if (pc || rc) {
     const p0 = pc ? tiltOffset(pc) : 0, r0 = rc ? tiltOffset(rc) : 0, rad = Math.PI / 180;
@@ -200,6 +210,44 @@ export function buildTemRequest(data, { moments, timeZero = "rampEnd", unit = "p
   return { request, pick, dropped, gatesPerMoment: ms.map((mo) => mo.gates.length), scale, widthsMismatch };
 }
 
+// TASKS.csv #1987 — a reference model typed or pasted as rows of "depth from (m), resistivity (ohm m), uncertainty (decades)", one a line (a
+// borehole log, a previous model): each row holds from its depth down to the next row's, the last one to the bottom. The uncertainty must
+// be typed on every row (nothing is assumed). A first line that is not numbers is taken as a header.
+// -> { rows: [{ depth, ohmm, sd }], error }
+export function parsePriorTable(text) {
+  const lines = String(text || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const rows = [];
+  for (let k = 0; k < lines.length; k++) {
+    const v = lines[k].split(/[\s,;]+/).filter(Boolean).map(Number);
+    if (k === 0 && !Number.isFinite(v[0])) continue; // a header
+    if (v.length < 3 || !v.slice(0, 3).every(Number.isFinite)) return { rows: [], error: "Each line needs three numbers: depth from (m), resistivity (ohm m) and its uncertainty (decades)." };
+    const [depth, ohmm, sd] = v;
+    if (depth < 0 || depth > 2000) return { rows: [], error: "Depths must be 0 to 2,000 m." };
+    if (!(ohmm >= 0.1 && ohmm <= 100000)) return { rows: [], error: "Resistivity must be 0.1 to 100,000 ohm m." };
+    if (!(sd > 0 && sd <= 10)) return { rows: [], error: "The uncertainty must be above 0 and at most 10 decades (0.3 is a factor of 2)." };
+    if (rows.length && depth <= rows[rows.length - 1].depth) return { rows: [], error: "Depths must increase down the table." };
+    rows.push({ depth, ohmm, sd });
+  }
+  return { rows, error: null };
+}
+// the table on the inversion's layers: each layer takes the row in force at its middle (the half-space: half its last layer's thickness
+// below the last top); a layer above the table's first depth has no prior. -> { condMs: [N] (mS/m or null), sdLog: [N] (decades or null) }
+export function priorOnLayers(rows, layers) {
+  const thick = layerThicknesses(Number(layers.n) || 20, Number(layers.first) || 3, Number(layers.bottom) || 300);
+  const mids = [];
+  let top = 0;
+  for (const t of thick) { mids.push(top + t / 2); top += t; }
+  mids.push(top + (thick.length ? thick[thick.length - 1] / 2 : 10));
+  const condMs = [], sdLog = [];
+  for (const z of mids) {
+    let r = null;
+    for (const row of rows) if (row.depth <= z) r = row;
+    condMs.push(r ? +(1000 / r.ohmm).toPrecision(6) : null);
+    sdLog.push(r ? r.sd : null);
+  }
+  return { condMs, sdLog };
+}
+
 // TASKS.csv #3486 — the inverted models as a table: one row a station and layer (the last layer is the half-space below the model, its bottom
 // blank), the station's file row, line, position, ground elevation when the file has one, the layer's depths, conductivity (mS/m) and
 // resistivity (ohm m), whether it is above the station's depth of investigation, the station's misfit. Stations without a model are left out.
@@ -208,17 +256,21 @@ export function modelsCsv(data, result, pick) {
   for (const t of result.thick || []) tops.push(tops[tops.length - 1] + t);
   const z = data.z || null;
   const f = (v, d) => (v == null || !Number.isFinite(v) ? "" : String(+v.toFixed(d)));
-  const lines = ["file_row,line,x,y,ground_z,top_m,bottom_m,conductivity_mS_m,resistivity_ohm_m,above_doi,chi,doi_m"];
+  // TASKS.csv #1987 — the posterior sd of log10 conductivity per layer (linearised at the solution: it depends on the regularisation), and
+  // the solved height / rz with their sd when they were solved for
+  const geo = ["height", "rz"].filter((k) => Array.isArray(result[k + "M"]));
+  const lines = ["file_row,line,x,y,ground_z,top_m,bottom_m,conductivity_mS_m,resistivity_ohm_m,above_doi,chi,doi_m,sd_log10_cond" + geo.map((k) => `,${k}_m,${k}_sd_m`).join("")];
   let rows = 0;
   (pick || []).forEach((i, j) => {
     const cond = result.condMs?.[j];
     if (!cond) return;
-    const doi = result.doi?.[j], chi = result.chi?.[j];
+    const doi = result.doi?.[j], chi = result.chi?.[j], sdl = result.sdLog?.[j];
+    const geoCells = geo.map((k) => `,${f(result[k + "M"][j], 2)},${f(result[k + "SdM"]?.[j], 2)}`).join("");
     cond.forEach((c, k) => {
       const top = tops[k], bottom = k < tops.length - 1 ? tops[k + 1] : null;
       const above = Number.isFinite(doi) ? (top < doi ? "yes" : "no") : "";
       const line = String(data.line[i]).includes(",") ? `"${String(data.line[i]).replace(/"/g, '""')}"` : String(data.line[i]);
-      lines.push([i + 1, line, f(data.x[i], 2), f(data.y[i], 2), z ? f(z[i], 2) : "", f(top, 2), bottom == null ? "" : f(bottom, 2), f(c, 4), c > 0 ? f(1000 / c, 3) : "", above, f(chi, 3), f(doi, 1)].join(","));
+      lines.push([i + 1, line, f(data.x[i], 2), f(data.y[i], 2), z ? f(z[i], 2) : "", f(top, 2), bottom == null ? "" : f(bottom, 2), f(c, 4), c > 0 ? f(1000 / c, 3) : "", above, f(chi, 3), f(doi, 1), f(sdl?.[k], 3)].join(",") + geoCells);
       rows++;
     });
   });
@@ -226,13 +278,16 @@ export function modelsCsv(data, result, pick) {
 }
 
 // The finished stations from the progress events (each carries the last few batches; a later pass replaces an earlier one).
-// state: { condMs: Map, chi: Map, doi: Map, pred: Map, pass: Map } (or null) -> the same, updated
+// state: { condMs: Map, chi: Map, doi: Map, pred: Map, pass: Map, [sdLog, heightM, heightSdM, rzM, rzSdM: Map] } (or null) -> the same, updated
+const EXTRA = ["sdLog", "heightM", "heightSdM", "rzM", "rzSdM"]; // TASKS.csv #1987
 export function mergePartials(state, partials) {
   const s = state || { condMs: new Map(), chi: new Map(), doi: new Map(), pred: new Map(), pass: new Map() };
   for (const p of partials || []) {
+    for (const key of EXTRA) if (p[key] && !s[key]) s[key] = new Map();
     p.idx.forEach((j, k) => {
       if ((s.pass.get(j) ?? -1) > (p.pass ?? 0)) return;
       s.pass.set(j, p.pass ?? 0); s.condMs.set(j, p.condMs[k]); s.chi.set(j, p.chi[k]); s.doi.set(j, p.doi[k]); s.pred.set(j, p.pred[k]);
+      for (const key of EXTRA) if (p[key]) s[key].set(j, p[key][k]);
     });
   }
   return s;
@@ -240,7 +295,9 @@ export function mergePartials(state, partials) {
 // gathered partials as a result shaped like the job's (stations not finished: null rows)
 export function partialResult(state, n, thick) {
   const at = (m, j) => (m.has(j) ? m.get(j) : null);
-  return { thick, condMs: Array.from({ length: n }, (_, j) => at(state.condMs, j)), chi: Array.from({ length: n }, (_, j) => at(state.chi, j)), doi: Array.from({ length: n }, (_, j) => at(state.doi, j)), pred: Array.from({ length: n }, (_, j) => at(state.pred, j)), partial: true, finished: state.condMs.size };
+  const out = { thick, condMs: Array.from({ length: n }, (_, j) => at(state.condMs, j)), chi: Array.from({ length: n }, (_, j) => at(state.chi, j)), doi: Array.from({ length: n }, (_, j) => at(state.doi, j)), pred: Array.from({ length: n }, (_, j) => at(state.pred, j)), partial: true, finished: state.condMs.size };
+  for (const key of EXTRA) if (state[key]) out[key] = Array.from({ length: n }, (_, j) => at(state[key], j));
+  return out;
 }
 
 // the engine's layer_thicknesses (python-sidecar/app/geophys/em1d.py), here so partial results can be drawn before the job returns its own:

@@ -27,11 +27,11 @@ test("#3486 the models as CSV: a row a station and layer, the half-space's botto
   const result = { thick: [3, 5], condMs: pick.map((_, j) => (j === 1 ? null : [10, 100, 1])), chi: pick.map(() => 1.04), doi: pick.map(() => 6) };
   const { text, rows: n } = modelsCsv(data, result, pick);
   const lines = text.trim().split("\n");
-  assert.equal(lines[0], "file_row,line,x,y,ground_z,top_m,bottom_m,conductivity_mS_m,resistivity_ohm_m,above_doi,chi,doi_m");
+  assert.equal(lines[0], "file_row,line,x,y,ground_z,top_m,bottom_m,conductivity_mS_m,resistivity_ohm_m,above_doi,chi,doi_m,sd_log10_cond"); // #1987: the sd column (blank without it)
   assert.equal(n, 7 * 3); assert.equal(lines.length, 1 + 21);
-  assert.equal(lines[1], `1,100,540000,4930000,2400,0,3,10,100,yes,1.04,6`);
-  assert.equal(lines[2], `1,100,540000,4930000,2400,3,8,100,10,yes,1.04,6`);
-  assert.equal(lines[3], `1,100,540000,4930000,2400,8,,1,1000,no,1.04,6`); // the half-space: no bottom; below the DOI
+  assert.equal(lines[1], `1,100,540000,4930000,2400,0,3,10,100,yes,1.04,6,`);
+  assert.equal(lines[2], `1,100,540000,4930000,2400,3,8,100,10,yes,1.04,6,`);
+  assert.equal(lines[3], `1,100,540000,4930000,2400,8,,1,1000,no,1.04,6,`); // the half-space: no bottom; below the DOI
   assert.ok(!text.includes("\n11,")); // pick[1] (file row 11) had no model
   assert.ok(request.x.length === 8);
 });
