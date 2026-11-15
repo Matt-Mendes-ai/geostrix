@@ -42,6 +42,7 @@ import { blockToCells, modelledIntervals, ABOVE_TOPS, unitAt } from "../lib/mode
 import { sectionGrid, sameLine, unpackUnits, sectionPixels, blockSpacing, sectionZRange } from "../lib/modelSection.js"; // TASKS.csv #759
 import { openSectionWindow, saveFile, copyText, loadSampleFiles } from "../lib/desktop.js"; // copyText: TASKS.csv #589
 import { sampleProjectName } from "../lib/sampleProjectName.js"; // TASKS.csv #1218
+import SampleButtons from "./viewer/SampleButtons.jsx"; // TASKS.csv #3541
 import { sampleCardsFor, sampleFootnote, askSampleDownload } from "../lib/sampleCards.js"; // TASKS.csv #1346; askSampleDownload: #3133
 import { symbolRadiusByMedium } from "../lib/viewer/surfaceSymbols.js"; // TASKS.csv #1346
 import { sectionFromCentre, sectionThroughHole, fenceLinesWithData, fenceExtentPoints } from "../lib/sectionDefs.js"; // fenceLinesWithData: #2040
@@ -5475,7 +5476,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const shown = filteredShown[key] ?? null; // #3295
     const isGeophys = key === "geophys_pts";
     return (
-      <LayerRow key={key} label={tr(meta.label)} count={(layers[key] || []).length} shown={shown} visible={layerVisible[key]}
+      <LayerRow key={key} label={tr(meta.label) + (meta.unit ? ` (${meta.unit})` : "") /* TASKS.csv #3529 */} count={(layers[key] || []).length} shown={shown} visible={layerVisible[key]}
         onToggle={() => toggleLayer(key)}
         onUpload={isGeophys ? () => goToModule("geophysics") : () => fileInputs.current[key].click()}
         onInspect={() => setInspectLayer(key)} onZoom={() => zoomToLayer(key)} onClear={() => clearLayer(key)}
@@ -7612,7 +7613,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             onAction={() => loadSample(sampleCards[0].id)}
             actionDisabled={sampleLoading}
             actionTitle={sampleCards[0].title}
-            secondary={<>{sampleCards.slice(1).map((c, i) => <button key={c.id} type="button" onClick={() => loadSample(c.id)} disabled={sampleLoading} title={c.title} style={{ marginLeft: i ? 8 : 0, padding: "8px 14px", borderRadius: 6, border: "1px solid var(--color-accent)", background: "var(--color-bg)", color: "var(--color-accent-dark)", fontSize: "var(--font-size-base)", fontWeight: 600, cursor: sampleLoading ? "default" : "pointer", opacity: sampleLoading ? 0.6 : 1 }}>{c.label}</button>)}</>}
+            secondary={<SampleButtons cards={sampleCards.slice(1)} onLoad={loadSample} loading={sampleLoading} /> /* TASKS.csv #3541 — each sample's description as its second line */}
             footnote={sampleFootnote()}
           >
             <EmptyViewerBody mode={mode} />{/* #1448 */}
