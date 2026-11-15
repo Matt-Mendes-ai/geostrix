@@ -4,8 +4,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { tableFromRows, rowsBuilt, rowsOf } from "../src/lib/rowTable.js";
-import { publishedLayers, internalLayers, layerWith, rowsRefOf, layerRowCount, indicesByHole, layerTableOf } from "../src/lib/tableFields.js";
+import { rowsBuilt, rowsOf, tableOps } from "../src/lib/rowTable.js"; import { tableFromRows } from "../src/lib/rowTableBuild.js";
+import { publishedLayers, internalLayers, layerWith, rowsRefOf, layerRowCount } from "../src/lib/tableFields.js"; import { indicesByHole } from "../src/lib/tableReaders.js"; import { layerTableOf } from "../src/lib/rowTableBuild.js";
 import { rowTip, lazyTip } from "../src/lib/viewer/lazyTip.js";
 import { mirrorCustomLayers } from "../src/lib/viewerDirty.js";
 import { unitSourceLayers } from "../src/lib/unitSource.js";
@@ -100,7 +100,7 @@ test("customAlphaPicks: a Table layer with no angle column is skipped without it
 test("wiring: the scene groups a Table layer by index and its tooltips keep the index; ViewerModule's two call swaps; the mirror", () => {
   const scene = readFileSync(new URL("../src/modules/viewer/drillholeScene.js", import.meta.url), "utf8");
   assert.match(scene, /const tableOfLayer = \(l\) => \{ const r = rowsRefOf\(l\); return isTable\(r\) \? r : null; \};/);
-  assert.match(scene, /!t \? byHoleIf\(l\.id, l\.rows\) : !rebuild\.has\(l\.id\) \? NO_HOLES : indicesByHole\(t, patched\.has\(l\.id\) \? patchHoles\(l\.id\) : null\)/);
+  assert.match(scene, /!t \? byHoleIf\(l\.id, l\.rows\) : !rebuild\.has\(l\.id\) \? NO_HOLES : tableOps\.indicesByHole\(t, patched\.has\(l\.id\) \? patchHoles\(l\.id\) : null\)/);
   assert.match(scene, /const row = lt \? rowOf\(lt, entry\) : entry;/);
   const vm = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(vm, /return layerWith\(l, \{ group \}\); \/\/ #3424/);
@@ -110,8 +110,9 @@ test("wiring: the scene groups a Table layer by index and its tooltips keep the 
   assert.match(dirty, /const o = layerWith\(old, \{ id: l\.id \}\);/);
 });
 
-test("layerTableOf on a copy, a view, a plain Table layer and rows", () => {
+test("startup size: the table readers register with the build half; layerTableOf on a copy, a view, a plain Table layer and rows", () => {
   const t = fresh(logRows(2100));
+  assert.equal(tableOps.indicesByHole, indicesByHole); assert.equal(typeof tableOps.presentElements, "function"); assert.equal(typeof tableOps.unitCodes, "function");
   assert.equal(layerTableOf(layerWith(viewOfTable(t), {})), t);
   assert.equal(layerTableOf({ rows: t }), t);
   const rows = logRows(10);

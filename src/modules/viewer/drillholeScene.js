@@ -17,8 +17,8 @@ import { syncHoleLabels } from "../../lib/viewer/holeLabels.js";
 import { addTraceChunks } from "../../lib/viewer/traceBatch.js"; // #2176 step 3
 import { makeTextSprite } from "../../lib/viewer/textSprite.js";
 import { lazyTip, rowTip } from "../../lib/viewer/lazyTip.js"; // rowTip: #3424 step 2
-import { isTable, rowOf } from "../../lib/rowTable.js"; // TASKS.csv #3424 step 2 — a custom layer's rows may be a Table
-import { rowsRefOf, indicesByHole } from "../../lib/tableFields.js"; // TASKS.csv #3424 step 2
+import { isTable, rowOf, tableOps } from "../../lib/rowTable.js"; // TASKS.csv #3424 step 2 — a custom layer's rows may be a Table
+import { rowsRefOf } from "../../lib/tableFields.js"; // TASKS.csv #3424 step 2
 import { traceLookup } from "../../lib/viewer/modelHelpers.js";
 import { dropLogCoarse, primeLogLod } from "./logLod.js"; // TASKS.csv #2802
 import { PROTO_CYLINDER, PROTO_SPHERE_8, PROTO_SPHERE_12, PROTO_CIRCLE_24, PROTO_PRISM_4, PROTO_SQUARE, PIN_AXIS, dipPinDir, INTERVAL_PROTO, UP_Y, DIR_TMP, POINT_PROTO } from "../../lib/viewer/protos.js";
@@ -436,9 +436,9 @@ export function buildDrillholeScene(ctx) {
     mnlgy: byHoleIf("mnlgy", layers.mnlgy), magsusc: byHoleIf("magsusc", layers.magsusc), structure: byHoleIf("structure", layers.structure),
     recovery: byHoleIf("recovery", layers.recovery), sg: byHoleIf("sg", layers.sg), breccia: byHoleIf("breccia", layers.breccia), weath: byHoleIf("weath", layers.weath), structzone: byHoleIf("structzone", layers.structzone), // #608, #2162, #604
   };
-  // TASKS.csv #3424 step 2 — a layer held as a Table is grouped by row INDEX (indicesByHole), never by building its rows
+  // TASKS.csv #3424 step 2 — a layer held as a Table is grouped by row INDEX (tableReaders.js indicesByHole, via tableOps), never by building its rows
   const tableOfLayer = (l) => { const r = rowsRefOf(l); return isTable(r) ? r : null; };
-  const customRowsByHoleByLayer = new Map(customLayers.map((l) => { const t = tableOfLayer(l); return [l.id, !t ? byHoleIf(l.id, l.rows) : !rebuild.has(l.id) ? NO_HOLES : indicesByHole(t, patched.has(l.id) ? patchHoles(l.id) : null)]; }));
+  const customRowsByHoleByLayer = new Map(customLayers.map((l) => { const t = tableOfLayer(l); return [l.id, !t ? byHoleIf(l.id, l.rows) : !rebuild.has(l.id) ? NO_HOLES : tableOps.indicesByHole(t, patched.has(l.id) ? patchHoles(l.id) : null)]; }));
   // the holes each group has rows in, for the next build's planGroups (a kept group keeps its set)
   const holeSets = new Map();
   for (const k of sigs.keys()) holeSets.set(k, rebuild.has(k) && !patched.has(k) ? new Set((rowsByHole[k] || customRowsByHoleByLayer.get(k) || NO_HOLES).keys()) : prev.holeSets.get(k));

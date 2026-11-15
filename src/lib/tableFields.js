@@ -1,13 +1,13 @@
 // TASKS.csv #3424 ((A) step 1: the store adapter; docs/ideas/columnar-project-tables.md) — assays, survey and a custom layer's rows may be held
 // in the store as a Table (lib/rowTable.js). This file is the custom layers' half of the adapter, and the present-elements reader:
 //   - publishedLayers(list): the list readers see. A layer whose rows is a Table is shown as a view: the same own properties, `rows` a lazy
-//     getter (rowsOf: built on the first read, then the same array), the table reachable without forcing rows (layerTableOf). Cached per list
+//     getter (rowsOf: built on the first read, then the same array), the table reachable without forcing rows (rowsRefOf; layerTableOf in ./rowTableBuild.js). Cached per list
 //     and per layer, so the identities readers memoize on are stable across renders.
 //   - internalLayers(list): what a setter stores. A view, or a copy of one made with its property descriptors (the getter carried, not run),
 //     goes back to { ..., rows: Table }. A spread copy has run the getter: it keeps its plain rows. That is correct, only without the saving.
-//   - layerTableOf(l): a layer's Table without forcing rows.
+//   - layerTableOf(l): a layer's Table without forcing rows — moved to ./rowTableBuild.js (it may build a table from rows; startup size, #3424).
 //   - elementsWithValuesOf(elements, assays): #1679's elements with a value, read from the element columns of a Table.
-import { isTable, rowsOf, tableOf, valuesOf, lengthOf } from "./rowTable.js";
+import { isTable, rowsOf, lengthOf, tableOps } from "./rowTable.js";
 import { elementsWithValues } from "./presentElements.js";
 
 const viewOfLayer = new WeakMap(); // internal layer -> its view
@@ -78,40 +78,9 @@ export function layerWith(l, patch = {}) {
 export const rowsRefOf = (l) => (l ? getterTable(l) || l.rows : undefined);
 export const layerRowCount = (l) => lengthOf(rowsRefOf(l));
 
-// TASKS.csv #3424 step 2 — a Table's row indices grouped by hole_id (the drillhole scene's groupByHole without rows), in row order; a row with
-// no hole_id is left out, as groupByHole does. keep: an optional Set of hole ids (a patch of moved holes). Cached per table when keep is null.
-const byHoleCache = new WeakMap();
-export function indicesByHole(t, keep = null) {
-  if (!keep) { const c = byHoleCache.get(t); if (c) return c; }
-  const m = new Map(), col = t?.cols?.hole_id;
-  if (col?.codes) {
-    const lists = col.dict.map((d) => (d && (!keep || keep.has(d)) ? [] : null));
-    for (let i = 0; i < col.codes.length; i++) { const c = col.codes[i]; if (c >= 0 && lists[c]) lists[c].push(i); }
-    col.dict.forEach((d, c) => { if (lists[c]?.length) m.set(d, lists[c]); });
-  } else if (col?.num) { // numeric hole ids (a numbered hole list)
-    for (let i = 0; i < col.num.length; i++) { const v = col.num[i]; if (!(v === v) || v === 0 || (keep && !keep.has(v))) continue; let a = m.get(v); if (!a) { a = []; m.set(v, a); } a.push(i); }
-  }
-  if (!keep && t) byHoleCache.set(t, m);
-  return m;
-}
 
-export function layerTableOf(l) {
-  if (!l) return null;
-  return getterTable(l) || tableOf(l.rows); // tableOf: the Table itself, or the cached table of a rows array
-}
 
-// #1679 on a Table: an element is present when its column has a finite number in some row
-function columnHasNumber(col) {
-  if (!col) return false;
-  if (col.num) { for (let i = 0; i < col.num.length; i++) if (col.num[i] === col.num[i]) return true; return false; }
-  const ok = col.dict.map((d) => typeof d === "number" && Number.isFinite(d));
-  if (!ok.some(Boolean)) return false;
-  for (let i = 0; i < col.codes.length; i++) { const c = col.codes[i]; if (c >= 0 && ok[c]) return true; }
-  return false;
-}
+// #1679 on a Table: its element columns, read by ./tableReaders.js (loaded with the Table: startup size, #3424)
 export function elementsWithValuesOf(elements, assays) {
-  if (!isTable(assays)) return elementsWithValues(elements, assays);
-  if (!elements?.length) return elements;
-  const keep = elements.filter((e) => columnHasNumber(valuesOf(assays, e.symbol)));
-  return keep.length === elements.length ? elements : keep;
+  return isTable(assays) ? tableOps.presentElements(elements, assays) : elementsWithValues(elements, assays);
 }
