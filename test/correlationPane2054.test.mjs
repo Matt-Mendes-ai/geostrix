@@ -13,7 +13,7 @@ test("the Correlation pane shows the correlation tools beside the fence launcher
   const body = panes.slice(i, j);
   assert.ok(body.includes('tr("Fence / panel diagram…")'));
   assert.ok(body.includes('{mcodesPane("correlate")}'), "the correlation tools");
-  assert.match(panes, /\{toolPane === "mcodes" && \(<>[\s\S]{0,200}\{mcodesPane\(null\)\}/, "Modelling codes keeps the whole pane");
+  assert.match(panes, /\{toolPane === "mcodes" && \(<>[\s\S]{0,600}\{mcodesPane\(null\)\}/, "Modelling codes keeps the whole pane"); // 600: #3606's no-lithology line under the header
   assert.match(panes, /const mcodesPane = \(focus\) => <ModellingCodesPane focus=\{focus\} inArea=/, "one element, one state, for both");
 });
 

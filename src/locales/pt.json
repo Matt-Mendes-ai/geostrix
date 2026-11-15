@@ -3433,6 +3433,7 @@
   "CV": "CV",
   "Top cut": "Corte superior",
   "Top cut for {el}": "Corte superior de {el}",
+  "The {n} holes in the model area lie in {k} clusters more than {g} m apart: one model spans the gaps between them, and its box, cells and unit volumes cover them. Model one cluster at a time:": "Os {n} furos na área do modelo formam {k} grupos a mais de {g} m entre si: um só modelo cobre os vazios entre eles, e sua caixa, células e volumes de unidade os incluem. Modele um grupo por vez:",
   "This model pools {n} holes drilled {from}–{to} ({decades}).": "Este modelo reúne {n} furos perfurados entre {from} e {to} ({decades}).",
   "This model pools {n} holes.": "Este modelo reúne {n} furos.",
   "Hole types: {types}.": "Tipos de furo: {types}.",
