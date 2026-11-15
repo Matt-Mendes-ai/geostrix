@@ -3,6 +3,8 @@
 // plan of the 446 holes could not be made: at 1:20,000 the traces were 1 px lines under soils and geophysics, with no collar
 // symbol or label. Pure functions; the drawing is components/DrillPlanElement.jsx.
 
+import { holeVisibilityNow } from "./holeVisibilityShare.js"; // TASKS.csv #3605
+import { plannedTrace, hasDeviation } from "./plannedTrace.js"; // TASKS.csv #3602
 import { collarsMatchingList } from "./holeFilter.js"; // TASKS.csv #2141; #3357 — the 3D View's Holes list rules (exact values, OR within a field)
 import { PAGE_PX_PER_PAPER_M, pxPerMetre } from "./pagePxScale.js";
 import { desurveyHole, normalizeDesurveyMethod, DESURVEY_METHODS } from "./desurvey.js"; // TASKS.csv #3367 (desurvey.js imports nothing)
@@ -43,21 +45,45 @@ export function planTraces(collars, survey, method) {
 }
 // the sheet's line on how the traces were drawn (English: it is printed with the plan, as the grid caption is). surveyed / straight:
 // the drilled holes in the frame drawn each way; planned: planned holes shown; method: the project's desurvey method id
-export function traceCaption({ surveyed = 0, straight = 0, planned = 0, method = null } = {}) {
+export function traceCaption({ surveyed = 0, straight = 0, planned = 0, plannedDeviated = 0, method = null } = {}) { // plannedDeviated: #3602
   const m = (DESURVEY_METHODS.find((x) => x.id === normalizeDesurveyMethod(method))?.label || "minimum curvature").toLowerCase();
   const parts = [];
   if (surveyed && !straight) parts.push(`Traces along the downhole surveys (${m})`);
   else if (surveyed) parts.push(`Traces along the downhole surveys (${m}); ${straight} hole(s) with no survey straight from the collar azimuth and dip`);
   else if (straight) parts.push("Traces straight from each collar's azimuth and dip (no downhole surveys)");
-  if (planned) parts.push("planned holes straight from their design");
+  // TASKS.csv #3602 — a planned hole with lift or drift is drawn along its planned trace (as the 3D view, sections and the rig export have it), not straight
+  if (planned) parts.push(plannedDeviated >= planned ? "planned holes along their planned trace (lift / drift)" : plannedDeviated ? "planned holes along their planned trace where they have lift or drift, else straight from their design" : "planned holes straight from their design");
   return parts.join("; ");
 }
 // TASKS.csv #2141 (review #2013) — a program's location plan in two clicks: the filter takes collar fields too ('year=2024', 'project=Woodjam'),
 // the hole-filter grammar of the hole list (#1504); a plain term still matches the hole id ('24-' kept Redgold's RG24-15 22 km north)
-export const filterHoles = (collars, filter) => {
-  const ok = (collars || []).filter(finite);
-  return String(filter || "").trim() ? collarsMatchingList(ok, filter) : ok;
+// TASKS.csv #3601 (Fireweed rehearsal, Macpass) — a planned hole has no collar fields, so any 'field=value' term dropped every planned hole from
+// the plan (the Tom West plan printed without E-A, E-B, E-C). Planned holes (isPlanned) skip the field terms; an id term still picks them.
+// TASKS.csv #3605 — vis: the 3D View's checked holes ({ hole_id: false } = hidden), when the element follows them; planned holes are not in it.
+export const filterHoles = (collars, filter, vis = null) => {
+  let ok = (collars || []).filter(finite);
+  if (vis) ok = ok.filter((c) => c.isPlanned || vis[c.hole_id] !== false);
+  const f = String(filter || "").trim();
+  if (!f) return ok;
+  if (!f.includes("=") || !ok.some((c) => c.isPlanned)) return collarsMatchingList(ok, filter);
+  const idOnly = f.split(/[,\s]+/).filter((t) => t && !t.includes("=")).join(" ");
+  const real = ok.filter((c) => !c.isPlanned), planned = ok.filter((c) => c.isPlanned);
+  return [...collarsMatchingList(real, filter), ...(idOnly ? collarsMatchingList(planned, idOnly) : planned)];
 };
+// TASKS.csv #3601 — 'prospect=Tom West' is read as the field term 'prospect=Tom' and the hole-id term 'West': 0 holes, no word why. When a field
+// term followed by a stray word would match holes with a space for the underscore, say so. -> 'prospect=Tom_West' | null
+export function filterSuggestion(collars, filter) {
+  const toks = String(filter || "").trim().split(/[,\s]+/).filter(Boolean);
+  for (let i = 0; i < toks.length; i++) {
+    if (!toks[i].includes("=")) continue;
+    let joined = toks[i];
+    for (let j = i + 1; j < toks.length && !toks[j].includes("="); j++) {
+      joined += "_" + toks[j];
+      if (collarsMatchingList((collars || []).filter(finite), joined).length) return joined;
+    }
+  }
+  return null;
+}
 
 // The scale (from `presets`, smallest first) and centre that show every hole (collar and trace) inside a w x h px frame with a margin.
 // traces: planTraces' Map (#3367) — a surveyed hole is framed along its path
@@ -245,7 +271,7 @@ export function drillPlanGeometry(el, collars, traces = null) {
   const w = el.w || 600, h = el.h || 400, ppm = pxPerMetre(el.scale), cx = el.centre?.x ?? 0, cy = el.centre?.y ?? 0;
   const toPx = (x, y) => [w / 2 + (x - cx) * ppm, h / 2 - (y - cy) * ppm];
   const holes = [];
-  for (const c of filterHoles(collars, el.holeFilter)) {
+  for (const c of filterHoles(collars, el.holeFilter, el.onlyChecked ? holeVisibilityNow() : null)) { // onlyChecked: #3605
     const t = traces?.get(String(c.hole_id));
     let ax, ay, bx, by, path = null;
     if (t) {
@@ -267,15 +293,17 @@ export function drillPlanGeometry(el, collars, traces = null) {
 // TASKS.csv #2259 (review #2174, WA gold) — a drill plan is what a program is approved and staked from, and it showed the drilled collars only:
 // the planned holes (drawn in the planned colour in the 3D view and on sections) are on it too, unless the element's 'Show the planned holes'
 // is off. planned: the project's plannedHoles ({ name, x, y, azimuth, dip, length }); the hole filter reads a planned hole's name as its id.
-export const plannedAsCollars = (planned) => (planned || []).map((p) => ({ ...p, hole_id: p.name || p.id }));
+export const plannedAsCollars = (planned) => (planned || []).map((p) => ({ ...p, hole_id: p.name || p.id, isPlanned: true })); // isPlanned: #3601
 export const showsPlanned = (el) => el?.showPlanned !== false;
 // -> frame-px holes as drillPlanGeometry's, each with planned: true ([] when off or none)
 export function drillPlanPlanned(el, planned) {
   if (!showsPlanned(el) || !planned?.length) return [];
-  return drillPlanGeometry(el, plannedAsCollars(planned)).holes.map((h) => ({ ...h, planned: true }));
+  const tr = new Map(); // TASKS.csv #3602 — a hole with lift or drift is drawn along its planned trace
+  for (const p of planned) if (hasDeviation(p) && Number.isFinite(p.x) && Number.isFinite(p.y)) { const t = plannedTrace(p); if (t.length > 1) tr.set(String(p.name || p.id), t.map((q) => [q.x, q.y])); }
+  return drillPlanGeometry(el, plannedAsCollars(planned), tr.size ? tr : null).holes.map((h) => ({ ...h, planned: true, deviated: !!h.surveyed }));
 }
 // the holes a 'Fit the holes' frames: the collars, and the planned holes when the plan shows them
-export const holesToFit = (el, collars, planned) => /* the fit's traces: #3367, passed beside */ filterHoles([...(collars || []), ...(showsPlanned(el) ? plannedAsCollars(planned) : [])], el?.holeFilter);
+export const holesToFit = (el, collars, planned) => /* the fit's traces: #3367, passed beside */ filterHoles([...(collars || []), ...(showsPlanned(el) ? plannedAsCollars(planned) : [])], el?.holeFilter, el?.onlyChecked ? holeVisibilityNow() : null);
 
 // TASKS.csv #2301 (review #2174, WA gold) — the location plan had no coordinates at all. A grid at a round spacing (el.gridM, else about five
 // lines across the frame: 1 / 2 / 2.5 / 5 x 10^n m; 0 = no grid), with easting labels along the top and northing labels down the left, in the
@@ -386,7 +414,7 @@ export function drillPlanColouring(el, holes, collars, { segs = null, unit = "",
   if ((kind === "max" || kind === "gt" || kind === "bi") && key) {
     const per = kind === "bi" ? perHole || new Map() : holeGradeValues(segs, kind); // bi: the best intercept's grade × length (#2685)
     // the classes come from every hole the plan takes (its hole filter), not only those in the frame, so panning keeps them
-    const shown = filterHoles(collars, el.holeFilter).map((c) => per.get(String(c.hole_id ?? ""))).filter((v) => v != null);
+    const shown = filterHoles(collars, el.holeFilter, el.onlyChecked ? holeVisibilityNow() : null).map((c) => per.get(String(c.hole_id ?? ""))).filter((v) => v != null);
     const breaks = gradeBreaks(shown), n = breaks.length + 1, u = kind === "gt" || kind === "bi" ? `m × ${unit || "grade"}` : unit;
     const withUnit = (t) => (u ? `${t} ${u}` : t);
     const key2 = [];

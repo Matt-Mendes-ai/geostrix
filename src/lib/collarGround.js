@@ -120,6 +120,13 @@ function findUnderground(collars, survey) {
   }
   return { ids, typed, upward, under };
 }
+// TASKS.csv #3582 — the collars to send where the ground is built from {x, y, z} alone (the pit / undrilled-zones workers, which lose the hole
+// types and survey): surfaceCollars, but never fewer than 3 left, so a project that is all underground still goes whole and the underground
+// check there refuses it (#2276) instead of reading 'no collars' as 'no ground, use the model top'.
+export function collarsForGround(collars, survey) {
+  const s = surfaceCollars(collars, survey);
+  return s !== collars && s.length < 3 ? collars : s;
+}
 // the collars that can be ground: those undergroundCollars leaves (the same array when none is left out)
 const SURF_SEEN = new WeakMap();
 export function surfaceCollars(collars, survey) {

@@ -24,7 +24,7 @@ test("replaceNotices: drops the earlier notices of the tag, keeps the rest in or
 });
 
 test("wiring: the four outcomes of Check relationships replace the last one", () => {
-  const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  const v = readFileSync(new URL("../src/modules/viewer/useSurfaceChecks.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.equal((v.match(/setNotices\(\(p\) => replaceNotices\(p, "topologyCheck", /g) || []).length, 4);
   for (const t of ["Nothing to check: none of the", "Topology check passed:", "Topology check found {violations} violation(s)", "Topology check failed: {message}"]) {
     const i = v.indexOf(t); assert.ok(i > 0, t);

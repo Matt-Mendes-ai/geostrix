@@ -702,6 +702,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (t.stats.reachMaxM > 0) msg += " " + tr("The ground reaches up to {max} m from its nearest point (median {med} m): beyond the points it is the triangles' guess.", { max: Math.round(t.stats.reachMaxM).toLocaleString(), med: Math.round(t.stats.reachMedianM).toLocaleString() });
     if (lines.length && t.stats.flatPct >= 5) msg += " " + tr("{pct}% of the triangles are flat (all three corners on one contour): terraces on hilltops and valley floors, where contours alone do not say how the ground continues.", { pct: t.stats.flatPct.toFixed(0) });
     if (t.stats.filledCount) msg += " " + tr("{pct}% of the grid ({n} cells) lies outside the triangulated points and is left out of the 3D surface. The modelling tools, inversions and collar checks read no ground there (stations, collars or a flat ground stand in); only map layers draped on the terrain sit at the mean elevation {z} m.", { pct: t.stats.filledPct.toFixed(1), n: t.stats.filledCount.toLocaleString(), z: t.stats.fillValue.toFixed(0) });
+    // TASKS.csv #3583 (Macpass: 98.1 % of a 670 x 439 grid at 40 m nodes lies outside the collars, spread over 26 km) — most of the grid empty: say what helps
+    if (t.stats.filledPct >= 50 && !projArea) msg += " " + tr("Most of the grid is empty because the points lie in a few clusters far apart: 'Limit to a drawn area…' over one cluster gives it finer nodes.");
     if (benchNote) msg += " " + benchNote; // #2589
     if (misfitAt?.length) { // #2589 — the surface against the collars it was built from
       const m = surfaceMisfit(misfitAt, built, BENCH_DZ_M);

@@ -21,8 +21,8 @@ test("the shared rule: a repeated name carries its run's time", () => {
 test("the list, the relationship check, Surface query, Solid blocks and the trim select all use it; the row can be renamed", () => {
   const v = src("../src/modules/ViewerModule.jsx");
   assert.match(v, /faceCount: s\.faceCount \}\)\}>\{surfaceLabels\.get\(s\.id\) \?\? s\.name\}<\/div>/);
-  assert.match(v, /id: s\.id, name: surfaceLabels\.get\(s\.id\) \?\? s\.name, type: s\.type, closure: s\.closure/);
-  assert.match(v, /\}, \[implicitSurfaces, surfaceLabels\]\);/);
+  assert.match(src("../src/modules/viewer/useSurfaceChecks.js"), /id: s\.id, name: surfaceLabels\.get\(s\.id\) \?\? s\.name, type: s\.type, closure: s\.closure/); // moved out of ViewerModule (#1084)
+  assert.match(src("../src/modules/viewer/useSurfaceChecks.js"), /\}, \[implicitSurfaces, surfaceLabels\]\);/);
   assert.match(v, /return \{ id: s\.id, name: surfaceLabels\.get\(s\.id\) \?\? s\.name, positions:/);
   assert.match(v, /label: tr\("Rename…"\), onClick: \(\) => askPrompt\("Rename surface:", s\.name, \(n\) => \{ if \(n\?\.trim\(\)\) setImplicitSurfaces\(\(p\) => p\.map\(\(x\) => \(x\.id === s\.id \? \{ \.\.\.x, name: n\.trim\(\) \} : x\)\)\);/);
   assert.match(src("../src/components/SurfaceSolidsPanel.jsx"), />\{runLabels\.get\(it\.id\) \?\? it\.name\}/);
