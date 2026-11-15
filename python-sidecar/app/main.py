@@ -648,6 +648,10 @@ def _validate_tem1d(req):
     # TASKS.csv #3502 — the frame's tilt factor per station, cos(pitch) cos(roll): 0.5 is a 60 degree tilt, past any survey's
     if req.get("tilt") is not None and any(v is not None and (not isinstance(v, (int, float)) or not (0.5 <= v <= 1.0)) for v in req["tilt"]):
         raise HTTPException(422, "tilt must be cos(pitch) cos(roll) per station, 0.5-1 (null: level).")
+    # TASKS.csv #3486 — the neighbour tie's largest gap along a line (m): the app sends 3 x the stations' spacing
+    g = req.get("gapM")
+    if g is not None and (not isinstance(g, (int, float)) or not (1 <= g <= 100000)):
+        raise HTTPException(422, "gapM must be 1-100,000 m.")
     lay = req.get("layers") or {}
     try:
         nl, first, bottom = int(lay.get("n", 20)), float(lay.get("first", 3.0)), float(lay.get("bottom", 300.0))

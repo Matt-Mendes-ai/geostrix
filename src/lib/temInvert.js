@@ -170,6 +170,22 @@ export function buildTemRequest(data, { moments, timeZero = "rampEnd", unit = "p
     line: pick.map((i) => String(data.line[i])), x: pick.map((i) => data.x[i]), y: pick.map((i) => data.y[i]),
   };
   if (!request.heights) delete request.heights;
+  // TASKS.csv #3486 — the neighbour tie (the engine's second pass) skips a neighbour farther than gapM along the line: 100 m by default. Three
+  // times the picked stations' median spacing instead, at most 500 m: measured on the USGS 2016 SkyTEM file, a tie across 727 m (every 20th
+  // station) made the fit worse (chi 0.98 -> 3.22, models within x2 of the USGS's 92 -> 74 %), so a sparse first look ties nothing; at 146 m
+  // a weak tie left the misfit as it was (1.01 -> 1.02) and a medium one raised it (1.38)
+  if (lateral > 0) {
+    const gaps = [];
+    for (let k = 1; k < pick.length; k++) {
+      const a = pick[k - 1], b = pick[k];
+      if (String(data.line[a]) !== String(data.line[b])) continue;
+      const d = Math.hypot(data.x[b] - data.x[a], data.y[b] - data.y[a]);
+      if (d > 0 && Number.isFinite(d)) gaps.push(d);
+    }
+    gaps.sort((p, q) => p - q);
+    const med = gaps.length ? gaps[Math.floor(gaps.length / 2)] : 0;
+    request.gapM = +Math.min(500, Math.max(100, 3 * med)).toFixed(1);
+  }
   if (rxc) request.rz = pick.map((i) => { const d = rxc[i] - hcol[i]; return Number.isFinite(d) && Math.abs(d) <= 20 ? +d.toFixed(2) : null; });
   const pc = tilt?.pitch ? data.get(tilt.pitch) : null, rc = tilt?.roll ? data.get(tilt.roll) : null;
   if (pc || rc) {
@@ -182,6 +198,31 @@ export function buildTemRequest(data, { moments, timeZero = "rampEnd", unit = "p
     }
   }
   return { request, pick, dropped, gatesPerMoment: ms.map((mo) => mo.gates.length), scale, widthsMismatch };
+}
+
+// TASKS.csv #3486 — the inverted models as a table: one row a station and layer (the last layer is the half-space below the model, its bottom
+// blank), the station's file row, line, position, ground elevation when the file has one, the layer's depths, conductivity (mS/m) and
+// resistivity (ohm m), whether it is above the station's depth of investigation, the station's misfit. Stations without a model are left out.
+export function modelsCsv(data, result, pick) {
+  const tops = [0];
+  for (const t of result.thick || []) tops.push(tops[tops.length - 1] + t);
+  const z = data.z || null;
+  const f = (v, d) => (v == null || !Number.isFinite(v) ? "" : String(+v.toFixed(d)));
+  const lines = ["file_row,line,x,y,ground_z,top_m,bottom_m,conductivity_mS_m,resistivity_ohm_m,above_doi,chi,doi_m"];
+  let rows = 0;
+  (pick || []).forEach((i, j) => {
+    const cond = result.condMs?.[j];
+    if (!cond) return;
+    const doi = result.doi?.[j], chi = result.chi?.[j];
+    cond.forEach((c, k) => {
+      const top = tops[k], bottom = k < tops.length - 1 ? tops[k + 1] : null;
+      const above = Number.isFinite(doi) ? (top < doi ? "yes" : "no") : "";
+      const line = String(data.line[i]).includes(",") ? `"${String(data.line[i]).replace(/"/g, '""')}"` : String(data.line[i]);
+      lines.push([i + 1, line, f(data.x[i], 2), f(data.y[i], 2), z ? f(z[i], 2) : "", f(top, 2), bottom == null ? "" : f(bottom, 2), f(c, 4), c > 0 ? f(1000 / c, 3) : "", above, f(chi, 3), f(doi, 1)].join(","));
+      rows++;
+    });
+  });
+  return { text: lines.join("\n") + "\n", rows };
 }
 
 // The finished stations from the progress events (each carries the last few batches; a later pass replaces an earlier one).
