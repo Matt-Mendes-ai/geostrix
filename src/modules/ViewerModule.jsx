@@ -212,7 +212,6 @@ import { closedShellsOf } from "./viewer/estimationShells.js"; // TASKS.csv #269
 import { findOnTraceWorld, findOnTrace, traceLookup, traceOfHole /* #2931 */, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
 import { syncDrawLods } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
-import { createLodDrape } from "../lib/viewer/lodDrape.js"; // TASKS.csv #3252 phase 2 — imagery detail tiles over the terrain
 import { useSurfaceUndo, stashSurface } from "./viewer/surfaceUndo.js"; // TASKS.csv #3494 — Undo / Redo for the model surfaces
 import { useModelling } from "./viewer/useModelling.js";
 import { useUnitSource } from "./viewer/useUnitSource.js"; // TASKS.csv #2378
@@ -1607,7 +1606,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     const groups = [
       // TASKS.csv #3296 — the codes in one order with the inspector: the project's set order (#3130) first, then by count (the figure's cut keeps the commonest)
       ...viewCodeOrder(categoryLegendGroups({ keys: CATEGORY_LAYER_KEYS, layers, layerVisible, hidden: categoryFilter, visibleHoles, singleColor, labelFor: effectiveLabel, colorFor: effectiveColor, placed: new Set(collars.map((c) => String(c.hole_id))) }), projectCodeOrders(layoutPages, null, null, null)), // #1813
-      ...assayLegendGroups({ assays, assayElements, assayVisible: assayVisible && collars.length > 0 /* #1813 */, assayDisplayElements, assayStyle }),
+      ...assayLegendGroups({ assays, assayElements, assayVisible: assayVisible && collars.length > 0 /* #1813 */, assayDisplayElements, assayStyle, displayUnits: project?.displayUnits /* #3236 */ }),
       ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), ...scoreRasterLegendGroups(rasters) /* #2670 — score maps */, // #1236
       ...numericLayerLegendGroups({ layers, layerVisible, isRowVisible, colorOf: numericLayerColor, symbology: numericSymbology, clips: numericClip }), // #1398 — the RQD / recovery / SG / mag susc ramps
       ...customLegendGroups(customLayers, customVisible, layerStyles), // #1697
@@ -1875,7 +1874,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     // so that existing "render then immediately read, same task" pattern already produces a correct,
     // non-blank capture without needing the buffer preserved between frames at all. Verified live
     // (see this row's own commit) that both snapshot paths still work correctly with this removed.
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, stencil: true }); // stencil: TASKS.csv #3509 — the fetched picture is hidden under a loaded detail tile
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     rendererRef.current = renderer; mount.appendChild(renderer.domElement);
     const warmId = typeof requestIdleCallback === "function" ? requestIdleCallback(() => import("../lib/viewer/surfaceWarmup.js").then((m) => { if (rendererRef.current === renderer) m.warmSurfacePrograms(renderer, scene, camera); }).catch(() => {}), { timeout: 10000 }) : null; // #3155 — the surface shaders compiled at idle
@@ -4695,7 +4694,15 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // moved to lib/viewer/sceneBuilders.js syncRasterDrapes (TASKS.csv #693); its comments explain the build
   useEffect(() => { if (rasterGroupRef.current && !buildDefer.skip()) syncRasterDrapes(rasterGroupRef.current, rasterMeshesRef.current, rasters, { origin: originRef.current, terrain, renderer: rendererRef.current, collars }); }, [rasters, collars, terrain, rebuildSeq, deferRound]);
   // TASKS.csv #3252 phase 2 — the detail tiles follow the rasters, the terrain and the origin; wake: a tile that arrives redraws an idle view
-  useEffect(() => { if (!rasterGroupRef.current || buildDefer.skip()) return; if (!lodDrapeRef.current) lodDrapeRef.current = createLodDrape(); lodDrapeRef.current.sync({ group: rasterGroupRef.current, rasters, terrain, origin: originRef.current, renderer: rendererRef.current, wake: () => { lastActivityRef.current = Date.now(); } }); }, [rasters, terrain, rebuildSeq, deferRound]);
+  useEffect(() => { // TASKS.csv #3252 / #3509 - lib/viewer/lodDrape.js (and the tile cache it pulls in) is loaded the first time a raster with a source description is draped: not at startup
+    if (!rasterGroupRef.current || buildDefer.skip()) return;
+    const ctx = { group: rasterGroupRef.current, cache: rasterMeshesRef.current, rasters, terrain, origin: originRef.current, renderer: rendererRef.current, wake: () => { lastActivityRef.current = Date.now(); } };
+    if (lodDrapeRef.current) { lodDrapeRef.current.sync(ctx); return; }
+    if (!terrain || !rasters.some((r) => r.lod)) return;
+    let live = true;
+    import("../lib/viewer/lodDrape.js").then((m) => { if (!live) return; lodDrapeRef.current = lodDrapeRef.current || m.createLodDrape(); lodDrapeRef.current.sync(ctx); });
+    return () => { live = false; };
+  }, [rasters, terrain, rebuildSeq, deferRound]);
   useEffect(() => () => lodDrapeRef.current?.dispose(), []);
 
   // ---------- rebuild boundary polylines (Geosoft .ply import) ----------
@@ -6044,7 +6051,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
     const modelBackdrop = modelBackdropFor(a, b, secId, showTerrain, corridor); // #759
     if (modelBackdrop) modelBackdrop.legend.forEach((it) => legendItems.push(it));
-    const assayLegend = assayLegendGroups({ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle }); // #1475 — the section window keys the grades it draws
+    const assayLegend = assayLegendGroups({ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle, displayUnits: project?.displayUnits }); // #3236 // #1475 — the section window keys the grades it draws
     const scatter = corridorScatter({ geophysPts: layerVisible.geophys_pts ? layers.geophys_pts : null, geophysStyle: { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax, surveys: geophysSurveys /* #1587 */ }, samples: layerVisible.surface_samples ? placedSurfaceSamples : null }, a, b, corridor); // #1807
     return { azimuth, holes, intervals, points, planes, elevationProfile, legendItems, assayLegend, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop, scatter, scatterCounts: scatter.counts };
   };
@@ -6055,7 +6062,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const planCacheRef = useRef(null);
   const planCtx = () => ({ traces: tracesRef.current, visibleHoles, layerPrimitivesFor, primsVersion: primsVersion() /* #3298 */, cache: planCacheRef, layerVisible, layers, customLayers, customVisible, isRowVisible, effectiveColor, effectiveLabel,
     voxelModels, voxelCellShown, colorForVoxelValue, origin: originRef.current, implicitSurfaces, implicitMeshes: implicitMeshesRef.current, plannedHoles, plannedHoleTrace,
-    assayLegend: () => assayLegendGroups({ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle }), projectValues: (sym) => assays.map((a) => a.values[sym]).filter((v) => v != null) }); // #1537
+    assayLegend: () => assayLegendGroups({ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle, displayUnits: project?.displayUnits }), projectValues: (sym) => assays.map((a) => a.values[sym]).filter((v) => v != null) }); // #1537
 
   // TASKS.csv — cross-section contact drawing. Every launched section is auto-registered in
   // store.sections (id/name/geometry, no contacts yet) the moment it opens, so the pop-out window

@@ -12,7 +12,7 @@ test("which variables are not metals", () => {
 });
 test("the result lines choose the wording", () => {
   const g = src("../src/components/GradeEstimationModal.jsx");
-  assert.equal((g.match(/tr\(nonMetal \? "[^"]*estimated value/g) || []).length, 6);
+  assert.equal(g.split("estimated value").length - 1, 8, "six lines, each with a value twin (the chips line has two)"); // #3507: one pair sits inside the chips choice
   assert.match(g, /const nonMetal = isNonMetal\(symbol, \{ fromLog: sourceKey !== "assay" \}\)/);
 });
 test("#3499: the anisotropy is remembered per project and element, and the Grade shell pane offers it", () => {

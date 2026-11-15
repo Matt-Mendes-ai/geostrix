@@ -7,6 +7,7 @@ import { Upload } from "./icons.js";
 import { label, sel, btn } from "../lib/modalStyles.js";
 import { buildRasterImport } from "../lib/raster.js";
 import { FEATURES, parseWavelengths, wavelengthsFromGdalMetadata, featureBands, featureMap } from "../lib/hyperspectral.js";
+import { parseSpectrum, resampleSpectrum, matchMap } from "../lib/spectralMatch.js"; // TASKS.csv #2003
 import { t as tr } from "../lib/i18n.js";
 
 export default function HyperspectralTab({ epsg, tie = null, defaultElevation, sourceEpsg, onImport, onClose }) { // tie: TASKS.csv #2648
@@ -16,6 +17,9 @@ export default function HyperspectralTab({ epsg, tie = null, defaultElevation, s
   const [wlSource, setWlSource] = useState("");
   const [wlText, setWlText] = useState("");
   const [feature, setFeature] = useState("aloh2200");
+  const [mode, setMode] = useState("feature"); // TASKS.csv #2003 - "feature" (continuum removal) | "match" (a reference spectrum, or anomalies)
+  const [kind, setKind] = useState("sam"); // sam | mf | rx
+  const [refText, setRefText] = useState("");
   const [products, setProducts] = useState({ depth: true, wavelength: true });
   const [minDepth, setMinDepth] = useState("0.02");
   const [error, setError] = useState(null);
@@ -46,8 +50,27 @@ export default function HyperspectralTab({ epsg, tie = null, defaultElevation, s
 
   const f = FEATURES[feature];
   const win = wl ? featureBands(wl, feature) : [];
-  const canRun = !!file && !!wl && win.length >= 5 && (products.depth || products.wavelength) && !busy;
+  const ref = mode === "match" && kind !== "rx" ? parseSpectrum(refText) : null;
+  const refAt = ref && wl ? resampleSpectrum(ref, wl) : null;
+  const matchOk = kind === "rx" || (!!refAt && refAt.covered >= 0.8);
+  const canRun = !!file && !!wl && !busy && (mode === "match" ? matchOk && wl.length >= 10 : win.length >= 5 && (products.depth || products.wavelength));
+  const runMatch = async () => { // TASKS.csv #2003 - the spectral angle, matched filter or RX map of the whole cube (the bands the reference covers)
+    setBusy(true); setError(null);
+    try {
+      const use = []; for (let i = 0; i < wl.length; i++) if (kind === "rx" || Number.isFinite(refAt.value[i])) use.push(i);
+      const refv = kind === "rx" ? null : use.map((i) => refAt.value[i]);
+      let stats = null;
+      const what = { sam: "spectral angle (degrees)", mf: "matched filter score", rx: "RX anomaly" }[kind];
+      const { raster, msg } = await buildRasterImport(file.file, {
+        epsg, tie, defaultElevation, sourceEpsg, samples: use, name: `${what} - ${file.file.name}`,
+        bandFn: (bands, isNoData) => { const r = matchMap(bands, kind, refv, { isNoData }); stats = r; return r.map; },
+      });
+      const note = " " + tr("{what}: {n} bands, {valid} valid pixels. {how}", { what: tr(what), n: use.length, valid: (stats?.valid ?? 0).toLocaleString(), how: kind === "sam" ? tr("A small angle means a spectrum shaped like the reference, whatever its brightness.") : kind === "mf" ? tr("0 is the scene's background and 1 the reference; a score is relative to this scene's own background.") : tr("High where a pixel's spectrum is unlike the scene's background: an anomaly, not a mineral.") });
+      onImport([{ ...raster, spectralIndex: { hyperspectral: true, match: kind, bands: use.length } }], msg + note);
+    } catch (e) { setError(e.message); } finally { setBusy(false); }
+  };
   const run = async () => {
+    if (mode === "match") return runMatch();
     setBusy(true); setError(null);
     try {
       const wlSel = win.map((i) => wl[i]);
@@ -94,7 +117,24 @@ export default function HyperspectralTab({ epsg, tie = null, defaultElevation, s
       )}
       <div>
         <div style={label}>{file ? tr("3. Feature") : tr("2. Feature")}</div>{/* #1472 — step 2 shows only once a file is loaded */}
-        <select value={feature} onChange={(e) => setFeature(e.target.value)} style={sel} aria-label={tr("Absorption feature")}>
+        <select value={mode} onChange={(e) => setMode(e.target.value)} style={{ ...sel, marginBottom: 6 }} aria-label={tr("What to map")}>{/* TASKS.csv #2003 */}
+          <option value="feature">{tr("An absorption feature (continuum removal)")}</option>
+          <option value="match">{tr("A reference spectrum, or anomalies in the cube")}</option>
+        </select>
+        {mode === "match" && <>
+          <select value={kind} onChange={(e) => setKind(e.target.value)} style={sel} aria-label={tr("Spectral matching method")}>
+            <option value="sam">{tr("Spectral angle mapper: the angle to a reference spectrum")}</option>
+            <option value="mf">{tr("Matched filter: a reference spectrum against the scene's background")}</option>
+            <option value="rx">{tr("RX anomaly: pixels unlike the scene's background (no reference)")}</option>
+          </select>
+          {kind !== "rx" && <>
+            <textarea value={refText} onChange={(e) => setRefText(e.target.value)} rows={4} style={{ ...sel, width: "100%", fontFamily: "monospace", marginTop: 6 }} aria-label={tr("Reference spectrum")} placeholder={"wavelength, reflectance\n2.20, 0.31\n2.25, 0.28"} />
+            <div style={{ ...small, marginTop: 4 }}>{tr("Paste the spectrum as lines of wavelength and reflectance (micrometres or nm), as a library export gives it (USGS, ASTER, ECOSTRESS). It is interpolated to the file's bands.")}</div>
+            {refText.trim() && !ref && <div style={{ ...small, color: "var(--color-danger-fg)" }}>{tr("Fewer than three wavelength and reflectance pairs found.")}</div>}
+            {ref && wl && <div style={{ ...small, color: refAt.covered >= 0.8 ? undefined : "var(--color-danger-fg)" }}>{refAt.covered >= 0.8 ? tr("{n} pairs, {lo}-{hi} nm, covering {pct} % of the file's bands.", { n: ref.wl.length, lo: Math.round(ref.wl[0]), hi: Math.round(ref.wl[ref.wl.length - 1]), pct: Math.round(refAt.covered * 100) }) : tr("The spectrum covers only {pct} % of the file's bands (at least 80 % is needed).", { pct: Math.round(refAt.covered * 100) })}</div>}
+          </>}
+        </>}
+        {mode === "feature" && <><select value={feature} onChange={(e) => setFeature(e.target.value)} style={sel} aria-label={tr("Absorption feature")}>
           {Object.entries(FEATURES).map(([k, x]) => <option key={k} value={k}>{tr(x.label)}</option>)}
         </select>
         <div style={{ ...small, marginTop: 6 }}>{tr(f.what)}</div>
@@ -104,11 +144,12 @@ export default function HyperspectralTab({ epsg, tie = null, defaultElevation, s
           <label style={{ display: "flex", alignItems: "center", gap: 5 }} title={tr("Below this depth there is no real feature: the wavelength is left blank there.")}>{tr("Minimum depth")}<input type="number" min="0" step="0.01" value={minDepth} onChange={(e) => setMinDepth(e.target.value)} style={{ ...sel, width: 64 }} aria-label={tr("Minimum depth")} /></label>
         </div>
         {wl && win.length < 5 && <div style={{ ...small, marginTop: 4, color: "var(--color-danger-fg)" }}>{tr("Only {n} band(s) between {lo} and {hi} nm in this file: this feature cannot be mapped from it.", { n: win.length, lo: f.lo, hi: f.hi })}</div>}
+        </>}
       </div>
       {error && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)" }}>{error}</div>}
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <button onClick={onClose} style={{ ...btn(false), padding: "7px 14px" }}>{tr("Cancel")}</button>
-        <button onClick={run} disabled={!canRun} style={{ ...btn(true), padding: "7px 14px", opacity: canRun ? 1 : 0.5 }}>{busy ? tr("Computing…") : tr("Make the feature maps")}</button>
+        <button onClick={run} disabled={!canRun} style={{ ...btn(true), padding: "7px 14px", opacity: canRun ? 1 : 0.5 }}>{busy ? tr("Computing…") : mode === "match" ? tr("Make the map") : tr("Make the feature maps")}</button>
       </div>
     </>
   );

@@ -90,6 +90,11 @@ export function lodTileMesh(terrain, origin, tile, raster, texture) {
   m.rotation.x = -Math.PI / 2;
   m.position.set(cx - origin.x, 0, -(cy - origin.y));
   m.renderOrder = 0.1 + tile.z / 100; // over the fetched picture (0) and coarser tiles, under the map layers (2 +) and the flat rasters
+  // TASKS.csv #3509 — the fetched picture is hidden under a loaded tile (it showed through at the raster's opacity): the tile's twin writes
+  // stencil 1 before anything transparent is drawn (no colour, no depth), and the fetched picture's mesh draws only where the stencil is not 1
+  const mark = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, depthTest: false, stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp, side: THREE.DoubleSide }));
+  mark.renderOrder = -10; mark.userData.lodMark = true;
+  m.add(mark);
   m.userData = { lodTile: tile.key, z: tile.z, pixelM: tilePixelM(lodRoot(raster.bbox), tile.z) };
   return m;
 }
@@ -100,7 +105,7 @@ export function createLodDrape() {
   const meshes = new Map(); // key -> mesh
   const st = { tiles: 0, gpuBytes: 0, finestM: null, tickMs: 0, wanted: 0 };
   globalThis.__geostrixLodStats = st; // read-only numbers, for measuring the tiles live (no data of the project)
-  const drop = (key) => { const m = meshes.get(key); if (!m) return; m.parent?.remove(m); m.geometry.dispose(); m.material.map?.dispose(); m.material.dispose(); meshes.delete(key); };
+  const drop = (key) => { const m = meshes.get(key); if (!m) return; m.parent?.remove(m); for (const c of m.children) c.material?.dispose?.(); m.geometry.dispose(); m.material.map?.dispose(); m.material.dispose(); meshes.delete(key); };
   const dropAll = () => { for (const k of [...meshes.keys()]) drop(k); st.tiles = 0; st.gpuBytes = 0; st.finestM = null; };
   const rastersOf = (c) => (c?.terrain && c.group ? (c.rasters || []).filter((r) => r.lod && r.bbox && r.drapeMode === "terrain" && r.visible !== false) : []);
   return {
@@ -129,6 +134,8 @@ export function createLodDrape() {
       const wanted = [], draw = new Map();
       const loaded = (k) => { const v = loader.lodTileImage(k); return !!v && !loader.isEmptyTile(v); };
       for (const r of list) {
+        const base = ctx.cache?.[r.id]?.material; // #3509 — the fetched picture draws only where no tile does
+        if (base && !base.stencilWrite) { base.stencilWrite = true; base.stencilRef = 1; base.stencilFunc = THREE.NotEqualStencilFunc; base.stencilFail = THREE.KeepStencilOp; base.stencilZFail = THREE.KeepStencilOp; base.stencilZPass = THREE.KeepStencilOp; base.needsUpdate = true; }
         const chosen = chooseSceneTiles(r, pixelAt);
         if (chosen) { st.maxLevel = chosen.maxLevel; st.wantedMaxZ = chosen.tiles.reduce((m, t) => Math.max(m, t.z), -1); st.nearestPixelM = chosen.tiles.reduce((m, t) => Math.min(m, pixelAt(t.box)), Infinity); }
         if (!chosen || !chosen.tiles.length) continue;
