@@ -41,6 +41,11 @@ async function mount() {
   return { get s() { return ref.s; }, unmount: () => act(() => r.unmount()) };
 }
 const step = (fn, ms = 20) => act(async () => { fn(); await wait(ms); });
+// #3492 — a switch to a tab with column tables expands them in slices before it lands: wait for it (a fixed 50 ms failed on a loaded machine)
+async function switchTo(m, tabId) {
+  m.s.switchToTab(tabId);
+  for (let k = 0; k < 200 && m.s.activeTabId !== tabId; k++) await act(async () => { await wait(25); });
+}
 const UNDO_SETTLE = 900;
 
 // a project big enough for every column encoder: 2,400 assays, 2,500 survey stations, a 2,600-row litho layer, a 3,000-row custom layer
@@ -106,12 +111,14 @@ test("tabs: a big project opened beside another, and a switch back (synchronous,
   const tabB = m.s.activeTabId;
   assert.notEqual(tabA, tabB);
   sameTables(m.s, B);
-  await step(() => m.s.switchToTab(tabA), 50);
-  assert.equal(m.s.activeTabId, tabA);
-  sameTables(m.s, A);
-  await step(() => m.s.switchToTab(tabB), 50);
-  sameTables(m.s, B);
-  await m.unmount();
+  try {
+    await switchTo(m, tabA);
+    assert.equal(m.s.activeTabId, tabA);
+    sameTables(m.s, A);
+    await switchTo(m, tabB);
+    assert.equal(m.s.activeTabId, tabB);
+    sameTables(m.s, B);
+  } finally { await m.unmount(); } // a failed assertion must not leave the store's timers holding the test file open
 });
 
 test("the crash-recovery file is expanded at the check, so the synchronous restore finds rows", { timeout: 30000 }, async () => {
