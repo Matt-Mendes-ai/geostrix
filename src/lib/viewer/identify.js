@@ -16,6 +16,7 @@ import { setMembersOf } from "../estimateSet.js"; // TASKS.csv #3178
 import { setJoin } from "../setLimits.js"; // #3178
 import { blockModelLattice } from "../estimationMeta.js"; // #3178
 import { gradeUnitLabel } from "../geochemColumns.js"; // #3178
+import { derivedValue } from "../blockModelExport.js"; // TASKS.csv #3523
 
 const num = (v, d = 2) => (Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: d }) : String(v ?? ""));
 const metres = (v) => `${num(v, 2)} m`;
@@ -78,6 +79,17 @@ export function setValuesAt(model, cell, members) {
   }).join(" · ");
 }
 
+// TASKS.csv #3523 (from #3164's check) — a block's value said with what it is: an estimate or a calculated model gave "Value 20.04" though its
+// record holds the element and unit ("Calcined Fe (%) 20.04"; "Au (g/t)" for a precious metal in ppm, as the set members' line). The
+// model's own property name wins (#1811); a support index or kriging variance stays "Value", with its unit when it has one (squared).
+export function blockValueLabel(m) {
+  if (m?.property) return m.property;
+  const d = derivedValue(m);
+  if (d) return d.unit ? `${tr("Value")} (${d.unit})` : tr("Value");
+  const el = m?.params?.element, u = m?.params?.unit;
+  if (el && u) return `${el} (${gradeUnitLabel(el, u)})`;
+  return u ? `${tr("Value")} (${u})` : tr("Value");
+}
 // The block a point on a model falls in (world coordinates). A point on a face sits on the boundary of two blocks, so the caller nudges it along the ray first.
 export function voxelCellAt(model, x, y, z) {
   let best = null, bestD = Infinity;
@@ -196,7 +208,7 @@ function describe(hit, ctx) {
     const fields = [];
     if (c) {
       // #1811 — the model's property and unit name the value ('Chargeability (mV/V): 12.09'), to 4 significant figures
-      fields.push([m.property || tr("Value"), m.valueLabels?.[c.value] ?? (Number.isFinite(c.value) ? num(+c.value.toPrecision(4), 6) : String(c.value))]);
+      fields.push([blockValueLabel(m), m.valueLabels?.[c.value] ?? (Number.isFinite(c.value) ? num(+c.value.toPrecision(4), 6) : String(c.value))]);
       fields.push([tr("Block size"), `${num(c.dx ?? m.dx, 1)} × ${num(c.dy ?? m.dy, 1)} × ${num(c.dz ?? m.dz, 1)} m`]);
       fields.push([tr("Block centre"), `${num(c.x, 1)} E, ${num(c.y, 1)} N, ${num(c.z, 1)} m`]);
       const set = setValuesAt(m, c, ctx.setMembersOf?.(m)); // #3178
