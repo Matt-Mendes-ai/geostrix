@@ -2653,11 +2653,30 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         }
         setNumericBudgetHint?.(null);
         const ac = new AbortController(); // TASKS.csv #520 — worker + status-bar progress and Cancel
+        // TASKS.csv #2634 / #3580 — the ground the shell is cut at (a terrain, or the collar surface raised over the samples), and (#2757) the hole
+        // spacing the beyond-drilling share is measured against: known before the estimate, as the worker's post-process needs them (#3580 (b))
+        const gsG = clipToTopo ? modelGround(terrainForClipRef.current, collars, survey) : null, gsGround = gsG?.ground || null; // #2634: or the collar surface
+        // TASKS.csv #3580 (Matt: "where min is present the grade shell doesn't model it") — the collar surface ran up to 189 m below Macpass's
+        // composites (311 of 1,595 at/above 29.8 g/t), and the cut took them for air: raised over the samples, within a real cell of them
+        const gsCellReal = ((c) => Math.max(c.dx, c.dy, c.dz))(cellOf(cs)) / (anisotropy.enabled ? Math.min(gsScl.major, gsScl.semiMajor, gsScl.minor) : 1);
+        const gsLift = gsGround?.kind === "collars" ? (await import("../../lib/groundNotBelowSamples.js")).groundNotBelowSamples(groundAtInFrame(gsGround), points, { reachM: gsCellReal, marginM: gsCellReal }) : null;
+        const gsGroundAt = gsLift ? gsLift.at : groundAtInFrame(gsGround);
+        // TASKS.csv #3286 (2) — the spacing Estimation and this pane's search say (holeSpacingSummary: the typical distance from a site to the next);
+        // the halo rule's own spacing gave 160 m beside Estimation's 200 m for the same 14 holes
+        const gsCollars = collars.filter((c) => holesOfPoints.has(c.hole_id));
+        const gsSpacing = (await import("../../lib/holeSpacing.js")).holeSpacingSummary(gsCollars)?.medianM || autoHaloParams(gsCollars, tracesRef.current || null).spacing;
+        // TASKS.csv #3580 (b) — with no trend warp and no log values the cut, the iso-surface and the counts run in the worker after the estimate
+        // (lib/viewer/shellPost.js): the window gets the mesh and the counts, not the grid. The ground goes per column of each box's lattice.
+        const workerPost = !anisotropy.enabled && !logInfo;
+        const shellPostLib = workerPost ? await import("../../lib/viewer/shellPost.js") : null;
         // #3580 (a) — one run per box, in turn, the progress shared by their blocks; a kriging variogram fitted in the first (every sample) is
         // given to the others, so all use the same one
         const grids = [], boxN = gridBoxes.map((b) => boxBlocks(b.bounds, cs)), boxTotal = boxN.reduce((s, x) => s + x, 0);
         for (let bi = 0, before = 0; bi < gridBoxes.length; before += boxN[bi], bi++) {
+        const post = workerPost ? { iso: numericCutoff, closeOutside: !!numericCloseShell, ground: gsGround ? await shellPostLib.groundColumns(gsGroundAt, gridBoxes[bi].bounds, cellOf(cs)) : null,
+          inShellPoints: gridBoxes[bi].idx.map((k) => gridPoints[k]).filter((q) => q.value >= numericCutoff), farPoints: gsSpacing > 0 ? points : null, farDist: gsSpacing } : null; // #3580 (b)
         const g = await runEstimation("dense", estPoints, {
+          ...(post ? { post } : {}),
           bounds: gridBoxes[bi].bounds, cellSize: cellOf(cs), method: numericMethod, // cellOf: #3062
           searchRadius: searchInGrid, minSamples: 1, maxSamples: 16, // #656
           minHoles: Math.max(1, numericMinHoles), // TASKS.csv #258
@@ -2694,25 +2713,21 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // The grid is padded around the samples, so near the surface it reached into the air; with "Cut at topography"
         // on, the field is intersected with "below the terrain" and the shell closes on the ground (still watertight).
         const gsRealOf = anisotropy.enabled ? ((u) => (q) => anisoWarpPoint(q, gsCenter, gsBasis, u))(invScales(gsScl)) : null;
-        const gsG = clipToTopo ? modelGround(terrainForClipRef.current, collars, survey) : null, gsGround = gsG?.ground || null; // #2634: or the collar surface
-        // TASKS.csv #3580 (Matt: "where min is present the grade shell doesn't model it") — the collar surface ran up to 189 m below Macpass's
-        // composites (311 of 1,595 at/above 29.8 g/t), and the cut took them for air: raised over the samples, within a real cell of them
-        const gsCellReal = Math.max(grid.cellSize.dx, grid.cellSize.dy, grid.cellSize.dz) / (anisotropy.enabled ? Math.min(gsScl.major, gsScl.semiMajor, gsScl.minor) : 1);
-        const gsLift = gsGround?.kind === "collars" ? (await import("../../lib/groundNotBelowSamples.js")).groundNotBelowSamples(groundAtInFrame(gsGround), points, { reachM: gsCellReal, marginM: gsCellReal }) : null;
-        // #3580 (a) — each box cut on its own; gsCap.capped: over all of them
-        const gsCaps = grids.map((g) => groundCappedGrid(g, numericCutoff, gsLift ? gsLift.at : groundAtInFrame(gsGround), gsRealOf)); // these grids are in world coordinates
-        const gsCap = { capped: gsCaps.reduce((s, c) => s + c.capped, 0) };
+        // #3580 (a) — each box cut on its own; gsCap.capped: over all of them. #3580 (b): done in the worker when g.post came back
+        const posts = grids.map((g) => g.post || null), viaWorker = posts.every(Boolean);
+        const gsCaps = viaWorker ? null : grids.map((g) => groundCappedGrid(g, numericCutoff, gsGroundAt, gsRealOf)); // these grids are in world coordinates
+        const gsCap = { capped: viaWorker ? posts.reduce((t, q) => t + q.capped, 0) : gsCaps.reduce((t, c) => t + c.capped, 0) };
         if (gsLift?.lifted) setNotices((p) => [...p, notice("The collar surface ran below {n} of the samples \"{label}\" was built from (rock the holes went through, in steep ground between collars): the cut was raised over them, so they stay in it. A terrain (Maps > Terrain) gives the real ground.", { n: gsLift.lifted.toLocaleString(), label })]);
         if (gsCap.capped && gsGround?.kind === "collars") setNotices((p) => [...p, notice("No terrain is loaded, so \"{label}\" was cut at the collar surface: the ground interpolated between the {n} collars, inside their footprint. A terrain (Maps > Terrain) gives the real ground.", { label, n: gsG.collars })]); // #2634
         // #3580 (a) — the iso-surface of each box, as one mesh (parts: each box's vertices, for the support colours)
-        const mc = (await import("../../lib/viewer/shellBoxes.js")).mergeMeshes(grids.map((g, gi) => marchingCubes(gsCaps[gi].values, g.nx, g.ny, g.nz, numericCutoff, {
+        const mc = (await import("../../lib/viewer/shellBoxes.js")).mergeMeshes(viaWorker ? posts.map((q) => shellPostLib.meshOfPost(q)) : grids.map((g, gi) => marchingCubes(gsCaps[gi].values, g.nx, g.ny, g.nz, numericCutoff, {
           origin: g.origin, spacing: g.cellSize, noData: numericCloseShell ? "outside" : "skip",
         })));
         // TASKS.csv #2063 (review #2013, Woodjam) — say what the run found and what removed it: with Min holes 2 at a 50 m search on holes
         // 67-360 m apart no block round the 132 composites above 3000 ppm saw two holes, and the message blamed the cutoff, the radius and
         // a cell size the block budget had just chosen
         if (!mc.faces.length) {
-          let hi = -Infinity; for (const g of grids) for (const v of g.values) if (Number.isFinite(v) && v > hi) hi = v;
+          let hi = -Infinity; if (viaWorker) { for (const q of posts) if (q.hi > hi) hi = q.hi; } else for (const g of grids) for (const v of g.values) if (Number.isFinite(v) && v > hi) hi = v;
           const mh = Math.max(1, numericMinHoles), r = Math.round(effectiveRadius);
           const facts = " " + tr("{above} composite(s) are at or above the cutoff; {e} grid cell(s) were estimated, the highest at {hi} {unit}.", { above, e: gridSum.estimated.toLocaleString(), hi: Number.isFinite(hi) ? +hi.toPrecision(3) : "—", unit: unitL });
           // #2063 — cells above the cutoff with no estimated neighbour: the surface has nothing to close against (Woodjam: 36 cells, the highest 8,330 ppm)
@@ -2728,17 +2743,15 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // the "Cu > 1000 ppm" shell closed where two holes converge, 90-110 m away, and held no composite at all.
         // #3580 (a) — each box's own samples against its own grid (a sample is looked up at its nearest node, clamped into the grid)
         const inShell = { above: 0, inside: 0, outside: 0, noData: 0 };
-        grids.forEach((g, gi) => { const r = samplesInsideShell(gridBoxes[gi].idx.map((k) => gridPoints[k]), g, gsCaps[gi].values, numericCutoff); for (const k in inShell) inShell[k] += r[k]; });
+        grids.forEach((g, gi) => { const r = viaWorker ? posts[gi].inShell : samplesInsideShell(gridBoxes[gi].idx.map((k) => gridPoints[k]), g, gsCaps[gi].values, numericCutoff); for (const k in inShell) inShell[k] += r[k]; });
         // TASKS.csv #2757 — the shell's share more than one hole spacing from every sample (real frame), as the unit body says it
         // TASKS.csv #3286 (2) — the spacing Estimation and this pane's search say (holeSpacingSummary: the typical distance from a site to the next);
         // the halo rule's own spacing gave 160 m beside Estimation's 200 m for the same 14 holes
-        const gsCollars = collars.filter((c) => holesOfPoints.has(c.hole_id));
-        const gsSpacing = (await import("../../lib/holeSpacing.js")).holeSpacingSummary(gsCollars)?.medianM || autoHaloParams(gsCollars, tracesRef.current || null).spacing;
         // #3580 (a) — over every box: the far share of all the inside nodes
         const gsBeyond = gsSpacing > 0 ? await (async () => {
           const { farFromSamples } = await import("../../lib/haloSupport.js"), toReal = anisotropy.enabled ? (q) => anisoWarpPoint(q, gsCenter, gsBasis, invScales(gsScl)) : null;
           let inside = 0, far = 0;
-          grids.forEach((g, gi) => { const r = farFromSamples(gsCaps[gi].values, g.nx, g.ny, g.nz, g.origin, g.cellSize, numericCutoff, points, gsSpacing, { toReal }); inside += r.inside; far += r.far; });
+          grids.forEach((g, gi) => { const r = viaWorker ? posts[gi].far : farFromSamples(gsCaps[gi].values, g.nx, g.ny, g.nz, g.origin, g.cellSize, numericCutoff, points, gsSpacing, { toReal }); inside += r?.inside || 0; far += r?.far || 0; });
           return { inside, far, share: inside ? far / inside : 0, dist: gsSpacing };
         })() : null;
 
@@ -2764,7 +2777,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // estimate, but all the informing data lies to one side), red = unsupported.
         const supColors = new Float32Array(mc.vertices.length * 3);
         const surfCounts = { interpolated: 0, extrapolated: 0, unsupported: 0 };
-        if (grids.every((g) => g.supportCode)) {
+        if (viaWorker || grids.every((g) => g.supportCode)) {
           const rgb = {};
           Object.entries(SUPPORT_COLORS).forEach(([k, hex]) => { const c = new THREE.Color(hex); rgb[k] = [c.r, c.g, c.b]; });
           const clampI = (n, hi) => (n < 0 ? 0 : n > hi ? hi : n);
@@ -2773,10 +2786,15 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
             const grid = grids[part.gi];
             for (let i = part.start; i < part.end; i++) {
               const v = mc.vertices[i];
-              const gx = clampI(Math.round((v[0] - grid.origin.x) / grid.cellSize.dx), grid.nx - 1);
-              const gy = clampI(Math.round((v[1] - grid.origin.y) / grid.cellSize.dy), grid.ny - 1);
-              const gz = clampI(Math.round((v[2] - grid.origin.z) / grid.cellSize.dz), grid.nz - 1);
-              const name = NAMES[grid.supportCode[gx + grid.nx * (gy + grid.ny * gz)]] || "unsupported";
+              let code; // #3580 (b): the worker looked each vertex up already
+              if (viaWorker) code = posts[part.gi].vertexSupport[i - part.start];
+              else {
+                const gx = clampI(Math.round((v[0] - grid.origin.x) / grid.cellSize.dx), grid.nx - 1);
+                const gy = clampI(Math.round((v[1] - grid.origin.y) / grid.cellSize.dy), grid.ny - 1);
+                const gz = clampI(Math.round((v[2] - grid.origin.z) / grid.cellSize.dz), grid.nz - 1);
+                code = grid.supportCode[gx + grid.nx * (gy + grid.ny * gz)];
+              }
+              const name = NAMES[code] || "unsupported";
               surfCounts[name]++;
               const c = rgb[name];
               supColors[i * 3] = c[0]; supColors[i * 3 + 1] = c[1]; supColors[i * 3 + 2] = c[2];
@@ -2801,7 +2819,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // TASKS.csv #1100 — with "cut at topography" the shell is drawn from the capped copy (#803): a node counts only when
         // it is inside the shell after the cap too (nodes in the air left out), at its own interpolated grade
         // #3580 (a) — one mean over every box's inside nodes
-        const meanParts = grids.map((g, gi) => sumInsideShell(g.values, gsCaps[gi].values, numericCutoff));
+        const meanParts = viaWorker ? posts.map((q) => ({ sum: q.sum, n: q.n })) : grids.map((g, gi) => sumInsideShell(g.values, gsCaps[gi].values, numericCutoff));
         const meanN = meanParts.reduce((t, m) => t + m.n, 0), meanGradeInShell = meanN > 0 ? meanParts.reduce((t, m) => t + m.sum, 0) / meanN : null;
         // TASKS.csv #270 (LOW-3) / #269 - the parameter block that produced this surface, kept ON the
         // surface so the panel can show it and every export can stamp it. A tonnage with no record of

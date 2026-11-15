@@ -6,6 +6,7 @@
 import { estimateBlockModel, estimateDenseGrid } from "./estimation.js";
 import { columnBuffers } from "./estimationCells.js"; // #661
 import { unpackPoints } from "./pointColumns.js"; // TASKS.csv #3008
+import { shellPost } from "./viewer/shellPost.js"; // TASKS.csv #3580 (b) — a grade shell's cut, iso-surface and counts here, not in the window
 
 self.onmessage = (e) => {
   const { kind } = e.data || {};
@@ -23,6 +24,12 @@ self.onmessage = (e) => {
     };
     if (kind === "dense") {
       const result = estimateDenseGrid(points, { ...opts, onProgress });
+      if (opts.post) { // #3580 (b): the mesh and the counts go back, not the grid
+        const post = shellPost(result, { ...opts.post, inShellPoints: po?.postIn ? unpackPoints(po.postIn) : [], farPoints: po?.postFar ? unpackPoints(po.postFar) : null });
+        const { values: _v, supportCode: _c, supportIndex: _i, ...rest } = result;
+        self.postMessage({ type: "done", result: { ...rest, post } }, [post.positions.buffer, post.faces.buffer, post.vertexSupport.buffer]);
+        return;
+      }
       const transfer = [result.values?.buffer, result.supportCode?.buffer, result.supportIndex?.buffer].filter(Boolean);
       self.postMessage({ type: "done", result }, transfer);
     } else {
