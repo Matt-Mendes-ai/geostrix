@@ -13570,5 +13570,8 @@
   "Hole ID at the toe": "معرّف الثقب عند القاع",
   "Hole ID at both ends": "معرّف الثقب عند الطرفين",
   "Project title": "عنوان المشروع",
-  "Printed as {project} on every sheet (the sheet's title and the title block's Project row), and as the PDF's title. Blank: the file's name. A Save or a rename of the file does not change it.": "يُطبع بوصفه {project} على كل ورقة (عنوان الورقة وصف المشروع في إطار العنوان) وبوصفه عنوان ملف PDF. فارغ: اسم الملف. لا يغيّره الحفظ ولا إعادة تسمية الملف."
+  "Printed as {project} on every sheet (the sheet's title and the title block's Project row), and as the PDF's title. Blank: the file's name. A Save or a rename of the file does not change it.": "يُطبع بوصفه {project} على كل ورقة (عنوان الورقة وصف المشروع في إطار العنوان) وبوصفه عنوان ملف PDF. فارغ: اسم الملف. لا يغيّره الحفظ ولا إعادة تسمية الملف.",
+  "{el}: {pct}% of its results are below the detection limit (flagged '<'), stored at half the limit, usually {floor} {unit}. Its block grades and contained metal are mostly the detection limit, not a measurement.": "{el}: {pct}٪ من نتائجه دون حد الكشف (مُعلَّمة '<')، محفوظة عند نصف الحد، عادةً {floor} {unit}. رتب كتله ومعدنه المحتوى هي في معظمها حد الكشف لا قياس.",
+  "The cut decides the ounces: look at the metal-at-risk table above for a cut near the break, and report the capped and the uncapped model side by side.": "القطع يحدد الأونصات: انظر إلى جدول المعدن المعرّض للخطر أعلاه لقطع قرب الانكسار واعرض النموذج المحدود وغير المحدود جنبًا إلى جنب.",
+  "{el} ({pct}% of results below detection, stored at about {floor})": "{el} ({pct}٪ من النتائج دون الكشف، محفوظة عند نحو {floor})"
 }

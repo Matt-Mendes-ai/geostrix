@@ -32,3 +32,14 @@ test("wired: the estimate dialog (note, choice, record), Grade-tonnage's warning
   const m = fs.readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
   assert.match(m, /if \(p90 <= v\[0\]\)/);
 });
+
+test("results the lab flagged '<' (the Macpass silver) are found as a flagged share and can be left out or set", () => {
+  // 100 silver results, 60 flagged '<' and stored at half their limit (0.25 or 0.5): no unflagged floor shows
+  const flagged = Array.from({ length: 100 }, (_, i) => (i < 60 ? { hole_id: "H", from: i, to: i + 1, values: { Ag: i % 2 ? 0.25 : 0.5 }, bdl: ["Ag"] } : { hole_id: "H", from: i, to: i + 1, values: { Ag: 1 + i / 10 } }));
+  const f = floorElements(flagged, ["Ag"], { Ag: "ppm" });
+  assert.equal(f.length, 1); assert.equal(f[0].kind, "flagged"); assert.ok(Math.abs(f[0].share - 0.6) < 1e-9);
+  const out = applyFloorModes(flagged, f, { Ag: { mode: "out" } });
+  assert.equal(out.filter((r) => typeof r.values.Ag === "number").length, 40);
+  const set = applyFloorModes(flagged, f, { Ag: { mode: "set", value: "0.1" } });
+  assert.equal(set.filter((r) => r.values.Ag === 0.1).length, 60);
+});

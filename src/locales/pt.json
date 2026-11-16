@@ -13570,5 +13570,8 @@
   "Hole ID at the toe": "ID do furo no fundo",
   "Hole ID at both ends": "ID do furo nas duas pontas",
   "Project title": "Título do projeto",
-  "Printed as {project} on every sheet (the sheet's title and the title block's Project row), and as the PDF's title. Blank: the file's name. A Save or a rename of the file does not change it.": "Impresso como {project} em cada prancha (o título da prancha e a linha Projeto do carimbo) e como título do PDF. Em branco: o nome do arquivo. Salvar ou renomear o arquivo não o altera."
+  "Printed as {project} on every sheet (the sheet's title and the title block's Project row), and as the PDF's title. Blank: the file's name. A Save or a rename of the file does not change it.": "Impresso como {project} em cada prancha (o título da prancha e a linha Projeto do carimbo) e como título do PDF. Em branco: o nome do arquivo. Salvar ou renomear o arquivo não o altera.",
+  "{el}: {pct}% of its results are below the detection limit (flagged '<'), stored at half the limit, usually {floor} {unit}. Its block grades and contained metal are mostly the detection limit, not a measurement.": "{el}: {pct}% dos resultados estão abaixo do limite de detecção (marcados '<'), guardados na metade do limite, normalmente {floor} {unit}. Os teores de bloco e o metal contido são em sua maioria o limite de detecção, não uma medição.",
+  "The cut decides the ounces: look at the metal-at-risk table above for a cut near the break, and report the capped and the uncapped model side by side.": "O corte decide as onças: veja a tabela de metal em risco acima para um corte perto da quebra e apresente o modelo com e sem limite lado a lado.",
+  "{el} ({pct}% of results below detection, stored at about {floor})": "{el} ({pct}% dos resultados abaixo da detecção, guardados em cerca de {floor})"
 }
