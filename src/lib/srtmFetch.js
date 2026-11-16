@@ -67,7 +67,7 @@ function pickZoom(lonMin, latMin, lonMax, latMax, maxTiles = MAX_TILES) {
 // TASKS.csv #3251 — what a fetch will give, said before it: the spacing between the terrain's nodes against the source's own pixel, the tiles
 // and download (AWS), and the memory it takes. source: "aws" | "copernicus" | "mrdem" | "hrdem". -> { nodeM, sourcePixelM, nativeM, zoom,
 // tiles, downloadMB, memoryMB, fullSideKm (the widest square area that gets nodes at the source's own pixel at this detail) }
-const NATIVE_OF = { copernicus: 30, mrdem: 30, hrdem: 1 };
+const NATIVE_OF = { copernicus: 30, mrdem: 30, hrdem: 1, gem15: 15, gem15dsm: 15 }; // gem15: #3721
 export function planTerrainFetch([lonMin, latMin, lonMax, latMax], gridMax = GRID_MAX, source = "aws") {
   const latMid = ((latMin + latMax) / 2) * (Math.PI / 180);
   const w = Math.max(1, (lonMax - lonMin) * 111320 * Math.cos(latMid)), h = Math.max(1, (latMax - latMin) * 110574);

@@ -1082,7 +1082,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     setSrtmProgress({ done: 0, total: 1 });
     try {
       const nrcan = terrainSource === "mrdem" || terrainSource === "hrdem"; // TASKS.csv #815
-      const fetcher = nrcan ? (await import("../lib/nrcanDem.js")).fetchNrcanTerrain : terrainSource === "copernicus" ? fetchCopernicusTerrain : fetchSRTMTerrain; // #814
+      const gem = terrainSource === "gem15" || terrainSource === "gem15dsm"; // TASKS.csv #3721
+      const fetcher = gem ? (await import("../lib/gem15Dem.js")).fetchGemTerrain : nrcan ? (await import("../lib/nrcanDem.js")).fetchNrcanTerrain : terrainSource === "copernicus" ? fetchCopernicusTerrain : fetchSRTMTerrain; // #814
       let parsed = await fetcher({
         lonMin, latMin, lonMax, latMax, targetEpsg, gridMax: terrainDetail, // #796
         onProgress: (done, total) => setSrtmProgress({ done, total }),
@@ -1129,6 +1130,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         : parsed.source.bareEarth
           ? tr(" Source: {service}, resampled to nodes ~{v2} m apart. It is a bare-earth terrain model (forest removed).", { service: parsed.source.service, v2: Math.round(parsed.source.nodeM) }) // #815
           : tr(" Source: {service}, resampled to nodes ~{v2} m apart. It is a surface model: in forest it reads some metres above the ground.", { service: parsed.source.service, v2: Math.round(parsed.source.nodeM) }); // #814
+      if (parsed.source?.gapNodes > 0) msg += parsed.source.gapFilledNodes > 0 // TASKS.csv #3721 — the nodes GEM-15 masks (water, snow and ice, low texture) and what filled them
+        ? tr(" {n} of {total} nodes have no GEM-15 value (water, snow and ice, low texture, or no cell): {filled} were filled from Copernicus GLO-30.", { n: parsed.source.gapNodes.toLocaleString(), total: parsed.source.totalNodes.toLocaleString(), filled: parsed.source.gapFilledNodes.toLocaleString() })
+        : tr(" {n} of {total} nodes have no GEM-15 value (water, snow and ice, low texture, or no cell) and are left as no data.", { n: parsed.source.gapNodes.toLocaleString(), total: parsed.source.totalNodes.toLocaleString() });
       // TASKS.csv #814 — cones in the AWS tiles that Copernicus GLO-30 does not have: reported, not changed
       if (parsed.suspectCones?.length) {
         const fmt = (c) => (Number.isFinite(c.x) ? `${Math.round(c.x).toLocaleString()} E ${Math.round(c.y).toLocaleString()} N` : `${c.lon.toFixed(4)}, ${c.lat.toFixed(4)}`) + tr(" ({v} m high{v2})", { v: Math.round(c.riseM), v2: c.copRiseM == null ? "" : tr("; Copernicus {v} m", { v: Math.round(c.copRiseM) }) });
@@ -2636,6 +2640,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             <option value="copernicus">{tr("Copernicus GLO-30 (~30 m)")}</option>
             <option value="mrdem" disabled={outsideCanada && terrainSource !== "mrdem"}>{tr("NRCan MRDEM-30 (Canada, bare earth)")}</option>{/* TASKS.csv #815; disabled outside Canada: #2465 */}
             <option value="hrdem" disabled={outsideCanada && terrainSource !== "hrdem"}>{tr("NRCan HRDEM lidar (Canada, where flown)")}</option>
+            <option value="gem15">{tr("Google GEM-15 (15 m, bare earth)")}</option>{/* TASKS.csv #3721 — experimental; gaps filled from GLO-30 and said */}
+            <option value="gem15dsm">{tr("Google GEM-15 surface (15 m)")}</option>
           </select>
         </div>
         {/* TASKS.csv #796 — terrain detail */}

@@ -102,7 +102,7 @@ export function sampleWindow(out, win, g) {
 }
 
 // Read the window of one DEM that covers the node grid, at the level that suits it, and sample it into out.
-export async function readInto(out, url, g, stats) { // exported: TASKS.csv #3515 (the 3D terrain tiles)
+export async function readInto(out, url, g, stats, opts = {}) { // exported: TASKS.csv #3515 (the 3D terrain tiles); opts.samples: #3721 — the bands to read (GEM-15's dsm file has five, the surface first)
   const dem = await openDem(url, stats);
   const { level, scale } = pickLevel(dem.levels, dem.rx, g.nodeM);
   const rx = dem.rx * scale, ry = dem.ry * scale;
@@ -110,7 +110,7 @@ export async function readInto(out, url, g, stats) { // exported: TASKS.csv #351
   const c0 = Math.max(0, Math.floor((bx0 - dem.ox) / rx) - 1), c1 = Math.min(level.w, Math.ceil((bx1 - dem.ox) / rx) + 1);
   const r0 = Math.max(0, Math.floor((by1 - dem.oy) / ry) - 1), r1 = Math.min(level.h, Math.ceil((by0 - dem.oy) / ry) + 1);
   if (c1 <= c0 || r1 <= r0) return { filled: 0, pixelM: Math.abs(rx) };
-  const [data] = await level.img.readRasters({ window: [c0, r0, c1, r1] });
+  const [data] = await level.img.readRasters({ window: [c0, r0, c1, r1], ...(opts.samples ? { samples: opts.samples } : {}) });
   const filled = sampleWindow(out, { data, w: c1 - c0, h: r1 - r0, ox: dem.ox + c0 * rx, oy: dem.oy + r0 * ry, rx, ry }, g);
   return { filled, pixelM: Math.abs(rx) };
 }
