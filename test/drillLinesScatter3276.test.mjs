@@ -50,5 +50,5 @@ test("fences still read as lines; the length is the fence through the centre, no
 test("the hook: the length from lengthM, the note says when there are no lines", () => {
   const s = readFileSync(new URL("../src/modules/viewer/drillLines.js", import.meta.url), "utf8");
   assert.match(s, /length: roundTo\(Math\.max\(geo\.lengthM \* 1\.1, 200\), 100\)/);
-  assert.match(s, /lineNote: geo && !geo\.lines \? tr\("No drill lines found: the holes are not in lines\./);
+  assert.match(s, /lineNote: geo && !geo\.lines && geo\.source === "holes" \? tr\("No drill lines found: the holes are not in lines\. Azimuth along the commonest hole azimuth[^]*: geo && !geo\.lines \? tr\("No drill lines found: the holes are not in lines\./);
 });

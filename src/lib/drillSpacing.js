@@ -50,5 +50,5 @@ export function drillSiteSpacing(collars, { siteM = 2, minBuffer = 2, maxBuffer 
   const spacing = nn[Math.floor(nn.length / 2)];
   const half = spacing / 2;
   const nice = half < 50 ? Math.round(half * 2) / 2 : Math.round(half); // 12.5 m on a 25 m grid, not 13
-  return { sites: sites.length, spacing, buffer: Math.max(minBuffer, Math.min(maxBuffer, nice)) };
+  return { sites: sites.length, spacing, buffer: Math.max(minBuffer, Math.min(maxBuffer, nice)), collars: pts.length, shared: pts.length > sites.length }; // shared (#3763): holes fanned from pads, so it is a PAD spacing
 }

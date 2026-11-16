@@ -18,6 +18,7 @@ import { setJoin } from "../setLimits.js"; // #3178
 import { blockModelLattice } from "../estimationMeta.js"; // #3178
 import { gradeUnitLabel } from "../geochemColumns.js"; // #3178
 import { derivedValue } from "../blockModelExport.js"; // TASKS.csv #3523
+import { assumedSpanAt } from "./unsurveyedTail.js"; // TASKS.csv #3761
 
 const num = (v, d = 2) => (Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: d }) : String(v ?? ""));
 const metres = (v) => `${num(v, 2)} m`;
@@ -40,6 +41,15 @@ export function structureIdentifyFields(r) {
 }
 
 // A logged row or a feature's attributes as [name, value] pairs: only what a person can read
+// TASKS.csv #3761 — a position on an unsurveyed stretch of a hole (below its last survey station, or between two stations over 100 m apart) is an
+// assumption, said where it is read: [label, text], or null
+export function assumedPositionField(span, m = (v) => num(v, 1)) {
+  if (!span) return null;
+  return [tr("Position"), span.kind === "tail"
+    ? tr("assumed: beyond the last survey station ({m} m), the hole's last attitude is carried on", { m: m(span.from) })
+    : tr("assumed: no survey station between {a} m and {b} m ({n} m apart), the path there is interpolated", { a: m(span.from), b: m(span.to), n: m(span.to - span.from) })];
+}
+const SURVEY_METHOD = new Set(["survey method"]);
 export function attributeFields(row, skip = SKIP) {
   const out = [];
   for (const [k, v] of Object.entries(row || {})) {
@@ -190,6 +200,10 @@ function describe(hit, ctx) {
     const meaning = ctx.meaningOf?.(o, o.userData?.catValue ?? row?.value, nameLine || ""); // #2816 — the project's code dictionary
     if (meaning) fields.push([tr("Meaning"), meaning]);
     if (row?.from != null && row?.to != null) { fields.push([tr("From"), metres(row.from)], [tr("To"), metres(row.to)], [tr("Length"), metres(row.to - row.from)]); } else if (row?.depth != null) fields.push([tr("Depth"), metres(row.depth)]);
+    // TASKS.csv #3761 — an interval or a point on an unsurveyed stretch says so (the tube was drawn as if measured)
+    const rowMd = row?.from != null && row?.to != null ? (Number(row.from) + Number(row.to)) / 2 : row?.depth != null ? Number(row.depth) : null;
+    const rowSpan = hole && rowMd != null ? assumedSpanAt(ctx.assumedSpansOf?.(hole), rowMd) : null;
+    if (rowSpan) fields.push(assumedPositionField(rowSpan));
     // TASKS.csv #2520 (review #2486) — every element (the card scrolls), the one this bar shows first, then the commodities; a '<' result as
     // the lab wrote it (twice the stored half-limit), a '>' as its ceiling. It listed the first 16 in the lab file's column order: Cs never showed
     if (row?.values) {
@@ -199,10 +213,11 @@ function describe(hit, ctx) {
     if (row) fields.push(...attributeFields(row));
     else for (const line of tipLines.slice(hole ? 2 : 1)) fields.push(["", line]);
     const trace = hole && ctx.traceOf(hole);
-    if (trace && !(row?.from != null) && row?.depth == null) { const md = depthOnTrace(trace, p); if (md != null) fields.push([tr("Depth at this point"), metres(md)]); }
+    let traceSpan = null;
+    if (trace && !(row?.from != null) && row?.depth == null) { const md = depthOnTrace(trace, p); if (md != null) { fields.push([tr("Depth at this point"), metres(md)]); traceSpan = hole ? assumedSpanAt(ctx.assumedSpansOf?.(hole), md) : null; if (traceSpan) fields.push(assumedPositionField(traceSpan)); } } // #3761
     // TASKS.csv #3572 (4) — a click on the bare trace of a hole listed only its name and depth; the collar's own record (type, year, prospect,
     // length...) was in the card only for the collar dot. Beneath the depth, under the same names.
-    if (hole && !row && o.userData?.holeId) { const cc = ctx.collarOf?.(hole); if (cc) fields.push(...(Number.isFinite(cc.length) ? [[tr("Length"), metres(cc.length)]] : []), ...attributeFields(cc.attrs, new Set())); }
+    if (hole && !row && o.userData?.holeId) { const cc = ctx.collarOf?.(hole); if (cc) fields.push(...(Number.isFinite(cc.length) ? [[tr("Length"), metres(cc.length)]] : []), ...attributeFields(cc.attrs, traceSpan ? SURVEY_METHOD /* #3761 — not 'measured' where the position is assumed */ : new Set())); }
     const at = row?.from != null && row?.to != null ? `${num(row.from, 2)}–${num(row.to, 2)} m` : row?.depth != null ? `${num(row.depth, 2)} m` : null; // #2520 — told apart in 'Under this click'
     // TASKS.csv #2041 — a layer's drawn batch (no row, no hole, no tip) says nothing: 'bare', dropped when the layer has a real entry here
     const bare = !row && !hole && !tipLines.length && !fields.length;
@@ -295,6 +310,7 @@ export function identifyAt(r, clientX, clientY) {
     setMembersOf: (m) => setMembersOf(m, r.voxelModels || []), // #3178
     isHole: (id) => r.tracesRef.current.some((t) => t.hole_id === id),
     traceOf: (id) => r.tracesRef.current.find((t) => t.hole_id === id)?.pts,
+    assumedSpansOf: (id) => r.tracesRef.current.find((t) => t.hole_id === id)?.assumed || null, // #3761 — the stretches with no survey station
     collarOf: (id) => (r.collars || []).find((c) => c.hole_id === id) || null, // #3572 (4)
     layerOf: (o) => { const k = groups.get(o.parent); return k == null ? null : r.layerLabel(k); },
     layerKeyOf: (o) => groups.get(o.parent) ?? null, // #3529

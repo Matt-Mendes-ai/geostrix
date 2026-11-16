@@ -28,6 +28,9 @@ export default function MultiStripLogModal({ holeId, collars, layers, assays, as
   const shown = withData.filter((h) => !filter.trim() || h.toLowerCase().includes(filter.trim().toLowerCase()));
   const toggle = (h) => setPicked((p) => (p.includes(h) ? p.filter((x) => x !== h) : p.length >= MULTI_MAX_HOLES ? p : [...p, h]));
   const elementUnits = useMemo(() => Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit])), [assayElements]);
+  const toggleSym = (s) => setSyms((p) => (p.includes(s) ? p.filter((x) => x !== s) : p.length >= 3 ? p : [...p, s]));
+  const QUICK = 12, quick = (assayElements || []).slice(0, QUICK), ticked = (assayElements || []).filter((e) => syms.includes(e.symbol) && !quick.includes(e));
+  const chips = [...quick, ...ticked], rest = (assayElements || []).filter((e) => !chips.includes(e)); // #3764
   const composed = useMemo(() => (picked.length ? composeStripLogs(picked, { collars, layers, legendOverride, assays, assaySymbols: syms, elementUnits }, { align }) : null), [picked, collars, layers, legendOverride, assays, syms, elementUnits, align]);
   const exportSvg = () => composed && embedFigureFont(composed.svg).catch(() => composed.svg).then((content) => saveFile({ suggestedName: `strip_logs_${picked.length}_holes.svg`, filters: [{ name: "SVG", extensions: ["svg"] }], content }));
   const toLayout = () => {
@@ -55,9 +58,18 @@ export default function MultiStripLogModal({ holeId, collars, layers, assays, as
               </select>
             </label>
             <div style={{ marginBottom: 6 }}>{tr("Elements (up to 3)")}</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 10 }}>
-              {(assayElements || []).slice(0, 12).map((e) => <span key={e.symbol} role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSyms((p) => (p.includes(e.symbol) ? p.filter((x) => x !== e.symbol) : p.length >= 3 ? p : [...p, e.symbol]))} style={chip(syms.includes(e.symbol))}>{e.symbol}</span>)}
+            {/* TASKS.csv #3764 — every element of the project can be chosen: the first QUICK as chips (and any ticked one), the rest in an 'Add an element' list
+                (34 elements offered twelve: lead, zinc, sulphur and iron could not go beside gold) */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 6 }}>
+              {chips.map((e) => <span key={e.symbol} role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => toggleSym(e.symbol)} style={chip(syms.includes(e.symbol))}>{e.symbol}</span>)}
             </div>
+            {rest.length > 0 && (
+              <select aria-label={tr("Add an element")} value="" disabled={syms.length >= 3} onChange={(e) => { if (e.target.value) toggleSym(e.target.value); }} style={{ width: "100%", marginBottom: 10 }}>
+                <option value="">{tr("Add an element… ({n} more)", { n: rest.length })}</option>
+                {rest.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol}</option>)}
+              </select>
+            )}
+            {align === "rl" && <div style={{ marginBottom: 8, color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", lineHeight: 1.4 }}>{tr("Hung by collar elevation: the scale is downhole depth, so the same line across is the same level only in vertical holes.")}</div>}{/* #3764 */}
             <div style={{ marginBottom: 4 }}>{tr("Holes ({n} of {max})", { n: picked.length, max: MULTI_MAX_HOLES })}</div>
             <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={tr("Filter holes…")} aria-label={tr("Filter holes")} style={{ width: "100%", boxSizing: "border-box", marginBottom: 6 }} />
             {shown.slice(0, 300).map((h) => <label key={h} style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={picked.includes(h)} onChange={() => toggle(h)} />{h}</label>)}

@@ -112,7 +112,7 @@ function barTrack(rows, x, sy, max) {
 // map viewport on the same page use. #402 did this for the strip-log modal only.
 // assays / assaySymbols / elementUnits (#1480): the project's assays and up to three elements to draw as tracks after the logs
 // lithoPatterns (#1995): { byCode: { code: FGDC code | null }, tiles } — the lithology column drawn with its patterns
-export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride = null, assays = [], assaySymbols = [], elementUnits = {}, lithoPatterns = null, assayRanges = null, customTracks = [], pxPerMeter: forcedPx = null, logTracks = false }) { // logTracks: #3710 — the logged susceptibility and density, as the strip-log window draws them // forcedPx: #3560 A1 — several holes on one depth scale; customTracks: #2477 // assayRanges: #2605 — one axis per element for an atlas
+export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride = null, assays = [], assaySymbols = [], elementUnits = {}, lithoPatterns = null, assayRanges = null, customTracks = [], pxPerMeter: forcedPx = null, logTracks = false, depthStep: forcedStep = null }) { // depthStep: #3764 — the one tick step of side-by-side logs; logTracks: #3710 — the logged susceptibility and density, as the strip-log window draws them // forcedPx: #3560 A1 — several holes on one depth scale; customTracks: #2477 // assayRanges: #2605 — one axis per element for an atlas
   const ov = (key, v) => legendOverride?.[key]?.[v];
   const colorOf = (key, fallback) => (v) => ov(key, v)?.color || fallback(v);
   const nameOf = (key, fallback) => (v) => ov(key, v)?.label || (fallback ? fallback(v) : v);
@@ -166,7 +166,7 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride
 
   let body = "";
   // Depth gridlines/labels every ~10 rendered pixels' worth of meters, same idea StripLog uses.
-  const depthStep = Math.max(5, Math.ceil(maxDepth / 20 / 5) * 5);
+  const depthStep = forcedStep > 0 ? forcedStep : Math.max(5, Math.ceil(maxDepth / 20 / 5) * 5); // #3764 — side by side: one step for every column
   for (let d = 0; d <= maxDepth; d += depthStep) {
     const y = sy(d);
     body += `<line x1="${DEPTH_COL_W}" y1="${y}" x2="${W - 6}" y2="${y}" stroke="#e6e8eb" stroke-width="1"/>`;

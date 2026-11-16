@@ -5,13 +5,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { median } from "../../lib/arrayStats.js";
 import { t as tr } from "../../lib/i18n.js";
+import { commonestHoleAzimuth } from "../../lib/viewer/holeAzimuth.js"; // TASKS.csv #3763
 
 // collars [{ x, y }] -> { azimuth (0-180), spacing (m between fences), alongM (extent along them), centre: { x, y }, lines, lengthM } or null
 // TASKS.csv #3276 (Galore review) — 70 holes drilled all round the compass read 'drill lines 35°, 571 m apart', and By coordinates opened a
 // 17.5 km section (the whole 29 km property) with 2 holes in it. lines: at least 45 % of the neighbour bearings agree within 15° (random
 // layouts of 20-80 holes: median 24 %, 95th percentile 36 %; fences 56-100 %); lengthM: the run of collars around the centre along the
 // azimuth, cut where the gap to the next is far wider than the holes' own spacing.
-export function drillLineGeometry(collars) {
+// TASKS.csv #3763 (Scottie Gold review: holes drilled in fans from pads) — opts.holes: the commonest hole azimuth (lib/viewer/holeAzimuth.js): used for
+// the azimuth when the collars are not in lines (a bearing between two pads says nothing about where their holes go); source says which
+export function drillLineGeometry(collars, opts = {}) {
   const pts = (collars || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y));
   if (pts.length < 6) return null;
   // nearest-neighbour bearings, folded to 0-180 (a fence has no direction); a grid cell index keeps it near O(n)
@@ -50,7 +53,9 @@ export function drillLineGeometry(collars) {
   // refine: the doubled-angle mean of the bearings within 15° of the busiest bin
   const c0 = top * 5 + 2.5, near = bearings.filter((b) => Math.abs(((b - c0 + 270) % 180) - 90) <= 15);
   const sx = near.reduce((s, b) => s + Math.sin((2 * b * Math.PI) / 180), 0), cy = near.reduce((s, b) => s + Math.cos((2 * b * Math.PI) / 180), 0);
-  const azimuth = Math.round(((((Math.atan2(sx, cy) * 180) / Math.PI) / 2) + 180) % 180);
+  const share = near.length / bearings.length, lines = share >= 0.45;
+  const byHoles = !lines && opts.holes ? opts.holes : null; // #3763
+  const azimuth = byHoles ? byHoles.azimuth : Math.round(((((Math.atan2(sx, cy) * 180) / Math.PI) / 2) + 180) % 180);
   // across the fences: the collars' offsets from a line through the median collar at that bearing; a gap wider than three quarters of the
   // collars' own spacing (the median nearest-neighbour distance, along a fence) starts a new fence; the spacing is the median between fences
   const ux = Math.sin((azimuth * Math.PI) / 180), uy = Math.cos((azimuth * Math.PI) / 180);
@@ -63,8 +68,8 @@ export function drillLineGeometry(collars) {
   const gaps = steps.filter((s) => s > cut);
   const spacing = gaps.length ? median(gaps) : null;
   const alongM = Math.max(...along) - Math.min(...along);
-  const share = near.length / bearings.length, lines = share >= 0.45, nn = median(nnDist);
-  return { azimuth, spacing: lines && spacing ? Math.round(spacing) : null, alongM, centre, lines, share, lengthM: centreRun(pts, centre, ux, uy, nn) };
+  const nn = median(nnDist);
+  return { azimuth, source: byHoles ? "holes" : "collars", holes: byHoles, spacing: lines && spacing ? Math.round(spacing) : null, alongM, centre, lines, share, lengthM: centreRun(pts, centre, ux, uy, nn) };
 }
 
 // the reach along (ux, uy) of the collars near the line through the centre, as one run from the collar nearest the centre: a gap over
@@ -85,8 +90,9 @@ function centreRun(pts, centre, ux, uy, nn) {
 const roundTo = (v, step) => Math.max(step, Math.round(v / step) * step);
 
 // the fence-series and by-coordinates state, seeded from the drilling until the user sets a value
-export function useDrillLineDefaults(collars) {
-  const geo = useMemo(() => drillLineGeometry(collars), [collars]);
+export function useDrillLineDefaults(collars, survey = null) { // survey: #3763 — the holes' own azimuths
+  const holes = useMemo(() => commonestHoleAzimuth(collars, survey), [collars, survey]); // #3763
+  const geo = useMemo(() => drillLineGeometry(collars, { holes }), [collars, holes]);
   const touched = useRef({});
   const [sliceSeriesAzimuth, setAz] = useState(0);
   const [sliceSeriesWidth, setW] = useState(50);
@@ -102,6 +108,6 @@ export function useDrillLineDefaults(collars) {
     sliceSeriesWidth, setSliceSeriesWidth: (v) => { touched.current.w = true; setW(v); },
     typedSection, setTypedSection: (v) => { touched.current.typed = true; setTyped(v); },
     lineCentre: geo?.centre || null,
-    lineNote: geo && !geo.lines ? tr("No drill lines found: the holes are not in lines. Azimuth from the commonest bearing between neighbouring collars ({az}°).", { az: geo.azimuth }) /* #3276 */ : geo ? (geo.spacing ? tr("Azimuth and width from the drill lines ({az}°, {s} m apart).", { az: geo.azimuth, s: geo.spacing }) : tr("Azimuth from the drill lines ({az}°).", { az: geo.azimuth })) : "",
+    lineNote: geo && !geo.lines && geo.source === "holes" ? tr("No drill lines found: the holes are not in lines. Azimuth along the commonest hole azimuth ({az}°: {n} of {of} holes within 15°).", { az: geo.azimuth, n: geo.holes.n, of: geo.holes.of }) /* #3763 */ : geo && !geo.lines ? tr("No drill lines found: the holes are not in lines. Azimuth from the commonest bearing between neighbouring collars ({az}°).", { az: geo.azimuth }) /* #3276 */ : geo ? (geo.spacing ? tr("Azimuth and width from the drill lines ({az}°, {s} m apart).", { az: geo.azimuth, s: geo.spacing }) : tr("Azimuth from the drill lines ({az}°).", { az: geo.azimuth })) : "",
   };
 }

@@ -81,10 +81,16 @@ export function labelBoxes(group, camera, width, height, labelPx = 16) {
 // TASKS.csv #3588 (7) (Fireweed rehearsal, Macpass) — in an oblique close view the labels of holes 8 km behind (Jason) were drawn among the Tom West
 // holes' (a label keeps its screen size, so a far one looks as near as a near one). A label more than 5 times as far from the camera as the
 // nearest one is left out of the live view (null: as a label behind the camera). Only the live declutter: a Layout capture keeps every label (withEveryLabel).
+// TASKS.csv #3760 (Scottie Gold review: a pad at 848 m, the camera a few hundred metres above it) — the nearest was taken over EVERY label, shown or
+// not, on screen or not: a pad 1 km away on the mountain above was 'nearest' and every label actually in view was dropped as far. The nearest is now
+// the nearest label whose box falls on the viewport (view: { width, height }, the same pixel frame as the boxes), so a label off screen decides
+// nothing; with no view given, or no label on screen, the old rule over all of them.
 export const FAR_DEPTH_RATIO = 5;
-export function dropFarLabels(boxes, ratio = FAR_DEPTH_RATIO) {
-  let near = Infinity;
-  for (const b of boxes) if (b && b.d > 0 && b.d < near) near = b.d;
+export const boxOnScreen = (b, view) => !!b && Math.abs(b.x) - b.w / 2 < view.width / 2 && Math.abs(b.y) - b.h / 2 < view.height / 2;
+export function dropFarLabels(boxes, ratio = FAR_DEPTH_RATIO, view = null) {
+  const nearest = (keep) => { let near = Infinity; for (const b of boxes) if (b && b.d > 0 && b.d < near && keep(b)) near = b.d; return near; };
+  let near = view ? nearest((b) => boxOnScreen(b, view)) : Infinity;
+  if (!Number.isFinite(near)) near = nearest(() => true);
   if (!Number.isFinite(near)) return boxes;
   return boxes.map((b) => (b && b.d > near * ratio ? null : b));
 }
@@ -111,10 +117,12 @@ export function declutterHoleLabels(group, camera, width, height, labelPx = 16, 
   if (key !== st.key) { st.key = key; st.at = now; st.done = false; return; }
   if (st.done || now - st.at < IDLE_MS) return;
   st.done = true;
-  const show = labelsToShow(dropFarLabels(labelBoxes(group, camera, width, height, labelPx))); // dropFarLabels: #3588 (7)
   // TASKS.csv #1533 (review #1497, Lawyers) — a label of a hole hidden in the Holes list stays hidden (it was shown again here each
   // idle frame: 95 labels of hidden holes on screen); its first tip line is the hole id, as the visibleHoles effect reads it
   const hidden = (sp) => sp.userData?.holeHidden === true;
+  // dropFarLabels: #3588 (7); #3760 — against the labels on screen, a hidden hole's label (never drawn) deciding nothing
+  const boxes = labelBoxes(group, camera, width, height, labelPx).map((b, i) => (hidden(group.children[i]) ? null : b));
+  const show = labelsToShow(dropFarLabels(boxes, FAR_DEPTH_RATIO, { width, height }));
   group.children.forEach((sp, i) => { sp.visible = !hidden(sp) && show[i] !== false; });
   fillers.get(group)?.(group.children.filter((sp) => sp.visible)); // #3098 — the shown ones that have no text yet
 }

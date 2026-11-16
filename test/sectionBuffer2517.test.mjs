@@ -8,7 +8,7 @@ import { drillSiteSpacing } from "../src/lib/drillSpacing.js";
 test("a 25 m grid: spacing 25, buffer 12.5", () => {
   const g = [];
   for (let i = 0; i < 48; i++) for (let j = 0; j < 47; j++) g.push({ x: 500000 + i * 25, y: 7000000 + j * 25 });
-  assert.deepEqual(drillSiteSpacing(g), { sites: 2256, spacing: 25, buffer: 12.5 });
+  assert.deepEqual(drillSiteSpacing(g), { sites: 2256, spacing: 25, buffer: 12.5, collars: 2256, shared: false } /* #3763: shared — holes fanned from pads */);
 });
 
 test("fans from shared sites count once: the spacing between sites, not 0 m", () => {

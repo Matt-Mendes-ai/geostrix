@@ -121,7 +121,7 @@ const toExportCsv = async (rows, opts) => (await import("../lib/tabular.js")).to
 const FenceDiagramModal = lazyModal(() => import("../components/FenceDiagramModal.jsx")); // TASKS.csv #139  // TASKS.csv #301
 const CoreOrientationCalculator = lazyModal(() => import("../components/CoreOrientationCalculator.jsx"));  // TASKS.csv #301
 import { codesInUse, connectIntervals, effectiveCode, codeInfo } from "../lib/modellingCodes.js"; // TASKS.csv #599
-import { outcropLegendGroup /* TASKS.csv #1437 */, ASSAY_ELEMENT_COLORS, assayColorFor, categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, surfaceSampleLegendGroup , numericLayerLegendGroups, geophysLegendGroups /* #2878 */ } from "../lib/legendGroups.js"; // TASKS.csv #725; map / boundary / samples: #948
+import { outcropLegendGroup /* TASKS.csv #1437 */, ASSAY_ELEMENT_COLORS, assayColorFor, categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, surfaceSampleLegendGroup , numericLayerLegendGroups, geophysLegendGroups /* #2878 */, importedSurfaceLegendGroups /* #3762 */ } from "../lib/legendGroups.js"; // TASKS.csv #725; map / boundary / samples: #948
 // TASKS.csv #843 — the anomaly map (lib/anomalyMap.js + lib/thresholds.js) and its controls load only when used: off the startup bundle
 const SurfaceAnomalyControls = React.lazy(() => import("../components/SurfaceAnomalyControls.jsx"));
 const EvidenceOverlayPane = React.lazy(() => import("../components/EvidenceOverlayPane.jsx"));
@@ -234,6 +234,8 @@ import { useUnitSource } from "./viewer/useUnitSource.js"; // TASKS.csv #2378
 import { wheelZoom } from "./viewer/wheelZoom.js"; // #2368
 import { makeWheelAnchors, wheelBoxes } from "./viewer/wheelAnchors.js"; // TASKS.csv #3247; #3669
 import { useDrillLineDefaults } from "./viewer/drillLines.js"; // #2366
+import { useSliceModelFace } from "./viewer/useSliceModelFace.js"; // #3765
+import ImportedSurfaceRows, { isImportedSurface, surfaceHex } from "./viewer/ImportedSurfaceRows.jsx"; // #3762
 import { sectionTopView, viewCentreEN } from "./viewer/sectionView.js"; // TASKS.csv #3574
 import { pBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704 // TASKS.csv #445 step 2
 import { isMarkedQcRow } from "../lib/qaqcCore.js"; // TASKS.csv #601; qaqcCore: #1345
@@ -806,7 +808,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // TASKS.csv — "slice series" / fence-section generator (user request: "I wanna be able to slice the
   // voxel in equal parts on a specified azi and width"). See generateSliceSeries below.
   const shownCollars = useMemo(() => (collars.some((c) => visibleHoles[c.hole_id] === false) ? collars.filter((c) => visibleHoles[c.hole_id] !== false) : collars), [collars, visibleHoles]); // TASKS.csv #3561 — the series follows the holes shown
-  const { sliceSeriesAzimuth, setSliceSeriesAzimuth, sliceSeriesWidth, setSliceSeriesWidth, typedSection, setTypedSection, lineCentre, lineNote } = useDrillLineDefaults(shownCollars); // #2366
+  const { sliceSeriesAzimuth, setSliceSeriesAzimuth, sliceSeriesWidth, setSliceSeriesWidth, typedSection, setTypedSection, lineCentre, lineNote } = useDrillLineDefaults(shownCollars, survey); // #2366; survey: #3763
   const [fenceCoverModels, setFenceCoverModels] = useState(false); // #1180
 
   const [gridConfig, setGridConfig] = useState({ ...DEFAULT_GRID });
@@ -1638,6 +1640,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       ...viewCodeOrder(categoryLegendGroups({ keys: CATEGORY_LAYER_KEYS, layers, layerVisible, hidden: categoryFilter, visibleHoles, singleColor, labelFor: effectiveLabel, colorFor: effectiveColor, placed: new Set(collars.map((c) => String(c.hole_id))) }), projectCodeOrders(layoutPages, null, null, null)), // #1813
       ...assayLegendGroups({ withNote: true /* #3588 (2) */, assays, assayElements, assayVisible: assayVisible && collars.length > 0 /* #1813 */, assayDisplayElements, assayStyle, displayUnits: project?.displayUnits /* #3236 */ }),
       ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), ...scoreRasterLegendGroups(rasters) /* #2670 — score maps */, // #1236
+      ...importedSurfaceLegendGroups(implicitSurfaces, (id) => surfaceHex(implicitMeshesRef.current[id])), // #3762
       ...numericLayerLegendGroups({ layers, layerVisible, isRowVisible, colorOf: numericLayerColor, symbology: numericSymbology, clips: numericClip }), // #1398 — the RQD / recovery / SG / mag susc ramps
       ...customLegendGroups(customLayers, customVisible, layerStyles), // #1697
     ];
@@ -1653,7 +1656,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     const geo = geophysLegendGroups({ rows: layers?.geophys_pts, visible: !!layerVisible.geophys_pts, surveys: geophysSurveys, stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax, label: LAYER_META.geophys_pts?.label || "Geophysics points" });
     if (bare) groups.unshift(...geo); else groups.push(...geo); // TASKS.csv #3325 — beside the Geophysics sidebar the survey ramps lead (the hole ramps took all six)
     return mode === "surface" && surfFirst.length ? [...surfFirst, ...groups.filter((g) => !surfFirst.includes(g))] : groups; // #3046 (3)
-  }, [mode /* #3046 */, bare /* #3325 */, rasters, sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, numericLayerColor, isRowVisible, collars, customLayers, customVisible, holeScheme, holeColourBy, surfaceStructures, layoutPages /* #3296 */]); // #1398; collars: #1813; holeScheme: #1504; surfaceStructures: #3092
+  }, [mode /* #3046 */, bare /* #3325 */, rasters, sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, numericLayerColor, isRowVisible, collars, customLayers, customVisible, holeScheme, holeColourBy, surfaceStructures, layoutPages /* #3296 */, implicitSurfaces /* #3762 */]); // #1398; collars: #1813; holeScheme: #1504; surfaceStructures: #3092
 
   // TASKS.csv #453 — the 3D slice's planes over the drilled extent: vertical (azimuth, position) or horizontal (an elevation); thickness 0 = a half-space
   const sliceExtent = useMemo(() => {
@@ -3554,7 +3557,7 @@ ${describeTrend(t)}` };
       }
       const o = originRef.current;
       const label = file.name.replace(/\.(dxf|obj|msh|ts|gp)$/i, "");
-      const stamp = Date.now();
+      const stamp = Date.now(), importedBefore = Object.keys(implicitMeshesRef.current).filter((i) => i.includes("_imported")).length;
       const box = new THREE.Box3();
       const added = solid.parts.map((part, k) => {
         // World (easting, northing, elevation) -> scene, the exact inverse of meshExport.js's
@@ -3574,7 +3577,7 @@ ${describeTrend(t)}` };
         // Translucent grey-blue family, visually distinct from the gold/coloured generated surfaces — an
         // imported reference shape should not look like something this app modelled. Layers get neighbouring
         // tones so a pit shell and its stopes can be told apart (the #52 sync-out saves the material colour).
-        const color = IMPORTED_SOLID_COLORS[k % IMPORTED_SOLID_COLORS.length];
+        const color = IMPORTED_SOLID_COLORS[(k + importedBefore) % IMPORTED_SOLID_COLORS.length]; // #3762 — one drop of files, each its own tone
         const mat = new THREE.MeshLambertMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: 0.45 });
         const mesh = new THREE.Mesh(geo, mat);
         const name = layered ? `${label} — ${part.layer}` : label;
@@ -4720,6 +4723,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       voxelMeshesRef.current[model.id] = mesh;
     });
   }, [voxelModels, collars, slice3d.on, deferRound]); // slice3d.on: #793; deferRound: #1980
+  useSliceModelFace({ voxelMeshesRef, slicePlanesRef, rendererRef, slice3d, voxelModels, refresh: [collars, deferRound] }); // #3765 — a sliced block model is its back wall only: the slab's holes stand in front
 
   // TASKS.csv #188 — planned drillholes (drillhole planning/targeting module). A planned hole has no
   // downhole survey (it hasn't been drilled yet) — just a collar plus a single design azimuth/dip/
@@ -6480,9 +6484,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             row still opens its full editor (legend/classify/palette for voxels, etc.) via the
             ArrowUpRight jump icon rather than duplicating that whole UI here — this panel's job is
             visibility + a quick opacity nudge + delete, exactly like the raster rows above it. */}
-        {(boundaries.length > 0 || omfObjects.length > 0 || voxelModels.length > 0) && (
+        {(boundaries.length > 0 || omfObjects.length > 0 || voxelModels.length > 0 || implicitSurfaces.some(isImportedSurface)) && (
           <>
             <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Boundaries and models")}</div>
+            <ImportedSurfaceRows surfaces={implicitSurfaces} meshesRef={implicitMeshesRef} labels={surfaceLabels} toggle={toggleImplicitSurface} zoom={zoomToImplicitSurface} remove={removeImplicitSurface} confirmRemove={confirmRemoveSurface} />{/* #3762 */}
             {boundaries.map((b) => (
               <div key={b.id} onContextMenu={(e) => openRowMenu(e, b.name, [
                   { label: b.visible === false ? "Show" : "Hide", onClick: () => updateBoundary(b.id, { visible: b.visible === false }) },

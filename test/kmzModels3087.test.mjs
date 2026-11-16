@@ -114,7 +114,7 @@ test("in the project KMZ: a 3D models folder (surfaces, block models with their 
   assert.match(k, /<Placemark><name>Fault<\/name><visibility>0<\/visibility>/);
   assert.match(k, /<Folder><name>Terrain<\/name><description>Unticked: Google Earth draws its own terrain[^<]*<\/description>\n<Placemark><name>DEM<\/name><visibility>0<\/visibility>/);
   assert.match(k, /<Folder><name>Sections<\/name>\n<Folder><name>Section images<\/name>\n<Placemark><name>L100 scan<\/name>/);
-  assert.ok(legends.includes("Mag inversion"), "the block model's legend");
+  assert.ok(legends.some((l) => l.startsWith("Mag inversion")), "the block model's legend"); // #3765: its label also says the unit is not stated
   const names = out.files.map((f) => f.name);
   assert.deepEqual(names.filter((n) => n.startsWith("models/")), ["models/model_0.dae", "models/sec_0.jpg", "models/model_1.dae", "models/model_2.dae", "models/model_3.dae", "models/model_4.dae"]); // Sections come before 3D models
   assert.ok(out.files.filter((f) => f.name.endsWith(".dae")).every((f) => f.deflate === true));

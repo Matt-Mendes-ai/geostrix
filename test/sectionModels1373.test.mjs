@@ -19,7 +19,7 @@ test("a continuous block model becomes five rows from low to high; a class model
   assert.equal(rows[4][1], cont.ramp.colors.at(-1));
   const cls = voxelLegendGroups([{ id: "u", name: "Units", min: 1, max: 2, valueLabels: { 1: "Earn", 2: "McDame" }, stops: [{ value: 1, color: "#aa0000" }, { value: 2, color: "#00aa00" }] }])[0];
   const out = groupSectionLegend(sectionModelLegend([{ name: "Earn base", color: "#3366cc" }], [{ name: "P(McDame)", legend: cont }, { name: "Units", legend: cls }, { name: "No key", legend: null }]));
-  assert.deepEqual(out.filter((r) => r[2]?.heading).map((r) => r[0]), ["Model surfaces", "P(McDame)", "Units"]);
+  assert.deepEqual(out.filter((r) => r[2]?.heading).map((r) => r[0]), ["Model surfaces", "P(McDame) · unit not stated", "Units"] /* #3765 */);
   assert.ok(out.some(([l, c]) => l === "McDame" && c === "#00aa00"));
 });
 

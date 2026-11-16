@@ -3,6 +3,7 @@
 // usual strip-log comparison) or "rl" (each hung from its collar elevation, so the same height lines up across holes, for correlation).
 import { buildStripLogSvgMarkup } from "./striplogSvg.js";
 import { arrMax } from "./arrayStats.js"; // #371 — no spread
+import { t as tr } from "./i18n.js"; // TASKS.csv #3764
 
 export const MULTI_MAX_HOLES = 8; // beyond this a column is too narrow to read on a page
 const GAP = 10;
@@ -12,14 +13,16 @@ const GAP = 10;
 export function composeStripLogs(holeIds, opts, { align = "depth", pxPerMeter = null } = {}) {
   const ids = (holeIds || []).slice(0, MULTI_MAX_HOLES);
   // the longest hole sets the scale when none is given, as the single log does for its own hole
-  let px = pxPerMeter;
-  if (!(px > 0)) {
+  let px = pxPerMeter, tickStep = null;
+  {
     let longest = 0;
     for (const id of ids) { const b = buildStripLogSvgMarkup({ ...opts, holeId: id, pxPerMeter: 1 }); if (b) longest = Math.max(longest, (b.height - 20 - 36 - 30) / b.pxPerMeter); }
-    px = longest > 0 ? Math.max(1, Math.min(8, 900 / longest)) : 1;
+    if (!(px > 0)) px = longest > 0 ? Math.max(1, Math.min(8, 900 / longest)) : 1;
+    // TASKS.csv #3764 — one depth tick step for every column (the first column read every 15 m, the others every 10: each took its own hole's length)
+    tickStep = Math.max(5, Math.ceil(longest / 20 / 5) * 5);
   }
   const built = [], skipped = [];
-  for (const id of ids) { const b = buildStripLogSvgMarkup({ ...opts, holeId: id, pxPerMeter: px }); if (b) built.push({ id, b }); else skipped.push(id); }
+  for (const id of ids) { const b = buildStripLogSvgMarkup({ ...opts, holeId: id, pxPerMeter: px, depthStep: tickStep }); if (b) built.push({ id, b }); else skipped.push(id); }
   if (!built.length) return null;
   const zOf = (id) => { const c = (opts.collars || []).find((q) => q.hole_id === id); return Number.isFinite(c?.z) ? c.z : null; };
   const zTop = align === "rl" ? arrMax(built.map(({ id }) => zOf(id) ?? -Infinity)) : null;
@@ -30,8 +33,11 @@ export function composeStripLogs(holeIds, opts, { align = "depth", pxPerMeter = 
     x += b.width + GAP; height = Math.max(height, dy + b.height);
     return h;
   });
-  const width = Math.max(1, x - GAP);
+  // TASKS.csv #3764 — hung by collar elevation the scale is still the DOWNHOLE depth: the same line across the page is the same level only in vertical holes
+  const note = align === "rl" && holes.length > 1 ? tr("Hung by collar elevation: the scale is downhole depth, so the same line across is the same level only in vertical holes.") : "";
+  if (note) height += 16;
+  const width = Math.max(1, x - GAP, note ? Math.min(900, note.length * 5.2) : 0);
   const inner = holes.map((h) => h.markup.replace("<svg ", `<svg x="${h.x}" y="${h.y}" `)).join("");
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}"><rect x="0" y="0" width="${width}" height="${height}" fill="#ffffff"/>${inner}</svg>`;
-  return { svg, width, height, pxPerMeter: px, holes: holes.map(({ markup: _m, ...r }) => r), skipped };
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}"><rect x="0" y="0" width="${width}" height="${height}" fill="#ffffff"/>${inner}${note ? `<text x="4" y="${height - 5}" font-size="9" fill="#5a6472">${note.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</text>` : ""}</svg>`;
+  return { svg, width, height, pxPerMeter: px, note, holes: holes.map(({ markup: _m, ...r }) => r), skipped };
 }
