@@ -133,7 +133,7 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
         + (area.leftOut ? " " + tr("{n} samples in other areas more than 500 m away were left out.", { n: area.leftOut.toLocaleString() }) : "") });
       return;
     }
-    let plane = null, what = "";
+    let plane = null, what = "", why = ""; // why: TASKS.csv #3779 (2) — what a refusal to fit a plane has to say
     if (kind === "code") {
       const all = (structurePicks || []).filter((p) => String(p.value ?? "?") === key);
       const picks = all.filter((p) => Number.isFinite(p.dip) && Number.isFinite(p.azimuth));
@@ -165,6 +165,7 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
       const fit = pts.length >= 3 ? fitPlane(pts) : null;
       if (fit && fit.collinearity < 0.02) { setNote({ id: t.id, text: tr("Not set: the tops of {code} lie along a single line of holes, so no plane is fixed by them.", { code }) }); return; }
       plane = pts.length >= MIN_TOP_HOLES ? planeFromPoints(pts) : null;
+      if (!plane) why = tr("{code} has {n} top(s) here and a plane needs at least {min}. A unit has a top only where a younger unit lies above it in the Modelling codes order: the youngest has none.", { code, n: pts.length, min: MIN_TOP_HOLES });
       const rough = fit && Number.isFinite(fit.planarity) ? fit.planarity : null;
       what = tr("the best-fit plane of {n} logged tops of {code}", { code, n: pts.length })
         + (rough != null ? ` (${tr("RMS off the plane {pct}% of its extent", { pct: (rough * 100).toFixed(0) })}${rough > 0.25 ? " — " + tr("far from planar: this surface is not well described by one plane") : ""})` : "");
@@ -172,6 +173,7 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
       const s = (surfaces || []).find((x) => x.id === key);
       const pts = surfacePoints?.(key) || [];
       plane = planeFromPoints(pts);
+      if (!plane) why = tr("{name} gave {n} point(s), too few to fix a plane.", { name: s?.name || tr("the surface"), n: pts.length });
       // TASKS.csv #672 — how planar the surface is (vein.js fitPlane: RMS off the plane over its in-plane spread) and a
       // refusal for points along one line, where the plane could rotate freely about it. A sphere, a fold or a closed
       // shell all used to return a confident dip.
@@ -183,9 +185,9 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
         + (rough != null ? ` (${tr("RMS off the plane {pct}% of its extent", { pct: (rough * 100).toFixed(0) })}${rough > 0.25 ? " — " + tr("far from planar: this surface is not well described by one plane") : ""})` : "")
         + (closed ? " — " + tr("a closed shell: this is its flattening plane, not a contact") : "");
     }
-    if (!plane) { setNote({ id: t.id, text: tr("Not enough data to fit a plane.") }); return; }
+    if (!plane) { setNote({ id: t.id, text: why ? tr("Not enough data to fit a plane: {why}", { why }) : tr("Not enough data to fit a plane.") }); return; }
     // TASKS.csv #1237 — a name that states the plane follows it; a name the geologist typed stays
-    const autoName = /^(Stereonet mean|Mean of .+|Plane of .+) \(\d+° → \d+°\)$/.test(t.name || "");
+    const autoName = /^(Stereonet mean|Mean of .+|Plane of .+) \(\d+° → \d+°\)$/.test(t.name || "") || /^Trend \d+$/.test(t.name || ""); // #3779 (7) — the name a new trend starts with is not one the geologist typed
     const plan = ` (${plane.dip.toFixed(0)}° → ${plane.dipAzimuth.toFixed(0)}°)`;
     update(t.id, { dip: Math.round(plane.dip * 10) / 10, dipAzimuth: Math.round(plane.dipAzimuth * 10) / 10, ...(autoName ? { name: (kind === "code" ? `Mean of ${key}` : kind === "flat" ? "Plane of horizontal" : kind === "tops" ? `Plane of tops of ${src.slice(src.indexOf(":") + 1)}` : `Plane of ${(surfaces || []).find((x) => x.id === key)?.name || "surface"}`) + plan } : {}) });
     setNote({ id: t.id, text: tr("Dip {dip}° → {dipAzimuth}° from {what}. Pitch and ratios unchanged.", { dip: plane.dip.toFixed(1), dipAzimuth: plane.dipAzimuth.toFixed(1), what }) });

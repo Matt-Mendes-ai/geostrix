@@ -17,6 +17,18 @@ export function syncHoleLabels(group, anchors, mode, makeSprite, colourOf = grou
   if (!group) return 0;
   while (group.children.length) { const c = group.children.pop(); c.material?.map?.dispose?.(); c.material?.dispose?.(); c.geometry?.dispose?.(); } idle.delete(group); // #2364 — new sprites: the declutter runs again, not only after a camera move
   if (mode === "none") return 0;
+  // TASKS.csv #3772 — on fan drilling a hole is named where it has opened out: 'Hole ID at the toe' (and at both ends), as the Section window offers; the toe is the anchor's tx / ty / tz (the last trace point)
+  if (mode === "hole_id_toe" || mode === "hole_id_both") {
+    const toes = (anchors || []).filter((a) => Number.isFinite(a.tx)).map((a) => ({ ...a, x: a.tx, y: a.ty, z: a.tz }));
+    drawLabels(group, toes, "hole_id", makeSprite, colourOf);
+    if (mode === "hole_id_both") drawLabels(group, anchors, "hole_id", makeSprite, colourOf);
+    return group.children.length;
+  }
+  drawLabels(group, anchors, mode, makeSprite, colourOf);
+  return group.children.length;
+}
+// the labels of one set of anchors, added to the group
+function drawLabels(group, anchors, mode, makeSprite, colourOf) {
   const fans = groupPads(anchors || []);
   // TASKS.csv #2208 — a fan of holes from one collar (an underground cuddy) gets ONE label, 'WB0817D +6', its ids in the tip
   const callout = makeSprite.callout, pad = (g) => g.length > 1 && callout; // #3399

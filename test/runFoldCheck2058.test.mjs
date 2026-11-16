@@ -32,12 +32,12 @@ test("Check relationships and the run share one list of contact types", () => {
 test("the implicit run checks each contact surface it adds and says it in its own notice", () => {
   const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
   assert.match(s, /if \(FOLD_CONTACT_TYPES\.has\(spec\.type\)\) \{/);
-  assert.match(s, /inversionCheck\(meshQuery\(\), \{ up: "y" \}\)/); // #3119: the mesh query shared with the order check
+  assert.match(s, /inversionCheck\(mq, \{ up: "y" \}\)/); // #3119: the mesh query shared with the order check (#3777: held in mq, after the steep test)
   assert.match(s, /return \(meshQ = \{ positions: pos, indices: idx, query: buildMeshQuery\(pos, idx\) \}\);/);
   assert.match(s, /inv\.sampled && inv\.fraction > 0\.05/, "the same threshold as Check relationships");
-  assert.match(s, /notice\("\{list\} Check relationships lists it again with the other checks\."/);
+  assert.match(s, /notice\("\{list\} \{why\} Check relationships lists it again with the other checks\."/);
   for (const l of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
-    assert.ok(d["{list} Check relationships lists it again with the other checks."], l);
+    assert.ok(d["{list} {why} Check relationships lists it again with the other checks."], l); // #3777: the reading said once
   }
 });

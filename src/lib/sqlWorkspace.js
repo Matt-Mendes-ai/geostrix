@@ -31,6 +31,7 @@ export async function buildWorkspaceDatabase(data, onProgress) {
   const SQL = await loadSQL();
   const db = new SQL.Database();
   const tables = await buildTables(db, data, onProgress);
+  db.run("PRAGMA query_only = ON"); // TASKS.csv #3775 (6) — a read-only copy: 'DELETE FROM assays' answered '0 rows' and emptied the snapshot's table until the dialog was reopened (the project itself was never touched)
   return { db, tables };
 }
 

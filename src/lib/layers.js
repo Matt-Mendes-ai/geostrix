@@ -336,6 +336,12 @@ export function setLithologyMeanings(dict) {
 }
 export function lithoMeaning(u) { const d = lithoMeanings?.get(String(u ?? "").trim().toLowerCase()); return d ? `${u} — ${d}` : null; }
 const meaningRole = (k) => { const d = lithoMeanings?.get(k)?.toLowerCase(); return d ? (UNIT_ROLES[d] || ROLE_PATTERNS.find(([re]) => re.test(d))?.[1] || null) : null; };
+// TASKS.csv #3778 — the role came from the code's meaning in the code dictionary (not from its name, nor its notes): the dictionary's words for it, else null; the Modelling codes tooltip says so
+export function roleMeaningText(u) {
+  const k = String(u || "").trim().toLowerCase();
+  if (k === "unknown" || UNIT_ROLES[k] || ROLE_PATTERNS.some(([re]) => re.test(k))) return null;
+  return meaningRole(k) ? lithoMeanings.get(k) : null;
+}
 // TASKS.csv #2537 — the role came from the default ('stratigraphic' for a code nothing recognises), not from a rule: the pane marks it
 export function roleIsAssumed(u) {
   const k = String(u || "").trim().toLowerCase();

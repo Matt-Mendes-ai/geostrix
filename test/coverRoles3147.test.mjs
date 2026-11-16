@@ -57,8 +57,8 @@ test("a note role wins; unsorted rows; the existing name rules unchanged", () =>
 
 test("wiring: the pane says why; the key", () => {
   const p = readFileSync(new URL("../src/components/ModellingCodesPane.jsx", import.meta.url), "utf8");
-  assert.match(p, /import \{ roleIsAssumed, coverTopShare \} from "\.\.\/lib\/layers\.js";/);
-  assert.match(p, /: coverWhy\(c\) \|\| tr\(ROLE_HELP\[c\.role\]\)/);
+  assert.match(p, /import \{ roleIsAssumed, coverTopShare(, roleMeaningText)? \} from "\.\.\/lib\/layers\.js";/); // roleMeaningText: #3778
+  assert.match(p, /: coverWhy\(c\) \|\| (meaningWhy\(c\) \|\| )?tr\(ROLE_HELP\[c\.role\]\)/);
   const k = "Suggested as overburden: its name reads as cover, and it lies at the top of {pct}% of the holes that log it. Check it before modelling.";
   assert.ok(p.includes(`tr("${k}"`));
   const k2 = "A code whose name reads as cover (ALU, CLA, soil ...) and that lies at the top of most of its holes is suggested as overburden.";
