@@ -30,6 +30,6 @@ test("the flat search goes to the next Estimation dialog's settings, nothing els
 });
 test("wiring", () => {
   const s = fs.readFileSync(new URL("../src/components/VariogramModal.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.match(s, /anisotropyFromFits\(kept\.downhole, kept\.across\)/);
+  assert.match(s, /anisotropyFromFits\(kept\.downhole, kept\.across, \{ vertical: verticalShare\(collars, survey\) >= 0\.5/); // #3786 — the holes' dip decides whether a flat search is offered
   assert.match(s, /sendFlatSearchToEstimation\(project, \{ radiusM: an\.acrossM, reachM: an\.downholeM \}\)/);
 });

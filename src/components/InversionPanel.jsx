@@ -22,7 +22,7 @@ import { pythonHealth, sidecarPlanPotential, ensureSidecarUp } from "../lib/desk
 import { toLonLat } from "../lib/reproject.js";
 import { igrfField, decimalYear, igrfYearRange } from "../lib/igrf.js"; // igrfYearRange: TASKS.csv #2563
 import {
-  gridDeclination, terrainElevationAt, terrainPoints, thinStationIndices, medianNearestSpacing, crsProblem, formatBytes,
+  gridDeclination, terrainElevationAt, terrainPoints, thinStationIndices, crsProblem, formatBytes,
   fitVerdict, resultToVoxelModel, trueDeclination, remanenceText, simpegMagFloorHint, sequentialStops, divergingStops, f32ToB64, suggestThinSpacing, MAX_STATIONS,
   forwardMapValues, residualScale, // TASKS.csv #537
 } from "../lib/inversion.js";
@@ -33,7 +33,7 @@ import { constraintSamples, SUSC_UNITS, suscUnitHint, PHYSICAL_MAX_SI, EXTREME_X
 import { categoricalModels, modelUnits, unitMedians, modelBody } from "../lib/geologyForward.js"; // TASKS.csv #760
 const StructFitPanel = React.lazy(() => import("./StructFitPanel.jsx")); // TASKS.csv #2640 Stage 1 — loaded when the section is opened
 import { t as tr } from "../lib/i18n.js";
-import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #1709 // TASKS.csv #786
+import { surveyChecksFor, surveyChecksKey } from "../lib/surveyChecksClient.js"; // TASKS.csv #3803 — the survey checks in a worker (downholeLikeness #1709, the spacing, the core cell, the thinning)
 import { SURVEY_METHODS } from "../lib/geophysSurveys.js";
 import { methodIsInvertible, inversionSurveyCounts, inversionSurveyChoices } from "../lib/geophysSurveyTools.js"; // TASKS.csv #3590 // TASKS.csv #1151; inversionSurveyCounts: #2403
 import { terrainFromSurveyElevations } from "../lib/terrainFromPoints.js"; // TASKS.csv #1589
@@ -41,7 +41,6 @@ import { defaultPlannedExtent, generatePlannedStations, DEFAULT_PLANNED, fitPlan
 import { SURVEY_METHODS as SM } from "../lib/geophysSurveys.js";
 import { replaceSurveyPoints } from "../lib/geophysSurveyTools.js"; // TASKS.csv #3590 // TASKS.csv #1710 — the predicted anomaly as a survey
 import { requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #1429
-import { coreCellHint } from "../lib/coreCellHint.js"; // TASKS.csv #1590
 import { inversionLogSources, defaultLogSource, logReadingCounts } from "../lib/inversionLogSources.js"; // TASKS.csv #2950
 
 const METHODS = {
@@ -150,14 +149,27 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
     const kept = keptIn(keptScope).get("inversion.lastResult");
     if (kept && kept !== lastResult) setLastResultState(kept);
   }, [running, keptScope]);
-  const xs = rows.map((r) => r.x), ys = rows.map((r) => r.y);
-  const spacing = useMemo(() => (rows.length > 1 ? medianNearestSpacing(xs, ys) : null), [rows]);
+  const xs = useMemo(() => rows.map((r) => r.x), [rows]), ys = useMemo(() => rows.map((r) => r.y), [rows]); // #3803 — not two 250,000-long arrays every render
+  // TASKS.csv #3803 (Scottie Gold) — the survey's checks (station spacing, core-cell hint, the share below the ground, the thinning suggestion) in a worker and kept
+  // per survey (lib/surveyChecksClient.js): on a 213,270-point IP cloud they froze the window about 9 s every time the survey was chosen. Until they are back the
+  // pane says it is checking and Invert waits.
+  const checksKey = useMemo(() => surveyChecksKey(planned.on ? "(planned grid)" : activeSurvey, rows, terrain, collars), [planned.on, activeSurvey, rows, terrain, collars]);
+  const [checks, setChecks] = useState({ key: null, value: null });
+  useEffect(() => {
+    let alive = true;
+    if (!rows.length) { setChecks({ key: checksKey, value: { spacing: null, coreHint: null, downhole: null, thinSuggestion: null } }); return undefined; }
+    surveyChecksFor(checksKey, rows, terrain, collars).then((v) => { if (alive) setChecks({ key: checksKey, value: v }); }, () => { if (alive) setChecks({ key: checksKey, value: { spacing: null, coreHint: null, downhole: null, thinSuggestion: null } }); });
+    return () => { alive = false; };
+  }, [checksKey]); // the key names rows, terrain and collars
+  const checksNow = checks.key === checksKey ? checks.value : null;
+  const checking = !checksNow && rows.length > 0;
+  const spacing = checksNow?.spacing ?? null;
   // TASKS.csv #1590 (review #1497, Lawyers) — on line data the nearest neighbour is the next reading along the line (0.6 m on a walk-mag
   // line), not the next line (96.5 m): '≈ half spacing' gave a 5 m core cell and Estimate then refused ~9.5 M cells. With lines much
   // farther apart than the readings, the core cell follows the LINE spacing (about a quarter of it) and the readings are thinned to it.
-  const coreHint = useMemo(() => coreCellHint(rows, spacing), [rows, spacing]);
+  const coreHint = checksNow?.coreHint ?? null; // #3803 — from the worker
   // TASKS.csv #1709 — stations that sit down the holes are not survey stations (Copley's susceptibility log was offered as 2,619 TMI stations)
-  const downhole = useMemo(() => downholeLikeness(rows, collars, terrain ? (x, y) => terrainElevationAt(terrain, x, y) : null), [rows, collars, terrain]);
+  const downhole = checksNow?.downhole ?? null; // #3803 — from the worker
   const crsIssue = crsProblem(project?.epsg);
   // TASKS.csv #2238 (review #2174) — with the CRS not set, project.epsg is the placeholder (BC UTM 9N): IGRF and the grid convergence were computed
   // for a spot in the Pacific (32,624 nT, +20.5°) instead of the Yilgarn (56,906 nT, -62.7°). Both need the survey's real location.
@@ -192,7 +204,10 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
     setRunGround(null);
     setGroundNote(replaced + tr("\"{name}\" is now the project's terrain.", { name: t.name }));
   };
-  const thinSuggestion = useMemo(() => (rows.length > MAX_STATIONS ? suggestThinSpacing(xs, ys) : null), [rows]);
+  const thinSuggestion = checksNow?.thinSuggestion ?? null; // #3803 — from the worker
+  // #3803 — Invert is not offered for points the pane has just said must not be inverted: a survey of another method, or points that are not stations
+  const notInvertible = !planned.on && !!(activeSurvey && geophysSurveys?.[activeSurvey]?.method && !methodIsInvertible(geophysSurveys[activeSurvey].method));
+  const invertBlocked = checking ? tr("Still checking the survey's stations (spacing, height above the ground)…") : downhole?.isDownhole ? tr("These points are not survey stations (see above): nothing to invert.") : notInvertible ? tr("This survey's method is not one this tool inverts (see above).") : null;
 
   // TASKS.csv #323 — the log layer that constrains this method, and its samples in model units
   // TASKS.csv #2950 — any numeric log can be it: the built-in layer, or a custom log layer (the downhole-log import's channels), chosen in 'Log'
@@ -235,6 +250,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
     if (zModeEff === "drape" && !terrain) problems.push(tr("A terrain surface is needed to drape the stations on."));
     if (kind === "inversion" && !terrain) problems.push(tr("An inversion needs a terrain surface (Maps > Terrain) to know which cells are underground."));
     if (crsIssue) problems.push(crsIssue);
+    if (checking) problems.push(tr("Still checking the survey's stations (spacing, height above the ground)…")); // #3803
     if (downhole?.isDownhole) problems.push(tr("These points are not survey stations: {pct}% of them sit more than 10 m below the {ground} (typically {med} m), so they are points at depth: a downhole log, or an inversion model or pseudo-section imported as points. A surface survey is inverted from stations on or above the ground; a downhole log goes in with the drillholes and the drillhole-constraint option.", { pct: Math.round(100 * downhole.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(downhole.medianDropM) })); // #1709
     if (method === "mag") {
       if (!(num(field.strength) > 20000 && num(field.strength) < 70000)) problems.push(tr("Enter the field strength (nT, e.g. from IGRF for the survey date)."));
@@ -569,7 +585,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
           )}
           {engine?.available && rows.length > 0 && (
             <>
-              <div style={small}>{tr("{rows} survey stations loaded{v}. SimPEG {simpeg}.", { rows: rows.length.toLocaleString(), v: spacing ? tr(", median spacing {spacing} m", { spacing: spacing.toFixed(spacing < 10 ? 1 : 0) }) + (coreHint?.lineSpacing ? tr(" along lines {l} m apart", { l: Math.round(coreHint.lineSpacing) }) : "") : "", simpeg: engine.simpeg })}</div>
+              <div style={small}>{tr("{rows} survey stations loaded{v}. SimPEG {simpeg}.", { rows: rows.length.toLocaleString(), v: spacing ? tr(", median spacing {spacing} m", { spacing: spacing.toFixed(spacing < 10 ? 1 : 0) }) + (coreHint?.lineSpacing ? tr(" along lines {l} m apart", { l: Math.round(coreHint.lineSpacing) }) : "") : checking ? tr(" (checking the stations…)") : "", simpeg: engine.simpeg })}</div>
               {downhole?.isDownhole && <div style={{ ...small, color: "var(--color-warn-text)", marginBottom: 8 }}>{tr("These points are not survey stations: {pct}% of them sit more than 10 m below the {ground} (typically {med} m), so they are points at depth: a downhole log, or an inversion model or pseudo-section imported as points. A surface survey is inverted from stations on or above the ground; a downhole log goes in with the drillholes and the drillhole-constraint option.", { pct: Math.round(100 * downhole.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(downhole.medianDropM) })}</div>}{/* #1709 */}
               {step(1, tr("Data"), <>
                 <div role="radiogroup" aria-label={tr("Survey type")} style={{ display: "flex", gap: 10, marginTop: 4 }}>
@@ -765,7 +781,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                   {plan.notes?.map((n) => <div key={n} style={{ marginTop: 3 }}>⚠ {n}</div>)}
                 </div>
               )}
-              <button onClick={runInversion} disabled={running || planBusy} style={{ ...pBtn, marginBottom: 4, opacity: running ? 0.5 : 1 }}><Play size={14} />{" "}{tr("Invert")}</button>
+              <button onClick={runInversion} disabled={running || planBusy || !!invertBlocked} title={invertBlocked || undefined} style={{ ...pBtn, marginBottom: 4, opacity: running || invertBlocked ? 0.5 : 1 }}><Play size={14} />{" "}{tr("Invert")}</button>
 
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setPlate((p) => ({ ...p, open: !p.open }))} aria-expanded={plate.open} style={{ ...row, cursor: "pointer", marginTop: 8, color: "var(--color-text)" }}>
                 {plate.open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}{" "}{tr("Test a body (forward model)")}</div>

@@ -36,7 +36,9 @@ test("#1709 the import says so, the inversion refuses, and the method list has a
   const g = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
   assert.ok(g.includes("downholeLikeness(good, collars") && g.includes("These look like downhole readings"));
   const inv = readFileSync(new URL("../src/components/InversionPanel.jsx", import.meta.url), "utf8");
-  assert.ok(inv.includes("downholeLikeness(rows, collars") && inv.includes("not survey stations"));
+  // #3803 — the check runs in a worker (lib/surveyChecks.js) and the pane reads its answer
+  const chk = readFileSync(new URL("../src/lib/surveyChecks.js", import.meta.url), "utf8");
+  assert.ok(chk.includes("downholeLikeness(rows, collars") && inv.includes("const downhole = checksNow?.downhole") && inv.includes("not survey stations"));
   const m = readFileSync(new URL("../src/lib/geophysSurveys.js", import.meta.url), "utf8");
   assert.ok(m.includes("magsus_downhole"));
 });

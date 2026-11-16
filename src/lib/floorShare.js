@@ -3,6 +3,7 @@
 // not: the anomaly score ticked Ag, Bi and Cd (84, 84 and 73 % one value) as if they had few below detection and flagged 28 % of the samples, a correlation
 // on Ag / Bi / Sn gave coefficients with no caution, and 8,232 of the 9,777 Ag / Au ratios had the silver floor as numerator. Pure.
 import { fileCensoring } from "./qaqc.js";
+import { valueIn } from "./geochem.js";
 
 export const FLOOR_MAX_SHARE = 0.25; // an element with more of its results than this on the floor is mostly the detection limit
 
@@ -16,9 +17,28 @@ export function floorOf(rows, symbol, unit = "ppm", units = {}) {
 // the elements of `symbols` with at least `minShare` of their results on the floor: [{ symbol, share, floor, dl }] by share, largest first
 export function floorElements(rows, symbols, units = {}, minShare = FLOOR_MAX_SHARE) {
   const out = [];
-  for (const s of symbols || []) { const f = floorOf(rows, s, units[s] || "ppm", units); if (f && f.share >= minShare) out.push({ symbol: s, ...f }); }
+  for (const s of symbols || []) {
+    const f = floorOf(rows, s, units[s] || "ppm", units);
+    if (f && f.share >= minShare) { out.push({ symbol: s, ...f, kind: "floor" }); continue; }
+    const g = flaggedOf(rows, s, units[s] || "ppm", units); // TASKS.csv #3788 — the lab's own '<' flags: the Macpass silver is mostly below detection, flagged, so no unflagged floor shows
+    if (g && g.share >= minShare) out.push({ symbol: s, ...g, kind: "flagged" });
+  }
   return out.sort((a, b) => b.share - a.share);
 }
+// the share of the element's results the file flags below detection ('<' qualifier / bdl): they are stored at half the limit. -> { share, floor (their commonest stored value), dl } | null
+export function flaggedOf(rows, symbol, unit = "ppm", units = {}) {
+  let n = 0, k = 0; const counts = new Map();
+  for (const s of rows || []) {
+    const v = valueIn(s, symbol, unit, units);
+    if (v == null || !Number.isFinite(v)) continue;
+    n++;
+    if (isFlaggedBelow(s, symbol)) { k++; counts.set(v, (counts.get(v) || 0) + 1); }
+  }
+  if (!n || !k) return null;
+  let floor = null, best = 0; for (const [v, c] of counts) if (c > best) { best = c; floor = v; }
+  return { share: k / n, floor, dl: floor == null ? null : floor * 2 };
+}
+const isFlaggedBelow = (s, symbol) => !!(s?.bdl?.includes?.(symbol) || s?.qualifiers?.[symbol] === "<");
 
 // a calculated element's inputs on the floor: the rows whose value of any element the expression reads is on that element's floor
 // -> { rows, of, inputs: [{ symbol, n }] } | null  (null when no input has a floor or no row uses one)
@@ -35,4 +55,24 @@ export function floorInputs(rows, expr, symbols, units = {}) {
     if (seen) { of++; if (any) hit++; }
   }
   return hit ? { rows: hit, of, inputs: [...per].filter(([, n]) => n).map(([symbol, n]) => ({ symbol, n })) } : null;
+}
+
+// TASKS.csv #3788 (Scottie Gold review) — the half-limit floor modelled as grade: 86 % of the silver values were exactly 1 g/t (half the limit) and the model printed 7.7 Moz of silver, three
+// quarters of it the detection floor. What the user may do with such an element's floor values in an estimate: keep them (the default: low grades, as they are), leave them out, or set them
+// to a value they state. modes: { [symbol]: { mode: "keep" | "out" | "set", value } }; found: floorElements()'s answer. Returns the same rows when nothing changes.
+// -> assay rows (copies only where a value changed)
+export function applyFloorModes(rows, found, modes = {}) {
+  const todo = (found || []).map((f) => ({ f, m: modes[f.symbol] })).filter(({ m }) => m && (m.mode === "out" || (m.mode === "set" && String(m.value ?? "").trim() !== "" && Number.isFinite(Number(m.value)) && Number(m.value) >= 0)));
+  if (!todo.length || !rows?.length) return rows;
+  return rows.map((r) => {
+    let out = null;
+    for (const { f, m } of todo) {
+      const v = r?.values?.[f.symbol];
+      if (typeof v !== "number") continue;
+      if (f.kind === "flagged" ? !isFlaggedBelow(r, f.symbol) : !(Math.abs(v - f.floor) <= f.floor * 1e-9)) continue;
+      if (!out) out = { ...r, values: { ...r.values } };
+      if (m.mode === "out") delete out.values[f.symbol]; else out.values[f.symbol] = Number(m.value);
+    }
+    return out || r;
+  });
 }

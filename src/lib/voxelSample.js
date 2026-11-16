@@ -10,29 +10,53 @@ import { median } from "./arrayStats.js"; // TASKS.csv #1114 — the true median
 
 // Uniform bucket grid over the cells; a cell is registered in every bucket its box overlaps.
 export function buildVoxelLookup(cells) {
-  const valid = cells.filter((c) => [c.x, c.y, c.z, c.dx, c.dy, c.dz].every(Number.isFinite) && c.dx > 0 && c.dy > 0 && c.dz > 0);
+  // TASKS.csv #3811 (Scottie Gold) — evaluating a 778,822-cell IP model onto 84 holes froze the window 4.5 s, nearly all of it here: a filter that built an
+  // array per cell, three medians sorting every cell and a Map keyed by a string 'i,j,k'. Now: the medians from a stride sample of at most 20,000 cells (a
+  // mesh's sizes repeat), and the buckets a counted index over the model's own extent (typed arrays; a Map of numbers past 16 million buckets). The
+  // lookup is the same: half-open cell boxes, the first cell of the bucket that holds the point.
+  const valid = [];
+  for (const c of cells || []) if (Number.isFinite(c?.x) && Number.isFinite(c.y) && Number.isFinite(c.z) && c.dx > 0 && c.dy > 0 && c.dz > 0 && Number.isFinite(c.dx) && Number.isFinite(c.dy) && Number.isFinite(c.dz)) valid.push(c);
   if (!valid.length) return { find: () => null, minCell: NaN };
-  const b = median(valid.map((c) => Math.max(c.dx, c.dy, c.dz)));
-  const minCell = Math.min(median(valid.map((c) => c.dx)), median(valid.map((c) => c.dy)), median(valid.map((c) => c.dz)));
-  const buckets = new Map();
-  const key = (i, j, k) => `${i},${j},${k}`;
-  for (const c of valid) {
+  const step = Math.max(1, Math.ceil(valid.length / 20000)), smp = [];
+  for (let i = 0; i < valid.length; i += step) smp.push(valid[i]);
+  const b = median(smp.map((c) => Math.max(c.dx, c.dy, c.dz)));
+  const minCell = Math.min(median(smp.map((c) => c.dx)), median(smp.map((c) => c.dy)), median(smp.map((c) => c.dz)));
+  const n = valid.length, lo = new Int32Array(n * 3), hi = new Int32Array(n * 3);
+  let I0 = Infinity, J0 = Infinity, K0 = Infinity, I1 = -Infinity, J1 = -Infinity, K1 = -Infinity;
+  for (let q = 0; q < n; q++) {
+    const c = valid[q];
     const i0 = Math.floor((c.x - c.dx / 2) / b), i1 = Math.floor((c.x + c.dx / 2 - 1e-9) / b);
     const j0 = Math.floor((c.y - c.dy / 2) / b), j1 = Math.floor((c.y + c.dy / 2 - 1e-9) / b);
     const k0 = Math.floor((c.z - c.dz / 2) / b), k1 = Math.floor((c.z + c.dz / 2 - 1e-9) / b);
-    for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) for (let k = k0; k <= k1; k++) {
-      const kk = key(i, j, k);
-      if (!buckets.has(kk)) buckets.set(kk, []);
-      buckets.get(kk).push(c);
-    }
+    lo[q * 3] = i0; lo[q * 3 + 1] = j0; lo[q * 3 + 2] = k0; hi[q * 3] = i1; hi[q * 3 + 1] = j1; hi[q * 3 + 2] = k1;
+    if (i0 < I0) I0 = i0; if (j0 < J0) J0 = j0; if (k0 < K0) K0 = k0; if (i1 > I1) I1 = i1; if (j1 > J1) J1 = j1; if (k1 > K1) K1 = k1;
   }
-  // half-open cell boxes: a point on a shared face belongs to exactly one cell
+  const NI = I1 - I0 + 1, NJ = J1 - J0 + 1, NK = K1 - K0 + 1, NB = NI * NJ * NK;
+  const key = (i, j, k) => (i < I0 || i > I1 || j < J0 || j > J1 || k < K0 || k > K1 ? -1 : ((i - I0) * NJ + (j - J0)) * NK + (k - K0));
+  const inBox = (c, x, y, z) => x >= c.x - c.dx / 2 && x < c.x + c.dx / 2 && y >= c.y - c.dy / 2 && y < c.y + c.dy / 2 && z >= c.z - c.dz / 2 && z < c.z + c.dz / 2;
+  if (NB <= 16e6) {
+    const count = new Int32Array(NB + 1);
+    for (let q = 0; q < n; q++) for (let i = lo[q * 3]; i <= hi[q * 3]; i++) for (let j = lo[q * 3 + 1]; j <= hi[q * 3 + 1]; j++) for (let k = lo[q * 3 + 2]; k <= hi[q * 3 + 2]; k++) count[key(i, j, k) + 1]++;
+    for (let t = 0; t < NB; t++) count[t + 1] += count[t];
+    const fill = count.slice(0, NB), list = new Int32Array(count[NB]);
+    for (let q = 0; q < n; q++) for (let i = lo[q * 3]; i <= hi[q * 3]; i++) for (let j = lo[q * 3 + 1]; j <= hi[q * 3 + 1]; j++) for (let k = lo[q * 3 + 2]; k <= hi[q * 3 + 2]; k++) list[fill[key(i, j, k)]++] = q;
+    const find = (x, y, z) => {
+      const kk = key(Math.floor(x / b), Math.floor(y / b), Math.floor(z / b));
+      if (kk < 0) return null;
+      for (let s = count[kk]; s < count[kk + 1]; s++) { const c = valid[list[s]]; if (inBox(c, x, y, z)) return c; }
+      return null;
+    };
+    return { find, minCell };
+  }
+  const buckets = new Map();
+  for (let q = 0; q < n; q++) for (let i = lo[q * 3]; i <= hi[q * 3]; i++) for (let j = lo[q * 3 + 1]; j <= hi[q * 3 + 1]; j++) for (let k = lo[q * 3 + 2]; k <= hi[q * 3 + 2]; k++) {
+    const kk = key(i, j, k), l = buckets.get(kk);
+    if (l) l.push(valid[q]); else buckets.set(kk, [valid[q]]);
+  }
   const find = (x, y, z) => {
-    const list = buckets.get(key(Math.floor(x / b), Math.floor(y / b), Math.floor(z / b)));
-    if (!list) return null;
-    for (const c of list) {
-      if (x >= c.x - c.dx / 2 && x < c.x + c.dx / 2 && y >= c.y - c.dy / 2 && y < c.y + c.dy / 2 && z >= c.z - c.dz / 2 && z < c.z + c.dz / 2) return c;
-    }
+    const kk = key(Math.floor(x / b), Math.floor(y / b), Math.floor(z / b));
+    const l = kk < 0 ? null : buckets.get(kk);
+    if (l) for (const c of l) if (inBox(c, x, y, z)) return c;
     return null;
   };
   return { find, minCell };

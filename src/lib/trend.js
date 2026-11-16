@@ -210,5 +210,5 @@ export function trendFromDirections(rows, directionVector) {
   let pitch = Math.atan2(dot(m, down), dot(m, strike)) * deg; // -180..180; an axis and its reverse are one axis
   if (pitch < 0) pitch += 180;
   if (pitch >= 180) pitch -= 180;
-  return cleanTrend({ name: "Trend from directions", dip: plane.dip, dipAzimuth: plane.dipAzimuth, pitch, ratios: { max: long.range, int: rInt, min: short.range } });
+  return cleanTrend({ name: "Trend from directions", dip: plane.dip, dipAzimuth: plane.dipAzimuth, pitch, ratios: { max: long.range / short.range, int: rInt / short.range, min: 1 } }); // TASKS.csv #3787 — stored as ratios (2.7 : 1.7 : 1) like every other trend, not as ranges in metres (21.39 : 12.96 : 7.85); only the ratios are read
 }

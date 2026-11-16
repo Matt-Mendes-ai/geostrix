@@ -13,6 +13,7 @@ import { idwColourFields } from "./idwColour.js"; // TASKS.csv #3159 — moved t
 import { percentileSorted } from "./arrayStats.js"; // TASKS.csv #740
 import { percentilesBySelection } from "./percentileSelect.js"; // TASKS.csv #3189 — the 2nd / 98th percentiles by selection (O(n)), no sort of every value
 import { f32ToB64 } from "./inversion.js"; // TASKS.csv #538 — the float grid kept on the raster
+import { buildNearestGrid, nearestOther, strideSample } from "./nearestGrid.js"; // TASKS.csv #3803 / #3811
 
 // Grids `points` ({x,y,value}[]) onto a regular raster using inverse-distance weighting. `power`
 // controls how sharply influence falls off with distance (2 is the standard IDW default); each cell uses
@@ -228,21 +229,20 @@ export function suggestBlankingDistance(points, sample = 400) {
   const pts = points.filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
   const n = pts.length;
   if (n < 3) return null;
-  const idx = n <= sample ? pts.map((_, i) => i) : Array.from({ length: sample }, (_, k) => Math.floor((k * n) / sample));
-  const lines = new Set(pts.map((p) => (p.line == null ? null : String(p.line))));
-  const byLine = lines.size > 1 && !lines.has(null);
+  // TASKS.csv #3803 / #3811 — through a grid of the points (lib/nearestGrid.js), each line's name made a number once: the scan of every point for each
+  // of 400 sampled ones, with a String() of two line names a pair, took 4.5 s on a 250,000-point IP cloud (Grid to raster, Sample along the drillholes, Inversion)
+  const lineIx = new Map(), lid = new Int32Array(n);
+  let hasNull = false;
+  for (let i = 0; i < n; i++) { const L = pts[i].line; if (L == null) { hasNull = true; lid[i] = -1; continue; } const k = String(L); let v = lineIx.get(k); if (v === undefined) lineIx.set(k, (v = lineIx.size)); lid[i] = v; }
+  const byLine = lineIx.size + (hasNull ? 1 : 0) > 1 && !hasNull;
+  const xs = new Float64Array(n), ys = new Float64Array(n);
+  for (let i = 0; i < n; i++) { xs[i] = pts[i].x; ys[i] = pts[i].y; }
+  const G = buildNearestGrid(xs, ys);
   const d = [];
-  for (const i of idx) {
-    const a = pts[i];
-    let best = Infinity;
-    for (let j = 0; j < n; j++) {
-      if (j === i) continue;
-      const b = pts[j];
-      if (byLine && String(b.line) === String(a.line)) continue;
-      const q = (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
-      if (q > 0 && q < best) best = q;
-    }
-    if (Number.isFinite(best)) d.push(Math.sqrt(best));
+  if (G) for (const i of strideSample(n, sample)) {
+    const own = lid[i];
+    const best = nearestOther(G, i, byLine ? (q) => lid[q] === own : null);
+    if (Number.isFinite(best)) d.push(best);
   }
   if (!d.length) return null;
   d.sort((x, y) => x - y);

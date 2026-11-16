@@ -32,7 +32,7 @@ test("the axes of a trend built from two square directions are exactly those dir
   const b = trendBasis(t);
   assert.ok(Math.abs(Math.abs(b.major.x) - 1) < 1e-9, "major along east");
   assert.ok(Math.abs(Math.abs(b.minor.z) - 1) < 1e-9, "minor vertical");
-  assert.deepEqual([t.ratios.max, t.ratios.min], [500, 50]);
+  assert.deepEqual([t.ratios.max, t.ratios.min], [10, 1]); // #3787 — ratios (500 : 50 m), min = 1
 });
 
 import fs from "node:fs";
