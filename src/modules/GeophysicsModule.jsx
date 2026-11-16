@@ -559,6 +559,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         }
         // TASKS.csv #2081 — several kinds of measurement (MX beside RHO): the picker, each ticked column its own survey
         { const more = otherMeasurementColumns(res.meta.fields || [], res.data, cols); if (more.length) { const ch = [cols.value, ...more]; openPicker(tr("\"{name}\" holds several measurements ({list}): tick the ones to import, each as its own survey.", { name: file.name, list: ch.join(", ") }), { channels: ch, channelPick: ch, channelRatios: false }); return; } }
+        // TASKS.csv #3852 (#3808) — a big CSV read whole: the picker, with the same 'Keep 1 in n' as the .xyz route (#3208); it was read in full, every reading a point in the 3D view
+        if (res.data.length > THIN_FROM_ROWS) {
+          openPicker(tr("\"{name}\" has {n} readings, and every reading is a point in the 3D view: choose how many to keep.", { name: file.name, n: res.data.length.toLocaleString() }), { thin: { total: res.data.length, keepEvery: suggestKeepEvery(res.data.length, undefined, (layers.geophys_pts || []).length) } });
+          return;
+        }
         const parsed = rowsToGeophysPoints(res.data, cols);
         const bad = parsed.filter((r) => !Number.isFinite(r.x) || !Number.isFinite(r.y) || !Number.isFinite(r.value));
         let good = parsed.filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value)).map((r) => ({ ...r, _src: file.name }));

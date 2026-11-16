@@ -13797,5 +13797,6 @@
   "Best intercepts (m @ grade)": "Mejores interceptos (m @ ley)",
   "{sym} cut-off (P90)": "Corte de {sym} (P90)",
   "{sym} cut-off": "Ley de corte de {sym}",
-  "Grade bars on a log scale: {list}": "Barras de ley en escala logarítmica: {list}"
+  "Grade bars on a log scale: {list}": "Barras de ley en escala logarítmica: {list}",
+  "\"{name}\" has {n} readings, and every reading is a point in the 3D view: choose how many to keep.": "\"{name}\" tiene {n} lecturas y cada lectura es un punto en la vista 3D: elija cuántas conservar."
 }

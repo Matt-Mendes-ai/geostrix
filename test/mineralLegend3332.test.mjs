@@ -32,7 +32,7 @@ test("the legend rows carry the value to the overlay, which shows it beside the 
   assert.deepEqual(allocateLegendRows(groups, 20).rows.map((r) => [r.label, r.value]), [["CPY", "0.4–12"], ["PY", "3"], ["SPH", undefined]]);
   const src = fs.readFileSync(new URL("../src/components/ViewportFigureOverlay.jsx", import.meta.url), "utf8");
   assert.match(src, /\{it\.value && <span style=\{\{ fontSize: "var\(--font-size-xs\)", color: "var\(--color-text-secondary\)", whiteSpace: "nowrap", flexShrink: 0 \}\}>\{it\.value\}<\/span>\}/);
-  assert.match(src, /tr\("\{group\}: \{label\}, values \{range\}", \{ group: tr\(it\.group\), label: it\.label, range: it\.value \}\)/);
+  assert.match(src, /tr\("\{group\}: \{label\}, values \{range\}", \{ group: \(it\.gtr \? it\.group : tr\(it\.group\)\), label: it\.label, range: it\.value \}\)/);
 });
 
 test("the default mineral colours are all clearly apart (CIE76 dE >= 30), CPY / PY and SPH / PO included", () => {
