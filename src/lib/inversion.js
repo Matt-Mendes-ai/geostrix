@@ -10,6 +10,7 @@ import { terrainNodeIsFill, terrainGroundAt } from "./viewer/geomath.js"; // TAS
 // ---------- grid convergence ----------
 // trueNorthBearingInGridDeg / gridDeclination: in gridConvergence.js since TASKS.csv #3159, re-exported here.
 export { trueNorthBearingInGridDeg, gridDeclination } from "./gridConvergence.js";
+import { buildNearestGrid, nearestOther, strideSample } from "./nearestGrid.js"; // TASKS.csv #3803
 
 // ---------- terrain ----------
 // Bilinear terrain elevation, same convention as ViewerModule's sampleTerrainElevation (row 0 = north
@@ -50,16 +51,18 @@ export function terrainPoints(terrain, box, maxPoints = 40000) {
 // review, #321). Returns the kept indices so observed values and any line/fid columns stay aligned.
 export function thinStationIndices(xs, ys, spacing) {
   if (!(spacing > 0)) return xs.map((_, i) => i);
-  const best = new Map();
+  // TASKS.csv #3803 — a numeric cell key and two parallel stores (a string key and an object per point took ~0.9 s a pass on 250,000 points,
+  // and suggestThinSpacing makes up to 60 passes)
+  const slot = new Map(), bi = [], bd = [];
   for (let i = 0; i < xs.length; i++) {
     const cx = Math.floor(xs[i] / spacing), cy = Math.floor(ys[i] / spacing);
-    const k = `${cx},${cy}`;
+    const k = cx * 134217728 + cy; // exact for the cell indices of any projected coordinate at any spacing above a millimetre
     const dx = xs[i] - (cx + 0.5) * spacing, dy = ys[i] - (cy + 0.5) * spacing;
     const d = dx * dx + dy * dy;
-    const cur = best.get(k);
-    if (!cur || d < cur.d) best.set(k, { i, d });
+    const s = slot.get(k);
+    if (s === undefined) { slot.set(k, bi.length); bi.push(i); bd.push(d); } else if (d < bd[s]) { bi[s] = i; bd[s] = d; }
   }
-  return Array.from(best.values(), (v) => v.i).sort((a, b) => a - b);
+  return bi.sort((a, b) => a - b);
 }
 
 // TASKS.csv #375 — the station cap the sidecar enforces (main.py MAX_STATIONS), and the smallest thinning
@@ -67,8 +70,14 @@ export function thinStationIndices(xs, ys, spacing) {
 export const MAX_STATIONS = 20000;
 export function suggestThinSpacing(xs, ys, cap = MAX_STATIONS) {
   if (xs.length <= cap) return null;
-  let s = Math.max(0.1, medianNearestSpacing(xs, ys) || 1);
-  for (let k = 0; k < 60 && thinStationIndices(xs, ys, s).length > cap; k++) s *= 1.15;
+  const s0 = Math.max(0.1, medianNearestSpacing(xs, ys) || 1);
+  // TASKS.csv #3803 — the smallest step k (s = s0 x 1.15^k, k < 60) that brings the survey under the cap, found by halving the range of k instead
+  // of trying every k in turn (the count falls as the spacing grows); the same answer in about 6 passes instead of up to 60
+  const over = (k) => thinStationIndices(xs, ys, s0 * 1.15 ** k).length > cap;
+  let lo = 0, hi = 60;
+  if (!over(0)) hi = 0;
+  else { while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (over(mid)) lo = mid; else hi = mid; } }
+  const s = s0 * 1.15 ** hi;
   const mag = 10 ** Math.floor(Math.log10(s)), nice = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].map((m) => m * mag).find((v) => v >= s) || s;
   return { spacing: nice, stations: thinStationIndices(xs, ys, nice).length };
 }
@@ -76,12 +85,9 @@ export function suggestThinSpacing(xs, ys, cap = MAX_STATIONS) {
 export function medianNearestSpacing(xs, ys, sample = 400) {
   const n = xs.length;
   if (n < 2) return null;
-  const idx = n <= sample ? xs.map((_, i) => i) : Array.from({ length: sample }, (_, k) => Math.floor((k * n) / sample));
-  const d = idx.map((i) => {
-    let best = Infinity;
-    for (let j = 0; j < n; j++) if (j !== i) { const q = (xs[i] - xs[j]) ** 2 + (ys[i] - ys[j]) ** 2; if (q > 0 && q < best) best = q; }
-    return Math.sqrt(best);
-  }).filter(Number.isFinite).sort((a, b) => a - b);
+  const G = buildNearestGrid(xs, ys); // TASKS.csv #3803 — a grid search, not a scan of every point for each sampled one
+  if (!G) return null;
+  const d = strideSample(n, sample).map((i) => nearestOther(G, i)).filter(Number.isFinite).sort((a, b) => a - b);
   return d.length ? d[Math.floor(d.length / 2)] : null;
 }
 

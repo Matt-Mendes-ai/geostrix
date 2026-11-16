@@ -6,6 +6,7 @@
 // readings sit tens to hundreds of metres below the ground close to a collar in plan: their drop is far steeper than any slope.
 // downholeLikeness(points, collars, groundAt) -> { n, withZ, compared, below, share, medianDropM, maxDropM, nearCollarShare,
 // isDownhole } or null (no elevations, or nothing to compare with). groundAt(x, y) -> z | NaN is optional (the terrain).
+export const SAMPLE_MAX = 20000;
 export function downholeLikeness(points, collars, groundAt = null, { tolM = 10, slope = 0.2, padM = 15 } = {}) {
   const pts = (points || []).filter((p) => Number.isFinite(p?.x) && Number.isFinite(p?.y));
   const withZ = pts.filter((p) => Number.isFinite(p.z));
@@ -14,7 +15,11 @@ export function downholeLikeness(points, collars, groundAt = null, { tolM = 10, 
   const nearest = (p) => { let best = null, bd = Infinity; for (const c of cs) { const d = Math.hypot(c.x - p.x, c.y - p.y); if (d < bd) { bd = d; best = c; } } return { c: best, d: bd }; };
   const drops = [];
   let below = 0, nearCollar = 0, compared = 0;
-  for (const p of withZ) {
+  // TASKS.csv #3803 — the shares from a stride sample of at most SAMPLE_MAX points: a 250,000-point IP cloud against 84 collars took 1.8 s on the main
+  // thread every time the survey was chosen; the shares of 20,000 evenly spread points are the same to a fraction of a percent
+  const step = Math.max(1, Math.ceil(withZ.length / SAMPLE_MAX));
+  for (let w = 0; w < withZ.length; w += step) {
+    const p = withZ[w];
     const nc = cs.length ? nearest(p) : null;
     if (nc && nc.d <= padM) nearCollar++;
     let ground = typeof groundAt === "function" ? groundAt(p.x, p.y) : NaN, allow = tolM;
@@ -28,7 +33,7 @@ export function downholeLikeness(points, collars, groundAt = null, { tolM = 10, 
   if (!compared) return null;
   drops.sort((a, b) => a - b);
   const share = below / compared, medianDropM = drops[drops.length >> 1], maxDropM = drops[drops.length - 1];
-  const nearCollarShare = cs.length ? nearCollar / withZ.length : 0;
+  const nearCollarShare = cs.length ? nearCollar / Math.ceil(withZ.length / step) : 0;
   // most readings well below the ground, by more than a hillside could explain: these are not stations
   const isDownhole = share >= 0.5 && medianDropM >= 20;
   return { n: pts.length, withZ: withZ.length, compared, below, share, medianDropM, maxDropM, nearCollarShare, isDownhole };

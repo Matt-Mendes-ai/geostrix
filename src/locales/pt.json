@@ -13595,5 +13595,9 @@
   "{el}: {pct}% of its results are below the detection limit (flagged '<'), stored at half the limit, usually {floor} {unit}. Its block grades and contained metal are mostly the detection limit, not a measurement.": "{el}: {pct}% dos resultados estão abaixo do limite de detecção (marcados '<'), guardados na metade do limite, normalmente {floor} {unit}. Os teores de bloco e o metal contido são em sua maioria o limite de detecção, não uma medição.",
   "The cut decides the ounces: look at the metal-at-risk table above for a cut near the break, and report the capped and the uncapped model side by side.": "O corte decide as onças: veja a tabela de metal em risco acima para um corte perto da quebra e apresente o modelo com e sem limite lado a lado.",
   "{el} ({pct}% of results below detection, stored at about {floor})": "{el} ({pct}% dos resultados abaixo da detecção, guardados em cerca de {floor})",
-  "{el} is already priced here (the main metal, the by-product or an earlier grade): reported only, no second price.": "{el} já tem preço aqui (o metal principal, o subproduto ou um teor anterior): só informado, sem segundo preço."
+  "{el} is already priced here (the main metal, the by-product or an earlier grade): reported only, no second price.": "{el} já tem preço aqui (o metal principal, o subproduto ou um teor anterior): só informado, sem segundo preço.",
+  "Still checking the survey's stations (spacing, height above the ground)…": "Ainda verificando as estações do levantamento (espaçamento, altura sobre o terreno)…",
+  "These points are not survey stations (see above): nothing to invert.": "Estes pontos não são estações de levantamento (veja acima): nada a inverter.",
+  "This survey's method is not one this tool inverts (see above).": "O método deste levantamento não é um que esta ferramenta inverte (veja acima).",
+  " (checking the stations…)": " (verificando as estações…)"
 }

@@ -6,6 +6,7 @@
 // line column, a cell never over the 4,000,000-cell limit, and a blanking at least 1.5 cells wide.
 import { suggestBlankingDistance, suggestIdwCell, snappedGridExtent } from "./idw.js";
 import { median } from "./arrayStats.js";
+import { buildNearestGrid, nearestOther, kNearest } from "./nearestGrid.js"; // TASKS.csv #3811
 
 export const MAX_GRID_CELLS = 4_000_000; // the Generate button's own limit
 
@@ -41,17 +42,17 @@ export function acrossLineSpacing(points, sample = 200) {
   const idx = n <= sample ? pts.map((_, i) => i) : Array.from({ length: sample }, (_, k) => Math.floor((k * n) / sample));
   const along = [], across = [];
   let lineLike = 0;
+  // TASKS.csv #3811 — the K nearest and the nearest off the line through a grid of the points (lib/nearestGrid.js): two scans of all 213,270 points of
+  // an IP cloud for each of 200 sampled ones took about 1.5 s when Grid to raster opened, and again in Sample along the drillholes
+  const xs = new Float64Array(n), ys = new Float64Array(n);
+  for (let j = 0; j < n; j++) { xs[j] = pts[j].x; ys[j] = pts[j].y; }
+  const G = buildNearestGrid(xs, ys);
+  if (!G) return null;
   const nq = new Float64Array(K), nx = new Float64Array(K), ny = new Float64Array(K);
   for (const i of idx) {
     const a = pts[i];
-    let m = 0;
-    for (let j = 0; j < n; j++) {
-      const dx = pts[j].x - a.x, dy = pts[j].y - a.y, q = dx * dx + dy * dy;
-      if (!(q > 0) || (m === K && q >= nq[K - 1])) continue;
-      let k = m < K ? m++ : K - 1;
-      while (k > 0 && nq[k - 1] > q) { nq[k] = nq[k - 1]; nx[k] = nx[k - 1]; ny[k] = ny[k - 1]; k--; }
-      nq[k] = q; nx[k] = dx; ny[k] = dy;
-    }
+    const kn = kNearest(G, i, K), m = kn.m;
+    for (let k = 0; k < m; k++) { nq[k] = kn.q[k]; nx[k] = xs[kn.idx[k]] - a.x; ny[k] = ys[kn.idx[k]] - a.y; }
     if (m < 2) continue;
     let sxx = 0, syy = 0, sxy = 0; // the neighbours' main axis (through the station itself)
     for (let k = 0; k < m; k++) { sxx += nx[k] * nx[k]; syy += ny[k] * ny[k]; sxy += nx[k] * ny[k]; }
@@ -61,14 +62,10 @@ export function acrossLineSpacing(points, sample = 200) {
     // twice the 5th's distance, which levels a few centimetres apart in plan do not upset); a pair of stations or a cluster is not a line
     const tr = sxx + syy, det = sxx * syy - sxy * sxy, l1 = tr / 2 + Math.sqrt(Math.max(0, (tr * tr) / 4 - det)), l2 = tr - l1;
     if (m === K && nq[K - 1] <= 4 * nq[4] && l2 < 0.1 * l1) lineLike++;
-    let off = Infinity;
-    for (let j = 0; j < n; j++) {
-      const dx = pts[j].x - a.x, dy = pts[j].y - a.y, q = dx * dx + dy * dy;
-      if (!(q > 0) || q >= off) continue;
-      if (Math.abs(dx * ux + dy * uy) / Math.sqrt(q) < 0.5) off = q; // |cos| < 0.5: more than 60 degrees off the line
-    }
+    // the nearest more than 60 degrees off the line (|cos| < 0.5): the points along it are skipped
+    const offD = nearestOther(G, i, (q) => { const dx = xs[q] - a.x, dy = ys[q] - a.y, d = Math.hypot(dx, dy); return !(d > 0) || Math.abs(dx * ux + dy * uy) / d >= 0.5; });
     along.push(ul);
-    if (Number.isFinite(off)) across.push(Math.sqrt(off));
+    if (Number.isFinite(offD)) across.push(offD);
   }
   if (!along.length || across.length < along.length / 2 || lineLike < 0.6 * along.length) return null;
   return { along: median(along), across: median(across) };

@@ -12,12 +12,26 @@ const finite3 = (p) => Number.isFinite(p?.x) && Number.isFinite(p?.y) && Number.
 
 // a 3D bucket grid of cell `size` -> near(x, y, z, r): the points within r (r <= size)
 export function pointIndex3d(points, size) {
-  const b = new Map(), key = (i, j, k) => `${i},${j},${k}`, s = size > 0 ? size : 1;
-  for (const p of points) { const k = key(Math.floor(p.x / s), Math.floor(p.y / s), Math.floor(p.z / s)); (b.get(k) || b.set(k, []).get(k)).push(p); }
+  // TASKS.csv #3811 — one number per bucket over the points' own extent (a string 'i,j,k' per point took ~0.2 s a pass on 213,270 points, and
+  // Sample along the drillholes builds up to six of these to find the cloud's spacing before its panel opens)
+  const s = size > 0 ? size : 1, b = new Map();
+  let I0 = Infinity, J0 = Infinity, K0 = Infinity, I1 = -Infinity, J1 = -Infinity;
+  for (const p of points) { const i = Math.floor(p.x / s), j = Math.floor(p.y / s), k = Math.floor(p.z / s); if (i < I0) I0 = i; if (i > I1) I1 = i; if (j < J0) J0 = j; if (j > J1) J1 = j; if (k < K0) K0 = k; }
+  const NI = I1 - I0 + 3, NJ = J1 - J0 + 3; // one bucket of margin each side, so a query next to the edge reads none outside
+  const key = (i, j, k) => ((k - K0 + 1) * NJ + (j - J0 + 1)) * NI + (i - I0 + 1);
+  for (const p of points) { const kk = key(Math.floor(p.x / s), Math.floor(p.y / s), Math.floor(p.z / s)); const l = b.get(kk); if (l) l.push(p); else b.set(kk, [p]); }
   return (x, y, z, r) => {
     const i0 = Math.floor(x / s), j0 = Math.floor(y / s), k0 = Math.floor(z / s), out = [], r2 = r * r;
-    for (let i = i0 - 1; i <= i0 + 1; i++) for (let j = j0 - 1; j <= j0 + 1; j++) for (let k = k0 - 1; k <= k0 + 1; k++) {
-      for (const p of b.get(key(i, j, k)) || []) { const d2 = (p.x - x) ** 2 + (p.y - y) ** 2 + (p.z - z) ** 2; if (d2 <= r2) out.push([p, d2]); }
+    for (let i = i0 - 1; i <= i0 + 1; i++) {
+      if (i < I0 || i > I1) continue;
+      for (let j = j0 - 1; j <= j0 + 1; j++) {
+        if (j < J0 || j > J1) continue;
+        for (let k = k0 - 1; k <= k0 + 1; k++) {
+          if (k < K0) continue;
+          const l = b.get(key(i, j, k));
+          if (l) for (const p of l) { const d2 = (p.x - x) ** 2 + (p.y - y) ** 2 + (p.z - z) ** 2; if (d2 <= r2) out.push([p, d2]); }
+        }
+      }
     }
     return out;
   };

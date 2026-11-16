@@ -4,6 +4,7 @@
 // spread by little more than the slope; a 3D cloud spreads by hundreds of metres. The median, over plan cells 3 spacings wide, of
 // (elevation spread / cell width) tells them apart. -> { n, withZ, zMin, zMax, spacing, spread, is3D } or null (fewer than 20 points)
 import { median } from "./arrayStats.js";
+import { buildNearestGrid, nearestOther } from "./nearestGrid.js"; // TASKS.csv #3811
 
 export function cloudShape(points, { sample = 2000, ratio = 2 } = {}) {
   const pts = (points || []).filter((p) => Number.isFinite(p?.x) && Number.isFinite(p?.y));
@@ -14,23 +15,17 @@ export function cloudShape(points, { sample = 2000, ratio = 2 } = {}) {
   let xmin = Infinity, ymin = Infinity, xmax = -Infinity, ymax = -Infinity;
   for (const p of pts) { if (p.x < xmin) xmin = p.x; if (p.x > xmax) xmax = p.x; if (p.y < ymin) ymin = p.y; if (p.y > ymax) ymax = p.y; }
   const guess = Math.max(1e-6, Math.sqrt(((xmax - xmin) * (ymax - ymin)) / n)); // the spacing of an even spread
-  const cell = new Map(), key = (x, y) => `${Math.floor(x / guess)},${Math.floor(y / guess)}`;
-  pts.forEach((p, i) => { const k = key(p.x, p.y); (cell.get(k) || cell.set(k, []).get(k)).push(i); });
-  const dists = [];
-  for (let i = 0; i < n; i += step) {
-    const p = pts[i], cx = Math.floor(p.x / guess), cy = Math.floor(p.y / guess);
-    let best = Infinity;
-    for (let r = 1; r <= 3 && best === Infinity; r++) {
-      for (let dx = -r; dx <= r; dx++) for (let dy = -r; dy <= r; dy++) for (const j of cell.get(`${cx + dx},${cy + dy}`) || []) {
-        if (j === i) continue; const d = Math.hypot(pts[j].x - p.x, pts[j].y - p.y); if (d > 0 && d < best) best = d;
-      }
-    }
-    if (Number.isFinite(best)) dists.push(best);
-  }
+  // TASKS.csv #3811 — through the typed grid of lib/nearestGrid.js (a Map of string cell keys over 213,270 points took ~0.3 s each time Grid to raster or
+  // Sample along the drillholes opened); the nearest other point of each sampled one, as before
+  const xs = new Float64Array(n), ys = new Float64Array(n);
+  for (let i = 0; i < n; i++) { xs[i] = pts[i].x; ys[i] = pts[i].y; }
+  const G = buildNearestGrid(xs, ys), dists = [];
+  if (G) for (let i = 0; i < n; i += step) { const best = nearestOther(G, i); if (Number.isFinite(best)) dists.push(best); }
   const spacing = dists.length ? median(dists) : guess;
   if (zs.length < 20) return { n, withZ: zs.length, zMin: null, zMax: null, spacing, spread: 0, is3D: false };
   // the elevation spread inside plan cells three spacings wide
-  const w = Math.max(1e-6, 3 * spacing), bins = new Map(), bkey = (x, y) => `${Math.floor(x / w)},${Math.floor(y / w)}`;
+  const w = Math.max(1e-6, 3 * spacing), bins = new Map(), BX0 = Math.floor(xmin / w), BW = Math.floor(xmax / w) - BX0 + 1, BY0 = Math.floor(ymin / w);
+  const bkey = (x, y) => (Math.floor(y / w) - BY0) * BW + (Math.floor(x / w) - BX0); // #3811 — a number, not a string
   let zMin = Infinity, zMax = -Infinity;
   for (const p of zs) { const k = bkey(p.x, p.y); const b = bins.get(k) || bins.set(k, [Infinity, -Infinity]).get(k); if (p.z < b[0]) b[0] = p.z; if (p.z > b[1]) b[1] = p.z; if (p.z < zMin) zMin = p.z; if (p.z > zMax) zMax = p.z; }
   const spreads = [...bins.values()].filter((b) => b[1] > b[0]).map((b) => (b[1] - b[0]) / w);
