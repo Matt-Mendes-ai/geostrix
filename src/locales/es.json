@@ -3433,6 +3433,8 @@
   "CV": "CV",
   "Top cut": "Corte superior",
   "Top cut for {el}": "Corte superior de {el}",
+  "{n} point is on the ground between the collars (no terrain): its elevation is interpolated from the collars": "{n} punto está sobre el terreno entre los collares (sin topografía): su elevación se interpola de los collares",
+  "{n} points are on the ground between the collars (no terrain): their elevations are interpolated from the collars": "{n} puntos están sobre el terreno entre los collares (sin topografía): sus elevaciones se interpolan de los collares",
   "Type a level (RL, m).": "Escriba un nivel (RL, m).",
   "{name} has no cells.": "{name} no tiene celdas.",
   "Added \"{name}\" to Boundaries: the footprint of {n} cells, {ha} ha.": "Se agregó \"{name}\" a Límites: la huella de {n} celdas, {ha} ha.",

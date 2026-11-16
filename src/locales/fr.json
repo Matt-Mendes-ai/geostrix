@@ -3433,6 +3433,8 @@
   "CV": "CV",
   "Top cut": "Écrêtage",
   "Top cut for {el}": "Écrêtage de {el}",
+  "{n} point is on the ground between the collars (no terrain): its elevation is interpolated from the collars": "{n} point est sur le terrain entre les collets (pas de topographie) : son altitude est interpolée à partir des collets",
+  "{n} points are on the ground between the collars (no terrain): their elevations are interpolated from the collars": "{n} points sont sur le terrain entre les collets (pas de topographie) : leurs altitudes sont interpolées à partir des collets",
   "Type a level (RL, m).": "Saisissez un niveau (RL, m).",
   "{name} has no cells.": "{name} n'a aucune cellule.",
   "Added \"{name}\" to Boundaries: the footprint of {n} cells, {ha} ha.": "« {name} » a été ajouté aux Limites : l'empreinte de {n} cellules, {ha} ha.",

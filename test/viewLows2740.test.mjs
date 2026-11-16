@@ -27,7 +27,7 @@ test("#2807 Measure names the points on the reference plane (side 6's planeNote;
   assert.match(src, /const planeNote = onPlane\.length > 0 &&/);
   assert.ok(!/fell on the reference plane/.test(src), "one note, not two (#2807 was done twice and merged once)");
   // the point carries the flag from the raycast (#2526)
-  assert.match(fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8"), /plane: true \}; \/\/ plane: #2526/);
+  assert.match(fs.readFileSync(new URL("../src/modules/viewer/worldPoint.js", import.meta.url), "utf8"), /on: null, plane: true \}/); // #3838 — moved out of ViewerModule
 });
 
 test("#2660 Cancel on the last file of a Maps drop goes back to Maps", () => {
