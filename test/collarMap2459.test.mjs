@@ -51,6 +51,6 @@ test("labels that would overlap one already placed are left out", () => {
 test("the plan wires the colour-by, the legend and the labels", () => {
   const src = readFileSync(new URL("../src/components/MapsPlanView.jsx", import.meta.url), "utf8");
   assert.match(src, /collarColouring\(collars, \{ values: perHoleAssay\(assays, key, kind\), breaks \}\)/);
-  assert.match(src, /drawCallouts\(ctx, collars, X, Y, size, /); // #3397 — the labels, with the pads' callouts (lib/collarCallouts.js)
+  assert.match(src, /drawCallouts\(ctx, dotCollars \/\* #3832[^*]*\*\/, X, Y, size, /); // #3397 — the labels, with the pads' callouts (lib/collarCallouts.js)
   assert.match(src, /aria-label=\{tr\("Colour collars by"\)\}/);
 });

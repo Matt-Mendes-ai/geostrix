@@ -22,6 +22,7 @@ import { drawCallouts } from "../lib/collarCallouts.js"; // TASKS.csv #3397 — 
 import { contourLabelSpots } from "../lib/contourLabels.js"; // TASKS.csv #3505 — the index contours' levels on the plan
 import { collarSpacing, dotStyle, dotsInView, drawDots, polylineInView, drawShapedDots, dotKey, SIZE_SCALE, shapePath } from "../lib/planDots.js"; // TASKS.csv #2988 / #2989
 import HoleValueGridPanel from "./HoleValueGridPanel.jsx"; // TASKS.csv #2658
+import PlanModelsList from "./PlanModelsList.jsx"; // TASKS.csv #3829 — the block models and surfaces on the plan
 import { planGridStep, planGridLines, gridLabel, measureLine, distanceText } from "../lib/planGrid.js"; // TASKS.csv #2128
 import { trueNorthBearingInGridDeg } from "../lib/inversion.js"; // TASKS.csv #2128 — the convergence at the measured line
 import { usePlanZoom, viewForBox } from "../lib/planZoom.js"; // TASKS.csv #2657
@@ -80,7 +81,7 @@ const lonLatText = (T, c) => {
 // TASKS.csv #2853 — the top visible grid's value at the cursor, after the E / N
 const cursorValueText = (rasters, c) => { const t = topRasterValueAt(rasters, c.x, c.y); return t ? `  ·  ${t.name.length > 28 ? `…${t.name.slice(-27)}` : t.name}: ${t.value.toLocaleString(undefined, { maximumSignificantDigits: 4 })}${t.unit ? ` ${t.unit}` : ""}` : ""; };
 export default function MapsPlanView() {
-  const { rasters = [], terrain, mapLayers = [], boundaries = [], collars: allCollars = [], surfaceSamples = [], assays = [], assayElements = [], layers = {}, customLayers = [], project, survey = [], desurveyMethod, addLayoutImage, goToModule, mapLayoutPagesElements /* #3491 */, setNotices /* #3491 */, addBoundary, updateRaster, updateTerrain } = useStore(); // updateRaster, updateTerrain: #3463 // addBoundary: #3342 // addLayoutImage / goToModule: #3194 // assays: #2459; layers, customLayers: #2658; project: #2128; survey, desurveyMethod: #2991 (a coded RL figure)
+  const { voxelModels = [], generatedSurfaces = [], rasters = [], terrain, mapLayers = [], boundaries = [], collars: allCollars = [], surfaceSamples = [], assays = [], assayElements = [], layers = {}, customLayers = [], project, survey = [], desurveyMethod, addLayoutImage, goToModule, mapLayoutPagesElements /* #3491 */, setNotices /* #3491 */, addBoundary, updateRaster, updateTerrain } = useStore(); // updateRaster, updateTerrain: #3463 // addBoundary: #3342 // addLayoutImage / goToModule: #3194 // assays: #2459; layers, customLayers: #2658; project: #2128; survey, desurveyMethod: #2991 (a coded RL figure)
   const scope = planScope(project, allCollars); // TASKS.csv #3604 — the set-up kept for the session
   // TASKS.csv #3605 — the plan follows the holes checked in the 3D View (a switch below says so and shows them all)
   const vis = useHoleVisibility(), hiddenN = hiddenIn(allCollars, vis), [onlyChecked, setOnlyChecked] = useKept(scope, "onlyChecked", true);
@@ -382,7 +383,7 @@ export default function MapsPlanView() {
       const cr = chipRef.current;
       if (cr) keepClear.push({ x0: cr.offsetLeft, y0: cr.offsetTop, x1: cr.offsetLeft + cr.offsetWidth, y1: cr.offsetTop + cr.offsetHeight });
       if (showGrid) keepClear.push({ x0: 0, y0: 0, x1: size.w, y1: 14 }, { x0: 0, y0: 0, x1: 58, y1: size.h });
-      drawCallouts(ctx, collars, X, Y, size, { colourOf: colouring ? (c) => colouring.colourOf(c) : undefined, dotR: ds.r, mPerPx: v.mPerPx, more: (n) => tr("+{n} more", { n }), keepClear, report: (r) => setIdsLeftOut(r.leftOut) });
+      drawCallouts(ctx, dotCollars /* #3832: the id beside the dot it names, at the intercept when the colour is drawn there */, X, Y, size, { colourOf: colouring ? (c) => colouring.colourOf(c) : undefined, dotR: ds.r, mPerPx: v.mPerPx, more: (n) => tr("+{n} more", { n }), keepClear, report: (r) => setIdsLeftOut(r.leftOut) });
     }
     if (measuring && mPts.length) { // #2128 — the measured line
       ctx.strokeStyle = "#c2185b"; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
@@ -612,11 +613,12 @@ export default function MapsPlanView() {
           {outlineNote && <span role="status" style={{ color: "var(--color-text-muted)" }}>{outlineNote}</span>}
         </div>
       )}
-      {(rasters.length > 0 || terrain) && ( /* TASKS.csv #3463 — the plan's rasters and terrain switched on and off from the plan itself */
+      {(rasters.length > 0 || terrain || voxelModels.length > 0 || generatedSurfaces.length > 0) && ( /* TASKS.csv #3463 — the plan's rasters and terrain switched on and off from the plan itself */
         <details style={{ ...chip, right: 10, bottom: 40, maxWidth: 260, maxHeight: 220, overflowY: "auto", fontSize: "var(--font-size-xs)" }} onMouseDown={(e) => e.stopPropagation()}>
           <summary style={{ cursor: "pointer", fontWeight: 600 }}>{tr("Layers on the plan")}</summary>
           {terrain && <label style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}><input type="checkbox" checked={terrain.visible !== false} onChange={(e) => updateTerrain({ visible: e.target.checked })} aria-label={tr("Show the terrain on the plan")} /><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={terrain.name}>{tr("Terrain: {name}", { name: terrain.name || tr("hillshade") })}</span></label>}
           {rasters.map((r) => <label key={r.id} style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}><input type="checkbox" checked={r.visible !== false} onChange={(e) => updateRaster(r.id, { visible: e.target.checked })} aria-label={tr("Show {name} on the plan", { name: r.name })} /><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.name}>{r.name}</span></label>)}
+        <PlanModelsList />
         </details>
       )}
       {farLayers.length > 0 && ( /* TASKS.csv #2125 — what Fit leaves out */

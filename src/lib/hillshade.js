@@ -37,7 +37,7 @@ function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
 // mask marks as filled left transparent. -> Uint8ClampedArray RGBA, row 0 = north
 export function hillshadeRGBA(t, maskBytes = null) {
   const [xmin, ymin, xmax, ymax] = t.bbox;
-  const v = hillshadeValues(t.elevations, t.gridW, t.gridH, (xmax - xmin) / Math.max(1, t.gridW - 1), (ymax - ymin) / Math.max(1, t.gridH - 1));
+  const v = hillshadeValues(t.elevations, t.gridW, t.gridH, (xmax - xmin) / Math.max(1, t.gridW - 1), (ymax - ymin) / Math.max(1, t.gridH - 1), { noData: maskBytes }); // #3834
   const out = new Uint8ClampedArray(v.length * 4);
   for (let i = 0; i < v.length; i++) {
     const g = Math.round(v[i] * 255);
@@ -47,7 +47,22 @@ export function hillshadeRGBA(t, maskBytes = null) {
   return out;
 }
 
-export function hillshadeValues(elevations, gridW, gridH, cellSizeX, cellSizeY, { azimuthDeg = 315, altitudeDeg = 45, zFactor = 1 } = {}) {
+// TASKS.csv #3834 (Scottie Gold review) — a terrain with gaps (73 % empty) drew a heavy black stair-step line along the edge of the ground: the cells beside
+// a no-data cell were shaded against its fill value, a cliff. noData (the mask's bytes, demFill.js): a neighbour that is no data is taken as the point
+// reflection of the opposite neighbour through the centre cell (2 x centre - opposite: a one-sided difference, exact on a plane), or as the centre
+// cell itself when that one is empty too, so an edge cell is shaded from its valid neighbours only. The 3 x 3 patch a b c / d e f / g h i, in out[0..8].
+function patchAt(elevations, gridW, gridH, row, col, noData, zFactor, out) {
+  const e = elevations[row * gridW + col] * zFactor;
+  let k = 0, any = false;
+  for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++, k++) {
+    const r = Math.max(0, Math.min(gridH - 1, row + dr)), c = Math.max(0, Math.min(gridW - 1, col + dc)), j = r * gridW + c;
+    if (noData && isNoData(noData, j)) { out[k] = NaN; any = true; } else out[k] = elevations[j] * zFactor;
+  }
+  out[4] = e;
+  if (any) { const o = [8, 7, 6, 5, 4, 3, 2, 1, 0]; const was = Array.from(out); for (let q = 0; q < 9; q++) if (q !== 4 && Number.isNaN(was[q])) out[q] = Number.isNaN(was[o[q]]) ? e : 2 * e - was[o[q]]; }
+  return any;
+}
+export function hillshadeValues(elevations, gridW, gridH, cellSizeX, cellSizeY, { azimuthDeg = 315, altitudeDeg = 45, zFactor = 1, noData = null } = {}) {
   const az = (azimuthDeg * Math.PI) / 180;
   const alt = (altitudeDeg * Math.PI) / 180;
   const zenith = Math.PI / 2 - alt;
@@ -57,13 +72,14 @@ export function hillshadeValues(elevations, gridW, gridH, cellSizeX, cellSizeY, 
     const c = Math.max(0, Math.min(gridW - 1, col));
     return elevations[r * gridW + c] * zFactor;
   };
+  const P = new Float64Array(9);
   for (let row = 0; row < gridH; row++) {
     for (let col = 0; col < gridW; col++) {
       // row increases southward (row 0 = north), so a +1 row step is a move SOUTH — dz/dy below is
       // therefore (south - north) / (2*cellSizeY), the standard sign convention for this row order.
-      const a = at(row - 1, col - 1), b = at(row - 1, col), c = at(row - 1, col + 1);
-      const d = at(row, col - 1), f = at(row, col + 1);
-      const g = at(row + 1, col - 1), h = at(row + 1, col), i = at(row + 1, col + 1);
+      let a, b, c, d, f, g, h, i;
+      if (noData && patchAt(elevations, gridW, gridH, row, col, noData, zFactor, P)) [a, b, c, d, , f, g, h, i] = P; // #3834
+      else { a = at(row - 1, col - 1); b = at(row - 1, col); c = at(row - 1, col + 1); d = at(row, col - 1); f = at(row, col + 1); g = at(row + 1, col - 1); h = at(row + 1, col); i = at(row + 1, col + 1); }
       const dzdx = ((c + 2 * f + i) - (a + 2 * d + g)) / (8 * cellSizeX);
       const dzdy = ((g + 2 * h + i) - (a + 2 * b + c)) / (8 * cellSizeY);
       const slope = Math.atan(Math.sqrt(dzdx * dzdx + dzdy * dzdy));
@@ -89,7 +105,8 @@ export function hillshadeToRasterInput({ bbox, gridW, gridH, elevations, noDataM
   const [xmin, ymin, xmax, ymax] = bbox;
   const cellSizeX = (xmax - xmin) / Math.max(1, gridW - 1);
   const cellSizeY = (ymax - ymin) / Math.max(1, gridH - 1);
-  const values = hillshadeValues(elevations, gridW, gridH, cellSizeX, cellSizeY, { azimuthDeg, altitudeDeg, zFactor });
+  const nd = decodeNoDataMask(noDataMask);
+  const values = hillshadeValues(elevations, gridW, gridH, cellSizeX, cellSizeY, { azimuthDeg, altitudeDeg, zFactor, noData: nd });
   const hide = edgeMask(noDataMask, gridW, gridH);
 
   const canvas = document.createElement("canvas");
@@ -111,16 +128,17 @@ export function hillshadeToRasterInput({ bbox, gridW, gridH, elevations, noDataM
 //  * slope (degrees), aspect (degrees clockwise from north, downhill; NaN where flat) and curvature (the Laplacian
 //    term of Zevenbergen-Thorne, 1/100 m: positive = convex / ridges, negative = concave / hollows).
 // Returns a Float32Array per node; edges reuse the nearest interior neighbourhood as hillshadeValues does.
-export function terrainDerivativeValues(kind, elevations, gridW, gridH, cellSizeX, cellSizeY, { altitudeDeg = 45, zFactor = 1 } = {}) {
+export function terrainDerivativeValues(kind, elevations, gridW, gridH, cellSizeX, cellSizeY, { altitudeDeg = 45, zFactor = 1, noData = null } = {}) { // noData: #3834, as hillshadeValues
   const out = new Float32Array(gridW * gridH);
   const at = (row, col) => elevations[Math.max(0, Math.min(gridH - 1, row)) * gridW + Math.max(0, Math.min(gridW - 1, col))] * zFactor;
+  const P = new Float64Array(9);
   const zenith = Math.PI / 2 - (altitudeDeg * Math.PI) / 180;
   const AZ = [225, 270, 315, 360].map((d) => (d * Math.PI) / 180);
   for (let row = 0; row < gridH; row++) {
     for (let col = 0; col < gridW; col++) {
-      const a = at(row - 1, col - 1), b = at(row - 1, col), c = at(row - 1, col + 1);
-      const d = at(row, col - 1), e = at(row, col), f = at(row, col + 1);
-      const g = at(row + 1, col - 1), h = at(row + 1, col), i = at(row + 1, col + 1);
+      let a, b, c, d, e, f, g, h, i;
+      if (noData && patchAt(elevations, gridW, gridH, row, col, noData, zFactor, P)) [a, b, c, d, e, f, g, h, i] = P; // #3834
+      else { a = at(row - 1, col - 1); b = at(row - 1, col); c = at(row - 1, col + 1); d = at(row, col - 1); e = at(row, col); f = at(row, col + 1); g = at(row + 1, col - 1); h = at(row + 1, col); i = at(row + 1, col + 1); }
       const dzdx = ((c + 2 * f + i) - (a + 2 * d + g)) / (8 * cellSizeX);
       const dzdy = ((g + 2 * h + i) - (a + 2 * b + c)) / (8 * cellSizeY);
       const grad = Math.sqrt(dzdx * dzdx + dzdy * dzdy);
@@ -156,7 +174,7 @@ export function autoZFactor({ bbox, gridW, gridH, elevations, noDataMask }, { ta
   if (!bbox || !elevations?.length) return 1;
   const [xmin, ymin, xmax, ymax] = bbox;
   const cx = (xmax - xmin) / Math.max(1, gridW - 1), cy = (ymax - ymin) / Math.max(1, gridH - 1);
-  const v = terrainDerivativeValues("slope", elevations, gridW, gridH, cx, cy, { zFactor: 1 });
+  const v = terrainDerivativeValues("slope", elevations, gridW, gridH, cx, cy, { zFactor: 1, noData: decodeNoDataMask(noDataMask) });
   const hide = edgeMask(noDataMask, gridW, gridH);
   const s98 = pctl(hide ? v.filter((_, k) => !hide[k]) : v, 0.98);
   if (!(s98 > 0) || s98 >= targetDeg) return 1;
@@ -167,7 +185,7 @@ export function autoZFactor({ bbox, gridW, gridH, elevations, noDataMask }, { ta
 export function terrainDerivativeToRasterInput({ bbox, gridW, gridH, elevations, noDataMask }, kind, { altitudeDeg = 45, zFactor = 1, name } = {}) {
   const [xmin, ymin, xmax, ymax] = bbox;
   const cx = (xmax - xmin) / Math.max(1, gridW - 1), cy = (ymax - ymin) / Math.max(1, gridH - 1);
-  const v = terrainDerivativeValues(kind, elevations, gridW, gridH, cx, cy, { altitudeDeg, zFactor });
+  const v = terrainDerivativeValues(kind, elevations, gridW, gridH, cx, cy, { altitudeDeg, zFactor, noData: decodeNoDataMask(noDataMask) });
   const canvas = document.createElement("canvas");
   canvas.width = gridW; canvas.height = gridH;
   const ctx = canvas.getContext("2d");
