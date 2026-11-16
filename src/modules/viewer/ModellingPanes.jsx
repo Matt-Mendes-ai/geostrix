@@ -47,7 +47,8 @@ import { cutoffPct } from "../../lib/gradeTonnage.js"; // TASKS.csv #3272 — a 
 import { GradeShellUnsampled } from "../../components/UnsampledChoice.jsx"; // TASKS.csv #2417 / #2542
 import ShellCapNote from "./ShellCapNote.jsx";
 import { shellPaneMemory, memoryRef } from "./shellPaneMemory.js"; // TASKS.csv #3651
-import { ENVELOPE_RANGES } from "../../lib/viewer/shellEnvelope.js"; // TASKS.csv #3673 — the ranges said in the pane // TASKS.csv #2222 — the Estimation dialog's default cap (#1573) here too
+import { ENVELOPE_RANGES } from "../../lib/viewer/shellEnvelope.js";
+import DomainUpdateSection from "./DomainUpdateSection.jsx"; // TASKS.csv #3673 phase 2 // TASKS.csv #3673 — the ranges said in the pane // TASKS.csv #2222 — the Estimation dialog's default cap (#1573) here too
 import { zoneAlphaPicks, customAlphaPicks } from "../../lib/alphaPicks.js"; // TASKS.csv #1686
 const ModelAreaRange = lazy(() => import("../../components/ModelAreaRange.jsx")); // TASKS.csv #2536
 const GradeThicknessModal = lazy(() => import("../../components/GradeThicknessModal.jsx")); // TASKS.csv #2419
@@ -1456,6 +1457,9 @@ export default function ModellingPanes(props) {
                 title={symbols.length || numericSources.length ? (collars.length ? tr("Interpolate grades onto a grid and extract the cutoff iso-surface") : tr("Load collars first")) : tr("Import assays first")}
                 style={{ ...pBtn, marginBottom: 8, opacity: canRun ? 1 : 0.5, cursor: canRun ? "pointer" : "default" }}
               ><Shapes size={14} /> {numericBusy ? tr("Running…") : (sym ? tr("Generate {el} shell", { el: numSrc ? numSrc.label : sym }) : tr("Generate grade shell"))}</button>
+              <DomainUpdateSection ctx={{ implicitSurfaces, implicitMeshesRef, implicitGroupRef, originRef, setImplicitSurfaces, setNotices, assays, assayElements, collars, survey, desurveyMethod, numericIncludeQAQC, numericCompositeLength, numericMinCoverage, numericCellSize, numericMaxBlocks }}
+                symbol={sym} cutoff={numericCutoff} iso={shellEnvIso} isAssay={!numSrc && symbols.includes(sym)} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 8, marginTop: 4, marginBottom: 8, fontSize: "var(--font-size-sm)" }}
+                fieldStyle={miniField} selectStyle={smallSel} buttonStyle={{ ...pBtn, marginBottom: 0 }} />{/* TASKS.csv #3673 phase 2 */}
             </>
           );
         })()}

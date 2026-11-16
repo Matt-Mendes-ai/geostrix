@@ -11,6 +11,10 @@
 // TASKS.csv #3673 — post.envelope (the envelope mode, lib/viewer/shellEnvelope.js): { clean: cleanField's options, targetTriangles, smooth:
 // taubinSmooth's options, gradePoints: [{ x, y, z, value, length }] (the box's composites, their real grades), cutoff } -> also envelope:
 // { clean (its report), coarsen, trianglesFine, grades: { n, sum, w, median, atCut, values } } (the composites inside, by their grades)
+// TASKS.csv #3673 phase 2 — post.update (a domain updated with new holes, lib/viewer/domainUpdate.js): { positions (the old mesh, world),
+// indices, widthM, influenceM, newPoints: [{ x, y, z }], reportPoints / refPoints: [{ x, y, z, value, length, hole_id }] (the new holes' and the
+// older holes' composites), cutoff, nearM }: the grid's values (the new holes' indicator estimate) are blended with the old mesh as a prior
+// before anything else -> also update: updateReport's result plus { touched }
 import { marchingCubes } from "../marchingCubes.js";
 import { capFieldAtColumns, sumInsideShell } from "../groundCap.js";
 import { samplesInsideShell } from "../shellSupport.js";
@@ -18,10 +22,19 @@ import { farFromSamples } from "../haloSupport.js";
 import { gridShape } from "../blockReach.js";
 import { reachCutField } from "./shellPlane.js"; // TASKS.csv #3655
 import { cleanField, coarsenFactor, coarsenField, taubinSmooth } from "./shellEnvelope.js"; // TASKS.csv #3673
+import { meshInsideMask, meshInsideTester, signedDistance, priorField, blendWithPrior, updateReport } from "./domainUpdate.js"; // TASKS.csv #3673 phase 2
 
 export function shellPost(grid, post) {
   const { nx, ny, nz, origin, cellSize } = grid, iso = post.iso;
-  const reached = post.reach ? reachCutField(grid.values, grid, iso, post.reach) : { values: grid.values, cut: 0 }; // #3655 — before the ground
+  // #3673 phase 2 — the old domain as a soft prior, blended with the new holes' estimate
+  const up = post.update || null;
+  let upOld = null, upSd = null, upTouched = 0, base = grid.values;
+  if (up) {
+    upOld = meshInsideMask(up.positions, up.indices, grid); upSd = signedDistance(upOld, grid);
+    const b = blendWithPrior(priorField(upSd, up.widthM), grid.values, up.newPoints, grid, up.influenceM);
+    base = b.values; upTouched = b.touched;
+  }
+  const reached = post.reach ? reachCutField(base, grid, iso, post.reach) : { values: base, cut: 0 }; // #3655 — before the ground
   const cut = post.ground ? capFieldAtColumns(reached.values, nx, ny, nz, origin, cellSize, iso, post.ground) : { values: reached.values, capped: 0 };
   const env = post.envelope || null;
   // #3673 — the envelope's clean-up (parts dropped, voids filled) after the ground cut, before the surface
@@ -43,7 +56,13 @@ export function shellPost(grid, post) {
   const smoothed = env?.smooth && faces.length ? taubinSmooth(positions, faces, env.smooth) : positions; // #3673
   const inShell = samplesInsideShell(post.inShellPoints || [], grid, field, iso);
   const far = post.farPoints && post.farDist > 0 ? farFromSamples(field, nx, ny, nz, origin, cellSize, iso, post.farPoints, post.farDist, {}) : null;
-  const { sum, n } = sumInsideShell(grid.values, field, iso);
+  const { sum, n } = sumInsideShell(base, field, iso);
+  // #3673 phase 2 — what changed, against the old domain
+  let update = null;
+  if (up) {
+    const newMask = new Uint8Array(field.length); for (let i = 0; i < field.length; i++) newMask[i] = field[i] >= iso ? 1 : 0;
+    update = { ...updateReport({ oldMask: upOld, newMask, grid: { nx, ny, nz, origin, cellSize, sd: upSd }, points: up.reportPoints, refPoints: up.refPoints, insideOld: meshInsideTester(up.positions, up.indices), cutoff: up.cutoff, nearM: up.nearM }), touched: upTouched };
+  }
   // #3673 — the composites inside the envelope by their real grades (the field is a probability, its mean is no grade)
   let grades = null;
   if (env?.gradePoints) {
@@ -58,7 +77,7 @@ export function shellPost(grid, post) {
     grades = { n: vs.length, sum: gs, w: gw, median: vs.length ? vs[Math.floor(vs.length / 2)] : null, atCut, values: Float64Array.from(vs) }; // values: for one median over every box
   }
   let hi = -Infinity; for (const v of grid.values) if (Number.isFinite(v) && v > hi) hi = v;
-  return { positions: smoothed, faces, closingVertices: mc.closingVertices || 0, skippedCubes: mc.skippedCubes || 0, vertexSupport, capped: cut.capped, reachCut: reached.cut, ...(env ? { envelope: { clean: cleaned?.report || null, coarsen, trianglesFine, grades } } : {}), inShell, far: far ? { inside: far.inside, far: far.far } : null, sum, n, hi };
+  return { positions: smoothed, faces, closingVertices: mc.closingVertices || 0, skippedCubes: mc.skippedCubes || 0, vertexSupport, capped: cut.capped, reachCut: reached.cut, ...(env ? { envelope: { clean: cleaned?.report || null, coarsen, trianglesFine, grades } } : {}), ...(update ? { update } : {}), inShell, far: far ? { inside: far.inside, far: far.far } : null, sum, n, hi };
 }
 
 // the ground per column of the lattice a dense grid over `bounds` at `cellSize` will have (estimation.js: gridShape, origin at the lower bound plus

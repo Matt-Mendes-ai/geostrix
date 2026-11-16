@@ -75,7 +75,7 @@ test("the wiring: each drilled area's plane in the estimate and the worker's rea
   assert.match(r, /searchPlanes: planes\.map/);
   assert.match(r, /localStorage\.getItem\("geostrix\.shellPlaneSearch"\) !== "0"/);
   const p = readFileSync(new URL("../src/lib/viewer/shellPost.js", import.meta.url), "utf8");
-  assert.match(p, /const reached = post\.reach \? reachCutField\(grid\.values, grid, iso, post\.reach\)/);
+  assert.match(p, /const reached = post\.reach \? reachCutField\(base, grid, iso, post\.reach\)/ /* base: the grid's values, or #3673 phase 2's blend with an old domain */);
   assert.match(p, /capFieldAtColumns\(reached\.values,/);
   const m = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
   assert.match(m, /tr\("Search along the composites' plane"\)/);
