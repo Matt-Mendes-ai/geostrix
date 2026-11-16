@@ -4,7 +4,6 @@ import { useCallback, useState } from "react";
 import * as THREE from "three";
 import { t as tr } from "../../lib/i18n.js";
 import { errorNotice, notice, appendNotice, replaceNotices } from "../../lib/notices.js";
-import { FOLD_EXPLAIN, STEEP_DIP_DEG } from "../../lib/topology.js"; // TASKS.csv #3777
 
 export function useSurfaceChecks({ implicitSurfaces, surfaceLabels, implicitMeshesRef, implicitGroupRef, surfaceGeomCacheRef, setNotices, setImplicitSurfaces }) {
   // ---------- TASKS.csv #90 — topological relationship checking ----------
@@ -20,7 +19,7 @@ export function useSurfaceChecks({ implicitSurfaces, surfaceLabels, implicitMesh
     // meshes blocks the main thread — same pattern the modelling tools use for their own busy state.
     setTimeout(async () => {
       try {
-        const { checkTopology } = await import("../../lib/topology.js"); // #90; loaded on first use (#476)
+        const { checkTopology, FOLD_EXPLAIN, STEEP_DIP_DEG } = await import("../../lib/topology.js"); // #90; loaded on first use (#476); the fold-back reading and the steep threshold: #3777 (a static import of them pulled all of topology.js, 6.8 kB, into the startup chunk)
         const input = implicitSurfaces.map((s) => {
           const geo = implicitMeshesRef.current[s.id]?.geometry;
           const pos = geo?.attributes?.position?.array;
