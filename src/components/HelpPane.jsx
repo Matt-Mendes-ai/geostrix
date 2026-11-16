@@ -11,13 +11,13 @@ const sectionHead = { fontSize: "var(--font-size-sm)", fontWeight: 600, color: "
 const muted = { color: "var(--color-text-muted)" };
 const linkBtn = { background: "none", border: "none", padding: 0, color: "var(--color-info)", cursor: "pointer", textAlign: "left", fontSize: "inherit", font: "inherit" };
 
-export default function HelpPane({ initialId = null, onClose }) {
+export default function HelpPane({ initialId = null, area = null, onClose }) { // area: the tab the user is on (#3693: its pages rank first in a search)
   const [id, setId] = useState(() => (initialId && pageById(initialId) ? initialId : null));
   const [query, setQuery] = useState("");
   const [history, setHistory] = useState([]);
   const bodyRef = useRef(null), searchRef = useRef(null);
   const page = id ? pageById(id) : null;
-  const results = useMemo(() => searchPages(query), [query]);
+  const results = useMemo(() => searchPages(query, undefined, { area }), [query, area]);
   const go = (next) => { setHistory((h) => (id ? [...h, id] : h)); setId(next); setQuery(""); };
   const back = () => { setHistory((h) => { const prev = h[h.length - 1] ?? null; setId(prev); return h.slice(0, -1); }); };
   useEffect(() => { bodyRef.current?.scrollTo?.(0, 0); }, [id, query]);
@@ -109,6 +109,7 @@ function Page({ page, onOpen, onBack, backLabel }) {
       </>)}
       {page.warnings?.length > 0 && (<>
         <div style={sectionHead}>{tr("Messages you may see")}</div>
+        <div style={{ ...muted, fontSize: "var(--font-size-xs)", marginBottom: 4 }}>{tr("The names and numbers in a message are examples.")}</div>{/* TASKS.csv #3693 */}
         {page.warnings.map((w, i) => (
           <div key={i} style={{ marginBottom: 8, borderLeft: "3px solid var(--color-warn-border)", paddingLeft: 8 }}>
             <div style={{ color: "var(--color-text)", fontStyle: "italic" }}>“{w.says}”</div>

@@ -73,10 +73,11 @@ export function numericSourceChoices({ layers, customLayers, models = true, buil
     const fields = numericLayerFields(rows, { min: MIN_ROWS }).filter((f) => f !== "from" && f !== "to" && f !== "value" && !(c.binM && f === "n"));
     if (isNumericLayer(rows)) fields.unshift("value");
     for (const f of fields) {
+      if (f === "value" && c.valueField && c.fieldUnits?.[c.valueField] && fields.includes(c.valueField)) continue; // TASKS.csv #3700 (5) — a kept composite layer's value is its first element, listed once, as that field
       const n = countWhere(rows, f, (v) => Number.isFinite(num(v))); // TASKS.csv #3140: rows or a Table, the same count
       if (n < MIN_ROWS) continue;
       const label = f === "value" ? String(c.name) : `${c.name} › ${f}`;
-      const unit = c.unit && (f === "value" || (c.binM && (f === "min" || f === "max"))) ? String(c.unit) : CUSTOM_UNIT;
+      const unit = c.fieldUnits?.[f] ? String(c.fieldUnits[f]) /* #3700 (5) — a kept composite layer's field: its element's unit */ : c.unit && (f === "value" || (c.binM && (f === "min" || f === "max"))) ? String(c.unit) : CUSTOM_UNIT;
       const said = f === "value" ? logFilterLabel(logFilterOf({ range: c.validRange, despikeM: c.despikeM })) : ""; // #3116
       custom.push({ key: `custom:${c.id}:${f}`, label: label + said, symbol: label, unit, n, logScale: false, field: f, layerId: c.id, ...(c.binM ? { binM: c.binM } : {}) /* #2396 */, _log: c.sourceModel != null ? 2 : c.unit || c.binM ? 0 : 1, _name: String(c.name) });
     }
