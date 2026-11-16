@@ -47,5 +47,5 @@ test("wired: the plan uses them, and the legend says what it shows", () => {
   assert.match(p, /drawDots\(ctx, dotsInView\((collars|dotCollars),/);
   assert.match(p, /if \(pl\.length < 2 \|\| !polylineInView\(pl, viewBox\)\) return;/);
   assert.doesNotMatch(p, /collars\.forEach\(\(c\) => \{\s*if \(!Number\.isFinite\(c\.x\)\) return;/);
-  assert.match(p, /tr\("Highest \{el\} in the hole\{u\}", \{ el: key, u \}\)/);
+  assert.match(p, /tr\("Highest \{el\} in the hole\{u\}", \{ el: key, u: "" \}\)/); // collarHeading since #3831: the unit in its own key ('(g\/t, single sample, uncut)')
 });

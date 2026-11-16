@@ -44,6 +44,10 @@ export const KMZ_PARTS = [
 ];
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const num = (v) => (typeof v === "number" ? v : v == null || v === "" ? NaN : Number(v));
+// TASKS.csv #3836 — an angle written to two decimals ('106.60342752645522' was the file's 105.71 plus the convergence); the numbers the traces are drawn from are untouched
+export const ang = (v) => { const n = num(v); return Number.isFinite(n) ? Math.round(n * 100) / 100 : n; };
+// the credit once: 'Data: ' is added only when the credit does not already begin with it ('Data: Data: BC ARIS ...')
+export const creditSentence = (c) => (c ? (/^\s*data\b/i.test(String(c)) ? ` ${String(c).trim()}` : ` Data: ${c}`) : "");
 const fin = Number.isFinite;
 const sig3 = (v) => String(Number(Number(v).toPrecision(3)));
 const vis = (on) => (on ? "" : "<visibility>0</visibility>");
@@ -293,7 +297,7 @@ export function buildProjectKml(ctx, opts) {
     counts.holes = traces.size;
     const collarStyle = w.style({ color: "#1f2933", iconScale: 0.6, label: ui.holeLabelMode && ui.holeLabelMode !== "none" ? 0.7 : 0 });
     w.open("Collars");
-    for (const [h, { c }] of traces) w.placemark(h, collarStyle, w.point3d(num(c.x), num(c.y), num(c.z)), { visible: holeShown(h), data: { hole_id: h, elevation: num(c.z), azimuth: num(c.azimuth), dip: num(c.dip), length: num(c.length), ...Object.fromEntries(collarAttrPairs(c, ["hole_id", "elevation", "azimuth", "dip", "length", "angles"])) /* TASKS.csv #3613 — the collar's own fields in the balloon */, angles: "azimuth from GRID north (clockwise); dip in degrees below horizontal, positive down" /* TASKS.csv #3353 (10) */ } });
+    for (const [h, { c }] of traces) w.placemark(h, collarStyle, w.point3d(num(c.x), num(c.y), num(c.z)), { visible: holeShown(h), data: { hole_id: h, elevation: num(c.z), azimuth: ang(c.azimuth), dip: ang(c.dip), length: num(c.length), ...Object.fromEntries(collarAttrPairs(c, ["hole_id", "elevation", "azimuth", "dip", "length", "angles"])) /* TASKS.csv #3613 — the collar's own fields in the balloon */, angles: "azimuth from GRID north (clockwise); dip in degrees below horizontal, positive down" /* TASKS.csv #3353 (10) */ } });
     w.close();
     const traceStyle = w.style({ color: "#5b6573", width: 1.5 });
     w.open("Traces");
@@ -358,7 +362,7 @@ export function buildProjectKml(ctx, opts) {
       // holePlanning.plannedTrace: a planned hole's dip is stored NEGATIVE downward (the user's convention, unlike a collar's), and its lift /
       // drift curve it — the one trace builder the 3D View and the other exports use (passing the dip to desurveyHole drew it upward)
       const pts = plannedTrace({ ...p, x: num(p.x), y: num(p.y), z: num(p.z), azimuth: num(p.azimuth), dip: num(p.dip), length: num(p.length) });
-      if (pts.length >= 2) w.placemark(p.name || "planned", st, w.line3d(pts), { data: { azimuth: num(p.azimuth), dip: num(p.dip), length: num(p.length), angles: "azimuth from GRID north (clockwise); dip in degrees from horizontal, negative down (a planned hole)" /* #3353 (10) */, notes: p.notes || "" } });
+      if (pts.length >= 2) w.placemark(p.name || "planned", st, w.line3d(pts), { data: { azimuth: ang(p.azimuth), dip: ang(p.dip), length: num(p.length), angles: "azimuth from GRID north (clockwise); dip in degrees from horizontal, negative down (a planned hole)" /* #3353 (10) */, notes: p.notes || "" } });
     }
     w.close();
   }
@@ -386,7 +390,7 @@ export function buildProjectKml(ctx, opts) {
         const { label, color } = info(k);
         const sid = w.style({ color, iconScale: 0.5, label: sst.label ? 0.6 : 0 });
         w.open(label);
-        for (const s of groups.get(k)) w.placemark(s.sample_id ?? "", sid, w.pointGround(num(s.x), num(s.y)), { data: { medium: s.medium || "", ...Object.fromEntries(Object.entries(s.values || {}).filter(([, v]) => fin(v))) } });
+        for (const s of groups.get(k)) w.placemark(s.sample_id ?? "", sid, w.pointGround(num(s.x), num(s.y)), { data: { medium: s.medium || "", ...Object.fromEntries(Object.entries(s.values || {}).filter(([, v]) => fin(v))), ...Object.fromEntries(collarAttrPairs(s, ["medium", ...Object.keys(s.values || {})]))  /* TASKS.csv #3836 — the sample's own fields (Zone, lithology, vein strike / dip ...), as a collar's */ } });
         w.close();
       }
       legend({ label: an?.label || "Surface samples", items: order.map((k) => { const i = info(k); return [i.label, i.color]; }) }, !!layerVisible.surface_samples);
@@ -474,7 +478,7 @@ export function buildProjectKml(ctx, opts) {
     const lineSt = w.style({ color: "#2b6cb0", width: 2.5, label: 0.7 });
     for (const s of secs) {
       w.open(s.name || "Section");
-      w.placemark(s.name || "Section", lineSt, w.lineGround([[num(s.ax), num(s.ay)], [num(s.bx), num(s.by)]]), { data: { azimuth: num(s.azimuth), corridor: num(s.corridor) } });
+      w.placemark(s.name || "Section", lineSt, w.lineGround([[num(s.ax), num(s.ay)], [num(s.bx), num(s.by)]]), { data: { azimuth: ang(s.azimuth), corridor: num(s.corridor) } });
       for (const c of s.contacts || []) {
         const pts = (c.points || []).filter((p) => fin(num(p.x)) && fin(num(p.y)) && fin(num(p.z))).map((p) => ({ x: num(p.x), y: num(p.y), z: num(p.z) }));
         if (pts.length >= 2) w.placemark(c.unit || "contact", w.style({ color: c.color || "#222222", width: 2 }), w.line3d(pts));
@@ -586,7 +590,7 @@ export function buildProjectKml(ctx, opts) {
   }
 
   const styles = [...w.styles.values()].map((s) => s.xml).join("\n");
-  const desc = `Exported from GeoStrix${opts.crsLabel ? ` (project CRS ${opts.crsLabel})` : ""}. Drillholes are drawn at their elevations, below the ground: untick Terrain in Google Earth's Layers to see them.${ctx.dataCredit ? ` Data: ${ctx.dataCredit}` : ""}`; // TASKS.csv #3659 — the data owner's credit leaves with the data
+  const desc = `Exported from GeoStrix${opts.crsLabel ? ` (project CRS ${opts.crsLabel})` : ""}. Drillholes are drawn at their elevations, below the ground: untick Terrain in Google Earth's Layers to see them.${creditSentence(ctx.dataCredit)}`; // TASKS.csv #3659; #3836 — once — the data owner's credit leaves with the data
   const kml = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">\n<Document><name>${esc(ctx.projectName || "GeoStrix project")}</name><open>1</open><description>${esc(desc)}</description>\n${styles}\n${w.parts.join("\n")}\n</Document>\n</kml>\n`;
   counts.placemarks = w.placemarks;
   counts.ringsSplit = w.ringsSplit; // rings that crossed themselves as written, split into this many more loops

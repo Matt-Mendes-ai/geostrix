@@ -4,7 +4,7 @@ import React from "react";
 import { useStore } from "../lib/store.jsx";
 import { t as tr } from "../lib/i18n.js";
 import { requestModuleAction } from "../lib/menuRequests.js";
-import { requestPlanRecapture, recaptureSpec, pictureDpi, RECAPTURE_DPI } from "../lib/planRecapture.js";
+import { requestPlanRecapture, recaptureSpec, pictureDpi, printTextPt, RECAPTURE_DPI } from "../lib/planRecapture.js";
 
 export default function MapRedrawControl({ sel }) {
   const { goToModule } = useStore();
@@ -12,8 +12,12 @@ export default function MapRedrawControl({ sel }) {
   const spec = recaptureSpec(sel), have = pictureDpi(sel);
   const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45, marginBottom: 4 };
   const go = () => { requestModuleAction("maps-plan"); requestPlanRecapture(spec); goToModule("maps"); };
+  const textPt = printTextPt(sel), small = textPt != null && textPt < 6.5; // TASKS.csv #3828 — hole ids at about 3 pt on a sheet: the plan's text drawn at print size
+  const goText = () => { const s = recaptureSpec(sel, RECAPTURE_DPI, { printText: true }); if (!s.ok) return; requestModuleAction("maps-plan"); requestPlanRecapture(s); goToModule("maps"); };
   return (
     <div style={{ marginBottom: 6 }}>
+      {small && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("The hole ids and labels on this picture print at about {pt} pt.", { pt: textPt })}</div>}
+      {textPt != null && <button type="button" onClick={goText} style={{ fontSize: "var(--font-size-sm)", marginBottom: 4 }} title={tr("The Maps plan draws this view again over the same ground at the frame's own size, so its hole ids and call-outs print at their screen size (about 7.5 pt) and are laid out for it, then Layout opens again.")}>{tr("Draw it again with the text at print size")}</button>}
       {have != null && <div style={note}>{tr("This picture prints at about {dpi} dpi at this size.", { dpi: Math.round(have) })}</div>}
       {spec.ok ? (
         <>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { X, Globe, Loader2, Download } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -45,7 +45,9 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
   const selectedLayer = layers?.find((l) => l.name === selectedName) || null;
 
   // svc / u / want: a common service picked from the list (#1468), fetched at once with its layer chosen
-  const fetchCapabilities = async (svc = service, u = url, want = null) => {
+  // TASKS.csv #3835 — choosing a common service used to ask it for its layers at once, before 'Fetch layers' was pressed: nothing goes online until the button (or Enter in the URL box). The layer a preset wants is kept for then.
+  const wantRef = useRef(null);
+  const fetchCapabilities = async (svc = service, u = url, want = wantRef.current) => {
     if (!u.trim()) return;
     setLoadingCaps(true); setCapsError(null); setLayers(null); setSelectedName(""); setResult(null);
     try {
@@ -135,11 +137,12 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
           {/* TASKS.csv #1468 — common open services: picking one fills the URL and lists its layer */}
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-sm)" }}>{tr("Common services")}
             <select value={preset ? presetId : ""} aria-label={tr("Common services")} style={{ ...sel, flex: 1 }}
-              onChange={(e) => { const p = COMMON_WEB_SERVICES.find((x) => x.id === e.target.value); if (!p) { setPresetId(""); return; } const s = presetService(p, service); setPresetId(p.id); setService(s); setUrl(p[s]); fetchCapabilities(s, p[s], p.layer); }}>
+              onChange={(e) => { const p = COMMON_WEB_SERVICES.find((x) => x.id === e.target.value); if (!p) { setPresetId(""); return; } const s = presetService(p, service); setPresetId(p.id); setService(s); setUrl(p[s]); wantRef.current = p.layer || null; setLayers(null); setSelectedName(""); setResult(null); setCapsError(null); }}>
               <option value="">{tr("Choose one, or type a URL below…")}</option>
               {servicesFirst(COMMON_WEB_SERVICES, defaultBboxLonLat ? { lon: (defaultBboxLonLat[0] + defaultBboxLonLat[2]) / 2, lat: (defaultBboxLonLat[1] + defaultBboxLonLat[3]) / 2 } : null).map((p) => <option key={p.id} value={p.id}>{p.label}{p.wfs ? "" : ` (${tr("WMS only")})`}</option>)}
             </select>
           </label>
+          <div style={{ fontSize: "var(--font-size-xs)", opacity: 0.7 }}>{tr("Choosing a service only fills the URL. Nothing goes online until you press Fetch layers.")}</div>{/* TASKS.csv #3835 */}
           {preset && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75 }}>{tr("Licence: {v}. Credit the publisher in figures you share.", { v: preset.licence })}</div>}
           <div style={{ display: "flex", gap: 8 }}>
             <select value={service} onChange={(e) => { const s = e.target.value; setService(s); setLayers(null); setSelectedName(""); setResult(null); setCapsError(null); if (preset) { if (preset[s]) setUrl(preset[s]); else { setPresetId(""); setUrl(""); } } }} style={{ ...sel, width: 100 }}>

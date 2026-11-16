@@ -8,6 +8,8 @@ import { useKept, planScope } from "../lib/planKept.js"; // TASKS.csv #3604
 import { useHoleVisibility, hiddenIn, checkedOnly } from "../lib/holeVisibilityShare.js"; // TASKS.csv #3605
 import { useStore, useSetCursor } from "../lib/store.jsx"; // useSetCursor: TASKS.csv #3467 — the status bar's E / N follow the plan's cursor
 import { t as tr } from "../lib/i18n.js";
+import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3831
+import { colorForMedium } from "../lib/layers.js"; // TASKS.csv #3830
 import { niceScaleBar } from "../lib/surfacePlan.js";
 import { hillshadeRGBA } from "../lib/hillshade.js"; // TASKS.csv #2990 — the no-data cells transparent
 import { decodeNoDataMask } from "../lib/demFill.js"; // TASKS.csv #2990
@@ -118,9 +120,10 @@ export default function MapsPlanView() {
   // TASKS.csv #3342 — the Geophysics point surveys (thinned to 5,000 points each), drawn on the plan in a colour each, listed with their outline
   const surveys = useMemo(() => surveysOnPlan(layers.geophys_pts), [layers.geophys_pts]);
   const [surveysHidden, setSurveysHidden] = useState(() => new Set());
+  const [samplesOn, setSamplesOn] = useState(true); // TASKS.csv #3830 — the plan's surface samples, on or off
   const [outlineNote, setOutlineNote] = useState("");
   const extent = useMemo(() => planDataExtent({ rasters, terrain, mapLayers, boundaries, collars, surfaceSamples, surveys }), [rasters, terrain, mapLayers, boundaries, collars, surfaceSamples, surveys]);
-  const farLayers = useMemo(() => planFarLayers({ rasters, terrain, mapLayers, boundaries, collars, surveys }), [rasters, terrain, mapLayers, boundaries, collars, surveys]); // #2125
+  const farLayers = useMemo(() => planFarLayers({ rasters, terrain, mapLayers, boundaries, collars, surveys, surfaceSamples }), [rasters, terrain, mapLayers, boundaries, collars, surveys, surfaceSamples]); // #2125; surfaceSamples: #3830
   // TASKS.csv #2459 / #2591 — collars coloured by a collar field or a per-hole assay statistic, and labelled with their ids
   const [colourBy, setColourBy] = useKept(scope, "colourBy", ""); // "" | "f:<field>" | "max:<element>" | "mean:<element>"
   const [showIds, setShowIds] = useKept(scope, "showIds", false);
@@ -200,7 +203,7 @@ export default function MapsPlanView() {
       const cv = canvasRef.current;
       if (!cv || cv.width !== wantW) throw new Error(tr("The map did not finish drawing at that size."));
       const src = cv.toDataURL("image/png");
-      const collarTitle = colouring ? (colourBy.startsWith("f:") ? colourBy.slice(2) : colourBy.replace(/^(max|mean):/, "")) : "";
+      const collarTitle = collarHeading();
       const fields = recaptureFields(snapshotPayloadOf(mapSnapshotPayload, src, cv.width, cv.height, spec.view, { w: spec.w, h: spec.h }, collarTitle));
       mapLayoutPagesElements((els) => els.map((e) => (e.id === spec.elementId ? { ...e, ...fields } : e)));
       ok = true;
@@ -345,8 +348,8 @@ export default function MapsPlanView() {
       const xy = s.xy;
       for (let k = 0; k < xy.length; k += 2) { const px = X(xy[k]), py = Y(xy[k + 1]); if (px >= -3 && py >= -3 && px <= size.w + 3 && py <= size.h + 3) ctx.fillRect(px - 1.5, py - 1.5, 3, 3); }
     });
-    ctx.fillStyle = "rgba(90,96,104,0.55)";
-    surfaceSamples.forEach((s) => { if (Number.isFinite(s.x)) ctx.fillRect(X(s.x) - 1, Y(s.y) - 1, 2, 2); });
+    // TASKS.csv #3830 — 266 rock samples were 2 x 2 px grey squares: a 5 px disc in the colour of its medium (as the 3D view draws it), on an eye of its own in 'Layers on the plan'
+    if (samplesOn) surfaceSamples.forEach((s) => { if (!Number.isFinite(s.x)) return; const px = X(s.x), py = Y(s.y); if (px < -4 || py < -4 || px > size.w + 4 || py > size.h + 4) return; ctx.fillStyle = colorForMedium(s.medium); ctx.beginPath(); ctx.arc(px, py, 2.5, 0, 6.2832); ctx.fill(); ctx.lineWidth = 0.8; ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.stroke(); });
     if (figure) {
       ctx.lineWidth = 0.8; ctx.strokeStyle = "rgba(20,24,30,0.85)";
       const rad = Math.max(2.2, Math.min(4.5, 3 * Math.sqrt(30 / Math.max(1, v.mPerPx)))); // smaller when zoomed out
@@ -391,7 +394,7 @@ export default function MapsPlanView() {
     }
     gridDrawn.current = showGrid; // #3194 — what the canvas holds now
     drawnDpr.current = dpr; // #3228
-  }, [v?.cx, v?.cy, v?.mPerPx, size, lodReady /* #3252 */, captureDpr /* #3228 */, chipOpen /* #3458: its size changes the callouts */, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, spacingM /* #2989 */, showTraces, planT, dotCollars /* #3337 */, shapes, sizeBy /* #3456 / #3457 */, surveys, surveysHidden /* #3342 */, showIds, showGrid, showLonLat /* #3466 */, measuring, mPts, gtPlan, gtMax]); // gtPlan: #2755
+  }, [v?.cx, v?.cy, v?.mPerPx, size, lodReady /* #3252 */, captureDpr /* #3228 */, chipOpen /* #3458: its size changes the callouts */, samplesOn /* #3830 */, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, spacingM /* #2989 */, showTraces, planT, dotCollars /* #3337 */, shapes, sizeBy /* #3456 / #3457 */, surveys, surveysHidden /* #3342 */, showIds, showGrid, showLonLat /* #3466 */, measuring, mPts, gtPlan, gtMax]); // gtPlan: #2755
 
   // TASKS.csv #3252 — once the view has settled (250 ms), ask for the detail tiles it shows; each one that arrives redraws the plan
   useEffect(() => {
@@ -443,6 +446,15 @@ export default function MapsPlanView() {
     return { ...m, conv: Number.isFinite(conv) ? conv : null };
   })() : null;
   // the payload of a picture of the plan as it is drawn now (Snapshot to Layout, and Layout's fresh capture at a frame's size, #3491)
+  // TASKS.csv #3831 — the collar legend's heading, said in full on the plan AND on the sheet: the statistic, the element and its unit as the Grade tools say it (g/t for gold stored in ppm), and for the highest of a hole that it is one sample, uncut
+  const collarHeading = () => {
+    if (!colouring) return "";
+    const [kind, key] = [colourBy.slice(0, colourBy.indexOf(":")), colourBy.slice(colourBy.indexOf(":") + 1)];
+    const unit = assayElements.find((e) => e.symbol === key)?.unit, lbl = unit ? gradeUnitLabel(key, unit) : "";
+    if (kind === "max") return lbl ? tr("Highest {el} in the hole ({unit}, single sample, uncut)", { el: key, unit: lbl }) : tr("Highest {el} in the hole{u}", { el: key, u: "" });
+    if (kind === "mean") return tr("{el}{u}, length-weighted mean of the hole", { el: key, u: lbl ? ` (${lbl})` : "" });
+    return key;
+  };
   const snapshotPayloadOf = (mapSnapshotPayload, src, pxW, pxH, vv, sz, collarTitle) => mapSnapshotPayload({ src, pxW, pxH, view: vv, size: sz, mapLayers, boundaries, rasters, collarLegend: colouring?.legend ? colouring.legend.map((l) => (l.other ? { ...l, label: tr("Other: {n} values ({holes} holes)", { n: l.other.length, holes: l.holes.toLocaleString() }) } : l)) : null, /* #3340 */ collarTitle, collars: collars.filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y)).length, samples: surfaceSamples.filter((s) => Number.isFinite(s.x)).length, label: project?.name ? `Map view: ${project.name}` : "Map view" });
   // TASKS.csv #3194 (Matt) — the view as it is on screen, to the Layout page (lib/mapSnapshot.js, loaded on use): north up, at its scale,
   // with its centre and extent for Layout's scale bar and coordinate grid, and a legend of what it draws
@@ -457,7 +469,7 @@ export default function MapsPlanView() {
       setShowGrid(false);
       for (let i = 0; i < 30 && gridDrawn.current; i++) await new Promise((r) => requestAnimationFrame(r));
     }
-    const collarTitle = colouring ? (colourBy.startsWith("f:") ? colourBy.slice(2) : colourBy.replace(/^(max|mean):/, "")) : "";
+    const collarTitle = collarHeading(); // TASKS.csv #3831 — the full heading, not the element symbol
     // TASKS.csv #3228 / #3484 — the plan drawn again for the Layout sheet at 300 dpi of a full A3 sheet's width (4,961 px along its long side: the
     // largest the snapshot is likely to be placed at; one placed smaller prints finer still), at least twice the screen's pixels, at most 8x and
     // 36 megapixels; then back. The drawing is the screen's, scaled (dots, lines and text keep their size on the sheet).
@@ -557,12 +569,7 @@ export default function MapsPlanView() {
           {colouring && (
             <div aria-label={tr("Collar legend")} style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: "var(--font-size-xs)", fontVariantNumeric: "tabular-nums", maxHeight: 220, overflowY: "auto" }}>
               {/* TASKS.csv #2989 — the legend says what it shows, with the element's unit */}
-              <span style={{ fontWeight: 600 }}>{(() => {
-                const [kind, key] = [colourBy.slice(0, colourBy.indexOf(":")), colourBy.slice(colourBy.indexOf(":") + 1)];
-                const unit = assayElements.find((e) => e.symbol === key)?.unit;
-                const u = unit ? ` (${unit})` : "";
-                return kind === "max" ? tr("Highest {el} in the hole{u}", { el: key, u }) : kind === "mean" ? tr("{el}{u}, length-weighted mean of the hole", { el: key, u }) : key;
-              })()}</span>
+              <span style={{ fontWeight: 600 }}>{collarHeading()}</span>
               {colouring.legend.map((l, li) => <span key={l.label} title={l.other ? l.other.join(", ") : undefined} style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 9 * (sizeBy && colouring.kind === "number" ? SIZE_SCALE[li] ?? 1 : 1), height: 9 * (sizeBy && colouring.kind === "number" ? SIZE_SCALE[li] ?? 1 : 1), borderRadius: "50%", border: "1px solid #14181e", background: l.colour, flex: "0 0 auto" }} />{l.other ? tr("Other: {n} values ({holes} holes)", { n: l.other.length, holes: l.holes.toLocaleString() }) /* #3340 */ : l.label}</span>)}
               {shapes && ( /* TASKS.csv #3456 — what each shape stands for */
                 <div aria-label={tr("Shape legend")} style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 3 }}>
@@ -612,10 +619,11 @@ export default function MapsPlanView() {
           {outlineNote && <span role="status" style={{ color: "var(--color-text-muted)" }}>{outlineNote}</span>}
         </div>
       )}
-      {(rasters.length > 0 || terrain) && ( /* TASKS.csv #3463 — the plan's rasters and terrain switched on and off from the plan itself */
+      {(rasters.length > 0 || terrain || surfaceSamples.length > 0) && ( /* TASKS.csv #3463; #3830 — the surface samples too — the plan's rasters and terrain switched on and off from the plan itself */
         <details style={{ ...chip, right: 10, bottom: 40, maxWidth: 260, maxHeight: 220, overflowY: "auto", fontSize: "var(--font-size-xs)" }} onMouseDown={(e) => e.stopPropagation()}>
           <summary style={{ cursor: "pointer", fontWeight: 600 }}>{tr("Layers on the plan")}</summary>
           {terrain && <label style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}><input type="checkbox" checked={terrain.visible !== false} onChange={(e) => updateTerrain({ visible: e.target.checked })} aria-label={tr("Show the terrain on the plan")} /><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={terrain.name}>{tr("Terrain: {name}", { name: terrain.name || tr("hillshade") })}</span></label>}
+          {surfaceSamples.length > 0 && <><label style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}><input type="checkbox" checked={samplesOn} onChange={(e) => setSamplesOn(e.target.checked)} aria-label={tr("Show the surface samples on the plan")} />{tr("Surface samples ({n})", { n: surfaceSamples.length.toLocaleString() })}</label><div style={{ opacity: 0.7, marginLeft: 20 }}>{tr("Classed by element or field in Geochem › Plan map.")}</div></>}{/* TASKS.csv #3830 */}
           {rasters.map((r) => <label key={r.id} style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}><input type="checkbox" checked={r.visible !== false} onChange={(e) => updateRaster(r.id, { visible: e.target.checked })} aria-label={tr("Show {name} on the plan", { name: r.name })} /><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.name}>{r.name}</span></label>)}
         </details>
       )}

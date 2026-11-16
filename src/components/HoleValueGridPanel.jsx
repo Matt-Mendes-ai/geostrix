@@ -76,7 +76,7 @@ export default function HoleValueGridPanel() {
     const how = method === "mincurv" ? "min. curvature T0.25" : method === "natneigh" ? "nat. neighbour" : "IDW";
     const drape = defaultDrapeElevation({ collars, voxelModels, surfaceSamples, bbox });
     addRaster({
-      name: `${what} per hole${unit ? ` (${unit})` : ""}${placeAt === "intercept" ? " at intercepts" : ""} ${how}${log ? " log10" : ""} ${res.cellM} m`, bbox, ...colour, elevation: drape.z, // at intercepts: #3350
+      name: `${what} per hole${unit ? ` (${source?.symbol ? gradeUnitLabel(source.symbol, unit) : unit})` : ""}${placeAt === "intercept" ? " at intercepts" : ""} ${how}${log ? " log10" : ""} ${res.cellM} m`, bbox, ...colour, elevation: drape.z, // at intercepts: #3350
       grid: { nx: grid.nx, ny: grid.ny, x0: grid.x0, yTop: grid.yTop, dx: grid.dx, dy: grid.dy, values: f32ToB64(grid.values), valid: res.valid },
       // source "holes": the figure draws the collars with their values, not surface samples (MapsPlanView)
       geochem: { symbol: source.symbol, unit, log, medium: null, samples: res.points, cellM: res.cellM, method, ...(method === "mincurv" ? { tension: 0.25 } : method === "natneigh" ? {} : { power: 2 }), blankM: res.blankM, source: "holes", placeAt, sourceId: source.id, stat: st, ...(st === "firstOver" ? { threshold: Number(threshold) } : {}), ...(coded ? { codes: codesOn } : {}), ...(vertical ? { verticalDepth: true } : {}) },

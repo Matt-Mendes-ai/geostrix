@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from "react";
 import { t as tr } from "../lib/i18n.js";
 import { zonalStats } from "../lib/zonalStats.js";
-import { isAreaBoundary } from "../lib/areaBoundary.js";
+import { isAreaBoundary, closedPartsOf } from "../lib/areaBoundary.js";
 import { rasterUnitOf } from "../lib/rasterMethod.js";
 
 const fmt = (v) => (Number.isFinite(v) ? (Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : Number(v.toPrecision(4)).toLocaleString()) : "–");
@@ -12,7 +12,7 @@ export default function ZonalStatsBox({ raster, boundaries, onClip = null }) { /
   const areas = useMemo(() => (boundaries || []).filter(isAreaBoundary), [boundaries]);
   const [id, setId] = useState("");
   const b = areas.find((x) => x.id === id);
-  const s = useMemo(() => (b && raster.grid ? zonalStats(raster.grid, b.polylines) : null), [b, raster.grid]);
+  const s = useMemo(() => (b && raster.grid ? zonalStats(raster.grid, closedPartsOf(b).polylines /* TASKS.csv #3827 — an open line is not ground */) : null), [b, raster.grid]);
   if (!raster.grid || !areas.length) return null;
   const unit = rasterUnitOf(raster) || "";
   const rows = s ? [[tr("Cells with a value"), `${s.count.toLocaleString()} of ${s.cells.toLocaleString()}`], [tr("Area of those cells"), `${s.areaHa.toLocaleString(undefined, { maximumFractionDigits: 1 })} ha`], [tr("Mean"), fmt(s.mean)], [tr("Minimum"), fmt(s.min)], [tr("10th percentile"), fmt(s.p10)], [tr("Median"), fmt(s.p50)], [tr("90th percentile"), fmt(s.p90)], [tr("Maximum"), fmt(s.max)]] : [];
