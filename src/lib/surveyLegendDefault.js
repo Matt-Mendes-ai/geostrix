@@ -6,7 +6,7 @@
 import { SURVEY_METHODS, robustRange } from "./geophysSurveys.js";
 import { logViridisStops } from "./pointSurveyScale.js";
 
-export const LOG_SCALE_METHODS = new Set(["res", "mt_rho", "em_cond"]);
+export const LOG_SCALE_METHODS = new Set(["res", "res_app" /* #3808 */, "mt_rho", "em_cond"]);
 
 // the survey meta an import writes: { method, units } and, for a resistivity or conductivity survey spanning a decade or more, a log legend
 export function surveyMetaFor(method, values) {

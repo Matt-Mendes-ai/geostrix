@@ -7,12 +7,12 @@ import { surveyMetaFor } from "../src/lib/surveyLegendDefault.js";
 import { isLogSpaced } from "../src/lib/pointSurveyScale.js";
 
 test("#3323 AppRho / RhoA is DC resistivity unless the file has MT columns", () => {
-  for (const h of ["AppRho", "RhoA", "rhoa_ohmm", "Apparent resistivity"]) assert.equal(guessSurveyMethod(h), "res", h);
-  assert.equal(guessSurveyMethodFrom("AppRho", [], { columns: ["X", "Y", "Z", "AppRho"] }), "res");
-  assert.equal(guessSurveyMethodFrom("AppRho", [], { columns: ["X", "Y", "Z", "AppRho", "AppMx"] }), "res");
+  for (const h of ["AppRho", "RhoA", "rhoa_ohmm", "Apparent resistivity"]) assert.equal(guessSurveyMethod(h), "res_app", h); // #3808 — apparent, at pseudo-depths
+  assert.equal(guessSurveyMethodFrom("AppRho", [], { columns: ["X", "Y", "Z", "AppRho"] }), "res_app");
+  assert.equal(guessSurveyMethodFrom("AppRho", [], { columns: ["X", "Y", "Z", "AppRho", "AppMx"] }), "res_app");
   assert.equal(guessSurveyMethodFrom("RhoA", [], { columns: ["X", "Y", "Freq_Hz", "RhoA", "Phase"] }), "mt_rho");
   assert.equal(guessSurveyMethodFrom("RhoA", [], { columns: ["X", "Y", "Period", "RhoA"] }), "mt_rho");
-  assert.equal(guessSurveyMethodFrom("RhoA", [], { columns: ["X", "Y", "Freq", "RhoA", "Phase", "Chargeability"] }), "res"); // spectral IP
+  assert.equal(guessSurveyMethodFrom("RhoA", [], { columns: ["X", "Y", "Freq", "RhoA", "Phase", "Chargeability"] }), "res_app"); // spectral IP; apparent (#3808)
   assert.equal(guessSurveyMethod("AMT"), "mt_rho"); // the method's own name still reads as MT
   assert.equal(fileHints({ columns: ["x", "y", "rhoxy", "phixy"] }).mtSet, true);
   assert.equal(fileHints({ columns: ["x", "y", "phase"] }).mtSet, false); // a bare phase is not enough (spectral IP has one)

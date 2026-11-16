@@ -5,7 +5,7 @@
 // the samples (120 ms over Macpass's 31,433, 50 ms over Tom West's 4,214). samples: [{ hole_id, x, y, z }] (any one frame, metres).
 // -> { medianM, q3M, samples: how many found another hole within maxM } or null (fewer than two holes, or none within maxM of another)
 const MAX_QUERIES = 1200, NONE = []; // a median needs a sample of the samples, not all: kept quick for the pane (main thread)
-export function sampleSpacing(samples, { maxM = 250 } = {}) { // beyond maxM another hole is no neighbour a block search would bridge
+export function sampleSpacing(samples, { maxM = 250, queryHoles = null } = {}) { // beyond maxM another hole is no neighbour a block search would bridge; queryHoles (#3820): only these holes' samples ask, against every hole's
   const pts = (samples || []).filter((p) => p && p.hole_id != null && Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z));
   if (pts.length < 2 || new Set(pts.map((p) => p.hole_id)).size < 2) return null;
   // a 20 m cell: about ten 2 m composites of a hole in one, and few rings to the neighbouring holes
@@ -29,6 +29,7 @@ export function sampleSpacing(samples, { maxM = 250 } = {}) { // beyond maxM ano
   const d = [];
   for (let q = 0; q < pts.length; q += step) {
     const p = pts[q];
+    if (queryHoles && !queryHoles.has(p.hole_id)) continue; // #3820 — a subset is measured against all the holes
     if (lonely(p)) continue;
     const i0 = ci(p.x, x0), j0 = ci(p.y, y0), k0 = ci(p.z, z0);
     let best = Infinity;

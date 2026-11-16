@@ -58,6 +58,6 @@ test("the panel offers the placement and the depth, and says which", () => {
   assert.match(src, /const isDepth = st === "firstOver" \|\| st === "top" \|\| st === "base";/);
   assert.match(src, /\{isDepth && <label style=\{lbl\}>\{tr\("Depth"\)\}/);
   // #2991: a coded log brings its own spans (perHoleCoded), and an RL statistic asks holeSamplesAt for the elevation
-  assert.match(src, /holeSamplesAt\(collars, values, coded \? codedRes\.spans : source \? perHoleSpan\(rows, source\.symbol, st, \{ threshold \}\) : new Map\(\), \{ key: KEY, survey, desurveyMethod, verticalDepth: vertical, at: placeAt, rl \}\)/);
+  assert.match(src, /holeSamplesAt\(collars, values, spans, \{ key: KEY, survey, desurveyMethod, verticalDepth: vertical, at, rl \}\)/);
   assert.match(src, /at the \$\{placeAt === "intercept" \? "intercepts, on the desurveyed holes" : "collars"\}/);
 });

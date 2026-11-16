@@ -8,7 +8,8 @@ const m = fs.readFileSync(new URL("../src/components/MeasureResults.jsx", import
 const v = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
 
 test("the reference-level fall-back marks its point, and the Measure click keeps that point as it is", () => {
-  assert.match(v, /on: null, plane: true \}; \/\/ plane: #2526/);
+  const w = fs.readFileSync(new URL("../src/modules/viewer/worldPoint.js", import.meta.url), "utf8"); // #3838 — the fall-back moved there
+  assert.match(w, /on: null, plane: true \}/); assert.match(w, /#2526: not ground/);
   assert.match(v, /const hits = pickHits\(raycaster\), found = worldPointFromHits\(raycaster, hits\);[^\r\n]*\r?\n\s+const world = snapMeasurePoint\(found, hits, tracesRef\.current, \{ shift: e\.shiftKey \}\);[^\r\n]*\r?\n\s+if \(!world\) return;\r?\n\s+setMeasurePts\(\(pts\) => \[\.\.\.pts, world\]\);/);
 });
 

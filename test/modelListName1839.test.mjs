@@ -15,6 +15,6 @@ test("the property joins the name only when another model shares it", () => {
 });
 
 test("the evidence list and the Voxel ranges rows use it", () => {
-  assert.equal((fs.readFileSync("src/components/EvidenceOverlayPane.jsx", "utf8").match(/name: modelListName\(m, voxelModels\)/g) || []).length, 3);
+  assert.equal((fs.readFileSync("src/components/EvidenceOverlayPane.jsx", "utf8").match(/name: modelListName\(m, voxelModels\)/g) || []).length, 4); // #3822: the target-elevation columns carry the name too
   assert.match(fs.readFileSync("src/modules/viewer/ViewerParts.jsx", "utf8"), /\{modelListName\(model, others\)\}/);
 });
