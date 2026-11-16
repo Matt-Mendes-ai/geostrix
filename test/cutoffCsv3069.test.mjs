@@ -20,10 +20,11 @@ test("the cut-off table follows the domains as its own section", () => {
   assert.deepEqual(out[1], ["All", 4, "50.0000", ""]);
   assert.deepEqual(out[3], []);
   assert.deepEqual(out[4], ["Above cut-off (all domains together)"]);
-  assert.deepEqual(out[5], ["cutoff__", "n", "pct_samples", "metres", "pct_metres", "mean__", "mean_SiO2__", "basis"]);
+  assert.deepEqual(out[5], ["cutoff__", "n", "pct_samples", "metres", "pct_metres", "mean__", "pct_metal", "mean_SiO2__", "basis"]);
   assert.equal(out[6][0], 50); assert.equal(out[6][1], 3); assert.equal(out[6][3], "4.00"); assert.equal(out[6][4], "80.00");
   assert.equal(out[6][5], "54.0000", "length-weighted: (50×2 + 56 + 60) / 4");
-  assert.equal(out[6][6], ((20 * 2 + 6) / 3).toFixed(4), "SiO2 over the samples that have it");
+  assert.equal(out[6][6], "84.38", "#3746: the share of the metal (grade × length) at or above the cut-off: 216 of 256");
+  assert.equal(out[6][7], ((20 * 2 + 6) / 3).toFixed(4), "SiO2 over the samples that have it");
   assert.equal(out[7][0], 55); assert.equal(out[7][1], 2);
   const csv = toExportCsv(out);
   assert.match(csv, /Above cut-off \(all domains together\)/);
@@ -33,8 +34,8 @@ test("the cut-off table follows the domains as its own section", () => {
 test("surface rows have no metres columns", () => {
   const cut = aboveCutoffRows([1, 2, 3], null, [2]);
   const out = gradeStatsCsvRows(dom, cut, { unit: "ppm" });
-  assert.deepEqual(out[5], ["cutoff_ppm", "n", "pct_samples", "mean_ppm", "basis"]);
-  assert.deepEqual(out[6], [2, 2, "66.67", "2.5000", "unweighted arithmetic"]);
+  assert.deepEqual(out[5], ["cutoff_ppm", "n", "pct_samples", "mean_ppm", "pct_metal", "basis"]);
+  assert.deepEqual(out[6], [2, 2, "66.67", "2.5000", "83.33", "unweighted arithmetic"]);
 });
 
 test("Best intercepts' cut-off is kept by project, element and unit, this session", () => {
