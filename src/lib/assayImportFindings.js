@@ -2,6 +2,7 @@
 // 364,097 cells below detection (and their limits), a total_pct column it left out, 22 GRAB rows taken as drill intervals, an Fe2O3 of
 // 110.9 %. These are the counts the import already has, gathered from the rows it built and the file's columns. Pure.
 import { isElementColumn, isLoiHeader } from "./geochem.js"; // isLoiHeader: #2734
+import { censoringCeiling } from "./qaqc.js"; // TASKS.csv #3729
 
 const NON_DRILL = /^(grab|rock(?:[\s_-]*chip)?|chip|float|outcrop|soil|stream|channel|trench|surface)$/i;
 const round = (v) => Number(v.toPrecision(3));
@@ -22,6 +23,15 @@ export function assayImportFindings({ rows = [], elements = [], unitOf = () => "
       if (Number.isFinite(v) && v > 0) { const L = round(v * 2); limits.set(L, (limits.get(L) || 0) + 1); }
     }
     if (n) below.push({ symbol: s, n, limit: [...limits].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null, unit: unitOf(s) });
+  }
+  // TASKS.csv #3729 — the twin of the floor at the top: a round maximum held by many unflagged results, an upper reporting limit whose '>' was
+  // lost (Fe 15 % x 164). Said, not changed: Grade statistics marks them '>' when asked
+  const ceilings = [];
+  for (const e of elements) {
+    const s = e.symbol, vals = [];
+    for (const r of rows) { const q = r?.qualifiers?.[s]; if (q === "<" || q === ">") continue; const v = r?.values?.[s]; if (typeof v === "number") vals.push(v); }
+    const c = censoringCeiling(vals);
+    if (c) ceilings.push({ symbol: s, n: c.n, ceiling: c.ceiling, unit: unitOf(s) });
   }
   // a per-cent value over 100 in the file (a closure or unit problem), read from the column as the file gives it: an oxide stored as its
   // element (Fe2O3 110.9 % -> Fe 77.6 %) would hide it. at(r): where a file row is ('RC621 8-9 m')
@@ -45,5 +55,5 @@ export function assayImportFindings({ rows = [], elements = [], unitOf = () => "
   // sample types that are not drill intervals (grab, rock chip, soil ...), taken in as rows of their hole
   const types = new Map();
   for (const r of rows) { const t = String(r?.sample_type ?? "").trim(); if (t && NON_DRILL.test(t)) types.set(t, (types.get(t) || 0) + 1); }
-  return { below, over100, notImported, nonDrill: [...types] };
+  return { below, over100, notImported, nonDrill: [...types], ceilings };
 }

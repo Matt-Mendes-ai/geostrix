@@ -13415,5 +13415,18 @@
   " {n} of {total} nodes have no GEM-15 value (water, snow and ice, low texture, or no cell): {filled} were filled from Copernicus GLO-30.": " {n} de {total} nós não têm valor GEM-15 (água, neve e gelo, pouca textura ou sem célula): {filled} foram preenchidos com o Copernicus GLO-30.",
   " {n} of {total} nodes have no GEM-15 value (water, snow and ice, low texture, or no cell) and are left as no data.": " {n} de {total} nós não têm valor GEM-15 (água, neve e gelo, pouca textura ou sem célula) e ficam sem dados.",
   "This file reads as lab assays: {cols} are element results, not minerals, so they are not offered as mineral layers. For grades, use Geochem > Import assays…, which keeps each element with its unit.": "Este arquivo parece análises de laboratório: {cols} são resultados de elementos, não minerais, por isso não são oferecidos como camadas de minerais. Para os teores, use Geoquímica > Importar análises…, que guarda cada elemento com sua unidade.",
-  "Left out as lab element results, not minerals: {cols}.": "Deixados de fora por serem resultados de elementos de laboratório, não minerais: {cols}."
+  "Left out as lab element results, not minerals: {cols}.": "Deixados de fora por serem resultados de elementos de laboratório, não minerais: {cols}.",
+  "Results on a round maximum, probably an upper reporting limit whose '>' was lost (their true grade is higher): {list}. Grade statistics can mark them as over the limit ('>').": "Resultados num máximo redondo, provavelmente um limite superior de reporte cujo '>' se perdeu (o teor real é maior): {list}. Estatística de teores pode marcá-los como acima do limite ('>').",
+  "{symbol} {n} at {max} {unit}": "{symbol} {n} em {max} {unit}",
+  "{n} results of {symbol} sit on the maximum, {max} {unit}, a round number: probably an upper reporting limit whose '>' was lost. Their true grade is higher, so the mean, the upper percentiles and the caps here are too low.": "{n} resultados de {symbol} estão no máximo, {max} {unit}, um número redondo: provavelmente um limite superior de reporte cujo '>' se perdeu. O teor real é maior, então a média, os percentis altos e os cortes aqui ficam baixos demais.",
+  "Mark them as over the limit ('>')": "Marcá-los como acima do limite ('>')",
+  "{n} result(s) of {symbol} at {max} marked as over the limit ('>'): kept at the limit, shown as '>' in the tables and exports, counted as over range in Data QC. Undo puts them back.": "{n} resultado(s) de {symbol} em {max} marcados como acima do limite ('>'): mantidos no limite, mostrados como '>' nas tabelas e exportações, contados como fora da faixa no Controle de dados. Desfazer os restaura.",
+  "Extra fields (kept with each sample)": "Campos extras (guardados com cada amostra)",
+  "Text columns of the file. A ticked one is kept on each sample and offered as a domain in Grade statistics and Compositing; an unticked one is not imported.": "Colunas de texto do arquivo. Uma marcada é guardada em cada amostra e oferecida como domínio em Estatística de teores e Compositagem; uma desmarcada não é importada.",
+  "Keep {col} with each sample": "Guardar {col} com cada amostra",
+  "{n} row(s), more than 100 values": "{n} linha(s), mais de 100 valores",
+  "{n} row(s), {k} value(s)": "{n} linha(s), {k} valor(es)",
+  "Kept with each sample: {cols} (Grade statistics and Compositing offer them as domains).": "Guardados com cada amostra: {cols} (Estatística de teores e Compositagem os oferecem como domínios).",
+  "Not imported (text): {cols}.": "Não importado (texto): {cols}.",
+  "Sample · {field}": "Amostra · {field}"
 }

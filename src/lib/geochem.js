@@ -431,6 +431,7 @@ export function mergeAssayRows(prev, incoming) {
     Object.keys(r.values || {}).forEach((sym) => { delete quals[sym]; });
     Object.assign(quals, r.qualifiers || {});
     const next = { ...old, ...r, values: { ...(old.values || {}), ...(r.values || {}) } };
+    if (old.attrs && r.attrs) next.attrs = { ...old.attrs, ...r.attrs }; // TASKS.csv #3728 — a sample's kept fields: another file's add to them
     // TASKS.csv #3196 — r.cleared: the elements this file says have no value on the row (a no-data code such as -999, or 'NA'): a corrected
     // re-import removes the earlier value (the false 999 ppm survived it). A blank cell clears nothing: another file may simply not hold the element.
     delete next.cleared;

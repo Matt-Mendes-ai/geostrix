@@ -13415,5 +13415,18 @@
   " {n} of {total} nodes have no GEM-15 value (water, snow and ice, low texture, or no cell): {filled} were filled from Copernicus GLO-30.": " {n} de {total} nodos no tienen valor GEM-15 (agua, nieve y hielo, poca textura o sin celda): {filled} se rellenaron con Copernicus GLO-30.",
   " {n} of {total} nodes have no GEM-15 value (water, snow and ice, low texture, or no cell) and are left as no data.": " {n} de {total} nodos no tienen valor GEM-15 (agua, nieve y hielo, poca textura o sin celda) y quedan sin datos.",
   "This file reads as lab assays: {cols} are element results, not minerals, so they are not offered as mineral layers. For grades, use Geochem > Import assays…, which keeps each element with its unit.": "Este archivo se lee como ensayes de laboratorio: {cols} son resultados de elementos, no minerales, así que no se ofrecen como capas de minerales. Para las leyes, use Geoquímica > Importar ensayes…, que guarda cada elemento con su unidad.",
-  "Left out as lab element results, not minerals: {cols}.": "Se dejan fuera por ser resultados de elementos de laboratorio, no minerales: {cols}."
+  "Left out as lab element results, not minerals: {cols}.": "Se dejan fuera por ser resultados de elementos de laboratorio, no minerales: {cols}.",
+  "Results on a round maximum, probably an upper reporting limit whose '>' was lost (their true grade is higher): {list}. Grade statistics can mark them as over the limit ('>').": "Resultados en un máximo redondo, probablemente un límite superior de reporte cuyo '>' se perdió (su ley real es mayor): {list}. Estadística de leyes puede marcarlos como sobre el límite ('>').",
+  "{symbol} {n} at {max} {unit}": "{symbol} {n} en {max} {unit}",
+  "{n} results of {symbol} sit on the maximum, {max} {unit}, a round number: probably an upper reporting limit whose '>' was lost. Their true grade is higher, so the mean, the upper percentiles and the caps here are too low.": "{n} resultados de {symbol} están en el máximo, {max} {unit}, un número redondo: probablemente un límite superior de reporte cuyo '>' se perdió. Su ley real es mayor, así que la media, los percentiles altos y los topes aquí son demasiado bajos.",
+  "Mark them as over the limit ('>')": "Marcarlos como sobre el límite ('>')",
+  "{n} result(s) of {symbol} at {max} marked as over the limit ('>'): kept at the limit, shown as '>' in the tables and exports, counted as over range in Data QC. Undo puts them back.": "{n} resultado(s) de {symbol} en {max} marcados como sobre el límite ('>'): se guardan en el límite, se muestran como '>' en las tablas y exportaciones y se cuentan como fuera de rango en Control de datos. Deshacer los devuelve.",
+  "Extra fields (kept with each sample)": "Campos extra (guardados con cada muestra)",
+  "Text columns of the file. A ticked one is kept on each sample and offered as a domain in Grade statistics and Compositing; an unticked one is not imported.": "Columnas de texto del archivo. Una marcada se guarda en cada muestra y se ofrece como dominio en Estadística de leyes y Compositación; una sin marcar no se importa.",
+  "Keep {col} with each sample": "Guardar {col} con cada muestra",
+  "{n} row(s), more than 100 values": "{n} fila(s), más de 100 valores",
+  "{n} row(s), {k} value(s)": "{n} fila(s), {k} valor(es)",
+  "Kept with each sample: {cols} (Grade statistics and Compositing offer them as domains).": "Guardados con cada muestra: {cols} (Estadística de leyes y Compositación los ofrecen como dominios).",
+  "Not imported (text): {cols}.": "No importado (texto): {cols}.",
+  "Sample · {field}": "Muestra · {field}"
 }
