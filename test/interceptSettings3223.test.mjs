@@ -16,7 +16,7 @@ test("the settings are kept per project (useKeptState)", () => {
 });
 
 test("the suggestion is said beside the box, with the median and Q3 offered", () => {
-  assert.match(s, /\{suggested != null && cutoff === suggested && \(\(\) => \{ const med = quantileOf\(symbol, 0\.5\), q3 = quantileOf\(symbol, 0\.75\);/);
+  assert.match(s, /\{suggested != null && cutoff === suggested && \(\(\) => \{ const med = quantileOf\(symbol, 0\.5, 2\), q3 = quantileOf\(symbol, 0\.75, 2\), p90Exact = quantileRaw\(symbol, 0\.9\);/); // #3752
   assert.match(s, /tr\("Suggested: the 90th percentile\. Set the cut-off you report at, or try:"\)/);
   assert.match(s, /const p90Of = \(sym\) => quantileOf\(sym, 0\.9\);/);
 });
