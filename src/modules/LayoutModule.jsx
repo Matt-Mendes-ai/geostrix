@@ -10,7 +10,7 @@ import { hasComputerTemplates } from "../lib/desktop.js"; // TASKS.csv #1487
 import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js"; // TASKS.csv #1777 — listed with the page's placeholders
 import { scaleBarLabel, scaleBarMidLabel } from "../lib/scaleBarLabel.js"; // TASKS.csv #2140
-import { offSheetPages, rectSidesPast, elementCaption, elementKind } from "../lib/layoutEdges.js"; // elementKind: #3028
+import { offSheetPages, rectSidesPast, rectsWhollyOff, whollyOffSheet, elementCaption, elementKind } from "../lib/layoutEdges.js"; // elementKind: #3028
 import { withCreditPages, pagesWithoutCredit, starterLayout, refitStarterOf } from "../lib/layoutCredits.js"; // TASKS.csv #3591
 import { DEFAULT_LAYOUT_ELEMENTS } from "../lib/projectFields.js"; // TASKS.csv #3028 (5)
 import { groupOrdersFromItems, applyCodeOrder, projectCodeOrders, clearCodeOrders, pagesHoldingOrder, orderedGroupsOf } from "../lib/legendCodeOrder.js"; // TASKS.csv #3130 — a code order set once; clear*: #3199 // TASKS.csv #2482 / #2309; named elements: #2700
@@ -225,10 +225,11 @@ export default function LayoutModule() {
     // TASKS.csv #2700 — each element by its kind and caption, with the side(s) it crosses: 'Legend past the right edge'
     const kindName = (t) => tr(ELEMENT_KIND_NAMES[t] || "Element");
     const sideName = (sd) => ({ left: tr("left edge"), top: tr("top edge"), right: tr("right edge"), bottom: tr("bottom edge") })[sd];
-    const namePast = (it) => tr("{what} past the {sides}", { what: it.caption ? `${kindName(it.type)} "${it.caption}"` : kindName(it.type), sides: it.sides.map(sideName).join(" / ") });
+    // TASKS.csv #3703 — and what the export does with it: an element wholly outside the sheet is not printed, one across the edge is cut there
+    const namePast = (it) => tr(it.out ? "{what} wholly outside the sheet (past the {sides}): not printed" : "{what} past the {sides}: the part outside is cut off", { what: it.caption ? `${kindName(it.type)} "${it.caption}"` : kindName(it.type), sides: it.sides.map(sideName).join(" / ") });
     if (pg) {
       const r = pg.getBoundingClientRect();
-      const offEls = [...pg.querySelectorAll("[data-el-id]")].map((e) => { const el = elements.find((x) => x.id === e.getAttribute("data-el-id")); return { type: elementKind(el) /* #3028 (3) */, caption: elementCaption(el), sides: rectSidesPast([e, ...e.querySelectorAll("text, td, th") /* td / th: #3374 — a table's cells */].map((n) => n.getBoundingClientRect()), r) }; }).filter((it) => it.sides.length);
+      const offEls = [...pg.querySelectorAll("[data-el-id]")].map((e) => { const el = elements.find((x) => x.id === e.getAttribute("data-el-id")); const rects = [e, ...e.querySelectorAll("text, td, th") /* td / th: #3374 — a table's cells */].map((n) => n.getBoundingClientRect()); return { type: elementKind(el) /* #3028 (3) */, caption: elementCaption(el), sides: rectSidesPast(rects, r), out: rectsWhollyOff(rects, r) /* #3703 */ }; }).filter((it) => it.sides.length);
       if (offEls.length) past.push(tr("on this page: {list}", { list: offEls.map(namePast).join(", ") }));
     }
     // TASKS.csv #3395 — a legend that leaves rows out (its box too small, or the sheet's foot), this page and the others
@@ -238,7 +239,7 @@ export default function LayoutModule() {
       if (cut.length) past.push(tr("on {page}: {list}", { page: pp.id === activeLayoutPageId ? tr("this page") : pp.name, list: cut.map((f) => (f.box ? tr("Legend: {n} row(s) left out, its box is too small", { n: f.left }) : tr("Legend: {n} row(s) left out, no room on the sheet", { n: f.left }))).join(", ") }));
     }
     if (layoutPrintRequest.kind !== "png") for (const o of offSheetPages(layoutPages, activeLayoutPageId, (pp) => pagePx(pageFormatOf(pp)))) past.push(tr("on {page}: {list}", { page: o.name, list: o.items.map(namePast).join(", ") }));
-    if (past.length && !window.confirm(tr("Elements reach past the sheet's edge and will be cut off in the export: {list}. Export anyway?", { list: past.join("; ") }))) return;
+    if (past.length && !window.confirm(tr("Some elements reach past the sheet's edge: {list}. The export leaves out whatever lies outside a sheet; every page still prints at its true size. Export anyway?", { list: past.join("; ") }) /* #3703 — says plainly what is left out */)) return;
     // TASKS.csv #2471 — a legend whose viewport was refreshed after it was loaded, and whose rows were edited, still lists the old view
     const staleLegends = staleBoundLegends(layoutPages).length;
     if (staleLegends && !window.confirm(tr(staleLegends === 1 ? "{n} legend is out of step with its viewport: the viewport was refreshed after the legend was loaded, and the legend's rows were edited, so they were kept. Export anyway?" : "{n} legends are out of step with their viewports: each viewport was refreshed after its legend was loaded, and the legend's rows were edited, so they were kept. Export anyway?", { n: staleLegends }))) return;
@@ -1295,7 +1296,9 @@ export default function LayoutModule() {
     const id = requestAnimationFrame(() => {
       const pg = pageRef.current, node = pg && selected ? pg.querySelector(`[data-el-id="${selected}"]`) : null;
       if (!node) { setSelPast((p) => (p.length ? [] : p)); return; }
-      const sd = rectSidesPast([node, ...node.querySelectorAll("text, td, th")].map((n) => n.getBoundingClientRect()), pg.getBoundingClientRect());
+      const rects = [node, ...node.querySelectorAll("text, td, th")].map((n) => n.getBoundingClientRect()), sheet = pg.getBoundingClientRect();
+      const sd = rectSidesPast(rects, sheet);
+      if (sd.length && rectsWhollyOff(rects, sheet)) sd.push("out"); // TASKS.csv #3703 — none of it is on the sheet: none of it prints
       setSelPast((p) => (p.join() === sd.join() ? p : sd));
     });
     return () => cancelAnimationFrame(id);
@@ -1385,7 +1388,7 @@ export default function LayoutModule() {
           <>
             <div className="ge-section-label" style={{ marginTop: 18 }}>{tr("Selected: {type}", { type: sel.type })}</div>
             <PlaceControls sel={sel} updateSelected={updateSelected} />{/* TASKS.csv #906 — position and size in mm */}
-            {selPast.length > 0 && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Part of this element reaches past the sheet's {sides} and will be cut off in the export: move it, or make it smaller.", { sides: selPast.map((sd) => ({ left: tr("left edge"), top: tr("top edge"), right: tr("right edge"), bottom: tr("bottom edge") })[sd]).join(" / ") })}</div>}{/* #3612 (7) */}
+            {selPast.length > 0 && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr(selPast.includes("out") ? "This element lies wholly outside the sheet (past its {sides}): it is left out of the export. Move it back onto the sheet, or delete it." : "Part of this element reaches past the sheet's {sides}: that part is left out of the export, the rest prints. Move it, or make it smaller.", { sides: selPast.filter((sd) => sd !== "out").map((sd) => ({ left: tr("left edge"), top: tr("top edge"), right: tr("right edge"), bottom: tr("bottom edge") })[sd]).join(" / ") })}{/* #3703 — what is left out, plainly */}</div>}{/* #3612 (7) */}
             <div style={{ display: "flex", gap: 4, marginBottom: 8, flexWrap: "wrap" }}>{/* TASKS.csv #909 */}
               <button onClick={() => reorderSelected("front")} title={tr("Bring to front")} style={smallBtn}>{tr("To front")}</button>
               <button onClick={() => reorderSelected("back")} title={tr("Send to back")} style={smallBtn}>{tr("To back")}</button>
@@ -2553,8 +2556,9 @@ const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, proje
         return (
           <div key={pg.id} className={`ge-print-page ge-print-${pageCssName(f)}`} style={{ width: `${w}mm`, height: `${h}mm` }}>
             {/* TASKS.csv #3656 — an element far past the sheet made the print engine shrink EVERY page to fit its width (74.4 % when one reached x 1509 px): the page's elements sit in a box of its own size that clips, which the engine honours, where overflow:hidden on the page itself it does not (measured in Electron's printToPDF) */}
-            <div className="ge-print-clip" style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
-            {withLiveScaleBars(pg.elements).map((el) => <LayoutElement key={el.id} el={el} selected={false} multiSelected={false} print onDown={() => {}} ctx={{ ...textContextFor(pg.elements || [], project, pg, i + pageOffset, pageTotal ?? pages.length, collars, credits), assays, assayElements, surfaceSamples, surfaceElements, layers /* #1869 */, plannedHoles /* #2259 */, survey, desurveyMethod: project?.desurveyMethod /* #3367 */, displayUnits: project?.displayUnits /* #3382 */, continuedOn: (t, r) => { const j = continuationPageIndex(pages, i, t, r); return j == null ? null : j + pageOffset + 1; } /* #2718 */ }} />)}
+            {/* TASKS.csv #3703 — the clip alone held only on the LAST page: an element past the right edge of any page with another page after it still shrank every page (by sheet width / its left edge + 1 px). contain: strict on the box stops it on every page (measured); an element wholly outside the sheet, which could not print anyway, is not laid out at all */}
+            <div className="ge-print-clip" style={{ position: "absolute", inset: 0, overflow: "hidden", contain: "strict" }}>
+            {withLiveScaleBars(pg.elements).filter((el) => !whollyOffSheet(el, pagePx(f))).map((el) => <LayoutElement key={el.id} el={el} selected={false} multiSelected={false} print onDown={() => {}} ctx={{ ...textContextFor(pg.elements || [], project, pg, i + pageOffset, pageTotal ?? pages.length, collars, credits), assays, assayElements, surfaceSamples, surfaceElements, layers /* #1869 */, plannedHoles /* #2259 */, survey, desurveyMethod: project?.desurveyMethod /* #3367 */, displayUnits: project?.displayUnits /* #3382 */, continuedOn: (t, r) => { const j = continuationPageIndex(pages, i, t, r); return j == null ? null : j + pageOffset + 1; } /* #2718 */ }} />)}
             </div>
           </div>
         );

@@ -35,7 +35,7 @@ test("a caption is short and leaves placeholders out", () => {
 
 test("wired: the confirm says 'Legend \"…\" past the right edge'", () => {
   const m = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
-  assert.match(m, /tr\("\{what\} past the \{sides\}", \{ what: it\.caption \?/);
+  assert.match(m, /tr\(it\.out \? "\{what\} wholly outside the sheet \(past the \{sides\}\): not printed" : "\{what\} past the \{sides\}: the part outside is cut off", \{ what: it\.caption \?/); // what the export does with it: #3703
   assert.match(m, /tr\("on \{page\}: \{list\}", \{ page: o\.name, list: o\.items\.map\(namePast\)\.join\(", "\) \}\)/);
   for (const k of ["left edge", "top edge", "right edge", "bottom edge"]) assert.match(m, new RegExp(`tr\\("${k}"\\)`));
   for (const lang of ["es", "pt", "fr", "ar"]) {

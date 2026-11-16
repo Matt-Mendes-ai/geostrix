@@ -13373,5 +13373,10 @@
   "the deepest depth of {n} of {total} holes is about {ratio} times their length: these depths look like FEET — undo (Ctrl+Z) and import again with Feet chosen": "أعمق عمق في {n} من {total} حفرة يساوي نحو {ratio} ضعف طولها: تبدو هذه الأعماق بالأقدام — تراجع (Ctrl+Z) وأعد الاستيراد مع اختيار الأقدام",
   "The names and numbers in a message are examples.": "الأسماء والأرقام في الرسالة أمثلة.",
   "Export totals per hole (CSV)": "تصدير الإجماليات لكل ثقب (CSV)",
-  "{k} composite(s) have no {symbol} grade (only another element's): they are in the table and the CSV, not in this layer.": "{k} مركّب(ات) ليس لها عيار {symbol} (عيار عنصر آخر فقط): هي في الجدول وملف CSV وليست في هذه الطبقة."
+  "{k} composite(s) have no {symbol} grade (only another element's): they are in the table and the CSV, not in this layer.": "{k} مركّب(ات) ليس لها عيار {symbol} (عيار عنصر آخر فقط): هي في الجدول وملف CSV وليست في هذه الطبقة.",
+  "{what} wholly outside the sheet (past the {sides}): not printed": "{what} خارج الورقة بالكامل (يتجاوز {sides}): لن يُطبع",
+  "{what} past the {sides}: the part outside is cut off": "{what} يتجاوز {sides}: يُقصّ الجزء الخارج عن الورقة",
+  "Some elements reach past the sheet's edge: {list}. The export leaves out whatever lies outside a sheet; every page still prints at its true size. Export anyway?": "بعض العناصر تتجاوز حافة الورقة: {list}. يستبعد التصدير كل ما يقع خارج الورقة؛ وتُطبع كل صفحة مع ذلك بحجمها الحقيقي. هل تريد التصدير على أي حال؟",
+  "This element lies wholly outside the sheet (past its {sides}): it is left out of the export. Move it back onto the sheet, or delete it.": "يقع هذا العنصر خارج الورقة بالكامل (يتجاوز {sides}): يُستبعد من التصدير. أعده إلى الورقة أو احذفه.",
+  "Part of this element reaches past the sheet's {sides}: that part is left out of the export, the rest prints. Move it, or make it smaller.": "جزء من هذا العنصر يتجاوز {sides} للورقة: يُستبعد هذا الجزء من التصدير ويُطبع الباقي. حرّكه أو صغّره."
 }

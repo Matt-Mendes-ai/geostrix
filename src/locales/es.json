@@ -13373,5 +13373,10 @@
   "the deepest depth of {n} of {total} holes is about {ratio} times their length: these depths look like FEET — undo (Ctrl+Z) and import again with Feet chosen": "la profundidad máxima de {n} de {total} sondajes es unas {ratio} veces su longitud: estas profundidades parecen PIES — deshaga (Ctrl+Z) e importe de nuevo con Pies elegido",
   "The names and numbers in a message are examples.": "Los nombres y las cifras de un mensaje son ejemplos.",
   "Export totals per hole (CSV)": "Exportar totales por sondaje (CSV)",
-  "{k} composite(s) have no {symbol} grade (only another element's): they are in the table and the CSV, not in this layer.": "{k} compuesto(s) no tienen ley de {symbol} (solo la de otro elemento): están en la tabla y en el CSV, no en esta capa."
+  "{k} composite(s) have no {symbol} grade (only another element's): they are in the table and the CSV, not in this layer.": "{k} compuesto(s) no tienen ley de {symbol} (solo la de otro elemento): están en la tabla y en el CSV, no en esta capa.",
+  "{what} wholly outside the sheet (past the {sides}): not printed": "{what} totalmente fuera de la hoja (más allá del {sides}): no se imprime",
+  "{what} past the {sides}: the part outside is cut off": "{what} más allá del {sides}: la parte que queda fuera se recorta",
+  "Some elements reach past the sheet's edge: {list}. The export leaves out whatever lies outside a sheet; every page still prints at its true size. Export anyway?": "Algunos elementos sobrepasan el borde de la hoja: {list}. La exportación deja fuera todo lo que queda fuera de una hoja; cada página se imprime igual a su tamaño real. ¿Exportar de todos modos?",
+  "This element lies wholly outside the sheet (past its {sides}): it is left out of the export. Move it back onto the sheet, or delete it.": "Este elemento está totalmente fuera de la hoja (más allá de su {sides}): queda fuera de la exportación. Muévalo de vuelta a la hoja o elimínelo.",
+  "Part of this element reaches past the sheet's {sides}: that part is left out of the export, the rest prints. Move it, or make it smaller.": "Una parte de este elemento sobrepasa {sides} de la hoja: esa parte queda fuera de la exportación y el resto se imprime. Muévalo o hágalo más pequeño."
 }

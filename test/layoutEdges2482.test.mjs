@@ -26,7 +26,7 @@ test("every page but the one on screen, with its name", () => {
     { id: "p3", name: "Fine", elements: [{ id: "r", type: "rect", x: 10, y: 10, w: 10, h: 10 }] },
   ];
   const r = offSheetPages(pages, "p1", (pg) => (pg.format === "a4-portrait" ? A4P : A4L));
-  assert.deepEqual(r, [{ index: 2, name: "Portrait", items: [{ id: "north", type: "north", caption: "", sides: ["right"] }] }]); // caption / sides: #2700
+  assert.deepEqual(r, [{ index: 2, name: "Portrait", items: [{ id: "north", type: "north", caption: "", sides: ["right"], out: true }] }]); // caption / sides: #2700; out (wholly outside the sheet): #3703
 });
 
 test("#2309 — a caption past the sheet counts although the element's own box is inside", () => {
@@ -38,7 +38,7 @@ test("#2309 — a caption past the sheet counts although the element's own box i
 
 test("wired into the export's pre-flight", () => {
   const m = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
-  assert.match(m, /rectSidesPast\(\[e, \.\.\.e\.querySelectorAll\("text(, td, th)?"\)( \/\* td \/ th: #3374 — a table\x27s cells \*\/)?\]\.map\(\(n\) => n\.getBoundingClientRect\(\)\), r\)/); // the sides it crosses: #2700
+  assert.match(m, /const rects = \[e, \.\.\.e\.querySelectorAll\("text, td, th"\) \/\* td \/ th: #3374 — a table\x27s cells \*\/\]\.map\(\(n\) => n\.getBoundingClientRect\(\)\); return \{ type: elementKind\(el\) \/\* #3028 \(3\) \*\/, caption: elementCaption\(el\), sides: rectSidesPast\(rects, r\), out: rectsWhollyOff\(rects, r\)/); // the sides it crosses: #2700; wholly outside: #3703
   assert.match(m, /if \(layoutPrintRequest\.kind !== "png"\) for \(const o of offSheetPages\(layoutPages, activeLayoutPageId,/);
-  assert.match(m, /Elements reach past the sheet's edge and will be cut off in the export: \{list\}\. Export anyway\?/);
+  assert.match(m, /Some elements reach past the sheet's edge: \{list\}\. The export leaves out whatever lies outside a sheet; every page still prints at its true size\. Export anyway\?/); // #3703
 });

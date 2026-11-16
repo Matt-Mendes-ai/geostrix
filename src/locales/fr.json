@@ -13373,5 +13373,10 @@
   "the deepest depth of {n} of {total} holes is about {ratio} times their length: these depths look like FEET — undo (Ctrl+Z) and import again with Feet chosen": "la plus grande profondeur de {n} sondages sur {total} vaut environ {ratio} fois leur longueur : ces profondeurs ressemblent à des PIEDS — annulez (Ctrl+Z) et importez de nouveau avec Pieds choisi",
   "The names and numbers in a message are examples.": "Les noms et les chiffres d'un message sont des exemples.",
   "Export totals per hole (CSV)": "Exporter les totaux par sondage (CSV)",
-  "{k} composite(s) have no {symbol} grade (only another element's): they are in the table and the CSV, not in this layer.": "{k} composite(s) n'ont pas de teneur en {symbol} (seulement celle d'un autre élément) : ils sont dans le tableau et le CSV, pas dans cette couche."
+  "{k} composite(s) have no {symbol} grade (only another element's): they are in the table and the CSV, not in this layer.": "{k} composite(s) n'ont pas de teneur en {symbol} (seulement celle d'un autre élément) : ils sont dans le tableau et le CSV, pas dans cette couche.",
+  "{what} wholly outside the sheet (past the {sides}): not printed": "{what} entièrement hors de la feuille (au-delà du {sides}) : non imprimé",
+  "{what} past the {sides}: the part outside is cut off": "{what} au-delà du {sides} : la partie qui dépasse est coupée",
+  "Some elements reach past the sheet's edge: {list}. The export leaves out whatever lies outside a sheet; every page still prints at its true size. Export anyway?": "Certains éléments dépassent le bord de la feuille : {list}. L'export laisse de côté tout ce qui se trouve hors d'une feuille ; chaque page s'imprime quand même à sa taille réelle. Exporter quand même ?",
+  "This element lies wholly outside the sheet (past its {sides}): it is left out of the export. Move it back onto the sheet, or delete it.": "Cet élément se trouve entièrement hors de la feuille (au-delà de son {sides}) : il est laissé de côté à l'export. Ramenez-le sur la feuille ou supprimez-le.",
+  "Part of this element reaches past the sheet's {sides}: that part is left out of the export, the rest prints. Move it, or make it smaller.": "Une partie de cet élément dépasse {sides} de la feuille : cette partie est laissée de côté à l'export, le reste s'imprime. Déplacez-le ou réduisez-le."
 }
