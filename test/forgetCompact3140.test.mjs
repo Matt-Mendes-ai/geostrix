@@ -46,7 +46,7 @@ test("#3140 an edit made while the Save's text is being built does not reach the
 test("#3140 saveProject writes the cached parts' text, and the other payload callers keep their own route", async () => {
   const { readFileSync } = await import("node:fs");
   const s = readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.match(s, /const content = joinParts\(await projectPartsSliced\(liveRef\.current\)\);/);
+  assert.match(s, /const content = joinParts\(await projectPartsSliced\((keptTitle \? \{ \.\.\.liveRef\.current, project: withProjectTitle\(liveRef\.current\.project, keptTitle\) \} : liveRef\.current|liveRef\.current)\)\);/); // #3611 / #3612: the first save's title
   assert.equal((s.match(/JSON\.stringify\(payload\)/g) || []).length, 0);
   assert.match(s, /saveFileTo\(\{ filePath: knownPath, content \}\)/);
   assert.match(s, /const snapshotCurrentPayload = \(\) => payloadFromFields\(liveRef\.current\);/); // the stash and the problem report still take the object

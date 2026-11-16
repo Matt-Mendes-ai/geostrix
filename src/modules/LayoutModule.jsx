@@ -3,6 +3,7 @@ import { customLegendGroups } from "../lib/customColour.js"; // TASKS.csv #2472
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { MapPinned, Plus, X, Maximize2, Sheet, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid, Lock, LayoutTemplate, Download, Upload, HardDrive } from "../components/icons.js";
+import { projectTitleOf } from "../lib/projectTitle.js"; // TASKS.csv #3611 / #3612
 import { newTitleBlock, STOCK_TEMPLATES, stockTemplateElements, templateFile, parseTemplateFile, templateElements, furnitureOfOnePictureReset /* #3709 */, sharedTitleRows /* #3714 */, refitStockTemplate, documentTitle /* #3612 */, titleBlockSpot } from "../lib/layoutTitleBlock.js"; // refitStockTemplate: #2312; // TASKS.csv #1868; templateElements: #1487
 import ComputerTemplates from "../components/ComputerTemplates.jsx"; // TASKS.csv #1487
 import { keepTemplateOnComputer } from "../lib/computerTemplates.js"; // TASKS.csv #1487
@@ -167,6 +168,7 @@ export default function LayoutModule() {
     viewportBatchDone, setViewportBatchDone, // TASKS.csv #1644 — an atlas's maps centred on their holes
     requestViewportBatch, printSrcs, setPrintSrcs, // TASKS.csv #2303 — the export's 300 dpi print pass
     undoCheckpoint, // TASKS.csv #3184 — each insert / duplicate / paste its own undo step
+    setProjectTitle, // TASKS.csv #3611 / #3612 — the title the sheets print
   } = useStore();
   // TASKS.csv #3591 — every page the app makes itself (a snapshot's own page, a split's, an Atlas page, a table's continuation) prints the data credit when the project has one: the {credits}
   // text is added to a page that does not print it (lib/layoutCredits.js); the credit line itself is read through a ref (it is computed further down)
@@ -1371,6 +1373,9 @@ export default function LayoutModule() {
           </div>
         )}
 
+        <label style={{ display: "block", marginTop: 14, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }} title={tr("Printed as {project} on every sheet (the sheet's title and the title block's Project row), and as the PDF's title. Blank: the file's name. A Save or a rename of the file does not change it.")}>{/* TASKS.csv #3611 / #3612 */}
+          {tr("Project title")}<input type="text" value={project?.title ?? ""} placeholder={project?.name || ""} onChange={(e) => setProjectTitle(e.target.value)} style={{ ...inp, marginTop: 4 }} aria-label={tr("Project title")} />
+        </label>
         {!sel && multiSelected.size <= 1 && ( /* TASKS.csv #993 — the page's interactions, said once where they are used */
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45, marginTop: 14 }}>
             {elements.length ? tr("Click an element to edit it, Ctrl+click for several (to align or spread them). Drag the handles to resize; Shift keeps the shape. Alt drags past the guides. Arrow keys nudge 1 mm, Shift+arrow 10 mm.") : tr("The sheet is empty: add a view of the 3D scene (Current view), then a title, north arrow, scale bar and legend from Insert.")}
@@ -2631,7 +2636,7 @@ function textContextFor(els, project, page, index, count, collars = null, credit
   const today = new Date(), p2 = (v) => String(v).padStart(2, "0"); // #1489 — ISO: '11/2/2026' read as 11 February to many readers
   // gridCaption (#2301): what a drill plan's grid numbers are
   const gridCaption = project?.crsSet === false ? (project?.localGrid?.name ? `local grid: ${project.localGrid.name}` : "local mine grid, no CRS") : project?.epsg ? crsText(project.epsg) /* #2611 — the CRS by name, as a viewport grid says it */ : "";
-  return { gridCaption, project: project?.name || "", date: `${today.getFullYear()}-${p2(today.getMonth() + 1)}-${p2(today.getDate())}`, page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els), crs: crsText(project?.epsg, project?.crsSet, project?.crsSet === false ? project?.localGrid?.name || collarGridName(collars) : null /* #2306 */), credits, north: northName(project) ? tr(northName(project)) : "", convergence: formatConvergence(pageConvergence(els, project, collars)) /* #2712 */, collars, els, pageH: pagePx(pageFormatOf(page)).h, pageW: pagePx(pageFormatOf(page)).w /* #2134 */ }; // collars: the #911 table; els: the #912 overview; pageH: #1480
+  return { gridCaption, project: projectTitleOf(project), date: `${today.getFullYear()}-${p2(today.getMonth() + 1)}-${p2(today.getDate())}`, page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els), crs: crsText(project?.epsg, project?.crsSet, project?.crsSet === false ? project?.localGrid?.name || collarGridName(collars) : null /* #2306 */), credits, north: northName(project) ? tr(northName(project)) : "", convergence: formatConvergence(pageConvergence(els, project, collars)) /* #2712 */, collars, els, pageH: pagePx(pageFormatOf(page)).h, pageW: pagePx(pageFormatOf(page)).w /* #2134 */ }; // collars: the #911 table; els: the #912 overview; pageH: #1480
 }
 const fillText = (text, ctx) => fillPlaceholders(text, ctx, PLACEHOLDER); // #2139 — an empty fill takes its separator with it
 

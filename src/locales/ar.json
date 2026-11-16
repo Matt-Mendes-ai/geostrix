@@ -13523,5 +13523,7 @@
   "This workspace is a read-only copy of the project's tables: only queries that read run here, and the project is never changed.": "مساحة العمل هذه نسخة للقراءة فقط من جداول المشروع: تُنفَّذ هنا الاستعلامات القارئة فقط، ولا يتغير المشروع أبداً.",
   "+ {hiddenCount} more not shown, among them {names} — filter categories, or build the figure in Layout": "+ {hiddenCount} أخرى غير معروضة، منها {names} — صفِّ الفئات، أو ابنِ الشكل في التخطيط",
   "Hole ID at the toe": "معرّف الثقب عند القاع",
-  "Hole ID at both ends": "معرّف الثقب عند الطرفين"
+  "Hole ID at both ends": "معرّف الثقب عند الطرفين",
+  "Project title": "عنوان المشروع",
+  "Printed as {project} on every sheet (the sheet's title and the title block's Project row), and as the PDF's title. Blank: the file's name. A Save or a rename of the file does not change it.": "يُطبع بوصفه {project} على كل ورقة (عنوان الورقة وصف المشروع في إطار العنوان) وبوصفه عنوان ملف PDF. فارغ: اسم الملف. لا يغيّره الحفظ ولا إعادة تسمية الملف."
 }

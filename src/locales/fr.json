@@ -13523,5 +13523,7 @@
   "This workspace is a read-only copy of the project's tables: only queries that read run here, and the project is never changed.": "Cet espace de travail est une copie en lecture seule des tables du projet : seules les requêtes de lecture s'y exécutent, et le projet n'est jamais modifié.",
   "+ {hiddenCount} more not shown, among them {names} — filter categories, or build the figure in Layout": "+ {hiddenCount} autres non affichés, dont {names} — filtrez les catégories, ou construisez la figure dans la mise en page",
   "Hole ID at the toe": "ID du sondage au fond",
-  "Hole ID at both ends": "ID du sondage aux deux bouts"
+  "Hole ID at both ends": "ID du sondage aux deux bouts",
+  "Project title": "Titre du projet",
+  "Printed as {project} on every sheet (the sheet's title and the title block's Project row), and as the PDF's title. Blank: the file's name. A Save or a rename of the file does not change it.": "Imprimé comme {project} sur chaque feuille (le titre de la feuille et la ligne Projet du cartouche) et comme titre du PDF. Vide : le nom du fichier. Enregistrer ou renommer le fichier ne le change pas."
 }

@@ -13523,5 +13523,7 @@
   "This workspace is a read-only copy of the project's tables: only queries that read run here, and the project is never changed.": "Este espaço de trabalho é uma cópia somente leitura das tabelas do projeto: aqui só rodam consultas que leem, e o projeto nunca é alterado.",
   "+ {hiddenCount} more not shown, among them {names} — filter categories, or build the figure in Layout": "+ {hiddenCount} a mais não mostrados, entre eles {names} — filtre categorias, ou monte a figura na Prancha",
   "Hole ID at the toe": "ID do furo no fundo",
-  "Hole ID at both ends": "ID do furo nas duas pontas"
+  "Hole ID at both ends": "ID do furo nas duas pontas",
+  "Project title": "Título do projeto",
+  "Printed as {project} on every sheet (the sheet's title and the title block's Project row), and as the PDF's title. Blank: the file's name. A Save or a rename of the file does not change it.": "Impresso como {project} em cada prancha (o título da prancha e a linha Projeto do carimbo) e como título do PDF. Em branco: o nome do arquivo. Salvar ou renomear o arquivo não o altera."
 }
