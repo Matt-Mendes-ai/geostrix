@@ -143,6 +143,7 @@ const UndrilledZonesPane = React.lazy(() => import("../components/UndrilledZones
 import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv #499
 import { sliceReadoutText } from "../lib/sliceReadout.js";
 import { sliceTraces, medianCollarPos, slabSummary, slabSummaryText } from "../lib/viewer/slicePlace.js"; // TASKS.csv #3258
+import AssayStaleBadge from "../components/AssayStaleBadge.jsx"; // TASKS.csv #3686
 import { buildVectorFeatures as buildVectorFeaturesOf } from "../lib/viewer/vectorFeatures.js"; // TASKS.csv #1083
 import { isRepeatClick } from "../lib/repeatClick.js"; // TASKS.csv #1152; #3159: not interpretation.js, which put the interpretation layers' code in startup
 import { syncInterpretPreview, hoverFirstCorner } from "../lib/viewer/interpretDraw.js"; // TASKS.csv #1152; hover: #2682
@@ -6957,6 +6958,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   );
                 })()}
                 {isStaleStamp(s.params?.lithoStamp, lithoNow) && <span style={{ flexShrink: 0, fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "1px 4px" }} title={tr("Built from a lithology log that has changed since (replaced, re-imported or edited). Run it again to model the log as it is now.")}>{tr("source changed")}</span>}{/* #2388 */}
+                <AssayStaleBadge params={s.params} />{/* TASKS.csv #3686 — a shell made from assays that have changed since (the badge reads the store itself) */}
                 {/* TASKS.csv #83 — expand: the surface's geological type and relationships (#88 constraints, #90 topology) */}
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpandedSurfaceId(expanded ? null : s.id)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} title={tr("Type & relationships")}>
                   {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}

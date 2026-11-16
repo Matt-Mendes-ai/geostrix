@@ -31,3 +31,8 @@ test("wired: shells and estimates stamp the assays they read (not a log), the no
   assert.match(read("../src/modules/viewer/ViewerParts.jsx"), /<AssayStaleBadge params=\{model\.params\} \/>/); assert.match(read("../src/components/GradeTonnageModal.jsx"), /<AssayStaleBadge params=\{model\.params\} text \/>/);
   for (const l of ["es", "pt", "fr", "ar"]) { const d = JSON.parse(read(`../src/locales/${l}.json`)); for (const k of ["assays changed", "Made from assays that have changed since (re-imported, corrected or edited): its values may differ from the assays now. Run it again to use the assays as they are."]) assert.ok(d[k], `${l}: ${k.slice(0, 30)}`); }
 });
+
+test("the Generated surfaces row shows the badge (the one ViewerModule edit, beside the lithology 'source changed' badge)", () => {
+  const v = read("../src/modules/ViewerModule.jsx");
+  assert.match(v, /<AssayStaleBadge params=\{s\.params\} \/>/); assert.match(v, /import AssayStaleBadge from "\.\.\/components\/AssayStaleBadge\.jsx";/);
+});
