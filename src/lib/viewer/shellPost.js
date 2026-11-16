@@ -8,18 +8,28 @@
 // or above the iso), farPoints: [{ x, y, z }] | null, farDist, reach: { points, basis, scales, limM } | null (#3655: the shell kept within that
 // reach of the composites at the cut-off, lib/viewer/shellPlane.js) } -> { positions: Float64Array (x y z per vertex, the grid's frame), faces: Uint32Array,
 // closingVertices, skippedCubes, vertexSupport: Uint8Array (0 / 1 / 2, 255 = none), capped, inShell, far: { inside, far } | null, sum, n, hi }
+// TASKS.csv #3673 — post.envelope (the envelope mode, lib/viewer/shellEnvelope.js): { clean: cleanField's options, targetTriangles, smooth:
+// taubinSmooth's options, gradePoints: [{ x, y, z, value, length }] (the box's composites, their real grades), cutoff } -> also envelope:
+// { clean (its report), coarsen, trianglesFine, grades: { n, sum, w, median, atCut, values } } (the composites inside, by their grades)
 import { marchingCubes } from "../marchingCubes.js";
 import { capFieldAtColumns, sumInsideShell } from "../groundCap.js";
 import { samplesInsideShell } from "../shellSupport.js";
 import { farFromSamples } from "../haloSupport.js";
 import { gridShape } from "../blockReach.js";
 import { reachCutField } from "./shellPlane.js"; // TASKS.csv #3655
+import { cleanField, coarsenFactor, coarsenField, taubinSmooth } from "./shellEnvelope.js"; // TASKS.csv #3673
 
 export function shellPost(grid, post) {
   const { nx, ny, nz, origin, cellSize } = grid, iso = post.iso;
   const reached = post.reach ? reachCutField(grid.values, grid, iso, post.reach) : { values: grid.values, cut: 0 }; // #3655 — before the ground
   const cut = post.ground ? capFieldAtColumns(reached.values, nx, ny, nz, origin, cellSize, iso, post.ground) : { values: reached.values, capped: 0 };
-  const mc = marchingCubes(cut.values, nx, ny, nz, iso, { origin, spacing: cellSize, noData: post.closeOutside ? "outside" : "skip" });
+  const env = post.envelope || null;
+  // #3673 — the envelope's clean-up (parts dropped, voids filled) after the ground cut, before the surface
+  const cleaned = env?.clean ? cleanField(cut.values, grid, iso, env.clean) : null, field = cleaned ? cleaned.values : cut.values;
+  const noData = post.closeOutside ? "outside" : "skip";
+  let mc = marchingCubes(field, nx, ny, nz, iso, { origin, spacing: cellSize, noData });
+  const trianglesFine = mc.faces.length, coarsen = env?.targetTriangles ? coarsenFactor(trianglesFine, env.targetTriangles) : 1;
+  if (coarsen > 1) { const cf = coarsenField(field, grid, coarsen); mc = marchingCubes(cf.values, cf.grid.nx, cf.grid.ny, cf.grid.nz, iso, { origin: cf.grid.origin, spacing: cf.grid.cellSize, noData }); } // #3673: decimation by the field
   const nv = mc.vertices.length, positions = new Float64Array(nv * 3) /* world coordinates: Float32 keeps a northing of 7,004,000 only to ~0.5 m */, faces = new Uint32Array(mc.faces.length * 3), vertexSupport = new Uint8Array(nv).fill(255);
   const clampI = (n, hi) => (n < 0 ? 0 : n > hi ? hi : n);
   mc.vertices.forEach((v, i) => {
@@ -30,11 +40,25 @@ export function shellPost(grid, post) {
     }
   });
   mc.faces.forEach((f, i) => { faces[i * 3] = f[0]; faces[i * 3 + 1] = f[1]; faces[i * 3 + 2] = f[2]; });
-  const inShell = samplesInsideShell(post.inShellPoints || [], grid, cut.values, iso);
-  const far = post.farPoints && post.farDist > 0 ? farFromSamples(cut.values, nx, ny, nz, origin, cellSize, iso, post.farPoints, post.farDist, {}) : null;
-  const { sum, n } = sumInsideShell(grid.values, cut.values, iso);
+  const smoothed = env?.smooth && faces.length ? taubinSmooth(positions, faces, env.smooth) : positions; // #3673
+  const inShell = samplesInsideShell(post.inShellPoints || [], grid, field, iso);
+  const far = post.farPoints && post.farDist > 0 ? farFromSamples(field, nx, ny, nz, origin, cellSize, iso, post.farPoints, post.farDist, {}) : null;
+  const { sum, n } = sumInsideShell(grid.values, field, iso);
+  // #3673 — the composites inside the envelope by their real grades (the field is a probability, its mean is no grade)
+  let grades = null;
+  if (env?.gradePoints) {
+    const vs = []; let gs = 0, gw = 0, atCut = 0;
+    for (const p of env.gradePoints) {
+      const i = Math.round((p.x - origin.x) / cellSize.dx), j = Math.round((p.y - origin.y) / cellSize.dy), k = Math.round((p.z - origin.z) / cellSize.dz);
+      if (i < 0 || j < 0 || k < 0 || i >= nx || j >= ny || k >= nz || !(field[i + nx * (j + ny * k)] >= iso)) continue;
+      const w = p.length > 0 ? p.length : 1;
+      vs.push(p.value); gs += p.value * w; gw += w; if (p.value >= env.cutoff) atCut++;
+    }
+    vs.sort((a, b) => a - b);
+    grades = { n: vs.length, sum: gs, w: gw, median: vs.length ? vs[Math.floor(vs.length / 2)] : null, atCut, values: Float64Array.from(vs) }; // values: for one median over every box
+  }
   let hi = -Infinity; for (const v of grid.values) if (Number.isFinite(v) && v > hi) hi = v;
-  return { positions, faces, closingVertices: mc.closingVertices || 0, skippedCubes: mc.skippedCubes || 0, vertexSupport, capped: cut.capped, reachCut: reached.cut, inShell, far: far ? { inside: far.inside, far: far.far } : null, sum, n, hi };
+  return { positions: smoothed, faces, closingVertices: mc.closingVertices || 0, skippedCubes: mc.skippedCubes || 0, vertexSupport, capped: cut.capped, reachCut: reached.cut, ...(env ? { envelope: { clean: cleaned?.report || null, coarsen, trianglesFine, grades } } : {}), inShell, far: far ? { inside: far.inside, far: far.far } : null, sum, n, hi };
 }
 
 // the ground per column of the lattice a dense grid over `bounds` at `cellSize` will have (estimation.js: gridShape, origin at the lower bound plus

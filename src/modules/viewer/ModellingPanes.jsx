@@ -46,7 +46,8 @@ import { sampleSpacing } from "../../lib/sampleSpacing.js"; // TASKS.csv #3580 �
 import { cutoffPct } from "../../lib/gradeTonnage.js"; // TASKS.csv #3272 — a base metal's ppm cutoff in % too, as Grade-tonnage (#1747)
 import { GradeShellUnsampled } from "../../components/UnsampledChoice.jsx"; // TASKS.csv #2417 / #2542
 import ShellCapNote from "./ShellCapNote.jsx";
-import { shellPaneMemory, memoryRef } from "./shellPaneMemory.js"; // TASKS.csv #3651 // TASKS.csv #2222 — the Estimation dialog's default cap (#1573) here too
+import { shellPaneMemory, memoryRef } from "./shellPaneMemory.js"; // TASKS.csv #3651
+import { ENVELOPE_RANGES } from "../../lib/viewer/shellEnvelope.js"; // TASKS.csv #3673 — the ranges said in the pane // TASKS.csv #2222 — the Estimation dialog's default cap (#1573) here too
 import { zoneAlphaPicks, customAlphaPicks } from "../../lib/alphaPicks.js"; // TASKS.csv #1686
 const ModelAreaRange = lazy(() => import("../../components/ModelAreaRange.jsx")); // TASKS.csv #2536
 const GradeThicknessModal = lazy(() => import("../../components/GradeThicknessModal.jsx")); // TASKS.csv #2419
@@ -363,6 +364,11 @@ export default function ModellingPanes(props) {
   const [shellSearchSet, setShellSearchSetState] = useState(() => shellMem.search ?? null);
   const setShellSearchSet = (v) => { shellMem.search = v; setShellSearchSetState(v); }; // #3651
   // TASKS.csv #3655 — search along the plane of the composites at the cut-off (modellingRuns.js, lib/viewer/shellPlane.js); a per-user preference
+  // TASKS.csv #3673 — the shell: an envelope (the default) or the tight shell, and the envelope's probability; per-user preferences, read by the run
+  const [shellMode, setShellModeState] = useState(() => { try { return localStorage.getItem("geostrix.shellMode") === "tight" ? "tight" : "envelope"; } catch { return "envelope"; } });
+  const setShellMode = (m) => { setShellModeState(m); try { localStorage.setItem("geostrix.shellMode", m); } catch { /* storage off */ } };
+  const [shellEnvIso, setShellEnvIsoState] = useState(() => { try { const v = Number(localStorage.getItem("geostrix.shellEnvelopeIso")); return v >= 0.3 && v <= 0.7 ? v : 0.5; } catch { return 0.5; } });
+  const setShellEnvIso = (v) => { const x = Math.min(0.7, Math.max(0.3, Number(v) || 0.5)); setShellEnvIsoState(x); try { localStorage.setItem("geostrix.shellEnvelopeIso", String(x)); } catch { /* storage off */ } };
   const [shellPlaneSearch, setShellPlaneSearchState] = useState(() => { try { return localStorage.getItem("geostrix.shellPlaneSearch") !== "0"; } catch { return true; } });
   const setShellPlaneSearch = (on) => { setShellPlaneSearchState(on); try { localStorage.setItem("geostrix.shellPlaneSearch", on ? "1" : "0"); } catch { /* storage off */ } };
   const shellSearchTyped = useMemo(() => memoryRef(shellMem, "searchTyped", false), [shellMem]); // #3651: was useRef(false) // TASKS.csv #3607 (3) — a typed 50 m was replaced by 120 m when the pane reopened (50 is the untouched opening value) // { r, m, at }: the search this pane set from the spacing (at: "samples" | "collars")
@@ -1302,7 +1308,21 @@ export default function ModellingPanes(props) {
               </div>
               {numericBudgetHint?.ranAt && numericCellSize === NUMERIC_CELL_DEFAULT && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("The last run used {c} m cells: {cs} m cells did not fit its {b}-block budget. A larger budget below gives smaller cells; the box keeps {cs} m.", { c: numericBudgetHint.ranAt, cs: NUMERIC_CELL_DEFAULT, b: (numericBudgetHint.ranBudget || 0).toLocaleString() })}</div>}{/* TASKS.csv #3651 */}
               {shellSearchSet && numericSearchRadius === shellSearchSet.r && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{shellSearchSet.at === "samples" ? tr("Search radius {r} m: 2.5 times the {m} m typical distance from a sample to the nearest sample of another hole, so a block between two holes reaches both.", shellSearchSet) : tr("Search radius {r} m: 2.5 times the {m} m typical spacing, so a block between two holes reaches both.", shellSearchSet)}</div>}
-              {!trendFor("gradeShell") && !(Number(numericFlatReach) > 0) && <>{/* TASKS.csv #3655 — by default along the plane of the composites at the cut-off */}
+              {!trendFor("gradeShell") && !(Number(numericFlatReach) > 0) && <>{/* TASKS.csv #3673 — the envelope (the default) or the tight shell */}
+                <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
+                  <label style={{ ...miniField, flex: 2 }} title={tr("Envelope: the composites at or above the cut-off count 1, the others 0, interpolated along their plane over a few hole spacings; the surface is where that reaches the probability, so one or a few smooth bodies keep the dilution between good intervals, as a consultant's domain does. Tight: the grade itself, kept close to the composites at the cut-off; it follows them and, at a low cut-off, breaks into many bodies.")}>{tr("Shell")}
+                    <select value={shellMode} onChange={(e) => setShellMode(e.target.value)} style={{ ...smallSel, width: "100%" }} aria-label={tr("Grade shell kind")}>
+                      <option value="envelope">{tr("Envelope (a domain)")}</option>
+                      <option value="tight">{tr("Tight (follows the composites)")}</option>
+                    </select>
+                  </label>
+                  {shellMode === "envelope" && <label style={{ ...miniField, flex: 1 }} title={tr("The share of the neighbouring composites at or above the cut-off where the surface is drawn: 0.5 by default; lower takes in more dilution, higher keeps closer to the good intervals (0.3 to 0.7).")}>{tr("Probability")}
+                    <input type="number" min="0.3" max="0.7" step="0.05" value={shellEnvIso} onChange={(e) => setShellEnvIso(e.target.value)} style={{ ...smallSel, width: "100%" }} aria-label={tr("Envelope probability")} />
+                  </label>}
+                </div>
+                {shellMode === "envelope" && shellSampleSpacing?.medianM > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("The envelope's reach comes from the {s} m sample spacing: {a} m along the plane's long axis, {b} m across it and {c} m through it, with the plane fitted at each run. The Search box is the tight shell's.", { s: Math.round(shellSampleSpacing.medianM), a: Math.round(ENVELOPE_RANGES.major * shellSampleSpacing.medianM), b: Math.round(ENVELOPE_RANGES.semi * shellSampleSpacing.medianM), c: Math.round(ENVELOPE_RANGES.minor * shellSampleSpacing.medianM) })}</div>}
+              </>}
+              {!trendFor("gradeShell") && !(Number(numericFlatReach) > 0) && shellMode === "tight" && <>{/* TASKS.csv #3655 — by default along the plane of the composites at the cut-off */}
                 <label style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title={tr("Each drilled area is searched along the plane its composites at or above the cut-off lie on (as the Trends panel fits them): an ellipsoid with the volume of this search's sphere. The shell is kept within 0.3 of that ellipsoid from those composites, so it follows them instead of swelling round single holes. An area with fewer than 30 such composites, or from fewer than 4 holes, keeps the sphere.")}>
                   <input type="checkbox" checked={shellPlaneSearch} onChange={(e) => setShellPlaneSearch(e.target.checked)} style={{ marginTop: 2 }} />{tr("Search along the composites' plane")}
                 </label>
