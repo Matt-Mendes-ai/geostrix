@@ -15,7 +15,7 @@ import { drilledDefaults } from "../lib/plannedDefaults.js"; // TASKS.csv #2450
 import { costByType, fixedCosts, FIXED_KEYS, collarHoleTypes } from "../lib/drillProgram.js"; // TASKS.csv #2581
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #2581 — the rates are kept with the project
 import { collarGround, collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2100 — the ground between the collars when there is no terrain; underground: #2251 / #2253
-import { collarFillAt, collarFillGround, collarFillSource, distanceText } from "../lib/collarFill.js"; // TASKS.csv #3335
+import { collarFillAt, collarFillGround, collarFillSource, distanceText, judgedCollarZ } from "../lib/collarFill.js"; // TASKS.csv #3335; judgedCollarZ: #3818
 import { nextHoleId } from "../lib/holeSeries.js"; // TASKS.csv #3347
 
 const PlannedHoleTargeting = lazyModal(() => import("./PlannedHoleTargeting.jsx")); // TASKS.csv #119
@@ -188,11 +188,19 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
   const solveCollar = () => {
     if (!collarReady) return;
     const az = wrap360(Number(draft.azimuth) + azOffset.offset); // grid
-    const r = solveCollarForTarget({ x: Number(target.x), y: Number(target.y), z: Number(target.z) }, az, Number(draft.dip), { groundAt: ground || null, surfaceZ: draft.z === "" ? NaN : Number(draft.z) }); // ground: #2100 — the collars' ground without a terrain
+    let r = solveCollarForTarget({ x: Number(target.x), y: Number(target.y), z: Number(target.z) }, az, Number(draft.dip), { groundAt: ground || null, surfaceZ: draft.z === "" ? NaN : Number(draft.z) }); // ground: #2100 — the collars' ground without a terrain
+    // TASKS.csv #3818 — the collars' ground is judged where the line meets it, as the collar boxes judge it (#3335): past three site spacings it says nothing, so the
+    // typed Elev is used if there is one, else no collar is placed; past one spacing the Elev is to the metre; the distance goes into z_source
+    let judged = r && r.source === "terrain" && !groundAt && !underground ? judgedCollarZ(null, collarZ, siteSpacing, r.x, r.y) : null;
+    if (judged?.far) {
+      if (draft.z !== "" && !isNaN(Number(draft.z))) { r = solveCollarForTarget({ x: Number(target.x), y: Number(target.y), z: Number(target.z) }, az, Number(draft.dip), { groundAt: null, surfaceZ: Number(draft.z) }); judged = null; }
+      else { setCollarNote({ warn: true, text: tr("No collar placed: this line meets the ground interpolated between the collars {d} from the nearest collar, over three times the site spacing ({s} m), where that ground says nothing. Type the Elev (the collar is then placed at that elevation), or load a terrain.", { d: distanceText(judged.f.nearestM), s: Math.round(judged.f.spacing) }) }); return; }
+    }
     if (!r) { setCollarNote({ warn: true, text: ground ? tr("No collar: a line through the target at this dip does not reach the terrain (the target may be above the ground, or the line leaves the terrain).") : tr("No collar: with no terrain the typed Elev stands for the ground, and it must be above the target for a downward hole.") }); return; }
-    setDraft((p) => ({ ...p, x: Math.round(r.x * 10) / 10, y: Math.round(r.y * 10) / 10, z: Math.round(r.z * 10) / 10, length: Math.round((r.length + PAST_TARGET_M) * 10) / 10 }));
+    const zOut = judged?.f?.coarse ? Math.round(r.z) : Math.round(r.z * 10) / 10; // #3335 / #3818 — past one site spacing, to the metre
+    setDraft((p) => ({ ...p, x: Math.round(r.x * 10) / 10, y: Math.round(r.y * 10) / 10, z: zOut, length: Math.round((r.length + PAST_TARGET_M) * 10) / 10 }));
     const onCollars = r.source === "terrain" && !groundAt; // #2100 — 'terrain' from the solver means the ground function it was given
-    setZSource(onCollars ? "solved on the ground interpolated between the collars (no terrain)" : r.source === "terrain" ? "solved on the terrain" : "solved at the typed elevation");
+    setZSource(onCollars ? `solved on ${judged ? judged.source : "the ground interpolated between the collars (no terrain)"}` /* #3818 — with the nearest collar's distance */ : r.source === "terrain" ? "solved on the terrain" : "solved at the typed elevation");
     setCollarNote({ warn: r.source !== "terrain" || onCollars, text: onCollars
       ? (underground ? tr("No terrain, and the collars look underground: the collar is placed where this line meets a surface through the drill collars (a level between drill positions, not the ground), {h} m from the target in plan. Type the drill level's RL, or load a terrain.", { h: Math.round(r.horizontal) }) /* #2253 */ : tr("No terrain: the collar is placed where this line meets the ground interpolated between the nearest collars, {h} m from the target in plan. Check that elevation before using it, or load a terrain.", { h: Math.round(r.horizontal) }))
       : r.source === "terrain"
@@ -290,12 +298,22 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
         <button onClick={solveCollar} disabled={!collarReady} style={{ ...miniBtn, width: "100%", marginTop: 4, opacity: collarReady ? 1 : 0.5 }} title={tr("Keep the azimuth and dip above and move the collar: to where a line through the target at that dip meets the terrain, or the typed Elev when no terrain is loaded")}>{tr("Solve collar for this dip/azimuth")}</button>{/* #1835 */}
         {/* TASKS.csv #2455 (review #2325, WA uranium) — on a surface project the answer to a target is a new hole above it, not five shallow holes from
             the neighbouring pads: the nearest-collars list is for collars drilled from underground; elsewhere one click places a vertical hole */}
-        {targetReady && !underground && ground && Number.isFinite(ground(Number(target.x), Number(target.y))) && (() => {
-          const gz = ground(Number(target.x), Number(target.y)), depth = gz - Number(target.z);
+        {targetReady && !underground && ground && (() => {
+          // TASKS.csv #3818 — the collar's Elev by the same rule as the collar boxes (#3335): judged by the site spacing, with the distance said and kept
+          const j = judgedCollarZ(groundAt, collarZ, siteSpacing, Number(target.x), Number(target.y));
+          if (!j) return null;
+          const withTargetXY = (p) => ({ ...p, x: Math.round(Number(target.x) * 10) / 10, y: Math.round(Number(target.y) * 10) / 10, azimuth: 0, dip: -90 });
+          if (j.far) return (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", marginTop: 6 }}>
+              <span style={{ flex: 1, color: "var(--color-warn-text)" }}>{tr("A vertical hole above the target: no collar Elev offered, the nearest collar is {d} away, over three times the site spacing ({s} m). Type the Elev and the length, or load a terrain.", { d: distanceText(j.f.nearestM), s: Math.round(j.f.spacing) })}</span>
+              <button onClick={() => { setDraft((p) => ({ ...withTargetXY(p), z: "", length: "" })); setZSource("typed"); setCollarNote(null); setUpward(false); setFromCollarId(""); }} style={{ ...miniBtn, padding: "1px 7px" }} title={tr("Fills the E, N, azimuth and dip; the Elev and the length are left blank for you")}>{tr("Use")}</button>
+            </div>
+          );
+          const zr = groundAt ? Math.round(j.z * 10) / 10 : j.z /* already judged: to the metre past one spacing */, depth = zr - Number(target.z);
           return depth > 0 ? (
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", marginTop: 6 }}>
-              <span style={{ flex: 1 }}>{tr("A vertical hole above the target: collar at {z} m ({src}), {d} m to the target.", { z: Math.round(gz * 10) / 10, src: groundAt ? tr("the terrain") : tr("the ground interpolated between the nearest collars"), d: Math.round(depth) })}</span>
-              <button onClick={() => { setDraft((p) => ({ ...p, x: Math.round(Number(target.x) * 10) / 10, y: Math.round(Number(target.y) * 10) / 10, z: Math.round(gz * 10) / 10, azimuth: 0, dip: -90, length: Math.round((depth + PAST_TARGET_M) * 10) / 10 })); setZSource(groundAt ? "the terrain at the target's E / N" : "the ground interpolated between the nearest collars (no terrain)"); setCollarNote(null); setUpward(false); setFromCollarId(""); }} style={{ ...miniBtn, padding: "1px 7px" }}>{tr("Use")}</button>
+              <span style={{ flex: 1 }}>{groundAt || j.f?.nearestM == null ? tr("A vertical hole above the target: collar at {z} m ({src}), {d} m to the target.", { z: zr, src: groundAt ? tr("the terrain") : tr("the ground interpolated between the nearest collars"), d: Math.round(depth) }) : tr("A vertical hole above the target: collar at {z} m (the ground interpolated between the collars: the nearest collar is {n} away, the collars used stand at {a} to {b} m), {d} m to the target.", { z: zr, n: distanceText(j.f.nearestM), a: Math.round(j.f.zMin), b: Math.round(j.f.zMax), d: Math.round(depth) })}</span>
+              <button onClick={() => { setDraft((p) => ({ ...withTargetXY(p), z: zr, length: Math.round((depth + PAST_TARGET_M) * 10) / 10 })); setZSource(groundAt ? "the terrain at the target's E / N" : j.source /* #3818 — with the nearest collar's distance */); setCollarNote(null); setUpward(false); setFromCollarId(""); }} style={{ ...miniBtn, padding: "1px 7px" }}>{tr("Use")}</button>
             </div>
           ) : null;
         })()}

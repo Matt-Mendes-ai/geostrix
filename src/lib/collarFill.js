@@ -18,6 +18,16 @@ export function collarFillAt(ground, spacing, x, y) {
 }
 // the ground as the pattern and the CSV import read it: z (rounded as above), or NaN where nothing is offered
 export const collarFillGround = (ground, spacing) => (ground ? (x, y) => { const f = collarFillAt(ground, spacing, x, y); return f?.z ?? NaN; } : null);
+// TASKS.csv #3818 (Scottie Gold review: 'A vertical hole above the target: collar at 1208.4 m' from ONE pad 371 m away, where the collar boxes for the same E / N
+// refused, and 'Solve collar for this dip/azimuth' did the same 256 m out) — every place the planner proposes a collar elevation goes through one rule. terrain: the
+// terrain's ground (or null); collarGround: the collars' ground (with .near) or null; spacing: the drilled site spacing.
+// -> null (no ground there) | { z (null: too far, nothing offered), source (the z_source words: English, they travel to the rig sheet), far, f (collarFillAt's record) }
+export function judgedCollarZ(terrain, collarGround, spacing, x, y) {
+  if (typeof terrain === "function") { const z = terrain(x, y); return Number.isFinite(z) ? { z, source: "the terrain", far: false, f: null } : null; }
+  const f = collarFillAt(collarGround, spacing, x, y);
+  if (!f) return null;
+  return { z: f.z, source: collarFillSource(f), far: !!f.far, f };
+}
 // a distance as it is said: metres under a kilometre, else kilometres to one decimal
 export const distanceText = (m) => (m < 1000 ? `${Math.round(m).toLocaleString()} m` : `${(m / 1000).toFixed(1)} km`);
 // the z_source words (English: they travel in the project file and the rig sheet's CSV)
