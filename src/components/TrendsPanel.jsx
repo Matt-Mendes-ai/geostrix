@@ -4,7 +4,7 @@ import { iconAction } from "../lib/a11y.js"; // TASKS.csv #687 — Enter / Space
 // (Matt, with Leapfrog's Trend tab). Named trends saved with the project (structuralTrends), each a plane (dip, dip
 // azimuth), the direction of greatest continuity in it (pitch) and the ellipsoid ratios; every model type picks
 // one or none. The maths is lib/trend.js; this is the list, the editor and the "used by" table.
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, Pencil } from "./icons.js";
 import { cleanTrend, describeTrend, DEFAULT_TREND, planeFromPoles, poleOf, planeFromPoints } from "../lib/trend.js";
 import { fisherStats, fabricShape } from "../lib/stereonet.js"; // TASKS.csv #672
@@ -48,9 +48,15 @@ function DraftNumber({ value, onCommit, label, style, ...rest }) {
 // order (Maximum >= Intermediate >= Minimum, all above zero), whichever field is edited first. They are no longer
 // reordered behind the user's back: Leapfrog lists its three values per AXIS (along the pitch / across it in the
 // plane / across the plane), and its "Max 2, Intermed 3" was silently turned into 3 along the pitch.
+// TASKS.csv #3683 (Fireweed rehearsal round 3) — the boxes kept their own copy of the ratios: after 'Set the plane from' (5.6 : 1.8 : 1 stored) they
+// still showed 3 : 2 : 1, and a click into a box and out wrote the old ratios back. They now follow the trend's ratios when those change from
+// outside, and leaving a box applies only what was typed.
 function RatiosEditor({ trend, onApply, field, inputStyle, small }) {
   const [vals, setVals] = useState(() => ({ ...trend.ratios }));
   const [msg, setMsg] = useState(null);
+  const typed = useRef(false);
+  const stored = `${trend.ratios.max}:${trend.ratios.int}:${trend.ratios.min}`;
+  useEffect(() => { typed.current = false; setVals({ ...trend.ratios }); setMsg(null); }, [stored]); // the trend's ratios changed (a fit, an undo)
   const tryApply = (next) => {
     const r = { max: Number(next.max), int: Number(next.int), min: Number(next.min) };
     if (![r.max, r.int, r.min].every((v) => Number.isFinite(v) && v > 0)) { setMsg(tr("Each ratio must be a number above zero — not applied yet.")); return; }
@@ -58,15 +64,15 @@ function RatiosEditor({ trend, onApply, field, inputStyle, small }) {
       setMsg(tr("Not applied yet: the ratios must go Maximum ≥ Intermediate ≥ Minimum (now {max} : {int} : {min}). Leapfrog lists its values per axis — if its largest one is the in-plane axis across the pitch, enter it as Maximum and add 90° to the pitch.", { max: r.max, int: r.int, min: r.min }));
       return;
     }
-    setMsg(null);
+    setMsg(null); typed.current = false;
     if (r.max !== trend.ratios.max || r.int !== trend.ratios.int || r.min !== trend.ratios.min) onApply(r);
   };
   const box = (key, label) => (
     <label style={field}>{label}
       <input type="number" step="any" min="0.01" value={vals[key]} aria-label={tr("{name} ratio {label}", { name: trend.name, label })} style={{ ...inputStyle, width: "100%" }}
-        onChange={(e) => setVals((v) => ({ ...v, [key]: e.target.value }))}
-        onBlur={() => tryApply(vals)}
-        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); else if (e.key === "Escape") { setVals({ ...trend.ratios }); setMsg(null); } }} />
+        onChange={(e) => { typed.current = true; setVals((v) => ({ ...v, [key]: e.target.value })); }}
+        onBlur={() => { if (typed.current) tryApply(vals); }}
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); else if (e.key === "Escape") { typed.current = false; setVals({ ...trend.ratios }); setMsg(null); } }} />
     </label>
   );
   return (
