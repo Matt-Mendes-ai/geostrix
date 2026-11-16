@@ -27,7 +27,9 @@ test("gradeShellOf: the newest closed grade shell of the element; another elemen
   const open = { ...box("o", "Zn open", { tool: "numeric grade shell", element: "Zn", cutoff: 3 }) }; open.indices = open.indices.slice(0, 30);
   const shells = [box("a", "Zn > 1 shell", { tool: "numeric grade shell", element: "Zn", cutoff: 1 }), box("b", "Zn > 2 shell", { tool: "numeric grade shell", element: "Zn", cutoff: 2 }),
     open, box("c", "Pb > 1 shell", { tool: "numeric grade shell", element: "Pb", cutoff: 1 }), box("d", "Unit A", { tool: "unit volume" })];
-  assert.deepEqual(gradeShellOf(shells, "Zn"), { id: "b", name: "Zn > 2 shell", cutoff: 2 });
+  const gz = gradeShellOf(shells, "Zn");
+  assert.deepEqual([gz.id, gz.name, gz.cutoff], ["b", "Zn > 2 shell", 2]);
+  assert.ok(Math.abs(gz.volumeM3 - 1000) < 1, "#3706: its volume, for the default line");
   assert.equal(gradeShellOf(shells, "Pb").id, "c");
   assert.equal(gradeShellOf(shells, "Ag"), null);
   assert.equal(gradeShellOf([], "Zn"), null);
@@ -74,7 +76,7 @@ test("the dialog: the plane is the default without a trend, the radius keeps the
   assert.match(e, /cellAuto: autoCell != null && cellSize === autoCell/);
   assert.match(e, /useState\(\(\) => \(saved && saved\.cellAuto \? saved\.cellSize : null\)\)/);
   assert.match(e, /tr\("Search radius \{r\} m as typed; from these holes' spacing it would be \{p\} m\."/);
-  assert.match(e, /onClick=\{\(\) => setShellId\(gradeShell\.id\)\}[^>]*>\{tr\("Restrict to it"\)\}/);
+  assert.match(e, /onClick=\{\(\) => \{ setShellPick\(""\); setShellDefaultOff\(false\); \}\}[^>]*>\{tr\("Restrict to it"\)\}/); // #3706: with the default off, the proposal turns it back on
 });
 
 test("shellComparison: an unrestricted model beside its element's newest grade shell, at the shell's cut-off; a restricted model gets none", async () => {

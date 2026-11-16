@@ -27,8 +27,8 @@ export function sameVolumeMajorM(radiusM, ratios) {
 export function gradeShellOf(volumeShells, symbol) {
   const cands = (volumeShells || []).filter((v) => v?.params?.tool === "numeric grade shell" && v.params.element === symbol && Number.isFinite(v.params.cutoff));
   if (!cands.length) return null;
-  const closed = new Set(solidChoices(cands).closed.map((v) => v.id));
-  for (let i = cands.length - 1; i >= 0; i--) if (closed.has(cands[i].id)) return { id: cands[i].id, name: cands[i].name, cutoff: cands[i].params.cutoff };
+  const closed = new Map(solidChoices(cands).closed.map((v) => [v.id, v.volumeM3]));
+  for (let i = cands.length - 1; i >= 0; i--) if (closed.has(cands[i].id)) return { id: cands[i].id, name: cands[i].name, cutoff: cands[i].params.cutoff, volumeM3: closed.get(cands[i].id) };
   return null;
 }
 

@@ -237,7 +237,15 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   const [restrictToDomain, setRestrictToDomain] = useState(() => keep("restrictToDomain", false)); // TASKS.csv #260
   const [noCodeAsDomain, setNoCodeAsDomain] = useState(() => keep("noCodeAsDomain", false)); // TASKS.csv #2541 — the samples with no code as a domain of their own
   const [classifySupport, setClassifySupport] = useState(() => keep("classifySupport", true)); // TASKS.csv #91/#92
-  const [shellId, setShellId] = useState(() => keep("shellId", "", (id) => !id || (volumeShells || []).some((v) => v.id === id))); // TASKS.csv #517 — restrict to a closed modelled volume ("" = none)
+  // TASKS.csv #517 — restrict to a closed modelled volume ("" = none). TASKS.csv #3706 (Matt: yes) — by DEFAULT the element's closed grade shell, when one is in the model: Tom West Zn 2 %
+  // estimated 17.31 Mm³ / 52.5 Mt over the whole grid, 4.22 Mm³ / 12.8 Mt at 5.89 % inside the 2 % shell (4.59 Mm³). A volume picked in the list wins; choosing '— none —' (or the
+  // switch under it) turns the default off, kept with the dialog's other settings.
+  const [shellPick, setShellPick] = useState(() => keep("shellId", "", (id) => !id || (volumeShells || []).some((v) => v.id === id)));
+  const [shellDefaultOff, setShellDefaultOff] = useState(() => keep("shellDefaultOff", false));
+  const gradeShell = useMemo(() => gradeShellOf(volumeShells, symbol), [volumeShells, symbol]);
+  const shellAuto = !shellPick && !!gradeShell && !shellDefaultOff;
+  const shellId = shellPick || (shellAuto ? gradeShell.id : "");
+  const setShellId = (id) => { setShellPick(id); setShellDefaultOff(!id); }; // a pick turns the default's 'off' back to none; '— none —' is the switch off
   // TASKS.csv #1570 (review #1497, Lawyers) — the grid spanned the whole district even when the estimate was restricted to one solid
   // (Lawyers: 100 x 116 x 17 blocks of 53.5 m, 99 % empty, the 0.3 g/t shell holding 131 of them). Restricted, the grid is the
   // solid's box where it overlaps the drilling's (the solid's own box when they do not overlap), so a prospect gets small blocks.
@@ -265,6 +273,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
     return { xmin: Math.min(...xs), xmax: Math.max(...xs), ymin: Math.min(...ys), ymax: Math.max(...ys), zmin: drillBox.zmin, zmax: drillBox.zmax, name: areaString.name };
   }, [areaString, drillBox]);
   const gridBox = shellBox ? (drillBox ? overlapBox(shellBox, drillBox) || shellBox : shellBox) : areaBox ? (overlapBox(areaBox, drillBox) || areaBox) : gridMode === "checked" && checkedBounds ? checkedBounds : drillBox;
+  const unrestrictedBox = areaBox ? (overlapBox(areaBox, drillBox) || areaBox) : gridMode === "checked" && checkedBounds ? checkedBounds : drillBox; // TASKS.csv #3706 — the grid box before a restricting solid narrows it
   const [belowGround, setBelowGround] = useState(() => keep("belowGround", true)); // TASKS.csv #803 — drop blocks whose centre is above the terrain
   // TASKS.csv #2217 — with no terrain the "ground" is interpolated between the collars: not a ground at all when the holes were drilled from underground
   const underground = useMemo(() => (groundSource === "collars" ? collarsLookUnderground(collars, survey) : null), [groundSource, collars, survey]);
@@ -329,7 +338,6 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   const samplesSpacing = useMemo(() => (samplePoints ? sampleSpacing(samplePoints) : null), [samplePoints]);
   // TASKS.csv #3679 — the plane of the samples at the cut-off of the element's grade shell (else their 90th percentile), when no trend is
   // chosen and no flat search typed; the ellipsoid keeps the volume of the proposed sphere (below)
-  const gradeShell = useMemo(() => gradeShellOf(volumeShells, symbol), [volumeShells, symbol]);
   const planeOn = planePref && !modelTrend && !flatTrend && !(Number(flatReach) > 0);
   const planeFit = useMemo(() => (planeOn && samplePoints?.length ? estimatePlane(samplePoints, gradeShell) : null), [planeOn, samplePoints, gradeShell]);
   const planeTrend = useMemo(() => (planeFit?.trend ? { ...planeFit.trend, name: `Plane of ${symbol} >= ${planeFit.cutoff.value} (${Math.round(planeFit.trend.dip)}° → ${Math.round(planeFit.trend.dipAzimuth)}°)` /* project data stays English */ } : null), [planeFit, symbol]);
@@ -441,7 +449,10 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   const fitCellMax = overLimit && bounds && !matched && blockBudget < MAX_BLOCK_MODEL_BUDGET ? (reachArgs ? reachState?.fitCellMax ?? null : cellToFit(bounds, MAX_BLOCK_MODEL_BUDGET, cellSize)) : null;
   // TASKS.csv #1416 (review #1352) — the default 10 m cell could not run on Silvertip (2.3 M blocks over the budget, Run disabled): the
   // first time the grid is over the budget, before the cell size is touched, the cell that fits is filled in, and said
-  const cellTouched = useRef(!!(saved && saved.cellSize !== undefined)); // #1580 — a remembered cell is not refitted
+  // #1580 — a remembered cell is not refitted; TASKS.csv #3706 — only one the user TYPED or picked (cellTyped): a cell the dialog chose stays its own to fit when the grid changes
+  // (turning the grade-shell default off brought back the whole grid with the shell's 10 m cell: 249,719 blocks over the budget, Run disabled, 'Use 11 m blocks' offered)
+  const cellTyped = useRef(!!(saved && saved.cellTyped));
+  const cellTouched = useRef(cellTyped.current);
   const [autoCell, setAutoCell] = useState(() => (saved && saved.cellAuto ? saved.cellSize : null)); // #3684 — a cell the dialog chose is still its own to refit when the search it proposes changes
   // TASKS.csv #2543 (review #2486) — the cell chosen for the budget did not fit it: 15 m 'for the 200,000-block budget' gave 202,924 blocks in
   // reach and Run stayed disabled (the worker's fit is checked at the new cell only after it is set). A cell the dialog chose is refitted
@@ -449,11 +460,11 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   useEffect(() => {
     if (!fitCell) return;
     if (!cellTouched.current) { cellTouched.current = true; setAutoCell(fitCell); setCellSize(fitCell); return; }
-    if (autoCell != null && cellSize === autoCell && fitCell > cellSize) { setAutoCell(fitCell); setCellSize(fitCell); }
+    if (!cellTyped.current && (autoCell == null || cellSize === autoCell) && fitCell > cellSize) { setAutoCell(fitCell); setCellSize(fitCell); } // #3706: a cell the user never typed
   }, [fitCell]); // autoCell / cellSize read as they are when the fit changes
   // #1570 — a restricting solid changes the box: a cell the dialog chose (not typed) is chosen again for it, 10 m when that fits
   useEffect(() => {
-    if (!bounds || matched || autoCell == null || cellSize !== autoCell) return undefined;
+    if (!bounds || matched || cellTyped.current || (autoCell != null && cellSize !== autoCell)) return undefined; // #3706: a cell never typed is the dialog's to refit
     let live = true;
     const done = (c) => { if (live && c && c !== cellSize) { setAutoCell(c); setCellSize(c); } };
     if (!reachArgs) { done(cellToFit(bounds, blockBudget, 10)); return undefined; } // #1416 — 10 m when its blocks in reach fit
@@ -464,7 +475,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
 
   // #1580 — what to restore next time: kept current every render, stored when the dialog closes
   const remember = useRef(null);
-  remember.current = { memberMethods /* #3164 */, sourceKey, logValues, symbol, useComposites, compositeLength, minCoverage, domainKey, noCodeAsDomain, capByDomain, padding, cellSize, cellHeight, flatReach, gridMode, originE, originN, originZ, cellAuto: autoCell != null && cellSize === autoCell /* #3684 */, method, vgModel, vgNugget, vgSill, vgRange, searchRadius, searchTyped: searchTouched.current /* #3684 */, minSamples, minHoles, materialHoles, maxSamples, maxPerHole, capValue, capAuto, includeQAQC, restrictToDomain, classifySupport, shellId, belowGround, setOthers: setPicked /* #3014 */ };
+  remember.current = { memberMethods /* #3164 */, sourceKey, logValues, symbol, useComposites, compositeLength, minCoverage, domainKey, noCodeAsDomain, capByDomain, padding, cellSize, cellHeight, flatReach, gridMode, originE, originN, originZ, cellAuto: autoCell != null && cellSize === autoCell /* #3684 */, cellTyped: cellTyped.current /* #3706 */, method, vgModel, vgNugget, vgSill, vgRange, searchRadius, searchTyped: searchTouched.current /* #3684 */, minSamples, minHoles, materialHoles, maxSamples, maxPerHole, capValue, capAuto, includeQAQC, restrictToDomain, classifySupport, shellId: shellPick, shellDefaultOff /* #3706 */, belowGround, setOthers: setPicked /* #3014 */ };
   const settingsKey = estimateSettingsKey(project);
   useEffect(() => () => { lastEstimateSettings.set(settingsKey, remember.current); }, [settingsKey]);
   // TASKS.csv #520 — the estimate runs in a worker: the window keeps repainting, shows progress and can be cancelled
@@ -673,6 +684,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           est.blocksSkipped += before - est.cells.length; est.blocksEstimated = est.cells.length;
           params.restrictedToVolume = `${shellInfo.name}: ${shellInfo.samplesInside} sample(s) inside used, ${shellInfo.samplesOutside} outside left out; ${before - est.cells.length} block(s) outside it dropped`;
           params.restrictedToVolumeName = shellInfo.name; // #2069 — the default name says it
+          if (shellAuto) params.restrictedByDefault = `the element's closed grade shell "${shellInfo.name}" (the default when one is in the model: the switch in the dialog turns it off)`; // #3706
           // TASKS.csv #1410 (review #1352) — the tallies describe the blocks kept, not the whole grid (they read "22 estimated" beside
           // "48 extrapolated, 190,032 unsupported"). Unsupported blocks have no cell, so inside or outside cannot be told: not counted.
           // The recount itself now runs once, after every trim (#2106, below).
@@ -935,7 +947,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
             {flatProposal && !proposalApplied && ( /* TASKS.csv #2418 — offered, from these holes; never applied by itself */
               <div role="note" style={{ fontSize: "var(--font-size-sm)", marginBottom: 6, lineHeight: 1.45, padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
                 {tr("These holes look flat-lying at the drilling's scale: {v}% of {n} holes are within 5° of vertical, drilled over {d} m of depth across {w} m (the holes {sp} m apart, sampled over a median {span} m). A flat search fits that: {r} m across and {h} m up and down, on {c} × {c} × {ch} m cells.", { v: Math.round(flatProposal.vertical * 100), n: flatProposal.holes, d: Math.round(flatProposal.depthM), w: Math.round(flatProposal.widthM).toLocaleString(), span: Math.round(flatProposal.spanM), sp: Math.round(flatProposal.spacingM), /* #3011 */ r: flatProposal.radius, h: flatProposal.reachV, c: flatProposal.cell, ch: flatProposal.cellHeight })}{" "}
-                <button type="button" onClick={() => { cellTouched.current = true; searchTouched.current = true /* #3684: chosen, kept */; setAutoCell(null); setSearchRadius(flatProposal.radius); setFlatReach(flatProposal.reachV); setCellSize(flatProposal.cell); setCellHeight(flatProposal.cellHeight); }} style={{ fontSize: "var(--font-size-sm)" }}>{tr("Use it")}</button>
+                <button type="button" onClick={() => { cellTouched.current = true; cellTyped.current = true; searchTouched.current = true /* #3684: chosen, kept */; setAutoCell(null); setSearchRadius(flatProposal.radius); setFlatReach(flatProposal.reachV); setCellSize(flatProposal.cell); setCellHeight(flatProposal.cellHeight); }} style={{ fontSize: "var(--font-size-sm)" }}>{tr("Use it")}</button>
               </div>
             )}
             {spacing && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr(spacing.sites === 2 ? "Holes: the two drill sites are {near} m apart. Two holes must both lie within the search radius of a block for it to count (Min distinct holes)." : "Holes: {sites} drill sites, the nearest {near} m apart, typically {median} m from the next (up to {far} m). Two holes must both lie within the search radius of a block for it to count (Min distinct holes).", { sites: spacing.sites, near: Math.round(spacing.nearestM), median: Math.round(spacing.medianM), far: Math.round(spacing.farthestM) })}</div>}{/* #1738 */}
@@ -1063,10 +1075,17 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           {/* TASKS.csv #517 — a modelled unit volume (or an imported closed solid) as a hard domain boundary */}
           {/* TASKS.csv #3679 — the element's closed grade shell is proposed as the volume to report from (Tom West: 16.8 Mm³ at or above 2 % on
               the whole grid, 3.8 Mm³ of it inside the 2 % shell); never applied by itself */}
+          {/* TASKS.csv #3706 — the default: restricted to the element's closed grade shell, with the volume used against the box around the drilling, and a switch to turn it off */}
+          {shellAuto && (
+            <div role="note" style={{ fontSize: "var(--font-size-sm)", marginBottom: 6, lineHeight: 1.45, padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
+              {tr("Restricted to the grade shell \"{name}\" ({el} at or above {cutoff} {unit}), as the default when one is in the model: only the samples inside it inform the blocks inside it ({v} Mm³{box}). Unrestricted, the estimate carries grade outward from the holes across the whole grid and reports a volume several times larger.", { name: gradeShell.name, el: symbol, cutoff: gradeShell.cutoff, unit, v: (gradeShell.volumeM3 / 1e6).toFixed(2), box: unrestrictedBox ? tr(", of a {b} Mm³ box around the drilling", { b: (((unrestrictedBox.xmax - unrestrictedBox.xmin) + 2 * padding) * ((unrestrictedBox.ymax - unrestrictedBox.ymin) + 2 * padding) * ((unrestrictedBox.zmax - unrestrictedBox.zmin) + 2 * padding) / 1e6).toFixed(0) }) : "" })}{" "}
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}><input type="checkbox" checked onChange={() => { setShellPick(""); setShellDefaultOff(true); }} />{tr("Restrict to the grade shell by default")}</label>
+            </div>
+          )}
           {gradeShell && !shellId && (
             <div role="note" style={{ fontSize: "var(--font-size-sm)", marginBottom: 6, lineHeight: 1.45, padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
               {tr("The grade shell \"{name}\" ({el} at or above {cutoff} {unit}) is in the model. Unrestricted, the estimate carries grade outward from the holes across the whole grid; restricted to the shell, only the samples inside it inform the blocks inside it.", { name: gradeShell.name, el: symbol, cutoff: gradeShell.cutoff, unit })}{" "}
-              <button type="button" onClick={() => setShellId(gradeShell.id)} style={{ fontSize: "var(--font-size-sm)" }}>{tr("Restrict to it")}</button>
+              <button type="button" onClick={() => { setShellPick(""); setShellDefaultOff(false); }} style={{ fontSize: "var(--font-size-sm)" }}>{tr("Restrict to it")}</button>
             </div>
           )}
           {volumeShells.length > 0 && (
@@ -1087,7 +1106,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
             <label style={fieldLabel} title={tr("Extends the block grid beyond the collar bounding box in every direction, so blocks near the edge of the drilling aren't starved of nearby samples.")}>{tr("Padding around collars (m)")}<input type="number" min="0" step="any" value={padding} onChange={(e) => setPadding(Math.max(0, Number(e.target.value) || 0))} style={inp} />
             </label>
-            <label style={fieldLabel}>{cellHeight > 0 && !matched ? tr("Cell E × N (m)") : tr("Cell size (m, cubic)")}<input type="number" min="0.5" step="any" value={matched ? "" : cellSize} placeholder={matched ? `${cell3.dx} × ${cell3.dy} × ${cell3.dz}` : undefined} disabled={!!matched} onChange={(e) => { cellTouched.current = true; setAutoCell(null); setCellSize(Math.max(0.5, Number(e.target.value) || 10)); }} style={inp} />
+            <label style={fieldLabel}>{cellHeight > 0 && !matched ? tr("Cell E × N (m)") : tr("Cell size (m, cubic)")}<input type="number" min="0.5" step="any" value={matched ? "" : cellSize} placeholder={matched ? `${cell3.dx} × ${cell3.dy} × ${cell3.dz}` : undefined} disabled={!!matched} onChange={(e) => { cellTouched.current = true; cellTyped.current = true; setAutoCell(null); setCellSize(Math.max(0.5, Number(e.target.value) || 10)); }} style={inp} />
             </label>
             {/* TASKS.csv #2418 — a flat, thin body needs a thin cell: the height on its own (blank = cubic) */}
             <label style={fieldLabel} title={tr("The block height on its own, for a flat, thin body: a seam, a palaeochannel, a laterite. Blank = the same as the cell size (cubic).")}>{tr("Cell height (m)")}<input type="number" min="0.25" step="any" value={matched ? "" : cellHeight} placeholder={matched ? String(cell3.dz) : tr("cubic")} disabled={!!matched} onChange={(e) => { const v = Number(e.target.value); setCellHeight(e.target.value === "" || !(v > 0) ? "" : Math.max(0.25, v)); }} style={{ ...inp, width: 70 }} aria-label={tr("Cell height (m)")} />
@@ -1142,7 +1161,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
                   : tr(", {n} within {r} m of the drilling (only those can be estimated, and only those count)", { n: Number.isFinite(blocksInReach) ? blocksInReach.toLocaleString() : "?", r: reachRadius })) : "") + (overLimit ? tr(" — over the {blockBudget}-block budget.", { blockBudget: blockBudget.toLocaleString() }) : "") })}
               {overLimit && (
                 <span style={{ display: "inline-flex", gap: 6, marginLeft: 6, flexWrap: "wrap" }}>
-                  {Number.isFinite(fitCell) && fitCell > 0 && <button type="button" onClick={() => { cellTouched.current = true; setCellSize(fitCell); }} style={{ ...btn(false), padding: "2px 8px" }}>{tr("Use {fitCell} m blocks", { fitCell })}</button>}
+                  {Number.isFinite(fitCell) && fitCell > 0 && <button type="button" onClick={() => { cellTouched.current = true; cellTyped.current = true; setCellSize(fitCell); }} style={{ ...btn(false), padding: "2px 8px" }}>{tr("Use {fitCell} m blocks", { fitCell })}</button>}
                   {matched && <span style={{ color: "var(--color-text-secondary)" }}>{tr("The matched model's grid has more blocks in reach than the budget, and its block size is fixed: match a coarser model, shorten the search radius, or use 'Fit to the drilling' with a cell that fits.")}</span>}{/* #2416 */}
                   {Number.isFinite(fitCellMax) && fitCellMax > 0 && <button type="button" onClick={() => { setBlockBudget(MAX_BLOCK_MODEL_BUDGET); setCellSize(fitCellMax); }} style={{ ...btn(false), padding: "2px 8px" }}>{tr("Largest budget + {fitCellMax} m blocks", { fitCellMax })}</button>}
                 </span>

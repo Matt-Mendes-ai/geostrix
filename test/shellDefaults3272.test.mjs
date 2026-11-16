@@ -31,7 +31,7 @@ test("wiring: the opening cutoff, the cap and the search from the holes the run 
   assert.match(m, /cutoffPct\(numericCutoff, sym, unit\) != null && <div/);
   assert.match(m, /shellSearchSet && numericSearchRadius === shellSearchSet\.r && <div[^>]*>\{shellSearchSet\.at === "samples" \? tr\("Search radius \{r\} m: 2\.5 times the \{m\} m typical distance from a sample to the nearest sample of another hole[^"]*", shellSearchSet\) : tr\("Search radius \{r\} m: 2\.5 times the \{m\} m typical spacing/);
   const c = src("modules/viewer/ShellCapNote.jsx");
-  assert.match(c, /\}, \[symbol, cv, src\]\);/);
+  assert.match(c, /\}, \[symbol, cv, src, cutoff\]\);/); // the cut-off: #3781
   const rule = src("lib/viewer/shellCapRule.js"); // #3650 — the decision, asked by the note
   assert.match(c, /shellCapAction\(\{ symbol, auto: auto\.current, capValue/);
   assert.match(rule, /if \(has && !mine && !stale\) return "keep"; \/\/ a typed cap/);
