@@ -13,7 +13,9 @@ test("2.5 x the spacing, to 10 m", () => {
 test("the dialog seeds it unless remembered or typed, and says so", () => {
   const s = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
   // #3592 — from the spacing at the samples first, the collar sites as the fallback (estimateSearch3592)
-  assert.match(s, /!\(saved && saved\.searchRadius !== undefined\) && searchFrom \? searchFromSpacingM\(searchFrom\.medianM\) : null/);
+  assert.match(s, /const sphereFromSpacing = searchFrom \? searchFromSpacingM\(searchFrom\.medianM\) : null;/);
+  assert.match(s, /const searchFromSpacing = sphereFromSpacing \? \(ellTrend/); // #3684: proposed again unless typed
+  assert.match(s, /const searchTouched = useRef\(!!\(saved && saved\.searchTyped\)\)/);
   assert.match(s, /searchTouched\.current = true; setSearchRadius\(/);
   assert.match(s, /2\.5 times the \{m\} m typical spacing/);
 });

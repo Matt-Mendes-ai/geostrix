@@ -1,4 +1,5 @@
 // TASKS.csv #1052 (review #1016, resource geologist / QP) — the grade-tonnage table and curve of a block model, at cutoffs
+import { shellComparison } from "../lib/shellCompare.js"; // TASKS.csv #3679
 // the user lists (or quantiles of the values) and a density the user enters (no default, as #264), with the
 // exploration-target cautionary statement beside it and a stamped CSV. The sums are lib/gradeTonnage.js.
 import { unsampledWord } from "../lib/holeType.js"; // TASKS.csv #3513
@@ -59,6 +60,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
   const [solidId, setSolidId] = useState("");
   const [insideMode, setInsideMode] = useState("centre");
   const solid = solids.find((s) => s.id === solidId) || null;
+  const shellCmp = useMemo(() => shellComparison(model, solids), [model, solids]); // TASKS.csv #3679 — the element's grade shell beside an unrestricted model
   const inside = useMemo(() => (solid ? blocksInsideSolid(model.cells, solid.vertices, solid.indices, { mode: insideMode }) : null), [model.cells, solid, insideMode]);
   const cellsInside = inside ? inside.cells : model.cells;
   // TASKS.csv #1957 (Vulcan review) — the sums bench by bench at one cutoff
@@ -334,6 +336,12 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
         </div>}
         {hasSupport && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", marginBottom: 6 }}><input type="checkbox" checked={interpOnly} onChange={(e) => setInterpOnly(e.target.checked)} />{tr("Only blocks classed interpolated")}</label>}
         {hasSupport && !interpOnly && lowSupport && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.5 }}>{tr("Most of this volume is in blocks the estimate carried outward from the holes (extrapolated or unsupported), not between them: the tonnage rests on grades the drilling does not surround.")}</div>}
+        {shellCmp && !solid && ( /* TASKS.csv #3679 */
+          <div role="note" style={{ fontSize: "var(--font-size-sm)", marginBottom: 6, lineHeight: 1.5, padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
+            {tr("At {cutoff} {unit} this model holds {m} Mm³ of blocks; the grade shell \"{name}\" at the same cut-off encloses {s} Mm³. The estimate was not restricted to it: report inside it to count only the zone the shell draws.", { cutoff: shellCmp.cutoff, unit, m: (shellCmp.modelM3 / 1e6).toFixed(2), s: (shellCmp.shellM3 / 1e6).toFixed(2), name: shellCmp.name })}{" "}
+            <button type="button" onClick={() => setSolidId(shellCmp.id)} style={{ fontSize: "var(--font-size-sm)" }}>{tr("Report inside it")}</button>
+          </div>
+        )}
         {rows.length > 1 && (
           <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={tr("Grade-tonnage curve")} style={{ display: "block", marginBottom: 8 }} dir="ltr">
             <line x1={L} y1={H - B} x2={W - R} y2={H - B} stroke="#94a1b0" /><line x1={L} y1={T} x2={L} y2={H - B} stroke="#94a1b0" /><line x1={W - R} y1={T} x2={W - R} y2={H - B} stroke="#94a1b0" />

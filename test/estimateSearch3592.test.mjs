@@ -44,6 +44,8 @@ const PIN = { was: { drilled: 732, hit: 468, holesWithout: 26, holes: 126 }, now
 test("wiring: the dialog's opening search from the samples first, the collar sites as the fallback; the note says which", () => {
   const m = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
   assert.match(m, /const searchFrom = samplesSpacing\?\.medianM > 0 \? \{ medianM: samplesSpacing\.medianM, at: "samples" \} : spacing\?\.medianM > 0 \? \{ medianM: spacing\.medianM, at: "collars" \} : null;/);
-  assert.match(m, /const searchFromSpacing = !\(saved && saved\.searchRadius !== undefined\) && searchFrom \? searchFromSpacingM\(searchFrom\.medianM\) : null;/);
+  assert.match(m, /const sphereFromSpacing = searchFrom \? searchFromSpacingM\(searchFrom\.medianM\) : null;/);
+  assert.match(m, /const searchFromSpacing = sphereFromSpacing \? \(ellTrend/); // #3684: proposed again unless typed
+  assert.match(m, /const searchTouched = useRef\(!!\(saved && saved\.searchTyped\)\)/);
   assert.match(m, /searchFrom\.at === "samples" \? tr\("Search radius \{r\} m: 2\.5 times the \{m\} m typical distance from a sample to the nearest sample of another hole/);
 });

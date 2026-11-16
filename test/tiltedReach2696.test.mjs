@@ -46,7 +46,7 @@ test("estimates under a tilted trend are the same with the mask as without (#141
 test("the dialog counts with the trend's metric and says 'within reach', not one radius", async () => {
   const { readFileSync } = await import("node:fs");
   const m = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
-  assert.match(m, /\.\.\.\(modelTrend && !flatTrend \? \{ metric: \{ basis: trendBasis\(modelTrend\), scales: trendSearchScales\(modelTrend\) \} \} : \{\}\)/);
+  assert.match(m, /\.\.\.\(ellTrend && !flatTrend \? \{ metric: \{ basis: trendBasis\(ellTrend\), scales: trendSearchScales\(ellTrend\) \} \} : \{\}\)/);
   assert.match(m, /: reachRz \|\| reachArgs\?\.metric \? tr\(", \{n\} within reach of the drilling \(only those can be estimated, and only those count\)"/);
   assert.match(m, /reachPending \? \(reachSolid \|\| reachRz \|\| reachArgs\?\.metric /);
 });
