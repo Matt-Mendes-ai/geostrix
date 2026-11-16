@@ -67,14 +67,15 @@ test("on the body: the ellipsoid along the plane and the reach make a thinner sh
 
 test("the wiring: each drilled area's plane in the estimate and the worker's reach cut, off with the pane's tick", () => {
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
-  assert.match(r, /const planeLib = workerPost && numericSearchRadius > 0 && shellPlaneSearchOn\(\) \?/);
-  assert.match(r, /searchRadius: planes\[bi\] \? planes\[bi\]\.majorM : searchInGrid/);
-  assert.match(r, /\.\.\.\(planes\[bi\] \? \{ trend: \{ basis: planes\[bi\]\.basis, scales: planes\[bi\]\.scales \} \} : \{\}\)/);
+  assert.match(r, /const planeLib = workerPost && numericSearchRadius > 0 && shellPlaneSearchOn\(\) && envBox\.some\(\(e\) => !e\) \?/ /* #3673: the tight areas' (an envelope area searches its own way) */);
+  // #3673 — the envelope's search first when that mode runs, else these
+  assert.match(r, /: planes\[bi\] \? planes\[bi\]\.majorM : searchInGrid/);
+  assert.match(r, /: planes\[bi\] \? \{ trend: \{ basis: planes\[bi\]\.basis, scales: planes\[bi\]\.scales \} \} : \{\}\)/);
   assert.match(r, /reach: planes\[bi\] \? \{ points: /);
   assert.match(r, /searchPlanes: planes\.map/);
   assert.match(r, /localStorage\.getItem\("geostrix\.shellPlaneSearch"\) !== "0"/);
   const p = readFileSync(new URL("../src/lib/viewer/shellPost.js", import.meta.url), "utf8");
-  assert.match(p, /const reached = post\.reach \? reachCutField\(grid\.values, grid, iso, post\.reach\)/);
+  assert.match(p, /const reached = post\.reach \? reachCutField\(base, grid, iso, post\.reach\)/ /* base: the grid's values, or #3673 phase 2's blend with an old domain */);
   assert.match(p, /capFieldAtColumns\(reached\.values,/);
   const m = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
   assert.match(m, /tr\("Search along the composites' plane"\)/);

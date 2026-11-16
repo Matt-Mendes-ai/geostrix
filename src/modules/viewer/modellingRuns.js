@@ -2488,6 +2488,10 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
   // the user alt-tabs away.
   // TASKS.csv #3655 — the Grade shell pane's 'Search along the composites' plane' (on unless unticked; a per-user preference)
   const shellPlaneSearchOn = () => { try { return localStorage.getItem("geostrix.shellPlaneSearch") !== "0"; } catch { return true; } };
+  // TASKS.csv #3673 — the Grade shell pane's Shell choice: an envelope (the default) or the tight shell; the envelope's probability (0.3-0.7)
+  // "auto" (the default: per drilled area by its share of composites at the cut-off, lib/viewer/shellEnvelope.js chooseShell), "envelope", "tight"
+  const shellModePref = () => { try { const m = localStorage.getItem("geostrix.shellMode"); return m === "envelope" || m === "tight" ? m : "auto"; } catch { return "auto"; } };
+  const shellEnvelopeIso = () => { try { const v = Number(localStorage.getItem("geostrix.shellEnvelopeIso")); return v >= 0.3 && v <= 0.7 ? v : 0.5; } catch { return 0.5; } };
   const runNumericModel = () => {
     const shellTrend = trendWarp("gradeShell"); // TASKS.csv #650
     // TASKS.csv #3062 — no trend: a flat search typed in the pane (the search radius across, the vertical reach up and down), as
@@ -2507,7 +2511,9 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
     const unitL = gradeUnitLabel(symbol, unit); // TASKS.csv #2218 — what a person reads: 'Au > 1 g/t shell' (#1680); unit stays the stored one
     // TASKS.csv #2551 (review #2486) — and from the checked holes only (Model area), as Estimation's names say since #2069
     const shellArea = modelArea === "checked" ? checkedHoleCount(collars, visibleHoles) : null;
-    const shellTags = [anisotropy.flat ? `flat search ${numericSearchRadius} × ${Number(numericFlatReach)} m` /* #3062 */ : anisotropy.enabled && trendRatioText(anisotropy.params) ? `trend ${trendRatioText(anisotropy.params)}` : "", shellArea && shellArea.checked < shellArea.all ? `${shellArea.checked} checked holes` : ""].filter(Boolean);
+    // TASKS.csv #3673 — the envelope: with no trend, no flat search and no log read as log10 (the worker's path, below)
+    const shellPref = shellModePref(), envelopeMode = shellPref !== "tight" && !anisotropy.enabled && !numSrc?.logScale, envIso = envelopeMode ? shellEnvelopeIso() : null;
+    const shellTags = [envelopeMode ? (shellPref === "auto" ? `automatic, p ${envIso}` : `envelope p ${envIso}`) : "", anisotropy.flat ? `flat search ${numericSearchRadius} × ${Number(numericFlatReach)} m` /* #3062 */ : anisotropy.enabled && trendRatioText(anisotropy.params) ? `trend ${trendRatioText(anisotropy.params)}` : "", shellArea && shellArea.checked < shellArea.all ? `${shellArea.checked} checked holes` : ""].filter(Boolean);
     const label = `${symbol} > ${numericCutoff} ${unitL} shell${shellTags.length ? ` (${shellTags.join(", ")})` : ""}`; // #2423 — shells under different trends are told apart
     setNumericBusy(true);
     ownTask(label).set(20); // #2379
@@ -2590,6 +2596,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         const gridPoints = anisotropy.enabled ? points.map((p) => anisoWarpPoint(p, gsCenter, gsBasis, gsScl)) : points;
         const holesOfPoints = new Set(points.map((p) => p.hole_id)); // #2757 — the hole spacing of the holes that carry the samples
         const logInfo = numSrc?.logScale ? logPoints(gridPoints) : null; // #1741 — susceptibility is interpolated as log10 values (a geometric mean)
+        const envLib = envelopeMode ? await import("../../lib/viewer/shellEnvelope.js") : null; // #3673
         const estPoints = logInfo ? logInfo.points : gridPoints;
 
         // Grid extent: the sample points' own bounding box plus padding (not the collar box — assays
@@ -2682,21 +2689,32 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // TASKS.csv #3655 — with no trend, no flat search and a search radius, each drilled area is searched along the plane of its composites at
         // the cut-off (an ellipsoid of the search sphere's volume) and its shell kept within REACH_SHARE of that from them (lib/viewer/shellPlane.js);
         // an area with too few of them keeps the sphere. Off with the pane's tick (shellPlaneSearchOn).
-        const planeLib = workerPost && numericSearchRadius > 0 && shellPlaneSearchOn() ? await import("../../lib/viewer/shellPlane.js") : null;
-        const planes = gridBoxes.map((b) => (planeLib ? planeLib.shellPlaneSearch(b.idx.map((k) => gridPoints[k]).filter((q) => q.value >= numericCutoff), numericSearchRadius) : null));
+        // TASKS.csv #3673 — each drilled area's shell: Automatic (the default) by the share of its composites at the cut-off, or the one the pane forces
+        const boxChoice = gridBoxes.map((b) => (envLib && workerPost ? envLib.chooseShell(b.idx.map((k) => gridPoints[k]), numericCutoff, shellPref, { spacingM: gsSampleSpacing > 0 ? gsSampleSpacing : gsSpacing }) : { mode: "tight", share: null }));
+        const envBox = boxChoice.map((c) => c.mode === "envelope"), anyEnv = envBox.some(Boolean);
+        const indPoints = anyEnv ? envLib.indicatorPoints(gridPoints, numericCutoff) : null; // #3673: 1 at or above the cut-off
+        const planeLib = workerPost && numericSearchRadius > 0 && shellPlaneSearchOn() && envBox.some((e) => !e) ? await import("../../lib/viewer/shellPlane.js") : null;
+        const planes = gridBoxes.map((b, bi) => (planeLib && !envBox[bi] ? planeLib.shellPlaneSearch(b.idx.map((k) => gridPoints[k]).filter((q) => q.value >= numericCutoff), numericSearchRadius) : null));
+        // TASKS.csv #3673 — the envelope's search per drilled area: the plane of its composites at the cut-off with ranges in sample spacings
+        // (lib/viewer/shellEnvelope.js ENVELOPE_RANGES); an area with too few of them, a sphere of the middle range
+        const envS = gsSampleSpacing > 0 ? gsSampleSpacing : gsSpacing;
+        const atOfBox = (bi) => gridBoxes[bi].idx.map((k) => gridPoints[k]).filter((q) => q.value >= numericCutoff);
+        const envSearch = anyEnv ? gridBoxes.map((b, bi) => (envBox[bi] ? envLib.envelopeSearch(atOfBox(bi), envS) : null)) : null;
         // #3580 (a) — one run per box, in turn, the progress shared by their blocks; a kriging variogram fitted in the first (every sample) is
         // given to the others, so all use the same one
         const grids = [], boxN = gridBoxes.map((b) => boxBlocks(b.bounds, cs)), boxTotal = boxN.reduce((s, x) => s + x, 0);
         for (let bi = 0, before = 0; bi < gridBoxes.length; before += boxN[bi], bi++) {
-        const post = workerPost ? { iso: numericCutoff, closeOutside: !!numericCloseShell, ground: gsGround ? await shellPostLib.groundColumns(gsGroundAt, gridBoxes[bi].bounds, cellOf(cs)) : null,
-          inShellPoints: gridBoxes[bi].idx.map((k) => gridPoints[k]).filter((q) => q.value >= numericCutoff), farPoints: gsSpacing > 0 ? points : null, farDist: gsSpacing, // #3580 (b)
-          reach: planes[bi] ? { points: gridBoxes[bi].idx.map((k) => gridPoints[k]).filter((q) => q.value >= numericCutoff).map((q) => ({ x: q.x, y: q.y, z: q.z })), basis: planes[bi].basis, scales: planes[bi].scales, limM: planes[bi].majorM * planes[bi].reachShare } : null } : null; // #3655
-        const g = await runEstimation("dense", estPoints, {
+        const post = workerPost ? { iso: envBox[bi] ? envIso : numericCutoff, closeOutside: envBox[bi] ? true /* #3673: an envelope is closed */ : !!numericCloseShell, ground: gsGround ? await shellPostLib.groundColumns(gsGroundAt, gridBoxes[bi].bounds, cellOf(cs)) : null,
+          inShellPoints: envBox[bi] ? atOfBox(bi).map((q) => ({ x: q.x, y: q.y, z: q.z, value: 1 })) : gridBoxes[bi].idx.map((k) => gridPoints[k]).filter((q) => q.value >= numericCutoff), farPoints: gsSpacing > 0 ? points : null, farDist: gsSpacing, // #3580 (b)
+          reach: planes[bi] ? { points: gridBoxes[bi].idx.map((k) => gridPoints[k]).filter((q) => q.value >= numericCutoff).map((q) => ({ x: q.x, y: q.y, z: q.z })), basis: planes[bi].basis, scales: planes[bi].scales, limM: planes[bi].majorM * planes[bi].reachShare } : null, // #3655
+          ...(envBox[bi] ? { envelope: { clean: { keepPoints: atOfBox(bi).map((q) => ({ x: q.x, y: q.y, z: q.z, hole_id: q.hole_id })) }, targetTriangles: envLib.ENVELOPE_TARGET_TRIANGLES, smooth: { iterations: 10 },
+            gradePoints: gridBoxes[bi].idx.map((k) => { const q = gridPoints[k]; return { x: q.x, y: q.y, z: q.z, value: q.value, length: q.length }; }), cutoff: numericCutoff } } : {}) } : null; // #3673
+        const g = await runEstimation("dense", envBox[bi] ? indPoints : estPoints, { // #3673: an envelope area's indicators
           ...(post ? { post } : {}),
           bounds: gridBoxes[bi].bounds, cellSize: cellOf(cs), method: numericMethod, // cellOf: #3062
-          searchRadius: planes[bi] ? planes[bi].majorM : searchInGrid, minSamples: 1, maxSamples: 16, // #656
-          ...(planes[bi] ? { trend: { basis: planes[bi].basis, scales: planes[bi].scales } } : {}), // #3655 — the ellipsoid along the plane, on the real grid
-          minHoles: Math.max(1, numericMinHoles), // TASKS.csv #258
+          searchRadius: envBox[bi] ? envSearch[bi]?.majorM ?? envLib.ENVELOPE_RANGES.semi * envS : planes[bi] ? planes[bi].majorM : searchInGrid, minSamples: 1, maxSamples: envBox[bi] ? envLib.ENVELOPE_MAX_SAMPLES : 16, // #656; #3673
+          ...(envSearch?.[bi] ? { trend: { basis: envSearch[bi].basis, scales: envSearch[bi].scales } } : planes[bi] ? { trend: { basis: planes[bi].basis, scales: planes[bi].scales } } : {}), // #3655 — the ellipsoid along the plane, on the real grid; #3673 the envelope's
+          minHoles: envBox[bi] ? 1 : Math.max(1, numericMinHoles), // TASKS.csv #258; #3673: an envelope closes between holes, any one informs it
           support: true, // TASKS.csv #91/#92 — classify every grid node so the shell can be coloured by it
           maxBlocks: blockBudget, // TASKS.csv #625
           // TASKS.csv #1015 — an entered variogram (all three numbers), else fitted at run time. The range is entered in metres
@@ -2828,7 +2846,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // scales roughly as R^3 - 25 m radius gave 67,750 m3 on one sample point, 100 m gave 4,188,833).
         // The UI must not report that as a measured volume, and the old !watertight-only caution never
         // fired for it because an artificially closed shell IS watertight.
-        const closure = numericCloseShell && mc.closingVertices > 0 ? "artificial" : "natural";
+        const closure = (numericCloseShell || anyEnv) && mc.closingVertices > 0 ? "artificial" : "natural"; // envSearch: #3673, closed at the estimate's edge
         // TASKS.csv #270 (LOW-2) - mean interpolated grade of the cells the shell encloses. Without it
         // the only grade a user has to pair with the tonnage is the CUTOFF, which is exactly how
         // "X tonnes at Y g/t" gets quoted wrong. Cells are equal volume, so a plain mean over the
@@ -2837,7 +2855,16 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // it is inside the shell after the cap too (nodes in the air left out), at its own interpolated grade
         // #3580 (a) — one mean over every box's inside nodes
         const meanParts = viaWorker ? posts.map((q) => ({ sum: q.sum, n: q.n })) : grids.map((g, gi) => sumInsideShell(g.values, gsCaps[gi].values, numericCutoff));
-        const meanN = meanParts.reduce((t, m) => t + m.n, 0), meanGradeInShell = meanN > 0 ? meanParts.reduce((t, m) => t + m.sum, 0) / meanN : null;
+        const meanN = meanParts.reduce((t, m) => t + m.n, 0);
+        // TASKS.csv #3673 — an envelope's field is a probability: its grade inside is the composites' (length-weighted), with their median and share at the cut-off
+        const envGrades = anyEnv && viaWorker ? (() => {
+          const all = [], g = { n: 0, sum: 0, w: 0, atCut: 0 };
+          for (const q of posts) { const e = q.envelope?.grades; if (!e) continue; g.n += e.n; g.sum += e.sum; g.w += e.w; g.atCut += e.atCut; for (const v of e.values) all.push(v); }
+          all.sort((a, b) => a - b);
+          return { ...g, median: all.length ? all[Math.floor(all.length / 2)] : null };
+        })() : null;
+        const tightMean = (() => { let su = 0, nn = 0; meanParts.forEach((m, i) => { if (!envBox[i]) { su += m.sum; nn += m.n; } }); return nn > 0 ? su / nn : null; })();
+        const meanGradeInShell = anyEnv && envBox.every(Boolean) ? (envGrades?.w > 0 ? envGrades.sum / envGrades.w : null) : anyEnv ? null /* mixed: said per kind in the record */ : meanN > 0 ? meanParts.reduce((t, m) => t + m.sum, 0) / meanN : null;
         // TASKS.csv #270 (LOW-3) / #269 - the parameter block that produced this surface, kept ON the
         // surface so the panel can show it and every export can stamp it. A tonnage with no record of
         // the cutoff/method/radius/cell size/closure mode behind it can't be reproduced or audited.
@@ -2854,6 +2881,14 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           minHoles: Math.max(1, numericMinHoles), includeQAQC: numericIncludeQAQC, ...(unsParams || {}), // #2417
           // TASKS.csv #273 — the shared controls this tool now honours, recorded like every other param.
           anisotropy: anisotropy.enabled ? anisotropy.params : null,
+          shellMode: anyEnv ? (envBox.every(Boolean) ? "envelope" : "envelope and tight") : "tight", shellModeChoice: shellPref, // TASKS.csv #3673
+          ...(envLib && workerPost ? { shellByArea: boxChoice.map((c, i) => ({ mode: c.mode, shareAtCutoff: c.share == null ? null : +c.share.toFixed(3), composites: gridBoxes[i].idx.length, ...(c.fragmentation ? { zoneM: +c.fragmentation.zoneM.toFixed(1), runM: +c.fragmentation.runM.toFixed(1), fragmentation: +c.fragmentation.ratio.toFixed(2) } : {}) })) } : {}),
+          ...(anyEnv && !envBox.every(Boolean) && tightMean != null ? { meanGradeInTightAreas: tightMean } : {}),
+          ...(anyEnv ? { envelope: { probability: envIso, indicatorAt: numericCutoff, rangesInSpacings: envLib.ENVELOPE_RANGES, sampleSpacingM: Math.round(envS * 10) / 10, maxSamples: envLib.ENVELOPE_MAX_SAMPLES,
+            areas: envSearch.map((e) => (e ? { dip: +e.trend.dip.toFixed(1), dipAzimuth: +e.trend.dipAzimuth.toFixed(1), pitch: e.trend.pitch, ellipsoidM: e.axesM, composites: e.n, holes: e.holes } : null)),
+            clean: posts.reduce((t, q) => { const cl = q?.envelope?.clean; if (cl) { t.partsDropped += cl.dropped; t.voidsFilled += cl.voids; } return t; }, { partsDropped: 0, voidsFilled: 0 }),
+            coarsen: posts.reduce((m, q) => Math.max(m, q?.envelope?.coarsen || 1), 1), trianglesBeforeCoarsening: posts.reduce((t, q) => t + (q?.envelope?.trianglesFine || 0), 0), smoothing: "Taubin, 10 iterations",
+            compositesInside: envGrades ? { n: envGrades.n, medianGrade: envGrades.median, shareAtCutoff: envGrades.n ? +(envGrades.atCut / envGrades.n).toFixed(3) : null } : null } } : {}),
           // TASKS.csv #3655 — the plane each drilled area was searched along (null: the sphere), and the reach the shell was kept within
           ...(planes.some(Boolean) ? { searchPlanes: planes.map((pl) => (pl ? { dip: +pl.trend.dip.toFixed(1), dipAzimuth: +pl.trend.dipAzimuth.toFixed(1), pitch: pl.trend.pitch, ratios: pl.trend.ratios, ellipsoidM: pl.axesM, reachM: pl.reachM, composites: pl.n, holes: pl.holes } : null)), searchPlaneNote: "an ellipsoid along the plane of each area's composites at the cut-off, with the volume of the searchRadiusM sphere; the shell kept within reachM of those composites" } : {}),
           domain: gradeDomain ? gradeDomain.name : null,
@@ -2874,6 +2909,22 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         const id = `impl_${Date.now()}_numeric_${symbol}`;
         implicitMeshesRef.current[id] = mesh;
         setImplicitSurfaces((p) => [...p, { id, name: distinctShellName(label, p.map((x) => x.name), cs), visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: "mineralization_envelope", relationships: [], closure, params, surfaceSupportCounts: surfCounts, supportColored: false }]); // surfaceSupportCounts/supportColored: TASKS.csv #91
+        // TASKS.csv #3673 — the envelope said: what it is, the largest area's plane and ellipsoid, the clean-up, and the composites inside by grade
+        // TASKS.csv #3673 — Automatic: which shell each drilled area got and the share of its composites at the cut-off that decided it (the largest areas)
+        if (envLib && workerPost && shellPref === "auto") {
+          const rows = boxChoice.map((c, i) => ({ ...c, n: gridBoxes[i].idx.length })).filter((r) => r.share != null).sort((x, y) => y.n - x.n);
+          const shown = rows.slice(0, 6).map((r) => (r.fragmentation
+            ? tr(r.mode === "envelope" ? "{n} composites, {pct} % at or above, zones {z} m of {r} m runs ({k}x): envelope" : "{n} composites, {pct} % at or above, zones {z} m of {r} m runs ({k}x): tight", { n: r.n.toLocaleString(), pct: Math.round(100 * r.share), z: Math.round(r.fragmentation.zoneM), r: Math.round(r.fragmentation.runM), k: +r.fragmentation.ratio.toFixed(1) })
+            : tr(r.mode === "envelope" ? "{n} composites, {pct} % at or above: envelope" : "{n} composites, {pct} % at or above: tight", { n: r.n.toLocaleString(), pct: Math.round(100 * r.share) })));
+          setNotices((p) => [...p, notice("\"{label}\", Automatic: an envelope where a third or more of a drilled area's composites are at or above {cutoff} {unit} and its zones at the cut-off are broken (along the holes, the zones with half or more of their composites at the cut-off are 3 or more times its runs at it: disseminated grade), the tight shell elsewhere. {list}{more}. Envelope or Tight in the Grade shell pane forces one.", { label, cutoff: numericCutoff, unit: unitL, list: shown.join("; "), more: rows.length > 6 ? tr("; {k} smaller area(s) more", { k: rows.length - 6 }) : "" })]);
+        }
+        if (anyEnv) {
+          const used = envSearch.filter(Boolean).sort((x, y) => y.n - x.n), pl = used[0], P = params.envelope;
+          setNotices((p) => [...p, notice("\"{label}\" is an envelope, as a domain is drawn: each composite counts 1 at or above {cutoff} {unit} and 0 below, interpolated {how}, and the surface is where that reaches {iso}, so it keeps the dilution between good intervals. {dropped} small part(s) held by one hole were dropped, {voids} void(s) filled, and the surface smoothed. Inside: {n} composites, median {med} {unit}, {pct} % at or above {cutoff} {unit}. The tight shell, which follows the composites, is a choice in the Grade shell pane.", {
+            label, cutoff: numericCutoff, unit: unitL, iso: envIso,
+            how: pl ? tr("along the plane of the composites at the cut-off ({dip}° towards {dir}°) within {a} × {b} × {c} m", { dip: Math.round(pl.trend.dip), dir: Math.round(pl.trend.dipAzimuth), a: pl.axesM[0], b: pl.axesM[1], c: pl.axesM[2] }) : tr("within {r} m", { r: Math.round(envLib.ENVELOPE_RANGES.semi * envS) }),
+            dropped: P.clean.partsDropped.toLocaleString(), voids: P.clean.voidsFilled.toLocaleString(), n: (P.compositesInside?.n ?? 0).toLocaleString(), med: P.compositesInside?.medianGrade != null ? +P.compositesInside.medianGrade.toPrecision(3) : "—", pct: P.compositesInside?.shareAtCutoff != null ? Math.round(100 * P.compositesInside.shareAtCutoff) : "—" })]);
+        }
         // TASKS.csv #3655 — the search said: the plane, the ellipsoid and the reach (the largest area's; the others counted)
         { const used = planes.map((pl, bi) => (pl ? { pl, bi } : null)).filter(Boolean).sort((a, b) => b.pl.n - a.pl.n);
           if (used.length) { const pl = used[0].pl, more = used.length - 1, sphere = planes.filter((q, bi) => !q && gridBoxes[bi].idx.some((k) => gridPoints[k].value >= numericCutoff)).length; // areas with composites at the cut-off but no plane
@@ -2914,7 +2965,9 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // TASKS.csv #91/#92 — say what the model is actually supported by, for the whole grid and for
         // the shell surface itself, and point at the sidebar toggle that draws it.
         if (grid.supportCounts) setNotices((p) => [...p, { ...notice("\"{label}\" data support — grid: {v}. Shell surface vertices: {v2}. Only \"interpolated\" means the composites that produced that part of the shell bracket it on all three axes from at least two holes; everything else is grade carried outward from the data. Expand the surface in the list and use \"Colour by data support\" to see where. This is a geometric data-support measure, NOT a statistical confidence or a kriging variance.", { label, v: summarizeSupport(grid.supportCounts, { tool: "shell", beyond: supportBeyondReach(grid) /* #2066 */ } /* #2071 */).replace(/\.$/, ""), v2: summarizeSupport(surfCounts, { tool: "shell" }).replace(/\.$/, "") /* #1423 */ }), level: "info" /* #1418: the counts name "unsupported" cells, which read as an error */ }]);
-        if (closure === "artificial") setNotices((p) => [...p, notice(!(numericSearchRadius > 0) ? "\"{label}\" was closed ARTIFICIALLY at the edge of the grid ({closingVertices} of its vertices sit on that wall, not on a grade boundary). With no search radius its volume depends on how far the grid reaches past the drilling, not only on the data. Treat it as a visualization of where grades might extend, not a measured volume." /* #1423 — no radius: the wall is the grid edge */ : "\"{label}\" was closed ARTIFICIALLY at the search-radius boundary ({closingVertices} of its vertices sit on that wall, not on a grade boundary). Its volume depends on your search radius, not only on the data — doubling the radius can multiply the volume by up to eight (less where the shell's top and base are real grade boundaries, as in a flat body). Treat it as a visualization of where grades might extend, not a measured volume.", { label, closingVertices: mc.closingVertices.toLocaleString() })]);
+        // TASKS.csv #3673 — an envelope ends where its reach (from the sample spacing, not the Search box) runs out: said as a share of its surface
+        if (closure === "artificial" && anyEnv) setNotices((p) => [...p, notice("\"{label}\": {pct} % of its surface is where the interpolation's reach ends (the edge of the drilling, {k} of {n} vertices), not a grade boundary: there its extent comes from the reach, not from assays.", { label, pct: Math.max(1, Math.round((100 * mc.closingVertices) / Math.max(1, mc.vertices.length))), k: mc.closingVertices.toLocaleString(), n: mc.vertices.length.toLocaleString() })]);
+        else if (closure === "artificial") setNotices((p) => [...p, notice(!(numericSearchRadius > 0) ? "\"{label}\" was closed ARTIFICIALLY at the edge of the grid ({closingVertices} of its vertices sit on that wall, not on a grade boundary). With no search radius its volume depends on how far the grid reaches past the drilling, not only on the data. Treat it as a visualization of where grades might extend, not a measured volume." /* #1423 — no radius: the wall is the grid edge */ : "\"{label}\" was closed ARTIFICIALLY at the search-radius boundary ({closingVertices} of its vertices sit on that wall, not on a grade boundary). Its volume depends on your search radius, not only on the data — doubling the radius can multiply the volume by up to eight (less where the shell's top and base are real grade boundaries, as in a flat body). Treat it as a visualization of where grades might extend, not a measured volume.", { label, closingVertices: mc.closingVertices.toLocaleString() })]);
         fitBox(new THREE.Box3().setFromObject(mesh));
       } catch (e) {
         setNotices((p) => [...p, e?.cancelled ? notice("Numeric model cancelled.") : e?.prompt ? { text: e.message, level: "info" } /* #3607 (1) */ : errorNotice(tr("Numeric model failed: {v}", { v: e.message || e }))]);
