@@ -44,7 +44,7 @@ export function attributeFields(row, skip = SKIP) {
   const out = [];
   for (const [k, v] of Object.entries(row || {})) {
     if (skip.has(k) || k.startsWith("_") || v == null || v === "" || typeof v === "object" || typeof v === "function") continue;
-    out.push([k, typeof v === "number" ? num(v, 4) : String(v)]);
+    out.push([k, typeof v === "number" ? (Number.isInteger(v) && Math.abs(v) < 100000 ? String(v) /* #3689 — a year, a hole number, an EPSG code: 1984, not 1,984 */ : num(v, 4)) : String(v)]);
   }
   return out;
 }
