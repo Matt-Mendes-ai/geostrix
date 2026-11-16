@@ -3433,6 +3433,8 @@
   "CV": "CV",
   "Top cut": "Corte superior",
   "Top cut for {el}": "Corte superior de {el}",
+  "Several holes side by side: the Fence diagram puts the holes of a drill line in columns on one depth scale, with correlation bands.": "Varios sondajes lado a lado: el diagrama de cerca pone los sondajes de una línea en columnas con una escala de profundidad común, con bandas de correlación.",
+  "Several holes: Fence diagram": "Varios sondajes: diagrama de cerca",
   "{n} composites, {pct} % at or above, zones {z} m of {r} m runs ({k}x): envelope": "{n} compósitos, {pct} % iguales o mayores, zonas de {z} m con tramos de {r} m ({k}x): envolvente",
   "{n} composites, {pct} % at or above, zones {z} m of {r} m runs ({k}x): tight": "{n} compósitos, {pct} % iguales o mayores, zonas de {z} m con tramos de {r} m ({k}x): ajustada",
   "\"{label}\", Automatic: an envelope where a third or more of a drilled area's composites are at or above {cutoff} {unit} and its zones at the cut-off are broken (along the holes, the zones with half or more of their composites at the cut-off are 3 or more times its runs at it: disseminated grade), the tight shell elsewhere. {list}{more}. Envelope or Tight in the Grade shell pane forces one.": "\"{label}\", Automática: una envolvente donde un tercio o más de los compósitos de una zona perforada son iguales o mayores a {cutoff} {unit} y sus zonas en la ley de corte están fragmentadas (a lo largo de los sondajes, las zonas con la mitad o más de sus compósitos en la ley de corte miden 3 o más veces sus tramos en ella: ley diseminada), la ajustada en las demás. {list}{more}. Envolvente o Ajustada en el panel Envolvente de ley fuerza una.",

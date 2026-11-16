@@ -3433,6 +3433,8 @@
   "CV": "CV",
   "Top cut": "Corte superior",
   "Top cut for {el}": "Corte superior de {el}",
+  "Several holes side by side: the Fence diagram puts the holes of a drill line in columns on one depth scale, with correlation bands.": "Vários furos lado a lado: o diagrama de cerca põe os furos de uma linha em colunas numa escala de profundidade comum, com faixas de correlação.",
+  "Several holes: Fence diagram": "Vários furos: diagrama de cerca",
   "{n} composites, {pct} % at or above, zones {z} m of {r} m runs ({k}x): envelope": "{n} compósitos, {pct} % iguais ou acima, zonas de {z} m com trechos de {r} m ({k}x): envelope",
   "{n} composites, {pct} % at or above, zones {z} m of {r} m runs ({k}x): tight": "{n} compósitos, {pct} % iguais ou acima, zonas de {z} m com trechos de {r} m ({k}x): ajustado",
   "\"{label}\", Automatic: an envelope where a third or more of a drilled area's composites are at or above {cutoff} {unit} and its zones at the cut-off are broken (along the holes, the zones with half or more of their composites at the cut-off are 3 or more times its runs at it: disseminated grade), the tight shell elsewhere. {list}{more}. Envelope or Tight in the Grade shell pane forces one.": "\"{label}\", Automático: um envelope onde um terço ou mais dos compósitos de uma área perfurada são iguais ou acima de {cutoff} {unit} e as suas zonas no teor de corte são fragmentadas (ao longo dos furos, as zonas com metade ou mais dos seus compósitos no teor de corte medem 3 ou mais vezes os seus trechos nele: teor disseminado), o ajustado nas demais. {list}{more}. Envelope ou Ajustado no painel Envelope de teor força um.",
