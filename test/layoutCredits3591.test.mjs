@@ -36,8 +36,8 @@ test("the title block: a last 'Data' row = {credits} for a project with a credit
 
 test("the starter page, the sheets the app makes and the title block are wired", () => {
   const m = read("../src/modules/LayoutModule.jsx");
-  assert.match(m, /addLayoutPages: addLayoutPagesRaw/);
-  assert.match(m, /const addLayoutPages = \(pgs\) => addLayoutPagesRaw\(withCreditPages\(pgs, creditsRef\.current \|\| false\)\);/);
+  // #3854 — the credit goes on in the store's addLayoutPages, for every caller (test/layoutCreditStore3854.test.mjs)
+  assert.match(read("../src/lib/store.jsx"), /const pages = withCreditPages\(rawPages, layoutCreditRef\.current \|\| false\);/);
   assert.match(m, /creditsRef\.current = credits; \/\/ #3591/);
   assert.match(m, /newTitleBlock\(id, tbSpot\.x, tbSpot\.y, \{ credit: !!credits, creditText: credits, shared: sharedTitleRows\(/); // shared: #3714
   assert.match(m, /stockTemplateElements\(tpl, Date\.now\(\), \{ credit: !!credits, creditText: credits(, shared: sharedTitleRows\(layoutPages\) \/\* #3714 \*\/)? \}\)/);

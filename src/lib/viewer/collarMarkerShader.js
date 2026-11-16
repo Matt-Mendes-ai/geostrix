@@ -16,11 +16,28 @@ const BODY = `
 vec3 gsLocal = transformed; gsLocal.y /= max(uVE, 1.0);
 vec4 gsCentre = modelViewMatrix * gsInst * vec4(0.0, 0.0, 0.0, 1.0);
 float gsR = length((modelMatrix * gsInst * vec4(1.0, 0.0, 0.0, 0.0)).xyz);
-float gsPx = gsR * projectionMatrix[1][1] * 0.5 * uViewportH / max(1e-6, -gsCentre.z);
+float gsD = projectionMatrix[3][3] == 1.0 ? 1.0 : max(1e-6, -gsCentre.z); // #3855: an orthographic camera has no depth in its scale
+float gsPx = gsR * projectionMatrix[1][1] * 0.5 * uViewportH / gsD;
 float gsK = max(1.0, uMinPx / max(1e-6, gsPx));
 vec4 mvPosition = modelViewMatrix * gsInst * vec4(gsLocal * gsK, 1.0);
 gl_Position = projectionMatrix * mvPosition;
 `;
+
+// TASKS.csv #3855 (Scottie Gold review, Layout) — a Layout viewport at a fixed scale drew the collar markers as nested rings kilometres wide when the 3D
+// View was zoomed in at the refresh. The capture renders through an ORTHOGRAPHIC camera placed at the live view's distance; the floor divided the
+// marker's size by that distance as for a perspective camera, so a 1 : 50,000 frame taken from 100 m out read every marker hundreds of times too
+// small and blew it up past the near plane, which cut each sphere into a ring. An orthographic projection (projectionMatrix[3][3] == 1) has no depth
+// in its scale, as the tubes' shader already knew (tubeShader.js). The factor the shader applies, for the test: radiusM at depth (null: orthographic).
+export function collarMarkerFactor(radiusM, depth, proj11, viewportH, minPx = COLLAR_MARKER_UNIFORMS.uMinPx.value) {
+  const px = (radiusM * proj11 * 0.5 * viewportH) / (depth == null ? 1 : Math.max(1e-6, depth));
+  return Math.max(1, minPx / Math.max(1e-6, px));
+}
+// #3855 — the capture's own frame height for the pixel floors (markers and tubes) while fn renders, then the live one back
+export function withMarkerViewport(heightPx, fn) {
+  const u = COLLAR_MARKER_UNIFORMS.uViewportH, live = u.value;
+  if (heightPx > 0) u.value = heightPx;
+  try { return fn(); } finally { u.value = live; }
+}
 
 // the vertex shader with the marker's projection (exported for the test)
 export function collarMarkerVertex(src) {

@@ -16,9 +16,9 @@ test("random planes are flagged, a cluster is not (the condition the button read
 });
 
 test("the button is disabled with its reason when there is no preferred orientation, not behind a confirm", () => {
-  assert.match(src, /const noTrend = !!stats\?\.noPreferred && !isGirdle;/);
+  assert.match(src, /const noTrend = \(!!stats\?\.noPreferred && !isGirdle\) \|\| tooFew;/);
   assert.match(src, /disabled=\{isGirdle \|\| pooledTypes \|\| noTrend\}/);
-  assert.match(src, /: noTrend \? tr\("Disabled: these picks show no preferred orientation \(k = \{k\}, at the level of random planes\)/);
+  assert.match(src, /: noTrend \? \(picks\.every\(\(p\) => p\.outcrop\) \? tr\("Disabled: these picks show no preferred orientation \(k = \{k\}, at the level of random planes\)/);
   assert.ok(!src.includes("Add their mean plane as a structural trend anyway?"));
 });
 

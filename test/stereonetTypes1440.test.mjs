@@ -20,12 +20,12 @@ test("outcrop-only types keep the file's own text", () => {
 
 test("the dialog filters by key, keeps the type across Source changes, and opens outcrop poles with Both", () => {
   const src = readFileSync(new URL("../src/components/StereonetModal.jsx", import.meta.url), "utf8");
-  assert.match(src, /domainScoped\.filter\(\(p\) => typeKeyOf\(p\) === typeFilter\)/);
+  assert.match(src, /domainScoped\.filter\(\(p\) => keepPick\(p, typeFilter, areaFilter\)\)/);
   assert.doesNotMatch(src, /setSource\(e\.target\.value\); setTypeFilter\("all"\)/);
-  assert.match(src, /if \(typeFilter !== "all" && !types\.includes\(typeFilter\)\) setTypeFilter\("all"\)/);
+  assert.match(src, /if \(typeFilter !== "all" && !types\.includes\(typeFilter\) && !classList\.some\(\(c\) => c\.key === typeFilter\)\) setTypeFilter\("all"\)/);
   assert.match(src, /open = both && p\.outcrop/);
   assert.match(src, /"\{type\}: \{core\} core \+ \{outcrop\} outcrop"/);
   const vm = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(vm, /value: r\.type \|\| r\.cls \|\| "structure"/);
+  assert.match(readFileSync(new URL("../src/lib/stereonetGroups.js", import.meta.url), "utf8"), /value: r\.type \|\| r\.cls \|\| "structure"/); // #3843: built in the lib
   assert.doesNotMatch(vm, /\(outcrop\)`/);
 });

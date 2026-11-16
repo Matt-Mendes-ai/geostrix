@@ -5,6 +5,8 @@ import { projectPole, projectLowerHemisphere, greatCirclePoints, fisherStats, ka
 import { netZoom } from "../lib/stereonetZoom.js"; // TASKS.csv #2971
 import { colorForStructure, PALETTES } from "../lib/layers.js";
 import { typeKeyOf, typeEntries } from "../lib/stereonetTypes.js"; // TASKS.csv #1440
+import { TREND_MIN_PICKS, TREND_MAX_ALPHA95 } from "../lib/stereonetGroups.js"; // TASKS.csv #3845
+import { classEntries, areaEntries, keepPick, trendLabel, stereonetTrendName, surfacePicksOf } from "../lib/stereonetGroups.js"; // TASKS.csv #3843
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -38,7 +40,8 @@ const deg1 = (v) => (Number.isFinite(Number(v)) ? +Number(v).toFixed(1) : v); //
 // TASKS.csv #281 — `domains`/`domainFilter` add a SPATIAL filter alongside the existing type filter.
 // Both are optional props: the modal still works standalone with picks alone (domainFilter absent =
 // the domain control simply isn't offered), so nothing here depends on the caller having a scene.
-export default function StereonetModal({ picks: downholePicks, surfacePicks = [], onClose, onUseAsTrend, domains = [], domainFilter = null, customLayers = [] }) { // customLayers: TASKS.csv #1545
+export default function StereonetModal({ picks: downholePicks, surfacePicks: surfacePicksIn = [], surfaceSets = null, onClose, onUseAsTrend, domains = [], domainFilter = null, customLayers = [] }) { // customLayers: TASKS.csv #1545
+  const surfacePicks = useMemo(() => (surfaceSets ? surfacePicksOf(surfaceSets) : surfacePicksIn), [surfaceSets, surfacePicksIn]); // TASKS.csv #3843 - from the structure sets: class and area kept
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const [view, setView] = useState("stereonet"); // TASKS.csv #278 — "stereonet" | "rose"
@@ -71,8 +74,13 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
   const labelOf = useMemo(() => new Map(typeList.map((t) => [t.key, t.label])), [typeList]);
   const colorOf = (p) => colorForStructure(labelOf.get(typeKeyOf(p)) ?? p.value); // one colour per type, whichever source
   const both = source === "both";
+  // TASKS.csv #3843 - the Structure type list also offers a class ('Vein (all) 71': Vein + Vein Zone), and the readings' own area (the Zone column of the file) cuts the net to one prospect
+  const classList = useMemo(() => classEntries(picks), [picks]);
+  const areaList = useMemo(() => areaEntries(picks), [picks]);
+  const [areaFilter, setAreaFilter] = useState("all");
+  useEffect(() => { if (areaFilter !== "all" && !areaList.some((a) => a.key === areaFilter)) setAreaFilter("all"); }, [areaList, areaFilter]);
   // #1440 — a Source change keeps the chosen type when the new source has it
-  useEffect(() => { if (typeFilter !== "all" && !types.includes(typeFilter)) setTypeFilter("all"); }, [types, typeFilter]);
+  useEffect(() => { if (typeFilter !== "all" && !types.includes(typeFilter) && !classList.some((c) => c.key === typeFilter)) setTypeFilter("all"); }, [types, typeFilter, classList]);
 
   // TASKS.csv #281 (structural-geology specialist review): the stereonet filtered by structure TYPE but
   // never by spatial DOMAIN, so on a property with two genuinely different structural domains (two fault
@@ -89,7 +97,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
     return domainFilter(picks.filter((p) => !p.outcrop), domainId);
   }, [picks, domainId, domainFilter]);
 
-  const typed = useMemo(() => (typeFilter === "all" ? domainScoped : domainScoped.filter((p) => typeKeyOf(p) === typeFilter)), [domainScoped, typeFilter]);
+  const typed = useMemo(() => (typeFilter === "all" && areaFilter === "all" ? domainScoped : domainScoped.filter((p) => keepPick(p, typeFilter, areaFilter))), [domainScoped, typeFilter, areaFilter]); // #3843: a class and an area
   const qualityRes = useMemo(() => filterByQuality(typed, qualityMax === "" ? NaN : Number(qualityMax), qIndex), [typed, qualityMax, qIndex]); // #1545
   const filtered = qualityRes.kept;
 
@@ -147,7 +155,8 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
   const isGirdle = fabric?.shape === "girdle";
   // TASKS.csv #3379 — a mean the readout itself rates 'at the level of random planes' is not offered as a structural trend (it was, behind a
   // confirm only reached by clicking): disabled with the reason, as for pooled types and girdles
-  const noTrend = !!stats?.noPreferred && !isGirdle;
+  const tooFew = !!stats && (stats.n < TREND_MIN_PICKS || stats.alpha95 > TREND_MAX_ALPHA95) && !isGirdle; // TASKS.csv #3845 - two readings give a cone of 180 deg: not a trend to model
+  const noTrend = (!!stats?.noPreferred && !isGirdle) || tooFew;
   const pooledTypes = typeFilter === "all" && types.length > 1; // TASKS.csv #1827
 
   const SIZE = 420, PAD = 24, R = SIZE / 2 - PAD, CX = SIZE / 2, CY = SIZE / 2;
@@ -365,8 +374,15 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
             <label style={rowLabel}>{tr("Structure type")}<select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={sel}>
                 <option value="all">{tr("All types")}</option>
                 {typeList.map((t) => <option key={t.key} value={t.key}>{both && t.core && t.outcrop ? tr("{type}: {core} core + {outcrop} outcrop", { type: t.label, core: t.core, outcrop: t.outcrop }) : both && t.outcrop ? tr("{type} (outcrop)", { type: t.label }) : t.label}</option>)}
+                {classList.map((c) => <option key={c.key} value={c.key}>{tr("{type} (all {n})", { type: c.label, n: c.n })}</option>)}{/* TASKS.csv #3843 */}
               </select>
             </label>
+            {areaList.length > 0 && ( /* TASKS.csv #3843 - the Zone / Area column of the structure file */
+              <label style={rowLabel}>{tr("Area / zone")}<select value={areaFilter} onChange={(e) => setAreaFilter(e.target.value)} style={sel} aria-label={tr("Area of the readings")}>
+                <option value="all">{tr("All areas")}</option>
+                {areaList.map((a) => <option key={a.key} value={a.key}>{`${a.key} (${a.n})`}</option>)}
+              </select></label>
+            )}
             {/* TASKS.csv #281 — spatial-domain filter. Only offered when the caller actually supplied
                 domains and a filter (i.e. from the 3D viewer, where a domain has a meaning); the same
                 domains the Modelling tab's tools use, so "Fault block A" means one thing app-wide. */}
@@ -510,10 +526,10 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                 )}
                 {onUseAsTrend && (
                   <button
-                    onClick={() => { if (noTrend) return; onUseAsTrend({ azimuth: stats.meanDipDir, dip: stats.meanDip, terzaghi: !!terzaghiOn }); }} // #1066; terzaghi: #1446 — the trend's name says which mean
+                    onClick={() => { if (noTrend) return; onUseAsTrend({ azimuth: stats.meanDipDir, dip: stats.meanDip, terzaghi: !!terzaghiOn, name: stereonetTrendName({ terzaghi: !!terzaghiOn, dip: stats.meanDip, azimuth: stats.meanDipDir, label: trendLabel({ typeLabel: classList.find((c) => c.key === typeFilter)?.label ?? labelOf.get(typeFilter) ?? (types.length === 1 ? labelOf.get(types[0]) : null), area: areaFilter === "all" ? null : areaFilter, n: stats.n, k: stats.k, outcropOnly: filtered.every((p) => p.outcrop) }) }) }); }} // #1066; terzaghi: #1446 — the trend's name says which mean
                     disabled={isGirdle || pooledTypes || noTrend} // pooledTypes: TASKS.csv #1827 — a mean over several structure types is no one orientation; noTrend: #3379
                     style={{ ...exportBtn, width: "100%", marginTop: 7, padding: "5px 8px", fontSize: 10.5, borderColor: "#a9c6e0", color: "#2f6fe0", opacity: isGirdle || pooledTypes || noTrend ? 0.5 : 1, cursor: isGirdle || pooledTypes || noTrend ? "not-allowed" : "pointer" }}
-                    title={pooledTypes ? tr("Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.", { n: types.length }) : noTrend ? tr("Disabled: these picks show no preferred orientation (k = {k}, at the level of random planes), so their mean plane is not a trend to model. Filter to fewer holes or one domain first.", { k: stats.k.toFixed(1) }) /* #3379 */ : isGirdle ? tr("Disabled: this population is a girdle (a fold), so its mean plane is not a real orientation — pushing it to anisotropy would model a plane that exists nowhere. Filter to one fold limb first.") : tr("Add this mean plane as a new structural trend (Modelling tab > Trends): the plane only — pitch 90° (down dip) and ratios 3 : 2 : 1, to edit there")}
+                    title={pooledTypes ? tr("Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.", { n: types.length }) : tooFew ? tr("Disabled: {n} reading(s) with a 95 % cone of {a}° are too few or too scattered to call a trend (at least {min} readings and a cone of {max}° or less). Add readings, or pick the type or area with more.", { n: stats.n, a: stats.alpha95.toFixed(0), min: TREND_MIN_PICKS, max: TREND_MAX_ALPHA95 }) /* #3845 */ : noTrend ? (picks.every((p) => p.outcrop) ? tr("Disabled: these picks show no preferred orientation (k = {k}, at the level of random planes), so their mean plane is not a trend to model. Pick one structure type or one area first.", { k: stats.k.toFixed(1) }) : tr("Disabled: these picks show no preferred orientation (k = {k}, at the level of random planes), so their mean plane is not a trend to model. Filter to fewer holes or one domain first.", { k: stats.k.toFixed(1) })) /* #3379; the outcrop wording: #3845 */ : isGirdle ? tr("Disabled: this population is a girdle (a fold), so its mean plane is not a real orientation — pushing it to anisotropy would model a plane that exists nowhere. Filter to one fold limb first.") : tr("Add this mean plane as a new structural trend (Modelling tab > Trends): the plane only — pitch 90° (down dip) and ratios 3 : 2 : 1, to edit there")}
                   >{tr("Add as structural trend")}</button>
                 )}
               </div>

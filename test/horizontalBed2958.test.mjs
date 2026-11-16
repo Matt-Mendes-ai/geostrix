@@ -33,7 +33,7 @@ test("a bearing that is not a number on a dip 0 row is still 'not read', not mad
 
 test("the typed form, the notice, the disc cross and Identify", () => {
   const p = readFileSync(new URL("../src/components/SurfaceMappingPanel.jsx", import.meta.url), "utf8");
-  assert.match(p, /\(Number\.isFinite\(n\(typing\.dipDir\)\) \|\| n\(typing\.dip\) === 0\)/);
+  assert.match(p, /\(Number\.isFinite\(n\(typing\.dipDir\)\) \|\| Number\.isFinite\(n\(typing\.strike\)\) \|\| n\(typing\.dip\) === 0\)/);
   assert.match(p, /out\.horizontal \? tr\(" \{n\} horizontal reading\(s\)/);
   assert.match(p, /skipReasons\(out\.skipWhy, out\.skipNames\)/);
   // TASKS.csv #3066 — the disc (and its cross) is gone: a horizontal reading takes its family's FGDC horizontal symbol (6.1: a cross in a circle)

@@ -12,7 +12,7 @@ import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js"; // TASKS.csv #1777 — listed with the page's placeholders
 import { scaleBarLabel, scaleBarMidLabel } from "../lib/scaleBarLabel.js"; // TASKS.csv #2140
 import { offSheetPages, rectSidesPast, rectsWhollyOff, whollyOffSheet, elementCaption, elementKind } from "../lib/layoutEdges.js"; // elementKind: #3028
-import { creditsElement /* #3856 */, withCreditPages, pagesWithoutCredit, pagesWithHiddenCredit, starterLayout, refitStarterOf } from "../lib/layoutCredits.js"; // TASKS.csv #3591; pagesWithHiddenCredit: #3707
+import { creditsElement /* #3856 */, pagesWithoutCredit, pagesWithHiddenCredit, starterLayout, refitStarterOf } from "../lib/layoutCredits.js"; // TASKS.csv #3591; pagesWithHiddenCredit: #3707
 import { DEFAULT_LAYOUT_ELEMENTS } from "../lib/projectFields.js"; // TASKS.csv #3028 (5)
 import { groupOrdersFromItems, applyCodeOrder, projectCodeOrders, clearCodeOrders, pagesHoldingOrder, orderedGroupsOf } from "../lib/legendCodeOrder.js"; // TASKS.csv #3130 — a code order set once; clear*: #3199 // TASKS.csv #2482 / #2309; named elements: #2700
 import { fillPlaceholders, northName, pageConvergence, formatConvergence } from "../lib/layoutText.js";
@@ -145,7 +145,7 @@ export default function LayoutModule() {
     // TASKS.csv #69 — multiple layout pages per project (see store.jsx's own comment on
     // layoutPages/layoutElements for how these two coexist: `elements`/`setElements` above already
     // transparently follow whichever page is active).
-    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages: addLayoutPagesRaw, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat, mapLayoutPagesElements /* #3331 */, sendLayoutElement, // #1484
+    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages /* #3854 — it adds the credit itself now */, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat, mapLayoutPagesElements /* #3331 */, sendLayoutElement, // #1484
     // Legend "load lithologies from the bound view" (below) needs the actual litho rows — a theme
     // only records which units were filtered/hidden at capture time, not the vocabulary itself.
     // TASKS.csv #130 — collars/sections needed for the Atlas batch-page-generation feature below.
@@ -171,9 +171,9 @@ export default function LayoutModule() {
     setProjectTitle, // TASKS.csv #3611 / #3612 — the title the sheets print
   } = useStore();
   // TASKS.csv #3591 — every page the app makes itself (a snapshot's own page, a split's, an Atlas page, a table's continuation) prints the data credit when the project has one: the {credits}
-  // text is added to a page that does not print it (lib/layoutCredits.js); the credit line itself is read through a ref (it is computed further down)
+  // text is added to a page that does not print it (lib/layoutCredits.js). Since #3854 the store's addLayoutPages adds it, for every caller (Best intercepts from the 3D View too);
+  // this ref is the credit line for the starter pages made here (it is computed further down)
   const creditsRef = useRef("");
-  const addLayoutPages = (pgs) => addLayoutPagesRaw(withCreditPages(pgs, creditsRef.current || false)); // the credit's text: its length sizes the box (#3657)
   const setTaskProgress = useSetTaskProgress();
   useEffect(() => { if (viewportBatchDone) setTaskProgress?.(null); }, [viewportBatchDone, setTaskProgress]);
   const [selected, setSelected] = useState(null);
@@ -2957,7 +2957,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     // TASKS.csv #3374 — the text sized so the table (both halves of a split one) fits the frame's width, down to 5 pt (lib/collarTable tableTextFit)
     const fsSet = printPx(el.fontPt || printPt.small), frameW = (Number(el.w) || 520) - 12 - 2 * (Number(el.frameWidth) || 0);
     const textFit = tableTextFit({ columns, parts: tableParts, fsPx: fsSet, widthPx: frameW, gap: 14, minPx: printPx(5), measure: measureTableText(FONT) });
-    const fs = textFit.fs, cell = { padding: `${Math.round(fs * 0.25)}px ${Math.round(fs * 0.5)}px`, borderBottom: "1px solid #c9ced4" /* #999 — 0.26 mm on paper like the scale bar; 0.5 px vanished on screen at Fit zoom */, whiteSpace: "nowrap" };
+    const fs = textFit.fs, cell = { padding: `${Math.round(fs * 0.25)}px ${Math.round(fs * 0.5)}px`, borderBottom: "1px solid #c9ced4" /* #999 — 0.26 mm on paper like the scale bar; 0.5 px vanished on screen at Fit zoom */, whiteSpace: "nowrap", lineHeight: 1.2 /* #3854 — the row height lib/collarTable.js plans with ('normal' drew 17 px rows where it planned 16.2, and a full page ran 20 px into the credit line) */ };
     const numeric = columns.map((_, j) => rows.length > 0 && rows.every((r) => r[j] === "" || /^[-+≥<>]?[\d.,]+[*†‡§]?$/.test(String(r[j])))); // \*: #1483; †: #2133; ‡ §: #3023
     return (
       <div style={{ ...wrap, width: el.w || 520, background: "#fff", border: frameBorder(el), padding: 6, boxSizing: "border-box", fontFamily: FONT, color: "#1a2028" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>

@@ -18,6 +18,7 @@ export default function SurfacePlacementNotices({ counts, z }) {
     {counts.noTerrain > 0 && ( // TASKS.csv #1818; #3368 — the rule it used, not three possible ones
       <div style={lineStyle}>{counts.flatRule === "highest-collar" ? tr("{n} surface sample(s) have no elevation and there is no terrain: drawn flat at {z} m, the highest collar (the collars look underground). Load a terrain (Maps > Terrain) to place them on the ground.", { n: counts.noTerrain, z: zr })
         : counts.flatRule === "collars" ? tr("{n} surface sample(s) have no elevation and there is no terrain: drawn flat at {z} m, the median collar elevation. Load a terrain (Maps > Terrain) to place them on the ground.", { n: counts.noTerrain, z: zr })
+        : counts.flatRule === "zero" ? tr("{n} surface sample(s) have no elevation, and no collar or sample gives one: drawn flat at 0 m. Load a terrain (Maps > Terrain) to place them on the ground.", { n: counts.noTerrain }) /* TASKS.csv #3851 (5) */
         : tr("{n} surface sample(s) have no elevation and there is no terrain: drawn flat at {z} m, the median elevation of the samples that have one. Load a terrain (Maps > Terrain) to place them on the ground.", { n: counts.noTerrain, z: zr })}</div>
     )}
     {counts.outside > 0 && ( // TASKS.csv #1806
