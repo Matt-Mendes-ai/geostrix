@@ -1053,8 +1053,13 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
         if (n < 2) continue;
         const last = pts[n - 1] - pts[n - 2];
         if (!(last < length - EPS && last < minEnd - EPS)) continue;
-        if (shortEnd === "drop") { dropStarts.add(pts[n - 2]); if (stats) stats.shortEndsDropped = (stats.shortEndsDropped || 0) + 1; }
-        else if (n >= 3) { breaks.delete(pts[n - 2]); if (stats) stats.shortEndsMerged = (stats.shortEndsMerged || 0) + 1; }
+        // TASKS.csv #3700 (3) — counted as rows: only a piece that would have been a composite of its own (enough covered material) is a row the table loses; the
+        // counts said 179 dropped and 176 added where the table lost 171 and 168 rows (pieces with no assays were counted too). stats.shortEnd*Keys, when given, take each
+        // such window's key, so a set of several elements counts a window once
+        const a0 = pts[n - 2], a1 = pts[n - 1];
+        const wouldBe = () => { let cov = 0; for (const g of segs) { if (g.value == null) continue; const ov = Math.min(g.to, a1) - Math.max(g.from, a0); if (ov > EPS) cov += ov; } return cov > EPS && cov / (a1 - a0) >= minCoverage - EPS; };
+        if (shortEnd === "drop") { dropStarts.add(a0); if (stats && wouldBe()) { stats.shortEndsDropped = (stats.shortEndsDropped || 0) + 1; stats.shortEndDroppedKeys?.add(`${hole_id}|${a0}|${a1}`); } }
+        else if (n >= 3) { breaks.delete(a0); if (stats && wouldBe()) { stats.shortEndsMerged = (stats.shortEndsMerged || 0) + 1; stats.shortEndMergedKeys?.add(`${hole_id}|${a0}|${a1}`); } }
       }
     }
     const longest = length + (shortEnd === "merge" ? minEnd : 0);

@@ -49,8 +49,11 @@ function pageText(p) {
 const count = (hay, needle) => { let n = 0, i = hay.indexOf(needle); while (i >= 0) { n++; i = hay.indexOf(needle, i + needle.length); } return n; };
 
 // Plain search: every word must appear somewhere in the page; a word in the title counts most, then the summary, then the body.
+// TASKS.csv #3693 (Fireweed rehearsal, round 3) — 'survey' listed seven geophysics pages before Import drillhole data for someone on the 3D View tab:
+// opts.area (the tab the user is on, a HELP_AREAS name) doubles the score of that tab's pages and adds 8, so its pages come first for a word they
+// match as well, while a page of another tab that matches far better (a title hit against a body mention) still wins.
 // -> [{ page, score, snippet }] best first
-export function searchPages(query, pages = PAGES) {
+export function searchPages(query, pages = PAGES, opts = {}) {
   const words = String(query || "").toLowerCase().split(/\s+/).map((w) => w.replace(/[^\p{L}\p{N}./%+-]/gu, "")).filter((w) => w.length > 1);
   if (!words.length) return [];
   const out = [];
@@ -63,7 +66,7 @@ export function searchPages(query, pages = PAGES) {
       score += s;
     }
     if (!all) continue;
-    out.push({ page: p, score, snippet: snippetFor(p, words[0]) });
+    out.push({ page: p, score: opts.area && p.area === opts.area ? 2 * score + 8 : score, snippet: snippetFor(p, words[0]) });
   }
   return out.sort((a, b) => b.score - a.score || a.page.title.localeCompare(b.page.title));
 }

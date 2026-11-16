@@ -72,7 +72,7 @@ export const PANE_HELP = {
   "Drillhole data QA/QC": "data-qc",
   "3D view basics": "view-basics", // TASKS.csv #3556 / #3578 — the everyday 3D view and the Geochem report tools
   "Downhole compositing": "downhole-compositing",
-  "Best-intercept report": "best-intercepts",
+  "Best-intercept report": "best-intercepts", "Best intercepts": "best-intercepts", // TASKS.csv #3687 — the dialog and its page are both Best intercepts
   "Grade statistics": "grade-statistics",
   "QAQC — lab quality control": "qaqc",
   // TASKS.csv #3597 / #3603 / #3622 — the dialogs' own titles; their "?" opens them

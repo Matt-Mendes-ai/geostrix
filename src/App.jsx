@@ -670,7 +670,7 @@ export default function App() {
       {licensesOpen && <Suspense fallback={null}><LicensesModal onClose={() => setLicensesOpen(false)} /></Suspense>}
       {sampleAsk && <Suspense fallback={null}><SampleDownloadModal id={sampleAsk} onClose={() => setSampleAsk(null)} onReady={(which) => { setSampleAsk(null); markSampleDownloaded(which); requestSampleProject(which); setActive(which === "perk" ? "surface" : "viewer"); }} /></Suspense>}{/* #3100 */}
       {reportProblem && <Suspense fallback={null}><ReportProblemModal screenshot={reportProblem.screenshot} crashed={reportProblem.crashed} onClose={() => setReportProblem(null)} /></Suspense>}
-      {helpAt && <Suspense fallback={null}><HelpPane key={helpAt.n} initialId={helpAt.id} onClose={() => setHelpAt(null)} /></Suspense>}{/* #1966 */}
+      {helpAt && <Suspense fallback={null}><HelpPane key={helpAt.n} initialId={helpAt.id} area={MODULES.find((m) => m.id === active)?.label || null} onClose={() => setHelpAt(null)} /></Suspense>}{/* #1966 */}
       {dataTable && <Suspense fallback={null}><DrillTableModal key={dataTable.n} request={dataTable} onClose={() => setDataTable(null)} /></Suspense>}
       {shortcutsTab && <Suspense fallback={null}><ShortcutsModal initialTab={shortcutsTab} pyStatus={pyStatus} onClose={() => setShortcutsTab(null)} /></Suspense>}
       {showUpdatePrompt && <Suspense fallback={null}><UpdatePrompt updater={upd} onLater={() => setUpdateLater((s) => new Set(s).add(`${upd.version || ""}|${updateStage}`))} /></Suspense>}{/* TASKS.csv #915 */}
