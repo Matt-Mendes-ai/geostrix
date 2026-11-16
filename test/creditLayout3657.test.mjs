@@ -35,7 +35,7 @@ test("a paper change moves the starter's north arrow, scale bar and credit with 
 
 test("the print page clips its elements in a box of its own, and the pieces are wired", () => {
   const l = read("../src/modules/LayoutModule.jsx");
-  assert.match(l, /<div className="ge-print-clip" style=\{\{ position: "absolute", inset: 0, overflow: "hidden" \}\}>/);
+  assert.match(l, /<div className="ge-print-clip" style=\{\{ position: "absolute", inset: 0, overflow: "hidden", contain: "strict" \}\}>/); // contain: #3703
   assert.match(l, /const starterFor = \(format, creditText = ""\)/); assert.match(l, /titleBlockSpot\(pageFormatOf\(activePage\)/);
   assert.match(l, /refitStarterOf\(base, oldFormat, f, credit\)/); // #3702 — functional now
 });

@@ -27,6 +27,6 @@ test("(8) the nearest hole carries the next two nearest holes, each at its own c
 test("(7) the selected element is measured against the sheet and the sidebar says which edge", () => {
   const l = read("../src/modules/LayoutModule.jsx");
   assert.match(l, /const \[selPast, setSelPast\] = useState\(\[\]\);/); assert.match(l, /selPast\.length > 0 && <div role="status"/);
-  const key = "Part of this element reaches past the sheet's {sides} and will be cut off in the export: move it, or make it smaller.";
+  const key = "Part of this element reaches past the sheet's {sides}: that part is left out of the export, the rest prints. Move it, or make it smaller."; // worded by #3703
   for (const lang of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${lang}.json`))[key], lang);
 });
