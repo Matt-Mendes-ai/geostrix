@@ -112,7 +112,7 @@ function barTrack(rows, x, sy, max) {
 // map viewport on the same page use. #402 did this for the strip-log modal only.
 // assays / assaySymbols / elementUnits (#1480): the project's assays and up to three elements to draw as tracks after the logs
 // lithoPatterns (#1995): { byCode: { code: FGDC code | null }, tiles } — the lithology column drawn with its patterns
-export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride = null, assays = [], assaySymbols = [], elementUnits = {}, lithoPatterns = null, assayRanges = null, customTracks = [] }) { // customTracks: #2477 // assayRanges: #2605 — one axis per element for an atlas
+export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride = null, assays = [], assaySymbols = [], elementUnits = {}, lithoPatterns = null, assayRanges = null, customTracks = [], pxPerMeter: forcedPx = null }) { // forcedPx: #3560 A1 — several holes on one depth scale; customTracks: #2477 // assayRanges: #2605 — one axis per element for an atlas
   const ov = (key, v) => legendOverride?.[key]?.[v];
   const colorOf = (key, fallback) => (v) => ov(key, v)?.color || fallback(v);
   const nameOf = (key, fallback) => (v) => ov(key, v)?.label || (fallback ? fallback(v) : v);
@@ -131,7 +131,7 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride
   const maxDepth = Math.max(collar?.length || 0, arrMax(litho.map((r) => r.to)), arrMax(alt.map((r) => r.to)), arrMax(vein.map((r) => r.to)), arrMax(breccia.map((r) => r.to)), arrMax(structzone.map((r) => r.to)), arrMax(weath.map((r) => r.to)), arrMax(geotech.map((r) => r.to)), arrMax(mnlgy.map((r) => r.to)), 0, arrMax(holeAssays.map((a) => a.to))); // holeAssays: #1480
   if (maxDepth <= 0) return null;
 
-  const pxPerMeter = Math.max(1, Math.min(8, 900 / maxDepth));
+  const pxPerMeter = forcedPx > 0 ? forcedPx : Math.max(1, Math.min(8, 900 / maxDepth));
   const sy = (d) => PAD_TOP + d * pxPerMeter;
   const H = sy(maxDepth) + PAD_BOTTOM;
   const tracks = [

@@ -7826,7 +7826,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           modelledLayers={customLayers.filter((l) => l.rows?.[0]?.modelled)} // TASKS.csv #356
           onAddToLayout={(img) => { addLayoutImage(img); goToModule("layout"); }} onAdvice={(t) => t && setNotices((p) => [...p, t])} // #1480; advice: #1641
           assayColor={(sym, v) => assayColorFor(v, Math.max(0, assayDisplayElements.indexOf(sym)), assayStyle[sym])}
-          onClose={() => setStripLogHoleId(null)} onOpenFence={() => { setStripLogHoleId(null); setFenceOpen(true); }} // #3560 A0
+          onClose={() => setStripLogHoleId(null)} onOpenFence={() => { setStripLogHoleId(null); setFenceOpen(true); }} legendOverride={legendOverride} // #3560 A0 / A1
         />
       )}
       {assayStyleModalSymbol && (
