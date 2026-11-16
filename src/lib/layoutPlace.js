@@ -67,6 +67,28 @@ export function freeSpot(elements, w, h, page = { w: 1123, h: 794 }, { margin = 
   return best ? { x: best.x, y: best.y } : { x: margin, y: margin };
 }
 
+// TASKS.csv #3857 (Scottie Gold review) — on a portrait page a strip log or section sent from another tab never landed on the open page, even the empty starter page: it was sized to
+// the sheet's height less 160 px (963 of 1,123 on A4 portrait), which cannot fit between the starter title (its box ends near y 130) and the starter scale bar (y 1,010), so it
+// went to a new 'Snapshot N' page and left the starter page empty. The band the starter furniture leaves free: its top (below the title and the north arrow that sit in the top half)
+// and its bottom (above the scale bar and the credit that sit in the bottom half), the page's margin otherwise. Only the starter's own elements (fixed ids) count. -> { top, bottom }
+export const STARTER_IDS = new Set(["title", "north", "scale", "credits"]);
+export function starterBand(elements, page, margin = 40) {
+  let top = margin, bottom = page.h - margin;
+  for (const el of elements || []) {
+    if (!STARTER_IDS.has(el?.id)) continue;
+    const b = elementBox(el);
+    if (b.y + b.h / 2 < page.h / 2) top = Math.max(top, b.y + b.h); else bottom = Math.min(bottom, b.y);
+  }
+  return { top, bottom };
+}
+
+// a w x h item at the top of the band, at the first x (from the margin, 20 px steps) where nothing covers it; null when no x is free (freeSpot's 20 px rows missed a band whose top is not on the grid)
+export function spotInBand(elements, w, h, page, band, { margin = 40, step = 20 } = {}) {
+  const y = band.top;
+  for (let x = margin; x <= Math.max(margin, page.w - margin - w); x += step) if (spotIsFree(elements, { x, y }, w, h)) return { x, y };
+  return null;
+}
+
 // TASKS.csv #3451 (#3418) — does a w x h item at `spot` touch nothing on the page? freeSpot returns the least-covered spot when nothing is free; this says whether it was.
 export function spotIsFree(elements, spot, w, h) {
   const c = { x: spot.x, y: spot.y, w, h };

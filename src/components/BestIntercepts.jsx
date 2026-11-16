@@ -1,3 +1,4 @@
+import { dropIdleStarterMapFurniture } from "../lib/layoutLinks.js"; // TASKS.csv #3863
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { openHelp } from "../lib/help.js"; // TASKS.csv #3578
 import { stampedCsv } from "../lib/csvStampPref.js"; // TASKS.csv #3614
@@ -343,7 +344,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
       elements: [{ ...table, id: `table_${stamp}_${k + 1}`, x: 40, y: 40, note: "", title: tr("Best intercepts, continued: {from}", { from }), rows: [...allRows.slice(a, b), ...(b < results.length ? [carriesOn] : [])] }] }));
     if (ownPage) addLayoutPages([{ name: tr("Best intercepts"), elements: [table], ...(cont ? { batch: `intercepts_${stamp}` } : {}) }, ...contPages]); // #3019 — the active page had no clear spot for it
     else {
-      setLayoutElements((els) => [...els, table]);
+      setLayoutElements((els) => dropIdleStarterMapFurniture([...els, table]).els); // TASKS.csv #3863 — a table is not a map: the starter page's bar and arrow go (Undo brings them back)
       if (contPages.length) { addLayoutPages(contPages); switchLayoutPage?.(activeLayoutPageId); } // #2708 — back to the page the table starts on
     }
     goToModule("layout");
