@@ -207,6 +207,7 @@ import { restrictLayersToHoles } from "../lib/modelArea.js"; // TASKS.csv #1546
 import { gradeText } from "../lib/gradeText.js"; // #2515
 import { pickOnView } from "./viewer/pickGround.js"; // #2574; #2447
 import { worldPointOnGround, groundCollarsFor } from "./viewer/worldPoint.js"; // TASKS.csv #3838 — bare ground on the surface the map is drawn on
+import { withMarkerViewport } from "../lib/viewer/collarMarkerShader.js"; // TASKS.csv #3855 — the capture's pixel floors
 import { syncHoleLabels, declutterHoleLabels, withEveryLabel, syncTextLabels, sampleLabelItems, redeclutter } from "../lib/viewer/holeLabels.js"; // withEveryLabel: #1770; syncTextLabels: #1443
 import { PickStandIn, PICK_ONLY_LAYER } from "../lib/viewer/pickStandIn.js"; // TASKS.csv #1500
 import { syncBatchedInstances, buildLayerBatches, eachLayerMember, eachPickTarget, batchTag } from "../lib/viewer/layerBatches.js"; // moved out (size cap, #1084)
@@ -2739,7 +2740,7 @@ ${describeTrend(t)}` };
         fitContourLabels(boundaryGroupRef.current, renderCamera, outW, outH, false); // #1466 — sized for the capture; the live declutter kept
         renderer.clippingPlanes = slicePlanesRef.current; // #453 — the figure shows the slice you see
         // TASKS.csv #1770 — a drill plan labels every hole: the live view's declutter (#1294) must not hide one in the capture
-        labelsOverlapping = withEveryLabel(hl, renderCamera, outW, outH, () => renderer.render(scene, renderCamera), LABEL_PX); // outW x outH: the frame fitScreenLabels sized the labels against (the canvas is that times the print pixel ratio)
+        labelsOverlapping = withEveryLabel(hl, renderCamera, outW, outH, () => withMarkerViewport(outH, () => renderer.render(scene, renderCamera)) /* #3855 */, LABEL_PX); // outW x outH: the frame fitScreenLabels sized the labels against (the canvas is that times the print pixel ratio)
         renderer.clippingPlanes = [];
       }, outW, outH, captureLongPx(req.elementW, req.elementH, CAPTURE_LONG_PX, req.dpi || undefined)); // #906 — at the frame's aspect; #1479: 300 dpi of the frame; #2303: the request's dpi
       encoded = shot.encoded; shotW = shot.width; shotH = shot.height;
