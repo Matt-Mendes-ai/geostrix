@@ -22,19 +22,21 @@ import { askAdoptCrs } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import { parseQmlStyle, autoCategories, applyQmlToCategories, STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS, /* #2266 */ } from "../lib/mapLayers.js";
 import { guessStructureColumns, parseStructureRows, bestStationColumn /* #1826 */, STRUCTURE_CLASSES, structureClass, structureCodeKey } from "../lib/mapStructures.js"; // TASKS.csv #3590
 import { downholeTableColumns, structureCodeColumn } from "../lib/downholeTableGuess.js"; // TASKS.csv #1722
+import { binaryKind, readStructureWorkbook, structureRowsFromSamples } from "../lib/structureTable.js"; // TASKS.csv #3842
 import { uniqueLayerName } from "../lib/interpretation.js"; // TASKS.csv #2573
 import { defaultDiscSize, discSizeMax } from "../lib/outcropDiscSize.js"; // TASKS.csv #2412
 import { SYMBOLS, FAMILIES, familyFor, projectSymbolChoices, symbolSvg, typeKey } from "../lib/structureSymbols.js"; // TASKS.csv #3066
 
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { featureCountText } from "../lib/featureCount.js"; // TASKS.csv #1116
 import MapImportReview from "./MapImportReview.jsx"; // TASKS.csv #1325
 import { classifyTables, needsImportReview, isCoveringPolygon } from "../lib/mapImportReview.js";
 import { CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
-import { collarSubcrop, subcropLayer, roleWithCodes, subcropLeftOut, holeStartCodes, subcropSkippedCodes, coverRoleSource } from "../lib/collarSubcrop.js"; // TASKS.csv #1719; roleWithCodes: #2407; subcropLeftOut: #2566; holeStartCodes: #2956; skipped codes: #3366
-import { outlineLayer, defaultReach, medianSpacing } from "../lib/subcropOutlines.js"; // TASKS.csv #2956
+import { collarSubcrop, subcropLayer, roleWithCodes, subcropLeftOut, holeStartCodes, subcropSkippedCodes, coverRoleSource, dominantStartUnit } from "../lib/collarSubcrop.js"; // TASKS.csv #1719; roleWithCodes: #2407; subcropLeftOut: #2566; holeStartCodes: #2956; skipped codes: #3366
+import { outlineLayer, defaultReach, medianSpacing, PAD_M, mergePads } from "../lib/subcropOutlines.js"; // TASKS.csv #2956
 import { loggedCodeSpellings, withLogColours } from "../lib/logColours.js"; // TASKS.csv #2970
 import { categoryColor, LAYER_META } from "../lib/layers.js"; // TASKS.csv #1719 — the logs' own colours
 import { exportCrs, structureSetToWorld, atLocal } from "../lib/tiedExport.js"; // TASKS.csv #2322 — a tied local grid's exports through its tie
@@ -55,9 +57,11 @@ import { structureGroundCounts, surfaceFlatElevation, noTerrainGround } from "..
 export function skipReasons(w = {}, names = {}) { // names: the rows skipped for no direction (#2958)
   return [
     w.noMeasurement && tr("{n} with no measurement at all", { n: w.noMeasurement }),
+    w.repeatedHeader && tr("{n} repeated header row(s) inside the file", { n: w.repeatedHeader }), /* TASKS.csv #3851 (3) */
     w.noXY && tr("{n} with no easting or northing", { n: w.noXY }),
     w.noDip && tr("{n} with a bearing but no dip (a chip line or a trend, not a plane)", { n: w.noDip }),
     w.badDip && tr("{n} with a dip that is not a number from 0 to 90", { n: w.badDip }),
+    w.badBearing && tr("{n} with a dip direction or strike outside 0 to 360 (a typing slip)", { n: w.badBearing }), /* TASKS.csv #3847 */
     w.bearingUnread && tr("{n} with a dip direction or strike that is not a number (a quadrant bearing such as N45E is not read)", { n: w.bearingUnread }),
     w.noDirection && tr("{n} with a dip over 0 but no dip direction or strike ({rows})", { n: w.noDirection, rows: (names.noDirection || []).slice(0, 8).join(", ") + ((names.noDirection || []).length > 8 ? "…" : "") }), // #2958
   ].filter(Boolean).join("; ");
@@ -73,6 +77,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
   const qmlInput = useRef(null);
   const qmlTargetRef = useRef(null);
   const structInput = useRef(null);
+  const sampleStructs = useMemo(() => structureRowsFromSamples(surfaceSamples), [surfaceSamples]); // TASKS.csv #3842
   const [mapMsg, setMapMsg] = useState(null);
   const [structMsg, setStructMsg] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -389,22 +394,27 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     // not the surface: asked first, named for what it is. (Its NPRC / Unknown 'units' are cover since #2227: roleForLithology reads the notes.)
     const ug = collarsLookUnderground(collars, survey);
     if (ug.underground && !window.confirm(tr("The collars look underground ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): these points would be the first logged unit at the drill positions on the mine levels, not a subcrop map. Make them anyway?", { upward: ug.upward, stacked: ug.stacked }))) return;
-    const rep = { lateStart: [] }; // TASKS.csv #2411 / #2570 — logs that start below the collar
+    const rep = { lateStart: [], gap: [] }; // #3841: gap = an unlogged stretch between the cover and the first rock; TASKS.csv #2411 / #2570 — logs that start below the collar
     const depth = String(subDepth).trim() === "" ? null : Number(subDepth); // #2956
     if (depth != null && !(depth >= 0)) { setMapMsg({ ok: false, text: tr("The depth below the collar must be a number of metres, 0 or more.") }); return; }
     const pts = collarSubcrop({ collars, survey, litho: layers.litho, desurveyMethod, roleOf: roleWithCodes(modellingCodes), report: rep, atDepthM: depth }); // roleOf: #2407; atDepthM: #2956
     const skippedCodes = subcropSkippedCodes({ collars, litho: layers.litho, roleOf: roleWithCodes(modellingCodes) }); // #3366
     const late = rep.lateStart.length ? tr("{n} hole(s) whose log starts below the collar ({a}–{b} m down: an unlogged precollar, or logging only where something was met) were left out: their first logged unit is a point down the hole, not a subcrop ({ids}).", { n: rep.lateStart.length, a: Math.round(Math.min(...rep.lateStart.map((h) => h.logStart)) * 10) / 10, b: Math.round(Math.max(...rep.lateStart.map((h) => h.logStart)) * 10) / 10, ids: rep.lateStart.slice(0, 5).map((h) => h.hole_id).join(", ") + (rep.lateStart.length > 5 ? ", …" : "") }) : "";
-    if (!pts.length) { setMapMsg({ ok: false, text: [depth != null ? tr("No hole's log covers {d} m down.", { d: depth }) /* #2956 */ : tr("No hole has a logged unit under its overburden / casing to place."), late, skippedText(skippedCodes) /* #3366 */].filter(Boolean).join(" ") }); return; }
+    // TASKS.csv #3841 - holes whose log stops after the cover and starts again further down: missing log is not cover, so they are left out and named
+    const gapText = rep.gap.length ? tr("{n} hole(s) with an unlogged stretch between the cover and the first rock ({a}–{b} m) were left out: missing log is not cover ({ids}).", { n: rep.gap.length, a: Math.round(arrMin(rep.gap.map((h) => h.rockStart - h.coverEnd)) * 10) / 10, b: Math.round(arrMax(rep.gap.map((h) => h.rockStart - h.coverEnd)) * 10) / 10, ids: rep.gap.slice(0, 5).map((h) => h.hole_id).join(", ") + (rep.gap.length > 5 ? ", …" : "") }) : "";
+    if (!pts.length) { setMapMsg({ ok: false, text: [depth != null ? tr("No hole's log covers {d} m down.", { d: depth }) /* #2956 */ : tr("No hole has a logged unit under its overburden / casing to place."), late, gapText, skippedText(skippedCodes) /* #3366 */].filter(Boolean).join(" ") }); return; }
     const base = depth != null ? tr("Units {d} m down the holes", { d: depth }) /* #3378 — down each hole, not below the collars */ : ug.underground ? tr("Units at the collars") : tr("Subcrop from collars"); // #2265; at a depth: #2956
     if (replace) removeMapLayer(replace.id); // #2956 — 'Make it again' replaces the layer it made
     let name = base; for (let k = 2; mapLayers.some((l) => l.name === name && l.id !== replace?.id); k++) name = `${base} (${k})`;
     const layer = subcropLayer(pts, name, (u) => categoryColor(viewerUiState?.legendOverride?.litho?.[u], LAYER_META.litho, u));
     addMapLayer({ ...layer, drapeMode: terrain ? "terrain" : "file" });
-    const skipped = collars.length - pts.length - rep.lateStart.length - (rep.notAtDepth || 0); // the late starts are said on their own (#2411)
-    setSubcropCard({ name, pts, reach: String(defaultReach(pts)), depth }); // #2956
-    setMapMsg({ ok: true, text: [depth != null ? tr("{name}: {n} point(s), {units} unit(s): the unit logged {d} m down each hole, at the hole's position at that depth.", { name, n: pts.length, units: layer.categories.length, d: depth }) /* #2956 */ : tr("{name}: {n} point(s), {units} unit(s): the first logged unit under the overburden / casing / no recovery at the top of each hole, at the hole's position at that depth. A start for the map, not a mapped outcrop.", { name, n: pts.length, units: layer.categories.length }),
-      rep.notAtDepth ? tr("{n} hole(s) whose log does not cover {d} m down were left out.", { n: rep.notAtDepth, d: depth }) : "" /* #2956 */, skipped > 0 ? (() => { const lo = subcropLeftOut({ collars, litho: layers.litho, roleOf: roleWithCodes(modellingCodes) }); if (depth != null) lo.coverOnly = 0; /* #3378 — at a depth a hole in cover gives a point */ return tr("{n} hole(s) were left out: {a} with no lithology log, {b} with only blank codes, {c} with only cover (overburden / casing / no recovery).", { n: skipped, a: lo.noLog, b: lo.blankOnly, c: lo.coverOnly }); })() /* #2566 — the reason, not one guess for all */ : "", late, skippedText(skippedCodes) /* #3366 */, depth == null ? tr("Each point keeps the vertical depth of the cover above it below its collar (cover_m; cover_along_hole_m is its length down the hole): 'Colour by depth of cover' below maps it.") /* #3378 */ : ""].filter(Boolean).join(" ") }); // cover_m: #2956
+    const skipped = collars.length - pts.length - rep.lateStart.length - rep.gap.length - (rep.notAtDepth || 0); // the late starts are said on their own (#2411)
+    setSubcropCard({ name, pts, reach: String(defaultReach(mergePads(pts).points)), depth }); // #2956
+    // TASKS.csv #3840 - the first sentence: most holes start in a code that was mapped as rock (OVBN, 'overburden' in the file: 59 of 62 points)
+    const dom = depth == null ? dominantStartUnit({ collars, litho: layers.litho, points: pts, roleOf: roleWithCodes(modellingCodes) }) : null;
+    const domText = dom ? tr("{n} of {total} hole(s) start in {code}, and it is mapped here as a unit, not as cover. If {code} is overburden or casing, tick it in the list below and press Make it again.", { n: dom.holes, total: dom.total, code: dom.code }) : "";
+    setMapMsg({ ok: true, text: [domText, depth != null ? tr("{name}: {n} point(s), {units} unit(s): the unit logged {d} m down each hole, at the hole's position at that depth.", { name, n: pts.length, units: layer.categories.length, d: depth }) /* #2956 */ : tr("{name}: {n} point(s), {units} unit(s): the first logged unit under the overburden / casing / no recovery at the top of each hole, at the hole's position at that depth. A start for the map, not a mapped outcrop.", { name, n: pts.length, units: layer.categories.length }),
+      rep.notAtDepth ? tr("{n} hole(s) whose log does not cover {d} m down were left out.", { n: rep.notAtDepth, d: depth }) : "" /* #2956 */, skipped > 0 ? (() => { const lo = subcropLeftOut({ collars, litho: layers.litho, roleOf: roleWithCodes(modellingCodes) }); if (depth != null) lo.coverOnly = 0; /* #3378 — at a depth a hole in cover gives a point */ return tr("{n} hole(s) were left out: {a} with no lithology log, {b} with only blank codes, {c} with only cover (overburden / casing / no recovery).", { n: skipped, a: lo.noLog, b: lo.blankOnly, c: lo.coverOnly }); })() /* #2566 — the reason, not one guess for all */ : "", late, gapText, skippedText(skippedCodes) /* #3366 */, depth == null ? tr("Each point keeps the vertical depth of the cover above it below its collar (cover_m; cover_along_hole_m is its length down the hole): 'Colour by depth of cover' below maps it.") /* #3378 */ : ""].filter(Boolean).join(" ") }); // cover_m: #2956
   };
   // TASKS.csv #2956 — a code ticked as cover in the subcrop card: its role written as 3D Modelling > Modelling codes would (unticked: stratigraphic)
   const setCoverRole = (code, on) => setModellingCodes((p) => {
@@ -421,7 +431,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     const layer = outlineLayer(c.pts, name, (u) => categoryColor(viewerUiState?.legendOverride?.litho?.[u], LAYER_META.litho, u), { reachM });
     if (!layer.features.length) { setMapMsg({ ok: false, text: tr("No outline could be made from these points.") }); return; }
     addMapLayer(layer);
-    setMapMsg({ ok: true, text: tr("{name}: {n} polygon(s), {units} unit(s): each hole's nearest-hole area, cut back to {r} m from the hole (the median hole spacing is {s} m). A unit map from the drilling, not a mapped outline: its borders lie half-way between holes, so Model it takes no order from them.", { name, n: layer.features.length, units: layer.categories.length, r: reachM, s: Math.round(medianSpacing(c.pts)) }) });
+    setMapMsg({ ok: true, text: tr("{name}: {n} polygon(s), {units} unit(s): each hole's nearest-hole area, cut back to {r} m from the hole (the median hole spacing is {s} m). A unit map from the drilling, not a mapped outline: its borders lie half-way between holes, so Model it takes no order from them.", { name, n: layer.features.length, units: layer.categories.length, r: reachM, s: Math.round(medianSpacing(mergePads(c.pts).points)) }) + (layer.padsMerged?.pads ? " " + tr("{n} pad(s) with holes within {m} m of each other count as one site each (the commoner unit); {d} of them met different units ({ex}).", { n: layer.padsMerged.pads, m: PAD_M, d: layer.padsMerged.disagree, ex: layer.padsMerged.examples.join("; ") || "-" }) : "") }); /* TASKS.csv #3848 */
   };
   const changeStyleField = (layer, field) => {
     const grad = graduatedStyle(layer.features, field); // TASKS.csv #1600 - a numeric field in classes
@@ -470,9 +480,21 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     // latin1: field notebooks exported from Excel carry Windows-1252 degree signs ("156°/-54°" in the
     // sample file), which a UTF-8 decode turns into replacement characters.
     const buf = await file.arrayBuffer();
-    let text = new TextDecoder("utf-8").decode(buf);
-    if (text.includes("�")) text = new TextDecoder("windows-1252").decode(buf);
-    const res = Papa.parse(text, { header: true, skipEmptyLines: true });
+    // TASKS.csv #3842 - a workbook is read with the sheet reader the sample import uses (its best sheet); any other file that is not text is named and refused,
+    // not read as a table of binary characters
+    const kind = binaryKind(new Uint8Array(buf, 0, Math.min(buf.byteLength, 4096)), file.name);
+    let wb = null;
+    if (kind === "xlsx") {
+      try { wb = await readStructureWorkbook(file); } catch (err) { setStructMsg({ ok: false, text: tr("{name} could not be read as a workbook: {why}", { name: file.name, why: err?.message || String(err) }) }); return; }
+      if (!wb.rows.length) { setStructMsg({ ok: false, text: tr("{name} has no sheet with a header row and data.", { name: file.name }) }); return; }
+      setStructMsg({ ok: true, text: `${file.name}: ${wb.note || ""}`.trim() });
+    } else if (kind) {
+      setStructMsg({ ok: false, text: kind === "xls" ? tr("{name} is an old Excel workbook (.xls), which GeoStrix does not read. Save it as .xlsx or .csv from Excel and import that.", { name: file.name }) : tr("{name} is not a text table ({kind}). Measurements are read from a .csv or .xlsx table, or a MapInfo point table.", { name: file.name, kind }) });
+      return;
+    }
+    let text = "";
+    if (!wb) { text = new TextDecoder("utf-8").decode(buf); if (text.includes("�")) text = new TextDecoder("windows-1252").decode(buf); }
+    const res = wb ? { data: wb.rows, meta: { fields: wb.headers } } : Papa.parse(text, { header: true, skipEmptyLines: true });
     const headers = res.meta.fields || [];
     const cols = guessStructureColumns(headers);
     // TASKS.csv #1722 — a hole id with down-hole depths and no easting / northing: a drillhole table, said, not opened as outcrops
@@ -602,9 +624,11 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     const col = pendingStruct?.cols?.type;
     if (!col || pendingStruct.typed) return [];
     const m = new Map();
-    pendingStruct.rows.forEach((r) => { const k = structureCodeKey(r[col]); if (k && structureClass(k, project?.structureCodeClasses) === "other") m.set(k, (m.get(k) || 0) + 1); });
+    // TASKS.csv #3851 (3) - only the codes of the rows that will be imported: a repeated header row's 'STRUCTURE' asked for a class no reading has
+    const usable = parseStructureRows(pendingStruct.rows, pendingStruct.cols, project?.structureCodeClasses).rows;
+    usable.forEach((r) => { const k = structureCodeKey(r.type); if (k && structureClass(k, project?.structureCodeClasses) === "other") m.set(k, (m.get(k) || 0) + 1); });
     return [...m].sort((a, b) => b[1] - a[1]);
-  }, [pendingStruct?.rows, pendingStruct?.cols?.type, pendingStruct?.typed, project?.structureCodeClasses]);
+  }, [pendingStruct?.rows, pendingStruct?.cols, pendingStruct?.typed, project?.structureCodeClasses]);
   const card = { marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" };
   const row = { display: "flex", alignItems: "center", gap: 6, marginTop: 7 };
   const lbl = { color: "var(--color-text-faint)", width: 58, flexShrink: 0 };
@@ -804,11 +828,15 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Surface structures")}<InfoButton title={tr("Surface structures")} text={tr("Import outcrop structural measurements from a CSV or a MapInfo point table (TAB or MIF) — easting, northing, optional elevation, dip, and dip direction and/or strike (right-hand rule), plus a structure type and comments if present. Each measurement is drawn in the 3D view as a disc lying in the measured plane, coloured by type (fault, bedding, foliation, vein, joint, contact…). Rows without an elevation sit on the terrain. These measurements are what the 3D Modelling tab uses to set the dip when projecting mapped contacts underground.")} />
       </div>
       {!terrain && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, marginBottom: 8 }}>{tr("No terrain yet: make one in Maps > Terrain (fetch one, import a DEM, or offline from points, or from the project's samples and collars). Map layers and measurements then sit on the ground.")}</div>}{/* TASKS.csv #1719 */}
-      <button onClick={() => structInput.current.click()} style={pBtn} title={tr("Formats: .csv, MapInfo .tab / .mif")}>
+      <button onClick={() => structInput.current.click()} style={pBtn} title={tr("Formats: .csv, .xlsx, MapInfo .tab / .mif")}>
         <Compass size={14} />{" "}{tr("Import structure measurements…")}</button>
+      {sampleStructs && !pendingStruct && ( /* TASKS.csv #3842 - samples already in the project that carry a strike and a dip */
+        <button onClick={() => { setStructMsg(null); setPendingStruct({ name: tr("Surface samples"), rows: sampleStructs.rows, headers: sampleStructs.headers, cols: sampleStructs.cols, sourceEpsg: project?.epsg ? String(project.epsg) : "" }); }} style={pBtn} title={tr("The samples already in the project that carry a Strike and a Dip: check the columns, then they are added as outcrop measurements at their sample positions.")}>
+          <Compass size={14} />{" "}{tr("Add the {n} sample(s) with a strike and dip as structures", { n: sampleStructs.n })}</button>
+      )}
       <div style={{ display: "flex", gap: 6, marginTop: -2, marginBottom: 8 }}>{/* TASKS.csv #1719 — start mapping without a file */}
         <button onClick={() => setTyping((t) => (t ? null : {}))} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }} aria-expanded={!!typing}>{tr("Add a measurement")}</button>
-        <button onClick={() => saveFile({ quiet: "success", suggestedName: "outcrop_measurements_template.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: "Station,Easting,Northing,Elevation,Type,Dip,Dip direction,Comments\r\n" })}
+        <button onClick={() => saveFile({ quiet: "success", suggestedName: "outcrop_measurements_template.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: "Station,Easting,Northing,Elevation,Type,Dip,Dip direction,Strike,Comments\r\n" })}
           title={tr("A CSV with the column headers this importer reads, to fill in a spreadsheet")} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>{tr("Template CSV")}</button>
       </div>
       {typing && (
@@ -820,31 +848,33 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               <div key="type" style={row}><span style={lbl}>{tr("Type")}</span><input type="text" value={typing.type ?? ""} onChange={(e) => setTyping((p) => ({ ...p, type: e.target.value }))} placeholder={tr("optional")} aria-label={tr("Type")} style={select} /></div>
               <div key="dip" style={row}><span style={lbl}>{tr("Dip")}</span><input type="number" value={typing.dip ?? ""} onChange={(e) => setTyping((p) => ({ ...p, dip: e.target.value }))} placeholder={""} aria-label={tr("Dip")} style={select} /></div>
               <div key="dipDir" style={row}><span style={lbl}>{tr("Dip direction")}</span><input type="number" value={typing.dipDir ?? ""} onChange={(e) => setTyping((p) => ({ ...p, dipDir: e.target.value }))} placeholder={""} aria-label={tr("Dip direction")} style={select} /></div>
+              <div key="strike" style={row}><span style={lbl}>{tr("Strike")}</span><input type="number" value={typing.strike ?? ""} onChange={(e) => setTyping((p) => ({ ...p, strike: e.target.value }))} placeholder={tr("or the strike (right-hand rule)")} aria-label={tr("Strike (right-hand rule: the dip is 90° clockwise of it)")} style={select} /></div>{/* TASKS.csv #3847 - a notebook in strike and dip */}
               <div key="comment" style={row}><span style={lbl}>{tr("Comments")}</span><input type="text" value={typing.comment ?? ""} onChange={(e) => setTyping((p) => ({ ...p, comment: e.target.value }))} placeholder={tr("optional")} aria-label={tr("Comments")} style={select} /></div>
           <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
             <button onClick={() => {
               const n = (v) => (String(v ?? "").trim() === "" ? NaN : Number(String(v).replace(",", ".")));
               // TASKS.csv #2958 — a horizontal reading (dip 0) needs no dip direction
-              if (![typing.x, typing.y, typing.dip].every((v) => Number.isFinite(n(v))) || !(Number.isFinite(n(typing.dipDir)) || n(typing.dip) === 0)) { setStructMsg({ ok: false, text: tr("Type at least the easting, northing, dip and dip direction (a horizontal reading, dip 0, needs no direction).") }); return; }
+              if (![typing.x, typing.y, typing.dip].every((v) => Number.isFinite(n(v))) || !(Number.isFinite(n(typing.dipDir)) || Number.isFinite(n(typing.strike)) || n(typing.dip) === 0)) { setStructMsg({ ok: false, text: tr("Type at least the easting, northing, dip and the dip direction or the strike (a horizontal reading, dip 0, needs no direction).") }); return; } // strike: #3847
               // TASKS.csv #2974 (6) — the ranges checked here, the value named: dip 95 / dip direction 400 went to the card, whose Import then said
               // only 'No rows had usable coordinates and dip.'
               if (!(n(typing.dip) >= 0 && n(typing.dip) <= 90)) { setStructMsg({ ok: false, text: tr("The dip must be from 0 to 90° (typed: {v}).", { v: typing.dip }) }); return; }
               if (Number.isFinite(n(typing.dipDir)) && !(n(typing.dipDir) >= 0 && n(typing.dipDir) <= 360)) { setStructMsg({ ok: false, text: tr("The dip direction must be from 0 to 360° (typed: {v}).", { v: typing.dipDir }) }); return; }
-              const headers = ["Station", "Easting", "Northing", "Elevation", "Type", "Dip", "Dip direction", "Comments"];
-              const rowObj = { Station: typing.station || "", Easting: typing.x, Northing: typing.y, Elevation: typing.z || "", Type: typing.type || "", Dip: typing.dip, "Dip direction": typing.dipDir, Comments: typing.comment || "" };
-              setPendingStruct({ name: "Typed measurements", typed: true, rows: [rowObj], headers, cols: { x: "Easting", y: "Northing", z: Number.isFinite(n(typing.z)) ? "Elevation" : null, dip: "Dip", dipDir: "Dip direction", strike: null, type: "Type", station: "Station", comment: "Comments" }, sourceEpsg: project?.epsg ? String(project.epsg) : "" });
+              if (Number.isFinite(n(typing.strike)) && !(n(typing.strike) >= 0 && n(typing.strike) <= 360)) { setStructMsg({ ok: false, text: tr("The strike must be from 0 to 360° (typed: {v}).", { v: typing.strike }) }); return; } // #3847
+              const headers = ["Station", "Easting", "Northing", "Elevation", "Type", "Dip", "Dip direction", "Strike", "Comments"];
+              const rowObj = { Station: typing.station || "", Easting: typing.x, Northing: typing.y, Elevation: typing.z || "", Type: typing.type || "", Dip: typing.dip, "Dip direction": typing.dipDir ?? "", Strike: typing.strike ?? "", Comments: typing.comment || "" };
+              setPendingStruct({ name: "Typed measurements", typed: true, rows: [rowObj], headers, cols: { x: "Easting", y: "Northing", z: Number.isFinite(n(typing.z)) ? "Elevation" : null, dip: "Dip", dipDir: Number.isFinite(n(typing.dipDir)) ? "Dip direction" : null, strike: Number.isFinite(n(typing.strike)) && !Number.isFinite(n(typing.dipDir)) ? "Strike" : null, type: "Type", station: "Station", comment: "Comments" }, sourceEpsg: project?.epsg ? String(project.epsg) : "" });
               setTyping(null); setStructMsg(null);
             }} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>{tr("Check and add")}</button>
             <button onClick={() => setTyping(null)} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>{tr("Cancel")}</button>
           </div>
         </div>
       )}
-      <input ref={structInput} type="file" accept=".csv,.txt,.tab,.map,.id,.dat,.mif,.mid" multiple style={{ display: "none" }}
+      <input ref={structInput} type="file" accept=".csv,.txt,.xlsx,.tab,.map,.id,.dat,.mif,.mid" multiple style={{ display: "none" }}
         onChange={(e) => { readStructCsv(e.target.files); e.target.value = ""; }} />
       {pendingStruct && (
         <div style={card}>
           <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{tr("{name}: {rows} rows — check the columns", { name: pendingStruct.name, rows: pendingStruct.rows.length })}</div>
-          {[["x", tr("Easting")], ["y", tr("Northing")], ["z", tr("Elevation")], ["dip", tr("Dip")], ["dipDir", tr("Dip dir.")], ["strike", tr("Strike")], ["dipQuad", tr("Dip quadrant")], ["type", tr("Type")], ["station", tr("Station")], ["comment", tr("Comments")]].map(([k, label]) => ( /* station: #1442; dipQuad: #2083 */
+          {[["x", tr("Easting")], ["y", tr("Northing")], ["z", tr("Elevation")], ["dip", tr("Dip")], ["dipDir", tr("Dip dir.")], ["strike", tr("Strike")], ["dipQuad", tr("Dip quadrant")], ["type", tr("Type")], ["station", tr("Station")], ["comment", tr("Comments")], ["group", tr("Area / zone")]].map(([k, label]) => ( /* station: #1442; dipQuad: #2083; group: #3843 */
             <div key={k} style={row}>
               <span style={lbl}>{label}</span>
               <select value={pendingStruct.cols[k] || ""} onChange={(e) => setPendingStruct((p) => ({ ...p, cols: { ...p.cols, [k]: e.target.value || null } }))} style={select}>

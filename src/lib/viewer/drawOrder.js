@@ -5,4 +5,14 @@
 // hide each other and the terrain still hides what is under it. Map layers keep 2 + their index (sceneBuilders); labels stay at 999.
 // TASKS.csv #3035 (#2956) — the subcrop points (a map of what each hole met under cover) over the collar markers: at Top / Fit 6,390 black
 // markers sat on the points and the map read as black blobs with a coloured fringe. They are drawn after the collars with no depth test.
-export const DRAW_ORDER = { flatRaster: 1, traces: 5, collars: 6, lines: 7, mapPoints: 8 };
+export const DRAW_ORDER = { flatRaster: 1, traces: 5, collars: 6, lines: 7, mapPoints: 8, structures: 9 };
+
+// TASKS.csv #3844 (Scottie Gold surface geology review) - an outcrop reading sits at its rock sample, and the sample's sphere (about 18 m across on screen) hid the 5 m strike symbol: not one symbol
+// could be seen with the samples on. The symbols (their lines and filled parts, not the invisible picking discs) are drawn after the samples with no depth test, as the subcrop points are (#3035).
+export function drawSymbolsOnTop(group) {
+  group?.traverse?.((o) => {
+    if (o.isInstancedMesh || !o.material) return; // the picking discs keep their own state
+    o.renderOrder = DRAW_ORDER.structures;
+    o.material.transparent = true; o.material.opacity = 1; o.material.depthTest = false;
+  });
+}

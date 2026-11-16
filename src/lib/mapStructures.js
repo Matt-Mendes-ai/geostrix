@@ -33,7 +33,9 @@ export function guessStructureColumns(headers) {
   // could not be traced back to the notebook
   const station = take([(n) => n === "station" || n === "stn" || n === "stationid" || n === "site" || n === "siteid" || n === "waypoint" || n === "wpt" || n === "pointid" || n === "id", (n) => n.startsWith("station")]);
   const dipQuad = take([(n) => n === "dipquadrant" || n === "dipquad" || n === "quadrant" || n === "dipq" || n === "dipsense" || n === "dipside"]); // #2083
-  return { x, y, z, strike, dip, dipDir, type, comment, station, dipQuad };
+  // TASKS.csv #3843 - the area / zone a reading belongs to: kept on the reading so the Stereonet can be cut to one prospect
+  const group = take([(n) => /^(zone|area|prospect|target|domain|block|group|property|project|trend)$/.test(n), (n) => /^(zone|area|prospect|target|domain)/.test(n) && !about(n)]);
+  return { x, y, z, strike, dip, dipDir, type, comment, station, dipQuad, group };
 }
 
 // TASKS.csv #1826 (review #1646, Kodiak) — the station column: Appendix I's 'Waypoint' is filled only on the first sample of each chip series,
@@ -119,7 +121,7 @@ export function parseStructureRows(rawRows, cols, codeClasses = null) {
   const skipNames = { noDirection: [] }; // #2958 — the rows skipped for a dip with no direction, named in the notice
   // TASKS.csv #2093 / #1826 — each skipped row counted by its reason: 'missing coordinates or a valid 0-90 dip' lumped a quadrant bearing,
   // a missing dip, a dip of 95, a missing easting and the 50 rows of a rock sheet that simply hold no structure
-  const skipWhy = { noMeasurement: 0, noXY: 0, noDip: 0, badDip: 0, bearingUnread: 0, noDirection: 0 };
+  const skipWhy = { noMeasurement: 0, noXY: 0, noDip: 0, badDip: 0, badBearing: 0, repeatedHeader: 0, bearingUnread: 0, noDirection: 0 };
   const blank = (v) => v == null || String(v).trim() === "";
   const skip = (why) => { skipped++; skipWhy[why]++; };
   rawRows.forEach((r, ri) => {
@@ -130,9 +132,12 @@ export function parseStructureRows(rawRows, cols, codeClasses = null) {
     const strike = cols.strike ? num(r[cols.strike]) : null;
     const rawDip = r[cols.dip], rawDir = cols.dipDir ? r[cols.dipDir] : null, rawStrike = cols.strike ? r[cols.strike] : null;
     if (blank(rawDip) && blank(rawDir) && blank(rawStrike)) { skip("noMeasurement"); return; }
+    // TASKS.csv #3851 (3) - a header row repeated in the middle of the file (a sheet pasted page by page) is named as that, not counted as 'no easting or northing'
+    if ((x == null || y == null) && [cols.x, cols.y, cols.dip, cols.strike, cols.dipDir, cols.station].filter((c) => c && String(r[c] ?? "").trim().toLowerCase() === String(c).trim().toLowerCase()).length >= 2) { skip("repeatedHeader"); return; }
     if (x == null || y == null) { skip("noXY"); return; }
     if (blank(rawDip)) { skip("noDip"); return; }
     if (dip == null || dip < 0 || dip > 90) { skip("badDip"); return; }
+    if ((dipDir != null && (dipDir < 0 || dipDir > 360)) || (strike != null && (strike < 0 || strike > 360))) { skip("badBearing"); return; } // TASKS.csv #3847 - a strike of 370 was stored as a dip direction of 100, unremarked
     let flat = false;
     if (dipDir == null && strike == null && dip === 0 && blank(rawDir) && blank(rawStrike)) { dipDir = 0; flat = true; horizontal++; } // #2958
     if (dipDir == null) {
@@ -149,7 +154,7 @@ export function parseStructureRows(rawRows, cols, codeClasses = null) {
       if (d > 2 && d < 358) rhrMismatches++;
     }
     const type = cols.type ? String(r[cols.type] ?? "") : "";
-    rows.push({ x, y, z: cols.z ? num(r[cols.z]) : null, dip, dipDir: ((dipDir % 360) + 360) % 360, strike, type, cls: structureClass(type, codeClasses), ...(flat ? { horizontal: true } : {}), ...(cols.station ? { station: String(r[cols.station] ?? "").trim() } : {}), comment: cols.comment ? String(r[cols.comment] ?? "") : "" });
+    rows.push({ x, y, z: cols.z ? num(r[cols.z]) : null, dip, dipDir: ((dipDir % 360) + 360) % 360, strike, type, cls: structureClass(type, codeClasses), ...(flat ? { horizontal: true } : {}), ...(cols.station ? { station: String(r[cols.station] ?? "").trim() } : {}), ...(cols.group && String(r[cols.group] ?? "").trim() ? { group: String(r[cols.group]).trim() } : {}), comment: cols.comment ? String(r[cols.comment] ?? "") : "" });
   });
   return { rows, skipped, skipWhy, skipNames, horizontal, derivedFromStrike, rhrMismatches, fromQuadrant, quadrantUnread, strikeRule: rule };
 }

@@ -70,7 +70,7 @@ export default function ProjectCrsModal({ reason, points, suggested = null, noLo
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Project coordinate system")}</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>
-              {project.crsSet ? <>{tr("Now: {v} · EPSG:{epsg}", { v: crsName(project.epsg) || tr("Unrecognized CRS"), epsg: project.epsg })}</> : project.localGrid ? (project.localGrid.name ? tr("Now: the local mine grid \"{name}\", no CRS", { name: project.localGrid.name }) : tr("Now: a local mine grid, no CRS")) : tr("Not set yet. Choose the CRS your collar coordinates are in.")}
+              {project.crsSet ? <>{tr("Now: {v} · EPSG:{epsg}", { v: crsName(project.epsg) || tr("Unrecognized CRS"), epsg: project.epsg })}</> : project.localGrid ? (project.localGrid.name ? tr("Now: the local mine grid \"{name}\", no CRS", { name: project.localGrid.name }) : tr("Now: a local mine grid, no CRS")) : tr("Not set yet. Choose the CRS your coordinates (collars, samples, maps) are in.")}
             </div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={cancel} />

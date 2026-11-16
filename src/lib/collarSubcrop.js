@@ -4,6 +4,7 @@
 // outcrop: the points say what the drill met under cover, and where. Pure.
 import { desurveyHole, pointOnTrace } from "./desurvey.js";
 import { roleForLithology, colorForLithology, roleIsFromNotes } from "./layers.js";
+import { arrMax } from "./arrayStats.js"; // TASKS.csv #371 - no spread of a long array
 
 const SKIP = new Set(["overburden", "no recovery", "ignore"]); // "ignore": what Modelling codes calls a no-recovery code (#3390)
 
@@ -23,6 +24,8 @@ export function roleWithCodes(modellingCodes) {
 // unit is a point down the hole, not a subcrop) and listed in report.lateStart [{ hole_id, logStart, unit }]. LATE_START_M: a log that
 // starts within a metre of the collar counts as from the collar.
 export const LATE_START_M = 1;
+// TASKS.csv #3849 - the late-start rule is for the 'under cover' map only: at a typed depth a hole whose log starts 15 m down still gives its unit at 20 m (22 holes were left out, 20 of them
+// logged at 20 m); a hole whose log does not reach that depth is counted in report.notAtDepth, as before
 // TASKS.csv #2956 (WA iron review) — atDepthM: the unit logged at that depth down each hole instead of the first one under the cover (a
 // 'map at N m below the collar'); a hole whose log does not cover that depth is left out and counted in report.notAtDepth.
 export function collarSubcrop({ collars, survey, litho, desurveyMethod, roleOf = roleForLithology, report = null, atDepthM = null }) {
@@ -46,7 +49,14 @@ export function collarSubcrop({ collars, survey, litho, desurveyMethod, roleOf =
     // TASKS.csv #3378 (#3195, Galore Creek) — at a typed depth a hole still in cover there gives a point of its cover code: the four holes in
     // overburden at 50 m (the deepest cover on the property, what a map at depth is for) were left out as 'only cover'
     if (!rows.length || (!f0 && depth == null)) continue;
-    if (rows[0].from > LATE_START_M) { report?.lateStart?.push({ hole_id: c.hole_id, logStart: rows[0].from, unit: (f0 || rows[0]).value }); continue; } // #2411 / #2570
+    if (depth == null && rows[0].from > LATE_START_M) { report?.lateStart?.push({ hole_id: c.hole_id, logStart: rows[0].from, unit: (f0 || rows[0]).value }); continue; } // #2411 / #2570
+    // TASKS.csv #3841 (Scottie Gold review) — cover that ends at 4.4 m, the next logged interval at 135.9 m: the 131 m between were not logged, not cover, and the
+    // 'subcrop' was a dyke 95 m from the pad with 97 m of cover. As a log that starts below the collar: left out, counted and named (report.gap). Only when
+    // the first rock follows cover (a hole whose first interval is rock is the late-start rule above); not at a typed depth
+    if (depth == null && f0 && f0 !== rows[0]) {
+      const coverEnd = arrMax(rows.filter((r) => r.from < f0.from).map((r) => r.to));
+      if (f0.from - coverEnd > LATE_START_M) { report?.gap?.push({ hole_id: c.hole_id, coverEnd, rockStart: f0.from, unit: f0.value }); continue; }
+    }
     let pick = f0;
     if (depth != null) { // #2956
       pick = rows.find((r) => r.from <= depth && depth < r.to) || null;
@@ -121,6 +131,16 @@ export function holeStartCodes({ collars, litho, roleOf = roleForLithology }) {
   }
   return [...by.values()].map((e) => { const code = [...e.spell].sort((a, b) => b[1] - a[1])[0][0]; return { code, holes: e.holes, role: roleOf(code) || null }; })
     .sort((a, b) => b.holes - a.holes || (a.code < b.code ? -1 : 1));
+}
+
+// TASKS.csv #3840 — the first sentence of the Subcrop notice: when the code most holes START in is mapped as a unit (not as cover) and fills at least
+// half the points, say so, with the way out. -> { code, holes, total } or null. A hole's start is its first logged interval within LATE_START_M.
+export function dominantStartUnit({ collars, litho, points, roleOf = roleForLithology }) {
+  const starts = holeStartCodes({ collars, litho, roleOf }), total = starts.reduce((a, c) => a + c.holes, 0);
+  const top = starts[0];
+  if (!top || !total || SKIP.has(top.role) || top.holes < total / 2 || (points || []).length < 3) return null;
+  const same = (points || []).filter((p) => String(p.unit).toUpperCase() === top.code.toUpperCase()).length;
+  return same >= points.length / 2 ? { code: top.code, holes: top.holes, total } : null;
 }
 
 // TASKS.csv #3366 (#3195, Galore Creek) — every code the subcrop skipped as cover above the unit it mapped (or through a whole hole that gave

@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { guessStructureColumns, parseStructureRows } from "../src/lib/mapStructures.js"; // TASKS.csv #3590
 
-const HEADERS = ["Station", "Easting", "Northing", "Elevation", "Type", "Dip", "Dip direction", "Comments"];
+const HEADERS = ["Station", "Easting", "Northing", "Elevation", "Type", "Dip", "Dip direction", "Strike", "Comments"]; // #3847: a strike column
 
 test("the template's headers are all recognized by the importer", () => {
   const g = guessStructureColumns(HEADERS);

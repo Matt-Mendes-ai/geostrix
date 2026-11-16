@@ -335,7 +335,10 @@ export function setLithologyMeanings(dict) {
   lithoMeanings = m.size ? m : null;
 }
 export function lithoMeaning(u) { const d = lithoMeanings?.get(String(u ?? "").trim().toLowerCase()); return d ? `${u} — ${d}` : null; }
-const meaningRole = (k) => { const d = lithoMeanings?.get(k)?.toLowerCase(); return d ? (UNIT_ROLES[d] || ROLE_PATTERNS.find(([re]) => re.test(d))?.[1] || null) : null; };
+// TASKS.csv #3840 — a description is read by its first words too: 'Overburden (till)', 'overburden and casing', 'glacial till', 'no core recovery' are cover or no recovery; only the HEAD of the
+// text counts ('Tricone through overburden' and 'sandstone under overburden' are not cover)
+const MEANING_HEAD = [[/^\W*(overburden|casing|casing and overburden|(glacial |basal )?(till|drift)|topsoil)\b/, "overburden"], [/^\W*(no (core )?recovery|lost core|core loss)\b/, "no recovery"]];
+const meaningRole = (k) => { const d = lithoMeanings?.get(k)?.toLowerCase(); return d ? (UNIT_ROLES[d] || ROLE_PATTERNS.find(([re]) => re.test(d))?.[1] || MEANING_HEAD.find(([re]) => re.test(d))?.[1] || null) : null; };
 // TASKS.csv #3778 — the role came from the code's meaning in the code dictionary (not from its name, nor its notes): the dictionary's words for it, else null; the Modelling codes tooltip says so
 export function roleMeaningText(u) {
   const k = String(u || "").trim().toLowerCase();

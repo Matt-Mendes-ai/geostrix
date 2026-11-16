@@ -1,4 +1,5 @@
 import { canvasPngDataUrl } from "../lib/canvasEncode.js";
+import { drawSymbolsOnTop } from "../lib/viewer/drawOrder.js"; // TASKS.csv #3844
 import { corridorScatter } from "../lib/sectionScatter.js"; // TASKS.csv #1807
 import { exportDrillholeTablesWith } from "./viewer/drillholeExport.js"; // TASKS.csv #1034, moved at the #1084 cap
 import { interceptsDisabledText, noCollarsNotice } from "../lib/noCollars.js"; // TASKS.csv #1810, #1841
@@ -4548,7 +4549,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // ---------- rebuild surface structure symbols (TASKS.csv #317) ----------
   // moved to lib/viewer/sceneBuilders.js syncSurfaceStructures (TASKS.csv #693); its comments explain the build
-  useEffect(() => { if (surfStructGroupRef.current && !buildDefer.skip()) { syncSurfaceStructures(surfStructGroupRef.current, surfStructObjsRef.current, surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ, symbolByType: store.project?.structureSymbolByType /* #3094 */ }); const lg = layerGroupsRef.current?.outcrop_labels; if (lg) syncTextLabels(lg, outcropLabelItems(surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ, symbolByType: store.project?.structureSymbolByType }), makeTextSprite, 0); /* #1443 */ } }, [surfaceStructures, collars, terrain, surfaceFlatZ /* #2753 */, store.project?.structureSymbolByType /* #3094 */, rebuildSeq, deferRound]);
+  useEffect(() => { if (surfStructGroupRef.current && !buildDefer.skip()) { syncSurfaceStructures(surfStructGroupRef.current, surfStructObjsRef.current, surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ, symbolByType: store.project?.structureSymbolByType /* #3094 */ }); drawSymbolsOnTop(surfStructGroupRef.current); /* #3844 */ const lg = layerGroupsRef.current?.outcrop_labels; if (lg) syncTextLabels(lg, outcropLabelItems(surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ, symbolByType: store.project?.structureSymbolByType }), makeTextSprite, 0); /* #1443 */ } }, [surfaceStructures, collars, terrain, surfaceFlatZ /* #2753 */, store.project?.structureSymbolByType /* #3094 */, rebuildSeq, deferRound]);
 
   // ---------- rebuild OMF objects (TASKS.csv — Open Mining Format import) ----------
   // moved to lib/viewer/sceneBuilders.js syncOmfObjects (TASKS.csv #693); its comments explain the build
@@ -7861,14 +7862,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <StereonetModal
           picks={structurePicksWithHoleAttitude}
           customLayers={storeCustomLayers || []} /* TASKS.csv #1545 — the orientation-line quality table */
-          surfacePicks={(surfaceStructures || []).flatMap((st) => st.rows || []).filter((r) => Number.isFinite(r.dip) && Number.isFinite(r.dipDir)).map((r) => ({ value: r.type || r.cls || "structure", dip: r.dip, azimuth: r.dipDir, x: r.x, y: r.y, outcrop: true }))} // TASKS.csv #428; the file's type: #1440
+          surfaceSets={surfaceStructures || []} // TASKS.csv #428; the file's type: #1440; class and area: #3843 (the modal builds the picks, lib/stereonetGroups.js)
           domains={domains}
           domainFilter={domainStereonetFilter}
           onClose={() => setStereonetOpen(false)}
-          onUseAsTrend={({ azimuth, dip, terzaghi }) => {
+          onUseAsTrend={({ azimuth, dip, terzaghi, name }) => {
             // TASKS.csv #650 — a new named trend from the mean plane (pitch 90 = down dip, the old behaviour); #1446 — named with its weighting,
             // and the user stays on the tab they were mapping in
-            const t = { ...cleanTrend({ name: `Stereonet mean${terzaghi ? " (Terzaghi-weighted)" : ""} (${dip.toFixed(0)}° → ${azimuth.toFixed(0)}°)`, dip: Math.round(dip * 10) / 10, dipAzimuth: Math.round(azimuth * 10) / 10, pitch: 90 }), id: `trend_${Date.now().toString(36)}` };
+            const t = { ...cleanTrend({ name: name || `Stereonet mean${terzaghi ? " (Terzaghi-weighted)" : ""} (${dip.toFixed(0)}° → ${azimuth.toFixed(0)}°)`, dip: Math.round(dip * 10) / 10, dipAzimuth: Math.round(azimuth * 10) / 10, pitch: 90 }), id: `trend_${Date.now().toString(36)}` };
             setStructuralTrends((s) => ({ ...s, trends: [...(s.trends || []), t] }));
             setStereonetOpen(false);
             setNotices((p) => [...p, notice("Trend \"{name}\" added from the stereonet mean orientation — choose which models use it in 3D Modelling → Model settings → Structural trends.", { name: t.name })]);

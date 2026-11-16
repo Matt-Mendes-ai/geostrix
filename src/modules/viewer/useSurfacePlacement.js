@@ -22,7 +22,7 @@ export function useSurfacePlacement({ collars, survey, surfaceSamples, terrain }
     placedRef.current = { src: surfaceSamples, out: next };
     return next;
   }, [surfaceSamples, terrain, surfaceFlatZ, collarAt]);
-  const placementCounts = useMemo(() => ({ ...surfacePlacementCounts(surfaceSamples, placedSurfaceSamples), flatRule: surfaceFlatRule(collars, underground) /* #3368 */, collarGap: collarGapStats(placedSurfaceSamples, collars) /* #3392 */ }), [surfaceSamples, placedSurfaceSamples, collars, underground]);
+  const placementCounts = useMemo(() => ({ ...surfacePlacementCounts(surfaceSamples, placedSurfaceSamples), flatRule: surfaceFlatRule(collars, underground, surfaceSamples) /* #3368; #3851 (5) */, collarGap: collarGapStats(placedSurfaceSamples, collars) /* #3392 */ }), [surfaceSamples, placedSurfaceSamples, collars, underground]);
   // #1819 — each drawn sample's index in surfaceSamples (the anomaly classes are per surfaceSamples index)
   const surfaceDrawnIdx = useMemo(() => {
     if (placedSurfaceSamples === surfaceSamples) return null;

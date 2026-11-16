@@ -189,7 +189,8 @@ export function mapLayerLegendGroups(mapLayers) {
     const cats = l.styleField ? (l.categories || []).filter((c) => c.visible !== false && !((l.interpretation || graduated) && !c.count)) : [];
     // TASKS.csv #2134 — a layer with one class in all (the IP lines' RL 1200) is keyed by its name: '1200' meant nothing on a figure.
     // Several bare-number classes say the attribute ('RL 1200'). allCategories: the layer's own list when a frame narrowed it.
-    const one = !graduated && cats.length === 1 && (l.allCategories || l.categories || []).length === 1;
+    // TASKS.csv #3851 (2) - only a BARE NUMBER is keyed by the layer's name: a single named unit ('Andesite' of a drawn geology layer, 'Fault' of an interpretation layer) keeps its own name
+    const one = !graduated && cats.length === 1 && (l.allCategories || l.categories || []).length === 1 && /^-?\d+(\.\d+)?$/.test(String(cats[0].label ?? cats[0].value ?? ""));
     const numeric = !graduated && cats.length > 1 && cats.every((c) => c.label == null && c.value != null && /^-?\d+(\.\d+)?$/.test(String(c.value)));
     const items = one ? [[l.name || "map layer", cats[0].color, o]]
       : cats.length
