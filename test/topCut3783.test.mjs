@@ -20,7 +20,8 @@ test("an uncapped estimate says so; a model with no estimate record says nothing
 });
 test("wired: the modal's note and header line, and the cap advice that no longer points at the cap that removes most of the metal", () => {
   const g = fs.readFileSync(new URL("../src/components/GradeTonnageModal.jsx", import.meta.url), "utf8");
-  assert.match(g, /topCut && \(topCut\.kind === "uncapped" \|\| topCut\.heavy\) && <div role="note"/); // the cap itself is named by #3784's line assert.match(g, /topCutLine\(model\.params, unitL\)/);
+  assert.match(g, /topCut && \(topCut\.kind === "uncapped" \|\| topCut\.heavy\) && <div role="note"/); // the cap itself is named by #3784's line
+  assert.match(g, /topCutLine\(model\.params, unitL\)/);
   const e = fs.readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
   assert.match(e, /const p99Heavy = p99Removes != null && p99Removes > CAP_WARN_PCT/);
   assert.match(e, /the usual 97\.5th–99th percentile caps remove \{pct\}% of the metal here/);
