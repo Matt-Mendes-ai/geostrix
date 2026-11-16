@@ -172,6 +172,9 @@ export const isFreeTextHeader = (h) => /desc|comment|note|remark|observ/i.test(S
 // TASKS.csv #1802 (review #1646, Kodiak) — a station / site id ('Site ID' NWZ069) is how a crew finds a site again: kept like free text however
 // many values it has (it never becomes a population to group by: groupOptions takes 2-30 values)
 export const isIdHeader = (h) => /(^|[\s_-])(site|station|stn|field)[\s_-]*(id|no|num|number|name|code)?($|[\s_-])|^(site|station|stn)$|(^|[\s_-])(waypoint|wpt|gps[\s_-]*(id|name))($|[\s_-])/i.test(String(h || "").trim());
+// TASKS.csv #3842 follow-up — a sample's structural reading (strike, dip, dip direction, trend, plunge) is a measurement, not a category: a Strike column holds up to
+// 360 values and was left out past 100, so 'Add the samples with a strike and dip as structures' never saw it. Kept however many values it holds.
+export const isMeasureHeader = (h) => /^(strike|strk|dip|dip ?dir(ection)?|dipdir|dip ?az(imuth)?|ddir|dd|azimuth|az|trend|plunge|plunge ?dir(ection)?|rake|pitch)(\s*\(?(deg|°)\)?)?$/i.test(String(h || "").replace(/[_.-]+/g, " ").trim());
 export function surfaceAttrColumns(headers, rows, mapping = {}, elements = []) {
   const mapped = new Set(Object.values(mapping || {}).filter(Boolean));
   const elementCols = new Set();
@@ -185,7 +188,7 @@ export function surfaceAttrColumns(headers, rows, mapping = {}, elements = []) {
       seen.add(String(v).trim());
       // free text: #1822; a site / station id: #1802; TASKS.csv #3200 — a column of dates is kept however many days it holds (a sample date was left out
       // past 100 values, so never read as a date)
-      if (seen.size > SURFACE_ATTR_MAX_DISTINCT && !isFreeTextHeader(h) && !isIdHeader(h)) return !!dateColumnReader(rows.map((x) => attrText(x[h])));
+      if (seen.size > SURFACE_ATTR_MAX_DISTINCT && !isFreeTextHeader(h) && !isIdHeader(h) && !isMeasureHeader(h)) return !!dateColumnReader(rows.map((x) => attrText(x[h])));
     }
     return seen.size > 0;
   });
