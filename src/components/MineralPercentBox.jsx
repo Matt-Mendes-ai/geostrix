@@ -3,7 +3,7 @@
 // chosen one), its value Total min (the sum of the ticked minerals), every mineral kept as a field; #3205's one numeric layer per mineral (with an
 // opt-in sulphide total) stays a choice. Built like the log channels box (#2160). The rules are in lib/perMineralColumns.js.
 import React, { useMemo } from "react";
-import { perMineralOffer, perMineralChoice, sumLayerName, mineralCode, componentCode } from "../lib/perMineralColumns.js"; // componentCode: #3052
+import { perMineralOffer, perMineralChoice, sumLayerName, mineralCode, componentCode, labColumnsLeftOut } from "../lib/perMineralColumns.js"; // componentCode: #3052; labColumnsLeftOut: #3727
 import { LAYER_META } from "../lib/layers.js";
 import { t as tr } from "../lib/i18n.js";
 
@@ -12,7 +12,13 @@ const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)"
 export default function MineralPercentBox({ modal, onChange, sel = {} }) {
   const rows = modal.allRows || modal.sampleRows || [];
   const cols = useMemo(() => perMineralOffer(modal.target, modal.headers, rows, modal.mapping || {}), [modal.target, modal.headers, rows, modal.mapping]);
-  if (!cols) return null;
+  // TASKS.csv #3727 — lab element columns (fe_pct, au_ppm …) are not offered as minerals: said, so the box's absence (or a shorter list) is explained
+  const lab = useMemo(() => labColumnsLeftOut(modal.target, modal.headers, modal.mapping || {}), [modal.target, modal.headers, modal.mapping]);
+  const labList = lab ? lab.cols.slice(0, 8).join(", ") + (lab.cols.length > 8 ? ", …" : "") : "";
+  const labNote = lab && (lab.assay
+    ? tr("This file reads as lab assays: {cols} are element results, not minerals, so they are not offered as mineral layers. For grades, use Geochem > Import assays…, which keeps each element with its unit.", { cols: labList })
+    : tr("Left out as lab element results, not minerals: {cols}.", { cols: labList }));
+  if (!cols) return labNote ? <div role="note" style={{ ...note, marginBottom: 12 }}>{labNote}</div> : null;
   const { cols: ticked, sum, mode, colourBy, composition: comp, mixedBelow } = perMineralChoice(modal, cols); // composition: #3052
   const single = mode === "single";
   const withValues = cols.filter((c) => c.n > 0), blank = cols.filter((c) => !c.n);
@@ -41,6 +47,7 @@ export default function MineralPercentBox({ modal, onChange, sel = {} }) {
           </label>
         ))}
       </div>
+      {labNote && <div role="note" style={{ ...note, marginTop: 4 }}>{labNote}</div>}
       {blank.length > 0 && <div style={{ ...note, marginTop: 4 }}>{tr("Left out, with no value in any row: {cols}.", { cols: blank.map((c) => c.col).join(", ") })}</div>}
       {comp ? (single && ( /* #3052 — the purity threshold: under it an interval is MIXED */
         <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 8, fontSize: "var(--font-size-sm)" }}>
