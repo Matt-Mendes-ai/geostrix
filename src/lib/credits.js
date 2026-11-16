@@ -8,10 +8,12 @@
 const COPERNICUS_DEM = "Copernicus DEM GLO-30: © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved.";
 const NRCAN = "Elevation: contains information licensed under the Open Government Licence – Canada (Natural Resources Canada, MRDEM / HRDEM).";
 const TERRARIUM = "Elevation: Terrain Tiles on AWS (Tilezen), from SRTM (NASA / USGS) and CDEM (Natural Resources Canada, Open Government Licence – Canada) among other sources.";
+const GEM15 = "Elevation: Google GEM-15 (CC BY 4.0). This dataset is produced by Google."; // TASKS.csv #3721
 const ASTER = "ASTER data courtesy of NASA / METI / AIST / Japan Space Systems and the U.S. / Japan ASTER Science Team.";
 
 export function terrainCredit(terrain) {
   const s = String(terrain?.source?.service || "");
+  if (/gem-15/i.test(s)) return terrain?.source?.gapFilledNodes > 0 ? `${GEM15} ${COPERNICUS_DEM}` : GEM15; // #3721 — its GLO-30 gap fill carries the Copernicus line too
   if (/copernicus/i.test(s)) return COPERNICUS_DEM;
   if (/nrcan|mrdem|hrdem/i.test(s)) return NRCAN;
   if (/terrarium|terrain tiles/i.test(s)) return TERRARIUM;

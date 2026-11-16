@@ -13407,5 +13407,11 @@
   "bare trace: no sample here": "traza sin muestra: aquí no hay muestra",
   "nothing to undo. Undo covers this session only: a project opened from its file starts with no history.": "nada que deshacer. Deshacer cubre solo esta sesión: un proyecto abierto desde su archivo empieza sin historial.",
   "Nothing to undo. (Undo covers this session only: a project opened from its file starts with no history.)": "Nada que deshacer. (Deshacer cubre solo esta sesión: un proyecto abierto desde su archivo empieza sin historial.)",
-  "One CSV per table (collars, survey, every layer, assays) in a .zip, for Leapfrog, Micromine or any database; it loads into Postgres with COPY and into MySQL with LOAD DATA": "Un CSV por tabla (collares, survey, cada capa, ensayes) en un .zip, para Leapfrog, Micromine o cualquier base de datos; se carga en Postgres con COPY y en MySQL con LOAD DATA"
+  "One CSV per table (collars, survey, every layer, assays) in a .zip, for Leapfrog, Micromine or any database; it loads into Postgres with COPY and into MySQL with LOAD DATA": "Un CSV por tabla (collares, survey, cada capa, ensayes) en un .zip, para Leapfrog, Micromine o cualquier base de datos; se carga en Postgres con COPY y en MySQL con LOAD DATA",
+  "Google GEM-15 (15 m, bare earth)": "Google GEM-15 (15 m, terreno desnudo)",
+  "Google GEM-15 surface (15 m)": "Superficie Google GEM-15 (15 m)",
+  "Couldn't read Google's GEM-15 elevation model ({v}). Check your internet connection.": "No se pudo leer el modelo de elevación GEM-15 de Google ({v}). Revise su conexión a internet.",
+  "GEM-15 has no data in this area: it covers 60°S to 84°N, without Russia, China, Mongolia, Greenland and Antarctica, and leaves out water, snow and ice. Choose Copernicus GLO-30 or the AWS Terrain Tiles.": "GEM-15 no tiene datos en esta área: cubre de 60°S a 84°N, sin Rusia, China, Mongolia, Groenlandia ni la Antártida, y omite agua, nieve y hielo. Elija Copernicus GLO-30 o los AWS Terrain Tiles.",
+  " {n} of {total} nodes have no GEM-15 value (water, snow and ice, low texture, or no cell): {filled} were filled from Copernicus GLO-30.": " {n} de {total} nodos no tienen valor GEM-15 (agua, nieve y hielo, poca textura o sin celda): {filled} se rellenaron con Copernicus GLO-30.",
+  " {n} of {total} nodes have no GEM-15 value (water, snow and ice, low texture, or no cell) and are left as no data.": " {n} de {total} nodos no tienen valor GEM-15 (agua, nieve y hielo, poca textura o sin celda) y quedan sin datos."
 }

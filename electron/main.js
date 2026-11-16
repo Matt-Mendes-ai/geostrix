@@ -1006,11 +1006,14 @@ ipcMain.handle("fetch-web-layer", async (_e, { url } = {}) => {
 // Planetary Computer + its ASTER blob store: ASTER L1T (anonymous read token from the Planetary Computer itself).
 // TASKS.csv #814 — and copernicus-dem-30m: the Copernicus GLO-30 elevation model (a terrain source, and the cross-check of
 // isolated cones in the AWS Terrain Tiles), the same kind of public cloud-optimised GeoTIFF read.
-const RS_HOSTS = new Set(["earth-search.aws.element84.com", "sentinel-cogs.s3.us-west-2.amazonaws.com", "planetarycomputer.microsoft.com", "astersa.blob.core.windows.net", "naipeuwest.blob.core.windows.net", "copernicus-dem-30m.s3.amazonaws.com", "canelevation-dem.s3.ca-central-1.amazonaws.com", "datacube.services.geo.ca"]); // NRCan: #815
+// TASKS.csv #3721 — storage.googleapis.com is every Google Cloud Storage bucket's host: only GEM-15's own path is read (the check below and on every redirect hop)
+const RS_PATH_LIMITS = { "storage.googleapis.com": "/climate-and-sustainability/gem-15/" };
+const rsPathOk = (u) => !RS_PATH_LIMITS[u.hostname] || String(u.pathname).startsWith(RS_PATH_LIMITS[u.hostname]);
+const RS_HOSTS = new Set(["earth-search.aws.element84.com", "sentinel-cogs.s3.us-west-2.amazonaws.com", "planetarycomputer.microsoft.com", "astersa.blob.core.windows.net", "naipeuwest.blob.core.windows.net", "copernicus-dem-30m.s3.amazonaws.com", "canelevation-dem.s3.ca-central-1.amazonaws.com", "datacube.services.geo.ca", "storage.googleapis.com"]); // NRCan: #815; storage.googleapis.com: #3721 (GEM-15, its path only)
 ipcMain.handle("remote-sensing-fetch", async (_e, { url, range = null, json = null } = {}) => {
   let u;
   try { u = new URL(String(url || "")); } catch { return { ok: false, status: 0, message: "Not a valid URL." }; }
-  if (u.protocol !== "https:" || !RS_HOSTS.has(u.hostname)) return { ok: false, status: 0, message: `GeoStrix only reads imagery from ${[...RS_HOSTS].join(", ")}.` };
+  if (u.protocol !== "https:" || !RS_HOSTS.has(u.hostname) || !rsPathOk(u)) return { ok: false, status: 0, message: `GeoStrix only reads imagery from ${[...RS_HOSTS].join(", ")}.` };
   const headers = {};
   if (range) {
     const [a, b] = range;
@@ -1023,7 +1026,7 @@ ipcMain.handle("remote-sensing-fetch", async (_e, { url, range = null, json = nu
     if (body.length > 65536) return { ok: false, status: 0, message: "Search request too large." };
     init = { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body };
   }
-  const res = await guardedFetch(u.toString(), { timeoutMs: 60000, maxBytes: 64 * 1024 * 1024, init, allowHost: (h) => h.protocol === "https:" && RS_HOSTS.has(h.hostname) }); // #960 — every redirect hop too
+  const res = await guardedFetch(u.toString(), { timeoutMs: 60000, maxBytes: 64 * 1024 * 1024, init, allowHost: (h) => h.protocol === "https:" && RS_HOSTS.has(h.hostname) && rsPathOk(h) }); // #960 — every redirect hop too
   if (res.message) return { ok: false, status: res.status, message: res.message };
   return { ok: res.ok, status: res.status, contentType: res.contentType, contentRange: res.contentRange, data: res.buffer };
 });
