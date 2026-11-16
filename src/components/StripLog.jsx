@@ -48,7 +48,7 @@ import { rowsRefOf } from "../lib/tableFields.js"; // TASKS.csv #3140 step 2
 const DEPTH_COL_W = 50;
 const PAD_TOP = 40;
 
-export default function StripLog({ holeId, collars, layers, assays, assayElements, colorFor, labelFor, assayColor, onClose, modelledLayers = [], onAddToLayout = null, onAdvice = null /* #1641 */, shownElements = [], patternOverride = null, onPatternChange = null }) { // shownElements: TASKS.csv #1698; pattern*: #1995
+export default function StripLog({ holeId, collars, layers, assays, assayElements, colorFor, labelFor, assayColor, onClose, modelledLayers = [], onAddToLayout = null, onAdvice = null /* #1641 */, shownElements = [], patternOverride = null, onPatternChange = null, onOpenFence = null }) { // onOpenFence: #3560 A0 // shownElements: TASKS.csv #1698; pattern*: #1995
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const svgRef = useRef(null);
@@ -307,7 +307,10 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
             <div style={{ fontSize: 11, color: "#65717e", marginTop: 2 }}>{tr("{maxDepth} m total depth", { maxDepth: +maxDepth.toFixed(1) })}{rlNote && <span style={{ color: "#8a6a1f" }}>{" · "}{tr("collar RL {rl} m: {note}", { rl: Number(collar.z).toFixed(1), note: rlNote })}</span>}</div>{/* #3131 */}
             {attrLine.text && <div style={{ fontSize: 11, color: "#65717e", marginTop: 1, maxWidth: 520, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={attrLine.all}>{attrLine.text}</div>}{/* TASKS.csv #3408 — the per-hole values joined onto this hole */}
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
+          <span style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {onOpenFence && <button type="button" onClick={onOpenFence} title={tr("Several holes side by side: the Fence diagram puts the holes of a drill line in columns on one depth scale, with correlation bands.")} style={{ padding: "4px 10px", background: "#f4f6f8", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>{tr("Several holes: Fence diagram")}</button>}{/* TASKS.csv #3560 A0 */}
+            <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
+          </span>
         </div>
 
         <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 16px", borderBottom: "1px solid #d9dce1", flexWrap: "wrap" }}>
