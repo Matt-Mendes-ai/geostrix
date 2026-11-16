@@ -60,20 +60,33 @@ export function matchRock(text, { fuzzy = true } = {}) {
   return null;
 }
 
-// one code's meaning -> { rock, family, source, how, distance, meaning, others: [rock, ...] } | null
+// TASKS.csv #3770 (Scottie Gold review) — 'altered sulphidized deformed andesite' is read by its last rock word, and the rule folded the mineralized zone (ASDA 375 intervals, ASDS 113: the
+// modelling target of a shear-hosted gold deposit) into Andesite and Siltstone, pre-ticked. The words before the rock name that say the rock was changed (altered, sulphidized, sheared,
+// deformed, mineralized, silicified, veined ...) make it a different unit from its protolith: such a code is never proposed into the host rock's group; codes that share the same
+// qualifiers across rocks are offered as a group of their own, unticked.
+const QUALIFIER = /^(alter|sulph|sulf|deform|shear|mineral|silic|vein|brecci|bleach|oxid|carbonat|seric|chlorit|argill|propyl|potass|phyll|hydrotherm|stockwork|foliat|mylonit|gossan|pyrit|skarn|epidot|albit|garnet|hornfels|metasomat|fault|cataclas|gouge)/;
+export function qualifiersOf(text, word) {
+  const toks = clean(text).split(" ").filter(Boolean), w = clean(word).split(" ").filter(Boolean);
+  if (!toks.length || !w.length) return [];
+  let at = -1;
+  for (let i = toks.length - w.length; i >= 0; i--) if (w.every((x, k) => toks[i + k] === x)) { at = i; break; }
+  if (at < 0) at = toks.length - 1;
+  return toks.slice(0, at).filter((t) => QUALIFIER.test(t));
+}
+// one code's meaning -> { rock, family, source, how, distance, meaning, others: [rock, ...], qualifiers: [word, ...] } | null
 export function meaningOf(code, { dictDesc = null, descriptions = [] } = {}) {
   const T = tablesOf();
-  const fromText = (text, source) => { const m = matchRock(leadOf(text) || text); return m ? { ...m, source, meaning: String(text).trim() } : null; };
+  const fromText = (text, source) => { const lead = leadOf(text) || text, m = matchRock(lead); return m ? { ...m, source, meaning: String(text).trim(), qualifiers: qualifiersOf(lead, m.word) } : null; };
   let out = null;
   if (dictDesc) out = fromText(dictDesc, "dictionary");
-  if (!out) { const w = matchRock(code); if (w) out = { ...w, source: "name", meaning: String(code).trim() }; }
+  if (!out) { const w = matchRock(code); if (w) out = { ...w, source: "name", meaning: String(code).trim(), qualifiers: qualifiersOf(code, w.word) }; }
   if (!out) { const a = T.abbr.get(String(code ?? "").trim().toUpperCase()); if (a) out = { rock: a.rock, family: a.family, source: "abbreviation", how: "abbreviation", distance: 0, meaning: String(code).trim() }; }
   if (!out) return null;
   // the same code logged with descriptions that name different rocks (#2163's tie / variants): both meanings are listed, the proposal unticked
   const rocks = new Set();
   for (const d of descriptions) { const m = matchRock(leadOf(d) || d, { fuzzy: false }); if (m) rocks.add(m.rock); }
   rocks.delete(out.rock);
-  return { ...out, others: [...rocks] };
+  return { ...out, qualifiers: out.qualifiers || [], others: [...rocks] };
 }
 
 // rows: litho intervals { value, description? }; groups: the project's [{ id, name, codes }]; dict: the layer's code dictionary (#2163) or null
@@ -106,15 +119,25 @@ export function suggestGroups(rows, groups = [], dict = null) {
     const m = meaningOf(code, { dictDesc: dictOf(code), descriptions: [...(descs.get(code) || [])].slice(0, 12) });
     if (m) found.push({ code, total, ...m }); else unrecognized.push({ code, total });
   }
+  // #3770 — a qualified code (altered, sulphidized ...) is not its protolith: set apart, grouped with the codes that share its qualifiers
+  const qualified = found.filter((f) => f.qualifiers.length);
+  const plain = found.filter((f) => !f.qualifiers.length);
   const byRock = new Map();
-  for (const f of found) (byRock.get(f.rock) || byRock.set(f.rock, []).get(f.rock)).push(f);
+  for (const f of plain) (byRock.get(f.rock) || byRock.set(f.rock, []).get(f.rock)).push(f);
   const proposals = [], alone = [];
+  const byQual = new Map();
+  for (const f of qualified) { const k = [...new Set(f.qualifiers)].join(" "); (byQual.get(k) || byQual.set(k, []).get(k)).push(f); }
+  for (const [k, list] of byQual) {
+    if (list.length < 2) { alone.push({ code: list[0].code, total: list[0].total, rock: list[0].rock, qualifiers: list[0].qualifiers }); continue; }
+    const name = k.charAt(0).toUpperCase() + k.slice(1);
+    for (const f of list) proposals.push({ code: f.code, total: f.total, rock: f.rock, family: f.family, groupId: null, groupName: name, source: f.source, how: f.how, distance: f.distance, word: f.word || null, meaning: f.meaning, others: f.others, qualifiers: f.qualifiers, tick: false });
+  }
   for (const [rock, list] of byRock) {
     const hold = holders.filter((h) => h.rocks.has(rock)).sort((a, b) => (b.g.codes || []).length - (a.g.codes || []).length)[0];
     if (!hold && list.length < 2) { alone.push({ code: list[0].code, total: list[0].total, rock }); continue; }
     for (const f of list) {
       const sure = f.how !== "fuzzy" && !f.others.length;
-      proposals.push({ code: f.code, total: f.total, rock, family: f.family, groupId: hold ? hold.g.id : null, groupName: hold ? hold.g.name : rock, source: f.source, how: f.how, distance: f.distance, word: f.word || null, meaning: f.meaning, others: f.others, tick: sure });
+      proposals.push({ code: f.code, total: f.total, rock, family: f.family, qualifiers: [], groupId: hold ? hold.g.id : null, groupName: hold ? hold.g.name : rock, source: f.source, how: f.how, distance: f.distance, word: f.word || null, meaning: f.meaning, others: f.others, tick: sure });
     }
   }
   const big = (a, b) => b.total - a.total || a.code.localeCompare(b.code);

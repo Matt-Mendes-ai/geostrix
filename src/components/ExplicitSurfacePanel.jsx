@@ -25,7 +25,7 @@ import { faultNormalZ } from "../lib/explicitTrim.js"; // TASKS.csv #957
 import { supportShadeFactors, compactHull } from "../lib/explicitSupport.js"; // TASKS.csv #977
 import { downholeDipGuides, contactLikeTypes, guideTypeCounts } from "../lib/explicitDownhole.js"; // TASKS.csv #1002, #1037
 import { unitOf, contactOf, layerLabel, unitSummary, splitByElevation, nextLayer, seedPicksFromTops, guessUnitFromName } from "../lib/explicitUnits.js"; // TASKS.csv #830 / #831 / #832; seed: #871
-import { stackOrder, thicknessBetween } from "../lib/stackOrder.js"; // TASKS.csv #873; thicknessBetween: #896
+import { stackOrder, thicknessBetween, STEEP_DIP_DEG } from "../lib/stackOrder.js"; // TASKS.csv #873; thicknessBetween: #896
 import { inputKey, shapeFrame, onlyOneSection, explicitInputRows, INPUT_COLUMNS } from "../lib/explicitBuild.js"; // TASKS.csv #901; rows: #880
 import { saveFile } from "../lib/desktop.js"; // TASKS.csv #880
 import { eventPickOptions, defaultEventOption } from "../lib/downholeEvents.js"; // TASKS.csv #2317
@@ -208,6 +208,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
       + (r.noTrace ? ` ${tr("{n} hole(s) are not drawn (no survey or collar).", { n: r.noTrace })}` : ""));
   };
   const [seedNote, setSeedNote] = useState(null);
+  useEffect(() => { setSeedNote(null); }, [def?.id]); // TASKS.csv #3771 — another surface's 'Added 25 pick(s)...' sat above this surface's own count
   // TASKS.csv #2317 — a layer of depth picks by code (regolith events: BOCO, TOFR, ...): one pick per hole at that code's depth
   const { customLayers: storeCustomLayers } = useStore();
   const eventOpts = useMemo(() => eventPickOptions(storeCustomLayers), [storeCustomLayers]);
@@ -220,6 +221,14 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
     if (r.picks.length) update({ picks: [...(def.picks || []), ...r.picks.map((pk) => ({ ...pk, src: "event", event: eventOpt.code }))] });
     setSeedNote(tr("Added {n} pick(s) at {code} ({layer}).", { n: r.picks.length, code: eventOpt.code, layer: eventOpt.layerName }) + (r.had ? ` ${tr("{n} hole(s) already had a pick and were left as they were.", { n: r.had })}` : "")
       + (r.noTrace ? ` ${tr("{n} hole(s) are not drawn (no survey or collar).", { n: r.noTrace })}` : ""));
+  };
+  // TASKS.csv #3771 — a Lower contact gets its seed too: the base of the same run as the logged top (one pick per hole, as the tops are)
+  const seedBases = () => {
+    if (!def || !seedInfo) return;
+    const stamp = Date.now();
+    const r = seedPicksFromTops(def.picks, seedInfo.tops.filter((t) => Number.isFinite(t.end)).map((t) => ({ ...t, md: t.end })), (hole, md) => { const t = sc.traces.current.find((tc) => tc.hole_id === hole); return t ? findOnTraceWorld(t, md) : null; }, (i) => `pk_${stamp}_${i}`);
+    if (r.picks.length) update({ picks: [...(def.picks || []), ...r.picks] });
+    setSeedNote(tr("Added {n} pick(s) at the logged bases of {unit}.", { n: r.picks.length, unit: seedUnit }) + (r.had ? ` ${tr("{n} hole(s) already had a pick and were left as they were.", { n: r.had })}` : "") + (r.noTrace ? ` ${tr("{n} hole(s) are not drawn (no survey or collar).", { n: r.noTrace })}` : ""));
   };
   const seedTops = () => {
     if (!def || !seedInfo) return;
@@ -879,7 +888,10 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
       if (!top || !base) return tr("{layer}: build both surfaces first.", { layer: name });
       const r = thicknessBetween(top, base);
       if (!r) return tr("{layer}: the top and the base do not overlap anywhere.", { layer: name });
-      return tr("{layer}: vertical thickness {min} to {max} m, mean {mean} m, over {n} columns of {c} m.", { layer: name, min: r.min.toFixed(1), max: r.max.toFixed(1), mean: r.mean.toFixed(1), n: r.columns, c: r.cellM.toFixed(0) })
+      // TASKS.csv #3771 — a steep pair (the explicit surface's own steep rule): the thickness NORMAL to the surfaces, said, with the vertical one beside it; else the vertical thickness as before
+      const steep = r.true && r.dipDeg != null && r.dipDeg >= STEEP_DIP_DEG;
+      return (steep ? tr("{layer}: true thickness {min} to {max} m, mean {mean} m, measured normal to the surfaces (they dip about {d}°; the vertical thickness is {v} m on average), over {n} columns of {c} m.", { layer: name, min: r.true.min.toFixed(1), max: r.true.max.toFixed(1), mean: r.true.mean.toFixed(1), d: Math.round(r.dipDeg), v: r.mean.toFixed(1), n: r.true.columns, c: r.cellM.toFixed(0) })
+        : tr("{layer}: vertical thickness {min} to {max} m, mean {mean} m, over {n} columns of {c} m.", { layer: name, min: r.min.toFixed(1), max: r.max.toFixed(1), mean: r.mean.toFixed(1), n: r.columns, c: r.cellM.toFixed(0) }))
         + (r.negativePct > 0 && (crossing = true) ? ` ${tr("In {p} % of them the base is above the top (the surfaces cross: most often beyond the picks, where both are extrapolated).", { p: r.negativePct < 1 ? r.negativePct.toFixed(1) : Math.round(r.negativePct) })}` : "");
     });
     setThickNote({ text: parts.join(" "), crossing });
@@ -1037,6 +1049,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
             {tr("{a} of {b} holes that log {unit} have a pick on this surface.", { a: seedInfo.holes.filter((h) => pickedHoles.has(h)).length, b: seedInfo.holes.length, unit: seedUnit })}{" "}
             {seedInfo.base && seedInfo.tops.some((t) => !pickedHoles.has(t.hole_id)) && <button onClick={seedTops} title={tr("One pick per hole where {unit} ends on a logged unit — the base of overburden, the contact every hole shares — the same points the implicit tool uses for \"Base of {unit}\". Check them, then move or delete the outliers.", { unit: seedUnit })} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add the logged base of {unit}", { unit: seedUnit })}</button>}{/* #1684 */}
             {!seedInfo.base && contactOf(def) !== "lower" && seedInfo.tops.some((t) => !pickedHoles.has(t.hole_id)) && <button onClick={seedTops} title={tr("One pick per hole where {unit} starts below a younger unit (not at a hole start, under casing or overburden, or below a gap) — the same tops the implicit tool uses. Check them, then move or delete the outliers.", { unit: seedUnit })} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add the logged tops of {unit}", { unit: seedUnit })}</button>}
+            {!seedInfo.base && contactOf(def) === "lower" && seedInfo.tops.some((t) => Number.isFinite(t.end) && !pickedHoles.has(t.hole_id)) && <button onClick={seedBases} title={tr("One pick per hole where {unit} ends: the base of the same logged run as its top. Check them, then move or delete the outliers.", { unit: seedUnit })} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add the logged bases of {unit}", { unit: seedUnit })}</button>}{/* #3771 */}
             {!seedInfo.base && contactOf(def) !== "lower" && absentNew.length > 0 && <button onClick={seedAbsent} title={tr("Holes that do not log {unit} but pass from a unit the holes put above it straight into one under it: {unit} has no thickness there, so its top is that contact. Without these picks the surface knows nothing there and can pass above or below the neighbouring tops.", { unit: seedUnit })} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px", marginLeft: 4 }}>{tr("Add {n} zero-thickness pick(s) where {unit} is missing", { n: absentNew.length, unit: seedUnit })}</button>}{/* #2921 */}
           </div>
         )}

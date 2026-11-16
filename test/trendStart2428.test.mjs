@@ -40,5 +40,5 @@ test("the panel starts from the data and offers Horizontal and unit tops", () =>
   assert.match(src, /value=\{`tops:\$\{u\}`\}/);
   assert.match(src, /kind === "tops"/);
   const panes = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
-  assert.match(panes, /units=\{litho_units\} unitTopPoints=\{\(code\) => \(topsOfUnit\(code\)\?\.tops \|\| \[\]\)\.map\(\(t\) => sheetPositionAt\(t\.hole_id, t\.md\)\)/);
+  assert.match(panes, /units=\{tiedUnits\(litho_units, lithoGroups\)\} unitTopPoints=\{\(code\) => \(topsOfUnit\(code\)\?\.tops \|\| \[\]\)\.map\(\(t\) => sheetPositionAt\(t\.hole_id, t\.md\)\)/); // #3767: groups in place of their members
 });

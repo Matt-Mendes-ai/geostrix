@@ -21,5 +21,5 @@ test("the run reads the chosen layer; the halo offers Lithology; the pane says w
   const panes = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
   assert.ok(panes.includes('<option value="litho">{tr("Lithology (a code set as an envelope)")}</option>'));
   assert.ok(panes.includes('{vein_units.length === 0 && <div'));
-  assert.ok(readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").includes("const vein_units = veinSourceUnits(layers, modellingCodes);"));
+  assert.ok(readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").includes("const vein_units = veinSourceUnits(layers, modellingCodes, lithoGroups);"));
 });

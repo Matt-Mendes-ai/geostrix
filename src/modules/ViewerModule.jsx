@@ -2910,7 +2910,7 @@ ${describeTrend(t)}` };
   const lithoGroupRole = (g) => { const roles = new Set((g.codes || []).map(roleForLithology)); return roles.size === 1 ? [...roles][0] : null; };
   const lithoGroupCrossCuts = (g) => (g.codes || []).some((c) => isCrossCuttingRole(roleForLithology(c)));
   const alt_units = distinctValues(layers.alt || []).map(([v]) => v);
-  const vein_units = veinSourceUnits(layers, modellingCodes); // TASKS.csv #144; lithology vein codes: #2226
+  const vein_units = veinSourceUnits(layers, modellingCodes, lithoGroups); // TASKS.csv #144; lithology vein codes: #2226
   const struct_types = distinctValues(unitLayersP.structure || []).map(([v]) => v); // #3266 — the oriented layer picks' types too
 
   // The sidebar's notices list sits below the (potentially long) Holes list, so on a property with
@@ -3076,52 +3076,7 @@ ${describeTrend(t)}` };
     return orientations;
   };
 
-  // Fallback for when there's no structure-layer data to draw an orientation from: fits a best-fit
-  // plane (ordinary least squares, z ≈ a·x + b·y + c — a standard "trend surface" fit, reasonable
-  // for a lithology or alteration contact, which is never anywhere near vertical) through the
-  // interface points themselves, and derives a single averaged dip/azimuth from the plane's normal.
-  // This is what lets the litho/alteration tools model a surface from contacts alone, without
-  // requiring a separate structure CSV — GemPy still needs at least one orientation to know which
-  // way is "up" across the surface, so if none is supplied explicitly, the points imply one instead.
-  // Needs 3+ points to fit a plane; with fewer, falls back to a flat (dip 0) guess at the centroid,
-  // which is the best "we don't know" default when there isn't enough geometry to infer a trend.
-  const estimateOrientationFromPoints = (points) => {
-    const n = points.length;
-    const cx = points.reduce((s, p) => s + p.x, 0) / n;
-    const cy = points.reduce((s, p) => s + p.y, 0) / n;
-    const cz = points.reduce((s, p) => s + p.z, 0) / n;
-    if (n < 3) return { x: cx, y: cy, z: cz, dip: 0, azimuth: 0 };
-
-    let Sxx = 0, Sxy = 0, Sx = 0, Syy = 0, Sy = 0, Sxz = 0, Syz = 0, Sz = 0;
-    points.forEach((p) => {
-      Sxx += p.x * p.x; Sxy += p.x * p.y; Sx += p.x;
-      Syy += p.y * p.y; Sy += p.y;
-      Sxz += p.x * p.z; Syz += p.y * p.z; Sz += p.z;
-    });
-    // Solve [[Sxx,Sxy,Sx],[Sxy,Syy,Sy],[Sx,Sy,n]] · [a,b,c]ᵀ = [Sxz,Syz,Sz]ᵀ via Cramer's rule.
-    const det3 = (m) => (
-      m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
-      m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
-      m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0])
-    );
-    const M = [[Sxx, Sxy, Sx], [Sxy, Syy, Sy], [Sx, Sy, n]];
-    const D = det3(M);
-    if (Math.abs(D) < 1e-9) return { x: cx, y: cy, z: cz, dip: 0, azimuth: 0 }; // degenerate (collinear) point set
-    const Ma = [[Sxz, Sxy, Sx], [Syz, Syy, Sy], [Sz, Sy, n]];
-    const Mb = [[Sxx, Sxz, Sx], [Sxy, Syz, Sy], [Sx, Sz, n]];
-    const a = det3(Ma) / D, b = det3(Mb) / D;
-
-    // Plane normal (unnormalized) is (-a, -b, 1) in (east, north, up); normalize with z>0 so it
-    // points "up" out of the layer, matching the sidecar's gradient convention
-    // (gx=sin(dip)sin(az), gy=sin(dip)cos(az), gz=cos(dip)) — so dip/azimuth fall straight out of
-    // the normalized normal's components.
-    const len = Math.sqrt(a * a + b * b + 1);
-    const nx = -a / len, ny = -b / len, nz = 1 / len;
-    const dip = (Math.acos(Math.min(1, Math.max(-1, nz))) * 180) / Math.PI;
-    let azimuth = (Math.atan2(nx, ny) * 180) / Math.PI;
-    if (azimuth < 0) azimuth += 360;
-    return { x: cx, y: cy, z: cz, dip, azimuth };
-  };
+  // TASKS.csv #3766 — the fallback orientation from the contact points (a least-spread plane) is lib/viewer/contactOrientation.js, used by modellingRuns.js
 
   // Shared core for all modelling tools: takes one or more already-gathered {label, meshName, points,
   // orientations, color} specs, sends them all in a SINGLE sidecar request, and adds each resulting
@@ -3179,7 +3134,7 @@ ${describeTrend(t)}` };
     const outlines = [];
     for (const s of sections || []) for (const c of s.contacts || []) if (c.kind === "outline" && c.unit === name && c.points?.length >= 3) outlines.push({ ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, section: s.name, points: c.points.filter((p) => [p.x, p.y, p.z].every(Number.isFinite)) });
     try {
-      const { linkOutlines, linkPlanOutlines } = await import("../lib/wireframe.js"); // TASKS.csv #903 — loaded on use, not at startup
+      const { linkOutlines, linkPlanOutlines, offPlaneText } = await import("../lib/wireframe.js"); // TASKS.csv #903 — loaded on use, not at startup
       // #894 — no section outlines of that name: its level-plan outlines (boundaries drawn flat at their RL)
       const plans = outlines.length ? [] : (boundaries || []).filter((b) => b.name === name && b.drapeMode === "flat" && Number.isFinite(b.elevation) && b.polylines?.[0]?.length >= 3).map((b) => ({ name, rl: b.elevation, points: b.polylines[0].filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y)) }));
       const w = plans.length ? linkPlanOutlines(plans, { ends: wireframeEnds }) : linkOutlines(outlines, { ends: wireframeEnds }); // ends: #894
@@ -3187,7 +3142,7 @@ ${describeTrend(t)}` };
       // TASKS.csv #860 — the linked mesh must be a valid solid before it is offered for volumes and estimation
       const { validateSolid, isValidSolid } = await import("../lib/meshValidate.js"); // on demand: not in the startup bundle
       const vs = validateSolid(w.positions, w.indices);
-      if (!isValidSolid(vs)) throw new Error(tr("The linked outlines do not make a valid solid ({open} open edges, {pairs} self-crossing triangle pairs, {wind} edges facing both ways). Check the outlines' shapes and order, then link again.", { open: vs.openEdges, pairs: vs.selfIntersectingPairs, wind: vs.windingConflicts }));
+      if (!isValidSolid(vs)) throw new Error(tr("The linked outlines do not make a valid solid ({open} open edges, {pairs} self-crossing triangle pairs, {wind} edges facing both ways). Check the outlines' shapes and order, then link again.", { open: vs.openEdges, pairs: vs.selfIntersectingPairs, wind: vs.windingConflicts }) + offPlaneText(outlines)); // #3768
       const o = originRef.current, scene = new Float32Array(w.positions.length);
       for (let i = 0; i < w.positions.length; i += 3) { scene[i] = w.positions[i] - o.x; scene[i + 1] = w.positions[i + 2] - o.z; scene[i + 2] = o.y - w.positions[i + 1]; }
       const geo = new THREE.BufferGeometry();
@@ -3473,7 +3428,6 @@ ${describeTrend(t)}` };
     collars,
     desurveyMethod,
     domains,
-    estimateOrientationFromPoints,
     excludedIntercepts,
     filterRowsByDomain,
     filterRowsBySearchEllipsoid,
