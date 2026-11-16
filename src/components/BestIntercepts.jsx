@@ -35,7 +35,7 @@ import { BULK_COMMODITIES } from "../lib/preferredElement.js"; // TASKS.csv #292
 import { elementOptionLabel, isLoiHeader } from "../lib/geochem.js"; // TASKS.csv #2923 — 'Si as SiO2' in the price rows; isLoiHeader: #2924 // TASKS.csv #2200 / #2479; columnFormat: #3019
 import { pagePx, pageFormatOf, addPagesOnPaper } from "../lib/pageFormats.js"; // TASKS.csv #2479; addPagesOnPaper: #3370
 import { holeTotals, holeTotalsDisplay, holeExtraMeans } from "../lib/accumulation.js"; // TASKS.csv #2419 — Total per hole; holeExtraMeans: #3566
-import { compositeSourceAssays } from "../lib/compositeSources.js"; // TASKS.csv #3584
+import { compositeSources } from "../lib/compositeSources.js"; // TASKS.csv #3584; a source of its own: #3744 / #3750
 import { densityRangeOf } from "../lib/densityRange.js"; // TASKS.csv #3682
 import { densityLookup } from "../lib/densityWeight.js"; // TASKS.csv #3562 — grades weighted by length x density
 
@@ -51,10 +51,11 @@ const ALSO_MAX = 16; // TASKS.csv #2356 — above this many other elements, 'Als
 export default function BestIntercepts({ assays: assaysTable, assayElements: elementsTable, collars, survey, layers, onClose }) {
   // TASKS.csv #3584 — the kept composites layers (Compositing > Keep as a layer) are elements too, cut at the composites' own length
   const keptLayers = useStore().customLayers;
-  const kept = useMemo(() => compositeSourceAssays(keptLayers), [keptLayers]);
-  const assaysIn = useMemo(() => (kept.assays.length ? [...(assaysTable || []), ...kept.assays] : assaysTable), [assaysTable, kept]);
-  const assayElements = useMemo(() => (kept.assayElements.length ? [...(elementsTable || []), ...kept.assayElements.filter((e) => !(elementsTable || []).some((x) => x.symbol === e.symbol))] : elementsTable), [elementsTable, kept]);
-  const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
+  // TASKS.csv #3744 / #3750 — each kept layer is a source of its own, one element per composited element ('Au (2 m composites)'); the chosen element's
+  // source is the only table read (the raw assays never take the composites' rows: keeping a layer changed the raw Au table, 164 -> 165 intercepts)
+  const comp = useMemo(() => compositeSources(keptLayers), [keptLayers]);
+  const compElements = useMemo(() => comp.sources.flatMap((src) => src.elements.map((e) => ({ symbol: e.symbol, unit: e.unit }))), [comp]);
+  const assayElements = useMemo(() => (compElements.length ? [...(elementsTable || []), ...compElements.filter((e) => !(elementsTable || []).some((x) => x.symbol === e.symbol))] : elementsTable), [elementsTable, compElements]);
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const { desurveyMethod, project, getProjectToken, setLayoutElements, addLayoutPages: addPagesRaw, setLayoutPageFormat, switchLayoutPage, setDisplayUnit, layoutElements = [], layoutPages = [], activeLayoutPageId, goToModule, geochemThresholds = [] } = useStore(); // addLayoutPages: #3019 // layoutElements / pages: #2479 // TASKS.csv #135 — true-width needs the project's own trace; layout: #911; geochemThresholds: #2347
@@ -66,6 +67,11 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
   const [symbol, setSymbolRaw] = useState(() => preferredElement(symbols, "intercepts", lead) || "Au");
   const setSymbol = (v) => { setSymbolRaw(v); rememberElement("intercepts", typeof v === "string" ? v : null); }; // #1678 — kept for next time
   const unit = elementUnits[symbol] || "ppm";
+  const chosenSrc = comp.bySymbol.get(symbol) || null; // #3744 — a kept composites layer, or the assay table
+  const assaysIn = chosenSrc ? chosenSrc.assays : assaysTable;
+  const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
+  // 'Also show' and the metal equivalent: the chosen source's elements (a composites layer's other elements, averaged on the composites)
+  const alsoSymbols = useMemo(() => (chosenSrc ? chosenSrc.elements.map((e) => e.symbol) : (elementsTable || []).map((e) => e.symbol)), [chosenSrc, elementsTable]);
   // TASKS.csv #1680 (review #1645, Copley) — what the reader sees: g/t for a precious metal in ppm, and on request % for a base metal in
   // ppm ('15.65 m @ 0.79 % Cu', not '7900 ppm'). Display only: the cutoff, the computation and the CSV's stored-unit columns are unchanged.
   const unitL = gradeUnitLabel(symbol, unit);
@@ -133,7 +139,8 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
   // "what's the Ag and Cu over this Au intercept?" — the compositing/cutoff/dilution logic still only
   // ever runs against ONE element (`symbol`, below); these are just additional length-weighted
   // averages over each already-composited interval's fixed from/to window (see avgGradeInRange).
-  const [extraSymbols, setExtraSymbols] = useKeptState(keptScope, "bi.extraSymbols", []);
+  const [extraSymbolsKept, setExtraSymbols] = useKeptState(keptScope, "bi.extraSymbols", []);
+  const extraSymbols = useMemo(() => extraSymbolsKept.filter((s) => alsoSymbols.includes(s)), [extraSymbolsKept, alsoSymbols]); // #3744 — only the chosen source's
   const toggleExtraSymbol = (s) => setExtraSymbols((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]));
   // TASKS.csv #219 — QC samples (standards/blanks/duplicates) default OUT of this report, same as
   // every other stat/report tool this pass touched — a synthetic standard has no business turning up
@@ -429,8 +436,8 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
           </div>
 
           {/* TASKS.csv #402 — metal equivalent from the element + the 'Also show' elements below. */}
-          {symbols.length > 1 && bulkLead && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("{symbol} is sold per tonne at a price for a reference grade, with penalties for the other elements, not as a sum of payable metals: no metal equivalent is offered.", { symbol })}</div>}{/* #2923 */}
-          {symbols.length > 1 && !bulkLead && (
+          {alsoSymbols.length > 1 && bulkLead && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("{symbol} is sold per tonne at a price for a reference grade, with penalties for the other elements, not as a sum of payable metals: no metal equivalent is offered.", { symbol })}</div>}{/* #2923 */}
+          {alsoSymbols.length > 1 && !bulkLead && (
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
               <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
                 <input type="checkbox" checked={meqOn} onChange={(e) => setMeqOn(e.target.checked)} />{" "}{tr("Metal equivalent ({symbol}Eq) from {symbol} and the \"Also show\" elements", { symbol })}</label>
@@ -454,21 +461,21 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
             </div>
           )}
 
-          {symbols.length > 1 && (
+          {alsoSymbols.length > 1 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }} title={tr("Extra elements' length-weighted average over each already-composited interval — the intercept itself is still only built/cut off against the primary Element above.")}>
               <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Also show:")}</span>
               {/* TASKS.csv #2356 (review #2325) — a 63-element suite filled half the dialog with tick boxes: above ALSO_MAX elements only the
                   ticked ones are shown (click to remove), the others are in an 'Add an element' list */}
-              {(symbols.length - 1 > ALSO_MAX ? extraSymbols.filter((s) => s !== symbol) : symbols.filter((s) => s !== symbol)).map((s) => (
+              {(alsoSymbols.length - 1 > ALSO_MAX ? extraSymbols.filter((s) => s !== symbol) : alsoSymbols.filter((s) => s !== symbol)).map((s) => (
                 <label key={s} style={{ fontSize: "var(--font-size-sm)", color: extraSymbols.includes(s) ? "var(--color-text)" : "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 3, cursor: "pointer", padding: "3px 7px", borderRadius: 5, border: `1px solid ${extraSymbols.includes(s) ? "var(--color-success-border)" : "var(--color-border)"}` }}>
                   <input type="checkbox" checked={extraSymbols.includes(s)} onChange={() => toggleExtraSymbol(s)} style={{ margin: 0 }} />
                   {s} ({gradeUnitLabel(s, elementUnits[s])})
                 </label>
               ))}
-              {symbols.length - 1 > ALSO_MAX && (
+              {alsoSymbols.length - 1 > ALSO_MAX && (
                 <select aria-label={tr("Add an element")} value="" onChange={(e) => { if (e.target.value) toggleExtraSymbol(e.target.value); }} style={{ fontSize: "var(--font-size-sm)", padding: "3px 6px" }}>
-                  <option value="">{tr("Add an element… ({n} more)", { n: symbols.filter((s) => s !== symbol && !extraSymbols.includes(s)).length })}</option>
-                  {symbols.filter((s) => s !== symbol && !extraSymbols.includes(s)).map((s) => <option key={s} value={s}>{`${s} (${gradeUnitLabel(s, elementUnits[s])})`}</option>)}{/* #3280 (4) — as the Element menu: 'Au (g/t)', not 'Au (ppm)' */}
+                  <option value="">{tr("Add an element… ({n} more)", { n: alsoSymbols.filter((s) => s !== symbol && !extraSymbols.includes(s)).length })}</option>
+                  {alsoSymbols.filter((s) => s !== symbol && !extraSymbols.includes(s)).map((s) => <option key={s} value={s}>{`${s} (${gradeUnitLabel(s, elementUnits[s])})`}</option>)}{/* #3280 (4) — as the Element menu: 'Au (g/t)', not 'Au (ppm)' */}
                 </select>
               )}
             </div>

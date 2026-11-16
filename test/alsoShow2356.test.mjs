@@ -8,7 +8,7 @@ const b = readFileSync(new URL("../src/components/BestIntercepts.jsx", import.me
 
 test("the compact form above ALSO_MAX other elements", () => {
   assert.match(b, /const ALSO_MAX = 16;/);
-  assert.match(b, /\(symbols\.length - 1 > ALSO_MAX \? extraSymbols\.filter\(\(s\) => s !== symbol\) : symbols\.filter\(\(s\) => s !== symbol\)\)\.map/);
+  assert.match(b, /\(alsoSymbols\.length - 1 > ALSO_MAX \? extraSymbols\.filter\(\(s\) => s !== symbol\) : alsoSymbols\.filter\(\(s\) => s !== symbol\)\)\.map/ /* #3744: the chosen source's elements */);
   assert.match(b, /<select aria-label=\{tr\("Add an element"\)\} value="" onChange=\{\(e\) => \{ if \(e\.target\.value\) toggleExtraSymbol\(e\.target\.value\); \}\}/);
 });
 
