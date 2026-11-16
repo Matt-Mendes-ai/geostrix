@@ -3,15 +3,12 @@
 // closure, solved exactly as a minimum cut (Picard 1976), the same answer Lerchs-Grossmann and pseudoflow give.
 // It is an early screen ("does this sit shallow enough for a pit at these prices?"), not a mine plan: no discounting, no
 // ramps or berms, one density, one slope, rock outside the block model taken as barren. Pure: runs in a worker.
+import { ONE_HOLE_SHARE, oneHoleBlock, elementOfModel, PRECIOUS, gradeUnitText } from "./modelSupport.js"; // TASKS.csv #3821 — moved so the planned-hole checks need not load this file
+export { ONE_HOLE_SHARE, oneHoleBlock, elementOfModel, gradeUnitText };
 import { metalOf } from "./gradeTonnage.js";
 import { collarsLookUnderground, collarGround, idwGround } from "./collarGround.js"; // TASKS.csv #3159 — moved there, re-exported below
 
 const G_PER_OZ = 31.1034768, LB_PER_T = 2204.62262;
-// TASKS.csv #1617 (review #1497, Lawyers) — a block the estimate itself called single-hole (one hole carrying at least this share of
-// the weight, estimation.js DOMINANT_SHARE; test/oneHoleShare1617 keeps the two equal) counts as one hole's ore in the pit, as a
-// block with nHoles 1 does: Lawyers' pit said 'Ore from one hole 0 %' while its estimate had called 160 blocks single-hole in effect
-export const ONE_HOLE_SHARE = 0.95;
-export const oneHoleBlock = (c) => c.nHoles === 1 || c.holeShare >= ONE_HOLE_SHARE;
 // TASKS.csv #1748 (review #1645, Copley) — copper in ppm was priced in $/oz and reported in troy ounces ("Contained metal 234M oz"), and $4
 // typed in that box made a 91.5 ppm cut-off and a $1.21B margin. A base metal is sold by the pound or tonne whatever unit its grade is in:
 // its ppm / g/t / ppb grade is counted in tonnes of metal (1 ppm = 1e-6 t per t), so it takes $/lb and $/t and reports tonnes.
@@ -101,9 +98,7 @@ export function reportedOxide(element) {
 // TASKS.csv #2111 (review #2013, Woodjam) — a copper model in ppm printed 'Cu 1260 ppm' and 'Mean grade 6740 ppm' where a mining engineer
 // reads 0.126 % / 0.674 %: a ppm grade of a metal reported in percent gets its percent beside it, and a precious metal's ppm is written as
 // g/t (the same number: 1 ppm = 1 g/t by mass); a ppb one gets its g/t beside it. Uranium stays in ppm (U3O8 ppm is how it is read).
-const PRECIOUS = new Set(["Au", "Ag", "Pt", "Pd", "Rh", "Ir", "Os", "Ru"]);
 const READ_AS_PERCENT = new Set(["Cu", "Zn", "Pb", "Ni", "Co", "Sn", "Mo", "W", "Li", "Mn", "Fe", "V", "Ti", "Cr"]);
-export const gradeUnitText = (unit, element) => (/^ppm$/i.test(String(unit || "")) && PRECIOUS.has(element) ? "g/t" : unit || "");
 export const readsAsPercent = (unit, element) => /^ppm$/i.test(String(unit || "")) && READ_AS_PERCENT.has(element);
 // what follows the grade in brackets: its percent, its oxide, its g/t
 function gradeExtras(v, unit, element, fmt) {
@@ -146,13 +141,6 @@ export function gradeWithElement(v, unit, element, fmt = (x) => String(Number(x.
 }
 // the element a block model holds: its estimate's parameters, else a symbol at the start of its name ("Cu estimate (idw2, 20m)")
 // TASKS.csv #2436 — a uranium oxide named inside a longer field ("Gamma: eU3O8_cased_ppm", a logged gamma grade) is that oxide, priced per lb U3O8
-const OXIDE_IN = /(?:^|[^A-Za-z0-9])(e?U3O8)(?![A-Za-z0-9])/i;
-export const elementOfModel = (model) => {
-  const el = model?.params?.element;
-  const ox = OXIDE_IN.exec(String(el || "")) || (!el ? OXIDE_IN.exec(String(model?.name || "")) : null);
-  if (ox) return /^e/i.test(ox[1]) ? "eU3O8" : "U3O8";
-  return el || (/^([A-Z][a-z]?)\b/.exec(String(model?.name || "")) || [])[1] || null;
-};
 // the units a price can be entered in, for a metal counted in grams or in tonnes (gradeTonnage.js metalOf)
 export const PRICE_UNITS = { g: [["oz", "$/oz"], ["g", "$/g"]], t: [["lb", "$/lb"], ["t", "$/t"]] };
 

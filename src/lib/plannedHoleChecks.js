@@ -11,7 +11,7 @@ import { voxelCellSupported } from "./viewer/geomath.js";
 import { plannedTrace } from "./plannedTrace.js"; // TASKS.csv #3159: not holePlanning.js, which put the targeting solvers in startup
 import { sortedShownValues } from "./voxelStretch.js"; // TASKS.csv #1832
 // (the unit is the model's own params.unit: blockModelExport.js reaches tabular.js and papaparse, which the 3D view must not load at start, #1493)
-import { elementOfModel, gradeUnitText, oneHoleBlock } from "./pitShell.js"; // #3821: and the estimate's support
+import { elementOfModel, gradeUnitText, oneHoleBlock } from "./modelSupport.js"; // #3821: and the estimate's support (not pitShell.js: 80 kB in the startup chunk)
 
 // what a check depends on: everything about a planned hole except its name and notes
 export function planGeometryKey(plannedHoles) {
