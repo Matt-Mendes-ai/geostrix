@@ -82,7 +82,7 @@ test("#3322 the pane uses the proposals", () => {
   const g = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(g, /const idwSliceProp = useMemo\(\(\) => \(idwShape\?\.is3D \? proposeSlice\(idwRows\) : null\)/);
   assert.match(g, /const idwZAuto = !!idwSliceProp && idwZ\.lo === "" && idwZ\.hi === "";/);
-  assert.match(g, /surveyGridDefaults\(idwSlice\)/);
+  assert.match(g, /surveyGridDefaults\(idwSlice, \{ stacked: !!idwShape\?\.is3D/ /* #3810 — a 3D cloud's slice reads its plan density */);
   assert.match(g, /const idwAutoBlank = idwSuggest \? blankForCell\(idwSuggest\.distance, idwCellSize\) : null;/);
   assert.match(g, /const blank = idwBlank === "" \? idwAutoBlank \?\? Infinity/);
   assert.match(g, /placeholder=\{idwSuggest \? String\(Math\.round\(idwAutoBlank\)\) : "none"\}/);

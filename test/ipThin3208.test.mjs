@@ -13,7 +13,8 @@ test("#3208 the one usable column the coordinates leave is the Value", () => {
 });
 
 test("#3208 apparent chargeability names read as IP (mV/V); a bare M or a depth is not", () => {
-  for (const h of ["AppMx", "Mx", "App_Mx", "APPM"]) assert.equal(guessSurveyMethod(h), "ip", h);
+  for (const h of ["AppMx", "App_Mx", "APPM"]) assert.equal(guessSurveyMethod(h), "ip_app", h); // #3808 — apparent chargeability at pseudo-depths
+  assert.equal(guessSurveyMethod("Mx"), "ip");
   assert.equal(guessSurveyMethod("M"), null);
   assert.equal(guessSurveyMethod("Max_depth"), null);
 });

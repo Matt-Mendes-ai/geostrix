@@ -134,6 +134,8 @@ import { undergroundCollarsText } from "../lib/collarLevelsText.js"; // TASKS.cs
 import { collarBenches, pickBenchGround, surfaceMisfit, BENCH_DZ_M, BENCH_R_M } from "../lib/collarBenches.js"; // TASKS.csv #2589
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 import { pointsAlongOneLine, surveyLabel } from "../lib/rasterMethod.js"; // TASKS.csv #2557; surveyLabel: #2559
+import { collarTerrainOffsets, collarTerrainSide } from "../lib/dataQC.js"; // TASKS.csv #3807
+const APPARENT_METHODS = new Set(["ip_app", "res_app"]); // TASKS.csv #3808 — a DC / IP survey's apparent values at pseudo-depths
 const GradeTonnageModal = lazyModal(() => import("../components/GradeTonnageModal.jsx")); // TASKS.csv #1052 — loaded when opened
 
 // TASKS.csv #309 — the format reference that USED to be this tab's entire empty state: a twelve-line
@@ -435,7 +437,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const args = { name, holes: res.holes.toLocaleString(), rows: res.rows.length.toLocaleString(), d: maxDist, s: step };
     setError({ info: true, text: (mode === "idw"
       ? tr("Added \"{name}\": the inverse-distance mean of the points within {d} m, every {s} m down {holes} hole(s) ({rows} intervals). Downhole logs can now plot a log against it (against a model), and the strip logs show it.", args)
-      : tr("Added \"{name}\": the nearest point's value within {d} m, every {s} m down {holes} hole(s) ({rows} intervals). Downhole logs can now plot a log against it (against a model), and the strip logs show it.", args)) + " " + tr("({s} s)", { s: secs < 10 ? secs.toFixed(1) : Math.round(secs) }) });
+      : tr("Added \"{name}\": the nearest point's value within {d} m, every {s} m down {holes} hole(s) ({rows} intervals). Downhole logs can now plot a log against it (against a model), and the strip logs show it.", args)) + " " + tr("({s} s)", { s: secs < 10 ? secs.toFixed(1) : Math.round(secs) }) + (APPARENT_METHODS.has(geophysSurveys?.[key]?.method) ? " " + tr("These are apparent values at plotting points (pseudo-depths): compare them with an inversion, not with the core.") : "") /* #3808 */ });
   };
   const legendDrawn = useMemo(() => robustRange(legendRows.map((r) => r.value)), [legendRows]);
   const legendRange = useMemo(() => { let a = null, b = null; for (const r of legendRows) { const v = r.value; if (typeof v !== "number" || isNaN(v)) continue; if (a === null || v < a) a = v; if (b === null || v > b) b = v; } return { min: a, max: b }; }, [legendRows]);
@@ -477,7 +479,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (!idwShape?.is3D) return idwRows;
     return idwRows.filter((r) => Number.isFinite(r.z) && r.z >= idwZLo && r.z <= idwZHi);
   }, [idwRows, idwShape, idwZLo, idwZHi]);
-  const idwSuggest = useMemo(() => (idwSlice.length ? surveyGridDefaults(idwSlice) : null), [idwSlice]); // the slice's own spacing (#1783); lines with no line column, the 4,000,000-cell limit (#3322)
+  const idwSuggest = useMemo(() => (idwSlice.length ? surveyGridDefaults(idwSlice, { stacked: !!idwShape?.is3D /* #3810 — a 3D cloud's slice: the plan density */ }) : null), [idwSlice, idwShape]); // the slice's own spacing (#1783); lines with no line column, the 4,000,000-cell limit (#3322)
   const idwAutoCell = idwSuggest?.cell || 25; // #2562 — a quarter to a half of the spacing; #3322 — never over the cell limit
   const idwCellSize = idwCellText === "" ? idwAutoCell : Math.max(0.1, Number(idwCellText) || idwAutoCell);
   const idwAutoBlank = idwSuggest ? blankForCell(idwSuggest.distance, idwCellSize) : null; // #3322 — a typed cell carries the blanking: at least 1.5 cells
@@ -589,14 +591,22 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         { const named = keepOrReplace(good); good = named.rows; reprojectNote += named.note; } // #3319 — another file of the same name: asked
         const replacedN = replaceSurveyPoints(rows, good).replaced; // #600 — for the notice; the update below does the same
         setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, good).rows }));
-        { const g = methodWithHint(guessSurveyMethodFrom(cols.value, good.map((r) => r.label), { columns: res.meta.fields || [] } /* #3323 — MT columns */), methodHint) /* #3400 */; if (g && !geophysSurveys[file.name]?.method) updateGeophysSurvey(file.name, surveyMetaFor(g, good.map((r) => r.value))); } // #1151 — from the value column's name; #3323 — a log legend for resistivity
+        // #3808 — the method once (the depth check below reads it); an IP or DC column at pseudo-depths is its apparent method
+        const gGuess = methodWithHint(guessSurveyMethodFrom(cols.value, good.map((r) => r.label), { columns: res.meta.fields || [] } /* #3323 — MT columns */), methodHint) /* #3400 */;
+        const gDeep = (gGuess === "ip" || gGuess === "res") && downholeLikeness(good, collars, terrain ? (x, y) => terrainElevationAt(terrain, x, y) : null)?.isDownhole;
+        const gMethod = gDeep ? (gGuess === "ip" ? "ip_app" : "res_app") : gGuess;
+        if (gMethod && !geophysSurveys[file.name]?.method) updateGeophysSurvey(file.name, surveyMetaFor(gMethod, good.map((r) => r.value))); // #1151 — from the value column's name; #3323 — a log legend for resistivity
         if (replacedN) reprojectNote += tr(" Replaced the {replacedN} point(s) of the earlier import of this file.", { replacedN: replacedN.toLocaleString() });
         const zNote = noZ ? tr(" {noZ} point(s) have no elevation: they are kept for modelling with \"sensor at a fixed height above terrain\", and are not drawn in 3D.", { noZ }) : ""; // #365
         const readNote = res.note ? ` ${res.note.trim()}` : ""; // #444 — comma decimals / encoding, said out loud
         // TASKS.csv #1709 (review #1645, Copley) — 2,619 downhole susceptibility readings imported as a surface survey without a word
         const dh = downholeLikeness(good, collars, terrain ? (x, y) => terrainElevationAt(terrain, x, y) : null);
-        const dhNote = dh?.isDownhole ? tr(" These look like downhole readings, not survey stations: {pct}% of the points sit more than 10 m below the {ground} (typically {med} m, up to {max} m). A point survey is read as the ground surface: gridding flattens every depth into one cell, and the inversion would take them as stations. Import such a log with the drillholes instead, and use the inversion's drillhole-constraint option; the survey is labelled \"downhole readings\" so the tools can say so.", { pct: Math.round(100 * dh.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(dh.medianDropM), max: Math.round(dh.maxDropM) }) : "";
-        if (dh?.isDownhole && !geophysSurveys[file.name]?.method) updateGeophysSurvey(file.name, { method: "magsus_downhole", units: SURVEY_METHODS.magsus_downhole.units });
+        // TASKS.csv #3808 (Scottie Gold) — an IP / DC file's points at depth are a pseudo-section's plotting points: apparent values, not readings down the holes.
+        // Named so (and labelled apparent on the card) instead of 'downhole readings' with a label the card did not show
+        const electrical = ["ip", "res", "ip_app", "res_app"].includes(gMethod);
+        const dhNote = dh?.isDownhole && electrical ? tr(" These points sit at depth ({pct}% more than 10 m below the {ground}, typically {med} m): for a DC / IP survey that is a pseudo-section's plotting points. They are apparent values, not rock properties at those elevations: compare them with an inversion, not with the core.", { pct: Math.round(100 * dh.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(dh.medianDropM) })
+          : dh?.isDownhole && !gMethod && !geophysSurveys[file.name]?.method ? tr(" These look like downhole readings, not survey stations: {pct}% of the points sit more than 10 m below the {ground} (typically {med} m, up to {max} m). A point survey is read as the ground surface: gridding flattens every depth into one cell, and the inversion would take them as stations. Import such a log with the drillholes instead, and use the inversion's drillhole-constraint option; the survey is labelled \"downhole readings\" so the tools can say so.", { pct: Math.round(100 * dh.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(dh.medianDropM), max: Math.round(dh.maxDropM) }) : dh?.isDownhole ? tr(" These look like downhole readings, not survey stations: {pct}% of the points sit more than 10 m below the {ground} (typically {med} m, up to {max} m). A point survey is read as the ground surface: gridding flattens every depth into one cell, and the inversion would take them as stations.", { pct: Math.round(100 * dh.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(dh.medianDropM), max: Math.round(dh.maxDropM) }) : "";
+        if (dh?.isDownhole && !electrical && !gMethod && !geophysSurveys[file.name]?.method) updateGeophysSurvey(file.name, { method: "magsus_downhole", units: SURVEY_METHODS.magsus_downhole.units });
         const others = cols.valueCandidates.filter((c) => c !== cols.value);
         const colNote = tr(" Columns: X = {x}, Y = {y}, Z = {v}, value = {value}{v2}.", { x: cols.x, y: cols.y, v: cols.z || "(none)", value: cols.value, v2: others.length ? tr(" (also looked like measurements: {others} — import again and pick one to use it instead)", { others: others.join(", ") }) : "" });
         setError({ info: true, text: tr("Imported {good} point(s) from \"{name}\"{v}.{colNote}{zNote}{reprojectNote}{readNote}{dhNote}", { dhNote, good: good.length.toLocaleString(), name: file.name, v: bad.length ? tr("; skipped {bad} row(s) missing x/y or a value", { bad: bad.length }) : "", colNote, zNote, reprojectNote, readNote }) });
@@ -1814,6 +1824,24 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // picked is the model) rather than a two-step wizard — a UBC mesh/model pair is always distributed
   // as exactly two files together, so this is the same click either way with less UI.
   // TASKS.csv #1806 — the top of a block model's non-air cells as a terrain (lib/terrainFromModel.js)
+  // TASKS.csv #3809 (Scottie Gold) — a conductivity model seen as resistivity (or back): a copy at 1 / x, with its own log colours; blocks at 0 or below are left out
+  const reciprocalCopy = (model) => {
+    const toRes = /^Conductivity/.test(model.property || "");
+    const prop = toRes ? "Resistivity (ohm·m)" : "Conductivity (S/m)";
+    const cells = [], dropped = { n: 0 };
+    for (const c of model.cells || []) { const v = Number(c.value); if (Number.isFinite(v) && v > 0) cells.push({ ...c, value: 1 / v }); else dropped.n++; }
+    if (!cells.length) { setVoxelError({ info: false, text: tr("\"{name}\" has no value above 0 to turn into {prop}.", { name: model.name, prop }) }); return; }
+    const { min, max } = cellValueRange(cells), ramp = propertyRamp(prop);
+    const { id: _id, stops: _s, colorMode: _c, logScale: _l, palette: _p, threshold: _t, rangeMax: _r, stretch: _st, ...rest } = model; // the shown band and stretch are in the source's units, not 1 / x
+    const name = tr("{name} as {prop} (1 / x)", { name: model.name, prop: toRes ? tr("resistivity") : tr("conductivity") });
+    addVoxelModel({ ...rest, name, cells, min, max, property: prop, propertyChosen: true, params: { ...(model.params || {}), reciprocalOf: model.name }, ...(isLogProperty(prop, min, max) ? { stops: logStops(min, max, ramp?.anchors || SEQUENTIAL_ANCHORS), colorMode: "continuous", logScale: true, ...(ramp?.palette ? { palette: ramp.palette } : {}) } : {}) });
+    setVoxelError({ info: true, text: tr("Added \"{name}\": every value of \"{from}\" at 1 / x, {min} to {max}.{v}", { name, from: model.name, min: sigFigs(min), max: sigFigs(max), v: dropped.n ? tr(" {n} block(s) at 0 or below have no reciprocal and were left out.", { n: dropped.n.toLocaleString() }) : "" }) });
+  };
+  // TASKS.csv #3807 — the collars inside the new terrain's footprint, signed: all 33 Scottie Gold collars sat 0.3 to 14.8 m BELOW the model's top, which the notice did not say
+  const collarsUnderNote = (t) => {
+    const sd = collarTerrainSide(collarTerrainOffsets(collars, { bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask }));
+    return sd?.side ? " " + tr(sd.side === "below" ? "{k} of the {n} collars inside it are {lo} to {hi} m below this ground (median {m} m): the model's top and the collar elevations disagree, so holes start inside the model." : "{k} of the {n} collars inside it are {lo} to {hi} m above this ground (median {m} m): the model's top and the collar elevations disagree.", { k: sd.side === "below" ? sd.below : sd.above, n: sd.n, lo: sd.lo.toFixed(1), hi: sd.hi.toFixed(1), m: sd.med.toFixed(1) }) : "";
+  };
   const terrainFromModelTop = (model) => {
     const t = terrainFromBlockModel(model.cells);
     if (!t) { setVoxelError({ info: false, text: tr("\"{name}\" gives no terrain: fewer than 2 × 2 columns with a value.", { name: model.name }) }); return; }
@@ -1821,7 +1849,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (!confirmReplaceTerrain(terrain, name)) return; // #2554 — it replaced the loaded terrain, said only after the fact
     const replaced = replacedTerrainNote(terrain);
     addTerrain({ name, bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask, source: { kind: "top of a block model", model: model.name, columns: t.stats.columns, nodeM: t.stats.nodeM.map((v) => Math.round(v * 10) / 10) } });
-    setVoxelError({ info: true, text: replaced + tr("Added the terrain \"{name}\": {w} × {h} nodes at {dx} × {dy} m from the top cell of {cols} column(s), {zmin} to {zmax} m{v}. It is the mesh's own ground, as fine as its columns and only where the mesh is{v2}. Samples with no elevation now sit on it; sections take its profile.", { name, w: t.gridW, h: t.gridH, dx: Math.round(t.stats.nodeM[0] * 10) / 10, dy: Math.round(t.stats.nodeM[1] * 10) / 10, cols: t.stats.columns.toLocaleString(), zmin: Math.round(t.stats.relief[0]), zmax: Math.round(t.stats.relief[1]), v: t.stats.empty ? tr(", {n} node(s) with no column marked as no ground", { n: t.stats.empty.toLocaleString() }) : "", v2: "" /* #2554: said by "Replaced the terrain" first */ }) });
+    setVoxelError({ info: true, text: replaced + tr("Added the terrain \"{name}\": {w} × {h} nodes at {dx} × {dy} m from the top cell of {cols} column(s), {zmin} to {zmax} m{v}. It is the mesh's own ground, as fine as its columns and only where the mesh is{v2}. Samples with no elevation now sit on it; sections take its profile.", { name, w: t.gridW, h: t.gridH, dx: Math.round(t.stats.nodeM[0] * 10) / 10, dy: Math.round(t.stats.nodeM[1] * 10) / 10, cols: t.stats.columns.toLocaleString(), zmin: Math.round(t.stats.relief[0]), zmax: Math.round(t.stats.relief[1]), v: t.stats.empty ? tr(", {n} node(s) with no column marked as no ground", { n: t.stats.empty.toLocaleString() }) : "", v2: "" /* #2554: said by "Replaced the terrain" first */ }) + collarsUnderNote(t) });
   };
   // TASKS.csv #2726 — a GOCAD SGrid (.sg) chosen with its side files (points, properties): one block model per property it can read, its
   // nodes or cell centres resampled onto an east / north / up lattice (lib/gocadSgrid.js), then the Voxet path (#2632: voxetToUbc, the cell
@@ -1877,15 +1905,27 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       // then the origin), which a .msh-only test refused. A .msh name still wins; every other file is a model on that mesh (#1669: each
       // imported, named after its own file, so the resistivity and chargeability of one mesh are no longer both "3dmesh_utm").
       const looksLikeMesh = async (f) => { try { return isUBCMeshText(await f.slice(0, 2048).text()); } catch { return false; } };
-      let meshFile = files.find((f) => /\.msh$/i.test(f.name)) || null;
-      if (!meshFile) for (const f of files) { if (f.size < 5e6 && await looksLikeMesh(f)) { meshFile = f; break; } }
-      const modelFiles = files.filter((f) => f !== meshFile);
-      if (!meshFile || !modelFiles.length) {
+      // TASKS.csv #3806 (Scottie Gold) — the contractor's folder chosen whole (Fine_Chg.msh, Fine_Chg.chg, Fine_Con.msh, Fine_Con.con) imported one model: the
+      // second .msh was read as a model on the first ('Model file has 335 value(s)...'), no file was named, and the .con never came in. Every file that reads as a
+      // mesh is a mesh; a model takes the mesh of its own name, else the only mesh (or meshes that are the same file); one file's failure is named and the
+      // others still import.
+      const meshFiles = [];
+      for (const f of files) { if (/\.msh$/i.test(f.name) || (f.size < 5e6 && await looksLikeMesh(f))) meshFiles.push(f); }
+      const modelFiles = files.filter((f) => !meshFiles.includes(f));
+      if (!meshFiles.length || !modelFiles.length) {
         throw new Error(tr("Select the mesh file (.msh, or a text mesh such as mesh.txt) and its model file(s) (.mod / .con / .den / .sus / .res / .chg) together."));
       }
-      const meshText = await meshFile.text();
-      const infoNotes = [];
+      const meshTexts = new Map();
+      for (const f of meshFiles) meshTexts.set(f, await f.text());
+      const distinctMeshes = [...new Set(meshTexts.values())];
+      const baseOf = (n) => String(n).replace(/\.[a-z0-9]+$/i, "").toLowerCase();
+      const meshFor = (mf) => meshFiles.find((m) => baseOf(m.name) === baseOf(mf.name)) || (distinctMeshes.length === 1 ? meshFiles[0] : null);
+      const infoNotes = [], failed = [];
       for (const modelFile of modelFiles) {
+      try { // #3806 — one model's failure is named and the rest still import
+      const meshFile = meshFor(modelFile);
+      if (!meshFile) throw new Error(tr("no mesh of the same name among {list}; choose it with its own mesh", { list: meshFiles.map((m) => m.name).join(", ") }));
+      const meshText = meshTexts.get(meshFile);
       // TASKS.csv #1348 — a DCIP2D mesh (11 of ARIS 42641Z's lines) is not a 3D mesh: say where it goes
       if (isDcip2dMeshText(meshText)) throw new Error(tr("This is a UBC DCIP2D (2D) mesh: import it with DC / IP > Import a UBC DCIP2D inversion (mesh + model), with its .con / .chg model and the line's topography and station files."));
       let mesh = parseUBCMesh(meshText);
@@ -1925,8 +1965,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const ramp = propertyRamp(guessVoxelProperty(modelFile.name)); // #1788 — resistivity low = red
       addVoxelModel({ name: modelName, source: "ubc", cells, min, max, ...(coarsenedFrom ? { params: { coarsenedFrom } } : {}) /* #1095 */, ...(logColours ? { stops: logStops(min, max, ramp?.anchors || SEQUENTIAL_ANCHORS), colorMode: "continuous", logScale: true /* #1780: log-stepped range sliders */, ...(ramp?.palette ? { palette: ramp.palette } : {}) } : {}) });
       infoNotes.push(farNote(cells) + tr("Imported \"{name}\" — {nx}×{ny}×{nz} mesh, {cells} cell(s) with data.{v}{v2}{coarsenNote}", { name: modelName, nx: mesh.nx, ny: mesh.ny, nz: mesh.nz, cells: cells.length.toLocaleString(), v: air.count ? tr(" {count} cells at {v} (the value this model uses for air above the ground) were treated as air (no data).", { count: air.count.toLocaleString(), v: Number(air.value).toPrecision(3) }) : "", v2: logColours ? tr(" Values span {min} to {max} ({v} decades), so colours are log-spaced.", { min: min.toPrecision(2), max: max.toPrecision(2), v: Math.round(Math.log10(max / min)) }) : "", coarsenNote }));
+      } catch (e) { failed.push(tr("{file}: {message}", { file: modelFile.name, message: e.message })); setVoxelProgress(null); }
       }
-      setVoxelError({ info: true, text: infoNotes.join(" ") });
+      // #3806 — the models that came in and, by name, the ones that did not
+      if (failed.length && !infoNotes.length) throw new Error(tr("Not imported: {list}", { list: failed.join(" ") }));
+      setVoxelError({ info: !failed.length, text: [...infoNotes, ...(failed.length ? [tr("Not imported: {list}", { list: failed.join(" ") })] : [])].join(" ") });
     } catch (err) {
       setVoxelError({ info: false, text: err.message });
     } finally {
@@ -2210,6 +2253,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     </select>
                     <input value={meta.units || ""} placeholder={tr("units")} aria-label={tr("Units of \"{key}\"", { key: sv.key })} onChange={(e) => updateGeophysSurvey(sv.key, { units: e.target.value, unitsGuessed: false })} title={meta.unitsGuessed ? tr("Assumed from the column name: the file states no unit. Check it, or type the right one.") : undefined} style={{ ...numInput, width: 58, flex: "none", ...(meta.unitsGuessed ? { borderStyle: "dashed" } : {}) }} />
                   </div>}
+                  {APPARENT_METHODS.has(meta.method) && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{tr("Apparent values at plotting points (pseudo-depths), not rock properties at those elevations: compare them with an inversion, not with the core.")}</div>}{/* TASKS.csv #3808 */}
                   <select value={meta.zMeaning || (sv.withZ ? "elevation" : "none")} aria-label={tr("What z means in \"{key}\"", { key: sv.key })} style={{ ...numInput, width: "100%", marginTop: 5 }}
                     onChange={(e) => updateGeophysSurvey(sv.key, { zMeaning: e.target.value })}>
                     {Object.entries(Z_MEANINGS).map(([k, label]) => <option key={k} value={k}>{tr(label)}</option>)}{/* #1974 */}
@@ -2485,7 +2529,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Cell size")}</span>
                   <input type="number" min="0.1" step="any" value={idwCellText} placeholder={String(idwAutoCell)} onChange={(e) => setIdwCellText(e.target.value)} style={numInput} aria-label={tr("Cell size")} />
                 </div>
-                {idwSuggest && idwCellText === "" && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{idwSuggest.capped ? tr("Cell {c} m by default: the smallest round cell that keeps the grid under 4 million cells ({s} m, a quarter of the median spacing, would make it too large).", { c: idwAutoCell, s: idwSuggest.spacingCell }) /* #3322 */ : tr("Cell {c} m by default: a quarter to a half of the median spacing ({s} m).", { c: idwAutoCell, s: idwSuggest.spacing.toFixed(1) })}</div>}{/* #2562 */}
+                {idwSuggest && idwCellText === "" && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{idwSuggest.capped ? tr("Cell {c} m by default: the smallest round cell that keeps the grid under 4 million cells ({s} m, a quarter of the median spacing, would make it too large).", { c: idwAutoCell, s: idwSuggest.spacingCell }) /* #3322 */ : idwSuggest.basis === "plan density" ? tr("Cell {c} m by default: about the slice's spacing in plan, {s} m ({n} points over {a} km²). The points are stacked in depth, so their nearest neighbours say nothing of the spacing in plan.", { c: idwAutoCell, s: idwSuggest.spacing.toFixed(1), n: idwSuggest.n.toLocaleString(), a: +(idwSuggest.areaM2 / 1e6).toPrecision(2) }) /* #3810 */ : tr("Cell {c} m by default: a quarter to a half of the median spacing ({s} m).", { c: idwAutoCell, s: idwSuggest.spacing.toFixed(1) })}</div>}{/* #2562 */}
                 {idwMethod === "idw" && <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }} title={tr("How sharply influence falls off with distance — higher means nearer points dominate more.")}>{tr("Power")}</span>
                   <input type="number" min="0.5" step="0.5" value={idwPower} onChange={(e) => setIdwPower(Math.max(0.5, Number(e.target.value) || 2))} style={numInput} />
@@ -2507,7 +2551,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Blank > (m)")}</span>
                   <input type="number" min="0" step="any" value={idwBlank} placeholder={idwSuggest ? String(Math.round(idwAutoBlank)) : "none"} onChange={(e) => setIdwBlank(e.target.value)} style={numInput} aria-label={tr("Blanking distance")} />
                 </div>
-                {idwSuggest && idwBlank === "" && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{idwAutoBlank > idwSuggest.distance + 1e-9 ? tr("Default {v} m: 1.5 cells of {c} m (the spacing alone would give {d} m, which leaves most cells empty at this cell size).", { v: Math.round(idwAutoBlank), c: idwCellSize, d: Math.round(idwSuggest.distance) }) /* #3322 */ : idwSuggest.linesEstimated ? tr("Default {v} m: 1.5 times the spacing between lines, about {spacing} m (estimated: the file has no line column, and its stations are {along} m apart along the lines).", { v: Math.round(idwAutoBlank), spacing: Math.round(idwSuggest.spacing), along: +idwSuggest.alongSpacing.toFixed(1) }) /* #3322 */ : idwSuggest.basis === "line spacing" ? tr("Default {v} m: 1.5 times the median line spacing, {spacing} m.", { v: Math.round(idwAutoBlank), spacing: idwSuggest.spacing.toFixed(1) }) : tr("Default {v} m: twice the median station spacing, {spacing} m.", { v: Math.round(idwAutoBlank), spacing: idwSuggest.spacing.toFixed(1) })}</div>}
+                {idwSuggest && idwBlank === "" && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{idwAutoBlank > idwSuggest.distance + 1e-9 ? tr("Default {v} m: 1.5 cells of {c} m (the spacing alone would give {d} m, which leaves most cells empty at this cell size).", { v: Math.round(idwAutoBlank), c: idwCellSize, d: Math.round(idwSuggest.distance) }) /* #3322 */ : idwSuggest.linesEstimated ? tr("Default {v} m: 1.5 times the spacing between lines, about {spacing} m (estimated: the file has no line column, and its stations are {along} m apart along the lines).", { v: Math.round(idwAutoBlank), spacing: Math.round(idwSuggest.spacing), along: +idwSuggest.alongSpacing.toFixed(1) }) /* #3322 */ : idwSuggest.basis === "plan density" ? tr("Default {v} m: twice the slice's spacing in plan, {spacing} m.", { v: Math.round(idwAutoBlank), spacing: idwSuggest.spacing.toFixed(1) }) /* #3810 */ : idwSuggest.basis === "line spacing" ? tr("Default {v} m: 1.5 times the median line spacing, {spacing} m.", { v: Math.round(idwAutoBlank), spacing: idwSuggest.spacing.toFixed(1) }) : tr("Default {v} m: twice the median station spacing, {spacing} m.", { v: Math.round(idwAutoBlank), spacing: idwSuggest.spacing.toFixed(1) })}</div>}
                 {/* TASKS.csv #372 — colour stretch */}
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }} title={tr("Percentile clip: the 2nd-98th percentile spans the colours, extremes saturate (default). Equalize: every colour covers the same number of cells (shows texture; colour no longer scales with value). Linear: min to max (a few extreme values squeeze everything else into one colour).")}>
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Colours")}</span>
@@ -3300,7 +3344,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           </label>
         )}
         {voxelModels.map((v) => (
-          <VoxelModelRow key={v.id} withSet={bmWithSet} /* #3014 part c */ epsg={stampEpsg(project)} /* #1052 */ others={voxelModels} /* #1808 */ model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} onEvaluate={evaluateOnHoles} onExportPackage={exportModelPackage} onShell={(m, opts = {}) => { goToModule("viewer"); requestModuleAction("voxel-shell", { id: m.id, model: m, largestOnly: !!opts.largestOnly }); }} /* #1780; largestOnly: #1840 */ onTerrain={terrainFromModelTop} /* #1806 */ getEpsg={() => ensureExportCrs(project)} /* #1021 */ csvNames={bmNames} stampChoice={bmStamp} />
+          <VoxelModelRow key={v.id} withSet={bmWithSet} /* #3014 part c */ epsg={stampEpsg(project)} /* #1052 */ others={voxelModels} /* #1808 */ model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} onEvaluate={evaluateOnHoles} onExportPackage={exportModelPackage} onShell={(m, opts = {}) => { goToModule("viewer"); requestModuleAction("voxel-shell", { id: m.id, model: m, largestOnly: !!opts.largestOnly }); }} /* #1780; largestOnly: #1840 */ onTerrain={terrainFromModelTop} /* #1806 */ onReciprocal={reciprocalCopy} /* #3809 */ getEpsg={() => ensureExportCrs(project)} /* #1021 */ csvNames={bmNames} stampChoice={bmStamp} />
         ))}
 
         <div style={{ marginTop: 16, fontSize: "var(--font-size-base)", color: "var(--color-text-caption)", lineHeight: 1.6 }}>
@@ -3416,7 +3460,7 @@ function useOpenLegendRequest(model, open) {
     return () => window.removeEventListener(OPEN_LEGEND_EVENT, on);
   }, [model.id]);
 }
-function VoxelModelRow({ withSet = false /* #3014 part c */, others = null, model, onUpdate, onRemove, onEvaluate, onExportPackage, getEpsg, csvNames = "datamine", stampChoice = "auto", epsg = null, onShell = null, onTerrain = null }) {
+function VoxelModelRow({ withSet = false /* #3014 part c */, others = null, model, onUpdate, onRemove, onEvaluate, onExportPackage, getEpsg, csvNames = "datamine", stampChoice = "auto", epsg = null, onShell = null, onTerrain = null, onReciprocal = null /* #3809 */ }) {
   const [askPrompt, promptEl] = usePrompt(); // TASKS.csv #1779 — window.prompt throws in Electron
   const [gtOpen, setGtOpen] = useState(false); // TASKS.csv #1052
   const [displayOpacity, setDisplayOpacity] = useState(model.opacity ?? 0.85);
@@ -3476,7 +3520,11 @@ function VoxelModelRow({ withSet = false /* #3014 part c */, others = null, mode
               // TASKS.csv #2667 — a grade: its element and unit (Grade-tonnage then offered on a CSV model); a property chosen after one drops it
               if (v === "__grade") { askPrompt(tr("Which element and unit are the values? (e.g. Cu ppm, Au g/t, Fe %)"), model.params?.declaredGrade ? `${model.params.element} ${model.params.unit}` : "", (txt) => { const g = parseGradeLabel(txt); if (g) onUpdate(model.id, { property: null, propertyChosen: true, params: { ...(model.params || {}), element: g.element, unit: g.unit, declaredGrade: true } }); }); return; }
               if (model.params?.declaredGrade) { const { element: _e, unit: _u, declaredGrade: _d, ...rest } = model.params; onUpdate(model.id, { params: rest }); }
-              if (v === "__other") { askPrompt(tr("What are the values (property and unit)?"), model.property || "", (other) => { if (other && other.trim()) onUpdate(model.id, { property: other.trim(), propertyChosen: true }); }); return; } onUpdate(model.id, { property: v || null, propertyChosen: true }); }}
+              if (v === "__other") { askPrompt(tr("What are the values (property and unit)?"), model.property || "", (other) => { if (other && other.trim()) onUpdate(model.id, { property: other.trim(), propertyChosen: true }); }); return; }
+              // TASKS.csv #3809 (Scottie Gold) — 'Resistivity' on a conductivity model (a .con, 0.0000086 to 11.1 S/m) only renamed it: asked first, with the 1 / x copy named
+              const flip = (/^Conductivity/.test(model.property || "") && /^Resistivity/.test(v)) || (/^Resistivity/.test(model.property || "") && /^Conductivity/.test(v));
+              if (flip && !window.confirm(tr("These values are {from}. Choosing {to} only renames them: no value changes. To see them as {to}, use 'As {to2} (1 / x)' beside this list, which makes a copy at 1 / x. Rename anyway?", { from: model.property, to: v, to2: /^Resistivity/.test(v) ? tr("resistivity") : tr("conductivity") }))) return;
+              onUpdate(model.id, { property: v || null, propertyChosen: true }); }}
             style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)", padding: "2px 4px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)" }}>
             {/* TASKS.csv #2067 (review #2013) — an estimate knows its element and unit (params): said here, not set as property, which would
                 rename its export column (lib/blockModelExport.js) */}
@@ -3485,6 +3533,7 @@ function VoxelModelRow({ withSet = false /* #3014 part c */, others = null, mode
             <option value="__grade">{model.params?.declaredGrade ? tr("{el} ({unit}), a grade", { el: model.params.element, unit: model.params.unit }) : tr("A grade (element, unit)…")}</option>{/* #2667 */}
             <option value="__other">{model.property && !VOXEL_PROPERTIES.includes(model.property) ? model.property : tr("Other…")}</option>
           </select>
+          {onReciprocal && /^(Conductivity|Resistivity)/.test(model.property || "") && <button type="button" onClick={() => onReciprocal(model)} style={{ fontSize: "var(--font-size-sm)", padding: "1px 6px", cursor: "pointer", flexShrink: 0 }} title={tr("Adds a copy of this model with every value at 1 / x (a conductivity in S/m becomes a resistivity in ohm·m, and back); the model itself is not changed.")}>{/^Conductivity/.test(model.property) ? tr("As resistivity (1 / x)") : tr("As conductivity (1 / x)")}</button>}{/* TASKS.csv #3809 */}
         </div>
       )}
       {/* TASKS.csv #1780 (review #1646, Kodiak) — the one-sided "value >= cutoff" slider could only hide the conductors on a resistivity
