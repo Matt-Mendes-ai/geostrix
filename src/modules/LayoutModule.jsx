@@ -11,7 +11,7 @@ import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js"; // TASKS.csv #1777 — listed with the page's placeholders
 import { scaleBarLabel, scaleBarMidLabel } from "../lib/scaleBarLabel.js"; // TASKS.csv #2140
 import { offSheetPages, rectSidesPast, elementCaption, elementKind } from "../lib/layoutEdges.js"; // elementKind: #3028
-import { withCreditPages, pagesWithoutCredit, starterLayout, refitStarter } from "../lib/layoutCredits.js"; // TASKS.csv #3591
+import { withCreditPages, pagesWithoutCredit, starterLayout, refitStarterOf } from "../lib/layoutCredits.js"; // TASKS.csv #3591
 import { DEFAULT_LAYOUT_ELEMENTS } from "../lib/projectFields.js"; // TASKS.csv #3028 (5)
 import { groupOrdersFromItems, applyCodeOrder, projectCodeOrders, clearCodeOrders, pagesHoldingOrder, orderedGroupsOf } from "../lib/legendCodeOrder.js"; // TASKS.csv #3130 — a code order set once; clear*: #3199 // TASKS.csv #2482 / #2309; named elements: #2700
 import { fillPlaceholders, northName, pageConvergence, formatConvergence } from "../lib/layoutText.js";
@@ -327,9 +327,9 @@ export default function LayoutModule() {
   const [formatNote, setFormatNote] = useState("");
   const changePageFormat = (f) => {
     const r = refitStockTemplate(elements, f);
-    const oldFormat = pageFormatOf(activePage), starter = refitStarter(r.refitted ? r.elements : elements, oldFormat, f, creditsRef.current); // #3657 — the starter's north arrow, scale bar and credit follow the paper
+    const oldFormat = pageFormatOf(activePage), credit = creditsRef.current; // #3657 — the starter's north arrow, scale bar and credit follow the paper
     setLayoutPageFormat(activeLayoutPageId, f);
-    if (r.refitted || starter.some((el, i) => el !== (r.refitted ? r.elements : elements)[i])) setElements(starter);
+    setElements((prev) => { const t = refitStockTemplate(prev || [], f), base = t.refitted ? t.elements : prev || []; const out = refitStarterOf(base, oldFormat, f, credit); return out === (prev || []) ? prev : out; }); // #3702 — functional, on the elements as they are
     setFormatNote(r.refitted ? tr("The starter template's frame, title, title block and north arrow were laid out again for the new paper; the other elements stay where they were.") : "");
   };
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
@@ -1116,8 +1116,10 @@ export default function LayoutModule() {
   // TASKS.csv #3657 — a data credit that arrives after the page (a sample project sets it as it opens) lengthens the credit's box: the starter's scale bar and credit, still where a credit-less layout put them, move up to fit it
   useEffect(() => {
     if (!credits) return;
-    const f = pageFormatOf(activePage), next = refitStarter(elements, f, f, credits, "");
-    if (next.some((el, i) => el !== elements[i])) setElements(next);
+    const f = pageFormatOf(activePage);
+    // TASKS.csv #3702 — a FUNCTIONAL update on the page's elements as they are when it runs: writing back this render's `elements` (and refitStarter's new objects for an unmoved north arrow made that every time)
+    // dropped a strip log, section or Maps plan that the picture-adding effect had just put on the page
+    setElements((prev) => refitStarterOf(prev || [], f, f, credits, ""));
   }, [credits, activeLayoutPageId]);
   // TASKS.csv #1483 — a collar with no azimuth / dip of its own (Silvertip's) takes its shallowest survey station's, marked so
   useHoleVisibility(); // TASKS.csv #3605 — a plan that follows the checked holes redraws when they change

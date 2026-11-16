@@ -52,12 +52,20 @@ export function starterLayout(format, text = "") {
 // a page whose paper changed: the starter's north arrow, scale bar and credit that are still where the OLD paper put them move to where the new one does (one the user moved stays); -> elements
 export function refitStarter(elements, oldFormat, newFormat, text = "", oldText = text) { // oldText: the credit the old layout was made for (a credit that arrived after the page)
   const was = starterLayout(oldFormat, oldText), now = starterLayout(newFormat, text), at = (a, b) => Math.abs(a - b) <= 1;
+  // TASKS.csv #3702 — an element that would not move is returned AS IT IS (the same object): the caller tells 'nothing to do' by identity, and a new object for an unmoved north arrow made the Layout write a stale
+  // element list back over a picture just added
+  const moved = (el, to) => Object.keys(to).some((k) => !at(el[k], to[k]));
   return (elements || []).map((el) => {
-    if (el?.id === "north" && el.type === "north" && at(el.x, was.north.x) && at(el.y, was.north.y)) return { ...el, ...now.north };
-    if (el?.id === "scale" && el.type === "scale" && at(el.y, was.scale.y)) return { ...el, y: now.scale.y };
-    if (el?.id === "credits" && el.type === "text" && at(el.y, was.credits.y) && at(el.x, was.credits.x)) return { ...el, ...now.credits };
+    if (el?.id === "north" && el.type === "north" && at(el.x, was.north.x) && at(el.y, was.north.y)) return moved(el, now.north) ? { ...el, ...now.north } : el;
+    if (el?.id === "scale" && el.type === "scale" && at(el.y, was.scale.y)) return moved(el, { y: now.scale.y }) ? { ...el, y: now.scale.y } : el;
+    if (el?.id === "credits" && el.type === "text" && at(el.y, was.credits.y) && at(el.x, was.credits.x)) return moved(el, now.credits) ? { ...el, ...now.credits } : el;
     return el;
   });
+}
+// TASKS.csv #3702 — for a functional state update: the refitted list, or `elements` itself when nothing moves (so a setter given this as its updater leaves the state alone, and an element added in the same render survives)
+export function refitStarterOf(elements, oldFormat, newFormat, text = "", oldText = text) {
+  const next = refitStarter(elements, oldFormat, newFormat, text, oldText);
+  return next.some((el, i) => el !== elements[i]) ? next : elements;
 }
 
 // pages: [{ name, elements, format? }] -> the same, each page that does not print the credit given the {credits} text (when `hasCredit`); the input is not changed
