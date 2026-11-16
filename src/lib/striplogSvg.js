@@ -76,15 +76,52 @@ function assayTrack(rows, x, sy, sym, unit, elementUnits, bottom, range = null) 
   // be read off a bar. Values spanning under two decades take a linear axis from 0 with labelled ticks (0 / 20 / 40 / 60); wider, log as before
   const axis = assayAxis(lo, hi);
   const frac = axis.linear ? (v) => (!(v > 0) ? 0 : Math.max(0.03, Math.min(1, v / axis.max))) : (v) => (!(v > 0) ? 0 : hi > lo ? Math.max(0.03, Math.min(1, (Math.log10(v) - Math.log10(lo)) / (Math.log10(hi) - Math.log10(lo)))) : 1);
-  const tickMarks = axis.linear ? axis.ticks.map((t) => { const tx = x + 2 + (t / axis.max) * (TRACK_W - 10); return `<line x1="${tx}" y1="${PAD_TOP - 2}" x2="${tx}" y2="${bottom}" stroke="#e1e4e8" stroke-width="0.6"/><text x="${tx}" y="${bottom + 13}" font-size="7" text-anchor="middle" fill="#65717e">${t}</text>`; }).join("") : "";
+  const tickMarks = axis.linear ? axis.ticks.map((t) => { const tx = x + 2 + (t / axis.max) * (TRACK_W - 10); return `<line x1="${tx}" y1="${PAD_TOP - 2}" x2="${tx}" y2="${bottom}" stroke="#e1e4e8" stroke-width="0.6"/><text x="${tx}" y="${bottom + 13}" font-size="7" text-anchor="middle" fill="#65717e">${t}</text>`; }).join("")
+    : logAxisTicks(lo, hi, { widthPx: TRACK_W - 10, fontPx: 7 }).map((t) => { const tx = x + 2 + t.f * (TRACK_W - 10); return `<line x1="${tx}" y1="${PAD_TOP - 2}" x2="${tx}" y2="${bottom}" stroke="#e1e4e8" stroke-width="0.6"/>${t.label ? `<text x="${tx}" y="${bottom + 13}" font-size="7" text-anchor="${t.anchor}" fill="#65717e">${esc(t.label)}</text>` : ""}`; }).join(""); // #3859 — the decades
+  // TASKS.csv #3859 — the highest values written at their bars
+  const peaks = peakValueLabels(rows.map((r) => { const v = valueIn(r, sym, unit, elementUnits); return v == null || !Number.isFinite(v) || isBelowDetection(r, sym) ? null : { v, y: (sy(r.from) + sy(r.to)) / 2, f: frac(v) }; }).filter(Boolean)).map((pk) => { const t = sigText(pk.v, 3), tw = t.length * 7 * 0.55 + 4, tx = x + TRACK_W - 9; return `<rect x="${tx - tw}" y="${pk.y - 5}" width="${tw}" height="9" fill="#ffffff" fill-opacity="0.85"/><text x="${tx - 2}" y="${pk.y + 2.5}" font-size="7" text-anchor="end" fill="#1a2028">${esc(t)}</text>`; }).join("");
   return ticks + tickMarks + rows.map((r) => { // #3024 — the gridlines under the bars
     const v = valueIn(r, sym, unit, elementUnits);
     if (v == null || !Number.isFinite(v) || isBelowDetection(r, sym)) return "";
     const w = frac(v) * (TRACK_W - 10);
     if (!(w > 0)) return "";
     return `<rect x="${x + 2}" y="${sy(r.from)}" width="${w}" height="${Math.max(0.5, sy(r.to) - sy(r.from))}" fill="#c9863d" opacity="0.85"><title>${r.from}-${r.to} m: ${esc(String(v))} ${esc(unit)}</title></rect>`;
-  }).join("") + (axis.linear ? (range ? `<text x="${x + (TRACK_W - 6) / 2}" y="${bottom + 23}" font-size="7" text-anchor="middle" fill="#65717e">${esc(tr("same axis on all pages"))}</text>` : "") : `<text x="${x + (TRACK_W - 6) / 2}" y="${bottom + 13}" font-size="8" text-anchor="middle" fill="#65717e">${esc(range ? tr("log {minPos}–{max}, all pages", { minPos: sigText(lo, 2), max: sigText(hi, 2) }) : tr("log {minPos}–{max}", { minPos: sigText(lo, 2), max: sigText(hi, 2) }) /* no exponents: #2481 */)}</text>`);
+  }).join("") + peaks + (axis.linear ? (range ? `<text x="${x + (TRACK_W - 6) / 2}" y="${bottom + 23}" font-size="7" text-anchor="middle" fill="#65717e">${esc(tr("same axis on all pages"))}</text>` : "") : `<text x="${x + (TRACK_W - 6) / 2}" y="${bottom + 23}" font-size="7" text-anchor="middle" fill="#65717e">${esc(range ? tr("log {minPos}–{max}, all pages", { minPos: sigText(lo, 2), max: sigText(hi, 2) }) : tr("log {minPos}–{max}", { minPos: sigText(lo, 2), max: sigText(hi, 2) }) /* no exponents: #2481 */)}</text>`);
 }
+// TASKS.csv #3859 (Scottie Gold review) — a log assay track was captioned with its two ends only ('log 0.0025–123', 5.6 pt): no tick or grid line, so a
+// bar halfway across (0.55 g/t) or three quarters (8 g/t) could not be read. The decades between lo and hi (with 2 and 5 between them when fewer than
+// two decades show), each at its fraction of the track; a label where it does not run into the one before or off the track (set inside at an end).
+// -> [{ v, f (0-1 across the track), label (text, or null: a grid line only), anchor }]
+export function logAxisTicks(lo, hi, { widthPx = 80, fontPx = 8 } = {}) {
+  if (!(lo > 0) || !(hi > lo)) return [];
+  const a = Math.log10(lo), b = Math.log10(hi), vals = [];
+  for (let k = Math.ceil(a - 1e-9); k <= Math.floor(b + 1e-9); k++) vals.push(10 ** k);
+  if (vals.length < 2) { vals.length = 0; for (let k = Math.floor(a) ; k <= Math.ceil(b); k++) for (const m of [1, 2, 5]) { const v = m * 10 ** k; if (v >= lo * (1 - 1e-9) && v <= hi * (1 + 1e-9)) vals.push(v); } }
+  let lastRight = -Infinity, lastAt = -1, prevRight = -Infinity;
+  const out = [];
+  vals.forEach((raw, i) => {
+    const v = +raw.toPrecision(6), f = (Math.log10(v) - a) / (b - a), text = logTickText(v), w = text.length * fontPx * 0.55, px = f * widthPx;
+    const anchor = px - w / 2 < -2 ? "start" : px + w / 2 > widthPx + 2 ? "end" : "middle", left = anchor === "start" ? px : anchor === "end" ? px - w : px - w / 2; // at an end of the track: set inside it
+    let fits = left >= -2 && left + w <= widthPx + 2 && left >= lastRight + 2;
+    // the highest decade is the one a reader looks for: it takes the place of the label before it when the two would touch
+    if (!fits && i === vals.length - 1 && lastAt >= 0 && left >= -2 && left + w <= widthPx + 2 && left >= prevRight + 2) { out[lastAt].label = null; fits = true; }
+    if (fits) { prevRight = lastRight; lastRight = left + w; lastAt = i; }
+    out.push({ v, f, label: fits ? text : null, anchor });
+  });
+  return out;
+}
+const logTickText = (v) => (v >= 1000 ? v.toLocaleString("en-US") : String(v));
+// TASKS.csv #3859 — the highest values of a track, written at their bars: the 123 and 76 g/t samples were the two longest bars with no value. Bars that reach
+// at least 85 % of the track, highest first, at most `max`, none within `gapPx` of one already written. items: [{ v, y, f }] -> the chosen items
+export function peakValueLabels(items, { max = 2, gapPx = 10, minFrac = 0.85 } = {}) {
+  const out = [];
+  for (const it of [...(items || [])].filter((q) => q.f >= minFrac && Number.isFinite(q.v)).sort((p, q) => q.v - p.v)) {
+    if (out.length >= max) break;
+    if (out.every((o) => Math.abs(o.y - it.y) >= gapPx)) out.push(it);
+  }
+  return out;
+}
+
 // #3024 — the axis of an assay track: linear from 0 with 3-5 round ticks when the values span under two decades, else log
 export function assayAxis(lo, hi) {
   if (!(hi > 0) || !(lo > 0) || hi / lo >= 100) return { linear: false };

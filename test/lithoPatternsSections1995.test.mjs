@@ -54,7 +54,7 @@ test("the fence's figure key carries the pattern; the export draws it over the s
 
 test("wired: the section window, the fence, the strip log's Layout legend, Layout's swatch, and the payload in ViewerModule", () => {
   const vm = read("src/modules/ViewerModule.jsx");
-  assert.ok(vm.includes("openSectionWindow(withSectionPatterns({ ...payload, rlOffset: rlOffsetOf(project) /* #2809 */ }, lithoPatternMap(layers.litho,"));
+  assert.ok(vm.includes("openSectionWindow(withLithoMeanings(withSectionPatterns({ ...payload, rlOffset: rlOffsetOf(project) /* #2809 */ }, lithoPatternMap(layers.litho,")); // #3860: the key's code names after the patterns
   assert.ok(vm.includes("layer: key, code: row.value });"));
   assert.ok(vm.includes("labelFor={effectiveLabel} patternOverride={legendOverride.litho}"));
   const sw = read("src/components/SectionWindow.jsx");

@@ -38,7 +38,7 @@ export function planTraces(collars, survey, method) {
     const stations = by.get(String(c.hole_id ?? ""));
     if (!stations?.length || !finite(c)) continue;
     const t = desurveyHole({ ...c, z: Number.isFinite(c.z) ? c.z : 0 }, stations, method);
-    if (t.length > 1) out.set(String(c.hole_id), t.map((q) => [q.x, q.y]));
+    if (t.length > 1) { const path = t.map((q) => [q.x, q.y]); Object.defineProperty(path, "mds", { value: t.map((q) => q.md) }); out.set(String(c.hole_id), path); } // mds: #3858 — where an intercept lies along it
   }
   planMemo.set(collars, { survey, method, out });
   return out;
@@ -244,12 +244,17 @@ export function bottomEastings(hidden, { gf, w, h, inset = 6, boxes = [] } = {})
 
 // avoid: boxes no label may overlap (the key, #2473)
 // TASKS.csv #2611 — the boxes sit in a uniform grid of CELL px cells, so avoiding every collar of a 2,248-hole plan stays a few ms
-export function placeLabels(points, { fontPx = 9, w, h, gap = 5, avoid = [] } = {}) {
+// TASKS.csv #3858 (Scottie Gold review) — leaders: a label with no room beside its collar is set further out (2, 3.5, 5.5 and 8 label heights, in eight
+// directions, nearest first) with a leader line back to the collar, after every hole that fits beside its own collar has its label (so a leader never
+// takes a close spot). A pad of three holes round one dot got three ids with nothing tying an id to a trace; a fan of 33 at the fitted scale lost six.
+// -> { placed: [{ id, x, y, anchor, leader? }], skipped, missed: [ids] }
+export function placeLabels(points, { fontPx = 9, w, h, gap = 5, avoid = [], leaders = false } = {}) {
   const placed = [], CELL = 48, grid = new Map();
   const cells = (b, fn) => { for (let cx = Math.floor(b.x0 / CELL); cx <= Math.floor(b.x1 / CELL); cx++) for (let cy = Math.floor(b.y0 / CELL); cy <= Math.floor(b.y1 / CELL); cy++) fn(`${cx},${cy}`); };
   const add = (b) => cells(b, (k) => { let a = grid.get(k); if (!a) grid.set(k, (a = [])); a.push(b); });
   avoid.forEach(add);
   let skipped = 0;
+  const waiting = []; // #3858 — no room beside the collar: a leader, after the others
   const hit = (b) => { let found = false; cells(b, (k) => { if (!found) found = (grid.get(k) || []).some((o) => b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0); }); return found; };
   for (const p of points) {
     const tw = String(p.id).length * fontPx * 0.56, th = fontPx;
@@ -260,10 +265,30 @@ export function placeLabels(points, { fontPx = 9, w, h, gap = 5, avoid = [] } = 
       { anchor: "middle", x: p.x, y: p.y + gap + th, b: { x0: p.x - tw / 2, x1: p.x + tw / 2, y0: p.y + gap, y1: p.y + gap + th } },
     ];
     const ok = tries.find((t) => t.b.x0 >= 0 && t.b.x1 <= w && t.b.y0 >= 0 && t.b.y1 <= h && !hit(t.b));
-    if (ok) { add(ok.b); placed.push({ id: p.id, x: ok.x, y: ok.y, anchor: ok.anchor }); } else skipped++;
+    if (ok) { add(ok.b); placed.push({ id: p.id, x: ok.x, y: ok.y, anchor: ok.anchor }); } else waiting.push(p);
   }
-  return { placed, skipped };
+  const missed = [];
+  for (const p of waiting) {
+    const tw = String(p.id).length * fontPx * 0.56, th = fontPx;
+    let got = null;
+    if (leaders) {
+      for (const k of LEADER_STEPS) {
+        for (const [ux, uy] of LEADER_DIRS) {
+          const d = k * th, cx = p.x + ux * d, cy = p.y + uy * d; // the label's near end
+          const anchor = ux > 0.3 ? "start" : ux < -0.3 ? "end" : "middle";
+          const x0 = anchor === "start" ? cx : anchor === "end" ? cx - tw : cx - tw / 2, y0 = cy - th / 2;
+          const b = { x0: x0 - 1, x1: x0 + tw + 1, y0, y1: y0 + th };
+          if (b.x0 >= 0 && b.x1 <= w && b.y0 >= 0 && b.y1 <= h && !hit(b)) { got = { b, x: cx, y: cy + th * 0.35, anchor, leader: { x1: p.x, y1: p.y, x2: cx - ux * 1.5, y2: cy - uy * 1.5 } }; break; }
+        }
+        if (got) break;
+      }
+    }
+    if (got) { add(got.b); placed.push({ id: p.id, x: got.x, y: got.y, anchor: got.anchor, leader: got.leader }); } else { skipped++; missed.push(p.id); }
+  }
+  return { placed, skipped, missed };
 }
+const LEADER_STEPS = [2, 3.5, 5.5, 8];
+const LEADER_DIRS = [[1, 0], [-1, 0], [0, -1], [0, 1], [0.71, -0.71], [-0.71, -0.71], [0.71, 0.71], [-0.71, 0.71]];
 
 // Everything the element draws, in frame px (north up, centre of the frame = el.centre). Holes wholly outside are left out.
 // traces (#3367): planTraces' Map; a hole in it carries `path` (frame px from the collar to the toe) and surveyed: true
@@ -285,7 +310,7 @@ export function drillPlanGeometry(el, collars, traces = null) {
       [ax, ay] = toPx(p.x0, p.y0); [bx, by] = toPx(p.x1, p.y1);
       if (Math.max(ax, bx) < 0 || Math.min(ax, bx) > w || Math.max(ay, by) < 0 || Math.min(ay, by) > h) continue;
     }
-    holes.push({ id: String(c.hole_id ?? ""), series: holeSeries(c.hole_id), ax, ay, bx, by, path, surveyed: !!t, inside: ax >= 0 && ax <= w && ay >= 0 && ay <= h });
+    holes.push({ id: String(c.hole_id ?? ""), series: holeSeries(c.hole_id), ax, ay, bx, by, path, mds: t?.mds || null, length: Number(c.length) || 0 /* #3858 */, surveyed: !!t, inside: ax >= 0 && ax <= w && ay >= 0 && ay <= h });
   }
   return { w, h, ppm, holes };
 }
@@ -356,6 +381,39 @@ export function bestInterceptGT(composites) {
   }
   return out;
 }
+// TASKS.csv #3858 — the same best intercept as a row (its length, grade, from and to), for the label 'SR-12 3.70 m @ 56.4 g/t Au' and the mark on the
+// trace: the composite with the largest length × grade of each hole -> Map(hole_id -> { from, to, length, grade })
+export function bestInterceptRows(composites) {
+  const out = new Map(), best = new Map();
+  for (const c of composites || []) {
+    const v = Number(c.length) * Number(c.avgGrade), id = String(c.hole_id ?? "");
+    if (!Number.isFinite(v)) continue;
+    if (!best.has(id) || v > best.get(id)) { best.set(id, v); out.set(id, { from: Number(c.from), to: Number(c.to), length: Number(c.length), grade: Number(c.avgGrade) }); }
+  }
+  return out;
+}
+// the label's text: '3.70 m @ 56.4 g/t Au' (length to two decimals, the grade to three figures)
+export function interceptLabel(row, unit, symbol) {
+  if (!row || !Number.isFinite(row.length) || !Number.isFinite(row.grade)) return "";
+  return `${row.length.toFixed(2)} m @ ${fmtSig3(row.grade)} ${unit ? `${unit} ` : ""}${symbol || ""}`.trim();
+}
+// the part of a hole's plan trace (frame px) between two downhole depths: along the surveyed path by its depths, else along the straight
+// line by length (a vertical hole is a point: no segment). hole: drillPlanGeometry's -> [[x, y], ...] (empty when it cannot be placed)
+export function traceBetween(hole, from, to) {
+  if (!(to > from)) return [];
+  if (hole.path && hole.mds && hole.mds.length === hole.path.length) {
+    const at = (md) => { const m = hole.mds; if (md <= m[0]) return hole.path[0]; for (let i = 1; i < m.length; i++) if (md <= m[i]) { const f = (md - m[i - 1]) / ((m[i] - m[i - 1]) || 1); const a = hole.path[i - 1], b = hole.path[i]; return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]; } return hole.path[hole.path.length - 1]; };
+    const pts = [at(from)];
+    for (let i = 0; i < hole.mds.length; i++) if (hole.mds[i] > from && hole.mds[i] < to) pts.push(hole.path[i]);
+    pts.push(at(to));
+    return pts;
+  }
+  const L = hole.length;
+  if (!(L > 0) || (Math.abs(hole.bx - hole.ax) < 0.01 && Math.abs(hole.by - hole.ay) < 0.01)) return [];
+  const f0 = Math.max(0, Math.min(1, from / L)), f1 = Math.max(0, Math.min(1, to / L));
+  return [[hole.ax + (hole.bx - hole.ax) * f0, hole.ay + (hole.by - hole.ay) * f0], [hole.ax + (hole.bx - hole.ax) * f1, hole.ay + (hole.by - hole.ay) * f1]];
+}
+
 // the cut-off a plan opens on when none is typed: the 90th percentile of the element's positive results rounded to one figure, the
 // suggestion Best intercepts makes (so the two tools agree until the user picks one). -> number or null
 export function p90Cutoff(values) {

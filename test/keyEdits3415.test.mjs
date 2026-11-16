@@ -29,7 +29,7 @@ test("wired: the drawing edits its key, keeps the plan's own wording for the sid
   const d = fs.readFileSync(new URL("../src/components/DrillPlanElement.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(d, /const colouring0 = applyKeyEdits\(colouringRaw, el\.keyEdits\);/);
   assert.match(d, /const keyOriginal = \{ title: colouringRaw\.title \|\| "", note: colouringRaw\.note \|\| "", rows: \(colouringRaw\.key \|\| \[\]\)\.map\(\(k\) => k\.label\) \};/);
-  assert.match(d, /keyBox, keyOriginal \};/);
+  assert.match(d, /keyBox, keyOriginal(, marks, unlabelledNote, biLabels: !!biRows)? \};/); // #3858: the intercept marks and the unlabelled note after it
   const l = fs.readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(l, /\{\(dd\.keyOriginal\.title \|\| dd\.keyOriginal\.rows\.length > 0\) && \(\(\) => \{/);
   assert.match(l, /updateSelected\(\{ keyEdits: \{ \.\.\.ke, rows: \{ \.\.\.\(ke\.rows \|\| \{\}\), \[orig\]: v \} \} \}\)/);
