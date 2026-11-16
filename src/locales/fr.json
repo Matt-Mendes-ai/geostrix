@@ -13543,5 +13543,6 @@
   "Hole ID at the toe": "ID du sondage au fond",
   "Hole ID at both ends": "ID du sondage aux deux bouts",
   "Project title": "Titre du projet",
-  "Printed as {project} on every sheet (the sheet's title and the title block's Project row), and as the PDF's title. Blank: the file's name. A Save or a rename of the file does not change it.": "Imprimé comme {project} sur chaque feuille (le titre de la feuille et la ligne Projet du cartouche) et comme titre du PDF. Vide : le nom du fichier. Enregistrer ou renommer le fichier ne le change pas."
+  "Printed as {project} on every sheet (the sheet's title and the title block's Project row), and as the PDF's title. Blank: the file's name. A Save or a rename of the file does not change it.": "Imprimé comme {project} sur chaque feuille (le titre de la feuille et la ligne Projet du cartouche) et comme titre du PDF. Vide : le nom du fichier. Enregistrer ou renommer le fichier ne le change pas.",
+  "{el} is already priced here (the main metal, the by-product or an earlier grade): reported only, no second price.": "{el} a déjà un prix ici (le métal principal, le sous-produit ou une teneur précédente) : indiqué seulement, sans second prix."
 }

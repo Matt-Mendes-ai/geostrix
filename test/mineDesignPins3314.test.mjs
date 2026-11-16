@@ -8,7 +8,7 @@ const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8").replace(/\
 
 test("#3311 a 'report too' grade can be priced; the run, the saved pit and the downstream panes carry it", () => {
   const s = read("../src/components/PitShellPane.jsx");
-  assert.match(s, /const alsoPrices = alsoChosen\.map\(alsoPriceOf\);/);
+  assert.match(s, /const alsoPrices = alsoChosen\.map\(\(m\) => \{ const p = alsoPriceOf\(m\);/); // #3793: one element, one price
   assert.match(s, /by: byInputs, alsoPrices \/\* #3311 \*\/, typedCutoff: typedCut/);
   assert.match(s, /if \(alsoPrices\.some\(Boolean\)\) \{ inputs\.alsoPrices = alsoPrices; runInputs\.alsoPrices = alsoPrices; \}/);
   assert.match(s, /pricing: alsoPrices\[k\], containedMetal:/);

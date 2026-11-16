@@ -13543,5 +13543,6 @@
   "Hole ID at the toe": "معرّف الثقب عند القاع",
   "Hole ID at both ends": "معرّف الثقب عند الطرفين",
   "Project title": "عنوان المشروع",
-  "Printed as {project} on every sheet (the sheet's title and the title block's Project row), and as the PDF's title. Blank: the file's name. A Save or a rename of the file does not change it.": "يُطبع بوصفه {project} على كل ورقة (عنوان الورقة وصف المشروع في إطار العنوان) وبوصفه عنوان ملف PDF. فارغ: اسم الملف. لا يغيّره الحفظ ولا إعادة تسمية الملف."
+  "Printed as {project} on every sheet (the sheet's title and the title block's Project row), and as the PDF's title. Blank: the file's name. A Save or a rename of the file does not change it.": "يُطبع بوصفه {project} على كل ورقة (عنوان الورقة وصف المشروع في إطار العنوان) وبوصفه عنوان ملف PDF. فارغ: اسم الملف. لا يغيّره الحفظ ولا إعادة تسمية الملف.",
+  "{el} is already priced here (the main metal, the by-product or an earlier grade): reported only, no second price.": "{el} له سعر بالفعل هنا (المعدن الرئيسي أو المنتج الثانوي أو محتوى سابق): يُبلَغ عنه فقط دون سعر ثانٍ."
 }
