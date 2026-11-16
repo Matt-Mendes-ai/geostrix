@@ -48,7 +48,7 @@ test("wiring: 'Set the plane from' offers an element's samples; the panes say 'i
   assert.match(m, /\{!trendFor\("gradeShell"\) && !\(Number\(numericFlatReach\) > 0\) && <>/);
   assert.match(m, /\{shellPlaneSearch \? tr\("The plane is fitted at each run[^"]*"\) : tr\("Isotropic: the search is a sphere, no structural trend is chosen for grade shells/);
   const e = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
-  assert.match(e, /\{!modelTrend && !\(Number\(flatReach\) > 0\) && <div[^>]*>\{tr\("Isotropic: the search is a sphere, no structural trend is chosen for block estimation/);
+  assert.match(e, /\{!modelTrend && !planeTrend \/\* #3679 \*\/ && !\(Number\(flatReach\) > 0\) && <div[^>]*>\{tr\("Isotropic: the search is a sphere, no structural trend is chosen for block estimation/);
 });
 
 test("samplesTrendByArea: two bodies 20 km apart give no plane; one body with most of the samples is fitted alone", () => {

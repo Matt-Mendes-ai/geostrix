@@ -26,6 +26,7 @@ import { sampledByHole, unsampledDrillPoints } from "../lib/insideSampling.js"; 
 import { verticalReach } from "../lib/blockReach.js"; // TASKS.csv #2422 — a flat trend's vertical reach, as the estimator counts it
 import { desurveyHole, pointOnTrace } from "../lib/desurvey.js"; // pointOnTrace: #3592
 import { sampleSpacing } from "../lib/sampleSpacing.js"; // TASKS.csv #3592 — the spacing at the samples
+import { estimatePlane, gradeShellOf, sameVolumeMajorM, ellipsoidAxesM } from "../lib/estimatePlane.js"; // TASKS.csv #3679 — the shell's search, for the estimate
 import { classStops, visibleOnLattice } from "../lib/viewer/modelLegendOnAdd.js"; // TASKS.csv #3596
 import { sameLattice } from "../lib/densityFromModel.js"; // TASKS.csv #3596 — one model of a grid shown
 import { gradeStops } from "../lib/inversion.js"; // TASKS.csv #702
@@ -220,7 +221,10 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   const [searchRadius, setSearchRadius] = useState(() => keep("searchRadius", 50));
   // #2418 — the model's structural trend when one is chosen for block estimation; otherwise the flat search typed in the dialog
   const flatTrend = !modelTrend ? flatSearchTrend(searchRadius, flatReach, tr("flat search")) : null;
-  const trend = modelTrend || flatTrend;
+  // TASKS.csv #3679 — otherwise along the plane of the samples at a cut-off (planeTrend, below), as the grade shell searches since #3655: a
+  // per-user preference, on by default (lib/estimatePlane.js)
+  const [planePref, setPlanePrefState] = useState(() => { try { return localStorage.getItem("geostrix.estimatePlaneSearch") !== "0"; } catch { return true; } });
+  const setPlanePref = (on) => { setPlanePrefState(on); try { localStorage.setItem("geostrix.estimatePlaneSearch", on ? "1" : "0"); } catch { /* storage off */ } };
   const [minSamples, setMinSamples] = useState(() => keep("minSamples", 1));
   const [minHoles, setMinHoles] = useState(() => keep("minHoles", 2));          // TASKS.csv #258
   const [materialHoles, setMaterialHoles] = useState(() => keep("materialHoles", true)); // TASKS.csv #1573 — a second hole must carry at least 5 % of the weight
@@ -292,7 +296,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   // "Add as block model" button, under changed settings)
   const chips = useMemo(() => unsampledWord(collars) === "chips", [collars]); // TASKS.csv #3507 - "unsampled chips" on RC / aircore holes, not "unsampled core"
   const nonMetal = isNonMetal(symbol, { fromLog: sourceKey !== "assay" }); // TASKS.csv #3497 — value, not metal, for SiO2, a log, LOI
-  const settingsSig = JSON.stringify([sourceKey, logValues, symbol, setPicked, memberCaps, useComposites, compositeLength, minCoverage, domainKey, capByDomain, padding, cellSize, cellHeight, flatReach, gridMode, originE, blockBudget, method, vgModel, vgNugget, addedKv, searchRadius, minSamples, minHoles, materialHoles, maxSamples, maxPerHole, capValue, includeQAQC, restrictToDomain, noCodeAsDomain, classifySupport, shellId, belowGround, samplesFrom]);
+  const settingsSig = JSON.stringify([sourceKey, logValues, symbol, setPicked, memberCaps, useComposites, compositeLength, minCoverage, domainKey, capByDomain, padding, cellSize, cellHeight, flatReach, gridMode, originE, blockBudget, method, vgModel, vgNugget, addedKv, searchRadius, minSamples, minHoles, materialHoles, maxSamples, maxPerHole, capValue, includeQAQC, restrictToDomain, noCodeAsDomain, classifySupport, shellId, belowGround, samplesFrom, planePref /* #3679 */]);
   const sigNow = useRef(settingsSig); sigNow.current = settingsSig;
   const runSig = useRef(null), [resultSig, setResultSig] = useState(null);
   const runCollars = useMemo(() => (samplesFrom === "checked" && checkedHoleIds?.size ? collars.filter((c) => checkedHoleIds.has(c.hole_id)) : collars), [collars, samplesFrom, checkedHoleIds]);
@@ -311,20 +315,34 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   // lib/sampleSpacing.js, as the grade shell's since #3580), not between collar sites: Tom West's holes fan from 76 pads and stations 15 m apart,
   // so the search opened at 40 m against 24 m between the samples, and with Min holes 2 394 of the 735 blocks the holes pass through stayed
   // empty. The collar sites stay the fallback (no traces).
-  const samplesSpacing = useMemo(() => {
+  const samplePoints = useMemo(() => { // #3679: with their values, for the plane
     const tof = traceBounds?.traceOf;
     if (!tof || !symbol) return null;
     const pts = [];
     for (const a of srcAssays) {
       if (!Number.isFinite(a.values?.[symbol]) || !Number.isFinite(a.from) || !Number.isFinite(a.to)) continue;
       const t = tof.get(a.hole_id), q = t && pointOnTrace(t, (a.from + a.to) / 2);
-      if (q) pts.push({ hole_id: a.hole_id, x: q.x, y: q.y, z: q.z });
+      if (q) pts.push({ hole_id: a.hole_id, x: q.x, y: q.y, z: q.z, value: a.values[symbol] });
     }
-    return sampleSpacing(pts);
+    return pts;
   }, [traceBounds, srcAssays, symbol]);
+  const samplesSpacing = useMemo(() => (samplePoints ? sampleSpacing(samplePoints) : null), [samplePoints]);
+  // TASKS.csv #3679 — the plane of the samples at the cut-off of the element's grade shell (else their 90th percentile), when no trend is
+  // chosen and no flat search typed; the ellipsoid keeps the volume of the proposed sphere (below)
+  const gradeShell = useMemo(() => gradeShellOf(volumeShells, symbol), [volumeShells, symbol]);
+  const planeOn = planePref && !modelTrend && !flatTrend && !(Number(flatReach) > 0);
+  const planeFit = useMemo(() => (planeOn && samplePoints?.length ? estimatePlane(samplePoints, gradeShell) : null), [planeOn, samplePoints, gradeShell]);
+  const planeTrend = useMemo(() => (planeFit?.trend ? { ...planeFit.trend, name: `Plane of ${symbol} >= ${planeFit.cutoff.value} (${Math.round(planeFit.trend.dip)}° → ${Math.round(planeFit.trend.dipAzimuth)}°)` /* project data stays English */ } : null), [planeFit, symbol]);
+  const ellTrend = modelTrend || planeTrend; // an ellipsoid: the chosen trend, else the plane
+  const trend = ellTrend || flatTrend;
   const searchFrom = samplesSpacing?.medianM > 0 ? { medianM: samplesSpacing.medianM, at: "samples" } : spacing?.medianM > 0 ? { medianM: spacing.medianM, at: "collars" } : null;
-  const searchFromSpacing = !(saved && saved.searchRadius !== undefined) && searchFrom ? searchFromSpacingM(searchFrom.medianM) : null;
-  const searchTouched = useRef(false);
+  // #3679 — under an ellipsoid the proposed radius is its long axis at the volume of the sphere from the spacing (Tom West: 60 m -> 134 m along
+  // the plane, 134 x 72 x 22 m), not the sphere's radius along it (60 x 19 x 11 m)
+  const sphereFromSpacing = searchFrom ? searchFromSpacingM(searchFrom.medianM) : null;
+  // TASKS.csv #3684 — proposed again whenever it changes (another model area, element or 'Samples from') unless the radius was TYPED: a kept
+  // radius was never re-proposed after the session's first run (Tom West's 60 m still in the box at Jason Main, whose spacing gives 110 m)
+  const searchFromSpacing = sphereFromSpacing ? (ellTrend ? Math.round(sameVolumeMajorM(sphereFromSpacing, ellTrend.ratios)) : sphereFromSpacing) : null;
+  const searchTouched = useRef(!!(saved && saved.searchTyped)); // #3684: typed in an earlier opening
   useEffect(() => { if (searchFromSpacing && !searchTouched.current) setSearchRadius(searchFromSpacing); }, [searchFromSpacing]);
 
   // TASKS.csv #259 — the selected element's coefficient of variation, the standard screen for "is this
@@ -381,7 +399,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   // only radius / minor up and down (the estimator's own verticalReach), and with 'Restrict to a modelled volume' only the samples
   // inside the solid inform the run, so only the trace parts inside it count (lib/reachSolid.js, in the reach worker). A flat search
   // typed here (#2418) keeps its vertical reach.
-  const reachRz = flatTrend ? flatReach : modelTrend && reachRadius ? verticalReach(reachRadius, { basis: trendBasis(modelTrend), scales: trendSearchScales(modelTrend) }) : null;
+  const reachRz = flatTrend ? flatReach : ellTrend && reachRadius ? verticalReach(reachRadius, { basis: trendBasis(ellTrend), scales: trendSearchScales(ellTrend) }) : null; // #3679: the plane too
   const solidCache = useRef({ key: null, closed: false });
   const reachSolid = (() => {
     const sh = shellId ? (volumeShells || []).find((v) => v.id === shellId) : null;
@@ -390,7 +408,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
     if (solidCache.current.key !== key) solidCache.current = { key, closed: !!isMeshClosed(sh.positions, sh.indices)?.closed };
     return solidCache.current.closed ? { key, positions: sh.positions, indices: sh.indices, name: sh.name } : null; // an open mesh is refused at Run
   })();
-  const reachArgs = traceBounds?.traces?.length && reachRadius && bounds ? { traces: traceBounds.traces, bounds: { xmin: bounds.xmin, xmax: bounds.xmax, ymin: bounds.ymin, ymax: bounds.ymax, zmin: bounds.zmin, zmax: bounds.zmax }, cell3: { dx: cell3.dx, dy: cell3.dy, dz: cell3.dz }, radius: reachRadius, rz: reachRz, ...(modelTrend && !flatTrend ? { metric: { basis: trendBasis(modelTrend), scales: trendSearchScales(modelTrend) } } : {}) /* #2696: the tilted ellipsoid, as the estimator counts it */, ...(reachSolid ? { solid: reachSolid } : {}) /* #2422 */, fixedDz: cellHeight > 0 && !matched ? cellHeight : null /* #2418 */, budget: blockBudget, maxBudget: MAX_BLOCK_MODEL_BUDGET, from: cellSize, fitAllowed: !matched } : null;
+  const reachArgs = traceBounds?.traces?.length && reachRadius && bounds ? { traces: traceBounds.traces, bounds: { xmin: bounds.xmin, xmax: bounds.xmax, ymin: bounds.ymin, ymax: bounds.ymax, zmin: bounds.zmin, zmax: bounds.zmax }, cell3: { dx: cell3.dx, dy: cell3.dy, dz: cell3.dz }, radius: reachRadius, rz: reachRz, ...(ellTrend && !flatTrend ? { metric: { basis: trendBasis(ellTrend), scales: trendSearchScales(ellTrend) } } : {}) /* #2696: the tilted ellipsoid, as the estimator counts it; #3679 the plane's too */, ...(reachSolid ? { solid: reachSolid } : {}) /* #2422 */, fixedDz: cellHeight > 0 && !matched ? cellHeight : null /* #2418 */, budget: blockBudget, maxBudget: MAX_BLOCK_MODEL_BUDGET, from: cellSize, fitAllowed: !matched } : null;
   const reachKey = reachArgs ? JSON.stringify([reachArgs.bounds, reachArgs.cell3, reachRadius, reachArgs.rz, reachArgs.metric ?? null /* #2696 */, reachSolid?.key ?? null, reachArgs.fixedDz, blockBudget, cellSize, !!matched, traceBounds.traces.length]) : null;
   const [reachState, setReachState] = useState(null); // { key, reach, tooBig, fitCell, fitCellMax }
   useEffect(() => {
@@ -424,7 +442,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   // TASKS.csv #1416 (review #1352) — the default 10 m cell could not run on Silvertip (2.3 M blocks over the budget, Run disabled): the
   // first time the grid is over the budget, before the cell size is touched, the cell that fits is filled in, and said
   const cellTouched = useRef(!!(saved && saved.cellSize !== undefined)); // #1580 — a remembered cell is not refitted
-  const [autoCell, setAutoCell] = useState(null);
+  const [autoCell, setAutoCell] = useState(() => (saved && saved.cellAuto ? saved.cellSize : null)); // #3684 — a cell the dialog chose is still its own to refit when the search it proposes changes
   // TASKS.csv #2543 (review #2486) — the cell chosen for the budget did not fit it: 15 m 'for the 200,000-block budget' gave 202,924 blocks in
   // reach and Run stayed disabled (the worker's fit is checked at the new cell only after it is set). A cell the dialog chose is refitted
   // upward (never down, so it cannot oscillate) until the blocks in reach fit; a cell the user typed is left alone, as before.
@@ -446,7 +464,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
 
   // #1580 — what to restore next time: kept current every render, stored when the dialog closes
   const remember = useRef(null);
-  remember.current = { memberMethods /* #3164 */, sourceKey, logValues, symbol, useComposites, compositeLength, minCoverage, domainKey, noCodeAsDomain, capByDomain, padding, cellSize, cellHeight, flatReach, gridMode, originE, originN, originZ, method, vgModel, vgNugget, vgSill, vgRange, searchRadius, minSamples, minHoles, materialHoles, maxSamples, maxPerHole, capValue, capAuto, includeQAQC, restrictToDomain, classifySupport, shellId, belowGround, setOthers: setPicked /* #3014 */ };
+  remember.current = { memberMethods /* #3164 */, sourceKey, logValues, symbol, useComposites, compositeLength, minCoverage, domainKey, noCodeAsDomain, capByDomain, padding, cellSize, cellHeight, flatReach, gridMode, originE, originN, originZ, cellAuto: autoCell != null && cellSize === autoCell /* #3684 */, method, vgModel, vgNugget, vgSill, vgRange, searchRadius, searchTyped: searchTouched.current /* #3684 */, minSamples, minHoles, materialHoles, maxSamples, maxPerHole, capValue, capAuto, includeQAQC, restrictToDomain, classifySupport, shellId, belowGround, setOthers: setPicked /* #3014 */ };
   const settingsKey = estimateSettingsKey(project);
   useEffect(() => () => { lastEstimateSettings.set(settingsKey, remember.current); }, [settingsKey]);
   // TASKS.csv #520 — the estimate runs in a worker: the window keeps repainting, shows progress and can be cancelled
@@ -629,6 +647,8 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           // TASKS.csv #3255 — the record says whether #1573's 5 % rule was on (two models differing only in it had identical parameters)
           ...(minHoles > 1 ? { secondHoleRule: materialHoles ? "a second hole counts when it carries at least 5 % of the inverse-distance weight, except for a block within a cell of its nearest composite (there every hole in reach counts)" : "every hole in reach counts" } : {}),
           searchTrend: trend ? { name: trend.name, dip: trend.dip, dipAzimuth: trend.dipAzimuth, pitch: trend.pitch, ratios: trend.ratios, ellipsoidM: [1, trend.ratios.int / trend.ratios.max, trend.ratios.min / trend.ratios.max].map((f) => Math.round(f * (searchRadius > 0 ? searchRadius : gridDiagonal))) } : null, // #650
+          // TASKS.csv #3679 — the plane the search followed, fitted at run time to these samples
+          ...(planeTrend ? { searchPlane: { fittedTo: `${planeFit.n} ${symbol} samples at or above ${planeFit.cutoff.value} ${unit} from ${planeFit.holes} holes`, cutoffFrom: planeFit.cutoff.from === "shell" ? `the grade shell "${planeFit.cutoff.name}"` : "the samples' 90th percentile", ...(sphereFromSpacing ? { sphereOfTheSameVolumeM: sphereFromSpacing } : {}) } } : {}),
           composited: useComposites && !compositingSkipped, compositeLengthM: useComposites && !compositingSkipped ? compositeLength : null, minCoverage: useComposites && !compositingSkipped ? minCoverage : null,
           ...(compositingSkipped ? { compositingSkipped: `the readings are ${Math.round(compositingSkipped.medianM * 100) / 100} m long (median), under a quarter of the ${compositeLength} m composites: each reading estimated as a sample of its own` } : {}), // #3269
           ...(coverageStats.leftOut > 0 ? { readingsUnderCoverage: `${coverageStats.leftOut} of ${coverageStats.readings} readings in no composite with at least ${Math.round(minCoverage * 100)} % coverage` } : {}), // #3269
@@ -913,12 +933,28 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
             {flatProposal && !proposalApplied && ( /* TASKS.csv #2418 — offered, from these holes; never applied by itself */
               <div role="note" style={{ fontSize: "var(--font-size-sm)", marginBottom: 6, lineHeight: 1.45, padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
                 {tr("These holes look flat-lying at the drilling's scale: {v}% of {n} holes are within 5° of vertical, drilled over {d} m of depth across {w} m (the holes {sp} m apart, sampled over a median {span} m). A flat search fits that: {r} m across and {h} m up and down, on {c} × {c} × {ch} m cells.", { v: Math.round(flatProposal.vertical * 100), n: flatProposal.holes, d: Math.round(flatProposal.depthM), w: Math.round(flatProposal.widthM).toLocaleString(), span: Math.round(flatProposal.spanM), sp: Math.round(flatProposal.spacingM), /* #3011 */ r: flatProposal.radius, h: flatProposal.reachV, c: flatProposal.cell, ch: flatProposal.cellHeight })}{" "}
-                <button type="button" onClick={() => { cellTouched.current = true; setAutoCell(null); setSearchRadius(flatProposal.radius); setFlatReach(flatProposal.reachV); setCellSize(flatProposal.cell); setCellHeight(flatProposal.cellHeight); }} style={{ fontSize: "var(--font-size-sm)" }}>{tr("Use it")}</button>
+                <button type="button" onClick={() => { cellTouched.current = true; searchTouched.current = true /* #3684: chosen, kept */; setAutoCell(null); setSearchRadius(flatProposal.radius); setFlatReach(flatProposal.reachV); setCellSize(flatProposal.cell); setCellHeight(flatProposal.cellHeight); }} style={{ fontSize: "var(--font-size-sm)" }}>{tr("Use it")}</button>
               </div>
             )}
             {spacing && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr(spacing.sites === 2 ? "Holes: the two drill sites are {near} m apart. Two holes must both lie within the search radius of a block for it to count (Min distinct holes)." : "Holes: {sites} drill sites, the nearest {near} m apart, typically {median} m from the next (up to {far} m). Two holes must both lie within the search radius of a block for it to count (Min distinct holes).", { sites: spacing.sites, near: Math.round(spacing.nearestM), median: Math.round(spacing.medianM), far: Math.round(spacing.farthestM) })}</div>}{/* #1738 */}
-            {searchFromSpacing && !searchTouched.current && searchRadius === searchFromSpacing && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{searchFrom.at === "samples" ? tr("Search radius {r} m: 2.5 times the {m} m typical distance from a sample to the nearest sample of another hole, so a block between two holes reaches both.", { r: searchFromSpacing, m: Math.round(searchFrom.medianM) }) : tr("Search radius {r} m: 2.5 times the {m} m typical spacing, so a block between two holes reaches both.", { r: searchFromSpacing, m: Math.round(searchFrom.medianM) })}</div>}
-            {!modelTrend && !(Number(flatReach) > 0) && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr("Isotropic: the search is a sphere, no structural trend is chosen for block estimation (Model settings › Structural trends › Used by).")}</div>}{/* TASKS.csv #3593 */}{/* #2420 */}
+            {/* TASKS.csv #3679 — the search along the samples' plane, said where the search is set */}
+            {!modelTrend && !flatTrend && !(Number(flatReach) > 0) && (
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>
+                <label style={{ display: "flex", alignItems: "flex-start", gap: 6, cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>
+                  <input type="checkbox" checked={planePref} onChange={(e) => setPlanePref(e.target.checked)} style={{ marginTop: 2 }} />{tr("Search along the samples' plane")}
+                </label>
+                {planeTrend ? tr(planeFit.cutoff.from === "shell" ? "Along the plane of the {n} samples at or above {cutoff} {unit} ({dip}° towards {dir}°, {holes} holes), the cut-off of the grade shell \"{shell}\", as the grade shell searches. Untick for a sphere." : "Along the plane of the {n} samples at or above {cutoff} {unit} ({dip}° towards {dir}°, {holes} holes), their 90th percentile, as the grade shell searches. Untick for a sphere.", { n: planeFit.n.toLocaleString(), cutoff: planeFit.cutoff.value, unit, dip: Math.round(planeTrend.dip), dir: Math.round(planeTrend.dipAzimuth), holes: planeFit.holes, shell: planeFit.cutoff.name })
+                  : planePref && planeFit ? tr("No plane: {n} samples at or above {cutoff} {unit} from {holes} holes, and a plane needs 30 from 4 holes in one drilled area, not along a line. The search is a sphere.", { n: planeFit.n.toLocaleString(), cutoff: planeFit.cutoff.value, unit, holes: planeFit.holes }) : null}
+              </div>
+            )}
+            {searchFromSpacing && searchTouched.current && Number(searchRadius) !== searchFromSpacing && !flatTrend && ( /* #3684 — a typed radius is kept, and said */
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr("Search radius {r} m as typed; from these holes' spacing it would be {p} m.", { r: searchRadius, p: searchFromSpacing })}{" "}
+                <button type="button" onClick={() => { searchTouched.current = false; setSearchRadius(searchFromSpacing); }} style={{ fontSize: "var(--font-size-xs)" }}>{tr("Use {p} m", { p: searchFromSpacing })}</button>
+              </div>
+            )}
+            {searchFromSpacing && !searchTouched.current && searchRadius === searchFromSpacing && ellTrend && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr(searchFrom.at === "samples" ? "Search radius {r} m along the trend: the long axis of an ellipsoid of {a} × {b} × {c} m, the volume of a {s} m sphere (2.5 times the {m} m typical distance from a sample to the nearest sample of another hole)." : "Search radius {r} m along the trend: the long axis of an ellipsoid of {a} × {b} × {c} m, the volume of a {s} m sphere (2.5 times the {m} m typical spacing).", (() => { const ax = ellipsoidAxesM(searchFromSpacing, ellTrend.ratios); return { r: searchFromSpacing, a: Math.round(ax[0]), b: Math.round(ax[1]), c: Math.round(ax[2]), s: sphereFromSpacing, m: Math.round(searchFrom.medianM) }; })())}</div>}
+            {searchFromSpacing && !searchTouched.current && searchRadius === searchFromSpacing && !ellTrend && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{searchFrom.at === "samples" ? tr("Search radius {r} m: 2.5 times the {m} m typical distance from a sample to the nearest sample of another hole, so a block between two holes reaches both.", { r: searchFromSpacing, m: Math.round(searchFrom.medianM) }) : tr("Search radius {r} m: 2.5 times the {m} m typical spacing, so a block between two holes reaches both.", { r: searchFromSpacing, m: Math.round(searchFrom.medianM) })}</div>}
+            {!modelTrend && !planeTrend /* #3679 */ && !(Number(flatReach) > 0) && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr("Isotropic: the search is a sphere, no structural trend is chosen for block estimation (Model settings › Structural trends › Used by).")}</div>}{/* TASKS.csv #3593 */}{/* #2420 */}
             <label style={fieldLabel} title={tr("No sample within this distance of a block leaves it un-estimated (no cell), rather than extrapolating grade far from any real data. 0 = no radius assumption, capped internally at the grid's own diagonal so the run can't hang.")}>{tr("Search radius (m, 0 = no limit)")}<input type="number" min="0" step="any" value={searchRadius} onChange={(e) => { searchTouched.current = true; setSearchRadius(Math.max(0, Number(e.target.value) || 0)); }} style={inp} />
               {trend && !(searchRadius > 0) && gridDiagonalM > 0 && ( /* #710: 0 is not "no limit" across the trend */
                 <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", fontWeight: 400 }}>{tr("Along trend \"{name}\": with no radius the search reaches the grid diagonal ({d} m) along the trend but only {v} × {v2} m across it ({v3}); a sample farther across the trend is left out.", { name: trend.name, d: gridDiagonalM, v: Math.round((gridDiagonalM * trend.ratios.int) / trend.ratios.max), v2: Math.round((gridDiagonalM * trend.ratios.min) / trend.ratios.max), v3: describeTrend(trend) })}</span>
@@ -1023,6 +1059,14 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           {underground?.underground && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", margin: "2px 0 6px 22px", lineHeight: 1.4 }}>{tr("Off: the collars look like underground collars ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other), so they are not a ground surface and no block is cut. Load a terrain to cut at the surface.", { upward: underground.upward, stacked: underground.stacked })}</div>}{/* #2217 */}
           {groundAt && groundSource === "collars" && !underground?.underground && <CollarLevelsNote collars={levelCollars} survey={survey} /* #3589: #3551's upward / station check too */ style={{ margin: "2px 0 6px 22px" }} />}{/* #2584; #3082 (5) — the count of the holes this block is built from, not every collar of the project */}
           {/* TASKS.csv #517 — a modelled unit volume (or an imported closed solid) as a hard domain boundary */}
+          {/* TASKS.csv #3679 — the element's closed grade shell is proposed as the volume to report from (Tom West: 16.8 Mm³ at or above 2 % on
+              the whole grid, 3.8 Mm³ of it inside the 2 % shell); never applied by itself */}
+          {gradeShell && !shellId && (
+            <div role="note" style={{ fontSize: "var(--font-size-sm)", marginBottom: 6, lineHeight: 1.45, padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
+              {tr("The grade shell \"{name}\" ({el} at or above {cutoff} {unit}) is in the model. Unrestricted, the estimate carries grade outward from the holes across the whole grid; restricted to the shell, only the samples inside it inform the blocks inside it.", { name: gradeShell.name, el: symbol, cutoff: gradeShell.cutoff, unit })}{" "}
+              <button type="button" onClick={() => setShellId(gradeShell.id)} style={{ fontSize: "var(--font-size-sm)" }}>{tr("Restrict to it")}</button>
+            </div>
+          )}
           {volumeShells.length > 0 && (
             <label style={fieldLabel} title={tr("Only samples inside this closed solid inform the estimate, and only blocks whose centre is inside it are kept — e.g. Au inside the modelled DACT. Build unit volumes from an implicit model (3D Modelling, after a stack run: Add unit volumes).")}>{tr("Restrict to a modelled volume")}<select value={shellId} onChange={(e) => setShellId(e.target.value)} style={inp} aria-label={tr("Restrict to a modelled volume")}>
                 <option value="">{tr("— none (whole grid) —")}</option>
@@ -1294,6 +1338,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
             <strong>{tr("Not a resource estimate.")}</strong>{" "}{tr("This is an interpolated block model to help you visualize and target mineralization. Nothing it produces is a Mineral Resource under NI 43-101 or JORC, and it must not be reported publicly as one — that requires an estimate prepared by a Qualified Person.")}</div>
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>{tr("Nearest-neighbour, inverse-distance weighting and moving least squares are complete, defensible estimation methods (IDW especially for early-stage/scoping estimates; pick the one that suits the geology — hover the Method dropdown for what each is good for), and ordinary kriging weights the composites by a variogram (entered, or fitted at run time) and reports a kriging variance. Kriging here is point kriging at each block centre (no block discretization), with the same search as the other methods; its variance measures the samples' layout under the variogram, not the uncertainty of the grade. A block with no sample inside its search radius is left un-estimated rather than guessed at.")}{" "}{trend
               ? (trend.local ? <>{tr("The search is flat: {r} m across and {v} m up and down (typed in this dialog), there is", { r: trend.ratios.max, v: trend.ratios.min })}</> /* #2418 */
+                : trend === planeTrend ? <>{tr("The search follows the plane of the samples at or above {cutoff} {unit} (an ellipsoid; untick \"Search along the samples' plane\" for a sphere), there is", { cutoff: planeFit.cutoff.value, unit })}</> /* #3679 */
                 : <>{tr("The search follows the structural trend \"{name}\" (an ellipsoid; change it in 3D Modelling → Model settings → Structural trends), there is", { name: trend.name })}</>)
               : <>{tr("The search is")}{" "}<strong>{tr("isotropic")}</strong>{" "}{tr("(a plain sphere — choose a trend for block estimation in 3D Modelling → Model settings → Structural trends to make it an ellipsoid), there is")}</>}{" "}{method === "ok" /* #1098 — kriging HAS a variogram */
                 ? tr("no declustering and no resource classification. Domain control applies only if you both select a domain layer and tick \"restrict the interpolation search\"; high-grade capping applies only if you enter a cap. Every one of those is an assumption you are making, not a property of the data.")

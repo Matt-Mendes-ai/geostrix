@@ -36,7 +36,8 @@ test("the dialog: a cell height, a vertical reach, and the proposal behind a but
   const m = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
   assert.match(m, /const cell3 = lattice \? \{ dx: lattice\.dx, dy: lattice\.dy, dz: lattice\.dz \} : \{ dx: cellSize, dy: cellSize, dz: cellDz \};/);
   assert.match(m, /const flatTrend = !modelTrend \? flatSearchTrend\(searchRadius, flatReach, tr\("flat search"\)\) : null;/);
-  assert.match(m, /const trend = modelTrend \|\| flatTrend;/);
+  assert.match(m, /const trend = ellTrend \|\| flatTrend;/); // #3679: the chosen trend or the samples' plane, else the flat search
+  assert.match(m, /const ellTrend = modelTrend \|\| planeTrend;/);
   assert.match(m, /aria-label=\{tr\("Cell height \(m\)"\)\}/);
   assert.match(m, /\{flatProposal && !proposalApplied && \(/);
 });
