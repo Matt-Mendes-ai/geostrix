@@ -67,7 +67,7 @@ test("on the body: the ellipsoid along the plane and the reach make a thinner sh
 
 test("the wiring: each drilled area's plane in the estimate and the worker's reach cut, off with the pane's tick", () => {
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
-  assert.match(r, /const planeLib = workerPost && !envLib && numericSearchRadius > 0 && shellPlaneSearchOn\(\) \?/ /* #3673: the tight shell's (the envelope searches its own way) */);
+  assert.match(r, /const planeLib = workerPost && numericSearchRadius > 0 && shellPlaneSearchOn\(\) && envBox\.some\(\(e\) => !e\) \?/ /* #3673: the tight areas' (an envelope area searches its own way) */);
   // #3673 — the envelope's search first when that mode runs, else these
   assert.match(r, /: planes\[bi\] \? planes\[bi\]\.majorM : searchInGrid/);
   assert.match(r, /: planes\[bi\] \? \{ trend: \{ basis: planes\[bi\]\.basis, scales: planes\[bi\]\.scales \} \} : \{\}\)/);

@@ -18,6 +18,19 @@ export const ENVELOPE_ISO = 0.5, ENVELOPE_MAX_SAMPLES = 32;
 export const ENVELOPE_MIN_COMPOSITES = 30, ENVELOPE_MIN_HOLES = 4;
 const r1 = (v) => Math.round(v * 10) / 10;
 
+// TASKS.csv #3673 (Main's decision, after the fair test and Macpass) — which shell a drilled area gets when the pane says Automatic (the default):
+// the envelope where a third or more of the area's composites are at or above the cut-off (a low cut-off in a thick, disseminated body),
+// the tight shell otherwise (narrow zones at a high cut-off: Macpass Ag at its P90, 8 %). Envelope / Tight
+// in the pane force one. composites: the area's ({ value }). -> { mode: "envelope" | "tight", share (null with no composites) }
+export const AUTO_ENVELOPE_SHARE = 1 / 3;
+export function chooseShell(composites, cutoff, pref = "auto") {
+  let n = 0, at = 0;
+  for (const p of composites || []) { if (!Number.isFinite(p?.value)) continue; n++; if (p.value >= cutoff) at++; }
+  const share = n ? at / n : null;
+  if (pref === "envelope" || pref === "tight") return { mode: pref, share };
+  return { mode: share != null && share >= AUTO_ENVELOPE_SHARE ? "envelope" : "tight", share };
+}
+
 // the composites as indicators at the cut-off (a copy: 1 at or above it, else 0)
 export const indicatorPoints = (points, cutoff) => (points || []).map((p) => ({ ...p, value: p.value >= cutoff ? 1 : 0 }));
 

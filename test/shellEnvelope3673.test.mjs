@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { indicatorPoints, envelopeSearch, cleanField, taubinSmooth, coarsenFactor, coarsenField, ENVELOPE_RANGES } from "../src/lib/viewer/shellEnvelope.js";
+import { indicatorPoints, envelopeSearch, cleanField, taubinSmooth, coarsenFactor, coarsenField, ENVELOPE_RANGES, chooseShell, AUTO_ENVELOPE_SHARE } from "../src/lib/viewer/shellEnvelope.js";
 import { shellPost } from "../src/lib/viewer/shellPost.js";
 import { estimateDenseGrid } from "../src/lib/estimation.js";
 
@@ -92,16 +92,42 @@ test("on the sheet: the envelope is one body that keeps the dilution; the grades
 
 test("the wiring: the default envelope, the tight shell a choice; the pane; the record", () => {
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
-  assert.match(r, /const shellEnvelopeOn = \(\) => \{ try \{ return localStorage\.getItem\("geostrix\.shellMode"\) !== "tight";/);
-  assert.match(r, /const envelopeMode = shellEnvelopeOn\(\) && !anisotropy\.enabled && !numSrc\?\.logScale/);
-  assert.match(r, /envLib \? envLib\.indicatorPoints\(gridPoints, numericCutoff\) : gridPoints/);
-  assert.match(r, /const planeLib = workerPost && !envLib && /);
-  assert.match(r, /maxSamples: envSearch \? envLib\.ENVELOPE_MAX_SAMPLES : 16/);
-  assert.match(r, /minHoles: envSearch \? 1 : Math\.max\(1, numericMinHoles\)/);
-  assert.match(r, /shellMode: envSearch \? "envelope" : "tight"/);
+  assert.match(r, /return m === "envelope" \|\| m === "tight" \? m : "auto";/);
+  assert.match(r, /envelopeMode = shellPref !== "tight" && !anisotropy\.enabled && !numSrc\?\.logScale/);
+  assert.match(r, /const boxChoice = gridBoxes\.map\(\(b\) => \(envLib && workerPost \? envLib\.chooseShell\(b\.idx\.map\(\(k\) => gridPoints\[k\]\), numericCutoff, shellPref\)/);
+  assert.match(r, /runEstimation\("dense", envBox\[bi\] \? indPoints : estPoints,/);
+  assert.match(r, /planeLib && !envBox\[bi\] \? planeLib\.shellPlaneSearch/);
+  assert.match(r, /maxSamples: envBox\[bi\] \? envLib\.ENVELOPE_MAX_SAMPLES : 16/);
+  assert.match(r, /minHoles: envBox\[bi\] \? 1 : Math\.max\(1, numericMinHoles\)/);
+  assert.match(r, /shellByArea: boxChoice\.map/);
   const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  assert.match(p, /<option value="auto">\{tr\("Automatic \(by the drilling\)"\)\}<\/option>/);
   assert.match(p, /<option value="envelope">\{tr\("Envelope \(a domain\)"\)\}<\/option>/);
-  assert.match(p, /shellMode === "tight" && <>\{\/\* TASKS\.csv #3655/);
+  assert.match(p, /return m === "tight" \|\| m === "envelope" \? m : "auto";/);
+  assert.match(p, /shellMode !== "envelope" && <>\{\/\* TASKS\.csv #3655/);
   const s = readFileSync(new URL("../src/lib/viewer/shellPost.js", import.meta.url), "utf8");
   assert.match(s, /const cleaned = env\?\.clean \? cleanField\(cut\.values, grid, iso, env\.clean\) : null/);
+});
+
+// Main's decision: Automatic by the share of an area's composites at the cut-off
+test("Automatic: a disseminated sheet at a low cut-off gets the envelope, a narrow high-grade zone the tight shell", () => {
+  assert.equal(AUTO_ENVELOPE_SHARE, 1 / 3);
+  // a thick disseminated body most of the drilling is in: 0.6 g/t with a third of its composites at 0.1 (the dilution), barren below 150 m
+  const dissem = [];
+  for (let h = 0; h < 10; h++) for (let d = 0; d < 200; d += 2) dissem.push({ hole_id: `D${h}`, x: h * 40, y: 0, z: -d, value: d >= 150 ? 0.02 : (d + h) % 6 < 2 ? 0.1 : 0.6 });
+  const sheet = chooseShell(dissem, 0.3);
+  assert.equal(sheet.mode, "envelope", `share ${sheet.share}`);
+  assert.ok(sheet.share >= 1 / 3);
+  // a narrow high-grade zone: 2 m in every 40 m of hole at 15, the rest 0.2
+  const narrow = [];
+  for (let h = 0; h < 10; h++) for (let d = 0; d < 200; d += 2) narrow.push({ hole_id: `N${h}`, x: h * 30, y: 0, z: -d, value: d % 40 === 0 ? 15 : 0.2 });
+  const n = chooseShell(narrow, 5);
+  assert.equal(n.mode, "tight");
+  assert.ok(n.share < 0.1, `share ${n.share}`);
+  // forced
+  assert.equal(chooseShell(narrow, 5, "envelope").mode, "envelope");
+  assert.equal(chooseShell(dissem, 0.3, "tight").mode, "tight");
+  assert.deepEqual(chooseShell([], 1), { mode: "tight", share: null });
+  assert.equal(chooseShell([{ value: 1 }, { value: 1 }, { value: 0 }], 1).mode, "envelope", "two thirds");
+  assert.equal(chooseShell([{ value: 1 }, { value: 0 }, { value: 0 }, { value: 0 }], 1).mode, "tight", "a quarter");
 });
