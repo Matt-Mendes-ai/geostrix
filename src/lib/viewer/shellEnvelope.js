@@ -23,12 +23,29 @@ const r1 = (v) => Math.round(v * 10) / 10;
 // the tight shell otherwise (narrow zones at a high cut-off: Macpass Ag at its P90, 8 %). Envelope / Tight
 // in the pane force one. composites: the area's ({ value }). -> { mode: "envelope" | "tight", share (null with no composites) }
 export const AUTO_ENVELOPE_SHARE = 1 / 3;
-export function chooseShell(composites, cutoff, pref = "auto") {
+//
+// The second test (Main, when the share alone sent Tom West's focused drilling back to the envelope, re-opening #3655): the envelope only where
+// the zone at the cut-off is BROKEN, a disseminated zone of good intervals with poorer ones between them. Its measure is the median length of
+// the zones along the holes (atCutRunThickness with a window of one sample spacing: half or more of the composites at the cut-off) over the
+// median run of consecutive composites at or above it, AUTO_FRAGMENTATION or more. Measured (#3673's notes): a disseminated deposit far above
+// it; Macpass Tom West 18 / 12 m = 1.5 and 20 / 10 m = 2, the Tom area on the whole property 1.4 (coherent zones, drawn tight). Thickness
+// against the hole spacing, the first idea, ran the wrong way (dense drilling round Tom West's thick zone scores high).
+// opts: { spacingM } (needed for the second test; without it the share alone decides, as before).
+// -> { mode, share, fragmentation: { zoneM, runM, ratio } | null }
+export const AUTO_FRAGMENTATION = 3;
+export function chooseShell(composites, cutoff, pref = "auto", { spacingM = 0 } = {}) {
   let n = 0, at = 0;
   for (const p of composites || []) { if (!Number.isFinite(p?.value)) continue; n++; if (p.value >= cutoff) at++; }
   const share = n ? at / n : null;
-  if (pref === "envelope" || pref === "tight") return { mode: pref, share };
-  return { mode: share != null && share >= AUTO_ENVELOPE_SHARE ? "envelope" : "tight", share };
+  if (pref === "envelope" || pref === "tight") return { mode: pref, share, fragmentation: null };
+  const shareOk = share != null && share >= AUTO_ENVELOPE_SHARE;
+  let fragmentation = null;
+  if (shareOk && spacingM > 0) {
+    const raw = atCutRunThickness(composites, cutoff), zone = atCutRunThickness(composites, cutoff, null, { windowM: spacingM });
+    if (raw && zone) fragmentation = { zoneM: zone.medianAlongM, runM: raw.medianAlongM, ratio: raw.medianAlongM > 0 ? zone.medianAlongM / raw.medianAlongM : 0 };
+  }
+  const fragOk = !(spacingM > 0) || (fragmentation != null && fragmentation.ratio >= AUTO_FRAGMENTATION);
+  return { mode: shareOk && fragOk ? "envelope" : "tight", share, fragmentation };
 }
 
 // the composites as indicators at the cut-off (a copy: 1 at or above it, else 0)
@@ -152,4 +169,57 @@ export function coarsenField(values, grid, f) {
   }
   const half = (d) => ((f - 1) * d) / 2;
   return { values: out, grid: { nx: mx, ny: my, nz: mz, origin: { x: origin.x + half(cellSize.dx), y: origin.y + half(cellSize.dy), z: origin.z + half(cellSize.dz) }, cellSize: { dx: cellSize.dx * f, dy: cellSize.dy * f, dz: cellSize.dz * f } } };
+}
+
+// TASKS.csv #3673 (Main, after the Automatic share rule sent Tom West's focused drilling to the envelope) — how thick an area's mineralization
+// at the cut-off is, against its sample spacing: the runs of consecutive composites at or above the cut-off along each hole (contiguous:
+// a gap of at most half a composite), each run's length made a true thickness through the area's plane when there is one (the run's own
+// direction against the plane's normal), and their median. composites: [{ hole_id, from, to, x, y, z, value }]; normal: { x, y, z } (unit) or
+// null. -> { runs, medianAlongM, medianTrueM } (medianTrueM = medianAlongM with no plane), or null with no run
+// windowM > 0: a composite counts as in the zone when at least half the composites of its hole within windowM / 2 of it (by depth) are at or
+// above the cut-off, so a zone that keeps dilution between its good intervals is one run, not many (a disseminated deposit at a low cut-off)
+export function atCutRunThickness(composites, cutoff, normal = null, { windowM = 0 } = {}) {
+  const by = new Map();
+  for (const p of composites || []) {
+    if (!Number.isFinite(p?.from) || !Number.isFinite(p?.to)) continue;
+    let l = by.get(p.hole_id); if (!l) by.set(p.hole_id, (l = [])); l.push(p);
+  }
+  const along = [], trueT = []; let zoneN = 0, zoneBelow = 0; // zoneBelow: the composites below the cut-off inside the runs (the dilution kept)
+  const close = (run) => {
+    if (!run.length) return;
+    for (const q of run) { zoneN++; if (!(q.value >= cutoff)) zoneBelow++; }
+    const len = run[run.length - 1].to - run[0].from;
+    along.push(len);
+    if (!normal) { trueT.push(len); return; }
+    // the run's direction: its first to its last composite, or for one composite the hole's direction there (its neighbours)
+    const a = run[0], b = run[run.length - 1], d = { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z };
+    let n = Math.hypot(d.x, d.y, d.z);
+    if (!(n > 0) && run.dir) { d.x = run.dir.x; d.y = run.dir.y; d.z = run.dir.z; n = Math.hypot(d.x, d.y, d.z); }
+    trueT.push(n > 0 ? len * Math.abs((d.x * normal.x + d.y * normal.y + d.z * normal.z) / n) : len);
+  };
+  for (const l of by.values()) {
+    l.sort((p, q) => p.from - q.from);
+    const mid = l.map((p) => (p.from + p.to) / 2), flag = l.map((p) => p.value >= cutoff);
+    if (windowM > 0) { // the share at the cut-off over the window round each composite (two pointers over the depth-sorted composites)
+      const share = new Array(l.length); let lo = 0, hi = 0, inW = 0, atW = 0;
+      for (let i = 0; i < l.length; i++) {
+        while (hi < l.length && mid[hi] <= mid[i] + windowM / 2) { inW++; if (l[hi].value >= cutoff) atW++; hi++; }
+        while (mid[lo] < mid[i] - windowM / 2) { inW--; if (l[lo].value >= cutoff) atW--; lo++; }
+        share[i] = atW / inW;
+      }
+      for (let i = 0; i < l.length; i++) flag[i] = share[i] >= 0.5;
+    }
+    let run = [];
+    for (let i = 0; i < l.length; i++) {
+      const p = l[i], at = flag[i], joins = run.length && p.from - run[run.length - 1].to <= 0.5 * Math.max(0.1, p.to - p.from);
+      if (at && (joins || !run.length)) {
+        run.push(p);
+        if (run.length === 1) { const q = l[i + 1] || l[i - 1]; if (q) run.dir = { x: q.x - p.x, y: q.y - p.y, z: q.z - p.z }; }
+      } else { close(run); run = at ? [p] : []; if (at) { const q = l[i + 1] || l[i - 1]; if (q) run.dir = { x: q.x - p.x, y: q.y - p.y, z: q.z - p.z }; } }
+    }
+    close(run);
+  }
+  if (!along.length) return null;
+  const med = (a) => { const s = [...a].sort((p, q) => p - q); return s[Math.floor(s.length / 2)]; };
+  return { runs: along.length, medianAlongM: med(along), medianTrueM: med(trueT), dilution: zoneN ? zoneBelow / zoneN : 0 };
 }

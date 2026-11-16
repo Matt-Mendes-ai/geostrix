@@ -2690,7 +2690,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // the cut-off (an ellipsoid of the search sphere's volume) and its shell kept within REACH_SHARE of that from them (lib/viewer/shellPlane.js);
         // an area with too few of them keeps the sphere. Off with the pane's tick (shellPlaneSearchOn).
         // TASKS.csv #3673 — each drilled area's shell: Automatic (the default) by the share of its composites at the cut-off, or the one the pane forces
-        const boxChoice = gridBoxes.map((b) => (envLib && workerPost ? envLib.chooseShell(b.idx.map((k) => gridPoints[k]), numericCutoff, shellPref) : { mode: "tight", share: null }));
+        const boxChoice = gridBoxes.map((b) => (envLib && workerPost ? envLib.chooseShell(b.idx.map((k) => gridPoints[k]), numericCutoff, shellPref, { spacingM: gsSampleSpacing > 0 ? gsSampleSpacing : gsSpacing }) : { mode: "tight", share: null }));
         const envBox = boxChoice.map((c) => c.mode === "envelope"), anyEnv = envBox.some(Boolean);
         const indPoints = anyEnv ? envLib.indicatorPoints(gridPoints, numericCutoff) : null; // #3673: 1 at or above the cut-off
         const planeLib = workerPost && numericSearchRadius > 0 && shellPlaneSearchOn() && envBox.some((e) => !e) ? await import("../../lib/viewer/shellPlane.js") : null;
@@ -2882,7 +2882,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           // TASKS.csv #273 — the shared controls this tool now honours, recorded like every other param.
           anisotropy: anisotropy.enabled ? anisotropy.params : null,
           shellMode: anyEnv ? (envBox.every(Boolean) ? "envelope" : "envelope and tight") : "tight", shellModeChoice: shellPref, // TASKS.csv #3673
-          ...(envLib && workerPost ? { shellByArea: boxChoice.map((c, i) => ({ mode: c.mode, shareAtCutoff: c.share == null ? null : +c.share.toFixed(3), composites: gridBoxes[i].idx.length })) } : {}),
+          ...(envLib && workerPost ? { shellByArea: boxChoice.map((c, i) => ({ mode: c.mode, shareAtCutoff: c.share == null ? null : +c.share.toFixed(3), composites: gridBoxes[i].idx.length, ...(c.fragmentation ? { zoneM: +c.fragmentation.zoneM.toFixed(1), runM: +c.fragmentation.runM.toFixed(1), fragmentation: +c.fragmentation.ratio.toFixed(2) } : {}) })) } : {}),
           ...(anyEnv && !envBox.every(Boolean) && tightMean != null ? { meanGradeInTightAreas: tightMean } : {}),
           ...(anyEnv ? { envelope: { probability: envIso, indicatorAt: numericCutoff, rangesInSpacings: envLib.ENVELOPE_RANGES, sampleSpacingM: Math.round(envS * 10) / 10, maxSamples: envLib.ENVELOPE_MAX_SAMPLES,
             areas: envSearch.map((e) => (e ? { dip: +e.trend.dip.toFixed(1), dipAzimuth: +e.trend.dipAzimuth.toFixed(1), pitch: e.trend.pitch, ellipsoidM: e.axesM, composites: e.n, holes: e.holes } : null)),
@@ -2913,8 +2913,10 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // TASKS.csv #3673 — Automatic: which shell each drilled area got and the share of its composites at the cut-off that decided it (the largest areas)
         if (envLib && workerPost && shellPref === "auto") {
           const rows = boxChoice.map((c, i) => ({ ...c, n: gridBoxes[i].idx.length })).filter((r) => r.share != null).sort((x, y) => y.n - x.n);
-          const shown = rows.slice(0, 6).map((r) => tr(r.mode === "envelope" ? "{n} composites, {pct} % at or above: envelope" : "{n} composites, {pct} % at or above: tight", { n: r.n.toLocaleString(), pct: Math.round(100 * r.share) }));
-          setNotices((p) => [...p, notice("\"{label}\", Automatic: an envelope where a third or more of a drilled area's composites are at or above {cutoff} {unit}, the tight shell elsewhere. {list}{more}. Envelope or Tight in the Grade shell pane forces one.", { label, cutoff: numericCutoff, unit: unitL, list: shown.join("; "), more: rows.length > 6 ? tr("; {k} smaller area(s) more", { k: rows.length - 6 }) : "" })]);
+          const shown = rows.slice(0, 6).map((r) => (r.fragmentation
+            ? tr(r.mode === "envelope" ? "{n} composites, {pct} % at or above, zones {z} m of {r} m runs ({k}x): envelope" : "{n} composites, {pct} % at or above, zones {z} m of {r} m runs ({k}x): tight", { n: r.n.toLocaleString(), pct: Math.round(100 * r.share), z: Math.round(r.fragmentation.zoneM), r: Math.round(r.fragmentation.runM), k: +r.fragmentation.ratio.toFixed(1) })
+            : tr(r.mode === "envelope" ? "{n} composites, {pct} % at or above: envelope" : "{n} composites, {pct} % at or above: tight", { n: r.n.toLocaleString(), pct: Math.round(100 * r.share) })));
+          setNotices((p) => [...p, notice("\"{label}\", Automatic: an envelope where a third or more of a drilled area's composites are at or above {cutoff} {unit} and its zones at the cut-off are broken (along the holes, the zones with half or more of their composites at the cut-off are 3 or more times its runs at it: disseminated grade), the tight shell elsewhere. {list}{more}. Envelope or Tight in the Grade shell pane forces one.", { label, cutoff: numericCutoff, unit: unitL, list: shown.join("; "), more: rows.length > 6 ? tr("; {k} smaller area(s) more", { k: rows.length - 6 }) : "" })]);
         }
         if (anyEnv) {
           const used = envSearch.filter(Boolean).sort((x, y) => y.n - x.n), pl = used[0], P = params.envelope;

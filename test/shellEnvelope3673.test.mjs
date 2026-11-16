@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { indicatorPoints, envelopeSearch, cleanField, taubinSmooth, coarsenFactor, coarsenField, ENVELOPE_RANGES, chooseShell, AUTO_ENVELOPE_SHARE } from "../src/lib/viewer/shellEnvelope.js";
+import { indicatorPoints, envelopeSearch, cleanField, taubinSmooth, coarsenFactor, coarsenField, ENVELOPE_RANGES, chooseShell, AUTO_ENVELOPE_SHARE, AUTO_FRAGMENTATION, atCutRunThickness } from "../src/lib/viewer/shellEnvelope.js";
 import { shellPost } from "../src/lib/viewer/shellPost.js";
 import { estimateDenseGrid } from "../src/lib/estimation.js";
 
@@ -94,7 +94,7 @@ test("the wiring: the default envelope, the tight shell a choice; the pane; the 
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
   assert.match(r, /return m === "envelope" \|\| m === "tight" \? m : "auto";/);
   assert.match(r, /envelopeMode = shellPref !== "tight" && !anisotropy\.enabled && !numSrc\?\.logScale/);
-  assert.match(r, /const boxChoice = gridBoxes\.map\(\(b\) => \(envLib && workerPost \? envLib\.chooseShell\(b\.idx\.map\(\(k\) => gridPoints\[k\]\), numericCutoff, shellPref\)/);
+  assert.match(r, /const boxChoice = gridBoxes\.map\(\(b\) => \(envLib && workerPost \? envLib\.chooseShell\(b\.idx\.map\(\(k\) => gridPoints\[k\]\), numericCutoff, shellPref, \{ spacingM: gsSampleSpacing > 0 \? gsSampleSpacing : gsSpacing \}\)/);
   assert.match(r, /runEstimation\("dense", envBox\[bi\] \? indPoints : estPoints,/);
   assert.match(r, /planeLib && !envBox\[bi\] \? planeLib\.shellPlaneSearch/);
   assert.match(r, /maxSamples: envBox\[bi\] \? envLib\.ENVELOPE_MAX_SAMPLES : 16/);
@@ -127,7 +127,37 @@ test("Automatic: a disseminated sheet at a low cut-off gets the envelope, a narr
   // forced
   assert.equal(chooseShell(narrow, 5, "envelope").mode, "envelope");
   assert.equal(chooseShell(dissem, 0.3, "tight").mode, "tight");
-  assert.deepEqual(chooseShell([], 1), { mode: "tight", share: null });
+  assert.deepEqual(chooseShell([], 1), { mode: "tight", share: null, fragmentation: null });
   assert.equal(chooseShell([{ value: 1 }, { value: 1 }, { value: 0 }], 1).mode, "envelope", "two thirds");
   assert.equal(chooseShell([{ value: 1 }, { value: 0 }, { value: 0 }, { value: 0 }], 1).mode, "tight", "a quarter");
+});
+
+// Main's second test: the envelope only where the zone at the cut-off is broken (disseminated), not a coherent zone drilled densely
+test("Automatic, the second test: a thick disseminated sheet -> envelope; a thin sheet drilled densely -> tight; both figures given", () => {
+  assert.equal(AUTO_FRAGMENTATION, 3);
+  const comp = (h, d, v) => ({ hole_id: h, from: d, to: d + 2, x: 0, y: 0, z: -d - 1, value: v });
+  // thick and disseminated: 120 m of each 160 m hole in the zone, its good 2 m intervals one in two or three (the dilution between them)
+  const thick = [];
+  for (let h = 0; h < 8; h++) for (let d = 0; d < 160; d += 2) thick.push(comp(`T${h}`, d, d < 120 && (d / 2 + h) % 5 < 3 ? 0.8 : 0.05));
+  const t = chooseShell(thick, 0.3, "auto", { spacingM: 40 });
+  assert.equal(t.mode, "envelope", JSON.stringify(t));
+  assert.ok(t.fragmentation.ratio >= 3 && t.fragmentation.zoneM > 50, JSON.stringify(t.fragmentation));
+  // thin and coherent, drilled densely: a solid 30 m zone in each 60 m hole, holes 15 m apart (half the composites at the cut-off)
+  const thin = [];
+  for (let h = 0; h < 12; h++) for (let d = 0; d < 60; d += 2) thin.push(comp(`S${h}`, d, d >= 20 && d < 50 ? 1.2 : 0.05));
+  const s = chooseShell(thin, 0.3, "auto", { spacingM: 15 });
+  assert.ok(s.share >= 1 / 3, "the share alone would have taken the envelope");
+  assert.equal(s.mode, "tight", JSON.stringify(s));
+  assert.ok(s.fragmentation.ratio < 1.5, JSON.stringify(s.fragmentation));
+  // without a spacing the share alone decides (as before); forced modes skip the second test
+  assert.equal(chooseShell(thin, 0.3, "auto").mode, "envelope");
+  assert.equal(chooseShell(thin, 0.3, "envelope", { spacingM: 15 }).mode, "envelope");
+  // the zone measure: windowed zones join a broken run, raw runs do not
+  const raw = atCutRunThickness(thick, 0.3), zone = atCutRunThickness(thick, 0.3, null, { windowM: 40 });
+  assert.ok(raw.medianAlongM <= 6 && zone.medianAlongM >= 100, JSON.stringify([raw, zone]));
+  assert.ok(zone.dilution > 0.2, "the zones keep their dilution");
+  // a true thickness through a plane: a vertical hole through a plane dipping 60 degrees
+  const tilt = [{ hole_id: "V", from: 0, to: 2, x: 0, y: 0, z: 0, value: 1 }, { hole_id: "V", from: 2, to: 4, x: 0, y: 0, z: -2, value: 1 }, { hole_id: "V", from: 4, to: 6, x: 0, y: 0, z: -4, value: 1 }];
+  const tt = atCutRunThickness(tilt, 0.5, { x: Math.sin(Math.PI / 3), y: 0, z: Math.cos(Math.PI / 3) });
+  assert.ok(Math.abs(tt.medianTrueM - 6 * 0.5) < 1e-9, `${tt.medianTrueM}`);
 });
