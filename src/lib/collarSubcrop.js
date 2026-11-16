@@ -3,7 +3,7 @@
 // hole's own position at that depth (an angled hole's bedrock pierce point is not at its collar). A starting map, not a mapped
 // outcrop: the points say what the drill met under cover, and where. Pure.
 import { desurveyHole, pointOnTrace } from "./desurvey.js";
-import { roleForLithology, colorForLithology, roleIsFromNotes } from "./layers.js";
+import { roleForLithology, colorForLithology, roleIsFromNotes, lithoMeaningText } from "./layers.js";
 import { arrMax } from "./arrayStats.js"; // TASKS.csv #371 - no spread of a long array
 
 const SKIP = new Set(["overburden", "no recovery", "ignore"]); // "ignore": what Modelling codes calls a no-recovery code (#3390)
@@ -135,10 +135,29 @@ export function holeStartCodes({ collars, litho, roleOf = roleForLithology }) {
 
 // TASKS.csv #3840 — the first sentence of the Subcrop notice: when the code most holes START in is mapped as a unit (not as cover) and fills at least
 // half the points, say so, with the way out. -> { code, holes, total } or null. A hole's start is its first logged interval within LATE_START_M.
+// (Main, after the live pass) — a code whose own words read as rock ('Cambrian limestone, dolomite and marl', Century's LMST in 31 of 34 holes) gets no nudge: only a
+// code with no words, or words that do not name a rock (or that name cover), is said. The words: the code dictionary's meaning, else the text of the code's own rows.
+const ROCK_WORDS = /\b(lime ?stone|dolo(mite|stone)|marl|shale|silt ?stone|sand ?stone|mud ?stone|clay ?stone|argillite|greywacke|graywacke|wacke|conglomerate|arkose|chert|jasper|iron ?stone|bif|banded iron|evaporite|coal|lignite|andesite|basalt|rhyolite|dacite|trachyte|tuff|volcani\w*|volcaniclastic|lava|agglomerate|ignimbrite|granite|granodiorite|tonalite|diorite|monzonite|syenite|gabbro|dolerite|diabase|norite|peridotite|dunite|serpentinite|komatiite|pyroxenite|porphyry|intrusive|felsic|mafic|ultramafic|pegmatite|aplite|lamprophyre|schist|gneiss|quartzite|phyllite|marble|slate|amphibolite|hornfels|skarn|mylonite|migmatite|metasediment\w*|metavolcanic\w*|carbonate|sediments?|sedimentary|bedrock)\b/;
+const COVER_WORDS = /\b(overburden|cover|till|drift|soil|alluvi\w*|colluvi\w*|transported|scree|talus|casing|no recovery|lost core|laterite|ferricrete|calcrete|duricrust|regolith|sand dunes?)\b/;
+export function codeReadsAsRock(code, litho) {
+  let text = lithoMeaningText(code);
+  if (!text) { // the code's own rows: their text fields (a description, a qualifier), the first few
+    const k = String(code).trim().toUpperCase(), bits = [];
+    for (const r of litho || []) {
+      if (String(r?.value ?? "").trim().toUpperCase() !== k) continue;
+      for (const f in r) if (f !== "value" && f !== "hole_id" && typeof r[f] === "string" && r[f].length > 3) bits.push(r[f]);
+      if (bits.length >= 20) break;
+    }
+    text = bits.join(" ");
+  }
+  const t = String(text || "").toLowerCase();
+  return !!t && ROCK_WORDS.test(t) && !COVER_WORDS.test(t);
+}
 export function dominantStartUnit({ collars, litho, points, roleOf = roleForLithology }) {
   const starts = holeStartCodes({ collars, litho, roleOf }), total = starts.reduce((a, c) => a + c.holes, 0);
   const top = starts[0];
   if (!top || !total || SKIP.has(top.role) || top.holes < total / 2 || (points || []).length < 3) return null;
+  if (codeReadsAsRock(top.code, litho)) return null;
   const same = (points || []).filter((p) => String(p.unit).toUpperCase() === top.code.toUpperCase()).length;
   return same >= points.length / 2 ? { code: top.code, holes: top.holes, total } : null;
 }
