@@ -26,7 +26,7 @@ test("wiring: the opening cutoff, the cap and the search from the holes the run 
   assert.match(m, /if \(shellSearchAuto && !shellSearchTyped\.current && \(\(numericSearchRadius === 50 && shellSearchSet\?\.r !== 50\) \|\| untouchedCollarSearch \|\| untouchedOtherArea\)\) \{ setNumericSearchRadius\(shellSearchAuto\);/); // #3607 (3): never a typed search; #3651: another area's untouched search
   assert.match(m, /const shellSearchFrom = shellSampleSpacing\?\.medianM > 0 \? \{ m: Math\.round\(shellSampleSpacing\.medianM\), at: "samples" \} : shellSpacing\?\.medianM > 0 \? /);
   assert.match(m, /proposeShellCutoff\(next\); \/\/ #3272/);
-  assert.equal((m.match(/const p90 = /g) || []).length, 1, "one proposal, for the element change and the opening");
+  assert.equal((m.match(/(?:const|let) p90 = /g) || []).length, 1, "one proposal, for the element change and the opening");
   assert.match(m, /<ShellCapNote assays=\{shellAreaAssays/);
   assert.match(m, /cutoffPct\(numericCutoff, sym, unit\) != null && <div/);
   assert.match(m, /shellSearchSet && numericSearchRadius === shellSearchSet\.r && <div[^>]*>\{shellSearchSet\.at === "samples" \? tr\("Search radius \{r\} m: 2\.5 times the \{m\} m typical distance from a sample to the nearest sample of another hole[^"]*", shellSearchSet\) : tr\("Search radius \{r\} m: 2\.5 times the \{m\} m typical spacing/);

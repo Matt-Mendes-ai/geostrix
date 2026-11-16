@@ -10,7 +10,7 @@ test("Estimation: the samples follow the choice; the default follows Model area;
   const s = src("components/GradeEstimationModal.jsx");
   assert.match(s, /useState\(\(\) => \(modelArea === "checked" && checkedHoleIds\?\.size \? "checked" : "all"\)\)/);
   assert.match(s, /samplesFrom === "checked" && checkedHoleIds\?\.size \? assays\.filter\(\(a\) => checkedHoleIds\.has\(a\.hole_id\)\) : assays/);
-  assert.match(s, /const srcAssays = useMemo\(\(\) => \(includeQAQC \? sampleAssays : excludeQAQC\(sampleAssays\)\)/);
+  assert.match(s, /const srcAssaysRaw = useMemo\(\(\) => \(includeQAQC \? sampleAssays : excludeQAQC\(sampleAssays\)\)/);
   assert.match(s, /samplesFrom: samplesFrom === "checked" && checkedHoleIds\?\.size \? `holes checked in the Holes list/);
   assert.match(s, /<option value="checked">\{tr\("The checked holes \(\{n\} of \{total\}\)"/);
 });
