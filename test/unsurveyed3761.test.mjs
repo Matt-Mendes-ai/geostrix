@@ -93,7 +93,8 @@ test("wiring: the scene builds every span (dashed trace + sleeve) and hands the 
   assert.match(sc, /e\.spans = assumedVertical \? \[\] : unsurveyedSpans\(e\.hs, e\.pts\)/);
   assert.match(sc, /assumed: e\.spans \}/);
   assert.match(sc, /sleeveHoles\.push\(\{ holeId: c\.hole_id, spans: spans\.map\(\(sp\) => pts\.slice\(sp\.i0, sp\.i1 \+ 1\)\) \}\)/);
-  assert.match(sc, /for \(const m of sleeveMeshes\(sleeveHoles\)\) groups\.holes\.add\(m\)/);
+  assert.match(sc, /import\("\.\.\/\.\.\/lib\/viewer\/assumedSleeve\.js"\)\.then\(\(\{ sleeveMeshes \}\) => \{ if \(sleeveToken\.get\(groups\) !== tok\) return; for \(const m of sleeveMeshes\(sleeveHoles\)\) groups\.holes\.add\(m\)/); // loaded when a hole has an unsurveyed stretch
+  assert.doesNotMatch(sc, /^import .*assumedSleeve/m);
   assert.match(read("../src/lib/viewer/identify.js"), /assumedSpansOf: \(id\) => r\.tracesRef\.current\.find\(\(t\) => t\.hole_id === id\)\?\.assumed/);
   for (const l of ["es", "pt", "fr", "ar"]) { const j = JSON.parse(read(`../src/locales/${l}.json`)); assert.ok(j["Position"], l); assert.ok(j["assumed: beyond the last survey station ({m} m), the hole's last attitude is carried on"], l); }
 });

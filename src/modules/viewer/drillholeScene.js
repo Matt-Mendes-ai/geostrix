@@ -3,7 +3,7 @@
 // project with no holes, the layer batches and the passes that follow a rebuild. ViewerModule's effect calls buildDrillholeScene with
 // the values and refs the body used to close over, on the same dependency list. The comments below are the effect's own.
 import { unsurveyedSpans } from "../../lib/viewer/unsurveyedTail.js"; // TASKS.csv #3588 (5); #3761: every stretch with no survey station, not only the tail
-import { sleeveMeshes } from "../../lib/viewer/assumedSleeve.js"; // TASKS.csv #3761
+const sleeveToken = new WeakMap(); // TASKS.csv #3761 — the sleeves' code (lib/viewer/assumedSleeve.js) loads when a hole has an unsurveyed stretch: the latest build's token
 import * as THREE from "three";
 import { DRAW_ORDER } from "../../lib/viewer/drawOrder.js"; // TASKS.csv #2776
 import { t as tr } from "../../lib/i18n.js";
@@ -764,7 +764,12 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
     }
   }
   if (rebuildHoles || plan.shift?.kept) tracesRef.current = [...traceById.values()]; // #2176 — the same list otherwise; #2937 — the new method's traces
-  if (rebuildHoles) { addTraceChunks(groups.holes, traceHoles); for (const m of sleeveMeshes(sleeveHoles)) groups.holes.add(m); } // #2176 step 3; #3761 — the sleeves
+  if (rebuildHoles) { // #2176 step 3
+    addTraceChunks(groups.holes, traceHoles);
+    // #3761 — the pale sleeves, added when their code has loaded (a newer build, which clears the group, takes the token: its stale callback adds nothing)
+    const tok = sleeveHoles.length ? {} : null; sleeveToken.set(groups, tok);
+    if (tok) import("../../lib/viewer/assumedSleeve.js").then(({ sleeveMeshes }) => { if (sleeveToken.get(groups) !== tok) return; for (const m of sleeveMeshes(sleeveHoles)) groups.holes.add(m); (applyHoleVisibilityRef?.current || applyCategoryVisibility)(); });
+  }
   for (const l of repaint) paintCustomLayer(l, layerStyles); // #2373
   if (plan.holeEntries) sceneCaches.set(groups, { ox, oy, oz, rebuildSeq, holes: plan.holeEntries, sigs, holeSets }); else sceneCaches.delete(groups);
 

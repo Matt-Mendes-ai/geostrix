@@ -235,7 +235,8 @@ import { wheelZoom } from "./viewer/wheelZoom.js"; // #2368
 import { makeWheelAnchors, wheelBoxes } from "./viewer/wheelAnchors.js"; // TASKS.csv #3247; #3669
 import { useDrillLineDefaults } from "./viewer/drillLines.js"; // #2366
 import { useSliceModelFace } from "./viewer/useSliceModelFace.js"; // #3765
-import ImportedSurfaceRows, { isImportedSurface, surfaceHex } from "./viewer/ImportedSurfaceRows.jsx"; // #3762
+const ImportedSurfaceRows = React.lazy(() => import("./viewer/ImportedSurfaceRows.jsx")); // TASKS.csv #3762 — loads when a surface has been imported
+const isImportedSurface = (s) => s?.type === "imported", surfaceHex = (m) => (m?.material?.color ? `#${m.material.color.getHexString()}` : null);
 import { sectionTopView, viewCentreEN } from "./viewer/sectionView.js"; // TASKS.csv #3574
 import { pBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704 // TASKS.csv #445 step 2
 import { isMarkedQcRow } from "../lib/qaqcCore.js"; // TASKS.csv #601; qaqcCore: #1345
@@ -6487,7 +6488,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {(boundaries.length > 0 || omfObjects.length > 0 || voxelModels.length > 0 || implicitSurfaces.some(isImportedSurface)) && (
           <>
             <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Boundaries and models")}</div>
-            <ImportedSurfaceRows surfaces={implicitSurfaces} meshesRef={implicitMeshesRef} labels={surfaceLabels} toggle={toggleImplicitSurface} zoom={zoomToImplicitSurface} remove={removeImplicitSurface} confirmRemove={confirmRemoveSurface} />{/* #3762 */}
+            <Suspense fallback={null}><ImportedSurfaceRows surfaces={implicitSurfaces} meshesRef={implicitMeshesRef} labels={surfaceLabels} toggle={toggleImplicitSurface} zoom={zoomToImplicitSurface} remove={removeImplicitSurface} confirmRemove={confirmRemoveSurface} /></Suspense>{/* #3762 */}
             {boundaries.map((b) => (
               <div key={b.id} onContextMenu={(e) => openRowMenu(e, b.name, [
                   { label: b.visible === false ? "Show" : "Hide", onClick: () => updateBoundary(b.id, { visible: b.visible === false }) },
