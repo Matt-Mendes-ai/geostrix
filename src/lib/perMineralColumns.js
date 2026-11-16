@@ -3,6 +3,7 @@
 // the way in was one custom-layer import per mineral, each saying "N blank code" for the rows with none of that mineral. Now one import makes
 // one numeric interval custom layer per ticked mineral column, plus, opt-in, a total of the columns the user ticks as sulphides.
 // Pure: detection, the default ticks, and the rows of each layer. Loaded on demand (the dialog box and the commit), not at startup.
+import { isElementColumn, oxideOfHeader } from "./geochemColumns.js"; // TASKS.csv #3727
 
 // a per-cent column name: MN_CPY_pct, CPY_PCT, Cpy%, Cpy (%), pct_cpy, CPY_VIS_PCT, Py_percent
 const PCT_NAME = /(^|[\s_-])(pct|percent|perc|vis_?pct)$|^(pct|percent)[\s_-]|%\)?$|\(\s*%\s*\)$/i;
@@ -29,6 +30,35 @@ export function isSumMineralColumn(h, headers = []) {
 }
 export const isPercentColumn = (h) => PCT_NAME.test(String(h ?? "").trim()) && !IGNORED.test(String(h ?? "").trim());
 export const isMineralAmountColumn = (h, headers = []) => isPercentColumn(h) || isSumMineralColumn(h, headers); // #3307
+// TASKS.csv #3727 (Scottie Gold review: '+ Add CSV layer' on an assay workbook pre-ticked al_pct, ca_pct, fe_pct … ti_pct as 'Minerals in this file'
+// and stored the lab results as nine '% visual' layers) — a lab element column is not a mineral: an oxide (SiO2_pct, Fe2O3 (%)), or a column whose
+// name before its unit is an element symbol (fe_pct, Fe (%), S%), unless that symbol is also a logging abbreviation (Au, Ag, Mo, Sb, Ga: visible
+// gold, molybdenite, galena). In a table that reads as assays those count as elements too, and so does an element with a method code (Fe_ICP_pct).
+// A mineralization prefix (MN_CPY_pct) is not an element (Mn).
+const LAB_UNIT = /(^|[\s_(-])(ppm|ppb|gpt|g\/t|opt|oz\/t)([\s_)-]|$)/i;
+const MINERAL_PREFIX = /^(mn|min|mnl|sul|sulph)[\s_-]+./i;
+// -> null (not an element) | { exact: the name is the symbol and its unit, abbr: the symbol is also a mineral abbreviation }
+function labElement(h) {
+  const s = String(h ?? "").trim();
+  if (!s || IGNORED.test(s)) return null;
+  if (oxideOfHeader(s)) return { exact: true, abbr: false };
+  const sym = isElementColumn(s) || isElementColumn(stemOf(s)); // the stem: S%, Cu%
+  if (!sym) return null;
+  const stem = stemOf(s).replace(/[\s_(-]*(ppm|ppb|gpt|g\/t|opt|oz\/t)\)?$/i, "").trim();
+  if (MINERAL_PREFIX.test(stem)) return null; // MN_CPY_pct: a mineral, with the mineralization prefix
+  const exact = stem.toLowerCase() === String(sym).toLowerCase();
+  return { exact, abbr: exact && MINERAL_ABBR.has(stem.toLowerCase()) };
+}
+// a table that reads as lab assays: three or more element columns in ppm / ppb / g/t, or named exactly as an element that is not a logging
+// abbreviation (fe_pct, al_pct, s_pct)
+export const ASSAY_TABLE_MIN = 3;
+export function isAssayTable(headers) {
+  let n = 0;
+  for (const h of headers || []) { const e = labElement(h); if (e && (LAB_UNIT.test(String(h).trim()) || (e.exact && !e.abbr))) n++; }
+  return n >= ASSAY_TABLE_MIN;
+}
+const labIn = (h, assays) => { const e = labElement(h); return !!e && (assays || (e.exact && !e.abbr)); };
+export const isLabElementColumn = (h, headers = []) => labIn(h, isAssayTable(headers));
 // the mineral's code for the Mineralization layer: MN_CPY_pct -> CPY, py_sum -> PY
 export const mineralCode = (col) => stemOf(col).replace(/^(mn|min|mnl|sul|sulph)[\s_-]+/i, "").toUpperCase() || String(col).toUpperCase();
 
@@ -45,7 +75,8 @@ export const styleColumnFor = (col, headers) => companionColumns(col, headers)[0
 // the per-cent columns of the file (not mapped as the hole / from / to), in file order -> [{ col, n, max, style }]; blank ones have n 0
 export function percentColumns(headers, rows, mapping = {}, { sample = 200000 } = {}) {
   const used = new Set([mapping.hole_id, mapping.from, mapping.to, mapping.depth].filter(Boolean));
-  const list = (headers || []).filter((h) => !used.has(h) && isMineralAmountColumn(h, headers)); // _sum: #3307
+  const assays = isAssayTable(headers); // #3727 — lab element columns are not minerals
+  const list = (headers || []).filter((h) => !used.has(h) && isMineralAmountColumn(h, headers) && !labIn(h, assays)); // _sum: #3307
   const step = Math.max(1, Math.floor((rows || []).length / sample));
   return list.map((col) => {
     let n = 0, max = -Infinity;
@@ -102,6 +133,16 @@ export function perMineralOffer(target, headers, rows, mapping = {}) {
   // code: that is a property of one mineral, not a mineralization code, so the box is still offered
   if (target === "mnlgy" && mapping.value && !isMineralAmountColumn(mapping.value, headers) && !cols.some((c) => c.companions.includes(mapping.value))) return null;
   return cols.filter((c) => c.n > 0).length >= 2 ? cols : null;
+}
+
+// TASKS.csv #3727 — what the box left out as lab results, for the dialog to say: the per-cent / amount columns that are element assays, and whether
+// the table reads as assays -> { cols, assay } | null (nothing left out, or the box does not apply to this target / mapping)
+export function labColumnsLeftOut(target, headers, mapping = {}) {
+  if (target !== "mnlgy" && target !== "custom" && target !== "litho") return null;
+  if (!mapping.hole_id || !mapping.from || !mapping.to || mapping.depth) return null;
+  const used = new Set([mapping.hole_id, mapping.from, mapping.to, mapping.depth].filter(Boolean));
+  const cols = (headers || []).filter((h) => !used.has(h) && isMineralAmountColumn(h, headers) && isLabElementColumn(h, headers));
+  return cols.length ? { cols, assay: isAssayTable(headers) } : null;
 }
 
 // what the dialog's choices are: the ticked mineral columns (default: every column with values) and the columns summed as sulphides
