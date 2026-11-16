@@ -502,7 +502,7 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
     traceById.delete(c.hole_id);
     traceById.set(c.hole_id, e.trace);
     // TASKS.csv #131 — collar (hole) labels, opt-in via holeLabelMode; #1277 — drawn from these anchors by syncHoleLabels
-    labelAnchors.push({ id: c.hole_id, x: pts[0].x, y: pts[0].y, z: pts[0].z, zWorld: c.z, depth: pts.length ? pts[pts.length - 1].md : 0 });
+    labelAnchors.push({ id: c.hole_id, x: pts[0].x, y: pts[0].y, z: pts[0].z, zWorld: c.z, depth: pts.length ? pts[pts.length - 1].md : 0, tx: pts[pts.length - 1].x, ty: pts[pts.length - 1].y, tz: pts[pts.length - 1].z /* #3772 — the toe */ });
 
     // TASKS.csv #2662 — a hole whose survey stations are all of an 'assumed' method (#2494: the collar's 'survey method' attribute) goes
     // where its planned direction says, not where it was measured: drawn dashed like #2014's assumed vertical sticks, and the tip says so

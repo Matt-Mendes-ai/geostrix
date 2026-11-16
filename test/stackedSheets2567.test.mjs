@@ -25,5 +25,5 @@ test("the pane warns and the pick check names stacked sheets", () => {
   const p = readFileSync(new URL("../src/components/MapModelPanel.jsx", import.meta.url), "utf8");
   assert.match(p, /tr\("\{unit\} is met \{r\} times in \{h\} hole\(s\), up to \{max\} in one: it repeats down the holes/);
   const m = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
-  assert.match(m, /or stacked sheets of an intrusion \(model those as veins \/ dykes\);/);
+  assert.match(m, /(or stacked sheets of an intrusion \(model those as veins \/ dykes\);|a unit that is not one layer \(a steep body or stacked sheets: model it as a closed body in Modelling codes, or as Veins \/ dykes\))/);
 });

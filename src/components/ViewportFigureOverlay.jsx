@@ -222,7 +222,7 @@ export default function ViewportFigureOverlay({ config, title, legendGroups: all
   // TASKS.csv #1398 (review #1352) — the rows are shared out between the groups in turn (allocateLegendRows), in their own order:
   // #381 sorted short groups first so grade classes were not pushed out, but that pushed Lithology, the colour of every hole, out
   // instead ("+ 51 more", no Lithology, on Silvertip). Each group's first row carries its heading; #843 alwaysHead, #948 kind.
-  const { rows: shown, total } = allocateLegendRows(legendGroups, Math.min(lay.cap, fit.items));
+  const { rows: shown, total, omitted = [] } = allocateLegendRows(legendGroups, Math.min(lay.cap, fit.items));
   const twoCols = lay.cols === 2 && shown.length > lay.cap / 2; // #2044 — the second column only when one would not hold the rows
   shownLenRef.current = shown.length;
   // TASKS.csv #381 — continuous keys (block models, geophysics points, #1398 the numeric hole layers): gradient bar + min/max
@@ -270,7 +270,7 @@ export default function ViewportFigureOverlay({ config, title, legendGroups: all
           ))}
           </div>
           {hiddenCount > 0 && (
-            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", marginTop: 4 }}>{tr("+ {hiddenCount} more not shown — filter categories, or build the figure in Layout", { hiddenCount })}</div>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", marginTop: 4 }}>{omitted.length ? tr("+ {hiddenCount} more not shown, among them {names} — filter categories, or build the figure in Layout", { hiddenCount, names: omitted.slice(0, 4).join(", ") + (omitted.length > 4 ? "…" : "") }) : tr("+ {hiddenCount} more not shown — filter categories, or build the figure in Layout", { hiddenCount })}{/* #3775 (8) */}</div>
           )}
           {ramps.map((g) => (
             <div key={g.key} style={{ marginTop: 6 }}>

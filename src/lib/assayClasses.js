@@ -28,6 +28,8 @@ export function assayClassRange(rows, symbol) {
     const drop = atFloor >= 0.3 * all.length && atFloor < all.length; // #1696 — a pile at the detection floor does not decide the classes
     pool = drop ? all.subarray(atFloor) : all;
     basis = drop ? { kind: "floor", n: pool.length, left: atFloor, floor: all[0] } : { kind: "all", n: all.length, left: 0 };
+    // TASKS.csv #3773 — a repeated lowest value under the 30 % that drops it (Au 0.0025 g/t on 19 % of a project's samples) is still half a detection limit: said in the Style dialog
+    if (atFloor >= 20 && atFloor / all.length >= 0.05 && atFloor < all.length) basis.pile = { value: all[0], share: atFloor / all.length };
   }
   const q = (p) => (pool.length ? pool[Math.min(pool.length - 1, Math.floor(p * (pool.length - 1)))] : undefined);
   return { ...minMax(vals), p50: q(0.5), p90: q(0.9), p975: q(0.975), basis }; // minMax, not Math.min(...vals): a large set exceeds the spread limit

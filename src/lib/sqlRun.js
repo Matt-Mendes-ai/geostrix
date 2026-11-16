@@ -4,6 +4,7 @@
 // wrapped/genericized.
 // TASKS.csv #3579 (Fireweed / Macpass rehearsal) — 'SELECT * FROM assays' listed PbO and ZnO, the oxide names that exist so a query can say them (#2914): computed, never imported.
 // A star select leaves out the computed columns unless the query names them, and says which it left out (result.omitted).
+import { t as tr } from "./i18n.js"; // TASKS.csv #3775 (6)
 const STAR_SELECT = /^\s*select\s+(distinct\s+)?([\w"]+\.)?\*\s+from\b/i;
 function computedColumns(db) {
   const out = new Set();
@@ -14,7 +15,11 @@ function computedColumns(db) {
 // whether the text names the column as a word (any case, quoted or not)
 const namesColumn = (text, col) => text.toLowerCase().split(/[^\w]+/).includes(String(col).toLowerCase());
 export function runQuery(db, sql) {
-  const res = db.exec(sql);
+  let res;
+  try { res = db.exec(sql); } catch (e) { // TASKS.csv #3775 (6) — the snapshot is read-only: said in words, not as sql.js's 'attempt to write a readonly database'
+    if (/readonly|read-only|read only/i.test(String(e?.message))) throw new Error(tr("This workspace is a read-only copy of the project's tables: only queries that read run here, and the project is never changed."));
+    throw e;
+  }
   if (!res.length) return { columns: [], rows: [] };
   const { columns, values } = res[0];
   if (!STAR_SELECT.test(sql)) return { columns, rows: values };

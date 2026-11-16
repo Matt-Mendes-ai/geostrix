@@ -2,7 +2,7 @@
 // a click on a heading sorts, a filter box under each heading ('>= 6', '6..8', 'REG', '!REG'), a search over every column, Export CSV of what is shown. Read-only: a value is corrected
 // in its source file and imported again (said at the top), so nothing here changes the data. Opened by lib/dataTableRequests.js (the ribbon, a layer's inspector, Geochem's
 // sidebar, a Data QC row: { source, hole, from, to } preset the filters and mark the row).
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { X, Download } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
 import { tableSources, buildTable, applyTable } from "../lib/dataTable.js";
@@ -35,7 +35,9 @@ export default function DrillTableModal({ request = {}, onClose }) {
   const [sort, setSort] = useState(null);
   // __hole stands for the hole_id column of whichever source is shown
   const colFilters = useMemo(() => { const f = { ...filters }; if (f.__hole != null) { if (holeCol >= 0) f[holeCol] = f.__hole; delete f.__hole; } return f; }, [filters, holeCol]);
-  const order = useMemo(() => applyTable(table, { filters: colFilters, search, sort }), [table, colFilters, search, sort]);
+  // TASKS.csv #3775 (10) — each keystroke in a column filter held the window 190-325 ms on 9,777 rows x 37 columns: the rows follow a moment later (a deferred value) and the box answers at once
+  const dFilters = useDeferredValue(colFilters), dSearch = useDeferredValue(search);
+  const order = useMemo(() => applyTable(table, { filters: dFilters, search: dSearch, sort }), [table, dFilters, dSearch, sort]);
   const { scrollRef, onScroll, startIndex, endIndex, topPad, bottomPad } = useVirtualRows(order.length, ROW_H);
   const iFrom = table.columns.findIndex((c) => c.key === "from"), iTo = table.columns.findIndex((c) => c.key === "to");
   const marked = (r) => request.from != null && request.to != null && iFrom >= 0 && iTo >= 0 && Math.abs(r[iFrom] - request.from) < 1e-6 && Math.abs(r[iTo] - request.to) < 1e-6 && (!request.hole || r[holeCol] === request.hole);

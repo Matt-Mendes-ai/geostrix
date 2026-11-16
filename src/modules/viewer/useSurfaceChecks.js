@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import * as THREE from "three";
 import { t as tr } from "../../lib/i18n.js";
 import { errorNotice, notice, appendNotice, replaceNotices } from "../../lib/notices.js";
+import { FOLD_EXPLAIN, STEEP_DIP_DEG } from "../../lib/topology.js"; // TASKS.csv #3777
 
 export function useSurfaceChecks({ implicitSurfaces, surfaceLabels, implicitMeshesRef, implicitGroupRef, surfaceGeomCacheRef, setNotices, setImplicitSurfaces }) {
   // ---------- TASKS.csv #90 — topological relationship checking ----------
@@ -31,12 +32,15 @@ export function useSurfaceChecks({ implicitSurfaces, surfaceLabels, implicitMesh
           };
         });
         const res = checkTopology(input, { up: "y" });
+        // TASKS.csv #3777 — the steep surfaces not tested for fold-back, named; and the reading of a fold-back said once after the list, not after every surface
+        const steepNote = res.steep?.length ? " " + tr("Not tested for fold-back ({list}: they dip over {deg}° on average, and a steep contact has two elevations at one location).", { list: res.steep.map((s) => `${s.name} ${s.dip}°`).join(", "), deg: STEEP_DIP_DEG }) : "";
+        const foldWhy = res.violations.some((v) => v.kind === "inverted") ? " " + tr(FOLD_EXPLAIN) : "";
         if (!res.checked) {
           setNotices((p) => replaceNotices(p, "topologyCheck", notice("Nothing to check: none of the {surfacesChecked} surface(s) declare a relationship that implies a geometric constraint. Declare \"is below\" / \"is above\" / \"must not cross\" on a surface (expand its row) and run this again.", { surfacesChecked: res.surfacesChecked }))); // #3114
         } else if (!res.violations.length) {
-          setNotices((p) => replaceNotices(p, "topologyCheck", notice("Topology check passed: {checked} check(s) across {surfacesChecked} surface(s), no violations.{v}", { checked: res.checked, surfacesChecked: res.surfacesChecked, v: res.skipped ? tr(" {skipped} declared relationship(s) skipped — either the target surface no longer exists, or the relationship (truncates / terminates against / cuts) is one where an intersection is expected and so has nothing to violate.", { skipped: res.skipped }) : "" }))); // #3114
+          setNotices((p) => replaceNotices(p, "topologyCheck", notice("Topology check passed: {checked} check(s) across {surfacesChecked} surface(s), no violations.{v}", { checked: res.checked, surfacesChecked: res.surfacesChecked, v: (res.skipped ? tr(" {skipped} declared relationship(s) skipped — either the target surface no longer exists, or the relationship (truncates / terminates against / cuts) is one where an intersection is expected and so has nothing to violate.", { skipped: res.skipped }) : "") + steepNote }))); // #3114
         } else {
-          setNotices((p) => replaceNotices(p, "topologyCheck", appendNotice(notice("Topology check found {violations} violation(s) in {checked} check(s):", { violations: res.violations.length, checked: res.checked }), res.violations.map((v) => ` • ${v.message}`).join("")))); // #3114 — replaces the last check's notice // #1542 — one notice: the count and the list stay together
+          setNotices((p) => replaceNotices(p, "topologyCheck", appendNotice(notice("Topology check found {violations} violation(s) in {checked} check(s):", { violations: res.violations.length, checked: res.checked }), res.violations.map((v) => ` • ${v.message}`).join("") + foldWhy + steepNote))); // #3114 — replaces the last check's notice // #1542 — one notice: the count and the list stay together
         }
       } catch (err) {
         setNotices((p) => replaceNotices(p, "topologyCheck", errorNotice(tr("Topology check failed: {message}", { message: err.message }))));

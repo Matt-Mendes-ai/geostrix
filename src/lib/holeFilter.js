@@ -1,4 +1,5 @@
 import { rowsOf, lengthOf } from "./rowTable.js"; // TASKS.csv #3554
+import { LAYER_META } from "./layers.js"; // TASKS.csv #3775 (3) — a layer's own name for has: / no:
 // TASKS.csv #1316 — the hole list's filter: parts of a hole id, separated by commas or spaces; a hole matches any of them.
 export function holesMatching(ids, filter) {
   const terms = String(filter || "").toLowerCase().split(/[,\s]+/).filter(Boolean);
@@ -99,6 +100,10 @@ export function collarNumber(c, key) {
   const a = c?.attrs || {};
   for (const k of Object.keys(a)) if (norm(k) === key) vals.push(a[k]);
   if (!vals.length && OWN[key] && c?.[OWN[key]] != null) vals.push(c[OWN[key]]);
+  // TASKS.csv #3775 (3) — on fan drilling a filter by direction is the natural one: 'dip<-60' (steeper than 60° down, as the collar table prints it: negative down) and 'azimuth>180' read the collar's own
+  // dip and azimuth (from its first survey station when the file gave none, as the collar table does: collarsWithSurveyOrient)
+  if (!vals.length && (key === "dip" || key === "inclination") && Number.isFinite(c?.dip)) vals.push(-c.dip);
+  if (!vals.length && (key === "azimuth" || key === "az" || key === "bearing") && Number.isFinite(c?.azimuth)) vals.push(c.azimuth);
   for (const v of vals) { const t = String(v ?? "").trim(); if (t !== "" && Number.isFinite(+t)) return +t; }
   return NaN;
 }
@@ -140,6 +145,12 @@ export function tidyFilter(filter) {
   }).join(",");
 }
 
+// TASKS.csv #3775 (3) — a has: / no: name that is a layer's label ('lithology' for litho, 'specific gravity' for sg) -> that layer's set key, else null
+export function setKeyByLabel(name, holeSets) {
+  const want = norm(name);
+  for (const k of Object.keys(holeSets || {})) { const label = k === "assays" ? k : LAYER_META[k.replace(/ /g, "_")]?.label; if (label && norm(label) === want) return k; }
+  return null;
+}
 // ctx: { holeSets } (holeSetsOf). -> { holes, byField, hint }: hint = null, or { kind: "set", names: [unknown set names] } / { kind: "none" } when a typed number or has / no term matched nothing
 export function holesForFilter(collars, filter, ctx = {}) {
   filter = tidyFilter(filter); // #3690
@@ -150,7 +161,7 @@ export function holesForFilter(collars, filter, ctx = {}) {
   for (const n of p.numeric) holes = holes.filter((c) => passes(collarNumber(c, n.key), n));
   const unknown = [];
   for (const s of p.sets) {
-    const set = ctx.holeSets?.[s.name];
+    const set = ctx.holeSets?.[s.name] || ctx.holeSets?.[setKeyByLabel(s.name, ctx.holeSets)]; // #3775 (3) — the menu says 'Holes with Lithology': the layer's own name finds its key (litho)
     if (!set) { unknown.push(s.name); holes = []; continue; }
     holes = holes.filter((c) => set.has(String(c.hole_id)) === s.has);
   }
