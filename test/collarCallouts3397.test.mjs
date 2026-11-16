@@ -102,7 +102,7 @@ test("a pad whose callout has no room gets a short 'first id +n' label", () => {
 test("wired into the Maps plan (and so into Snapshot to Layout, which captures the canvas)", () => {
   const s = readFileSync(new URL("../src/components/MapsPlanView.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(s, /import \{ drawCallouts \} from "\.\.\/lib\/collarCallouts\.js";/);
-  assert.match(s, /if \(showIds\) \{[^\n]*\n(?:\s*\/\/[^\n]*\n)*(?:\s*(?:const keepClear|const cr|if \((?:cr|showGrid)\))[^\n]*\n)*\s*drawCallouts\(ctx, collars, X, Y, size, \{ colourOf: colouring \? \(c\) => colouring\.colourOf\(c\) : undefined, dotR: ds\.r, mPerPx: v\.mPerPx/);
+  assert.match(s, /if \(showIds\) \{[^\n]*\n(?:\s*\/\/[^\n]*\n)*(?:\s*(?:const keepClear|const cr|if \((?:cr|showGrid)\))[^\n]*\n)*\s*drawCallouts\(ctx, dotCollars \/\* #3832[^*]*\*\/, X, Y, size, \{ colourOf: colouring \? \(c\) => colouring\.colourOf\(c\) : undefined, dotR: ds\.r, mPerPx: v\.mPerPx/);
   assert.match(s, /const src = cv\.toDataURL\("image\/png"\);/);
 });
 

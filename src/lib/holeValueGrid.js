@@ -185,3 +185,31 @@ export function holeSamplesAt(collars, values, spans, { key = "value", survey = 
   }
   return { samples, atCollar, noRl };
 }
+
+// TASKS.csv #3826 (Scottie Gold review) — holes drilled as fans from pads: the collar is the one place their values do not belong (three holes of
+// 91.5, 3.72 and 20.1 g/t gave a cell of 18.98 at their pad). What the placement does to the holes: how many share a collar point (rounded to a metre),
+// and how many have their value (the middle of the interval on the trace) more than a cell from the collar.
+// atCollar / atIntercept: holeSamplesAt(...).samples at the two placements. -> { holes, padHoles, pads, apart, far, intercept }
+// intercept: the grid is better made at the intercepts (a pad's holes part by more than a cell, or most values lie a cell or more from their collar)
+export function placementAdvice(atCollar, atIntercept, cellM) {
+  const cell = Number.isFinite(cellM) && cellM > 0 ? cellM : 50, list = atCollar || [], n = list.length;
+  // a pad: collars within PAD_M of each other (a spatial hash, joined by union-find)
+  const PAD_M = 5, parent = list.map((_, i) => i), find = (i) => { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
+  const hash = new Map();
+  list.forEach((s, i) => { const k = Math.floor(s.x / PAD_M) + "," + Math.floor(s.y / PAD_M); (hash.get(k) || hash.set(k, []).get(k)).push(i); });
+  list.forEach((s, i) => { const cx = Math.floor(s.x / PAD_M), cy = Math.floor(s.y / PAD_M); for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (const j of hash.get((cx + dx) + "," + (cy + dy)) || []) if (j > i && Math.hypot(list[j].x - s.x, list[j].y - s.y) <= PAD_M) parent[find(j)] = find(i); });
+  const byPad = new Map();
+  list.forEach((s, i) => { const r = find(i); (byPad.get(r) || byPad.set(r, []).get(r)).push(s.hole_id); });
+  const icpt = new Map((atIntercept || []).map((s) => [s.hole_id, s]));
+  let padHoles = 0, pads = 0, apart = 0, far = 0;
+  for (const s of list) { const i = icpt.get(s.hole_id); if (i && Math.hypot(i.x - s.x, i.y - s.y) > cell) far++; }
+  for (const ids of byPad.values()) {
+    if (ids.length < 2) continue;
+    padHoles += ids.length; pads++;
+    const pts = ids.map((h) => icpt.get(h)).filter(Boolean);
+    let wide = false;
+    for (let i = 0; i < pts.length && !wide; i++) for (let j = i + 1; j < pts.length; j++) if (Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y) > cell) { wide = true; break; }
+    if (wide) apart += ids.length;
+  }
+  return { holes: n, padHoles, pads, apart, far, intercept: apart > 0 || (n > 0 && far * 2 > n) };
+}
