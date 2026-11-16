@@ -11,6 +11,7 @@ import { valueIn } from "../lib/geochem.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #2902 — no Math.min / max(...spread) over a population (#371)
 import { THRESHOLD_METHODS, MIN_N_BREAKS, MIN_N_ROBUST, candidateThresholds, groupOptions, groupKeyFn, populations, normalQuantile, hasMixedSources, intervalLength, DRILL_DOMAINS, drillDomainKeyFn } from "../lib/thresholds.js"; import { thresholdUnreachable, usableDefaultMethod, LOG_RULES, thresholdScale, ARITH_RULES, isLowRule } from "../lib/thresholds.js"; import { linTicks } from "./GeochemPlot.jsx"; // ARITH_RULES / isLowRule: #3173; // LOG_RULES, thresholdScale, linTicks: #3070 // drill: TASKS.csv #2196
 import { DISPLAY_UNITS, isPlainUnit, displayUnitOf, displayFactor, toDisplay } from "../lib/displayUnits.js"; // TASKS.csv #3236 / #3290
+import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3749 — g/t for a precious metal stored in ppm, in every label here
 import { formatLimit, fileCensoring } from "../lib/qaqc.js"; // fileCensoring: #3083 (censoringFloor / reportedStep / zeroResults through it) // TASKS.csv #1520; formatLimit: #2503; reportedStep / zeroResults: #2913
 import { attributeDomainOptions, attributeDomainLabel, customDomainOptions } from "../lib/customDomains.js"; // #2504; customDomainOptions: #3108
 import { LAYER_META } from "../lib/layers.js"; // TASKS.csv #3108 — the built-in logs' names for their extra fields
@@ -69,7 +70,7 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
   // plot axes. The rules are worked, and a saved threshold is kept, in the stored unit (the record names it): display only.
   const shownUnit = displayUnitOf(project, symbol, unit), dk = displayFactor(unit, shownUnit);
   const sh = (v) => (v == null || !Number.isFinite(v) || dk === 1 ? v : toDisplay(v, unit, shownUnit));
-  const dispUnit = shownUnit;
+  const dispUnit = gradeUnitLabel(symbol, shownUnit), storedLabel = gradeUnitLabel(symbol, unit); // #3749 — labels only; dk and the rules stay in the stored unit
   // TASKS.csv #1520 — values on a censoring floor (half the limit substituted in the file) count as <DL, as flagged ones do
   // #2503 — a value the lab flagged '<' (surface: bdl; drill: the qualifier) is below detection by the file's own word: the floor guess of
   // #1520 runs only on the unflagged values, for files that arrive with half the limit already substituted
@@ -144,12 +145,12 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
               </select></label>
             )}
             <label style={ctl}>{tr("Element")}<select value={symbol} onChange={(e) => { setSymbol(e.target.value); setViewKey(null); }} style={{ ...sel, display: "block", marginTop: 4 }}>
-              {elements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol} ({e.unit})</option>)}
+              {elements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol} ({gradeUnitLabel(e.symbol, e.unit)})</option>)}
             </select></label>
             {isPlainUnit(unit) && typeof setDisplayUnit === "function" && <label style={ctl} title={tr("The unit {symbol} is shown in here and in Best intercepts and Grade stats. Display only: the rules are worked in the stored unit.", { symbol })}>{tr("Show in")}
-              <select value={project?.displayUnits?.[symbol] && project.displayUnits[symbol] !== unit ? project.displayUnits[symbol] : ""} onChange={(e) => setDisplayUnit(symbol, e.target.value || null)} style={{ ...sel, display: "block", marginTop: 4 }} aria-label={tr("Show in")}>
-                <option value="">{tr("As stored ({unit})", { unit })}</option>
-                {DISPLAY_UNITS.filter((u) => u !== unit).map((u) => <option key={u} value={u}>{u}</option>)}
+              <select value={project?.displayUnits?.[symbol] && project.displayUnits[symbol] !== unit && project.displayUnits[symbol] !== storedLabel ? project.displayUnits[symbol] : ""} onChange={(e) => setDisplayUnit(symbol, e.target.value || null)} style={{ ...sel, display: "block", marginTop: 4 }} aria-label={tr("Show in")}>
+                <option value="">{tr("As stored ({unit})", { unit: storedLabel })}</option>
+                {DISPLAY_UNITS.filter((u) => u !== unit && u !== storedLabel).map((u) => <option key={u} value={u}>{u}</option>)}
               </select></label>}{/* #3236 / #3290 */}
             <label style={ctl}>{tr("Populations")}<select value={groupBy} onChange={(e) => { setGroupBy(e.target.value); setViewKey(null); }} style={{ ...sel, display: "block", marginTop: 4, maxWidth: 320 }}>
               {gOpts.map((o) => <option key={o.value} value={o.value}>{o.kind === "column" ? tr("Column: {v}", { v: o.label }) : o.kind === "labmeta" ? tr("Lab column: {v}", { v: o.label }) /* #1828 */ : o.kind === "map" ? tr("Map: {v}", { v: o.label }) : o.kind === "attribute" ? attributeDomainLabel(o.d, tr) : tr(o.label)}</option>)}

@@ -4,6 +4,7 @@
 // real-world width (a scale bar binds to it) and its legend rows; "Save PNG" writes it. Soils rarely carry an elevation, so this plan
 // is where a soil anomaly is read against the IP. Map text is English, as every export is.
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3749 — g/t for a precious metal stored in ppm, in the labels
 import { X } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
 import { anomalyClasses } from "../lib/anomalyMap.js";
@@ -29,7 +30,9 @@ export default function SurfacePlanMap({ onClose }) {
   const media = useMemo(() => [...new Set(surfaceSamples.map((s) => s.medium).filter(Boolean))], [surfaceSamples]);
   const [symbol, setSymbol] = useState(() => elements[0]?.symbol || "");
   const [medium, setMedium] = useState(() => (media.includes("soil") ? "soil" : ""));
-  const [modelId, setModelId] = useState(() => voxelModels[0]?.id || "");
+  // TASKS.csv #3753 (Scottie Gold) — the plan of surface samples opens on the samples: a block model goes under them only when it is one the 3D View shows (an IP slice hidden there
+  // opened this map framed on 10 of 266 samples); the Under it list still offers every model
+  const [modelId, setModelId] = useState(() => voxelModels.find((m) => m.visible !== false)?.id || "");
   const model = voxelModels.find((m) => m.id === modelId) || null;
   const levels = useMemo(() => (model ? modelLevels(model) : []), [model]);
   const [level, setLevel] = useState(null);
@@ -46,7 +49,7 @@ export default function SurfacePlanMap({ onClose }) {
   const shown = useMemo(() => (extent ? ofMedium.filter(({ s }) => inBox(extent, s.x, s.y)) : []), [ofMedium, extent]);
   const slice = useMemo(() => (model && level != null ? modelSliceAt(model, level) : []), [model, level]);
   const unit = units[symbol] || "ppm";
-  const title = `${symbol} (${unit}) in ${medium || "all surface samples"}${model && level != null ? ` over ${model.name}${model.property ? ` (${model.property})` : ""} at ${fmtV(level)} m` : ""}`;
+  const title = `${symbol} (${gradeUnitLabel(symbol, unit)}) in ${medium || "all surface samples"}${model && level != null ? ` over ${model.name}${model.property ? ` (${model.property})` : ""} at ${fmtV(level)} m` : ""}`;
 
   // the counts per class of the samples drawn, for the legend
   const counts = useMemo(() => {
@@ -146,7 +149,7 @@ export default function SurfacePlanMap({ onClose }) {
         </div>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", alignItems: "center", padding: "10px 16px" }}>
           {msg && <span style={{ color: "var(--color-danger-text)", fontSize: "var(--font-size-sm)", marginRight: "auto" }}>{msg}</span>}
-          <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginRight: "auto" }}>{shown.length === ofMedium.length ? tr("{n} sample(s) drawn", { n: shown.length.toLocaleString() }) : tr("{n} of {m} sample(s) in the frame", { n: shown.length.toLocaleString(), m: ofMedium.length.toLocaleString() })}</span>
+          <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginRight: "auto" }}>{shown.length === ofMedium.length ? tr("{n} sample(s) drawn", { n: shown.length.toLocaleString() }) : tr("{n} of {m} sample(s) in the frame", { n: shown.length.toLocaleString(), m: ofMedium.length.toLocaleString() }) + (frame === "model" ? " " + tr("{k} more are outside it: set Frame to All the samples.", { k: (ofMedium.length - shown.length).toLocaleString() }) : "") /* #3753 */}</span>
           <button type="button" style={btn(false)} onClick={savePng}>{tr("Save PNG")}</button>
           <button type="button" style={btn(true)} onClick={sendToLayout} disabled={!shown.length}>{tr("Send to Layout")}</button>
         </div>

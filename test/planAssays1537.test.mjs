@@ -15,11 +15,11 @@ test("an element with grade classes: its slab intervals and pierce point take th
   const groups = [{ key: "assay_Au", label: "Au (ppm)", grade: true, items: [["≤ 0.5 ppm", "#0000ff"], ["> 0.5 ppm", "#ff0000"], ["below 0.01 ppm hidden", "transparent"]] }];
   const { intervals, legends } = planAssayLayers([pt(10, 20, 0.2, "#0000ff"), pt(30, 36, 4.1, "#ff0000"), pt(36, 50, 0.3, "#0000ff")], [h], groups, null);
   // only the samples inside the slab (md 30-40), clipped to it
-  assert.deepEqual(intervals.map((iv) => [iv.layer, iv.label, iv.color]), [["assay:Au", "Au: 4.1 ppm", "#ff0000"], ["assay:Au", "Au: 0.3 ppm", "#0000ff"]]);
+  assert.deepEqual(intervals.map((iv) => [iv.layer, iv.label, iv.color]), [["assay:Au", "Au: 4.1 g/t", "#ff0000"], ["assay:Au", "Au: 0.3 g/t", "#0000ff"]] /* #3749 — g/t for Au stored in ppm */);
   assert.deepEqual(intervals[0].lines, [[[0, 0], [0, 0]]]);
   // the pierce point at md 35 sits in the 4.1 ppm sample; the litho log is kept
   assert.deepEqual(h.pierce[0].logs.map((l) => [l.layer, l.color]), [["litho", "#123456"], ["assay:Au", "#ff0000"]]);
-  assert.deepEqual(legends["assay:Au"], { title: "Au (ppm)", items: [["≤ 0.5 ppm", "#0000ff"], ["> 0.5 ppm", "#ff0000"]] });
+  assert.deepEqual(legends["assay:Au"], { title: "Au (g/t)", items: [["≤ 0.5 ppm", "#0000ff"], ["> 0.5 ppm", "#ff0000"]] });
 });
 
 test("without grade classes: a ramp over the whole project's values, the same colour for the same grade at any RL", () => {
@@ -32,8 +32,8 @@ test("without grade classes: a ramp over the whole project's values, the same co
   assert.equal(intervals[0].color, r.color(3));
   assert.notEqual(r.color(0.01), r.color(3));
   assert.equal(legends["assay:Au"].items.length, 5);
-  assert.match(legends["assay:Au"].items[0][0], /^≤ .* ppm$/);
-  assert.match(legends["assay:Au"].items[4][0], /^≥ .* ppm$/);
+  assert.match(legends["assay:Au"].items[0][0], /^≤ .* g\/t$/); // #3749
+  assert.match(legends["assay:Au"].items[4][0], /^≥ .* g\/t$/);
   assert.equal(assayRamp([]), null);
   assert.equal(assayRamp([2, 2, 2]).color(2), assayRamp([2, 2, 2]).color(5)); // one value: no division by zero
 });

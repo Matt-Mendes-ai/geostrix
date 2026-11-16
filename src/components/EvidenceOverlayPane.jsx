@@ -3,6 +3,7 @@
 // weights of evidence and a prediction-area plot; the score goes on the map as a raster drape (with its values, so
 // the Raster module exports it as GeoTIFF, #854). Maths and the caveats in lib/evidence.js.
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3749 — g/t for a precious metal stored in ppm, in the labels
 import { collarAttrChoices, collarsWithPick } from "../lib/holeFilter.js"; // TASKS.csv #2577; collarsWithPick: #2960
 import { Download, Layers } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
@@ -708,7 +709,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
           {training.source === "layer" && <select value={training.layerId} onChange={(e) => setTraining((t) => ({ ...t, layerId: e.target.value }))} style={sel}><option value="">{tr("— choose —")}</option>{pointLayers.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select>}
           {(training.source === "collars" || training.source === "samples") && (
             <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
-              <select value={training.symbol} onChange={(e) => setTraining((t) => ({ ...t, symbol: e.target.value }))} style={sel}>{(training.source === "collars" ? labElements : surfaceElements).map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol} ({e.unit})</option>)}</select>
+              <select value={training.symbol} onChange={(e) => setTraining((t) => ({ ...t, symbol: e.target.value }))} style={sel}>{(training.source === "collars" ? labElements : surfaceElements).map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol} ({gradeUnitLabel(e.symbol, e.unit)})</option>)}</select>
               ≥ <input type="number" step="any" value={training.min} onChange={(e) => setTraining((t) => ({ ...t, min: e.target.value }))} style={{ ...sel, width: 80 }} aria-label={tr("At least")} />
               {training.source === "collars" && <label style={{ display: "flex", gap: 4, alignItems: "center" }} title={tr("Optional: a hole is an occurrence only with at least this many metres of samples at or above the cut-off, summed down the hole. Blank: one sample at or above it is enough.")}>{tr("over at least")}<input type="number" min={0} step="any" value={training.minM ?? ""} placeholder={tr("any")} onChange={(e) => setTraining((t) => ({ ...t, minM: e.target.value }))} style={{ ...sel, width: 56 }} aria-label={tr("Metres at or above the cut-off in a hole")} />{tr("m")}</label>}{/* #2964 */}
               {training.source === "samples" && media.length > 1 && <select value={training.medium || ""} onChange={(e) => setTraining((t) => ({ ...t, medium: e.target.value }))} style={sel} aria-label={tr("Sample medium of the occurrences")}>{/* #1836 */}

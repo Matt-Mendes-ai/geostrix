@@ -2,6 +2,7 @@
 // Grade shell and Variogram (lib/unsampledFill.js). The choice lives in a small store per tool and element, so it survives the pane
 // closing (the Grade shell's settings are rendered by ModellingPanes and read by modellingRuns, with no ViewerModule state).
 import React, { useMemo, useSyncExternalStore } from "react";
+import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3749
 import { t as tr } from "../lib/i18n.js";
 import { coverageSummary, sampledShare, fillUnsampled, fillFromLog, logFactorOffer, unsampledReady, defaultUnsampledMode, ASK_BELOW_SHARE, loggedEndsOf } from "../lib/unsampledFill.js"; // loggedEndsOf: #2736 (unassayedHoles: through coverageSummary, #3007) // fillFromLog / logFactorOffer: #2721
 import { numericSourceChoices, findNumericSource, sourceAssays } from "../lib/numericSources.js"; // TASKS.csv #2721 — the logs a user may pick
@@ -91,9 +92,9 @@ export default function UnsampledChoice({ u, style = null, selStyle = null }) {
       {mode === "log" && (<div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>{/* TASKS.csv #2721 */}
         <select aria-label={tr("Downhole log that fills the unsampled metres")} value={logKey} onChange={(e) => set({ logKey: e.target.value, factor: "" })} style={sel}>
           <option value="">{tr("— pick a log —")}</option>
-          {logChoices.map((c) => <option key={c.key} value={c.key}>{String(c.label).endsWith(`(${c.unit})`) ? c.label : `${c.label} (${c.unit})`}</option>)}
+          {logChoices.map((c) => <option key={c.key} value={c.key}>{String(c.label).endsWith(`(${c.unit})`) ? c.label : `${c.label} (${c.unitLabel || c.unit})`}</option>)}
         </select>
-        {logSource && <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("{symbol} ({unit}) = reading ×", { symbol, unit })}<input type="number" min="0" step="any" aria-label={tr("Factor from the log to {symbol}", { symbol })} value={logFactor} onChange={(e) => set({ factor: e.target.value })} style={{ ...sel, width: 70 }} /></label>}
+        {logSource && <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("{symbol} ({unit}) = reading ×", { symbol, unit: gradeUnitLabel(symbol, unit) })}<input type="number" min="0" step="any" aria-label={tr("Factor from the log to {symbol}", { symbol })} value={logFactor} onChange={(e) => set({ factor: e.target.value })} style={{ ...sel, width: 70 }} /></label>}
         {offer && Number(logFactor) !== offer.factor && <button type="button" onClick={() => set({ factor: String(offer.factor) })} style={sel}>{offer.ratio ? tr("Use × {f} ({from} to {to}: U3O8 = U × {r})", { f: offer.factor, from: offer.from, to: offer.to, r: offer.ratio }) : tr("Use × {f} ({from} read as {to})", { f: offer.factor, from: offer.from, to: offer.to })}</button>}
       </div>)}
       <div style={{ color: low ? "var(--color-warn-text)" : "var(--color-text-muted)", lineHeight: 1.5 }}>
@@ -101,7 +102,7 @@ export default function UnsampledChoice({ u, style = null, selStyle = null }) {
         {low && mode === "" && " " + tr("Under 60 % are sampled: choose how the unsampled metres are read before running.")}
         {mode === "barren" && !unsampledReady(mode, value) && " " + tr("Type the value they take (a detection limit, a background or 0): none is chosen for you.")}
         {mode === "log" && !logSource && " " + tr("Pick the log that reads the same metal; none is matched for you.")}
-        {mode === "log" && logSource && !(Number(logFactor) > 0) && " " + tr("Give the factor from the log's unit to {symbol} ({unit}): 1 when it already reads {symbol}.", { symbol, unit })}
+        {mode === "log" && logSource && !(Number(logFactor) > 0) && " " + tr("Give the factor from the log's unit to {symbol} ({unit}): 1 when it already reads {symbol}.", { symbol, unit: gradeUnitLabel(symbol, unit) })}
       </div>
     </div>
   );

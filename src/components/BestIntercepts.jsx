@@ -38,6 +38,9 @@ import { holeTotals, holeTotalsDisplay, holeExtraMeans } from "../lib/accumulati
 import { compositeSources } from "../lib/compositeSources.js"; // TASKS.csv #3584; a source of its own: #3744 / #3750
 import { densityRangeOf } from "../lib/densityRange.js"; // TASKS.csv #3682
 import { densityLookup } from "../lib/densityWeight.js"; // TASKS.csv #3562 — grades weighted by length x density
+import { weightedPercentile } from "../lib/probPlot.js"; // TASKS.csv #3752 — the length-weighted percentile, as Grade stats reads it
+import { toFixedHalfUp } from "../lib/numberFormat.js"; // TASKS.csv #3754 (9)
+const PENALTY_ELEMENTS = new Set(["As", "Sb", "Bi", "Hg"]); // TASKS.csv #3754 (7) — elements a smelter penalizes, so a price box makes no sense for them
 
 const RESULT_ROW_H = 26; // TASKS.csv #222 — matches AttributeTableModal's row-windowing pattern
 
@@ -97,12 +100,15 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
   // the cutoff last used with it; one not used yet starts at its 90th percentile (one significant figure), said in the box's tooltip.
   // #1678 — the element the tool opens on too (it opened at 0.5 whatever the element: every Cu interval in ppm passed)
   // #3223 — the median and Q3 too, offered beside the P90 suggestion (a porphyry is reported near its median, not its P90)
-  const quantileOf = (sym, q) => {
-    const v = assays.map((a) => Number(a.values?.[sym])).filter((x) => Number.isFinite(x) && x > 0).sort((a, b) => a - b);
-    if (!v.length) return null;
-    const p = v[Math.floor(q * (v.length - 1))], mag = 10 ** Math.floor(Math.log10(p));
-    return Number((Math.round(p / mag) * mag).toPrecision(1));
+  // TASKS.csv #3752 (Scottie Gold) — the percentile of the grades weighted by interval length, as Grade stats reads it (the count-based one gave 0.151 where Grade stats said P90
+  // 0.100: two tools of one module, two numbers); the box takes it to ONE significant figure (a round cut-off) and the note names the exact figure; the median / Q3 buttons keep two
+  const quantileRaw = (sym, q) => {
+    const rows = assays.map((a) => ({ v: Number(a.values?.[sym]), w: Number(a.to) - Number(a.from) })).filter((r) => Number.isFinite(r.v) && r.v > 0);
+    if (!rows.length) return null;
+    const p = weightedPercentile(rows.map((r) => r.v), rows.map((r) => (r.w > 0 ? r.w : 1)), q * 100);
+    return Number.isFinite(p) && p > 0 ? p : null;
   };
+  const quantileOf = (sym, q, sig = 1) => { const p = quantileRaw(sym, q); return p == null ? null : Number(p.toPrecision(sig)); };
   const p90Of = (sym) => quantileOf(sym, 0.9);
   const [cutoff, setCutoff] = useKeptState(keptScope, "bi.cutoff", () => p90Of(symbol) ?? 0.5);
   const kept0 = keptIn(keptScope);
@@ -272,7 +278,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
   // TASKS.csv #2511 — the grade column with one number of decimals for all its rows ('1.77', '0.8187', '2' read ragged): enough for the
   // largest grade to show 4 significant figures
   const gradeDecimals = useMemo(() => { let hi = 0; for (const r of results) { const v = Math.abs(dg(r.avgGrade)); if (v > hi) hi = v; } return hi > 0 ? Math.max(0, Math.min(4, 3 - Math.floor(Math.log10(hi)))) : 2; }, [results, pct]);
-  const gradeCol = (v) => (Number.isFinite(v) ? v.toFixed(gradeDecimals) : "");
+  const gradeCol = (v) => (Number.isFinite(v) ? toFixedHalfUp(v, gradeDecimals) : ""); // #3754 (9) — 4.895 reads 4.90, not 4.89
   // TASKS.csv #3565 — grade × length and each 'Also show' column with one number of decimals (204.09, 11.306, 14.962 and 0.07751, 41.77, 3.085 read ragged)
   const glFmt = useMemo(() => columnFormat(results.map((r) => dg(interceptGradeLength(r)))), [results, pct]);
   const exFmt = useMemo(() => Object.fromEntries(shownExtras.map((s) => [s, spreadFormat(results.map((r) => (r.extras?.[s] == null ? null : s === symbol ? dg(r.extras[s]) : r.extras[s])))])), [results, shownExtras, symbol, pct]);
@@ -414,9 +420,9 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
               </select></label>}{/* TASKS.csv #3236 */}
             <label style={fieldLabel}>{tr("Cutoff ({unit})", { unit: dispUnit /* #3221 */ })}<input type="number" step="any" value={shownBox(cutoff)} onChange={(e) => { setCutoff(toStored(Number(e.target.value) || 0)); setSuggested(null); setCutoffNote(null); }} style={inp} title={suggested != null && cutoff === suggested ? tr("Suggested: this element's 90th percentile. Set the cutoff you report at.") : undefined} />
             </label>
-            {suggested != null && cutoff === suggested && (() => { const med = quantileOf(symbol, 0.5), q3 = quantileOf(symbol, 0.75); return ( /* TASKS.csv #3223 — said beside the box, not only in its tooltip */
+            {suggested != null && cutoff === suggested && (() => { const med = quantileOf(symbol, 0.5, 2), q3 = quantileOf(symbol, 0.75, 2), p90Exact = quantileRaw(symbol, 0.9); return ( /* TASKS.csv #3223 — said beside the box, not only in its tooltip */
               <div role="status" style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center", fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>
-                <span>{tr("Suggested: the 90th percentile. Set the cut-off you report at, or try:")}</span>
+                <span>{p90Exact != null ? tr("Suggested: the 90th percentile ({v}, length-weighted) rounded to one significant figure. Set the cut-off you report at, or try:", { v: +shownBox(p90Exact).toPrecision(3) }) : tr("Suggested: the 90th percentile. Set the cut-off you report at, or try:")}</span>
                 {[[tr("median"), med], [tr("Q3"), q3]].filter(([, v]) => v != null && v !== cutoff).map(([name, v]) => <button key={name} type="button" onClick={() => { setCutoff(v); setSuggested(null); setCutoffNote(null); }} style={{ ...inp, width: "auto", cursor: "pointer", padding: "1px 6px" }}>{`${name} ${+shownBox(v).toPrecision(4)}`}</button>)}
               </div>); })()}
             {cutoffNote && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{/* TASKS.csv #2513 */}{cutoffNote.kind === "kept" ? tr("Cut-off {v} kept from {from} (the same unit).", { v: cutoffNote.value, from: cutoffNote.from }) : cutoffNote.kind === "restored" ? tr("Cut-off back to {v}, the one last used for {to}.", { v: cutoffNote.value, to: cutoffNote.to }) : tr("Cut-off reset to the suggestion for {to} ({v}): {to} is not in {from}'s unit.", { v: cutoffNote.value, to: cutoffNote.to, from: cutoffNote.from })}</div>}
@@ -457,7 +463,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
                 <input type="checkbox" checked={meqOn} onChange={(e) => setMeqOn(e.target.checked)} />{" "}{tr("Metal equivalent ({symbol}Eq) from {symbol} and the \"Also show\" elements", { symbol })}</label>
               {meqOn && (
                 <div style={{ marginTop: 6, marginLeft: 22, display: "flex", flexDirection: "column", gap: 4 }}>
-                  {meqSymbols.map((s) => ( /* #2924 — no LOI row */
+                  {meqSymbols.filter((s) => !PENALTY_ELEMENTS.has(s) || s === symbol).map((s) => ( /* #2924 — no LOI row; #3754 (7) — no price row for a penalty element (As, Sb, Bi, Hg): nobody is paid for it */
                     <div key={s} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <span style={{ minWidth: 34 }}>{elementOptionLabel(s, elementUnits[s]) /* #2923 */}</span>{tr("price")}{" "}<input type="number" min="0" step="any" value={meqInputs[s]?.price ?? ""} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], price: e.target.value } }))} style={{ ...inp, width: 80 }} aria-label={tr("{s} price", { s })} /> {TRADED_OXIDE[s] ? <label style={{ display: "inline-flex", alignItems: "center", gap: 3 }} title={TRADED_OXIDE[s].per === "t" ? tr("{oxide} is how {s} is sold: the price is per tonne of {oxide}, turned into one per tonne of {s} by its share of the carbonate ({f}).", { oxide: TRADED_OXIDE[s].oxide, s, f: TRADED_OXIDE[s].factor }) /* #2771 */ : tr("{oxide} is how {s} is sold: the price is per pound of {oxide}, turned into one per pound of {s} by its share of the oxide ({f}).", { oxide: TRADED_OXIDE[s].oxide, s, f: TRADED_OXIDE[s].factor })}><input type="checkbox" checked={meqInputs[s]?.oxide !== false} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], oxide: e.target.checked } }))} />{`$/${TRADED_OXIDE[s].per || "lb"} ${TRADED_OXIDE[s].oxide}` /* per t: #2771 */}</label> : null}{tr("{v}recovery", { v: TRADED_OXIDE[s] && meqInputs[s]?.oxide !== false ? " " : (PRECIOUS_METALS.has(s) ? "$/oz" : "$/lb") + " " /* #2923 — '$/lbrecovery' */ })}{/* oxide: #2731 */}{" "}<input type="number" min="1" max="100" step="any" value={meqInputs[s]?.recovery ?? ""} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], recovery: e.target.value } }))} style={{ ...inp, width: 60 }} aria-label={tr("{s} recovery %", { s })} /> %
                     </div>

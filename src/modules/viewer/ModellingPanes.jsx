@@ -1276,7 +1276,7 @@ export default function ModellingPanes(props) {
                   }} style={{ ...smallSel, width: "100%" }} disabled={!symbols.length && !numericSources.length}>
                     {symbols.length === 0 && numericSources.length === 0 && <option value="">{tr("— no assays —")}</option>}
                     {symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, assayElements.find((e) => e.symbol === s)?.unit || "ppm")})</option>)}{/* #2218 */}
-                    {numericSources.length > 0 && <optgroup label={tr("Downhole logs and numeric layers")}>{numericSources.map((s) => <option key={s.key} value={s.key}>{s.label} ({s.unit})</option>)}</optgroup>}{/* #1741 */}
+                    {numericSources.length > 0 && <optgroup label={tr("Downhole logs and numeric layers")}>{numericSources.map((s) => <option key={s.key} value={s.key}>{s.label} ({s.unitLabel || s.unit})</option>)}</optgroup>}{/* #1741 */}
                   </select>
                 </label>
                 {/* TASKS.csv #270 (LOW-1) — every geologist and every press release says g/t, never ppm.

@@ -183,7 +183,7 @@ export default function SurfaceQaqcPanel({ onClose }) {
             <>
               <div style={note}>{dl.limit ? tr("Detection limit {dl} {unit} ({basis}); a blank fails above {lim} {unit} ({m} × DL). {f} of {n} blanks fail.", { dl: fmt(dl.limit), unit, basis: dl.basis === "lt" ? tr("the most common '<' result") : tr("the lowest value reported, an upper bound"), lim: fmt(blankLimit), m: settings.blankMultiple, f: blanks.filter((b) => b.fails).length, n: blanks.length }) : tr("No detection limit could be read for {symbol}.", { symbol })}</div>
               <div style={{ overflowX: "auto", maxHeight: 320 }}><table style={tbl}>
-                <thead><tr><th style={{ ...th, textAlign: "start" }}>{tr("Batch")}</th><th style={{ ...th, textAlign: "start" }}>{tr("Sample")}</th><th style={th}>{tr("Source")}</th><th style={th}>{symbol} ({unit})</th><th style={th}>{tr("Result")}</th></tr></thead>
+                <thead><tr><th style={{ ...th, textAlign: "start" }}>{tr("Batch")}</th><th style={{ ...th, textAlign: "start" }}>{tr("Sample")}</th><th style={th}>{tr("Source")}</th><th style={th}>{symbol} ({gradeUnitLabel(symbol, unit)})</th><th style={th}>{tr("Result")}</th></tr></thead>
                 <tbody>{blanks.map((b, i) => <tr key={i}><td style={{ ...td, textAlign: "start" }}>{b.batch}</td><td style={{ ...td, textAlign: "start" }}>{b.sample_id}</td><td style={td}>{b.source === "lab" ? tr("lab") : tr("program")}</td><td style={td}>{b.bdl ? `<${fmt(b.value * 2)}` : fmt(b.value)}</td><td style={{ ...td, color: b.fails ? "var(--color-danger-fg)" : "var(--color-text-muted)" }}>{b.fails ? tr("over limit") : tr("pass")}</td></tr>)}</tbody>
               </table></div>
             </>

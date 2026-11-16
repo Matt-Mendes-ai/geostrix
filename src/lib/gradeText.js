@@ -8,5 +8,8 @@ export function gradeText(v, sf = 4) {
   if (!Number.isFinite(v)) return String(v);
   if (Number.isInteger(v)) return String(v);
   const whole = Math.abs(v) >= 1 ? Math.floor(Math.log10(Math.abs(v))) + 1 : 0;
-  return String(Number(v.toPrecision(Math.min(15, Math.max(sf, whole + (Math.abs(v) >= 1000 ? 1 : 0))))));
+  const r = Number(v.toPrecision(Math.min(15, Math.max(sf, whole + (Math.abs(v) >= 1000 ? 1 : 0)))));
+  // TASKS.csv #3754 (6) (Scottie Gold) — a row of '2.5e-7', '5e-7' and '0.0000027': JavaScript switches to an exponent below 1e-6, mid-row. Plain decimals down to 1e-12.
+  if (r !== 0 && Math.abs(r) < 1e-6 && Math.abs(r) >= 1e-12) return r.toFixed(Math.min(20, sf - 1 - Math.floor(Math.log10(Math.abs(r))))).replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+  return String(r);
 }

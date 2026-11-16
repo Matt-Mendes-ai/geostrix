@@ -25,6 +25,7 @@
 import { isLabMetaField } from "./labMetaFields.js"; // TASKS.csv #2089
 import { populations, groupKeyFn, candidateThresholds, robustZ, quantileSorted, defaultPopulations, populationSummary } from "./thresholds.js";
 import { valueIn } from "./geochem.js";
+import { gradeUnitLabel } from "./geochemColumns.js"; // TASKS.csv #3749 — g/t for a precious metal stored in ppm, in the labels
 
 export const PATHFINDER_PRESETS = [
   { id: "porphyry", label: "Porphyry Cu (± Au, Mo)", elements: ["Cu", "Mo", "Au", "Ag"], ref: "Sillitoe 2010; Halley et al. 2015" },
@@ -103,7 +104,7 @@ export function anomalyClasses(samples, cfg, { units = {}, mapLayers = [], thres
         const p75 = quantileSorted(p.summary.sorted, 0.75), p25 = quantileSorted(p.summary.sorted, 0.25);
         p.idx.forEach((i, k) => { const v = p.values[k]; classOf[i] = below ? (t != null && v <= t ? 2 : v <= p25 ? 1 : 0) : t != null && v >= t ? 2 : v >= p75 ? 1 : 0; });
       });
-      label = `${sym} (${unit}): ${saved.methodLabel}${saved.ref ? ` (${saved.ref})` : ""}, populations by ${String(saved.groupLabel || groupBy).toLowerCase()}, decided ${saved.decided}`;
+      label = `${sym} (${gradeUnitLabel(sym, unit)}): ${saved.methodLabel}${saved.ref ? ` (${saved.ref})` : ""}, populations by ${String(saved.groupLabel || groupBy).toLowerCase()}, decided ${saved.decided}`;
     } else {
       const cuts = [0.5, 0.75, 0.9, 0.95, 0.98];
       classes = [{ label: "below the 50th percentile" }, { label: "50th–75th percentile" }, { label: "75th–90th percentile" }, { label: "90th–95th percentile" }, { label: "95th–98th percentile" }, { label: "98th percentile and above" }];
@@ -112,7 +113,7 @@ export function anomalyClasses(samples, cfg, { units = {}, mapLayers = [], thres
         const q = cuts.map((x) => quantileSorted(p.summary.sorted, x));
         p.idx.forEach((i, k) => { const v = p.values[k]; let cl = 0; q.forEach((qq, j) => { if (v >= qq) cl = j + 1; }); classOf[i] = cl; });
       });
-      label = `${sym} (${unit}): percentile classes within each population (${groupLabelOf(groupBy)})`;
+      label = `${sym} (${gradeUnitLabel(sym, unit)}): percentile classes within each population (${groupLabelOf(groupBy)})`;
     }
     classes = classes.map((x, i) => ({ ...x, color: SCHEMES[scheme][i] }));
   } else if (c.mode === "index") {
@@ -184,7 +185,7 @@ export function anomalyClasses(samples, cfg, { units = {}, mapLayers = [], thres
     });
     if (few.length < byMedium.size) stat = z;
     if (few.length) notes.push({ text: "Fewer than {min} samples with {sym} in {media}: no hot-spot statistic there.", params: { min: HOTSPOT_MIN_SAMPLES, sym, media: few.join(", ") } });
-    label = `${sym} (${unit}): Getis–Ord Gi* hot spots of log values, each medium against itself, neighbours within ${R} m (Getis & Ord 1992); two-sided 95 % / 99 %, no correction for multiple tests`;
+    label = `${sym} (${gradeUnitLabel(sym, unit)}): Getis–Ord Gi* hot spots of log values, each medium against itself, neighbours within ${R} m (Getis & Ord 1992); two-sided 95 % / 99 %, no correction for multiple tests`;
     c.coherence = false; // already a spatial statistic
   } else {
     return null;

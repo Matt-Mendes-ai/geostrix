@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const src = readFileSync(new URL("../src/components/GeochemPlot.jsx", import.meta.url), "utf8");
-const body = src.slice(src.indexOf("function logTicks(min, max) {"), src.indexOf("// TASKS.csv #234"));
+const body = src.slice(src.indexOf("function logTicks(min, max) {"), src.indexOf("function centroid(pts)")); // #3293 — fmtTick (and its #234 comment) moved to lib/numberFormat.js
 const logTicks = new Function(`${body}; return logTicks;`)();
 
 test("logTicks: bounds of 0 or Infinity give no ticks instead of an endless loop", () => {

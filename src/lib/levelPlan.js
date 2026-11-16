@@ -8,6 +8,7 @@
 //   meshPlanCut   a triangle mesh cut by the plane z = RL, as E/N segments (model surfaces, solids)
 // A trace is [{ md, x (E), y (N), z (elevation) }], as desurveyHole returns.
 import { magColor } from "./layers.js"; // #1537
+import { gradeUnitLabel } from "./geochemColumns.js"; // TASKS.csv #3749 — g/t for a precious metal stored in ppm, in the labels
 import { gradeText } from "./gradeText.js"; // TASKS.csv #2515
 
 // md runs [[md0, md1], ...] where zmin <= z <= zmax, interpolated at the crossings
@@ -151,7 +152,7 @@ export function planAssayLayers(points, holes, groups, projectValues) {
   const holeOf = new Map((holes || []).map((h) => [h.hole_id, h]));
   const intervals = [], legends = {};
   for (const [sym, pts] of bySym) {
-    const layer = `assay:${sym}`, g = (groups || []).find((x) => x.key === `assay_${sym}`), unit = pts[0].assay.u || "";
+    const layer = `assay:${sym}`, g = (groups || []).find((x) => x.key === `assay_${sym}`), unit = pts[0].assay.u ? gradeUnitLabel(sym, pts[0].assay.u) : ""; // TASKS.csv #3749 — g/t for Au in ppm
     const ramp = g?.grade ? null : assayRamp(projectValues ? projectValues(sym) : pts.map((p) => p.assay.value));
     const colorOf = (p) => (ramp ? ramp.color(Number(p.assay.value)) : p.color);
     legends[layer] = { title: unit ? `${sym} (${unit})` : sym, items: ramp ? ramp.items.map(([l, c]) => [unit ? `${l} ${unit}` : l, c]) : (g?.items || []).filter(([, c]) => c && c !== "transparent") };

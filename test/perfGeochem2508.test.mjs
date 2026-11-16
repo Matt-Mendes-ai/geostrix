@@ -55,7 +55,7 @@ test("Grade stats draws and lists at most 200 groups and says so; Correlation ha
   assert.match(g, /const SHOWN_MAX = 200;/);
   assert.match(g, /<BoxPlots groups=\{shownGroups\}/);
   assert.match(g, /\{shownGroups\.map\(\(g\) =>/);
-  assert.match(g, /groups\.slice\(0, SHOWN_MAX\)\.map\(\(g\) => \{/);
+  assert.match(g, /groups\.slice\(0, shownMax\)\.map\(\(g\) => \{/); // #3751 — the first 40, then up to SHOWN_MAX on 'Draw more'
   assert.match(g, /The \{shown\} largest of \{n\} groups are drawn and listed; \{more\} more are in the CSV export\./);
   const c = readFileSync(new URL("../src/components/CorrelationMatrix.jsx", import.meta.url), "utf8");
   assert.match(c, /setSelected\(new Set\(allSymbols\)\)/);

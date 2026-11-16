@@ -39,16 +39,14 @@ test("the tab offers it and passes it to the plot", () => {
   assert.match(g, /diagramOverride=\{diagramId === "xy" (\|\| diagramId === "ternary" \/\* #3051 \*\/ )?\? diagram : null\}/); // #3051: the ternary too
 });
 
-test("tick labels: decades as 1e+3, other large values as numbers", () => {
-  const g = readFileSync(new URL("../src/components/GeochemPlot.jsx", import.meta.url), "utf8");
-  const body = g.slice(g.indexOf("function fmtTick(t) {") + "function fmtTick(t) {".length, g.indexOf("\n}", g.indexOf("function fmtTick(t) {")));
-  const fmtTick = new Function("t", body);
-  assert.equal(fmtTick(1000), "1e+3");
-  assert.equal(fmtTick(10000), "1e+4");
+test("tick labels: the decades up to a million in plain digits (#3293), other large values as numbers", async () => {
+  const { fmtTick } = await import("../src/lib/numberFormat.js"); // moved out of GeochemPlot.jsx (#3293)
+  assert.equal(fmtTick(1000), "1000"); // was '1e+3' beside '100' (Scottie Gold)
+  assert.equal(fmtTick(10000), "10000");
   assert.equal(fmtTick(2193.4166), "2193.4");
   assert.equal(fmtTick(2200), "2200");
   assert.equal(fmtTick(0), "0");
   assert.equal(fmtTick(16.666666666666668), "16.67");
   assert.equal(fmtTick(0.0005), "5e-4");
-  assert.equal(fmtTick(2500000), "2.5e+6");
+  assert.equal(fmtTick(2500000), "2500000");
 });

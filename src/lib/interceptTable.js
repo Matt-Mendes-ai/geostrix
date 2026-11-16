@@ -2,6 +2,7 @@
 // and 68 mm past the bottom of an A4 landscape sheet. The table now takes a free spot on the page with as many rows as fit there (the
 // collar table's rule, #2135); the rest are counted on a closing row, and the CSV has them all.
 import { placeCollarTable, elementBox } from "./layoutPlace.js"; // elementBox: #3019
+import { toFixedHalfUp } from "./numberFormat.js"; // TASKS.csv #3754 (9)
 
 // elements: the page's elements; page: { w, h } in page px; total: the intercepts; noteRows: the room the caveat note takes, in rows.
 // -> { x, y, shown (intercept rows on the sheet), more (left off it) }
@@ -22,7 +23,7 @@ export function columnFormat(values, sig = 4) {
   let max = 0;
   for (const v of values || []) { const a = Math.abs(Number(v)); if (Number.isFinite(a) && a > max) max = a; }
   const d = max > 0 ? Math.min(4, Math.max(0, sig - 1 - Math.floor(Math.log10(max)))) : 2;
-  return (v) => (v == null || !Number.isFinite(Number(v)) ? "" : Number(v).toFixed(d));
+  return (v) => (v == null || !Number.isFinite(Number(v)) ? "" : toFixedHalfUp(v, d));
 }
 
 // TASKS.csv #3579 (Fireweed / Macpass rehearsal) — a grade column whose values run from 0.006 to 20 printed '0.006', '0.04867', '0.1', '0.2433' (four significant figures each); from its
@@ -32,7 +33,7 @@ export function spreadFormat(values, sig = 2) {
   const pos = (values || []).map(Number).filter((v) => Number.isFinite(v) && v > 0).sort((a, b) => a - b);
   const q = pos.length ? pos[Math.floor(pos.length * 0.05)] : 0;
   const d = q > 0 ? Math.max(0, Math.min(4, sig - 1 - Math.floor(Math.log10(q)))) : 2;
-  return (v) => (v == null || !Number.isFinite(Number(v)) ? "" : Number(v).toFixed(d));
+  return (v) => (v == null || !Number.isFinite(Number(v)) ? "" : toFixedHalfUp(v, d));
 }
 
 // TASKS.csv #2708 (split from #2200 / #2479) — 'Continue on new pages': the intercepts the sheet's spot leaves out go on pages of their own

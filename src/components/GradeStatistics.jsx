@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { openHelp } from "../lib/help.js"; // TASKS.csv #3578
 import { isBelowDetection } from "../lib/assayFlags.js"; // TASKS.csv #2505
 import { X, Download } from "./icons.js";
@@ -58,7 +58,8 @@ import { fileCensoring, fileCeiling, markCeiling } from "../lib/qaqc.js"; // fil
 // standard unbiased estimator for RELIABILITY weights (denominator V1 - V2/V1, which reduces to the
 // familiar n-1 when every weight is 1, so the unweighted path is unchanged), and the quantiles are
 // cumulative-weight quantiles (the value at which half the sampled METRES sit below, not half the rows).
-const SHOWN_MAX = 200; // TASKS.csv #2508 — groups drawn and listed at once
+const SHOWN_MAX = 200; // TASKS.csv #2508 — groups drawn and listed at once, at most
+const SHOWN_FIRST = 40; // TASKS.csv #3751 — the groups drawn first: 200 box plots, rows and probability series still froze the window ~0.6-1.6 s on 348 groups; 'Draw more' adds the rest up to SHOWN_MAX
 function computeStats(values, weights = null) {
   const n = values.length;
   if (!n) return null;
@@ -76,7 +77,8 @@ function computeStats(values, weights = null) {
   const denom = V1 - V2 / V1;
   let ss = 0; for (let i = 0; i < n; i++) ss += wt(i) * (values[i] - mean) ** 2;
   const variance = denom > 0 ? ss / denom : 0;
-  const stdev = Math.sqrt(variance);
+  // TASKS.csv #3754 (2) — nine equal values gave 'Stdev 4.61e-19' (rounding noise in the sum of squares): a spread under a part in 10^12 of the mean is 0
+  const sd0 = Math.sqrt(variance), stdev = sd0 <= Math.abs(mean) * 1e-12 ? 0 : sd0;
   const cv = mean !== 0 ? (stdev / mean) * 100 : null;
 
   // Weighted quantiles. Weights are normalised to average 1 (scale-invariant: metres vs centimetres
@@ -243,7 +245,9 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
       .sort(byHole || (byDomain.size > 1 && [...byDomain.keys()].every((k) => /^\d{4}s?$/.test(String(k)))) /* #3579 — years, and decades, in order */ ? (a, b) => String(a.key).localeCompare(String(b.key), undefined, { numeric: true }) : covLog ? (a, b) => logClassRank(a.key) - logClassRank(b.key) /* #2672 — low to high */ : (a, b) => b.stats.n - a.stats.n); // #2029 — holes in id order
   }, [rows, weightingActive, byHole, covLog, ltFloor, allValues, allWeights]); // covLog: #2672; ltFloor: #2913; all*: #2910
 
-  const shownGroups = useMemo(() => groups.slice(0, SHOWN_MAX), [groups]); // #2508
+  const [drawAll, setDrawAll] = useState(false); // #3751
+  const shownMax = drawAll ? SHOWN_MAX : SHOWN_FIRST;
+  const shownGroups = useMemo(() => groups.slice(0, shownMax), [groups, shownMax]); // #2508
   const overallStats = useMemo(() => computeStats(allValues, allWeights), [allValues, allWeights]);
   const logKey = `${source}:${symbol}`;
   const logScale = logChoice?.key === logKey ? logChoice.on : histogramWantsLog(overallStats); // #1524 — a skewed grade opens on log
@@ -255,11 +259,11 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
     const byDomain = new Map();
     rows.forEach((r) => { const k = r.domain == null ? NO_CODE : r.domain; /* #2510 */ if (!byDomain.has(k)) byDomain.set(k, []); byDomain.get(k).push(r); });
     const one = byDomain.size === 1; // #2910 — the one group is every row: the panel's own arrays, sorted once
-    const series = groups.slice(0, SHOWN_MAX).map((g) => { /* #2508 — the plotted groups, as the table */ const rs = byDomain.get(g.key) || []; return { key: g.key, ...weightedProbPoints(one ? allValues : rs.map((r) => r.value), one ? allWeights : weightingActive ? rs.map((r) => r.weight) : null, { log: logScale }) }; }); // log: #2912 — the histogram's scale
+    const series = groups.slice(0, shownMax).map((g) => { /* #2508 — the plotted groups, as the table */ const rs = byDomain.get(g.key) || []; return { key: g.key, ...weightedProbPoints(one ? allValues : rs.map((r) => r.value), one ? allWeights : weightingActive ? rs.map((r) => r.weight) : null, { log: logScale }) }; }); // log: #2912 — the histogram's scale
     const vs = allValues, ws = allWeights;
     // TASKS.csv #2675 — and the bend into the high tail that Thresholds suggests (Sinclair 1976), offered as a cap to test, never applied
     return { series, vs, ws, log: logScale, p975: weightedPercentile(vs, ws, 97.5), p99: weightedPercentile(vs, ws, 99), brk: probabilityBreak(vs, ws) };
-  }, [rows, groups, weightingActive, logScale, allValues, allWeights]);
+  }, [rows, groups, weightingActive, logScale, allValues, allWeights, shownMax]);
   // #2912 — the break is offered as a cap only on a skewed (log-scale) grade and above the median; on a bulk grade it was the gap between two modes
   const brkAsCap = prob.brk > 0 && prob.log && overallStats && prob.brk > overallStats.median;
   const capValue = capTest === "" ? null : Number(capTest);
@@ -268,6 +272,19 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   const capWarn = useMemo(() => (capFx ? capWarningText(capFx.pctMetalRemoved, source === "assays" ? capAboveZone(resolvedSegments(statsAssays, symbol, elementUnits[symbol] || "ppm", elementUnits), dk === 1 ? capValue : fromDisplay(capValue, storedUnit, shownUnit) /* #3236 — the segments are stored */) : null) : ""), [capFx?.pctMetalRemoved, capValue, source, statsAssays, symbol, elementUnits]);
   // TASKS.csv #2912 — the cut-off table: the user's cut-offs (the data's median / Q3 / P90 until typed) and the 'Also show' elements' means
   const [cutText, setCutText] = useState("");
+  // TASKS.csv #3754 (1) (Scottie Gold) — the 'Cap to test' box and typed cut-offs are in the shown unit of ONE element: a cap of 2 typed for Ag stayed for Au, and 'Show in ppb' read the same 2 as
+  // 2 ppb ('98.8% of the metal removed'). A new element clears them; a new shown unit converts them (same value, new unit).
+  const typedRef = useRef({ symbol, unit: shownUnit || storedUnit });
+  useEffect(() => {
+    const prev = typedRef.current, now = { symbol, unit: shownUnit || storedUnit };
+    typedRef.current = now;
+    if (prev.symbol !== now.symbol) { setCapTest(""); setCutText(""); return; }
+    if (prev.unit === now.unit) return;
+    const f = displayFactor(prev.unit, now.unit);
+    if (f === 1) return;
+    setCapTest((c) => (c !== "" && Number.isFinite(Number(c)) ? String(+(Number(c) * f).toPrecision(12)) : c));
+    setCutText((t) => { const v = parseCutoffs(t); return v.length ? v.map((x) => String(+(x * f).toPrecision(12))).join(", ") : t; });
+  }, [symbol, shownUnit, storedUnit]);
   const [alsoSyms, setAlsoSyms] = useState([]);
   const alsoShown = logSrc ? [] : alsoSyms.filter((x) => x !== symbol && activeElements.some((e) => e.symbol === x)); // a layer's readings have no other element (#3564)
   const cutDefaults = useMemo(() => defaultCutoffs({ median: overallStats?.median, q3: overallStats?.q3, p90: weightedPercentile(prob.vs, prob.ws, 90) }), [overallStats, prob]);
@@ -380,7 +397,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
             <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Element")}<select value={symbol} onChange={(e) => { setSymbolRaw(e.target.value); if (!logChoices.some((c) => c.key === e.target.value)) rememberElement("gradestats", e.target.value); setDomainKey((k) => (k.startsWith("numlog:") && k === `numlog:${e.target.value}` ? "" : k)); }} style={{ ...sel, display: "block", marginTop: 4 }}>
                 {activeElements.map((e) => <option key={e.symbol} value={e.symbol}>{elementOptionLabel(e.symbol, e.unit) /* #2914 */}</option>)}
-                {logChoices.length > 0 && <optgroup label={tr("Numeric interval layers (density first)")}>{[...logChoices].sort((a, b) => (a.key === "log:sg" ? -1 : b.key === "log:sg" ? 1 : 0)).map((c) => <option key={c.key} value={c.key}>{c.unit && c.unit !== "as logged" && !String(c.label).includes(`(${c.unit})`) ? `${c.label} (${c.unit})` : c.label}</option>)}</optgroup>}{/* #3564 */}
+                {logChoices.length > 0 && <optgroup label={tr("Numeric interval layers (density first)")}>{[...logChoices].sort((a, b) => (a.key === "log:sg" ? -1 : b.key === "log:sg" ? 1 : 0)).map((c) => <option key={c.key} value={c.key}>{c.unit && c.unit !== "as logged" && !String(c.label).includes(`(${c.unitLabel || c.unit})`) ? `${c.label} (${c.unitLabel || c.unit})` : c.label}</option>)}</optgroup>}{/* #3564 */}
               </select>
             </label>
             {isPlainUnit(storedUnit) && typeof setDisplayUnit === "function" && <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("The unit {symbol} is shown in, kept with the project and shared with Best intercepts. The stored values are unchanged; the cut-offs and the cap are typed in the unit shown.", { symbol })}>{tr("Show in")}
@@ -396,7 +413,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                   {(layers.litho || []).length > 0 && <option value={HOLE_LITHO_KEY}>{tr("Hole + lithology")}</option>}
                   {domainOptions.map((k) => <option key={k} value={k}>{LAYER_META[k].label}</option>)}
                   {customDomains.map((d) => <option key={d.key} value={d.key}>{d.attribute || d.grouped ? attributeDomainLabel(d, tr) : d.label}</option>)}{/* #1678; attributes: #2504 */}
-                  {logChoices.length > 0 && <optgroup label={tr("A downhole log, by its quartiles")}>{logChoices.map((c) => <option key={c.key} value={`numlog:${c.key}`}>{c.unit && c.unit !== "as logged" && !String(c.label).includes(`(${c.unit})`) ? `${c.label} (${c.unit})` : c.label}</option>)}</optgroup>}{/* #2672 */}
+                  {logChoices.length > 0 && <optgroup label={tr("A downhole log, by its quartiles")}>{logChoices.map((c) => <option key={c.key} value={`numlog:${c.key}`}>{c.unit && c.unit !== "as logged" && !String(c.label).includes(`(${c.unitLabel || c.unit})`) ? `${c.label} (${c.unitLabel || c.unit})` : c.label}</option>)}</optgroup>}{/* #2672 */}
                 </select>
               </label>
             ) : (
@@ -433,7 +450,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
               <div>
                 <div style={label}>{tr("By domain — {groups} {v}", { groups: groups.length, v: tr(groups.length === 1 ? "group" : "groups") })}</div>
                 <BoxPlots groups={shownGroups} domainLabel={domainLabel} logScale={logScale} unit={dispLabel} />
-                {groups.length > SHOWN_MAX && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("The {shown} largest of {n} groups are drawn and listed; {more} more are in the CSV export.", { shown: SHOWN_MAX, n: fmtNum(groups.length), more: fmtNum((groups.length - SHOWN_MAX)) })}</div>}{/* #2508 */}
+                {groups.length > shownMax && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("The {shown} largest of {n} groups are drawn and listed; {more} more are in the CSV export.", { shown: shownMax, n: fmtNum(groups.length), more: fmtNum((groups.length - shownMax)) })}{!drawAll && groups.length > SHOWN_FIRST && <> <button type="button" onClick={() => setDrawAll(true)} style={{ cursor: "pointer", background: "none", border: "none", padding: 0, color: "var(--color-accent)", textDecoration: "underline", fontSize: "inherit" }}>{tr("Draw {m} groups", { m: fmtNum(Math.min(groups.length, SHOWN_MAX)) })}</button></>}</div>}{/* #2508 */}
               </div>
 
               {/* TASKS.csv #1388 */}
@@ -525,7 +542,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                     </table>
                   </div>
                 )}
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3, lineHeight: 1.4 }}>{tr("All the samples above, every domain together; means {v}. The cut-offs are yours to type; until you do, they are the median, Q3 and P90 of these samples. An 'Also show' element is averaged over the same core.", { v: weightingActive ? tr("length-weighted") : tr("unweighted") })}</div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3, lineHeight: 1.4 }}>{tr(source === "surface" ? "All the samples above, every domain together; means {v}. The cut-offs are yours to type; until you do, they are the median, Q3 and P90 of these samples. An 'Also show' element is averaged over the same samples." : "All the samples above, every domain together; means {v}. The cut-offs are yours to type; until you do, they are the median, Q3 and P90 of these samples. An 'Also show' element is averaged over the same core.", { v: weightingActive ? tr("length-weighted") : tr("unweighted") }) /* #3754 (6) — surface samples have no core */}</div>
               </div>
 
               <button onClick={exportCSV} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6 }}>
