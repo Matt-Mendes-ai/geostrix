@@ -61,6 +61,9 @@ export function traceAt(trace, md) {
 // dragged, so it does not snap to itself).
 export function snapClick(click, { holes, targets, toScreen, along, radius = 12, strings = [], skip = null }) {
   const traceOf = new Map((holes || []).map((h) => [h.hole_id, h.trace]));
+  // TASKS.csv #3768 — a hole's dashed part (outside the section's buffer, projected from further away) is never a snap target: a vertex snapped there sat 41 m off the section plane
+  const runsOf = new Map((holes || []).filter((h) => Array.isArray(h.runs)).map((h) => [h.hole_id, h.runs]));
+  const inCorridor = (hole_id, md) => { const r = runsOf.get(hole_id); return !r || r.some(([m0, m1]) => md >= m0 - 1e-6 && md <= m1 + 1e-6); };
   let best = null;
   for (const st of strings || []) (st.points || []).forEach((p, i) => {
     if (skip && skip.id === st.id && skip.i === i) return;
@@ -71,6 +74,7 @@ export function snapClick(click, { holes, targets, toScreen, along, radius = 12,
   if (best) { const p = { ...best.p, snap: best.p.snap || "vertex" }; delete p.tie; return p; } // a copy: never the other string's tie
   best = null;
   for (const t of targets || []) {
+    if (!inCorridor(t.hole_id, t.md)) continue;
     const p = traceAt(traceOf.get(t.hole_id), t.md);
     if (!p) continue;
     const [px, py] = toScreen(p.x, p.y, p.z);
@@ -104,7 +108,7 @@ export function snapClick(click, { holes, targets, toScreen, along, radius = 12,
       const vx = bx - ax, vy = by - ay, L2 = vx * vx + vy * vy;
       const f = L2 > 0 ? Math.max(0, Math.min(1, ((click.sx - ax) * vx + (click.sy - ay) * vy) / L2)) : 0;
       const d = Math.hypot(ax + f * vx - click.sx, ay + f * vy - click.sy);
-      if (d <= radius && (!best || d < best.d)) best = { d, hole_id: h.hole_id, md: a.md + (b.md - a.md) * f };
+      if (d <= radius && (!best || d < best.d) && inCorridor(h.hole_id, a.md + (b.md - a.md) * f)) best = { d, hole_id: h.hole_id, md: a.md + (b.md - a.md) * f }; // #3768: not the dashed part
     }
   }
   if (!best) return null;
