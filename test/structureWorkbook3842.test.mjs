@@ -73,3 +73,12 @@ test("#3842 wired: the import takes .xlsx, names other binary files, and the sam
     "{name} is not a text table ({kind}). Measurements are read from a .csv or .xlsx table, or a MapInfo point table.", "Formats: .csv, .xlsx, MapInfo .tab / .mif",
     "The samples already in the project that carry a Strike and a Dip: check the columns, then they are added as outcrop measurements at their sample positions.", "Add the {n} sample(s) with a strike and dip as structures"]);
 });
+
+test("#3842 follow-up: a sample file's Strike / Dip columns are kept as attributes however many values they hold", async () => {
+  const { surfaceAttrColumns, isMeasureHeader } = await import("../src/lib/geochemColumns.js");
+  const rows = Array.from({ length: 400 }, (_, i) => ({ id: "S" + i, x: i, y: i, Strike: String(i % 360), Dip: String(i % 90), Lab: "ALS", Code: "C" + i }));
+  const kept = surfaceAttrColumns(["id", "x", "y", "Strike", "Dip", "Lab", "Code"], rows, { sample_id: "id", x: "x", y: "y" }, []);
+  assert.deepEqual(kept, ["Strike", "Dip", "Lab"]); // Code: 400 running values, left out as before
+  for (const h of ["Strike", "Dip", "Dip direction", "Dip_Dir", "DipAz", "Strike (deg)", "Trend", "Plunge"]) assert.equal(isMeasureHeader(h), true, h);
+  for (const h of ["Zn_ppm", "Distance", "Dipper", "Lab"]) assert.equal(isMeasureHeader(h), false, h);
+});
