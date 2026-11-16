@@ -112,7 +112,7 @@ function barTrack(rows, x, sy, max) {
 // map viewport on the same page use. #402 did this for the strip-log modal only.
 // assays / assaySymbols / elementUnits (#1480): the project's assays and up to three elements to draw as tracks after the logs
 // lithoPatterns (#1995): { byCode: { code: FGDC code | null }, tiles } — the lithology column drawn with its patterns
-export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride = null, assays = [], assaySymbols = [], elementUnits = {}, lithoPatterns = null, assayRanges = null, customTracks = [], pxPerMeter: forcedPx = null }) { // forcedPx: #3560 A1 — several holes on one depth scale; customTracks: #2477 // assayRanges: #2605 — one axis per element for an atlas
+export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride = null, assays = [], assaySymbols = [], elementUnits = {}, lithoPatterns = null, assayRanges = null, customTracks = [], pxPerMeter: forcedPx = null, logTracks = false }) { // logTracks: #3710 — the logged susceptibility and density, as the strip-log window draws them // forcedPx: #3560 A1 — several holes on one depth scale; customTracks: #2477 // assayRanges: #2605 — one axis per element for an atlas
   const ov = (key, v) => legendOverride?.[key]?.[v];
   const colorOf = (key, fallback) => (v) => ov(key, v)?.color || fallback(v);
   const nameOf = (key, fallback) => (v) => ov(key, v)?.label || (fallback ? fallback(v) : v);
@@ -156,6 +156,11 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride
     if (ct.numeric) tracks.push({ label, rows: rows.filter((r) => Number.isFinite(r.value)), kind: "bar", max: ct.max > 0 ? ct.max : Math.max(1e-9, ...rows.map((r) => r.value).filter(Number.isFinite)) });
     else tracks.push({ label, rows, kind: "fill", colorFn: (v) => customCodeColour(ct.layer, "value", v), nameFn: null });
   }
+  // TASKS.csv #3710 — the strip-log window's own logged tracks (density, susceptibility) on an atlas page: on a project whose only downhole data are assays and densities the page was empty
+  if (logTracks) for (const [k, label] of [["magsusc", "Mag. susc."], ["sg", "Density (t/m³)"]]) {
+    const rows = (layers[k] || []).filter((r) => r.hole_id === holeId && Number.isFinite(Number(r.value))).map((r) => ({ ...r, value: Number(r.value), ...(Number.isFinite(Number(r.from)) && Number.isFinite(Number(r.to)) ? { from: Number(r.from), to: Number(r.to) } : Number.isFinite(Number(r.depth)) ? { from: Number(r.depth) - 0.25, to: Number(r.depth) + 0.25 } : { from: NaN, to: NaN }) })).filter((r) => Number.isFinite(r.from) && Number.isFinite(r.to)).sort((a, b) => a.from - b.from);
+    if (rows.length) tracks.push({ label, rows, kind: "bar", max: rows.reduce((m, r) => Math.max(m, r.value), 0) || 1 });
+  }
   if (!tracks.length) return null;
   const W = DEPTH_COL_W + tracks.length * TRACK_W + 10;
 
@@ -194,14 +199,14 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride
 
 // Rasterizes buildStripLogSvgMarkup's output into a PNG data URL, the same SVG->canvas->PNG technique
 // StripLog.jsx's own exportPNG button already uses. Returns null if the hole had nothing to draw.
-export async function buildStripLogDataUrl({ holeId, collars, layers, legendOverride = null, assays = [], assaySymbols = [], elementUnits = {}, lithoPatterns = false, assayRanges = null, customTracks = [] }) { // lithoPatterns: #1995; assayRanges: #2605
+export async function buildStripLogDataUrl({ holeId, collars, layers, legendOverride = null, assays = [], assaySymbols = [], elementUnits = {}, lithoPatterns = false, assayRanges = null, customTracks = [], logTracks = false }) { // lithoPatterns: #1995; assayRanges: #2605; logTracks: #3710
   let pats = null;
   if (lithoPatterns && (layers.litho || []).length) { // #1995 — the project's codes (the same pattern on every page), then this hole's tiles
     const byCode = lithoPatternMap(layers.litho, (v) => legendOverride?.litho?.[v]?.label || UNIT_NAMES[v] || v, legendOverride?.litho);
     const here = [...new Set((layers.litho || []).filter((r) => r.hole_id === holeId).map((r) => byCode[r.value]).filter((c) => c != null))];
     pats = { byCode, tiles: await loadPatternTiles(here) };
   }
-  const built = buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride, assays, assaySymbols, elementUnits, lithoPatterns: pats, assayRanges, customTracks }); // legendOverride: #1092; assays: #1480
+  const built = buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride, assays, assaySymbols, elementUnits, lithoPatterns: pats, assayRanges, customTracks, logTracks }); // legendOverride: #1092; assays: #1480
   if (!built) return null;
   const { width, height, pxPerMeter } = built;
   const svg = await embedFigureFont(built.svg).catch(() => built.svg); // #2610 — the atlas page's log in the sheet's Exo 2

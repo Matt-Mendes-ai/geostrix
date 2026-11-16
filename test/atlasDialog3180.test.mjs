@@ -15,7 +15,7 @@ test("the hole list draws only the rows in view, at a fixed row height", () => {
 });
 
 test("after a run Generate waits for a new selection, and Close sits by the result", () => {
-  assert.match(s, /setRanOn\(selectedIds\); \/\/ #3180\r?\n\s*setResult\(\{ ok: !failed\.length, text: tr\("Generated \{n\} page\(s\)\."/);
+  assert.match(s, /setRanOn\(selectedIds\); \/\/ #3180\r?\n\s*setResult\(\{ ok: !failed\.length( && !noLog)?, text: tr\("Generated \{n\} page\(s\)\."/);
   assert.match(s, /disabled=\{busy \|\| !selectedCount \|\| ranOn === selectedIds/);
   assert.match(s, /\{ranOn && <button onClick=\{onClose\}/);
 });

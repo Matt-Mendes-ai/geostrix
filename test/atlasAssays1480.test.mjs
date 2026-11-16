@@ -40,7 +40,7 @@ test("wired: the Atlas dialog's three selects, passed through atlas.js, the proj
   assert.match(m, /aria-label=\{tr\("Assay track \{n\}", \{ n: k \+ 1 \}\)\}/);
   assert.match(m, /generateAtlasPages\(\{ mode, items: \[chosen\[i\]\], [^}]*assayTracks(, lithoPatterns)? \}\)/); // lithoPatterns: #1995
   const a = readFileSync(new URL("../src/lib/atlas.js", import.meta.url), "utf8");
-  assert.match(a, /buildStripLogDataUrl\(\{ holeId, collars, layers, legendOverride, (lithoPatterns, )?\.\.\.\(assayTracks \|\| \{\}\) \}\)/);
+  assert.match(a, /buildStripLogDataUrl\(\{ holeId, collars, layers, legendOverride, (lithoPatterns, )?(logTracks: true \/\* #3710 \*\/, )?\.\.\.\(assayTracks \|\| \{\}\) \}\)/);
   const l = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
   assert.match(l, /assays=\{assays\} assayElements=\{assayElements\}/);
 });

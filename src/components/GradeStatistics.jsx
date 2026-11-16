@@ -22,6 +22,8 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 // TASKS.csv #1515 / #1678 — interval layers only: magsusc and structure are point readings (no from / to), and as domains they gave
 // "(unclassified) 1537 / 0.15 1 / 0.515 1"
 const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "weath", "structzone", "geotech"]; // weath: #2162
+import MetalAtRiskTable from "./MetalAtRiskTable.jsx"; // TASKS.csv #3746
+import { metalShareAbove } from "../lib/metalAtRisk.js"; // TASKS.csv #3746
 import { arrMin, arrMax, sortedWeighted } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread); sortedWeighted: #2910
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
 import { t as tr, fmtNum } from "../lib/i18n.js";
@@ -43,7 +45,7 @@ import { DISPLAY_UNITS, isPlainUnit, displayFactor, toDisplay, fromDisplay } fro
 import { overlapMeans, aboveCutoffRows, parseCutoffs, defaultCutoffs, gradeStatsCsvRows } from "../lib/cutoffTable.js"; // TASKS.csv #2912; csv: #3069
 import { interceptCutoffFor } from "../lib/interceptCutoff.js"; // TASKS.csv #3069
 import { drillThresholdOffers, sortedThresholdOffers } from "../lib/thresholds.js"; // TASKS.csv #3069 — the saved drill thresholds, offered as in Best intercepts; sorted: #3160
-import { fileCensoring } from "../lib/qaqc.js"; // TASKS.csv #2913 — Thresholds' censoring rule; #3083: found on the file's results, as Thresholds does
+import { fileCensoring, fileCeiling, markCeiling } from "../lib/qaqc.js"; // fileCeiling, markCeiling: #3729; // TASKS.csv #2913 — Thresholds' censoring rule; #3083: found on the file's results, as Thresholds does
 
 // Sample statistics (n-1 denominator for variance/stdev, the standard convention for a sample rather
 // than a full population — grade data is always a sample of the deposit, never the whole thing).
@@ -210,6 +212,20 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   const isLt = (r) => r.lt || (ltFloor != null && Math.abs(r.value - toShown(ltFloor.floor)) <= toShown(ltFloor.floor) * 1e-9); // toShown: #3236 — the rows are in the shown unit
   // TASKS.csv #3243 (split from #3222) — no result flagged '<': the count is a guess from the floor, and the column says so
   const floorOnly = useMemo(() => ltFloor != null && !rows.some((r) => r.lt), [ltFloor, rows]);
+  // TASKS.csv #3729 — the twin of the floor at the top: a round maximum held by many results (Fe 15 % x 164) is an upper reporting limit whose
+  // '>' was lost; said beside the statistics, and the results can be marked '>' (in the store: every lab row of the element on that value)
+  const store = useStore();
+  const ceilUnit = source === "surface" ? surfaceElementUnits[symbol] || "ppm" : elementUnits[symbol] || "ppm";
+  const ceil = useMemo(() => (logSrc ? null : source === "surface" ? fileCeiling(surfaceSamples, symbol, ceilUnit, surfaceElementUnits) : fileCeiling(statsAssays, symbol, ceilUnit, elementUnits)), [logSrc, source, surfaceSamples, statsAssays, symbol, ceilUnit, surfaceElementUnits, elementUnits]);
+  const [ceilDone, setCeilDone] = useState(null);
+  const markOverLimit = () => {
+    if (!ceil) return;
+    const surface = source === "surface";
+    const r = markCeiling(surface ? store.surfaceSamples : store.assays, symbol, ceil.ceiling, ceilUnit, surface ? surfaceElementUnits : elementUnits);
+    if (!r.n) return;
+    if (surface) store.setSurfaceSamples(r.rows); else store.setAssays(r.rows);
+    setCeilDone({ symbol: symLabel, n: r.n, max: toShown(ceil.ceiling) });
+  };
   // TASKS.csv #2508 (review #2486) — 'Hole + lithology' on 2,248 holes: 5,938 groups, a table row and a box plot each, froze the window 1.6-3.8 s.
   // The table, the box plots and the probability plot show the first SHOWN_MAX groups (the largest, or the first holes by id); the CSV has all
   // TASKS.csv #2910 — one values array and one weights array for the whole panel: the statistics, the percentiles, the break and the points
@@ -447,6 +463,9 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                   <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Cap to test")}<input type="number" min="0" step="any" value={capTest} onChange={(e) => setCapTest(e.target.value)} style={{ ...sel, width: 80 }} aria-label={tr("Cap to test")} /></label>
                   {capFx && <span>{weightingActive ? tr("{above} of {n} samples above it; {pct}% of the metal (grade × length) removed", { above: capFx.above, n: capFx.n, pct: capFx.pctMetalRemoved.toFixed(1) }) : tr("{above} of {n} samples above it", { above: capFx.above, n: capFx.n })}</span>}
                 </div>
+                {/* TASKS.csv #3746 — the metal the top samples carry, where a cap is tested; a cap there says its loss before it is typed */}
+                {capFx && prob.vs.length > 1 && (() => { const sw = sortedWeighted(prob.vs, prob.ws, { coerce: true }); const k = metalShareAbove(sw.v, weightingActive ? sw.w : null, capValue + 1e-12 * Math.max(1, capValue)); return k != null && capFx.above > 0 ? <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 3 }}>{tr("The {above} sample(s) above {cap} {unit} hold {pct} % of the metal; a cap there keeps {kept} % of it.", { above: capFx.above, cap: capText(capValue), unit: dispLabel, pct: k.toFixed(1), kept: (100 - capFx.pctMetalRemoved).toFixed(1) })}</div> : null; })()}
+                {prob.vs.length > 1 && <div style={{ marginTop: 3 }}><MetalAtRiskTable values={sortedWeighted(prob.vs, prob.ws, { coerce: true }).v} weights={weightingActive ? sortedWeighted(prob.vs, prob.ws, { coerce: true }).w : null} unitLabel={dispLabel} onSetCap={(g) => setCapTest(String(+Number(g).toPrecision(4)))} /></div>}
                 {capWarn && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text-strong)", marginTop: 3, lineHeight: 1.4 }}>{capWarn}</div>}{/* #1676 */}
                 {prob.brk > 0 && !brkAsCap && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 3, lineHeight: 1.4 }}>{prob.log ? tr("The probability-plot break ({v} {unit}) lies below the median, so it is not offered as a cap: it separates two populations rather than marking a high-grade tail.", { v: gradeText(prob.brk), unit: dispLabel }) : tr("These values are not strongly skewed, so the probability-plot break ({v} {unit}) is not offered as a cap: on such a grade a step usually separates two populations, not outliers.", { v: gradeText(prob.brk), unit: dispLabel })}</div>}{/* #2912 */}
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 2, lineHeight: 1.4 }}>{logScale ? tr("Each population plots as a straight line on these axes (log-normal); a bend or a step in the high tail is where a second population starts, the usual place to cap (Sinclair 1976). Values of 0 count in the cumulative % but cannot be drawn on a log axis.") : tr("Arithmetic axes: a normally distributed population plots as a straight line, and a step is where a second population starts. Tick Log scale for a skewed trace element.") /* #2912 */}</div>
@@ -481,6 +500,11 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                 </table>
               </div>
               {(() => { const over = groups.filter((g) => g.stats.n && g.ltN / g.stats.n > 0.5); if (!over.length) return null; const g = over[0]; return <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("{pct}% of {symbol} in \"{pop}\" is below detection: its statistics are mostly about the detection limit.", { pct: Math.round((100 * g.ltN) / g.stats.n), symbol, pop: domainLabel(g.key) })}{over.length > 1 ? " " + tr("{n} more group(s) are over half below detection.", { n: over.length - 1 }) : ""}{" "}{tr("Its percentiles and caps sit on the limit, not on measured grades.")}</div>; })()}{/* #2505 */}
+              {ceil && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4, display: "flex", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>{/* #3729 */}
+                <span>{tr("{n} results of {symbol} sit on the maximum, {max} {unit}, a round number: probably an upper reporting limit whose '>' was lost. Their true grade is higher, so the mean, the upper percentiles and the caps here are too low.", { n: fmtNum(ceil.n), symbol: symLabel, max: fmtNum(toShown(ceil.ceiling)), unit: dispLabel })}</span>
+                <button type="button" onClick={markOverLimit} style={{ padding: "2px 8px", borderRadius: 4, fontSize: "var(--font-size-sm)", cursor: "pointer", border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)" }}>{tr("Mark them as over the limit ('>')")}</button>
+              </div>}
+              {ceilDone && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.4 }}>{tr("{n} result(s) of {symbol} at {max} marked as over the limit ('>'): kept at the limit, shown as '>' in the tables and exports, counted as over range in Data QC. Undo puts them back.", { n: fmtNum(ceilDone.n), symbol: ceilDone.symbol, max: `${fmtNum(ceilDone.max)} ${dispLabel}` })}</div>}
 
               {/* TASKS.csv #2912 — above each cut-off: what a bulk commodity is read by */}
               <div>
@@ -501,6 +525,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                         <th style={th}>{tr("Cut-off")}</th><th style={th}>n</th><th style={th}>{tr("% of samples")}</th>
                         {source === "assays" && <><th style={th}>{tr("Metres")}</th><th style={th}>{tr("% of metres")}</th></>}
                         <th style={th}>{tr("Mean {symbol}", { symbol: symLabel })}</th>
+                        <th style={th} title={tr("The share of the metal (grade × {w}) in the samples at or above the cut-off", { w: weightingActive ? tr("length") : tr("one per sample") })}>{tr("% of the metal")}</th>{/* #3746 */}
                         {alsoShown.map((x) => <th key={x} style={th}>{tr("Mean {symbol}", { symbol: x })} ({gradeUnitLabel(x, (source === "surface" ? surfaceElementUnits : elementUnits)[x])})</th>)}
                       </tr></thead>
                       <tbody>
@@ -509,6 +534,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                             <td style={td}>≥ {gradeText(r.cutoff)}</td><td style={td}>{fmtNum(r.n)}</td><td style={td}>{r.pctN.toFixed(1)}</td>
                             {source === "assays" && <><td style={td}>{r.length == null ? "—" : r.length.toFixed(1)}</td><td style={td}>{r.pctLength == null ? "—" : r.pctLength.toFixed(1)}</td></>}
                             <td style={td}>{r.mean == null ? "—" : gradeText(r.mean)}</td>
+                            <td style={td}>{r.pctMetal == null ? "—" : r.pctMetal.toFixed(1)}</td>{/* #3746 */}
                             {alsoShown.map((x) => <td key={x} style={td}>{r.also[x] == null ? "—" : gradeText(r.also[x])}</td>)}
                           </tr>
                         ))}

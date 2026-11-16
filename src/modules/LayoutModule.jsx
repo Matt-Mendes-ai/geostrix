@@ -3,7 +3,7 @@ import { customLegendGroups } from "../lib/customColour.js"; // TASKS.csv #2472
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { MapPinned, Plus, X, Maximize2, Sheet, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid, Lock, LayoutTemplate, Download, Upload, HardDrive } from "../components/icons.js";
-import { newTitleBlock, STOCK_TEMPLATES, stockTemplateElements, templateFile, parseTemplateFile, templateElements, refitStockTemplate, documentTitle /* #3612 */, titleBlockSpot } from "../lib/layoutTitleBlock.js"; // refitStockTemplate: #2312; // TASKS.csv #1868; templateElements: #1487
+import { newTitleBlock, STOCK_TEMPLATES, stockTemplateElements, templateFile, parseTemplateFile, templateElements, furnitureOfOnePictureReset /* #3709 */, sharedTitleRows /* #3714 */, refitStockTemplate, documentTitle /* #3612 */, titleBlockSpot } from "../lib/layoutTitleBlock.js"; // refitStockTemplate: #2312; // TASKS.csv #1868; templateElements: #1487
 import ComputerTemplates from "../components/ComputerTemplates.jsx"; // TASKS.csv #1487
 import { keepTemplateOnComputer } from "../lib/computerTemplates.js"; // TASKS.csv #1487
 import { hasComputerTemplates } from "../lib/desktop.js"; // TASKS.csv #1487
@@ -11,7 +11,7 @@ import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js"; // TASKS.csv #1777 — listed with the page's placeholders
 import { scaleBarLabel, scaleBarMidLabel } from "../lib/scaleBarLabel.js"; // TASKS.csv #2140
 import { offSheetPages, rectSidesPast, rectsWhollyOff, whollyOffSheet, elementCaption, elementKind } from "../lib/layoutEdges.js"; // elementKind: #3028
-import { withCreditPages, pagesWithoutCredit, starterLayout, refitStarterOf } from "../lib/layoutCredits.js"; // TASKS.csv #3591
+import { withCreditPages, pagesWithoutCredit, pagesWithHiddenCredit, starterLayout, refitStarterOf } from "../lib/layoutCredits.js"; // TASKS.csv #3591; pagesWithHiddenCredit: #3707
 import { DEFAULT_LAYOUT_ELEMENTS } from "../lib/projectFields.js"; // TASKS.csv #3028 (5)
 import { groupOrdersFromItems, applyCodeOrder, projectCodeOrders, clearCodeOrders, pagesHoldingOrder, orderedGroupsOf } from "../lib/legendCodeOrder.js"; // TASKS.csv #3130 — a code order set once; clear*: #3199 // TASKS.csv #2482 / #2309; named elements: #2700
 import { fillPlaceholders, northName, pageConvergence, formatConvergence } from "../lib/layoutText.js";
@@ -247,6 +247,11 @@ export default function LayoutModule() {
     if (creditsRef.current) {
       const toCheck = layoutPrintRequest.kind === "png" ? layoutPages.filter((pg) => pg.id === activeLayoutPageId) : layoutPages;
       const bare = pagesWithoutCredit(toCheck, activeLayoutPageId, elements);
+      // TASKS.csv #3707 — the credit is on the page but under an opaque element (a drill plan over the whole sheet): it prints without it
+      const hidden = pagesWithHiddenCredit(toCheck, activeLayoutPageId, elements);
+      if (hidden.length && !window.confirm(hidden.length === 1
+        ? tr("\"{page}\" has its data credit under another element, so the sheet prints without it. Send that element to the back (or move it) so the data owner is credited. Export without the credit?", { page: hidden[0] })
+        : tr("{n} pages have their data credit under another element, so they print without it ({list}). Send that element to the back (or move it) so the data owner is credited. Export without the credit?", { n: hidden.length, list: hidden.slice(0, 5).join(", ") + (hidden.length > 5 ? ", …" : "") }))) return;
       if (bare.length && !window.confirm(bare.length === 1
         ? tr("\"{page}\" prints no data credit, and this project has one. Add a text with {credits} to it (or a title block, which has a Data row) so the data owner is credited. Export without it?", { page: bare[0] })
         : tr("{n} pages print no data credit ({list}), and this project has one. Add a text with {credits} to them (or a title block, which has a Data row) so the data owner is credited. Export without it?", { n: bare.length, list: bare.slice(0, 5).join(", ") + (bare.length > 5 ? ", …" : "") }))) return;
@@ -291,7 +296,7 @@ export default function LayoutModule() {
           if (!r?.ok) throw new Error(r?.message || tr("The image export needs the desktop app."));
           const bytes = r.bytes; // #922 — a Uint8Array from the main process, no base64
           const { openPdf, renderPdfPage } = await import("../lib/pdfPages.js");
-          const doc = await openPdf(bytes);
+          const doc = await openPdf(bytes, { disableFontFace: true /* TASKS.csv #3708 — whole glyphs at 150 dpi */ });
           const [wmm, hmm] = pageMm(layoutPages[pageNo - 1]?.format);
           const dpi = printing.dpi || 300;
           const canvas = await renderPdfPage(doc, 1, (Math.max(wmm, hmm) / 25.4) * dpi); // #2614 — the print holds this page only (it printed all 103 to keep one)
@@ -824,7 +829,7 @@ export default function LayoutModule() {
     const id = `${type}_${Date.now()}`;
     const base = { id, type, x: 100, y: 100 };
     if (type === "text") base.text = "Text", base.w = 200;
-    if (type === "titleblock") { const tbSpot = titleBlockSpot(pageFormatOf(activePage), { credit: !!credits, creditText: credits }); Object.assign(base, newTitleBlock(id, tbSpot.x, tbSpot.y, { credit: !!credits, creditText: credits })); } // #3658 — above the credit, inside the page margin, as tall as its wrapped Data row // #3591 — a Data row when the project has a credit // TASKS.csv #1868 — bottom right
+    if (type === "titleblock") { const tbSpot = titleBlockSpot(pageFormatOf(activePage), { credit: !!credits, creditText: credits }); Object.assign(base, newTitleBlock(id, tbSpot.x, tbSpot.y, { credit: !!credits, creditText: credits, shared: sharedTitleRows(layoutPages.map((pg) => (pg.id === activeLayoutPageId ? { ...pg, elements } : pg))) /* TASKS.csv #3714 */ })); } // #3658 — above the credit, inside the page margin, as tall as its wrapped Data row // #3591 — a Data row when the project has a credit // TASKS.csv #1868 — bottom right
     if (type === "logo") logoInput.current.click();
     if (type === "scale") { base.meters = 100; base.pxPerMeter = DEFAULT_PX_PER_METER; Object.assign(base, insertScaleBar(base, elements, selected)); if (!base.boundTo) Object.assign(base, freeSpot(elements, 260, 50, A4)); /* #2135 */ base.y = Math.min(base.y, A4.h - 50); } // #1635 — bound to the selected / only view
     if (type === "north") { // TASKS.csv #1632 — tied to the selected view, else the page's only view with a camera azimuth
@@ -951,9 +956,9 @@ export default function LayoutModule() {
   const loadTemplate = (tpl) => {
     if (elements.length && !window.confirm(tr("Replace the current page with \"{name}\"? (Ctrl+Z undoes this.)", { name: tr(tpl.name) }))) return; // #1487 — layoutPages are in the undo history
     if (tpl.format) setLayoutPageFormat(activeLayoutPageId, tpl.format); // #1868 — a template keeps its paper size and orientation
-    if (tpl.stock) { setElements(stockTemplateElements(tpl, Date.now(), { credit: !!credits, creditText: credits })); setSelected(null); setTemplatesOpen(false); return; } // #1868 — a starter template
+    if (tpl.stock) { setElements(stockTemplateElements(tpl, Date.now(), { credit: !!credits, creditText: credits, shared: sharedTitleRows(layoutPages) /* #3714 */ })); setSelected(null); setTemplatesOpen(false); return; } // #1868 — a starter template
     const idMap = new Map(tpl.elements.map((el) => [el.id, `${el.type}_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`]));
-    setElements(relinkCopies(tpl.elements.map((el) => ({ ...el, id: idMap.get(el.id) })), idMap, true)); // #924
+    setElements(relinkCopies(furnitureOfOnePictureReset(tpl.elements).map((el) => ({ ...el, id: idMap.get(el.id) || el.id })), idMap, true)); // #924; #3709 — a template saved before keeps no picture's bar, label or legend
     setSelected(null);
     setTemplatesOpen(false);
   };
@@ -1475,6 +1480,7 @@ export default function LayoutModule() {
                       <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("First row")}<input type="number" min="1" step="1" value={sel.firstRow || 1} onChange={(e) => updateSelected({ firstRow: Math.max(1, Math.round(Number(e.target.value) || 1)) })} style={inp} /></label>
                       <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Holes containing")}<input type="text" value={sel.holeFilter || ""} placeholder={tr("all")} onChange={(e) => updateSelected({ holeFilter: e.target.value, firstRow: 1 })} style={inp} /></label>
                     </div>
+                    {(() => { const sg = sel.holeFilter ? filterSuggestion(tableCollars, sel.holeFilter) : null; return sg ? <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr("A space ends a term: did you mean {term}? (_ stands for a space in a value.)", { term: sg })}</div> : null; })()}{/* TASKS.csv #3716 (3) — the collar table's box says it as the drill plan's does */}
                     <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>{tr("Rows {a}–{b} of {n}.", { a: sl.total ? sl.start + 1 : 0, b: sl.end, n: sl.total })}</div>
                     {/* TASKS.csv #2770 — two table columns per page: twice the rows at the same height, twice the width (up to the sheet's) */}
                     <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: noSplit ? "var(--color-text-muted)" : "var(--color-text-secondary)", marginBottom: noSplit ? 2 : 8, cursor: noSplit ? "default" : "pointer" }} title={tr("The rows read down the left column, then the right one. The row limit doubles and the table is as tall as before, so a long list takes half the pages.")}>
@@ -1746,7 +1752,7 @@ export default function LayoutModule() {
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title={tr("Any scale: 1 : 6,000 and 1 : 7,500 are not in the list.")}>{/* TASKS.csv #3611 — a typed scale, as the section picture has */}
                   {tr("Typed scale 1 :")}<input type="number" min="1" step="100" value={Math.round(sel.scale) || ""} onChange={(e) => { const v = Number(e.target.value); if (v >= 1) updateSelected({ scale: v }); }} style={{ ...inp, marginBottom: 0, flex: 1, minWidth: 0 }} />
                 </label>
-                <button type="button" onClick={() => updateSelected({ x: 10 * PX_PER_MM, y: 10 * PX_PER_MM, w: A4.w - 20 * PX_PER_MM, h: A4.h - 20 * PX_PER_MM })} title={tr("The frame takes the whole page inside 10 mm margins (the title block and key can be moved over it).")} style={{ ...pBtn, width: "100%", justifyContent: "center", marginBottom: 6 }}>{tr("Fill the page")}</button>{/* TASKS.csv #3611 */}
+                <button type="button" onClick={() => { updateSelected({ x: 10 * PX_PER_MM, y: 10 * PX_PER_MM, w: A4.w - 20 * PX_PER_MM, h: A4.h - 20 * PX_PER_MM }); reorderSelected("back"); /* TASKS.csv #3707 — behind the page's title, north arrow, scale bar, title block and credit, which it covered */ }} title={tr("The frame takes the whole page inside 10 mm margins, behind the page's other elements (the title, north arrow, scale bar, title block and credit stay on top of it).")} style={{ ...pBtn, width: "100%", justifyContent: "center", marginBottom: 6 }}>{tr("Fill the page")}</button>{/* TASKS.csv #3611 */}
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title={tr("The coordinate grid's spacing in metres. Blank: about five lines across the frame; 0: no grid.")}>{tr("Grid (m)")}<input type="number" min="0" step="any" value={sel.gridM ?? ""} placeholder={tr("auto")} onChange={(e) => updateSelected({ gridM: e.target.value === "" ? undefined : Number(e.target.value) })} style={{ width: 80 }} aria-label={tr("Grid spacing (m)")} /></label>{/* #2301 */}
                 <div style={{ display: "flex", gap: 6 }}>
                   <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Centre E")}<input type="number" value={Math.round(sel.centre?.x || 0)} onChange={(e) => updateSelected({ centre: { ...sel.centre, x: Number(e.target.value) } })} style={inp} /></label>

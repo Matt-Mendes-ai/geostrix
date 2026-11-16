@@ -46,7 +46,7 @@ export default function DrillPlanColourControls({ sel, updateSelected, collars, 
       )}
       {isGrade && (
         <label style={lab}>{tr("Element")}
-          <select value={key} onChange={(e) => set(`${kind}:${e.target.value}`)} style={{ ...inp, marginTop: 4 }}>
+          <select value={key} onChange={(e) => updateSelected({ colourBy: `${kind}:${e.target.value}`, bySeries: false, ...(kind === "bi" && e.target.value !== key ? { biCutoff: undefined } : {}) /* TASKS.csv #3716 (4) — a cut-off typed in one element's unit ('5' %) is not carried to the next ('5 g/t'): the plan goes back to its own P90 */ })} style={{ ...inp, marginTop: 4 }}>
             {elements.map((s) => <option key={s} value={s}>{elementOptionLabel(s, unitOf[s])}</option>)}
           </select>
         </label>

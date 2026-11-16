@@ -80,6 +80,19 @@ export function attributeDomainOptions(assays, collars) {
   if (types.size >= 2 && types.size <= 30 && typed >= 0.5 * iv.length) {
     out.push({ key: "attr:sample_type", label: "Sample type", attribute: true, rows: iv.filter((a) => a.sample_type != null && String(a.sample_type).trim()).map((a) => ({ hole_id: a.hole_id, from: Number(a.from), to: Number(a.to), value: String(a.sample_type).trim() })) });
   }
+  // TASKS.csv #3728 — the text fields the assay import kept with each sample (Zone: Blueberry, Gully …): one row per assay interval, offered
+  // with 2 to 30 distinct values on at least 10 samples (a field on part of the samples, Target on 478 of 9,777, is still a grouping: the rest
+  // fall in 'no code')
+  const sampleFields = new Map();
+  for (const a of iv) for (const [k, v] of Object.entries(a?.attrs || {})) {
+    const t = String(v ?? "").trim(); if (!t) continue;
+    if (!sampleFields.has(k)) sampleFields.set(k, { values: new Set(), n: 0 });
+    const e = sampleFields.get(k); e.n++; if (e.values.size <= 30) e.values.add(t);
+  }
+  for (const [k, e] of [...sampleFields.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    if (e.values.size < 2 || e.values.size > 30 || e.n < 10) continue;
+    out.push({ key: `assay:${k}`, label: `Sample · ${k}`, attribute: true, rows: iv.filter((a) => String(a?.attrs?.[k] ?? "").trim()).map((a) => ({ hole_id: a.hole_id, from: Number(a.from), to: Number(a.to), value: String(a.attrs[k]).trim() })) });
+  }
   const by = new Map();
   for (const c of collars || []) for (const [k, v] of Object.entries(c?.attrs || {})) {
     const t = String(v ?? "").trim(); if (!t) continue;
@@ -109,5 +122,6 @@ export function attributeDomainLabel(d, tr) {
   if (d?.key === "attr:sample_type") return tr("Sample type");
   if (String(d?.key || "").endsWith(":decade") && String(d.key).startsWith("collar:")) return tr("Collar · {field} (decade)", { field: d.key.slice(7, -7) }); // #3579
   if (String(d?.key || "").startsWith("collar:")) return tr("Collar · {field}", { field: d.key.slice(7) });
+  if (String(d?.key || "").startsWith("assay:")) return tr("Sample · {field}", { field: d.key.slice(6) }); // #3728
   return d?.label;
 }

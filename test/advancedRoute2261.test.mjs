@@ -13,7 +13,7 @@ test("the pane, its help page and the four locales say the tool is on the Advanc
   for (const lang of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(fs.readFileSync(`src/locales/${lang}.json`, "utf8"));
     const keys = Object.keys(d).filter((k) => k.includes(NEW));
-    assert.equal(keys.length, 2, lang);
+    assert.equal(keys.length, 3, lang); // the pane's note and its older wording (kept), and the note since #3716 (8) named the Grade shell's box
     for (const k of keys) assert.match(d[k], { es: /cinta Avanzado/, pt: /faixa Avançado/, fr: /ruban Avancé/, ar: /الشريط المتقدم/ }[lang], lang);
   }
   // the button itself is still Advanced-only (making it Simple is ViewerModule.jsx's ribbon, left to the main session)

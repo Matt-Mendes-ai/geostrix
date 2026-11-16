@@ -366,6 +366,44 @@ export function fileCensoring(rows, symbol, unit, units) {
   const zeros = zeroResults(rows, symbol, { flaggedOnly: true });
   return { floor: censoringFloor(vals, { zeros }), step: reportedStep(vals, { zeros }) };
 }
+// TASKS.csv #3729 (Scottie Gold review: Fe 15 % on 164 rows, the column's commonest value; As 10,000 ppm x 33; S 10 % x 31) — the twin of the
+// floor at the top: a column whose maximum is a round number held by many results reads as an upper reporting limit whose '>' was lost (the
+// true grades are higher). A maximum counts when it holds at least CEILING_MIN results, more than twice the next value down, and is round (two
+// significant figures at most: 15, 10, 10000, 2.5). -> { ceiling, n, next (the count on the next value down) } | null
+export const CEILING_MIN = 5;
+export const isRoundLimit = (v) => v > 0 && Math.abs(Number(v.toPrecision(2)) - v) <= Math.abs(v) * 1e-9;
+export function censoringCeiling(values) {
+  let max = -Infinity;
+  for (const v of values || []) if (typeof v === "number" && Number.isFinite(v) && v > max) max = v;
+  if (!(max > 0) || !isRoundLimit(max)) return null;
+  let n = 0, below = -Infinity;
+  for (const v of values) if (typeof v === "number") { if (Math.abs(v - max) <= max * 1e-9) n++; else if (v < max && v > below) below = v; }
+  if (n < CEILING_MIN) return null;
+  let next = 0;
+  if (Number.isFinite(below)) for (const v of values) if (typeof v === "number" && Math.abs(v - below) <= Math.abs(below) * 1e-9) next++;
+  return n > 2 * next ? { ceiling: max, n, next } : null;
+}
+// the ceiling of the file's results for one element: the results the lab flagged '<' or '>' left out (a '>' already says it). rows: assays or
+// surface samples -> censoringCeiling(...) in `unit`, or null
+export function fileCeiling(rows, symbol, unit, units) {
+  const vals = [];
+  for (const s of rows || []) { const q = s?.qualifiers?.[symbol]; if (q === "<" || q === ">" || s?.bdl?.includes?.(symbol)) continue; const v = valueIn(s, symbol, unit, units); if (v != null) vals.push(v); }
+  return censoringCeiling(vals);
+}
+// the rows a ceiling marks: an unflagged result of `symbol` equal to the ceiling (in `unit`) -> the same rows, those marked '>' (a new object
+// each, the value unchanged: a '>' result is stored at its limit, #1648)
+export function markCeiling(rows, symbol, ceiling, unit, units) {
+  let n = 0;
+  const out = (rows || []).map((s) => {
+    const q = s?.qualifiers?.[symbol];
+    if (q === "<" || q === ">") return s;
+    const v = valueIn(s, symbol, unit, units);
+    if (v == null || Math.abs(v - ceiling) > Math.abs(ceiling) * 1e-9) return s;
+    n++;
+    return { ...s, qualifiers: { ...(s.qualifiers || {}), [symbol]: ">" } };
+  });
+  return { rows: out, n };
+}
 // #2913 — enough zeros that the lowest positive value reads as the reporting step: at least 20, and 5 % of the results
 const zerosBelowStep = (zeros, nPos) => zeros >= 20 && zeros / (zeros + nPos) >= 0.05;
 // The step the results are reported to, when zeros sit below it: { step (the smallest positive value), zeros } or null

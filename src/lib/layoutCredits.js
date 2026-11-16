@@ -3,10 +3,30 @@
 // licence line: lib/credits.js). Pure.
 import { pagePx } from "./pageFormats.js";
 import { layoutFontStack } from "./layoutFonts.js"; // TASKS.csv #3662
+import { elementBox } from "./layoutPlace.js"; // TASKS.csv #3707
 
 const CREDIT_TEXT = /\{credits\}/;
 // does a page already print the credit (a text box or a title block row with the token)?
 export const pagePrintsCredit = (elements) => (elements || []).some((e) => (e?.type === "text" && CREDIT_TEXT.test(String(e.text || ""))) || (e?.type === "titleblock" && (e.rows || []).some((r) => CREDIT_TEXT.test(String(r?.[1] || "")))));
+
+// TASKS.csv #3707 — 'Fill the page' put a drill plan over the page's title, north arrow, scale bar, title block and credit, and the check above still passed because the credit existed (hidden under the plan). The elements that paint
+// an opaque white box: one drawn LATER in the list (above) hides what lies under it.
+const OPAQUE_TYPES = new Set(["viewport", "drillplan", "image", "titleblock", "legend", "table"]);
+const overlapShare = (a, b) => { const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y); return w > 0 && h > 0 && a.w > 0 && a.h > 0 ? (w * h) / (a.w * a.h) : 0; };
+// the credit-carrying elements of a page that are shown: not (mostly) under an opaque element above them. A text's line is measured by its type (one line), a title block by its whole box (the Data row is its last row, its height is only estimated here)
+export function visibleCreditCarriers(elements) {
+  const els = elements || [], out = [];
+  els.forEach((e, i) => {
+    const text = e?.type === "text" && CREDIT_TEXT.test(String(e.text || "")), tb = e?.type === "titleblock" && (e.rows || []).some((r) => CREDIT_TEXT.test(String(r?.[1] || "")));
+    if (!text && !tb) return;
+    const b = text ? { x: Number(e.x) || 0, y: Number(e.y) || 0, w: Number(e.w) > 0 ? Number(e.w) : 200, h: Math.max(12, (Number(e.fontSize) || 11) * 1.4) } : elementBox(e);
+    const hidden = els.slice(i + 1).some((o) => OPAQUE_TYPES.has(o?.type) && overlapShare(b, elementBox(o)) >= (text ? 0.6 : 0.8));
+    if (!hidden) out.push(e);
+  });
+  return out;
+}
+// a page that has a credit element but none of them shown (all under an opaque element)
+export const pageCreditHidden = (elements) => pagePrintsCredit(elements) && visibleCreditCarriers(elements).length === 0;
 
 // TASKS.csv #3657 / #3658 (re-test R2) — the credit sat at A4's y 764 on every paper (through the scale bar on Letter, mid-page on Tabloid), its box was wider than a portrait sheet and began 30 px from the foot, so a
 // wrapped second line printed 1.6 mm from the edge, inside a printer's unprintable margin. Now: a margin of 40 px (10.6 mm) round the page, the credit's box the page's width inside it, and its top where
@@ -78,4 +98,8 @@ export function withCreditPages(pages, hasCredit, defaultFormat = null) { // has
 // (its stored copy lags); -> [name]
 export function pagesWithoutCredit(pages, activeId, activeElements) {
   return (pages || []).filter((pg) => !pagePrintsCredit(pg.id === activeId ? activeElements : pg.elements)).map((pg, i) => pg.name || `Page ${i + 1}`);
+}
+// TASKS.csv #3707 — the pages whose credit is on the page but under an opaque element, so it prints without it -> [name]
+export function pagesWithHiddenCredit(pages, activeId, activeElements) {
+  return (pages || []).filter((pg) => pageCreditHidden(pg.id === activeId ? activeElements : pg.elements)).map((pg, i) => pg.name || `Page ${i + 1}`);
 }

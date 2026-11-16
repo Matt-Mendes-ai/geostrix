@@ -14,6 +14,7 @@ import { pointReadings } from "../lib/pxrfPoints.js"; // TASKS.csv #1653
 import { pxrfSignature } from "../lib/pxrfSignature.js"; // TASKS.csv #2198
 import RowFilterBox from "./RowFilterBox.jsx"; // TASKS.csv #2391 — the row filter of the drillhole import (#2330), here too
 import { openHelp } from "../lib/help.js"; // TASKS.csv #3528
+import { assayTextColumns, assayUsedColumns, chosenExtraColumns } from "../lib/assayExtraFields.js"; // TASKS.csv #3728
 
 export default function AssayImportModal({ modal, onChange, onCancel, onCommit, onQcLinks = null, existingUnits = {} }) { // onQcLinks: TASKS.csv #3409
   // TASKS.csv #2037 — the columns an interval import cannot do without (a long file also needs its analyte and value columns)
@@ -22,6 +23,9 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
   const labLike = modal.isPxrf ? pxrfSignature(modal.headers || []) : null; // #2198 — a lab file on the pXRF button
   useFocusTrap(); // TASKS.csv #238
   const checkedCount = modal.elements.filter((e) => e.checked).length;
+  // TASKS.csv #3728 — the text columns kept with each sample (Zone, Target): offered, the groupable ones ticked
+  const extraOffer = useMemo(() => assayTextColumns(modal.headers || [], modal.allRows || [], assayUsedColumns(modal.mapping, modal.qc, modal.elements)), [modal.headers, modal.allRows, modal.mapping, modal.qc, modal.elements]);
+  const extraTicked = chosenExtraColumns(modal, extraOffer);
   // TASKS.csv #333 — count negative numbers in the columns being imported, so the user decides what they mean before they become grades;
   // #1677 exact zeros; #502 empty cells. TASKS.csv #2164 — one chunked pass over the rows for every candidate column (assayColumnScan.js),
   // so a 590,000-row file no longer freezes the window before the dialog paints; ticking an element re-sums per-column results (#583).
@@ -151,6 +155,21 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
                     {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
                   </select>
                 </div>
+              ))}
+            </details>
+          )}
+
+          {/* TASKS.csv #3728 — text columns kept with each sample, offered as domains in Grade statistics and Compositing */}
+          {extraOffer.length > 0 && (
+            <details style={{ marginBottom: 10 }} open>
+              <summary style={{ cursor: "pointer", fontSize: "var(--font-size-base)", color: "var(--color-text)", marginBottom: 6 }}>{tr("Extra fields (kept with each sample)")}</summary>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45, marginBottom: 4 }}>{tr("Text columns of the file. A ticked one is kept on each sample and offered as a domain in Grade statistics and Compositing; an unticked one is not imported.")}</div>
+              {extraOffer.map((c) => (
+                <label key={c.col} style={{ display: "flex", gap: 6, alignItems: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 2 }}>
+                  <input type="checkbox" checked={extraTicked.includes(c.col)} aria-label={tr("Keep {col} with each sample", { col: c.col })} onChange={() => onChange({ ...modal, extraCols: extraTicked.includes(c.col) ? extraTicked.filter((x) => x !== c.col) : extraOffer.map((o) => o.col).filter((x) => x === c.col || extraTicked.includes(x)) })} />
+                  <span>{c.col}</span>
+                  <span style={{ color: "var(--color-text-muted)" }}>{c.distinct > 100 ? tr("{n} row(s), more than 100 values", { n: c.n.toLocaleString() }) : tr("{n} row(s), {k} value(s)", { n: c.n.toLocaleString(), k: c.distinct })}</span>
+                </label>
               ))}
             </details>
           )}

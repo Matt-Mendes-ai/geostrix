@@ -28,7 +28,7 @@ test("below detection per element with the commonest limit; values over 100 % wi
 
 test("nothing to say: empty lists", () => {
   const f = assayImportFindings({ rows: [rows[4]], elements, unitOf: () => "ppm", headers: ["Hole"], used: ["Hole"], allRows: [] });
-  assert.deepEqual(f, { below: [], over100: [], notImported: [], nonDrill: [] });
+  assert.deepEqual(f, { below: [], over100: [], notImported: [], nonDrill: [], ceilings: [] }); // ceilings: #3729
 });
 
 test("wired into the commit notice", () => {
