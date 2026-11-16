@@ -8,6 +8,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { defaultMcdElements } from "../lib/mcd.js";
+import { floorElements } from "../lib/floorShare.js"; // TASKS.csv #3748
 import { runMcdScores } from "../lib/mcdClient.js"; // TASKS.csv #3030 — in a worker for a large table
 import { classifyQAQCRow, isPxrfRow } from "../lib/qaqc.js";
 import { notice } from "../lib/notices.js";
@@ -21,7 +22,13 @@ export default function McdAnomalyPanel({ assays, assayElements, surfaceSamples,
   const [medium, setMedium] = useState(() => (media.length > 1 ? media[0] : ALL));
   const pool = useMemo(() => (source === "assays" ? assays.filter((a) => !isPxrfRow(a) && classifyQAQCRow(a) === "regular") : surfaceSamples.filter((s) => medium === ALL || (s.medium || "") === medium)), [source, medium, assays, surfaceSamples]);
   const elements = source === "assays" ? assayElements : surfaceElements;
-  const defaults = useMemo(() => defaultMcdElements(pool, elements), [pool, elements]);
+  // TASKS.csv #3748 — the half-limit floor is read as Grade statistics reads it: an element mostly on its floor is not a default
+  const floors = useMemo(() => {
+    const units = Object.fromEntries(elements.map((e) => [e.symbol, e.unit]));
+    return new Map(floorElements(pool, elements.filter((e) => !e.calculated).map((e) => e.symbol), units, 0.05).map((f) => [f.symbol, f]));
+  }, [pool, elements]);
+  const defaults = useMemo(() => defaultMcdElements(pool, elements, { floorShare: (s) => floors.get(s)?.share || 0 }), [pool, elements, floors]);
+  const leftOut = useMemo(() => [...floors.values()].filter((f) => f.share > 0.25 && !defaults.includes(f.symbol)).sort((a, b) => b.share - a.share), [floors, defaults]);
   const [picked, setPicked] = useState(null); // null: the defaults
   const chosen = picked || defaults;
   const [name, setName] = useState("MCD_score");
@@ -71,7 +78,8 @@ export default function McdAnomalyPanel({ assays, assayElements, surfaceSamples,
           </select></label>}
           <span style={lbl}>{tr("{n} sample(s)", { n: pool.length.toLocaleString() })}</span>
         </div>
-        <div style={lbl}>{tr("Elements (at least three; the defaults are those with a value on 90 % of the samples and few below detection):")}
+        <div style={lbl}>{tr("Elements (at least three; the defaults are those with a value on 90 % of the samples and few below detection or on the detection floor):")}
+          {leftOut.length > 0 && <div style={{ marginTop: 3 }}>{tr("Left out of the defaults, mostly on the file's detection floor: {list}.", { list: leftOut.slice(0, 8).map((f) => `${f.symbol} ${Math.round(f.share * 100)} %`).join(", ") + (leftOut.length > 8 ? ", …" : "") })}</div>}
           <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", marginTop: 4 }}>
             {elements.filter((e) => !e.calculated).map((e) => (
               <label key={e.symbol} style={{ display: "flex", alignItems: "center", gap: 3, cursor: "pointer" }}>

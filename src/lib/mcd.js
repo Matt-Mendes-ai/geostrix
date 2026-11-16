@@ -205,14 +205,17 @@ export function mcdFromPacked(packed, n, D, opts = {}) {
 // The elements a score starts from, read from the data, not from a deposit type: assayed (not calculated) elements with a positive value on
 // at least 90 % of the rows and no more than a quarter of them below detection (a column of half-limit substitutes is near-constant in log
 // ratios and makes the covariance singular), most complete first, at most `max` of them and fewer than n / 5. -> [symbol]
-export function defaultMcdElements(rows, elements, { max = 12, minShare = 0.9, maxBdl = 0.25 } = {}) {
+// TASKS.csv #3748 — floorShare(symbol) -> the share of the element's results on the file's half-limit floor (lib/floorShare.js): an element mostly
+// on its floor (Ag, Bi, Cd at 84, 84 and 73 % one value) is left out of the defaults like one flagged '<', and those left are ranked by their share
+// on the floor last (spread, not file order, picks among equals)
+export function defaultMcdElements(rows, elements, { max = 12, minShare = 0.9, maxBdl = 0.25, floorShare = null, maxFloor = 0.25 } = {}) {
   const n = (rows || []).length;
   if (!n) return [];
   const isBdl = (r, s) => (Array.isArray(r.bdl) ? r.bdl.includes(s) : r.qualifiers?.[s] === "<");
   const stats = (elements || []).filter((e) => !e.calculated).map((e) => {
     let has = 0, bdl = 0;
     for (const r of rows) { const v = Number(r?.values?.[e.symbol]); if (Number.isFinite(v) && v > 0) { has++; if (isBdl(r, e.symbol)) bdl++; } }
-    return { symbol: e.symbol, share: has / n, bdl: has ? bdl / has : 1 };
-  }).filter((s) => s.share >= minShare && s.bdl <= maxBdl).sort((a, b) => b.share - a.share || a.bdl - b.bdl);
+    return { symbol: e.symbol, share: has / n, bdl: has ? bdl / has : 1, floor: floorShare ? floorShare(e.symbol) || 0 : 0 };
+  }).filter((s) => s.share >= minShare && s.bdl <= maxBdl && s.floor <= maxFloor).sort((a, b) => b.share - a.share || a.bdl + a.floor - (b.bdl + b.floor));
   return stats.slice(0, Math.max(0, Math.min(max, Math.floor(n / 5)))).map((s) => s.symbol);
 }

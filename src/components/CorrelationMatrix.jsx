@@ -9,6 +9,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { excludeQAQC, labAssays } from "../lib/qaqc.js"; // TASKS.csv #405
+import { floorElements } from "../lib/floorShare.js"; // TASKS.csv #3748
 import { correlationMatrix, belowDetectionRows, belowDetectionPairs } from "../lib/correlation.js"; // TASKS.csv #405, #1514; belowDetection*: #3232
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
@@ -148,6 +149,8 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
     return k;
   };
   const anyLt = useMemo(() => symbols.some((s) => caches.lt[s]?.some((x) => x)), [symbols, caches, matrix]);
+  // TASKS.csv #3748 — the file's half-limit floor, read as Grade statistics reads it: an element mostly on one value gives coefficients about the detection limit
+  const onFloor = useMemo(() => floorElements(assays, symbols, elementUnits), [assays, symbols, elementUnits]);
 
   const exportCSV = () => {
     const { rows, nRows } = correlationRows(symbols, matrix); // #1083 — rows in lib, tested
@@ -163,6 +166,7 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Multi-element correlation matrix")}</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{surface ? tr("{v}, pairwise deletion — {n} surface samples. Cells with fewer than {MIN_PAIRS} pairs are greyed.", { v: tr(METHOD_LABEL[method]), n: assays.length, MIN_PAIRS }) : tr("{v}, pairwise deletion — {assays} intervals{v2}. Cells with fewer than {MIN_PAIRS} pairs are greyed.", { v: tr(METHOD_LABEL[method]), assays: assays.length, v2: includeQAQC ? tr(" (QAQC inserts included)") : qaqcCount ? tr(", {qaqcCount} QAQC rows excluded", { qaqcCount }) : "", MIN_PAIRS })}</div>
+            {onFloor.length > 0 && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginTop: 2 }}>{tr("On the detection floor: {list}. Their coefficients are about the detection limit, not the rock.", { list: onFloor.slice(0, 8).map((f) => `${f.symbol} ${Math.round(f.share * 100)} %`).join(", ") + (onFloor.length > 8 ? ", …" : "") })}</div>}{/* #3748 */}
             {!surface && pxrfLeft > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{n} pXRF reading(s) left out: the grades here come from lab assays only.", { n: pxrfLeft })}</div>}{/* #1673 */}
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />

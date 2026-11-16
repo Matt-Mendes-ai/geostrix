@@ -238,7 +238,15 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
           </div>
           {symbols.length > 1 && <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("Composite these elements in the same run, on the same windows: one table with each element's grade and coverage, and the density.")}>
             <span>{tr("Also composite:")}</span>
-            {symbols.filter((s) => s !== symbol).slice(0, 16).map((s) => <label key={s} style={{ display: "flex", alignItems: "center", gap: 3, cursor: "pointer" }}><input type="checkbox" checked={extraSyms.includes(s)} onChange={() => setExtraSyms((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]))} />{s}</label>)}
+            {/* TASKS.csv #3745 — every element can be ticked: up to ALSO_MAX other elements as boxes, above that the ticked ones as boxes and the rest in an 'Add an element' list
+                (the first 16 were the only ones offered: Pb, Zn, S and Sb could not be composited beside gold on a 34-element suite) */}
+            {(symbols.length - 1 > 16 ? extraSyms.filter((s) => s !== symbol && symbols.includes(s)) : symbols.filter((s) => s !== symbol)).map((s) => <label key={s} style={{ display: "flex", alignItems: "center", gap: 3, cursor: "pointer" }}><input type="checkbox" checked={extraSyms.includes(s)} onChange={() => setExtraSyms((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]))} />{s}</label>)}
+            {symbols.length - 1 > 16 && (
+              <select aria-label={tr("Add an element")} value="" onChange={(e) => { if (e.target.value) setExtraSyms((p) => (p.includes(e.target.value) ? p : [...p, e.target.value])); }} style={{ fontSize: "var(--font-size-sm)", padding: "3px 4px" }}>
+                <option value="">{tr("Add an element… ({n} more)", { n: symbols.filter((s) => s !== symbol && !extraSyms.includes(s)).length })}</option>
+                {symbols.filter((s) => s !== symbol && !extraSyms.includes(s)).map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            )}
           </div>}{/* #3567 */}
 
           {symbols.length === 0 ? (
