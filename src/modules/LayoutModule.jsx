@@ -12,7 +12,7 @@ import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js"; // TASKS.csv #1777 — listed with the page's placeholders
 import { scaleBarLabel, scaleBarMidLabel } from "../lib/scaleBarLabel.js"; // TASKS.csv #2140
 import { offSheetPages, rectSidesPast, rectsWhollyOff, whollyOffSheet, elementCaption, elementKind } from "../lib/layoutEdges.js"; // elementKind: #3028
-import { withCreditPages, pagesWithoutCredit, pagesWithHiddenCredit, starterLayout, refitStarterOf } from "../lib/layoutCredits.js"; // TASKS.csv #3591; pagesWithHiddenCredit: #3707
+import { creditsElement /* #3856 */, withCreditPages, pagesWithoutCredit, pagesWithHiddenCredit, starterLayout, refitStarterOf } from "../lib/layoutCredits.js"; // TASKS.csv #3591; pagesWithHiddenCredit: #3707
 import { DEFAULT_LAYOUT_ELEMENTS } from "../lib/projectFields.js"; // TASKS.csv #3028 (5)
 import { groupOrdersFromItems, applyCodeOrder, projectCodeOrders, clearCodeOrders, pagesHoldingOrder, orderedGroupsOf } from "../lib/legendCodeOrder.js"; // TASKS.csv #3130 — a code order set once; clear*: #3199 // TASKS.csv #2482 / #2309; named elements: #2700
 import { fillPlaceholders, northName, pageConvergence, formatConvergence } from "../lib/layoutText.js";
@@ -34,7 +34,7 @@ import { fitDrillPlan, filterHoles, filterSuggestion, allHolesSteep, STEEP_DIP, 
 import { useHoleVisibility, holeVisibilityNow, hiddenIn, checkedOnly } from "../lib/holeVisibilityShare.js"; // TASKS.csv #3605
 import DrillPlanColourControls from "../components/DrillPlanColourControls.jsx"; // TASKS.csv #2473
 import DrillPlanElement, { drillPlanDrawing } from "../components/DrillPlanElement.jsx"; // TASKS.csv #1639
-import { withLiveScaleBars, relinkCopies, tieStarterFurniture, northRotationOf, insertScaleBar, scaleBarTargets, bindScaleBar } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924 / #1632
+import { withLiveScaleBars, relinkCopies, tieStarterFurniture, dropIdleStarterMapFurniture /* #3863 */, northRotationOf, insertScaleBar, scaleBarTargets, bindScaleBar } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924 / #1632
 import { legibleGridStep, keepLabelsApart } from "../lib/layoutGeometry.js"; // TASKS.csv #1488
 import { worldToVp, capturedSize, metresPerPagePx, groundFrameSize, obliqueCapture, viewportScaleText, pageScaleText, utmGridReady, niceGridStep, overviewPolygon, holesInFrame, snapToGuides, sectionScaleDenom, sectionWidthForScale, sectionScaleText, sectionTextPt, sectionTextFactor, isDepthImage, depthScaleDenom, depthHeightForScale } from "../lib/layoutGeometry.js"; // TASKS.csv #961 / #946; sectionTextPt: #1485; section scale: #944
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
@@ -45,7 +45,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 // page; "Export PDF" prints the page via the Electron main process (or the browser print dialog).
 
 import { viewportHoleVisibility, fitHoleSet } from "../lib/viewportHoles.js"; // TASKS.csv #3371
-import { splitStripLog, stripLogSliceElements, wholeStripLog, pageWidthDenom, sliceLabelPt } from "../lib/stripLogPages.js"; // TASKS.csv #3372
+import { splitStripLog, stripLogSliceElements, wholeStripLog, pageWidthDenom, sliceLabelPt, CAPTION_CLEAR_PX /* #3856 */, redrawAdvice /* #3861 */ } from "../lib/stripLogPages.js"; // TASKS.csv #3372
 import { PAGE_FORMATS, pageFormatOf, pagePx, pageMm, pageCssName, addPagesOnPaper, snapshotPagePaper } from "../lib/pageFormats.js"; // TASKS.csv #398; mm / named pages: #908; on their paper: #3370
 import { azimuthToGridOffset, setIgrfModule } from "../lib/azimuthRef.js"; // TASKS.csv #399 — GN/TN/MN diagram
 import { localDate, collarDrillDate, schematicAngles, rayTip, yearLater, keepOnSheet, DIAGRAM_W, DIAGRAM_H, ORIGIN } from "../lib/northDiagram.js"; // TASKS.csv #1773 / #2137 / #2310 / #2478 / #2613
@@ -70,7 +70,7 @@ import { LAYOUT_FONTS, LAYOUT_FONT_TYPES, LAYOUT_DEFAULT_FONT, layoutFontStack, 
 import { legendFit, legendRowH, legendLabelW, legendBoxSize, legendBoxFit, isLegendBox } from "../lib/legendFit.js"; // TASKS.csv #2134; row rules and box: #2869; a sized box: #3395
 import { scoreRasterLegendGroups, isScoreRaster } from "../lib/viewer/scoreRasterLegend.js"; // TASKS.csv #2794
 import { holeAttitudeAssumed } from "../lib/desurvey.js"; // TASKS.csv #2134 — the notice counts the assumed-vertical holes
-import { freeSpot, spotIsFree, placeCollarTable, elementBox, copyOffset, followResize /* #2483 */ } from "../lib/layoutPlace.js"; // copyOffset: #2715 // elementBox: #1870 // TASKS.csv #1484 — new items into free space; #2135 the collar table
+import { freeSpot, spotIsFree, starterBand, spotInBand /* #3857 */, placeCollarTable, elementBox, copyOffset, followResize /* #2483 */ } from "../lib/layoutPlace.js"; // copyOffset: #2715 // elementBox: #1870 // TASKS.csv #1484 — new items into free space; #2135 the collar table
 import { roundScale } from "../lib/layoutGeometry.js"; // TASKS.csv #1486
 import { numericClips, numericLayerColorFn } from "../lib/numericClip.js"; // TASKS.csv #1482
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
@@ -438,9 +438,17 @@ export default function LayoutModule() {
     const additions = pendingLayoutImages.filter((img) => !replacing.includes(img)).map((img) => {
       const aspect = img.naturalW && img.naturalH ? img.naturalW / img.naturalH : 16 / 9;
       // TASKS.csv #1480 — a tall image (a strip log) fits the sheet's height too; it ran off the page at 700 px wide
-      const maxH = A4.h - 160, w = Math.round(Math.min(maxW, 700, maxH * aspect));
-      const h = Math.round(w / aspect);
-      const spot = freeSpot(placedSoFar, w, h, A4); if (!spotIsFree(placedSoFar, spot, w, h)) noRoom.add(img.id); /* #3608 — nothing free: it would sit over the title block / legend / scale bar */ placedSoFar.push({ ...spot, w, h });
+      const maxH = A4.h - 160;
+      let w = Math.round(Math.min(maxW, 700, maxH * aspect)), h = Math.round(w / aspect);
+      let spot = freeSpot(placedSoFar, w, h, A4), free = spotIsFree(placedSoFar, spot, w, h);
+      if (!free) { // TASKS.csv #3857 — the starter page's free band (between the title and the scale bar / credit): the picture fitted to it before the page is said to have no room
+        const band = starterBand(placedSoFar, A4), bandH = band.bottom - band.top;
+        if (bandH >= 120 && bandH < h) {
+          const w2 = Math.round(Math.min(maxW, 700, bandH * aspect)), h2 = Math.round(w2 / aspect), spot2 = spotInBand(placedSoFar, w2, h2, A4, band);
+          if (spot2) { w = w2; h = h2; spot = spot2; free = true; }
+        }
+      }
+      if (!free) noRoom.add(img.id); /* #3608 — nothing free: it would sit over the title block / legend / scale bar */ placedSoFar.push({ ...spot, w, h });
       // worldWidthAtCaptureM (cross-section snapshots only — see SectionWindow.jsx's
       // snapshotToLayout) is the real-world horizontal span the image represented at its native
       // naturalW pixel width; carried through so a scale bar can be assigned to it below, the same
@@ -476,11 +484,15 @@ export default function LayoutModule() {
       const moved = atTop.map((a) => { const l = legends.find((g) => g.boundViewportId === a.id); if (!l) return null; const right = a.x + a.w + 16; return { ...l, x: right + 170 <= P.w ? right : a.x, y: right + 170 <= P.w ? a.y : a.y + a.h + 16 }; }).filter(Boolean);
       const name = tr("Snapshot {n}", { n: layoutPages.length + 1 });
       addPagesOnPaper(addLayoutPages, setLayoutPageFormat, [{ name, elements: [...atTop, ...moved] }], paper);
-      setSyncNotice(frames.length && additions.some(overlapsFrame) ? tr("The snapshot would have covered a frame on this page, so it is on a new page, \"{name}\".", { name }) : tr("The picture has no free room on this page (it would cover the title block, legend, scale bar or text), so it is on a new page, \"{name}\".", { name })); // #3608
+      const whereNote = frames.length && additions.some(overlapsFrame) ? tr("The snapshot would have covered a frame on this page, so it is on a new page, \"{name}\".", { name }) : tr("The picture has no free room on this page (it would cover the title block, legend, scale bar or text), so it is on a new page, \"{name}\".", { name }); setSyncNotice(whereNote); setExportNote({ text: whereNote, error: false }); // #3608; TASKS.csv #3857 — also in the page bar: nothing is selected on the open page, and the notice in an element's panel was never seen
       additions.forEach((img) => consumeLayoutImage(img.id));
       return;
     }
-    setElements((els) => additions.reduce((page, a) => tieStarterFurniture(page, a), [...els, ...additions, ...legends])); // #1320
+    {
+      const tied = additions.reduce((page, a) => tieStarterFurniture(page, a), [...elements, ...additions, ...legends]), idle = dropIdleStarterMapFurniture(tied); // #1320; #3863 — a strip log is not a map: the starter's bar and arrow go
+      setElements((els) => dropIdleStarterMapFurniture(additions.reduce((page, a) => tieStarterFurniture(page, a), [...els, ...additions, ...legends])).els);
+      if (idle.dropped.length) setExportNote({ text: tr("This sheet holds no map, so the starter page's scale bar and north arrow were removed (Undo brings them back)."), error: false });
+    }
     setSelected(additions[additions.length - 1]?.id ?? null);
     additions.forEach((img) => consumeLayoutImage(img.id));
   }, [pendingLayoutImages, consumeLayoutImage]);
@@ -605,7 +617,10 @@ export default function LayoutModule() {
     if (!(d > 0)) return null;
     const tall = el.y + el.h > A4.h - 40, small = sliceLabelPt(el.h / el.naturalH) < 6;
     if (!tall && !small) return null;
-    const at = (denom, x) => ({ ...splitStripLog(el, { pageW: A4.w, pageH: A4.h, denom, x, y: el.y }), x, denom });
+    // TASKS.csv #3856 — the slice's caption sat 8 px under the slice, which a full continuation page ran through the credit line at the foot (10 pt over 8 pt, neither readable):
+    // with a credit on the sheet, the room under each slice runs to the credit's top
+    const credTop = creditsRef.current ? creditsElement(activePage?.format, creditsRef.current).y : null, bottom = credTop != null ? Math.max(64, Math.ceil(A4.h - credTop + CAPTION_CLEAR_PX)) : 64;
+    const at = (denom, x) => ({ ...splitStripLog(el, { pageW: A4.w, pageH: A4.h, denom, x, y: el.y, bottom }), x, denom });
     const widthD = pageWidthDenom(el, A4.w - 80);
     if (tall) {
       let r = at(d, el.x);
@@ -880,7 +895,8 @@ export default function LayoutModule() {
     // beside a 1:20,000 plan
     // TASKS.csv #2144 — a new text-bearing element takes the page's typeface (the one most of its elements use)
     if (LAYOUT_FONT_TYPES.has(base.type)) { const pf = pageFont(elements); if (pf && pf !== LAYOUT_DEFAULT_FONT) base.fontFamily = pf; }
-    if (type !== "logo") setElements((els) => (type === "drillplan" ? tieStarterFurniture([...els, base], base) : [...els, base]));
+    if (type !== "logo") setElements((els) => (type === "drillplan" ? tieStarterFurniture([...els, base], base) : base.type === "table" ? dropIdleStarterMapFurniture([...els, base]).els /* #3863 */ : [...els, base]));
+    if (base.type === "table" && dropIdleStarterMapFurniture([...elements, base]).dropped.length) setExportNote({ text: tr("This sheet holds no map, so the starter page's scale bar and north arrow were removed (Undo brings them back)."), error: false });
     setSelected(type !== "logo" ? id : null);
   };
 
@@ -2277,7 +2293,13 @@ function DepthScaleControls({ sel, pageH, updateSelected, split = null, onSplit 
           ? tr("Its labels print at about {pt} pt at this size: give it more height, or send a shorter depth range from the strip log window.", { pt: pt.toFixed(1) })
           : tr("Its labels print at about {pt} pt.", { pt: pt.toFixed(1) })}</div>
       ); })()}
-      {sel.h > pageH && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("At this scale the log is taller than the page: a larger depth scale (1 : N with a bigger N) fits it, or a taller page.")}</div>}
+      {(() => { // TASKS.csv #3861 — a scale that enlarges the picture past what it was drawn at cannot be split: it has to be sent again at that scale
+        const adv = d > 0 && !sel.slice ? redrawAdvice(sel, d) : null;
+        if (adv && adv.enlarge > 1.15 && !(split && !split.error && split.pages?.length > 1)) return (
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("This picture was drawn at {now} px per metre. At 1 : {d} it is enlarged {x} times and its labels print at about {pt} pt. For this scale send it again from the strip log window with Vertical scale {need} px/m ('Add to Layout'): a log drawn at that scale can be split over pages.", { now: +adv.ppmNow.toPrecision(3), d: n.toLocaleString(), x: +adv.enlarge.toFixed(1), pt: adv.pt.toFixed(0), need: +adv.ppmNeeded.toPrecision(3) })}</div>
+        );
+        return sel.h > pageH ? <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("At this scale the log is taller than the page: a larger depth scale (1 : N with a bigger N) fits it, or a taller page.")}</div> : null;
+      })()}
       {split && !split.error && split.pages?.length > 1 && (split.wanted || split.small) && ( /* TASKS.csv #3372 — at the page's width */
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", lineHeight: 1.4, marginTop: 4 }}>{split.wanted
           ? tr("At 1 : {want} the log is {mm} mm wide, wider than the page; at 1 : {d} it fits the page's width, with its labels at about {pt} pt.", { want: Math.round(split.wanted).toLocaleString(), mm: Math.round((split.wantedW * 25.4) / 96), d: split.denom.toLocaleString(), pt: sliceLabelPt(split.k).toFixed(1) })

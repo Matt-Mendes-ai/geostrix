@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { stripLogSvgBox, stripLogGeometry, splitStripLog, stripLogSliceElements, wholeStripLog, pageWidthDenom, niceDenomUp, PAD_TOP, PAD_BOTTOM } from "../src/lib/stripLogPages.js";
+import { stripLogSvgBox, stripLogGeometry, splitStripLog, stripLogSliceElements, wholeStripLog, pageWidthDenom, niceDenomUp, PAD_TOP, PAD_BOTTOM, HEAD_PX, CAPTION_CLEAR_PX } from "../src/lib/stripLogPages.js";
 
 const M = 0.0254 / 96;
 // SYNTHETIC: the window's SVG export of a 694.2 m hole at 6 px/m, 13 tracks (1,000 px wide), a 120 px furniture band on top
@@ -44,7 +44,7 @@ test("split at 1 : 1,000 on A4 portrait: every depth once, headers and axis capt
   assert.equal(r.pages.at(-1).parts.at(-1)[1], el.naturalH, "the last page ends at the picture's foot");
   // the band (title, caption, key) only on page 1; the track headers on the others; axis captions under every page
   assert.equal(r.pages[0].parts[0][0], 0);
-  for (const p of r.pages.slice(1)) assert.deepEqual(p.parts[0], [120, 160]);
+  for (const p of r.pages.slice(1)) assert.deepEqual(p.parts[0], [120, 120 + HEAD_PX]); // HEAD_PX: #3856 — above the first depth label
   for (const p of r.pages.slice(0, -1)) assert.deepEqual(p.parts.at(-1), [el.naturalH - PAD_BOTTOM, el.naturalH]);
   // cuts at round depths, just under a tick's label
   for (let i = 0; i < r.pages.length - 1; i++) {
@@ -91,4 +91,24 @@ test("wired in Layout: the split, its pages, the slice renderer", () => {
   assert.match(m, /split=\{stripLogSplitFor\(sel\)\} onSplit=\{\(\) => splitStripLogOverPages\(sel\)\} onWhole=\{\(\) => setElements\(\(els\) => els\.filter\(\(e\) => e\.sliceCaptionOf !== sel\.id\)\.map\(\(e\) => \(e\.id === sel\.id \? wholeStripLog\(e\) : e\)\)\)\}/);
   assert.match(m, /if \(el\.slice\?\.parts\?\.length && el\.naturalH > 0\) \{/);
   assert.match(m, /top: -a \* k, width: W, height: el\.naturalH \* k/);
+});
+
+// TASKS.csv #3856 (Scottie Gold review) — a full continuation page's caption was printed through the credit line, and each continuation page began with a half-cut '0'
+test("#3856: with a credit on the sheet, a full page's caption ends above the credit; the header strip stops above the first depth label", async () => {
+  const { creditsElement } = await import("../src/lib/layoutCredits.js");
+  const { pagePx } = await import("../src/lib/pageFormats.js");
+  const format = { size: "a4", orientation: "portrait" }, page = pagePx(format), el = logEl();
+  const credTop = creditsElement(format, "Data: BC ARIS assessment reports 40419Z and 42030Z").y, bottom = Math.max(64, Math.ceil(page.h - credTop + CAPTION_CLEAR_PX));
+  const withCredit = splitStripLog(el, { pageW: page.w, pageH: page.h, denom: 1000, x: 40, y: 40, bottom });
+  assert.ok(bottom > 64, `${bottom}`);
+  for (const p of withCredit.pages.slice(1, -1)) assert.ok(40 + p.h + 8 + 16 <= credTop - 4 + 1e-6, `slice ${p.h} px + caption must end above the credit at ${credTop}`);
+  // the depth label of the 0 m tick: drawn from sy - 3.5 to sy + 3 (9 px text at baseline sy + 3), sy = PAD_TOP: the strip ends above it
+  assert.ok(HEAD_PX <= PAD_TOP - 3.5 + 1e-9);
+  for (const p of withCredit.pages.slice(1)) assert.deepEqual(p.parts[0], [120, 120 + HEAD_PX]);
+});
+
+test("#3856 wiring: Layout reserves the credit's room under each slice", () => {
+  const m = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  assert.match(m, /const credTop = creditsRef\.current \? creditsElement\(activePage\?\.format, creditsRef\.current\)\.y : null, bottom = credTop != null \? Math\.max\(64, Math\.ceil\(A4\.h - credTop \+ CAPTION_CLEAR_PX\)\) : 64;/);
+  assert.match(m, /splitStripLog\(el, \{ pageW: A4\.w, pageH: A4\.h, denom, x, y: el\.y, bottom \}\)/);
 });
