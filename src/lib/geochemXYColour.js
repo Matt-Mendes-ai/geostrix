@@ -3,7 +3,7 @@
 // and a value gets a colour. Only a field with few distinct values is offered (a category, not a measurement); the colours are the categorical palette. Pure.
 import { fieldNames, fieldOf, rowCount } from "./layerColumns.js";
 import { rowsRefOf } from "./tableFields.js";
-import { CATEGORICAL_SAFE_COLORS } from "./layers.js";
+import { FIELD_PALETTE } from "./fieldColours.js"; // TASKS.csv #3691 — the same colours as the 3D view's colour-by-field
 
 export const FIELD_MAX_VALUES = 12;
 const SKIP = new Set(["hole_id", "from", "to", "depth", "value", "n", "x", "y", "z", "id"]);
@@ -49,7 +49,7 @@ export function fieldColouring(choice, field, ctx, { none = "#b8bec7" } = {}) {
     for (let i = k; i >= 0 && i >= k - 3; i--) if (list[i].from <= mid && mid <= list[i].to) return list[i].v;
     return null;
   };
-  const colours = new Map(cf.values.map((x, i) => [x.value, CATEGORICAL_SAFE_COLORS[i % CATEGORICAL_SAFE_COLORS.length]]));
+  const colours = new Map(cf.values.map((x, i) => [x.value, FIELD_PALETTE[i % FIELD_PALETTE.length]]));
   return { field, values: cf.values.map((x) => x.value), counts: cf.values, colours, at, colourOf: (s) => colours.get(at(s)) || none };
 }
 
