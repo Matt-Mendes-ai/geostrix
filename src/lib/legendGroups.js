@@ -393,7 +393,9 @@ export function allocateLegendRows(groups, max) {
   const multi = gs.filter((_, i) => quota[i] > 0).length > 1, rows = [];
   gs.forEach((g, i) => pick(g, quota[i]).forEach(([label, color, opt], k) => rows.push({ label, color, kind: opt?.kind, opacity: opt?.opacity, svg: opt?.svg /* #3066 */, value: opt?.value /* #3332 */, folded: opt?.folded /* #3398 */, gkey: g.key, group: g.label, head: (multi || g.alwaysHead) && k === 0,
     ...(k === 0 && g.grade && quota[i] < g.items.length ? { classesShown: [quota[i], g.items.length] } : {}) }))); // #2039 — a cut grade group says so
-  return { rows, shown: rows.length, total: gs.reduce((n, g) => n + g.items.length, 0) };
+  // TASKS.csv #3775 (8) — the rows left out, by name: '+ 7 more not shown' dropped the LMP code and the single-hole zones without saying which
+  const omitted = gs.flatMap((g, i) => { const kept = new Set(pick(g, quota[i])); return g.items.filter((it) => !kept.has(it)).map((it) => String(it[0])); });
+  return { rows, shown: rows.length, total: gs.reduce((n, g) => n + g.items.length, 0), omitted };
 }
 
 // TASKS.csv #2878 (split from #2845) — a point survey drawn in the view (stations coloured by value): one ramp per survey when several are

@@ -45,6 +45,24 @@ function axisIdx(up) {
   return up === "x" ? 0 : up === "z" ? 2 : 1;
 }
 
+// TASKS.csv #3777 — the mesh's area-weighted mean dip in degrees (0 flat, 90 vertical), `up` being the vertical axis; null for an empty mesh. A surface that dips this steeply is multivalued in the vertical
+// wherever it is wavy: two elevations at one location is what a steep contact looks like, so the fold-back test does not apply to it.
+export const STEEP_DIP_DEG = 60;
+export function meshMeanDipDeg(positions, indices, up = "y") {
+  const ai = axisIdx(up);
+  let area = 0, vert = 0;
+  for (let t = 0; t + 2 < (indices?.length || 0); t += 3) {
+    const a = indices[t] * 3, b = indices[t + 1] * 3, c = indices[t + 2] * 3;
+    const ux = positions[b] - positions[a], uy = positions[b + 1] - positions[a + 1], uz = positions[b + 2] - positions[a + 2];
+    const vx = positions[c] - positions[a], vy = positions[c + 1] - positions[a + 1], vz = positions[c + 2] - positions[a + 2];
+    const n = [uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx], len = Math.hypot(n[0], n[1], n[2]);
+    if (!(len > 0)) continue;
+    area += len; vert += Math.abs(n[ai]); // |n_up| / |n| is the cosine of the dip's complement: the triangle's cos(dip); weighted by its area (len / 2)
+  }
+  return area > 0 ? (Math.acos(Math.min(1, vert / area)) * 180) / Math.PI : null;
+}
+// the one explanation of a fold-back, said once after the list of surfaces (it leads with the steep / repeated unit: a layer-cake route is the last reading, not the first)
+export const FOLD_EXPLAIN = "Folding back means two elevations at one location: a unit that is not one layer (a steep intrusive or repeated sheets: model it as a closed body in Modelling codes, or as Veins / dykes), an interpolation artefact, a real overturned fold, or interbeds of neighbouring units in a flat pile (one surface through each hole's first top: the Strat. stack's Layer-cake method, or the Explicit surface's 'Add the logged tops').";
 /**
  * Bounding box of a flat position array. Returns null for an empty mesh.
  */
@@ -371,20 +389,23 @@ export function checkTopology(surfaces, opts = {}) {
   // Self-consistency: an OPEN contact-type surface that folds back over itself in the vertical.
   // Closed envelopes (a grade shell, a closed alteration halo) are excluded by construction — see
   // inversionCheck's own comment.
+  const steep = []; // TASKS.csv #3777 — contact surfaces that dip over STEEP_DIP_DEG on average: not tested for fold-back
   for (const a of prepared) {
     const isOpenContact = FOLD_CONTACT_TYPES.has(a.type) && !a.closure;
     if (!isOpenContact) continue;
     checked++;
+    const dip = meshMeanDipDeg(a.positions, a.indices, up);
+    if (dip != null && dip >= STEEP_DIP_DEG) { steep.push({ name: a.name, dip: Math.round(dip) }); continue; }
     const inv = inversionCheck({ ...a, query: q(a) }, { up, grid: opts.grid });
     if (inv.sampled && inv.fraction > 0.05) {
       violations.push({
         kind: "inverted",
         surfaceId: a.id, targetId: null,
-        message: tr("\"{name}\" folds back over itself at {folded} of {sampled} sampled locations (a contact surface should have one elevation per location): an interpolation artefact, a real overturned fold, interbeds of neighbouring units in a flat pile (model each hole's first top: the Strat. stack's Layer-cake method, or the Explicit surface's 'Add the logged tops'), or a unit that is not one layer (a steep intrusive or repeated sheets, better modelled as a closed body in Modelling codes).", { name: a.name, folded: inv.folded, sampled: inv.sampled }),
+        message: tr("\"{name}\" folds back over itself at {folded} of {sampled} sampled locations.", { name: a.name, folded: inv.folded, sampled: inv.sampled }),
         point: null,
       });
     }
   }
 
-  return { violations, checked, skipped, surfacesChecked: prepared.length };
+  return { violations, checked, skipped, surfacesChecked: prepared.length, steep };
 }

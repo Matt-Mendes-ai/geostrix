@@ -23,7 +23,7 @@ test("#1212 plot data columns are named after the axes, for a diagram with an ex
 });
 test("#1237 only a name that states the plane follows it", () => {
   const p = read("src/components/TrendsPanel.jsx");
-  const re = new RegExp(p.match(/const autoName = \/(.+)\/\.test/)[1].replace(/\\\\/g, "\\"));
+  const re = new RegExp(p.match(/const autoName = \/(.+?)\/\.test/)[1].replace(/\\\\/g, "\\"));
   for (const n of ["Stereonet mean (88° → 247°)", "Mean of FLT (69° → 37°)", "Plane of Vein (10° → 5°)"]) assert.ok(re.test(n), n);
   for (const n of ["Main trend", "Stereonet mean", "Mean of FLT"]) assert.ok(!re.test(n), n);
 });

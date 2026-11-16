@@ -36,12 +36,12 @@ test("wiring: the interbedded wording on a near-flat pile, the vein wording othe
   assert.match(r, /const ib = pile && unitVals \? interbeds\(/);
   assert.match(r, /const split = ib\.filter\(\(q\) => q\.holes >= 0\.5 \* ib\.of\)\.slice\(0, 3\);/);
   assert.ok(r.includes("interbedded with {list} (in {n} of those {m} holes)") && r.includes("it behaves like a steep body or a set of sheets"));
-  assert.ok(r.includes(": usually interbeds of neighbouring units in a flat pile"));
+  assert.ok(r.includes("or interbeds of neighbouring units in a flat pile (one surface through each hole's first top")); // #3777: after the steep reading, no longer 'usually' first
   const t = readFileSync(new URL("../src/lib/topology.js", import.meta.url), "utf8");
-  assert.ok(t.includes("a real overturned fold, interbeds of neighbouring units in a flat pile"));
+  assert.ok(t.includes("a real overturned fold, or interbeds of neighbouring units in a flat pile")); // FOLD_EXPLAIN: #3777
   for (const l of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
     assert.ok(Object.keys(d).some((k) => k.includes("interbedded with {list}")), l);
-    assert.ok(Object.keys(d).filter((k) => k.includes("interbeds of neighbouring units in a flat pile")).length === 2, l);
+    assert.ok(Object.keys(d).filter((k) => k.includes("interbeds of neighbouring units in a flat pile")).length >= 2, l); // the old wording's keys stay in the locale files (#3777)
   }
 });

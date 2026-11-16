@@ -63,7 +63,7 @@ import { explicitInterfacePoints } from "../../lib/explicitUnits.js"; // TASKS.c
 import { pinchOutPoints } from "../../lib/pinchOut.js"; // TASKS.csv #1030
 import { fisherStats } from "../../lib/stereonet.js"; // TASKS.csv #1066
 import { captureInputs, implicitRequestRecord, withSolveFacts } from "../../lib/gempyInputs.js"; // TASKS.csv #1101; implicitRequestRecord: #2640
-import { inversionCheck, FOLD_CONTACT_TYPES } from "../../lib/topology.js"; // TASKS.csv #2058 — the fold-back check in the run's own notice
+import { inversionCheck, FOLD_CONTACT_TYPES, meshMeanDipDeg, STEEP_DIP_DEG, FOLD_EXPLAIN } from "../../lib/topology.js"; // TASKS.csv #2058 — the fold-back check in the run's own notice; the steep test and the one explanation: #3777
 import { shellBudgetAdvice, sharePct } from "../../lib/shellBudget.js"; // TASKS.csv #2223
 import { findNumericSource, sourceAssays, logPoints, unlogGrid } from "../../lib/numericSources.js"; // TASKS.csv #1741 — a log or a numeric layer field as the grade-shell source
 
@@ -268,7 +268,7 @@ export function createModellingRuns(ctx, mcRef) {
         `${r.label}:`,
         r.duplicates ? tr(" {duplicates} pick(s) repeated at the same spot ({duplicateExamples}{v}) — GemPy honours every copy, which only slows and stiffens the solve;", { duplicates: r.duplicates, duplicateExamples: r.duplicateExamples.join(", "), v: r.duplicates > 3 ? "…" : "" }) : "",
         r.close ? tr(" {n} pair(s) of picks less than 0.5 m apart down the hole ({examples}{v}) — separate structures close together (veinlets of one interval) or a near-repeat; GemPy honours each, which stiffens the solve;", { n: r.close, examples: r.closeExamples.join(", "), v: r.close > 3 ? "…" : "" }) : "", // #2048
-        r.conflicts ? tr(" {conflicts} pair(s) of picks almost on top of each other but far apart in elevation ({conflictExamples}{v}) — the surface has to stand near-vertical there to honour both: usually interbeds of neighbouring units in a flat pile (one surface through each hole's first top: the Strat. stack's Layer-cake method, or the Explicit surface's 'Add the logged tops'), a mis-picked or mislabelled contact, the unit repeated by a fold or fault, or stacked sheets of an intrusion (model those as veins / dykes);" /* interbeds first: #2927 */, { conflicts: r.conflicts, conflictExamples: r.conflictExamples.join("; "), v: r.conflicts > 3 ? "…" : "" }) : "",
+        r.conflicts ? tr(" {conflicts} pair(s) of picks almost on top of each other but far apart in elevation ({conflictExamples}{v}) — the surface has to stand near-vertical there to honour both: a unit that is not one layer (a steep body or stacked sheets: model it as a closed body in Modelling codes, or as Veins / dykes), a mis-picked or mislabelled contact, the unit repeated by a fold or fault, or interbeds of neighbouring units in a flat pile (one surface through each hole's first top: the Strat. stack's Layer-cake method, or the Explicit surface's 'Add the logged tops');" /* #3777 — the steep reading first, and not 'usually' interbeds: the run's own repeat notice (#2234) says which it is */, { conflicts: r.conflicts, conflictExamples: r.conflictExamples.join("; "), v: r.conflicts > 3 ? "…" : "" }) : "",
         r.orientations && r.estimated ? tr(" the dip estimated from the contacts themselves (no structure pick was used) differs by more than 45° from the plane through the contacts near it ({orientationExamples}): one plane fitted to all of the contacts does not match them there (a fold, a change of dip, or two populations of contacts). It is not a pick to fix; a structural trend from the tops of a unit (Model settings) or real structure picks give the surface a better guide;", { orientationExamples: r.orientationExamples.join(", ") }) /* #2539 */
           : r.orientations ? tr(" {orientations} of {orientationsTotal} orientation(s) differ by more than 45° from the plane through the contacts around them ({orientationExamples}{v}) — GemPy bends the surface between the two;", { orientations: r.orientations, orientationsTotal: r.orientationsTotal, orientationExamples: r.orientationExamples.join(", "), v: r.orientations > 3 ? "…" : "" }) : "",
       ].join("")).join(" ").replace(/;(?=\s|$)/g, ".") }));
@@ -447,6 +447,11 @@ export function createModellingRuns(ctx, mcRef) {
       }
       if (held.length) setNotices((p) => [...p, ...held]); // #3085
       setNotices((p) => [...p, notice(anisotropy.enabled ? "Model box {bx} x {by} x {bz} (in the structural trend's frame): the lithology block is {nx} x {ny} x {nz} cells of {dx} x {dy} x {dz} (model check fallback, volumes, Add as block model); the surface mesh cells are about {m} ({level})." : "Model box {bx} x {by} x {bz} m: the lithology block is {nx} x {ny} x {nz} cells of {dx} x {dy} x {dz} m (model check fallback, volumes, Add as block model); the surface mesh cells are about {m} m ({level}).", { bx: Math.round(extent[1] - extent[0]), by: Math.round(extent[3] - extent[2]), bz: Math.round(extent[5] - extent[4]), nx: resolution[0], ny: resolution[1], nz: resolution[2], dx: cm[0], dy: cm[1], dz: cm[2], m: Math.round(octreeCellM(extent, lvl)), level: lvl >= 6 ? tr("Very fine") : lvl === 5 ? tr("Fine") : tr("Standard") })]);
+      // TASKS.csv #3776 — the box against the drilling: its vertical padding (a share of the drilled relief) reaches this far above the highest drilled point and below the deepest hole end, where no hole tests the model
+      if (vPad != null && colHit && !anisotropy.enabled) {
+        const upM = zmax - colR.max, downM = colR.min - zmin;
+        if (upM > 50 || downM > 50) setNotices((p) => [...p, notice("The model box runs {up} m above the highest drilled point and {down} m below the deepest hole end ({drilled} m drilled): the rock in those parts is not tested by any hole, and a unit volume counts it.", { up: Math.round(upM), down: Math.round(downM), drilled: Math.round(colR.max - colR.min) })]);
+      }
       // TASKS.csv #2922 (Matt's decision 2026-11-12: (a) keep #2624's cubic cells) — the vertical cell against the units' thickness, said before
       // every stack run, not only when the units are thinner than it
       const unitT = specs.length > 1 && !cakeRun && !thin ? medianStackThickness(specs) : null;
@@ -707,11 +712,12 @@ export function createModellingRuns(ctx, mcRef) {
       // TASKS.csv #2058 (review #2013) — the same one-elevation-per-location check as Check relationships, said by the run itself: an
       // implicit 'Top of VANSS' folded back at 1 of 16 locations and only Check relationships reported it
       if (FOLD_CONTACT_TYPES.has(spec.type)) {
-        const inv = inversionCheck(meshQuery(), { up: "y" }); // #3119 — the query shared with the order check
-        if (inv.sampled && inv.fraction > 0.05) folds.push(tr("\"{name}\" folds back over itself at {folded} of {sampled} sampled locations (a contact surface should have one elevation per location): an interpolation artefact, a real overturned fold, interbeds of neighbouring units in a flat pile (model each hole's first top: the Strat. stack's Layer-cake method, or the Explicit surface's 'Add the logged tops'), or a unit that is not one layer (a steep intrusive or repeated sheets, better modelled as a closed body in Modelling codes).", { name: spec.label, folded: inv.folded, sampled: inv.sampled }));
+        const mq = meshQuery(), dipDeg = meshMeanDipDeg(mq.positions, mq.indices, "y"); // TASKS.csv #3777 — a steep contact has two elevations at one location: not tested, as in Check relationships
+        const inv = dipDeg != null && dipDeg >= STEEP_DIP_DEG ? { sampled: 0 } : inversionCheck(mq, { up: "y" }); // #3119 — the query shared with the order check
+        if (inv.sampled && inv.fraction > 0.05) folds.push(tr("\"{name}\" folds back over itself at {folded} of {sampled} sampled locations.", { name: spec.label, folded: inv.folded, sampled: inv.sampled }));
       }
     });
-    if (folds.length) setNotices((p) => [...p, notice("{list} Check relationships lists it again with the other checks.", { list: folds.join(" ") })]); // #2058
+    if (folds.length) setNotices((p) => [...p, notice("{list} {why} Check relationships lists it again with the other checks.", { list: folds.join(" "), why: tr(FOLD_EXPLAIN) })]); // #2058; #3777 — the reading once, after the list
     // TASKS.csv #512 — onlap stacks share one scalar field, so the sidecar sends each repeated pick once
     // TASKS.csv #1054 — what each fault offset, as GemPy applied it, and the limit no choice here can lift
     if (res.faultOffsets && Object.keys(res.faultOffsets).length) setNotices((p) => [...p, notice("Faults as solved: {list}. Each fault runs through the whole model box (GemPy here cannot end a fault).", { list: Object.entries(res.faultOffsets).map(([f, u]) => tr("{fault} offsets {units}", { fault: f, units: u.length ? u.join(", ") : tr("nothing") })).join("; ") })]);

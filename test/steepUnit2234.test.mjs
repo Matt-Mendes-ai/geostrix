@@ -15,5 +15,5 @@ test("a unit repeated in a quarter or more of its holes is said to behave like a
 test("the fold-back check names the other readings", () => {
   const t = readFileSync(new URL("../src/lib/topology.js", import.meta.url), "utf8");
   assert.doesNotMatch(t, /usually an interpolation artefact rather than a real overturned fold/);
-  assert.match(t, /an interpolation artefact, a real overturned fold, interbeds of neighbouring units in a flat pile \(.*\), or a unit that is not one layer/); // interbeds: #2927
+  assert.match(t, /a unit that is not one layer \(a steep intrusive or repeated sheets.*an interpolation artefact, a real overturned fold, or interbeds of neighbouring units in a flat pile/); // interbeds: #2927
 });

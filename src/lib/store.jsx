@@ -27,6 +27,7 @@ import { normalizeDesurveyMethod } from "./desurvey.js";
 import { readCellBudget, saveCellBudget } from "./estimationMeta.js"; // TASKS.csv #1970
 import { nextGroupColour, lithologyNoteRoles, setLithologyNoteRoles, setLithologyMeanings } from "./layers.js"; // TASKS.csv #1377; note roles: #2046
 import { freeSpot, viewportFrameOnPaper /* #3418 */, spotIsFree /* #3451 */ } from "./layoutPlace.js"; // TASKS.csv #1484
+import { titleToKeep, withProjectTitle } from "./projectTitle.js"; // TASKS.csv #3611 / #3612 — the project's title, apart from its file's name
 
 const StoreContext = createContext(null);
 export const useStore = () => useContext(StoreContext);
@@ -1106,6 +1107,7 @@ export function StoreProvider({ children }) {
     return report;
   }, []);
   const setProjectName = useCallback((name) => setProject((p) => ({ ...p, name })), []);
+  const setProjectTitle = useCallback((title) => setProject((p) => withProjectTitle(p, title)), []); // TASKS.csv #3611 / #3612 — the title sheets print, apart from the file's name (lib/projectTitle.js); blank removes it
   // TASKS.csv #3496 — a sample's data owner's credit, kept with the project (saved in the project file; Layout's {credits} prints it); "" removes it
   // TASKS.csv #3409 — the QC links a link table gave (sample id -> parent sample id / QC category), kept with the project so assays imported later pair up; null / empty removes them
   const setProjectQcLinks = useCallback((qcLinks) => setProject((p) => { const { qcLinks: _old, ...rest } = p; return qcLinks && (Array.isArray(qcLinks) ? qcLinks.length : qcLinks.ids?.length) ? { ...rest, qcLinks } : rest; }), []); // the packed shape of lib/qcLinks.js packLinks: parallel arrays
@@ -1244,12 +1246,14 @@ export function StoreProvider({ children }) {
       if (answer !== "over" && answer !== "new") return { ok: false, cancelled: true };
       if (answer === "new") saveAsNew = true;
     }
-    let res;
+    let res, keptTitle = null; // keptTitle: TASKS.csv #3611 / #3612 — the title this save keeps (set inside the try, used after it)
     try {
     // TASKS.csv #3140 — the file's text from the per-field JSON the autosave caches (projectPartsSliced: the same characters as JSON.stringify of
     // snapshotCurrentPayload(), which is payloadFromFields(liveRef.current); test/forgetCompact3140): a big Table layer is not encoded a second time,
     // and the autosave can forget its compact copy. liveRef.current is this render's own object: an edit made while the build awaits is a new one.
-    const content = joinParts(await projectPartsSliced(liveRef.current));
+    // TASKS.csv #3611 / #3612 — the first save of a project that already has a name (a sample's, one typed) keeps it as its title, in the file written now: the file's name replaces project.name below, and a sheet must not change its title
+    keptTitle = titleToKeep(liveRef.current.project, { hadFile: !!workspaceTabs.find((t) => t.id === activeTabId)?.filePath });
+    const content = joinParts(await projectPartsSliced(keptTitle ? { ...liveRef.current, project: withProjectTitle(liveRef.current.project, keptTitle) } : liveRef.current));
     const knownPath = !saveAsNew ? workspaceTabs.find((t) => t.id === activeTabId)?.filePath : null; // saveAsNew: #3638
     if (knownPath) res = await saveFileTo({ filePath: knownPath, content });
     if (!res || res.notAllowed) res = await saveFile({ quiet: true,
@@ -1276,7 +1280,7 @@ export function StoreProvider({ children }) {
       // the tab/title bar always reading "Untitled project" even for a saved, named file.
       const savedFileName = res.filePath ? res.filePath.split(/[\\/]/).pop() : null;
       const displayName = fileNameToProjectName(savedFileName) || project.name;
-      setProject((p) => ({ ...p, name: displayName }));
+      setProject((p) => ({ ...withProjectTitle(p, keptTitle || p.title), name: displayName })); // #3611 / #3612 — the title kept in the file is the live project's too
       // TASKS.csv #34 — keep the workspace tab bar's label in sync with whatever the project was
       // just saved as, and clear its own dirty flag now that this tab's on-disk copy matches what's
       // live. Undo history deliberately still survives a save (you can undo past a save point, same
@@ -1896,7 +1900,7 @@ export function StoreProvider({ children }) {
   });
 
   const value = {
-    project, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setLocalGridDatum /* #2691 / #2661 */, setMineGrid /* #2586 */, setProjectName, setProjectDataCredit /* #3496 */, setProjectAzimuthNorth /* #3588 (6) */, setProjectQcLinks /* #3409 */, setProjectDensityRange /* #3587 */, setProjectQcChecked /* #3569 */, setDrillRates /* #2581 */, setLogValidRange /* #3116 */, setDisplayUnit /* #3236 */, reprojectProjectTo, reprojectObjectTo, // #485 / #486
+    project, setProjectTitle /* #3611 / #3612 */, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setLocalGridDatum /* #2691 / #2661 */, setMineGrid /* #2586 */, setProjectName, setProjectDataCredit /* #3496 */, setProjectAzimuthNorth /* #3588 (6) */, setProjectQcLinks /* #3409 */, setProjectDensityRange /* #3587 */, setProjectQcChecked /* #3569 */, setDrillRates /* #2581 */, setLogValidRange /* #3116 */, setDisplayUnit /* #3236 */, reprojectProjectTo, reprojectObjectTo, // #485 / #486
     sampleRequest, requestSampleProject, clearSampleRequest, // TASKS.csv #1120
     projectIsEmpty: !hasWork, // TASKS.csv #607 — nothing loaded yet (same test as autosave): an import may adopt its CRS
     desurveyMethod, setDesurveyMethod, // TASKS.csv #135

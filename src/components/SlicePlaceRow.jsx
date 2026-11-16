@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { t as tr } from "../lib/i18n.js";
 import { slabPosThrough } from "../lib/viewer/slicePlace.js";
 import { sortHoleIds } from "../lib/holeIdList.js";
+import { useHoleVisibility } from "../lib/holeVisibilityShare.js"; // TASKS.csv #3775 (9) — the checked holes (#3605)
 
 const inp = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" };
 
@@ -16,13 +17,16 @@ export default function SlicePlaceRow({ slice3d, setSlice3d, ext, origin, collar
     setSlice3d((s) => ({ ...s, pos: r.pos }));
     setMsg(r.outside ? tr("{what} is beyond the slice range: the slab is at its edge.", { what }) : null);
   };
-  const ids = sortHoleIds((collars || []).map((c) => c.hole_id));
+  // TASKS.csv #3775 (9) — the holes listed are the checked ones, as every other tool follows the hole list (84 listed when 33 were checked); a note says how many are left out
+  const shown = useHoleVisibility();
+  const all = sortHoleIds((collars || []).map((c) => c.hole_id)), ids = all.filter((id) => shown?.[id] !== false);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
       <select value="" onChange={(ev) => { const c = (collars || []).find((q) => q.hole_id === ev.target.value); if (c) place(c.x, c.y, c.z, c.hole_id); }} style={inp} aria-label={tr("Place the slice through a hole")}>
         <option value="">{horizontal ? tr("Place at a hole's collar elevation…") : tr("Place through a hole's collar…")}</option>
         {ids.map((id) => <option key={id} value={id}>{id}</option>)}
       </select>
+      {ids.length < all.length && <div>{tr("The {n} checked holes of {all}.", { n: ids.length, all: all.length })}</div>}
       <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
         {horizontal ? (
           <input type="number" step="any" value={rl} placeholder={tr("RL (m)")} onChange={(ev) => setRl(ev.target.value)} style={{ ...inp, width: 90 }} aria-label={tr("Slice elevation (m RL)")} />

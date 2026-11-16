@@ -4,6 +4,7 @@
 import { creditsElement, PAGE_MARGIN, textLines } from "./layoutCredits.js"; // TASKS.csv #3658
 import { pagePx } from "./pageFormats.js";
 import { t as tr } from "./i18n.js";
+import { projectTitleOf } from "./projectTitle.js"; // TASKS.csv #3611 / #3612
 import { LOOK_SHIFT } from "./layoutLinks.js"; // TASKS.csv #3716 (7)
 
 // The labelled rows of a new title block. Values may hold the page placeholders ({project}, {date}, {scale}, {crs}, {page},
@@ -172,5 +173,5 @@ export function documentTitle(pages, project) {
   const plain = (v) => { const t = String(v ?? "").trim(); return t && !/\{[a-z]+\}/i.test(t) ? t : ""; };
   const tb = els.find((e) => e?.type === "titleblock"), row = tb?.rows?.find((r) => String(r?.[0] || "").trim().toLowerCase() === "title");
   const text = els.find((e) => e?.type === "title");
-  return plain(row?.[1]) || plain(text?.text) || plain(project?.name) || "GeoStrix";
+  return plain(row?.[1]) || plain(text?.text) || plain(projectTitleOf(project)) || "GeoStrix"; // #3611 / #3612 — the project's title, else its name
 }

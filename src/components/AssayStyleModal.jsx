@@ -10,6 +10,7 @@ import { SHAPES } from "../lib/layerStyle.js"; // TASKS.csv #649 — the same ma
 import { ASSAY_AUTO_LIMIT, ASSAY_TRACE } from "../lib/viewer/assayShape.js"; // TASKS.csv #2932 — Automatic and Along the hole
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { gradeText } from "../lib/gradeText.js"; // TASKS.csv #2515
+import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3775 (1)
 import { useStore } from "../lib/store.jsx";
 import { drillThresholdOffers } from "../lib/thresholds.js"; // TASKS.csv #2688
 import { relabelAfterLimit } from "../lib/classLabels.js"; // TASKS.csv #3571
@@ -17,6 +18,7 @@ import { relabelAfterLimit } from "../lib/classLabels.js"; // TASKS.csv #3571
 // seedBreaks moved to lib/colorRamp.js (TASKS.csv #476) so the 3D view can seed breaks without loading this modal.
 
 export default function AssayStyleModal({ symbol, unit, defaultColor, range, style, onChange, onClose }) {
+  const unitLbl = gradeUnitLabel(symbol, unit); // TASKS.csv #3775 (1) — g/t for a precious metal stored in ppm, as the legend and Identify say it (the logic below keeps the stored unit)
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const [local, setLocal] = useState(() => ({
@@ -69,7 +71,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
   const offers = useMemo(() => drillThresholdOffers(geochemThresholds, symbol, unit).slice(0, 4), [geochemThresholds, symbol, unit]);
   const addOffer = (v) => commit({ ...local, breaks: addClassLimit(local.breaks.length ? local.breaks : seedBreaks({ ...range, unit }, local.color), v, local.color) });
   const basis = range?.basis;
-  const basisText = !basis || !basis.n ? null : basis.kind === "flags" ? tr("Default classes: the 50th, 90th and 97.5th percentiles of the {n} detected values; the {left} reported below detection ('<') are left out.", { n: basis.n.toLocaleString(), left: basis.left.toLocaleString() }) : basis.kind === "floor" ? tr("Default classes: the 50th, 90th and 97.5th percentiles of the {n} values above the floor {floor} {unit}; the {left} at the floor (probably half a detection limit substituted before import) are left out.", { n: basis.n.toLocaleString(), left: basis.left.toLocaleString(), floor: gradeText(basis.floor), unit }) : tr("Default classes: the 50th, 90th and 97.5th percentiles of all {n} values.", { n: basis.n.toLocaleString() });
+  const basisText = !basis || !basis.n ? null : basis.kind === "flags" ? tr("Default classes: the 50th, 90th and 97.5th percentiles of the {n} detected values; the {left} reported below detection ('<') are left out.", { n: basis.n.toLocaleString(), left: basis.left.toLocaleString() }) : basis.kind === "floor" ? tr("Default classes: the 50th, 90th and 97.5th percentiles of the {n} values above the floor {floor} {unit}; the {left} at the floor (probably half a detection limit substituted before import) are left out.", { n: basis.n.toLocaleString(), left: basis.left.toLocaleString(), floor: gradeText(basis.floor), unit: unitLbl }) : tr("Default classes: the 50th, 90th and 97.5th percentiles of all {n} values.", { n: basis.n.toLocaleString() });
 
   // TASKS.csv #2935 — Reset gives the seeded classes the dialog calls the default (was no classes: 'sphere size = grade', one colour)
   const reset = () => commit({ color: defaultColor, sizeMult: 1, shape: "auto", opacity: 1, minCutoff: "", breaks: seedBreaks({ ...range, unit }, defaultColor) });
@@ -82,7 +84,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
         <div style={header}>
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Style {symbol}", { symbol })}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{range.basis?.kind === "flags" && Number.isFinite(range.basis.limit) /* #2216 — the substitutes are not data */ ? tr("Data range: <{dl} ({n} below detection) – {max} {unit}", { dl: gradeText(range.basis.limit), n: range.basis.left.toLocaleString(), max: gradeText(range.max), unit }) : tr("Data range: {min} – {max} {unit}", { min: gradeText(range.min), max: gradeText(range.max), unit }) /* gradeText: #2515 */}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{range.basis?.kind === "flags" && Number.isFinite(range.basis.limit) /* #2216 — the substitutes are not data */ ? tr("Data range: <{dl} ({n} below detection) – {max} {unit}", { dl: gradeText(range.basis.limit), n: range.basis.left.toLocaleString(), max: gradeText(range.max), unit: unitLbl }) : tr("Data range: {min} – {max} {unit}", { min: gradeText(range.min), max: gradeText(range.max), unit: unitLbl }) /* gradeText: #2515 */}</div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
@@ -118,7 +120,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
           <label style={row}>
             <span style={rowLabel} title={tr("Samples below this grade aren't drawn at all — declutters low/background values.")}>{tr("Ignore below")}</span>
             <input type="number" step="any" placeholder={tr("none")} value={local.minCutoff} onChange={(e) => commit({ ...local, minCutoff: e.target.value })} style={{ ...inp, width: 100 }} />
-            <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{unit}</span>
+            <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{unitLbl}</span>
           </label>
 
           <div>
@@ -126,7 +128,8 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
               <span style={{ ...rowLabel, marginBottom: 0 }} title={tr("Recategorize: instead of one flat colour, split this element into grade classes, each with its own colour — like a graduated/categorized legend.")}>{tr("Grade classes (recategorize)")}</span>
               {!local.breaks.length && <button onClick={addBreak} style={smallBtn}><Plus size={12} />{" "}{tr("Add classes")}</button>}
             </div>
-            {(major || logLims || basisText) && !local.breaks.some((b) => b.seeded === false) /* #2941 — not once a class was edited (rounded, a limit added) */ && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{major ? tr("Default classes: round steps of the data, as for a major component (a median of {p50} {unit}): {limits}.", { p50: +range.p50.toFixed(2), unit, limits: major.join(" / ") }) : logLims ? tr("Default classes: round limits on a log scale between the median ({p50}) and the 97.5th percentile ({p975}): {limits} {unit}.", { p50: +Number(range.p50).toPrecision(3), p975: +Number(range.p975).toPrecision(3), limits: logLims.join(" / "), unit }) /* #3260 */ : basisText}</div>}{/* #2519; #2935 */}
+            {(major || logLims || basisText) && !local.breaks.some((b) => b.seeded === false) /* #2941 — not once a class was edited (rounded, a limit added) */ && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{major ? tr("Default classes: round steps of the data, as for a major component (a median of {p50} {unit}): {limits}.", { p50: +range.p50.toFixed(2), unit: unitLbl, limits: major.join(" / ") }) : logLims ? tr("Default classes: round limits on a log scale between the median ({p50}) and the 97.5th percentile ({p975}): {limits} {unit}.", { p50: +Number(range.p50).toPrecision(3), p975: +Number(range.p975).toPrecision(3), limits: logLims.join(" / "), unit: unitLbl }) /* #3260 */ : basisText}</div>}{/* #2519; #2935 */}
+            {range.basis?.pile && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("{pct} % of the samples sit on the column's lowest value, {v} {unit}: likely half a detection limit, not a measured grade. They fall in the palest class.", { pct: Math.round(range.basis.pile.share * 100), v: gradeText(range.basis.pile.value), unit: unitLbl })}</div> /* TASKS.csv #3773 */}
             {offers.length > 0 && (
               <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", marginBottom: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{/* #2688 — offered, never applied */}
                 <span>{tr("Saved threshold:")}</span>
@@ -134,14 +137,14 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
                   const has = local.breaks.some((b) => b.max === o.value);
                   return <button key={o.key} type="button" disabled={has} onClick={() => addOffer(o.value)} style={{ ...smallBtn, padding: "1px 6px", opacity: has ? 0.6 : 1, cursor: has ? "default" : "pointer" }}
                     title={has ? tr("Already a class limit.") : tr("{rule}{pop}, decided {date}. Click to add it as a class limit.", { rule: o.rule, pop: o.population ? ` (${o.population})` : "", date: o.decided })}>
-                    {o.population ? `${o.population.split(": ").pop()} ` : ""}{gradeText(o.value)} {unit}</button>;
+                    {o.population ? `${o.population.split(": ").pop()} ` : ""}{gradeText(o.value)} {unitLbl}</button>;
                 })}
               </div>
             )}
             {local.breaks.length > 0 && (
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>{/* #2519 */}
                 <button type="button" onClick={roundAll} style={smallBtn} title={tr("Round every class limit to two significant figures")}>{tr("Round the limits")}</button>
-                <input type="number" step="any" value={cutoff} onChange={(e) => setCutoff(e.target.value)} placeholder={tr("Cut-off ({unit})", { unit })} aria-label={tr("Cut-off to add as a class limit")} style={{ width: 110, fontSize: "var(--font-size-sm)", padding: "3px 6px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", color: "var(--color-text)" }} />
+                <input type="number" step="any" value={cutoff} onChange={(e) => setCutoff(e.target.value)} placeholder={tr("Cut-off ({unit})", { unit: unitLbl })} aria-label={tr("Cut-off to add as a class limit")} style={{ width: 110, fontSize: "var(--font-size-sm)", padding: "3px 6px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", color: "var(--color-text)" }} />
                 <button type="button" onClick={addCutoff} disabled={cutoff === ""} style={smallBtn} title={tr("Split the class holding this grade there, so the economic cut-off is a class limit")}>{tr("Add as a class limit")}</button>
               </div>
             )}
@@ -161,11 +164,11 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
                     <input
                       type="number" step="any"
                       value={b.max}
-                      aria-label={tr("Class {v} upper limit ({unit}), up to and including", { v: i + 1, unit })}
+                      aria-label={tr("Class {v} upper limit ({unit}), up to and including", { v: i + 1, unit: unitLbl })}
                       onChange={(e) => updateBreak(i, { max: Number(e.target.value) || 0 })}
                       style={{ ...inp, width: 90 }}
                     />
-                    <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{unit}</span>
+                    <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{unitLbl}</span>
                     <Trash2 aria-label={tr("Remove this grade class")} title={tr("Remove this grade class")} role="button" tabIndex={0} onKeyDown={activateOnKey} size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon-strong)", marginLeft: "auto" }} onClick={() => removeBreak(i)} />
                   </div>
                 ))}

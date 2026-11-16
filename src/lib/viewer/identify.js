@@ -17,6 +17,7 @@ import { setMembersOf } from "../estimateSet.js"; // TASKS.csv #3178
 import { setJoin } from "../setLimits.js"; // #3178
 import { blockModelLattice } from "../estimationMeta.js"; // #3178
 import { gradeUnitLabel } from "../geochemColumns.js"; // #3178
+import { floorOf } from "../floorShare.js"; // TASKS.csv #3773 — the same half-limit floor Grade statistics reads
 import { derivedValue } from "../blockModelExport.js"; // TASKS.csv #3523
 import { assumedSpanAt } from "./unsurveyedTail.js"; // TASKS.csv #3761
 
@@ -166,6 +167,21 @@ export function assayValueText(row, sym, unit = "") {
   return `${shown} ${unit || ""}`.trim();
 }
 
+// TASKS.csv #3773 — a value on the column's floor (half a detection limit substituted in the file, the lowest value and the commonest: Au 0.0025 g/t on 19 % of a project's samples) is said so in the card, as Grade
+// statistics says it ('On the floor %'): -> text | ''. `floor`: floorOf's { share, floor } for the element, or null
+export const FLOOR_MIN_SHARE = 0.05;
+export function floorWord(value, floor, tr2 = tr) {
+  if (!floor || !(floor.floor > 0) || !(floor.share >= FLOOR_MIN_SHARE) || !(Math.abs(Number(value) - floor.floor) <= floor.floor * 1e-9)) return "";
+  return " (" + tr2("the column's lowest and commonest value, {pct} % of its samples: likely half a detection limit", { pct: Math.round(floor.share * 100) }) + ")";
+}
+const floorCache = new WeakMap(); // assays array -> Map(symbol -> floorOf | null): worked out on the first click of an element, kept per table
+export function floorOfElement(assays, sym, units = {}) {
+  if (!Array.isArray(assays) || !assays.length) return null;
+  let m = floorCache.get(assays); if (!m) floorCache.set(assays, (m = new Map()));
+  if (!m.has(sym)) m.set(sym, floorOf(assays, sym, units?.[sym] || "ppm", units || {}));
+  return m.get(sym);
+}
+
 function describe(hit, ctx) {
   const o = hit.object, p = hit.point, { x: ox, y: oy, z: oz } = ctx.origin;
   const world = { e: p.x + ox, n: oy - p.z, z: p.y + oz };
@@ -208,7 +224,7 @@ function describe(hit, ctx) {
     // the lab wrote it (twice the stored half-limit), a '>' as its ceiling. It listed the first 16 in the lab file's column order: Cs never showed
     if (row?.values) {
       const shownSym = tipLines[1]?.includes(":") ? tipLines[1].slice(0, tipLines[1].indexOf(":")).trim() : null;
-      for (const sym of orderedElements(row.values, [...(shownSym ? [shownSym] : []), ...(ctx.leadFirst?.() || [])])) fields.push([sym, assayValueText(row, sym, ctx.units?.[sym] ? gradeUnitLabel(sym, ctx.units[sym]) : "")]); // lead: #2938; g/t for a precious metal stored in ppm: #3573
+      for (const sym of orderedElements(row.values, [...(shownSym ? [shownSym] : []), ...(ctx.leadFirst?.() || [])])) fields.push([sym, assayValueText(row, sym, ctx.units?.[sym] ? gradeUnitLabel(sym, ctx.units[sym]) : "") + (row.qualifiers?.[sym] || row.bdl?.includes?.(sym) ? "" : floorWord(row.values[sym], ctx.floorOf?.(sym)))]); // lead: #2938; g/t for a precious metal stored in ppm: #3573
     }
     if (row) fields.push(...attributeFields(row));
     else for (const line of tipLines.slice(hole ? 2 : 1)) fields.push(["", line]);
@@ -307,6 +323,7 @@ export function identifyAt(r, clientX, clientY) {
     units: r.units,
     meaningOf: (o, v, shown) => (r.codeDictionary ? codeMeaning(r.codeDictionary, groups.get(o.parent), v, shown) : null), // #2816
     leadFirst: () => leadFirst(r.assays, r.units), // #2938
+    floorOf: (sym) => floorOfElement(r.assays, sym, r.units), // #3773
     setMembersOf: (m) => setMembersOf(m, r.voxelModels || []), // #3178
     isHole: (id) => r.tracesRef.current.some((t) => t.hole_id === id),
     traceOf: (id) => r.tracesRef.current.find((t) => t.hole_id === id)?.pts,
