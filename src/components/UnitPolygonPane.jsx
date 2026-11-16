@@ -77,7 +77,7 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
     const next = addUnitPolygon(target, corners, { unit: unit.trim(), note: noteText.trim() }, { ...(plan ? { elevation: plan.z } : {}), colorOf }); // colorOf: #2572
     updateMapLayer(id, () => ({ ...next, id }));
     const f = next.features[next.features.length - 1];
-    setNoteText(""); setMsg((copySrc ? tr("Made \"{layer}\", a copy of \"{src}\" (that layer is unchanged).", { layer: next.name, src: copySrc.name }) + " " : "") + tr("Added polygon {unit} ({ha} ha) to \"{layer}\".", { unit: f.attributes[unitFieldOf(next)], ha: (f.attributes.area_m2 / 10000).toFixed(2), layer: next.name }) /* #2095 — no article to get wrong */ + (plan ? " " + (mapLayerOnCollars(next, terrain, collars) ? tr("It is draped on the ground between the collars (no terrain).") : tr("It lies flat at {z} m RL (no terrain).", { z: Math.round(next.elevation).toLocaleString() })) : "") /* TASKS.csv #3851 (1) - the rule it used; #3838 - a layer draped on the collars does not lie flat */);
+    setNoteText(""); setMsg((copySrc ? tr("Made \"{layer}\", a copy of \"{src}\" (that layer is unchanged).", { layer: next.name, src: copySrc.name }) + " " : "") + tr("Added polygon {unit} ({ha} ha) to \"{layer}\".", { unit: f.attributes[unitFieldOf(next)], ha: (f.attributes.area_m2 / 10000).toFixed(2), layer: next.name }) /* #2095 — no article to get wrong */ + (plan && !mapLayerOnCollars(next, terrain, collars) ? " " + tr("It lies flat at {z} m RL (no terrain).", { z: Math.round(next.elevation).toLocaleString() }) : "")); // #3838 — a layer draped on the collars does not lie flat
     onDone();
   };
   // a double-click in the 3D view ends the polygon (ViewerModule bumps finishSeq)

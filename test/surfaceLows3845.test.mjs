@@ -98,7 +98,7 @@ test("#3850 every other repeating unit is named with its counts, the larger firs
   hasKeys(["Also met more than once down the holes: {list}. A unit that repeats like this is the host between sheets, or an overprint (an alteration or deformation zone), not a bed: its contacts here are not stratigraphic tops.", "{unit} ({r} times in {h} hole(s), up to {max} in one)"]);
 });
 
-test("#3851 slips: a repeated header row, the zero-elevation rule, the draped note, the CRS sentence", () => {
+test("#3851 slips: a repeated header row, the zero-elevation rule, the CRS sentence", () => {
   const cols = guessStructureColumns(["Easting", "Northing", "Strike", "Dip", "Type"]);
   const out = parseStructureRows([{ Easting: 1, Northing: 1, Strike: 10, Dip: 40, Type: "STRUCTURE" }, { Easting: "Easting", Northing: "Northing", Strike: "Strike", Dip: "Dip", Type: "Type" }, { Easting: "", Northing: "", Strike: 5, Dip: 30, Type: "LINEATION" }], cols, {});
   assert.equal(out.rows.length, 1); assert.equal(out.skipWhy.repeatedHeader, 1); assert.equal(out.skipWhy.noXY, 1);
@@ -106,10 +106,9 @@ test("#3851 slips: a repeated header row, the zero-elevation rule, the draped no
   assert.equal(surfaceFlatRule([], false, [{ x: 1, y: 1, z: 30 }]), "samples");
   assert.equal(surfaceFlatRule([{ z: 100 }], false, [{ x: 1, y: 1 }]), "collars"); assert.equal(surfaceFlatRule([], false), "samples");
   assert.match(read("../src/modules/viewer/SurfacePlacementNotices.jsx"), /counts\.flatRule === "zero" \? tr\("\{n\} surface sample\(s\) have no elevation, and no collar or sample gives one: drawn flat at 0 m\./);
-  assert.match(read("../src/components/UnitPolygonPane.jsx"), /mapLayerOnCollars\(next, terrain, collars\) \? tr\("It is draped on the ground between the collars \(no terrain\)\."\) : tr\("It lies flat at/);
   assert.match(read("../src/components/ProjectCrsModal.jsx"), /Choose the CRS your coordinates \(collars, samples, maps\) are in\./);
   const p = read("../src/components/SurfaceMappingPanel.jsx");
   assert.match(p, /const usable = parseStructureRows\(pendingStruct\.rows, pendingStruct\.cols, project\?\.structureCodeClasses\)\.rows;/); // only the codes of the rows that are imported
   hasKeys(["{n} repeated header row(s) inside the file", "{n} surface sample(s) have no elevation, and no collar or sample gives one: drawn flat at 0 m. Load a terrain (Maps > Terrain) to place them on the ground.",
-    "It is draped on the ground between the collars (no terrain).", "Not set yet. Choose the CRS your coordinates (collars, samples, maps) are in."]);
+    "Not set yet. Choose the CRS your coordinates (collars, samples, maps) are in."]);
 });
