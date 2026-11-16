@@ -24,6 +24,7 @@ test("the legend lists the shown imported surfaces in the colour each is drawn i
 test("wiring: the rows sit under 'Boundaries and models', the legend takes them, and a drop's files take successive tones", () => {
   const v = read("../src/modules/ViewerModule.jsx");
   assert.match(v, /implicitSurfaces\.some\(isImportedSurface\)\) && \(/);
+  assert.match(v, /const ImportedSurfaceRows = React\.lazy\(\(\) => import\("\.\/viewer\/ImportedSurfaceRows\.jsx"\)\)/, "loaded when a surface has been imported, not at startup");
   assert.match(v, /<ImportedSurfaceRows surfaces=\{implicitSurfaces\} meshesRef=\{implicitMeshesRef\} labels=\{surfaceLabels\} toggle=\{toggleImplicitSurface\} zoom=\{zoomToImplicitSurface\} remove=\{removeImplicitSurface\} confirmRemove=\{confirmRemoveSurface\} \/>/);
   assert.match(v, /\.\.\.importedSurfaceLegendGroups\(implicitSurfaces, \(id\) => surfaceHex\(implicitMeshesRef\.current\[id\]\)\)/);
   assert.match(v, /IMPORTED_SOLID_COLORS\[\(k \+ importedBefore\) % IMPORTED_SOLID_COLORS\.length\]/);

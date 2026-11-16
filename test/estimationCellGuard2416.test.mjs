@@ -14,7 +14,7 @@ test("the cell size state only takes positive numbers, and a remembered null rea
 });
 
 test("the over-budget buttons need a real cell, and a matched grid says what to do instead", () => {
-  assert.match(m, /\{Number\.isFinite\(fitCell\) && fitCell > 0 && <button type="button" onClick=\{\(\) => \{ cellTouched\.current = true; setCellSize\(fitCell\); \}\}/);
+  assert.match(m, /\{Number\.isFinite\(fitCell\) && fitCell > 0 && <button type="button" onClick=\{\(\) => \{ cellTouched\.current = true; cellTyped\.current = true; setCellSize\(fitCell\); \}\}/); // #3706: a cell picked is kept like a typed one
   assert.match(m, /\{Number\.isFinite\(fitCellMax\) && fitCellMax > 0 && <button/);
   assert.match(m, /The matched model's grid has more blocks in reach than the budget, and its block size is fixed/);
 });

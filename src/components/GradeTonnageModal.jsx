@@ -59,10 +59,15 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
   // Design solids carry closure 'closed', so an artificially closed grade shell (1.97 Mm³, watertight) was 'no closed solid in the project'
   const solids = useMemo(() => generatedSurfaces.filter((s) => s.vertices?.length >= 12 && s.indices?.length >= 12 && (s.closure === "closed" || isMeshClosed(s.vertices, s.indices).closed)), [generatedSurfaces]);
   const closureNote = (s) => (s?.closure === "artificial" ? tr(" The solid was closed artificially at the search radius, so its volume is an assumption.") : "");
-  const [solidId, setSolidId] = useState("");
+  // TASKS.csv #3706 (Matt: yes) — the same default as the Estimation: a model not restricted to a solid is reported INSIDE its element's closed grade shell when one is in the project
+  // (Tom West Zn 2 %: 16.29 Mm³ over the whole model, 4.18 Mm³ at 5.61 % inside the shell). A solid picked in the list wins; '— the whole model —' (or the switch in the note) turns it off.
+  const [solidPick, setSolidPick] = useState(null); // null = not chosen
+  const setSolidId = (id) => setSolidPick(id);
   const [insideMode, setInsideMode] = useState("centre");
-  const solid = solids.find((s) => s.id === solidId) || null;
   const shellCmp = useMemo(() => shellComparison(model, solids), [model, solids]); // TASKS.csv #3679 — the element's grade shell beside an unrestricted model
+  const solidId = solidPick ?? (shellCmp ? shellCmp.id : "");
+  const solid = solids.find((s) => s.id === solidId) || null;
+  const insideByDefault = solidPick == null && !!shellCmp && !!solid;
   const inside = useMemo(() => (solid ? blocksInsideSolid(model.cells, solid.vertices, solid.indices, { mode: insideMode }) : null), [model.cells, solid, insideMode]);
   const cellsInside = inside ? inside.cells : model.cells;
   // TASKS.csv #1957 (Vulcan review) — the sums bench by bench at one cutoff
@@ -353,6 +358,12 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
         </div>}
         {hasSupport && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", marginBottom: 6 }}><input type="checkbox" checked={interpOnly} onChange={(e) => setInterpOnly(e.target.checked)} />{tr("Only blocks classed interpolated")}</label>}
         {hasSupport && !interpOnly && lowSupport && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.5 }}>{tr("Most of this volume is in blocks the estimate carried outward from the holes (extrapolated or unsupported), not between them: the tonnage rests on grades the drilling does not surround.")}</div>}
+        {insideByDefault && ( /* TASKS.csv #3706 */
+          <div role="note" style={{ fontSize: "var(--font-size-sm)", marginBottom: 6, lineHeight: 1.5, padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
+            {tr("Reported inside the grade shell \"{name}\" by default ({s} Mm³ at {cutoff} {unit}; the whole model holds {m} Mm³ of blocks at that cut-off, most of it blocks the estimate carried outward from the holes).", { name: shellCmp.name, s: (shellCmp.shellM3 / 1e6).toFixed(2), cutoff: shellCmp.cutoff, unit, m: (shellCmp.modelM3 / 1e6).toFixed(2) })}{" "}
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}><input type="checkbox" checked onChange={() => setSolidPick("")} />{tr("Report inside the grade shell by default")}</label>
+          </div>
+        )}
         {shellCmp && !solid && ( /* TASKS.csv #3679 */
           <div role="note" style={{ fontSize: "var(--font-size-sm)", marginBottom: 6, lineHeight: 1.5, padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
             {tr("At {cutoff} {unit} this model holds {m} of blocks; the grade shell \"{name}\" at the same cut-off encloses {s}. The estimate was not restricted to it: report inside it to count only the zone the shell draws.", { cutoff: shellCmp.cutoff, unit: unitL || unit /* #3792 (1) — g/t */, m: shellCmp.modelM3 < 1e4 ? `${Math.round(shellCmp.modelM3).toLocaleString()} m³` : `${(shellCmp.modelM3 / 1e6).toFixed(2)} Mm³`, s: shellCmp.shellM3 < 1e4 ? `${Math.round(shellCmp.shellM3).toLocaleString()} m³` : `${(shellCmp.shellM3 / 1e6).toFixed(2)} Mm³`, name: shellCmp.name })}{" "}
