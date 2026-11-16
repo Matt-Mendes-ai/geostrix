@@ -138,7 +138,9 @@ export const oxidesOfElement = (symbol) => Object.entries(OXIDE_HEADERS).filter(
 export const PRECIOUS_METALS = new Set(["Au", "Ag", "Pt", "Pd"]);
 // TASKS.csv #1680 (review #1645, Copley) — the unit a reader expects to see: a precious metal stored in ppm is labelled g/t (the same
 // number), everything else keeps its stored unit. Grade stats, Best intercepts and Compositing said 'Au (ppm)' where Estimation said g/t.
-export const gradeUnitLabel = (symbol, unit) => (PRECIOUS_METALS.has(symbol) && (unit || "ppm") === "ppm" ? "g/t" : unit || "ppm");
+// TASKS.csv #3750 — a kept composites layer's element ('Au (2 m composites)', lib/compositeSources.js) reads as its element: g/t for gold in ppm
+const baseElement = (symbol) => String(symbol ?? "").replace(/ \([^()]*composites[^()]*\)$/, "");
+export const gradeUnitLabel = (symbol, unit) => (PRECIOUS_METALS.has(baseElement(symbol)) && (unit || "ppm") === "ppm" ? "g/t" : unit || "ppm");
 
 // TASKS.csv #261 — qualifier handling for censored assay values.
 //   "<x"  below detection limit  -> x/2  (half-detection substitution: standard practice)

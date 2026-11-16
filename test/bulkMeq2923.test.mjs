@@ -15,8 +15,8 @@ test("wiring: no equivalent offered for a bulk lead, the note instead; the rows'
   const b = readFileSync(new URL("../src/components/BestIntercepts.jsx", import.meta.url), "utf8");
   assert.match(b, /const bulkLead = BULK_COMMODITIES\.has\(symbol\);/);
   assert.match(b, /useMemo\(\(\) => \(meqOn && !bulkLead \? meqSymbols/); // the symbols less any LOI (#2924)
-  assert.match(b, /\{symbols\.length > 1 && bulkLead && <div[^\n]*no metal equivalent is offered/);
-  assert.match(b, /\{symbols\.length > 1 && !bulkLead && \(/);
+  assert.match(b, /\{alsoSymbols\.length > 1 && bulkLead && <div[^\n]*no metal equivalent is offered/);
+  assert.match(b, /\{alsoSymbols\.length > 1 && !bulkLead && \(/);
   assert.match(b, /elementOptionLabel\(s, elementUnits\[s\]\)/);
   assert.match(b, /\(PRECIOUS_METALS\.has\(s\) \? "\$\/oz" : "\$\/lb"\) \+ " "/);
 });
