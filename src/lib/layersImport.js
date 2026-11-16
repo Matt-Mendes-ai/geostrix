@@ -487,6 +487,12 @@ export function valueColumnIsWords(target, headers, rows) {
   }
   return word > num;
 }
+// TASKS.csv #3665 (Matt: 'C now, B later') — a file named for specific gravity whose From equals To on every row is a table of point density readings. It stays a Custom layer (a zero-length density reading cannot be
+// length-weighted, so the density summary and the tonnage would leave it out) and the import dialog says so, and what to do. -> true when that is why a file named for density was guessed Custom
+export function pointDensityFile(headers, name, rows) {
+  if (!rows?.length || targetFromName(name) !== "sg" || CUSTOM_LOG_NAMES.test(String(name || ""))) return false;
+  return zeroLengthRows(headers, rows) === true && schemaSatisfied("sg", guessMapping("sg", headers)) && guessTargetFor(headers, name, rows) === "custom";
+}
 export function guessTargetFor(headers, name, rows = null) {
   const t = guessTargetForRaw(headers, name, rows);
   return valueColumnIsWords(t, headers, rows) ? "custom" : t; // #3210

@@ -149,6 +149,11 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
           {/* TASKS.csv #1649 — a guess that would have replaced another file's log, and what the current choice replaces */}
           {/* TASKS.csv #1649 / #2021 — a guessed layer that would replace another file's rows stays the guess: the replace alert below says what it
               replaces (Ctrl+Z undoes it), and Custom layer is one choice away */}
+          {modal.pointDensity && ( /* TASKS.csv #3665 — point density readings (From = To) stay a Custom layer, and the dialog says why and what to do */
+            <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "-10px 0 12px", lineHeight: 1.45 }}>
+              {tr("This looks like a table of point density readings: From equals To on every row, so it opens as a Custom layer. A zero-length density reading cannot be length-weighted, so the density summary and the tonnage would leave it out. To use it as Specific gravity, give each reading a From–To interval and import it again; or keep it as a Custom layer to view.")}
+            </div>
+          )}
           {perHole && ( /* TASKS.csv #2659 */
             <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "-10px 0 12px", lineHeight: 1.4 }}>
               {perHole.noXY /* #2399 */
