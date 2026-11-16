@@ -137,7 +137,6 @@ import StopeRunRows from "./viewer/StopeRunRows.jsx"; // TASKS.csv #1968
 import { collarGround } from "../lib/collarGround.js"; // TASKS.csv #1616 — the estimate's ground without a terrain; #3159: not pitShell.js, which put the pit solver in startup
 import { useSurfacePlacement } from "./viewer/useSurfacePlacement.js"; import SurfacePlacementNotices from "./viewer/SurfacePlacementNotices.jsx"; // TASKS.csv #2485
 let solidSeq = 0; // TASKS.csv #1887 — distinct ids for solids added within one millisecond
-import { hitLabel } from "../lib/viewer/hitLabel.js"; // TASKS.csv #1891 (moved out, #1084 size cap)
 import { customColour, customLegendGroups, customFields, sectionCustomLegendItems /* #2669 */ } from "../lib/customColour.js"; // TASKS.csv #1697
 import { sectionNumericLegendItems } from "../lib/sectionLegend.js"; // TASKS.csv #3413
 import { fieldColourer } from "../lib/fieldColours.js"; // TASKS.csv #3704
@@ -208,6 +207,7 @@ import { LABEL_PX, makeTextSprite, fitScreenLabels, fitContourLabels } from "../
 import { restrictLayersToHoles } from "../lib/modelArea.js"; // TASKS.csv #1546
 import { gradeText } from "../lib/gradeText.js"; // #2515
 import { pickOnView } from "./viewer/pickGround.js"; // #2574; #2447
+import { worldPointOnGround, groundCollarsFor } from "./viewer/worldPoint.js"; // TASKS.csv #3838 — bare ground on the surface the map is drawn on
 import { syncHoleLabels, declutterHoleLabels, withEveryLabel, syncTextLabels, sampleLabelItems, redeclutter } from "../lib/viewer/holeLabels.js"; // withEveryLabel: #1770; syncTextLabels: #1443
 import { PickStandIn, PICK_ONLY_LAYER } from "../lib/viewer/pickStandIn.js"; // TASKS.csv #1500
 import { syncBatchedInstances, buildLayerBatches, eachLayerMember, eachPickTarget, batchTag } from "../lib/viewer/layerBatches.js"; // moved out (size cap, #1084)
@@ -1849,33 +1849,10 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     const targets = pickCandidates(raycaster);
     return targets.length ? raycaster.intersectObjects(targets, false) : [];
   }, [pickCandidates]);
-  // Converts an already-computed hit list to world coords, falling back to a flat plane at local y=0
-  // (the origin's own elevation) when nothing real was hit. Split out of raycastWorldPoint so the
-  // hover handler can reuse a hit list it already has.
-  // TASKS.csv #1125 — the nearest hit that is actually DRAWN. three.js raycasting ignores .visible, so a hidden voxel
-  // model, a toggled-off layer, a hidden hole or a filtered category was still hit: Matt's measure points landed on a
-  // model he had switched off (Woodjam with the ZTEM hidden: two clicks on empty space read 1.9 km, +141.5 m).
-  // Visible = the object and every ancestor visible, and a material that is shown and not fully transparent.
-  const worldPointFromHits = useCallback((raycaster, hits) => {
-    const o = originRef.current;
-    const drawn = (h) => {
-      const m = h.object.material;
-      if (m && (m.visible === false || (m.transparent && m.opacity < 0.02))) return false;
-      for (let n = h.object; n; n = n.parent) if (n.visible === false) return false;
-      return true;
-    };
-    const near = hits.find(drawn);
-    if (near) {
-      const p = near.point;
-      return { x: p.x + o.x, y: -p.z + o.y, z: p.y + o.z, on: hitLabel(near.object) }; // on: #1891
-    }
-    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    const hit = new THREE.Vector3();
-    if (raycaster.ray.intersectPlane(plane, hit)) {
-      return { x: hit.x + o.x, y: -hit.z + o.y, z: hit.y + o.z, on: null, plane: true }; // plane: #2526 — the reference level, not ground
-    }
-    return null;
-  }, []);
+  // the hit list in world coordinates: the nearest drawn hit, else the ground the map is drawn on (no terrain: the collar surface, #3838), else the
+  // reference level (plane: true) — viewer/worldPoint.js. Split out of raycastWorldPoint so the hover handler can reuse a hit list it already has.
+  const groundCollarsRef = useRef(null); groundCollarsRef.current = groundCollarsFor(terrain, collars); // #3838
+  const worldPointFromHits = useCallback((raycaster, hits) => worldPointOnGround(raycaster.ray, hits, originRef.current, groundCollarsRef.current), []);
   // Shared raycast-and-convert-to-world-coords helper used by both the live status-bar cursor (inside
   // the three.js init effect below) and onMeasureClick further down — one raycaster, nearest hit among
   // pickHoverTargets() above, falling back to a flat plane at local y=0 (the origin's own elevation).
@@ -5385,15 +5362,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const { x: mx, y: my } = viewNdc(e, rect, mcDownRef.current); // #2803 — the press's own point
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2(mx, my), cameraRef.current);
-    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    const hit = new THREE.Vector3();
-    if (!raycaster.ray.intersectPlane(plane, hit)) return;
-    const o = originRef.current;
-    const world = { x: hit.x + o.x, y: -hit.z + o.y };
+    const w = worldPointFromHits(raycaster, pickHits(raycaster)); // #3838 — what is under the cursor (bare ground: the surface the map is drawn on), not the reference level
+    if (!w) return;
+    const world = { x: w.x, y: w.y };
     sectionPts.current.push(world);
     if (sectionPts.current.length === 2) { launchSection(); sectionPts.current = []; setSectionMode(false); setSectionPreview(null); }
     else setSectionPreview({ a: world });
-  }, [sectionMode]);
+  }, [sectionMode, pickHits, worldPointFromHits]);
 
   // TASKS.csv #121 — measurement tool. Same self-contained per-click raycast style as onSectionClick
   // above (a fresh raycast right here rather than trusting the `cursor` store value, which is only
@@ -7449,7 +7424,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {/* TASKS.csv #389 — was role=button + activateOnKey, so Enter/Space fired a synthetic click with no
           pointer position and placed a bogus section/measure/pick point. The 3D view is a pointer surface,
           not a button: a labelled, focusable application region with no keyboard click. */}
-      <div ref={viewFocusRef} role="application" aria-label={tr("3D view")} tabIndex={0} className="ge-main" onKeyDown={onViewKeyDown} onPointerDownCapture={(e) => { mcDownRef.current = { x: e.clientX, y: e.clientY }; }} onClick={(e) => { if (!isViewClick(e)) return; onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); onInterpretClick(e); onMcodeClick(e); onExplicitClick(e); sculpt.handleViewClick(e); identify.handleViewClick(e); }} style={{ cursor: interpret.on || sectionMode || rectZoomMode || measureMode || pickHoleMode || ((mcPickMode || explicitPickFor) && mode === "modelling") || sculpt.targetId ? "crosshair" : "default" }}>
+      <div ref={viewFocusRef} role="application" aria-label={tr("3D view")} tabIndex={0} className="ge-main" onKeyDown={onViewKeyDown} onPointerDownCapture={(e) => { mcDownRef.current = { x: e.clientX, y: e.clientY }; }} onClick={(e) => { if (!isViewClick(e)) return; onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); onInterpretClick(e); onMcodeClick(e); onExplicitClick(e); sculpt.handleViewClick(e); if (!pickHoleMode) identify.handleViewClick(e) /* TASKS.csv #3824 (8) — Pick on view on a drilled trace also fired Identify, whose callout stayed on the view */; }} style={{ cursor: interpret.on || sectionMode || rectZoomMode || measureMode || pickHoleMode || ((mcPickMode || explicitPickFor) && mode === "modelling") || sculpt.targetId ? "crosshair" : "default" }}>
         <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
         {/* TASKS.csv #311 — figure furniture (title / legend / scale bar) for the screenshot people
             actually take. Rendered only once there is data to annotate, so the #294 empty state is

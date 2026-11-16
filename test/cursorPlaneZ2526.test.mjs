@@ -6,7 +6,8 @@ import { readFileSync } from "node:fs";
 
 test("#2526 the plane fallback is marked and the cursor readout drops its Z", () => {
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(v, /return \{ x: hit\.x \+ o\.x, y: -hit\.z \+ o\.y, z: hit\.y \+ o\.z, on: null, plane: true \};/);
+  const w = readFileSync(new URL("../src/modules/viewer/worldPoint.js", import.meta.url), "utf8"); // #3838 — the fall-back moved there
+  assert.match(w, /z: o\.z, on: null, plane: true \}/);
   assert.match(v, /if \(worldPt\) setCursor\(worldPt\.plane \? \{ \.\.\.worldPt, z: null \} : worldPt\);/);
   assert.match(readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8"), /const fmt = \(v\) => \(v == null \? "—"/);
 });

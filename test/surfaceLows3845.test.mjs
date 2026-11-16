@@ -106,7 +106,7 @@ test("#3851 slips: a repeated header row, the zero-elevation rule, the draped no
   assert.equal(surfaceFlatRule([], false, [{ x: 1, y: 1, z: 30 }]), "samples");
   assert.equal(surfaceFlatRule([{ z: 100 }], false, [{ x: 1, y: 1 }]), "collars"); assert.equal(surfaceFlatRule([], false), "samples");
   assert.match(read("../src/modules/viewer/SurfacePlacementNotices.jsx"), /counts\.flatRule === "zero" \? tr\("\{n\} surface sample\(s\) have no elevation, and no collar or sample gives one: drawn flat at 0 m\./);
-  assert.match(read("../src/components/UnitPolygonPane.jsx"), /onCollars \? tr\("It is draped on the ground between the collars \(no terrain\)\."\) : tr\("It lies flat at/);
+  assert.match(read("../src/components/UnitPolygonPane.jsx"), /mapLayerOnCollars\(next, terrain, collars\) \? tr\("It is draped on the ground between the collars \(no terrain\)\."\) : tr\("It lies flat at/);
   assert.match(read("../src/components/ProjectCrsModal.jsx"), /Choose the CRS your coordinates \(collars, samples, maps\) are in\./);
   const p = read("../src/components/SurfaceMappingPanel.jsx");
   assert.match(p, /const usable = parseStructureRows\(pendingStruct\.rows, pendingStruct\.cols, project\?\.structureCodeClasses\)\.rows;/); // only the codes of the rows that are imported

@@ -175,10 +175,35 @@ export function sampleValues(samples, { kind, symbol, preset, elements }, units)
   const keyOf = groupKeyFn(defaultPopulations(samples));
   const z = (sym) => { const out = new Map(); populations(samples, { valueOf: (s) => valueIn(s, sym, units[sym] || "ppm", units), keyOf }).forEach((p) => p.idx.forEach((i, k) => { const v = robustZ(p.values[k], p.summary); if (v != null) out.set(i, v); })); return out; };
   if (kind === "element") { const m = z(symbol); return samples.map((s, i) => ({ x: s.x, y: s.y, value: m.has(i) ? m.get(i) : NaN })); }
+  // TASKS.csv #3819 (Scottie Gold review) — 'Orogenic Au index' on a project with only Au was the Au robust z under another name (the 'half of the
+  // elements present' rule was half of ONE); an index needs two elements that have a spread, and a sample two of them
+  const rep = indexReport(samples, preset, units, elements, z);
+  const need = rep.used.length < 2 ? Infinity : Math.max(2, Math.ceil(rep.used.length / 2));
+  return samples.map((s, i) => { const vs = rep.used.map((e) => rep.maps.get(e).get(i)).filter((v) => v != null); return { x: s.x, y: s.y, value: vs.length >= need ? vs.reduce((a, v) => a + v, 0) / vs.length : NaN }; });
+}
+
+// TASKS.csv #3819 — the recipe's elements the project has (present: a unit), the ones it lacks (missing), those present whose robust z has no spread in any
+// population (flat: a median absolute deviation of 0 — more than half the values are one number, a detection-limit floor) and those that count (used)
+export function indexRecipe(preset, units, elements = null) {
   const pr = PATHFINDER_PRESETS.find((p) => p.id === preset) || PATHFINDER_PRESETS[0];
-  const els = (elements?.length ? elements : pr.elements).filter((e) => units[e]);
-  const maps = els.map(z), need = Math.max(1, Math.ceil(els.length / 2));
-  return samples.map((s, i) => { const vs = maps.map((m) => m.get(i)).filter((v) => v != null); return { x: s.x, y: s.y, value: vs.length >= need ? vs.reduce((a, v) => a + v, 0) / vs.length : NaN }; });
+  const all = elements?.length ? elements : pr.elements;
+  return { label: pr.label, all, present: all.filter((e) => units[e]), missing: all.filter((e) => !units[e]) };
+}
+export function indexReport(samples, preset, units, elements = null, z = null) {
+  const r = indexRecipe(preset, units, elements);
+  const zf = z || ((sym) => { const out = new Map(); const keyOf = groupKeyFn(defaultPopulations(samples)); populations(samples, { valueOf: (s) => valueIn(s, sym, units[sym] || "ppm", units), keyOf }).forEach((p) => p.idx.forEach((i, k) => { const v = robustZ(p.values[k], p.summary); if (v != null) out.set(i, v); })); return out; });
+  const maps = new Map(r.present.map((e) => [e, zf(e)]));
+  const used = r.present.filter((e) => maps.get(e).size > 0), flat = r.present.filter((e) => !maps.get(e).size);
+  return { ...r, used, flat, maps };
+}
+// the card's line: what the index was built from, and why an element is not in it; "" when nothing needs saying
+export function indexNote(rep, tr) {
+  if (!rep) return "";
+  const parts = [];
+  parts.push(rep.used.length >= 2 ? tr("From {k} of {n} elements: {used}.", { k: rep.used.length, n: rep.all.length, used: rep.used.join(", ") }) : tr("Needs two or more elements with a spread; this project has {used} of {n}.", { used: rep.used.length ? rep.used.join(", ") : tr("none"), n: rep.all.length }));
+  if (rep.missing.length) parts.push(tr("Not assayed: {list}.", { list: rep.missing.join(", ") }));
+  if (rep.flat.length) parts.push(tr("No spread (more than half of the {list} values are one number, so its robust z is empty): left out.", { list: rep.flat.join(", ") }));
+  return parts.join(" ");
 }
 
 // ---------- fuzzy overlay ----------

@@ -82,8 +82,17 @@ export function snapIndexFor(traces, layers, shown, origin, labelOf) {
 // within PLAN_COS of vertical) only collars are taken; a contact down the hole is snapped to from an oblique or section view.
 export const PLAN_COS = Math.cos((15 * Math.PI) / 180);
 export const isPlanLook = (ray) => Math.abs(ray?.direction?.y ?? 0) >= PLAN_COS; // scene y is up
-export function snapRay(index, ray, tolAt) {
-  const o = ray.origin, d = ray.direction, a = index.xyz, plan = isPlanLook(ray);
+// TASKS.csv #3839 (Scottie Gold review, a regression of #2972) — the CLICK ray was tested: with a perspective camera a click away from the view's centre
+// is more than 15 degrees off vertical, so in the Top view only clicks within ~260 px of the centre counted as a plan look and a click on a fan's trace
+// tied a ground line to 'SR23-243 at 167.7 m', 119 m down. The look is the CAMERA's (its forward axis, -Z of its world matrix); the ray when no camera.
+export function cameraLooksDown(camera) {
+  const e = camera?.matrixWorld?.elements;
+  if (!e) return null;
+  const len = Math.hypot(e[8], e[9], e[10]);
+  return len > 0 ? Math.abs(e[9] / len) >= PLAN_COS : null;
+}
+export function snapRay(index, ray, tolAt, planLook = null) {
+  const o = ray.origin, d = ray.direction, a = index.xyz, plan = planLook ?? isPlanLook(ray);
   let best = null;
   for (let i = 0; i < a.length; i += 3) {
     if (plan && !PLAN_KINDS.has(index.info[i / 3].kind)) continue; // #2972; map vertices and stations: #3044
@@ -134,10 +143,10 @@ export function snapTolerance(camera, heightPx, px = SNAP_PX) {
 export function snapInterpretClick(world, ray, { on, traces, layers, visible, origin, camera, heightPx }) {
   const ex = on && origin ? extrasIndexFor(origin) : null; // #3044
   if (!on || !origin || (!traces?.length && !ex)) return world;
-  const tol = snapTolerance(camera, heightPx);
-  const holes = traces?.length ? snapRay(snapIndexFor(traces, layers, shownIntervalLayers(visible), origin, layerLabel), ray, tol) : null;
+  const tol = snapTolerance(camera, heightPx), plan = cameraLooksDown(camera); // #3839 — the camera's look, not the click ray's
+  const holes = traces?.length ? snapRay(snapIndexFor(traces, layers, shownIntervalLayers(visible), origin, layerLabel), ray, tol, plan) : null;
   // #3044 — a map vertex or station nearer the ray (in pixels) than the hole's point wins; a hole tie stays a tie otherwise
-  const ground = ex ? snapRay(ex, ray, tol) : null;
+  const ground = ex ? snapRay(ex, ray, tol, plan) : null;
   const near = (p) => { if (!p) return Infinity; const o = ray.origin, d = ray.direction, vx = p.x - o.x, vy = p.y - o.y, vz = p.z - o.z, t = vx * d.x + vy * d.y + vz * d.z; const px = vx - t * d.x, py = vy - t * d.y, pz = vz - t * d.z; return Math.sqrt(px * px + py * py + pz * pz) / (tol(Math.max(t, 1e-6)) || 1); };
   const s = ground && near(ground) < near(holes) ? ground : holes;
   if (!s) return world;

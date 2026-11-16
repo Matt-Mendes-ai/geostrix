@@ -571,7 +571,7 @@ export function VoxelRangeRow({ model, onUpdate, compact = false, onShell = null
         <VoxelRangeNumber value={dispMax} label={tr("Highest value shown of \"{name}\"", { name: model.name })} onCommit={(v) => { const x = Math.max(Math.min(v, model.max), dispMin); setDispMax(x); onUpdate(model.id, { rangeMax: storeMax(x) }); }} />{valueUnit(model) && <span style={{ color: "var(--color-text-faint)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{valueUnit(model)}</span>}{/* #2585 / #2457 */}
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>
-        <span>{tr("Showing {visibleCount} of {cells} cell(s)", { visibleCount: fmtNum(visibleCount), cells: fmtNum(model.cells.length) })}</span>
+        <span>{model.visible === false ? tr("Hidden: {visibleCount} of {cells} cell(s) are in the range, but the model is hidden", { visibleCount: fmtNum(visibleCount), cells: fmtNum(model.cells.length) }) /* TASKS.csv #3824 (7) — 'Showing 67,344 of 67,344' for a hidden model */ : tr("Showing {visibleCount} of {cells} cell(s)", { visibleCount: fmtNum(visibleCount), cells: fmtNum(model.cells.length) })}</span>
         {isFiltered && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={reset} style={{ cursor: "pointer", color: "var(--color-info)" }}>{tr("Reset")}</span>}
       </div>
       {sameCells.length > 0 && ( // TASKS.csv #1808 (review #1646, Kodiak) — two inversions on one mesh drew a mosaic of two palettes
