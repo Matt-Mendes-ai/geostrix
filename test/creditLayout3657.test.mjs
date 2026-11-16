@@ -51,5 +51,5 @@ test("#3662 words are measured and wrapped to the box; a very long word-free run
   assert.equal(textLines("", 400, 11, m), 1);
   assert.equal(creditLines(LONG, 1043, (t) => t.length * 3), 1, "a narrow letter fits the long credit on one A4 line"); assert.ok(creditLines(LONG, 1043, (t) => t.length * 12) >= 3);
   assert.equal(creditLines(LONG, 1043), Math.max(1, Math.ceil((LONG.length * 5.9) / 1043)), "no canvas in Node: the estimate");
-  assert.match(fs.readFileSync(new URL("../src/lib/layoutCredits.js", import.meta.url), "utf8"), /document\.createElement\("canvas"\)\.getContext\("2d"\)/);
+  assert.match(fs.readFileSync(new URL("../src/lib/creditLine.js", import.meta.url) /* #3854: the credit line moved out of layoutCredits.js (startup bundle) */, "utf8"), /document\.createElement\("canvas"\)\.getContext\("2d"\)/);
 });

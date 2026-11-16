@@ -6,8 +6,6 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import { changedKeys } from "./undoLabels.js"; // TASKS.csv #1087
 import { capturedFrameFields } from "./layoutGeometry.js"; // TASKS.csv #906 / #961
 import { tieStarterFurniture, sendElementWithFurniture } from "./layoutLinks.js"; // TASKS.csv #1320, #1634
-import { projectCredits } from "./credits.js"; // TASKS.csv #3854
-import { withCreditPages } from "./layoutCredits.js"; // TASKS.csv #3854
 import { pagePx, pageFormatOf } from "./pageFormats.js"; // TASKS.csv #2740 — already in startup (desktop.js)
 import { setKnownHoleIds } from "./qaqcCore.js"; // TASKS.csv #400; qaqcCore: #1345
 import { compactLayers } from "./compactRows.js"; // TASKS.csv #374
@@ -416,7 +414,15 @@ export function StoreProvider({ children }) {
   // below instead, ignoring `elevation`; only meaningful once a terrain surface actually exists).
   const [rasters, setRasters] = useState([]);
   const terrainRef = useRef(null); // #1761 — filled once the terrain state is declared below
-  const layoutCreditRef = useRef(""); // TASKS.csv #3854 — the {credits} text, filled further down (the project, terrain and rasters are all declared by then)
+  // TASKS.csv #3854 — the data credit on every page added (addLayoutPages below, and a viewport's own new page). Its code (lib/credits.js, lib/creditLine.js)
+  // is loaded just after startup, not in the startup bundle (it put 6.7 kB there): a page added before it arrives gets the credit as soon as it does.
+  const creditModRef = useRef(null), creditStateRef = useRef({ terrain: null, rasters: [], dataCredit: "" }); // the state: filled further down
+  const loadCreditMod = () => (creditModRef.current ? Promise.resolve(creditModRef.current)
+    : Promise.all([import("./credits.js"), import("./creditLine.js")]).then(([c, l]) => (creditModRef.current = { projectCredits: c.projectCredits, withCreditPages: l.withCreditPages })));
+  // the pages, each given the {credits} text when the project has a credit and the page does not print one; null while the code is not here yet
+  const creditedNow = (pages) => { const m = creditModRef.current; if (!m) return null; const st = creditStateRef.current; return m.withCreditPages(pages, m.projectCredits(st.terrain, st.rasters, st.dataCredit) || false); };
+  const creditLater = (ids) => loadCreditMod().then(() => setLayoutPages((pgs) => pgs.map((pg) => (ids.includes(pg.id) ? creditedNow([pg])[0] : pg)))).catch(() => { /* the export still warns of a page with no credit (#3636) */ });
+  useEffect(() => { loadCreditMod().catch(() => {}); }, []);
   const addRaster = useCallback((raster) => {
     const id = `raster_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     // TASKS.csv #1761 (review #1645, Copley) — with a terrain loaded a new raster drapes on it unless the caller says otherwise (a
@@ -912,8 +918,9 @@ export function StoreProvider({ children }) {
       const here = freeSpot(layoutElements, w, h, paper);
       if (layoutElements.length > 0 && !spotIsFree(layoutElements, here, w, h)) {
         const pageId = `page_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, fmt = layoutPages.find((p) => p.id === activeLayoutPageId)?.format;
-        const [pg] = withCreditPages([{ name: "", elements: addViewportToPage([], mkView(freeSpot([], w, h, paper))), ...(fmt ? { format: fmt } : {}) }], layoutCreditRef.current || false); // #3854 — with the data credit
-        setLayoutPages((pages) => [...pages, { ...pg, id: pageId, name: `Page ${pages.length + 1}` }]);
+        const bare = { name: "", elements: addViewportToPage([], mkView(freeSpot([], w, h, paper))), ...(fmt ? { format: fmt } : {}) }, pg = creditedNow([bare])?.[0]; // #3854 — with the data credit
+        setLayoutPages((pages) => [...pages, { ...(pg || bare), id: pageId, name: `Page ${pages.length + 1}` }]);
+        if (!pg) creditLater([pageId]);
         setActiveLayoutPageId(pageId);
       } else setLayoutElements((els) => addViewportToPage(els, mkView(freeSpot(els, w, h, paper))));
       setLayoutSelectRequest(id);
@@ -1880,15 +1887,16 @@ export function StoreProvider({ children }) {
   // page-navigating action.
   // TASKS.csv #3854 — the data credit goes on HERE, so every route that adds pages (Layout's own, Best intercepts from the 3D View, an Atlas, a split, a
   // table's continuation) gives each page the {credits} line when the project has a credit and the page does not print one; it was only Layout's own wrapper (#3591)
-  layoutCreditRef.current = useMemo(() => projectCredits(terrain, rasters, project?.dataCredit), [terrain, rasters, project?.dataCredit]);
+  creditStateRef.current = { terrain, rasters, dataCredit: project?.dataCredit || "" };
   const addLayoutPages = useLatestCallback((rawPages) => {
     if (!rawPages || !rawPages.length) return [];
-    const pages = withCreditPages(rawPages, layoutCreditRef.current || false);
+    const credited = creditedNow(rawPages), pages = credited || rawPages;
     // TASKS.csv #1636 — batch: the run that generated the page (an atlas, a collar table's continuation), removable in one action
     const withIds = pages.map((pg, i) => ({ id: `page_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}`, name: pg.name, elements: pg.elements, ...(pg.batch ? { batch: pg.batch } : {}), ...(pg.format ? { format: pg.format } : {}) /* #3404 — its paper, so callers need not set it afterwards */ }));
     setLayoutPages((p) => [...p, ...withIds]);
     setActiveLayoutPageId(withIds[0].id);
     clearUndoHistory();
+    if (!credited) creditLater(withIds.map((p) => p.id)); // #3854 — added before the credit's code arrived
     return withIds.map((p) => p.id);
   });
   // Closing the last page is treated as resetting to one fresh blank page rather than leaving zero —

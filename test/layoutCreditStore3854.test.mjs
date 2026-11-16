@@ -37,29 +37,39 @@ function mount() {
   return { s: () => ref.current, unmount: () => act(() => r.unmount()) };
 }
 const table = (id) => ({ id, type: "table", x: 40, y: 40, w: 700, h: 400, rows: [] });
+const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 30)); }); // the credit's code is loaded just after startup (#3854: not in the startup bundle)
+const creditOnFoot = (pg, maxY) => {
+  assert.ok(pagePrintsCredit(pg.elements), `${pg.name} prints the credit`);
+  const c = pg.elements.find((el) => el.type === "text" && /\{credits\}/.test(el.text));
+  assert.ok(c.y > maxY * 0.7 && c.y < maxY, `${pg.name}: along the foot of its paper (y ${c.y})`);
+  assert.equal(pg.elements.filter((el) => el.type === "text" && /\{credits\}/.test(el.text)).length, 1, "once");
+};
 
-test("pages added from outside Layout (Best intercepts' own page and its continuation pages) each print the data credit", () => {
+test("pages added from outside Layout (Best intercepts' own page and its continuation pages) each print the data credit, before and after the credit's code has loaded", async () => {
   const m = mount();
   try {
   act(() => m.s().setProjectDataCredit("Data: BC ARIS (SYNTHETIC TEST)."));
   const fmt = { size: "A4", orientation: "portrait" };
-  let ids;
-  // exactly as BestIntercepts.jsx adds them: the store's addLayoutPages wrapped by addPagesOnPaper, on the open page's paper
-  act(() => { ids = addPagesOnPaper(m.s().addLayoutPages, m.s().setLayoutPageFormat, [{ name: "Best intercepts", elements: [table("t1")] }, { name: "Best intercepts (2)", elements: [table("t2")] }, { name: "Best intercepts (3)", elements: [table("t3")] }], fmt); });
-  const pages = m.s().layoutPages.filter((pg) => ids.includes(pg.id));
-  assert.equal(pages.length, 3);
-  for (const pg of pages) {
-    assert.ok(pagePrintsCredit(pg.elements), `${pg.name} prints the credit`);
-    const c = pg.elements.find((el) => el.type === "text" && /\{credits\}/.test(el.text));
-    assert.ok(c.y > 794 && c.y < 1123, `${pg.name}: along the foot of its portrait paper (y ${c.y})`);
-    assert.equal(pg.elements.filter((el) => el.type === "text" && /\{credits\}/.test(el.text)).length, 1, "once");
-  }
+  const add = (k) => { let ids; act(() => { ids = addPagesOnPaper(m.s().addLayoutPages, m.s().setLayoutPageFormat, [{ name: `Best intercepts ${k}`, elements: [table(`t${k}1`)] }, { name: `Best intercepts ${k} (2)`, elements: [table(`t${k}2`)] }, { name: `Best intercepts ${k} (3)`, elements: [table(`t${k}3`)] }], fmt); }); return ids; };
+  // exactly as BestIntercepts.jsx adds them: the store's addLayoutPages wrapped by addPagesOnPaper, on the open page's paper. Right after startup: the
+  // credit goes on as soon as its code arrives
+  const early = add("a");
+  await settle();
+  const pagesEarly = m.s().layoutPages.filter((pg) => early.includes(pg.id));
+  assert.equal(pagesEarly.length, 3);
+  pagesEarly.forEach((pg) => creditOnFoot(pg, 1123));
+  // later: at once
+  const later = add("b");
+  const pagesLater = m.s().layoutPages.filter((pg) => later.includes(pg.id));
+  assert.equal(pagesLater.length, 3);
+  pagesLater.forEach((pg) => creditOnFoot(pg, 1123));
   } finally { m.unmount(); } // a failure must not leave the store's timers running
 });
 
-test("a page that already prints the credit is left as it is; a project with no credit gets none", () => {
+test("a page that already prints the credit is left as it is; a project with no credit gets none", async () => {
   const m = mount();
   try {
+  await settle();
   let ids;
   act(() => { ids = m.s().addLayoutPages([{ name: "plain", elements: [table("a")] }]); });
   assert.equal(m.s().layoutPages.find((pg) => pg.id === ids[0]).elements.length, 1, "no credit in the project: no line");
@@ -73,8 +83,12 @@ test("a page that already prints the credit is left as it is; a project with no 
 test("one place: Layout no longer wraps it, and nothing outside the store adds pages around addLayoutPages", () => {
   const src = (f) => readFileSync(path.join(here, "..", "src", f), "utf8");
   const store = src("lib/store.jsx");
-  assert.match(store, /const pages = withCreditPages\(rawPages, layoutCreditRef\.current \|\| false\);/);
-  assert.match(store, /withCreditPages\(\[\{ name: "", elements: addViewportToPage\(/, "the viewport's own new page (#3451) too");
+  assert.match(store, /const credited = creditedNow\(rawPages\), pages = credited \|\| rawPages;/);
+  assert.match(store, /if \(!credited\) creditLater\(withIds\.map\(\(p\) => p\.id\)\);/);
+  assert.match(store, /const bare = \{ name: "", elements: addViewportToPage\(\[\], mkView[^\n]*pg = creditedNow\(\[bare\]\)\?\.\[0\]/, "the viewport's own new page (#3451) too");
+  // the credit's code is not in the startup bundle: the store loads it, it does not import it
+  assert.doesNotMatch(store, /^import [^\n]*from "\.\/(credits|creditLine|layoutCredits)\.js"/m);
+  assert.match(store, /Promise\.all\(\[import\("\.\/credits\.js"\), import\("\.\/creditLine\.js"\)\]\)/);
   const lay = src("modules/LayoutModule.jsx");
   assert.doesNotMatch(lay, /addLayoutPagesRaw/);
   // every other module and component reaches pages through the store's methods only
