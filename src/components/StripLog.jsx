@@ -38,6 +38,8 @@ import { localDate } from "../lib/localDate.js";
 import { stripLogFurniture, pngScaleFor } from "../lib/figureFurniture.js"; // TASKS.csv #1048
 import { stripLogTextPt } from "../lib/atlas.js"; // TASKS.csv #1480 — the size its labels print at
 import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3586 — g/t for Au / Ag / Pt / Pd stored in ppm
+import { lazyModal } from "../lib/lazyModal.jsx"; // TASKS.csv #3560 A1
+const MultiStripLogModal = lazyModal(() => import("./MultiStripLogModal.jsx"));
 import { assayAxis } from "../lib/striplogSvg.js"; // TASKS.csv #3141 — the Atlas's linear / log axis rule (#3024)
 import { suspectIdsOf, collarAttrLine } from "../lib/collarTable.js"; // TASKS.csv #3131 — #3004's rule, cached per collar list (the Layout collar table's)
 import { elevationTrust } from "../lib/collarElevationTrust.js";
@@ -48,7 +50,8 @@ import { rowsRefOf } from "../lib/tableFields.js"; // TASKS.csv #3140 step 2
 const DEPTH_COL_W = 50;
 const PAD_TOP = 40;
 
-export default function StripLog({ holeId, collars, layers, assays, assayElements, colorFor, labelFor, assayColor, onClose, modelledLayers = [], onAddToLayout = null, onAdvice = null /* #1641 */, shownElements = [], patternOverride = null, onPatternChange = null, onOpenFence = null }) { // onOpenFence: #3560 A0 // shownElements: TASKS.csv #1698; pattern*: #1995
+export default function StripLog({ holeId, collars, layers, assays, assayElements, colorFor, labelFor, assayColor, onClose, modelledLayers = [], onAddToLayout = null, onAdvice = null /* #1641 */, shownElements = [], patternOverride = null, onPatternChange = null, onOpenFence = null, legendOverride = null }) { // onOpenFence: #3560 A0; legendOverride: A1
+  const [sideBySide, setSideBySide] = useState(false); // #3560 A1 // shownElements: TASKS.csv #1698; pattern*: #1995
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const svgRef = useRef(null);
@@ -300,6 +303,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
 
   return (
     <div style={overlay} {...backdropProps(onClose)}>
+      {sideBySide && <MultiStripLogModal holeId={holeId} collars={collars} layers={layers} assays={assays} assayElements={assayElements} legendOverride={legendOverride} onAddToLayout={onAddToLayout ? (img) => { onAddToLayout(img); onClose?.(); } : null} onClose={() => setSideBySide(false)} />}
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
@@ -308,6 +312,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
             {attrLine.text && <div style={{ fontSize: 11, color: "#65717e", marginTop: 1, maxWidth: 520, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={attrLine.all}>{attrLine.text}</div>}{/* TASKS.csv #3408 — the per-hole values joined onto this hole */}
           </div>
           <span style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button type="button" onClick={() => setSideBySide(true)} title={tr("Draw this hole's log beside other holes' on one depth scale, from their own 0 m or from their collar elevations.")} style={{ padding: "4px 10px", background: "#f4f6f8", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>{tr("Side by side…")}</button>{/* TASKS.csv #3560 A1 */}
             {onOpenFence && <button type="button" onClick={onOpenFence} title={tr("Several holes side by side: the Fence diagram puts the holes of a drill line in columns on one depth scale, with correlation bands.")} style={{ padding: "4px 10px", background: "#f4f6f8", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>{tr("Several holes: Fence diagram")}</button>}{/* TASKS.csv #3560 A0 */}
             <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
           </span>
