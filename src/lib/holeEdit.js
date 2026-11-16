@@ -71,3 +71,48 @@ export function holeRowCounts(f, id) {
   for (const [k, v] of Object.entries(f.layers || {})) if (k !== "geophys_pts" && v && typeof v === "object") intervals += n(v);
   return { collars: n(f.collars), survey: n(f.survey), intervals, assays: n(f.assays), custom: (f.customLayers || []).reduce((a, l) => a + n(l.rows), 0) };
 }
+
+// TASKS.csv #3705 (follow-up of #3681) — what names the hole in text: a section's name ('Section through TU009 (az 46°)') and the hole it was asked for, a planned hole's name
+// ('TU009-target'), and the Layout pages' text, titles, captions and hole filters. The id is replaced as a whole word: not inside a longer id ('TU0091'), and not a longer one that
+// continues with a dash and a digit ('JS77-023-1'). Deleting a hole leaves the text as it is (it can't know what the words meant); a section drops the hole it was asked for.
+const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+export function renameInText(text, from, to) {
+  if (typeof text !== "string" || !text.includes(from)) return text;
+  return text.replace(new RegExp(`(^|[^A-Za-z0-9_])${escapeRe(from)}(?![A-Za-z0-9_]|-\\d)`, "g"), (m, pre) => pre + to);
+}
+const mapObjStrings = (o, keys, from, to) => {
+  let out = o;
+  for (const k of keys) { if (typeof o?.[k] !== "string") continue; const v = renameInText(o[k], from, to); if (v !== o[k]) out = out === o ? { ...o, [k]: v } : { ...out, [k]: v }; }
+  return out;
+};
+export function renameInSections(sections, from, to) {
+  let changed = false;
+  const out = (sections || []).map((s) => {
+    let n = mapObjStrings(s, ["name"], from, to);
+    if (n.holeAsked === from) n = { ...n, holeAsked: to };
+    if (n !== s) changed = true;
+    return n;
+  });
+  return changed ? out : sections;
+}
+export function deleteInSections(sections, id) {
+  if (!(sections || []).some((s) => s?.holeAsked === id)) return sections;
+  return sections.map((s) => { if (s?.holeAsked !== id) return s; const { holeAsked: _h, ...rest } = s; return rest; });
+}
+export function renameInPlanned(planned, from, to) {
+  let changed = false;
+  const out = (planned || []).map((p) => { const n = mapObjStrings(p, ["name"], from, to); if (n !== p) changed = true; return n; });
+  return changed ? out : planned;
+}
+const LAYOUT_TEXT_KEYS = ["text", "title", "caption", "holeFilter", "label", "name"];
+export function renameInLayoutPages(pages, from, to) {
+  let changed = false;
+  const out = (pages || []).map((pg) => {
+    let pe = false;
+    const elements = (pg?.elements || []).map((el) => { const n = mapObjStrings(el, LAYOUT_TEXT_KEYS, from, to); if (n !== el) pe = true; return n; });
+    if (!pe) return pg;
+    changed = true;
+    return { ...pg, elements };
+  });
+  return changed ? out : pages;
+}

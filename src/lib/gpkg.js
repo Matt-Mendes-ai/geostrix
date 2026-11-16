@@ -230,7 +230,9 @@ export async function buildGeoPackage(layers) {
       let safeName = base;
       for (let k = 1; taken.has(safeName.toLowerCase()); k++) safeName = `${base}_${k}`;
       taken.add(safeName.toLowerCase());
-      return { safeName, origName: col, sqlType: numeric ? "REAL" : "TEXT" };
+      // TASKS.csv #3719 (a) — a column of whole numbers (a year, a hole number) is INTEGER: 'year' read 2023.0 in QGIS where the shapefile holds 2023
+      const whole = numeric && layer.features.some((f) => !isNull(f.attributes[col])) && layer.features.every((f) => { const v = f.attributes[col]; return isNull(v) || Number.isSafeInteger(v); });
+      return { safeName, origName: col, sqlType: whole ? "INTEGER" : numeric ? "REAL" : "TEXT" };
     });
     const multiLine = layer.geomType === "polyline" && layer.features.some((f) => f.parts?.filter((q) => q.length >= 2).length > 1); // #1025
     const geomTypeName = { point: "POINT", polyline: multiLine ? "MULTILINESTRING" : "LINESTRING", polygon: "MULTIPOLYGON" }[layer.geomType];
@@ -246,7 +248,7 @@ export async function buildGeoPackage(layers) {
       const wkb = layer.geomType === "polyline" ? (multiLine ? wkbMultiLineStringZ(f.parts?.length ? f.parts.filter((q) => q.length >= 2) : [f.geometry]) : wkbLineStringZ(f.geometry)) : layer.geomType === "polygon" ? wkbMultiPolygonZ(polygonsFromRings(f.parts?.length ? f.parts : [f.geometry])) : wkbPointZ(...f.geometry[0]);
       const blob = gpbBlob(wkb, srsId);
       (layer.geomType !== "point" && f.parts?.length ? f.parts.flat() : f.geometry).forEach(([x, y]) => { if (x < xmin) xmin = x; if (x > xmax) xmax = x; if (y < ymin) ymin = y; if (y > ymax) ymax = y; });
-      const values = [blob, ...colDefs.map((c) => { const v = f.attributes[c.origName]; return isNull(v) ? null : (c.sqlType === "REAL" ? Number(v) : String(v)); })];
+      const values = [blob, ...colDefs.map((c) => { const v = f.attributes[c.origName]; return isNull(v) ? null : (c.sqlType !== "TEXT" ? Number(v) : String(v)); })];
       stmt.run(values);
     });
     stmt.free();

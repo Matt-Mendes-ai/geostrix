@@ -724,9 +724,10 @@ function WorkspaceTabBar({ tabs, activeTabId, activeDirty, activeName, onSwitch,
 }
 
 function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, worldCursor = true }) {
-  const { project, collars, desurveyMethod, setDesurveyMethod } = useStore();
+  const { project, collars, desurveyMethod, setDesurveyMethod, activeTabId } = useStore();
   // TASKS.csv #3619 (Fireweed rehearsal) — autosave worked and survived a kill, but nothing on screen said it ran: the time of the last one beside the project name (store.jsx announces it)
   const [autosavedAt, setAutosavedAt] = useState(null);
+  useEffect(() => { setAutosavedAt(null); }, [activeTabId]); // #3719 (b) — the time belongs to the tab it was written for: a new empty tab showed the other one's
   useEffect(() => { const h = (e) => setAutosavedAt(e.detail && "at" in e.detail ? e.detail.at : Date.now()); window.addEventListener("geostrix:autosaved", h); return () => window.removeEventListener("geostrix:autosaved", h); }, []);
   // TASKS.csv #226/#214 — cursor and taskProgress both live in their own tiny contexts now (see
   // store.jsx's own comments on CursorProvider/TaskProgressProvider), not the big shared store,

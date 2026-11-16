@@ -147,7 +147,8 @@ export default function DrillPlanElement({ el, collars, gridCaption = "", assays
   // spacing on the sheet (at least 0.75 px), its outline only when they are 6 px apart or more, and a no-value ring left unfilled when dense
   const dense = useMemo(() => {
     const gap = collarSpacing(d.holes.filter((hh) => hh.inside).map((hh) => ({ x: hh.ax, y: hh.ay })));
-    return { halo: !(gap < 6), cap: gap > 0 ? Math.max(0.75, 0.4 * gap) : Infinity };
+    // #3599 (reopened round 3: 'collar symbols are 0.7 mm dots') — a symbol keeps a printable 0.5 mm radius (1 mm across) unless the holes are under 1.5 px apart (#3017's blotches at 1:100,000)
+    return { halo: !(gap < 6), cap: gap > 0 ? Math.max(0.75, 0.4 * gap, gap >= 1.5 ? 0.5 * MM : 0) : Infinity };
   }, [d]);
   const rOf = (s) => Math.min(s.rMm * MM, dense.cap);
   return (
@@ -194,6 +195,7 @@ export default function DrillPlanElement({ el, collars, gridCaption = "", assays
           {keyBox.lines.map((t, i) => <text key={`kt${i}`} x="8" y={8 + i * keyBox.row + keyBox.fontPx - 1} fontSize={i >= keyBox.bold ? keyBox.fontPx - 1 : keyBox.fontPx} fontWeight={i >= keyBox.bold ? 400 : 600} fill={i >= keyBox.bold ? "#55606e" : INK} fontFamily={FONT}>{t}</text>) /* #3376 — the title's wrapped lines bold */}
           {colouring.key.map((k, i) => (
             <g key={`k${i}`} transform={`translate(8,${8 + (keyBox.lines.length + i) * keyBox.row})`}>
+              {k.trace && <line x1="-2" y1={keyBox.fontPx / 2 - 1} x2="10" y2={keyBox.fontPx / 2 - 1} stroke={k.trace === "dashed" ? "#8a8f98" : "#5f6670"} strokeWidth={line} strokeLinecap="round" strokeDasharray={k.trace === "dashed" ? `${3 * line} ${2 * line}` : undefined} />}{/* #3599 (reopened round 3) — the grey trace each of the two no-value classes is drawn with, in the key beside its ring */}
               {k.note ? null /* #3026 — the '+ n more' line */ : k.cross ? <g><circle cx="4" cy={keyBox.fontPx / 2 - 1} r={k.rMm * MM} fill="#ffffff" stroke={k.colour} strokeWidth={0.9} /><path d={crossPath(4, keyBox.fontPx / 2 - 1, k.rMm * MM)} stroke={k.colour} strokeWidth={0.8} fill="none" /></g> /* #3375 */ : k.hollow ? <circle cx="4" cy={keyBox.fontPx / 2 - 1} r={k.rMm * MM} fill="#ffffff" stroke={k.colour} strokeWidth={0.9} /> : <circle cx="4" cy={keyBox.fontPx / 2 - 1} r={k.rMm * MM} fill={k.colour} />}
               <text x="14" y={keyBox.fontPx - 1} fontSize={keyBox.fontPx} fill={INK} fontFamily={FONT}>{k.label}</text>
             </g>
