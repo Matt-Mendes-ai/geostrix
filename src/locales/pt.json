@@ -13797,5 +13797,6 @@
   "Best intercepts (m @ grade)": "Melhores interseções (m @ teor)",
   "{sym} cut-off (P90)": "Corte de {sym} (P90)",
   "{sym} cut-off": "Teor de corte de {sym}",
-  "Grade bars on a log scale: {list}": "Barras de teor em escala logarítmica: {list}"
+  "Grade bars on a log scale: {list}": "Barras de teor em escala logarítmica: {list}",
+  "\"{name}\" has {n} readings, and every reading is a point in the 3D view: choose how many to keep.": "\"{name}\" tem {n} leituras e cada leitura é um ponto na vista 3D: escolha quantas manter."
 }

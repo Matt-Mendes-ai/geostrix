@@ -13797,5 +13797,6 @@
   "Best intercepts (m @ grade)": "Meilleures intersections (m @ teneur)",
   "{sym} cut-off (P90)": "Coupure {sym} (P90)",
   "{sym} cut-off": "Teneur de coupure {sym}",
-  "Grade bars on a log scale: {list}": "Barres de teneur en échelle logarithmique : {list}"
+  "Grade bars on a log scale: {list}": "Barres de teneur en échelle logarithmique : {list}",
+  "\"{name}\" has {n} readings, and every reading is a point in the 3D view: choose how many to keep.": "« {name} » compte {n} lectures et chaque lecture est un point dans la vue 3D : choisissez combien en garder."
 }

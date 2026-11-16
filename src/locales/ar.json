@@ -13797,5 +13797,6 @@
   "Best intercepts (m @ grade)": "أفضل التقاطعات (م @ المحتوى)",
   "{sym} cut-off (P90)": "حد قطع {sym} (P90)",
   "{sym} cut-off": "حد قطع {sym}",
-  "Grade bars on a log scale: {list}": "أشرطة المحتوى بمقياس لوغاريتمي: {list}"
+  "Grade bars on a log scale: {list}": "أشرطة المحتوى بمقياس لوغاريتمي: {list}",
+  "\"{name}\" has {n} readings, and every reading is a point in the 3D view: choose how many to keep.": "يحتوي \"{name}\" على {n} قراءة وكل قراءة نقطة في العرض ثلاثي الأبعاد: اختر عدد ما تحتفظ به."
 }

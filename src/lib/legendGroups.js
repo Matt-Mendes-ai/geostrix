@@ -111,7 +111,7 @@ export function assayLegendGroups({ assays, assayElements, assayVisible, assayDi
   });
   // TASKS.csv #3588 (2) (Fireweed rehearsal) — a blank interval and an unsampled hole are a bare grey trace and nothing said so. Its own group (one swatch), after the
   // elements' and never one of their classes, so the class logic (#1534 / #3306: grade groups read low to high and are cut to their ends) is untouched.
-  if (withNote && groups.some((g) => g.grade)) groups.push({ key: "assay_unsampled", label: tr("Not sampled"), items: [[tr("bare trace: no sample here"), "#9aa0a6"]], alwaysHead: true });
+  if (withNote && groups.some((g) => g.grade)) groups.push({ key: "assay_unsampled", translated: true /* #3725 */, label: tr("Not sampled"), items: [[tr("bare trace: no sample here"), "#9aa0a6"]], alwaysHead: true });
   return groups;
 }
 
@@ -206,7 +206,7 @@ export function mapLayerLegendGroups(mapLayers) {
 // colour it is drawn in (hexOf(id): the mesh's material colour, which the style editor changes) at the opacity they are drawn at
 export function importedSurfaceLegendGroups(surfaces, hexOf = null) {
   const items = (surfaces || []).filter((s) => s?.type === "imported" && s.visible !== false).map((s) => [String(s.name || "surface").replace(/ \(imported\)$/, ""), (hexOf && hexOf(s.id)) || "#8fa3b8", { kind: "fill", opacity: 0.45 }]);
-  return items.length ? [{ key: "imported_surfaces", label: tr("Imported surfaces"), items }] : [];
+  return items.length ? [{ key: "imported_surfaces", translated: true /* #3725 */, label: tr("Imported surfaces"), items }] : [];
 }
 export function boundaryLegendGroups(boundaries) {
   const items = (boundaries || []).filter((b) => b.visible !== false).map((b) => [b.name || "boundary", b.color || "#e2a63c", { kind: "line" }]);
@@ -392,7 +392,7 @@ export function allocateLegendRows(groups, max) {
     return g.items.slice(0, n);
   };
   const multi = gs.filter((_, i) => quota[i] > 0).length > 1, rows = [];
-  gs.forEach((g, i) => pick(g, quota[i]).forEach(([label, color, opt], k) => rows.push({ label, color, kind: opt?.kind, opacity: opt?.opacity, svg: opt?.svg /* #3066 */, value: opt?.value /* #3332 */, folded: opt?.folded /* #3398 */, gkey: g.key, group: g.label, head: (multi || g.alwaysHead) && k === 0,
+  gs.forEach((g, i) => pick(g, quota[i]).forEach(([label, color, opt], k) => rows.push({ label, color, kind: opt?.kind, opacity: opt?.opacity, svg: opt?.svg /* #3066 */, value: opt?.value /* #3332 */, folded: opt?.folded /* #3398 */, gkey: g.key, group: g.label, ...(g.translated ? { gtr: true } : {}) /* #3725 — the label is already in the interface language */, head: (multi || g.alwaysHead) && k === 0,
     ...(k === 0 && g.grade && quota[i] < g.items.length ? { classesShown: [quota[i], g.items.length] } : {}) }))); // #2039 — a cut grade group says so
   // TASKS.csv #3775 (8) — the rows left out, by name: '+ 7 more not shown' dropped the LMP code and the single-hole zones without saying which
   const omitted = gs.flatMap((g, i) => { const kept = new Set(pick(g, quota[i])); return g.items.filter((it) => !kept.has(it)).map((it) => String(it[0])); });

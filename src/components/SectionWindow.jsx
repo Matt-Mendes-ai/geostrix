@@ -658,6 +658,12 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
   const floatLabels = [];
   // TASKS.csv #3552 — a float label's width in the section's own font at its own size (the 0.58 em estimate is short for capitals and digits); the estimate with no canvas
   const floatMeasures = new Map(), floatWidth = (text, size) => { let f = floatMeasures.get(size); if (f === undefined) { f = measureLabel(size, textFont); floatMeasures.set(size, f); } return f ? f(text) : labelWidth(text, size); };
+  // TASKS.csv #3872 (Scottie Layout) — a label's halo is a white box behind it, not a stroke on the text: the stroke printed as a second text run, so a PDF held every
+  // string of the section twice (#2738 did the same for the drill plan). Only for the labels that lie over the drawing; the titles and axes sit on the white margin.
+  const haloBox = (text, x, y, size, anchor = "start", key = undefined, w0 = null) => {
+    const w = Math.max(4, (w0 ?? floatWidth(String(text), size)) - 6), x0 = anchor === "end" ? x - w : anchor === "middle" ? x - w / 2 : x;
+    return <rect key={key} x={x0 - 1.5} y={y - size * 0.92} width={w + 3} height={size * 1.2} fill="#ffffff" fillOpacity="0.85" />;
+  };
   let holeLabelBoxes = [];
   const dragRef = useRef(null); // #519 — the vertex being dragged (before the early return: a hook)
   const labelDragRef = useRef(null); // #823 — the label being dragged: { key, ax, ay, grabDx, grabDy }
@@ -845,7 +851,7 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
   return (
     <svg ref={svgRef} fontFamily={textFont} viewBox={`0 ${-topExtra} ${W} ${totalH + topExtra}`} /* topExtra: #2142 */ width="100%" style={{ background: "#ffffff", borderRadius: 8, cursor: drawing ? "crosshair" : "default" }} onClick={handleClick} onMouseMove={handleMove} onMouseUp={handleUp} onMouseLeave={handleUp}>
       {/* TASKS.csv #1129 — "texts on the cross section are getting written on top or behind features": every label has a white halo, so it reads over ribbons, structures and contacts */}
-      <style>{`text { paint-order: stroke; stroke: #ffffff; stroke-width: ${(2.6 * textScale).toFixed(1)}px; stroke-linejoin: round; }`}</style>
+      {/* TASKS.csv #3872 — no stroked halo on the text (it printed each string twice in a PDF): the labels over the drawing sit on a white box (haloBox) */}
       <defs>
         <clipPath id={plotClipId}><rect x={PAD} y={PAD} width={W - 2 * PAD} height={H - 2 * PAD} /></clipPath>
       </defs>
@@ -919,7 +925,7 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
           if (!(want > 0)) return null;
           const p10 = 10 ** Math.floor(Math.log10(want)), m = [5, 2, 1].map((k) => k * p10).find((v) => v <= want) || p10, len = m * hScale, h = Math.max(3, fs(3));
           return (<g pointerEvents="none"><rect x={x0} y={y - h - 1} width={len / 2} height={h} fill="#1a2028" stroke="#1a2028" strokeWidth="0.6" /><rect x={x0 + len / 2} y={y - h - 1} width={len / 2} height={h} fill="#ffffff" stroke="#1a2028" strokeWidth="0.6" />
-            <text x={x0 + len + fs(4)} y={y} fill="#55606e" fontSize={fs(10)}>{`${m.toLocaleString()} m`}</text></g>);
+            {haloBox(`${m.toLocaleString()} m`, x0 + len + fs(4), y, fs(10))}<text x={x0 + len + fs(4)} y={y} fill="#55606e" fontSize={fs(10)}>{`${m.toLocaleString()} m`}</text></g>);
         })();
         return (<><text x={PAD} y={y} fill="#55606e" fontSize={fs(10)} textAnchor="start">{left}</text>
           <text x={W - PAD} y={stack ? y + fs(12) : y} fill="#55606e" fontSize={fs(10)} textAnchor="end">{right}</text>{bar}</>);
@@ -949,7 +955,7 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
             points={elevationProfile.map((p) => `${sx(p.d)},${sz(p.z)}`).join(" ")}
             fill="none" stroke="#a9873f" strokeWidth="1.6"
           />
-          <text x={W - PAD - 4} y={sz(elevationProfile[elevationProfile.length - 1].z) - 6} fill="#8a6a1f" fontSize={fs(9.5)} textAnchor="end">{tr("Ground surface (SRTM)")}</text>
+          {haloBox(tr("Ground surface (SRTM)"), W - PAD - 4, sz(elevationProfile[elevationProfile.length - 1].z) - 6, fs(9.5), "end")}<text x={W - PAD - 4} y={sz(elevationProfile[elevationProfile.length - 1].z) - 6} fill="#8a6a1f" fontSize={fs(9.5)} textAnchor="end">{tr("Ground surface (SRTM)")}</text>
         </g>
       )}
 
@@ -1098,7 +1104,7 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
       {(data.ghostStrings || []).map((g) => g.strings.filter((st) => st.points.length > 1).map((st, i) => (
         <g key={`${g.sectionId}_${i}`} opacity="0.4">
           <polyline points={st.points.map((p) => `${sx(p.l)},${sz(p.z)}`).join(" ")} fill="none" stroke={st.color || colors.textMuted} strokeWidth="1.6" strokeDasharray="2 3" />
-          <text x={sx(st.points[st.points.length - 1].l) + 4} y={sz(st.points[st.points.length - 1].z)} fill={st.color || colors.textMuted} fontSize={fs(9)}>{`${st.unit} — ${g.sectionName} (${g.offset > 0 ? "+" : ""}${Math.round(g.offset)} m)`}</text>
+          {haloBox(`${st.unit} — ${g.sectionName} (${g.offset > 0 ? "+" : ""}${Math.round(g.offset)} m)`, sx(st.points[st.points.length - 1].l) + 4, sz(st.points[st.points.length - 1].z), fs(9))}<text x={sx(st.points[st.points.length - 1].l) + 4} y={sz(st.points[st.points.length - 1].z)} fill={st.color || colors.textMuted} fontSize={fs(9)}>{`${st.unit} — ${g.sectionName} (${g.offset > 0 ? "+" : ""}${Math.round(g.offset)} m)`}</text>
           {onCopyGhost && <text data-ui-only="1" role="button" tabIndex={0} x={sx(st.points[st.points.length - 1].l) + 4} y={sz(st.points[st.points.length - 1].z) + fs(11)} fill="#1a2028" fontSize={fs(9)} fontWeight="600" textDecoration="underline" style={{ cursor: "pointer" }}
             onClick={(e) => { e.stopPropagation(); onCopyGhost(st); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onCopyGhost(st); } }}>
             {tr("Copy here")}<title>{tr("Copy this string onto this section (same name, kind and vertex order) and edit its vertices")}</title></text>}{/* #1059 */}
@@ -1126,7 +1132,7 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
               ? <rect key={i} x={sx(p.l) - r} y={sz(p.z) - r} width={2 * r} height={2 * r} {...common} {...handlers}><title>{tip}</title></rect>
               : <circle key={i} cx={sx(p.l)} cy={sz(p.z)} r={r} {...common} {...handlers}><title>{tip}</title></circle>;
           })}
-          <text x={sx(c.points[0].l)} y={sz(c.points[0].z) - 8} fill={c.color} fontSize={fs(10)} fontWeight="600">{c.unit}</text>
+          {haloBox(c.unit, sx(c.points[0].l), sz(c.points[0].z) - 8, fs(10))}<text x={sx(c.points[0].l)} y={sz(c.points[0].z) - 8} fill={c.color} fontSize={fs(10)} fontWeight="600">{c.unit}</text>
         </g>
       ))}
       {/* TASKS.csv #392 — downhole depth ticks (every 50 m, labelled every 100 m) and the end-of-hole depth. #1129: drawn after the structures and contacts, so they are not hidden under them */}
@@ -1255,7 +1261,7 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
                     labelDragRef.current = { key: b.key, ax: b.ax, ay: b.ay, grabDx: local.x - b.x, grabDy: local.y - b.y };
                   }}>
                   {lead && <><line x1={b.ax} y1={b.ay} x2={lx} y2={ly} stroke="#7a8494" strokeWidth="0.7" /><circle cx={b.ax} cy={b.ay} r="1.6" fill="#7a8494" /></>}
-                  <rect x={b.x - b.w / 2} y={b.y - b.h + 1} width={b.w} height={b.h + 1} fill="#ffffff" fillOpacity={lead || b.moved ? 0.85 : 0} />
+                  <rect x={b.x - b.w / 2} y={b.y - b.h + 1} width={b.w} height={b.h + 1} fill="#ffffff" fillOpacity="0.85" />{/* TASKS.csv #3872 — always: the stroked halo it replaces ran under every collar name */}
                   <text x={b.x} y={b.y - 1} fill={color[b.key]} fontSize={fs(9)} textAnchor="middle">{b.text}<title>{tr("Drag to move this label")}</title></text>
                 </g>
               );
@@ -1265,7 +1271,7 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
       })()}
       {/* TASKS.csv #1134 — depth / EOH / offset / planned-hole labels: one collision pass, drawn last (over the ribbons) */}
       <g pointerEvents="none">
-        {(() => { const rl = resolveLabels(floatLabels, [...holeLabelBoxes, ...axisLabelBoxes], { bounds: [PAD, W - PAD] /* #3552 — the frame's width, not the page's: an EOH / offset tag near a hole's end started left of the frame */, yBounds: [2, totalH - 2], widthOf: floatWidth, strictBounds: true }); leftOutRef.current += floatLabels.filter((l) => l.optional).length - rl.filter((l) => l.optional).length; return rl; })().map((l) => <React.Fragment key={l.key}>{l.leaderFrom && <line x1={l.leaderFrom.x} y1={l.leaderFrom.y} x2={l.x} y2={l.y - l.size / 2} stroke="#7a8494" strokeWidth="0.5" /> /* #1144 — moved off its spot */}<text x={l.x} y={l.y} fill={l.fill} fontSize={l.size} fontWeight={l.weight} textAnchor={l.anchor}>{l.text}</text></React.Fragment>)}
+        {(() => { const rl = resolveLabels(floatLabels, [...holeLabelBoxes, ...axisLabelBoxes], { bounds: [PAD, W - PAD] /* #3552 — the frame's width, not the page's: an EOH / offset tag near a hole's end started left of the frame */, yBounds: [2, totalH - 2], widthOf: floatWidth, strictBounds: true }); leftOutRef.current += floatLabels.filter((l) => l.optional).length - rl.filter((l) => l.optional).length; return rl; })().map((l) => <React.Fragment key={l.key}>{l.leaderFrom && <line x1={l.leaderFrom.x} y1={l.leaderFrom.y} x2={l.x} y2={l.y - l.size / 2} stroke="#7a8494" strokeWidth="0.5" /> /* #1144 — moved off its spot */}{haloBox(l.text, l.x, l.y, l.size, l.anchor, undefined, floatWidth(l.text, l.size))}<text x={l.x} y={l.y} fill={l.fill} fontSize={l.size} fontWeight={l.weight} textAnchor={l.anchor}>{l.text}</text></React.Fragment>)}
       </g>
       <text x={W / 2} y={H - fs(14)} fill="#55606e" fontSize={fs(11)} textAnchor="middle">{tr("Distance along section (m)")}</text>
       <text x={fs(16)} y={H / 2} fill="#55606e" fontSize={fs(11)} textAnchor="middle" transform={`rotate(-90 ${fs(16)} ${H / 2})`}>{rlOff ? tr("RL (m)") : tr("Elevation (m)")}</text>
