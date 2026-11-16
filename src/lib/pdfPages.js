@@ -13,13 +13,14 @@ function loadLib() {
 
 const assetBase = () => new URL(`${import.meta.env.BASE_URL}pdfjs/`, window.location.href).href;
 
-export async function openPdf(bytes) {
+// TASKS.csv #3708 — `options` go to PDF.js's getDocument (the PNG export passes { disableFontFace: true }: its glyphs are drawn from the font's outlines, not by the browser's text engine, which clipped parts of digits in a table at 150 dpi)
+export async function openPdf(bytes, options = {}) {
   const lib = await loadLib();
   const base = assetBase();
   const doc = await lib.getDocument({
     data: bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes),
     wasmUrl: `${base}wasm/`, standardFontDataUrl: `${base}standard_fonts/`, iccUrl: `${base}iccs/`,
-    enableXfa: false, stopAtErrors: false,
+    enableXfa: false, stopAtErrors: false, ...options,
   }).promise;
   return doc;
 }

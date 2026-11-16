@@ -31,6 +31,6 @@ test("five assay tracks, Fe on a linear axis with its ticks, and a Rec.% track o
 
 test("wiring: the Atlas offers five assay track selects", () => {
   const m = readFileSync(new URL("../src/components/GenerateAtlasModal.jsx", import.meta.url), "utf8");
-  assert.match(m, /useState\(\["", "", "", "", ""\]\)/);
+  assert.match(m, /return \[shown\[0\] \|\| have\[0\] \|\| "", "", "", "", ""\];/); // the first track starts on the 3D View's element (#3710), the other four on none
   assert.match(m, /\{\[0, 1, 2, 3, 4\]\.map\(\(k\) => \(\s*<select key=\{k\} value=\{assaySymbols\[k\]\}/);
 });

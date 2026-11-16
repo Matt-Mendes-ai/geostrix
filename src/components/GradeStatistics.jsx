@@ -45,7 +45,7 @@ import { DISPLAY_UNITS, isPlainUnit, displayFactor, toDisplay, fromDisplay } fro
 import { overlapMeans, aboveCutoffRows, parseCutoffs, defaultCutoffs, gradeStatsCsvRows } from "../lib/cutoffTable.js"; // TASKS.csv #2912; csv: #3069
 import { interceptCutoffFor } from "../lib/interceptCutoff.js"; // TASKS.csv #3069
 import { drillThresholdOffers, sortedThresholdOffers } from "../lib/thresholds.js"; // TASKS.csv #3069 — the saved drill thresholds, offered as in Best intercepts; sorted: #3160
-import { fileCensoring } from "../lib/qaqc.js"; // TASKS.csv #2913 — Thresholds' censoring rule; #3083: found on the file's results, as Thresholds does
+import { fileCensoring, fileCeiling, markCeiling } from "../lib/qaqc.js"; // fileCeiling, markCeiling: #3729; // TASKS.csv #2913 — Thresholds' censoring rule; #3083: found on the file's results, as Thresholds does
 
 // Sample statistics (n-1 denominator for variance/stdev, the standard convention for a sample rather
 // than a full population — grade data is always a sample of the deposit, never the whole thing).
@@ -210,6 +210,20 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   const isLt = (r) => r.lt || (ltFloor != null && Math.abs(r.value - toShown(ltFloor.floor)) <= toShown(ltFloor.floor) * 1e-9); // toShown: #3236 — the rows are in the shown unit
   // TASKS.csv #3243 (split from #3222) — no result flagged '<': the count is a guess from the floor, and the column says so
   const floorOnly = useMemo(() => ltFloor != null && !rows.some((r) => r.lt), [ltFloor, rows]);
+  // TASKS.csv #3729 — the twin of the floor at the top: a round maximum held by many results (Fe 15 % x 164) is an upper reporting limit whose
+  // '>' was lost; said beside the statistics, and the results can be marked '>' (in the store: every lab row of the element on that value)
+  const store = useStore();
+  const ceilUnit = source === "surface" ? surfaceElementUnits[symbol] || "ppm" : elementUnits[symbol] || "ppm";
+  const ceil = useMemo(() => (logSrc ? null : source === "surface" ? fileCeiling(surfaceSamples, symbol, ceilUnit, surfaceElementUnits) : fileCeiling(statsAssays, symbol, ceilUnit, elementUnits)), [logSrc, source, surfaceSamples, statsAssays, symbol, ceilUnit, surfaceElementUnits, elementUnits]);
+  const [ceilDone, setCeilDone] = useState(null);
+  const markOverLimit = () => {
+    if (!ceil) return;
+    const surface = source === "surface";
+    const r = markCeiling(surface ? store.surfaceSamples : store.assays, symbol, ceil.ceiling, ceilUnit, surface ? surfaceElementUnits : elementUnits);
+    if (!r.n) return;
+    if (surface) store.setSurfaceSamples(r.rows); else store.setAssays(r.rows);
+    setCeilDone({ symbol: symLabel, n: r.n, max: toShown(ceil.ceiling) });
+  };
   // TASKS.csv #2508 (review #2486) — 'Hole + lithology' on 2,248 holes: 5,938 groups, a table row and a box plot each, froze the window 1.6-3.8 s.
   // The table, the box plots and the probability plot show the first SHOWN_MAX groups (the largest, or the first holes by id); the CSV has all
   // TASKS.csv #2910 — one values array and one weights array for the whole panel: the statistics, the percentiles, the break and the points
@@ -469,6 +483,11 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                 </table>
               </div>
               {(() => { const over = groups.filter((g) => g.stats.n && g.ltN / g.stats.n > 0.5); if (!over.length) return null; const g = over[0]; return <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("{pct}% of {symbol} in \"{pop}\" is below detection: its statistics are mostly about the detection limit.", { pct: Math.round((100 * g.ltN) / g.stats.n), symbol, pop: domainLabel(g.key) })}{over.length > 1 ? " " + tr("{n} more group(s) are over half below detection.", { n: over.length - 1 }) : ""}{" "}{tr("Its percentiles and caps sit on the limit, not on measured grades.")}</div>; })()}{/* #2505 */}
+              {ceil && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4, display: "flex", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>{/* #3729 */}
+                <span>{tr("{n} results of {symbol} sit on the maximum, {max} {unit}, a round number: probably an upper reporting limit whose '>' was lost. Their true grade is higher, so the mean, the upper percentiles and the caps here are too low.", { n: fmtNum(ceil.n), symbol: symLabel, max: fmtNum(toShown(ceil.ceiling)), unit: dispLabel })}</span>
+                <button type="button" onClick={markOverLimit} style={{ padding: "2px 8px", borderRadius: 4, fontSize: "var(--font-size-sm)", cursor: "pointer", border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)" }}>{tr("Mark them as over the limit ('>')")}</button>
+              </div>}
+              {ceilDone && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.4 }}>{tr("{n} result(s) of {symbol} at {max} marked as over the limit ('>'): kept at the limit, shown as '>' in the tables and exports, counted as over range in Data QC. Undo puts them back.", { n: fmtNum(ceilDone.n), symbol: ceilDone.symbol, max: `${fmtNum(ceilDone.max)} ${dispLabel}` })}</div>}
 
               {/* TASKS.csv #2912 — above each cut-off: what a bulk commodity is read by */}
               <div>

@@ -29,6 +29,7 @@ import { elementColumnStats } from "../lib/assayColumnScan.js"; // TASKS.csv #21
 const ELEMENT_SCAN_CHUNKED_ROWS = 50000; // #2164 — below this the element columns are counted at once
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
 import { assayImportFindings } from "../lib/assayImportFindings.js"; // TASKS.csv #2498
+import { assayTextColumns, assayUsedColumns, chosenExtraColumns, assayAttrs } from "../lib/assayExtraFields.js"; // TASKS.csv #3728
 import { repeatColumns, columnDetectionLimit, isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, columnPositiveMax, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, oxideUnit, importStoreUnit, oxideBasisUnit, oxideColumnUnit, surfaceAttrColumns, surfaceAttrs, surfaceDateReaders, surfaceAttrsDated /* #3200 */, mergeSurfaceSamples, otherMediumTwins } from "../lib/geochem.js"; // otherMediumTwins: #2085
 import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile, loggedCodeAt, isSedimentaryCode, noVolcanicCodes /* #2911 */, mergeClassRuns, FITTED_PROTOLITH, fitLeastAlteredBox, nameAiUpTrend , censoredOperand, censoredLeftOut, guessProtolith } from "../lib/geochemDiagrams.js"; // fitted: #2028; nameAiUpTrend: #2145
 import { qcRecordFromFileRow, emptySurfaceQc, looksLikeQcTypeColumn, mergeQcRecords } from "../lib/surfaceQaqc.js"; // TASKS.csv #842; looksLikeQcTypeColumn, mergeQcRecords: #1794
@@ -691,7 +692,10 @@ export default function GeochemModule() {
     // mark standards / blanks / duplicates there, under the real hole_id). Auto-detected by header name.
     // #400 — the original a duplicate was split from, and which CRM a standard is. #1184: as mapped in the dialog
     const qcCols = modal.qc || qcColumns(modal.headers);
-    const tagQC = (out, r) => Object.assign(out, qcFields(r, qcCols));
+    // TASKS.csv #3728 — the text columns kept with each sample (Zone, Target), as the dialog ticked them; the rest named in the notice
+    const extraOffer = assayTextColumns(modal.headers || Object.keys(allRows[0] || {}), allRows, assayUsedColumns(mapping, qcCols, elements));
+    const extraCols = chosenExtraColumns(modal, extraOffer), extraLeft = extraOffer.map((c) => c.col).filter((c) => !extraCols.includes(c));
+    const tagQC = (out, r) => Object.assign(out, qcFields(r, qcCols), assayAttrs(r, extraCols));
     let rows = [];
     // TASKS.csv #508 — Number("") / Number(null) is 0, so a blank from or to used to become a phantom 0 m
     // interval (a real 2-3 m @ 10 g/t read as 5.5 g/t once averaged with it). Such rows are skipped and counted.
@@ -922,7 +926,12 @@ export default function GeochemModule() {
           // others were stored at half a limit, so only they get the limit
           ...((below) => (below.length ? [tr("In all, {n} cell(s) below detection, stored at half the limit and flagged '<': {list}.", { n: below.reduce((t, b) => t + b.n, 0).toLocaleString(), list: list(below, 8, (b) => (b.limit != null ? `${b.symbol} ${b.n.toLocaleString()} (<${b.limit} ${b.unit})` : `${b.symbol} ${b.n.toLocaleString()}`)) })] : []))(f.below.filter((b) => !flagged.has(b.symbol))),
           f.over100.length ? tr("Values over 100 % (a total or a unit to check in the file): {list}.", { list: list(f.over100, 6, (o) => tr("{symbol} {n} (up to {max} %, {where})", { symbol: o.symbol, n: o.n.toLocaleString(), max: o.max, where: o.where })) }) : null,
+          // TASKS.csv #3729 — a round maximum held by many results: an upper reporting limit whose '>' was lost
+          f.ceilings.length ? tr("Results on a round maximum, probably an upper reporting limit whose '>' was lost (their true grade is higher): {list}. Grade statistics can mark them as over the limit ('>').", { list: list(f.ceilings, 8, (c) => tr("{symbol} {n} at {max} {unit}", { symbol: c.symbol, n: c.n.toLocaleString(), max: c.ceiling.toLocaleString(), unit: c.unit })) }) : null,
           f.notImported.length ? tr("Not imported (numeric, not an element): {cols}.", { cols: f.notImported.join(", ") }) : null,
+          // TASKS.csv #3728 — the text columns: kept with each sample, or named as left out
+          extraCols.length ? tr("Kept with each sample: {cols} (Grade statistics and Compositing offer them as domains).", { cols: extraCols.join(", ") }) : null,
+          extraLeft.length ? tr("Not imported (text): {cols}.", { cols: extraLeft.join(", ") }) : null,
           f.nonDrill.length ? tr("Sample types that are not drill intervals, taken in as rows of their hole: {list}.", { list: f.nonDrill.map(([t, n]) => `${t} ${n.toLocaleString()}`).join(", ") }) : null,
         ];
       })(),

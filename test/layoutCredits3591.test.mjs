@@ -39,8 +39,8 @@ test("the starter page, the sheets the app makes and the title block are wired",
   assert.match(m, /addLayoutPages: addLayoutPagesRaw/);
   assert.match(m, /const addLayoutPages = \(pgs\) => addLayoutPagesRaw\(withCreditPages\(pgs, creditsRef\.current \|\| false\)\);/);
   assert.match(m, /creditsRef\.current = credits; \/\/ #3591/);
-  assert.match(m, /newTitleBlock\(id, tbSpot\.x, tbSpot\.y, \{ credit: !!credits, creditText: credits \}\)/);
-  assert.match(m, /stockTemplateElements\(tpl, Date\.now\(\), \{ credit: !!credits, creditText: credits \}\)/);
+  assert.match(m, /newTitleBlock\(id, tbSpot\.x, tbSpot\.y, \{ credit: !!credits, creditText: credits, shared: sharedTitleRows\(/); // shared: #3714
+  assert.match(m, /stockTemplateElements\(tpl, Date\.now\(\), \{ credit: !!credits, creditText: credits(, shared: sharedTitleRows\(layoutPages\) \/\* #3714 \*\/)? \}\)/);
   assert.ok(creditsElement().id === "credits");
 });
 
