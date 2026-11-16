@@ -8,7 +8,25 @@
 // (no heading when there is one group, as legendGroupsToItems does). Rows already carrying options (a list grouped
 // before) are returned unchanged, so this is safe to apply twice.
 import { t as tr } from "./i18n.js"; // TASKS.csv #1637
-// TASKS.csv #1637 (review #1497, Lawyers) — a value over LONG_VALUE characters is a description, not a category: the Mineralization
+import { lithoMeaning, LAYER_META } from "./layers.js"; // TASKS.csv #3860
+
+// TASKS.csv #3860 (Scottie Gold review) — a section's key listed 'AND, ASDA, ASDS, DYK, OVBN, SLT' with no names, while the strip log's key on the next sheet
+// printed 'ASDA — altered sulphidized deformed andesite'. A lithology row that shows a bare code takes the project's meaning of it (the code dictionary,
+// layers.js lithoMeaning), cut to fit the key's row (LONG_VALUE: a longer row is not listed). The intervals keep their labels (patterns match on them).
+export function withLithoMeanings(payload) {
+  if (!payload?.legendItems?.length || !payload.intervals?.length) return payload;
+  const prefix = `${LAYER_META.litho.label}: `, codes = new Set(payload.intervals.filter((r) => r.layer === "litho" && r.code != null).map((r) => String(r.code)));
+  let changed = false;
+  const legendItems = payload.legendItems.map((it) => {
+    const s = String(it[0]);
+    if (!s.startsWith(prefix) || !codes.has(s.slice(prefix.length))) return it;
+    const m = lithoMeaning(s.slice(prefix.length));
+    if (!m) return it;
+    changed = true;
+    return [prefix + (m.length > LONG_VALUE ? `${m.slice(0, LONG_VALUE - 1).trimEnd()}…` : m), ...it.slice(1)];
+  });
+  return changed ? { ...payload, legendItems } : payload;
+}// TASKS.csv #1637 (review #1497, Lawyers) — a value over LONG_VALUE characters is a description, not a category: the Mineralization
 // group listed 25 free-text notes (one ~300 characters) and ran off the sheet. They are left out with a note row. ribbons (the
 // section's ribbonOrder) name each interval group's ribbon in its heading, so the parallel ribbons can be told apart in print.
 export const LONG_VALUE = 40;

@@ -13784,5 +13784,18 @@
   "Not set yet. Choose the CRS your coordinates (collars, samples, maps) are in.": "لم يُحدَّد بعد. اختر نظام الإحداثيات الذي تقع فيه إحداثياتك (الفوهات والعينات والخرائط).",
   "Disabled: {n} reading(s) with a 95 % cone of {a}° are too few or too scattered to call a trend (at least {min} readings and a cone of {max}° or less). Add readings, or pick the type or area with more.": "معطّل: {n} قراءة (قراءات) بمخروط ثقة 95 % قدره {a}° قليلة جدًا أو مبعثرة جدًا بحيث لا تُعد اتجاهًا (على الأقل {min} قراءات ومخروط {max}° أو أقل). أضف قراءات أو اختر النوع أو المنطقة الأكثر قراءات.",
   "Disabled: these picks show no preferred orientation (k = {k}, at the level of random planes), so their mean plane is not a trend to model. Pick one structure type or one area first.": "معطّل: لا تُظهر هذه القراءات اتجاهًا مفضّلًا (k = {k}، بمستوى المستويات العشوائية)، فمستواها المتوسط ليس اتجاهًا للنمذجة. اختر أولًا نوع بنية أو منطقة.",
-  " The fill is GLO-30 plus the difference between the two models interpolated in from the nodes GEM-15 has, so it meets GEM-15 at the edge: neighbouring nodes across that edge differ by {after} m at the median (GLO-30 alone: {before} m).": " التعبئة هي GLO-30 مضافًا إليه الفرق بين النموذجين مُستكمَلًا من العقد التي يملكها GEM-15، فتلتقي بـ GEM-15 عند الحافة: العقد المتجاورة عبر تلك الحافة تختلف بمقدار {after} م في الوسيط (GLO-30 وحده: {before} م)."
+  " The fill is GLO-30 plus the difference between the two models interpolated in from the nodes GEM-15 has, so it meets GEM-15 at the edge: neighbouring nodes across that edge differ by {after} m at the median (GLO-30 alone: {before} m).": " التعبئة هي GLO-30 مضافًا إليه الفرق بين النموذجين مُستكمَلًا من العقد التي يملكها GEM-15، فتلتقي بـ GEM-15 عند الحافة: العقد المتجاورة عبر تلك الحافة تختلف بمقدار {after} م في الوسيط (GLO-30 وحده: {before} م).",
+  "Every hole, with a leader where there is no room beside it": "كل ثقب، مع خط دليل حيث لا مكان بجانبه",
+  "Only holes with room beside the collar": "الثقوب التي بجانب فوهتها مكان فقط",
+  "Label with": "التسمية بـ",
+  "The hole id": "معرّف الثقب",
+  "The id and its best intercept (m @ grade), marked on the trace": "المعرّف وأفضل تقاطع له (م @ المحتوى)، معلَّمًا على المسار",
+  "{n} hole(s) in the frame; {p} of {l} labelled, {k} of them with a leader; {s} without a label (named on the sheet).": "{n} ثقب في الإطار؛ {p} من {l} مسمّاة، {k} منها بخط دليل؛ {s} بلا تسمية (مذكورة على اللوحة).",
+  "What the grade labels say: the highest single samples, or the best intercepts by Best intercepts' rule (the cut-off typed here, or the P90 of this section's values when blank; at most 2 m of internal dilution)": "ما تقوله تسميات المحتوى: أعلى العينات المفردة، أو أفضل التقاطعات بقاعدة أفضل التقاطعات (حد القطع المكتوب هنا، أو P90 لقيم هذا المقطع إن تُرك فارغًا؛ بتخفيف داخلي 2 م على الأكثر)",
+  "Grade labels": "تسميات المحتوى",
+  "Highest samples": "أعلى العينات",
+  "Best intercepts (m @ grade)": "أفضل التقاطعات (م @ المحتوى)",
+  "{sym} cut-off (P90)": "حد قطع {sym} (P90)",
+  "{sym} cut-off": "حد قطع {sym}",
+  "Grade bars on a log scale: {list}": "أشرطة المحتوى بمقياس لوغاريتمي: {list}"
 }

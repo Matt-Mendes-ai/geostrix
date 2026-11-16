@@ -12,7 +12,7 @@ import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js"; // TASKS.csv #1777 — listed with the page's placeholders
 import { scaleBarLabel, scaleBarMidLabel } from "../lib/scaleBarLabel.js"; // TASKS.csv #2140
 import { offSheetPages, rectSidesPast, rectsWhollyOff, whollyOffSheet, elementCaption, elementKind } from "../lib/layoutEdges.js"; // elementKind: #3028
-import { creditsElement /* #3856 */, pagesWithoutCredit, pagesWithHiddenCredit, starterLayout, refitStarterOf } from "../lib/layoutCredits.js"; // TASKS.csv #3591; pagesWithHiddenCredit: #3707
+import { creditsElement /* #3856 */, pagesWithoutCredit, pagesWithHiddenCredit, starterLayout, refitStarterOf } from "../lib/layoutCredits.js"; // TASKS.csv #3591; pagesWithHiddenCredit: #3707
 import { DEFAULT_LAYOUT_ELEMENTS } from "../lib/projectFields.js"; // TASKS.csv #3028 (5)
 import { groupOrdersFromItems, applyCodeOrder, projectCodeOrders, clearCodeOrders, pagesHoldingOrder, orderedGroupsOf } from "../lib/legendCodeOrder.js"; // TASKS.csv #3130 — a code order set once; clear*: #3199 // TASKS.csv #2482 / #2309; named elements: #2700
 import { fillPlaceholders, northName, pageConvergence, formatConvergence } from "../lib/layoutText.js";
@@ -30,7 +30,7 @@ import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — s
 import { planKeyItems } from "../lib/planKeyLegend.js"; // TASKS.csv #3419
 import { tableTextFit, collarTableCells, splitHalvesFit } from "../lib/collarTable.js"; // TASKS.csv #3374; collarTableCells / splitHalvesFit: #3411
 import { collarTableSlice, continuationTables, collarsWithSurveyAttitude, continuationPageIndex, collarTableFieldChoices, defaultCollarTableFields, splitTableRows, suspectIdsOf, elevationCell, elevationNotes } from "../lib/collarTable.js"; // elevation*: #3023 // splitTableRows: #2770; // field columns: #2717; // continuationPageIndex: #2718 // TASKS.csv #1638; collarsWithSurveyAttitude: #2133
-import { fitDrillPlan, filterHoles, filterSuggestion, allHolesSteep, STEEP_DIP, turnedFrameFit, labelBackdrop, plannedAsCollars, holesToFit, showsPlanned, planTraces } from "../lib/drillPlan.js"; // planTraces: #3367; // planned: #2259; // labelBackdrop: #2738; // TASKS.csv #1639; allHolesSteep: #2473; turnedFrameFit: #2305
+import { fitDrillPlan, filterHoles, filterSuggestion, allHolesSteep, STEEP_DIP, turnedFrameFit, labelBackdrop, plannedAsCollars, holesToFit, showsPlanned, planTraces, colourByKind /* #3858 */ } from "../lib/drillPlan.js"; // planTraces: #3367; // planned: #2259; // labelBackdrop: #2738; // TASKS.csv #1639; allHolesSteep: #2473; turnedFrameFit: #2305
 import { useHoleVisibility, holeVisibilityNow, hiddenIn, checkedOnly } from "../lib/holeVisibilityShare.js"; // TASKS.csv #3605
 import DrillPlanColourControls from "../components/DrillPlanColourControls.jsx"; // TASKS.csv #2473
 import DrillPlanElement, { drillPlanDrawing } from "../components/DrillPlanElement.jsx"; // TASKS.csv #1639
@@ -83,7 +83,7 @@ const SCALE_BAR_PX = 180; // default/initial bar length (px) for a freshly-added
 const PX_PER_MM = 96 / 25.4; // matches the ~96dpi assumption used throughout Layout (scale bar, viewport scale estimate)
 const DEFAULT_PX_PER_METER = SCALE_BAR_PX / 100; // a plain "Add scale bar" starts at 100 m / 180 px, same as before this element gained a real px-per-metre ratio
 // TASKS.csv #907 — the plot scales exploration figures are drawn at (Matt: "set a scale eg 1:5000, 1:10000")
-const SCALE_PRESETS = [500, 1000, 1500, 2000, 2500, 5000, 10000, 15000, 20000, 25000, 50000, 100000, 150000, 200000, 250000, 500000, 1000000]; // 1,500 / 15,000 / 150,000 / 200,000: #2484 (Fit's round scales) // 250k-1M: #2132 (a district fit read 'custom')
+const SCALE_PRESETS = [500, 1000, 1500, 2000, 2500, 5000, 7500, 10000, 15000, 20000, 25000, 50000, 100000, 150000, 200000, 250000, 500000, 1000000]; // 1,500 / 15,000 / 150,000 / 200,000: #2484 (Fit's round scales) // 250k-1M: #2132 (a district fit read 'custom') // 7,500: #3858 (a fan that 1:6,000 holds went from 1:5,000 to 1:10,000)
 
 // "Customize the scale bar by changing the number, but without changing the scale — if I change 200
 // to 300 the SIZE of the bar has to change." A scale element now carries pxPerMeter: how many on-page
@@ -1793,9 +1793,14 @@ export default function LayoutModule() {
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Holes containing")}<input type="text" value={sel.holeFilter || ""} placeholder={tr("all")} title={tr("Text in the hole id, or a collar field such as year=2024 (every field term must match)")} /* #2141 */ onChange={(e) => updateSelected({ holeFilter: e.target.value })} style={{ ...inp, marginTop: 4 }} /></label>
                 {(() => { const sg = sel.holeFilter ? filterSuggestion(tableCollars, sel.holeFilter) : null; return sg ? <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr("A space ends a term: did you mean {term}? (_ stands for a space in a value.)", { term: sg })}</div> : null; })()}{/* TASKS.csv #3601 */}
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Labels")}<select value={sel.labels || "all"} onChange={(e) => updateSelected({ labels: e.target.value })} style={{ ...inp, marginTop: 4 }}>
-                  <option value="all">{tr("Every hole with room for one")}</option>
+                  <option value="all">{tr("Every hole, with a leader where there is no room beside it")}</option>{/* TASKS.csv #3858 */}
+                  <option value="room">{tr("Only holes with room beside the collar")}</option>
                   <option value="none">{tr("None")}</option>
                 </select></label>
+                {sel.labels !== "none" && colourByKind(sel.colourBy).kind === "bi" && <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Label with")}<select value={sel.labelWith || "id"} onChange={(e) => updateSelected({ labelWith: e.target.value })} style={{ ...inp, marginTop: 4 }}>
+                  <option value="id">{tr("The hole id")}</option>
+                  <option value="bi">{tr("The id and its best intercept (m @ grade), marked on the trace")}</option>
+                </select></label>}{/* TASKS.csv #3858 — the rule is the colour key's (cut-off, dilution, minimum) */}
                 {sel.labels !== "none" && <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Label only holes containing")}<input type="text" value={sel.labelFilter || ""} placeholder={tr("all")} onChange={(e) => updateSelected({ labelFilter: e.target.value })} style={{ ...inp, marginTop: 4 }} /></label>}
                 {plannedHoles.length > 0 && <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title={tr("The program's planned holes, dashed in the planned colour and labelled '(planned)', as in the 3D view and on sections")}>
                   <input type="checkbox" checked={showsPlanned(sel)} onChange={(e) => updateSelected({ showPlanned: e.target.checked })} />{tr("Show the planned holes ({n} in the frame)", { n: dd.planned.length })}</label>}{/* TASKS.csv #2259 */}
@@ -1817,7 +1822,7 @@ export default function LayoutModule() {
                     </details>
                   );
                 })()}
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("{n} hole(s) in the frame; {p} of {l} labelled ({s} without a label where it would overlap another).", { n: dd.holes.length, p: dd.labels.placed.length, l: dd.labelled, s: dd.labels.skipped })} {(dd.caption ? `${dd.caption}. ` : "") + tr("Drawn from the collars and surveys, not the 3D view; the sheet says how the traces were drawn. Insert > Scale bar binds to it.") /* #3367 */}</div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{dd.labels.skipped || dd.labels.placed.some((l) => l.leader) ? tr("{n} hole(s) in the frame; {p} of {l} labelled, {k} of them with a leader; {s} without a label (named on the sheet).", { n: dd.holes.length, p: dd.labels.placed.length, l: dd.labelled, k: dd.labels.placed.filter((l) => l.leader).length, s: dd.labels.skipped }) : tr("{n} hole(s) in the frame; {p} of {l} labelled ({s} without a label where it would overlap another).", { n: dd.holes.length, p: dd.labels.placed.length, l: dd.labelled, s: dd.labels.skipped })} {(dd.caption ? `${dd.caption}. ` : "") + tr("Drawn from the collars and surveys, not the 3D view; the sheet says how the traces were drawn. Insert > Scale bar binds to it.") /* #3367 */}</div>
                 <FrameControls sel={sel} updateSelected={updateSelected} />
               </>);
             })()}

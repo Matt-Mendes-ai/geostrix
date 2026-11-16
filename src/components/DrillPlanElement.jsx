@@ -3,7 +3,7 @@
 // #2473), a key. North is up.
 import React, { useMemo } from "react";
 import { drillPlanPlanned, planTraces, traceCaption } from "../lib/drillPlan.js"; // TASKS.csv #2259; planTraces / traceCaption: #3367
-import { drillPlanGeometry, placeLabels, drillPlanGrid, drillPlanColouring, colourByKind, emptiestCorner, labelBackdrop, drillPlanShapes, symbolPath, crossPath /* #3375 */, planPoints, wrapKeyText /* #3376 */, bestInterceptGT, p90Cutoff, capPlanKey, hiddenEastings, bottomEastings /* #3412 */, applyKeyEdits /* #3415 */ } from "../lib/drillPlan.js"; // capPlanKey: #3026 // best intercept: #2685; // shapes: #2686; // labelBackdrop: #2738; // drillPlanGrid: #2301; colouring: #2473
+import { drillPlanGeometry, placeLabels, drillPlanGrid, drillPlanColouring, colourByKind, emptiestCorner, labelBackdrop, drillPlanShapes, symbolPath, crossPath /* #3375 */, planPoints, wrapKeyText /* #3376 */, bestInterceptGT, bestInterceptRows, interceptLabel, traceBetween /* #3858 */, p90Cutoff, capPlanKey, hiddenEastings, bottomEastings /* #3412 */, applyKeyEdits /* #3415 */ } from "../lib/drillPlan.js"; // capPlanKey: #3026 // best intercept: #2685; // shapes: #2686; // labelBackdrop: #2738; // drillPlanGrid: #2301; colouring: #2473
 import { resolvedSegments, gradeUnitLabel, computeBestIntercepts } from "../lib/geochem.js"; // TASKS.csv #2473; computeBestIntercepts: #2685
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #2685 — QC inserts are not intercepts
 import { CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
@@ -30,13 +30,13 @@ export function drillPlanBiRule(el, assays, key) {
 }
 function bestInterceptInput(el, assays, key, unit, units) {
   const r = drillPlanBiRule(el, assays, key);
-  if (r.cutoff == null) return { perHole: new Map(), biRule: "" };
+  if (r.cutoff == null) return { perHole: new Map(), biRows: new Map(), biRule: "" };
   const ck = `${key}|${unit}|${r.cutoff}|${r.dilution}|${r.minLength}`;
   let m = biCache.get(assays);
   if (!m) biCache.set(assays, (m = new Map()));
-  if (!m.has(ck)) m.set(ck, bestInterceptGT(computeBestIntercepts(excludeQAQC(assays), key, unit, units, { cutoff: r.cutoff, maxInternalDilution: r.dilution, minLength: r.minLength })));
+  if (!m.has(ck)) { const comps = computeBestIntercepts(excludeQAQC(assays), key, unit, units, { cutoff: r.cutoff, maxInternalDilution: r.dilution, minLength: r.minLength }); m.set(ck, { gt: bestInterceptGT(comps), rows: bestInterceptRows(comps) /* #3858 */ }); }
   const u = gradeUnitLabel(key, unit);
-  return { perHole: m.get(ck), biRule: `cut-off ${r.cutoff} ${u}${r.defaulted ? " (the P90)" : ""}, at most ${r.dilution} m internal dilution${r.minLength ? `, at least ${r.minLength} m` : ""}`, assayed: assayedHoles(resolvedSegments(assays, key, unit, units)) /* #3375 */ };
+  return { perHole: m.get(ck).gt, biRows: m.get(ck).rows, biRule: `cut-off ${r.cutoff} ${u}${r.defaulted ? " (the P90)" : ""}, at most ${r.dilution} m internal dilution${r.minLength ? `, at least ${r.minLength} m` : ""}`, assayed: assayedHoles(resolvedSegments(assays, key, unit, units)) /* #3375 */ };
 }
 // TASKS.csv #3375 — the holes with a result for the element (kept per segment list): the others were never assayed for it
 const assayedCache = new WeakMap();
@@ -61,7 +61,7 @@ export function drillPlanGradeInput(el, assays, assayElements, displayUnits = nu
   if (kind === "bi") {
     const r = bestInterceptInput(el, assays, key, unit, units);
     if (!shown) return { ...r, unit: gradeUnitLabel(key, unit) }; // #2685
-    return { ...r, perHole: new Map([...(r.perHole || new Map())].map(([id, v]) => [id, conv(v)])), biRule: shownCutoffRule(r.biRule, unit, shown, key), unit: gradeUnitLabel(key, shown) };
+    return { ...r, perHole: new Map([...(r.perHole || new Map())].map(([id, v]) => [id, conv(v)])), biRows: new Map([...(r.biRows || new Map())].map(([id, row]) => [id, { ...row, grade: conv(row.grade) }])) /* #3858 */, biRule: shownCutoffRule(r.biRule, unit, shown, key), unit: gradeUnitLabel(key, shown) };
   }
   const segs = resolvedSegments(assays, key, unit, units);
   if (!shown || !segs) return { segs, unit: gradeUnitLabel(key, unit) };
@@ -81,7 +81,14 @@ export function drillPlanDrawing(el, collars, assays = null, assayElements = nul
   const g = drillPlanGeometry(el, collars, traces);
   const planned = drillPlanPlanned(el, plannedHoles); // TASKS.csv #2259 — dashed, in the planned colour, labelled '(planned)'
   const plannedKey = planned.length ? [{ label: tr("Planned hole") }] : [];
-  const colouringRaw = drillPlanColouring(el, g.holes, collars, { ...drillPlanGradeInput(el, assays, assayElements, displayUnits), palette: ON_WHITE, ink: INK });
+  const gradeIn = drillPlanGradeInput(el, assays, assayElements, displayUnits);
+  const colouringRaw = drillPlanColouring(el, g.holes, collars, { ...gradeIn, palette: ON_WHITE, ink: INK });
+  // TASKS.csv #3858 — 'Label with: the id and its best intercept' ('SR23-275 3.70 m @ 56.4 g/t Au'), and the intercept marked on the trace; only with
+  // 'Colour the holes by: best intercept', whose rule (cut-off, dilution, minimum) the colour key states
+  const biKey = colourByKind(el.colourBy).kind === "bi" ? colourByKind(el.colourBy).key : null;
+  const biRows = biKey && el.labelWith === "bi" ? gradeIn.biRows || new Map() : null;
+  const labelText = (id) => { const row = biRows?.get(id); return row ? `${id} ${interceptLabel(row, gradeIn.unit, biKey)}` : id; };
+  const marks = biRows ? g.holes.map((hh) => ({ id: hh.id, pts: biRows.has(hh.id) ? traceBetween(hh, biRows.get(hh.id).from, biRows.get(hh.id).to) : [] })).filter((m) => m.pts.length > 1) : [];
   const colouring0 = applyKeyEdits(colouringRaw, el.keyEdits); // TASKS.csv #3415 — the key's lines as the user worded them
   const shapes = drillPlanShapes(collars, el.shapeBy, g.holes.map((hh) => hh.id)); // #2686 — a symbol shape by a collar field
   const shapeKey = shapes.key.map((k) => ({ ...k, label: `${el.shapeBy}: ${k.shape === "circle" ? (k.label === "not recorded" ? tr("not recorded") : tr("other / not recorded")) : k.label}` }));
@@ -89,7 +96,7 @@ export function drillPlanDrawing(el, collars, assays = null, assayElements = nul
   // TASKS.csv #3026 — a key of 125 series ran 1,672 px down an 800 px frame: it lists the rows the frame holds and says how many it left out
   const colouring = { ...colouring0, key: capPlanKey(colouring0.key, { frameH: g.h, rowPx: fontPx + 4, keyLines: [colouring0.title, colouring0.note].filter(Boolean).length, extra: shapeKey.length, moreLabel: (n) => tr("+ {n} more, not listed", { n }) }) };
   const f = String(el.labelFilter || "").trim().toLowerCase();
-  const toLabel = el.labels === "none" ? [] : [...g.holes, ...planned].filter((hh) => hh.inside && (!f || hh.id.toLowerCase().includes(f))).map((hh) => ({ id: hh.planned ? tr("{name} (planned)", { name: hh.id }) : hh.id, x: hh.ax, y: hh.ay })); // planned: #2259
+  const toLabel = el.labels === "none" ? [] : [...g.holes, ...planned].filter((hh) => hh.inside && (!f || hh.id.toLowerCase().includes(f))).map((hh) => ({ id: hh.planned ? tr("{name} (planned)", { name: hh.id }) : labelText(hh.id), hole: hh.id, x: hh.ax, y: hh.ay })); // planned: #2259
   // the key's box (top left), which no hole label may run under (#2473)
   const keyRows = colouring.key.length + shapeKey.length + plannedKey.length; // #2686 — the shapes listed under the colours; #2259 — then the planned hole
   // TASKS.csv #3376 (review #3195) — the title and note wrap to min(45 % of the frame, 70 mm) (the note set a 503 px key in a 480 px frame,
@@ -113,11 +120,22 @@ export function drillPlanDrawing(el, collars, assays = null, assayElements = nul
   // TASKS.csv #2611 — labels keep off the other holes' collars as well as each other
   const r = (el.collarMm || 0.8) * MM_PX + 1;
   const collarBoxes = [...g.holes, ...planned].filter((hh) => hh.inside).map((hh) => ({ x0: hh.ax - r, y0: hh.ay - r, x1: hh.ax + r, y1: hh.ay + r }));
-  const labels = placeLabels(toLabel, { fontPx, w: g.w, h: g.h, avoid: [...(keyBox ? [{ x0: keyBox.x, y0: keyBox.y, x1: keyBox.x + keyBox.w, y1: keyBox.y + keyBox.h }] : []), ...collarBoxes] });
+  const labelAvoid = [...(keyBox ? [{ x0: keyBox.x, y0: keyBox.y, x1: keyBox.x + keyBox.w, y1: keyBox.y + keyBox.h }] : []), ...collarBoxes];
+  const placeOpts = { fontPx, w: g.w, h: g.h, leaders: el.labels !== "room" /* #3858 — 'Only holes with room beside the collar' keeps the old rule */ };
+  let labels = placeLabels(toLabel, { ...placeOpts, avoid: labelAvoid });
   // TASKS.csv #3367 — the sheet says how the traces were drawn: along the surveys, straight, or both
   const caption = traceCaption({ surveyed: g.holes.filter((hh) => hh.surveyed).length, straight: g.holes.filter((hh) => !hh.surveyed).length, planned: planned.length, plannedDeviated: planned.filter((hh) => hh.deviated).length /* #3602 */, method });
   const keyOriginal = { title: colouringRaw.title || "", note: colouringRaw.note || "", rows: (colouringRaw.key || []).map((k) => k.label) }; // #3415 — the plan's own wording, for the sidebar's boxes
-  return { ...g, planned, plannedKey, caption, colouring, shapes, shapeKey, fontPx, labels, labelled: toLabel.length, keyBox, keyOriginal };
+  // TASKS.csv #3858 — the holes left with no label are named on the sheet (the count was in the panel only): at most six ids, then how many more. The note
+  // and the trace caption sit at the bottom right (DrillPlanElement), so the labels are placed again clear of them
+  const noteOf = (lb) => { const ids = lb.missed.map((t) => toLabel.find((q) => q.id === t)?.hole || t); return ids.length ? `${ids.length} hole(s) without a label: ${ids.slice(0, 6).join(", ")}${ids.length > 6 ? `, +${ids.length - 6} more` : ""}` : ""; };
+  let unlabelledNote = noteOf(labels);
+  if (unlabelledNote) {
+    const gf = Math.max(6, fontPx - 1), row = (k) => g.h - GRID_INSET - k * (gf + 4), box = (text, k) => { const b = labelBackdrop(text, g.w - GRID_INSET, row(k), gf, "end"); return { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h }; };
+    labels = placeLabels(toLabel, { ...placeOpts, avoid: [...labelAvoid, box(unlabelledNote, 1 + (caption ? 1 : 0)), ...(caption ? [box(caption, 1)] : [])] });
+    unlabelledNote = noteOf(labels);
+  }
+  return { ...g, planned, plannedKey, caption, colouring, shapes, shapeKey, fontPx, labels, labelled: toLabel.length, keyBox, keyOriginal, marks, unlabelledNote, biLabels: !!biRows };
 }
 
 // TASKS.csv #3182 (#3028 (8), review #2876) — the grid caption and the first northing label touched the frame ('...(EPSG:28350' looked cut): a
@@ -169,6 +187,10 @@ export default function DrillPlanElement({ el, collars, gridCaption = "", assays
             {boxed("cap", cap, d.w - GRID_INSET, d.h - GRID_INSET, "end")}
           </g>;
         })()}
+        {d.unlabelledNote && (() => { /* TASKS.csv #3858 — the holes with no label, named on the sheet, above the captions */
+          const gf = Math.max(6, d.fontPx - 1), y = d.h - GRID_INSET - (grid ? gf + 4 : 0) - (d.caption ? gf + 4 : 0), b = labelBackdrop(d.unlabelledNote, d.w - GRID_INSET, y, gf, "end");
+          return <g fontSize={gf} fill="#55606e" fontFamily={FONT}><rect x={b.x} y={b.y} width={b.w} height={b.h} fill="#ffffff" fillOpacity="0.85" /><text x={d.w - GRID_INSET} y={y} textAnchor="end">{d.unlabelledNote}</text></g>;
+        })()}
         {d.caption && (() => { /* TASKS.csv #3367 — how the traces were drawn, on the sheet: above the grid caption, or in its place */
           const gf = Math.max(6, d.fontPx - 1), y = d.h - GRID_INSET - (grid ? gf + 4 : 0), b = labelBackdrop(d.caption, d.w - GRID_INSET, y, gf, "end");
           return <g fontSize={gf} fill="#55606e" fontFamily={FONT}><rect x={b.x} y={b.y} width={b.w} height={b.h} fill="#ffffff" fillOpacity="0.85" /><text x={d.w - GRID_INSET} y={y} textAnchor="end">{d.caption}</text></g>;
@@ -176,6 +198,7 @@ export default function DrillPlanElement({ el, collars, gridCaption = "", assays
         {d.holes.map((hh) => hh.path /* #3367 — along the survey */
           ? <polyline key={`t${hh.id}`} points={hh.path.map(([x, y]) => `${x},${y}`).join(" ")} fill="none" stroke={traceInk(styles.get(hh.id))} strokeWidth={line} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={styles.get(hh.id).cross ? `${3 * line} ${2 * line}` : undefined} />
           : <line key={`t${hh.id}`} x1={hh.ax} y1={hh.ay} x2={hh.bx} y2={hh.by} stroke={traceInk(styles.get(hh.id))} strokeWidth={line} strokeLinecap="round" strokeDasharray={styles.get(hh.id).cross ? `${3 * line} ${2 * line}` : undefined} />)}
+        {d.marks.map((m) => <polyline key={`m${m.id}`} points={m.pts.map(([x, y]) => `${x},${y}`).join(" ")} fill="none" stroke={traceInk(styles.get(m.id))} strokeWidth={4 * line} strokeLinecap="butt" strokeLinejoin="round" />) /* #3858 — the best intercept along the trace, three times the trace's width */}
         {/* #2473 — a hole with no value is a hollow ring; higher grade classes are drawn last, on top */}
         {d.holes.filter((hh) => hh.inside).sort((a, b) => styles.get(a.id).rMm - styles.get(b.id).rMm).map((hh) => { const s = styles.get(hh.id), r = rOf(s), path = symbolPath(d.shapes.shapeOf(hh.id), hh.ax, hh.ay, r); /* #2686; r: #3017 */ const hollowFill = dense.halo ? "#ffffff" : "none"; return path
           ? <g key={`c${hh.id}`}><path d={path} fill={s.hollow ? hollowFill : s.colour} stroke={s.hollow ? s.colour : dense.halo ? "#ffffff" : "none"} strokeWidth={s.hollow ? 0.9 : 0.6} />{s.cross && <path d={crossPath(hh.ax, hh.ay, r)} stroke={s.colour} strokeWidth={0.8} fill="none" /> /* #3375 */}</g>
@@ -187,6 +210,7 @@ export default function DrillPlanElement({ el, collars, gridCaption = "", assays
         {/* TASKS.csv #2259 — planned holes: a dashed trace and a hollow ring in the planned colour, over the drilled ones */}
         {d.planned.map((hh) => <line key={`pt${hh.id}`} x1={hh.ax} y1={hh.ay} x2={hh.bx} y2={hh.by} stroke={colors.planned} strokeWidth={line} strokeDasharray={`${0.9 * MM} ${0.6 * MM}`} />)}
         {d.planned.filter((hh) => hh.inside).map((hh) => <circle key={`pc${hh.id}`} cx={hh.ax} cy={hh.ay} r={(el.collarMm || 0.8) * MM} fill="#ffffff" stroke={colors.planned} strokeWidth={0.9} />)}
+        {d.labels.placed.filter((l) => l.leader).map((l) => <line key={`ld${l.id}`} x1={l.leader.x1} y1={l.leader.y1} x2={l.leader.x2} y2={l.leader.y2} stroke="#55606e" strokeWidth={0.6} />) /* #3858 — leaders */}
         {d.labels.placed.map((l) => { const b = labelBackdrop(l.id, l.x, l.y, d.fontPx, l.anchor); return <g key={`l${l.id}`}><rect x={b.x} y={b.y} width={b.w} height={b.h} fill="#ffffff" fillOpacity="0.85" /><text x={l.x} y={l.y} textAnchor={l.anchor} fontSize={d.fontPx} fill={INK} fontFamily={FONT}>{l.id}</text></g>; })}{/* #2738 — boxed, not haloed */}
       </g>
       {keyBox && (

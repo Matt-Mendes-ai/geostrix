@@ -13784,5 +13784,18 @@
   "Not set yet. Choose the CRS your coordinates (collars, samples, maps) are in.": "Aún no definido. Elija el SRC en que están sus coordenadas (collares, muestras, mapas).",
   "Disabled: {n} reading(s) with a 95 % cone of {a}° are too few or too scattered to call a trend (at least {min} readings and a cone of {max}° or less). Add readings, or pick the type or area with more.": "Desactivado: {n} lectura(s) con un cono del 95 % de {a}° son muy pocas o muy dispersas para llamarlas tendencia (al menos {min} lecturas y un cono de {max}° o menos). Agregue lecturas o elija el tipo o el área con más.",
   "Disabled: these picks show no preferred orientation (k = {k}, at the level of random planes), so their mean plane is not a trend to model. Pick one structure type or one area first.": "Desactivado: estas lecturas no muestran una orientación preferente (k = {k}, al nivel de planos al azar), así que su plano medio no es una tendencia para modelar. Elija primero un tipo de estructura o un área.",
-  " The fill is GLO-30 plus the difference between the two models interpolated in from the nodes GEM-15 has, so it meets GEM-15 at the edge: neighbouring nodes across that edge differ by {after} m at the median (GLO-30 alone: {before} m).": " El relleno es GLO-30 más la diferencia entre los dos modelos interpolada desde los nodos que GEM-15 sí tiene, así que empalma con GEM-15 en el borde: los nodos vecinos a ambos lados de ese borde difieren en {after} m en la mediana (solo con GLO-30: {before} m)."
+  " The fill is GLO-30 plus the difference between the two models interpolated in from the nodes GEM-15 has, so it meets GEM-15 at the edge: neighbouring nodes across that edge differ by {after} m at the median (GLO-30 alone: {before} m).": " El relleno es GLO-30 más la diferencia entre los dos modelos interpolada desde los nodos que GEM-15 sí tiene, así que empalma con GEM-15 en el borde: los nodos vecinos a ambos lados de ese borde difieren en {after} m en la mediana (solo con GLO-30: {before} m).",
+  "Every hole, with a leader where there is no room beside it": "Cada sondaje, con una línea guía donde no hay espacio junto a él",
+  "Only holes with room beside the collar": "Solo los sondajes con espacio junto al collar",
+  "Label with": "Etiquetar con",
+  "The hole id": "El ID del sondaje",
+  "The id and its best intercept (m @ grade), marked on the trace": "El ID y su mejor intercepto (m @ ley), marcado en la traza",
+  "{n} hole(s) in the frame; {p} of {l} labelled, {k} of them with a leader; {s} without a label (named on the sheet).": "{n} sondaje(s) en el marco; {p} de {l} etiquetados, {k} de ellos con línea guía; {s} sin etiqueta (nombrados en la lámina).",
+  "What the grade labels say: the highest single samples, or the best intercepts by Best intercepts' rule (the cut-off typed here, or the P90 of this section's values when blank; at most 2 m of internal dilution)": "Qué dicen las etiquetas de ley: las muestras individuales más altas, o los mejores interceptos con la regla de Mejores interceptos (la ley de corte escrita aquí, o el P90 de los valores de esta sección si está en blanco; como máximo 2 m de dilución interna)",
+  "Grade labels": "Etiquetas de ley",
+  "Highest samples": "Muestras más altas",
+  "Best intercepts (m @ grade)": "Mejores interceptos (m @ ley)",
+  "{sym} cut-off (P90)": "Corte de {sym} (P90)",
+  "{sym} cut-off": "Ley de corte de {sym}",
+  "Grade bars on a log scale: {list}": "Barras de ley en escala logarítmica: {list}"
 }
