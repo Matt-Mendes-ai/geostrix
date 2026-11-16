@@ -28,7 +28,7 @@ test("wiring: the tick, every intercept printed with it, the closing row, the pa
   assert.match(b, /const cont = continuePages && plan\.more > 0 && typeof addLayoutPages === "function";/);
   assert.match(b, /const printed = cont \? results\.length : plan\.shown;/);
   assert.match(b, /cont \? carriesOn : tail\(tr\("… and \{n\} more intercept\(s\), not shown on this sheet"/);
-  assert.match(b, /const ranges = cont \? continuationRanges\(plan\.shown, results\.length, pageSize, \{ w: tableW \}\) : \[\];/);
+  assert.match(b, /const ranges = cont \? continuationRanges\(plan\.shown, results\.length, pageSize, \{ w: tableW, elements: newPage \/\* #3854 \*\/ \}\) : \[\];/); // #3854: planned around the credit line
   assert.match(b, /if \(contPages\.length\) \{ addLayoutPages\(contPages\); switchLayoutPage\?\.\(activeLayoutPageId\); \}/);
   assert.match(b, /tr\("Continue on new pages"\)/);
 });

@@ -39,10 +39,11 @@ export function spreadFormat(values, sig = 2) {
 // TASKS.csv #2708 (split from #2200 / #2479) — 'Continue on new pages': the intercepts the sheet's spot leaves out go on pages of their own
 // (the collar table's continuation, #1638), each table as many rows as a fresh page holds (no caveat note: it is on the first table).
 // first: the rows on the first table (plan.shown); total: all intercepts. -> [[from, to)] index ranges, one per continuation page
-export function continuationRanges(first, total, page, { w = 560, fontPt = 7 } = {}) {
+// TASKS.csv #3854 — elements: what a new page already carries (the data credit along its foot), planned around
+export function continuationRanges(first, total, page, { w = 560, fontPt = 7, elements = [] } = {}) {
   const out = [];
   for (let from = first; from < total;) {
-    const p = interceptTablePlan([], page, { total: total - from, w, fontPt, noteRows: 0 });
+    const p = interceptTablePlan(elements, page, { total: total - from, w, fontPt, noteRows: 0 });
     const n = Math.max(1, p.more > 0 ? p.shown : total - from); // a cut table's last row says it carries on, as the first table's does
     out.push([from, from + n]);
     from += n;

@@ -6,6 +6,8 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import { changedKeys } from "./undoLabels.js"; // TASKS.csv #1087
 import { capturedFrameFields } from "./layoutGeometry.js"; // TASKS.csv #906 / #961
 import { tieStarterFurniture, sendElementWithFurniture } from "./layoutLinks.js"; // TASKS.csv #1320, #1634
+import { projectCredits } from "./credits.js"; // TASKS.csv #3854
+import { withCreditPages } from "./layoutCredits.js"; // TASKS.csv #3854
 import { pagePx, pageFormatOf } from "./pageFormats.js"; // TASKS.csv #2740 — already in startup (desktop.js)
 import { setKnownHoleIds } from "./qaqcCore.js"; // TASKS.csv #400; qaqcCore: #1345
 import { compactLayers } from "./compactRows.js"; // TASKS.csv #374
@@ -414,6 +416,7 @@ export function StoreProvider({ children }) {
   // below instead, ignoring `elevation`; only meaningful once a terrain surface actually exists).
   const [rasters, setRasters] = useState([]);
   const terrainRef = useRef(null); // #1761 — filled once the terrain state is declared below
+  const layoutCreditRef = useRef(""); // TASKS.csv #3854 — the {credits} text, filled further down (the project, terrain and rasters are all declared by then)
   const addRaster = useCallback((raster) => {
     const id = `raster_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     // TASKS.csv #1761 (review #1645, Copley) — with a terrain loaded a new raster drapes on it unless the caller says otherwise (a
@@ -909,7 +912,8 @@ export function StoreProvider({ children }) {
       const here = freeSpot(layoutElements, w, h, paper);
       if (layoutElements.length > 0 && !spotIsFree(layoutElements, here, w, h)) {
         const pageId = `page_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, fmt = layoutPages.find((p) => p.id === activeLayoutPageId)?.format;
-        setLayoutPages((pages) => [...pages, { id: pageId, name: `Page ${pages.length + 1}`, elements: addViewportToPage([], mkView(freeSpot([], w, h, paper))), ...(fmt ? { format: fmt } : {}) }]);
+        const [pg] = withCreditPages([{ name: "", elements: addViewportToPage([], mkView(freeSpot([], w, h, paper))), ...(fmt ? { format: fmt } : {}) }], layoutCreditRef.current || false); // #3854 — with the data credit
+        setLayoutPages((pages) => [...pages, { ...pg, id: pageId, name: `Page ${pages.length + 1}` }]);
         setActiveLayoutPageId(pageId);
       } else setLayoutElements((els) => addViewportToPage(els, mkView(freeSpot(els, w, h, paper))));
       setLayoutSelectRequest(id);
@@ -1874,8 +1878,12 @@ export function StoreProvider({ children }) {
   // clears and end with an arbitrary LAST generated page active rather than a deliberate choice.
   // Switches to the FIRST newly-created page once, clears undo history once, same as any other
   // page-navigating action.
-  const addLayoutPages = useLatestCallback((pages) => {
-    if (!pages || !pages.length) return [];
+  // TASKS.csv #3854 — the data credit goes on HERE, so every route that adds pages (Layout's own, Best intercepts from the 3D View, an Atlas, a split, a
+  // table's continuation) gives each page the {credits} line when the project has a credit and the page does not print one; it was only Layout's own wrapper (#3591)
+  layoutCreditRef.current = useMemo(() => projectCredits(terrain, rasters, project?.dataCredit), [terrain, rasters, project?.dataCredit]);
+  const addLayoutPages = useLatestCallback((rawPages) => {
+    if (!rawPages || !rawPages.length) return [];
+    const pages = withCreditPages(rawPages, layoutCreditRef.current || false);
     // TASKS.csv #1636 — batch: the run that generated the page (an atlas, a collar table's continuation), removable in one action
     const withIds = pages.map((pg, i) => ({ id: `page_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}`, name: pg.name, elements: pg.elements, ...(pg.batch ? { batch: pg.batch } : {}), ...(pg.format ? { format: pg.format } : {}) /* #3404 — its paper, so callers need not set it afterwards */ }));
     setLayoutPages((p) => [...p, ...withIds]);
