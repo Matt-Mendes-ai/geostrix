@@ -25,7 +25,7 @@ import { sectionWindowsMayClose, EXPORT_RESULT_EVENT } from "./desktop.js"; // T
 import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveWriteParts /* #1975 */, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
 import { normalizeDesurveyMethod } from "./desurvey.js";
 import { readCellBudget, saveCellBudget } from "./estimationMeta.js"; // TASKS.csv #1970
-import { nextGroupColour, lithologyNoteRoles, setLithologyNoteRoles } from "./layers.js"; // TASKS.csv #1377; note roles: #2046
+import { nextGroupColour, lithologyNoteRoles, setLithologyNoteRoles, setLithologyMeanings } from "./layers.js"; // TASKS.csv #1377; note roles: #2046
 import { freeSpot, viewportFrameOnPaper /* #3418 */, spotIsFree /* #3451 */ } from "./layoutPlace.js"; // TASKS.csv #1484
 
 const StoreContext = createContext(null);
@@ -182,6 +182,7 @@ export function StoreProvider({ children }) {
   const [surfaceQc, setSurfaceQc] = useState(null); // TASKS.csv #842 — surface-program QC: { records, certificates, settings }
   const [dbImports, setDbImports] = useState([]); // TASKS.csv #1963 — the database imports to reload (lib/dbImports.js)
   const [codeDictionary, setCodeDictionary] = useState({}); // TASKS.csv #2163 — the project's own meaning of each logging code (lib/codeDictionary.js)
+  useMemo(() => setLithologyMeanings(codeDictionary?.litho), [codeDictionary]); // TASKS.csv #3735 — the legend and the unit roles read it
   const [evidenceOverlay, setEvidenceOverlay] = useState(null); // TASKS.csv #1003 — the Evidence overlay pane's recipe
   const [customLayers, setCustomLayers] = useState([]); // plain {id,name,rows} mirror for save/load; ViewerModule owns the live three.js groups
   // TASKS.csv #3424 — assays, survey and a custom layer's rows may be held as a Table (lib/rowTable.js): readers get rows on demand (rowsOf, the

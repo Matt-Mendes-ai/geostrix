@@ -63,6 +63,7 @@ import { densityNote } from "../../lib/densityNote.js"; // TASKS.csv #3529
 import { densityRangeOf } from "../../lib/densityRange.js"; // TASKS.csv #3587
 import { companionLayer, surveyMethodFields, columnsLeftOut, suscInstrumentFields, dialogExtraFields, queueExtraFields } from "../../lib/viewer/autoExtras.js"; // queueExtraFields: #3544 (C2) // suscInstrumentFields: #2668 // TASKS.csv #1501; surveyMethodFields: #2187
 import { yearsAsNumbers } from "../../lib/collarYear.js"; // TASKS.csv #3545
+import { attrTwinGroups } from "../../lib/attrTwins.js"; // TASKS.csv #3733
 import { surfaceAttrColumns, surfaceAttrs } from "../../lib/geochemColumns.js"; // TASKS.csv #1504 — unmapped collar columns kept as attrs; #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 import { rasterDrapeElevation, drapeElevationNote, planElevation } from "../../lib/drapeElevation.js"; // TASKS.csv #1505; planElevation: #2294
 import { projectTargetEpsg } from "../../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
@@ -716,6 +717,8 @@ export function makeImportPipeline(ctx, h) {
       if (repeats.dropped) parts.push(tr("{n} row(s) shared a hole id with an earlier row of the file; the first was kept ({ids})", { n: repeats.dropped, ids: repeats.holes.slice(0, 6).join(", ") + (repeats.holes.length > 6 ? ", …" : "") })); // #2172
       if (ranked.dropped) parts.push(tr("{holes} hole(s) had several location records ({dropped} extra rows) — kept the lowest \"{rankColumn}\" for each: {holes2}{v}", { holes: ranked.holes.length, dropped: ranked.dropped, rankColumn: ranked.rankColumn, holes2: ranked.holes.slice(0, 5).join(", "), v: ranked.holes.length > 5 ? ", …" : "" }));
       if (attrCols.length) parts.push(tr("{n} more column(s) kept with each hole (Identify shows them): {cols}", { n: attrCols.length, cols: attrCols.slice(0, 8).join(", ") + (attrCols.length > 8 ? "…" : "") })); // #1504
+      // TASKS.csv #3733 — attribute values that are one value spelled two ways ('D zone' / 'D Zone', 'Gully' / 'Gully Zone'): two classes in the hole filter and Grade statistics
+      { const tw = attrTwinGroups(ranked.rows, attrCols).slice(0, 4); if (tw.length) parts.push(tr("{n} attribute value(s) look like one value spelled two ways and stay separate classes in the hole filter, the hole colours and Grade statistics (make them the same in the file to merge them): {list}", { n: tw.length, list: tw.map((g) => `${g.col}: ${g.values.map((v) => `'${v.value}' (${v.n})`).join(" / ")}`).join("; ") })); }
       if (notKept.length) parts.push(tr("{n} column(s) not imported, each with more than 100 different values (add one under Extra fields to keep it): {cols}", { n: notKept.length, cols: notKept.slice(0, 8).join(", ") + (notKept.length > 8 ? "…" : "") })); // #2492 / #2190
       // #2014 (review #2013, Woodjam) — 534 of 544 district collars had no azimuth / dip column and no survey: they were counted
       // ("Holes: 544") and never drawn, and this notice did not say so. They are now drawn as assumed vertical holes; say it here.

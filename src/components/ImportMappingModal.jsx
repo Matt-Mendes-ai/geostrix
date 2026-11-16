@@ -88,6 +88,17 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
     const list = [...seen.keys()].slice(0, 3).map((v) => (crsName(Number(v)) ? `EPSG:${v} (${crsName(Number(v))})` : `EPSG:${v}`)).join(", ") + (seen.size > 3 ? ", …" : "");
     return tr("Read from the {col} column of the file: {list}", { col, list });
   }, [modal.perRowEpsgCol, modal.allRows, modal.sampleRows]);
+  // TASKS.csv #3740 — a collar import with no project CRS yet but the file's own (an epsg column, or the Source CRS picked): the true-north note gives the
+  // convergence at the first hole, as the survey dialog does (#3302), instead of promising a question the import never asks
+  const fileCrsTurn = useMemo(() => {
+    if (modal.target !== "collars" || !crsUnset || modal.azimuthRef !== "true" || !modal.mapping?.x || !modal.mapping?.y) return null;
+    const rows = modal.allRows || modal.sampleRows || [];
+    const r = rows.find((q) => Number.isFinite(Number(q?.[modal.mapping.x])) && Number.isFinite(Number(q?.[modal.mapping.y])));
+    if (!r) return null;
+    const epsg = Number(modal.sourceEpsg || (modal.perRowEpsgCol ? String(r[modal.perRowEpsgCol] ?? "").trim().replace(/^epsg:/i, "") : ""));
+    if (!Number.isFinite(epsg) || epsg <= 0) return null;
+    try { const o = azimuthToGridOffset("true", Number(r[modal.mapping.x]), Number(r[modal.mapping.y]), epsg); return o && Number.isFinite(o.offset) ? { deg: o.offset, epsg } : null; } catch { return null; }
+  }, [modal.target, crsUnset, modal.azimuthRef, modal.mapping, modal.allRows, modal.sampleRows, modal.sourceEpsg, modal.perRowEpsgCol]);
   const densityDoubt = useMemo(() => (modal.target === "sg" ? densityUnitDoubt(modal.allRows || modal.sampleRows || [], modal.mapping?.value) : null), [modal.target, modal.mapping?.value, modal.allRows, modal.sampleRows]);
   const [addName, setAddName] = useState("");
   const [addColumn, setAddColumn] = useState("");
@@ -399,6 +410,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                 {/* TASKS.csv #2491 — true / magnetic north with no project CRS: said here, before Import, not only in the notice after */}
                 {crsUnset && (modal.azimuthRef === "true" || modal.azimuthRef === "magnetic") && (() => {
                   const tie = tieOf(storeProject);
+                  if (!tie && fileCrsTurn && modal.azimuthRef === "true") return <div role="note" style={{ marginLeft: 22, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("The file's own coordinate system (EPSG:{epsg}) becomes the project's: at the first hole true north lies {deg}° {dir} of grid north, and these azimuths are turned by that.", { epsg: fileCrsTurn.epsg, deg: Math.abs(fileCrsTurn.deg).toFixed(2), dir: fileCrsTurn.deg > 0 ? tr("east") : tr("west") })}</div>; // #3740
                   return tie
                     ? <div role="note" style={{ marginLeft: 22, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Converted to the local grid's north through its tie to EPSG:{epsg} (grid rotation {rot}°), at each hole's collar.", { epsg: tie.epsg, rot: tie.rotationDeg.toFixed(2) })}</div>
                     : <div role="alert" style={{ marginLeft: 22, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{storeProject?.localGrid

@@ -88,7 +88,12 @@ export async function xlsxToCsvFiles(bytes, workbookName) {
     const width = rows.reduce((m, r) => Math.max(m, r.length), 0); // #1079 — a spread of a million rows overflows the stack
     const headers = rows[0].map((h, i) => String(h).replace(/\s+/g, " ").trim() || `Column ${i + 1}`); // #1665 — a line break typed in a header cell becomes a space ('Hole Number')
     while (headers.length < width) headers.push(`Column ${headers.length + 1}`);
-    out.push({ name: `${base} - ${s.name}.csv`, sheet: s.name, rows: rows.length - 1, text: toCsv({ fields: headers, data: rows.slice(1).map((r) => headers.map((_, i) => r[i] ?? "")) }) });
+    // TASKS.csv #3736 — a column with no header and no value (the sheet's range runs past the last field: 'Column 44', 'Column 45') is left out
+    const keep = headers.map((_, i) => String(rows[0][i] ?? "").trim() !== "" || rows.slice(1).some((r) => String(r[i] ?? "").trim() !== ""));
+    const kept = headers.filter((_, i) => keep[i]), cols = headers.map((_, i) => i).filter((i) => keep[i]);
+    // and the file's own name when the sheet carries it (it read 'X - X.csv' in the dialog, the notices and every row's source file); the sheet name stays after ' - ' otherwise: the import guesses the layer from it
+    const name = s.name === base ? `${base}.csv` : `${base} - ${s.name}.csv`;
+    out.push({ name, sheet: s.name, rows: rows.length - 1, text: toCsv({ fields: kept, data: rows.slice(1).map((r) => cols.map((i) => r[i] ?? "")) }) });
   }
   return out;
 }

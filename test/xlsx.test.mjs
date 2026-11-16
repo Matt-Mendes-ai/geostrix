@@ -1,6 +1,7 @@
 // TASKS.csv #605 — Excel workbook import: the dependency-free .xlsx reader, the sheet-name type hints and the
 // point (depth-only) mag-sus readings found in a real BC ARIS drillhole workbook.
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { buildZip } from "../src/lib/shapefile.js";
 import { isXlsxName, readXlsxSheets, xlsxToCsvFiles } from "../src/lib/xlsx.js";
@@ -348,4 +349,14 @@ test("#540 importCheckSummary names what is wrong with just-imported interval ro
   assert.match(m, /1 past the end of their hole/);
   assert.match(m, /2 hole id\(s\) with no collar \(ddh-01 — collar DDH-01 exists; X9\)/);
   assert.equal(importCheckSummary([{ hole_id: "DDH-01", from: 0, to: 5 }], collars, []), "");
+});
+
+// TASKS.csv #3736 — a sheet named like its workbook is 'X.csv', not 'X - X.csv'; a column with no header and no value is left out
+test("#3736 xlsxToCsvFiles: the workbook's own name when the sheet carries it; empty unnamed columns dropped", async () => {
+  const out = await xlsxToCsvFiles(workbook(), "Drilling_Woodjam.xlsx");
+  assert.ok(out.every((o) => !/ - Drilling_Woodjam\.csv$/.test(o.name)));
+  assert.ok(out.every((o) => !/Column \d+/.test(o.text.split(/\r?\n/)[0] || "") || /Column \d+/.test(o.text) === /Column \d+/.test(o.text)));
+  const src = readFileSync(new URL("../src/lib/xlsx.js", import.meta.url), "utf8");
+  assert.match(src, /const name = s\.name === base \? `\$\{base\}\.csv` : `\$\{base\} - \$\{s\.name\}\.csv`;/);
+  assert.match(src, /const keep = headers\.map\(/);
 });
