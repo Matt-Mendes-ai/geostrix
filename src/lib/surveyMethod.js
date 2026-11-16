@@ -27,19 +27,23 @@ export function surveyMethodKey(survey) {
 }
 
 // per hole: "measured" when any station was measured, "assumed" when every classified station was assumed; holes with no classified
-// station are left out. -> { key, byHole: Map(hole -> class), assumed: [ids], measured: n, values: Map(value -> count) } or null
+// station are left out. -> { key, byHole: Map(hole -> class), assumed: [ids], measured: n, values: Map(value -> count), unread: [ids], unreadWords: [values] } or null
+// TASKS.csv #3734 (Scottie Gold) — unread: the holes whose only stations name a tool neither list knows ('Devi_align', the rig aligner's collar reading, on SR23-244 and -251): they
+// were counted in neither number, so '0 of 82 hole(s) ... 82 measured' stood for 84 holes. counted = byHole + unread, the total the sentence now adds up to.
 export function surveyMethodByHole(survey, key = surveyMethodKey(survey)) {
   if (!key) return null;
-  const byHole = new Map(), values = new Map();
+  const byHole = new Map(), values = new Map(), other = new Map(); // other: hole -> the unclassed values it has
   for (const r of survey || []) {
     const v = String(r?.[key] ?? "").trim(), c = surveyMethodClass(v);
     if (v) values.set(v, (values.get(v) || 0) + 1);
+    if (!c && v && r.hole_id) { if (!other.has(r.hole_id)) other.set(r.hole_id, new Set()); other.get(r.hole_id).add(v); }
     if (!c || !r.hole_id) continue;
     if (c === "measured" || !byHole.has(r.hole_id)) byHole.set(r.hole_id, byHole.get(r.hole_id) === "measured" ? "measured" : c);
   }
   if (!byHole.size) return null;
   const assumed = [...byHole].filter(([, c]) => c === "assumed").map(([h]) => h);
-  return { key, byHole, assumed, measured: byHole.size - assumed.length, values };
+  const unread = [...other.keys()].filter((h) => !byHole.has(h));
+  return { key, byHole, assumed, measured: byHole.size - assumed.length, values, unread, unreadWords: [...new Set(unread.flatMap((h) => [...other.get(h)]))], counted: byHole.size + unread.length };
 }
 
 // the spellings of one value that differ only in case or spacing (Gyro / GYRO) -> the commonest spelling. -> Map(raw -> folded)

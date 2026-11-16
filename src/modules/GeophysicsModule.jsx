@@ -448,7 +448,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const meta = geophysSurveys[key] || {}, pts = rows.filter((r) => surveyKey(r) === key);
     const { rows: out, valueName } = surveyExportRows(pts, meta);
     const stamp = stampLines({ tool: "Geophysics survey points", version: APP_VERSION, epsg: stampEpsg(project) /* #2195 */, params: [
-      `Survey: ${key} | ${pts.length} point(s) | method: ${meta.method ? SURVEY_METHODS[meta.method]?.label || meta.method : "not set"} | units: ${meta.units || "not set"}`,
+      `Survey: ${key} | ${pts.length} point(s) | method: ${meta.method ? SURVEY_METHODS[meta.method]?.label || meta.method : "not set"} | units: ${meta.units || "not set"}${meta.unitsGuessed ? " (assumed from the column name; the file states none)" : ""}`,
       `${valueName ? `${valueName}: the value as stored in GeoStrix (after any diurnal correction or levelling applied at import)` : "no value column: positions only"} | z: ${Z_MEANINGS[meta.zMeaning] || "as imported"}${pts.some((r) => Number.isFinite(r.zAgl)) ? " | height_agl: the radar-altimeter height the elevation was computed from" : ""}`,
     ] });
     saveFile({ suggestedName: `${String(key).replace(/\.[^.]+$/, "").replace(/[^a-z0-9_-]+/gi, "_")}_points.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(out), stamp) });
@@ -1496,10 +1496,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         return;
       }
       const text = await file.text();
-      const { columns, rows: parsedRows } = parseXYZ(text);
+      const { columns, rows: parsedRows, headerless } = parseXYZ(text);
       { const r = tableRefusal(file.name, columns, parsedRows, "point"); if (r) { setXyzError({ info: false, text: r }); return; } } // #3320
       const g = guessXyzChannels(columns, parsedRows); // #600 — first guesses; the picker still shows every column
-      const gx = guessColumn(columns, XY_NAME_HINTS.x), gy = guessColumn(columns, XY_NAME_HINTS.y);
+      // TASKS.csv #3737 — a file with no header line: Column 1, 2, 3 are X, Y, Z and a fourth is the value
+      const gx = headerless ? columns[0] : guessColumn(columns, XY_NAME_HINTS.x), gy = headerless ? columns[1] : guessColumn(columns, XY_NAME_HINTS.y);
+      if (headerless) { g.z = columns[2] || ""; g.value = columns[3] || ""; }
       setXyzPending({
         fileName: file.name,
         columns,
@@ -1567,14 +1569,18 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     { const refused = (await Promise.all(all.map(textTableRefusal))).filter(Boolean); if (refused.length) { setXyzError({ info: false, text: refused.join(" ") }); return; } } // #2847
     try {
       const text = await files[0].text();
-      const { columns, rows: parsedRows } = parseXYZ(text);
+      const { columns, rows: parsedRows, headerless } = parseXYZ(text);
       const g = guessXyzChannels(columns, parsedRows);
+      if (headerless) { g.z = columns[2] || ""; g.value = columns[3] || ""; } // #3737
       const bytes = files.reduce((a, f) => a + f.size, 0), estimate = Math.round((parsedRows.length / Math.max(1, files[0].size)) * bytes);
-      const gx = guessColumn(columns, XY_NAME_HINTS.x), gy = guessColumn(columns, XY_NAME_HINTS.y); // TASKS.csv #3364 — the first file's one column left is the Value, as the single-file picker does since #3208
+      const gx = headerless ? columns[0] : guessColumn(columns, XY_NAME_HINTS.x), gy = headerless ? columns[1] : guessColumn(columns, XY_NAME_HINTS.y); // TASKS.csv #3364; #3737 — headerless: Column 1, 2 — the first file's one column left is the Value, as the single-file picker does since #3208
       setXyzPending({ fileName: files[0].name, columns, rows: parsedRows, xCol: gx, yCol: gy, zCol: g.z, valueCol: g.value || onlyValueLeft(columns, [gx, gy, g.z].filter(Boolean), parsedRows), header: gemHeaderInfo(text), headerEpsg: gemHeaderEpsg(text), ...cleaningDefaults(columns) /* #1583 */,
         batch: { files, gpsFiles, estimate, keepEvery: suggestKeepEvery(estimate, 100000, (layers.geophys_pts || []).length), timeCol: columns.find((c) => /^time$/i.test(c)) || columns.find((c) => /time/i.test(c)) || null, bases: [] } }); // #1582 — counts what is already drawn; timeCol / bases: #1585
     } catch (err) {
-      setXyzError({ info: false, text: tr("Could not parse {name}: {message}", { name: files[0].name, message: err.message }) });
+      // TASKS.csv #3737 — every file of the drop gets its own line, not only the first
+      const lines = [tr("Could not parse {name}: {message}", { name: files[0].name, message: err.message })];
+      for (const f of files.slice(1)) { try { parseXYZ(await f.text()); } catch (e2) { lines.push(tr("Could not parse {name}: {message}", { name: f.name, message: e2.message })); } }
+      setXyzError({ info: false, text: lines.join(" ") });
     }
   };
   // TASKS.csv #1585 — base-station files for the whole batch: each rover file is corrected against the bases of its own day
@@ -2186,11 +2192,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   </div>
                   {!noValue && <div style={{ display: "flex", gap: 6, marginTop: 5 }}>
                     <select value={meta.method || ""} aria-label={tr("Method of \"{key}\"", { key: sv.key })} style={{ ...numInput, width: "auto", flex: 1, minWidth: 0 }}
-                      onChange={(e) => updateGeophysSurvey(sv.key, { method: e.target.value, ...unitsForMethod(meta, e.target.value) })}>
+                      onChange={(e) => updateGeophysSurvey(sv.key, { method: e.target.value, unitsGuessed: false /* #3739 — the geologist chose */, ...unitsForMethod(meta, e.target.value) })}>
                       <option value="">{tr("Method…")}</option>
                       {Object.entries(SURVEY_METHOD_GROUPS).map(([g, gl]) => <optgroup key={g} label={tr(gl)}>{Object.entries(SURVEY_METHODS).filter(([, m]) => m.group === g).map(([k, m]) => <option key={k} value={k}>{tr(m.label)}</option>)}</optgroup>)}{/* #1151 */}
                     </select>
-                    <input value={meta.units || ""} placeholder={tr("units")} aria-label={tr("Units of \"{key}\"", { key: sv.key })} onChange={(e) => updateGeophysSurvey(sv.key, { units: e.target.value })} style={{ ...numInput, width: 58, flex: "none" }} />
+                    <input value={meta.units || ""} placeholder={tr("units")} aria-label={tr("Units of \"{key}\"", { key: sv.key })} onChange={(e) => updateGeophysSurvey(sv.key, { units: e.target.value, unitsGuessed: false })} title={meta.unitsGuessed ? tr("Assumed from the column name: the file states no unit. Check it, or type the right one.") : undefined} style={{ ...numInput, width: 58, flex: "none", ...(meta.unitsGuessed ? { borderStyle: "dashed" } : {}) }} />
                   </div>}
                   <select value={meta.zMeaning || (sv.withZ ? "elevation" : "none")} aria-label={tr("What z means in \"{key}\"", { key: sv.key })} style={{ ...numInput, width: "100%", marginTop: 5 }}
                     onChange={(e) => updateGeophysSurvey(sv.key, { zMeaning: e.target.value })}>
@@ -2355,7 +2361,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4, marginBottom: 4, fontSize: "var(--font-size-sm)" }}>
                 <span style={{ color: "var(--color-text-faint)", flexShrink: 0 }}>{tr("Survey")}</span>
                 <select value={legendKey} onChange={(e) => { setLegendSurvey(e.target.value); setIdwSurvey(e.target.value); /* #2562 — one choice for the pane */ }} aria-label={tr("Survey whose legend to edit")} style={{ ...numInput, flex: 1, minWidth: 0 }}>
-                  {measuredList.map((s) => <option key={s.key} value={s.key}>{s.key} ({s.count.toLocaleString()}{geophysSurveys[s.key]?.units ? `, ${geophysSurveys[s.key].units}` : ""})</option>)}
+                  {measuredList.map((s) => <option key={s.key} value={s.key}>{s.key} ({s.count.toLocaleString()}{geophysSurveys[s.key]?.units ? `, ${geophysSurveys[s.key].units}${geophysSurveys[s.key].unitsGuessed ? `, ${tr("assumed")}` : ""}` : ""})</option>)}
                 </select>
               </div>
             )}
