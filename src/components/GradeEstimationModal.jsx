@@ -27,7 +27,7 @@ import { verticalReach } from "../lib/blockReach.js"; // TASKS.csv #2422 — a f
 import { desurveyHole, pointOnTrace } from "../lib/desurvey.js"; // pointOnTrace: #3592
 import { sampleSpacing } from "../lib/sampleSpacing.js"; // TASKS.csv #3592 — the spacing at the samples
 import { estimatePlane, gradeShellOf, sameVolumeMajorM, ellipsoidAxesM } from "../lib/estimatePlane.js"; // TASKS.csv #3679 — the shell's search, for the estimate
-import { classStops, visibleOnLattice } from "../lib/viewer/modelLegendOnAdd.js"; // TASKS.csv #3596
+import { classStops, visibleOnLattice, elementClasses } from "../lib/viewer/modelLegendOnAdd.js"; // TASKS.csv #3596
 import { sameLattice } from "../lib/densityFromModel.js"; // TASKS.csv #3596 — one model of a grid shown
 import { gradeStops } from "../lib/inversion.js"; // TASKS.csv #702
 import { LAYER_META } from "../lib/layers.js";
@@ -829,8 +829,10 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
     let gMin = Infinity, gMax = -Infinity;
     for (const c of cells) { if (Number.isFinite(c.value)) { if (c.value < gMin) gMin = c.value; if (c.value > gMax) gMax = c.value; } }
     if (!(gMin <= gMax)) return {};
-    const classes = element ? classStops(assayStyle?.[element]?.breaks, gMin) : null;
-    return classes ? { min: gMin, max: gMax, ...classes, legendFrom: `the classes of ${element} on the holes` } : { min: gMin, max: gMax, colorMode: "continuous", stops: gradeStops(gMin, gMax) };
+    // #3596 reopened — an element of the set never shown on the holes (Ag, Pb) takes the classes it will get there when it is shown
+    const ec = element ? elementClasses(assayStyle, element, { rows: assays, unit: elementUnits[element], elements: assayElements.map((e) => e.symbol) }) : null;
+    const classes = ec ? classStops(ec.breaks, gMin) : null;
+    return classes ? { min: gMin, max: gMax, ...classes, legendFrom: ec.seeded ? `the classes GeoStrix seeds for ${element} on the holes (not shown on them yet)` : `the classes of ${element} on the holes` } : { min: gMin, max: gMax, colorMode: "continuous", stops: gradeStops(gMin, gMax) };
   };
   const addToProject = () => {
     if (!result || !result.cells.length) return;

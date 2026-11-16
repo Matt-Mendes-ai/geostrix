@@ -4,7 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { classStops, visibleOnLattice } from "../src/lib/viewer/modelLegendOnAdd.js";
+import { classStops, visibleOnLattice, elementClasses } from "../src/lib/viewer/modelLegendOnAdd.js";
 import { blockModelLattice } from "../src/lib/estimationMeta.js";
 import { sameLattice } from "../src/lib/densityFromModel.js";
 import { colorForVoxelValue } from "../src/lib/layers.js";
@@ -29,7 +29,8 @@ test("visibleOnLattice: the visible models on the same blocks; another lattice o
 
 test("wiring: the estimate's colours from the classes, the others on the grid hidden, the calculator likewise; 'Calculated'", () => {
   const e = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
-  assert.match(e, /const classes = element \? classStops\(assayStyle\?\.\[element\]\?\.breaks, gMin\) : null;/);
+  assert.match(e, /const ec = element \? elementClasses\(assayStyle, element, \{ rows: assays, unit: elementUnits\[element\]/); // #3596 reopened
+  assert.match(e, /const classes = ec \? classStops\(ec\.breaks, gMin\) : null;/);
   assert.match(e, /for \(const m of visibleOnLattice\(voxelModels, result\.cells, \{ latticeOf: blockModelLattice, sameLattice \}\)\) updateVoxelModel\?\.\(m\.id, \{ visible: false \}\);/);
   assert.match(e, /\.\.\.rampOf\(result\.cells, sourceKey === "assay" \? p0 : null\)/);
   const c = readFileSync(new URL("../src/components/BlockCalculatorModal.jsx", import.meta.url), "utf8");
@@ -38,4 +39,18 @@ test("wiring: the estimate's colours from the classes, the others on the grid hi
   assert.match(v, /<GradeEstimationModal\r?\n\s+assayStyle=\{assayStyle\} \/\/ #3596/);
   const g = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
   assert.match(g, /model\.source === "calc" \? tr\("Calculated"\)/);
+});
+
+// #3596 reopened (round 3): Ag and Pb of the set stayed on the ramp, only Zn (shown on the holes) took its classes
+test("elementClasses: the holes' own breaks first; an element never shown gets the classes seeded for it, from its assays", () => {
+  const own = [{ max: 1, color: "#111111" }, { max: Infinity, color: "#222222" }];
+  assert.deepEqual(elementClasses({ Zn: { breaks: own } }, "Zn", { rows: [] }), { breaks: own, seeded: false });
+  let s = 3; const r = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+  const rows = Array.from({ length: 400 }, (_, i) => ({ hole_id: `H${i % 20}`, from: i, to: i + 1, values: { Pb: Math.exp(r() * 6 - 3) } }));
+  const pb = elementClasses({}, "Pb", { rows, unit: "%", elements: ["Zn", "Ag", "Pb"] });
+  assert.equal(pb.seeded, true);
+  assert.ok(pb.breaks.length >= 3 && pb.breaks.every((b) => typeof b.color === "string" && b.seeded), JSON.stringify(pb.breaks));
+  const L = classStops(pb.breaks, 0.01);
+  assert.equal(L.colorMode, "discrete");
+  assert.equal(elementClasses({}, "Cu", { rows, unit: "%" }), null, "no assays of the element: the ramp");
 });
