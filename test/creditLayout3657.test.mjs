@@ -37,7 +37,7 @@ test("the print page clips its elements in a box of its own, and the pieces are 
   const l = read("../src/modules/LayoutModule.jsx");
   assert.match(l, /<div className="ge-print-clip" style=\{\{ position: "absolute", inset: 0, overflow: "hidden" \}\}>/);
   assert.match(l, /const starterFor = \(format, creditText = ""\)/); assert.match(l, /titleBlockSpot\(pageFormatOf\(activePage\)/);
-  assert.match(l, /refitStarter\(r\.refitted \? r\.elements : elements, oldFormat, f, creditsRef\.current\)/);
+  assert.match(l, /refitStarterOf\(base, oldFormat, f, credit\)/); // #3702 — functional now
 });
 
 // TASKS.csv #3662 — the credit's lines are measured (canvas text in the app) and word-wrapped, not estimated from its length; with no canvas the old estimate
