@@ -29,6 +29,7 @@ import { interceptRows, optionalInterceptColumns } from "../lib/drillReportExpor
 import { localDate } from "../lib/localDate.js"; // TASKS.csv #2358
 import { cutoffOnElementChange, rememberInterceptCutoff } from "../lib/interceptCutoff.js"; // TASKS.csv #2513; remember: #3069
 import { interceptTablePlan, interceptCount, columnFormat, spreadFormat, continuationRanges, sortIntercepts, filterIntercepts } from "../lib/interceptTable.js"; // continuationRanges: #2708; sort, filter: #3565
+import { holeTotalRows } from "../lib/drillReportExport.js"; // TASKS.csv #3699
 import { DISPLAY_UNITS, isPlainUnit, displayFactor, toDisplay, fromDisplay, unitSlug } from "../lib/displayUnits.js"; // TASKS.csv #3236
 import { BULK_COMMODITIES } from "../lib/preferredElement.js"; // TASKS.csv #2923 — no metal equivalent for a bulk commodity
 import { elementOptionLabel, isLoiHeader } from "../lib/geochem.js"; // TASKS.csv #2923 — 'Si as SiO2' in the price rows; isLoiHeader: #2924 // TASKS.csv #2200 / #2479; columnFormat: #3019
@@ -332,7 +333,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
     // #1680 — beside the stored-unit column (avg_<sym>_<stored unit>); #3236 — named for the unit shown, and said in the header
     if (conv) rows.forEach((row, i) => { row[`avg_${gradeSym}_${unitSlug(dispUnit)}`] = +dg(results[i].avgGrade).toPrecision(6); });
     // TASKS.csv #404 — the parameters behind these intercepts, at the top of the file.
-    const stamp = stampLines({ tool: "Best intercepts", version: APP_VERSION, epsg: stampEpsg(project) /* #2195 */, params: [
+    const stampParams = [
       `Element: ${gradeSym} (${unit})${onEq ? " (per-sample metal equivalent)" : ""} | cutoff: ${cutoff} | max consecutive internal dilution: ${maxInternalDilution} m | min intercept length: ${minLength} m | min grade x length: ${minGradeLen}`,
       ...(conv ? [`Display unit: ${gradeSym} is shown in ${dispUnit}; the avg_${gradeSym}_${unitSlug(dispUnit)} column is in ${dispUnit}, every other grade column and the cutoff above in ${unit} (as stored)`] : []), // TASKS.csv #3236
       // TASKS.csv #501/#502 — this now describes what computeBestIntercepts actually does (it used to dilute at zero)
@@ -347,7 +348,20 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
       holeFilter.trim() ? `Holes shown: those containing "${holeFilter.trim()}"` : null, // #3565
       `Order: ${sortKey === "gl" && sortDesc ? "grade x length, best first" : `${sortKey === "hole" ? "hole, then depth" : sortKey} ${sortDesc ? "descending" : "ascending"}`}`, // #3565
       `Intercepts: ${results.length}`,
-    ] });
+    ];
+    const stamp = stampLines({ tool: "Best intercepts", version: APP_VERSION, epsg: stampEpsg(project) /* #2195 */, params: stampParams });
+    // TASKS.csv #3699 — with 'Total per hole' on, the table on screen is the file: one row a hole, the stamp saying so
+    if (perHole && holeRows.length) {
+      const holes = holeTotalRows(holeRows, { symbol: gradeSym, dispUnit: unitSlug(dispUnit), weighted: weightedOn, extraSymbols: shownExtras,
+        extraUnitOf: (s) => (s === symbol && pct ? unitSlug(dispUnit) : elementUnits[s] || "ppm"), extraValueOf: (s, v) => (s === symbol ? dg(v) : v) });
+      const stampH = stampLines({ tool: "Best intercepts, total per hole", version: APP_VERSION, epsg: stampEpsg(project), params: [
+        ...stampParams.filter((l) => l && !/^(Order|Intercepts):/.test(l)),
+        `Total per hole: each hole's intercepts summed: their total downhole length (not a true thickness), grade x length over the sampled metres (in ${dispUnit} x m), the mean grade over those metres${weightedOn ? " (by length x density)" : ""}${shownExtras.length ? ", and each 'Also show' element's mean over the intercepts, weighted by their lengths" : ""}`,
+        `Holes: ${holes.length}; intercepts: ${results.length}`,
+      ] });
+      saveFile({ suggestedName: `best_intercepts_per_hole_${gradeSym}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: stampedCsv(toExportCsv(holes), stampH) });
+      return;
+    }
     saveFile({ suggestedName: `best_intercepts_${gradeSym}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: stampedCsv(toExportCsv(rows), stamp) /* TASKS.csv #3614 — the # lines only when asked */ });
   };
 
@@ -361,7 +375,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
             {pxrfLeft > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{n} pXRF reading(s) left out: the grades here come from lab assays only.", { n: pxrfLeft })}</div>}{/* #1673 */}
             </div>
           </div>
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3578 — the help page of this dialog */}<button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("best-intercepts")} aria-label={tr("Help: {name}", { name: tr("Best-intercept report") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3578 — the help page of this dialog */}<button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("best-intercepts")} aria-label={tr("Help: {name}", { name: tr("Best intercepts") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
@@ -595,7 +609,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
             )}{tr("Intercepts never average below the cutoff: internal dilution is only bridged while the result stays at or above it. \"≥\" marks a grade that contains an over-range result.")}{" "}{sortKey === "gl" && sortDesc ? tr("Sorted by grade × length (best intercepts first).") : tr("In the order of the column heading clicked.")}{" "}{weightNote}{hasBelowDet ? ` ${tr("Below-detection assay values are already substituted at half the detection limit (same convention as the plots).")}` : ""}{" "}{tr("This is a screening tool — verify any intercept you plan to report externally against the raw assay certificates.")}{/* #3562 weighting named; #3579 below-detection only where there is some */}</div>
 
           <button onClick={exportCSV} disabled={results.length === 0} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: results.length === 0 ? 0.5 : 1 }}>
-            <Download size={14} />{" "}{tr("Export report (CSV)")}</button>
+            <Download size={14} />{" "}{perHole ? tr("Export totals per hole (CSV)") : tr("Export report (CSV)")}</button>{/* TASKS.csv #3699 — the button says which table it writes */}
           <CsvStampToggle />{/* TASKS.csv #3614 */}
           <button onClick={toLayout} disabled={results.length === 0} title={tr("Put the best of these intercepts on the current Layout page as a table, as many as fit a free spot on the page (the CSV has them all)")} style={{ ...btn(false), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: results.length === 0 ? 0.5 : 1 }}>
             <Sheet size={14} />{" "}{tr("To Layout")}</button>{/* TASKS.csv #911 */}

@@ -20,7 +20,7 @@ export default [
       steps: [
         "Open File > Open Sample Project and choose the Macpass zinc-lead-silver sample. Read the notices it opens with: the number of holes, assay intervals and densities, and the owner's credit.",
         "Look at the sidebar. Collars and Survey are loaded; the Specific gravity layer holds the bulk densities; Lithology, Alteration and the other logs are empty because the sample has none.",
-        "Click Data QC in the 3D View's ribbon. Read the errors first, then the warnings and notes: they say what is left out of the sample, such as holes with no assays and intervals with no density.",
+        "Click Data QC in the 3D View's ribbon. Read the errors first, then the warnings and the infos: they say what is left out of the sample, such as holes with no assays and intervals with no density.",
         "Open Geochem to see the Ag, Pb and Zn assays. Silver is in ppm, lead and zinc in per cent: the units are set when the assays are imported (see Import assays).",
         "To start your own project, use File > New Project, then import your collars, surveys, logs and assays in that order, and run Data QC again.",
       ],
@@ -46,15 +46,16 @@ export default [
       { name: "Extra fields (optional)", what: "Other columns of the file kept on each row, listed under Identify. The dialog fills the list with the columns the layer does not take (a method flag, a comment); remove any you do not want, or add more.", choose: "Keep the columns that matter for later checks, such as a density's method or a log's recovery." },
     ],
     warnings: [
-      { says: "{n} column(s) of the file were not imported: {cols}. Add one under Extra fields in the import dialog to keep it.", means: "The columns named carry values that no field of the layer took.", do: "Add the ones you need under Extra fields and import again, or leave them if you do not need them." },
-      { says: "{n} survey hole ids have no matching collar", means: "The survey names holes that are not in the collar table, so those stations cannot be placed.", do: "Import the collars first, or fix the hole ids (a leading zero, a dash or a letter case is a common difference)." },
-      { says: "rows of {file} were left out", means: "Rows with no hole id, no From, no value or no code are left out and counted, with the reason.", do: "Open Data QC for the counts by file, correct the file and import it again." },
+      { says: "3 column(s) of the file were not imported: method, low_recovery, comment. Add one under Extra fields in the import dialog to keep it.", means: "The columns named carry values that no field of the layer took.", do: "Add the ones you need under Extra fields and import again, or leave them if you do not need them." },
+      { says: "2 survey hole ids have no matching collar (NB23-014, NB23-015): their 312 stations cannot be desurveyed and won't render.", means: "The survey names holes that are not in the collar table, so those stations cannot be placed.", do: "Import the collars first, or fix the hole ids (a leading zero, a dash or a letter case is a common difference)." },
+      { says: "Replaced the earlier survey of NB23-001, NB23-002 and 20 more — Ctrl+Z to undo.", means: "A survey file's stations for a hole REPLACE that hole's earlier survey: they are not appended, unless the file starts at or below where the earlier one ends, when it is read as an extension (the notice then says Added below the existing survey of the holes). A survey identical to the one loaded changes nothing, and says so.", do: "Nothing if you meant to replace it; Ctrl+Z undoes the import. To add stations to a hole, give the new file's depths starting at or below the last one loaded." },
+      { says: "14 rows of sg.csv were left out (no hole id, no From, no value or no code).", means: "Rows with no hole id, no From, no value or no code are left out and counted, with the reason.", do: "Open Data QC for the counts by file, correct the file and import it again." },
     ],
     howto: {
       sample: "Macpass",
       steps: [
         "Open the Macpass sample, then use + Add layer in the sidebar and choose Specific gravity.",
-        "Pick the sg.csv file from the sample's folder. The dialog opens with Specific gravity selected, the hole, From, To and value columns mapped, and method, low_recovery and comment listed under Extra fields.",
+        "Pick the sg.csv file from the Macpass sample's folder: sample_data\\yk_macpass inside the resources folder beside GeoStrix's program in its install folder (the same folder holds collars.csv, survey.csv and assays.csv). The dialog opens with Specific gravity selected, the hole, From, To and value columns mapped, and method, low_recovery and comment listed under Extra fields.",
         "Read the preview, then import. The notice says how many rows loaded, that this layer is the density the tonnes use, and how many are of each method.",
         "Click a density interval with Identify to read its value, in t/m³, and its method.",
       ],
@@ -81,7 +82,7 @@ export default [
     warnings: [
       { says: "No element columns recognized — add one manually below.", means: "No column name looks like an element with a unit.", do: "Add the columns by hand with the element's symbol (such as Cu), or rename the columns in the file (Cu_ppm)." },
       { says: "Tick or add at least one element to import.", means: "No element is selected.", do: "Tick the elements you want." },
-      { says: "{codes} negative value(s) no bigger than their column's own values", means: "Assays cannot be negative, so the values are codes.", do: "Choose what they mean (below detection, or not assayed)." },
+      { says: "3 negative value(s) no bigger than their column's own values (-0.005; -100 in a column of 100 to 500). Assays can't be negative, so these are codes. What do they mean?", means: "Assays cannot be negative, so the values are codes.", do: "Choose what they mean (below detection, or not assayed)." },
     ],
     howto: {
       sample: "Macpass",
@@ -110,10 +111,10 @@ export default [
       { name: "Rows", what: "Which rows of the file to import, when a row filter is offered.", choose: "Leave every row unless the file mixes density methods you want to keep apart." },
     ],
     warnings: [
-      { says: "This layer is the density the tonnes use (t/m³): {n} intervals, {min} to {max}.", means: "The import says what the layer is for, the number of intervals, and their range.", do: "Check the range against what you expect for the rock; then see the counts by method that follow." },
-      { says: "The middle value of this column is {m}, which is not a density in t/m³ (usually 1.5 to 6)", means: "The mapped column is probably in kg/m³ or is not a density at all.", do: "Divide the column by 1000 in the file, or map the right column, before importing." },
-      { says: "Value {v} at {from}–{to}m is outside the plausible 1–6 range for Specific gravity — a keying or unit error?", means: "Data QC checks every density against one range, 1 to 6 t/m³ until you change it in Data QC's Density boxes (a coal or a tailings reads near 1.3; massive galena and sphalerite can read 6 to 7.5, and a project of such rock should raise the top of the range). A value outside it is flagged, is left out of the density mean the tonnage tools and the density-weighted grades use, and is almost always a typing error, a percent, or kg/m³.", do: "Open the hole and depth the line names; correct the file, or, if the rock really is that dense, raise the top of the range in Data QC so the reading is used." },
-      { says: "{n} assayed interval(s) in {h} hole(s) that have densities have no Specific gravity interval overlapping them", means: "A tonnage over these intervals has no measured density.", do: "Measure or import densities for them, or choose a density by hand in Grade-tonnage." },
+      { says: "This layer is the density the tonnes use (t/m³): 32,498 intervals, 1.4 to 7.6.", means: "The import says what the layer is for, the number of intervals, and their range.", do: "Check the range against what you expect for the rock; then see the counts by method that follow." },
+      { says: "The middle value of this column is 2,710, which is not a density in t/m³ (usually 1.5 to 6)", means: "The mapped column is probably in kg/m³ or is not a density at all.", do: "Divide the column by 1000 in the file, or map the right column, before importing." },
+      { says: "Value 27.1 at 42.5–43.5m is outside the plausible 1–6 range for Specific gravity — a keying or unit error?", means: "Data QC checks every density against one range, 1 to 6 t/m³ until you change it in Data QC's Density boxes (a coal or a tailings reads near 1.3; massive galena and sphalerite can read 6 to 7.5, and a project of such rock should raise the top of the range). A value outside it is flagged, is left out of the density mean the tonnage tools and the density-weighted grades use, and is almost always a typing error, a percent, or kg/m³.", do: "Open the hole and depth the line names; correct the file, or, if the rock really is that dense, raise the top of the range in Data QC so the reading is used." },
+      { says: "212 assayed interval(s) in 9 hole(s) that have densities have no Specific gravity interval overlapping them", means: "A tonnage over these intervals has no measured density.", do: "Measure or import densities for them, or choose a density by hand in Grade-tonnage." },
     ],
     howto: {
       sample: "Macpass",
@@ -130,7 +131,7 @@ export default [
     id: "data-qc",
     area: "3D View",
     title: "Drillhole data QA/QC",
-    summary: "Checks collar coordinates, survey trajectories, assays and every logged layer for the problems that quietly distort a modelled surface, before you model. It lists issues as errors, warnings and notes, worst first, and fixes nothing: you correct the files and import again. It also says what the project lacks, such as having no log of any kind.",
+    summary: "Checks collar coordinates, survey trajectories, assays and every logged layer for the problems that quietly distort a modelled surface, before you model. It lists issues as errors, warnings and infos, worst first, and fixes nothing: you correct the files and import again. It also says what the project lacks, such as having no log of any kind.",
     notFor: [
       "It does not prove the data is right: a clean list means the checks found nothing, not that the holes are correct.",
       "A warning is a question, not a verdict. A bend in a hole can be a real deflection, a short gap between samples can be core that was not cut.",
@@ -144,16 +145,16 @@ export default [
       { name: "Re-run", what: "Runs the checks again on the data as it is now.", choose: "Run it after correcting a file and importing it again." },
     ],
     warnings: [
-      { says: "Dogleg {dl}° over {dMD} m between {depth} m and {depth2} m", means: "Two survey stations bend more than the level allows. Close stations scale a small angle up into a large rate, so the rate is taken over at least 10 m.", do: "Check the stations for a typo or a bad shot; a real deflection (a wedge) is fine." },
+      { says: "Dogleg 4.2° over 10 m between 150 m and 160 m", means: "Two survey stations bend more than the level allows. Close stations scale a small angle up into a large rate, so the rate is taken over at least 10 m.", do: "Check the stations for a typo or a bad shot; a real deflection (a wedge) is fine." },
       { says: "No lithology, alteration, vein, structure or other log is in the project", means: "The holes carry assays or densities only, so there are no logged contacts for the modelling tools to build from.", do: "Import the logs, or model from assays and shells only." },
-      { says: "{n} unsampled gap(s) of more than {d} m lie between samples inside the sampled range", means: "Core between two samples was not assayed, or its results are not in the table.", do: "Check the lab's sample list for those metres." },
-      { says: "{n} of {m} holes with a collar have no assays", means: "These holes are in the collar table but have no assay rows.", do: "Check whether they were assayed, and whether the hole ids match." },
+      { says: "37 unsampled gap(s) of more than 5 m lie between samples inside the sampled range", means: "Core between two samples was not assayed, or its results are not in the table.", do: "Check the lab's sample list for those metres." },
+      { says: "127 of 559 holes with a collar have no assays", means: "These holes are in the collar table but have no assay rows.", do: "Check whether they were assayed, and whether the hole ids match." },
     ],
     howto: {
       sample: "Macpass",
       steps: [
         "Open the Macpass sample and click Data QC in the 3D View's ribbon.",
-        "Read the counts at the top: errors, warnings and notes. The list is worst first, with the survey bends after the other warnings.",
+        "Read the counts at the top: errors, warnings and infos. The list is worst first, with the survey bends after the other warnings.",
         "Filter by category to read the Survey bends, then the Specific gravity and Assays lines.",
         "Click Export CSV to save the list, or Re-run after changing a file.",
       ],

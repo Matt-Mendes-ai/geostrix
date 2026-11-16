@@ -10,13 +10,12 @@ import { compositeDownhole } from "./geochem.js";
 export function compositeSet(assays, symbols, elementUnits, opts = {}, densityCol = null) {
   const rows = new Map(); // "hole|from|to" -> row
   const per = {};
-  let merged = 0, dropped = 0;
+  const droppedKeys = new Set(), mergedKeys = new Set(); // TASKS.csv #3700 (3) — the windows (rows) the short-end option removed, counted once across the elements
   symbols.forEach((symbol, k) => {
-    const st = {};
+    const st = { shortEndDroppedKeys: droppedKeys, shortEndMergedKeys: mergedKeys };
     const unit = elementUnits[symbol] || "ppm";
     const comps = compositeDownhole(assays, symbol, unit, elementUnits, { ...opts, capValue: k === 0 ? opts.capValue ?? null : null, capByDomain: k === 0 ? opts.capByDomain : null, stats: st });
     per[symbol] = { readings: st.readings || 0, leftOut: st.leftOut || 0, underCovered: st.underCovered || 0 };
-    if (k === 0) { merged = st.shortEndsMerged || 0; dropped = st.shortEndsDropped || 0; }
     for (const c of comps) {
       const key = `${c.hole_id}|${c.from}|${c.to}`;
       let r = rows.get(key);
@@ -31,7 +30,7 @@ export function compositeSet(assays, symbols, elementUnits, opts = {}, densityCo
   });
   const out = [...rows.values()].sort((a, b) => (a.hole_id < b.hole_id ? -1 : a.hole_id > b.hole_id ? 1 : a.from - b.from));
   if (densityCol) for (const r of out) r.density = densityCol(r.hole_id, r.from, r.to); // the composite's own density: the layer's, whatever the assays cover
-  out.stats = { perElement: per, shortEndsMerged: merged, shortEndsDropped: dropped };
+  out.stats = { perElement: per, shortEndsMerged: mergedKeys.size, shortEndsDropped: droppedKeys.size };
   return out;
 }
 

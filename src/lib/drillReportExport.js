@@ -68,5 +68,20 @@ export function interceptRows(results, { symbol, unit, loc = () => ({}), trueWid
   }));
 }
 
+// TASKS.csv #3699 (Fireweed rehearsal, round 3) — with 'Total per hole' ticked the table on screen is one row a hole, and 'Export report (CSV)' wrote the
+// single intercepts. The per-hole table as a CSV, the screen's columns in its order: the hole, its intercepts, their total downhole length, grade x length
+// (in the unit shown, over the sampled metres), the mean grade, and each 'Also show' element's mean, with the weighting named as the interval table does.
+// holes: holeTotalsDisplay's rows ({ hole_id, intercepts, thicknessM, gt, meanGrade, extras }), already in the unit shown. extraUnitOf(s) / extraValueOf(s, v): the
+// element's unit and its value as the screen shows it. -> one plain object a hole
+export function holeTotalRows(holes, { symbol, dispUnit, weighted = false, extraSymbols = [], extraUnitOf = () => "ppm", extraValueOf = (s, v) => v }) {
+  return (holes || []).map((h) => ({
+    hole_id: h.hole_id, intercepts: h.intercepts, total_length_m_downhole: sig6(h.thicknessM),
+    [`grade_x_length_${dispUnit}_m`]: sig6(h.gt),
+    [`avg_${symbol}_${dispUnit}`]: h.meanGrade == null ? "" : sig6(h.meanGrade),
+    ...(weighted ? { grade_weighting: "length x density" } : {}),
+    ...Object.fromEntries((extraSymbols || []).map((s) => [`avg_${s}_${extraUnitOf(s)}`, h.extras?.[s] == null ? "" : sig6(extraValueOf(s, h.extras[s]))])),
+  }));
+}
+
 // TASKS.csv #1164, #1290 — the optional columns of the Best intercepts table, one order for its header and its rows
 export const optionalInterceptColumns = ({ including, metalEquivalent }) => [...(including ? ["including"] : []), ...(metalEquivalent ? ["meq"] : [])];

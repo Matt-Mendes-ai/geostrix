@@ -139,8 +139,14 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
     if (!rows.length) { setKept(tr("No composite has a {symbol} grade: no layer was made.", { symbol })); return; }
     const name = `Composites ${length} m: ${syms.join(" ")}`;
     const notes = `Composites of ${syms.join(", ")} at ${length} m, min coverage ${Math.round(minCoverage * 100)} %, grades ${weightedOn ? "weighted by length x density" : "length-weighted"}${capStored == null ? "" : `, ${symbol} capped at ${capStored} ${unit}`}${domainKey ? `, breaking at ${domainMeta.label}` : ""}; short end piece: ${shortEnd === "merge" ? `added above when under ${minEnd} m` : shortEnd === "drop" ? `dropped when under ${minEnd} m` : "kept"}. Value is ${symbol} (${unit}); each element is a field in its own stored unit, with coverage_<element> in %.`;
-    setCustomLayers((p) => [...p, { id: `custom_${Date.now()}`, name: p.some((c) => c.name === name) ? `${name} (${p.filter((c) => String(c.name).startsWith(name)).length + 1})` : name, rows, unit: unit, notes }]);
-    setKept(tr("Added the layer \"{name}\": {n} composites. Colour it by an element, its coverage or the density in the layer's style; Estimation, Grade shell, Geochem X-Y and Statistics can read it.", { name, n: rows.length.toLocaleString() }));
+    // TASKS.csv #3700 (5) — each field's unit and which field the value repeats: Grade statistics and X-Y list one entry a field, with its unit (they listed the value
+    // and, beside it, the same element as a field 'as logged', its statistics headed 'ZN (AS LOGGED)')
+    const fieldUnits = { ...Object.fromEntries(syms.map((s) => [s, elementUnits[s] || "ppm"])), ...Object.fromEntries(syms.map((s) => [`coverage_${s}`, "%"])), density: "t/m³" };
+    setCustomLayers((p) => [...p, { id: `custom_${Date.now()}`, name: p.some((c) => c.name === name) ? `${name} (${p.filter((c) => String(c.name).startsWith(name)).length + 1})` : name, rows, unit: unit, notes, fieldUnits, valueField: symbol }]);
+    // TASKS.csv #3700 (4) — the windows the first element did not keep are in the table and not in the layer: said, with how many
+    const left = results.length - rows.length;
+    setKept(tr("Added the layer \"{name}\": {n} composites. Colour it by an element, its coverage or the density in the layer's style; Estimation, Grade shell, Geochem X-Y and Statistics can read it.", { name, n: rows.length.toLocaleString() })
+      + (left > 0 ? " " + tr("{k} composite(s) have no {symbol} grade (only another element's): they are in the table and the CSV, not in this layer.", { k: left.toLocaleString(), symbol }) : ""));
   };
 
   const exportCSV = () => {
