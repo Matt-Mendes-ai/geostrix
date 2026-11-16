@@ -22,6 +22,7 @@ import { flushSync } from "react-dom"; // TASKS.csv #1090 — render at print si
 import { hoverTitle } from "../lib/svgLazyTitle.js"; // TASKS.csv #2210
 import { gradeText } from "../lib/gradeText.js"; // TASKS.csv #2515
 import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3573 — g/t for a precious metal stored in ppm in the top-grade labels
+import { sectionIntercepts, gradeBarAxis, gradeBarFrac } from "../lib/sectionIntercepts.js"; // TASKS.csv #3860
 import { defaultSectionVE, plotAspect, MAX_SECTION_VE } from "../lib/sectionVE.js"; // TASKS.csv #2363; plotAspect: #2933
 // TASKS.csv #2933 / #2387 — the VE of the section a step (‹ ›) was taken from, for the section that step opens in the next tab of this
 // window (the tabs share this module): a parallel section keeps the user's 8x instead of opening at its own automatic 3x
@@ -123,6 +124,11 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   // itself". The interval ribbons' width in px (a per-user preference, kept in localStorage), and the buffer typed here.
   const [holeWidth, setHoleWidthState] = useState(() => { try { const v = Number(localStorage.getItem("geostrix.sectionHoleWidth")); return v >= 1 && v <= 20 ? v : 5; } catch { return 5; } });
   const setHoleWidth = (v) => { const n = Math.max(1, Math.min(20, Number(v) || 5)); setHoleWidthState(n); try { localStorage.setItem("geostrix.sectionHoleWidth", String(n)); } catch { /* private window */ } };
+  // TASKS.csv #3860 — the grade labels: the highest single samples (as before), or the best intercepts by Best intercepts' rule ('3.70 m @ 56.4 g/t Au'),
+  // at a cut-off typed here (blank: the P90 of the section's values) and 2 m of internal dilution. A per-user preference, like the hole width.
+  const [gradeLabelMode, setGradeLabelModeState] = useState(() => { try { return localStorage.getItem("geostrix.sectionGradeLabels") === "intercepts" ? "intercepts" : "samples"; } catch { return "samples"; } });
+  const setGradeLabelMode = (m) => { setGradeLabelModeState(m); try { localStorage.setItem("geostrix.sectionGradeLabels", m); } catch { /* private window */ } };
+  const [interceptCutoffs, setInterceptCutoffs] = useState({});
   // TASKS.csv #1995 — FGDC lithology patterns over the lithology ribbon (the strip log's per-code choice); off by default: a 5 px ribbon
   // shows a sliver of a tile, so the box says to widen the holes. A per-user preference, like the hole width.
   const [patternsOn, setPatternsOnState] = useState(() => { try { return localStorage.getItem("geostrix.sectionPatterns") === "1"; } catch { return false; } });
@@ -506,6 +512,14 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
               {ribbonChoices.map((c) => <label key={c.key} style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}><input type="checkbox" checked={!ribbonHidden(c.key)} onChange={() => toggleRibbon(c.key)} />{c.label}</label>)}
             </div>
           </details>}
+          {(data?.points || []).some((r) => r.assay) && <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("What the grade labels say: the highest single samples, or the best intercepts by Best intercepts' rule (the cut-off typed here, or the P90 of this section's values when blank; at most 2 m of internal dilution)")}>
+            {tr("Grade labels")}
+            <select value={gradeLabelMode} onChange={(e) => setGradeLabelMode(e.target.value)} style={{ fontSize: 11 }} aria-label={tr("Grade labels")}>
+              <option value="samples">{tr("Highest samples")}</option>
+              <option value="intercepts">{tr("Best intercepts (m @ grade)")}</option>
+            </select>
+            {gradeLabelMode === "intercepts" && [...new Set((data?.points || []).filter((r) => r.assay && !r.assay.pxrf).map((r) => r.assay.sym))].map((sym) => <input key={sym} type="number" min="0" step="any" value={interceptCutoffs[sym] ?? ""} placeholder={tr("{sym} cut-off (P90)", { sym })} onChange={(e) => setInterceptCutoffs((c) => ({ ...c, [sym]: e.target.value }))} style={{ width: 92, fontSize: 11 }} aria-label={tr("{sym} cut-off", { sym })} />)}
+          </label>}{/* TASKS.csv #3860 */}
           <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("Width of the drillhole interval ribbons on the section, in pixels")}>
             {tr("Hole width")}
             <input type="number" min="1" max="20" step="1" value={holeWidth} onChange={(e) => setHoleWidth(e.target.value)} style={{ width: 40, fontSize: 11 }} aria-label={tr("Hole width")} />
@@ -602,7 +616,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
           </div>
         )}
         {editingId && <div style={{ fontSize: 11, color: "#b06a1f", marginBottom: 6 }}>{tr("Editing \"{v}\": drag a vertex to move it, Alt-click a vertex to delete it, click the line to insert one{v2}. Click the pencil again to finish; Save contacts keeps the changes.", { v: editing?.unit, v2: snapOn ? tr(" (snapping to holes)") : "" })}{editing?.kind === "outline" ? ` ${tr("Shift-click a vertex to make it the tie point: it is linked to the tie point of the outline on the next section.")}` : ""}</div>}
-        <SectionSVG patterns={patternsOn && Object.keys(patternTiles).length ? patternTiles : null} onLeftOut={printScale == null ? setLabelsLeftOut : null} printing={printScale != null} /* #2761 */ textFont={textFont} textScale={printScale ?? textScale * autoText} /* #1090 — the print size while an export is drawn; #3574 — the grown size of a fitted tall section on screen */ holeWidth={holeWidth} structOpacity={structOpacity} showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} onAutoVE={(v) => setVExag((cur) => cur ?? v)} geomRef={geomRef} planPts={planning ? planPts : []}
+        <SectionSVG gradeLabels={{ mode: gradeLabelMode, cutoffs: interceptCutoffs }} /* #3860 */ patterns={patternsOn && Object.keys(patternTiles).length ? patternTiles : null} onLeftOut={printScale == null ? setLabelsLeftOut : null} printing={printScale != null} /* #2761 */ textFont={textFont} textScale={printScale ?? textScale * autoText} /* #1090 — the print size while an export is drawn; #3574 — the grown size of a fitted tall section on screen */ holeWidth={holeWidth} structOpacity={structOpacity} showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} onAutoVE={(v) => setVExag((cur) => cur ?? v)} geomRef={geomRef} planPts={planning ? planPts : []}
           snap={snapOn && !planning ? targets : null} projectSnaps={projectSnaps || outlineOnPlane} editingId={editingId} onEditPoints={editPoints} onCopyGhost={drawing || planning ? null : copyGhost}
           labels={labels} onMoveLabel={(key, off) => changeLabels({ offsets: { ...labels.offsets, [key]: off } })} /* #823 */ />
         <BlockModelKey slices={[...(data.voxelSlices || []), ...surveyKeys]} />{/* #3430: the surveys' ramps too */}
@@ -636,7 +650,7 @@ function measureLabel(size, font) {
   };
 }
 
-function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidth = 5, structOpacity = 1, showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag: vExagIn, onAutoVE = null, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onLeftOut = null, onMoveLabel, onCopyGhost = null, projectSnaps = false }) {
+function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */, printing = false, patterns = null, textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidth = 5, structOpacity = 1, showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag: vExagIn, onAutoVE = null, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onLeftOut = null, onMoveLabel, onCopyGhost = null, projectSnaps = false }) {
   const plotClipId = `sectionPlotArea${useId().replace(/:/g, "")}`, patId = `${plotClipId}p`; // patId: #1995 // #1303 — a hidden tab's clip path would hide this one's drawing
   const fs = (n) => +(n * textScale).toFixed(2); // TASKS.csv #1129 — every label at the chosen text size
   // TASKS.csv #1134 — depth / EOH / offset / planned-hole labels are collected while the holes are drawn and placed in one
@@ -697,6 +711,12 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
   const subtitleLines = wrapText(tr(rlOff ? "Azimuth {v}° · looking {look} · {v2}{v3} · RL in m" : "Azimuth {v}° · looking {look} · {v2}{v3} · elevation in m", { v: azDeg.toFixed(0), look: bearingText(azDeg - 90), v2: vExag && vExag !== 1 ? tr("{vExag}x vertical exaggeration", { vExag }) : tr("no vertical exaggeration"), v3: section.corridor ? tr(" · data within ±{corridor} m of the line (dashed = trace projected from further away)", { corridor: section.corridor }) : "" }), Math.floor((W - 2 * PAD) / (0.56 * fs(10))));
   // TASKS.csv #1637 — which ribbon is which: 5-6 parallel ribbons per hole had no key on the section itself
   { const rib = ribbonOrder(intervals); if (rib.length > 1) subtitleLines.push(...wrapText(tr("Ribbons on each hole, left to right: {list}", { list: rib.join(" · ") }), Math.floor((W - 2 * PAD) / (0.56 * fs(10))))); }
+  // TASKS.csv #3860 — each element's grade bars on its own axis: log over two decades or more (vein gold 0.0025-123 g/t drew every bar but one a pixel
+  // long), else linear as before; the sheet says which are log
+  const barAxis = {};
+  for (const sym of new Set(points.filter((r) => r.assay).map((r) => r.assay.sym))) barAxis[sym] = gradeBarAxis(points.filter((r) => r.assay?.sym === sym).map((r) => r.assay.value));
+  const logBars = Object.entries(barAxis).filter(([, a]) => a.log).map(([sym, a]) => { const u = points.find((r) => r.assay?.sym === sym)?.assay?.u; return `${sym} ${gradeText(a.lo)}–${gradeText(a.hi)}${u ? ` ${gradeUnitLabel(sym, u)}` : ""}`; });
+  if (logBars.length) subtitleLines.push(...wrapText(tr("Grade bars on a log scale: {list}", { list: logBars.join(" · ") }), Math.floor((W - 2 * PAD) / (0.56 * fs(10)))));
   if (!isFinite(minZ)) { minZ = 0; maxZ = 100; }
   const zPad = (maxZ - minZ) * 0.08 || 10;
   minZ -= zPad; maxZ += zPad;
@@ -742,9 +762,10 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
   const BAR_MAX = gradeBarMax(collarGap, ribbonReach, points.reduce((m, r) => (r.assay ? Math.max(m, (r.assay.idx || 0) + 1) : m), 1)); // n elements: no spread (#3031)
   const assayMax = {};
   points.forEach((r) => { if (r.assay && Number.isFinite(r.assay.value)) assayMax[r.assay.sym] = Math.max(assayMax[r.assay.sym] || 0, r.assay.value); });
-  // label the 8 highest values per element in this section, not every sample (unreadable at section scale)
+  // label the 8 highest values per element in this section, not every sample (unreadable at section scale); #3860 — or its 8 best intercepts
+  const intercepts = gradeLabels?.mode === "intercepts" ? sectionIntercepts(points, { cutoffs: gradeLabels.cutoffs || {} }) : [];
   const labelledAssays = new Set();
-  Object.keys(assayMax).forEach((sym) => points.filter((r) => r.assay?.sym === sym).sort((x, y) => y.assay.value - x.assay.value).slice(0, 8).forEach((r) => labelledAssays.add(r)));
+  if (gradeLabels?.mode !== "intercepts") Object.keys(assayMax).forEach((sym) => points.filter((r) => r.assay?.sym === sym).sort((x, y) => y.assay.value - x.assay.value).slice(0, 8).forEach((r) => labelledAssays.add(r)));
 
   // TASKS.csv #519 — screen -> section point, snapped to a hole when snapping is on
   const localOf = (e) => {
@@ -1002,7 +1023,7 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
           const x1 = sx(along(q1.x, q1.y)), y1 = sz(q1.z), x2 = sx(along(q2.x, q2.y)), y2 = sz(q2.z);
           const [nx, ny] = screenNormal(x1, y1, x2, y2);
           const base = ribbonReach + 5 + a.idx * (BAR_MAX + 8);
-          const len = assayMax[a.sym] > 0 ? Math.max(1, (a.value / assayMax[a.sym]) * BAR_MAX) : 1;
+          const len = assayMax[a.sym] > 0 ? Math.max(1, gradeBarFrac(a.value, barAxis[a.sym]) * BAR_MAX) : 1; // #3860 — log over two decades
           const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
           const bx0 = mx + nx * base, by0 = my + ny * base, bx1 = mx + nx * (base + len), by1 = my + ny * (base + len);
           const thick = Math.max(1.5, Math.hypot(x2 - x1, y2 - y1));
@@ -1018,6 +1039,20 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
         const p = interpTrace(trace, row.md);
         if (!p) return null;
         return <circle key={i} cx={sx(along(p.x, p.y))} cy={sz(p.z)} r="3.5" fill={row.color} stroke="#ffffff" strokeWidth="0.5"><title>{row.label}</title></circle>;
+      })}
+
+      {/* TASKS.csv #3860 — the best intercepts: a bracket beyond the element's bars over the intercept's length, labelled '3.70 m @ 56.4 g/t Au' in the labels' collision pass */}
+      {intercepts.map((c, i) => {
+        const trace = traceByHole[c.hole_id];
+        if (!trace) return null;
+        const q1 = interpTrace(trace, c.from), q2 = interpTrace(trace, c.to);
+        if (!q1 || !q2) return null;
+        const x1 = sx(along(q1.x, q1.y)), y1 = sz(q1.z), x2 = sx(along(q2.x, q2.y)), y2 = sz(q2.z);
+        const [nx, ny] = screenNormal(x1, y1, x2, y2);
+        const idx = points.find((r) => r.assay?.sym === c.sym)?.assay?.idx || 0, off = ribbonReach + 5 + idx * (BAR_MAX + 8) + BAR_MAX + 3;
+        const ax0 = x1 + nx * off, ay0 = y1 + ny * off, ax1 = x2 + nx * off, ay1 = y2 + ny * off, mx = (ax0 + ax1) / 2, my = (ay0 + ay1) / 2;
+        floatLabels.push({ key: `bi_${i}`, text: c.text, size: fs(9), fill: "#1a2028", prio: 2, within: [PAD, W - PAD, PAD, H - PAD], cands: [{ x: mx + nx * 3, y: my + ny * 3 + 3, anchor: nx >= 0 ? "start" : "end" }, { x: mx + nx * 3, y: my + ny * 3 + 3 + fs(10), anchor: nx >= 0 ? "start" : "end" }, { x: mx + nx * 3, y: my + ny * 3 - fs(8), anchor: nx >= 0 ? "start" : "end" }] });
+        return <g key={`bi${i}`} stroke="#1a2028" strokeWidth="1.2" fill="none"><line x1={ax0} y1={ay0} x2={ax1} y2={ay1} /><line x1={ax0} y1={ay0} x2={ax0 - nx * 3} y2={ay0 - ny * 3} /><line x1={ax1} y1={ay1} x2={ax1 - nx * 3} y2={ay1 - ny * 3} /><title>{`${c.hole_id} ${+c.from.toFixed(2)}–${+c.to.toFixed(2)} m: ${c.text} (cut-off ${c.cutoff})`}</title></g>;
       })}
 
       {planes.map((row, i) => {

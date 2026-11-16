@@ -24,7 +24,7 @@ test("planned holes in frame px, the far one left out; none when the tick is off
 test("the drawing labels them '(planned)', keeps labels off their collars and adds a key row", () => {
   const e = readFileSync(new URL("../src/components/DrillPlanElement.jsx", import.meta.url), "utf8");
   assert.match(e, /const planned = drillPlanPlanned\(el, plannedHoles\);/);
-  assert.match(e, /\[\.\.\.g\.holes, \.\.\.planned\]\.filter\(\(hh\) => hh\.inside && [^\n]*hh\.planned \? tr\("\{name\} \(planned\)", \{ name: hh\.id \}\) : hh\.id/);
+  assert.match(e, /\[\.\.\.g\.holes, \.\.\.planned\]\.filter\(\(hh\) => hh\.inside && [^\n]*hh\.planned \? tr\("\{name\} \(planned\)", \{ name: hh\.id \}\) : (?:labelText\(hh\.id\)|hh\.id)/);
   assert.match(e, /const collarBoxes = \[\.\.\.g\.holes, \.\.\.planned\]\.filter/);
   assert.match(e, /const plannedKey = planned\.length \? \[\{ label: tr\("Planned hole"\) \}\] : \[\];/);
   assert.match(e, /const keyRows = colouring\.key\.length \+ shapeKey\.length \+ plannedKey\.length;/);

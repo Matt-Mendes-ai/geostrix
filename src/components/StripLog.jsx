@@ -40,7 +40,7 @@ import { stripLogTextPt } from "../lib/atlas.js"; // TASKS.csv #1480 — the siz
 import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3586 — g/t for Au / Ag / Pt / Pd stored in ppm
 import { lazyModal } from "../lib/lazyModal.jsx"; // TASKS.csv #3560 A1
 const MultiStripLogModal = lazyModal(() => import("./MultiStripLogModal.jsx"));
-import { assayAxis } from "../lib/striplogSvg.js"; // TASKS.csv #3141 — the Atlas's linear / log axis rule (#3024)
+import { assayAxis, logAxisTicks, peakValueLabels } from "../lib/striplogSvg.js"; // TASKS.csv #3141 — the Atlas's linear / log axis rule (#3024); log ticks, peak values: #3859
 import { suspectIdsOf, collarAttrLine } from "../lib/collarTable.js"; // TASKS.csv #3131 — #3004's rule, cached per collar list (the Layout collar table's)
 import { elevationTrust } from "../lib/collarElevationTrust.js";
 import { headerLines, sigText } from "../lib/stripHeader.js"; // TASKS.csv #2481
@@ -447,6 +447,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                       ? <line key={i} x1={cx - tk.dx} y1={y - tk.dy} x2={cx + tk.dx} y2={y + tk.dy} stroke={c} strokeWidth="1.6" strokeLinecap="round"><title>{tip}</title></line>
                       : <line key={i} x1={x0} y1={y} x2={x0 + 10} y2={y} stroke={c} strokeWidth="2"><title>{tip}</title></line>;
                   })}
+                  {t.kind === "assaybar" && t.sym && !axisOf(t.sym).linear && logAxisTicks(assayRange[t.sym]?.minPos, assayRange[t.sym]?.max, { widthPx: TRACK_W - 8, fontPx: 8 }).map((tk) => <line key={`lg${tk.v}`} x1={x0 + 2 + tk.f * (TRACK_W - 8)} y1={sy(d0)} x2={x0 + 2 + tk.f * (TRACK_W - 8)} y2={sy(d1)} stroke="#eef0f3" strokeWidth="1" />)}{/* TASKS.csv #3859 — a log axis's decades, under the bars */}
                   {t.kind === "assaybar" && t.sym && axisOf(t.sym).ticks?.map((tk) => <line key={`g${tk}`} x1={x0 + 2 + (tk / axisOf(t.sym).max) * (TRACK_W - 8)} y1={sy(d0)} x2={x0 + 2 + (tk / axisOf(t.sym).max) * (TRACK_W - 8)} y2={sy(d1)} stroke="#eef0f3" strokeWidth="1" />)}{/* #3141 — the linear axis's gridlines, under the bars */}
                   {t.kind === "assaybar" && t.sym && t.rows.map((r, i) => {
                     const v = valueIn(r, t.sym, elementUnits[t.sym] || "ppm", elementUnits);
@@ -455,6 +456,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                     if (!(w > 0)) return null;
                     return <rect key={i} x={x0 + 2} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={assayColor ? assayColor(t.sym, v) : "#c9863d"} opacity="0.85"><title>{`${r.from}-${r.to} m: ${v} ${gradeUnitLabel(t.sym, elementUnits[t.sym])}`}</title></rect>;
                   })}
+                  {t.kind === "assaybar" && t.sym && peakValueLabels(t.rows.map((r) => { const v = valueIn(r, t.sym, elementUnits[t.sym] || "ppm", elementUnits); return v == null || !Number.isFinite(v) ? null : { v, y: (sy(r.from) + sy(r.to)) / 2, f: barFrac(t.sym, v) }; }).filter(Boolean)).map((pk) => { const txt = sigText(pk.v, 3), tw = txt.length * 8 * 0.55 + 4, tx = x0 + TRACK_W - 7; return <g key={`pk${pk.y}`} pointerEvents="none"><rect x={tx - tw} y={pk.y - 5.5} width={tw} height={10} fill="#ffffff" fillOpacity="0.85" /><text x={tx - 2} y={pk.y + 3} fontSize="8" textAnchor="end" fill="#1a2028">{txt}</text></g>; })}{/* TASKS.csv #3859 — the highest values written at their bars */}
                   {t.kind === "pxrfdots" && t.sym && t.rows.map((r, i) => { // #1695 — a pXRF reading: a dot at its depth, scaled to the pXRF readings' own maximum
                     const v = valueIn(r, t.sym, elementUnits[t.sym] || "ppm", elementUnits);
                     if (v == null || !Number.isFinite(v) || !(pxrfRange[t.sym] > 0)) return null;
@@ -465,6 +467,8 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                   )}
                   {t.kind === "assaybar" && t.sym && assayRange[t.sym]?.max > 0 && (() => { const ax = axisOf(t.sym); return ax.ticks // #3141 — a linear axis: its round ticks under the track
                     ? ax.ticks.map((tk, k) => (k % tickStride(ax.ticks) === 0 || k === ax.ticks.length - 1) && <text key={`t${tk}`} x={x0 + 2 + (tk / ax.max) * (TRACK_W - 8)} y={sy(d1) + 12} fontSize="8" textAnchor={k === 0 ? "start" : k === ax.ticks.length - 1 ? "end" : "middle"} fill="#65717e">{tk}</text>) /* the end ticks inside the track: "80" and the next track's "0" read "800" */
+                    : !ax.linear ? <>{logAxisTicks(assayRange[t.sym].minPos, assayRange[t.sym].max, { widthPx: TRACK_W - 8, fontPx: 8 }).filter((tk) => tk.label).map((tk) => <text key={`lt${tk.v}`} x={x0 + 2 + tk.f * (TRACK_W - 8)} y={sy(d1) + 11} fontSize="8" textAnchor={tk.anchor} fill="#65717e">{tk.label}</text>)}{/* TASKS.csv #3859 — the decades, then the axis's ends under them */}
+                      <text x={x0 + TRACK_W / 2} y={sy(d1) + 21} fontSize="7" textAnchor="middle" fill="#65717e">{tr("log {minPos}–{max}", { minPos: sigText(assayRange[t.sym].minPos, 2), max: sigText(assayRange[t.sym].max, 3) })}</text></>
                     : <text x={x0 + TRACK_W / 2} y={sy(d1) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{!ax.linear ? tr("log {minPos}–{max}", { minPos: sigText(assayRange[t.sym].minPos, 2), max: sigText(assayRange[t.sym].max, 3) }) : `0–${sigText(assayRange[t.sym].max, 3)}`}</text>; })()}
                 </g>
               );

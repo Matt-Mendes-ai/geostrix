@@ -13778,5 +13778,18 @@
   "It is draped on the ground between the collars (no terrain).": "Ela é drapeada sobre o solo entre os colares (sem terreno).",
   "Not set yet. Choose the CRS your coordinates (collars, samples, maps) are in.": "Ainda não definido. Escolha o SRC em que estão suas coordenadas (colares, amostras, mapas).",
   "Disabled: {n} reading(s) with a 95 % cone of {a}° are too few or too scattered to call a trend (at least {min} readings and a cone of {max}° or less). Add readings, or pick the type or area with more.": "Desativado: {n} leitura(s) com um cone de 95 % de {a}° são poucas ou dispersas demais para chamar de tendência (pelo menos {min} leituras e um cone de {max}° ou menos). Adicione leituras ou escolha o tipo ou a área com mais.",
-  "Disabled: these picks show no preferred orientation (k = {k}, at the level of random planes), so their mean plane is not a trend to model. Pick one structure type or one area first.": "Desativado: essas leituras não mostram orientação preferencial (k = {k}, no nível de planos aleatórios), portanto seu plano médio não é uma tendência para modelar. Escolha primeiro um tipo de estrutura ou uma área."
+  "Disabled: these picks show no preferred orientation (k = {k}, at the level of random planes), so their mean plane is not a trend to model. Pick one structure type or one area first.": "Desativado: essas leituras não mostram orientação preferencial (k = {k}, no nível de planos aleatórios), portanto seu plano médio não é uma tendência para modelar. Escolha primeiro um tipo de estrutura ou uma área.",
+  "Every hole, with a leader where there is no room beside it": "Cada furo, com uma linha de chamada onde não há espaço ao lado",
+  "Only holes with room beside the collar": "Só os furos com espaço ao lado do colar",
+  "Label with": "Rotular com",
+  "The hole id": "O ID do furo",
+  "The id and its best intercept (m @ grade), marked on the trace": "O ID e sua melhor interseção (m @ teor), marcada no traço",
+  "{n} hole(s) in the frame; {p} of {l} labelled, {k} of them with a leader; {s} without a label (named on the sheet).": "{n} furo(s) no quadro; {p} de {l} rotulados, {k} deles com linha de chamada; {s} sem rótulo (nomeados na folha).",
+  "What the grade labels say: the highest single samples, or the best intercepts by Best intercepts' rule (the cut-off typed here, or the P90 of this section's values when blank; at most 2 m of internal dilution)": "O que os rótulos de teor dizem: as amostras individuais mais altas, ou as melhores interseções pela regra de Melhores interseções (o teor de corte digitado aqui, ou o P90 dos valores desta seção se em branco; no máximo 2 m de diluição interna)",
+  "Grade labels": "Rótulos de teor",
+  "Highest samples": "Amostras mais altas",
+  "Best intercepts (m @ grade)": "Melhores interseções (m @ teor)",
+  "{sym} cut-off (P90)": "Corte de {sym} (P90)",
+  "{sym} cut-off": "Teor de corte de {sym}",
+  "Grade bars on a log scale: {list}": "Barras de teor em escala logarítmica: {list}"
 }
