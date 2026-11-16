@@ -9,8 +9,8 @@ const choice = (k, v) => numericSourceChoices({ layers, customLayers: [], logVal
 test("the stated unit wins over the guess; without it the guess and the default stand", () => {
   assert.equal(choice("magsusc", null).unit, "as logged", "readings of 20-31 cannot be SI");
   assert.equal(choice("magsusc", { magsusc: { unit: "x10-3 SI" } }).unit, "x10-3 SI");
-  assert.equal(choice("sg", null).unit, "g/cc"); assert.equal(choice("sg", { sg: { unit: "t/m3" } }).unit, "t/m3");
-  assert.equal(choice("sg", { sg: { unit: "  " } }).unit, "g/cc", "a blank unit is none");
+  assert.equal(choice("sg", null).unit, "t/m³"); assert.equal(choice("sg", { sg: { unit: "t/m3" } }).unit, "t/m3");
+  assert.equal(choice("sg", { sg: { unit: "  " } }).unit, "t/m³", "a blank unit is none");
   assert.equal(choice("sg", { sg: { unit: "t/m3", range: [1, 5] } }).validRange[0], 1, "the range beside it still applies");
 });
 test("wired: the setter keeps an entry that has only a unit; the pane has the box", () => {
