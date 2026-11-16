@@ -20,3 +20,19 @@ test("Mag Sus.csv keeps Mag susc whatever the shape; Specific Gravity.csv keeps 
   const log = ["Hole ID", "From", "To", "MagSus_Best"];
   assert.equal(guessTargetFor(log, "Mag Sus.csv", rows(log, 40, point)), "custom", "a downhole log's channel is not this");
 });
+
+// TASKS.csv #3665 (Matt: 'C now, B later') — a point density table stays a Custom layer and the dialog says why and what to do
+import fs from "node:fs";
+import { pointDensityFile } from "../src/lib/layersImport.js";
+test("#3665 point density readings: the dialog is told (file named for density, From = To), and only then", () => {
+  const sg = ["Hole ID", "From", "To", "SG"];
+  assert.equal(pointDensityFile(sg, "Specific Gravity.csv", rows(sg, 40, point)), true);
+  assert.equal(pointDensityFile(sg, "Specific Gravity.csv", rows(sg, 40, span)), false, "real intervals: SG, no note");
+  assert.equal(pointDensityFile(sg, "readings.csv", rows(sg, 40, point)), false, "not named for density: no note");
+  assert.equal(pointDensityFile(["Hole ID", "From", "To", "Mag Sus"], "Mag Sus.csv", rows(["Hole ID", "From", "To", "Mag Sus"], 40, point)), false, "mag susc keeps its layer (#3245)");
+  assert.equal(pointDensityFile(sg, "Specific Gravity.csv", []), false);
+  const m = fs.readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8"), p = fs.readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
+  assert.match(m, /modal\.pointDensity && \(/); assert.match(m, /give each reading a From–To interval/); assert.match(p, /pointDensityFile\(headers, file\.name, data\) \? \{ pointDensity: true \}/);
+  const key = "This looks like a table of point density readings: From equals To on every row, so it opens as a Custom layer. A zero-length density reading cannot be length-weighted, so the density summary and the tonnage would leave it out. To use it as Specific gravity, give each reading a From–To interval and import it again; or keep it as a Custom layer to view.";
+  for (const l of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(fs.readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"))[key], l);
+});
