@@ -52,7 +52,10 @@ const cancelled = () => Object.assign(new Error("cancelled"), { cancelled: true 
 
 // inputs: [{ var, model }] (the first fixes the lattice); formula: the calcExpr text.
 // opts.pause: () => null | Promise (lib/compactTable.js budgetPause), opts.signal: an AbortSignal, opts.onProgress(fraction 0-1) at each slice (#3521).
-// -> { cells: [{ x, y, z, dx, dy, dz, value }], read: [vars], blocks, missing (blocks with some read input but not all), blank (the formula gave no number) }
+// -> { cells: [{ x, y, z, dx, dy, dz, value, support?, nHoles?, beyond?, fromLog? }], read: [vars], blocks, missing (blocks with some read input but not all), blank (the formula gave no number) }
+// TASKS.csv #3685 — each block keeps what its inputs' estimates said of it, so Grade-tonnage reads a calculated model as it reads an estimate
+// (a 'Zn + Pb' model had no Interpolated column and no 'carried outward' caution): the WEAKEST support of its inputs' blocks, the fewest
+// holes, beyond the samples when any input's block is, and the most metres filled from a log.
 // Throws a readable Error before any block for an empty formula, an unknown name, a formula that reads no model or a model off the lattice.
 export async function blockCalc(inputs, formula, { pause = null, signal = null, onProgress = null } = {}) {
   if (!String(formula || "").trim()) throw new Error(tr("Enter a formula."));
@@ -80,7 +83,7 @@ export async function blockCalc(inputs, formula, { pause = null, signal = null, 
   let n = 0;
   for (const x of used) {
     const m = new Map();
-    for (const c of x.model.cells) { const v = Number(c.value); if (Number.isFinite(v)) m.set(key(c), v); await step(++n); }
+    for (const c of x.model.cells) { if (Number.isFinite(Number(c.value))) m.set(key(c), c); await step(++n); }
     maps.push(m);
   }
   // the blocks with at least one read input; those with all of them are evaluated
@@ -94,15 +97,53 @@ export async function blockCalc(inputs, formula, { pause = null, signal = null, 
     const k = key(c);
     if (!maps[base].has(k)) { await step(++n); continue; }
     let ok = true;
-    for (let q = 0; q < used.length; q++) { const v = maps[q].get(k); if (v === undefined) { ok = false; break; } row[used[q].var] = v; }
+    for (let q = 0; q < used.length; q++) { const b = maps[q].get(k); if (b === undefined) { ok = false; break; } row[used[q].var] = Number(b.value); }
     if (ok) {
       all++;
       const value = fn(row);
-      if (Number.isFinite(value)) cells.push({ x: c.x, y: c.y, z: c.z, dx: c.dx, dy: c.dy, dz: c.dz, value }); else blank++;
+      if (Number.isFinite(value)) cells.push(withInputsBasis({ x: c.x, y: c.y, z: c.z, dx: c.dx, dy: c.dy, dz: c.dz, value }, maps, k)); else blank++;
     }
     await step(++n);
   }
   return { cells, read, blocks: cells.length, missing: union.size - all, blank };
+}
+
+const SUPPORT_RANK = { unsupported: 0, extrapolated: 1, interpolated: 2 }; // estimation.js SUPPORT_CODES
+function withInputsBasis(out, maps, k) {
+  let sup = null, holes = Infinity, beyond = false, log = 0;
+  for (const m of maps) {
+    const b = m.get(k);
+    if (typeof b.support === "string" && (sup == null || (SUPPORT_RANK[b.support] ?? 0) < (SUPPORT_RANK[sup] ?? 0))) sup = b.support;
+    if (Number.isFinite(b.nHoles) && b.nHoles < holes) holes = b.nHoles;
+    if (b.beyond) beyond = true;
+    if (b.fromLog > log) log = b.fromLog;
+  }
+  if (sup != null) out.support = sup;
+  if (Number.isFinite(holes)) out.nHoles = holes;
+  if (beyond) out.beyond = true;
+  if (log > 0) out.fromLog = log;
+  return out;
+}
+
+// TASKS.csv #3685 — the inputs' basis on the new model's record: the holes they were estimated from (the union, said when they differ), whether
+// their blocks were flagged beyond the samples, the metres filled from a log, and the domain or the volume they were restricted to when they share one
+export function inputsBasis(models) {
+  const ms = (models || []).filter(Boolean), out = {};
+  if (!ms.length) return out;
+  if (ms.every((m) => Array.isArray(m.params?.holeIds) && m.params.holeIds.length)) {
+    const u = new Set(); for (const m of ms) for (const h of m.params.holeIds) u.add(h);
+    out.holeIds = [...u];
+    const sizes = ms.map((m) => new Set(m.params.holeIds).size);
+    out.holesFrom = sizes.every((n) => n === u.size) ? `the same ${u.size} holes as its inputs` : `the union of its inputs' holes (${ms.map((m, i) => `${m.name}: ${sizes[i]}`).join("; ")})`;
+  }
+  if (ms.some((m) => m.params?.beyondFlagged)) out.beyondFlagged = true;
+  const logM = ms.reduce((a, m) => Math.max(a, Number(m.params?.unsampledLogFilledM) || 0), 0);
+  if (logM > 0) out.unsampledLogFilledM = logM;
+  for (const f of ["domain", "restrictedToVolumeName"]) {
+    const vals = new Set(ms.map((m) => m.params?.[f] || null));
+    if (vals.size === 1) { const v = [...vals][0]; if (v) out[f] = v; } else out[`${f}Differs`] = ms.map((m) => `${m.name}: ${m.params?.[f] || "none"}`).join("; ");
+  }
+  return out;
 }
 
 // the new model: an ordinary block model on that lattice, a snapshot that names its inputs (it does not follow them)
@@ -117,6 +158,7 @@ export function calcModelRecord({ name, unit, formula, inputs, result }) {
       tool: "Block calculator", element: n, unit: u,
       calc: { formula: String(formula).trim(), unit: u, inputs: inputs.filter((x) => read.has(x.var)).map((x) => ({ var: x.var, model: x.model.name, element: x.model.params?.element || null, unit: x.model.params?.unit || null })) },
       blocksCalculated: result.blocks,
+      ...inputsBasis(inputs.filter((x) => read.has(x.var)).map((x) => x.model)), // #3685
       ...(result.missing ? { blocksLeftOutMissingInput: result.missing } : {}),
       ...(result.blank ? { blocksLeftOutNoValue: result.blank } : {}),
       snapshot: "Calculated once from the inputs named here; it does not change when they do.",
