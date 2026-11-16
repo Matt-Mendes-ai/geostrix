@@ -45,7 +45,7 @@ const WORD_RULES = [
   [/^(vlf|tilt|tiltangle)$/, "vlf_tilt"], [/^(tipper|ztem|tzx|tzy|tzr)$/, "ztem_tipper"], // before the EM channels: a VLF or ZTEM in-phase is still VLF / ZTEM
   [/^(cond|conductivity|sigma|msm|appcond)$/, "em_cond"], [/^(inphase|inph|ip_ppm|real)$/, "em_inphase"], [/^(quad|quadrature|imag)$/, "em_quad"], [/^(dbdt|dbdtz|emz)$/, "em_dbdt"], [/^(bfield|bz|pt)$/, "em_bfield"], [/^(tau|decay)$/, "em_tau"],
   // TASKS.csv #3323 — RhoA / AppRho is a DC survey's apparent resistivity beside its IP file; MT only when the file has MT columns (fileHints' mtSet)
-  [/^(mt|amt)$/, "mt_rho"], [/^(rhoa|apprho)$/, "res"], [/^(phase|phs)$/, "mt_phase"],
+  [/^(mt|amt)$/, "mt_rho"], [/^(rhoa|apprho|appres|app_res|apparentresistivity)$/, "res_app"] /* #3808 — apparent, at pseudo-depths */, [/^(appmx|appm|app_mx|apparentchargeability)$/, "ip_app"] /* #3808 */, [/^(phase|phs)$/, "mt_phase"],
   [/^(chargeability|charge|ip|mvv|mv_v|mx|appmx|appm|app_mx)$/, "ip"] /* mx / appmx: #3208 (apparent chargeability) */, [/^(res|resistivity|rho|ohmm|appres)$/, "res"], [/^(sp|selfpotential)$/, "sp"],
 ];
 // TASKS.csv #1586 — what the file says about itself, read before the column's own words: a GEM GSM-19 (or any magnetometer)
@@ -70,6 +70,7 @@ export function guessSurveyMethod(header, hints = null) {
   for (const [re, m] of WORD_RULES) { if (words.some((w) => re.test(w))) return m; }
   // a header written as one word: "inphase", "freeair", "totalcount", "bouguer", "apparentconductivity"
   if (/^(apparent)?cond/.test(joined)) return "em_cond";
+  if (/^apparentres/.test(joined)) return "res_app"; // #3808
   if (/^(apparent)?res/.test(joined) || /ohm/.test(joined)) return "res";
   if (h?.magnetometer && /mag|field|nt|tmi|total/.test(joined)) return "mag"; // #1586 — a magnetometer's own reading column
   return null;

@@ -75,7 +75,19 @@ export function acrossLineSpacing(points, sample = 200) {
 // -> { spacing, distance, basis, linesEstimated, alongSpacing, cell, spacingCell, capped } or null.
 // basis: "line spacing" (line column), "station spacing", or "estimated line spacing" (no line column, stations at least 3 times
 // closer along the lines than across them).
-export function surveyGridDefaults(points, { maxCells = MAX_GRID_CELLS } = {}) {
+export function surveyGridDefaults(points, { maxCells = MAX_GRID_CELLS, stacked = false } = {}) {
+  // TASKS.csv #3810 (Scottie Gold) — a slice of a 3D cloud (an IP pseudo-section's points, stacked in depth): the nearest neighbour of stacked points is the
+  // spacing between depths in a column (1.1 m), not in plan, and the proposal was a 0.5 m cell and 2 m blanking (1,797,444 cells, 61 % empty). Stacked: the
+  // spacing from the slice's plan density (the square root of its area over its points), a cell about that size and blanking of two spacings.
+  if (stacked) {
+    let xmin = Infinity, ymin = Infinity, xmax = -Infinity, ymax = -Infinity, n = 0;
+    for (const p of points || []) { if (!Number.isFinite(p?.x) || !Number.isFinite(p?.y)) continue; n++; if (p.x < xmin) xmin = p.x; if (p.x > xmax) xmax = p.x; if (p.y < ymin) ymin = p.y; if (p.y > ymax) ymax = p.y; }
+    if (n >= 3 && xmax > xmin && ymax > ymin) {
+      const areaM2 = (xmax - xmin) * (ymax - ymin), spacing = Math.sqrt(areaM2 / n);
+      const spacingCell = suggestIdwCell(4 * spacing) || 25, floor = minCellFor({ xmin, ymin, xmax, ymax }, maxCells), cell = Math.max(spacingCell, floor);
+      return { spacing, distance: Math.max(2 * spacing, 1.5 * cell), basis: "plan density", linesEstimated: false, alongSpacing: spacing, cell, spacingCell, capped: cell > spacingCell, areaM2, n };
+    }
+  }
   const s = suggestBlankingDistance(points);
   if (!s) return null;
   let { spacing, distance, basis } = s, linesEstimated = false;
