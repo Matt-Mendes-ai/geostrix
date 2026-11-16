@@ -89,8 +89,8 @@ export default [
       { name: "Grade × thickness legend", what: "When a Grade × thickness result is shown in plan, circles sized by the product at each hole's intercept mid-point, and a hollow ring for a hole assayed with no intercept.", choose: "Clear it before a figure about something else." },
     ],
     warnings: [
-      { says: "({n} left out: they overlap, zoom in)", means: "More holes are in the frame than can be labelled without overlapping.", do: "Zoom in on the area you are showing." },
-      { says: "{n} of the holes end more than 10 m from their collar in plan (up to {m} m)", means: "Those holes lean far enough that their toes are not under their collars.", do: "Turn on the hole traces so the figure shows where they go." },
+      { says: "(5 left out: they overlap, zoom in)", means: "More holes are in the frame than can be labelled without overlapping.", do: "Zoom in on the area you are showing." },
+      { says: "4 of the holes end more than 10 m from their collar in plan (up to 35 m)", means: "Those holes lean far enough that their toes are not under their collars.", do: "Turn on the hole traces so the figure shows where they go." },
     ],
     howto: {
       sample: "Harry",

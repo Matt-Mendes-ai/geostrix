@@ -29,7 +29,7 @@ export default [
     ],
     warnings: [
       { says: "Load drillholes to set the slice range.", means: "There are no holes or other data to set the range the slider moves over.", do: "Load holes or a block model, then turn the slice on again." },
-      { says: "Everything on one side of a vertical cut striking {az}°", means: "Thickness is 0, so the view is cut in half rather than reduced to a slab.", do: "Type a thickness to keep only a slab." },
+      { says: "Everything on one side of a vertical cut striking 45°", means: "Thickness is 0, so the view is cut in half rather than reduced to a slab.", do: "Type a thickness to keep only a slab." },
     ],
     howto: {
       sample: "WA lode gold",
@@ -62,10 +62,10 @@ export default [
     ],
     warnings: [
       { says: "Enter a centre easting and northing — there are no drillholes to centre the section on.", means: "The centre is blank and nothing is shown to take it from (no holes, models, samples or map layers in view).", do: "Type Centre E and Centre N." },
-      { says: "{holeId} is vertical, so it has no bearing of its own — the section runs at the typed azimuth, {azimuth}°.", means: "A vertical hole has no direction in plan, so the section uses the azimuth in this pane.", do: "Type the azimuth you want before pressing the scissors." },
-      { says: "{holeId} has no desurveyed trace to cut a section through.", means: "The hole has no collar position or survey to build its trace from.", do: "Check the hole's collar and survey rows." },
-      { says: "{n} hole(s) lie more than 5 m off the section (offset printed at the end of the trace); points not snapped to a hole sit on the section plane.", means: "Holes within the buffer but off the line are projected onto it; contacts drawn by snapping to them keep the hole's real position.", do: "Narrow the buffer, or tick Keep snaps on the section, when the offsets matter for what you draw." },
-      { says: "{hole_id}: outside the ±{corridor} m buffer — projected onto the section, no data drawn here", means: "The hole's trace passes outside the buffer; only its trace is shown, without its logs.", do: "Widen Buffer ± if you need its data on this section." },
+      { says: "NB23-001 is vertical, so it has no bearing of its own — the section runs at the typed azimuth, 90°.", means: "A vertical hole has no direction in plan, so the section uses the azimuth in this pane.", do: "Type the azimuth you want before pressing the scissors." },
+      { says: "NB23-014 has no desurveyed trace to cut a section through.", means: "The hole has no collar position or survey to build its trace from.", do: "Check the hole's collar and survey rows." },
+      { says: "3 hole(s) lie more than 5 m off the section (offset printed at the end of the trace); points not snapped to a hole sit on the section plane.", means: "Holes within the buffer but off the line are projected onto it; contacts drawn by snapping to them keep the hole's real position.", do: "Narrow the buffer, or tick Keep snaps on the section, when the offsets matter for what you draw." },
+      { says: "NB23-009: outside the ±25 m buffer — projected onto the section, no data drawn here", means: "The hole's trace passes outside the buffer; only its trace is shown, without its logs.", do: "Widen Buffer ± if you need its data on this section." },
     ],
     howto: {
       sample: "WA lode gold",
@@ -93,14 +93,14 @@ export default [
       { name: "Azimuth (°)", what: "The direction every section runs. The sections are stepped at right angles to it. A 0° series is north–south sections named by their easting; a 90° series is east–west sections named by their northing; other azimuths are named by their offset from the middle of the data.", choose: "The azimuth of your drill lines, so each section runs along one line of holes." },
       { name: "Width (m)", what: "The spacing between sections, and twice each section's buffer. Lines sit on round multiples of the width.", choose: "Your drill-line spacing, so each hole falls on one section only. For a block model alone, a whole number of its cells." },
       { name: "Also cover the visible block models", what: "Off: the series covers the drilling only (or the visible block models when there are no holes). On: it also covers the visible models' extent.", choose: "Leave it off when the model is much larger than the drilling, or you get many sections with no holes on them." },
-      { name: "This makes {n} section(s).", what: "How many sections the current settings make, before any is created.", choose: "If the number is large, widen the spacing or untick the block models." },
+      { name: "This makes 8 section(s).", what: "How many sections the current settings make, before any is created.", choose: "If the number is large, widen the spacing or untick the block models." },
       { name: "Generate", what: "Adds the sections, grouped, to the Cross-sections list. More than 50 asks first.", choose: "Check the count above before pressing it." },
       ...sectionWindowFields,
     ],
     warnings: [
       { says: "Slice series needs a visible voxel/block model or at least one drillhole to know what extent to cover — nothing found.", means: "There are no holes and no visible block model to set the ground the series covers.", do: "Load holes, or show a block model, then Generate." },
-      { says: "This will create {n} sections. Continue?", means: "The settings make more than 50 sections.", do: "Cancel and widen the spacing, or untick the block models, unless you really want them all." },
-      { says: "Generated {created} sections spaced {width}m apart at azimuth {sliceSeriesAzimuth}° — grouped together in the Cross-sections list.", means: "The sections were made and are in the Cross-sections list as one group.", do: "Open them one at a time from the list; the group can be removed in one action." },
+      { says: "This will create 8 sections. Continue?", means: "The settings make more than 50 sections.", do: "Cancel and widen the spacing, or untick the block models, unless you really want them all." },
+      { says: "Generated 8 sections spaced 50m apart at azimuth 45° — grouped together in the Cross-sections list.", means: "The sections were made and are in the Cross-sections list as one group.", do: "Open them one at a time from the list; the group can be removed in one action." },
     ],
     howto: {
       sample: "WA lode gold",
@@ -129,7 +129,7 @@ export default [
       { name: "Unit", what: "The unit name saved in the polygon's unit field and used for its colour; the list offers the units already on the map layers.", choose: "Use the names of your map legend, the same spelling every time, so one unit is one colour and one 3D unit." },
       { name: "Note (optional)", what: "A note saved on the polygon.", choose: "Note what you saw that placed the boundary." },
       { name: "Draw a polygon / Finish / Undo point / Cancel", what: "Draw a polygon starts clicking in the 3D view; each click adds a corner where it hits. Double-click or Finish closes the outline back to the first corner.", choose: "Click the corners in order around the unit; a polygon needs at least three." },
-      { name: "Polygons in \"{layer}\"", what: "The polygons of the chosen layer with their unit and area in hectares; the bin removes one. The whole layer is shown, hidden, styled and exported under Maps > Map layers.", choose: "Remove and redraw a polygon rather than leaving a wrong boundary." },
+      { name: "Polygons in \"Lithology\"", what: "The polygons of the chosen layer with their unit and area in hectares; the bin removes one. The whole layer is shown, hidden, styled and exported under Maps > Map layers.", choose: "Remove and redraw a polygon rather than leaving a wrong boundary." },
     ],
     warnings: [
       { says: "A polygon needs at least three points.", means: "Finish was pressed with fewer than three corners.", do: "Click at least three corners in the 3D view." },
@@ -164,11 +164,11 @@ export default [
       { name: "Dip / Dip direction, or Plunge / Plunge direction (optional)", what: "Shown for the types that have one: dip for a fault, dyke, contact or unit boundary; plunge for a fold axis, anomaly axis, lineament or trend. Angle 0 to 90, direction 0 to 360.", choose: "Fill them only from a measurement or a reasoned estimate; blank is better than a guess." },
       { name: "Name (optional) / Note (optional)", what: "A name and a note saved on the line.", choose: "Name the lines you will refer to in a report; note what you saw in the data that made you draw it." },
       { name: "Draw a line / Finish / Undo point / Cancel", what: "Draw a line starts clicking in the 3D view; each click adds a point where it hits. Double-click or Finish ends the line.", choose: "Draw in a top view for a map-like line." },
-      { name: "Lines in \"{layer}\"", what: "The lines of the chosen layer with their lengths; the bin removes one. The whole layer is shown, hidden, styled and exported under Maps > Map layers.", choose: "Remove a line here; remove the whole layer under Map layers." },
+      { name: "Lines in \"Contacts\"", what: "The lines of the chosen layer with their lengths; the bin removes one. The whole layer is shown, hidden, styled and exported under Maps > Map layers.", choose: "Remove a line here; remove the whole layer under Map layers." },
     ],
     warnings: [
       { says: "A line needs at least two points.", means: "Finish was pressed with fewer than two points.", do: "Click at least two points in the 3D view." },
-      { says: "{angle} is 0 to 90 degrees and {direction} is 0 to 360.", means: "The dip or plunge, or its direction, is outside its range or not a number.", do: "Correct the value, or leave it blank." },
+      { says: "dip is 0 to 90 degrees and dip direction is 0 to 360.", means: "The dip or plunge, or its direction, is outside its range or not a number.", do: "Correct the value, or leave it blank." },
       { says: "Click the first point on the survey.", means: "Drawing is on and waiting for the first click.", do: "Click in the 3D view where the line starts." },
     ],
     howto: {

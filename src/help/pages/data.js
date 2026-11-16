@@ -21,7 +21,7 @@ export default [
         "Open File > Open Sample Project and choose the Macpass zinc-lead-silver sample. Read the notices it opens with: the number of holes, assay intervals and densities, and the owner's credit.",
         "Look at the sidebar. Collars and Survey are loaded; the Specific gravity layer holds the bulk densities; Lithology, Alteration and the other logs are empty because the sample has none.",
         "Click Data QC in the 3D View's ribbon. Read the errors first, then the warnings and the infos: they say what is left out of the sample, such as holes with no assays and intervals with no density.",
-        "Open Geochem to see the Ag, Pb and Zn assays. Silver is in ppm, lead and zinc in per cent: the units are set when the assays are imported (see Import assays).",
+        "Open Geochem to see the Ag, Pb and Zn assays. Silver is in g/t, lead and zinc in per cent: the units are set when the assays are imported (see Import assays).",
         "To start your own project, use File > New Project, then import your collars, surveys, logs and assays in that order, and run Data QC again.",
       ],
     },

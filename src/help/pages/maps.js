@@ -18,11 +18,11 @@ export default [
       { name: "Colour", what: "The boundary's line colour.", choose: "Pick colours that stand apart from the holes, the terrain and other boundaries." },
     ],
     warnings: [
-      { says: "{file}: it states no CRS: the coordinates were taken as EPSG:{epsg}, check where it lies", means: "The shapefile has no .prj (or the GeoPackage no CRS), so GeoStrix assumed the project's coordinate system.", do: "Check the boundary lands around your data. If not, find out the file's CRS, reproject it, or move it with Maps > A layer." },
-      { says: "{file}: its .prj names a CRS GeoStrix does not recognize: the coordinates were taken as EPSG:{epsg}, check where it lies", means: "The file states a coordinate system GeoStrix cannot convert, so it was not reprojected.", do: "Reproject the file in your GIS to the project CRS, or move it with Maps > A file before importing." },
-      { says: "{file}: every string had elevation 0, read as a 2D plan", means: "The DXF had no elevations, so it is drawn at the Elev. value or on the terrain.", do: "Nothing for a plan drawing. Tick Drape on terrain or set Elev." },
+      { says: "claims.shp: it states no CRS: the coordinates were taken as EPSG:26909, check where it lies", means: "The shapefile has no .prj (or the GeoPackage no CRS), so GeoStrix assumed the project's coordinate system.", do: "Check the boundary lands around your data. If not, find out the file's CRS, reproject it, or move it with Maps > A layer." },
+      { says: "claims.shp: its .prj names a CRS GeoStrix does not recognize: the coordinates were taken as EPSG:26909, check where it lies", means: "The file states a coordinate system GeoStrix cannot convert, so it was not reprojected.", do: "Reproject the file in your GIS to the project CRS, or move it with Maps > A file before importing." },
+      { says: "drift_plan.dxf: every string had elevation 0, read as a 2D plan", means: "The DXF had no elevations, so it is drawn at the Elev. value or on the terrain.", do: "Nothing for a plan drawing. Tick Drape on terrain or set Elev." },
       { says: "No lines or polygons found in this KML (points are imported through the 3D View importer).", means: "The KML holds only placemarks (points).", do: "Import the points through the 3D View, or use Surface Geology > Geology map." },
-      { says: "Failed: {failed}", means: "One or more files could not be read; each is named with the reason.", do: "Fix or re-export the named file; the other files were imported." },
+      { says: "Failed: claims_b.shp (unreadable)", means: "One or more files could not be read; each is named with the reason.", do: "Fix or re-export the named file; the other files were imported." },
     ],
     howto: {
       sample: "your own data",
@@ -61,11 +61,11 @@ export default [
       { name: "Structure set card: Export…, Disc size, Sit every measurement on the terrain", what: "Export writes the set as GeoPackage, KML (Google Earth) or CSV with dip, dip direction and right-hand-rule strike in grid and true north. Disc size sets the symbol size in metres. The last box places every disc on the terrain; unticked, rows with an elevation use it.", choose: "Keep the measurements on the terrain unless their elevations were surveyed accurately; GPS elevations are often tens of metres off." },
     ],
     warnings: [
-      { says: "{name}: none of its {n} features comes within reach of the project's holes and samples, so nothing was imported (check its CRS if it should).", means: "The whole layer lies far from the project, almost always because its coordinate system is missing or wrong.", do: "Set the Source CRS to the file's real coordinate system and import again." },
-      { says: "{name}.shp: no matching .dbf selected — imported without attributes, so it can't be styled by unit", means: "The shapefile's attribute table was not part of the selection.", do: "Remove the layer and import again with the .shp, .dbf and .prj selected together." },
+      { says: "geology.shp: none of its 412 features comes within reach of the project's holes and samples, so nothing was imported (check its CRS if it should).", means: "The whole layer lies far from the project, almost always because its coordinate system is missing or wrong.", do: "Set the Source CRS to the file's real coordinate system and import again." },
+      { says: "geology.shp: no matching .dbf selected — imported without attributes, so it can't be styled by unit", means: "The shapefile's attribute table was not part of the selection.", do: "Remove the layer and import again with the .shp, .dbf and .prj selected together." },
       { says: "A .qml on its own doesn't import anything — use the .qml button on a layer's card to apply it to an existing layer.", means: "A style file holds no map objects. On the layer card the button is labelled .qml.", do: "Press .qml on the layer's card and pick the style file." },
       { says: "Enter the date the measurements were taken — the magnetic declination depends on it.", means: "Magnetic north was chosen, and the declination changes with the date.", do: "Enter the measurement date beside Measured on." },
-      { says: "{rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart — the dip direction was used; check whether those strikes are left-hand-rule.", means: "Strike and dip direction disagree in those rows.", do: "Check the field convention; if the strikes are left-hand rule, the dip directions used are still right." },
+      { says: "7 row(s) have a strike and dip direction that aren't 90° apart — the dip direction was used; check whether those strikes are left-hand-rule.", means: "Strike and dip direction disagree in those rows.", do: "Check the field convention; if the strikes are left-hand rule, the dip directions used are still right." },
       { says: "Pick at least easting, northing, dip, and either dip direction or strike.", means: "A required column is not chosen in the column check.", do: "Choose the missing columns and press Import." },
     ],
     howto: {
@@ -103,10 +103,10 @@ export default [
       { name: "Colour", what: "The line colour, set by the status and changeable per claim.", choose: "Keep the status colours unless two neighbouring claims need telling apart." },
     ],
     warnings: [
-      { says: "Imported {imported} claim boundary file(s) ({v} total).", means: "The files were read; any notes about their coordinates follow.", do: "Read the notes, then check the claims land where they should." },
-      { says: "{file}: it states no CRS: the coordinates were taken as EPSG:{epsg}, check where it lies", means: "The file has no stated coordinate system, so the project's was assumed.", do: "Check the claim lands in the right place; if not, reproject the file to the project CRS first." },
-      { says: "KML coordinates could not be converted to EPSG:{v}.", means: "GeoStrix could not convert from longitude / latitude to the project's coordinate system.", do: "Check the project CRS in Maps > Project CRS." },
-      { says: "Failed: {failed}", means: "One or more files could not be read; each is named with the reason.", do: "Fix or re-export the named file." },
+      { says: "Imported 2 claim boundary file(s) (5 total).", means: "The files were read; any notes about their coordinates follow.", do: "Read the notes, then check the claims land where they should." },
+      { says: "claims.shp: it states no CRS: the coordinates were taken as EPSG:26909, check where it lies", means: "The file has no stated coordinate system, so the project's was assumed.", do: "Check the claim lands in the right place; if not, reproject the file to the project CRS first." },
+      { says: "KML coordinates could not be converted to EPSG:26909.", means: "GeoStrix could not convert from longitude / latitude to the project's coordinate system.", do: "Check the project CRS in Maps > Project CRS." },
+      { says: "Failed: claims_b.shp (unreadable)", means: "One or more files could not be read; each is named with the reason.", do: "Fix or re-export the named file." },
     ],
     howto: {
       sample: "your own data",
@@ -145,8 +145,8 @@ export default [
       { says: "No layers found in this service's capabilities — double check the URL.", means: "The service answered but listed no layers of that type.", do: "Check the URL and that WMS or WFS matches the service." },
       { says: "Server response wasn't valid XML — check the URL points at a real WMS/WFS service.", means: "The address returned something other than a service description (a web page, an error).", do: "Use the service URL from its documentation, not a viewer page." },
       { says: "Server didn't return valid GeoJSON — it may not support OUTPUTFORMAT=application/json (try a different layer, or this server may need GML support this app doesn't have).", means: "This WFS server does not give GeoJSON.", do: "Try another layer or server, or download the data as a file and import it." },
-      { says: "This is only the server's first {v} features — the layer may have more here. Tick \"Limit to the current project area\", or work in a smaller area, to get all of them.", means: "The server stopped at its feature limit.", do: "Tick Limit to the current project area, or work in a smaller area." },
-      { says: "{n} of {total} requests failed and are left transparent.", means: "Part of the WMS image could not be fetched.", do: "Import again, or choose a lower Detail so fewer requests are needed." },
+      { says: "This is only the server's first 1,000 features — the layer may have more here. Tick \"Limit to the current project area\", or work in a smaller area, to get all of them.", means: "The server stopped at its feature limit.", do: "Tick Limit to the current project area, or work in a smaller area." },
+      { says: "3 of 48 requests failed and are left transparent.", means: "Part of the WMS image could not be fetched.", do: "Import again, or choose a lower Detail so fewer requests are needed." },
       { says: "This server returned projected coordinates (metres) without saying which coordinate system they are in, so they can't be placed correctly. Try another layer or server.", means: "GeoStrix cannot tell where the features belong.", do: "Try another layer or server, or download the data as a file with its CRS." },
     ],
     howto: {
