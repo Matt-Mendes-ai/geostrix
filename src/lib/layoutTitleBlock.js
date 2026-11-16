@@ -4,20 +4,22 @@
 import { creditsElement, PAGE_MARGIN, textLines } from "./layoutCredits.js"; // TASKS.csv #3658
 import { pagePx } from "./pageFormats.js";
 import { t as tr } from "./i18n.js";
+import { LOOK_SHIFT } from "./layoutLinks.js"; // TASKS.csv #3716 (7)
 
 // The labelled rows of a new title block. Values may hold the page placeholders ({project}, {date}, {scale}, {crs}, {page},
 // {pages}); the empty ones are for the geologist to fill (no company, tenure or author is invented, #264). Saved in the project,
 // so the labels stay English like the rest of the project data; they are edited on the page.
 // TASKS.csv #3591 — { credit: true }: a last row 'Data' = {credits}, for a project that has a data credit (left out when it has none)
-export function defaultTitleBlockRows({ credit = false } = {}) {
+export function defaultTitleBlockRows({ credit = false, shared = null } = {}) { // shared: #3714
+  const own = (label) => shared?.[label] ?? "";
   return [
     ["Title", ""],
-    ["Company", ""],
+    ["Company", own("Company")],
     ["Project", "{project}"],
     ["Tenure / claims", ""], // #2306 — neutral labels (were BC's 'Claims / tenures', 'NTS / map sheet'); a saved block keeps its own
     ["Map sheet", ""],
     ["Figure", ""],
-    ["Drawn by", ""],
+    ["Drawn by", own("Drawn by")],
     ["Date", "{date}"],
     ["Scale", "{scale}"],
     ["Grid / coordinate system", "{crs}"], // #2306 — a local grid has no datum / projection; {crs} names it
@@ -35,6 +37,20 @@ export function titleBlockHeight({ credit = false, creditText = "", w = 340 } = 
 export function titleBlockSpot(format, { credit = false, creditText = "" } = {}) {
   const { w, h } = pagePx(format), tbW = 340, bottom = credit ? creditsElement(format, creditText).y - 8 : h - PAGE_MARGIN;
   return { x: Math.max(20, w - PAGE_MARGIN - tbW), y: Math.max(20, bottom - titleBlockHeight({ credit, creditText, w: tbW })) };
+}
+// TASKS.csv #3714 — the company and the author are typed once for a document: a new title block starts with the Company and Drawn by of the first one that has them (Title and Figure stay per page).
+// pages: [{ elements }] in order -> { Company?, "Drawn by"? }
+export function sharedTitleRows(pages) {
+  const out = {};
+  for (const pg of pages || []) for (const el of pg?.elements || []) {
+    if (el?.type !== "titleblock") continue;
+    for (const label of ["Company", "Drawn by"]) {
+      if (out[label]) continue;
+      const v = String((el.rows || []).find((r) => String(r?.[0] || "").trim() === label)?.[1] ?? "").trim();
+      if (v && !/^\{[a-z]+\}$/i.test(v)) out[label] = v;
+    }
+  }
+  return out;
 }
 export function newTitleBlock(id, x, y, opts = {}) {
   return { id, type: "titleblock", x, y, w: 340, rows: defaultTitleBlockRows(opts), fontPt: 8, frameWidth: 1 };
@@ -114,12 +130,33 @@ export function parseTemplateFile(text, fallbackName = "Template") {
 // added stay. Links to a left-out element are cleared. -> { elements, dropped (snapshots left out), cleared (viewport pictures) }
 const VIEWPORT_CAPTURE = ["src", "worldHeightAtTarget", "cameraAzimuthDeg", "targetWorld", "viewState", "samplesUnplaced", "markHole", "refreshing", "planView", "capturedFixedScale"];
 export const isDataSnapshot = (el) => el?.type === "image" && !!(el.sectionTabId || el.planMap || el.worldWidthAtCaptureM || el.legendItems?.length || el.depthHeightAtCaptureM);
+// TASKS.csv #3709 — what described ONE picture goes with it. A template saved from a section sheet kept that section's scale bar (marked 200 m, so 275 m long at the next section's scale), its 'Looking N' label and its legend, all
+// linked to nothing: the next section sat beside two legends and a bar that measured 27 % short. Left as the starter page has them, the next picture ties to them (tieStarterFurniture): the bar back to its untouched 100 m,
+// the label back to the north arrow it replaced, the picture's legend dropped. `gone`: the ids of the pictures left out (a template being saved); null: a template saved before this, whose links were already cleared (so an
+// unbound bar that still has a picture's scale, and a label or legend that came from a picture, are the orphans).
+export function furnitureOfOnePictureReset(list, gone = null) {
+  const was = (v) => (gone ? v != null && gone.has(v) : false);
+  const els = list.filter((e) => !(e?.type === "legend" && (was(e.boundViewportId) || (!gone && !e.boundViewportId && e.loadedCapturedAt != null && (e.loadedItems || []).length))));
+  const hasNorth = els.some((e) => e?.id === "north");
+  let tookNorth = hasNorth;
+  return els.flatMap((e) => {
+    if (e?.type === "scale" && (was(e.boundTo) || (!gone && !e.boundTo && e.pxPerMeter))) return [{ ...e, boundTo: null, pxPerMeter: undefined, meters: 100 }];
+    if (e?.type === "text" && /^look_/.test(String(e.id)) && (was(e.boundTo) || (!gone && !e.boundTo))) { // the 'Looking N25°E' label sat where the starter's north arrow was (tieStarterFurniture)
+      if (tookNorth) return [];
+      tookNorth = true;
+      return [{ id: "north", type: "north", x: (e.x || 0) + LOOK_SHIFT, y: e.y || 40 }];
+    }
+    if (e?.type === "north" && was(e.boundTo)) return [{ ...e, boundTo: null, rotation: null }];
+    return [e];
+  });
+}
 export function templateElements(elements) {
   const list = Array.isArray(elements) ? elements : [];
   const gone = new Set(list.filter(isDataSnapshot).map((el) => el.id));
   const unlink = (v) => (v != null && gone.has(v) ? null : v);
   let cleared = 0;
-  const out = list.filter((el) => !gone.has(el.id)).map((el) => {
+  const kept = furnitureOfOnePictureReset(list.filter((el) => !gone.has(el.id)), gone);
+  const out = kept.map((el) => {
     const e = { ...el };
     if (e.type === "viewport") { if (e.src) cleared++; for (const k of VIEWPORT_CAPTURE) delete e[k]; }
     for (const k of ["boundTo", "overviewOf", "boundViewportId"]) if (k in e) e[k] = unlink(e[k]);

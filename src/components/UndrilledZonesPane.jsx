@@ -25,7 +25,7 @@ import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — th
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between" };
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
 // #1564 — what to do with an open mesh: the routes GeoStrix has (there is no general 'close this mesh' tool)
-const OPEN_ROUTE = "An open mesh has no inside. For an imported isosurface cut off at its model's edge, make the shell from the block model itself (Targeting > Voxel ranges, on the Advanced ribbon > Shell at this range), which closes along the grid's edge; for a unit, build it as a closed volume in 3D Modelling (unit volumes, an envelope, a vein solid, or a solid linked from section outlines).";
+const OPEN_ROUTE = "An open mesh has no inside. For an imported isosurface cut off at its model's edge, make the shell from the block model itself (Targeting > Voxel ranges, on the Advanced ribbon > Shell at this range), which closes along the grid's edge; for a unit, build it as a closed volume in 3D Modelling (unit volumes, an envelope, a vein solid, or a solid linked from section outlines). For a Grade shell, tick \"Close shell artificially at the search-radius boundary\" in the Grade shell pane and run it again: the surface closes at the search radius, and its volume becomes an assumption.";
 // TASKS.csv #2256 — with the field blank, gaps under this many blocks are not offered as targets (a default, typed over)
 const MIN_ZONE_BLOCKS = 8;
 const mm3 = (v) => (v >= 1e5 ? `${(v / 1e6).toFixed(2)} Mm³` : `${Math.round(v).toLocaleString()} m³`);

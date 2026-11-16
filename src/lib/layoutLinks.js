@@ -78,10 +78,12 @@ export function bearingText(az) {
   return a < 90 ? `N${a}°E` : a < 180 ? `S${180 - a}°E` : a < 270 ? `S${a - 180}°W` : `N${360 - a}°W`;
 }
 export const sectionLookText = (sectionAzimuth) => `Looking ${bearingText(Number(sectionAzimuth) - 90)}`;
+// TASKS.csv #3716 (7) — the 'Looking N' label takes the starter north arrow's place, 77 px left of it (160 px wide: it ends 40 px, the page margin, inside the arrow's right edge; at 60 px it ended 6.1 mm from the paper's edge)
+export const LOOK_SHIFT = 77;
 export function tieStarterFurniture(els, view, { bar: wantBar = true, north: wantNorth = true } = {}) {
   if (wantNorth && view?.type === "image" && !view.planMap && Number.isFinite(view.sectionAzimuth)) {
     const starter = els.find((el) => el.type === "north" && el.rotation == null && !el.boundTo);
-    if (starter) els = els.map((el) => (el === starter ? { id: `look_${view.id}`, type: "text", x: Math.max(0, (el.x || 0) - 60), y: el.y || 40, w: 160, text: sectionLookText(view.sectionAzimuth), boundTo: view.id } : el));
+    if (starter) els = els.map((el) => (el === starter ? { id: `look_${view.id}`, type: "text", x: Math.max(0, (el.x || 0) - LOOK_SHIFT), y: el.y || 40, w: 160, text: sectionLookText(view.sectionAzimuth), boundTo: view.id } : el));
   }
   const { w: imgW, h: imgH } = capturedSize(view);
   const ppm = view.type === "viewport" ? (view.worldHeightAtTarget && imgH ? imgH / view.worldHeightAtTarget : 0) : view.type === "drillplan" ? pxPerMetre(view.scale) /* #2302 */ : (view.worldWidthAtCaptureM && imgW ? imgW / view.worldWidthAtCaptureM : 0);

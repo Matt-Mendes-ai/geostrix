@@ -11,6 +11,7 @@ import { useStore } from "../lib/store.jsx"; // TASKS.csv #1644
 import { utmGridReady } from "../lib/layoutGeometry.js"; // TASKS.csv #1644
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3710 — g/t for Au / Ag, as the strip-log window's own list
 import { useVirtualRows } from "../lib/useVirtualRows.js"; // TASKS.csv #3180 — the hole list's rows drawn as they scroll into view
 
 const ITEM_ROW_H = 24; // TASKS.csv #3180 — one hole / section row (fixed: the windowing needs it)
@@ -27,16 +28,19 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
   const [selectedIds, setSelectedIds] = useState(() => { const t = collars.filter(tracedCollar); return new Set(t.length > 50 ? [] : t.map((c) => c.hole_id)); }); // traced: #2136
   const [includeStripLog, setIncludeStripLog] = useState(true);
   // TASKS.csv #1644 — each page's top-down map re-captured on its hole, at the template's scale (one 3D render per page)
-  const { requestViewportBatch, customLayers = [] } = useStore(); // customLayers: #2477
+  const { requestViewportBatch, customLayers = [], viewerUiState } = useStore(); // customLayers: #2477; viewerUiState: #3710
   const hasPlanMap = templateElements.some((el) => el.type === "viewport" && utmGridReady(el));
   const [centreMaps, setCentreMaps] = useState(true);
   const [lithoPatterns, setLithoPatterns] = useState(true); // TASKS.csv #1995
-  const [assaySymbols, setAssaySymbols] = useState(["", "", "", "", ""]); // TASKS.csv #1480 — up to three assay tracks; five since #3024 (Fe, SiO2, Al2O3, P, LOI)
+  // TASKS.csv #1480 — up to three assay tracks; five since #3024 (Fe, SiO2, Al2O3, P, LOI). #3710 — the first is the element the 3D View shows (else the first the project has), as the strip-log window opens on it: a project whose only downhole data are assays and densities made pages with no strip log at all
+  const [assaySymbols, setAssaySymbols] = useState(() => { const have = assayElements.map((e) => e.symbol), shown = (viewerUiState?.assayDisplayElements || []).filter((s) => have.includes(s)); return [shown[0] || have[0] || "", "", "", "", ""]; });
   // TASKS.csv #2477 — up to two custom-layer tracks (a stratigraphic unit, a gamma log), as the strip-log window's '+ track' offers them
   const customChoices = useMemo(() => customLayers.filter((l) => (l.rows || []).some((r) => r.value != null && r.value !== "" && Number.isFinite(Number(r.from)))).map((l) => ({ id: String(l.id), layer: l, numeric: isNumericLayer(l.rows) })), [customLayers]);
   const [customSel, setCustomSel] = useState(["", ""]);
   const customTracks = useMemo(() => customSel.filter(Boolean).filter((s, i, a) => a.indexOf(s) === i).map((id) => customChoices.find((c) => c.id === id)).filter(Boolean).map((c) => { if (!c.numeric) return c; const rows = mode === "hole" && selectedIds.size ? c.layer.rows.filter((r) => selectedIds.has(r.hole_id)) : c.layer.rows; let max = 0; for (const r of rows) { const v = Number(r.value); if (Number.isFinite(v) && v > max) max = v; } return { ...c, max }; }), [customSel, customChoices, mode, selectedIds]);
   const assayTracks = useMemo(() => { const syms = assaySymbols.filter(Boolean).filter((s, i, a) => a.indexOf(s) === i); if (!syms.length) return customTracks.length ? { assays, assaySymbols: [], elementUnits: {}, customTracks } : null; const elementUnits = Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])); const rows = mode === "hole" && selectedIds.size ? assays.filter((a) => selectedIds.has(a.hole_id)) : assays; /* #2605 — one axis per element over the atlas's holes */ return { assays, assaySymbols: syms, elementUnits, customTracks, assayRanges: Object.fromEntries(syms.map((s) => [s, assayTrackRange(rows, s, elementUnits[s] || "ppm", elementUnits)]).filter(([, r]) => r)) }; }, [assaySymbols, assays, assayElements, mode, selectedIds, customTracks]);
+  // TASKS.csv #3710 — the holes that have any log of their own (a log, a density, a susceptibility): with none of them, and no assay or custom track chosen, a hole's page has no strip log
+  const holesWithLogs = useMemo(() => { const s = new Set(); for (const k of ["litho", "alt", "vein", "breccia", "structzone", "weath", "mnlgy", "geotech", "recovery", "magsusc", "sg"]) for (const r of layers?.[k] || []) s.add(r.hole_id); return s; }, [layers]);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(null); // {done, total}
   const [result, setResult] = useState(null);
@@ -110,13 +114,14 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
       const recapture = mode === "hole" && centreMaps && hasPlanMap ? atlasRecaptureItems(pages, pageIds) : [];
       if (recapture.length) { requestViewportBatch(recapture); onClose(); return; }
       const failed = pages.filter((pg) => pg.stripLogFailed).map((pg) => pg.name); // #1080
+      const noLog = pages.filter((pg) => pg.noStripLog).length; // TASKS.csv #3710 — pages made with no strip log, counted in the notice
       // #1772 — what making room for the strip log did to the template's elements
       const narrowedPages = pages.filter((pg) => pg.narrowed > 0).length, coveredPages = pages.filter((pg) => pg.overlapping > 0).length;
       const room = (narrowedPages ? ` ${tr("To make room for the strip log, the template's elements beside it were narrowed on {n} page(s); a map keeps its scale and shows less ground.", { n: narrowedPages })}` : "")
         + (coveredPages ? ` ${tr("On {n} page(s) the strip log still covers part of the template: move it, or leave a free column at the side of the template.", { n: coveredPages })}` : "");
       if (pages.length) { try { localStorage.setItem("geostrix.atlasMsPerPage", String(Math.round((performance.now() - runStart) / pages.length))); } catch { /* no storage: no estimate next time */ } } // #2607
       setRanOn(selectedIds); // #3180
-      setResult({ ok: !failed.length, text: tr("Generated {n} page(s).", { n: pages.length }) + smallText + room + (failed.length ? ` ${tr("The strip log could not be drawn for {n} hole(s), added without it: {holes}.", { n: failed.length, holes: failed.slice(0, 8).join(", ") + (failed.length > 8 ? "…" : "") })}` : "") });
+      setResult({ ok: !failed.length && !noLog, text: tr("Generated {n} page(s).", { n: pages.length }) + smallText + room + (failed.length ? ` ${tr("The strip log could not be drawn for {n} hole(s), added without it: {holes}.", { n: failed.length, holes: failed.slice(0, 8).join(", ") + (failed.length > 8 ? "…" : "") })}` : "") + (noLog ? ` ${tr(noLog === 1 ? "{n} page has no strip log: that hole has no logs and no density, and no assay track was chosen." : "{n} pages have no strip log: those holes have no logs and no density, and no assay track was chosen.", { n: noLog })}` : "") }); // noLog: #3710
     } catch (err) {
       setResult({ ok: false, text: err.message });
     } finally {
@@ -175,11 +180,12 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
               {[0, 1, 2, 3, 4].map((k) => (
                 <select key={k} value={assaySymbols[k]} aria-label={tr("Assay track {n}", { n: k + 1 })} onChange={(e) => setAssaySymbols((p) => p.map((s, j) => (j === k ? e.target.value : s)))} style={{ ...sel, flex: 1, minWidth: 80 }}>
                   <option value="">{tr("none")}</option>
-                  {assayElements.map((e) => <option key={e.symbol} value={e.symbol}>{e.unit ? `${e.symbol} (${e.unit})` : e.symbol}</option>)}
+                  {assayElements.map((e) => <option key={e.symbol} value={e.symbol}>{e.unit || gradeUnitLabel(e.symbol, e.unit) !== "ppm" ? `${e.symbol} (${gradeUnitLabel(e.symbol, e.unit)})` : e.symbol /* #3710 — 'Ag (g/t)' as the strip-log window's own list */}</option>)}
                 </select>
               ))}
             </div>
           )}
+          {mode === "hole" && includeStripLog && !assayTracks && (() => { const n = [...selectedIds].filter((h) => !holesWithLogs.has(h)).length; return n > 0 ? <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "#a95a3a" }}>{tr(n === 1 ? "{n} of the selected holes has no logs and no density, and no assay track is chosen: its page will have no strip log. Choose an assay track above." : "{n} of the selected holes have no logs and no density, and no assay track is chosen: their pages will have no strip log. Choose an assay track above.", { n })}</div> : null; })()}{/* TASKS.csv #3710 — said before it runs */}
           <div>
             <div style={{ ...labelStyle, display: "flex", justifyContent: "space-between" }}>
               <span>{mode === "hole" && holeFilter.trim() ? tr("{selectedCount} selected; {n} of {all} holes listed", { selectedCount, n: items.length, all: holeIds.length }) : tr("{selectedCount} of {items} selected", { selectedCount, items: items.length })}</span>

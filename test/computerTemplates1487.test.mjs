@@ -22,11 +22,11 @@ test("a template leaves out the data snapshots and the viewports' pictures, keep
   assert.equal(dropped, 1);
   assert.equal(cleared, 1);
   const ids = elements.map((e) => e.id);
-  assert.deepEqual(ids, ["tb", "logo", "pic", "leg", "vp", "bar", "bar2"]);
+  assert.deepEqual(ids, ["tb", "logo", "pic", "vp", "bar", "bar2"]); // the legend bound to the left-out snapshot goes with it (#3709)
   const vp = elements.find((e) => e.id === "vp");
   for (const k of ["src", "worldHeightAtTarget", "targetWorld", "planView"]) assert.ok(!(k in vp), k);
   for (const [k, v] of [["w", 500], ["h", 300], ["trueScale", true], ["fixedScale", 5000], ["utmGrid", true], ["frameStyle", "double"]]) assert.equal(vp[k], v, k);
-  assert.equal(elements.find((e) => e.id === "leg").boundViewportId, null);
+  assert.equal(elements.find((e) => e.id === "leg"), undefined);
   assert.equal(elements.find((e) => e.id === "bar").boundTo, "vp");
   assert.equal(elements.find((e) => e.id === "bar2").boundTo, null);
   assert.equal(elements.find((e) => e.id === "logo").src, PNG);
