@@ -11,6 +11,9 @@ export const LOG_SCALE_METHODS = new Set(["res", "mt_rho", "em_cond"]);
 // the survey meta an import writes: { method, units } and, for a resistivity or conductivity survey spanning a decade or more, a log legend
 export function surveyMetaFor(method, values) {
   const meta = { method, units: SURVEY_METHODS[method]?.units ?? "" };
+  // TASKS.csv #3739 (Scottie Gold) — the unit comes from the method the column NAME suggests ('AppMx' -> chargeability -> mV/V, 'AppRho' -> ohm-m), not from the file, which names none
+  // (chargeability could as well be ms): unitsGuessed says so in the legend and the survey list until the user picks a method or types a unit
+  if (meta.units) meta.unitsGuessed = true;
   if (!LOG_SCALE_METHODS.has(method)) return meta;
   const rr = robustRange(values || []);
   if (rr.min > 0 && rr.max >= 10 * rr.min) meta.legend = { stops: logViridisStops(rr.min, rr.max), colorMode: "continuous" };
