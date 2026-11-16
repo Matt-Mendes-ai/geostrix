@@ -415,7 +415,7 @@ export function geophysLegendGroups({ rows = [], visible = true, surveys = {}, s
       out.push({ key: `geophys_pts_${key}`, label: key, items: [[`${key} (${rows.filter((r) => surveyKey(r) === key).length.toLocaleString("en-US")})`, colorer.colorOf(sample)?.color || colorer.colorOf(sample), { kind: "point" }]] });
       continue;
     }
-    out.push(scaleLegendGroup(`geophys_pts_${key}`, colorer.perSurvey ? `${key}${units ? ` (${units})` : ""}` : `${label}${units ? ` (${units})` : ""}`, model, model.min, model.max));
+    out.push(scaleLegendGroup(`geophys_pts_${key}`, (colorer.perSurvey || colorer.models.size === 1) /* TASKS.csv #3815 (4) — one survey loaded: its own name, not 'Geophysics points' */ ? `${key}${units ? ` (${units})` : ""}` : `${label}${units ? ` (${units})` : ""}`, model, model.min, model.max));
   }
   return out;
 }

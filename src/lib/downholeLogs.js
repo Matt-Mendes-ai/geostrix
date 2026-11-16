@@ -5,6 +5,7 @@
 import { quantileSorted } from "./arrayStats.js";
 import { correlate } from "./correlation.js";
 import { valueIn } from "./geochem.js";
+import { t as tr } from "./i18n.js"; // TASKS.csv #3813
 
 // TASKS.csv #2948 (review #2876, WA iron: 484,531 bins, 4 to 8 s per choice) — each reading was matched to its code, its assay interval and
 // its model cell with Array.find over the hole's intervals. intervalLookup(items, ok) -> (hole, depth) => the item holding the depth: a binary
@@ -180,6 +181,15 @@ export function ratioComparable(logLabel, element) {
   return EQUIVALENT.some(([logRe, elRe]) => logRe.test(s) && elRe.test(el));
 }
 
+// TASKS.csv #3813 — where a cross-plot of 'On holes: <model>' can be made in THIS project: Downhole logs needs a numeric log (the model is only its second variable), Geochem's X-Y scatter an assay. The sentence
+// that follows the 'Added On holes' notice, from what the project holds: '' when it holds neither
+export function onHolesRoutes(assays, layers) {
+  const hasLog = ["magsusc", "sg", "geotech", "recovery"].some((k) => (layers?.[k]?.length || 0) > 0), hasAssays = (assays?.length || 0) > 0;
+  if (hasLog && hasAssays) return " " + tr("Cross-plots: Downhole logs against a log, Geochem › X–Y scatter against an assay.");
+  if (hasAssays) return " " + tr("For a cross-plot against an assay, use Geochem › X–Y scatter (the model's values are listed as 'On holes: …').");
+  if (hasLog) return " " + tr("For a cross-plot against a log, use Downhole logs.");
+  return "";
+}
 // TASKS.csv #1595 (review #1497, Lawyers) — a log against a block model evaluated onto the holes ('On holes: <model>', GeophysicsModule
 // evaluateOnHoles): each reading paired with the model cell the hole crosses at its midpoint. The reviewer had to do this by hand for
 // the MVI amplitude against the 23,575 mag-susc readings (Spearman 0.04 over 1,486 pairs). Spearman is unaffected by the units (a log in
