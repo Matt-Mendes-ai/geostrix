@@ -15,7 +15,7 @@ test("the strip log window sends the exported figure and its colour-track legend
 });
 
 test("Layout caps a queued image at the sheet height", () => {
-  assert.match(read("src/modules/LayoutModule.jsx"), /const maxH = A4\.h - 160, w = Math\.round\(Math\.min\(maxW, 700, maxH \* aspect\)\);/);
+  assert.match(read("src/modules/LayoutModule.jsx"), /const maxH = A4\.h - 160;\s+let w = Math\.round\(Math\.min\(maxW, 700, maxH \* aspect\)\)/);
 });
 
 test("a 3,000 px log fitted to a 634 px sheet height prints its labels too small to read", () => {

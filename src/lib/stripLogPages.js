@@ -10,6 +10,11 @@
 import { b64ToBytes } from "./base64.js";
 export const PAD_TOP = 40; // mirrors components/StripLog.jsx (pinned by test/stripLogPages3372.test.mjs)
 export const PAD_BOTTOM = 30;
+// TASKS.csv #3856 — what a slice's caption needs under it: its 8 px gap, its line (10 pt, about 16 px) and a few px to the credit line below
+export const CAPTION_CLEAR_PX = 28;
+// TASKS.csv #3856 — the header strip a continuation page copies from the picture's top: the window draws the first depth label (a '0' at the 0 m tick) from 3.5 px above the
+// 40 px header line to 3 px under it, so cutting at 40 printed the top of that '0' (half a digit, 9 mm above the real first tick); the strip stops above it
+export const HEAD_PX = PAD_TOP - 3.5;
 const M_PER_PAGE_PX = 0.0254 / 96;
 
 // The band height from the SVG data URL's root viewBox (only the first few kB are decoded). -> { bandPx, width, height } or null
@@ -64,6 +69,16 @@ export function pageWidthDenom(el, usableW) {
   const k = Math.min(1, usableW / g.naturalW); // page px per picture px
   return niceDenomUp(el.depthHeightAtCaptureM / (k * g.naturalH * M_PER_PAGE_PX));
 }
+// TASKS.csv #3861 (Scottie Gold review) — 'Depth 1 : 1,000' on a log sent with the window's own Fit (0.72 px/m) enlarged the picture to 625 x 965 mm with 37 pt labels, offered no split, and said
+// 'a larger depth scale fits it'. A picture is never enlarged past its own size by a split (pageWidthDenom), so at that scale it has to be drawn again: the strip log window's
+// px per metre that draws a metre of hole at 1 : denom on paper (one picture px = one page px), and what the picture holds now.
+export const ppmForDenom = (denom) => (denom > 0 ? 1 / (denom * M_PER_PAGE_PX) : null);
+// -> { ppmNow (picture px per metre), ppmNeeded, enlarge (page px per picture px the scale asks), pt (the 9.5 px labels at that size) } or null when it is not a depth picture
+export function redrawAdvice(el, denom) {
+  if (!(el?.naturalH > 0) || !(el.depthHeightAtCaptureM > 0) || !(denom > 0)) return null;
+  const ppmNow = el.naturalH / el.depthHeightAtCaptureM, ppmNeeded = ppmForDenom(denom), enlarge = ppmNeeded && ppmNow ? ppmNeeded / ppmNow : null;
+  return enlarge ? { ppmNow, ppmNeeded, enlarge, pt: sliceLabelPt(enlarge) } : null;
+}
 // the size the window's 9.5 px labels print at for page px per picture px k (as Layout's depth-scale panel says, #1641)
 export const sliceLabelPt = (k) => (9.5 * k * 72) / 96;
 
@@ -76,7 +91,7 @@ export function splitStripLog(el, { pageW, pageH, denom, x = 40, y = 40, top = 4
   const k = el.depthHeightAtCaptureM / (denom * M_PER_PAGE_PX) / g.naturalH;
   const w = g.naturalW * k;
   if (x + w > pageW - right + 0.5) return { error: "too-wide", w };
-  const head = PAD_TOP, foot = PAD_BOTTOM;
+  const head = HEAD_PX, foot = PAD_BOTTOM; // head: #3856
   const room = (from, extra) => Math.floor((pageH - from - bottom) / k - extra); // body px a page can take
   const firstRoom = room(y, g.bodyTop + foot), nextRoom = room(top, head + foot);
   if (!(nextRoom > g.ppm) || !(firstRoom > 0)) return { error: "too-tall-header" };

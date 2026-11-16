@@ -20,5 +20,5 @@ test("the starter bar binds to a 1:20,000 drill plan with that plan's pixels per
 
 test("the Layout's insert ties it for a drill plan", () => {
   const l = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
-  assert.match(l, /setElements\(\(els\) => \(type === "drillplan" \? tieStarterFurniture\(\[\.\.\.els, base\], base\) : \[\.\.\.els, base\]\)\)/);
+  assert.match(l, /setElements\(\(els\) => \(type === "drillplan" \? tieStarterFurniture\(\[\.\.\.els, base\], base\) : base\.type === "table" \? dropIdleStarterMapFurniture\(\[\.\.\.els, base\]\)\.els[^:]*: \[\.\.\.els, base\]\)\)/);
 });

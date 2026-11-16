@@ -13,6 +13,7 @@ import { remoteSensingFetch } from "./desktop.js";
 import { gridDims, finishTerrain } from "./terrainGrid.js";
 import { nodeGrid, readInto } from "./nrcanDem.js";
 import { readCopernicusGrid } from "./copernicusDem.js";
+import { fillWithDelta, seamJump } from "./gapFill.js"; // TASKS.csv #3871
 import { pointTransform } from "./reproject.js";
 import { t as tr } from "./i18n.js";
 
@@ -81,7 +82,7 @@ export async function readGemGrid(box, gridW, gridH, { band = "dtm", onProgress,
 }
 
 // Same result shape as copernicusDem.fetchCopernicusTerrain / nrcanDem.fetchNrcanTerrain. band: "dtm" | "dsm".
-export async function fetchGemTerrain({ lonMin, latMin, lonMax, latMax, targetEpsg, onProgress, gridMax = 200, source = "gem15" }) {
+export async function fetchGemTerrain({ lonMin, latMin, lonMax, latMax, targetEpsg, onProgress, gridMax = 200, source = "gem15", gapFill = "delta" }) { // gapFill "plain": GLO-30 as it is (the fill before #3871), for measuring
   if (!(lonMax > lonMin) || !(latMax > latMin)) throw new Error(tr("Invalid area — check the coordinates."));
   const band = source === "gem15dsm" ? "dsm" : "dtm";
   const box = { lonMin, latMin, lonMax, latMax };
@@ -93,11 +94,17 @@ export async function fetchGemTerrain({ lonMin, latMin, lonMax, latMax, targetEp
   const out = r.elevations, total = out.length;
   const own = out.reduce((n, v) => n + (Number.isNaN(v) ? 0 : 1), 0);
   // the nodes GEM-15 masks (water, snow and ice, low texture, cells far from GLO-30) and the cells it does not have: from Copernicus GLO-30, counted
-  let filled = 0, copFailed = null;
+  let filled = 0, copFailed = null, seam = null;
   if (own < total) {
     try {
       const cop = await readCopernicusGrid(box, gridW, gridH, {});
-      for (let i = 0; i < total; i++) if (Number.isNaN(out[i]) && Number.isFinite(cop.elevations[i])) { out[i] = cop.elevations[i]; filled++; }
+      // TASKS.csv #3871 — not GLO-30 as it is (a surface model above EGM2008, metres to tens of metres off the bare earth above EGM96: every gap outline was a cliff in the terrain and its hillshade):
+      // GLO-30 plus the (GEM-15 - GLO-30) difference interpolated in from the nodes GEM-15 has, so the fill meets GEM-15 at the edge. The seam's jump before and after is kept.
+      const own0 = new Uint8Array(total); for (let i = 0; i < total; i++) own0[i] = Number.isNaN(out[i]) ? 0 : 1;
+      const plain = Float32Array.from(out); for (let i = 0; i < total; i++) if (Number.isNaN(plain[i]) && Number.isFinite(cop.elevations[i])) plain[i] = cop.elevations[i];
+      const r2 = gapFill === "plain" ? { out: plain, filled: plain.reduce((n, v, i) => n + (own0[i] || Number.isNaN(v) ? 0 : 1), 0), nValid: 0 } : fillWithDelta(out, cop.elevations, gridW, gridH); filled = r2.filled;
+      seam = { before: seamJump(plain, own0, gridW, gridH), after: seamJump(r2.out, own0, gridW, gridH), offsetM: r2.delta || null, deltaFilled: r2.nValid > 0 };
+      out.set(r2.out);
     } catch (e) { copFailed = e.message; }
   }
   onProgress?.(r.cells + 1, r.cells + 1);
@@ -112,7 +119,7 @@ export async function fetchGemTerrain({ lonMin, latMin, lonMax, latMax, targetEp
     reprojectedTo: fin.reprojectedTo, reprojectNote: fin.reprojectNote, tileCount: r.read,
     source: {
       service: band === "dtm" ? "Google GEM-15 (15 m bare-earth terrain model)" : "Google GEM-15 (15 m surface model)", zoom: null, sourcePixelM: 15, nodeM, bareEarth: band === "dtm", fetched: new Date().toISOString().slice(0, 10),
-      gapFilledNodes: filled, gapNodes: total - own, totalNodes: total, gapFilledFrom: filled ? "Copernicus GLO-30" : null, ...(copFailed ? { gapFillFailed: copFailed } : {}),
+      gapFilledNodes: filled, gapNodes: total - own, totalNodes: total, gapFilledFrom: filled ? (seam?.deltaFilled ? "Copernicus GLO-30 plus the interpolated GEM-15 - GLO-30 difference" : "Copernicus GLO-30") : null, ...(seam ? { gapSeam: seam } : {}), ...(copFailed ? { gapFillFailed: copFailed } : {}),
     },
     noDataMask: fin.noDataMask, noDataNote: fin.noDataNote,
     failedTiles: r.failed.length,

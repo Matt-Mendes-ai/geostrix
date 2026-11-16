@@ -100,6 +100,19 @@ export function tieStarterFurniture(els, view, { bar: wantBar = true, north: wan
   });
 }
 
+// TASKS.csv #3863 (Scottie Gold review) — a sheet holding only a strip log or a table kept the starter page's free scale bar ('0 50 100 m' on 48 mm beside a log at 1 : 1,816) and its
+// north arrow: nothing on it is a map, so neither means anything. When a depth picture or a table is on the page, no map frame is, and the starter bar and arrow are still
+// untouched (the starter's own ids, tied to nothing, a 100 m bar, an arrow not turned), they are dropped. -> { els, dropped: ['scale bar', 'north arrow'] }
+const MAP_FRAME = (el) => el.type === "viewport" || el.type === "drillplan" || (el.type === "image" && (el.worldWidthAtCaptureM != null || el.planMap));
+export function dropIdleStarterMapFurniture(els) {
+  const list = els || [];
+  if (list.some(MAP_FRAME) || !list.some((el) => (el.type === "image" && el.depthHeightAtCaptureM > 0) || el.type === "table")) return { els: list, dropped: [] };
+  const bar = list.find((el) => el.id === "scale" && el.type === "scale" && !el.boundTo && !el.pxPerMeter && el.meters === 100);
+  const north = list.find((el) => el.id === "north" && el.type === "north" && el.rotation == null && !el.boundTo);
+  if (!bar && !north) return { els: list, dropped: [] };
+  return { els: list.filter((el) => el !== bar && el !== north), dropped: [bar && "scale bar", north && "north arrow"].filter(Boolean) };
+}
+
 // TASKS.csv #1634 (review #1497, Lawyers) — an element sent to another page takes what is bound to it (its scale bar, legend, overview
 // frame, north arrow), relinked for a copy, and the destination's untouched starter bar / arrow then bind to it as for a fresh
 // snapshot. A moved section used to leave its 200 m bar and legend beside the plan, while its new page printed a starter "100 m"

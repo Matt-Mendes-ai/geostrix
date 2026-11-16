@@ -121,7 +121,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
         + (coveredPages ? ` ${tr("On {n} page(s) the strip log still covers part of the template: move it, or leave a free column at the side of the template.", { n: coveredPages })}` : "");
       if (pages.length) { try { localStorage.setItem("geostrix.atlasMsPerPage", String(Math.round((performance.now() - runStart) / pages.length))); } catch { /* no storage: no estimate next time */ } } // #2607
       setRanOn(selectedIds); // #3180
-      setResult({ ok: !failed.length && !noLog, text: tr("Generated {n} page(s).", { n: pages.length }) + smallText + room + (failed.length ? ` ${tr("The strip log could not be drawn for {n} hole(s), added without it: {holes}.", { n: failed.length, holes: failed.slice(0, 8).join(", ") + (failed.length > 8 ? "…" : "") })}` : "") + (noLog ? ` ${tr(noLog === 1 ? "{n} page has no strip log: that hole has no logs and no density, and no assay track was chosen." : "{n} pages have no strip log: those holes have no logs and no density, and no assay track was chosen.", { n: noLog })}` : "") }); // noLog: #3710
+      setResult({ ok: !failed.length && !noLog, text: tr("Generated {n} page(s).", { n: pages.length }) + (mode === "section" ? " " + tr("No section drawing was added: only its name.") : "") + smallText + room + (failed.length ? ` ${tr("The strip log could not be drawn for {n} hole(s), added without it: {holes}.", { n: failed.length, holes: failed.slice(0, 8).join(", ") + (failed.length > 8 ? "…" : "") })}` : "") + (noLog ? ` ${tr(noLog === 1 ? "{n} page has no strip log: that hole has no logs and no density, and no assay track was chosen." : "{n} pages have no strip log: those holes have no logs and no density, and no assay track was chosen.", { n: noLog })}` : "") }); // noLog: #3710
     } catch (err) {
       setResult({ ok: false, text: err.message });
     } finally {
@@ -142,13 +142,14 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
           <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75, lineHeight: 1.4 }}>{tr("Creates one new Layout page per item below, using the CURRENT page as a template. Any {v} in a text/title element gets filled in per item — available tokens for this mode: {v2}.", { v: "{token}", v2: tokens.map((t) => `{${t}}`).join(", ") })}{" "}{tr("The page's own placeholders ({project}, {date}, {scale}, {crs}...) are filled on every generated page as well; the older double-brace form still works.")}</div>{/* #1777 — one syntax: single braces */}
           {mode === "hole" && untraced > 0 && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75 }}>{tr("{n} collar(s) with no depth (no trace) are left out of the list: their pages would show a point and an empty log.", { n: untraced })}</div>}{/* #2136 */}
           {mode === "hole" && includeStripLog && templateElements.some(isStripLogImage) && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75 }}>{tr("The template's own strip log is left off the generated pages: each page gets its own hole's.")}</div>}{/* #2136 */}
+          {mode === "section" && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("A section page takes the section's name in the page's text: the section itself is not drawn on it. To put the drawing on a page, use 'Snapshot to Layout' in that section's window.")}</div>}{/* TASKS.csv #3862 (Scottie Gold review) — 'Generated 1 page(s).' gave a sheet named for the section with no picture of it */}
           {!hasPlaceholders && (
             <div style={{ fontSize: "var(--font-size-sm)", color: "#a95a3a" }}>{tr("The current page has no {v} placeholders in any text — every generated page will look identical except its name{v2}. Add a text element with e.g. {v3} first if you want per-item text.", { v: "{token}", v2: mode === "hole" && includeStripLog ? tr(" (and its strip log image)") : "", v3: mode === "hole" ? "{hole_id}" : "{name}" })}</div>
           )}
           <div style={{ display: "flex", gap: 8 }}>
             <select value={mode} onChange={(e) => switchMode(e.target.value)} style={{ ...sel, flex: 1 }}>
               <option value="hole">{tr("One page per drillhole ({holeIds})", { holeIds: holeIds.length })}</option>{/* traced holes only: #2136 */}
-              <option value="section">{tr("One page per section ({sections})", { sections: sections.length })}</option>
+              <option value="section">{tr("One page per section ({sections}): its name only, no drawing", { sections: sections.length })}</option>{/* TASKS.csv #3862 — named for what it does */}
             </select>
           </div>
           {mode === "hole" && hasPlanMap && ( /* TASKS.csv #1644 */
