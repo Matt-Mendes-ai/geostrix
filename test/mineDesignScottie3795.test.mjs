@@ -91,3 +91,14 @@ test("#3801 a long model name is cut at its first bracket for the names; the pan
   assert.match(p, /Levels start at the model's base/, "(6)");
   assert.match(read("../src/components/DesignStringsPane.jsx"), /Type both elevations \(from Z and to Z\)/, "(9)");
 });
+
+test("Pit shell: the mill cut-off is named, and the break-even with mining sits beside it only when a mining cost is typed (the review's 0.518 and 1.56 g/t)", async () => {
+  const { pitEconomics } = await import("../src/lib/pitShell.js");
+  const e = pitEconomics({ unit: "ppm", element: "Au", price: 2000, priceUnit: "oz", recovery: 90, processingCost: 30 });
+  assert.ok(Math.abs(e.cutoff - 0.518) < 0.001, "the mill cut-off: 30 / (2000 / 31.1035 x 0.9)");
+  assert.ok(Math.abs((60 + 30) / e.revenuePerGrade - 1.555) < 0.01, "with 60 $/t mining: 90 / 57.87");
+  const p = read("../src/components/PitShellPane.jsx");
+  assert.match(p, /tr\("Mill cut-off \(processing only\) at these inputs: \{c\} \{unit\}\."/);
+  assert.match(p, /const miningBE = !isProduct && eco && eco\.revenuePerGrade > 0 && !eco\.cutoffTyped && value\("miningCost"\) > 0/);
+  assert.match(p, /\{miningBE != null && " " \+ tr\("Break-even including the mining cost of/);
+});

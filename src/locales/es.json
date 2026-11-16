@@ -13597,5 +13597,7 @@
   "Grades not top-cut: the highest samples entered the estimate at full grade.": "Leyes sin tope: las muestras más altas entraron a la estimación con su ley completa.",
   "Grades top-cut at {cap} {unit} before estimating": "Leyes con tope de {cap} {unit} antes de estimar",
   "({n} of {m} samples cut{pct}).": "({n} de {m} muestras cortadas{pct}).",
-  ", {p} % of the metal removed": ", {p} % del metal removido"
+  ", {p} % of the metal removed": ", {p} % del metal removido",
+  "Mill cut-off (processing only) at these inputs: {c} {unit}.": "Ley de corte de planta (solo procesamiento) con estos datos: {c} {unit}.",
+  "Break-even including the mining cost of {m} $/t rock: {b} {unit}. The pit itself mines the rock over the ore whatever the ore pays, so it uses the mill figure; an underground stope carries its own mining.": "Punto de equilibrio incluido el costo de minado de {m} $/t de roca: {b} {unit}. El rajo mueve de todos modos la roca sobre el mineral, así que usa la cifra de planta; un caserón subterráneo carga con su propio minado."
 }
