@@ -3,6 +3,7 @@
 // opened a column picker over ONE nonsense column) — a parsed table a picker cannot use is refused with a sentence: what it is not and what this
 // button reads. The drop already said so (#2854); the buttons now do.
 import { t as tr } from "./i18n.js";
+import { emPointRefusal } from "./boreholeEm.js"; // TASKS.csv #3804
 
 // electrode position columns of a DC / IP reading file: Tx1East, Rx2North, Tx1Elev, T1X, R2Y (contractor) or C1_E, P2_N (a 3D array file)
 const ELECTRODE = /^((tx|rx)\d*[_ ]?(east(ing)?|north(ing)?|elev(ation)?|[xyzen])|[tr]\d[xyz]|[cp]\d[_ ]?[enz])$/i;
@@ -17,7 +18,8 @@ const READS = {
 };
 
 // name, columns, rows, button ("point" | "dcipLine") -> one sentence when this button cannot use the table, else null
-export function tableRefusal(name, columns, rows, button = "point") {
+// headText (#3804): the file's first lines, for a header that says borehole
+export function tableRefusal(name, columns, rows, button = "point", headText = "") {
   const cols = (columns || []).filter((c) => String(c ?? "").trim() !== "");
   const reads = (READS[button] || READS.point)();
   if (cols.length <= 1) {
@@ -31,6 +33,7 @@ export function tableRefusal(name, columns, rows, button = "point") {
     if (el3.length >= 4) return tr("\"{name}\" is a 3D DC / IP reading file (electrode positions in east / north: {cols}), not a line along a profile. GeoStrix has no reader for this electrode layout yet. {reads}", { name, cols: el3.slice(0, 4).join(", ") + (el3.length > 4 ? ", …" : ""), reads });
   }
   if (button === "point") {
+    { const em = emPointRefusal(name, cols, rows, headText); if (em) return em; } // TASKS.csv #3804 — decay channels: a multi-channel EM file (or a borehole one), not a table of points
     const el = electrodeColumns(cols);
     if (el.length >= 4) {
       const how = el.some((c) => ARRAY_3D.test(String(c).trim())) ? tr("Read it with DC / IP › Read a 3D array file.")

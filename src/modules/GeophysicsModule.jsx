@@ -91,6 +91,8 @@ import { Layers as RLayers /* #1986 */, Waves as RWaves /* #1989 */, Zap as RZap
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax, median } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread); median: #2239
 import { unreadableFormatAdvice, textTableRefusal } from "../lib/unreadableFormats.js"; // TASKS.csv #603; textTableRefusal: #2847
+import { headerlessTable } from "../lib/headerlessTable.js"; // TASKS.csv #3805
+import { onHolesRoutes } from "../lib/downholeLogs.js"; // TASKS.csv #3813
 import { tableRefusal } from "../lib/tableRefusal.js"; // TASKS.csv #3320 — a table the picker cannot use (one column, a DC / IP reading file)
 import { t as tr } from "../lib/i18n.js";
 import { decadesBetween, isLogSpaced, logViridisStops } from "../lib/pointSurveyScale.js"; // TASKS.csv #1787
@@ -236,9 +238,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const discrete = model.colorMode === "discrete";
     const labelOf = (v) => (model.valueLabels && model.valueLabels[v]) || v;
     const out = rows.map((r) => ({ ...r, value: discrete ? labelOf(r.value) : r.value, modelled: true, ...(discrete ? {} : { numeric: true }), modelColor: colorForVoxelValue(model, r.value) }));
-    const id = `custom_${Date.now()}`;
-    setCustomLayers((p) => [...p, { id, name: `On holes: ${model.name}`, rows: out, sourceModel: model.id, unit: model.property || model.unitLabel || null }]);
-    setVoxelError({ info: true, text: tr("Added \"On holes: {name}\" — the model's value in {rows} cell crossing(s) along {holes} hole(s). Open a hole's strip log to compare it with the logs, or Downhole logs for a cross-plot against one.", { name: model.name, rows: rows.length.toLocaleString(), holes }) + " " + tr("({s} s)", { s: secs < 10 ? secs.toFixed(1) : Math.round(secs) }) });
+    // TASKS.csv #3813 — a second evaluation of the same model replaces its layer (same id: its style and the axis lists keep it) instead of adding a second layer of the same name
+    const prevLayer = (customLayers || []).find((l) => l.sourceModel === model.id && /^On holes: /.test(String(l.name)));
+    const id = prevLayer?.id || `custom_${Date.now()}`;
+    setCustomLayers((p) => (p.some((l) => l.id === id) ? p.map((l) => (l.id === id ? { ...l, name: `On holes: ${model.name}`, rows: out, sourceModel: model.id, unit: model.property || model.unitLabel || null } : l)) : [...p, { id, name: `On holes: ${model.name}`, rows: out, sourceModel: model.id, unit: model.property || model.unitLabel || null }]));
+    setVoxelError({ info: true, text: tr("Added \"On holes: {name}\" — the model's value in {rows} cell crossing(s) along {holes} hole(s). Open a hole's strip log to compare it with the logs.{routes}", { name: model.name, routes: onHolesRoutes(assays, layers), rows: rows.length.toLocaleString(), holes }) + " " + tr("({s} s)", { s: secs < 10 ? secs.toFixed(1) : Math.round(secs) }) });
   };
   // User question after the MAX_CELLS coarsening budget was lowered (perf investigation done in this
   // sandbox, which has no real GPU — see voxel.js's MAX_CELLS comment): "do you think we can increase
@@ -362,6 +366,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const batchBaseInput = useRef(null); // #1585 — base-station files for a multi-file walk-mag import
   const rows = layers.geophys_pts || [];
   const surveyList = useMemo(() => surveyStats(rows), [rows]); // TASKS.csv #451
+  // TASKS.csv #3814 — the Magnetics / Gravity / Radiometrics panes list their own method's surveys; the others (IP clouds, a loop, a hole trace) are named apart, not presented as that method's
+  const inMethodPane = methodHint === "mag" || methodHint === "grav" || methodHint === "rad";
+  const ofPane = (sv) => SURVEY_METHODS[geophysSurveys[sv.key]?.method]?.group === methodHint;
+  const paneSurveys = inMethodPane ? surveyList.filter(ofPane) : surveyList, otherSurveys = inMethodPane ? surveyList.filter((sv) => !ofPane(sv)) : [];
   // TASKS.csv #3511 (of #3447) — a positions-only survey (an electrode list) has no measured value: the tools that read a survey's value (the legend, gridding, sampling along
   // the holes, the spatial analysis, the colour range) read these, not every survey's
   const measuredList = useMemo(() => surveyList.filter((s) => !geophysSurveys[s.key]?.positionsOnly), [surveyList, geophysSurveys]);
@@ -523,16 +531,18 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       return;
     }
     if (file.size > STREAM_FROM_BYTES) { await openStreamedCsv(file, head); return; } // #1351 — was refused above 150 MB
-    parseTableFile(file).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback
+    parseTableFile(file).then((t0) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback
+        const hl = headerlessTable(t0.headers, t0.rows), t = hl ? { ...t0, headers: hl.headers, rows: hl.rows } : t0; // TASKS.csv #3805 — a first row of numbers is data, not the column names
         const res = { data: t.rows, meta: { fields: t.headers }, note: t.note };
-        { const r = tableRefusal(file.name, t.headers, t.rows, "point"); if (r) { setError(r); return; } } // #3320 — before the column picker
+        { const r = tableRefusal(file.name, t.headers, t.rows, "point", head); if (r) { setError(r); return; } } // #3320 — before the column picker
         // TASKS.csv #484 — columns are matched on the words in each header (Easting_X, Raw_Mag_nT...), once per
         // file. Not sure which is which -> the column picker below (shared with .xyz), never a dead end.
-        const cols = guessGeophysColumns(res.meta.fields || []);
+        const cols = hl ? { ...guessGeophysColumns([]), x: t.headers[0], y: t.headers[1], z: t.headers[2], value: t.headers[3] || "" } : guessGeophysColumns(res.meta.fields || []); // #3805 — the first three columns are X, Y, Z and a fourth is the value, as for a headerless .xyz (#3737)
         const openPicker = (why, extra = {}) => {
           setXyzPending({ headerEpsg: geosoftHeaderEpsg(head) /* #2832 */, ...extra, fileName: file.name, columns: res.meta.fields || [], rows: res.data, source: "csv", xCol: cols.x, yCol: cols.y, zCol: cols.z, valueCol: cols.value, lineCol: cols.line, fidCol: cols.fid, labelCol: cols.label, ...cleaningDefaults(res.meta.fields || []) /* #1583 */ });
           setError({ info: true, text: tr("{why} Pick the columns below, then Import.", { why }) });
         };
+        if (hl) { openPicker(tr("\"{name}\" has no header line: its first row ({first}) is a reading, so all {n} rows are kept and the columns are named Column 1, 2, 3 …. Column 1, 2, 3 are taken as X, Y, Z.", { name: file.name, first: Object.values(hl.rows[0]).slice(0, 3).join(", "), n: hl.rows.length.toLocaleString() })); return; } // TASKS.csv #3805
         if (!cols.ok) {
           const missing = [!cols.x && "X / easting", !cols.y && "Y / northing", !cols.value && "the measured value"].filter(Boolean).join(", ");
           openPicker(tr("\"{name}\": couldn't tell which column is {missing} from the headers ({fields}).", { name: file.name, missing, fields: (res.meta.fields || []).join(", ") || tr("none") }) + (cols.x && cols.y && !cols.value ? " " + tr("If the file only lists positions (electrodes, stations), choose \"(none: positions only)\" for Value.") : "")); // #3447
@@ -1488,7 +1498,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       if (file.size > STREAM_FROM_BYTES) { // TASKS.csv #1351 — header and sample from the first part; Import streams the rest, thinned
         const head = await headText(file);
         const { columns, rows: sample } = parseXYZ(head);
-        { const r = tableRefusal(file.name, columns, sample, "point"); if (r) { setXyzError({ info: false, text: r }); return; } } // #3320
+        { const r = tableRefusal(file.name, columns, sample, "point", head); if (r) { setXyzError({ info: false, text: r }); return; } } // #3320
         const g = guessXyzChannels(columns, sample), estimate = Math.round((sample.length / Math.max(1, head.length)) * file.size);
         setXyzPending({ fileName: file.name, columns, rows: sample, xCol: guessColumn(columns, XY_NAME_HINTS.x), yCol: guessColumn(columns, XY_NAME_HINTS.y), zCol: g.z, valueCol: g.value, header: gemHeaderInfo(head), headerEpsg: gemHeaderEpsg(head) || geosoftHeaderEpsg(head) /* #2832 */, ...cleaningDefaults(columns),
           stream: { file, kind: "xyz", columns, estimate, keepEvery: suggestKeepEvery(estimate, undefined, (layers.geophys_pts || []).length) } });
@@ -1497,7 +1507,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       }
       const text = await file.text();
       const { columns, rows: parsedRows, headerless } = parseXYZ(text);
-      { const r = tableRefusal(file.name, columns, parsedRows, "point"); if (r) { setXyzError({ info: false, text: r }); return; } } // #3320
+      { const r = tableRefusal(file.name, columns, parsedRows, "point", text); if (r) { setXyzError({ info: false, text: r }); return; } } // #3320
       const g = guessXyzChannels(columns, parsedRows); // #600 — first guesses; the picker still shows every column
       // TASKS.csv #3737 — a file with no header line: Column 1, 2, 3 are X, Y, Z and a fourth is the value
       const gx = headerless ? columns[0] : guessColumn(columns, XY_NAME_HINTS.x), gy = headerless ? columns[1] : guessColumn(columns, XY_NAME_HINTS.y);
@@ -1570,6 +1580,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     try {
       const text = await files[0].text();
       const { columns, rows: parsedRows, headerless } = parseXYZ(text);
+      { const r = tableRefusal(files[0].name, columns, parsedRows, "point", text); if (r) { setXyzError({ info: false, text: r }); return; } } // TASKS.csv #3804 — the several-files route refuses a multi-channel EM file too
       const g = guessXyzChannels(columns, parsedRows);
       if (headerless) { g.z = columns[2] || ""; g.value = columns[3] || ""; } // #3737
       const bytes = files.reduce((a, f) => a + f.size, 0), estimate = Math.round((parsedRows.length / Math.max(1, files[0].size)) * bytes);
@@ -1793,7 +1804,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (jobs) reprojectNote += tr(" As {k} survey(s): {list}.", { k: jobs.length, list: jobs.map((j) => j.src).join(", ") }); // #2395 — the no-fix readings are reported separately; #1583: after the cleaning
     if (noFix) reprojectNote += tr(" Left out {noFix} reading(s) at X = 0, Y = 0 (no GPS fix).", { noFix });
     const dcNote = /_dc$/.test(valueCol) && xyzPending.diurnalNote ? ` ${xyzPending.diurnalNote}` : ""; // #610
-    setXyzError({ info: true, text: tr("Imported {mapped} point(s) from \"{fileName}\"{v}.{reprojectNote}{dcNote}", { mapped: mapped.length, fileName, v: skipped ? tr(" (skipped {skipped} row(s) with {v} values in the chosen columns)", { skipped, v: xyzPending.source === "csv" ? tr("blank or non-numeric") : tr("no-data \"*\"") }) : "", reprojectNote, dcNote }) + cleaningNote(cleaned) /* #1583 */ });
+    setXyzError({ info: true, text: tr("Imported {mapped} point(s) from \"{fileName}\"{v}.{reprojectNote}{dcNote}", { mapped: mapped.length.toLocaleString() /* #3815 (2) */, fileName, v: skipped ? tr(" (skipped {skipped} row(s) with {v} values in the chosen columns)", { skipped, v: xyzPending.source === "csv" ? tr("blank or non-numeric") : tr("no-data \"*\"") }) : "", reprojectNote, dcNote }) + cleaningNote(cleaned) /* #1583 */ });
     setXyzPending(null);
     if (xyzPending.source === "csv") setError(null);
   };
@@ -1902,7 +1913,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         if (log) coarsenMeanNote = tr(" Merged on the logs (geometric means), as a resistivity or conductivity model should be, so a .res and a .con of the same inversion give the same model.");
         mesh = coarsened.mesh; values = coarsened.values;
         const coarseTotal = mesh.nx * mesh.ny * mesh.nz;
-        coarsenNote = tr(" Original mesh had {rawTotal} cells — over GeoStrix's {effectiveMaxCells}-cell budget for staying responsive in the 3D view, so it was block-averaged down (merging {fx}×{fy}×{fz} fine cells into each coarse cell) to {coarseTotal} cells. Raise the \"3D view cell budget\" setting above and re-import if you want finer detail.", { rawTotal: rawTotal.toLocaleString(), effectiveMaxCells: effectiveMaxCells.toLocaleString(), fx, fy, fz, coarseTotal: coarseTotal.toLocaleString() });
+        coarsenNote = tr(" Original mesh had {rawTotal} cells — over GeoStrix's {effectiveMaxCells}-cell budget for staying responsive in the 3D view, so it was block-averaged down (merging {fx}×{fy}×{fz} fine cells into each coarse cell) to {coarseTotal} cells. Raise the \"3D view cell budget\" setting (Advanced ribbon, Cell budget) and re-import if you want finer detail.", { rawTotal: rawTotal.toLocaleString(), effectiveMaxCells: effectiveMaxCells.toLocaleString(), fx, fy, fz, coarseTotal: coarseTotal.toLocaleString() });
         coarsenNote += coarsenMeanNote; // #1785
       }
       const cells = ubcMeshToCells(mesh, values);
@@ -2170,7 +2181,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         {surveyList.length > 0 && (
           <div style={{ marginTop: 10 }}>
             <div className="ge-section-label" style={{ marginBottom: 6 }}>{tr("Surveys loaded")}</div>
-            {surveyList.map((sv) => {
+            {inMethodPane && !paneSurveys.length && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 6 }}>{methodHint === "mag" ? tr("No magnetic survey yet: import one above.") : methodHint === "grav" ? tr("No gravity survey yet: import one above.") : tr("No radiometric survey yet: import one above.")}</div>}{/* TASKS.csv #3814 */}
+            {paneSurveys.map((sv) => {
               const meta = geophysSurveys[sv.key] || {}, noValue = !!meta.positionsOnly; // noValue: TASKS.csv #3511 — no method, units, equivalent sources or gravity reduction for a survey with no measured value
               return (
                 <div key={sv.key} style={{ marginBottom: 8, padding: "8px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)" }}>
@@ -2226,6 +2238,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 </div>
               );
             })}
+            {otherSurveys.length > 0 && <details style={{ marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}><summary style={{ cursor: "pointer" }}>{tr("Other surveys in the project ({n})", { n: otherSurveys.length })}</summary><div style={{ marginTop: 4, lineHeight: 1.5 }}>{otherSurveys.map((sv) => sv.key).join(", ")}. {tr("Their method, rename and export are under Point survey.")}</div></details>}{/* #3814 */}
           </div>
         )}
         {xyzPending && (
@@ -3451,7 +3464,7 @@ function VoxelModelRow({ withSet = false /* #3014 part c */, others = null, mode
         {/* TASKS.csv #411 — block model out for estimation/mine-planning software */}
         <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" as CSV", { name: model.name })} title={csvNames === "micromine" ? tr("Export as block-model CSV (EAST, NORTH, RL, _EAST, _NORTH, _RL, value: Micromine names)") : tr("Export as block-model CSV (XC, YC, ZC, XINC, YINC, ZINC, value)")} onClick={async () => { const e = await getEpsg(); if (e) exportBlockModelCSV(withSet ? withSetColumns(model, others) : model, e, csvNames, stampChoice); }} />
         <Box role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" as VTK", { name: model.name })} title={tr("Export as VTK for ParaView / PyVista (empty blocks are NaN)")} onClick={async () => { const e = await getEpsg(); if (e) exportBlockModelVTK(withSet ? withSetColumns(model, others) : model, e); }} />{/* TASKS.csv #798 */}
-        <Trash2 aria-label={tr("Remove block model \"{name}\"", { name: model.name })} title={tr("Remove block model \"{name}\"", { name: model.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: model.name }))) onRemove(model.id); }} />
+        <Trash2 aria-label={tr("Remove block model \"{name}\"", { name: model.name })} title={tr("Remove block model \"{name}\"", { name: model.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: model.name }) + " " + tr("Undo does not bring a block model back."))) onRemove(model.id); }} />
       </div>
       {/* TASKS.csv #711 — an OMF / UBC volume names no property or unit, so the legend, inspector and exports could only
           show the attribute name: the user says what the values are (stored as model.property). */}

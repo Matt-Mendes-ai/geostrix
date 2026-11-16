@@ -182,7 +182,7 @@ export function parseXYZ(text) {
   // PLAIN comma line ('X,Y,PROJECT,STATION,...'), and end every data row with a comma. The last "/" line was taken as the header (columns
   // 'Local:"WGS 84"', '0', '0', ...) and the real header became a first row of nulls. A plain line of names (three or more tokens, none a
   // number) before the first data row is the header when that row has as many fields, or one more that is empty (the trailing comma).
-  let plainHeader = null, headerless = false;
+  let plainHeader = null, headerless = false, commentSkipped = false;
   const isNameRow = (toks) => toks.length >= 3 && toks.every((t) => t !== "" && t !== "*" && !Number.isFinite(Number(t)) && !t.includes(":"));
   for (const raw of lines) {
     const trimmed = raw.trim();
@@ -208,7 +208,13 @@ export function parseXYZ(text) {
         if (!(toks.length >= 3 && toks.length <= 12 && toks.every((t) => t !== "" && Number.isFinite(Number(t))))) continue; // a data-shaped row before any header was seen — can't map columns, skip
         columns = toks.map((_, i) => `Column ${i + 1}`); headerless = true;
       } else {
-        columns = [...candidates].reverse().find((c) => c.length === toks.length) || candidates[candidates.length - 1];
+        columns = [...candidates].reverse().find((c) => c.length === toks.length) || null;
+        // TASKS.csv #3805 — a '/' line whose word count differs from the first data row's (SCOTTIE_LOOP.tx: a five-word comment over 'X Y Z' rows) is a comment, not the header: the
+        // row of 3 to 12 numbers then names its own columns, as with no '/' line at all. Otherwise the last '/' line, as before (a header with an extra or missing name).
+        if (!columns) {
+          if (toks.length >= 3 && toks.length <= 12 && toks.every((t) => t !== "" && Number.isFinite(Number(t)))) { columns = toks.map((_, i) => `Column ${i + 1}`); headerless = true; commentSkipped = true; }
+          else columns = candidates[candidates.length - 1];
+        }
       }
     }
     const row = { _line: currentLine };
@@ -223,5 +229,5 @@ export function parseXYZ(text) {
   }
   if (!columns) throw new Error(tr("No column header line found — expected a \"/\"-prefixed header row (Geosoft .xyz format)."));
   if (!rows.length) throw new Error(tr("No data rows found in this .xyz file."));
-  return { columns, rows, ...(headerless ? { headerless: true } : {}) };
+  return { columns, rows, ...(headerless ? { headerless: true } : {}), ...(commentSkipped ? { commentSkipped: true } : {}) };
 }
