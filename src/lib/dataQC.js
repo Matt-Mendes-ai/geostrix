@@ -13,6 +13,7 @@
 import { pointInBoundary } from "./geoprocessing.js";
 import { arrMax, arrMin } from "./arrayStats.js"; // arrMin: #2335
 import { gradeUnitLabel } from "./geochemColumns.js"; // TASKS.csv #3698
+import { depthUnitHint } from "./depthUnitHint.js"; // TASKS.csv #3692
 import { isMarkedQcRow } from "./qaqc.js"; // TASKS.csv #601
 import { terrainGroundAt } from "./viewer/geomath.js"; // TASKS.csv #558; #927 — never compared with the fill
 
@@ -326,6 +327,8 @@ export function importCheckSummary(rows, collars, survey, label = "rows", range 
     if (r.to > L.length + 0.5) { pastEoh++; if (L.source === "survey") pastBySurvey++; }
   }
   const parts = [];
+  // TASKS.csv #3692 — most holes' deepest depth near 3.28 times their collar length: the word feet, not only a count past the end
+  const ftHint = pastEoh ? depthUnitHint((rows || []).map((r) => ({ hole_id: r.hole_id, depth: r.to })), (h) => len.get(h)?.length) : null;
   if (noTo) parts.push(tr("{noTo} with a blank or non-numeric from/to", { noTo }));
   if (swapped) parts.push(tr("{swapped} with from > to", { swapped }));
   if (negative) parts.push(tr("{negative} with a negative depth", { negative }));
@@ -347,6 +350,7 @@ export function importCheckSummary(rows, collars, survey, label = "rows", range 
     for (const r of rows || []) if (r.hole_id && !isMarkedQcRow(r)) ids.add(r.hole_id);
     if (ids.size) none = tr("No collars are loaded, so these {label} for {n} hole(s) ({ex}{v}) cannot be drawn yet: they are kept, and appear once collars with those hole ids are imported.", { label, n: ids.size, ex: [...ids].slice(0, 3).join(", "), v: ids.size > 3 ? ", …" : "" });
   }
+  if (ftHint?.kind === "feet") parts.push(tr("the deepest depth of {n} of {total} holes is about {ratio} times their length: these depths look like FEET — undo (Ctrl+Z) and import again with Feet chosen", { n: ftHint.holes, total: ftHint.total, ratio: ftHint.ratio.toFixed(2) }));
   const check = parts.length ? tr("Check these {label}: {parts}. They were imported as they are — Data QC lists each one.", { label, parts: parts.join(", ") }) : "";
   return [none, check].filter(Boolean).join(" ");
 }

@@ -108,7 +108,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
   };
 
   return (
-    <div style={overlay}>
+    <div style={{ ...overlay, zIndex: 62 /* TASKS.csv #3688 — above Data QC */ }}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>

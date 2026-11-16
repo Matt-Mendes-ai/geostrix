@@ -4,7 +4,7 @@ import { crsName } from "../lib/reproject.js"; // TASKS.csv #488
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import { mineSourceOf, isMineSource } from "../lib/mineGrid.js"; // TASKS.csv #2811 — 'Local mine grid (no CRS)' in the 3D View's import
 import { X } from "./icons.js";
-import { LAYER_META } from "../lib/layers.js";
+import { LAYER_META } from "../lib/layers.js";
 import { TARGET_SCHEMAS, guessMapping } from "../lib/layersImport.js"; // TASKS.csv #3590
 import { alterationStyleFromName, blankShare } from "../lib/viewer/importHelpers.js"; // TASKS.csv #1511; blankShare: #2182
 import { AZIMUTH_REFS, azimuthToGridOffset } from "../lib/azimuthRef.js"; // TASKS.csv #396; azimuthToGridOffset: #3302
@@ -131,7 +131,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
   const setMapping = (key, col) => onChange({ ...modal, mapping: { ...modal.mapping, [key]: col } });
 
   return (
-    <div style={overlay}>
+    <div style={{ ...overlay, zIndex: 62 /* TASKS.csv #3688 — above Data QC and the other dialogs (all 60): a file dropped while one is open opened its import dialog underneath */ }}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
@@ -353,6 +353,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
             return (
               <div style={{ marginTop: 14 }}>
                 <div style={label}>{tr("Units")}</div>
+                {modal.depthUnitHint && ((modal.depthUnitHint.kind === "feet") === ((modal.units || "m") === "m")) && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.45 }}>{/* TASKS.csv #3692 */}{modal.depthUnitHint.kind === "feet" ? tr("The deepest depth of {n} of the {total} holes in this file is about {ratio} times the hole's length in the collar file: are these depths in feet? Choose Feet if so; they are converted to metres.", { n: modal.depthUnitHint.holes, total: modal.depthUnitHint.total, ratio: modal.depthUnitHint.ratio.toFixed(2) }) : tr("The deepest depth of {n} of the {total} holes in this file is about {ratio} times the hole's length in the collar file: are these lengths already in metres, and is Feet chosen by mistake?", { n: modal.depthUnitHint.holes, total: modal.depthUnitHint.total, ratio: modal.depthUnitHint.ratio.toFixed(2) })}</div>}
                 <div style={{ display: "flex", gap: 14, fontSize: "var(--font-size-base)" }}>
                   <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
                     <input type="radio" name="units" checked={(modal.units || "m") === "m"} onChange={() => onChange({ ...modal, units: "m" })} />{" "}{tr("Metres")}</label>
