@@ -18,7 +18,7 @@ test("(5) NB91-22: one survey at 0 m on a 262.4 m hole is all tail; a hole surve
   assert.equal(unsurveyedTailStart([{ depth: 0 }, { depth: 262.4 }], pts([0, 262.4])), -1);
   assert.equal(unsurveyedTailStart([], pts([0, 100])), -1, "no survey rows: the assumed stick, dashed whole already");
   const src = read("../src/modules/viewer/drillholeScene.js");
-  assert.match(src, /if \(tailAt >= 0\) \{ traceHoles\.push\(\{ holeId: c\.hole_id, pts: pts\.slice\(0, tailAt \+ 1\), dashed: false \}, \{ holeId: c\.hole_id, pts: pts\.slice\(tailAt\), dashed: true \}\); \}/);
+  assert.match(src, /for \(const sp of \[\.\.\.spans\]\.sort\(\(a, b\) => a\.i0 - b\.i0\)\)/); // #3761: every unsurveyed span, solid between, dashed on them
 });
 
 test("(7) a label more than 5 times as far as the nearest is left out; nothing is dropped in an orthographic view (equal depths)", () => {
@@ -26,7 +26,7 @@ test("(7) a label more than 5 times as far as the nearest is left out; nothing i
   const r = dropFarLabels([b(1000), b(1500), b(8000), null, b(4900)]);
   assert.deepEqual(r.map((x) => x && x.d), [1000, 1500, null, null, 4900]);
   assert.deepEqual(dropFarLabels([b(1), b(1), b(1)]).map((x) => x.d), [1, 1, 1]);
-  assert.match(read("../src/lib/viewer/holeLabels.js"), /labelsToShow\(dropFarLabels\(labelBoxes\(group, camera, width, height, labelPx\)\)\)/);
+  assert.match(read("../src/lib/viewer/holeLabels.js"), /labelsToShow\(dropFarLabels\(boxes, FAR_DEPTH_RATIO, \{ width, height \}\)\)/ /* #3760: against the labels on screen */);
   assert.match(read("../src/lib/viewer/holeLabels.js"), /return labelsToShow\(labelBoxes\(group, camera, width, height, labelPx\)\)\.filter/, "a Layout capture keeps every label");
 });
 

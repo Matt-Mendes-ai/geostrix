@@ -10,7 +10,7 @@ test("the block-model legend says the unit, g/t for gold in ppm", () => {
   const lab = (m) => voxelLegendGroups([m]).map((g) => g.label)[0];
   assert.match(lab(vox("Au estimate (idw2, 10m, r50m)", { element: "Au", unit: "ppm" })), /\(g\/t\)$/);
   assert.match(lab(vox("Cu estimate", { element: "Cu", unit: "ppm" })), /\(ppm\)$/);
-  assert.equal(lab(vox("Resistivity", {})), "Resistivity");
+  assert.equal(lab(vox("Resistivity", {})), "Resistivity · unit not stated"); // #3765 — an imported model that gives no unit says so
   assert.equal(lab(vox("Au > 1 g/t shell (g/t)", { element: "Au", unit: "ppm" })), "Au > 1 g/t shell (g/t)", "not twice");
 });
 

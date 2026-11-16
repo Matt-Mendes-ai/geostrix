@@ -14,7 +14,7 @@ import { gradeUnitLabel } from "./geochemColumns.js"; // TASKS.csv #2218; #3159:
 import { rasterUnitOf } from "./rasterMethod.js"; // TASKS.csv #2747
 import { idwColourFields } from "./idwColour.js"; // TASKS.csv #2845; #3159: not idw.js, which put the IDW gridding in startup
 import { makeSurveyColorer, surveyKey } from "./geophysSurveys.js"; // TASKS.csv #2878; surveyKey: #3447
-import { airDilutedFloor } from "./voxelStretch.js"; // TASKS.csv #1872
+import { airDilutedFloor, voxelStretch } from "./voxelStretch.js"; // TASKS.csv #1872; voxelStretch: #3765
 import { fmtSig3 } from "./numberFormat.js"; // TASKS.csv #3382
 import { fieldColourer } from "./fieldColours.js"; // TASKS.csv #3553
 
@@ -142,6 +142,15 @@ export function rasterLegendGroups(rasters, { pictureNote = null } = {}) {
   }
   return groups;
 }
+// TASKS.csv #3765 (Scottie Gold review: 'Blueberry_Fine_Chg (chg) ≤ 0.442 … ≥ 63.6', no property, no unit, the ends the 2nd and 98th percentiles unsaid)
+// — the legend line says what the values are: the property when the name does not, the unit or 'unit not stated' (an imported model that gives
+// none; one GeoStrix made states its own), and its ramp's clipped ends say which percentile they are (P2, P98: the colours are stretched over the 2nd to 98th)
+const MADE_HERE = /^(estimate|support-index)-|^geoml$|^kriging-variance$|^calc$/;
+export function voxelLegendLabel(m, base, u) {
+  const named = u && !base.includes(`(${u})`) && !base.includes(` ${u} `) ? `${base} (${u})` : base;
+  const noUnit = !u && !m.params?.unit && !MADE_HERE.test(String(m.source || "")) ? ` · ${tr("unit not stated")}` : "";
+  return named + noUnit;
+}
 export function voxelLegendGroups(voxelModels) {
   const groups = [];
   (voxelModels || []).forEach((m) => {
@@ -153,7 +162,9 @@ export function voxelLegendGroups(voxelModels) {
     const base = m.property && !m.name.includes(m.property) ? `${m.name} — ${m.property}` : m.name;
     // TASKS.csv #2218 — the unit too ('Au estimate (idw2, 10m, r50m) (g/t)'): the legend gave the range with none
     const u = m.params?.unit ? (m.params?.element ? gradeUnitLabel(m.params.element, m.params.unit) : m.params.unit) : null;
-    groups.push(scaleLegendGroup(`voxel_${m.id}`, u && !base.includes(`(${u})`) && !base.includes(` ${u} `) ? `${base} (${u})` : base, m, lo, hi)); // #711 — say what the values are
+    const g = scaleLegendGroup(`voxel_${m.id}`, voxelLegendLabel(m, base, u), m, lo, hi); // #711 — say what the values are
+    if (g.ramp && voxelStretch(m)) g.ramp = { ...g.ramp, ...(/^≤ /.test(g.ramp.minLabel) ? { minLabel: `${g.ramp.minLabel} (P2)` } : {}), ...(/^≥ /.test(g.ramp.maxLabel) ? { maxLabel: `${g.ramp.maxLabel} (P98)` } : {}) }; // #3765 — the clipped ends are the 2nd and 98th percentiles
+    groups.push(g);
   });
   return groups;
 }
@@ -189,6 +200,12 @@ export function mapLayerLegendGroups(mapLayers) {
     groups.push({ key: `map_${l.id ?? i}`, label: graduated && cats.length && l.styleField ? `${l.name || "Map layer"} — ${l.styleField}${unit}` : l.name || "Map layer", items, ...(graduated && cats.length ? { grade: true } : {}) });
   });
   return groups;
+}
+// TASKS.csv #3762 (Scottie Gold review: four DXF isosurfaces drawn in one grey, none in the legend) — the shown imported surfaces, one row each in the
+// colour it is drawn in (hexOf(id): the mesh's material colour, which the style editor changes) at the opacity they are drawn at
+export function importedSurfaceLegendGroups(surfaces, hexOf = null) {
+  const items = (surfaces || []).filter((s) => s?.type === "imported" && s.visible !== false).map((s) => [String(s.name || "surface").replace(/ \(imported\)$/, ""), (hexOf && hexOf(s.id)) || "#8fa3b8", { kind: "fill", opacity: 0.45 }]);
+  return items.length ? [{ key: "imported_surfaces", label: tr("Imported surfaces"), items }] : [];
 }
 export function boundaryLegendGroups(boundaries) {
   const items = (boundaries || []).filter((b) => b.visible !== false).map((b) => [b.name || "boundary", b.color || "#e2a63c", { kind: "line" }]);

@@ -2,7 +2,8 @@
 // every hole's trace, collar marker, interval tubes, point markers, structure discs and custom-layer rows, the camera anchor of a
 // project with no holes, the layer batches and the passes that follow a rebuild. ViewerModule's effect calls buildDrillholeScene with
 // the values and refs the body used to close over, on the same dependency list. The comments below are the effect's own.
-import { unsurveyedTailStart } from "../../lib/viewer/unsurveyedTail.js"; // TASKS.csv #3588 (5)
+import { unsurveyedSpans } from "../../lib/viewer/unsurveyedTail.js"; // TASKS.csv #3588 (5); #3761: every stretch with no survey station, not only the tail
+import { sleeveMeshes } from "../../lib/viewer/assumedSleeve.js"; // TASKS.csv #3761
 import * as THREE from "three";
 import { DRAW_ORDER } from "../../lib/viewer/drawOrder.js"; // TASKS.csv #2776
 import { t as tr } from "../../lib/i18n.js";
@@ -475,6 +476,7 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
   const byField = (k) => { if (!byFieldCache.has(k)) byFieldCache.set(k, LAYER_META[k]?.numeric ? fieldColourer(numericSymbology?.[k], layers[k]) : null); return byFieldCache.get(k); };
   const buildErrors = [];
   const traceHoles = []; // #2176 step 3 — { holeId, pts, dashed } for addTraceChunks
+  const sleeveHoles = []; // #3761 — { holeId, spans: [trace points] }: the pale sleeve over a hole's unsurveyed stretches
   const traceById = new Map(tracesRef.current.map((t) => [t.hole_id, t])); // #2170: was a filter per hole, O(holes²) (11.8 s at 20,544)
   const perHole = (c) => { // TASKS.csv #3648 — one hole; the loop below runs them all, in slices when ctx.slice
    try {
@@ -492,7 +494,8 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
     if (!e.pts) {
       e.pts = raw.map((p) => ({ md: p.md, x: p.x - ox, y: p.z - oz, z: -(p.y - oy) }));
       e.look = traceLookup(e.pts); // look: #1500 — binary search instead of a scan per interval
-      e.trace = { hole_id: c.hole_id, pts: e.pts, wx: raw.map((p) => p.x), wy: raw.map((p) => p.y), wz: raw.map((p) => p.z) };
+      e.spans = assumedVertical ? [] : unsurveyedSpans(e.hs, e.pts); // #3761 — the stretches with no survey station (Identify says so there)
+      e.trace = { hole_id: c.hole_id, pts: e.pts, wx: raw.map((p) => p.x), wy: raw.map((p) => p.y), wz: raw.map((p) => p.z), assumed: e.spans };
     }
     const pts = e.pts, look = e.look;
     allTraces.push(pts);
@@ -519,8 +522,19 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
     // TASKS.csv #3588 (5) (Fireweed rehearsal, Macpass: NB91-22 has one survey at 0 m and is 262.4 m long, drawn solid to the end of hole on its
     // last measured attitude) — the part of a surveyed hole below its last station is an assumption: drawn dashed, as an assumed hole is (a hole
     // is two entries of the trace chunks: the solid part and the dashed tail share its id, and the chunks' hide / colour calls cover both)
-    const tailAt = assumedVertical || methodAssumed ? -1 : unsurveyedTailStart(e.hs, pts);
-    if (tailAt >= 0) { traceHoles.push({ holeId: c.hole_id, pts: pts.slice(0, tailAt + 1), dashed: false }, { holeId: c.hole_id, pts: pts.slice(tailAt), dashed: true }); }
+    // TASKS.csv #3761 — every stretch with no survey station (the tail, and a gap between two stations over 100 m: SR23-299's 339 m), each dashed on the
+    // trace and wrapped in a pale sleeve (the tubes hid the dashed line); a hole with an assumed method is dashed whole already
+    const spans = assumedVertical || methodAssumed ? [] : e.spans || [];
+    if (spans.length) {
+      let from = 0;
+      for (const sp of [...spans].sort((a, b) => a.i0 - b.i0)) {
+        if (sp.i0 > from) traceHoles.push({ holeId: c.hole_id, pts: pts.slice(from, sp.i0 + 1), dashed: false });
+        traceHoles.push({ holeId: c.hole_id, pts: pts.slice(sp.i0, sp.i1 + 1), dashed: true });
+        from = sp.i1;
+      }
+      if (from < pts.length - 1) traceHoles.push({ holeId: c.hole_id, pts: pts.slice(from), dashed: false });
+      sleeveHoles.push({ holeId: c.hole_id, spans: spans.map((sp) => pts.slice(sp.i0, sp.i1 + 1)) });
+    }
     else traceHoles.push({ holeId: c.hole_id, pts, dashed: assumedVertical || methodAssumed }); // #2662: an 'assumed' survey method too
     }
 
@@ -750,7 +764,7 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
     }
   }
   if (rebuildHoles || plan.shift?.kept) tracesRef.current = [...traceById.values()]; // #2176 — the same list otherwise; #2937 — the new method's traces
-  if (rebuildHoles) addTraceChunks(groups.holes, traceHoles); // #2176 step 3
+  if (rebuildHoles) { addTraceChunks(groups.holes, traceHoles); for (const m of sleeveMeshes(sleeveHoles)) groups.holes.add(m); } // #2176 step 3; #3761 — the sleeves
   for (const l of repaint) paintCustomLayer(l, layerStyles); // #2373
   if (plan.holeEntries) sceneCaches.set(groups, { ox, oy, oz, rebuildSeq, holes: plan.holeEntries, sigs, holeSets }); else sceneCaches.delete(groups);
 

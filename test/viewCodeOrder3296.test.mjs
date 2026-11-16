@@ -25,7 +25,7 @@ test("#3296 the inspector: by count, the set order (by label) first", () => {
 test("#3296 / #3295 wiring", () => {
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(v, /\.\.\.viewCodeOrder\(categoryLegendGroups\(\{ keys: CATEGORY_LAYER_KEYS,[^\n]*projectCodeOrders\(layoutPages, null, null, null\)\)/);
-  assert.match(v, /surfaceStructures, layoutPages \/\* #3296 \*\/\]\);/);
+  assert.match(v, /surfaceStructures, layoutPages \/\* #3296 \*\/(, implicitSurfaces \/\* #3762 \*\/)?\]\);/);
   assert.match(v, /codeOrder=\{projectCodeOrders\(layoutPages, null, null, null\)\[LAYER_META\[inspectLayer\]\?\.label\]\} codeLabel=\{\(v\) => effectiveLabel\(inspectLayer, v\)\}/);
   assert.match(readFileSync(new URL("../src/components/LayerInspector.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n"), /entriesInCodeOrder\(distinctValues\(rows\), codeOrder, codeLabel \|\| \(\(v\) => v\)\)/);
   // #3295 — the shown rows of a filtered layer, on its row
