@@ -2728,6 +2728,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         for (let bi = 0, before = 0; bi < gridBoxes.length; before += boxN[bi], bi++) {
         const post = workerPost ? { iso: envBox[bi] ? envIso : numericCutoff, closeOutside: envBox[bi] ? true /* #3673: an envelope is closed */ : !!numericCloseShell, ground: gsGround ? await shellPostLib.groundColumns(gsGroundAt, gridBoxes[bi].bounds, cellOf(cs)) : null,
           inShellPoints: envBox[bi] ? atOfBox(bi).map((q) => ({ x: q.x, y: q.y, z: q.z, value: 1 })) : gridBoxes[bi].idx.map((k) => gridPoints[k]).filter((q) => q.value >= numericCutoff), farPoints: gsSpacing > 0 ? points : null, farDist: gsSpacing, // #3580 (b)
+          bodies: { runPoints: boxAll(bi).map((q) => ({ x: q.x, y: q.y, z: q.z, value: q.value, hole_id: q.hole_id, from: q.from, to: q.to })), atPoints: atOfBox(bi).map((q) => ({ x: q.x, y: q.y, z: q.z, hole_id: q.hole_id })), cutoff: numericCutoff, farDist: gsSpacing }, // #3785
           reach: planes[bi] ? { points: gridBoxes[bi].idx.map((k) => gridPoints[k]).filter((q) => q.value >= numericCutoff).map((q) => ({ x: q.x, y: q.y, z: q.z })), basis: planes[bi].basis, scales: planes[bi].scales, limM: planes[bi].majorM * planes[bi].reachShare } : null, // #3655
           ...(envBox[bi] ? { envelope: { clean: { keepPoints: atOfBox(bi).map((q) => ({ x: q.x, y: q.y, z: q.z, hole_id: q.hole_id })) }, targetTriangles: envLib.ENVELOPE_TARGET_TRIANGLES, smooth: { iterations: 10 },
             gradePoints: gridBoxes[bi].idx.map((k) => { const q = gridPoints[k]; return { x: q.x, y: q.y, z: q.z, value: q.value, length: q.length }; }), cutoff: numericCutoff } } : {}) } : null; // #3673
@@ -2887,6 +2888,26 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         })() : null;
         const tightMean = (() => { let su = 0, nn = 0; meanParts.forEach((m, i) => { if (!envBox[i]) { su += m.sum; nn += m.n; } }); return nn > 0 ? su / nn : null; })();
         const meanGradeInShell = anyEnv && envBox.every(Boolean) ? (envGrades?.w > 0 ? envGrades.sum / envGrades.w : null) : anyEnv ? null /* mixed: said per kind in the record */ : meanN > 0 ? meanParts.reduce((t, m) => t + m.sum, 0) / meanN : null;
+        // TASKS.csv #3785 — the shell against its runs at the cut-off: along the holes, far from the composites at the cut-off, and the bodies one hole holds
+        let alongHoles = null;
+        if (viaWorker && posts.every((q) => q.bodies)) {
+          const { medianOf } = await import("../../lib/viewer/shellBodies.js");
+          const B = posts.map((q) => q.bodies), cellV = (gi) => grids[gi].cellSize.dx * grids[gi].cellSize.dy * grids[gi].cellSize.dz;
+          const inMed = medianOf(B.map((b) => b.runs.insideRuns)), atMed = medianOf(B.map((b) => b.runs.atRuns));
+          const ni = B.reduce((s, b) => s + b.runs.insideRuns.length, 0), na = B.reduce((s, b) => s + b.runs.atRuns.length, 0);
+          if (inMed != null && atMed != null) {
+            const vol = B.reduce((s, b, gi) => s + b.parts.nodes * cellV(gi), 0), oneV = B.reduce((s, b, gi) => s + b.parts.oneHole.nodes * cellV(gi), 0), oneK = B.reduce((s, b) => s + b.parts.oneHole.bodies, 0);
+            const big = B.map((b, gi) => (b.parts.largestOneHole ? { v: b.parts.largestOneHole.nodes * cellV(gi), hole: b.parts.largestOneHole.hole } : null)).filter(Boolean).sort((x, y) => y.v - x.v)[0];
+            const fi = B.reduce((s, b) => s + (b.farAt?.inside || 0), 0), ff = B.reduce((s, b) => s + (b.farAt?.far || 0), 0);
+            const oneShare = vol > 0 ? oneV / vol : 0, r0 = (v) => (v >= 10 ? Math.round(v) : +v.toPrecision(2));
+            const one = oneK && oneShare >= 0.01 ? tr(big?.hole != null ? " {p}% of its volume ({v} m³) is {k} bodies whose composites at the cut-off come from one hole (or none); the largest, {lv} m³, from {hole}." : " {p}% of its volume ({v} m³) is {k} bodies whose composites at the cut-off come from one hole (or none); the largest, {lv} m³, holds none.", { p: Math.round(100 * oneShare), v: roundVolume(oneV).toLocaleString(), k: oneK, lv: roundVolume(big?.v || 0).toLocaleString(), hole: big?.hole ?? "" }) : "";
+            const far = fi > 0 && gsSpacing > 0 ? tr(" {p}% of its volume lies more than one hole spacing ({s} m) from every composite at the cut-off.", { p: Math.round((100 * ff) / fi), s: Math.round(gsSpacing) }) : "";
+            const cell = atMed < cs ? tr(" The cells are {cs} m against runs of {at} m at the cut-off: the shell cannot be much thinner than a cell or two; smaller cells follow the runs more closely.", { cs, at: r0(atMed) }) : "";
+            const loud = inMed >= 3 * atMed || oneShare >= 0.25;
+            setNotices((p) => [...p, { ...notice("\"{label}\" along the holes: it runs {inside} m at a time (the median of {ni} crossings) where the composites at or above {cutoff} {unit} run {at} m (the median of {na} runs): {mIn} m of core inside it for {mAt} m at the cut-off.{far}{one}{cell}", { label, inside: r0(inMed), ni: ni.toLocaleString(), cutoff: numericCutoff, unit: unitL, at: r0(atMed), na: na.toLocaleString(), mIn: Math.round(B.reduce((s, b) => s + b.runs.insideM, 0)).toLocaleString(), mAt: Math.round(B.reduce((s, b) => s + b.runs.atM, 0)).toLocaleString(), far, one, cell }), level: loud ? "warn" : "info" }]);
+            alongHoles = { insideRunMedianM: r0(inMed), atCutoffRunMedianM: r0(atMed), insideM: Math.round(B.reduce((s, b) => s + b.runs.insideM, 0)), atCutoffM: Math.round(B.reduce((s, b) => s + b.runs.atM, 0)), farFromAtCutoffShare: fi > 0 ? +(ff / fi).toFixed(3) : null, oneHoleBodies: oneK, oneHoleVolumeShare: +oneShare.toFixed(3) }; // project data: English
+          }
+        }
         // TASKS.csv #270 (LOW-3) / #269 - the parameter block that produced this surface, kept ON the
         // surface so the panel can show it and every export can stamp it. A tonnage with no record of
         // the cutoff/method/radius/cell size/closure mode behind it can't be reproduced or audited.
@@ -2919,6 +2940,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           singleHoleCells: gridSum.singleHoleCells, meanGradeInShell,
           ...(grids.length > 1 ? { drilledAreas: { grids: grids.length, nodes: boxTotal, wholeBoxNodes: boxBlocks(bounds, cs), note: "one grid per drilled cluster: the box round all the samples would have had wholeBoxNodes" } } : {}),
           compositesInShell: inShell, // #1735 — { above, inside, outside, noData }: the at/above-cutoff composites against the shell
+          ...(alongHoles ? { alongHoles } : {}), // #3785
           ...(gsBeyond ? { beyondDrilling: { share: +gsBeyond.share.toFixed(3), holeSpacingM: Math.round(gsSpacing), spacingAt: gsSampleSpacing > 0 ? "samples" : "collars" } } : {}), // #2757; spacingAt: #3654 (4)
           // TASKS.csv #91/#92 — grid-wide classification, and the same classification restricted to the
           // shell's own surface. The second is the one that matters for a reported volume: it says what

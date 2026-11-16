@@ -13,6 +13,7 @@ import { NEAR_UNSAMPLED_HOLES } from "../lib/unsampledFlags.js"; // TASKS.csv #3
 import { unsampledWord } from "../lib/holeType.js"; // TASKS.csv #3507
 import { isNonMetal } from "../lib/nonMetal.js"; // TASKS.csv #3497
 import { estimateCheck, swath } from "../lib/estimateCheck.js"; // TASKS.csv #3060 — worked out during the run
+import { metalCarriers, gradeQuantiles } from "../lib/metalCarriers.js"; // TASKS.csv #3784
 import { excludeQAQC, labAssays } from "../lib/qaqc.js"; // TASKS.csv #266
 import { MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport, supportInReach, supportBeyondReach, retallyKeptCells } from "../lib/estimation.js"; // retallyKeptCells: #2106
 import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit, blockModelLattice, snapBoundsToLattice, overlapBox, blockModelExtent /* #2729 */ } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
@@ -543,7 +544,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         }
         // TASKS.csv #517 — a hard boundary at a closed modelled volume: only samples inside it inform the estimate,
         // and only blocks whose centre is inside it are kept (a block outside is not estimated, not set to zero)
-        let inShell = null, shellInfo = null;
+        let inShell = null, shellInfo = null, carryInside = null; // carryInside: #3784
         if (shellId) {
           const sh = (volumeShells || []).find((v) => v.id === shellId);
           const closed = sh ? isMeshClosed(sh.positions, sh.indices) : null;
@@ -556,6 +557,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           const before = points.length;
           points = points.filter((p) => inShell(p));
           shellInfo = { name: sh.name, samplesInside: points.length, samplesOutside: before - points.length };
+          carryInside = { positions: sh.positions, indices: sh.indices }; // #3784 — only the blocks kept credit their samples
         }
         // #3269 — no composite kept (every window under the minimum coverage) is not a placing problem: say what left the readings out
         if (!points.length && !intervals.length && coverageStats.readings > 0 && coverageStats.leftOut === coverageStats.readings) { setError(tr("All {n} readings were left out: every composite they fell in was under the minimum coverage ({c} %). Lower the minimum coverage, or untick compositing to estimate the readings as they are.", { n: coverageStats.readings.toLocaleString(), c: Math.round(minCoverage * 100) })); setRunning(false); return; }
@@ -633,6 +635,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           ...(unsPts.length ? { unsampledPoints: unsPts } : {}), // #2596
           ...(logFills.length ? { logShare: true } : {}), // #2721
           ...(sharedValues ? { members: { values: sharedValues, unsampled: sharedIdx.map((k) => prep[k].mUns) } } : {}), // #3163
+          carry: true, ...(carryInside ? { carryInside } : {}), // #3784
         }, { onProgress: (f) => setProgress(share * (method === "nn" ? f : 0.8 * f)), signal: ac.signal });
         // #3163 — what the shared members take from this run, before the primary's trims touch it
         const sharedRun = sharedValues ? { cells: est.memberCells, supportCounts: est.supportCounts, dominated: est.dominatedCells, mlsCounts: est.mlsCounts } : null;
@@ -737,7 +740,13 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         // TASKS.csv #3060 — the check against the NN model and the first swath (Easting) worked out here, a task each, so the result's first
         // render reads them (lib/estimateCheck.js keeps them) instead of joining every block inside it
         const nnCheck = method === "nn" ? est.cells : nnEst.checkColumns;
-        await new Promise((r) => setTimeout(r, 0)); estimateCheck(est.cells, nnCheck, points);
+        await new Promise((r) => setTimeout(r, 0));
+        // TASKS.csv #3784 — what qualifies the tonnage, kept on the model for Grade-tonnage: the check against the NN model, the composites' grades,
+        // and how few composites carry the metal (project data: English)
+        { const ck = estimateCheck(est.cells, nnCheck, points);
+          if (ck?.estimate?.mean != null && ck.nn?.mean != null) params.estimateCheck = { estimateMean: +ck.estimate.mean.toPrecision(4), nearestNeighbourMean: +ck.nn.mean.toPrecision(4), departPct: ck.departPct != null ? +ck.departPct.toFixed(1) : null, blocks: ck.estimate.n };
+          const q = gradeQuantiles(estPts); if (q) params.compositeGrades = { quantiles: q, n: estPts.length, note: "length-weighted grades of the composites that informed the estimate, at 200 evenly spaced shares" };
+          const mc = est.carry ? metalCarriers(est.carry) : null; if (mc) params.metalCarriers = { ...mc, composites: estPts.length, ...(carryInside ? { inside: shellInfo?.name } : {}) }; }
         await new Promise((r) => setTimeout(r, 0)); swath(est.cells, nnCheck, points, "x");
         await new Promise((r) => setTimeout(r, 0)); 
         // TASKS.csv #3014 — the set's other elements: the same grid (bounds, cell size and budget: the same lattice), search, trend and domain

@@ -35,7 +35,7 @@ self.onmessage = (e) => {
     } else {
       // TASKS.csv #661 — typed columns, transferred: no object per block here and no structured clone of them
       const result = estimateBlockModel(points, { ...opts, onProgress, columns: true });
-      self.postMessage({ type: "done", result }, columnBuffers(result.columns));
+      self.postMessage({ type: "done", result }, [...columnBuffers(result.columns), ...(result.carry ? [result.carry.buffer] : [])]); // carry: #3784
     }
   } catch (err) {
     self.postMessage({ type: "error", message: err?.message || String(err), ...(err?.weakFit ? { weakFit: err.weakFit } : {}) }); // weakFit: TASKS.csv #3273

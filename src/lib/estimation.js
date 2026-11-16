@@ -16,6 +16,7 @@
 // point kriging at the block centre with the nearest maxSamples composites, the kriging variance reported per block.
 import { worldReach, verticalReach, gridShape, segmentReach, compositesToSegments } from "./blockReach.js"; // segmentReach, compositesToSegments: #2694 // TASKS.csv #1416
 import { makePointIndex } from "./nearestIndex.js"; // TASKS.csv #2596
+import { buildMeshQuery, isPointInsideMesh } from "./meshQuery.js"; // TASKS.csv #3784 — the blocks whose metal is credited
 import { MAX_BLOCKS, MAX_BLOCK_BUDGET, SUPPORT_COLORS, ESTIMATION_METHODS } from "./estimationMeta.js"; // #552; budget: #625
 export { MAX_BLOCKS, SUPPORT_COLORS, ESTIMATION_METHODS };
 import { pointOnTrace } from "./desurvey.js";
@@ -173,6 +174,12 @@ export function estimateBlockModel(samplePoints, opts) {
   // Columns only (the worker's form): columns.mv[m], columns.nu[m].
   const mem = opts.members?.values?.length && method !== "ok" && opts.columns ? opts.members : null;
   if (mem) samplePoints = samplePoints.map((p, i) => ({ ...p, _mi: i }));
+  // TASKS.csv #3784 — opts.carry: each sample's share of the metal the estimate puts in the blocks (lib/metalCarriers.js), in samplePoints' order;
+  // opts.carryInside ({ positions, indices }): only the blocks inside that solid are credited (the dialog keeps those)
+  const carry = opts.carry ? new Float64Array(samplePoints.length) : null;
+  if (carry) samplePoints = samplePoints.map((p, i) => ({ ...p, _ck: i }));
+  const carryQ = carry && opts.carryInside?.positions?.length ? buildMeshQuery(opts.carryInside.positions, opts.carryInside.indices) : null;
+  const carryState = { open: true };
 
   // TASKS.csv #709 — kriging needs a variogram (resolveVariogram), in the same frame the search works in
   const tw0 = method === "ok" ? withTrend(samplePoints, opts) : null;
@@ -183,7 +190,7 @@ export function estimateBlockModel(samplePoints, opts) {
   // search and adds per-cell work, so it must never be paid for by a caller that didn't ask. `bracketTol`
   // is half a cell, so bracketing has to be real at the scale the block model is drawn at.
   const tw = tw0 || withTrend(samplePoints, opts); // #650
-  const est0 = makeCellEstimator(tw.pts, { ...estOpts, support: !!opts.support, bracketTol: Math.min(dx, dy, dz) / 2, zRange: true, usedPoints: !!opts.unsampledPoints?.length || !!opts.logShare || !!mem?.unsampled?.some((u) => u?.length), ...(mem ? { memberValues: mem.values } : {}) }); // zRange: #2417; usedPoints: #2596, #2721; memberValues: #3163
+  const est0 = makeCellEstimator(tw.pts, { ...estOpts, carry, carryState /* #3784 */, support: !!opts.support, bracketTol: Math.min(dx, dy, dz) / 2, zRange: true, usedPoints: !!opts.unsampledPoints?.length || !!opts.logShare || !!mem?.unsampled?.some((u) => u?.length), ...(mem ? { memberValues: mem.values } : {}) }); // zRange: #2417; usedPoints: #2596, #2721; memberValues: #3163
   const est = tw.q ? (x, y, z) => est0(...tw.q(x, y, z)) : est0;
   const wantSupport = !!opts.support;
   // TASKS.csv #2417 / #2542 — a block whose whole height lies above (1) or below (2) every sample informing it: the estimate carried
@@ -260,6 +267,7 @@ export function estimateBlockModel(samplePoints, opts) {
       for (let ix = 0; ix < nx; ix++) {
         if (mask && !mask[rowBase + ix]) { blocksSkipped++; if (wantSupport) supportCounts.unsupported++; continue; } // #1416 — out of every composite's reach: no search
         const cx = bounds.xmin + (ix + 0.5) * dx;
+        if (carryQ) carryState.open = isPointInsideMesh(carryQ, { x: cx, y: cy, z: cz }); // #3784
         const r = est(cx, cy, cz);
         if (!r || r.skip) { blocksSkipped++; if (r?.skip === "noCode") noCodeBlocks++; if (wantSupport) supportCounts.unsupported++; continue; } // no estimate IS the unsupported class; skip: #2541
         if (r.nHoles === 1) singleHoleCells++;
@@ -313,7 +321,7 @@ export function estimateBlockModel(samplePoints, opts) {
   const holeHit = new Map();
   for (const [k, hs] of pierced) for (const h of hs) holeHit.set(h, (holeHit.get(h) || false) || piercedDone.has(k));
   const piercedBlocks = { blocks: pierced.size, estimated: piercedDone.size, holes: holeHit.size, holesEmpty: [...holeHit].filter(([, v]) => !v).map(([h]) => h) };
-  return { ...(asColumns ? { columns } : { cells }), ...(unsIdx ? { nearUnsampledBlocks } : {}) /* #2596 */, piercedBlocks /* #3255 */, blocksEstimated: asColumns ? n : cells.length, blocksSkipped, noCodeBlocks, singleHoleCells, dominatedCells, grid: { nx, ny, nz }, blocksInReach: mask ? reachInfo.reach : totalBlocks, supportCounts: wantSupport ? supportCounts : null, beyondCounts /* #2417 */, mlsCounts: method === "mls1" ? mlsCounts : null, ...(method === "ok" ? { okCounts, variogram } : {}) };
+  return { ...(asColumns ? { columns } : { cells }), ...(carry ? { carry } : {}) /* #3784 */, ...(unsIdx ? { nearUnsampledBlocks } : {}) /* #2596 */, piercedBlocks /* #3255 */, blocksEstimated: asColumns ? n : cells.length, blocksSkipped, noCodeBlocks, singleHoleCells, dominatedCells, grid: { nx, ny, nz }, blocksInReach: mask ? reachInfo.reach : totalBlocks, supportCounts: wantSupport ? supportCounts : null, beyondCounts /* #2417 */, mlsCounts: method === "mls1" ? mlsCounts : null, ...(method === "ok" ? { okCounts, variogram } : {}) };
 }
 
 // TASKS.csv #142 — the grid sizing + per-cell NN/IDW math shared by estimateBlockModel (sparse cell
@@ -588,6 +596,20 @@ function makeNeighbourGatherer(samplePoints, opts = {}) {
 //
 // opts: { method, searchRadius, minSamples, maxSamples, minHoles, lengthWeight, restrictToDomain }
 const NO_CODE = Object.freeze({ skip: "noCode" }); // #2541 — no estimate: the block's nearest composite has no domain code
+// TASKS.csv #3784 — a block's value credited to the samples that made it: each one's weight (the method's: NN and an exact hit are one sample; kriging
+// its positive weights; MLS the IDW2 weights its fallback uses) times its grade, scaled to the block's value
+function carryInto(carry, used, value, method, power, okRes) {
+  const v = Math.max(0, value);
+  if (!(v > 0) || !used.length) return;
+  if (method === "nn") { carry[used[0].p._ck] += v; return; }
+  for (const s of used) if (s.d2 < EXACT_D2) { carry[s.p._ck] += v; return; }
+  const kw = method === "ok" && okRes?.weights ? okRes.weights : null, pw = method === "mls1" || method === "ok" ? 2 : power;
+  let t = 0;
+  for (let i = 0; i < used.length; i++) t += (kw ? Math.max(0, kw[i]) : used[i].len / Math.pow(used[i].d2, pw / 2)) * Math.max(0, used[i].value);
+  if (!(t > 0)) return;
+  for (let i = 0; i < used.length; i++) carry[used[i].p._ck] += (v * (kw ? Math.max(0, kw[i]) : used[i].len / Math.pow(used[i].d2, pw / 2)) * Math.max(0, used[i].value)) / t;
+}
+
 function makeCellEstimator(samplePoints, opts = {}) {
   const {
     method = "idw2", minSamples = 1, maxSamples = 16, minHoles = 1, maxPerHole = 0, restrictToDomain = false, noCodeAsDomain = false, materialHoles: wantMaterial = false, // materialHoles: #1573; noCodeAsDomain: #2541
@@ -669,6 +691,7 @@ function makeCellEstimator(samplePoints, opts = {}) {
     }
     if (value == null || !Number.isFinite(value)) return null;
     const out = { value, nSamples: used.length, nHoles: holes.size };
+    if (opts.carry && opts.carryState?.open) carryInto(opts.carry, used, value, method, power, okRes); // #3784
     if (MV) out.mv = memberValuesAt(MV, used, method, power, mlsMode, cx, cy, cz); // #3163
     if (restrictToDomain) out.domain = dists[0].domain ?? null; // TASKS.csv #3014 — the domain the block took (its nearest composite's), kept on the block
     // TASKS.csv #2417 — the elevation range of the samples used (real elevations: wz under a trend), for the block's "above or
