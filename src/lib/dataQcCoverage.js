@@ -53,6 +53,8 @@ export function coverageInfos({ collars = [], layers = {}, assays = [], lengths 
       : hasA ? tr("No lithology, alteration, vein, structure or other log is in the project: the {n} holes carry only assays, so modelling tools have no logged contacts to build from.", v)
       : tr("No lithology, alteration, vein, structure or other log is in the project: the {n} holes carry only densities, so modelling tools have no logged contacts to build from.", v) });
   }
+  // TASKS.csv #3741 (Scottie Gold: 9,777 assayed intervals, not one density reading, and no line said so) — no density at all: any tonnage rests on an assumed one
+  if (assays.length && !(layers?.sg || []).length) out.push({ category: label("sg"), holeId: null, message: tr("No density (specific gravity) is in the project: any tonnage will rest on a density you assume.") });
   // (5) assayed intervals no density interval overlaps
   if (assays.length && (layers?.sg || []).length) {
     const sgBy = new Map();

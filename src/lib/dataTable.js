@@ -34,6 +34,7 @@ function columnsOf(rows, valueLabel, unit, sample = 400) {
 
 export function buildTable(source, store) {
   let label = "", columns = [], rows = [];
+  let lt = null; // TASKS.csv #3732 — the cells flagged below detection ('<'): rowIndex -> Set of column indices (the number stays a number for sorting and filtering)
   if (source === "assays") {
     label = tr("Assays");
     const els = (store.assayElements || []).filter((e) => e?.symbol);
@@ -45,6 +46,8 @@ export function buildTable(source, store) {
     if (hasType) base.push({ key: "sample_type", label: "sample_type", numeric: false });
     columns = [...base, ...els.map((e) => ({ key: `el:${e.symbol}`, label: e.unit ? `${e.symbol} (${gradeUnitLabel(e.symbol, e.unit)})` : e.symbol, numeric: true, unit: e.unit || undefined, element: e.symbol }))]; // g/t for a precious metal stored in ppm (#3698)
     rows = raw.map((a) => [a.hole_id, a.from, a.to, ...(hasId ? [a.sample_id] : []), ...(hasType ? [a.sample_type] : []), ...els.map((e) => { const v = a.values?.[e.symbol]; return isNum(v) ? v : v == null ? null : v; })]);
+    const c0 = base.length;
+    raw.forEach((a, i) => { if (!a.qualifiers) return; els.forEach((e, k) => { if (a.qualifiers[e.symbol] === "<" && isNum(a.values?.[e.symbol])) { if (!lt) lt = new Map(); (lt.get(i) || lt.set(i, new Set()).get(i)).add(c0 + k); } }); });
   } else {
     const custom = String(source).startsWith("custom:");
     const layer = custom ? (store.customLayers || []).find((l) => `custom:${l.id}` === source) : null;
@@ -56,7 +59,7 @@ export function buildTable(source, store) {
     rows = new Array(n);
     for (let i = 0; i < n; i++) { const r = rowAt(lay, i) || {}; rows[i] = columns.map((c) => r[c.key] ?? null); }
   }
-  return { source, label, columns, rows, n: rows.length };
+  return { source, label, columns, rows, n: rows.length, ...(lt ? { lt } : {}) };
 }
 
 // a column filter: numbers take '>= 6', '> 6', '<= 3', '< 3', '= 3.1', '6..8' and a plain number; text takes a substring, '!word' (not containing), '"exact"' (equal); null for an empty box

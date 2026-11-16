@@ -54,7 +54,7 @@ export default function DrillTableModal({ request = {}, onClose }) {
 
   const exportCsv = () => {
     const head = table.columns.map((c) => c.label);
-    const rows = Array.from(order, (i) => table.rows[i].map((v) => (v == null ? "" : v)));
+    const rows = Array.from(order, (i) => table.rows[i].map((v, ci) => (v == null ? "" : table.lt?.get(i)?.has(ci) ? `<${v}` : v))); // #3732: '<' on a flagged cell
     const name = String(project?.name || "project").replace(/[^a-z0-9_-]+/gi, "_"), what = String(table.label).replace(/[^a-z0-9_-]+/gi, "_");
     saveFile({ suggestedName: `${name}_${what}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv([head, ...rows]) });
   };
@@ -105,7 +105,7 @@ export default function DrillTableModal({ request = {}, onClose }) {
                 const r = table.rows[ri], hit = marked(r);
                 return (
                   <div key={startIndex + k} style={{ display: "flex", width, height: ROW_H, background: hit ? "var(--color-warn-bg, #fdf4e6)" : (startIndex + k) % 2 ? "var(--color-bg-subtle)" : "var(--color-bg)" }} data-marked={hit ? "1" : undefined}>
-                    {r.map((v, ci) => <div key={ci} title={fmt(v)} style={{ ...cell, width: widths[ci], fontWeight: 400, textAlign: table.columns[ci].numeric ? "right" : "left", color: "var(--color-text)" }}>{fmt(v)}</div>)}
+                    {r.map((v, ci) => { const q = table.lt?.get(ri)?.has(ci) ? "<" : ""; /* #3732 */ return <div key={ci} title={q + fmt(v)} style={{ ...cell, width: widths[ci], fontWeight: 400, textAlign: table.columns[ci].numeric ? "right" : "left", color: "var(--color-text)" }}>{q}{fmt(v)}</div>; })}
                   </div>
                 );
               })}
