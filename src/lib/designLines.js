@@ -80,15 +80,28 @@ export function segmentsToPoint(line, target, { radius = 0, grade = 0 } = {}) {
 }
 
 // how much of a line stands above the ground (a portal does, a drift should not), in metres of plan run. groundAt(x, y) -> elevation or null
-export function runAboveGround(vertices, groundAt) {
+// TASKS.csv #3800 (Scottie Gold review: a start Z rounded up to the whole metre tripped its own check: '2.2 m of this line is above the ground') — a segment counts as above
+// the ground only by more than tolerance metres (half a metre: the rounding of a typed or taken Z, and a ground that is itself interpolated)
+export const ABOVE_GROUND_TOL_M = 0.5;
+export function runAboveGround(vertices, groundAt, tol = ABOVE_GROUND_TOL_M) {
   let above = 0;
   for (let i = 1; i < vertices.length; i++) {
     const a = vertices[i - 1], b = vertices[i], mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, g = groundAt(mx, my);
-    if (Number.isFinite(g) && (a[2] + b[2]) / 2 > g) above += Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (Number.isFinite(g) && (a[2] + b[2]) / 2 > g + tol) above += Math.hypot(b[0] - a[0], b[1] - a[1]);
   }
   return above;
 }
 
+// TASKS.csv #3800 — how far the line's vertices are from the nearest collar, at the worst: the ground interpolated between the collars says nothing where the nearest
+// collar is far (the pit tools say it past 300 m, #3313) -> metres | null (no collars)
+export const FAR_FROM_COLLARS_M = 300;
+export function worstCollarDistance(vertices, collars) {
+  let worst = null;
+  const cs = (collars || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y));
+  if (!cs.length) return null;
+  for (const v of vertices || []) { let m = Infinity; for (const c of cs) { const d = Math.hypot(c.x - v[0], c.y - v[1]); if (d < m) m = d; } if (worst == null || m > worst) worst = m; }
+  return worst;
+}
 // a grade as miners also say it: -14.3 % is 1 in 7
 export const gradeRatio = (g) => (Math.abs(g) >= 0.5 ? `1:${Math.round(100 / Math.abs(g) * 10) / 10}` : null);
 

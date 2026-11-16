@@ -16,10 +16,11 @@ export function stopeRuns(surfaces) {
     if (s?.type !== "stope") continue;
     const k = stopeRunKey(s), p = s.params || {};
     let r = runs.get(k);
-    if (!r) { r = { key: k, model: p.blockModel || "", cutoff: p.cutoff, unit: p.gradeUnit || "", ids: [], levels: new Set(), tonnes: 0, visible: 0, when: p.generatedAt || "" }; runs.set(k, r); }
+    if (!r) { r = { key: k, model: p.blockModel || "", cutoff: p.cutoff, unit: p.gradeUnit || "", element: p.element || null, density: Number.isFinite(p.density) ? p.density : null, metalU: 0, hasMetal: false, ids: [], levels: new Set(), tonnes: 0, visible: 0, when: p.generatedAt || "" }; runs.set(k, r); }
     r.ids.push(s.id);
     if (Number.isFinite(p.levelRL)) r.levels.add(Math.round(p.levelRL));
     r.tonnes += Number(p.tonnes) || 0;
+    if (Number.isFinite(p.metalU)) { r.metalU += p.metalU; r.hasMetal = true; } // TASKS.csv #3795 — a saved run keeps its metal, so the line after a reopen can say it
     if (s.visible !== false) r.visible++;
     if (p.generatedAt && (!r.when || p.generatedAt < r.when)) r.when = p.generatedAt;
   }

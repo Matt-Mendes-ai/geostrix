@@ -14,13 +14,15 @@ import { runPitSeriesAsync } from "../lib/pitSeriesClient.js";
 import { gradeCandidate } from "../lib/gradeCandidate.js"; // #1848
 import { categoricalModels } from "../lib/geologyForward.js";
 import { collarsForGround } from "../lib/collarGround.js"; // TASKS.csv #3582
-import { PRICE_UNITS, pitMetalOf, elementOfModel, priceUnitsFor, metalAmountText, wallAngles, gradeUnitText /* #3326 */ } from "../lib/pitShell.js"; // priceUnitsFor / metalAmountText: TASKS.csv #2434; wallAngles: #2433
+import { PRICE_UNITS, pitMetalOf, elementOfModel, priceUnitsFor, metalAmountText, wallAngles, gradeUnitText /* #3326 */, pitSettingsCells /* #3799 */ } from "../lib/pitShell.js"; // priceUnitsFor / metalAmountText: TASKS.csv #2434; wallAngles: #2433
 import { slopeName } from "../lib/pitWalls.js"; // TASKS.csv #2433
 import { valueUnit } from "../lib/blockModelExport.js";
 import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import UndergroundOreNote from "./UndergroundOreNote.jsx"; // TASKS.csv #2277
+import TopCutNote from "./TopCutNote.jsx"; // TASKS.csv #3794
+import { topCutCells } from "../lib/topCutCells.js";
 import { t as tr } from "../lib/i18n.js";
 import { modelWithCodeDensity } from "../lib/densityByCode.js"; // TASKS.csv #2647 — the shell's per-code densities
 import { densityUsedText } from "./densityUsedText.js"; // TASKS.csv #2647
@@ -126,7 +128,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
   const metalText = (r) => metalAmountText(r.metalU * res.metalFactor, res.metalUnit, element, big); // #2434 — the Pit shell's words
   const byMetalText = (r) => { const m = (r.metalU2 || 0) * res.byMetalFactor; return res.byMetalUnit === "g" ? `${big(m / G_PER_OZ)} oz` : `${big(m)} t`; }; // #1917
   const exportCsv = () => saveFile({ suggestedName: "nested_pits.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv([
-    ...res.runs.map((r) => ({ section: "shell", revenue_factor: r.rf, price: res.price, price_unit: res.priceLabel, element: element || "" /* #2594 — what the grade and contained_metal are of */, ore_t: Math.round(r.oreT), [`mean_grade_${res.unit.replace("%", "pct")}`]: r.meanGrade == null ? "" : +r.meanGrade.toPrecision(4), contained_metal: Math.round(r.metalU * res.metalFactor), metal_unit: res.metalUnit, ...Object.fromEntries((res.alsoLabels || []).map((l, k) => [`mean_${l}`, r.also?.[k]?.meanGrade == null ? "" : +r.also[k].meanGrade.toPrecision(4)])) /* #3084 */, waste_t: Math.round(r.wasteT), strip_ratio: r.stripRatio == null ? "" : +r.stripRatio.toFixed(2), max_depth_m: Math.round(r.maxDepth), undiscounted_margin_at_entered_price: Math.round(r.moneyBase), years_to_mine: r.years == null ? "" : +r.years.toFixed(2), npv: r.npv == null ? "" : Math.round(r.npv), ...(inputs?.by && res.byMetalUnit ? { by_product: byEl, by_product_mean_grade: r.meanGrade2 == null ? "" : +r.meanGrade2.toPrecision(4), by_product_contained_metal: Math.round((r.metalU2 || 0) * res.byMetalFactor), by_product_metal_unit: res.byMetalUnit } : {}) /* #1917 */, crs: crsCell(project) })),
+    ...res.runs.map((r) => ({ section: "shell", revenue_factor: r.rf, ...pitSettingsCells(inputs) /* #3799 — density, recovery, costs, slope, cut-off */, ...topCutCells(model?.params) /* #3794 */, price: res.price, price_unit: res.priceLabel, element: element || "" /* #2594 — what the grade and contained_metal are of */, ore_t: Math.round(r.oreT), [`mean_grade_${res.unit.replace("%", "pct")}`]: r.meanGrade == null ? "" : +r.meanGrade.toPrecision(4), contained_metal: Math.round(r.metalU * res.metalFactor), metal_unit: res.metalUnit, ...Object.fromEntries((res.alsoLabels || []).map((l, k) => [`mean_${l}`, r.also?.[k]?.meanGrade == null ? "" : +r.also[k].meanGrade.toPrecision(4)])) /* #3084 */, waste_t: Math.round(r.wasteT), strip_ratio: r.stripRatio == null ? "" : +r.stripRatio.toFixed(2), max_depth_m: Math.round(r.maxDepth), undiscounted_margin_at_entered_price: Math.round(r.moneyBase), years_to_mine: r.years == null ? "" : +r.years.toFixed(2), npv: r.npv == null ? "" : Math.round(r.npv), ...(inputs?.by && res.byMetalUnit ? { by_product: byEl, by_product_mean_grade: r.meanGrade2 == null ? "" : +r.meanGrade2.toPrecision(4), by_product_contained_metal: Math.round((r.metalU2 || 0) * res.byMetalFactor), by_product_metal_unit: res.byMetalUnit } : {}) /* #1917 */, crs: crsCell(project) })),
     ...res.yearly.map((y) => ({ section: "year", year: y.year, rock_t: Math.round(y.rockT), ore_t: Math.round(y.oreT), cash_undiscounted: Math.round(y.cash) })),
   ]) });
   const line = (label, v) => <div style={row}><span>{label}</span><b>{v}</b></div>;
@@ -157,6 +159,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
           : <button onClick={cancel} style={{ ...pBtn, marginTop: 8 }}>{tr("Solving shell {i} of {n}: cancel", { i: (busy.idx || 0) + 1, n: busy.of || factors.length })}</button>}
       </>)}
       {lastPit && <UndergroundOreNote model={model} cutoff={lastPit.params?.cutoffGrade} />}{/* #2277 */}
+      {lastPit && <TopCutNote model={model} />}{/* #3794 */}
       {msg && <div style={warn}>{msg}</div>}
       {res && (
         <div style={{ marginTop: 8 }}>
@@ -174,7 +177,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
               ))}</tbody>
             </table>
           </div>
-          <div style={{ ...note, marginTop: 4 }}>{tr("Grade in {unit}; margin and NPV at the entered price, {price} {pu}. The eye puts a shell in the view (its colour follows the row).", { unit: element ? `${res.unit} ${element}` : res.unit /* #2594 */, price: res.price, pu: res.priceLabel })}</div>
+          <div style={{ ...note, marginTop: 4 }}>{tr("Grade in {unit}; margin and NPV at the entered price, {price} {pu}. The eye puts a shell in the view (its colour follows the row).", { unit: element ? `${gradeUnitText(res.unit, element)} ${element}` : res.unit /* #2594; #3801 (1) — g/t, not ppm, for gold */, price: res.price, pu: res.priceLabel })}</div>
           {res.bestNpv >= 0 && line(tr("Best NPV"), tr("factor {rf}: ${npv} over {y} years", { rf: res.runs[res.bestNpv].rf, npv: big(res.runs[res.bestNpv].npv), y: res.runs[res.bestNpv].years.toFixed(1) }))}
           {/* TASKS.csv #2280 (review #2174, WA gold) — a schedule decades long discounts the later pushbacks to nothing: the NPV stops changing with the
               factor because of the rate typed, not the pits; said, with the run of shells whose NPV is flat */}
