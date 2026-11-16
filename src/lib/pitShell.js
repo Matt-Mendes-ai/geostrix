@@ -175,6 +175,9 @@ export function pitEconomics({ unit, element = null, price, priceUnit, recovery,
   // its own price and recovery: alsoPrices[k] (aligned with the also grades; null = reported only) is priced as a by-product is, and a
   // block's revenue sums every priced metal (cellRevenue).
   if (Array.isArray(alsoPrices) && alsoPrices.some(Boolean)) {
+    // TASKS.csv #3793 — one element, one price: a 'report too' grade whose element the main metal, the by-product or an earlier grade already pays for is reported only (it was paid twice: Ag, $42.79M -> $44.51M)
+    const paid = new Set([element, by?.element].filter(Boolean));
+    alsoPrices = alsoPrices.map((a) => { if (!a) return null; if (a.element && paid.has(a.element)) { (e.alsoDuplicate ||= []).push(a.element); return null; } if (a.element) paid.add(a.element); return a; });
     e.alsoPriced = alsoPrices.map((a) => (a ? pitEconomics({ ...a, by: null, alsoPrices: null, typedCutoff: null, processingCost, revenueFactor }) : null));
     const bad = alsoPrices.findIndex((a, k) => a && !e.alsoPriced[k]);
     if (bad >= 0) e.alsoFailed = bad + 1;

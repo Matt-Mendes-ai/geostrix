@@ -13543,5 +13543,6 @@
   "Hole ID at the toe": "ID do furo no fundo",
   "Hole ID at both ends": "ID do furo nas duas pontas",
   "Project title": "Título do projeto",
-  "Printed as {project} on every sheet (the sheet's title and the title block's Project row), and as the PDF's title. Blank: the file's name. A Save or a rename of the file does not change it.": "Impresso como {project} em cada prancha (o título da prancha e a linha Projeto do carimbo) e como título do PDF. Em branco: o nome do arquivo. Salvar ou renomear o arquivo não o altera."
+  "Printed as {project} on every sheet (the sheet's title and the title block's Project row), and as the PDF's title. Blank: the file's name. A Save or a rename of the file does not change it.": "Impresso como {project} em cada prancha (o título da prancha e a linha Projeto do carimbo) e como título do PDF. Em branco: o nome do arquivo. Salvar ou renomear o arquivo não o altera.",
+  "{el} is already priced here (the main metal, the by-product or an earlier grade): reported only, no second price.": "{el} já tem preço aqui (o metal principal, o subproduto ou um teor anterior): só informado, sem segundo preço."
 }
