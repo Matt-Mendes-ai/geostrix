@@ -20,7 +20,7 @@ test("each skipped row has one reason", () => {
   const out = parseStructureRows(rows, cols);
   assert.equal(out.rows.length, 1);
   assert.equal(out.skipped, 7);
-  assert.deepEqual(out.skipWhy, { noMeasurement: 1, noXY: 1, noDip: 1, badDip: 2, bearingUnread: 1, noDirection: 1 });
+  assert.deepEqual(out.skipWhy, { noMeasurement: 1, noXY: 1, noDip: 1, badDip: 2, badBearing: 0, repeatedHeader: 0, bearingUnread: 1, noDirection: 1 }); // #3847, #3851 (3)
 });
 
 test("the Kodiak rock sheet: Sample_Number (filled on every measured row) over Waypoint (blank on them)", () => {

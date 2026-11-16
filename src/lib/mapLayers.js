@@ -485,7 +485,7 @@ export function projectContactRibbon(line3d, orient, { depth = 300, rows = 12, m
 // stream-sediment sphere; cleavage sat next to moss mat and contact next to heavy-mineral purple. Contacts are black on a map.
 export const STRUCTURE_CLASS_COLORS = {
   fault: "#b5179e", bedding: "#1d3557", foliation: "#007f7f", cleavage: "#9acd32",
-  contact: "#222222", vein: "#e8dfc4", joint: "#ff7f50", breccia: "#800000" /* #2082 */, other: "#9aa5b1",
+  contact: "#222222", vein: "#7a5c00" /* #3844 - the pale cream did not read on the default background */, joint: "#ff7f50", breccia: "#800000" /* #2082 */, other: "#9aa5b1",
 };
 export const STRUCTURE_CLASS_LABELS = {
   fault: "Fault / shear", bedding: "Bedding", foliation: "Foliation", cleavage: "Cleavage",

@@ -11,6 +11,8 @@ import { hashColor, CATEGORICAL_SAFE_COLORS } from "./layers.js"; // #1439 — a
 export const INTERPRETATION_TYPES = [
   { value: "fault", label: "Fault", color: "#d7263d" },
   { value: "shear", label: "Shear zone", color: "#a4133c" }, // TASKS.csv #2274 — the structure of a lode-gold deposit, beside Fault
+  { value: "vein", label: "Vein", color: "#7a5c00" }, // TASKS.csv #3846 - on a narrow-vein property the vein trace between outcrops is the first thing mapped; the Surface structures' vein colour
+  { value: "vein_zone", label: "Vein zone", color: "#c9a227" },
   { value: "contact", label: "Contact", color: "#1a2028" },
   { value: "lineament", label: "Lineament", color: "#6c757d" },
   { value: "dyke", label: "Dyke", color: "#7b2cbf" },
@@ -23,7 +25,7 @@ export const INTERPRETATION_TYPES = [
 export const CONFIDENCE = ["certain", "probable", "possible"];
 // TASKS.csv #1239 — a fold axis is a line with a plunge; a fault trace has a dip. Optional, per line type: [the angle field, the direction field, their labels].
 const PLUNGE = ["plunge", "plunge_dir", "Plunge", "Plunge direction"], DIP = ["dip", "dip_dir", "Dip", "Dip direction"];
-const ATTITUDE = { fold_axis: PLUNGE, anomaly_axis: PLUNGE, lineament: PLUNGE, trend: PLUNGE, fault: DIP, shear: DIP, dyke: DIP, contact: DIP, boundary: DIP }; // shear: #2274
+const ATTITUDE = { fold_axis: PLUNGE, anomaly_axis: PLUNGE, lineament: PLUNGE, trend: PLUNGE, fault: DIP, shear: DIP, dyke: DIP, contact: DIP, boundary: DIP, vein: DIP, vein_zone: DIP }; // shear: #2274; vein: #3846
 export const attitudeOf = (type) => ATTITUDE[type] || null;
 // The attributes for what was typed: blanks are left out. { error: true } when a value is not an angle in range (0-90, direction 0-360).
 export function attitudeAttrs(type, angle, direction) {
@@ -83,7 +85,13 @@ function withBbox(layer) {
   for (const f of layer.features) for (const part of f.parts) for (const [x, y] of part) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   const counts = {};
   for (const f of layer.features) counts[f.attributes.type] = (counts[f.attributes.type] || 0) + 1;
-  return { ...layer, bbox: layer.features.length ? [x0, y0, x1, y1] : null, categories: layer.categories.map((c) => ({ ...c, count: counts[c.value] || 0 })) };
+  // TASKS.csv #3846 - the legend lists the types in use ('Legend (1 unit)' for one line, not all eleven with counts of 0); an empty layer lists them all, and a category the geologist
+  // recoloured keeps its colour and visibility
+  const known = new Set(INTERPRETATION_TYPES.map((t) => t.value)), byValue = new Map((layer.categories || []).map((c) => [c.value, c]));
+  const used = (v) => !layer.features.length || counts[v];
+  const categories = [...INTERPRETATION_TYPES.filter((t) => used(t.value)).map((t) => ({ ...(byValue.get(t.value) || { value: t.value, label: t.label, color: t.color, outline: null, visible: true }), count: counts[t.value] || 0 })),
+    ...(layer.categories || []).filter((c) => !known.has(c.value)).map((c) => ({ ...c, count: counts[c.value] || 0 }))];
+  return { ...layer, bbox: layer.features.length ? [x0, y0, x1, y1] : null, categories };
 }
 
 // points: [{ x, y, z? }] world; attrs: { name, type, survey, confidence, note }. -> the layer with the line appended, or
