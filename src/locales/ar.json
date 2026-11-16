@@ -13363,5 +13363,18 @@
   "Points move vertically only. Points from drillhole contacts are observations and never move.": "تتحرك النقاط رأسيًا فقط. نقاط تماسات الحفر هي مشاهدات ولا تتحرك أبدًا.",
   "The model is rebuilt from the last model run in this project as it was sent: its relation (erode or onlap), conformable packages, fault offsets, potential-field range and precision.": "يُعاد بناء النموذج من آخر تشغيل للنموذج في هذا المشروع كما أُرسل: علاقته (تعرية أو onlap)، والحزم المتوافقة، وإزاحات الصدوع، ومدى حقل الجهد، والدقة.",
   "The model is rebuilt from the last model run in this project with each unit eroding the ones below it; a model run with onlap, conformable packages or a custom range may differ.": "يُعاد بناء النموذج من آخر تشغيل للنموذج في هذا المشروع مع تعرية كل وحدة للوحدات التي تحتها؛ وقد يختلف تشغيل يستخدم onlap أو حزمًا متوافقة أو مدى مخصصًا.",
-  "This looks like a table of point density readings: From equals To on every row, so it opens as a Custom layer. A zero-length density reading cannot be length-weighted, so the density summary and the tonnage would leave it out. To use it as Specific gravity, give each reading a From–To interval and import it again; or keep it as a Custom layer to view.": "يبدو هذا جدولاً لقراءات كثافة نقطية: «من» تساوي «إلى» في كل الصفوف، لذا يُفتح كطبقة مخصصة. لا يمكن ترجيح قراءة كثافة طولها صفر بالطول، فيستبعدها ملخص الكثافة والحمولة. لاستخدامها ككثافة نوعية أعطِ كل قراءة فاصل «من–إلى» وأعد الاستيراد؛ أو أبقها طبقة مخصصة للعرض."
+  "This looks like a table of point density readings: From equals To on every row, so it opens as a Custom layer. A zero-length density reading cannot be length-weighted, so the density summary and the tonnage would leave it out. To use it as Specific gravity, give each reading a From–To interval and import it again; or keep it as a Custom layer to view.": "يبدو هذا جدولاً لقراءات كثافة نقطية: «من» تساوي «إلى» في كل الصفوف، لذا يُفتح كطبقة مخصصة. لا يمكن ترجيح قراءة كثافة طولها صفر بالطول، فيستبعدها ملخص الكثافة والحمولة. لاستخدامها ككثافة نوعية أعطِ كل قراءة فاصل «من–إلى» وأعد الاستيراد؛ أو أبقها طبقة مخصصة للعرض.",
+  "{holeId} is not checked in the Holes list; it is drawn in this section because you asked for it by name.": "{holeId} غير محدد في قائمة الثقوب؛ يُرسم في هذا المقطع لأنك طلبته باسمه.",
+  "No hole is drawn: {n} hole is unchecked in the Holes list (show it, or move the line)": "لا يُرسم أي ثقب: {n} ثقب غير محدد في القائمة (أظهره أو حرّك الخط)",
+  "No hole is drawn: {n} holes are unchecked in the Holes list (show them, or move the line)": "لا يُرسم أي ثقب: {n} ثقوب غير محددة في القائمة (أظهرها أو حرّك الخط)",
+  "Rename hole…": "إعادة تسمية الثقب…",
+  "Delete hole…": "حذف الثقب…",
+  "New id for {hole}:": "معرّف جديد لـ {hole}:",
+  "Can't rename {hole}: a hole called {next} already exists.": "تعذّرت إعادة تسمية {hole}: يوجد ثقب باسم {next} بالفعل.",
+  "Can't rename {hole}: the new id is empty.": "تعذّرت إعادة تسمية {hole}: المعرّف الجديد فارغ.",
+  "Renamed {hole} to {next} in the collars, survey, layers and assays.": "تمت إعادة تسمية {hole} إلى {next} في الفوهات والمسح والطبقات والتحاليل.",
+  "Delete {hole} with its survey, intervals, assays and custom-layer rows (rows in all: {total})?": "حذف {hole} مع مسحه وفتراته وتحاليله وصفوف الطبقات المخصصة (إجمالي الصفوف: {total})؟",
+  "Deleted {hole} and its rows (Ctrl+Z restores it).": "تم حذف {hole} وصفوفه (Ctrl+Z يستعيده).",
+  "You clicked a {model} drawn over the ground: the E / N are where the click's line meets the ground interpolated between the nearest collars, and the Elev is that ground (a collar is on the ground). Check it before using it, or load a terrain.": "نقرتَ على {model} مرسوم فوق سطح الأرض: E / N هما موضع التقاء خط النقرة بالأرض المستكمَلة بين أقرب الفوهات، والارتفاع هو ارتفاع تلك الأرض (الفوهة على الأرض). تحقق منه قبل استخدامه أو حمّل تضاريس.",
+  "modelled surface": "سطح منمذج"
 }

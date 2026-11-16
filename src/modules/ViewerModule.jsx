@@ -43,6 +43,7 @@ import { useStore, useSetCursor, useSetTaskProgress } from "../lib/store.jsx";
 import { surveyAzimuthDipAt, desurveyMatters } from "../lib/desurvey.js"; // desurveyMatters: #2371; // desurveyHole, holeAttitudeAssumed (#2014): used by viewer/drillholeScene.js (#2176)
 import { unitSupport } from "../lib/unitSupport.js"; // #2096
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
+import { renameProblem, holeRowCounts, mapCustomLayers, renameInRows, deleteInRows } from "../lib/holeEdit.js"; // TASKS.csv #3681
 import { blockToCells, modelledIntervals, ABOVE_TOPS, unitAt } from "../lib/modelCheck.js"; // TASKS.csv #356
 import { sectionGrid, sameLine, unpackUnits, sectionPixels, blockSpacing, sectionZRange } from "../lib/modelSection.js"; // TASKS.csv #759
 import { openSectionWindow, saveFile, copyText, loadSampleFiles } from "../lib/desktop.js"; // copyText: TASKS.csv #589
@@ -507,7 +508,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // setTaskProgress repeatedly during a modelling run/multi-file import but never reads its value.
   const setTaskProgress = useSetTaskProgress();
   const {
-    collars, setCollars, survey, setSurvey, layers, setLayers, replaceLayer, assays, assayElements,
+    collars, setCollars, survey, setSurvey, layers, setLayers, replaceLayer, renameHole, deleteHole /* #3681 */, assays, assayElements,
     desurveyMethod, // TASKS.csv #135 — project-wide desurvey method; every trace built here must use it
     surfaceSamples, surfaceElements, codeDictionary, // #2816
     designLines, /* TASKS.csv #1342 */ designStrings, /* TASKS.csv #1876 */ plannedHoles, addPlannedHole, updatePlannedHole, removePlannedHole,
@@ -2422,6 +2423,19 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const zoomToFitAll = () => { const b = visibleSceneBox(sceneRef.current?.getObjectByName("root")); (shownTraces() || lastTracesRef.current || []).forEach((pts) => pts.forEach((p) => b.expandByPoint(new THREE.Vector3(p.x, p.y, p.z)))); fitBox(b); };
   // TASKS.csv #1181 — Fit frames the drilling, as the opening view does; All: right-click menu
   const zoomToHoles = () => { const s = shownTraces(); if (s) fitView(s); else autoFitInitial(lastTracesRef.current, lastHoleTraceCountRef.current); }; // shown: #2996
+  // TASKS.csv #3695 (Fireweed rehearsal round 3) — 'Only these' on holes far from the view left it blank (a save reopened on the blank view): after 'Only these' / 'Uncheck',
+  // when none of the holes left checked is in the view, the view frames them (a hole in view leaves the camera where it is)
+  const framePendingRef = useRef(false);
+  useEffect(() => {
+    if (!framePendingRef.current) return;
+    framePendingRef.current = false;
+    const cam = cameraRef.current, s = shownTraces();
+    if (!cam || !s) return;
+    cam.updateMatrixWorld(true);
+    const v = new THREE.Vector3();
+    const inView = s.some((pts) => pts.some((p) => { v.set(p.x, p.y, p.z).project(cam); return v.z < 1 && Math.abs(v.x) <= 1 && Math.abs(v.y) <= 1; }));
+    if (!inView) zoomToHoles();
+  }, [visibleHoles]);
   const zoomToSurface = (id) => zoomToObject(implicitMeshesRef.current[id]); // #2996 — a Mine Design result row's zoom
   const fitButton = () => (mode === "surface" ? zoomToFitAll() : zoomToHoles()); // #2092 — Fit on the Surface Geology tab: everything shown
   // TASKS.csv #393 — zoom to one hole (Holes list)
@@ -5750,7 +5764,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const openSectionOrSay = async (payload) => { const { lithoPatternMap, withSectionPatterns } = await import("../lib/lithoPatterns.js"); return openSectionWindow(withSectionPatterns({ ...payload, rlOffset: rlOffsetOf(project) /* #2809 */ }, lithoPatternMap(layers.litho, (v) => effectiveLabel("litho", v), legendOverride.litho))).then((r) => { if (r?.refused) setNotices((p) => [...p, notice("{max} sections are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.", { max: r.max })]); return r; }); };
   const buildSectionPayload = (a, b, corridor, scope = {}, secId = null) => {
     const azimuth = (Math.atan2(b.x - a.x, b.y - a.y) * 180 / Math.PI + 360) % 360;
-    const holesInBand = tracesRef.current.filter((t) => visibleHoles[t.hole_id] !== false && t.wx.some((wx, i) => distToSegment(wx, t.wy[i], a.x, a.y, b.x, b.y) <= corridor));
+    const holesInBand = tracesRef.current.filter((t) => (visibleHoles[t.hole_id] !== false || t.hole_id === scope.holeAsked /* #3680 — asked for by name */) && t.wx.some((wx, i) => distToSegment(wx, t.wy[i], a.x, a.y, b.x, b.y) <= corridor));
     const holeIds = new Set(holesInBand.map((t) => t.hole_id));
     // TASKS.csv #499 — each hole carries the depth runs that are actually inside the corridor and its offset
     // from the line; everything drawn on the hole is clipped to those runs below (sectionCorridor.js).
@@ -5998,9 +6012,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   const reopenSection = useCallback(async (s, { quiet = false } = {}) => { // quiet: TASKS.csv #876 — refresh an open window only
     const a = { x: s.ax, y: s.ay }, b = { x: s.bx, y: s.by };
-    const { holes, intervals, points, planes, elevationProfile, legendItems, assayLegend /* #1769 */, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop, scatter, scatterCounts } = buildSectionPayload(a, b, s.corridor, s.scope || {}, s.id); // scatter: #1807
+    const { holes, intervals, points, planes, elevationProfile, legendItems, assayLegend /* #1769 */, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop, scatter, scatterCounts } = buildSectionPayload(a, b, s.corridor, s.holeAsked ? { ...(s.scope || {}), holeAsked: s.holeAsked } : (s.scope || {}), s.id); // scatter: #1807; holeAsked: #3680
     const sectionImgs = await sectionImagesFor(a, b, s.corridor);
-    openSectionOrSay({ id: s.id, title: s.name, section: { ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, azimuth: s.azimuth, corridor: s.corridor }, holes, intervals, points, planes, assayLegend, contacts: s.contacts || [], labels: s.labels || null, lithoUnits: litho_units, unitTags: sectionUnitTags, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, scatter, scatterCounts, /* #1807 */ sectionImages: sectionImgs, modelBackdrop,
+    openSectionOrSay({ id: s.id, title: s.name, hiddenHoleCount: Object.values(visibleHoles).filter((v) => v === false).length /* #3680 */, section: { ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, azimuth: s.azimuth, corridor: s.corridor }, holes, intervals, points, planes, assayLegend, contacts: s.contacts || [], labels: s.labels || null, lithoUnits: litho_units, unitTags: sectionUnitTags, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, scatter, scatterCounts, /* #1807 */ sectionImages: sectionImgs, modelBackdrop,
       ghostStrings: (await import("../lib/sectionDigitise.js")).ghostStrings(s, sections), /* on use: #903 */ outlineNames: outlineNamesOf(sections), ...(quiet ? { refreshOnly: true, ifOpen: true } : {}) }); // #519 — the neighbouring sections' strings; outlineNames: #874; quiet: #876
   }, [structurePicksWithHoleAttitude, layers, layerVisible, customLayers, customVisible, assays, assayVisible, assayDisplayElements, assayStyle, assayRowShown /* #2362 */, isRowVisible, effectiveColor, effectiveLabel, numericLayerColor, litho_units, sectionUnitTags, terrain, voxelModels, implicitSurfaces, plannedHoles, sections, sectionImages, lastLithBlock, pierceSurfaces, placedSurfaceSamples, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax /* #1807 */]); // pierceSurfaces: #1010
 
@@ -6044,7 +6058,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const openDefinedSection = (geom, name, extra = null) => { // extra: #2525
     // TASKS.csv #1303 — the same line again is the same section: its tab comes forward, with no second row in the list
     const same = (sections || []).find((x) => x.name === name && Math.hypot(x.ax - geom.ax, x.ay - geom.ay) < 0.5 && Math.hypot(x.bx - geom.bx, x.by - geom.by) < 0.5);
-    if (same) { reopenSection(same); return same; }
+    if (same) { const s2 = extra?.holeAsked && same.holeAsked !== extra.holeAsked ? { ...same, holeAsked: extra.holeAsked } : same; if (s2 !== same) upsertSection(s2); reopenSection(s2); return s2; } // holeAsked: #3680
     const s = { id: `sect_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, name, ax: geom.ax, ay: geom.ay, bx: geom.bx, by: geom.by, azimuth: geom.azimuth, corridor: geom.corridor || sectionCorridor, contacts: [], ...(extra || {}) }; // geom.corridor: #1131 — a stepped section keeps its parent's buffer
     upsertSection(s);
     reopenSection(s);
@@ -6066,11 +6080,35 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const g = sectionFromCentre({ e, n, azimuth: Number(typedSection.azimuth) || 0, length: Number(typedSection.length) || 500 });
     openDefinedSection(g, `Section ${Math.round(e)}E ${Math.round(n)}N az ${g.azimuth.toFixed(0)}°`);
   };
+  // TASKS.csv #3681 — a hole's own row menu (the Help says right-click a hole): the row's three buttons, and Rename / Delete, which change the id or remove the hole
+  // in the collars, survey, every layer, the assays and the custom layers as one step (Undo restores it)
+  const openHoleMenu = (e, holeId) => openRowMenu(e, holeId, [
+    { label: tr("Zoom to {hole_id}", { hole_id: holeId }), onClick: () => zoomToHole(holeId) },
+    { label: tr("Section through {hole_id}", { hole_id: holeId }), onClick: () => openHoleSection(holeId) },
+    { label: tr("Strip log — {hole_id}", { hole_id: holeId }), onClick: () => setStripLogHoleId(holeId) },
+    "-",
+    { label: tr("Rename hole…"), onClick: () => askPrompt(tr("New id for {hole}:", { hole: holeId }), holeId, (name) => {
+      const next = String(name ?? "").trim(), bad = renameProblem(collars, holeId, next);
+      if (bad === "same" || (!next && name == null)) return;
+      if (bad) { setNotices((p) => [...p, errorNotice(tr(bad === "exists" ? "Can't rename {hole}: a hole called {next} already exists." : "Can't rename {hole}: the new id is empty.", { hole: holeId, next }))]); return; }
+      renameHole(holeId, next); setCustomLayers((p) => mapCustomLayers(p, (rows) => renameInRows(rows, holeId, next))); // the viewer's own copy of the custom layers too (it mirrors them to the store)
+      setVisibleHoles((p) => { if (!(holeId in p)) return p; const { [holeId]: v, ...rest } = p; return { ...rest, [next]: v }; });
+      setNotices((p) => [...p, notice("Renamed {hole} to {next} in the collars, survey, layers and assays.", { hole: holeId, next })]);
+    }) },
+    { label: tr("Delete hole…"), onClick: () => {
+      const n = holeRowCounts({ collars, survey, layers, assays, customLayers }, holeId);
+      if (!confirmDestructive(tr("Delete {hole} with its survey, intervals, assays and custom-layer rows (rows in all: {total})?", { hole: holeId, total: n.collars + n.survey + n.intervals + n.assays + n.custom }), { undoable: true })) return;
+      deleteHole(holeId); setCustomLayers((p) => mapCustomLayers(p, (rows) => deleteInRows(rows, holeId)));
+      setNotices((p) => [...p, notice("Deleted {hole} and its rows (Ctrl+Z restores it).", { hole: holeId })]);
+    } },
+  ]);
   const openHoleSection = useCallback((holeId) => {
     const t = tracesRef.current.find((x) => x.hole_id === holeId);
     const g = t && sectionThroughHole(t.wx, t.wy, { fallbackAzimuth: Number(typedSection.azimuth) || 0 });
     if (!g) { setNotices((p) => [...p, notice("{holeId} has no desurveyed trace to cut a section through.", { holeId })]); return; }
-    openDefinedSection(g, `Section through ${holeId} (az ${g.azimuth.toFixed(0)}°)`);
+    const unchecked = visibleHolesRef.current[holeId] === false; // #3680 — asked for by name: drawn although the Holes list has it unchecked, and said
+    openDefinedSection(g, `Section through ${holeId} (az ${g.azimuth.toFixed(0)}°)`, unchecked ? { holeAsked: holeId } : null);
+    if (unchecked) setNotices((p) => [...p, notice("{holeId} is not checked in the Holes list; it is drawn in this section because you asked for it by name.", { holeId })]);
     if (g.vertical) setNotices((p) => [...p, notice("{holeId} is vertical, so it has no bearing of its own — the section runs at the typed azimuth, {azimuth}°.", { holeId, azimuth: g.azimuth.toFixed(0) })]);
   }, [typedSection.azimuth, sectionCorridor, reopenSection, upsertSection, sections]);
 
@@ -7407,8 +7445,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             {/* TASKS.csv #222 — a filter box, the other half of the audit's "no virtualization/filter"
                 finding; finding one hole by ID in a 200+ hole project by eye alone was the real
                 usability gap, not just the render cost (fixed separately via HoleRow's memoization). */}
-            {collars.length > 1 && <HoleFilterBar holeSets={holeSets} collars={collars} filter={holeFilter} setFilter={setHoleFilter} visibleHoles={visibleHoles} setVisibleHoles={setVisibleHoles} colourBy={holeColourBy} setColourBy={setHoleColourBy} /* #1504 */ />}
-            <HoleRowList holes={tickedShown(collars, holeFilter, holeSets)} filterKey={JSON.stringify(holeFilter)} visibleHoles={visibleHoles} onToggle={toggleHole} onOpenStripLog={setStripLogHoleId} onSection={openHoleSection} onZoom={zoomToHole} />{/* #2173 */}
+            {collars.length > 1 && <HoleFilterBar holeSets={holeSets} collars={collars} filter={holeFilter} setFilter={setHoleFilter} visibleHoles={visibleHoles} setVisibleHoles={setVisibleHoles} colourBy={holeColourBy} setColourBy={setHoleColourBy} /* #1504 */ onApplied={(m) => { if (m === "only" || m === "hide") framePendingRef.current = true; } /* #3695 */} />}
+            <HoleRowList holes={tickedShown(collars, holeFilter, holeSets)} filterKey={JSON.stringify(holeFilter)} visibleHoles={visibleHoles} onToggle={toggleHole} onOpenStripLog={setStripLogHoleId} onSection={openHoleSection} onZoom={zoomToHole} onMenu={openHoleMenu} />{/* #2173 */}
           </>
         )}
 

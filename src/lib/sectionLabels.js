@@ -128,7 +128,11 @@ export function leaderEnd(b) {
 // free in reach do they overlap. bounds: [x0, x1] the search stays inside.
 const RINGS = 10;
 // rings (TASKS.csv #2372): how many rows out a label may move from its point before it is left out (RINGS, 10, by default; the level plan's 3)
-export function resolveLabels(specs, obstacles = [], { gap = 1.5, bounds = null, yBounds = null, rings = RINGS } = {}) {
+// TASKS.csv #3552 (reopened, round 3: 'EOH 647 m' and '-20...+2 m' on a Jason Main section started 15-17 px left of the frame) — the first
+// candidate that missed the other labels was taken wherever it fell: `bounds` / `yBounds` were read only by the ring search (leader) that follows,
+// so a tag anchored at a hole's end near the frame's edge was drawn outside it; and the width was the 0.58 em estimate (short in capitals and digits).
+// Now (strictBounds, the section's call) every candidate must lie inside the bounds, and widthOf(text, size) (the section's own measured font) can replace the estimate.
+export function resolveLabels(specs, obstacles = [], { gap = 1.5, bounds = null, yBounds = null, rings = RINGS, widthOf = null, strictBounds = false } = {}) {
   // TASKS.csv #2518 (review #2486) — the placed boxes in a grid: a level plan at RL 250 on 2,248 holes (1,800 labels) scanned every placed box
   // for every candidate spot, 330-650 ms per RL step. Same boxes, same order, same result: only the boxes that can touch are compared.
   const CELL = 48, grid = new Map(), cellKey = (i, j) => i * 1048576 + j;
@@ -137,7 +141,7 @@ export function resolveLabels(specs, obstacles = [], { gap = 1.5, bounds = null,
   const placed = { push: place };
   obstacles.forEach((b) => place({ x0: b.x - b.w / 2, x1: b.x + b.w / 2, y0: b.y - b.h, y1: b.y + 2 }));
   const boxOf = (c, text, size) => {
-    const w = labelWidth(text, size), x0 = c.anchor === "end" ? c.x - w : c.anchor === "middle" ? c.x - w / 2 : c.x;
+    const w = widthOf ? widthOf(text, size) : labelWidth(text, size), x0 = c.anchor === "end" ? c.x - w : c.anchor === "middle" ? c.x - w / 2 : c.x;
     return { x0, x1: x0 + w, y0: c.y - size, y1: c.y + 2 };
   };
   const hit = (a) => { for (const k of cellsOf(a, gap)) for (const b of grid.get(k) || []) if (a.x0 < b.x1 + gap && b.x0 < a.x1 + gap && a.y0 < b.y1 + gap && b.y0 < a.y1 + gap) return true; return false; };
@@ -147,11 +151,12 @@ export function resolveLabels(specs, obstacles = [], { gap = 1.5, bounds = null,
   const inWithin = (s, b) => !s.within || (b.x0 >= s.within[0] && b.x1 <= s.within[1] && b.y0 >= s.within[2] && b.y1 <= s.within[3]);
   specs.map((s, i) => ({ s, i })).sort((a, b) => b.s.prio - a.s.prio || a.i - b.i).forEach(({ s }) => {
     let pick = null;
-    for (const c of s.cands) { const box = boxOf(c, s.text, s.size); if (!hit(box) && inWithin(s, box)) { pick = { c, box }; break; } }
+    const inBounds = (b) => (!bounds || (b.x0 >= bounds[0] && b.x1 <= bounds[1])) && (!yBounds || (b.y0 >= yBounds[0] && b.y1 <= yBounds[1])); // #3552
+    for (const c of s.cands) { const box = boxOf(c, s.text, s.size); if (!hit(box) && inWithin(s, box) && (!strictBounds || inBounds(box))) { pick = { c, box }; break; } } // strictBounds: #3552 — the section's float labels only; the level plan keeps the old rule
     if (!pick && s.prio <= 1) return;
     let leaderFrom = null;
     if (!pick) {
-      const c0 = s.cands[0], w = labelWidth(s.text, s.size), inside = (b) => (!bounds || (b.x0 >= bounds[0] && b.x1 <= bounds[1])) && (!yBounds || (b.y0 >= yBounds[0] && b.y1 <= yBounds[1]));
+      const c0 = s.cands[0], w = widthOf ? widthOf(s.text, s.size) : labelWidth(s.text, s.size), inside = inBounds;
       search: for (let r = 1; r <= rings; r++) for (const dy of [r, -r]) for (const dx of [0, -0.6, 0.6, -1.2, 1.2]) {
         const c = { ...c0, x: c0.x + dx * w, y: c0.y + dy * (s.size + 3) }, box = boxOf(c, s.text, s.size);
         if (inside(box) && inWithin(s, box) && !hit(box)) { pick = { c, box }; leaderFrom = { x: c0.x, y: c0.y - s.size / 2 }; break search; }

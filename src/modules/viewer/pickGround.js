@@ -60,17 +60,25 @@ export function pickOnView(ray, hits, toWorld, collars, origin) {
   // gave Elev 1371.1, 163 m under the ground and 75 m from the click. A collar is on the ground: the hits on the hole's own drawing (traces, intervals,
   // assays) are skipped, so the click line meets the collar surface; the hole it was on is named in the result (fromHole) for the form's note.
   if (collars?.length) {
-    const ground = solid.filter((h) => !drillObjectOf(h.object));
+    // TASKS.csv #3697 (Fireweed rehearsal round 3: with a block model drawn the planned collar landed on the model, Elev 1,508.9 where the ground is 1,533.8) — a block model,
+    // an OMF model or a modelled surface drawn over the ground is skipped as a hole's own drawing is: a collar is on the ground; what was clicked is named (fromModel)
+    const ground = solid.filter((h) => !drillObjectOf(h.object) && !modelObjectOf(h.object));
     if (ground.length < solid.length) {
-      const first = solid.find(drawn), hole = first ? drillObjectOf(first.object) : null;
+      const first = solid.find(drawn), hole = first ? drillObjectOf(first.object) : null, model = first && !hole ? modelObjectOf(first.object) : null;
       // no hit and no flat plane along the ray (a top view above the reference level): a far point on the ray stands in for the plane, only to bound the march
       let w0 = toWorld(ground);
       if (!w0 && ray?.origin && ray?.direction) { const t0 = Math.max(2000, Math.abs(ray.origin.y) * 4); w0 = { x: ray.origin.x + ray.direction.x * t0 + origin.x, y: -(ray.origin.z + ray.direction.z * t0) + origin.y, z: ray.origin.y + ray.direction.y * t0 + origin.z, on: null, plane: true }; }
       const w = pickOnCollarSurface(ray, w0, collars, origin);
-      return w?.onCollarSurface && hole ? { ...w, fromHole: hole } : w;
+      return w?.onCollarSurface && hole ? { ...w, fromHole: hole } : w?.onCollarSurface && model ? { ...w, fromModel: model } : w;
     }
   }
   return pickOnCollarSurface(ray, toWorld(solid), collars, origin);
+}
+// TASKS.csv #3697 — the kind of model a drawn object belongs to (the groups of the 3D view's block models, OMF models and modelled surfaces), else null
+const MODEL_GROUPS = { voxels: "block model", omf: "model", implicit: "modelled surface" };
+export function modelObjectOf(obj) {
+  for (let n = obj; n; n = n.parent) if (n.parent?.name === "root" && MODEL_GROUPS[n.name]) return MODEL_GROUPS[n.name];
+  return null;
 }
 // the hole a drawn object belongs to when it is the hole's own drawing (a trace chunk's hit, an interval tube, an assay mark), else null.
 // A collar marker is not one (a click on a collar is the collar, #2978 (7)).

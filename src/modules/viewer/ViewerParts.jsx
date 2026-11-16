@@ -347,7 +347,7 @@ export function holesById(holes) {
   idSorted.src = holes; idSorted.out = holes.slice().sort((a, b) => ID_ORDER.compare(String(a.hole_id), String(b.hole_id)));
   return idSorted.out;
 }
-export function HoleRowList({ holes: given, filterKey, visibleHoles, onToggle, onOpenStripLog, onSection, onZoom }) {
+export function HoleRowList({ holes: given, filterKey, visibleHoles, onToggle, onOpenStripLog, onSection, onZoom, onMenu }) {
   const holes = holesById(given);
   const [limit, setLimit] = useState(HOLE_ROWS_STEP);
   useEffect(() => { setLimit(HOLE_ROWS_STEP); }, [filterKey]);
@@ -355,7 +355,7 @@ export function HoleRowList({ holes: given, filterKey, visibleHoles, onToggle, o
   return (
     <>
       {holes.slice(0, limit).map((c) => (
-        <HoleRow key={c.hole_id} hole_id={c.hole_id} visible={visibleHoles[c.hole_id]} onToggle={onToggle} onOpenStripLog={onOpenStripLog} onSection={onSection} onZoom={onZoom} />
+        <HoleRow key={c.hole_id} hole_id={c.hole_id} visible={visibleHoles[c.hole_id]} onToggle={onToggle} onOpenStripLog={onOpenStripLog} onSection={onSection} onZoom={onZoom} onMenu={onMenu} />
       ))}
       {rest > 0 && (
         <button onClick={() => setLimit((n) => n + HOLE_ROWS_STEP)} style={{ ...pBtn, marginTop: 4 }} title={tr("The list shows {n} holes at a time; the filter above finds any hole by its ID", { n: HOLE_ROWS_STEP })}>
@@ -366,9 +366,9 @@ export function HoleRowList({ holes: given, filterKey, visibleHoles, onToggle, o
   );
 }
 
-export const HoleRow = React.memo(function HoleRow({ hole_id, visible, onToggle, onOpenStripLog, onSection, onZoom }) {
+export const HoleRow = React.memo(function HoleRow({ hole_id, visible, onToggle, onOpenStripLog, onSection, onZoom, onMenu }) {
   return (
-    <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onToggle(hole_id)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 5, cursor: "pointer", fontSize: "var(--font-size-base)", color: visible === false ? "var(--color-text-disabled)" : "var(--color-text)" }}>
+    <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onToggle(hole_id)} onContextMenu={onMenu ? (e) => onMenu(e, hole_id) : undefined} /* #3681 — the row's menu */ style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 5, cursor: "pointer", fontSize: "var(--font-size-base)", color: visible === false ? "var(--color-text-disabled)" : "var(--color-text)" }}>
       {visible === false ? <EyeOff size={12} /> : <Eye size={12} />}
       <span style={{ flex: 1 }}>{hole_id}</span>
       {onZoom && ( /* TASKS.csv #393 — zoom the 3D view to this hole */

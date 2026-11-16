@@ -19,7 +19,7 @@ test("label sprites remember they are hidden and decluttering keeps them so", ()
 });
 
 test("sections and level plans leave hidden holes out", () => {
-  assert.match(v, /const holesInBand = tracesRef\.current\.filter\(\(t\) => visibleHoles\[t\.hole_id\] !== false && /);
+  assert.match(v, /const holesInBand = tracesRef\.current\.filter\(\(t\) => \(visibleHoles\[t\.hole_id\] !== false \|\| t\.hole_id === scope\.holeAsked[^)]*\) && /); // #3680: the hole asked for by name
   const b = readFileSync(new URL("../src/modules/viewer/levelPlanBuild.js", import.meta.url), "utf8"); // #3137 — the level plan's build moved here
   assert.equal((b.match(/if \(visibleHoles\[t\.hole_id\] === false\) continue; \/\/ #1533/g) || []).length, 2, "the holes-only pass and the full build");
 });

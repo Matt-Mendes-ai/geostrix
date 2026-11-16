@@ -2,18 +2,19 @@
 import { t as tr } from "../../lib/i18n.js";
 import { holesForFilter, collarAttrChoices, visibilityPatch } from "../../lib/holeFilter.js"; // collars / attrs: #1504; collar-field text: #1703
 import { useMemo } from "react";
+import { LAYER_META } from "../../lib/layers.js"; // TASKS.csv #3690
 import { holeFieldPicks, holesWithoutField, noValuePick } from "../../lib/viewer/holeFieldPicks.js"; // TASKS.csv #3074
 
 const btn = { flex: 1, minWidth: 0, padding: "3px 4px", fontSize: "var(--font-size-xs)", background: "var(--color-bg)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)", borderRadius: 4, cursor: "pointer" };
 
-export default function HoleFilterBar({ collars, filter, setFilter, visibleHoles, setVisibleHoles, colourBy = "", setColourBy = null, holeSets = null }) { // colourBy: #1504; holeSets: #3554
+export default function HoleFilterBar({ collars, filter, setFilter, visibleHoles, setVisibleHoles, colourBy = "", setColourBy = null, holeSets = null, onApplied = null }) { // colourBy: #1504; holeSets: #3554
   const ids = collars.map((c) => c.hole_id);
   const none = holesWithoutField(collars, filter), found = none ? { holes: none, byField: false } : holesForFilter(collars, filter, { holeSets }); // #1504; none: #3074 — "drill_type=RC" picks by a collar field; #1703 — or text in one
   const shown = found.holes.map((c) => c.hole_id);
   const choices = useMemo(() => collarAttrChoices(collars), [collars]);
   const picks = useMemo(() => holeFieldPicks(collars, choices), [collars, choices]); // #3074 — one field per split, with its (no value)
   const ticked = ids.filter((id) => visibleHoles[id] !== false).length;
-  const apply = (mode) => setVisibleHoles((p) => visibilityPatch(p, ids, shown, mode));
+  const apply = (mode) => { setVisibleHoles((p) => visibilityPatch(p, ids, shown, mode)); onApplied?.(mode); }; // onApplied: #3695 — the view follows 'Only these' / 'Uncheck'
   const termOf = (key, v) => `${key.replace(/\s+/g, "_")}=${v.replace(/\s+/g, "_")}`; // key too: #2488 ("hole type=…" split into two terms)
   // TASKS.csv #3356 — terms on one field join by OR, across fields by AND (#3278): with a field pick in the box, a second menu adds one to it
   const terms = filter.trim().split(/\s+/).filter(Boolean), adding = terms.some((t) => /^[^=]+=./.test(t)) && !holesWithoutField(collars, filter);
@@ -38,7 +39,7 @@ export default function HoleFilterBar({ collars, filter, setFilter, visibleHoles
       {holeSets && Object.keys(holeSets).length > 0 && ( /* TASKS.csv #3554 — holes with / without data: the typed 'has:assays' / 'no:assays' as picks */
         <select value="" aria-label={tr("Filter holes by what they have")} onChange={(e) => { if (e.target.value) setFilter(e.target.value); }} style={selStyle}>
           <option value="">{tr("By what holes have…")}</option>
-          {Object.keys(holeSets).flatMap((k) => [<option key={`has:${k}`} value={`has:${k.replace(/\s+/g, "_")}`}>{tr("Holes with {what}", { what: k })}</option>, <option key={`no:${k}`} value={`no:${k.replace(/\s+/g, "_")}`}>{tr("Holes with no {what}", { what: k })}</option>])}
+          {Object.keys(holeSets).flatMap((k) => { const what = k === "assays" ? k : LAYER_META[k.replace(/ /g, "_")]?.label || k; /* #3690 — the layer's own name (Specific gravity), not its key (sg) */ return [<option key={`has:${k}`} value={`has:${k.replace(/\s+/g, "_")}`}>{tr("Holes with {what}", { what })}</option>, <option key={`no:${k}`} value={`no:${k.replace(/\s+/g, "_")}`}>{tr("Holes with no {what}", { what })}</option>]; })}
         </select>
       )}
       {choices.length > 0 && setColourBy && ( /* TASKS.csv #1504 — colour the collars and traces by a collar field; the legend lists the values */
