@@ -181,7 +181,7 @@ async function convertDataObject(fileBytes, project, dataUuid) {
       if (arrCls === "ColorArray" && !colorColumn) colorColumn = col;
       else if (!labelColumn) { labelColumn = col; labelName = attr(legend, "name", false) || name; }
     }
-    const values = indexValues.map((idx) => (labelColumn && idx >= 0 && idx < labelColumn.length ? labelColumn[idx] : String(idx)));
+    const values = indexValues.map((idx) => (!Number.isFinite(idx) ? "" /* #3712 — NaN: no value */ : labelColumn && idx >= 0 && idx < labelColumn.length ? labelColumn[idx] : String(idx)));
     const colors = colorColumn ? indexValues.map((idx) => colorColumn[idx] || null) : null;
     return [{ ...base, name: labelName, kind: "category", values, colors }];
   }

@@ -19,8 +19,8 @@ export function numericColumns(features) {
 }
 
 // -> { text, ext: "vs" | "pl", count, zMissing, properties }
-export function vectorGocadText({ features, geomType }, { label, epsg = null, crs = "", comments = [] }) {
-  const meta = { epsg, comments: [crs ? `Project CRS: ${crs}` : "", `Exported: ${new Date().toISOString()}`, ...comments] };
+export function vectorGocadText({ features, geomType }, { label, epsg = null, crs = "", comments = [], credit = "" }) { // credit: TASKS.csv #3717 — the data owner's credit in the header
+  const meta = { epsg, comments: [crs ? `Project CRS: ${crs}` : "", `Exported: ${new Date().toISOString()}`, ...(credit ? [`Data credit: ${String(credit).replace(/\s+/g, " ")}`] : []), ...comments] };
   if (geomType === "point") {
     const cols = numericColumns(features);
     const pts = features.flatMap((f) => (f.geometry || []).map((p) => ({ x: p[0], y: p[1], z: p[2], values: cols.map((k) => f.attributes?.[k]) })));

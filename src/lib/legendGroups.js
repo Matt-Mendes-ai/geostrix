@@ -16,6 +16,7 @@ import { makeSurveyColorer, surveyKey } from "./geophysSurveys.js"; // TASKS.csv
 import { airDilutedFloor } from "./voxelStretch.js"; // TASKS.csv #1872
 import { fmtSig3 } from "./numberFormat.js"; // TASKS.csv #3382
 import { fieldColourer } from "./fieldColours.js"; // TASKS.csv #3553
+import { t as tr } from "./i18n.js"; // TASKS.csv #3625 — the one fixed legend sentence
 
 // the per-element identity hues of assay markers (moved from ViewerModule; TASKS.csv #306)
 export const ASSAY_ELEMENT_COLORS = [0, 1, 2, 3, 4, 5, 6, 7, 11, 14, 15, 8, 10, 13].map((i) => CATEGORICAL_SAFE_COLORS[i]);
@@ -110,7 +111,7 @@ export function assayLegendGroups({ assays, assayElements, assayVisible, assayDi
   });
   // TASKS.csv #3588 (2) (Fireweed rehearsal) — a blank interval and an unsampled hole are a bare grey trace and nothing said so. Its own group (one swatch), after the
   // elements' and never one of their classes, so the class logic (#1534 / #3306: grade groups read low to high and are cut to their ends) is untouched.
-  if (withNote && groups.some((g) => g.grade)) groups.push({ key: "assay_unsampled", label: "Not sampled", items: [["bare trace: no sample here", "#9aa0a6"]], alwaysHead: true });
+  if (withNote && groups.some((g) => g.grade)) groups.push({ key: "assay_unsampled", label: tr("Not sampled"), items: [[tr("bare trace: no sample here"), "#9aa0a6"]], alwaysHead: true }); // #3625 — in the interface language (fr / ar showed English)
   return groups;
 }
 

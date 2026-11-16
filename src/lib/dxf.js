@@ -477,7 +477,11 @@ export function dxfGridNote(project, what = "design") {
   const crs = project?.crsSet === false ? "not set (the project's local grid)" : project?.epsg ? `EPSG:${project.epsg}` : "not set";
   return `GeoStrix ${what} | coordinates: project grid, metres | CRS: ${crs} | ${new Date().toISOString().slice(0, 10)}`;
 }
-// comment: a 999 line before the header, and $INSUNITS 6 (metres) in it
+// TASKS.csv #3717 — the 999 comment lines of a design DXF: the grid note, and the data owner's credit (project.dataCredit) when the project has one
+export function dxfNotes(project, what = "design") {
+  return [dxfGridNote(project, what), project?.dataCredit ? `Data credit: ${String(project.dataCredit).replace(/\s+/g, " ")}` : null].filter(Boolean);
+}
+// comment: a 999 line (or an array of them) before the header, and $INSUNITS 6 (metres) in it
 export function buildDXF({ features, geomType, layerOf = null, labelOf = null, textHeight = 1, colorOf = null, comment = null }) {
   const lines = [];
   const put = (code, value) => { lines.push(String(code), String(value)); };
@@ -486,7 +490,7 @@ export function buildDXF({ features, geomType, layerOf = null, labelOf = null, t
   // as LWPOLYLINE, an R14 / R2000 entity, without the AcDbEntity / AcDbPolyline subclass markers and handles R2000
   // readers expect, in a file with no header (so read as R12): lenient readers (GDAL / QGIS) coped, strict ones
   // (AutoCAD, some Micromine / Surpac versions) could drop them. Closed rings set the closed bit.
-  if (comment) lines.push("999", String(comment).replace(/[\r\n]+/g, " "));
+  for (const c of [].concat(comment || [])) lines.push("999", String(c).replace(/[\r\n]+/g, " "));
   lines.push(...(comment ? [...DXF_R12_HEADER.slice(0, -2), "9", "$INSUNITS", "70", "6", ...DXF_R12_HEADER.slice(-2)] : DXF_R12_HEADER)); // #2282
   put(0, "SECTION"); put(2, "ENTITIES");
 

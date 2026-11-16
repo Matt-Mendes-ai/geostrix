@@ -13399,5 +13399,7 @@
   "Delete {hole} with its survey, intervals, assays and custom-layer rows (rows in all: {total})?": "Supprimer {hole} avec ses levés, intervalles, analyses et lignes de couches personnalisées (lignes en tout : {total}) ?",
   "Deleted {hole} and its rows (Ctrl+Z restores it).": "{hole} et ses lignes supprimés (Ctrl+Z les restaure).",
   "You clicked a {model} drawn over the ground: the E / N are where the click's line meets the ground interpolated between the nearest collars, and the Elev is that ground (a collar is on the ground). Check it before using it, or load a terrain.": "Vous avez cliqué sur un {model} dessiné au-dessus du terrain : E / N sont l'endroit où la ligne du clic rencontre le terrain interpolé entre les collets les plus proches, et l'élévation est celle de ce terrain (un collet est au sol). Vérifiez avant de l'utiliser ou chargez un terrain.",
-  "modelled surface": "surface modélisée"
+  "modelled surface": "surface modélisée",
+  "Not sampled": "Non échantillonné",
+  "bare trace: no sample here": "trace nue : aucun échantillon ici"
 }
