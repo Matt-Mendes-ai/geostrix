@@ -54,13 +54,13 @@ export const stepName = (keys) => [...new Set((keys || []).map(labelOf))].join("
 export function undoTooltip(kind, peek, list) {
   const what = stepName(peek?.keys) || tr("the last step");
   const head = kind === "undo" ? tr("Undo (Ctrl/Cmd+Z)") : tr("Redo (Ctrl/Cmd+Shift+Z)");
-  const next = !peek ? (kind === "undo" ? tr("nothing to undo.") : tr("nothing to redo."))
+  const next = !peek ? (kind === "undo" ? tr("nothing to undo. Undo covers this session only: a project opened from its file starts with no history.") /* #3719 (c) */ : tr("nothing to redo."))
     : kind === "undo" && peek.viewFirst ? tr("the last thing done was a view change (colours, checked holes, layers shown), which is not undone: press once to be told, again to undo: {what}.", { what })
     : kind === "undo" ? tr("takes back: {what}.", { what }) : tr("puts back: {what}.", { what });
   return list ? `${head}: ${next} ${list}` : `${head}: ${next}`;
 }
 export function undoMessage(kind, result) {
-  if (result == null) return kind === "undo" ? tr("Nothing to undo.") : tr("Nothing to redo.");
+  if (result == null) return kind === "undo" ? tr("Nothing to undo. (Undo covers this session only: a project opened from its file starts with no history.)") : tr("Nothing to redo.");
   const keys = Array.isArray(result) ? result : result.keys || [], later = Array.isArray(result) ? [] : result.later || [];
   const what = [...new Set(keys.map(labelOf))].join(", ");
   // #3616 — the last thing done was a view change: nothing was undone; the next press takes the data step

@@ -47,7 +47,7 @@ export function groupSectionLegend(items, ribbons = null) {
 export function sectionNumericLegendItems(groups) {
   return (groups || []).flatMap((g) => (g.ramp
     ? [[g.label, null, { ramp: { colors: g.ramp.colors, min: g.ramp.min, max: g.ramp.max, minLabel: g.ramp.minLabel, maxLabel: g.ramp.maxLabel, log: !!g.ramp.log, ...(g.unit ? { unit: g.unit } : {}) /* TASKS.csv #3529 */ } }]]
-    : (g.items || []).filter(([, c]) => c).map(([n, c]) => [`${g.label}: ${n}`, c])));
+    : (g.items || []).filter(([, c]) => c).map(([n, c]) => [`${g.label}: ${g.byField ? String(n).replace(/ \([\d,]+\)$/, "") /* #3704 — the layer's row counts are not this section's */ : n}`, c])));
 }
 
 // TASKS.csv #1637 — the interval layers' ribbons from left to right on a hole drawn downwards (SectionWindow offsets them 0, +w, -w,

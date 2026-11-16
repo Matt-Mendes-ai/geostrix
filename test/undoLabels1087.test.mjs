@@ -11,7 +11,7 @@ test("#1087 changedKeys compares by reference", () => {
 test("#1087 the message names each kind once, and says when there was nothing", () => {
   assert.equal(undoMessage("undo", ["assays", "assayElements", "layoutPages"]), "Undone: assays, Layout pages.");
   assert.equal(undoMessage("redo", ["sections"]), "Redone: sections.");
-  assert.equal(undoMessage("undo", null), "Nothing to undo.");
+  assert.equal(undoMessage("undo", null), "Nothing to undo. (Undo covers this session only: a project opened from its file starts with no history.)"); // #3719 (c)
   assert.equal(undoMessage("undo", []), "Undone (no data changed).");
 });
 

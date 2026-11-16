@@ -32,7 +32,7 @@ export function collarTableRows(collars, { epsg = null, dataCredit = "" } = {}) 
   const skip = new Set(["hole_id", "x", "y", "z", "azimuth", "dip", "length", "attrs"]);
   const reserved = ["hole_id", "x", "y", "z", "azim_grid", "dip", "length", "epsg", "data_credit"];
   const names = collarAttrNames(collars, reserved), attFrom = (collars || []).some((c) => c?._attFrom);
-  return (collars || []).map((c) => { const pairs = Object.fromEntries(collarAttrPairs(c, reserved)); return { hole_id: c.hole_id, x: cell(c.x), y: cell(c.y), z: cell(c.z), azim_grid: cell(c.azimuth), dip: negDown(c.dip), length: cell(c.length), ...(epsg ? { epsg } : {}), ...(dataCredit ? { data_credit: dataCredit } : {}), ...(attFrom ? { attitude_from: attFromText(c) } : {}), ...rest(c, skip), ...Object.fromEntries(names.map((n) => [n, cell(pairs[n])])) }; });
+  return (collars || []).map((c, ci) => { const pairs = Object.fromEntries(collarAttrPairs(c, reserved)); return { hole_id: c.hole_id, x: cell(c.x), y: cell(c.y), z: cell(c.z), azim_grid: cell(c.azimuth), dip: negDown(c.dip), length: cell(c.length), ...(epsg ? { epsg } : {}), ...(dataCredit && ci === 0 ? { data_credit: dataCredit } : dataCredit ? { data_credit: "" } : {}), /* #3719 (f) — the credit once, on the first row (the importer takes the first one): it was 150 characters on 559 rows, 84 KB of 159 KB */ ...(attFrom ? { attitude_from: attFromText(c) } : {}), ...rest(c, skip), ...Object.fromEntries(names.map((n) => [n, cell(pairs[n])])) }; });
 }
 export function surveyTableRows(survey) {
   const skip = new Set(["hole_id", "depth", "azimuth", "dip"]);

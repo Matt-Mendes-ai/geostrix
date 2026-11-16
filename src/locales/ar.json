@@ -13402,5 +13402,10 @@
   "Delete {hole} with its survey, intervals, assays and custom-layer rows (rows in all: {total})?": "حذف {hole} مع مسحه وفتراته وتحاليله وصفوف الطبقات المخصصة (إجمالي الصفوف: {total})؟",
   "Deleted {hole} and its rows (Ctrl+Z restores it).": "تم حذف {hole} وصفوفه (Ctrl+Z يستعيده).",
   "You clicked a {model} drawn over the ground: the E / N are where the click's line meets the ground interpolated between the nearest collars, and the Elev is that ground (a collar is on the ground). Check it before using it, or load a terrain.": "نقرتَ على {model} مرسوم فوق سطح الأرض: E / N هما موضع التقاء خط النقرة بالأرض المستكمَلة بين أقرب الفوهات، والارتفاع هو ارتفاع تلك الأرض (الفوهة على الأرض). تحقق منه قبل استخدامه أو حمّل تضاريس.",
-  "modelled surface": "سطح منمذج"
+  "modelled surface": "سطح منمذج",
+  "Not sampled": "غير مأخوذ منه عينات",
+  "bare trace: no sample here": "مسار بلا عينة: لا توجد عينة هنا",
+  "nothing to undo. Undo covers this session only: a project opened from its file starts with no history.": "لا شيء للتراجع عنه. التراجع يشمل هذه الجلسة فقط: المشروع المفتوح من ملفه يبدأ بلا سجل.",
+  "Nothing to undo. (Undo covers this session only: a project opened from its file starts with no history.)": "لا شيء للتراجع عنه. (التراجع يشمل هذه الجلسة فقط: المشروع المفتوح من ملفه يبدأ بلا سجل.)",
+  "One CSV per table (collars, survey, every layer, assays) in a .zip, for Leapfrog, Micromine or any database; it loads into Postgres with COPY and into MySQL with LOAD DATA": "ملف CSV لكل جدول (الفوهات والمسح وكل طبقة والتحاليل) في ملف .zip، لـ Leapfrog أو Micromine أو أي قاعدة بيانات؛ يُحمَّل في Postgres بـ COPY وفي MySQL بـ LOAD DATA"
 }

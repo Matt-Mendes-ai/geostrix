@@ -13402,5 +13402,10 @@
   "Delete {hole} with its survey, intervals, assays and custom-layer rows (rows in all: {total})?": "¿Eliminar {hole} con su survey, intervalos, ensayes y filas de capas propias (filas en total: {total})?",
   "Deleted {hole} and its rows (Ctrl+Z restores it).": "Se eliminó {hole} y sus filas (Ctrl+Z lo restaura).",
   "You clicked a {model} drawn over the ground: the E / N are where the click's line meets the ground interpolated between the nearest collars, and the Elev is that ground (a collar is on the ground). Check it before using it, or load a terrain.": "Hizo clic en un {model} dibujado sobre el terreno: E / N son donde la línea del clic corta el terreno interpolado entre los collares más cercanos, y la elevación es ese terreno (un collar está en el terreno). Verifíquelo antes de usarlo o cargue un terreno.",
-  "modelled surface": "superficie modelada"
+  "modelled surface": "superficie modelada",
+  "Not sampled": "Sin muestrear",
+  "bare trace: no sample here": "traza sin muestra: aquí no hay muestra",
+  "nothing to undo. Undo covers this session only: a project opened from its file starts with no history.": "nada que deshacer. Deshacer cubre solo esta sesión: un proyecto abierto desde su archivo empieza sin historial.",
+  "Nothing to undo. (Undo covers this session only: a project opened from its file starts with no history.)": "Nada que deshacer. (Deshacer cubre solo esta sesión: un proyecto abierto desde su archivo empieza sin historial.)",
+  "One CSV per table (collars, survey, every layer, assays) in a .zip, for Leapfrog, Micromine or any database; it loads into Postgres with COPY and into MySQL with LOAD DATA": "Un CSV por tabla (collares, survey, cada capa, ensayes) en un .zip, para Leapfrog, Micromine o cualquier base de datos; se carga en Postgres con COPY y en MySQL con LOAD DATA"
 }
