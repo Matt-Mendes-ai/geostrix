@@ -3,7 +3,7 @@
 // trace, lift and drift included), the point, its vertical depth below the collar, and the angle between the hole and the
 // surface at that point (90 deg = the hole meets it square on; a low angle means a long, oblique intercept).
 // Pure: traces and meshes in world coordinates (E, N, elevation).
-import { buildMeshQuery, segmentHits } from "./meshQuery.js";
+import { buildMeshQuery, segmentHits, intervalsInsideMesh, isMeshClosed } from "./meshQuery.js";
 
 const queries = new WeakMap(); // surface object -> its mesh query, built once per surface geometry
 
@@ -48,6 +48,33 @@ export function piercePoints(trace, surfaces) {
     }
   }
   return out.sort((u, v) => u.md - v.md);
+}
+
+// TASKS.csv #3823 (Scottie Gold review) — the pierce table listed 18 crossings of one hole and six grade shells in depth order, six surfaces interleaved: nothing said which were
+// entries or the metres inside ('54.7 m inside the 1 g/t shell in two runs' was the answer wanted, and the reader paired rows by name). Grouped by surface; a CLOSED solid pairs its
+// crossings into runs (in at, out at, metres) with a total, the angle kept on the entry row; an open surface lists its crossings as before.
+// -> [{ surfaceId, surfaceName, closed, rows: [pierce + { run }], runs: [{ fromMd, toMd, metres, atCollar, atEnd, entry }], insideM }] by the depth of each surface's first crossing
+const closedOf = new WeakMap();
+const isClosedSurface = (s) => { let c = closedOf.get(s); if (c === undefined) { c = !!(s.positions && s.indices && isMeshClosed(s.positions, s.indices).closed); closedOf.set(s, c); } return c; };
+export function pierceGroups(trace, surfaces, pierces) {
+  const by = new Map();
+  for (const p of pierces || []) { if (!by.has(p.surfaceId)) by.set(p.surfaceId, []); by.get(p.surfaceId).push(p); }
+  const first = trace?.[0]?.md ?? 0, last = trace?.[trace.length - 1]?.md ?? 0, out = [];
+  for (const [id, rows] of by) {
+    const s = (surfaces || []).find((x) => x.id === id), closed = !!s && isClosedSurface(s);
+    const g = { surfaceId: id, surfaceName: rows[0].surfaceName, closed, rows, runs: [], insideM: 0 };
+    if (closed) {
+      const q = queryOf(s), { intervals } = q ? intervalsInsideMesh(q, trace) : { intervals: [] };
+      for (const iv of intervals) {
+        if (!iv.inside) continue;
+        const entry = rows.find((r) => Math.abs(r.md - iv.from) < 1e-3) || null;
+        g.runs.push({ fromMd: iv.from, toMd: iv.to, metres: iv.length, atCollar: iv.from <= first + 1e-6, atEnd: iv.to >= last - 1e-6, entry });
+        g.insideM += iv.length;
+      }
+    }
+    out.push(g);
+  }
+  return out.sort((a, b) => a.rows[0].md - b.rows[0].md);
 }
 
 // CSV rows for every planned hole's pierce points (hole name, surface, depths, coordinates, angle)

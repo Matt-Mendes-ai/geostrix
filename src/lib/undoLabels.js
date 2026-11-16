@@ -34,6 +34,7 @@ function labelOf(key) {
     case "mapLayers": return tr("map layers");
     case "themes": return tr("themes");
     case "evidenceOverlay": return tr("the evidence overlay");
+    case "surfaceIds": return tr("model surfaces"); // TASKS.csv #3824 (4) — the ids the undo snapshot keeps of the model surfaces: the tooltip read 'takes back: surfaceIds'
     default: return key;
   }
 }
