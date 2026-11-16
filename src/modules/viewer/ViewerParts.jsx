@@ -27,6 +27,7 @@ import { drillSiteSpacing } from "../../lib/drillSpacing.js"; // TASKS.csv #2517
 import CollarSizeControl from "./CollarSizeControl.jsx"; // TASKS.csv #2823
 import { autoGridSize, isAutoGrid } from "../../lib/viewer/gridGroup.js"; // TASKS.csv #2318
 import { useStore } from "../../lib/store.jsx"; // TASKS.csv #2517 — the collars
+import AssayStaleBadge from "../../components/AssayStaleBadge.jsx"; // TASKS.csv #3686
 // TASKS.csv #1702 (review #1645, Copley) — "Intercepts" opened lithology boundary picks; to a geologist an intercept is "24 m @ 0.44 % Cu".
 // The button is now "Contact picks", and "Grade intercepts" opens Best intercepts (Geochem's tool) on the loaded assays from here.
 const BestIntercepts = lazyModal(() => import("../../components/BestIntercepts.jsx"));
@@ -556,6 +557,7 @@ export function VoxelRangeRow({ model, onUpdate, compact = false, onShell = null
           {model.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
         </div>
         <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={modelListName(model, others)}>{modelListName(model, others)}</div>{/* #1839 — the property beside a shared name */}
+        <AssayStaleBadge params={model.params} />{/* TASKS.csv #3686 */}
         {isBand && <span style={{ color: "var(--color-info)", fontSize: "var(--font-size-xs)", flexShrink: 0 }} title={tr("A range filter is active on this model")}>{tr("band")}</span>}
       </div>}
       <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 6 }}>

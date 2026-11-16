@@ -11,6 +11,7 @@ import { activateOnKey } from "../lib/a11y.js";
 import { t as tr, fmtNum } from "../lib/i18n.js";
 import { saveFile } from "../lib/desktop.js";
 import { openHelp } from "../lib/help.js"; // TASKS.csv #3597
+import AssayStaleBadge from "./AssayStaleBadge.jsx"; // TASKS.csv #3686
 import { toExportCsv } from "../lib/tabular.js";
 import { stampLines, withStamp, NOT_A_RESOURCE } from "../lib/provenance.js";
 import { valueUnit, valueColumnName } from "../lib/blockModelExport.js";
@@ -215,6 +216,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
           <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600 }}>{tr("Grade-tonnage: {name}", { name: model.name })}</div>
           <span style={{ display: "flex", alignItems: "center", gap: 10 }}><button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("grade-tonnage")} aria-label={tr("Help: {name}", { name: tr("Grade-tonnage") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
         </div>
+        <AssayStaleBadge params={model.params} text />{/* TASKS.csv #3686 — the model was made from assays that have changed since */}
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
           <label style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 260 }}>{tr("Cutoffs ({unit})", { unit: unitL || tr("no unit stated") })}
             <input value={cutoffText} onChange={(e) => setCutoffText(e.target.value)} style={{ ...inp, flex: 1 }} aria-label={tr("Cutoffs, separated by commas")} /></label>

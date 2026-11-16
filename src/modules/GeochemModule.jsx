@@ -36,6 +36,7 @@ import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
 import { detectLongAssay, pivotLongAssays, longAssayNote } from "../lib/longAssays.js"; // TASKS.csv #623
 import { isSurfaceSampleTable, surfaceXYColumns } from "../lib/viewer/importHelpers.js"; // TASKS.csv #975; surfaceXYColumns: #2564
 import { seedFromProject, projectImportChoices, importChoicesOf, conversionsOver100 } from "../lib/assayReimport.js"; // TASKS.csv #3217
+import { assayChanges } from "../lib/assayStamp.js"; // TASKS.csv #3686
 import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3698 — g/t for a precious metal stored in ppm, in the X-Y axis lists
 import { assayFileSummary, removeAssayFile, removeAssayElement, carbonateShare, VOLCANIC_DIAGRAMS, LOI, isLoiHeader, readLoiCell, projectKeepsOxide, unitBasis, oxideAliases } from "../lib/geochem.js"; // oxideAliases: #2914; // LOI: #2734; // TASKS.csv #624; carbonateShare: #1392
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #624
@@ -866,6 +867,7 @@ export default function GeochemModule() {
     // #583 — merged ONCE (it was run twice, ~0.3 s each on 190,000 rows); recomputed only if the store moved on
     const mergeRes = mergeAssayRows(base, rows);
     const { merged: mergedCount, repeatedInFile } = mergeRes;
+    const chg = assayChanges(assays, mergeRes.rows); // TASKS.csv #3686 — what this import changed in the assays already loaded
     setAssays((prev) => (prev === assays ? mergeRes.rows : mergeAssayRows(replaceHoles.length ? dropHoleAssays(prev, replaceHoles) : prev, rows).rows));
     // Existing elements keep their unit (#334); only new symbols add an entry.
     setAssayElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (merged.has(e.symbol) && e.methods) { const m = merged.get(e.symbol); merged.set(e.symbol, { ...m, methods: [...new Set([...(m.methods || []), ...e.methods])] }); } /* #1518 */ if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: importStoreUnit(e) } : e); }); const last = importChoicesOf(modal); chosen.forEach((e) => { const m = merged.get(e.symbol); if (m) merged.set(e.symbol, { ...m, lastImport: last }); }); /* #3217 — the next import of these opens with them */ return Array.from(merged.values()); }); // #403: oxide-sourced elements are stored in % (#2157: or the ppm / ppb the header says; #2487: or as the oxide, "% Li2O")
@@ -883,6 +885,7 @@ export default function GeochemModule() {
       textCodes.nodl ? tr("{n} cell(s) written as below detection left blank: their column ({list}) states no detection limit to use.", { n: textCodes.nodl.toLocaleString(), list: [...textCodes.nodlCols].join(", ") }) : null,
       textCodes.na ? tr("{n} cell(s) marked not assayed (NULL, X, N/A, NS, -...) left blank.", { n: textCodes.na.toLocaleString() }) : null,
       mergedCount ? tr("{n} interval(s) were already loaded and were updated in place, not duplicated.", { n: mergedCount }) : null,
+      chg.valuesChanged ? tr("{n} interval(s) of the assays already loaded were replaced by this file: {m} value(s) changed in {k} hole(s) ({holes}). Grade shells, block models and tonnage tables made from the earlier values are marked \"assays changed\" until you run them again.", { n: chg.updated.toLocaleString(), m: chg.valuesChanged.toLocaleString(), k: chg.holes.length.toLocaleString(), holes: chg.holes.slice(0, 6).join(", ") + (chg.holes.length > 6 ? ", …" : "") }) : null, // #3686
       pairedLinks ? tr("{n} check sample(s) in this file paired with the QC links kept with the project (their category and parent sample were filled).", { n: pairedLinks.toLocaleString() }) : null, // TASKS.csv #3409
       (() => { // #541 — ids that miss a collar only by case / spaces / hyphens
         const ids = new Set(collars.map((c) => c.hole_id)); if (!ids.size) return null;
