@@ -9,7 +9,7 @@ function step(state, fitCell) {
   const s = { ...state };
   if (!fitCell) return s;
   if (!s.touched) { s.touched = true; s.autoCell = fitCell; s.cellSize = fitCell; return s; }
-  if (s.autoCell != null && s.cellSize === s.autoCell && fitCell > s.cellSize) { s.autoCell = fitCell; s.cellSize = fitCell; }
+  if (!s.typed && (s.autoCell == null || s.cellSize === s.autoCell) && fitCell > s.cellSize) { s.autoCell = fitCell; s.cellSize = fitCell; } // #3706: a cell the user never typed
   return s;
 }
 
@@ -22,14 +22,16 @@ test("the dialog's own cell is refitted until the blocks in reach fit; a typed c
   // never down: a smaller suggestion leaves it
   assert.equal(step({ touched: true, autoCell: 15.5, cellSize: 15.5 }, 15).cellSize, 15.5);
   // typed by the user (autoCell cleared by the input): left alone
-  assert.equal(step({ touched: true, autoCell: null, cellSize: 12 }, 16).cellSize, 12);
-  // a remembered cell (touched from the saved settings, no autoCell): left alone
-  assert.equal(step({ touched: true, autoCell: null, cellSize: 10 }, 15).cellSize, 10);
+  assert.equal(step({ touched: true, typed: true, autoCell: null, cellSize: 12 }, 16).cellSize, 12);
+  // #3706 — a remembered cell the user never typed (the dialog's own, from an earlier opening) is refitted: it left Run disabled when the grade-shell default was turned off
+  assert.equal(step({ touched: true, typed: false, autoCell: null, cellSize: 10 }, 15).cellSize, 15);
+  // a remembered TYPED cell: left alone
+  assert.equal(step({ touched: true, typed: true, autoCell: null, cellSize: 10 }, 15).cellSize, 10);
 });
 
 test("the dialog carries that rule", () => {
   const s = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
   assert.match(s, /if \(!cellTouched\.current\) \{ cellTouched\.current = true; setAutoCell\(fitCell\); setCellSize\(fitCell\); return; \}/);
-  assert.match(s, /if \(autoCell != null && cellSize === autoCell && fitCell > cellSize\) \{ setAutoCell\(fitCell\); setCellSize\(fitCell\); \}/);
-  assert.match(s, /onChange=\{\(e\) => \{ cellTouched\.current = true; setAutoCell\(null\);/, "typing clears the auto cell");
+  assert.match(s, /if \(!cellTyped\.current && \(autoCell == null \|\| cellSize === autoCell\) && fitCell > cellSize\) \{ setAutoCell\(fitCell\); setCellSize\(fitCell\); \}/); // #3706
+  assert.match(s, /onChange=\{\(e\) => \{ cellTouched\.current = true; cellTyped\.current = true; setAutoCell\(null\);/, "typing clears the auto cell and marks the cell typed");
 });
