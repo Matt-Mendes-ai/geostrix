@@ -13434,5 +13434,9 @@
   "Assumed from the column name: the file states no unit. Check it, or type the right one.": "Supuesta por el nombre de la columna: el archivo no indica unidad. Compruébela o escriba la correcta.",
   "{skipped} unrecognized file(s) skipped: {names}.": "{skipped} archivo(s) no reconocido(s) omitido(s): {names}.",
   "{name} with {models}: a UBC-GIF mesh and its model. Load them together in Geophysics > Block models (Import UBC mesh + model…).": "{name} con {models}: una malla UBC-GIF y su modelo. Cárguelos juntos en Geofísica > Modelos de bloques (Importar malla + modelo UBC…).",
-  "{names}: looks like a text table. Rename it to .csv (comma, tab, semicolon or space separated) to import it here.": "{names}: parece una tabla de texto. Renómbrelo a .csv (separado por comas, tabuladores, punto y coma o espacios) para importarlo aquí."
+  "{names}: looks like a text table. Rename it to .csv (comma, tab, semicolon or space separated) to import it here.": "{names}: parece una tabla de texto. Renómbrelo a .csv (separado por comas, tabuladores, punto y coma o espacios) para importarlo aquí.",
+  "Draw {m} groups": "Dibujar {m} grupos",
+  "Suggested: the 90th percentile ({v}, length-weighted) rounded to one significant figure. Set the cut-off you report at, or try:": "Sugerido: el percentil 90 ({v}, ponderado por longitud) redondeado a una cifra significativa. Ponga la ley de corte con la que informa, o pruebe:",
+  "All the samples above, every domain together; means {v}. The cut-offs are yours to type; until you do, they are the median, Q3 and P90 of these samples. An 'Also show' element is averaged over the same samples.": "Todas las muestras de arriba, todos los dominios juntos; medias {v}. Las leyes de corte las escribe usted; hasta entonces son la mediana, el Q3 y el P90 de estas muestras. Un elemento de 'Mostrar también' se promedia sobre el mismas muestras.",
+  "{k} more are outside it: set Frame to All the samples.": "Hay {k} más fuera de él: ponga Encuadre en Todas las muestras."
 }

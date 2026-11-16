@@ -1,6 +1,7 @@
 // TASKS.csv #1622 — Geochem > Surface samples > Grid to raster: one element of one medium as an IDW raster (lib/sampleGrid.js),
 // log10 by default for ppm / ppb, blanked away from the samples, coloured with the log stretch so the legend reads in the unit.
 import React, { useMemo, useState } from "react";
+import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3749 — g/t for a precious metal stored in ppm, in the labels
 import { useStore } from "../lib/store.jsx";
 import { t as tr } from "../lib/i18n.js";
 import { gridSamples, logByDefault, samplePoints, suggestSampleGrid, MINCURV_MAX_CELLS, SPLINE_MAX_CELLS, splineRequest, splineFinish } from "../lib/sampleGrid.js";
@@ -52,7 +53,7 @@ export default function SampleGridPanel({ setNotices }) {
     const colour = rasterColourFields(grid.values, grid.nx, grid.ny, style);
     const how = method === "mincurv" ? `min. curvature T${tension}` : method === "natneigh" ? "nat. neighbour" : method === "spline" ? "spline" : "IDW";
     const spl = method === "spline" ? { damping: res.damping, cvR2: res.cvScore, splinePoints: res.splinePoints, blockM: res.blockM, cvBlockM: res.cvBlockM } : {};
-    const name = `${el.symbol} (${el.unit})${medium ? ` ${medium}` : ""} ${how}${log ? " log10" : ""} ${res.cellM} m`;
+    const name = `${el.symbol} (${gradeUnitLabel(el.symbol, el.unit)})${medium ? ` ${medium}` : ""} ${how}${log ? " log10" : ""} ${res.cellM} m`;
     const drape = defaultDrapeElevation({ collars, voxelModels, surfaceSamples, bbox });
     addRaster({
       name, bbox, ...colour, elevation: drape.z,
@@ -74,7 +75,7 @@ export default function SampleGridPanel({ setNotices }) {
       {open && el && (
         <div style={{ marginTop: 6, padding: 8, border: "1px solid var(--color-border)", borderRadius: 6, display: "flex", flexDirection: "column", gap: 6 }}>
           <div style={{ display: "flex", gap: 6 }}>
-            <label style={lbl}>{tr("Element")}<select value={el.symbol} onChange={(e) => { setSymbol(e.target.value); setLogChoice(null); }} style={inp}>{surfaceElements.map((e) => <option key={e.symbol} value={e.symbol}>{`${e.symbol} (${e.unit})`}</option>)}</select></label>
+            <label style={lbl}>{tr("Element")}<select value={el.symbol} onChange={(e) => { setSymbol(e.target.value); setLogChoice(null); }} style={inp}>{surfaceElements.map((e) => <option key={e.symbol} value={e.symbol}>{`${e.symbol} (${gradeUnitLabel(e.symbol, e.unit)})`}</option>)}</select></label>
             <label style={lbl}>{tr("Medium")}<select value={medium} onChange={(e) => setMedium(e.target.value)} style={inp}><option value="">{tr("All")}</option>{media.map((m) => <option key={m} value={m}>{m}</option>)}</select></label>
           </div>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }}><input type="checkbox" checked={log} onChange={(e) => setLogChoice(e.target.checked)} />{tr("Interpolate log10 of the values (trace elements are lognormal)")}</label>

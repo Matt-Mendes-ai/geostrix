@@ -13434,5 +13434,9 @@
   "Assumed from the column name: the file states no unit. Check it, or type the right one.": "Presumida pelo nome da coluna: o arquivo não informa unidade. Confira ou digite a correta.",
   "{skipped} unrecognized file(s) skipped: {names}.": "{skipped} arquivo(s) não reconhecido(s) ignorado(s): {names}.",
   "{name} with {models}: a UBC-GIF mesh and its model. Load them together in Geophysics > Block models (Import UBC mesh + model…).": "{name} com {models}: uma malha UBC-GIF e seu modelo. Carregue-os juntos em Geofísica > Modelos de blocos (Importar malha + modelo UBC…).",
-  "{names}: looks like a text table. Rename it to .csv (comma, tab, semicolon or space separated) to import it here.": "{names}: parece uma tabela de texto. Renomeie para .csv (separado por vírgulas, tabulações, ponto e vírgula ou espaços) para importar aqui."
+  "{names}: looks like a text table. Rename it to .csv (comma, tab, semicolon or space separated) to import it here.": "{names}: parece uma tabela de texto. Renomeie para .csv (separado por vírgulas, tabulações, ponto e vírgula ou espaços) para importar aqui.",
+  "Draw {m} groups": "Desenhar {m} grupos",
+  "Suggested: the 90th percentile ({v}, length-weighted) rounded to one significant figure. Set the cut-off you report at, or try:": "Sugerido: o percentil 90 ({v}, ponderado pelo comprimento) arredondado para um algarismo significativo. Defina o teor de corte com que você reporta, ou tente:",
+  "All the samples above, every domain together; means {v}. The cut-offs are yours to type; until you do, they are the median, Q3 and P90 of these samples. An 'Also show' element is averaged over the same samples.": "Todas as amostras acima, todos os domínios juntos; médias {v}. Os teores de corte são digitados por você; até lá, são a mediana, o Q3 e o P90 destas amostras. Um elemento de 'Mostrar também' é calculado sobre o mesmas amostras.",
+  "{k} more are outside it: set Frame to All the samples.": "Há {k} a mais fora dele: ponha Enquadramento em Todas as amostras."
 }

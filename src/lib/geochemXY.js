@@ -4,6 +4,7 @@
 // hole that covers it (a depth-only reading stands for its own short support, as sourceAssays gives it). Pure.
 import { valueIn, convertUnit } from "./geochem.js"; // convertUnit: #3219
 import { sourceAssays } from "./numericSources.js";
+import { gradeUnitLabel } from "./geochemColumns.js"; // TASKS.csv #3749
 import { correlate } from "./correlation.js"; // TASKS.csv #2353
 import { median } from "./arrayStats.js"; // TASKS.csv #3577 — the shared median
 import { ternaryXY } from "./geochemDiagrams.js"; // TASKS.csv #3051
@@ -52,10 +53,10 @@ export function intervalLookup(intervals, symbol) {
 // an axis choice -> { label, value(sample, units) }. choice: { kind: "element", symbol, unit } | a numericSourceChoices entry
 export function axisOf(choice, ctx) {
   if (!choice) return null;
-  if (choice.kind === "element") return { label: choice.unit ? `${choice.symbol} (${choice.unit})` : choice.symbol, element: true, unit: choice.unit || "", value: (s, u) => valueIn(s, choice.symbol, choice.unit || undefined, u) }; // element / unit: #2203
+  if (choice.kind === "element") return { label: choice.unit ? `${choice.symbol} (${gradeUnitLabel(choice.symbol, choice.unit)})` : choice.symbol, /* TASKS.csv #3749 — g/t on the axis title and the key; .unit below stays the plain unit the ratio factor reads */ element: true, unit: choice.unit || "", value: (s, u) => valueIn(s, choice.symbol, choice.unit || undefined, u) }; // element / unit: #2203
   const { assays } = sourceAssays(choice, ctx);
   const at = intervalLookup(assays, choice.symbol); // #2353 — averaged over the sample's interval
-  return { label: choice.unit && choice.unit !== "as logged" ? `${choice.label} (${choice.unit})` : choice.label, unit: choice.unit || "", value: (s) => at(s) }; // unit: #2203
+  return { label: choice.unit && choice.unit !== "as logged" ? `${choice.label} (${choice.unitLabel || choice.unit})` : choice.label, unit: choice.unit || "", value: (s) => at(s) }; // unit: #2203
 }
 
 // The scatter as a diagram GeochemPlot draws: its ranges fitted to the samples' values (a log axis when they are all positive and

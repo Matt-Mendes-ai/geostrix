@@ -2,6 +2,7 @@
 // drainage ranking and the follow-up reaches (lib/hydrology.js, lib/catchments.js). One sample type at a time. The
 // terrain is routed once per terrain in a worker (lib/hydrologyClient.js); everything else recomputes instantly.
 import React, { useEffect, useMemo, useState } from "react";
+import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3749 — g/t for a precious metal stored in ppm, in the labels
 import { X, Download } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
 import { routeTerrainAsync } from "../lib/hydrologyClient.js";
@@ -99,7 +100,7 @@ export default function CatchmentsPanel({ onClose }) {
     <Shell onClose={onClose} sub={status === "routing" ? tr("Routing the terrain…") : status?.failed ? tr("Routing failed: {m}", { m: status.failed }) : route ? tr("Terrain {w} × {h} cells of {dx} × {dy} m, routed in {ms} ms; {f} cells raised to fill depressions.", { w: route.w, h: route.h, dx: Math.round(route.dx), dy: Math.round(route.dy), ms: status?.ms ?? "—", f: route.filledCells.toLocaleString() }) : ""}>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
         <label style={ctl}>{tr("Sample type")}<select value={opts.medium} onChange={(e) => set({ medium: e.target.value })} style={{ ...sel, display: "block", marginTop: 4 }}>{media.map((m) => <option key={m} value={m}>{tr(m)}</option>)}</select></label>
-        <label style={ctl}>{tr("Element")}<select value={opts.symbol || ""} onChange={(e) => set({ symbol: e.target.value })} style={{ ...sel, display: "block", marginTop: 4 }}>{surfaceElements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol} ({e.unit})</option>)}</select></label>
+        <label style={ctl}>{tr("Element")}<select value={opts.symbol || ""} onChange={(e) => set({ symbol: e.target.value })} style={{ ...sel, display: "block", marginTop: 4 }}>{surfaceElements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol} ({gradeUnitLabel(e.symbol, e.unit)})</option>)}</select></label>
         <label style={ctl}>{tr("Snap sites within (m)")}<input type="number" min="0" step="10" value={opts.snapM} onChange={(e) => set({ snapM: Math.max(0, Number(e.target.value) || 0) })} style={{ ...sel, display: "block", marginTop: 4, width: 90 }} /></label>
         <label style={ctl}>{tr("Streams from (km²)")}<input type="number" min="0.01" step="0.1" value={opts.minAreaKm2} onChange={(e) => set({ minAreaKm2: Math.max(0.001, Number(e.target.value) || 0.5) })} style={{ ...sel, display: "block", marginTop: 4, width: 90 }} /></label>
         <label style={ctl}>{tr("Background")}<select value={opts.background} onChange={(e) => set({ background: e.target.value })} style={{ ...sel, display: "block", marginTop: 4 }}><option value="median">{tr("Median of the sites")}</option><option value="value">{tr("A value")}</option></select></label>
@@ -127,7 +128,7 @@ export default function CatchmentsPanel({ onClose }) {
           {msg && <div style={{ ...note, color: "var(--color-text)" }}>{msg}</div>}
           <div style={{ overflow: "auto", maxHeight: 380 }}>
             <table style={tbl}>
-              <thead><tr><th style={th}>{tr("Rank")}</th><th style={{ ...th, textAlign: "start" }}>{tr("Site")}</th><th style={th}>{opts.symbol} ({unit})</th><th style={th}>{tr("Catchment km²")}</th><th style={th}>{tr("Own km²")}</th><th style={th}>{tr("Order")}</th><th style={th}>{tr("Productivity")}</th><th style={th}>{tr("Follow-up reach")}</th>{lithoLayer && opts.lithoField && <th style={{ ...th, textAlign: "start" }}>{tr("Catchment geology")}</th>}</tr></thead>
+              <thead><tr><th style={th}>{tr("Rank")}</th><th style={{ ...th, textAlign: "start" }}>{tr("Site")}</th><th style={th}>{opts.symbol} ({gradeUnitLabel(opts.symbol, unit)})</th><th style={th}>{tr("Catchment km²")}</th><th style={th}>{tr("Own km²")}</th><th style={th}>{tr("Order")}</th><th style={th}>{tr("Productivity")}</th><th style={th}>{tr("Follow-up reach")}</th>{lithoLayer && opts.lithoField && <th style={{ ...th, textAlign: "start" }}>{tr("Catchment geology")}</th>}</tr></thead>
               <tbody>{[...a.results].sort((x, y) => (x.rank ?? 1e9) - (y.rank ?? 1e9)).map((r) => (
                 <tr key={r.k} style={{ color: r.placed ? undefined : "var(--color-text-muted)" }}>
                   <td style={td}>{r.rank ?? "—"}</td>

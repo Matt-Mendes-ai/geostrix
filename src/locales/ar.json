@@ -13434,5 +13434,9 @@
   "Assumed from the column name: the file states no unit. Check it, or type the right one.": "مفترضة من اسم العمود: الملف لا يذكر وحدة. تحقق منها أو اكتب الوحدة الصحيحة.",
   "{skipped} unrecognized file(s) skipped: {names}.": "تم تخطي {skipped} ملف غير معروف: {names}.",
   "{name} with {models}: a UBC-GIF mesh and its model. Load them together in Geophysics > Block models (Import UBC mesh + model…).": "{name} مع {models}: شبكة UBC-GIF ونموذجها. حمّلهما معًا في الجيوفيزياء > نماذج الكتل (استيراد شبكة UBC + نموذج…).",
-  "{names}: looks like a text table. Rename it to .csv (comma, tab, semicolon or space separated) to import it here.": "{names}: يبدو جدولًا نصيًا. أعد تسميته إلى .csv (مفصولًا بفواصل أو علامات جدولة أو فواصل منقوطة أو مسافات) لاستيراده هنا."
+  "{names}: looks like a text table. Rename it to .csv (comma, tab, semicolon or space separated) to import it here.": "{names}: يبدو جدولًا نصيًا. أعد تسميته إلى .csv (مفصولًا بفواصل أو علامات جدولة أو فواصل منقوطة أو مسافات) لاستيراده هنا.",
+  "Draw {m} groups": "ارسم {m} مجموعة",
+  "Suggested: the 90th percentile ({v}, length-weighted) rounded to one significant figure. Set the cut-off you report at, or try:": "المقترح: المئين التسعون ({v}، مرجّحًا بالطول) مقرّبًا إلى رقم معنوي واحد. اضبط حد القطع الذي تُبلغ عنه، أو جرّب:",
+  "All the samples above, every domain together; means {v}. The cut-offs are yours to type; until you do, they are the median, Q3 and P90 of these samples. An 'Also show' element is averaged over the same samples.": "كل العينات أعلاه، جميع النطاقات معًا؛ المتوسطات {v}. تكتب أنت محتويات القطع؛ وإلى أن تفعل، فهي الوسيط وQ3 وP90 لهذه العينات. يُحسب متوسط عنصر 'اعرض أيضًا' على العينات نفسها.",
+  "{k} more are outside it: set Frame to All the samples.": "{k} إضافية خارجه: اضبط الإطار على كل العينات."
 }

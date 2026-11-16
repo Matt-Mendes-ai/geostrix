@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3749 — g/t for a precious metal stored in ppm, in the labels
 import { isNumericLayer } from "../lib/domainLayers.js"; // TASKS.csv #2477
 import { collarAttrChoices, collarsMatchingList, pickTerm } from "../lib/holeFilter.js"; // TASKS.csv #2607; pickTerm: #2960
 import { assayTrackRange } from "../lib/striplogSvg.js"; // TASKS.csv #2605
@@ -175,7 +176,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
               {[0, 1, 2, 3, 4].map((k) => (
                 <select key={k} value={assaySymbols[k]} aria-label={tr("Assay track {n}", { n: k + 1 })} onChange={(e) => setAssaySymbols((p) => p.map((s, j) => (j === k ? e.target.value : s)))} style={{ ...sel, flex: 1, minWidth: 80 }}>
                   <option value="">{tr("none")}</option>
-                  {assayElements.map((e) => <option key={e.symbol} value={e.symbol}>{e.unit ? `${e.symbol} (${e.unit})` : e.symbol}</option>)}
+                  {assayElements.map((e) => <option key={e.symbol} value={e.symbol}>{e.unit ? `${e.symbol} (${gradeUnitLabel(e.symbol, e.unit)})` : e.symbol}</option>)}
                 </select>
               ))}
             </div>

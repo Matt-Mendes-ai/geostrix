@@ -3,6 +3,7 @@
 // holes whose last sample of an element is at or above a typed cut-off (none is chosen for you), the highest first, each with 'Plan a deeper
 // hole here' (Planned holes opens with the end of that sample as the target; deepen it there).
 import React, { useMemo, useState } from "react";
+import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3749 — g/t for a precious metal stored in ppm, in the labels
 import { holesEndingAbove } from "../lib/evidenceSources.js";
 import { checkableHoleLengths } from "../lib/dataQC.js";
 import { valueIn } from "../lib/geochem.js";
@@ -31,7 +32,7 @@ export default function EndInOreList({ assays, elements, units, traces, collars,
     <details style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: 6 }}>
       <summary style={{ cursor: "pointer", color: "var(--color-text-secondary)" }}>{tr("Holes that stopped in ore")}</summary>
       <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
-        <select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={sel} aria-label={tr("Element")}>{(elements || []).map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol} ({e.unit})</option>)}</select>
+        <select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={sel} aria-label={tr("Element")}>{(elements || []).map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol} ({gradeUnitLabel(e.symbol, e.unit)})</option>)}</select>
         {tr("last sample ≥")}<input type="number" step="any" value={cut} onChange={(e) => setCut(e.target.value)} style={{ ...sel, width: 70 }} aria-label={tr("Cut-off of the last sample")} />
       </div>
       {list == null ? <div style={note}>{tr("Type a cut-off: the holes whose last sample of the element is at or above it are listed.")}</div>

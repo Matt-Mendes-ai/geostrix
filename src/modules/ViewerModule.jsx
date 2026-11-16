@@ -6665,7 +6665,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   <div
                     key={e.symbol}
                     title={on ? tr("Hide {symbol} — right-click for more", { symbol: e.symbol }) : tr("Show {symbol}", { symbol: e.symbol })}
-                    onContextMenu={(ev) => openRowMenu(ev, `${e.symbol}${e.unit ? ` (${e.unit})` : ""}`, [ // TASKS.csv #649 — like the other layers (#635)
+                    onContextMenu={(ev) => openRowMenu(ev, `${e.symbol}${e.unit ? ` (${gradeUnitLabel(e.symbol, e.unit)})` : ""}`, [ // TASKS.csv #649; #3749 — g/t — like the other layers (#635)
                       { label: on ? `Hide ${e.symbol}` : `Show ${e.symbol}`, onClick: () => toggleAssayElement(e.symbol) },
                       on && { label: tr("Style (colour, shape, size, classes)…"), onClick: () => setAssayStyleModalSymbol(e.symbol) },
                       on && assayDisplayElements.length > 1 && { label: `Show only ${e.symbol}`, onClick: () => setAssayDisplayElements([e.symbol]) },

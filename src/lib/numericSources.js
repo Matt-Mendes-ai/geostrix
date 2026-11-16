@@ -3,6 +3,7 @@
 // grade. The rows are turned into assay-shaped intervals under one "element" so the estimation, compositing, capping and
 // variogram code runs unchanged. Values are used as logged: the import never rescales a susceptibility, so the unit label
 // says "SI" and the dialogs say "as logged". Pure.
+import { gradeUnitLabel } from "./geochemColumns.js"; // TASKS.csv #3749
 import { logFilterOf, movingMedian } from "./logFilter.js"; // TASKS.csv #3241 — moved out so the 3D View can import it alone
 export { logFilterOf, filterLogRows, withFilteredLogs } from "./logFilter.js";
 import { numericLayerFields } from "./evidenceSources.js";
@@ -79,7 +80,7 @@ export function numericSourceChoices({ layers, customLayers, models = true, buil
       const label = f === "value" ? String(c.name) : `${c.name} › ${f}`;
       const unit = c.fieldUnits?.[f] ? String(c.fieldUnits[f]) /* #3700 (5) — a kept composite layer's field: its element's unit */ : c.unit && (f === "value" || (c.binM && (f === "min" || f === "max"))) ? String(c.unit) : CUSTOM_UNIT;
       const said = f === "value" ? logFilterLabel(logFilterOf({ range: c.validRange, despikeM: c.despikeM })) : ""; // #3116
-      custom.push({ key: `custom:${c.id}:${f}`, label: label + said, symbol: label, unit, n, logScale: false, field: f, layerId: c.id, ...(c.binM ? { binM: c.binM } : {}) /* #2396 */, _log: c.sourceModel != null ? 2 : c.unit || c.binM ? 0 : 1, _name: String(c.name) });
+      custom.push({ key: `custom:${c.id}:${f}`, label: label + said, symbol: label, unit, ...(c.fieldUnits?.[f] && gradeUnitLabel(f, unit) !== unit ? { unitLabel: gradeUnitLabel(f, unit) } /* TASKS.csv #3749 — the name a list shows: g/t for Au in ppm (labels only) */ : {}), n, logScale: false, field: f, layerId: c.id, ...(c.binM ? { binM: c.binM } : {}) /* #2396 */, _log: c.sourceModel != null ? 2 : c.unit || c.binM ? 0 : 1, _name: String(c.name) });
     }
   }
   custom.sort((a, b) => a._log - b._log || b.n - a.n || a._name.localeCompare(b._name));

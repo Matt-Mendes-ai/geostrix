@@ -2,6 +2,7 @@
 // interval at or over a threshold, of an assay element or a numeric log; lib/holeValueGrid.js) gridded at the collars with the
 // surface-sample gridding (lib/sampleGrid.js, #1622), so the raster is contoured and shown in the plan's figure like a soil grid.
 import React, { useMemo, useState } from "react";
+import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3749
 import { useStore } from "../lib/store.jsx";
 import { t as tr } from "../lib/i18n.js";
 import { gridSamples, logByDefault, samplePoints, suggestSampleGrid, MINCURV_MAX_CELLS } from "../lib/sampleGrid.js";
@@ -94,7 +95,7 @@ export default function HoleValueGridPanel() {
       {open && source && (
         <div style={{ marginTop: 5, display: "flex", flexDirection: "column", gap: 5 }}>
           <label style={lbl}>{tr("Value")}<select value={source.id} onChange={(e) => { setSourceId(e.target.value); setLogChoice(null); }} aria-label={tr("Per-hole value source")} style={inp}>
-            {sources.map((s) => <option key={s.id} value={s.id}>{s.unit ? `${s.label || s.symbol} (${s.unit})` : s.label || s.symbol}</option>)}{/* label: #3116 — a log's range / despike said */}
+            {sources.map((s) => <option key={s.id} value={s.id}>{s.unit ? `${s.label || s.symbol} (${s.unitLabel || gradeUnitLabel(s.symbol, s.unit)})` : s.label || s.symbol}</option>)}{/* label: #3116 — a log's range / despike said */}
           </select></label>
           {coded && <label style={lbl}>{tr("Code(s)")}<select multiple size={Math.min(5, source.codes.length)} value={codesOn} onChange={(e) => setCodes([...e.target.selectedOptions].map((o) => o.value))} aria-label={tr("Codes of the layer")} style={inp}>
             {source.codes.map((c) => <option key={c.code} value={c.code}>{`${c.code} (${c.n.toLocaleString()})`}</option>)}

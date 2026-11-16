@@ -2,6 +2,7 @@
 // the anomaly maps can use. Tie samples first; quantile matching only as a labelled fallback. Maths and sources in
 // lib/levelling.js.
 import React, { useMemo, useState } from "react";
+import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3749 — g/t for a precious metal stored in ppm, in the labels
 import { preferredElement } from "../lib/preferredElement.js"; // TASKS.csv #1523
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — Au on an Au-Ag project
 import { X } from "./icons.js";
@@ -74,7 +75,7 @@ export default function LevellingPanel({ onClose }) {
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
             <label style={ctl}>{tr("Sample type")}<select value={medium} onChange={(e) => { setMedium(e.target.value); setMsg(null); }} style={{ ...sel, display: "block", marginTop: 4 }}>{media.map((m) => <option key={m} value={m}>{m}</option>)}</select></label>
-            <label style={ctl}>{tr("Element")}<select value={symbol} onChange={(e) => { setSymbol(e.target.value); setMsg(null); }} style={{ ...sel, display: "block", marginTop: 4 }}>{elements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol} ({e.unit})</option>)}</select></label>
+            <label style={ctl}>{tr("Element")}<select value={symbol} onChange={(e) => { setSymbol(e.target.value); setMsg(null); }} style={{ ...sel, display: "block", marginTop: 4 }}>{elements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol} ({gradeUnitLabel(e.symbol, e.unit)})</option>)}</select></label>
             <label style={ctl}>{tr("Surveys told apart by")}<select value={column} onChange={(e) => { setColumn(e.target.value); setMsg(null); }} style={{ ...sel, display: "block", marginTop: 4 }}>{columns.map((c) => <option key={c} value={c}>{c}</option>)}</select></label>
           </div>
           {hasDomains && <div style={note}>{tr("\"{col}\" is not offered: it groups the samples by their chemistry, it does not tell surveys apart.", { col: DOMAIN_ATTR })}</div>}
@@ -105,7 +106,7 @@ export default function LevellingPanel({ onClose }) {
               </label>
               {preview && (
                 <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", alignSelf: "flex-start" }}>
-                  <thead><tr><th style={th}>{symbol} ({unit})</th><th style={th}>{tr("Median")}</th><th style={th}>{tr("Maximum")}</th></tr></thead>
+                  <thead><tr><th style={th}>{symbol} ({gradeUnitLabel(symbol, unit)})</th><th style={th}>{tr("Median")}</th><th style={th}>{tr("Maximum")}</th></tr></thead>
                   <tbody>
                     <tr><td style={td}>{tr("Reference survey")}</td><td style={td}>{num(preview.reference.median)}</td><td style={td}>{num(preview.reference.max)}</td></tr>
                     <tr><td style={td}>{tr("Survey before")}</td><td style={td}>{num(preview.before.median)}</td><td style={td}>{num(preview.before.max)}</td></tr>
