@@ -309,7 +309,7 @@ export function checkableHoleLengths(collars, survey) {
   }
   return out;
 }
-export function importCheckSummary(rows, collars, survey, label = "rows", range = null) {
+export function importCheckSummary(rows, collars, survey, label = "rows", range = null, { density = false } = {}) { // density: #3682 — says that a value outside is left out of the density mean
   const collarIds = new Set((collars || []).map((c) => c.hole_id));
   const len = checkableHoleLengths(collars, survey); // #2167
   let noTo = 0, swapped = 0, negative = 0, pastEoh = 0, pastBySurvey = 0, outside = 0, lo = Infinity, hi = -Infinity;
@@ -333,7 +333,7 @@ export function importCheckSummary(rows, collars, survey, label = "rows", range 
     : pastBySurvey === pastEoh ? tr("{pastEoh} past the end of their hole (its length from the deepest survey station, deeper than the collar's)", { pastEoh })
     : tr("{pastEoh} past the end of their hole ({collar} by the collar's length, {survey} by the deepest survey station)", { pastEoh, collar: pastEoh - pastBySurvey, survey: pastBySurvey }));
   if (unchecked.size) parts.push(tr("{n} hole(s) not checked against a hole length (no collar yet, or neither a collar length nor a survey station below 0 m)", { n: unchecked.size }));
-  if (outside) parts.push(tr("{n} with a value outside the plausible {min}–{max} ({range}: a keying or unit error?)", { n: outside, min: range.min, max: range.max, range: lo === hi ? String(lo) : `${lo} … ${hi}` })); // #1508
+  if (outside) parts.push(density ? tr("{n} with a value outside the plausible {min}–{max} ({range}: a keying or unit error?); the density mean the tonnage tools use leaves them out", { n: outside, min: range.min, max: range.max, range: lo === hi ? String(lo) : `${lo} … ${hi}` }) : tr("{n} with a value outside the plausible {min}–{max} ({range}: a keying or unit error?)", { n: outside, min: range.min, max: range.max, range: lo === hi ? String(lo) : `${lo} … ${hi}` })); // #1508; #3682
   if (orphans.size) {
     const ex = [...orphans].slice(0, 3).map((id) => { const m = /Did you mean "([^"]+)"/.exec(didYouMean(collarIds, id)); return m ? `${id} — collar ${m[1]} exists` : id; });
     parts.push(tr("{size} hole id(s) with no collar ({ex}{v})", { size: orphans.size, ex: ex.join("; "), v: orphans.size > 3 ? "; …" : "" }));

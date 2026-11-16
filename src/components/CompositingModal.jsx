@@ -10,6 +10,7 @@ import { customDomainOptions, isCategoricalLayer, attributeDomainOptions, attrib
 import { displayUnitOf, toDisplay, fromDisplay } from "../lib/displayUnits.js"; // TASKS.csv #3475
 import { countDuplicateAssayIntervals, capAudit, capAuditText, gradeUnitLabel } from "../lib/geochem.js"; // gradeUnitLabel: #1680
 import { compositeSet, compositeLayerRows, compositeSetCsvRows } from "../lib/compositeSet.js"; // TASKS.csv #3567 — every element in one run
+import { densityRangeOf } from "../lib/densityRange.js"; // TASKS.csv #3682
 import { densityLookup } from "../lib/densityWeight.js"; // TASKS.csv #3562 — grades weighted by length x density
 import { spreadFormat } from "../lib/interceptTable.js"; // TASKS.csv #3579 — one number of decimals per column
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
@@ -74,7 +75,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
   // TASKS.csv #3567 — the other elements composited in the same run; #3562 — the weighting; #3575 — what to do with the short piece at a hole's (or domain's) end
   const [extraSyms, setExtraSyms] = useState([]);
   const syms = useMemo(() => [symbol, ...extraSyms.filter((x) => x !== symbol && symbols.includes(x))], [symbol, extraSyms, assayElements]);
-  const density = useMemo(() => densityLookup(layers?.sg), [layers?.sg]);
+  const densityRange = densityRangeOf(project), density = useMemo(() => densityLookup(layers?.sg, densityRange), [layers?.sg, densityRange.min, densityRange.max]); // the project's density range: #3682
   const [weightBy, setWeightBy] = useState("length");
   const [shortEnd, setShortEnd] = useState("keep");
   const [minEnd, setMinEnd] = useState(1);

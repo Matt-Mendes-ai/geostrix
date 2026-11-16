@@ -958,7 +958,7 @@ export function makeImportPipeline(ctx, h) {
       // TASKS.csv #540 — what is wrong with these rows, said now (Data QC loads on demand: not in the startup bundle)
       const liveAtImport = importStateRef.current;
       import("../../lib/dataQC.js").then(({ importCheckSummary, PLAUSIBLE_RANGE }) => {
-        const msg = importCheckSummary(rows, liveAtImport.collars, liveAtImport.survey, `${LAYER_META[target].label} rows from ${fileName}`, (target === "sg" ? densityRangeOf(liveAtImport.project) : PLAUSIBLE_RANGE[target]) || null); // the project's density range: #3587 // #1508 — and values no rock has
+        const msg = importCheckSummary(rows, liveAtImport.collars, liveAtImport.survey, `${LAYER_META[target].label} rows from ${fileName}`, (target === "sg" ? densityRangeOf(liveAtImport.project) : PLAUSIBLE_RANGE[target]) || null, { density: target === "sg" /* #3682 */ }); // the project's density range: #3587 // #1508 — and values no rock has
         if (msg) setNotices((p) => [...p, msg]);
       }).catch(() => {});
       setNotices((p) => [...p, tr("Loaded {rows} rows into {label} from {fileName}.", { rows: rows.length, label: LAYER_META[target].label, fileName })

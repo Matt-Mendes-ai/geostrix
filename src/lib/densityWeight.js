@@ -2,17 +2,17 @@
 // interval weighted by length x density (NB23-023 70.50-84.20 m: 12.53 % Zn by length, 14.90 % by length x density): a dense sulphide
 // sample carries more metal per metre than a light one. Pure functions; the layer is the project's Specific gravity layer ({ hole_id, from, to, value } rows, t/m3).
 
-export const DENSITY_MIN = 1, DENSITY_MAX = 8; // t/m3: the range sgSummary (grade-tonnage) reads; a percent or a missing-data code outside it is left out
+import { DEFAULT_DENSITY_RANGE } from "./densityRange.js"; // TASKS.csv #3682 — the ONE density range (the project's, 1-6 t/m3 by default): this file kept a density range of its own after #3587 and accepted what Data QC flags
 
 // the project's density rows as a lookup: (hole, from, to) -> the length-weighted mean density over the sg rows overlapping that span, or null
-// when none does. Rows with no usable value (blank, <= 0, outside 1-8) are not readings.
-export function densityLookup(rows) {
+// when none does. Rows with no usable value (blank, <= 0, outside the project's density range) are not readings. range: { min, max } (densityRangeOf(project)).
+export function densityLookup(rows, range = DEFAULT_DENSITY_RANGE) {
   const byHole = new Map();
   let n = 0, left = 0;
   for (const r of rows || []) {
     const v = Number(r?.value), f = Number(r?.from), t = Number(r?.to);
     if (r?.value == null || r.value === "" || !Number.isFinite(v) || !(t > f)) continue;
-    if (v < DENSITY_MIN || v > DENSITY_MAX) { left++; continue; }
+    if (v < range.min || v > range.max) { left++; continue; }
     let a = byHole.get(r.hole_id);
     if (!a) byHole.set(r.hole_id, (a = []));
     a.push({ from: f, to: t, v });

@@ -35,6 +35,7 @@ import { elementOptionLabel, isLoiHeader } from "../lib/geochem.js"; // TASKS.cs
 import { pagePx, pageFormatOf, addPagesOnPaper } from "../lib/pageFormats.js"; // TASKS.csv #2479; addPagesOnPaper: #3370
 import { holeTotals, holeTotalsDisplay, holeExtraMeans } from "../lib/accumulation.js"; // TASKS.csv #2419 — Total per hole; holeExtraMeans: #3566
 import { compositeSourceAssays } from "../lib/compositeSources.js"; // TASKS.csv #3584
+import { densityRangeOf } from "../lib/densityRange.js"; // TASKS.csv #3682
 import { densityLookup } from "../lib/densityWeight.js"; // TASKS.csv #3562 — grades weighted by length x density
 
 const RESULT_ROW_H = 26; // TASKS.csv #222 — matches AttributeTableModal's row-windowing pattern
@@ -115,7 +116,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
   const [minLength, setMinLength] = useKeptState(keptScope, "bi.minLength", 0);
   const [perHole, setPerHole] = useState(false); // TASKS.csv #2419 — the intercepts summed per hole (total downhole length, grade × length)
   // TASKS.csv #3562 — the project's Specific gravity layer, when it has readings: 'Weight grades by' length or length × density. #3565 — the table's order and a hole filter.
-  const density = useMemo(() => densityLookup(layers?.sg), [layers?.sg]);
+  const densityRange = densityRangeOf(project), density = useMemo(() => densityLookup(layers?.sg, densityRange), [layers?.sg, densityRange.min, densityRange.max]); // the project's density range: #3682
   const [weightBy, setWeightBy] = useKeptState(keptScope, "bi.weightBy", "length");
   const densityAt = weightBy === "density" && density ? density : null;
   const [sortKey, setSortKey] = useKeptState(keptScope, "bi.sortKey", "gl");
