@@ -12,6 +12,7 @@
 // Macpass Ag at its P90), is in #3673's notes.
 import { samplesTrendByArea } from "../samplesTrend.js";
 import { trendBasis, trendSearchScales } from "../trend.js";
+import { planeVsDrilling } from "../drillingPlane.js"; // TASKS.csv #3782
 
 export const ENVELOPE_RANGES = { major: 4, semi: 3, minor: 1 }; // in sample spacings
 export const ENVELOPE_ISO = 0.5, ENVELOPE_MAX_SAMPLES = 32;
@@ -53,15 +54,19 @@ export const indicatorPoints = (points, cutoff) => (points || []).map((p) => ({ 
 
 // an area's envelope search: its at-cut composites' plane with the ranges in spacings. atPts: [{ x, y, z, hole_id }]; spacingM: the sample
 // spacing (lib/sampleSpacing.js). -> null (too few for a plane: a sphere of ranges.semi spacings) or { trend, basis, scales, majorM, axesM, n, holes }
-export function envelopeSearch(atPts, spacingM, { ranges = ENVELOPE_RANGES, minComposites = ENVELOPE_MIN_COMPOSITES, minHoles = ENVELOPE_MIN_HOLES } = {}) {
+// TASKS.csv #3782 — allPts (the area's composites, grade ignored): the plane is tested against the drilling (lib/drillingPlane.js); the shape of the
+// drilling -> { trend: null, drilling, rejected, n, holes } (the sphere, said)
+export function envelopeSearch(atPts, spacingM, { ranges = ENVELOPE_RANGES, minComposites = ENVELOPE_MIN_COMPOSITES, minHoles = ENVELOPE_MIN_HOLES, allPts = null } = {}) {
   const pts = (atPts || []).filter((p) => [p?.x, p?.y, p?.z].every(Number.isFinite));
   const holes = new Set(pts.map((p) => p.hole_id)).size;
   if (!(spacingM > 0) || pts.length < minComposites || holes < minHoles) return null;
-  const t0 = samplesTrendByArea(pts.map((p) => ({ x: p.x, y: p.y, z: p.z }))).trend;
+  const fit = samplesTrendByArea(pts.map((p) => ({ x: p.x, y: p.y, z: p.z }))), t0 = fit.trend;
   if (!t0) return null;
+  const drilling = allPts ? planeVsDrilling(t0, allPts, fit.used || pts.length, { usedPts: pts }) : null;
+  if (drilling?.drilling) return { trend: null, drilling, rejected: { dip: t0.dip, dipAzimuth: t0.dipAzimuth }, n: pts.length, holes };
   const trend = { name: "the plane of the composites at the cut-off", dip: t0.dip, dipAzimuth: t0.dipAzimuth, pitch: t0.pitch, ratios: { max: ranges.major, int: ranges.semi, min: ranges.minor } };
   const axesM = [ranges.major, ranges.semi, ranges.minor].map((k) => r1(k * spacingM));
-  return { trend, basis: trendBasis(trend), scales: trendSearchScales(trend), majorM: axesM[0], axesM, n: pts.length, holes };
+  return { trend, basis: trendBasis(trend), scales: trendSearchScales(trend), majorM: axesM[0], axesM, n: pts.length, holes, drilling };
 }
 
 // The clean-up of a field before its surface is drawn (nodes at or above `iso` are inside):

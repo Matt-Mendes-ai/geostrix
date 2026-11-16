@@ -17,6 +17,7 @@ import { toExportCsv } from "../lib/tabular.js";
 import { stampLines, withStamp, NOT_A_RESOURCE } from "../lib/provenance.js";
 import { valueUnit, valueColumnName } from "../lib/blockModelExport.js";
 import { metalColumns } from "../lib/gradeTonnage.js"; // TASKS.csv #1577
+import { shareAtOrAbove } from "../lib/metalCarriers.js"; // TASKS.csv #3784
 import { gradeTonnageTable, gradeTonnageRows, autoCutoffs, cutoffPct /* #1747 */, metalOf, sgSummary, EXPLORATION_TARGET_CAUTION, blocksInsideSolid, gradeTonnageByBench } from "../lib/gradeTonnage.js"; // blocksInsideSolid: #1949; gradeTonnageByBench: #1957
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #1216
 import { isMeshClosed } from "../lib/meshQuery.js"; // TASKS.csv #2061
@@ -79,6 +80,19 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
   // mean of all 559 holes' densities (2.967) where Tom West's own is 3.03. A model made before #3595 has no list: the whole layer, said so.
   // TASKS.csv #3598 — what the model pools: its holes' years and types, and whether a domain bounds it (lib/poolBasis.js)
   const pooled = useMemo(() => (model?.params?.holeIds ? poolBasis(model.params.holeIds, collars, model.params) : null), [model, collars]);
+  // TASKS.csv #3784 — the checks that qualify the tonnage, repeated where it is read: the cap and the metal it removed, the gap to the nearest-neighbour
+  // model, and how few composites carry the metal (from the estimate's record); the share of composites against blocks per cut-off is a column
+  const compQ = model?.params?.compositeGrades?.quantiles || null;
+  const { qualify, qualifyWarn } = useMemo(() => {
+    const P = model?.params || {}, out = [], u = gradeUnitLabel(P.element, P.unit);
+    let warn = false;
+    if (P.capValue != null && P.capAudit) out.push(tr("Capped at {cap} {unit}: {k} of {n} samples capped, {pct}% of the metal (grade × length) removed.", { cap: P.capValue, unit: u, k: fmtNum(P.capAudit.nCapped ?? 0), n: fmtNum(P.capAudit.nSamples ?? 0), pct: Number(P.capAudit.pctMetalRemoved ?? 0).toFixed(1) }));
+    const ck = P.estimateCheck;
+    if (ck?.departPct != null && Math.abs(ck.departPct) >= 10) { out.push(tr(ck.departPct > 0 ? "The estimate's mean is {pct}% above the nearest-neighbour model's ({est} against {nn} {unit}, over the same {n} blocks): inverse distance or kriging spreads the high grades. Check the swaths in the Estimation result." : "The estimate's mean is {pct}% below the nearest-neighbour model's ({est} against {nn} {unit}, over the same {n} blocks).", { pct: Math.round(Math.abs(ck.departPct)), est: ck.estimateMean, nn: ck.nearestNeighbourMean, unit: u, n: fmtNum(ck.blocks ?? 0) })); if (ck.departPct >= 20) warn = true; }
+    const mc = P.metalCarriers;
+    if (mc?.halfFrom > 0 && mc.composites > 0) { out.push(tr("Half of this model's metal comes from {k} of its {n} composites; the ten highest carry {p}%.", { k: fmtNum(mc.halfFrom), n: fmtNum(mc.composites), p: Math.round(100 * mc.tenHighestShare) })); if (mc.halfFrom <= Math.max(20, 0.05 * mc.composites)) warn = true; }
+    return { qualify: out, qualifyWarn: warn };
+  }, [model]);
   const modelHoles = useMemo(() => (Array.isArray(model?.params?.holeIds) && model.params.holeIds.length ? new Set(model.params.holeIds) : null), [model]);
   const densityRange = densityRangeOf(tonnageProject), densityRangeArr = [densityRange.min, densityRange.max], sgLayer = useMemo(() => { const s = modelHoles ? sgSummary((layers?.sg || []).filter((r) => modelHoles.has(r.hole_id)), densityRange) : sgSummary(layers?.sg, densityRange); return s ? { ...s, holes: modelHoles ? modelHoles.size : null } : null; }, [layers?.sg, modelHoles, densityRange.min, densityRange.max]); // #1216; the range: #3587; the model's holes: #3595
   const [fromSg, setFromSg] = useState(false); // the density is the SG layer's until it is typed over
@@ -318,6 +332,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
           <thead><tr>
             <th style={th}>{unitL ? tr("Cutoff ({unit})", { unit: unitL }) : tr("Cutoff")}</th><th style={th}>{tr("Blocks")}</th><th style={th}>{tr("Volume (m³)")}</th><th style={th}>{unitL ? tr("Mean grade ({unit})", { unit: unitL }) : tr("Mean grade")}</th>
             {tonnesOn && <th style={th}>{tr("Tonnes")}</th>}{tonnesOn && mcols.map((c) => <th key={c.key} style={th}>{element ? memberMetalLabel(c, element) : tr(c.label, c.args)}</th>)/* #3286 (4) */}
+            {compQ && <th style={th} title={tr("The share of the composites that informed the estimate (by length) at or above this cut-off, against the share of these blocks: more blocks than composites means the estimate spread the grade.")}>{tr("Composites / blocks")}</th>}{/* #3784 */}
             {hasSupport && <th style={th} title={tr("Share of the volume in blocks the estimate classed interpolated (between holes, from at least two)")}>{tr("Interpolated")}</th>}
             {beyondKnown && <th style={th} title={tr("Share of the metal in blocks lying wholly above or below every sample that informs them: grade carried up or down the holes into metres their samples do not reach")}>{tr("Beyond the samples")}</th>}
             {logKnown && <th style={th} title={tr("About the share of the metal from the readings of the log that filled the unsampled metres: neither a sample nor a typed barren value")}>{tr("From the log")}</th>}{/* #2721 */}
@@ -329,6 +344,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
             <tr key={r.cutoff}>
               <td style={td}>{sig4(r.cutoff)}{cutoffPct(r.cutoff, element, unit) != null ? ` (${sig4(cutoffPct(r.cutoff, element, unit))} %)` : ""}</td>{/* #1747 — a base metal in ppm: its cut-off in % too */}<td style={td}>{fmt(r.blocks)}</td><td style={td}>{fmt(r.volumeM3)}</td><td style={td}>{sig(r.meanGrade)}</td>
               {tonnesOn && <td style={td} title={exactTitle(r.tonnes)}>{sig(r.tonnes)}</td>}{tonnesOn && mcols.map((c) => <td key={c.key} style={td} title={r.metal == null ? undefined : exactTitle(r.metal * c.factor)}>{r.metal == null ? "—" : sig(r.metal * c.factor) /* #2404 — millions of pounds; #3284 — every tonnage and metal: 3 significant figures */}</td>)}
+              {compQ && (() => { const c = shareAtOrAbove(compQ, r.cutoff), b = cellsUsed.length ? r.blocks / cellsUsed.length : null; return <td style={{ ...td, ...(c != null && b != null && b >= 1.5 * c && b - c >= 0.05 ? { color: "var(--color-warn-text)" } : {}) }}>{c == null ? "—" : `${Math.round(c * 100)} %`} / {b == null ? "—" : `${Math.round(b * 100)} %`}</td>; })()}{/* #3784 */}
               {hasSupport && <td style={td}>{r.interpolatedShare == null ? "—" : `${Math.round(r.interpolatedShare * 100)} %`}</td>}
               {beyondKnown && <td style={td}>{r.beyondShare == null ? "—" : `${Math.round(r.beyondShare * 100)} %`}</td>}
               {logKnown && <td style={td}>{r.logShare == null ? "—" : `${Math.round(r.logShare * 100)} %`}</td>}{/* #2721 */}
@@ -341,11 +357,9 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
         {untypedCodes.length > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.5 }}>{/* #3013 */}{(() => { const list = untypedCodes.slice(0, 12).map(([c, n]) => tr("{code} ({n} blocks)", { code: c, n: fmtNum(n) })).join(", ") + (untypedCodes.length > 12 ? ", …" : ""); return rho ? tr("No density typed for {list}: their blocks take the default ({rho} t/m³).", { list, rho }) : tr("No density typed for {list}: with no default density typed, their blocks have a volume but no tonnes.", { list }); })()}</div>}
         {densityUse && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{/* #2550 */}{tr("Density by {layer}, the nearest logged interval within {r} m: {list}.", { layer: densityLayer === "weath" ? tr("Weathering") : densityLayer === "litho" ? tr("Lithology") : tr("Alteration"), r: Math.round(reachM), list: densityUse.map((d) => tr("{code} {rho} t/m³ ({n} blocks)", { code: d.code ?? tr("the default"), rho: d.rho ?? "—", n: d.n })).join("; ") })}{!tonnesOn ? " " + tr("Enter the default density to show the tonnes.") : ""}</div>}
         {beyondKnown && shown?.beyondShare > 0.1 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.5 }}>{tr(chips ? "{p} % of the metal at the {c} cutoff is in blocks above or below every sample that informs them: the estimate carried grade up or down the holes past their samples (unsampled chips reads as not known unless the estimate filled it)." : "{p} % of the metal at the {c} cutoff is in blocks above or below every sample that informs them: the estimate carried grade up or down the holes past their samples (unsampled core reads as not known unless the estimate filled it).", { p: Math.round(shown.beyondShare * 100), c: sig(shown.cutoff) })}</div>}
-        {topCut && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: topCut.heavy ? "var(--color-warn-text)" : "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{/* TASKS.csv #3783 — the cap decides the ounces: named here, with the metal it removed */}
-          {topCut.kind === "capped"
-            ? tr("Top cut: grades above {cap} {unit} were capped before estimating{v}. The contained metal and the blocks at each cutoff depend on it.", { cap: topCut.cap, unit: unitL || "", v: topCut.nSamples != null ? tr(" ({k} of {n} samples, {pct}% of the metal removed)", { k: fmtNum(topCut.nCapped), n: fmtNum(topCut.nSamples), pct: topCut.pctMetal != null ? Math.round(topCut.pctMetal * 10) / 10 : "?" }) : "" })
-            : tr("Top cut: none. The highest samples entered the estimate at full grade; the contained metal rests on them.")}
-          {topCut.heavy ? " " + tr("A cap that removes this much changes the ounces a great deal: report the capped and the uncapped model side by side.") : ""}
+        {qualify.length > 0 && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: qualifyWarn ? "var(--color-warn-text)" : "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{qualify.join(" ")}</div>}{/* #3784 */}
+        {topCut && (topCut.kind === "uncapped" || topCut.heavy) && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: topCut.heavy ? "var(--color-warn-text)" : "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{/* TASKS.csv #3783 — the cap and its metal are in #3784's line above; this says what it means for the ounces, or that there was none */}
+          {topCut.kind === "uncapped" ? tr("Top cut: none. The highest samples entered the estimate at full grade; the contained metal rests on them.") : tr("A cap that removes this much changes the ounces a great deal: report the capped and the uncapped model side by side.")}
         </div>}
         {floorKept.length > 0 && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.5 }}>{/* TASKS.csv #3788 */}
           {tr("Mostly the detection floor: {list}. The half-limit was kept as a low grade, so the contained metal of these elements is largely the detection limit, not a measurement.", { list: floorKept.map((f) => (f.kind === "flagged" ? tr("{el} ({pct}% of results below detection, stored at about {floor})", { el: f.symbol, pct: f.sharePct, floor: +Number(f.floor).toPrecision(3) }) : tr("{el} ({pct}% of results at {floor})", { el: f.symbol, pct: f.sharePct, floor: f.floor }))).join("; ") })}

@@ -53,7 +53,8 @@ test("wiring: the dialog asks for the NN model as columns and unlogs its values 
   assert.match(m, /signal: ac\.signal, checkOnly: true/);
   assert.match(m, /const nnCheck = method === "nn" \? est\.cells : nnEst\.checkColumns;/); assert.match(m, /nnCells: nnCheck/);
   // the check and the Easting swath worked out in the run, a task each; compositing / placing / the unsampled metres apart
-  assert.match(m, /setTimeout\(r, 0\)\); estimateCheck\(est\.cells, nnCheck, points\);\s+await new Promise\(\(r\) => setTimeout\(r, 0\)\); swath\(est\.cells, nnCheck, points, "x"\);/);
+  // #3784 — the check's task also records it (and the composites' grades and metal carriers) on the model
+  assert.match(m, /setTimeout\(r, 0\)\);\s+\/\/ TASKS\.csv #3784[^\n]*\n[^\n]*\n\s+\{ const ck = estimateCheck\(est\.cells, nnCheck, points\);[\s\S]{0,1200}?\}\s+await new Promise\(\(r\) => setTimeout\(r, 0\)\); swath\(est\.cells, nnCheck, points, "x"\);/);
   assert.match(m, /setTimeout\(r, 0\)\); \/\/ TASKS\.csv #3060 — compositing, placing the points/);
   assert.match(m, /const v = nnEst\.checkColumns\.value; for \(let i = 0; i < v\.length; i\+\+\) v\[i\] = unlogValue\(v\[i\]\)/);
   const cl = readFileSync(new URL("../src/lib/estimationClient.js", import.meta.url), "utf8");

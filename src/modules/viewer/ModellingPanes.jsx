@@ -352,7 +352,15 @@ export default function ModellingPanes(props) {
     const v = rows.map((a) => a.values[sym]).sort((x, y) => x - y), cutoff = +v[Math.floor(0.9 * (v.length - 1))].toPrecision(3);
     const pts = [];
     for (const a of rows) { if (a.values[sym] < cutoff) continue; const p = sheetPositionAt(a.hole_id, (a.from + a.to) / 2); if (p) pts.push(p); }
-    return { pts, cutoff, unit: (assayElements || []).find((e) => e.symbol === sym)?.unit || "" };
+    // TASKS.csv #3769 — a cut-off on the column's lowest value (a detection floor) takes every sample at it: said
+    const floor = cutoff === +v[0].toPrecision(3) ? v.filter((x) => +x.toPrecision(3) === cutoff).length / v.length : null;
+    return { pts, cutoff, unit: (assayElements || []).find((e) => e.symbol === sym)?.unit || "", floor };
+  };
+  // TASKS.csv #3769 — every assayed sample of the model area, grade ignored, on the traces: the drilling's own plane (lib/drillingPlane.js)
+  const trendDrillingPoints = () => {
+    const pts = [];
+    for (const a of excludeQAQC(shellAreaAssays)) { if (!Number.isFinite(a.from) || !Number.isFinite(a.to)) continue; const p = sheetPositionAt(a.hole_id, (a.from + a.to) / 2); if (p) pts.push({ x: p.x, y: p.y, z: p.z, hole_id: a.hole_id }); }
+    return pts;
   };
   const shellSampleSpacing = useMemo(() => {
     if (toolPane !== "shell" || !numericSymbol) return null;
@@ -686,7 +694,7 @@ export default function ModellingPanes(props) {
           <TrendsPanel structuralTrends={structuralTrends} setStructuralTrends={setStructuralTrends}
             structurePicks={structurePicksWithHoleAttitude}
             units={tiedUnits(litho_units, lithoGroups)} unitTopPoints={(code) => (topsOfUnit(code)?.tops || []).map((t) => sheetPositionAt(t.hole_id, t.md)).filter(Boolean)} /* #2428 */
-            sampleElements={shellSymbols} samplePoints={trendSamplePoints} /* #3593 — a trend from the grades */
+            sampleElements={shellSymbols} samplePoints={trendSamplePoints} /* #3593 — a trend from the grades */ drillingPoints={trendDrillingPoints} /* #3769 */
             surfaces={implicitSurfaces.map((x) => ({ id: x.id, name: x.name }))}
             surfacePoints={(id) => {
               const geo = implicitMeshesRef.current[id]?.geometry; if (!geo) return [];

@@ -21,6 +21,7 @@ import { samplesInsideShell } from "../shellSupport.js";
 import { farFromSamples } from "../haloSupport.js";
 import { gridShape } from "../blockReach.js";
 import { reachCutField } from "./shellPlane.js"; // TASKS.csv #3655
+import { holeRuns, bodyHoles } from "./shellBodies.js"; // TASKS.csv #3785
 import { cleanField, coarsenFactor, coarsenField, taubinSmooth } from "./shellEnvelope.js"; // TASKS.csv #3673
 import { meshInsideMask, meshInsideTester, signedDistance, priorField, blendWithPrior, updateReport } from "./domainUpdate.js"; // TASKS.csv #3673 phase 2
 
@@ -56,6 +57,9 @@ export function shellPost(grid, post) {
   const smoothed = env?.smooth && faces.length ? taubinSmooth(positions, faces, env.smooth) : positions; // #3673
   const inShell = samplesInsideShell(post.inShellPoints || [], grid, field, iso);
   const far = post.farPoints && post.farDist > 0 ? farFromSamples(field, nx, ny, nz, origin, cellSize, iso, post.farPoints, post.farDist, {}) : null;
+  // TASKS.csv #3785 — the runs along the holes, the bodies held by one hole, and the share far from the composites AT the cut-off
+  const B = post.bodies;
+  const bodies = B ? { runs: holeRuns(B.runPoints, grid, field, iso, B.cutoff), parts: bodyHoles(field, grid, iso, B.atPoints), farAt: B.farDist > 0 && B.atPoints?.length ? farFromSamples(field, nx, ny, nz, origin, cellSize, iso, B.atPoints, B.farDist, {}) : null } : null;
   const { sum, n } = sumInsideShell(base, field, iso);
   // #3673 phase 2 — what changed, against the old domain
   let update = null;
@@ -77,7 +81,7 @@ export function shellPost(grid, post) {
     grades = { n: vs.length, sum: gs, w: gw, median: vs.length ? vs[Math.floor(vs.length / 2)] : null, atCut, values: Float64Array.from(vs) }; // values: for one median over every box
   }
   let hi = -Infinity; for (const v of grid.values) if (Number.isFinite(v) && v > hi) hi = v;
-  return { positions: smoothed, faces, closingVertices: mc.closingVertices || 0, skippedCubes: mc.skippedCubes || 0, vertexSupport, capped: cut.capped, reachCut: reached.cut, ...(env ? { envelope: { clean: cleaned?.report || null, coarsen, trianglesFine, grades } } : {}), ...(update ? { update } : {}), inShell, far: far ? { inside: far.inside, far: far.far } : null, sum, n, hi };
+  return { positions: smoothed, faces, closingVertices: mc.closingVertices || 0, skippedCubes: mc.skippedCubes || 0, vertexSupport, capped: cut.capped, reachCut: reached.cut, ...(env ? { envelope: { clean: cleaned?.report || null, coarsen, trianglesFine, grades } } : {}), ...(update ? { update } : {}), inShell, far: far ? { inside: far.inside, far: far.far } : null, ...(bodies ? { bodies: { ...bodies, farAt: bodies.farAt ? { inside: bodies.farAt.inside, far: bodies.farAt.far } : null } } : {}) /* #3785 */, sum, n, hi };
 }
 
 // the ground per column of the lattice a dense grid over `bounds` at `cellSize` will have (estimation.js: gridShape, origin at the lower bound plus

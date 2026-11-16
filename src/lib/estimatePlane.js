@@ -46,15 +46,18 @@ export function planeCutoff(points, shell) {
   return { value: +v[Math.floor(0.9 * (v.length - 1))].toPrecision(3), from: "p90", n: v.length };
 }
 
-// points: the samples ({ x, y, z, hole_id, value }); -> null (keep the sphere) or { trend, cutoff, n, holes, leftOut }
+// points: the samples ({ x, y, z, hole_id, value }); -> null (keep the sphere) or { trend, cutoff, n, holes, leftOut, drilling }
+// TASKS.csv #3782 — tested against all the samples, grade ignored (lib/drillingPlane.js): the shape of the drilling -> { trend: null, drilling,
+// rejected: { dip, dipAzimuth } } and the search stays the sphere
 // The trend's ratios only: the dialog sizes the ellipsoid from its radius (sameVolumeMajorM).
 export function estimatePlane(points, shell = null) {
   const cut = planeCutoff(points, shell);
   if (!cut) return null;
   const at = (points || []).filter((p) => p?.value >= cut.value);
-  const pl = shellPlaneSearch(at, 1);
+  const pl = shellPlaneSearch(at, 1, { allPts: points });
   if (!pl) return { trend: null, cutoff: cut, n: at.length, holes: new Set(at.map((p) => p.hole_id)).size };
-  return { trend: pl.trend, cutoff: cut, n: pl.n, holes: pl.holes, leftOut: pl.leftOut };
+  if (!pl.trend) return { trend: null, cutoff: cut, n: pl.n, holes: pl.holes, drilling: pl.drilling, rejected: pl.rejected };
+  return { trend: pl.trend, cutoff: cut, n: pl.n, holes: pl.holes, leftOut: pl.leftOut, drilling: pl.drilling };
 }
 
 // The ellipsoid's three axes for a long axis
