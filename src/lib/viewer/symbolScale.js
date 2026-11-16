@@ -16,6 +16,8 @@ export function metresPerPixel(camera, radius, viewportH) {
 
 // the radius (m) a symbol needs to be `minPx` across on screen
 export const minSymbolRadiusM = (metresPerPx, minPx = 6) => (Number.isFinite(metresPerPx) ? (minPx / 2) * metresPerPx : 0);
+// TASKS.csv #3774 — a surface sample's drawn radius: the extent-based size (or its readable minimum), never more than `k` times that minimum (2: 12 px across) — 266 rock chips were 22 m spheres beside a 50 m scale bar, wider than a pad of five holes
+export const cappedRadiusM = (r, minR, k = 2) => (minR > 0 ? Math.min(Math.max(r, minR), minR * k) : r);
 
 // built at one metres-per-pixel, the camera now at another: rebuild when they differ by `factor` or more
 export const needsSymbolRebuild = (builtMpp, nowMpp, factor = 2) => Number.isFinite(builtMpp) && Number.isFinite(nowMpp) && builtMpp > 0 && nowMpp > 0 && Math.max(builtMpp / nowMpp, nowMpp / builtMpp) >= factor;

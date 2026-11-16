@@ -13521,5 +13521,7 @@
   "Automatic: {lin} on a linear axis (their values span under two decades), {log} on a log axis.": "Automático: {lin} en eje lineal (sus valores abarcan menos de dos décadas), {log} en eje logarítmico.",
   "The {n} checked holes of {all}.": "Los {n} sondajes marcados de {all}.",
   "This workspace is a read-only copy of the project's tables: only queries that read run here, and the project is never changed.": "Este espacio de trabajo es una copia de solo lectura de las tablas del proyecto: aquí solo se ejecutan consultas que leen, y el proyecto nunca cambia.",
-  "+ {hiddenCount} more not shown, among them {names} — filter categories, or build the figure in Layout": "+ {hiddenCount} más sin mostrar, entre ellos {names} — filtre categorías, o arme la figura en Lámina"
+  "+ {hiddenCount} more not shown, among them {names} — filter categories, or build the figure in Layout": "+ {hiddenCount} más sin mostrar, entre ellos {names} — filtre categorías, o arme la figura en Lámina",
+  "Hole ID at the toe": "ID del sondaje en el fondo",
+  "Hole ID at both ends": "ID del sondaje en ambos extremos"
 }

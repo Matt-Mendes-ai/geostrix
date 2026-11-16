@@ -13521,5 +13521,7 @@
   "Automatic: {lin} on a linear axis (their values span under two decades), {log} on a log axis.": "تلقائي: {lin} على محور خطي (تمتد قيمها على أقل من عقدين)، {log} على محور لوغاريتمي.",
   "The {n} checked holes of {all}.": "الثقوب المحددة وعددها {n} من {all}.",
   "This workspace is a read-only copy of the project's tables: only queries that read run here, and the project is never changed.": "مساحة العمل هذه نسخة للقراءة فقط من جداول المشروع: تُنفَّذ هنا الاستعلامات القارئة فقط، ولا يتغير المشروع أبداً.",
-  "+ {hiddenCount} more not shown, among them {names} — filter categories, or build the figure in Layout": "+ {hiddenCount} أخرى غير معروضة، منها {names} — صفِّ الفئات، أو ابنِ الشكل في التخطيط"
+  "+ {hiddenCount} more not shown, among them {names} — filter categories, or build the figure in Layout": "+ {hiddenCount} أخرى غير معروضة، منها {names} — صفِّ الفئات، أو ابنِ الشكل في التخطيط",
+  "Hole ID at the toe": "معرّف الثقب عند القاع",
+  "Hole ID at both ends": "معرّف الثقب عند الطرفين"
 }
