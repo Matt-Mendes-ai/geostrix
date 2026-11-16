@@ -22,9 +22,9 @@ test("a DXF built with a comment starts with it and carries $INSUNITS 6; without
   const plain = buildDXF({ features, geomType: "line" }).split(/\r?\n/);
   assert.equal(plain[0], "0"); assert.ok(!plain.includes("$INSUNITS") && !plain.includes("999"));
 });
-test("the three Mine Design writers pass it", () => {
+test("the three Mine Design writers pass it (the grid note and, since #3717, the data credit: dxfNotes)", () => {
   for (const [f, what] of [["DesignLinesPane", "Mine Design lines"], ["DesignStringsPane", "Mine Design strings"], ["PitDesignPane", "Pit design strings"]]) {
     const s = fs.readFileSync(new URL(`../src/components/${f}.jsx`, import.meta.url), "utf8");
-    assert.ok(s.includes(`buildDXF({ comment: dxfGridNote(project, "${what}"), `), f);
+    assert.ok(s.includes(`buildDXF({ comment: dxfNotes(project, "${what}"), `), f);
   }
 });
