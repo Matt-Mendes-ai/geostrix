@@ -21,6 +21,7 @@ import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { collarGround, collarsLookUnderground, pitMetalOf, elementOfModel, metalAmountText, gradeWithElement /* #2111 */, joinAlso /* #3084 */ } from "../lib/pitShell.js"; // #1905; metal: #2441
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { t as tr } from "../lib/i18n.js";
+import { topCutText } from "../lib/topCutText.js"; // TASKS.csv #3794
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 import StringManager from "./StringManager.jsx"; // TASKS.csv #1968 — many strings at once
 
@@ -298,7 +299,8 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
     const share = tonnage.tonnes / tonnes, unit = valueUnit(model), element = elementOfModel(model), m = unit ? pitMetalOf(unit, element) : null;
     const metal = m && tonnage.metalU > 0 ? " " + tr("Contained in those blocks: {m}.", { m: metalAmountText(tonnage.metalU * m.factor, m.unit, element, big) }) : "";
     const others = alsoChosen.length ? " " + tr("Other grades of those blocks: {list}.", { list: alsoChosen.map((am, k) => { const g = tonnage.alsoGrades?.[k], u = valueUnit(am), el = elementOfModel(am); return g == null ? `${el || am.property || am.name} —` : u && el ? gradeWithElement(g, u, el) : `${am.property || am.name} ${Number(g.toPrecision(3))}`; }).join("; ") /* #3328 (3) — '6.93 g/t Ag', not the model's whole name with no unit */ }) : ""; // #3084
-    return (share < 0.95 ? " " + tr("The blocks fill {p} % of the solid ({bt} t of {t} t): the grade is theirs, the rest has no estimate.", { p: Math.round(share * 100), bt: big(tonnage.tonnes), t: big(tonnes) }) : "") + metal + others;
+    const cut = topCutText(model?.params); // #3794 — what the grades were cut to
+    return (cut ? " " + cut.text : "") + (share < 0.95 ? " " + tr("The blocks fill {p} % of the solid ({bt} t of {t} t): the grade is theirs, the rest has no estimate.", { p: Math.round(share * 100), bt: big(tonnage.tonnes), t: big(tonnes) }) : "") + metal + others;
   };
   const finishSolid = (name0, r, how, prefix = "") => {
     const taken = new Set((surfaces || []).map((s) => s.name)); let name = name0; for (let k = 2; taken.has(name); k++) name = `${name0} (${k})`; // #1942
@@ -464,6 +466,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
             <Cell value={num0(solid.zBottom)} width={60} placeholder={tr("from Z")} ariaLabel={tr("Bottom elevation of the solid")} onCommit={(v) => setSolid((s) => ({ ...s, zBottom: v == null ? "" : String(v) }))} />
             <Cell value={num0(solid.zTop)} width={60} placeholder={tr("to Z")} ariaLabel={tr("Top elevation of the solid")} onCommit={(v) => setSolid((s) => ({ ...s, zTop: v == null ? "" : String(v) }))} />
             <button onClick={doExtrude} disabled={num0(solid.zBottom) == null || num0(solid.zTop) == null || num0(solid.zBottom) === num0(solid.zTop)} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 6px" }}><Box size={13} /> {tr("Make solid")}</button>
+            {(num0(solid.zBottom) == null || num0(solid.zTop) == null || num0(solid.zBottom) === num0(solid.zTop)) && <div style={{ flexBasis: "100%", fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{num0(solid.zBottom) != null && num0(solid.zBottom) === num0(solid.zTop) ? tr("The bottom and top elevations are the same: a solid needs a height.") : tr("Type both elevations (from Z and to Z) and press Tab or click away to commit them: the solid is made from the committed values.")}</div>}{/* #3801 (9) — why it is disabled */}
           </div>
         )}
         {closedStrings.length > 1 && (

@@ -6,7 +6,7 @@ import { unsampledWord } from "../lib/holeType.js"; // TASKS.csv #3513
 import { nearUnsampledMayBeStale } from "../lib/unsampledFlags.js"; // TASKS.csv #3065
 import React, { useMemo, useRef, useState } from "react";
 import { collarsForGround } from "../lib/collarGround.js"; // TASKS.csv #3582
-import { metalAmountText, elementOfModel, gradeWithElement, gradeUnitText /* #3328 */ } from "../lib/pitShell.js"; // TASKS.csv #2434
+import { metalAmountText, elementOfModel, gradeWithElement, gradeUnitText /* #3328 */, pitSettingsCells /* #3799 */ } from "../lib/pitShell.js"; // TASKS.csv #2434
 import { shellWallCompare } from "../lib/pitWalls.js"; // TASKS.csv #2433
 import { Layers3, Eye, EyeOff, Trash2, Download, Maximize2 } from "./icons.js"; // Maximize2: #2996
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // #1498
@@ -21,6 +21,8 @@ import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import UndergroundOreNote from "./UndergroundOreNote.jsx"; // TASKS.csv #2277
+import TopCutNote from "./TopCutNote.jsx"; // TASKS.csv #3794
+import { topCutCells } from "../lib/topCutCells.js";
 import { t as tr } from "../lib/i18n.js";
 import { weatheredBasePoints } from "../lib/weatheredZone.js"; // TASKS.csv #2671 — the shell's weathered zone, rebuilt from the log
 import { holeTraces } from "../lib/evidenceSources.js"; // TASKS.csv #2671
@@ -152,7 +154,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
   };
   const exportStringsDxf = () => saveFile({ suggestedName: "pit_design_strings.dxf", filters: [{ name: "DXF", extensions: ["dxf"] }], content: buildDXF({ comment: dxfNotes(project, "Pit design strings"), features: benchStringFeatures(res.strings), geomType: "line", layerOf: (ft) => ft.attributes.name, colorOf: (ft) => (ft.attributes.kind === "crest" ? "#b22222" : "#1f6fb2") }) });
   const exportStringsCsv = () => saveFile({ suggestedName: "pit_design_strings.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(benchStringRows(res.strings).map((r) => ({ ...r, crs: crsCell(project) }))) });
-  const exportBenchesCsv = () => saveFile({ suggestedName: "pit_design_benches.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(benchTableRows(res.benches, res.unit, res.alsoLabels || []).map((r) => ({ ...r, pit: res.pitName, crs: crsCell(project) }))) });
+  const exportBenchesCsv = () => saveFile({ suggestedName: "pit_design_benches.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(benchTableRows(res.benches, res.unit, res.alsoLabels || []).map((r) => ({ ...r, pit: res.pitName, ...pitSettingsCells(pit?.params?.inputs) /* #3799 */, ...topCutCells(model?.params) /* #3794 */, crs: crsCell(project) }))) });
   // #1929 — the figures in brackets: the whole shell's, or the largest separate pit's when that alone was designed
   const cmp = res?.partsDropped > 0 && res.shell?.largestPit ? res.shell.largestPit : (res?.shell || {});
   const cmpLabel = (whole, part) => (res?.partsDropped > 0 && res.shell?.largestPit ? part : whole);
@@ -254,6 +256,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
         </div>
       )}
       {pit && <UndergroundOreNote model={model} cutoff={pit.params?.cutoffGrade} />}{/* #2277 */}
+      {pit && <TopCutNote model={model} />}{/* #3794 */}
       {msg && <div style={warn}>{msg}</div>}
       {res && (
         <div style={{ marginTop: 8, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>

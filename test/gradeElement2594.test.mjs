@@ -29,5 +29,5 @@ test("the panes use it: Pit shell's mean grade and cut-offs, Stope outlines' cut
   assert.match(fs.readFileSync("src/components/PitDesignPane.jsx", "utf8"), /gradeWithElement\(g, unit, pit\?\.params\?\.element/);
   const nest = fs.readFileSync("src/components/NestedPitsPane.jsx", "utf8");
   assert.match(nest, /element: element \|\| "" \/\* #2594/);
-  assert.match(nest, /unit: element \? `\$\{res\.unit\} \$\{element\}` : res\.unit/);
+  assert.match(nest, /unit: element \? `\$\{gradeUnitText\(res\.unit, element\)\} \$\{element\}` : res\.unit/); // #3801 (1): g/t, not ppm, for gold
 });
