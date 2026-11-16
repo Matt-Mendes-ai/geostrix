@@ -12,7 +12,7 @@ test("#3616 the tooltip names the step the next press takes", () => {
   assert.equal(stepName(["assays", "assayElements"]), "assays");
   assert.equal(undoTooltip("undo", { keys: ["assays", "assayElements"], viewFirst: false }, ""), "Undo (Ctrl/Cmd+Z): takes back: assays.");
   assert.equal(undoTooltip("undo", { keys: ["collars", "survey"] }, "List."), "Undo (Ctrl/Cmd+Z): takes back: collars, surveys. List.");
-  assert.equal(undoTooltip("undo", null, ""), "Undo (Ctrl/Cmd+Z): nothing to undo.");
+  assert.equal(undoTooltip("undo", null, ""), "Undo (Ctrl/Cmd+Z): nothing to undo. Undo covers this session only: a project opened from its file starts with no history."); // #3719 (c)
   assert.equal(undoTooltip("redo", { keys: ["assays"] }, ""), "Redo (Ctrl/Cmd+Shift+Z): puts back: assays.");
   const v = undoTooltip("undo", { keys: ["assays"], viewFirst: true }, "");
   assert.match(v, /the last thing done was a view change/); assert.match(v, /not undone/); assert.match(v, /again to undo: assays\.$/);
@@ -23,7 +23,7 @@ test("#3616 the first Ctrl+Z after a view change only tells: its message names t
   assert.equal(m, "View changes (colours, checked holes, layers shown) are not undone. Press Undo again to undo: assays.");
   assert.match(undoMessage("undo", { viewOnly: true, keys: [], later: [] }), /Press Undo again to undo the last step\./);
   assert.equal(undoMessage("undo", { keys: ["assays"], later: [] }), "Undone: assays."); // a real undo is as before
-  assert.equal(undoMessage("undo", null), "Nothing to undo.");
+  assert.equal(undoMessage("undo", null), "Nothing to undo. (Undo covers this session only: a project opened from its file starts with no history.)");
 });
 
 test("#3616 colouring and hiding holes are view changes the tracker sees (so the store can tell the next Undo)", () => {

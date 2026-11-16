@@ -44,6 +44,7 @@ import { surveyAzimuthDipAt, desurveyMatters } from "../lib/desurvey.js"; // des
 import { unitSupport } from "../lib/unitSupport.js"; // #2096
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { renameProblem, holeRowCounts, mapCustomLayers, renameInRows, deleteInRows } from "../lib/holeEdit.js"; // TASKS.csv #3681
+import { collarsToEditRows, editRowsToCollars } from "../lib/collarEditRows.js"; // TASKS.csv #3711
 import { blockToCells, modelledIntervals, ABOVE_TOPS, unitAt } from "../lib/modelCheck.js"; // TASKS.csv #356
 import { sectionGrid, sameLine, unpackUnits, sectionPixels, blockSpacing, sectionZRange } from "../lib/modelSection.js"; // TASKS.csv #759
 import { openSectionWindow, saveFile, copyText, loadSampleFiles } from "../lib/desktop.js"; // copyText: TASKS.csv #589
@@ -138,6 +139,7 @@ let solidSeq = 0; // TASKS.csv #1887 — distinct ids for solids added within on
 import { hitLabel } from "../lib/viewer/hitLabel.js"; // TASKS.csv #1891 (moved out, #1084 size cap)
 import { customColour, customLegendGroups, customFields, sectionCustomLegendItems /* #2669 */ } from "../lib/customColour.js"; // TASKS.csv #1697
 import { sectionNumericLegendItems } from "../lib/sectionLegend.js"; // TASKS.csv #3413
+import { fieldColourer } from "../lib/fieldColours.js"; // TASKS.csv #3704
 const DumpPane = React.lazy(() => import("../components/DumpPane.jsx")); // TASKS.csv #1880
 const InterpretPane = React.lazy(() => import("../components/InterpretPane.jsx")); // TASKS.csv #1152
 const UndrilledZonesPane = React.lazy(() => import("../components/UndrilledZonesPane.jsx")); // TASKS.csv #1139 // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
@@ -5671,9 +5673,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     ["litho", "alt", "vein", "breccia", "weath", "structzone", "geotech", "recovery", "sg", "litho_gc", "alt_gc"].forEach((key) => {
       if (scope.layerKeys != null ? !scope.layerKeys.includes(key) : !layerVisible[key] && !scope.also?.includes(key)) return; // also: #3248
       const meta = LAYER_META[key];
+      const bf = meta.numeric ? fieldColourer(numericSymbology[key], layers[key]) : null; // #3704 — a density coloured by its method in the 3D view is drawn so on the section
       (layers[key] || []).forEach((row) => {
-        if (!holeIds.has(row.hole_id) || !isRowVisible(key, row)) return;
-        const color = meta.numeric ? numericLayerColor(key, row.value, key === "sg" ? sgRange : { min: 0, max: 100 }) : effectiveColor(key, row.value);
+        if (!holeIds.has(row.hole_id) || !isRowVisible(key, row) || (bf && !bf.shown(row))) return;
+        const color = bf ? bf.colourOf(row) : meta.numeric ? numericLayerColor(key, row.value, key === "sg" ? sgRange : { min: 0, max: 100 }) : effectiveColor(key, row.value);
         const label = meta.numeric ? row.value : effectiveLabel(key, row.value);
         intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${meta.label}: ${label}`, layer: key, code: row.value }); // #392 — layer drives the ribbon offset
       });
@@ -5683,12 +5686,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     ["mnlgy", "magsusc"].forEach((key) => {
       if (scope.layerKeys != null ? !scope.layerKeys.includes(key) : !layerVisible[key] && !scope.also?.includes(key)) return; // also: #3248
       const meta = LAYER_META[key];
-      const vals = (layers[key] || []).filter((r) => holeIds.has(r.hole_id) && isRowVisible(key, r));
+      const bf = meta.numeric ? fieldColourer(numericSymbology[key], layers[key]) : null; // #3704
+      const vals = (layers[key] || []).filter((r) => holeIds.has(r.hole_id) && isRowVisible(key, r) && (!bf || bf.shown(r)));
       const numeric = vals.map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
       const { min, max } = minMax(numeric); // not Math.min/max(...) — see layers.js's minMax comment
       vals.forEach((row) => {
         const mid = (row.from + row.to) / 2;
-        const color = meta.numeric ? numericLayerColor(key, row.value, { min, max }) : effectiveColor(key, row.value);
+        const color = bf ? bf.colourOf(row) : meta.numeric ? numericLayerColor(key, row.value, { min, max }) : effectiveColor(key, row.value);
         const label = meta.numeric ? row.value : effectiveLabel(key, row.value);
         // TASKS.csv #684 — a mineralisation INTERVAL is a ribbon over its depths in the section, not a dot at its midpoint
         if (key === "mnlgy" && isIntervalRow(row)) { intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${meta.label}: ${label}${row.extra != null ? ` (${row.extra}%)` : ""}`, layer: key }); return; }
@@ -5912,7 +5916,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     legendItems.sort((a, b) => a[0].localeCompare(b[0]));
     // TASKS.csv #2669 — the custom layers drawn on the section (a strat-unit ribbon, a gamma log): their classes, or their ramp
     legendItems.push(...sectionCustomLegendItems(customLayers, new Set([...intervals, ...points].map((r) => String(r.layer || "")).filter((k) => k.startsWith("custom:")).map((k) => k.slice(7))), layerStyles));
-    { const nk = ["sg", "geotech", "recovery", "magsusc"].filter((k) => intervals.some((r) => r.layer === k) || points.some((r) => r.layer === k)); if (nk.length) legendItems.push(...sectionNumericLegendItems(numericLayerLegendGroups({ keys: nk, layers, layerVisible: Object.fromEntries(nk.map((k) => [k, true])), isRowVisible, colorOf: numericLayerColor, symbology: numericSymbology, clips: numericClip, fieldColours: false /* #3553 */ }))); } // TASKS.csv #3377 / #3413 — the numeric ribbons' keys (SG, RQD %, recovery, mag susc), as the 3D legend's
+    { const nk = ["sg", "geotech", "recovery", "magsusc"].filter((k) => intervals.some((r) => r.layer === k) || points.some((r) => r.layer === k)); if (nk.length) legendItems.push(...sectionNumericLegendItems(numericLayerLegendGroups({ keys: nk, layers, layerVisible: Object.fromEntries(nk.map((k) => [k, true])), isRowVisible, colorOf: numericLayerColor, symbology: numericSymbology, clips: numericClip, fieldColours: true /* #3553 off; #3704 — the key names the methods the ribbons are coloured by */ }))); } // TASKS.csv #3377 / #3413 — the numeric ribbons' keys (SG, RQD %, recovery, mag susc), as the 3D legend's
 
     // TASKS.csv #357 — model surfaces and imported solids ON the section. Every visible implicit/solid mesh
     // is cut by the vertical section plane (per-triangle sign test, once per section): the geologist can
@@ -7695,7 +7699,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 {head(tr("Traces: {n} desurveyed 3D lines, from the survey or, without one, from the collar azimuth, dip and length", { n: nTr }))}
                 {three("survey", "__survey__", "Traces", !nTr)}
                 <div style={{ borderTop: "1px solid var(--color-border)", margin: "4px 0" }} />
-                <ContextItem label={tr("Export all drillhole tables (.zip of CSV)…")} title={tr("Loads into Postgres with COPY and into MySQL with LOAD DATA")} onClick={() => { exportDrillholeTables("all"); close(); }} />
+                <ContextItem label={tr("Export all drillhole tables (.zip of CSV)…")} title={tr("One CSV per table (collars, survey, every layer, assays) in a .zip, for Leapfrog, Micromine or any database; it loads into Postgres with COPY and into MySQL with LOAD DATA")} onClick={() => { exportDrillholeTables("all"); close(); }} />
               </div>
             </div>
           );
@@ -7719,7 +7723,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             <ContextItem label={tr("Export DXF (.dxf)…")} onClick={() => { exportVectorDXF(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
             <ContextItem label={tr("Export GOCAD (.vs / .pl)…")} onClick={() => { exportVectorGocad(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} /> {/* #2631 */}
             {layerContextMenu.key !== "geophys_pts" && <ContextItem label={tr("Export CSV table (imports back)…")} onClick={() => { exportDrillholeTables(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />}
-            <ContextItem label={tr("Export all drillhole tables (.zip of CSV)…")} title={tr("Loads into Postgres with COPY and into MySQL with LOAD DATA")} onClick={() => { exportDrillholeTables("all"); setLayerContextMenu(null); }} />
+            <ContextItem label={tr("Export all drillhole tables (.zip of CSV)…")} title={tr("One CSV per table (collars, survey, every layer, assays) in a .zip, for Leapfrog, Micromine or any database; it loads into Postgres with COPY and into MySQL with LOAD DATA")} onClick={() => { exportDrillholeTables("all"); setLayerContextMenu(null); }} />
             <ContextItem label={tr("Inspect / edit table…")} onClick={() => { setAttrTableTarget({ kind: vectorKind, key: layerContextMenu.key, label: layerContextMenu.label }); setLayerContextMenu(null); }} />
             {!isVector && <>
               {/* TASKS.csv #76 — sort this layer into a named group (or back out of one). */}
@@ -7776,9 +7780,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {attrTableTarget && (
         <AttributeTableModal
           title={attrTableTarget.kind === "collars" || attrTableTarget.kind === "survey" ? tr("{label} (dip negative = down)", { label: attrTableTarget.label }) : attrTableTarget.label}
-          rows={attrTableTarget.kind === "collars" ? collars.map(dipShown) : attrTableTarget.kind === "survey" ? survey.map(dipShown) : (layers[attrTableTarget.key] || [])}
+          rows={attrTableTarget.kind === "collars" ? collarsToEditRows(collars).map(dipShown) /* #3711 — one column per collar field, not an attrs object */ : attrTableTarget.kind === "survey" ? survey.map(dipShown) : (layers[attrTableTarget.key] || [])}
           onSave={(newRows) => {
-            if (attrTableTarget.kind === "collars") setCollars(newRows.map(dipStored));
+            if (attrTableTarget.kind === "collars") setCollars(editRowsToCollars(newRows.map(dipStored), collars));
             else if (attrTableTarget.kind === "survey") setSurvey(newRows.map(dipStored));
             else replaceLayer(attrTableTarget.key, newRows);
             setNotices((p) => [...p, notice("Saved edits to \"{label}\" ({newRows} row(s)).", { label: attrTableTarget.label, newRows: newRows.length })]);

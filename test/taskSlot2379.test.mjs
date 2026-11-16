@@ -34,6 +34,6 @@ test("alone, a tool shows its own progress and clears it; a task with no Cancel 
 
 test("the short tools use it, and none clears the slot outright", () => {
   const m = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
-  assert.equal((m.match(/ownTask\(label\)\.clear\(\)/g) || []).length, 3);
+  assert.equal((m.match(/ownTask\((label|taskLabel)\)\.clear\(\)/g) || []).length, 3); // #3700 (1): the shell's task keeps the name it started with
   assert.equal((m.match(/setTaskProgress\?\.\(\{ label, pct: 20 \}\)/g) || []).length, 0);
 });

@@ -30,7 +30,7 @@ test("1 : 5,000: the holes are 19 px apart: the full 0.8 mm dot with its white o
 test("the drawing caps the radius, drops the outline and leaves a no-value ring unfilled when dense", () => {
   const g = readFileSync(new URL("../src/components/DrillPlanElement.jsx", import.meta.url), "utf8");
   assert.match(g, /const gap = collarSpacing\(d\.holes\.filter\(\(hh\) => hh\.inside\)\.map\(\(hh\) => \(\{ x: hh\.ax, y: hh\.ay \}\)\)\);/);
-  assert.match(g, /return \{ halo: !\(gap < 6\), cap: gap > 0 \? Math\.max\(0\.75, 0\.4 \* gap\) : Infinity \};/);
+  assert.match(g, /return \{ halo: !\(gap < 6\), cap: gap > 0 \? Math\.max\(0\.75, 0\.4 \* gap, gap >= 1\.5 \? 0\.5 \* MM : 0\) : Infinity \};/); // #3599: a printable floor unless under 1.5 px apart
   assert.match(g, /const hollowFill = dense\.halo \? "#ffffff" : "none";/);
   assert.match(g, /r=\{r\} fill=\{s\.colour\} stroke=\{dense\.halo \? "#ffffff" : "none"\}/);
 });

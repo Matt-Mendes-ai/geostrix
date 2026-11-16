@@ -9,7 +9,7 @@ const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.
 test("the shell's name: trend and checked holes", () => {
   assert.match(r, /const shellArea = modelArea === "checked" \? checkedHoleCount\(collars, visibleHoles\) : null;/);
   assert.match(r, /shellArea && shellArea\.checked < shellArea\.all \? `\$\{shellArea\.checked\} checked holes` : ""/);
-  assert.match(r, /const label = `\$\{symbol\} > \$\{numericCutoff\} \$\{unitL\} shell\$\{shellTags\.length \? ` \(\$\{shellTags\.join\(", "\)\}\)` : ""\}`;/);
+  assert.match(r, /const shellName = \(tags\) => `\$\{symbol\} > \$\{numericCutoff\} \$\{unitL\} shell\$\{tags\.length \? ` \(\$\{tags\.join\(", "\)\}\)` : ""\}`;/); // #3700 (1)
 });
 
 test("the pane still prints the ellipsoid under a trend (#2676)", () => {

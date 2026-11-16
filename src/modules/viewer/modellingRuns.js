@@ -2515,9 +2515,10 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
     // TASKS.csv #3673 — the envelope: with no trend, no flat search and no log read as log10 (the worker's path, below)
     const shellPref = shellModePref(), envelopeMode = shellPref !== "tight" && !anisotropy.enabled && !numSrc?.logScale, envIso = envelopeMode ? shellEnvelopeIso() : null;
     const shellTags = [envelopeMode ? (shellPref === "auto" ? `automatic, p ${envIso}` : `envelope p ${envIso}`) : "", anisotropy.flat ? `flat search ${numericSearchRadius} × ${Number(numericFlatReach)} m` /* #3062 */ : anisotropy.enabled && trendRatioText(anisotropy.params) ? `trend ${trendRatioText(anisotropy.params)}` : "", shellArea && shellArea.checked < shellArea.all ? `${shellArea.checked} checked holes` : ""].filter(Boolean);
-    const label = `${symbol} > ${numericCutoff} ${unitL} shell${shellTags.length ? ` (${shellTags.join(", ")})` : ""}`; // #2423 — shells under different trends are told apart
+    const shellName = (tags) => `${symbol} > ${numericCutoff} ${unitL} shell${tags.length ? ` (${tags.join(", ")})` : ""}`; // #2423 — shells under different trends are told apart
+    const taskLabel = shellName(shellTags); // the task's name while it runs: the areas' kinds are not known yet
     setNumericBusy(true);
-    ownTask(label).set(20); // #2379
+    ownTask(taskLabel).set(20); // #2379
     setTimeout(async () => {
       try {
         const { marchingCubes } = await import("../../lib/marchingCubes.js"); // #476 — loaded on first use
@@ -2693,6 +2694,8 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // TASKS.csv #3673 — each drilled area's shell: Automatic (the default) by the share of its composites at the cut-off, or the one the pane forces
         const boxChoice = gridBoxes.map((b) => (envLib && workerPost ? envLib.chooseShell(b.idx.map((k) => gridPoints[k]), numericCutoff, shellPref, { spacingM: gsSampleSpacing > 0 ? gsSampleSpacing : gsSpacing }) : { mode: "tight", share: null }));
         const envBox = boxChoice.map((c) => c.mode === "envelope"), anyEnv = envBox.some(Boolean);
+        // TASKS.csv #3700 (1) — named for what it came out as: Automatic said 'automatic, p 0.5' on a shell whose areas were all tight (no probability used)
+        const label = shellName(shellTags.map((t, i) => (i === 0 && envelopeMode && shellPref === "auto" ? (anyEnv ? (envBox.every(Boolean) ? `envelope p ${envIso}` : `envelope and tight, p ${envIso}`) : "tight") : t)));
         const indPoints = anyEnv ? envLib.indicatorPoints(gridPoints, numericCutoff) : null; // #3673: 1 at or above the cut-off
         const planeLib = workerPost && numericSearchRadius > 0 && shellPlaneSearchOn() && envBox.some((e) => !e) ? await import("../../lib/viewer/shellPlane.js") : null;
         const planes = gridBoxes.map((b, bi) => (planeLib && !envBox[bi] ? planeLib.shellPlaneSearch(b.idx.map((k) => gridPoints[k]).filter((q) => q.value >= numericCutoff), numericSearchRadius) : null));
@@ -2725,7 +2728,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
             : numericMethod === "ok" && numericVariogram && ["nugget", "sill", "range"].every((k) => numericVariogram[k] !== "" && Number.isFinite(Number(numericVariogram[k])))
             ? { variogram: { model: numericVariogram.model || "spherical", nugget: Number(numericVariogram.nugget), sill: Number(numericVariogram.sill), range: Number(numericVariogram.range) * (anisotropy.enabled ? gsScl.major : 1) } }
             : numericMethod === "ok" ? { variogram: { model: numericVariogram?.model || "spherical" } } : {}),
-        }, { signal: ac.signal, onProgress: (f) => ownTask(label).set(20 + (60 * (before + f * boxN[bi])) / boxTotal, () => ac.abort()) });
+        }, { signal: ac.signal, onProgress: (f) => ownTask(taskLabel).set(20 + (60 * (before + f * boxN[bi])) / boxTotal, () => ac.abort()) });
         if (logInfo) unlogGrid(g); // #1741 — back to data units: the iso-surface at the cutoff is unchanged, each node a geometric mean
         grids.push(g);
         }
@@ -2973,7 +2976,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
       } catch (e) {
         setNotices((p) => [...p, e?.cancelled ? notice("Numeric model cancelled.") : e?.prompt ? { text: e.message, level: "info" } /* #3607 (1) */ : errorNotice(tr("Numeric model failed: {v}", { v: e.message || e }))]);
       }
-      ownTask(label).clear(); // #2379 — only this tool's entry
+      ownTask(taskLabel).clear(); // #2379 — only this tool's entry
       setNumericBusy(false);
     }, 40);
   }; // anisotropy/domains/modelDomainId: TASKS.csv #273

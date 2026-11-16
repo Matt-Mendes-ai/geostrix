@@ -15,8 +15,12 @@ let version = 0;
 const subscribe = (f) => { listeners.add(f); return () => listeners.delete(f); };
 const getVersion = () => version;
 export function getUnsampledChoice(tool, symbol) { return choices.get(`${tool}|${symbol}`) || null; }
+// TASKS.csv #3700 (7) — "not known: left out" says nothing about an element (no value to type), so it follows the user to the tool's next element:
+// switching the Grade shell from Zn to Pb set '— choose —' again in the same holes. A choice of its own always wins; barren and log stay per element.
+const lastUnknown = new Map(); // tool -> true while the tool's latest explicit choice was 'not known'
 export function setUnsampledChoice(tool, symbol, patch) {
   const k = `${tool}|${symbol}`;
+  if (patch.mode !== undefined) { if (patch.mode === "unknown") lastUnknown.set(tool, true); else lastUnknown.delete(tool); }
   choices.set(k, { ...(choices.get(k) || { mode: null, value: "" }), ...patch });
   version++; listeners.forEach((f) => f());
 }
@@ -26,7 +30,7 @@ export function setUnsampledChoice(tool, symbol, patch) {
 export function resolveUnsampled(tool, { assays, collars, symbol, unit, elementUnits, info = null, logCtx = null }) {
   const inf = info || sampledShare(assays, collars, symbol, unit, elementUnits);
   const saved = getUnsampledChoice(tool, symbol);
-  const mode = saved?.mode ?? defaultUnsampledMode(inf.share), value = saved?.value ?? "";
+  const mode = saved?.mode ?? (lastUnknown.get(tool) ? "unknown" : defaultUnsampledMode(inf.share)), value = saved?.value ?? "";
   const logSource = mode === "log" && saved?.logKey && logCtx ? findNumericSource(saved.logKey, logCtx) : null, logFactor = saved?.factor ?? "";
   const ready = unsampledReady(mode, value, { source: logSource, factor: logFactor });
   const apply = (rows) => (!ready ? { assays: rows, filledM: 0, holesFilled: 0 }

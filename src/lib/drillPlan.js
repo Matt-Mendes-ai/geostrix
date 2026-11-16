@@ -430,8 +430,8 @@ export function drillPlanColouring(el, holes, collars, { segs = null, unit = "",
     const notAssayed = (id) => apart && !per.has(id) && !assayed.has(id);
     const anyNot = apart && holes.some((h) => notAssayed(h.id)), anyNone = holes.some((h) => !per.has(h.id) && !notAssayed(h.id));
     const blankKey = !blank ? [] : apart
-      ? [...(anyNone ? [{ label: `assayed, no ${key} intercept at the cut-off`, ...dot(NONE_COLOUR, 0.6, true) }] : []), ...(anyNot ? [{ label: `no ${key} assays`, ...dot(NONE_COLOUR, 0.8, true), cross: true }] : [])]
-      : [{ label: kind === "bi" ? `no ${key} intercept` : `no ${key} result`, ...dot(NONE_COLOUR, 0.6, true) }];
+      ? [...(anyNone ? [{ label: `assayed, no ${key} intercept at the cut-off`, ...dot(NONE_COLOUR, 0.6, true), trace: "solid" /* #3599 (reopened) — the key shows the trace style too */ }] : []), ...(anyNot ? [{ label: `no ${key} assays`, ...dot(NONE_COLOUR, 0.8, true), cross: true, trace: "dashed" }] : [])]
+      : [{ label: kind === "bi" ? `no ${key} intercept` : `no ${key} result`, ...dot(NONE_COLOUR, 0.6, true), trace: "solid" }];
     return {
       by, breaks,
       title: kind === "bi" ? `${key} best intercept, grade × length` : kind === "gt" ? `${key} grade × length, whole hole` : `Highest ${key} in the hole`,

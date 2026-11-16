@@ -1151,6 +1151,7 @@ export function StoreProvider({ children }) {
     setCustomLayers((p) => internalLayers(H.mapCustomLayers(publishedLayers(p), (rows) => H.renameInRows(rows, from, to))));
     setExcludedIntercepts((p) => H.renameInInterceptIds(p, from, to)); setSoftIntercepts((p) => H.renameInInterceptIds(p, from, to));
     setInterceptSets((p) => H.renameInInterceptSets(p, from, to));
+    setSections((p) => H.renameInSections(p, from, to)); setPlannedHoles((p) => H.renameInPlanned(p, from, to)); setLayoutPages((p) => H.renameInLayoutPages(p, from, to)); // #3705
   }, []);
   const deleteHole = useCallback((id) => {
     const H = holeEditLib;
@@ -1160,6 +1161,7 @@ export function StoreProvider({ children }) {
     setCustomLayers((p) => internalLayers(H.mapCustomLayers(publishedLayers(p), (rows) => H.deleteInRows(rows, id))));
     setExcludedIntercepts((p) => H.deleteInInterceptIds(p, id)); setSoftIntercepts((p) => H.deleteInInterceptIds(p, id));
     setInterceptSets((p) => H.deleteInInterceptSets(p, id));
+    setSections((p) => H.deleteInSections(p, id)); // #3705
   }, []);
 
   const newProject = useCallback(() => {
