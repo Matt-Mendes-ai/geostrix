@@ -3433,6 +3433,8 @@
   "CV": "معامل التباين",
   "Top cut": "القطع الأعلى",
   "Top cut for {el}": "القطع الأعلى لـ{el}",
+  "Through the ticked holes, in order": "عبر الثقوب المحددة بالترتيب",
+  "The holes are joined in the order you tick them, along their collars in plan, and drawn unfolded: the distance runs along that bent line and each hole hangs from its own collar. Untick and tick again to change the order.": "تُوصل الثقوب بالترتيب الذي تحدده، عبر فوهاتها في المسقط، وتُرسم مبسوطة: تمتد المسافة على طول ذلك الخط المنكسر ويتدلى كل ثقب من فوهته. ألغِ التحديد وحدّد من جديد لتغيير الترتيب.",
   "Strip logs side by side": "سجلات الثقوب جنبًا إلى جنب",
   "Hang the holes": "تعليق الثقوب",
   "How the holes are lined up": "كيفية محاذاة الثقوب",

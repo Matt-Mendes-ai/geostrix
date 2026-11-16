@@ -13,6 +13,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 import { fenceFurniture } from "../lib/figureFurniture.js"; // TASKS.csv #1017
 import { lithoPatternMap, loadPatternTiles, patternDefs, patternFill, sectionTilePx } from "../lib/lithoPatterns.js"; // TASKS.csv #1995
+import { buildBentPanel } from "../lib/fenceBent.js"; // TASKS.csv #3560 B3
 import { numericTrackSources, numericTrackRows, trackFraction } from "../lib/fenceTrack.js"; // TASKS.csv #2786
 
 // TASKS.csv #139 — FENCE / PANEL DIAGRAM (hole-to-hole lithology correlation along a drill line).
@@ -128,10 +129,11 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
   );
 
   const panel = useMemo(() => {
+    if (azMode === "through") return buildBentPanel(traces, [...selected]) || buildFencePanel(chosen, {}); // #3560 B3 — the ticked holes in the order ticked, unfolded
     if (sectionLine) return buildFencePanel(chosen, { line: sectionLine }); // #1552
     const az = azMode === "manual" ? Number(manualAz) : null;
     return buildFencePanel(chosen, Number.isFinite(az) ? { azimuth: az } : {});
-  }, [chosen, azMode, manualAz, sectionLine]);
+  }, [chosen, azMode, manualAz, sectionLine, traces, selected]);
   useEffect(() => { if (!veChosen.current && panel) setVeState(Math.max(1, suggestFenceVe(panel.sRange, panel.zRange))); }, [panel]); // #3016 — the proposed exaggeration, until one is picked
 
   const track = useMemo(() => (trackSrc && panel ? numericTrackRows(trackSrc, panel.holes.map((h) => h.hole_id), assays, { log: trackLog }) : null), [trackSrc, panel, assays, trackLog]);
@@ -385,9 +387,11 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
             <label style={rowLabel} title={tr("Best fit is the principal (total-least-squares) axis of the selected collars — the line that minimizes perpendicular distance, and unlike a y-on-x regression it works for a north-south drill line and does not depend on how the map is rotated.")}>{tr("Section line")}<select value={azMode} onChange={(e) => (e.target.value === "section" ? pickSection(sectionId) : setAzMode(e.target.value))} style={sel}>
                 <option value="fit">{tr("Best fit through collars")}</option>
                 <option value="manual">{tr("Fixed azimuth…")}</option>
+                <option value="through">{tr("Through the ticked holes, in order")}</option>{/* #3560 B3 */}
                 {usableSections.length > 0 && <option value="section">{tr("Along a saved section…")}</option>}{/* #1552 */}
               </select>
             </label>
+            {azMode === "through" && <div style={warnNote}>{tr("The holes are joined in the order you tick them, along their collars in plan, and drawn unfolded: the distance runs along that bent line and each hole hangs from its own collar. Untick and tick again to change the order.")}</div>}{/* #3560 B3 */}
             {azMode === "section" && (
               <label style={rowLabel} title={tr("The section's own line, from its start, and the holes lying mainly inside its corridor (at least half of the hole). Tick or untick holes below as usual.")}>{tr("Section")}
                 <select value={sectionId} onChange={(e) => pickSection(e.target.value)} style={sel}>

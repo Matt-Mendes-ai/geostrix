@@ -3433,6 +3433,8 @@
   "CV": "CV",
   "Top cut": "Corte superior",
   "Top cut for {el}": "Corte superior de {el}",
+  "Through the ticked holes, in order": "A través de los sondajes marcados, en orden",
+  "The holes are joined in the order you tick them, along their collars in plan, and drawn unfolded: the distance runs along that bent line and each hole hangs from its own collar. Untick and tick again to change the order.": "Los sondajes se unen en el orden en que los marca, por sus collares en planta, y se dibujan desplegados: la distancia corre a lo largo de esa línea quebrada y cada sondaje cuelga de su collar. Desmarque y marque de nuevo para cambiar el orden.",
   "Strip logs side by side": "Registros de sondaje lado a lado",
   "Hang the holes": "Colgar los sondajes",
   "How the holes are lined up": "Cómo se alinean los sondajes",
