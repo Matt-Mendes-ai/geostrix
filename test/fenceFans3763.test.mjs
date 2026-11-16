@@ -94,7 +94,8 @@ test("the buffer says PAD spacing when holes share pads, drill spacing otherwise
 test("wiring: the hook gets the survey and says which azimuth it used, in four languages", () => {
   const h = read("../src/modules/viewer/drillLines.js");
   assert.match(h, /export function useDrillLineDefaults\(collars, survey = null\)/);
-  assert.match(h, /commonestHoleAzimuth\(collars, survey\)/);
+  assert.match(h, /import\("\.\.\/\.\.\/lib\/viewer\/holeAzimuth\.js"\)\.then\(\(m\) => \{ if \(alive\) setHoles\(m\.commonestHoleAzimuth\(collars, survey\)\)/, "loaded only when the collars are not in lines");
+  assert.doesNotMatch(h, /^import .*holeAzimuth/m);
   assert.match(h, /Azimuth along the commonest hole azimuth \(\{az\}°: \{n\} of \{of\} holes within 15°\)/);
   assert.match(read("../src/modules/ViewerModule.jsx"), /useDrillLineDefaults\(shownCollars, survey\)/);
   for (const l of ["es", "pt", "fr", "ar"]) { const j = JSON.parse(read(`../src/locales/${l}.json`)); assert.ok(j["half the {s} m pad spacing"], l); assert.ok(j["No drill lines found: the holes are not in lines. Azimuth along the commonest hole azimuth ({az}°: {n} of {of} holes within 15°)."], l); }

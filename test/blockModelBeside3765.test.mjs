@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import * as THREE from "three";
 import { voxelLegendGroups, voxelLegendLabel } from "../src/lib/legendGroups.js";
-import { slabOf, farLayerPlane, cellAlong } from "../src/modules/viewer/useSliceModelFace.js";
+import { slabOf, farLayerPlane, cellAlong } from "../src/lib/viewer/sliceModelFace.js";
 
 const read = (p) => fs.readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const cells = (n) => Array.from({ length: n }, (_, i) => ({ x: i, y: 0, z: 0, dx: 10, dy: 10, dz: 10, value: i < n - 5 ? Math.exp((i / n) * 4) : 104.2 }));
@@ -68,7 +68,9 @@ test("wiring: the hook runs after the voxel build, and the legend keys are in fo
   const v = read("../src/modules/ViewerModule.jsx");
   const build = v.indexOf("}, [voxelModels, collars, slice3d.on, deferRound]);"), hook = v.indexOf("useSliceModelFace({ voxelMeshesRef, slicePlanesRef, rendererRef, slice3d, voxelModels");
   assert.ok(build > 0 && hook > build, "the hook's effect runs after the build's, so it sees the new meshes");
-  const h = read("../src/modules/viewer/useSliceModelFace.js");
+  const h = read("../src/lib/viewer/sliceModelFace.js");
+  assert.match(read("../src/modules/viewer/useSliceModelFace.js"), /import\("\.\.\/\.\.\/lib\/viewer\/sliceModelFace\.js"\)/, "loaded when a slice with a thickness is on, not at startup");
+  assert.doesNotMatch(read("../src/modules/viewer/useSliceModelFace.js"), /from "three"/);
   assert.match(h, /m\.clippingPlanes = \[plane\]/);
   assert.match(h, /rendererRef\.current\.localClippingEnabled = /);
   assert.match(h, /mesh\.onBeforeRender = /);

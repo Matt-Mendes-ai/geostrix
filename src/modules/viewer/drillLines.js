@@ -5,7 +5,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { median } from "../../lib/arrayStats.js";
 import { t as tr } from "../../lib/i18n.js";
-import { commonestHoleAzimuth } from "../../lib/viewer/holeAzimuth.js"; // TASKS.csv #3763
 
 // collars [{ x, y }] -> { azimuth (0-180), spacing (m between fences), alongM (extent along them), centre: { x, y }, lines, lengthM } or null
 // TASKS.csv #3276 (Galore review) — 70 holes drilled all round the compass read 'drill lines 35°, 571 m apart', and By coordinates opened a
@@ -91,8 +90,16 @@ const roundTo = (v, step) => Math.max(step, Math.round(v / step) * step);
 
 // the fence-series and by-coordinates state, seeded from the drilling until the user sets a value
 export function useDrillLineDefaults(collars, survey = null) { // survey: #3763 — the holes' own azimuths
-  const holes = useMemo(() => commonestHoleAzimuth(collars, survey), [collars, survey]); // #3763
-  const geo = useMemo(() => drillLineGeometry(collars, { holes }), [collars, holes]);
+  // TASKS.csv #3763 — fanned holes: the commonest hole azimuth (lib/viewer/holeAzimuth.js, loaded only when the collars are not in lines)
+  const lines = useMemo(() => drillLineGeometry(collars), [collars]);
+  const [holes, setHoles] = useState(null);
+  useEffect(() => {
+    if (!lines || lines.lines) { setHoles(null); return undefined; }
+    let alive = true;
+    import("../../lib/viewer/holeAzimuth.js").then((m) => { if (alive) setHoles(m.commonestHoleAzimuth(collars, survey)); });
+    return () => { alive = false; };
+  }, [lines, collars, survey]);
+  const geo = useMemo(() => (holes && lines && !lines.lines ? drillLineGeometry(collars, { holes }) : lines), [collars, holes, lines]);
   const touched = useRef({});
   const [sliceSeriesAzimuth, setAz] = useState(0);
   const [sliceSeriesWidth, setW] = useState(50);
