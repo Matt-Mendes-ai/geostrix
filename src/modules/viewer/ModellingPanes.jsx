@@ -433,6 +433,8 @@ export default function ModellingPanes(props) {
   // TASKS.csv #2921 — the pile's order from the holes (stratigraphic codes only), for the explicit tops of one pile
   const areaPile = useMemo(() => { let v = null; return () => v || (v = pileFromRuns(areaRuns(), (c) => !["intrusion", "cross-cutting", "overburden", "ignore"].includes(codeInfo(modellingCodes, c, mcodeDefaultRole).role))); },
     [areaRuns, modellingCodes, lithoGroups]); // mcodeDefaultRole is rebuilt every render from lithoGroups
+  // TASKS.csv #3767 — a lithology group is one unit in 'Set the plane from' (its tops are the group's runs'): offered in place of its member codes, which hold no runs of their own
+  const tiedUnits = (units, groups) => { const gs = (groups || []).filter((g) => (g.codes || []).some((c) => units.includes(c))); const taken = new Set(gs.flatMap((g) => g.codes || [])); return [...units.filter((u) => !taken.has(u)), ...gs.map((g) => g.name)]; };
   const topsOfUnit = useCallback((unit) => {
     const runs = areaRuns(), pile = areaPile();
     const holes = [...new Set(runs.filter((r) => r.code === unit).map((r) => r.hole_id))];
@@ -443,7 +445,7 @@ export default function ModellingPanes(props) {
     const { tops, skipped } = topsForCode(runs, unit, modellingCodes, mcodeDefaultRole);
     // TASKS.csv #2921 — where the unit is missing from a hole that passes from a unit above it into one under it: its top at zero thickness
     const absent = pile.kOf.has(unit) ? absentTops(runs, unit, pile).tops : [];
-    return { tops: tops.map((r) => ({ hole_id: r.hole_id, md: r.from, above: r.above?.code ?? null, below: r.code })), skipped, holes, absent, pile };
+    return { tops: tops.map((r) => ({ hole_id: r.hole_id, md: r.from, end: r.to /* #3771 — the base of the same run */, above: r.above?.code ?? null, below: r.code })), skipped, holes, absent, pile };
   }, [areaRuns, areaPile, modellingCodes, lithoGroups]); // mcodeDefaultRole is rebuilt every render from lithoGroups
   // TASKS.csv #2926 (review #2876, WA iron) — the stack's order against the holes, as the units are added (the run's own check, #2382, came
   // after Run and said 'Reorder the units with the arrows'): each unit's logged values, as runStackModel reads them. Only while the pane is open.
@@ -677,7 +679,7 @@ export default function ModellingPanes(props) {
         <Suspense fallback={null}>
           <TrendsPanel structuralTrends={structuralTrends} setStructuralTrends={setStructuralTrends}
             structurePicks={structurePicksWithHoleAttitude}
-            units={litho_units} unitTopPoints={(code) => (topsOfUnit(code)?.tops || []).map((t) => sheetPositionAt(t.hole_id, t.md)).filter(Boolean)} /* #2428 */
+            units={tiedUnits(litho_units, lithoGroups)} unitTopPoints={(code) => (topsOfUnit(code)?.tops || []).map((t) => sheetPositionAt(t.hole_id, t.md)).filter(Boolean)} /* #2428 */
             sampleElements={shellSymbols} samplePoints={trendSamplePoints} /* #3593 — a trend from the grades */
             surfaces={implicitSurfaces.map((x) => ({ id: x.id, name: x.name }))}
             surfacePoints={(id) => {

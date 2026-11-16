@@ -9,6 +9,7 @@ import { isNotRecorded } from "../../lib/notRecorded.js"; // TASKS.csv #3267
 import { interbeds, planeDipDeg, planeMisfitM, looksLikeFlatPile, runsLieFlat } from "../../lib/pileTops.js"; // TASKS.csv #2927; #3262; #3263
 import { stackCellCheck, medianStackThickness } from "../../lib/stackResolution.js"; // TASKS.csv #2905; medianStackThickness: #2922
 import { suspectElevationIds } from "../../lib/collarElevationTrust.js"; // TASKS.csv #2918 (the #3004 rule)
+import { estimateOrientationFromPoints } from "../../lib/viewer/contactOrientation.js"; // TASKS.csv #3766 — a least-spread plane, out of ViewerModule
 import { trendRatioText, trendBasis, trendScales } from "../../lib/trend.js"; // TASKS.csv #2423; basis / scales: #3062
 import { flatSearchTrend } from "../../lib/estimationShape.js"; // TASKS.csv #3062
 import { trendCellM, trendCellText } from "../../lib/trendCell.js"; // TASKS.csv #3010
@@ -108,7 +109,6 @@ export function createModellingRuns(ctx, mcRef) {
     collars,
     desurveyMethod,
     domains,
-    estimateOrientationFromPoints,
     excludedIntercepts,
     filterRowsByDomain,
     filterRowsBySearchEllipsoid,
@@ -1514,6 +1514,9 @@ export function createModellingRuns(ctx, mcRef) {
       // TASKS.csv #2233 (review #2174) — picks loaded but no type chosen under Contact orientations is not "no structure picks found"
       else if (!silent && !picksAtStart && (layers.structure || []).some((r) => r.dip != null && r.azimuth != null)) { const loaded = (layers.structure || []).filter((r) => r.dip != null && r.azimuth != null); setNotices((p) => [...p, notice("No structure type is chosen as a contact orientation ({n} oriented pick(s) of {t} type(s) are loaded): the dip of \"{unitName}\" was estimated from its contact points (~{dip}°/~{azimuth}°). Tick a type under Model settings > Contact orientations to use the picks.", { n: loaded.length, t: new Set(loaded.map((r) => String(r.value))).size, unitName, dip: est.dip.toFixed(0), azimuth: est.azimuth.toFixed(0) })]); }
       else if (!silent) setNotices((p) => [...p, notice("No structure picks found — estimated a single dip/azimuth (~{dip}°/~{azimuth}°) from the shape of the \"{unitName}\" contact points: the orientation comes from the contacts alone.", /* #2928 (6): no 'import a structure CSV' on a project with none */ { dip: est.dip.toFixed(0), azimuth: est.azimuth.toFixed(0), unitName })]);
+      // TASKS.csv #3766 — the estimate is the plane of least spread of the points (not an elevation-on-map regression, which flattened a steep unit); when a geology trend is assigned, the two are said side by side
+      { const gt = !silent && est.fit === "plane" ? trendWarp("implicit") : null;
+        if (gt?.enabled) setNotices((p) => [...p, notice("\"{unitName}\": the contact points lie on a plane dipping {dip}° towards {azimuth}°; the assigned geology trend \"{name}\" dips {tdip}° towards {taz}°. The run uses the contact plane as the orientation.", { unitName, dip: est.dip.toFixed(0), azimuth: est.azimuth.toFixed(0), name: gt.trend.name, tdip: Math.round(gt.trend.dip), taz: Math.round(gt.trend.dipAzimuth) })]); }
     }
     // TASKS.csv #241 — the surface's type now comes from the source litho unit's own role
     // (roleForLithology, src/lib/layers.js) instead of always being hardcoded "stratigraphic_contact",

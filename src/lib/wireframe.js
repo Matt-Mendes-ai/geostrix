@@ -188,3 +188,25 @@ export function linkPlanOutlines(plans, opts = {}) {
   return w;
 }
 
+// TASKS.csv #3768 (Scottie Gold review) — an outline is a planar slice of a body: a vertex that sits off its section's plane (a snap to a hole outside the section, kept at the hole's
+// own position) turns the slices into a twisted loop, and the link answered only '357 self-crossing triangle pairs'. The off-plane distance of each outline's points, by section:
+// -> [{ section, maxM, hole_id }] for the outlines with a vertex more than tolM off its plane, worst first
+export function offPlaneOutlines(outlines, tolM = 1) {
+  const out = [];
+  for (const o of outlines || []) {
+    if (![o?.ax, o?.ay, o?.bx, o?.by].every(Number.isFinite) || !o.points?.length) continue;
+    const L = Math.hypot(o.bx - o.ax, o.by - o.ay); if (!(L > 0)) continue;
+    const nx = -(o.by - o.ay) / L, ny = (o.bx - o.ax) / L;
+    let worst = null;
+    for (const p of o.points) { const d = Math.abs((p.x - o.ax) * nx + (p.y - o.ay) * ny); if (d > tolM && (!worst || d > worst.m)) worst = { m: d, hole_id: p.hole_id || null }; }
+    if (worst) out.push({ section: o.section, maxM: worst.m, hole_id: worst.hole_id });
+  }
+  return out.sort((a, b) => b.maxM - a.maxM);
+}
+// the sentence the refusal carries when outlines have off-plane vertices ('' when none)
+export function offPlaneText(outlines) {
+  const bad = offPlaneOutlines(outlines);
+  if (!bad.length) return "";
+  const w = bad[0];
+  return " " + tr("{n} outline(s) have a vertex off their section's plane: the worst is {m} m off {section}{hole}. Move it, or draw it again with Keep snaps on the section.", { n: bad.length, m: w.maxM.toFixed(1), section: w.section || "", hole: w.hole_id ? tr(" (snapped to {hole})", { hole: w.hole_id }) : "" });
+}

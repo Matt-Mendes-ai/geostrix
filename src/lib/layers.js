@@ -366,7 +366,9 @@ export function roleForLithology(u) {
 // #2175 — ViewerModule calls this on every render: the distinct codes of a rows array are kept until the array changes (a 1.5 M-row log was
 // scanned again on each render)
 const DISTINCT_CODES = new WeakMap();
-export function veinSourceUnits(layers, modellingCodes = null) {
+// TASKS.csv #3767 — lithoGroups: a lithology group whose role is cross-cutting (its Modelling codes role, else its members') is ONE vein / dyke unit, 'mcode:<group>' (its
+// rows by their effective code, as a sheet split out in Modelling codes is), offered in place of its member codes (ASDA + ASDS never appeared: only raw codes did)
+export function veinSourceUnits(layers, modellingCodes = null, lithoGroups = null) {
   const seen = (rows) => {
     if (!rows) return [];
     let v = DISTINCT_CODES.get(rows);
@@ -384,7 +386,10 @@ export function veinSourceUnits(layers, modellingCodes = null) {
   if (Object.keys(assign).length) for (const r of litho) { const o = assign[rowKey(r)]; if (o) carried.add(o); else if (r?.value != null) stillRaw.add(r.value); }
   const rawKept = (v) => !Object.keys(assign).length || stillRaw.has(v);
   const mcodes = (modellingCodes?.codes || []).filter((c) => c.role === "cross-cutting" && carried.has(c.name) && !seen(litho).includes(c.name)).map((c) => `mcode:${c.name}`);
-  return [...seen(layers?.vein), ...seen(litho).filter((v) => crossCutting(v) && rawKept(v)).map((v) => `litho:${v}`), ...mcodes];
+  const groups = (lithoGroups || []).filter((g) => g?.name && (g.codes || []).length);
+  const grouped = new Set(groups.flatMap((g) => g.codes || []));
+  const groupUnits = groups.filter((g) => (g.codes || []).some((c) => seen(litho).includes(c)) && (set.get(g.name) || groupMcodeRole(g.name, groups)) === "cross-cutting" && !mcodes.includes(`mcode:${g.name}`)).map((g) => `mcode:${g.name}`);
+  return [...seen(layers?.vein), ...seen(litho).filter((v) => crossCutting(v) && rawKept(v) && !grouped.has(v)).map((v) => `litho:${v}`), ...mcodes, ...groupUnits];
 }
 export function isCrossCuttingRole(role) { return role === "fault" || role === "dyke" || role === "breccia" || role === "vein"; }
 // a Modelling codes role from a unit role (#599 roles: stratigraphic / overburden / cross-cutting / ignore)

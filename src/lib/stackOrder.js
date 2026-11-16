@@ -65,12 +65,30 @@ export function thicknessBetween(top, base, { n = 80 } = {}) {
   const box = [x0, x1, y0, y1];
   const T = heightGrid(top.positions, top.indices, box, n), B = heightGrid(base.positions, base.indices, box, n);
   let k = 0, sum = 0, min = Infinity, max = -Infinity, neg = 0;
-  for (let i = 0; i < n * n; i++) {
-    if (!(T[i] === T[i] && B[i] === B[i])) continue;
-    const t = T[i] - B[i];
+  // TASKS.csv #3771 (Scottie Gold review) — the vertical thickness of two walls dipping 74° and 78° read '-52.4 to 538.5 m, mean 163.8 m', about four times the true thickness where they are
+  // parallel. The slope of the pair's mid-surface in each column (the grid's own neighbours) gives the local dip; the thickness normal to the surfaces is the vertical one times its cosine.
+  const dx = (x1 - x0) / n || 1, dy = (y1 - y0) / n || 1;
+  const ok = (a) => a >= 0 && a < n * n && T[a] === T[a] && B[a] === B[a];
+  let tk = 0, tsum = 0, tmin = Infinity, tmax = -Infinity;
+  const dips = [];
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const c = j * n + i;
+    if (!(T[c] === T[c] && B[c] === B[c])) continue;
+    const t = T[c] - B[c];
     k++; sum += t; if (t < min) min = t; if (t > max) max = t; if (t < 0) neg++;
+    if (i > 0 && i < n - 1 && j > 0 && j < n - 1 && ok(c - 1) && ok(c + 1) && ok(c - n) && ok(c + n)) {
+      const mid = (a) => (T[a] + B[a]) / 2, gx = (mid(c + 1) - mid(c - 1)) / (2 * dx), gy = (mid(c + n) - mid(c - n)) / (2 * dy), s = Math.hypot(gx, gy);
+      dips.push(Math.atan(s));
+      const tt = t / Math.sqrt(1 + s * s);
+      tk++; tsum += tt; if (tt < tmin) tmin = tt; if (tt > tmax) tmax = tt;
+    }
   }
   if (!k) return null;
-  return { columns: k, cellM: Math.max(x1 - x0, y1 - y0) / n, min, mean: sum / k, max, negativePct: (100 * neg) / k };
+  dips.sort((a, b) => a - b);
+  const dipDeg = dips.length ? (dips[dips.length >> 1] * 180) / Math.PI : null;
+  return { columns: k, cellM: Math.max(x1 - x0, y1 - y0) / n, min, mean: sum / k, max, negativePct: (100 * neg) / k,
+    dipDeg, true: tk ? { columns: tk, min: tmin, mean: tsum / tk, max: tmax } : null };
 }
+// the median dip (degrees) from which a pair of surfaces is a steep zone: the explicit surface's own frame rule (explicitSurface.js surfaceFrame steepDeg), where it is modelled over its plane
+export const STEEP_DIP_DEG = 30;
 

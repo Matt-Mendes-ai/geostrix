@@ -94,7 +94,10 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
     runsAll.forEach((run) => m.set(run.code, (m.get(run.code) || 0) + 1));
     return m;
   }, [runsAll]);
-  const loggedCodes = useMemo(() => [...new Set((litho || []).map((r) => String(r.value ?? "").trim()).filter(Boolean))].sort(), [litho]);
+  // TASKS.csv #3767 — a lithology group is ONE unit here: offered in place of its member codes (ASDA, ASDS were ticked and answered 'fewer than two runs could be placed':
+  // the runs carry the group's name), and a row belongs to a ticked unit by its code or its group
+  const loggedCodes = useMemo(() => [...new Set((litho || []).map((r) => { const v = String(r.value ?? "").trim(); return v && groupOf ? groupOf(r.value) || v : v; }).filter(Boolean))].sort(), [litho, groupOf]);
+  const pickedRow = (r) => numberCodes.includes(String(r.value)) || (!!groupOf && numberCodes.includes(groupOf(r.value)));
   const [numberCodes, setNumberCodes] = useState([]);
   const overrides = Object.keys(mc.assign || {}).length;
 
@@ -268,7 +271,7 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
           const rows = inArea ? litho.filter((r) => inArea(r.hole_id)) : litho; // the Model area, as Auto-number (#2533)
           const plain = { ...mc, assign: {} };
           const all = codedRuns(rows, plain, groupOf);
-          const keys = new Set(rows.filter((r) => numberCodes.includes(String(r.value))).map(rowKey)); // one pass, as Auto-number
+          const keys = new Set(rows.filter(pickedRow).map(rowKey)); // one pass, as Auto-number
           const msgs = [], preview = []; let assign = Object.fromEntries(Object.entries(mc.assign || {}).filter(([k]) => !keys.has(k)));
           for (const base of numberCodes) {
             const placed = placeRuns(all.filter((run) => run.code === base), positionAt);
@@ -436,9 +439,9 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
         // TASKS.csv #2533 (review #2486) — Auto-number re-coded 3,870 intervals in all 2,248 holes, not the 30 checked ones, and said nothing:
         // it follows the Model area (the holes checked, when it says so) and says what it did
         const rows = inArea ? litho.filter((r) => inArea(r.hole_id)) : litho;
-        const keys = new Set(rows.filter((r) => numberCodes.includes(String(r.value))).map(rowKey));
+        const keys = new Set(rows.filter(pickedRow).map(rowKey));
         const go = () => setModellingCodes((p) => { const base = p || mc; const assign = autoNumber(rows, numberCodes, { ...base, assign: Object.fromEntries(Object.entries(p?.assign || {}).filter(([k]) => !keys.has(k))) }, groupOf); return { ...base, assign, codes: inheritNumberedRoles(base, assign, numberCodes) /* #2532 — P1 ... take P's role */ }; });
-        const touched = rows.filter((r) => numberCodes.includes(String(r.value)) && mc.assign?.[rowKey(r)]).length;
+        const touched = rows.filter((r) => pickedRow(r) && mc.assign?.[rowKey(r)]).length;
         if (touched && !window.confirm(tr("{touched} of these intervals already have a code you set. Auto-numbering replaces them. Continue?", { touched }))) return;
         go();
         setNumberMsg(tr("Numbered {n} interval(s) of {codes} in {h} hole(s){area}.", { n: keys.size.toLocaleString(), codes: numberCodes.join(", "), h: new Set(rows.filter((r) => keys.has(rowKey(r))).map((r) => r.hole_id)).size.toLocaleString(), area: inArea ? tr(" (the holes checked: Model area)") : "" })); // #2533
@@ -460,7 +463,7 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
         </div>
         <button disabled={!numberCodes.length || (sheetAtt.mode === "typed" && !(sheetAtt.dip !== "" && sheetAtt.dipDir !== ""))} onClick={() => {
           const { rows, assign, msgs } = computeSheets(); // #2722 — the same matching the preview shows
-          const touched = rows.filter((r) => numberCodes.includes(String(r.value)) && mc.assign?.[rowKey(r)]).length;
+          const touched = rows.filter((r) => pickedRow(r) && mc.assign?.[rowKey(r)]).length;
           if (touched && !window.confirm(tr("{touched} of these intervals already have a code you set. Auto-numbering replaces them. Continue?", { touched }))) return;
           setModellingCodes((p) => { const base = p || mc; return { ...base, assign, codes: inheritNumberedRoles(base, assign, numberCodes) }; });
           setSheetMsg(msgs.join(" ")); setSheetPreview(null);

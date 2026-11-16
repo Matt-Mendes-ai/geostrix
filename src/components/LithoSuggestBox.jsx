@@ -11,6 +11,7 @@ const box = { fontSize: "var(--font-size-xs)", color: "var(--color-text-secondar
 const SHOWN_GROUPS = 40;
 
 function sourceText(p) {
+  if (p.qualifiers?.length) return tr("its meaning in the code dictionary: {meaning} — {q}: a different unit from its host rock, so unticked", { meaning: p.meaning, q: p.qualifiers.join(" ") }); // #3770
   if (p.how === "fuzzy") return tr("a close spelling of \"{word}\" ({d} letter(s) off)", { word: p.word, d: p.distance });
   if (p.source === "dictionary") return tr("its meaning in the code dictionary: {meaning}", { meaning: p.meaning });
   if (p.source === "abbreviation") return tr("a common abbreviation");
