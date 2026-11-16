@@ -53,6 +53,7 @@ import VolcanicCodesModal, { NOT_LOGGED_CODE } from "../components/VolcanicCodes
 import { entryOf } from "../lib/codeDictionary.js"; // TASKS.csv #3292
 import { displayUnitOf } from "../lib/displayUnits.js"; // TASKS.csv #3236 / #3290
 import SurfaceImportModal, { SURFACE_MEDIA } from "../components/SurfaceImportModal.jsx";
+import { mediumAlias, commonestMedium } from "../lib/surfaceMedium.js"; // TASKS.csv #3731
 // TASKS.csv #1794 — the medium a cell names (the import's own list and aliases), for telling a medium column from a QC-type column
 const surfaceMediumOf = (m) => (SURFACE_MEDIA.includes(m) ? m : /rock|grab|chip|outcrop|float|channel|soil|silt|stream|sediment|moss|talus|bleg|\bhmc\b|heavy.?min|concentrate|water/.test(m) ? m : null);
 import IsoconTool from "../components/IsoconTool.jsx";
@@ -1010,7 +1011,7 @@ export default function GeochemModule() {
         } : {
           file, fileName: file.name, headers, allRows: data,
           mapping, sourceEpsg, sourceEpsgFrom,
-          defaultMedium: "soil", elements,
+          defaultMedium: (mapping.medium && commonestMedium(data.map((r) => r[mapping.medium]), SURFACE_MEDIA)) || "soil" /* #3731 — the file's own commonest medium, not a fixed 'soil' */, elements,
         });
   };
 
@@ -1043,7 +1044,8 @@ export default function GeochemModule() {
     // TASKS.csv #600 (40958Z) — the words exports use for a medium: an MX rock file says "rock", which used to
     // fall back to the default ("soil"), so every rock sample was labelled soil
     // TASKS.csv #845 — the stream media apart: moss mat, heavy-mineral concentrate, BLEG and water are not active sediment
-    const mediumAlias = (m) => (/rock|grab|chip|outcrop|float|channel/.test(m) ? "rock chip" : /moss/.test(m) ? "moss mat" : /\bhmc\b|heavy.?min|concentrate|\bpan\b/.test(m) ? "heavy mineral concentrate" : /bleg|bulk.?leach/.test(m) ? "BLEG" : /water/.test(m) ? "stream water" : /stream|silt|sediment|\bsed\b/.test(m) ? "stream sediment" : /talus/.test(m) ? "talus fines" : /soil|b.?horizon/.test(m) ? "soil" : null);
+    // #3731 — mediumAlias (the words above) lives in lib/surfaceMedium.js, with the fallback that follows the file
+    const fbWords = new WeakMap(); // the sample object -> the cell's word, for a row that took the fallback medium
     // TASKS.csv #333/#334 — same rules as drillhole assays: negative codes are never grades (-0.005 read as
     // below detection, <= -99 as not assayed), and an element already in the project keeps its unit.
     const existingUnit = Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit]));
@@ -1118,7 +1120,7 @@ export default function GeochemModule() {
         const p = gridTie ? fileToLocal(gridTie, x, y, fromEpsg) : reprojectXY(x, y, fromEpsg, toEpsg); // gridTie: #2320
         if (p) ({ x, y } = p); else { reprojectFailed++; x = NaN; }
       }
-      return {
+      const sample = {
         sample_id: mapping.sample_id ? String(r[mapping.sample_id] ?? "").trim() : "",
         x, y, z: zOf(r), // #508 / #606 — a blank (or all-zero) z is missing, not sea level
         medium: mediaSet.has(rawMedium) ? rawMedium : (mediumAlias(rawMedium) || defaultMedium), // #600: "rock" -> rock chip
@@ -1127,6 +1129,8 @@ export default function GeochemModule() {
         ...(nd.length ? { nd } : {}),
         ...surfaceAttrsDated(r, attrCols, sampleDates.readers), // dates: #3200
       };
+      if (mapping.medium && !mediaSet.has(rawMedium) && !mediumAlias(rawMedium)) fbWords.set(sample, rawMedium); // #3731
+      return sample;
     });
     // TASKS.csv #1664 (review #1646, Kodiak) — a sample row with no coordinates was dropped with no word (181 Kodiak control rows vanished
     // before #1794 classed them as QC): every one left out is counted in the notice (a reprojection failure is counted on its own)
@@ -1163,7 +1167,12 @@ export default function GeochemModule() {
     const surfOx = surfOxAll.filter((x) => !surfKept.includes(x)).map(({ e, ox }) => `${e.header} → ${ox.symbol} (÷${ox.factor})`);
     const bdlCount = new Map();
     for (const r of rows) for (const s of r.bdl || []) bdlCount.set(s, (bdlCount.get(s) || 0) + 1);
+    // #3731 — the rows whose type the app could not read took the fallback medium: counted by the cell's word (a blank cell as 'blank'), in the notice
+    const fbCount = new Map();
+    for (const r of rows) if (fbWords.has(r)) { const w = fbWords.get(r) || tr("blank"); fbCount.set(w, (fbCount.get(w) || 0) + 1); }
+    const fbTotal = [...fbCount.values()].reduce((a, b) => a + b, 0);
     const extra = [
+      fbTotal ? tr("{n} sample(s) took the fallback medium ({medium}) because their type is not one the app reads: {list}.", { n: fbTotal.toLocaleString(), medium: defaultMedium, list: [...fbCount].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([w, n]) => `${w} ${n.toLocaleString()}`).join(", ") }) : null, // #3731
       surfOx.length ? tr("Oxide columns stored as the element, in element %: {list}. Labels, colours and Identify show the element; the diagrams convert back to oxides.", { list: surfOx.join(", ") }) : null, // #2565
       surfKept.length ? tr("Oxide columns kept as the oxide, as the project stores them: {list}.", { list: surfKept.map(({ e, ox }) => `${e.header} → ${ox.symbol} (% ${ox.oxide})`).join(", ") }) : null, // #2957
       bdlCount.size ? tr("Below detection: {list} (each stored at half its limit and flagged; a label shows it as '<limit').", { list: [...bdlCount].map(([s, n]) => `${s} ${n.toLocaleString()}`).join(", ") }) : null, // #2565
