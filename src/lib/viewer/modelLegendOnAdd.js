@@ -6,6 +6,22 @@
 //   next class, where the holes take the lower one: the classes' limits are typed values, a block rarely equals one).
 //   visibleOnLattice(voxelModels, cells, { latticeOf, sameLattice }) — the visible models on the same blocks as `cells` (latticeOf: estimationMeta
 //   blockModelLattice; sameLattice: densityFromModel's): the model added is shown, these are hidden.
+//   elementClasses(assayStyle, element, { rows, unit, elements }) — #3596 reopened (round 3: Ag and Pb stayed on the ramp, only Zn took the holes'
+//   classes): the element's breaks on the holes, else, for an element never shown on them, the classes GeoStrix seeds when it is shown
+//   (ViewerModule toggleAssayElement: seedBreaks over the lab assays' class range, in the element's colour) -> { breaks, seeded } | null
+import { seedBreaks } from "../colorRamp.js";
+import { assayClassRange } from "../assayClasses.js";
+import { ASSAY_ELEMENT_COLORS } from "../legendGroups.js";
+export function elementClasses(assayStyle, element, { rows = [], unit = null, elements = [] } = {}) {
+  const own = assayStyle?.[element]?.breaks;
+  if (Array.isArray(own) && own.length >= 2) return { breaks: own, seeded: false };
+  const r = assayClassRange(rows, element);
+  if (!r) return null;
+  const i = Math.max(0, (elements || []).indexOf(element));
+  const color = assayStyle?.[element]?.color || ASSAY_ELEMENT_COLORS[i % ASSAY_ELEMENT_COLORS.length];
+  const breaks = seedBreaks({ ...r, unit }, color);
+  return breaks.length >= 2 ? { breaks, seeded: true } : null;
+}
 export function classStops(breaks, min) {
   const b = (breaks || []).filter((x) => x && typeof x.color === "string");
   if (b.length < 2) return null;
