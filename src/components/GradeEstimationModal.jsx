@@ -69,6 +69,8 @@ const GradeTonnageModal = lazyModal(() => import("./GradeTonnageModal.jsx")); //
 // started again on IDW, no cap, 50 m radius and an automatic cell. A value that no longer applies (an element, domain, volume or block
 // model not in the project, a cap kept for another element) starts at its default.
 import { lastEstimateSettings, estimateSettingsKey } from "../lib/estimateMemory.js"; // TASKS.csv #3273 — shared with the Variogram tool
+import { CAP_WARN_PCT } from "../lib/capWarning.js"; // TASKS.csv #3783
+import { floorElements, applyFloorModes } from "../lib/floorShare.js"; // TASKS.csv #3788
 export { estimateSettingsKey };
 // TASKS.csv #3273 — a semivariance with separators (22,800,000, not 22800000)
 const fmtSemi = (v) => (!Number.isFinite(v) ? "—" : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : String(+v.toPrecision(3)));
@@ -283,7 +285,13 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   // run: the samples can come from the checked holes too, by default when Model area says so (the Grade shell's rule, #2059)
   const [samplesFrom, setSamplesFrom] = useState(() => (modelArea === "checked" && checkedHoleIds?.size ? "checked" : "all"));
   const sampleAssays = useMemo(() => (samplesFrom === "checked" && checkedHoleIds?.size ? assays.filter((a) => checkedHoleIds.has(a.hole_id)) : assays), [assays, samplesFrom, checkedHoleIds]);
-  const srcAssays = useMemo(() => (includeQAQC ? sampleAssays : excludeQAQC(sampleAssays)), [sampleAssays, includeQAQC]);
+  const srcAssaysRaw = useMemo(() => (includeQAQC ? sampleAssays : excludeQAQC(sampleAssays)), [sampleAssays, includeQAQC]);
+  // TASKS.csv #3788 (Scottie Gold) — an element whose results mostly sit on the half-limit floor (86 % of the silver values were exactly 1 g/t) is modelled as if that were grade: the dialog says so
+  // and offers to leave those values out or set them to a stated value; the default keeps them as low grades, as before. The treatment is applied once, here, to every reader of the samples.
+  const floorSyms = useMemo(() => (sourceKey === "assay" ? [symbol, ...others].filter(Boolean) : []), [sourceKey, symbol, others]);
+  const floorsFound = useMemo(() => floorElements(srcAssaysRaw, floorSyms, elementUnits), [srcAssaysRaw, floorSyms, elementUnits]);
+  const [floorModes, setFloorModes] = useState({});
+  const srcAssays = useMemo(() => applyFloorModes(srcAssaysRaw, floorsFound, floorModes), [srcAssaysRaw, floorsFound, floorModes]);
   const memberProposals = useMemo(() => Object.fromEntries(others.map((el) => [el, memberCapProposal(srcAssays, el, elementUnits[el] || "ppm", elementUnits)])), [others, srcAssays, elementUnits]); // #3271
   const memberCapOf = (el) => (el in memberCaps ? memberCaps[el] : memberProposals[el]?.proposed ?? ""); // #3271
   // TASKS.csv #3164 (Matt, 2026-11-13) — a set member may use its own method (e.g. kriging for Au, IDW for Fe); "" = as the primary (the default)
@@ -365,6 +373,14 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
     const p99 = lengthWeightedPercentile(srcAssays, symbol, unit, elementUnits, 99);
     if (Number.isFinite(p99) && p99 > 0) { setCapValue(Number(p99.toPrecision(4))); setCapAuto(true); }
   }, [symbol, elementCV]); // the cap and the assays are read when the element or its CV changes, on purpose
+  // TASKS.csv #3783 (Scottie Gold) — what the usual P99 cap costs: on nuggety gold it removed 66 % of the metal while the empty-cap advice said 'commonly the 97.5th-99th percentile': the two
+  // cautions pointed at each other. The advice and the default's note now say the cost, and send the geologist to the metal-at-risk table for a cut near the break.
+  const p99Removes = useMemo(() => {
+    if (!symbol || !(elementCV > 150)) return null;
+    const p99 = lengthWeightedPercentile(srcAssays, symbol, unit, elementUnits, 99);
+    return Number.isFinite(p99) && p99 > 0 ? capAudit(srcAssays, symbol, unit, elementUnits, p99).pctMetalRemoved : null;
+  }, [srcAssays, symbol, unit, elementUnits, elementCV]);
+  const p99Heavy = p99Removes != null && p99Removes > CAP_WARN_PCT;
   const matched = gridMode.startsWith("model:") ? latticeModels.find((x) => x.m.id === gridMode.slice(6)) || null : null;
   const originOk = [originE, originN, originZ].every((v) => v !== "" && Number.isFinite(Number(v)));
   const cellDz = cellHeight > 0 ? cellHeight : cellSize; // #2418
@@ -653,6 +669,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           ...(compositingSkipped ? { compositingSkipped: `the readings are ${Math.round(compositingSkipped.medianM * 100) / 100} m long (median), under a quarter of the ${compositeLength} m composites: each reading estimated as a sample of its own` } : {}), // #3269
           ...(coverageStats.leftOut > 0 ? { readingsUnderCoverage: `${coverageStats.leftOut} of ${coverageStats.readings} readings in no composite with at least ${Math.round(minCoverage * 100)} % coverage` } : {}), // #3269
           capValue: Number.isFinite(cap) ? cap : null, capAudit: cap != null ? capAudit(srcAssays, symbol, unit, elementUnits, cap) : null, includeQAQC, // capAudit: #533
+          ...(floorsFound.length ? { floorValues: floorsFound.map((f) => ({ symbol: f.symbol, sharePct: Math.round(f.share * 1000) / 10, floor: f.floor, mode: floorModes[f.symbol]?.mode || "keep", ...(floorModes[f.symbol]?.mode === "set" ? { setTo: Number(floorModes[f.symbol].value) } : {}) })) } : {}), // #3788 — which elements were mostly the detection floor, and what was done with it
           // TASKS.csv #529 — the unit of the estimated values and of the cap (an "Au" column could be ppm or ppb); and the
           // domain fields, which #533's edit had left inside the comment above (estimates since then lacked them)
           unit, capUnit: cap != null ? unit : null, domain: domainChoice ? domainChoice.label : null, ...(domainRowsSel && Object.values(capByDomain).some((v) => Number(v) > 0) ? { capByDomain: Object.fromEntries(Object.entries(capByDomain).filter(([, v]) => Number(v) > 0).map(([k, v]) => [k, Number(v)])) } : {}), /* #1571 */ restrictToDomain: restrictToDomain && !!domainKey, noCodeAsDomain: restrictToDomain && !!domainKey && noCodeAsDomain /* #2541 */, // #2423: the #1571 note had commented these out of the record
@@ -925,8 +942,8 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
                     <input type="number" min="0" step="any" value={v} placeholder={tr("fit")} onChange={(e) => set(e.target.value)} style={inp} aria-label={tr("Variogram {l}", { l })} />
                   </label>
                 ))}
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", flex: "1 1 160px" }}>{tr("Blank = fitted to these composites when you run. Values in the estimated unit ({unit}), squared for nugget and sill.", { unit })}</div>
-                {vgFromSaved && <div style={{ flex: "1 1 100%", fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>{tr("From the Variogram tool: {how}.", { how: vgFrom })}</div>}{/* #3273 */}
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", flex: "1 1 160px" }}>{tr("Blank = fitted to these composites when you run. Values in the estimated unit ({unit}), squared for nugget and sill.", { unit: gradeUnitLabel(symbol, unit) })}</div>
+                {vgFromSaved && <div style={{ flex: "1 1 100%", fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>{tr("From the Variogram tool: {how}.", { how: vgFrom })}{Number.isFinite(capValue) && capValue > 0 ? " " + tr("The model was fitted to uncapped values and this run caps at {cap}: kriging uses its ranges and nugget-to-sill ratio, but the kriging variance it offers is on the uncapped scale, not the capped one.", { cap: capValue }) : ""}</div>}{/* #3273; #3789 — the cap or transform it was computed under */}
                 <div style={{ flex: "1 1 100%", fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{trend /* #3273 — kriging takes the trend's anisotropy, said where the range is typed */
                   ? (() => { const sc = trendSearchScales(trend); return tr("With the trend \"{name}\", kriging reads distances in its frame: the range is along its major axis, and the variogram reaches {b} and {c} of it across (its ratios).", { name: trend.name || tr("flat search"), b: `${Math.round(100 / sc.semiMajor)} %`, c: `${Math.round(100 / sc.minor)} %` }); })()
                   : tr("One range in every direction (isotropic). For an anisotropic variogram, choose a structural trend for block estimation (3D Modelling → Model settings → Structural trends): kriging then reads distances in its frame, so the range is along its major axis and shorter across it by its ratios.")}</div>
@@ -945,8 +962,8 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
                 <label style={{ display: "flex", alignItems: "flex-start", gap: 6, cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>
                   <input type="checkbox" checked={planePref} onChange={(e) => setPlanePref(e.target.checked)} style={{ marginTop: 2 }} />{tr("Search along the samples' plane")}
                 </label>
-                {planeTrend ? tr(planeFit.cutoff.from === "shell" ? "Along the plane of the {n} samples at or above {cutoff} {unit} ({dip}° towards {dir}°, {holes} holes), the cut-off of the grade shell \"{shell}\", as the grade shell searches. Untick for a sphere." : "Along the plane of the {n} samples at or above {cutoff} {unit} ({dip}° towards {dir}°, {holes} holes), their 90th percentile, as the grade shell searches. Untick for a sphere.", { n: planeFit.n.toLocaleString(), cutoff: planeFit.cutoff.value, unit, dip: Math.round(planeTrend.dip), dir: Math.round(planeTrend.dipAzimuth), holes: planeFit.holes, shell: planeFit.cutoff.name })
-                  : planePref && planeFit ? tr("No plane: {n} samples at or above {cutoff} {unit} from {holes} holes, and a plane needs 30 from 4 holes in one drilled area, not along a line. The search is a sphere.", { n: planeFit.n.toLocaleString(), cutoff: planeFit.cutoff.value, unit, holes: planeFit.holes }) : null}
+                {planeTrend ? tr(planeFit.cutoff.from === "shell" ? "Along the plane of the {n} samples at or above {cutoff} {unit} ({dip}° towards {dir}°, {holes} holes), the cut-off of the grade shell \"{shell}\", as the grade shell searches. Untick for a sphere." : "Along the plane of the {n} samples at or above {cutoff} {unit} ({dip}° towards {dir}°, {holes} holes), their 90th percentile, as the grade shell searches. Untick for a sphere.", { n: planeFit.n.toLocaleString(), cutoff: planeFit.cutoff.value, unit: gradeUnitLabel(symbol, unit), dip: Math.round(planeTrend.dip), dir: Math.round(planeTrend.dipAzimuth), holes: planeFit.holes, shell: planeFit.cutoff.name })
+                  : planePref && planeFit ? tr("No plane: {n} samples at or above {cutoff} {unit} from {holes} holes, and a plane needs 30 from 4 holes in one drilled area, not along a line. The search is a sphere.", { n: planeFit.n.toLocaleString(), cutoff: planeFit.cutoff.value, unit: gradeUnitLabel(symbol, unit), holes: planeFit.holes }) : null}
               </div>
             )}
             {searchFromSpacing && searchTouched.current && Number(searchRadius) !== searchFromSpacing && !flatTrend && ( /* #3684 — a typed radius is kept, and said */
@@ -991,14 +1008,24 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           </div>
           {/* TASKS.csv #533 — P97.5 / P99 caps and the capping audit (samples cut, metal removed) */}
           {domainRowsSel && useComposites && <DomainCaps assays={srcAssays} symbol={symbol} unit={unit} elementUnits={elementUnits} domainRows={domainRowsSel} caps={capByDomain} setCaps={setCapByDomain} />}{/* #1571 */}
+          {floorsFound.map((f) => { const fm = floorModes[f.symbol] || { mode: "keep", value: "" }, u = gradeUnitLabel(f.symbol, elementUnits[f.symbol] || "ppm"); return (
+            <div key={f.symbol} role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", lineHeight: 1.45, display: "flex", flexDirection: "column", gap: 4 }}>{/* TASKS.csv #3788 */}
+              <span>{tr("{el}: {pct}% of its results are exactly {floor} {unit}, the half-limit put in for a result below detection. Its block grades and contained metal are mostly the detection limit, not a measurement.", { el: f.symbol, pct: Math.round(f.share * 100), floor: +f.floor.toPrecision(4), unit: u })}</span>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>{tr("Values on the floor")}
+                <select value={fm.mode} onChange={(e) => setFloorModes((p) => ({ ...p, [f.symbol]: { ...fm, mode: e.target.value } }))} style={{ ...inp, width: "auto" }} aria-label={tr("{el}: values on the detection floor", { el: f.symbol })}>
+                  <option value="keep">{tr("keep them as low grades")}</option><option value="out">{tr("leave them out")}</option><option value="set">{tr("set them to a value")}</option>
+                </select>
+                {fm.mode === "set" && <input type="number" min={0} step="any" value={fm.value} placeholder={u} onChange={(e) => setFloorModes((p) => ({ ...p, [f.symbol]: { ...fm, value: e.target.value } }))} style={{ ...inp, width: 90 }} aria-label={tr("{el}: the value the floor values are set to", { el: f.symbol })} />}
+              </label>
+            </div>); })}
           <CapAuditHint assays={srcAssays} symbol={symbol} unit={unit} unitLabel={gradeUnitLabel(symbol, unit)} /* #2218 */ elementUnits={elementUnits} capValue={Number.isFinite(capValue) && capValue > 0 ? capValue : null} onSetCap={(v) => setCapValue(Number(v.toPrecision(4)))} /* #2677: one unitLabel (the #2218 one) */ />
 
           {/* TASKS.csv #259 — CV > 150% means a skewed, outlier-driven distribution: the classic setup
               for an uncapped bonanza assay driving IDW² over its whole search neighbourhood. */}
           {elementCV != null && elementCV > 150 && !(Number.isFinite(capValue) && capValue > 0) && (
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", lineHeight: 1.45 }}>{tr("This element's coefficient of variation is {elementCV}% — a skewed, outlier-driven distribution. Estimating it without a high-grade cap will overstate grade. Set a cap (commonly the 97.5th–99th percentile) before trusting this result.", { elementCV: elementCV.toFixed(0) })}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", lineHeight: 1.45 }}>{p99Heavy ? tr("This element's coefficient of variation is {elementCV}% — a skewed, outlier-driven distribution. Estimating it without a high-grade cap will overstate grade, but the usual 97.5th–99th percentile caps remove {pct}% of the metal here. Choose a cap near the break in the metal-at-risk table above, and report the capped and the uncapped model side by side.", { pct: Math.round(p99Removes), elementCV: elementCV.toFixed(0) }) : tr("This element's coefficient of variation is {elementCV}% — a skewed, outlier-driven distribution. Estimating it without a high-grade cap will overstate grade. Set a cap (commonly the 97.5th–99th percentile) before trusting this result.", { elementCV: elementCV.toFixed(0) })}</div>
           )}
-          {capAuto && Number.isFinite(capValue) && capValue > 0 && elementCV != null && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 }}>{tr("Capped at P99 = {cap} by default: this element's coefficient of variation is {cv}%. Clear the cap to run uncapped; the result says which.", { cap: capValue, cv: elementCV.toFixed(0) })}</div>}{/* TASKS.csv #1573 */}
+          {capAuto && Number.isFinite(capValue) && capValue > 0 && elementCV != null && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 }}>{tr("Capped at P99 = {cap} by default: this element's coefficient of variation is {cv}%. Clear the cap to run uncapped; the result says which.", { cap: capValue, cv: elementCV.toFixed(0) })}{p99Heavy && Math.abs(capValue - Number(lengthWeightedPercentile(srcAssays, symbol, unit, elementUnits, 99)?.toPrecision(4))) < 1e-9 ? " " + tr("This default removes {pct}% of the metal, more than a cap on scattered outliers usually does: the cut decides the ounces. Look at the metal-at-risk table above and report the capped and the uncapped model side by side.", { pct: Math.round(p99Removes) }) : ""}</div>}{/* TASKS.csv #1573; #3783 */}
           {/* TASKS.csv #266 — same toggle Best Intercepts / Compositing / Grade Statistics already have. */}
           {pxrfLeft > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{n} pXRF reading(s) left out: the grades here come from lab assays only.", { n: pxrfLeft })}</div>}{/* #1673 */}
           {qaqcExcludedCount > 0 && (
@@ -1065,7 +1092,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
               the whole grid, 3.8 Mm³ of it inside the 2 % shell); never applied by itself */}
           {gradeShell && !shellId && (
             <div role="note" style={{ fontSize: "var(--font-size-sm)", marginBottom: 6, lineHeight: 1.45, padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
-              {tr("The grade shell \"{name}\" ({el} at or above {cutoff} {unit}) is in the model. Unrestricted, the estimate carries grade outward from the holes across the whole grid; restricted to the shell, only the samples inside it inform the blocks inside it.", { name: gradeShell.name, el: symbol, cutoff: gradeShell.cutoff, unit })}{" "}
+              {tr("The grade shell \"{name}\" ({el} at or above {cutoff} {unit}) is in the model. Unrestricted, the estimate carries grade outward from the holes across the whole grid; restricted to the shell, only the samples inside it inform the blocks inside it.", { name: gradeShell.name, el: symbol, cutoff: gradeShell.cutoff, unit: gradeUnitLabel(symbol, unit) })}{" "}
               <button type="button" onClick={() => setShellId(gradeShell.id)} style={{ fontSize: "var(--font-size-sm)" }}>{tr("Restrict to it")}</button>
             </div>
           )}
@@ -1340,7 +1367,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
             <strong>{tr("Not a resource estimate.")}</strong>{" "}{tr("This is an interpolated block model to help you visualize and target mineralization. Nothing it produces is a Mineral Resource under NI 43-101 or JORC, and it must not be reported publicly as one — that requires an estimate prepared by a Qualified Person.")}</div>
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>{tr("Nearest-neighbour, inverse-distance weighting and moving least squares are complete, defensible estimation methods (IDW especially for early-stage/scoping estimates; pick the one that suits the geology — hover the Method dropdown for what each is good for), and ordinary kriging weights the composites by a variogram (entered, or fitted at run time) and reports a kriging variance. Kriging here is point kriging at each block centre (no block discretization), with the same search as the other methods; its variance measures the samples' layout under the variogram, not the uncertainty of the grade. A block with no sample inside its search radius is left un-estimated rather than guessed at.")}{" "}{trend
               ? (trend.local ? <>{tr("The search is flat: {r} m across and {v} m up and down (typed in this dialog), there is", { r: trend.ratios.max, v: trend.ratios.min })}</> /* #2418 */
-                : trend === planeTrend ? <>{tr("The search follows the plane of the samples at or above {cutoff} {unit} (an ellipsoid; untick \"Search along the samples' plane\" for a sphere), there is", { cutoff: planeFit.cutoff.value, unit })}</> /* #3679 */
+                : trend === planeTrend ? <>{tr("The search follows the plane of the samples at or above {cutoff} {unit} (an ellipsoid; untick \"Search along the samples' plane\" for a sphere), there is", { cutoff: planeFit.cutoff.value, unit: gradeUnitLabel(symbol, unit) })}</> /* #3679 */
                 : <>{tr("The search follows the structural trend \"{name}\" (an ellipsoid; change it in 3D Modelling → Model settings → Structural trends), there is", { name: trend.name })}</>)
               : <>{tr("The search is")}{" "}<strong>{tr("isotropic")}</strong>{" "}{tr("(a plain sphere — choose a trend for block estimation in 3D Modelling → Model settings → Structural trends to make it an ellipsoid), there is")}</>}{" "}{method === "ok" /* #1098 — kriging HAS a variogram */
                 ? tr("no declustering and no resource classification. Domain control applies only if you both select a domain layer and tick \"restrict the interpolation search\"; high-grade capping applies only if you enter a cap. Every one of those is an assumption you are making, not a property of the data.")

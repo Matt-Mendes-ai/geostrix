@@ -8,10 +8,15 @@ import { meshVolume } from "./unitVolumes.js";
 export function shellComparison(model, solids) {
   const el = model?.params?.element;
   if (!el || model.params.restrictedToVolumeName || model.params.restrictedToVolume) return null;
-  let sh = null;
-  for (const s of solids || []) if (s?.params?.tool === "numeric grade shell" && s.params.element === el && Number.isFinite(s.params.cutoff)) sh = s; // the newest
+  // TASKS.csv #3790 (Scottie Gold) — the NEWEST shell of the element was 'the' shell: after a forced Envelope of 1,059 m³ the table said 'the grade shell ... encloses 0.00 Mm³' beside a 0.67 Mm³ shell
+  // at the same cut-off. The element's LARGEST shell is the comparison (a slim envelope is rarely what a report is read against); ties go to the newest
+  let sh = null, shellM3 = 0;
+  for (const s of solids || []) {
+    if (s?.params?.tool !== "numeric grade shell" || s.params.element !== el || !Number.isFinite(s.params.cutoff)) continue;
+    const v = Math.abs(meshVolume(s.vertices, s.indices));
+    if (!sh || v >= shellM3) { sh = s; shellM3 = v; }
+  }
   if (!sh) return null;
-  const shellM3 = Math.abs(meshVolume(sh.vertices, sh.indices));
   let modelM3 = 0;
   for (const c of model.cells || []) if (c.value >= sh.params.cutoff) modelM3 += (c.dx || 0) * (c.dy || 0) * (c.dz || 0);
   return shellM3 > 0 ? { id: sh.id, name: sh.name, cutoff: sh.params.cutoff, shellM3, modelM3 } : null;

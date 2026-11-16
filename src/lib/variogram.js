@@ -223,6 +223,9 @@ export function experimentalVariogram(points, opts = {}) {
   const sumRoot = estimator === "cressie" ? new Float64Array(nLags + 1) : null; // sum of |dv|^0.5 per bin
   const absBins = estimator === "dowd" ? Array.from({ length: nLags + 1 }, () => ({ a: new Float32Array(64), n: 0 })) : null; // every |dv| per bin, for its median
   const cnt = new Float64Array(nLags + 1);   // pair count per bin
+  // TASKS.csv #3789 (Scottie Gold) — the ten largest squared differences of each bin: on nuggety gold 77.5 % of the first lag's sum came from 10 of its 3,778 pairs, and the model fitted to it
+  // (r² 0.93) is a fit to those ten. Kept as a small array per bin (a replacement is rare once it is full), reported as each bin's top10Share
+  const TOP = 10, topV = Array.from({ length: nLags + 1 }, () => new Float64Array(TOP)), topN = new Uint8Array(nLags + 1), topMin = new Float64Array(nLags + 1);
   const hSum = new Float64Array(nLags + 1);  // sum of actual separations, for the bin's mean distance
 
   const plane = dir?.plane?.normal ? (() => { const q = dir.plane.normal, l = Math.hypot(q.x, q.y, q.z); return l > 0 ? { x: q.x / l, y: q.y / l, z: q.z / l, w: Math.max(0, Number(dir.plane.halfWidth) || 0) } : null; })() : null; // #2424
@@ -271,7 +274,9 @@ export function experimentalVariogram(points, opts = {}) {
         }
       }
       const dv = a.value - b.value;
-      sum[k] += dv * dv;
+      const dv2 = dv * dv;
+      sum[k] += dv2;
+      { const T = topV[k]; if (topN[k] < TOP) { T[topN[k]++] = dv2; if (topN[k] === TOP) { let m = T[0]; for (let q = 1; q < TOP; q++) if (T[q] < m) m = T[q]; topMin[k] = m; } } else if (dv2 > topMin[k]) { let mi = 0; for (let q = 1; q < TOP; q++) if (T[q] < T[mi]) mi = q; T[mi] = dv2; let m = T[0]; for (let q = 1; q < TOP; q++) if (T[q] < m) m = T[q]; topMin[k] = m; } }
       if (sumRoot) sumRoot[k] += Math.sqrt(Math.abs(dv));
       else if (absBins) { const B = absBins[k]; if (B.n === B.a.length) { const g = new Float32Array(B.a.length * 2); g.set(B.a); B.a = g; } B.a[B.n++] = Math.abs(dv); }
       cnt[k] += 1;
@@ -294,6 +299,7 @@ export function experimentalVariogram(points, opts = {}) {
         : estimator === "dowd" ? 1.099 * medianOf(absBins[k].a.subarray(0, absBins[k].n)) ** 2 // #1996: 2.198 × median² / 2
         : sum[k] / (2 * cnt[k]),     // Matheron: mean of half the squared differences
       nPairs: cnt[k],
+      ...(estimator === "matheron" && cnt[k] > TOP && sum[k] > 0 ? { top10Share: topV[k].reduce((s, x) => s + x, 0) / sum[k] } : {}), // #3789 — the share of the bin's semivariance carried by its ten largest pairs
       ...(countHolePairs ? { holePairs: holePairs[k] } : {}), // #3285
       reliable: cnt[k] >= 30 && (holeMode !== "between" || holePairs[k] >= MIN_HOLE_PAIRS), // #3285 — between holes, also on hole pairs
     });

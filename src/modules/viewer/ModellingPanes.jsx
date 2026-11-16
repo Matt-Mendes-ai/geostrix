@@ -325,7 +325,13 @@ export default function ModellingPanes(props) {
     const inArea = ns && modelArea === "checked" ? restrictRowsToHoles(base, visibleHoles) : base; // #3272 — the holes the run uses
     const rowsFor = ns ? inArea : (numericIncludeQAQC ? inArea.filter((a) => a.source !== "pXRF") : excludeQAQC(inArea));
     const v = rowsFor.map((a) => a.values?.[ns ? ns.symbol : next]).filter((x) => Number.isFinite(x) && x > 0).sort((x, y) => x - y);
-    if (v.length) { const p90 = +v[Math.floor(0.9 * (v.length - 1))].toPrecision(3); setNumericCutoff(p90); setShellCutoffAuto({ symbol: next, value: p90, n: v.length, onOpen }); } // said below: #3025 (6)
+    if (v.length) {
+      let p90 = +v[Math.floor(0.9 * (v.length - 1))].toPrecision(3), floor = null;
+      // TASKS.csv #3788 (Scottie Gold) — tin proposed 'Sn > 5 ppm', the column's lowest AND commonest value (98.7 % of the results were exactly the half-limit): a shell round the whole drilled volume. When the
+      // proposal is the lowest value, it is the 90th percentile of the values ABOVE that floor, and the note says how many sit on it
+      if (p90 <= v[0]) { const above = v.filter((x) => x > v[0]); floor = { value: v[0], share: (v.length - above.length) / v.length }; if (above.length) p90 = +above[Math.floor(0.9 * (above.length - 1))].toPrecision(3); }
+      setNumericCutoff(p90); setShellCutoffAuto({ symbol: next, value: p90, n: v.length, onOpen, ...(floor ? { floor } : {}) });
+    } // said below: #3025 (6)
   };
   const shellSpacing = useMemo(() => {
     if (toolPane !== "shell" || !numericSymbol) return null;
@@ -1288,7 +1294,7 @@ export default function ModellingPanes(props) {
                   <input type="number" step="any" value={numericCutoff} onChange={(e) => setNumericCutoff(e.target.value === "" ? NaN : Number(e.target.value))} style={{ ...smallSel, width: "100%" }} />
                 </label>
               </div>
-              {shellCutoffAuto && shellCutoffAuto.symbol === sym && numericCutoff === shellCutoffAuto.value && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{shellCutoffAuto.onOpen ? tr("Cutoff {v}: the 90th percentile of the {n} {symbol} values in the holes the shell uses, proposed for the element it opened on. Type your own.", { v: shellCutoffAuto.value, n: shellCutoffAuto.n.toLocaleString(), symbol: sym }) : tr("Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.", { v: shellCutoffAuto.value, n: shellCutoffAuto.n.toLocaleString(), symbol: sym })}</div>}{/* #3025 (6); onOpen: #3272 */}
+              {shellCutoffAuto && shellCutoffAuto.symbol === sym && numericCutoff === shellCutoffAuto.value && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{shellCutoffAuto.floor ? tr("Cutoff {v}: the 90th percentile of the {symbol} values above its detection floor: {pct}% of the {n} values are exactly {floor}, the half-limit, so the 90th percentile of all of them would be the floor itself. Type your own.", { v: shellCutoffAuto.value, pct: Math.round(shellCutoffAuto.floor.share * 100), n: shellCutoffAuto.n.toLocaleString(), floor: shellCutoffAuto.floor.value, symbol: sym }) /* #3788 */ : shellCutoffAuto.onOpen ? tr("Cutoff {v}: the 90th percentile of the {n} {symbol} values in the holes the shell uses, proposed for the element it opened on. Type your own.", { v: shellCutoffAuto.value, n: shellCutoffAuto.n.toLocaleString(), symbol: sym }) : tr("Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.", { v: shellCutoffAuto.value, n: shellCutoffAuto.n.toLocaleString(), symbol: sym })}</div>}{/* #3025 (6); onOpen: #3272 */}
               {!numSrc && cutoffPct(numericCutoff, sym, unit) != null && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("{v} ppm {symbol} is {p} %.", { v: numericCutoff.toLocaleString(), symbol: sym, p: +cutoffPct(numericCutoff, sym, unit).toPrecision(4) })}</div>}{/* #3272 */}
               {!numSrc && (() => { const offers = drillThresholdOffers(geochemThresholds, sym, unit).slice(0, 4); return offers.length ? ( /* TASKS.csv #2689 (#2675 part 2) — saved drill thresholds offered as shell levels, never applied */
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", alignItems: "center", marginBottom: 6 }}>

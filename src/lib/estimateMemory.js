@@ -24,10 +24,16 @@ export function sendFlatSearchToEstimation(project, { radiusM, reachM }) {
   return next;
 }
 // the continuity down the holes against the continuity between them, from two fits (each { range }): the ratio and a flat search that follows it
-export function anisotropyFromFits(downhole, across) {
+// TASKS.csv #3786 (Scottie Gold) — 'A flat search fits: 60 m across and 6 m up and down' came from a between-holes fit of r² 0.04 (the dialog called it unconstrained two lines below), on holes
+// dipping 41-67 degrees through a steep zone. No conclusion from a fit under minR2 (weak), and a flat search only where the holes are near-vertical (vertical: verticalShare >= 0.5, the test
+// 'Compute both' uses); on inclined holes 'down the holes' is not 'up and down'.
+export const ANISOTROPY_MIN_R2 = 0.3;
+export function anisotropyFromFits(downhole, across, { minR2 = ANISOTROPY_MIN_R2, vertical = true } = {}) {
   const a = Number(downhole?.range), b = Number(across?.range);
   if (!(a > 0) || !(b > 0)) return null;
-  return { downholeM: a, acrossM: b, ratio: b / a, flat: b / a >= 2 };
+  const weakOf = (f) => f?.rSquared != null && Number.isFinite(f.rSquared) && f.rSquared < minR2;
+  const weak = weakOf(downhole) || weakOf(across);
+  return { downholeM: a, acrossM: b, ratio: b / a, weak, weakFit: weak ? (weakOf(across) ? "across" : "downhole") : null, inclined: !vertical, flat: !weak && vertical && b / a >= 2 };
 }
 
 // TASKS.csv #3499 (from #3079) — the Variogram tool's last anisotropy (downhole and across ranges) per project and element, for the Grade shell

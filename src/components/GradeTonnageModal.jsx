@@ -29,6 +29,7 @@ import { densityMeansByCode } from "../lib/densityFromLog.js"; // TASKS.csv #310
 import { blockModelLattice } from "../lib/estimationMeta.js"; // TASKS.csv #3012
 import { sgMethodsText } from "../lib/sgMethodsText.js"; // TASKS.csv #3595
 import { poolBasis, poolBasisLine, decadesText, typesText } from "../lib/poolBasis.js"; // TASKS.csv #3598
+import { topCutOf, topCutLine } from "../lib/topCutNote.js"; // TASKS.csv #3783 — the cap the estimate was made under
 import { sameLattice, densityFromModel, isDensityModel } from "../lib/densityFromModel.js"; // TASKS.csv #3012; isDensityModel: #3172
 import { desurveyHole } from "../lib/desurvey.js"; // TASKS.csv #2550 — the code intervals placed in 3D
 import { setMembersOf } from "../lib/estimateSet.js"; // TASKS.csv #3014 part b
@@ -80,6 +81,9 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
   const hasSupport = useMemo(() => model.cells.some((c) => typeof c.support === "string"), [model.cells]);
   const cutoffs = useMemo(() => [...new Set(cutoffText.split(/[,;\s]+/).map(Number).filter(Number.isFinite))], [cutoffText]);
   const rho = Number(density) > 0 ? Number(density) : null;
+  const topCut = topCutOf(model.params); // #3783
+  // TASKS.csv #3788 — the elements of this estimate that were mostly the detection floor and were kept as low grades: their contained metal is largely the limit, not a measurement
+  const floorKept = (Array.isArray(model.params?.floorValues) ? model.params.floorValues : []).filter((f) => (f.mode || "keep") === "keep");
   const beyondKnown = !!model.params?.beyondFlagged; // #2417 — blocks above / below every sample informing them
   const logKnown = Number(model.params?.unsampledLogFilledM) > 0; // #2721 — unsampled metres filled from a picked log
   // TASKS.csv #2550 (review #2486) — a density per code of a logged layer (Weathering: fresh rock about 2.7, clay-weathered 1.8-2.0), each block
@@ -186,6 +190,8 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
     const out = extra ? out0.map((r, i) => ({ ...r, ...extra[i], ...(extraM ? extraM[i] : {}) })) : out0;
     const stamp = stampLines({ tool: "Grade-tonnage table", version: APP_VERSION, epsg, params: [
       ...(pooled ? [poolBasisLine(pooled)] : []), // #3598
+      ...(topCut ? [topCutLine(model.params, unitL)] : []), // #3783
+      ...(floorKept.length ? [`Detection floor: ${floorKept.map((f) => `${f.symbol} ${f.sharePct}% of results at ${f.floor}`).join("; ")} (the half-limit, kept as a low grade): the contained metal of these elements is largely the detection limit, not a measurement`] : []), // #3788
       `Block model: ${model.name} (${model.cells.length} blocks, source ${model.source || "import"}) | value ${vname}${unit ? ` in ${unit}` : " (no unit stated)"}`,
       ...(solid ? [`Inside the solid: ${solid.name}${solid.closure === "artificial" ? " (closed artificially at the search radius: its volume is an assumption)" : ""} | ${insideMode === "share" ? `each block counted by the share of it inside (2 x 2 x 2 sample points): ${inside.inside} wholly inside, ${inside.partial} partly, ${inside.outside} outside` : `blocks counted whole by their centre: ${inside.inside} inside, ${inside.outside} outside`}`] : []), // #1949
       ...(byBench && benchRows.length ? [`By bench: ${benchH} m benches from a datum of ${Number(benchDatum) || 0} m, at the ${benchCut} ${unit || ""} cutoff; a block spanning two benches is split by its vertical overlap`] : []), // #1957
@@ -330,6 +336,15 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
         {untypedCodes.length > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.5 }}>{/* #3013 */}{(() => { const list = untypedCodes.slice(0, 12).map(([c, n]) => tr("{code} ({n} blocks)", { code: c, n: fmtNum(n) })).join(", ") + (untypedCodes.length > 12 ? ", …" : ""); return rho ? tr("No density typed for {list}: their blocks take the default ({rho} t/m³).", { list, rho }) : tr("No density typed for {list}: with no default density typed, their blocks have a volume but no tonnes.", { list }); })()}</div>}
         {densityUse && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{/* #2550 */}{tr("Density by {layer}, the nearest logged interval within {r} m: {list}.", { layer: densityLayer === "weath" ? tr("Weathering") : densityLayer === "litho" ? tr("Lithology") : tr("Alteration"), r: Math.round(reachM), list: densityUse.map((d) => tr("{code} {rho} t/m³ ({n} blocks)", { code: d.code ?? tr("the default"), rho: d.rho ?? "—", n: d.n })).join("; ") })}{!tonnesOn ? " " + tr("Enter the default density to show the tonnes.") : ""}</div>}
         {beyondKnown && shown?.beyondShare > 0.1 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.5 }}>{tr(chips ? "{p} % of the metal at the {c} cutoff is in blocks above or below every sample that informs them: the estimate carried grade up or down the holes past their samples (unsampled chips reads as not known unless the estimate filled it)." : "{p} % of the metal at the {c} cutoff is in blocks above or below every sample that informs them: the estimate carried grade up or down the holes past their samples (unsampled core reads as not known unless the estimate filled it).", { p: Math.round(shown.beyondShare * 100), c: sig(shown.cutoff) })}</div>}
+        {topCut && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: topCut.heavy ? "var(--color-warn-text)" : "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{/* TASKS.csv #3783 — the cap decides the ounces: named here, with the metal it removed */}
+          {topCut.kind === "capped"
+            ? tr("Top cut: grades above {cap} {unit} were capped before estimating{v}. The contained metal and the blocks at each cutoff depend on it.", { cap: topCut.cap, unit: unitL || "", v: topCut.nSamples != null ? tr(" ({k} of {n} samples, {pct}% of the metal removed)", { k: fmtNum(topCut.nCapped), n: fmtNum(topCut.nSamples), pct: topCut.pctMetal != null ? Math.round(topCut.pctMetal * 10) / 10 : "?" }) : "" })
+            : tr("Top cut: none. The highest samples entered the estimate at full grade; the contained metal rests on them.")}
+          {topCut.heavy ? " " + tr("A cap that removes this much changes the ounces a great deal: report the capped and the uncapped model side by side.") : ""}
+        </div>}
+        {floorKept.length > 0 && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.5 }}>{/* TASKS.csv #3788 */}
+          {tr("Mostly the detection floor: {list}. The half-limit was kept as a low grade, so the contained metal of these elements is largely the detection limit, not a measurement.", { list: floorKept.map((f) => tr("{el} ({pct}% of results at {floor})", { el: f.symbol, pct: f.sharePct, floor: f.floor })).join("; ") })}
+        </div>}
         {pooled && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{/* #3598 */}
           {pooled.years ? tr("This model pools {n} holes drilled {from}–{to} ({decades}).", { n: pooled.holes, from: pooled.years.min, to: pooled.years.max, decades: decadesText(pooled.years) }) : tr("This model pools {n} holes.", { n: pooled.holes })}
           {pooled.types ? " " + tr("Hole types: {types}.", { types: typesText(pooled.types) }) : ""}
@@ -340,7 +355,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
         {hasSupport && !interpOnly && lowSupport && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.5 }}>{tr("Most of this volume is in blocks the estimate carried outward from the holes (extrapolated or unsupported), not between them: the tonnage rests on grades the drilling does not surround.")}</div>}
         {shellCmp && !solid && ( /* TASKS.csv #3679 */
           <div role="note" style={{ fontSize: "var(--font-size-sm)", marginBottom: 6, lineHeight: 1.5, padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
-            {tr("At {cutoff} {unit} this model holds {m} Mm³ of blocks; the grade shell \"{name}\" at the same cut-off encloses {s} Mm³. The estimate was not restricted to it: report inside it to count only the zone the shell draws.", { cutoff: shellCmp.cutoff, unit, m: (shellCmp.modelM3 / 1e6).toFixed(2), s: (shellCmp.shellM3 / 1e6).toFixed(2), name: shellCmp.name })}{" "}
+            {tr("At {cutoff} {unit} this model holds {m} of blocks; the grade shell \"{name}\" at the same cut-off encloses {s}. The estimate was not restricted to it: report inside it to count only the zone the shell draws.", { cutoff: shellCmp.cutoff, unit: unitL || unit /* #3792 (1) — g/t */, m: shellCmp.modelM3 < 1e4 ? `${Math.round(shellCmp.modelM3).toLocaleString()} m³` : `${(shellCmp.modelM3 / 1e6).toFixed(2)} Mm³`, s: shellCmp.shellM3 < 1e4 ? `${Math.round(shellCmp.shellM3).toLocaleString()} m³` : `${(shellCmp.shellM3 / 1e6).toFixed(2)} Mm³`, name: shellCmp.name })}{" "}
             <button type="button" onClick={() => setSolidId(shellCmp.id)} style={{ fontSize: "var(--font-size-sm)" }}>{tr("Report inside it")}</button>
           </div>
         )}

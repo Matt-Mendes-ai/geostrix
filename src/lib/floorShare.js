@@ -36,3 +36,22 @@ export function floorInputs(rows, expr, symbols, units = {}) {
   }
   return hit ? { rows: hit, of, inputs: [...per].filter(([, n]) => n).map(([symbol, n]) => ({ symbol, n })) } : null;
 }
+
+// TASKS.csv #3788 (Scottie Gold review) — the half-limit floor modelled as grade: 86 % of the silver values were exactly 1 g/t (half the limit) and the model printed 7.7 Moz of silver, three
+// quarters of it the detection floor. What the user may do with such an element's floor values in an estimate: keep them (the default: low grades, as they are), leave them out, or set them
+// to a value they state. modes: { [symbol]: { mode: "keep" | "out" | "set", value } }; found: floorElements()'s answer. Returns the same rows when nothing changes.
+// -> assay rows (copies only where a value changed)
+export function applyFloorModes(rows, found, modes = {}) {
+  const todo = (found || []).map((f) => ({ f, m: modes[f.symbol] })).filter(({ m }) => m && (m.mode === "out" || (m.mode === "set" && String(m.value ?? "").trim() !== "" && Number.isFinite(Number(m.value)) && Number(m.value) >= 0)));
+  if (!todo.length || !rows?.length) return rows;
+  return rows.map((r) => {
+    let out = null;
+    for (const { f, m } of todo) {
+      const v = r?.values?.[f.symbol];
+      if (typeof v !== "number" || !(Math.abs(v - f.floor) <= f.floor * 1e-9)) continue;
+      if (!out) out = { ...r, values: { ...r.values } };
+      if (m.mode === "out") delete out.values[f.symbol]; else out.values[f.symbol] = Number(m.value);
+    }
+    return out || r;
+  });
+}

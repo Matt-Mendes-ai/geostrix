@@ -12,6 +12,7 @@
 //    sphere's radius (60 x 19 x 11 m, a fifth of it, thinner than the 24 m between the holes' samples).
 import { shellPlaneSearch } from "./viewer/shellPlane.js";
 import { solidChoices } from "./solidChoices.js";
+import { meshVolume } from "./unitVolumes.js"; // TASKS.csv #3790
 
 const r1 = (v) => Math.round(v * 10) / 10;
 
@@ -22,14 +23,20 @@ export function sameVolumeMajorM(radiusM, ratios) {
   return (radiusM * max) / Math.cbrt(max * int * min);
 }
 
-// The newest CLOSED grade shell of the element among the modelled volumes (lib/viewer/estimationShells.js closedShellsOf: { id, name,
+// The largest CLOSED grade shell of the element (#3790; the newest, before) among the modelled volumes (lib/viewer/estimationShells.js closedShellsOf: { id, name,
 // params: { tool, element, cutoff } }), -> { id, name, cutoff } | null
 export function gradeShellOf(volumeShells, symbol) {
   const cands = (volumeShells || []).filter((v) => v?.params?.tool === "numeric grade shell" && v.params.element === symbol && Number.isFinite(v.params.cutoff));
   if (!cands.length) return null;
   const closed = new Set(solidChoices(cands).closed.map((v) => v.id));
-  for (let i = cands.length - 1; i >= 0; i--) if (closed.has(cands[i].id)) return { id: cands[i].id, name: cands[i].name, cutoff: cands[i].params.cutoff };
-  return null;
+  // TASKS.csv #3790 — the LARGEST closed shell of the element (the newest was a forced 1,059 m³ envelope beside a 0.67 Mm³ shell at the same cut-off); ties go to the newest
+  let best = null, bestV = -1;
+  for (let i = 0; i < cands.length; i++) {
+    if (!closed.has(cands[i].id)) continue;
+    const c = cands[i], v = c.positions && c.indices ? Math.abs(meshVolume(c.positions, c.indices)) : 0;
+    if (!best || v >= bestV) { best = c; bestV = v; }
+  }
+  return best ? { id: best.id, name: best.name, cutoff: best.params.cutoff } : null;
 }
 
 // The cut-off whose samples give the plane: the grade shell's, else the 90th percentile of the positive values
