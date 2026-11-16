@@ -36,6 +36,7 @@ import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
 import { detectLongAssay, pivotLongAssays, longAssayNote } from "../lib/longAssays.js"; // TASKS.csv #623
 import { isSurfaceSampleTable, surfaceXYColumns } from "../lib/viewer/importHelpers.js"; // TASKS.csv #975; surfaceXYColumns: #2564
 import { seedFromProject, projectImportChoices, importChoicesOf, conversionsOver100 } from "../lib/assayReimport.js"; // TASKS.csv #3217
+import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3698 — g/t for a precious metal stored in ppm, in the X-Y axis lists
 import { assayFileSummary, removeAssayFile, removeAssayElement, carbonateShare, VOLCANIC_DIAGRAMS, LOI, isLoiHeader, readLoiCell, projectKeepsOxide, unitBasis, oxideAliases } from "../lib/geochem.js"; // oxideAliases: #2914; // LOI: #2734; // TASKS.csv #624; carbonateShare: #1392
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #624
 import ElementBasisSelect from "../components/ElementBasisSelect.jsx"; // TASKS.csv #2627
@@ -1509,7 +1510,7 @@ export default function GeochemModule() {
                 <label key={axis} style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{axis}
                   <select aria-label={tr("{axis} axis", { axis })} value={value} onChange={(e) => set(e.target.value)} style={{ ...selectStyle, padding: "5px 8px", maxWidth: 220 }}>
                     {!value && <option value="">{tr("— choose —")}</option>}{/* #2193 */}
-                    <optgroup label={tr("Elements")}>{assayElements.map((e) => { const none = xyEmptyElements.has(e.symbol), name = e.unit ? `${e.symbol} (${e.unit})` : e.symbol; return <option key={e.symbol} value={`el:${e.symbol}`} disabled={none && value !== `el:${e.symbol}`}>{none ? tr("{name} — no value in these samples", { name }) : name}</option>; })}</optgroup>{/* none: #2719 */}
+                    <optgroup label={tr("Elements")}>{assayElements.map((e) => { const none = xyEmptyElements.has(e.symbol), name = e.unit ? `${e.symbol} (${gradeUnitLabel(e.symbol, e.unit)})` : e.symbol; return <option key={e.symbol} value={`el:${e.symbol}`} disabled={none && value !== `el:${e.symbol}`}>{none ? tr("{name} — no value in these samples", { name }) : name}</option>; })}</optgroup>{/* none: #2719 */}
                     {xyChoices.length > 0 && <optgroup label={tr("Downhole logs and custom fields (at each sample's depth)")}>{xyChoices.map((c) => <option key={c.key} value={c.key}>{c.unit && c.unit !== "as logged" && !String(c.label).includes(`(${c.unit})`) ? `${c.label} (${c.unit})` : c.label /* #3564 — one name and one unit for a log wherever it is listed */}</option>)}</optgroup>}
                   </select>
                 </label>
@@ -1536,7 +1537,7 @@ export default function GeochemModule() {
                 <label key={i} style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{corner}
                   <select aria-label={tr("{corner} corner", { corner })} value={ternKeysNow[i]} onChange={(e) => setTernKeys(ternKeysNow.map((k, j) => (j === i ? e.target.value : k)))} style={{ ...selectStyle, padding: "5px 8px", maxWidth: 180 }}>
                     {!ternKeysNow[i] && <option value="">{tr("— choose —")}</option>}
-                    <optgroup label={tr("Elements")}>{assayElements.map((e) => <option key={e.symbol} value={`el:${e.symbol}`}>{e.unit ? `${e.symbol} (${e.unit})` : e.symbol}</option>)}</optgroup>
+                    <optgroup label={tr("Elements")}>{assayElements.map((e) => <option key={e.symbol} value={`el:${e.symbol}`}>{e.unit ? `${e.symbol} (${gradeUnitLabel(e.symbol, e.unit)})` : e.symbol}</option>)}</optgroup>
                     {xyChoices.length > 0 && <optgroup label={tr("Downhole logs and custom fields (at each sample's depth)")}>{xyChoices.map((c) => <option key={c.key} value={c.key}>{c.unit && c.unit !== "as logged" && !String(c.label).includes(`(${c.unit})`) ? `${c.label} (${c.unit})` : c.label /* #3564 — one name and one unit for a log wherever it is listed */}</option>)}</optgroup>}
                   </select>
                   <span aria-hidden="true">×</span><input type="number" min="0" step="any" value={ternK?.[i] ?? "1"} onChange={(e) => setTernK([0, 1, 2].map((j) => (j === i ? e.target.value : ternK?.[j] ?? "1")))} aria-label={tr("{corner} factor", { corner })} title={tr("A factor for this corner (0.01 for Ti/100, 3 for Y×3)")} style={{ ...selectStyle, width: 58, padding: "4px 6px" }} />

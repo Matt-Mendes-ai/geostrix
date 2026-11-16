@@ -6,6 +6,7 @@
 import { LAYER_META } from "./layers.js";
 import { rowCount, rowAt } from "./layerColumns.js";
 import { t as tr } from "./i18n.js";
+import { gradeUnitLabel } from "./geochemColumns.js"; // TASKS.csv #3698
 
 const INTERVAL_KEYS = ["litho", "alt", "vein", "breccia", "weath", "structzone", "geotech", "recovery", "sg", "litho_gc", "alt_gc", "mnlgy", "magsusc", "structure"];
 const HIDDEN = new Set(["_src", "tip", "color", "colour", "values", "attrs", "codes", "all_codes", "modelled", "modelColor", "numeric"]);
@@ -42,7 +43,7 @@ export function buildTable(source, store) {
     if (hasId) base.push({ key: "sample_id", label: "sample_id", numeric: false });
     const hasType = raw.some((a) => a.sample_type);
     if (hasType) base.push({ key: "sample_type", label: "sample_type", numeric: false });
-    columns = [...base, ...els.map((e) => ({ key: `el:${e.symbol}`, label: e.unit ? `${e.symbol} (${e.unit})` : e.symbol, numeric: true, unit: e.unit || undefined, element: e.symbol }))];
+    columns = [...base, ...els.map((e) => ({ key: `el:${e.symbol}`, label: e.unit ? `${e.symbol} (${gradeUnitLabel(e.symbol, e.unit)})` : e.symbol, numeric: true, unit: e.unit || undefined, element: e.symbol }))]; // g/t for a precious metal stored in ppm (#3698)
     rows = raw.map((a) => [a.hole_id, a.from, a.to, ...(hasId ? [a.sample_id] : []), ...(hasType ? [a.sample_type] : []), ...els.map((e) => { const v = a.values?.[e.symbol]; return isNum(v) ? v : v == null ? null : v; })]);
   } else {
     const custom = String(source).startsWith("custom:");

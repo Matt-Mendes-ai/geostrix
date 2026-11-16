@@ -30,7 +30,7 @@ test("the density table: every stored column (method, low_recovery, comment) and
 
 test("the assay table: hole, depths, one column per element with its unit; the values as imported", () => {
   const t = buildTable("assays", store);
-  assert.deepEqual(t.columns.map((c) => c.label), ["hole_id", "from (m)", "to (m)", "Ag (ppm)", "Pb (%)", "Zn (%)"]);
+  assert.deepEqual(t.columns.map((c) => c.label), ["hole_id", "from (m)", "to (m)", "Ag (g/t)", "Pb (%)", "Zn (%)"]);
   assert.equal(t.n, 32546);
   assert.deepEqual(t.rows[0].slice(0, 3), [assays[0].hole_id, assays[0].from, assays[0].to]);
 });
@@ -92,7 +92,7 @@ test("a density flag with its unit and the sample's grades: the real Macpass six
   const withGrades = flags.filter((f) => /\(the sample there: /.test(f.message));
   assert.ok(withGrades.length >= 4, `${withGrades.length} of the six sit in an assayed interval`);
   const g = gradesAtFn(assays, assayElements)("NB23-016", 134, 134.5);
-  assert.match(g, /^(Ag [\d.]+ ppm, )?Pb [\d.]+ %, Zn [\d.]+ %$/);
+  assert.match(g, /^(Ag [\d.]+ g\/t, )?Pb [\d.]+ %, Zn [\d.]+ %$/);
   assert.equal(gradesAtFn(assays, [])("NB23-016", 134, 134.5), "");
   assert.equal(gradesAtFn(assays, assayElements)("NO-SUCH", 1, 2), "");
   // another layer's message is as it was

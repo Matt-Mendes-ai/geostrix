@@ -21,6 +21,7 @@ import { loadPatternTiles, patternDefs, patternFill, sectionTilePx } from "../li
 import { flushSync } from "react-dom"; // TASKS.csv #1090 — render at print size for an export, synchronously
 import { hoverTitle } from "../lib/svgLazyTitle.js"; // TASKS.csv #2210
 import { gradeText } from "../lib/gradeText.js"; // TASKS.csv #2515
+import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3573 — g/t for a precious metal stored in ppm in the top-grade labels
 import { defaultSectionVE, plotAspect, MAX_SECTION_VE } from "../lib/sectionVE.js"; // TASKS.csv #2363; plotAspect: #2933
 // TASKS.csv #2933 / #2387 — the VE of the section a step (‹ ›) was taken from, for the section that step opens in the next tab of this
 // window (the tabs share this module): a parallel section keeps the user's 8x instead of opening at its own automatic 3x
@@ -993,7 +994,7 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
               <line x1={bx0} y1={by0} x2={bx1} y2={by1} stroke={row.color} strokeWidth={Math.min(thick, 6)} strokeLinecap="butt"><title>{`${row.label} (${+Number(a.from).toFixed(2)}–${+Number(a.to).toFixed(2)} m)` /* #2622 — a depth clipped at the buffer printed as '333.24174602201447' */}</title></line>
               {/* TASKS.csv #1700 — the grade labels go through the collision pass with the depth and hole labels (they stacked on each
                   other and ran over the elevation axis); unit: #1475 */}
-              {labelledAssays.has(row) && floatLabels.push({ key: `grade_${i}`, text: (a.u ? `${gradeText(a.value)} ${a.u} ${a.sym}` : gradeText(a.value)) + (a.pxrf ? " (pXRF)" : ""), /* #2362; gradeText: #2515 */ size: fs(9), fill: "#1a2028", prio: 2, within: [PAD, W - PAD, PAD, H - PAD] /* #2603: inside the plot */, cands: [{ x: bx1 + nx * 3, y: by1 + ny * 3 + 3, anchor: nx >= 0 ? "start" : "end" }, { x: bx1 + nx * 3, y: by1 + ny * 3 + 3 + fs(10), anchor: nx >= 0 ? "start" : "end" }, { x: bx1 + nx * 3, y: by1 + ny * 3 - fs(8), anchor: nx >= 0 ? "start" : "end" }] }) && null}
+              {labelledAssays.has(row) && floatLabels.push({ key: `grade_${i}`, text: (a.u ? `${gradeText(a.value)} ${gradeUnitLabel(a.sym, a.u)} ${a.sym}` : gradeText(a.value)) + (a.pxrf ? " (pXRF)" : ""), /* #2362; gradeText: #2515 */ size: fs(9), fill: "#1a2028", prio: 2, within: [PAD, W - PAD, PAD, H - PAD] /* #2603: inside the plot */, cands: [{ x: bx1 + nx * 3, y: by1 + ny * 3 + 3, anchor: nx >= 0 ? "start" : "end" }, { x: bx1 + nx * 3, y: by1 + ny * 3 + 3 + fs(10), anchor: nx >= 0 ? "start" : "end" }, { x: bx1 + nx * 3, y: by1 + ny * 3 - fs(8), anchor: nx >= 0 ? "start" : "end" }] }) && null}
             </g>
           );
         }

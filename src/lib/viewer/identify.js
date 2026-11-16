@@ -194,7 +194,7 @@ function describe(hit, ctx) {
     // the lab wrote it (twice the stored half-limit), a '>' as its ceiling. It listed the first 16 in the lab file's column order: Cs never showed
     if (row?.values) {
       const shownSym = tipLines[1]?.includes(":") ? tipLines[1].slice(0, tipLines[1].indexOf(":")).trim() : null;
-      for (const sym of orderedElements(row.values, [...(shownSym ? [shownSym] : []), ...(ctx.leadFirst?.() || [])])) fields.push([sym, assayValueText(row, sym, ctx.units?.[sym])]); // lead: #2938
+      for (const sym of orderedElements(row.values, [...(shownSym ? [shownSym] : []), ...(ctx.leadFirst?.() || [])])) fields.push([sym, assayValueText(row, sym, ctx.units?.[sym] ? gradeUnitLabel(sym, ctx.units[sym]) : "")]); // lead: #2938; g/t for a precious metal stored in ppm: #3573
     }
     if (row) fields.push(...attributeFields(row));
     else for (const line of tipLines.slice(hole ? 2 : 1)) fields.push(["", line]);

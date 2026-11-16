@@ -12,6 +12,7 @@
 
 import { pointInBoundary } from "./geoprocessing.js";
 import { arrMax, arrMin } from "./arrayStats.js"; // arrMin: #2335
+import { gradeUnitLabel } from "./geochemColumns.js"; // TASKS.csv #3698
 import { isMarkedQcRow } from "./qaqc.js"; // TASKS.csv #601
 import { terrainGroundAt } from "./viewer/geomath.js"; // TASKS.csv #558; #927 — never compared with the fill
 
@@ -150,7 +151,7 @@ export function gradesAtFn(assays, assayElements) {
     const mid = (from + to) / 2, a = lazy(hole).find((x) => x.from <= mid && mid <= x.to);
     if (!a) return "";
     const out = [];
-    for (const e of els) { const v = a.values?.[e.symbol]; if (typeof v === "number" && Number.isFinite(v)) out.push(`${e.symbol} ${+v.toPrecision(3)}${e.unit ? ` ${e.unit}` : ""}`); if (out.length === 3) break; }
+    for (const e of els) { const v = a.values?.[e.symbol]; if (typeof v === "number" && Number.isFinite(v)) out.push(`${e.symbol} ${+v.toPrecision(3)}${e.unit ? ` ${gradeUnitLabel(e.symbol, e.unit)}` : ""}`); /* g/t for a precious metal stored in ppm (#3698) */ if (out.length === 3) break; }
     return out.join(", ");
   };
 }
