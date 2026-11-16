@@ -29,7 +29,7 @@ test("the service type follows what the preset offers", () => {
 test("the dialog offers them and the placeholder follows the service type", () => {
   const s = readFileSync(new URL("../src/components/AddWebLayerModal.jsx", import.meta.url), "utf8");
   assert.match(s, /placeholder=\{service === "wfs" \? tr\("https:\/\/example\.gov\/geoserver\/wfs"\) : tr\("https:\/\/example\.gov\/geoserver\/wms"\)\}/);
-  assert.match(s, /fetchCapabilities\(s, p\[s\], p\.layer\)/);
+  assert.match(s, /wantRef\.current = p\.layer \|\| null;/); // #3835: the layer a preset wants is kept for the Fetch layers button; choosing it fetches nothing
   assert.match(s, /tr\("Licence: \{v\}\. Credit the publisher in figures you share\.", \{ v: preset\.licence \}\)/);
 });
 

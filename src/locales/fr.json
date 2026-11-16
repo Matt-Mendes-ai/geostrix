@@ -13739,5 +13739,16 @@
   "Are the azimuths in {f} measured from {ref} (the form's 'Azimuth from')? OK converts each to grid at its own collar; Cancel reads them as grid north.": "Les azimuts de {f} sont-ils mesurés depuis {ref} (le « Azimut depuis » du formulaire) ? OK convertit chacun en nord de la grille à son propre collet ; Annuler les lit comme nord de la grille.",
   "Azimuths read as {ref} and converted to grid at each collar.": "Azimuts lus comme {ref} et convertis en nord de la grille à chaque collet.",
   "Azimuths read as grid north.": "Azimuts lus comme nord de la grille.",
-  "Azimuths read as grid north (set 'Azimuth from' to true or magnetic north before importing to convert them).": "Azimuts lus comme nord de la grille (réglez « Azimut depuis » sur le nord vrai ou magnétique avant d'importer pour les convertir)."
+  "Azimuths read as grid north (set 'Azimuth from' to true or magnetic north before importing to convert them).": "Azimuts lus comme nord de la grille (réglez « Azimut depuis » sur le nord vrai ou magnétique avant d'importer pour les convertir).",
+  "{n} open line(s) not counted": "{n} ligne(s) ouverte(s) non comptée(s)",
+  "Choosing a service only fills the URL. Nothing goes online until you press Fetch layers.": "Choisir un service ne fait que remplir l'URL. Rien ne part sur Internet tant que vous n'appuyez pas sur Récupérer les couches.",
+  "Highest {el} in the hole ({unit}, single sample, uncut)": "{el} le plus élevé du sondage ({unit}, un seul échantillon, non plafonné)",
+  "The hole ids and labels on this picture print at about {pt} pt.": "Les ID de sondage et les étiquettes de cette image s'impriment à environ {pt} pt.",
+  "The Maps plan draws this view again over the same ground at the frame's own size, so its hole ids and call-outs print at their screen size (about 7.5 pt) and are laid out for it, then Layout opens again.": "Le plan de Cartes redessine cette vue sur le même terrain à la taille du cadre, de sorte que ses ID de sondage et ses bulles s'impriment à leur taille d'écran (environ 7,5 pt) et soient disposés pour elle ; puis la mise en page se rouvre.",
+  "Draw it again with the text at print size": "La redessiner avec le texte à la taille d'impression",
+  "{far} of {n} surface samples": "{far} échantillons de surface sur {n}",
+  "Show the surface samples on the plan": "Afficher les échantillons de surface sur le plan",
+  "Surface samples ({n})": "Échantillons de surface ({n})",
+  "Classed by element or field in Geochem › Plan map.": "Classés par élément ou champ dans Géochimie › Carte en plan.",
+  "Dropped on the map: rasters (.tif, .gxf, .grd), CSV tables and shapefile / GeoJSON / KML layers are read here. {names}: not read here. An X Y Z point table (.xyz, .tx) goes to Geophysics › Point survey, or save it as .csv with a header line to add it here as points; Boundaries, Terrain, Web layers or Surface Geology take the other formats.": "Déposé sur la carte : les rasters (.tif, .gxf, .grd), les tables CSV et les couches shapefile / GeoJSON / KML sont lus ici. {names} : non lu ici. Une table de points X Y Z (.xyz, .tx) va dans Géophysique › Levé de points, ou enregistrez-la en .csv avec une ligne d'en-tête pour l'ajouter ici comme points ; Limites, Terrain, Couches web ou Géologie de surface prennent les autres formats."
 }

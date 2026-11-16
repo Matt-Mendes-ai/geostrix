@@ -39,6 +39,7 @@ import { parseDEMFiles, buildRasterImport, terrainToGeoTIFFArrayBuffer, parseWor
 import { rasterFileSet } from "../lib/rasterSideFiles.js"; // TASKS.csv #2901 — a world file / .prj / Geosoft .xml dropped with its raster
 import { geosoftXmlCrs } from "../lib/geosoftXml.js"; // TASKS.csv #2901
 import { boundaryAreaHectares } from "../lib/geoprocessing.js";
+import { closedPartsOf } from "../lib/areaBoundary.js"; // TASKS.csv #3827
 import { groundArea } from "../lib/groundArea.js"; // TASKS.csv #3468 — areas on the ground, not on the grid
 import { saveFile, safeFileName, runPfieldsJob } from "../lib/desktop.js"; // safeFileName: #1114; runPfieldsJob: #2846 (the spline)
 import { blockModelCsvText, blockModelParamLines } from "../lib/blockModelExport.js"; // TASKS.csv #411; #1041
@@ -3018,8 +3019,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               </div>
             )}
             {isAreaBoundary(b) && (() => { // TASKS.csv #3469 — a closed boundary has an area too, as a claim does (on the ground where the grid's scale factor matters, #3468)
-              const ga = groundArea(boundaryAreaHectares(b.polylines), b.polylines, project?.crsSet !== false ? project?.epsg : null), f = (v) => v.toLocaleString(undefined, { maximumFractionDigits: 1 });
-              return <div style={{ marginTop: 4, color: "var(--color-text-faint)", fontSize: "var(--font-size-sm)" }}>{ga.groundHa != null ? tr("Area {v} ha on the ground ({g} ha on the map grid)", { v: f(ga.groundHa), g: f(ga.gridHa) }) : tr("Area {v} ha", { v: f(ga.gridHa) })}</div>;
+              const cp = closedPartsOf(b), ga = groundArea(boundaryAreaHectares(cp.polylines), cp.polylines, project?.crsSet !== false ? project?.epsg : null), f = (v) => v.toLocaleString(undefined, { maximumFractionDigits: 1 }); // #3827 — only the parts the file closed are areas
+              return <div style={{ marginTop: 4, color: "var(--color-text-faint)", fontSize: "var(--font-size-sm)" }}>{ga.groundHa != null && f(ga.groundHa) !== f(ga.gridHa) /* TASKS.csv #3837 (5) — one figure when the two agree at this precision */ ? tr("Area {v} ha on the ground ({g} ha on the map grid)", { v: f(ga.groundHa), g: f(ga.gridHa) }) : tr("Area {v} ha", { v: f(ga.gridHa) })}{cp.open > 0 ? " · " + tr("{n} open line(s) not counted", { n: cp.open }) : ""}</div>;
             })()}
             {b.partNames?.some(Boolean) && ( /* TASKS.csv #2673 — the parts' names as labels in the 3D view (hovering a part names it anyway) */
               <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5, cursor: "pointer", color: "var(--color-text-caption)", fontSize: "var(--font-size-sm)" }}>
@@ -3147,8 +3148,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, fontSize: "var(--font-size-sm)", color: "var(--color-text-faint)" }}>
               <span style={{ width: 60, flexShrink: 0 }}>{tr("Area")}</span>
               <span>{(() => { // #3468 — the grid area, and the ground area where the scale factor makes them differ
-                const ga = groundArea(boundaryAreaHectares(c.polylines), c.polylines, project?.crsSet !== false ? project?.epsg : null), f = (v) => v.toLocaleString(undefined, { maximumFractionDigits: 1 });
-                return ga.groundHa != null ? tr("{v} ha on the ground ({g} ha on the map grid)", { v: f(ga.groundHa), g: f(ga.gridHa) }) : tr("{v} ha", { v: f(ga.gridHa) });
+                const cp = closedPartsOf(c), ga = groundArea(boundaryAreaHectares(cp.polylines), cp.polylines, project?.crsSet !== false ? project?.epsg : null), f = (v) => v.toLocaleString(undefined, { maximumFractionDigits: 1 });
+                return ga.groundHa != null && f(ga.groundHa) !== f(ga.gridHa) /* #3837 (5) */ ? tr("{v} ha on the ground ({g} ha on the map grid)", { v: f(ga.groundHa), g: f(ga.gridHa) }) : tr("{v} ha", { v: f(ga.gridHa) });
               })()}</span>
             </div>
             <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>

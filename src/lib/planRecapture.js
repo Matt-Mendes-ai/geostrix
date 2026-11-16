@@ -36,9 +36,21 @@ export const pictureDpi = (el) => (el?.naturalW > 0 && el?.w > 0 ? (el.naturalW 
 //   { ok: true, elementId, view, w, h, ratio, pxW, pxH, capped, dpi }
 // w x h: the plan's CSS size to draw (the snapshot's own width at the frame's aspect); ratio: the pixel ratio that makes the frame's printed width
 // `dpi` (reduced to keep within the pixel ceiling: capped).
-export function recaptureSpec(el, dpi = RECAPTURE_DPI) {
+// TASKS.csv #3828 — the plan's text is drawn in screen pixels (a hole id 10 px, a pad call-out in its box): a 1,614 px plan placed in a 185 mm frame printed its hole ids at about 3 pt.
+// printTextPt: the size the text prints at, in points (a 10 px label, 0.75 pt a pixel, scaled by the frame over the plan's CSS width); null when the element has no plan scale kept
+export const PLAN_TEXT_PX = 10;
+export function printTextPt(el) { const mc = el?.mapsCapture; return mc?.cssW > 0 && el?.w > 0 ? +((PLAN_TEXT_PX * 0.75 * el.w) / mc.cssW).toFixed(1) : null; }
+// printText: the plan is drawn at the FRAME's own CSS size (page px are 96 an inch) over the same ground, so its labels print at their screen size (10 px = 7.5 pt) and the call-outs are laid out at that size
+export function recaptureSpec(el, dpi = RECAPTURE_DPI, { printText = false } = {}) {
   const mc = el?.mapsCapture;
   if (!el?.mapsView || !(mc?.mPerPx > 0) || !(mc?.cssW > 0) || !(el.w > 0) || !(el.h > 0) || !el.targetWorld || !Number.isFinite(el.targetWorld.x) || !Number.isFinite(el.targetWorld.y)) return { ok: false, reason: "old" };
+  if (printText) {
+    const w = Math.max(1, Math.round(el.w)), h = Math.max(1, Math.round(el.h));
+    let ratio = dpi / 96, capped = false;
+    const limit = Math.min(Math.sqrt(MAX_PIXELS / (w * h)), MAX_SIDE / Math.max(w, h));
+    if (ratio > limit) { ratio = limit; capped = true; }
+    return { ok: true, textPrint: true, elementId: el.id, view: { cx: el.targetWorld.x, cy: el.targetWorld.y, mPerPx: (mc.mPerPx * mc.cssW) / w }, w, h, ratio, pxW: Math.round(w * ratio), pxH: Math.round(h * ratio), capped, dpi: Math.round(ratio * 96) };
+  }
   const have = pictureDpi(el);
   if (have != null && have >= dpi * 0.95) return { ok: false, reason: "sharp", dpi: have };
   const w = mc.cssW, h = Math.max(1, Math.round((mc.cssW * el.h) / el.w));

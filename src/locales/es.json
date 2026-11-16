@@ -13739,5 +13739,16 @@
   "Are the azimuths in {f} measured from {ref} (the form's 'Azimuth from')? OK converts each to grid at its own collar; Cancel reads them as grid north.": "¿Los azimuts de {f} se miden desde {ref} (el 'Azimut desde' del formulario)? Aceptar convierte cada uno a cuadrícula en su propio collar; Cancelar los lee como norte de cuadrícula.",
   "Azimuths read as {ref} and converted to grid at each collar.": "Azimuts leídos como {ref} y convertidos a cuadrícula en cada collar.",
   "Azimuths read as grid north.": "Azimuts leídos como norte de cuadrícula.",
-  "Azimuths read as grid north (set 'Azimuth from' to true or magnetic north before importing to convert them).": "Azimuts leídos como norte de cuadrícula (ponga 'Azimut desde' en norte verdadero o magnético antes de importar para convertirlos)."
+  "Azimuths read as grid north (set 'Azimuth from' to true or magnetic north before importing to convert them).": "Azimuts leídos como norte de cuadrícula (ponga 'Azimut desde' en norte verdadero o magnético antes de importar para convertirlos).",
+  "{n} open line(s) not counted": "{n} línea(s) abierta(s) sin contar",
+  "Choosing a service only fills the URL. Nothing goes online until you press Fetch layers.": "Elegir un servicio solo rellena la URL. Nada sale a internet hasta que pulse Obtener capas.",
+  "Highest {el} in the hole ({unit}, single sample, uncut)": "{el} más alto del sondaje ({unit}, una sola muestra, sin cortar)",
+  "The hole ids and labels on this picture print at about {pt} pt.": "Los ID de sondaje y las etiquetas de esta imagen se imprimen a unos {pt} pt.",
+  "The Maps plan draws this view again over the same ground at the frame's own size, so its hole ids and call-outs print at their screen size (about 7.5 pt) and are laid out for it, then Layout opens again.": "El plano de Mapas dibuja esta vista de nuevo sobre el mismo terreno al tamaño propio del marco, de modo que sus ID de sondaje y llamadas se imprimen a su tamaño de pantalla (unos 7,5 pt) y se acomodan para él; luego Lámina se abre otra vez.",
+  "Draw it again with the text at print size": "Dibujarla de nuevo con el texto al tamaño de impresión",
+  "{far} of {n} surface samples": "{far} de {n} muestras de superficie",
+  "Show the surface samples on the plan": "Mostrar las muestras de superficie en el plano",
+  "Surface samples ({n})": "Muestras de superficie ({n})",
+  "Classed by element or field in Geochem › Plan map.": "Clasificadas por elemento o campo en Geoquímica › Mapa en planta.",
+  "Dropped on the map: rasters (.tif, .gxf, .grd), CSV tables and shapefile / GeoJSON / KML layers are read here. {names}: not read here. An X Y Z point table (.xyz, .tx) goes to Geophysics › Point survey, or save it as .csv with a header line to add it here as points; Boundaries, Terrain, Web layers or Surface Geology take the other formats.": "Soltado en el mapa: aquí se leen rásteres (.tif, .gxf, .grd), tablas CSV y capas shapefile / GeoJSON / KML. {names}: no se lee aquí. Una tabla de puntos X Y Z (.xyz, .tx) va a Geofísica › Levantamiento de puntos, o guárdela como .csv con una línea de encabezado para añadirla aquí como puntos; Límites, Terreno, Capas web o Geología de superficie toman los demás formatos."
 }

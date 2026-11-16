@@ -13739,5 +13739,16 @@
   "Are the azimuths in {f} measured from {ref} (the form's 'Azimuth from')? OK converts each to grid at its own collar; Cancel reads them as grid north.": "هل الأسمتات في {f} مقيسة من {ref} (حقل «السمت من» في النموذج)؟ موافق يحوّل كل واحد إلى الشبكة عند فوهته؛ إلغاء يقرؤها كشمال الشبكة.",
   "Azimuths read as {ref} and converted to grid at each collar.": "قُرئت الأسمتات على أنها {ref} وحُوّلت إلى الشبكة عند كل فوهة.",
   "Azimuths read as grid north.": "قُرئت الأسمتات على أنها شمال الشبكة.",
-  "Azimuths read as grid north (set 'Azimuth from' to true or magnetic north before importing to convert them).": "قُرئت الأسمتات على أنها شمال الشبكة (اضبط «السمت من» على الشمال الحقيقي أو المغناطيسي قبل الاستيراد لتحويلها)."
+  "Azimuths read as grid north (set 'Azimuth from' to true or magnetic north before importing to convert them).": "قُرئت الأسمتات على أنها شمال الشبكة (اضبط «السمت من» على الشمال الحقيقي أو المغناطيسي قبل الاستيراد لتحويلها).",
+  "{n} open line(s) not counted": "{n} خط/خطوط مفتوحة غير محسوبة",
+  "Choosing a service only fills the URL. Nothing goes online until you press Fetch layers.": "اختيار خدمة يملأ العنوان فقط. لا يُرسل شيء عبر الإنترنت حتى تضغط جلب الطبقات.",
+  "Highest {el} in the hole ({unit}, single sample, uncut)": "أعلى {el} في الثقب ({unit}، عينة واحدة، دون تقطيع)",
+  "The hole ids and labels on this picture print at about {pt} pt.": "تُطبع معرّفات الثقوب والتسميات في هذه الصورة بحجم نحو {pt} نقطة.",
+  "The Maps plan draws this view again over the same ground at the frame's own size, so its hole ids and call-outs print at their screen size (about 7.5 pt) and are laid out for it, then Layout opens again.": "تعيد خريطة الخرائط رسم هذا المنظر فوق الأرض نفسها بحجم الإطار نفسه، فتُطبع معرّفات الثقوب والمخططات بحجمها على الشاشة (نحو 7.5 نقطة) وتُرتَّب لذلك الحجم، ثم يُفتح التخطيط مجدداً.",
+  "Draw it again with the text at print size": "إعادة رسمها بالنص بحجم الطباعة",
+  "{far} of {n} surface samples": "{far} من {n} عينة سطحية",
+  "Show the surface samples on the plan": "إظهار العينات السطحية على الخريطة",
+  "Surface samples ({n})": "العينات السطحية ({n})",
+  "Classed by element or field in Geochem › Plan map.": "تُصنَّف حسب العنصر أو الحقل في الجيوكيمياء › خريطة مسقطية.",
+  "Dropped on the map: rasters (.tif, .gxf, .grd), CSV tables and shapefile / GeoJSON / KML layers are read here. {names}: not read here. An X Y Z point table (.xyz, .tx) goes to Geophysics › Point survey, or save it as .csv with a header line to add it here as points; Boundaries, Terrain, Web layers or Surface Geology take the other formats.": "عند الإسقاط على الخريطة: تُقرأ هنا الصور النقطية (.tif، .gxf، .grd) وجداول CSV وطبقات shapefile / GeoJSON / KML. {names}: لا يُقرأ هنا. يذهب جدول نقاط X Y Z (.xyz، .tx) إلى الجيوفيزياء › مسح النقاط، أو احفظه بصيغة .csv مع سطر ترويسة لإضافته هنا كنقاط؛ وتقبل الحدود والتضاريس وطبقات الويب والجيولوجيا السطحية الصيغ الأخرى."
 }
