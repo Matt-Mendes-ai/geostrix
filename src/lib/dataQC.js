@@ -665,6 +665,24 @@ export function collarTerrainOffsets(collars, terrain) {
   }
   return out.sort((a, b) => Math.abs(b.dz) - Math.abs(a.dz));
 }
+// TASKS.csv #3807 (Scottie Gold) — a terrain's node spacing, one number: 'Terrain from the model's top' stores [dx, dy], and Math.round([dx, dy]) printed
+// 'The terrain's nodes are ~NaN m apart'. -> metres, or null
+export function terrainNodeM(terrain) {
+  const v = terrain?.source?.nodeM;
+  if (Array.isArray(v)) { const f = v.map(Number).filter((x) => Number.isFinite(x) && x > 0); return f.length ? f.reduce((m, x) => (x > m ? x : m), 0) : null; }
+  return Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : null;
+}
+// TASKS.csv #3807 — the collars against a terrain, signed: all 33 collars inside a model's top sat 0.3 to 14.8 m BELOW it, and 'median difference 8.0 m' did not
+// say which way. -> { n, below, above, side: "below" | "above" | null (mixed), lo, hi, med } (|dz| in metres) | null
+export function collarTerrainSide(offs, { share = 0.9, minMed = 1 } = {}) {
+  if (!offs?.length || offs.length < 3) return null;
+  const below = offs.filter((o) => o.dz < 0), above = offs.filter((o) => o.dz > 0), n = offs.length;
+  const side = below.length >= share * n ? "below" : above.length >= share * n ? "above" : null;
+  if (!side) return { n, below: below.length, above: above.length, side: null };
+  const abs = (side === "below" ? below : above).map((o) => Math.abs(o.dz)).sort((a, b) => a - b);
+  const med = abs[Math.floor(abs.length / 2)];
+  return med >= minMed ? { n, below: below.length, above: above.length, side, lo: abs[0], hi: abs[abs.length - 1], med } : { n, below: below.length, above: above.length, side: null };
+}
 function validateCollarsVsTerrain(collars, terrain, threshold) {
   const issues = [];
   const offs = collarTerrainOffsets(collars, terrain);
@@ -672,8 +690,9 @@ function validateCollarsVsTerrain(collars, terrain, threshold) {
   const abs = offs.map((o) => Math.abs(o.dz)).sort((a, b) => a - b);
   const med = abs[Math.floor(abs.length / 2)];
   const off = offs.filter((o) => Math.abs(o.dz) > threshold);
-  const grid = terrain.source?.nodeM ? ` The terrain's nodes are ~${Math.round(terrain.source.nodeM)} m apart, so on steep ground a correct collar can differ from it by tens of metres.` : ""; // #726
-  pushIssue(issues, "info", "Collar vs terrain", null, tr("{offs} collar(s) compared with the terrain \"{v}\": median difference {med} m, {off} over {threshold} m.{grid}{v2}", { offs: offs.length, v: terrain.name || "DEM", med: med.toFixed(1), off: off.length, threshold, grid, v2: off.length && off.every((o) => Math.sign(o.dz) === Math.sign(off[0].dz)) && off.length >= 3 ? tr(" All {off} are {v} the ground — a datum or unit problem (ellipsoidal vs orthometric height, feet vs metres) rather than GPS scatter?", { off: off.length, v: off[0].dz > 0 ? "above" : "below" }) : "" }));
+  const nodeM = terrainNodeM(terrain); // #3807 — a number, whatever the terrain stored
+  const grid = nodeM ? ` The terrain's nodes are ~${Math.round(nodeM)} m apart, so on steep ground a correct collar can differ from it by tens of metres.` : ""; // #726
+  pushIssue(issues, "info", "Collar vs terrain", null, tr("{offs} collar(s) compared with the terrain \"{v}\": median difference {med} m, {off} over {threshold} m.{grid}{v2}", { offs: offs.length, v: terrain.name || "DEM", med: med.toFixed(1), off: off.length, threshold, grid, v2: off.length && off.every((o) => Math.sign(o.dz) === Math.sign(off[0].dz)) && off.length >= 3 ? tr(" All {off} are {v} the ground — a datum or unit problem (ellipsoidal vs orthometric height, feet vs metres) rather than GPS scatter?", { off: off.length, v: off[0].dz > 0 ? "above" : "below" }) : "" }) + (() => { const sd = collarTerrainSide(offs); return sd?.side ? " " + tr(sd.side === "below" ? "{k} of the {n} collars are {lo} to {hi} m below this terrain (median {m} m): the terrain and the collar elevations differ by a steady offset, not by scatter." : "{k} of the {n} collars are {lo} to {hi} m above this terrain (median {m} m): the terrain and the collar elevations differ by a steady offset, not by scatter.", { k: sd.side === "below" ? sd.below : sd.above, n: sd.n, lo: sd.lo.toFixed(1), hi: sd.hi.toFixed(1), m: sd.med.toFixed(1) }) : ""; })()); // #3807 — which way
   off.forEach((o) => pushIssue(issues, "warning", "Collar vs terrain", o.hole_id, tr("Collar elevation {z} m is {v} m {v2} the terrain ({dem} m) — a GPS / datum / units error, or a DEM that is too coarse here. Every intercept elevation on this hole moves with it.", { z: o.z.toFixed(1), v: Math.abs(o.dz).toFixed(1), v2: o.dz > 0 ? "above" : "below", dem: o.dem.toFixed(1) })));
   return issues;
 }

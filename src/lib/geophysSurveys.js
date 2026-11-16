@@ -47,6 +47,9 @@ export const SURVEY_METHODS = {
   structfit_sens: { label: "Contact sensitivity: which interpreted contacts the survey can see", units: "log₁₀ σ per m", group: "other" }, // TASKS.csv #3632 — the tested points of #2640, coloured in the 3D View by their sensitivity
   ip: { label: "IP chargeability", units: "mV/V", group: "el" },
   res: { label: "Resistivity", units: "Ω·m", group: "el" },
+  // TASKS.csv #3808 (Scottie Gold) — a DC / IP survey's apparent values at their plotting points (pseudo-depths), not rock properties at an elevation
+  ip_app: { label: "IP: apparent chargeability (pseudo-depth points)", units: "mV/V", group: "el" },
+  res_app: { label: "DC: apparent resistivity (pseudo-depth points)", units: "Ω·m", group: "el" },
   sp: { label: "Self-potential", units: "mV", group: "el" },
   magsus_downhole: { label: "Magnetic susceptibility (downhole readings, not a survey)", units: "×10⁻³ SI", group: "other" }, // TASKS.csv #1709 — an honest label for a log imported here
   other: { label: "Other", units: "", group: "other" },

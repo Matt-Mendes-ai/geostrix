@@ -107,7 +107,7 @@ export default function BlockCalculatorModal({ onClose }) {
             </select>
             {set.length > 0 && <button type="button" onClick={() => add(set)} style={{ ...sel, cursor: "pointer" }}>{tr("Add the rest of its set ({n})", { n: set.length })}</button>}
           </div>
-          {picked.length > 0 && choices.some((c) => c.why) && (
+          {choices.some((c) => c.why) && ( /* TASKS.csv #3809 — said before the first pick too: four models in the project and an empty list, with no word why (a UBC mesh with two cell heights) */
             <details style={{ ...small, marginBottom: 10 }}>
               <summary style={{ cursor: "pointer" }}>{tr(choices.filter((c) => c.why).length === 1 ? "1 block model can't be added" : "{n} block models can't be added", { n: choices.filter((c) => c.why).length })}</summary>
               <ul style={{ margin: "4px 0 0", paddingInlineStart: 18 }}>{choices.filter((c) => c.why).map(({ m, why }) => <li key={keyOf(m)}>{m.name}: {why}</li>)}</ul>

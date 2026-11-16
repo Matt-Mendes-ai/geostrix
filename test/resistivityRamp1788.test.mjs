@@ -29,7 +29,7 @@ test("log stops on that ramp: the lowest stop is red, not cream", () => {
 
 test("the imports use it and the editor shows the palette in use", () => {
   const src = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
-  assert.equal((src.match(/logStops\(min, max, ramp\?\.anchors \|\| SEQUENTIAL_ANCHORS\)/g) || []).length, 2); // UBC and CSV
+  assert.equal((src.match(/logStops\(min, max, ramp\?\.anchors \|\| SEQUENTIAL_ANCHORS\)/g) || []).length, 3); // UBC, CSV and the 1 / x copy (#3809)
   assert.match(src, /useState\(\(\) => \(model\.palette && PALETTES\[model\.palette\] \? model\.palette : \(model\.stops \|\| \[\]\)\.length \? "__own" : "viridis"\)\)/);
   assert.match(src, /tr\("The model's own colours"\)/);
   assert.match(src, /setStops\(stops\.map\(\(s, i\) => \(\{ \.\.\.s, color: colors\[i\] \}\)\), \{ palette \}\)/);

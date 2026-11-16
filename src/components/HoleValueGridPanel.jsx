@@ -6,7 +6,7 @@ import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3749
 import { useStore } from "../lib/store.jsx";
 import { t as tr } from "../lib/i18n.js";
 import { gridSamples, logByDefault, samplePoints, suggestSampleGrid, MINCURV_MAX_CELLS } from "../lib/sampleGrid.js";
-import { holeValueSources, holeValueRows, perHoleValue, holeValueMeta, perHoleSpan, holeSamplesAt, perHoleCoded } from "../lib/holeValueGrid.js"; // perHoleSpan, holeSamplesAt: #2745; perHoleCoded: #2991
+import { holeValueSources, holeValueRows, perHoleValue, holeValueMeta, perHoleSpan, holeSamplesAt, perHoleCoded, placementAdvice } from "../lib/holeValueGrid.js"; // perHoleSpan, holeSamplesAt: #2745; perHoleCoded: #2991
 import { preferredElement } from "../lib/preferredElement.js"; // TASKS.csv #3353 (7) — opens on the lead commodity, not the suite's first element
 import { useLeadCommodity } from "../lib/useLeadCommodity.js";
 import { LAYER_META } from "../lib/layers.js"; // TASKS.csv #2991 — a built-in log's name
@@ -36,7 +36,7 @@ export default function HoleValueGridPanel() {
   const [msg, setMsg] = useState(null);
   // TASKS.csv #2745 — each value where its interval lies down the desurveyed hole (an inclined hole's intercept is not under its collar), and a
   // threshold depth as vertical depth below the collar
-  const [placeAt, setPlaceAt] = useState("collar");
+  const [placeAtChoice, setPlaceAtChoice] = useState(null); // TASKS.csv #3826 — null: the intercept when the holes are fans, else the collar
   const [depthAs, setDepthAs] = useState("along");
   const sources = useMemo(() => (open ? holeValueSources({ assayElements, layers, customLayers, labelOf: (k) => LAYER_META[k]?.label || k, logValidRange: project?.logValidRange || null }) : []), [open, assayElements, layers, customLayers, project?.logValidRange]); // #3116
   const lead = useLeadCommodity();
@@ -55,7 +55,15 @@ export default function HoleValueGridPanel() {
   const isDepth = st === "firstOver" || st === "top" || st === "base";
   const vertical = isDepth && depthAs === "vertical";
   const rl = st === "topRL" || st === "baseRL";
-  const placed = useMemo(() => holeSamplesAt(collars, values, coded ? codedRes.spans : source ? perHoleSpan(rows, source.symbol, st, { threshold }) : new Map(), { key: KEY, survey, desurveyMethod, verticalDepth: vertical, at: placeAt, rl }), [collars, values, coded, codedRes, rows, source, st, threshold, survey, desurveyMethod, vertical, placeAt, rl]);
+  const spans = useMemo(() => (coded ? codedRes.spans : source ? perHoleSpan(rows, source.symbol, st, { threshold }) : new Map()), [coded, codedRes, rows, source, st, threshold]);
+  const placedAt = (at) => holeSamplesAt(collars, values, spans, { key: KEY, survey, desurveyMethod, verticalDepth: vertical, at, rl });
+  // TASKS.csv #3826 — both placements are worked out (the advice compares them); the grid uses the one chosen, or the intercept when the holes are fans
+  const pCollar = useMemo(() => (open ? placedAt("collar") : null), [open, collars, values, spans, survey, desurveyMethod, vertical, rl]);
+  const pIntercept = useMemo(() => (open ? placedAt("intercept") : null), [open, collars, values, spans, survey, desurveyMethod, vertical, rl]);
+  const collarGrid = useMemo(() => (pCollar && pCollar.samples.length >= 3 ? suggestSampleGrid(samplePoints(pCollar.samples, KEY).points) : null), [pCollar]);
+  const advice = useMemo(() => (pCollar && pIntercept ? placementAdvice(pCollar.samples, pIntercept.samples, Number(cell) > 0 ? Number(cell) : collarGrid?.cellM) : null), [pCollar, pIntercept, cell, collarGrid]);
+  const placeAt = placeAtChoice || (advice?.intercept ? "intercept" : "collar");
+  const placed = (placeAt === "intercept" ? pIntercept : pCollar) || { samples: [], atCollar: 0, noRl: 0 };
   const samples = placed.samples;
   const log = st === "firstOver" || coded ? false : logChoice ?? logByDefault(source?.unit);
   const suggestion = useMemo(() => (samples.length >= 3 ? suggestSampleGrid(samplePoints(samples, KEY).points) : null), [samples]);
@@ -84,6 +92,7 @@ export default function HoleValueGridPanel() {
     });
     setMsg({ err: false, text: tr(placeAt === "intercept" ? "Gridded a value per hole from {n} hole(s) at their intercepts, {cell} m cells: {valid} of {cells} cells have a value. It is in Maps > GeoTIFF / GXF and the 3D View, where it can be contoured." : "Gridded a value per hole from {n} hole(s) at the collars, {cell} m cells: {valid} of {cells} cells have a value. It is in Maps > GeoTIFF / GXF and the 3D View, where it can be contoured.", { n: res.points.toLocaleString(), cell: res.cellM, valid: res.valid.toLocaleString(), cells: (grid.nx * grid.ny).toLocaleString() })
       + (log && res.nonPositive ? " " + tr("{n} zero or negative value(s) left out of the log10 grid.", { n: res.nonPositive }) : "")
+      + (placeAt === "collar" && advice && advice.padHoles > 0 ? " " + tr("{n} of the {total} holes share {k} collar points: their values are combined there, one cell for each pad.", { n: advice.padHoles.toLocaleString(), total: advice.holes.toLocaleString(), k: advice.pads.toLocaleString() }) : "") // #3826
       + (coded && st === "thick" ? " " + tr("A hole logged in this layer without the chosen code(s) counts as 0 m thick; a hole not logged in it has no value.") : "")
       + (placed.noRl ? " " + tr("{n} hole(s) have no trace or collar elevation to give an RL and are left out.", { n: placed.noRl.toLocaleString() }) : "")
       + (collars.length > res.points ? " " + tr("{n} hole(s) have no value and are not in it (not a zero).", { n: (collars.length - res.points).toLocaleString() }) : "") });
@@ -113,7 +122,7 @@ export default function HoleValueGridPanel() {
               <option value="firstOver">{tr("The depth of the first interval at or over a threshold")}</option>
             </>}
           </select></label>
-          <label style={lbl}>{tr("Placed at")}<select value={placeAt} onChange={(e) => setPlaceAt(e.target.value)} aria-label={tr("Where each hole's value is placed")} style={inp}>
+          <label style={lbl}>{tr("Placed at")}<select value={placeAt} onChange={(e) => setPlaceAtChoice(e.target.value)} aria-label={tr("Where each hole's value is placed")} style={inp}>
             <option value="collar">{tr("The collar")}</option><option value="intercept">{tr("The intercept, down the desurveyed hole")}</option>
           </select></label>
           {isDepth && <label style={lbl}>{tr("Depth")}<select value={depthAs} onChange={(e) => setDepthAs(e.target.value)} aria-label={tr("How the depth is measured")} style={inp}>
@@ -130,6 +139,7 @@ export default function HoleValueGridPanel() {
             <label style={lbl}>{tr("Blank beyond (m)")}<input type="number" min="0" value={blank} placeholder={suggestion ? String(suggestion.blankM) : ""} onChange={(e) => setBlank(e.target.value)} style={inp} /></label>
           </div>
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{placeAt === "intercept" ? tr("{n} of {total} holes have a value. Each is placed at the middle of its interval down the desurveyed hole.", { n: samples.length.toLocaleString(), total: collars.length.toLocaleString() }) + (placed.atCollar ? " " + tr("{m} of them have no trace to place it on and stay at the collar.", { m: placed.atCollar.toLocaleString() }) : "") : tr("{n} of {total} holes have a value. Each is placed at its collar, not at the intercept.", { n: samples.length.toLocaleString(), total: collars.length.toLocaleString() })}</div>
+          {advice && advice.padHoles > 0 && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: placeAt === "collar" && advice.apart > 0 ? "var(--color-warn-text)" : "var(--color-text-muted)" }}>{placeAt === "intercept" ? (placeAtChoice ? "" : tr("{n} of the {total} holes share {k} collar points, and their values part by more than a cell down the holes, so each is placed at its intercept. Choose the collar to place them there.", { n: advice.padHoles.toLocaleString(), total: advice.holes.toLocaleString(), k: advice.pads.toLocaleString() })) : tr("{n} of the {total} holes share {k} collar points: their values are combined there, one cell for each pad.", { n: advice.padHoles.toLocaleString(), total: advice.holes.toLocaleString(), k: advice.pads.toLocaleString() })}</div>}{/* TASKS.csv #3826 */}
           <button onClick={run} disabled={samples.length < 3} style={{ padding: "3px 8px", fontSize: "var(--font-size-sm)", border: "1px solid var(--color-selected-border)", borderRadius: 4, background: "var(--color-selected-bg)", color: "var(--color-primary)", cursor: samples.length < 3 ? "default" : "pointer" }}>{tr("Grid to raster")}</button>
         </div>
       )}
