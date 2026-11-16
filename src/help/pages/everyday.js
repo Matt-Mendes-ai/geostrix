@@ -144,8 +144,8 @@ export default [
     ],
     warnings: [
       { says: "Statistics on raw assay intervals — NOT length-weighted", means: "Some intervals have no usable from / to length, so weighting was skipped: a short interval counts as much as a long one.", do: "Composite first, or fix the depths." },
-      { says: "{n} more group(s) are over half below detection.", means: "More than half the results in a domain are below the detection limit, so its percentiles sit on the limit, not on measured grades.", do: "Do not cap or report these domains from the percentiles." },
-      { says: "{n} zero or negative values are not on the log scale.", means: "A log axis cannot draw a zero.", do: "They are still in the counts and statistics; switch the log scale off to see them." },
+      { says: "3 more group(s) are over half below detection.", means: "More than half the results in a domain are below the detection limit, so its percentiles sit on the limit, not on measured grades.", do: "Do not cap or report these domains from the percentiles." },
+      { says: "12 zero or negative values are not on the log scale.", means: "A log axis cannot draw a zero.", do: "They are still in the counts and statistics; switch the log scale off to see them." },
     ],
     howto: {
       sample: "Macpass",
@@ -176,8 +176,8 @@ export default [
     ],
     warnings: [
       { says: "No repeated standard insertions found.", means: "No sample id contains the standard naming the dialog looks for.", do: "Give the standards a sample-type column or a recognizable id, then import again." },
-      { says: "No threshold set, so the {n} blank(s) are listed but not judged.", means: "A blank is judged against a multiple of the detection limit, and none is set.", do: "Enter the contamination threshold or the element's detection limit." },
-      { says: "{n} repeated same-interval row(s): tick to read them as duplicate pairs", means: "Older exports store a duplicate as a second row for the same hole and interval.", do: "Tick the box to measure them as duplicates; identical rows are double imports and are skipped." },
+      { says: "No threshold set, so the 14 blank(s) are listed but not judged.", means: "A blank is judged against a multiple of the detection limit, and none is set.", do: "Enter the contamination threshold or the element's detection limit." },
+      { says: "5 repeated same-interval row(s): tick to read them as duplicate pairs", means: "Older exports store a duplicate as a second row for the same hole and interval.", do: "Tick the box to measure them as duplicates; identical rows are double imports and are skipped." },
     ],
     howto: {
       sample: "any",

@@ -25,5 +25,5 @@ test("one contact left is modelled when the youngest unit needs no top or overbu
 test("the button's help says so", () => {
   const help = readFileSync(new URL("../src/help/pages/modelling.js", import.meta.url), "utf8");
   assert.match(help, /that contact is solved on its own/);
-  assert.match(help, /One contact to model: \{surface\}/);
+  assert.match(help, /One contact to model: Top of Basalt\. The stack has no second surface/); // #3701 — the message as the user sees it, with an example
 });
