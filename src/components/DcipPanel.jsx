@@ -32,6 +32,7 @@ import { parseStationFile, matchStationLine, fitStationLine, stationGroundProfil
 import { reprojectXY, getProj4DefSync } from "../lib/reproject.js";
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2242
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { isUBCMeshText } from "../lib/voxel.js"; // TASKS.csv #3812 — a 3D UBC mesh offered to the 2D import
 import { isDcip2dMeshText, looksLikeDcip2dModel, parseDcip2dMesh, parseDcip2dModel, parseDcip2dTopo, dcip2dSection, meshCore } from "../lib/ubc2d.js"; // TASKS.csv #1348
 
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
@@ -76,6 +77,10 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
         if (tp) { topo = tp; nameHint = nameHint || f.name.replace(/[_ -]?topo.*$/i, "").replace(/\.[a-z0-9]+$/i, ""); return; }
         try { const sf = parseStationFile(t, f.name); const key = Object.keys(sf.lines)[0]; if (key != null && sf.lines[key].length >= 2) { stations = sf.lines[key]; nameHint = nameHint || f.name.replace(/[_ -]?survey.*$/i, "").replace(/\.[a-z0-9]+$/i, ""); } } catch { /* not a station file */ }
       });
+      if (!meshText) { // TASKS.csv #3812 — a 3D UBC mesh (nx ny nz, then the origin) is a block model, not a line: said where it goes
+        const k = texts.findIndex((t) => isUBCMeshText(t));
+        if (k >= 0) { const [nx, ny, nz] = texts[k].trim().split(/\s+/, 3).map(Number); throw new Error(tr("\"{name}\" is a 3D UBC mesh ({nx} × {ny} × {nz} cells): a 3D inversion model goes to Geophysics › Block models › Import UBC mesh + model, not here. This button reads one 2D line (dcinv2d.msh).", { name: files[k].name, nx, ny, nz })); }
+      }
       if (!meshText) throw new Error(tr("Select the DCIP2D mesh (dcinv2d.msh) with its model file(s): the conductivity (.con) and / or chargeability (.chg) model."));
       const mesh = parseDcip2dMesh(meshText);
       const con = conText ? parseDcip2dModel(conText, mesh) : null, chg = chgText ? parseDcip2dModel(chgText, mesh) : null;
@@ -391,6 +396,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
       <input ref={fileRef} type="file" multiple accept=".csv,.txt,.dat,.ipg,.arw,.gpx,.wpt" style={{ display: "none" }} onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }} />
       {/* TASKS.csv #1348 — a contractor's UBC-GIF DCIP2D inversion (dcinv2d.msh + dcinv2d.con / ipinv2d.chg), placed along its line */}
       <button onClick={() => ubcRef.current?.click()} style={{ ...pBtn, marginTop: 6 }} title={tr("The mesh (dcinv2d.msh) with its conductivity (.con) and / or chargeability (.chg) model, the topography file (the mesh top elevation) and the line's station file (X_Grid, UTM Easting / Northing) to place it")}><Upload size={14} />{" "}{tr("Import a UBC DCIP2D inversion (mesh + model)…")}</button>
+      <div style={{ ...small, marginTop: 4 }}>{tr("One 2D line only. A 3D inversion model (a UBC mesh with 3 sizes) goes to Block models; a cloud of apparent values (X Y Z value) to Point survey.")}</div>{/* TASKS.csv #3812 */}
       <input ref={ubcRef} type="file" multiple accept=".msh,.con,.chg,.txt,.dat,.csv,.mod" style={{ display: "none" }} onChange={(e) => { onUbcFiles(e.target.files); e.target.value = ""; }} />
       {ubc && (
         <div style={{ marginTop: 8, border: "1px solid var(--color-border)", borderRadius: 6, padding: 8, display: "flex", flexDirection: "column", gap: 4 }}>

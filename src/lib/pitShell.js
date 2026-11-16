@@ -56,6 +56,30 @@ export function priceUnitsFor(metal, element) {
 }
 // contained metal, the same words in every pit pane: troy ounces for gold-style grades; tonnes and pounds for base metals; uranium as tonnes of
 // U and pounds of U3O8 (the traded unit), an oxide grade as tonnes and pounds of U3O8. fmt: a number formatter
+// TASKS.csv #3801 (4) (Scottie Gold review: every pit, design and stope name began with a 170-character model name, so three pits read 'Au estimate (id...') — a
+// long model name is cut at its first bracket ('Au estimate (idw2, 5m, r186m, ... shell ...)' -> 'Au estimate'); the full name stays in the solid's params
+export function shortModelName(name) {
+  const s = String(name ?? "");
+  if (s.length <= 40) return s;
+  const i = s.indexOf(" (");
+  return i >= 4 && i <= 40 ? s.slice(0, i) : `${s.slice(0, 39)}…`;
+}
+// TASKS.csv #3799 (Scottie Gold review: the bench and nested-pit CSVs carried no density, recovery or cost) — the settings a pit's tonnes and money were made
+// with, as CSV cells: the typed density (and waste density), recovery, price, mining and processing cost, wall slope, a typed cut-off. inputs: a pit's params.inputs
+export function pitSettingsCells(inputs) {
+  const i = inputs || {}, out = {};
+  const put = (k, v) => { if (v != null && v !== "" && Number.isFinite(Number(v))) out[k] = Number(v); };
+  put("density_t_m3", i.density); put("waste_density_t_m3", i.wasteDensity); put("recovery_pct", i.recovery); put("price", i.price); if (i.priceUnit) out.price_unit = i.priceUnit;
+  put("mining_cost_per_t_rock", i.miningCost); put("processing_cost_per_t_ore", i.processingCost); put("slope_deg", i.slopeDeg); put("typed_cutoff", i.typedCutoff);
+  return out;
+}
+// TASKS.csv #3795 (Scottie Gold review: Stope outlines gave tonnes and g/t, never the gold) — the contained metal of Σ tonnes x grade (metalU, in the model's
+// unit) as CSV cells: troy ounces and kilograms for a metal counted in grams (gold, silver), tonnes and pounds for the rest. m = pitMetalOf(unit, element)
+export function metalCells(metalU, m, prefix = "contained") {
+  if (!m || !(metalU >= 0)) return {};
+  const q = metalU * m.factor;
+  return m.unit === "g" ? { [`${prefix}_oz`]: Math.round(q / G_PER_OZ), [`${prefix}_kg`]: Math.round(q / 10) / 100 } : { [`${prefix}_t`]: Math.round(q * 10) / 10, [`${prefix}_lb`]: Math.round(q * LB_PER_T) };
+}
 export function metalAmountText(tonnesOrGrams, metalUnit, element, fmt) {
   if (metalUnit === "g") return `${fmt(tonnesOrGrams / G_PER_OZ)} oz`;
   const t = tonnesOrGrams;
@@ -259,6 +283,10 @@ export function oreDepthBelowCollars(cells, cutoff, collars, survey = [], ground
 // When the depth is worth a verdict: the ore's median 200 m or more below the highest collar (deeper than most open pits' ore), or 100 m
 // with the collars underground (drill positions on mine levels: the ore is reached from there). Warning thresholds, not facts about a deposit.
 export const DEEP_ORE_M = 200, DEEP_ORE_UNDERGROUND_M = 100;
+// TASKS.csv #3798 (Scottie Gold review: a 237 m deep pit at a strip ratio of 17.7 (48.7 at a 3 g/t cut-off) got no remark) — a strip ratio in the tens says the body
+// is not an open-pit proposition whatever the depth: a warning threshold (10 tonnes of waste a tonne of ore), not a fact about any deposit
+export const HIGH_STRIP_RATIO = 10;
+export const highStripRatio = (s) => Number.isFinite(s) && s >= HIGH_STRIP_RATIO;
 export const undergroundOreVerdict = (d) => !!d && d.median >= (d.underground ? DEEP_ORE_UNDERGROUND_M : DEEP_ORE_M);
 
 // TASKS.csv #1850 (review #1646, Kodiak) — with no terrain AND no collars the pit took ONE flat ground at the model's highest block

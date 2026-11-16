@@ -24,5 +24,5 @@ test("the pane offers the evaluated models; the Evaluate message points to it", 
   const p = fs.readFileSync("src/components/DownholeLogsPane.jsx", "utf8");
   // #3140: the same test through rowSome (rows or a Table; a Table without a 'modelled' column answers false at once)
   assert.match(p, /customLayers\.filter\(\(l\) => rowSome\(rowsRefOf\(l\), \(r\) => r\.modelled && \(r\.numeric \|\| \(typeof r\.value === \"number\" && Number\.isFinite\(r\.value\)\)\), "modelled"\)\)/); // #2240: the store copy drops 'numeric'
-  assert.match(fs.readFileSync("src/modules/GeophysicsModule.jsx", "utf8"), /or Downhole logs for a cross-plot against one\./);
+  assert.match(fs.readFileSync("src/modules/GeophysicsModule.jsx", "utf8"), /Open a hole's strip log to compare it with the logs\.\{routes\}/); // #3813: the route is named from what the project holds (lib/downholeLogs.js onHolesRoutes: Downhole logs when it holds a numeric log)
 });

@@ -29,7 +29,7 @@ test("one column: not a table this button can read, said with its first words; a
 
 test("wired: the .xyz picker (streamed and whole), Import CSV, DC / IP Import line and Load the line stations", () => {
   const g = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.equal((g.match(/tableRefusal\(file\.name, (columns|t\.headers), (sample|parsedRows|t\.rows), "point"\)/g) || []).length, 3);
+  assert.equal((g.match(/tableRefusal\(file\.name, (columns|t\.headers), (sample|parsedRows|t\.rows), "point"(, head|, text)?\)/g) || []).length, 3); // the file's head / text as a 5th argument: #3804
   const d = readFileSync(new URL("../src/components/DcipPanel.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(d, /r = !\(g0\.a && g0\.m\) \? tableRefusal\(f\.name, t\.headers, t\.rows, "dcipLine"\) : null/);
   assert.match(d, /if \(!keys\.length\) \{ setMsg\(\{ ok: false, text: tr\("\\"\{name\}\\" has no line stations in it:/);

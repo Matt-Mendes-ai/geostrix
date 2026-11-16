@@ -21,7 +21,7 @@ test("a grade with its element and the oxide it is reported as", () => {
 test("the panes use it: Pit shell's mean grade and cut-offs, Stope outlines' cut-off label and grades, the designs and the series", () => {
   const pit = fs.readFileSync("src/components/PitShellPane.jsx", "utf8");
   assert.match(pit, /line\(tr\("Mean grade"\), gradeWithElement\(res\.meanGrade, res\.unit, res\.element\)\)/);
-  assert.equal((pit.match(/oxideSuffix\(/g) || []).length, 6); // #2986: + the typed cut-off's line; #3318: + the break-even's own suffix
+  assert.equal((pit.match(/oxideSuffix\(/g) || []).length, 7); // 7: + the break-even with mining (#3794 follow-up); #2986: + the typed cut-off's line; #3318: + the break-even's own suffix
   const st = fs.readFileSync("src/components/StopesPane.jsx", "utf8");
   assert.match(st, /tr\("Cut-off \(\{unit\}\)", \{ unit: element \? `\$\{gradeUnitText\(unit, element\)\} \$\{element\}` : unit \}\)/); // g/t for a ppm Au model since #2111
   assert.match(st, /const g = \(x\) => \(x == null \? "—" : gradeWithElement\(x, res\.unit, res\.element\)\)/);
@@ -29,5 +29,5 @@ test("the panes use it: Pit shell's mean grade and cut-offs, Stope outlines' cut
   assert.match(fs.readFileSync("src/components/PitDesignPane.jsx", "utf8"), /gradeWithElement\(g, unit, pit\?\.params\?\.element/);
   const nest = fs.readFileSync("src/components/NestedPitsPane.jsx", "utf8");
   assert.match(nest, /element: element \|\| "" \/\* #2594/);
-  assert.match(nest, /unit: element \? `\$\{res\.unit\} \$\{element\}` : res\.unit/);
+  assert.match(nest, /unit: element \? `\$\{gradeUnitText\(res\.unit, element\)\} \$\{element\}` : res\.unit/); // #3801 (1): g/t, not ppm, for gold
 });

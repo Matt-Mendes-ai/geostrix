@@ -7,6 +7,7 @@
 // Outlines, not a stope optimizer: no geotechnical, access, sequencing or shape-regularity check. Pure: no three.js, no React.
 import { extrudeString } from "./stringSolids.js";
 import { meshVolume } from "./unitVolumes.js"; // #1953
+import { oneHoleBlock } from "./pitShell.js"; // TASKS.csv #3794 — the support of the ore, as Pit shell reads it
 
 const fin = Number.isFinite;
 
@@ -88,6 +89,7 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
     // cut-off' used to sum whole ore columns (a column whose mean passed brought its 2,805 ppm blocks along at a 3,000 ppm cut-off),
     // so with no skin it equalled the diluted tonnes and dilution read 0 %
     const tA = new Float64Array(N), mA = new Float64Array(N);
+    const tH = new Float64Array(N), tX = new Float64Array(N), tB = new Float64Array(N); // #3794 — the ore tonnes resting on one hole / classed extrapolated / beyond the samples
     const aM = Array.from({ length: nAlso }, () => new Float64Array(N)), aT = Array.from({ length: nAlso }, () => new Float64Array(N)); // #3084
     for (const c of cells) {
       const q = col(c); if (q < 0) continue;
@@ -95,7 +97,7 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
       if (h <= 0) continue;
       const tt = h * area * (fin(c.coverage) ? c.coverage : 1) * density;
       t[q] += tt; if (fin(c.value)) m[q] += tt * c.value; cover[q] += h;
-      if (fin(c.value) && c.value >= cutoff) { tA[q] += tt; mA[q] += tt * c.value; } // #2107
+      if (fin(c.value) && c.value >= cutoff) { tA[q] += tt; mA[q] += tt * c.value; if (oneHoleBlock(c)) tH[q] += tt; if (c.support === "extrapolated" || c.support === "unsupported") tX[q] += tt; if (c.beyond === "above" || c.beyond === "below") tB[q] += tt; } // #2107; #3794
       for (let k = 0; k < nAlso; k++) { const g = c.also?.[k]; if (fin(g)) { aM[k][q] += tt * g; aT[k][q] += tt; } } // #3084
     }
     let mask = new Uint8Array(N);
@@ -126,7 +128,7 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
     }
     const stopes = [];
     for (const members of patches) {
-      let i0 = Infinity, i1 = -Infinity, j0 = Infinity, j1 = -Infinity, tonnes = 0, metalU = 0, oreT = 0, oreM = 0, unestT = 0;
+      let i0 = Infinity, i1 = -Infinity, j0 = Infinity, j1 = -Infinity, tonnes = 0, metalU = 0, oreT = 0, oreM = 0, unestT = 0, thinT = 0, extrapT = 0, beyondT = 0;
       const sAM = new Float64Array(nAlso), sAT = new Float64Array(nAlso); // #3084
       for (const q of members) {
         const j = Math.floor(q / nx), i = q - j * nx;
@@ -135,7 +137,7 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
         // TASKS.csv #2118 (review #2013, Woodjam) — and so is the part of ANY column the model has no block for (a block missing inside the
         // outline): Stope 811 m #1 was 28,000 m3 but 71,010 t (27 of 28 blocks), not 73,640 t at 2.63
         const miss = Math.max(0, (top - rl) - cover[q]) * area * density, tt = t[q] + miss;
-        unestT += miss; tonnes += tt; metalU += m[q]; oreT += tA[q]; oreM += mA[q]; // #2107 — the blocks at or above the cut-off, wherever they sit in the stope
+        unestT += miss; tonnes += tt; metalU += m[q]; oreT += tA[q]; oreM += mA[q]; thinT += tH[q]; extrapT += tX[q]; beyondT += tB[q]; // #2107; #3794 — the blocks at or above the cut-off, wherever they sit in the stope
         for (let k = 0; k < nAlso; k++) { sAM[k] += aM[k][q]; sAT[k] += aT[k][q]; } // #3084
       }
       const extent = Math.max((i1 - i0 + 1) * dx, (j1 - j0 + 1) * dy);
@@ -156,12 +158,13 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
       } catch { solid = null; }
       if (!solid) unbuilt++;
       for (let k = 0; k < nAlso; k++) { totAM[k] += sAM[k]; totAT[k] += sAT[k]; } // #3084
-      stopes.push({ alsoGrades: Array.from(sAT, (t, k) => (t > 0 ? sAM[k] / t : null)), alsoM: Array.from(sAM), alsoT: Array.from(sAT) /* #3084 */, unestimatedTonnes: unestT /* #2118 */, outline, positions: solid?.positions || null, indices: solid?.indices || null, volume: solid?.volume ?? null, tonnes, metalU, grade: tonnes > 0 ? metalU / tonnes : null, oreTonnes: oreT, oreGrade: oreT > 0 ? oreM / oreT : null, columns: members.length, holesFilled: loops.length - 1 });
+      stopes.push({ thinT, extrapT, beyondT /* #3794 */, alsoGrades: Array.from(sAT, (t, k) => (t > 0 ? sAM[k] / t : null)), alsoM: Array.from(sAM), alsoT: Array.from(sAT) /* #3084 */, unestimatedTonnes: unestT /* #2118 */, outline, positions: solid?.positions || null, indices: solid?.indices || null, volume: solid?.volume ?? null, tonnes, metalU, grade: tonnes > 0 ? metalU / tonnes : null, oreTonnes: oreT, oreGrade: oreT > 0 ? oreM / oreT : null, columns: members.length, holesFilled: loops.length - 1 });
       totals.unestimatedTonnes = (totals.unestimatedTonnes || 0) + unestT; // #2118
+      totals.thinT = (totals.thinT || 0) + thinT; totals.extrapT = (totals.extrapT || 0) + extrapT; totals.beyondT = (totals.beyondT || 0) + beyondT; // #3794
       totals.tonnes += tonnes; totals.metalU += metalU; totals.oreTonnes += oreT; totals.oreMetalU += oreM; totals.stopes++;
     }
     const lt = stopes.reduce((a, s) => a + s.tonnes, 0), lm = stopes.reduce((a, s) => a + s.metalU, 0), lo = stopes.reduce((a, s) => a + s.oreTonnes, 0), lom = stopes.reduce((a, s) => a + (s.oreGrade == null ? 0 : s.oreGrade * s.oreTonnes), 0);
-    levels.push({ rl, top, stopes, tonnes: lt, grade: lt > 0 ? lm / lt : null, oreTonnes: lo, oreGrade: lo > 0 ? lom / lo : null, alsoGrades: Array.from({ length: nAlso }, (_, k) => { let am = 0, at = 0; for (const st of stopes) { am += st.alsoM[k]; at += st.alsoT[k]; } return at > 0 ? am / at : null; }) /* #3084 */ });
+    levels.push({ rl, top, stopes, tonnes: lt, metalU: lm, oreMetalU: stopes.reduce((a, s) => a + (s.oreGrade == null ? 0 : s.oreGrade * s.oreTonnes), 0) /* #3795 */, grade: lt > 0 ? lm / lt : null, oreTonnes: lo, oreGrade: lo > 0 ? lom / lo : null, alsoGrades: Array.from({ length: nAlso }, (_, k) => { let am = 0, at = 0; for (const st of stopes) { am += st.alsoM[k]; at += st.alsoT[k]; } return at > 0 ? am / at : null; }) /* #3084 */ });
   }
   totals.grade = totals.tonnes > 0 ? totals.metalU / totals.tonnes : null;
   totals.alsoGrades = Array.from(totAT, (t, k) => (t > 0 ? totAM[k] / t : null)); // #3084
@@ -227,8 +230,9 @@ function simplifyCollinear(pts) {
   return out;
 }
 
-export function stopeRows(result, unit, alsoLabels = []) { // alsoLabels: #3084
+// metalOf(metalU, prefix) -> cells (pitShell.js metalCells): the contained metal beside each grade (#3795); level_top: #3799
+export function stopeRows(result, unit, alsoLabels = [], metalOf = null) { // alsoLabels: #3084
   const out = [];
-  result.levels.forEach((l) => l.stopes.forEach((s, i) => out.push({ level_rl: l.rl, stope: i + 1, columns: s.columns, tonnes: Math.round(s.tonnes), [`grade_${String(unit || "").replace("%", "pct")}`]: s.grade == null ? "" : +s.grade.toPrecision(4), ...Object.fromEntries((alsoLabels || []).map((lab, k) => [`mean_${lab}`, s.alsoGrades?.[k] == null ? "" : +s.alsoGrades[k].toPrecision(4)])), ore_tonnes: Math.round(s.oreTonnes), ore_grade: s.oreGrade == null ? "" : +s.oreGrade.toPrecision(4), volume_m3: s.volume == null ? "" : Math.round(s.volume), holes_filled: s.holesFilled, min_x: +Math.min(...s.outline.map((p) => p[0])).toFixed(1), max_x: +Math.max(...s.outline.map((p) => p[0])).toFixed(1), min_y: +Math.min(...s.outline.map((p) => p[1])).toFixed(1), max_y: +Math.max(...s.outline.map((p) => p[1])).toFixed(1) })));
+  result.levels.forEach((l) => l.stopes.forEach((s, i) => out.push({ level_rl: l.rl, ...(Number.isFinite(l.top) ? { level_top: l.top } : {}), stope: i + 1, columns: s.columns, tonnes: Math.round(s.tonnes), [`grade_${String(unit || "").replace("%", "pct")}`]: s.grade == null ? "" : +s.grade.toPrecision(4), ...Object.fromEntries((alsoLabels || []).map((lab, k) => [`mean_${lab}`, s.alsoGrades?.[k] == null ? "" : +s.alsoGrades[k].toPrecision(4)])), ...(metalOf ? { ...metalOf(s.metalU, "contained"), ...metalOf(s.oreGrade == null ? 0 : s.oreGrade * s.oreTonnes, "ore_contained") } : {}) /* #3795 */, ore_tonnes: Math.round(s.oreTonnes), ore_grade: s.oreGrade == null ? "" : +s.oreGrade.toPrecision(4), volume_m3: s.volume == null ? "" : Math.round(s.volume), holes_filled: s.holesFilled, min_x: +Math.min(...s.outline.map((p) => p[0])).toFixed(1), max_x: +Math.max(...s.outline.map((p) => p[0])).toFixed(1), min_y: +Math.min(...s.outline.map((p) => p[1])).toFixed(1), max_y: +Math.max(...s.outline.map((p) => p[1])).toFixed(1) })));
   return out;
 }

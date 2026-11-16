@@ -7,6 +7,7 @@ import { parseXYZ } from "./geosoft.js";
 import { guessGeophysColumns } from "./geophysColumns.js";
 import Papa from "papaparse";
 import { arrMax } from "./arrayStats.js";
+import { boreholeEmRefusal } from "./boreholeEm.js"; // TASKS.csv #3804
 
 // A column that ends in a number (dBdt_Z[12], DBDT_CH1GT12, Z_HM_ch05, CH12, Gate_12): its prefix and index. Groups of at least four
 // with one prefix are the channels of one decay; the uncertainty / in-use companions (DBDT_STD_CH1GT…, *_INUSE_*) are named so and
@@ -111,6 +112,11 @@ export function readTemText(text, name = "TEM") {
   const yCol = pickCol(/^(utmy|y|northing|north|n)$/i) || pickCol(/^(n|y|north(ing)?)[_ -]?(utm|mga|nad|wgs|gda|grid)[_ -]?\d*[a-z]?$/i) || notXY(cg.y);
   const zCol = pickCol(/^(topo|topography|elevation|elev|dem|ground|z)$/i) || pickCol(/^y?top(o|bath)|^dem[_\d]|elevation|^ground_?el/i) || null; // #3440: the USGS file's Ytopbathv2
   if (!xCol || !yCol) throw new Error(`No X / Y columns in ${name}.`);
+  { // TASKS.csv #3804 — borehole EM (components per station, a hole column, a header that says borehole) is not a line survey: refused, as the other imports refuse it
+    const xs = get(xCol), ys = get(yCol), m = Math.min(n, 4000), rows = Array.from({ length: m }, (_, i) => ({ [xCol]: xs[i], [yCol]: ys[i] }));
+    const bh = boreholeEmRefusal(name, columns, rows, String(text || "").slice(0, 6000));
+    if (bh) throw new Error(bh);
+  }
   return {
     name, source, n, columns, groups, epsg, header, line,
     x: get(xCol), y: get(yCol), z: zCol ? get(zCol) : null, xCol, yCol, zCol,

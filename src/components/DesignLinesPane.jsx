@@ -6,7 +6,7 @@ import * as THREE from "three";
 import { Spline, Download, X, Trash2, Plus, Maximize2 } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
-import { computeLine, segmentsToPoint, runAboveGround, gradeRatio, designLineRows, designLineFeatures, selfClearance, declineToTarget, clearanceTo, sharpCorners, developmentRows, profileArea, profileMesh, profileHalfAlong, passDirection } from "../lib/designLines.js"; // #1878; profileHalfAlong / passDirection: #1924; profileMesh: #1954
+import { computeLine, segmentsToPoint, runAboveGround, worstCollarDistance, FAR_FROM_COLLARS_M, gradeRatio, designLineRows, designLineFeatures, selfClearance, declineToTarget, clearanceTo, sharpCorners, developmentRows, profileArea, profileMesh, profileHalfAlong, passDirection } from "../lib/designLines.js"; // #1878; profileHalfAlong / passDirection: #1924; profileMesh: #1954
 import { holeTraces } from "../lib/evidenceSources.js"; // #1878 — the drillhole traces the clearance is checked against
 import { plannedTrace } from "../lib/holePlanning.js"; // #1878 — a planned hole's toe as a target
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
@@ -109,7 +109,7 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
   // #1612 — a typed start takes the ground under it when nobody typed a Z
   const setStart = (k, v) => {
     const next = { ...line.start, [k]: v, ...(k === "z" ? { zAuto: false } : {}) };
-    if (k !== "z" && next.zAuto && Number.isFinite(next.x) && Number.isFinite(next.y)) { const g = groundAt(next.x, next.y); if (Number.isFinite(g)) next.z = Math.round(g); }
+    if (k !== "z" && next.zAuto && Number.isFinite(next.x) && Number.isFinite(next.y)) { const g = groundAt(next.x, next.y); if (Number.isFinite(g)) next.z = +g.toFixed(2); } // #3800 — not rounded up to the whole metre: the check would call its own start above the ground
     update({ start: next });
   };
   const traces = useMemo(() => [...holeTraces(collars, survey, project?.desurveyMethod)].map(([name, pts]) => ({ name, vertices: pts.map((p) => [p.x, p.y, p.z]) })), [collars, survey, project?.desurveyMethod]);
@@ -257,6 +257,7 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
   // never the surface through collars drilled from underground
   const collarSurface = collarSurf; // #3327 — one surface for the start and the check
   const above = useMemo(() => (c && terrain ? runAboveGround(c.vertices, (x, y) => terrainGroundAt(terrain, x, y)) : c && collarSurface ? runAboveGround(c.vertices, collarSurface) : 0), [c, terrain, collarSurface]);
+  const farFromCollars = useMemo(() => { if (!c || terrain) return null; const d = worstCollarDistance(c.vertices, collars); return d != null && d > FAR_FROM_COLLARS_M ? d : null; }, [c, terrain, collars]); // #3800
   const clearance = useMemo(() => (c && c.vertices.length > 2 ? selfClearance(c) : null), [c]);
   const wallSelf = clearance ? Math.max(0, clearance.distance - 2 * profileHalfAlong(clearance, line?.profile)) : null; // #1889 (declared after clearance: TDZ otherwise); along the pass: #1924
 
@@ -370,7 +371,8 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
             {pillarM > 0 && halfW === 0 && <div style={note}>{tr("The passes are centreline figures: set a profile width to measure the rock left wall to wall.")}</div>}
             {clearance && <div style={row}><span title={tr("The nearest the line passes to another part of itself, as between the turns of a spiral: the rock left between them. Between stacked turns the profile's height is taken off (back to floor), beside each other its width (wall to wall).")}>{passLabel(tr("Closest pass to itself"), clearance)}</span><b>{m1(wallSelf)} m</b></div>}{/* #1924 */}
             {clearance && wallSelf < 10 && <div style={warn}>{tr("The line passes within {m} m of itself near {x}, {y}, {z}: it may run through its own opening.", { m: m1(wallSelf), x: m1(clearance.at[0]), y: m1(clearance.at[1]), z: m1(clearance.at[2]) })}</div>}
-            {above > 0.5 && <div style={warn}>{terrain ? tr("{m} m of this line, in plan, is above the terrain.", { m: m1(above) }) : tr("{m} m of this line, in plan, is above the ground interpolated between the collars.", { m: m1(above) })}</div>}
+            {farFromCollars != null && <div style={note}>{tr("Not checked against the ground: this line runs up to {d} m from the nearest collar, where the ground interpolated between the collars says nothing. Load a terrain (Maps > Terrain) to check it.", { d: Math.round(farFromCollars) })}</div>}{/* #3800 */}
+            {above > 0.5 && farFromCollars == null && <div style={warn}>{terrain ? tr("{m} m of this line, in plan, is above the terrain.", { m: m1(above) }) : tr("{m} m of this line, in plan, is above the ground interpolated between the collars.", { m: m1(above) })}</div>}
             {!terrain && collarSurface && <div style={note}>{tr("No terrain: the line is checked against the ground interpolated between the collars.")}</div>}{/* #2600 */}
             {!terrain && collarSurface && <CollarLevelsNote collars={collars} survey={survey} /* TASKS.csv #3634: #3551's upward / station check too */ />}
             {!terrain && !collarSurface && <div style={note}>{tr("No terrain: the line is not checked against the ground.")}</div>}
