@@ -13576,5 +13576,7 @@
   "Grades not top-cut: the highest samples entered the estimate at full grade.": "Teores sem corte superior: as amostras mais altas entraram na estimativa com o teor integral.",
   "Grades top-cut at {cap} {unit} before estimating": "Teores com corte superior de {cap} {unit} antes de estimar",
   "({n} of {m} samples cut{pct}).": "({n} de {m} amostras cortadas{pct}).",
-  ", {p} % of the metal removed": ", {p} % do metal removido"
+  ", {p} % of the metal removed": ", {p} % do metal removido",
+  "Mill cut-off (processing only) at these inputs: {c} {unit}.": "Teor de corte da usina (somente processamento) com estes dados: {c} {unit}.",
+  "Break-even including the mining cost of {m} $/t rock: {b} {unit}. The pit itself mines the rock over the ore whatever the ore pays, so it uses the mill figure; an underground stope carries its own mining.": "Ponto de equilíbrio incluindo o custo de lavra de {m} $/t de rocha: {b} {unit}. A cava lavra de qualquer modo a rocha sobre o minério, então usa o valor da usina; um realce subterrâneo carrega a sua própria lavra."
 }
