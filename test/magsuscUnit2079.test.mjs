@@ -12,5 +12,5 @@ test("KT-style readings are 'as logged'; true SI readings stay SI", () => {
   const si = numericSourceChoices({ layers: { magsusc: rows([0.0002, 0.0011, 0.004, 0.0009]) }, customLayers: [] });
   assert.equal(si[0].unit, "SI");
   const sg = numericSourceChoices({ layers: { sg: rows([2.62, 2.65, 2.7]) }, customLayers: [] });
-  assert.equal(sg[0].unit, "g/cc"); // other logs unchanged
+  assert.equal(sg[0].unit, "t/m³"); // other logs unchanged
 });

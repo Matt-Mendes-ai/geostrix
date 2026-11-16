@@ -2,7 +2,7 @@
 
 **Drilling data courtesy of Fireweed Metals Corp., Macpass Project, Yukon (fireweedmetals.com). Used with permission; see Fireweed's data disclaimer.**
 
-These three files are redistributed in the GeoStrix repository and installer with Fireweed Metals Corp.'s written permission (2026-11-14). Fireweed's data disclaimer accompanies the dataset; its text is not reproduced here. Only the three files named below were taken from
+These four CSV files, made from three tables of the dataset (the collars, the surveys, and the samples with their bulk density), are redistributed in the GeoStrix repository and installer with Fireweed Metals Corp.'s written permission (2026-11-14). Fireweed's data disclaimer accompanies the dataset; its text is not reproduced here. Only those three tables were taken from
 the dataset's folder: its interpretations, topography, georeferenced sections and PDFs are not included.
 
 559 diamond (DDH 453, underground UDDH 80) and reverse-circulation (RC 26) holes drilled 1952-2023 on the Macpass project in the Selwyn Basin of
@@ -45,6 +45,6 @@ Not included: everything else in the dataset's folder.
 ## Licence and attribution
 
 Drilling data courtesy of Fireweed Metals Corp., Macpass Project, Yukon (fireweedmetals.com). Used with permission; see Fireweed's data disclaimer.
-The three files are redistributed with Fireweed's written permission (2026-11-14); they are not under an open licence,
+The four files are redistributed with Fireweed's written permission (2026-11-14); they are not under an open licence,
 so the permission covers these files as shipped in GeoStrix and does not extend to other uses. Fireweed's data disclaimer accompanies the dataset; see it for the terms the data are given under. Use the sample to learn GeoStrix, not as a record of the project.
 Changes: re-shaped into these CSVs with GeoStrix's column names, one hole's survey stations sorted by depth; no value was altered.

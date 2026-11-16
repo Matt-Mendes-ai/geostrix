@@ -745,7 +745,7 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, worldCursor = 
   const pct = taskProgress ? Math.max(0, Math.min(100, Math.round(taskProgress.pct ?? 0))) : 0;
   return (
     <div className="ge-status">
-      <span>{!project.name || project.name === "Untitled project" ? tr("Untitled project") : project.name}</span>{/* #1448 */}
+      <span className="ge-status-name" title={project.name || undefined}>{!project.name || project.name === "Untitled project" ? tr("Untitled project") : project.name}</span>{/* #1448; the class: #3661 */}
       {autosavedAt && <span title={tr("The unsaved work of this window was written to the recovery copy at {time}: after a crash GeoStrix offers it back. Save the project to put it in its file.", { time: new Date(autosavedAt).toLocaleTimeString() })} style={{ color: "var(--color-text-muted)" }}>{tr("Autosaved {time}", { time: new Date(autosavedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) })}</span> /* TASKS.csv #3619 */}
       {project.dataCredit && <span className="ge-credit" title={project.dataCredit}>{project.dataCredit}</span> /* TASKS.csv #3527 — the data owner's credit stays on the open project (saved with it), not only in the notice that opens the sample */}
       <span>{tr("Holes:")} <span className="val">{collars.length}</span></span>

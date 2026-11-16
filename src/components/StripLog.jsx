@@ -449,7 +449,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                     if (v == null) return null;
                     const w = barFrac(t.sym, v) * (TRACK_W - 8);
                     if (!(w > 0)) return null;
-                    return <rect key={i} x={x0 + 2} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={assayColor ? assayColor(t.sym, v) : "#c9863d"} opacity="0.85"><title>{`${r.from}-${r.to} m: ${v} ${elementUnits[t.sym] || "ppm"}`}</title></rect>;
+                    return <rect key={i} x={x0 + 2} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={assayColor ? assayColor(t.sym, v) : "#c9863d"} opacity="0.85"><title>{`${r.from}-${r.to} m: ${v} ${gradeUnitLabel(t.sym, elementUnits[t.sym])}`}</title></rect>;
                   })}
                   {t.kind === "pxrfdots" && t.sym && t.rows.map((r, i) => { // #1695 — a pXRF reading: a dot at its depth, scaled to the pXRF readings' own maximum
                     const v = valueIn(r, t.sym, elementUnits[t.sym] || "ppm", elementUnits);

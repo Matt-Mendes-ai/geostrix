@@ -52,6 +52,7 @@ import { lazyModal } from "../lib/lazyModal.jsx";
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2217
 import { collarGroundRecord } from "../lib/collarLevelsText.js"; // TASKS.csv #3653 — the record's clause, as the dialog's note
 import { stampEpsg } from "../lib/provenance.js"; // TASKS.csv #2195
+import { assayStamp } from "../lib/assayStamp.js"; // TASKS.csv #3686
 import UnsampledChoice, { useUnsampled, unsampledResultLine, resolveUnsampled } from "./UnsampledChoice.jsx"; // resolveUnsampled: #3014 // TASKS.csv #2417 / #2542
 const GradeTonnageModal = lazyModal(() => import("./GradeTonnageModal.jsx")); // TASKS.csv #1577 — from the result, not only from Geophysics
 
@@ -620,7 +621,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         let outsideArea = 0; // #1570 — set below when a design-string area drops blocks; params read it, so it is declared first
         const params = {
           holeIds: [...new Set(points.map((p) => p.hole_id))], // TASKS.csv #3595 — the holes the estimate used: the grade-tonnage table's SG mean is theirs
-          tool: "Grade estimation", element: symbol, method, samplesFrom: samplesFrom === "checked" && checkedHoleIds?.size ? `holes checked in the Holes list (${checkedCount} of ${collars.length})` : "every hole", /* #2544 */ cellSizeM: matched || cell3.dz !== cell3.dx ? [cell3.dx, cell3.dy, cell3.dz] : cellSize, paddingM: padding, // #2423: the #2544 note had commented out cellSizeM and paddingM
+          tool: "Grade estimation", ...(sourceData ? {} : { assayStamp: assayStamp(assaysProp) }) /* #3686 — the assays it read (a log source is not the assays) */, element: symbol, method, samplesFrom: samplesFrom === "checked" && checkedHoleIds?.size ? `holes checked in the Holes list (${checkedCount} of ${collars.length})` : "every hole", /* #2544 */ cellSizeM: matched || cell3.dz !== cell3.dx ? [cell3.dx, cell3.dy, cell3.dz] : cellSize, paddingM: padding, // #2423: the #2544 note had commented out cellSizeM and paddingM
           ...(lattice ? { gridOrigin: [lattice.ox, lattice.oy, lattice.oz], gridMatched: matched ? matched.m.name : "typed origin" } : {}), // #724
           gridFrom: shellBox ? `box of the restricting solid "${shellBox.name}" within the drilling` : areaString ? `inside the closed design string "${areaString.name}" (${outsideArea} block(s) outside it dropped)` : gridMode === "checked" && checkedBounds ? `desurveyed traces of the ${checkedBounds.holes} checked hole(s)` : traceBounds ? `desurveyed traces of ${traceBounds.holes} assayed hole(s)` : "collar box (no hole could be desurveyed)", // #521; #1570
           searchRadiusM: searchRadius > 0 ? searchRadius : Math.round(gridDiagonal), searchRadiusWasUnlimited: !(searchRadius > 0), ...(supportRef > 0 ? { supportScoredAgainstM: Math.round(supportRef) } : {}), // #1411

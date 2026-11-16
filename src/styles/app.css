@@ -315,11 +315,15 @@ button:disabled, select:disabled, input:disabled, textarea:disabled { opacity: 0
   padding: 0 12px; font-size: var(--font-size-sm); color: var(--color-text-secondary);
 }
 .ge-status .val { color: var(--color-text); }
+/* TASKS.csv #3661 (round 3) — every item of the bar is one line and keeps its width; what gives way, in this order, is the data credit (down to 8 em, ellipsis, full text in its tooltip), then the project name (ellipsis, full name in its tooltip) */
+.ge-status > * { flex-shrink: 0; white-space: nowrap; }
+.ge-status > .ge-credit { flex-shrink: 1; min-width: 8em; }
+.ge-status > .ge-status-name { flex-shrink: 2; min-width: 6em; max-width: 30vw; overflow: hidden; text-overflow: ellipsis; }
 .ge-status .spacer { flex: 1; }
 /* TASKS.csv #3541 — an empty state's buttons are spaced by the row's gap alone (a button's own left margin put wrapped rows 8 px out of line) */
 .ge-empty-actions > button { margin-left: 0 !important; }
 /* TASKS.csv #3527 — the data owner's credit: one line, cut with an ellipsis (the full text is its tooltip) */
-.ge-status .ge-credit { flex: 0 1 auto; min-width: 0; max-width: min(26vw, 420px); /* TASKS.csv #3661 — was 46vw: it took up to half of the bar and wrapped the other items; the full text is the tooltip */ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ge-status .ge-credit { flex: 0 1 auto; min-width: 8em; max-width: min(26vw, 420px); /* TASKS.csv #3661 — was 46vw: it took up to half of the bar and wrapped the other items; the full text is the tooltip */ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* generic panel */
 .ge-panel { width: 300px; flex-shrink: 0; background: var(--color-bg); border-inline-end: 1px solid var(--color-border); overflow-y: auto; } /* inline-end: #1118 */

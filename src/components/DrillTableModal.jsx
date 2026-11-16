@@ -16,6 +16,8 @@ import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
 
 const ROW_H = 24, COL_W = 112;
+// TASKS.csv #3694 — a column as wide as its heading needs (about 7 px a letter and the sort arrow), up to 260 px: 'Specific gravity (t/m³)' was cut to 'Specific gravity (t...'
+const colWidth = (c) => Math.max(COL_W, Math.min(260, Math.ceil(String(c?.label || "").length * 7 + 34)));
 const fmt = (v) => (v == null || v === "" ? "" : typeof v === "number" ? String(+v.toPrecision(10)) : String(v));
 
 export default function DrillTableModal({ request = {}, onClose }) {
@@ -56,7 +58,7 @@ export default function DrillTableModal({ request = {}, onClose }) {
     const name = String(project?.name || "project").replace(/[^a-z0-9_-]+/gi, "_"), what = String(table.label).replace(/[^a-z0-9_-]+/gi, "_");
     saveFile({ suggestedName: `${name}_${what}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv([head, ...rows]) });
   };
-  const width = Math.max(1, table.columns.length) * COL_W;
+  const widths = table.columns.map(colWidth), width = Math.max(COL_W, widths.reduce((a, b) => a + b, 0));
 
   return (
     <div style={overlay} {...backdropProps(onClose)}>
@@ -85,14 +87,14 @@ export default function DrillTableModal({ request = {}, onClose }) {
               <div style={{ width, position: "sticky", top: 0, zIndex: 1, background: "var(--color-bg-subtle)", borderBottom: "1px solid var(--color-border)" }}>
                 <div style={{ display: "flex" }}>
                   {table.columns.map((c, ci) => (
-                    <div key={c.key} role="columnheader" aria-sort={sort?.col === ci ? (sort.dir === 1 ? "ascending" : "descending") : "none"} tabIndex={0} onKeyDown={activateOnKey} onClick={() => clickHead(ci)} title={tr("Click to sort")} style={{ ...cell, fontWeight: 600, cursor: "pointer", color: "var(--color-text)" }}>
+                    <div key={c.key} role="columnheader" aria-sort={sort?.col === ci ? (sort.dir === 1 ? "ascending" : "descending") : "none"} tabIndex={0} onKeyDown={activateOnKey} onClick={() => clickHead(ci)} title={tr("Click to sort")} style={{ ...cell, width: widths[ci], fontWeight: 600, cursor: "pointer", color: "var(--color-text)" }}>
                       {c.label}{sort?.col === ci ? (sort.dir === 1 ? " ▲" : " ▼") : ""}
                     </div>
                   ))}
                 </div>
                 <div style={{ display: "flex" }}>
                   {table.columns.map((c, ci) => (
-                    <div key={c.key} style={{ ...cell, padding: 2 }}>
+                    <div key={c.key} style={{ ...cell, width: widths[ci], padding: 2 }}>
                       <input type="text" value={colFilters[ci] ?? ""} onChange={(e) => setFilter(ci, e.target.value)} aria-label={tr("Filter {col}", { col: c.label })} placeholder={c.numeric ? ">= 6, 6..8" : "REG, !REG"} style={{ ...sel, width: "100%", boxSizing: "border-box", padding: "2px 5px", fontSize: "var(--font-size-xs)" }} />
                     </div>
                   ))}
@@ -103,7 +105,7 @@ export default function DrillTableModal({ request = {}, onClose }) {
                 const r = table.rows[ri], hit = marked(r);
                 return (
                   <div key={startIndex + k} style={{ display: "flex", width, height: ROW_H, background: hit ? "var(--color-warn-bg, #fdf4e6)" : (startIndex + k) % 2 ? "var(--color-bg-subtle)" : "var(--color-bg)" }} data-marked={hit ? "1" : undefined}>
-                    {r.map((v, ci) => <div key={ci} title={fmt(v)} style={{ ...cell, fontWeight: 400, textAlign: table.columns[ci].numeric ? "right" : "left", color: "var(--color-text)" }}>{fmt(v)}</div>)}
+                    {r.map((v, ci) => <div key={ci} title={fmt(v)} style={{ ...cell, width: widths[ci], fontWeight: 400, textAlign: table.columns[ci].numeric ? "right" : "left", color: "var(--color-text)" }}>{fmt(v)}</div>)}
                   </div>
                 );
               })}

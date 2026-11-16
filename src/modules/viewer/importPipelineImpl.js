@@ -27,6 +27,7 @@ import { fitSimilarity, parseControlPoints, transformImportRows } from "../../li
 import { tieOf, fileToLocal, bearingToLocal } from "../../lib/localGridTie.js"; // TASKS.csv #2288
 import { localGridAzimuthOffset } from "../../lib/localGridNorth.js"; // TASKS.csv #2491
 import { untiedNorthOf, trueToUntiedGrid } from "../../lib/localGridDatum.js"; // TASKS.csv #2661
+import { depthUnitHint } from "../../lib/depthUnitHint.js"; // TASKS.csv #3692
 import { mineGridOf, isMineSource, mineSourceOf, collarsOnMineGrid } from "../../lib/mineGrid.js"; // TASKS.csv #2586; the mine-grid Source CRS: #2811
 import { dipConventionFields, upwardHoles } from "../../lib/dipSign.js"; // TASKS.csv #2886
 import { codeColumnGuess } from "../../lib/valueGuess.js"; // TASKS.csv #2889
@@ -75,6 +76,13 @@ import { busyUntilQuiet } from "../../lib/busyUntilQuiet.js"; // TASKS.csv #3539
 // goes in unseen on them although a dip is above 0 (#335 asks otherwise). Nothing a user drops is in it.
 const STATED_DIPS = new WeakSet();
 
+// TASKS.csv #3692 — a survey or an interval log whose deepest depth per hole is about 3.28 times the collar length: probably feet (the dialog says so above Units)
+const depthUnitOf = (target, mapping, rows, collars) => {
+  const col = target === "survey" || target === "structure" ? mapping?.depth : mapping?.to;
+  if (!col || !rows?.length || !collars?.length || !mapping?.hole_id) return null;
+  const len = new Map(collars.filter((c) => Number(c.length) > 0).map((c) => [c.hole_id, Number(c.length)]));
+  return depthUnitHint(rows.map((r) => ({ hole_id: String(r[mapping.hole_id] ?? "").trim(), depth: Number(String(r[col] ?? "").replace(/,/g, "")) })), len);
+};
 const AZ_TARGETS = new Set(["collars", "survey", "structure"]); // TASKS.csv #1647 — tables with an azimuth
 // TASKS.csv #2886 — the dip column whose signs decide the pre-selected convention (collars and surveys)
 const dipColOf = (target, mapping) => (target === "collars" || target === "survey" ? mapping?.dip || null : null);
@@ -200,7 +208,7 @@ export function makeImportPipeline(ctx, h) {
       const mapping0 = azColFor(target, headers, data, ll ? ll.mapping : guessMapping(target, headers)); // #426; #2015
       const codeGuess = codeColumnGuess(target, headers, data, mapping0), mapping = codeGuess ? { ...mapping0, value: codeGuess.col } : mapping0; // #2889 — no name matched: the file's one code column, said as a guess
       const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
-      setImportModal({ ...(codeGuess ? { valueGuess: codeGuess } : {}), ...(!forceTarget && target === "custom" && pointDensityFile(headers, file.name, data) ? { pointDensity: true } : {}) /* #3665 */, ...azRefFor(target, headers, data), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : target === "magsusc" ? { customFields: suscInstrumentFields(headers, data) } /* #2668 */ : dialogExtraFields(target, headers, data, mapping, [perRowEpsgCol]) /* #3525 */) /* #2187 */, file, fileName: file.name, headers, rowCount: meta?.logTable ? meta.logTable.n : data.length, sampleRows: data.slice(0, 5), allRows: data, ...(meta?.logTable ? { logTable: meta.logTable } : {}) /* #3038 */, target, mapping, ...(forceTarget ? {} : guardGuess(target, mapping, headers, data, file.name)), ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */, perRowEpsgCol, sourceEpsg: ll ? ll.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
+      setImportModal({ ...(codeGuess ? { valueGuess: codeGuess } : {}), ...((() => { const h = depthUnitOf(target, mapping, data, importStateRef.current?.collars); return h ? { depthUnitHint: h } : {}; })()) /* #3692 */, ...(!forceTarget && target === "custom" && pointDensityFile(headers, file.name, data) ? { pointDensity: true } : {}) /* #3665 */, ...azRefFor(target, headers, data), ...(target === "survey" ? { customFields: surveyMethodFields(headers, data) } : target === "magsusc" ? { customFields: suscInstrumentFields(headers, data) } /* #2668 */ : dialogExtraFields(target, headers, data, mapping, [perRowEpsgCol]) /* #3525 */) /* #2187 */, file, fileName: file.name, headers, rowCount: meta?.logTable ? meta.logTable.n : data.length, sampleRows: data.slice(0, 5), allRows: data, ...(meta?.logTable ? { logTable: meta.logTable } : {}) /* #3038 */, target, mapping, ...(forceTarget ? {} : guardGuess(target, mapping, headers, data, file.name)), ...dipConventionFields(data, dipColOf(target, mapping)) /* #2886 */, perRowEpsgCol, sourceEpsg: ll ? ll.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
     }, chosenLayer);
   };
@@ -958,7 +966,7 @@ export function makeImportPipeline(ctx, h) {
       // TASKS.csv #540 — what is wrong with these rows, said now (Data QC loads on demand: not in the startup bundle)
       const liveAtImport = importStateRef.current;
       import("../../lib/dataQC.js").then(({ importCheckSummary, PLAUSIBLE_RANGE }) => {
-        const msg = importCheckSummary(rows, liveAtImport.collars, liveAtImport.survey, `${LAYER_META[target].label} rows from ${fileName}`, (target === "sg" ? densityRangeOf(liveAtImport.project) : PLAUSIBLE_RANGE[target]) || null); // the project's density range: #3587 // #1508 — and values no rock has
+        const msg = importCheckSummary(rows, liveAtImport.collars, liveAtImport.survey, `${LAYER_META[target].label} rows from ${fileName}`, (target === "sg" ? densityRangeOf(liveAtImport.project) : PLAUSIBLE_RANGE[target]) || null, { density: target === "sg" /* #3682 */ }); // the project's density range: #3587 // #1508 — and values no rock has
         if (msg) setNotices((p) => [...p, msg]);
       }).catch(() => {});
       setNotices((p) => [...p, tr("Loaded {rows} rows into {label} from {fileName}.", { rows: rows.length, label: LAYER_META[target].label, fileName })

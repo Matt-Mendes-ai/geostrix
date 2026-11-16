@@ -3,6 +3,7 @@
 // (exactly what the old useCallback closures saw), and mcRef is the hook's live ref (#599).
 import * as THREE from "three";
 import { layerStamp } from "../../lib/layerStamp.js"; // TASKS.csv #2388
+import { assayStamp } from "../../lib/assayStamp.js"; // TASKS.csv #3686
 import { rowsByHole, holeRowsOfCodes, firstFromByHole } from "../../lib/rowsByHole.js"; // TASKS.csv #2906; holeRowsOfCodes / firstFromByHole: #3387
 import { isNotRecorded } from "../../lib/notRecorded.js"; // TASKS.csv #3267
 import { interbeds, planeDipDeg, planeMisfitM, looksLikeFlatPile, runsLieFlat } from "../../lib/pileTops.js"; // TASKS.csv #2927; #3262; #3263
@@ -2869,7 +2870,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // surface so the panel can show it and every export can stamp it. A tonnage with no record of
         // the cutoff/method/radius/cell size/closure mode behind it can't be reproduced or audited.
         const params = {
-          tool: "numeric grade shell", element: symbol, unit, cutoff: numericCutoff,
+          tool: "numeric grade shell", ...(numSrc ? {} : { assayStamp: assayStamp(assays) }) /* #3686 — the assays it read: 'assays changed' when they are replaced (a log source is not the assays) */, element: symbol, unit, cutoff: numericCutoff,
           method: numericMethod, searchRadiusM: effectiveRadius,
           searchRadiusWasUnlimited: !(numericSearchRadius > 0),
           ...(shellEllipsoidM ? { searchEllipsoidM: shellEllipsoidM } : {}), // #656 — semi-axes along the trend's axes

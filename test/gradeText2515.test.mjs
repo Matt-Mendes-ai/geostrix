@@ -21,7 +21,7 @@ test("the tooltip, the section labels, the level plan, Identify and the Style ra
   const src = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
   assert.match(src("../src/modules/ViewerModule.jsx"), /\$\{sym\}: \$\{gradeText\(v\)\} \$\{elementUnits\[sym\] \? gradeUnitLabel\(sym, elementUnits\[sym\]\) : ""\}/);
   assert.match(src("../src/modules/ViewerModule.jsx"), /label: `\$\{sym\}: \$\{gradeText\(v\)\}/);
-  assert.match(src("../src/components/SectionWindow.jsx"), /`\$\{gradeText\(a\.value\)\} \$\{a\.u\} \$\{a\.sym\}`/);
+  assert.match(src("../src/components/SectionWindow.jsx"), /`\$\{gradeText\(a\.value\)\} \$\{gradeUnitLabel\(a\.sym, a\.u\)\} \$\{a\.sym\}`/);
   assert.match(src("../src/lib/levelPlan.js"), /label = `\$\{sym\}: \$\{gradeText\(value\)\}/);
   assert.match(src("../src/lib/viewer/identify.js"), /fields\.push\(\[tr\("Value"\), gradeText\(row\.value\) \+ \(unit \? " " \+ unit : ""\)\]\)/);
   assert.match(src("../src/components/AssayStyleModal.jsx"), /min: gradeText\(range\.min\), max: gradeText\(range\.max\)/);

@@ -13,7 +13,7 @@ import { rowsRefOf } from "./tableFields.js"; // TASKS.csv #3140 step 2 — a la
 
 export const LOG_SOURCES = {
   magsusc: { label: "Mag. susc.", unit: "SI", logScale: true },
-  sg: { label: "Specific gravity", unit: "g/cc", logScale: false },
+  sg: { label: "Specific gravity", unit: "t/m³", logScale: false }, // TASKS.csv #3564 / #3694 — the density layer's one unit everywhere (was g/cc here, t/m³ in the 3D View, Data table, Compositing and Grade-tonnage); 1 t/m³ = 1 g/cc
   geotech: { label: "RQD", unit: "%", logScale: false },
   recovery: { label: "Recovery", unit: "%", logScale: false },
 };

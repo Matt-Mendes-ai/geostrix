@@ -27,6 +27,7 @@ import { drillSiteSpacing } from "../../lib/drillSpacing.js"; // TASKS.csv #2517
 import CollarSizeControl from "./CollarSizeControl.jsx"; // TASKS.csv #2823
 import { autoGridSize, isAutoGrid } from "../../lib/viewer/gridGroup.js"; // TASKS.csv #2318
 import { useStore } from "../../lib/store.jsx"; // TASKS.csv #2517 — the collars
+import AssayStaleBadge from "../../components/AssayStaleBadge.jsx"; // TASKS.csv #3686
 // TASKS.csv #1702 (review #1645, Copley) — "Intercepts" opened lithology boundary picks; to a geologist an intercept is "24 m @ 0.44 % Cu".
 // The button is now "Contact picks", and "Grade intercepts" opens Best intercepts (Geochem's tool) on the loaded assays from here.
 const BestIntercepts = lazyModal(() => import("../../components/BestIntercepts.jsx"));
@@ -420,7 +421,7 @@ export function LayerRow({ label, count, shown = null, visible, onToggle, onUplo
           </div>
         ) : <div style={{ width: 13, flexShrink: 0 }} />}
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onToggle} style={{ cursor: "pointer", color: visible ? "var(--color-accent)" : "var(--color-text-disabled)" }} title={visible ? tr("Hide layer") : tr("Show layer")} aria-label={`${visible ? tr("Hide") : tr("Show")} ${label}`}>{visible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
-        <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: visible ? "var(--color-text)" : "var(--color-text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</div>
+        <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: visible ? "var(--color-text)" : "var(--color-text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={typeof label === "string" ? label : undefined /* TASKS.csv #3694 — the full name and unit when the row is too narrow */}>{label}</div>
         {count > 0 && <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(onZoom, tr("Zoom to the {label} layer", { label }))} />}
         {count > 0 && <ListFilter size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(onInspect, tr("Filter / legend / sources for the {label} layer (full view)", { label }))} />}
         {/* TASKS.csv #63 — "unload" this layer's data entirely. Separate from the per-source removal
@@ -556,6 +557,7 @@ export function VoxelRangeRow({ model, onUpdate, compact = false, onShell = null
           {model.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
         </div>
         <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={modelListName(model, others)}>{modelListName(model, others)}</div>{/* #1839 — the property beside a shared name */}
+        <AssayStaleBadge params={model.params} />{/* TASKS.csv #3686 */}
         {isBand && <span style={{ color: "var(--color-info)", fontSize: "var(--font-size-xs)", flexShrink: 0 }} title={tr("A range filter is active on this model")}>{tr("band")}</span>}
       </div>}
       <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 6 }}>
