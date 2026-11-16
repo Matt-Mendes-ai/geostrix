@@ -94,7 +94,9 @@ export function drillholeElements(store) {
   const elements = [];
   for (const c of collars) {
     const id = String(c.hole_id), st = (survey.get(id) || []).filter((s) => fin(s.depth) && fin(s.azimuth) && fin(s.dip)).sort((a, b) => a.depth - b.depth);
-    const sets = sources.map((s) => ({ s, rows: (s.by.get(id) || []).filter((r) => fin(r.from) && fin(r.to)) })).filter((x) => x.rows.length);
+    // TASKS.csv #3712 — each source keeps its own column suffix (its index in `sources`): the suffix was the position among the sets THIS hole has, so a hole with assays and no
+    // density wrote its assay depths in the density's FROM / TO pair while the others wrote them in 'FROM (1)' / 'TO (1)'
+    const sets = sources.map((s, si) => ({ s, si, rows: (s.by.get(id) || []).filter((r) => fin(r.from) && fin(r.to)) })).filter((x) => x.rows.length);
     const pts = points.map((p) => ({ p, rows: (p.by.get(id) || []).filter((r) => fin(r.depth)) })).filter((x) => x.rows.length);
     // the end of the hole: its length, else the deepest station, interval or reading
     let deepest = 0;
@@ -115,8 +117,8 @@ export function drillholeElements(store) {
       for (const [k, x] of extraFields(r)) put(k, x);
     }
     const cellCols = new Map(), units = new Map(); // name -> values by cell
-    sets.forEach(({ s, rows }, k) => {
-      const suffix = k ? ` (${k})` : "";
+    sets.forEach(({ s, si, rows }) => {
+      const suffix = si ? ` (${si})` : "";
       for (const r of rows) {
         const a = vertex(r.from), b = vertex(r.to), cell = cells.length / 2;
         cells.push(a, b);
@@ -134,7 +136,7 @@ export function drillholeElements(store) {
     for (const [n, arr] of cellCols) data.push({ name: n, values: full(arr, nC), association: "cell", ...(units.get(n) ? { units: units.get(n) } : /^(FROM|TO)\b/.test(n) ? { units: "m" } : {}) });
     // stations as geoh5 has them (dip negative down); a hole with none: its collar's attitude, when it has one
     const surveys = st.length ? st.map((s) => [s.depth, s.azimuth, -s.dip]) : fin(c.azimuth) && fin(c.dip) ? [[0, c.azimuth, -c.dip]] : [];
-    elements.push({ kind: "drillhole", name: id, collar: [c.x, c.y, c.z], endOfHole: eoh ?? undefined, surveys, trace: trace.map((p) => [p.x, p.y, p.z]), vertices, cells, data });
+    elements.push({ kind: "drillhole", name: id, collar: [c.x, c.y, c.z], endOfHole: eoh ?? undefined, surveys, trace: trace.map((p) => [p.x, p.y, p.z]), vertices, cells, data, intervalSources: sources.map((s) => s.name) /* #3712: null = the assays */ });
   }
   return { elements, left };
 }

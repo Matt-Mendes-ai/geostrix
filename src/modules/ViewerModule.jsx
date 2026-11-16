@@ -4044,7 +4044,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // TASKS.csv #1028 (review #1016) — "Enclosed volume" only for a closed mesh: an open sheet has no inside, and the
     // signed-tetrahedron sum it got depends on the scene origin (1.65 / 165 / 137 Mm3 for one sheet)
     const vol = computeMeshVolume(mesh.geometry);
-    const extra = { epsg, crsUnset, densityTPerM3: surf.density ?? null, volumeM3: vol.watertight ? vol.volumeM3 : null, ...(vol.watertight ? {} : { openSurface: true }) };
+    const extra = { epsg, crsUnset, dataCredit: project?.dataCredit /* #3717 */, densityTPerM3: surf.density ?? null, volumeM3: vol.watertight ? vol.volumeM3 : null, ...(vol.watertight ? {} : { openSurface: true }) };
     // TASKS.csv #145 — a hand-sculpted surface must not leave this app claiming to be a clean
     // interpolation of its stated parameters. The edit log travels with the mesh (see
     // meshExport.js's provenanceLines, where it is stamped ahead of every parameter line), including
@@ -5320,7 +5320,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     try {
       // #1060 — one DXF layer per logged value, structure picks labelled dip/ddd: lib/viewer/vectorFeatures.js (#1017, tested)
       const { vectorDxfText } = await import("../lib/viewer/vectorDxf.js"); // #552 — on demand
-      const { text: dxfText, perValue: valueLayer, picks: pickLabel } = vectorDxfText({ features, geomType }, { kind, key, built, label, crs: crsCell(project) });
+      const { text: dxfText, perValue: valueLayer, picks: pickLabel } = vectorDxfText({ features, geomType }, { kind, key, built, label, crs: crsCell(project), credit: project?.dataCredit /* #3717 */ });
       const res = await saveFile({ quiet: true, // TASKS.csv #576 — awaited: success only when it was written
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.dxf`,
         filters: [{ name: "DXF", extensions: ["dxf"] }],
@@ -5339,7 +5339,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     try {
       const tx = await import("../lib/tiedExport.js"), ex = project?.crsSet === false && !tx.tieOf(project) ? null : await tx.exportCrs(project); if (!ex && project?.crsSet !== false) return; // as the Shapefile export: a tied grid through its tie, no CRS = 'Default'
       const { vectorGocadText } = await import("../lib/viewer/vectorGocad.js");
-      const g = vectorGocadText({ features: tx.featuresToWorld(features, ex?.tie), geomType }, { label, epsg: ex?.epsg ?? null, crs: crsCell(project) });
+      const g = vectorGocadText({ features: tx.featuresToWorld(features, ex?.tie), geomType }, { label, epsg: ex?.epsg ?? null, crs: crsCell(project), credit: project?.dataCredit /* #3717 */ });
       const res = await saveFile({ quiet: true, suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.${g.ext}`, filters: [{ name: g.ext === "vs" ? "GOCAD VSet" : "GOCAD PLine", extensions: [g.ext] }], content: g.text });
       if (!res?.ok) { if (res?.error) throw new Error(res.error); return; }
       setNotices((p) => [...p,

@@ -28,6 +28,7 @@ async function zlib(bytes) {
 //           | { type: "surface", name, description?, vertices: Float64Array (xyz...), triangles: Uint32Array, data? }
 //           | { type: "points", name, vertices, data:[{name, values}] }
 //           | { type: "lines", name, vertices, segments: Uint32Array (pairs), data:[{name, values, location:"segments"|"vertices"}] }]
+// a data item is { name, values (numbers) } or { name, strings (text, '' = none) } (#3712)
 export async function writeOMF({ name = "GeoStrix export", description = "", elements }) {
   const objects = {};
   const chunks = []; // compressed payloads in file order
@@ -51,6 +52,17 @@ export async function writeOMF({ name = "GeoStrix export", description = "", ele
     return out;
   };
   const addData = async (d, location) => {
+    // TASKS.csv #3712 — text as OMF v1's mapped data (what other programs write hole ids and codes as): d.strings (one a location, '' / null = none) becomes an index
+    // array (NaN: none) and one Legend whose values are an inline StringArray of the distinct strings, in first-seen order
+    if (Array.isArray(d.strings)) {
+      const legend = [], at = new Map(), idx = new Float64Array(d.strings.length);
+      d.strings.forEach((s, i) => { if (s == null || s === "") { idx[i] = NaN; return; } const k = String(s); let j = at.get(k); if (j === undefined) { j = legend.length; at.set(k, j); legend.push(k); } idx[i] = j; });
+      const ia = await addArray("ScalarArray", idx, "<f8");
+      const sid = uuid(); objects[sid] = { ...stamp(), array: legend, __class__: "StringArray" };
+      const lid = uuid(); objects[lid] = { ...stamp(), name: d.name, description: d.description || "", values: sid, __class__: "Legend" };
+      const mid = uuid(); objects[mid] = { ...stamp(), name: d.name, description: d.description || "", array: ia, legends: [lid], location: d.location || location, __class__: "MappedData" };
+      return mid;
+    }
     const arr = await addArray("ScalarArray", f8(d.values), "<f8");
     const id = uuid();
     objects[id] = { ...stamp(), name: d.name, description: d.description || "", array: arr, location: d.location || location, __class__: "ScalarData" };

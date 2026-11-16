@@ -5,11 +5,11 @@ import { buildDXF } from "../dxf.js";
 // interval / point / structure layer gets one DXF layer per logged value (KEY_value), structure picks a "dip/ddd" label;
 // collars and traces keep one layer per hole; an overlay (built) brings its own dxfLayerOf. A 999 comment record names
 // the export and the project CRS (#1053). Returns { text, perValue, picks }.
-export function vectorDxfText({ features, geomType }, { kind, key, built = null, label, crs }) {
+export function vectorDxfText({ features, geomType }, { kind, key, built = null, label, crs, credit = "" }) { // credit: TASKS.csv #3717 — the data owner's credit, a second 999 comment
   const perValue = !built && kind === "layer" && !!key;
   const valueLayer = perValue ? (f) => `${String(key).toUpperCase()}_${f.attributes?.value ?? f.attributes?.type ?? "NONE"}` : null;
   const picks = !built && key === "structure";
   const pickLabel = picks ? (f) => { const a = f.attributes || {}; return Number.isFinite(a.dip) ? `${Math.round(a.dip)}/${Number.isFinite(a.dipdir_grid) ? String(Math.round(a.dipdir_grid)).padStart(3, "0") : "?"}` : null; } : null;
-  const text = `999\nGeoStrix ${label} | Project CRS: ${crs}\n` + buildDXF({ features, geomType, layerOf: valueLayer || built?.dxfLayerOf || null, labelOf: pickLabel });
+  const text = `999\nGeoStrix ${label} | Project CRS: ${crs}\n` + (credit ? `999\nData credit: ${String(credit).replace(/\s+/g, " ")}\n` : "") + buildDXF({ features, geomType, layerOf: valueLayer || built?.dxfLayerOf || null, labelOf: pickLabel });
   return { text, perValue, picks };
 }

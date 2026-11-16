@@ -90,6 +90,7 @@ export function provenanceLines(name, provenance, extra = {}) {
     });
     out.push(`Manual edits move vertices only; triangle connectivity is unchanged, so the mesh is exactly as watertight (or not) as it was when generated.`);
   }
+  if (extra.dataCredit) out.push(`Data credit: ${String(extra.dataCredit).replace(/\s+/g, " ")}`); // TASKS.csv #3717 — the data owner's credit travels with the mesh
   if (extra.epsg) out.push(`Project CRS: EPSG:${extra.epsg}`);
   else if (extra.crsUnset) out.push("Project CRS: not set (local grid, coordinates as imported)"); // TASKS.csv #2225
   // #1053 — the mesh's own box, in the coordinates written to the file (the params extent below is not)

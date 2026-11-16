@@ -13,7 +13,7 @@ import { openRingAt /* #2112 */, stringStats, offsetString, joinStrings, splitSt
 import { extrudeString, loftStrings, solidTonnage } from "../lib/stringSolids.js";
 import { categoricalModels } from "../lib/geologyForward.js";
 import { valueUnit } from "../lib/blockModelExport.js"; // #1945
-import { buildDXF, dxfGridNote } from "../lib/dxf.js";
+import { buildDXF, dxfNotes } from "../lib/dxf.js";
 import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
 import { iconAction } from "../lib/a11y.js";
@@ -328,7 +328,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
 
   // ---------- files ----------
   const exportCsv = () => saveFile({ suggestedName: "design_strings.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(stringRows(designStrings).map((r) => ({ ...r, crs: crsCell(project) }))) });
-  const exportDxf = () => saveFile({ suggestedName: "design_strings.dxf", filters: [{ name: "DXF", extensions: ["dxf"] }], content: buildDXF({ comment: dxfGridNote(project, "Mine Design strings"), features: stringFeatures(designStrings), geomType: "line", layerOf: (f) => f.attributes.name, colorOf: (f) => f.attributes.color }) });
+  const exportDxf = () => saveFile({ suggestedName: "design_strings.dxf", filters: [{ name: "DXF", extensions: ["dxf"] }], content: buildDXF({ comment: dxfNotes(project, "Mine Design strings"), features: stringFeatures(designStrings), geomType: "line", layerOf: (f) => f.attributes.name, colorOf: (f) => f.attributes.color }) });
   const importDxf = async (file) => {
     if (!file) return;
     try {

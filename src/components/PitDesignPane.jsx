@@ -16,7 +16,7 @@ import { runPitDesignAsync } from "../lib/pitDesignClient.js";
 import { benchStringRows, benchStringFeatures, benchTableRows, predictDesignCell, benchHeightThatDraws, MAX_DESIGN_CELLS, designDepth /* #3316 */ } from "../lib/pitDesign.js";
 import { collarGround } from "../lib/collarGround.js"; // TASKS.csv #3316
 import { terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #3316 // predictDesignCell: #1916
-import { buildDXF, dxfGridNote } from "../lib/dxf.js";
+import { buildDXF, dxfNotes } from "../lib/dxf.js";
 import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
@@ -150,7 +150,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
     onRemove?.(s.id);
     if (res?.designId === s.id) { setRes(null); kept = null; }
   };
-  const exportStringsDxf = () => saveFile({ suggestedName: "pit_design_strings.dxf", filters: [{ name: "DXF", extensions: ["dxf"] }], content: buildDXF({ comment: dxfGridNote(project, "Pit design strings"), features: benchStringFeatures(res.strings), geomType: "line", layerOf: (ft) => ft.attributes.name, colorOf: (ft) => (ft.attributes.kind === "crest" ? "#b22222" : "#1f6fb2") }) });
+  const exportStringsDxf = () => saveFile({ suggestedName: "pit_design_strings.dxf", filters: [{ name: "DXF", extensions: ["dxf"] }], content: buildDXF({ comment: dxfNotes(project, "Pit design strings"), features: benchStringFeatures(res.strings), geomType: "line", layerOf: (ft) => ft.attributes.name, colorOf: (ft) => (ft.attributes.kind === "crest" ? "#b22222" : "#1f6fb2") }) });
   const exportStringsCsv = () => saveFile({ suggestedName: "pit_design_strings.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(benchStringRows(res.strings).map((r) => ({ ...r, crs: crsCell(project) }))) });
   const exportBenchesCsv = () => saveFile({ suggestedName: "pit_design_benches.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(benchTableRows(res.benches, res.unit, res.alsoLabels || []).map((r) => ({ ...r, pit: res.pitName, crs: crsCell(project) }))) });
   // #1929 — the figures in brackets: the whole shell's, or the largest separate pit's when that alone was designed
