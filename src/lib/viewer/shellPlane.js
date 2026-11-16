@@ -17,25 +17,30 @@
 //   the property Ag >= 29.8:   inside 75 -> 73 %, 27.8 -> 6.6 Mm³, far 77 -> 29 %, reach 80 -> 61 m
 import { samplesTrendByArea } from "../samplesTrend.js";
 import { trendBasis, trendSearchScales } from "../trend.js";
+import { planeVsDrilling } from "../drillingPlane.js"; // TASKS.csv #3782
 
 export const PLANE_MIN_COMPOSITES = 30, PLANE_MIN_HOLES = 4, PLANE_MAX_RATIO = 6, REACH_SHARE = 0.3;
 const r1 = (v) => Math.round(v * 10) / 10;
 
 // atPts: the cluster's composites at or above the cut-off ({ x, y, z, hole_id }); radiusM: the pane's search (a sphere's radius)
 // -> null (keep the sphere) or { trend: { name, dip, dipAzimuth, pitch, ratios }, basis, scales, majorM, axesM: [a, b, c], reachM: [a, b, c], n, holes }
-export function shellPlaneSearch(atPts, radiusM, { minComposites = PLANE_MIN_COMPOSITES, minHoles = PLANE_MIN_HOLES, maxRatio = PLANE_MAX_RATIO, reachShare = REACH_SHARE } = {}) {
+// TASKS.csv #3782 — allPts (the area's composites, grade ignored): the plane is tested against the drilling first (lib/drillingPlane.js); the shape
+// of the drilling -> { trend: null, drilling, rejected: { dip, dipAzimuth }, n, holes } (keep the sphere, and say why). Every return carries `drilling`.
+export function shellPlaneSearch(atPts, radiusM, { minComposites = PLANE_MIN_COMPOSITES, minHoles = PLANE_MIN_HOLES, maxRatio = PLANE_MAX_RATIO, reachShare = REACH_SHARE, allPts = null } = {}) {
   const pts = (atPts || []).filter((p) => [p?.x, p?.y, p?.z].every(Number.isFinite));
   const holes = new Set(pts.map((p) => p.hole_id)).size;
   if (!(radiusM > 0) || pts.length < minComposites || holes < minHoles) return null;
   const fit = samplesTrendByArea(pts.map((p) => ({ x: p.x, y: p.y, z: p.z })));
   const t0 = fit.trend;
   if (!t0) return null;
+  const drilling = allPts ? planeVsDrilling(t0, allPts, fit.used || pts.length, { usedPts: pts }) : null;
+  if (drilling?.drilling) return { trend: null, drilling, rejected: { dip: t0.dip, dipAzimuth: t0.dipAzimuth }, n: pts.length, holes, leftOut: fit.leftOut || 0 };
   // a very elongated fit (a few composites in one hole's line) would leave a needle: the ratios are capped, the intermediate kept in proportion
   const max = Math.min(maxRatio, t0.ratios.max), int = Math.max(1, Math.min(max, t0.ratios.int * (max / t0.ratios.max)));
   const trend = { name: "the plane of the composites at the cut-off", dip: t0.dip, dipAzimuth: t0.dipAzimuth, pitch: t0.pitch, ratios: { max: r1(max), int: r1(int), min: 1 } };
   const majorM = radiusM * Math.cbrt((trend.ratios.max * trend.ratios.max) / trend.ratios.int); // a * b * c = R³ with a : b : c = max : int : 1
   const axesM = [majorM, (majorM * trend.ratios.int) / trend.ratios.max, majorM / trend.ratios.max].map(r1);
-  return { trend, basis: trendBasis(trend), scales: trendSearchScales(trend), majorM: r1(majorM), axesM, reachM: axesM.map((a) => r1(a * reachShare)), reachShare, n: pts.length, holes, leftOut: fit.leftOut || 0 };
+  return { trend, basis: trendBasis(trend), scales: trendSearchScales(trend), majorM: r1(majorM), axesM, reachM: axesM.map((a) => r1(a * reachShare)), reachShare, n: pts.length, holes, leftOut: fit.leftOut || 0, drilling };
 }
 
 // The reach cut: every node at or above `iso` farther than reach.limM (in the search frame: along the major axis in metres, the others scaled

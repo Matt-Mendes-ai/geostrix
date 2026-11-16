@@ -9,7 +9,8 @@ import { Plus, Trash2, Pencil } from "./icons.js";
 import { cleanTrend, describeTrend, DEFAULT_TREND, planeFromPoles, poleOf, planeFromPoints } from "../lib/trend.js";
 import { fisherStats, fabricShape } from "../lib/stereonet.js"; // TASKS.csv #672
 import { fitPlane } from "../lib/vein.js"; // TASKS.csv #672 — planarity / collinearity
-import { samplesTrendByArea } from "../lib/samplesTrend.js"; // TASKS.csv #3593 — a trend from the grades
+import { samplesTrendByArea, samplesTrend } from "../lib/samplesTrend.js"; // TASKS.csv #3593 — a trend from the grades; samplesTrend: #3769
+import { planeVsDrilling } from "../lib/drillingPlane.js"; // TASKS.csv #3769 — is the plane the drilling's own?
 import { startingTrendPlane, MIN_TOP_HOLES } from "../lib/trendStart.js"; // TASKS.csv #2428
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #2779 — the drill spacing and the sample length
@@ -85,7 +86,7 @@ function RatiosEditor({ trend, onApply, field, inputStyle, small }) {
 
 // structurePicks: [{ value (code), dip, azimuth (dip direction) }]; surfaces: [{ id, name }]; surfacePoints(id) -> [{x, y, z}]
 // units: the logged lithology codes; unitTopPoints(code) -> [{x, y, z}] (east, north, up) of each hole's top of it (#2428)
-export default function TrendsPanel({ structuralTrends, setStructuralTrends, structurePicks, surfaces, surfacePoints, units = [], unitTopPoints = null, sampleElements = [], samplePoints = null /* #3593 */, onView, viewingId, small, inputStyle, btnStyle }) {
+export default function TrendsPanel({ structuralTrends, setStructuralTrends, structurePicks, surfaces, surfacePoints, units = [], unitTopPoints = null, sampleElements = [], samplePoints = null /* #3593 */, drillingPoints = null /* #3769 */, onView, viewingId, small, inputStyle, btnStyle }) {
   const { trends = [], use = {} } = structuralTrends || {};
   const [editId, setEditId] = useState(null);
   const [note, setNote] = useState(null);
@@ -127,10 +128,16 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
       const area = r?.pts?.length ? samplesTrendByArea(r.pts) : null, st = area?.trend || null;
       if (!st && area?.groups?.length > 1) { setNote({ id: t.id, text: tr("Not set: the {n} {el} samples at or above {cut} {unit} lie in {k} areas more than 500 m apart ({sizes} samples), and one plane through them would join separate bodies. Check one area's holes in the Holes list, set Model area to the checked holes, then set the plane again.", { n: r.pts.length.toLocaleString(), el: key, cut: r.cutoff, unit: r.unit || "", k: area.groups.length, sizes: area.groups.slice(0, 6).join(", ") + (area.groups.length > 6 ? ", …" : "") }) }); return; }
       if (!st) { setNote({ id: t.id, text: tr("Not set: too few {el} samples at or above the cut-off, or they lie along one line, to fix a plane.", { el: key }) }); return; }
+      // TASKS.csv #3769 — tested against the drilling (all the area's samples, grade ignored): the drilling's own shape is not set
+      const dv = drillingPoints ? planeVsDrilling(st, drillingPoints() || [], st.n, { usedPts: r.pts }) : null;
+      const dvArgs = dv ? { all: dv.all.n.toLocaleString(), adip: dv.all.dip.toFixed(0), adir: dv.all.dipAzimuth.toFixed(0), ang: Math.round(dv.angleDeg), draw: Math.round(dv.drawDeg), k: dv.within, h: dv.holes } : null;
+      const floorText = r.floor ? tr("{pct} % of the {el} samples sit at {cut} {unit}, the column's lowest value (a detection floor): the cut-off takes all of them.", { pct: Math.round(100 * r.floor), el: key, cut: r.cutoff, unit: r.unit || "" }) + " " : "";
+      if (dv?.drilling) { setNote({ id: t.id, text: floorText + tr("Not set: the plane of the {n} {el} samples at or above {cut} {unit} ({dip}° → {az}°) is the shape of the drilling: all {all} samples of the area, grade ignored, lie on {adip}° → {adir}° ({ang}° away, where random draws of as many land up to {draw}° from it), and {k} of the {h} holes run within 30° of it, so they do not test its dip. The grades do not fix a plane of their own here: type the plane from structural measurements or the geology.", { n: st.n.toLocaleString(), el: key, cut: r.cutoff, unit: r.unit || "", dip: st.dip.toFixed(0), az: st.dipAzimuth.toFixed(0), ...dvArgs }) }); return; }
       const namedAuto = /^(Stereonet mean|Mean of .+|Plane of .+) \(\d+° → \d+°\)$/.test(t.name || "") || /^Trend \d+$/.test(t.name || "");
       update(t.id, { dip: Math.round(st.dip * 10) / 10, dipAzimuth: Math.round(st.dipAzimuth * 10) / 10, pitch: st.pitch, ratios: st.ratios, ...(namedAuto ? { name: `Plane of ${key} >= ${r.cutoff} (${st.dip.toFixed(0)}° → ${st.dipAzimuth.toFixed(0)}°)` } : {}) });
       setNote({ id: t.id, text: tr("Dip {dip}° → {az}°, pitch {pitch}°, ratios {max} : {int} : {min} from the {n} {el} samples at or above {cut} {unit} (their 90th percentile): their spreads are {a} × {b} × {c} m. A trend from the grades, not from structure: check it in 3D (View) before modelling with it.", { dip: st.dip.toFixed(1), az: st.dipAzimuth.toFixed(1), pitch: st.pitch, max: st.ratios.max, int: st.ratios.int, min: st.ratios.min, n: st.n.toLocaleString(), el: key, cut: r.cutoff, unit: r.unit || "", a: Math.round(2 * st.spreads[0]), b: Math.round(2 * st.spreads[1]), c: Math.round(2 * st.spreads[2]) })
-        + (area.leftOut ? " " + tr("{n} samples in other areas more than 500 m away were left out.", { n: area.leftOut.toLocaleString() }) : "") });
+        + (area.leftOut ? " " + tr("{n} samples in other areas more than 500 m away were left out.", { n: area.leftOut.toLocaleString() }) : "")
+        + (dv ? " " + tr("Tested against the drilling: {ang}° from the plane of all {all} samples of the area, grade ignored ({adip}° → {adir}°); {k} of the {h} holes run within 30° of it.", dvArgs) : "") + (floorText ? " " + floorText.trim() : "") }); // #3769
       return;
     }
     let plane = null, what = "";
@@ -168,6 +175,9 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
       const rough = fit && Number.isFinite(fit.planarity) ? fit.planarity : null;
       what = tr("the best-fit plane of {n} logged tops of {code}", { code, n: pts.length })
         + (rough != null ? ` (${tr("RMS off the plane {pct}% of its extent", { pct: (rough * 100).toFixed(0) })}${rough > 0.25 ? " — " + tr("far from planar: this surface is not well described by one plane") : ""})` : "");
+      // TASKS.csv #3769 — tops logged in holes that lie in their plane: said, as a caution (the tops are geology, not grades)
+      const dvt = plane && drillingPoints ? planeVsDrilling({ ...plane, ratios: samplesTrend(pts)?.ratios }, drillingPoints() || [], pts.length, { usedPts: pts }) : null;
+      if (dvt?.drilling) what += " — " + tr("close to the shape of the drilling: all {all} samples of the area lie on {adip}° → {adir}° ({ang}° away) and {k} of the {h} holes run within 30° of it, so they do not test its dip; check it against structural measurements", { all: dvt.all.n.toLocaleString(), adip: dvt.all.dip.toFixed(0), adir: dvt.all.dipAzimuth.toFixed(0), ang: Math.round(dvt.angleDeg), k: dvt.within, h: dvt.holes });
     } else if (kind === "surface") {
       const s = (surfaces || []).find((x) => x.id === key);
       const pts = surfacePoints?.(key) || [];

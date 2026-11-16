@@ -2711,12 +2711,17 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         const label = shellName(shellTags.map((t, i) => (i === 0 && envelopeMode && shellPref === "auto" ? (anyEnv ? (envBox.every(Boolean) ? `envelope p ${envIso}` : `envelope and tight, p ${envIso}`) : "tight") : t)));
         const indPoints = anyEnv ? envLib.indicatorPoints(gridPoints, numericCutoff) : null; // #3673: 1 at or above the cut-off
         const planeLib = workerPost && numericSearchRadius > 0 && shellPlaneSearchOn() && envBox.some((e) => !e) ? await import("../../lib/viewer/shellPlane.js") : null;
-        const planes = gridBoxes.map((b, bi) => (planeLib && !envBox[bi] ? planeLib.shellPlaneSearch(b.idx.map((k) => gridPoints[k]).filter((q) => q.value >= numericCutoff), numericSearchRadius) : null));
+        // TASKS.csv #3782 — each area's plane tested against its drilling (its composites, grade ignored: lib/drillingPlane.js); the shape of the
+        // drilling keeps the sphere, and is said below (planes0 / envSearch0 keep the test)
+        const boxAll = (bi) => gridBoxes[bi].idx.map((k) => gridPoints[k]);
+        const planes0 = gridBoxes.map((b, bi) => (planeLib && !envBox[bi] ? planeLib.shellPlaneSearch(boxAll(bi).filter((q) => q.value >= numericCutoff), numericSearchRadius, { allPts: boxAll(bi) }) : null));
+        const planes = planes0.map((pl) => (pl?.trend ? pl : null));
         // TASKS.csv #3673 — the envelope's search per drilled area: the plane of its composites at the cut-off with ranges in sample spacings
         // (lib/viewer/shellEnvelope.js ENVELOPE_RANGES); an area with too few of them, a sphere of the middle range
         const envS = gsSampleSpacing > 0 ? gsSampleSpacing : gsSpacing;
         const atOfBox = (bi) => gridBoxes[bi].idx.map((k) => gridPoints[k]).filter((q) => q.value >= numericCutoff);
-        const envSearch = anyEnv ? gridBoxes.map((b, bi) => (envBox[bi] ? envLib.envelopeSearch(atOfBox(bi), envS) : null)) : null;
+        const envSearch0 = anyEnv ? gridBoxes.map((b, bi) => (envBox[bi] ? envLib.envelopeSearch(atOfBox(bi), envS, { allPts: boxAll(bi) }) : null)) : null; // allPts: #3782
+        const envSearch = envSearch0 ? envSearch0.map((e) => (e?.trend ? e : null)) : null;
         // #3580 (a) — one run per box, in turn, the progress shared by their blocks; a kriging variogram fitted in the first (every sample) is
         // given to the others, so all use the same one
         const grids = [], boxN = gridBoxes.map((b) => boxBlocks(b.bounds, cs)), boxTotal = boxN.reduce((s, x) => s + x, 0);
@@ -2944,9 +2949,16 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         }
         // TASKS.csv #3655 — the search said: the plane, the ellipsoid and the reach (the largest area's; the others counted)
         { const used = planes.map((pl, bi) => (pl ? { pl, bi } : null)).filter(Boolean).sort((a, b) => b.pl.n - a.pl.n);
-          if (used.length) { const pl = used[0].pl, more = used.length - 1, sphere = planes.filter((q, bi) => !q && gridBoxes[bi].idx.some((k) => gridPoints[k].value >= numericCutoff)).length; // areas with composites at the cut-off but no plane
+          if (used.length) { const pl = used[0].pl, more = used.length - 1, sphere = planes.filter((q, bi) => !q && !envBox[bi] && !planes0[bi]?.drilling?.drilling && gridBoxes[bi].idx.some((k) => gridPoints[k].value >= numericCutoff)).length; // areas with composites at the cut-off but no plane (#3782: the drilling's planes are said apart)
             setNotices((p) => [...p, notice("\"{label}\" was searched along the plane of its {n} composites at or above {cutoff} {unit} ({dip}° towards {dir}°, {holes} holes): an ellipsoid of {a} × {b} × {c} m, the volume of the {r} m search, and the shell is kept within {ra} × {rb} × {rc} m of them.{more}{sphere} Untick \"Search along the composites' plane\" in the Grade shell pane for the sphere.", { label, n: pl.n, cutoff: numericCutoff, unit: unitL, dip: Math.round(pl.trend.dip), dir: Math.round(pl.trend.dipAzimuth), holes: pl.holes, a: pl.axesM[0], b: pl.axesM[1], c: pl.axesM[2], r: numericSearchRadius, ra: pl.reachM[0], rb: pl.reachM[1], rc: pl.reachM[2], more: more ? " " + tr(more === 1 ? "One other drilled area had a plane of its own." : "{k} other drilled areas had planes of their own.", { k: more }) : "", sphere: sphere ? " " + tr(sphere === 1 ? "One area with too few composites at the cut-off for a plane kept the sphere." : "{k} areas with too few composites at the cut-off for a plane kept the sphere.", { k: sphere }) : "" })]);
           } }
+        // TASKS.csv #3782 — the areas whose plane was the shape of the drilling (the largest said, the others counted), and the largest kept plane's test
+        { const rej = gridBoxes.map((b, bi) => (planes0[bi]?.drilling?.drilling ? planes0[bi] : envSearch0?.[bi]?.drilling?.drilling ? envSearch0[bi] : null)).filter(Boolean).sort((x, y) => y.n - x.n);
+          const dv = (d) => ({ all: d.all.n.toLocaleString(), adip: Math.round(d.all.dip), adir: Math.round(d.all.dipAzimuth), ang: Math.round(d.angleDeg), draw: Math.round(d.drawDeg), k: d.within, h: d.holes });
+          if (rej.length) { const q = rej[0], more = rej.length - 1;
+            setNotices((p) => [...p, notice("\"{label}\": the plane of the {n} composites at or above {cutoff} {unit} ({dip}° towards {dir}°, {holes} holes) is the shape of the drilling: all {all} composites of the area, grade ignored, lie on {adip}° towards {adir}° ({ang}° away, where random draws of as many land up to {draw}° from it), and {k} of its {h} holes run within 30° of it, so they do not test its dip. That area was searched with the sphere instead.{more} Choose a structural trend for the grade shell (Model settings) to search along a plane.", { label, n: q.n, cutoff: numericCutoff, unit: unitL, dip: Math.round(q.rejected.dip), dir: Math.round(q.rejected.dipAzimuth), holes: q.holes, ...dv(q.drilling), more: more ? " " + tr(more === 1 ? "One other drilled area likewise." : "{k} other drilled areas likewise.", { k: more }) : "" })]); }
+          const kept = [...planes, ...(envSearch || [])].filter((x) => x?.drilling).sort((x, y) => y.n - x.n)[0];
+          if (kept) setNotices((p) => [...p, { ...notice("\"{label}\": its plane was tested against the drilling and kept: {ang}° from the plane of all {all} composites of the area, grade ignored ({adip}° towards {adir}°; random draws of as many land up to {draw}° from it), and {k} of its {h} holes run within 30° of it.", { label, ...dv(kept.drilling) }), level: "info" }]); }
         // #3580 (a) — said when the grid was split: the nodes it took against the single box's, and the cell that bought
         if (grids.length > 1) setNotices((p) => [...p, { ...notice("\"{label}\" was gridded over its {n} drilled areas only: {nodes} grid nodes at {cs} m instead of the {whole} of one box round all of them.", { label, n: grids.length, nodes: boxTotal.toLocaleString(), cs, whole: boxBlocks(bounds, cs).toLocaleString() }), level: "info" }]);
         setNotices((p) => [...p, notice("Added \"{label}\": {points} ({intervals}{v4}, {dropped} dropped{v5}, {above} at/above cutoff{v6}) → {nx}×{ny}×{nz} grid ({estimated} cells estimated, {skipped} outside the search radius{v7}{v8}) → {vertices} vertices / {faces} faces{v9}. Exploration target volume only — not a Mineral Resource.", { label, points: tr(points.length === 1 ? "{n} sample point" : "{n} sample points", { n: points.length }) /* #1116 */,
