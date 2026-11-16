@@ -64,9 +64,42 @@ export function subcropOutlines(points, { reachM, sides = 24 } = {}) {
   return out;
 }
 
+// TASKS.csv #3848 (Scottie Gold surface geology review) - holes fanned from one pad start within a couple of metres of each other: each gave its own wedge of the nearest-hole map (three points within 2 m
+// were three wedges of a 180 m circle, a metre of diorite at one collar a hectare of diorite). Points within PAD_M of each other are one site: the commoner unit (a tie: the first hole's), at their
+// centre, with the shallowest cover of that unit. -> { points, pads (sites of 2+ holes), disagree (pads whose holes met different units), examples: ['SR23-300 +2: DIO 1, AND 2'] }
+export const PAD_M = 3;
+export function mergePads(points, padM = PAD_M) {
+  const P = (points || []).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+  const cell = new Map(), key = (i, j) => `${i}:${j}`, seen = new Array(P.length).fill(false), groups = [];
+  P.forEach((p, k) => { const kk = key(Math.floor(p.x / padM), Math.floor(p.y / padM)); (cell.get(kk) || cell.set(kk, []).get(kk)).push(k); });
+  for (let k = 0; k < P.length; k++) { // single-link clusters within padM, found through the grid
+    if (seen[k]) continue;
+    const stack = [k], g = []; seen[k] = true;
+    while (stack.length) {
+      const a = stack.pop(); g.push(a);
+      const ci = Math.floor(P[a].x / padM), cj = Math.floor(P[a].y / padM);
+      for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) for (const b of cell.get(key(ci + di, cj + dj)) || []) if (!seen[b] && Math.hypot(P[b].x - P[a].x, P[b].y - P[a].y) <= padM) { seen[b] = true; stack.push(b); }
+    }
+    groups.push(g.sort((a, b) => a - b));
+  }
+  const out = []; let pads = 0, disagree = 0; const examples = [];
+  for (const g of groups) {
+    if (g.length === 1) { out.push(P[g[0]]); continue; }
+    pads++;
+    const by = new Map();
+    for (const k of g) { const e = by.get(P[k].unit) || { n: 0, first: k, cover: Infinity }; e.n++; if (Number.isFinite(P[k].cover)) e.cover = Math.min(e.cover, P[k].cover); by.set(P[k].unit, e); }
+    const ranked = [...by].sort((a, b) => b[1].n - a[1].n || a[1].first - b[1].first), [unit, top] = ranked[0];
+    if (by.size > 1) { disagree++; if (examples.length < 3) examples.push(`${P[g[0]].hole_id} +${g.length - 1}: ${ranked.map(([u, e]) => `${u} ${e.n}`).join(", ")}`); }
+    const cx = g.reduce((s, k) => s + P[k].x, 0) / g.length, cy = g.reduce((s, k) => s + P[k].y, 0) / g.length;
+    out.push({ ...P[top.first], unit, x: cx, y: cy, hole_id: `${P[g[0]].hole_id} +${g.length - 1}`, ...(Number.isFinite(top.cover) ? { cover: top.cover } : {}) });
+  }
+  return { points: out, pads, disagree, examples };
+}
+
 // the outlines as a polygon geology map layer (unit field, coloured like the logs; categories by count, as the subcrop's)
-export function outlineLayer(points, name, colorOf, { reachM }) {
-  const cells = subcropOutlines(points, { reachM });
+export function outlineLayer(points, name, colorOf, { reachM, padM = PAD_M }) {
+  const pads = padM > 0 ? mergePads(points, padM) : { points, pads: 0, disagree: 0, examples: [] }; // #3848
+  const cells = subcropOutlines(pads.points, { reachM });
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   const counts = new Map();
   const features = cells.map((c) => {
@@ -76,7 +109,7 @@ export function outlineLayer(points, name, colorOf, { reachM }) {
   });
   return {
     name, subcropOutlines: true, geomType: "polygon", features, fields: ["unit", "hole_id", "cover_m"], styleField: "unit",
-    bbox: features.length ? [x0, y0, x1, y1] : null, reachM,
+    bbox: features.length ? [x0, y0, x1, y1] : null, reachM, padsMerged: { pads: pads.pads, disagree: pads.disagree, examples: pads.examples },
     categories: [...counts].sort((a, b) => b[1] - a[1]).map(([u, n]) => ({ value: u, label: u, color: colorOf(u), outline: null, visible: true, count: n })),
     opacity: 0.75, visible: true, // drape and elevation: the store's defaults for a polygon map (on the terrain, else at the ground estimate)
   };

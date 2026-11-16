@@ -24,9 +24,11 @@ let outcropGround = null;
 export function setOutcropNoTerrainGround(fn) { outcropGround = typeof fn === "function" ? fn : null; }
 export function outcropNoTerrainGround() { return outcropGround; }
 // #3368 — which rule placed the samples drawn flat: "highest-collar" (underground), "collars" (the median), "samples" (their own median)
-export function surfaceFlatRule(collars, underground) {
+export function surfaceFlatRule(collars, underground, samples = null) {
   if ((collars?.length || 0) > 1 && underground) return "highest-collar";
-  return (collars || []).some((c) => Number.isFinite(c?.z)) ? "collars" : "samples";
+  if ((collars || []).some((c) => Number.isFinite(c?.z))) return "collars";
+  // TASKS.csv #3851 (5) - no collar and no sample with an elevation: the median of nothing is 0 m, and the card said 'the median elevation of the samples that have one'
+  return samples && !samples.some((s) => Number.isFinite(s?.z)) ? "zero" : "samples";
 }
 
 // TASKS.csv #1114 — the one median (the mean of the two middle values for an even count); null when there is no z

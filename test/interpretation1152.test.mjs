@@ -36,7 +36,7 @@ test("#1152 remove / update, and the layer draws, exports and keys like any map 
   assert.deepEqual([u.features[1].attributes.name, u.features[1].attributes.confidence], ["Top of VCL", "possible"]);
   const r = removeInterpretationLine(u, 0);
   assert.equal(r.features.length, 1);
-  assert.equal(r.categories.find((c) => c.value === "fault").count, 0);
+  assert.equal(r.categories.find((c) => c.value === "fault")?.count ?? 0, 0); // #3846: a type with no line left is no longer listed
   assert.equal(removeInterpretationLine(r, 5), r);
   // draws into a canvas-like context (a 2D context stub counting strokes)
   const calls = { stroke: 0, moveTo: 0 };

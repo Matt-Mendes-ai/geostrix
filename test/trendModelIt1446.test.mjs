@@ -9,12 +9,12 @@ const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
 test("#1446 the trend: no tab switch, named with its weighting", () => {
   const v = read("src/modules/ViewerModule.jsx");
-  const i = v.indexOf("onUseAsTrend={({ azimuth, dip, terzaghi }) => {"), j = v.indexOf("/>", i);
+  const i = v.indexOf("onUseAsTrend={({ azimuth, dip, terzaghi, name }) => {"), j = v.indexOf("/>", i);
   assert.ok(i > 0);
   const body = v.slice(i, j);
-  assert.ok(body.includes('`Stereonet mean${terzaghi ? " (Terzaghi-weighted)" : ""} (${dip.toFixed(0)}° → ${azimuth.toFixed(0)}°)`'));
+  assert.ok(body.includes('name || `Stereonet mean${terzaghi ? " (Terzaghi-weighted)" : ""} (${dip.toFixed(0)}° → ${azimuth.toFixed(0)}°)`'));
   assert.ok(!body.includes('goToModule("modelling")'));
-  assert.ok(read("src/components/StereonetModal.jsx").includes("onUseAsTrend({ azimuth: stats.meanDipDir, dip: stats.meanDip, terzaghi: !!terzaghiOn });"));
+  assert.ok(read("src/components/StereonetModal.jsx").includes("onUseAsTrend({ azimuth: stats.meanDipDir, dip: stats.meanDip, terzaghi: !!terzaghiOn, name: stereonetTrendName("));
 });
 
 test("#1447 Model it disabled without a polygon map; the message names only what is missing", () => {
