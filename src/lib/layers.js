@@ -334,6 +334,8 @@ export function setLithologyMeanings(dict) {
   for (const [k, e] of Object.entries(dict || {})) { const d = String(e?.desc ?? "").trim(); if (d) m.set(String(k).trim().toLowerCase(), d); }
   lithoMeanings = m.size ? m : null;
 }
+// TASKS.csv #3840 follow-up — the code dictionary's own words for a code (no 'CODE — ' prefix), or null
+export function lithoMeaningText(u) { return lithoMeanings?.get(String(u ?? "").trim().toLowerCase()) || null; }
 export function lithoMeaning(u) { const d = lithoMeanings?.get(String(u ?? "").trim().toLowerCase()); return d ? `${u} — ${d}` : null; }
 // TASKS.csv #3840 — a description is read by its first words too: 'Overburden (till)', 'overburden and casing', 'glacial till', 'no core recovery' are cover or no recovery; only the HEAD of the
 // text counts ('Tricone through overburden' and 'sandstone under overburden' are not cover)

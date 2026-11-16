@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { setLithologyMeanings, roleForLithology } from "../src/lib/layers.js";
-import { collarSubcrop, dominantStartUnit } from "../src/lib/collarSubcrop.js";
+import { collarSubcrop, dominantStartUnit, codeReadsAsRock } from "../src/lib/collarSubcrop.js";
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const hasKeys = (keys) => { for (const k of keys) for (const lang of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${lang}.json`))[k], `${lang}: ${k.slice(0, 50)}`); };
@@ -63,4 +63,22 @@ test("#3841 cover to 4.4 m and the next logged rock at 135.9 m: the hole is left
   assert.match(p, /rep\.lateStart\.length - rep\.gap\.length - \(rep\.notAtDepth \|\| 0\)/);
   assert.equal((p.match(/late, gapText, skippedText\(skippedCodes\)/g) || []).length, 2);
   hasKeys(["{n} hole(s) with an unlogged stretch between the cover and the first rock ({a}–{b} m) were left out: missing log is not cover ({ids})."]);
+});
+
+test("#3840 follow-up: a start code whose own words read as rock gets no nudge (Century's LMST); words that name cover, or none, keep it", () => {
+  setLithologyMeanings(null);
+  const collars = Array.from({ length: 6 }, (_, i) => ({ hole_id: "H" + i, x: i * 50, y: 0, z: 100, azimuth: 0, dip: -90 }));
+  const rows = (desc) => collars.flatMap((c) => [{ hole_id: c.hole_id, from: 0, to: 40, value: "LMST", description: desc }, { hole_id: c.hole_id, from: 40, to: 80, value: "SLST", description: "siltstone" }]);
+  const lime = rows("Cambrian limestone, dolomite and marl");
+  assert.equal(codeReadsAsRock("LMST", lime), true);
+  assert.equal(dominantStartUnit({ collars, litho: lime, points: collarSubcrop({ collars, survey: [], litho: lime }) }), null);
+  const bare = rows("");
+  assert.equal(codeReadsAsRock("LMST", bare), false); // no words: said
+  assert.equal(dominantStartUnit({ collars, litho: bare, points: collarSubcrop({ collars, survey: [], litho: bare }) })?.code, "LMST");
+  const till = rows("weathered till over limestone"); // cover named: said, even beside a rock word
+  assert.equal(codeReadsAsRock("LMST", till), false);
+  // the code dictionary's meaning wins over the rows' text
+  setLithologyMeanings({ lmst: { desc: "andesite" } });
+  assert.equal(codeReadsAsRock("LMST", bare), true);
+  setLithologyMeanings(null);
 });

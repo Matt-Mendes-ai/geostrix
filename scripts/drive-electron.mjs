@@ -3,6 +3,9 @@
 //   npx vite --port 5173            (dev only; leave it running)
 //   NODE_ENV=development npx electron . --remote-debugging-port=9333 --user-data-dir=<scratch folder>
 // (unset NODE_ENV to load dist/ over app://, as an installed copy does), then:
+// TASKS.csv #3870 — on a locked or unattended machine the window counts as occluded / hidden: Chromium clamps its timers to 1 s and stops animation frames,
+// so a script that sleeps in the page reads as a 20-60 s "freeze" with an idle CPU. Add --disable-backgrounding-occluded-windows --disable-renderer-backgrounding
+// --disable-background-timer-throttling to the electron command (check document.visibilityState); a locked screen can still hide it.
 //   node scripts/drive-electron.mjs eval "document.title"       (awaits a returned promise; evalnow does not, #3169)
 //   node scripts/drive-electron.mjs click 640,360          (mouse click at x,y)
 //   node scripts/drive-electron.mjs drag 640,360 700,300   (press, move, release - #813)
