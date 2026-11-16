@@ -34,6 +34,8 @@ import { DISPLAY_UNITS, isPlainUnit, displayFactor, toDisplay, fromDisplay, unit
 import { BULK_COMMODITIES } from "../lib/preferredElement.js"; // TASKS.csv #2923 — no metal equivalent for a bulk commodity
 import { elementOptionLabel, isLoiHeader } from "../lib/geochem.js"; // TASKS.csv #2923 — 'Si as SiO2' in the price rows; isLoiHeader: #2924 // TASKS.csv #2200 / #2479; columnFormat: #3019
 import { pagePx, pageFormatOf, addPagesOnPaper } from "../lib/pageFormats.js"; // TASKS.csv #2479; addPagesOnPaper: #3370
+import { creditsElement } from "../lib/layoutCredits.js"; // TASKS.csv #3854
+import { projectCredits } from "../lib/credits.js"; // TASKS.csv #3854
 import { holeTotals, holeTotalsDisplay, holeExtraMeans } from "../lib/accumulation.js"; // TASKS.csv #2419 — Total per hole; holeExtraMeans: #3566
 import { compositeSources } from "../lib/compositeSources.js"; // TASKS.csv #3584; a source of its own: #3744 / #3750
 import { densityRangeOf } from "../lib/densityRange.js"; // TASKS.csv #3682
@@ -61,7 +63,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
   const assayElements = useMemo(() => (compElements.length ? [...(elementsTable || []), ...compElements.filter((e) => !(elementsTable || []).some((x) => x.symbol === e.symbol))] : elementsTable), [elementsTable, compElements]);
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
-  const { desurveyMethod, project, getProjectToken, setLayoutElements, addLayoutPages: addPagesRaw, setLayoutPageFormat, switchLayoutPage, setDisplayUnit, layoutElements = [], layoutPages = [], activeLayoutPageId, goToModule, geochemThresholds = [] } = useStore(); // addLayoutPages: #3019 // layoutElements / pages: #2479 // TASKS.csv #135 — true-width needs the project's own trace; layout: #911; geochemThresholds: #2347
+  const { desurveyMethod, project, getProjectToken, setLayoutElements, addLayoutPages: addPagesRaw, setLayoutPageFormat, switchLayoutPage, setDisplayUnit, layoutElements = [], layoutPages = [], activeLayoutPageId, goToModule, geochemThresholds = [], terrain = null, rasters = [] } = useStore(); // addLayoutPages: #3019 // layoutElements / pages: #2479 // TASKS.csv #135 — true-width needs the project's own trace; layout: #911; geochemThresholds: #2347
   // TASKS.csv #3370 — its own page and continuation pages are laid out for the active page's paper, so they are made on it
   const addLayoutPages = typeof addPagesRaw === "function" ? (pgs) => addPagesOnPaper(addPagesRaw, setLayoutPageFormat, pgs, layoutPages.find((pg) => pg.id === activeLayoutPageId)?.format) : undefined;
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
@@ -300,11 +302,13 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
     // TASKS.csv #2479 — the table is ranked by grade x length, so that column goes on the sheet; #2200 / #2479 — as many rows as fit a free spot
     // TASKS.csv #3019 (review #2876, WA iron) — the 'Also show' elements go on the sheet too (the dialog and the CSV had SiO2, Al2O3, P beside
     // each Fe intercept; the printed table had Fe alone), the table widened for them; with no clear spot on the page it starts a page of its own
-    const pageSize = pagePx(pageFormatOf(layoutPages.find((pg) => pg.id === activeLayoutPageId)));
+    const pageFmt = pageFormatOf(layoutPages.find((pg) => pg.id === activeLayoutPageId)), pageSize = pagePx(pageFmt);
     const tableW = Math.min(pageSize.w - 80, 560 + 70 * shownExtras.length);
+    // TASKS.csv #3854 — a page of its own gets the data credit along its foot (the store adds it): its table is planned above that line, not over it
+    const credit = projectCredits(terrain, rasters, project?.dataCredit), newPage = credit ? [creditsElement(pageFmt, credit)] : [];
     let plan = interceptTablePlan(layoutElements, pageSize, { total: results.length, w: tableW });
     const ownPage = plan.overlaps && typeof addLayoutPages === "function";
-    if (ownPage) plan = interceptTablePlan([], pageSize, { total: results.length, w: tableW });
+    if (ownPage) plan = interceptTablePlan(newPage, pageSize, { total: results.length, w: tableW });
     const columns = [tr("Hole"), tr("From (m)"), tr("To (m)"), tr("Length (m, downhole)") /* #3747 */, ...(twEnabled ? [tr("True width (m)")] : []), `${gradeSym} (${dispUnit}${weightedOn ? `, ${byDens}` : ""})` /* #3562 */, ...(topCutStored != null ? [tr("{symbol} cut to {cut} ({unit})", { symbol: gradeSym, cut: +shownBox(topCutStored).toPrecision(6), unit: dispUnit })] : []) /* #3747 */, tr("Grade × length ({unit} × m)", { unit: dispUnit }), ...shownExtras.map((s) => `${s} (${gradeUnitLabel(s, elementUnits[s])})`), ...(incOn ? [tr("Including")] : [])]; // dispUnit: #1680; extras: #3019
     // TASKS.csv #2708 — with 'Continue on new pages' every intercept is printed: the first table's rows here, the rest on pages of their own
     const cont = continuePages && plan.more > 0 && typeof addLayoutPages === "function";
@@ -334,7 +338,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
     const table = { id: `table_${stamp}`, type: "table", source: "static", x: plan.x, y: plan.y /* #2479 — a free spot (was 60, 60 over the title); a second send takes the next free spot */, w: tableW /* #3019 */, fontPt: 7, frameWidth: 1,
       title: tr("Best intercepts: {from}", { from }), from, note, columns, rows: plan.more > 0 ? [...rows, cont ? carriesOn : tail(tr("… and {n} more intercept(s), not shown on this sheet", { n: plan.more })) /* #2608 — the sheet's reader has no CSV */] : rows };
     // #2708 — the continuation tables, one per new page, at the top-left margin; the caveats stay on the first table
-    const ranges = cont ? continuationRanges(plan.shown, results.length, pageSize, { w: tableW }) : [];
+    const ranges = cont ? continuationRanges(plan.shown, results.length, pageSize, { w: tableW, elements: newPage /* #3854 */ }) : [];
     const contPages = ranges.map(([a, b], k) => ({ name: tr("Best intercepts ({n})", { n: k + 2 }), batch: `intercepts_${stamp}`,
       elements: [{ ...table, id: `table_${stamp}_${k + 1}`, x: 40, y: 40, note: "", title: tr("Best intercepts, continued: {from}", { from }), rows: [...allRows.slice(a, b), ...(b < results.length ? [carriesOn] : [])] }] }));
     if (ownPage) addLayoutPages([{ name: tr("Best intercepts"), elements: [table], ...(cont ? { batch: `intercepts_${stamp}` } : {}) }, ...contPages]); // #3019 — the active page had no clear spot for it
