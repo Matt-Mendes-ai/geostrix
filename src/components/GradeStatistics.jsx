@@ -22,6 +22,8 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 // TASKS.csv #1515 / #1678 — interval layers only: magsusc and structure are point readings (no from / to), and as domains they gave
 // "(unclassified) 1537 / 0.15 1 / 0.515 1"
 const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "weath", "structzone", "geotech"]; // weath: #2162
+import MetalAtRiskTable from "./MetalAtRiskTable.jsx"; // TASKS.csv #3746
+import { metalShareAbove } from "../lib/metalAtRisk.js"; // TASKS.csv #3746
 import { arrMin, arrMax, sortedWeighted } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread); sortedWeighted: #2910
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
 import { t as tr, fmtNum } from "../lib/i18n.js";
@@ -444,6 +446,9 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                   <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Cap to test")}<input type="number" min="0" step="any" value={capTest} onChange={(e) => setCapTest(e.target.value)} style={{ ...sel, width: 80 }} aria-label={tr("Cap to test")} /></label>
                   {capFx && <span>{weightingActive ? tr("{above} of {n} samples above it; {pct}% of the metal (grade × length) removed", { above: capFx.above, n: capFx.n, pct: capFx.pctMetalRemoved.toFixed(1) }) : tr("{above} of {n} samples above it", { above: capFx.above, n: capFx.n })}</span>}
                 </div>
+                {/* TASKS.csv #3746 — the metal the top samples carry, where a cap is tested; a cap there says its loss before it is typed */}
+                {capFx && prob.vs.length > 1 && (() => { const sw = sortedWeighted(prob.vs, prob.ws, { coerce: true }); const k = metalShareAbove(sw.v, weightingActive ? sw.w : null, capValue + 1e-12 * Math.max(1, capValue)); return k != null && capFx.above > 0 ? <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 3 }}>{tr("The {above} sample(s) above {cap} {unit} hold {pct} % of the metal; a cap there keeps {kept} % of it.", { above: capFx.above, cap: capText(capValue), unit: dispLabel, pct: k.toFixed(1), kept: (100 - capFx.pctMetalRemoved).toFixed(1) })}</div> : null; })()}
+                {prob.vs.length > 1 && <div style={{ marginTop: 3 }}><MetalAtRiskTable values={sortedWeighted(prob.vs, prob.ws, { coerce: true }).v} weights={weightingActive ? sortedWeighted(prob.vs, prob.ws, { coerce: true }).w : null} unitLabel={dispLabel} onSetCap={(g) => setCapTest(String(+Number(g).toPrecision(4)))} /></div>}
                 {capWarn && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text-strong)", marginTop: 3, lineHeight: 1.4 }}>{capWarn}</div>}{/* #1676 */}
                 {prob.brk > 0 && !brkAsCap && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 3, lineHeight: 1.4 }}>{prob.log ? tr("The probability-plot break ({v} {unit}) lies below the median, so it is not offered as a cap: it separates two populations rather than marking a high-grade tail.", { v: gradeText(prob.brk), unit: dispLabel }) : tr("These values are not strongly skewed, so the probability-plot break ({v} {unit}) is not offered as a cap: on such a grade a step usually separates two populations, not outliers.", { v: gradeText(prob.brk), unit: dispLabel })}</div>}{/* #2912 */}
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 2, lineHeight: 1.4 }}>{logScale ? tr("Each population plots as a straight line on these axes (log-normal); a bend or a step in the high tail is where a second population starts, the usual place to cap (Sinclair 1976). Values of 0 count in the cumulative % but cannot be drawn on a log axis.") : tr("Arithmetic axes: a normally distributed population plots as a straight line, and a step is where a second population starts. Tick Log scale for a skewed trace element.") /* #2912 */}</div>
@@ -503,6 +508,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                         <th style={th}>{tr("Cut-off")}</th><th style={th}>n</th><th style={th}>{tr("% of samples")}</th>
                         {source === "assays" && <><th style={th}>{tr("Metres")}</th><th style={th}>{tr("% of metres")}</th></>}
                         <th style={th}>{tr("Mean {symbol}", { symbol: symLabel })}</th>
+                        <th style={th} title={tr("The share of the metal (grade × {w}) in the samples at or above the cut-off", { w: weightingActive ? tr("length") : tr("one per sample") })}>{tr("% of the metal")}</th>{/* #3746 */}
                         {alsoShown.map((x) => <th key={x} style={th}>{tr("Mean {symbol}", { symbol: x })} ({gradeUnitLabel(x, (source === "surface" ? surfaceElementUnits : elementUnits)[x])})</th>)}
                       </tr></thead>
                       <tbody>
@@ -511,6 +517,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                             <td style={td}>≥ {gradeText(r.cutoff)}</td><td style={td}>{fmtNum(r.n)}</td><td style={td}>{r.pctN.toFixed(1)}</td>
                             {source === "assays" && <><td style={td}>{r.length == null ? "—" : r.length.toFixed(1)}</td><td style={td}>{r.pctLength == null ? "—" : r.pctLength.toFixed(1)}</td></>}
                             <td style={td}>{r.mean == null ? "—" : gradeText(r.mean)}</td>
+                            <td style={td}>{r.pctMetal == null ? "—" : r.pctMetal.toFixed(1)}</td>{/* #3746 */}
                             {alsoShown.map((x) => <td key={x} style={td}>{r.also[x] == null ? "—" : gradeText(r.also[x])}</td>)}
                           </tr>
                         ))}

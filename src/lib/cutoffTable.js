@@ -42,23 +42,26 @@ export function overlapMeans(mainSegs, otherSegs) {
 export function aboveCutoffRows(values, lengths, cutoffs, { weighted = false, also = {} } = {}) {
   const n = values.length;
   const syms = Object.keys(also);
-  let totalLen = 0;
+  let totalLen = 0, totalMetal = 0;
   if (lengths) for (let i = 0; i < n; i++) totalLen += lengths[i] > 0 ? lengths[i] : 0;
+  // TASKS.csv #3746 — the share of the metal (grade × weight, as the cap lines count it) at or above each cut-off: 38 samples at 10 g/t or more held 50.4 % of a nuggety gold column
+  for (let i = 0; i < n; i++) { const L = lengths && lengths[i] > 0 ? lengths[i] : 0, w = weighted ? L : 1; if (values[i] > 0 && w > 0) totalMetal += values[i] * w; }
   return [...new Set((cutoffs || []).filter((c) => Number.isFinite(c)))].sort((a, b) => a - b).map((cut) => {
-    let k = 0, len = 0, wsum = 0, vsum = 0;
+    let k = 0, len = 0, wsum = 0, vsum = 0, metal = 0;
     const as = syms.map(() => ({ w: 0, s: 0 }));
     for (let i = 0; i < n; i++) {
       const v = values[i];
       if (!(v >= cut)) continue;
       const L = lengths && lengths[i] > 0 ? lengths[i] : 0;
       const w = weighted ? L : 1;
-      k++; len += L; wsum += w; vsum += w * v;
+      k++; len += L; wsum += w; vsum += w * v; if (v > 0 && w > 0) metal += v * w;
       for (let j = 0; j < syms.length; j++) { const x = also[syms[j]][i]; if (Number.isFinite(x)) { as[j].w += w; as[j].s += w * x; } }
     }
     return {
       cutoff: cut, n: k, pctN: n ? (100 * k) / n : 0,
       length: lengths ? len : null, pctLength: lengths && totalLen > 0 ? (100 * len) / totalLen : null,
       mean: wsum > 0 ? vsum / wsum : null,
+      pctMetal: totalMetal > 0 ? (100 * metal) / totalMetal : null,
       also: Object.fromEntries(syms.map((s, j) => [s, as[j].w > 0 ? as[j].s / as[j].w : null])),
     };
   });
@@ -88,7 +91,7 @@ export function gradeStatsCsvRows(domainRows, cutRows, { unit, alsoUnits = {}, l
     fields, ...domainRows.map((r) => fields.map((k) => r[k] ?? "")),
     [],
     ["Above cut-off (all domains together)"],
-    [`cutoff_${u(unit)}`, "n", "pct_samples", ...(lengths ? ["metres", "pct_metres"] : []), `mean_${u(unit)}`, ...syms.map((s) => `mean_${s}_${u(alsoUnits[s])}`), "basis"],
-    ...cutRows.map((r) => [r.cutoff, r.n, fx(r.pctN, 2), ...(lengths ? [fx(r.length, 2), fx(r.pctLength, 2)] : []), fx(r.mean), ...syms.map((s) => fx(r.also[s])), weighted ? "length-weighted (assay interval length)" : "unweighted arithmetic"]),
+    [`cutoff_${u(unit)}`, "n", "pct_samples", ...(lengths ? ["metres", "pct_metres"] : []), `mean_${u(unit)}`, "pct_metal", ...syms.map((s) => `mean_${s}_${u(alsoUnits[s])}`), "basis"],
+    ...cutRows.map((r) => [r.cutoff, r.n, fx(r.pctN, 2), ...(lengths ? [fx(r.length, 2), fx(r.pctLength, 2)] : []), fx(r.mean), fx(r.pctMetal, 2), ...syms.map((s) => fx(r.also[s])), weighted ? "length-weighted (assay interval length)" : "unweighted arithmetic"]),
   ];
 }

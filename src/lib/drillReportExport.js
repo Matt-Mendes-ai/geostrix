@@ -29,7 +29,9 @@ export function compositeRows(results, { symbol, unit, traces, domainColumn = nu
 // loc(r): the collar and midpoint columns (interceptLocation.js). Optional parts, each only when switched on:
 // trueWidth { dipDir, dip }, domain (a layer was chosen), including { cutoff, text(sub) }, extraSymbols + units,
 // meq(r) -> metal-equivalent grade or null.
-export function interceptRows(results, { symbol, unit, loc = () => ({}), trueWidth = null, domain = false, extraSymbols = [], elementUnits = {}, including = null, meq = null, weighted = false }) {
+// TASKS.csv #3747 — topCut: undefined = not said (older callers); null = the grades are UNCUT (said in a column); a number = each sample cut to it (stored unit), the cut grade
+// and the number of samples cut beside the uncut grade. concentration: the share of each intercept's metal in its two richest samples (from four samples up).
+export function interceptRows(results, { symbol, unit, loc = () => ({}), trueWidth = null, domain = false, extraSymbols = [], elementUnits = {}, including = null, meq = null, weighted = false, topCut = undefined, concentration = false }) {
   return results.map((r) => ({
     hole_id: r.hole_id, from: r.from, to: r.to, length_m: r.length.toFixed(2),
     ...loc(r),
@@ -46,6 +48,8 @@ export function interceptRows(results, { symbol, unit, loc = () => ({}), trueWid
       host_domain_log_overlaps: r.dom?.overlapping ? "yes" : "",
     } : {}),
     [`avg_${symbol}_${unit}`]: sig6(r.avgGrade),
+    ...(topCut === undefined ? {} : topCut == null ? { grade_top_cut: "none (uncut)" } : { grade_top_cut: `${topCut} ${unit} per sample (the avg_${symbol}_${unit} column is uncut)`, [`avg_${symbol}_${unit}_cut`]: r.cutGrade == null ? "" : sig6(r.cutGrade), samples_cut: r.cutN ?? 0 }), // #3747
+    ...(concentration ? { metal_in_top2_samples_pct: r.concentration ? Math.round(r.concentration.top2 * 100) : "" } : {}), // #3747
     // TASKS.csv #3562 — with the grade weighted by length x density: how each row was weighted, the length-weighted grade beside it, the density and the metres with none
     ...(weighted ? { grade_weighting: r.weighting === "density" ? "length x density" : "length (no density here)", [`avg_${symbol}_${unit}_by_length`]: sig6(r.avgGradeByLength ?? r.avgGrade), mean_density_t_m3: r.meanDensity == null ? "" : sig6(r.meanDensity), assayed_m_without_density: r.noDensityM ? r.noDensityM.toFixed(2) : "0" } : {}),
     // TASKS.csv #331/#332/#402 — what the grade figure is built from, carried into the report itself

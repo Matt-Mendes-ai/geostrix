@@ -573,6 +573,8 @@ export function computeBestIntercepts(assays, symbol, unit, elementUnits, opts =
   const cutoff = opts.cutoff ?? 0;
   const maxInternalDilution = opts.maxInternalDilution ?? 2;
   const minLength = opts.minLength ?? 0;
+  // TASKS.csv #3747 — an optional top cut (none = uncut): each sample's grade limited to it inside the intercept, the cut grade reported BESIDE the uncut one
+  const topCut = Number.isFinite(opts.topCut) && opts.topCut > 0 ? opts.topCut : null;
   const EPS = 1e-6;
 
   const { byHole, stats } = groupAssayRowsByHole(assays);
@@ -595,8 +597,26 @@ export function computeBestIntercepts(assays, symbol, unit, elementUnits, opts =
         const lengthGrade = current.assayedLen > 0 ? current.gradeLen / current.assayedLen : 0;
         // TASKS.csv #3562 — length x density: each assayed piece weighs its metres times its density (the mean of the pieces that have one where it has none)
         const wg = densityAt ? weightedGrade(current.subs.filter((r) => !r.unsampled && r.value != null).map((r) => ({ v: r.value, w: r.width, rho: densityAt(hole_id, r.from, r.to) }))) : null;
+        // TASKS.csv #3747 — how much of the intercept's metal (grade × length) the one and two richest samples carry (SR23-236's 13.70 m @ 18.15 was 80 % two
+        // samples), and the grade with the top cut applied. Measured over the assayed pieces; the share is only said from four samples up (two of three is
+        // not a finding), and the cut grade only when a cut is set.
+        const assayed = current.subs.filter((r) => !r.unsampled && r.value != null && r.width > 0);
+        let conc = null;
+        if (assayed.length >= 4) {
+          const ms = assayed.map((r) => Math.max(0, r.value) * r.width).sort((a, b) => b - a), tot = ms.reduce((t, x) => t + x, 0);
+          if (tot > 0) conc = { top1: ms[0] / tot, top2: (ms[0] + ms[1]) / tot, samples: assayed.length };
+        }
+        let cut = null;
+        if (topCut != null) {
+          const capped = assayed.map((r) => ({ v: Math.min(r.value, topCut), w: r.width, rho: densityAt ? densityAt(hole_id, r.from, r.to) : null }));
+          const cw = densityAt ? weightedGrade(capped) : null;
+          const cLen = assayed.reduce((t, r) => t + r.width, 0);
+          cut = { grade: cw?.weighted ? cw.grade : (cLen > 0 ? capped.reduce((t, c) => t + c.v * c.w, 0) / cLen : 0), n: assayed.filter((r) => r.value > topCut).length };
+        }
         composites.push({
           hole_id, from: current.from, to: current.to, length,
+          ...(conc ? { concentration: conc } : {}),
+          ...(cut ? { cutGrade: cut.grade, cutN: cut.n } : {}),
           avgGrade: wg?.weighted ? wg.grade : lengthGrade, // #502 — over assayed metres
           ...(wg ? { weighting: wg.weighted ? "density" : "length", avgGradeByLength: lengthGrade, meanDensity: wg.meanRho, noDensityM: wg.noDensityM, noDensityN: wg.noDensityN } : {}),
           intervals: current.subs.filter((r) => !r.unsampled && r.value != null && r.value >= cutoff && !r.lt).length,
@@ -1188,6 +1208,11 @@ function segmentSummary(assays, symbol, unit, elementUnits) {
 }
 export function resolvedSegments(assays, symbol, unit, elementUnits) {
   return segmentSummary(assays, symbol, unit, elementUnits).segs;
+}
+// TASKS.csv #3746 — the resolved segments' values ascending and their lengths (aligned): what the metal-at-risk table reads (lib/metalAtRisk.js)
+export function valueLengthArrays(assays, symbol, unit, elementUnits) {
+  const { sv, sl } = segmentSummary(assays, symbol, unit, elementUnits);
+  return { values: sv, lengths: sl };
 }
 export function capAudit(assays, symbol, unit, elementUnits, capValue) {
   const { sv, sl } = segmentSummary(assays, symbol, unit, elementUnits); // #3059
