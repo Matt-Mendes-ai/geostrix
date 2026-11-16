@@ -10,6 +10,8 @@ import { drilledCollars } from "./collarStatus.js"; // #2097
 import { voxelCellSupported } from "./viewer/geomath.js";
 import { plannedTrace } from "./plannedTrace.js"; // TASKS.csv #3159: not holePlanning.js, which put the targeting solvers in startup
 import { sortedShownValues } from "./voxelStretch.js"; // TASKS.csv #1832
+// (the unit is the model's own params.unit: blockModelExport.js reaches tabular.js and papaparse, which the 3D view must not load at start, #1493)
+import { elementOfModel, gradeUnitText, oneHoleBlock } from "./pitShell.js"; // #3821: and the estimate's support
 
 // what a check depends on: everything about a planned hole except its name and notes
 export function planGeometryKey(plannedHoles) {
@@ -88,7 +90,9 @@ export const isTargetModel = (m) => hiddenShare(m) >= BAND_MIN_SHARE;
 // the band's range for a check line: "chargeability 10–23.1 mV/V"
 export const targetBandText = (m) => {
   const f = (v) => String(+Number(v).toPrecision(3));
-  const prop = m.property ? String(m.property).replace(/\s*\(([^)]*)\)\s*$/, "") : null, unit = m.property && /\(([^)]*)\)\s*$/.exec(m.property)?.[1];
+  let prop = m.property ? String(m.property).replace(/\s*\(([^)]*)\)\s*$/, "") : null, unit = m.property && /\(([^)]*)\)\s*$/.exec(m.property)?.[1];
+  // TASKS.csv #3821 (Scottie Gold review: '3–12.7 band of "Au estimate (idw2, ...)"', no unit) — an estimate has no property text: its element and its unit (g/t for gold in ppm) name the band
+  if (!prop && !unit) { const u = m?.params?.unit || null, el = elementOfModel(m); if (u) { unit = gradeUnitText(u, el); return `${el ? `${el} ` : ""}${f(m.threshold)}–${f(m.rangeMax)}${unit ? ` ${unit}` : ""}`; } }
   return `${prop ? `${prop.toLowerCase()} ` : ""}${f(m.threshold)}–${f(m.rangeMax)}${unit ? ` ${unit}` : ""}`;
 };
 // a narrowed model's in-band cells in a hash grid (bucket = the largest cell side, so a cell touches at most 8 buckets)
@@ -103,11 +107,12 @@ export function targetBandIndex(model) {
     const k0 = Math.floor((c.z - c.dz / 2) / b), k1 = Math.floor((c.z + c.dz / 2) / b);
     for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) for (let k = k0; k <= k1; k++) { const key = `${i},${j},${k}`; (grid.get(key) || grid.set(key, []).get(key)).push(c); }
   }
-  const inside = (m) => {
+  const cellAt = (m) => { // #3821 — the block a point is in (its support is the estimate's own record)
     const list = grid.get(`${Math.floor(m.x / b)},${Math.floor(m.y / b)},${Math.floor(m.z / b)}`);
-    return !!list && list.some((c) => Math.abs(m.x - c.x) <= c.dx / 2 && Math.abs(m.y - c.y) <= c.dy / 2 && Math.abs(m.z - c.z) <= c.dz / 2);
+    return list ? list.find((c) => Math.abs(m.x - c.x) <= c.dx / 2 && Math.abs(m.y - c.y) <= c.dy / 2 && Math.abs(m.z - c.z) <= c.dz / 2) || null : null;
   };
-  return { modelId: model.id, modelName: model.name, band: targetBandText(model), inside, cells: cells.length }; // band: #1832
+  const inside = (m) => !!cellAt(m);
+  return { modelId: model.id, modelName: model.name, band: targetBandText(model), inside, cellAt, estimate: !!model.params?.tool || !!model.params?.element, cells: cells.length }; // band: #1832
 }
 
 // TASKS.csv #1454 (review #1352, Silvertip) — a hole drilled from an existing pad was always "0.0 m from" its neighbour: the
@@ -115,22 +120,25 @@ export function targetBandIndex(model) {
 // first COLLAR_ZONE_M of the planned hole are then left out of the nearest-hole search; the depth where it comes closest is said.
 export const PAD_M = 10, COLLAR_ZONE_M = 50;
 // TASKS.csv #2976 — the checks' default minimum spacing: a quarter of the drilled holes' site spacing, to 0.1 m (none without one)
+// TASKS.csv #3824 (3) (Scottie Gold review) — a neighbouring pad 14.5 m away was not 'the same pad' (10 m) but was inside the default minimum (15.9 m), so a hole from SR23-309's
+// pad printed in red 'Nearest existing hole: SR23-310 — 14.5 m (within the 15.9 m minimum)' at the collar: the same-pad distance is the larger of 10 m and the minimum spacing
+export const padRadius = (minSpacing) => Math.max(PAD_M, Number(minSpacing) > 0 ? Number(minSpacing) : 0);
 export const minSpacingFrom = (siteM) => (siteM > 0 ? Math.round((siteM / 4) * 10) / 10 : null);
 // -> [{ hole, nearestReal: { hole_id, distance, md } | null, samePad: [hole_id], targetHits: [{ modelId, modelName, metres }] }]
 // TASKS.csv #2977 — the nearest-hole part (the search of every drilled trace) kept per drilled index and planned-hole geometry: 1.4-2.1 s to
 // open Planned holes with 19 planned holes, and again for every hole when one was added
 const nearMemo = new WeakMap();
 const holeGeomKey = (hole) => { const { name: _n, notes: _o, id: _i, ...g } = hole || {}; return JSON.stringify(g); };
-export function planChecks(plannedHoles, drilled, targets, traceOf = plannedTrace) {
+export function planChecks(plannedHoles, drilled, targets, traceOf = plannedTrace, { padM = PAD_M } = {}) {
   let near = drilled && typeof drilled === "object" ? nearMemo.get(drilled) : null;
   if (drilled && typeof drilled === "object" && !near) { near = new Map(); nearMemo.set(drilled, near); }
   const traces = (plannedHoles || []).map((hole) => traceOf(hole)); // dense (~3 m) desurveyed points, once per hole
-  const amongPlanned = nearestPlannedOf(plannedHoles || [], traces); // #3343
+  const amongPlanned = nearestPlannedOf(plannedHoles || [], traces, MAX_PLANNED_REACH, padM); // #3343
   return (plannedHoles || []).map((hole, i) => {
     const pts = traces[i];
     if (!pts.length) return { hole, nearestReal: null, samePad: [], targetHits: [] };
-    const gk = traceOf === plannedTrace && near ? holeGeomKey(hole) : null, hit = gk != null ? near.get(gk) : null;
-    const { nearestReal, samePad, padProfile, nearestOff } = hit || nearestOf(pts, drilled, hole?.target); // padProfile / nearestOff: #3336; target: #3426
+    const gk = traceOf === plannedTrace && near ? `${holeGeomKey(hole)}|${padM}` : null, hit = gk != null ? near.get(gk) : null;
+    const { nearestReal, samePad, padProfile, nearestOff } = hit || nearestOf(pts, drilled, hole?.target, padM); // padProfile / nearestOff: #3336; target: #3426
     if (gk != null && !hit) near.set(gk, { nearestReal, samePad, padProfile, nearestOff });
     const targetHits = targetHitsOf(pts, targets);
     return { hole, nearestReal, samePad, targetHits, ...(padProfile ? { padProfile, nearestOff } : {}), ...(amongPlanned[i] ? { nearestPlanned: amongPlanned[i] } : {}) };
@@ -141,7 +149,7 @@ export function planChecks(plannedHoles, drilled, targets, traceOf = plannedTrac
 // { id, name, distance, md (down this hole), samePad }, with #1454's pad rule (collars within PAD_M: the first COLLAR_ZONE_M of both left
 // out). A box test skips a pair whose traces cannot come within `reach` (MAX_PLANNED_REACH: farther is not worth saying). -> [entry | null]
 export const MAX_PLANNED_REACH = 500;
-export function nearestPlannedOf(holes, traces, reach = MAX_PLANNED_REACH) {
+export function nearestPlannedOf(holes, traces, reach = MAX_PLANNED_REACH, padM = PAD_M) {
   const n = holes.length, out = new Array(n).fill(null);
   const box = traces.map((pts) => { let a = [Infinity, Infinity, Infinity], b = [-Infinity, -Infinity, -Infinity]; for (const p of pts) { if (p.x < a[0]) a[0] = p.x; if (p.y < a[1]) a[1] = p.y; if (p.z < a[2]) a[2] = p.z; if (p.x > b[0]) b[0] = p.x; if (p.y > b[1]) b[1] = p.y; if (p.z > b[2]) b[2] = p.z; } return [a, b]; });
   for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
@@ -149,7 +157,7 @@ export function nearestPlannedOf(holes, traces, reach = MAX_PLANNED_REACH) {
     if (!P?.length || !Q?.length) continue;
     const [a1, b1] = box[i], [a2, b2] = box[j];
     if (Math.hypot(Math.max(a2[0] - b1[0], 0, a1[0] - b2[0]), Math.max(a2[1] - b1[1], 0, a1[1] - b2[1]), Math.max(a2[2] - b1[2], 0, a1[2] - b2[2])) > reach) continue;
-    const pad = Math.hypot(P[0].x - Q[0].x, P[0].y - Q[0].y, P[0].z - Q[0].z) <= PAD_M, skip = pad ? COLLAR_ZONE_M : -Infinity;
+    const pad = Math.hypot(P[0].x - Q[0].x, P[0].y - Q[0].y, P[0].z - Q[0].z) <= padM, skip = pad ? COLLAR_ZONE_M : -Infinity;
     let best = Infinity, mi = 0, mj = 0;
     for (const p of P) { if ((p.md ?? 0) < skip) continue; for (const q of Q) { if ((q.md ?? 0) < skip) continue; const d = Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z); if (d < best) { best = d; mi = p.md ?? 0; mj = q.md ?? 0; } } }
     if (!(best <= reach)) continue;
@@ -158,9 +166,9 @@ export function nearestPlannedOf(holes, traces, reach = MAX_PLANNED_REACH) {
   }
   return out;
 }
-function nearestOf(pts, drilled, target = null) {
+function nearestOf(pts, drilled, target = null, padM = PAD_M) {
     let nearestReal = null;
-    const c0 = pts[0], samePad = (drilled?.holes || []).filter((h) => h.pts[0] && Math.hypot(h.pts[0].x - c0.x, h.pts[0].y - c0.y, h.pts[0].z - c0.z) <= PAD_M).map((h) => h.hole_id);
+    const c0 = pts[0], samePad = (drilled?.holes || []).filter((h) => h.pts[0] && Math.hypot(h.pts[0].x - c0.x, h.pts[0].y - c0.y, h.pts[0].z - c0.z) <= padM).map((h) => h.hole_id);
     const skipMd = samePad.length ? COLLAR_ZONE_M : -Infinity;
     // TASKS.csv #2457 (5) — beside parallel holes the separation is the same all the way down, and "at 48 m down this hole" read as a closest
     // point: the spread of the distance to that hole along the trace says so (steady)
@@ -209,13 +217,17 @@ export function padClearance(profile, minSpacing) {
   let last = -1; for (let i = 0; i < n; i++) if (profile.d[i] < minSpacing) last = i;
   return { below: last < 0 ? 0 : last === n - 1 ? null : profile.md[last + 1], toe, inside: last === n - 1, ...tg };
 }
+// TASKS.csv #3821 — every band gets its line (0 m included: a hole that misses the band is not a hole that was not checked), with the metres in blocks the estimate
+// informed by one hole or classed extrapolated / unsupported (the cell's own flags): the band is a model, not an intercept
 function targetHitsOf(pts, targets) {
     return (targets || []).map((t) => {
-      let metres = 0;
+      let metres = 0, oneHole = 0, extrap = 0;
       for (let i = 1; i < pts.length; i++) {
-        const mid = { x: (pts[i].x + pts[i - 1].x) / 2, y: (pts[i].y + pts[i - 1].y) / 2, z: (pts[i].z + pts[i - 1].z) / 2 };
-        if (t.inside(mid)) metres += pts[i].md - pts[i - 1].md;
+        const mid = { x: (pts[i].x + pts[i - 1].x) / 2, y: (pts[i].y + pts[i - 1].y) / 2, z: (pts[i].z + pts[i - 1].z) / 2 }, c = t.cellAt ? t.cellAt(mid) : t.inside(mid) ? {} : null;
+        if (!c) continue;
+        const m = pts[i].md - pts[i - 1].md;
+        metres += m; if (oneHoleBlock(c)) oneHole += m; if (c.support === "extrapolated" || c.support === "unsupported") extrap += m;
       }
-      return { modelId: t.modelId, modelName: t.modelName, band: t.band, metres };
-    }).filter((h) => h.metres > 0);
+      return { modelId: t.modelId, modelName: t.modelName, band: t.band, metres, estimate: !!t.estimate, ...(t.estimate && metres > 0 ? { oneHoleM: oneHole, extrapM: extrap } : {}) };
+    });
 }

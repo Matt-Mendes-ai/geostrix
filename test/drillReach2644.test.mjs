@@ -13,7 +13,7 @@ test("a 25 m drill grid gives a 50 m reach, not 250 m", () => {
 
 test("the pane uses it for the reach, the first compute, the grid pad and the cards' points", () => {
   const p = fs.readFileSync("src/components/EvidenceOverlayPane.jsx", "utf8");
-  assert.ok(p.includes("const drillReach = siteSpacing > 0 ? Math.round(Math.min(1000, Math.max(50, 2 * siteSpacing))) : DRILL_REACH_M;"));
+  assert.ok(p.includes("const drillReach = reachSpacing > 0 ? Math.round(Math.min(1000, Math.max(50, 2 * reachSpacing))) : DRILL_REACH_M;"));
   assert.ok(p.includes('src.kind === "grade" || src.kind === "pxrf" || src.kind === "numeric" ? { reach: drillReach }'));
   assert.ok(!/opts\.reach \|\| DRILL_REACH_M/.test(p) && !/l\.reach \|\| DRILL_REACH_M/.test(p));
 });

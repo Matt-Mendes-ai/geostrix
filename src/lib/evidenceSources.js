@@ -161,6 +161,27 @@ export function voxelColumnEvidence(g, model, how = "max", { zMin = null, zMax =
   for (let k = 0; k < out.length; k++) if (out[k] === empty) out[k] = NaN;
   return out;
 }
+// TASKS.csv #3822 (Scottie Gold review) — where the block that gave each column its value sits: the elevation (RL) of the highest (or lowest) block's centre over each
+// grid cell, or the mean RL of the blocks of the band for "mean"; the same blocks and rules as voxelColumnEvidence, so 'Plan a hole to here' can hand over the depth the
+// card read (the model's 104.2 mV/V at RL 694 m inside the top patch, where the card gave a plan target with "no depth"). -> { z: Float32Array (NaN: none), value: Float32Array }
+export function voxelColumnRL(g, model, how = "max", { zMin = null, zMax = null } = {}) {
+  const n = g.nx * g.ny, high = how !== "min", z = new Float32Array(n).fill(NaN), value = new Float32Array(n).fill(NaN), sum = new Float64Array(n), cnt = new Uint32Array(n);
+  const air = airFlagOf(model), lo = Number.isFinite(zMin) ? zMin : -Infinity, hi = Number.isFinite(zMax) ? zMax : Infinity;
+  for (const c of model?.cells || []) {
+    if (!Number.isFinite(c.value) || !Number.isFinite(c.z) || c.value === air || !(c.z >= lo && c.z <= hi) || !voxelCellSupported(model, c)) continue;
+    let i0 = Math.ceil((c.x - c.dx / 2 - g.x0) / g.dx), i1 = Math.floor((c.x + c.dx / 2 - g.x0) / g.dx);
+    let j0 = Math.ceil((g.yTop - c.y - c.dy / 2) / g.dy), j1 = Math.floor((g.yTop - c.y + c.dy / 2) / g.dy);
+    if (i1 < i0) i0 = i1 = Math.round((c.x - g.x0) / g.dx);
+    if (j1 < j0) j0 = j1 = Math.round((g.yTop - c.y) / g.dy);
+    for (let j = Math.max(0, j0); j <= Math.min(g.ny - 1, j1); j++) for (let i = Math.max(0, i0); i <= Math.min(g.nx - 1, i1); i++) {
+      const k = j * g.nx + i;
+      if (how === "mean") { sum[k] += c.z; cnt[k]++; value[k] = (Number.isFinite(value[k]) ? value[k] : 0) + c.value; continue; }
+      if (!Number.isFinite(value[k]) || (high ? c.value > value[k] : c.value < value[k])) { value[k] = c.value; z[k] = c.z; }
+    }
+  }
+  if (how === "mean") for (let k = 0; k < n; k++) if (cnt[k]) { z[k] = sum[k] / cnt[k]; value[k] /= cnt[k]; }
+  return { z, value };
+}
 // #1831 — the mean of the blocks over each grid cell within the band (each block counted once per cell it covers)
 function voxelColumnMean(g, model, { zMin, zMax }) {
   const sum = new Float64Array(g.nx * g.ny), cnt = new Uint32Array(g.nx * g.ny), out = new Float32Array(g.nx * g.ny).fill(NaN);
@@ -559,7 +580,9 @@ export function zoneParts(rows, code, traces, stepM = 5, level = null, { field =
 // the level's middle when one is set; else null (typed in Planned holes). The cell's own column was tried first (half a cell, then one 25 m
 // grade bin): the top cells of a plateau sat 50 m and more from any point (found live, WA gold).
 // cards: [{ pts: [{ x, y, z, value }], reach }] (or plain point arrays) in card order -> { z, from: "point" | "level", within } | null
-export function targetElevation(cell, cardPoints, grid, level = null, bin = GRADE_BIN_M) {
+// columns (#3822): [{ z, value, how, name }] from voxelColumnRL, one per block-model card in card order — the RL of the block the card read in the cell's column, used when no
+// hole-grade card reaches the cell (a model is the only evidence with a depth where there are no holes) and before the Level's middle
+export function targetElevation(cell, cardPoints, grid, level = null, bin = GRADE_BIN_M, columns = null) {
   const r0 = Math.max(grid?.dx || 0, grid?.dy || 0, bin);
   // TASKS.csv #2579 (review #2486) — the best point within the card's whole reach (250 m) gave a target 50-74 m off in RL on a sheet dipping
   // 35 degrees: its E / N and its RL came from places 200 m apart. Now the best point within two cells of the target (its own ground), else
@@ -577,6 +600,13 @@ export function targetElevation(cell, cardPoints, grid, level = null, bin = GRAD
     }
     if (best) return { z: best.z, from: "point", within: Math.min(near, r), dist: bestD };
     if (n) return { z: sz / sw, from: "mean", within: r, n };
+  }
+  if (columns?.length && grid) {
+    const k = Math.round((grid.yTop - cell.y) / grid.dy) * grid.nx + Math.round((cell.x - grid.x0) / grid.dx);
+    for (const col of columns) {
+      const z = col.z?.[k];
+      if (Number.isFinite(z) && inLevel(z, level)) return { z, from: "column", how: col.how, name: col.name, value: col.value?.[k] };
+    }
   }
   if (level && level.zMin != null && level.zMax != null) return { z: (level.zMin + level.zMax) / 2, from: "level" };
   return null;
