@@ -10,6 +10,7 @@ import { pagePx, pageFormatOf } from "./pageFormats.js"; // TASKS.csv #2740 — 
 import { setKnownHoleIds } from "./qaqcCore.js"; // TASKS.csv #400; qaqcCore: #1345
 import { compactLayers } from "./compactRows.js"; // TASKS.csv #374
 import { readDbProfiles, writeDbProfiles, mergeDbProfiles, profilesFromFile } from "./dbProfiles.js"; // TASKS.csv #1081
+import * as holeEditLib from "./holeEdit.js"; // TASKS.csv #3681
 import { FIELD_KEYS, FIELDS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, expandPayloadSliced /* #3423 */, payloadHasTables /* #3492 */, payloadFromFields, projectPartsSliced /* #3104 (projectParts before) */, joinParts, cachedJson /* #1975 */, extraDirtyValues, projectHasContent } from "./projectFields.js"; // TASKS.csv #448
 import { datumPatch } from "./localGridDatum.js"; // TASKS.csv #2691 / #2661
 import { fillFromRows, setEntry } from "./codeDictionary.js"; // TASKS.csv #2163
@@ -1140,6 +1141,26 @@ export function StoreProvider({ children }) {
 
   const mergeLayer = useCallback((key, rows) => setLayers((p) => ({ ...p, [key]: [...(p[key] || []), ...rows] })), []);
   const replaceLayer = useCallback((key, rows) => setLayers((p) => ({ ...p, [key]: rows })), []);
+  // TASKS.csv #3681 — one hole renamed or deleted in every table that keys rows by it (lib/holeEdit.js), as one step: all the setters run in this one
+  // handler, so React batches them into one commit and one Undo restores them together. A rename to an id a collar already has is refused by the caller.
+  const renameHole = useCallback((from, to) => {
+    const H = holeEditLib;
+    setCollars((p) => H.renameInRows(p, from, to)); setSurvey((p) => H.renameInRows(p, from, to));
+    setLayers((p) => H.mapLayers(p, (v) => H.renameInRows(v, from, to)));
+    setAssays((p) => H.renameInRows(p, from, to));
+    setCustomLayers((p) => internalLayers(H.mapCustomLayers(publishedLayers(p), (rows) => H.renameInRows(rows, from, to))));
+    setExcludedIntercepts((p) => H.renameInInterceptIds(p, from, to)); setSoftIntercepts((p) => H.renameInInterceptIds(p, from, to));
+    setInterceptSets((p) => H.renameInInterceptSets(p, from, to));
+  }, []);
+  const deleteHole = useCallback((id) => {
+    const H = holeEditLib;
+    setCollars((p) => H.deleteInRows(p, id)); setSurvey((p) => H.deleteInRows(p, id));
+    setLayers((p) => H.mapLayers(p, (v) => H.deleteInRows(v, id)));
+    setAssays((p) => H.deleteInRows(p, id));
+    setCustomLayers((p) => internalLayers(H.mapCustomLayers(publishedLayers(p), (rows) => H.deleteInRows(rows, id))));
+    setExcludedIntercepts((p) => H.deleteInInterceptIds(p, id)); setSoftIntercepts((p) => H.deleteInInterceptIds(p, id));
+    setInterceptSets((p) => H.deleteInInterceptSets(p, id));
+  }, []);
 
   const newProject = useCallback(() => {
     setFields(emptyFields()); // TASKS.csv #448 — every saved field (#343: seven used to keep the old project's values)
@@ -1879,7 +1900,7 @@ export function StoreProvider({ children }) {
     setStructureCodeClasses, setStructureSymbolByType /* #3094 */, // #2266
     collars, setCollars,
     get survey() { return rowsOf(survey); }, get surveyTable() { return isTable(survey) ? survey : null; }, setSurvey: setSurveyRows, // TASKS.csv #3424
-    layers, setLayers, mergeLayer, replaceLayer,
+    layers, setLayers, mergeLayer, replaceLayer, renameHole, deleteHole /* #3681 */,
     get assays() { return rowsOf(assays); }, get assaysTable() { return isTable(assays) ? assays : null; }, setAssays: setAssaysRows, // TASKS.csv #3424
     assayElements: presentAssayElements, setAssayElements, // #1679 — only the elements some assay row has a value for
     surfaceSamples, setSurfaceSamples,

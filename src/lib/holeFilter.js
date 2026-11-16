@@ -124,8 +124,25 @@ const NO_SETS_KEY = {};
 export function hiddenHoleCount(collars, visibleHoles) { let n = 0; for (const c of collars || []) if (visibleHoles?.[c.hole_id] === false) n++; return n; }
 export const fenceTracesOf = (traces, visibleHoles) => { const t = traces || []; return t.some((x) => visibleHoles?.[x.hole_id] === false) ? t.filter((x) => visibleHoles?.[x.hole_id] !== false) : t; };
 
+// TASKS.csv #3690 (Fireweed rehearsal round 3) — 'year >= 2017' with spaces and 'prospect=Tom West' found nothing: the box split on every space. Spaces around an
+// operator (>=, <=, >, <, =, ..) are dropped, and the words after a 'field=' that are plain words ('Tom West') are the rest of its value, joined as the menu
+// writes it ('Tom_West'); an id term (it has a digit or a dash) or a term with an operator of its own ends the value.
+export function tidyFilter(filter) {
+  const s = String(filter || "").replace(/\s*(>=|<=|>|<)\s*/g, "$1").replace(/\s*\.\.\s*/g, "..").replace(/\s*=\s*/g, "=");
+  return s.split(",").map((part) => {
+    const toks = part.trim().split(/\s+/).filter(Boolean), out = [];
+    for (let i = 0; i < toks.length; i++) {
+      let tk = toks[i];
+      if (/^[^<>=:]+=[^<>=:]*$/.test(tk) && !/\.\./.test(tk)) { while (i + 1 < toks.length && /^[A-Za-z][A-Za-z'’]*$/.test(toks[i + 1])) tk += "_" + toks[++i]; }
+      out.push(tk);
+    }
+    return out.join(" ");
+  }).join(",");
+}
+
 // ctx: { holeSets } (holeSetsOf). -> { holes, byField, hint }: hint = null, or { kind: "set", names: [unknown set names] } / { kind: "none" } when a typed number or has / no term matched nothing
 export function holesForFilter(collars, filter, ctx = {}) {
+  filter = tidyFilter(filter); // #3690
   const p = parseFilterTerms(filter);
   if (!p.numeric.length && !p.sets.length) return plain(collars, filter);
   const base = plain(collars, p.rest);

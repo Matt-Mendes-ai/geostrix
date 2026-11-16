@@ -45,10 +45,14 @@ export function keptTextFields(rows, { maxValues = 40, min = 5 } = {}) {
   return out.sort((a, b) => a.field.localeCompare(b.field));
 }
 
-// the colour of each value: by count, the colour-blind-safe palette in turn (the same order the panel and the legend list them)
+// TASKS.csv #3691 (Fireweed rehearsal round 3: 'MEAS' took the amber of the zinc classes drawn beside it) — the colour-blind-safe palette in an order that opens with
+// hues the assay grade classes do not use (they run cream -> orange -> brown), the warm ones (amber, yellow, vermillion, sand, olive) last
+const WARM = new Set(["#E69F00", "#F0E442", "#D55E00", "#DDCC77", "#999933"]);
+export const FIELD_PALETTE = [...CATEGORICAL_SAFE_COLORS.filter((c) => !WARM.has(c)), ...CATEGORICAL_SAFE_COLORS.filter((c) => WARM.has(c))];
+// the colour of each value: by count, the palette in turn (the same order the panel and the legend list them)
 export function fieldValueColours(values) {
   const m = new Map();
-  values.forEach(([v], i) => m.set(v, v === BLANK ? "#9aa3ad" : CATEGORICAL_SAFE_COLORS[i % CATEGORICAL_SAFE_COLORS.length]));
+  values.forEach(([v], i) => m.set(v, v === BLANK ? "#9aa3ad" : FIELD_PALETTE[i % FIELD_PALETTE.length]));
   return m;
 }
 

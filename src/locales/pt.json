@@ -13366,5 +13366,18 @@
   "This looks like a table of point density readings: From equals To on every row, so it opens as a Custom layer. A zero-length density reading cannot be length-weighted, so the density summary and the tonnage would leave it out. To use it as Specific gravity, give each reading a From–To interval and import it again; or keep it as a Custom layer to view.": "Isto parece uma tabela de leituras pontuais de densidade: De é igual a Até em todas as linhas, por isso abre como camada personalizada. Uma leitura de densidade de comprimento zero não pode ser ponderada por comprimento, então o resumo de densidade e a tonelagem a deixariam de fora. Para usá-la como densidade (peso específico), dê a cada leitura um intervalo De–Até e importe de novo; ou mantenha-a como camada personalizada para visualizar.",
   "The names and numbers in a message are examples.": "Os nomes e os números de uma mensagem são exemplos.",
   "Export totals per hole (CSV)": "Exportar totais por furo (CSV)",
-  "{k} composite(s) have no {symbol} grade (only another element's): they are in the table and the CSV, not in this layer.": "{k} composto(s) não têm teor de {symbol} (só o de outro elemento): estão na tabela e no CSV, não nesta camada."
+  "{k} composite(s) have no {symbol} grade (only another element's): they are in the table and the CSV, not in this layer.": "{k} composto(s) não têm teor de {symbol} (só o de outro elemento): estão na tabela e no CSV, não nesta camada.",
+  "{holeId} is not checked in the Holes list; it is drawn in this section because you asked for it by name.": "{holeId} não está marcado na lista de furos; é desenhado nesta seção porque foi pedido pelo nome.",
+  "No hole is drawn: {n} hole is unchecked in the Holes list (show it, or move the line)": "Nenhum furo é desenhado: {n} furo está desmarcado na lista (mostre-o ou mova a linha)",
+  "No hole is drawn: {n} holes are unchecked in the Holes list (show them, or move the line)": "Nenhum furo é desenhado: {n} furos estão desmarcados na lista (mostre-os ou mova a linha)",
+  "Rename hole…": "Renomear furo…",
+  "Delete hole…": "Excluir furo…",
+  "New id for {hole}:": "Novo identificador para {hole}:",
+  "Can't rename {hole}: a hole called {next} already exists.": "Não é possível renomear {hole}: já existe um furo chamado {next}.",
+  "Can't rename {hole}: the new id is empty.": "Não é possível renomear {hole}: o novo identificador está vazio.",
+  "Renamed {hole} to {next} in the collars, survey, layers and assays.": "{hole} foi renomeado para {next} nos colares, na sondagem, nas camadas e nas análises.",
+  "Delete {hole} with its survey, intervals, assays and custom-layer rows (rows in all: {total})?": "Excluir {hole} com sua sondagem, intervalos, análises e linhas das camadas próprias (linhas no total: {total})?",
+  "Deleted {hole} and its rows (Ctrl+Z restores it).": "{hole} e suas linhas foram excluídos (Ctrl+Z restaura).",
+  "You clicked a {model} drawn over the ground: the E / N are where the click's line meets the ground interpolated between the nearest collars, and the Elev is that ground (a collar is on the ground). Check it before using it, or load a terrain.": "Você clicou em um {model} desenhado sobre o terreno: E / N são onde a linha do clique encontra o terreno interpolado entre os colares mais próximos, e a elevação é esse terreno (um colar está no terreno). Verifique antes de usar ou carregue um terreno.",
+  "modelled surface": "superfície modelada"
 }

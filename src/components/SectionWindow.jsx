@@ -143,16 +143,27 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   const setTextScale = (v) => { const n = Math.max(0.7, Math.min(2, Number(v) || 1)); setTextScaleState(n); try { localStorage.setItem("geostrix.sectionTextScale", String(n)); } catch { /* private window */ } };
   // TASKS.csv #3304 — 'Fit to window' can shrink a tall section's labels (10 drawing units at the text size) below ~7 px on screen: said
   // beside the box. Measured from the drawn width over the viewBox's, again when the drawing is resized.
-  const [fitTextPx, setFitTextPx] = useState(null);
+  // TASKS.csv #3574 (reopened, round 3: 'section text is 4 px high in a 1,700 x 1,000 window on two sections'; #3304 only said so beside the box) — fitted whole, a tall
+  // section shrinks its labels; they are now grown (autoText, on top of the Text choice) until they read at ~7 px, never more than 3 x, and let back down when the window
+  // allows. On screen only: the exports draw at print size (printScale).
+  const [autoText, setAutoText] = useState(1);
+  const [fitTextPx, setFitTextPx] = useState(null), [fitBase, setFitBase] = useState(null); // fitBase: the text's px at autoText 1 (the drawing's scale k x 10 x the Text choice)
   useEffect(() => {
     const svg = svgRef.current;
     if (!fitWhole || !svg || typeof ResizeObserver === "undefined") { setFitTextPx(null); return undefined; }
-    const measure = () => { const vb = svg.viewBox?.baseVal, r = svg.getBoundingClientRect(), k = vb?.width && vb.height && r.width ? Math.min(r.width / vb.width, r.height / vb.height) : 0; setFitTextPx(k ? 10 * textScale * k : null); }; // the drawing's scale inside the element: fitted to the height it is narrower than the element (#3410's live check)
+    const measure = () => { const vb = svg.viewBox?.baseVal, r = svg.getBoundingClientRect(), k = vb?.width && vb.height && r.width ? Math.min(r.width / vb.width, r.height / vb.height) : 0; setFitTextPx(k ? 10 * textScale * autoText * k : null); setFitBase(k ? 10 * textScale * k : null); }; // the drawing's scale inside the element: fitted to the height it is narrower than the element (#3410's live check)
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(svg);
     return () => ro.disconnect();
-  }, [fitWhole, textScale, vExag, data]);
+  }, [fitWhole, textScale, vExag, data, autoText]);
+  useEffect(() => { // #3574 — the labels grown to read at ~7 px (capped at 3 x), let back down when the window allows (a small dead band, so it settles)
+    if (!fitWhole) { if (autoText !== 1) setAutoText(1); return; }
+    if (fitBase == null) return;
+    const px = fitBase * autoText, want = +Math.min(3, Math.max(1, 7.2 / fitBase)).toFixed(2); // fitBase does not depend on autoText: no stale re-multiplication
+    if (px < 6.8 && want > autoText + 0.04) setAutoText(want);
+    else if (px > 11 && autoText > 1 && want < autoText - 0.04) setAutoText(want);
+  }, [fitWhole, fitBase, autoText]);
   // TASKS.csv #1130 — "User should be able to set opacity of structures" (kept per user, like the hole width)
   const [structOpacity, setStructOpacityState] = useState(() => { try { const v = Number(localStorage.getItem("geostrix.sectionStructOpacity")); return v > 0 && v <= 1 ? v : 1; } catch { return 1; } });
   const setStructOpacity = (v) => { const n = Math.max(0.05, Math.min(1, Number(v) || 1)); setStructOpacityState(n); try { localStorage.setItem("geostrix.sectionStructOpacity", String(n)); } catch { /* private window */ } };
@@ -414,6 +425,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
         <span style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <span style={{ color: "#65717e", fontSize: 11 }}>{tr("{v} · {v2} · {v3} · {v4}{v5}{v6}", { v: countText(data.holes?.length, "{n} hole", "{n} holes"), v2: countText(data.intervals?.length, "{n} interval", "{n} intervals"), v3: countText(data.points?.length, "{n} point", "{n} points"), v4: countText(data.planes?.length, "{n} structure", "{n} structures") /* #3280 — '1 holes' */, v5: data.elevationProfile?.length > 1 ? tr(" · terrain profile") : "", v6: data.voxelSlices?.length ? ` · ${data.voxelSlices.map((v) => v.name).join(", ")}` : "" })}{data.scatterCounts && (data.scatterCounts.geophys || data.scatterCounts.samples) ? tr(" · {g} geophysics points · {s} surface samples", { g: data.scatterCounts.geophys.toLocaleString(), s: data.scatterCounts.samples.toLocaleString() }) : ""}</span>
           {stepping && <span role="status" style={{ color: "#8a6a1f", fontSize: 11 }}>{tr("Building the section…")}</span>}{/* #2210 */}
+          {!(data.holes?.length > 0) && data.hiddenHoleCount > 0 && <span role="status" style={{ color: "#8a6a1f", fontSize: 11 }}>{tr(data.hiddenHoleCount === 1 ? "No hole is drawn: {n} hole is unchecked in the Holes list (show it, or move the line)" : "No hole is drawn: {n} holes are unchecked in the Holes list (show them, or move the line)", { n: data.hiddenHoleCount })}</span>}{/* #3680 */}
           {labelsLeftOut > 0 && <span style={{ color: "#8a6a1f", fontSize: 11 }} title={tr("Hole names, end-of-hole depths or offsets with nowhere free to go are left out rather than printed on top of each other. A narrower buffer (fewer holes), a higher VE, a smaller text size or dragging labels makes room; hover a hole for its name.")}>{labelsLeftOut === 1 ? tr("1 label left out: no room") : tr("{n} labels left out: no room", { n: labelsLeftOut })}</span>}{/* #1536 */}
           {!drawing ? (
             <>
@@ -586,7 +598,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
           </div>
         )}
         {editingId && <div style={{ fontSize: 11, color: "#b06a1f", marginBottom: 6 }}>{tr("Editing \"{v}\": drag a vertex to move it, Alt-click a vertex to delete it, click the line to insert one{v2}. Click the pencil again to finish; Save contacts keeps the changes.", { v: editing?.unit, v2: snapOn ? tr(" (snapping to holes)") : "" })}{editing?.kind === "outline" ? ` ${tr("Shift-click a vertex to make it the tie point: it is linked to the tie point of the outline on the next section.")}` : ""}</div>}
-        <SectionSVG patterns={patternsOn && Object.keys(patternTiles).length ? patternTiles : null} onLeftOut={printScale == null ? setLabelsLeftOut : null} printing={printScale != null} /* #2761 */ textFont={textFont} textScale={printScale ?? textScale} /* #1090 — the print size while an export is drawn */ holeWidth={holeWidth} structOpacity={structOpacity} showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} onAutoVE={(v) => setVExag((cur) => cur ?? v)} geomRef={geomRef} planPts={planning ? planPts : []}
+        <SectionSVG patterns={patternsOn && Object.keys(patternTiles).length ? patternTiles : null} onLeftOut={printScale == null ? setLabelsLeftOut : null} printing={printScale != null} /* #2761 */ textFont={textFont} textScale={printScale ?? textScale * autoText} /* #1090 — the print size while an export is drawn; #3574 — the grown size of a fitted tall section on screen */ holeWidth={holeWidth} structOpacity={structOpacity} showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} onAutoVE={(v) => setVExag((cur) => cur ?? v)} geomRef={geomRef} planPts={planning ? planPts : []}
           snap={snapOn && !planning ? targets : null} projectSnaps={projectSnaps} editingId={editingId} onEditPoints={editPoints} onCopyGhost={drawing || planning ? null : copyGhost}
           labels={labels} onMoveLabel={(key, off) => changeLabels({ offsets: { ...labels.offsets, [key]: off } })} /* #823 */ />
         <BlockModelKey slices={[...(data.voxelSlices || []), ...surveyKeys]} />{/* #3430: the surveys' ramps too */}
@@ -626,6 +638,8 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
   // TASKS.csv #1134 — depth / EOH / offset / planned-hole labels are collected while the holes are drawn and placed in one
   // collision pass at the very end (resolveLabels), on top of the ribbons; holeLabelBoxes: the hole names, placed first
   const floatLabels = [];
+  // TASKS.csv #3552 — a float label's width in the section's own font at its own size (the 0.58 em estimate is short for capitals and digits); the estimate with no canvas
+  const floatMeasures = new Map(), floatWidth = (text, size) => { let f = floatMeasures.get(size); if (f === undefined) { f = measureLabel(size, textFont); floatMeasures.set(size, f); } return f ? f(text) : labelWidth(text, size); };
   let holeLabelBoxes = [];
   const dragRef = useRef(null); // #519 — the vertex being dragged (before the early return: a hook)
   const labelDragRef = useRef(null); // #823 — the label being dragged: { key, ax, ay, grabDx, grabDy }
@@ -1212,7 +1226,7 @@ function SectionSVG({ printing = false, patterns = null, textFont = SECTION_FONT
       })()}
       {/* TASKS.csv #1134 — depth / EOH / offset / planned-hole labels: one collision pass, drawn last (over the ribbons) */}
       <g pointerEvents="none">
-        {(() => { const rl = resolveLabels(floatLabels, [...holeLabelBoxes, ...axisLabelBoxes], { bounds: [4, W - 4], yBounds: [2, totalH - 2] }); leftOutRef.current += floatLabels.filter((l) => l.optional).length - rl.filter((l) => l.optional).length; return rl; })().map((l) => <React.Fragment key={l.key}>{l.leaderFrom && <line x1={l.leaderFrom.x} y1={l.leaderFrom.y} x2={l.x} y2={l.y - l.size / 2} stroke="#7a8494" strokeWidth="0.5" /> /* #1144 — moved off its spot */}<text x={l.x} y={l.y} fill={l.fill} fontSize={l.size} fontWeight={l.weight} textAnchor={l.anchor}>{l.text}</text></React.Fragment>)}
+        {(() => { const rl = resolveLabels(floatLabels, [...holeLabelBoxes, ...axisLabelBoxes], { bounds: [PAD, W - PAD] /* #3552 — the frame's width, not the page's: an EOH / offset tag near a hole's end started left of the frame */, yBounds: [2, totalH - 2], widthOf: floatWidth, strictBounds: true }); leftOutRef.current += floatLabels.filter((l) => l.optional).length - rl.filter((l) => l.optional).length; return rl; })().map((l) => <React.Fragment key={l.key}>{l.leaderFrom && <line x1={l.leaderFrom.x} y1={l.leaderFrom.y} x2={l.x} y2={l.y - l.size / 2} stroke="#7a8494" strokeWidth="0.5" /> /* #1144 — moved off its spot */}<text x={l.x} y={l.y} fill={l.fill} fontSize={l.size} fontWeight={l.weight} textAnchor={l.anchor}>{l.text}</text></React.Fragment>)}
       </g>
       <text x={W / 2} y={H - fs(14)} fill="#55606e" fontSize={fs(11)} textAnchor="middle">{tr("Distance along section (m)")}</text>
       <text x={fs(16)} y={H / 2} fill="#55606e" fontSize={fs(11)} textAnchor="middle" transform={`rotate(-90 ${fs(16)} ${H / 2})`}>{rlOff ? tr("RL (m)") : tr("Elevation (m)")}</text>

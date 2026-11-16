@@ -8,9 +8,9 @@ const src = fs.readFileSync(new URL("../src/components/SectionWindow.jsx", impor
 
 test("measured from the drawn width over the viewBox's, again on a resize, only while fitting", () => {
   // the drawing's scale inside the element: the smaller of width and height ratios (fitted to the height, the drawing is narrower than the element)
-  assert.match(src, /const measure = \(\) => \{ const vb = svg\.viewBox\?\.baseVal, r = svg\.getBoundingClientRect\(\), k = vb\?\.width && vb\.height && r\.width \? Math\.min\(r\.width \/ vb\.width, r\.height \/ vb\.height\) : 0; setFitTextPx\(k \? 10 \* textScale \* k : null\); \};/);
+  assert.match(src, /const measure = \(\) => \{ const vb = svg\.viewBox\?\.baseVal, r = svg\.getBoundingClientRect\(\), k = vb\?\.width && vb\.height && r\.width \? Math\.min\(r\.width \/ vb\.width, r\.height \/ vb\.height\) : 0; setFitTextPx\(k \? 10 \* textScale \* autoText \* k : null\); setFitBase\(k \? 10 \* textScale \* k : null\); \};/); // #3574: the grown size, and the base it grows from
   assert.match(src, /if \(!fitWhole \|\| !svg \|\| typeof ResizeObserver === "undefined"\) \{ setFitTextPx\(null\); return undefined; \}/);
-  assert.match(src, /const ro = new ResizeObserver\(measure\);\n\s+ro\.observe\(svg\);\n\s+return \(\) => ro\.disconnect\(\);\n\s+\}, \[fitWhole, textScale, vExag, data\]\);/);
+  assert.match(src, /const ro = new ResizeObserver\(measure\);\n\s+ro\.observe\(svg\);\n\s+return \(\) => ro\.disconnect\(\);\n\s+\}, \[fitWhole, textScale, vExag, data, autoText\]\);/); // #3574: re-measured when the text grows
   // declared after the state it reads (textScale, vExag): no use before its declaration
   assert.ok(src.indexOf("const [fitTextPx, setFitTextPx]") > src.indexOf("const [textScale, setTextScaleState]"));
   assert.ok(src.indexOf("const [fitTextPx, setFitTextPx]") > src.indexOf("const [vExag, setVExag]"));
