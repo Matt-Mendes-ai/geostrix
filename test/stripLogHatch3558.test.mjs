@@ -8,5 +8,5 @@ test("the calculated bar keeps its pale dashed look and gains a hatch overlay of
   assert.match(s, /opacity=\{calc \? 0\.3 : 0\.75\} stroke=\{calc \? "#4a9be0" : undefined\} strokeDasharray=\{calc \? "2 1\.5" : undefined\}/);
   assert.match(s, /<pattern id="sl-calc-hatch"[^>]*patternTransform="rotate\(45\)"/);
   // #3660 — ONE hatch rect per track, clipped to the calculated bars (a rect per interval wrote a pattern picture per interval into the PDF)
-  assert.match(s, /<clipPath id=\{cid\}>\{calcRows\.map/); assert.match(s, /fill="url\(#sl-calc-hatch\)" opacity="0\.6" clipPath=\{`url\(#\$\{cid\}\)`\}/); assert.equal((s.match(/url\(#sl-calc-hatch\)/g) || []).length, 1, "one use of the pattern per track, not one per interval");
+  assert.match(s, /<clipPath id=\{cid\}>\{calcRows\.map/); assert.match(s, /fill="url\(#sl-calc-hatch\)" opacity="0\.6" clipPath=\{`url\(#\$\{cid\}\)`\}/); assert.equal((s.match(/url\(#sl-calc-hatch\)/g) || []).length, 2, "one use of the pattern per track (the second is the key's swatch, #3713), not one per interval");
 });

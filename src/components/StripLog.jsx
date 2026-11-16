@@ -221,6 +221,9 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const noData = allTracks.every((t) => t.rows.length === 0); // TASKS.csv #3557 — nothing to draw: the message stands in place of empty tracks
   const tracks = ranged ? allTracks.map((t) => ({ ...t, rows: t.kind === "struct" ? t.rows.filter((s) => s.depth >= d0 && s.depth <= d1) : clip(t.rows) })) : allTracks;
 
+  // TASKS.csv #3713 — the sheet explains its own hatch: a density bar drawn from a regression (hatched) against a measured one (solid) has a two-line key under the tracks, in the figure itself (so Add to Layout and the exports carry it)
+  const calcBars = tracks.filter((t) => t.kind === "bar" && t.methodOf), hasCalc = calcBars.some((t) => t.rows.some((r) => isCalculatedMethod(t.methodOf(r)))), hasMeasured = calcBars.some((t) => t.rows.some((r) => !isCalculatedMethod(t.methodOf(r))));
+  const keyH = hasCalc ? 34 : 0;
   // a bar track's scale caption: its own range, or the log range
   const barCaption = (t) => (t.lo != null ? `${sigText(t.lo, 4)}–${sigText(t.max, 4)}` : t.logOk && logOn && t.minPos > 0 ? tr("log {minPos}–{max}", { minPos: sigText(t.minPos, 2), max: sigText(t.max, 3) }) : `0–${sigText(t.max, 3)}`);
 
@@ -229,7 +232,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     const svg = svgRef.current;
     if (!svg) return null;
     const vb = svg.viewBox?.baseVal;
-    return vb && vb.width ? { w: vb.width, h: vb.height } : { w: DEPTH_COL_W + tracks.length * TRACK_W + 40, h: H };
+    return vb && vb.width ? { w: vb.width, h: vb.height } : { w: DEPTH_COL_W + tracks.length * TRACK_W + 40, h: H + keyH };
   };
   // TASKS.csv #1048 — hole, collar, attitude, depth, scale and a key of the codes in each colour track, drawn into the file
   const [pngNote, setPngNote] = useState("");
@@ -376,7 +379,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
 
         <div ref={scrollRef} style={{ flex: 1, overflow: "auto", padding: 16 }}>
           {noData && <div style={{ fontSize: 12, color: "#65717e", marginBottom: 12 }}>{tr("{holeId} has no samples and no logs ({length} m).", { holeId, length: +maxDepth.toFixed(1) }) /* TASKS.csv #3557 — said plainly, at the top */}</div>}
-          {!noData && <svg ref={svgRef} viewBox={`0 0 ${DEPTH_COL_W + tracks.length * TRACK_W + 40} ${H}`} width={DEPTH_COL_W + tracks.length * TRACK_W + 40} height={H} style={{ background: "#ffffff" }}>
+          {!noData && <svg ref={svgRef} viewBox={`0 0 ${DEPTH_COL_W + tracks.length * TRACK_W + 40} ${H + keyH}`} width={DEPTH_COL_W + tracks.length * TRACK_W + 40} height={H + keyH} style={{ background: "#ffffff" }}>
             {patternsOn && Object.keys(tiles).length > 0 && <defs dangerouslySetInnerHTML={{ __html: patternDefs(tiles) }} />}{/* #1995 — shapes only (lithoPatterns.sanitizeTile) */}
             <defs><pattern id="sl-calc-hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="4" stroke="#4a9be0" strokeWidth="1" /></pattern></defs>{/* TASKS.csv #3558 follow-up — the hatch of a calculated density bar: a colour-blind and black-and-white print reads it, not only the paler fill */}
             {/* depth ticks */}
@@ -465,6 +468,13 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                 </g>
               );
             })}
+            {hasCalc && (() => { const y0 = sy(d1) + 26, x0 = DEPTH_COL_W + 2; return ( /* TASKS.csv #3713 — the key of the hatch */
+              <g>
+                <rect x={x0} y={y0} width={14} height={8} fill="#4a9be0" opacity="0.3" stroke="#4a9be0" strokeDasharray="2 1.5" strokeWidth="0.8" /><rect x={x0} y={y0} width={14} height={8} fill="url(#sl-calc-hatch)" />
+                <text x={x0 + 19} y={y0 + 7} fontSize="8" fill="#55606e">{tr("hatched = calculated (regression)")}</text>
+                {hasMeasured && <><rect x={x0} y={y0 + 13} width={14} height={8} fill="#4a9be0" opacity="0.75" /><text x={x0 + 19} y={y0 + 20} fontSize="8" fill="#55606e">{tr("solid = measured")}</text></>}
+              </g>
+            ); })()}
           </svg>}
         </div>
 

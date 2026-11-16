@@ -193,12 +193,12 @@ async function buildOneHolePage(holeId, templateElements, { collars, layers, inc
   // the page's own: with strip logs on, the template's are left out
   const fromTemplate = includeStripLog ? templateElements.filter((el) => !isStripLogImage(el)) : templateElements;
   let elements = markHoleOnViewports(fromTemplate.map((el) => substituteElement(el, values)), collars.find((c) => c.hole_id === holeId)); // #1644
-  let stripLogFailed = false, textPt = null, narrowed = 0, overlapping = 0;
+  let stripLogFailed = false, noStripLog = false, textPt = null, narrowed = 0, overlapping = 0; // noStripLog: #3710
   if (includeStripLog) {
     // TASKS.csv #1080 — one hole's strip log failing (a rasterize error) no longer aborts the whole atlas: its page is
     // added without the image and counted in the result notice
     let built = null;
-    try { built = await buildStripLogDataUrl({ holeId, collars, layers, legendOverride, lithoPatterns, ...(assayTracks || {}) }); } catch { stripLogFailed = true; } // legendOverride: #1092; assayTracks { assays, assaySymbols, elementUnits }: #1480
+    try { built = await buildStripLogDataUrl({ holeId, collars, layers, legendOverride, lithoPatterns, logTracks: true /* #3710 */, ...(assayTracks || {}) }); } catch { stripLogFailed = true; } // legendOverride: #1092; assayTracks { assays, assaySymbols, elementUnits }: #1480
     if (built) {
       const { free, ...box } = placeStripLog(elements, built.aspect, page || undefined);
       textPt = stripLogTextPt(built.height, box.h);
@@ -206,7 +206,8 @@ async function buildOneHolePage(holeId, templateElements, { collars, layers, inc
       elements = [...elements, { id: `striplog_${holeId}_${Date.now()}`, type: "image", label: `Strip log — ${holeId}`, src: built.dataUrl, aspect: built.aspect, ...box, depthHeightAtCaptureM: built.depthHeightAtCaptureM ?? null /* #1480 */ }];
     }
   }
-  return { name: substituteTokens("{{hole_id}}", values), elements, stripLogFailed, textPt, narrowed, overlapping };
+  noStripLog = includeStripLog && !stripLogFailed && !elements.some(isStripLogImage); // TASKS.csv #3710 — the hole has no log, no density and no assay track chosen: the page has no strip log, and the result says so
+  return { name: substituteTokens("{{hole_id}}", values), elements, stripLogFailed, noStripLog, textPt, narrowed, overlapping };
 }
 
 function buildOneSectionPage(section, templateElements) {
