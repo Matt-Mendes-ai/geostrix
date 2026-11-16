@@ -2586,7 +2586,17 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           if (points.length < rawPoints.length) setNotices((q) => [...q, notice("Domain \"{name}\": excluded {v} of {rawPoints} assay sample point(s) outside the domain.", { name: gradeDomain.name, v: rawPoints.length - points.length, rawPoints: rawPoints.length })]);
         }
         const above = points.filter((p) => p.value >= numericCutoff).length;
-        if (!above) throw new Error(tr("None of the {points} sample points reach the {numericCutoff} {unit} cutoff — nothing to enclose. Lower the cutoff.", { points: points.length, numericCutoff, unit: unitL }));
+        if (!above) {
+          // TASKS.csv #3781 — with a cap the refusal names it, and how many reach the cut-off uncapped (46 composites did at Scottie, under a 2.84 g/t cap and a 3 g/t cut-off)
+          const capNow = Number.isFinite(numericCapValue) && numericCapValue > 0 ? numericCapValue : null;
+          if (capNow != null) {
+            const unc = numericUseComposites ? compositeDownhole(runAssays, symbol, unit, elementUnits, { length: numericCompositeLength, minCoverage: numericMinCoverage, capValue: null }).filter((iv) => iv.avgGrade != null && iv.avgGrade >= numericCutoff).length
+              : rawSampleIntervals(runAssays, symbol, unit, elementUnits, { capValue: null }).intervals.filter((iv) => iv.avgGrade != null && iv.avgGrade >= numericCutoff).length;
+            throw new Error(unc > 0 ? tr("None of the {points} sample points reach the {numericCutoff} {unit} cutoff once capped at {cap} {unit}: {n} reach it uncapped. Raise or clear the cap (under High-grade cap), or lower the cutoff.", { points: points.length, numericCutoff, unit: unitL, cap: capNow, n: unc })
+              : tr("None of the {points} sample points reach the {numericCutoff} {unit} cutoff, capped at {cap} {unit} or not — nothing to enclose. Lower the cutoff.", { points: points.length, numericCutoff, unit: unitL, cap: capNow }));
+          }
+          throw new Error(tr("None of the {points} sample points reach the {numericCutoff} {unit} cutoff — nothing to enclose. Lower the cutoff.", { points: points.length, numericCutoff, unit: unitL }));
+        }
 
         // TASKS.csv #273/#86 — anisotropy: warp every sample into the space where the declared ellipsoid
         // is a sphere, grid and iso-surface there with the isotropic search this tool already does, then
