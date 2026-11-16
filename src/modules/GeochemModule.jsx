@@ -9,8 +9,7 @@ import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #1284
 import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { joinBySampleId } from "../lib/surfaceJoin.js"; // TASKS.csv #1670
 import { parseTableOrWorkbook, isXlsxName } from "../lib/xlsx.js"; // TASKS.csv #444 shared reader; #605 .xlsx
-import { colorForLithology, CATEGORICAL_SAFE_COLORS, hashColor, colorForVoxelValue, LAYER_META } from "../lib/layers.js"; // colours: #1091; LAYER_META: #2915
-
+import { colorForLithology, CATEGORICAL_SAFE_COLORS, hashColor, colorForVoxelValue, LAYER_META } from "../lib/layers.js"; // colours: #1091; LAYER_META: #2915
 import { num, guessColumn, TARGET_SCHEMAS } from "../lib/layersImport.js"; // TASKS.csv #3590
 import { gradeStops } from "../lib/inversion.js"; // TASKS.csv #1091 — the grade ramp block models use (#702) // TASKS.csv #508; guessColumn #600 — blank / "NA" -> NaN, never 0
 import { didYouMean } from "../lib/holeIds.js"; // TASKS.csv #541
@@ -55,6 +54,7 @@ import VolcanicCodesModal, { NOT_LOGGED_CODE } from "../components/VolcanicCodes
 import { entryOf } from "../lib/codeDictionary.js"; // TASKS.csv #3292
 import { displayUnitOf } from "../lib/displayUnits.js"; // TASKS.csv #3236 / #3290
 import SurfaceImportModal, { SURFACE_MEDIA } from "../components/SurfaceImportModal.jsx";
+import { mediumAlias, commonestMedium } from "../lib/surfaceMedium.js"; // TASKS.csv #3731
 // TASKS.csv #1794 — the medium a cell names (the import's own list and aliases), for telling a medium column from a QC-type column
 const surfaceMediumOf = (m) => (SURFACE_MEDIA.includes(m) ? m : /rock|grab|chip|outcrop|float|channel|soil|silt|stream|sediment|moss|talus|bleg|\bhmc\b|heavy.?min|concentrate|water/.test(m) ? m : null);
 import IsoconTool from "../components/IsoconTool.jsx";
@@ -906,7 +906,7 @@ export default function GeochemModule() {
       // #2316 / #2734 — LOI is kept as the field 'LOI' (wt%) when it is ticked; the LOI columns it was not read from are named
       (() => { const loiEl = chosen.find((e) => e.symbol === LOI), took = new Set(loiEl ? [loiEl.header, ...(loiEl.join ? (loiEl.methodCols || []).map((c) => c.header) : [])] : []); const loi = format === "wide" ? (modal.headers || []).filter((h) => isLoiHeader(h) && !took.has(h)) : []; return loi.length ? (loiEl ? tr("Not imported: {cols} (LOI was read from {main}).", { cols: loi.join(", "), main: loiEl.header }) : tr("Not imported: {cols} (loss on ignition: tick LOI in the element list to keep it).", { cols: loi.join(", ") })) : ""; })(),
       overLimitFilled.size ? tr("Over-limit samples filled from the ore-grade column: {list}.", { list: [...overLimitFilled].map(([sym, n]) => { const e = chosen.find((x) => x.symbol === sym); return tr("{symbol} {n} (at {limit} {unit} in \"{header}\", from \"{source}\")", { symbol: sym, n, limit: e.overLimit.limit, unit: e.unit, header: e.header, source: e.overLimit.header }); }).join("; ") }) : null, // #600 / #542
-      flagged.size ? tr("Qualifiers from the flag columns: {list} (the values kept as the file has them).", { list: [...flagged].map(([sym, f]) => [f.lo ? tr("{symbol} {n} below detection", { symbol: sym, n: f.lo.toLocaleString() }) : null, f.hi ? tr("{symbol} {n} over range", { symbol: sym, n: f.hi.toLocaleString() }) : null].filter(Boolean).join(", ")).join("; ") }) : null, // #2018
+      flagged.size ? tr("Qualifiers from the flag columns: {list} (flagged '<'; the values are kept as the file has them, and the file states no detection limit).", { list: [...flagged].map(([sym, f]) => [f.lo ? tr("{symbol} {n} below detection", { symbol: sym, n: f.lo.toLocaleString() }) : null, f.hi ? tr("{symbol} {n} over range", { symbol: sym, n: f.hi.toLocaleString() }) : null].filter(Boolean).join(", ")).join("; ") }) : null, // #2018
       blankBdl.size ? tr("Empty cells read as below detection: {list}; stored at half the limit and flagged '<'.", { list: [...blankBdl].map(([sym, n]) => { const L = blankLimits.get(sym); return tr(L.basis === "lt" ? "{symbol} {n} at <{limit} (the lab's most common '<' limit in the file)" : "{symbol} {n} at <{limit} (the lowest value reported — no '<' limit in the file)", { symbol: sym, n, limit: L.limit }); }).join("; ") }) : null, // #502
       blankNoLimit.size ? tr("No detection limit could be found for {list} (no '<' values and no reported values), so their empty cells stay not assayed.", { list: [...blankNoLimit].join(", ") }) : null,
       // #510 — same-interval rows in ONE file are kept, not merged: usually field / lab duplicates
@@ -921,7 +921,9 @@ export default function GeochemModule() {
         const f = assayImportFindings({ rows, elements: chosen, unitOf: (s) => existingUnit[s] || importStoreUnit(chosen.find((e) => e.symbol === s) || {}), headers: format === "wide" ? modal.headers || [] : [], used: [...Object.values(mapping || {}), ...Object.values(qcCols || {})] /* #2764 — the QC columns (sample id, certificate) are read */, allRows, at: (r) => `${r[mapping.hole_id]} ${r[mapping.from]}-${r[mapping.to]} m` });
         const list = (xs, k, fn) => xs.slice(0, k).map(fn).join(", ") + (xs.length > k ? ", …" : "");
         return [
-          f.below.length ? tr("In all, {n} cell(s) below detection, stored at half the limit and flagged '<': {list}.", { n: f.below.reduce((t, b) => t + b.n, 0).toLocaleString(), list: list(f.below, 8, (b) => (b.limit != null ? `${b.symbol} ${b.n.toLocaleString()} (<${b.limit} ${b.unit})` : `${b.symbol} ${b.n.toLocaleString()}`)) }) : null,
+          // TASKS.csv #3732 — an element whose flag column is read keeps the file's value (said above, with no limit: the file states none, and 2 x the value is a guess); only the
+          // others were stored at half a limit, so only they get the limit
+          ...((below) => (below.length ? [tr("In all, {n} cell(s) below detection, stored at half the limit and flagged '<': {list}.", { n: below.reduce((t, b) => t + b.n, 0).toLocaleString(), list: list(below, 8, (b) => (b.limit != null ? `${b.symbol} ${b.n.toLocaleString()} (<${b.limit} ${b.unit})` : `${b.symbol} ${b.n.toLocaleString()}`)) })] : []))(f.below.filter((b) => !flagged.has(b.symbol))),
           f.over100.length ? tr("Values over 100 % (a total or a unit to check in the file): {list}.", { list: list(f.over100, 6, (o) => tr("{symbol} {n} (up to {max} %, {where})", { symbol: o.symbol, n: o.n.toLocaleString(), max: o.max, where: o.where })) }) : null,
           // TASKS.csv #3729 — a round maximum held by many results: an upper reporting limit whose '>' was lost
           f.ceilings.length ? tr("Results on a round maximum, probably an upper reporting limit whose '>' was lost (their true grade is higher): {list}. Grade statistics can mark them as over the limit ('>').", { list: list(f.ceilings, 8, (c) => tr("{symbol} {n} at {max} {unit}", { symbol: c.symbol, n: c.n.toLocaleString(), max: c.ceiling.toLocaleString(), unit: c.unit })) }) : null,
@@ -1020,7 +1022,7 @@ export default function GeochemModule() {
         } : {
           file, fileName: file.name, headers, allRows: data,
           mapping, sourceEpsg, sourceEpsgFrom,
-          defaultMedium: "soil", elements,
+          defaultMedium: (mapping.medium && commonestMedium(data.map((r) => r[mapping.medium]), SURFACE_MEDIA)) || "soil" /* #3731 — the file's own commonest medium, not a fixed 'soil' */, elements,
         });
   };
 
@@ -1053,7 +1055,8 @@ export default function GeochemModule() {
     // TASKS.csv #600 (40958Z) — the words exports use for a medium: an MX rock file says "rock", which used to
     // fall back to the default ("soil"), so every rock sample was labelled soil
     // TASKS.csv #845 — the stream media apart: moss mat, heavy-mineral concentrate, BLEG and water are not active sediment
-    const mediumAlias = (m) => (/rock|grab|chip|outcrop|float|channel/.test(m) ? "rock chip" : /moss/.test(m) ? "moss mat" : /\bhmc\b|heavy.?min|concentrate|\bpan\b/.test(m) ? "heavy mineral concentrate" : /bleg|bulk.?leach/.test(m) ? "BLEG" : /water/.test(m) ? "stream water" : /stream|silt|sediment|\bsed\b/.test(m) ? "stream sediment" : /talus/.test(m) ? "talus fines" : /soil|b.?horizon/.test(m) ? "soil" : null);
+    // #3731 — mediumAlias (the words above) lives in lib/surfaceMedium.js, with the fallback that follows the file
+    const fbWords = new WeakMap(); // the sample object -> the cell's word, for a row that took the fallback medium
     // TASKS.csv #333/#334 — same rules as drillhole assays: negative codes are never grades (-0.005 read as
     // below detection, <= -99 as not assayed), and an element already in the project keeps its unit.
     const existingUnit = Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit]));
@@ -1128,7 +1131,7 @@ export default function GeochemModule() {
         const p = gridTie ? fileToLocal(gridTie, x, y, fromEpsg) : reprojectXY(x, y, fromEpsg, toEpsg); // gridTie: #2320
         if (p) ({ x, y } = p); else { reprojectFailed++; x = NaN; }
       }
-      return {
+      const sample = {
         sample_id: mapping.sample_id ? String(r[mapping.sample_id] ?? "").trim() : "",
         x, y, z: zOf(r), // #508 / #606 — a blank (or all-zero) z is missing, not sea level
         medium: mediaSet.has(rawMedium) ? rawMedium : (mediumAlias(rawMedium) || defaultMedium), // #600: "rock" -> rock chip
@@ -1137,6 +1140,8 @@ export default function GeochemModule() {
         ...(nd.length ? { nd } : {}),
         ...surfaceAttrsDated(r, attrCols, sampleDates.readers), // dates: #3200
       };
+      if (mapping.medium && !mediaSet.has(rawMedium) && !mediumAlias(rawMedium)) fbWords.set(sample, rawMedium); // #3731
+      return sample;
     });
     // TASKS.csv #1664 (review #1646, Kodiak) — a sample row with no coordinates was dropped with no word (181 Kodiak control rows vanished
     // before #1794 classed them as QC): every one left out is counted in the notice (a reprojection failure is counted on its own)
@@ -1173,7 +1178,12 @@ export default function GeochemModule() {
     const surfOx = surfOxAll.filter((x) => !surfKept.includes(x)).map(({ e, ox }) => `${e.header} → ${ox.symbol} (÷${ox.factor})`);
     const bdlCount = new Map();
     for (const r of rows) for (const s of r.bdl || []) bdlCount.set(s, (bdlCount.get(s) || 0) + 1);
+    // #3731 — the rows whose type the app could not read took the fallback medium: counted by the cell's word (a blank cell as 'blank'), in the notice
+    const fbCount = new Map();
+    for (const r of rows) if (fbWords.has(r)) { const w = fbWords.get(r) || tr("blank"); fbCount.set(w, (fbCount.get(w) || 0) + 1); }
+    const fbTotal = [...fbCount.values()].reduce((a, b) => a + b, 0);
     const extra = [
+      fbTotal ? tr("{n} sample(s) took the fallback medium ({medium}) because their type is not one the app reads: {list}.", { n: fbTotal.toLocaleString(), medium: defaultMedium, list: [...fbCount].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([w, n]) => `${w} ${n.toLocaleString()}`).join(", ") }) : null, // #3731
       surfOx.length ? tr("Oxide columns stored as the element, in element %: {list}. Labels, colours and Identify show the element; the diagrams convert back to oxides.", { list: surfOx.join(", ") }) : null, // #2565
       surfKept.length ? tr("Oxide columns kept as the oxide, as the project stores them: {list}.", { list: surfKept.map(({ e, ox }) => `${e.header} → ${ox.symbol} (% ${ox.oxide})`).join(", ") }) : null, // #2957
       bdlCount.size ? tr("Below detection: {list} (each stored at half its limit and flagged; a label shows it as '<limit').", { list: [...bdlCount].map(([s, n]) => `${s} ${n.toLocaleString()}`).join(", ") }) : null, // #2565

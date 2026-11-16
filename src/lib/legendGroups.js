@@ -390,7 +390,7 @@ export function geophysLegendGroups({ rows = [], visible = true, surveys = {}, s
   const out = [];
   for (const [key, model] of colorer.models) {
     if (surveys?.[key]?.hidden) continue; // TASKS.csv #3325 — a survey hidden from its card has no ramp (the others keep the colours they are drawn in)
-    const units = surveys?.[key]?.units;
+    const units = surveys?.[key]?.units && surveys[key].unitsGuessed ? `${surveys[key].units}, ${tr("assumed from the column name")}` : surveys?.[key]?.units; // #3739
     if (surveys?.[key]?.positionsOnly) { // TASKS.csv #3447 — no measured value: one swatch in the one colour it is drawn in, no ramp
       const sample = pts.find((r) => surveyKey(r) === key);
       out.push({ key: `geophys_pts_${key}`, label: key, items: [[`${key} (${rows.filter((r) => surveyKey(r) === key).length.toLocaleString("en-US")})`, colorer.colorOf(sample)?.color || colorer.colorOf(sample), { kind: "point" }]] });

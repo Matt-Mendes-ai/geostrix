@@ -57,7 +57,7 @@ export const TARGET_SCHEMAS = {
   ], dipConvention: true },
   // TASKS.csv #600 — Lith_Code / Lith1_Code / Rock_Code before the generic "unit": a real ARIS export has
   // Lith_Code (filled) beside Lith_Group_Unit (blank on every row), and "unit" picked the blank one.
-  litho: { label: "Lithology", fields: intervalFields(["lithology", "lith_code", "lith1_code", "lith1_gf_code", "lithcode", "lithology1", "lith1", "rock1", "geol_rock1", "maj_lithcode", "major_lithcode", /* #2153 */ "rock_code", "rock_type", "rocktype", "litho", "lith", "rock", "unit", "litho_unit"], null, false, ["description", "comments", "comment", "notes", "desc", "lith_desc", "lith1_local_comments"]) },
+  litho: { label: "Lithology", fields: intervalFields(["lithology", "lith_code", "lith1_code", "lith1_gf_code", "lithcode", "lithology1", "lith1", "rock1", "geol_rock1", "maj_lithcode", "major_lithcode", /* #2153 */ "rock_code", "rock_type", "rocktype", "litho", "lith", "rock", "unit", "litho_unit"], null, false, ["description", "comments", "comment", "notes", "desc", "lith_desc", "lith1_local_comments", /* #3735 */ "lith_name", "lithology_name", "rock_name"]) },
   // TASKS.csv #600 — the column names real logging exports use (acQuire / MX Deposit, seen in BC ARIS reports):
   // numbered primary columns (Alt1_Code, Min1_Code / Min_Code1, Vein1_Comp / Vein_Type1, MagSus1, Ave_Reading,
   // BulkDens_Calc, SG_D). Listed FIRST so the primary (1st) column wins over a later one.

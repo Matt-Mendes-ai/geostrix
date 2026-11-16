@@ -16,6 +16,7 @@ import SourceCrsField from "./SourceCrsField.jsx"; // TASKS.csv #600
 import { crsName } from "../lib/reproject.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { conversionsOver100 } from "../lib/assayReimport.js"; // TASKS.csv #3217
+import { commonestMedium } from "../lib/surfaceMedium.js"; // TASKS.csv #3731
 
 // TASKS.csv #845 — every stream program (Matt: "Do all stream programs"): moss mats, heavy-mineral concentrates, BLEG and
 // stream waters are different measurements from active sediment and are kept as their own media (never ranked together)
@@ -38,7 +39,9 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
   const [addSymbol, setAddSymbol] = useState("");
   const [addHeader, setAddHeader] = useState("");
 
-  const setMapping = (key, col) => onChange({ ...modal, mapping: { ...modal.mapping, [key]: col } });
+  // TASKS.csv #3731 — choosing the medium column moves the fallback medium to the commonest medium that column's own words give (a rock appendix's unread types stay rock chip, not
+  // the soil it opened on), unless the fallback was picked by hand
+  const setMapping = (key, col) => onChange({ ...modal, mapping: { ...modal.mapping, [key]: col }, ...(key === "medium" && !modal.defaultMediumPicked ? { defaultMedium: (col && commonestMedium((modal.allRows || []).map((r) => r[col]), SURFACE_MEDIA)) || modal.defaultMedium } : {}) });
   const toggleEl = (sym) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, checked: !e.checked } : e) });
   // unitChosen: #3217 — kept on the project's element, so the next import of the file opens with it; a change is the user's, not last time's
   const setUnit = (sym, unit) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, unit, unitChosen: true, asLastTime: e.asLastTime && e.unit === unit } : e) });
@@ -113,7 +116,7 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
               <option value="">{tr("— column, if present —")}</option>
               {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
             </select>
-            <select value={modal.defaultMedium} onChange={(e) => onChange({ ...modal, defaultMedium: e.target.value })} style={{ ...sel, width: 140 }} title={tr("Used for every row when no medium column is mapped, or a row's medium value doesn't match anything recognized")}>
+            <select value={modal.defaultMedium} onChange={(e) => onChange({ ...modal, defaultMedium: e.target.value, defaultMediumPicked: true })} style={{ ...sel, width: 140 }} title={tr("Used for every row when no medium column is mapped, or a row's medium value doesn't match anything recognized")}>
               {SURFACE_MEDIA.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>

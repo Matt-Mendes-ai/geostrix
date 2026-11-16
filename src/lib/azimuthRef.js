@@ -58,6 +58,7 @@ const TN_COLS = /^(azimuth|azi|az)[\s_-]*(corrected[\s_-]*)?(tn|true)$|^true[\s_
 // went in as grid north unasked: surv / survey type, method, tool, instrument
 const INSTRUMENT_COLS = /^(instrument|surv(ey)?[\s_-]*(tool|instrument|method|type|inst)|tool|method)$/i;
 // #3209 — magnetic downhole tools by name (a gyro word wins: 'Reflex Gyro' is a gyro)
+const OTHER_SHARE_MAX = 0.05; // #3734 — the share of stations by a tool it cannot class that still leaves the gyro hint standing
 const MAGNETIC_TOOL = /reflex|ez[\s_-]*(shot|trac)|multi[\s_-]*shot|single[\s_-]*shot|compass|eastman|tropari|devi[\s_-]*shot|magnetic/;
 function correctedColumns(headers, rows) {
   const hs = headers || [];
@@ -80,8 +81,20 @@ function correctedColumns(headers, rows) {
   }
   const inst = hs.find((h) => INSTRUMENT_COLS.test(String(h).trim()));
   if (inst) {
-    const kinds = new Set();
-    for (const r of rows || []) { const s = String(r?.[inst] ?? "").trim().toLowerCase(); if (s) kinds.add(/gyro/.test(s) ? "gyro" : MAGNETIC_TOOL.test(s) ? "magnetic" : "other"); }
+    const kinds = new Set(), count = { gyro: 0, magnetic: 0, other: 0 }, otherWords = new Map();
+    for (const r of rows || []) {
+      const raw = String(r?.[inst] ?? "").trim(), s = raw.toLowerCase();
+      if (!s) continue;
+      const k = /gyro/.test(s) ? "gyro" : MAGNETIC_TOOL.test(s) ? "magnetic" : "other";
+      kinds.add(k); count[k]++;
+      if (k === "other") otherWords.set(raw, (otherWords.get(raw) || 0) + 1);
+    }
+    // TASKS.csv #3734 (Scottie Gold) — 6,434 of 6,437 stations 'DeviGyro OX' and three collar readings by the rig aligner ('Devi_align') lost the gyro hint: every row had to say
+    // gyro. A gyro on nearly every station (OTHER_SHARE_MAX of the rest, and no magnetic tool among them) is still the hint, and the dialog says how many stations it rests on.
+    const total = count.gyro + count.magnetic + count.other;
+    if (kinds.size === 2 && kinds.has("gyro") && kinds.has("other") && count.other / total <= OTHER_SHARE_MAX) {
+      return { ref: "true", col: inst, mixed: false, hint: true, share: { n: count.gyro, of: total, others: [...otherWords].sort((a, b) => b[1] - a[1]).map(([w]) => w).slice(0, 3) } };
+    }
     if (kinds.size === 1 && kinds.has("gyro")) return { ref: "true", col: inst, mixed: false, hint: true };
     // #3209 — magnetic tools only: a hint of magnetic north (the dialog opens with it, and asks the date); gyro and magnetic tools in one file: the
     // dialog asks which north, and says why

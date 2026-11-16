@@ -51,13 +51,17 @@ export function anhydrousRows(rows, majors) {
     const f = 100 / s.total, values = { ...a.values };
     for (const m of majors) values[m.symbol] = Number(a.values[m.symbol]) * f;
     const row = { ...a, values };
-    Object.defineProperty(row, "source", { value: a });
+    Object.defineProperty(row, FROM, { value: a }); // #3743: a key of its own, not 'source' (the row's own 'assay' / 'pXRF' stays as it is)
     out.push(row);
   }
   Object.defineProperty(out, "leftOut", { value: left });
   return out;
 }
-export const sourceRow = (r) => r?.source || r; // #2942 — the row a recalculated copy came from
+// TASKS.csv #3743 (Scottie Gold review; regression of #2942) — 'by logged lithology' drew every sample grey: this read r.source, and every imported
+// assay row carries its own source string ('assay', 'pXRF'), so the lithology lookup got the word, not the row. The parent is kept under a private
+// key, and the copy keeps the source string its parent has.
+const FROM = Symbol("geostrix.sourceRow");
+export const sourceRow = (r) => (r && r[FROM]) || r; // #2942 — the row a recalculated copy came from
 
 // every sample: the complete sums, their spread, the samples with an oxide over 100 %. -> { n, incomplete, totals: [{ a, total }], median, p5, p95, over100: [{ a, oxide, value }] }
 export function oxideTotals(assays, majors) {

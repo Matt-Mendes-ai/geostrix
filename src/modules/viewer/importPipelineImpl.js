@@ -56,6 +56,7 @@ import { isNullSentinel, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMap
 import { alterationStyleFromName, styledAltValue, isBlankCode, NO_CODE, blankCodeText, skipBlankValue, mineralListValue } from "../../lib/viewer/importHelpers.js"; // TASKS.csv #1511; isBlankCode: #2182; skipBlankValue: #2021
 import { fillDownHoleIds, numberedSiblings, allCodesOf, normInterval, applyCustomFields, normNumericInterval, normStructure, skippedRowsText, strikeStats, loadRaster, looksLikeAssay, isSurfaceSampleTable, looksLikeSurfaceSamples /* #2268 */, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
 import { unreadableFormatAdvice } from "../../lib/unreadableFormats.js"; // TASKS.csv #603
+import { looksLikeTextTable } from "../../lib/textTableSniff.js"; // TASKS.csv #3737
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { layerOverlapOf } from "../../lib/viewer/layerOverlap.js"; // #1649
 import { requestModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #917; useModuleAction: #2019
@@ -63,6 +64,7 @@ import { densityNote } from "../../lib/densityNote.js"; // TASKS.csv #3529
 import { densityRangeOf } from "../../lib/densityRange.js"; // TASKS.csv #3587
 import { companionLayer, surveyMethodFields, columnsLeftOut, suscInstrumentFields, dialogExtraFields, queueExtraFields } from "../../lib/viewer/autoExtras.js"; // queueExtraFields: #3544 (C2) // suscInstrumentFields: #2668 // TASKS.csv #1501; surveyMethodFields: #2187
 import { yearsAsNumbers } from "../../lib/collarYear.js"; // TASKS.csv #3545
+import { attrTwinGroups } from "../../lib/attrTwins.js"; // TASKS.csv #3733
 import { surfaceAttrColumns, surfaceAttrs } from "../../lib/geochemColumns.js"; // TASKS.csv #1504 — unmapped collar columns kept as attrs; #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 import { rasterDrapeElevation, drapeElevationNote, planElevation } from "../../lib/drapeElevation.js"; // TASKS.csv #1505; planElevation: #2294
 import { projectTargetEpsg } from "../../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
@@ -323,7 +325,7 @@ export function makeImportPipeline(ctx, h) {
     const m = skipBlankValue(mapping, headers, rows);
     return ov ? { target, mapping: m, guessNote: ov } : { target, mapping: m };
   };
-  const azRefFor = (target, headers, rows) => { const d = AZ_TARGETS.has(target) ? detectAzimuthRef(headers, rows) : null; if (d?.tools && !d.ref) return { azimuthToolsCol: d.col }; /* #3209 */ return d?.ref ? { azimuthRef: d.ref, azimuthRefFrom: d.col, ...(d.also ? { azimuthRefAlso: d.also } : {}) } : {}; }; // also: #2154
+  const azRefFor = (target, headers, rows) => { const d = AZ_TARGETS.has(target) ? detectAzimuthRef(headers, rows) : null; if (d?.tools && !d.ref) return { azimuthToolsCol: d.col }; /* #3209 */ return d?.ref ? { azimuthRef: d.ref, azimuthRefFrom: d.col, ...(d.also ? { azimuthRefAlso: d.also } : {}), ...(d.share ? { azimuthRefShare: d.share } : {}) /* #3734 */ } : {}; }; // also: #2154
   // TASKS.csv #2015 — a survey sheet's corrected azimuth column (grid when filled, else true north) is the one read
   const azColFor = (target, headers, rows, mapping) => { if (target === "structure" && mapping?.value) return { ...mapping, value: fullestTypeColumn(headers, rows, mapping.value) }; /* #2188 — the fullest of several *_StrucType columns */ if (target !== "survey" && target !== "collars") return mapping; /* collars: #2154 (Azimuth_MAG beside Azimuth_TRUE) */ const d = detectAzimuthRef(headers, rows); return d?.azimuthCol ? { ...mapping, azimuth: d.azimuthCol } : mapping; };
   // TASKS.csv #2341 — the file's columns this import did not read, named in the notice ("Add one under Extra fields to keep it")
@@ -716,6 +718,8 @@ export function makeImportPipeline(ctx, h) {
       if (repeats.dropped) parts.push(tr("{n} row(s) shared a hole id with an earlier row of the file; the first was kept ({ids})", { n: repeats.dropped, ids: repeats.holes.slice(0, 6).join(", ") + (repeats.holes.length > 6 ? ", …" : "") })); // #2172
       if (ranked.dropped) parts.push(tr("{holes} hole(s) had several location records ({dropped} extra rows) — kept the lowest \"{rankColumn}\" for each: {holes2}{v}", { holes: ranked.holes.length, dropped: ranked.dropped, rankColumn: ranked.rankColumn, holes2: ranked.holes.slice(0, 5).join(", "), v: ranked.holes.length > 5 ? ", …" : "" }));
       if (attrCols.length) parts.push(tr("{n} more column(s) kept with each hole (Identify shows them): {cols}", { n: attrCols.length, cols: attrCols.slice(0, 8).join(", ") + (attrCols.length > 8 ? "…" : "") })); // #1504
+      // TASKS.csv #3733 — attribute values that are one value spelled two ways ('D zone' / 'D Zone', 'Gully' / 'Gully Zone'): two classes in the hole filter and Grade statistics
+      { const tw = attrTwinGroups(ranked.rows, attrCols).slice(0, 4); if (tw.length) parts.push(tr("{n} attribute value(s) look like one value spelled two ways and stay separate classes in the hole filter, the hole colours and Grade statistics (make them the same in the file to merge them): {list}", { n: tw.length, list: tw.map((g) => `${g.col}: ${g.values.map((v) => `'${v.value}' (${v.n})`).join(" / ")}`).join("; ") })); }
       if (notKept.length) parts.push(tr("{n} column(s) not imported, each with more than 100 different values (add one under Extra fields to keep it): {cols}", { n: notKept.length, cols: notKept.slice(0, 8).join(", ") + (notKept.length > 8 ? "…" : "") })); // #2492 / #2190
       // #2014 (review #2013, Woodjam) — 534 of 544 district collars had no azimuth / dip column and no survey: they were counted
       // ("Holes: 544") and never drawn, and this notice did not say so. They are now drawn as assumed vertical holes; say it here.
@@ -802,7 +806,7 @@ export function makeImportPipeline(ctx, h) {
         + (data.azimuthRefFrom && mapping.azimuth === data.azimuthRefFrom ? tr(" Azimuths read from the {col} column ({north}).", { col: mapping.azimuth, north: azNorth(azimuthRef, azs) }) : "") // #2015; magnetic: #2154
         + (data.azimuthRefFrom && mapping.azimuth !== data.azimuthRefFrom && azimuthRef ? tr(" North reference from the {col} column ({north}).", { col: data.azimuthRefFrom, north: azNorth(azimuthRef, azs) }) : "") // #2154 (AZIMUTHGRIDNAME)
         + svExtraNote
-        + (methodSum ? tr(" {col}: {assumed} of {n} hole(s) have only assumed survey stations (their direction was not measured), {measured} measured; each hole's collar now says 'survey method: assumed / measured' (hole list filter and colour, Identify).", { col: methodSum.key, assumed: methodSum.assumed.length, n: methodSum.byHole.size, measured: methodSum.measured }) + (methodFold.size ? tr(" Spellings folded: {list}.", { list: [...methodFold].map(([a, b]) => `${a} → ${b}`).join(", ") }) : "") : "") // #2494
+        + (methodSum ? tr(" {col}: {assumed} of {n} hole(s) have only assumed survey stations (their direction was not measured), {measured} measured; each hole's collar now says 'survey method: assumed / measured' (hole list filter and colour, Identify).", { col: methodSum.key, assumed: methodSum.assumed.length, n: methodSum.counted, measured: methodSum.measured }) + (methodSum.unread.length ? tr(" {n} more hole(s) have only {list} stations, a tool it does not class as measured or assumed (no survey method is set on them).", { n: methodSum.unread.length, list: methodSum.unreadWords.slice(0, 3).join(", ") }) : "") + (methodFold.size ? tr(" Spellings folded: {list}.", { list: [...methodFold].map(([a, b]) => `${a} → ${b}`).join(", ") }) : "") : "") // #2494
         + (unseen && !azimuthRef && !azimuthGridEpsg ? tr(" Azimuths taken as grid north: the file does not say which north (import it on its own to choose true or magnetic north).") : "")]); // #1647
     } else if (target === "structure") {
       // TASKS.csv #719 — no sign convention for structure dips: the "negative = down" radio is shown only for collars and
@@ -1277,10 +1281,14 @@ export function makeImportPipeline(ctx, h) {
     const vsNames = grouped.files.filter((f) => /\.vs$/i.test(f.name)).map((f) => f.name);
     // TASKS.csv #1991 — a Leapfrog .msh is a solid; a UBC-GIF tensor mesh (also .msh, text 'NX NY NZ') is a block model mesh
     const mshAdvice = [];
+    // TASKS.csv #3738 (Scottie Gold) — a UBC model file (.chg / .con / .mod / .den / .sus) dropped beside its .msh was '1 unrecognized file(s) skipped' with no name: the pair is named together
+    const ubcModels = grouped.files.filter((x) => /\.(chg|con|mod|den|sus)$/i.test(x.name));
     for (const f of grouped.files.filter((x) => /\.msh$/i.test(x.name))) {
-      if (looksLikeUbcMesh(new Uint8Array(await f.slice(0, 400).arrayBuffer()))) mshAdvice.push(notice("{name}: a UBC-GIF mesh. Load it with its model file in Geophysics > Block models.", { name: f.name }));
+      if (looksLikeUbcMesh(new Uint8Array(await f.slice(0, 400).arrayBuffer()))) mshAdvice.push(ubcModels.length ? notice("{name} with {models}: a UBC-GIF mesh and its model. Load them together in Geophysics > Block models (Import UBC mesh + model…).", { name: f.name, models: ubcModels.slice(0, 3).map((m) => m.name).join(", ") + (ubcModels.length > 3 ? " …" : "") }) : notice("{name}: a UBC-GIF mesh. Load it with its model file in Geophysics > Block models.", { name: f.name }));
       else importSolidFile(f);
     }
+    const ubcPaired = mshAdvice.length ? new Set(ubcModels) : new Set(); // read with the mesh: not 'unrecognized'
+    const ubcPairedN = ubcPaired.size;
     const mshCount = grouped.files.filter((x) => /\.msh$/i.test(x.name)).length;
     let files = grouped.files.filter((f) => /\.(csv|zip|gpkg|shp|kml|kmz|xlsx|las)$/i.test(f.name)); // kml/kmz: #424, xlsx: #605, las: #492
     // TASKS.csv #603 — a closed format (Geosoft .gdb / .grd, .dwg, Access) gets the way out, not "unrecognized"
@@ -1309,13 +1317,22 @@ export function makeImportPipeline(ctx, h) {
       advised.push(notice("{names}: XYZ point files are read on the Geophysics tab, which opens them now.", { names: xyzFiles.slice(0, 4).map((f) => f.name).join(", ") + (xyzFiles.length > 4 ? " …" : "") }));
     }
     if (advised.length) setNotices((p) => [...p, ...advised]);
-    const skipped = grouped.files.length - files.length - direct.length - advised.length - voFiles.length - voSide.size /* #2632 */ - (mshCount - mshAdvice.length) /* #1991: the Leapfrog meshes went to the solid import */ - Math.max(0, vsNames.length - 1) /* #1992 */ - Math.max(0, ediNames.length - 1) /* #1989: one notice for all of them */ - Math.max(0, lidarNames.length - 1) /* #1994 */ - Math.max(0, xyzFiles.length - 1) /* #3212 */ - sideInFiles /* #2901: read with their raster */ + grouped.unmatched.length;
+    const skipped = grouped.files.length - files.length - direct.length - advised.length - voFiles.length - voSide.size /* #2632 */ - (mshCount - mshAdvice.length) /* #1991: the Leapfrog meshes went to the solid import */ - Math.max(0, vsNames.length - 1) /* #1992 */ - Math.max(0, ediNames.length - 1) /* #1989: one notice for all of them */ - Math.max(0, lidarNames.length - 1) /* #1994 */ - Math.max(0, xyzFiles.length - 1) /* #3212 */ - sideInFiles /* #2901: read with their raster */ - ubcPairedN /* #3738 */ + grouped.unmatched.length;
+    // TASKS.csv #3738 — the skipped files are NAMED ('1 unrecognized file(s) skipped' said nothing a person could act on)
+    const handledName = (f) => files.includes(f) || direct.includes(f) || voFiles.includes(f) || voSide.has(f.name) || /\.(msh|vs|edi|la[sz]|xyz)$/i.test(f.name) || sideUsed.has(f) || ubcPaired.has(f) || !!unreadableFormatAdvice(f.name);
+    const skippedNames = [...grouped.files.filter((f) => !handledName(f)), ...grouped.unmatched].map((f) => f.name);
+    { // TASKS.csv #3737 — a skipped file that reads as a text table (.sur, .tx ...) is named as one, with the way in
+      const tableLike = [];
+      for (const f of grouped.files.filter((x) => !handledName(x) && !/\.(csv|xlsx|zip|shp|gpkg|kml|kmz|las|tiff?|gxf|grd|dxf|obj|ts|gp|pl)$/i.test(x.name))) { try { if (looksLikeTextTable(await f.slice(0, 4000).text())) tableLike.push(f.name); } catch { /* unreadable: left as skipped */ } }
+      if (tableLike.length) setNotices((p) => [...p, notice("{names}: looks like a text table. Rename it to .csv (comma, tab, semicolon or space separated) to import it here.", { names: tableLike.slice(0, 4).join(", ") + (tableLike.length > 4 ? " …" : "") })]);
+    }
+    const skippedNotice = () => (skippedNames.length ? notice("{skipped} unrecognized file(s) skipped: {names}.", { skipped: skippedNames.length, names: skippedNames.slice(0, 4).join(", ") + (skippedNames.length > 4 ? " …" : "") }) : notice("{skipped} unrecognized file(s) skipped.", { skipped }));
     if (!files.length) {
       if (!direct.length && !advised.length && !mshCount && !voFiles.length) setNotices((p) => [...p, notice("Not imported from this drop: {names}. Dropped here, the 3D View reads .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml / .kmz, .las logs, GeoTIFF / .gxf / .grd grids and .dxf / .obj files; point surveys (.xyz) open on the Geophysics tab.", { names: grouped.files.slice(0, 4).map((f) => f.name).join(", ") + (grouped.files.length > 4 ? " …" : "") })]); // #3212 — the file named; an info, not a red notice left on screen
-      else if (skipped) setNotices((p) => [...p, notice("{skipped} unrecognized file(s) skipped.", { skipped })]);
+      else if (skipped) setNotices((p) => [...p, skippedNotice()]);
       return;
     }
-    if (skipped) setNotices((p) => [...p, notice("{skipped} unrecognized file(s) skipped.", { skipped })]);
+    if (skipped) setNotices((p) => [...p, skippedNotice()]);
     // TASKS.csv #605 — an Excel workbook becomes one CSV per non-empty sheet ("Book - Sheet.csv"), queued like
     // dropped CSVs: same detection (the sheet name is the hint), same dialogs.
     if (files.some((f) => isXlsxName(f.name))) {

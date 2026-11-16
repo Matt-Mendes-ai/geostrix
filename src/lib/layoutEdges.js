@@ -21,7 +21,19 @@ export function elementCaption(el, max = 24) {
 
 // TASKS.csv #3028 (3) — a table sent from a tool (Best intercepts, source "static") is not a collar table: the kind the confirm names
 export const elementKind = (el) => (el?.type === "table" && el?.source === "static" ? "statictable" : el?.type);
-// the elements of one page past its edge -> [{ id, type, caption, sides }]
+// TASKS.csv #3703 — an element that lies wholly outside its sheet (a title block left at x 1,252 px when a Tabloid page became A4):
+// nothing of it can print. By its whole box where the size is known, else by where it starts (a content-sized element only grows
+// right and down, so one starting at or past the right or bottom edge is outside). A turned element is never called outside (its
+// box turns about its centre and may come back onto the sheet), nor is an arrow.
+export function whollyOffSheet(el, page) {
+  if (!el || el.type === "arrow" /* drawn from its tail at any angle: it can point back onto the sheet */ || (Number(el.rotation) || 0) % 360 !== 0) return false;
+  const b = knownBox(el);
+  const m = el.type === "north" ? 40 : 0; // #2309 — the diagram's GN / TN / MN captions run a little outside its box
+  if (b) return b.x >= page.w + m || b.y >= page.h + m || b.x + b.w <= -m || b.y + b.h <= -m;
+  return (Number(el.x) || 0) >= page.w || (Number(el.y) || 0) >= page.h;
+}
+
+// the elements of one page past its edge -> [{ id, type, caption, sides, out }]; out: wholly outside the sheet (#3703)
 export function offSheetElements(elements, page, tol = 1) {
   const out = [];
   for (const el of elements || []) {
@@ -29,7 +41,7 @@ export function offSheetElements(elements, page, tol = 1) {
     const x = Number(el?.x) || 0, y = Number(el?.y) || 0;
     // sized by its content: only where it starts is known
     const past = b ? sides(b.x, b.y, b.x + b.w, b.y + b.h, page.w, page.h, tol) : [x < 0 && "left", y < 0 && "top", x >= page.w && "right", y >= page.h && "bottom"].filter(Boolean);
-    if (past.length) out.push({ id: el.id, type: elementKind(el), caption: elementCaption(el), sides: past });
+    if (past.length) out.push({ id: el.id, type: elementKind(el), caption: elementCaption(el), sides: past, out: whollyOffSheet(el, page) });
   }
   return out;
 }
@@ -58,4 +70,9 @@ export function rectSidesPast(rects, sheet, tol = 1) {
     for (const sd of sides(b.left - sheet.left, b.top - sheet.top, b.right - sheet.left, b.bottom - sheet.top, sheet.right - sheet.left, sheet.bottom - sheet.top, tol)) hit.add(sd);
   }
   return ["left", "top", "right", "bottom"].filter((sd) => hit.has(sd));
+}
+// #3703 — the page on screen: every one of the rects (the element and its text) lies outside the sheet, so none of it prints
+export function rectsWhollyOff(rects, sheet) {
+  const shown = (rects || []).filter((b) => b && (b.right - b.left > 0 || b.bottom - b.top > 0));
+  return shown.length > 0 && shown.every((b) => b.left >= sheet.right || b.right <= sheet.left || b.top >= sheet.bottom || b.bottom <= sheet.top);
 }

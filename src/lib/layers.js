@@ -325,10 +325,21 @@ function coverRoles(rows, keys, out) {
 export function coverTopShare(u) { return noteRoles?.cover?.get(String(u || "").trim().toLowerCase()) ?? null; }
 let noteRoles = null;
 export function setLithologyNoteRoles(map) { noteRoles = map && map.size ? map : null; }
+// TASKS.csv #3735 (Scottie Gold import review) — the project's own meaning of each lithology code (the code dictionary, lib/codeDictionary.js): the 3D legend read 'FLT — Fault zone'
+// where the file says 'gouge' and bare codes for the rest; the overburden / casing roles never saw a dictionary that says 'overburden' / 'casing' for OVBN / CSG.
+// Set by the store (as the note roles are); a code with no entry keeps the built-in name.
+let lithoMeanings = null; // lower-cased code -> description
+export function setLithologyMeanings(dict) {
+  const m = new Map();
+  for (const [k, e] of Object.entries(dict || {})) { const d = String(e?.desc ?? "").trim(); if (d) m.set(String(k).trim().toLowerCase(), d); }
+  lithoMeanings = m.size ? m : null;
+}
+export function lithoMeaning(u) { const d = lithoMeanings?.get(String(u ?? "").trim().toLowerCase()); return d ? `${u} — ${d}` : null; }
+const meaningRole = (k) => { const d = lithoMeanings?.get(k)?.toLowerCase(); return d ? (UNIT_ROLES[d] || ROLE_PATTERNS.find(([re]) => re.test(d))?.[1] || null) : null; };
 // TASKS.csv #2537 — the role came from the default ('stratigraphic' for a code nothing recognises), not from a rule: the pane marks it
 export function roleIsAssumed(u) {
   const k = String(u || "").trim().toLowerCase();
-  return k !== "unknown" && !UNIT_ROLES[k] && !ROLE_PATTERNS.some(([re]) => re.test(k)) && !noteRoles?.get(k);
+  return k !== "unknown" && !UNIT_ROLES[k] && !ROLE_PATTERNS.some(([re]) => re.test(k)) && !noteRoles?.get(k) && !meaningRole(k);
 }
 // TASKS.csv #3366 (#3195, Galore Creek) — the role came from the code's notes (#2046), not from its name: the Subcrop pane says so beside a
 // code it skipped as cover, so a wrong guess (breccia B read as no recovery from its cement, #3254) can be seen and unticked
@@ -339,7 +350,7 @@ export function roleIsFromNotes(u) {
 export function roleForLithology(u) {
   const k = String(u || "").trim().toLowerCase();
   if (k === "unknown") return "no recovery"; // TASKS.csv #2227 — the label blank cells import as (#2182) is not logged rock: never a unit, never a role from notes
-  return UNIT_ROLES[k] || ROLE_PATTERNS.find(([re]) => re.test(k))?.[1] || noteRoles?.get(k) || "stratigraphic";
+  return UNIT_ROLES[k] || ROLE_PATTERNS.find(([re]) => re.test(k))?.[1] || meaningRole(k) /* #3735 */ || noteRoles?.get(k) || "stratigraphic";
 }
 // Cross-cutting = doesn't belong in an ordered, non-crossing stratigraphic pile (see the Stack tool's
 // own scope comment in ViewerModule.jsx) — faults, dykes, breccia bodies and veins (#1369) all qualify.
@@ -807,7 +818,7 @@ function jenksBreaks(sorted, nClasses) {
 }
 
 export const LAYER_META = {
-  litho:    { label: "Lithology",      kind: "interval", radius: 2.2, opacity: 1,    colorFn: colorForLithology, nameFn: (u) => UNIT_NAMES[u] || u, numeric: false },
+  litho:    { label: "Lithology",      kind: "interval", radius: 2.2, opacity: 1,    colorFn: colorForLithology, nameFn: (u) => lithoMeaning(u) || UNIT_NAMES[u] || u /* #3735: this project's own meaning first */, numeric: false },
   alt:      { label: "Alteration",     kind: "interval", radius: 3.4, opacity: 0.4,  colorFn: colorForAlteration, numeric: false },
   vein:     { label: "Veins",          kind: "interval", radius: 1.0, opacity: 0.9,  colorFn: colorForVein, numeric: false },
   breccia:  { label: "Breccia",        kind: "interval", radius: 1.6, opacity: 0.85, colorFn: colorForBreccia, numeric: false }, // TASKS.csv #608

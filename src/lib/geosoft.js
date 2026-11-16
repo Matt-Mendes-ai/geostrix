@@ -182,7 +182,7 @@ export function parseXYZ(text) {
   // PLAIN comma line ('X,Y,PROJECT,STATION,...'), and end every data row with a comma. The last "/" line was taken as the header (columns
   // 'Local:"WGS 84"', '0', '0', ...) and the real header became a first row of nulls. A plain line of names (three or more tokens, none a
   // number) before the first data row is the header when that row has as many fields, or one more that is empty (the trailing comma).
-  let plainHeader = null;
+  let plainHeader = null, headerless = false;
   const isNameRow = (toks) => toks.length >= 3 && toks.every((t) => t !== "" && t !== "*" && !Number.isFinite(Number(t)) && !t.includes(":"));
   for (const raw of lines) {
     const trimmed = raw.trim();
@@ -202,8 +202,12 @@ export function parseXYZ(text) {
       if (isNameRow(toks)) { plainHeader = toks; continue; } // a plain line of column names: a header candidate, never a data row
       const n = toks.length;
       if (plainHeader && (plainHeader.length === n || (plainHeader.length === n - 1 && toks[n - 1] === ""))) columns = plainHeader;
-      else {
-        if (!candidates.length) continue; // a data-shaped row before any header was seen — can't map columns, skip
+      else if (!candidates.length) {
+        // TASKS.csv #3737 (Scottie Gold) — the commonest .xyz there is, 'x y z' on every line and no header, was refused as 'not Geosoft': when the first line that is not a
+        // comment is all numbers (3 to 12 columns), the columns are 'Column 1' ... and the picker takes the first three as X, Y, Z
+        if (!(toks.length >= 3 && toks.length <= 12 && toks.every((t) => t !== "" && Number.isFinite(Number(t))))) continue; // a data-shaped row before any header was seen — can't map columns, skip
+        columns = toks.map((_, i) => `Column ${i + 1}`); headerless = true;
+      } else {
         columns = [...candidates].reverse().find((c) => c.length === toks.length) || candidates[candidates.length - 1];
       }
     }
@@ -219,5 +223,5 @@ export function parseXYZ(text) {
   }
   if (!columns) throw new Error(tr("No column header line found — expected a \"/\"-prefixed header row (Geosoft .xyz format)."));
   if (!rows.length) throw new Error(tr("No data rows found in this .xyz file."));
-  return { columns, rows };
+  return { columns, rows, ...(headerless ? { headerless: true } : {}) };
 }

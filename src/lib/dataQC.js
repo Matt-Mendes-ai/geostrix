@@ -22,6 +22,7 @@ import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the inter
 import { DEFAULT_DENSITY_RANGE } from "./densityRange.js"; // TASKS.csv #3587
 import { surveyAzimuthDipAt } from "./desurvey.js"; // TASKS.csv #1109
 import { surveyMethodByHole } from "./surveyMethod.js"; // TASKS.csv #2494
+import { surveyGapFinder } from "./surveyGaps.js"; // TASKS.csv #3730
 import { coverageInfos } from "./dataQcCoverage.js"; // TASKS.csv #2493
 import { suspectElevationIds } from "./collarElevationTrust.js"; // TASKS.csv #3004 / #2896
 
@@ -182,6 +183,7 @@ function* validateSurveyAndTrajectorySteps(collars, survey, { doglegWarn = 3, do
   } else orphanStations.forEach((n, id) => pushIssue(issues, "error", "Survey", id, tr("{n} survey stations for hole \"{hole_id}\", which has no matching collar: this hole cannot be desurveyed and won't render.{v}", { n, hole_id: id, v: didYouMean(collarIds, id) })));
   const lengthOf = new Map(collars.map((c) => [c.hole_id, Number(c.length)]));
   const collarOnly = []; // TASKS.csv #2335 — holes surveyed at the collar only (see below)
+  const gapsIn = surveyGapFinder(byHole); // #3730
   for (const [holeId, stations] of byHole) {
     if (++tick % HOLE_STEP === 0) yield;
     const sorted = [...stations].sort((a, b) => a.depth - b.depth);
@@ -199,6 +201,14 @@ function* validateSurveyAndTrajectorySteps(collars, survey, { doglegWarn = 3, do
       if (one && (steep || eoh <= COLLAR_ONLY_LONG_M)) collarOnly.push({ eoh, steep });
       else {
         pushIssue(issues, "warning", "Survey", holeId, tr("The survey ends at {v} m, {v2} m above the end of the hole ({v3} m, {v4}%): the trace below is carried on with the last attitude, a guess — the hole's real path down there is unknown.", { v: +last.toFixed(1), v2: +(eoh - last).toFixed(1), v3: +eoh.toFixed(1), v4: Math.round((100 * (eoh - last)) / eoh) }));
+      }
+    }
+    { // TASKS.csv #3730 — a stretch with no station between two stations, far wider than this hole's (or the project's) usual spacing: the trace there is interpolated, not measured
+      const finite = sorted.filter((x) => Number.isFinite(x.depth));
+      const found = gapsIn(finite);
+      if (found) {
+        const w = found.widest, total = Number.isFinite(eoh) && eoh > 0 ? eoh : (finite.length ? finite[finite.length - 1].depth : NaN), pct = Number.isFinite(total) && total > 0 ? Math.round((100 * (w.to - w.from)) / total) : null;
+        pushIssue(issues, "warning", "Survey", holeId, tr("No survey station between {from} m and {to} m ({v}% of the hole; the stations are usually {usual} m apart): the path there is interpolated between the two stations, not measured.", { from: +w.from.toFixed(1), to: +w.to.toFixed(1), v: pct ?? "?", usual: +found.usual.toFixed(1) }) + (found.gaps.length > 1 ? " " + tr("{n} gaps like this on this hole; this is the widest.", { n: found.gaps.length }) : ""));
       }
     }
     // Duplicate-depth stations.
@@ -242,7 +252,7 @@ function* validateSurveyAndTrajectorySteps(collars, survey, { doglegWarn = 3, do
   }
   { // TASKS.csv #2494 (review #2486) — holes whose survey method column says every station is assumed (planned, nominal, collar set-up)
     const sm = surveyMethodByHole(survey);
-    if (sm?.assumed.length) pushIssue(issues, "info", "Survey", null, tr("{n} of {m} hole(s) have only assumed survey stations ({col}): their direction was not measured, so where they go below the collar is an assumption ({ids}).", { n: sm.assumed.length, m: sm.byHole.size, col: sm.key, ids: sm.assumed.slice(0, 6).join(", ") + (sm.assumed.length > 6 ? ", …" : "") }));
+    if (sm?.assumed.length) pushIssue(issues, "info", "Survey", null, tr("{n} of {m} hole(s) have only assumed survey stations ({col}): their direction was not measured, so where they go below the collar is an assumption ({ids}).", { n: sm.assumed.length, m: sm.counted, col: sm.key, ids: sm.assumed.slice(0, 6).join(", ") + (sm.assumed.length > 6 ? ", …" : "") }));
   }
   const noSurvey = collars.filter((c) => !byHole.has(c.hole_id));
   // TASKS.csv #339 — the straight-hole fallback has two silent failure modes (desurvey.js
