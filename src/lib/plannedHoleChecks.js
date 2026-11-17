@@ -120,8 +120,8 @@ export function targetBandIndex(model) {
 // first COLLAR_ZONE_M of the planned hole are then left out of the nearest-hole search; the depth where it comes closest is said.
 export const PAD_M = 10, COLLAR_ZONE_M = 50;
 // TASKS.csv #2976 — the checks' default minimum spacing: a quarter of the drilled holes' site spacing, to 0.1 m (none without one)
-// TASKS.csv #3824 (3) (Scottie Gold review) — a neighbouring pad 14.5 m away was not 'the same pad' (10 m) but was inside the default minimum (15.9 m), so a hole from DH23-309's
-// pad printed in red 'Nearest existing hole: DH23-310 — 14.5 m (within the 15.9 m minimum)' at the collar: the same-pad distance is the larger of 10 m and the minimum spacing
+// TASKS.csv #3824 (3) (Scottie Gold review) — a neighbouring pad 14.5 m away was not 'the same pad' (10 m) but was inside the default minimum (15.9 m), so a hole from the next pad's
+// pad printed in red 'Nearest existing hole: DH-23-010 — 14.5 m (within the 15.9 m minimum)' at the collar: the same-pad distance is the larger of 10 m and the minimum spacing
 export const padRadius = (minSpacing) => Math.max(PAD_M, Number(minSpacing) > 0 ? Number(minSpacing) : 0);
 export const minSpacingFrom = (siteM) => (siteM > 0 ? Math.round((siteM / 4) * 10) / 10 : null);
 // -> [{ hole, nearestReal: { hole_id, distance, md } | null, samePad: [hole_id], targetHits: [{ modelId, modelName, metres }] }]

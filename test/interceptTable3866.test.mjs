@@ -25,7 +25,7 @@ test("a last page of a few rows takes rows from the page before; a full last pag
 
 test("the text is fitted with 1.5 % of slack: a table that just fits the measure is shrunk a little", () => {
   const measure = (t, px) => t.length * px * 0.5; // a monospaced stand-in
-  const cols = ["Hole", "From", "Including"], rows = [["DH23-236", "137.30", "2.00 m @ 99.5 g/t"]];
+  const cols = ["Hole", "From", "Including"], rows = [["DH-23-001", "41.30", "2.00 m @ 12.5 g/t"]];
   const need = (fs) => { const pad = Math.round(fs * 0.5); return cols.reduce((t, c, j) => t + Math.max(measure(c, fs), measure(rows[0][j], fs)) + 2 * pad, 0); };
   const fs0 = 10, exact = need(fs0);
   assert.equal(tableTextFit({ columns: cols, parts: [rows], fsPx: fs0, widthPx: exact, measure }).shrunk, true, "it fits to the pixel on paper terms but the real text is wider");

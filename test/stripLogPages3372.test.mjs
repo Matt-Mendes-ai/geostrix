@@ -98,7 +98,7 @@ test("#3856: with a credit on the sheet, a full page's caption ends above the cr
   const { creditsElement } = await import("../src/lib/layoutCredits.js");
   const { pagePx } = await import("../src/lib/pageFormats.js");
   const format = { size: "a4", orientation: "portrait" }, page = pagePx(format), el = logEl();
-  const credTop = creditsElement(format, "Data: BC ARIS assessment reports 40419Z and 42030Z").y, bottom = Math.max(64, Math.ceil(page.h - credTop + CAPTION_CLEAR_PX));
+  const credTop = creditsElement(format, "Data: Example assessment reports 00001Z and 00002Z").y, bottom = Math.max(64, Math.ceil(page.h - credTop + CAPTION_CLEAR_PX));
   const withCredit = splitStripLog(el, { pageW: page.w, pageH: page.h, denom: 1000, x: 40, y: 40, bottom });
   assert.ok(bottom > 64, `${bottom}`);
   for (const p of withCredit.pages.slice(1, -1)) assert.ok(40 + p.h + 8 + 16 <= credTop - 4 + 1e-6, `slice ${p.h} px + caption must end above the credit at ${credTop}`);
