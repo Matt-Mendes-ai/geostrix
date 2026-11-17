@@ -63,8 +63,9 @@ export function shortModelName(name) {
 }
 // TASKS.csv #3799 (Scottie Gold review: the bench and nested-pit CSVs carried no density, recovery or cost) — the settings a pit's tonnes and money were made
 // with, as CSV cells: the typed density (and waste density), recovery, price, mining and processing cost, wall slope, a typed cut-off. inputs: a pit's params.inputs
-export function pitSettingsCells(inputs) {
+export function pitSettingsCells(inputs, currency = null) { // currency: TASKS.csv #3797 (b) - the project currency the price and costs are in
   const i = inputs || {}, out = {};
+  if (currency) out.currency = currency;
   const put = (k, v) => { if (v != null && v !== "" && Number.isFinite(Number(v))) out[k] = Number(v); };
   put("density_t_m3", i.density); put("waste_density_t_m3", i.wasteDensity); put("recovery_pct", i.recovery); put("price", i.price); if (i.priceUnit) out.price_unit = i.priceUnit;
   put("mining_cost_per_t_rock", i.miningCost); put("processing_cost_per_t_ore", i.processingCost); put("slope_deg", i.slopeDeg); put("typed_cutoff", i.typedCutoff);

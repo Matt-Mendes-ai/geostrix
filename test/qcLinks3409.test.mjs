@@ -96,7 +96,7 @@ test("wired: a button in the link-table note, the commit in Geochem, the project
   assert.match(g, /onQcLinks=\{\(\) => commitQcLinks\(assayModal\)\}/);
   assert.match(g, /if \(linkCount\(project\?\.qcLinks\)\) \{ const ap = applyLinks\(rows, unpackLinks\(project\.qcLinks\)\); rows = ap\.rows; pairedLinks = ap\.matched; \}\n\s+\/\/ TASKS\.csv #336/);
   assert.match(s, /const setProjectQcLinks = useCallback\(\(qcLinks\) => setProject\(/);
-  assert.match(s, /setProjectDataCredit \/\* #3496 \*\/, (setProjectAzimuthNorth \/\* #3588 \(6\) \*\/, )?setProjectQcLinks \/\* #3409 \*\/,/);
+  assert.match(s, /setProjectDataCredit \/\* #3496 \*\/, (setProjectCurrency \/\* #3797 \*\/, )?(setProjectAzimuthNorth \/\* #3588 \(6\) \*\/, )?setProjectQcLinks \/\* #3409 \*\/,/);
   for (const lang of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(fs.readFileSync(new URL(`../src/locales/${lang}.json`, import.meta.url), "utf8"));
     for (const k of ["Import as QC links ({n} rows)", "Matched 0 of {m}: the check samples' results are not in the project. The {m} links are kept: assays imported later with these sample ids pair up."]) assert.ok(d[k], `${lang}: ${k.slice(0, 30)}`);

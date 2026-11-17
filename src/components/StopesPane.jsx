@@ -7,7 +7,7 @@ import { Box, Download, Layers3 } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
 import { stopeRows } from "../lib/stopeOutlines.js";
-import { elementOfModel, gradeWithElement, gradeUnitText, cutoffUnits, pitMetalOf, metalAmountText, metalCells, shortModelName } from "../lib/pitShell.js"; // TASKS.csv #2594; units: #2111; cutoffUnits: #2666; metal: #3795
+import { elementOfModel, gradeWithElement, gradeUnitText, cutoffUnits, pitMetalOf, priceUnitsFor, metalAmountText, metalCells, shortModelName } from "../lib/pitShell.js"; // TASKS.csv #2594; units: #2111; cutoffUnits: #2666; metal: #3795
 import { runStopeOutlinesAsync } from "../lib/stopeOutlinesClient.js"; // TASKS.csv #2279 — off the UI thread
 import { gradeCandidate } from "../lib/gradeCandidate.js"; // #1848
 import { categoricalModels } from "../lib/geologyForward.js";
@@ -28,6 +28,8 @@ import MiningWidthIntercepts from "./MiningWidthIntercepts.jsx"; // TASKS.csv #3
 import { modelSearchPlane } from "../lib/miningWidthIntercepts.js";
 import TopCutNote from "./TopCutNote.jsx"; // TASKS.csv #3794
 import { topCutCells, topCutRecord } from "../lib/topCutCells.js";
+import { stopeEconomicsSetup, stopeValue, stopeValueCells, NOT_INCLUDED } from "../lib/stopeEconomics.js"; // TASKS.csv #3797 — the optional economics
+import { currencyOf, withCurrency, moneyText } from "../lib/currency.js"; // TASKS.csv #3797 (b)
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
@@ -35,14 +37,14 @@ const warn = { ...note, color: "var(--color-warn-text-strong)", marginTop: 4 };
 const num = { ...smallSel, width: 84 };
 const big = (v) => new Intl.NumberFormat(undefined, { notation: "compact", maximumSignificantDigits: 3 }).format(v);
 const LEVEL_COLOURS = ["#e76f51", "#f4a261", "#e9c46a", "#2a9d8f", "#264653", "#8ab17d", "#bc6c25", "#6d597a"];
-const EMPTY = { modelId: "", cutoff: "", levelH: "", zMin: "", zMax: "", minWidth: "", minLength: "", skin: "", density: "", dip: "", dipDir: "", pitId: "", pillar: "", crown: "", cutIn: "" }; // crown: #2438; cutIn: #2111 ("%" for a ppm model of a metal read in percent) // dip / dipDir: #1953; pitId / pillar: #1964
+const EMPTY = { modelId: "", cutoff: "", levelH: "", zMin: "", zMax: "", minWidth: "", minLength: "", skin: "", density: "", dip: "", dipDir: "", pitId: "", pillar: "", crown: "", cutIn: "", price: "", priceUnit: "", recovery: "", miningCost: "", processingCost: "", otherCost: "" }; // price .. otherCost: #3797 — the optional economics // crown: #2438; cutIn: #2111 ("%" for a ppm model of a metal read in percent) // dip / dipDir: #1953; pitId / pillar: #1964
 let kept = null; // #1356 — the last result outlives the pane (this session)
 
 // onAdd as the pit pane's (a solid into the generated surfaces); onRemove(id) takes one out again (#1887: a re-run replaces the
 // stopes this pane put in the view)
 // surfaces / meshOf (#1964): the generated surfaces (pit shells and designs to start below) and a surface's mesh in world E, N, Z
 export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onShow = null, onRemoveMany = null, surfaces = [], meshOf = null }) { // stopes / onShow / onRemoveMany: TASKS.csv #1968
-  const { voxelModels = [], layers, project, terrain, collars = [] /* #2438 */, survey = [] /* #3634 */, setDesignStrings, designStrings = [], generatedSurfaces = [] } = useStore(); // generatedSurfaces: #1968 — the saved copy a Restore rebuilds from
+  const { voxelModels = [], layers, project, terrain, collars = [] /* #2438 */, survey = [] /* #3634 */, setDesignStrings, designStrings = [], generatedSurfaces = [], setProjectCurrency } = useStore(); // generatedSurfaces: #1968 — the saved copy a Restore rebuilds from
   const models = useMemo(() => { const cat = new Set(categoricalModels(voxelModels)); return voxelModels.filter((m) => gradeCandidate(m, (x) => cat.has(x))); }, [voxelModels]);
   const [f, setF] = useState(() => ({ ...EMPTY, ...(kept?.inputs || {}), modelId: kept?.inputs?.modelId && models.some((m) => (m.id ?? m.name) === kept.inputs.modelId) ? kept.inputs.modelId : models[0]?.id ?? models[0]?.name ?? "" }));
   const [res, setRes] = useState(() => kept);
@@ -73,6 +75,13 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
   const cutV = v("cutoff") == null ? null : cutUnit.toModel(v("cutoff"));
   const rangeBad = v("zMin") != null && v("zMax") != null && !(v("zMax") > v("zMin")); // #1893
   const dipTyped = v("dip") != null || v("dipDir") != null, dipBad = dipTyped && !(v("dip") > 0 && v("dip") < 90 && v("dipDir") != null && v("dipDir") >= 0 && v("dipDir") <= 360); // #1953 — both or neither
+  // TASKS.csv #3797 (Matt's decision, 2026-11-16) — the optional Economics: price, recovery and a mining / processing / other cost per tonne; a proposed cut-off that names the costs in it
+  const cur = currencyOf(project), eMetal = model ? pitMetalOf(unit, element) : null, ePrices = eMetal ? priceUnitsFor(eMetal, element) : null;
+  const ePriceUnit = ePrices ? (ePrices.some(([k]) => k === f.priceUnit) ? f.priceUnit : ePrices[0][0]) : "";
+  const econ = useMemo(() => (model && eMetal ? stopeEconomicsSetup({ unit, element, price: f.price, priceUnit: ePriceUnit, recovery: f.recovery, miningCost: f.miningCost, processingCost: f.processingCost, otherCost: f.otherCost }) : null), [model, eMetal, unit, element, f.price, ePriceUnit, f.recovery, f.miningCost, f.processingCost, f.otherCost]);
+  const econTyped = ["price", "recovery", "miningCost", "processingCost", "otherCost"].some((k) => f[k] !== "");
+  const econBad = econTyped && !econ;
+  const money = (x) => `${x < 0 ? "−" : ""}${moneyText(cur, big(Math.abs(x)))}`; // a negative margin reads −$1.2M
   const missing = !model || !(cutV >= 0) || !(v("levelH") > 0) || !(v("density") > 0) || rangeBad || dipBad;
   const run = async () => {
     if (missing || busy) return;
@@ -111,7 +120,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
     if (oldStrings.length) { const gone = new Set(oldStrings); setDesignStrings((L) => L.filter((s) => !gone.has(s.id))); }
     const replaced = addedIds.length || oldStrings.length ? tr("The earlier run's {n} stope solid(s) and {m} outline string(s) were replaced by this one.", { n: addedIds.length, m: oldStrings.length }) : null; // #3801 (5)
     const ot = r.totals?.oreTonnes || 0, sup = ot > 0 && (r.totals.thinT != null) ? { thin: r.totals.thinT / ot, extrap: r.totals.extrapT / ot, beyond: r.totals.beyondT / ot } : null; // #3794 — the shares of the ore above the cut-off
-    kept = { ...r, support: sup, topCut: topCutRecord(model.params), topCutCells: topCutCells(model.params), alsoLabels: alsoChosen.map((m) => { const el = elementOfModel(m), u = valueUnit(m); return el && u ? `${el} (${gradeUnitText(u, el)})` : m.property || m.name; }) /* #3084; the unit: #3801 (3) */, inputs: { ...f, ...(pctIn ? { cutoff: String(cutV), cutIn: "" } : {}) /* #2111 */ }, model: model.name, pitName: pit ? String(pit.name) : null /* #1964 */, unit, element /* #2594 */, groundSource: groundIn ? ground.source : null /* #2438 */, seconds: Math.round((performance.now() - t0) / 100) / 10, addedIds: [], runId: `stoperun_${Date.now()}` }; // runId: #1968 — its solids and strings are managed together
+    kept = { ...r, econ: econ ? { setup: econ, value: stopeValue(r, econ), currency: cur, priceUnitLabel: withCurrency((ePrices.find(([k]) => k === ePriceUnit) || [])[1] || "", cur) } : null /* #3797 */, support: sup, topCut: topCutRecord(model.params), topCutCells: topCutCells(model.params), alsoLabels: alsoChosen.map((m) => { const el = elementOfModel(m), u = valueUnit(m); return el && u ? `${el} (${gradeUnitText(u, el)})` : m.property || m.name; }) /* #3084; the unit: #3801 (3) */, inputs: { ...f, ...(pctIn ? { cutoff: String(cutV), cutIn: "" } : {}) /* #2111 */ }, model: model.name, pitName: pit ? String(pit.name) : null /* #1964 */, unit, element /* #2594 */, groundSource: groundIn ? ground.source : null /* #2438 */, seconds: Math.round((performance.now() - t0) / 100) / 10, addedIds: [], runId: `stoperun_${Date.now()}` }; // runId: #1968 — its solids and strings are managed together
     setRes(kept); setAdded({ solids: false, strings: false }); setMsg(replaced);
   };
   // #1885 — what the typed width and skin became on this model's columns
@@ -127,6 +136,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
         tip: tr("Stope outline: blocks at or above the cut-off, no thinner than {w} m ({n} column(s)), with a {k} m skin ({m} column(s)); not a mine design", { w: res.inputs.minWidth || 0, n: res.widthCols, k: res.inputs.skin || 0, m: res.skinCols }),
         params: { tool: "stope outlines by level (opening by the minimum width, a dilution skin)", runId: res.runId /* #1968 */, blockModel: res.model, gradeUnit: res.unit, element: res.element || null /* #3795 */, topCut: res.topCut || null /* #3794 */, metalU: Math.round(s.metalU * 1e3) / 1e3, oreMetalU: Math.round((s.oreGrade == null ? 0 : s.oreGrade * s.oreTonnes) * 1e3) / 1e3, cutoff: Number(res.inputs.cutoff), levelRL: l.rl, levelTop: l.top, minWidthM: Number(res.inputs.minWidth) || 0, minWidthAppliedM: effWidthM, minLengthM: Number(res.inputs.minLength) || 0, skinM: Number(res.inputs.skin) || 0, skinAppliedM: effSkinM, columnM: res.cell, density: Number(res.inputs.density),
           tonnes: Math.round(s.tonnes), grade: s.grade == null ? null : +s.grade.toPrecision(4), oreTonnes: Math.round(s.oreTonnes), oreGrade: s.oreGrade == null ? null : +s.oreGrade.toPrecision(4), columns: s.columns, dip: res.dip ? { dipDeg: res.dip.dipDeg, dipDirDeg: res.dip.dipDirDeg } : null /* #1953 */, holesFilled: s.holesFilled, belowPit: res.pit ? { pit: res.pitName, pillarM: res.pit.pillar } : null /* #1964 */,
+          economics: res.econ ? { currency: res.econ.currency, price: res.econ.setup.inputs.price, priceUnit: res.econ.priceUnitLabel, recoveryPct: res.econ.setup.inputs.recovery, miningCostPerT: res.econ.setup.inputs.miningCost, processingCostPerT: res.econ.setup.inputs.processingCost, otherCostPerT: res.econ.setup.inputs.otherCost, chargedOn: "diluted tonnes", breakEvenCutoff: +res.econ.setup.breakEven.toPrecision(4), millCutoff: res.econ.setup.mill == null ? null : +res.econ.setup.mill.toPrecision(4), revenue: Math.round(res.econ.value.levels[li].stopes[si].revenue), cost: Math.round(res.econ.value.levels[li].stopes[si].cost), margin: Math.round(res.econ.value.levels[li].stopes[si].margin), levelMargin: Math.round(res.econ.value.levels[li].margin), totalMargin: Math.round(res.econ.value.totals.margin), notIncluded: NOT_INCLUDED } : null /* #3797 */,
           caution: "a stope outline from a block model: no geotechnical, access, sequencing or shape check; not a Mineral Reserve or Resource", generatedAt: new Date().toISOString() } });
       if (id) ids.push(id);
     }));
@@ -144,7 +154,8 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
   const metalText = (mu) => (resMetal && mu >= 0 ? metalAmountText(mu * resMetal.factor, resMetal.unit, res.element, big) : "—");
   // TASKS.csv #3799 — a table of tonnes carries the density it used and the settings that shaped it
   const settingsCells = () => ({ density_t_m3: Number(res.inputs.density), level_interval_m: Number(res.inputs.levelH), min_width_typed_m: Number(res.inputs.minWidth) || 0, min_width_applied_m: +effWidthM.toFixed(2), skin_typed_m: Number(res.inputs.skin) || 0, skin_applied_m: +effSkinM.toFixed(2), min_length_m: Number(res.inputs.minLength) || 0, dip_deg: res.dip ? res.dip.dipDeg : "", dip_dir_deg: res.dip ? res.dip.dipDirDeg : "", pillar_m: res.pit ? res.pit.pillar : "", below_pit: res.pitName || "", crown_m: res.ground ? res.ground.crown : "" });
-  const exportCsv = () => saveFile({ suggestedName: "stope_outlines.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(stopeRows(res, gradeUnitText(res.unit, res.element) === "g/t" ? "gpt" : res.unit /* #3801 (1) — grade_gpt, not grade_ppm, for gold */, res.alsoLabels || [], resMetal ? (mu, pre) => metalCells(mu, resMetal, pre) : null).map((r) => ({ ...r, block_model: res.model, element: res.element || "" /* #2594 */, cutoff: res.inputs.cutoff, ...settingsCells() /* #3799 */, ...(res.topCutCells || {}) /* #3794 */, crs: crsCell(project) }))) });
+  const econIndex = (ri) => { let n = ri; for (let li = 0; li < res.levels.length; li++) { if (n < res.levels[li].stopes.length) return [li, n]; n -= res.levels[li].stopes.length; } return [0, 0]; }; // the CSV row -> its level and stope
+  const exportCsv = () => saveFile({ suggestedName: "stope_outlines.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(stopeRows(res, gradeUnitText(res.unit, res.element) === "g/t" ? "gpt" : res.unit /* #3801 (1) — grade_gpt, not grade_ppm, for gold */, res.alsoLabels || [], resMetal ? (mu, pre) => metalCells(mu, resMetal, pre) : null).map((r, ri) => ({ ...r, ...(res.econ ? stopeValueCells(res.econ.value, ...econIndex(ri), res.econ.currency) : {}) /* #3797 */, block_model: res.model, element: res.element || "" /* #2594 */, cutoff: res.inputs.cutoff, ...settingsCells() /* #3799 */, ...(res.topCutCells || {}) /* #3794 */, crs: crsCell(project) }))) });
   const line = (label, val) => <div style={row}><span>{label}</span><b>{val}</b></div>;
   const field = (k, label, extra = {}) => <label style={row}>{label}<input type="number" min={0} step="any" value={f[k]} onChange={set(k)} style={num} {...extra} /></label>;
   const g = (x) => (x == null ? "—" : gradeWithElement(x, res.unit, res.element)); // #2594
@@ -192,6 +203,22 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
         {model && !dipTyped && modelSearchPlane(model.params) && (() => { const pl = modelSearchPlane(model.params); return <div style={{ ...note, marginTop: 2 }}>{tr("The model's estimate searched along a plane dipping {d}° towards {a}°.", { d: pl.dipDeg, a: pl.dipDirDeg })} <button onClick={() => setF((p) => ({ ...p, dip: String(pl.dipDeg), dipDir: String(pl.dipDirDeg) }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use it as the dip")}</button></div>; })()}
         {model && !(v("zMin") > 0 || f.zMin !== "") && zRange && <div style={note}>{tr("Levels start at the model's base ({rl} m): type a round From RL to get round floors.", { rl: Math.round(zRange[0] * 10) / 10 })}</div>}{/* #3801 (6) */}
         {model && element && <MiningWidthIntercepts element={element} unit={unit} cutoff={cutV} minWidth={v("minWidth") || 0} dipDeg={dipTyped && !dipBad ? v("dip") : null} dipDirDeg={dipTyped && !dipBad ? v("dipDir") : null} />}
+        {/* TASKS.csv #3797 (Matt's decision, 2026-11-16) — the optional Economics: revenue, cost and margin of the outlines, and a cut-off that carries the mining cost */}
+        {model && eMetal && <details open={econTyped} style={{ marginTop: 6 }}><summary style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>{tr("Economics (optional)")}</summary>
+          <label style={row} title={tr("The currency the typed prices and costs are in, printed by Pit shell, Nested pits, Pit design and Stope outlines. A label only: nothing is converted. Blank: $.")}>{tr("Currency (blank: $)")}<input type="text" maxLength={8} value={project?.currency || ""} placeholder="$" onChange={(e) => setProjectCurrency?.(e.target.value)} style={{ ...num, width: 64 }} aria-label={tr("Currency")} /></label>
+          <label style={row}>{tr("Price")}<span style={{ display: "flex", gap: 4 }}><input type="number" min={0} step="any" value={f.price} onChange={set("price")} style={num} aria-label={tr("Price")} /><select value={ePriceUnit} onChange={set("priceUnit")} style={{ ...smallSel, width: (ePrices || []).some(([, l]) => l.length > 6) ? 96 : 62 }} aria-label={tr("Price unit")}>{(ePrices || []).map(([k, l]) => <option key={k} value={k}>{withCurrency(l, cur)}</option>)}</select></span></label>
+          {field("recovery", tr("Recovery (%)"))}
+          {field("miningCost", tr("Mining cost ({cur}/t)", { cur }), { title: tr("Per tonne of the diluted outline (the whole stope, not only the material above the cut-off).") })}
+          {field("processingCost", tr("Processing cost ({cur}/t)", { cur }), { title: tr("Per tonne of the diluted outline, as the mining cost.") })}
+          {field("otherCost", tr("Other cost ({cur}/t)", { cur }), { title: tr("Anything else you charge per tonne (haulage, G&A, royalties as a per-tonne figure): blank, none.") })}
+          {econBad && <div style={warn}>{tr("The economics need a price, a recovery over 0 and up to 100 %, and at least one cost per tonne.")}</div>}
+          {econ && <div style={{ ...note, marginTop: 4 }}>
+            {tr("Break-even cut-off including {costs}: {be} {unit}.", { costs: [econ.perTonne.mining > 0 && tr("mining {v}", { v: econ.perTonne.mining }), econ.perTonne.processing > 0 && tr("processing {v}", { v: econ.perTonne.processing }), econ.perTonne.other > 0 && tr("other {v}", { v: econ.perTonne.other })].filter(Boolean).join(" + ") + ` ${cur}/t`, be: Number(econ.breakEven.toPrecision(3)), unit: gradeUnitText(unit, element) + (element ? ` ${element}` : "") })}
+            {econ.mill != null && econ.includes.length > 1 && <> {tr("Mill cut-off (processing only): {mill} {unit}.", { mill: Number(econ.mill.toPrecision(3)), unit: gradeUnitText(unit, element) + (element ? ` ${element}` : "") })}</>}
+            {" "}<button onClick={() => setF((p) => ({ ...p, cutoff: String(Number(econ.breakEven.toPrecision(4))), cutIn: "" }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use it as the cut-off")}</button>
+          </div>}
+          <div style={{ ...note, marginTop: 4 }}>{tr("Revenue is the metal inside the outlines, every block of them, at the price and recovery; mining, processing and other costs are charged on every diluted tonne. Not included: {list}.", { list: NOT_INCLUDED.map((x) => tr(x)).join(", ") })}</div>
+        </details>}
         {rangeBad && <div style={warn}>{tr("From RL must be below To RL.")}</div>}
         {!busy
           ? <button onClick={run} disabled={missing} style={{ ...pBtn, marginTop: 8, opacity: missing ? 0.5 : 1 }}><Layers3 size={14} /> {tr("Outline the stopes")}</button>
@@ -209,6 +236,11 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
           {line(tr("Material above cut-off"), `${big(res.totals.oreTonnes)} t`)}{/* #3801 (7) — not 'Ore': no reserve is meant */}
           {line(tr("Grade above cut-off"), g(res.totals.oreGrade))}
           {resMetal && line(tr("Contained metal above cut-off"), metalText(res.totals.oreMetalU))}
+          {res.econ && <>{/* TASKS.csv #3797 — revenue, cost and margin of the diluted outlines, in the project's currency */}
+            {line(tr("Revenue"), money(res.econ.value.totals.revenue))}
+            {line(tr("Cost"), money(res.econ.value.totals.cost))}
+            {line(tr("Margin (revenue − cost)"), money(res.econ.value.totals.margin))}
+            <div style={note}>{tr("At {price} {unit}, {rec} % recovery; {costs} on the diluted tonnes. Break-even cut-off {be} {u}. Not included: {list}.", { price: res.econ.setup.inputs.price, unit: res.econ.priceUnitLabel, rec: res.econ.setup.inputs.recovery, costs: `${res.econ.setup.perTonne.total} ${res.econ.currency}/t`, be: Number(res.econ.setup.breakEven.toPrecision(3)), u: gradeUnitText(res.unit, res.element), list: NOT_INCLUDED.map((x) => tr(x)).join(", ") })}</div></>}
           {line(tr("Density"), tr("{d} t/m³ (typed)", { d: Number(res.inputs.density) }))}{/* #3799 */}
           {res.totals.dilutionPct != null && line(!(Number(res.inputs.skin) > 0) || res.skinCols === 0 ? tr("Internal dilution") : tr("Dilution"), `${res.totals.dilutionPct.toFixed(0)} %`)}{/* #3003 (3) — with no skin it is the blocks under the cut-off inside the outlines */}
           {res.support && <div style={row}><span title={tr("Of the material above the cut-off: the part resting on one hole, the part the estimate classed as extrapolated, the part beyond every sample that informs it.")}>{tr("Above cut-off: one hole / extrapolated / beyond the samples")}</span><b>{`${Math.round(res.support.thin * 100)} % / ${Math.round(res.support.extrap * 100)} % / ${Math.round(res.support.beyond * 100)} %`}</b></div>}{/* #3794 */}
@@ -230,8 +262,8 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
           {res.unbuilt > 0 && <div style={warn}>{tr("{n} outline(s) could not be made into a solid (kept as outlines; the tonnes count).", { n: res.unbuilt })}</div>}
           <div style={{ marginTop: 6, maxHeight: 200, overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 4 }}>
             <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "var(--font-size-xs)" }}>
-              <thead><tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>{[tr("Level"), tr("Stopes"), tr("t"), tr("Grade"), ...(resMetal ? [tr("Metal")] : []) /* #3795 */, ...(res.alsoLabels || []) /* #3084 */, tr("Above cut-off t") /* #3801 (7) */].map((h) => <th key={h} style={{ textAlign: "right", padding: "2px 4px", borderBottom: "1px solid var(--color-border)", fontWeight: 600 }}>{h}</th>)}</tr></thead>
-              <tbody>{[...res.levels].reverse().map((l) => <tr key={l.rl}><td style={cellStyle}>{Math.round(l.rl)}</td><td style={cellStyle}>{l.stopes.length}</td><td style={cellStyle}>{l.tonnes ? big(l.tonnes) : "—"}</td><td style={cellStyle}>{l.grade == null ? "—" : Number(l.grade.toPrecision(3))}</td>{resMetal && <td style={cellStyle}>{l.metalU > 0 ? metalText(l.metalU) : "—"}</td>}{(res.alsoLabels || []).map((lab, k) => <td key={lab} style={cellStyle}>{l.alsoGrades?.[k] == null ? "—" : Number(l.alsoGrades[k].toPrecision(3))}</td>)}<td style={cellStyle}>{l.oreTonnes ? big(l.oreTonnes) : "—"}</td></tr>)}</tbody>
+              <thead><tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>{[tr("Level"), tr("Stopes"), tr("t"), tr("Grade"), ...(resMetal ? [tr("Metal")] : []) /* #3795 */, ...(res.alsoLabels || []) /* #3084 */, tr("Above cut-off t") /* #3801 (7) */, ...(res.econ ? [tr("Revenue"), tr("Cost"), tr("Margin")] : []) /* #3797 */].map((h) => <th key={h} style={{ textAlign: "right", padding: "2px 4px", borderBottom: "1px solid var(--color-border)", fontWeight: 600 }}>{h}</th>)}</tr></thead>
+              <tbody>{[...res.levels].reverse().map((l) => <tr key={l.rl}><td style={cellStyle}>{Math.round(l.rl)}</td><td style={cellStyle}>{l.stopes.length}</td><td style={cellStyle}>{l.tonnes ? big(l.tonnes) : "—"}</td><td style={cellStyle}>{l.grade == null ? "—" : Number(l.grade.toPrecision(3))}</td>{resMetal && <td style={cellStyle}>{l.metalU > 0 ? metalText(l.metalU) : "—"}</td>}{(res.alsoLabels || []).map((lab, k) => <td key={lab} style={cellStyle}>{l.alsoGrades?.[k] == null ? "—" : Number(l.alsoGrades[k].toPrecision(3))}</td>)}<td style={cellStyle}>{l.oreTonnes ? big(l.oreTonnes) : "—"}</td>{res.econ && (() => { const lv = res.econ.value.levels[res.levels.indexOf(l)]; return <><td style={cellStyle}>{money(lv.revenue)}</td><td style={cellStyle}>{money(lv.cost)}</td><td style={cellStyle}>{money(lv.margin)}</td></>; })()}</tr>)}</tbody>
             </table>
           </div>
           {res.levels.some((l) => l.stopes.some((s) => s.holesFilled)) && <div style={note}>{tr("Holes inside a patch were filled into the stope.")}</div>}
