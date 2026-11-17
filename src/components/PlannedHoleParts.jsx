@@ -27,6 +27,7 @@ import { parseTableText } from "../lib/tabular.js"; // TASKS.csv #2651
 import { drilledSiteSpacing, holeTraces } from "../lib/evidenceSources.js";
 import { drilledCollars } from "../lib/collarStatus.js"; // TASKS.csv #2976 — the minimum spacing starts from the drilling; #3820: the holes' own spacing
 import { traceSpacing } from "../lib/traceSpacing.js"; // TASKS.csv #3820
+import { dipPrinted } from "../lib/dipText.js"; // TASKS.csv #3878
 // the same one-line wrapper ViewerModule keeps (see its plannedHoleTrace comment): holePlanning.plannedTrace builds every plan's trace
 const plannedHoleTrace = (hole) => plannedTrace(hole);
 
@@ -334,7 +335,7 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
             <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 3 }}>{tr("From the nearest existing collars (the hole each needs to reach the target):")}</div>
             {nearest.map((n) => (
               <div key={n.hole_id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", marginBottom: 2 }}>
-                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: n.dip < 0 && isShallowDip(n.dip) ? "var(--color-warn-text)" : undefined }} title={n.dip < 0 && isShallowDip(n.dip) ? tr("Shallow: flatter than about {s}°.", { s: -SHALLOW_DIP_DEG }) : undefined}>{tr("{id}: az {az}°, dip {dip}°, {len} m", { id: n.hole_id, az: Math.round(n.azimuth), dip: (n.dip > 0 ? "+" : "") + Math.round(n.dip), len: Math.round(n.length) })}</span>
+                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: n.dip < 0 && isShallowDip(n.dip) ? "var(--color-warn-text)" : undefined }} title={n.dip < 0 && isShallowDip(n.dip) ? tr("Shallow: flatter than about {s}°.", { s: -SHALLOW_DIP_DEG }) : undefined}>{tr("{id}: az {az}°, dip {dip}°, {len} m", { id: n.hole_id, az: Math.round(n.azimuth), dip: dipPrinted(n.dip) /* TASKS.csv #3878 */, len: Math.round(n.length) })}</span>
                 <button onClick={() => planFromNearest(n)} style={{ ...miniBtn, padding: "1px 7px" }} aria-label={tr("Plan from {id}", { id: n.hole_id })}>{tr("Use")}</button>
               </div>
             ))}
@@ -524,7 +525,7 @@ export function PlannedHoleRow({ hole, onUpdate, onRemove, collars, survey }) { 
         {expanded ? <ChevronUp size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setExpanded(false), tr("Collapse this planned hole"))} /> : <ChevronDown size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setExpanded(true), tr("Expand this planned hole"))} />}
         <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(tr("Remove planned hole \"{v}\"?", { v: hole.name || hole.id }))) onRemove(hole.id); }, tr("Remove planned hole \"{v}\"", { v: hole.name || hole.id }))} />
       </div>
-      <div style={{ marginTop: 3, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Az {v}° / Dip {v2}° / {v3} m{v4}", { v: Math.round(wrap360(Number(hole.azimuth))) % 360 /* #2257 — 359.6 is 0°, not 360° */, v2: Math.round(hole.dip), v3: Math.round(hole.length), v4: toe ? tr(" — toe E {x} N {y} Elev {z}", { x: toe.x.toFixed(0), y: toe.y.toFixed(0), z: toe.z.toFixed(0) }) : "" })}
+      <div style={{ marginTop: 3, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Az {v}° / Dip {v2}° / {v3} m{v4}", { v: Math.round(wrap360(Number(hole.azimuth))) % 360 /* #2257 — 359.6 is 0°, not 360° */, v2: dipPrinted(hole.dip) /* TASKS.csv #3878 - one sign, one decimal */, v3: Math.round(hole.length), v4: toe ? tr(" — toe E {x} N {y} Elev {z}", { x: toe.x.toFixed(0), y: toe.y.toFixed(0), z: toe.z.toFixed(0) }) : "" })}
       </div>
       {expanded && (
         <div style={{ marginTop: 6, borderTop: "1px solid var(--color-divider)", paddingTop: 6 }}>

@@ -101,6 +101,7 @@ const SCALE_PRESETS = [500, 1000, 1500, 2000, 2500, 5000, 7500, 10000, 15000, 20
 // TASKS.csv #923 — the seq of the last print request carried out; module scope, so it outlives a remount
 import { printPassItems, pagesWithPrintSrcs, PAGE_DPI } from "../lib/layoutPrintPass.js"; // TASKS.csv #2303
 import MapRedrawControl from "../components/MapRedrawControl.jsx"; // TASKS.csv #3491
+import { dipPrinted } from "../lib/dipText.js"; // TASKS.csv #3878
 let handledPrintSeq = null;
 // TASKS.csv #2303 — an export waiting for its print pass (this module unmounts while the 3D View renders the viewports at 300 dpi)
 let pendingPrint = null;
@@ -2940,7 +2941,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
       const sl = collarTableSlice(cs, { firstRow: el.firstRow, maxRows: el.maxRows, filter: el.holeFilter }); // #1638
       const star = (v, fromSurvey) => (v !== "" && fromSurvey ? `${v}*` : v); // #1483 — from the first survey station; #1771 each value its own flag
       const suspectZ = suspectIdsOf(ctx?.collars || []); // #3023 — #3004's rule over the whole project's collars
-      rows = sl.rows.map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), elevationCell(c, suspectZ) /* #3023: ‡ assumed, § suspect */, Math.abs(Number(c.dip)) >= 89.5 ? "—" /* #2615 — a vertical hole has no azimuth ('344*  -90*') */ : Number.isFinite(c.azSurvey) ? `${f(c.azimuth, 0)}†` /* #2133 */ : star(f(c.azimuth, 0), c.azFromSurvey ?? c.orientFromSurvey), star(f(Number.isFinite(c.dip) ? -c.dip : "", 0), c.dipFromSurvey ?? c.orientFromSurvey) /* #1033 — negative = down, as imported */, f(c.length, 1), ...extra.map((k) => String(c.attrs?.[k] ?? "").trim())]); // extra: #2717
+      rows = sl.rows.map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), elevationCell(c, suspectZ) /* #3023: ‡ assumed, § suspect */, Math.abs(Number(c.dip)) >= 89.5 ? "—" /* #2615 — a vertical hole has no azimuth ('344*  -90*') */ : Number.isFinite(c.azSurvey) ? `${f(c.azimuth, 0)}†` /* #2133 */ : star(f(c.azimuth, 0), c.azFromSurvey ?? c.orientFromSurvey), star(Number.isFinite(c.dip) ? dipPrinted(c.dip, { downPositive: true }) /* TASKS.csv #3878 - one decimal */ : "", c.dipFromSurvey ?? c.orientFromSurvey) /* #1033 — negative = down, as imported */, f(c.length, 1), ...extra.map((k) => String(c.attrs?.[k] ?? "").trim())]); // extra: #2717
       more = sl.after; head = sl.start > 0 || el.holeFilter ? tr("Rows {a}–{b} of {n}", { a: sl.total ? sl.start + 1 : 0, b: sl.end, n: sl.total }) + (el.holeFilter ? ` (${el.holeFilter})` : "") : null; nextRow = sl.end + 1;
       if (sl.rows.some((c) => c.orientFromSurvey)) surveyNote = tr("* From the shallowest survey station: the collar record has none for that value.");
       // #3023 — what the elevation marks mean (and which holes carry them)

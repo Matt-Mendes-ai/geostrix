@@ -4,6 +4,7 @@
 import { elevationTrust, suspectElevationIds } from "./collarElevationTrust.js"; // TASKS.csv #3023 — #3004's shared rule
 import { printPx } from "./theme.js";
 import { collarAttrChoices, collarsWithPick } from "./holeFilter.js"; // TASKS.csv #2717; collarsWithPick: #3027
+import { dipPrinted } from "./dipText.js"; // TASKS.csv #3878
 
 // sorted: the collars in table order. firstRow is 1-based; filter keeps holes whose id contains it (any case).
 export function collarTableSlice(sorted, { firstRow = 1, maxRows = 40, filter = "" } = {}) {
@@ -139,7 +140,7 @@ export function elevationNotes(rows, suspect) {
 // halves of a split table fit widthPx at the smallest size (minPt, 5) -> { fits, fs }
 export function collarTableCells(collars, extra = []) {
   const f = (v, d) => (Number.isFinite(Number(v)) && v !== "" && v != null ? Number(v).toFixed(d) : "");
-  return (collars || []).map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), `${f(c.z, 1)}\u2021`, `${f(c.azimuth, 0)}*`, `${f(Number.isFinite(c.dip) ? -c.dip : "", 0)}*`, f(c.length, 1), ...(extra || []).map((k) => String(c.attrs?.[k] ?? "").trim())]);
+  return (collars || []).map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), `${f(c.z, 1)}\u2021`, `${f(c.azimuth, 0)}*`, `${Number.isFinite(c.dip) ? dipPrinted(c.dip, { downPositive: true }) : ""}*` /* TASKS.csv #3878 - one sign, one decimal */, f(c.length, 1), ...(extra || []).map((k) => String(c.attrs?.[k] ?? "").trim())]);
 }
 export function splitHalvesFit({ columns, rows, fontPt, widthPx, measure, minPt = 5 }) {
   const r = tableTextFit({ columns, parts: splitTableRows(rows, 2), fsPx: printPx(fontPt), widthPx, gap: 14, minPx: printPx(minPt), measure });

@@ -11,7 +11,7 @@ const collars = (n, extra = {}) => Array.from({ length: n }, (_, i) => ({ hole_i
 
 test("the cells are the printed text, the marks counted: one array per collar, the extra columns last", () => {
   const rows = collarTableCells(collars(1, { Programme: "2024 infill" }), ["Programme"]);
-  assert.deepEqual(rows[0], ["DH-001", "500000", "5500000", "350.0‡", "90*", "60*", "150.0", "2024 infill"]);
+  assert.deepEqual(rows[0], ["DH-001", "500000", "5500000", "350.0‡", "90*", "+60.0*", "150.0", "2024 infill"]);
 });
 
 test("the halves of a plain table fit an A4-wide frame; with a very long text column they do not, even at 5 pt", () => {
