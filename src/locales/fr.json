@@ -13912,5 +13912,7 @@
   "Stopped: no step lowered the misfit while keeping every drillhole contact and the units that touch.": "Arrêté : aucun pas n'a réduit l'écart en gardant chaque contact de sondage et les unités en contact.",
   "Nothing moved: the survey cannot move its readings by one uncertainty with any of these points within its distance.": "Rien n'a bougé : le levé ne peut déplacer ses lectures d'une incertitude avec aucun de ces points dans sa distance.",
   "The fit needs the survey's readings: it moves the points until the model matches them.": "L'ajustement a besoin des lectures du levé : il déplace les points jusqu'à ce que le modèle leur corresponde.",
-  "The fit moves at most 8 points: mark the ones the sensitivity pass says the survey sees.": "L'ajustement déplace au plus 8 points : marquez ceux que l'analyse de sensibilité dit vus par le levé."
+  "The fit moves at most 8 points: mark the ones the sensitivity pass says the survey sees.": "L'ajustement déplace au plus 8 points : marquez ceux que l'analyse de sensibilité dit vus par le levé.",
+  "Run the fitted model as a new version": "Lancer le modèle ajusté comme nouvelle version",
+  "The fit runs on the model at up to 32 cells a side. A new version runs the fitted model at its full resolution in 3D Modelling, each surface named '(fitted)' beside the original; the original model is not changed.": "L'ajustement porte sur le modèle à 32 cellules par côté au plus. Une nouvelle version lance le modèle ajusté à sa pleine résolution dans Modélisation 3D, chaque surface nommée « (fitted) » à côté de l'originale ; le modèle d'origine n'est pas modifié."
 }

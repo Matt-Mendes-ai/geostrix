@@ -90,6 +90,22 @@ export function distinctShellName(label, taken, cellM = null) {
   while (used.has(`${withCells} #${n}`)) n++;
   return `${withCells} #${n}`;
 }
+// TASKS.csv #2640 Stage 2 — a fitted record (lib/structFit.js recordWithFit) as the specs a model run takes: the run's frame (project less the
+// record's origin), each surface '<name> (fitted)' (its meshName too, so a fault's offsets follow), its codes the original name, the hole ids and
+// nuggets kept. Pure (exported for the test).
+export function fittedModelSpecs(record) {
+  const o = record?.origin || { x: 0, y: 0, z: 0 };
+  const inRun = (p) => ({ x: p.x - o.x, y: p.y - o.y, z: p.z - o.z });
+  const nameOf = (s) => s.meshName || s.name;
+  const fitted = (n) => `${n} (fitted)`;
+  return (record?.surfaces || []).map((s) => ({
+    label: fitted(s.name || nameOf(s)), meshName: fitted(nameOf(s)), codes: [nameOf(s)],
+    points: (s.points || []).map((p) => ({ ...inRun(p), ...(p.hole_id != null ? { hole_id: p.hole_id } : {}), ...(Number.isFinite(p.nugget) ? { nugget: p.nugget } : {}) })),
+    orientations: (s.orientations || []).map((q) => ({ ...inRun(q), dip: q.dip, azimuth: q.azimuth })),
+    ...(s.package != null ? { package: s.package } : {}),
+    ...(s.fault ? { fault: true, type: "fault", color: colorForStructure("FLT"), ...(Array.isArray(s.offsets) ? { offsets: s.offsets.map(fitted) } : {}) } : { type: "stratigraphic_contact", color: colorForLithology(nameOf(s)) }),
+  }));
+}
 export function createModellingRuns(ctx, mcRef) {
   const {
     activeInterceptSetRef,
@@ -1114,6 +1130,16 @@ export function createModellingRuns(ctx, mcRef) {
 
   // Thin single-surface wrapper for the three single-unit tools below.
   const runSurfaceModel = (spec, opts) => runSurfaceStack([spec], opts);
+  // TASKS.csv #2640 Stage 2 — the model the structure fit found, run through the same path as any model run (runSurfaceStack: the request, the
+  // clipping, the model check, the lithology block, the record, the notices) as a version of its own beside the original: every surface named
+  // '<name> (fitted)', so nothing of the original run is replaced. The specs come from the fitted record (lib/structFit.js recordWithFit: the run
+  // as it was sent with the fitted heights), in the run's own frame (the record keeps project coordinates; a run's specs are those less its
+  // origin). A unit's codes stay its original name, so the model check reads the same logged codes.
+  const runFittedModel = async (record) => {
+    if (!record?.surfaces?.length) return;
+    const specs = fittedModelSpecs(record);
+    await runSurfaceStack(specs, { relation: record.relation === "onlap" ? "onlap" : "erode", packages: Number(record.packages) > 0 ? Number(record.packages) : 1 });
+  };
 
   // Shared by the single-unit litho tool and the stratigraphic stack tool below: gathers a unit's
   // interface points (litho interval tops across every hole) and an orientation (real structure
@@ -3038,5 +3064,5 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
     }, 40);
   }; // anisotropy/domains/modelDomainId: TASKS.csv #273
 
-  return { runAlterationModel, runImplicitModel, runNumericModel, runStackModel, runMapModel, runStructuralModel, runVeinModel };
+  return { runAlterationModel, runImplicitModel, runNumericModel, runStackModel, runMapModel, runStructuralModel, runVeinModel, runFittedModel /* #2640 Stage 2 */ };
 }

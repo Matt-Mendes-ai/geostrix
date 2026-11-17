@@ -9,14 +9,15 @@ import React, { useMemo, useRef, useState } from "react";
 import { useStore } from "../lib/store.jsx";
 import { useKeptState } from "../lib/keptState.js";
 import { runStructfitJob, saveFile } from "../lib/desktop.js";
-import { movableSurfaces, propertyUnits, modelProblem, buildStructfitRequest, everyNth, resultRows, verdictPoints, recordIsFull, buildFitRequest, fitRows, fitPointsCsv, FIT_STOPPED, MAX_FIT_POINTS } from "../lib/structFit.js";
+import { requestModuleAction } from "../lib/menuRequests.js"; // #2640 Stage 2 — the fitted model as a new version
+import { movableSurfaces, propertyUnits, modelProblem, buildStructfitRequest, everyNth, resultRows, verdictPoints, recordIsFull, buildFitRequest, fitRows, fitPointsCsv, FIT_STOPPED, MAX_FIT_POINTS, recordWithFit } from "../lib/structFit.js";
 import { SURVEY_METHODS, surveyKey } from "../lib/geophysSurveys.js";
 import { t as tr } from "../lib/i18n.js";
 
 const fmt = (v, d = 3) => (v == null || !Number.isFinite(v) ? "–" : Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : Number(v.toPrecision(d)).toLocaleString());
 
 export default function StructFitPanel({ method, unit, keptScope, prepareForward, unc, setUnc, field, ui }) {
-  const { lastImplicitRequest: record, setLayers, updateGeophysSurvey } = useStore();
+  const { lastImplicitRequest: record, setLayers, updateGeophysSurvey, goToModule } = useStore(); // goToModule: #2640 Stage 2
   const { small, inp, row, lbl, pBtn } = ui;
   const [st, setSt] = useKeptState(keptScope, "inversion.structfit", { props: {}, surface: "", picked: [], maxM: "", resolve: false, bounds: {} });
   const [busy, setBusy] = useState(null);
@@ -83,10 +84,12 @@ export default function StructFitPanel({ method, unit, keptScope, prepareForward
     abort.current = null;
     setBusy(null);
     if (!res.ok) { setMsg({ ok: false, text: res.cancelled ? tr("Cancelled.") : res.error }); return; }
-    setFit({ result: res.data, rows: fitRows(res.data, record) });
+    setFit({ result: res.data, rows: fitRows(res.data, record), record }); // record: the run the fit started from
     setMsg({ ok: true, text: tr("Fit in {s} s ({n} model solves).", { s: Math.round(res.data.seconds), n: res.data.solves }) });
   };
   const saveFitCsv = () => saveFile({ suggestedName: "structure_fit_points.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: fitPointsCsv(fit.rows) });
+  // the fitted heights run through the app's own model run, at its full resolution, as '<surface> (fitted)' beside the original (never over it)
+  const runFittedVersion = () => { requestModuleAction("run-fitted-model", { record: recordWithFit(fit.record || record, fit.rows) }); goToModule?.("viewer"); };
 
   return (
     <div style={{ paddingLeft: 4 }}>
@@ -172,8 +175,9 @@ export default function StructFitPanel({ method, unit, keptScope, prepareForward
               </table>
               {fit.rows.some((r) => r.atLimit) && <div style={small}>{tr("A point at the limit of its distance: the survey would move it further. Check the unit values and the uncertainty before allowing more.")}</div>}
               {fit.result.history.some((h) => h.reasons?.length) && <div style={small}>{tr("Steps refused: {list}", { list: [...new Set(fit.result.history.flatMap((h) => h.reasons || []))].slice(0, 3).join("; ") })}</div>}
+              {fit.rows.some((r) => r.constrained && Math.abs(r.movedM) > 1e-6) && <button type="button" onClick={runFittedVersion} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}>{tr("Run the fitted model as a new version")}</button>}
               <button type="button" onClick={saveFitCsv} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}>{tr("Save the moved points (CSV)")}</button>
-              <div style={{ ...small, marginTop: 4 }}>{tr("The fit runs on the model at up to 32 cells a side. The original model is not changed.")}</div>
+              <div style={{ ...small, marginTop: 4 }}>{tr("The fit runs on the model at up to 32 cells a side. A new version runs the fitted model at its full resolution in 3D Modelling, each surface named '(fitted)' beside the original; the original model is not changed.")}</div>
             </div>
           )}
           {out.result.resolved && (

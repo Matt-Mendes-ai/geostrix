@@ -13912,5 +13912,7 @@
   "Stopped: no step lowered the misfit while keeping every drillhole contact and the units that touch.": "توقف: لم تخفض أي خطوة عدم المطابقة مع الحفاظ على كل تلامس ثقب حفر والوحدات المتلامسة.",
   "Nothing moved: the survey cannot move its readings by one uncertainty with any of these points within its distance.": "لم يتحرك شيء: لا يستطيع المسح تحريك قراءاته بمقدار عدم يقين واحد بأي من هذه النقاط ضمن مسافتها.",
   "The fit needs the survey's readings: it moves the points until the model matches them.": "تحتاج المطابقة إلى قراءات المسح: فهي تحرّك النقاط حتى يطابقها النموذج.",
-  "The fit moves at most 8 points: mark the ones the sensitivity pass says the survey sees.": "تحرّك المطابقة 8 نقاط على الأكثر: علّم النقاط التي يقول اختبار الحساسية إن المسح يراها."
+  "The fit moves at most 8 points: mark the ones the sensitivity pass says the survey sees.": "تحرّك المطابقة 8 نقاط على الأكثر: علّم النقاط التي يقول اختبار الحساسية إن المسح يراها.",
+  "Run the fitted model as a new version": "تشغيل النموذج المطابَق كنسخة جديدة",
+  "The fit runs on the model at up to 32 cells a side. A new version runs the fitted model at its full resolution in 3D Modelling, each surface named '(fitted)' beside the original; the original model is not changed.": "تُجرى المطابقة على النموذج بحد أقصى 32 خلية لكل جانب. تشغّل النسخة الجديدة النموذج المطابَق بدقته الكاملة في النمذجة ثلاثية الأبعاد، وتُسمّى كل سطح '(fitted)' بجانب الأصلي؛ لا يتغير النموذج الأصلي."
 }

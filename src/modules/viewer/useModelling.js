@@ -15,6 +15,7 @@ import { boundaryIntercepts } from "../../lib/viewer/boundaryIntercepts.js"; // 
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { faultLikeName } from "../../lib/layers.js"; // TASKS.csv #1549
 import { useStore } from "../../lib/store.jsx"; // TASKS.csv #3116 — the built-in logs' range / despike, for the grade shell run
+import { useModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #2640 Stage 2
 
 const createRunsCache = { fn: null }; // TASKS.csv #697 — modellingRuns.js once loaded
 
@@ -44,8 +45,10 @@ export function useModelling(ctx) {
     }
     return create(ctxRef.current, mcRef)[name](...args);
   }, []);
-  const runs = useMemo(() => Object.fromEntries(["runAlterationModel", "runImplicitModel", "runMapModel", "runNumericModel", "runStackModel", "runStructuralModel", "runVeinModel"].map((n) => [n, lazyRun(n)])), [lazyRun]);
+  const runs = useMemo(() => Object.fromEntries(["runAlterationModel", "runImplicitModel", "runMapModel", "runNumericModel", "runStackModel", "runStructuralModel", "runVeinModel", "runFittedModel" /* #2640 Stage 2 */].map((n) => [n, lazyRun(n)])), [lazyRun]);
   const { runAlterationModel, runImplicitModel, runMapModel, runNumericModel, runStackModel, runStructuralModel, runVeinModel } = runs; // runMapModel: #817
+  // TASKS.csv #2640 Stage 2 — Geophysics > the structure fit's 'Run the fitted model as a new version': the viewer runs it (it holds the modelling context)
+  useModuleAction(["run-fitted-model"], (_a, payload) => { if (payload?.record) runs.runFittedModel(payload.record); });
 
   // TASKS.csv #2931 — the loop is lib/viewer/boundaryIntercepts.js (tested on a 6,390-hole project)
   const computeIntercepts = useCallback(() => boundaryIntercepts(layers, tracesRef.current, originRef.current, sceneToApi), [layers.litho, layers.alt, layers.vein]);
