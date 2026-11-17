@@ -105,7 +105,7 @@ import { guessVoxelProperty, isLogProperty, propertyRamp, parseGradeLabel } from
 import { cloudShape } from "../lib/cloudShape.js"; // TASKS.csv #1783
 import { surveyGridDefaults, proposeSlice, blankForCell, levelSlices, inLevel } from "../lib/surveyGridDefaults.js"; // TASKS.csv #3322; levelSlices: #3420
 import { defaultDrapeElevation, rasterDrapeElevation, drapeElevationNote, planElevation } from "../lib/drapeElevation.js"; // planElevation: #2294; // TASKS.csv #1856; rasterDrapeElevation: #1505
-import { collarTerrainOffset } from "../lib/terrainCheck.js"; // TASKS.csv #1620
+import { collarTerrainOffset, collarClusterAbove, collarClusterNote } from "../lib/terrainCheck.js"; // TASKS.csv #1620; cluster: #3882 follow-up
 import { voxelStretch, sortedShownValues } from "../lib/voxelStretch.js"; // TASKS.csv #1812 / #1781
 import { VoxelRangeRow } from "./viewer/ViewerParts.jsx"; // TASKS.csv #1780
 import { terrainFromBlockModel } from "../lib/terrainFromModel.js"; // TASKS.csv #1806
@@ -1160,6 +1160,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         : parsed.source.bareEarth
           ? tr(" Source: {service}, resampled to nodes ~{v2} m apart. It is a bare-earth terrain model (forest removed).", { service: parsed.source.service, v2: Math.round(parsed.source.nodeM) }) // #815
           : tr(" Source: {service}, resampled to nodes ~{v2} m apart. It is a surface model: in forest it reads some metres above the ground.", { service: parsed.source.service, v2: Math.round(parsed.source.nodeM) }); // #814
+      // TASKS.csv #3882 follow-up — GLO-30 is the default and shows the ground of 2011-2015: ground mined since reads lower, and older collars sit above it
+      if (/^Copernicus DEM/.test(String(parsed.source?.service || ""))) msg += " " + tr("Copernicus GLO-30 shows the ground as it was in 2011-2015: ground mined since then reads lower than in older terrain, and older collars can sit above it.");
       if (parsed.source?.gapNodes > 0) msg += parsed.source.gapFilledNodes > 0 // TASKS.csv #3721 — the nodes GEM-15 masks (water, snow and ice, low texture) and what filled them
         ? tr(" {n} of {total} nodes have no GEM-15 value (water, snow and ice, low texture, or no cell): {filled} were filled from Copernicus GLO-30.", { n: parsed.source.gapNodes.toLocaleString(), total: parsed.source.totalNodes.toLocaleString(), filled: parsed.source.gapFilledNodes.toLocaleString() })
         : tr(" {n} of {total} nodes have no GEM-15 value (water, snow and ice, low texture, or no cell) and are left as no data.", { n: parsed.source.gapNodes.toLocaleString(), total: parsed.source.totalNodes.toLocaleString() });
@@ -1176,6 +1178,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       else if (parsed.reprojectNote) msg += tr(" Note: {reprojectNote}", { reprojectNote: parsed.reprojectNote });
       if (parsed.failedTiles) msg += tr(" {failedTiles} tile(s) failed to download — check your connection.", { failedTiles: parsed.failedTiles });
       if (parsed.noDataNote) msg += parsed.noDataNote; // #421
+      { const cluster = collarClusterAbove(collars, parsed, { nodeM: parsed.source?.nodeM }); if (cluster) misfitNote += " " + collarClusterNote(cluster, parsed); } // TASKS.csv #3882 follow-up — a compact cluster far above the ground (a pit), named whatever the median
       msg += tieNote + misfitNote + relabelNote.current; relabelNote.current = ""; // #614; tieNote: #2648
       setTerrainError({ info: true, text: msg });
     } catch (err) {
