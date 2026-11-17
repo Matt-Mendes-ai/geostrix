@@ -45,6 +45,6 @@ test("the free area clears each element by the gap, stays inside the margins, an
 
 test("wiring: a log in a free area moves nothing and is saved without the flag", () => {
   const s = readFileSync(new URL("../src/lib/atlas.js", import.meta.url), "utf8");
-  assert.match(s, /const \{ free, \.\.\.box \} = placeStripLog\(elements, built\.aspect, page \|\| undefined\);/);
-  assert.match(s, /if \(!free\) \(\{ elements, narrowed, overlapping \} = makeRoomForStripLog\(/);
+  assert.match(s, /const \{ free, \.\.\.box \} = placeStripLog\(sized\.list, built\.aspect, page \|\| undefined\);/); // TASKS.csv #3875: the texts as tall as they draw
+  assert.match(s, /if \(!free\) \{ const r = makeRoomForStripLog\(sized\.list, box, /);
 });

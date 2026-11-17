@@ -13888,5 +13888,7 @@
   "Revenue": "Revenu",
   "Cost": "Coût",
   "Margin (revenue − cost)": "Marge (revenu − coût)",
-  "At {price} {unit}, {rec} % recovery; {costs} on the diluted tonnes. Break-even cut-off {be} {u}. Not included: {list}.": "À {price} {unit}, {rec} % de récupération ; {costs} sur les tonnes diluées. Teneur de coupure d'équilibre {be} {u}. Non inclus : {list}."
+  "At {price} {unit}, {rec} % recovery; {costs} on the diluted tonnes. Break-even cut-off {be} {u}. Not included: {list}.": "À {price} {unit}, {rec} % de récupération ; {costs} sur les tonnes diluées. Teneur de coupure d'équilibre {be} {u}. Non inclus : {list}.",
+  "Preparing the PDF: {n} page(s)…": "Préparation du PDF : {n} page(s)…",
+  "{fileName}: {n} hole(s) had an azimuth or dip that the exporting project took from its survey (the attitude_from column): they are not stored as the collar's own, the survey gives them.": "{fileName} : {n} sondage(s) avaient un azimut ou un pendage que le projet exportateur a pris dans son levé (la colonne attitude_from) : ils ne sont pas enregistrés comme ceux du collet, le levé les fournit."
 }

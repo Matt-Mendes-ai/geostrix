@@ -13888,5 +13888,7 @@
   "Revenue": "الإيراد",
   "Cost": "التكلفة",
   "Margin (revenue − cost)": "الهامش (الإيراد − التكلفة)",
-  "At {price} {unit}, {rec} % recovery; {costs} on the diluted tonnes. Break-even cut-off {be} {u}. Not included: {list}.": "عند {price} {unit} واسترداد {rec} %؛ {costs} على الأطنان المخفَّفة. حد القطع المتعادل {be} {u}. غير مشمول: {list}."
+  "At {price} {unit}, {rec} % recovery; {costs} on the diluted tonnes. Break-even cut-off {be} {u}. Not included: {list}.": "عند {price} {unit} واسترداد {rec} %؛ {costs} على الأطنان المخفَّفة. حد القطع المتعادل {be} {u}. غير مشمول: {list}.",
+  "Preparing the PDF: {n} page(s)…": "جارٍ تجهيز ملف PDF: {n} صفحة…",
+  "{fileName}: {n} hole(s) had an azimuth or dip that the exporting project took from its survey (the attitude_from column): they are not stored as the collar's own, the survey gives them.": "{fileName}: كان لـ {n} من الثقوب سمت أو ميل أخذه المشروع المُصدِّر من مسحه (عمود attitude_from): لا يُخزَّنان على أنهما من الفوهة نفسها، فالمسح هو مصدرهما."
 }

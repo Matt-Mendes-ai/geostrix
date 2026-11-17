@@ -13,6 +13,8 @@ import { utmGridReady, metresPerPagePx } from "./layoutGeometry.js"; // TASKS.cs
 import { DIAGRAM_W, DIAGRAM_H } from "./northDiagram.js"; // TASKS.csv #2478
 import { elementBox } from "./layoutPlace.js"; // TASKS.csv #3233
 import { dipPrinted } from "./dipText.js"; // TASKS.csv #3878
+import { textLines } from "./creditLine.js"; // TASKS.csv #3875
+import { printPx, printPt } from "./theme.js"; // TASKS.csv #3875
 
 // TASKS.csv #1644 (review #1497, Lawyers) — each hole marked on the template's map. The viewport is still the template's one capture
 // (see above), so a page used to show the district plan with nothing saying where its hole was (21AGBDD001 800 m off centre,
@@ -184,6 +186,18 @@ export function makeRoomForStripLog(elements, box, { gap = 12, minKeep = 0.4, pa
 // the size its 9.5 px drawing text prints at, in points (96 px per inch, 72 pt per inch), once the drawing is scaled to `h`
 export const stripLogTextPt = (drawingHeight, h) => (drawingHeight > 0 ? (9.5 * (h / drawingHeight) * 72) / 96 : null);
 
+// TASKS.csv #3875 (#3868 item 5) - the strip log was placed by the boxes the template's elements are STORED with, and a text stores no height: a {lithology_summary} text of 8 wrapped lines counted as 40 px, so the log was
+// put (and the room made) as if the text ended above it, and the text's last lines printed under the log. The height a filled text draws at (its lines wrapped in its width at its own type size, 1.3 line height,
+// the frame's padding) stands in for the missing one while the log is placed, and is not saved with the element. -> px, or null (not a text, or one that stores its height)
+export function filledTextHeight(el, measure) {
+  if (!el || el.type !== "text" || Number(el.h) > 0 || !(Number(el.w) > 0)) return null;
+  const px = Number(el.fontSize) > 0 ? Number(el.fontSize) : printPx(printPt.body), pad = el.frameWidth ? 16 : 0;
+  return Math.ceil(textLines(el.text, Number(el.w) - pad, px, measure) * px * 1.3 + pad);
+}
+// the elements with that height given to each text that has none; `synthetic` says which, so the height is taken off again
+export const withTextHeights = (elements, measure) => { const synthetic = new Set(); const list = (elements || []).map((el, i) => { const h = filledTextHeight(el, measure); if (h == null) return el; synthetic.add(i); return { ...el, h }; }); return { list, synthetic }; };
+export const withoutTextHeights = (list, synthetic) => list.map((el, i) => { if (!synthetic.has(i) || !el || !("h" in el)) return el; const { h: _h, ...rest } = el; return rest; });
+
 // a strip log placed on a page (Add to Layout from the strip-log window, or an atlas page's): an image labelled 'Strip log …'
 export const isStripLogImage = (el) => el?.type === "image" && /^strip log\b/i.test(String(el.label || "").trim());
 // TASKS.csv #2136 — a collar with no depth has no trace: its page would show a point and an empty log
@@ -201,9 +215,10 @@ async function buildOneHolePage(holeId, templateElements, { collars, layers, inc
     let built = null;
     try { built = await buildStripLogDataUrl({ holeId, collars, layers, legendOverride, lithoPatterns, logTracks: true /* #3710 */, ...(assayTracks || {}) }); } catch { stripLogFailed = true; } // legendOverride: #1092; assayTracks { assays, assaySymbols, elementUnits }: #1480
     if (built) {
-      const { free, ...box } = placeStripLog(elements, built.aspect, page || undefined);
+      const sized = withTextHeights(elements); // #3875 - the texts as tall as they draw once their tokens are filled
+      const { free, ...box } = placeStripLog(sized.list, built.aspect, page || undefined);
       textPt = stripLogTextPt(built.height, box.h);
-      if (!free) ({ elements, narrowed, overlapping } = makeRoomForStripLog(elements, box, { pageW: (page || {}).w || 1123 })); // #1772; free: #3233 — nothing to move
+      if (!free) { const r = makeRoomForStripLog(sized.list, box, { pageW: (page || {}).w || 1123 }); elements = withoutTextHeights(r.elements, sized.synthetic); narrowed = r.narrowed; overlapping = r.overlapping; } // #1772; free: #3233 — nothing to move
       elements = [...elements, { id: `striplog_${holeId}_${Date.now()}`, type: "image", label: `Strip log — ${holeId}`, src: built.dataUrl, aspect: built.aspect, ...box, depthHeightAtCaptureM: built.depthHeightAtCaptureM ?? null /* #1480 */ }];
     }
   }

@@ -99,6 +99,7 @@ const VIEWER_MODES = { viewer: "view", surface: "surface", modelling: "modelling
 const recoveryCheck = oncePerWindow(() => recoveryCheck.fn());
 const uncleanExitCheck = oncePerWindow(() => problemReportInfo());
 
+const LAT_LON_FMT = { minimumFractionDigits: 5, maximumFractionDigits: 5, useGrouping: false }; // TASKS.csv #3875
 export default function App() {
   const store = useStore();
   // TASKS.csv #3659 — a project rebuilt from GeoStrix's own exported tables: collars.csv carries the data owner's credit as a data_credit column (one value on every hole); the importer keeps it as a collar field,
@@ -763,7 +764,7 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, worldCursor = 
       {(() => { const off = rlOffsetOf(project), rl = gridRlOf(cursor.z, off); return rl == null ? null : <span title={tr("Grid RL: the elevation plus the project's RL datum ({off} m, set under Project coordinate system)", { off: fmtNum(off) })}>RL <span className="val">{fmt(rl)}</span></span>; })()}{/* TASKS.csv #2809 */}
       {/* TASKS.csv #2808 (split from #2526) — latitude / longitude (WGS 84) beside E / N when the project has a real CRS (not a local or unset one) */}
       {(() => { const ll = worldCursor /* TASKS.csv #3229 — not on Layout, whose cursor is a page position */ && cursor.x != null && cursor.y != null && project.crsSet !== false && project.epsg && isMetricProjectedEpsg(project.epsg) && getProj4DefSync(project.epsg) ? reprojectXY(cursor.x, cursor.y, project.epsg, 4326) : null;
-        return ll && Number.isFinite(ll.x) && Number.isFinite(ll.y) ? <span title={tr("Latitude, longitude (WGS 84) of the cursor")}><span className="val">{ll.y.toFixed(5)}, {ll.x.toFixed(5)}</span></span> : null; })()}
+        return ll && Number.isFinite(ll.x) && Number.isFinite(ll.y) ? <span title={tr("Latitude, longitude (WGS 84) of the cursor")}><span className="val">{fmtNum(ll.y, LAT_LON_FMT)}{fmtNum(0.5).includes(",") ? "; " : ", "}{fmtNum(ll.x, LAT_LON_FMT)}</span></span> : null; })()}{/* TASKS.csv #3875 (#3724 g) - the interface language's decimal mark, as E / N beside them print it (a French view read 'E 441 873,1' and '49.12345'); ; between two decimal-comma numbers */}
       {/* TASKS.csv #249 (colorblind-safety review) — state was previously color-only-at-a-glance (the
           dot's hue), with the actual word only in a hover title; now a short suffix is always visible
           so the state doesn't depend on distinguishing the dot's color, matching the pattern the

@@ -45,7 +45,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 // page; "Export PDF" prints the page via the Electron main process (or the browser print dialog).
 
 import { viewportHoleVisibility, fitHoleSet } from "../lib/viewportHoles.js"; // TASKS.csv #3371
-import { cropStripLogSlices } from "../lib/svgCrop.js"; // TASKS.csv #3867
+import { cropStripLogSlices, patternsAsVectors } from "../lib/svgCrop.js"; // TASKS.csv #3867; patternsAsVectors: #3875
 import { splitStripLog, stripLogSliceElements, wholeStripLog, pageWidthDenom, sliceLabelPt, CAPTION_CLEAR_PX /* #3856 */, redrawAdvice /* #3861 */ } from "../lib/stripLogPages.js"; // TASKS.csv #3372
 import { PAGE_FORMATS, pageFormatOf, pagePx, pageMm, pageCssName, addPagesOnPaper, snapshotPagePaper } from "../lib/pageFormats.js"; // TASKS.csv #398; mm / named pages: #908; on their paper: #3370
 import { azimuthToGridOffset, setIgrfModule } from "../lib/azimuthRef.js"; // TASKS.csv #399 — GN/TN/MN diagram
@@ -287,6 +287,7 @@ export default function LayoutModule() {
     let cancelled = false;
     (async () => {
       try {
+        if (printing.kind !== "png") setExportNote({ text: tr("Preparing the PDF: {n} page(s)…", { n: layoutPages.length }), error: false }); // TASKS.csv #3875 - the pictures are decoded and the pages printed before the file dialog: say so
         const imgs = [...(printRootRef.current?.querySelectorAll("img") || [])];
         await Promise.all(imgs.map((im) => im.decode().catch(() => null)));
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -459,7 +460,7 @@ export default function LayoutModule() {
       // ViewerModule's buildSectionPayload): the exact {label,color} pairs actually drawn in this
       // section, so a legend bound to this image (see syncLegendFromView below) can match it
       // without needing a live theme, which a flattened snapshot doesn't have.
-      return { id: img.id, type: "image", label: img.label || "Snapshot", src: img.src, aspect, x: spot.x, y: spot.y, w, h, worldWidthAtCaptureM: img.worldWidthAtCaptureM ?? null, verticalExaggeration: img.verticalExaggeration ?? null /* #944 */, sectionAzimuth: Number.isFinite(img.sectionAzimuth) ? img.sectionAzimuth : null /* #1489 */, depthHeightAtCaptureM: img.depthHeightAtCaptureM ?? null /* #1480 */, planMap: !!img.planMap /* #1864 */, ...(img.planView && img.targetWorld && img.worldHeightAtTarget ? { mapsView: !!img.mapsView, planView: true, trueScale: true, targetWorld: img.targetWorld, worldHeightAtTarget: img.worldHeightAtTarget, cameraAzimuthDeg: 0, utmGrid: !!img.utmGrid, ...(img.mapsCapture ? { mapsCapture: img.mapsCapture } : {}) /* #3491 */ } : {}) /* #3194 — a Maps snapshot: north up at a known scale, for the coordinate grid */, naturalW: img.naturalW, naturalH: img.naturalH, legendItems: img.legendItems || null, sectionTabId: img.sectionTabId || null, textFactor: img.textFactor || 1 /* #1485 */, ...(img.keyDrawn ? { keyDrawn: true } : {}) /* #2739 — the image draws its own key */ };
+      return { id: img.id, type: "image", label: img.label || "Snapshot", src: img.depthHeightAtCaptureM > 0 ? patternsAsVectors(img.src, img.naturalH) /* TASKS.csv #3875 - a strip log's pattern fills as vector tiles, not bitmaps */ : img.src, aspect, x: spot.x, y: spot.y, w, h, worldWidthAtCaptureM: img.worldWidthAtCaptureM ?? null, verticalExaggeration: img.verticalExaggeration ?? null /* #944 */, sectionAzimuth: Number.isFinite(img.sectionAzimuth) ? img.sectionAzimuth : null /* #1489 */, depthHeightAtCaptureM: img.depthHeightAtCaptureM ?? null /* #1480 */, planMap: !!img.planMap /* #1864 */, ...(img.planView && img.targetWorld && img.worldHeightAtTarget ? { mapsView: !!img.mapsView, planView: true, trueScale: true, targetWorld: img.targetWorld, worldHeightAtTarget: img.worldHeightAtTarget, cameraAzimuthDeg: 0, utmGrid: !!img.utmGrid, ...(img.mapsCapture ? { mapsCapture: img.mapsCapture } : {}) /* #3491 */ } : {}) /* #3194 — a Maps snapshot: north up at a known scale, for the coordinate grid */, naturalW: img.naturalW, naturalH: img.naturalH, legendItems: img.legendItems || null, sectionTabId: img.sectionTabId || null, textFactor: img.textFactor || 1 /* #1485 */, ...(img.keyDrawn ? { keyDrawn: true } : {}) /* #2739 — the image draws its own key */ };
     });
     // TASKS.csv #1128 — a cross-section snapshot comes with its legend as a Layout element (movable, editable, bound to
     // the snapshot so "Sync" refreshes it), right of the image when it fits on the sheet, else below it

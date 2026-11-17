@@ -13888,5 +13888,7 @@
   "Revenue": "Ingreso",
   "Cost": "Costo",
   "Margin (revenue − cost)": "Margen (ingreso − costo)",
-  "At {price} {unit}, {rec} % recovery; {costs} on the diluted tonnes. Break-even cut-off {be} {u}. Not included: {list}.": "A {price} {unit}, {rec} % de recuperación; {costs} sobre las toneladas diluidas. Ley de corte de equilibrio {be} {u}. No incluye: {list}."
+  "At {price} {unit}, {rec} % recovery; {costs} on the diluted tonnes. Break-even cut-off {be} {u}. Not included: {list}.": "A {price} {unit}, {rec} % de recuperación; {costs} sobre las toneladas diluidas. Ley de corte de equilibrio {be} {u}. No incluye: {list}.",
+  "Preparing the PDF: {n} page(s)…": "Preparando el PDF: {n} página(s)…",
+  "{fileName}: {n} hole(s) had an azimuth or dip that the exporting project took from its survey (the attitude_from column): they are not stored as the collar's own, the survey gives them.": "{fileName}: {n} sondaje(s) tenían un azimut o buzamiento que el proyecto exportador tomó de su levantamiento (la columna attitude_from): no se guardan como propios del collar, los da el levantamiento."
 }

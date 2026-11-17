@@ -43,6 +43,7 @@ import { rasterFileSet } from "../../lib/rasterSideFiles.js"; // TASKS.csv #2901
 import { geosoftXmlCrs } from "../../lib/geosoftXml.js"; // TASKS.csv #2901
 import { requestProjectCrs } from "../../lib/projectCrsRequest.js"; // TASKS.csv #615
 import { collarAlwaysKept, firstPerHole } from "../../lib/collarAttrs.js"; // TASKS.csv #2492 / #2190; firstPerHole: #2172
+import { surveyAttitudeOf } from "../../lib/collarAttrExport.js"; // TASKS.csv #3875 - the attitude a re-imported table set took from its survey
 import { surveyMethodKey, surveyMethodByHole, foldCaseVariants } from "../../lib/surveyMethod.js"; // TASKS.csv #2494
 import { fullestTypeColumn } from "../../lib/downholeTableGuess.js"; // TASKS.csv #2188
 import { holeTypeColumn, normalizeHoleType } from "../../lib/holeType.js"; // TASKS.csv #2161
@@ -547,6 +548,11 @@ export function makeImportPipeline(ctx, h) {
       // TASKS.csv #2492 — a second set of coordinate columns (GBMG_East / GBMG_North / GBMG_RL beside the MGA ones used) is kept with each
       // hole whatever its number of distinct values; the columns still left out are named in the notice (#2190: STARTDATE, ENDDATE)
       for (const c of collarAlwaysKept(collarHdrs, attrMapping)) if (!attrCols.includes(c)) attrCols.push(c); // and date columns: #2190
+      // TASKS.csv #3875 (#3724 e) - our own exported collars.csv: attitude_from names the azimuth / dip that were the first survey station's. They are not stored as the collar's own, and the column is no collar field
+      const attCol = collarHdrs.find((h) => String(h).trim().toLowerCase() === "attitude_from"), isSurveyAtt = (r) => (attCol ? surveyAttitudeOf(r[attCol]) : null);
+      const attOnly = !!attCol && ranked.rows.every((r) => !String(r[attCol] ?? "").trim() || isSurveyAtt(r));
+      if (attOnly) { const i = attrCols.indexOf(attCol); if (i >= 0) attrCols.splice(i, 1); }
+      let fromSurveyAtt = 0;
       const notKept = collarHdrs.filter((h) => h && !attrCols.includes(h) && !Object.values(attrMapping).includes(h) && ranked.rows.some((r) => String(r[h] ?? "").trim() !== ""));
       // TASKS.csv #2161 — the drilling method normalized ("hole type": RC, Diamond (DD), RC + diamond tail, Aircore (AC), RAB...) beside the file's own column
       const htCol = holeTypeColumn(allRows.length ? Object.keys(allRows[0]) : []);
@@ -559,14 +565,15 @@ export function makeImportPipeline(ctx, h) {
       let rows = ranked.rows.map((r) => applyCustomFields({
         // TASKS.csv #337 — num(): a blank cell is missing (NaN), not 0 (a blank RL used to put the collar at sea level).
         hole_id: String(r[mapping.hole_id] ?? "").trim(), x: num(r[mapping.x]), y: num(r[mapping.y]), z: num(r[mapping.z]),
-        azimuth: mapping.azimuth ? num(r[mapping.azimuth]) : undefined,
-        dip: mapping.dip ? flipDip(num(r[mapping.dip])) : undefined,
+        azimuth: mapping.azimuth && !isSurveyAtt(r)?.azimuth ? num(r[mapping.azimuth]) : undefined, // #3875: not the survey's, when the table says it was
+        dip: mapping.dip && !isSurveyAtt(r)?.dip ? flipDip(num(r[mapping.dip])) : undefined,
         length: mapping.length ? num(r[mapping.length]) : undefined,
         // Per-row source EPSG (TASKS.csv #205), carried alongside the row only long enough to drive
         // the reprojection pass below — stripped before the collar is stored.
         _rowEpsg: perRowEpsgCol ? String(r[perRowEpsgCol] ?? "").trim() : "",
         ...withHoleType(withDates(surfaceAttrs(r, attrCols)), r), // #1504; hole type: #2161; dates: #3075
       }, r, customFields));
+      if (attOnly) fromSurveyAtt = ranked.rows.filter((r) => isSurveyAtt(r)).length;
       rows = yearsAsNumbers(rows); // TASKS.csv #3545 (#3538) — a year field of whole years stored as numbers: 'Colour holes by' draws it as a ramp
       // TASKS.csv #337 — a collar without all three coordinates can't be placed; skip it and say which,
       // instead of the old behaviour of keeping it at z = 0.
@@ -575,6 +582,7 @@ export function makeImportPipeline(ctx, h) {
       rows = rows.filter((r) => r.hole_id && Number.isFinite(r.x) && Number.isFinite(r.y));
       const repeats = ranked.rankColumn ? { dropped: 0, holes: [] } : firstPerHole(rows); // TASKS.csv #2172 — a repeated hole id: the first row kept, counted
       if (repeats.dropped) rows = repeats.rows;
+      if (fromSurveyAtt) setNotices((p) => [...p, tr("{fileName}: {n} hole(s) had an azimuth or dip that the exporting project took from its survey (the attitude_from column): they are not stored as the collar's own, the survey gives them.", { fileName, n: fromSurveyAtt })]); // #3875
       if (dateReaders.size) setNotices((p) => [...p, tr("{fileName}: {cols} read as dates (stored as year-month-day); each also has a year field, to filter and colour the holes by.", { fileName, cols: [...dateReaders.keys()].join(", ") })]); // #3075
       if (ambiguousDates.length) setNotices((p) => [...p, tr("{fileName}: {cols} kept as written: every date there could be day/month or month/day.", { fileName, cols: ambiguousDates.join(", ") })]); // #3075
       if (noCoords.length) setNotices((p) => [...p, notice("{fileName}: {noCoords} collar(s) skipped — missing or non-numeric X or Y ({v}{v2}). Fix them in the file and re-import.", { fileName, noCoords: noCoords.length, v: noCoords.slice(0, 8).join(", "), v2: noCoords.length > 8 ? ", …" : "" })]);

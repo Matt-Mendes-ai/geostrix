@@ -91,6 +91,15 @@ export function expandPatternFills(root, yRanges = null, { maxTiles = 60000 } = 
 const decode = (src) => { const m = /^data:image\/svg\+xml;base64,/.exec(src || ""); if (!m) return null; return new TextDecoder().decode(b64ToBytes(src.slice(m[0].length))); };
 const encode = (text) => `data:image/svg+xml;base64,${bytesToB64(new TextEncoder().encode(text))}`;
 
+// TASKS.csv #3875 (follow-up of #3867) - an UNSPLIT strip log printed its patterns as bitmaps too (0.3 MB for the log measured there, soft at print size). The picture a strip log is added as has its
+// tiled pattern fills drawn as vector tiles, as a split page's has: the same cropStripLogSlices with the one range [0, height]. A picture with no <pattern>, or one this cannot lay out (no browser), is returned as it came.
+export function patternsAsVectors(src, naturalH, opts = {}) {
+  const text = decode(src);
+  if (!text || !/<pattern[\s>]/.test(text) || !(naturalH > 0)) return src;
+  let out = null; try { out = cropStripLogSlices(src, [[0, naturalH]], opts); } catch { out = null; }
+  return out?.[0] || src;
+}
+
 // The picture's SVG data URL cropped to each slice's ranges. slices: [[a, b], ...][] (one list of ranges per slice), in the picture's px. -> [data URL] in the same order, or null when the source cannot
 // be cropped here (not an SVG data URL, no layout available): the caller keeps the whole picture then. Browser only (it lays the drawing out off screen to measure it).
 export function cropStripLogSlices(src, slices, { document: doc = typeof document !== "undefined" ? document : null, DOMParser: DP = typeof DOMParser !== "undefined" ? DOMParser : null } = {}) {

@@ -48,3 +48,11 @@ export function collarsWithFirstStation(collars, survey) {
   });
 }
 export const attFromText = (c) => (c?._attFrom ? `first survey station: ${c._attFrom}` : "");
+// TASKS.csv #3875 (#3724 e) - the way back: an exported collars.csv says in attitude_from which of a hole's azimuth / dip was the first survey station's, not the collar's own. A re-import used to store that azimuth and dip
+// as the collar's own on every such hole (559 of them on Macpass) and the cell as a collar field 'attitude_from'. -> { azimuth, dip } (true: not the collar's own), or null when the text is not what attFromText writes
+export function surveyAttitudeOf(text) {
+  const m = /^\s*first survey station:\s*(azimuth and dip|azimuth|dip)\s*$/i.exec(String(text ?? ""));
+  if (!m) return null;
+  const w = m[1].toLowerCase();
+  return { azimuth: w !== "dip", dip: w !== "azimuth" };
+}

@@ -2,6 +2,7 @@
 // viewport showing another's footprint. Pure functions, out of LayoutModule.jsx so they can be tested (review #918).
 import { niceScaleNumber } from "./figureScale.js";
 import { obliqueCapture, capturedSize } from "./layoutGeometry.js";
+import { elementBox } from "./layoutPlace.js"; // TASKS.csv #3875 - the look label clears what sits on its left
 import { pxPerMetre } from "./pagePxScale.js"; // TASKS.csv #1639; #3159: not drillPlan.js, which put the drill-plan drawing code in startup
 
 const SCALE_BAR_PX = 180; // LayoutModule's default bar length (px) for a fresh bar
@@ -80,10 +81,26 @@ export function bearingText(az) {
 export const sectionLookText = (sectionAzimuth) => `Looking ${bearingText(Number(sectionAzimuth) - 90)}`;
 // TASKS.csv #3716 (7) — the 'Looking N' label takes the starter north arrow's place, 77 px left of it (160 px wide: it ends 40 px, the page margin, inside the arrow's right edge; at 60 px it ended 6.1 mm from the paper's edge)
 export const LOOK_SHIFT = 77;
+// TASKS.csv #3875 (#3868 item 12) - on a landscape starter page the section's legend ends at x 926 and the label began at 923: its text started on the legend's right border. The label keeps its right end (the margin) and
+// starts 8 px after whatever overlaps it on the left, as long as 100 px of its text remain (the label is 'Looking N25°E', about 90 px at 11 pt); else it stays where the arrow was.
+export const LOOK_MIN_W = 100, LOOK_GAP = 8, LOOK_H = 22;
+export function lookLabelBox(label, others) {
+  const end = label.x + label.w;
+  let x = label.x;
+  for (const o of others || []) {
+    const b = elementBox(o);
+    if (b.y < label.y + LOOK_H && b.y + b.h > label.y && b.x < end && b.x + b.w > x) x = Math.max(x, b.x + b.w + LOOK_GAP);
+  }
+  return end - x >= LOOK_MIN_W ? { x, w: end - x } : { x: label.x, w: label.w };
+}
 export function tieStarterFurniture(els, view, { bar: wantBar = true, north: wantNorth = true } = {}) {
   if (wantNorth && view?.type === "image" && !view.planMap && Number.isFinite(view.sectionAzimuth)) {
     const starter = els.find((el) => el.type === "north" && el.rotation == null && !el.boundTo);
-    if (starter) els = els.map((el) => (el === starter ? { id: `look_${view.id}`, type: "text", x: Math.max(0, (el.x || 0) - LOOK_SHIFT), y: el.y || 40, w: 160, text: sectionLookText(view.sectionAzimuth), boundTo: view.id } : el));
+    if (starter) {
+      const look = { id: `look_${view.id}`, type: "text", x: Math.max(0, (starter.x || 0) - LOOK_SHIFT), y: starter.y || 40, w: 160, text: sectionLookText(view.sectionAzimuth), boundTo: view.id };
+      const at = lookLabelBox(look, els.filter((o) => o !== starter && o !== view)); // #3875 - clear of a legend that ends under it
+      els = els.map((el) => (el === starter ? { ...look, ...at } : el));
+    }
   }
   const { w: imgW, h: imgH } = capturedSize(view);
   const ppm = view.type === "viewport" ? (view.worldHeightAtTarget && imgH ? imgH / view.worldHeightAtTarget : 0) : view.type === "drillplan" ? pxPerMetre(view.scale) /* #2302 */ : (view.worldWidthAtCaptureM && imgW ? imgW / view.worldWidthAtCaptureM : 0);
