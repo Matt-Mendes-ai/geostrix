@@ -84,7 +84,7 @@ export const PLAN_COS = Math.cos((15 * Math.PI) / 180);
 export const isPlanLook = (ray) => Math.abs(ray?.direction?.y ?? 0) >= PLAN_COS; // scene y is up
 // TASKS.csv #3839 (Scottie Gold review, a regression of #2972) — the CLICK ray was tested: with a perspective camera a click away from the view's centre
 // is more than 15 degrees off vertical, so in the Top view only clicks within ~260 px of the centre counted as a plan look and a click on a fan's trace
-// tied a ground line to 'SR23-243 at 167.7 m', 119 m down. The look is the CAMERA's (its forward axis, -Z of its world matrix); the ray when no camera.
+// tied a ground line to a logged contact 119 m down an inclined hole. The look is the CAMERA's (its forward axis, -Z of its world matrix); the ray when no camera.
 export function cameraLooksDown(camera) {
   const e = camera?.matrixWorld?.elements;
   if (!e) return null;

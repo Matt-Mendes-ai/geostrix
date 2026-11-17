@@ -186,8 +186,7 @@ export function holeSamplesAt(collars, values, spans, { key = "value", survey = 
   return { samples, atCollar, noRl };
 }
 
-// TASKS.csv #3826 (Scottie Gold review) — holes drilled as fans from pads: the collar is the one place their values do not belong (three holes of
-// 91.5, 3.72 and 20.1 g/t gave a cell of 18.98 at their pad). What the placement does to the holes: how many share a collar point (rounded to a metre),
+// TASKS.csv #3826 (Scottie Gold review) — holes drilled as fans from pads: the collar is the one place their values do not belong (the three holes of a pad gave one cell, their geometric mean). What the placement does to the holes: how many share a collar point (rounded to a metre),
 // and how many have their value (the middle of the interval on the trace) more than a cell from the collar.
 // atCollar / atIntercept: holeSamplesAt(...).samples at the two placements. -> { holes, padHoles, pads, apart, far, intercept }
 // intercept: the grid is better made at the intercepts (a pad's holes part by more than a cell, or most values lie a cell or more from their collar)

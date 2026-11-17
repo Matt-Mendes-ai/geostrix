@@ -597,7 +597,7 @@ export function computeBestIntercepts(assays, symbol, unit, elementUnits, opts =
         const lengthGrade = current.assayedLen > 0 ? current.gradeLen / current.assayedLen : 0;
         // TASKS.csv #3562 — length x density: each assayed piece weighs its metres times its density (the mean of the pieces that have one where it has none)
         const wg = densityAt ? weightedGrade(current.subs.filter((r) => !r.unsampled && r.value != null).map((r) => ({ v: r.value, w: r.width, rho: densityAt(hole_id, r.from, r.to) }))) : null;
-        // TASKS.csv #3747 — how much of the intercept's metal (grade × length) the one and two richest samples carry (SR23-236's 13.70 m @ 18.15 was 80 % two
+        // TASKS.csv #3747 — how much of the intercept's metal (grade × length) the one and two richest samples carry (a nuggety intercept can be 80 % two
         // samples), and the grade with the top cut applied. Measured over the assayed pieces; the share is only said from four samples up (two of three is
         // not a finding), and the cut grade only when a cut is set.
         const assayed = current.subs.filter((r) => !r.unsampled && r.value != null && r.width > 0);

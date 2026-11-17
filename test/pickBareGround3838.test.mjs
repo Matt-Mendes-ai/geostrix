@@ -10,8 +10,8 @@ import { collarGround } from "../src/lib/collarGround.js";
 import { buildSnapIndex, snapRay, snapInterpretClick, cameraLooksDown, isPlanLook, snapTolerance } from "../src/lib/viewer/interpretSnap.js";
 
 const collars = [];
-for (let j = 0; j < 9; j++) for (let i = 0; i < 9; i++) { const x = 433000 + i * 125, y = 6232000 + j * 125; collars.push({ hole_id: `H${i}${j}`, x, y, z: 700 + 0.35 * (i * 125) + 20 * Math.sin(j) }); }
-const origin = { x: 433500, y: 6232500, z: collars.reduce((a, c) => a + c.z, 0) / collars.length };
+for (let j = 0; j < 9; j++) for (let i = 0; i < 9; i++) { const x = 503000 + i * 125, y = 5502000 + j * 125; collars.push({ hole_id: `H${i}${j}`, x, y, z: 700 + 0.35 * (i * 125) + 20 * Math.sin(j) }); }
+const origin = { x: 503500, y: 5502500, z: collars.reduce((a, c) => a + c.z, 0) / collars.length };
 const g = collarGround(collars);
 const W = 1600, H = 800;
 const cameraAt = (E, N, Z, look = { E, N, Z: Z - 1 }, fov = 45) => {
@@ -40,7 +40,7 @@ test("the surface a bare-ground click goes to: the collar surface with no terrai
 });
 
 test("Top view over the low side of the hill: the click lands under the cursor (before: 11-30 % of its distance from the centre off)", () => {
-  const cam = cameraAt(433200, 6232500, 1300); // over RL ~770 ground, the reference level at ~868
+  const cam = cameraAt(503200, 5502500, 1300); // over RL ~770 ground, the reference level at ~868
   const before = [], after = [];
   for (const [px, py] of [[100, 100], [1500, 120], [300, 700], [1400, 650], [800, 400], [1000, 430]]) {
     const ray = rayAt(cam, px, py), t = truth(ray), p0 = planeOnly(ray), p1 = worldPointOnGround(ray, [], origin, collars);
@@ -54,7 +54,7 @@ test("Top view over the low side of the hill: the click lands under the cursor (
 });
 
 test("an oblique view across the hill, the high side under the cursor: still under the cursor", () => {
-  const cam = cameraAt(432600, 6231700, 1500, { E: 433700, N: 6232500, Z: 900 });
+  const cam = cameraAt(502600, 5501700, 1500, { E: 503700, N: 5502500, Z: 900 });
   for (const [px, py] of [[800, 500], [200, 600], [1400, 300]]) {
     const ray = rayAt(cam, px, py), t = truth(ray), p1 = worldPointOnGround(ray, [], origin, collars);
     if (!t) continue;
@@ -63,7 +63,7 @@ test("an oblique view across the hill, the high side under the cursor: still und
 });
 
 test("a drawn hit still wins; looking up, or with no collars to follow, the reference level as before (plane: true)", () => {
-  const cam = cameraAt(433200, 6232500, 1300), ray = rayAt(cam, 800, 400);
+  const cam = cameraAt(503200, 5502500, 1300), ray = rayAt(cam, 800, 400);
   const obj = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial()); obj.userData.tip = "Collar X";
   const hit = worldPointOnGround(ray, [{ object: obj, point: new THREE.Vector3(1, 2, 3), distance: 5 }], origin, collars);
   assert.equal(hit.x, origin.x + 1); assert.equal(hit.z, origin.z + 2); assert.ok(!hit.onCollarSurface);
@@ -87,22 +87,22 @@ test("wiring: ViewerModule's pick, the section's two clicks and the unit polygon
 
 // ---- #3839
 const sceneOf = (E, N, Z) => ({ x: E - origin.x, y: Z - origin.z, z: origin.y - N });
-// an inclined hole from a pad at (433200, 6232500, ~770): 60 degrees toward the east, a contact at 167.7 m
-const pad = { E: 433200, N: 6232500, Z: g(433200, 6232500) };
+// an inclined hole from a pad at (503200, 5502500, ~770): 60 degrees toward the east, a contact at 167.7 m
+const pad = { E: 503200, N: 5502500, Z: g(503200, 5502500) };
 const along = (md) => sceneOf(pad.E + md * Math.cos(Math.PI / 3), pad.N, pad.Z - md * Math.sin(Math.PI / 3));
-const fan = { hole_id: "SR-243", pts: [0, 50, 100, 167.7, 250].map((md) => ({ md, ...along(md) })) };
-const layers = { litho: [{ hole_id: "SR-243", from: 100, to: 167.7, value: "SLT" }] };
+const fan = { hole_id: "DH-23-243", pts: [0, 50, 100, 167.7, 250].map((md) => ({ md, ...along(md) })) };
+const layers = { litho: [{ hole_id: "DH-23-243", from: 100, to: 167.7, value: "SLT" }] };
 
 test("#3839 the plan look is the camera's: a Top-view click far from the centre is still a plan look", () => {
-  const cam = cameraAt(433300, 6232500, 1300);
+  const cam = cameraAt(503300, 5502500, 1300);
   assert.equal(cameraLooksDown(cam), true);
   const ray = rayAt(cam, 1500, 100);
   assert.equal(isPlanLook(ray), false, "the click ray alone is more than 15 degrees off vertical");
-  assert.equal(cameraLooksDown(cameraAt(432600, 6231700, 1500, { E: 433700, N: 6232500, Z: 900 })), false);
+  assert.equal(cameraLooksDown(cameraAt(502600, 5501700, 1500, { E: 503700, N: 5502500, Z: 900 })), false);
 });
 
 test("#3839 Top view: a click over the contact 167.7 m down the inclined hole is not tied to it (before: it was)", () => {
-  const cam = cameraAt(433500, 6232500, 1300);
+  const cam = cameraAt(503500, 5502500, 1300);
   const target = along(167.7), v = new THREE.Vector3(target.x, target.y, target.z).project(cam);
   const px = ((v.x + 1) / 2) * W, py = ((1 - v.y) / 2) * H;
   assert.ok(Math.hypot(px - W / 2, py - H / 2) > 250, `the contact is ${Math.hypot(px - W / 2, py - H / 2).toFixed(0)} px from the centre`);
