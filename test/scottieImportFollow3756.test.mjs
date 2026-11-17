@@ -8,12 +8,12 @@ import { surveyGapsOfRows } from "../src/lib/surveyGaps.js";
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const hasKeys = (keys) => { for (const k of keys) for (const lang of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${lang}.json`))[k], `${lang}: ${k.slice(0, 50)}`); };
 
-test("#3756 (1) surveyGapsOfRows: DH23-299's shape (0, 339, then every 3 m) is the widest stretch; evenly surveyed holes are not counted", () => {
-  const rows = [{ hole_id: "DH23-299", depth: 0 }, ...Array.from({ length: 51 }, (_, i) => ({ hole_id: "DH23-299", depth: 339 + i * 3 }))];
+test("#3756 (1) surveyGapsOfRows: DH-23-299's shape (0, 339, then every 3 m) is the widest stretch; evenly surveyed holes are not counted", () => {
+  const rows = [{ hole_id: "DH-23-299", depth: 0 }, ...Array.from({ length: 51 }, (_, i) => ({ hole_id: "DH-23-299", depth: 339 + i * 3 }))];
   for (const h of ["A", "B"]) for (let d = 0; d <= 300; d += 3) rows.push({ hole_id: h, depth: d });
   const g = surveyGapsOfRows(rows);
-  assert.equal(g.holes, 1); assert.deepEqual(g.widest, { hole_id: "DH23-299", from: 0, to: 339 });
-  assert.equal(surveyGapsOfRows(rows.filter((r) => r.hole_id !== "DH23-299")), null);
+  assert.equal(g.holes, 1); assert.deepEqual(g.widest, { hole_id: "DH-23-299", from: 0, to: 339 });
+  assert.equal(surveyGapsOfRows(rows.filter((r) => r.hole_id !== "DH-23-299")), null);
   assert.equal(surveyGapsOfRows([]), null); assert.equal(surveyGapsOfRows(null), null);
   const imp = read("../src/modules/viewer/importPipelineImpl.js");
   assert.match(imp, /const sg = surveyGapsOfRows\(rows\);/);

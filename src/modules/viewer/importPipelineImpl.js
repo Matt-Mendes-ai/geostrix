@@ -785,7 +785,7 @@ export function makeImportPipeline(ctx, h) {
         if (up.length) svExtraNote += dipConvention === "pos_down" // #2886 — the sign that points up depends on the convention chosen
           ? tr(" {n} station(s) in {h} hole(s) point upward (a negative dip, read with positive = down): upholes, or a sign error in the file?", { n: up.length, h: upHoles.size })
           : tr(" {n} station(s) in {h} hole(s) point upward (a positive dip, read with negative = down): upholes, or a sign error in the file?", { n: up.length, h: upHoles.size });
-        // TASKS.csv #3756 (1) — a stretch with no survey station (DH23-299: 0 m, then 339 m) is said here too, not only when Data QC is opened
+        // TASKS.csv #3756 (1) — a stretch with no survey station (DH-23-299: 0 m, then 339 m) is said here too, not only when Data QC is opened
         const sg = surveyGapsOfRows(rows);
         if (sg) svExtraNote += tr(" {n} hole(s) have a stretch with no survey station (the widest: {id}, {a}–{b} m): the path there is interpolated, not measured. Data QC lists them.", { n: sg.holes, id: sg.widest.hole_id, a: Math.round(sg.widest.from), b: Math.round(sg.widest.to) });
         const surveyed = new Set(replaced.rows.map((r) => r.hole_id)), cols = importStateRef.current.collars || [];

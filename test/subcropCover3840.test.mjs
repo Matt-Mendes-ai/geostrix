@@ -1,5 +1,5 @@
 // TASKS.csv #3840 (Subcrop from collars mapped the overburden itself: OVBN, 'overburden' in the file, was not read as cover) and #3841 (a gap in the log read as cover:
-// DH23-269 / 270, cover to 4.4 / 7.0 m, nothing logged to 135.9 / 132.2 m, gave a dyke 95 m from the pad with 97 m of cover). Synthetic only.
+// DH-23-269 / 270, cover to 4.4 / 7.0 m, nothing logged to 135.9 / 132.2 m, gave a dyke 95 m from the pad with 97 m of cover). Synthetic only.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -42,16 +42,16 @@ test("#3840 the first map is bedrock with the description known; with it unknown
 });
 
 test("#3841 cover to 4.4 m and the next logged rock at 135.9 m: the hole is left out and named; a continuous log still maps", () => {
-  const collars = [{ hole_id: "DH23-269", x: 0, y: 0, z: 100, azimuth: 0, dip: -90 }, { hole_id: "DH23-270", x: 50, y: 0, z: 100, azimuth: 0, dip: -90 }, { hole_id: "OK", x: 100, y: 0, z: 100, azimuth: 0, dip: -90 }];
+  const collars = [{ hole_id: "DH-23-269", x: 0, y: 0, z: 100, azimuth: 0, dip: -90 }, { hole_id: "DH-23-270", x: 50, y: 0, z: 100, azimuth: 0, dip: -90 }, { hole_id: "OK", x: 100, y: 0, z: 100, azimuth: 0, dip: -90 }];
   const litho = [
-    { hole_id: "DH23-269", from: 0, to: 4.4, value: "OVB" }, { hole_id: "DH23-269", from: 135.9, to: 150, value: "DYK" },
-    { hole_id: "DH23-270", from: 0, to: 7, value: "OVB" }, { hole_id: "DH23-270", from: 132.2, to: 140, value: "DYK" },
+    { hole_id: "DH-23-269", from: 0, to: 4.4, value: "OVB" }, { hole_id: "DH-23-269", from: 135.9, to: 150, value: "DYK" },
+    { hole_id: "DH-23-270", from: 0, to: 7, value: "OVB" }, { hole_id: "DH-23-270", from: 132.2, to: 140, value: "DYK" },
     { hole_id: "OK", from: 0, to: 6, value: "OVB" }, { hole_id: "OK", from: 6.5, to: 60, value: "AND" }, // 0.5 m between: within LATE_START_M
   ];
   const report = { lateStart: [], gap: [] };
   const pts = collarSubcrop({ collars, survey: [], litho, report });
   assert.deepEqual(pts.map((p) => p.hole_id), ["OK"]);
-  assert.deepEqual(report.gap.map((g) => g.hole_id), ["DH23-269", "DH23-270"]);
+  assert.deepEqual(report.gap.map((g) => g.hole_id), ["DH-23-269", "DH-23-270"]);
   assert.equal(report.gap[0].coverEnd, 4.4); assert.equal(report.gap[0].rockStart, 135.9);
   assert.deepEqual(report.lateStart, []);
   // no report object: still left out

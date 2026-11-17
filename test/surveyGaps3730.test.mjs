@@ -1,4 +1,4 @@
-// TASKS.csv #3730 — a stretch of a hole with no survey station is a Data QC warning (Scottie Gold: DH23-299, 0 m then 339 m then every 3 m)
+// TASKS.csv #3730 — a stretch of a hole with no survey station is a Data QC warning (Scottie Gold: DH-23-299, 0 m then 339 m then every 3 m)
 import test from "node:test";
 import assert from "node:assert/strict";
 import { runDataQC } from "../src/lib/dataQC.js";
@@ -9,11 +9,11 @@ const every = (a, b, step) => { const o = []; for (let d = a; d <= b; d += step)
 const validateSurveyAndTrajectory = (collars, survey) => runDataQC({ project: {}, collars, survey, layers: {}, boundaries: [], assays: [] }).issues;
 const collar = (id, length) => ({ hole_id: id, x: 0, y: 0, z: 100, azimuth: 90, dip: -60, length });
 
-test("DH23-299: 0 m, 339 m, then every 3 m to 491 m of a 497 m hole is named, with its share of the hole", () => {
-  const survey = [...stations("DH23-299", [0, 339, ...every(342, 491, 3)]), ...stations("OK-1", every(0, 300, 3)), ...stations("OK-2", every(0, 300, 3))];
-  const collars = [collar("DH23-299", 497), collar("OK-1", 300), collar("OK-2", 300)];
+test("DH-23-299: 0 m, 339 m, then every 3 m to 491 m of a 497 m hole is named, with its share of the hole", () => {
+  const survey = [...stations("DH-23-299", [0, 339, ...every(342, 491, 3)]), ...stations("OK-1", every(0, 300, 3)), ...stations("OK-2", every(0, 300, 3))];
+  const collars = [collar("DH-23-299", 497), collar("OK-1", 300), collar("OK-2", 300)];
   const out = validateSurveyAndTrajectory(collars, survey);
-  const rows = out.filter((i) => i.holeId === "DH23-299" && /No survey station between/.test(i.message));
+  const rows = out.filter((i) => i.holeId === "DH-23-299" && /No survey station between/.test(i.message));
   assert.equal(rows.length, 1);
   assert.match(rows[0].message, /between 0 m and 339 m \(68% of the hole; the stations are usually 3 m apart\)/);
   assert.equal(rows[0].severity, "warning");
