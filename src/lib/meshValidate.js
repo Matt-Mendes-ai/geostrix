@@ -36,19 +36,36 @@ function segHitsTri(p, q, a, b, c, eps) {
   return t > eps && t < 1 - eps;
 }
 
+// TASKS.csv #3791 — a solid's check kept for the session (a solid's arrays are not edited: a change makes new ones), so the second estimate restricted to
+// the same shell, and the Solids panel's check of it, do not run the self-intersection test again (190 ms on a 15,000-face shell, more on a big one).
+const VALID_SEEN = new WeakMap();
+// peekValidation: the kept answer or null; rememberValidation: keep one (the worker's: solidValidateClient.js)
+export function peekValidation(positions, indices, opts = {}) {
+  if (!positions || typeof positions !== "object") return null;
+  const hit = VALID_SEEN.get(positions);
+  return hit && hit.indices === indices && hit.max === (opts.maxTriangles ?? 200000) ? hit.result : null;
+}
+export function rememberValidation(positions, indices, result, opts = {}) {
+  if (positions && typeof positions === "object") VALID_SEEN.set(positions, { indices, max: opts.maxTriangles ?? 200000, result });
+  return result;
+}
+export function validateSolidCached(positions, indices, opts = {}) {
+  return peekValidation(positions, indices, opts) || rememberValidation(positions, indices, validateSolid(positions, indices, opts), opts);
+}
 export function validateSolid(positions, indices, { maxTriangles = 200000 } = {}) {
   const nT = (indices.length / 3) | 0;
   // edges: key "lo,hi" -> [count, directed count lo->hi]
+  // TASKS.csv #3791 — one number per edge (the count in the low 16 bits, the directed count above), not an array: 105 ms of a 15,000-triangle check was this loop
+  // and the per-triangle arrays below
   const edges = new Map();
   for (let t = 0; t < nT; t++) for (let k = 0; k < 3; k++) {
     const a = indices[3 * t + k], b = indices[3 * t + ((k + 1) % 3)];
-    const lo = Math.min(a, b), hi = Math.max(a, b), key = lo * 4294967296 + hi;
-    const e = edges.get(key) || [0, 0];
-    e[0]++; if (a === lo) e[1]++;
-    edges.set(key, e);
+    const lo = a < b ? a : b, hi = a < b ? b : a, key = lo * 4294967296 + hi;
+    edges.set(key, (edges.get(key) || 0) + 1 + (a === lo ? 65536 : 0));
   }
   let openEdges = 0, nonManifoldEdges = 0, windingConflicts = 0;
-  for (const [n, fwd] of edges.values()) {
+  for (const v of edges.values()) {
+    const n = v & 65535, fwd = v >>> 16;
     if (n === 1) openEdges++;
     else if (n > 2) nonManifoldEdges++;
     else if (fwd !== 1) windingConflicts++;
@@ -60,35 +77,41 @@ export function validateSolid(positions, indices, { maxTriangles = 200000 } = {}
   const boxes = new Float64Array(nT * 6);
   let mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity], sumSize = 0;
   for (let t = 0; t < nT; t++) {
-    const v = [P(indices[3 * t]), P(indices[3 * t + 1]), P(indices[3 * t + 2])];
+    const i0 = 3 * indices[3 * t], i1 = 3 * indices[3 * t + 1], i2 = 3 * indices[3 * t + 2];
     for (let d = 0; d < 3; d++) {
-      const lo = Math.min(v[0][d], v[1][d], v[2][d]), hi = Math.max(v[0][d], v[1][d], v[2][d]);
+      const x0 = positions[i0 + d], x1 = positions[i1 + d], x2 = positions[i2 + d];
+      const lo = x0 < x1 ? (x0 < x2 ? x0 : x2) : (x1 < x2 ? x1 : x2), hi = x0 > x1 ? (x0 > x2 ? x0 : x2) : (x1 > x2 ? x1 : x2);
       boxes[6 * t + d] = lo; boxes[6 * t + 3 + d] = hi;
-      mn[d] = Math.min(mn[d], lo); mx[d] = Math.max(mx[d], hi);
+      if (lo < mn[d]) mn[d] = lo; if (hi > mx[d]) mx[d] = hi;
       sumSize += hi - lo;
     }
   }
   const span = Math.max(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]) || 1;
   const cell = Math.max(span / 1000, (1.5 * sumSize) / (3 * nT) || span / 64); // ~1.5 x the mean triangle size
   const eps = 1e-9;
-  const grid = new Map();
   const ci = (x, d) => Math.floor((x - mn[d]) / cell);
-  for (let t = 0; t < nT; t++) {
+  // TASKS.csv #3791 — the cells as one sorted typed array of (cell key, triangle) numbers, not a Map of arrays: key x 2^18 + triangle (the key under 2^30, the
+  // triangle under 2^18 = 262,144 > maxTriangles), then runs of one key; the same candidate pairs in the same order of cells (the sort is by key, then triangle)
+  const TRI = 262144;
+  let nEnt = 0;
+  for (let t = 0; t < nT; t++) nEnt += (ci(boxes[6 * t + 3], 0) - ci(boxes[6 * t], 0) + 1) * (ci(boxes[6 * t + 4], 1) - ci(boxes[6 * t + 1], 1) + 1) * (ci(boxes[6 * t + 5], 2) - ci(boxes[6 * t + 2], 2) + 1);
+  const ent = new Float64Array(nEnt);
+  for (let t = 0, e = 0; t < nT; t++) {
     for (let i = ci(boxes[6 * t], 0); i <= ci(boxes[6 * t + 3], 0); i++)
       for (let j = ci(boxes[6 * t + 1], 1); j <= ci(boxes[6 * t + 4], 1); j++)
-        for (let k = ci(boxes[6 * t + 2], 2); k <= ci(boxes[6 * t + 5], 2); k++) {
-          const key = (i * 1024 + j) * 1024 + k;
-          let l = grid.get(key); if (!l) grid.set(key, (l = [])); l.push(t);
-        }
+        for (let k = ci(boxes[6 * t + 2], 2); k <= ci(boxes[6 * t + 5], 2); k++) ent[e++] = ((i * 1024 + j) * 1024 + k) * TRI + t;
   }
+  ent.sort();
   // each candidate pair is tested once: in the cell holding the low corner of the overlap of the two boxes (no Set of
   // pairs - at 150k triangles that Set alone cost more than the tests)
-  for (const [key, list] of grid) {
+  for (let r0 = 0, r1 = 0; r0 < nEnt; r0 = r1) {
+    const key = Math.floor(ent[r0] / TRI);
+    r1 = r0 + 1; while (r1 < nEnt && Math.floor(ent[r1] / TRI) === key) r1++;
     const k0 = key % 1024, j0 = Math.floor(key / 1024) % 1024, i0 = Math.floor(key / 1048576);
-    for (let x = 0; x < list.length; x++) {
-      const s = list[x], bs = 6 * s;
-      for (let y = x + 1; y < list.length; y++) {
-        const t = list[y], bt = 6 * t;
+    for (let x = r0; x < r1; x++) {
+      const s = ent[x] % TRI, bs = 6 * s;
+      for (let y = x + 1; y < r1; y++) {
+        const t = ent[y] % TRI, bt = 6 * t;
         if (boxes[bs + 3] < boxes[bt] || boxes[bt + 3] < boxes[bs] || boxes[bs + 4] < boxes[bt + 1] || boxes[bt + 4] < boxes[bs + 1] || boxes[bs + 5] < boxes[bt + 2] || boxes[bt + 5] < boxes[bs + 2]) continue;
         if (ci(Math.max(boxes[bs], boxes[bt]), 0) !== i0 || ci(Math.max(boxes[bs + 1], boxes[bt + 1]), 1) !== j0 || ci(Math.max(boxes[bs + 2], boxes[bt + 2]), 2) !== k0) continue;
         const a0 = indices[3 * s], a1 = indices[3 * s + 1], a2 = indices[3 * s + 2], b0 = indices[3 * t], b1 = indices[3 * t + 1], b2 = indices[3 * t + 2];

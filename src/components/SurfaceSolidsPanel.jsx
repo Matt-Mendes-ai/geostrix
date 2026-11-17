@@ -7,7 +7,7 @@ import { Box, X as XIcon } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
 import { surfacesToBlock, suggestCellSize, solidThickness, cellAcross } from "../lib/surfaceSolids.js"; // solidThickness, cellAcross: #2762
 import { isMeshClosed } from "../lib/meshQuery.js";
-import { validateSolid } from "../lib/meshValidate.js"; // TASKS.csv #860
+import { validateSolidCached } from "../lib/meshValidate.js"; // TASKS.csv #860; cached: #3791
 import { SOLID_SURFACE_TYPES } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #804
 import { unitOf, contactOf, layerLabel } from "../lib/explicitUnits.js"; // TASKS.csv #830
 import { stackOrder } from "../lib/stackOrder.js"; // TASKS.csv #873
@@ -32,7 +32,7 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
     if (!m || m.indices.length < 3) return null;
     let closed = s.type === "unit_volume" || s.closure === "closed" || isMeshClosed(m.positions, m.indices).closed;
     // TASKS.csv #860 — closed is not enough: inside a self-intersection the parity test that codes a solid is wrong
-    const v = closed && s.type !== "unit_volume" ? validateSolid(m.positions, m.indices) : null;
+    const v = closed && s.type !== "unit_volume" ? validateSolidCached(m.positions, m.indices) : null;
     const broken = v && (v.selfIntersectingPairs > 0 || v.nonManifoldEdges > 0 || v.windingConflicts > 0) ? v : null;
     // TASKS.csv #2633 — the defects the edge counts cannot see, said beside the solid (not blocking: see meshValidate.js)
     const defects = v && !broken ? [v.nonManifoldVertices && tr(v.nonManifoldVertices === 1 ? "{n} vertex where two parts touch at a point (a bow-tie)" : "{n} vertices where two parts touch at a point (bow-ties)", { n: v.nonManifoldVertices }), v.degenerateTriangles && tr("{n} triangle(s) with no area", { n: v.degenerateTriangles }), v.isolatedVertices && tr("{n} vertex(es) no triangle uses", { n: v.isolatedVertices }), v.coincidentVertices && tr("{n} vertex(es) repeated at the same place (weld them in the program that made the file)", { n: v.coincidentVertices }) /* weld: #2801 */].filter(Boolean) : [];

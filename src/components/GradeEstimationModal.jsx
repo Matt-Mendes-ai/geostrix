@@ -3,7 +3,7 @@ import { trendRatioText } from "../lib/trend.js"; // TASKS.csv #2423
 import CompositeLengthNote from "./CompositeLengthNote.jsx"; // TASKS.csv #2549
 import { belowDrilling } from "../lib/belowDrilling.js"; // TASKS.csv #2546
 import { buildMeshQuery, isPointInsideMesh, isMeshClosed } from "../lib/meshQuery.js"; // TASKS.csv #517
-import { validateSolid } from "../lib/meshValidate.js"; // TASKS.csv #860
+import { validateSolidAsync } from "../lib/solidValidateClient.js"; // TASKS.csv #860, #3791 — the solid's check in a worker, kept for the session
 import { X, Play } from "./icons.js";
 import { compositeDownholeSliced, samplePointsSliced } from "../lib/compositeSliced.js"; // TASKS.csv #3105 — compositing in slices of holes; placing: #3111
 import { rawSampleIntervals, PRECIOUS_METALS, capAudit, lengthWeightedPercentile, gradeUnitLabel, resolvedSegments } from "../lib/geochem.js"; // gradeUnitLabel: #2218; // rawSampleIntervals: #571; lengthWeightedPercentile: #1573
@@ -19,7 +19,7 @@ import { MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport, suppo
 import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit, blockModelLattice, snapBoundsToLattice, overlapBox, blockModelExtent /* #2729 */ } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
 import { runEstimation } from "../lib/estimationClient.js"; // TASKS.csv #520 — off the UI thread
 import { memberCapProposal } from "../lib/memberCaps.js"; // TASKS.csv #3271
-import { setChoices, setOthers, newSetId, setRecord, memberName, domainNameSuffix, trimLike, memberSummary, MAX_SET_ELEMENTS, MEMBER_OWN_KEYS, memberMethodFor, sharesPrimarySearch } from "../lib/estimateSet.js"; // TASKS.csv #3014 — several elements in one run
+import { setChoices, setOthers, newSetId, setRecord, memberName, domainNameSuffix, trimLikeSliced, filterSliced, memberSummary, MAX_SET_ELEMENTS, MEMBER_OWN_KEYS, memberMethodFor, sharesPrimarySearch } from "../lib/estimateSet.js"; // TASKS.csv #3014 — several elements in one run
 import { makeReachClient } from "../lib/blockReachClient.js"; // TASKS.csv #1416; in a worker: #1579
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #2552
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2552
@@ -27,7 +27,7 @@ import { sampledByHole, unsampledDrillPoints } from "../lib/insideSampling.js"; 
 import { verticalReach } from "../lib/blockReach.js"; // TASKS.csv #2422 — a flat trend's vertical reach, as the estimator counts it
 import { desurveyHole, pointOnTrace } from "../lib/desurvey.js"; // pointOnTrace: #3592
 import { sampleSpacing } from "../lib/sampleSpacing.js"; // TASKS.csv #3592 — the spacing at the samples
-import { estimatePlane, gradeShellOf, sameVolumeMajorM, ellipsoidAxesM } from "../lib/estimatePlane.js"; // TASKS.csv #3679 — the shell's search, for the estimate
+import { estimatePlane, gradeShellOf, ownShellFor, sameVolumeMajorM, ellipsoidAxesM } from "../lib/estimatePlane.js"; // TASKS.csv #3679 — the shell's search, for the estimate
 import { classStops, visibleOnLattice, elementClasses } from "../lib/viewer/modelLegendOnAdd.js"; // TASKS.csv #3596
 import { sameLattice } from "../lib/densityFromModel.js"; // TASKS.csv #3596 — one model of a grid shown
 import { gradeStops } from "../lib/inversion.js"; // TASKS.csv #702
@@ -566,7 +566,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           const closed = sh ? isMeshClosed(sh.positions, sh.indices) : null;
           if (!sh || !closed?.closed) { setError(sh ? tr("\"{name}\" is not a closed solid ({boundaryEdges} open edges) — it has no inside to restrict to.", { name: sh.name, boundaryEdges: closed.boundaryEdges }) : tr("That volume is no longer in the project.")); setRunning(false); return; }
           // TASKS.csv #860 — a shell that crosses itself has no well-defined inside (parity flips inside the overlap)
-          const vs = validateSolid(sh.positions, sh.indices);
+          const vs = await validateSolidAsync(sh.positions, sh.indices); // #3791 — in a worker, and kept for the session
           if (vs.selfIntersectingPairs > 0) { setError(tr("\"{name}\" crosses itself ({n} triangle pairs), so it has no well-defined inside to restrict to. Fix or rebuild it first.", { name: sh.name, n: vs.selfIntersectingPairs })); setRunning(false); return; }
           const q = buildMeshQuery(sh.positions, sh.indices);
           inShell = (p) => isPointInsideMesh(q, p);
@@ -629,6 +629,18 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         // its nearest-neighbour check in the check's: one search for the set instead of one per element, with the same values. The others run on
         // their own as before; so does every member under kriging (each fits its own variogram) or a log10 run.
         const prep = [];
+        // TASKS.csv #3802 — a member of a run restricted by default takes its own element's closed grade shell when it has one (its samples, its blocks);
+        // else the primary's. A shell that crosses itself has no inside: that member follows the primary's.
+        const memberShells = new Map();
+        const shellOfMember = async (el) => {
+          if (memberShells.has(el)) return memberShells.get(el);
+          let r = { inShell, name: shellInfo?.name, own: false };
+          const own = ownShellFor(volumeShells, el, { auto: shellAuto, primaryId: shellId });
+          const sh = own ? (volumeShells || []).find((v) => v.id === own.id) : null;
+          if (sh && (await validateSolidAsync(sh.positions, sh.indices)).selfIntersectingPairs === 0) { const q = buildMeshQuery(sh.positions, sh.indices); r = { inShell: (p) => isPointInsideMesh(q, p), name: sh.name, own: true }; }
+          memberShells.set(el, r);
+          return r;
+        };
         for (const el of others) {
           const u = elementUnits[el] || "ppm";
           const unsM = resolveUnsampled("estimate", { assays: srcAssays, collars: runCollars, symbol: el, unit: u, elementUnits, logCtx: { layers, customLayers } });
@@ -636,8 +648,9 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           const mCapN = Number(memberCapOf(el)), mCap = mCapN > 0 ? mCapN : null; // #3271
           const iv = useComposites ? await compositeDownholeSliced(rows, el, u, elementUnits, { length: compositeLength, minCoverage, capValue: mCap, domainRows: domainRowsSel }, { signal: ac.signal }) /* #3105 */ : rawSampleIntervals(rows, el, u, elementUnits, { capValue: mCap }).intervals;
           let mp = (await samplePointsSliced(iv, collars, survey, desurveyHole, desurveyMethod, { signal: ac.signal })).points; // #3111
-          if (inShell) mp = mp.filter((q) => inShell(q));
-          prep.push({ el, u, unsM, fm, rows, mCap, mp, mUns: mp.length ? unsampledPointsFor(rows, el, u) : [] });
+          const msh = inShell ? await shellOfMember(el) : null, mAll = mp.length; // #3802
+          if (msh) mp = mp.filter((q) => msh.inShell(q));
+          prep.push({ el, u, unsM, fm, rows, mCap, mp, mUns: mp.length ? unsampledPointsFor(rows, el, u) : [], msh, mOutside: mAll - mp.length });
         }
         const samePoints = (a, b) => a.length === b.length && a.every((q, i) => { const r = b[i]; return q.hole_id === r.hole_id && q.x === r.x && q.y === r.y && q.z === r.z && (q.length ?? null) === (r.length ?? null) && (q.domain ?? null) === (r.domain ?? null); });
         const sharedIdx = prep.map((q, k) => (q.mp.length && sharesPrimarySearch(memberMethodOf(q.el), method, !!logInfo) /* #3164 */ && samePoints(q.mp, estPts) ? k : -1)).filter((k) => k >= 0);
@@ -701,7 +714,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         est.blocksBeforeTrims = est.cells.length; // #2106
         if (inShell) { // #517
           const before = est.cells.length;
-          est.cells = est.cells.filter((c) => inShell(c));
+          est.cells = await filterSliced(est.cells, (c) => inShell(c), { signal: ac.signal }); // #3791 — in slices: one pass of the solid's inside test froze the window ~0.8 s
           est.blocksSkipped += before - est.cells.length; est.blocksEstimated = est.cells.length;
           params.restrictedToVolume = `${shellInfo.name}: ${shellInfo.samplesInside} sample(s) inside used, ${shellInfo.samplesOutside} outside left out; ${before - est.cells.length} block(s) outside it dropped`;
           params.restrictedToVolumeName = shellInfo.name; // #2069 — the default name says it
@@ -774,7 +787,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         const inArea = areaString ? ((pts) => (x, y) => pointInPolygon(x, y, pts))(areaString.vertices.map((q) => ({ x: q[0], y: q[1] }))) : null;
         let ownRuns = 0; // #3163 — members run on their own so far (the progress bar's steps)
         for (let k = 0; k < others.length; k++) {
-          const { el, u, unsM, fm, mCap, mp, mUns } = prep[k]; // #3163 — composited and placed before the primary's run
+          const { el, u, unsM, fm, mCap, mp, mUns, msh, mOutside } = prep[k]; // #3163 — composited and placed before the primary's run; msh: its restricting solid (#3802)
           setStage(el);
           await new Promise((r) => setTimeout(r, 0));
           if (!mp.length) { members.push({ ...memberSummary(el, u, [], 0), cells: [], cap: mCap }); continue; }
@@ -788,7 +801,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
             } catch (err) { if (err.cancelled) throw err; throw new Error(`${el}: ${err.message}`); }
             ownRuns++;
           }
-          const t = trimLike(me.cells, { inShell, inArea, groundAt: cutGround }); // #3589: the same raised ground
+          const t = await trimLikeSliced(me.cells, { inShell: msh ? msh.inShell : inShell, inArea, groundAt: cutGround }, { signal: ac.signal }); // #3589; sliced: #3791: the same raised ground
           // #3271 — the member's own check: composites, nearest neighbour and estimate means over its blocks
           const mNn = mMethod === "nn" /* #3164 */ ? null : j >= 0 ? { checkColumns: nnEst.memberCheckColumns[j] } /* #3163 */ : await runEstimation("block", mp, nnOpts, { signal: ac.signal, checkOnly: true });
           await new Promise((r) => setTimeout(r, 0));
@@ -802,6 +815,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
             element: el, unit: u, method: mMethod /* #3164 */, capValue: mCap, capUnit: mCap != null ? u : null, ...(mAudit ? { capAudit: mAudit } : {}), samplePoints: mp.length, ...unsM.params(fm), unsampledDrillPoints: mUns.length, // cap: #3271
             ...(me.variogram ? { variogram: { ...me.variogram, frame: params.variogram?.frame || (trend ? `in the trend "${trend.name}" frame: the range is along its major axis` : "isotropic") /* #3164: a kriged member of a non-kriged run */ }, krigingBlocks: me.okCounts } : {}), ...(me.mlsCounts ? { mlsBlocks: me.mlsCounts } : {}),
             ...(dominated ? { effectivelyOneHoleBlocks: dominated } : {}),
+            ...(msh?.own ? { restrictedToVolume: `${msh.name}: ${mp.length} sample(s) inside used, ${mOutside} outside left out; ${t.dropped} block(s) dropped by the restricting solid, the area string or the ground`, restrictedToVolumeName: msh.name, restrictedByDefault: `the element's own closed grade shell "${msh.name}" (the default when one is in the model: the switch in the dialog turns it off)` } : {}), // #3802
             ...(t.dropped ? { trimmedLikeThePrimary: `${t.dropped} block(s) dropped by the primary's limits (the restricting solid, the area string, the ground)` } : {}),
             ...(j >= 0 ? { searchSharedWith: `${symbol}: estimated in the same neighbour search, on the same sample points` } : {}), // #3163
           });
@@ -882,7 +896,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
     for (const m of visibleOnLattice(voxelModels, result.cells, { latticeOf: blockModelLattice, sameLattice })) updateVoxelModel?.(m.id, { visible: false });
     onAddModel({ name: set ? memberName(name, p0, p0, set, typed) : name, source: `estimate-${method}`, cells: result.cells, ...rampOf(result.cells, sourceKey === "assay" ? p0 : null), params: result.params }); // params: TASKS.csv #404
     // TASKS.csv #3286 (5) — the set's other elements are added hidden: all shown, they share the blocks and each row warned 'the two colour each other's blocks'
-    if (set) for (const m of result.members || []) if (m.cells.length) onAddModel({ name: memberName(name, p0, m.element, set, typed, m.method, result.params?.method) /* #3164 */, source: `estimate-${m.method || method}` /* #3164 */, cells: m.cells, ...rampOf(m.cells, sourceKey === "assay" ? m.element : null) /* #3596 */, params: m.params, visible: false });
+    if (set) for (const m of result.members || []) if (m.cells.length) onAddModel({ name: ((nm, mine, prim) => (mine && prim && mine !== prim ? nm.split(prim).join(mine) : nm))(memberName(name, p0, m.element, set, typed, m.method, result.params?.method), m.params?.restrictedToVolumeName, result.params?.restrictedToVolumeName) /* #3164; #3802 — the member's own shell named, not the primary's */, source: `estimate-${m.method || method}` /* #3164 */, cells: m.cells, ...rampOf(m.cells, sourceKey === "assay" ? m.element : null) /* #3596 */, params: m.params, visible: false });
     setAdded(true);
   };
 

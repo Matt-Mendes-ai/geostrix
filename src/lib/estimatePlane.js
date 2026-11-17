@@ -38,6 +38,15 @@ export function gradeShellOf(volumeShells, symbol) {
   return best ? { id: best.id, name: best.name, cutoff: best.params.cutoff, volumeM3: closed.get(best.id) } : null;
 }
 
+// TASKS.csv #3802 — a set member (Ag, Pb beside Zn) of an estimate restricted by DEFAULT to the primary's grade shell takes its own element's closed grade
+// shell when it has one (its samples inside that, its blocks kept inside that), not the primary's. null: no default restriction, no shell of its own, or the
+// primary's own (the member then follows the primary, as before). -> { id, name, cutoff, volumeM3 } | null
+export function ownShellFor(volumeShells, element, { auto, primaryId } = {}) {
+  if (!auto) return null;
+  const g = gradeShellOf(volumeShells, element);
+  return g && g.id !== primaryId ? g : null;
+}
+
 // The cut-off whose samples give the plane: the grade shell's, else the 90th percentile of the positive values
 export function planeCutoff(points, shell) {
   if (shell && Number.isFinite(shell.cutoff)) return { value: shell.cutoff, from: "shell", name: shell.name };
