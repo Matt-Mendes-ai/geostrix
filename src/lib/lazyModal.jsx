@@ -20,6 +20,13 @@ import { useStore } from "./store.jsx";
 //
 // fallback={null} matches #224's existing choice: these chunks come off local disk in a few
 // milliseconds, and flashing a spinner into a modal that is about to paint anyway reads as a glitch.
+// TASKS.csv (startup size, 2026-11-17) — a lazy PART of a view (the figure overlay, the locator map, a legend): the same deferral, without the modal's error frame, so a part that fails does what it did
+// when it was imported statically. Rendered where the static one was; its chunk comes off local disk in a few milliseconds and nothing shows meanwhile.
+export function lazyPart(loader) {
+  const Inner = React.lazy(loader);
+  return function LazyPart(props) { return <Suspense fallback={null}><Inner {...props} /></Suspense>; };
+}
+
 export function lazyModal(loader) {
   const Inner = React.lazy(loader);
   // Called once per module at import time, so this component identity is stable across renders —

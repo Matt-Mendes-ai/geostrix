@@ -45,6 +45,7 @@ import { rampTickLabels } from "../lib/legendScale.js"; // TASKS.csv #736
 import { allocateLegendRows, foldLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #1398; fold: #3398
 import { swatchShape } from "../lib/legendGroups.js"; // TASKS.csv #948
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { MAX_LEGEND_ITEMS, legendLayout } from "../lib/legendLayout.js"; // startup size: apart from this component
 
 // TASKS.csv #736 — the legend's tick text measured in its real font (the xs step), one cached canvas, memoised per
 // string: called when the legend renders, never per frame. Falls back to the old 6 px per character without a canvas.
@@ -69,16 +70,8 @@ const SCALE_LEFT_PX = 12 + 76 + 14;
 // A legend longer than this stops being figure furniture and starts being a data panel. Truncating
 // SILENTLY would be the dishonest option (a reader would assume the key is complete), so the
 // remainder is stated explicitly instead.
-export const MAX_LEGEND_ITEMS = 14; // shared between the groups (#1398); 18 with the numeric ramps ran into the scale bar
-// TASKS.csv #2044 (review #2013, Woodjam) — 14 rows whatever the view's size named 16 of 134 categories on a nine-layer project (two codes a
-// layer). The start count now grows with the view's height (a row is ~17 px; the title, heading, ramps and scale bar keep ~160 px), and
-// a wide view with more codes than one column holds gets a second column. #1534's fit still trims what runs into the scale bar.
-// h, w: the overlay's size in px; total: the item rows wanted -> { cap, cols }
-export function legendLayout(h, w, total = Infinity) {
-  const one = h > 0 ? Math.max(MAX_LEGEND_ITEMS, Math.min(40, Math.floor((h - 160) / 17))) : MAX_LEGEND_ITEMS;
-  const cols = w >= 1100 && total > one ? 2 : 1;
-  return { cap: one * cols, cols };
-}
+// MAX_LEGEND_ITEMS and legendLayout live in lib/legendLayout.js (the 3D view's toolbar needs them at startup, this component loads with the figure); re-exported for the importers of this file
+export { MAX_LEGEND_ITEMS, legendLayout };
 
 const card = {
   background: "var(--color-bg)",
