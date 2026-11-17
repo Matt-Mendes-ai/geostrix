@@ -48,6 +48,7 @@ import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #529
 import InfoButton from "../components/InfoButton.jsx";
 import { fetchSRTMTerrain, collarGroundMisfit, findBetterUtmZone, planTerrainFetch } from "../lib/srtmFetch.js"; // planTerrainFetch: #3251
 import { fetchCopernicusTerrain } from "../lib/copernicusDem.js"; // TASKS.csv #814
+import { savedTerrainSource, TERRAIN_SOURCE_KEY } from "../lib/terrainSource.js"; // TASKS.csv #3882 — Copernicus GLO-30 is the default online source
 import { toLonLat, reprojectXY, crsName, pointTransform, getProj4Def, isMetricProjectedEpsg, isGeographicCrs } from "../lib/reproject.js";
 import { guessEpsgFromPrjWkt } from "../lib/reprojectMore.js"; // TASKS.csv #3590 // guessEpsgFromPrjWkt: #2901; isMetricProjectedEpsg: #2127; isGeographicCrs: #2832
 import { geosoftHeaderEpsg, xyLookLikeDegrees } from "../lib/stationDegrees.js"; // TASKS.csv #2832
@@ -280,8 +281,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const [bmWithSet, setBmWithSetState] = useState(() => { try { return localStorage.getItem("geostrix.blockExportWithSet") === "1"; } catch { return false; } });
   const setBmWithSet = (v) => { setBmWithSetState(v); try { localStorage.setItem("geostrix.blockExportWithSet", v ? "1" : "0"); } catch { /* private window */ } };
   // TASKS.csv #814 — which online elevation model the terrain fetch reads (a per-computer preference, like the detail)
-  const [terrainSource, setTerrainSourceState] = useState(() => { try { return localStorage.getItem("geostrix.terrainSource") || "aws"; } catch { return "aws"; } });
-  const setTerrainSource = (v) => { setTerrainSourceState(v); try { localStorage.setItem("geostrix.terrainSource", v); } catch { /* private window */ } };
+  // TASKS.csv #3882 — GLO-30 unless another was chosen (and remembered) before; the saved terrain of a project keeps the service it came from
+  const [terrainSource, setTerrainSourceState] = useState(() => savedTerrainSource(localStorage));
+  const setTerrainSource = (v) => { setTerrainSourceState(v); try { localStorage.setItem(TERRAIN_SOURCE_KEY, v); } catch { /* private window */ } };
   const [srtmPickerOpen, setSrtmPickerOpen] = useState(false);
   // TASKS.csv #3095 (Matt's pick B) — Terrain from samples and collars over a drawn area: on a field wider than the grid can resolve (6,000 holes
   // over 38 km) one terrain is coarser than the points; a drawn area (the SRTM picker's) keeps the points inside it and the grid follows them
@@ -2711,9 +2713,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
           <span style={{ flexShrink: 0 }}>{tr("Online source")}</span>
           <select value={terrainSource} onChange={(e) => setTerrainSource(e.target.value)} style={{ ...numInput, width: "auto", flex: 1 }} aria-label={tr("Online source")}
-            title={tr("AWS Terrain Tiles: SRTM blended with national models (CDEM in Canada), up to ~5 m pixels; the fetch checks it for isolated cones against Copernicus and warns. Copernicus GLO-30: one consistent global model, ~30 m, a surface model (forest adds some metres). NRCan MRDEM-30 (Canada only): 30 m bare-earth terrain, using lidar where it exists. NRCan HRDEM: 1 m lidar terrain where a survey has been flown, MRDEM-30 elsewhere.")}>
+            title={tr("Copernicus GLO-30 (the default): one consistent global model, ~30 m, a surface model (forest adds some metres); open ocean has no cells and stays no data. AWS Terrain Tiles: SRTM blended with national models (CDEM in Canada), up to ~5 m pixels; the fetch checks it for isolated cones against Copernicus and warns. NRCan MRDEM-30 (Canada only): 30 m bare-earth terrain, using lidar where it exists. NRCan HRDEM: 1 m lidar terrain where a survey has been flown, MRDEM-30 elsewhere. A terrain already in the project keeps the source it was fetched from.")}>
+            <option value="copernicus">{tr("Copernicus GLO-30 (~30 m)")}</option>{/* TASKS.csv #3882 — the default, so first */}
             <option value="aws">{tr("AWS Terrain Tiles (SRTM / CDEM blend)")}</option>
-            <option value="copernicus">{tr("Copernicus GLO-30 (~30 m)")}</option>
             <option value="mrdem" disabled={outsideCanada && terrainSource !== "mrdem"}>{tr("NRCan MRDEM-30 (Canada, bare earth)")}</option>{/* TASKS.csv #815; disabled outside Canada: #2465 */}
             <option value="hrdem" disabled={outsideCanada && terrainSource !== "hrdem"}>{tr("NRCan HRDEM lidar (Canada, where flown)")}</option>
             <option value="gem15">{tr("Google GEM-15 (15 m, bare earth)")}</option>{/* TASKS.csv #3721 — experimental; gaps filled from GLO-30 and said */}
