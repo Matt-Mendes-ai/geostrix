@@ -23,7 +23,8 @@ import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import UndergroundOreNote from "./UndergroundOreNote.jsx"; // TASKS.csv #2277
 import TopCutNote from "./TopCutNote.jsx"; // TASKS.csv #3794
 import { topCutCells } from "../lib/topCutCells.js";
-import { t as tr } from "../lib/i18n.js";
+import { t as trRaw } from "../lib/i18n.js";
+import { currencyOf, withCurrency } from "../lib/currency.js"; // TASKS.csv #3797 (b) - the project currency
 import { weatheredBasePoints } from "../lib/weatheredZone.js"; // TASKS.csv #2671 — the shell's weathered zone, rebuilt from the log
 import { holeTraces } from "../lib/evidenceSources.js"; // TASKS.csv #2671
 import { modelWithCodeDensity } from "../lib/densityByCode.js"; // TASKS.csv #2647 — the shell's per-code densities
@@ -46,7 +47,8 @@ let kept = null; // #1356 — the last result (with its strings, for export) out
 const upperInterRamp = (inp) => (Math.atan(inp.benchH / (inp.benchH / Math.tan((inp.upper.batterDeg * Math.PI) / 180) + inp.upper.berm)) * 180) / Math.PI;
 
 export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, onToggle, onRemove, onClose, onZoomTo = null }) { // onZoomTo: #2996
-  const { voxelModels = [], terrain, collars = [], project, designStrings = [], layers, survey = [], desurveyMethod } = useStore(); // layers..desurveyMethod: #2647
+  const { voxelModels = [], terrain, collars = [], project, designStrings = [], layers, survey = [], desurveyMethod } = useStore();
+  const cur = currencyOf(project), tr = (k, v) => withCurrency(trRaw(k, v), cur); // TASKS.csv #3797 (b) - the project currency (blank: $) // layers..desurveyMethod: #2647
   const chips = unsampledWord(collars) === "chips"; // TASKS.csv #3513 — 'unsampled chips' on RC / aircore holes, as the Estimation says it (#3507)
   const areas = useMemo(() => designStrings.filter((s) => s.closed && s.vertices.length > 2 && !s.stopeRun /* #2601 */), [designStrings]); // #1916 — design areas
   const [areaId, setAreaId] = useState("");
@@ -154,7 +156,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
   };
   const exportStringsDxf = () => saveFile({ suggestedName: "pit_design_strings.dxf", filters: [{ name: "DXF", extensions: ["dxf"] }], content: buildDXF({ comment: dxfNotes(project, "Pit design strings"), features: benchStringFeatures(res.strings), geomType: "line", layerOf: (ft) => ft.attributes.name, colorOf: (ft) => (ft.attributes.kind === "crest" ? "#b22222" : "#1f6fb2") }) });
   const exportStringsCsv = () => saveFile({ suggestedName: "pit_design_strings.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(benchStringRows(res.strings).map((r) => ({ ...r, crs: crsCell(project) }))) });
-  const exportBenchesCsv = () => saveFile({ suggestedName: "pit_design_benches.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(benchTableRows(res.benches, res.unit, res.alsoLabels || []).map((r) => ({ ...r, pit: res.pitName, ...pitSettingsCells(pit?.params?.inputs) /* #3799 */, ...topCutCells(model?.params) /* #3794 */, crs: crsCell(project) }))) });
+  const exportBenchesCsv = () => saveFile({ suggestedName: "pit_design_benches.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(benchTableRows(res.benches, res.unit, res.alsoLabels || []).map((r) => ({ ...r, pit: res.pitName, ...pitSettingsCells(pit?.params?.inputs, cur) /* #3799 */, ...topCutCells(model?.params) /* #3794 */, crs: crsCell(project) }))) });
   // #1929 — the figures in brackets: the whole shell's, or the largest separate pit's when that alone was designed
   const cmp = res?.partsDropped > 0 && res.shell?.largestPit ? res.shell.largestPit : (res?.shell || {});
   const cmpLabel = (whole, part) => (res?.partsDropped > 0 && res.shell?.largestPit ? part : whole);

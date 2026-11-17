@@ -23,7 +23,8 @@ import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import UndergroundOreNote from "./UndergroundOreNote.jsx"; // TASKS.csv #2277
 import TopCutNote from "./TopCutNote.jsx"; // TASKS.csv #3794
 import { topCutCells } from "../lib/topCutCells.js";
-import { t as tr } from "../lib/i18n.js";
+import { t as tr, t as trRaw } from "../lib/i18n.js"; // tr: the Chart below the pane; the pane itself prints the project currency
+import { currencyOf, withCurrency, moneyText } from "../lib/currency.js"; // TASKS.csv #3797 (b) - the project currency
 import { modelWithCodeDensity } from "../lib/densityByCode.js"; // TASKS.csv #2647 — the shell's per-code densities
 import { densityUsedText } from "./densityUsedText.js"; // TASKS.csv #2647
 import NotOfferedGrades from "./NotOfferedGrades.jsx"; // TASKS.csv #2646
@@ -59,7 +60,8 @@ export function droppedFactors(text) {
 const sameShells = (runs) => runs.length > 2 && runs.every((r) => Math.abs(r.oreT - runs[0].oreT) <= 0.01 * Math.max(runs[0].oreT, 1));
 
 export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemove, onClose }) {
-  const { voxelModels = [], terrain, collars = [], project, layers, survey = [], desurveyMethod } = useStore(); // layers..desurveyMethod: #2597
+  const { voxelModels = [], terrain, collars = [], project, layers, survey = [], desurveyMethod } = useStore();
+  const cur = currencyOf(project), tr = (k, v) => withCurrency(trRaw(k, v), cur); // TASKS.csv #3797 (b) - the project currency (blank: $) // layers..desurveyMethod: #2597
   const chips = unsampledWord(collars) === "chips"; // TASKS.csv #3513 — 'unsampled chips' on RC / aircore holes, as the Estimation says it (#3507)
   const models = useMemo(() => { const cat = new Set(categoricalModels(voxelModels)); return voxelModels.filter((m) => gradeCandidate(m, (x) => cat.has(x))); }, [voxelModels]);
   // TASKS.csv #1971 — the shell whose inputs the series takes: picked, the latest by default (a shell of a series is not an inputs' source)
@@ -128,7 +130,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
   const metalText = (r) => metalAmountText(r.metalU * res.metalFactor, res.metalUnit, element, big); // #2434 — the Pit shell's words
   const byMetalText = (r) => { const m = (r.metalU2 || 0) * res.byMetalFactor; return res.byMetalUnit === "g" ? `${big(m / G_PER_OZ)} oz` : `${big(m)} t`; }; // #1917
   const exportCsv = () => saveFile({ suggestedName: "nested_pits.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv([
-    ...res.runs.map((r) => ({ section: "shell", revenue_factor: r.rf, ...pitSettingsCells(inputs) /* #3799 — density, recovery, costs, slope, cut-off */, ...topCutCells(model?.params) /* #3794 */, price: res.price, price_unit: res.priceLabel, element: element || "" /* #2594 — what the grade and contained_metal are of */, ore_t: Math.round(r.oreT), [`mean_grade_${res.unit.replace("%", "pct")}`]: r.meanGrade == null ? "" : +r.meanGrade.toPrecision(4), contained_metal: Math.round(r.metalU * res.metalFactor), metal_unit: res.metalUnit, ...Object.fromEntries((res.alsoLabels || []).map((l, k) => [`mean_${l}`, r.also?.[k]?.meanGrade == null ? "" : +r.also[k].meanGrade.toPrecision(4)])) /* #3084 */, waste_t: Math.round(r.wasteT), strip_ratio: r.stripRatio == null ? "" : +r.stripRatio.toFixed(2), max_depth_m: Math.round(r.maxDepth), undiscounted_margin_at_entered_price: Math.round(r.moneyBase), years_to_mine: r.years == null ? "" : +r.years.toFixed(2), npv: r.npv == null ? "" : Math.round(r.npv), ...(inputs?.by && res.byMetalUnit ? { by_product: byEl, by_product_mean_grade: r.meanGrade2 == null ? "" : +r.meanGrade2.toPrecision(4), by_product_contained_metal: Math.round((r.metalU2 || 0) * res.byMetalFactor), by_product_metal_unit: res.byMetalUnit } : {}) /* #1917 */, crs: crsCell(project) })),
+    ...res.runs.map((r) => ({ section: "shell", revenue_factor: r.rf, ...pitSettingsCells(inputs, cur) /* #3799 — density, recovery, costs, slope, cut-off */, ...topCutCells(model?.params) /* #3794 */, price: res.price, price_unit: res.priceLabel, element: element || "" /* #2594 — what the grade and contained_metal are of */, ore_t: Math.round(r.oreT), [`mean_grade_${res.unit.replace("%", "pct")}`]: r.meanGrade == null ? "" : +r.meanGrade.toPrecision(4), contained_metal: Math.round(r.metalU * res.metalFactor), metal_unit: res.metalUnit, ...Object.fromEntries((res.alsoLabels || []).map((l, k) => [`mean_${l}`, r.also?.[k]?.meanGrade == null ? "" : +r.also[k].meanGrade.toPrecision(4)])) /* #3084 */, waste_t: Math.round(r.wasteT), strip_ratio: r.stripRatio == null ? "" : +r.stripRatio.toFixed(2), max_depth_m: Math.round(r.maxDepth), undiscounted_margin_at_entered_price: Math.round(r.moneyBase), years_to_mine: r.years == null ? "" : +r.years.toFixed(2), npv: r.npv == null ? "" : Math.round(r.npv), ...(inputs?.by && res.byMetalUnit ? { by_product: byEl, by_product_mean_grade: r.meanGrade2 == null ? "" : +r.meanGrade2.toPrecision(4), by_product_contained_metal: Math.round((r.metalU2 || 0) * res.byMetalFactor), by_product_metal_unit: res.byMetalUnit } : {}) /* #1917 */, crs: crsCell(project) })),
     ...res.yearly.map((y) => ({ section: "year", year: y.year, rock_t: Math.round(y.rockT), ore_t: Math.round(y.oreT), cash_undiscounted: Math.round(y.cash) })),
   ]) });
   const line = (label, v) => <div style={row}><span>{label}</span><b>{v}</b></div>;
@@ -169,9 +171,9 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
               <thead><tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>{["RF", tr("Ore t"), tr("Grade"), ...(res.alsoLabels || []) /* #3084 */, tr("Strip"), tr("Margin"), ...(res.rate ? [tr("Years"), ...(res.discountPct != null ? [tr("NPV")] : [])] : []), ""].map((h, i) => <th key={i} style={{ textAlign: "right", padding: "2px 4px", borderBottom: "1px solid var(--color-border)", fontWeight: 600 }}>{h}</th>)}</tr></thead>
               <tbody>{res.runs.map((r, i) => (
                 <tr key={r.rf} style={{ background: i === res.bestNpv ? "var(--color-selected-bg)" : undefined }}>
-                  <td style={cellStyle}>{r.rf}</td><td style={cellStyle}>{r.blocks ? big(r.oreT) : "—"}</td><td style={cellStyle}>{r.meanGrade == null ? "—" : Number(r.meanGrade.toPrecision(3))}</td>{(res.alsoLabels || []).map((l, k) => <td key={l} style={cellStyle}>{r.also?.[k]?.meanGrade == null ? "—" : Number(r.also[k].meanGrade.toPrecision(3))}</td>)}<td style={cellStyle}>{r.stripRatio == null ? "—" : r.stripRatio.toFixed(2)}</td><td style={cellStyle}>{r.blocks ? `$${big(r.moneyBase)}` : "—"}</td>
+                  <td style={cellStyle}>{r.rf}</td><td style={cellStyle}>{r.blocks ? big(r.oreT) : "—"}</td><td style={cellStyle}>{r.meanGrade == null ? "—" : Number(r.meanGrade.toPrecision(3))}</td>{(res.alsoLabels || []).map((l, k) => <td key={l} style={cellStyle}>{r.also?.[k]?.meanGrade == null ? "—" : Number(r.also[k].meanGrade.toPrecision(3))}</td>)}<td style={cellStyle}>{r.stripRatio == null ? "—" : r.stripRatio.toFixed(2)}</td><td style={cellStyle}>{r.blocks ? moneyText(cur, big(r.moneyBase)) : "—"}</td>
                   {res.rate && <td style={cellStyle}>{r.blocks ? r.years.toFixed(1) : "—"}</td>}
-                  {res.rate && res.discountPct != null && <td style={cellStyle}>{r.blocks ? `$${big(r.npv)}` : "—"}</td>}
+                  {res.rate && res.discountPct != null && <td style={cellStyle}>{r.blocks ? moneyText(cur, big(r.npv)) : "—"}</td>}
                   <td style={{ ...cellStyle, padding: 0 }}>{r.positions && <button onClick={() => showShell(i)} style={iconBtnStyle} aria-label={shownState(i) === "on" ? tr("Hide the shell at {rf}", { rf: r.rf }) : tr("Show the shell at {rf}", { rf: r.rf })} title={shownState(i) === "on" ? tr("Hide") : tr("Show in the 3D view")}>{shownState(i) === "on" ? <Eye size={12} /> : <EyeOff size={12} />}</button>}</td>
                 </tr>
               ))}</tbody>

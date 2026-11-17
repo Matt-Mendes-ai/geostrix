@@ -58,8 +58,8 @@ test("#3799 the bench and nested-pit CSVs carry the settings the tonnes were mad
   const c = pitSettingsCells({ density: 2.8, wasteDensity: 2.6, recovery: 90, price: 2000, priceUnit: "oz", miningCost: 3, processingCost: 30, slopeDeg: 45, typedCutoff: 3 });
   assert.deepEqual(c, { density_t_m3: 2.8, waste_density_t_m3: 2.6, recovery_pct: 90, price: 2000, price_unit: "oz", mining_cost_per_t_rock: 3, processing_cost_per_t_ore: 30, slope_deg: 45, typed_cutoff: 3 });
   assert.deepEqual(pitSettingsCells({ density: "" }), {}); assert.deepEqual(pitSettingsCells(null), {});
-  assert.match(read("../src/components/PitDesignPane.jsx"), /\.\.\.pitSettingsCells\(pit\?\.params\?\.inputs\) \/\* #3799 \*\//);
-  assert.match(read("../src/components/NestedPitsPane.jsx"), /\.\.\.pitSettingsCells\(inputs\) \/\* #3799/);
+  assert.match(read("../src/components/PitDesignPane.jsx"), /\.\.\.pitSettingsCells\(pit\?\.params\?\.inputs(, cur)?\) \/\* #3799 \*\//);
+  assert.match(read("../src/components/NestedPitsPane.jsx"), /\.\.\.pitSettingsCells\(inputs(, cur)?\) \/\* #3799/);
 });
 
 test("#3798 a strip ratio in the tens is remarked on, named a threshold; the pane says where to look", () => {

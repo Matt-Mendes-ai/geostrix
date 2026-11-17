@@ -28,7 +28,8 @@ import { ringContains } from "../lib/polygonRings.js"; // TASKS.csv #2120
 import { holeTraces } from "../lib/evidenceSources.js";
 import { excludeQAQC } from "../lib/qaqc.js";
 import { valueIn } from "../lib/geochem.js";
-import { t as tr } from "../lib/i18n.js";
+import { t as trRaw } from "../lib/i18n.js";
+import { currencyOf, withCurrency, moneyText } from "../lib/currency.js"; // TASKS.csv #3797 (b) - the project currency
 import { DENSITY_CODE_LAYERS, modelWithCodeDensity, typedCodeDensities, codesByMetres /* #2993 */ } from "../lib/densityByCode.js"; // TASKS.csv #2647
 import { densityUsedText } from "./densityUsedText.js"; // TASKS.csv #2647
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
@@ -55,7 +56,8 @@ let kept = null; // #1356 — the last result, shown again when the pane or the 
 // onAdd({ name, positions, indices, params, tip, type, closure, color, tag }) puts the pit in the 3D view; onToggle(id) shows/hides a surface;
 // onRemove(id) deletes one (#1498).
 export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove, onClose, onZoomTo = null }) { // onZoomTo: #2996
-  const { voxelModels = [], terrain, layers, collars = [], assays = [], assayElements = [], survey = [], desurveyMethod, designStrings = [], project: shellProject } = useStore(); // project: #3587 // assays..desurveyMethod: #2593; designStrings: #2120
+  const { voxelModels = [], terrain, layers, collars = [], assays = [], assayElements = [], survey = [], desurveyMethod, designStrings = [], project: shellProject } = useStore();
+  const cur = currencyOf(shellProject), tr = (k, v) => withCurrency(trRaw(k, v), cur); // TASKS.csv #3797 (b) - every text of this pane prints the project currency (blank: $) // project: #3587 // assays..desurveyMethod: #2593; designStrings: #2120
   const chips = unsampledWord(collars) === "chips"; // TASKS.csv #3513 — 'unsampled chips' on RC / aircore holes, as the Estimation says it (#3507)
   // a grade: a unit that counts metal first, then none stated (an import may simply not say); never a resistivity, a variance, an inversion or a category
   const models = useMemo(() => {
@@ -189,7 +191,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
     const F = metal?.unit === "g" ? PRICE_UNIT_MASS.g : PRICED_MASS_T; // lbU3O8 / kgU: #2434
     const conv = n > 0 && from && from !== to && F[from] != null && F[to] != null ? n * (F[to] / F[from]) : null;
     setF((p) => ({ ...p, priceUnit: to, price: to === from && src ? src.value : conv == null ? p.price : String(+conv.toPrecision(6)) }));
-    setMsg(conv == null ? null : tr("The price was converted to {unit}: {v}.", { unit: (prices.find(([k]) => k === to) || [])[1] || to, v: +conv.toPrecision(6) }));
+    setMsg(conv == null ? null : tr("The price was converted to {unit}: {v}.", { unit: withCurrency((prices.find(([k]) => k === to) || [])[1] || to, cur), v: +conv.toPrecision(6) }));
   };
   const value = (k) => (k === "price" && priceStale ? NaN : Number(f[k]));
   // TASKS.csv #2647 — a density per code of a logged layer (Lithology: LIG 1.3, SAN 1.9 ...), each block taking the nearest logged interval
@@ -291,7 +293,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
       const contained = r.metalU * r.metalFactor;
       if (hideEarlier) surfaces.filter((s) => s.type === "pit_shell" && s.visible && s.id !== editingId).forEach((s) => onToggle?.(s.id)); // #1356 — one pit on view at a time
       if (editingId) { onRemove?.(editingId); setEditingId(null); } // #1498 — the edited pit is replaced by the new run
-      const priceLabel = isProduct ? "$/dmt" /* #2986 part 2 */ : (prices.find(([k]) => k === priceUnit) || [])[1] || "";
+      const priceLabel = withCurrency(isProduct ? "$/dmt" /* #2986 part 2 */ : (prices.find(([k]) => k === priceUnit) || [])[1] || "", cur);
       const firstOfModel = !pits.some((p) => p.params?.blockModel === model.name); // #2996
       const pitId = onAdd({
         // #1356 — named by what usually changes between runs, so a list of pits can be told apart
@@ -349,14 +351,14 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
           {field("refGrade", tr("at a reference grade ({unit})", { unit: `${unitWithElement(unit, element)}`.trim() || "?" }))}
           <label style={row} title={tr("Optional: what a dry tonne gains (or loses) per 1 unit of grade above (or below) the reference. Blank: none, every product tonne at the price.")}>{tr("Premium or discount ($/dmt per 1 {unit}, optional)", { unit: `${gradeUnitText(unit, element)}`.trim() || "?" })}<input type="number" step="any" value={f.adjPerUnit} onChange={set("adjPerUnit")} placeholder={tr("optional")} style={num} aria-label={tr("Premium or discount per unit of grade")} /></label>
         </> : <label style={row}>{tr("Metal price")}<span style={{ display: "flex", gap: 4 }}><input type="number" min={0} step="any" value={priceStale ? "" : f.price} onChange={setPrice} style={num} aria-label={tr("Metal price")} />
-          <select value={priceUnit || ""} onChange={setPriceUnit} disabled={!prices} style={{ ...smallSel, width: (prices || []).some(([, l]) => l.length > 6) ? 96 : 62 }} aria-label={tr("Price unit")}>{/* width: "$/lb U3O8", #2434 */}{(prices || []).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></span></label>}
+          <select value={priceUnit || ""} onChange={setPriceUnit} disabled={!prices} style={{ ...smallSel, width: (prices || []).some(([, l]) => l.length > 6) ? 96 : 62 }} aria-label={tr("Price unit")}>{/* width: "$/lb U3O8", #2434 */}{(prices || []).map(([k, l]) => <option key={k} value={k}>{withCurrency(l, cur)}</option>)}</select></span></label>}
         {priceStale && <div style={warn}>{tr("The price was entered for another metal unit: enter it again for this block model.")}</div>}
         {isProduct ? field("recovery", tr("Mass yield (%)"), { title: tr("The share of the ore's tonnes that becomes product (100 for ore sold as mined).") }) : field("recovery", tr("Metallurgical recovery (%)"))}{/* #2986 part 2 */}
         {/* TASKS.csv #1917 (from #1615 / #1749) — a by-product metal: a second block model on the same grid, its own price and recovery */}
         {model && alsoListed.length > 0 && <details style={{ marginTop: 4 }}><summary style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>{alsoChosen.length ? tr("Report these grades too ({n})", { n: alsoChosen.length }) : tr("Report these grades too")}</summary>
           <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 3, fontSize: "var(--font-size-sm)" }} title={tr("Each chosen model's grade over the ore of the pit (not priced), joined by block centre: a model on the same grid as the pit's block model.")}>
             {alsoListed.map((m) => { const id = m.id ?? m.name, am = !isProduct && alsoIds.includes(id) ? alsoMetal(m) : null, px = alsoPx[id] || {}, setPx = (k) => (e) => setAlsoPx((p) => ({ ...p, [id]: { ...(p[id] || {}), [k]: e.target.value } })); return <Fragment key={id}><label style={{ display: "flex", gap: 5, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={alsoIds.includes(id)} onChange={(e) => setAlsoIds((p) => (e.target.checked ? [...p, id] : p.filter((x) => x !== id)))} />{m.name}{m.property ? ` (${m.property})` : ""}</label>
-              {am?.prices?.length > 0 && <span style={{ display: "flex", gap: 4, alignItems: "center", marginLeft: 20 }} title={tr("Optional: price this metal too. A priced grade earns revenue in every block, so it moves the ore decision and the pit as the by-product does. Blank: reported only.")}>{tr("Price")}<input type="number" min={0} step="any" value={px.price ?? ""} onChange={setPx("price")} style={{ ...num, width: 70 }} aria-label={tr("{el} price", { el: alsoLabel(m) })} placeholder={tr("not priced")} /><select value={px.priceUnit || am.prices[0][0]} onChange={setPx("priceUnit")} style={{ ...smallSel, width: 74 }} aria-label={tr("{el} price unit", { el: alsoLabel(m) })}>{am.prices.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select><input type="number" min={0} max={100} step="any" value={px.recovery ?? ""} onChange={setPx("recovery")} style={{ ...num, width: 52 }} aria-label={tr("{el} recovery (%)", { el: alsoLabel(m) })} placeholder="%" /></span>}{/* #3311 */}
+              {am?.prices?.length > 0 && <span style={{ display: "flex", gap: 4, alignItems: "center", marginLeft: 20 }} title={tr("Optional: price this metal too. A priced grade earns revenue in every block, so it moves the ore decision and the pit as the by-product does. Blank: reported only.")}>{tr("Price")}<input type="number" min={0} step="any" value={px.price ?? ""} onChange={setPx("price")} style={{ ...num, width: 70 }} aria-label={tr("{el} price", { el: alsoLabel(m) })} placeholder={tr("not priced")} /><select value={px.priceUnit || am.prices[0][0]} onChange={setPx("priceUnit")} style={{ ...smallSel, width: 74 }} aria-label={tr("{el} price unit", { el: alsoLabel(m) })}>{am.prices.map(([k, l]) => <option key={k} value={k}>{withCurrency(l, cur)}</option>)}</select><input type="number" min={0} max={100} step="any" value={px.recovery ?? ""} onChange={setPx("recovery")} style={{ ...num, width: 52 }} aria-label={tr("{el} recovery (%)", { el: alsoLabel(m) })} placeholder="%" /></span>}{/* #3311 */}
               {alsoDup.has(id) && <span style={{ marginLeft: 20, color: "var(--color-warn-text)" }}>{tr("{el} is already priced here (the main metal, the by-product or an earlier grade): reported only, no second price.", { el: alsoLabel(m) })}</span>}{/* #3793 */}
               </Fragment>; })}
           </div></details>}{/* #2995 */}
@@ -365,7 +367,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
         </select></label>}
         {byModel && !isProduct && (<>
           <label style={row}>{tr("{el} price", { el: byLabel })}<span style={{ display: "flex", gap: 4 }}><input type="number" min={0} step="any" value={f.byPrice} onChange={set("byPrice")} style={num} aria-label={tr("By-product price")} />
-            <select value={byPriceUnit || ""} onChange={set("byPriceUnit")} style={{ ...smallSel, width: (byPrices || []).some(([, l]) => l.length > 6) ? 96 : 62 }} /* #2595 — "$/lb Ta2O5" */ aria-label={tr("By-product price unit")}>{(byPrices || []).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></span></label>
+            <select value={byPriceUnit || ""} onChange={set("byPriceUnit")} style={{ ...smallSel, width: (byPrices || []).some(([, l]) => l.length > 6) ? 96 : 62 }} /* #2595 — "$/lb Ta2O5" */ aria-label={tr("By-product price unit")}>{(byPrices || []).map(([k, l]) => <option key={k} value={k}>{withCurrency(l, cur)}</option>)}</select></span></label>
           {field("byRecovery", tr("{el} recovery (%)", { el: byLabel }))}
           {byGridMiss && <div style={warn}>{tr("\"{by}\" is not on the same grid as \"{model}\": no block centre matches. Estimate the by-product with the same cell size over the same area (the same holes or area box) and run again.", { by: byModel.name, model: model.name })}</div>}{/* #2115 — the run's own message, said on pick */}
           {!typedCut && <div style={note}>{tr("A block is ore when its revenue over both metals pays the processing cost; the pit, its ore and its strip ratio follow.")}</div>}{/* #3328 (4) — not with a typed cut-off: that decides */}
@@ -479,7 +481,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
           {res.weathered && line(tr("Of the rock, weathered"), tr("{t} t at {d} t/m³", { t: big(res.weatheredT || 0), d: res.weathered.density }))}{/* #2597 */}
           {line(tr("Strip ratio"), res.stripRatio == null ? "—" : res.stripRatio.toFixed(2), unsampledOre)}
           {line(tr("Pit depth"), `${Math.round(res.maxDepth)} m`)}
-          {line(tr("Undiscounted margin"), `$${big(res.money)}`, unsampledOre)}
+          {line(tr("Undiscounted margin"), moneyText(cur, big(res.money)), unsampledOre)}
           {res.beyondFlagged && beyondP > 0 && !unsampledOre && <div style={note}>{tr("{p} % of the ore is in blocks above or below every sample that informs them.", { p: Math.round(beyondP * 100) })}</div>}
           {res.logFilled && logP > 0 && <div style={logP > 0.2 ? warn : note}>{tr("About {p} % of the metal in this pit comes from the readings of the log \"{log}\" × {f} that filled the unsampled metres, not from assays.", { p: Math.round(logP * 100), log: res.logFilled.log || "?", f: res.logFilled.factor ?? "?" })}</div>}{/* #2748 */}
           {res.nearUnsFlagged && nearUnsP > 0 && <div style={nearUnsOre ? warn : note}>{nearUnsOre ? tr(chips ? "{p} % of this ore is in blocks whose nearest drilling was never sampled: the estimate carried sampled grade across unsampled chips, which is unknown, not ore. Drilled metres with no sample can be estimated as barren: 3D Modelling › Estimation, \"Unsampled metres inside a sampled hole\"." : "{p} % of this ore is in blocks whose nearest drilling was never sampled: the estimate carried sampled grade across unsampled core, which is unknown, not ore. Drilled metres with no sample can be estimated as barren: 3D Modelling › Estimation, \"Unsampled metres inside a sampled hole\".", { p: Math.round(nearUnsP * 100) }) : tr("{p} % of the ore is in blocks whose nearest drilling was never sampled.", { p: Math.round(nearUnsP * 100) })}</div>}{/* #2596 */}

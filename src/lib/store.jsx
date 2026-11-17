@@ -1129,6 +1129,8 @@ export function StoreProvider({ children }) {
   const setProjectDensityRange = useCallback((range) => setProject((p) => { const { densityRange: _old, ...rest } = p; const min = Number(range?.min), max = Number(range?.max); return range && Number.isFinite(min) && Number.isFinite(max) && min >= 0 && max > min && !(min === 1 && max === 6) ? { ...rest, densityRange: { min, max } } : rest; }), []);
   // TASKS.csv #3569 / #3587 (store grant) — the Data QC rows a user marked as checked and kept: project.qcChecked = [key, ...] (lib/qcActions.js qcKey), so the marks travel with the project file; [] removes it
   const setProjectQcChecked = useCallback((list) => setProject((p) => { const { qcChecked: _old, ...rest } = p; const keys = [...new Set((list || []).filter((k) => typeof k === "string"))]; return keys.length ? { ...rest, qcChecked: keys } : rest; }), []);
+  // TASKS.csv #3797 (b) — the currency the mine-design panes print (blank: '$'): a label for the figures typed, nothing converted
+  const setProjectCurrency = useCallback((currency) => setProject((p) => { const { currency: _old, ...rest } = p; const c = String(currency ?? "").trim().slice(0, 8); return c ? { ...rest, currency: c } : rest; }), []);
   const setProjectDataCredit = useCallback((dataCredit) => setProject((p) => { const { dataCredit: _old, ...rest } = p; return dataCredit ? { ...rest, dataCredit: String(dataCredit) } : rest; }), []);
   const setDrillRates = useCallback((rates) => setProject((p) => ({ ...p, drillRates: (typeof rates === "function" ? rates(p.drillRates || {}) : rates) || null })), []); // TASKS.csv #2581 — $/m per hole type, kept with the project (a function: from the latest rates)
   // TASKS.csv #3116 — a built-in log's valid range and despike ({ range: [lo, hi], despikeM }), kept with the project like the drill rates:
@@ -1916,7 +1918,7 @@ export function StoreProvider({ children }) {
   });
 
   const value = {
-    project, setProjectTitle /* #3611 / #3612 */, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setLocalGridDatum /* #2691 / #2661 */, setMineGrid /* #2586 */, setProjectName, setProjectDataCredit /* #3496 */, setProjectAzimuthNorth /* #3588 (6) */, setProjectQcLinks /* #3409 */, setProjectDensityRange /* #3587 */, setProjectQcChecked /* #3569 */, setDrillRates /* #2581 */, setLogValidRange /* #3116 */, setDisplayUnit /* #3236 */, reprojectProjectTo, reprojectObjectTo, // #485 / #486
+    project, setProjectTitle /* #3611 / #3612 */, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setLocalGridDatum /* #2691 / #2661 */, setMineGrid /* #2586 */, setProjectName, setProjectDataCredit /* #3496 */, setProjectCurrency /* #3797 */, setProjectAzimuthNorth /* #3588 (6) */, setProjectQcLinks /* #3409 */, setProjectDensityRange /* #3587 */, setProjectQcChecked /* #3569 */, setDrillRates /* #2581 */, setLogValidRange /* #3116 */, setDisplayUnit /* #3236 */, reprojectProjectTo, reprojectObjectTo, // #485 / #486
     sampleRequest, requestSampleProject, clearSampleRequest, // TASKS.csv #1120
     projectIsEmpty: !hasWork, // TASKS.csv #607 — nothing loaded yet (same test as autosave): an import may adopt its CRS
     desurveyMethod, setDesurveyMethod, // TASKS.csv #135
