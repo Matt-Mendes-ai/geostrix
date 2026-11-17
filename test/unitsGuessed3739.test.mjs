@@ -12,8 +12,8 @@ test("AppMx / AppRho give a method and a unit that is marked as a guess", () => 
   assert.equal(surveyMetaFor(guessSurveyMethod("AppRho"), [10, 100, 1000]).unitsGuessed, true);
 });
 test("the legend says so; a unit the geologist typed or chose is not marked", () => {
-  const rows = [0, 1, 2, 3].map((i) => ({ x: i, y: 0, z: 0, value: i, _src: "Blueberry_AppChg.xyz" }));
-  const label = (surveys) => geophysLegendGroups({ rows, surveys: { "Blueberry_AppChg.xyz": surveys } })[0].label;
+  const rows = [0, 1, 2, 3].map((i) => ({ x: i, y: 0, z: 0, value: i, _src: "Model_AppChg.xyz" }));
+  const label = (surveys) => geophysLegendGroups({ rows, surveys: { "Model_AppChg.xyz": surveys } })[0].label;
   assert.match(label({ method: "ip", units: "mV/V", unitsGuessed: true }), /\(mV\/V, assumed from the column name\)/);
   assert.doesNotMatch(label({ method: "ip", units: "mV/V", unitsGuessed: false }), /assumed/);
   assert.doesNotMatch(label({ method: "ip", units: "ms" }), /assumed/);

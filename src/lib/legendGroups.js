@@ -142,7 +142,7 @@ export function rasterLegendGroups(rasters, { pictureNote = null } = {}) {
   }
   return groups;
 }
-// TASKS.csv #3765 (Scottie Gold review: 'Blueberry_Fine_Chg (chg) ≤ 0.442 … ≥ 63.6', no property, no unit, the ends the 2nd and 98th percentiles unsaid)
+// TASKS.csv #3765 (Scottie Gold review: 'Model_Fine_Chg (chg) ≤ 0.442 … ≥ 63.6', no property, no unit, the ends the 2nd and 98th percentiles unsaid)
 // — the legend line says what the values are: the property when the name does not, the unit or 'unit not stated' (an imported model that gives
 // none; one GeoStrix made states its own), and its ramp's clipped ends say which percentile they are (P2, P98: the colours are stretched over the 2nd to 98th)
 const MADE_HERE = /^(estimate|support-index)-|^geoml$|^kriging-variance$|^calc$/;

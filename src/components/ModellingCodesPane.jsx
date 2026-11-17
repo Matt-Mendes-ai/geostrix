@@ -94,7 +94,7 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
     runsAll.forEach((run) => m.set(run.code, (m.get(run.code) || 0) + 1));
     return m;
   }, [runsAll]);
-  // TASKS.csv #3767 — a lithology group is ONE unit here: offered in place of its member codes (ASDA, ASDS were ticked and answered 'fewer than two runs could be placed':
+  // TASKS.csv #3767 — a lithology group is ONE unit here: offered in place of its member codes (MZNA, MZNS were ticked and answered 'fewer than two runs could be placed':
   // the runs carry the group's name), and a row belongs to a ticked unit by its code or its group
   const loggedCodes = useMemo(() => [...new Set((litho || []).map((r) => { const v = String(r.value ?? "").trim(); return v && groupOf ? groupOf(r.value) || v : v; }).filter(Boolean))].sort(), [litho, groupOf]);
   const pickedRow = (r) => numberCodes.includes(String(r.value)) || (!!groupOf && numberCodes.includes(groupOf(r.value)));

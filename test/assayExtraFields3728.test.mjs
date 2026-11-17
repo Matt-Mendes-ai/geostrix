@@ -10,7 +10,7 @@ import { mergeAssayRows } from "../src/lib/geochem.js";
 
 const headers = ["hole_id", "from", "to", "sample", "Au_ppm", "Cu_ppm", "width (m)", "Zone", "Target", "Comment", "Blank"];
 const rows = Array.from({ length: 150 }, (_, i) => ({ hole_id: `SG-${1 + (i % 3)}`, from: String(i), to: String(i + 1), sample: `S${i}`, Au_ppm: "0.5", Cu_ppm: "12", "width (m)": "1.0",
-  Zone: i % 2 ? "Blueberry" : "Gully", Target: i % 10 === 0 ? "T1" : "", Comment: `note ${i}`, Blank: "" }));
+  Zone: i % 2 ? "North" : "South", Target: i % 10 === 0 ? "T1" : "", Comment: `note ${i}`, Blank: "" }));
 const mapping = { hole_id: "hole_id", from: "from", to: "to" }, qc = { sample_id: "sample" };
 const elements = [{ symbol: "Au", header: "Au_ppm" }, { symbol: "Cu", header: "Cu_ppm" }];
 
@@ -24,7 +24,7 @@ test("the text columns on offer: not mapped, not elements, not numeric, not empt
   assert.deepEqual(chosenExtraColumns({}, offer), ["Zone", "Target"]);
   assert.deepEqual(chosenExtraColumns({ extraCols: ["Comment", "Gone"] }, offer), ["Comment"], "the user's choice, limited to the columns on offer");
   assert.equal(isTextColumn(rows, "Au_ppm"), false);
-  assert.deepEqual(assayAttrs(rows[1], ["Zone", "Target"]), { attrs: { Zone: "Blueberry" } }, "a blank cell is not kept");
+  assert.deepEqual(assayAttrs(rows[1], ["Zone", "Target"]), { attrs: { Zone: "North" } }, "a blank cell is not kept");
   assert.deepEqual(assayAttrs(rows[1], []), {});
 });
 
@@ -34,7 +34,7 @@ test("a kept field is a domain: Sample · Zone, one row per assay interval; a fi
   const zone = opts.find((o) => o.key === "assay:Zone");
   assert.ok(zone, opts.map((o) => o.key).join());
   assert.equal(zone.rows.length, 150);
-  assert.deepEqual([...new Set(zone.rows.map((r) => r.value))].sort(), ["Blueberry", "Gully"]);
+  assert.deepEqual([...new Set(zone.rows.map((r) => r.value))].sort(), ["North", "South"]);
   assert.equal(attributeDomainLabel(zone, (s, v) => s.replace("{field}", v.field)), "Sample · Zone");
   assert.equal(opts.find((o) => o.key === "assay:Target"), undefined, "one value (T1) is not a grouping");
   assert.equal(opts.find((o) => o.key === "assay:Comment"), undefined, "150 values are not a grouping");
@@ -43,10 +43,10 @@ test("a kept field is a domain: Sample · Zone, one row per assay interval; a fi
 });
 
 test("a re-import adds to a sample's kept fields, it does not wipe them", () => {
-  const old = [{ hole_id: "A", from: 0, to: 1, values: { Au: 1 }, attrs: { Zone: "Gully" } }];
+  const old = [{ hole_id: "A", from: 0, to: 1, values: { Au: 1 }, attrs: { Zone: "South" } }];
   const merged = mergeAssayRows(old, [{ hole_id: "A", from: 0, to: 1, values: { Cu: 5 }, attrs: { Target: "T1" } }]);
   const rowsOut = merged.rows || merged;
-  assert.deepEqual(rowsOut[0].attrs, { Zone: "Gully", Target: "T1" });
+  assert.deepEqual(rowsOut[0].attrs, { Zone: "South", Target: "T1" });
   assert.deepEqual(rowsOut[0].values, { Au: 1, Cu: 5 });
 });
 

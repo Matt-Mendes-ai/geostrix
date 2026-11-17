@@ -80,7 +80,7 @@ export function attributeDomainOptions(assays, collars) {
   if (types.size >= 2 && types.size <= 30 && typed >= 0.5 * iv.length) {
     out.push({ key: "attr:sample_type", label: "Sample type", attribute: true, rows: iv.filter((a) => a.sample_type != null && String(a.sample_type).trim()).map((a) => ({ hole_id: a.hole_id, from: Number(a.from), to: Number(a.to), value: String(a.sample_type).trim() })) });
   }
-  // TASKS.csv #3728 — the text fields the assay import kept with each sample (Zone: Blueberry, Gully …): one row per assay interval, offered
+  // TASKS.csv #3728 — the text fields the assay import kept with each sample (Zone: North, South …): one row per assay interval, offered
   // with 2 to 30 distinct values on at least 10 samples (a field on part of the samples, Target on 478 of 9,777, is still a grouping: the rest
   // fall in 'no code')
   const sampleFields = new Map();

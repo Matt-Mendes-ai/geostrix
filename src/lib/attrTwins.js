@@ -1,4 +1,4 @@
-// TASKS.csv #3733 (Scottie Gold import review) — the collar `zone` values 'D zone' and 'D Zone' (and 'Gully' beside 'Gully Zone') stayed apart with no hint: two classes in the hole
+// TASKS.csv #3733 (Scottie Gold import review) — the collar `zone` values 'D zone' and 'D Zone' (and 'South' beside 'South Zone') stayed apart with no hint: two classes in the hole
 // filter, the hole colours and Grade statistics. After a collar import the attribute values that are one value spelled two ways are named, so a person can fix the file.
 // Twins: equal after folding case, spaces and punctuation, or equal once a trailing generic word ('zone', 'area', 'target', 'prospect', 'trend') is dropped.
 const TRAIL = /\s+(zone|area|target|prospect|trend|deposit|vein|corridor)$/i;

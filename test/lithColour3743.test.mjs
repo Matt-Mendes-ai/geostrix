@@ -14,12 +14,12 @@ const assays = [
   { hole_id: "H1", from: 1, to: 2, source: "assay", values: { ...vals } },
   { hole_id: "H1", from: 5, to: 6, source: "pXRF", values: { ...vals } },
 ];
-const litho = [{ hole_id: "H1", from: 0, to: 1, value: "AND" }, { hole_id: "H1", from: 1, to: 3, value: "ASDA" }, { hole_id: "H1", from: 3, to: 8, value: "SLT" }];
+const litho = [{ hole_id: "H1", from: 0, to: 1, value: "AND" }, { hole_id: "H1", from: 1, to: 3, value: "MZNA" }, { hole_id: "H1", from: 3, to: 8, value: "SLT" }];
 
 test("#3743: an imported row (source: 'assay') is its own row: the lithology colour and the hover find its code", () => {
   const lith = lithologyBySample(assays, litho);
   const codes = assays.map((a) => lith.get(sourceRow(a)));
-  assert.deepEqual(codes, ["AND", "ASDA", "SLT"], "more than one code: not every sample on the 'no code' grey");
+  assert.deepEqual(codes, ["AND", "MZNA", "SLT"], "more than one code: not every sample on the 'no code' grey");
   assert.equal(sourceRow(assays[0]), assays[0]);
   assert.equal(sourceRow(null), null);
 });
@@ -29,7 +29,7 @@ test("#3743: a volatile-free copy leads back to its row and keeps the row's sour
   const out = anhydrousRows(assays, majors);
   assert.equal(out.length, 3);
   const lith = lithologyBySample(assays, litho);
-  assert.deepEqual(out.map((r) => lith.get(sourceRow(r))), ["AND", "ASDA", "SLT"]);
+  assert.deepEqual(out.map((r) => lith.get(sourceRow(r))), ["AND", "MZNA", "SLT"]);
   assert.deepEqual(out.map((r) => r.source), ["assay", "assay", "pXRF"], "a lab / pXRF filter still reads the copy right");
   assert.ok(out.every((r, i) => sourceRow(r) === assays[i]));
 });

@@ -1,5 +1,5 @@
 // TASKS.csv #3765 (Scottie Gold review) — a 67,344-cell chargeability model beside the holes: the 3D slice showed the model's cut face with the slab's
-// 21 holes buried in its cells, and the legend line gave neither property nor unit ('Blueberry_Fine_Chg (chg) ≤ 0.442 … ≥ 63.6'; the ends are the 2nd and
+// 21 holes buried in its cells, and the legend line gave neither property nor unit ('Model_Fine_Chg (chg) ≤ 0.442 … ≥ 63.6'; the ends are the 2nd and
 // 98th percentiles, unsaid). Synthetic model and slab.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -10,11 +10,11 @@ import { slabOf, farLayerPlane, cellAlong } from "../src/lib/viewer/sliceModelFa
 
 const read = (p) => fs.readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const cells = (n) => Array.from({ length: n }, (_, i) => ({ x: i, y: 0, z: 0, dx: 10, dy: 10, dz: 10, value: i < n - 5 ? Math.exp((i / n) * 4) : 104.2 }));
-const model = (extra = {}) => ({ id: "m1", name: "Blueberry_Fine_Chg (chg)", property: "chg", source: "import", min: 0, max: 104.2, dx: 25, dy: 25, dz: 12.5, cells: cells(400), ...extra });
+const model = (extra = {}) => ({ id: "m1", name: "Model_Fine_Chg (chg)", property: "chg", source: "import", min: 0, max: 104.2, dx: 25, dy: 25, dz: 12.5, cells: cells(400), ...extra });
 
 test("the legend says what the values are: unit not stated, and the clipped ends are the 2nd and 98th percentiles", () => {
   const g = voxelLegendGroups([model()])[0];
-  assert.equal(g.label, "Blueberry_Fine_Chg (chg) · unit not stated");
+  assert.equal(g.label, "Model_Fine_Chg (chg) · unit not stated");
   assert.ok(g.ramp, "still a ramp, with its '≤' / '≥' ends");
   assert.match(g.ramp.minLabel, /^≤ .* \(P2\)$/); assert.match(g.ramp.maxLabel, /^≥ .* \(P98\)$/);
   const typed = voxelLegendGroups([model({ stretch: "minmax" })])[0];
@@ -22,7 +22,7 @@ test("the legend says what the values are: unit not stated, and the clipped ends
 });
 
 test("a stated unit is the unit; a model GeoStrix made states its own; the property is added when the name lacks it; a typed range is not a percentile stretch", () => {
-  assert.equal(voxelLegendLabel(model({ params: { unit: "mV/V" } }), "Blueberry_Fine_Chg (chg)", "mV/V"), "Blueberry_Fine_Chg (chg) (mV/V)");
+  assert.equal(voxelLegendLabel(model({ params: { unit: "mV/V" } }), "Model_Fine_Chg (chg)", "mV/V"), "Model_Fine_Chg (chg) (mV/V)");
   assert.doesNotMatch(voxelLegendLabel(model({ source: "estimate-idw", params: { element: "Au", unit: "g/t" } }), "Au estimate", "g/t"), /not stated/);
   assert.doesNotMatch(voxelLegendLabel(model({ source: "kriging-variance" }), "Au KV", null), /not stated/, "made here: its unit is its own (the variance)");
   assert.equal(voxelLegendGroups([model({ name: "IP block", property: "chg" })])[0].label.startsWith("IP block — chg · unit not stated"), true);

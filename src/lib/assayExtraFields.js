@@ -1,5 +1,5 @@
 // TASKS.csv #3728 (Scottie Gold review) — the drillhole assay import dropped its text columns without a word: Zone (a prospect name on all 9,777
-// rows: Blueberry, Gully …) and Target were neither imported nor named in the notice, which listed only the numeric columns it left out. The
+// rows: North, South …) and Target were neither imported nor named in the notice, which listed only the numeric columns it left out. The
 // collar and log imports keep 'extra fields'; the assay rows had nowhere to keep one. Now the dialog offers the file's text columns as fields kept
 // with each sample (row.attrs, as surface samples keep theirs), ticked by default when they hold few enough values to group by, and Grade
 // statistics and Compositing offer them as domains (customDomains.attributeDomainOptions). Pure.

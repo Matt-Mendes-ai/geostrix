@@ -10,7 +10,7 @@ import { mergeAssayRows } from "../src/lib/geochem.js";
 
 const make = (n) => Array.from({ length: n }, (_, i) => ({
   hole_id: `SG-${i % 7}`, from: i, to: i + 1, source: "assay",
-  ...(i % 3 ? { attrs: { Zone: i % 2 ? "Blueberry" : "Gully", ...(i % 10 === 1 ? { Target: "T1" } : {}) } } : {}),
+  ...(i % 3 ? { attrs: { Zone: i % 2 ? "North" : "South", ...(i % 10 === 1 ? { Target: "T1" } : {}) } } : {}),
   values: { Au: i / 100, Fe: i % 5 === 0 ? 15 : 3.25 },
   ...(i % 5 === 0 ? { qualifiers: { Fe: ">" } } : {}),
 }));
@@ -48,5 +48,5 @@ test("a re-import onto opened rows keeps their fields and adds the new ones", as
   const all = merged.rows || merged, r = all.find((x) => x.hole_id === "SG-1" && x.from === 1);
   assert.equal(all.length, rows.length, "merged in place, not added");
   assert.deepEqual(r.values, { Au: 0.01, Fe: 3.25, Cu: 5 });
-  assert.deepEqual(r.attrs, { Zone: "Blueberry", Target: "T9" });
+  assert.deepEqual(r.attrs, { Zone: "North", Target: "T9" });
 });

@@ -372,7 +372,7 @@ export function roleForLithology(u) {
 // scanned again on each render)
 const DISTINCT_CODES = new WeakMap();
 // TASKS.csv #3767 — lithoGroups: a lithology group whose role is cross-cutting (its Modelling codes role, else its members') is ONE vein / dyke unit, 'mcode:<group>' (its
-// rows by their effective code, as a sheet split out in Modelling codes is), offered in place of its member codes (ASDA + ASDS never appeared: only raw codes did)
+// rows by their effective code, as a sheet split out in Modelling codes is), offered in place of its member codes (MZNA + MZNS never appeared: only raw codes did)
 export function veinSourceUnits(layers, modellingCodes = null, lithoGroups = null) {
   const seen = (rows) => {
     if (!rows) return [];

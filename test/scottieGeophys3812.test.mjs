@@ -13,7 +13,7 @@ const hasKeys = (keys) => { for (const k of keys) for (const lang of ["es", "pt"
 const gm = read("../src/modules/GeophysicsModule.jsx");
 
 test("#3812 a 3D UBC mesh is told where it goes; the pane says where a 3D model and a cloud go", () => {
-  assert.equal(isUBCMeshText("72 182 75\n431000 6231000 1500\n"), true); // the review's Blueberry_Fine_Con.msh shape: nx ny nz, then the origin
+  assert.equal(isUBCMeshText("72 182 75\n431000 6231000 1500\n"), true); // the review's Model_Fine_Con.msh shape: nx ny nz, then the origin
   const p = read("../src/components/DcipPanel.jsx");
   assert.match(p, /const k = texts\.findIndex\(\(t\) => isUBCMeshText\(t\)\);/);
   assert.match(p, /goes to Geophysics › Block models › Import UBC mesh \+ model, not here\. This button reads one 2D line \(dcinv2d\.msh\)\./);
@@ -44,9 +44,9 @@ test("#3814 a method's pane lists that method's surveys; the others are named ap
 });
 
 test("#3815 (4) one survey loaded: its key carries the survey's name", () => {
-  const rows = Array.from({ length: 30 }, (_, i) => ({ x: i, y: i, z: 1, value: 10 + i, _src: "Blueberry_AppChg.xyz" }));
-  const g = geophysLegendGroups({ rows, surveys: { "Blueberry_AppChg.xyz": { units: "mV/V" } } });
-  assert.equal(g.length, 1); assert.match(g[0].label || g[0].title || g[0].name || "", /Blueberry_AppChg\.xyz \(mV\/V\)/);
+  const rows = Array.from({ length: 30 }, (_, i) => ({ x: i, y: i, z: 1, value: 10 + i, _src: "Model_AppChg.xyz" }));
+  const g = geophysLegendGroups({ rows, surveys: { "Model_AppChg.xyz": { units: "mV/V" } } });
+  assert.equal(g.length, 1); assert.match(g[0].label || g[0].title || g[0].name || "", /Model_AppChg\.xyz \(mV\/V\)/);
 });
 
 test("#3815 (2) (5) (7) the count with separators, the budget note points at the Advanced ribbon, a block model's removal says Undo does not cover it", () => {

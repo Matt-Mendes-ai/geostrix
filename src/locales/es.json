@@ -10768,7 +10768,7 @@
   "{name} — {v}": "{name} — {v}",
   "Open meshes (no inside to search)": "Mallas abiertas (sin interior que buscar)",
   "{name} (open: {n} edges)": "{name} (abierta: {n} aristas)",
-  "Points the other way: the occurrences sit where this evidence is HIGH (C/s {s}), but the card scores it favourable when low, so the fuzzy score counts it against them.": "Apunta al revés: las ocurrencias están donde esta evidencia es ALTA (C/s {s}), pero la tarjeta la puntúa favorable cuando es baja, así que la puntuación difusa la cuenta en su contra.",
+  "Points the other way: the occurrences sit where this evidence is HIGH (C/s {s}), but the card scores it favourable when low, so the fuzzy score counts it against them.": "Apunta al revés: las ocurrencias están donde esta evidencia es MZNA (C/s {s}), pero la tarjeta la puntúa favorable cuando es baja, así que la puntuación difusa la cuenta en su contra.",
   "Points the other way: the occurrences sit where this evidence is LOW (C/s {s}), but the card scores it favourable when high, so the fuzzy score counts it against them.": "Apunta al revés: las ocurrencias están donde esta evidencia es BAJA (C/s {s}), pero la tarjeta la puntúa favorable cuando es alta, así que la puntuación difusa la cuenta en su contra.",
   "Weak either way (|C/s| under 2).": "Débil en cualquier sentido (|C/s| menor que 2).",
   "Make it favourable when high": "Hacerla favorable cuando es alta",

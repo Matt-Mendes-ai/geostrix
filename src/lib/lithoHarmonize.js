@@ -60,7 +60,7 @@ export function matchRock(text, { fuzzy = true } = {}) {
   return null;
 }
 
-// TASKS.csv #3770 (Scottie Gold review) — 'altered sulphidized deformed andesite' is read by its last rock word, and the rule folded the mineralized zone (ASDA 375 intervals, ASDS 113: the
+// TASKS.csv #3770 (Scottie Gold review) — 'altered sulphidized deformed andesite' is read by its last rock word, and the rule folded the mineralized zone (MZNA 375 intervals, MZNS 113: the
 // modelling target of a shear-hosted gold deposit) into Andesite and Siltstone, pre-ticked. The words before the rock name that say the rock was changed (altered, sulphidized, sheared,
 // deformed, mineralized, silicified, veined ...) make it a different unit from its protolith: such a code is never proposed into the host rock's group; codes that share the same
 // qualifiers across rocks are offered as a group of their own, unticked.

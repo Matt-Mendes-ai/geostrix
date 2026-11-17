@@ -12,8 +12,8 @@ const hasKeys = (keys) => { for (const k of keys) for (const lang of ["es", "pt"
 const table = [
   { Station: "A", Easting: 1, Northing: 1, Strike: 270, Dip: 80, Type: "Vein", Zone: "Steep" },
   { Station: "B", Easting: 2, Northing: 1, Strike: 275, Dip: 82, Type: "Vein", Zone: "Steep" },
-  { Station: "C", Easting: 3, Northing: 1, Strike: 260, Dip: 70, Type: "Vein Zone", Zone: "Low Tide" },
-  { Station: "D", Easting: 4, Northing: 1, Strike: 30, Dip: 60, Type: "Shear", Zone: "Low Tide" },
+  { Station: "C", Easting: 3, Northing: 1, Strike: 260, Dip: 70, Type: "Vein Zone", Zone: "East" },
+  { Station: "D", Easting: 4, Northing: 1, Strike: 30, Dip: 60, Type: "Shear", Zone: "East" },
   { Station: "E", Easting: 5, Northing: 1, Strike: 90, Dip: 20, Type: "Bedding", Zone: "" },
 ];
 
@@ -24,7 +24,7 @@ test("#3843 the import keeps the Zone / Area column on each reading", () => {
   assert.equal(guessStructureColumns(["Easting", "Northing", "Dip", "Strike", "Prospect"]).group, "Prospect");
   assert.equal(guessStructureColumns(["Easting", "Northing", "Dip", "Strike"]).group, null);
   const out = parseStructureRows(table, cols, {});
-  assert.deepEqual(out.rows.map((r) => r.group), ["Steep", "Steep", "Low Tide", "Low Tide", undefined]);
+  assert.deepEqual(out.rows.map((r) => r.group), ["Steep", "Steep", "East", "East", undefined]);
   // no group column picked: no group key
   assert.equal("group" in parseStructureRows(table, { ...cols, group: null }, {}).rows[0], false);
 });
@@ -36,12 +36,12 @@ test("#3843 a class lists its types together; an area cuts the net; a trend is n
   assert.equal(picks.length, 5); assert.equal(picks[0].cls, "vein"); assert.equal(picks[0].group, "Steep"); assert.equal(picks[0].outcrop, true);
   const classes = classEntries(picks);
   assert.deepEqual(classes.map((c) => [c.key, c.n, c.types]), [["class:vein", 3, 2]]); // Vein + Vein Zone; Shear and Bedding are one type each: no class entry
-  assert.deepEqual(areaEntries(picks), [{ key: "Low Tide", n: 2 }, { key: "Steep", n: 2 }]);
+  assert.deepEqual(areaEntries(picks), [{ key: "East", n: 2 }, { key: "Steep", n: 2 }]);
   assert.deepEqual(areaEntries(picks.filter((p) => p.group === "Steep")), []); // one area: nothing to cut
   assert.equal(picks.filter((p) => keepPick(p, "class:vein")).length, 3);
   assert.equal(picks.filter((p) => keepPick(p, "class:vein", "Steep")).length, 2);
   assert.equal(picks.filter((p) => keepPick(p, "vein zone", "all")).length, 1);
-  assert.equal(picks.filter((p) => keepPick(p, "all", "Low Tide")).length, 2);
+  assert.equal(picks.filter((p) => keepPick(p, "all", "East")).length, 2);
   assert.equal(picks.filter((p) => keepPick(p, "all", "all")).length, 5);
   assert.equal(trendLabel({ typeLabel: "Vein", area: null, n: 65, k: 3.66, outcropOnly: true }), "Vein, 65 outcrop readings, k 3.7");
   assert.equal(trendLabel({ typeLabel: "Vein", area: "Steep", n: 1, k: Infinity, outcropOnly: false }), "Vein, Steep, 1 reading");
