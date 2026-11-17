@@ -124,7 +124,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   // itself". The interval ribbons' width in px (a per-user preference, kept in localStorage), and the buffer typed here.
   const [holeWidth, setHoleWidthState] = useState(() => { try { const v = Number(localStorage.getItem("geostrix.sectionHoleWidth")); return v >= 1 && v <= 20 ? v : 5; } catch { return 5; } });
   const setHoleWidth = (v) => { const n = Math.max(1, Math.min(20, Number(v) || 5)); setHoleWidthState(n); try { localStorage.setItem("geostrix.sectionHoleWidth", String(n)); } catch { /* private window */ } };
-  // TASKS.csv #3860 — the grade labels: the highest single samples (as before), or the best intercepts by Best intercepts' rule ('3.70 m @ 56.4 g/t Au'),
+  // TASKS.csv #3860 — the grade labels: the highest single samples (as before), or the best intercepts by Best intercepts' rule ('3.70 m @ 12.3 g/t Au'),
   // at a cut-off typed here (blank: the P90 of the section's values) and 2 m of internal dilution. A per-user preference, like the hole width.
   const [gradeLabelMode, setGradeLabelModeState] = useState(() => { try { return localStorage.getItem("geostrix.sectionGradeLabels") === "intercepts" ? "intercepts" : "samples"; } catch { return "samples"; } });
   const setGradeLabelMode = (m) => { setGradeLabelModeState(m); try { localStorage.setItem("geostrix.sectionGradeLabels", m); } catch { /* private window */ } };
@@ -717,7 +717,7 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
   const subtitleLines = wrapText(tr(rlOff ? "Azimuth {v}° · looking {look} · {v2}{v3} · RL in m" : "Azimuth {v}° · looking {look} · {v2}{v3} · elevation in m", { v: azDeg.toFixed(0), look: bearingText(azDeg - 90), v2: vExag && vExag !== 1 ? tr("{vExag}x vertical exaggeration", { vExag }) : tr("no vertical exaggeration"), v3: section.corridor ? tr(" · data within ±{corridor} m of the line (dashed = trace projected from further away)", { corridor: section.corridor }) : "" }), Math.floor((W - 2 * PAD) / (0.56 * fs(10))));
   // TASKS.csv #1637 — which ribbon is which: 5-6 parallel ribbons per hole had no key on the section itself
   { const rib = ribbonOrder(intervals); if (rib.length > 1) subtitleLines.push(...wrapText(tr("Ribbons on each hole, left to right: {list}", { list: rib.join(" · ") }), Math.floor((W - 2 * PAD) / (0.56 * fs(10))))); }
-  // TASKS.csv #3860 — each element's grade bars on its own axis: log over two decades or more (vein gold 0.0025-123 g/t drew every bar but one a pixel
+  // TASKS.csv #3860 — each element's grade bars on its own axis: log over two decades or more (vein gold, 0.004-150 g/t, drew every bar but one a pixel
   // long), else linear as before; the sheet says which are log
   const barAxis = {};
   for (const sym of new Set(points.filter((r) => r.assay).map((r) => r.assay.sym))) barAxis[sym] = gradeBarAxis(points.filter((r) => r.assay?.sym === sym).map((r) => r.assay.value));
@@ -1047,7 +1047,7 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
         return <circle key={i} cx={sx(along(p.x, p.y))} cy={sz(p.z)} r="3.5" fill={row.color} stroke="#ffffff" strokeWidth="0.5"><title>{row.label}</title></circle>;
       })}
 
-      {/* TASKS.csv #3860 — the best intercepts: a bracket beyond the element's bars over the intercept's length, labelled '3.70 m @ 56.4 g/t Au' in the labels' collision pass */}
+      {/* TASKS.csv #3860 — the best intercepts: a bracket beyond the element's bars over the intercept's length, labelled '3.70 m @ 12.3 g/t Au' in the labels' collision pass */}
       {intercepts.map((c, i) => {
         const trace = traceByHole[c.hole_id];
         if (!trace) return null;

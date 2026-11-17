@@ -383,7 +383,7 @@ export function bestInterceptGT(composites) {
   }
   return out;
 }
-// TASKS.csv #3858 — the same best intercept as a row (its length, grade, from and to), for the label 'SR-12 3.70 m @ 56.4 g/t Au' and the mark on the
+// TASKS.csv #3858 — the same best intercept as a row (its length, grade, from and to), for the label 'DH-12 3.70 m @ 12.3 g/t Au' and the mark on the
 // trace: the composite with the largest length × grade of each hole -> Map(hole_id -> { from, to, length, grade })
 export function bestInterceptRows(composites) {
   const out = new Map(), best = new Map();
@@ -394,7 +394,7 @@ export function bestInterceptRows(composites) {
   }
   return out;
 }
-// the label's text: '3.70 m @ 56.4 g/t Au' (length to two decimals, the grade to three figures)
+// the label's text: '3.70 m @ 12.3 g/t Au' (length to two decimals, the grade to three figures)
 export function interceptLabel(row, unit, symbol) {
   if (!row || !Number.isFinite(row.length) || !Number.isFinite(row.grade)) return "";
   return `${row.length.toFixed(2)} m @ ${fmtSig3(row.grade)} ${unit ? `${unit} ` : ""}${symbol || ""}`.trim();

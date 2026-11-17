@@ -83,7 +83,7 @@ export function drillPlanDrawing(el, collars, assays = null, assayElements = nul
   const plannedKey = planned.length ? [{ label: tr("Planned hole") }] : [];
   const gradeIn = drillPlanGradeInput(el, assays, assayElements, displayUnits);
   const colouringRaw = drillPlanColouring(el, g.holes, collars, { ...gradeIn, palette: ON_WHITE, ink: INK });
-  // TASKS.csv #3858 — 'Label with: the id and its best intercept' ('DH-23-001 3.70 m @ 56.4 g/t Au'), and the intercept marked on the trace; only with
+  // TASKS.csv #3858 — 'Label with: the id and its best intercept' ('DH-23-001 3.70 m @ 12.3 g/t Au'), and the intercept marked on the trace; only with
   // 'Colour the holes by: best intercept', whose rule (cut-off, dilution, minimum) the colour key states
   const biKey = colourByKind(el.colourBy).kind === "bi" ? colourByKind(el.colourBy).key : null;
   const biRows = biKey && el.labelWith === "bi" ? gradeIn.biRows || new Map() : null;
