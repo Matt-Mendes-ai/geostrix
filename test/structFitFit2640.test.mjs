@@ -62,3 +62,12 @@ test("#2640 Stage 2 the engine: the fit job beside the sensitivity pass, validat
   const main = readFileSync(new URL("../python-sidecar/app/main.py", import.meta.url), "utf8");
   assert.match(main, /if req\.get\("mode"\) == "fit":\n\s+from app\.geophys\.structfit import MAX_FIT_POINTS, MAX_FIT_ITER/);
 });
+
+test("#2640 Stage 2 the panel: the fit offered after a pass with seen points, on those points only, its result and the audit CSV", () => {
+  const p = readFileSync(new URL("../src/components/StructFitPanel.jsx", import.meta.url), "utf8");
+  assert.match(p, /const seenPoints = \(out\?\.rows \|\| \[\]\)\.filter\(\(r\) => r\.verdict === "seen"\)\.slice\(0, MAX_FIT_POINTS\);/);
+  assert.match(p, /movable: seenPoints\.map\(\(r\) => \(\{ surface: r\.surface, index: r\.index, maxM: r\.maxM \}\)\)/);
+  assert.match(p, /\{seenPoints\.length > 0 && !busy && \(/);
+  assert.match(p, /the result is one geometry that fits the survey to the stated uncertainty, not the answer/);
+  assert.match(p, /content: fitPointsCsv\(fit\.rows\)/);
+});
