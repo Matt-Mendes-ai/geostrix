@@ -13797,5 +13797,6 @@
   "Best intercepts (m @ grade)": "أفضل التقاطعات (م @ المحتوى)",
   "{sym} cut-off (P90)": "حد قطع {sym} (P90)",
   "{sym} cut-off": "حد قطع {sym}",
-  "Grade bars on a log scale: {list}": "أشرطة المحتوى بمقياس لوغاريتمي: {list}"
+  "Grade bars on a log scale: {list}": "أشرطة المحتوى بمقياس لوغاريتمي: {list}",
+  "Takes every hole with lab assays: {h} hole(s), {n} assay interval(s), whatever is checked in the 3D View.": "يأخذ كل ثقب له تحاليل مخبرية: {h} ثقب و{n} فاصل تحليل، مهما كان محددًا في العرض ثلاثي الأبعاد."
 }

@@ -115,8 +115,10 @@ export function turnedFrameFit(collars, w, h, presets, traces = null) { // trace
 // the grid caption). holes: drillPlanGeometry's (ax, ay in frame px). -> { x, y }
 // points (TASKS.csv #3376): what the key must not hide, planPoints' collars and traces; without it the collars. -> { x, y, under }: under, the
 // holes whose collar or trace lies under the key in that corner (0: none)
-export function emptiestCorner(holes, w, h, kw, kh, points = null) {
-  const corners = [[6, 6], [w - kw - 6, 6], [6, h - kh - 6], [w - kw - 6, h - kh - 22]];
+// bottomClear: TASKS.csv #3864 (Scottie Gold review) — the plan's own captions (the traces line, the unlabelled-holes note) are printed along the bottom right, and the key taking that corner
+// was drawn over them (its last row through 'Traces along the downhole surveys ...'): the key's bottom stops this far above the frame's foot (22 px before, for the grid's labels)
+export function emptiestCorner(holes, w, h, kw, kh, points = null, { bottomClear = 22 } = {}) {
+  const corners = [[6, 6], [w - kw - 6, 6], [6, h - kh - 6], [w - kw - 6, h - kh - Math.max(22, bottomClear)]];
   const pts = points || (holes || []).map((hh) => ({ id: hh.id, x: hh.ax, y: hh.ay }));
   const under = ([x, y]) => new Set(pts.filter((p) => p.x >= x && p.x <= x + kw && p.y >= y && p.y <= y + kh).map((p) => p.id)).size;
   const [[x, y], n] = corners.map((c) => [c, under(c)]).sort((a, b) => a[1] - b[1])[0];

@@ -13797,5 +13797,6 @@
   "Best intercepts (m @ grade)": "Melhores interseções (m @ teor)",
   "{sym} cut-off (P90)": "Corte de {sym} (P90)",
   "{sym} cut-off": "Teor de corte de {sym}",
-  "Grade bars on a log scale: {list}": "Barras de teor em escala logarítmica: {list}"
+  "Grade bars on a log scale: {list}": "Barras de teor em escala logarítmica: {list}",
+  "Takes every hole with lab assays: {h} hole(s), {n} assay interval(s), whatever is checked in the 3D View.": "Usa todos os furos com análises de laboratório: {h} furo(s), {n} intervalo(s) de análise, não importa o que esteja marcado na vista 3D."
 }

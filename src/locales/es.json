@@ -13797,5 +13797,6 @@
   "Best intercepts (m @ grade)": "Mejores interceptos (m @ ley)",
   "{sym} cut-off (P90)": "Corte de {sym} (P90)",
   "{sym} cut-off": "Ley de corte de {sym}",
-  "Grade bars on a log scale: {list}": "Barras de ley en escala logarítmica: {list}"
+  "Grade bars on a log scale: {list}": "Barras de ley en escala logarítmica: {list}",
+  "Takes every hole with lab assays: {h} hole(s), {n} assay interval(s), whatever is checked in the 3D View.": "Toma todos los sondajes con ensayes de laboratorio: {h} sondaje(s), {n} intervalo(s) de ensaye, sin importar lo que esté marcado en la vista 3D."
 }

@@ -13797,5 +13797,6 @@
   "Best intercepts (m @ grade)": "Meilleures intersections (m @ teneur)",
   "{sym} cut-off (P90)": "Coupure {sym} (P90)",
   "{sym} cut-off": "Teneur de coupure {sym}",
-  "Grade bars on a log scale: {list}": "Barres de teneur en échelle logarithmique : {list}"
+  "Grade bars on a log scale: {list}": "Barres de teneur en échelle logarithmique : {list}",
+  "Takes every hole with lab assays: {h} hole(s), {n} assay interval(s), whatever is checked in the 3D View.": "Prend tous les sondages avec analyses de laboratoire : {h} sondage(s), {n} intervalle(s) d'analyse, quoi que soit coché dans la vue 3D."
 }

@@ -4,7 +4,7 @@ import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; //
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { MapPinned, Plus, X, Maximize2, Sheet, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid, Lock, LayoutTemplate, Download, Upload, HardDrive } from "../components/icons.js";
 import { projectTitleOf } from "../lib/projectTitle.js"; // TASKS.csv #3611 / #3612
-import { newTitleBlock, STOCK_TEMPLATES, stockTemplateElements, templateFile, parseTemplateFile, templateElements, furnitureOfOnePictureReset /* #3709 */, sharedTitleRows /* #3714 */, refitStockTemplate, documentTitle /* #3612 */, titleBlockSpot } from "../lib/layoutTitleBlock.js"; // refitStockTemplate: #2312; // TASKS.csv #1868; templateElements: #1487
+import { newTitleBlock, STOCK_TEMPLATES, stockTemplateElements, templateFile, parseTemplateFile, templateElements, furnitureOfOnePictureReset /* #3709 */, sharedTitleRows /* #3714 */, titleBlockHeight /* #3868 */, refitStockTemplate, documentTitle /* #3612 */, titleBlockSpot } from "../lib/layoutTitleBlock.js"; // refitStockTemplate: #2312; // TASKS.csv #1868; templateElements: #1487
 import ComputerTemplates from "../components/ComputerTemplates.jsx"; // TASKS.csv #1487
 import { keepTemplateOnComputer } from "../lib/computerTemplates.js"; // TASKS.csv #1487
 import { hasComputerTemplates } from "../lib/desktop.js"; // TASKS.csv #1487
@@ -45,6 +45,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 // page; "Export PDF" prints the page via the Electron main process (or the browser print dialog).
 
 import { viewportHoleVisibility, fitHoleSet } from "../lib/viewportHoles.js"; // TASKS.csv #3371
+import { cropStripLogSlices } from "../lib/svgCrop.js"; // TASKS.csv #3867
 import { splitStripLog, stripLogSliceElements, wholeStripLog, pageWidthDenom, sliceLabelPt, CAPTION_CLEAR_PX /* #3856 */, redrawAdvice /* #3861 */ } from "../lib/stripLogPages.js"; // TASKS.csv #3372
 import { PAGE_FORMATS, pageFormatOf, pagePx, pageMm, pageCssName, addPagesOnPaper, snapshotPagePaper } from "../lib/pageFormats.js"; // TASKS.csv #398; mm / named pages: #908; on their paper: #3370
 import { azimuthToGridOffset, setIgrfModule } from "../lib/azimuthRef.js"; // TASKS.csv #399 — GN/TN/MN diagram
@@ -70,7 +71,7 @@ import { LAYOUT_FONTS, LAYOUT_FONT_TYPES, LAYOUT_DEFAULT_FONT, layoutFontStack, 
 import { legendFit, legendRowH, legendLabelW, legendBoxSize, legendBoxFit, isLegendBox } from "../lib/legendFit.js"; // TASKS.csv #2134; row rules and box: #2869; a sized box: #3395
 import { scoreRasterLegendGroups, isScoreRaster } from "../lib/viewer/scoreRasterLegend.js"; // TASKS.csv #2794
 import { holeAttitudeAssumed } from "../lib/desurvey.js"; // TASKS.csv #2134 — the notice counts the assumed-vertical holes
-import { freeSpot, spotIsFree, starterBand, spotInBand /* #3857 */, placeCollarTable, elementBox, copyOffset, followResize /* #2483 */ } from "../lib/layoutPlace.js"; // copyOffset: #2715 // elementBox: #1870 // TASKS.csv #1484 — new items into free space; #2135 the collar table
+import { freeSpot, spotIsFree, growInPlace /* #3865 */, starterBand, spotInBand /* #3857 */, placeCollarTable, elementBox, copyOffset, followResize /* #2483 */ } from "../lib/layoutPlace.js"; // copyOffset: #2715 // elementBox: #1870 // TASKS.csv #1484 — new items into free space; #2135 the collar table
 import { roundScale } from "../lib/layoutGeometry.js"; // TASKS.csv #1486
 import { numericClips, numericLayerColorFn } from "../lib/numericClip.js"; // TASKS.csv #1482
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
@@ -633,15 +634,17 @@ export default function LayoutModule() {
     const w = at(widthD, 40);
     return w.pages?.length > 1 ? { ...w, small: true } : null;
   };
-  const splitStripLogOverPages = (el) => {
+  const splitStripLogOverPages = async (el) => {
     const r = stripLogSplitFor(el);
     if (!r || r.error || !(r.pages?.length > 1)) return;
     const batch = `striplog_${el.id}_${Date.now()}`;
     const hole = String(el.label || "Strip log").replace(/^Strip log — /, "").replace(/,\s*-?[\d.]+--?[\d.]+ m\s*$/, "");
     const holeLabel = `Strip log ${hole}`; // printed on the sheet: English, as the log's own title
-    const [first, cap] = stripLogSliceElements(el, r, 0, { x: r.x, y: el.y, holeLabel, batchId: batch });
+    // TASKS.csv #3867 — each page's picture holds only the drawing its ranges show (the whole 0.6 MB drawing in every slice made a 3-page split 10 MB of PDF and 5-8 s)
+    let crops = null; try { crops = cropStripLogSlices(el.src, r.pages.map((p) => p.parts)); } catch { crops = null; }
+    const [first, cap] = stripLogSliceElements(el, r, 0, { x: r.x, y: el.y, holeLabel, batchId: batch, src: crops?.[0] || null });
     setElements((els) => [...els.map((e) => (e.id === el.id ? first : e)), cap]);
-    const rest = r.pages.slice(1).map((_, j) => ({ name: `${activePage?.name || hole} (${j + 2})`, batch, elements: stripLogSliceElements(el, r, j + 1, { x: r.x, y: 40, holeLabel, batchId: batch }) }));
+    const rest = r.pages.slice(1).map((_, j) => ({ name: `${activePage?.name || hole} (${j + 2})`, batch, elements: stripLogSliceElements(el, r, j + 1, { x: r.x, y: 40, holeLabel, batchId: batch, src: crops?.[j + 1] || null }) }));
     addPagesOnPaper(addLayoutPages, setLayoutPageFormat, rest, activePage?.format);
     switchLayoutPage(activeLayoutPageId); // back to the page the log starts on
     setSelected(el.id);
@@ -846,7 +849,9 @@ export default function LayoutModule() {
     const id = `${type}_${Date.now()}`;
     const base = { id, type, x: 100, y: 100 };
     if (type === "text") base.text = "Text", base.w = 200;
-    if (type === "titleblock") { const tbSpot = titleBlockSpot(pageFormatOf(activePage), { credit: !!credits, creditText: credits }); Object.assign(base, newTitleBlock(id, tbSpot.x, tbSpot.y, { credit: !!credits, creditText: credits, shared: sharedTitleRows(layoutPages.map((pg) => (pg.id === activeLayoutPageId ? { ...pg, elements } : pg))) /* TASKS.csv #3714 */ })); } // #3658 — above the credit, inside the page margin, as tall as its wrapped Data row // #3591 — a Data row when the project has a credit // TASKS.csv #1868 — bottom right
+    if (type === "titleblock") { const tbSpot = titleBlockSpot(pageFormatOf(activePage), { credit: !!credits, creditText: credits }); Object.assign(base, newTitleBlock(id, tbSpot.x, tbSpot.y, { credit: !!credits, creditText: credits, shared: sharedTitleRows(layoutPages.map((pg) => (pg.id === activeLayoutPageId ? { ...pg, elements } : pg))) /* TASKS.csv #3714 */ }));
+      // TASKS.csv #3868 (1) - the corner is the default; with something already there (a plan's key and captions) it takes the page's free spot like the other inserts
+      const tbH = titleBlockHeight({ credit: !!credits, creditText: credits, w: base.w }); if (!spotIsFree(elements, base, base.w, tbH)) { const fs = freeSpot(elements, base.w, tbH, A4); if (spotIsFree(elements, fs, base.w, tbH)) Object.assign(base, fs); } } // #3658 — above the credit, inside the page margin, as tall as its wrapped Data row // #3591 — a Data row when the project has a credit // TASKS.csv #1868 — bottom right
     if (type === "logo") logoInput.current.click();
     if (type === "scale") { base.meters = 100; base.pxPerMeter = DEFAULT_PX_PER_METER; Object.assign(base, insertScaleBar(base, elements, selected)); if (!base.boundTo) Object.assign(base, freeSpot(elements, 260, 50, A4)); /* #2135 */ base.y = Math.min(base.y, A4.h - 50); } // #1635 — bound to the selected / only view
     if (type === "north") { // TASKS.csv #1632 — tied to the selected view, else the page's only view with a camera azimuth
@@ -889,7 +894,7 @@ export default function LayoutModule() {
       const vis = holeVisibilityNow(), chk = hiddenIn(collars, vis) > 0; if (chk) base.onlyChecked = true;
       Object.assign(base, fitDrillPlan([...checkedOnly(collars, vis), ...plannedAsCollars(plannedHoles)] /* #2259 */, base.w, base.h, SCALE_PRESETS, planTraces(collars, survey, project?.desurveyMethod) /* #3367 */) || { scale: 10000, centre: { x: 0, y: 0 } });
     }
-    if (type === "samplestable") { type = "table"; base.type = "table"; base.source = "samples"; base.title = "Surface samples"; base.w = 460; base.fontPt = 7; base.maxRows = 25; base.frameWidth = 1; base.symbol = surfaceElements[0]?.symbol || ""; Object.assign(base, freeSpot(elements, 460, 25 * 16 + 60, A4)); } // TASKS.csv #1869
+    if (type === "samplestable") { type = "table"; base.type = "table"; base.source = "samples"; base.title = "Surface samples"; base.w = 460; base.fontPt = 7; base.maxRows = 25; base.frameWidth = 1; base.symbol = (assayElements || []).map((a) => a.symbol).find((sy) => (surfaceElements || []).some((e) => e.symbol === sy)) || surfaceElements[0]?.symbol || ""; /* TASKS.csv #3868 (6) — the project's own assayed element first (Au on a gold project), not the first by alphabet */ Object.assign(base, freeSpot(elements, 460, 25 * 16 + 60, A4)); } // TASKS.csv #1869
     else if (type === "table") { base.source = "collars"; base.title = "Drillhole collars"; base.w = 520; base.fontPt = 7; Object.assign(base, placeCollarTable(elements, A4, { w: 520, fontPt: 7, total: collars.length })); /* #1638 fits the sheet; #2135 free space */ base.frameWidth = 1; const f = defaultCollarTableFields(collars); if (f.length) base.extraCols = f; /* #2717 — the hole type, when there is one */ }
     // TASKS.csv #2302 (review #2174) — a drill plan ties the page's starter scale bar as a snapshot does (#1320): a '100 m' bar at 1:2,380 stood
     // beside a 1:20,000 plan
@@ -1505,7 +1510,7 @@ export default function LayoutModule() {
                     <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>{tr("Rows {a}–{b} of {n}.", { a: sl.total ? sl.start + 1 : 0, b: sl.end, n: sl.total })}</div>
                     {/* TASKS.csv #2770 — two table columns per page: twice the rows at the same height, twice the width (up to the sheet's) */}
                     <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: noSplit ? "var(--color-text-muted)" : "var(--color-text-secondary)", marginBottom: noSplit ? 2 : 8, cursor: noSplit ? "default" : "pointer" }} title={tr("The rows read down the left column, then the right one. The row limit doubles and the table is as tall as before, so a long list takes half the pages.")}>
-                      <input type="checkbox" disabled={noSplit} checked={sel.split === 2} onChange={(e) => { const on = e.target.checked, lim = Math.max(1, Math.round(Number(sel.maxRows) || 40)), w = Number(sel.w) || 520; updateSelected(on ? { split: 2, maxRows: lim * 2, w: Math.min(A4.w - 80, w * 2) } : { split: 1, maxRows: Math.max(1, Math.ceil(lim / 2)), w: Math.max(260, Math.round(w / 2)) }); }} />
+                      <input type="checkbox" disabled={noSplit} checked={sel.split === 2} onChange={(e) => { const on = e.target.checked, lim = Math.max(1, Math.round(Number(sel.maxRows) || 40)), w = Number(sel.w) || 520; updateSelected(on ? { split: 2, maxRows: lim * 2, w: Math.min(A4.w - 80, w * 2), ...growInPlace(elements.filter((x) => x.id !== sel.id), elementBox(sel), Math.min(A4.w - 80, w * 2), A4) /* TASKS.csv #3865 — kept on the sheet */ } : { split: 1, maxRows: Math.max(1, Math.ceil(lim / 2)), w: Math.max(260, Math.round(w / 2)) }); }} />
                       {tr("Two table columns side by side")}
                     </label>
                     {noSplit && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Not available: the two halves with these columns would not fit the doubled frame even at 5 pt. Drop a column, or keep one column and let the rest carry on to the next page.")}</div>}
@@ -2724,7 +2729,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
           <tbody>{(el.rows || []).map(([label, value], i) => (
             <tr key={i} style={{ borderTop: i ? line : "none" }}>
               <td style={{ padding: "2px 6px", width: "34%", borderRight: line, color: "#55606e", fontSize: Math.max(6, fs * 0.85), verticalAlign: "top", whiteSpace: "nowrap" }}>{label}</td>
-              <td style={{ padding: "2px 6px", fontWeight: i === 0 ? 700 : 400, whiteSpace: "pre-wrap", verticalAlign: "top" }}>{fillText(value, ctx) || "\u00a0"}</td>
+              <td style={{ padding: "2px 6px", fontWeight: i === 0 ? 700 : 400, whiteSpace: "pre-wrap", verticalAlign: "top" }}>{(String(label).trim().toLowerCase() === "data" ? fillText(value, ctx).replace(/^\s*Data:\s*/i, "") /* TASKS.csv #3868 (2) - 'Data | Data: BC ARIS...' */ : fillText(value, ctx)) || "\u00a0"}</td>
             </tr>
           ))}</tbody>
         </table>
@@ -2963,7 +2968,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     const fsSet = printPx(el.fontPt || printPt.small), frameW = (Number(el.w) || 520) - 12 - 2 * (Number(el.frameWidth) || 0);
     const textFit = tableTextFit({ columns, parts: tableParts, fsPx: fsSet, widthPx: frameW, gap: 14, minPx: printPx(5), measure: measureTableText(FONT) });
     const fs = textFit.fs, cell = { padding: `${Math.round(fs * 0.25)}px ${Math.round(fs * 0.5)}px`, borderBottom: "1px solid #c9ced4" /* #999 — 0.26 mm on paper like the scale bar; 0.5 px vanished on screen at Fit zoom */, whiteSpace: "nowrap", lineHeight: 1.2 /* #3854 — the row height lib/collarTable.js plans with ('normal' drew 17 px rows where it planned 16.2, and a full page ran 20 px into the credit line) */ };
-    const numeric = columns.map((_, j) => rows.length > 0 && rows.every((r) => r[j] === "" || /^[-+≥<>]?[\d.,]+[*†‡§]?$/.test(String(r[j])))); // \*: #1483; †: #2133; ‡ §: #3023
+    const numeric = columns.map((_, j) => (el.align?.[j] ? el.align[j] === "right" /* TASKS.csv #3866 — set by the table's maker */ : rows.length > 0 && rows.every((r) => r[j] === "" || /^[-+≥<>]?[\d.,]+[*†‡§]?$/.test(String(r[j]))))); // \*: #1483; †: #2133; ‡ §: #3023
     return (
       <div style={{ ...wrap, width: el.w || 520, background: "#fff", border: frameBorder(el), padding: 6, boxSizing: "border-box", fontFamily: FONT, color: "#1a2028" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
         {el.title && <div style={{ fontSize: printPx((el.fontPt || printPt.small) + 2), fontWeight: 700, marginBottom: 4 }}>{fillText(el.title, ctx)}</div>}

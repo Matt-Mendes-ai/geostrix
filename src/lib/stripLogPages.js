@@ -124,14 +124,14 @@ export function splitStripLog(el, { pageW, pageH, denom, x = 40, y = 40, top = 4
 
 // The Layout elements for one page's slice: the image (its own depth span, so the depth scale reads 1 : denom) and its caption.
 // English: printed on the sheet.
-export function stripLogSliceElements(el, split, i, { x, y, holeLabel, batchId }) {
+export function stripLogSliceElements(el, split, i, { x, y, holeLabel, batchId, src = null }) { // src: #3867 — this slice's own picture, cropped to its ranges (lib/svgCrop.js)
   const p = split.pages[i], n = split.pages.length, k = split.k;
   const hPx = p.h / k;
   const fmt = (d) => String(Number(d.toFixed(1)));
   const img = {
-    ...el, id: i === 0 ? el.id : `${el.id}_p${i + 1}`, x, y, w: split.w, h: p.h, aspect: split.w / p.h,
+    ...el, ...(src ? { src } : {}), id: i === 0 ? el.id : `${el.id}_p${i + 1}`, x, y, w: split.w, h: p.h, aspect: split.w / p.h,
     depthHeightAtCaptureM: hPx / (el.naturalH / el.depthHeightAtCaptureM),
-    slice: { parts: p.parts, page: i + 1, of: n, from: p.from, to: p.to, batch: batchId, whole: { h: el.h, w: el.w, aspect: el.aspect, depthHeightAtCaptureM: el.depthHeightAtCaptureM } },
+    slice: { parts: p.parts, page: i + 1, of: n, from: p.from, to: p.to, batch: batchId, whole: { h: el.h, w: el.w, aspect: el.aspect, depthHeightAtCaptureM: el.depthHeightAtCaptureM, ...(src && i === 0 ? { src: el.src } : {}) /* #3867 — the whole drawing, for "Whole log again" */ } },
   };
   const caption = { id: `${img.id}_cap`, type: "text", x, y: y + p.h + 8, w: Math.max(160, split.w), text: `${holeLabel}, ${fmt(p.from)}-${fmt(p.to)} m · page ${i + 1} of ${n}${i < n - 1 ? " · continued on the next page" : ""}`, sliceCaptionOf: img.id };
   return [img, caption];

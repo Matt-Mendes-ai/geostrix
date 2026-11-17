@@ -32,6 +32,6 @@ test("wiring: the table renders its parts side by side; the checkbox doubles the
   assert.match(s, /\{tableParts\.map\(\(part, pi\) => \(/);
   assert.match(s, /\{part\.map\(\(r, i\) => <tr key=\{i\}>/);
   assert.match(s, /\{more > 0 && pi === tableParts\.length - 1 && el\.source !== "samples" &&/);
-  assert.match(s, /updateSelected\(on \? \{ split: 2, maxRows: lim \* 2, w: Math\.min\(A4\.w - 80, w \* 2\) \} : \{ split: 1, maxRows: Math\.max\(1, Math\.ceil\(lim \/ 2\)\), w: Math\.max\(260, Math\.round\(w \/ 2\)\) \}\)/);
+  assert.match(s, /updateSelected\(on \? \{ split: 2, maxRows: lim \* 2, w: Math\.min\(A4\.w - 80, w \* 2\), \.\.\.growInPlace\([^\n]*?\) [^\n]*? \} : \{ split: 1, maxRows: Math\.max\(1, Math\.ceil\(lim \/ 2\)\), w: Math\.max\(260, Math\.round\(w \/ 2\)\) \}\)/);
   assert.match(s, /tr\("Two table columns side by side"\)/);
 });

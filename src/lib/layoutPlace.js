@@ -89,6 +89,16 @@ export function spotInBand(elements, w, h, page, band, { margin = 40, step = 20 
   return null;
 }
 
+// TASKS.csv #3865 (Scottie Gold review) — 'Two table columns side by side' doubled the frame where it stood: a collar table placed at x = 116 mm ran 94 mm off an A4 landscape sheet, over the
+// north arrow and onto the credit. Where the table goes when its frame grows to newW: the same place moved left to the sheet's right margin when it would cross it; when something is
+// there, the page's free spot for the new size when there is one. -> { x, y }
+export function growInPlace(others, box, newW, page, { margin = 40 } = {}) {
+  const x = Math.max(margin, Math.min(box.x, page.w - margin - newW)), y = box.y;
+  if (spotIsFree(others, { x, y }, newW, box.h)) return { x, y };
+  const spot = freeSpot(others, newW, box.h, page, { margin });
+  return spotIsFree(others, spot, newW, box.h) ? spot : { x, y };
+}
+
 // TASKS.csv #3451 (#3418) — does a w x h item at `spot` touch nothing on the page? freeSpot returns the least-covered spot when nothing is free; this says whether it was.
 export function spotIsFree(elements, spot, w, h) {
   const c = { x: spot.x, y: spot.y, w, h };
