@@ -118,6 +118,10 @@ export function bundledData() {
     out.push({ name: "FGDC lithology patterns (FGDC-STD-013-2006), repackaged by Daven Quinn", version: "", license: "CC0-1.0 (public domain)",
       url: "https://github.com/davenquinn/geologic-patterns", text: [readme, readFileSync(path.join(fgdc, "LICENSE.txt"), "utf8").trim()].filter(Boolean).join("\n\n") });
   }
+  // TASKS.csv #3429 — the lithology thesaurus's second source: rock names and words from the dh2loop project's hierarchical thesaurus (MIT, Copyright (c) 2020 Mark Jessell), data only
+  const dh = path.join(ROOT, "src", "lib", "lithoThesaurusDh2loop-LICENSE.txt");
+  if (existsSync(dh)) out.push({ name: "dh2loop lithology thesaurus (rock names and words; Loop3D, Mark Jessell; Joshi et al. 2021, Geoscientific Model Development 14, 6711)", version: "1.0.0", license: "MIT",
+    url: "https://github.com/Loop3D/dh2loop", text: readFileSync(dh, "utf8").trim() });
   // TASKS.csv #2690 — the international time scale's interval colours (Macrostrat, CC BY 4.0), bundled for 'Time-scale colours'
   const ts = path.join(ROOT, "src", "lib", "timeScaleIntervals.txt");
   if (existsSync(ts)) out.push({ name: "International time scale interval colours (Macrostrat)", version: "2026-11-12", license: "CC-BY-4.0",
@@ -152,6 +156,13 @@ export function bundledData() {
   { const p = path.join(ROOT, "sample_data", "wa_gold", "README.md");
     if (existsSync(p)) out.push({ name: "WA lode gold sample (WAMEX company mineral drillhole database, Department of Energy, Mines, Industry Regulation and Safety, Western Australia)", version: "2024", license: "CC-BY-4.0",
       url: "https://catalogue.data.wa.gov.au/dataset/mineral-exploration-drillholes-open-file", text: readFileSync(p, "utf8").trim() }); }
+  // TASKS.csv #2006 — two openly licensed research datasets, listed like the Blake River sample: the README carries the credit lines the owners ask for and says what was done
+  { const p = path.join(ROOT, "sample_data", "osborne", "README.md");
+    if (existsSync(p)) out.push({ name: "Osborne mine airborne magnetics sample (Geoscience Australia survey P1029, processed by Leonardo Uieda, Fatiando a Terra Data)", version: "2026-11", license: "CC-BY-4.0",
+      url: "https://doi.org/10.5281/zenodo.5882209", text: readFileSync(p, "utf8").trim() }); }
+  { const p = path.join(ROOT, "sample_data", "geomet", "README.md");
+    if (existsSync(p)) out.push({ name: "GeoMet drillholes sample (GeoMet dataset: IMPA, UFMG and Vale S.A.)", version: "v4", license: "CC-BY-4.0",
+      url: "https://doi.org/10.5281/zenodo.7051975", text: readFileSync(p, "utf8").trim() }); }
   // TASKS.csv #3496 — Fireweed Metals Corp.'s Macpass drilling, redistributed with its written permission (not an open licence): the credit it chose, word for word, is the README's first line
   { const p = path.join(ROOT, "sample_data", "yk_macpass", "README.md");
     if (existsSync(p)) out.push({ name: "Macpass sample (drilling data courtesy of Fireweed Metals Corp., Macpass Project, Yukon)", version: "2024-02-27", license: "Used with permission of Fireweed Metals Corp.",

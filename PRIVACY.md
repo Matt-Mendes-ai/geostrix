@@ -68,6 +68,13 @@ is not reachable from other machines and does not make outbound connections. The
 predictive-modelling add-on once installed: it runs on your computer, listens only on `127.0.0.1`, and makes no
 outbound connections.
 
+## Word lists and sample data that ship with the application
+
+Some reference data is bundled with the installer and read locally; nothing about it is sent anywhere. The lithology thesaurus that
+proposes groups for rock codes has a second source of rock names and words taken from the dh2loop project's hierarchical lithology
+thesaurus (https://github.com/Loop3D/dh2loop, MIT licence, Copyright (c) 2020 Mark Jessell; Joshi et al. 2021, Geoscientific Model
+Development 14, 6711): data only, no code. Its licence is listed under Help, Third-party licences.
+
 ## Changes
 
 Material changes to this policy will accompany a release and be noted in the release notes.

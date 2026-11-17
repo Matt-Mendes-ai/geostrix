@@ -14,7 +14,7 @@ test("the budgets: up to 50 million, under the reach mask's limit; each with its
   assert.equal(MAX_BLOCK_BUDGET, 50000000);
   assert.ok(MAX_BLOCK_BUDGET < REACH_MAX_GRID);
   assert.deepEqual([10e6, 20e6, 50e6].map(gradeShellBudgetMB), [240, 480, 1200]);
-  for (const b of [10e6, 20e6, 50e6]) assert.match(gradeShellBudgetNote(b), /GB of memory$/); // #3654 (5): no window pause since #3580 (b)
+  for (const b of [10e6, 20e6, 50e6]) assert.match(gradeShellBudgetNote(b), /GB more memory(; needs a computer with 8 GB or more)?$/); // #3654 (5): no window pause since #3580 (b); #3666: the growth measured
   const on = (gb) => shellBudgetsFor((mb) => fetchFits(mb, gb));
   assert.deepEqual(on(32), BLOCK_BUDGETS, "32 GB: all");
   assert.deepEqual(on(8), BLOCK_BUDGETS, "8 GB: 50 million is 1.2 GB of its 2 GB share");
