@@ -72,7 +72,7 @@ import { legendFit, legendRowH, legendLabelW, legendBoxSize, legendBoxFit, isLeg
 import { scoreRasterLegendGroups, isScoreRaster } from "../lib/viewer/scoreRasterLegend.js"; // TASKS.csv #2794
 import { holeAttitudeAssumed } from "../lib/desurvey.js"; // TASKS.csv #2134 — the notice counts the assumed-vertical holes
 import { freeSpot, spotIsFree, growInPlace /* #3865 */, starterBand, spotInBand /* #3857 */, placeCollarTable, elementBox, copyOffset, followResize /* #2483 */ } from "../lib/layoutPlace.js"; // copyOffset: #2715 // elementBox: #1870 // TASKS.csv #1484 — new items into free space; #2135 the collar table
-import { roundScale } from "../lib/layoutGeometry.js"; // TASKS.csv #1486
+import { roundScale, roundScaleSize, sectionFitsPage /* #3874 */ } from "../lib/layoutGeometry.js"; // TASKS.csv #1486
 import { numericClips, numericLayerColorFn } from "../lib/numericClip.js"; // TASKS.csv #1482
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
 import { legendSyncState, staleBoundLegends } from "../lib/layoutLegendSync.js"; // TASKS.csv #2471
@@ -443,6 +443,12 @@ export default function LayoutModule() {
       const maxH = A4.h - 160;
       let w = Math.round(Math.min(maxW, 700, maxH * aspect)), h = Math.round(w / aspect);
       let spot = freeSpot(placedSoFar, w, h, A4), free = spotIsFree(placedSoFar, spot, w, h);
+      // TASKS.csv #3874 (#3716 (6)) — a section snapshot: the largest ROUND scale whose picture fits the page's free band, at the left margin below the title (it arrived 176 mm wide on a
+      // 432 mm sheet, right of the title, at no round scale)
+      if (img.worldWidthAtCaptureM > 0 && !img.keyDrawn) {
+        const band = starterBand(placedSoFar, A4), fit = roundScaleSize({ worldWidthAtCaptureM: img.worldWidthAtCaptureM, aspect }, SCALE_PRESETS, A4.w - 80 - (img.legendItems?.length ? 186 : 0) /* its legend goes right of it */, band.bottom - band.top);
+        if (fit) { const w3 = fit.w, h3 = fit.h /* not rounded to whole pixels: the scale is read back from the width (#3022) */, spot3 = spotInBand(placedSoFar, Math.ceil(w3), Math.ceil(h3), A4, band); if (spot3) { w = w3; h = h3; spot = spot3; free = true; } }
+      }
       if (!free) { // TASKS.csv #3857 — the starter page's free band (between the title and the scale bar / credit): the picture fitted to it before the page is said to have no room
         const band = starterBand(placedSoFar, A4), bandH = band.bottom - band.top;
         if (bandH >= 120 && bandH < h) {
@@ -2348,7 +2354,7 @@ function SectionScaleControls({ sel, pageW, pageH, updateSelected, onResize = nu
           if (v) setScale(Number(v));
         }} style={{ ...inp, flex: 1, marginTop: 0, marginBottom: 0, padding: "4px 6px", fontSize: "var(--font-size-sm)" }}>
           <option value="">{tr("as sized (1 : {n})", { n: n.toLocaleString() })}</option>
-          {SCALE_PRESETS.map((p) => <option key={p} value={String(p)}>{p.toLocaleString()}</option>)}
+          {SCALE_PRESETS.map((p) => { const fits = sectionFitsPage(sel, p, pageW, pageH) || String(p) === choice; /* TASKS.csv #3874 — a scale that makes the picture larger than the page is greyed (it moved the legend and 'Looking N' off the sheet) */ return <option key={p} value={String(p)} disabled={!fits} title={fits ? undefined : tr("Larger than the page at this scale")}>{fits ? p.toLocaleString() : tr("{scale} (larger than the page)", { scale: p.toLocaleString() })}</option>; })}
           <option value="custom">{tr("custom…")}</option>
         </select>
         {choice === "custom" && (
