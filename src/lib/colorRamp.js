@@ -186,7 +186,12 @@ export function lightnessRamp(baseHex, lightnesses = RAMP_LIGHTNESS, chromaScale
 // user chose this" — the distinction #319 recorded as missing.
 // TASKS.csv #1696 (review #1645, Copley) — p975 (optional): a fourth, darker class above P97.5, so ore grade stands apart from merely
 // anomalous (Copley Cu: every sample from 59 ppm to 1.94 % sat in one top class).
+// TASKS.csv #3879 — each seeded class also records the colour it was seeded from (seedBase), so a saved project's classes can be told apart: seeded from the element's own hue,
+// or from another (the old pick-order hue), or by the user (no seeded tag at all)
 export function seedBreaks(range, baseColor) {
+  return seedBreaksRaw(range, baseColor).map((b) => (b.seeded ? { ...b, seedBase: baseColor || null } : b));
+}
+function seedBreaksRaw(range, baseColor) {
   const { min, max, p50, p90, p975 } = range || {};
   const span = max - min;
   const C = lightnessRamp(baseColor) || ["#f2ddb8", "#e0894a", "#8c2f1f"]; // low / medium / high — see the lightness argument above

@@ -25,7 +25,7 @@ test("#725 categories: every visible layer, minus hidden categories and holes, w
 
 test("#725 assay classes and block models; items with headings and ramps", () => {
   const style = { breaks: [{ max: 0.1, color: "#aaaaaa" }, { max: 1, color: "#ffaa00" }, { max: 99, color: "#ff0000" }] };
-  const a = assayLegendGroups({ assays: [{}], assayElements: [{ symbol: "Au", unit: "ppm" }], assayVisible: true, assayDisplayElements: ["Au", "Cu"], assayStyle: { Au: style } });
+  const a = assayLegendGroups({ assays: [{}], assayElements: [{ symbol: "Au", unit: "ppm" }, { symbol: "Cu", unit: "ppm" }], assayVisible: true, assayDisplayElements: ["Au", "Cu"], assayStyle: { Au: style } });
   assert.deepEqual(a[0].items.map((i) => i[0]), ["≤ 0.1 g/t", "0.1–1 g/t", "> 1 g/t"]); // #3382; #3586: gold stored in ppm reads g/t: one key number format (3 significant figures, no padded zeros)
   assert.equal(a[1].items[0][1], ASSAY_ELEMENT_COLORS[1]); // an unclassed element keeps its marker hue
   assert.equal(assayColorFor(0.5, 0, style), "#ffaa00");

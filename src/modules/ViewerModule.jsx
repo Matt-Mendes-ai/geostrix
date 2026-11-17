@@ -29,6 +29,7 @@ import { piercePoints as surfacePierces, piercePointRows } from "../lib/piercePo
 import { Info, Upload, Scissors, AlertTriangle, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, Maximize2, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, Beaker, Compass, Activity, GitCompare, Check } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // GitCompare/Check: TASKS.csv #93
 const AssayStyleModal = lazyModal(() => import("../components/AssayStyleModal.jsx")); // TASKS.csv #476
 import { seedBreaks } from "../lib/colorRamp.js"; // TASKS.csv #476
+import { repairSeededHues } from "../lib/assayHueRepair.js"; // TASKS.csv #3879
 const GradeEstimationModal = lazyModal(() => import("../components/GradeEstimationModal.jsx"));  // TASKS.csv #301
 const VariogramModal = lazyModal(() => import("../components/VariogramModal.jsx")); // TASKS.csv #147  // TASKS.csv #301
 import LocatorMap from "../components/LocatorMap.jsx";
@@ -122,7 +123,7 @@ const toExportCsv = async (rows, opts) => (await import("../lib/tabular.js")).to
 const FenceDiagramModal = lazyModal(() => import("../components/FenceDiagramModal.jsx")); // TASKS.csv #139  // TASKS.csv #301
 const CoreOrientationCalculator = lazyModal(() => import("../components/CoreOrientationCalculator.jsx"));  // TASKS.csv #301
 import { codesInUse, connectIntervals, effectiveCode, codeInfo } from "../lib/modellingCodes.js"; // TASKS.csv #599
-import { outcropLegendGroup /* TASKS.csv #1437 */, ASSAY_ELEMENT_COLORS, assayColorFor, categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, surfaceSampleLegendGroup , numericLayerLegendGroups, geophysLegendGroups /* #2878 */, importedSurfaceLegendGroups /* #3762 */ } from "../lib/legendGroups.js"; // TASKS.csv #725; map / boundary / samples: #948
+import { outcropLegendGroup /* TASKS.csv #1437 */, ASSAY_ELEMENT_COLORS, assayColorFor, assayHueIndex /* #3879 */, categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, surfaceSampleLegendGroup , numericLayerLegendGroups, geophysLegendGroups /* #2878 */, importedSurfaceLegendGroups /* #3762 */ } from "../lib/legendGroups.js"; // TASKS.csv #725; map / boundary / samples: #948
 // TASKS.csv #843 — the anomaly map (lib/anomalyMap.js + lib/thresholds.js) and its controls load only when used: off the startup bundle
 const SurfaceAnomalyControls = React.lazy(() => import("../components/SurfaceAnomalyControls.jsx"));
 const EvidenceOverlayPane = React.lazy(() => import("../components/EvidenceOverlayPane.jsx"));
@@ -671,13 +672,12 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // the end of the list, matching how assayColorFor indexes the same array at marker-build time.
   const toggleAssayElement = (symbol) => {
     const turningOn = !assayDisplayElements.includes(symbol);
-    const idx = turningOn ? assayDisplayElements.length : assayDisplayElements.indexOf(symbol);
     setAssayDisplayElements((p) => p.includes(symbol) ? p.filter((s) => s !== symbol) : [...p, symbol]);
     if (turningOn) {
       setAssayStyle((s) => {
         if (s[symbol]?.breaks?.length) return s; // user already has their own breaks -- don't clobber
         const range = assayRangeFor(symbol) || { min: 0, max: 0 }; // #1500 — on demand
-        const baseColor = s[symbol]?.color || ASSAY_ELEMENT_COLORS[idx % ASSAY_ELEMENT_COLORS.length];
+        const baseColor = s[symbol]?.color || ASSAY_ELEMENT_COLORS[assayHueIndex(symbol, assayElements) % ASSAY_ELEMENT_COLORS.length]; // #3879 — the element's own hue (its place in the element list), not its place among those shown
         return { ...s, [symbol]: { ...(s[symbol] || {}), breaks: seedBreaks(range, baseColor) } };
       });
     }
@@ -717,6 +717,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     const r = assayClassRange(lab.length ? lab : assays, symbol); // #306 / #1696 percentile classes; #2519: '<' flags left out (lib/assayClasses.js)
     return (c.by[symbol] = r && { ...r, unit: assayElements.find((e) => e.symbol === symbol)?.unit }); // unit: a major component's round classes, #2935
   }, [assays, assayElements, assaySource]);
+  // TASKS.csv #3879 — a project saved with the old pick-order hues: the classes GeoStrix seeded (not the user's) are re-seeded from the element's own hue (lib/assayHueRepair.js)
+  useEffect(() => { setAssayStyle((p) => repairSeededHues(p, assayElements, assayRangeFor)); }, [assayStyle, assayElements, assayRangeFor]);
   // TASKS.csv #437 — the hover tooltip is written straight to its DOM node instead of React state:
   // setTooltip({x, y, text}) ran on every pointermove over an interval and re-rendered this whole
   // 10k-line component (133 useState) each time. Same signature as before, so every caller is unchanged.
@@ -4152,11 +4154,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // each element: its own hue and a small radial offset around the trace, so Au / Cu / Zn at one depth stay apart (one element: none).
     // TASKS.csv #1696 — apart by the largest radius (3.8 x the bigger size multiplier), so Au is not inside Cu's spheres; neighbours 2 x 3.9 m apart
     const ring = n > 1 ? (3.9 * Math.max(...assayDisplayElements.map((x) => assayStyle[x]?.sizeMult ?? 1))) / Math.sin(Math.PI / n) : 0;
-    const specs = assayDisplayElements.map((sym, idx) => ({ sym, idx, offX: n > 1 ? Math.cos((2 * Math.PI * idx) / n) * ring : 0, offZ: n > 1 ? Math.sin((2 * Math.PI * idx) / n) * ring : 0,
-      key: [assays, assaySource, assayStyle[sym], idx, assayShapeFor(assayStyle[sym], drawnAssays), ranges[sym], collars, traces, elementUnits[sym]], buildCoarse: assayShapeFor(assayStyle[sym], drawnAssays) === "trace" ? coarseOf : null })); // #3117; coarseOf: #3144 — what the element's markers depend on, besides the offset
+    const specs = assayDisplayElements.map((sym, idx) => ({ sym, idx, hue: assayHueIndex(sym, assayElements), offX: n > 1 ? Math.cos((2 * Math.PI * idx) / n) * ring : 0, offZ: n > 1 ? Math.sin((2 * Math.PI * idx) / n) * ring : 0,
+      key: [assays, assaySource, assayStyle[sym], idx, assayHueIndex(sym, assayElements), assayShapeFor(assayStyle[sym], drawnAssays), ranges[sym], collars, traces, elementUnits[sym]], buildCoarse: assayShapeFor(assayStyle[sym], drawnAssays) === "trace" ? coarseOf : null })); // #3117; coarseOf: #3144 — what the element's markers depend on, besides the offset
     // TASKS.csv #3144 — the level of detail: a hole's consecutive same-colour samples as one marker
     function coarseOf(sym, into, offX, offZ) {
-      const { idx } = specs.find((x) => x.sym === sym), style = assayStyle[sym], batcher = makeAssayBatcher({ minBatch: 1 }), op = style?.opacity ?? 1, u = elementUnits[sym] ? gradeUnitLabel(sym, elementUnits[sym]) : ""; // #3586
+      const { hue: idx } = specs.find((x) => x.sym === sym), style = assayStyle[sym], batcher = makeAssayBatcher({ minBatch: 1 }), op = style?.opacity ?? 1, u = elementUnits[sym] ? gradeUnitLabel(sym, elementUnits[sym]) : ""; // #3586
       collars.forEach((c) => {
         const rows = holesOf().get(c.hole_id), pts = rows && traceOf.get(c.hole_id);
         if (!pts?.length) return;
@@ -4172,7 +4174,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     }
     assayKeptRef.current.lodSampleM = typicalSampleM(assays); // #3144
     syncAssayElements(g, assayKeptRef.current, specs, (sym, into) => {
-      const { idx, offX, offZ } = specs.find((x) => x.sym === sym), style = assayStyle[sym], batcher = makeAssayBatcher(); // #3055
+      const { hue: idx, offX, offZ } = specs.find((x) => x.sym === sym), style = assayStyle[sym], batcher = makeAssayBatcher(); // #3055; hue: #3879 — the colour's index (the element's own), idx stays the offset's
       collars.forEach((c) => {
         const rows = holesOf().get(c.hole_id), pts = rows && traceOf.get(c.hole_id);
         if (!pts?.length) return; // a hole without a trace: before the lookup (#1981)
@@ -5647,7 +5649,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         vals.forEach((a) => {
           const mid = (a.from + a.to) / 2, v = a.values[sym];
           const px = isPxrfRow(a); // #2362 — a pXRF reading, when shown, says so
-          points.push({ hole_id: a.hole_id, md: mid, color: assayColorFor(v, idx, style), label: `${sym}: ${gradeText(v)}${px ? " (pXRF)" : ""}`, assay: { sym, value: v, idx, from: a.from, to: a.to, u, ...(px ? { pxrf: true } : {}) } }); // #392 — drawn as a grade bar
+          points.push({ hole_id: a.hole_id, md: mid, color: assayColorFor(v, assayHueIndex(sym, assayElements), style), label: `${sym}: ${gradeText(v)}${px ? " (pXRF)" : ""}`, assay: { sym, value: v, idx, from: a.from, to: a.to, u, ...(px ? { pxrf: true } : {}) } }); // #392 — drawn as a grade bar
         });
       });
     }
@@ -6598,8 +6600,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 const style = assayStyle[e.symbol];
                 // Chip swatch: a styled single color, the middle grade-break's color if recategorized
                 // (a representative sample rather than any one specific value), or the default hue.
-                const color = on ? (style?.breaks?.length ? style.breaks[Math.floor(style.breaks.length / 2)].color : style?.color || ASSAY_ELEMENT_COLORS[idx % ASSAY_ELEMENT_COLORS.length]) : null;
-                const defaultHue = ASSAY_ELEMENT_COLORS[idx % ASSAY_ELEMENT_COLORS.length];
+                const defaultHue = ASSAY_ELEMENT_COLORS[assayHueIndex(e.symbol, assayElements) % ASSAY_ELEMENT_COLORS.length]; // #3879 — the element's own hue, whatever else is on
+                const color = on ? (style?.breaks?.length ? style.breaks[Math.floor(style.breaks.length / 2)].color : style?.color || defaultHue) : null;
                 const styled = !!(style && ((style.color && style.color !== defaultHue) || (style.sizeMult != null && style.sizeMult !== 1) || style.minCutoff != null || style.breaks?.some((b) => !b.seeded) || style.shape || style.opacity != null)); // #649 shape / opacity
                 return (
                   <div
@@ -7809,7 +7811,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           patternOverride={legendOverride.litho} onPatternChange={(v, p) => setLegendOverride((o) => ({ ...o, litho: { ...(o.litho || {}), [v]: { ...(o.litho?.[v] || {}), pattern: p } } }))} // #1995
           modelledLayers={customLayers.filter((l) => l.rows?.[0]?.modelled)} // TASKS.csv #356
           onAddToLayout={(img) => { addLayoutImage(img); goToModule("layout"); }} onAdvice={(t) => t && setNotices((p) => [...p, t])} // #1480; advice: #1641
-          assayColor={(sym, v) => assayColorFor(v, Math.max(0, assayDisplayElements.indexOf(sym)), assayStyle[sym])}
+          assayColor={(sym, v) => assayColorFor(v, assayHueIndex(sym, assayElements), assayStyle[sym])} // #3879
           onClose={() => setStripLogHoleId(null)} onOpenFence={() => { setStripLogHoleId(null); setFenceOpen(true); }} legendOverride={legendOverride} // #3560 A0 / A1
         />
       )}
@@ -7817,7 +7819,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <AssayStyleModal
           symbol={assayStyleModalSymbol}
           unit={assayElements.find((e) => e.symbol === assayStyleModalSymbol)?.unit || "ppm"}
-          defaultColor={ASSAY_ELEMENT_COLORS[assayDisplayElements.indexOf(assayStyleModalSymbol) % ASSAY_ELEMENT_COLORS.length]}
+          defaultColor={ASSAY_ELEMENT_COLORS[assayHueIndex(assayStyleModalSymbol, assayElements) % ASSAY_ELEMENT_COLORS.length]}
           range={assayRangeFor(assayStyleModalSymbol) || { min: 0, max: 0 }}
           style={assayStyle[assayStyleModalSymbol] || null}
           onChange={(next) => setAssayStyle((p) => ({ ...p, [assayStyleModalSymbol]: next }))}

@@ -11,14 +11,13 @@
 //   (ViewerModule toggleAssayElement: seedBreaks over the lab assays' class range, in the element's colour) -> { breaks, seeded } | null
 import { seedBreaks } from "../colorRamp.js";
 import { assayClassRange } from "../assayClasses.js";
-import { ASSAY_ELEMENT_COLORS } from "../legendGroups.js";
+import { assayHue } from "../legendGroups.js"; // TASKS.csv #3879 — the element's own hue
 export function elementClasses(assayStyle, element, { rows = [], unit = null, elements = [] } = {}) {
   const own = assayStyle?.[element]?.breaks;
   if (Array.isArray(own) && own.length >= 2) return { breaks: own, seeded: false };
   const r = assayClassRange(rows, element);
   if (!r) return null;
-  const i = Math.max(0, (elements || []).indexOf(element));
-  const color = assayStyle?.[element]?.color || ASSAY_ELEMENT_COLORS[i % ASSAY_ELEMENT_COLORS.length];
+  const color = assayStyle?.[element]?.color || assayHue(element, (elements || []).map((e) => (typeof e === "string" ? { symbol: e } : e))); // #3879: the elements may be symbols or { symbol, unit }
   const breaks = seedBreaks({ ...r, unit }, color);
   return breaks.length >= 2 ? { breaks, seeded: true } : null;
 }

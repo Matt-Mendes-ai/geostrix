@@ -18,7 +18,7 @@ import { desurveyHole, pointOnTrace } from "./desurvey.js";
 import { LAYER_META, categoryColor, categoryLabel, colorForMedium } from "./layers.js";
 import { numericLayerColorFn, numericClips } from "./numericClip.js";
 import { customColour } from "./customColour.js";
-import { assayColorFor, voxelLegendGroups } from "./legendGroups.js";
+import { assayColorFor, assayHueIndex, voxelLegendGroups } from "./legendGroups.js";
 import { layerCategoryValue, STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS } from "./mapLayers.js";
 import { mapLayerFeatures, boundaryFeatures, surfaceStructureRows, kmlColor } from "./overlayExport.js";
 import { polygonsFromRings } from "./polygonRings.js";
@@ -342,7 +342,7 @@ export function buildProjectKml(ctx, opts) {
     if (els.length && (ctx.assays || []).length) {
       w.open("Assays");
       els.forEach((e) => {
-        const idx = (ctx.assayElements || []).findIndex((x) => x.symbol === e.symbol);
+        const idx = assayHueIndex(e.symbol, ctx.assayElements); // #3879
         const st = ui.assayStyle?.[e.symbol] || {};
         const cut = num(st.minCutoff);
         const vals = ctx.assays.map((a) => num(a.values?.[e.symbol]));
