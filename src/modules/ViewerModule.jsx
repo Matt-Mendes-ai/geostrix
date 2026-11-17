@@ -102,6 +102,7 @@ const DataQCModal = lazyModal(() => import("../components/DataQCModal.jsx"));  /
 // TASKS.csv #224 — lazy: SQLWorkspaceModal pulls in sql.js and its 658 KB wasm, loaded only when the modal renders
 const SQLWorkspaceModal = React.lazy(() => import("../components/SQLWorkspaceModal.jsx"));
 const SectionGeorefModal = React.lazy(() => import("../components/SectionGeorefModal.jsx")); // TASKS.csv #630
+const SectionImageVerticalModal = lazyModal(() => import("../components/SectionImageVerticalModal.jsx")); // TASKS.csv #3880 — match a section image to the terrain in elevation
 const LayerStyleModal = React.lazy(() => import("../components/LayerStyleModal.jsx")); // TASKS.csv #635
 const SolidToolsModal = React.lazy(() => import("../components/SolidToolsModal.jsx")); // TASKS.csv #1950 / #1951 — clip a solid by a surface, combine two solids
 const TrendsPanel = React.lazy(() => import("../components/TrendsPanel.jsx")); // TASKS.csv #650
@@ -743,6 +744,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const [dbModalOpen, setDbModalOpen] = useState(false);
   const [qcModalOpen, setQcModalOpen] = useState(false); // TASKS.csv #82 — data QA/QC modal
   const [sectionGeorefOpen, setSectionGeorefOpen] = useState(false); // TASKS.csv #630
+  const [sectionVerticalId, setSectionVerticalId] = useState(null); // TASKS.csv #3880 — the section image being matched to the terrain
   // TASKS.csv #239 — SQL workspace (#50) was only reachable from the Geochem module's toolbar despite
   // querying collars/survey/layers/boundaries too, not just assays — discoverability gap flagged by the
   // QGIS-specialist audit. Same modal, same store data, just also reachable from here.
@@ -6699,6 +6701,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <div key={im.id} onContextMenu={(e) => openRowMenu(e, im.name, [
             { label: im.visible === false ? "Show" : "Hide", onClick: () => updateSectionImage(im.id, { visible: im.visible === false }) },
             { label: tr("Zoom to"), onClick: () => zoomToObject(sectionImageMeshesRef.current[im.id]) },
+            { label: tr("Match to terrain…"), onClick: () => setSectionVerticalId(im.id) }, // TASKS.csv #3880
             { label: tr("Opaque"), onClick: () => updateSectionImage(im.id, { opacity: 1 }) },
             { label: tr("Half transparent"), onClick: () => updateSectionImage(im.id, { opacity: 0.5 }) },
             "-", { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove the section image \"{name}\" from the project?", { name: im.name }))) removeSectionImage(im.id); } }])} style={{ padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
@@ -6711,6 +6714,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             </div>
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("Opacity")}{" "}<input type="range" min={0.1} max={1} step={0.05} value={im.opacity ?? 1} onChange={(e) => updateSectionImage(im.id, { opacity: Number(e.target.value) })} style={{ flex: 1 }} aria-label={tr("Opacity of \"{name}\"", { name: im.name })} />
             </label>
+            <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSectionVerticalId(im.id)} title={tr("Click along the image's drawn topography line and fit its heights to the terrain, or type a vertical offset and scale.")} style={{ cursor: "pointer", marginTop: 4, fontSize: "var(--font-size-xs)", color: "var(--color-info)", textDecoration: "underline" }}>{tr("Match to terrain…")}{im.verticalAdjust ? tr(" (adjusted {offset} m)", { offset: im.verticalAdjust.offset }) : ""}</div>{/* TASKS.csv #3880 */}
           </div>
         ))}
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSectionGeorefOpen(true)} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>{tr("+ Georeference a section image…")}</div>
@@ -7792,10 +7796,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {qcModalOpen && <DataQCModal onCancel={() => setQcModalOpen(false)} onZoomHole={(id) => { zoomToHole(id); setQcModalOpen(false); } /* TASKS.csv #3569 */} />}
       {sectionGeorefOpen && (
         <Suspense fallback={null}>
-          <SectionGeorefModal sections={sections} onClose={() => setSectionGeorefOpen(false)}
+          <SectionGeorefModal sections={sections} rlOffset={rlOffsetOf(project)} onClose={() => setSectionGeorefOpen(false)}
             onImport={(img) => { addSectionImage(img); setSectionGeorefOpen(false); setNotices((p) => [...p, notice("{name}: placed in 3D on its section line{v} — listed under Section images.", { name: img.name, v: img.rmse != null ? tr(" (fit error {rmse} m)", { rmse: img.rmse.toFixed(1) }) : "" })]); }} />
         </Suspense>
       )}
+      {sectionVerticalId && sectionImages.find((i) => i.id === sectionVerticalId) && <SectionImageVerticalModal image={sectionImages.find((i) => i.id === sectionVerticalId)} terrain={terrain} onApply={(patch) => updateSectionImage(sectionVerticalId, patch)} onClose={() => setSectionVerticalId(null)} />}{/* TASKS.csv #3880 */}
       {sqlModalOpen && (
         <Suspense fallback={null}>
           <SQLWorkspaceModal
