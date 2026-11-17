@@ -24,6 +24,7 @@ import { terrainGroundAt } from "./viewer/geomath.js"; // TASKS.csv #614; #927 �
 import { gridDims, finishTerrain } from "./terrainGrid.js"; // TASKS.csv #814 — shared with the Copernicus source
 import { copernicusRise, isArtifactCone } from "./copernicusDem.js"; // TASKS.csv #814
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { DEFAULT_TERRAIN_SOURCE } from "./terrainSource.js"; // TASKS.csv #3882
 
 const MAX_TILES = 36; // 6x6 budget — keeps a single fetch to a few dozen requests/~1-2MB, not runaway
 const MIN_ZOOM = 4;
@@ -68,7 +69,7 @@ function pickZoom(lonMin, latMin, lonMax, latMax, maxTiles = MAX_TILES) {
 // and download (AWS), and the memory it takes. source: "aws" | "copernicus" | "mrdem" | "hrdem". -> { nodeM, sourcePixelM, nativeM, zoom,
 // tiles, downloadMB, memoryMB, fullSideKm (the widest square area that gets nodes at the source's own pixel at this detail) }
 const NATIVE_OF = { copernicus: 30, mrdem: 30, hrdem: 1, gem15: 15, gem15dsm: 15 }; // gem15: #3721
-export function planTerrainFetch([lonMin, latMin, lonMax, latMax], gridMax = GRID_MAX, source = "aws") {
+export function planTerrainFetch([lonMin, latMin, lonMax, latMax], gridMax = GRID_MAX, source = DEFAULT_TERRAIN_SOURCE) { // source default: #3882
   const latMid = ((latMin + latMax) / 2) * (Math.PI / 180);
   const w = Math.max(1, (lonMax - lonMin) * 111320 * Math.cos(latMid)), h = Math.max(1, (latMax - latMin) * 110574);
   const nodeM = Math.max(w, h) / Math.max(1, gridMax - 1);

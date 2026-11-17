@@ -25,6 +25,7 @@ import { surveyMethodByHole } from "./surveyMethod.js"; // TASKS.csv #2494
 import { surveyGapFinder } from "./surveyGaps.js"; // TASKS.csv #3730
 import { coverageInfos } from "./dataQcCoverage.js"; // TASKS.csv #2493
 import { suspectElevationIds } from "./collarElevationTrust.js"; // TASKS.csv #3004 / #2896
+import { collarClusterAbove, collarClusterNote } from "./terrainCheck.js"; // TASKS.csv #3882 follow-up
 
 // TASKS.csv #2939 — a hole's direction as a unit vector (E, N, up) from its azimuth and dip below the horizontal (up: an uphole), and the
 // angle between two such directions in degrees
@@ -693,6 +694,9 @@ function validateCollarsVsTerrain(collars, terrain, threshold) {
   const nodeM = terrainNodeM(terrain); // #3807 — a number, whatever the terrain stored
   const grid = nodeM ? ` The terrain's nodes are ~${Math.round(nodeM)} m apart, so on steep ground a correct collar can differ from it by tens of metres.` : ""; // #726
   pushIssue(issues, "info", "Collar vs terrain", null, tr("{offs} collar(s) compared with the terrain \"{v}\": median difference {med} m, {off} over {threshold} m.{grid}{v2}", { offs: offs.length, v: terrain.name || "DEM", med: med.toFixed(1), off: off.length, threshold, grid, v2: off.length && off.every((o) => Math.sign(o.dz) === Math.sign(off[0].dz)) && off.length >= 3 ? tr(" All {off} are {v} the ground — a datum or unit problem (ellipsoidal vs orthometric height, feet vs metres) rather than GPS scatter?", { off: off.length, v: off[0].dz > 0 ? "above" : "below" }) : "" }) + (() => { const sd = collarTerrainSide(offs); return sd?.side ? " " + tr(sd.side === "below" ? "{k} of the {n} collars are {lo} to {hi} m below this terrain (median {m} m): the terrain and the collar elevations differ by a steady offset, not by scatter." : "{k} of the {n} collars are {lo} to {hi} m above this terrain (median {m} m): the terrain and the collar elevations differ by a steady offset, not by scatter.", { k: sd.side === "below" ? sd.below : sd.above, n: sd.n, lo: sd.lo.toFixed(1), hi: sd.hi.toFixed(1), m: sd.med.toFixed(1) }) : ""; })()); // #3807 — which way
+  // TASKS.csv #3882 follow-up — a compact cluster of collars far above the ground (mined since they were drilled), named even when the median is moderate
+  const cluster = collarClusterAbove(collars, terrain);
+  if (cluster) pushIssue(issues, "warning", "Collar vs terrain", null, collarClusterNote(cluster, terrain));
   off.forEach((o) => pushIssue(issues, "warning", "Collar vs terrain", o.hole_id, tr("Collar elevation {z} m is {v} m {v2} the terrain ({dem} m) — a GPS / datum / units error, or a DEM that is too coarse here. Every intercept elevation on this hole moves with it.", { z: o.z.toFixed(1), v: Math.abs(o.dz).toFixed(1), v2: o.dz > 0 ? "above" : "below", dem: o.dem.toFixed(1) })));
   return issues;
 }

@@ -78,5 +78,5 @@ test("wiring: the allow-list is path-limited to the bucket, the source is a choi
   assert.match(g, /\(await import\("\.\.\/lib\/gem15Dem\.js"\)\)\.fetchGemTerrain/);
   assert.match(g, /parsed\.source\?\.gapNodes > 0/);
   assert.match(readFileSync(new URL("../src/lib/srtmFetch.js", import.meta.url), "utf8"), /gem15: 15, gem15dsm: 15/);
-  assert.match(readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8"), /useState\(\(\) => \{ try \{ return localStorage\.getItem\("geostrix\.terrainSource"\) \|\| "aws"/, "AWS stays the default");
+  assert.match(readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8"), /useState\(\(\) => savedTerrainSource\(localStorage\)\)/, "GEM-15 is a choice, not the default (#3882: Copernicus GLO-30 is, test/terrainDefault3882.test.mjs)");
 });
