@@ -78,7 +78,7 @@ test("wheelAnchors: the visible holes' points, thinned to the cap with each hole
 
 test("wiring: the viewer passes the traces and the visible holes to the wheel zoom", () => {
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(v, /anchors: \(\) => wheelAnchorsFor\(tracesRef\.current, visibleHolesRef\.current\), boxes: \(\) => wheelBoxes\(\[voxelGroupRef\.current, omfGroupRef\.current\]\)/); // #3669
+  assert.match(v, /anchors: \(\) => wheelAnchorsFor\(tracesRef\.current, visibleHolesRef\.current\), boxes: \(\) => wheelBoxes\(\[voxelGroupRef\.current, omfGroupRef\.current, layerGroupsRef\.current\.geophys_pts, layerGroupsRef\.current\.surface_samples\]\)/); // #3669; #3671
   assert.match(v, /import \{ makeWheelAnchors, wheelBoxes \} from "\.\/viewer\/wheelAnchors\.js"/);
 });
 
@@ -124,4 +124,17 @@ test("wheelBoxes: the shown children's own boxes (a hidden group or model is lef
   assert.equal(b.length, 12);
   assert.ok(Math.abs(b[0] + 5) < 1e-6 && Math.abs(b[6] - 195) < 1e-6);
   assert.equal(wheelBoxes([]).length, 0);
+});
+
+// TASKS.csv #3671 — a geophysics point cloud and the surface samples are zoom anchors like the block models: their own boxes, a hidden one left out
+test("#3671 wheelBoxes takes a point cloud's and the surface samples' boxes", () => {
+  const cloud = new THREE.Group(), pts = new THREE.Points(new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(Float32Array.from([0, 0, 0, 10, 20, 30]), 3)));
+  cloud.add(pts);
+  const samples = new THREE.Group(), sm = new THREE.Points(new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(Float32Array.from([100, 0, 0, 110, 5, 5]), 3)));
+  samples.add(sm);
+  cloud.updateMatrixWorld(true); samples.updateMatrixWorld(true);
+  assert.deepEqual([...wheelBoxes([cloud, samples])], [0, 0, 0, 10, 20, 30, 100, 0, 0, 110, 5, 5]);
+  sm.visible = false;
+  assert.equal(wheelBoxes([cloud, samples]).length, 6, "a hidden samples object is left out");
+  assert.equal(wheelBoxes([undefined, null]).length, 0, "an absent group is left out");
 });

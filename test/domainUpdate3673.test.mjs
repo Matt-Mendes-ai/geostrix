@@ -85,6 +85,6 @@ test("the wiring: the worker's update step, the pane's section, the run", () => 
   const d = readFileSync(new URL("../src/modules/viewer/DomainUpdateSection.jsx", import.meta.url), "utf8");
   assert.match(d, /const \{ runDomainUpdate \} = await import\("\.\/domainUpdateRun\.js"\)/);
   const u = readFileSync(new URL("../src/modules/viewer/domainUpdateRun.js", import.meta.url), "utf8");
-  assert.match(u, /update: \{ positions: P, indices: I, widthM: S \/ 2, influenceM: S,/);
+  assert.match(u, /update: \{ positions: P, indices: I, widthM: priorWidthM > 0 \? priorWidthM : S \/ 2, influenceM: newReachM > 0 \? newReachM : S,/); // #3674
   assert.match(u, /tool: "domain update"/);
 });

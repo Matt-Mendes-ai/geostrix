@@ -233,6 +233,9 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   const [materialHoles, setMaterialHoles] = useState(() => keep("materialHoles", true)); // TASKS.csv #1573 — a second hole must carry at least 5 % of the weight
   const [maxSamples, setMaxSamples] = useState(() => keep("maxSamples", 16));
   const [maxPerHole, setMaxPerHole] = useState(() => keep("maxPerHole", 0)); // TASKS.csv #709 — 0 = no explicit cap
+  const [hgMin, setHgMin] = useState(() => keep("hgMin", "")); // TASKS.csv #3816 — composites at or above this grade inform only the blocks within hgFactor of the search radius ("" = off)
+  const [hgFactor, setHgFactor] = useState(() => keep("hgFactor", 0.5));
+  const highGrade = hgMin !== "" && Number.isFinite(Number(hgMin)) && Number(hgFactor) > 0 && Number(hgFactor) < 1 ? { min: Number(hgMin), factor: Number(hgFactor) } : null;
   const [capValue, setCapValue] = useState(() => (sameElement ? keep("capValue", NaN) : NaN));        // TASKS.csv #259
   const capClearedFor = useRef(null); // TASKS.csv #1573 — the element whose default cap the user emptied: no refill
   const [capAuto, setCapAuto] = useState(() => (sameElement ? keep("capAuto", false) : false));
@@ -314,7 +317,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   // "Add as block model" button, under changed settings)
   const chips = useMemo(() => unsampledWord(collars) === "chips", [collars]); // TASKS.csv #3507 - "unsampled chips" on RC / aircore holes, not "unsampled core"
   const nonMetal = isNonMetal(symbol, { fromLog: sourceKey !== "assay" }); // TASKS.csv #3497 — value, not metal, for SiO2, a log, LOI
-  const settingsSig = JSON.stringify([sourceKey, logValues, symbol, setPicked, memberCaps, useComposites, compositeLength, minCoverage, domainKey, capByDomain, padding, cellSize, cellHeight, flatReach, gridMode, originE, blockBudget, method, vgModel, vgNugget, addedKv, searchRadius, minSamples, minHoles, materialHoles, maxSamples, maxPerHole, capValue, includeQAQC, restrictToDomain, noCodeAsDomain, classifySupport, shellId, belowGround, samplesFrom, planePref /* #3679 */]);
+  const settingsSig = JSON.stringify([sourceKey, logValues, symbol, setPicked, memberCaps, useComposites, compositeLength, minCoverage, domainKey, capByDomain, padding, cellSize, cellHeight, flatReach, gridMode, originE, blockBudget, method, vgModel, vgNugget, addedKv, searchRadius, minSamples, minHoles, materialHoles, maxSamples, maxPerHole, hgMin, hgFactor, capValue, includeQAQC, restrictToDomain, noCodeAsDomain, classifySupport, shellId, belowGround, samplesFrom, planePref /* #3679 */]);
   const sigNow = useRef(settingsSig); sigNow.current = settingsSig;
   const runSig = useRef(null), [resultSig, setResultSig] = useState(null);
   const runCollars = useMemo(() => (samplesFrom === "checked" && checkedHoleIds?.size ? collars.filter((c) => checkedHoleIds.has(c.hole_id)) : collars), [collars, samplesFrom, checkedHoleIds]);
@@ -492,7 +495,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
 
   // #1580 — what to restore next time: kept current every render, stored when the dialog closes
   const remember = useRef(null);
-  remember.current = { memberMethods /* #3164 */, sourceKey, logValues, symbol, useComposites, compositeLength, minCoverage, domainKey, noCodeAsDomain, capByDomain, padding, cellSize, cellHeight, flatReach, gridMode, originE, originN, originZ, cellAuto: autoCell != null && cellSize === autoCell /* #3684 */, cellTyped: cellTyped.current /* #3706 */, method, vgModel, vgNugget, vgSill, vgRange, searchRadius, searchTyped: searchTouched.current /* #3684 */, minSamples, minHoles, materialHoles, maxSamples, maxPerHole, capValue, capAuto, includeQAQC, restrictToDomain, classifySupport, shellId: shellPick, shellDefaultOff /* #3706 */, belowGround, setOthers: setPicked /* #3014 */ };
+  remember.current = { memberMethods /* #3164 */, sourceKey, logValues, symbol, useComposites, compositeLength, minCoverage, domainKey, noCodeAsDomain, capByDomain, padding, cellSize, cellHeight, flatReach, gridMode, originE, originN, originZ, cellAuto: autoCell != null && cellSize === autoCell /* #3684 */, cellTyped: cellTyped.current /* #3706 */, method, vgModel, vgNugget, vgSill, vgRange, searchRadius, searchTyped: searchTouched.current /* #3684 */, minSamples, minHoles, materialHoles, maxSamples, maxPerHole, hgMin, hgFactor, capValue, capAuto, includeQAQC, restrictToDomain, classifySupport, shellId: shellPick, shellDefaultOff /* #3706 */, belowGround, setOthers: setPicked /* #3014 */ };
   const settingsKey = estimateSettingsKey(project);
   useEffect(() => () => { lastEstimateSettings.set(settingsKey, remember.current); }, [settingsKey]);
   // TASKS.csv #520 — the estimate runs in a worker: the window keeps repainting, shows progress and can be cancelled
@@ -653,7 +656,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           prep.push({ el, u, unsM, fm, rows, mCap, mp, mUns: mp.length ? unsampledPointsFor(rows, el, u) : [], msh, mOutside: mAll - mp.length });
         }
         const samePoints = (a, b) => a.length === b.length && a.every((q, i) => { const r = b[i]; return q.hole_id === r.hole_id && q.x === r.x && q.y === r.y && q.z === r.z && (q.length ?? null) === (r.length ?? null) && (q.domain ?? null) === (r.domain ?? null); });
-        const sharedIdx = prep.map((q, k) => (q.mp.length && sharesPrimarySearch(memberMethodOf(q.el), method, !!logInfo) /* #3164 */ && samePoints(q.mp, estPts) ? k : -1)).filter((k) => k >= 0);
+        const sharedIdx = prep.map((q, k) => (q.mp.length && sharesPrimarySearch(memberMethodOf(q.el), method, !!logInfo) /* #3164 */ && samePoints(q.mp, estPts) && !highGrade ? k : -1)).filter((k) => k >= 0);
         const sharedValues = sharedIdx.length ? sharedIdx.map((k) => Float64Array.from(prep[k].mp, (q) => q.value)) : null;
         const share = others.length ? 1 / (1 + others.length - sharedIdx.length) : 1; // #3014 — the primary's part of the progress bar (#3163: shared members take none)
         setStage(others.length ? symbol : null);
@@ -663,6 +666,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           ...(method === "ok" ? { variogram: { model: vgModel, ...(vgNugget !== "" && vgSill !== "" && vgRange !== "" ? { nugget: Number(vgNugget), sill: Number(vgSill), range: Number(vgRange) } : {}) } } : {}), // #709
           ...(unsPts.length ? { unsampledPoints: unsPts } : {}), // #2596
           ...(logFills.length ? { logShare: true } : {}), // #2721
+          ...(highGrade ? { highGrade } : {}), // #3816 — the primary's own search only: a member's grades are another element's, and it then runs its own search
           ...(sharedValues ? { members: { values: sharedValues, unsampled: sharedIdx.map((k) => prep[k].mUns) } } : {}), // #3163
           carry: true, ...(carryInside ? { carryInside } : {}), // #3784
         }, { onProgress: (f) => setProgress(share * (method === "nn" ? f : 0.8 * f)), signal: ac.signal });
@@ -687,6 +691,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           gridFrom: shellBox ? `box of the restricting solid "${shellBox.name}" within the drilling` : areaString ? `inside the closed design string "${areaString.name}" (${outsideArea} block(s) outside it dropped)` : gridMode === "checked" && checkedBounds ? `desurveyed traces of the ${checkedBounds.holes} checked hole(s)` : traceBounds ? `desurveyed traces of ${traceBounds.holes} assayed hole(s)` : "collar box (no hole could be desurveyed)", // #521; #1570
           searchRadiusM: searchRadius > 0 ? searchRadius : Math.round(gridDiagonal), searchRadiusWasUnlimited: !(searchRadius > 0), ...(supportRef > 0 ? { supportScoredAgainstM: Math.round(supportRef) } : {}), // #1411
           minSamples, maxSamples, minHoles, maxSamplesPerHole: maxPerHole || null,
+          ...(highGrade ? { highGradeSearch: { atOrAbove: highGrade.min, unit, withinFractionOfRadius: highGrade.factor, radiusM: Math.round(highGrade.factor * (searchRadius > 0 ? searchRadius : gridDiagonal)) } } : {}), // #3816
           // TASKS.csv #3255 — the record says whether #1573's 5 % rule was on (two models differing only in it had identical parameters)
           ...(minHoles > 1 ? { secondHoleRule: materialHoles ? "a second hole counts when it carries at least 5 % of the inverse-distance weight, except for a block within a cell of its nearest composite (there every hole in reach counts)" : "every hole in reach counts" } : {}),
           searchTrend: trend ? { name: trend.name, dip: trend.dip, dipAzimuth: trend.dipAzimuth, pitch: trend.pitch, ratios: trend.ratios, ellipsoidM: [1, trend.ratios.int / trend.ratios.max, trend.ratios.min / trend.ratios.max].map((f) => Math.round(f * (searchRadius > 0 ? searchRadius : gridDiagonal))) } : null, // #650
@@ -1042,6 +1047,12 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
             <label style={fieldLabel} title={tr("Caps how many nearest samples contribute to any one block's IDW average (ignored for nearest-neighbour).")}>{tr("Max samples/block")}<input type="number" min="1" value={maxSamples} onChange={(e) => setMaxSamples(Math.max(1, Number(e.target.value) || 1))} style={inp} />
             </label>
             <label style={fieldLabel} title={tr("At most this many of a block's samples from any one hole, so a hole drilled straight through the block can't supply them all (0 = no cap beyond the one Min distinct holes implies).")}>{tr("Max samples/hole")}<input type="number" min="0" value={maxPerHole} onChange={(e) => setMaxPerHole(Math.max(0, Math.floor(Number(e.target.value) || 0)))} style={inp} aria-label={tr("Max samples per hole")} />
+            </label>
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>{/* TASKS.csv #3816 — a shorter reach for the high grades */}
+            <label style={fieldLabel} title={tr("A composite at or above this grade informs only the blocks within the shorter reach below, so a spike is not spread over the whole search. Blank: every composite has the full search.")}>{tr("High grades from ({unit})", { unit: unit || tr("as logged") })}<input type="number" min="0" value={hgMin} onChange={(e) => setHgMin(e.target.value)} style={inp} aria-label={tr("Grade from which a composite has a shorter search")} />
+            </label>
+            <label style={fieldLabel} title={tr("The reach of a high-grade composite as a share of the search radius (0.5 = half of it).")}>{tr("Their reach (× radius)")}<input type="number" min="0.05" max="0.95" step="0.05" value={hgFactor} onChange={(e) => setHgFactor(e.target.value)} style={inp} aria-label={tr("Reach of a high-grade composite as a share of the search radius")} />
             </label>
           </div>
           {/* TASKS.csv #533 — P97.5 / P99 caps and the capping audit (samples cut, metal removed) */}

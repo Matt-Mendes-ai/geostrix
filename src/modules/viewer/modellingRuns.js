@@ -1506,7 +1506,11 @@ export function createModellingRuns(ctx, mcRef) {
       // litho points themselves instead of blocking the run. Less accurate than a real structure
       // pick, but lets the tool interpolate a surface from contacts alone, which is the point.
       const est = estimateOrientationFromPoints(points);
-      orientations = [est];
+      // TASKS.csv #3780 (#3766) — an ASSIGNED geology trend's plane is the user's own statement of the structure: it is the run's orientation, in place of the contacts' plane
+      // (which stays in the notice beside it, so a gap between them is seen). Only a trend with a dip and a dip direction.
+      const gtAssigned = est.fit === "plane" ? trendWarp("implicit") : null;
+      const usesTrend = !!(gtAssigned?.enabled && Number.isFinite(gtAssigned.trend?.dip) && Number.isFinite(gtAssigned.trend?.dipAzimuth));
+      orientations = [usesTrend ? { ...est, dip: gtAssigned.trend.dip, azimuth: gtAssigned.trend.dipAzimuth, fit: "assigned trend" } : est];
       orientationEstimated = true;
       { const oh = !silent && oneHoleDipNotice(points, unitName); if (oh) setNotices((p) => [...p, oh]); } // #1687
       if (!silent && ovbSkipped) setNotices((p) => [...p, notice("Base of {unitName}: the {n} bedrock structure pick(s) were not used — the base of overburden is an erosion surface, not bedding or a contact. Its dip was estimated from its contact points (~{dip}°/~{azimuth}°).", { unitName, n: ovbSkipped, dip: Math.round(est.dip), azimuth: Math.round(est.azimuth) })]); // #3264
@@ -1515,8 +1519,8 @@ export function createModellingRuns(ctx, mcRef) {
       else if (!silent && !picksAtStart && (layers.structure || []).some((r) => r.dip != null && r.azimuth != null)) { const loaded = (layers.structure || []).filter((r) => r.dip != null && r.azimuth != null); setNotices((p) => [...p, notice("No structure type is chosen as a contact orientation ({n} oriented pick(s) of {t} type(s) are loaded): the dip of \"{unitName}\" was estimated from its contact points (~{dip}°/~{azimuth}°). Tick a type under Model settings > Contact orientations to use the picks.", { n: loaded.length, t: new Set(loaded.map((r) => String(r.value))).size, unitName, dip: est.dip.toFixed(0), azimuth: est.azimuth.toFixed(0) })]); }
       else if (!silent) setNotices((p) => [...p, notice("No structure picks found — estimated a single dip/azimuth (~{dip}°/~{azimuth}°) from the shape of the \"{unitName}\" contact points: the orientation comes from the contacts alone.", /* #2928 (6): no 'import a structure CSV' on a project with none */ { dip: est.dip.toFixed(0), azimuth: est.azimuth.toFixed(0), unitName })]);
       // TASKS.csv #3766 — the estimate is the plane of least spread of the points (not an elevation-on-map regression, which flattened a steep unit); when a geology trend is assigned, the two are said side by side
-      { const gt = !silent && est.fit === "plane" ? trendWarp("implicit") : null;
-        if (gt?.enabled) setNotices((p) => [...p, notice("\"{unitName}\": the contact points lie on a plane dipping {dip}° towards {azimuth}°; the assigned geology trend \"{name}\" dips {tdip}° towards {taz}°. The run uses the contact plane as the orientation.", { unitName, dip: est.dip.toFixed(0), azimuth: est.azimuth.toFixed(0), name: gt.trend.name, tdip: Math.round(gt.trend.dip), taz: Math.round(gt.trend.dipAzimuth) })]); }
+      { const gt = !silent && est.fit === "plane" ? gtAssigned : null;
+        if (gt?.enabled) setNotices((p) => [...p, notice(usesTrend ? "\"{unitName}\": the contact points lie on a plane dipping {dip}° towards {azimuth}°; the assigned geology trend \"{name}\" dips {tdip}° towards {taz}°. The run uses the assigned trend's plane as the orientation." : "\"{unitName}\": the contact points lie on a plane dipping {dip}° towards {azimuth}°; the assigned geology trend \"{name}\" dips {tdip}° towards {taz}°. The run uses the contact plane as the orientation.", { unitName, dip: est.dip.toFixed(0), azimuth: est.azimuth.toFixed(0), name: gt.trend.name, tdip: Math.round(gt.trend.dip), taz: Math.round(gt.trend.dipAzimuth) })]); }
     }
     // TASKS.csv #241 — the surface's type now comes from the source litho unit's own role
     // (roleForLithology, src/lib/layers.js) instead of always being hardcoded "stratigraphic_contact",

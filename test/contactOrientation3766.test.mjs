@@ -54,3 +54,11 @@ test("wiring: modellingRuns reads it, ViewerModule no longer carries the regress
   assert.doesNotMatch(v, /estimateOrientationFromPoints/);
   assert.doesNotMatch(v, /Cramer's rule/);
 });
+
+// TASKS.csv #3780 (#3766) — an assigned geology trend's plane is the Implicit run's orientation, in place of the contacts' own plane
+test("#3780 the assigned trend's plane is the orientation, the contacts' plane said beside it", () => {
+  const m = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
+  assert.match(m, /const gtAssigned = est\.fit === "plane" \? trendWarp\("implicit"\) : null;/);
+  assert.match(m, /orientations = \[usesTrend \? \{ \.\.\.est, dip: gtAssigned\.trend\.dip, azimuth: gtAssigned\.trend\.dipAzimuth, fit: "assigned trend" \} : est\];/);
+  assert.match(m, /The run uses the assigned trend's plane as the orientation\./);
+});
