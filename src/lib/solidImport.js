@@ -123,7 +123,8 @@ function describe(format, m) {
       g.others.length ? `${g.others.length} other object(s) not read here (${[...new Set(g.others)].join(", ")})` : "", g.skippedLines ? `${g.skippedLines} line(s) skipped` : ""].filter(Boolean).join(", ");
   }
   const layers = m.parts.length > 1 ? `, ${m.parts.length} ${format === "DXF" ? "layers" : "objects"}` : "";
-  if (format === "DXF") return `${m.nFaceEntities} 3DFACE entit${m.nFaceEntities === 1 ? "y" : "ies"}${m.nPolyfaceMeshes ? `, ${m.nPolyfaceMeshes} polyface mesh${m.nPolyfaceMeshes === 1 ? "" : "es"}` : ""}${layers}`;
+  // TASKS.csv #3817 (#3815 (2), (6)) — the count with its separators (project text: English), and the faces left out said: '3104 3DFACE entities' beside '2,890 triangles' left 214 unexplained
+  if (format === "DXF") return `${m.nFaceEntities.toLocaleString("en-US")} 3DFACE entit${m.nFaceEntities === 1 ? "y" : "ies"}${m.nFlatFaces ? ` (${m.nFlatFaces.toLocaleString("en-US")} with no area left out: their corners weld to a line or a point)` : ""}${m.nPolyfaceMeshes ? `, ${m.nPolyfaceMeshes.toLocaleString("en-US")} polyface mesh${m.nPolyfaceMeshes === 1 ? "" : "es"}` : ""}${layers}`;
   return `${m.quads ? `${m.quads} quad(s) triangulated` : "all faces triangular"}${m.ngons ? `, ${m.ngons} n-gon(s) fan-triangulated` : ""}${layers}`;
 }
 

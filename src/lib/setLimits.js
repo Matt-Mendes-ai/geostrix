@@ -111,6 +111,7 @@ export function memberMetalColumns(meansRows, members, { perBlock = false, rho =
   return meansRows.map((r) => {
     const out = {};
     members.forEach((mb, i) => {
+      if (mb.skipMetal) return; // TASKS.csv #3825 (#3788) — mostly the detection floor: no contained metal
       for (const c of memberMetal(r.means[i], { perBlock, rho, unit: mb.unit, element: mb.element })) {
         const suffix = c.key.replace(/^metal_/, "").replace(new RegExp(`_${mb.element}$`), "");
         out[`${mb.element}_${suffix}`] = c.value == null ? "" : Number(c.value.toPrecision(6));

@@ -81,7 +81,7 @@ test("#2640 the pane: a lazy section that reads the last run, vertical moves sai
   assert.match(ip, /<StructFitPanel method=\{method\} unit=\{M\?\.unit \|\| ""\} keptScope=\{keptScope\} prepareForward=\{\(\) => prepare\("structfit"\)\}/);
   assert.match(ip, /if \(kind !== "structfit" && !\(num\(mesh\.coreCell\) >= 1\)\)/); // the model's own grid: no mesh to size
   const sp = readFileSync(new URL("../src/components/StructFitPanel.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.match(sp, /const \{ lastImplicitRequest: record, setLayers, updateGeophysSurvey \} = useStore\(\);/);
+  assert.match(sp, /const \{ lastImplicitRequest: record, setLayers, updateGeophysSurvey(, goToModule)? \} = useStore\(\);/);
   assert.match(sp, /runStructfitJob\(built\.request, \{ signal: ctl\.signal/);
   assert.match(sp, /Points move vertically only\. Points from drillhole contacts are observations and never move\./);
   assert.match(sp, /never the answer\./);

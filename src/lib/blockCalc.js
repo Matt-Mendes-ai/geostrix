@@ -40,10 +40,13 @@ export function formulaVars(formula, vars) {
 }
 
 // can this model join a calculation whose first input has lattice L? -> null (yes) or the reason (no)
-export function joinRefusal(lattice, model) {
+// TASKS.csv #3852 (#3809) — a model whose blocks are not one regular grid (a UBC mesh with two cell heights) can still be the ONLY input: a formula of one
+// model is worked block by block and needs no lattice. opts.first: it would be the first input; opts.firstIrregular: the first input is such a model.
+export function joinRefusal(lattice, model, { first = false, firstIrregular = false } = {}) {
   if (!model?.cells?.length) return tr("It has no blocks.");
+  if (firstIrregular) return tr("The first model's blocks are not one regular grid: it can be worked alone, not joined with another model.");
   const L = blockModelLattice(model);
-  if (!L) return tr("Its blocks are not one regular grid (mixed sizes or off a lattice).");
+  if (!L) return first ? null : tr("Its blocks are not one regular grid (mixed sizes or off a lattice).");
   if (lattice && !sameLattice(lattice, L)) return tr("Its blocks are not on the same grid as the first model's (another cell size or origin).");
   return null;
 }
@@ -68,6 +71,28 @@ export async function blockCalc(inputs, formula, { pause = null, signal = null, 
   if (!read.length) throw new Error(tr("The formula reads no block model: use the names listed beside the models."));
   const used = inputs.filter((x) => read.includes(x.var));
   const L = blockModelLattice(inputs[0].model) || blockModelLattice(used[0].model);
+  // TASKS.csv #3852 (#3809) — one model off a lattice, alone: each of its blocks as it is (1 / x of a conductivity model on a UBC mesh with two cell heights)
+  if (!L && used.length === 1) {
+    const cells = [], row = Object.fromEntries(vars.map((v) => [v, NaN])), src = used[0];
+    let blank = 0, n = 0;
+    const total = src.model.cells.length;
+    for (const c of src.model.cells) {
+      if (signal?.aborted) throw cancelled();
+      if (++n % BLOCK_CALC_SLICE === 0) { onProgress?.(n / total); if (pause) { const w = pause(); if (w) await w; } }
+      const v = Number(c.value);
+      if (!Number.isFinite(v)) continue;
+      row[src.var] = v;
+      const value = fn(row);
+      if (!Number.isFinite(value)) { blank++; continue; }
+      const out = { x: c.x, y: c.y, z: c.z, dx: c.dx, dy: c.dy, dz: c.dz, value };
+      if (typeof c.support === "string") out.support = c.support;
+      if (Number.isFinite(c.nHoles)) out.nHoles = c.nHoles;
+      if (c.beyond) out.beyond = true;
+      if (c.fromLog > 0) out.fromLog = c.fromLog;
+      cells.push(out);
+    }
+    return { cells, read, blocks: cells.length, missing: 0, blank };
+  }
   for (const x of used) { const why = joinRefusal(L, x.model); if (why) throw new Error(tr("{name}: {why}", { name: x.model.name, why })); }
   const { dx, dy, dz, ox, oy, oz } = L;
   const ix = (c) => Math.round((c.x - ox) / dx - 0.5), iy = (c) => Math.round((c.y - oy) / dy - 0.5), iz = (c) => Math.round((c.z - oz) / dz - 0.5);

@@ -566,6 +566,18 @@ def _validate_structfit(req):
         raise HTTPException(422, "resolve must give each unit's [lowest, highest] property.")
     if rs is not None and obs is None:
         raise HTTPException(422, "Re-solving the unit properties needs the observed readings.")
+    # TASKS.csv #2640 Stage 2 — the fit: the readings are what it fits, so they are required; a smaller cap on the points (each round costs a solve a point)
+    if req.get("mode") is not None and req.get("mode") not in ("sensitivity", "fit"):
+        raise HTTPException(422, "mode must be 'sensitivity' or 'fit'.")
+    if req.get("mode") == "fit":
+        from app.geophys.structfit import MAX_FIT_POINTS, MAX_FIT_ITER
+        if obs is None:
+            raise HTTPException(422, "The fit needs the observed readings.")
+        if len(mv) > MAX_FIT_POINTS:
+            raise HTTPException(422, f"The fit moves at most {MAX_FIT_POINTS} points: mark the ones the sensitivity pass says the survey sees.")
+        mi = req.get("maxIter")
+        if mi is not None and (not isinstance(mi, int) or not (1 <= mi <= MAX_FIT_ITER)):
+            raise HTTPException(422, f"maxIter must be 1 to {MAX_FIT_ITER}.")
     del parsed
 
 

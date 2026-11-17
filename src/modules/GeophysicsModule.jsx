@@ -256,6 +256,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const effectiveMaxCells = clampCellBudget(voxelCellBudget) || MAX_CELLS; // clamped on use too: #1074
   const [error, setError] = useState(null);
   const [rasterError, setRasterError] = useState(null);
+  // TASKS.csv #3817 (#3815 (1)) — a drop's line ('Not imported from this drop: ...') stayed at the top of every pane opened afterwards: it belongs to the pane it was given on
+  useEffect(() => { setRasterError((e) => (e?.dropPane && e.dropPane !== geoPane ? null : e)); }, [geoPane]);
   const [terrainError, setTerrainError] = useState(null);
   const [terrainBusy, setTerrainBusy] = useState(false);
   const [demSourceEpsg, setDemSourceEpsg] = useState(""); // TASKS.csv #419 — DEM source CRS override
@@ -1969,10 +1971,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const { min, max } = cellValueRange(cells);
       // #481 — a positive model spanning 2+ decades (conductivity, resistivity) gets log-spaced colours;
       // on a linear ramp almost every cell of a ZTEM conductivity model (1e-5 .. 0.1 S/m) was one colour.
-      const logColours = isLogProperty(guessVoxelProperty(modelFile.name), min, max); // #1786 — a .chg is not log-normal
-      const ramp = propertyRamp(guessVoxelProperty(modelFile.name)); // #1788 — resistivity low = red
-      addVoxelModel({ name: modelName, source: "ubc", cells, min, max, ...(coarsenedFrom ? { params: { coarsenedFrom } } : {}) /* #1095 */, ...(logColours ? { stops: logStops(min, max, ramp?.anchors || SEQUENTIAL_ANCHORS), colorMode: "continuous", logScale: true /* #1780: log-stepped range sliders */, ...(ramp?.palette ? { palette: ramp.palette } : {}) } : {}) });
-      infoNotes.push(farNote(cells) + tr("Imported \"{name}\" — {nx}×{ny}×{nz} mesh, {cells} cell(s) with data.{v}{v2}{coarsenNote}", { name: modelName, nx: mesh.nx, ny: mesh.ny, nz: mesh.nz, cells: cells.length.toLocaleString(), v: air.count ? tr(" {count} cells at {v} (the value this model uses for air above the ground) were treated as air (no data).", { count: air.count.toLocaleString(), v: Number(air.value).toPrecision(3) }) : "", v2: logColours ? tr(" Values span {min} to {max} ({v} decades), so colours are log-spaced.", { min: min.toPrecision(2), max: max.toPrecision(2), v: Math.round(Math.log10(max / min)) }) : "", coarsenNote }));
+      // TASKS.csv #3817 (#3815 (10)) — the name that chose the log colours (.con, .chg, .res, .den, .sus) also fills 'Values are', as the CSV route does (#1786): it stayed 'Not stated'
+      const guessed = guessVoxelProperty(modelFile.name);
+      const logColours = isLogProperty(guessed, min, max); // #1786 — a .chg is not log-normal
+      const ramp = propertyRamp(guessed); // #1788 — resistivity low = red
+      addVoxelModel({ name: modelName, source: "ubc", cells, min, max, ...(guessed ? { property: guessed } : {}), ...(coarsenedFrom ? { params: { coarsenedFrom } } : {}) /* #1095 */, ...(logColours ? { stops: logStops(min, max, ramp?.anchors || SEQUENTIAL_ANCHORS), colorMode: "continuous", logScale: true /* #1780: log-stepped range sliders */, ...(ramp?.palette ? { palette: ramp.palette } : {}) } : {}) });
+      infoNotes.push(farNote(cells) + (guessed ? tr("Values read as {p} from the file name (change it under Values are).", { p: tr(guessed) }) + " " : "") + tr("Imported \"{name}\" — {nx}×{ny}×{nz} mesh, {cells} cell(s) with data.{v}{v2}{coarsenNote}", { name: modelName, nx: mesh.nx, ny: mesh.ny, nz: mesh.nz, cells: cells.length.toLocaleString(), v: air.count ? tr(" {count} cells at {v} (the value this model uses for air above the ground) were treated as air (no data).", { count: air.count.toLocaleString(), v: Number(air.value).toPrecision(3) }) : "", v2: logColours ? tr(" Values span {min} to {max} ({v} decades), so colours are log-spaced.", { min: min.toPrecision(2), max: max.toPrecision(2), v: Math.round(Math.log10(max / min)) }) : "", coarsenNote }));
       } catch (e) { failed.push(tr("{file}: {message}", { file: modelFile.name, message: e.message })); setVoxelProgress(null); }
       }
       // #3806 — the models that came in and, by name, the ones that did not
@@ -2105,7 +2109,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         // TASKS.csv #1989 — MT / AMT soundings go to their own pane, which reads them
         const edis = files.filter((f) => /\.edi$/i.test(f.name));
         if (edis.length) { setMtDrop(edis); setGeoPane("mt"); }
-        if (advice.length) setRasterError({ info: true, text: advice.join(" ") });
+        if (advice.length) setRasterError({ info: true, text: advice.join(" "), dropPane: edis.length ? "mt" : geoPane /* #3817 — cleared when another pane opens */ });
         // A dropped .tif is ambiguous between a raster drape (#24) and a DEM (#77) — both are plain
         // georeferenced GeoTIFFs, nothing in the file format itself says which. Heuristic: a filename
         // that reads as elevation data goes to the dedicated terrain importer; anything else keeps the

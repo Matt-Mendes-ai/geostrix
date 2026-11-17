@@ -5,6 +5,8 @@
 // pulls in inversion.js.
 import { SURVEY_METHODS, robustRange } from "./geophysSurveys.js";
 import { logViridisStops } from "./pointSurveyScale.js";
+import { logStops } from "./inversion.js"; // TASKS.csv #3817
+import { propertyRamp } from "./voxelProperty.js"; // TASKS.csv #3817
 
 export const LOG_SCALE_METHODS = new Set(["res", "res_app" /* #3808 */, "mt_rho", "em_cond"]);
 
@@ -16,6 +18,9 @@ export function surveyMetaFor(method, values) {
   if (meta.units) meta.unitsGuessed = true;
   if (!LOG_SCALE_METHODS.has(method)) return meta;
   const rr = robustRange(values || []);
-  if (rr.min > 0 && rr.max >= 10 * rr.min) meta.legend = { stops: logViridisStops(rr.min, rr.max), colorMode: "continuous" };
+  // TASKS.csv #3817 (#3815 (3), Scottie Gold) — a resistivity survey opened on Viridis (low purple, high yellow) beside a resistivity block model on the Resistivity / IP ramp
+  // (low = red): the survey takes the model's ramp, a conductivity survey its reverse (high conductivity = red), as propertyRamp gives a new model
+  const ramp = propertyRamp(method === "em_cond" ? "conductivity" : "resistivity");
+  if (rr.min > 0 && rr.max >= 10 * rr.min) meta.legend = { stops: ramp ? logStops(rr.min, rr.max, ramp.anchors) : logViridisStops(rr.min, rr.max), colorMode: "continuous" };
   return meta;
 }

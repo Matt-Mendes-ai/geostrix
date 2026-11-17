@@ -22,6 +22,7 @@ test("#991 every prop ModellingPanes destructures is passed by ViewerModule, and
 
 test("#991 every ctx field the modelling runs and hook read is passed to useModelling, and nothing else", () => {
   const runNames = grab(runs, /export function createModellingRuns\(ctx, mcRef\) \{\s*const \{([\s\S]*?)\} = ctx;/, "createModellingRuns' ctx destructure");
+  for (const [, n] of runs.matchAll(/\bctx\.(\w+)/g)) runNames.add(n); // TASKS.csv #2640 Stage 2 — a field read as ctx.<name> (the replay's range) counts too
   const hookNames = grab(hook, /export function useModelling\(ctx\) \{\s*const \{([\s\S]*?)\} = ctx;/, "useModelling's ctx destructure");
   const ctx = grab(vm, /useModelling\(\{([\s\S]*?)\}\);/, "the useModelling({ }) call");
   // TASKS.csv #3116 — and what the hook adds to the run's context itself (ctxRef.current = { ...ctx, logValidRange }, read from the store)

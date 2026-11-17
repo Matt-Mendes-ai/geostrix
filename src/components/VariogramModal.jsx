@@ -14,7 +14,7 @@ import { desurveyHole } from "../lib/desurvey.js";
 import {
   fitVariogramModel, /* experimentalVariogram, directionRow: in the worker since #3009 */ MIN_HOLE_PAIRS /* #3285 */, variogramModelValue, VARIOGRAM_MODELS, verticalShare /* #3015 */,
   VALUE_TRANSFORMS, applyValueTransform, groupPointsByDomain, variogramStationarity, siteSpacingLag, lagsShortOfSpacing, downholeLinePoints /* #1843 */, DIRECTION_TABLE, longestDirection /* #1996 */, wellFittedDirections, directionVector /* #3385 */ } from "../lib/variogram.js";
-import { trendFromDirections, describeTrend } from "../lib/trend.js"; // TASKS.csv #3385
+import { trendFromDirections, describeTrend, directionSpreadDeg, TREND_MIN_SPREAD_DEG } from "../lib/trend.js"; // TASKS.csv #3385; spread: #3787 / #3825
 import { holeSpacingSummary } from "../lib/holeSpacing.js"; // TASKS.csv #2221
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -432,7 +432,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
                   {best && (() => { const tr3 = trendFromDirections(wellFittedDirections(dirTable.rows), directionVector); return tr3 ? <div style={{ marginTop: 4, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>{/* TASKS.csv #3385 — the table's axes as a structural trend, so kriging's anisotropy follows what it measured */}
                     <button type="button" onClick={() => { setStructuralTrends((st) => ({ ...st, trends: [...(st.trends || []), { ...tr3, name: tr("Trend from the direction table ({symbol})", { symbol }), id: `trend_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}` }] })); setTrendMade(describeTrend(tr3)); }} style={{ fontSize: "var(--font-size-sm)" }} title={tr("Adds a structural trend whose major axis is the longest well-fitted direction and whose ratios are the ranges along its three axes; choose it in Estimation to krige with that anisotropy.")}>{tr("Make a structural trend from this table")}</button>
                     {trendMade && <span>{tr("Added: {t}. Choose it for block estimation in Trends.", { t: trendMade })}</span>}
-                  </div> : null; })()}
+                  </div> : (() => { /* TASKS.csv #3787 / #3825 — said, not a button that silently is not there */ const fitted = wellFittedDirections(dirTable.rows), sp = directionSpreadDeg(fitted, directionVector); return fitted.length >= 2 && sp < TREND_MIN_SPREAD_DEG ? <div style={{ marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("No structural trend from this table: the directions with fitted ranges are at most {d}° apart. A trend needs directions at least {min}° apart, or its short axis is only the direction the holes sampled least.", { d: Math.round(sp), min: TREND_MIN_SPREAD_DEG })}</div> : null; })(); })()}
                   {dirTable.done && !best && <div style={{ marginTop: 3, color: "var(--color-warn-text)" }}>{tr("No direction has a fit good enough (r² 0.5 or more, within its reliable lags) to name a long axis: this variable shows no clear anisotropy at these lags.")}</div>}
                 </>; })()}
               </div>}

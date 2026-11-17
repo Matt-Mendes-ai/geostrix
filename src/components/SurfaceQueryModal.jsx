@@ -69,7 +69,9 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
   // TASKS.csv #2626 — a grade shell's own element (its stored params): the metres inside it, sampled for that element or not
   const { generatedSurfaces = [], assays = [], assayElements = [], voxelModels = [], collars = [], survey = [], desurveyMethod } = useStore();
   // TASKS.csv #2727 — block models too: the value at a point (and against a cutoff), and per hole the metres in the model and above a cutoff
-  const blockModels = useMemo(() => (voxelModels || []).filter((m) => (m.cells || []).length && m.colorMode !== "discrete"), [voxelModels]);
+  // TASKS.csv #3825 (#3792 (9)) — a grade estimate with a stepped (discrete) legend is still grades: it was left off the list (the Au and Ag estimates were not offered,
+  // the IP models and a calculated model were). Only a model of units (its values are unit ids with names: valueLabels) is not a grade to query
+  const blockModels = useMemo(() => (voxelModels || []).filter((m) => (m.cells || []).length && !(m.colorMode === "discrete" && m.valueLabels)), [voxelModels]);
   const [bmId, setBmId] = useState("");
   const [bmCut, setBmCut] = useState("");
   const bm = blockModels.find((m) => m.id === bmId) || null;
