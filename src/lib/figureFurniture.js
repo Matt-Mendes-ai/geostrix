@@ -1,3 +1,4 @@
+import { dipPrinted } from "./dipText.js"; // TASKS.csv #3878
 // TASKS.csv #1048 / #1068 (review #1016, software artist + structural geologist) — the caption and key of an exported
 // figure. Every figure export serialized only its <svg>; what a reader needs to interpret it (which net, n, filters, the
 // statistics, what the colours mean, which hole) sat in the dialog's HTML around it, so a Terzaghi-corrected contour
@@ -91,7 +92,7 @@ export function stripLogFurniture(o) {
   const c = o.collar || {}, num = (v, d = 0) => (Number.isFinite(+v) && v !== "" && v != null ? (+v).toFixed(d) : null);
   // rlNote: TASKS.csv #3131 — what #3004's rule says of the RL ('filled at import, not in the collar file' / 'probably a missing value'), after it
   const at = [num(c.x, 1) && `E ${num(c.x, 1)}`, num(c.y, 1) && `N ${num(c.y, 1)}`, num(c.z, 1) && `RL ${num(c.z, 1)}${o.rlNote ? ` (${o.rlNote})` : ""}`].filter(Boolean).join(", ");
-  const att = num(c.azimuth, 1) != null && num(c.dip, 1) != null ? `azimuth ${num(c.azimuth, 1)}°, dip ${num(c.dip, 1)}° (at the collar)` : null;
+  const att = num(c.azimuth, 1) != null && num(c.dip, 1) != null ? `azimuth ${num(c.azimuth, 1)}°, dip ${dipPrinted(c.dip, { downPositive: true })}° (at the collar)` /* TASKS.csv #3878 - the sign kept: negative = down */ : null;
   const caption = [
     [at && `Collar ${at}`, att].filter(Boolean).join(" · ") || "Collar position not loaded",
     `Depth ${num(o.fromDepth || 0, 1) === "0.0" ? "0" : num(o.fromDepth || 0, 1)}-${num(o.maxDepth, 1)} m along the hole${num(c.length) ? ` (EOH ${num(c.length, 1)} m)` : ""} · GeoStrix${o.date ? ` · ${o.date}` : ""}`, // TASKS.csv #2481 — no '6 px per metre' on paper (a screen unit; Layout's Depth 1 : N sets the printed scale)

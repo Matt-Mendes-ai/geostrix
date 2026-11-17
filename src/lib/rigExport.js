@@ -12,6 +12,7 @@ import { azimuthToGridOffset, wrap360, setIgrfModule } from "./azimuthRef.js";
 import * as igrf from "./igrf.js"; // #552 — this module is loaded on demand, so it brings IGRF with it
 import { colors } from "./theme.js"; // TASKS.csv #1121
 import { missDistanceToTarget } from "./holePlanning.js"; // TASKS.csv #1459
+import { dipPrinted } from "./dipText.js"; // TASKS.csv #3878
 setIgrfModule(igrf);
 
 const r7 = (v) => (Number.isFinite(v) ? Number(v.toFixed(7)) : "");
@@ -82,7 +83,7 @@ const KML_PLANNED = `ff${colors.planned.slice(5, 7)}${colors.planned.slice(3, 5)
 const planPoint = (r) => { const t = r.traceLonLat?.length > 1 ? r.traceLonLat : [[r.lon, r.lat], [r.toe_lon, r.toe_lat]]; return t.every(([lo, la]) => Math.abs(lo - t[0][0]) < 1e-7 && Math.abs(la - t[0][1]) < 1e-7); };
 export function rigKML(rows, docName) {
   const marks = rows.filter((r) => r.lat !== "" && r.lon !== "").map((r) => {
-    const desc = r.vertical ? `Vertical (dip ${r.dip}°). Length ${r.length} m.${devText(r)}${r.notes ? ` ${r.notes}` : ""}` /* #2454 */ : `Azimuth: ${r.azimuth_true !== "" ? `${r.azimuth_true}° true, ` : ""}${r.azimuth_magnetic !== "" ? `${r.azimuth_magnetic}° magnetic (${r.declination_date}), ` : ""}${r.azimuth_grid}° grid. Dip ${r.dip}°. Length ${r.length} m.${devText(r)}${r.notes ? ` ${r.notes}` : ""}`;
+    const desc = r.vertical ? `Vertical (dip ${dipPrinted(r.dip)}°). Length ${r.length} m.${devText(r)}${r.notes ? ` ${r.notes}` : ""}` /* #2454 */ : `Azimuth: ${r.azimuth_true !== "" ? `${r.azimuth_true}° true, ` : ""}${r.azimuth_magnetic !== "" ? `${r.azimuth_magnetic}° magnetic (${r.declination_date}), ` : ""}${r.azimuth_grid}° grid. Dip ${dipPrinted(r.dip)}°. Length ${r.length} m.${devText(r)}${r.notes ? ` ${r.notes}` : ""}`;
     const line = r.toe_lat !== "" && !planPoint(r) ? `
     <Placemark><name>${esc(r.name)} trace (plan)</name><styleUrl>#trace</styleUrl><LineString><tessellate>1</tessellate><coordinates>${(r.traceLonLat?.length > 1 ? r.traceLonLat : [[r.lon, r.lat], [r.toe_lon, r.toe_lat]]).map(([lo, la]) => `${lo},${la},0`).join(" ")}</coordinates></LineString></Placemark>` : "";
     return `
@@ -101,7 +102,7 @@ export function rigKML(rows, docName) {
 
 export function rigGPX(rows) {
   const wpts = rows.filter((r) => r.lat !== "" && r.lon !== "").map((r) =>
-    `  <wpt lat="${r.lat}" lon="${r.lon}"><ele>${r2(r.z)}</ele><name>${esc(r.name)}</name><desc>${esc(r.vertical ? `Vertical, dip ${r.dip}, ${r.length} m${devText(r) ? `.${devText(r)}` : ""}` /* #2454 */ : `Az ${r.azimuth_true !== "" ? `${r.azimuth_true} T / ` : ""}${r.azimuth_magnetic !== "" ? `${r.azimuth_magnetic} M / ` : ""}${r.azimuth_grid} G, dip ${r.dip}, ${r.length} m${devText(r) ? `.${devText(r)}` : ""}`)}</desc><sym>Flag</sym></wpt>`).join("\n");
+    `  <wpt lat="${r.lat}" lon="${r.lon}"><ele>${r2(r.z)}</ele><name>${esc(r.name)}</name><desc>${esc(r.vertical ? `Vertical, dip ${dipPrinted(r.dip)}, ${r.length} m${devText(r) ? `.${devText(r)}` : ""}` /* #2454 */ : `Az ${r.azimuth_true !== "" ? `${r.azimuth_true} T / ` : ""}${r.azimuth_magnetic !== "" ? `${r.azimuth_magnetic} M / ` : ""}${r.azimuth_grid} G, dip ${dipPrinted(r.dip)}, ${r.length} m${devText(r) ? `.${devText(r)}` : ""}`)}</desc><sym>Flag</sym></wpt>`).join("\n");
   // #1017 — each hole's planned trace in plan as a track, beside its collar waypoint
   const trks = rows.filter((r) => r.traceLonLat?.length > 1 && !planPoint(r)).map((r) => `  <trk><name>${esc(`${r.name} trace (plan)`)}</name><trkseg>${r.traceLonLat.map(([lo, la]) => `<trkpt lat="${la}" lon="${lo}"/>`).join("")}</trkseg></trk>`).join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>

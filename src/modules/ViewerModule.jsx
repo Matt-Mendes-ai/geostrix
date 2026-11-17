@@ -260,6 +260,7 @@ import { useSavedCamera, applySavedCamera } from "./viewer/savedCamera.js"; // #
 import { decideLight, registerRenderer, lightDrawingNotice } from "../lib/viewer/lightDrawing.js"; // #3620
 import MiddleName from "../components/MiddleName.jsx"; // #2852
 import { partChoices, boundaryPart } from "../lib/boundaryParts.js"; // TASKS.csv #3234
+import { dipPrinted } from "../lib/dipText.js"; // TASKS.csv #3878
 const IdentifyPanel = React.lazy(() => import("../components/IdentifyPanel.jsx"));
 const UnitPolygonPane = React.lazy(() => import("../components/UnitPolygonPane.jsx")); // TASKS.csv #1439
 const SurfaceElementBasis = React.lazy(() => import("./viewer/SurfaceElementBasis.jsx")); // TASKS.csv #2627 / #2641
@@ -4777,7 +4778,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
       const collarMarker = new THREE.Mesh(new THREE.SphereGeometry(2.6, 10, 10), new THREE.MeshBasicMaterial({ color: PLANNED_COLOR }));
       collarMarker.position.set(pts[0].x, pts[0].y, pts[0].z);
-      collarMarker.userData = { tip: `${hole.name || "Planned hole"}\ncollar (planned)\nAz ${Math.round(hole.azimuth)}° / Dip ${Math.round(hole.dip)}° / ${Math.round(hole.length)} m` };
+      collarMarker.userData = { tip: `${hole.name || "Planned hole"}\ncollar (planned)\nAz ${Math.round(hole.azimuth)}° / Dip ${dipPrinted(hole.dip)}° / ${Math.round(hole.length)} m` };
       holeGroup.add(collarMarker);
 
       const toe = pts[pts.length - 1];

@@ -41,7 +41,7 @@ test("#1068 the stereonet caption says which net, n, filters, Terzaghi and stati
 });
 
 test("#1048 the strip log title block names the hole, collar and attitude", () => {
-  const f = stripLogFurniture({ holeId: "WJ23-01", collar: { x: 612345.6, y: 5789012.3, z: 1100, azimuth: 45, dip: -60, length: 402.5 }, maxDepth: 402.5, pxPerMeter: 6,
+  const f = stripLogFurniture({ holeId: "WJ23-01", collar: { x: 612345.6, y: 5789012.3, z: 1100, azimuth: 45, dip: 60, length: 402.5 /* stored down-positive (#1033); printed -60.0 (#3878) */ }, maxDepth: 402.5, pxPerMeter: 6,
     tracks: [{ title: "Litho", items: [{ label: "AND", color: "#0a0" }] }], date: "2026-10-28" });
   assert.equal(f.placement, "top");
   assert.equal(f.title, "Strip log: WJ23-01");

@@ -12,6 +12,7 @@ import { buildStripLogDataUrl } from "./striplogSvg.js";
 import { utmGridReady, metresPerPagePx } from "./layoutGeometry.js"; // TASKS.csv #1644
 import { DIAGRAM_W, DIAGRAM_H } from "./northDiagram.js"; // TASKS.csv #2478
 import { elementBox } from "./layoutPlace.js"; // TASKS.csv #3233
+import { dipPrinted } from "./dipText.js"; // TASKS.csv #3878
 
 // TASKS.csv #1644 (review #1497, Lawyers) — each hole marked on the template's map. The viewport is still the template's one capture
 // (see above), so a page used to show the district plan with nothing saying where its hole was (21AGBDD001 800 m off centre,
@@ -63,7 +64,7 @@ export function holeAtlasValues(holeId, collars, layers) {
     hole_id: holeId,
     x: c ? fmt(c.x, 1) : "?", y: c ? fmt(c.y, 1) : "?", z: c ? fmt(c.z, 1) : "?",
     azimuth: c && c.azimuth != null ? fmt(c.azimuth, 0) : "?",
-    dip: c && Number.isFinite(c.dip) ? fmt(-c.dip, 0) : "?", // TASKS.csv #1033 — stored positive-down; shown negative = down, as imported
+    dip: c && Number.isFinite(c.dip) ? dipPrinted(c.dip, { downPositive: true }) : "?", /* TASKS.csv #3878 - one decimal, the sign kept */ // TASKS.csv #1033 — stored positive-down; shown negative = down, as imported
     length: c && c.length != null ? fmt(c.length, 0) : "?",
     lithology_summary,
   };

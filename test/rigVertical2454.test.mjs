@@ -12,9 +12,9 @@ test("a dip -90 hole: blank true / magnetic azimuths, 'Vertical' in the KML and 
   assert.equal(r.azimuth_grid, 0);
   assert.notEqual(r.declination_deg, ""); // the field facts stay
   const kml = rigKML([r], "t"), gpx = rigGPX([r]);
-  assert.match(kml, /Vertical \(dip -90°\)\. Length 74\.6 m\./);
+  assert.match(kml, /Vertical \(dip -90\.0°\)\. Length 74\.6 m\./);
   assert.ok(!/trace \(plan\)/.test(kml), "no trace placemark");
-  assert.match(gpx, /<desc>Vertical, dip -90, 74\.6 m<\/desc>/);
+  assert.match(gpx, /<desc>Vertical, dip -90\.0, 74\.6 m<\/desc>/);
   assert.ok(!/<trk>/.test(gpx));
 });
 
