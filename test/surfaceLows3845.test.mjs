@@ -62,13 +62,13 @@ test("#3847 a strike or dip direction outside 0 to 360 is counted, not stored as
 
 test("#3848 three holes within 2 m are one pad (the commoner unit); pads that disagree are counted; the outline has one cell for the pad", () => {
   const pts = [
-    { x: 0, y: 0, unit: "DIO", hole_id: "SR23-300", cover: 0 }, { x: 1.5, y: 0.5, unit: "AND", hole_id: "SR23-301", cover: 1.5 }, { x: 1.9, y: 0, unit: "AND", hole_id: "SR23-302", cover: 1.9 },
+    { x: 0, y: 0, unit: "DIO", hole_id: "DH-23-300", cover: 0 }, { x: 1.5, y: 0.5, unit: "AND", hole_id: "DH-23-301", cover: 1.5 }, { x: 1.9, y: 0, unit: "AND", hole_id: "DH-23-302", cover: 1.9 },
     { x: 100, y: 0, unit: "AND", hole_id: "A" }, { x: 200, y: 0, unit: "SLT", hole_id: "B" }, { x: 200.5, y: 0, unit: "SLT", hole_id: "C" },
   ];
   const m = mergePads(pts);
   assert.equal(m.points.length, 3); assert.equal(m.pads, 2); assert.equal(m.disagree, 1);
-  const pad = m.points[0]; assert.equal(pad.unit, "AND"); assert.equal(pad.hole_id, "SR23-300 +2"); assert.equal(pad.cover, 1.5);
-  assert.match(m.examples[0], /^SR23-300 \+2: AND 2, DIO 1$/);
+  const pad = m.points[0]; assert.equal(pad.unit, "AND"); assert.equal(pad.hole_id, "DH-23-300 +2"); assert.equal(pad.cover, 1.5);
+  assert.match(m.examples[0], /^DH-23-300 \+2: AND 2, DIO 1$/);
   assert.equal(PAD_M, 3);
   assert.equal(mergePads([{ x: 0, y: 0, unit: "A" }, { x: 10, y: 0, unit: "B" }]).pads, 0);
   const layer = outlineLayer(pts, "Outlines", () => "#888", { reachM: 90 });

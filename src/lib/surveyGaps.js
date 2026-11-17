@@ -1,4 +1,4 @@
-// TASKS.csv #3730 (Scottie Gold review) — a stretch of a hole with no survey station, in a survey that otherwise has one every few metres. SR23-299 had a station at 0 m,
+// TASKS.csv #3730 (Scottie Gold review) — a stretch of a hole with no survey station, in a survey that otherwise has one every few metres. DH-23-299 had a station at 0 m,
 // the next at 339 m, then one every 3 m: the trace was drawn through the 339 m as measured and nothing reported it. A gap is flagged when it is over MIN_GAP_M and over
 // GAP_FACTOR times the usual spacing: the hole's own median spacing when it has enough stations to say, else the project's (the median of the holes' medians).
 // A survey that stops short of the hole's end is the 'ends at' warning's job (dataQC.js); only gaps between two stations are looked at here.
