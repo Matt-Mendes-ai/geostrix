@@ -341,7 +341,9 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
     const tail = (text) => [text, ...columns.slice(1).map(() => "")];
     const carriesOn = tail(tr("Continued on the next page")); // #2708
     const stamp = Date.now();
-    const table = { id: `table_${stamp}`, type: "table", source: "static", x: plan.x, y: plan.y /* #2479 — a free spot (was 60, 60 over the title); a second send takes the next free spot */, w: tableW /* #3019 */, fontPt: 7, frameWidth: 1,
+    // TASKS.csv #3866 — one alignment for a column through the document: the numbers right, the hole and the 'Including' text left (a column was right-aligned only on a page where every cell was a bare number: '3.70+' made it left)
+    const align = columns.map((_, j) => (j === 0 || (incOn && j === columns.length - 1) ? "left" : "right"));
+    const table = { id: `table_${stamp}`, type: "table", source: "static", align, x: plan.x, y: plan.y /* #2479 — a free spot (was 60, 60 over the title); a second send takes the next free spot */, w: tableW /* #3019 */, fontPt: 7, frameWidth: 1,
       title: tr("Best intercepts: {from}", { from }), from, note, columns, rows: plan.more > 0 ? [...rows, cont ? carriesOn : tail(tr("… and {n} more intercept(s), not shown on this sheet", { n: plan.more })) /* #2608 — the sheet's reader has no CSV */] : rows };
     // #2708 — the continuation tables, one per new page, at the top-left margin; the caveats stay on the first table
     const ranges = cont ? continuationRanges(plan.shown, results.length, pageSize, { w: tableW, elements: newPage /* #3854 */ }) : [];

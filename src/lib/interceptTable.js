@@ -48,6 +48,11 @@ export function continuationRanges(first, total, page, { w = 560, fontPt = 7, el
     out.push([from, from + n]);
     from += n;
   }
+  // TASKS.csv #3866 — a last page of two rows on an empty sheet: when the last page holds only a few rows, the last two pages share their rows evenly (the earlier page held more than either half, so it fits)
+  if (out.length >= 2) {
+    const [pa, pb] = [out[out.length - 2], out[out.length - 1]], nb = pb[1] - pb[0], na = pa[1] - pa[0];
+    if (nb < Math.min(5, Math.ceil(na / 3))) { const tot = na + nb, half = Math.ceil(tot / 2); out[out.length - 2] = [pa[0], pa[0] + half]; out[out.length - 1] = [pa[0] + half, pb[1]]; }
+  }
   return out;
 }
 

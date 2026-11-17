@@ -113,7 +113,10 @@ export function drillPlanDrawing(el, collars, assays = null, assayElements = nul
   let keyBox = null;
   if (keyRows) {
     const pts = planPoints([...g.holes, ...planned]);
-    const place = (b) => ({ ...b, ...emptiestCorner([...g.holes, ...planned], g.w, g.h, b.w, b.h, pts) });
+    // TASKS.csv #3864 — the key's bottom-right corner stops above the plan's own captions: the traces line and the room for the unlabelled-holes note (#3858), at the captions' size
+    const capFont = Math.max(6, fontPx - 1), capLines = (traceCaption({ surveyed: g.holes.filter((hh) => hh.surveyed).length, straight: g.holes.filter((hh) => !hh.surveyed).length, planned: planned.length, plannedDeviated: planned.filter((hh) => hh.deviated).length, method }) ? 1 : 0) + 1;
+    const bottomClear = Math.ceil(GRID_INSET + capLines * (capFont + 4) + capFont + 2);
+    const place = (b) => ({ ...b, ...emptiestCorner([...g.holes, ...planned], g.w, g.h, b.w, b.h, pts, { bottomClear }) });
     keyBox = place(keyAt(fontPx));
     if (keyBox.under > 0 && fontPx > printPx(5)) { const small = place(keyAt(Math.max(printPx(5), fontPx - 1.5))); if (small.under < keyBox.under) keyBox = small; }
   }

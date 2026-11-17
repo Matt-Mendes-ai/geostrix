@@ -33,7 +33,11 @@ export function continuationPageIndex(pages, fromIndex, el, nextRow) {
 // fields, 2-30 values, collarAttrChoices' rule), and the one a new table takes by default: the hole type when the project has one (every
 // WAMEX collar table carries it). -> [key] / key or null
 export function collarTableFieldChoices(collars) {
-  return collarAttrChoices(collars).map((c) => c.key);
+  // TASKS.csv #3868 (11) (Scottie Gold review) — the table offered core_size, zone and status but not drilling_start / drilling_finished: it took only the fields with 2-30 distinct values (a pick list's
+  // rule); a column of dates has one per hole. A table column is any collar field that holds a value: the categorical ones first (as before), then the rest in the file's order.
+  const categorical = collarAttrChoices(collars).map((c) => c.key), seen = new Set(categorical), rest = [];
+  for (const c of collars || []) for (const [k, v] of Object.entries(c?.attrs || {})) if (!seen.has(k) && String(v ?? "").trim() !== "") { seen.add(k); rest.push(k); }
+  return [...categorical, ...rest];
 }
 export function defaultCollarTableFields(collars) {
   const k = collarTableFieldChoices(collars).find((key) => /^hole[\s_-]?type$/i.test(String(key).trim()));
@@ -159,9 +163,12 @@ export function tableTextFit({ columns = [], parts = [], fsPx, widthPx, gap = 14
     }
     return total;
   };
-  const n0 = need(fsPx);
+  // TASKS.csv #3866 (Scottie Gold review) — the intercept table's rows and 'Including' column ran 1.4 mm (5 px) past its frame: the widths are measured from proportional digits and the table
+  // prints tabular figures (every digit as wide as the widest), so the measure is a little short: 1.5 % of slack on what the text needs
+  const SLACK = 1.015, needS = (f) => need(f) * SLACK;
+  const n0 = needS(fsPx);
   if (!(widthPx > 0) || n0 <= widthPx) return { fs: fsPx, shrunk: false, fits: true };
   let fs = Math.max(minPx, (fsPx * widthPx) / n0);
-  for (let k = 0; k < 4 && fs > minPx; k++) { const n = need(fs); if (n <= widthPx) break; fs = Math.max(minPx, (fs * widthPx) / n); }
-  return { fs, shrunk: true, fits: need(fs) <= widthPx + 0.5 };
+  for (let k = 0; k < 4 && fs > minPx; k++) { const n = needS(fs); if (n <= widthPx) break; fs = Math.max(minPx, (fs * widthPx) / n); }
+  return { fs, shrunk: true, fits: needS(fs) <= widthPx + 0.5 };
 }
