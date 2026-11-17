@@ -119,7 +119,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
       name: tr("Pit shell: {model} at {price} {unit} x{rf}, {slope}°{sec}", { model: model?.name || lastPit.params.blockModel, price: res.price, unit: res.priceLabel, rf: r.rf, slope: slopeName(inputs.slopeDeg, inputs.sectorSlopes || !res.cell ? null : wallAngles(res.cell[0], res.cell[1], res.cell[2], inputs.slopeDeg)), sec: inputs.sectorSlopes ? tr(" (by sector)") : "" }), // sec: #1897; slope: the walls as drawn, #2433
       positions: r.positions, indices: r.indices, type: "pit_shell", closure: null, color: SHELL_COLOURS[i % SHELL_COLOURS.length], tag: "pit",
       tip: tr("Conceptual pit shell at revenue factor {rf}: not a mine plan, a Reserve or a Resource", { rf: r.rf }),
-      params: { tool: "conceptual pit shell (maximum closure, exact), nested series", inputs: { ...inputs, revenueFactor: r.rf, unit: valueUnit(model) ? "" : unit }, blockModel: model?.name, gradeUnit: unit, revenueFactor: r.rf, seriesId: res.seriesId,
+      params: { tool: "conceptual pit shell (maximum closure, exact), nested series", currency: cur /* TASKS.csv #3877 - the project currency the prices and costs were typed in (blank: $) */, inputs: { ...inputs, revenueFactor: r.rf, unit: valueUnit(model) ? "" : unit }, blockModel: model?.name, gradeUnit: unit, revenueFactor: r.rf, seriesId: res.seriesId,
         oreTonnes: Math.round(r.oreT), wasteTonnes: Math.round(r.wasteT), stripRatio: r.stripRatio == null ? null : +r.stripRatio.toFixed(2), meanGrade: r.meanGrade == null ? null : +r.meanGrade.toPrecision(4), containedMetal: Math.round(r.metalU * res.metalFactor), containedMetalUnit: res.metalUnit,
         cutoffGrade: +res.cutoffBase.toPrecision(3), undiscountedMargin: Math.round(r.moneyBase), valuedAt: "the entered price",
         ...(inputs.by && res.byMetalUnit ? { byProduct: { blockModel: lastPit.params?.byProduct?.blockModel || byModel?.name || null, element: byEl, gradeUnit: inputs.by.unit, price: inputs.by.price, priceUnit: inputs.by.priceUnit, recovery: inputs.by.recovery, meanGrade: r.meanGrade2 == null ? null : +r.meanGrade2.toPrecision(4), containedMetal: Math.round((r.metalU2 || 0) * res.byMetalFactor), containedMetalUnit: res.byMetalUnit }, cutoffBasis: lastPit.params?.cutoffBasis || null } : {}), /* #1917 */ npv: r.npv == null ? null : Math.round(r.npv), yearsToMine: r.years == null ? null : +r.years.toFixed(1), miningRateTpa: res.rate, discountPct: res.discountPct, maxDepthM: Math.round(r.maxDepth), gridCellM: res.cell.map((v) => +v.toFixed(1)), groundFrom: res.groundSource, reachesModelBase: r.touchesBase,
@@ -165,7 +165,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
       {msg && <div style={warn}>{msg}</div>}
       {res && (
         <div style={{ marginTop: 8 }}>
-          <Chart runs={res.runs} best={res.bestNpv} />
+          <Chart runs={res.runs} best={res.bestNpv} cur={cur} />
           <div style={{ marginTop: 6, maxHeight: 260, overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 4 }}>
             <table style={{ borderCollapse: "collapse", width: "max-content", minWidth: "100%", fontSize: "var(--font-size-xs)" }}>{/* #3326 — its own width, scrolled in the box: the NPV column was cut off */}
               <thead><tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>{["RF", tr("Ore t"), tr("Grade"), ...(res.alsoLabels || []) /* #3084 */, tr("Strip"), tr("Margin"), ...(res.rate ? [tr("Years"), ...(res.discountPct != null ? [tr("NPV")] : [])] : []), ""].map((h, i) => <th key={i} style={{ textAlign: "right", padding: "2px 4px", borderBottom: "1px solid var(--color-border)", fontWeight: 600 }}>{h}</th>)}</tr></thead>
@@ -231,7 +231,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
 }
 
 // tonnes (bars) and margin / NPV (lines) against the revenue factor
-function Chart({ runs, best }) {
+function Chart({ runs, best, cur = "$" /* TASKS.csv #3877 - the project currency on the axis */ }) {
   const W = 240, H = 120, L = 34, R = 34, T = 8, B = 18, n = runs.length;
   if (!n) return null;
   const x = (i) => L + ((i + 0.5) / n) * (W - L - R), bw = Math.max(2, ((W - L - R) / n) * 0.6);
@@ -245,8 +245,8 @@ function Chart({ runs, best }) {
       {runs.some((r) => r.npv != null) && <polyline points={path("npv")} fill="none" stroke="#1971c2" strokeWidth="1.5" strokeDasharray="4 2" />}
       {runs.map((r, i) => <text key={i} x={x(i)} y={H - 5} fontSize="7" textAnchor="middle" fill="var(--color-text-muted)">{r.rf}</text>)}
       <text x={2} y={T + 8} fontSize="7" fill="var(--color-text-muted)">{big(tMax)} t</text>
-      <text x={W - 2} y={T + 8} fontSize="7" textAnchor="end" fill="#e8590c">${big(vMax)}</text>
-      <text x={W - 2} y={H - B} fontSize="7" textAnchor="end" fill="#e8590c">${big(vMin)}</text>
+      <text x={W - 2} y={T + 8} fontSize="7" textAnchor="end" fill="#e8590c">{moneyText(cur, big(vMax))}</text>
+      <text x={W - 2} y={H - B} fontSize="7" textAnchor="end" fill="#e8590c">{moneyText(cur, big(vMin))}</text>
       <text x={L} y={H - 5} fontSize="7" fill="var(--color-text-muted)" textAnchor="end">RF</text>
     </svg>
   );

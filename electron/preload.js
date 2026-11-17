@@ -84,6 +84,15 @@ contextBridge.exposeInMainWorld("desktop", {
   computerTemplatesWrite: (content) => ipcRenderer.invoke("computer-templates-write", content), // TASKS.csv #1487
   onSectionData: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on("section-data", h); return () => ipcRenderer.removeListener("section-data", h); },
   onMenu: (cb) => { const h = (_e, action) => cb(action); ipcRenderer.on("menu", h); return () => ipcRenderer.removeListener("menu", h); },
+  // TASKS.csv #3190 — AI App Access (the optional, local, read-only MCP server): the switch, its status, and the window answering the project questions
+  mcpStatus: () => ipcRenderer.invoke("mcp-status"),
+  mcpSetEnabled: (on, remember) => ipcRenderer.invoke("mcp-set-enabled", { on, remember }),
+  mcpStop: () => ipcRenderer.invoke("mcp-stop"),
+  mcpForgetClients: () => ipcRenderer.invoke("mcp-forget-clients"),
+  mcpConfig: () => ipcRenderer.invoke("mcp-config"),
+  mcpRespond: (id, payload) => ipcRenderer.send("mcp-respond", { id, payload }),
+  onMcpStatus: (cb) => { const h = (_e, s) => cb(s); ipcRenderer.on("mcp-status", h); return () => ipcRenderer.removeListener("mcp-status", h); },
+  onMcpRequest: (cb) => { const h = (_e, r) => cb(r); ipcRenderer.on("mcp-request", h); return () => ipcRenderer.removeListener("mcp-request", h); },
   takeLaunchFile: () => ipcRenderer.invoke("take-launch-file"), // TASKS.csv #914
   onLaunchFile: (cb) => { const h = () => cb(); ipcRenderer.on("launch-file", h); return () => ipcRenderer.removeListener("launch-file", h); },
 });

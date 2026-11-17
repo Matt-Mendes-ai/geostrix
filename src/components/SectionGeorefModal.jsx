@@ -23,7 +23,7 @@ const H_KINDS = [
   { id: "northing", label: "Northing" },
 ];
 
-export default function SectionGeorefModal({ sections = [], onImport, onClose }) {
+export default function SectionGeorefModal({ sections = [], onImport, onClose, rlOffset = null }) { // rlOffset: TASKS.csv #3880 — the mine grid's RL datum (grid RL - elevation), when the project has one
   useEscapeKey(onClose);
   useFocusTrap();
   const [img, setImg] = useState(null); // { bitmap, width, height, name }
@@ -99,9 +99,9 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose })
   const usable = useMemo(() => points.filter((p) => p.h !== "" && p.z !== "" && Number.isFinite(Number(p.h)) && Number.isFinite(Number(p.z))), [points]);
   const { fit, fitError } = useMemo(() => {
     if (!line || line.error || usable.length < 2) return { fit: null, fitError: line?.error || null };
-    try { return { fit: fitSectionTransform(usable.map((p) => ({ ...p, hKind })), line), fitError: null }; }
+    try { return { fit: fitSectionTransform(usable.map((p) => ({ ...p, hKind, z: rlOffset ? Number(p.z) - rlOffset : p.z /* TASKS.csv #3880 — typed as the figure's RL, placed at the elevation the terrain and the collars use */ })), line), fitError: null }; }
     catch (err) { return { fit: null, fitError: err.message }; }
-  }, [line, usable, hKind]);
+  }, [line, usable, hKind, rlOffset]);
   const res = fit ? sectionResiduals(fit) : null;
   const rmse = res && res.length > 2 ? Math.sqrt(res.reduce((s, r) => s + r.error ** 2, 0) / res.length) : null;
   const summary = fit && img ? sectionFitSummary(fit, img.width, img.height) : null;
@@ -196,13 +196,14 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose })
             {line && !line.error && <div style={note}>{tr("Line {line} m long, azimuth {azimuth}° (project coordinates).", { line: line.length.toFixed(0), azimuth: line.azimuth.toFixed(1) })}</div>}
 
             <div style={label}>{tr("2. Control points ({points})", { points: points.length })}</div>
+            {rlOffset ? <div style={note}>{tr("This project's grid RL is the elevation plus {off} m: type the RLs the figure shows; they are placed at RL − {off} m, where the terrain and the holes are.", { off: rlOffset })}</div> : <div style={note}>{tr("Type the elevations as the figure's scale gives them, above the same datum as the terrain (usually sea level). A height that is off can be corrected afterwards: Section images > Match to terrain.")}</div>}{/* TASKS.csv #3880 */}
             <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", gap: 6, alignItems: "center" }}>{tr("Horizontal values are")}<select value={hKind} onChange={(e) => setHKind(e.target.value)} style={{ ...numInput, width: "auto" }}>{H_KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}</select>
             </label>
             {points.length === 0 ? (
               <div style={note}>{tr("Click the image to place a point, then type what the figure says there. Two opposite corners of the grid are enough for a clean figure; use 3 or more for a scan that's slightly rotated.")}</div>
             ) : (
               <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
-                <thead><tr><th style={th}>#</th><th style={th}>{hLabel}</th><th style={th}>{tr("Elevation (m)")}</th><th style={th}>{tr("Error (m)")}</th><th style={th} /></tr></thead>
+                <thead><tr><th style={th}>#</th><th style={th}>{hLabel}</th><th style={th}>{rlOffset ? tr("RL (m)") : tr("Elevation (m)")}</th><th style={th}>{tr("Error (m)")}</th><th style={th} /></tr></thead>
                 <tbody>
                   {points.map((p, i) => {
                     const ui = usable.indexOf(p), r = res && ui >= 0 ? res[ui] : null;

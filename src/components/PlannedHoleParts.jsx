@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { ChevronDown, ChevronUp, Eye, EyeOff, Trash2 } from "./icons.js";
 import { activateOnKey, iconAction } from "../lib/a11y.js";
-import { t as tr } from "../lib/i18n.js";
+import { t as tr, t as trRaw } from "../lib/i18n.js";
+import { currencyOf, withCurrency } from "../lib/currency.js"; // TASKS.csv #3877 - the project currency
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 import { colors } from "../lib/theme.js";
 import { lazyModal } from "../lib/lazyModal.jsx";
@@ -390,6 +391,7 @@ export function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, 
   const pierces = useMemo(() => new Map([...pierceInfo].map(([id, v]) => [id, v.ps])), [pierceInfo]);
   // TASKS.csv #2581 — a rate per hole type, kept with the project (the single field was forgotten on reopen)
   const { project, setDrillRates } = useStore();
+  const cur = currencyOf(project), tr = (k, v) => withCurrency(trRaw(k, v), cur); // TASKS.csv #3877 - the drilling rates and the program cost print the project currency (blank: $), as the mine-design panes do (#3797)
   const rates = project?.drillRates || {};
   const drilled = useMemo(() => drilledTraceIndex(collars, survey, desurveyMethod), [collars, survey, desurveyMethod]);
   const targetKey = voxelModels.filter(isTargetModel).map((m) => `${m.id}|${m.threshold}|${m.rangeMax}|${m.min}|${m.max}|${m.supportCutoff ?? ""}|${cellsVersion(m.cells)}`).join(";"); // not opacity / colour

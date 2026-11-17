@@ -132,6 +132,7 @@ export function snapRay(index, ray, tolAt, planLook = null) {
 }
 
 // the snap reach at distance t: a perspective camera's angle per pixel, or an orthographic camera's units per pixel
+export const VERT_NOTE_M = 5; // a vertical part of a plan-look snap is said from this size (m)
 export function snapTolerance(camera, heightPx, px = SNAP_PX) {
   if (camera?.isOrthographicCamera) { const u = ((camera.top - camera.bottom) / (camera.zoom || 1)) / heightPx; return () => px * u; }
   const a = (((camera?.fov ?? 50) * Math.PI) / 180) / heightPx / (camera?.zoom || 1);
@@ -152,7 +153,11 @@ export function snapInterpretClick(world, ray, { on, traces, layers, visible, or
   if (!s) return world;
   const sx = s.x + origin.x, sy = origin.y - s.z, sz = s.y + origin.z;
   // TASKS.csv #3853 — how far the snap moved the click (m), so a line drawn over a map is not 'on the hole' by a margin nobody sees: the raw hit to the snapped point; null with no raw hit
-  const moved = world && Number.isFinite(world.x) && Number.isFinite(world.y) && Number.isFinite(world.z) ? +Math.hypot(sx - world.x, sy - world.y, sz - world.z).toFixed(1) : null;
-  if (!s.hole_id) return { x: sx, y: sy, z: sz, snap: { label: s.label, kind: s.kind, ...(moved != null ? { moved } : {}) } }; // no tie: the spot only
-  return { x: sx, y: sy, z: sz, snap: { hole_id: s.hole_id, md: +s.md.toFixed(2), label: s.label, kind: s.kind, ...(moved != null ? { moved } : {}) } };
+  // TASKS.csv #3853 (Main, 2026-11-17) — in a plan look the move is the HORIZONTAL one (a ~3 px click read 'moved 34 m' because the collar is 34 m below the ground the click hit): the
+  // vertical part is kept apart (vert, metres, snapped minus clicked) and said only when it is large; in other views the 3D distance
+  const have = world && Number.isFinite(world.x) && Number.isFinite(world.y) && Number.isFinite(world.z);
+  const moved = have ? +(plan ? Math.hypot(sx - world.x, sy - world.y) : Math.hypot(sx - world.x, sy - world.y, sz - world.z)).toFixed(1) : null;
+  const flags = { ...(moved != null ? { moved } : {}), ...(have && plan ? { inPlan: true, ...(Math.abs(sz - world.z) >= VERT_NOTE_M ? { vert: +(sz - world.z).toFixed(1) } : {}) } : {}) };
+  if (!s.hole_id) return { x: sx, y: sy, z: sz, snap: { label: s.label, kind: s.kind, ...flags } }; // no tie: the spot only
+  return { x: sx, y: sy, z: sz, snap: { hole_id: s.hole_id, md: +s.md.toFixed(2), label: s.label, kind: s.kind, ...flags } };
 }

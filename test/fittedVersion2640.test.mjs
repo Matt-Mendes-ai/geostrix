@@ -30,18 +30,18 @@ test("#2640 Stage 2 the fitted record as a run's specs: the run's frame, '(fitte
 });
 
 test("#2640 Stage 2 wiring: runFittedModel goes through runSurfaceStack (every run's path, unchanged) with the record's relation and packages; the viewer takes the panel's request", () => {
-  const m = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
+  const m = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(m, /const runFittedModel = async \(record\) => \{\n\s+if \(!record\?\.surfaces\?\.length\) return;\n\s+const specs = fittedModelSpecs\(record\);\n[\s\S]{0,700}?await runSurfaceStack\(specs, \{ relation: record\.relation === "onlap" \? "onlap" : "erode", packages:/);
   assert.match(m, /runVeinModel, runFittedModel \/\* #2640 Stage 2 \*\/ \};/);
-  const u = readFileSync(new URL("../src/modules/viewer/useModelling.js", import.meta.url), "utf8");
+  const u = readFileSync(new URL("../src/modules/viewer/useModelling.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(u, /useModuleAction\(\["run-fitted-model"\], \(_a, payload\) => \{ if \(payload\?\.record\) runs\.runFittedModel\(payload\.record\); \}\);/);
-  const p = readFileSync(new URL("../src/components/StructFitPanel.jsx", import.meta.url), "utf8");
+  const p = readFileSync(new URL("../src/components/StructFitPanel.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(p, /requestModuleAction\("run-fitted-model", \{ record: recordWithFit\(fit\.record \|\| record, fit\.rows\) \}\); goToModule\?\.\("viewer"\);/);
   assert.match(p, /\{tr\("Run the fitted model as a new version"\)\}/);
 });
 
 test("#2640 Stage 2 the replay overrides: only a run given `replay` (the fitted version) takes another run's box, cells, range and no trend; every other run as before", () => {
-  const m = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
+  const m = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   // without replay each value is the expression the run always used
   assert.match(m, /const replay = stackOpts\.replay \|\| null;/);
   assert.match(m, /const rangeMultiplier = replay \? \(Number\(replay\.rangeMultiplier\) > 0 \? Number\(replay\.rangeMultiplier\) : 0\) : ctx\.rangeMultiplier;/);

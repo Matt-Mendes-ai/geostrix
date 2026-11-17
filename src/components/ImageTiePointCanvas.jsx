@@ -11,7 +11,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 const ZOOM_MAX = 32;
 const HIT_PX = 10; // screen px around a point that grab it instead of adding / panning
 
-export default function ImageTiePointCanvas({ image, points, onAdd, onMove, maxSize = 680, ariaLabel = "Click to add a control point" }) {
+export default function ImageTiePointCanvas({ image, points, onAdd, onMove, maxSize = 680, ariaLabel = "Click to add a control point", overlayLines = [] }) { // overlayLines: TASKS.csv #3880 — [{ id, color, dash, runs: [[[px, py], ...]] }] drawn over the picture (the terrain along a section image)
   const fit = Math.min(1, maxSize / Math.max(image.width, image.height));
   const W = Math.round(image.width * fit), H = Math.round(image.height * fit);
   const [view, setView] = useState({ zoom: 1, cx: image.width / 2, cy: image.height / 2 });
@@ -99,6 +99,11 @@ export default function ImageTiePointCanvas({ image, points, onAdd, onMove, maxS
         style={{ position: "relative", width: W, height: H, cursor: "crosshair", border: "1px solid var(--color-border)", background: "#ececec", overflow: "hidden", touchAction: "none", userSelect: "none" }}>
         <canvas ref={canvasRef} width={W} height={H} style={{ position: "absolute", inset: 0, pointerEvents: "none" }} />
         <svg width={W} height={H} style={{ position: "absolute", inset: 0, pointerEvents: "none" }} aria-hidden="true">
+          {overlayLines.map((l) => (l.runs || []).map((run, k) => (
+            <g key={`${l.id}_${k}`} fill="none" strokeLinejoin="round">
+              <polyline points={run.map(([px, py]) => toScreen(px, py).map((v) => v.toFixed(1)).join(",")).join(" ")} stroke="#fff" strokeWidth="4" opacity="0.8" />
+              <polyline points={run.map(([px, py]) => toScreen(px, py).map((v) => v.toFixed(1)).join(",")).join(" ")} stroke={l.color || "#1b7f3b"} strokeWidth="2" strokeDasharray={l.dash || undefined} />
+            </g>)))}
           {points.map((p, i) => {
             const [x, y] = toScreen(p.px, p.py);
             if (x < -20 || y < -20 || x > W + 20 || y > H + 20) return null;

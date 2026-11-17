@@ -55,16 +55,16 @@ test("#2640 Stage 2 the result in project coordinates, the audit CSV, the record
 });
 
 test("#2640 Stage 2 the engine: the fit job beside the sensitivity pass, validated, the drillhole contacts read from the request as sent", () => {
-  const py = readFileSync(new URL("../python-sidecar/app/geophys/structfit.py", import.meta.url), "utf8");
+  const py = readFileSync(new URL("../python-sidecar/app/geophys/structfit.py", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(py, /if req\.get\("mode"\) == "fit":\n\s+return run_fit\(req, progress\)/);
   assert.match(py, /contacts = _contacts\(req\["model"\]\)/);
   assert.match(py, /why = checks\(s_try\)/);
-  const main = readFileSync(new URL("../python-sidecar/app/main.py", import.meta.url), "utf8");
+  const main = readFileSync(new URL("../python-sidecar/app/main.py", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(main, /if req\.get\("mode"\) == "fit":\n\s+from app\.geophys\.structfit import MAX_FIT_POINTS, MAX_FIT_ITER/);
 });
 
 test("#2640 Stage 2 the panel: the fit offered after a pass with seen points, on those points only, its result and the audit CSV", () => {
-  const p = readFileSync(new URL("../src/components/StructFitPanel.jsx", import.meta.url), "utf8");
+  const p = readFileSync(new URL("../src/components/StructFitPanel.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(p, /const seenPoints = \(out\?\.rows \|\| \[\]\)\.filter\(\(r\) => r\.verdict === "seen"\)\.slice\(0, MAX_FIT_POINTS\);/);
   assert.match(p, /movable: seenPoints\.map\(\(r\) => \(\{ surface: r\.surface, index: r\.index, maxM: r\.maxM \}\)\)/);
   assert.match(p, /\{seenPoints\.length > 0 && !busy && \(/);

@@ -839,6 +839,8 @@ export function StoreProvider({ children }) {
   // LayoutModule's job in that same result effect — same unmount problem, so it's routed through this
   // one-shot "please select this id next time you mount" slot instead.
   const [layoutSelectRequest, setLayoutSelectRequest] = useState(null);
+  // TASKS.csv #3873 (a) — Layout asks the 3D View to reopen a strip log with the choices it was sent with, at a new px per metre: { elementId, spec }; its 'Add to Layout' replaces that element. One-shot, session only.
+  const [stripLogRequest, setStripLogRequest] = useState(null);
   // TASKS.csv #908 — "Export PDF" (ribbon, menu, Ctrl+P) asks LayoutModule to print: it renders every page at its paper
   // size in a print root and calls the exporter itself, so the PDF is never the live screen (that printed the rulers,
   // the Simple / Advanced toggle and two near-empty pages, with the sheet off its corner and scaled 0.3 %).
@@ -963,6 +965,8 @@ export function StoreProvider({ children }) {
     setRequestedModule(name);
     setModuleRequestSeq((s) => s + 1);
   }, []);
+  const requestStripLogRedraw = useLatestCallback((req) => { setStripLogRequest(req); goToModule("viewer"); }); // TASKS.csv #3873 (a)
+  const clearStripLogRequest = useCallback(() => setStripLogRequest(null), []);
 
   // TASKS.csv #630 — georeferenced vertical images (scanned / exported cross-sections) standing in the 3D view. Each:
   // { id, name, dataUrl (JPEG/PNG, longest side <= 4096 px), width, height, corners: [[x,y,z] TL, TR, BR, BL] in the
@@ -2004,6 +2008,7 @@ export function StoreProvider({ children }) {
     printSrcs, setPrintSrcs, // TASKS.csv #2303 — session only
     viewportRenderResult, viewportRenderResultSeq, resolveViewportRender,
     layoutSelectRequest, setLayoutSelectRequest,
+    stripLogRequest, requestStripLogRedraw, clearStripLogRequest, // TASKS.csv #3873 (a)
     layoutPrintRequest, requestLayoutPrint, // TASKS.csv #908
     newProject, saveProject, openProject,
     workspaceTabs, activeTabId, activeTabDirty, switchToTab, newWorkspaceTab, closeWorkspaceTab,
