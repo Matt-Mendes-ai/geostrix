@@ -13798,6 +13798,7 @@
   "{sym} cut-off (P90)": "حد قطع {sym} (P90)",
   "{sym} cut-off": "حد قطع {sym}",
   "Grade bars on a log scale: {list}": "أشرطة المحتوى بمقياس لوغاريتمي: {list}",
+  "\"{name}\" has {n} readings, and every reading is a point in the 3D view: choose how many to keep.": "يحتوي \"{name}\" على {n} قراءة وكل قراءة نقطة في العرض ثلاثي الأبعاد: اختر عدد ما تحتفظ به.",
   "These collar values look like one value spelled two ways: {list}.": "تبدو قيم الفوهات هذه قيمة واحدة مكتوبة بطريقتين: {list}.",
   "Make them one": "توحيدها",
   "Rewrites the less common spelling of each group to the commoner one, on every collar. Undo brings them back.": "يعيد كتابة الصيغة الأقل شيوعًا في كل مجموعة بالصيغة الأكثر شيوعًا، في كل الفوهات. التراجع يعيدها.",

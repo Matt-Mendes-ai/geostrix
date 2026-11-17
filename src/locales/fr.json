@@ -13798,6 +13798,7 @@
   "{sym} cut-off (P90)": "Coupure {sym} (P90)",
   "{sym} cut-off": "Teneur de coupure {sym}",
   "Grade bars on a log scale: {list}": "Barres de teneur en échelle logarithmique : {list}",
+  "\"{name}\" has {n} readings, and every reading is a point in the 3D view: choose how many to keep.": "« {name} » compte {n} lectures et chaque lecture est un point dans la vue 3D : choisissez combien en garder.",
   "These collar values look like one value spelled two ways: {list}.": "Ces valeurs des collets semblent être une seule valeur écrite de deux façons : {list}.",
   "Make them one": "Les unifier",
   "Rewrites the less common spelling of each group to the commoner one, on every collar. Undo brings them back.": "Réécrit l'orthographe la moins courante de chaque groupe avec la plus courante, sur chaque collet. Annuler les rétablit.",

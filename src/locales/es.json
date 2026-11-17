@@ -13798,6 +13798,7 @@
   "{sym} cut-off (P90)": "Corte de {sym} (P90)",
   "{sym} cut-off": "Ley de corte de {sym}",
   "Grade bars on a log scale: {list}": "Barras de ley en escala logarítmica: {list}",
+  "\"{name}\" has {n} readings, and every reading is a point in the 3D view: choose how many to keep.": "\"{name}\" tiene {n} lecturas y cada lectura es un punto en la vista 3D: elija cuántas conservar.",
   "These collar values look like one value spelled two ways: {list}.": "Estos valores de los collares parecen un solo valor escrito de dos maneras: {list}.",
   "Make them one": "Unificarlos",
   "Rewrites the less common spelling of each group to the commoner one, on every collar. Undo brings them back.": "Reescribe la grafía menos común de cada grupo con la más común, en todos los collares. Deshacer los devuelve.",
