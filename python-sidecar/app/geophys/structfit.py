@@ -447,7 +447,7 @@ def run_fit(req, progress):
     stopped = "max iterations"
     dz_cell = (model0.extent[5] - model0.extent[4]) / res[2]
     for it in range(1, max_iter + 1):
-        if rms <= 1.0:
+        if rms <= 1.0 and it > 1:  # round 1 always measures the points first, so a start that already fits still says which points the survey constrains
             stopped = "fit"
             break
         progress({"stage": "points", "message": f"Round {it} of at most {max_iter}: the survey's response to each point", "iter": it, "maxIter": max_iter,
@@ -480,6 +480,9 @@ def run_fit(req, progress):
         free = [c for c, key in enumerate(keys) if key not in frozen]
         if not free:
             stopped = "no point is constrained"
+            break
+        if rms <= 1.0:  # the model as it stands already fits to the stated uncertainty: nothing to move
+            stopped = "fit"
             break
         Jf = J[:, free]
         A = np.column_stack([Jf, 1.0 / sigma])  # the base level moves too

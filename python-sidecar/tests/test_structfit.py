@@ -223,8 +223,30 @@ def check_fit_recovers():
     print(f"fit: {out['solves']} solves in {out['seconds']} s (one solve {out['solveSeconds']} s); rms {out['rmsStart']:.2f} -> {out['rmsEnd']:.2f}, "
           f"stopped '{out['stopped']}'; point moved {p['movedM']:+.1f} m (truth +60), {p['perM']:.3f} sigma a metre; rounds {[round(h['rms'], 2) for h in out['history']]}")
     assert p["constrained"] and abs(p["movedM"] - 60.0) < 15.0, p
-    assert out["rmsEnd"] < 0.5 * out["rmsStart"] and out["rmsEnd"] < 1.6, out
+    # one point 60 m off moves the data by about 1.6 uncertainties RMS (a single interpreted point is a local bump): the fit brings the misfit down to
+    # the noise (0.05 mGal noise against a 0.05 mGal floor: RMS about 1)
+    assert out["rmsEnd"] < out["rmsStart"] and out["rmsEnd"] < 1.1, out
     return time.time() - t0
+
+
+def time_fit_parts():
+    """TASKS.csv #2640 — the cost of the parts of one fit round on the synthetic model at its 24-cell resolution: one GemPy solve, one forward of
+    the whole model, one Jacobian column (a solve plus the band's forward); a round is (points + 1) solves and a forward or two"""
+    from app.main import ImplicitModelRequest
+    req = base_request()
+    m = ImplicitModelRequest(**req["model"])
+    res = [24, 24, 24]
+    structfit._solve(m, res)  # the first solve pays GemPy's set-up: not counted
+    t = time.time(); sol = structfit._solve(m, res); t_solve = time.time() - t
+    mesh, idx, lo = structfit._mesh(m, res, sol["xyz"])
+    st = np.asarray(req["stations"], float) - lo
+    props = {int(k): float(v) for k, v in req["properties"].items()}
+    widths = {"top_B": structfit._band(sol, "top_B")[4]}
+    structfit.model_response(sol, props, ["top_B"], widths, mesh, idx, st, "grav", {})
+    t = time.time(); structfit.model_response(sol, props, ["top_B"], widths, mesh, idx, st, "grav", {}); t_fwd = time.time() - t
+    print(f"timing (24^3 = {24 ** 3:,} cells, {len(st)} stations): one solve {t_solve:.2f} s, one forward of the model {t_fwd:.2f} s; "
+          f"a round with 8 points about {(8 + 2) * t_solve + 2 * t_fwd:.1f} s")
+    return t_solve, t_fwd
 
 
 def check_fit_not_constrained():
@@ -274,6 +296,7 @@ if __name__ == "__main__":
     check_resolve_and_guard()
     check_full_record_3633()
     check_magnetics()
+    time_fit_parts()
     check_fit_recovers()
     check_fit_not_constrained()
     print("structfit: all checks passed")
