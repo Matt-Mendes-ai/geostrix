@@ -31,14 +31,14 @@ carried across the whole country). The window: E 400,000 to 500,000, N 7,490,000
 |---|---:|---|
 | `bedrock_units.zip` | 168 polygons | a zipped shapefile of the 1:1 000 000 lithological units that touch the window, whole (not clipped): `ROCK_NAME`, `ROCK_CLASS`, `ASSOC` (the rock association and its age), `ERA`, `PERIOD`, `GROUP`, `FORMATION`, `SUITE`, `LITHODEME`, `COMPLEX`, `SETTING` (tectonic setting) |
 | `faults.zip` | 135 lines | the 1:1 000 000 faults that touch the window: `FAULT_TYPE` (unspecified minor fault 65, thrust fault 40, thrust fault zone 15 ...), `NAME`, `BASIS` (72 are interpreted from the magnetic map) |
-| `rocks.csv` | 121 | the whole-rock samples: sample_id (GTK's laboratory number), x, y, rock type, rock group, composition, age group, sample type (89 outcrop, 29 block field, 3 boulder), then SiO2, TiO2, Al2O3, FeO (total iron), MnO, MgO, CaO, Na2O, K2O and P2O5 in % and 42 more columns: 14 trace elements by XRF, 22 by ICP-MS, As, Bi and Se by GFAAS in ppm, and Au, Pd and Te by GFAAS in ppb |
+| `rocks.csv` | 121 | the whole-rock samples: sample_id (GTK's laboratory number), x, y, rock type, rock group, composition, age group, sample type (89 outcrop, 29 block field, 3 boulder), then SiO2, TiO2, Al2O3, FeO (total iron), MnO, MgO, CaO, Na2O, K2O and P2O5 in % and 43 more columns: 14 trace elements by XRF, 22 by ICP-MS, As, Bi and Se by GFAAS in ppm, Au, Pd and Te by GFAAS in ppb, and the total carbon (C_pct, in %; 86 of the 121 are below GTK's detection limit of 0.05 % and are written as `<0.05`) |
 
 **Below detection.** The source keeps a flag beside every value; where it says "less than", the value is the detection limit and is
 written here as `<value` (1185 cells; 109 of the 121 gold results). GeoStrix reads that notation as below detection.
 
 **Changes made to the sources.** The map layers were converted from the service's GeoJSON to shapefiles with shorter column names;
-their geometry and text are unchanged. From the rock table one value per element was taken, from the methods that measure the
-whole rock; the ICP-AES columns, an aqua regia (partial) leach of the same samples, are left out, as are carbon, CO2 and
+their geometry and text are unchanged. From the rock table one value per element was taken (the total carbon, C_TOT_PERCENT, among them), from the methods that measure the
+whole rock; the ICP-AES columns, an aqua regia (partial) leach of the same samples, are left out, as are CO2 and
 fluorine, the petrographic description columns and the sampler's name. Four rows that GTK flags as duplicates are left out. No value was altered.
 
 Not used: GTK's 1:200 000 bedrock map of the same window (1,312 polygons, 4.6 MB: too heavy for a sample), and GTK's drill-core

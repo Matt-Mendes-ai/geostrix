@@ -1608,6 +1608,10 @@ export default function LayoutModule() {
                   return (
                     <div style={{ marginBottom: 8 }}>
                       <div style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>
+                        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("W (mm)")}{/* TASKS.csv #3874 (#3716 (1)) — a width box: the legend's long lines ('cut-off 5 %, at most 2 m internal dilution; classes: ...') made it 136 mm wide with no way to say less */}
+                          <input type="number" min="20" step="1" placeholder={tr("auto")} value={Number(sel.w) > 0 ? mm(sel.w) : ""} aria-label={tr("Legend width (mm)")}
+                            onChange={(e) => { const v = Number(e.target.value); updateSelected({ w: e.target.value === "" || !(v > 0) ? undefined : Math.max(20, v) * PX_PER_MM }); }}
+                            style={{ ...inp, marginTop: 4, marginBottom: 0, padding: "5px 6px" }} /></label>
                         <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("H (mm)")}
                           <input type="number" min="10" step="1" placeholder={tr("auto")} value={Number(sel.h) > 0 ? mm(sel.h) : ""} aria-label={tr("Legend height (mm)")}
                             onChange={(e) => { const v = Number(e.target.value); if (e.target.value === "" || !(v > 0)) { updateSelected({ h: undefined }); return; } const was = isLegendBox(sel); updateSelected({ h: Math.max(10, v) * PX_PER_MM }); if (!was) allCodes(); }}

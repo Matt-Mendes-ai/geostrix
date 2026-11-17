@@ -31,32 +31,47 @@ export function blakeStationPoints(text) {
   return { points, medianZ: zs.length ? zs[Math.floor(zs.length / 2)] : 0 };
 }
 
+// TASKS.csv #2006 — one loader for the samples that are a point survey plus a grid and nothing else (Blake River gravity, the Osborne magnetics): S says which files, which
+// CRS, how the points are read and what to tell the user (lib/sampleOsborne.js has the second). The notices are built by S.msgs so each keeps its own literal, translated texts.
 // readFile(name) -> File; store: { addRaster, setLayers, updateGeophysSurvey, setEpsg }; project: the open project ({ epsg, crsSet }).
-// A project with no CRS chosen takes the sample's; one on another CRS gets the stations and the picture reprojected, and is told.
+// A project with no CRS chosen takes the sample's; one on another CRS gets the points and the picture reprojected, and is told.
 // -> notices
-export async function loadBlakeRiver(readFile, { addRaster, setLayers, updateGeophysSurvey, setEpsg }, project = null) {
+export async function loadPointGrid(S, readFile, { addRaster, setLayers, updateGeophysSurvey, setEpsg }, project = null) {
   const notes = [];
   const adopt = !project || project.crsSet === false || !project.epsg;
-  const projectEpsg = adopt ? BLAKE_EPSG : Number(project.epsg);
-  if (adopt) { setEpsg?.(BLAKE_EPSG); notes.push(notice("Project CRS set to {crs} (EPSG:{epsg}), the sample project's coordinate system.", { crs: BLAKE_CRS_NAME, epsg: BLAKE_EPSG })); }
-  else if (projectEpsg !== BLAKE_EPSG) notes.push(notice("This project is EPSG:{epsg2}, not the sample's EPSG:{epsg} ({crs}): the stations and the grid's picture were reprojected into it, and the grid's values were not kept. Load the sample into a new project to work in its own coordinates.", { epsg: BLAKE_EPSG, crs: BLAKE_CRS_NAME, epsg2: projectEpsg }));
+  const projectEpsg = adopt ? S.epsg : Number(project.epsg);
+  if (adopt) { setEpsg?.(S.epsg); notes.push(notice("Project CRS set to {crs} (EPSG:{epsg}), the sample project's coordinate system.", { crs: S.crsName, epsg: S.epsg })); }
+  else if (projectEpsg !== S.epsg) notes.push(S.msgs.reprojected(projectEpsg));
   let n = 0, medianZ = 0;
   try {
-    const got = blakeStationPoints(await (await readFile(BLAKE_STATIONS)).text());
-    if (projectEpsg !== BLAKE_EPSG) got.points = got.points.map((r) => { const q = reprojectXY(r.x, r.y, BLAKE_EPSG, projectEpsg); return q ? { ...r, x: q.x, y: q.y } : r; });
+    const got = S.points(await (await readFile(S.stations)).text());
+    if (projectEpsg !== S.epsg) got.points = got.points.map((r) => { const q = reprojectXY(r.x, r.y, S.epsg, projectEpsg); return q ? { ...r, x: q.x, y: q.y } : r; });
     n = got.points.length; medianZ = got.medianZ;
     setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, got.points).rows })); // opening the sample twice replaces, does not double
-    updateGeophysSurvey(BLAKE_SURVEY, { method: "grav", units: "mGal", zMeaning: "elevation" });
-  } catch (e) { notes.push(errorNotice(tr("The Blake River stations could not be loaded: {message}", { message: e.message }))); }
+    updateGeophysSurvey(S.surveyName, S.survey);
+  } catch (e) { notes.push(S.msgs.pointsFailed(e)); }
   let size = "";
   try {
     const { buildRasterImport } = await import("./raster.js");
-    // drawn at the stations' median elevation, so the grid and its stations sit together in the 3D view
-    const { raster } = await buildRasterImport(await readFile(BLAKE_GRID), { epsg: projectEpsg, sourceEpsg: BLAKE_EPSG, defaultElevation: Math.round(medianZ), name: BLAKE_GRID_NAME });
-    addRaster({ ...raster, surveyMethod: "grav", units: "mGal", drapeMode: "flat", provenance: { tool: "Bundled sample", source: "Geological Survey of Canada, compilation Blake River, QC — 100 m" } });
+    // drawn at the readings' median elevation, so the grid and its readings sit together in the 3D view
+    const { raster } = await buildRasterImport(await readFile(S.grid), { epsg: projectEpsg, sourceEpsg: S.epsg, defaultElevation: Math.round(medianZ), name: S.gridName });
+    addRaster({ ...raster, ...S.raster, drapeMode: "flat", provenance: { tool: "Bundled sample", source: S.source } });
     const g = raster.grid;
     if (g?.sourceSize) size = `${g.sourceSize[0]} × ${g.sourceSize[1]}`;
-  } catch (e) { notes.push(errorNotice(tr("The Blake River grid could not be loaded: {message}", { message: e.message }))); }
-  notes.unshift(notice("Loaded the Blake River gravity sample (Geological Survey of Canada, Abitibi, Quebec; no drillholes): the published Bouguer anomaly grid ({size} nodes at 100 m, mGal) and {n} gravity stations. Open Maps for the grid, its contours and filters, or Geophysics > Point survey to grid the stations yourself and compare. See sample_data/blake_river/README.md for the source and the licence.", { size: size || "767 × 424", n: n.toLocaleString() }));
+  } catch (e) { notes.push(S.msgs.gridFailed(e)); }
+  notes.unshift(S.msgs.loaded(size, n));
   return notes;
 }
+
+// the Blake River gravity sample (TASKS.csv #2829)
+export const BLAKE = {
+  epsg: BLAKE_EPSG, crsName: BLAKE_CRS_NAME, stations: BLAKE_STATIONS, grid: BLAKE_GRID, gridName: BLAKE_GRID_NAME, surveyName: BLAKE_SURVEY, points: blakeStationPoints,
+  survey: { method: "grav", units: "mGal", zMeaning: "elevation" }, raster: { surveyMethod: "grav", units: "mGal" }, source: "Geological Survey of Canada, compilation Blake River, QC — 100 m",
+  msgs: {
+    reprojected: (epsg2) => notice("This project is EPSG:{epsg2}, not the sample's EPSG:{epsg} ({crs}): the stations and the grid's picture were reprojected into it, and the grid's values were not kept. Load the sample into a new project to work in its own coordinates.", { epsg: BLAKE_EPSG, crs: BLAKE_CRS_NAME, epsg2 }),
+    pointsFailed: (e) => errorNotice(tr("The Blake River stations could not be loaded: {message}", { message: e.message })),
+    gridFailed: (e) => errorNotice(tr("The Blake River grid could not be loaded: {message}", { message: e.message })),
+    loaded: (size, n) => notice("Loaded the Blake River gravity sample (Geological Survey of Canada, Abitibi, Quebec; no drillholes): the published Bouguer anomaly grid ({size} nodes at 100 m, mGal) and {n} gravity stations. Open Maps for the grid, its contours and filters, or Geophysics > Point survey to grid the stations yourself and compare. See sample_data/blake_river/README.md for the source and the licence.", { size: size || "767 × 424", n: n.toLocaleString() }),
+  },
+};
+export const loadBlakeRiver = (readFile, store, project = null) => loadPointGrid(BLAKE, readFile, store, project);

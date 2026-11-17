@@ -5,6 +5,7 @@
 // purpose: a code that is only an ambiguous abbreviation is "not recognized", never guessed. The family is for display only: a
 // proposal never says what kind of deposit a rock belongs to.
 // Canadian spelling in the names the user sees (Sulphide); the synonyms keep both spellings.
+import { DH2LOOP } from "./lithoThesaurusDh2loop.js"; // TASKS.csv #3429 — the second source (generated; MIT, see its header)
 export const THESAURUS = [
   // volcanic
   ["Basalt", "volcanic", ["basaltic", "bslt", "metabasalt", "pillow basalt", "basalte"], ["BAS", "BSLT", "BASALT"]],
@@ -167,6 +168,11 @@ export function tablesOf() {
     const put = (k, how) => { const n = norm(k); if (n && !words.has(n)) words.set(n, { rock: name, family, how }); };
     put(name, "exact"); for (const s of syn) put(s, "synonym");
     for (const a of ab) { const k = a.toUpperCase(); if (abbr.has(k) && abbr.get(k).rock !== name) abbrClash.add(k); else abbr.set(k, { rock: name, family }); }
+  }
+  // TASKS.csv #3429 — the second source (dh2loop's hierarchical thesaurus, MIT: lithoThesaurusDh2loop.js): after GeoStrix's own entries, so a word they have is never overridden
+  for (const [name, family, syn] of DH2LOOP) {
+    const put = (k, how) => { const n = norm(k); if (n && !words.has(n)) words.set(n, { rock: name, family, how, source: "dh2loop" }); };
+    put(name, "exact"); for (const s of syn) put(s, "synonym");
   }
   for (const k of abbrClash) abbr.delete(k); // an abbreviation two rocks claim is not an abbreviation
   const long = [...words.keys()].filter((k) => k.length >= 5 && !k.includes(" "));
