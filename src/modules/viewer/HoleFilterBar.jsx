@@ -2,6 +2,8 @@
 import { t as tr } from "../../lib/i18n.js";
 import { holesForFilter, collarAttrChoices, visibilityPatch } from "../../lib/holeFilter.js"; // collars / attrs: #1504; collar-field text: #1703
 import { useMemo } from "react";
+import { useStore } from "../../lib/store.jsx"; // TASKS.csv #3742
+import { collarTwinGroups, mergeCollarTwins, twinGroupText } from "../../lib/attrTwins.js"; // TASKS.csv #3742
 import { LAYER_META } from "../../lib/layers.js"; // TASKS.csv #3690
 import { holeFieldPicks, holesWithoutField, noValuePick } from "../../lib/viewer/holeFieldPicks.js"; // TASKS.csv #3074
 
@@ -13,6 +15,8 @@ export default function HoleFilterBar({ collars, filter, setFilter, visibleHoles
   const shown = found.holes.map((c) => c.hole_id);
   const choices = useMemo(() => collarAttrChoices(collars), [collars]);
   const picks = useMemo(() => holeFieldPicks(collars, choices), [collars, choices]); // #3074 — one field per split, with its (no value)
+  const { setCollars } = useStore();
+  const twins = useMemo(() => collarTwinGroups(collars), [collars]); // TASKS.csv #3742 — values that are one value spelled two ways (D Zone / D zone)
   const ticked = ids.filter((id) => visibleHoles[id] !== false).length;
   const apply = (mode) => { setVisibleHoles((p) => visibilityPatch(p, ids, shown, mode)); onApplied?.(mode); }; // onApplied: #3695 — the view follows 'Only these' / 'Uncheck'
   const termOf = (key, v) => `${key.replace(/\s+/g, "_")}=${v.replace(/\s+/g, "_")}`; // key too: #2488 ("hole type=…" split into two terms)
@@ -48,6 +52,12 @@ export default function HoleFilterBar({ collars, filter, setFilter, visibleHoles
           <option value="">{tr("Colour holes: one colour")}</option>
           {picks.map((p) => { const key = p.also.includes("hole type") ? "hole type" : p.key; /* TASKS.csv #3538 — one entry per split (hole_type and 'hole type' split the holes alike); the app's own normalized field wins */ return <option key={key} value={key}>{tr("Colour holes by {field}", { field: key })}</option>; })}
         </select>
+      )}
+      {twins.length > 0 && setCollars && ( /* TASKS.csv #3742 — the import notice named them (#3733); here one click makes each group one value, in the filter, the colours and Grade statistics */
+        <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4, lineHeight: 1.4 }}>
+          {tr("These collar values look like one value spelled two ways: {list}.", { list: twins.slice(0, 3).map((g) => `${g.col}: ${twinGroupText(g)}`).join("; ") + (twins.length > 3 ? "; …" : "") })}{" "}
+          <button type="button" style={{ ...btn, flex: "none", padding: "1px 6px" }} onClick={() => setCollars((p) => mergeCollarTwins(p).collars)} title={tr("Rewrites the less common spelling of each group to the commoner one, on every collar. Undo brings them back.")}>{tr("Make them one")}</button>
+        </div>
       )}
       <div style={{ display: "flex", gap: 4 }}>
         <button type="button" style={btn} onClick={() => apply("show")} title={tr("Show every hole listed below")}>{tr("Check {n}", { n: shown.length })}</button>

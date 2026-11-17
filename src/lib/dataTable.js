@@ -7,6 +7,7 @@ import { LAYER_META } from "./layers.js";
 import { rowCount, rowAt } from "./layerColumns.js";
 import { t as tr } from "./i18n.js";
 import { gradeUnitLabel } from "./geochemColumns.js"; // TASKS.csv #3698
+import { assayAttrNames, assayAttrValue } from "./assayExtraFields.js"; // TASKS.csv #3755
 
 const INTERVAL_KEYS = ["litho", "alt", "vein", "breccia", "weath", "structzone", "geotech", "recovery", "sg", "litho_gc", "alt_gc", "mnlgy", "magsusc", "structure"];
 const HIDDEN = new Set(["_src", "tip", "color", "colour", "values", "attrs", "codes", "all_codes", "modelled", "modelColor", "numeric"]);
@@ -44,8 +45,10 @@ export function buildTable(source, store) {
     if (hasId) base.push({ key: "sample_id", label: "sample_id", numeric: false });
     const hasType = raw.some((a) => a.sample_type);
     if (hasType) base.push({ key: "sample_type", label: "sample_type", numeric: false });
+    const attrNames = assayAttrNames(raw); // TASKS.csv #3755 — the sample fields kept at import (Zone, Target ...), after the sample columns
+    attrNames.forEach((k) => base.push({ key: `attr:${k}`, label: k, numeric: false }));
     columns = [...base, ...els.map((e) => ({ key: `el:${e.symbol}`, label: e.unit ? `${e.symbol} (${gradeUnitLabel(e.symbol, e.unit)})` : e.symbol, numeric: true, unit: e.unit || undefined, element: e.symbol }))]; // g/t for a precious metal stored in ppm (#3698)
-    rows = raw.map((a) => [a.hole_id, a.from, a.to, ...(hasId ? [a.sample_id] : []), ...(hasType ? [a.sample_type] : []), ...els.map((e) => { const v = a.values?.[e.symbol]; return isNum(v) ? v : v == null ? null : v; })]);
+    rows = raw.map((a) => [a.hole_id, a.from, a.to, ...(hasId ? [a.sample_id] : []), ...(hasType ? [a.sample_type] : []), ...attrNames.map((k) => assayAttrValue(a, k)), ...els.map((e) => { const v = a.values?.[e.symbol]; return isNum(v) ? v : v == null ? null : v; })]);
     const c0 = base.length;
     raw.forEach((a, i) => { if (!a.qualifiers) return; els.forEach((e, k) => { if (a.qualifiers[e.symbol] === "<" && isNum(a.values?.[e.symbol])) { if (!lt) lt = new Map(); (lt.get(i) || lt.set(i, new Set()).get(i)).add(c0 + k); } }); });
   } else {

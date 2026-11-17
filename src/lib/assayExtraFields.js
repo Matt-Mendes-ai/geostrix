@@ -40,3 +40,29 @@ export function chosenExtraColumns(modal, cols) {
 }
 // one sample's kept fields -> { attrs } | {} (the surface samples' rule: trimmed text, the key on one line, 500 characters at most)
 export const assayAttrs = (row, cols) => (cols?.length ? surfaceAttrs(row, cols) : {});
+
+// TASKS.csv #3755 (follow-up of #3728) — the kept fields as the columns of every table of the assays: the names in first-seen order (a name that differs only in case
+// is the same field), at most MAX_ATTR_COLUMNS of them. -> [name]
+export const MAX_ATTR_COLUMNS = 40;
+export function assayAttrNames(assays) {
+  const seen = new Map();
+  for (const a of assays || []) {
+    const at = a?.attrs;
+    if (!at || typeof at !== "object") continue;
+    for (const k in at) {
+      const v = at[k];
+      if (v == null || v === "" || typeof v === "object") continue;
+      const l = k.toLowerCase();
+      if (!seen.has(l)) { seen.set(l, k); if (seen.size >= MAX_ATTR_COLUMNS) return [...seen.values()]; }
+    }
+  }
+  return [...seen.values()];
+}
+// one row's value of a kept field, by name (case aside), as text, or null
+export function assayAttrValue(row, name) {
+  const at = row?.attrs;
+  if (!at || typeof at !== "object") return null;
+  const v = Object.prototype.hasOwnProperty.call(at, name) ? at[name] : at[Object.keys(at).find((k) => k.toLowerCase() === String(name).toLowerCase())];
+  return v == null || v === "" || typeof v === "object" ? null : String(v);
+}
+

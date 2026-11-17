@@ -19,6 +19,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { saveFile } from "../lib/desktop.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #135 — project desurvey method
+import { customDomainOptions, attributeDomainOptions, attributeDomainLabel } from "../lib/customDomains.js"; // TASKS.csv #3759 (8)
 import { useKeptState, keptIn, scopeOf } from "../lib/keptState.js"; // TASKS.csv #3223 — the dialog's settings kept with the project
 import { stampLines, ASSAY_READING_RULES, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #404
 import { version as APP_VERSION } from "../../package.json";
@@ -192,8 +193,12 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
     () => ["litho", "alt", "vein", "breccia", "weath", "structzone", "mnlgy", "litho_gc", "alt_gc"].filter((k) => (layers?.[k] || []).length > 0),
     [layers]
   );
+  // TASKS.csv #3759 (8) — the host domain also offers what Grade statistics, Thresholds and Compositing offer: the sample fields kept at the assay import (Sample · Zone), the collar fields,
+  // and the fields of the project's custom interval layers
+  const extraDomains = useMemo(() => [...attributeDomainOptions(assaysTable, collars), ...customDomainOptions(keptLayers, { layers, labelOf: (k) => tr(LAYER_META[k]?.label || k) }, { groupTop: 12 })], [assaysTable, collars, keptLayers, layers]);
   const [domainLayer, setDomainLayer] = useState("");
-  const domainRows = domainLayer ? (layers?.[domainLayer] || []) : null;
+  const domainExtra = extraDomains.find((d) => d.key === domainLayer) || null;
+  const domainRows = domainLayer ? (domainExtra ? domainExtra.rows : layers?.[domainLayer] || []) : null;
   const qaqcExcludedCount = useMemo(() => assays.length - excludeQAQC(assays).length, [assays]);
   const reportAssays = useMemo(() => (includeQAQC ? assays : excludeQAQC(assays)), [assays, includeQAQC]);
 
@@ -370,7 +375,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
       `QAQC inserts: ${includeQAQC ? "INCLUDED" : `excluded (${qaqcExcludedCount} rows)`}`,
       ASSAY_READING_RULES,
       twEnabled ? `True width: from a ${twDipDir}/${twDip} (dip direction/dip) structure against hole traces desurveyed by ${desurveyMethod || "minimum curvature"}` : "True width: not computed (lengths are downhole)",
-      domainLayer ? `Host domain from layer: ${domainLayer}` : null,
+      domainLayer ? `Host domain from layer: ${domainExtra ? domainExtra.label : domainLayer}` : null,
       incOn ? `Including sub-intercepts: cutoff ${includeCutoff} ${unit}, same dilution and minimum-length rules, attached to the containing intercept` : null,
       meqReady ? `Metal equivalent (prices and recoveries entered by the user, ${localDate() /* #2358 */}): ${metalEquivalentFormula(meqMetals)}. ${onEq ? `Intercepts are cut on ${gradeSym}, computed per sample; a sample missing any of the metals has no equivalent and is left out of the grade as unassayed.` : `Intercepts are cut on ${symbol} alone, not on the equivalent.`}` : null,
       extraSymbols.length ? `Also averaged over each intercept: ${extraSymbols.join(", ")}` : null,
@@ -530,11 +535,12 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
           </div>
 
           {/* TASKS.csv #230 — host domain/lithology per intercept. */}
-          {domainLayerOptions.length > 0 && (
+          {(domainLayerOptions.length > 0 || extraDomains.length > 0) && (
             <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 6 }}
               title={tr("Show which logged unit each intercept sits in — and, when it straddles a contact, the split between units.")}>{tr("Host domain")}<select value={domainLayer} onChange={(e) => setDomainLayer(e.target.value)} style={{ ...inp, width: "auto" }}>
                 <option value="">{tr("(none)")}</option>
                 {domainLayerOptions.map((k) => <option key={k} value={k}>{LAYER_META[k]?.label || k}</option>)}
+                {extraDomains.map((d) => <option key={d.key} value={d.key}>{attributeDomainLabel(d, tr)}</option>)}{/* #3759 (8) */}
               </select>
             </label>
           )}

@@ -37,3 +37,20 @@ export function surveyGapFinder(byHole) {
     return { gaps, widest: gaps.reduce((a, b) => (b.g > a.g ? b : a)), usual };
   };
 }
+
+// TASKS.csv #3756 (1) — the same check for the survey import's own notice (Data QC runs only when opened): rows are the imported stations ({ hole_id, depth }); the holes with a gap and the
+// widest one. -> { holes: n, widest: { hole_id, from, to } } | null
+export function surveyGapsOfRows(rows) {
+  const byHole = new Map();
+  for (const r of rows || []) { const d = Number(r?.depth); if (!Number.isFinite(d)) continue; (byHole.get(r.hole_id) || byHole.set(r.hole_id, []).get(r.hole_id)).push({ depth: d }); }
+  const find = surveyGapFinder(byHole);
+  let holes = 0, widest = null;
+  for (const [hole_id, st] of byHole) {
+    const g = find(st.sort((a, b) => a.depth - b.depth));
+    if (!g) continue;
+    holes++;
+    if (!widest || g.widest.to - g.widest.from > widest.to - widest.from) widest = { hole_id, from: g.widest.from, to: g.widest.to };
+  }
+  return holes ? { holes, widest } : null;
+}
+

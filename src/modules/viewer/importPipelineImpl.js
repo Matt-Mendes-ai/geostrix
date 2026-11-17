@@ -65,6 +65,7 @@ import { densityRangeOf } from "../../lib/densityRange.js"; // TASKS.csv #3587
 import { companionLayer, surveyMethodFields, columnsLeftOut, suscInstrumentFields, dialogExtraFields, queueExtraFields } from "../../lib/viewer/autoExtras.js"; // queueExtraFields: #3544 (C2) // suscInstrumentFields: #2668 // TASKS.csv #1501; surveyMethodFields: #2187
 import { yearsAsNumbers } from "../../lib/collarYear.js"; // TASKS.csv #3545
 import { attrTwinGroups } from "../../lib/attrTwins.js"; // TASKS.csv #3733
+import { surveyGapsOfRows } from "../../lib/surveyGaps.js"; // TASKS.csv #3756 (1)
 import { surfaceAttrColumns, surfaceAttrs } from "../../lib/geochemColumns.js"; // TASKS.csv #1504 — unmapped collar columns kept as attrs; #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 import { rasterDrapeElevation, drapeElevationNote, planElevation } from "../../lib/drapeElevation.js"; // TASKS.csv #1505; planElevation: #2294
 import { projectTargetEpsg } from "../../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
@@ -784,6 +785,9 @@ export function makeImportPipeline(ctx, h) {
         if (up.length) svExtraNote += dipConvention === "pos_down" // #2886 — the sign that points up depends on the convention chosen
           ? tr(" {n} station(s) in {h} hole(s) point upward (a negative dip, read with positive = down): upholes, or a sign error in the file?", { n: up.length, h: upHoles.size })
           : tr(" {n} station(s) in {h} hole(s) point upward (a positive dip, read with negative = down): upholes, or a sign error in the file?", { n: up.length, h: upHoles.size });
+        // TASKS.csv #3756 (1) — a stretch with no survey station (SR23-299: 0 m, then 339 m) is said here too, not only when Data QC is opened
+        const sg = surveyGapsOfRows(rows);
+        if (sg) svExtraNote += tr(" {n} hole(s) have a stretch with no survey station (the widest: {id}, {a}–{b} m): the path there is interpolated, not measured. Data QC lists them.", { n: sg.holes, id: sg.widest.hole_id, a: Math.round(sg.widest.from), b: Math.round(sg.widest.to) });
         const surveyed = new Set(replaced.rows.map((r) => r.hole_id)), cols = importStateRef.current.collars || [];
         const none = cols.filter((c) => !surveyed.has(c.hole_id)).map((c) => c.hole_id);
         if (cols.length && none.length) svExtraNote += tr(" {n} hole(s) still have no survey ({ids}).", { n: none.length, ids: none.slice(0, 5).join(", ") + (none.length > 5 ? " …" : "") });
@@ -1284,10 +1288,12 @@ export function makeImportPipeline(ctx, h) {
     // TASKS.csv #3738 (Scottie Gold) — a UBC model file (.chg / .con / .mod / .den / .sus) dropped beside its .msh was '1 unrecognized file(s) skipped' with no name: the pair is named together
     const ubcModels = grouped.files.filter((x) => /\.(chg|con|mod|den|sus)$/i.test(x.name));
     for (const f of grouped.files.filter((x) => /\.msh$/i.test(x.name))) {
-      if (looksLikeUbcMesh(new Uint8Array(await f.slice(0, 400).arrayBuffer()))) mshAdvice.push(ubcModels.length ? notice("{name} with {models}: a UBC-GIF mesh and its model. Load them together in Geophysics > Block models (Import UBC mesh + model…).", { name: f.name, models: ubcModels.slice(0, 3).map((m) => m.name).join(", ") + (ubcModels.length > 3 ? " …" : "") }) : notice("{name}: a UBC-GIF mesh. Load it with its model file in Geophysics > Block models.", { name: f.name }));
+      if (looksLikeUbcMesh(new Uint8Array(await f.slice(0, 400).arrayBuffer()))) mshAdvice.push(ubcModels.length ? notice("{name} with {models}: a UBC-GIF mesh and its model, opened in Geophysics > Block models (Import UBC mesh + model…).", { name: f.name, models: ubcModels.slice(0, 3).map((m) => m.name).join(", ") + (ubcModels.length > 3 ? " …" : "") }) : notice("{name}: a UBC-GIF mesh. Load it with its model file in Geophysics > Block models.", { name: f.name }));
       else importSolidFile(f);
     }
     const ubcPaired = mshAdvice.length ? new Set(ubcModels) : new Set(); // read with the mesh: not 'unrecognized'
+    // TASKS.csv #3756 (2) — the pair is handed to Geophysics > Block models (its importer reads a mesh and its model(s) together), not only named
+    { const meshes = grouped.files.filter((x) => /\.msh$/i.test(x.name)); if (ubcModels.length && meshes.length === 1 && mshAdvice.length) { goToModule("geophysics"); requestModuleAction("geophysics-ubc", { files: [meshes[0], ...ubcModels] }); } }
     const ubcPairedN = ubcPaired.size;
     const mshCount = grouped.files.filter((x) => /\.msh$/i.test(x.name)).length;
     let files = grouped.files.filter((f) => /\.(csv|zip|gpkg|shp|kml|kmz|xlsx|las)$/i.test(f.name)); // kml/kmz: #424, xlsx: #605, las: #492

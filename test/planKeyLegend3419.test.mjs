@@ -14,7 +14,7 @@ test("the key's rows become legend rows: headings for the title and note, a swat
   assert.deepEqual(items, [
     ["Cu grade × length, whole hole", null, { heading: true }], ["cut-off 3 %", null, { heading: true }],
     ["< 111 m × %", "#9ecae1"], ["≥ 297 m × %", "#08519c"], ["+ 4 more", null, { heading: true }],
-    ["Type: DDH", "#55606e"], ["Planned hole", "#e27f1a"],
+    ["Type: DDH", "#55606e"], ["Planned hole", "#e27f1a", { svg: items[6][2].svg }], // #3757 (#3716 (2)): a dashed trace and a ring
   ]);
   assert.deepEqual(planKeyItems(null), []);
   assert.deepEqual(planKeyItems({ colouring: { key: [] } }), []);

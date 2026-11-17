@@ -18,6 +18,7 @@ export function planKeyItems(d) {
   const row = (k) => (k.note ? [k.label, null, { heading: true }] : symbol(k) ? [k.label, k.colour, symbol(k)] : [k.label, k.colour || GREY]);
   for (const k of c.key || []) if (k.label) out.push(row(k));
   for (const k of d?.shapeKey || []) if (k.label) out.push([k.label, k.colour || GREY]);
-  for (const k of d?.plannedKey || []) if (k.label) out.push([k.label, k.colour || colors.planned]);
+  // TASKS.csv #3757 (#3716 (2)) — the planned hole is drawn as a dashed trace ending in a white ring: the legend row says so (it was a filled square)
+  for (const k of d?.plannedKey || []) if (k.label) { const col = k.colour || colors.planned; out.push([k.label, col, { svg: `<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><line x1="0" y1="8" x2="16" y2="8" stroke="${col}" stroke-width="1.3" stroke-dasharray="3 2"/><circle cx="8" cy="8" r="3.6" fill="#ffffff" stroke="${col}" stroke-width="1.4"/></svg>` }]); }
   return out;
 }

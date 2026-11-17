@@ -4,7 +4,6 @@
 // outcrop: the points say what the drill met under cover, and where. Pure.
 import { desurveyHole, pointOnTrace } from "./desurvey.js";
 import { roleForLithology, colorForLithology, roleIsFromNotes, lithoMeaningText } from "./layers.js";
-import { arrMax } from "./arrayStats.js"; // TASKS.csv #371 - no spread of a long array
 
 const SKIP = new Set(["overburden", "no recovery", "ignore"]); // "ignore": what Modelling codes calls a no-recovery code (#3390)
 
@@ -53,9 +52,12 @@ export function collarSubcrop({ collars, survey, litho, desurveyMethod, roleOf =
     // TASKS.csv #3841 (Scottie Gold review) — cover that ends at 4.4 m, the next logged interval at 135.9 m: the 131 m between were not logged, not cover, and the
     // 'subcrop' was a dyke 95 m from the pad with 97 m of cover. As a log that starts below the collar: left out, counted and named (report.gap). Only when
     // the first rock follows cover (a hole whose first interval is rock is the late-start rule above); not at a typed depth
+    // TASKS.csv #3869 (#3841) — a gap INSIDE the cover (cover to 4 m, nothing to 60 m, more cover to 70 m, then rock) is the same missing log: the first unlogged stretch above the rock is the one said
     if (depth == null && f0 && f0 !== rows[0]) {
-      const coverEnd = arrMax(rows.filter((r) => r.from < f0.from).map((r) => r.to));
-      if (f0.from - coverEnd > LATE_START_M) { report?.gap?.push({ hole_id: c.hole_id, coverEnd, rockStart: f0.from, unit: f0.value }); continue; }
+      let end = 0, from = null, to = null;
+      for (const r of rows) { if (r.from >= f0.from) break; if (r.from - end > LATE_START_M) { from = end; to = r.from; break; } end = Math.max(end, r.to); }
+      if (from == null && f0.from - end > LATE_START_M) { from = end; to = f0.from; }
+      if (from != null) { report?.gap?.push({ hole_id: c.hole_id, coverEnd: from, rockStart: to, unit: f0.value }); continue; }
     }
     let pick = f0;
     if (depth != null) { // #2956

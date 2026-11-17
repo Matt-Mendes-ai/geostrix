@@ -18,3 +18,30 @@ export function attrTwinGroups(rows, cols, { maxDistinct = 100 } = {}) {
   }
   return out;
 }
+
+// TASKS.csv #3742 (follow-up of #3733) — the one-click merge. The twin groups of a project's collars (its attribute values, as the import notice names them) and the collars with
+// each group's values made one: the commonest spelling wins (a tie: the first alphabetically). The collars' other fields are untouched; holes with no value stay without one.
+// -> [{ col, values: [{ value, n }] }] for the collars' attributes
+export function collarTwinGroups(collars, { maxDistinct = 100 } = {}) {
+  const cols = new Set();
+  for (const c of collars || []) if (c?.attrs && typeof c.attrs === "object") for (const k in c.attrs) if (!k.startsWith("_")) cols.add(k);
+  return attrTwinGroups((collars || []).map((c) => c.attrs || {}), [...cols], { maxDistinct });
+}
+// -> { collars, changed: number of holes whose value changed, groups }; the same array back when there is nothing to merge
+export function mergeCollarTwins(collars, groups = null) {
+  const gs = groups || collarTwinGroups(collars);
+  if (!gs.length) return { collars, changed: 0, groups: [] };
+  const to = new Map(); // col -> Map(value -> canonical)
+  for (const g of gs) { const m = to.get(g.col) || to.set(g.col, new Map()).get(g.col); for (const v of g.values) m.set(v.value, g.values[0].value); }
+  let changed = 0;
+  const next = collars.map((c) => {
+    const at = c?.attrs; if (!at) return c;
+    let out = null;
+    for (const [col, m] of to) { const v = String(at[col] ?? "").trim(); const w = m.get(v); if (w != null && w !== at[col]) { out = out || { ...at }; out[col] = w; } }
+    if (!out) return c; changed++; return { ...c, attrs: out };
+  });
+  return { collars: changed ? next : collars, changed, groups: gs };
+}
+// one group as text: "'D Zone' (12) and 'D zone' (3)"
+export const twinGroupText = (g) => g.values.map((v) => `'${v.value}' (${v.n})`).join(", ");
+

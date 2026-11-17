@@ -185,7 +185,14 @@ export default function App() {
   useEffect(() => onDataTableOpen((req) => setDataTable({ ...req, n: Date.now() })), []);
   const [shortcutsTab, setShortcutsTab] = useState(null); // null | "shortcuts" | "python" (#391) | "about"
   const [helpAt, setHelpAt] = useState(null); // TASKS.csv #1966 — { id, n } while the Help panel is open (n re-opens it at a new page)
-  useEffect(() => onHelpOpen((id) => setHelpAt({ id, n: Date.now() })), []);
+  // TASKS.csv #3759 (4) — a Help page opened from a dialog's "?" stays beside the NEXT dialog (it covered Best intercepts' close button): it closes with the dialog it was opened from
+  const helpDialogRef = useRef(null);
+  useEffect(() => onHelpOpen((id) => { const d = document.activeElement?.closest?.('[role="dialog"]'); if (d) helpDialogRef.current = d; setHelpAt({ id, n: Date.now() }); }), []);
+  useEffect(() => {
+    if (!helpAt) { helpDialogRef.current = null; return undefined; }
+    const iv = setInterval(() => { const d = helpDialogRef.current; if (d && !d.isConnected) { helpDialogRef.current = null; setHelpAt(null); } }, 250);
+    return () => clearInterval(iv);
+  }, [helpAt]);
   useEffect(() => onShortcutsOpen((tab) => setShortcutsTab(tab)), []); // TASKS.csv #3534 — the Help panel's shortcuts and About buttons
   // F1: the page of the tool pane that is open (its "?"), else the contents
   useEffect(() => {

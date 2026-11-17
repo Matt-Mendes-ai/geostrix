@@ -53,14 +53,16 @@ const overlap = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(
 
 // the top-left corner for a w x h item on a page { w, h } holding `elements`
 export function freeSpot(elements, w, h, page = { w: 1123, h: 794 }, { margin = 40, step = 20 } = {}) {
-  const boxes = (elements || []).map(elementBox);
+  // TASKS.csv #3757 (#3716 (1)) — on a page with no free spot of the size, the least bad one is not on top of the page's furniture: the title and the title block count 20 times as much as
+  // a picture, so the legend lands over a map's empty corner rather than over the title block
+  const boxes = (elements || []).map((e) => ({ ...elementBox(e), wt: e?.type === "titleblock" || e?.type === "title" ? 20 : 1 }));
   const xMax = Math.max(margin, page.w - margin - w), yMax = Math.max(margin, page.h - margin - h);
   let best = null;
   for (let y = margin; y <= yMax; y += step) {
     for (let x = margin; x <= xMax; x += step) {
       const c = { x, y, w, h };
       let o = 0;
-      for (const b of boxes) { o += overlap(c, b); if (best && o >= best.o) break; }
+      for (const b of boxes) { o += overlap(c, b) * b.wt; if (best && o >= best.o) break; }
       if (!best || o < best.o) { best = { x, y, o }; if (o === 0) return { x, y }; }
     }
   }

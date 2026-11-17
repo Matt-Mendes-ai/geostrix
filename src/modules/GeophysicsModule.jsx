@@ -2134,6 +2134,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         }
   };
   useModuleAction(["geophysics-drop"], (_a, p) => { if (p?.files?.length) dropFiles(p.files); }); // #2848
+  useModuleAction(["geophysics-ubc"], (_a, p) => { if (p?.files?.length) { setGeoPane("voxel"); importUBC(p.files); } }); // TASKS.csv #3756 (2) — a UBC mesh and its model dropped on the 3D View: Block models reads them together
   const show3d = !embedded && !!onMain3d && !hasResults && (collars.length > 0 || rows.length > 0 || rasters.length > 0 || !!terrain || boundaries.length > 0 || voxelModels.length > 0 || dcipLines.length > 0 || (surfaceSamples || []).length > 0); // #1979
   useEffect(() => { onMain3d?.(show3d); }, [onMain3d, show3d]);
   useEffect(() => () => onMain3d?.(false), [onMain3d]); // leaving the tab: the viewport goes back to the 3D View
