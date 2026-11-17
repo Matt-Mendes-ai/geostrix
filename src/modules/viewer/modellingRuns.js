@@ -90,6 +90,22 @@ export function distinctShellName(label, taken, cellM = null) {
   while (used.has(`${withCells} #${n}`)) n++;
   return `${withCells} #${n}`;
 }
+// TASKS.csv #2640 Stage 2 — a fitted record (lib/structFit.js recordWithFit) as the specs a model run takes: the run's frame (project less the
+// record's origin), each surface '<name> (fitted)' (its meshName too, so a fault's offsets follow), its codes the original name, the hole ids and
+// nuggets kept. Pure (exported for the test).
+export function fittedModelSpecs(record) {
+  const o = record?.origin || { x: 0, y: 0, z: 0 };
+  const inRun = (p) => ({ x: p.x - o.x, y: p.y - o.y, z: p.z - o.z });
+  const nameOf = (s) => s.meshName || s.name;
+  const fitted = (n) => `${n} (fitted)`;
+  return (record?.surfaces || []).map((s) => ({
+    label: fitted(s.name || nameOf(s)), meshName: fitted(nameOf(s)), codes: [nameOf(s)],
+    points: (s.points || []).map((p) => ({ ...inRun(p), ...(p.hole_id != null ? { hole_id: p.hole_id } : {}), ...(Number.isFinite(p.nugget) ? { nugget: p.nugget } : {}) })),
+    orientations: (s.orientations || []).map((q) => ({ ...inRun(q), dip: q.dip, azimuth: q.azimuth })),
+    ...(s.package != null ? { package: s.package } : {}),
+    ...(s.fault ? { fault: true, type: "fault", color: colorForStructure("FLT"), ...(Array.isArray(s.offsets) ? { offsets: s.offsets.map(fitted) } : {}) } : { type: "stratigraphic_contact", color: colorForLithology(nameOf(s)) }),
+  }));
+}
 export function createModellingRuns(ctx, mcRef) {
   const {
     activeInterceptSetRef,
@@ -150,7 +166,6 @@ export function createModellingRuns(ctx, mcRef) {
     numericUseComposites,
     orientTypes,
     originRef,
-    rangeMultiplier,
     thinPicks, thinWindowM, // TASKS.csv #765
     orientationReachM, // TASKS.csv #1170 — 0 = automatic
     smoothClusters, // TASKS.csv #761
@@ -191,12 +206,17 @@ export function createModellingRuns(ctx, mcRef) {
   const ownTask = (label) => taskSlot(setTaskProgress, label); // TASKS.csv #2379 — a short tool never covers a cancellable run's progress
 
   const runSurfaceStack = async (rawSpecs, stackOpts = {}) => {
+    // TASKS.csv #2640 Stage 2 — a run that replays another (the structure fit's '(fitted)' version) gives its extent, resolution and range, and no
+    // trend, so it differs from the run it replays only by its points (the app's settings may have changed since). Every other caller gives none
+    // of these, and the run is as before.
+    const replay = stackOpts.replay || null;
+    const rangeMultiplier = replay ? (Number(replay.rangeMultiplier) > 0 ? Number(replay.rangeMultiplier) : 0) : ctx.rangeMultiplier;
     // TASKS.csv #650 — the trend chosen for geology models; #679 — structural surfaces have their own slot
     const trendTool = stackOpts.trendTool || "implicit";
     // TASKS.csv #2905 — a layer-cake stack (lib/layerCake.js): elevation grids built here instead of the GemPy solve; the same clipping,
     // contact fit, model check, volumes and sections follow. It works in plan (E / N) and takes no trend.
     const cakeRun = stackOpts.engine === "layercake";
-    const tw = trendWarp(trendTool), anisotropy = cakeRun ? { enabled: false } : tw;
+    const tw = replay ? { enabled: false } : trendWarp(trendTool), anisotropy = cakeRun ? { enabled: false } : tw; // replay: #2640 — no trend
     if (cakeRun && tw.enabled) setNotices((p) => [...p, notice("The layer-cake builds each top as an elevation grid in plan, so the geology trend is not used for it.")]);
     if (cakeRun && stackOpts.pinchFor) rawSpecs = rawSpecs.map((sp) => (stackOpts.pinchFor.get(sp.meshName)?.length ? { ...sp, points: [...sp.points, ...stackOpts.pinchFor.get(sp.meshName)] } : sp)); // #1030
     const trendWord = trendTool === "structural" ? "structural trend" : "geology trend";
@@ -319,8 +339,9 @@ export function createModellingRuns(ctx, mcRef) {
     const reachBoxM = reachOf.size ? Math.max(...[...reachOf.values()].map((f) => f.margin)) * (anisotropy.enabled ? Math.max(anisoScl.major, anisoScl.semiMajor, anisoScl.minor) : 1) : 0;
     const longestSpan = Math.max(xr.max - xr.min, yr.max - yr.min, zr.max - zr.min);
     const pad = (lo, hi) => { const span = Math.max(1, hi - lo); const p = reachLib ? reachLib.reachPad(span, longestSpan, reachBoxM, MODEL_EXTENT_PAD_M) : Math.min(span * 0.15, MODEL_EXTENT_PAD_M); return [lo - p, hi + p]; };
-    const [xmin, xmax] = pad(xr.min, xr.max);
-    const [ymin, ymax] = pad(yr.min, yr.max);
+    // replay: TASKS.csv #2640 Stage 2 — the replayed run's box (the record's), so the box, its pads and its notices are that run's
+    const [xmin, xmax] = replay ? replay.extent.slice(0, 2) : pad(xr.min, xr.max);
+    const [ymin, ymax] = replay ? replay.extent.slice(2, 4) : pad(yr.min, yr.max);
     // TASKS.csv #2377 — z padded from the drilled column, not the lateral span / margin; with a trend (anisotropy warps the axes) or no
     // traces, as before. #2528 — the column of the traces inside this box only (the project's whole column made 1,183 m of box for 20 m holes)
     // #2616 — the column of the Model area's holes only, each trace cut at the hole's logged end (a survey can run past it)
@@ -328,7 +349,7 @@ export function createModellingRuns(ctx, mcRef) {
     const colPts = reachLib?.clipTrace ? traces.filter((t) => modelArea !== "checked" || !(visibleHoles && visibleHoles[t.hole_id] === false)).flatMap((t) => reachLib.clipTrace(t.pts.map(sceneToApi), lenOf.get(t.hole_id)).map((p) => ({ ...p, hole: t.hole_id }))).filter((p) => !suspectZ.has(p.hole) /* #2918 */) : allApiPts;
     const colHit = reachLib?.drilledColumn ? reachLib.drilledColumn(colPts, { xmin, xmax, ymin, ymax }) : null;
     const colR = colHit || zr, vPad = !anisotropy.enabled && reachLib?.verticalPad ? reachLib.verticalPad(zr.max - zr.min, colR.max - colR.min, MODEL_EXTENT_PAD_M) : null;
-    const [zmin, zmax] = vPad != null ? [Math.min(zr.min, colR.min) - vPad, Math.max(zr.max, colR.max) + vPad] : pad(zr.min, zr.max);
+    const [zmin, zmax] = replay ? replay.extent.slice(4, 6) : vPad != null ? [Math.min(zr.min, colR.min) - vPad, Math.max(zr.max, colR.max) + vPad] : pad(zr.min, zr.max);
     const extent = [xmin, xmax, ymin, ymax, zmin, zmax];
     // TASKS.csv #2229 (review #2174, WA gold) — how far the box actually reaches past the data on each axis (the reach notice gave only the clip
     // distance: '91 m past its contacts' for a box ~297 m past them, 2.48 km2 for a 0.41 km2 footprint)
@@ -336,6 +357,7 @@ export function createModellingRuns(ctx, mcRef) {
     // TASKS.csv #2624 — the lithology block's counts follow the box's shape at the Resolution slider's total (n^3): 96 x 96 x 5 cells of
     // 135 x 135 x 30 m on a 13 x 13 km x 150 m box, where 36 x 36 x 36 gave 361 x 361 x 4 m. The surfaces' mesh (Surface detail) is not changed.
     const resolution = axisResolution(extent, modelResolution);
+    if (replay) resolution.splice(0, 3, ...replay.resolution); // TASKS.csv #2640 Stage 2 — the replayed run's cells
 
     // TASKS.csv #52 (a) — a named function now, because the sensitivity realisations below must go
     // through exactly the same warp as the base request (perturbation happens in real metres/degrees
@@ -1114,6 +1136,19 @@ export function createModellingRuns(ctx, mcRef) {
 
   // Thin single-surface wrapper for the three single-unit tools below.
   const runSurfaceModel = (spec, opts) => runSurfaceStack([spec], opts);
+  // TASKS.csv #2640 Stage 2 — the model the structure fit found, run through the same path as any model run (runSurfaceStack: the request, the
+  // clipping, the model check, the lithology block, the record, the notices) as a version of its own beside the original: every surface named
+  // '<name> (fitted)', so nothing of the original run is replaced. The specs come from the fitted record (lib/structFit.js recordWithFit: the run
+  // as it was sent with the fitted heights), in the run's own frame (the record keeps project coordinates; a run's specs are those less its
+  // origin). A unit's codes stay its original name, so the model check reads the same logged codes.
+  const runFittedModel = async (record) => {
+    if (!record?.surfaces?.length) return;
+    const specs = fittedModelSpecs(record);
+    // the record's own box, cells and range (its extent is in the run's frame already), so '(fitted)' differs from the original only by the moved points
+    const replay = Array.isArray(record.extent) && record.extent.length === 6 && Array.isArray(record.resolution) && record.resolution.length === 3
+      ? { extent: record.extent.map(Number), resolution: record.resolution.map(Number), rangeMultiplier: record.rangeMultiplier ?? null } : null;
+    await runSurfaceStack(specs, { relation: record.relation === "onlap" ? "onlap" : "erode", packages: Number(record.packages) > 0 ? Number(record.packages) : 1, ...(replay ? { replay } : {}) });
+  };
 
   // Shared by the single-unit litho tool and the stratigraphic stack tool below: gathers a unit's
   // interface points (litho interval tops across every hole) and an orientation (real structure
@@ -3038,5 +3073,5 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
     }, 40);
   }; // anisotropy/domains/modelDomainId: TASKS.csv #273
 
-  return { runAlterationModel, runImplicitModel, runNumericModel, runStackModel, runMapModel, runStructuralModel, runVeinModel };
+  return { runAlterationModel, runImplicitModel, runNumericModel, runStackModel, runMapModel, runStructuralModel, runVeinModel, runFittedModel /* #2640 Stage 2 */ };
 }

@@ -191,3 +191,17 @@ export function sectionTextPt(el, { captionPt = 7, placedW = 700 } = {}) {
 export function sectionTextFactor(el, { placedW = 700 } = {}) {
   return el && el.w > 0 ? +(placedW / el.w).toFixed(3) : 1;
 }
+
+// TASKS.csv #3874 (#3716 (6)) — a section picture's first placement and its scale list. A snapshot arrived 176 mm wide on a 432 mm sheet, right of the title, at no round scale, and the
+// scale list offered 1 : 2,500, which is larger than the page. -> the largest picture a round scale gives that fits the room: { n, w, h } (px), or null when no scale in the list fits
+export function roundScaleSize({ worldWidthAtCaptureM, aspect }, scales, maxW, maxH) {
+  if (!(worldWidthAtCaptureM > 0) || !(aspect > 0)) return null;
+  for (const n of [...scales].sort((a, b) => a - b)) {
+    const w = sectionWidthForScale({ worldWidthAtCaptureM }, n);
+    if (w <= maxW && w / aspect <= maxH) return { n, w, h: w / aspect };
+  }
+  return null;
+}
+// does the section picture at 1 : n fit the page (width and height, px)?
+export const sectionFitsPage = (el, n, pageW, pageH) => { const aspect = el.aspect || (el.naturalW && el.naturalH ? el.naturalW / el.naturalH : 1), w = sectionWidthForScale(el, n); return w <= pageW && w / aspect <= pageH; };
+

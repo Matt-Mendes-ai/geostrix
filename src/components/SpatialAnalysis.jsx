@@ -10,7 +10,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
-import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { t as tr, fmtNum } from "../lib/i18n.js"; // TASKS.csv #786; fmtNum: #3817
 import { isMetricProjectedEpsg } from "../lib/reproject.js"; // TASKS.csv #2247
 
 // TASKS.csv #51 — Voronoi tessellation + polygonal declustering panel. Opened from GeophysicsModule
@@ -196,8 +196,8 @@ export default function SpatialAnalysis({ points, surveys = [], onClose }) {
 
               {shape?.is3D && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("A 3D point cloud ({lo} to {hi} m elevation): these cells and means are over its plan projection, as if every point lay on one surface. Points at the same plan position count once.", { lo: Math.round(shape.zMin).toLocaleString(), hi: Math.round(shape.zMax).toLocaleString() })}</div>}{/* #1783 */}
               {shown.of !== valid && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Elevation {lo} to {hi} m only.", { lo: lo === -Infinity ? "…" : lo.toLocaleString(), hi: hi === Infinity ? "…" : hi.toLocaleString() })}</div>}{/* #3310 */}
-              <StatRow label={tr("Points")} value={stats.n} />
-              {stats.n < shown.of.length && <StatRow label={tr("Left out (same plan position)")} value={shown.of.length - stats.n} />}{/* #1783 — said, not silent */}
+              <StatRow label={tr("Points")} value={fmtNum(stats.n) /* #3817 (#3815 (2)) — with its separators */} />
+              {stats.n < shown.of.length && <StatRow label={tr("Left out (same plan position)")} value={fmtNum(shown.of.length - stats.n)} />}{/* #1783 — said, not silent */}
               <StatRow label={tr("Naive mean")} value={fmt(stats.naiveMean)} />
               <StatRow label={tr("Declustered mean")} value={fmt(stats.declusteredMean)} highlight />
               {stats.declusteredStd !== null && <StatRow label={tr("Declustered std dev")} value={fmt(stats.declusteredStd)} />}

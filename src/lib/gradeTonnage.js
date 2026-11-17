@@ -47,7 +47,10 @@ export function offersGradeTonnage(model, { categorical = false, geophysProperty
   if ((src === "csv" || src === "blockmodel-csv") && !model.property && !model.params?.element) return false;
   return true;
 }
-const isPrecious = (element) => PRECIOUS.has(String(element || "").trim());
+// TASKS.csv #3825 (#3792 (2)) — a precious-metal equivalent ('AuEq (Au + Ag/80)', 'AgEq') in g/t is reported as the metal it is named after: kg and troy oz,
+// not tonnes ('AuEq (Au + Ag/80) (t) = 8.74' beside the gold's kg and ounces)
+const PRECIOUS_EQ = /^(Au|Ag|Pt|Pd)\s*-?\s*eq(?![a-z])/i;
+const isPrecious = (element) => { const e = String(element || "").trim(); return PRECIOUS.has(e) || PRECIOUS_EQ.test(e); };
 // the metal columns to show / export: [{ key, label, factor }] applied to metalOf's amount (grams or tonnes); [] without a metal
 // TASKS.csv #2548 (review #2486, WA lithium) — 'Metal (t)' was tonnes of Li with no name on it, and Li2O or LCE could not be had: the element
 // column names its element, and an element usually reported as an oxide (or, for lithium, as lithium carbonate equivalent) gets those

@@ -42,8 +42,12 @@ export const blockModelBudgetNote = (b) => (b <= 200000 ? "~0.1 GB of memory" : 
 // TASKS.csv #3654 (5) — re-timed on the build after #3580 (b) / #3655 (Macpass, the whole property, Ag, 10 m cells, ~4 million nodes): 29-58 s
 // (Review 50-58 s), the longest window pause 0.12-0.43 s; the 'window pauses ... at the end' clauses are gone. The 10 / 20 / 50 million
 // times stay upper bounds, not re-measured (the development machine was at 100 % CPU then).
-export const gradeShellBudgetNote = (b) => (b <= 200000 ? "fast, ~3 MB of memory" : b <= 1000000 ? "~20 s, ~13 MB of memory" : b <= 2000000 ? "~40 s, ~26 MB of memory" : b <= 5000000 ? "~1 min, ~65 MB of memory"
-  : b <= 10000000 ? "up to ~5 min, ~0.25 GB of memory" : b <= 20000000 ? "up to ~10 min, ~0.5 GB of memory" : "up to ~25 min, ~1.2 GB of memory");
+// TASKS.csv #3666 (2026-11-17) — 10, 20 and 50 million re-timed on a quiet-ish 32 GB machine (the CPU averaged 42-76 %, OneDrive syncing), in a visible window, each budget on a larger
+// grid than the last (Macpass, the whole property, Ag, 80 m search; the nodes are all the drilled areas' grids): 3.95 million nodes 44 s (+166 MB), 9.35 million 78 s (+289 MB), 18.3 million
+// 200 s (+350 MB), 46.4 million 628 s (+811 MB: the Electron processes' working set above the idle app's 700 MB). Labelled with a margin of 1.5-2 x for the modest laptops this is
+// for: '~1 min', 'up to ~3 min', 'up to ~6 min', 'up to ~20 min'; the memory is the growth measured, and a 50 million run says it needs a computer with 8 GB or more.
+export const gradeShellBudgetNote = (b) => (b <= 200000 ? "fast, ~3 MB of memory" : b <= 1000000 ? "~20 s, ~13 MB of memory" : b <= 2000000 ? "~40 s, ~26 MB of memory" : b <= 5000000 ? "~1 min, about 0.2 GB more memory"
+  : b <= 10000000 ? "up to ~3 min, about 0.3 GB more memory" : b <= 20000000 ? "up to ~6 min, about 0.35 GB more memory" : "up to ~20 min, about 0.8 GB more memory; needs a computer with 8 GB or more");
 export const SHELL_BYTES_PER_BLOCK = 24;
 export const gradeShellBudgetMB = (b) => Math.ceil((b * SHELL_BYTES_PER_BLOCK) / 1e6);
 // the budgets offered on a computer: up to 5 million always (as before #3581), the larger ones where fits(MB) says this computer's memory can

@@ -53,6 +53,13 @@ export default function MapsModule() {
       const all = grouped.files;
       if (!all.length) return;
       const routes = mapsDropRoutes(all.map((f) => f.name)), byName = new Map(all.map((f) => [f.name, f]));
+      // TASKS.csv #3852 (#3833) — an .xyz point file (a survey's points, a loop) was named as not imported: the Geophysics tab reads it (a column picker), as a drop on the 3D View hands it there
+      const xyzFiles = all.filter((f) => /\.xyz$/i.test(f.name));
+      if (xyzFiles.length) {
+        routes.other = routes.other.filter((n) => !/\.xyz$/i.test(n));
+        goToModule?.("geophysics"); requestModuleAction("geophysics-drop", { files: xyzFiles });
+        if (!routes.raster.length && !routes.vector.length && !routes.table.length && !routes.other.length && !grouped.unmatched.length) return;
+      }
       const files = routes.raster.map((n) => byName.get(n)), others = [...routes.other, ...grouped.unmatched.map((f) => f.name)];
       const toViewer = [], notes = [];
       const crsReady = !!project?.epsg && project?.crsSet !== false; // an unset project CRS: the 3D view's import adopts the file's (#607)

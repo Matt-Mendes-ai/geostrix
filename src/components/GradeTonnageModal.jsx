@@ -103,6 +103,8 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
   const topCut = topCutOf(model.params); // #3783
   // TASKS.csv #3788 — the elements of this estimate that were mostly the detection floor and were kept as low grades: their contained metal is largely the limit, not a measurement
   const floorKept = (Array.isArray(model.params?.floorValues) ? model.params.floorValues : []).filter((f) => (f.mode || "keep") === "keep");
+  // TASKS.csv #3825 (#3788) — a member over half on the floor: its 'contained metal' would be mostly the limit times the tonnes (the review's 7,730,000 oz of silver), so none is given
+  const floorHeavy = new Set(floorKept.filter((f) => Number(f.sharePct) > 50).map((f) => f.symbol));
   const beyondKnown = !!model.params?.beyondFlagged; // #2417 — blocks above / below every sample informing them
   const logKnown = Number(model.params?.unsampledLogFilledM) > 0; // #2721 — unsampled metres filled from a picked log
   // TASKS.csv #2550 (review #2486) — a density per code of a logged layer (Weathering: fresh rock about 2.7, clay-weathered 1.8-2.0), each block
@@ -189,7 +191,8 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
   // TASKS.csv #3270 (Galore Creek review) — with a density per block, a row counts only the blocks that have one; the others are counted apart
   const perBlock = !!(byModel?.of || byCode?.of), noDensCol = perBlock && rows.some((r) => r.noDensityBlocks > 0), noDensBench = perBlock && benchRows.some((r) => r.noDensityBlocks > 0);
   // TASKS.csv #3274 — the set's other elements' contained metal beside their means (with tonnes)
-  const memberMcols = useMemo(() => members.map((m) => metalColumns(metalOf(m.unit), m.element)), [members]);
+  const memberMcols = useMemo(() => members.map((m) => (floorHeavy.has(m.element) ? [] : metalColumns(metalOf(m.unit), m.element))), [members, model.params?.floorValues]); // floorHeavy follows model.params.floorValues
+  const metalMembers = members.map((m) => (floorHeavy.has(m.element) ? { ...m, skipMetal: true } : m)); // #3825 — for the CSV's columns
   const memberMetalOn = tonnesOn && !!means && members.length > 0 && memberMcols.some((c) => c.length);
   const memberMetalLabel = (c, el) => (c.args ? tr(c.label, c.args) : c.key === "metal_kg" ? tr("{el} (kg)", { el }) : c.key === "metal_oz" ? tr("{el} (troy oz)", { el }) : tr(c.label));
   const shown = rows.find((r) => r.blocks > 0) || null, lowSupport = shown?.interpolatedShare != null && shown.interpolatedShare < 0.5;
@@ -205,7 +208,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
     const vname = valueColumnName(model);
     const out0 = gradeTonnageRows(rows, { vname, density: tonnesOn ? (rho || (byModel ? "from the density model" : "by code")) : null /* #3012: the tonnes column with a density model; #2637: or by code */, metal, columns: mcols, pctOf: cutoffPct(1, element, unit) != null ? (v) => cutoffPct(v, element, unit) : null }); // #1017 — rows in lib, tested; columns: #1577
     const extra = means ? memberMeanColumns(means, members.map((m) => ({ col: m.col, element: m.element }))) : null; // #3014 part b — the set's other elements beside the grade
-    const extraM = memberMetalOn ? memberMetalColumns(means, members, { perBlock, rho }) : null; // #3274 — the members' contained metal
+    const extraM = memberMetalOn ? memberMetalColumns(means, metalMembers, { perBlock, rho }) : null; // #3274 — the members' contained metal
     const out = extra ? out0.map((r, i) => ({ ...r, ...extra[i], ...(extraM ? extraM[i] : {}) })) : out0;
     const stamp = stampLines({ tool: "Grade-tonnage table", version: APP_VERSION, epsg, params: [
       ...(pooled ? [poolBasisLine(pooled)] : []), // #3598
@@ -228,7 +231,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
     const benchOut = byBench && benchRows.length ? benchRows.map((r) => ({ bench_floor_rl: Math.round(r.floorRL * 100) / 100, cutoff: benchCut, blocks: r.blocks, volume_m3: Math.round(r.volumeM3), [`mean_${vname}`]: r.meanGrade == null ? "" : Number(r.meanGrade.toPrecision(5)), ...(tonnesOn ? { tonnes: Math.round(r.tonnes || 0) } : {}), ...(tonnesOn && metal ? Object.fromEntries(mcols.map((c) => [c.key, r.metal == null ? "" : Number((r.metal * c.factor).toPrecision(6))])) : {}), /* #1577 */ ...(r.interpolatedShare != null ? { interpolated_pct: Math.round(r.interpolatedShare * 100) } : {}) })) : null; // #1957
     // TASKS.csv #3171 — the set's other elements per bench, in the main table's column names (rows in the same order: highest bench first)
     const benchExtra = benchOut && benchMeans ? memberMeanColumns(benchMeans, members.map((m) => ({ col: m.col, element: m.element }))) : null;
-    const benchExtraM = benchExtra && memberMetalOn ? memberMetalColumns(benchMeans, members, { perBlock, rho }) : null;
+    const benchExtraM = benchExtra && memberMetalOn ? memberMetalColumns(benchMeans, metalMembers, { perBlock, rho }) : null;
     if (benchExtra) benchOut.forEach((r, i) => Object.assign(r, benchExtra[i], benchExtraM ? benchExtraM[i] : {}));
     saveFile({ suggestedName: `${String(model.name).replace(/[^a-z0-9_-]+/gi, "_")}_grade_tonnage${solid ? "_inside_solid" : ""}${benchOut ? "_by_bench" : ""}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(benchOut || out), stamp) });
   };
@@ -363,6 +366,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
         </div>}
         {floorKept.length > 0 && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.5 }}>{/* TASKS.csv #3788 */}
           {tr("Mostly the detection floor: {list}. The half-limit was kept as a low grade, so the contained metal of these elements is largely the detection limit, not a measurement.", { list: floorKept.map((f) => (f.kind === "flagged" ? tr("{el} ({pct}% of results below detection, stored at about {floor})", { el: f.symbol, pct: f.sharePct, floor: +Number(f.floor).toPrecision(3) }) : tr("{el} ({pct}% of results at {floor})", { el: f.symbol, pct: f.sharePct, floor: f.floor }))).join("; ") })}
+        {floorHeavy.size > 0 && members.some((m) => floorHeavy.has(m.element)) && <> {tr("{list}: more than half of the results are on the floor, so no contained metal is given for them.", { list: members.filter((m) => floorHeavy.has(m.element)).map((m) => m.element).join(", ") })}</>}{/* #3825 */}
         </div>}
         {pooled && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{/* #3598 */}
           {pooled.years ? tr("This model pools {n} holes drilled {from}–{to} ({decades}).", { n: pooled.holes, from: pooled.years.min, to: pooled.years.max, decades: decadesText(pooled.years) }) : tr("This model pools {n} holes.", { n: pooled.holes })}

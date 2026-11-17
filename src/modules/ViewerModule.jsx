@@ -508,7 +508,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // TASKS.csv #336 — latest survey/layers for import notices. commitImportData is reached through the
   // multi-file queue's long-lived callback, whose closure can hold stale store values.
   const importStateRef = useRef({});
-  importStateRef.current = { survey: store.survey, layers: store.layers, collars: store.collars, project: store.project, terrain: store.terrain, addMapLayer: store.addMapLayer, projectIsEmpty: store.projectIsEmpty, setEpsg: store.setEpsg, setAzimuthNorth: store.setProjectAzimuthNorth /* #3588 (6) */, rasters: store.rasters, voxelModels: store.voxelModels, surfaceSamples: store.surfaceSamples, mapLayers: store.mapLayers /* #2019 */ }; // rasters / voxelModels / surfaceSamples: #1505 // terrain/addMapLayer: #609; projectIsEmpty/setEpsg: #607
+  importStateRef.current = { survey: store.survey, layers: store.layers, collars: store.collars, project: store.project, terrain: store.terrain, addMapLayer: store.addMapLayer, projectIsEmpty: store.projectIsEmpty, setEpsg: store.setEpsg, setLocalGrid: store.setLocalGrid, setAzimuthNorth: store.setProjectAzimuthNorth /* #3588 (6) */, rasters: store.rasters, voxelModels: store.voxelModels, surfaceSamples: store.surfaceSamples, mapLayers: store.mapLayers /* #2019 */ }; // rasters / voxelModels / surfaceSamples: #1505 // terrain/addMapLayer: #609; projectIsEmpty/setEpsg: #607
   // TASKS.csv #226/#214 — cursor's own tiny context (see store.jsx's CursorProvider comment): this
   // component calls setCursor() on every pointermove but never actually reads the live cursor VALUE
   // anywhere in its own render output (only the status bar in App.jsx does), so subscribing here only
@@ -5023,8 +5023,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       } catch (e) { setNotices((p) => [...p, errorNotice(tr("Couldn't load the sample project: {message}", { message: e.message }))]); }
       return;
     }
-    if (which === "blake") { // TASKS.csv #2829 — gravity grid + stations, no drillhole tables: lib/sampleBlakeRiver.js
-      try { const { loadBlakeRiver } = await import("../lib/sampleBlakeRiver.js"); const notes = await loadBlakeRiver(async (rel) => (await loadSampleFiles("blake_river", [rel]))[0], store, store.project); setNotices((p) => [...p, ...notes]); }
+    if (which === "blake" || which === "osborne") { // TASKS.csv #2829; #2006 — a point survey + a grid, no drillhole tables: lib/samplePointGrid.js
+      try { const { loadPointGridSample, POINT_GRID_DIRS } = await import("../lib/samplePointGrid.js"); const notes = await loadPointGridSample(which, async (rel) => (await loadSampleFiles(POINT_GRID_DIRS[which], [rel]))[0], store, store.project); setNotices((p) => [...p, ...notes]); }
       catch (e) { setNotices((p) => [...p, errorNotice(tr("Couldn't load the sample project: {message}", { message: e.message }))]); }
       return;
     }
@@ -5050,7 +5050,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       return;
     }
     const ok = await loadSampleProject(which);
-    if (ok && which !== "wa_uranium" && (which.startsWith("wa_") || which.startsWith("qld_") || which.startsWith("yk_" /* #3496 */))) { // TASKS.csv #3107 — assays, surface samples, downhole logs and a grid: lib/sampleWa.js
+    if (ok && which !== "wa_uranium" && (which.startsWith("wa_") || which.startsWith("qld_") || which.startsWith("yk_" /* #3496 */) || which === "geomet" /* #2006 */)) { // TASKS.csv #3107 — assays, surface samples, downhole logs and a grid: lib/sampleWa.js
       try {
         const { loadWaSampleExtras, WA_SAMPLES } = await import("../lib/sampleWa.js");
         if (WA_SAMPLES[which].showFirst) showOnLoad.current = WA_SAMPLES[which].showFirst; // #3588 (1) — before the load: the element is switched on when its assays land

@@ -20,6 +20,7 @@ import { cappedNotice, capRemovedMapLayers, vertexCount, BIG_VERTICES } from "./
 import { capUndoTables, tableCapNotice } from "./undoTableCap.js"; // TASKS.csv #2894
 import { calcUndoToken, applyCalcUndo } from "./calcUndo.js"; // TASKS.csv #3110
 import { rowsOf, isTable } from "./rowTable.js"; import { publishedLayers, internalLayers, elementsWithValuesOf } from "./tableFields.js"; // TASKS.csv #3424 — the store adapter
+import { noteRemovedLayers, releaseUnheld } from "./mapLayerRelease.js"; // TASKS.csv #2824
 import { useLatestCallback } from "./useLatestCallback.js"; // TASKS.csv #2769 follow-up — callbacks that keep only the current render's scope (the file says why)
 import { sectionWindowsMayClose, EXPORT_RESULT_EVENT } from "./desktop.js"; // TASKS.csv #2620; EXPORT_RESULT_EVENT: #2806
 import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveWriteParts /* #1975 */, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
@@ -1758,6 +1759,7 @@ export function StoreProvider({ children }) {
     const capped = capRemovedMapLayers(undoPast.current, [undoPrevSnapshot.current?.mapLayers]);
     if (capped.dropped) { undoPast.current = capped.steps; sayUndoCap(capped.names); }
     capTables([undoPrevSnapshot.current]); // #2894
+    releaseRemovedLayers(); // #2824 — a big layer the cap dropped (or the oldest step took) and the project no longer has is let go
     setUndoCount(undoPast.current.length);
     setRedoCount(0);
   });
@@ -1810,6 +1812,7 @@ export function StoreProvider({ children }) {
       const capped = capRemovedMapLayers(undoPast.current, [undoSnapshotRef.current()?.mapLayers, ...undoFuture.current.map((s) => s?.mapLayers)]); // #2806
       if (capped.dropped) { undoPast.current = capped.steps; sayUndoCap(capped.names); }
       capTables([undoSnapshotRef.current(), ...undoFuture.current]); // #2894
+      releaseRemovedLayers(); // #2824
     }
     if (!undoPast.current.length) return null;
     // TASKS.csv #3616 — the last thing done was a view change (not in this history): the first Ctrl+Z says so (the window shows it: undoMessage's viewOnly),
@@ -1844,11 +1847,25 @@ export function StoreProvider({ children }) {
   });
   const peekRedo = useLatestCallback(() => { const top = undoFuture.current[undoFuture.current.length - 1]; return top ? { keys: changedKeys(undoSnapshotRef.current(), top) } : null; });
 
-  const clearUndoHistory = useCallback(() => {
+  // TASKS.csv #2824 — a big map layer that has left the project and every undo / redo step (and every other workspace tab) is emptied in place
+  // (lib/mapLayerRelease.js: an older render's closure context of the 3D View kept the list holding it alive, whatever the history did)
+  const prevMapLayersRef = useRef(mapLayers);
+  const releaseRemovedLayers = useLatestCallback(() => {
+    const steps = [...undoPast.current, ...undoFuture.current, undoBeforeBurst.current, undoPrevSnapshot.current];
+    const tabs = (autosaveTabsRef.current?.workspaceTabs || []).map((t) => t?.payload?.mapLayers);
+    return releaseUnheld([mapLayers, ...steps.map((st) => st?.mapLayers), ...tabs]);
+  });
+  useEffect(() => {
+    const prev = prevMapLayersRef.current;
+    prevMapLayersRef.current = mapLayers;
+    if (noteRemovedLayers(prev, mapLayers)) setTimeout(() => releaseRemovedLayers(), 0); // after this change's undo step and tab bookkeeping
+  }, [mapLayers, releaseRemovedLayers]);
+  const clearUndoHistory = useLatestCallback(() => { // #2824: useLatestCallback (it now calls releaseRemovedLayers; #2769's rule)
     undoPast.current = []; undoPastAt.current = []; undoFuture.current = []; undoBeforeBurst.current = null; lastOutsideUndo.current = null;
     if (undoDebounceTimer.current) { clearTimeout(undoDebounceTimer.current); undoDebounceTimer.current = null; }
     setUndoCount(0); setRedoCount(0);
-  }, []);
+    setTimeout(() => releaseRemovedLayers(), 0); // #2824 — a layer only the history held
+  });
 
   // TASKS.csv #69 — layout page management (add/switch/rename/delete). Defined here rather than
   // alongside layoutPages/layoutElements above because these call clearUndoHistory, which needs to
