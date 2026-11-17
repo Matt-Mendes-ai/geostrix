@@ -20,7 +20,7 @@ import { cappedNotice, capRemovedMapLayers, vertexCount, BIG_VERTICES } from "./
 import { capUndoTables, tableCapNotice } from "./undoTableCap.js"; // TASKS.csv #2894
 import { calcUndoToken, applyCalcUndo } from "./calcUndo.js"; // TASKS.csv #3110
 import { rowsOf, isTable } from "./rowTable.js"; import { publishedLayers, internalLayers, elementsWithValuesOf } from "./tableFields.js"; // TASKS.csv #3424 — the store adapter
-import { noteRemovedLayers, releaseUnheld } from "./mapLayerRelease.js"; // TASKS.csv #2824
+import { noteRemovedLayers, releaseUnheld, noteRemovedItems, releaseUnheldItems, noteClosedTabs, releaseClosedTabs } from "./mapLayerRelease.js"; // TASKS.csv #2824; the others: #3881
 import { useLatestCallback } from "./useLatestCallback.js"; // TASKS.csv #2769 follow-up — callbacks that keep only the current render's scope (the file says why)
 import { sectionWindowsMayClose, EXPORT_RESULT_EVENT } from "./desktop.js"; // TASKS.csv #2620; EXPORT_RESULT_EVENT: #2806
 import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveWriteParts /* #1975 */, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
@@ -1845,12 +1845,24 @@ export function StoreProvider({ children }) {
 
   // TASKS.csv #2824 — a big map layer that has left the project and every undo / redo step (and every other workspace tab) is emptied in place
   // (lib/mapLayerRelease.js: an older render's closure context of the 3D View kept the list holding it alive, whatever the history did)
+  const RELEASE_ITEM_KEYS = ["rasters", "voxelModels", "omfObjects"];
   const prevMapLayersRef = useRef(mapLayers);
   const releaseRemovedLayers = useLatestCallback(() => {
     const steps = [...undoPast.current, ...undoFuture.current, undoBeforeBurst.current, undoPrevSnapshot.current];
     const tabs = (autosaveTabsRef.current?.workspaceTabs || []).map((t) => t?.payload?.mapLayers);
+    // TASKS.csv #3881 — rasters, block models and point clouds that left the project the same way (their own big fields are emptied), and a closed tab's payload (detached)
+    for (const key of RELEASE_ITEM_KEYS) releaseUnheldItems(key, [live[key], ...steps.map((st) => st?.[key]), ...(autosaveTabsRef.current?.workspaceTabs || []).map((t) => t?.payload?.[key])]);
+    releaseClosedTabs(autosaveTabsRef.current?.workspaceTabs);
     return releaseUnheld([mapLayers, ...steps.map((st) => st?.mapLayers), ...tabs]);
   });
+  const prevItemsRef = useRef({ rasters, voxelModels, omfObjects, tabs: workspaceTabs });
+  useEffect(() => { // #3881 — after the change's undo bookkeeping, as for the map layers
+    const prev = prevItemsRef.current, now = { rasters, voxelModels, omfObjects, tabs: workspaceTabs };
+    prevItemsRef.current = now;
+    let n = noteClosedTabs(prev.tabs, now.tabs);
+    for (const key of RELEASE_ITEM_KEYS) n += noteRemovedItems(key, prev[key], now[key]);
+    if (n) setTimeout(() => releaseRemovedLayers(), 0);
+  }, [rasters, voxelModels, omfObjects, workspaceTabs, releaseRemovedLayers]);
   useEffect(() => {
     const prev = prevMapLayersRef.current;
     prevMapLayersRef.current = mapLayers;
