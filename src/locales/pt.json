@@ -13891,5 +13891,6 @@
   "At {price} {unit}, {rec} % recovery; {costs} on the diluted tonnes. Break-even cut-off {be} {u}. Not included: {list}.": "A {price} {unit}, {rec} % de recuperação; {costs} sobre as toneladas diluídas. Teor de corte de equilíbrio {be} {u}. Não inclui: {list}.",
   "Values read as {p} from the file name (change it under Values are).": "Valores lidos como {p} a partir do nome do arquivo (altere em Os valores são).",
   "No structural trend from this table: the directions with fitted ranges are at most {d}° apart. A trend needs directions at least {min}° apart, or its short axis is only the direction the holes sampled least.": "Nenhuma tendência estrutural a partir desta tabela: as direções com alcances ajustados estão no máximo a {d}° umas das outras. Uma tendência precisa de direções separadas por pelo menos {min}°; senão, seu eixo curto é apenas a direção que os furos amostraram menos.",
-  "{list}: more than half of the results are on the floor, so no contained metal is given for them.": "{list}: mais da metade dos resultados estão no piso de detecção, então nenhum metal contido é dado para eles."
+  "{list}: more than half of the results are on the floor, so no contained metal is given for them.": "{list}: mais da metade dos resultados estão no piso de detecção, então nenhum metal contido é dado para eles.",
+  "The first model's blocks are not one regular grid: it can be worked alone, not joined with another model.": "Os blocos do primeiro modelo não formam uma grade regular: ele pode ser calculado sozinho, não junto com outro modelo."
 }

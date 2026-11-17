@@ -68,3 +68,31 @@ test("wiring: the drop notice leaves with its pane; Values are from a UBC file's
   assert.match(read("../src/components/SpatialAnalysis.jsx"), /value=\{fmtNum\(stats\.n\)/);
   assert.match(read("../src/components/SurfaceQueryModal.jsx"), /!\(m\.colorMode === "discrete" && m\.valueLabels\)/);
 });
+
+test("#3852 (#3809): one model off a lattice can be worked alone; joining it is refused with the reason", async () => {
+  const { blockCalc, joinRefusal } = await import("../src/lib/blockCalc.js");
+  // a UBC-style mesh with two cell heights: not one regular grid
+  const cells = [{ x: 5, y: 5, z: 5, dx: 10, dy: 10, dz: 10, value: 0.01 }, { x: 5, y: 5, z: 12.5, dx: 10, dy: 10, dz: 5, value: 0.002 }, { x: 15, y: 5, z: 5, dx: 10, dy: 10, dz: 10, value: 0 }];
+  const m = { name: "synthetic conductivity", cells };
+  assert.equal(joinRefusal(null, m, { first: true }), null, "the first and only input");
+  assert.match(joinRefusal(null, m), /not one regular grid/);
+  assert.match(joinRefusal(null, { cells: [{ x: 0, y: 0, z: 0, dx: 1, dy: 1, dz: 1, value: 1 }] }, { firstIrregular: true }), /worked alone/);
+  const r = await blockCalc([{ var: "c", model: m }], "1 / c");
+  assert.deepEqual(r.cells.map((c) => c.value), [100, 500]);
+  assert.equal(r.blank, 1, "1 / 0 gives no number");
+  assert.deepEqual([r.cells[1].dz, r.cells[1].z], [5, 12.5], "each block as it is");
+});
+
+test("#3825 (#3792 (2)): a precious-metal equivalent reports kg and troy oz, as the metal it is named after", async () => {
+  const { metalColumns, metalOf } = await import("../src/lib/gradeTonnage.js");
+  const keys = (el) => metalColumns(metalOf("g/t"), el).map((c) => c.key);
+  assert.deepEqual(keys("AuEq (Au + Ag/80)"), ["metal_kg", "metal_oz"]);
+  assert.deepEqual(keys("AgEq"), ["metal_kg", "metal_oz"]);
+  assert.deepEqual(keys("Equant"), ["metal_t"], "a name that only starts with Eq is not one");
+});
+
+test("#3852 (#3833): an .xyz file dropped on the Maps plan goes to the Geophysics tab's import", () => {
+  const m = read("../src/modules/MapsModule.jsx");
+  assert.match(m, /const xyzFiles = all\.filter\(\(f\) => \/\\.xyz\$\/i\.test\(f\.name\)\);/);
+  assert.match(m, /goToModule\?\.\("geophysics"\); requestModuleAction\("geophysics-drop", \{ files: xyzFiles \}\);/);
+});

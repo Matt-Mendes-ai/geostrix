@@ -44,7 +44,7 @@ export default function BlockCalculatorModal({ onClose }) {
   const acRef = useRef(null);
   const picked = inputs.map((x) => ({ ...x, model: models.find((m) => keyOf(m) === x.key) })).filter((x) => x.model);
   const lattice = picked.length ? blockModelLattice(picked[0].model) : null;
-  const choices = models.filter((m) => !picked.some((x) => x.model === m)).map((m) => ({ m, why: joinRefusal(lattice, m) }));
+  const choices = models.filter((m) => !picked.some((x) => x.model === m)).map((m) => ({ m, why: joinRefusal(lattice, m, { first: !picked.length, firstIrregular: picked.length > 0 && !lattice }) })); // first / firstIrregular: #3852 (#3809)
   const set = picked.length ? setMembersOf(picked[0].model, models).filter((m) => !picked.some((x) => x.model === m)) : [];
   const changed = () => { setResult(null); setAdded(null); setError(null); };
   const add = (list) => { setInputs((cur) => { const out = [...cur]; for (const m of list) { if (out.length >= MAX_CALC_INPUTS || out.some((x) => x.key === keyOf(m))) continue; out.push({ key: keyOf(m), var: calcVarFor(m, out.map((x) => x.var)) }); } return out; }); changed(); };

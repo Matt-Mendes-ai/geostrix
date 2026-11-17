@@ -13891,5 +13891,6 @@
   "At {price} {unit}, {rec} % recovery; {costs} on the diluted tonnes. Break-even cut-off {be} {u}. Not included: {list}.": "عند {price} {unit} واسترداد {rec} %؛ {costs} على الأطنان المخفَّفة. حد القطع المتعادل {be} {u}. غير مشمول: {list}.",
   "Values read as {p} from the file name (change it under Values are).": "قُرئت القيم على أنها {p} من اسم الملف (غيّرها في القيم هي).",
   "No structural trend from this table: the directions with fitted ranges are at most {d}° apart. A trend needs directions at least {min}° apart, or its short axis is only the direction the holes sampled least.": "لا اتجاه بنيوي من هذا الجدول: الاتجاهات ذات المدى المطابق تتباعد {d}° على الأكثر. يحتاج الاتجاه إلى اتجاهات متباعدة {min}° على الأقل، وإلا فمحوره القصير هو فقط الاتجاه الذي أخذت الثقوب منه أقل العينات.",
-  "{list}: more than half of the results are on the floor, so no contained metal is given for them.": "{list}: أكثر من نصف النتائج عند حد الكشف، لذا لا يُعطى لها معدن محتوى."
+  "{list}: more than half of the results are on the floor, so no contained metal is given for them.": "{list}: أكثر من نصف النتائج عند حد الكشف، لذا لا يُعطى لها معدن محتوى.",
+  "The first model's blocks are not one regular grid: it can be worked alone, not joined with another model.": "كتل النموذج الأول ليست شبكة منتظمة واحدة: يمكن حسابه وحده، لا ضمّه إلى نموذج آخر."
 }
