@@ -42,7 +42,7 @@ test("the rock table: 121 samples inside the window, oxides as oxides, '<' as be
   assert.ok(s.samples.every((p) => p.x >= BOX[0] && p.x <= BOX[2] && p.y >= BOX[1] && p.y <= BOX[3] && p.z === null && p.medium === "rock"));
   const unit = Object.fromEntries(s.elements.map((e) => [e.symbol, e.unit]));
   assert.deepEqual([unit.Si, unit.Al, unit.Fe, unit.Mg, unit.K, unit.Ni, unit.Au, unit.Y], ["% SiO2", "% Al2O3", "% FeO", "% MgO", "% K2O", "ppm", "ppb", "ppm"]);
-  assert.equal(s.elements.length, 52);
+  assert.equal(s.elements.length, 53); // #3185: the total carbon (C_pct) is the 53rd
   const si = s.samples.map((p) => p.values.Si), tot = s.samples.map((p) => ["Si", "Ti", "Al", "Fe", "Mn", "Mg", "Ca", "Na", "K", "P"].reduce((a, k) => a + (p.values[k] || 0), 0));
   assert.deepEqual([Math.min(...si), Math.max(...si)], [34, 95.4]); // SiO2 as reported, not divided into Si
   assert.ok(tot.every((v) => v > 75 && v < 100.5), `${Math.min(...tot)} to ${Math.max(...tot)}`); // anhydrous oxide totals
@@ -56,7 +56,7 @@ test("the loader adds the two map layers flat (no terrain) and the rocks as surf
     setSurfaceSamples: (fn) => { got.surface = fn(got.surface); }, setSurfaceElements: (fn) => { got.elements = fn(got.elements); } };
   const notes = await loadRegionalSample(dir, fileOf(dir), store, { projectEpsg: 25835 });
   assert.deepEqual(got.layers.map((l) => [l.features.length, l.styleField, l.drapeMode, l.visible]), [[168, "ROCK_NAME", "flat", true], [135, "FAULT_TYPE", "flat", true]]);
-  assert.deepEqual([got.surface.length, got.elements.length, got.terrains.length, got.sets.length], [121, 52, 0, 0]);
+  assert.deepEqual([got.surface.length, got.elements.length, got.terrains.length, got.sets.length], [121, 53, 0, 0]);
   assert.match(said(notes), /Loaded the Central Lapland sample .*121 whole-rock samples/);
   await loadRegionalSample(dir, fileOf(dir), store, { projectEpsg: 25835, existingSurfaceElements: got.elements });
   assert.equal(got.surface.length, 121); // loading twice does not double the samples
@@ -65,4 +65,14 @@ test("the loader adds the two map layers flat (no terrain) and the rocks as surf
 test("the sample is offered, named, translated and licensed where a user reads it", () => {
   checkOffered(dir, { licence: "CC-BY-4.0", who: /Central Lapland sample .*Geological Survey of Finland/, name: "Central Lapland (sample)", inFootnote: "Central Lapland (Geological Survey of Finland" });
   assert.match(read(dir, "README.md").toString("utf8"), /Basic Licence and may not be redistributed/);
+});
+
+test("#3185 the total carbon: C_pct in %, GTK's detection limit written as '<0.05', filled for every sample, read as the element C", () => {
+  const rows = table(dir, "rocks.csv"), vals = rows.map((r) => r.C_pct);
+  assert.equal(vals.length, 121); assert.ok(vals.every((v) => String(v ?? "") !== ""));
+  assert.equal(vals.filter((v) => String(v).startsWith("<")).length, 86);
+  assert.ok(vals.every((v) => Number(String(v).replace("<", "")) >= 0.05 && Number(String(v).replace("<", "")) < 6));
+  const s = waSurface(read(dir, "rocks.csv").toString("utf8"), "rock");
+  const c = s.elements.find((e) => e.symbol === "C"); assert.ok(c, s.elements.map((e) => e.symbol).join());
+  assert.equal(c.unit, "%");
 });

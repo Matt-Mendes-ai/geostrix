@@ -37,25 +37,28 @@ function layer(file, name, geomType, fields) {
   console.log(`${name}.zip: ${feats.length} ${geomType} parts, ${zip.length.toLocaleString()} bytes`);
   return feats;
 }
-layer("bedrock_units_1m.geojson", "bedrock_units", "polygon", [["ROCK_NAME", "ROCK_NAME_"], ["ROCK_CLASS", "ROCK_CLASS_"], ["ASSOC", "ROCK_ASSOCIATION_"], ["ERA", "ERA_"], ["PERIOD", "PERIOD_"],
+// the two map layers are rebuilt only when their GeoJSON is in the folder (a rocks.csv-only rebuild, TASKS.csv #3185, needs just rock_geochem.geojson)
+if (existsSync(path.join(src, "bedrock_units_1m.geojson"))) layer("bedrock_units_1m.geojson", "bedrock_units", "polygon", [["ROCK_NAME", "ROCK_NAME_"], ["ROCK_CLASS", "ROCK_CLASS_"], ["ASSOC", "ROCK_ASSOCIATION_"], ["ERA", "ERA_"], ["PERIOD", "PERIOD_"],
   ["GROUP", "GROUP__"], ["FORMATION", "FORMATION_"], ["SUITE", "SUITE_"], ["LITHODEME", "LITHODEME_"], ["COMPLEX", "COMPLEX_"], ["SETTING", "TECTONIC_SETTING_"]]);
-layer("faults_1m.geojson", "faults", "polyline", [["FAULT_TYPE", "STRUCTURAL_LINE_TYPE_"], ["NAME", "NAME"], ["BASIS", "BASIS_"]]);
+if (existsSync(path.join(src, "faults_1m.geojson"))) layer("faults_1m.geojson", "faults", "polyline", [["FAULT_TYPE", "STRUCTURAL_LINE_TYPE_"], ["NAME", "NAME"], ["BASIS", "BASIS_"]]);
 
 // ---- whole-rock samples -> rocks.csv ----
 // One value per element from the TOTAL methods: XRF for the major oxides (iron as FeO, total) and its trace elements, ICP-MS for the
 // rare earths and other traces, GFAAS for As, Bi, Se, Au, Pd and Te. The ICP-AES columns are an aqua regia (partial) leach and are left
-// out, as are carbon, CO2 and fluorine. Each value has a companion "LRC" column: "<" there means below detection, and the value is then the
+// out, as are CO2 and fluorine; the total carbon (C_TOT_PERCENT, TASKS.csv #3185) is kept as C_pct. Each value has a companion "LRC" column: "<" there means below detection, and the value is then the
 // detection limit, written here as "<value". Rows GTK flags as duplicates (DUPLICATE = D) are left out.
 const OX = [["SiO2", "SIO2"], ["TiO2", "TIO2"], ["Al2O3", "AL2O3"], ["FeO", "FEO"], ["MnO", "MNO"], ["MgO", "MGO"], ["CaO", "CAO"], ["Na2O", "NA2O"], ["K2O", "K2O"], ["P2O5", "P2O5"]].map(([h, c]) => [`${h}_pct`, `${c}_XRF_PERCENT`, `${c}_XRF_LRC`]);
 const el = (sym, method, unit = "PPM") => [`${sym}_${unit === "PPB" ? "ppb" : "ppm"}`, `${sym.toUpperCase()}_${method}_${unit}`, `${sym.toUpperCase()}_${method}_LRC`];
 const TR = [...["Ba", "Cl", "Cr", "Cu", "Ga", "Mo", "Ni", "Pb", "Rb", "S", "Sr", "V", "Zn", "Zr"].map((s) => el(s, "XRF")),
   ...["Ce", "Co", "Dy", "Er", "Eu", "Gd", "Hf", "Ho", "La", "Lu", "Nb", "Nd", "Pr", "Sc", "Sm", "Ta", "Tb", "Th", "Tm", "U", "Y", "Yb"].map((s) => el(s, "ICPMS")),
   ...["As", "Bi", "Se"].map((s) => el(s, "GFAAS")), ...["Au", "Pd", "Te"].map((s) => el(s, "GFAAS", "PPB"))];
+// TASKS.csv #3185 — total carbon, % (GTK's C_TOT_PERCENT with its LRC flag), the last column
+const C = ["C_pct", "C_TOT_PERCENT", "C_TOT_LRC"];
 const all = load("rock_geochem.geojson");
-for (const [, c, l] of [...OX, ...TR]) if (!(c in all[0].properties) || !(l in all[0].properties)) throw new Error(`the service's table has no column ${c} / ${l}`);
+for (const [, c, l] of [...OX, ...TR, C]) if (!(c in all[0].properties) || !(l in all[0].properties)) throw new Error(`the service's table has no column ${c} / ${l}`);
 const BOX = [400000, 7490000, 500000, 7560000];
 const q = (v) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
-const head = ["sample_id", "x", "y", "z", "medium", "rock_type", "rock_group", "composition", "age_group", "sample_type", ...OX.map((c) => c[0]), ...TR.map((c) => c[0])];
+const head = ["sample_id", "x", "y", "z", "medium", "rock_type", "rock_group", "composition", "age_group", "sample_type", ...OX.map((c) => c[0]), ...TR.map((c) => c[0]), C[0]];
 const rows = [];
 let dup = 0, outside = 0;
 for (const f of all) {
@@ -63,7 +66,7 @@ for (const f of all) {
   if (txt(p.DUPLICATE) === "D") { dup++; continue; }
   if (x < BOX[0] || x > BOX[2] || y < BOX[1] || y > BOX[3]) { outside++; continue; }
   const cell = ([, c, l]) => { const v = p[c]; if (v == null || v === "") return ""; const n = Number(v); if (!Number.isFinite(n)) return ""; const s = String(Number(n.toPrecision(6))); return txt(p[l]) === "<" ? `<${s}` : s; };
-  rows.push([txt(p.LABNUM), x.toFixed(0), y.toFixed(0), "", "rock", txt(p.ROCKTYPE).toLowerCase(), txt(p.ROCKTYPEGROUP_), txt(p.COMPOSITION_), txt(p.AGEGROUP), txt(p.SAMTYPE), ...OX.map(cell), ...TR.map(cell)].map((v) => q(String(v))).join(","));
+  rows.push([txt(p.LABNUM), x.toFixed(0), y.toFixed(0), "", "rock", txt(p.ROCKTYPE).toLowerCase(), txt(p.ROCKTYPEGROUP_), txt(p.COMPOSITION_), txt(p.AGEGROUP), txt(p.SAMTYPE), ...OX.map(cell), ...TR.map(cell), cell(C)].map((v) => q(String(v))).join(","));
 }
 if (new Set(rows.map((r) => r.split(",")[0])).size !== rows.length) throw new Error("a sample id is repeated");
 writeFileSync(path.join(out, "rocks.csv"), [head.join(","), ...rows].join("\n") + "\n");
