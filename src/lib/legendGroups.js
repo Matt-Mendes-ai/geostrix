@@ -20,6 +20,19 @@ import { fieldColourer } from "./fieldColours.js"; // TASKS.csv #3553
 
 // the per-element identity hues of assay markers (moved from ViewerModule; TASKS.csv #306)
 export const ASSAY_ELEMENT_COLORS = [0, 1, 2, 3, 4, 5, 6, 7, 11, 14, 15, 8, 10, 13].map((i) => CATEGORICAL_SAFE_COLORS[i]);
+// TASKS.csv #3879 (Matt, v0.1.123: 'a lot of the elements have the same colour by default, specially the one I use the most') — an element's identity hue is its POSITION IN THE
+// PROJECT'S ELEMENT LIST (the chips'), not its place in the pick order: the hue followed the number of elements switched on at the moment it was first switched on (the first
+// one on: always amber), and the classes seeded from it were saved, so after switching elements on one at a time every one of them held the same amber ramp. Here the same
+// element is the same colour whatever else is on, in the chips, the tubes, the legend, the sections, the estimate's blocks and the exports. A symbol not in the list
+// takes a stable hash of its name.
+export function assayHueIndex(symbol, assayElements) {
+  const i = (assayElements || []).findIndex((e) => e?.symbol === symbol);
+  if (i >= 0) return i;
+  let h = 0;
+  for (const ch of String(symbol)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return h % ASSAY_ELEMENT_COLORS.length;
+}
+export const assayHue = (symbol, assayElements) => ASSAY_ELEMENT_COLORS[assayHueIndex(symbol, assayElements) % ASSAY_ELEMENT_COLORS.length];
 // With style.breaks set, colour comes from the first break whose `max` the value is <= (QGIS graduated
 // convention); a value above every break gets the last break's colour. Otherwise the element's hue.
 export function assayColorFor(value, idx, style) {
@@ -105,7 +118,7 @@ export function assayLegendGroups({ assays, assayElements, assayVisible, assayDi
         const last = i === style.breaks.length - 1;
         return [lo == null ? `≤ ${fmt(b.max)} ${unit}` : last ? `> ${fmt(lo)} ${unit}` : `${fmt(lo)}–${fmt(b.max)} ${unit}`, b.color];
       })
-      : [[`${sym} (size = grade)`, assayColorFor(0, idx, style)]]; // #3056 — not "sphere": assays can be drawn along the hole (#2932)
+      : [[`${sym} (size = grade)`, assayColorFor(0, assayHueIndex(sym, assayElements), style)]]; // #3056; #3879 — the element's own hue, not its place among those shown — not "sphere": assays can be drawn along the hole (#2932)
     if (style?.minCutoff != null && Number.isFinite(style.minCutoff)) items.push([`below ${fmt(style.minCutoff)} ${unit} hidden`, "transparent"]);
     return { key: `assay_${sym}`, label: `${sym} (${unit})`, items, grade: !!style?.breaks?.length, alwaysHead: true }; // grade: #1534 — classes low to high; alwaysHead: #2370, a one-element key named
   });

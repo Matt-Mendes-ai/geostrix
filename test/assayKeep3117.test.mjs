@@ -93,7 +93,7 @@ test("a hidden row keeps its hidden scale when moved; helpers", () => {
 
 test("wiring: buildAssaySpheres keeps elements through syncAssayElements, keyed on what their markers depend on", () => {
   const s = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(s, /key: \[assays, assaySource, assayStyle\[sym\], idx, assayShapeFor\(assayStyle\[sym\], drawnAssays\), ranges\[sym\], collars, traces, elementUnits\[sym\]\]/);
+  assert.match(s, /key: \[assays, assaySource, assayStyle\[sym\], idx, assayHueIndex\(sym, assayElements\), assayShapeFor\(assayStyle\[sym\], drawnAssays\), ranges\[sym\], collars, traces, elementUnits\[sym\]\]/);
   assert.match(s, /syncAssayElements\(g, assayKeptRef\.current, specs, \(sym, into\) => \{/);
   assert.match(s, /\{ clearGroup\(g\); assayKeptRef\.current\.clear\(\); return; \}/, "switched off: cleared and forgotten");
 });
