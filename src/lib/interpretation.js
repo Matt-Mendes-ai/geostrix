@@ -102,7 +102,13 @@ function withBbox(layer) {
 // (Lithology: P); RC540 collar'. Project data: English.
 export function tiesText(points) {
   // TASKS.csv #3853 — 'moved 3.2 m' when the snap pulled the click 1 m or more (below that it is the click)
-  const mv = (s) => (Number(s.moved) >= 1 ? `moved ${s.moved} m` : "");
+  // in a plan look the move is the horizontal one ('in plan'), and a large vertical part is said apart: 'moved 0.4 m in plan; the collar is 34 m below where you clicked'
+  const mv = (s) => {
+    const vert = Number(s.vert), says = s.inPlan && Number.isFinite(vert) && vert !== 0;
+    const flat = Number(s.moved) >= 1 || says ? `moved ${s.moved} m${s.inPlan ? " in plan" : ""}` : "";
+    const up = says ? `the ${s.kind === "collar" ? "collar" : "point"} is ${Math.abs(vert)} m ${vert < 0 ? "below" : "above"} where you clicked` : "";
+    return [flat, up].filter(Boolean).join("; ");
+  };
   return (points || []).filter((p) => p?.snap?.hole_id).map(({ snap: s }) => (s.kind === "collar" ? `${s.hole_id} collar${mv(s) ? ` (${mv(s)})` : ""}` : s.kind === "trace" ? `${s.hole_id} ${s.md} m${mv(s) ? ` (${mv(s)})` : ""}` : `${s.hole_id} ${s.md} m (${s.label}${mv(s) ? `, ${mv(s)}` : ""})`)).join("; ");
 }
 
