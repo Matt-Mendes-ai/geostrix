@@ -50,7 +50,7 @@ export default function SectionImageVerticalModal({ image, terrain, onApply, onC
   const th = { padding: "3px 6px", color: "var(--color-text-secondary)", fontWeight: 500, textAlign: "start", borderBottom: "1px solid var(--color-border)" };
   const rmsNow = rmsOf(rows), rmsAfter = rmsOf(after);
   return (
-    <div style={overlay}>
+    <div style={{ ...overlay, alignItems: "flex-start", paddingTop: "4vh" }}>{/* anchored at the top: the table of clicks grows, and a centred box moved the picture under the cursor between two clicks */}
       <div role="dialog" aria-modal="true" aria-label={tr("Match a section image to the terrain")} onClick={(e) => e.stopPropagation()} style={{ width: "min(1060px, 96vw)", maxHeight: "92vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid var(--color-border)" }}>
           <div>

@@ -281,9 +281,8 @@ test("the bridge copies lines both ways; with GeoStrix off it still answers, wit
 
 test("wiring: main (bridge mode, no lock, IPC from the main window only, menu, quit), preload, desktop.js, App.jsx; nothing in the startup bundle", () => {
   const m = read("../electron/main.js");
-  assert.match(m, /const MCP_BRIDGE = process\.argv\.includes\("--mcp-bridge"\);/);
-  assert.match(m, /const gotSingleInstanceLock = isDev \|\| MCP_BRIDGE \? true : app\.requestSingleInstanceLock\(\);/);
-  assert.match(m, /if \(MCP_BRIDGE\) \{[^]*?require\("\.\/mcpBridge"\)\.run\(\{ userDataDir: MCP_BRIDGE_USER_DATA/);
+  assert.ok(!/MCP_BRIDGE|--mcp-bridge/.test(m), "no switch on the application itself: a GUI exe gets no stdin (checked live)");
+  assert.match(m, /const args = \[path\.join\(app\.getAppPath\(\), "electron", "mcpBridgeCli\.js"\)\], env = \{ ELECTRON_RUN_AS_NODE: "1", GEOSTRIX_USER_DATA: app\.getPath\("userData"\) \};/);
   assert.match(m, /const fromMainWindow = \(e\) => !!mainWindow && !mainWindow\.isDestroyed\(\) && e\.sender === mainWindow\.webContents;/);
   for (const ch of ["mcp-status", "mcp-set-enabled", "mcp-stop", "mcp-forget-clients"]) assert.match(m, new RegExp(`ipcMain\\.handle\\("${ch}", \\((e|e, req)\\) => \\(fromMainWindow\\(e\\)`));
   assert.match(m, /ipcMain\.handle\("mcp-config", \(e\) => \{[^\n]*\n\s+if \(!fromMainWindow\(e\)\) return null;/);
@@ -303,4 +302,21 @@ test("wiring: main (bridge mode, no lock, IPC from the main window only, menu, q
   assert.match(app, /else if \(action === "ai-access"\) setAiAccessOpen\(true\);/);
   assert.match(app, /ai\?\.enabled && /);
   const pkg = JSON.parse(read("../package.json")); assert.ok(!Object.keys(pkg.dependencies || {}).some((k) => /modelcontextprotocol/.test(k)), "no SDK: the protocol part is electron/mcpProtocol.js");
+});
+
+test("the CLI entry, run as a real child process on real stdio, reaches the host; a client that ends right after its last line is still answered", async () => {
+  const { spawn } = await import("node:child_process");
+  const dir = tempDir();
+  const { host } = makeHost(dir); await host.setEnabled(true, false);
+  const cli = new URL("../electron/mcpBridgeCli.js", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
+  const child = spawn(process.execPath, [decodeURIComponent(cli)], { env: { ...process.env, GEOSTRIX_USER_DATA: dir }, stdio: ["pipe", "pipe", "pipe"] });
+  let out = ""; child.stdout.setEncoding("utf8"); child.stdout.on("data", (c) => { out += c; });
+  child.stdin.write([rpc(1, "initialize", { clientInfo: { name: "Child Client" } }), rpc(2, "tools/call", { name: "project_summary", arguments: {} }), ""].join("\n"));
+  child.stdin.end(); // the last line is sent and the input ends at once: the answers must still come back
+  const code = await new Promise((res) => child.on("exit", res));
+  const lines = out.split("\n").filter(Boolean).map(parse);
+  assert.equal(code, 0); assert.deepEqual(lines.map((l) => l.id), [1, 2]);
+  assert.equal(JSON.parse(lines[1].result.content[0].text).counts.holes, 3);
+  assert.equal(out.split("\n").filter((l) => l && !l.startsWith("{")).length, 0, "nothing but JSON lines on stdout");
+  host.stop(); fs.rmSync(dir, { recursive: true, force: true });
 });

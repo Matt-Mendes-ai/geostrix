@@ -30,7 +30,7 @@ test("wiring: StripLog starts from the sent choices and sends them; the store, t
   assert.match(sl, /stripSpec: \{ holeId, assaySymbol, extraSymbols, logScale, rangeFrom, rangeTo, pxPerMeter \}/);
   assert.match(sl, /\.\.\.\(replaceElementId \? \{ replaceElementId \} : \{\}\)/);
   const st = read("../src/lib/store.jsx");
-  assert.match(st, /const requestStripLogRedraw = useCallback\(\(req\) => \{ setStripLogRequest\(req\); goToModule\("viewer"\); \}, \[goToModule\]\)/);
+  assert.match(st, /const requestStripLogRedraw = useLatestCallback\(\(req\) => \{ setStripLogRequest\(req\); goToModule\("viewer"\); \}\)/);
   const v = read("../src/modules/ViewerModule.jsx");
   assert.match(v, /if \(!stripLogRequest \|\| !visible\) return;/);
   assert.match(v, /initial=\{stripRedo\?\.spec \|\| null\} replaceElementId=\{stripRedo\?\.elementId \|\| null\}/);

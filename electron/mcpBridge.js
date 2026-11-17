@@ -1,5 +1,5 @@
 "use strict";
-// TASKS.csv #3190 — `GeoStrix.exe --mcp-bridge`: what an AI app (Claude Desktop, any MCP client) starts to talk to the running GeoStrix. It opens no window: it reads the pipe's name and the
+// TASKS.csv #3190 — what an AI app (Claude Desktop, any MCP client) starts to talk to the running GeoStrix (through electron/mcpBridgeCli.js, GeoStrix run as Node). It opens no window: it reads the pipe's name and the
 // per-launch token from <userData>/mcp/endpoint.json (a user-only file, there only while AI App Access is switched on), connects, says the token, and then copies the client's lines (stdin) to
 // GeoStrix and GeoStrix's lines (stdout) back. When GeoStrix is not running or the switch is off it still answers the client, with one error that says what to do, instead of dying silently.
 const net = require("net");
@@ -25,16 +25,18 @@ function answerErrors(stdin, stdout, message) {
     }
   });
 }
+const dbg = (m) => { if (process.env.GEOSTRIX_MCP_DEBUG) try { process.stderr.write(`bridge: ${m}
+`); } catch { /* no stderr */ } };
 function run({ userDataDir, stdin = process.stdin, stdout = process.stdout, stderr = process.stderr, exit = (c) => process.exit(c), connect = net.connect }) {
-  const e = readEndpoint(userDataDir);
+  const e = readEndpoint(userDataDir); dbg(`endpoint ${e ? "found" : "missing"} in ${userDataDir}`);
   const unavailable = () => { stderr.write(`${NOT_RUNNING}\n`); answerErrors(stdin, stdout, NOT_RUNNING); stdin.on("end", () => exit(1)); };
   if (!e) { unavailable(); return; }
   let up = false;
   const sock = connect(e.pipe);
-  sock.on("connect", () => { up = true; sock.write(`GEOSTRIX-MCP ${e.token}\n`); stdin.pipe(sock); sock.pipe(stdout, { end: false }); });
+  sock.on("connect", () => { dbg("connected"); up = true; sock.write(`GEOSTRIX-MCP ${e.token}\n`); stdin.pipe(sock); sock.pipe(stdout, { end: false }); });
   sock.on("error", () => { if (!up) unavailable(); else exit(1); });
-  sock.on("close", () => { if (up) exit(0); });
-  stdin.on("end", () => { try { sock.end(); } catch { /* closed */ } });
+  sock.on("close", () => { dbg("socket closed"); if (up) exit(0); });
+  stdin.on("end", () => { dbg("stdin ended"); try { sock.end(); } catch { /* closed */ } });
 }
 
 module.exports = { run, readEndpoint, NOT_RUNNING };

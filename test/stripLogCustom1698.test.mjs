@@ -9,8 +9,8 @@ const src = readFileSync(new URL("../src/components/StripLog.jsx", import.meta.u
 test("the elements shown in 3D open the log, in their order", () => {
   assert.match(src, /shownElements = \[\]/);
   assert.match(src, /const shownFirst = shownElements\.filter\(\(s\) => symbols\.includes\(s\)\);/);
-  assert.match(src, /useState\(shownFirst\[0\] \|\| symbols\[0\] \|\| ""\)/);
-  assert.match(src, /useState\(shownFirst\.slice\(1, 5\)\)/); // #3141: up to four more
+  assert.match(src, /: shownFirst\[0\] \|\| symbols\[0\] \|\| ""\);/); // TASKS.csv #3873 (a): a log reopened from Layout starts from the choices it was sent with, else as before
+  assert.match(src, /: shownFirst\.slice\(1, 5\)\);/); // #3141: up to four more; #3873 (a): or the choices Layout reopens it with
   const viewer = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(viewer, /shownElements=\{assayDisplayElements\}/);
 });

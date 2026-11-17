@@ -48,12 +48,6 @@ const isDev = !app.isPackaged && process.env.NODE_ENV === "development";
   if (refused.length) { dialog.showErrorBox("GeoStrix", `GeoStrix was started with options it does not accept: ${refused.join(" ")}\n\nStart it from its normal shortcut.`); app.exit(1); }
 }
 
-// TASKS.csv #3190 — `GeoStrix.exe --mcp-bridge`: what an AI app starts to talk to the running GeoStrix (electron/mcpBridge.js). No window, no single-instance lock (it must not be handed to the running copy), and
-// a throw-away profile folder so it never touches the running copy's own; it finds the pipe through the REAL user-data folder, read before the switch.
-const MCP_BRIDGE = process.argv.includes("--mcp-bridge");
-const MCP_BRIDGE_USER_DATA = MCP_BRIDGE ? app.getPath("userData") : null;
-if (MCP_BRIDGE) { try { app.setPath("userData", path.join(app.getPath("temp"), `geostrix-mcp-bridge-${process.pid}`)); } catch (_) { /* the shared profile then: harmless, nothing is opened */ } }
-
 let mainWindow = null;
 const { maxSectionWindows, maxSectionTabs } = require("./sectionCap.js"); // TASKS.csv #1276, #1303
 let pySidecar = null; // Python FastAPI sidecar process (optional — see startPythonSidecar below)
@@ -1658,7 +1652,7 @@ function setTileUserAgent() {
 // last writer won, and either one's autosaveClear deleted the other's only recovery copy), and the second
 // one's Python engine could not bind its port, so #353 blamed "another program". Now the second launch just
 // brings the first window forward and exits; several projects already live side by side as workspace tabs.
-const gotSingleInstanceLock = isDev || MCP_BRIDGE ? true : app.requestSingleInstanceLock(); // dev: a dev window must start beside an installed GeoStrix
+const gotSingleInstanceLock = isDev ? true : app.requestSingleInstanceLock(); // dev: a dev window must start beside an installed GeoStrix
 if (!gotSingleInstanceLock) app.quit();
 // TASKS.csv #914 — a project file opened from Explorer (double-click, "Open with", a file dropped on the shortcut):
 // Windows starts GeoStrix with the file's path on the command line - or, when GeoStrix is already running, hands that
@@ -1749,10 +1743,10 @@ ipcMain.handle("mcp-set-enabled", (e, req) => (fromMainWindow(e) ? mcp().setEnab
 ipcMain.handle("mcp-stop", (e) => (fromMainWindow(e) ? mcp().setEnabled(false, !!readPrefs().mcp?.remember) : { ok: false, error: "Not allowed." }));
 ipcMain.handle("mcp-forget-clients", (e) => (fromMainWindow(e) ? mcp().forgetClients() : { ok: false, error: "Not allowed." }));
 ipcMain.on("mcp-respond", (e, msg) => { if (fromMainWindow(e) && mcpHost && Number.isInteger(msg?.id)) mcpHost.respond(msg.id, msg.payload); });
-ipcMain.handle("mcp-config", (e) => { // the entry an AI app's config takes (Claude Desktop: claude_desktop_config.json): this executable, with the bridge switch
+ipcMain.handle("mcp-config", (e) => { // the entry an AI app's config takes (Claude Desktop: claude_desktop_config.json): this executable run as Node on electron/mcpBridgeCli.js (a GUI program has no stdin; see that file)
   if (!fromMainWindow(e)) return null;
-  const args = app.isPackaged ? ["--mcp-bridge"] : [app.getAppPath(), "--mcp-bridge"];
-  return { command: process.execPath, args, text: JSON.stringify({ mcpServers: { geostrix: { command: process.execPath, args } } }, null, 2) };
+  const args = [path.join(app.getAppPath(), "electron", "mcpBridgeCli.js")], env = { ELECTRON_RUN_AS_NODE: "1", GEOSTRIX_USER_DATA: app.getPath("userData") };
+  return { command: process.execPath, args, env, text: JSON.stringify({ mcpServers: { geostrix: { command: process.execPath, args, env } } }, null, 2) };
 });
 
 // TASKS.csv #589 — Electron grants every web permission by default (camera, microphone, screen capture,
@@ -1770,11 +1764,6 @@ function lockDownPermissions() {
 }
 
 app.whenReady().then(async () => {
-  if (MCP_BRIDGE) { // TASKS.csv #3190 — a bridge, not the app
-    app.dock?.hide?.();
-    require("./mcpBridge").run({ userDataDir: MCP_BRIDGE_USER_DATA, exit: (code) => { try { fs.rmSync(app.getPath("userData"), { recursive: true, force: true }); } catch (_) { /* a temp folder */ } app.exit(code); } });
-    return;
-  }
   if (!gotSingleInstanceLock) return; // #556 — quitting; never open a second window
   lockDownPermissions(); // #589
   markRunning(); // TASKS.csv #598 — did the last session end normally?

@@ -1,7 +1,7 @@
 "use strict";
 // TASKS.csv #3190 (Matt's decisions, 2026-11-17) — the AI-app (Model Context Protocol) server, in the main process, off until the user switches it on in Tools > AI App Access.
 //   * Local only: a named pipe (Windows) or a Unix socket in a per-user folder, never a TCP port, so no web page can reach it; every connection starts with a per-launch token, which is
-//     written (with the pipe's name) to <userData>/mcp/endpoint.json (user-only file) for the bridge `GeoStrix.exe --mcp-bridge` that an AI app starts, and removed when it is switched off.
+//     written (with the pipe's name) to <userData>/mcp/endpoint.json (user-only file) for the bridge (electron/mcpBridgeCli.js, GeoStrix run as Node) that an AI app starts, and removed when it is switched off.
 //   * Read-only: the project lives in the window's store, so each tool call is sent to the window (mcp-request) and answered by src/lib/mcpTools.js. Nothing here touches a file or the project.
 //   * The user is asked the first time an AI app connects (allow once / always allow / don't allow, a native box the window cannot answer), and sees which app is connected and what it called.
 // Electron is injected (getWindow, askAllow, prefs), so a test can run the whole thing on a real pipe.
@@ -11,10 +11,13 @@ const path = require("path");
 const crypto = require("crypto");
 const { createSession } = require("./mcpProtocol.js");
 
+const DEBUG = !!process.env.GEOSTRIX_MCP_DEBUG; // a breadcrumb file for the live checks: events only, never what a tool returned
 const HANDSHAKE_MS = 5000, CALL_TIMEOUT_MS = 30000, MAX_LINE = 64 * 1024, ACTIVITY_KEPT = 60;
 
 function createHost({ userDataDir, getWindow, askAllow, readPrefs, writePrefs, onStatus = () => {}, platform = process.platform, limits }) {
   const dir = path.join(userDataDir, "mcp"), endpointFile = path.join(dir, "endpoint.json");
+  const dbg = (...a) => { if (DEBUG) try { fs.appendFileSync(path.join(dir, "debug.log"), `${new Date().toISOString()} ${a.join(" ")}
+`); } catch { /* no folder */ } };
   let server = null, token = null, pipe = null, seq = 0;
   const conns = new Set(), pending = new Map(), activity = [], clients = new Map(); // clients: name -> { since, calls }
   let calls = 0;
@@ -53,10 +56,11 @@ function createHost({ userDataDir, getWindow, askAllow, readPrefs, writePrefs, o
     let authed = false, buf = "", queue = Promise.resolve(), session = null;
     sock.setEncoding("utf8");
     const kill = () => { try { sock.destroy(); } catch { /* gone */ } };
-    const timer = setTimeout(() => { if (!authed) kill(); }, HANDSHAKE_MS);
-    conns.add(sock);
-    sock.on("close", () => { clearTimeout(timer); conns.delete(sock); const c = session?.client; if (c && ![...conns].some((s) => s !== sock && s._mcpClient === c)) { clients.delete(c); push(); } session?.close(); });
-    sock.on("error", () => kill());
+    const timer = setTimeout(() => { if (!authed) { dbg("handshake timeout"); kill(); } }, HANDSHAKE_MS);
+    conns.add(sock); dbg("connection");
+    sock.on("close", () => { dbg("close"); clearTimeout(timer); conns.delete(sock); const c = session?.client; if (c && ![...conns].some((s) => s !== sock && s._mcpClient === c)) { clients.delete(c); push(); } session?.close(); });
+    sock.on("error", (e) => { dbg("error", e.code); kill(); });
+    sock.on("end", () => { dbg("client ended"); queue.then(() => { try { sock.end(); } catch { /* gone */ } }); });
     sock.on("data", (chunk) => {
       buf += chunk;
       if (buf.length > MAX_LINE) return kill();
@@ -65,13 +69,15 @@ function createHost({ userDataDir, getWindow, askAllow, readPrefs, writePrefs, o
         const line = buf.slice(0, i).replace(/\r$/, ""); buf = buf.slice(i + 1);
         if (!authed) {
           const want = `GEOSTRIX-MCP ${token}`, a = Buffer.from(line), b = Buffer.from(want);
-          if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return kill();
+          if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) { dbg("bad token", a.length, b.length); return kill(); }
+          dbg("authenticated");
           authed = true; clearTimeout(timer);
           session = createSession({ callTool, askAllow: async (c) => { sock._mcpClient = c; return ask(c); }, onActivity: note, ...(limits ? { limits } : {}) });
           continue;
         }
         if (!line.trim()) continue;
-        queue = queue.then(async () => { const out = await session.handleLine(line); if (out && !sock.destroyed) sock.write(`${out}\n`); }).catch(() => {});
+        dbg("line", line.slice(0, 60));
+        queue = queue.then(async () => { const out = await session.handleLine(line); dbg("reply", out ? out.slice(0, 40) : "none"); if (out && !sock.destroyed) sock.write(`${out}\n`); }).catch(() => {});
       }
     });
   }
@@ -84,7 +90,7 @@ function createHost({ userDataDir, getWindow, askAllow, readPrefs, writePrefs, o
         token = crypto.randomBytes(32).toString("hex");
         const id = crypto.randomBytes(6).toString("hex");
         pipe = platform === "win32" ? `\\\\.\\pipe\\geostrix-mcp-${id}` : path.join(dir, `mcp-${id}.sock`);
-        const s = net.createServer(onConnection);
+        const s = net.createServer({ allowHalfOpen: true }, onConnection); // a client that has sent its last line and ended is still answered
         s.once("error", (e) => { server = null; resolve({ ok: false, error: `Could not start: ${e.code || e.message}` }); });
         s.listen(pipe, () => {
           server = s;

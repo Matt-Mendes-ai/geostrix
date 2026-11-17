@@ -964,7 +964,7 @@ export function StoreProvider({ children }) {
     setRequestedModule(name);
     setModuleRequestSeq((s) => s + 1);
   }, []);
-  const requestStripLogRedraw = useCallback((req) => { setStripLogRequest(req); goToModule("viewer"); }, [goToModule]); // TASKS.csv #3873 (a)
+  const requestStripLogRedraw = useLatestCallback((req) => { setStripLogRequest(req); goToModule("viewer"); }); // TASKS.csv #3873 (a)
   const clearStripLogRequest = useCallback(() => setStripLogRequest(null), []);
 
   // TASKS.csv #630 — georeferenced vertical images (scanned / exported cross-sections) standing in the 3D view. Each:

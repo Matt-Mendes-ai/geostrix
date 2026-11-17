@@ -5,6 +5,7 @@
 // (and, with three or more clicks, the scale) that brings the two together. The corners are the only thing changed: z' = pivot + scale x (z - pivot) + offset, the same linear map on all four, so the picture is
 // moved and stretched vertically exactly as the clicks ask and its horizontal placement is untouched.
 import { terrainGroundAt } from "./viewer/geomath.js";
+import { arrMin, arrMax } from "./arrayStats.js";
 
 const finite = (v) => v !== "" && v != null && Number.isFinite(Number(v));
 
@@ -86,7 +87,7 @@ export function fitVertical(rows, mode = "offset") {
   const rmsBefore = rms(rows.map((r) => r.diff));
   if (mode === "scale") {
     const sxx = zi.reduce((t, x) => t + (x - mi) ** 2, 0), sxy = zi.reduce((t, x, i) => t + (x - mi) * (zt[i] - mt), 0);
-    if (n < 3 || Math.max(...zi) - Math.min(...zi) < 5 || !(sxx > 0)) return { error: "To fit the height and the scale, click at least 3 points that differ in height by 5 m or more (the line's highs and lows); or fit the height only." };
+    if (n < 3 || arrMax(zi) - arrMin(zi) < 5 || !(sxx > 0)) return { error: "To fit the height and the scale, click at least 3 points that differ in height by 5 m or more (the line's highs and lows); or fit the height only." };
     const scale = sxy / sxx;
     if (!(scale > 0.25 && scale < 4)) return { error: "That fit would stretch the picture more than 4 times (or flip it): check the clicks, or fit the height only." };
     const offset = mt - mi;
