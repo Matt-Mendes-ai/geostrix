@@ -1,0 +1,117 @@
+[
+  {
+    "name": "project_summary",
+    "description": "Read-only. The open GeoStrix project at a glance: its name, coordinate system, counts (holes, assay intervals, logged intervals per layer, sections), the assay elements with their units, and the data credit. Start here.",
+    "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+  },
+  {
+    "name": "list_holes",
+    "description": "Read-only. The drillholes of the open project, one row each: hole id, collar easting / northing / elevation (project coordinates), azimuth, dip (negative = pointing down), length, and the collar's own fields. Optionally keep only holes whose collar field equals a value. Paged: at most 200 rows per call.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "field": { "type": "string", "maxLength": 64, "description": "A collar field to filter on (for example a drill type or a year). Leave out for every hole." },
+        "value": { "type": "string", "maxLength": 128, "description": "The value the field must equal (compared as text, ignoring case). Needs 'field'." },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 200, "description": "Rows to return (default 50, at most 200)." },
+        "offset": { "type": "integer", "minimum": 0, "description": "Rows to skip, to read the next page." }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "get_hole",
+    "description": "Read-only. One drillhole: its collar, the survey stations (at most 200), the logged intervals of each layer (at most 100 per layer) and how many assay intervals it has. For the assays themselves use get_assays.",
+    "inputSchema": {
+      "type": "object",
+      "properties": { "hole_id": { "type": "string", "minLength": 1, "maxLength": 64, "description": "The hole id, exactly as list_holes gives it." } },
+      "required": ["hole_id"],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "get_assays",
+    "description": "Read-only. Assay intervals (from, to, and the grade of each element asked for) of one hole, or of every hole, optionally between two depths. Grades are in the unit the project stores them in (said in each reply). QA/QC samples (standards, blanks, duplicates) are left out. Paged: at most 200 rows per call.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "hole_id": { "type": "string", "maxLength": 64, "description": "One hole. Leave out for every hole." },
+        "elements": { "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 32 }, "maxItems": 8, "description": "Element symbols as project_summary lists them (for example Au, Cu). Leave out for the first few." },
+        "from": { "type": "number", "description": "Only intervals ending below this depth (m)." },
+        "to": { "type": "number", "description": "Only intervals starting above this depth (m)." },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 200, "description": "Rows to return (default 50, at most 200)." },
+        "offset": { "type": "integer", "minimum": 0, "description": "Rows to skip, to read the next page." }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_layers",
+    "description": "Read-only. The logs of the project (lithology, alteration, veins, structure, geotechnical ...): for each, how many intervals it holds and its most common codes with their meaning where the project has one.",
+    "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+  },
+  {
+    "name": "get_layer_rows",
+    "description": "Read-only. The logged intervals of one layer for one hole (from, to, code or value). Paged: at most 200 rows per call.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "layer": { "type": "string", "minLength": 1, "maxLength": 64, "description": "The layer key list_layers gives (for example litho)." },
+        "hole_id": { "type": "string", "minLength": 1, "maxLength": 64, "description": "The hole id." },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 200, "description": "Rows to return (default 50, at most 200)." },
+        "offset": { "type": "integer", "minimum": 0, "description": "Rows to skip, to read the next page." }
+      },
+      "required": ["layer", "hole_id"],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "grade_stats",
+    "description": "Read-only. Statistics of one element's assay grades: count, mean, minimum, maximum, the percentiles a top cut is chosen from (90, 95, 97.5, 99, 99.5), optionally split by the code of a logged layer (for example lithology) at each sample's mid-depth. QA/QC samples are left out.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "element": { "type": "string", "minLength": 1, "maxLength": 32, "description": "The element symbol." },
+        "domain_layer": { "type": "string", "maxLength": 64, "description": "A layer key to split the statistics by (for example litho). Leave out for one set of statistics." }
+      },
+      "required": ["element"],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "best_intercepts",
+    "description": "Read-only. The best intercepts of one element at a cut-off, as the Best intercepts dialog computes them: composited from the assays with the internal dilution and the minimum length given, uncut. One row per intercept (hole, from, to, length, average grade), best first. Paged: at most 200 rows per call.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "element": { "type": "string", "minLength": 1, "maxLength": 32, "description": "The element symbol." },
+        "cutoff": { "type": "number", "description": "The cut-off grade, in the unit the project stores the element in." },
+        "min_length": { "type": "number", "minimum": 0, "description": "Shortest intercept to report (m). Default 0." },
+        "max_internal_dilution": { "type": "number", "minimum": 0, "description": "Longest run of below-cut-off material allowed inside an intercept (m). Default 2." },
+        "hole_id": { "type": "string", "maxLength": 64, "description": "Only this hole." },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 200, "description": "Rows to return (default 50, at most 200)." },
+        "offset": { "type": "integer", "minimum": 0, "description": "Rows to skip, to read the next page." }
+      },
+      "required": ["element", "cutoff"],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_sections",
+    "description": "Read-only. The cross-sections saved in the project: name, the two end points of the line, its azimuth, its length and the width of the corridor it shows.",
+    "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+  },
+  {
+    "name": "get_section",
+    "description": "Read-only. What lies along one saved section as text: the holes whose collars are inside its corridor, each with its distance along the line and its offset from it, and optionally the intercepts of one element at a cut-off in those holes.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "section": { "type": "string", "minLength": 1, "maxLength": 128, "description": "The section's name (or id) as list_sections gives it." },
+        "element": { "type": "string", "maxLength": 32, "description": "An element symbol, to add the intercepts at 'cutoff' in the section's holes." },
+        "cutoff": { "type": "number", "description": "The cut-off grade for 'element'." }
+      },
+      "required": ["section"],
+      "additionalProperties": false
+    }
+  }
+]

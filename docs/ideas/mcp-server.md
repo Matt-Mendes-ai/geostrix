@@ -1,6 +1,14 @@
 # GeoStrix as a Model Context Protocol server (TASKS.csv #3190): design note
 
-Status: design only, for Matt's decisions. Nothing is built. Written 2026-11-17.
+Status: v1 BUILT 2026-11-17 on Matt's answers (pipe / socket + `--mcp-bridge`; off unless 'keep it on' is ticked; the PNG snapshot later, v1.1; the per-client allow prompt; phase 3 and the review harness left undecided). Written 2026-11-17.
+
+## What was built (differences from the design below)
+- **No SDK.** MCP over stdio is newline-delimited JSON-RPC 2.0; the part GeoStrix needs (initialize, ping, tools/list, tools/call) is `electron/mcpProtocol.js`, about 150 lines with no dependency, so there is no new package to ship, license or keep up to date.
+- **Ten tools**, not eight: the table's `list_layers` / `get_layer_rows` and `list_sections` / `get_section` are each two (`electron/mcpToolDefs.json` is the one list; a test keeps the code and the list the same).
+- **Files:** `electron/mcpProtocol.js` (protocol, argument checks, scrubbing, caps, rate limit), `electron/mcpHost.js` (the pipe, the token, the endpoint file, the allow list, the call into the window), `electron/mcpBridge.js` (`GeoStrix.exe --mcp-bridge`), `src/lib/mcpTools.js` (the tools, in a lazy chunk), `src/components/AiAccessModal.jsx` (Tools > AI App Access: the switch, 'keep it on', the privacy notice, the entry to copy, the connected apps, Stop, the activity list), a status-bar indicator, and main.js's wiring (bridge mode before the single-instance lock; IPC accepted from the main window only; the first-connection question as a native box whose default button is 'Don't allow').
+- **Guards, twice** (main and window): schema check of every argument, paths and credential-like names refused, 200 rows and ~90 kB a call, 60 calls a minute, replies scrubbed of credential-like fields and absolute paths, an error from inside the app never forwarded.
+- **Not verified live (the app could not be run when this was written):** that a packaged GeoStrix.exe started as `--mcp-bridge` by Claude Desktop passes stdin / stdout through (a GUI-subsystem Electron exe); the fallback is `ELECTRON_RUN_AS_NODE=1` with a small script. The pipe, the token, the protocol and the bridge are tested on a real pipe in `test/mcpServer3190.test.mjs`.
+
 
 ## What it is
 An optional, local server so the user's own AI app (Claude Desktop, or any MCP client) can **read the open project** while they work. No model is bundled and nothing leaves the computer except what the user's AI app then sends to its own provider (said plainly in the app, in PRIVACY.md and on the website privacy pages).

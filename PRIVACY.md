@@ -61,6 +61,16 @@ GeoStrix's built-in spell checker is turned off, so no spelling dictionary is ev
 If you never use basemaps, terrain, satellite imagery, public geochemistry, Macrostrat geology, updates, the add-on download,
 the BC sample downloads, databases or WMS layers, GeoStrix makes no network connections at all.
 
+## AI app access (optional, off by default)
+
+**Tools → AI App Access** lets an AI app you already use (for example Claude Desktop) read the project that is open in GeoStrix. It is read-only: the AI app can ask for the list of holes and their collar fields, assay grades, logged intervals, sections, grade statistics and best intercepts, and nothing else. It cannot change the project, open files, see a file path or use a password, and what it asks for is limited to a page of rows at a time.
+
+**What the AI app receives leaves GeoStrix.** The answers go to that AI app and from there to the AI provider it uses (for example Anthropic for Claude), under that provider's terms and privacy policy. Switch it on only for a project you may share with that provider. GeoStrix itself makes no network connection for this feature: the link between GeoStrix and the AI app is a private pipe on your computer (no network port), protected by a code made fresh each time GeoStrix starts.
+
+It is off by default; it turns itself off when GeoStrix closes unless you tick *Keep it on when GeoStrix restarts*; GeoStrix asks you the first time each AI app connects; the status bar shows it while it is on, and the window lists everything the AI app asked for; you can stop it at any time.
+
+See `docs/ideas/mcp-server.md` for the design.
+
 ## The Python sidecar
 
 The optional Python sidecar used for implicit modelling and the geophysical inversions runs locally and binds to `127.0.0.1` only. It

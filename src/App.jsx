@@ -20,7 +20,7 @@ import ExportToast from "./components/ExportToast.jsx"; // TASKS.csv #1042 — e
 const UpdatePrompt = React.lazy(() => import("./components/UpdatePrompt.jsx")); // TASKS.csv #915 — loaded only when an update exists
 import { activateOnKey } from "./lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 import { DESURVEY_METHODS } from "./lib/desurvey.js"; // TASKS.csv #135 — status-bar desurvey-method picker
-import { closeSectionWindows } from "./lib/desktop.js"; // TASKS.csv #2516
+import { closeSectionWindows, onMcpRequest, mcpStatus, onMcpStatus } from "./lib/desktop.js"; // TASKS.csv #2516; the AI App Access pieces: #3190
 import { EXPORT_RESULT_EVENT, onMenu, onSectionSnapshot, onSectionContacts, takeLaunchFile, onLaunchFile, pythonHealth, isSidecarRunning, onUpdaterEvent, downloadUpdate, installUpdate, isDesktop, setDirtyState, captureWindow, problemReportInfo } from "./lib/desktop.js";
 import ViewerModule from "./modules/ViewerModule.jsx";
 // TASKS.csv #438 — memoised so a store write while the viewer is hidden (FreezeStore below) skips it entirely
@@ -48,6 +48,7 @@ const DrillTableModal = React.lazy(() => import("./components/DrillTableModal.js
 const HelpPane = React.lazy(() => import("./components/HelpPane.jsx")); // TASKS.csv #1966 — offline help, loaded on first use
 const ReportProblemModal = React.lazy(() => import("./components/ReportProblemModal.jsx")); // TASKS.csv #598
 const LicensesModal = React.lazy(() => import("./components/LicensesModal.jsx")); // TASKS.csv #639
+const AiAccessModal = React.lazy(() => import("./components/AiAccessModal.jsx")); // TASKS.csv #3190
 const SampleDownloadModal = React.lazy(() => import("./components/SampleDownloadModal.jsx")); // TASKS.csv #3100
 const ProjectCrsModal = React.lazy(() => import("./components/ProjectCrsModal.jsx")); // TASKS.csv #615
 const TableColumnsModal = React.lazy(() => import("./components/TableColumnsModal.jsx")); // TASKS.csv #2177
@@ -205,6 +206,10 @@ export default function App() {
   // dialog opens, so the picture shows the problem, not the dialog
   const [reportProblem, setReportProblem] = useState(null);
   const [licensesOpen, setLicensesOpen] = useState(false); // #639
+  const [aiAccessOpen, setAiAccessOpen] = useState(false); // TASKS.csv #3190
+  // TASKS.csv #3190 — an AI app's question about the open project (only ever sent while AI App Access is on) is answered from a snapshot of the store by src/lib/mcpTools.js, loaded on the first one
+  const storeNow = useRef(store); storeNow.current = store;
+  useEffect(() => onMcpRequest(() => { const s = storeNow.current; return { project: s.project, collars: s.collars, survey: s.survey, layers: s.layers, assays: s.assays, assayElements: s.assayElements, sections: s.sections, codeDictionary: s.codeDictionary, desurveyMethod: s.desurveyMethod }; }), []);
   const [lastExitUnclean, setLastExitUnclean] = useState(false);
   const openReportProblem = async (crashed = false) => {
     let screenshot = null;
@@ -461,6 +466,7 @@ export default function App() {
       else if (action === "about") setShortcutsTab("about");
       else if (action === "report-problem") openReportProblem(); // #598
       else if (action === "licenses") setLicensesOpen(true); // #639
+      else if (action === "ai-access") setAiAccessOpen(true); // TASKS.csv #3190
       else if (typeof action === "string" && action.startsWith("sample:")) { const which = action.slice(7); openSample(which); } // #1120; a BC sample not on this computer asks to download it first: #3100
       else if (action === "undo") undoSay();
       else if (action === "redo") redoSay();
@@ -671,11 +677,12 @@ export default function App() {
       </div>
       </RibbonSlotContext.Provider>
 
-      <StatusBar worldCursor={viewerShown || active === "maps"} /* #3229 — Layout's cursor is in page units */ onEpsg={() => requestProjectCrs()} pyStatus={pyStatus} updater={updater} onHelp={() => openHelp(null) /* TASKS.csv #3534 — the Help button opens Help; shortcuts and About are one click inside it */} onPython={() => setShortcutsTab("python")} />
+      <StatusBar worldCursor={viewerShown || active === "maps"} /* #3229 — Layout's cursor is in page units */ onEpsg={() => requestProjectCrs()} pyStatus={pyStatus} updater={updater} onHelp={() => openHelp(null) /* TASKS.csv #3534 — the Help button opens Help; shortcuts and About are one click inside it */} onPython={() => setShortcutsTab("python")} onAiAccess={() => setAiAccessOpen(true)} />
       <ExportToast />
       {subsetRequest && <Suspense fallback={null}><TableColumnsModal name={subsetRequest.name} preview={subsetRequest.preview} budget={subsetRequest.budget} onDone={(v) => { subsetRequest.resolve(v); setSubsetRequest(null); }} /></Suspense>}
       {crsRequest && <Suspense fallback={null}><ProjectCrsModal reason={crsRequest.reason} points={crsRequest.points} suggested={crsRequest.suggested} noLocalGrid={!!crsRequest.noLocalGrid} family={crsRequest.family || null} onDone={finishCrsRequest} /></Suspense>}
       {licensesOpen && <Suspense fallback={null}><LicensesModal onClose={() => setLicensesOpen(false)} /></Suspense>}
+      {aiAccessOpen && <Suspense fallback={null}><AiAccessModal onClose={() => setAiAccessOpen(false)} /></Suspense>}{/* TASKS.csv #3190 */}
       {sampleAsk && <Suspense fallback={null}><SampleDownloadModal id={sampleAsk} onClose={() => setSampleAsk(null)} onReady={(which) => { setSampleAsk(null); markSampleDownloaded(which); requestSampleProject(which); setActive(which === "perk" ? "surface" : "viewer"); }} /></Suspense>}{/* #3100 */}
       {reportProblem && <Suspense fallback={null}><ReportProblemModal screenshot={reportProblem.screenshot} crashed={reportProblem.crashed} onClose={() => setReportProblem(null)} /></Suspense>}
       {helpAt && <Suspense fallback={null}><HelpPane key={helpAt.n} initialId={helpAt.id} area={MODULES.find((m) => m.id === active)?.label || null} onClose={() => setHelpAt(null)} /></Suspense>}{/* #1966 */}
@@ -731,7 +738,10 @@ function WorkspaceTabBar({ tabs, activeTabId, activeDirty, activeName, onSwitch,
   );
 }
 
-function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, worldCursor = true }) {
+function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, onAiAccess, worldCursor = true }) {
+  // TASKS.csv #3190 — while AI App Access is on, the bar says so (and which AI app is connected); a click opens the window with its Stop button
+  const [ai, setAi] = useState(null);
+  useEffect(() => { let live = true; mcpStatus().then((s) => { if (live) setAi(s); }); const off = onMcpStatus((s) => live && setAi(s)); return () => { live = false; off(); }; }, []);
   const { project, collars, desurveyMethod, setDesurveyMethod, activeTabId } = useStore();
   // TASKS.csv #3619 (Fireweed rehearsal) — autosave worked and survived a kill, but nothing on screen said it ran: the time of the last one beside the project name (store.jsx announces it)
   const [autosavedAt, setAutosavedAt] = useState(null);
@@ -786,6 +796,11 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, worldCursor = 
         <span aria-hidden="true" style={{ border: "1px solid var(--color-border-light)", borderRadius: "50%", width: 16, height: 16, lineHeight: "14px", textAlign: "center", fontSize: "var(--font-size-sm)" }}>?</span>
       </button>
       {/* TASKS.csv #391 — a button now: opens Help › Python features (was a hover-only README pointer) */}
+      {ai?.enabled && (() => { const names = (ai.clients || []).map((c) => c.name).join(", "), label = names ? tr("AI app: {names}", { names }) : tr("AI app access: on"); return (
+        <button type="button" onClick={() => onAiAccess?.()} title={tr("An AI app can read this project (read-only). Click to see what it asked for, or to stop it.")} aria-label={label}
+          style={{ background: "none", border: "none", color: "var(--color-warn-text)", padding: 0, font: "inherit", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+          <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--color-warn-text)", display: "inline-block" }} />{label}
+        </button>); })()}
       <button type="button" onClick={() => onPython?.()} title={pyLabel} aria-label={pyLabel}
         style={{ background: "none", border: "none", color: "inherit", padding: 0, font: "inherit", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
         <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: pyColor, display: "inline-block" }} />{tr("Py:")}{" "}{pyStatus === "connected" ? tr("on") : pyStatus === "checking" ? "…" : pyStatus === "standby" ? tr("idle") : tr("off")}
