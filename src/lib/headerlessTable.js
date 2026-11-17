@@ -1,5 +1,5 @@
 // TASKS.csv #3805 (Scottie Gold geophysics review) — a hole trace of 38 lines of 'X Y Z' and no header line lost its first point in Point survey > Import CSV: the
-// reader took the first reading as the column names ('431797.62', '6231479.74', '1344.96'), and 37 of the 38 points came in, the collar the one missing. A first row
+// reader took the first reading as the column names ('531797.62', '5531479.74', '1244.96'), and 37 of the 38 points came in, the collar the one missing. A first row
 // that is all numbers is data. -> { headers: ['Column 1', ...], rows: [row objects incl. the first], kept: 1 } when `headers` are all numbers (3 to 12 columns), else null.
 const NUM = /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/;
 // the reader may have made duplicate headers unique with a suffix ('0', '0_1'); a name is a number once that is taken off

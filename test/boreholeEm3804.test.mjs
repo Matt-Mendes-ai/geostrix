@@ -15,14 +15,14 @@ const gates = (n) => Array.from({ length: n }, (_, i) => `CH${i + 1}`);
 function boreholeTem(withHeader = true) {
   const cols = ["X", "Y", "RL", "COMPONENT", "RAWMAG", ...gates(12)];
   const lines = withHeader ? ["/ Borehole EM, DH21-93, fixed loop", "/" + cols.join(" ")] : ["/" + cols.join(" ")];
-  for (let st = 0; st < 6; st++) for (const comp of ["X", "Y", "Z"]) lines.push(["431797.6", "6231479.7", String(1345 - st * 20), comp === "X" ? "1" : comp === "Y" ? "2" : "3", "48000", ...gates(12).map((_, k) => (100 / (k + 1)).toFixed(3))].join(" "));
+  for (let st = 0; st < 6; st++) for (const comp of ["X", "Y", "Z"]) lines.push(["531797.6", "5531479.7", String(1245 - st * 20), comp === "X" ? "1" : comp === "Y" ? "2" : "3", "48000", ...gates(12).map((_, k) => (100 / (k + 1)).toFixed(3))].join(" "));
   return lines.join("\n");
 }
 // an airborne line file: one row per station, no component, no hole
 function airborneTem() {
   const cols = ["X", "Y", "Z", "LINE", ...gates(12)];
   const lines = ["/" + cols.join(" ")];
-  for (let i = 0; i < 20; i++) lines.push(["Line 100".length ? `${431000 + i * 50}` : "", `${6231000 + i}`, "120", "100", ...gates(12).map((_, k) => (50 / (k + 1)).toFixed(3))].join(" "));
+  for (let i = 0; i < 20; i++) lines.push(["Line 100".length ? `${531000 + i * 50}` : "", `${5531000 + i}`, "120", "100", ...gates(12).map((_, k) => (50 / (k + 1)).toFixed(3))].join(" "));
   return lines.join("\n");
 }
 

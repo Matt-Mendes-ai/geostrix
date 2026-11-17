@@ -13,7 +13,7 @@ const hasKeys = (keys) => { for (const k of keys) for (const lang of ["es", "pt"
 const gm = read("../src/modules/GeophysicsModule.jsx");
 
 test("#3812 a 3D UBC mesh is told where it goes; the pane says where a 3D model and a cloud go", () => {
-  assert.equal(isUBCMeshText("72 182 75\n431000 6231000 1500\n"), true); // the review's Model_Fine_Con.msh shape: nx ny nz, then the origin
+  assert.equal(isUBCMeshText("72 182 75\n531000 5531000 1500\n"), true); // the review's Model_Fine_Con.msh shape: nx ny nz, then the origin
   const p = read("../src/components/DcipPanel.jsx");
   assert.match(p, /const k = texts\.findIndex\(\(t\) => isUBCMeshText\(t\)\);/);
   assert.match(p, /goes to Geophysics › Block models › Import UBC mesh \+ model, not here\. This button reads one 2D line \(dcinv2d\.msh\)\./);
