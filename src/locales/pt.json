@@ -13888,5 +13888,6 @@
   "Revenue": "Receita",
   "Cost": "Custo",
   "Margin (revenue − cost)": "Margem (receita − custo)",
-  "At {price} {unit}, {rec} % recovery; {costs} on the diluted tonnes. Break-even cut-off {be} {u}. Not included: {list}.": "A {price} {unit}, {rec} % de recuperação; {costs} sobre as toneladas diluídas. Teor de corte de equilíbrio {be} {u}. Não inclui: {list}."
+  "At {price} {unit}, {rec} % recovery; {costs} on the diluted tonnes. Break-even cut-off {be} {u}. Not included: {list}.": "A {price} {unit}, {rec} % de recuperação; {costs} sobre as toneladas diluídas. Teor de corte de equilíbrio {be} {u}. Não inclui: {list}.",
+  "Legend width (mm)": "Largura da legenda (mm)"
 }

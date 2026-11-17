@@ -13888,5 +13888,6 @@
   "Revenue": "الإيراد",
   "Cost": "التكلفة",
   "Margin (revenue − cost)": "الهامش (الإيراد − التكلفة)",
-  "At {price} {unit}, {rec} % recovery; {costs} on the diluted tonnes. Break-even cut-off {be} {u}. Not included: {list}.": "عند {price} {unit} واسترداد {rec} %؛ {costs} على الأطنان المخفَّفة. حد القطع المتعادل {be} {u}. غير مشمول: {list}."
+  "At {price} {unit}, {rec} % recovery; {costs} on the diluted tonnes. Break-even cut-off {be} {u}. Not included: {list}.": "عند {price} {unit} واسترداد {rec} %؛ {costs} على الأطنان المخفَّفة. حد القطع المتعادل {be} {u}. غير مشمول: {list}.",
+  "Legend width (mm)": "عرض دليل الخريطة (مم)"
 }

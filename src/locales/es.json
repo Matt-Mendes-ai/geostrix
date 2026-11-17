@@ -13888,5 +13888,6 @@
   "Revenue": "Ingreso",
   "Cost": "Costo",
   "Margin (revenue − cost)": "Margen (ingreso − costo)",
-  "At {price} {unit}, {rec} % recovery; {costs} on the diluted tonnes. Break-even cut-off {be} {u}. Not included: {list}.": "A {price} {unit}, {rec} % de recuperación; {costs} sobre las toneladas diluidas. Ley de corte de equilibrio {be} {u}. No incluye: {list}."
+  "At {price} {unit}, {rec} % recovery; {costs} on the diluted tonnes. Break-even cut-off {be} {u}. Not included: {list}.": "A {price} {unit}, {rec} % de recuperación; {costs} sobre las toneladas diluidas. Ley de corte de equilibrio {be} {u}. No incluye: {list}.",
+  "Legend width (mm)": "Ancho de la leyenda (mm)"
 }

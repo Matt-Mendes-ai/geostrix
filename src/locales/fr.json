@@ -13888,5 +13888,6 @@
   "Revenue": "Revenu",
   "Cost": "Coût",
   "Margin (revenue − cost)": "Marge (revenu − coût)",
-  "At {price} {unit}, {rec} % recovery; {costs} on the diluted tonnes. Break-even cut-off {be} {u}. Not included: {list}.": "À {price} {unit}, {rec} % de récupération ; {costs} sur les tonnes diluées. Teneur de coupure d'équilibre {be} {u}. Non inclus : {list}."
+  "At {price} {unit}, {rec} % recovery; {costs} on the diluted tonnes. Break-even cut-off {be} {u}. Not included: {list}.": "À {price} {unit}, {rec} % de récupération ; {costs} sur les tonnes diluées. Teneur de coupure d'équilibre {be} {u}. Non inclus : {list}.",
+  "Legend width (mm)": "Largeur de la légende (mm)"
 }
