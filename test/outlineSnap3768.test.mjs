@@ -28,11 +28,11 @@ test("onSectionPlane keeps a snapped point on the section plane (the hole's real
 });
 
 test("the link refusal names the outline with a vertex off its plane and the hole it snapped to", () => {
-  const sec = (name, off) => ({ section: name, ax: 0, ay: 0, bx: 100, by: 0, points: [{ x: 10, y: 0, z: 0 }, { x: 50, y: off, z: -50, hole_id: off ? "SR23-309" : undefined }, { x: 90, y: 0, z: 0 }] });
+  const sec = (name, off) => ({ section: name, ax: 0, ay: 0, bx: 100, by: 0, points: [{ x: 10, y: 0, z: 0 }, { x: 50, y: off, z: -50, hole_id: off ? "DH23-309" : undefined }, { x: 90, y: 0, z: 0 }] });
   const bad = offPlaneOutlines([sec("S1", 41.2), sec("S2", 0), sec("S3", 6.5)]);
-  assert.deepEqual(bad.map((b) => [b.section, Math.round(b.maxM * 10) / 10, b.hole_id]), [["S1", 41.2, "SR23-309"], ["S3", 6.5, "SR23-309"]]);
+  assert.deepEqual(bad.map((b) => [b.section, Math.round(b.maxM * 10) / 10, b.hole_id]), [["S1", 41.2, "DH23-309"], ["S3", 6.5, "DH23-309"]]);
   assert.equal(offPlaneText([sec("S2", 0)]), "");
-  assert.match(offPlaneText([sec("S1", 41.2), sec("S3", 6.5)]), /^ 2 outline\(s\) have a vertex off their section's plane: the worst is 41\.2 m off S1 \(snapped to SR23-309\)\./);
+  assert.match(offPlaneText([sec("S1", 41.2), sec("S3", 6.5)]), /^ 2 outline\(s\) have a vertex off their section's plane: the worst is 41\.2 m off S1 \(snapped to DH23-309\)\./);
 });
 
 test("wiring: an outline's snaps stay on the plane by default, locked in the window; the refusal carries the cause", () => {

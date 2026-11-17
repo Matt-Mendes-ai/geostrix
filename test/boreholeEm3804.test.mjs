@@ -14,7 +14,7 @@ const gates = (n) => Array.from({ length: n }, (_, i) => `CH${i + 1}`);
 // a borehole file: three components per station down a hole
 function boreholeTem(withHeader = true) {
   const cols = ["X", "Y", "RL", "COMPONENT", "RAWMAG", ...gates(12)];
-  const lines = withHeader ? ["/ Borehole EM, SR21-93, fixed loop", "/" + cols.join(" ")] : ["/" + cols.join(" ")];
+  const lines = withHeader ? ["/ Borehole EM, DH21-93, fixed loop", "/" + cols.join(" ")] : ["/" + cols.join(" ")];
   for (let st = 0; st < 6; st++) for (const comp of ["X", "Y", "Z"]) lines.push(["431797.6", "6231479.7", String(1345 - st * 20), comp === "X" ? "1" : comp === "Y" ? "2" : "3", "48000", ...gates(12).map((_, k) => (100 / (k + 1)).toFixed(3))].join(" "));
   return lines.join("\n");
 }
@@ -47,8 +47,8 @@ test("the clues of a borehole file: a component column, a hole or depth column, 
 
 test("'Import survey .xyz' / 'Import CSV' refuse a decay-channel file, borehole or not, in words", () => {
   const g = parseXYZ(boreholeTem());
-  const r = tableRefusal("SR21-93.tem", g.columns, g.rows, "point", boreholeTem());
-  assert.match(r, /^"SR21-93\.tem" is a borehole EM file \(.*decay channels CH1 … CH12, 12 gates\), not a table of points/);
+  const r = tableRefusal("DH21-93.tem", g.columns, g.rows, "point", boreholeTem());
+  assert.match(r, /^"DH21-93\.tem" is a borehole EM file \(.*decay channels CH1 … CH12, 12 gates\), not a table of points/);
   assert.match(r, /no reader for borehole EM yet/);
   const a = parseXYZ(airborneTem());
   assert.match(tableRefusal("line.xyz", a.columns, a.rows, "point", airborneTem()), /is a multi-channel EM file .* Read it with EM › TEM line data\./);
@@ -57,7 +57,7 @@ test("'Import survey .xyz' / 'Import CSV' refuse a decay-channel file, borehole 
 });
 
 test("EM > TEM line data refuses borehole EM and still reads an airborne line file", () => {
-  assert.throws(() => readTemText(boreholeTem(), "SR21-93.tem"), /is borehole EM \(.*\)\. TEM line data reads airborne and ground line surveys, not a hole/);
+  assert.throws(() => readTemText(boreholeTem(), "DH21-93.tem"), /is borehole EM \(.*\)\. TEM line data reads airborne and ground line surveys, not a hole/);
   const ok = readTemText(airborneTem(), "line.xyz");
   assert.equal(ok.n, 20); assert.ok(ok.groups.length >= 1);
   const g = parseXYZ(boreholeTem());

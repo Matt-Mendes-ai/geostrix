@@ -19,7 +19,7 @@ function fans() {
   for (let p = 0; p < 57; p++) {
     const x = 433000 + rnd() * 900, y = 6233000 + rnd() * 700;
     for (let k = 0; k < (p % 3 === 0 ? 2 : 1); k++) {
-      const id = `SR23-${++n}`, main = rnd() < 0.55;
+      const id = `DH23-${++n}`, main = rnd() < 0.55;
       const az = main ? (rnd() < 0.5 ? 80 + rnd() * 40 : 260 + rnd() * 40) : rnd() * 360;
       const dip = -(45 + rnd() * 20);
       collars.push({ hole_id: id, x, y, z: 800 + rnd() * 50, length: 180 + rnd() * 100, azimuth: az, dip });

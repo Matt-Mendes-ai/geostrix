@@ -1,4 +1,4 @@
-// TASKS.csv #3761 (Scottie Gold review: SR23-313 is a solid coloured tube to its end of hole although its survey stops at 71 m of 179 m, and the dashed
+// TASKS.csv #3761 (Scottie Gold review: DH23-313 is a solid coloured tube to its end of hole although its survey stops at 71 m of 179 m, and the dashed
 // bare trace is hidden inside the tubes every user has on) — the stretch of a hole with no survey station (lib/viewer/unsurveyedTail.js unsurveyedSpans)
 // is wrapped in a pale, translucent open sleeve a little wider than the interval tubes: whatever is drawn there reads washed out, "assumed", and the
 // layer colours still show through. Depth-tested (the terrain still hides what is under it), drawn after the tubes, never picked.

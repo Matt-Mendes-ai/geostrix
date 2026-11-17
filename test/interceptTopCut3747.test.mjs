@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { computeBestIntercepts } from "../src/lib/geochem.js";
 import { interceptRows } from "../src/lib/drillReportExport.js";
 
-// one hole: ten 1 m samples, two nuggets (76 and 123) among background 0.5 / 1: the SR23-236 shape
+// one hole: ten 1 m samples, two nuggets (76 and 123) among background 0.5 / 1: the DH23-236 shape
 const g = [0.5, 76, 1, 0.5, 123, 1, 0.5, 1, 0.5, 1];
 const assays = g.map((v, i) => ({ hole_id: "H1", from: i, to: i + 1, values: { Au: v } }));
 const U = { Au: "ppm" };

@@ -66,7 +66,7 @@ export function subcropOutlines(points, { reachM, sides = 24 } = {}) {
 
 // TASKS.csv #3848 (Scottie Gold surface geology review) - holes fanned from one pad start within a couple of metres of each other: each gave its own wedge of the nearest-hole map (three points within 2 m
 // were three wedges of a 180 m circle, a metre of diorite at one collar a hectare of diorite). Points within PAD_M of each other are one site: the commoner unit (a tie: the first hole's), at their
-// centre, with the shallowest cover of that unit. -> { points, pads (sites of 2+ holes), disagree (pads whose holes met different units), examples: ['SR23-300 +2: DIO 1, AND 2'] }
+// centre, with the shallowest cover of that unit. -> { points, pads (sites of 2+ holes), disagree (pads whose holes met different units), examples: ['DH23-300 +2: DIO 1, AND 2'] }
 export const PAD_M = 3;
 export function mergePads(points, padM = PAD_M) {
   const P = (points || []).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));

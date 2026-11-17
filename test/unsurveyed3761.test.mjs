@@ -1,5 +1,5 @@
 // TASKS.csv #3761 (Scottie Gold review) — the unsurveyed part of a hole was marked only on the bare trace below its LAST station: under the lithology
-// tubes SR23-313's last 108 m (survey to 71 m of 179 m) looked measured, Identify there said 'survey method measured', and SR23-299's 339 m between its
+// tubes DH23-313's last 108 m (survey to 71 m of 179 m) looked measured, Identify there said 'survey method measured', and DH23-299's 339 m between its
 // first two stations (0 m, then 339 m) was not marked at all. Synthetic holes of those shapes.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -12,7 +12,7 @@ import { describeHits, assumedPositionField } from "../src/lib/viewer/identify.j
 const read = (p) => fs.readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const trace = (end, step = 3) => { const out = []; for (let md = 0; md < end; md += step) out.push({ md, x: 0, y: -md, z: 0 }); out.push({ md: end, x: 0, y: -end, z: 0 }); return out; };
 
-test("SR23-313: the tail below the last station (71 m of 179 m) is a span; a hole surveyed to its end has none", () => {
+test("DH23-313: the tail below the last station (71 m of 179 m) is a span; a hole surveyed to its end has none", () => {
   const sp = unsurveyedSpans([{ depth: 0 }, { depth: 30 }, { depth: 71 }], trace(179));
   assert.equal(sp.length, 1);
   assert.deepEqual([sp[0].kind, sp[0].from, sp[0].to], ["tail", 71, 179]);
@@ -23,7 +23,7 @@ test("SR23-313: the tail below the last station (71 m of 179 m) is a span; a hol
   assert.deepEqual(unsurveyedSpans([], trace(100)), [], "no survey rows: the assumed stick, dashed whole already");
 });
 
-test("SR23-299: stations at 0 m and then from 339 m - the 339 m between is a span; stations 30 m apart are not", () => {
+test("DH23-299: stations at 0 m and then from 339 m - the 339 m between is a span; stations 30 m apart are not", () => {
   const sp = unsurveyedSpans([{ depth: 0 }, { depth: 339 }, { depth: 360 }, { depth: 390 }, { depth: 420 }], trace(420));
   assert.deepEqual(sp.map((s) => [s.kind, s.from, s.to]), [["gap", 0, 339]]);
   assert.ok(sp[0].i1 > sp[0].i0);
@@ -48,9 +48,9 @@ test("the sleeve: an open tube, a ring per trace point, one mesh per hole, never
   assert.equal(g.index.count, (pts.length - 1) * 8 * 6);
   const r = (i) => Math.hypot(g.attributes.position.getX(i) - pts[0].x, g.attributes.position.getZ(i) - pts[0].z);
   assert.ok(Math.abs(g.attributes.position.getY(0) - pts[0].y) < 1e-6 || r(0) > 0, "a ring around the first point");
-  const ms = sleeveMeshes([{ holeId: "SR23-299", spans: [pts, pts.map((p) => ({ ...p, y: p.y - 100 }))] }, { holeId: "X", spans: [[pts[0]]] }]);
+  const ms = sleeveMeshes([{ holeId: "DH23-299", spans: [pts, pts.map((p) => ({ ...p, y: p.y - 100 }))] }, { holeId: "X", spans: [[pts[0]]] }]);
   assert.equal(ms.length, 1, "a span of one point makes nothing");
-  assert.equal(ms[0].userData.holeId, "SR23-299");
+  assert.equal(ms[0].userData.holeId, "DH23-299");
   assert.equal(ms[0].geometry.attributes.position.count, pts.length * 8 * 2, "both spans of the hole in one mesh");
   assert.deepEqual(ms[0].raycast(), undefined, "not pickable");
   assert.equal(ms[0].material.depthWrite, false); assert.equal(ms[0].material.depthTest, true);
@@ -62,9 +62,9 @@ test("Identify: on the bare trace past the last station it says the position is 
   const holes = {};
   const tr = trace(179);
   const spans = unsurveyedSpans([{ depth: 0 }, { depth: 71 }], tr);
-  const collar = { hole_id: "SR23-313", length: 179, attrs: { "survey method": "measured", "hole type": "diamond" } };
-  const ctx = { origin: { x: 0, y: 0, z: 0 }, rayDirection: new THREE.Vector3(0, -1, 0), isHole: (id) => id === "SR23-313", traceOf: () => tr, assumedSpansOf: () => spans, collarOf: () => collar, layerOf: (x) => (x.parent === holes ? "Drillholes" : null), rasterOf: () => null, mapLayerOf: () => null, structureSetOf: () => null, kindOf: () => null, tolerance: () => 1 };
-  const line = { userData: { holeId: "SR23-313" }, parent: holes, visible: true };
+  const collar = { hole_id: "DH23-313", length: 179, attrs: { "survey method": "measured", "hole type": "diamond" } };
+  const ctx = { origin: { x: 0, y: 0, z: 0 }, rayDirection: new THREE.Vector3(0, -1, 0), isHole: (id) => id === "DH23-313", traceOf: () => tr, assumedSpansOf: () => spans, collarOf: () => collar, layerOf: (x) => (x.parent === holes ? "Drillholes" : null), rasterOf: () => null, mapLayerOf: () => null, structureSetOf: () => null, kindOf: () => null, tolerance: () => 1 };
+  const line = { userData: { holeId: "DH23-313" }, parent: holes, visible: true };
   const at = (y) => describeHits([{ object: line, point: new THREE.Vector3(0, -y, 0), distance: 1 }], ctx)[0];
   const past = at(119), before = at(50);
   const text = (it) => it.fields.map((f) => f.join(": ")).join("\n");
@@ -80,11 +80,11 @@ test("Identify: on the bare trace past the last station it says the position is 
 test("Identify: an interval tube on the unsurveyed stretch says so too", () => {
   const lith = {};
   const tr = trace(179), spans = unsurveyedSpans([{ depth: 0 }, { depth: 71 }], tr);
-  const tube = { userData: { tip: "SR23-313\nLithology: ANDS\n100–120 m", holeId: "SR23-313", row: { hole_id: "SR23-313", from: 100, to: 120, value: "ANDS" } }, parent: lith, visible: true };
-  const ctx = { origin: { x: 0, y: 0, z: 0 }, rayDirection: new THREE.Vector3(0, -1, 0), isHole: (id) => id === "SR23-313", traceOf: () => tr, assumedSpansOf: () => spans, layerOf: (x) => (x.parent === lith ? "Lithology" : null), rasterOf: () => null, mapLayerOf: () => null, structureSetOf: () => null, kindOf: () => null, tolerance: () => 1 };
+  const tube = { userData: { tip: "DH23-313\nLithology: ANDS\n100–120 m", holeId: "DH23-313", row: { hole_id: "DH23-313", from: 100, to: 120, value: "ANDS" } }, parent: lith, visible: true };
+  const ctx = { origin: { x: 0, y: 0, z: 0 }, rayDirection: new THREE.Vector3(0, -1, 0), isHole: (id) => id === "DH23-313", traceOf: () => tr, assumedSpansOf: () => spans, layerOf: (x) => (x.parent === lith ? "Lithology" : null), rasterOf: () => null, mapLayerOf: () => null, structureSetOf: () => null, kindOf: () => null, tolerance: () => 1 };
   const it = describeHits([{ object: tube, point: new THREE.Vector3(0, -110, 0), distance: 1 }], ctx)[0];
   assert.ok(it.fields.some((f) => f[0] === "Position" && /beyond the last survey station \(71 m\)/.test(f[1])), JSON.stringify(it.fields));
-  const early = { ...tube, userData: { ...tube.userData, row: { hole_id: "SR23-313", from: 10, to: 20, value: "ANDS" } } };
+  const early = { ...tube, userData: { ...tube.userData, row: { hole_id: "DH23-313", from: 10, to: 20, value: "ANDS" } } };
   assert.ok(!describeHits([{ object: early, point: new THREE.Vector3(0, -15, 0), distance: 1 }], ctx)[0].fields.some((f) => f[0] === "Position"));
 });
 

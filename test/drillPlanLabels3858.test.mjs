@@ -74,28 +74,28 @@ test("the intercept's place on the trace: along the straight line by length, alo
 
 test("the drawing: labelled with the intercept, marked on the trace, the holes with no label named on the sheet", () => {
   const collars = [
-    { hole_id: "SR23-232", x: 433678, y: 6200000, z: 900, azimuth: 0, dip: -50, length: 200 },
-    { hole_id: "SR23-233", x: 433678, y: 6200000, z: 900, azimuth: 120, dip: -50, length: 200 },
-    { hole_id: "SR23-235", x: 433678, y: 6200000, z: 900, azimuth: 240, dip: -50, length: 200 },
-    ...[60, 180, 300].map((az, i) => ({ hole_id: `SR23-24${i}`, x: 433678, y: 6200000, z: 900, azimuth: az, dip: -70, length: 150 })), // six holes from one pad
+    { hole_id: "DH23-232", x: 433678, y: 6200000, z: 900, azimuth: 0, dip: -50, length: 200 },
+    { hole_id: "DH23-233", x: 433678, y: 6200000, z: 900, azimuth: 120, dip: -50, length: 200 },
+    { hole_id: "DH23-235", x: 433678, y: 6200000, z: 900, azimuth: 240, dip: -50, length: 200 },
+    ...[60, 180, 300].map((az, i) => ({ hole_id: `DH23-24${i}`, x: 433678, y: 6200000, z: 900, azimuth: az, dip: -70, length: 150 })), // six holes from one pad
   ];
   const assays = [
-    { hole_id: "SR23-232", from: 100, to: 101, values: { Au: 0.2 } }, { hole_id: "SR23-232", from: 137.3, to: 141, values: { Au: 56.41 } },
-    { hole_id: "SR23-233", from: 60, to: 62, values: { Au: 3 } },
-    { hole_id: "SR23-235", from: 10, to: 11, values: { Au: 0.1 } },
+    { hole_id: "DH23-232", from: 100, to: 101, values: { Au: 0.2 } }, { hole_id: "DH23-232", from: 137.3, to: 141, values: { Au: 56.41 } },
+    { hole_id: "DH23-233", from: 60, to: 62, values: { Au: 3 } },
+    { hole_id: "DH23-235", from: 10, to: 11, values: { Au: 0.1 } },
   ];
   const el = { id: "p", type: "drillplan", w: 500, h: 400, scale: 2500, centre: { x: 433678, y: 6200000 }, colourBy: "bi:Au", biCutoff: 1, biDilution: 2, labelWith: "bi", fontPt: 7 };
   const d = drillPlanDrawing(el, collars, assays, [{ symbol: "Au", unit: "g/t" }]);
   const texts = d.labels.placed.map((l) => l.id);
-  assert.ok(texts.some((t) => /^SR23-232 3\.70 m @ 56\.4 g\/t Au$/.test(t)), texts.join(" | "));
-  assert.ok(texts.includes("SR23-235"), "no intercept: the id alone");
+  assert.ok(texts.some((t) => /^DH23-232 3\.70 m @ 56\.4 g\/t Au$/.test(t)), texts.join(" | "));
+  assert.ok(texts.includes("DH23-235"), "no intercept: the id alone");
   assert.equal(d.labels.skipped, 0, "six holes of one pad, each labelled");
   assert.ok(d.labels.placed.filter((l) => l.leader).length >= 1, "the pad's labels tied by leaders");
-  assert.deepEqual(d.marks.map((m) => m.id).sort(), ["SR23-232", "SR23-233"]);
+  assert.deepEqual(d.marks.map((m) => m.id).sort(), ["DH23-232", "DH23-233"]);
   assert.equal(d.unlabelledNote, "");
   const off = drillPlanDrawing({ ...el, labels: "room", labelWith: "id" }, collars, assays, [{ symbol: "Au", unit: "g/t" }]);
   assert.equal(off.marks.length, 0, "no marks without the intercept labels");
-  if (off.labels.skipped) assert.match(off.unlabelledNote, /^\d hole\(s\) without a label: SR23-/);
+  if (off.labels.skipped) assert.match(off.unlabelledNote, /^\d hole\(s\) without a label: DH23-/);
 });
 
 test("wiring: the panel's choices and the 7,500 fit scale", () => {

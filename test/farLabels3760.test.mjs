@@ -8,7 +8,7 @@ import { dropFarLabels, boxOnScreen, labelBoxes, declutterHoleLabels } from "../
 
 const W = 1200, H = 800;
 const sprite = (x, y, z, hidden = false) => ({ position: { x, y, z }, center: { x: 0.5, y: 0.5 }, material: { userData: {} }, userData: hidden ? { holeHidden: true } : {}, visible: true });
-// pads at ~848 m under the camera (scene y is up), one pad at 1,212 m (the SR23-300 pad) a kilometre away that is off screen
+// pads at ~848 m under the camera (scene y is up), one pad at 1,212 m (the DH23-300 pad) a kilometre away that is off screen
 const group = () => ({ children: [sprite(0, 848, 0), sprite(40, 850, 15), sprite(-60, 846, -20), sprite(900, 1212, 700)] });
 const camera = () => {
   const cam = new THREE.PerspectiveCamera(30, W / H, 1, 20000);

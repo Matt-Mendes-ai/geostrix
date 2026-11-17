@@ -15,8 +15,8 @@ export function unsurveyedTailStart(hs, pts) {
   return k < pts.length - 1 ? k : -1;
 }
 
-// TASKS.csv #3761 (Scottie Gold review: SR23-313's last 108 m of 179 m looked measured under the lithology tubes, Identify there said 'survey method
-// measured', and SR23-299's 339 m between its first two stations was not marked at all, the rule looking only below the LAST station) — every stretch of
+// TASKS.csv #3761 (Scottie Gold review: DH23-313's last 108 m of 179 m looked measured under the lithology tubes, Identify there said 'survey method
+// measured', and DH23-299's 339 m between its first two stations was not marked at all, the rule looking only below the LAST station) — every stretch of
 // a hole with no survey station: the tail below the last station (over TAIL_MIN_M, as unsurveyedTailStart) and any stretch between two stations longer
 // than GAP_MIN_M (the stations of a surveyed hole are usually 30 m apart, a gyro run 10-30 m; over 100 m the path between is an interpolation). The path
 // there is an assumption whatever is drawn on it: the trace dashed, the tubes crossed by the dashed line, Identify saying so.

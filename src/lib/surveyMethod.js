@@ -28,7 +28,7 @@ export function surveyMethodKey(survey) {
 
 // per hole: "measured" when any station was measured, "assumed" when every classified station was assumed; holes with no classified
 // station are left out. -> { key, byHole: Map(hole -> class), assumed: [ids], measured: n, values: Map(value -> count), unread: [ids], unreadWords: [values] } or null
-// TASKS.csv #3734 (Scottie Gold) — unread: the holes whose only stations name a tool neither list knows ('Devi_align', the rig aligner's collar reading, on SR23-244 and -251): they
+// TASKS.csv #3734 (Scottie Gold) — unread: the holes whose only stations name a tool neither list knows ('Devi_align', the rig aligner's collar reading, on DH23-244 and -251): they
 // were counted in neither number, so '0 of 82 hole(s) ... 82 measured' stood for 84 holes. counted = byHole + unread, the total the sentence now adds up to.
 export function surveyMethodByHole(survey, key = surveyMethodKey(survey)) {
   if (!key) return null;

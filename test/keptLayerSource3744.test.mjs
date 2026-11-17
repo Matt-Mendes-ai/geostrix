@@ -8,7 +8,7 @@ import { compositeLayerRows } from "../src/lib/compositeSet.js";
 import { computeBestIntercepts } from "../src/lib/geochem.js";
 import { labAssays } from "../src/lib/qaqc.js";
 
-// raw Au down one hole: 417-418 1.95, 418-420 two low samples, 420-422.1 two high ones (the SR23-256 shape: ONE intercept at 1 g/t with 2 m dilution)
+// raw Au down one hole: 417-418 1.95, 418-420 two low samples, 420-422.1 two high ones (the DH23-256 shape: ONE intercept at 1 g/t with 2 m dilution)
 const raw = [
   { hole_id: "H", from: 417, to: 418, source: "assay", values: { Au: 1.95, Ag: 3, Cu: 100 } },
   { hole_id: "H", from: 418, to: 419, source: "assay", values: { Au: 0.01, Ag: 1, Cu: 50 } },

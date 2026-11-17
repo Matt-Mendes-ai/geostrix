@@ -522,7 +522,7 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
     // TASKS.csv #3588 (5) (Fireweed rehearsal, Macpass: NB91-22 has one survey at 0 m and is 262.4 m long, drawn solid to the end of hole on its
     // last measured attitude) — the part of a surveyed hole below its last station is an assumption: drawn dashed, as an assumed hole is (a hole
     // is two entries of the trace chunks: the solid part and the dashed tail share its id, and the chunks' hide / colour calls cover both)
-    // TASKS.csv #3761 — every stretch with no survey station (the tail, and a gap between two stations over 100 m: SR23-299's 339 m), each dashed on the
+    // TASKS.csv #3761 — every stretch with no survey station (the tail, and a gap between two stations over 100 m: DH23-299's 339 m), each dashed on the
     // trace and wrapped in a pale sleeve (the tubes hid the dashed line); a hole with an assumed method is dashed whole already
     const spans = assumedVertical || methodAssumed ? [] : e.spans || [];
     if (spans.length) {

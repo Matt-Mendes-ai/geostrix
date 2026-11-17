@@ -22,11 +22,11 @@ test("still not a hint: a magnetic tool among them, or a large share by another 
 test("the method sentence adds up: 82 measured + 2 holes with only an aligner reading = 84", () => {
   const survey = [];
   for (let h = 0; h < 82; h++) survey.push({ hole_id: `G${h}`, instrument: "DeviGyro OX" });
-  survey.push({ hole_id: "SR23-244", instrument: "Devi_align" }, { hole_id: "SR23-251", instrument: "Devi_align" });
+  survey.push({ hole_id: "DH23-244", instrument: "Devi_align" }, { hole_id: "DH23-251", instrument: "Devi_align" });
   survey.push({ hole_id: "G0", instrument: "Devi_align" }); // a hole with both: measured wins, not counted twice
   const sm = surveyMethodByHole(survey);
   assert.equal(sm.measured, 82); assert.equal(sm.assumed.length, 0);
-  assert.deepEqual(sm.unread, ["SR23-244", "SR23-251"]); assert.deepEqual(sm.unreadWords, ["Devi_align"]);
+  assert.deepEqual(sm.unread, ["DH23-244", "DH23-251"]); assert.deepEqual(sm.unreadWords, ["Devi_align"]);
   assert.equal(sm.counted, 84);
 });
 test("wired: the notice and Data QC use the total, and the dialog shows the share", () => {

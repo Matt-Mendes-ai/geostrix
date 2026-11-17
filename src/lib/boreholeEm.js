@@ -1,4 +1,4 @@
-// TASKS.csv #3804 (Scottie Gold geophysics review; a gap in #3320) — a borehole EM file (SR21-93.tem: decay channels CH1..CH25, several components per
+// TASKS.csv #3804 (Scottie Gold geophysics review; a gap in #3320) — a borehole EM file (DH21-93.tem: decay channels CH1..CH25, several components per
 // station, a fixed loop, the readings down a hole 2 km from the drilling) was read by 'Import survey .xyz' as a ground magnetic survey ('736 points,
 // 0 with elevation · values -9,131.7 to 42,755 nT', Method 'Magnetics (TMI)': RAWMAG chosen from its diurnal-correction block) and by EM > TEM line data
 // as '736 stations on 1 line' with an airborne 1D inversion panel; the other eight imports refused it. There is no borehole EM reader: both routes now say
