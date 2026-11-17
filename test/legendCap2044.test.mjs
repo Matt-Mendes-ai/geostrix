@@ -6,7 +6,8 @@ import fs from "node:fs";
 import { allocateLegendRows, categoryLegendGroups } from "../src/lib/legendGroups.js";
 
 const ov = fs.readFileSync(new URL("../src/components/ViewportFigureOverlay.jsx", import.meta.url), "utf8");
-const legendLayout = eval(`(${ov.match(/export function legendLayout\(h, w, total = Infinity\) (\{[\s\S]*?\n\})/)[0].replace("export function legendLayout", "function")})`.replace(/MAX_LEGEND_ITEMS/g, "14"));
+const ll = fs.readFileSync(new URL("../src/lib/legendLayout.js", import.meta.url), "utf8"); // legendLayout moved out of the component (startup size)
+const legendLayout = eval(`(${ll.match(/export function legendLayout\(h, w, total = Infinity\) (\{[\s\S]*?\n\})/)[0].replace("export function legendLayout", "function")})`.replace(/MAX_LEGEND_ITEMS/g, "14"));
 
 test("the cap: 14 on a short or unmeasured view, more on a tall one (to 40), doubled in two columns on a wide view with more codes", () => {
   assert.deepEqual(legendLayout(0, 0), { cap: 14, cols: 1 });

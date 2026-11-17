@@ -14,7 +14,7 @@ import VoxelRangeNumber from "../../components/VoxelRangeNumber.jsx"; // TASKS.c
 import { iconAction, activateOnKey } from "../../lib/a11y.js";
 import { voxelCellSupported } from "../../lib/viewer/geomath.js";
 import { coincidentModels } from "../../lib/voxelOverlap.js"; // TASKS.csv #1808
-import { isTargetModel } from "../../lib/plannedHoleChecks.js"; // TASKS.csv #1832
+import { isTargetModel } from "../../lib/targetModel.js"; // TASKS.csv #1832; not plannedHoleChecks.js: its sums are for the Planned holes pane (startup size)
 import { pBtn } from "../../lib/sidebarStyles.js";
 import { distinctValues } from "../../lib/layers.js";
 import { confirmDestructive } from "../../lib/confirmDestructive.js";

@@ -20,7 +20,7 @@ import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js"; /
 import { isPxrfRow } from "../lib/qaqcCore.js"; // TASKS.csv #1695; #3159: qaqcCore, not qaqc.js (the QAQC charts' code, not needed at startup)
 import { describeDbImport } from "../lib/dbImports.js"; // TASKS.csv #1963
 import { metresPerPixel, minSymbolRadiusM, cappedRadiusM, needsSymbolRebuild, GEOPHYS_MIN_PX } from "../lib/viewer/symbolScale.js"; // TASKS.csv #1597; GEOPHYS_MIN_PX: #2849
-import { lazyModal } from "../lib/lazyModal.jsx"; // TASKS.csv #301
+import { lazyModal, lazyPart } from "../lib/lazyModal.jsx"; // TASKS.csv #301; lazyPart: startup size
 import * as THREE from "three";
 import { setVerticalExaggeration, veOf } from "./viewer/verticalExaggeration.js"; // TASKS.csv #2628
 import ViewVeSelect from "./viewer/ViewVeSelect.jsx"; // TASKS.csv #2934
@@ -32,7 +32,7 @@ import { seedBreaks } from "../lib/colorRamp.js"; // TASKS.csv #476
 import { repairSeededHues } from "../lib/assayHueRepair.js"; // TASKS.csv #3879
 const GradeEstimationModal = lazyModal(() => import("../components/GradeEstimationModal.jsx"));  // TASKS.csv #301
 const VariogramModal = lazyModal(() => import("../components/VariogramModal.jsx")); // TASKS.csv #147  // TASKS.csv #301
-import LocatorMap from "../components/LocatorMap.jsx";
+const LocatorMap = lazyPart(() => import("../components/LocatorMap.jsx")); // startup size: shown on request
 const BasemapView = lazyModal(() => import("../components/BasemapView.jsx"));  // TASKS.csv #301
 import PromptModal from "../components/PromptModal.jsx";
 import { toLonLat, isMetricProjectedEpsg } from "../lib/reproject.js";
@@ -84,7 +84,8 @@ import { iconAction, activateOnKey } from "../lib/a11y.js"; // TASKS.csv #296 �
 const AttributeTableModal = lazyModal(() => import("../components/AttributeTableModal.jsx"));  // TASKS.csv #301
 import { createCompassRose } from "../components/CompassRose.js";
 import { createAxisGizmo } from "../components/AxisGizmo.js";
-import ViewportFigureOverlay, { legendLayout } from "../components/ViewportFigureOverlay.jsx"; // TASKS.csv #311; legendLayout: #2044
+import { legendLayout } from "../lib/legendLayout.js"; // TASKS.csv #2044; apart from the overlay component (startup size)
+const ViewportFigureOverlay = lazyPart(() => import("../components/ViewportFigureOverlay.jsx")); // TASKS.csv #311 — loaded with the first figure, not at startup
 import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309 — the shared empty-state card, extracted from this file's own #294 card
 import { fixedScaleHalfHeight, captureLongPx, scaleForHalfHeight } from "../lib/layoutGeometry.js"; // scaleForHalfHeight: #1486
 import { worldHeightAtTargetM } from "../lib/figureScale.js"; // TASKS.csv #311 — the single shared metres-per-pixel derivation (Layout's scale bar uses it too)
@@ -191,7 +192,7 @@ const voxelGridOf = (model) => { let G = voxelGridCache.get(model.cells); if (G 
 import { PRECIOUS_METALS, gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 import ClosureNote from "./viewer/ClosureNote.jsx"; // TASKS.csv #1689
 const SurfaceTonnage = lazyModal(() => import("./viewer/SurfaceTonnage.jsx")); // TASKS.csv #1690; #3159: lazy (shown only for an expanded closed surface), it brought gradeTonnage.js into startup
-import RasterLegend from "../components/RasterLegend.jsx"; // TASKS.csv #2011
+const RasterLegend = lazyPart(() => import("../components/RasterLegend.jsx")); // TASKS.csv #2011; startup size: only where a raster is listed
 // TASKS.csv #1136 — off the startup chunk: the Targeting tab's planned-hole parts, the measure readout and the numeric
 // symbology editor load the first time they are shown (PlannedHoleTargeting, #119, now loads from PlannedHoleParts)
 const plannedPart = (name) => lazyModal(() => import("../components/PlannedHoleParts.jsx").then((m) => ({ default: m[name] })));
