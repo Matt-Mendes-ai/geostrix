@@ -125,3 +125,59 @@ export function resultRows(result, record) {
     verdict: p.note ? "none" : p.seen ? "seen" : "not constrained",
   }));
 }
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------
+// TASKS.csv #2640 Stage 2 — the fit: move the points the survey sees (each within the distance the user typed) until the model's response matches
+// the readings to their stated uncertainty (python-sidecar structfit.run_fit, the same job kind with mode 'fit').
+export const MAX_FIT_POINTS = 8; // structfit.MAX_FIT_POINTS: each round costs one model solve a point
+export const MAX_FIT_ITER = 8;
+
+// the fit's request: the sensitivity request's model, survey and properties, the readings (required: they are what it fits), the points (at most
+// MAX_FIT_POINTS, each with its own distance when it has one, else maxM) and the rounds. -> { request } | { problems: [] }
+export function buildFitRequest(args, { maxIter = 6 } = {}) {
+  const problems = [];
+  if (!Array.isArray(args?.observed) || args.observed.length !== args?.stations?.length) problems.push("The fit needs the survey's readings: it moves the points until the model matches them.");
+  if ((args?.movable || []).length > MAX_FIT_POINTS) problems.push(`The fit moves at most ${MAX_FIT_POINTS} points: mark the ones the sensitivity pass says the survey sees.`);
+  const built = buildStructfitRequest(args);
+  if (built.problems) return { problems: [...problems, ...built.problems] };
+  if (problems.length) return { problems };
+  const own = new Map((args.movable || []).map((m) => [`${m.surface}|${m.index}`, num(m.maxM)]));
+  const request = {
+    ...built.request, mode: "fit", maxIter: Math.max(1, Math.min(MAX_FIT_ITER, Math.round(Number(maxIter) || 6))),
+    movable: built.request.movable.map((m, k) => { const mine = own.get(`${args.movable[k].surface}|${args.movable[k].index}`); return Number.isFinite(mine) && mine > 0 ? { ...m, maxM: mine } : m; }),
+  };
+  return { request };
+}
+
+// the fit's points as rows in project coordinates, the engine's names back to the labels: { surface, index, x, y, zStart, z, movedM, maxM, constrained, perM }
+export function fitRows(result, record) {
+  const o = record?.origin || { x: 0, y: 0, z: 0 };
+  const label = (n) => (record?.surfaces || []).find((s) => engineName(s) === n)?.name ?? n;
+  return (result?.points || []).map((p) => ({
+    surface: label(p.surface), index: p.index, x: p.x + o.x, y: p.y + o.y, zStart: p.zStart + o.z, z: p.z + o.z, movedM: p.movedM, maxM: p.maxM,
+    constrained: !!p.constrained, perM: p.perM ?? null, atLimit: Math.abs(Math.abs(p.movedM) - p.maxM) < 1e-6 && p.maxM > 0,
+  }));
+}
+
+// why the fit stopped, in words (the panel translates them)
+export const FIT_STOPPED = {
+  fit: "Fits the survey to its stated uncertainty.",
+  "no improvement": "Stopped: the misfit no longer fell by 1 % a round.",
+  "max iterations": "Stopped after the rounds allowed.",
+  "no step kept": "Stopped: no step lowered the misfit while keeping every drillhole contact and the units that touch.",
+  "no point is constrained": "Nothing moved: the survey cannot move its readings by one uncertainty with any of these points within its distance.",
+};
+
+// the moved points for audit (a CSV a model can be rebuilt from): surface, point, x, y, z before and after, metres moved, the distance allowed, constrained
+export function fitPointsCsv(rows) {
+  const q = (v) => (/[",\r\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
+  const f = (v, d = 2) => (Number.isFinite(v) ? v.toFixed(d) : "");
+  return ["surface,point,x,y,z_start,z_fitted,moved_m,max_m,constrained", ...(rows || []).map((r) => [q(r.surface), r.index + 1, f(r.x), f(r.y), f(r.zStart), f(r.z), f(r.movedM), f(r.maxM), r.constrained ? "yes" : "no"].join(","))].join("\n") + "\n";
+}
+
+// the record with the fitted heights (project coordinates): the model the fit found, to run again at full resolution as a version of its own
+export function recordWithFit(record, rows) {
+  if (!record) return null;
+  const at = new Map((rows || []).filter((r) => r.constrained && Number.isFinite(r.z)).map((r) => [`${r.surface}|${r.index}`, r.z]));
+  return { ...record, fittedFrom: record.at || null, surfaces: (record.surfaces || []).map((s) => ({ ...s, points: (s.points || []).map((p, i) => (at.has(`${s.name}|${i}`) ? { ...p, z: at.get(`${s.name}|${i}`) } : p)) })) };
+}

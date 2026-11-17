@@ -185,11 +185,95 @@ def check_magnetics():
     assert a["seen"] and not b["seen"] and a["rmsPerM"] > 10 * b["rmsPerM"], (a, b)
 
 
+def _truth_data(req, noise=0.0, seed=7):
+    """the readings a model makes (its smooth response, the fit's own forward), with Gaussian noise of `noise` (user units)"""
+    from app.main import ImplicitModelRequest
+    m = ImplicitModelRequest(**req["model"])
+    res = [max(4, min(structfit.MAX_RES, int(r))) for r in m.resolution]
+    sol = structfit._solve(m, res)
+    mesh, idx, lo = structfit._mesh(m, res, sol["xyz"])
+    names = sorted({mv["surface"] for mv in req["movable"]})
+    widths = {n: (structfit._band(sol, n) or [None] * 5)[4] for n in names}
+    props = {int(k): float(v) for k, v in req["properties"].items()}
+    st = np.asarray(req["stations"], float) - lo
+    d = structfit.model_response(sol, props, names, widths, mesh, idx, st, req["method"], req.get("field") or {})
+    return (d + np.random.default_rng(seed).normal(0.0, noise, len(d))).tolist() if noise else d.tolist()
+
+
+def _displaced(req, surface, index, dz):
+    import copy
+    out = copy.deepcopy(req)
+    for s in out["model"]["surfaces"]:
+        if s["name"] == surface:
+            s["points"][index]["z"] += dz
+    return out
+
+
+def check_fit_recovers():
+    """TASKS.csv #2640 Stage 2 — the fit: data from the true model (top_B as made, 0.30 g/cc under 0.05 mGal noise), the start with one interpreted
+    point of top_B 60 m too deep: the fit moves it back within the distance the sensitivity predicts, and the misfit falls to about the noise"""
+    truth = base_request()
+    truth["movable"] = [{"surface": "top_B", "index": 4, "maxM": 100.0}]
+    obs = _truth_data(truth, noise=0.05)
+    req = _displaced(truth, "top_B", 4, -60.0)
+    req.update({"mode": "fit", "observed": obs, "maxIter": 6})
+    t0 = time.time()
+    out = structfit.run_job(req, lambda ev: None)
+    p = out["points"][0]
+    print(f"fit: {out['solves']} solves in {out['seconds']} s (one solve {out['solveSeconds']} s); rms {out['rmsStart']:.2f} -> {out['rmsEnd']:.2f}, "
+          f"stopped '{out['stopped']}'; point moved {p['movedM']:+.1f} m (truth +60), {p['perM']:.3f} sigma a metre; rounds {[round(h['rms'], 2) for h in out['history']]}")
+    assert p["constrained"] and abs(p["movedM"] - 60.0) < 15.0, p
+    assert out["rmsEnd"] < 0.5 * out["rmsStart"] and out["rmsEnd"] < 1.6, out
+    return time.time() - t0
+
+
+def check_fit_not_constrained():
+    """a point of the deep, low-contrast contact: the survey cannot move the data by one uncertainty within its 100 m, so it is left where it is and
+    said to be not constrained (no confident move)"""
+    truth = base_request()
+    truth["movable"] = [{"surface": "top_C", "index": 4, "maxM": 100.0}]
+    obs = _truth_data(truth, noise=0.05)
+    req = _displaced(truth, "top_C", 4, -60.0)
+    req.update({"mode": "fit", "observed": obs, "maxIter": 3})
+    out = structfit.run_job(req, lambda ev: None)
+    p = out["points"][0]
+    print(f"fit, deep point: stopped '{out['stopped']}', constrained {p['constrained']}, moved {p['movedM']:+.1f} m, {p['perM']:.5f} sigma a metre")
+    assert out["stopped"] == "no point is constrained" and not p["constrained"] and p["movedM"] == 0.0, out
+
+
+def check_step_refusal():
+    """a step that puts a drillhole contact on the wrong side, or changes which units touch, is refused with the reason (pure: a small grid)"""
+    res = [4, 3, 2]
+    xs = [(i + 0.5) * 10 for i in range(4)]; ys = [(j + 0.5) * 10 for j in range(3)]; zs = [-15.0, -5.0]
+    xyz = np.array([[x, y, z] for z in zs for y in ys for x in xs])  # x fastest, as the mesh
+    idx = np.arange(len(xyz))
+
+    class M:
+        extent = [0, 40, 0, 30, -20, 0]
+    at, size = structfit._cell_lookup(M, res, xyz)
+    lith0 = np.array([2] * 12 + [1] * 12)  # the lower row unit 2, the upper unit 1: the contact at z = -10
+    contacts = [("top_B", 0, 15.0, 15.0, -10.0)]
+    c0 = structfit._contact_units({"lith": lith0}, at, size, contacts)
+    t0 = structfit._touching({"lith": lith0}, res, idx)
+    assert c0 == [(1, 2)], c0
+    assert structfit.step_refusal({"lith": lith0}, at, size, contacts, c0, res, idx, t0) is None
+    moved = lith0.copy(); moved[at((15.0, 15.0, -15.0))] = 1  # the surface pushed below the contact in that column
+    why = structfit.step_refusal({"lith": moved}, at, size, contacts, c0, res, idx, t0)
+    assert why and "drillhole contact" in why, why
+    third = lith0.copy(); third[at((35.0, 25.0, -5.0))] = 3  # a unit that touched nothing now touches 1 and 2
+    why2 = structfit.step_refusal({"lith": third}, at, size, contacts, c0, res, idx, t0)
+    assert why2 and "newly touch" in why2 and "1-3" in why2, why2
+    print(f"step refusal: {why[:60]}...; {why2}")
+
+
 if __name__ == "__main__":
+    check_step_refusal()
     check_validation()
     check_sensitivity()
     check_step_stable()
     check_resolve_and_guard()
     check_full_record_3633()
     check_magnetics()
+    check_fit_recovers()
+    check_fit_not_constrained()
     print("structfit: all checks passed")
