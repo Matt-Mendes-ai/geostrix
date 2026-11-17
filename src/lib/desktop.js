@@ -489,6 +489,23 @@ export async function installUpdate() {
   if (d && d.updaterInstall) return d.updaterInstall();
   return { ok: false, message: tr("Update checks require the desktop app.") };
 }
+// ---------- AI App Access (TASKS.csv #3190): the optional local read-only MCP server, electron/mcpHost.js ----------
+const NO_MCP = { ok: false, error: "AI App Access needs the desktop app." };
+export const mcpStatus = async () => (d?.mcpStatus ? d.mcpStatus() : null);
+export const mcpSetEnabled = async (on, remember) => (d?.mcpSetEnabled ? d.mcpSetEnabled(on, remember) : NO_MCP);
+export const mcpStop = async () => (d?.mcpStop ? d.mcpStop() : NO_MCP);
+export const mcpForgetClients = async () => (d?.mcpForgetClients ? d.mcpForgetClients() : NO_MCP);
+export const mcpConfig = async () => (d?.mcpConfig ? d.mcpConfig() : null);
+export const onMcpStatus = (cb) => (d?.onMcpStatus ? d.onMcpStatus(cb) : () => {});
+// each tool call of an AI app arrives here, is answered from the open project by src/lib/mcpTools.js (loaded on the first call) and goes back
+export function onMcpRequest(getSnapshot) {
+  if (!d?.onMcpRequest) return () => {};
+  return d.onMcpRequest(async (req) => {
+    try { const { runTool } = await import("./mcpTools.js"); d.mcpRespond(req.id, runTool(req.name, req.args, getSnapshot())); }
+    catch { d.mcpRespond(req.id, { ok: false, error: "The tool could not read the project." }); }
+  });
+}
+
 export function onUpdaterEvent(cb) {
   if (d && d.onUpdaterEvent) return d.onUpdaterEvent(cb);
   return () => {};

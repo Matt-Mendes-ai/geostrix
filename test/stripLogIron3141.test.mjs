@@ -21,7 +21,7 @@ test("five assay tracks; four extra selects, one empty at a time", () => {
 });
 
 test("each element's own axis by default; the box overrides; ticks and gridlines on a linear axis", () => {
-  assert.match(s, /const \[logScale, setLogScale\] = useState\(null\);/);
+  assert.match(s, /const \[logScale, setLogScale\] = useState\(initial\?\.logScale \?\? null\);/); // #3873 (a): null unless Layout reopened the log with a choice
   assert.match(s, /const axisOf = \(sym\) => \{ const r = assayRange\[sym\]; const a = r \? assayAxis\(r\.minPos, r\.max\) : \{ linear: false \};/);
   assert.match(s, /if \(ax\.linear\) return Math\.max\(0, Math\.min\(1, v \/ \(ax\.max \|\| r\.max\)\)\);/);
   assert.match(s, /checked=\{logScale \?\? shownSymbols\.some\(\(s\) => !axisOf\(s\)\.linear\)\}/, "the box shows what is drawn");

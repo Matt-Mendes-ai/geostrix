@@ -119,14 +119,20 @@ that phrasing), that's a flag this task deserves a *real* verification pass now 
 - `src/lib/*.js` — pure logic: geometry/desurvey math, shapefile/GeoPackage/OMF parsing,
   reprojection, geochem stats, voxel handling, etc. These are the easiest things to unit-verify in
   plain Node before touching any UI.
-- `sample_data/` — a synthetic 6-hole dataset exercising every import type, plus
-  `sample_data/harry_property/` — a real 37-hole dataset extracted from BC's public ARIS/BCGS
-  drillhole database (report #37584), with a small number of layer types (alteration, veins,
-  geotech, etc — the source DB has no such tables) synthesized around the real assay anomalies.
-  `sample_data/woodjam/` (TASKS.csv #637) is a second, fully real project (ARIS 41597: 19 holes from 2023 with logs,
-  surveys, oriented structures and assays, six IP lines, the ZTEM 3D inversion as OMF), built by
-  `scripts/samples/build-woodjam.mjs`. `sample_data/silvertip/` (TASKS.csv #1346, ARIS 42807: 9 deep 2024 holes with
-  acQuire logs and oriented core, assays, rock / soil / stream samples) is built by `scripts/samples/build-silvertip.mjs`.
+- `sample_data/` — a synthetic 6-hole dataset exercising every import type, plus the samples that ARE in the repository (below).
+  **Four BC samples are NOT in the repository (TASKS.csv #3100, #3134): BC's terms do not let GeoStrix redistribute assessment-report data.**
+  `harry_property/` (a real 37-hole dataset extracted from BC's public ARIS/BCGS drillhole database, report #37584, with a small
+  number of layer types (alteration, veins, geotech, etc — the source DB has no such tables) synthesized around the real assay anomalies),
+  `silvertip/` (TASKS.csv #1346, ARIS 42807: 9 deep 2024 holes with acQuire logs and oriented core, assays, rock / soil / stream samples,
+  built by `scripts/samples/build-silvertip.mjs`) and `perk_rocky/` (surface mapping; only its Copernicus terrain and README are tracked) are
+  **downloaded on request** from the Province's public servers and converted on the user's computer by the same code, then kept in
+  `<userData>/sample_data` (`%APPDATA%/GeoStrix/sample_data` on Windows); the installer does not ship them. `woodjam/` (TASKS.csv #637, a fully
+  real project, ARIS 41597: 19 holes from 2023 with logs, surveys, oriented structures and assays, six IP lines, the ZTEM 3D inversion as OMF; a
+  1.94 GB package) is not offered by the app at all: build it locally with `scripts/samples/build-woodjam.mjs` if you have the package. All four
+  folders are gitignored, so a fresh clone has none of them; a test that needs one uses `test/helpers/bcSample.mjs` (`bcSampleDir`, `bcSkip`),
+  which looks in `sample_data/<name>` and then in `$GEOSTRIX_BC_SAMPLES/<name>` (point it at the userData `sample_data` folder after the app
+  downloaded them) and SKIPS, saying why, when it finds nothing — each such test also has a synthetic case that always runs. Never commit those
+  folders or their real hole ids / values into code, tests, comments or messages.
   `sample_data/wa_uranium/` (TASKS.csv #2168, WAMEX report A87304, CC BY 4.0: 430 shallow aircore / diamond holes of a Western
   Australian palaeochannel (lignite-hosted) uranium prospect with lithology, alteration, multi-element assays and a downhole gamma / eU3O8 log, loaded
   as a numeric custom layer) is built by `scripts/samples/build-wa-uranium.mjs` from the WA drillhole review's export
