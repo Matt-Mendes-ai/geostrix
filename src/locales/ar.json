@@ -13890,5 +13890,9 @@
   "Margin (revenue − cost)": "الهامش (الإيراد − التكلفة)",
   "At {price} {unit}, {rec} % recovery; {costs} on the diluted tonnes. Break-even cut-off {be} {u}. Not included: {list}.": "عند {price} {unit} واسترداد {rec} %؛ {costs} على الأطنان المخفَّفة. حد القطع المتعادل {be} {u}. غير مشمول: {list}.",
   "Preparing the PDF: {n} page(s)…": "جارٍ تجهيز ملف PDF: {n} صفحة…",
-  "{fileName}: {n} hole(s) had an azimuth or dip that the exporting project took from its survey (the attitude_from column): they are not stored as the collar's own, the survey gives them.": "{fileName}: كان لـ {n} من الثقوب سمت أو ميل أخذه المشروع المُصدِّر من مسحه (عمود attitude_from): لا يُخزَّنان على أنهما من الفوهة نفسها، فالمسح هو مصدرهما."
+  "{fileName}: {n} hole(s) had an azimuth or dip that the exporting project took from its survey (the attitude_from column): they are not stored as the collar's own, the survey gives them.": "{fileName}: كان لـ {n} من الثقوب سمت أو ميل أخذه المشروع المُصدِّر من مسحه (عمود attitude_from): لا يُخزَّنان على أنهما من الفوهة نفسها، فالمسح هو مصدرهما.",
+  "The strip log was drawn again at {ppm} px per metre; it stays at 1 : {d} on this page.": "أُعيد رسم سجل الحفر بمعدل {ppm} بكسل للمتر؛ ويبقى بمقياس 1 : {d} في هذه الصفحة.",
+  "Opens this strip log in the 3D View with the tracks, depth range and key it was sent with, at the px per metre this depth scale needs; its 'Add to Layout' replaces this picture on this page, at the same depth scale.": "يفتح هذا السجل في العرض ثلاثي الأبعاد بالمسارات ونطاق العمق والمفتاح التي أُرسل بها، بعدد البكسلات للمتر الذي يتطلبه مقياس العمق هذا؛ وزر «إضافة إلى التخطيط» فيه يستبدل هذه الصورة في هذه الصفحة بمقياس العمق نفسه.",
+  "Draw it again at {need} px/m": "إعادة رسمه بمعدل {need} بكسل/م",
+  "The strip log of {hole} cannot be drawn again: the project has no hole of that name now.": "لا يمكن إعادة رسم سجل {hole}: لم يعد في المشروع ثقب بهذا الاسم."
 }

@@ -50,24 +50,24 @@ import { rowsRefOf } from "../lib/tableFields.js"; // TASKS.csv #3140 step 2
 const DEPTH_COL_W = 50;
 const PAD_TOP = 40;
 
-export default function StripLog({ holeId, collars, layers, assays, assayElements, colorFor, labelFor, assayColor, onClose, modelledLayers = [], onAddToLayout = null, onAdvice = null /* #1641 */, shownElements = [], patternOverride = null, onPatternChange = null, onOpenFence = null, legendOverride = null }) { // onOpenFence: #3560 A0; legendOverride: A1
+export default function StripLog({ holeId, collars, layers, assays, assayElements, colorFor, labelFor, assayColor, onClose, modelledLayers = [], onAddToLayout = null, onAdvice = null /* #1641 */, shownElements = [], patternOverride = null, onPatternChange = null, onOpenFence = null, legendOverride = null, initial = null, replaceElementId = null }) { // initial / replaceElementId: TASKS.csv #3873 (a) — the choices it was sent with, and the Layout element a new send replaces // onOpenFence: #3560 A0; legendOverride: A1
   const [sideBySide, setSideBySide] = useState(false); // #3560 A1 // shownElements: TASKS.csv #1698; pattern*: #1995
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const svgRef = useRef(null);
-  const [pxPerMeter, setPxPerMeter] = useState(6);
+  const [pxPerMeter, setPxPerMeter] = useState(initial?.pxPerMeter > 0 ? initial.pxPerMeter : 6);
   const scrollRef = useRef(null); // TASKS.csv #3559 — the drawing's pane: its height is what a long hole is fitted to
   const symbols = assayElements.map((e) => e.symbol);
   // TASKS.csv #1698 (review #1645, Copley) — the log opened on the first element of the file (Ag) while Cu and Au were on in 3D:
   // the elements shown in 3D come first, in their order
   const shownFirst = shownElements.filter((s) => symbols.includes(s));
-  const [assaySymbol, setAssaySymbol] = useState(shownFirst[0] || symbols[0] || "");
+  const [assaySymbol, setAssaySymbol] = useState(initial && symbols.includes(initial.assaySymbol) ? initial.assaySymbol : shownFirst[0] || symbols[0] || "");
   // TASKS.csv #402 — up to two more element tracks, and a log scale (default): one 30 g/t sample on a
   // linear bar scaled to the hole maximum used to flatten every other sample to nothing.
-  const [extraSymbols, setExtraSymbols] = useState(shownFirst.slice(1, 5)); // #1698 — the other elements on in 3D; #3141: up to four more
+  const [extraSymbols, setExtraSymbols] = useState(initial ? (initial.extraSymbols || []).filter((s) => symbols.includes(s)) : shownFirst.slice(1, 5)); // #1698 — the other elements on in 3D; #3141: up to four more
   // TASKS.csv #3141 (#3024, WA iron) — null: each element's own axis (linear with ticks under two decades, as the Atlas's assayAxis; log over
   // that); the box forces one or the other. A log axis for Fe 14-59 % gave a bar no one could read 55 % off.
-  const [logScale, setLogScale] = useState(null);
+  const [logScale, setLogScale] = useState(initial?.logScale ?? null);
   const logOn = logScale ?? true; // the mag susc track keeps its log default (#1400)
   // TASKS.csv #1480 — a depth range: a 1,300 m hole cannot print readably on one page, an interval of it can
   // TASKS.csv #1995 — FGDC lithology patterns over the litho colours: the choice is remembered on this computer
@@ -83,8 +83,8 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     return () => { live = false; };
   }, [patternsOn, patternByCode]);
   const patternOf = (v) => (patternsOn && tiles[patternByCode[v]] ? patternByCode[v] : null);
-  const [rangeFrom, setRangeFrom] = useState("");
-  const [rangeTo, setRangeTo] = useState("");
+  const [rangeFrom, setRangeFrom] = useState(initial?.rangeFrom ?? "");
+  const [rangeTo, setRangeTo] = useState(initial?.rangeTo ?? "");
   const shownSymbols = [assaySymbol, ...extraSymbols].filter(Boolean).filter((s, i, a) => a.indexOf(s) === i).slice(0, 5); // #3141 — five, as the Atlas (#3024)
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
 
@@ -185,6 +185,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   useLayoutEffect(() => { // once, when the pane has its height
     if (openedRef.current) return;
     openedRef.current = true;
+    if (initial) return; // #3873 (a) — reopened at the scale Layout asked for: not fitted to the pane
     const h = paneH();
     if (!(maxDepth * 6 + 110 > h)) return; // it fits at the default scale
     const r = sampled ? openRange(maxDepth, sampled.from, sampled.to, h) : null;
@@ -259,7 +260,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     // TASKS.csv #1641 (review #1497, Lawyers) — a depth range is part of the label: two sends of 21AGBDD007 (whole hole, 100-250 m) were both 'Strip log — 21AGBDD007'
     const rangeText = ranged ? `, ${Number(d0.toFixed(1))}-${Number(d1.toFixed(1))} m` : "";
     const addTo = onAddToLayout;
-    embedFigureFont(markup).catch(() => markup).then((m) => addTo({ label: `Strip log — ${holeId}${rangeText}` /* project data stays English */, src: `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(m)))}` /* #2610 — with the subset Exo 2 */, naturalW: fw, naturalH: fh, legendItems, depthHeightAtCaptureM: fh / pxPerMeter /* #1480 — Layout's depth scale */, keyDrawn: legendItems.length > 0 /* #2739 — the image draws its colour key: Layout need not add a second legend */ }));
+    embedFigureFont(markup).catch(() => markup).then((m) => addTo({ label: `Strip log — ${holeId}${rangeText}` /* project data stays English */, src: `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(m)))}` /* #2610 — with the subset Exo 2 */, naturalW: fw, naturalH: fh, legendItems, depthHeightAtCaptureM: fh / pxPerMeter /* #1480 — Layout's depth scale */, keyDrawn: legendItems.length > 0 /* #2739 — the image draws its colour key: Layout need not add a second legend */, stripSpec: { holeId, assaySymbol, extraSymbols, logScale, rangeFrom, rangeTo, pxPerMeter } /* #3873 (a) — what Layout reopens it with */, ...(replaceElementId ? { replaceElementId } : {}) }));
     const ptAt = (h) => stripLogTextPt(h, Math.min(700 * (h / fw), 794 - 160)); // Layout: 700 px wide, at most the sheet height less margins (A4 landscape)
     const pt = ptAt(fh), pt1 = ptAt(fh - (d1 - d0) * (pxPerMeter - 1)); // the same log drawn at 1 px/m
     const wide = 700 * (fh / fw) <= 794 - 160; // Layout's 700 px width, not the sheet height, sets its size: many tracks

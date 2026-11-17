@@ -13890,5 +13890,9 @@
   "Margin (revenue − cost)": "Marge (revenu − coût)",
   "At {price} {unit}, {rec} % recovery; {costs} on the diluted tonnes. Break-even cut-off {be} {u}. Not included: {list}.": "À {price} {unit}, {rec} % de récupération ; {costs} sur les tonnes diluées. Teneur de coupure d'équilibre {be} {u}. Non inclus : {list}.",
   "Preparing the PDF: {n} page(s)…": "Préparation du PDF : {n} page(s)…",
-  "{fileName}: {n} hole(s) had an azimuth or dip that the exporting project took from its survey (the attitude_from column): they are not stored as the collar's own, the survey gives them.": "{fileName} : {n} sondage(s) avaient un azimut ou un pendage que le projet exportateur a pris dans son levé (la colonne attitude_from) : ils ne sont pas enregistrés comme ceux du collet, le levé les fournit."
+  "{fileName}: {n} hole(s) had an azimuth or dip that the exporting project took from its survey (the attitude_from column): they are not stored as the collar's own, the survey gives them.": "{fileName} : {n} sondage(s) avaient un azimut ou un pendage que le projet exportateur a pris dans son levé (la colonne attitude_from) : ils ne sont pas enregistrés comme ceux du collet, le levé les fournit.",
+  "The strip log was drawn again at {ppm} px per metre; it stays at 1 : {d} on this page.": "Le log du sondage a été redessiné à {ppm} px par mètre ; il reste à 1 : {d} sur cette page.",
+  "Opens this strip log in the 3D View with the tracks, depth range and key it was sent with, at the px per metre this depth scale needs; its 'Add to Layout' replaces this picture on this page, at the same depth scale.": "Ouvre ce log dans la vue 3D avec les pistes, l'intervalle de profondeur et la légende avec lesquels il a été envoyé, aux px par mètre que cette échelle de profondeur demande ; son « Ajouter à la mise en page » remplace cette image sur cette page, à la même échelle de profondeur.",
+  "Draw it again at {need} px/m": "Le redessiner à {need} px/m",
+  "The strip log of {hole} cannot be drawn again: the project has no hole of that name now.": "Le log de {hole} ne peut pas être redessiné : le projet n'a plus de sondage de ce nom."
 }

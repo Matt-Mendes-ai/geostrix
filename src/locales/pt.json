@@ -13890,5 +13890,9 @@
   "Margin (revenue − cost)": "Margem (receita − custo)",
   "At {price} {unit}, {rec} % recovery; {costs} on the diluted tonnes. Break-even cut-off {be} {u}. Not included: {list}.": "A {price} {unit}, {rec} % de recuperação; {costs} sobre as toneladas diluídas. Teor de corte de equilíbrio {be} {u}. Não inclui: {list}.",
   "Preparing the PDF: {n} page(s)…": "Preparando o PDF: {n} página(s)…",
-  "{fileName}: {n} hole(s) had an azimuth or dip that the exporting project took from its survey (the attitude_from column): they are not stored as the collar's own, the survey gives them.": "{fileName}: {n} furo(s) tinham um azimute ou mergulho que o projeto exportador tirou do seu levantamento (a coluna attitude_from): não são guardados como do próprio colar, o levantamento os fornece."
+  "{fileName}: {n} hole(s) had an azimuth or dip that the exporting project took from its survey (the attitude_from column): they are not stored as the collar's own, the survey gives them.": "{fileName}: {n} furo(s) tinham um azimute ou mergulho que o projeto exportador tirou do seu levantamento (a coluna attitude_from): não são guardados como do próprio colar, o levantamento os fornece.",
+  "The strip log was drawn again at {ppm} px per metre; it stays at 1 : {d} on this page.": "O log do furo foi redesenhado a {ppm} px por metro; continua em 1 : {d} nesta página.",
+  "Opens this strip log in the 3D View with the tracks, depth range and key it was sent with, at the px per metre this depth scale needs; its 'Add to Layout' replaces this picture on this page, at the same depth scale.": "Abre este log na vista 3D com as faixas, o intervalo de profundidade e a legenda com que foi enviado, nos px por metro que esta escala de profundidade pede; o seu «Adicionar à Prancha» substitui esta imagem nesta página, na mesma escala de profundidade.",
+  "Draw it again at {need} px/m": "Redesenhar a {need} px/m",
+  "The strip log of {hole} cannot be drawn again: the project has no hole of that name now.": "O log de {hole} não pode ser redesenhado: o projeto não tem mais um furo com esse nome."
 }

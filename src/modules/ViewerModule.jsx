@@ -532,6 +532,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     addLayoutImage, goToModule, requestViewportRender, // requestViewportRender: #1005
     themes, addTheme, renameTheme, deleteTheme,
     viewportRenderRequest, viewportPendingRequest, resolveViewportRender, cancelViewportBatch, // cancel: #1644
+    stripLogRequest, clearStripLogRequest, // TASKS.csv #3873 (a)
     rasters, addRaster, updateRaster, removeRaster,
     boundaries, addBoundary, updateBoundary, removeBoundary,
     mapLayers, surfaceStructures, // TASKS.csv #316/#317
@@ -749,6 +750,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const [emptyCardClosed, setEmptyCardClosed] = useState(false); // #1327
   const identifyStopRef = useRef(null); // #1324 — the Escape chain runs before the hook below is declared
   const [stripLogHoleId, setStripLogHoleId] = useState(null); // TASKS.csv #133 — downhole strip log modal, holds the hole_id or null
+  const [stripRedo, setStripRedo] = useState(null); // TASKS.csv #3873 (a) — { elementId, spec }: the strip log was reopened from Layout to be drawn again
   const [interceptsModalOpen, setInterceptsModalOpen] = useState(false); // TASKS.csv #84 — boundary intercepts
   const [contextMenu, setContextMenu] = useState(null);
   // TASKS.csv — right-click on a sidebar layer row for a small extensible menu ("for now" per the
@@ -2846,6 +2848,14 @@ ${describeTrend(t)}` };
     // comment above for why depending on it directly reintroduces the bug it looks like it should
     // have nothing to do with.
   }, [viewportRenderRequest, viewportPendingRequest, themes, applyTheme, doCaptureViewportRender, resolveViewportRender, goToModule, visible]);
+  // TASKS.csv #3873 (a) — Layout asked for a strip log to be drawn again at a new px per metre: opened here with the choices it was sent with; its 'Add to Layout' replaces that element
+  useEffect(() => {
+    if (!stripLogRequest || !visible) return;
+    const { elementId, spec } = stripLogRequest;
+    clearStripLogRequest();
+    if ((collars || []).some((c) => c.hole_id === spec.holeId)) { setStripRedo({ elementId, spec }); setStripLogHoleId(spec.holeId); }
+    else setNotices((p) => [...p, tr("The strip log of {hole} cannot be drawn again: the project has no hole of that name now.", { hole: spec.holeId })]);
+  }, [stripLogRequest, visible, clearStripLogRequest, collars]);
 
   // TASKS.csv #198 (part 3) — the interactive session's exits, restoring as the timed path does; "cancel" resolves an error,
   // which store.jsx's result-effect treats as "leave the viewport alone, hop back to Layout".
@@ -7810,9 +7820,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           colorFor={effectiveColor} labelFor={effectiveLabel} shownElements={assayDisplayElements} // #402; #1698
           patternOverride={legendOverride.litho} onPatternChange={(v, p) => setLegendOverride((o) => ({ ...o, litho: { ...(o.litho || {}), [v]: { ...(o.litho?.[v] || {}), pattern: p } } }))} // #1995
           modelledLayers={customLayers.filter((l) => l.rows?.[0]?.modelled)} // TASKS.csv #356
+          initial={stripRedo?.spec || null} replaceElementId={stripRedo?.elementId || null} // #3873 (a)
           onAddToLayout={(img) => { addLayoutImage(img); goToModule("layout"); }} onAdvice={(t) => t && setNotices((p) => [...p, t])} // #1480; advice: #1641
           assayColor={(sym, v) => assayColorFor(v, assayHueIndex(sym, assayElements), assayStyle[sym])} // #3879
-          onClose={() => setStripLogHoleId(null)} onOpenFence={() => { setStripLogHoleId(null); setFenceOpen(true); }} legendOverride={legendOverride} // #3560 A0 / A1
+          onClose={() => { setStripLogHoleId(null); setStripRedo(null); }} onOpenFence={() => { setStripLogHoleId(null); setFenceOpen(true); }} legendOverride={legendOverride} // #3560 A0 / A1; #3873 (a)
         />
       )}
       {assayStyleModalSymbol && (

@@ -13890,5 +13890,9 @@
   "Margin (revenue − cost)": "Margen (ingreso − costo)",
   "At {price} {unit}, {rec} % recovery; {costs} on the diluted tonnes. Break-even cut-off {be} {u}. Not included: {list}.": "A {price} {unit}, {rec} % de recuperación; {costs} sobre las toneladas diluidas. Ley de corte de equilibrio {be} {u}. No incluye: {list}.",
   "Preparing the PDF: {n} page(s)…": "Preparando el PDF: {n} página(s)…",
-  "{fileName}: {n} hole(s) had an azimuth or dip that the exporting project took from its survey (the attitude_from column): they are not stored as the collar's own, the survey gives them.": "{fileName}: {n} sondaje(s) tenían un azimut o buzamiento que el proyecto exportador tomó de su levantamiento (la columna attitude_from): no se guardan como propios del collar, los da el levantamiento."
+  "{fileName}: {n} hole(s) had an azimuth or dip that the exporting project took from its survey (the attitude_from column): they are not stored as the collar's own, the survey gives them.": "{fileName}: {n} sondaje(s) tenían un azimut o buzamiento que el proyecto exportador tomó de su levantamiento (la columna attitude_from): no se guardan como propios del collar, los da el levantamiento.",
+  "The strip log was drawn again at {ppm} px per metre; it stays at 1 : {d} on this page.": "El registro de sondaje se dibujó de nuevo a {ppm} px por metro; sigue a 1 : {d} en esta página.",
+  "Opens this strip log in the 3D View with the tracks, depth range and key it was sent with, at the px per metre this depth scale needs; its 'Add to Layout' replaces this picture on this page, at the same depth scale.": "Abre este registro en la vista 3D con las pistas, el rango de profundidad y la clave con que se envió, a los px por metro que pide esta escala de profundidad; su «Agregar a Lámina» reemplaza esta imagen en esta página, a la misma escala de profundidad.",
+  "Draw it again at {need} px/m": "Dibujarlo de nuevo a {need} px/m",
+  "The strip log of {hole} cannot be drawn again: the project has no hole of that name now.": "El registro de {hole} no se puede dibujar de nuevo: el proyecto ya no tiene un sondaje con ese nombre."
 }

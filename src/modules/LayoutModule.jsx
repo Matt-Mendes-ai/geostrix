@@ -133,7 +133,7 @@ const ELEMENT_KIND_NAMES = { title: "Title" /* #3374 */, text: "Text", rect: "Re
 export default function LayoutModule() {
   const {
     pendingLayoutImages, consumeLayoutImage,
-    themes, requestViewportRender, goToModule,
+    themes, requestViewportRender, goToModule, requestStripLogRedraw, // requestStripLogRedraw: TASKS.csv #3873 (a)
     layoutSelectRequest, setLayoutSelectRequest,
     // TASKS.csv #68 — page contents now live in the store (layoutElements/setLayoutElements),
     // renamed locally to `elements`/`setElements` so the rest of this file — written against a plain
@@ -415,11 +415,18 @@ export default function LayoutModule() {
     if (replacing.length) {
       // Larger text grows the figure's margins, so the new picture spans more metres across: its width is set again for the plot
       // scale the element had, and if the text then prints off 7 pt the section is asked once more (at most 3 rounds; it converges).
-      let again = 0;
+      let again = 0, depthNote = "";
       const next = new Map();
       for (const img of replacing) {
         const el = elements.find((e) => e.id === img.replaceElementId);
         const aspect = img.naturalW && img.naturalH ? img.naturalW / img.naturalH : el.aspect;
+        if (img.depthHeightAtCaptureM > 0 && el.depthHeightAtCaptureM > 0) { // TASKS.csv #3873 (a) — a strip log drawn again: its place and its depth scale (1 : N on paper) stay, the picture is the new one
+          const denom = depthScaleDenom(el), upd0 = { ...el, src: patternsAsVectors(img.src, img.naturalH), naturalW: img.naturalW, naturalH: img.naturalH, aspect, depthHeightAtCaptureM: img.depthHeightAtCaptureM, legendItems: img.legendItems || el.legendItems, stripSpec: img.stripSpec || el.stripSpec, ...(img.keyDrawn ? { keyDrawn: true } : {}) };
+          const h = denom > 0 ? depthHeightForScale(upd0, denom) : el.h;
+          next.set(el.id, { ...upd0, h, w: h * aspect });
+          depthNote = tr("The strip log was drawn again at {ppm} px per metre; it stays at 1 : {d} on this page.", { ppm: +(img.naturalH / img.depthHeightAtCaptureM).toPrecision(3), d: Math.round(denom || 0).toLocaleString() });
+          continue;
+        }
         const world = img.worldWidthAtCaptureM ?? el.worldWidthAtCaptureM, denom = sectionScaleDenom(el);
         // TASKS.csv #3022 (review #2876) — not rounded to whole pixels: the scale is read back from the width, and a rounded width turned a
         // picked 1 : 5,000 into '1 : 5,002 along the section'
@@ -434,7 +441,7 @@ export default function LayoutModule() {
       // picked (#2483 followResize)
       setElements((els) => [...next.values()].reduce((acc, upd) => followResize(acc, upd.id, upd), els));
       replacing.forEach((img) => consumeLayoutImage(img.id));
-      setSyncNotice(again ? tr("Snapshot taken again; adjusting its text once more for the plot scale…") : tr("Snapshot taken again with its text at print size, at the same plot scale."));
+      setSyncNotice(depthNote && !again ? depthNote : again ? tr("Snapshot taken again; adjusting its text once more for the plot scale…") : tr("Snapshot taken again with its text at print size, at the same plot scale."));
     }
     const noRoom = new Set(); // #3608 — the ids of the pictures that found no free space on this page
     const placedSoFar = [...elements]; // #1484 — each snapshot into the page's free space, not stacked at (90, 90)
@@ -460,7 +467,7 @@ export default function LayoutModule() {
       // ViewerModule's buildSectionPayload): the exact {label,color} pairs actually drawn in this
       // section, so a legend bound to this image (see syncLegendFromView below) can match it
       // without needing a live theme, which a flattened snapshot doesn't have.
-      return { id: img.id, type: "image", label: img.label || "Snapshot", src: img.depthHeightAtCaptureM > 0 ? patternsAsVectors(img.src, img.naturalH) /* TASKS.csv #3875 - a strip log's pattern fills as vector tiles, not bitmaps */ : img.src, aspect, x: spot.x, y: spot.y, w, h, worldWidthAtCaptureM: img.worldWidthAtCaptureM ?? null, verticalExaggeration: img.verticalExaggeration ?? null /* #944 */, sectionAzimuth: Number.isFinite(img.sectionAzimuth) ? img.sectionAzimuth : null /* #1489 */, depthHeightAtCaptureM: img.depthHeightAtCaptureM ?? null /* #1480 */, planMap: !!img.planMap /* #1864 */, ...(img.planView && img.targetWorld && img.worldHeightAtTarget ? { mapsView: !!img.mapsView, planView: true, trueScale: true, targetWorld: img.targetWorld, worldHeightAtTarget: img.worldHeightAtTarget, cameraAzimuthDeg: 0, utmGrid: !!img.utmGrid, ...(img.mapsCapture ? { mapsCapture: img.mapsCapture } : {}) /* #3491 */ } : {}) /* #3194 — a Maps snapshot: north up at a known scale, for the coordinate grid */, naturalW: img.naturalW, naturalH: img.naturalH, legendItems: img.legendItems || null, sectionTabId: img.sectionTabId || null, textFactor: img.textFactor || 1 /* #1485 */, ...(img.keyDrawn ? { keyDrawn: true } : {}) /* #2739 — the image draws its own key */ };
+      return { id: img.id, type: "image", label: img.label || "Snapshot", src: img.depthHeightAtCaptureM > 0 ? patternsAsVectors(img.src, img.naturalH) /* TASKS.csv #3875 - a strip log's pattern fills as vector tiles, not bitmaps */ : img.src, aspect, x: spot.x, y: spot.y, w, h, worldWidthAtCaptureM: img.worldWidthAtCaptureM ?? null, verticalExaggeration: img.verticalExaggeration ?? null /* #944 */, sectionAzimuth: Number.isFinite(img.sectionAzimuth) ? img.sectionAzimuth : null /* #1489 */, depthHeightAtCaptureM: img.depthHeightAtCaptureM ?? null /* #1480 */, planMap: !!img.planMap /* #1864 */, ...(img.planView && img.targetWorld && img.worldHeightAtTarget ? { mapsView: !!img.mapsView, planView: true, trueScale: true, targetWorld: img.targetWorld, worldHeightAtTarget: img.worldHeightAtTarget, cameraAzimuthDeg: 0, utmGrid: !!img.utmGrid, ...(img.mapsCapture ? { mapsCapture: img.mapsCapture } : {}) /* #3491 */ } : {}) /* #3194 — a Maps snapshot: north up at a known scale, for the coordinate grid */, naturalW: img.naturalW, naturalH: img.naturalH, legendItems: img.legendItems || null, sectionTabId: img.sectionTabId || null, textFactor: img.textFactor || 1 /* #1485 */, ...(img.keyDrawn ? { keyDrawn: true } : {}) /* #2739 — the image draws its own key */, ...(img.stripSpec ? { stripSpec: img.stripSpec } : {}) /* TASKS.csv #3873 (a) — the choices the strip log window reopens with */ };
     });
     // TASKS.csv #1128 — a cross-section snapshot comes with its legend as a Layout element (movable, editable, bound to
     // the snapshot so "Sync" refreshes it), right of the image when it fits on the sheet, else below it
@@ -1748,7 +1755,7 @@ export default function LayoutModule() {
                 section snapshots carry worldWidthAtCaptureM (see SectionWindow.jsx's snapshotToLayout)
                 only when they came from the pop-out's "Snapshot to Layout" button — a plain imported
                 photo or logo has no known real-world scale, so this stays hidden for those. */}
-            {isDepthImage(sel) && <DepthScaleControls sel={sel} pageH={A4.h} updateSelected={updateSelected} split={stripLogSplitFor(sel)} onSplit={() => splitStripLogOverPages(sel)} onWhole={() => setElements((els) => els.filter((e) => e.sliceCaptionOf !== sel.id).map((e) => (e.id === sel.id ? wholeStripLog(e) : e)))} /> /* TASKS.csv #1480; split: #3372 */}
+            {isDepthImage(sel) && <DepthScaleControls sel={sel} pageH={A4.h} updateSelected={updateSelected} onRedraw={sel.stripSpec && !sel.slice ? (ppm) => requestStripLogRedraw({ elementId: sel.id, spec: { ...sel.stripSpec, pxPerMeter: +ppm.toFixed(3) } }) : null} split={stripLogSplitFor(sel)} onSplit={() => splitStripLogOverPages(sel)} onWhole={() => setElements((els) => els.filter((e) => e.sliceCaptionOf !== sel.id).map((e) => (e.id === sel.id ? wholeStripLog(e) : e)))} /> /* TASKS.csv #1480; split: #3372 */}
             {isDepthImage(sel) && syncNotice && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div> /* #3372 — the split's line */}
             {sel.type === "image" && sel.worldWidthAtCaptureM != null && (
               <>
@@ -2262,7 +2269,7 @@ function TitleBlockControls({ sel, updateSelected }) {
 // TASKS.csv #1480 (review #1352) — a strip log at an exact depth scale: its height sized so a metre of hole is 1/N m of paper (the width
 // follows), and what that is in millimetres per 10 m, the way a printed log is read
 const DEPTH_PRESETS = [200, 500, 1000, 2000, 2500, 5000, 10000];
-function DepthScaleControls({ sel, pageH, updateSelected, split = null, onSplit = null, onWhole = null }) { // split / onSplit / onWhole: #3372
+function DepthScaleControls({ sel, pageH, updateSelected, split = null, onSplit = null, onWhole = null, onRedraw = null }) { // split / onSplit / onWhole: #3372; onRedraw: #3873 (a)
   const [custom, setCustom] = useState(false);
   if (sel.slice) { // TASKS.csv #3372 — one page of a split log: its depths, and the whole log again
     const s = sel.slice, f = (v) => Number(Number(v).toFixed(1)).toLocaleString();
@@ -2308,7 +2315,7 @@ function DepthScaleControls({ sel, pageH, updateSelected, split = null, onSplit 
       {(() => { // TASKS.csv #3861 — a scale that enlarges the picture past what it was drawn at cannot be split: it has to be sent again at that scale
         const adv = d > 0 && !sel.slice ? redrawAdvice(sel, d) : null;
         if (adv && adv.enlarge > 1.15 && !(split && !split.error && split.pages?.length > 1)) return (
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("This picture was drawn at {now} px per metre. At 1 : {d} it is enlarged {x} times and its labels print at about {pt} pt. For this scale send it again from the strip log window with Vertical scale {need} px/m ('Add to Layout'): a log drawn at that scale can be split over pages.", { now: +adv.ppmNow.toPrecision(3), d: n.toLocaleString(), x: +adv.enlarge.toFixed(1), pt: adv.pt.toFixed(0), need: +adv.ppmNeeded.toPrecision(3) })}</div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("This picture was drawn at {now} px per metre. At 1 : {d} it is enlarged {x} times and its labels print at about {pt} pt. For this scale send it again from the strip log window with Vertical scale {need} px/m ('Add to Layout'): a log drawn at that scale can be split over pages.", { now: +adv.ppmNow.toPrecision(3), d: n.toLocaleString(), x: +adv.enlarge.toFixed(1), pt: adv.pt.toFixed(0), need: +adv.ppmNeeded.toPrecision(3) })}{onRedraw && <div style={{ marginTop: 4 }}>{/* TASKS.csv #3873 (a) */}<button type="button" onClick={() => onRedraw(adv.ppmNeeded)} title={tr("Opens this strip log in the 3D View with the tracks, depth range and key it was sent with, at the px per metre this depth scale needs; its 'Add to Layout' replaces this picture on this page, at the same depth scale.")} style={pBtn}>{tr("Draw it again at {need} px/m", { need: +adv.ppmNeeded.toPrecision(3) })}</button></div>}</div>
         );
         return sel.h > pageH ? <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("At this scale the log is taller than the page: a larger depth scale (1 : N with a bigger N) fits it, or a taller page.")}</div> : null;
       })()}
