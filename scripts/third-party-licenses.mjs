@@ -118,6 +118,10 @@ export function bundledData() {
     out.push({ name: "FGDC lithology patterns (FGDC-STD-013-2006), repackaged by Daven Quinn", version: "", license: "CC0-1.0 (public domain)",
       url: "https://github.com/davenquinn/geologic-patterns", text: [readme, readFileSync(path.join(fgdc, "LICENSE.txt"), "utf8").trim()].filter(Boolean).join("\n\n") });
   }
+  // TASKS.csv #3429 — the lithology thesaurus's second source: rock names and words from the dh2loop project's hierarchical thesaurus (MIT, Copyright (c) 2020 Mark Jessell), data only
+  const dh = path.join(ROOT, "src", "lib", "lithoThesaurusDh2loop-LICENSE.txt");
+  if (existsSync(dh)) out.push({ name: "dh2loop lithology thesaurus (rock names and words; Loop3D, Mark Jessell; Joshi et al. 2021, Geoscientific Model Development 14, 6711)", version: "1.0.0", license: "MIT",
+    url: "https://github.com/Loop3D/dh2loop", text: readFileSync(dh, "utf8").trim() });
   // TASKS.csv #2690 — the international time scale's interval colours (Macrostrat, CC BY 4.0), bundled for 'Time-scale colours'
   const ts = path.join(ROOT, "src", "lib", "timeScaleIntervals.txt");
   if (existsSync(ts)) out.push({ name: "International time scale interval colours (Macrostrat)", version: "2026-11-12", license: "CC-BY-4.0",
