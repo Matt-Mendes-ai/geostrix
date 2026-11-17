@@ -9,7 +9,7 @@ import { bundledData } from "../scripts/third-party-licenses.mjs";
 const text = (dir, n) => read(dir, n).toString("utf8");
 
 test("#2006 Osborne: the readings and the grid are small, finite and in the grid's CRS area; the credit lines are the owners' words", async () => {
-  const dir = "osborne_magnetic";
+  const dir = "osborne";
   assert.ok(folderBytes(dir) < 1.6e6, String(folderBytes(dir)));
   const R = table(dir, "osborne_magnetic.csv");
   assert.equal(R.length, 24927); assert.equal(new Set(R.map((r) => r.flight_line)).size, 307);
@@ -46,7 +46,7 @@ test("#2006 GeoMet: the derived collars, survey and intervals pass the sample-da
   const a1 = A.find((r) => r.hole_id === "1"); assert.equal(a1.Au_ppm, "1.04"); assert.equal(a1.Ag_ppm, "0.64"); // as delivered
   const readme = text(dir, "README.md");
   assert.match(readme, /Zenodo, version v4, 7 March 2022\. https:\/\/doi\.org\/10\.5281\/zenodo\.7051975/); assert.match(readme, /Creative Commons Attribution 4\.0 International/);
-  assert.match(readme, /derived from the positions/); assert.match(readme, /an assumption, not the lab's/);
+  assert.match(readme, /worked out from those sample positions/); assert.match(readme, /not the laboratory's sampled lengths/); assert.match(readme, /local mine grid with no coordinate system/); assert.match(readme, /The traces are reconstructed/);
   for (const n of ["Hoffimann", "Mazzinghy", "Gonçalves", "Vale S\.A\."]) assert.match(readme, new RegExp(n));
 });
 

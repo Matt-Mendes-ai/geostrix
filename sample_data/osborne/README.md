@@ -1,8 +1,8 @@
 # Osborne mine airborne magnetics (Mt Isa Inlier, Queensland): a sample with no drillholes
 
 Real public data: the total-field magnetic anomaly of Geoscience Australia's airborne survey P1029 over the Osborne mine area, as
-processed and published for the Fatiando a Terra documentation by Leonardo Uieda. The files are an ordinary CSV and a GeoTIFF:
-import them under Geophysics > Point survey and Maps.
+processed and published for the Fatiando a Terra documentation by Leonardo Uieda. Open it from the empty 3D View ("Sample: Osborne magnetics") or File > Open Sample
+Project. It loads a magnetic point survey and a value grid.
 
 - **`osborne_magnetic.csv`**: 24,927 flight-line readings, one in 40 of each of the 307 flight lines of the survey's 990,987 readings around the
   mine. Columns: `flight_line`, `easting`, `northing` (m, WGS 84 / UTM zone 54 south, EPSG:32754), `height_m` (the flight's orthometric height, m: 276 to 467), `anomaly_nt` (total-field anomaly, nT: -2,693 to 5,392). The survey flew at about 80 m terrain clearance on lines
@@ -14,7 +14,7 @@ import them under Geophysics > Point survey and Maps.
 Things to try: Geophysics > Point survey (import `osborne_magnetic.csv`, pick the anomaly as the value; grid it yourself and
 compare with the published grid), Maps (the grid, its derivatives and filters), reduction to the pole and the sill's depth.
 
-## Credit (as the data owners ask)
+## Licence and attribution
 
 > Contains data (c) Commonwealth of Australia (Geoscience Australia): Geophysical Acquisition & Processing Section 2019, MIM Data from
 > Mt Isa Inlier, QLD (P1029), magnetic line data, AWAGS levelled, Geoscience Australia, Canberra.
@@ -27,7 +27,17 @@ compare with the published grid), Maps (the grid, its derivatives and filters), 
 
 Licence: Creative Commons Attribution 4.0 International (https://creativecommons.org/licenses/by/4.0/) for both Zenodo records, which
 state that the Geoscience Australia source is also CC BY. (Geoscience Australia's own catalogue entry on data.gov.au lists the
-licence of P1029 as "Not specified"; the attribution above follows the Zenodo records.)
+licence of P1029 as "Not specified"; the attribution above follows the Zenodo records.) Only the two Zenodo files are bundled.
+Geoscience Australia does not endorse GeoStrix, nor does Leonardo Uieda, and the data is given without warranty.
+
+## What the data checks found (counts)
+
+- **Duplicates and blanks:** none. 24,927 readings on 307 flight lines, no repeated position, no blank cell, every height between
+  276 and 467 m. The grid has no empty node (346 × 370 = 128,020 nodes).
+- **Overlaps:** none apply (no intervals). The anomaly runs -2,693 to 5,392 nT, median 88 nT; 124 readings are above +1,000 nT and 67
+  below -1,000 nT. The grid runs -1,785.3 to 3,798.1 nT.
+- **What the data say:** two total-field anomalies of the Osborne mine area (Mt Isa Inlier) cut from a larger survey, and a grid of the dipolar anomaly of the Lightning Creek sill
+  complex (as Uieda's record describes it). Neither file says anything about mineralization.
 
 ## What is real, and what was done to it
 

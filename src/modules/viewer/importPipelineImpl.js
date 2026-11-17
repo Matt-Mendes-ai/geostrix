@@ -1446,6 +1446,11 @@ export function makeImportPipeline(ctx, h) {
       files: ["collars.csv", "survey.csv"],
       notice: "Rouyn-Noranda (Quebec's SIGEOM, CC BY 4.0): the geology, 299 structural measurements and 280 historical drillhole traces of a 7 km block of the Abitibi, on a terrain, inside the Blake River gravity sample — nothing synthesized.",
     },
+    // TASKS.csv #2006 — a research dataset on a LOCAL grid (no CRS): the project keeps it as a local grid; its assays are loaded by the caller (lib/sampleWa.js)
+    geomet: {
+      dir: "geomet", localGrid: "GeoMet local mine grid", files: ["collars.csv", "survey.csv"],
+      notice: "GeoMet (IMPA, UFMG and Vale S.A., CC BY 4.0): 118 inclined holes with 1,999 assays of 18 elements. The source has no collars or surveys: the collars and traces are RECONSTRUCTED from the samples' X, Y and Z (a hole's first sample is its collar, the hole runs in straight lines between samples) and the intervals are an assumption. The coordinates are a local grid with no coordinate system: there is no map backdrop and nothing to reproject.",
+    },
     // TASKS.csv #3107 — its assays and other parts are loaded by the caller (lib/sampleWa.js)
     qld_century: {
       dir: "qld_century", epsg: 7854, crs: "GDA2020 / MGA zone 54",
@@ -1464,7 +1469,13 @@ export function makeImportPipeline(ctx, h) {
       // TASKS.csv #617 — the sample's CRS is known: set it when the project's CRS was never chosen, instead of
       // stopping on #615's "which CRS are these collars in?" dialog
       const live = importStateRef.current;
-      if (live.project?.crsSet === false && live.setEpsg) {
+      if (S.localGrid) { // TASKS.csv #2006 — a sample with no coordinate system: a local grid, so the CRS question is not asked and no reprojection is offered
+        if (live.project?.crsSet === false && !live.project?.localGrid && live.setLocalGrid) {
+          live.setLocalGrid(S.localGrid);
+          importStateRef.current = { ...live, project: { ...live.project, localGrid: { name: S.localGrid } } };
+          setNotices((p) => [...p, notice("This sample's coordinates are a local grid with no coordinate system: the project keeps them as a local grid ({name}).", { name: S.localGrid })]);
+        }
+      } else if (live.project?.crsSet === false && live.setEpsg) {
         live.setEpsg(S.epsg);
         importStateRef.current = { ...live, project: { ...live.project, epsg: S.epsg, crsSet: true } };
         setNotices((p) => [...p, notice("Project CRS set to {crs} (EPSG:{epsg}), the sample project's coordinate system.", { crs: S.crs, epsg: S.epsg })]);

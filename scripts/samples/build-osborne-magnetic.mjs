@@ -1,4 +1,4 @@
-// TASKS.csv #2006 — builds sample_data/osborne_magnetic/ (an airborne magnetic sample with no drillholes) from two open-licence records of Leonardo Uieda's
+// TASKS.csv #2006 — builds sample_data/osborne/ (an airborne magnetic sample with no drillholes) from two open-licence records of Leonardo Uieda's
 // "Fatiando a Terra Data" on Zenodo, both processed from Geoscience Australia's P1029 survey (MIM Data from Mt Isa Inlier, QLD, magnetic line data, AWAGS levelled):
 //   - osborne-magnetic.csv.xz (10.5281/zenodo.5882209, CC BY 4.0): the survey's flight-line readings around the Osborne mine: flight line, longitude, latitude (WGS 84),
 //     flight height, total-field anomaly (nT). 990,988 readings;
@@ -19,7 +19,7 @@ import { reprojectXY } from "../../src/lib/reproject.js";
 const src = process.argv[2];
 const csvXz = src && path.join(src, "osborne-magnetic.csv.xz"), nc = src && path.join(src, "lightning-creek-magnetic-grid.nc");
 if (!src || !existsSync(csvXz) || !existsSync(nc)) { console.error("usage: node scripts/samples/build-osborne-magnetic.mjs <folder with osborne-magnetic.csv.xz and lightning-creek-magnetic-grid.nc>"); process.exit(1); }
-const out = path.resolve("sample_data/osborne_magnetic");
+const out = path.resolve("sample_data/osborne");
 mkdirSync(out, { recursive: true });
 const EPSG = 32754, EVERY = 40;
 

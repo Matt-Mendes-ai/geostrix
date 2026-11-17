@@ -157,7 +157,7 @@ export function bundledData() {
     if (existsSync(p)) out.push({ name: "WA lode gold sample (WAMEX company mineral drillhole database, Department of Energy, Mines, Industry Regulation and Safety, Western Australia)", version: "2024", license: "CC-BY-4.0",
       url: "https://catalogue.data.wa.gov.au/dataset/mineral-exploration-drillholes-open-file", text: readFileSync(p, "utf8").trim() }); }
   // TASKS.csv #2006 — two openly licensed research datasets, listed like the Blake River sample: the README carries the credit lines the owners ask for and says what was done
-  { const p = path.join(ROOT, "sample_data", "osborne_magnetic", "README.md");
+  { const p = path.join(ROOT, "sample_data", "osborne", "README.md");
     if (existsSync(p)) out.push({ name: "Osborne mine airborne magnetics sample (Geoscience Australia survey P1029, processed by Leonardo Uieda, Fatiando a Terra Data)", version: "2026-11", license: "CC-BY-4.0",
       url: "https://doi.org/10.5281/zenodo.5882209", text: readFileSync(p, "utf8").trim() }); }
   { const p = path.join(ROOT, "sample_data", "geomet", "README.md");
