@@ -53,9 +53,13 @@ export function resizeSurveyPts(group, minR) {
   const cache = group?.userData.geophysCache;
   if (!cache) return false;
   for (const entry of cache.values()) if (!entry.batches.every((b) => b.userData.compact?.floor && b.parent === group)) return false;
-  for (const entry of cache.values()) { for (const b of entry.batches) b.userData.compact.floor.u.value = minR; entry.sizeKey = sizeKey(minR); }
+  for (const entry of cache.values()) { const mr = minR * surveyFloorScale(entry.n); for (const b of entry.batches) b.userData.compact.floor.u.value = mr; entry.sizeKey = sizeKey(mr); }
   return true;
 }
+// TASKS.csv #2006 (Osborne magnetics: 24,927 readings drawn as 5 px spheres hid the 50 m grid at Fit) — a big survey's screen floor is a part of the usual one, so its
+// readings stay separate marks and the grid, terrain or imagery under it shows; a small survey keeps the full floor (#2849)
+export const BIG_SURVEY_N = 5000, BIG_SURVEY_FLOOR = 0.4;
+export const surveyFloorScale = (n) => (n > BIG_SURVEY_N ? BIG_SURVEY_FLOOR : 1);
 const sizeKey = (minR) => (minR > 1.4 ? minR.toFixed(3) : "base");
 
 // group: the geophys_pts layer group; rows: the points to draw (finite z, passing the filters); opts: { stops, colorMode, min, max };
@@ -76,15 +80,16 @@ export function syncGeophysPts(group, rows, { opts = {}, surveys = null, style, 
     const prev = cache.get(k);
     const rr = prev && prev.rowsSig === rowsSig ? prev.rr : robustRange(list.map((r) => r.value));
     const model = surveyColourModel(rr, surveys?.[k]?.legend || null, opts, single);
-    const dataSig = [rowsSig, JSON.stringify(model), styleSig, originSig].join("#"), sk = sizeKey(minR);
+    const mr = minR * surveyFloorScale(list.length); // #2006
+    const dataSig = [rowsSig, JSON.stringify(model), styleSig, originSig].join("#"), sk = sizeKey(mr);
     if (prev && prev.dataSig === dataSig && prev.batches.every((b) => b.parent === group)) {
-      for (const b of prev.batches) if (b.userData.compact?.floor) b.userData.compact.floor.u.value = minR; // #3401 — the uniform, always current
+      for (const b of prev.batches) if (b.userData.compact?.floor) b.userData.compact.floor.u.value = mr; // #3401 — the uniform, always current
       if (prev.sizeKey === sk) { out.kept.push(k); continue; }
       if (prev.batches.every((b) => b.userData.compact?.floor)) { prev.sizeKey = sk; out.resized.push(k); continue; }
     }
     if (prev) dropBatches(group, prev);
-    const built = buildSurvey(group, k, list, model, { style, proto, minR, origin, tipOf });
-    cache.set(k, { dataSig, sizeKey: sk, rowsSig, rr, batches: built.batches, ts: built.ts });
+    const built = buildSurvey(group, k, list, model, { style, proto, minR: mr, origin, tipOf });
+    cache.set(k, { n: list.length, dataSig, sizeKey: sk, rowsSig, rr, batches: built.batches, ts: built.ts });
     out.rebuilt.push(k);
   }
   // TASKS.csv #3325 — a survey hidden from its card (geophysSurveys[key].hidden): its batch kept and not drawn, so showing it again costs nothing.
