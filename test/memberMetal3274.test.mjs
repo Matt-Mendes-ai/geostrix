@@ -51,7 +51,7 @@ test("wiring: the members' metal columns in the table and the CSV, said in the h
   const m = readFileSync(new URL("../src/components/GradeTonnageModal.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(m, /const memberMetalOn = tonnesOn && !!means && members\.length > 0/);
   assert.match(m, /memberMetal\(x, \{ perBlock, rho, unit: m\.unit, element: m\.element \}\)/);
-  assert.match(m, /const extraM = memberMetalOn \? memberMetalColumns\(means, members, \{ perBlock, rho \}\) : null;/);
+  assert.match(m, /const extraM = memberMetalOn \? memberMetalColumns\(means, metalMembers, \{ perBlock, rho \}\) : null;/); // #3825: a member mostly on the floor is marked skipMetal
   assert.match(m, /<element>_<t, mlb, kg or oz>: the member's contained metal/);
   for (const l of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));

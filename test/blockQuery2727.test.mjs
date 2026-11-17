@@ -28,7 +28,7 @@ test("the block at a point", () => {
 
 test("the dialog wires the block models in", () => {
   const m = readFileSync(new URL("../src/components/SurfaceQueryModal.jsx", import.meta.url), "utf8");
-  assert.match(m, /const blockModels = useMemo\(\(\) => \(voxelModels \|\| \[\]\)\.filter\(\(m\) => \(m\.cells \|\| \[\]\)\.length && m\.colorMode !== "discrete"\)/);
+  assert.match(m, /const blockModels = useMemo\(\(\) => \(voxelModels \|\| \[\]\)\.filter\(\(m\) => \(m\.cells \|\| \[\]\)\.length && !\(m\.colorMode === "discrete" && m\.valueLabels\)\)/); // #3825: a stepped grade legend is still grades; only a unit model is left out
   assert.match(m, /sampleModelOnHoles\(\{ model: bm, collars, survey, desurveyMethod \}\)\.rows/);
   assert.match(m, /holesInBlockModel\(bmHoles, bmCutoff\)/);
   assert.match(m, /bmLookup\.find\(p\.x, p\.y, p\.z\)/);

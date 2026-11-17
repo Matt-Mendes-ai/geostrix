@@ -326,7 +326,7 @@ export function createDXFMeshParser(opts = {}) {
   const q = 1 / (opts.weldTolerance ?? 1e-4);
   const buckets = new Map();
   const bucket = (layer) => { let b = buckets.get(layer); if (!b) { b = meshBucket(layer, q); buckets.set(layer, b); } return b; };
-  let nFaceEntities = 0, nPolyfaceMeshes = 0;
+  let nFaceEntities = 0, nPolyfaceMeshes = 0, nFlatFaces = 0; // nFlatFaces: TASKS.csv #3817 (#3815 (6)) — faces whose corners weld to a line or a point: no area, left out
   let section = null, sawEntities = false, expectSectionName = false;
   let ent = null;  // the entity whose group codes are being read: { type, layer, ... }
   let poly = null; // an open POLYLINE (its VERTEX entities follow until SEQEND)
@@ -338,10 +338,11 @@ export function createDXFMeshParser(opts = {}) {
       const ok = [0, 1, 2, 3].map((k) => Number.isFinite(e.v[k * 3]) && Number.isFinite(e.v[k * 3 + 1]) && Number.isFinite(e.v[k * 3 + 2]));
       if (ok[0] && ok[1] && ok[2]) {
         const b = bucket(e.layer), v = e.v;
-        const a = b.vertex(v[0], v[1], v[2]), bb = b.vertex(v[3], v[4], v[5]), c = b.vertex(v[6], v[7], v[8]);
+        const a = b.vertex(v[0], v[1], v[2]), bb = b.vertex(v[3], v[4], v[5]), c = b.vertex(v[6], v[7], v[8]), t0 = b.triangles;
         b.triangle(a, bb, c);
         if (ok[3]) b.triangle(a, c, b.vertex(v[9], v[10], v[11])); // a quad's 2nd half; no-op for the triangle convention (vertex 3 = vertex 2)
         nFaceEntities++;
+        if (b.triangles === t0) nFlatFaces++;
       }
     } else if (e.type === "POLYLINE") {
       poly = { layer: e.layer, polyface: (e.flags & 64) !== 0, local: [], faces: [] };
@@ -426,7 +427,7 @@ export function createDXFMeshParser(opts = {}) {
       }
       const triangleCount = parts.reduce((s, p) => s + p.indices.length / 3, 0);
       const vertexCount = parts.reduce((s, p) => s + p.positions.length / 3, 0);
-      return { parts, triangleCount, vertexCount, nFaceEntities, nPolyfaceMeshes };
+      return { parts, triangleCount, vertexCount, nFaceEntities, nPolyfaceMeshes, nFlatFaces };
     },
   };
 }

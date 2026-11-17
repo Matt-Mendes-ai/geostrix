@@ -187,10 +187,25 @@ export function searchEllipsoidAxes(t, radius) {
 // axis their cross product. Ratios are the ranges along the three: the long one, the short one, and the intermediate from the fitted
 // direction nearest that axis (within 30 degrees), else the geometric mean of the two. Kriging under the trend then follows what the table
 // measured. rows: directionRow results already filtered to the fits that mean something (variogram.js wellFittedDirections).
-// -> a trend (cleanTrend), or null when fewer than two directions fit, or the shortest is within 20 degrees of the longest.
+// -> a trend (cleanTrend), or null when fewer than two directions fit, the shortest is within 20 degrees of the longest, or the fitted directions
+// span less than TREND_MIN_SPREAD_DEG (#3787).
+// TASKS.csv #3787 / #3825 (Scottie Gold) — after a Downhole run the table's directions with pairs were the few the fans sampled: the 'short' axis was the
+// direction least sampled, not the body's. A trend needs fitted directions that open far enough apart to say a long and a short axis: the widest angle
+// between two of them (as axes: an axis and its reverse are one, so 0 to 90 degrees) at least 60 degrees.
+export const TREND_MIN_SPREAD_DEG = 60;
+export function directionSpreadDeg(rows, directionVector) {
+  const vs = (rows || []).filter((r) => r && r.range > 0).map((r) => directionVector(r.azimuth, r.dip));
+  let best = 0;
+  for (let i = 0; i < vs.length; i++) for (let j = i + 1; j < vs.length; j++) {
+    const c = Math.min(1, Math.abs(vs[i].x * vs[j].x + vs[i].y * vs[j].y + vs[i].z * vs[j].z));
+    best = Math.max(best, Math.acos(c) * deg);
+  }
+  return best;
+}
 export function trendFromDirections(rows, directionVector) {
   const fits = (rows || []).filter((r) => r && r.range > 0).map((r) => ({ ...r, v: directionVector(r.azimuth, r.dip) }));
   if (fits.length < 2) return null;
+  if (directionSpreadDeg(fits, directionVector) < TREND_MIN_SPREAD_DEG) return null; // #3787
   fits.sort((a, b) => b.range - a.range);
   const long = fits[0], short = fits[fits.length - 1];
   const dot = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
