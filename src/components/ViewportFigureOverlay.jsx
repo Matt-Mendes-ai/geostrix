@@ -36,6 +36,7 @@ import React, { useRef, useEffect, useCallback, useLayoutEffect, useState } from
 import { metresPerPixelAtTarget, chooseScaleBar } from "../lib/figureScale.js";
 import { setVerticalExaggeration, veOf } from "../modules/viewer/verticalExaggeration.js"; // TASKS.csv #2623
 import { COLLAR_MARKER_UNIFORMS } from "../lib/viewer/collarMarkerShader.js"; // TASKS.csv #2623
+import { TUBE_UNIFORMS, tubeSizeUniforms } from "../lib/viewer/tubeShader.js"; // TASKS.csv #3668 — the interval tubes' size choice
 // TASKS.csv #305 — an SVG font-size PRESENTATION ATTRIBUTE cannot resolve a var(), so the scale-bar
 // labels below take the type scale in its JS-mirror form instead of "var(--font-size-sm)". Same
 // CSS-vs-JS boundary theme.js documents for colour.
@@ -206,6 +207,13 @@ export default function ViewportFigureOverlay({ config, title, legendGroups: all
     COLLAR_MARKER_UNIFORMS.uVE.value = ve;
     cameraRef.current?.__update?.();
   }, [ve, cameraRef, camStateRef]);
+  // TASKS.csv #3668 — the tubes' pixel floor / width from the view's setting (Auto: 1.5 px), then a redraw
+  const tubeMode = config.tubeSize?.mode, tubePx = config.tubeSize?.px;
+  useEffect(() => {
+    const u = tubeSizeUniforms({ mode: tubeMode, px: tubePx });
+    TUBE_UNIFORMS.uTubeMinPx.value = u.min; TUBE_UNIFORMS.uTubeMaxPx.value = u.max;
+    cameraRef.current?.__update?.();
+  }, [tubeMode, tubePx, cameraRef]);
   useEffect(() => {
     const m = mountRef.current;
     if (!m) return undefined;

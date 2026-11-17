@@ -44,7 +44,7 @@ test("wiring: the dialog's ground with the survey; the cut and the members' trim
   const m = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
   assert.match(m, /const cutGround = groundAt && cutAtGround \? \(groundSource === "collars" \? \(await import\("\.\.\/lib\/groundNotBelowSamples\.js"\)\)\.groundNotBelowSamples\(groundAt, points, \{ reachM: cellReal, marginM: cellReal \}\)\.at : groundAt\) : null;/);
   assert.match(m, /est\.cells = est\.cells\.filter\(\(c\) => \{ const g = cutGround\(c\.x, c\.y\);/);
-  assert.match(m, /trimLike\(me\.cells, \{ inShell, inArea, groundAt: cutGround \}\)/);
+  assert.match(m, /trimLikeSliced\(me\.cells, \{ inShell: msh \? msh\.inShell : inShell, inArea, groundAt: cutGround \}, \{ signal: ac\.signal \}\)/);
   assert.match(m, /<CollarLevelsNote collars=\{levelCollars\} survey=\{survey\}/);
   const n = readFileSync(new URL("../src/components/CollarLevelsNote.jsx", import.meta.url), "utf8");
   assert.match(n, /collarLevelsText\(collars, survey\), \[collars, survey\]/);

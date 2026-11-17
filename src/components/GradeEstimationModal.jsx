@@ -3,7 +3,7 @@ import { trendRatioText } from "../lib/trend.js"; // TASKS.csv #2423
 import CompositeLengthNote from "./CompositeLengthNote.jsx"; // TASKS.csv #2549
 import { belowDrilling } from "../lib/belowDrilling.js"; // TASKS.csv #2546
 import { buildMeshQuery, isPointInsideMesh, isMeshClosed } from "../lib/meshQuery.js"; // TASKS.csv #517
-import { validateSolid } from "../lib/meshValidate.js"; // TASKS.csv #860
+import { validateSolidAsync } from "../lib/solidValidateClient.js"; // TASKS.csv #860, #3791 — the solid's check in a worker, kept for the session
 import { X, Play } from "./icons.js";
 import { compositeDownholeSliced, samplePointsSliced } from "../lib/compositeSliced.js"; // TASKS.csv #3105 — compositing in slices of holes; placing: #3111
 import { rawSampleIntervals, PRECIOUS_METALS, capAudit, lengthWeightedPercentile, gradeUnitLabel, resolvedSegments } from "../lib/geochem.js"; // gradeUnitLabel: #2218; // rawSampleIntervals: #571; lengthWeightedPercentile: #1573
@@ -19,7 +19,7 @@ import { MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport, suppo
 import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit, blockModelLattice, snapBoundsToLattice, overlapBox, blockModelExtent /* #2729 */ } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
 import { runEstimation } from "../lib/estimationClient.js"; // TASKS.csv #520 — off the UI thread
 import { memberCapProposal } from "../lib/memberCaps.js"; // TASKS.csv #3271
-import { setChoices, setOthers, newSetId, setRecord, memberName, domainNameSuffix, trimLike, memberSummary, MAX_SET_ELEMENTS, MEMBER_OWN_KEYS, memberMethodFor, sharesPrimarySearch } from "../lib/estimateSet.js"; // TASKS.csv #3014 — several elements in one run
+import { setChoices, setOthers, newSetId, setRecord, memberName, domainNameSuffix, trimLikeSliced, filterSliced, memberSummary, MAX_SET_ELEMENTS, MEMBER_OWN_KEYS, memberMethodFor, sharesPrimarySearch } from "../lib/estimateSet.js"; // TASKS.csv #3014 — several elements in one run
 import { makeReachClient } from "../lib/blockReachClient.js"; // TASKS.csv #1416; in a worker: #1579
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #2552
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2552
@@ -27,7 +27,7 @@ import { sampledByHole, unsampledDrillPoints } from "../lib/insideSampling.js"; 
 import { verticalReach } from "../lib/blockReach.js"; // TASKS.csv #2422 — a flat trend's vertical reach, as the estimator counts it
 import { desurveyHole, pointOnTrace } from "../lib/desurvey.js"; // pointOnTrace: #3592
 import { sampleSpacing } from "../lib/sampleSpacing.js"; // TASKS.csv #3592 — the spacing at the samples
-import { estimatePlane, gradeShellOf, sameVolumeMajorM, ellipsoidAxesM } from "../lib/estimatePlane.js"; // TASKS.csv #3679 — the shell's search, for the estimate
+import { estimatePlane, gradeShellOf, ownShellFor, sameVolumeMajorM, ellipsoidAxesM } from "../lib/estimatePlane.js"; // TASKS.csv #3679 — the shell's search, for the estimate
 import { classStops, visibleOnLattice, elementClasses } from "../lib/viewer/modelLegendOnAdd.js"; // TASKS.csv #3596
 import { sameLattice } from "../lib/densityFromModel.js"; // TASKS.csv #3596 — one model of a grid shown
 import { gradeStops } from "../lib/inversion.js"; // TASKS.csv #702
@@ -233,6 +233,9 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   const [materialHoles, setMaterialHoles] = useState(() => keep("materialHoles", true)); // TASKS.csv #1573 — a second hole must carry at least 5 % of the weight
   const [maxSamples, setMaxSamples] = useState(() => keep("maxSamples", 16));
   const [maxPerHole, setMaxPerHole] = useState(() => keep("maxPerHole", 0)); // TASKS.csv #709 — 0 = no explicit cap
+  const [hgMin, setHgMin] = useState(() => keep("hgMin", "")); // TASKS.csv #3816 — composites at or above this grade inform only the blocks within hgFactor of the search radius ("" = off)
+  const [hgFactor, setHgFactor] = useState(() => keep("hgFactor", 0.5));
+  const highGrade = hgMin !== "" && Number.isFinite(Number(hgMin)) && Number(hgFactor) > 0 && Number(hgFactor) < 1 ? { min: Number(hgMin), factor: Number(hgFactor) } : null;
   const [capValue, setCapValue] = useState(() => (sameElement ? keep("capValue", NaN) : NaN));        // TASKS.csv #259
   const capClearedFor = useRef(null); // TASKS.csv #1573 — the element whose default cap the user emptied: no refill
   const [capAuto, setCapAuto] = useState(() => (sameElement ? keep("capAuto", false) : false));
@@ -314,7 +317,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   // "Add as block model" button, under changed settings)
   const chips = useMemo(() => unsampledWord(collars) === "chips", [collars]); // TASKS.csv #3507 - "unsampled chips" on RC / aircore holes, not "unsampled core"
   const nonMetal = isNonMetal(symbol, { fromLog: sourceKey !== "assay" }); // TASKS.csv #3497 — value, not metal, for SiO2, a log, LOI
-  const settingsSig = JSON.stringify([sourceKey, logValues, symbol, setPicked, memberCaps, useComposites, compositeLength, minCoverage, domainKey, capByDomain, padding, cellSize, cellHeight, flatReach, gridMode, originE, blockBudget, method, vgModel, vgNugget, addedKv, searchRadius, minSamples, minHoles, materialHoles, maxSamples, maxPerHole, capValue, includeQAQC, restrictToDomain, noCodeAsDomain, classifySupport, shellId, belowGround, samplesFrom, planePref /* #3679 */]);
+  const settingsSig = JSON.stringify([sourceKey, logValues, symbol, setPicked, memberCaps, useComposites, compositeLength, minCoverage, domainKey, capByDomain, padding, cellSize, cellHeight, flatReach, gridMode, originE, blockBudget, method, vgModel, vgNugget, addedKv, searchRadius, minSamples, minHoles, materialHoles, maxSamples, maxPerHole, hgMin, hgFactor, capValue, includeQAQC, restrictToDomain, noCodeAsDomain, classifySupport, shellId, belowGround, samplesFrom, planePref /* #3679 */]);
   const sigNow = useRef(settingsSig); sigNow.current = settingsSig;
   const runSig = useRef(null), [resultSig, setResultSig] = useState(null);
   const runCollars = useMemo(() => (samplesFrom === "checked" && checkedHoleIds?.size ? collars.filter((c) => checkedHoleIds.has(c.hole_id)) : collars), [collars, samplesFrom, checkedHoleIds]);
@@ -492,7 +495,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
 
   // #1580 — what to restore next time: kept current every render, stored when the dialog closes
   const remember = useRef(null);
-  remember.current = { memberMethods /* #3164 */, sourceKey, logValues, symbol, useComposites, compositeLength, minCoverage, domainKey, noCodeAsDomain, capByDomain, padding, cellSize, cellHeight, flatReach, gridMode, originE, originN, originZ, cellAuto: autoCell != null && cellSize === autoCell /* #3684 */, cellTyped: cellTyped.current /* #3706 */, method, vgModel, vgNugget, vgSill, vgRange, searchRadius, searchTyped: searchTouched.current /* #3684 */, minSamples, minHoles, materialHoles, maxSamples, maxPerHole, capValue, capAuto, includeQAQC, restrictToDomain, classifySupport, shellId: shellPick, shellDefaultOff /* #3706 */, belowGround, setOthers: setPicked /* #3014 */ };
+  remember.current = { memberMethods /* #3164 */, sourceKey, logValues, symbol, useComposites, compositeLength, minCoverage, domainKey, noCodeAsDomain, capByDomain, padding, cellSize, cellHeight, flatReach, gridMode, originE, originN, originZ, cellAuto: autoCell != null && cellSize === autoCell /* #3684 */, cellTyped: cellTyped.current /* #3706 */, method, vgModel, vgNugget, vgSill, vgRange, searchRadius, searchTyped: searchTouched.current /* #3684 */, minSamples, minHoles, materialHoles, maxSamples, maxPerHole, hgMin, hgFactor, capValue, capAuto, includeQAQC, restrictToDomain, classifySupport, shellId: shellPick, shellDefaultOff /* #3706 */, belowGround, setOthers: setPicked /* #3014 */ };
   const settingsKey = estimateSettingsKey(project);
   useEffect(() => () => { lastEstimateSettings.set(settingsKey, remember.current); }, [settingsKey]);
   // TASKS.csv #520 — the estimate runs in a worker: the window keeps repainting, shows progress and can be cancelled
@@ -566,7 +569,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           const closed = sh ? isMeshClosed(sh.positions, sh.indices) : null;
           if (!sh || !closed?.closed) { setError(sh ? tr("\"{name}\" is not a closed solid ({boundaryEdges} open edges) — it has no inside to restrict to.", { name: sh.name, boundaryEdges: closed.boundaryEdges }) : tr("That volume is no longer in the project.")); setRunning(false); return; }
           // TASKS.csv #860 — a shell that crosses itself has no well-defined inside (parity flips inside the overlap)
-          const vs = validateSolid(sh.positions, sh.indices);
+          const vs = await validateSolidAsync(sh.positions, sh.indices); // #3791 — in a worker, and kept for the session
           if (vs.selfIntersectingPairs > 0) { setError(tr("\"{name}\" crosses itself ({n} triangle pairs), so it has no well-defined inside to restrict to. Fix or rebuild it first.", { name: sh.name, n: vs.selfIntersectingPairs })); setRunning(false); return; }
           const q = buildMeshQuery(sh.positions, sh.indices);
           inShell = (p) => isPointInsideMesh(q, p);
@@ -629,6 +632,18 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         // its nearest-neighbour check in the check's: one search for the set instead of one per element, with the same values. The others run on
         // their own as before; so does every member under kriging (each fits its own variogram) or a log10 run.
         const prep = [];
+        // TASKS.csv #3802 — a member of a run restricted by default takes its own element's closed grade shell when it has one (its samples, its blocks);
+        // else the primary's. A shell that crosses itself has no inside: that member follows the primary's.
+        const memberShells = new Map();
+        const shellOfMember = async (el) => {
+          if (memberShells.has(el)) return memberShells.get(el);
+          let r = { inShell, name: shellInfo?.name, own: false };
+          const own = ownShellFor(volumeShells, el, { auto: shellAuto, primaryId: shellId });
+          const sh = own ? (volumeShells || []).find((v) => v.id === own.id) : null;
+          if (sh && (await validateSolidAsync(sh.positions, sh.indices)).selfIntersectingPairs === 0) { const q = buildMeshQuery(sh.positions, sh.indices); r = { inShell: (p) => isPointInsideMesh(q, p), name: sh.name, own: true }; }
+          memberShells.set(el, r);
+          return r;
+        };
         for (const el of others) {
           const u = elementUnits[el] || "ppm";
           const unsM = resolveUnsampled("estimate", { assays: srcAssays, collars: runCollars, symbol: el, unit: u, elementUnits, logCtx: { layers, customLayers } });
@@ -636,11 +651,12 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           const mCapN = Number(memberCapOf(el)), mCap = mCapN > 0 ? mCapN : null; // #3271
           const iv = useComposites ? await compositeDownholeSliced(rows, el, u, elementUnits, { length: compositeLength, minCoverage, capValue: mCap, domainRows: domainRowsSel }, { signal: ac.signal }) /* #3105 */ : rawSampleIntervals(rows, el, u, elementUnits, { capValue: mCap }).intervals;
           let mp = (await samplePointsSliced(iv, collars, survey, desurveyHole, desurveyMethod, { signal: ac.signal })).points; // #3111
-          if (inShell) mp = mp.filter((q) => inShell(q));
-          prep.push({ el, u, unsM, fm, rows, mCap, mp, mUns: mp.length ? unsampledPointsFor(rows, el, u) : [] });
+          const msh = inShell ? await shellOfMember(el) : null, mAll = mp.length; // #3802
+          if (msh) mp = mp.filter((q) => msh.inShell(q));
+          prep.push({ el, u, unsM, fm, rows, mCap, mp, mUns: mp.length ? unsampledPointsFor(rows, el, u) : [], msh, mOutside: mAll - mp.length });
         }
         const samePoints = (a, b) => a.length === b.length && a.every((q, i) => { const r = b[i]; return q.hole_id === r.hole_id && q.x === r.x && q.y === r.y && q.z === r.z && (q.length ?? null) === (r.length ?? null) && (q.domain ?? null) === (r.domain ?? null); });
-        const sharedIdx = prep.map((q, k) => (q.mp.length && sharesPrimarySearch(memberMethodOf(q.el), method, !!logInfo) /* #3164 */ && samePoints(q.mp, estPts) ? k : -1)).filter((k) => k >= 0);
+        const sharedIdx = prep.map((q, k) => (q.mp.length && sharesPrimarySearch(memberMethodOf(q.el), method, !!logInfo) /* #3164 */ && samePoints(q.mp, estPts) && !highGrade ? k : -1)).filter((k) => k >= 0);
         const sharedValues = sharedIdx.length ? sharedIdx.map((k) => Float64Array.from(prep[k].mp, (q) => q.value)) : null;
         const share = others.length ? 1 / (1 + others.length - sharedIdx.length) : 1; // #3014 — the primary's part of the progress bar (#3163: shared members take none)
         setStage(others.length ? symbol : null);
@@ -650,6 +666,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           ...(method === "ok" ? { variogram: { model: vgModel, ...(vgNugget !== "" && vgSill !== "" && vgRange !== "" ? { nugget: Number(vgNugget), sill: Number(vgSill), range: Number(vgRange) } : {}) } } : {}), // #709
           ...(unsPts.length ? { unsampledPoints: unsPts } : {}), // #2596
           ...(logFills.length ? { logShare: true } : {}), // #2721
+          ...(highGrade ? { highGrade } : {}), // #3816 — the primary's own search only: a member's grades are another element's, and it then runs its own search
           ...(sharedValues ? { members: { values: sharedValues, unsampled: sharedIdx.map((k) => prep[k].mUns) } } : {}), // #3163
           carry: true, ...(carryInside ? { carryInside } : {}), // #3784
         }, { onProgress: (f) => setProgress(share * (method === "nn" ? f : 0.8 * f)), signal: ac.signal });
@@ -674,6 +691,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           gridFrom: shellBox ? `box of the restricting solid "${shellBox.name}" within the drilling` : areaString ? `inside the closed design string "${areaString.name}" (${outsideArea} block(s) outside it dropped)` : gridMode === "checked" && checkedBounds ? `desurveyed traces of the ${checkedBounds.holes} checked hole(s)` : traceBounds ? `desurveyed traces of ${traceBounds.holes} assayed hole(s)` : "collar box (no hole could be desurveyed)", // #521; #1570
           searchRadiusM: searchRadius > 0 ? searchRadius : Math.round(gridDiagonal), searchRadiusWasUnlimited: !(searchRadius > 0), ...(supportRef > 0 ? { supportScoredAgainstM: Math.round(supportRef) } : {}), // #1411
           minSamples, maxSamples, minHoles, maxSamplesPerHole: maxPerHole || null,
+          ...(highGrade ? { highGradeSearch: { atOrAbove: highGrade.min, unit, withinFractionOfRadius: highGrade.factor, radiusM: Math.round(highGrade.factor * (searchRadius > 0 ? searchRadius : gridDiagonal)) } } : {}), // #3816
           // TASKS.csv #3255 — the record says whether #1573's 5 % rule was on (two models differing only in it had identical parameters)
           ...(minHoles > 1 ? { secondHoleRule: materialHoles ? "a second hole counts when it carries at least 5 % of the inverse-distance weight, except for a block within a cell of its nearest composite (there every hole in reach counts)" : "every hole in reach counts" } : {}),
           searchTrend: trend ? { name: trend.name, dip: trend.dip, dipAzimuth: trend.dipAzimuth, pitch: trend.pitch, ratios: trend.ratios, ellipsoidM: [1, trend.ratios.int / trend.ratios.max, trend.ratios.min / trend.ratios.max].map((f) => Math.round(f * (searchRadius > 0 ? searchRadius : gridDiagonal))) } : null, // #650
@@ -701,7 +719,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         est.blocksBeforeTrims = est.cells.length; // #2106
         if (inShell) { // #517
           const before = est.cells.length;
-          est.cells = est.cells.filter((c) => inShell(c));
+          est.cells = await filterSliced(est.cells, (c) => inShell(c), { signal: ac.signal }); // #3791 — in slices: one pass of the solid's inside test froze the window ~0.8 s
           est.blocksSkipped += before - est.cells.length; est.blocksEstimated = est.cells.length;
           params.restrictedToVolume = `${shellInfo.name}: ${shellInfo.samplesInside} sample(s) inside used, ${shellInfo.samplesOutside} outside left out; ${before - est.cells.length} block(s) outside it dropped`;
           params.restrictedToVolumeName = shellInfo.name; // #2069 — the default name says it
@@ -774,7 +792,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         const inArea = areaString ? ((pts) => (x, y) => pointInPolygon(x, y, pts))(areaString.vertices.map((q) => ({ x: q[0], y: q[1] }))) : null;
         let ownRuns = 0; // #3163 — members run on their own so far (the progress bar's steps)
         for (let k = 0; k < others.length; k++) {
-          const { el, u, unsM, fm, mCap, mp, mUns } = prep[k]; // #3163 — composited and placed before the primary's run
+          const { el, u, unsM, fm, mCap, mp, mUns, msh, mOutside } = prep[k]; // #3163 — composited and placed before the primary's run; msh: its restricting solid (#3802)
           setStage(el);
           await new Promise((r) => setTimeout(r, 0));
           if (!mp.length) { members.push({ ...memberSummary(el, u, [], 0), cells: [], cap: mCap }); continue; }
@@ -788,7 +806,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
             } catch (err) { if (err.cancelled) throw err; throw new Error(`${el}: ${err.message}`); }
             ownRuns++;
           }
-          const t = trimLike(me.cells, { inShell, inArea, groundAt: cutGround }); // #3589: the same raised ground
+          const t = await trimLikeSliced(me.cells, { inShell: msh ? msh.inShell : inShell, inArea, groundAt: cutGround }, { signal: ac.signal }); // #3589; sliced: #3791: the same raised ground
           // #3271 — the member's own check: composites, nearest neighbour and estimate means over its blocks
           const mNn = mMethod === "nn" /* #3164 */ ? null : j >= 0 ? { checkColumns: nnEst.memberCheckColumns[j] } /* #3163 */ : await runEstimation("block", mp, nnOpts, { signal: ac.signal, checkOnly: true });
           await new Promise((r) => setTimeout(r, 0));
@@ -802,6 +820,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
             element: el, unit: u, method: mMethod /* #3164 */, capValue: mCap, capUnit: mCap != null ? u : null, ...(mAudit ? { capAudit: mAudit } : {}), samplePoints: mp.length, ...unsM.params(fm), unsampledDrillPoints: mUns.length, // cap: #3271
             ...(me.variogram ? { variogram: { ...me.variogram, frame: params.variogram?.frame || (trend ? `in the trend "${trend.name}" frame: the range is along its major axis` : "isotropic") /* #3164: a kriged member of a non-kriged run */ }, krigingBlocks: me.okCounts } : {}), ...(me.mlsCounts ? { mlsBlocks: me.mlsCounts } : {}),
             ...(dominated ? { effectivelyOneHoleBlocks: dominated } : {}),
+            ...(msh?.own ? { restrictedToVolume: `${msh.name}: ${mp.length} sample(s) inside used, ${mOutside} outside left out; ${t.dropped} block(s) dropped by the restricting solid, the area string or the ground`, restrictedToVolumeName: msh.name, restrictedByDefault: `the element's own closed grade shell "${msh.name}" (the default when one is in the model: the switch in the dialog turns it off)` } : {}), // #3802
             ...(t.dropped ? { trimmedLikeThePrimary: `${t.dropped} block(s) dropped by the primary's limits (the restricting solid, the area string, the ground)` } : {}),
             ...(j >= 0 ? { searchSharedWith: `${symbol}: estimated in the same neighbour search, on the same sample points` } : {}), // #3163
           });
@@ -882,7 +901,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
     for (const m of visibleOnLattice(voxelModels, result.cells, { latticeOf: blockModelLattice, sameLattice })) updateVoxelModel?.(m.id, { visible: false });
     onAddModel({ name: set ? memberName(name, p0, p0, set, typed) : name, source: `estimate-${method}`, cells: result.cells, ...rampOf(result.cells, sourceKey === "assay" ? p0 : null), params: result.params }); // params: TASKS.csv #404
     // TASKS.csv #3286 (5) — the set's other elements are added hidden: all shown, they share the blocks and each row warned 'the two colour each other's blocks'
-    if (set) for (const m of result.members || []) if (m.cells.length) onAddModel({ name: memberName(name, p0, m.element, set, typed, m.method, result.params?.method) /* #3164 */, source: `estimate-${m.method || method}` /* #3164 */, cells: m.cells, ...rampOf(m.cells, sourceKey === "assay" ? m.element : null) /* #3596 */, params: m.params, visible: false });
+    if (set) for (const m of result.members || []) if (m.cells.length) onAddModel({ name: ((nm, mine, prim) => (mine && prim && mine !== prim ? nm.split(prim).join(mine) : nm))(memberName(name, p0, m.element, set, typed, m.method, result.params?.method), m.params?.restrictedToVolumeName, result.params?.restrictedToVolumeName) /* #3164; #3802 — the member's own shell named, not the primary's */, source: `estimate-${m.method || method}` /* #3164 */, cells: m.cells, ...rampOf(m.cells, sourceKey === "assay" ? m.element : null) /* #3596 */, params: m.params, visible: false });
     setAdded(true);
   };
 
@@ -1028,6 +1047,12 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
             <label style={fieldLabel} title={tr("Caps how many nearest samples contribute to any one block's IDW average (ignored for nearest-neighbour).")}>{tr("Max samples/block")}<input type="number" min="1" value={maxSamples} onChange={(e) => setMaxSamples(Math.max(1, Number(e.target.value) || 1))} style={inp} />
             </label>
             <label style={fieldLabel} title={tr("At most this many of a block's samples from any one hole, so a hole drilled straight through the block can't supply them all (0 = no cap beyond the one Min distinct holes implies).")}>{tr("Max samples/hole")}<input type="number" min="0" value={maxPerHole} onChange={(e) => setMaxPerHole(Math.max(0, Math.floor(Number(e.target.value) || 0)))} style={inp} aria-label={tr("Max samples per hole")} />
+            </label>
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>{/* TASKS.csv #3816 — a shorter reach for the high grades */}
+            <label style={fieldLabel} title={tr("A composite at or above this grade informs only the blocks within the shorter reach below, so a spike is not spread over the whole search. Blank: every composite has the full search.")}>{tr("High grades from ({unit})", { unit: unit || tr("as logged") })}<input type="number" min="0" value={hgMin} onChange={(e) => setHgMin(e.target.value)} style={inp} aria-label={tr("Grade from which a composite has a shorter search")} />
+            </label>
+            <label style={fieldLabel} title={tr("The reach of a high-grade composite as a share of the search radius (0.5 = half of it).")}>{tr("Their reach (× radius)")}<input type="number" min="0.05" max="0.95" step="0.05" value={hgFactor} onChange={(e) => setHgFactor(e.target.value)} style={inp} aria-label={tr("Reach of a high-grade composite as a share of the search radius")} />
             </label>
           </div>
           {/* TASKS.csv #533 — P97.5 / P99 caps and the capping audit (samples cut, metal removed) */}

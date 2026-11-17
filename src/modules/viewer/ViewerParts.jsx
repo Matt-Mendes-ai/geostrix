@@ -25,6 +25,7 @@ import { orphanHoleIds } from "../../lib/noCollars.js"; // TASKS.csv #1809
 import { VE_CHOICES, veOf } from "./verticalExaggeration.js"; // TASKS.csv #2623
 import { drillSiteSpacing } from "../../lib/drillSpacing.js"; // TASKS.csv #2517
 import CollarSizeControl from "./CollarSizeControl.jsx"; // TASKS.csv #2823
+import TubeSizeControl from "./TubeSizeControl.jsx"; // TASKS.csv #3668
 import { autoGridSize, isAutoGrid } from "../../lib/viewer/gridGroup.js"; // TASKS.csv #2318
 import { useStore } from "../../lib/store.jsx"; // TASKS.csv #2517 — the collars
 import AssayStaleBadge from "../../components/AssayStaleBadge.jsx"; // TASKS.csv #3686
@@ -114,6 +115,7 @@ export function ViewToolbar({
                 </select>
               </label>
               <CollarSizeControl figureOverlay={figureOverlay} setFigureOverlay={setFigureOverlay} />{/* #2823 */}
+              <TubeSizeControl figureOverlay={figureOverlay} setFigureOverlay={setFigureOverlay} />{/* #3668 */}
               <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 8, opacity: figureOverlay.enabled ? 1 : 0.45 }}>
                 <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
                   <input type="checkbox" disabled={!figureOverlay.enabled} checked={!!figureOverlay.title} onChange={(e) => setFigureOverlay((f) => ({ ...f, title: e.target.checked }))} />{" "}{tr("Title")}</label>

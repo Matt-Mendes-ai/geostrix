@@ -41,6 +41,23 @@ export function trimLike(cells, { inShell = null, inArea = null, groundAt = null
   return { cells: kept, dropped: cells.length - kept.length };
 }
 
+// TASKS.csv #3791 (Scottie Gold review) — a restricted estimate froze the window ~0.8 s at the end: the blocks outside the restricting solid were dropped in one
+// pass of the solid's inside test (a ray cast per block). The same filter in slices of about `ms` milliseconds, the window painting between them (a pause that
+// answers null when it is not due, as compactTable's budgetPause). The one-pass answer exactly. -> the kept elements
+export async function filterSliced(items, keep, { ms = 12, pause = null, signal = null } = {}) {
+  const out = [], p = pause || (() => { const t0 = performance.now(); let last = t0; return () => (performance.now() - last < ms ? null : new Promise((r) => setTimeout(r, 0)).then(() => { last = performance.now(); })); })();
+  for (let i = 0; i < items.length; i++) {
+    if (keep(items[i], i)) out.push(items[i]);
+    if ((i & 63) === 63) { const w = p(); if (w) { await w; if (signal?.aborted) { const e = new Error("cancelled"); e.cancelled = true; throw e; } } }
+  }
+  return out;
+}
+// trimLike in slices (the member's trims after the primary's)
+export async function trimLikeSliced(cells, { inShell = null, inArea = null, groundAt = null } = {}, opts = {}) {
+  const kept = await filterSliced(cells, (c) => (!inShell || inShell(c)) && (!inArea || inArea(c.x, c.y)) && !(groundAt && ((g) => Number.isFinite(g) && c.z > g)(groundAt(c.x, c.y))), opts);
+  return { cells: kept, dropped: cells.length - kept.length };
+}
+
 // a member's summary for the result: blocks, composites and the volume-weighted mean of its blocks
 export function memberSummary(element, unit, cells, points) {
   let v = 0, m = 0;

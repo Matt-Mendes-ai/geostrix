@@ -198,3 +198,30 @@ export function holeYear(collar) {
   const m = /^[A-Za-z]+-(\d\d)-/.exec(String(collar?.hole_id ?? ""));
   return m ? 2000 + Number(m[1]) : null;
 }
+
+// TASKS.csv #3674 (#3673 phase 2) — the new holes by more than a year: a typed list of hole ids, or a collar date field (a date in the field, ISO-like:
+// 2025-03-12, 2025/03/12, 2025-03, or a bare year) on or after a date. A hole with no readable date is an older hole, as one with no year is.
+export function holeDate(collar, field) {
+  const v = collar?.attrs?.[field];
+  const m = /^\s*(\d{4})(?:[-/.](\d{1,2})(?:[-/.](\d{1,2}))?)?(?:[T\s].*)?\s*$/.exec(String(v ?? ""));
+  if (!m) return null;
+  const y = Number(m[1]), mo = m[2] ? Number(m[2]) : 1, d = m[3] ? Number(m[3]) : 1;
+  if (y < 1800 || y > 2200 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return `${String(y).padStart(4, "0")}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`; // sortable as text
+}
+// the collar fields whose values mostly read as dates (at least half of the collars that have the field, and at least one)
+export function collarDateFields(collars) {
+  const by = new Map();
+  for (const c of collars || []) for (const k of Object.keys(c?.attrs || {})) { const e = by.get(k) || { n: 0, ok: 0 }; e.n++; if (holeDate(c, k)) e.ok++; by.set(k, e); }
+  return [...by].filter(([, e]) => e.ok >= 1 && e.ok * 2 >= e.n).map(([k]) => k);
+}
+// the ids of the new holes. sel: { mode: "year", year } | { mode: "list", ids: [...] } | { mode: "date", field, date: "YYYY-MM-DD" }
+export function newHoleIds(collars, sel) {
+  const out = [];
+  if (sel?.mode === "list") { const want = new Set((sel.ids || []).map((x) => String(x).trim()).filter(Boolean)); for (const c of collars || []) if (want.has(String(c.hole_id))) out.push(c.hole_id); return out; }
+  if (sel?.mode === "date") { for (const c of collars || []) { const d = holeDate(c, sel.field); if (d != null && d >= sel.date) out.push(c.hole_id); } return out; }
+  for (const c of collars || []) { const y = holeYear(c); if (y != null && y >= sel?.year) out.push(c.hole_id); }
+  return out;
+}
+// a typed list read: ids separated by commas, spaces, semicolons or new lines
+export const parseIdList = (text) => [...new Set(String(text || "").split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean))];

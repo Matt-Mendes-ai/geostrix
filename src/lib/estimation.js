@@ -185,7 +185,7 @@ export function estimateBlockModel(samplePoints, opts) {
   const tw0 = method === "ok" ? withTrend(samplePoints, opts) : null;
   const variogram = method === "ok" ? resolveVariogram(tw0.pts, opts.variogram, cellSize) : null;
   if (variogram?.fitted && opts.askOnWeakFit && variogram.rSquared != null && variogram.rSquared < WEAK_FIT_R2) throw Object.assign(new Error(tr("The automatic variogram fit is weak.")), { weakFit: variogram }); // #3273
-  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, noCodeAsDomain, variogram, supportRef: opts.supportRef, materialHoles: !!opts.materialHoles, nearHoleM: Math.max(dx, dy, dz), ...(opts.holeBracket === false ? { holeBracket: false } : {}) }; // holeBracket: #3275 (false: the samples-used class, for comparison) // supportRef: #1411; materialHoles: #1573; nearHoleM: #3255
+  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, noCodeAsDomain, highGrade: opts.highGrade || null /* #3816 */, variogram, supportRef: opts.supportRef, materialHoles: !!opts.materialHoles, nearHoleM: Math.max(dx, dy, dz), ...(opts.holeBracket === false ? { holeBracket: false } : {}) }; // holeBracket: #3275 (false: the samples-used class, for comparison) // supportRef: #1411; materialHoles: #1573; nearHoleM: #3255
   // TASKS.csv #91/#92 — support classification is opt-in and OFF by default: it widens the neighbour
   // search and adds per-cell work, so it must never be paid for by a caller that didn't ask. `bracketTol`
   // is half a cell, so bracketing has to be real at the scale the block model is drawn at.
@@ -479,6 +479,9 @@ export function selectUsed(candidates, maxSamples, minHoles = 1, maxPerHole = 0)
 function makeNeighbourGatherer(samplePoints, opts = {}) {
   const { searchRadius = null, minSamples = 1, maxSamples = 16, minHoles = 1, maxPerHole = 0, lengthWeight = true, restrictToDomain = false } = opts;
   const r2 = searchRadius != null ? searchRadius * searchRadius : null;
+  // TASKS.csv #3816 (#3784) — a high-grade search restriction: a composite at or above opts.highGrade.min informs only the blocks within `factor` of the search radius
+  // (a spike is not spread over the whole neighbourhood). It is simply not a candidate beyond that, so the stopping test of the ring walk stays exact.
+  const hg = opts.highGrade && Number.isFinite(opts.highGrade.min) && opts.highGrade.factor > 0 && opts.highGrade.factor < 1 && r2 != null ? { min: opts.highGrade.min, r2: r2 * opts.highGrade.factor * opts.highGrade.factor } : null;
   const index = buildSampleIndex(samplePoints, searchRadius);
   // TASKS.csv #262 — a composite's own length is its declared support; weighting by length/d^p is the
   // standard length-weighted IDW. Missing/unknown length falls back to 1 (i.e. old behaviour) rather
@@ -499,6 +502,7 @@ function makeNeighbourGatherer(samplePoints, opts = {}) {
     const ddx = p.x - qx, ddy = p.y - qy, ddz = p.z - qz;
     const d2 = ddx * ddx + ddy * ddy + ddz * ddz;
     if (r2 != null && d2 > r2) return;
+    if (hg && d2 > hg.r2 && p.value >= hg.min) return; // #3816
     if (n === D2.length) { const g = new Float64Array(n * 2); g.set(D2); D2 = g; P.length = n * 2; }
     D2[n] = d2; P[n] = p; n++;
     if (inc) {
@@ -1367,7 +1371,7 @@ export function estimateDenseGrid(samplePoints, opts) {
   const twK = method === "ok" ? withTrend(samplePoints, opts) : null; // #709 — kriging works on grade shells too
   const variogram = method === "ok" ? resolveVariogram(twK.pts, opts.variogram, cellSize) : null;
   if (variogram) out.variogram = variogram;
-  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, noCodeAsDomain, variogram, supportRef: opts.supportRef, materialHoles: !!opts.materialHoles, nearHoleM: Math.max(dx, dy, dz), ...(opts.holeBracket === false ? { holeBracket: false } : {}) }; // holeBracket: #3275 (false: the samples-used class, for comparison) // supportRef: #1411; materialHoles: #1573; nearHoleM: #3255
+  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, noCodeAsDomain, highGrade: opts.highGrade || null /* #3816 */, variogram, supportRef: opts.supportRef, materialHoles: !!opts.materialHoles, nearHoleM: Math.max(dx, dy, dz), ...(opts.holeBracket === false ? { holeBracket: false } : {}) }; // holeBracket: #3275 (false: the samples-used class, for comparison) // supportRef: #1411; materialHoles: #1573; nearHoleM: #3255
   // TASKS.csv #91/#92 — opt-in per-node data-support classification, OFF by default so no existing
   // caller pays for it. When on, the grid carries two extra parallel arrays on the same
   // [ix + nx * (iy + ny * iz)] indexing as `values`, so a mesh extracted from this grid can be coloured

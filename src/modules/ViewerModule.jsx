@@ -2199,7 +2199,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     // property — a true Infinity isn't meaningful here since floating-point precision and the
     // camera's far plane both have real limits regardless.
     const wheelAnchorsFor = makeWheelAnchors(); // #3247 — the holes' points a missed zoom ray falls back on
-    const onWheel = (e) => { e.preventDefault(); wheelZoom(e, renderer.domElement, camera, raycasterRef.current, camState.current, (rc) => firstVisibleLayerHit(pickHits(rc))?.point, { anchors: () => wheelAnchorsFor(tracesRef.current, visibleHolesRef.current), boxes: () => wheelBoxes([voxelGroupRef.current, omfGroupRef.current]) /* #3669 */ }); updateCamera(); }; // #2368 toward the cursor
+    const onWheel = (e) => { e.preventDefault(); wheelZoom(e, renderer.domElement, camera, raycasterRef.current, camState.current, (rc) => firstVisibleLayerHit(pickHits(rc))?.point, { anchors: () => wheelAnchorsFor(tracesRef.current, visibleHolesRef.current), boxes: () => wheelBoxes([voxelGroupRef.current, omfGroupRef.current, layerGroupsRef.current.geophys_pts, layerGroupsRef.current.surface_samples]) /* #3669; point clouds and surface samples: #3671 */ }); updateCamera(); }; // #2368 toward the cursor
     const onContextMenuEvt = (e) => {
       e.preventDefault();
       const rd = rightDrag.onMenu(Date.now(), { clientX: e.clientX, clientY: e.clientY }); if (rd !== "open") return; // #2043 — no menu after a right-drag (pan)

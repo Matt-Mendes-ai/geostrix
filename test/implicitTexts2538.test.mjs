@@ -15,7 +15,7 @@ test("#2538 — with a trend on, the separate-bodies notice does not offer a tre
 
 test("#2539 — the run's own estimate is tagged and worded apart", () => {
   assert.match(r, /let orientationEstimated = false;/);
-  assert.match(r, /orientations = \[est\];\r?\n\s*orientationEstimated = true;/);
+  assert.match(r, /orientations = \[usesTrend \? \{ \.\.\.est, dip: gtAssigned\.trend\.dip, azimuth: gtAssigned\.trend\.dipAzimuth, fit: \"assigned trend\" \} : est\];\r?\n\s*orientationEstimated = true;/);
   assert.match(r, /\.\.\.\(orientationEstimated \? \{ orientationEstimated: true \} : \{\}\) \/\* #2539 \*\//);
   assert.match(r, /return r && \{ \.\.\.r, estimated: !!sp\.orientationEstimated \};/);
   assert.match(r, /const onlyEstimate = pickIssues\.every\(\(r\) => r\.estimated && !r\.duplicates && !r\.close && !r\.conflicts\);/);

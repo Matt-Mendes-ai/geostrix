@@ -42,6 +42,18 @@ export function tubeFactor(radiusM, depth, proj11, viewportH, minPx = TUBE_UNIFO
   return k;
 }
 
+// TASKS.csv #3668 (follow-up of #3643) — the tube size choice, kept with the view (figureOverlay.tubeSize { mode, px }): 'auto' = never thinner than DEFAULT_TUBE_MIN_PX (the
+// look since #3643); 'true' = the true radius in metres, however thin it draws far out; 'atLeast' = never thinner than px pixels; 'fixed' = exactly px pixels wide at any distance.
+// -> { min, max } for the uniforms (px)
+export const DEFAULT_TUBE_MIN_PX = 1.5;
+export function tubeSizeUniforms(setting) {
+  const mode = setting?.mode, px = Number(setting?.px);
+  if (mode === "true") return { min: 0, max: 1e9 };
+  if (mode === "atLeast" && px > 0) return { min: px, max: 1e9 };
+  if (mode === "fixed" && px > 0) return { min: px, max: px };
+  return { min: DEFAULT_TUBE_MIN_PX, max: 1e9 };
+}
+
 // the prototypes an interval tube is drawn with (protos.js: the 6- and 16-sided cylinders, the square prism, the crossed ribbons of light drawing)
 const TUBE_KEYS = new Set(["cyl6", "cyl16", "prism4", "cross"]);
 export const isTubeProto = (geometry) => TUBE_KEYS.has(geometry?.userData?.protoKey);
