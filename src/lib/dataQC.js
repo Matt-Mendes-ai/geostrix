@@ -672,7 +672,7 @@ export function terrainNodeM(terrain) {
   if (Array.isArray(v)) { const f = v.map(Number).filter((x) => Number.isFinite(x) && x > 0); return f.length ? f.reduce((m, x) => (x > m ? x : m), 0) : null; }
   return Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : null;
 }
-// TASKS.csv #3807 — the collars against a terrain, signed: all 33 collars inside a model's top sat 0.3 to 14.8 m BELOW it, and 'median difference 8.0 m' did not
+// TASKS.csv #3807 — the collars against a terrain, signed: every collar inside a model's top sat below it by a steady offset (a few metres to ten), and 'median difference 8.0 m' did not
 // say which way. -> { n, below, above, side: "below" | "above" | null (mixed), lo, hi, med } (|dz| in metres) | null
 export function collarTerrainSide(offs, { share = 0.9, minMed = 1 } = {}) {
   if (!offs?.length || offs.length < 3) return null;

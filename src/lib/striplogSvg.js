@@ -88,8 +88,8 @@ function assayTrack(rows, x, sy, sym, unit, elementUnits, bottom, range = null) 
     return `<rect x="${x + 2}" y="${sy(r.from)}" width="${w}" height="${Math.max(0.5, sy(r.to) - sy(r.from))}" fill="#c9863d" opacity="0.85"><title>${r.from}-${r.to} m: ${esc(String(v))} ${esc(unit)}</title></rect>`;
   }).join("") + peaks + (axis.linear ? (range ? `<text x="${x + (TRACK_W - 6) / 2}" y="${bottom + 23}" font-size="7" text-anchor="middle" fill="#65717e">${esc(tr("same axis on all pages"))}</text>` : "") : `<text x="${x + (TRACK_W - 6) / 2}" y="${bottom + 23}" font-size="7" text-anchor="middle" fill="#65717e">${esc(range ? tr("log {minPos}–{max}, all pages", { minPos: sigText(lo, 2), max: sigText(hi, 2) }) : tr("log {minPos}–{max}", { minPos: sigText(lo, 2), max: sigText(hi, 2) }) /* no exponents: #2481 */)}</text>`);
 }
-// TASKS.csv #3859 (Scottie Gold review) — a log assay track was captioned with its two ends only ('log 0.0025–123', 5.6 pt): no tick or grid line, so a
-// bar halfway across (0.55 g/t) or three quarters (8 g/t) could not be read. The decades between lo and hi (with 2 and 5 between them when fewer than
+// TASKS.csv #3859 (Scottie Gold review) — a log assay track was captioned with its two ends only ('log 0.004–150', 5.6 pt): no tick or grid line, so a
+// bar halfway across (0.5 g/t) or three quarters (8 g/t) could not be read. The decades between lo and hi (with 2 and 5 between them when fewer than
 // two decades show), each at its fraction of the track; a label where it does not run into the one before or off the track (set inside at an end).
 // -> [{ v, f (0-1 across the track), label (text, or null: a grid line only), anchor }]
 export function logAxisTicks(lo, hi, { widthPx = 80, fontPx = 8 } = {}) {
@@ -111,7 +111,7 @@ export function logAxisTicks(lo, hi, { widthPx = 80, fontPx = 8 } = {}) {
   return out;
 }
 const logTickText = (v) => (v >= 1000 ? v.toLocaleString("en-US") : String(v));
-// TASKS.csv #3859 — the highest values of a track, written at their bars: the 123 and 76 g/t samples were the two longest bars with no value. Bars that reach
+// TASKS.csv #3859 — the highest values of a track, written at their bars: the two highest samples (a 150 and a 90 g/t) were the two longest bars with no value. Bars that reach
 // at least 85 % of the track, highest first, at most `max`, none within `gapPx` of one already written. items: [{ v, y, f }] -> the chosen items
 export function peakValueLabels(items, { max = 2, gapPx = 10, minFrac = 0.85 } = {}) {
   const out = [];

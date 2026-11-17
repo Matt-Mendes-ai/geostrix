@@ -10,8 +10,8 @@
 import { t as tr } from "./i18n.js"; // TASKS.csv #1637
 import { lithoMeaning, LAYER_META } from "./layers.js"; // TASKS.csv #3860
 
-// TASKS.csv #3860 (Scottie Gold review) — a section's key listed 'AND, ASDA, ASDS, DYK, OVBN, SLT' with no names, while the strip log's key on the next sheet
-// printed 'ASDA — altered sulphidized deformed andesite'. A lithology row that shows a bare code takes the project's meaning of it (the code dictionary,
+// TASKS.csv #3860 (Scottie Gold review) — a section's key listed bare rock codes with no names, while the strip log's key on the next sheet
+// printed 'ABC — a rock name'. A lithology row that shows a bare code takes the project's meaning of it (the code dictionary,
 // layers.js lithoMeaning), cut to fit the key's row (LONG_VALUE: a longer row is not listed). The intervals keep their labels (patterns match on them).
 export function withLithoMeanings(payload) {
   if (!payload?.legendItems?.length || !payload.intervals?.length) return payload;

@@ -1,6 +1,6 @@
 // TASKS.csv #3860 (Scottie Gold review) — a section of vein gold on a sheet: its grade bars were a hair wide (each bar's length was its share of the
-// section's highest value, so with one 123 g/t sample every other bar was a pixel long), and it labelled single samples ('123 g/t Au') where Best
-// intercepts gives '3.70 m @ 56.41 g/t Au' for the same place. Pure functions; the drawing is components/SectionWindow.jsx.
+// section's highest value, so with one 150 g/t sample every other bar was a pixel long), and it labelled single samples ('150 g/t Au') where Best
+// intercepts gives '3.70 m @ 12.34 g/t Au' for the same place. Pure functions; the drawing is components/SectionWindow.jsx.
 import { computeBestIntercepts } from "./geochem.js";
 import { p90Cutoff } from "./drillPlan.js";
 import { gradeUnitLabel } from "./geochemColumns.js";
