@@ -8,7 +8,7 @@ import { perHoleSpan, perHoleValue, holeSamplesAt, placementAdvice } from "../sr
 
 // 4 pads 400 m apart, three holes each fanning at azimuths 0 / 120 / 240, dip 60 (an interval at 200 m along lies 100 m from the pad)
 const collars = [], survey = [], rows = [];
-const grades = [[91.5, 3.72, 20.1], [18.7, 59.2, 3.77], [0.008, 0.009, 3.65], [5, 6, 7]];
+const grades = [[80, 4, 20], [18, 55, 3], [0.01, 0.02, 3.5], [5, 6, 7]];
 for (let p = 0; p < 4; p++) for (let k = 0; k < 3; k++) {
   const id = `P${p}-${k}`;
   collars.push({ hole_id: id, x: 1000 + p * 400 + k * 2, y: 2000, z: 500 });
@@ -26,7 +26,7 @@ test("fans from pads: the holes share collars, their values part by more than a 
 
 test("at the collar a pad is one cell; at the intercepts each hole's value lands in a cell of its own", () => {
   const cellsOf = (samples) => new Set(samples.filter((s) => s.hole_id.startsWith("P0")).map((s) => Math.floor(s.x / 50) + "," + Math.floor(s.y / 50))).size;
-  assert.equal(cellsOf(at("collar").samples), 1); // the three values (91.5, 3.72, 20.1) meet in one 50 m cell
+  assert.equal(cellsOf(at("collar").samples), 1); // the three values (80, 4, 20) meet in one 50 m cell
   assert.equal(cellsOf(at("intercept").samples), 3); // 100 m out along three azimuths
 });
 
