@@ -26,8 +26,8 @@ compare with the published grid), Maps (the grid, its derivatives and filters), 
 > https://doi.org/10.5281/zenodo.7079711 (CC BY 4.0).
 
 Licence: Creative Commons Attribution 4.0 International (https://creativecommons.org/licenses/by/4.0/) for both Zenodo records, which
-state that the Geoscience Australia source is also CC BY. (Geoscience Australia's own catalogue entry on data.gov.au lists the
-licence of P1029 as "Not specified"; the attribution above follows the Zenodo records.) Only the two Zenodo files are bundled.
+state that the Geoscience Australia source is also CC BY. (Geoscience Australia's own record for P1029 on data.gov.au lists no
+licence ("Not specified"); the licence and the attribution above follow the two Zenodo records, which are what is bundled.) Only the two Zenodo files are bundled.
 Geoscience Australia does not endorse GeoStrix, nor does Leonardo Uieda, and the data is given without warranty.
 
 ## What the data checks found (counts)
