@@ -43,3 +43,94 @@ export function releaseUnheld(lists) {
 
 // the layers remembered and not yet released or collected (tests)
 export const trackedLayers = () => [...tracked.values()];
+
+// TASKS.csv #3881 (follow-up of #2824) — the same stale-render-context retention for the other big removed things. Measured in the running app (four synthetic payloads
+// added and removed, then New project; the heap after 3 forced GCs, a WeakRef on each): a removed raster, block model or point cloud stayed alive through an older
+// render's context (the first one added, or the last, stayed after New project), a closed project tab's payload the same. A map layer is let go by emptying its shared
+// features array; these are let go by emptying the REMOVED object's own big fields (its picture, cells, vertices, tables), never an array another object may share: a
+// stale context then holds a shell. Only an object that left its list for good (its id is no longer there) and that no list of the project, of any undo / redo step or of
+// another workspace tab holds.
+//   noteRemovedItems(key, prev, next) — the big items (BIG_BYTES or more) of `prev` whose id is not in `next` are remembered by WeakRef.
+//   releaseUnheldItems(key, lists)   — every remembered item of that kind that is in none of `lists` is emptied. -> { released, names }
+export const BIG_BYTES = 1000000;
+const BIG_STRING = 100000, BIG_ARRAY = 1000;
+// about how many bytes an item holds in the fields released below (a string, a typed array, an array of numbers / objects, a nested object)
+export function itemBytes(v, depth = 0) {
+  if (typeof v === "string") return v.length;
+  if (ArrayBuffer.isView(v)) return v.byteLength;
+  if (!v || typeof v !== "object" || depth > 3) return 0;
+  if (Array.isArray(v)) {
+    if (!v.length) return 0;
+    if (typeof v[0] === "number") return v.length * 8;
+    return v.length >= BIG_ARRAY ? v.length * 64 : v.reduce((n, x) => n + itemBytes(x, depth + 1), 0);
+  }
+  let n = 0;
+  for (const k of Object.keys(v)) n += itemBytes(v[k], depth + 1);
+  return n;
+}
+// the item's big fields replaced by empty ones, in place, one level at a time (its own property, never the shared array's contents)
+export function emptyBigFields(item, depth = 0) {
+  if (!item || typeof item !== "object" || depth > 3) return;
+  for (const k of Object.keys(item)) {
+    const v = item[k];
+    if (typeof v === "string") { if (v.length >= BIG_STRING) item[k] = ""; }
+    else if (ArrayBuffer.isView(v)) { if (v.length >= BIG_ARRAY) item[k] = new v.constructor(0); }
+    else if (Array.isArray(v)) { if (v.length >= BIG_ARRAY) item[k] = []; else for (const x of v) emptyBigFields(x, depth + 1); }
+    else if (v && typeof v === "object") emptyBigFields(v, depth + 1);
+  }
+}
+
+const trackedItems = new Map(); // WeakRef(item) -> { key, name }
+
+export function noteRemovedItems(key, prev, next, big = BIG_BYTES) {
+  if (!prev?.length || prev === next) return 0;
+  const ids = new Set((next || []).map((x) => x?.id).filter((x) => x != null));
+  let n = 0;
+  for (const x of prev) {
+    if (!x || typeof x !== "object" || (x.id != null && ids.has(x.id)) || itemBytes(x) < big) continue;
+    trackedItems.set(new WeakRef(x), { key, name: x.name || x.id || "" });
+    n++;
+  }
+  return n;
+}
+
+export function releaseUnheldItems(key, lists) {
+  const live = new Set();
+  for (const list of lists || []) for (const x of list || []) if (x && typeof x === "object") live.add(x);
+  const names = [];
+  for (const [ref, info] of [...trackedItems]) {
+    if (info.key !== key) continue;
+    const x = ref.deref();
+    if (!x) { trackedItems.delete(ref); continue; }
+    if (live.has(x)) continue;
+    emptyBigFields(x);
+    trackedItems.delete(ref);
+    names.push(info.name);
+  }
+  return { released: names.length, names };
+}
+export const trackedItemCount = (key) => [...trackedItems.values()].filter((i) => !key || i.key === key).length;
+
+// a closed workspace tab: its stored payload (the project it held) is let go the same way once the tab has left the list for good. A payload's fields are DETACHED, not
+// emptied (a payload's arrays can be the very arrays a project loaded from it is using).
+const trackedPayloads = new Map(); // WeakRef(payload) -> the tab's name
+export function noteClosedTabs(prev, next) {
+  if (!prev?.length || prev === next) return 0;
+  const ids = new Set((next || []).map((t) => t?.id));
+  let n = 0;
+  for (const t of prev) if (t?.payload && typeof t.payload === "object" && !ids.has(t.id)) { trackedPayloads.set(new WeakRef(t.payload), t.name || t.id || ""); n++; }
+  return n;
+}
+export function releaseClosedTabs(currentTabs) {
+  const held = new Set((currentTabs || []).map((t) => t?.payload).filter(Boolean));
+  const names = [];
+  for (const [ref, name] of [...trackedPayloads]) {
+    const p = ref.deref();
+    if (!p) { trackedPayloads.delete(ref); continue; }
+    if (held.has(p)) continue;
+    for (const k of Object.keys(p)) delete p[k];
+    trackedPayloads.delete(ref);
+    names.push(name);
+  }
+  return { released: names.length, names };
+}
