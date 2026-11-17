@@ -13797,5 +13797,12 @@
   "Best intercepts (m @ grade)": "أفضل التقاطعات (م @ المحتوى)",
   "{sym} cut-off (P90)": "حد قطع {sym} (P90)",
   "{sym} cut-off": "حد قطع {sym}",
-  "Grade bars on a log scale: {list}": "أشرطة المحتوى بمقياس لوغاريتمي: {list}"
+  "Grade bars on a log scale: {list}": "أشرطة المحتوى بمقياس لوغاريتمي: {list}",
+  "These collar values look like one value spelled two ways: {list}.": "تبدو قيم الفوهات هذه قيمة واحدة مكتوبة بطريقتين: {list}.",
+  "Make them one": "توحيدها",
+  "Rewrites the less common spelling of each group to the commoner one, on every collar. Undo brings them back.": "يعيد كتابة الصيغة الأقل شيوعًا في كل مجموعة بالصيغة الأكثر شيوعًا، في كل الفوهات. التراجع يعيدها.",
+  "{name} with {models}: a UBC-GIF mesh and its model, opened in Geophysics > Block models (Import UBC mesh + model…).": "{name} مع {models}: شبكة UBC-GIF ونموذجها، فُتحا في الجيوفيزياء > نماذج الكتل (استيراد شبكة UBC + نموذج…).",
+  " {n} hole(s) have a stretch with no survey station (the widest: {id}, {a}–{b} m): the path there is interpolated, not measured. Data QC lists them.": " {n} ثقب (ثقوب) فيها مقطع بلا محطة مسح (الأوسع: {id}، {a}–{b} م): المسار هناك مُستكمَل وليس مقيسًا. يسردها Data QC.",
+  "{n} hole(s) with an unlogged stretch above the first rock ({a}–{b} m) were left out: missing log is not cover ({ids}).": "تم استبعاد {n} ثقب(ثقوب) حفر فيها مقطع غير مسجّل فوق أول صخرة ({a}–{b} م): السجل المفقود ليس غطاءً ({ids}).",
+  "{n} sample(s) carry a Strike and a Dip: Surface Geology > Outcrop structures > 'Add the samples with a strike and dip as structures' reads them as outcrop measurements.": "{n} عينة (عينات) تحمل Strike وDip: الجيولوجيا السطحية > بُنى المكاشف > «إضافة العينات ذات الاتجاه والميل كبُنى» تقرؤها كقياسات للمكاشف."
 }

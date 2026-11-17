@@ -62,7 +62,7 @@ test("#3841 cover to 4.4 m and the next logged rock at 135.9 m: the hole is left
   assert.match(p, /const rep = \{ lateStart: \[\], gap: \[\] \};/);
   assert.match(p, /rep\.lateStart\.length - rep\.gap\.length - \(rep\.notAtDepth \|\| 0\)/);
   assert.equal((p.match(/late, gapText, skippedText\(skippedCodes\)/g) || []).length, 2);
-  hasKeys(["{n} hole(s) with an unlogged stretch between the cover and the first rock ({a}–{b} m) were left out: missing log is not cover ({ids})."]);
+  hasKeys(["{n} hole(s) with an unlogged stretch above the first rock ({a}–{b} m) were left out: missing log is not cover ({ids})."]);
 });
 
 test("#3840 follow-up: a start code whose own words read as rock gets no nudge (Century's LMST); words that name cover, or none, keep it", () => {

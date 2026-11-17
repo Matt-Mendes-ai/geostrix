@@ -13797,5 +13797,12 @@
   "Best intercepts (m @ grade)": "Meilleures intersections (m @ teneur)",
   "{sym} cut-off (P90)": "Coupure {sym} (P90)",
   "{sym} cut-off": "Teneur de coupure {sym}",
-  "Grade bars on a log scale: {list}": "Barres de teneur en échelle logarithmique : {list}"
+  "Grade bars on a log scale: {list}": "Barres de teneur en échelle logarithmique : {list}",
+  "These collar values look like one value spelled two ways: {list}.": "Ces valeurs des collets semblent être une seule valeur écrite de deux façons : {list}.",
+  "Make them one": "Les unifier",
+  "Rewrites the less common spelling of each group to the commoner one, on every collar. Undo brings them back.": "Réécrit l'orthographe la moins courante de chaque groupe avec la plus courante, sur chaque collet. Annuler les rétablit.",
+  "{name} with {models}: a UBC-GIF mesh and its model, opened in Geophysics > Block models (Import UBC mesh + model…).": "{name} avec {models} : un maillage UBC-GIF et son modèle, ouverts dans Géophysique > Modèles de blocs (Importer maillage + modèle UBC…).",
+  " {n} hole(s) have a stretch with no survey station (the widest: {id}, {a}–{b} m): the path there is interpolated, not measured. Data QC lists them.": " {n} sondage(s) ont un tronçon sans station de levé (le plus large : {id}, {a}–{b} m) : la trajectoire y est interpolée, non mesurée. Data QC les liste.",
+  "{n} hole(s) with an unlogged stretch above the first rock ({a}–{b} m) were left out: missing log is not cover ({ids}).": "{n} sondage(s) avec un tronçon non décrit au-dessus de la première roche ({a}–{b} m) ont été laissés de côté : un log manquant n'est pas du mort-terrain ({ids}).",
+  "{n} sample(s) carry a Strike and a Dip: Surface Geology > Outcrop structures > 'Add the samples with a strike and dip as structures' reads them as outcrop measurements.": "{n} échantillon(s) portent une direction (Strike) et un pendage (Dip) : Géologie de surface > Structures d'affleurement > « Ajouter comme structures les échantillons avec direction et pendage » les lit comme mesures d'affleurement."
 }

@@ -226,7 +226,7 @@ function describe(hit, ctx) {
       const shownSym = tipLines[1]?.includes(":") ? tipLines[1].slice(0, tipLines[1].indexOf(":")).trim() : null;
       for (const sym of orderedElements(row.values, [...(shownSym ? [shownSym] : []), ...(ctx.leadFirst?.() || [])])) fields.push([sym, assayValueText(row, sym, ctx.units?.[sym] ? gradeUnitLabel(sym, ctx.units[sym]) : "") + (row.qualifiers?.[sym] || row.bdl?.includes?.(sym) ? "" : floorWord(row.values[sym], ctx.floorOf?.(sym)))]); // lead: #2938; g/t for a precious metal stored in ppm: #3573
     }
-    if (row) fields.push(...attributeFields(row));
+    if (row) { fields.push(...attributeFields(row)); if (row.values && row.attrs && typeof row.attrs === "object") fields.push(...attributeFields(row.attrs, new Set())); } // TASKS.csv #3755 — an assay interval's kept sample fields (Zone, Target ...)
     else for (const line of tipLines.slice(hole ? 2 : 1)) fields.push(["", line]);
     const trace = hole && ctx.traceOf(hole);
     let traceSpan = null;

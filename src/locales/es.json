@@ -13797,5 +13797,12 @@
   "Best intercepts (m @ grade)": "Mejores interceptos (m @ ley)",
   "{sym} cut-off (P90)": "Corte de {sym} (P90)",
   "{sym} cut-off": "Ley de corte de {sym}",
-  "Grade bars on a log scale: {list}": "Barras de ley en escala logarítmica: {list}"
+  "Grade bars on a log scale: {list}": "Barras de ley en escala logarítmica: {list}",
+  "These collar values look like one value spelled two ways: {list}.": "Estos valores de los collares parecen un solo valor escrito de dos maneras: {list}.",
+  "Make them one": "Unificarlos",
+  "Rewrites the less common spelling of each group to the commoner one, on every collar. Undo brings them back.": "Reescribe la grafía menos común de cada grupo con la más común, en todos los collares. Deshacer los devuelve.",
+  "{name} with {models}: a UBC-GIF mesh and its model, opened in Geophysics > Block models (Import UBC mesh + model…).": "{name} con {models}: una malla UBC-GIF y su modelo, abiertos en Geofísica > Modelos de bloques (Importar malla + modelo UBC…).",
+  " {n} hole(s) have a stretch with no survey station (the widest: {id}, {a}–{b} m): the path there is interpolated, not measured. Data QC lists them.": " {n} sondaje(s) tienen un tramo sin estación de levantamiento (el más ancho: {id}, {a}–{b} m): la trayectoria allí es interpolada, no medida. Data QC los lista.",
+  "{n} hole(s) with an unlogged stretch above the first rock ({a}–{b} m) were left out: missing log is not cover ({ids}).": "Se dejaron fuera {n} sondaje(s) con un tramo sin registrar sobre la primera roca ({a}–{b} m): un registro faltante no es cobertura ({ids}).",
+  "{n} sample(s) carry a Strike and a Dip: Surface Geology > Outcrop structures > 'Add the samples with a strike and dip as structures' reads them as outcrop measurements.": "{n} muestra(s) llevan Strike y Dip: Geología de superficie > Estructuras de afloramiento > «Agregar como estructuras las muestras con rumbo y buzamiento» las lee como mediciones de afloramiento."
 }

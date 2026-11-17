@@ -101,7 +101,9 @@ function withBbox(layer) {
 // TASKS.csv #2630 (1) — the vertices snapped to a hole (lib/viewer/interpretSnap.js), as the line's 'ties' attribute: 'RC538 229 m
 // (Lithology: P); RC540 collar'. Project data: English.
 export function tiesText(points) {
-  return (points || []).filter((p) => p?.snap?.hole_id).map(({ snap: s }) => (s.kind === "collar" ? `${s.hole_id} collar` : s.kind === "trace" ? `${s.hole_id} ${s.md} m` : `${s.hole_id} ${s.md} m (${s.label})`)).join("; ");
+  // TASKS.csv #3853 — 'moved 3.2 m' when the snap pulled the click 1 m or more (below that it is the click)
+  const mv = (s) => (Number(s.moved) >= 1 ? `moved ${s.moved} m` : "");
+  return (points || []).filter((p) => p?.snap?.hole_id).map(({ snap: s }) => (s.kind === "collar" ? `${s.hole_id} collar${mv(s) ? ` (${mv(s)})` : ""}` : s.kind === "trace" ? `${s.hole_id} ${s.md} m${mv(s) ? ` (${mv(s)})` : ""}` : `${s.hole_id} ${s.md} m (${s.label}${mv(s) ? `, ${mv(s)}` : ""})`)).join("; ");
 }
 
 export function addInterpretationLine(layer, points, attrs = {}, opts = {}) {

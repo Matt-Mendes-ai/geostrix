@@ -9,5 +9,5 @@ test("Grade stats and Thresholds head the column by where the count comes from",
   const t = readFileSync(new URL("../src/components/ThresholdToolkit.jsx", import.meta.url), "utf8");
   assert.match(g, /const floorOnly = useMemo\(\(\) => ltFloor != null && !rows\.some\(\(r\) => r\.lt\), \[ltFloor, rows\]\);/);
   assert.match(t, /const floorOnly = useMemo\(\(\) => floor != null && !data\.some\(flaggedLt\), \[floor, data, symbol\]\);/);
-  for (const s of [g, t]) assert.match(s, /\{floorOnly \? tr\("On the floor %"\) : tr\("<DL %"\)\}/);
+  for (const s of [g, t]) assert.match(s, /\{tr\("On the floor %"\)\}<\/th>/); // #3759 (3): one heading; the tooltip (floorOnly) still says which kind of floor
 });

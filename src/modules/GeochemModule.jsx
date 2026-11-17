@@ -9,6 +9,7 @@ import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #1284
 import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { joinBySampleId } from "../lib/surfaceJoin.js"; // TASKS.csv #1670
 import { parseTableOrWorkbook, isXlsxName } from "../lib/xlsx.js"; // TASKS.csv #444 shared reader; #605 .xlsx
+import { structureRowsFromSamples } from "../lib/structureTable.js"; // TASKS.csv #3869 (#3842)
 import { colorForLithology, CATEGORICAL_SAFE_COLORS, hashColor, colorForVoxelValue, LAYER_META } from "../lib/layers.js"; // colours: #1091; LAYER_META: #2915
 import { num, guessColumn, TARGET_SCHEMAS } from "../lib/layersImport.js"; // TASKS.csv #3590
 import { gradeStops } from "../lib/inversion.js"; // TASKS.csv #1091 — the grade ramp block models use (#702) // TASKS.csv #508; guessColumn #600 — blank / "NA" -> NaN, never 0
@@ -1122,7 +1123,7 @@ export default function GeochemModule() {
         }
         if (v != null) values[e.symbol] = v;
       });
-      const rawMedium = mapping.medium ? String(r[mapping.medium] ?? "").trim().toLowerCase() : "";
+      const mediumCell = mapping.medium ? String(r[mapping.medium] ?? "").trim() : "", rawMedium = mediumCell.toLowerCase(); // #3756 (3) — mediumCell: the file's own spelling, for the notice
       const qcCol = mapping.qcType || mapping.medium; // #1794 — the QC-type column when there is one, else the medium column as before
       if (qcCol) { // TASKS.csv #842 — QC inserts are not samples: kept for QA/QC, with or without coordinates
         const rec = qcRecordFromFileRow({ sample_id: mapping.sample_id ? String(r[mapping.sample_id] ?? "").trim() : "", type: String(r[qcCol] ?? "").trim(), values, bdl, parent_id: parentCol ? String(r[parentCol] ?? "").trim() || null : null, ...surfaceAttrs(r, attrCols) });
@@ -1143,7 +1144,7 @@ export default function GeochemModule() {
         ...(nd.length ? { nd } : {}),
         ...surfaceAttrsDated(r, attrCols, sampleDates.readers), // dates: #3200
       };
-      if (mapping.medium && !mediaSet.has(rawMedium) && !mediumAlias(rawMedium)) fbWords.set(sample, rawMedium); // #3731
+      if (mapping.medium && !mediaSet.has(rawMedium) && !mediumAlias(rawMedium)) fbWords.set(sample, mediumCell); // #3731; the file's spelling: #3756 (3)
       return sample;
     });
     // TASKS.csv #1664 (review #1646, Kodiak) — a sample row with no coordinates was dropped with no word (181 Kodiak control rows vanished
@@ -1183,9 +1184,15 @@ export default function GeochemModule() {
     for (const r of rows) for (const s of r.bdl || []) bdlCount.set(s, (bdlCount.get(s) || 0) + 1);
     // #3731 — the rows whose type the app could not read took the fallback medium: counted by the cell's word (a blank cell as 'blank'), in the notice
     const fbCount = new Map();
-    for (const r of rows) if (fbWords.has(r)) { const w = fbWords.get(r) || tr("blank"); fbCount.set(w, (fbCount.get(w) || 0) + 1); }
+    // #3756 (3) — counted case-folded, shown as the file spells the word most often ('Composite 3', not 'composite 3')
+    const fbSpell = new Map();
+    for (const r of rows) if (fbWords.has(r)) { const raw = fbWords.get(r), k = raw.toLowerCase(), sp = fbSpell.get(k) || fbSpell.set(k, new Map()).get(k); sp.set(raw, (sp.get(raw) || 0) + 1); }
+    for (const [k, sp] of fbSpell) { const n = [...sp.values()].reduce((a, b) => a + b, 0); fbCount.set(k === "" ? tr("blank") : [...sp].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0][0], n); }
     const fbTotal = [...fbCount.values()].reduce((a, b) => a + b, 0);
+    // TASKS.csv #3869 (#3842) — a sample file that carries a Strike and a Dip says where those readings can go: Surface Geology reads them as outcrop structures
+    const sampleStruct = structureRowsFromSamples(rows);
     const extra = [
+      sampleStruct ? tr("{n} sample(s) carry a Strike and a Dip: Surface Geology > Outcrop structures > 'Add the samples with a strike and dip as structures' reads them as outcrop measurements.", { n: sampleStruct.n.toLocaleString() }) : null,
       fbTotal ? tr("{n} sample(s) took the fallback medium ({medium}) because their type is not one the app reads: {list}.", { n: fbTotal.toLocaleString(), medium: defaultMedium, list: [...fbCount].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([w, n]) => `${w} ${n.toLocaleString()}`).join(", ") }) : null, // #3731
       surfOx.length ? tr("Oxide columns stored as the element, in element %: {list}. Labels, colours and Identify show the element; the diagrams convert back to oxides.", { list: surfOx.join(", ") }) : null, // #2565
       surfKept.length ? tr("Oxide columns kept as the oxide, as the project stores them: {list}.", { list: surfKept.map(({ e, ox }) => `${e.header} → ${ox.symbol} (% ${ox.oxide})`).join(", ") }) : null, // #2957

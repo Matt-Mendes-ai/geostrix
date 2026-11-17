@@ -13797,5 +13797,12 @@
   "Best intercepts (m @ grade)": "Melhores interseções (m @ teor)",
   "{sym} cut-off (P90)": "Corte de {sym} (P90)",
   "{sym} cut-off": "Teor de corte de {sym}",
-  "Grade bars on a log scale: {list}": "Barras de teor em escala logarítmica: {list}"
+  "Grade bars on a log scale: {list}": "Barras de teor em escala logarítmica: {list}",
+  "These collar values look like one value spelled two ways: {list}.": "Estes valores dos colares parecem um só valor escrito de duas maneiras: {list}.",
+  "Make them one": "Unificá-los",
+  "Rewrites the less common spelling of each group to the commoner one, on every collar. Undo brings them back.": "Reescreve a grafia menos comum de cada grupo com a mais comum, em todos os colares. Desfazer os traz de volta.",
+  "{name} with {models}: a UBC-GIF mesh and its model, opened in Geophysics > Block models (Import UBC mesh + model…).": "{name} com {models}: uma malha UBC-GIF e seu modelo, abertos em Geofísica > Modelos de blocos (Importar malha + modelo UBC…).",
+  " {n} hole(s) have a stretch with no survey station (the widest: {id}, {a}–{b} m): the path there is interpolated, not measured. Data QC lists them.": " {n} furo(s) têm um trecho sem estação de levantamento (o mais largo: {id}, {a}–{b} m): a trajetória ali é interpolada, não medida. O Data QC os lista.",
+  "{n} hole(s) with an unlogged stretch above the first rock ({a}–{b} m) were left out: missing log is not cover ({ids}).": "{n} furo(s) com um trecho sem descrição acima da primeira rocha ({a}–{b} m) foram deixados de fora: descrição ausente não é cobertura ({ids}).",
+  "{n} sample(s) carry a Strike and a Dip: Surface Geology > Outcrop structures > 'Add the samples with a strike and dip as structures' reads them as outcrop measurements.": "{n} amostra(s) trazem Strike e Dip: Geologia de superfície > Estruturas de afloramento > «Adicionar como estruturas as amostras com direção e mergulho» as lê como medições de afloramento."
 }

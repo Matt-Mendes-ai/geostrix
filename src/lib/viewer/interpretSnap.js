@@ -150,6 +150,9 @@ export function snapInterpretClick(world, ray, { on, traces, layers, visible, or
   const near = (p) => { if (!p) return Infinity; const o = ray.origin, d = ray.direction, vx = p.x - o.x, vy = p.y - o.y, vz = p.z - o.z, t = vx * d.x + vy * d.y + vz * d.z; const px = vx - t * d.x, py = vy - t * d.y, pz = vz - t * d.z; return Math.sqrt(px * px + py * py + pz * pz) / (tol(Math.max(t, 1e-6)) || 1); };
   const s = ground && near(ground) < near(holes) ? ground : holes;
   if (!s) return world;
-  if (!s.hole_id) return { x: s.x + origin.x, y: origin.y - s.z, z: s.y + origin.z, snap: { label: s.label, kind: s.kind } }; // no tie: the spot only
-  return { x: s.x + origin.x, y: origin.y - s.z, z: s.y + origin.z, snap: { hole_id: s.hole_id, md: +s.md.toFixed(2), label: s.label, kind: s.kind } };
+  const sx = s.x + origin.x, sy = origin.y - s.z, sz = s.y + origin.z;
+  // TASKS.csv #3853 — how far the snap moved the click (m), so a line drawn over a map is not 'on the hole' by a margin nobody sees: the raw hit to the snapped point; null with no raw hit
+  const moved = world && Number.isFinite(world.x) && Number.isFinite(world.y) && Number.isFinite(world.z) ? +Math.hypot(sx - world.x, sy - world.y, sz - world.z).toFixed(1) : null;
+  if (!s.hole_id) return { x: sx, y: sy, z: sz, snap: { label: s.label, kind: s.kind, ...(moved != null ? { moved } : {}) } }; // no tie: the spot only
+  return { x: sx, y: sy, z: sz, snap: { hole_id: s.hole_id, md: +s.md.toFixed(2), label: s.label, kind: s.kind, ...(moved != null ? { moved } : {}) } };
 }
