@@ -14023,5 +14023,7 @@
   "Import collars or plan a hole first": "Importe collares o planifique un sondaje primero",
   "A new page: every hole on a drill plan at a round scale, with its key, a north arrow, a scale bar, a title and the data credit": "Una página nueva: todos los sondajes en un plano de perforación a una escala redonda, con su leyenda, una flecha de norte, una barra de escala, un título y el crédito de los datos",
   "Add to this page: text, a north arrow, a scale bar, a legend, a title block or a collar table": "Añadir a esta página: texto, una flecha de norte, una barra de escala, una leyenda, un cajetín o una tabla de collares",
-  "Nothing to lay out for this sheet yet.": "Todavía no hay nada que componer en esta hoja."
+  "Nothing to lay out for this sheet yet.": "Todavía no hay nada que componer en esta hoja.",
+  "Send a section to Layout first (Snapshot in the section window)": "Envíe primero una sección a Layout (Instantánea en la ventana de la sección)",
+  "A new page: the newest section sent to Layout at a round scale, with its legend, the direction it looks, a scale bar, a title and the data credit": "Una página nueva: la sección más reciente enviada a Layout a una escala redonda, con su leyenda, la dirección en que mira, una barra de escala, un título y el crédito de los datos"
 }

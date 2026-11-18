@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import { customLegendGroups } from "../lib/customColour.js"; // TASKS.csv #2472
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
-import { MapPinned, Plus, X, Maximize2, Image as ImageIcon, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid, Lock, Download, Upload, HardDrive } from "../components/icons.js";
+import { MapPinned, Scissors, Plus, X, Maximize2, Image as ImageIcon, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid, Lock, Download, Upload, HardDrive } from "../components/icons.js";
 import { projectTitleOf } from "../lib/projectTitle.js"; // TASKS.csv #3611 / #3612
 import { newTitleBlock, STOCK_TEMPLATES, stockTemplateElements, templateFile, parseTemplateFile, templateElements, furnitureOfOnePictureReset /* #3709 */, sharedTitleRows /* #3714 */, titleBlockHeight /* #3868 */, refitStockTemplate, documentTitle /* #3612 */, titleBlockSpot } from "../lib/layoutTitleBlock.js"; // refitStockTemplate: #2312; // TASKS.csv #1868; templateElements: #1487
 import ComputerTemplates from "../components/ComputerTemplates.jsx"; // TASKS.csv #1487
@@ -28,7 +28,7 @@ import { minMax, LAYER_META } from "../lib/layers.js";
 import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape, capLegendGroups, outcropLegendGroup } from "../lib/legendGroups.js"; // TASKS.csv #725; #948; #1633; outcropLegendGroup: #1437
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
 import { planKeyItems } from "../lib/planKeyLegend.js"; // TASKS.csv #3419
-import { planSheet } from "../lib/layoutSheets.js"; // TASKS.csv #3912 — one-click sheets
+import { planSheet, sheetSources, sectionSheet } from "../lib/layoutSheets.js"; // TASKS.csv #3912 — one-click sheets
 import { useUiMode } from "../lib/uiMode.js"; // TASKS.csv #3912 — the Add menu's All-tools items
 import { tableTextFit, collarTableCells, splitHalvesFit } from "../lib/collarTable.js"; // TASKS.csv #3374; collarTableCells / splitHalvesFit: #3411
 import { collarTableSlice, continuationTables, collarsWithSurveyAttitude, continuationPageIndex, collarTableFieldChoices, defaultCollarTableFields, splitTableRows, suspectIdsOf, elevationCell, elevationNotes } from "../lib/collarTable.js"; // elevation*: #3023 // splitTableRows: #2770; // field columns: #2717; // continuationPageIndex: #2718 // TASKS.csv #1638; collarsWithSurveyAttitude: #2133
@@ -924,6 +924,7 @@ export default function LayoutModule() {
   // TASKS.csv #3912 (redesign P9) — a one-click sheet: a new page, on the open page's paper, laid out by lib/layoutSheets.js from what the
   // project holds (the store's addLayoutPages adds the data credit and opens it). The plan's key is read from the plan it lays out, then the
   // plan is laid out again beside a legend that wide.
+  const sheetSrc = useMemo(() => sheetSources(layoutPages), [layoutPages]);
   const makeSheet = (kind) => {
     const fmt = activePage?.format || null, stamp = Date.now();
     let res = null, name = "";
@@ -935,6 +936,7 @@ export default function LayoutModule() {
       res = (key.length && planSheet({ ...args, legendItems: key })) || first;
       name = tr("Plan map");
     }
+    if (kind === "section") { res = sectionSheet({ format: fmt, credit: credits, source: sheetSrc.section, presets: SCALE_PRESETS, stamp }); name = tr("Cross-section"); }
     if (!res) { setExportNote({ text: tr("Nothing to lay out for this sheet yet."), error: true }); return; }
     undoCheckpoint?.();
     addPagesOnPaper(addLayoutPages, setLayoutPageFormat, [{ name, elements: res.elements }], fmt);
@@ -1383,6 +1385,7 @@ export default function LayoutModule() {
           {/* TASKS.csv #3912 (redesign P9) — one-click sheets: each a new page laid out from what the project holds (lib/layoutSheets.js) */}
           <RibbonGroup label="Sheets">
             <RibbonButton icon={MapPinned} label="Plan map" tone="output" disabled={!collars.length && !(plannedHoles || []).length} disabledReason="Import collars or plan a hole first" title="A new page: every hole on a drill plan at a round scale, with its key, a north arrow, a scale bar, a title and the data credit" onClick={() => makeSheet("plan")} />
+            <RibbonButton icon={Scissors} label="Cross-section" tone="output" disabled={!sheetSrc.section} disabledReason="Send a section to Layout first (Snapshot in the section window)" title="A new page: the newest section sent to Layout at a round scale, with its legend, the direction it looks, a scale bar, a title and the data credit" onClick={() => makeSheet("section")} />
           </RibbonGroup>
           <RibbonGroup label="Insert">
             <RibbonButton icon={Plus} label="Add" tone="output" expanded={!!addMenu} title="Add to this page: text, a north arrow, a scale bar, a legend, a title block or a collar table" onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setAddMenu((m) => (m ? null : { x: r.left, y: r.bottom + 2 })); }} />

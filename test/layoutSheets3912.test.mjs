@@ -63,3 +63,10 @@ test("#3912 wiring: a sheet is a new page through the store's addLayoutPages (wh
   assert.match(m, /<RibbonButton icon=\{MapPinned\} label="Plan map" tone="output"[^\n]*onClick=\{\(\) => makeSheet\("plan"\)\}/);
   assert.match(read("../src/lib/store.jsx"), /const credited = creditedNow\(rawPages\), pages = credited \|\| rawPages;/);
 });
+
+test("#3912 wiring: Cross-section lays out the newest section sent to Layout, and says what to do when there is none", () => {
+  const m = read("../src/modules/LayoutModule.jsx");
+  assert.match(m, /const sheetSrc = useMemo\(\(\) => sheetSources\(layoutPages\), \[layoutPages\]\);/);
+  assert.match(m, /if \(kind === "section"\) \{ res = sectionSheet\(\{ format: fmt, credit: credits, source: sheetSrc\.section, presets: SCALE_PRESETS, stamp \}\); name = tr\("Cross-section"\); \}/);
+  assert.match(m, /label="Cross-section" tone="output" disabled=\{!sheetSrc\.section\} disabledReason="Send a section to Layout first \(Snapshot in the section window\)"[^\n]*onClick=\{\(\) => makeSheet\("section"\)\}/);
+});
