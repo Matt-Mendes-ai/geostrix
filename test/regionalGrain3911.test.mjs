@@ -83,8 +83,12 @@ test("#3911 the area looked at: the project's box, at least 20 km across, centre
   assert.equal(regionalArea(null), null);
 });
 
-test("#3911 through the existing Macrostrat tiles (no new host or endpoint)", () => {
+test("#3911 fetched only on a click, through the existing Macrostrat tiles (no new host or endpoint)", () => {
   const f = read("../src/lib/macrostratFetch.js");
   assert.match(f, /export async function fetchMacrostratUnitPolygons\(\{ bboxLonLat, onProgress \}\) \{\n  const \{ plan, count, tiles, failed \} = await fetchMacrostratTiles\(bboxLonLat, onProgress\);/);
+  const h = read("../src/modules/viewer/TrendHelper.jsx");
+  assert.match(h, /onClick=\{lookRegional\}/);
+  assert.equal((h.match(/fetchMacrostratUnitPolygons\(/g) || []).length, 1);
+  assert.doesNotMatch(h, /https?:\/\//, "no address of its own");
   assert.match(read("../PRIVACY.md"), /`tiles\.macrostrat\.org`, `macrostrat\.org`/);
 });

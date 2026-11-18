@@ -10,6 +10,9 @@ import { trendBasis } from "../../lib/trend.js";
 import { gatherTrendData } from "../../lib/trendHelperData.js";
 import { colors } from "../../lib/theme.js";
 import { t as tr } from "../../lib/i18n.js";
+import { useStore } from "../../lib/store.jsx"; // TASKS.csv #3911 — the collars and the CRS, for the regional area
+import { fetchAreaBox } from "../../lib/dataExtent.js";
+import { regionalArea, regionalGrain, regionalCandidate, regionalNoneText } from "../../lib/regionalGrain.js"; // TASKS.csv #3911
 
 const FOLLOW = [["grade", "The grade model"], ["rock", "One rock or vein"], ["everything", "Everything"]];
 const USED = { grade: "The grade shell and the block estimate now use it.", rock: "The geology models, alteration halos and explicit surfaces now use it.", everything: "Every model except faults now uses it." };
@@ -35,7 +38,29 @@ export default function TrendHelper({ structuralTrends, setStructuralTrends, sce
 
   const typedCand = typed.open && Number.isFinite(Number(typed.dip)) && Number.isFinite(Number(typed.dipDir)) && typed.dip !== "" && typed.dipDir !== ""
     ? { id: "typed", source: "typed", dip: Math.max(0, Math.min(90, Number(typed.dip))), dipAzimuth: ((Number(typed.dipDir) % 360) + 360) % 360 } : null;
-  const cands = result?.candidates || [];
+  // TASKS.csv #3911 (redesign P8b) — the regional direction: Macrostrat's published geology around the project, fetched on a click only
+  // (the existing tiles.macrostrat.org vector tiles), one more card, direction only, never pre-selected
+  const { collars = [], surfaceSamples = [], project } = useStore() || {};
+  const [regional, setRegional] = useState(null); // { busy } | { card } | { note, warn }
+  const lookRegional = async () => {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) { setRegional({ note: regionalNoneText(null, { offline: true }), warn: true }); return; }
+    const box = fetchAreaBox(collars, surfaceSamples), epsg = project?.epsg;
+    if (!box || !epsg) { setRegional({ note: tr("The regional geology needs drill holes and a coordinate system to know where the project is."), warn: true }); return; }
+    setRegional({ busy: true });
+    try {
+      const { toLonLat } = await import("../../lib/reproject.js");
+      const ll = await Promise.all([[box[0], box[1]], [box[2], box[1]], [box[2], box[3]], [box[0], box[3]]].map(([x, y]) => toLonLat(x, y, epsg)));
+      if (ll.some((p) => !p)) throw new Error(tr("the project's coordinate system could not be turned into latitude and longitude"));
+      const area = regionalArea(ll.reduce((b, p) => [Math.min(b[0], p.lon), Math.min(b[1], p.lat), Math.max(b[2], p.lon), Math.max(b[3], p.lat)], [Infinity, Infinity, -Infinity, -Infinity]));
+      const { fetchMacrostratUnitPolygons } = await import("../../lib/macrostratFetch.js");
+      const got = await fetchMacrostratUnitPolygons({ bboxLonLat: area });
+      const grain = regionalGrain(got.features), card = regionalCandidate(grain);
+      setRegional(card ? { card } : { note: regionalNoneText(grain) });
+    } catch (e) {
+      setRegional({ note: typeof navigator !== "undefined" && navigator.onLine === false ? regionalNoneText(null, { offline: true }) : tr("The regional geology could not be fetched ({error}).", { error: String(e?.message || e) }), warn: true });
+    }
+  };
+  const cands = [...(result?.candidates || []), ...(regional?.card ? [regional.card] : [])];
   const byId = (id) => (id === "typed" ? typedCand : cands.find((c) => c.id === id) || null);
   const chosen = byId(selId);
   const shown = byId(hoverId) || chosen;
@@ -107,6 +132,13 @@ export default function TrendHelper({ structuralTrends, setStructuralTrends, sce
         <div style={{ marginTop: 8 }}>{tr("Here is what your data says.")}</div>
         {result.none && <div style={{ ...small, margin: "4px 0" }}>{result.noneText}</div>}
         {cands.map(card)}
+        {!regional?.card && (
+          <div data-trend-regional="" style={{ margin: "6px 0" }}>
+            <button type="button" style={btnStyle} disabled={!!regional?.busy} onClick={lookRegional}>{regional?.busy ? tr("Looking…") : tr("Look at the regional geology")}</button>
+            <div style={small}>{tr("Sends the area around the project to Macrostrat (macrostrat.org) for its published geology map, and reads the direction the mapped contacts run: a regional direction only, not a dip.")}</div>
+            {regional?.note && <div role="status" style={{ ...small, color: regional.warn ? "var(--color-warn-text)" : undefined }}>{regional.note}</div>}
+          </div>
+        )}
         {cands.length > 0 && <div style={small}>{tr("Point at a card to see it as a disc in the 3D view. These are suggestions from your data, not facts: check them against what you know.")}</div>}
       </>)}
 
