@@ -92,9 +92,8 @@ import { fixedScaleHalfHeight, captureLongPx, scaleForHalfHeight } from "../lib/
 import { worldHeightAtTargetM } from "../lib/figureScale.js"; // TASKS.csv #311 — the single shared metres-per-pixel derivation (Layout's scale bar uses it too)
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
-import PanelSplitHandle from "../components/PanelSplitHandle.jsx";
-import { useBrowserPanelHeight } from "../lib/useBrowserPanelHeight.js";
-const DbBrowserPanel = React.lazy(() => import("../components/DbBrowserPanel.jsx")); // startup budget (#476): loads after the first paint
+import BrowserDock from "./viewer/BrowserDock.jsx"; // TASKS.csv #3906 — the Browser panel, closed by default
+import { useUiMode } from "../lib/uiMode.js"; // TASKS.csv #3906
 const ImportMappingModal = lazyModal(() => import("../components/ImportMappingModal.jsx"));  // TASKS.csv #301
 const LayerPickerModal = lazyModal(() => import("../components/LayerPickerModal.jsx")); // TASKS.csv #476 // TASKS.csv #288
 const DatabaseConnectModal = lazyModal(() => import("../components/DatabaseConnectModal.jsx"));  // TASKS.csv #301
@@ -761,7 +760,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const [attrTableTarget, setAttrTableTarget] = useState(null); // { kind: "collars"|"survey"|"layer", key, label } | null
   const [dragOver, setDragOver] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
-  const [browserHeight, setBrowserHeight] = useBrowserPanelHeight(); // TASKS.csv #206 — Browser panel dock height
+  const basicTools = useUiMode().mode === "simple"; // TASKS.csv #3906 — Basic tools: empty sidebar sections wait for All tools
   const [dataLoaded, setDataLoaded] = useState(false);
 
   // TASKS.csv #188 follow-up — user report: "there is a bug on the select from cursor button. it
@@ -6538,6 +6537,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           </>
         )}
 
+        {(!basicTools || customLayers.length > 0) && (<>{/* TASKS.csv #3906 — with Basic tools, an empty section waits for All tools */}
         <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Custom layers")}</div>
         {customLayers.map((l) => (
           <div key={l.id} onContextMenu={(e) => openRowMenu(e, l.name, [
@@ -6554,11 +6554,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         ))}
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => fileInputs.current.customCsv.click()} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>{tr("+ Add CSV layer")}</div>
         <input ref={setInputRef("customCsv")} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz,.las" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, "custom"); e.target.value = ""; }} />
+        </>)}
 
         {/* TASKS.csv #628 — Matt: "I'm importing shp files but there is no way to delete them … I wanna be able to see
             them as layers, just like in qgis". Line / polygon shapefiles and GeoPackage tables go to the project's map
             layers (#609), which were only listed under Geophysics -> Map layers; this lists them here too, QGIS-style:
             show/hide, zoom to, remove. Styling stays in the Geophysics panel (one place for it). */}
+        {(!basicTools || mapLayers.length > 0) && (<>
         <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Map layers{v}", { v: mapLayers.length ? ` (${mapLayers.length})` : "" })}</div>
         {mapLayers.map((l) => (
           <div key={l.id} onContextMenu={(e) => openRowMenu(e, l.name, [
@@ -6577,8 +6579,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => fileInputs.current.mapLayer.click()} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>{tr("+ Add map layer (.shp / .zip / .gpkg)")}</div>
         <input ref={setInputRef("mapLayer")} type="file" multiple accept=".zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx" style={{ display: "none" }} onChange={(e) => { groupShapefileParts(Array.from(e.target.files)).files.forEach((f) => openImportModal(f)); e.target.value = ""; }} />
         {mapLayers.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "2px 2px 0" }}>{tr("Colours, labels and draping: Maps → Map layers.")}</div>}
+        </>)}
 
         {/* TASKS.csv #630 — georeferenced cross-section images standing in the 3D view */}
+        {(!basicTools || sectionImages.length > 0) && (<>
         <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Section images{v}", { v: sectionImages.length ? ` (${sectionImages.length})` : "" })}</div>
         {sectionImages.map((im) => (
           <div key={im.id} onContextMenu={(e) => openRowMenu(e, im.name, [
@@ -6601,6 +6605,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           </div>
         ))}
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSectionGeorefOpen(true)} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>{tr("+ Georeference a section image…")}</div>
+        </>)}
 
         {/* TASKS.csv #155 — Snapshot to Layout / Draw cross-section (+ its buffer setting) moved to
             the toolbar above (Camera / Scissors icons) — same reasoning as Grid/Themes above. The
@@ -7122,6 +7127,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           );
         })}
 
+        {(!basicTools || domains.length > 0) && (<>
         <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Domains")}</div>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("A domain is one or more faults plus which side of each — an AND of constraints, so you can bound a domain between two faults, not just split the property in two. Pick which fault surfaces to use as constraints below (any generated surface typed \"Fault\" above); the domain fails open (matches everything) until it has at least one constraint, and again for any constraint whose fault surface gets deleted. Domains save with the project, along with the surfaces they reference.")}</div>
         {(() => { const faultSurfaces = implicitSurfaces.filter((s) => s.type === "fault"); return (
@@ -7184,6 +7190,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </>
         ); })()}
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => askPrompt("Domain name?", "", (name) => { if (name && name.trim()) setExpandedDomainId(addDomain(name.trim())); })} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center", marginBottom: 4 }}>{tr("+ Domain")}</div>
+        </>)}
         </>)}
 
         {sidebarTab === "surface" && (<>
@@ -7311,10 +7318,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       </div>
 
       {sidebarTab === "home" && (<>
-        <PanelSplitHandle height={browserHeight} onResize={setBrowserHeight} invert title={tr("Drag to resize the Browser panel")} />
-        <div style={{ height: browserHeight, flexShrink: 0 }}>
-          <Suspense fallback={null}><DbBrowserPanel onImportFile={importBrowserFile} onImportRows={openImportFromRows} onError={(m) => setNotices((p) => [...p, m])} /></Suspense>
-        </div>
+        <BrowserDock onImportFile={importBrowserFile} onImportRows={openImportFromRows} onError={(m) => setNotices((p) => [...p, m])} />
       </>)}
       </div>
 

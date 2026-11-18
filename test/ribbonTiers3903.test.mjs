@@ -32,3 +32,15 @@ test("#3914 the StrixViewer ribbon: Add data (the drop import), Interpret and Bo
   const ve = rd("src/modules/viewer/ViewVeSelect.jsx");
   assert.match(ve, /onClick=\{\(\) => setFigureOverlay\(\(f\) => \(\{ \.\.\.f, enabled: !f\.enabled \}\)\)\}/);
 });
+
+test("#3906 with Basic tools an empty sidebar section waits for All tools; the Browser panel is closed by default", () => {
+  const vm = rd("src/modules/ViewerModule.jsx");
+  assert.match(vm, /const basicTools = useUiMode\(\)\.mode === "simple";/);
+  for (const list of ["customLayers", "mapLayers", "sectionImages", "domains"]) assert.ok(vm.includes(`{(!basicTools || ${list}.length > 0) && (<>`), list);
+  assert.match(vm, /<BrowserDock onImportFile=\{importBrowserFile\} onImportRows=\{openImportFromRows\}/);
+  assert.doesNotMatch(vm, /<DbBrowserPanel/);
+  const dock = rd("src/modules/viewer/BrowserDock.jsx");
+  assert.match(dock, /const readOpen = \(\) => \{ try \{ return localStorage\.getItem\(OPEN_KEY\) === "1"; \} catch \(_\) \{ return false; \} \};/); // closed unless opened before
+  assert.match(dock, /\{open && \(<>/);
+  assert.match(dock, /const DbBrowserPanel = React\.lazy\(/);
+});

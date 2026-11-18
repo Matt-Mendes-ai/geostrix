@@ -14011,5 +14011,8 @@
   "Basic tools shows each tab's main tools; All tools shows every tool. Remembered on this computer.": "Ferramentas básicas mostra as ferramentas principais de cada aba; Todas as ferramentas mostra todas. Fica lembrado neste computador.",
   "Add data": "Adicionar dados",
   "Add files to the project: collars, surveys, logs, assays, maps, grids, terrain, models. Each is read the same way as a file dropped on the view.": "Adiciona arquivos ao projeto: bocas de furo, levantamentos, perfis, análises, mapas, grades, terreno, modelos. Cada um é lido da mesma forma que um arquivo solto sobre a vista.",
-  "Show or hide the figure overlay: title, legend and scale bar": "Mostrar ou ocultar a sobreposição da figura: título, legenda e barra de escala"
+  "Show or hide the figure overlay: title, legend and scale bar": "Mostrar ou ocultar a sobreposição da figura: título, legenda e barra de escala",
+  "Browser": "Navegador",
+  "Show the Browser panel": "Mostrar o painel Navegador",
+  "Hide the Browser panel": "Ocultar o painel Navegador"
 }
