@@ -36,7 +36,7 @@ async function once() {
     ws.onmessage = (m) => { const d = JSON.parse(m.data); if (d.id && wait.has(d.id)) { wait.get(d.id)(d); wait.delete(d.id); } };
     const evaluate = (expression) => new Promise((res) => { const i = ++id; wait.set(i, res); ws.send(JSON.stringify({ id: i, method: "Runtime.evaluate", params: { expression, awaitPromise: true, returnByValue: true } })); }).then((d) => d.result?.result?.value);
     // the ribbon's first tab button, then one animation frame so it has been painted
-    const probe = `(() => [...document.querySelectorAll("button")].some((b) => b.innerText.trim() === "3D View") ? new Promise((r) => requestAnimationFrame(() => r(true))) : false)()`;
+    const probe = `(() => [...document.querySelectorAll("button")].some((b) => /^(StrixViewer|3D View)$/.test(b.innerText.trim())) ? new Promise((r) => requestAnimationFrame(() => r(true))) : false)()`;
     let ready = false;
     while (!ready && performance.now() - t0 < 60000) { ready = await evaluate(probe); if (!ready) await sleep(20); }
     ws.close();
