@@ -7412,7 +7412,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           />
         )}
         {identify.on && <Suspense fallback={null}><IdentifyPanel result={identify.result} onShow={identify.show} onClose={identify.stop} onZoom={(pt) => zoomToPoint(pt)} onStripLog={setStripLogHoleId} /></Suspense>}
-        {guided && mode === "view" && <Suspense fallback={null}><GuidedTool tool={guided} setTool={setGuided} api={{ runStackModel, runImplicitModel, computeIntercepts, modelResolution, setModelResolution, busy: implicitBusy, surfaces: implicitSurfaces, setStackUnits, setImplicitTarget, openPane: (p) => { setGuided(null); pendingPaneRef.current = p; goToModule("modelling"); } }} /></Suspense>}{/* TASKS.csv #3908 */}
+        {guided && mode === "view" && <Suspense fallback={null}><GuidedTool tool={guided} setTool={setGuided} api={{ runStackModel, runImplicitModel, runVeinModel, computeIntercepts, modelResolution, setModelResolution, busy: implicitBusy || veinBusy || numericBusy, surfaces: implicitSurfaces, setStackUnits, setImplicitTarget, setVeinTarget, openPane: (p) => { setGuided(null); pendingPaneRef.current = p; goToModule("modelling"); } }} /></Suspense>}{/* TASKS.csv #3908 */}
         <div style={{ position: "absolute", top: 178, right: 12, display: "flex", flexDirection: "column", gap: 6 }}>{/* #1300 — 8 px below the compass card */}
           <button onClick={() => { camState.current.theta = 0; camState.current.phi = 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Top")}</button>{/* #1200 — north up, as a map */}
           <button onClick={() => { camState.current.phi = Math.PI - 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Bottom")}</button>

@@ -41,7 +41,7 @@ test("the shell: lazy, behind one Basic Model button; ViewerModule has one-line 
   const vm = rd("src/modules/ViewerModule.jsx");
   assert.match(vm, /const GuidedTool = React\.lazy\(\(\) => import\("\.\/viewer\/guided\/GuidedTool\.jsx"\)\);/);
   assert.match(vm, /const \[guided, setGuided\] = useState\(null\); useModuleAction\(\["guided-open"\], \(a, p\) => setGuided\(p\?\.tool \|\| "start"\)\);/);
-  assert.match(vm, /\{guided && mode === "view" && <Suspense fallback=\{null\}><GuidedTool tool=\{guided\} setTool=\{setGuided\} api=\{\{ runStackModel, runImplicitModel, computeIntercepts, modelResolution, setModelResolution, busy: implicitBusy,/);
+  assert.match(vm, /\{guided && mode === "view" && <Suspense fallback=\{null\}><GuidedTool tool=\{guided\} setTool=\{setGuided\} api=\{\{ runStackModel, runImplicitModel, runVeinModel, computeIntercepts, modelResolution, setModelResolution, busy: implicitBusy \|\| veinBusy \|\| numericBusy,/);
   assert.doesNotMatch(vm, /^import .*guided/m); // nothing of it in the startup chunk
   const vp = rd("src/modules/viewer/ViewerParts.jsx");
   assert.doesNotMatch(vp, /^import .*guided/m);
@@ -52,7 +52,7 @@ test("the shell: lazy, behind one Basic Model button; ViewerModule has one-line 
   assert.equal(menu[0], "start");
   const shell = rd("src/modules/viewer/guided/GuidedTool.jsx");
   for (const s of ["Build it for me", "What I chose and why", "Change these", "Your data cannot support this yet", "Start here"]) assert.ok(shell.includes(`tr("${s}")`), s);
-  assert.match(shell, /api\.setModelResolution\(auto\.values\.resolution\)/); // the size and detail from lib/auto/autoSurface.js
+  assert.match(shell, /\(a, v\) => a\.setModelResolution\(v\.resolution\)/); // default: autoSurface's resolution (a tool may bring its own, #3909) // the size and detail from lib/auto/autoSurface.js
   assert.match(shell, /disabled=\{api\.busy \|\|/); // one heavy run at a time
 });
 
@@ -117,4 +117,20 @@ test("#3908 the shell runs with the Modelling-codes key and gives the suggestion
   assert.match(shell, /target: \(v\) => \(mcodes\.some\(\(c\) => c\.name === v\) \? `mcode:\$\{v\}` : v\)/);
   assert.match(shell, /tool\.run\(api, value, ctx\)/);
   assert.match(shell, /reasons: \[keptSuggestion \? sug\.reason : null,/);
+});
+
+test("#3909 Veins and dykes: the vein cut by the most holes, a verdict under three, the Vein run on its key", async () => {
+  const { VEINS, GUIDED_TOOLS } = await import("../src/modules/viewer/guided/guidedTools.js");
+  assert.ok(GUIDED_TOOLS.includes(VEINS));
+  const veins = []; for (let h = 0; h < 5; h++) veins.push({ hole_id: `L${h}`, value: "QV" }); veins.push({ hole_id: "L0", value: "CB" }, { hole_id: "L1", value: "CB" });
+  const ctx = { rows: logs(), veins, roleOf: (u) => (u === "DYK" ? "dyke" : "stratigraphic") };
+  assert.deepEqual(VEINS.choices(ctx), ["litho:DYK", "QV", "CB"]); // a lithology code read as a dyke is offered too (DYK: 7 holes)
+  assert.equal(VEINS.suggest(ctx).value, "litho:DYK");
+  assert.equal(VEINS.label("litho:DYK"), "DYK");
+  assert.equal(VEINS.auto(ctx, "QV").ok, true);
+  assert.match(VEINS.auto(ctx, "CB").verdict[0], /^Only 2 holes cut CB: a sheet needs three or more\.$/);
+  assert.equal(VEINS.auto(ctx, "litho:DYK").ok, true);
+  const calls = []; VEINS.run({ runVeinModel: (v) => calls.push(v) }, "litho:DYK");
+  assert.deepEqual(calls, ["litho:DYK"]);
+  assert.match(VEINS.feed({ rows: [], veins: [], roleOf: () => "stratigraphic" }), /No veins or dykes logged/);
 });

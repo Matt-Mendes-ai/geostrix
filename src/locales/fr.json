@@ -14170,5 +14170,13 @@
   "Choose a code first.": "Choisissez d'abord un code.",
   "GeoStrix reads {code} as a rock, so it would draw its top, not its base. Mark it as overburden in 3D Modelling > Modelling codes, then build again.": "GeoStrix lit {code} comme une roche : il dessinerait son toit, pas sa base. Marquez-le comme mort-terrain dans Modélisation 3D > Codes de modélisation, puis reconstruisez.",
   "No terrain in the project: the ground is taken from the collar heights.": "Pas de terrain dans le projet : le sol est pris aux altitudes des collets.",
-  "GeoStrix reads {code} as a layered rock, so it would draw its top, not a body. Mark it as an intrusion in 3D Modelling > Modelling codes, then build again.": "GeoStrix lit {code} comme une roche litée : il dessinerait son toit, pas un corps. Marquez-le comme intrusion dans Modélisation 3D > Codes de modélisation, puis reconstruisez."
+  "GeoStrix reads {code} as a layered rock, so it would draw its top, not a body. Mark it as an intrusion in 3D Modelling > Modelling codes, then build again.": "GeoStrix lit {code} comme une roche litée : il dessinerait son toit, pas un corps. Marquez-le comme intrusion dans Modélisation 3D > Codes de modélisation, puis reconstruisez.",
+  "Thin sheets, from where the holes cut them.": "Des feuillets minces, à partir des endroits où les sondages les recoupent.",
+  "Builds a thin sheet with a thickness through the places where the holes cut a vein or dyke.": "Construit un feuillet mince avec une épaisseur passant par les endroits où les sondages recoupent une veine ou un dyke.",
+  "Which vein or dyke?": "Quelle veine ou quel dyke ?",
+  "No veins or dykes logged: a Veins log, or a lithology code read as a vein or dyke, is needed.": "Aucune veine ni aucun dyke décrit : il faut une diagraphie de veines, ou un code lithologique lu comme veine ou dyke.",
+  "{v} is cut in {n} holes, more than any other vein or dyke logged.": "{v} est recoupé dans {n} sondages, plus que toute autre veine ou dyke décrit.",
+  "Choose a vein or dyke first.": "Choisissez d'abord une veine ou un dyke.",
+  "Only {n} holes cut {v}: a sheet needs three or more.": "Seulement {n} sondages recoupent {v} : un feuillet en demande trois ou plus.",
+  "{v} is cut in {n} holes: the sheet is drawn through those intercepts, with the thickness logged there.": "{v} est recoupé dans {n} sondages : le feuillet passe par ces intersections, avec l'épaisseur décrite à cet endroit."
 }

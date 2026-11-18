@@ -98,7 +98,49 @@ export const COVER = {
   prefill: (api, value, ctx) => api.setImplicitTarget(ctx.target(value)),
 };
 
+// TASKS.csv #3909 (batch P7b) — thin sheets with a thickness: the Vein / dyke run on a Veins log value, or on a lithology code the run reads as a
+// vein or dyke ("litho:<code>", #2226). It has its own reach and thickness rules, so the automatic part here is the plain check that enough holes
+// cut the sheet, and the reason says which.
+const holesWith = (rows, test) => new Set(rows.filter(test).map((r) => r.hole_id)).size;
+function veinChoices(ctx) {
+  const out = new Map();
+  for (const r of ctx.veins) if (r.value != null && r.value !== "") out.set(String(r.value), (out.get(String(r.value)) || new Set()).add(r.hole_id));
+  for (const r of ctx.rows) { const v = String(r.value); if (BODY_ROLES.has(ctx.roleOf(v)) && ctx.roleOf(v) !== "breccia") out.set(`litho:${v}`, (out.get(`litho:${v}`) || new Set()).add(r.hole_id)); }
+  return [...out].map(([k, h]) => ({ key: k, holes: h.size })).sort((a, b) => b.holes - a.holes);
+}
+const veinLabel = (k) => (k.startsWith("litho:") ? k.slice(6) : k);
+export const VEINS = {
+  id: "veins",
+  title: "Veins and dykes",
+  line: "Thin sheets, from where the holes cut them.",
+  sentence: "Builds a thin sheet with a thickness through the places where the holes cut a vein or dyke.",
+  question: "Which vein or dyke?",
+  multi: false,
+  help: "vein-dyke",
+  expertPane: "vein",
+  feed: (ctx) => (veinChoices(ctx).length ? null : tr("No veins or dykes logged: a Veins log, or a lithology code read as a vein or dyke, is needed.")),
+  suggest(ctx) {
+    const c = veinChoices(ctx)[0];
+    return { value: c.key, reason: tr("{v} is cut in {n} holes, more than any other vein or dyke logged.", { v: veinLabel(c.key), n: c.holes }) };
+  },
+  choices: (ctx) => veinChoices(ctx).map((c) => c.key),
+  label: veinLabel,
+  check: (ctx, value) => (value ? null : tr("Choose a vein or dyke first.")),
+  auto(ctx, value) {
+    const v = veinLabel(value), n = value.startsWith("litho:") ? holesWith(ctx.rows, (r) => String(r.value) === v) : holesWith(ctx.veins, (r) => String(r.value) === v);
+    return n < 3
+      ? { ok: false, values: null, reasons: [], notes: [], verdict: [tr("Only {n} holes cut {v}: a sheet needs three or more.", { n, v })] }
+      : { ok: true, values: {}, reasons: [{ field: "holes", text: tr("{v} is cut in {n} holes: the sheet is drawn through those intercepts, with the thickness logged there.", { v, n }) }], notes: [], verdict: null };
+  },
+  prepare: () => {},
+  ready: () => true,
+  contacts: () => [],
+  notes: () => [],
+  run: (api, value) => api.runVeinModel(value),
+  prefill: (api, value) => api.setVeinTarget(value),
+};
+
 // in the Start here card's order: what lies on top first
-export const GUIDED_TOOLS = [COVER, ROCK_LAYERS, BODIES];
+export const GUIDED_TOOLS = [COVER, ROCK_LAYERS, BODIES, VEINS];
 export const toolById = (id) => GUIDED_TOOLS.find((t) => t.id === id) || null;
 export { unitsByHoles };

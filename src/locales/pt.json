@@ -14170,5 +14170,13 @@
   "Choose a code first.": "Escolha primeiro um código.",
   "GeoStrix reads {code} as a rock, so it would draw its top, not its base. Mark it as overburden in 3D Modelling > Modelling codes, then build again.": "O GeoStrix lê {code} como uma rocha, então desenharia o seu topo, não a sua base. Marque-o como cobertura em Modelagem 3D > Códigos de modelagem e construa de novo.",
   "No terrain in the project: the ground is taken from the collar heights.": "Não há terreno no projeto: o solo é tomado das cotas das bocas de furo.",
-  "GeoStrix reads {code} as a layered rock, so it would draw its top, not a body. Mark it as an intrusion in 3D Modelling > Modelling codes, then build again.": "O GeoStrix lê {code} como uma rocha em camadas, então desenharia o seu topo, não um corpo. Marque-o como intrusão em Modelagem 3D > Códigos de modelagem e construa de novo."
+  "GeoStrix reads {code} as a layered rock, so it would draw its top, not a body. Mark it as an intrusion in 3D Modelling > Modelling codes, then build again.": "O GeoStrix lê {code} como uma rocha em camadas, então desenharia o seu topo, não um corpo. Marque-o como intrusão em Modelagem 3D > Códigos de modelagem e construa de novo.",
+  "Thin sheets, from where the holes cut them.": "Lâminas finas, a partir de onde os furos as cortam.",
+  "Builds a thin sheet with a thickness through the places where the holes cut a vein or dyke.": "Constrói uma lâmina fina com espessura através dos pontos onde os furos cortam um veio ou dique.",
+  "Which vein or dyke?": "Qual veio ou dique?",
+  "No veins or dykes logged: a Veins log, or a lithology code read as a vein or dyke, is needed.": "Não há veios nem diques descritos: é preciso um perfil de veios ou um código de litologia lido como veio ou dique.",
+  "{v} is cut in {n} holes, more than any other vein or dyke logged.": "{v} é cortado em {n} furos, mais do que qualquer outro veio ou dique descrito.",
+  "Choose a vein or dyke first.": "Escolha primeiro um veio ou dique.",
+  "Only {n} holes cut {v}: a sheet needs three or more.": "Apenas {n} furos cortam {v}: uma lâmina precisa de três ou mais.",
+  "{v} is cut in {n} holes: the sheet is drawn through those intercepts, with the thickness logged there.": "{v} é cortado em {n} furos: a lâmina é desenhada através dessas interseções, com a espessura descrita ali."
 }
