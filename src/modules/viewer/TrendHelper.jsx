@@ -5,7 +5,7 @@
 // keep the trends table below as it is. Every candidate is a suggestion with its reason, never a fact (#264).
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { trendCandidates, trendFromCandidate, withHelperTrend, describeCandidate, candidateNumbers, strengthWord, STRENGTH_RATIOS } from "../../lib/trendCandidates.js";
+import { trendCandidates, trendFromCandidate, withHelperTrend, describeCandidate, candidateNumbers, strengthWord, STRENGTH_RATIOS, planeFromThreePoints, surfaceTrend } from "../../lib/trendCandidates.js"; // planeFromThreePoints, surfaceTrend: #3917
 import { trendBasis } from "../../lib/trend.js";
 import { gatherTrendData } from "../../lib/trendHelperData.js";
 import { colors } from "../../lib/theme.js";
@@ -25,7 +25,7 @@ const Ball = ({ k, on }) => (
   </svg>
 );
 
-export default function TrendHelper({ structuralTrends, setStructuralTrends, sceneRef, camState, sampleElements = [], btnStyle, inputStyle, small, ...sources }) {
+export default function TrendHelper({ structuralTrends, setStructuralTrends, sceneRef, camState, sampleElements = [], btnStyle, inputStyle, small, explicitClickRef, setExplicitPickFor, worldPointFromHits, ...sources }) { // the click route: #3917
   const [follow, setFollow] = useState("everything");
   const [gradeElement, setGradeElement] = useState(sampleElements[0] || "");
   const [result, setResult] = useState(null); // { candidates, suggestedId, none, noneText }
@@ -36,8 +36,37 @@ export default function TrendHelper({ structuralTrends, setStructuralTrends, sce
   const [done, setDone] = useState(null);
   const discRef = useRef(null);
 
-  const typedCand = typed.open && Number.isFinite(Number(typed.dip)) && Number.isFinite(Number(typed.dipDir)) && typed.dip !== "" && typed.dipDir !== ""
-    ? { id: "typed", source: "typed", dip: Math.max(0, Math.min(90, Number(typed.dip))), dipAzimuth: ((Number(typed.dipDir) % 360) + 360) % 360 } : null;
+  // TASKS.csv #3917 — "I know my trend" three ways: typed, three points clicked in the 3D view (the explicit surface's click route: the view
+  // hands its hits to explicitClickRef while explicitPickFor is set), or a modelled or imported surface's best-fit plane
+  const [how, setHow] = useState("type"); // "type" | "points" | "surface"
+  const [known, setKnown] = useState(null); // the points' or the surface's candidate, or { error }
+  const [picks, setPicks] = useState([]);
+  const [picking, setPicking] = useState(false);
+  const picksRef = useRef([]);
+  const stopPicking = () => { if (explicitClickRef) explicitClickRef.current = null; setExplicitPickFor?.(null); setPicking(false); };
+  const startPicking = () => {
+    if (!explicitClickRef || !worldPointFromHits) return;
+    picksRef.current = []; setPicks([]); setKnown(null); setPicking(true);
+    setExplicitPickFor?.("trend-helper");
+    explicitClickRef.current = (hits, raycaster) => {
+      const w = worldPointFromHits(raycaster, hits);
+      if (!w) return;
+      const next = [...picksRef.current, { x: w.x, y: w.y, z: w.z }];
+      picksRef.current = next; setPicks(next);
+      if (next.length < 3) return;
+      const res = planeFromThreePoints(next);
+      setKnown(res); setSelId("typed"); stopPicking();
+    };
+  };
+  useEffect(() => () => stopPicking(), []); // closing the helper stops the picking
+  const pickSurface = (id) => {
+    const s = (sources.surfaces || []).find((x) => x.id === id);
+    if (!s) { setKnown(null); return; }
+    setKnown(surfaceTrend(s.name, sources.surfacePoints?.(s.id) || [])); setSelId("typed");
+  };
+  const typedCand = !typed.open ? null : how !== "type" ? (known && !known.error ? known : null)
+    : Number.isFinite(Number(typed.dip)) && Number.isFinite(Number(typed.dipDir)) && typed.dip !== "" && typed.dipDir !== ""
+      ? { id: "typed", source: "typed", dip: Math.max(0, Math.min(90, Number(typed.dip))), dipAzimuth: ((Number(typed.dipDir) % 360) + 360) % 360 } : null;
   // TASKS.csv #3911 (redesign P8b) — the regional direction: Macrostrat's published geology around the project, fetched on a click only
   // (the existing tiles.macrostrat.org vector tiles), one more card, direction only, never pre-selected
   const { collars = [], surfaceSamples = [], project } = useStore() || {};
@@ -142,13 +171,39 @@ export default function TrendHelper({ structuralTrends, setStructuralTrends, sce
         {cands.length > 0 && <div style={small}>{tr("Point at a card to see it as a disc in the 3D view. These are suggestions from your data, not facts: check them against what you know.")}</div>}
       </>)}
 
-      <details open={typed.open} onToggle={(e) => { const open = e.currentTarget.open; setTyped((p) => ({ ...p, open })); if (open) setSelId("typed"); }} style={{ marginTop: 6 }}>
+      <details open={typed.open} onToggle={(e) => { const open = e.currentTarget.open; setTyped((p) => ({ ...p, open })); if (open) setSelId("typed"); else stopPicking(); }} style={{ marginTop: 6 }}>
         <summary style={{ cursor: "pointer" }}>{tr("I know my trend")}</summary>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
+        <div role="radiogroup" style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 4 }}>
+          {[["type", "Type it"], ["points", "Click three points in the 3D view"], ["surface", "Pick a surface"]].map(([k, label]) => (
+            <label key={k} style={small}><input type="radio" name="trendKnownHow" checked={how === k} onChange={() => { setHow(k); setKnown(null); stopPicking(); setSelId("typed"); }} /> {tr(label)}</label>
+          ))}
+        </div>
+        {how === "points" && (
+          <div data-trend-points="" style={{ marginTop: 4 }}>
+            {picking
+              ? <div style={small}>{tr("Click point {n} of 3 on the drilling, a surface or the ground.", { n: picks.length + 1 })} <button type="button" style={btnStyle} onClick={stopPicking}>{tr("Cancel")}</button></div>
+              : <button type="button" style={btnStyle} disabled={!explicitClickRef || !worldPointFromHits} onClick={startPicking}>{picks.length ? tr("Click three new points") : tr("Click three points")}</button>}
+          </div>
+        )}
+        {how === "surface" && (
+          <label style={{ ...small, display: "block", marginTop: 4 }}>{tr("Surface")} <select data-trend-surface="" defaultValue="" onChange={(e) => pickSurface(e.target.value)} style={inputStyle}>
+            <option value="">{(sources.surfaces || []).length ? tr("Choose one…") : tr("No surfaces in the project yet")}</option>
+            {(sources.surfaces || []).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+          </select></label>
+        )}
+        {how !== "type" && known?.error && <div role="status" style={{ ...small, color: "var(--color-warn-text)" }}>{known.error}</div>}
+        {how !== "type" && typedCand && (
+          <div role="status" style={small} onMouseEnter={() => setHoverId("typed")} onMouseLeave={() => setHoverId(null)}>
+            {typedCand.words} · {typedCand.numbers}{typedCand.strength ? ` · ${tr("Strength: {s}", { s: strengthWord(typedCand.strength) })}` : ""}
+            {typedCand.spread && <div>{typedCand.reason} {typedCand.spread}</div>}
+            {typedCand.note && <div>{typedCand.note}</div>}
+          </div>
+        )}
+        {how === "type" && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
           <label style={small}>{tr("Tilts towards (°, dip direction)")} <input type="number" min="0" max="360" value={typed.dipDir} onChange={(e) => { setTyped((p) => ({ ...p, dipDir: e.target.value })); setSelId("typed"); }} style={{ ...inputStyle, width: 64 }} /></label>
           <label style={small}>{tr("Tilt (°, dip)")} <input type="number" min="0" max="90" value={typed.dip} onChange={(e) => { setTyped((p) => ({ ...p, dip: e.target.value })); setSelId("typed"); }} style={{ ...inputStyle, width: 56 }} /></label>
-        </div>
-        {typedCand && <div style={small} onMouseEnter={() => setHoverId("typed")} onMouseLeave={() => setHoverId(null)}>{describeCandidate(typedCand)} · {candidateNumbers(typedCand)}</div>}
+        </div>}
+        {how === "type" && typedCand && <div style={small} onMouseEnter={() => setHoverId("typed")} onMouseLeave={() => setHoverId(null)}>{describeCandidate(typedCand)} · {candidateNumbers(typedCand)}</div>}
       </details>
 
       {chosen && (<>
