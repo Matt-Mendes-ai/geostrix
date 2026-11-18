@@ -14188,5 +14188,18 @@
   "Choose the fault measurements first.": "اختر قياسات الفالق أولًا.",
   "Only {n} {v} picks with a dip and a direction: a fault surface needs three or more.": "{n} قياسات فقط من {v} لها ميل واتجاه: يحتاج سطح الفالق إلى ثلاثة أو أكثر.",
   "{n} {v} picks in {h} holes, with their dips and directions: the surface is fitted through them.": "{n} قياسات من {v} في {h} ثقوب، بميولها واتجاهاتها: يُلاءَم السطح عبرها.",
-  "To make the other models stop at this fault, open Change these: the Structural modelling pane sets which models it cuts.": "لكي تتوقف النماذج الأخرى عند هذا الفالق، افتح «غيّر هذه»: تحدد لوحة النمذجة البنيوية النماذج التي يقطعها."
+  "To make the other models stop at this fault, open Change these: the Structural modelling pane sets which models it cuts.": "لكي تتوقف النماذج الأخرى عند هذا الفالق، افتح «غيّر هذه»: تحدد لوحة النمذجة البنيوية النماذج التي يقطعها.",
+  "Grade model": "نموذج المحتوى",
+  "Set a trend": "حدّد اتجاهًا",
+  "Where the metal is, as a shell above a cut-off.": "أين يوجد المعدن، كغلاف فوق حد القطع.",
+  "Builds a shell around the grades above a cut-off read from your assays, with cells and a search sized from your drilling.": "يبني غلافًا حول القيم فوق حد قطع مقروء من تحاليلك، بخلايا وبحث مقاسَين وفق الحفر لديك.",
+  "Which metal?": "أي معدن؟",
+  "No assays yet: import them (Add data) and this tool reads them.": "لا توجد تحاليل بعد: استوردها (إضافة بيانات) وستقرؤها هذه الأداة.",
+  "{el} has the most assays with a grade above zero ({n}).": "لدى {el} أكبر عدد من التحاليل بمحتوى أكبر من الصفر ({n}).",
+  "Choose a metal first.": "اختر معدنًا أولًا.",
+  "It follows the trend set with the trend helper.": "يتبع الاتجاه المحدد بمساعد الاتجاه.",
+  "No trend is set, so the shell grows the same way in every direction. If the grade runs one way, set a trend first.": "لم يُحدَّد اتجاه، فينمو الغلاف بالتساوي في كل الاتجاهات. إن كان المحتوى يمتد في اتجاه واحد فحدّد اتجاهًا أولًا.",
+  "{name}: {v} m³ above the cut-off.": "{name}: {v} م³ فوق حد القطع.",
+  "Part of this shell is closed at the search radius, so its volume depends on that radius as well as on the grades.": "جزء من هذا الغلاف مغلق عند نصف قطر البحث، فيعتمد حجمه على ذلك النصف قطر إضافةً إلى القيم.",
+  "This is a picture of where the grade is, not a resource estimate. Tonnes and grade-tonnage are in All tools.": "هذه صورة لمكان المحتوى، وليست تقديرًا للموارد. الأطنان ومنحنى المحتوى-الحمولة في «كل الأدوات»."
 }

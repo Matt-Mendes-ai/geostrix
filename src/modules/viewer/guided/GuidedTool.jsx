@@ -33,8 +33,8 @@ export default function GuidedTool({ tool: toolId, setTool, api }) {
   const ctx = useMemo(() => {
     let cache = null;
     const mcodes = store.modellingCodes?.codes || [];
-    return { rows, veins: store.layers?.vein || [], structures: store.layers?.structure || [], collars: store.collars || [], hasTerrain: !!store.terrain, describe: () => "", target: (v) => (mcodes.some((c) => c.name === v) ? `mcode:${v}` : v), roleOf: (v) => mcodes.find((c) => c.name === v)?.role || roleForLithology(v), isCover: (v) => (mcodes.find((c) => c.name === v)?.role || roleForLithology(v)) === "overburden", intercepts: () => (cache ||= (api.computeIntercepts?.() || []).filter((c) => c.layerKey === "litho")) };
-  }, [rows, store.layers, store.collars, store.terrain, store.modellingCodes]); // api.computeIntercepts follows the same logs
+    return { rows, veins: store.layers?.vein || [], structures: store.layers?.structure || [], assays: store.assays || [], assayElements: store.assayElements || [], hasDensity: (store.layers?.sg || []).length > 0, gradeTrend: !!store.structuralTrends?.use?.gradeShell, collars: store.collars || [], hasTerrain: !!store.terrain, describe: () => "", target: (v) => (mcodes.some((c) => c.name === v) ? `mcode:${v}` : v), roleOf: (v) => mcodes.find((c) => c.name === v)?.role || roleForLithology(v), isCover: (v) => (mcodes.find((c) => c.name === v)?.role || roleForLithology(v)) === "overburden", intercepts: () => (cache ||= (api.computeIntercepts?.() || []).filter((c) => c.layerKey === "litho")) };
+  }, [rows, store.layers, store.collars, store.terrain, store.modellingCodes, store.assays, store.assayElements, store.structuralTrends]); // api.computeIntercepts follows the same logs
   const close = () => setTool(null);
   const tool = toolById(toolId);
   if (!tool) return <StartHere ctx={ctx} setTool={setTool} close={close} />;

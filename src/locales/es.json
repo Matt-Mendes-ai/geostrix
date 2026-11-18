@@ -14188,5 +14188,18 @@
   "Choose the fault measurements first.": "Elija primero las mediciones de la falla.",
   "Only {n} {v} picks with a dip and a direction: a fault surface needs three or more.": "Solo {n} mediciones de {v} con buzamiento y dirección: una superficie de falla necesita tres o más.",
   "{n} {v} picks in {h} holes, with their dips and directions: the surface is fitted through them.": "{n} mediciones de {v} en {h} sondajes, con sus buzamientos y direcciones: la superficie se ajusta a través de ellas.",
-  "To make the other models stop at this fault, open Change these: the Structural modelling pane sets which models it cuts.": "Para que los otros modelos se detengan en esta falla, abra Cambiar esto: el panel Modelado estructural define qué modelos corta."
+  "To make the other models stop at this fault, open Change these: the Structural modelling pane sets which models it cuts.": "Para que los otros modelos se detengan en esta falla, abra Cambiar esto: el panel Modelado estructural define qué modelos corta.",
+  "Grade model": "Modelo de ley",
+  "Set a trend": "Definir una tendencia",
+  "Where the metal is, as a shell above a cut-off.": "Dónde está el metal, como una envolvente sobre una ley de corte.",
+  "Builds a shell around the grades above a cut-off read from your assays, with cells and a search sized from your drilling.": "Construye una envolvente alrededor de las leyes sobre una ley de corte leída de sus ensayes, con celdas y búsqueda dimensionadas según su perforación.",
+  "Which metal?": "¿Qué metal?",
+  "No assays yet: import them (Add data) and this tool reads them.": "Aún no hay ensayes: impórtelos (Añadir datos) y esta herramienta los leerá.",
+  "{el} has the most assays with a grade above zero ({n}).": "{el} tiene la mayor cantidad de ensayes con ley mayor que cero ({n}).",
+  "Choose a metal first.": "Elija primero un metal.",
+  "It follows the trend set with the trend helper.": "Sigue la tendencia definida con el asistente de tendencia.",
+  "No trend is set, so the shell grows the same way in every direction. If the grade runs one way, set a trend first.": "No hay tendencia definida, así que la envolvente crece igual en todas las direcciones. Si la ley sigue una dirección, defina primero una tendencia.",
+  "{name}: {v} m³ above the cut-off.": "{name}: {v} m³ sobre la ley de corte.",
+  "Part of this shell is closed at the search radius, so its volume depends on that radius as well as on the grades.": "Parte de esta envolvente se cierra en el radio de búsqueda, así que su volumen depende de ese radio además de las leyes.",
+  "This is a picture of where the grade is, not a resource estimate. Tonnes and grade-tonnage are in All tools.": "Esto es una imagen de dónde está la ley, no una estimación de recursos. Las toneladas y la curva ley-tonelaje están en Todas las herramientas."
 }

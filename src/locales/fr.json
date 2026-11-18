@@ -14188,5 +14188,18 @@
   "Choose the fault measurements first.": "Choisissez d'abord les mesures de la faille.",
   "Only {n} {v} picks with a dip and a direction: a fault surface needs three or more.": "Seulement {n} mesures {v} avec un pendage et une direction : une surface de faille en demande trois ou plus.",
   "{n} {v} picks in {h} holes, with their dips and directions: the surface is fitted through them.": "{n} mesures {v} dans {h} sondages, avec leurs pendages et directions : la surface est ajustée à travers elles.",
-  "To make the other models stop at this fault, open Change these: the Structural modelling pane sets which models it cuts.": "Pour que les autres modèles s'arrêtent à cette faille, ouvrez Modifier ces choix : le panneau Modélisation structurale définit quels modèles elle recoupe."
+  "To make the other models stop at this fault, open Change these: the Structural modelling pane sets which models it cuts.": "Pour que les autres modèles s'arrêtent à cette faille, ouvrez Modifier ces choix : le panneau Modélisation structurale définit quels modèles elle recoupe.",
+  "Grade model": "Modèle de teneur",
+  "Set a trend": "Définir une tendance",
+  "Where the metal is, as a shell above a cut-off.": "Où se trouve le métal, sous forme d'enveloppe au-dessus d'une teneur de coupure.",
+  "Builds a shell around the grades above a cut-off read from your assays, with cells and a search sized from your drilling.": "Construit une enveloppe autour des teneurs au-dessus d'une teneur de coupure lue dans vos analyses, avec des cellules et une recherche dimensionnées d'après vos forages.",
+  "Which metal?": "Quel métal ?",
+  "No assays yet: import them (Add data) and this tool reads them.": "Pas encore d'analyses : importez-les (Ajouter des données) et cet outil les lira.",
+  "{el} has the most assays with a grade above zero ({n}).": "{el} compte le plus d'analyses avec une teneur supérieure à zéro ({n}).",
+  "Choose a metal first.": "Choisissez d'abord un métal.",
+  "It follows the trend set with the trend helper.": "Il suit la tendance définie avec l'assistant de tendance.",
+  "No trend is set, so the shell grows the same way in every direction. If the grade runs one way, set a trend first.": "Aucune tendance n'est définie : l'enveloppe croît de la même façon dans toutes les directions. Si la teneur suit une direction, définissez d'abord une tendance.",
+  "{name}: {v} m³ above the cut-off.": "{name} : {v} m³ au-dessus de la teneur de coupure.",
+  "Part of this shell is closed at the search radius, so its volume depends on that radius as well as on the grades.": "Une partie de cette enveloppe se ferme au rayon de recherche : son volume dépend de ce rayon autant que des teneurs.",
+  "This is a picture of where the grade is, not a resource estimate. Tonnes and grade-tonnage are in All tools.": "Ceci montre où se trouve la teneur, ce n'est pas une estimation de ressources. Les tonnes et la courbe teneur-tonnage sont dans Tous les outils."
 }

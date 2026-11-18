@@ -10,6 +10,8 @@
 //         notes(ctx, value) -> [sentence], run(api, value), prefill(api, value) }
 import { stackOrder, suggestBody, suggestCover } from "../../../lib/auto/autoUnits.js";
 import { t as tr } from "../../../lib/i18n.js";
+import { autoGradeShell } from "../../../lib/auto/autoGradeShell.js";
+import { autoBlockModel } from "../../../lib/auto/autoBlockModel.js";
 
 const noLogs = (ctx) => (ctx.rows.length ? null : tr("No lithology log yet: import one (Add data) and this tool reads it."));
 const unitsByHoles = (ctx) => stackOrder(ctx.rows).units.map((u) => u.unit);
@@ -186,7 +188,72 @@ export const FAULTS = {
   prefill: (api, value) => api.setStructuralTarget(value),
 };
 
+// TASKS.csv #3909 — a grade model: the grade shell at a cut-off read from the grades (lib/auto/autoGradeShell.js), its cells, search and holes per
+// cell from the drilling (lib/auto/autoBlockModel.js), along the trend the trend helper set (#3910) when there is one. The card gives the volume
+// above the cut-off and says it is not a resource estimate; tonnes and grade-tonnage stay in All tools (Matt's decision 9).
+// Sample positions here are the collar's, down the hole as if vertical: they size nothing but the thinning; the run desurveys its own.
+function gradeSamples(ctx, sym) {
+  const at = new Map(ctx.collars.map((c) => [c.hole_id, c])), out = [];
+  for (const a of ctx.assays || []) {
+    const v = Number(a?.values?.[sym]), c = at.get(a?.hole_id);
+    if (!Number.isFinite(v) || !c) continue;
+    const mid = (Number(a.from) + Number(a.to)) / 2;
+    out.push({ hole_id: a.hole_id, from: Number(a.from), to: Number(a.to), value: v, x: Number(c.x), y: Number(c.y), z: Number(c.z) - (Number.isFinite(mid) ? mid : 0) });
+  }
+  return out;
+}
+const elementUnit = (ctx, sym) => (ctx.assayElements.find((e) => e.symbol === sym)?.unit) || "";
+export const GRADE = {
+  id: "grade",
+  title: "Grade model",
+  line: "Where the metal is, as a shell above a cut-off.",
+  sentence: "Builds a shell around the grades above a cut-off read from your assays, with cells and a search sized from your drilling.",
+  question: "Which metal?",
+  multi: false,
+  help: "grade-shell",
+  expertPane: "shell",
+  feed: (ctx) => (ctx.assayElements.length ? null : tr("No assays yet: import them (Add data) and this tool reads them.")),
+  suggest(ctx) {
+    let best = null;
+    for (const e of ctx.assayElements) { const n = gradeSamples(ctx, e.symbol).filter((s) => s.value > 0).length; if (!best || n > best.n) best = { sym: e.symbol, n }; }
+    return { value: best.sym, reason: tr("{el} has the most assays with a grade above zero ({n}).", { el: best.sym, n: best.n }) };
+  },
+  choices: (ctx) => ctx.assayElements.map((e) => e.symbol),
+  check: (ctx, value) => (value ? null : tr("Choose a metal first.")),
+  auto(ctx, sym) {
+    const samples = gradeSamples(ctx, sym), unit = elementUnit(ctx, sym);
+    const gs = autoGradeShell({ collars: ctx.collars, samples, unit });
+    if (!gs.ok) return gs;
+    const bm = autoBlockModel({ collars: ctx.collars, samples, hasDensity: ctx.hasDensity });
+    if (!bm.ok) return bm;
+    const { x, z } = bm.values.blockSize;
+    const reasons = [...gs.reasons.filter((r) => r.field === "cutoff"), ...bm.reasons.filter((r) => r.field !== "bounds" && r.field !== "maxSamples")];
+    const notes = [...gs.notes, ...bm.notes];
+    if (ctx.gradeTrend) reasons.push({ field: "trend", text: tr("It follows the trend set with the trend helper.") });
+    else notes.push(tr("No trend is set, so the shell grows the same way in every direction. If the grade runs one way, set a trend first."));
+    // the grade shell's own settings, in the order api.numeric lists them: metal, cut-off, cell across, cell height, search radius, holes
+    return { ok: true, values: { list: [sym, gs.values.cutoff, x, z, bm.values.searchRadius, bm.values.minHoles] }, reasons, notes, verdict: null };
+  },
+  prepare: (api, v) => v.list.forEach((x, i) => api.numeric.set[i](x)),
+  ready: (api, v) => v.list.every((x, i) => String(api.numeric.now[i]) === String(x)),
+  contacts: () => [],
+  notes: () => [],
+  result(made) {
+    const out = [];
+    for (const s of made) {
+      const vol = s.params?.volumeM3 ?? s.volumeM3;
+      if (vol != null) out.push(tr("{name}: {v} m³ above the cut-off.", { name: s.name, v: vol }));
+      if (s.closure === "artificial") out.push(tr("Part of this shell is closed at the search radius, so its volume depends on that radius as well as on the grades."));
+    }
+    out.push(tr("This is a picture of where the grade is, not a resource estimate. Tonnes and grade-tonnage are in All tools."));
+    return out;
+  },
+  actions: [{ label: "Set a trend", run: (api) => api.openPane("settings") }],
+  run: (api) => api.runNumericModel(),
+  prefill: () => {}, // Build or not, the grade shell pane holds what was chosen (set before the run)
+};
+
 // in the Start here card's order: what lies on top first
-export const GUIDED_TOOLS = [COVER, ROCK_LAYERS, BODIES, VEINS, FAULTS];
+export const GUIDED_TOOLS = [COVER, ROCK_LAYERS, BODIES, VEINS, FAULTS, GRADE];
 export const toolById = (id) => GUIDED_TOOLS.find((t) => t.id === id) || null;
 export { unitsByHoles };
