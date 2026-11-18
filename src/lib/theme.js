@@ -128,6 +128,10 @@ export const colors = {
   info: "#4a9be0",
   guide: "#e0407b", // TASKS.csv #999 — Layout smart guides
   primary: "#2f6fe0", // the solid/active blue (an engaged tool button, a bbox highlight)
+  tierBasic: "#276b43", // TASKS.csv #3890 — the Basic module tabs' stripe and caption (app.css --color-tier-basic)
+  tierBasicBg: "#e8f3ec",
+  tierAdvanced: "#2a62c9", // the Advanced module tabs'
+  tierAdvancedBg: "#e9f0fc",
 
   // Success / positive / primary-action (green) — this app's "primary button" color pair
   successBg: "#1e3629",

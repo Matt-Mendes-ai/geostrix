@@ -14,7 +14,7 @@ const noComments = (s) => s.replace(/("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(
 
 test("the tab is 'Geological Mapping'; its id is still 'surface'", () => {
   const app = rd("src/App.jsx");
-  assert.match(app, /\{ id: "surface", label: "Geological Mapping", icon: Compass \}/);
+  assert.match(app, /\{ id: "surface", label: "Geological Mapping", icon: Compass, tier: "advanced" \}/); // tier: #3890
   const main = rd("electron/main.js");
   assert.match(main, /\["Geological Mapping", "surface"\]/);
   for (const [lang, name] of [["es", "Mapeo geológico"], ["pt", "Mapeamento geológico"], ["fr", "Cartographie géologique"], ["ar", "رسم الخرائط الجيولوجية"]]) {

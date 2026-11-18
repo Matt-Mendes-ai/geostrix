@@ -36,10 +36,10 @@ const SHORTCUT_GROUPS = [
   },
   {
     title: "Navigation",
-    // #565 — Ctrl+1..9 in tab order. #820: Surface Geology (now Geological Mapping) is Ctrl+2; #750: geoML models are a 3D Modelling tool;
-    // #749: Maps holds rasters, terrain, boundaries, CRS. TASKS.csv #3897: a switched-off tab takes no number, as in electron/main.js's menu.
-    items: [["StrixViewer", "viewer"], ["Geological Mapping", "surface"], ["3D Modelling", "modelling"], ["Geochem", "geochem"], ["Geophysics", "geophysics"],
-      ["Targeting", "targeting"], ["Mine Design", "minedesign"], ["Maps", "maps"], ["Layout", "layout"]]
+    // #565 — Ctrl+1..9 in tab order. #750: geoML models are a 3D Modelling tool; #749: Maps holds rasters, terrain, boundaries, CRS.
+    // TASKS.csv #3897: a switched-off tab takes no number, as in electron/main.js's menu. TASKS.csv #3890: the Basic tabs come first.
+    items: [["StrixViewer", "viewer"], ["Maps", "maps"], ["Layout", "layout"], ["Geological Mapping", "surface"], ["3D Modelling", "modelling"],
+      ["Geochem", "geochem"], ["Geophysics", "geophysics"], ["Targeting", "targeting"], ["Mine Design", "minedesign"]]
       .filter(([, id]) => !HIDDEN_TABS.includes(id)).map(([label], i) => [`Ctrl/Cmd+${i + 1}`, label]),
   },
   {

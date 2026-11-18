@@ -29,7 +29,7 @@ test("one switch, off: electron/features.json is read by the main process and co
   assert.match(rd("src/lib/features.js"), /export const MINE_DESIGN_ENABLED = FEATURES\.mineDesign === true;/);
   const main = rd("electron/main.js");
   assert.match(main, /const FEATURES = require\("\.\/features\.json"\);/);
-  assert.match(main, /\["Mine Design", "minedesign"\] \/\* TASKS\.csv #1341 \*\/, \["Maps", "maps"\], \["Layout", "layout"\]\]\n\s+\.filter\(\(\[, id\]\) => id !== "minedesign" \|\| FEATURES\.mineDesign === true\)/);
+  assert.match(main, /\["Mine Design", "minedesign"\] \/\* TASKS\.csv #1341 \*\/\]\n\s+\.filter\(\(\[, id\]\) => id !== "minedesign" \|\| FEATURES\.mineDesign === true\)/);
 });
 
 test("no tab, and a link or request naming it opens the 3D View; the shortcuts list skips its number as the menu does", () => {

@@ -13996,5 +13996,8 @@
   "Copernicus GLO-30 shows the ground as it was in 2011-2015: ground mined since then reads lower than in older terrain, and older collars can sit above it.": "يُظهر Copernicus GLO-30 الأرض كما كانت في 2011-2015: تظهر الأرض التي جرى تعدينها منذ ذلك الحين أخفض مما في تضاريس أقدم، وقد تقع الفوهات الأقدم فوقها.",
   "Holes list": "قائمة الثقوب",
   "StrixViewer: your project in 3D": "StrixViewer: مشروعك ثلاثي الأبعاد",
-  "{n} stope solids from one run": "{n} مجسّم ردهة من تشغيل واحد"
+  "{n} stope solids from one run": "{n} مجسّم ردهة من تشغيل واحد",
+  "Basic": "أساسي",
+  "Basic modules": "الوحدات الأساسية",
+  "Advanced modules": "الوحدات المتقدمة"
 }

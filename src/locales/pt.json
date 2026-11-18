@@ -13996,5 +13996,8 @@
   "Copernicus GLO-30 shows the ground as it was in 2011-2015: ground mined since then reads lower than in older terrain, and older collars can sit above it.": "O Copernicus GLO-30 mostra o solo como era em 2011-2015: o solo lavrado desde então aparece mais baixo do que em um terreno mais antigo, e colares mais antigos podem ficar acima dele.",
   "Holes list": "Lista de furos",
   "StrixViewer: your project in 3D": "StrixViewer: seu projeto em 3D",
-  "{n} stope solids from one run": "{n} sólidos de realce de uma mesma execução"
+  "{n} stope solids from one run": "{n} sólidos de realce de uma mesma execução",
+  "Basic": "Básico",
+  "Basic modules": "Módulos básicos",
+  "Advanced modules": "Módulos avançados"
 }

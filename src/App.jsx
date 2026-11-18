@@ -31,6 +31,7 @@ import { UiModeContext, initialUiMode, saveUiMode } from "./lib/uiMode.js"; // T
 import { timeAgo } from "./lib/timeAgo.js"; // TASKS.csv #1274
 import { recoveryTabNames } from "./lib/recoveryNames.js"; // TASKS.csv #3047
 import { HIDDEN_TABS } from "./lib/features.js"; // TASKS.csv #3897 — Mine Design switched off
+import { groupModules, TIER_CAPTION, TIER_GROUP_LABEL } from "./lib/moduleTiers.js"; // TASKS.csv #3890
 // TASKS.csv #224 (software-design-specialist audit finding: "grep for import()/React.lazy across src/
 // returns one hit -- a comment. A fresh launch eagerly fetches ~100 modules including three, geotiff,
 // proj4, d3-delaunay, sql.js") — ViewerModule stays a static import (it's the default landing tab and
@@ -73,20 +74,22 @@ const ProjectKmzDialog = React.lazy(() => import("./components/ProjectKmzDialog.
 // my targets and plan holes" in the day-to-day workflow.
 // TASKS.csv #749 — tabs that were folded into another: a menu item / link naming one opens its new home
 const TAB_ALIAS = { raster: "maps", cartography: "maps", predictive: "modelling", modeling: "modelling", ...Object.fromEntries(HIDDEN_TABS.map((id) => [id, "viewer"])) }; // predictive: #750; modeling: the tab id before the British spelling (2026-10-19); a switched-off tab (#3897) opens the 3D View
+// TASKS.csv #3890 — in drawing order: the Basic tabs (StrixViewer, Maps, Layout) first, then the Advanced ones (src/lib/moduleTiers.js
+// groups them under their captions). electron/main.js's View menu and ShortcutsModal.jsx list the same order for Ctrl+1..n.
 const MODULES = [
-  { id: "viewer", label: "StrixViewer", icon: Box, tip: "StrixViewer: your project in 3D" }, // TASKS.csv #3894: one word, never translated
-  // TASKS.csv #820 — Matt: "a new tab named Surface Geology ... the mapping workflow in this new tab. I'm thinking of eventually
-  // expanding to soils with anomaly detection". The 3D view in a "surface" mode: geology maps, outcrop structures.
-  { id: "surface", label: "Geological Mapping", icon: Compass },
-  { id: "modelling", label: "3D Modelling", icon: Layers3 },
-  { id: "geochem", label: "Geochem", icon: FlaskConical },
-  { id: "geophysics", label: "Geophysics", icon: Radio },
-  { id: "targeting", label: "Targeting", icon: Target },
-  { id: "minedesign", label: "Mine Design", icon: Pickaxe }, // TASKS.csv #1341 — the 3D view in a fifth mode
+  { id: "viewer", label: "StrixViewer", icon: Box, tip: "StrixViewer: your project in 3D", tier: "basic" }, // TASKS.csv #3894: one word, never translated
   // TASKS.csv #749 — one Maps tab: rasters / satellite / terrain beside each other, map + web layers, boundaries, and the
   // whole former Cartography tab (project CRS, reprojection). Was: Raster, Cartography, and four Geophysics tools.
-  { id: "maps", label: "Maps", icon: MapIcon },
-  { id: "layout", label: "Layout", icon: Layout },
+  { id: "maps", label: "Maps", icon: MapIcon, tier: "basic" },
+  { id: "layout", label: "Layout", icon: Layout, tier: "basic" },
+  // TASKS.csv #820 — Matt: "a new tab named Surface Geology ... the mapping workflow in this new tab. I'm thinking of eventually
+  // expanding to soils with anomaly detection". The 3D view in a "surface" mode: geology maps, outcrop structures.
+  { id: "surface", label: "Geological Mapping", icon: Compass, tier: "advanced" },
+  { id: "modelling", label: "3D Modelling", icon: Layers3, tier: "advanced" },
+  { id: "geochem", label: "Geochem", icon: FlaskConical, tier: "advanced" },
+  { id: "geophysics", label: "Geophysics", icon: Radio, tier: "advanced" },
+  { id: "targeting", label: "Targeting", icon: Target, tier: "advanced" },
+  { id: "minedesign", label: "Mine Design", icon: Pickaxe, tier: "advanced" }, // TASKS.csv #1341 — the 3D view in a fifth mode
 ].filter((m) => !HIDDEN_TABS.includes(m.id)); // TASKS.csv #3897 — a switched-off tab is not offered (src/lib/features.js)
 // TASKS.csv #225 (software-design-specialist audit finding: switching tabs unmounted/remounted the
 // entire three.js scene every time, measured 407-622ms blocking per switch, even between View/
@@ -595,11 +598,18 @@ export default function App() {
         onNew={doNew}
       />
       <div className="ge-toolbar" ref={toolbarRef}>
-        {MODULES.map((m) => {
+        {/* TASKS.csv #3890 — two groups, each with its caption; every tab always shows (no fold in Simple mode) */}
+        {groupModules(MODULES, HIDDEN_TABS).map((g, gi) => (
+          <React.Fragment key={g.tier}>
+          {gi > 0 && <div className="ge-tool-sep ge-tier-sep" />}
+          <div className="ge-tier-group" role="group" aria-label={tr(TIER_GROUP_LABEL[g.tier])} data-tier={g.tier}>
+          <span className="ge-tier-cap" aria-hidden="true">{tr(TIER_CAPTION[g.tier])}</span>
+        {g.modules.map((m) => {
           const Icon = m.icon;
           return (
             <button
               key={m.id}
+              data-tier={m.tier}
               className={`ge-tool-btn ${active === m.id ? "active" : ""}`}
               aria-current={active === m.id ? "page" : undefined} // TASKS.csv #388
               onClick={() => !m.disabled && setActive(m.id)}
@@ -611,6 +621,9 @@ export default function App() {
             </button>
           );
         })}
+          </div>
+          </React.Fragment>
+        ))}
         <div className="ge-tool-sep" />
         {/* TASKS.csv #449 — below 1280 px these action labels collapse to icons (app.css), the module tabs keep theirs. */}
         <button className="ge-tool-btn" onClick={doNew} title={tr("New project")} aria-label={tr("New project")}><FilePlus2 size={14} /> <span className="ge-tool-label-opt">{tr("New")}</span></button>
