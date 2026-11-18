@@ -14337,5 +14337,6 @@
   "Unsampled core inside the sampled holes is read as not known (your choice in the grade shell pane).": "O testemunho não amostrado dentro dos furos amostrados é lido como desconhecido (a sua escolha no painel do invólucro de teor).",
   "Unsampled core inside the sampled holes is read as barren at {v} {unit} (your value in the grade shell pane).": "O testemunho não amostrado dentro dos furos amostrados é lido como estéril a {v} {unit} (o seu valor no painel do invólucro de teor).",
   "Unsampled core inside the sampled holes is read as barren at {v} {unit}: half the lowest {el} grade ({low} {unit}), the usual stand-in for below detection. Change it in the grade shell pane.": "O testemunho não amostrado dentro dos furos amostrados é lido como estéril a {v} {unit}: metade do teor mais baixo de {el} ({low} {unit}), o substituto habitual de «abaixo do limite de detecção». Altere-o no painel do invólucro de teor.",
-  "Unsampled core inside the sampled holes is read as barren at 0: no sample carries a positive grade.": "O testemunho não amostrado dentro dos furos amostrados é lido como estéril a 0: nenhuma amostra tem teor positivo."
+  "Unsampled core inside the sampled holes is read as barren at 0: no sample carries a positive grade.": "O testemunho não amostrado dentro dos furos amostrados é lido como estéril a 0: nenhuma amostra tem teor positivo.",
+  "{m} m of those holes had no point within {d} m and were left empty.": "{m} m desses furos não tinham nenhum ponto a menos de {d} m e ficaram vazios."
 }
