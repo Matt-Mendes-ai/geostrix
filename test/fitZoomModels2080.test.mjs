@@ -27,6 +27,6 @@ test("#2092 the box Fit uses on that tab reaches shown data 10 km from the holes
 
 test("#2080 block-model and raster rows have a visible Zoom to", () => {
   assert.match(v, /iconAction\(\(\) => zoomToObject\(voxelMeshesRef\.current\[v\.id\]\), tr\("Zoom to \\"\{name\}\\"", \{ name: v\.name \}\)\)/);
-  assert.match(v, /iconAction\(\(\) => zoomToObject\(rasterMeshesRef\.current\[r\.id\]\), tr\("Zoom to \\"\{name\}\\"", \{ name: r\.name \}\)\)/);
+  assert.match(readFileSync(new URL("../src/modules/viewer/RastersTerrainSection.jsx", import.meta.url), "utf8"), /iconAction\(\(\) => zoomToObject\(rasterMeshesRef\.current\[r\.id\]\), tr\("Zoom to \\"\{name\}\\"", \{ name: r\.name \}\)\)/);
   for (const l of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"))["Zoom to \"{name}\""], l);
 });

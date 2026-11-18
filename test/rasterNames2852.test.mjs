@@ -7,7 +7,7 @@ test("the tail kept", () => {
   assert.equal(nameTail("bathurst_megatem_all_cond.GRD"), "egatem_all_cond.GRD".slice(-16));
   assert.equal(nameTail("bathurst_megatem_all_mag_res.GRD — Tilt derivative"), " — Tilt derivative");
   assert.equal(nameTail("short.tif"), "");
-  const r = fs.readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8"), v = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  const r = fs.readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8"), v = fs.readFileSync(new URL("../src/modules/viewer/RastersTerrainSection.jsx", import.meta.url), "utf8"); // the raster rows: #3891
   assert.ok(r.includes("<MiddleName name={r.name}") && v.includes("<MiddleName name={r.name}"));
   assert.ok(fs.readFileSync(new URL("../src/components/MiddleName.jsx", import.meta.url), "utf8").includes("title={s}"));
 });

@@ -91,7 +91,7 @@ test("wiring: the KMZ dialog's pixel size, the offline download, the Layout snap
   assert.match(hk, /enabled: prefs\.terrain/);
   assert.match(hk, /enabled: prefs\.imagery/);
   assert.match(src("../src/modules/viewer/TerrainCard.jsx"), /<DetailTilesToggle kind="terrain"/);
-  assert.match(src("../src/modules/ViewerModule.jsx"), /<DetailTilesToggle kind="imagery"/);
+  assert.match(src("../src/modules/viewer/RastersTerrainSection.jsx"), /<DetailTilesToggle kind="imagery"/); // the raster rows: #3891
   assert.match(src("../src/lib/viewer/lodTerrain.js"), /TERRAIN_MAX_TILES \* factor/);
   assert.match(src("../src/lib/viewer/lodDrape.js"), /SCENE_MAX_TILES \* factor/);
 });

@@ -62,7 +62,7 @@ test("the Layout legend lists the drape's units as swatches; a hidden drape is l
 
 test("the legend shows under the raster row in Maps and in the 3D View, and the modal fetches it with the drape", () => {
   assert.match(read("src/modules/RasterModule.jsx"), /<RasterLegend raster=\{r\} updateRaster=\{updateRaster\} \/>/);
-  assert.match(read("src/modules/ViewerModule.jsx"), /<RasterLegend raster=\{r\} updateRaster=\{updateRaster\} compact \/>/);
+  assert.match(read("src/modules/viewer/RastersTerrainSection.jsx"), /<RasterLegend raster=\{r\} updateRaster=\{updateRaster\} compact \/>/); // the raster rows: #3891
   const m = read("src/components/MacrostratModal.jsx");
   assert.match(m, /legend = await fetchMacrostratLegend\(\{ bboxLonLat/);
   assert.match(m, /\.\.\.\(legend \? \{ legend \} : \{\}\)/);
