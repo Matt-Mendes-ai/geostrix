@@ -43,6 +43,8 @@
   --color-tier-basic-bg: #e8f3ec;
   --color-tier-advanced: #2a62c9;
   --color-tier-advanced-bg: #e9f0fc;
+  /* TASKS.csv #3903 — the thin bar along the top of an advanced tool's ribbon button (a share of the text size, so it grows with it) */
+  --tier-tool-bar: 0.25em;
   --color-success-bg: #1e3629;
   --color-success-text: #8fd9ab; /* for text ON the dark success background only — see success-fg */
   /* TASKS.csv #384 — success/danger text for LIGHT backgrounds. success-text/danger-text are dark-theme
@@ -226,6 +228,11 @@ input, select { font-family: inherit; }
 }
 .ge-ribbon-btn:hover { background: var(--color-hover-bg); border-color: var(--color-border); }
 .ge-ribbon-btn.active { background: var(--color-selected-bg); border-color: var(--color-selected-border); box-shadow: inset 0 -2px 0 var(--color-accent-dark); }
+/* TASKS.csv #3903 — a tool marked advanced (a ge-adv cell or group, the ones Basic tools hides) carries a thin blue bar, and an advanced
+   group's caption is blue; a basic tool carries no mark. The "Show all" button is not a tool and stays plain. */
+.ge-adv .ge-ribbon-btn { box-shadow: inset 0 var(--tier-tool-bar) 0 var(--color-tier-advanced); }
+.ge-adv .ge-ribbon-btn.active { box-shadow: inset 0 var(--tier-tool-bar) 0 var(--color-tier-advanced), inset 0 -2px 0 var(--color-accent-dark); }
+.ge-ribbon-group.ge-adv > .ge-ribbon-caption { color: var(--color-tier-advanced); }
 .ge-ribbon-btn:disabled, .ge-ribbon-btn.is-disabled { opacity: 0.4; cursor: default; } /* .is-disabled: #566, focusable */
 .ge-ribbon-btn:disabled:hover, .ge-ribbon-btn.is-disabled:hover { background: transparent; border-color: transparent; }
 /* TASKS.csv #1297 — one focus ring for every control (ribbon buttons, tabs, sidebar selects and inputs had three), one disabled look where no style sets its own */
