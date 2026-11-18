@@ -14338,5 +14338,6 @@
   "Unsampled core inside the sampled holes is read as barren at {v} {unit} (your value in the grade shell pane).": "El testigo sin muestrear dentro de los sondajes muestreados se lee como estéril a {v} {unit} (su valor en el panel de la envolvente de ley).",
   "Unsampled core inside the sampled holes is read as barren at {v} {unit}: half the lowest {el} grade ({low} {unit}), the usual stand-in for below detection. Change it in the grade shell pane.": "El testigo sin muestrear dentro de los sondajes muestreados se lee como estéril a {v} {unit}: la mitad de la ley más baja de {el} ({low} {unit}), el sustituto habitual de «bajo el límite de detección». Cámbielo en el panel de la envolvente de ley.",
   "Unsampled core inside the sampled holes is read as barren at 0: no sample carries a positive grade.": "El testigo sin muestrear dentro de los sondajes muestreados se lee como estéril a 0: ninguna muestra tiene ley positiva.",
-  "{m} m of those holes had no point within {d} m and were left empty.": "{m} m de esos sondajes no tenían ningún punto a menos de {d} m y quedaron vacíos."
+  "{m} m of those holes had no point within {d} m and were left empty.": "{m} m de esos sondajes no tenían ningún punto a menos de {d} m y quedaron vacíos.",
+  "Import as a block model": "Importar como modelo de bloques"
 }

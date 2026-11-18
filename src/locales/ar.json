@@ -14338,5 +14338,6 @@
   "Unsampled core inside the sampled holes is read as barren at {v} {unit} (your value in the grade shell pane).": "اللباب غير المعاين داخل الثقوب المعاينة يُقرأ كعقيم بالقيمة {v} {unit} (قيمتك في لوحة غلاف المحتوى).",
   "Unsampled core inside the sampled holes is read as barren at {v} {unit}: half the lowest {el} grade ({low} {unit}), the usual stand-in for below detection. Change it in the grade shell pane.": "اللباب غير المعاين داخل الثقوب المعاينة يُقرأ كعقيم بالقيمة {v} {unit}: نصف أدنى محتوى من {el} ({low} {unit})، وهو البديل المعتاد لما دون حد الكشف. غيّره في لوحة غلاف المحتوى.",
   "Unsampled core inside the sampled holes is read as barren at 0: no sample carries a positive grade.": "اللباب غير المعاين داخل الثقوب المعاينة يُقرأ كعقيم بالقيمة 0: لا تحمل أي عينة محتوى موجبًا.",
-  "{m} m of those holes had no point within {d} m and were left empty.": "{m} م من تلك الثقوب لم تكن فيها أي نقطة ضمن {d} م فتُركت فارغة."
+  "{m} m of those holes had no point within {d} m and were left empty.": "{m} م من تلك الثقوب لم تكن فيها أي نقطة ضمن {d} م فتُركت فارغة.",
+  "Import as a block model": "استيراد كنموذج كتل"
 }

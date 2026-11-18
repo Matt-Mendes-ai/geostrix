@@ -14338,5 +14338,6 @@
   "Unsampled core inside the sampled holes is read as barren at {v} {unit} (your value in the grade shell pane).": "La carotte non échantillonnée dans les sondages échantillonnés est lue comme stérile à {v} {unit} (votre valeur dans le panneau de l'enveloppe de teneur).",
   "Unsampled core inside the sampled holes is read as barren at {v} {unit}: half the lowest {el} grade ({low} {unit}), the usual stand-in for below detection. Change it in the grade shell pane.": "La carotte non échantillonnée dans les sondages échantillonnés est lue comme stérile à {v} {unit} : la moitié de la plus basse teneur en {el} ({low} {unit}), la valeur habituelle pour « sous la limite de détection ». Modifiez-la dans le panneau de l'enveloppe de teneur.",
   "Unsampled core inside the sampled holes is read as barren at 0: no sample carries a positive grade.": "La carotte non échantillonnée dans les sondages échantillonnés est lue comme stérile à 0 : aucun échantillon n'a de teneur positive.",
-  "{m} m of those holes had no point within {d} m and were left empty.": "{m} m de ces sondages n'avaient aucun point à moins de {d} m et sont restés vides."
+  "{m} m of those holes had no point within {d} m and were left empty.": "{m} m de ces sondages n'avaient aucun point à moins de {d} m et sont restés vides.",
+  "Import as a block model": "Importer comme modèle de blocs"
 }
