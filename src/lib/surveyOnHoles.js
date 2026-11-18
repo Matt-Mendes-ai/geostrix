@@ -66,7 +66,8 @@ export function suggestHoleSampling(points, sample = 400) {
   return { spacing, maxDist: nice(1.5 * spacing), step, sectionSpacing: null };
 }
 
-// -> { rows: [{ hole_id, from, to, value, dist, numeric, modelled }], holes, steps, hit }
+// -> { rows: [{ hole_id, from, to, value, dist, numeric, modelled }], holes, steps, hit, emptyM }
+// emptyM (TASKS.csv #3883, #3815 (8)): the metres of the SAMPLED holes (those with at least one value) that had no point within maxDist and were left empty
 // mode "nearest": the nearest point's value (consecutive steps on the same point are one interval); "idw": the inverse-distance mean
 // (power 2) of the points within maxDist.
 export function sampleSurveyOnHoles({ points, collars, survey, desurveyMethod, step = 5, maxDist = 25, mode = "nearest", power = 2 }) {
@@ -76,20 +77,20 @@ export function sampleSurveyOnHoles({ points, collars, survey, desurveyMethod, s
   const surveyBy = new Map();
   (survey || []).forEach((s) => { if (!surveyBy.has(s.hole_id)) surveyBy.set(s.hole_id, []); surveyBy.get(s.hole_id).push(s); });
   const rows = [];
-  let holes = 0, steps = 0, hit = 0;
+  let holes = 0, steps = 0, hit = 0, emptyM = 0;
   const r2 = (v) => +v.toFixed(2);
   for (const c of collars || []) {
     if (![c.x, c.y, c.z].every(Number.isFinite)) continue;
     const t = desurveyHole(c, surveyBy.get(c.hole_id) || [], desurveyMethod);
     if (!t.length) continue;
     const top = t[0].md, bottom = t[t.length - 1].md;
-    let cur = null, any = false;
+    let cur = null, any = false, missM = 0;
     const flush = () => { if (cur) rows.push({ hole_id: c.hole_id, from: r2(cur.from), to: r2(cur.to), value: cur.value, dist: +cur.dist.toFixed(1), numeric: true, modelled: true }); cur = null; };
     for (let md = top; md < bottom - 1e-9; md += st) {
       steps++;
       const end = Math.min(bottom, md + st), p = pointOnTrace(t, (md + end) / 2);
       const found = near(p.x, p.y, p.z, R);
-      if (!found.length) { flush(); continue; }
+      if (!found.length) { flush(); missM += end - md; continue; }
       hit++; any = true;
       if (mode === "idw") {
         let sw = 0, sv = 0, dmin = Infinity, exact = null;
@@ -105,7 +106,7 @@ export function sampleSurveyOnHoles({ points, collars, survey, desurveyMethod, s
       cur = { pt: best, from: md, to: end, value: best.value, dist: Math.sqrt(bd) };
     }
     flush();
-    if (any) holes++;
+    if (any) { holes++; emptyM += missM; }
   }
-  return { rows, holes, steps, hit };
+  return { rows, holes, steps, hit, emptyM: Math.round(emptyM) };
 }

@@ -31,7 +31,8 @@ import { pseudoFrame, pseudoColourScale } from "../lib/pseudosectionPlot.js"; //
 import { parseStationFile, matchStationLine, fitStationLine, stationGroundProfile, linePlacement } from "../lib/dcipStations.js";
 import { reprojectXY, getProj4DefSync } from "../lib/reproject.js";
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2242
-import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { t as tr } from "../lib/i18n.js";
+import { requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #3883 (#3812) — a 3D mesh handed to Block models // TASKS.csv #786
 import { isUBCMeshText } from "../lib/voxel.js"; // TASKS.csv #3812 — a 3D UBC mesh offered to the 2D import
 import { isDcip2dMeshText, looksLikeDcip2dModel, parseDcip2dMesh, parseDcip2dModel, parseDcip2dTopo, dcip2dSection, meshCore } from "../lib/ubc2d.js"; // TASKS.csv #1348
 
@@ -58,6 +59,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
   const [line, setLine] = useKeptState(keptScope, "dcip.line", { x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null });
   const [opts, setOpts] = useKeptState(keptScope, "dcip.opts", { cell: "", depth: "", pct: "", floor: "", ipPct: "", ipFloor: "", maxIter: 20, supportCutoff: 0.02, voxObserved: true, voxExtrapolated: false, doi: false }); // vox*: #683 follow-up; doi: #772
   const [msg, setMsg] = useState(null);
+  const [mesh3d, setMesh3d] = useState(null); // TASKS.csv #3883 (#3812) — the files of a 3D UBC mesh chosen here, for 'Import as a block model'
   const [job, setJob] = useState(null);
   const [last, setLast] = useKeptState(keptScope, "dcip.last", null); // { result, geom, name, restored? }
   const [pick, setPick] = useKeptState(keptScope, "dcip.pick", "");
@@ -79,7 +81,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
       });
       if (!meshText) { // TASKS.csv #3812 — a 3D UBC mesh (nx ny nz, then the origin) is a block model, not a line: said where it goes
         const k = texts.findIndex((t) => isUBCMeshText(t));
-        if (k >= 0) { const [nx, ny, nz] = texts[k].trim().split(/\s+/, 3).map(Number); throw new Error(tr("\"{name}\" is a 3D UBC mesh ({nx} × {ny} × {nz} cells): a 3D inversion model goes to Geophysics › Block models › Import UBC mesh + model, not here. This button reads one 2D line (dcinv2d.msh).", { name: files[k].name, nx, ny, nz })); }
+        if (k >= 0) { const [nx, ny, nz] = texts[k].trim().split(/\s+/, 3).map(Number); setMesh3d(files); throw new Error(tr("\"{name}\" is a 3D UBC mesh ({nx} × {ny} × {nz} cells): a 3D inversion model goes to Geophysics › Block models › Import UBC mesh + model, not here. This button reads one 2D line (dcinv2d.msh).", { name: files[k].name, nx, ny, nz })); }
       }
       if (!meshText) throw new Error(tr("Select the DCIP2D mesh (dcinv2d.msh) with its model file(s): the conductivity (.con) and / or chargeability (.chg) model."));
       const mesh = parseDcip2dMesh(meshText);
@@ -94,7 +96,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
       const rho = result.cells.resistivity.filter(Number.isFinite);
       const summary = tr("{nx} x {nz} mesh: {cells} cells kept ({air} air and {padding} padding cells left out), {x0}–{x1} m along the line, mesh {depth} m deep{rho}{ip}{topo}.", { nx: mesh.nx, nz: mesh.nz, cells: result.counts.cells.toLocaleString(), air: result.counts.air.toLocaleString(), padding: result.counts.padding.toLocaleString(), x0: core[0], x1: core[1], depth: Math.round(mesh.z[mesh.nz]), rho: rho.length ? tr("; resistivity {lo}–{hi} ohm·m", { lo: sig3(arrMin(rho)), hi: sig3(arrMax(rho)) }) : "", ip: chg ? tr("; with chargeability") : "", topo: topo ? tr("; mesh top at {z} m from the topography file", { z: topo.topElevation }) : tr("; no topography file: enter the mesh top elevation") });
       setUbc({ name, result, thick, sEnd, topElevation, pts, summary, placeNote, mesh, con, chg });
-      setMsg(null);
+      setMsg(null); setMesh3d(null);
     } catch (e) { setMsg({ ok: false, text: e.message }); }
   };
   const addUbcSection = () => {
@@ -522,6 +524,9 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
         </div>
       )}
       {msg && <div role="status" style={{ ...small, marginTop: 6, color: msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{msg.text}</div>}
+      {mesh3d && msg && !msg.ok && ( /* TASKS.csv #3883 (#3812) — the same files to Block models' Import UBC mesh + model (geophysics-ubc: that pane opens and reads them) */
+        <button type="button" data-ubc-to-blocks="" style={{ ...pBtn, marginTop: 4 }} onClick={() => { const files = mesh3d; setMesh3d(null); setMsg(null); requestModuleAction("geophysics-ubc", { files }); }}>{tr("Import as a block model")}</button>
+      )}
       {job?.error && <div style={{ ...small, marginTop: 6, color: "var(--color-danger-fg)" }}>{job.error}</div>}
       {last && <InResultArea slot={resultSlot}><SectionResult last={last} cutoff={Number(opts.supportCutoff) || 0} epsg={stampEpsg(project)} pBtn={pBtn} large={!!resultSlot} /></InResultArea>}
       <DcipMergePanel pBtn={pBtn} numInput={numInput} />

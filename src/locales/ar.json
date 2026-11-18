@@ -14343,5 +14343,7 @@
   "Percentiles of": "المئينات من",
   "The mineralised samples are those at or above {cut} {unit}, where these grades split into a background and a higher group (read from the data). Over all samples, the percentiles of a mostly barren column can fall inside the ore.": "العينات المتمعدنة هي التي تساوي {cut} {unit} أو تزيد عليها، حيث تنقسم هذه القيم إلى خلفية ومجموعة أعلى (مقروءة من البيانات). على كل العينات، قد تقع مئينات عمود معظمه عقيم داخل الخام.",
   "of the {n} mineralised samples (≥ {cut})": "من العينات المتمعدنة الـ{n} (≥ {cut})",
-  "of all samples": "من كل العينات"
+  "of all samples": "من كل العينات",
+  "{m} m of those holes had no point within {d} m and were left empty.": "{m} م من تلك الثقوب لم تكن فيها أي نقطة ضمن {d} م فتُركت فارغة.",
+  "Import as a block model": "استيراد كنموذج كتل"
 }

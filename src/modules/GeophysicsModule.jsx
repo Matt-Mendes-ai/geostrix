@@ -442,7 +442,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const args = { name, holes: res.holes.toLocaleString(), rows: res.rows.length.toLocaleString(), d: maxDist, s: step };
     setError({ info: true, text: (mode === "idw"
       ? tr("Added \"{name}\": the inverse-distance mean of the points within {d} m, every {s} m down {holes} hole(s) ({rows} intervals). Downhole logs can now plot a log against it (against a model), and the strip logs show it.", args)
-      : tr("Added \"{name}\": the nearest point's value within {d} m, every {s} m down {holes} hole(s) ({rows} intervals). Downhole logs can now plot a log against it (against a model), and the strip logs show it.", args)) + " " + tr("({s} s)", { s: secs < 10 ? secs.toFixed(1) : Math.round(secs) }) + (APPARENT_METHODS.has(geophysSurveys?.[key]?.method) ? " " + tr("These are apparent values at plotting points (pseudo-depths): compare them with an inversion, not with the core.") : "") /* #3808 */ });
+      : tr("Added \"{name}\": the nearest point's value within {d} m, every {s} m down {holes} hole(s) ({rows} intervals). Downhole logs can now plot a log against it (against a model), and the strip logs show it.", args))
+      + (res.emptyM > 0 ? " " + tr("{m} m of those holes had no point within {d} m and were left empty.", { m: res.emptyM.toLocaleString(), d: maxDist }) : "") // TASKS.csv #3883 (#3815 (8))
+      + " " + tr("({s} s)", { s: secs < 10 ? secs.toFixed(1) : Math.round(secs) }) + (APPARENT_METHODS.has(geophysSurveys?.[key]?.method) ? " " + tr("These are apparent values at plotting points (pseudo-depths): compare them with an inversion, not with the core.") : "") /* #3808 */ });
   };
   const legendDrawn = useMemo(() => robustRange(legendRows.map((r) => r.value)), [legendRows]);
   const legendRange = useMemo(() => { let a = null, b = null; for (const r of legendRows) { const v = r.value; if (typeof v !== "number" || isNaN(v)) continue; if (a === null || v < a) a = v; if (b === null || v > b) b = v; } return { min: a, max: b }; }, [legendRows]);

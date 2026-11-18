@@ -14343,5 +14343,7 @@
   "Percentiles of": "Percentiles de",
   "The mineralised samples are those at or above {cut} {unit}, where these grades split into a background and a higher group (read from the data). Over all samples, the percentiles of a mostly barren column can fall inside the ore.": "Las muestras mineralizadas son las iguales o superiores a {cut} {unit}, donde estas leyes se separan en un fondo y un grupo más alto (leído de los datos). Sobre todas las muestras, los percentiles de una columna mayormente estéril pueden caer dentro de la mena.",
   "of the {n} mineralised samples (≥ {cut})": "de las {n} muestras mineralizadas (≥ {cut})",
-  "of all samples": "de todas las muestras"
+  "of all samples": "de todas las muestras",
+  "{m} m of those holes had no point within {d} m and were left empty.": "{m} m de esos sondajes no tenían ningún punto a menos de {d} m y quedaron vacíos.",
+  "Import as a block model": "Importar como modelo de bloques"
 }
