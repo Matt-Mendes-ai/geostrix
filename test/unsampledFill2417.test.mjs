@@ -26,8 +26,8 @@ test("the share of the sampled holes' metres that carry the element; ask under 6
   assert.equal(s.drilledM, 106); // A 100 m; C has no length: its deepest sample (6 m)
   assert.equal(s.sampledM, 22);
   assert.equal(s.holesNoLength, 1);
-  assert.equal(defaultUnsampledMode(s.share), ""); // 21 % sampled: no default, the user chooses
-  assert.equal(defaultUnsampledMode(0.8), "unknown");
+  assert.equal(defaultUnsampledMode(s.share), "barren"); // TASKS.csv #3920 (Matt): barren is the default whatever the share (was: no default under 60 %)
+  assert.equal(defaultUnsampledMode(0.8), "barren");
   assert.ok(!unsampledReady("", ""));
   assert.ok(unsampledReady("unknown", ""));
   assert.ok(!unsampledReady("barren", "")); // the value is typed, never chosen for the user

@@ -147,5 +147,14 @@ export function unsampledReady(mode, value, log = null) {
   if (mode === "log") return !!log?.source && Number(log.factor) > 0; // #2721 — a log picked and its factor given
   return mode === "unknown" || (mode === "barren" && value !== "" && value != null && Number.isFinite(Number(value)) && Number(value) >= 0);
 }
-// the mode shown before the user picks one: "not known" (as before) unless under ASK_BELOW_SHARE of the metres are sampled
-export const defaultUnsampledMode = (share) => (share < ASK_BELOW_SHARE ? "" : "unknown");
+// TASKS.csv #3920 (Matt, 2026-11-20: "we should have barren as default for unsampled core") — the mode before the user picks one is BARREN,
+// whatever share is sampled (this reverses #2417's 'ask under 60 %, none chosen for you'); "not known: left out" stays a choice. The guided
+// Grade model on the Macpass sample stopped on the old question.
+export const defaultUnsampledMode = () => "barren";
+// the default barren value: half the lowest positive grade of the element as stored (the half-detection-limit convention), from the rows given.
+// -> { value, lowest } | { value: 0, lowest: null } when no row carries a positive grade
+export function barrenDefault(assays, symbol) {
+  let low = Infinity;
+  for (const a of assays || []) { const v = Number(a?.values?.[symbol]); if (v > 0 && v < low) low = v; }
+  return Number.isFinite(low) ? { value: +(low / 2).toPrecision(3), lowest: low } : { value: 0, lowest: null };
+}

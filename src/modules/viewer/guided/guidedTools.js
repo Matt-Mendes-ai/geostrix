@@ -15,6 +15,8 @@ import { autoBlockModel } from "../../../lib/auto/autoBlockModel.js";
 import { computeMeshVolume } from "../../../lib/volumetrics.js";
 import { faultPlan, minutesOf } from "../../../lib/auto/autoFault.js";
 import { gempyRate } from "../../../lib/gempyLimits.js";
+import { barrenDefault, unsampledReady } from "../../../lib/unsampledFill.js";
+import { getUnsampledChoice, setUnsampledChoice } from "../../../lib/unsampledChoices.js";
 import { gradeUnitLabel } from "../../../lib/geochemColumns.js";
 
 const noLogs = (ctx) => (ctx.rows.length ? null : tr("No lithology log yet: import one (Add data) and this tool reads it."));
@@ -263,10 +265,21 @@ export const GRADE = {
     const notes = [...gs.notes, ...bm.notes];
     if (ctx.gradeTrend) reasons.push({ field: "trend", text: tr("It follows the trend set with the trend helper.") });
     else notes.push(tr("No trend is set, so the shell grows the same way in every direction. If the grade runs one way, set a trend first."));
+    // TASKS.csv #3920 — the unsampled core inside the sampled holes: barren by default at half the lowest grade; the user's own choice if made
+    const saved = getUnsampledChoice("gradeShell", sym);
+    if (saved?.mode === "unknown") reasons.push({ field: "unsampled", text: tr("Unsampled core inside the sampled holes is read as not known (your choice in the grade shell pane).") });
+    else if (saved?.mode === "barren" && saved.value != null && saved.value !== "") reasons.push({ field: "unsampled", text: tr("Unsampled core inside the sampled holes is read as barren at {v} {unit} (your value in the grade shell pane).", { v: saved.value, unit }) });
+    else if (saved?.mode !== "log") { const d = barrenDefault(ctx.assays, sym); reasons.push({ field: "unsampled", text: d.lowest != null ? tr("Unsampled core inside the sampled holes is read as barren at {v} {unit}: half the lowest {el} grade ({low} {unit}), the usual stand-in for below detection. Change it in the grade shell pane.", { v: d.value, unit, el: sym, low: d.lowest }) : tr("Unsampled core inside the sampled holes is read as barren at 0: no sample carries a positive grade.") }); }
     // the grade shell's own settings, in the order api.numeric lists them: metal, cut-off, cell across, cell height, search radius, holes
     return { ok: true, values: { list: [sym, gs.values.cutoff, x, z, bm.values.searchRadius, bm.values.minHoles] }, reasons, notes, verdict: null };
   },
-  prepare: (api, v) => v.list.forEach((x, i) => api.numeric.set[i](x)),
+  prepare(api, v) {
+    v.list.forEach((x, i) => api.numeric.set[i](x));
+    // TASKS.csv #3920 — never stop on the unsampled-metres question: an unfinished choice (barren with its value cleared, a log not picked) goes
+    // back to the default, barren at half the lowest grade; a finished choice of the user's is kept
+    const sym = v.list[0], c = getUnsampledChoice("gradeShell", sym);
+    if (c && c.mode !== "unknown" && !(c.mode === "barren" && (c.value == null || unsampledReady("barren", c.value))) && !(c.mode === "log" && c.logKey && Number(c.factor) > 0)) setUnsampledChoice("gradeShell", sym, { mode: "barren", value: undefined });
+  },
   ready: (api, v) => v.list.every((x, i) => String(api.numeric.now[i]) === String(x)),
   contacts: () => [],
   notes: () => [],
