@@ -14018,5 +14018,17 @@
   "Show or hide the figure overlay: title, legend and scale bar": "إظهار أو إخفاء تراكب الشكل: العنوان ووسيلة الإيضاح ومقياس الرسم",
   "Browser": "المتصفح",
   "Show the Browser panel": "إظهار لوحة المتصفح",
-  "Hide the Browser panel": "إخفاء لوحة المتصفح"
+  "Hide the Browser panel": "إخفاء لوحة المتصفح",
+  "Too few drill sites ({n}): a block model needs holes at three or more places to estimate between them.": "مواقع الحفر قليلة جدًا ({n}): يحتاج نموذج الكتل إلى ثقوب في ثلاثة مواقع أو أكثر للتقدير بينها.",
+  "Samples in only one hole: a block model needs samples in three or more holes.": "عينات في ثقب واحد فقط: يحتاج نموذج الكتل إلى عينات في ثلاثة ثقوب أو أكثر.",
+  "Samples in only {n} holes: a block model needs samples in three or more holes.": "عينات في {n} ثقوب فقط: يحتاج نموذج الكتل إلى عينات في ثلاثة ثقوب أو أكثر.",
+  "The samples have no From / To depths, so their length, and the block height, cannot be read.": "لا تحتوي العينات على أعماق من / إلى، لذا لا يمكن قراءة طولها ولا ارتفاع الكتلة.",
+  "Blocks {x} x {x} m across: about a quarter of the median spacing between drill sites ({s} m).": "كتل بأبعاد {x} × {x} م أفقيًا: نحو ربع التباعد الوسيط بين مواقع الحفر ({s} م).",
+  "Blocks {z} m high: about two sample lengths (the median sample is {l} m long), and no taller than they are wide.": "كتل بارتفاع {z} م: نحو طولَي عينة (طول العينة الوسيطة {l} م)، وليست أعلى من عرضها.",
+  "The model covers the samples and half a drill spacing ({p} m) beyond them, so the edge holes are inside it.": "يغطي النموذج العينات ونصف تباعد حفر ({p} م) وراءها، فتكون ثقوب الحافة داخله.",
+  "The blocks were enlarged to {x} x {x} x {z} m so the model stays under {max} blocks, what one run can estimate.": "كُبّرت الكتل إلى {x} × {x} × {z} م ليبقى النموذج دون {max} كتلة، وهو ما يستطيع تشغيل واحد تقديره.",
+  "Search radius {r} m: one and a half drill spacings, so a block between holes reaches the holes around it.": "نصف قطر البحث {r} م: تباعد حفر ونصف، لتصل الكتلة الواقعة بين الثقوب إلى الثقوب المحيطة بها.",
+  "At least two holes for each block, so no block is estimated from one hole alone.": "ثقبان على الأقل لكل كتلة، كي لا تُقدَّر أي كتلة من ثقب واحد وحده.",
+  "Up to {k} samples from each hole (those within about two block heights) and {n} in all: about {h} holes lie within the search radius.": "حتى {k} عينات من كل ثقب (الواقعة ضمن نحو ارتفاعَي كتلة) و{n} في المجموع: يقع نحو {h} ثقوب ضمن نصف قطر البحث.",
+  "The project has no density: the blocks get grades, but no tonnes. Add a density log or a density per unit for tonnes.": "لا توجد كثافة في المشروع: تحصل الكتل على المحتوى دون الأطنان. أضف سجل كثافة أو كثافة لكل وحدة للحصول على الأطنان."
 }

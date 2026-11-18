@@ -14018,5 +14018,17 @@
   "Show or hide the figure overlay: title, legend and scale bar": "Mostrar ou ocultar a sobreposição da figura: título, legenda e barra de escala",
   "Browser": "Navegador",
   "Show the Browser panel": "Mostrar o painel Navegador",
-  "Hide the Browser panel": "Ocultar o painel Navegador"
+  "Hide the Browser panel": "Ocultar o painel Navegador",
+  "Too few drill sites ({n}): a block model needs holes at three or more places to estimate between them.": "Poucos locais de perfuração ({n}): um modelo de blocos precisa de furos em três ou mais locais para estimar entre eles.",
+  "Samples in only one hole: a block model needs samples in three or more holes.": "Amostras em apenas um furo: um modelo de blocos precisa de amostras em três ou mais furos.",
+  "Samples in only {n} holes: a block model needs samples in three or more holes.": "Amostras em apenas {n} furos: um modelo de blocos precisa de amostras em três ou mais furos.",
+  "The samples have no From / To depths, so their length, and the block height, cannot be read.": "As amostras não têm profundidades De / Até, então não é possível ler o comprimento delas nem a altura do bloco.",
+  "Blocks {x} x {x} m across: about a quarter of the median spacing between drill sites ({s} m).": "Blocos de {x} x {x} m em planta: cerca de um quarto do espaçamento mediano entre locais de perfuração ({s} m).",
+  "Blocks {z} m high: about two sample lengths (the median sample is {l} m long), and no taller than they are wide.": "Blocos de {z} m de altura: cerca de dois comprimentos de amostra (a amostra mediana tem {l} m), e não mais altos do que largos.",
+  "The model covers the samples and half a drill spacing ({p} m) beyond them, so the edge holes are inside it.": "O modelo cobre as amostras e meio espaçamento de perfuração ({p} m) além delas, então os furos da borda ficam dentro.",
+  "The blocks were enlarged to {x} x {x} x {z} m so the model stays under {max} blocks, what one run can estimate.": "Os blocos foram ampliados para {x} x {x} x {z} m para que o modelo fique abaixo de {max} blocos, o que uma execução consegue estimar.",
+  "Search radius {r} m: one and a half drill spacings, so a block between holes reaches the holes around it.": "Raio de busca {r} m: um espaçamento de perfuração e meio, para que um bloco entre furos alcance os furos ao seu redor.",
+  "At least two holes for each block, so no block is estimated from one hole alone.": "Pelo menos dois furos por bloco, para que nenhum bloco seja estimado a partir de um único furo.",
+  "Up to {k} samples from each hole (those within about two block heights) and {n} in all: about {h} holes lie within the search radius.": "Até {k} amostras de cada furo (as que estão a cerca de duas alturas de bloco) e {n} no total: cerca de {h} furos ficam dentro do raio de busca.",
+  "The project has no density: the blocks get grades, but no tonnes. Add a density log or a density per unit for tonnes.": "O projeto não tem densidade: os blocos recebem teores, mas não toneladas. Adicione um perfil de densidade ou uma densidade por unidade para obter toneladas."
 }
