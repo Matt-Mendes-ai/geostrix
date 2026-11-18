@@ -375,7 +375,7 @@ export default [
     id: "omf",
     area: "Geophysics",
     title: "Open Mining Format (.omf)",
-    summary: "Imports an Open Mining Format v1 file, as written by Leapfrog, Oasis montaj / Geosoft and other programs. Point sets, line sets and triangulated surfaces are listed here and drawn in the 3D view; block models (volumes) go to Voxel / block models, merged to the 3D view cell budget when they are large.",
+    summary: "Imports an Open Mining Format v1 file, as written by Leapfrog, Oasis montaj / Geosoft and other programs. Point sets, line sets and triangulated surfaces are listed here and drawn in the 3D view; block models (volumes) go to Voxel / block models, merged to the 3D view cell budget when they are large. The same file can be dropped on StrixViewer or picked with Add data: its points, lines and surfaces join the Boundaries and models list there, with their colour and opacity, and a project with no coordinate system yet is asked for one once.",
     notFor: [
       "OMF v2 files (a ZIP container) are not read: re-export as OMF v1 if the source program offers it. Grid-based (non-triangulated) surfaces are skipped.",
       "Points from an OMF file are drawn as an object, not added to Point survey, so they cannot be gridded or inverted. Export them as a CSV from the source program for that.",

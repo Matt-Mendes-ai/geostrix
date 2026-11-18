@@ -571,6 +571,8 @@ export function syncOmfObjects(group, cache, omfObjects, { origin }) {
     } else {
       return;
     }
+    // TASKS.csv #3895 — the opacity set in StrixViewer's list (surfaces); 1 = opaque, as before
+    if (Number.isFinite(o.opacity) && o.opacity < 1) { obj.material.transparent = true; obj.material.opacity = o.opacity; obj.material.depthWrite = false; }
     obj.visible = o.visible !== false;
     group.add(obj);
     cache[o.id] = obj;

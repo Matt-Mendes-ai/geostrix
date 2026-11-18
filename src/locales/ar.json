@@ -14310,5 +14310,6 @@
   "{name}: an OMF gives coordinates but not the coordinate system they are in. Choose it: it becomes the project's, and the next import uses it.": "{name}: يعطي ملف OMF إحداثيات دون نظام الإحداثيات الخاص بها. اختره: يصبح نظام المشروع وتستخدمه عملية الاستيراد التالية.",
   "Reading {name} ({mb} MB)…": "جارٍ قراءة {name} ({mb} ميغابايت)…",
   "{name}: couldn't read the OMF ({message}).": "{name}: تعذّرت قراءة ملف OMF ({message}).",
-  "A volume also holds other values: Geophysics > OMF adds another as a block model.": "يحتوي حجم أيضًا على قيم أخرى: الجيوفيزياء > OMF تضيف قيمة أخرى كنموذج كتل."
+  "A volume also holds other values: Geophysics > OMF adds another as a block model.": "يحتوي حجم أيضًا على قيم أخرى: الجيوفيزياء > OMF تضيف قيمة أخرى كنموذج كتل.",
+  "Opacity of {name}": "عتامة {name}"
 }

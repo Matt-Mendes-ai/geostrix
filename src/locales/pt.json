@@ -14310,5 +14310,6 @@
   "{name}: an OMF gives coordinates but not the coordinate system they are in. Choose it: it becomes the project's, and the next import uses it.": "{name}: um OMF dá coordenadas, mas não o sistema de coordenadas delas. Escolha-o: ele passa a ser o do projeto e a próxima importação o usará.",
   "Reading {name} ({mb} MB)…": "Lendo {name} ({mb} MB)…",
   "{name}: couldn't read the OMF ({message}).": "{name}: não foi possível ler o OMF ({message}).",
-  "A volume also holds other values: Geophysics > OMF adds another as a block model.": "Um volume também contém outros valores: Geofísica > OMF adiciona outro como modelo de blocos."
+  "A volume also holds other values: Geophysics > OMF adds another as a block model.": "Um volume também contém outros valores: Geofísica > OMF adiciona outro como modelo de blocos.",
+  "Opacity of {name}": "Opacidade de {name}"
 }

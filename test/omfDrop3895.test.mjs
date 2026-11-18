@@ -68,3 +68,15 @@ test("wired: the 3D view's drop reads .omf, counts it as handled, and the drop n
   for (const lang of ["es", "pt", "fr", "ar"]) assert.match(JSON.parse(readFileSync(new URL(`../src/locales/${lang}.json`, import.meta.url), "utf8"))[
     "Not imported from this drop: {names}. Dropped here, StrixViewer reads .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml / .kmz, .las logs, GeoTIFF / .gxf / .grd grids and .dxf / .obj files and Open Mining Format (.omf); point surveys (.xyz) open on the Geophysics tab."], /\.omf/, lang);
 });
+
+test("StrixViewer's list: an OMF object's colour and opacity are set in its row; the scene draws the opacity; Help says so", () => {
+  const rd = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  const vm = rd("src/modules/ViewerModule.jsx");
+  assert.match(vm, /\{omfObjects\.map\(\(o\) => <OmfObjectRow key=\{o\.id\} o=\{o\} update=\{updateOmfObject\} remove=\{removeOmfObject\}/);
+  const row = rd("src/modules/viewer/OmfObjectRow.jsx");
+  assert.match(row, /<input type="color" value=\{colour\} onChange=\{\(e\) => update\(o\.id, \{ color: e\.target\.value \}\)\}/);
+  assert.match(row, /update\(o\.id, \{ opacity: Number\(e\.target\.value\) \}\)/);
+  assert.match(row, /confirmDestructive\(tr\("Remove OMF object/);
+  assert.match(rd("src/lib/viewer/sceneBuilders.js"), /if \(Number\.isFinite\(o\.opacity\) && o\.opacity < 1\) \{ obj\.material\.transparent = true; obj\.material\.opacity = o\.opacity;/);
+  assert.match(rd("src/help/pages/geophysics.js"), /can be dropped on StrixViewer or picked with Add data/);
+});
