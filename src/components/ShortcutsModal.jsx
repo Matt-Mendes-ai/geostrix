@@ -37,8 +37,8 @@ const SHORTCUT_GROUPS = [
   {
     title: "Navigation",
     // #565 — Ctrl+1..9 in tab order. #750: geoML models are a 3D Modelling tool; #749: Maps holds rasters, terrain, boundaries, CRS.
-    // TASKS.csv #3897: a switched-off tab takes no number, as in electron/main.js's menu. TASKS.csv #3890: the Basic tabs come first.
-    items: [["StrixViewer", "viewer"], ["Maps", "maps"], ["Layout", "layout"], ["Geological Mapping", "surface"], ["3D Modelling", "modelling"],
+    // TASKS.csv #3897: a switched-off tab takes no number, as in electron/main.js's menu. TASKS.csv #3890 / #3902: the Basic tabs come first.
+    items: [["StrixViewer", "viewer"], ["3D Modelling", "modelling"], ["Maps", "maps"], ["Layout", "layout"], ["Geological Mapping", "surface"],
       ["Geochem", "geochem"], ["Geophysics", "geophysics"], ["Targeting", "targeting"], ["Mine Design", "minedesign"]]
       .filter(([, id]) => !HIDDEN_TABS.includes(id)).map(([label], i) => [`Ctrl/Cmd+${i + 1}`, label]),
   },
