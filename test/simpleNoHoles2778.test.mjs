@@ -12,7 +12,8 @@ test("the Simple set follows whether the project has collars", () => {
   assert.match(src, /<RibbonButton advanced=\{!noHoles\} icon=\{SquareSplitVertical\} label="3D slice"/);
   assert.match(src, /<RibbonButton advanced=\{!noHoles\} icon=\{Layers3\} label="Level plan"/);
   assert.match(src, /<div className=\{`ge-ribbon-cell\$\{noHoles \? " ge-adv" : ""\}`\}>\n\s+<HoverToolInfo title=\{tr\("Run data QC"\)\}/);
-  assert.match(src, /<div className=\{`ge-ribbon-cell\$\{noHoles \? " ge-adv" : ""\}`\}>\n\s+<HoverToolInfo title=\{tr\("Boundary intercepts"\)\}/);
+  // TASKS.csv #3914 — Boundary intercepts is Advanced with or without holes now (test/ribbonTiers3903)
+  assert.match(src, /<div className="ge-ribbon-cell ge-adv">\{\/\* TASKS\.csv #3914 — a specialist report: Advanced \*\/\}\n\s+<HoverToolInfo title=\{tr\("Boundary intercepts"\)\}/);
   assert.match(src, /<RibbonButton advanced=\{noHoles\} icon=\{FileBarChart2\} label="Best intercepts"/);
 });
 

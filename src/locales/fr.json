@@ -14008,5 +14008,8 @@
   "Advanced: targets and planned drillholes": "Avancé : cibles et sondages planifiés",
   "Basic tools": "Outils de base",
   "All tools": "Tous les outils",
-  "Basic tools shows each tab's main tools; All tools shows every tool. Remembered on this computer.": "Outils de base affiche les outils principaux de chaque onglet ; Tous les outils les affiche tous. Mémorisé sur cet ordinateur."
+  "Basic tools shows each tab's main tools; All tools shows every tool. Remembered on this computer.": "Outils de base affiche les outils principaux de chaque onglet ; Tous les outils les affiche tous. Mémorisé sur cet ordinateur.",
+  "Add data": "Ajouter des données",
+  "Add files to the project: collars, surveys, logs, assays, maps, grids, terrain, models. Each is read the same way as a file dropped on the view.": "Ajoute des fichiers au projet : collets, levés, diagraphies, analyses, cartes, grilles, terrain, modèles. Chacun est lu comme un fichier déposé sur la vue.",
+  "Show or hide the figure overlay: title, legend and scale bar": "Afficher ou masquer la surcouche de figure : titre, légende et barre d'échelle"
 }

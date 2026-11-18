@@ -20,3 +20,15 @@ test("#3903 an advanced tool's ribbon button carries the blue bar; Basic tools s
   assert.match(rib, /<div className=\{`ge-ribbon-cell\$\{advanced \? " ge-adv" : ""\}`\}>/);
   assert.match(rib, /<div className=\{`ge-ribbon-group\$\{advanced \? " ge-adv" : ""\}`\}/);
 });
+
+test("#3914 the StrixViewer ribbon: Add data (the drop import), Interpret and Boundary intercepts Advanced, the figure overlay in the view's corner", () => {
+  const vp = rd("src/modules/viewer/ViewerParts.jsx");
+  assert.match(vp, /requestModuleAction\("import-dropped-files", \{ files \}\)/); // the same import as a drop on the view, no new path
+  assert.match(vp, /<RibbonButton icon=\{Upload\} label="Add data" tone="data"/);
+  assert.match(vp, /<div className="ge-ribbon-cell ge-adv">\{\/\* TASKS\.csv #1152; Advanced since #3914/);
+  assert.match(vp, /<div className="ge-ribbon-cell ge-adv">\{\/\* TASKS\.csv #3914 — a specialist report: Advanced \*\/\}\n\s+<HoverToolInfo title=\{tr\("Boundary intercepts"\)\}/);
+  assert.match(vp, /<RibbonButton advanced=\{noHoles\} icon=\{FileBarChart2\} label="Best intercepts"/); // Basic once there are holes (#2778 hides it with none)
+  assert.match(rd("src/modules/viewer/useImportPipeline.js"), /useModuleAction\(\["import-dropped-files"\]/);
+  const ve = rd("src/modules/viewer/ViewVeSelect.jsx");
+  assert.match(ve, /onClick=\{\(\) => setFigureOverlay\(\(f\) => \(\{ \.\.\.f, enabled: !f\.enabled \}\)\)\}/);
+});
