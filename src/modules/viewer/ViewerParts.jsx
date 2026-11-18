@@ -64,7 +64,7 @@ export function ViewToolbar({
   const bufferTyped = useRef(false);
   useEffect(() => { if (!bufferTyped.current && spacing?.buffer && setSectionCorridor) setSectionCorridor(spacing.buffer); }, [spacing]); // the setter is stable
   return (
-    <Ribbon show={show} label="3D View tools">
+    <Ribbon show={show} label="StrixViewer tools">
       <RibbonGroup label="View" advanced={!noHoles}>{/* #1707 — all Advanced (3D slice not with no holes, #2778): no empty caption in Simple */}
         <div className="ge-ribbon-cell ge-adv">
           <HoverToolInfo title={tr("Grid")} text={tr("Toggles the ground reference grid on or off, and lets you resize it, change its division spacing/colour, or add two vertical wall grids for a full 3D reference box. Turn it off if it's cluttering a dense model or a figure you're about to snapshot.")} suppress={openPopover === "grid"}>

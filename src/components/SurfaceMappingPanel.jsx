@@ -502,7 +502,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     if (!cols.type) cols.type = structureCodeColumn(headers); // #1722 — Struc_Code
     const dh = downholeTableColumns(headers, cols);
     if (dh) {
-      setStructMsg({ ok: false, text: tr("{name} looks like a downhole table ({cols}: a hole id and down-hole depths, no easting or northing). Outcrop measurements need map coordinates: import this file in the 3D View (drag it onto the view), where downhole structure logs go.", { name: file.name, cols: [dh.hole, dh.from, dh.to, dh.depth, ...dh.angles.slice(0, 2)].filter(Boolean).join(", ") }) });
+      setStructMsg({ ok: false, text: tr("{name} looks like a downhole table ({cols}: a hole id and down-hole depths, no easting or northing). Outcrop measurements need map coordinates: import this file in StrixViewer (drag it onto the view), where downhole structure logs go.", { name: file.name, cols: [dh.hole, dh.from, dh.to, dh.depth, ...dh.angles.slice(0, 2)].filter(Boolean).join(", ") }) });
       return;
     }
     // Header hints like "Easting UTM09" say the zone but not the datum, so the source CRS defaults to the

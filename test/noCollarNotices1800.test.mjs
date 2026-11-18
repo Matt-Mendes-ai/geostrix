@@ -11,7 +11,7 @@ const NO_COLLARS = [
 ];
 
 test("both notices branch on the collars", () => {
-  assert.match(g, /notice\(runs\.length \? \(collars\.length \? "Generated [^"]*Switch to 3D View to see it\." : "Generated [^"]*No collars are loaded/);
+  assert.match(g, /notice\(runs\.length \? \(collars\.length \? "Generated [^"]*Switch to StrixViewer to see it\." : "Generated [^"]*No collars are loaded/);
   assert.match(g, /notice\(collars\.length \? "Added calculated element [^"]*It can now be shown downhole[^"]*" : "Added calculated element [^"]*drawn downhole once collars are loaded/);
 });
 

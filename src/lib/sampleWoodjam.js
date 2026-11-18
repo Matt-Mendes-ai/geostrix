@@ -93,7 +93,7 @@ export async function loadWoodjamExtras(readFile, store, { projectEpsg = WOODJAM
       // would be 0.0002 ohm.m rock), so the property is set and the README says it is inferred from the values
       store.addVoxelModel({ ...v, name: `ZTEM 2023 inversion — ${v.name}`, threshold: v.min, opacity: 0.55, property: "Conductivity (S/m)", propertyChosen: true });
     });
-    notes.push(tr("Woodjam ZTEM: {voxelModels} block model(s) from the 2023 3D inversion{v} — listed under Geophysics in the 3D View, shown at its full range (set a display range in the Geophysics tab to keep only the most conductive cells).", { voxelModels: res.voxelModels.length, v: res.notes.length ? ` (${res.notes.join(" ")})` : "" }));
+    notes.push(tr("Woodjam ZTEM: {voxelModels} block model(s) from the 2023 3D inversion{v} — listed under Geophysics in StrixViewer, shown at its full range (set a display range in the Geophysics tab to keep only the most conductive cells).", { voxelModels: res.voxelModels.length, v: res.notes.length ? ` (${res.notes.join(" ")})` : "" }));
   } catch (e) { notes.push(tr("The Woodjam ZTEM model could not be loaded: {message}", { message: e.message })); }
   try {
     const gps = await readFile("ip/2357GPS_All.txt");

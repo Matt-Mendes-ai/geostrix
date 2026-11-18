@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 const PAIRS = [
   ["{assays} intervals · 1 element", "{assays} intervals · {assayElements} elements"],
   ["Loaded {rows} {v} intervals (1 element).{v2}", "Loaded {rows} {v} intervals ({chosen} elements).{v2}"],
-  ["Loaded {rows} surface samples (1 element). Switch to 3D View to see them.{v}", "Loaded {rows} surface samples ({chosen} elements). Switch to 3D View to see them.{v}"],
+  ["Loaded {rows} surface samples (1 element). Switch to StrixViewer to see them.{v}", "Loaded {rows} surface samples ({chosen} elements). Switch to StrixViewer to see them.{v}"],
   ["{v} · 1 element recognized", "{v} · {elements} elements recognized"],
 ];
 

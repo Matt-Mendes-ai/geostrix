@@ -67,7 +67,7 @@ export default function SectionImageVerticalModal({ image, terrain, onApply, onC
           </div>
           <div style={{ flex: 1, minWidth: 320, display: "flex", flexDirection: "column", gap: 8 }}>
             <div style={note}>{tr("Click along the topography line drawn on the picture (3 or more points, at its highs and lows). Each click is compared with the terrain under it.")}</div>
-            {ve != null && <div style={note}>{tr("The picture's own vertical exaggeration is {ve} ×. GeoStrix places it in metres, so this is not applied; the 3D View's own VE stretches the picture and the terrain alike.", { ve: +ve.toFixed(2) })}</div>}
+            {ve != null && <div style={note}>{tr("The picture's own vertical exaggeration is {ve} ×. GeoStrix places it in metres, so this is not applied; the 3D view's own VE stretches the picture and the terrain alike.", { ve: +ve.toFixed(2) })}</div>}
             {picks.length > 0 && (
               <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
                 <thead><tr><th style={th}>#</th><th style={th}>{tr("Picture (m)")}</th><th style={th}>{tr("Terrain (m)")}</th><th style={th}>{tr("Terrain − picture (m)")}</th><th style={th} /></tr></thead>

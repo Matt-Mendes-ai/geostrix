@@ -13,7 +13,7 @@ const sectionWindowFields = [
 export default [
   {
     id: "slice-3d",
-    area: "3D View",
+    area: "StrixViewer",
     title: "3D slice",
     summary: "Cuts everything in the 3D view with a moving cut: a vertical slab at a chosen strike, or a horizontal level. It is a live cut of the view, for looking inside a dense drill pattern or a block model. Nothing is saved or exported.",
     notFor: [
@@ -35,7 +35,7 @@ export default [
       sample: "WA lode gold",
       steps: [
         "File > Open Sample Project > WA lode gold (66 inclined drillholes, oriented structures).",
-        "Switch to Advanced (top right of the ribbon). On the 3D View tab, press 3D slice.",
+        "Switch to Advanced (top right of the ribbon). On the StrixViewer tab, press 3D slice.",
         "Tick On. Keep Vertical slab and type the strike of the drill sections in Az.",
         "Set Thickness to about the section spacing and drag the position slider across the holes.",
         "Switch to Horizontal (level plan) to step down through the holes level by level (a block model, when you have one, is cut the same way).",
@@ -45,7 +45,7 @@ export default [
   },
   {
     id: "section-by-coordinates",
-    area: "3D View",
+    area: "StrixViewer",
     title: "Section by coordinates",
     summary: "Opens a vertical cross-section from numbers: a centre easting and northing, an azimuth and a length. Leave the centre blank to centre it on the drilling. The section opens in its own window with the holes, logs, block models and surfaces within the buffer projected onto it, and is kept in the Cross-sections list. In the window you can draw contacts, plan a hole, send a snapshot to Layout and export it.",
     notFor: [
@@ -71,7 +71,7 @@ export default [
       sample: "WA lode gold",
       steps: [
         "File > Open Sample Project > WA lode gold (66 inclined drillholes, oriented structures).",
-        "Switch to Advanced (top right of the ribbon). On the 3D View tab, Sections > By coordinates.",
+        "Switch to Advanced (top right of the ribbon). On the StrixViewer tab, Sections > By coordinates.",
         "Leave Centre E and Centre N blank to centre on the drilling; type an Azimuth across the trend of the holes and a Length that covers them.",
         "Open section. In its window, set Buffer ± to about half the distance to the next line of holes and press Enter.",
         "Press Plan a hole to aim a hole at an intercept, or Snapshot to Layout for a figure.",
@@ -82,7 +82,7 @@ export default [
   },
   {
     id: "slice-series",
-    area: "3D View",
+    area: "StrixViewer",
     title: "Slice series (fence sections)",
     summary: "Makes a set of parallel vertical sections at one azimuth, spaced a fixed width apart on round grid lines, over the drilling (and over the visible block models when you tick it). Each section's buffer is half the width, so together they tile the ground with no gaps and no overlap. They are added as one group to the Cross-sections list, to open one at a time; each opens in the same section window as any other section.",
     notFor: [
@@ -106,7 +106,7 @@ export default [
       sample: "WA lode gold",
       steps: [
         "File > Open Sample Project > WA lode gold (66 inclined drillholes, oriented structures).",
-        "Switch to Advanced (top right of the ribbon). On the 3D View tab, Sections > Fence series.",
+        "Switch to Advanced (top right of the ribbon). On the StrixViewer tab, Sections > Fence series.",
         "Type the Azimuth of the drill sections and a Width equal to their spacing.",
         "Leave Also cover the visible block models off (a model larger than the drilling adds sections with no holes on them) and read This makes … section(s).",
         "Generate, then open the sections one by one from the Cross-sections list.",
@@ -149,7 +149,7 @@ export default [
   },
   {
     id: "interpretation-lines",
-    area: "3D View",
+    area: "StrixViewer",
     title: "Interpretation lines",
     summary: "Draws faults, contacts, lineaments, fold axes and other lines by clicking in the 3D view, usually over a geophysics survey or a map. Each set of lines is a map layer with the line type, confidence, an optional dip or plunge, a name and a note on every line. The layer drapes on the terrain, exports as Shapefile, GeoPackage, KML or DXF, and prints in the Layout legend.",
     notFor: [
@@ -175,7 +175,7 @@ export default [
       sample: "Perk-Rocky",
       steps: [
         "File > Open Sample Project > Perk-Rocky (geological mapping, no drillholes).",
-        "On the 3D View tab, press Interpret (Measure & check) and turn the view to a top view.",
+        "On the StrixViewer tab, press Interpret (Measure & check) and turn the view to a top view.",
         "Leave Survey on (none named), choose New layer… and set Line type to Lineament and Confidence to possible.",
         "Draw a line: click along a lineament you see in the terrain or the map, then double-click to end it.",
         "Show, style or export the layer under Maps > Map layers.",

@@ -744,7 +744,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
         {msg && cover && cover.forMsg === msg && ( // #1563 — the score cannot be seen under these from here; one click hides them (the 3D View's eyes bring them back)
           <div style={{ ...note, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
             <span>{tr("It lies under {list} in plan.", { list: [...cover.rasters, ...cover.models].map((x) => `\"${x.name}\"`).join(", ") })}</span>
-            <button type="button" style={{ ...sel, cursor: "pointer" }} onClick={() => { cover.rasters.forEach((r) => updateRaster(r.id, { visible: false })); cover.models.forEach((m) => updateVoxelModel(m.id, { visible: false })); setCover(null); setMsg(tr("Hid {n} layer(s) over the score; show them again with their eyes in the 3D View.", { n: cover.rasters.length + cover.models.length })); }}>
+            <button type="button" style={{ ...sel, cursor: "pointer" }} onClick={() => { cover.rasters.forEach((r) => updateRaster(r.id, { visible: false })); cover.models.forEach((m) => updateVoxelModel(m.id, { visible: false })); setCover(null); setMsg(tr("Hid {n} layer(s) over the score; show them again with their eyes in StrixViewer.", { n: cover.rasters.length + cover.models.length })); }}>
               {tr("Hide those {n}", { n: cover.rasters.length + cover.models.length })}</button>
           </div>
         )}

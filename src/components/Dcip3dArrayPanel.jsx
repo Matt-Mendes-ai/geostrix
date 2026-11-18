@@ -195,7 +195,7 @@ export default function Dcip3dArrayPanel({ pBtn, numInput }) {
           {made && Object.keys(made).length > 0 && (
             <div style={{ marginTop: 10, borderTop: "1px solid var(--color-border)", paddingTop: 8 }}>
               <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--color-text)" }}>{tr("Compare with a loaded model")}</div>
-              <div style={small}>{tr("Load the contractor's model under Block models (the UBC mesh with its .con / .res and .chg), then pick it here. Both are shown in the 3D View; Targeting > Voxel ranges hides one or the other.")}</div>
+              <div style={small}>{tr("Load the contractor's model under Block models (the UBC mesh with its .con / .res and .chg), then pick it here. Both are shown in StrixViewer; Targeting > Voxel ranges hides one or the other.")}</div>
               {Object.keys(made).map((field) => {
                 const opts = others(field), c = compare(field);
                 return (

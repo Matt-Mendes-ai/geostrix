@@ -315,7 +315,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
               {plotted === 0 && (
                 <g fontSize={11} fill="#65717e" textAnchor="middle">
                   <text x={CX} y={CY - 6}>{picks.length ? tr("No picks with a valid dip / dip direction") : noData ? tr("No structure picks or outcrop measurements yet") : source === "surface" ? tr("No outcrop measurements yet") : tr("No downhole structure picks yet")}</text>
-                  {noData && <text x={CX} y={CY + 12}>{tr("Downhole: 3D View › Add layer › Structure planes.")}</text>}
+                  {noData && <text x={CX} y={CY + 12}>{tr("Downhole: StrixViewer › Add layer › Structure planes.")}</text>}
                   {noData && <text x={CX} y={CY + 28}>{tr("Outcrop: Geological Mapping › Surface structures.")}</text>}
                   {unplotted.alphaOnly > 0 && <text x={CX} y={CY + 12}>{tr("{n} alpha only (no beta): a plane needs both angles to be oriented", { n: unplotted.alphaOnly.toLocaleString() })}</text>}
                 </g>

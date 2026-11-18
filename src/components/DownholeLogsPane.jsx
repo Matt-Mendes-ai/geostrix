@@ -298,7 +298,7 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
     <>
       <TaskPaneHeader title={tr("Downhole logs")} helpId="downhole-logs" icon={Activity} tone="analyse" onClose={onClose} />
       {!sources.length ? (
-        <div style={note}>{tr("No downhole log yet: import mag susc, SG, RQD or recovery readings as a drillhole layer (3D View > Add layer), or a custom layer with a numeric column.")}</div>
+        <div style={note}>{tr("No downhole log yet: import mag susc, SG, RQD or recovery readings as a drillhole layer (StrixViewer > Add layer), or a custom layer with a numeric column.")}</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <div style={note}>{tr("Petrophysics from the holes: a log by the logged code at each reading (magnetite destruction shows as a low mag-susc class), and against an assay element reading by reading.")}</div>
@@ -309,7 +309,7 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
           {holeChoices.length > 1 && ( /* TASKS.csv #3132 */
             <label style={row}>{tr("Holes")}
               <select value={holeChoice.key} onChange={(e) => setHoleKey(e.target.value)} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Holes to read")}>
-                {holeChoices.map((c) => <option key={c.key} value={c.key}>{c.kind === "all" ? tr("All holes") : c.kind === "checked" ? tr("Holes checked in the 3D View") : tr("Collars inside \"{name}\"", { name: c.name })}</option>)}
+                {holeChoices.map((c) => <option key={c.key} value={c.key}>{c.kind === "all" ? tr("All holes") : c.kind === "checked" ? tr("Holes checked in StrixViewer") : tr("Collars inside \"{name}\"", { name: c.name })}</option>)}
               </select></label>
           )}
           {data?.holeFilter && <div style={note}>{tr("Readings kept: {r} of {t} (holes chosen: {h}; with readings: {k}).", { r: fmtNum(data.holeFilter.readings), t: fmtNum(data.holeFilter.of), h: fmtNum(data.holeFilter.holes), k: fmtNum(data.holeFilter.holesWithReadings) })}</div>}

@@ -41,7 +41,7 @@ export default function StructFitPanel({ method, unit, keptScope, prepareForward
     if (!rows.length) { setMsg({ ok: false, text: tr("No tested point has a sensitivity to show.") }); return; }
     setLayers((l) => ({ ...l, geophys_pts: [...(l.geophys_pts || []).filter((r) => surveyKey(r) !== name), ...rows] }));
     updateGeophysSurvey(name, { method: "structfit_sens", units: SURVEY_METHODS.structfit_sens.units });
-    setMsg({ ok: true, text: tr("Added \"{name}\": {n} tested points in the 3D View, coloured by log₁₀ σ per m (the warm end: the survey sees that contact).", { name, n: rows.length }) });
+    setMsg({ ok: true, text: tr("Added \"{name}\": {n} tested points in StrixViewer, coloured by log₁₀ σ per m (the warm end: the survey sees that contact).", { name, n: rows.length }) });
   };
   const run = async () => {
     setMsg(null);
@@ -154,7 +154,7 @@ export default function StructFitPanel({ method, unit, keptScope, prepareForward
                 <td style={{ color: r.verdict === "seen" ? "var(--color-text)" : "var(--color-text-muted)" }}>{r.verdict === "seen" ? tr("seen") : r.verdict === "none" ? tr("no contact here") : tr("not constrained by this survey")}</td>
               </tr>))}</tbody>
           </table>
-          <button type="button" onClick={show3d} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}>{tr("Show the tested points in the 3D View")}</button>
+          <button type="button" onClick={show3d} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}>{tr("Show the tested points in StrixViewer")}</button>
           <div style={{ ...small, marginTop: 4 }}>{tr("Seen: the survey would notice a move within the distance you gave. Not constrained: it would not, so a fit could move that contact without the data objecting. A move of a quarter of a model cell was tested; the response is linear in it.")}</div>
           {/* TASKS.csv #2640 Stage 2 — the fit */}
           {seenPoints.length > 0 && !busy && (

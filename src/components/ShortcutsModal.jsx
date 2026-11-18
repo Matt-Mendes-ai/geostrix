@@ -36,7 +36,7 @@ const SHORTCUT_GROUPS = [
   {
     title: "Navigation",
     items: [
-      ["Ctrl/Cmd+1", "3D View"],
+      ["Ctrl/Cmd+1", "StrixViewer"],
       ["Ctrl/Cmd+2", "Geological Mapping"], // #820
       ["Ctrl/Cmd+3", "3D Modelling"],
       ["Ctrl/Cmd+4", "Geochem"], // #750 — geoML models are a 3D Modelling tool now
@@ -67,7 +67,7 @@ const SHORTCUT_GROUPS = [
     // a rotate instead, on some mouse hardware/driver setups. Shift+Left-drag was added as a reliable
     // pan gesture that doesn't depend on the middle button being reported correctly at all — listed
     // here so it's discoverable without needing to hit that bug first.
-    title: "3D View mouse controls",
+    title: "3D view mouse controls",
     items: [
       ["Left-drag", "Rotate/orbit"],
       ["Right-drag, middle-drag or Shift+Left-drag", "Pan"], // TASKS.csv #2213 — right-drag pans

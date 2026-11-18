@@ -79,7 +79,7 @@ export async function loadSilvertipExtras(readFile, store, { existingElements = 
     const unitOf = new Map((existingSurfaceElements || []).map((e) => [e.symbol, e.unit]));
     store.setSurfaceSamples((prev) => mergeSurfaceSamples(prev || [], all).samples);
     store.setSurfaceElements((prev) => { const m = new Map((prev || []).map((e) => [e.symbol, e])); els.forEach((e) => { if (!m.has(e.symbol)) m.set(e.symbol, unitOf.has(e.symbol) ? { ...e, unit: unitOf.get(e.symbol) } : e); }); return Array.from(m.values()); });
-    notes.push(tr("Silvertip surface samples: {list} — shown in the 3D View and the Geochem tab.", { list: counts.join(", ") }));
+    notes.push(tr("Silvertip surface samples: {list} — shown in StrixViewer and the Geochem tab.", { list: counts.join(", ") }));
   } catch (e) { notes.push(tr("Silvertip surface samples could not be loaded: {message}", { message: e.message })); }
   return notes;
 }

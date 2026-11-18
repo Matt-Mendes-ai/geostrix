@@ -20,7 +20,7 @@ export default [
       steps: [
         "Open File > Open Sample Project and choose the Macpass zinc-lead-silver sample. Read the notices it opens with: the number of holes, assay intervals and densities, and the owner's credit.",
         "Look at the sidebar. Collars and Survey are loaded; the Specific gravity layer holds the bulk densities; Lithology, Alteration and the other logs are empty because the sample has none.",
-        "Click Data QC in the 3D View's ribbon. Read the errors first, then the warnings and the infos: they say what is left out of the sample, such as holes with no assays and intervals with no density.",
+        "Click Data QC in StrixViewer's ribbon. Read the errors first, then the warnings and the infos: they say what is left out of the sample, such as holes with no assays and intervals with no density.",
         "Open Geochem to see the Ag, Pb and Zn assays. Silver is in g/t, lead and zinc in per cent: the units are set when the assays are imported (see Import assays).",
         "To start your own project, use File > New Project, then import your collars, surveys, logs and assays in that order, and run Data QC again.",
       ],
@@ -29,7 +29,7 @@ export default [
   },
   {
     id: "import-drillholes",
-    area: "3D View",
+    area: "StrixViewer",
     title: "Import drillhole data",
     summary: "Brings a table into the 3D view as collars (one row per hole), survey stations (depth, azimuth and dip) or an interval layer such as lithology, alteration, veins, geotechnical logs or density. The dialog opens when you drop a file or use a layer's upload button, guesses what the table is from its column names, and shows a preview before anything is imported.",
     notFor: [
@@ -69,7 +69,7 @@ export default [
     summary: "Brings assay results into Geochem as intervals with one value per element. A table with a column for each element is wide format; a table with one row per analyte is long format. The dialog lists the element columns it recognizes, lets you tick the ones to import, asks what a blank cell and a negative value mean, and keeps the units with each element.",
     notFor: [
       "It does not convert one lab's units to another's or decide detection limits for you; it keeps the values as reported and asks about the codes a lab uses.",
-      "Collars, surveys and logs are not assays: import them in the 3D View (see Import drillhole data).",
+      "Collars, surveys and logs are not assays: import them in StrixViewer (see Import drillhole data).",
     ],
     fields: [
       { name: "Wide format (column per element) / Long format (row per analyte)", what: "Whether each element has its own column, or each row names an analyte and gives its value.", choose: "Look at the preview: one row per sample interval with Ag_ppm, Pb_pct and Zn_pct columns is wide; one row per sample and analyte is long." },
@@ -97,7 +97,7 @@ export default [
   },
   {
     id: "import-density",
-    area: "3D View",
+    area: "StrixViewer",
     title: "Import density (Specific gravity)",
     summary: "The Specific gravity layer is the project's density, in tonnes per cubic metre (t/m³, the same number as g/cc). It is the density the Grade-tonnage dialog and the tonnages of solids take their tonnes from, as a length-weighted mean of its intervals. Import it as a table of intervals: hole, From, To and a density value.",
     notFor: [
@@ -129,7 +129,7 @@ export default [
   },
   {
     id: "data-qc",
-    area: "3D View",
+    area: "StrixViewer",
     title: "Drillhole data QA/QC",
     summary: "Checks collar coordinates, survey trajectories, assays and every logged layer for the problems that quietly distort a modelled surface, before you model. It lists issues as errors, warnings and infos, worst first, and fixes nothing: you correct the files and import again. It also says what the project lacks, such as having no log of any kind.",
     notFor: [
@@ -154,7 +154,7 @@ export default [
     howto: {
       sample: "Macpass",
       steps: [
-        "Open the Macpass sample and click Data QC in the 3D View's ribbon.",
+        "Open the Macpass sample and click Data QC in StrixViewer's ribbon.",
         "Read the counts at the top: errors, warnings and infos. The list is worst first, with the survey bends after the other warnings.",
         "Filter by category to read the Survey bends, then the Specific gravity and Assays lines.",
         "Click Export CSV to save the list, or Re-run after changing a file.",

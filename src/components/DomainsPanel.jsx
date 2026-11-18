@@ -46,7 +46,7 @@ export default function DomainsPanel({ onClose }) {
     const mapped = { ...result, index: result.index.map((i) => full.indexOf(subset[i])) };
     void pos;
     setSurfaceSamples((prev) => writeDomains(prev, mapped));
-    setMsg(tr("\"{attr}\" written to {n} samples: it is now a population choice in Thresholds and in the 3D View's anomaly maps.", { attr: DOMAIN_ATTR, n: result.index.length }));
+    setMsg(tr("\"{attr}\" written to {n} samples: it is now a population choice in Thresholds and in StrixViewer's anomaly maps.", { attr: DOMAIN_ATTR, n: result.index.length }));
   };
   const toggle = (sym) => setChosen((c) => { const base = c || usable; return base.includes(sym) ? base.filter((x) => x !== sym) : [...base, sym].sort((a, b) => surfaceElements.findIndex((e) => e.symbol === a) - surfaceElements.findIndex((e) => e.symbol === b)); });
   const pcs = result?.pca ? Math.min(3, result.pca.loadings.length) : 0;

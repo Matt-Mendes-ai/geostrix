@@ -349,7 +349,7 @@ export async function readSiblingFiles(filePath, names) {
   const cut = Math.max(filePath.lastIndexOf("\\"), filePath.lastIndexOf("/")), dir = filePath.slice(0, cut + 1), out = [];
   for (const n of new Set((names || []).map((x) => String(x || "")).filter((x) => x && !/[\\/:]/.test(x) && x !== "." && x !== ".."))) {
     const r = await fsReadFile(dir + n);
-    if (r.ok && r.big) out.push({ name: n, arrayBuffer: () => Promise.reject(new Error(tr("{name} is {mb} MB, more than the Browser panel reads whole: drag the .vo and its files onto the 3D View instead.", { name: n, mb: Math.round(r.size / 1048576).toLocaleString() }))) });
+    if (r.ok && r.big) out.push({ name: n, arrayBuffer: () => Promise.reject(new Error(tr("{name} is {mb} MB, more than the Browser panel reads whole: drag the .vo and its files onto StrixViewer instead.", { name: n, mb: Math.round(r.size / 1048576).toLocaleString() }))) });
     else if (r.ok) out.push(readResultToFile(r, n));
     else if (r.error && !/ENOENT|no such file/i.test(r.error)) out.push({ name: n, arrayBuffer: () => Promise.reject(new Error(r.error)) }); // there but refused (the size cap): say why
   }

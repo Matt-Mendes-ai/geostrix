@@ -942,15 +942,15 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       }
       if (wantCloud) {
         const { rows, every } = L.thinTo(out.rows, target);
-        if (!rows.length) msg.push(tr("No points for the 3D View: none of that kind in the file."));
+        if (!rows.length) msg.push(tr("No points for StrixViewer: none of that kind in the file."));
         else {
           setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, rows).rows }));
           updateGeophysSurvey(file.name, { method: "lidar", units: colourBy === "elevation" ? (Math.abs(plan.zFactor - plan.zFile) < 1e-9 ? "m" : "") : "" });
           const kept = keepEvery * every;
           const what = colourBy === "intensity" ? tr("intensity") : colourBy === "class" ? tr("classification code") : tr("elevation");
           msg.push(kept > 1
-            ? tr("Point cloud \"{file}\": {n} points in the 3D View (1 in {k} of those read), coloured by {what}.", { file: file.name, n: rows.length.toLocaleString(), k: kept.toLocaleString(), what })
-            : tr("Point cloud \"{file}\": all {n} points read are in the 3D View, coloured by {what}.", { file: file.name, n: rows.length.toLocaleString(), what }));
+            ? tr("Point cloud \"{file}\": {n} points in StrixViewer (1 in {k} of those read), coloured by {what}.", { file: file.name, n: rows.length.toLocaleString(), k: kept.toLocaleString(), what })
+            : tr("Point cloud \"{file}\": all {n} points read are in StrixViewer, coloured by {what}.", { file: file.name, n: rows.length.toLocaleString(), what }));
         }
       }
       setLidarPending(null);
@@ -1227,7 +1227,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const tie = tieOf(project); // #2587
       if (tie) await getProj4Def(Number(tie.epsg)); // a registry code loads on demand (#834)
       const { polylines, failed, featureOf, attributes, closedFlags, partNames } = kmlToProjectPolylines(features, project?.epsg, { toLocal: tie ? (x, y, from) => fileToLocal(tie, x, y, from) : null }); // featureOf, attributes: #2742
-      if (!polylines.length) throw new Error(failed ? tr("KML coordinates could not be converted to EPSG:{v}.", { v: project?.epsg }) : tr("No lines or polygons found in this KML (points are imported through the 3D View importer)."));
+      if (!polylines.length) throw new Error(failed ? tr("KML coordinates could not be converted to EPSG:{v}.", { v: project?.epsg }) : tr("No lines or polygons found in this KML (points are imported through StrixViewer importer)."));
       return { polylines, closedFlags, featureOf, attributes, ...(partNames ? { partNames } : {}), note: withLonLatSource(lonLatNote(tie)) }; // #2467; #2684; featureOf / attributes: #2742 — one claim per Placemark; closedFlags (a road is not a claim, #3349) and partNames (#3454)
     }
     // TASKS.csv #1106 — GPX tracks / routes and GeoJSON lines / polygons, WGS 84 (or a GeoJSON "crs" EPSG) to the project CRS
@@ -1264,7 +1264,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       // TASKS.csv #2122 (review #2013, Woodjam) — points are not a boundary or a claim: 8 collars became an empty '0 part(s)' boundary,
       // 691 an empty 'Active' claim of 0 ha
       if (!r.polylines.length) throw new Error(parsed.geomType === "point"
-        ? tr("it holds points, not lines or polygons: import collars in the 3D View, samples in Geochem, or any points as a map layer in Geological Mapping.")
+        ? tr("it holds points, not lines or polygons: import collars in StrixViewer, samples in Geochem, or any points as a map layer in Geological Mapping.")
         : tr("no lines or polygons were found in it."));
       if (name.endsWith(".shp") && !parts.prj && !parsed.prjWkt && !r.mineGrid /* #2586 */ && !boundarySource /* #2684 */) r.note = tr("no .prj was read with it (select the .zip, or the .prj with the .shp): the coordinates were taken as EPSG:{dst}, check where it lies", { dst: project?.epsg });
       return r;
@@ -1335,7 +1335,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     // drop does), and the message is shown where the user is: the banner under the ribbon when the Boundaries pane is not open.
     if (solids.length) { goToModule("viewer"); requestModuleAction("import-solid", { files: solids }); }
     let msg = imported ? tr("Imported {imported} boundary file(s) ({v} total).", { imported, v: boundaries.length + imported }) : "";
-    if (solids.length) msg += `${msg ? " " : ""}${tr("{names}: only faces (a solid, not strings) — handed to the 3D View's solid import.", { names: solids.map((f) => f.name).join(", ") })}`;
+    if (solids.length) msg += `${msg ? " " : ""}${tr("{names}: only faces (a solid, not strings) — handed to StrixViewer's solid import.", { names: solids.map((f) => f.name).join(", ") })}`;
     if (dxfNotes.length) msg += ` ${dxfNotes.join(" ")}.`; // #550
     if (failed.length) msg += tr("{v}Failed: {failed}", { v: msg ? " " : "", failed: failed.join("; ") });
     if (msg) (geoPane === "boundaries" ? setBoundaryError : setRasterError)({ info: (!!imported || !!solids.length) && !failed.length, text: msg }); // #1503 — visible on every pane
@@ -1442,7 +1442,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       if (linesCount) parts.push(tr("{linesCount} line set(s)", { linesCount }));
       if (surfacesCount) parts.push(tr("{surfacesCount} surface(s)", { surfacesCount }));
       if (volumesCount) parts.push(tr("{volumesCount} block model(s)", { volumesCount }));
-      if (res.drillholes) parts.push(tr("{n} drillhole(s), handed to the 3D View's import", { n: res.drillholes })); // #1993 step 1b
+      if (res.drillholes) parts.push(tr("{n} drillhole(s), handed to StrixViewer's import", { n: res.drillholes })); // #1993 step 1b
       let msg = parts.length ? tr("Imported \"{name}\" — {parts}.", { name: file.name, parts: parts.join(", ") }) : tr("\"{name}\" parsed but nothing usable was found.", { name: file.name });
       if (coarsenNotes.length) msg += ` ${coarsenNotes.join(" ")}`;
       if (!opts.volume) { // #1970 — a volume's other numeric attributes (two inversion iterations, conductivity and chargeability)
@@ -2106,7 +2106,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         // TASKS.csv #1994 — a lidar cloud: .laz, or a .las starting with the LAS signature (a LAS well log is text, read in the 3D View)
         const lasFiles = files.filter((f) => /\.la[sz]$/i.test(f.name));
         const lidarFiles = [];
-        for (const f of lasFiles) { const b = new Uint8Array(await f.slice(0, 4).arrayBuffer()); if (/\.laz$/i.test(f.name) || (b[0] === 0x4c && b[1] === 0x41 && b[2] === 0x53 && b[3] === 0x46)) lidarFiles.push(f); else advice.push(tr("{name} is a LAS well log: drop it on the 3D View, which reads downhole logs.", { name: f.name })); }
+        for (const f of lasFiles) { const b = new Uint8Array(await f.slice(0, 4).arrayBuffer()); if (/\.laz$/i.test(f.name) || (b[0] === 0x4c && b[1] === 0x41 && b[2] === 0x53 && b[3] === 0x46)) lidarFiles.push(f); else advice.push(tr("{name} is a LAS well log: drop it on StrixViewer, which reads downhole logs.", { name: f.name })); }
         if (lidarFiles.length) { if (geoPane === "terrain") openLidar(lidarFiles[0]); else { goToModule("maps"); requestModuleAction("maps-lidar", { file: lidarFiles[0] }); } if (lidarFiles.length > 1) advice.push(tr("Opened \"{name}\". Lidar files are imported one at a time: import it, then drop the next.", { name: lidarFiles[0].name })); }
         const sideUsed = new Set(rasterSides.images.flatMap((i) => [i.world, i.xml, i.prj].filter(Boolean))); // #2901 — read with their raster
         const other = files.filter((f) => !sideUsed.has(f) && !/\.(csv|tiff?|gxf|grd|ply|dxf|xyz|edi|las|laz|vs)$/i.test(f.name) && !(/\.(dfn|dat)$/i.test(f.name) && gdfPair(files)) /* #1990 / #1992: read above */ && !unreadableFormatAdvice(f.name)).map((f) => f.name);
@@ -2755,7 +2755,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           <Triangle size={14} /> {tr("Terrain from points or contours…")}
         </button>{/* TASKS.csv #894 */}
         <button onClick={() => lidarInput.current.click()} style={{ ...pBtn, marginTop: 6 }} disabled={terrainBusy || lidarBusy}
-          title={tr("A lidar point cloud (LAS, LAZ or COPC): a terrain from its ground-classified points, and a thinned cloud in the 3D View")}>
+          title={tr("A lidar point cloud (LAS, LAZ or COPC): a terrain from its ground-classified points, and a thinned cloud in StrixViewer")}>
           <Mountain size={14} /> {tr("Lidar point cloud (LAS / LAZ)…")}
         </button>{/* TASKS.csv #1994 */}
         <input ref={lidarInput} type="file" accept=".las,.laz" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) openLidar(f); e.target.value = ""; }} />
@@ -3066,7 +3066,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             </div>
             {(b.contourLevels || []).length > 0 && ( /* TASKS.csv #1466 / #1622 — a contour layer's labels in the 3D View */
               <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: "pointer" }}
-                title={tr("Writes the level on the index contours in the 3D View and on the Maps plan (every fifth level of a regular series, every level of a few chosen ones); the other levels are drawn fainter in the 3D View.")}>
+                title={tr("Writes the level on the index contours in StrixViewer and on the Maps plan (every fifth level of a regular series, every level of a few chosen ones); the other levels are drawn fainter in StrixViewer.")}>
                 <input type="checkbox" checked={b.contourLabels !== false} onChange={(e) => updateBoundary(b.id, { contourLabels: e.target.checked })} />
                 <span style={{ color: "var(--color-text-caption)" }}>{tr("Label index contours")}</span>
               </label>
@@ -3417,7 +3417,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           onAction={geoPane === "dcip" ? null : () => fileInput.current?.click()}
           actionTitle={tr("Pick a point-cloud CSV — x/y/z plus a value column")}
           secondary={<InfoButton title={tr("Every supported format")} width={430} text={tr(FORMAT_REFERENCE)} />}
-          footnote={tr("Or drag a file straight onto this pane. Everything imported here renders in the 3D View alongside your drillholes.")}
+          footnote={tr("Or drag a file straight onto this pane. Everything imported here renders in the 3D view alongside your drillholes.")}
         >
           {geoPane === "dcip" && <div style={{ marginBottom: 12 }}>{tr("A DC / IP line comes in through \"Import line (CSV / .dat)…\" in the sidebar: a CSV, or a contractor TDIP .dat / .ipg file.")}</div>}
           <div style={{ marginBottom: 12 }}>{tr("Point-cloud surveys (mag, IP, gravity, radiometrics), gridded geophysics, terrain and boundary geometry. Drag a CSV, GeoTIFF, Geosoft")}{" "}<code>.gxf</code>, <code>.ply</code>/<code>.dxf</code>{" "}{tr("or")}{" "}<code>.xyz</code>{" "}{tr("here, or use the buttons on the left — the")}{" "}<b>i</b>{" "}{tr("beside the button lists exactly what each format does on import.")}</div>

@@ -73,7 +73,7 @@ const ProjectKmzDialog = React.lazy(() => import("./components/ProjectKmzDialog.
 // TASKS.csv #749 — tabs that were folded into another: a menu item / link naming one opens its new home
 const TAB_ALIAS = { raster: "maps", cartography: "maps", predictive: "modelling", modeling: "modelling" }; // predictive: #750; modeling: the tab id before the British spelling (2026-10-19)
 const MODULES = [
-  { id: "viewer", label: "3D View", icon: Box },
+  { id: "viewer", label: "StrixViewer", icon: Box, tip: "StrixViewer: your project in 3D" }, // TASKS.csv #3894: one word, never translated
   // TASKS.csv #820 — Matt: "a new tab named Surface Geology ... the mapping workflow in this new tab. I'm thinking of eventually
   // expanding to soils with anomaly detection". The 3D view in a "surface" mode: geology maps, outcrop structures.
   { id: "surface", label: "Geological Mapping", icon: Compass },
@@ -603,7 +603,7 @@ export default function App() {
               aria-current={active === m.id ? "page" : undefined} // TASKS.csv #388
               onClick={() => !m.disabled && setActive(m.id)}
               disabled={m.disabled}
-              title={m.disabled ? tr("Coming soon") : undefined}
+              title={m.disabled ? tr("Coming soon") : m.tip ? tr(m.tip) : undefined}
               style={m.disabled ? { opacity: 0.45, cursor: "default" } : undefined}
             >
               <Icon size={14} /> {tr(m.label)}

@@ -300,7 +300,7 @@ export async function parseGeoTIFF(file, { bandFn = null, samples = null, maxSid
     const advice = unreadableFormatAdvice(file.name); // TASKS.csv #2847 — a .gdb (or .ecw ...) given to the GeoTIFF input: what it is and the way out
     if (advice) throw new Error(advice);
     throw new Error(/\.(csv|txt|xlsx?|tsv)$/i.test(file.name || "")
-      ? tr("\"{name}\" is not a TIFF, .gxf or .grd: a table goes to Geochem (surface samples) or the 3D View (collars and logs).", { name: file.name })
+      ? tr("\"{name}\" is not a TIFF, .gxf or .grd: a table goes to Geochem (surface samples) or StrixViewer (collars and logs).", { name: file.name })
       : tr("\"{name}\" is not a TIFF, .gxf or .grd file (its first bytes are not a TIFF header).", { name: file.name }));
   }
   try {

@@ -167,7 +167,7 @@ export async function loadWaSampleExtras(which, readFile, store, { existingEleme
       const unitOf = new Map((existingSurfaceElements || []).map((e) => [e.symbol, e.unit]));
       store.setSurfaceSamples((prev) => mergeSurfaceSamples(prev || [], all).samples);
       store.setSurfaceElements((prev) => mergeElements(prev, [...els.values()], unitOf));
-      notes.push(notice("{name} surface samples: {list} — shown in the 3D View and the Geochem tab.", { name: S.label, list: counts.join(", ") }));
+      notes.push(notice("{name} surface samples: {list} — shown in StrixViewer and the Geochem tab.", { name: S.label, list: counts.join(", ") }));
     } catch (e) { notes.push(errorNotice(tr("The {name} surface samples could not be loaded: {message}", { name: S.label, message: e.message }))); }
   }
   if (S.logs) {
@@ -179,7 +179,7 @@ export async function loadWaSampleExtras(which, readFile, store, { existingEleme
         store.addCustomLayer({ id: `custom_${which}_${channel}_${Date.now()}`, name, rows, ...(unit ? { unit } : {}) });
         made.push(`${name} (${rows.length.toLocaleString()})`);
       }
-      notes.push(notice("{name} downhole logs: {list} — along the holes in the 3D View, in Geophysics > Downhole logs and among the modelling tools' numeric sources.", { name: S.label, list: made.join(", ") }));
+      notes.push(notice("{name} downhole logs: {list} — along the holes in StrixViewer, in Geophysics > Downhole logs and among the modelling tools' numeric sources.", { name: S.label, list: made.join(", ") }));
     } catch (e) { notes.push(errorNotice(tr("The {name} downhole logs could not be loaded: {message}", { name: S.label, message: e.message }))); }
   }
   if (S.grid) {

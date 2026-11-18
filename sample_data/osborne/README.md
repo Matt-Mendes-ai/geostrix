@@ -1,7 +1,7 @@
 # Osborne mine airborne magnetics (Mt Isa Inlier, Queensland): a sample with no drillholes
 
 Real public data: the total-field magnetic anomaly of Geoscience Australia's airborne survey P1029 over the Osborne mine area, as
-processed and published for the Fatiando a Terra documentation by Leonardo Uieda. Open it from the empty 3D View ("Sample: Osborne magnetics") or File > Open Sample
+processed and published for the Fatiando a Terra documentation by Leonardo Uieda. Open it from the empty StrixViewer ("Sample: Osborne magnetics") or File > Open Sample
 Project. It loads a magnetic point survey and a value grid.
 
 - **`osborne_magnetic.csv`**: 24,927 flight-line readings, one in 40 of each of the 307 flight lines of the survey's 990,987 readings around the

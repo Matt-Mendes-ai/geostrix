@@ -46,7 +46,7 @@ export function decideLight(name = probeRendererName(), pref = readPref()) {
 // the notice at the start: what was found and how to change it (null when light drawing is off, or was asked for)
 export function lightDrawingNotice(name = probeRendererName(), pref = readPref()) {
   if (!light || pref === "on") return null;
-  return notice("Software rendering detected ({name}): the 3D View draws fewer triangles (assays along the hole, simpler solids, coarser detail from afar). A graphics driver update restores full drawing; the Drawing choice in the sidebar changes this.", { name: name || "no graphics driver" });
+  return notice("Software rendering detected ({name}): the 3D view draws fewer triangles (assays along the hole, simpler solids, coarser detail from afar). A graphics driver update restores full drawing; the Drawing choice in the sidebar changes this.", { name: name || "no graphics driver" });
 }
 
 // the 3D View's renderer: its draw counts are read from here (window.__geostrixRenderInfo, the problem report, tests)

@@ -4,7 +4,7 @@ Real public data from the Geological Survey of Canada: the gravity compilation *
 between 1974 and 2008; Geological Survey of Canada Open File 5981), as downloaded from Natural Resources Canada's geophysical data
 repository in November 2026. The Blake River Group is a volcanic belt of the Abitibi greenstone belt, around Rouyn-Noranda.
 
-Open it from the empty 3D View ("Sample: Blake River gravity") or File > Open Sample Project. It loads:
+Open it from the empty StrixViewer ("Sample: Blake River gravity") or File > Open Sample Project. It loads:
 
 - **`bouguer_100m.grd`**: the published Bouguer anomaly grid, 767 × 424 nodes at 100 m, NAD83 / UTM zone 17N (EPSG:26917), in mGal,
   -65.6 to -31.7. **As delivered, byte for byte** (a Geosoft grid; GeoStrix reads it under Maps > GeoTIFF / GXF). It becomes a
@@ -15,7 +15,7 @@ Open it from the empty 3D View ("Sample: Blake River gravity") or File > Open Sa
 
 Things to try: Maps (stretch, contours, the first vertical derivative and the other filters of the grid); Geophysics > Point survey
 (grid the stations yourself and compare with the published grid; import `stations.csv` again to bring in the free-air anomaly or the
-observed gravity instead); the 3D View (the grid is drawn at the stations' median elevation).
+observed gravity instead); StrixViewer (the grid is drawn at the stations' median elevation).
 
 ## What is real, and what was done to it
 

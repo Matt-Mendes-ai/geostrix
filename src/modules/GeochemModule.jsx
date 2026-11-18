@@ -1215,7 +1215,7 @@ export default function GeochemModule() {
     if (sampleDates.ambiguous.length) setNotices((p) => [...p, tr("{fileName}: {cols} kept as written: every date there could be day/month or month/day.", { fileName: modal.fileName, cols: sampleDates.ambiguous.join(", ") })]); // #3200, as collars (#3075)
     const back = goBackAfterSurface(); // #3046 (1) — the notice says where the samples are seen
     setNotices((p) => [...p, back ? notice(chosen.length === 1 ? "Loaded {rows} surface samples (1 element): back on the Geological Mapping tab, where they are drawn.{v}" : "Loaded {rows} surface samples ({chosen} elements): back on the Geological Mapping tab, where they are drawn.{v}", { rows: rows.length, chosen: chosen.length, v: extra ? " " + extra : "" })
-      : notice(chosen.length === 1 ? "Loaded {rows} surface samples (1 element). Switch to 3D View to see them.{v}" : "Loaded {rows} surface samples ({chosen} elements). Switch to 3D View to see them.{v}", /* #2201 */ { rows: rows.length, chosen: chosen.length, v: extra ? " " + extra : "" })]);
+      : notice(chosen.length === 1 ? "Loaded {rows} surface samples (1 element). Switch to StrixViewer to see them.{v}" : "Loaded {rows} surface samples ({chosen} elements). Switch to StrixViewer to see them.{v}", /* #2201 */ { rows: rows.length, chosen: chosen.length, v: extra ? " " + extra : "" })]);
     setSurfaceModal(null);
   };
 
@@ -1311,7 +1311,7 @@ export default function GeochemModule() {
     const bdlText = bdlN ? tr(" {n} sample(s) were not classified: a below-detection operand is not a measurement ({list}).", { n: bdlN, list: Object.entries(bdlLeft).sort((x, y) => y[1] - x[1]).map(([k, n]) => tr("{el} below detection in {n}", { el: k, n })).join(", ") }) : "";
     const sedText = sedN && volcanic ? tr(" {n} sample(s) were not classified: their logged codes were not ticked as volcanic ({codes}); this classifier is for volcanic rocks.", { n: sedN, codes: Object.entries(sedSkipped).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k}${codeMeaning(k)} ${n}`).join(", ") }) /* #2352 */ : sedN ? tr(" {n} sample(s) in logged sedimentary or carbonate codes ({codes}) were not classified: this classifier is for volcanic rocks.", { n: sedN, codes: Object.entries(sedSkipped).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k}${codeMeaning(k)} ${n}`).join(", ") }) : "";
     const jensenText = methodKey === "litho_jensen" ? tr(" The classes are a simplified threshold split of the cation ternary, not the published Jensen fields.") : "";
-    setNotices((p) => [...p, notice(runs.length ? (collars.length ? "Generated {rows} intervals from {n} samples → {v} layer (touching samples of one class are joined).{detail} Switch to 3D View to see it." : "Generated {rows} intervals from {n} samples → {v} layer (touching samples of one class are joined).{detail} No collars are loaded, so they cannot be drawn until collars with these hole ids are imported.") /* #1800 */ : "No interval was generated from {n} samples, so the {v} layer is empty.{detail}", { rows: runs.length, n: rows.length, v: method.target === "litho" ? tr("Lithology (geochem)") : tr("Alteration (geochem)"), detail: (fitted ? (countList ? ` ${countList}.` : "") + fitText + tr(" Screening level.") : detail) + trendText + sedText + bdlText + jensenText })]); // fitted: #2028; trendText: #2145; bdlText: #2501
+    setNotices((p) => [...p, notice(runs.length ? (collars.length ? "Generated {rows} intervals from {n} samples → {v} layer (touching samples of one class are joined).{detail} Switch to StrixViewer to see it." : "Generated {rows} intervals from {n} samples → {v} layer (touching samples of one class are joined).{detail} No collars are loaded, so they cannot be drawn until collars with these hole ids are imported.") /* #1800 */ : "No interval was generated from {n} samples, so the {v} layer is empty.{detail}", { rows: runs.length, n: rows.length, v: method.target === "litho" ? tr("Lithology (geochem)") : tr("Alteration (geochem)"), detail: (fitted ? (countList ? ` ${countList}.` : "") + fitText + tr(" Screening level.") : detail) + trendText + sedText + bdlText + jensenText })]); // fitted: #2028; trendText: #2145; bdlText: #2501
     { const pd = partialDigestionFor(assayElements, method.requires); if (pd.length) setNotices((p) => [...p, notice("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pd.map(([s, m]) => `${s} ${m}`).join(", ") })]); } // #1518
   };
 
@@ -1637,7 +1637,7 @@ export default function GeochemModule() {
           </div>
           {/* TASKS.csv #619 — filter by logged lithology (the 3D View's lithology log, matched by largest overlap) */}
           <div style={{ position: "relative", display: "flex", gap: 6, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{tr("Lithology:")}<button type="button" onClick={() => setLithMenuOpen((o) => !o)} disabled={!hasLithLog || !assays.length} aria-expanded={lithMenuOpen} aria-haspopup="true"
-              title={hasLithLog ? tr("Plot only samples from the chosen logged lithologies") : tr("Load a lithology log in the 3D View to filter by it")}
+              title={hasLithLog ? tr("Plot only samples from the chosen logged lithologies") : tr("Load a lithology log in StrixViewer to filter by it")}
               style={{ ...selectStyle, padding: "5px 8px", cursor: hasLithLog ? "pointer" : "not-allowed", opacity: hasLithLog ? 1 : 0.55 }}>
               {!hasLithLog ? tr("no log loaded") : !lithFilter ? tr("all ({lithCounts})", { lithCounts: lithCounts.length }) : tr("{size} of {lithCounts} selected", { size: lithFilter.size, lithCounts: lithCounts.length })} ▾
             </button>
@@ -1701,7 +1701,7 @@ export default function GeochemModule() {
               footnote={tr("An assay CSV needs a hole ID, from/to depths and one column per element. A table with x/y (easting / northing) and no from/to opens as surface samples instead.")}
             >
               <div style={{ marginBottom: 12 }}>{tr("Ternary, bivariate and REE-spider diagrams over your assay or pXRF data, plus alteration indices, correlation matrices, QAQC and downhole compositing. Import a file to start plotting.")}</div>
-              {surfaceSamples.length > 0 && <div style={{ marginBottom: 12 }}>{tr("Your surface samples are used by Thresholds, Grade stats, Correlation, Calc. element, SQL, Domains, Catchments and Surface QAQC in the ribbon above, and are drawn in the 3D View and on the Maps tab.")}</div>}{/* #1086 */}
+              {surfaceSamples.length > 0 && <div style={{ marginBottom: 12 }}>{tr("Your surface samples are used by Thresholds, Grade stats, Correlation, Calc. element, SQL, Domains, Catchments and Surface QAQC in the ribbon above, and are drawn in StrixViewer and on the Maps tab.")}</div>}{/* #1086 */}
             </EmptyState>
           </div>
         ) : (

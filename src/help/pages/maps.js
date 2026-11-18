@@ -8,7 +8,7 @@ export default [
     notFor: [
       "Claims that need a tenure number, status and expiry date go to Mineral claims / tenure.",
       "A boundary keeps no attributes and is not coloured by unit. A geology map, or any layer whose attributes matter, goes to Geological Mapping > Geology map; MapInfo .tab / .mif files are read there, not here.",
-      "From a DXF only lines, polylines and points are read (plan-view CAD); 3D solids, text and blocks are not. Points in a KML, GPX or GeoJSON are not boundaries: they come in through the 3D View importer or Geological Mapping.",
+      "From a DXF only lines, polylines and points are read (plan-view CAD); 3D solids, text and blocks are not. Points in a KML, GPX or GeoJSON are not boundaries: they come in through StrixViewer importer or Geological Mapping.",
     ],
     fields: [
       { name: "Import boundary (.ply / .dxf / .zip / .shp / .gpkg / .kml / .gpx / .geojson)…", what: "Reads one or more files. KML, KMZ, GPX and GeoJSON are reprojected from WGS 84 (or a GeoJSON's stated CRS); a shapefile or GeoPackage is reprojected from its own CRS when it states one; .ply and DXF files are taken as already in the project CRS. A DXF becomes one boundary per layer and keeps its elevations.", choose: "Select every outline file at once. Read the message: it says for each file whether it was reprojected or taken as the project's coordinates." },
@@ -21,7 +21,7 @@ export default [
       { says: "claims.shp: it states no CRS: the coordinates were taken as EPSG:26909, check where it lies", means: "The shapefile has no .prj (or the GeoPackage no CRS), so GeoStrix assumed the project's coordinate system.", do: "Check the boundary lands around your data. If not, find out the file's CRS, reproject it, or move it with Maps > A layer." },
       { says: "claims.shp: its .prj names a CRS GeoStrix does not recognize: the coordinates were taken as EPSG:26909, check where it lies", means: "The file states a coordinate system GeoStrix cannot convert, so it was not reprojected.", do: "Reproject the file in your GIS to the project CRS, or move it with Maps > A file before importing." },
       { says: "drift_plan.dxf: every string had elevation 0, read as a 2D plan", means: "The DXF had no elevations, so it is drawn at the Elev. value or on the terrain.", do: "Nothing for a plan drawing. Tick Drape on terrain or set Elev." },
-      { says: "No lines or polygons found in this KML (points are imported through the 3D View importer).", means: "The KML holds only placemarks (points).", do: "Import the points through the 3D View, or use Geological Mapping > Geology map." },
+      { says: "No lines or polygons found in this KML (points are imported through StrixViewer importer).", means: "The KML holds only placemarks (points).", do: "Import the points through StrixViewer, or use Geological Mapping > Geology map." },
       { says: "Failed: claims_b.shp (unreadable)", means: "One or more files could not be read; each is named with the reason.", do: "Fix or re-export the named file; the other files were imported." },
     ],
     howto: {
@@ -29,7 +29,7 @@ export default [
       steps: [
         "Maps > Boundaries > Import boundary (.ply / .dxf / .zip / .shp / .gpkg / .kml / .gpx / .geojson)…, and select one or more outline files.",
         "Read the message: how each file's coordinates were handled.",
-        "Check in the 3D View that each boundary lands around your holes or surveys. If one is far away, its CRS was missing or wrong.",
+        "Check in StrixViewer that each boundary lands around your holes or surveys. If one is far away, its CRS was missing or wrong.",
         "Load a terrain (Maps > Terrain) and tick Drape on terrain, or set Elev.",
         "Give each boundary a Colour; hide the ones you are not using with the eye.",
       ],

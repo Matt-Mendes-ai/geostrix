@@ -921,7 +921,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
       grid: { nx: r.grid.nx, ny: r.grid.ny, x0: r.grid.x0, yTop: r.grid.yTop, dx: r.grid.dx, dy: r.grid.dy, values: f32ToB64(r.grid.values), valid: r.cells },
       provenance: { tool: "Isopach between two explicit tops (the vertical distance from the upper top down to the next top under it, per map cell; negative where they cross)", upper: def.name, lower: pileBase.name, cellM, cells: r.cells, negativeCells: r.negativeCells, volumeM3: Math.round(r.volumeM3), ...(r.supported ? { supportedVolumeM3: Math.round(r.supported.volumeM3) } : {}) },
     });
-    setIsoNote({ warn: r.negativeCells > 0, text: tr("Thickness from \"{upper}\" down to \"{lower}\": {min} to {max} m, mean {mean} m, over {n} cells of {c} m; {v} m³ over the area both cover. It is in Maps > GeoTIFF / GXF and the 3D View.", { upper: def.name, lower: pileBase.name, min: r.min.toFixed(1), max: r.max.toFixed(1), mean: r.mean.toFixed(1), n: r.cells.toLocaleString(), c: cellM, v: m3(r.volumeM3) })
+    setIsoNote({ warn: r.negativeCells > 0, text: tr("Thickness from \"{upper}\" down to \"{lower}\": {min} to {max} m, mean {mean} m, over {n} cells of {c} m; {v} m³ over the area both cover. It is in Maps > GeoTIFF / GXF and StrixViewer.", { upper: def.name, lower: pileBase.name, min: r.min.toFixed(1), max: r.max.toFixed(1), mean: r.mean.toFixed(1), n: r.cells.toLocaleString(), c: cellM, v: m3(r.volumeM3) })
       + (r.supported ? ` ${tr("Inside both tops' inputs (where neither is extrapolated): {v} m³ over {n} cells.", { v: m3(r.supported.volumeM3), n: r.supported.cells.toLocaleString() })}` : "")
       + (r.negativeCells ? ` ${tr("In {n} cells the lower top is above the upper one (they cross): the map keeps the negative thickness, the volume counts them as 0.", { n: r.negativeCells.toLocaleString() })}` : "")
       + (r.coarsened ? ` ${tr("The cell was enlarged to {c} m to keep the map under {max} cells.", { c: cellM, max: (1000000).toLocaleString() })}` : "") });
@@ -1022,7 +1022,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   const mapOpen = !!def?.mapContacts?.length;
   const settingsOpen = !!def && (def.margin != null || def.extent === "hull" /* #2921 */ || (!!def.shape && def.shape !== "auto") || (!!def.resolution && def.resolution !== 80));
   const dxfStrings = def ? (def.lines || []).filter((l) => l.pts?.length >= 2 && l.imageId === "dxf").length : 0; // #2057, as the build line counts them (#1959)
-  const lineHint = def ? tr("To draw this surface on a section: 3D View > Draw section, then in the section window pick \"{name}\" under Explicit surfaces, draw the line and press Save contacts. The surface passes exactly through every such line.", { name: def.name }) : ""; // TASKS.csv #884
+  const lineHint = def ? tr("To draw this surface on a section: StrixViewer > Draw section, then in the section window pick \"{name}\" under Explicit surfaces, draw the line and press Save contacts. The surface passes exactly through every such line.", { name: def.name }) : ""; // TASKS.csv #884
   const row = { display: "flex", alignItems: "center", gap: 6, marginBottom: 6 };
   return (
     <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
@@ -1080,7 +1080,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         )}
         {pileBase && ( // TASKS.csv #3113 — the thickness map down to the next explicit top under this one
           <div style={{ marginBottom: 6 }}>
-            <button onClick={isopachMap} title={tr("The vertical distance from this top down to \"{lower}\" (the next top under it in the holes' order) in every map cell both surfaces cover, as a map in Maps > GeoTIFF / GXF and the 3D View, with the volume.", { lower: pileBase.name })}
+            <button onClick={isopachMap} title={tr("The vertical distance from this top down to \"{lower}\" (the next top under it in the holes' order) in every map cell both surfaces cover, as a map in Maps > GeoTIFF / GXF and StrixViewer, with the volume.", { lower: pileBase.name })}
               style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Thickness map down to {lower}", { lower: pileBase.name })}</button>
             {isoNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginTop: 3, color: isoNote.warn ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{isoNote.text}</div>}
             {(keptBelow.length > 0 || pileRun) && ( // TASKS.csv #3115
@@ -1102,7 +1102,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         {/* TASKS.csv #883 — every pick says where it landed (a click on the terrain or another surface is not a contact) */}
         {def.picks.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-muted)" }}>{tr("Last pick: {what}", { what: pickLabel(def.picks[def.picks.length - 1]) })}</div>}
         {/* TASKS.csv #863 — after a build, what the surface is for */}
-        {shownStatus?.built && <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-muted)" }}>{tr("Next: Solid blocks from surfaces (under Generated surfaces) fills the units between your contacts, and 3D View > Draw section shows this surface cut. A closed body from outlines drawn on sections: Link into a solid, also under Generated surfaces.")}</div>}
+        {shownStatus?.built && <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-muted)" }}>{tr("Next: Solid blocks from surfaces (under Generated surfaces) fills the units between your contacts, and StrixViewer > Draw section shows this surface cut. A closed body from outlines drawn on sections: Link into a solid, also under Generated surfaces.")}</div>}
         {/* TASKS.csv #830 / #831 / #832 — unit, layer, upper / lower contact */}
         <details open={unitOpen} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 6, marginBottom: 6 }}>
           <summary style={{ fontWeight: 600, marginBottom: 4, cursor: "pointer" }}>{tr("Unit, layer and contact")}</summary>
@@ -1221,7 +1221,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         <details open={digOpen} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 6, marginBottom: 6 }}>
           <summary style={{ fontWeight: 600, marginBottom: 4, cursor: "pointer" }}>{tr("Digitize a section image")}</summary>
           {!images.length ? (
-            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Import a hand-drawn or scanned cross-section and georeference it (3D View sidebar > Section images) to draw this surface's contact on it here.")}</div>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Import a hand-drawn or scanned cross-section and georeference it (StrixViewer sidebar > Section images) to draw this surface's contact on it here.")}</div>
           ) : (<>
             <div style={row}>
               <select value={digImage?.id || ""} onChange={(e) => { setDigImageId(e.target.value); setDigPts([]); }} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Section image")}>

@@ -33,7 +33,7 @@ export default function LidarImportBox({ pending, projectEpsg, busy, onImport, o
       {lv && <div style={{ color: "var(--color-text-secondary)", marginTop: 4 }}>{tr("A COPC file: the first {d} of its {levels} octree levels are read ({read} of {all} points), an even thinning over the whole area.", { d: lv.maxDepth + 1, levels: lv.levels, read: n(lv.points), all: n(lv.allPoints) })}</div>}
       {info.kind === "LAZ" && h.pointCount > 2e7 && <div style={{ color: "var(--color-text-secondary)", marginTop: 4 }}>{tr("Every point of a LAZ file has to be decoded: about {s} s for this one on a recent desktop (a COPC copy of it would be read a level at a time).", { s: Math.round(h.pointCount / 1.2e6) })}</div>}
       <label style={row}><input type="checkbox" checked={wantTerrain} onChange={(e) => setWantTerrain(e.target.checked)} />{tr("Terrain from the ground points (class 2)")}</label>
-      <label style={row}><input type="checkbox" checked={wantCloud} onChange={(e) => setWantCloud(e.target.checked)} />{tr("Point cloud in the 3D View")}</label>
+      <label style={row}><input type="checkbox" checked={wantCloud} onChange={(e) => setWantCloud(e.target.checked)} />{tr("Point cloud in StrixViewer")}</label>
       {wantCloud && (
         <div style={{ paddingLeft: 20 }}>
           <div style={row}>{tr("Points drawn")}

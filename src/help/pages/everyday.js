@@ -3,9 +3,9 @@
 export default [
   {
     id: "view-basics",
-    area: "3D View",
+    area: "StrixViewer",
     title: "3D view basics",
-    summary: "How to move around the 3D view, colour the holes by an assay, show only the holes you want, read a value, measure, cut a section and open a strip log. Most of it is a mouse gesture or a button of the 3D View ribbon; the Shortcuts list (the status bar's ? button, then Keyboard shortcuts) has every key.",
+    summary: "How to move around the 3D view, colour the holes by an assay, show only the holes you want, read a value, measure, cut a section and open a strip log. Most of it is a mouse gesture or a button of StrixViewer ribbon; the Shortcuts list (the status bar's ? button, then Keyboard shortcuts) has every key.",
     notFor: [
       "It does not import data: for the collars, surveys, logs and assays see Import drillhole data and Import assays.",
       "The mouse controls here are the 3D view's; Ctrl+= and Ctrl+- change the window's text size, not the view's zoom.",
@@ -55,7 +55,7 @@ export default [
       { name: "Weight grades by", what: "Shown when the project has a Specific gravity layer. Length: each sample counts by its metres. Length × density: each sample counts by its metres times its density, as a core shack reports a massive-sulphide interval; a sample with no density takes the mean density of the others in the composite. The composite's limits do not change, only its grade.", choose: "Length × density where densities vary a lot between samples (massive sulphide against its host); Length otherwise. The result says which was used and how many composites had no density." },
       { name: "Short end piece (and when under (m))", what: "What happens to the short piece left at the end of a hole, or of a domain interval, when its length is not a whole number of composites: Keep leaves it as a shorter composite, Add to the composite above makes that one a little longer, Drop leaves it out. With the last two, when under (m) is how short a piece must be to be treated, and the result counts the pieces.", choose: "Keep for a report that must show every metre; Add to the composite above for an estimation input where equal support matters and no metre should be lost; Drop only knowing the metres go." },
       { name: "Also composite:", what: "Shown when there is more than one element. Ticks other elements to composite in the same run on the same windows: one table with each element's grade and coverage, and the density.", choose: "Tick the elements you will report or estimate together. A window with a value for an element other than the first, but none for the first, is in the table but not in the layer Keep as a layer makes, and the message says how many." },
-      { name: "Keep as a layer in the project", what: "Adds the composites to the project as one numeric layer: the value is the first element, with a field for each element, its coverage and the density. The 3D View colours it by any field, and Estimation, the Grade shell, Geochem X-Y and Grade statistics read it. A composite with no value for the first element is not kept, and the message says how many.", choose: "Use it to carry exactly these composites into Estimation or a shell, so they are the same ones you reported." },
+      { name: "Keep as a layer in the project", what: "Adds the composites to the project as one numeric layer: the value is the first element, with a field for each element, its coverage and the density. StrixViewer colours it by any field, and Estimation, the Grade shell, Geochem X-Y and Grade statistics read it. A composite with no value for the first element is not kept, and the message says how many.", choose: "Use it to carry exactly these composites into Estimation or a shell, so they are the same ones you reported." },
       { name: "Export composites (CSV)", what: "Writes the table as it is: hole, from, to, length, each element's grade in its unit, coverage and the density, with the settings in the header lines when stamps are on.", choose: "Export after the last change to the settings; the file does not update." },
     ],
     warnings: [
