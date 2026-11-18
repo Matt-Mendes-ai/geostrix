@@ -44,3 +44,31 @@ test("#3906 with Basic tools an empty sidebar section waits for All tools; the B
   assert.match(dock, /\{open && \(<>/);
   assert.match(dock, /const DbBrowserPanel = React\.lazy\(/);
 });
+
+// The tools a ribbon shows with Basic tools, read from its JSX: a group or tool marked advanced is left out; `noHoles` is false (a project
+// with drillholes, where the most show). A tool shown only under a condition counts, as the worst case.
+function basicTools(src, start) {
+  const a = src.indexOf(start), b = src.indexOf("</Ribbon>", a);
+  assert.ok(a >= 0 && b > a, start);
+  const adv = (attrs) => { const m = attrs.match(/\badvanced(?:=\{([^}]*)\})?/); return !!m && m[1] !== "noHoles"; }; // bare, or {!noHoles} with holes
+  const out = [];
+  for (const g of src.slice(a, b).matchAll(/<RibbonGroup([^>]*)>([\s\S]*?)<\/RibbonGroup>/g)) {
+    if (adv(g[1])) continue;
+    for (const t of g[2].matchAll(/<RibbonButton\b([\s\S]*?)\/>|<div className=(\{`ge-ribbon-cell\$\{noHoles \? " ge-adv" : ""\}`\}|"ge-ribbon-cell(?: ge-adv)?")>\s*(?:\{\/\*[\s\S]*?\*\/\}\s*)?<HoverToolInfo title=\{tr\("([^"]+)"\)\}/g)) {
+      if (t[1] !== undefined) { if (!adv(t[1])) out.push(t[1].match(/label=(?:"([^"]+)"|\{tr\("([^"]+)")/)?.slice(1).find(Boolean)); }
+      else if (!t[2].includes('"ge-ribbon-cell ge-adv"')) out.push(t[3]);
+    }
+  }
+  return out;
+}
+
+test("the Basic-tools budget: the StrixViewer ribbon shows nine tools or fewer (a new tool is Advanced unless added to this list on purpose)", () => {
+  const list = basicTools(rd("src/modules/viewer/ViewerParts.jsx"), '<Ribbon show={show} label="StrixViewer tools">');
+  assert.deepEqual(list, ["Add data", "Draw cross-section", "Identify", "Measure", "Data table", "Run data QC", "Best intercepts", "Snapshot to Layout", "Export drillholes"]);
+  assert.ok(list.length <= 9);
+});
+
+test("the Basic-tools budget: the Layout ribbon shows nine tools or fewer", { todo: "P9 (one-click sheets) puts Text, Legend, Title block, North arrow, Scale bar and Collar table under one Add button; LayoutModule.jsx is not in P3's files" }, () => {
+  const list = basicTools(rd("src/modules/LayoutModule.jsx"), '<Ribbon label="Layout tools">');
+  assert.ok(list.length <= 9, `${list.length}: ${list.join(", ")}`);
+});
