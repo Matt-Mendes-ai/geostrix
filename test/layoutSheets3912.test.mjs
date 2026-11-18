@@ -77,3 +77,10 @@ test("#3912 wiring: Hole log lays out the newest strip log on portrait paper", (
   assert.match(m, /addPagesOnPaper\(addLayoutPages, setLayoutPageFormat, \[\{ name, elements: res\.elements \}\], res\.format \|\| fmt\);/);
   assert.match(m, /label="Hole log" tone="output" disabled=\{!sheetSrc\.log\}[^\n]*onClick=\{\(\) => makeSheet\("log"\)\}/);
 });
+
+test("#3912 wiring: Intercepts table lays out the newest Best intercepts table; the four sheets lead the ribbon in order", () => {
+  const m = read("../src/modules/LayoutModule.jsx");
+  assert.match(m, /if \(kind === "intercepts"\) \{ res = interceptsSheet\(\{ format: fmt, credit: credits, source: sheetSrc\.intercepts, stamp \}\); name = tr\("Intercepts table"\); \}/);
+  const g = m.slice(m.indexOf('<RibbonGroup label="Sheets">'), m.indexOf('<RibbonGroup label="Insert">'));
+  assert.deepEqual([...g.matchAll(/label="([^"]+)"/g)].map((x) => x[1]).filter((l) => l !== "Sheets"), ["Plan map", "Cross-section", "Hole log", "Intercepts table"]);
+});
