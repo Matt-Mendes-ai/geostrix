@@ -1,0 +1,4 @@
+{
+  "about": "TASKS.csv #3897: features that are built but switched off. The native menu (electron/main.js) and the app (src/lib/features.js, through vite.config.js) both read this file, so one value turns a feature on or off everywhere.",
+  "mineDesign": false
+}

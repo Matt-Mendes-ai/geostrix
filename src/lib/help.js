@@ -4,6 +4,8 @@
 
 // The English pane title (as passed to TaskPaneHeader / paneHeader) -> help page id. test/help1966 checks that every pane title in
 // the source has an entry here and that every id has a page.
+import { MINE_DESIGN_ENABLED } from "./features.js"; // TASKS.csv #3897
+
 export const PANE_HELP = {
   // Geophysics
   "Mag / gravity inversion (SimPEG)": "mag-grav-inversion",
@@ -87,7 +89,8 @@ export const PANE_HELP = {
 };
 
 // The order the contents list shows the areas in
-export const HELP_AREAS = ["Getting started", "Geophysics", "Maps", "Mine Design", "3D Modelling", "StrixViewer", "Geochem", "Layout", "Geological Mapping", "Targeting"];
+export const HELP_AREAS = ["Getting started", "Geophysics", "Maps", "Mine Design", "3D Modelling", "StrixViewer", "Geochem", "Layout", "Geological Mapping", "Targeting"]
+  .filter((a) => a !== "Mine Design" || MINE_DESIGN_ENABLED); // TASKS.csv #3897 — Mine Design switched off
 
 export const helpIdForPane = (title) => PANE_HELP[title] || null;
 

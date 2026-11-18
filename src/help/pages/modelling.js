@@ -1,4 +1,5 @@
 // TASKS.csv #1966 — 3D Modelling tab pages of the offline help (see src/help/content.js for the page format)
+import { MINE_DESIGN_ENABLED } from "../../lib/features.js"; // TASKS.csv #3897 — no pointer to a switched-off tool
 export default [
   {
     id: "model-settings",
@@ -360,7 +361,7 @@ export default [
       "Not a Mineral Resource under NI 43-101 or JORC, and not to be reported as one: there is no classification, dilution or recovery.",
       "A shell around one hole is the interpolator's shape, not the rock's. Min holes is there to stop one hole from making a sphere of mineralization.",
       "A closed shell's volume is only measured where the grade closes it. Where Close shell artificially seals it at the search radius, the volume is your search radius.",
-      "To put grades in blocks for reporting or a pit shell, use Grade estimation.",
+      `To put grades in blocks for reporting${MINE_DESIGN_ENABLED ? " or a pit shell" : ""}, use Grade estimation.`,
     ],
     fields: [
       { name: "Element", what: "The assay element to model. Switching element clears the cap and proposes the 90th percentile of its lab assays as the cutoff.", choose: "Check the proposed cutoff against Geochem > Grade stats before using it." },
@@ -450,7 +451,7 @@ export default [
         "Press Estimate grade into block model…, choose Au and a method, and set the Search radius from that distance and the hole spacing.",
         "Set Min distinct holes per block to two or more and a High-grade cap from Geochem > Grade stats.",
         "Run estimation and read the summary: blocks estimated, single-hole blocks, data support.",
-        "Add as block model to see it in 3D and use it for a pit shell.",
+        `Add as block model to see it in 3D${MINE_DESIGN_ENABLED ? " and use it for a pit shell" : ""}.`,
       ],
     },
     related: ["grade-shell", "model-settings", "geoml", "block-models", "pit-shell", "grade-tonnage", "block-calculator", "unsampled-metres"],

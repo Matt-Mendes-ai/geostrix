@@ -1,5 +1,6 @@
 // The grade-tonnage table, the Block calculator and the choice of how unsampled metres are read, written from the notes the dialogs themselves carry (see src/help/content.js for the
 // page format). Density in block models is on the Grade-tonnage page, where the tonnes are made.
+import { MINE_DESIGN_ENABLED } from "../../lib/features.js"; // TASKS.csv #3897 — no pointer to a switched-off tool
 export default [
   {
     id: "grade-tonnage",
@@ -10,7 +11,7 @@ export default [
       "Not a Mineral Resource or Reserve under NI 43-101 or JORC: there is no classification, price, recovery, dilution or mining shape. Report nothing from it as a resource.",
       "The tonnes are only as good as the density. With no density the table gives blocks, volume and grade and leaves the tonnes out; the app never picks a density for you.",
       "A cutoff table of a model with only a few holes behind it describes the interpolator's blocks. Read the Interpolated and Beyond the samples columns before the tonnes.",
-      "For a pit-constrained figure use Pit shell; for blocks inside a stope outline use Stope outlines. This table counts every block of the model at or above each cutoff.",
+      (MINE_DESIGN_ENABLED ? "For a pit-constrained figure use Pit shell; for blocks inside a stope outline use Stope outlines. " : "") + "This table counts every block of the model at or above each cutoff.",
     ],
     fields: [
       { name: "Cutoffs (g/t, ppm or % — the model's unit)", what: "The grades the table is made at, typed as numbers separated by commas. The heading shows the unit of the model; precious metals stored in ppm are shown as g/t, the same number.", choose: "Choose cutoffs that bracket the grades that matter for your target, from the distribution in Geochem > Grade stats, not a round list. Several cutoffs show how fast tonnes fall away." },

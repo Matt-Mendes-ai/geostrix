@@ -13995,5 +13995,6 @@
   "Check the collar elevations, or try another terrain source or your own survey.": "Revise las elevaciones de los collares, o pruebe otra fuente de terreno o su propio levantamiento.",
   "Copernicus GLO-30 shows the ground as it was in 2011-2015: ground mined since then reads lower than in older terrain, and older collars can sit above it.": "Copernicus GLO-30 muestra el suelo tal como era en 2011-2015: el suelo explotado desde entonces aparece más bajo que en un terreno más antiguo, y los collares más antiguos pueden quedar por encima.",
   "Holes list": "Lista de sondajes",
-  "StrixViewer: your project in 3D": "StrixViewer: tu proyecto en 3D"
+  "StrixViewer: your project in 3D": "StrixViewer: tu proyecto en 3D",
+  "{n} stope solids from one run": "{n} sólidos de caserón de una misma corrida"
 }

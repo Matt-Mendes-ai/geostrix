@@ -1,5 +1,6 @@
 // Help pages for bringing drillhole data in and checking it: a first-project walk-through, the drillhole import dialog (collars, surveys, interval
 // layers), the assay import, the density layer and the drillhole data QA/QC (see src/help/content.js for the page format).
+import { MINE_DESIGN_ENABLED } from "../../lib/features.js"; // TASKS.csv #3897 — no pointer to a switched-off tool
 export default [
   {
     id: "first-project",
@@ -138,7 +139,7 @@ export default [
     ],
     fields: [
       { name: "Dogleg over", what: "The survey bend rate, in degrees per 30 m, above which a bend is warned about. A hole's bends are one row (its sharpest, with how many there are). A bend of under 2° is within what a survey tool reads and is not counted; 20° per 30 m or more, over at least 5°, is an error.", choose: "Ordinary deviated holes bend 3 to 7° per 30 m; set the level from your own drilling, and treat a short spacing rated over 10 m with care." },
-      { name: "Density (t/m³)", what: "The densities this project accepts, lowest and highest, 1 to 6 until you change it. A density outside it is flagged here and is left out of the density mean the tonnage tools use (Grade-tonnage, Pit shell, Stopes, a solid's tonnage), which say how many were left out. Kept with the project.", choose: "Raise the top for barite or massive sulphide; keep the bottom above the density of the lightest rock you log." },
+      { name: "Density (t/m³)", what: `The densities this project accepts, lowest and highest, 1 to 6 until you change it. A density outside it is flagged here and is left out of the density mean the tonnage tools use (${MINE_DESIGN_ENABLED ? "Grade-tonnage, Pit shell, Stopes, a solid's tonnage" : "Grade-tonnage, a solid's tonnage"}), which say how many were left out. Kept with the project.`, choose: "Raise the top for barite or massive sulphide; keep the bottom above the density of the lightest rock you log." },
       { name: "Collar vs terrain over", what: "How far a collar's elevation may differ from the terrain surface (in metres) before it is listed. The button beside it sets those collars to the terrain, and it can be undone.", choose: "Choose a level above your terrain model's own error; a coarse model flags honest collars." },
       { name: "Filter by category", what: "Shows only the issues of one category: Collars, Survey, a layer, Assays, Specific gravity and so on.", choose: "Work through one category at a time." },
       { name: "Export CSV", what: "Saves every issue with its severity, category, hole and message, and a header with the project, coordinate system, desurvey method and thresholds.", choose: "Use it to hand the list to the person who owns the data." },

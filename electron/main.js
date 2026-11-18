@@ -14,6 +14,7 @@ const dns = require("dns");
 const { spawn } = require("child_process");
 const { guardedFetch, validTileIndex } = require("./netGuard.js"); // TASKS.csv #350
 const sampleSources = require("./sampleSources.js"); // TASKS.csv #3100 — the BC samples, downloaded on request
+const FEATURES = require("./features.json"); // TASKS.csv #3897 — built features that are switched off (Mine Design); the app reads the same file
 // TASKS.csv #1983 — a Windows zone the bundled ICU cannot map (British Columbia's) left every time an hour behind: Node's TZ here,
 // and Chromium's override on each window below
 const { zoneOverride, applyToWebContents } = require("./timeZoneFix.js");
@@ -1579,6 +1580,7 @@ function buildMenu() {
         // worth its own menu entry — these round it out into something actually useful to reference.
         // TASKS.csv #565 — Ctrl+1..9 in the TAB STRIP's order (#820: Surface Geology is Ctrl+2) (was 4 of 8 tabs, and Ctrl+2 was the third tab)
         ...[["StrixViewer", "viewer"], ["Geological Mapping", "surface"] /* #820 */, ["3D Modelling", "modelling"], ["Geochem", "geochem"], ["Geophysics", "geophysics"], ["Targeting", "targeting"], ["Mine Design", "minedesign"] /* TASKS.csv #1341 */, ["Maps", "maps"], ["Layout", "layout"]]
+          .filter(([, id]) => id !== "minedesign" || FEATURES.mineDesign === true) // TASKS.csv #3897 — Mine Design switched off (electron/features.json)
           .map(([label, id], i) => ({ label: L(label), accelerator: `CmdOrCtrl+${i + 1}`, /* L(): #1119 */ click: () => mainWindow?.webContents.send("menu", `module-${id}`) })),
         { type: "separator" },
         // TASKS.csv #464 — development builds only. In the installed app Ctrl+R reloaded the renderer with
