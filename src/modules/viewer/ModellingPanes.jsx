@@ -9,6 +9,7 @@ import { Activity, Calculator, ChevronDown, ChevronRight, ChevronUp, Compass, Dr
 import { BLOCK_BUDGETS, ESTIMATION_METHODS, gradeShellBudgetNote, gradeShellBudgetMB, shellBudgetsFor, NUMERIC_CELL_DEFAULT } from "../../lib/estimationMeta.js"; // NUMERIC_CELL_DEFAULT: #3651 // gradeShellBudgetMB, shellBudgetsFor: #3581
 import { useMachineMemoryGB, fetchFits, fetchBudgetMB } from "../../lib/fetchMemory.js"; // TASKS.csv #3581 // gradeShellBudgetNote: #1416
 import InfoButton from "../../components/InfoButton.jsx";
+import TrendHelper from "./TrendHelper.jsx"; // TASKS.csv #3910 (redesign P8)
 import { anisotropyFor, cellHeightFromRange } from "../../lib/estimateMemory.js"; // TASKS.csv #3499; #3508
 import { PRECIOUS_METALS, gradeUnitLabel } from "../../lib/geochem.js"; // gradeUnitLabel: #2218
 import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
@@ -690,6 +691,7 @@ export default function ModellingPanes(props) {
 
         {/* TASKS.csv #650 — named structural trends (replaces the single unsaved "Anisotropy" on/off) */}
         <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Structural trends")}</div>
+        <TrendHelper structuralTrends={structuralTrends} setStructuralTrends={setStructuralTrends} sceneRef={sceneRef} camState={camState} structurePicks={structurePicksWithHoleAttitude} surfaceStructures={surfaceStructures} mapLayers={mapLayers} surfaces={implicitSurfaces.map((x) => ({ id: x.id, name: x.name }))} surfacePoints={(id) => { const geo = implicitMeshesRef.current[id]?.geometry; if (!geo) return []; const { vertices } = sceneVertsToWorldFlat(geo, originRef.current); const pts = []; for (let i = 0; i < vertices.length; i += 3) pts.push({ x: vertices[i], y: vertices[i + 1], z: vertices[i + 2] }); return pts; }} units={tiedUnits(litho_units, lithoGroups)} unitTopPoints={(code) => (topsOfUnit(code)?.tops || []).map((t) => sheetPositionAt(t.hole_id, t.md)).filter(Boolean)} sampleElements={shellSymbols} samplePoints={trendSamplePoints} drillingPoints={trendDrillingPoints} small={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }} inputStyle={smallSel} btnStyle={pBtn} /> {/* TASKS.csv #3910 (redesign P8) — the trend helper: candidates from the data, the disc preview, "I know my trend" */}
         <Suspense fallback={null}>
           <TrendsPanel structuralTrends={structuralTrends} setStructuralTrends={setStructuralTrends}
             structurePicks={structurePicksWithHoleAttitude}
