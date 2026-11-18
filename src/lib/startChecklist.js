@@ -4,7 +4,8 @@
 //    second import path);
 //  - the coordinate system in plain words.
 import { t as tr } from "./i18n.js";
-import { rowsOf } from "./rowTable.js"; // a layer or the assays can be a columnar Table (#3424): its length, and rows built on demand
+import { rowsOf } from "./rowTable.js";
+import { unreadableFormatAdvice } from "./unreadableFormats.js"; // TASKS.csv #3918 — a format GeoStrix knows it cannot read says so, with what to do // a layer or the assays can be a columnar Table (#3424): its length, and rows built on demand
 
 // ---------- dialog 1, the ground ----------
 // what a file dropped on the ground step is: "terrain" (a GeoTIFF, read by the terrain importer), "table" (a drill table: it belongs to step 2)
@@ -70,3 +71,34 @@ export function startChecklist(s = {}, { noDrill = false } = {}) {
 }
 // where "Done: show my project" goes: Maps when there is no drilling, else the 3D view
 export const startDestination = ({ noDrill = false, collars = 0 } = {}) => (noDrill || !collars ? "maps" : "viewer");
+
+// ---------- TASKS.csv #3918 (the start dialogs' follow-ups) ----------
+// Screen 3's "Check my data" line, from lib/dataQC.js's summary: fine, or how many things to look at (errors and warnings; notes do not count)
+export function qcLine(summary) {
+  if (!summary) return null;
+  const n = (Number(summary.error) || 0) + (Number(summary.warning) || 0);
+  if (!n) return tr("Check my data: your data looks fine.");
+  return tr(n === 1 ? "Check my data: {n} thing to look at. Data QC on the StrixViewer ribbon lists it." : "Check my data: {n} things to look at. Data QC on the StrixViewer ribbon lists them.", { n });
+}
+// a typed coordinate system: "32609", "EPSG:32609", "epsg 32609" -> 32609, else null
+export function parseEpsgInput(s) {
+  const m = /^\s*(?:epsg\s*[:\s]?\s*)?(\d{4,6})\s*$/i.exec(String(s ?? ""));
+  return m ? Number(m[1]) : null;
+}
+// "What is this?": what the 3D view's drop reads (lib/../modules/viewer/importPipelineImpl.js handleDrop) and the files that come with them
+const KNOWN = /\.(csv|zip|gpkg|shp|shx|dbf|prj|cpg|qml|kml|kmz|xlsx|las|laz|tiff?|tfw|tifw|aux|xml|gxf|grd|dxf|obj|ts|gp|pl|vo|vs|msh|chg|con|mod|den|sus|edi|xyz|tab|map|id|dat|ind|dfn)$/i;
+// -> null for a file the import reads (it decides the rest), or { text, where } for one it can't place: what this step reads, and where it might go
+export function whatIsThis(name) {
+  const n = String(name || "");
+  if (KNOWN.test(n)) return null;
+  const advice = unreadableFormatAdvice(n);
+  if (advice) return { text: advice, where: null };
+  const reads = tr("Here GeoStrix reads tables (CSV, Excel .xlsx), maps (a zipped shapefile, GeoPackage, KML, DXF), grids (GeoTIFF, GXF), lidar (LAS) and 3D shapes (OBJ, GOCAD).");
+  let where;
+  if (/\.(txt|tsv|asc|xls|ods)$/i.test(n)) where = tr("A table in another format: save it as CSV or .xlsx and drop it again. A survey grid as text goes in Geophysics > Point survey.");
+  else if (/\.(png|jpe?g|bmp|gif|webp|pdf)$/i.test(n)) where = tr("A picture or a document: Layout puts pictures on a page; a scanned map can be placed with Georeference on the Maps tab.");
+  else if (/\.(geostrix|json)$/i.test(n) || /\.geostrix\.json$/i.test(n)) where = tr("A saved project: open it with Open, not here.");
+  else if (/\.(gdb|grd|ers|nc|hdr|img)$/i.test(n)) where = tr("Geophysics data: try the Geophysics tab, which reads more survey formats.");
+  else where = tr("If it is geophysics, try the Geophysics tab; if it is a table, save it as CSV.");
+  return { text: tr("{name}: GeoStrix can't tell what this is.", { name: n }) + " " + reads, where };
+}

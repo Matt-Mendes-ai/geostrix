@@ -96,7 +96,7 @@ test("#3888 step 2 imports through the 3D view's own entry, under the import's d
   assert.match(d, /const Z = 55;/);
   assert.ok(55 < 60, "every other dialog sits at 60 (the column matching at 62)");
   assert.match(d, /const \{ parseDEMFiles \} = await import\("\.\.\/lib\/raster\.js"\);/);
-  assert.match(d, /onClick=\{makeGround\}/);
+  assert.match(d, /onClick=\{\(\) => makeGround\(\)\}/); // #3918: makeGround takes a zone to re-fetch in
   assert.equal((d.match(/fetchCopernicusTerrain\(/g) || []).length, 1);
   assert.match(d, /Only the corner coordinates of the area are sent\./);
   assert.match(d, /No internet connection: using the collar heights for now\. Add a terrain later with Add data\./);

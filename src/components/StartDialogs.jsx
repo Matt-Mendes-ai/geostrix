@@ -11,7 +11,7 @@ import React, { useRef, useState } from "react";
 import { useStore } from "../lib/store.jsx";
 import { requestModuleAction } from "../lib/menuRequests.js";
 import { startOptedOut, setStartOptOut } from "../lib/startFlow.js";
-import { groundFileKind, terrainSummary, crsWords, groundStrip, startChecklist, startDestination } from "../lib/startChecklist.js";
+import { groundFileKind, terrainSummary, crsWords, groundStrip, startChecklist, startDestination, qcLine, parseEpsgInput, whatIsThis } from "../lib/startChecklist.js"; // qcLine, parseEpsgInput, whatIsThis: #3918
 import { crsName } from "../lib/reproject.js";
 import { projectEpsgChooser } from "../lib/adoptCrs.js";
 import { fetchAreaBox } from "../lib/dataExtent.js";
@@ -50,10 +50,32 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
   const [optOut, setOptOut] = useState(() => startOptedOut());
   const [stripDone, setStripDone] = useState(null); // the "make the ground" strip's answer, said in one line
   const epsg = project?.epsg ?? null;
+  // TASKS.csv #3918 — the follow-ups: the place picker for a terrain with no coordinate system, the files GeoStrix can't place ("What is
+  // this?"), the UTM-zone question after "make one for me" (Maps > Terrain's own check, lib/srtmFetch.js), and screen 3's next-steps card
+  const [picker, setPicker] = useState(null); // { files, typed, error } while a terrain with no CRS waits for one
+  const [unplaced, setUnplaced] = useState([]); // [{ file, text, where }]
+  const [zoneAsk, setZoneAsk] = useState(null); // { better, misfit, parsed }
+  const [card, setCard] = useState(null); // { qc } once Done: the small next-steps card, not a dialog
 
-  const importFiles = (files) => { goTo?.("viewer"); requestModuleAction("import-dropped-files", { files }); }; // the 3D view's own entry (#2019)
+  const sendFiles = (files) => { goTo?.("viewer"); requestModuleAction("import-dropped-files", { files }); }; // the 3D view's own entry (#2019)
+  const importFiles = (files) => { // #3918 — a file the import can't place is asked about here, the rest go in
+    const odd = files.map((file) => ({ file, ...(whatIsThis(file.name) || {}) })).filter((x) => x.text);
+    if (odd.length) setUnplaced((u) => [...u, ...odd]);
+    const ok = files.filter((f) => !odd.some((x) => x.file === f));
+    if (ok.length) sendFiles(ok);
+  };
   const next = () => { setStep(2); setNote(null); if (carried.length) { importFiles(carried); setCarried([]); } };
-  const finish = () => { onClose?.(); goTo?.(startDestination({ noDrill, collars: collars?.length || 0 })); };
+  const finish = async () => { // screen 3: the dialog gives way to a small card with the next steps and the data check's one line
+    goTo?.(startDestination({ noDrill, collars: collars?.length || 0 }));
+    const checking = !noDrill && !!collars?.length;
+    setCard({ qc: null, checking });
+    if (!checking) return;
+    try {
+      const { runDataQCSliced } = await import("../lib/dataQC.js");
+      const r = await runDataQCSliced({ project, collars, survey: store.survey || [], layers: store.layers || {}, boundaries: store.boundaries || [], assays: store.assays || [], assayElements: store.assayElements || [], terrain, customLayers: store.customLayers || [] });
+      setCard({ qc: r ? qcLine(r.summary) : null, checking: false });
+    } catch { setCard({ qc: null, checking: false }); }
+  };
 
   // step 1: a terrain file (GeoTIFF) through the terrain importer's parser; anything else waits for step 2
   const onGroundFiles = async (files) => {
@@ -69,38 +91,81 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
       addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null });
       setGround("file");
       const sum = terrainSummary(parsed), crsNow = parsed.reprojectedTo || parsed.epsgTag || epsg;
-      const where = parsed.epsgTag || crsNow ? crsWords(crsNow, crsName(crsNow)) : tr("This file does not say where on Earth it is. GeoStrix will use your drill holes' coordinate system for it: check it on the Maps tab once they are in.");
-      setNote({ text: [sum?.text, where, rest.length ? tr("The other files go in the next step.") : ""].filter(Boolean).join(" "), warn: !parsed.epsgTag && !crsNow });
+      const where = parsed.epsgTag ? crsWords(crsNow, crsName(crsNow)) : ""; // #3918 — no tag: the place picker asks
+      setPicker(parsed.epsgTag ? null : { files: tifs, typed: "", error: null });
+      setNote({ text: [sum?.text, where, rest.length ? tr("The other files go in the next step.") : ""].filter(Boolean).join(" ") });
     } catch (e) {
       setNote({ text: tr("{name}: GeoStrix could not read it as a terrain ({error}). Try another file, or make one for me.", { name: tifs[0].name, error: String(e?.message || e) }), warn: true });
     } finally { setBusy(false); }
   };
 
+  // #3918 — a terrain with no coordinate system: its numbers are the project's, or in the CRS the user types (re-read through it)
+  const pickCrs = async (code) => {
+    if (code == null) { setPicker((p) => ({ ...p, error: tr("Type the EPSG code as a number, for example 32609.") })); return; }
+    if (!crsName(code)) { setPicker((p) => ({ ...p, error: tr("GeoStrix doesn't know EPSG:{code}. Check the number on the file's .prj or its notes.", { code }) })); return; }
+    if (!epsg || Number(code) === Number(epsg)) { if (!epsg) setEpsg(code); setPicker(null); setNote({ text: crsWords(code, crsName(code)) }); return; }
+    setBusy(true);
+    try {
+      const { parseDEMFiles } = await import("../lib/raster.js");
+      const parsed = await parseDEMFiles(picker.files, epsg, String(code), {});
+      addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null });
+      setPicker(null);
+      setNote({ text: [terrainSummary(parsed)?.text, tr("Read as {name} (EPSG:{code}) and brought into the project's coordinate system.", { name: crsName(code), code })].filter(Boolean).join(" ") });
+    } catch (e) { setPicker((p) => ({ ...p, error: String(e?.message || e) })); } finally { setBusy(false); }
+  };
+
   // step 2's strip: the Copernicus GLO-30 download for the collars' area, on a click; offline or failed: the collar heights, said
   const strip = step === 2 ? groundStrip({ choice: ground, collars: collars?.length || 0, terrain: !!terrain, epsg: tieOf(project) ? null : epsg }) : null;
-  const makeGround = async () => {
+  const makeGround = async (zoneEpsg = null) => {
+    const useEpsg = zoneEpsg || epsg;
     const offline = () => setStripDone({ text: tr("No internet connection: using the collar heights for now. Add a terrain later with Add data."), warn: true });
     if (typeof navigator !== "undefined" && navigator.onLine === false) { offline(); return; }
     setBusy(true);
     try {
       const box = fetchAreaBox(collars, store.surfaceSamples || []);
       const { toLonLat } = await import("../lib/reproject.js");
-      const ll = await Promise.all([[box[0], box[1]], [box[2], box[1]], [box[2], box[3]], [box[0], box[3]]].map(([x, y]) => toLonLat(x, y, epsg)));
+      const ll = await Promise.all([[box[0], box[1]], [box[2], box[1]], [box[2], box[3]], [box[0], box[3]]].map(([x, y]) => toLonLat(x, y, useEpsg)));
       if (ll.some((p) => !p)) throw new Error(tr("the project's coordinate system could not be turned into latitude and longitude"));
       const ext = ll.reduce((b, p) => [Math.min(b[0], p.lon), Math.min(b[1], p.lat), Math.max(b[2], p.lon), Math.max(b[3], p.lat)], [Infinity, Infinity, -Infinity, -Infinity]);
       const { fetchCopernicusTerrain } = await import("../lib/copernicusDem.js");
-      const parsed = await fetchCopernicusTerrain({ lonMin: ext[0], latMin: ext[1], lonMax: ext[2], latMax: ext[3], targetEpsg: epsg, gridMax: 200 });
-      addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null, source: parsed.source || null });
-      setStripDone({ text: [terrainSummary(parsed)?.text, tr("Copernicus GLO-30 shows the ground as it was in 2011-2015: ground mined since then reads lower than in older terrain, and older collars can sit above it.")].filter(Boolean).join(" ") });
+      const parsed = await fetchCopernicusTerrain({ lonMin: ext[0], latMin: ext[1], lonMax: ext[2], latMax: ext[3], targetEpsg: useEpsg, gridMax: 200 });
+      // #3918 — Maps > Terrain's own check (lib/srtmFetch.js): collars hundreds of metres off the ground are in the wrong UTM zone, or not
+      const { collarGroundMisfit, findBetterUtmZone, MISFIT_ZONE_M } = await import("../lib/srtmFetch.js");
+      const misfit = zoneEpsg ? null : collarGroundMisfit(collars, parsed);
+      if (misfit && misfit.medianDz > MISFIT_ZONE_M) {
+        const better = await findBetterUtmZone(collars, useEpsg, misfit);
+        if (better) { setZoneAsk({ better, misfit, parsed }); return; }
+      }
+      keepGround(parsed, misfit && misfit.medianDz > MISFIT_ZONE_M ? tr(" The collars sit a median {v} m off this terrain, and no neighbouring UTM zone fits better: check the project CRS and the collar elevations (feet? a local datum?).", { v: Math.round(misfit.medianDz) }) : "");
     } catch (e) {
       if (typeof navigator !== "undefined" && navigator.onLine === false) offline();
       else setStripDone({ text: tr("The ground could not be downloaded ({error}): using the collar heights for now. Add a terrain later with Add data.", { error: String(e?.message || e) }), warn: true });
     } finally { setBusy(false); }
   };
 
+  const keepGround = (parsed, extra = "") => {
+    addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null, source: parsed.source || null });
+    setZoneAsk(null);
+    setStripDone({ text: [terrainSummary(parsed)?.text, tr("Copernicus GLO-30 shows the ground as it was in 2011-2015: ground mined since then reads lower than in older terrain, and older collars can sit above it."), extra.trim()].filter(Boolean).join(" "), warn: !!extra });
+  };
+
   const rows = step === 2 ? startChecklist(store, { noDrill }) : [];
   const title = step === 1 ? tr("Step 1 of 2: the ground.") : noDrill ? tr("Step 2 of 2: your data.") : tr("Step 2 of 2: your drilling.");
   const noteLine = (n) => n && <div role="status" style={{ ...small, marginTop: 8, color: n.warn ? "var(--color-warn-text)" : "var(--color-text)" }}>{n.text}</div>;
+
+  if (card) return ( // #3918 — screen 3: a small card, not a dialog; the project is usable behind it
+    <div data-start-card="" role="status" style={{ ...panel({ width: "min(380px, calc(100vw - 32px))" }), position: "fixed", right: 16, bottom: 40, zIndex: Z, padding: "12px 14px", gap: 6 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+        <b>{tr("Your project is in.")}</b>
+        <button type="button" style={link} onClick={onClose}>{tr("Close")}</button>
+      </div>
+      {card.checking && <div style={small}>{tr("Checking your data…")}</div>}
+      {card.qc && <div data-start-qc="">{card.qc}</div>}
+      <div style={small}>{tr("Look around: drag to turn, wheel to zoom.")}</div>
+      {!noDrill && <div>{tr("Build a model: the green Model button on the StrixViewer ribbon takes you through it one step at a time.")} <button type="button" style={link} onClick={() => { goTo?.("viewer"); onClose?.(); }}>{tr("Show me")}</button></div>}
+      <div>{tr("Make a sheet: Layout's Sheets group (Plan map, Cross-section, Hole log, Intercepts table) lays out a page in one click.")} <button type="button" style={link} onClick={() => { goTo?.("layout"); onClose?.(); }}>{tr("Open Layout")}</button></div>
+    </div>
+  );
 
   return (
     <div data-start-dialog={step} style={{ position: "fixed", inset: 0, zIndex: Z, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(8,10,14,0.45)" }}
@@ -116,6 +181,17 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
           <DropArea busy={busy} accept=".tif,.tiff,.csv,.txt,.xlsx,.xls,.zip,.gpkg,.shp" onFiles={onGroundFiles}
             label={tr("Drop your terrain file here (a DEM). It is the shape of the ground your project sits on.")} />
           {noteLine(note)}
+          {picker && (
+            <div data-start-crs="" style={{ marginTop: 8, padding: 10, border: "1px solid var(--color-border)", borderRadius: 6 }}>
+              <div>{tr("This file does not say where on Earth it is. Which coordinate system are its numbers in?")}</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 6 }}>
+                {epsg && <button type="button" style={rowBtn(true)} disabled={busy} onClick={() => pickCrs(Number(epsg))}>{tr("The project's: {crs}", { crs: crsName(epsg) || `EPSG:${epsg}` })}</button>}
+                <label style={small}>{epsg ? tr("Another, by its EPSG code:") : tr("Its EPSG code:")} <input value={picker.typed} onChange={(e) => setPicker((p) => ({ ...p, typed: e.target.value, error: null }))} placeholder="32609" style={{ width: 90 }} /></label>
+                <button type="button" style={rowBtn(!epsg)} disabled={busy} onClick={() => pickCrs(parseEpsgInput(picker.typed))}>{tr("Use it")}</button>
+              </div>
+              {picker.error && <div style={{ ...small, color: "var(--color-warn-text)", marginTop: 4 }}>{picker.error}</div>}
+            </div>
+          )}
           <div style={{ marginTop: 12 }}>
             <button type="button" style={rowBtn(ground === "make")} aria-pressed={ground === "make"} onClick={() => { setGround("make"); setNote({ text: tr("OK. GeoStrix will make it once it knows where your project is, in the next step.") }); }}>
               {tr("I don't have one: make one for me.")}
@@ -136,6 +212,16 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
           <DropArea busy={false} multiple onFiles={importFiles}
             label={noDrill ? tr("Drop your maps, samples, pictures or geophysics here, all at once. GeoStrix works out which is which.") : tr("Drop all your files here at once. GeoStrix works out which is which.")} />
           <div style={{ ...small, marginTop: 6 }}>{tr("If GeoStrix is unsure about a file, it asks about its columns or its coordinate system in a window over this one.")}</div>
+          {unplaced.map((u) => (
+            <div key={u.file.name + u.file.size} data-start-unplaced="" style={{ marginTop: 8, padding: 8, border: "1px solid var(--color-warn-border)", borderRadius: 6 }}>
+              <b>{tr("What is this?")}</b> <span style={small}>{u.text}</span>
+              {u.where && <div style={small}>{u.where}</div>}
+              <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+                <button type="button" style={link} onClick={() => { sendFiles([u.file]); setUnplaced((x) => x.filter((y) => y !== u)); }}>{tr("Try it anyway")}</button>
+                <button type="button" style={link} onClick={() => setUnplaced((x) => x.filter((y) => y !== u))}>{tr("Leave it out")}</button>
+              </div>
+            </div>
+          ))}
           <ul data-start-checklist="" style={{ listStyle: "none", padding: 0, margin: "12px 0 0" }}>
             {rows.map((r) => (
               <li key={r.key} data-row={r.key} data-done={r.done ? "1" : "0"} style={{ display: "flex", gap: 8, padding: "5px 0", borderBottom: "1px solid var(--color-border-subtle)" }}>
@@ -145,11 +231,20 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
             ))}
           </ul>
           {strip && strip.state !== "ready" && !stripDone && <div style={{ ...small, marginTop: 10 }}>{strip.text}</div>}
-          {strip?.state === "ready" && !stripDone && (
+          {zoneAsk && (
+            <div data-start-zone="" style={{ marginTop: 12, padding: 10, border: "1px solid var(--color-warn-border)", borderRadius: 6 }}>
+              <div>{tr("Your collars sit a median {v} m above or below this ground, but read as {name} they sit within {v2} m of it: the project is probably in the wrong UTM zone.", { v: Math.round(zoneAsk.misfit.medianDz), name: zoneAsk.better.name, v2: Math.round(zoneAsk.better.medianDz) })}</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                <button type="button" style={rowBtn(true)} disabled={busy} onClick={() => { const code = zoneAsk.better.code; setEpsg(code); setZoneAsk(null); makeGround(code); }}>{tr("Use {name} and download again", { name: zoneAsk.better.name })}</button>
+                <button type="button" style={rowBtn(false)} disabled={busy} onClick={() => keepGround(zoneAsk.parsed, tr(" The collars sit a median {v} m off this terrain (in {name} they would sit within {v2} m) — kept as you chose.", { v: Math.round(zoneAsk.misfit.medianDz), name: zoneAsk.better.name, v2: Math.round(zoneAsk.better.medianDz) }))}>{tr("Keep this ground")}</button>
+              </div>
+            </div>
+          )}
+          {strip?.state === "ready" && !stripDone && !zoneAsk && (
             <div data-start-ground="" style={{ marginTop: 12, padding: 10, border: "1px solid var(--color-border)", borderRadius: 6 }}>
               <div>{tr("Make the ground for this area? GeoStrix downloads it from the Copernicus 30 m elevation model (copernicus-dem-30m.s3.amazonaws.com). Only the corner coordinates of the area are sent.")}</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-                <button type="button" style={rowBtn(true)} disabled={busy} onClick={makeGround}>{busy ? tr("Downloading…") : tr("Download")}</button>
+                <button type="button" style={rowBtn(true)} disabled={busy} onClick={() => makeGround()}>{busy ? tr("Downloading…") : tr("Download")}</button>
                 <button type="button" style={rowBtn(false)} disabled={busy} onClick={() => setStripDone({ text: tr("Using the collar heights: the holes start where your collar file says. Add a terrain later with Add data.") })}>{tr("Use the collar heights instead (rough)")}</button>
                 <button type="button" style={rowBtn(false)} disabled={busy} onClick={() => setStripDone({ text: tr("No ground for now. Add a terrain later with Add data.") })}>{tr("No ground")}</button>
               </div>
