@@ -15,7 +15,7 @@ const LANGS = ["es", "pt", "fr", "ar"];
 
 test("the tab is 'StrixViewer' in every language, with its tooltip; its id is still 'viewer'", () => {
   const app = rd("src/App.jsx");
-  assert.match(app, /\{ id: "viewer", label: "StrixViewer", icon: Box, tip: "StrixViewer: your project in 3D" \}/);
+  assert.match(app, /\{ id: "viewer", label: "StrixViewer", icon: Box, tip: "StrixViewer: your project in 3D", tier: "basic" \}/); // tier: #3890
   assert.match(app, /title=\{m\.disabled \? tr\("Coming soon"\) : m\.tip \? tr\(m\.tip\) : undefined\}/);
   assert.match(app, /const VIEWER_MODES = \{ viewer: "view",/); // the mode and the id an old project / link names
   const main = rd("electron/main.js");
