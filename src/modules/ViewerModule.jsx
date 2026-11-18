@@ -26,7 +26,7 @@ import { setVerticalExaggeration, veOf } from "./viewer/verticalExaggeration.js"
 import ViewVeSelect from "./viewer/ViewVeSelect.jsx"; // TASKS.csv #2934
 import { useVeSuggestion } from "./viewer/useVeSuggestion.js"; // TASKS.csv #3063
 import { piercePoints as surfacePierces, piercePointRows } from "../lib/piercePoints.js"; // TASKS.csv #1009
-import { Info, Upload, Scissors, AlertTriangle, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, Maximize2, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Map as MapIcon, Mountain, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, Beaker, Compass, Activity, GitCompare, Check } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // GitCompare/Check: TASKS.csv #93
+import { Info, Upload, Scissors, AlertTriangle, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, Maximize2, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Map as MapIcon, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, Beaker, Compass, GitCompare, Check } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // GitCompare/Check: TASKS.csv #93
 const AssayStyleModal = lazyModal(() => import("../components/AssayStyleModal.jsx")); // TASKS.csv #476
 import { seedBreaks } from "../lib/colorRamp.js"; // TASKS.csv #476
 import { repairSeededHues } from "../lib/assayHueRepair.js"; // TASKS.csv #3879
@@ -55,8 +55,9 @@ import SampleButtons from "./viewer/SampleButtons.jsx"; // TASKS.csv #3541
 import { sampleCardsFor, sampleFootnote, askSampleDownload } from "../lib/sampleCards.js"; // TASKS.csv #1346; askSampleDownload: #3133
 import { symbolRadiusByMedium } from "../lib/viewer/surfaceSymbols.js"; // TASKS.csv #1346
 import { sectionFromCentre, sectionThroughHole, fenceLinesWithData, fenceExtentPoints } from "../lib/sectionDefs.js"; // fenceLinesWithData: #2040
-import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader, PaneNotice } from "../components/Ribbon.jsx"; // TASKS.csv #458
-import { Pickaxe, Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, PenTool, Rows3, Crosshair, Target, SquareSplitVertical, Sparkles } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
+import { TaskPaneHeader, PaneNotice } from "../components/Ribbon.jsx"; // TASKS.csv #458
+import ModeRibbons from "./viewer/ModeRibbons.jsx"; // TASKS.csv #3904
+import { Rows3, Crosshair, Target, SquareSplitVertical } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
 import { solidBounds, SOLID_IMPORT_EXTENSIONS, SOLID_FACE_WARN } from "../lib/solidImportMeta.js"; // TASKS.csv #148; #552 split
 import { tieOf } from "../lib/localGridTie.js"; // TASKS.csv #3186
 import { withFilteredLogs } from "../lib/logFilter.js"; // TASKS.csv #3241 (not numericSources.js: its imports would join the startup bundle)
@@ -6156,87 +6157,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           show={visible && !bare} paneProps={paneProps}
         />
       )}
-      {/* TASKS.csv #458 — 3D Modelling ribbon: each modelling tool opens as a pane at the top of the sidebar
-          (the generated surfaces and domains stay below it); the analysis plots open directly. */}
-      {mode === "modelling" && (
-        <Ribbon show={visible && !bare} label="3D Modelling tools">
-          <RibbonGroup label="Setup">{/* #3153 — Model settings in Simple too: every modelling tool reads it */}
-            <RibbonButton icon={Settings} label="Model settings" tone="model" title="Domain, intercept set, contact orientations, resolution, stiffness, search ellipsoid, anisotropy" {...paneProps("settings")} />
-            <RibbonButton advanced={!simpleTools.strat} icon={Group} label="Litho groups" tone="model" title="Lump lithology codes into modelling units" {...paneProps("groups")} />
-            <RibbonButton advanced={!simpleTools.strat} icon={Waypoints} label="Modelling codes" tone="model" title="Give intervals modelling codes (alternating flows), connect units between holes, set roles and pile order" {...paneProps("mcodes")} />
-            <RibbonButton advanced icon={GitCompare} label="Correlation" tone="model" title="Section correlation" {...paneProps("correlation")} />
-          </RibbonGroup>
-          {/* TASKS.csv #750 — Matt: "predictive could go into 3d modelling as a tool, geoML modelling group. the other one should
-              be named gempy modelling group" */}
-          <RibbonGroup label="GemPy modelling">
-            <RibbonButton icon={Mountain} label="Implicit surface" tone="model" title="Model one unit's top surface (GemPy)" {...paneProps("implicit")} />
-            <RibbonButton advanced={!simpleTools.strat} icon={Layers} label="Strat. stack" tone="model" title="Model a stratigraphic stack of units together (GemPy)" {...paneProps("stack")} />
-            <RibbonButton advanced={!simpleTools.mapModel} icon={MapIcon} label="Model from map" tone="model" title="A 3D model from the geological map and outcrop measurements alone, no drillholes needed (GemPy)" {...paneProps("mapmodel")} />{/* TASKS.csv #817 */}
-          </RibbonGroup>
-          {/* TASKS.csv #811 — Matt: "a tool specifically for explicit modelling ... the hard line of the modelled surface" */}
-          <RibbonGroup label="Explicit modelling">
-            <RibbonButton icon={PenTool} label="Explicit surface" tone="model" title="A surface exactly through your own picks in 3D and lines drawn on sections" {...paneProps("explicit")} />
-          </RibbonGroup>
-          <RibbonGroup advanced={!simpleTools.geoml} label="geoML modelling">
-            <RibbonButton icon={Sparkles} label="geoML models" tone="model" title="Rock-unit and grade models with uncertainty (geoML, Gaussian processes — optional add-on)" {...paneProps("geoml")} />
-          </RibbonGroup>
-          <RibbonGroup advanced={!simpleTools.stereonet} label="Structure">
-            <RibbonButton advanced icon={Compass} label="Structures" tone="model" title="Structural modelling from structure picks" {...paneProps("structural")} />
-            <RibbonButton icon={Target} label="Stereonet" tone="analyse" title="Stereonet of structure picks (and outcrop measurements)" disabled={!simpleTools.stereonet} disabledReason="No structure picks with an orientation, nor outcrop measurements, yet." onClick={() => setStereonetOpen(true)} />{/* #2773 */}
-            <RibbonButton advanced icon={Activity} label="Downhole plot" tone="analyse" title="Downhole structure (tadpole) plot" onClick={() => setTadpoleOpen(true)} />
-            <RibbonButton advanced icon={Crosshair} label="Core orient." tone="analyse" title="Core orientation (alpha-beta) calculator for non-oriented core" onClick={() => setCoreOrientOpen(true)} />
-          </RibbonGroup>
-          <RibbonGroup advanced label="Alteration & veins">
-            <RibbonButton icon={Droplets} label="Alteration" tone="model" title="Alteration modelling" {...paneProps("alteration")} />
-            <RibbonButton icon={Waves} label="Veins / dykes" tone="model" title="Vein / dyke modelling" {...paneProps("vein")} />
-          </RibbonGroup>
-          <RibbonGroup label="Grade">
-            <RibbonButton icon={Gem} label="Grade shell" tone="model" title="Numeric implicit model (grade shell)" {...paneProps("shell")} />
-            <RibbonButton icon={Calculator} label="Estimation" tone="model" title="Grade estimation into block models" {...paneProps("gradeEst")} />
-            <RibbonButton advanced icon={Spline} label="Variogram" tone="analyse" title="Variogram / spatial continuity" onClick={() => setVariogramOpen(true)} />
-          </RibbonGroup>
-          <RibbonGroup advanced label="Check">
-            <RibbonButton icon={Rows3} label="Fence diagram" tone="analyse" title="Fence / panel correlation diagram" onClick={() => setFenceOpen(true)} />
-            <RibbonButton icon={Ruler} label="Surface query" tone="analyse" title="Distance to surfaces / point-in-domain report" onClick={() => setSurfaceQueryOpen(true)} />
-          </RibbonGroup>
-        </Ribbon>
-      )}
+      <ModeRibbons {...{ mode, paneProps, simpleTools, project, plannedHoles, pickHoleMode, setPickHoleMode, setToolPane, exportPlannedHoles, setTadpoleOpen, setCoreOrientOpen, setVariogramOpen, setFenceOpen, setSurfaceQueryOpen, setStereonetOpen }} show={visible && !bare} />{/* #3904: 3D Modelling, Mine Design, Targeting */}
       {/* TASKS.csv #820 — Surface Geology ribbon: the mapping workflow (3D model building stays in 3D Modelling) */}
       {mode === "surface" && <SurfaceRibbon show={visible && !bare} paneProps={paneProps} onStereonet={() => setStereonetOpen(true)} onModelIt={() => { pendingPaneRef.current = "mapmodel"; store.goToModule("modelling"); }} mapPolygons={(mapLayers || []).some((l) => l.geomType === "polygon")} /* #1447 */ identifyOn={identify.on} onToggleIdentify={toggleIdentify} interpretOpen={interpretOpen} onInterpret={() => openInterpret(true)} onPolygons={() => openInterpret("polygon")} onStyleSamples={() => openLayerStyle("surface_samples", "Surface samples")} sampleCount={surfaceSamples.length} />}{/* #1439 */}
-      {/* TASKS.csv #458 — Targeting ribbon */}
-      {mode === "minedesign" && (
-        <Ribbon show={visible && !bare} label="Mine design tools">
-          <RibbonGroup label="Open pit">{/* #3003 (5), Matt: Simple shows the open-pit flow — Pit shell, Pit design, Dump */}
-            <RibbonButton icon={Pickaxe} label="Pit shell" tone="model" title="The pit that makes the most money at your prices and costs, from a block model" {...paneProps("pit")} />
-            <RibbonButton advanced icon={Layers} label="Nested pits" tone="model" title="The shell at a series of revenue factors, valued at the entered price, with a schedule and an NPV per shell" {...paneProps("nested")} />{/* TASKS.csv #1875 */}
-            <RibbonButton icon={Layers3} label="Pit design" tone="model" title="Benches, berms and faces on a pit shell: crest and toe strings and a bench-by-bench table" {...paneProps("pitdesign")} />{/* TASKS.csv #1874 */}
-            <RibbonButton icon={Mountain} label="Dump / stockpile" tone="model" title="A footprint string, a crest and an angle of repose: the dump's shape on the ground and what it holds, against a pit's waste" {...paneProps("dump")} />{/* TASKS.csv #1880 */}
-          </RibbonGroup>
-          <RibbonGroup label="Underground">{/* #3003 (5): Drifts and ramps stay Advanced; TASKS.csv #3798 (Matt, 2026-11-16): Stope outlines and Strings show in Simple, always */}
-            <RibbonButton advanced icon={Spline} label="Drifts and ramps" tone="model" title="Draw drifts, tunnels, ramps and declines at set grades, with curves of a chosen radius" {...paneProps("lines")} />
-            <RibbonButton icon={Layers3} label="Stope outlines" tone="model" title="A block model at a cut-off, level by level: stope outlines and solids no thinner than a mining width, with a dilution skin" {...paneProps("stopes")} />{/* TASKS.csv #1879 */}
-          </RibbonGroup>
-          <RibbonGroup label="CAD">{/* TASKS.csv #1876 / #1877; Simple: #3798 (Dump needs Strings) */}
-            <RibbonButton icon={PenTool} label="Strings" tone="model" title="Free polylines and polygons in 3D: draw, type, offset, join and split them; extrude or loft closed ones into solids; DXF in and out" {...paneProps("strings")} />
-          </RibbonGroup>
-        </Ribbon>
-      )}
-      {mode === "targeting" && (
-        <Ribbon show={visible && !bare} label="Targeting tools">
-          <RibbonGroup label="Targets">
-            <RibbonButton advanced icon={Box} label="Voxel ranges" tone="view" title="Isolate a value band of a geophysical / block model" {...paneProps("ranges")} />
-            <RibbonButton icon={Layers} label="Evidence overlay" tone="model" title="Where the evidence agrees: fuzzy overlay of rasters, map-layer distances and geochemistry; weights of evidence against known occurrences" {...paneProps("overlay")} />{/* TASKS.csv #851 */}
-            <RibbonButton icon={Crosshair} label="Undrilled zones" tone="model" title="The parts of a modelled unit farther than a chosen distance from every drillhole" {...paneProps("undrilled")} />
-            <RibbonButton icon={Target} label="Planned holes" tone="model" title="Design planned drillholes and check them" {...paneProps("plan")} />
-            <RibbonButton icon={MapPin} label="Pick collar" tone="model" active={pickHoleMode} title="Click the 3D view to place a planned hole's collar" onClick={() => { setToolPane("plan"); setPickHoleMode((v) => !v); }} />
-          </RibbonGroup>
-          <RibbonGroup label="Export planned holes">
-            <RibbonButton icon={FileSpreadsheet} label="CSV" tone="output" disabled={!plannedHoles.length} disabledReason="Plan a hole first" title="Collar and toe in project coordinates and lat/lon, azimuth against grid, true and magnetic north" onClick={() => exportPlannedHoles("csv")} />
-            <RibbonButton advanced={project?.crsSet === false} /* #2705 — Simple mode too with a real CRS */ icon={Globe} label="KML" tone="output" disabled={!plannedHoles.length} disabledReason="Plan a hole first" title="Google Earth / phone maps" onClick={() => exportPlannedHoles("kml")} />
-            <RibbonButton advanced={project?.crsSet === false} icon={MapPin} label="GPX" tone="output" disabled={!plannedHoles.length} disabledReason="Plan a hole first" title="Handheld GPS: collar waypoints" onClick={() => exportPlannedHoles("gpx")} />
-          </RibbonGroup>
-        </Ribbon>
-      )}
       <div className="ge-body" style={{ width: "100%" }} onDragOver={(e) => { e.preventDefault(); if (!bare) setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={bare ? (e) => { e.preventDefault(); requestModuleAction("geophysics-drop", { files: Array.from(e.dataTransfer.files || []) }); } /* #2848 — the Geophysics tab's viewport: its tab imports the drop */ : handleDrop}>
       <div className="ge-panel-outer" style={{ width: sidebarWidth, flexShrink: 0, display: bare ? "none" : "flex", flexDirection: "column", minHeight: 0, background: "var(--color-bg)", borderRight: "1px solid var(--color-border)" }}>
       <div className="ge-panel" ref={panelScrollRef} style={{ padding: "16px 14px", border: "none", width: "100%", flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
