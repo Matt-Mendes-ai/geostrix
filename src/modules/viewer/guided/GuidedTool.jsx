@@ -96,8 +96,8 @@ function Tool({ tool, ctx, api, close, back }) {
     running.current = null;
     const p = r.p, made = (surfacesRef.current || []).filter((s) => !p.before.has(s.id));
     setOut(made.length
-      ? { built: made.map((s) => s.name), reasons: [keptSuggestion ? sug.reason : null, ...p.auto.reasons.map((x) => x.text)].filter(Boolean), notes: [...(tool.result ? tool.result(made, ctx) : []), ...p.auto.notes, ...tool.notes(ctx, value)] }
-      : { verdict: [tr("Nothing was built: the messages under the sidebar say why.")] });
+      ? { built: made.map((s) => s.name), reasons: [keptSuggestion ? sug.reason : null, ...p.auto.reasons.map((x) => x.text)].filter(Boolean), notes: [...(tool.result ? tool.result(made, ctx, api) : []), ...p.auto.notes, ...tool.notes(ctx, value)] }
+      : { stopped: true, verdict: [tr("It was cancelled, or the run stopped with a message: the messages under the sidebar say why.")] });
     setPhase(made.length ? "done" : "cannot");
   };
   // the run reads its settings from the render it is called in: it starts once they have rendered
@@ -146,7 +146,7 @@ function Tool({ tool, ctx, api, close, back }) {
       )}
       {phase === "cannot" && out?.verdict && (
         <div style={{ marginTop: 12, padding: 10, border: "1px solid var(--color-danger-fg)", borderRadius: 6 }} role="status">
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>{tr("Your data cannot support this yet")}</div>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>{out.stopped ? tr("Nothing was built") : tr("Your data cannot support this yet")}</div>
           {out.verdict.map((v, i) => <div key={i}>{v}</div>)}
         </div>
       )}

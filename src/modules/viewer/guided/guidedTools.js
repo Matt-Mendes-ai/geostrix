@@ -9,9 +9,11 @@
 //         contacts(ctx, value) -> the contacts autoSurface sizes the model from, check(ctx, value) -> null | why it cannot,
 //         notes(ctx, value) -> [sentence], run(api, value), prefill(api, value) }
 import { stackOrder, suggestBody, suggestCover } from "../../../lib/auto/autoUnits.js";
-import { t as tr } from "../../../lib/i18n.js";
+import { t as tr, fmtNum } from "../../../lib/i18n.js";
 import { autoGradeShell } from "../../../lib/auto/autoGradeShell.js";
 import { autoBlockModel } from "../../../lib/auto/autoBlockModel.js";
+import { computeMeshVolume } from "../../../lib/volumetrics.js";
+import { gradeUnitLabel } from "../../../lib/geochemColumns.js";
 
 const noLogs = (ctx) => (ctx.rows.length ? null : tr("No lithology log yet: import one (Add data) and this tool reads it."));
 const unitsByHoles = (ctx) => stackOrder(ctx.rows).units.map((u) => u.unit);
@@ -104,11 +106,16 @@ export const COVER = {
 // vein or dyke ("litho:<code>", #2226). It has its own reach and thickness rules, so the automatic part here is the plain check that enough holes
 // cut the sheet, and the reason says which.
 const holesWith = (rows, test) => new Set(rows.filter(test).map((r) => r.hole_id)).size;
+// per choice: the holes that cut it and its intervals per hole. Many per hole is a vein SET or stockwork, not one sheet (the Vein run refuses it,
+// found live on WA lode gold: QTZ, about 17 per hole), so those are offered last and stopped with a plain verdict
+export const SET_PER_HOLE = 3;
 function veinChoices(ctx) {
   const out = new Map();
-  for (const r of ctx.veins) if (r.value != null && r.value !== "") out.set(String(r.value), (out.get(String(r.value)) || new Set()).add(r.hole_id));
-  for (const r of ctx.rows) { const v = String(r.value); if (BODY_ROLES.has(ctx.roleOf(v)) && ctx.roleOf(v) !== "breccia") out.set(`litho:${v}`, (out.get(`litho:${v}`) || new Set()).add(r.hole_id)); }
-  return [...out].map(([k, h]) => ({ key: k, holes: h.size })).sort((a, b) => b.holes - a.holes);
+  const add = (k, h) => { const e = out.get(k) || { holes: new Set(), rows: 0 }; e.holes.add(h); e.rows++; out.set(k, e); };
+  for (const r of ctx.veins) if (r.value != null && r.value !== "") add(String(r.value), r.hole_id);
+  for (const r of ctx.rows) { const v = String(r.value); if (BODY_ROLES.has(ctx.roleOf(v)) && ctx.roleOf(v) !== "breccia") add(`litho:${v}`, r.hole_id); }
+  return [...out].map(([k, e]) => ({ key: k, holes: e.holes.size, perHole: e.rows / e.holes.size }))
+    .sort((a, b) => (a.perHole > SET_PER_HOLE) - (b.perHole > SET_PER_HOLE) || b.holes - a.holes);
 }
 const veinLabel = (k) => (k.startsWith("litho:") ? k.slice(6) : k);
 export const VEINS = {
@@ -130,6 +137,8 @@ export const VEINS = {
   check: (ctx, value) => (value ? null : tr("Choose a vein or dyke first.")),
   auto(ctx, value) {
     const v = veinLabel(value), n = value.startsWith("litho:") ? holesWith(ctx.rows, (r) => String(r.value) === v) : holesWith(ctx.veins, (r) => String(r.value) === v);
+    const c = veinChoices(ctx).find((x) => x.key === value);
+    if (c && c.perHole > SET_PER_HOLE) return { ok: false, values: null, reasons: [], notes: [], verdict: [tr("{v} is logged about {k} times down each hole: a set of veins, not one sheet. Split it into single veins in Modelling codes, or show where the set is with an Alteration halo (All tools).", { v, k: fmtNum(Math.round(c.perHole)) })] };
     return n < 3
       ? { ok: false, values: null, reasons: [], notes: [], verdict: [tr("Only {n} holes cut {v}: a sheet needs three or more.", { n, v })] }
       : { ok: true, values: {}, reasons: [{ field: "holes", text: tr("{v} is cut in {n} holes: the sheet is drawn through those intercepts, with the thickness logged there.", { v, n }) }], notes: [], verdict: null };
@@ -202,7 +211,8 @@ function gradeSamples(ctx, sym) {
   }
   return out;
 }
-const elementUnit = (ctx, sym) => (ctx.assayElements.find((e) => e.symbol === sym)?.unit) || "";
+// shown as the shell names it: a precious metal stored in ppm reads g/t (#2218)
+const elementUnit = (ctx, sym) => gradeUnitLabel(sym, ctx.assayElements.find((e) => e.symbol === sym)?.unit || "");
 export const GRADE = {
   id: "grade",
   title: "Grade model",
@@ -238,11 +248,12 @@ export const GRADE = {
   ready: (api, v) => v.list.every((x, i) => String(api.numeric.now[i]) === String(x)),
   contacts: () => [],
   notes: () => [],
-  result(made) {
+  result(made, ctx, api) {
     const out = [];
     for (const s of made) {
-      const vol = s.params?.volumeM3 ?? s.volumeM3;
-      if (vol != null) out.push(tr("{name}: {v} m³ above the cut-off.", { name: s.name, v: vol }));
+      // the shell's enclosed volume, as the run's own message computes it (lib/volumetrics.js), from its mesh
+      const geo = api?.meshOf?.(s.id)?.geometry, vol = geo ? computeMeshVolume(geo).volumeM3 : Number(s.params?.volumeM3);
+      if (vol > 0) out.push(tr("{name}: {v} m³ above the cut-off.", { name: s.name, v: fmtNum(Number(vol.toPrecision(3))) }));
       if (s.closure === "artificial") out.push(tr("Part of this shell is closed at the search radius, so its volume depends on that radius as well as on the grades."));
     }
     out.push(tr("This is a picture of where the grade is, not a resource estimate. Tonnes and grade-tonnage are in All tools."));

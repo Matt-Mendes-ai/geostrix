@@ -14201,5 +14201,8 @@
   "No trend is set, so the shell grows the same way in every direction. If the grade runs one way, set a trend first.": "لم يُحدَّد اتجاه، فينمو الغلاف بالتساوي في كل الاتجاهات. إن كان المحتوى يمتد في اتجاه واحد فحدّد اتجاهًا أولًا.",
   "{name}: {v} m³ above the cut-off.": "{name}: {v} م³ فوق حد القطع.",
   "Part of this shell is closed at the search radius, so its volume depends on that radius as well as on the grades.": "جزء من هذا الغلاف مغلق عند نصف قطر البحث، فيعتمد حجمه على ذلك النصف قطر إضافةً إلى القيم.",
-  "This is a picture of where the grade is, not a resource estimate. Tonnes and grade-tonnage are in All tools.": "هذه صورة لمكان المحتوى، وليست تقديرًا للموارد. الأطنان ومنحنى المحتوى-الحمولة في «كل الأدوات»."
+  "This is a picture of where the grade is, not a resource estimate. Tonnes and grade-tonnage are in All tools.": "هذه صورة لمكان المحتوى، وليست تقديرًا للموارد. الأطنان ومنحنى المحتوى-الحمولة في «كل الأدوات».",
+  "It was cancelled, or the run stopped with a message: the messages under the sidebar say why.": "أُلغي، أو توقف التشغيل برسالة: الرسائل أسفل الشريط الجانبي توضح السبب.",
+  "Nothing was built": "لم يُبنَ شيء",
+  "{v} is logged about {k} times down each hole: a set of veins, not one sheet. Split it into single veins in Modelling codes, or show where the set is with an Alteration halo (All tools).": "يُسجَّل {v} نحو {k} مرات على امتداد كل ثقب: مجموعة عروق لا صفيحة واحدة. قسّمه إلى عروق مفردة في رموز النمذجة، أو أظهر موضع المجموعة بهالة تحوّل (كل الأدوات)."
 }

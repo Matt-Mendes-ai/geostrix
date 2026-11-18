@@ -14201,5 +14201,8 @@
   "No trend is set, so the shell grows the same way in every direction. If the grade runs one way, set a trend first.": "No hay tendencia definida, así que la envolvente crece igual en todas las direcciones. Si la ley sigue una dirección, defina primero una tendencia.",
   "{name}: {v} m³ above the cut-off.": "{name}: {v} m³ sobre la ley de corte.",
   "Part of this shell is closed at the search radius, so its volume depends on that radius as well as on the grades.": "Parte de esta envolvente se cierra en el radio de búsqueda, así que su volumen depende de ese radio además de las leyes.",
-  "This is a picture of where the grade is, not a resource estimate. Tonnes and grade-tonnage are in All tools.": "Esto es una imagen de dónde está la ley, no una estimación de recursos. Las toneladas y la curva ley-tonelaje están en Todas las herramientas."
+  "This is a picture of where the grade is, not a resource estimate. Tonnes and grade-tonnage are in All tools.": "Esto es una imagen de dónde está la ley, no una estimación de recursos. Las toneladas y la curva ley-tonelaje están en Todas las herramientas.",
+  "It was cancelled, or the run stopped with a message: the messages under the sidebar say why.": "Se canceló, o la corrida se detuvo con un mensaje: los mensajes bajo la barra lateral dicen por qué.",
+  "Nothing was built": "No se construyó nada",
+  "{v} is logged about {k} times down each hole: a set of veins, not one sheet. Split it into single veins in Modelling codes, or show where the set is with an Alteration halo (All tools).": "{v} se registra unas {k} veces a lo largo de cada sondaje: un conjunto de vetas, no una lámina. Divídalo en vetas individuales en Códigos de modelado, o muestre dónde está el conjunto con un Halo de alteración (Todas las herramientas)."
 }

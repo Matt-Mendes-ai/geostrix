@@ -14201,5 +14201,8 @@
   "No trend is set, so the shell grows the same way in every direction. If the grade runs one way, set a trend first.": "Nenhuma tendência definida, então o invólucro cresce igual em todas as direções. Se o teor segue uma direção, defina primeiro uma tendência.",
   "{name}: {v} m³ above the cut-off.": "{name}: {v} m³ acima do teor de corte.",
   "Part of this shell is closed at the search radius, so its volume depends on that radius as well as on the grades.": "Parte deste invólucro é fechada no raio de busca, então o seu volume depende desse raio além dos teores.",
-  "This is a picture of where the grade is, not a resource estimate. Tonnes and grade-tonnage are in All tools.": "Isto é uma imagem de onde está o teor, não uma estimativa de recursos. As toneladas e a curva teor-tonelagem estão em Todas as ferramentas."
+  "This is a picture of where the grade is, not a resource estimate. Tonnes and grade-tonnage are in All tools.": "Isto é uma imagem de onde está o teor, não uma estimativa de recursos. As toneladas e a curva teor-tonelagem estão em Todas as ferramentas.",
+  "It was cancelled, or the run stopped with a message: the messages under the sidebar say why.": "Foi cancelado, ou a execução parou com uma mensagem: as mensagens sob a barra lateral dizem por quê.",
+  "Nothing was built": "Nada foi construído",
+  "{v} is logged about {k} times down each hole: a set of veins, not one sheet. Split it into single veins in Modelling codes, or show where the set is with an Alteration halo (All tools).": "{v} é descrito cerca de {k} vezes ao longo de cada furo: um conjunto de veios, não uma lâmina. Divida-o em veios individuais em Códigos de modelagem, ou mostre onde está o conjunto com um Halo de alteração (Todas as ferramentas)."
 }
