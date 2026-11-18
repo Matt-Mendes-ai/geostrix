@@ -1578,9 +1578,9 @@ function buildMenu() {
         // keyboard shortcut at all despite being the most-used navigation in the app; added now partly
         // because a "keyboard shortcuts reference" that only had 5 shortcuts to list would barely be
         // worth its own menu entry — these round it out into something actually useful to reference.
-        // TASKS.csv #565 — Ctrl+1..9 in the TAB STRIP's order (was 4 of 8 tabs, and Ctrl+2 was the third tab). TASKS.csv #3890 / #3902: the Basic
-        // tabs first (StrixViewer, 3D Modelling, Maps, Layout), then the Advanced ones, as App.jsx draws them (src/lib/moduleTiers.js); test/menu pins the match
-        ...[["StrixViewer", "viewer"], ["3D Modelling", "modelling"], ["Maps", "maps"], ["Layout", "layout"], ["Geological Mapping", "surface"] /* #820 */, ["Geochem", "geochem"], ["Geophysics", "geophysics"], ["Targeting", "targeting"], ["Mine Design", "minedesign"] /* TASKS.csv #1341 */]
+        // TASKS.csv #565 — Ctrl+1..9 in the TAB STRIP's order (was 4 of 8 tabs, and Ctrl+2 was the third tab). TASKS.csv #3890: the Basic
+        // tabs first (StrixViewer, Maps, Layout), then the Advanced ones, as App.jsx draws them (src/lib/moduleTiers.js); test/menu pins the match
+        ...[["StrixViewer", "viewer"], ["Maps", "maps"], ["Layout", "layout"], ["Geological Mapping", "surface"] /* #820 */, ["3D Modelling", "modelling"], ["Geochem", "geochem"], ["Geophysics", "geophysics"], ["Targeting", "targeting"], ["Mine Design", "minedesign"] /* TASKS.csv #1341 */]
           .filter(([, id]) => id !== "minedesign" || FEATURES.mineDesign === true) // TASKS.csv #3897 — Mine Design switched off (electron/features.json)
           .map(([label, id], i) => ({ label: L(label), accelerator: `CmdOrCtrl+${i + 1}`, /* L(): #1119 */ click: () => mainWindow?.webContents.send("menu", `module-${id}`) })),
         { type: "separator" },

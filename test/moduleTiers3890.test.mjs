@@ -15,17 +15,17 @@ const app = rd("src/App.jsx");
 // the MODULES entries as App.jsx writes them, in order
 const MODULES = [...app.matchAll(/\{ id: "([a-z]+)", label: "([^"]+)", icon: \w+(?:, tip: "[^"]+")?(?:, tier: "([a-z]+)")? \}/g)].map((m) => ({ id: m[1], label: m[2], tier: m[3] }));
 
-test("every module has a tier; Basic is StrixViewer, 3D Modelling, Maps, Layout (#3902)", () => {
+test("every module has a tier; Basic is StrixViewer, Maps, Layout (3D Modelling stays Advanced: Matt, #3902)", () => {
   assert.equal(MODULES.length, 9);
   assert.deepEqual(MODULES.filter((m) => !TIERS.includes(m.tier)).map((m) => m.id), []);
-  assert.deepEqual(MODULES.filter((m) => m.tier === "basic").map((m) => m.id), ["viewer", "modelling", "maps", "layout"]);
+  assert.deepEqual(MODULES.filter((m) => m.tier === "basic").map((m) => m.id), ["viewer", "maps", "layout"]);
   assert.throws(() => groupModules([{ id: "x" }]), /no tier/);
 });
 
 test("grouping and order: Basic first, then Advanced; the hidden Mine Design left out; eight tabs", () => {
   const g = groupModules(MODULES, HIDDEN_TABS);
   assert.deepEqual(g.map((x) => x.tier), ["basic", "advanced"]);
-  assert.deepEqual(tabOrder(MODULES, HIDDEN_TABS), ["viewer", "modelling", "maps", "layout", "surface", "geochem", "geophysics", "targeting"]);
+  assert.deepEqual(tabOrder(MODULES, HIDDEN_TABS), ["viewer", "maps", "layout", "surface", "modelling", "geochem", "geophysics", "targeting"]);
   assert.deepEqual(tabOrder(MODULES, []).slice(-1), ["minedesign"]); // switched on, it closes the Advanced group
   // the given order is kept inside a group, whatever order the list comes in; an empty group is dropped
   assert.deepEqual(tabOrder([{ id: "b", tier: "advanced" }, { id: "a", tier: "basic" }, { id: "c", tier: "advanced" }]), ["a", "b", "c"]);

@@ -75,12 +75,11 @@ const ProjectKmzDialog = React.lazy(() => import("./components/ProjectKmzDialog.
 // TASKS.csv #749 — tabs that were folded into another: a menu item / link naming one opens its new home
 const TAB_ALIAS = { raster: "maps", cartography: "maps", predictive: "modelling", modeling: "modelling", ...Object.fromEntries(HIDDEN_TABS.map((id) => [id, "viewer"])) }; // predictive: #750; modeling: the tab id before the British spelling (2026-10-19); a switched-off tab (#3897) opens the 3D View
 // TASKS.csv #3890 — in drawing order: the Basic tabs first, then the Advanced ones (src/lib/moduleTiers.js groups them under their
-// captions). electron/main.js's View menu and ShortcutsModal.jsx list the same order for Ctrl+1..n. TASKS.csv #3902 (Matt's decision for
-// the #3901 redesign): four Basic tabs, StrixViewer, 3D Modelling, Maps, Layout; each tooltip starts with its tier, so the meaning never
-// rests on the colour alone.
+// captions). electron/main.js's View menu and ShortcutsModal.jsx list the same order for Ctrl+1..n. TASKS.csv #3902 (#3901 redesign): each
+// tooltip starts with its tier, so the meaning never rests on the colour alone. Matt kept 3D Modelling Advanced (2026-11-17), so the order
+// is #3890's.
 const MODULES = [
   { id: "viewer", label: "StrixViewer", icon: Box, tip: "Basic: your project in 3D", tier: "basic" }, // TASKS.csv #3894: one word, never translated
-  { id: "modelling", label: "3D Modelling", icon: Layers3, tip: "Basic: build the 3D model from your drilling", tier: "basic" },
   // TASKS.csv #749 — one Maps tab: rasters / satellite / terrain beside each other, map + web layers, boundaries, and the
   // whole former Cartography tab (project CRS, reprojection). Was: Raster, Cartography, and four Geophysics tools.
   { id: "maps", label: "Maps", icon: MapIcon, tip: "Basic: terrain, imagery, map layers and the project's coordinate system", tier: "basic" },
@@ -88,6 +87,7 @@ const MODULES = [
   // TASKS.csv #820 — Matt: "a new tab named Surface Geology ... the mapping workflow in this new tab. I'm thinking of eventually
   // expanding to soils with anomaly detection". The 3D view in a "surface" mode: geology maps, outcrop structures.
   { id: "surface", label: "Geological Mapping", icon: Compass, tip: "Advanced: geology maps, outcrops and surface structures", tier: "advanced" },
+  { id: "modelling", label: "3D Modelling", icon: Layers3, tip: "Advanced: build the 3D model from your drilling", tier: "advanced" },
   { id: "geochem", label: "Geochem", icon: FlaskConical, tip: "Advanced: assays, grade statistics and surface samples", tier: "advanced" },
   { id: "geophysics", label: "Geophysics", icon: Radio, tip: "Advanced: surveys, grids, logs and inversions", tier: "advanced" },
   { id: "targeting", label: "Targeting", icon: Target, tip: "Advanced: targets and planned drillholes", tier: "advanced" },
