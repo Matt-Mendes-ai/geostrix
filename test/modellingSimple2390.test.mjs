@@ -27,9 +27,9 @@ test("Model from map with a polygon map layer; geoML when installed; Stereonet w
 });
 
 test("wiring: the ribbon's flags, empty groups hidden in Simple (#1707), Stereonet disabled with a reason (#2773)", () => {
-  const v = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  const v = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(v, /const simpleTools = useModellingSimple\(mode === "modelling"\);/);
-  const r = fs.readFileSync(new URL("../src/modules/viewer/ModeRibbons.jsx", import.meta.url), "utf8"); // the ribbons: #3904
+  const r = fs.readFileSync(new URL("../src/modules/viewer/ModeRibbons.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n"); // the ribbons: #3904
   // #3153 — the Setup group and Model settings show in Simple; Litho groups and Modelling codes follow the strat flag as the group did
   assert.match(r, /<RibbonGroup label="Setup">\{\/\* #3153[^\n]*\n\s*<RibbonButton icon=\{Settings\} label="Model settings"/);
   assert.match(r, /<RibbonButton advanced=\{!simpleTools\.strat\} icon=\{Group\} label="Litho groups"/);
