@@ -14012,5 +14012,11 @@
   "Surfaces": "Surfaces",
   "Volumes": "Volumes",
   "Veins and dykes": "Filons et dykes",
-  "Faults and structure": "Failles et structure"
+  "Faults and structure": "Failles et structure",
+  "Add data": "Ajouter des données",
+  "Add files to the project: collars, surveys, logs, assays, maps, grids, terrain, models. Each is read the same way as a file dropped on the view.": "Ajoute des fichiers au projet : collets, levés, diagraphies, analyses, cartes, grilles, terrain, modèles. Chacun est lu comme un fichier déposé sur la vue.",
+  "Show or hide the figure overlay: title, legend and scale bar": "Afficher ou masquer la surcouche de figure : titre, légende et barre d'échelle",
+  "Browser": "Navigateur",
+  "Show the Browser panel": "Afficher le panneau Navigateur",
+  "Hide the Browser panel": "Masquer le panneau Navigateur"
 }

@@ -30,6 +30,7 @@ import TubeSizeControl from "./TubeSizeControl.jsx"; // TASKS.csv #3668
 import { autoGridSize, isAutoGrid } from "../../lib/viewer/gridGroup.js"; // TASKS.csv #2318
 import { useStore } from "../../lib/store.jsx"; // TASKS.csv #2517 — the collars
 import AssayStaleBadge from "../../components/AssayStaleBadge.jsx"; // TASKS.csv #3686
+import { requestModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #3914 — Add data hands files to the drop import
 // TASKS.csv #1702 (review #1645, Copley) — "Intercepts" opened lithology boundary picks; to a geologist an intercept is "24 m @ 0.44 % Cu".
 // The button is now "Contact picks", and "Grade intercepts" opens Best intercepts (Geochem's tool) on the loaded assays from here.
 const BestIntercepts = lazyModal(() => import("../../components/BestIntercepts.jsx"));
@@ -55,6 +56,7 @@ export function ViewToolbar({
   // the section step 'next line' (2 x buffer) is then the line spacing
   const { collars: spacingCollars = [], assays: gAssays = [], assayElements: gEls = [], survey: gSurvey = [], layers: gLayers = {} } = useStore() || {};
   const [gradeIntOpen, setGradeIntOpen] = useState(false); // #1702
+  const addDataRef = useRef(null); // TASKS.csv #3914
   const spacing = useMemo(() => drillSiteSpacing(spacingCollars), [spacingCollars]);
   // TASKS.csv #2778 (Matt: b) — no collars: Simple shows 3D slice and Level plan instead of the drillhole tools
   const noHoles = !spacingCollars.length;
@@ -65,6 +67,11 @@ export function ViewToolbar({
   useEffect(() => { if (!bufferTyped.current && spacing?.buffer && setSectionCorridor) setSectionCorridor(spacing.buffer); }, [spacing]); // the setter is stable
   return (
     <Ribbon show={show} label="StrixViewer tools">
+      {/* TASKS.csv #3914 — one door for every file: the picked files go through the same import as files dropped on the view */}
+      <RibbonGroup label="Data">
+        <input ref={addDataRef} type="file" multiple hidden onChange={(e) => { const files = Array.from(e.target.files || []); e.target.value = ""; if (files.length) requestModuleAction("import-dropped-files", { files }); }} />
+        <RibbonButton icon={Upload} label="Add data" tone="data" title="Add files to the project: collars, surveys, logs, assays, maps, grids, terrain, models. Each is read the same way as a file dropped on the view." onClick={() => addDataRef.current?.click()} />
+      </RibbonGroup>
       <RibbonGroup label="View" advanced={!noHoles}>{/* #1707 — all Advanced (3D slice not with no holes, #2778): no empty caption in Simple */}
         <div className="ge-ribbon-cell ge-adv">
           <HoverToolInfo title={tr("Grid")} text={tr("Toggles the ground reference grid on or off, and lets you resize it, change its division spacing/colour, or add two vertical wall grids for a full 3D reference box. Turn it off if it's cluttering a dense model or a figure you're about to snapshot.")} suppress={openPopover === "grid"}>
@@ -220,7 +227,7 @@ export function ViewToolbar({
           </HoverToolInfo>
         </div>
         {measureMode && <MeasureResults mode={measureMode} pts={measurePts} onClear={clearMeasure} onSwitchMode={onSwitchMeasureMode} />}
-        <div className="ge-ribbon-cell">{/* TASKS.csv #1152 */}
+        <div className="ge-ribbon-cell ge-adv">{/* TASKS.csv #1152; Advanced since #3914 (a mapping job; the Faults tool opens it when it needs it) */}
           <HoverToolInfo title={tr("Interpretation lines")} text={tr("Draw faults, contacts and lineaments over a geophysics survey. Each set of lines is a map layer: it drapes on the terrain, exports as Shapefile, GeoPackage, KML or DXF, and prints in the Layout legend.")}>
             <button className={`ge-ribbon-btn ${interpretOpen ? "active" : ""}`} aria-pressed={!!interpretOpen} onClick={onInterpret}><PenTool size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Interpret")}</span></button>
           </HoverToolInfo>
@@ -235,7 +242,7 @@ export function ViewToolbar({
             <button className={`ge-ribbon-btn${qcDisabled ? " is-disabled" : ""}`} onClick={qcDisabled ? undefined : onQc} aria-disabled={qcDisabled || undefined}><ShieldAlert size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Data QC")}</span></button>
           </HoverToolInfo>
         </div>
-        <div className={`ge-ribbon-cell${noHoles ? " ge-adv" : ""}`}>
+        <div className="ge-ribbon-cell ge-adv">{/* TASKS.csv #3914 — a specialist report: Advanced */}
           <HoverToolInfo title={tr("Boundary intercepts")} text={boundaryDisabled ? `${boundaryWhy || tr("Load some lithology/alteration interval data first.")} ` + tr("Lists every geological unit boundary (top of each litho/alteration interval) resolved to a real 3D position along each hole — the same control points the implicit-modelling tools use — so you can review, exclude, or mark individual points \"soft\" before running a surface.") : tr("Lists every geological unit boundary (top of each litho/alteration interval) resolved to a real 3D position along each hole — the same control points the implicit-modelling tools use — so you can review, exclude, or mark individual points \"soft\" before running a surface.")}>
             <button className={`ge-ribbon-btn${boundaryDisabled ? " is-disabled" : ""}`} onClick={boundaryDisabled ? undefined : onBoundaryIntercepts} aria-disabled={boundaryDisabled || undefined}><Milestone size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Contact picks")}</span></button>{/* #1702 — was "Intercepts" */}
           </HoverToolInfo>
@@ -284,13 +291,13 @@ const popoverHeader = { display: "flex", alignItems: "center", justifyContent: "
 // unit polygons drawn in the app, so a geology map can be made here and Model it can use it.
 export function SurfaceRibbon({ show, paneProps, onStereonet, onModelIt, mapPolygons = true, identifyOn, onToggleIdentify, interpretOpen, onInterpret, onPolygons, onStyleSamples, sampleCount = 0 }) {
   return (
-    <Ribbon show={show} label="Geological Mapping tools">
+    <Ribbon show={show} label="Geological Mapping tools">{/* TASKS.csv #3907 — Basic tools: the short list (load and read mapped data); drawing, the stereonet and Model it are Advanced */}
       <RibbonGroup label="Geological mapping">
         <RibbonButton icon={MapIcon} label="Geology map" tone="data" title="Geology map layers (GeoPackage / shapefile / MapInfo TAB): import, colour by unit, drape on the terrain" {...paneProps("sgMaps")} />
         <RibbonButton icon={Compass} label="Outcrop structures" tone="data" title="Outcrop structure measurements (CSV / MapInfo points): bedding, foliation, faults, veins" {...paneProps("sgStructs")} />
-        <RibbonButton icon={Target} label="Stereonet" tone="analyse" title="Stereonet of the outcrop measurements (and any downhole structure picks)" onClick={onStereonet} />
+        <RibbonButton advanced icon={Target} label="Stereonet" tone="analyse" title="Stereonet of the outcrop measurements (and any downhole structure picks)" onClick={onStereonet} />
       </RibbonGroup>
-      <RibbonGroup label="Draw">
+      <RibbonGroup advanced label="Draw">
         <RibbonButton icon={Shapes} label="Unit polygons" tone="data" active={interpretOpen === "polygon"} title="Draw the outline of a map unit by clicking in the 3D view: a geology map layer with a unit field, which Model it can use" onClick={onPolygons} />
         <RibbonButton icon={PenTool} label="Interpret" tone="analyse" active={interpretOpen === true} title="Draw faults, contacts and lineaments by clicking in the 3D view; each set of lines is a map layer" onClick={onInterpret} />
       </RibbonGroup>
@@ -298,7 +305,7 @@ export function SurfaceRibbon({ show, paneProps, onStereonet, onModelIt, mapPoly
         <RibbonButton icon={Info} label="Identify" tone="analyse" active={identifyOn} title="Click anything in the 3D view to see which layer it belongs to and its details. Esc stops." onClick={onToggleIdentify} />
         <RibbonButton icon={Palette} label="Rock chips" tone="view" disabled={!sampleCount} disabledReason="No surface samples yet: drop a rock-chip or soil file on the 3D view, or import it on the Geochem tab" /* #3381 — a dropped sample file is taken (#2268) */ title="Style the surface samples: colour, size, shape, labels; colour by element is in the sidebar" onClick={onStyleSamples} />
       </RibbonGroup>
-      <RibbonGroup label="Next step">
+      <RibbonGroup advanced label="Next step">
         <RibbonButton icon={Mountain} label="Model it" tone="model" title="Build a 3D model from this map and these measurements: opens 3D Modelling > Model from map" onClick={onModelIt}
           disabled={!mapPolygons} disabledReason="Import a geology map (Geology map) or draw its units (Unit polygons) first: Model it builds from map polygons with a unit field" />{/* #1447 */}
       </RibbonGroup>

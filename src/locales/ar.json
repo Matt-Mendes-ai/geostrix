@@ -14012,5 +14012,11 @@
   "Surfaces": "الأسطح",
   "Volumes": "الأحجام",
   "Veins and dykes": "العروق والسدود القاطعة",
-  "Faults and structure": "الصدوع والبنية"
+  "Faults and structure": "الصدوع والبنية",
+  "Add data": "إضافة بيانات",
+  "Add files to the project: collars, surveys, logs, assays, maps, grids, terrain, models. Each is read the same way as a file dropped on the view.": "يضيف ملفات إلى المشروع: الفوهات والمسوحات والسجلات والتحاليل والخرائط والشبكات والتضاريس والنماذج. يُقرأ كل ملف كما يُقرأ ملف مُفلت على العرض.",
+  "Show or hide the figure overlay: title, legend and scale bar": "إظهار أو إخفاء تراكب الشكل: العنوان ووسيلة الإيضاح ومقياس الرسم",
+  "Browser": "المتصفح",
+  "Show the Browser panel": "إظهار لوحة المتصفح",
+  "Hide the Browser panel": "إخفاء لوحة المتصفح"
 }
