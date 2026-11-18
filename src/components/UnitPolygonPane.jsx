@@ -135,7 +135,7 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
                 <Trash2 size={13} role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Remove polygon {v}", { v: i + 1 })} onClick={() => remove(i)} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} />
               </div>
             ))}
-            <div style={{ ...note, marginTop: 4 }}>{tr("Show, hide or remove the whole layer under Map layers; export it from its right-click menu in the 3D View's layer list (Map layers).") /* #3381 — the Map layers cards have no export */}</div>
+            <div style={{ ...note, marginTop: 4 }}>{tr("Show, hide or remove the whole layer under Map layers; export it from its right-click menu in StrixViewer's layer list (Map layers).") /* #3381 — the Map layers cards have no export */}</div>
           </div>
         )}
       </div>

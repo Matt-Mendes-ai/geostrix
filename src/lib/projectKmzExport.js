@@ -172,7 +172,7 @@ export async function exportProjectKmz(store, { confirm = (m) => window.confirm(
     const c = out.counts;
     const file = String(res.filePath || "").split(/[\\/]/).pop() || `${ctx.projectName}.kmz`;
     // TASKS.csv #3087 part 2 — the models left out, and how many went in
-    const skipText = (s) => (s.kind === "assays" ? tr("{n} assay element(s) the 3D View neither shows nor classes are left out.", { n: s.n })
+    const skipText = (s) => (s.kind === "assays" ? tr("{n} assay element(s) StrixViewer neither shows nor classes are left out.", { n: s.n })
       : s.kind === "model" ? tr("The model \"{name}\" has {n} triangles, more than a KMZ model can take, and is left out.", { name: s.name, n: s.n.toLocaleString() })
         : s.kind === "model-place" ? tr("The model \"{name}\" could not be placed on the map and is left out.", { name: s.name })
           : s.kind === "image" ? tr("The section image \"{name}\" has no picture and is left out.", { name: s.name })

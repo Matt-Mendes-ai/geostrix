@@ -27,9 +27,15 @@ import everyday from "./pages/everyday.js"; // TASKS.csv #3556 / #3578 — the e
 import tonnage from "./pages/tonnage.js"; // TASKS.csv #3597 — Grade-tonnage, Block calculator, Unsampled metres
 import layout from "./pages/layout.js"; // TASKS.csv #3603 — Layout and the Maps plan view
 import output from "./pages/output.js"; // TASKS.csv #3622 — Export, and Save / autosave / recovery / Undo
+import { MINE_DESIGN_ENABLED } from "../lib/features.js"; // TASKS.csv #3897
 
-export const PAGES = [...start, ...data, ...everyday, ...output, ...geophysics, ...maps, ...layout, ...mineDesign, ...modelling, ...tonnage, ...view, ...surface, ...targeting];
-export const pageById = (id) => PAGES.find((p) => p.id === id) || null;
+const ALL_PAGES = [...start, ...data, ...everyday, ...output, ...geophysics, ...maps, ...layout, ...mineDesign, ...modelling, ...tonnage, ...view, ...surface, ...targeting];
+// TASKS.csv #3897 — with Mine Design switched off its pages are not listed, searched or offered as related pages. pageById still finds
+// them, so the switched-off panes' own "?" (and PANE_HELP) keep a page for the day the switch goes back on.
+const shownIds = new Set(ALL_PAGES.filter((p) => MINE_DESIGN_ENABLED || p.area !== "Mine Design").map((p) => p.id));
+export const PAGES = ALL_PAGES.filter((p) => shownIds.has(p.id))
+  .map((p) => (p.related?.some((r) => !shownIds.has(r)) ? { ...p, related: p.related.filter((r) => shownIds.has(r)) } : p));
+export const pageById = (id) => PAGES.find((p) => p.id === id) || ALL_PAGES.find((p) => p.id === id) || null;
 
 // every searchable string of a page, lower-cased, computed once
 const textCache = new Map();

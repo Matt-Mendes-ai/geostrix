@@ -37,7 +37,7 @@ wide as its longest value. The planar measurements were written to a CSV with th
 
 **North reference of the measurements.** The map's data model gives the dip direction as an azimuth and names no north. GeoStrix
 reads them as true north, as a published geological map plots them, and turns them to grid north when the sample is loaded (0.9° to
-1.4° added across the sheet). If you know the survey recorded them otherwise, re-import `bedding.csv` in Surface Geology and choose.
+1.4° added across the sheet). If you know the survey recorded them otherwise, re-import `bedding.csv` in Geological Mapping and choose.
 
 Not included from the package: the linear measurements (23), the stations and their lithology descriptions, the fossil localities,
 the two wells, the cartographic layers (topographic base, annotation, borders), the map PDF and the fonts and styles.

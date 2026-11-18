@@ -153,7 +153,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
             </select>
           </div>
           {mode === "hole" && hasPlanMap && ( /* TASKS.csv #1644 */
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)" }} title={tr("Each page's top-down map is rendered again in the 3D View, centred on its hole at the template's scale: about a second per page. Off: every page shows the template's map, with its hole marked.")}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)" }} title={tr("Each page's top-down map is rendered again in StrixViewer, centred on its hole at the template's scale: about a second per page. Off: every page shows the template's map, with its hole marked.")}>
               <input type="checkbox" checked={centreMaps} onChange={(e) => setCentreMaps(e.target.checked)} />{tr("Centre each page's map on its hole")}</label>
           )}
           {mode === "hole" && (
@@ -201,7 +201,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
                 <option value="">{tr("By a collar field…")}</option>{attrChoices.flatMap((ch) => ch.values.map((v) => <option key={`${ch.key}=${v}`} value={pickTerm(ch.key, v) /* #2960 — the typed filter splits on spaces */}>{`${ch.key} = ${v}`}</option>))}</select>}
             </div>}
             <div ref={scrollRef} onScroll={onScroll} style={{ maxHeight: 180, overflowY: "auto", border: "1px solid #2a323c", borderRadius: 6, padding: 6 }}>{/* windowed: #3180 */}
-              {items.length === 0 && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.6, padding: 6 }}>{/* #1873 — say why a mode is empty and what fills it (a geophysics-only project has neither) */}{mode === "hole" ? (holeFilter.trim() && holeIds.length ? tr("No hole matches the filter.") : collars.length ? tr("No collar has a depth, so no hole has a trace to make a page from.") : tr("No holes have collars, so there is no page per hole: import collars, or use one page per section.")) : tr("No sections drawn yet: draw one with Draw section in the 3D View, then make one page per section here.")}</div>}
+              {items.length === 0 && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.6, padding: 6 }}>{/* #1873 — say why a mode is empty and what fills it (a geophysics-only project has neither) */}{mode === "hole" ? (holeFilter.trim() && holeIds.length ? tr("No hole matches the filter.") : collars.length ? tr("No collar has a depth, so no hole has a trace to make a page from.") : tr("No holes have collars, so there is no page per hole: import collars, or use one page per section.")) : tr("No sections drawn yet: draw one with Draw section in StrixViewer, then make one page per section here.")}</div>}
               {topPad > 0 && <div style={{ height: topPad }} />}
               {items.slice(startIndex, endIndex).map((it) => {
                 const key = itemKey(it);

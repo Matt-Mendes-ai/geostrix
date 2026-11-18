@@ -111,7 +111,7 @@ export default function DatabaseConnectModal({ onCancel, onResults, initialSql =
         </div>
 
         <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
-          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>{tr("Connects directly to the database — the same one DBeaver points at — rather than going through DBeaver itself. The password is used for this session only unless you tick \"Remember the password\" (then it is kept encrypted on this computer, never in the project file). Once connected it stays open for the rest of the session (see the new Browser panel in the 3D View sidebar) so you won't be asked again until you disconnect.")}</div>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>{tr("Connects directly to the database — the same one DBeaver points at — rather than going through DBeaver itself. The password is used for this session only unless you tick \"Remember the password\" (then it is kept encrypted on this computer, never in the project file). Once connected it stays open for the rest of the session (see the new Browser panel in StrixViewer sidebar) so you won't be asked again until you disconnect.")}</div>
 
           {dbConnections.length > 0 && (
             <select onChange={(e) => loadSaved(e.target.value)} style={{ ...sel, width: "100%", marginBottom: 10 }}>

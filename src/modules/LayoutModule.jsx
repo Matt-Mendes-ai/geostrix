@@ -1365,9 +1365,9 @@ export default function LayoutModule() {
             {(surfaceSamples || []).length > 0 && <RibbonButton icon={Sheet} label="Samples table" tone="output" title="Add a table of the surface samples (rock chips, soils…) with one element, highest first, kept up to date with the project" onClick={() => addElement("samplestable")} />}{/* TASKS.csv #1869 */}
           </RibbonGroup>
           <RibbonGroup label="Views">
-            <RibbonButton icon={Camera} label="Current view" tone="view" title="Add a viewport snapshot of the current 3D View (no theme needed)" onClick={() => startViewportRender(null, "new")} />
+            <RibbonButton icon={Camera} label="Current view" tone="view" title="Add a viewport snapshot of the current 3D view (no theme needed)" onClick={() => startViewportRender(null, "new")} />
             <RibbonButton icon={MapPinned} label="Drill plan" tone="view" disabled={!collars.length && !(plannedHoles || []).length /* #3358 — planned holes alone make a plan */} title="A drill-hole location plan: collar symbols, traces and labels at a true scale, drawn from the collars and any planned holes (not a 3D capture)" onClick={() => addElement("drillplan")} />{/* TASKS.csv #1639 */}
-            <RibbonButton advanced icon={MonitorPlay} label="Theme view" tone="view" disabled={!themes.length} active={themePickerFor === "new"} title={themes.length ? "Add a live-bound viewport of a saved 3D View theme (pick it in the sidebar)" : "Save a theme in the 3D View first (Themes on its ribbon)"} onClick={() => setThemePickerFor(themePickerFor === "new" ? null : "new")} />
+            <RibbonButton advanced icon={MonitorPlay} label="Theme view" tone="view" disabled={!themes.length} active={themePickerFor === "new"} title={themes.length ? "Add a live-bound viewport of a saved StrixViewer theme (pick it in the sidebar)" : "Save a theme in StrixViewer first (Themes on its ribbon)"} onClick={() => setThemePickerFor(themePickerFor === "new" ? null : "new")} />
           </RibbonGroup>
           <RibbonGroup advanced label="Draw">
             <RibbonButton icon={Square} label="Rectangle" tone="neutral" title="Add rectangle" onClick={() => addElement("rect")} />
@@ -1812,7 +1812,7 @@ export default function LayoutModule() {
                       <button type="button" onClick={() => { const P = { w: A4.h, h: A4.w }; changePageFormat({ ...pageFormat, orientation: pageFormat.orientation === "landscape" ? "portrait" : "landscape" }); updateSelected({ w: t.w, h: t.h, scale: t.scale, centre: t.centre, ...(sel.x + t.w > P.w - 10 || sel.y + t.h > P.h - 10 ? { x: 40, y: 60 } : {}) }); }} style={{ ...pBtn, display: "inline-flex", marginBottom: 0, padding: "1px 6px" }}>{tr("Turn the frame and the page")}</button></>}
                   </div>) : null; })()}
                 {(sel.onlyChecked || hiddenIn(tableCollars, holeVisibilityNow()) > 0) && ( /* TASKS.csv #3605 */
-                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}><input type="checkbox" checked={!!sel.onlyChecked} onChange={(e) => updateSelected({ onlyChecked: e.target.checked })} />{tr("Only the {shown} of {total} holes checked in the 3D View", { shown: ((tableCollars || []).length - hiddenIn(tableCollars, holeVisibilityNow())).toLocaleString(), total: (tableCollars || []).length.toLocaleString() })}</label>
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}><input type="checkbox" checked={!!sel.onlyChecked} onChange={(e) => updateSelected({ onlyChecked: e.target.checked })} />{tr("Only the {shown} of {total} holes checked in StrixViewer", { shown: ((tableCollars || []).length - hiddenIn(tableCollars, holeVisibilityNow())).toLocaleString(), total: (tableCollars || []).length.toLocaleString() })}</label>
                 )}
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Holes containing")}<input type="text" value={sel.holeFilter || ""} placeholder={tr("all")} title={tr("Text in the hole id, or a collar field such as year=2024 (every field term must match)")} /* #2141 */ onChange={(e) => updateSelected({ holeFilter: e.target.value })} style={{ ...inp, marginTop: 4 }} /></label>
                 {(() => { const sg = sel.holeFilter ? filterSuggestion(tableCollars, sel.holeFilter) : null; return sg ? <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr("A space ends a term: did you mean {term}? (_ stands for a space in a value.)", { term: sg })}</div> : null; })()}{/* TASKS.csv #3601 */}
@@ -1956,7 +1956,7 @@ export default function LayoutModule() {
         )}
 
         <div className="ge-section-label" style={{ marginTop: 20 }}>{tr("Adding views")}</div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 8, lineHeight: 1.5 }}>{tr("Use")}{" "}<b>{tr("Current view")}</b>{" "}{tr("or")}{" "}<b>{tr("Theme view")}</b>{" "}{tr("on this tab's ribbon,")}{" "}<b>{tr("Snapshot")}</b>{" "}{tr("on the 3D View ribbon (Output), or the snapshot button in a cross-section pop-out, to put a view on the page below — drag to place it, drag its handles to resize it, and pick its scale in the sidebar.")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 8, lineHeight: 1.5 }}>{tr("Use")}{" "}<b>{tr("Current view")}</b>{" "}{tr("or")}{" "}<b>{tr("Theme view")}</b>{" "}{tr("on this tab's ribbon,")}{" "}<b>{tr("Snapshot")}</b>{" "}{tr("on StrixViewer ribbon (Output), or the snapshot button in a cross-section pop-out, to put a view on the page below — drag to place it, drag its handles to resize it, and pick its scale in the sidebar.")}</div>
       </div>
 
       <SidebarResizeHandle width={sidebarWidth} onResize={setSidebarWidth} />
@@ -2329,7 +2329,7 @@ function DepthScaleControls({ sel, pageH, updateSelected, split = null, onSplit 
         );
         return sel.h > pageH ? <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("At this scale the log is taller than the page: a larger depth scale (1 : N with a bigger N) fits it, or a taller page.")}</div> : null;
       })()}
-      {(() => { const adv = d > 0 && !sel.slice && onRedraw ? redrawAdvice(sel, d) : null; return adv && adv.enlarge > 1.15 ? (<div style={{ marginTop: 4 }}>{/* TASKS.csv #3873 (a) */}<button type="button" onClick={() => onRedraw(adv.ppmNeeded)} title={tr("Opens this strip log in the 3D View with the tracks, depth range and key it was sent with, at the px per metre this depth scale needs; its 'Add to Layout' replaces this picture on this page, at the same depth scale.")} style={pBtn}>{tr("Draw it again at {need} px/m", { need: +adv.ppmNeeded.toPrecision(3) })}</button></div>) : null; })()}{/* TASKS.csv #3873 (a) — also when a split is offered: the enlarged picture prints its labels far over size */}
+      {(() => { const adv = d > 0 && !sel.slice && onRedraw ? redrawAdvice(sel, d) : null; return adv && adv.enlarge > 1.15 ? (<div style={{ marginTop: 4 }}>{/* TASKS.csv #3873 (a) */}<button type="button" onClick={() => onRedraw(adv.ppmNeeded)} title={tr("Opens this strip log in StrixViewer with the tracks, depth range and key it was sent with, at the px per metre this depth scale needs; its 'Add to Layout' replaces this picture on this page, at the same depth scale.")} style={pBtn}>{tr("Draw it again at {need} px/m", { need: +adv.ppmNeeded.toPrecision(3) })}</button></div>) : null; })()}{/* TASKS.csv #3873 (a) — also when a split is offered: the enlarged picture prints its labels far over size */}
       {split && !split.error && split.pages?.length > 1 && (split.wanted || split.small) && ( /* TASKS.csv #3372 — at the page's width */
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", lineHeight: 1.4, marginTop: 4 }}>{split.wanted
           ? tr("At 1 : {want} the log is {mm} mm wide, wider than the page; at 1 : {d} it fits the page's width, with its labels at about {pt} pt.", { want: Math.round(split.wanted).toLocaleString(), mm: Math.round((split.wantedW * 25.4) / 96), d: split.denom.toLocaleString(), pt: sliceLabelPt(split.k).toFixed(1) })
@@ -2453,12 +2453,12 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
           this viewport's theme/camera live, ready for real orbit/pan/zoom, instead of an instant
           re-render. See startInteractiveViewportEdit above and ViewerModule's interactive-session
           banner for the other half of this flow. */}
-      <button onClick={onEnter} disabled={sel.refreshing} title={tr("Switch to the 3D View tab and interactively orbit/pan/zoom this viewport's camera, then bring the new angle back here")} style={{ ...pBtn, opacity: sel.refreshing ? 0.6 : 1 }}>
+      <button onClick={onEnter} disabled={sel.refreshing} title={tr("Switch to the StrixViewer tab and interactively orbit/pan/zoom this viewport's camera, then bring the new angle back here")} style={{ ...pBtn, opacity: sel.refreshing ? 0.6 : 1 }}>
         <LogIn size={14} />{" "}{tr("Enter & adjust view…")}</button>
       {/* TASKS.csv #3145 — a view set here is kept by Refresh, Fit and a scale change; this goes back to the live 3D View */}
       {!sel.themeId && sel.viewState?.adjusted && onLiveView && (
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6, lineHeight: 1.4 }}>{tr("This frame keeps the view you set in 'Enter & adjust view': Refresh, Fit and a scale change use it.")}{" "}
-          <button style={{ ...smallBtn, marginTop: 4 }} onClick={onLiveView} disabled={sel.refreshing}>{tr("Use the live 3D View again")}</button>
+          <button style={{ ...smallBtn, marginTop: 4 }} onClick={onLiveView} disabled={sel.refreshing}>{tr("Use the live 3D view again")}</button>
         </div>
       )}
       {sel.fixedScale > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6, lineHeight: 1.4 }}>{tr("This frame has a fixed scale (1:{s}): in the 3D view only where you centre it is used, not the zoom. Set Scale to \"free (as framed)\" to use the zoom.", { s: Number(sel.fixedScale).toLocaleString() })}</div>}{/* TASKS.csv #1486 */}

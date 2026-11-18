@@ -509,7 +509,7 @@ export default function MapsPlanView() {
       {(collars.length > 0 || hiddenN > 0) && ( /* TASKS.csv #2459 / #2591 — the collars' colour and labels, and their legend */
         <div ref={chipRef} style={{ ...chip, left: 10, top: 10, maxWidth: 270, display: "flex", flexDirection: "column", gap: 4, lineHeight: 1.35 }} onMouseDown={(e) => e.stopPropagation()}>
           {hiddenN > 0 && ( /* TASKS.csv #3605 */
-            <label style={{ display: "flex", alignItems: "center", gap: 5 }}><input type="checkbox" checked={onlyChecked} onChange={(e) => setOnlyChecked(e.target.checked)} />{tr("Only the {shown} of {total} holes checked in the 3D View", { shown: (allCollars.length - hiddenN).toLocaleString(), total: allCollars.length.toLocaleString() })}</label>
+            <label style={{ display: "flex", alignItems: "center", gap: 5 }}><input type="checkbox" checked={onlyChecked} onChange={(e) => setOnlyChecked(e.target.checked)} />{tr("Only the {shown} of {total} holes checked in StrixViewer", { shown: (allCollars.length - hiddenN).toLocaleString(), total: allCollars.length.toLocaleString() })}</label>
           )}
           <label style={{ display: "flex", alignItems: "center", gap: 5 }}>
             {tr("Collars")}
@@ -637,7 +637,7 @@ export default function MapsPlanView() {
       <div style={{ ...chip, right: 10, bottom: 10, fontVariantNumeric: "tabular-nums" }}>
         {lodStatus?.loading ? <span style={{ marginRight: 8 }}>{tr("Reading detail ({n} tiles)…", { n: lodStatus.loading.toLocaleString() })}</span> : null}{/* #3252 */}
         {!lodStatus?.loading && lodStatus?.failed ? <span style={{ marginRight: 8 }} title={lodStatus.lastError || ""}>{tr("{n} detail tile(s) could not be read (offline?): the fetched picture shows there", { n: lodStatus.failed.toLocaleString() })}</span> : null}
-        {cursor ? `E ${Math.round(cursor.x).toLocaleString()}  N ${Math.round(cursor.y).toLocaleString()}${frameText}${lonLatText(toLonLat, cursor)}${cursorValueText(rasters, cursor)}` : tr("Plan view · wheel to zoom, drag to pan, double-click to fit · drape and 3D in the 3D View")}
+        {cursor ? `E ${Math.round(cursor.x).toLocaleString()}  N ${Math.round(cursor.y).toLocaleString()}${frameText}${lonLatText(toLonLat, cursor)}${cursorValueText(rasters, cursor)}` : tr("Plan view · wheel to zoom, drag to pan, double-click to fit · drape and 3D in StrixViewer")}
       </div>
     </div>
   );

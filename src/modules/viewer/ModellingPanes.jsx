@@ -516,7 +516,7 @@ export default function ModellingPanes(props) {
         {/* TASKS.csv #1546 (review #1497, Lawyers) — one prospect, not the district: the tools read only the checked holes */}
         <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}>
           <span>{tr("Model area")}</span>
-          <InfoButton title={tr("Model area")} width={280} text={tr("Which holes feed every modelling tool on this tab. 'Holes checked in the Holes list' models one prospect of a district on its own: the box and the cell size follow those holes' contacts instead of spanning prospects kilometres apart. Tick the holes under Holes in the 3D View sidebar ('Only these' on a prospect's holes).")} />
+          <InfoButton title={tr("Model area")} width={280} text={tr("Which holes feed every modelling tool on this tab. 'Holes checked in the Holes list' models one prospect of a district on its own: the box and the cell size follow those holes' contacts instead of spanning prospects kilometres apart. Tick the holes under Holes in StrixViewer sidebar ('Only these' on a prospect's holes).")} />
         </div>
         <select aria-label={tr("Model area")} value={modelArea || "all"} onChange={(e) => setModelArea(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
           <option value="all">{tr("Whole property")}</option>
@@ -749,12 +749,12 @@ export default function ModellingPanes(props) {
         </>)}
         {toolPane === "mcodes" && (<>
         {paneHeader("Modelling codes", Waypoints, "model")}
-        {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the 3D View tab (Add layer › Lithology), or load the sample project."))}{/* TASKS.csv #3606 — said first, as Implicit surface does */}
+        {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the StrixViewer tab (Add layer › Lithology), or load the sample project."))}{/* TASKS.csv #3606 — said first, as Implicit surface does */}
         <Suspense fallback={null}>        {mcodesPane(null)}</Suspense>
         </>)}
         {toolPane === "groups" && (<>
         {paneHeader("Lithology groups", Group, "model")}
-        {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the 3D View tab (Add layer › Lithology), or load the sample project."))}{/* TASKS.csv #3606 — said first, as Implicit surface does */}
+        {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the StrixViewer tab (Add layer › Lithology), or load the sample project."))}{/* TASKS.csv #3606 — said first, as Implicit surface does */}
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span>{tr("Lithology groups")}</span>
           <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => askPrompt("New lithology group name:", "", (name) => { if (name && name.trim()) setExpandedLithoGroupId(addLithoGroup({ name: name.trim() })); })}
@@ -845,7 +845,7 @@ export default function ModellingPanes(props) {
         </>)}
         {toolPane === "correlation" && (<>
         {paneHeader("Section correlation", GitCompare, "model")}
-        {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the 3D View tab (Add layer › Lithology), or load the sample project."))}{/* TASKS.csv #3606 — said first, as Implicit surface does */}
+        {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the StrixViewer tab (Add layer › Lithology), or load the sample project."))}{/* TASKS.csv #3606 — said first, as Implicit surface does */}
         <button
           onClick={() => setFenceOpen(true)}
           disabled={!collars.length}
@@ -875,7 +875,7 @@ export default function ModellingPanes(props) {
         {paneHeader("Implicit surface", Mountain, "model")}
         {clusterNote() /* #3268 */}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Models the top contact of one unit from litho intervals, via GemPy in GeoStrix's Python engine. Uses structure dip/azimuth for orientation when available; if not, estimates one from the contact points themselves so it can still run.")}</div>
-        {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the 3D View tab (Add layer › Lithology), or load the sample project."))}
+        {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the StrixViewer tab (Add layer › Lithology), or load the sample project."))}
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }} title={tr("Also feed drawn cross-section contacts (Draw upper contact, in the section pop-out) tagged as this unit's upper contact into the run as extra interface points")}>
           <input type="checkbox" checked={includeSectionContacts} onChange={(e) => setIncludeSectionContacts(e.target.checked)} />{tr("Include drawn cross-section contacts{v}", { v: sections?.some((s) => s.contacts?.length) ? ` (${sections.reduce((n, s) => n + (s.contacts?.length || 0), 0)} drawn)` : "" })}
         </label>
@@ -959,7 +959,7 @@ export default function ModellingPanes(props) {
         {paneHeader("Stratigraphic stack", Layers, "model")}
         {clusterNote() /* #3268 */}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Models several units' top contacts together in one run so they can't cross each other — add units below in order, youngest (shallowest) first. Litho-only: veins/dykes cut across a stack by nature, so model those with the Vein / dyke tool instead, not here.")}</div>
-        {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the 3D View tab (Add layer › Lithology), or load the sample project."))}
+        {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the StrixViewer tab (Add layer › Lithology), or load the sample project."))}
         {/* TASKS.csv #810 — the stack reads the same option; it had no checkbox, so drawn contacts were dropped unseen */}
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }} title={tr("Also feed drawn cross-section contacts (Draw upper contact, in the section pop-out) tagged as this unit's upper contact into the run as extra interface points")}>
           <input type="checkbox" checked={includeSectionContacts} onChange={(e) => setIncludeSectionContacts(e.target.checked)} />{tr("Include drawn cross-section contacts{v}", { v: sections?.some((s) => s.contacts?.length) ? ` (${sections.reduce((n, s) => n + (s.contacts?.length || 0), 0)} drawn)` : "" })}
@@ -1139,7 +1139,7 @@ export default function ModellingPanes(props) {
           title={tr("Downhole tadpole plot — depth vs alpha/dip with an azimuth tail, plus lithology and structure-frequency tracks, per hole")}
         ><Milestone size={14} />{" "}{tr("Downhole structure (tadpole)")}</button>
         {(() => { const b = betaReferenceCounts(layers.structure || []); return b.top + b.bottom > 0 ? <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginBottom: 8, lineHeight: 1.4 }}>{[b.bottom && tr("{n} of these picks were oriented from alpha / beta with beta measured from the {ref}-of-hole line, as chosen when they were imported (a structure file does not say). Had the core been marked on the other line, each would plot elsewhere, by tens of degrees for some.", { n: b.bottom.toLocaleString(), ref: tr("bottom") }), b.top && tr("{n} of these picks were oriented from alpha / beta with beta measured from the {ref}-of-hole line, as chosen when they were imported (a structure file does not say). Had the core been marked on the other line, each would plot elsewhere, by tens of degrees for some.", { n: b.top.toLocaleString(), ref: tr("top") })].filter(Boolean).join(" ")}</div> : null; })()}{/* #2055 */}
-        {!struct_types.length && <AlphaOnlyHint layers={layers} fallback={emptyPaneHint(tr("No structure picks loaded — import downhole structure planes on the 3D View tab (Add layer › Structure planes), or load the sample project."))} />}{/* #1686 */}
+        {!struct_types.length && <AlphaOnlyHint layers={layers} fallback={emptyPaneHint(tr("No structure picks loaded — import downhole structure planes on the StrixViewer tab (Add layer › Structure planes), or load the sample project."))} />}{/* #1686 */}
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select aria-label={tr("Structure type")} value={structuralTarget} onChange={(e) => setStructuralTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
             <option value="">{tr("Choose a structure type…")}</option>

@@ -22,6 +22,9 @@ test("#565 Ctrl+1..8 follow the tab strip, and the help says so", () => {
   const tabs = [...app.matchAll(/\{ id: "([a-z]+)", label: "([^"]+)", icon:/g)].map((m) => m[1]);
   const menuOrder = [...main.matchAll(/\["[^"]+", "([a-z]+)"\]/g)].map((m) => m[1]).filter((id) => tabs.includes(id));
   assert.deepEqual(menuOrder, tabs);
-  tabs.forEach((_, i) => assert.ok(help.includes(`"Ctrl/Cmd+${i + 1}"`), `help lacks Ctrl/Cmd+${i + 1}`));
+  // TASKS.csv #3897 — the shortcuts list numbers the same tab list as the menu, skipping a switched-off tab as the menu does (src/lib/features.js)
+  const helpOrder = [...help.matchAll(/\["[^"]+", "([a-z]+)"\]/g)].map((m) => m[1]).filter((id) => tabs.includes(id));
+  assert.deepEqual(helpOrder, tabs);
+  assert.ok(help.includes(".filter(([, id]) => !HIDDEN_TABS.includes(id)).map(([label], i) => [`Ctrl/Cmd+${i + 1}`, label])"));
   assert.ok(!help.includes("cross-section pop-out"));
 });

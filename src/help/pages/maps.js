@@ -7,8 +7,8 @@ export default [
     summary: "Imports property lines, grid outlines, survey extents and other plan outlines as lines in the 3D view, from Geosoft .ply, DXF, shapefile (.zip / .shp), GeoPackage, KML / KMZ, GPX or GeoJSON, several files at once. Each file (each layer of a DXF, each table of a GeoPackage) becomes one boundary with its own colour, drawn at a fixed elevation or draped on the terrain. Contours made in the Terrain pane are listed here too.",
     notFor: [
       "Claims that need a tenure number, status and expiry date go to Mineral claims / tenure.",
-      "A boundary keeps no attributes and is not coloured by unit. A geology map, or any layer whose attributes matter, goes to Surface Geology > Geology map; MapInfo .tab / .mif files are read there, not here.",
-      "From a DXF only lines, polylines and points are read (plan-view CAD); 3D solids, text and blocks are not. Points in a KML, GPX or GeoJSON are not boundaries: they come in through the 3D View importer or Surface Geology.",
+      "A boundary keeps no attributes and is not coloured by unit. A geology map, or any layer whose attributes matter, goes to Geological Mapping > Geology map; MapInfo .tab / .mif files are read there, not here.",
+      "From a DXF only lines, polylines and points are read (plan-view CAD); 3D solids, text and blocks are not. Points in a KML, GPX or GeoJSON are not boundaries: they come in through StrixViewer importer or Geological Mapping.",
     ],
     fields: [
       { name: "Import boundary (.ply / .dxf / .zip / .shp / .gpkg / .kml / .gpx / .geojson)…", what: "Reads one or more files. KML, KMZ, GPX and GeoJSON are reprojected from WGS 84 (or a GeoJSON's stated CRS); a shapefile or GeoPackage is reprojected from its own CRS when it states one; .ply and DXF files are taken as already in the project CRS. A DXF becomes one boundary per layer and keeps its elevations.", choose: "Select every outline file at once. Read the message: it says for each file whether it was reprojected or taken as the project's coordinates." },
@@ -21,7 +21,7 @@ export default [
       { says: "claims.shp: it states no CRS: the coordinates were taken as EPSG:26909, check where it lies", means: "The shapefile has no .prj (or the GeoPackage no CRS), so GeoStrix assumed the project's coordinate system.", do: "Check the boundary lands around your data. If not, find out the file's CRS, reproject it, or move it with Maps > A layer." },
       { says: "claims.shp: its .prj names a CRS GeoStrix does not recognize: the coordinates were taken as EPSG:26909, check where it lies", means: "The file states a coordinate system GeoStrix cannot convert, so it was not reprojected.", do: "Reproject the file in your GIS to the project CRS, or move it with Maps > A file before importing." },
       { says: "drift_plan.dxf: every string had elevation 0, read as a 2D plan", means: "The DXF had no elevations, so it is drawn at the Elev. value or on the terrain.", do: "Nothing for a plan drawing. Tick Drape on terrain or set Elev." },
-      { says: "No lines or polygons found in this KML (points are imported through the 3D View importer).", means: "The KML holds only placemarks (points).", do: "Import the points through the 3D View, or use Surface Geology > Geology map." },
+      { says: "No lines or polygons found in this KML (points are imported through StrixViewer importer).", means: "The KML holds only placemarks (points).", do: "Import the points through StrixViewer, or use Geological Mapping > Geology map." },
       { says: "Failed: claims_b.shp (unreadable)", means: "One or more files could not be read; each is named with the reason.", do: "Fix or re-export the named file; the other files were imported." },
     ],
     howto: {
@@ -29,7 +29,7 @@ export default [
       steps: [
         "Maps > Boundaries > Import boundary (.ply / .dxf / .zip / .shp / .gpkg / .kml / .gpx / .geojson)…, and select one or more outline files.",
         "Read the message: how each file's coordinates were handled.",
-        "Check in the 3D View that each boundary lands around your holes or surveys. If one is far away, its CRS was missing or wrong.",
+        "Check in StrixViewer that each boundary lands around your holes or surveys. If one is far away, its CRS was missing or wrong.",
         "Load a terrain (Maps > Terrain) and tick Drape on terrain, or set Elev.",
         "Give each boundary a Colour; hide the ones you are not using with the eye.",
       ],
@@ -40,7 +40,7 @@ export default [
     id: "map-layers",
     area: "Maps",
     title: "Map layers & outcrop structures",
-    summary: "Imports surface-mapping layers (geology, alteration and outcrop polygons, fault traces, sample points) and outcrop structure measurements, and drapes them on the terrain in the 3D view. Map layers are coloured by one of their attributes, optionally with a QGIS .qml style; structures are drawn as discs lying in the measured plane, coloured by type. In the current interface these tools are on the Surface Geology tab, as Geology map and Outcrop structures.",
+    summary: "Imports surface-mapping layers (geology, alteration and outcrop polygons, fault traces, sample points) and outcrop structure measurements, and drapes them on the terrain in the 3D view. Map layers are coloured by one of their attributes, optionally with a QGIS .qml style; structures are drawn as discs lying in the measured plane, coloured by type. In the current interface these tools are on the Geological Mapping tab, as Geology map and Outcrop structures.",
     notFor: [
       "Plain outlines with no attributes (property lines, grid outlines) are lighter as Boundaries; claims with tenure details go to Mineral claims / tenure.",
       "Oriented-core structures (alpha / beta) are imported with the drillholes, not here.",
@@ -72,9 +72,9 @@ export default [
       sample: "Perk-Rocky",
       steps: [
         "Open the Perk-Rocky sample: its MapInfo map layers, outcrop measurements and terrain load with it.",
-        "Surface Geology > Geology map. On the PR-Litho_interpV3 layer, check Colour by reads Litho_code; open its Legend and untick a unit to hide it.",
+        "Geological Mapping > Geology map. On the PR-Litho_interpV3 layer, check Colour by reads Litho_code; open its Legend and untick a unit to hide it.",
         "Turn on a hidden layer (PR-Alt_interpV2) with its eye, and lower its Opacity to see the lithology under it.",
-        "Surface Geology > Outcrop structures. On the measurement set, change Disc size and leave Sit every measurement on the terrain ticked.",
+        "Geological Mapping > Outcrop structures. On the measurement set, change Disc size and leave Sit every measurement on the terrain ticked.",
         "To import such files yourself, select the .TAB with its .MAP, .ID and .DAT in Import map layer…. The sample's dip directions are taken as grid north; set North on import if your readings were magnetic.",
       ],
     },
@@ -86,7 +86,7 @@ export default [
     title: "Mineral claims / tenure",
     summary: "Imports claim or tenure outlines, in the same formats as Boundaries, and keeps a tenure number, a status and an expiry date with each, with its area in hectares. The status sets the colour (active green, pending amber, expired red) so standing shows at a glance in the 3D view. Each claim can be draped on the terrain.",
     notFor: [
-      "Only the tenure number, the claim name and the good-to date are read from a file's attributes, and only from columns named that way (for example TENURE_NUMBER_ID, CLAIM_NAME, GOOD_TO_DATE). Owners and other attributes are not kept: import the file with Surface Geology > Geology map, or bring tenure in from a WFS service as a Map layer (Web layers), to keep them.",
+      "Only the tenure number, the claim name and the good-to date are read from a file's attributes, and only from columns named that way (for example TENURE_NUMBER_ID, CLAIM_NAME, GOOD_TO_DATE). Owners and other attributes are not kept: import the file with Geological Mapping > Geology map, or bring tenure in from a WFS service as a Map layer (Web layers), to keep them.",
       "A file of more than 300 features (a whole province) comes in as one claim, and the message says so. Clip it to your area in a GIS first.",
       "It does not check anything with a mineral titles registry, and the expiry date does not change the status by itself.",
       "The area is a plan area in the project's coordinates, not the registry's legal area. Holes (a ring inside another ring) are taken away; parts that overlap without one inside the other are counted twice.",
@@ -139,7 +139,7 @@ export default [
       { name: "Detail", what: "WMS only: the longest side of the image, Standard (1,024 px), High (2,048 px) or Very high (4,096 px). A line shows the ground pixel size, the image size and how many map requests it takes. Remembered on this computer.", choose: "Choose the level that brings the pixel size near the service's own resolution; beyond it the same pixels are only enlarged, and the project file grows." },
       { name: "Limit to the current project area (recommended for province/country-wide layers)", what: "WFS only: fetches only the features in the project area (the drillholes, else the terrain, the map layers or the surface samples). It is greyed out until the project has one of these.", choose: "Keep it ticked for province- or country-wide layers such as tenure." },
       { name: "Import as", what: "WFS only: Map layer (keeps attributes), or Boundary lines (3D outlines only). Points or mixed geometry always come in as boundary lines.", choose: "Choose Map layer to keep tenure numbers, owners or unit codes, and colour by them." },
-      { name: "Import this layer", what: "Fetches and adds the layer, then says what came in. A WMS image is listed with the rasters (Maps > GeoTIFF / GXF); a WFS map layer with the map layers (Surface Geology > Geology map).", choose: "Check the result line for failed requests or a truncated feature count." },
+      { name: "Import this layer", what: "Fetches and adds the layer, then says what came in. A WMS image is listed with the rasters (Maps > GeoTIFF / GXF); a WFS map layer with the map layers (Geological Mapping > Geology map).", choose: "Check the result line for failed requests or a truncated feature count." },
     ],
     warnings: [
       { says: "No layers found in this service's capabilities — double check the URL.", means: "The service answered but listed no layers of that type.", do: "Check the URL and that WMS or WFS matches the service." },
@@ -157,7 +157,7 @@ export default [
         "Choose a layer…, reading its description.",
         "For WMS, check the Area and the pixel size under Detail. For WFS, keep Limit to the current project area and choose Import as.",
         "Press Import this layer and read the result line.",
-        "Find the WMS image in Maps > GeoTIFF / GXF, or the WFS map layer in Surface Geology > Geology map.",
+        "Find the WMS image in Maps > GeoTIFF / GXF, or the WFS map layer in Geological Mapping > Geology map.",
       ],
     },
     related: ["boundaries", "claims", "map-layers", "terrain"],

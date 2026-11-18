@@ -35,7 +35,7 @@ test("the Surface Geology ribbon carries Unit polygons, Interpret, Identify and 
   for (const l of ["Unit polygons", "Interpret", "Identify", "Rock chips", "Geology map", "Outcrop structures", "Stereonet", "Model it"]) assert.ok(parts.includes(`label="${l}"`), l);
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(v, /\{mode === "surface" && <SurfaceRibbon show=\{visible && !bare\}/); // bare: #1979
-  assert.ok(!v.includes('label="Surface geology tools"'), "the surface ribbon left ViewerModule");
+  assert.ok(!v.includes('label="Geological Mapping tools"'), "the surface ribbon left ViewerModule");
   assert.match(v, /const openInterpret = \(kind\) => \{ if \(interpretOpen\) stopInterpret\(\); setInterpretOpen\(\(v\) => \(v === kind \? false : kind\)\); \};/);
   assert.match(v, /React\.createElement\(interpretOpen === "polygon" \? UnitPolygonPane : InterpretPane/);
   assert.equal((v.match(/\{interpretPane\}/g) || []).length, 2, "the pane on the 3D View and the Surface Geology sidebars");

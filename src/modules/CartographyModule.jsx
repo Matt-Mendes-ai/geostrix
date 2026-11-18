@@ -437,7 +437,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
           </div>
         )}
         </>)}
-        <div style={{ marginTop: 18, fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)", textTransform: "uppercase", letterSpacing: 0.5 }}>{tr("Loaded data ({inventory})", { inventory: inventory.length })}</div>
+        <div style={{ marginTop: 18, fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)", fontWeight: "var(--font-weight-title)" /* TASKS.csv #3892: a side-panel title */, textTransform: "uppercase", letterSpacing: 0.5 }}>{tr("Loaded data ({inventory})", { inventory: inventory.length })}</div>
         {inventory.length ? (
           <ul style={{ margin: "6px 0 0", paddingLeft: 18, lineHeight: 1.7, color: "var(--color-text-secondary)" }}>
             {inventory.map((i) => <li key={i.key}>{i.label}</li>)}

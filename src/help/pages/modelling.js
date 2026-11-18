@@ -1,4 +1,5 @@
 // TASKS.csv #1966 — 3D Modelling tab pages of the offline help (see src/help/content.js for the page format)
+import { MINE_DESIGN_ENABLED } from "../../lib/features.js"; // TASKS.csv #3897 — no pointer to a switched-off tool
 export default [
   {
     id: "model-settings",
@@ -63,7 +64,7 @@ export default [
     ],
     warnings: [
       { says: "RHY is in 2 groups (Volcanics, Felsic): the tools would read different memberships. Click it in the group it belongs to, and it leaves the others.", means: "A project saved earlier has one code in more than one group, so tools could disagree about which unit it belongs to.", do: "Open the group it belongs to and click the code there; it leaves the others." },
-      { says: "No lithology codes loaded yet — import a litho CSV first.", means: "There is no lithology layer, so there are no codes to group.", do: "Import lithology on the 3D View tab (Add layer > Lithology), or open a sample project." },
+      { says: "No lithology codes loaded yet — import a litho CSV first.", means: "There is no lithology layer, so there are no codes to group.", do: "Import lithology on the StrixViewer tab (Add layer > Lithology), or open a sample project." },
       { says: "Group \"Volcanics\" may merge unrelated bodies: RHY and TUF appear near each other anywhere in the data — 14 holes log them together. One surface will still be fitted across the gap. …", means: "Shown when a group is modelled: its codes are never logged near each other, so the group may join two separate bodies with one surface.", do: "Check the group's code list. If they really are one unit in two places, ignore it; otherwise split the group." },
     ],
     howto: {
@@ -214,7 +215,7 @@ export default [
       { name: "Keep under Top of Rhyolite", what: "Shown when another explicit top of the same pile lies above this one in the holes (the order and its hole count are in the tooltip). On: wherever this surface would rise above that top it is lowered onto it. Off: each build only says where it lies above it. Either way the order is put on the surface as an 'is below' relationship, so Check relationships checks it.", choose: "Turn it on once both tops are built; build the tops from the top of the pile down." },
       { name: "Pick contacts in 3D", what: "Click contacts on holes or anywhere in the 3D view. With Snap to logged contacts on, a click on a hole snaps to the nearest logged contact.", choose: "Pick where the contact was logged, not where it looks right on screen." },
       { name: "Edit picks and lines", what: "Drag a pick (on a hole it slides along the hole; elsewhere up and down, sideways with Shift). Alt + click deletes a pick or a line point. Undo and Redo cover picks, lines and settings.", choose: "Use it to fix a pick after checking it against the strip log." },
-      { name: "Draw contact lines on it (section images)", what: "Draws the contact on a georeferenced section image; points snap to logged contacts of nearby holes. Lines drawn in 3D View > Draw section with this surface's name are also hard lines.", choose: "Draw on a section only where you have evidence for the contact; one section alone cannot shape the surface across sections." },
+      { name: "Draw contact lines on it (section images)", what: "Draws the contact on a georeferenced section image; points snap to logged contacts of nearby holes. Lines drawn in StrixViewer > Draw section with this surface's name are also hard lines.", choose: "Draw on a section only where you have evidence for the contact; one section alone cannot shape the surface across sections." },
       { name: "From the geological map / Dip guide", what: "Adds a mapped contact, draped on the terrain, as a hard line. The dip guide adds a constructed line below it, projected down the dip of nearby bedding or of the contact's own trace.", choose: "Use it where the contact outcrops. Set Measurements within from your outcrop spacing; the guide is a construction, not an observation." },
       { name: "Downhole dip guide", what: "At each pick on a hole, the core measurement within Readings within (m down-hole) adds two short lines along its dip and strike, so the surface leaves the hole at the measured attitude.", choose: "Choose the structure type that records the contact (contacts and bedding). Keep the window short enough that the reading belongs to that contact." },
       { name: "Surface settings: Extend beyond picks, Stop at the inputs' outline, Shape, Mesh detail, Cut at the terrain", what: "How far past the inputs it extends (auto: 15 % of their shorter span), whether it fills a rectangle over the inputs or stops at their outline plus that margin, whether it is built as elevation over the map or over its own plane (for steep contacts), the mesh fineness, and whether it is cut at the ground. Triangulate the points as they are makes a plain TIN with no fit.", choose: "Keep the extension short where nothing is drilled. Choose Over its own plane for steep contacts, dykes and faults; Elevation over the map for flat to moderate contacts." },
@@ -236,7 +237,7 @@ export default [
         "Press Add the logged tops of DACT; one pick appears per hole where DACT starts below a younger unit.",
         "Look at the picks in the 3D view; use Edit picks and lines to move or Alt + click to delete outliers.",
         "Read the build notice: the leave-one-out miss and how much of the surface is extrapolated.",
-        "Draw the contact on a section (3D View > Draw section, pick the surface under Explicit surfaces, Save contacts) where you need to steer it between holes.",
+        "Draw the contact on a section (StrixViewer > Draw section, pick the surface under Explicit surfaces, Save contacts) where you need to steer it between holes.",
       ],
     },
     related: ["implicit-surface", "modelling-codes", "section-correlation", "interpretation-lines", "model-settings"],
@@ -360,7 +361,7 @@ export default [
       "Not a Mineral Resource under NI 43-101 or JORC, and not to be reported as one: there is no classification, dilution or recovery.",
       "A shell around one hole is the interpolator's shape, not the rock's. Min holes is there to stop one hole from making a sphere of mineralization.",
       "A closed shell's volume is only measured where the grade closes it. Where Close shell artificially seals it at the search radius, the volume is your search radius.",
-      "To put grades in blocks for reporting or a pit shell, use Grade estimation.",
+      `To put grades in blocks for reporting${MINE_DESIGN_ENABLED ? " or a pit shell" : ""}, use Grade estimation.`,
     ],
     fields: [
       { name: "Element", what: "The assay element to model. Switching element clears the cap and proposes the 90th percentile of its lab assays as the cutoff.", choose: "Check the proposed cutoff against Geochem > Grade stats before using it." },
@@ -450,7 +451,7 @@ export default [
         "Press Estimate grade into block model…, choose Au and a method, and set the Search radius from that distance and the hole spacing.",
         "Set Min distinct holes per block to two or more and a High-grade cap from Geochem > Grade stats.",
         "Run estimation and read the summary: blocks estimated, single-hole blocks, data support.",
-        "Add as block model to see it in 3D and use it for a pit shell.",
+        `Add as block model to see it in 3D${MINE_DESIGN_ENABLED ? " and use it for a pit shell" : ""}.`,
       ],
     },
     related: ["grade-shell", "model-settings", "geoml", "block-models", "pit-shell", "grade-tonnage", "block-calculator", "unsampled-metres"],
@@ -609,7 +610,7 @@ export default [
       sample: "Perk-Rocky",
       steps: [
         "File > Open Sample Project > Perk-Rocky (surface mapping, terrain, no holes).",
-        "Open 3D Modelling > Model from map (or Surface Geology > Model it).",
+        "Open 3D Modelling > Model from map (or Geological Mapping > Model it).",
         "Choose PR-Litho_interpV3 as Map with Litho_code as Unit field, and tick the bedding measurements under Orientations from.",
         "Choose PR-Str_interp under Faults and check the dips of the two thrust faults.",
         "Open Why this order and check each contact; set the diorites to the intrusion role if that is your reading.",

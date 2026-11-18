@@ -265,7 +265,7 @@ export default function RasterModule({ embedded = false } = {}) {
     importRasterFiles(p?.files || [], p?.others?.length ? [] : p?.notes || []); // #2857 — side files paired; #2019 — the Map layers the drop added
     const advised = (p?.others || []).map((n) => unreadableFormatAdvice(n)).filter(Boolean), rest = (p?.others || []).filter((n) => !unreadableFormatAdvice(n)); // #2854
     if (advised.length && !rest.length) setError({ info: true, text: advised.join(" ") });
-    else if (rest.length) setError({ info: true, text: [...advised, tr("Dropped on the map: rasters (.tif, .gxf, .grd), CSV tables and shapefile / GeoJSON / KML layers are read here. {names}: not read here. An X Y Z point table (.xyz, .tx) goes to Geophysics › Point survey, or save it as .csv with a header line to add it here as points; Boundaries, Terrain, Web layers or Surface Geology take the other formats.", { names: rest.slice(0, 3).join(", ") + (rest.length > 3 ? "…" : "") })].join(" ") });
+    else if (rest.length) setError({ info: true, text: [...advised, tr("Dropped on the map: rasters (.tif, .gxf, .grd), CSV tables and shapefile / GeoJSON / KML layers are read here. {names}: not read here. An X Y Z point table (.xyz, .tx) goes to Geophysics › Point survey, or save it as .csv with a header line to add it here as points; Boundaries, Terrain, Web layers or Geological Mapping take the other formats.", { names: rest.slice(0, 3).join(", ") + (rest.length > 3 ? "…" : "") })].join(" ") });
   });
   useModuleAction(["raster-satellite", "raster-georeference", "raster-spectral"], (a) => (a === "raster-satellite" ? openSatPickerRef.current?.() : a === "raster-spectral" ? openSpectralRef.current?.() : setGeorefOpen(true))); // #749 — the Maps tab's ribbon; spectral: #783
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
@@ -833,7 +833,7 @@ export default function RasterModule({ embedded = false } = {}) {
           actionTitle={tr("Pick a georeferenced raster — a GeoTIFF, a Geosoft .gxf grid or a Geosoft / Surfer .grd grid")}
           footnote={tr("Or drag a file straight onto this pane. Anything imported here is reprojected to the project CRS if its own CRS differs.")}
         >
-          <div style={{ marginBottom: 12 }}>{tr("Georeferenced image and grid layers — orthophotos, satellite imagery, geology maps, geophysical grids — draped over the terrain. Rasters render in the")}{" "}<b>{tr("3D View")}</b>{tr(", so switch tabs after importing to see them.")}</div>
+          <div style={{ marginBottom: 12 }}>{tr("Georeferenced image and grid layers — orthophotos, satellite imagery, geology maps, geophysical grids — draped over the terrain. Rasters render in the")}{" "}<b>{tr("StrixViewer")}</b>{tr(", so switch tabs after importing to see them.")}</div>
         </EmptyState>
         {dragOver && (
           <div style={{ position: "absolute", inset: 0, background: "rgba(226,166,60,0.08)", border: "3px dashed var(--color-accent)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>

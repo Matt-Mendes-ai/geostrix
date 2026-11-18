@@ -6,6 +6,7 @@ import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { version as APP_VERSION, description as APP_TAGLINE } from "../../package.json"; // #648 — one tagline: About + Windows app details
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { HIDDEN_TABS } from "../lib/features.js"; // TASKS.csv #3897
 
 // TASKS.csv #32 — keyboard shortcuts reference. Lists exactly what electron/main.js's Menu template
 // actually wires up (kept next to that file's accelerators deliberately, so this can't silently drift
@@ -35,17 +36,11 @@ const SHORTCUT_GROUPS = [
   },
   {
     title: "Navigation",
-    items: [
-      ["Ctrl/Cmd+1", "3D View"],
-      ["Ctrl/Cmd+2", "Surface Geology"], // #820
-      ["Ctrl/Cmd+3", "3D Modelling"],
-      ["Ctrl/Cmd+4", "Geochem"], // #750 — geoML models are a 3D Modelling tool now
-      ["Ctrl/Cmd+5", "Geophysics"],
-      ["Ctrl/Cmd+6", "Targeting"],
-      ["Ctrl/Cmd+7", "Mine Design"],
-      ["Ctrl/Cmd+8", "Maps"], // #749 — rasters, terrain, boundaries, CRS (geology map layers: Surface Geology, #820)
-      ["Ctrl/Cmd+9", "Layout"], // #565 — in tab order
-    ],
+    // #565 — Ctrl+1..9 in tab order. #820: Surface Geology (now Geological Mapping) is Ctrl+2; #750: geoML models are a 3D Modelling tool;
+    // #749: Maps holds rasters, terrain, boundaries, CRS. TASKS.csv #3897: a switched-off tab takes no number, as in electron/main.js's menu.
+    items: [["StrixViewer", "viewer"], ["Geological Mapping", "surface"], ["3D Modelling", "modelling"], ["Geochem", "geochem"], ["Geophysics", "geophysics"],
+      ["Targeting", "targeting"], ["Mine Design", "minedesign"], ["Maps", "maps"], ["Layout", "layout"]]
+      .filter(([, id]) => !HIDDEN_TABS.includes(id)).map(([label], i) => [`Ctrl/Cmd+${i + 1}`, label]),
   },
   {
     title: "Tools",
@@ -67,7 +62,7 @@ const SHORTCUT_GROUPS = [
     // a rotate instead, on some mouse hardware/driver setups. Shift+Left-drag was added as a reliable
     // pan gesture that doesn't depend on the middle button being reported correctly at all — listed
     // here so it's discoverable without needing to hit that bug first.
-    title: "3D View mouse controls",
+    title: "3D view mouse controls",
     items: [
       ["Left-drag", "Rotate/orbit"],
       ["Right-drag, middle-drag or Shift+Left-drag", "Pan"], // TASKS.csv #2213 — right-drag pans

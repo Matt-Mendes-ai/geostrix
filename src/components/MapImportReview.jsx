@@ -10,7 +10,7 @@ import { t as tr } from "../lib/i18n.js";
 
 const CLASS_TEXT = () => ({
   map: [tr("Map layers for this area"), tr("They sit together on your property.")],
-  grid: [tr("Reference grids"), tr("Grids drawn for the report's figures. The 3D View has its own grid.")],
+  grid: [tr("Reference grids"), tr("Grids drawn for the report's figures. StrixViewer has its own grid.")],
   labels: [tr("Text labels"), tr("Words placed on the figures. They import as dots: the text itself is not drawn.")],
   regional: [tr("Regional or elsewhere"), tr("Location maps, much larger than your property or far from it. One of these zooms the view far out.")],
   page: [tr("No position on the map"), tr("Legends, scale bars, page frames and section drawings. Their coordinates are page or section units, so they would land far from your data.")],

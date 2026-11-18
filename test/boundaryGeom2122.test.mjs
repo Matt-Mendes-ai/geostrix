@@ -17,6 +17,6 @@ test("points give no polylines; lines give open ones; polygons closed ones", asy
 
 test("the module refuses them with a reason", () => {
   assert.match(g, /if \(!r\.polylines\.length\) throw new Error\(parsed\.geomType === "point"/);
-  assert.match(g, /it holds points, not lines or polygons: import collars in the 3D View/);
+  assert.match(g, /it holds points, not lines or polygons: import collars in StrixViewer/);
   assert.match(g, /every\(\(p\) => p\.closedFlags\?\.length && p\.closedFlags\.every\(\(f\) => !f\)\)\) throw new Error\(tr\("it holds open lines, not polygons: a claim is an area\. Import it as a boundary\."\)\);/);
 });

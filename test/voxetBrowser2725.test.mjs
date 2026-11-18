@@ -41,7 +41,7 @@ test("only bare names are looked for; a file there but refused comes back with t
 test("a side file over the read limit comes back as a file whose read says to drag the files instead", async () => {
   const [f] = await readSiblingFiles("C:\\v\\m.vo", ["huge@@"]);
   assert.equal(f.name, "huge@@");
-  await assert.rejects(f.arrayBuffer(), /300 MB.*drag the \.vo and its files onto the 3D View/);
+  await assert.rejects(f.arrayBuffer(), /300 MB.*drag the \.vo and its files onto StrixViewer/);
 });
 
 test("wiring: the panel passes the path; importBrowserFile's .vo branch hands importVoxet a side-file resolver", () => {
@@ -55,6 +55,6 @@ test("wiring: the panel passes the path; importBrowserFile's .vo branch hands im
   for (const l of ["es", "pt", "fr", "ar"]) {
     const j = JSON.parse(fs.readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
     assert.ok(j["Not found beside the .vo in its folder, so not read: {list}."], l);
-    assert.ok(j["{name} is {mb} MB, more than the Browser panel reads whole: drag the .vo and its files onto the 3D View instead."], l);
+    assert.ok(j["{name} is {mb} MB, more than the Browser panel reads whole: drag the .vo and its files onto StrixViewer instead."], l);
   }
 });

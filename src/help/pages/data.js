@@ -1,5 +1,6 @@
 // Help pages for bringing drillhole data in and checking it: a first-project walk-through, the drillhole import dialog (collars, surveys, interval
 // layers), the assay import, the density layer and the drillhole data QA/QC (see src/help/content.js for the page format).
+import { MINE_DESIGN_ENABLED } from "../../lib/features.js"; // TASKS.csv #3897 — no pointer to a switched-off tool
 export default [
   {
     id: "first-project",
@@ -20,7 +21,7 @@ export default [
       steps: [
         "Open File > Open Sample Project and choose the Macpass zinc-lead-silver sample. Read the notices it opens with: the number of holes, assay intervals and densities, and the owner's credit.",
         "Look at the sidebar. Collars and Survey are loaded; the Specific gravity layer holds the bulk densities; Lithology, Alteration and the other logs are empty because the sample has none.",
-        "Click Data QC in the 3D View's ribbon. Read the errors first, then the warnings and the infos: they say what is left out of the sample, such as holes with no assays and intervals with no density.",
+        "Click Data QC in StrixViewer's ribbon. Read the errors first, then the warnings and the infos: they say what is left out of the sample, such as holes with no assays and intervals with no density.",
         "Open Geochem to see the Ag, Pb and Zn assays. Silver is in g/t, lead and zinc in per cent: the units are set when the assays are imported (see Import assays).",
         "To start your own project, use File > New Project, then import your collars, surveys, logs and assays in that order, and run Data QC again.",
       ],
@@ -29,7 +30,7 @@ export default [
   },
   {
     id: "import-drillholes",
-    area: "3D View",
+    area: "StrixViewer",
     title: "Import drillhole data",
     summary: "Brings a table into the 3D view as collars (one row per hole), survey stations (depth, azimuth and dip) or an interval layer such as lithology, alteration, veins, geotechnical logs or density. The dialog opens when you drop a file or use a layer's upload button, guesses what the table is from its column names, and shows a preview before anything is imported.",
     notFor: [
@@ -69,7 +70,7 @@ export default [
     summary: "Brings assay results into Geochem as intervals with one value per element. A table with a column for each element is wide format; a table with one row per analyte is long format. The dialog lists the element columns it recognizes, lets you tick the ones to import, asks what a blank cell and a negative value mean, and keeps the units with each element.",
     notFor: [
       "It does not convert one lab's units to another's or decide detection limits for you; it keeps the values as reported and asks about the codes a lab uses.",
-      "Collars, surveys and logs are not assays: import them in the 3D View (see Import drillhole data).",
+      "Collars, surveys and logs are not assays: import them in StrixViewer (see Import drillhole data).",
     ],
     fields: [
       { name: "Wide format (column per element) / Long format (row per analyte)", what: "Whether each element has its own column, or each row names an analyte and gives its value.", choose: "Look at the preview: one row per sample interval with Ag_ppm, Pb_pct and Zn_pct columns is wide; one row per sample and analyte is long." },
@@ -97,7 +98,7 @@ export default [
   },
   {
     id: "import-density",
-    area: "3D View",
+    area: "StrixViewer",
     title: "Import density (Specific gravity)",
     summary: "The Specific gravity layer is the project's density, in tonnes per cubic metre (t/m³, the same number as g/cc). It is the density the Grade-tonnage dialog and the tonnages of solids take their tonnes from, as a length-weighted mean of its intervals. Import it as a table of intervals: hole, From, To and a density value.",
     notFor: [
@@ -129,7 +130,7 @@ export default [
   },
   {
     id: "data-qc",
-    area: "3D View",
+    area: "StrixViewer",
     title: "Drillhole data QA/QC",
     summary: "Checks collar coordinates, survey trajectories, assays and every logged layer for the problems that quietly distort a modelled surface, before you model. It lists issues as errors, warnings and infos, worst first, and fixes nothing: you correct the files and import again. It also says what the project lacks, such as having no log of any kind.",
     notFor: [
@@ -138,7 +139,7 @@ export default [
     ],
     fields: [
       { name: "Dogleg over", what: "The survey bend rate, in degrees per 30 m, above which a bend is warned about. A hole's bends are one row (its sharpest, with how many there are). A bend of under 2° is within what a survey tool reads and is not counted; 20° per 30 m or more, over at least 5°, is an error.", choose: "Ordinary deviated holes bend 3 to 7° per 30 m; set the level from your own drilling, and treat a short spacing rated over 10 m with care." },
-      { name: "Density (t/m³)", what: "The densities this project accepts, lowest and highest, 1 to 6 until you change it. A density outside it is flagged here and is left out of the density mean the tonnage tools use (Grade-tonnage, Pit shell, Stopes, a solid's tonnage), which say how many were left out. Kept with the project.", choose: "Raise the top for barite or massive sulphide; keep the bottom above the density of the lightest rock you log." },
+      { name: "Density (t/m³)", what: `The densities this project accepts, lowest and highest, 1 to 6 until you change it. A density outside it is flagged here and is left out of the density mean the tonnage tools use (${MINE_DESIGN_ENABLED ? "Grade-tonnage, Pit shell, Stopes, a solid's tonnage" : "Grade-tonnage, a solid's tonnage"}), which say how many were left out. Kept with the project.`, choose: "Raise the top for barite or massive sulphide; keep the bottom above the density of the lightest rock you log." },
       { name: "Collar vs terrain over", what: "How far a collar's elevation may differ from the terrain surface (in metres) before it is listed. The button beside it sets those collars to the terrain, and it can be undone.", choose: "Choose a level above your terrain model's own error; a coarse model flags honest collars." },
       { name: "Filter by category", what: "Shows only the issues of one category: Collars, Survey, a layer, Assays, Specific gravity and so on.", choose: "Work through one category at a time." },
       { name: "Export CSV", what: "Saves every issue with its severity, category, hole and message, and a header with the project, coordinate system, desurvey method and thresholds.", choose: "Use it to hand the list to the person who owns the data." },
@@ -154,7 +155,7 @@ export default [
     howto: {
       sample: "Macpass",
       steps: [
-        "Open the Macpass sample and click Data QC in the 3D View's ribbon.",
+        "Open the Macpass sample and click Data QC in StrixViewer's ribbon.",
         "Read the counts at the top: errors, warnings and infos. The list is worst first, with the survey bends after the other warnings.",
         "Filter by category to read the Survey bends, then the Specific gravity and Assays lines.",
         "Click Export CSV to save the list, or Re-run after changing a file.",

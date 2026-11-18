@@ -5,6 +5,7 @@ import { Eye, EyeOff } from "../../components/icons.js";
 import { activateOnKey } from "../../lib/a11y.js";
 import { t as tr } from "../../lib/i18n.js";
 import { stopeRuns } from "../../lib/stopeRuns.js";
+import { MINE_DESIGN_ENABLED } from "../../lib/features.js"; // TASKS.csv #3897 — with Mine Design off, no link into it
 
 export default function StopeRunRows({ stopes, onShow, onOpen }) {
   const runs = useMemo(() => stopeRuns(stopes), [stopes]);
@@ -16,10 +17,10 @@ export default function StopeRunRows({ stopes, onShow, onOpen }) {
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onShow(r.ids, !shown)} style={{ cursor: "pointer", color: shown ? "var(--color-accent)" : "var(--color-text-disabled)" }}
           aria-label={shown ? tr("Hide these stopes") : tr("Show these stopes")}>{shown ? <Eye size={14} /> : <EyeOff size={14} />}</div>
         <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-          title={tr("{n} stope solids from one Stope outlines run; manage them in Mine Design > Stope outlines", { n: r.count })}>
+          title={MINE_DESIGN_ENABLED ? tr("{n} stope solids from one Stope outlines run; manage them in Mine Design > Stope outlines", { n: r.count }) : tr("{n} stope solids from one run", { n: r.count })}>
           {tr("Stopes: {model} ≥ {c} ({n} on {l} level(s))", { model: r.model, c: `${r.cutoff ?? "?"} ${r.unit}`.trim(), n: r.count, l: r.levels.length })}
         </div>
-        <button type="button" onClick={onOpen} style={{ border: "1px solid var(--color-border)", background: "var(--color-bg)", borderRadius: 4, padding: "1px 6px", fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", cursor: "pointer", flexShrink: 0 }}>{tr("Manage")}</button>
+        {MINE_DESIGN_ENABLED && <button type="button" onClick={onOpen} style={{ border: "1px solid var(--color-border)", background: "var(--color-bg)", borderRadius: 4, padding: "1px 6px", fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", cursor: "pointer", flexShrink: 0 }}>{tr("Manage")}</button>}
       </div>
     );
   });

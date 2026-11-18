@@ -1,6 +1,6 @@
 // TASKS.csv #1972 — 3D Modelling pane texts match today's tools: the domain picker applies to every modelling tool, the search
 // ellipsoid has its own orientation, grade estimation lists all four methods, veins go to the Vein / dyke tool, the geology map
-// lives under Surface Geology, and the icon-only Alteration / Vein run buttons have an accessible name
+// lives under Geological Mapping, and the icon-only Alteration / Vein run buttons have an accessible name
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -17,7 +17,7 @@ test("#1972 no stale modelling text", () => {
   assert.doesNotMatch(panes, /with the Structural tool instead, not here/);
   assert.doesNotMatch(runs + help, /along the declared trend/);
   assert.doesNotMatch(sg, /Maps → Map layers/);
-  assert.match(sg, /Surface Geology > Geology map/);
+  assert.match(sg, /Geological Mapping > Geology map/);
   assert.doesNotMatch(sg, /Implicit model run below|"Implicit model\\" run below/);
 });
 

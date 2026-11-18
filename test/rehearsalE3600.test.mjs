@@ -30,7 +30,7 @@ test("#3605: the checked holes are shared, the plan and a new drill plan follow 
   assert.deepEqual(filterHoles(cs.map(f), "", { B: false }).map((c) => c.hole_id), ["A", "C"]);
   publishHoleVisibility({});
   assert.match(read("../src/modules/ViewerModule.jsx"), /useEffect\(\(\) => publishHoleVisibility\(visibleHoles\), \[visibleHoles\]\);/);
-  assert.match(read("../src/components/MapsPlanView.jsx"), /Only the \{shown\} of \{total\} holes checked in the 3D View/);
+  assert.match(read("../src/components/MapsPlanView.jsx"), /Only the \{shown\} of \{total\} holes checked in StrixViewer/);
   const lm = read("../src/modules/LayoutModule.jsx");
   assert.match(lm, /if \(chk\) base\.onlyChecked = true;/);
   assert.match(lm, /checkedOnly\(collars, vis\), \.\.\.plannedAsCollars\(plannedHoles\)/);

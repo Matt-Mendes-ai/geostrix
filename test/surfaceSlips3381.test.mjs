@@ -22,7 +22,7 @@ test("(1) one direction for an offline terrain; (2) the export where it is; (6) 
   assert.ok(sm.includes("(make one in Maps > Terrain first: fetch one, import a DEM, or offline from points, from the project's samples and collars, or from a block model's top)"));
   for (const f of ["../src/components/InterpretPane.jsx", "../src/components/UnitPolygonPane.jsx"]) {
     const s = rd(f);
-    assert.ok(!s.includes("Show, hide, export or remove") && s.includes("export it from its right-click menu in the 3D View's layer list (Map layers)"), f);
+    assert.ok(!s.includes("Show, hide, export or remove") && s.includes("export it from its right-click menu in StrixViewer's layer list (Map layers)"), f);
   }
   assert.ok(rd("../src/modules/viewer/ViewerParts.jsx").includes('disabledReason="No surface samples yet: drop a rock-chip or soil file on the 3D view, or import it on the Geochem tab"'));
   // the 3D View's Map layers rows do carry the export (the panes now point there)

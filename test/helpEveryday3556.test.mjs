@@ -14,7 +14,7 @@ test("the five pages exist and are mapped from their dialogs' own titles", () =>
   for (const id of IDS) assert.ok(pageById(id), id);
   assert.equal(helpIdForPane("3D view basics"), "view-basics"); assert.equal(helpIdForPane("Downhole compositing"), "downhole-compositing");
   assert.equal(helpIdForPane("Best-intercept report"), "best-intercepts"); assert.equal(helpIdForPane("Grade statistics"), "grade-statistics"); assert.equal(helpIdForPane("QAQC — lab quality control"), "qaqc");
-  assert.equal(pageById("view-basics").area, "3D View"); for (const id of IDS.slice(1)) assert.equal(pageById(id).area, "Geochem");
+  assert.equal(pageById("view-basics").area, "StrixViewer"); for (const id of IDS.slice(1)) assert.equal(pageById(id).area, "Geochem");
 });
 
 test("search finds them by the words a first-time user types (the review's twenty terms among them)", () => {

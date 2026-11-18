@@ -30,6 +30,7 @@ import { undoMessage, undoTooltip } from "./lib/undoLabels.js"; // TASKS.csv #10
 import { UiModeContext, initialUiMode, saveUiMode } from "./lib/uiMode.js"; // TASKS.csv #748 — Simple / Advanced
 import { timeAgo } from "./lib/timeAgo.js"; // TASKS.csv #1274
 import { recoveryTabNames } from "./lib/recoveryNames.js"; // TASKS.csv #3047
+import { HIDDEN_TABS } from "./lib/features.js"; // TASKS.csv #3897 — Mine Design switched off
 // TASKS.csv #224 (software-design-specialist audit finding: "grep for import()/React.lazy across src/
 // returns one hit -- a comment. A fresh launch eagerly fetches ~100 modules including three, geotiff,
 // proj4, d3-delaunay, sql.js") — ViewerModule stays a static import (it's the default landing tab and
@@ -71,12 +72,12 @@ const ProjectKmzDialog = React.lazy(() => import("./components/ProjectKmzDialog.
 // against (voxel value-range isolation), and before Raster/Layout, which are further from "look at
 // my targets and plan holes" in the day-to-day workflow.
 // TASKS.csv #749 — tabs that were folded into another: a menu item / link naming one opens its new home
-const TAB_ALIAS = { raster: "maps", cartography: "maps", predictive: "modelling", modeling: "modelling" }; // predictive: #750; modeling: the tab id before the British spelling (2026-10-19)
+const TAB_ALIAS = { raster: "maps", cartography: "maps", predictive: "modelling", modeling: "modelling", ...Object.fromEntries(HIDDEN_TABS.map((id) => [id, "viewer"])) }; // predictive: #750; modeling: the tab id before the British spelling (2026-10-19); a switched-off tab (#3897) opens the 3D View
 const MODULES = [
-  { id: "viewer", label: "3D View", icon: Box },
+  { id: "viewer", label: "StrixViewer", icon: Box, tip: "StrixViewer: your project in 3D" }, // TASKS.csv #3894: one word, never translated
   // TASKS.csv #820 — Matt: "a new tab named Surface Geology ... the mapping workflow in this new tab. I'm thinking of eventually
   // expanding to soils with anomaly detection". The 3D view in a "surface" mode: geology maps, outcrop structures.
-  { id: "surface", label: "Surface Geology", icon: Compass },
+  { id: "surface", label: "Geological Mapping", icon: Compass },
   { id: "modelling", label: "3D Modelling", icon: Layers3 },
   { id: "geochem", label: "Geochem", icon: FlaskConical },
   { id: "geophysics", label: "Geophysics", icon: Radio },
@@ -86,7 +87,7 @@ const MODULES = [
   // whole former Cartography tab (project CRS, reprojection). Was: Raster, Cartography, and four Geophysics tools.
   { id: "maps", label: "Maps", icon: MapIcon },
   { id: "layout", label: "Layout", icon: Layout },
-];
+].filter((m) => !HIDDEN_TABS.includes(m.id)); // TASKS.csv #3897 — a switched-off tab is not offered (src/lib/features.js)
 // TASKS.csv #225 (software-design-specialist audit finding: switching tabs unmounted/remounted the
 // entire three.js scene every time, measured 407-622ms blocking per switch, even between View/
 // Modelling/Targeting — literally the same ViewerModule component with a different `mode` prop) — maps
@@ -603,7 +604,7 @@ export default function App() {
               aria-current={active === m.id ? "page" : undefined} // TASKS.csv #388
               onClick={() => !m.disabled && setActive(m.id)}
               disabled={m.disabled}
-              title={m.disabled ? tr("Coming soon") : undefined}
+              title={m.disabled ? tr("Coming soon") : m.tip ? tr(m.tip) : undefined}
               style={m.disabled ? { opacity: 0.45, cursor: "default" } : undefined}
             >
               <Icon size={14} /> {tr(m.label)}

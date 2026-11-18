@@ -64,7 +64,7 @@ export function ViewToolbar({
   const bufferTyped = useRef(false);
   useEffect(() => { if (!bufferTyped.current && spacing?.buffer && setSectionCorridor) setSectionCorridor(spacing.buffer); }, [spacing]); // the setter is stable
   return (
-    <Ribbon show={show} label="3D View tools">
+    <Ribbon show={show} label="StrixViewer tools">
       <RibbonGroup label="View" advanced={!noHoles}>{/* #1707 — all Advanced (3D slice not with no holes, #2778): no empty caption in Simple */}
         <div className="ge-ribbon-cell ge-adv">
           <HoverToolInfo title={tr("Grid")} text={tr("Toggles the ground reference grid on or off, and lets you resize it, change its division spacing/colour, or add two vertical wall grids for a full 3D reference box. Turn it off if it's cluttering a dense model or a figure you're about to snapshot.")} suppress={openPopover === "grid"}>
@@ -284,7 +284,7 @@ const popoverHeader = { display: "flex", alignItems: "center", justifyContent: "
 // unit polygons drawn in the app, so a geology map can be made here and Model it can use it.
 export function SurfaceRibbon({ show, paneProps, onStereonet, onModelIt, mapPolygons = true, identifyOn, onToggleIdentify, interpretOpen, onInterpret, onPolygons, onStyleSamples, sampleCount = 0 }) {
   return (
-    <Ribbon show={show} label="Surface geology tools">
+    <Ribbon show={show} label="Geological Mapping tools">
       <RibbonGroup label="Geological mapping">
         <RibbonButton icon={MapIcon} label="Geology map" tone="data" title="Geology map layers (GeoPackage / shapefile / MapInfo TAB): import, colour by unit, drape on the terrain" {...paneProps("sgMaps")} />
         <RibbonButton icon={Compass} label="Outcrop structures" tone="data" title="Outcrop structure measurements (CSV / MapInfo points): bedding, foliation, faults, veins" {...paneProps("sgStructs")} />

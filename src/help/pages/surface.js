@@ -2,7 +2,7 @@
 export default [
   {
     id: "geology-map",
-    area: "Surface Geology",
+    area: "Geological Mapping",
     title: "Geology map",
     summary: "Imports geological map layers (polygons, lines or points) and drapes them on the terrain in the 3D view, coloured by an attribute such as the unit code. It reads GeoPackage, shapefile (zipped, or the .shp with its .dbf and .prj), MapInfo TAB and MIF, GPX, GeoJSON and KML, and can reuse a QGIS .qml style. Each layer gets a card with its colours, legend, opacity and drape.",
     notFor: [
@@ -35,7 +35,7 @@ export default [
       sample: "Perk-Rocky",
       steps: [
         "File > Open Sample Project > Perk-Rocky (geological mapping, no drillholes).",
-        "Surface Geology > Geology map. The sample's layers are already loaded: the lithology map and interpreted structures shown, the structure lines, outcrops and alteration hidden.",
+        "Geological Mapping > Geology map. The sample's layers are already loaded: the lithology map and interpreted structures shown, the structure lines, outcrops and alteration hidden.",
         "On PR-Litho_interpV3, check Colour by is Litho_code and open its Legend to hide a unit or change a colour.",
         "Keep Drape on terrain ticked (the sample has a terrain) and lower Opacity to see the relief through it.",
         "To add your own map, press Import map layer… and select the .TAB, .MAP, .ID and .DAT of a layer together.",
@@ -46,7 +46,7 @@ export default [
   },
   {
     id: "outcrop-structures",
-    area: "Surface Geology",
+    area: "Geological Mapping",
     title: "Outcrop structures",
     summary: "Imports outcrop structural measurements (dip with dip direction or strike) from a CSV or a MapInfo point table and draws each one as its USGS (FGDC) map symbol on the ground (strike line, dip tick and dip number; one symbol per structure type, changeable in the set's list), coloured by type: fault, bedding, foliation, cleavage, contact, vein, joint. Dip directions and strikes measured from true or magnetic north are turned to grid north at import. The sets feed the stereonet and 3D Modelling's Model from map.",
     notFor: [
@@ -80,7 +80,7 @@ export default [
       sample: "Perk-Rocky",
       steps: [
         "File > Open Sample Project > Perk-Rocky (geological mapping, no drillholes).",
-        "Surface Geology > Outcrop structures. The sample's outcrop measurements are loaded as one set; read the counts by type.",
+        "Geological Mapping > Outcrop structures. The sample's outcrop measurements are loaded as one set; read the counts by type.",
         "Move Symbol size until the symbols read clearly, and keep Sit every measurement on the terrain ticked.",
         "Press Stereonet on the ribbon to see the bedding and veins.",
         "The files do not say which north the dip directions are from, and GeoStrix took grid north. If they were compass readings, import the PR_Master_StrPoint .TAB, .MAP, .ID and .DAT again with North set to Magnetic north (compass) and the mapping date.",

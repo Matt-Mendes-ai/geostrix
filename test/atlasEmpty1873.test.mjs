@@ -9,7 +9,7 @@ const keys = [
   "No hole matches the filter.",
   "No collar has a depth, so no hole has a trace to make a page from.",
   "No holes have collars, so there is no page per hole: import collars, or use one page per section.",
-  "No sections drawn yet: draw one with Draw section in the 3D View, then make one page per section here.",
+  "No sections drawn yet: draw one with Draw section in StrixViewer, then make one page per section here.",
 ];
 
 test("each empty case has its own message", () => {

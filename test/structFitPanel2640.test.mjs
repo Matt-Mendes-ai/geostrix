@@ -102,10 +102,10 @@ test("#3632 the tested points as a geophysics point survey: log10 sensitivity as
   assert.deepEqual(verdictPoints(null, "x"), []);
   const p = readFileSync(new URL("../src/components/StructFitPanel.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(p, /updateGeophysSurvey\(name, \{ method: "structfit_sens", units: SURVEY_METHODS\.structfit_sens\.units \}\)/);
-  assert.match(p, /tr\("Show the tested points in the 3D View"\)/);
+  assert.match(p, /tr\("Show the tested points in StrixViewer"\)/);
 });
 
-test("#3632 the 3D View's own point-survey builder draws the verdict points, warm for the seen contact and cool for the unconstrained one, with a tooltip", async () => {
+test("#3632 StrixViewer's own point-survey builder draws the verdict points, warm for the seen contact and cool for the unconstrained one, with a tooltip", async () => {
   const THREE = await import("three");
   const { syncGeophysPts, geophysTipText } = await import("../src/lib/viewer/geophysPts.js");
   const { verdictPoints } = await import("../src/lib/structFit.js");

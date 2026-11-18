@@ -13,11 +13,11 @@ test("startViewportRender passes an adjusted view of a themeless viewport to the
   assert.match(L, /requestViewportRender\(themeId, targetElementId, trueScale, false, \{ dpi: PAGE_DPI, \.\.\.keptView, \.\.\.opts \}\);/);
 });
 
-test("'Use the live 3D View again' clears the mark and refreshes from the live view", () => {
+test("'Use the live 3D view again' clears the mark and refreshes from the live view", () => {
   assert.match(L, /onLiveView=\{\(\) => \{ updateSelected\(\{ viewState: \{ \.\.\.\(sel\.viewState \|\| \{\}\), adjusted: false \} \}\); startViewportRender\([^\n]*liveView: true \}\); \}\}/);
   assert.match(L, /\{!sel\.themeId && sel\.viewState\?\.adjusted && onLiveView && \(/);
   for (const lang of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(readFileSync(new URL(`../src/locales/${lang}.json`, import.meta.url), "utf8"));
-    assert.ok(d["Use the live 3D View again"], lang);
+    assert.ok(d["Use the live 3D view again"], lang);
   }
 });

@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { createHash } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, readdirSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { writeThirdPartyLicenses } from "./scripts/third-party-licenses.mjs"; // TASKS.csv #639
 
@@ -68,7 +68,11 @@ function cspPlugin() {
   };
 }
 
+// TASKS.csv #3897 — the switched-off features (electron/features.json, also read by the main process for the native menu) -> src/lib/features.js
+const FEATURES = JSON.parse(readFileSync(fileURLToPath(new URL("./electron/features.json", import.meta.url)), "utf8"));
+
 export default defineConfig({
+  define: { __GEOSTRIX_FEATURES__: JSON.stringify({ mineDesign: FEATURES.mineDesign === true }) },
   plugins: [react(), cspPlugin(), { name: "geostrix-pdfjs-assets", config: copyPdfjsAssets }, { name: "geostrix-third-party-licenses", config: () => { try { writeThirdPartyLicenses(); } catch (e) { console.warn(`third-party licences not written: ${e.message}`); } } }],
   base: "./",
   // TASKS.csv #3090 — the dev server watched the whole repo, so the side sessions' worktrees (.claude/worktrees: their builds' dist/index.html)
