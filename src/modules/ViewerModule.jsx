@@ -26,7 +26,7 @@ import { setVerticalExaggeration, veOf } from "./viewer/verticalExaggeration.js"
 import ViewVeSelect from "./viewer/ViewVeSelect.jsx"; // TASKS.csv #2934
 import { useVeSuggestion } from "./viewer/useVeSuggestion.js"; // TASKS.csv #3063
 import { piercePoints as surfacePierces, piercePointRows } from "../lib/piercePoints.js"; // TASKS.csv #1009
-import { Info, Upload, Scissors, AlertTriangle, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, Maximize2, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Map as MapIcon, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, Beaker, Compass, GitCompare, Check } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // GitCompare/Check: TASKS.csv #93
+import { Info, Upload, Scissors, AlertTriangle, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, Maximize2, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Map as MapIcon, FileBarChart2, Settings2, Box, MapPin, ArrowUpRight, Shapes, Ruler, Beaker, Compass, GitCompare, Check } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // GitCompare/Check: TASKS.csv #93
 const AssayStyleModal = lazyModal(() => import("../components/AssayStyleModal.jsx")); // TASKS.csv #476
 import { seedBreaks } from "../lib/colorRamp.js"; // TASKS.csv #476
 import { repairSeededHues } from "../lib/assayHueRepair.js"; // TASKS.csv #3879
@@ -92,6 +92,7 @@ import { fixedScaleHalfHeight, captureLongPx, scaleForHalfHeight } from "../lib/
 import { worldHeightAtTargetM } from "../lib/figureScale.js"; // TASKS.csv #311 — the single shared metres-per-pixel derivation (Layout's scale bar uses it too)
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
+import OmfObjectRow from "./viewer/OmfObjectRow.jsx"; // TASKS.csv #3895
 import BrowserDock from "./viewer/BrowserDock.jsx"; // TASKS.csv #3906 — the Browser panel, closed by default
 const GuidedTool = React.lazy(() => import("./viewer/guided/GuidedTool.jsx")); // TASKS.csv #3908 — the guided tools, on first use
 import { useUiMode } from "../lib/uiMode.js"; // TASKS.csv #3906
@@ -6384,24 +6385,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove boundary \"{name}\"?", { name: b.name }))) removeBoundary(b.id); }, tr("Remove boundary \"{name}\"", { name: b.name }))} />
               </div>
             ))}
-            {omfObjects.map((o) => (
-              <div key={o.id} onContextMenu={(e) => openRowMenu(e, o.name, [
-                  { label: o.visible === false ? "Show" : "Hide", onClick: () => updateOmfObject(o.id, { visible: o.visible === false }) },
-                  { label: tr("Zoom to"), onClick: () => zoomToObject(omfMeshesRef.current[o.id]) },
-                  "-", { label: tr("Colour and style — Geophysics tab"), onClick: () => goToModule("geophysics") },
-                  { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove OMF object \"{name}\"?", { name: o.name }))) removeOmfObject(o.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
-                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateOmfObject(o.id, { visible: o.visible === false })} style={{ cursor: "pointer", color: o.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
-                  {o.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
-                </div>
-                {o.kind === "points" ? <MapPin size={14} style={{ color: o.color || "var(--color-text-secondary)", flexShrink: 0 }} />
-                  : o.kind === "lines" ? <Waypoints size={14} style={{ color: o.color || "var(--color-text-secondary)", flexShrink: 0 }} />
-                  : <Triangle size={14} style={{ color: o.color || "var(--color-text-secondary)", flexShrink: 0 }} />}
-                <span title={o.name} style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.name}</span>
-                <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{tr("OMF {kind}", { kind: o.kind })}</span>
-                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), tr("Edit OMF object \"{name}\" in the Geophysics tab", { name: o.name }))} />
-                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => removeOmfObject(o.id), tr("Remove OMF object \"{name}\"", { name: o.name }))} />
-              </div>
-            ))}
+            {omfObjects.map((o) => <OmfObjectRow key={o.id} o={o} update={updateOmfObject} remove={removeOmfObject} zoom={() => zoomToObject(omfMeshesRef.current[o.id])} openRowMenu={openRowMenu} />)}{/* TASKS.csv #3895 */}
             {voxelModels.map((v) => (
               <div key={v.id} onContextMenu={(e) => openRowMenu(e, v.name, [
                   { label: v.visible === false ? "Show" : "Hide", onClick: () => updateVoxelModel(v.id, { visible: v.visible === false }) },
