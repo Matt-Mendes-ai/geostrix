@@ -47,3 +47,18 @@ test("the data cannot support it: no logs, no contacts, or too few holes", () =>
   assert.equal(four.ok, true);
   assert.ok(four.notes.some((t) => /broad guess/.test(t)));
 });
+
+test("#3908 a quick first model: the detail is capped where asked, and the card says how to go finer", () => {
+  const thin = project({ gap: 4 }); // 4 m units would want the engine's finest grid
+  assert.ok(autoSurface(thin).values.resolution > 48);
+  const quick = autoSurface({ ...thin, maxResolution: 48 });
+  assert.equal(quick.values.resolution, 48);
+  assert.ok(quick.notes.some((t) => /quick first model .* Resolution 48/.test(t)));
+});
+
+test("#3908 under the quick cap the reasons say what the cells are, not what was aimed at", () => {
+  const quick = autoSurface({ ...project({ gap: 4 }), maxResolution: 8 });
+  const text = quick.reasons.map((r) => r.text).join(" ");
+  assert.doesNotMatch(text, /at least three cells thick|no coarser than half/);
+  assert.match(text, /half the spacing between drill sites \(60 m\) would be 30 m/);
+});

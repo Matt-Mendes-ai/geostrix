@@ -10,7 +10,11 @@
 import { axisResolution, blockCellsM, RES_MIN, RES_MAX } from "../modelResolution.js";
 import { thin, fin, median, metres, siteSpacing, extentOf, holesOf, autoResult, because, say } from "./autoCommon.js";
 
-export function autoSurface({ collars = [], contacts = [], hasLogs = false } = {}) {
+// maxResolution (TASKS.csv #3908): a first, quick model. The guided tools pass QUICK_RESOLUTION so "Build it for me" stays within the engine's
+// few-minute run (on the WA lode gold sample, 96 was a 14-minute GemPy run); Change these opens the form to go finer.
+export const QUICK_RESOLUTION = 48;
+export function autoSurface({ collars = [], contacts = [], hasLogs = false, maxResolution = RES_MAX } = {}) {
+  const top = Math.max(RES_MIN, Math.min(RES_MAX, maxResolution));
   const pts = thin(contacts.filter((c) => fin(c.x) && fin(c.y) && fin(c.z)));
   const holes = holesOf(pts), problems = [], notes = [];
   if (!pts.length) problems.push(hasLogs ? say("The logs give no contacts between units: every hole is logged as one unit, so there is no surface to model.")
@@ -36,18 +40,23 @@ export function autoSurface({ collars = [], contacts = [], hasLogs = false } = {
   for (const zs of byHole.values()) { zs.sort((a, b) => b - a); for (let i = 1; i < zs.length; i++) if (zs[i - 1] - zs[i] > 0) gaps.push(zs[i - 1] - zs[i]); }
   const gap = gaps.length ? median(gaps) : null;
   let best = null, n = RES_MIN;
-  for (; n <= RES_MAX; n++) {
+  for (; n <= top; n++) {
     const axes = axisResolution(extent, n), cells = blockCellsM(extent, axes), across = Math.max(cells[0], cells[1]), miss = Math.abs(across - target);
     if (!best || miss < best.miss) best = { n, axes, cells, across, miss };
   }
   if (gap && best.cells[2] > gap / 3) {
-    for (n = best.n; n <= RES_MAX; n++) { const axes = axisResolution(extent, n), cells = blockCellsM(extent, axes); best = { n, axes, cells, across: Math.max(cells[0], cells[1]) }; if (cells[2] <= gap / 3) break; }
+    for (n = best.n; n <= top; n++) { const axes = axisResolution(extent, n), cells = blockCellsM(extent, axes); best = { n, axes, cells, across: Math.max(cells[0], cells[1]) }; if (cells[2] <= gap / 3) break; }
   }
   const cellsM = best.cells.map((v) => +v.toFixed(2));
-  reasons.push(because("resolution", "Cells about {x} m across: no coarser than half the spacing between drill sites ({s} m), the detail the holes can show between them.", { x: metres(best.across), s: metres(spacing) }));
-  if (gap) reasons.push(because("resolution", "Cells {z} m high: the units are about {g} m thick between contacts down the holes, so each is at least three cells thick where the engine allows.", { z: metres(cellsM[2]), g: metres(gap) }));
-  if (gap && cellsM[2] > gap / 3) notes.push(say("The units are thin for the engine's finest grid: some are under three cells thick. Model a smaller area for more detail."));
-  if (best.across > target * 1.5) notes.push(say("The area is large for the engine's finest grid: the cells are {x} m across, coarser than the drilling. Model a smaller area for more detail.", { x: metres(best.across) }));
+  // each sentence only claims what the cells are: the quick cap or the engine's grid can leave them coarser than the aim (said in the notes)
+  if (best.across <= target * 1.05) reasons.push(because("resolution", "Cells about {x} m across: no coarser than half the spacing between drill sites ({s} m), the detail the holes can show between them.", { x: metres(best.across), s: metres(spacing) }));
+  else reasons.push(because("resolution", "Cells about {x} m across; half the spacing between drill sites ({s} m) would be {t} m.", { x: metres(best.across), s: metres(spacing), t: metres(target) }));
+  if (gap && cellsM[2] <= (gap / 3) * 1.05) reasons.push(because("resolution", "Cells {z} m high: the units are about {g} m thick between contacts down the holes, so each is at least three cells thick where the engine allows.", { z: metres(cellsM[2]), g: metres(gap) }));
+  else if (gap) reasons.push(because("resolution", "Cells {z} m high; the units are about {g} m thick between contacts down the holes.", { z: metres(cellsM[2]), g: metres(gap) }));
+  const capped = top < RES_MAX && best.n === top && ((gap && cellsM[2] > (gap / 3) * 1.05) || best.across > target * 1.05); // the same test as the reasons below
+  if (capped) notes.push(say("For a quick first model the detail is kept to Resolution {n}: raise it under Change these for finer cells, in a longer run.", { n: top }));
+  else if (gap && cellsM[2] > gap / 3) notes.push(say("The units are thin for the engine's finest grid: some are under three cells thick. Model a smaller area for more detail."));
+  if (!capped && best.across > target * 1.5) notes.push(say("The area is large for the engine's finest grid: the cells are {x} m across, coarser than the drilling. Model a smaller area for more detail.", { x: metres(best.across) }));
   if (holes < 6) notes.push(say("Contacts in only {n} holes: between them the surface is a broad guess. Check it on a section.", { n: holes }));
   return autoResult({ extent, resolution: best.n, axes: best.axes, cellsM }, reasons, notes, problems);
 }

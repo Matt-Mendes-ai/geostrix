@@ -64,7 +64,7 @@ function basicTools(src, start) {
 
 test("the Basic-tools budget: the StrixViewer ribbon shows nine tools or fewer (a new tool is Advanced unless added to this list on purpose)", () => {
   const list = basicTools(rd("src/modules/viewer/ViewerParts.jsx"), '<Ribbon show={show} label="StrixViewer tools">');
-  assert.deepEqual(list, ["Add data", "Draw cross-section", "Identify", "Measure", "Data table", "Run data QC", "Best intercepts", "Snapshot to Layout", "Export drillholes"]);
+  assert.deepEqual(list, ["Add data", "Model", "Draw cross-section", "Identify", "Measure", "Data table", "Best intercepts", "Snapshot to Layout", "Export drillholes"]); // #3908: Model in, Data QC Advanced
   assert.ok(list.length <= 9);
 });
 

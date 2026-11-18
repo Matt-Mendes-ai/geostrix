@@ -72,6 +72,21 @@ export function ViewToolbar({
         <input ref={addDataRef} type="file" multiple hidden onChange={(e) => { const files = Array.from(e.target.files || []); e.target.value = ""; if (files.length) requestModuleAction("import-dropped-files", { files }); }} />
         <RibbonButton icon={Upload} label="Add data" tone="data" title="Add files to the project: collars, surveys, logs, assays, maps, grids, terrain, models. Each is read the same way as a file dropped on the view." onClick={() => addDataRef.current?.click()} />
       </RibbonGroup>
+      {/* TASKS.csv #3908 (Matt, 2026-11-18) — the guided modelling tools, in StrixViewer: one Basic button, a small menu (guided/GuidedTool.jsx,
+          loaded on first use). The ids are guided/guidedTools.js's; the labels stay here so the menu costs the startup chunk nothing. */}
+      <RibbonGroup label="Model">
+        <div className="ge-ribbon-cell">
+          <HoverToolInfo title={tr("Model")} text={tr("Build a model from your logs, one step at a time: each tool asks one question, answers it from your data, and builds the rest for you.")}>
+            <button className={`ge-ribbon-btn ${openPopover === "model" ? "active" : ""}`} aria-expanded={openPopover === "model"} aria-haspopup="menu" onClick={() => toggle("model")}><Mountain size={22} strokeWidth={1.7} color={RIBBON_TONES.model} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Model")}</span></button>
+          </HoverToolInfo>
+          {openPopover === "model" && (
+            <div role="menu" style={{ ...popoverStyle, width: 220, padding: 6 }}>
+              {GUIDED_MENU.map(([id, label]) => <button key={id} type="button" role="menuitem" onClick={() => { setOpenPopover(null); requestModuleAction("guided-open", { tool: id }); }}
+                style={{ display: "block", width: "100%", textAlign: "start", padding: "6px 8px", border: "none", background: "transparent", cursor: "pointer", fontSize: "var(--font-size-base)", color: "var(--color-text)", fontWeight: id === "start" ? 600 : 400 }}>{tr(label)}</button>)}
+            </div>
+          )}
+        </div>
+      </RibbonGroup>
       <RibbonGroup label="View" advanced={!noHoles}>{/* #1707 — all Advanced (3D slice not with no holes, #2778): no empty caption in Simple */}
         <div className="ge-ribbon-cell ge-adv">
           <HoverToolInfo title={tr("Grid")} text={tr("Toggles the ground reference grid on or off, and lets you resize it, change its division spacing/colour, or add two vertical wall grids for a full 3D reference box. Turn it off if it's cluttering a dense model or a figure you're about to snapshot.")} suppress={openPopover === "grid"}>
@@ -237,7 +252,7 @@ export function ViewToolbar({
             <button className="ge-ribbon-btn" onClick={() => openDataTable({})}><Rows3 size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Data table")}</span></button>{/* TASKS.csv #3563 */}
           </HoverToolInfo>
         </div>
-        <div className={`ge-ribbon-cell${noHoles ? " ge-adv" : ""}`}>
+        <div className="ge-ribbon-cell ge-adv">{/* TASKS.csv #3908 — Advanced, so Model keeps the Basic list at nine (ribbonTiers3903) */}
           <HoverToolInfo title={tr("Run data QC")} text={qcDisabled ? tr("Load some drillhole data (collars, intervals or assays) first. Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modelling.") : tr("Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modelling.")}>
             <button className={`ge-ribbon-btn${qcDisabled ? " is-disabled" : ""}`} onClick={qcDisabled ? undefined : onQc} aria-disabled={qcDisabled || undefined}><ShieldAlert size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Data QC")}</span></button>
           </HoverToolInfo>
@@ -283,6 +298,8 @@ export function ViewToolbar({
     </Ribbon>
   );
 }
+// TASKS.csv #3908 — the Model menu: [guided tool id, label], in the order the Start here card lists them
+const GUIDED_MENU = [["start", "Start here"], ["cover", "Cover and weathering"], ["layers", "Rock layers"], ["bodies", "Intrusions and bodies"]];
 const popoverStyle = { position: "absolute", top: "calc(100% + 4px)", left: 0, width: 230, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8, boxShadow: "0 6px 20px rgba(0,0,0,0.12)", padding: 10, zIndex: 50 };
 const popoverHeader = { display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", fontWeight: "var(--font-weight-title)" /* TASKS.csv #3892 */, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em" };
 
