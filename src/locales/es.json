@@ -14225,5 +14225,16 @@
   "Anything else": "Cualquier otra cosa",
   "maps, samples, pictures, geophysics": "mapas, muestras, imágenes, geofísica",
   "{n} rock code": "{n} código de roca",
-  "{n} rock codes": "{n} códigos de roca"
+  "{n} rock codes": "{n} códigos de roca",
+  "The direction the contacts between {units} mapped units run in the published geology map around the project ({km} km of contacts, Macrostrat).": "La dirección en que corren los contactos entre {units} unidades mapeadas en el mapa geológico publicado alrededor del proyecto ({km} km de contactos, Macrostrat).",
+  "Regional direction only, not a dip: from a small-scale map, and your deposit may differ.": "Solo una dirección regional, no un manteo: de un mapa a pequeña escala, y su yacimiento puede ser distinto.",
+  "No internet connection: the regional geology can't be looked at now.": "Sin conexión a internet: ahora no se puede consultar la geología regional.",
+  "Macrostrat has no mapped geology around the project.": "Macrostrat no tiene geología mapeada alrededor del proyecto.",
+  "The published map around the project shows one unit only: no contacts to give a direction.": "El mapa publicado alrededor del proyecto muestra una sola unidad: no hay contactos que den una dirección.",
+  "The regional geology shows no clear direction here. In flat-lying country the contacts follow the hills, not a grain.": "La geología regional no muestra una dirección clara aquí. En terrenos de capas horizontales los contactos siguen las colinas, no un rumbo.",
+  "The regional geology needs drill holes and a coordinate system to know where the project is.": "La geología regional necesita sondajes y un sistema de coordenadas para saber dónde está el proyecto.",
+  "The regional geology could not be fetched ({error}).": "No se pudo obtener la geología regional ({error}).",
+  "Looking…": "Buscando…",
+  "Look at the regional geology": "Consultar la geología regional",
+  "Sends the area around the project to Macrostrat (macrostrat.org) for its published geology map, and reads the direction the mapped contacts run: a regional direction only, not a dip.": "Envía la zona alrededor del proyecto a Macrostrat (macrostrat.org) para obtener su mapa geológico publicado, y lee la dirección en que corren los contactos mapeados: solo una dirección regional, no un manteo."
 }

@@ -14225,5 +14225,16 @@
   "Anything else": "أي شيء آخر",
   "maps, samples, pictures, geophysics": "خرائط، عينات، صور، جيوفيزياء",
   "{n} rock code": "{n} رمز صخري",
-  "{n} rock codes": "{n} رموز صخرية"
+  "{n} rock codes": "{n} رموز صخرية",
+  "The direction the contacts between {units} mapped units run in the published geology map around the project ({km} km of contacts, Macrostrat).": "الاتجاه الذي تمتد فيه التماسّات بين {units} وحدات مخططة في الخريطة الجيولوجية المنشورة حول المشروع ({km} كم من التماسّات، Macrostrat).",
+  "Regional direction only, not a dip: from a small-scale map, and your deposit may differ.": "اتجاه إقليمي فقط، لا ميل: من خريطة صغيرة المقياس، وقد يختلف رواسبك.",
+  "No internet connection: the regional geology can't be looked at now.": "لا يوجد اتصال بالإنترنت: لا يمكن الاطلاع على الجيولوجيا الإقليمية الآن.",
+  "Macrostrat has no mapped geology around the project.": "لا يملك Macrostrat جيولوجيا مخططة حول المشروع.",
+  "The published map around the project shows one unit only: no contacts to give a direction.": "تُظهر الخريطة المنشورة حول المشروع وحدة واحدة فقط: لا تماسّات تعطي اتجاهًا.",
+  "The regional geology shows no clear direction here. In flat-lying country the contacts follow the hills, not a grain.": "لا تُظهر الجيولوجيا الإقليمية اتجاهًا واضحًا هنا. في الأراضي ذات الطبقات الأفقية تتبع التماسّات التلال لا اتجاهًا.",
+  "The regional geology needs drill holes and a coordinate system to know where the project is.": "تحتاج الجيولوجيا الإقليمية إلى ثقوب حفر ونظام إحداثيات لمعرفة موقع المشروع.",
+  "The regional geology could not be fetched ({error}).": "تعذر جلب الجيولوجيا الإقليمية ({error}).",
+  "Looking…": "جارٍ البحث…",
+  "Look at the regional geology": "اطّلع على الجيولوجيا الإقليمية",
+  "Sends the area around the project to Macrostrat (macrostrat.org) for its published geology map, and reads the direction the mapped contacts run: a regional direction only, not a dip.": "يرسل المنطقة المحيطة بالمشروع إلى Macrostrat (macrostrat.org) للحصول على خريطتها الجيولوجية المنشورة، ويقرأ اتجاه التماسّات المخططة: اتجاه إقليمي فقط، لا ميل."
 }
