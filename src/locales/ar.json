@@ -14339,5 +14339,9 @@
   "Unsampled core inside the sampled holes is read as barren at {v} {unit}: half the lowest {el} grade ({low} {unit}), the usual stand-in for below detection. Change it in the grade shell pane.": "اللباب غير المعاين داخل الثقوب المعاينة يُقرأ كعقيم بالقيمة {v} {unit}: نصف أدنى محتوى من {el} ({low} {unit})، وهو البديل المعتاد لما دون حد الكشف. غيّره في لوحة غلاف المحتوى.",
   "Unsampled core inside the sampled holes is read as barren at 0: no sample carries a positive grade.": "اللباب غير المعاين داخل الثقوب المعاينة يُقرأ كعقيم بالقيمة 0: لا تحمل أي عينة محتوى موجبًا.",
   "Cells {c} x {c} m and a {r} m search: GeoStrix's standard grade-shell settings, not values read from your data. Change them in the grade shell pane.": "خلايا {c} × {c} م وبحث {r} م: إعدادات GeoStrix القياسية لغلاف المحتوى، وليست قيمًا مقروءة من بياناتك. غيّرها في لوحة غلاف المحتوى.",
-  "The run used {c} m cells, not {d} m: at {d} m this area needs more blocks than the block budget allows (the messages under the sidebar say how many).": "استخدم التشغيل خلايا {c} م لا {d} م: عند {d} م تحتاج هذه المنطقة إلى كتل أكثر مما تسمح به ميزانية الكتل (الرسائل أسفل الشريط الجانبي تذكر العدد)."
+  "The run used {c} m cells, not {d} m: at {d} m this area needs more blocks than the block budget allows (the messages under the sidebar say how many).": "استخدم التشغيل خلايا {c} م لا {d} م: عند {d} م تحتاج هذه المنطقة إلى كتل أكثر مما تسمح به ميزانية الكتل (الرسائل أسفل الشريط الجانبي تذكر العدد).",
+  "Percentiles of": "المئينات من",
+  "The mineralised samples are those at or above {cut} {unit}, where these grades split into a background and a higher group (read from the data). Over all samples, the percentiles of a mostly barren column can fall inside the ore.": "العينات المتمعدنة هي التي تساوي {cut} {unit} أو تزيد عليها، حيث تنقسم هذه القيم إلى خلفية ومجموعة أعلى (مقروءة من البيانات). على كل العينات، قد تقع مئينات عمود معظمه عقيم داخل الخام.",
+  "of the {n} mineralised samples (≥ {cut})": "من العينات المتمعدنة الـ{n} (≥ {cut})",
+  "of all samples": "من كل العينات"
 }
