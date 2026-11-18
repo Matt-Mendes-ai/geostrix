@@ -18,7 +18,9 @@ test("bare: no ribbon, no sidebar, no drop import; the viewport sits after the G
   const v = read("../src/modules/ViewerModule.jsx");
   assert.match(v, /export default function ViewerModule\(\{ mode = "view", visible = true, bare = false \}\)/);
   assert.equal((v.match(/show=\{visible\}/g) || []).length, 0);
-  assert.ok((v.match(/show=\{visible && !bare\}/g) || []).length >= 5);
+  assert.ok((v.match(/show=\{visible && !bare\}/g) || []).length >= 3); // #3904: the three mode ribbons take it through ModeRibbons
+  assert.match(v, /<ModeRibbons [^\n]*show=\{visible && !bare\}/);
+  assert.equal((read("../src/modules/viewer/ModeRibbons.jsx").match(/<Ribbon show=\{show\}/g) || []).length, 3);
   assert.match(v, /order: bare \? 1 : 0/);
   assert.match(v, /display: bare \? "none" : "flex"/);
   assert.match(v, /onDrop=\{bare \? \(e\) => \{ e\.preventDefault\(\); requestModuleAction\("geophysics-drop"/); // #2848: bare forwards its drops to the Geophysics tab

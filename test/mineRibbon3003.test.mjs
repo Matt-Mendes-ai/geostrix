@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 
 test("the Mine Design ribbon in Simple", () => {
-  const p = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  const p = fs.readFileSync(new URL("../src/modules/viewer/ModeRibbons.jsx", import.meta.url), "utf8"); // the ribbons: #3904
   const m = p.slice(p.indexOf('label="Mine design tools"'), p.indexOf('label="Targeting tools"'));
   const simple = [...m.matchAll(/<RibbonButton (?!advanced)[^>]*label="([^"]+)"/g)].map((x) => x[1]);
   assert.deepEqual(simple, ["Pit shell", "Pit design", "Dump / stockpile", "Stope outlines", "Strings"]);

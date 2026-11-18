@@ -25,7 +25,7 @@ test("wiring: the section labels the chosen crossings with the short name; KML /
   const sw = readFileSync(new URL("../src/components/SectionWindow.jsx", import.meta.url), "utf8");
   assert.match(sw, /if \(labelled\.has\(k\)\) floatLabels\.push\(\{ key: `pp\$\{i\}_\$\{k\}`, text: tr\("\{md\} m · \{surface\}", \{ md: q\.md\.toFixed\(1\), surface: shortSurfaceName\(q\.name\) \}\)/);
   assert.match(sw, /<title>\{tr\("\{hole\} crosses \{surface\} at \{md\} m downhole", \{ hole: ph\.name, surface: q\.name/, "the marker's tooltip keeps the full name");
-  const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  const v = readFileSync(new URL("../src/modules/viewer/ModeRibbons.jsx", import.meta.url), "utf8"); // the ribbons: #3904
   assert.match(v, /<RibbonButton advanced=\{project\?\.crsSet === false\} \/\* #2705[^*]*\*\/ icon=\{Globe\} label="KML"/);
   assert.match(v, /<RibbonButton advanced=\{project\?\.crsSet === false\} icon=\{MapPin\} label="GPX"/);
 });

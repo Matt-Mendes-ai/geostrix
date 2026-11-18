@@ -17,5 +17,5 @@ test("the pane, its help page and the four locales say the tool is on the Advanc
     for (const k of keys) assert.match(d[k], { es: /cinta Avanzado/, pt: /faixa Avançado/, fr: /ruban Avancé/, ar: /الشريط المتقدم/ }[lang], lang);
   }
   // the button itself is still Advanced-only (making it Simple is ViewerModule.jsx's ribbon, left to the main session)
-  assert.match(fs.readFileSync("src/modules/ViewerModule.jsx", "utf8"), /<RibbonButton advanced icon=\{Box\} label="Voxel ranges"/);
+  assert.match(fs.readFileSync("src/modules/viewer/ModeRibbons.jsx", "utf8"), /<RibbonButton advanced icon=\{Box\} label="Voxel ranges"/); // the ribbons: #3904
 });
