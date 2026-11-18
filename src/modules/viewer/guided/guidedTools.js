@@ -3,12 +3,12 @@
 // A tool is a plain object; GuidedTool.jsx draws every one the same way. English strings are tr() keys, translated where they are drawn.
 //
 // ctx: { rows (the lithology log rows), intercepts() (desurveyed tops of each logged interval, lib/viewer/boundaryIntercepts.js), collars,
-//        hasTerrain, describe(code) }
+//        hasTerrain, describe(code), roleOf(code), isCover(code), target(code): the run's key (mcode:<code> when Modelling codes name it) }
 // tool: { id, title, line, sentence, question, multi, help, expertPane,
 //         feed(ctx) -> null | why it cannot (a sentence), suggest(ctx) -> { value, reason }, choices(ctx) -> [unit],
 //         contacts(ctx, value) -> the contacts autoSurface sizes the model from, check(ctx, value) -> null | why it cannot,
 //         notes(ctx, value) -> [sentence], run(api, value), prefill(api, value) }
-import { stackOrder, suggestBody } from "../../../lib/auto/autoUnits.js";
+import { stackOrder, suggestBody, suggestCover } from "../../../lib/auto/autoUnits.js";
 import { t as tr } from "../../../lib/i18n.js";
 
 const noLogs = (ctx) => (ctx.rows.length ? null : tr("No lithology log yet: import one (Add data) and this tool reads it."));
@@ -40,7 +40,10 @@ export const ROCK_LAYERS = {
   prefill: (api, value) => api.setStackUnits(value),
 };
 
-// TASKS.csv #3908 step 3 — one rock as a closed shape: the implicit run on that unit (its role decides a body, a dyke or a breccia body)
+// TASKS.csv #3908 step 3 — one rock as a shape that cuts the others: the implicit run on that unit. The run draws a cross-cutting shape only
+// for a rock it reads as one (a dyke, vein, breccia or intrusion: its name, or its role in Modelling codes); any other rock it draws as the
+// top of a layer, so the tool says where to mark it instead of building the wrong surface (found live on WA lode gold: "cl").
+const BODY_ROLES = new Set(["dyke", "vein", "breccia", "intrusion", "cross-cutting"]);
 export const BODIES = {
   id: "bodies",
   title: "Intrusions and bodies",
@@ -52,17 +55,50 @@ export const BODIES = {
   expertPane: "implicit",
   feed: noLogs,
   suggest(ctx) {
-    const b = suggestBody(ctx.rows);
+    const b = suggestBody(ctx.rows, (u) => BODY_ROLES.has(ctx.roleOf(u)));
     return b ? { value: b.unit, reason: b.reason } : { value: "", reason: tr("No rock stands out as cutting the others: choose the one to build as a body.") };
   },
   choices: unitsByHoles,
-  check: (ctx, value) => (value ? null : tr("Choose a rock first.")),
+  check: (ctx, value) => (!value ? tr("Choose a rock first.")
+    : BODY_ROLES.has(ctx.roleOf(value)) ? null : tr("GeoStrix reads {code} as a layered rock, so it would draw its top, not a body. Mark it as an intrusion in 3D Modelling > Modelling codes, then build again.", { code: value })),
   contacts: (ctx, value) => ctx.intercepts().filter((c) => String(c.unit) === value),
-  notes: () => [tr("Its volume is in its row under Generated surfaces; tonnes need a density.")],
-  run: (api, value) => api.runImplicitModel(value),
-  prefill: (api, value) => api.setImplicitTarget(value),
+  notes: () => [],
+  run: (api, value, ctx) => api.runImplicitModel(ctx.target(value)), // mcode:<code> when Modelling codes give it its role (live: RSO marked overburden)
+  prefill: (api, value, ctx) => api.setImplicitTarget(ctx.target(value)),
 };
 
-export const GUIDED_TOOLS = [ROCK_LAYERS, BODIES];
+// TASKS.csv #3908 step 4 — the base of the cover or weathered zone: the implicit run on a code whose role is overburden draws its BASE
+// (#1684). A code read as rock would give its top, the wrong surface, so the tool stops and says where to mark it as cover.
+// The contacts: where the cover ends, down each hole (the top of whatever lies under its last interval).
+function coverBases(ctx, code) {
+  const ends = new Map();
+  for (const r of ctx.rows) if (String(r.value) === code) ends.set(r.hole_id, Math.max(ends.get(r.hole_id) ?? -Infinity, Number(r.to)));
+  return ctx.intercepts().filter((c) => ends.has(c.hole_id) && Math.abs(Number(c.from) - ends.get(c.hole_id)) < 0.01);
+}
+export const COVER = {
+  id: "cover",
+  title: "Cover and weathering",
+  line: "The loose or weathered blanket under the ground surface.",
+  sentence: "Builds the base of the cover or weathered zone: where it ends, down each hole, as one surface under the ground.",
+  question: "Which code is the cover?",
+  multi: false,
+  help: "implicit-surface",
+  expertPane: "implicit",
+  feed: noLogs,
+  suggest(ctx) {
+    const c = suggestCover(ctx.rows, ctx.describe);
+    return c ? { value: c.unit, reason: c.reason } : { value: "", reason: tr("No code starts most of the holes: choose the one logged as cover.") };
+  },
+  choices: unitsByHoles,
+  check: (ctx, value) => (!value ? tr("Choose a code first.")
+    : ctx.isCover(value) ? null : tr("GeoStrix reads {code} as a rock, so it would draw its top, not its base. Mark it as overburden in 3D Modelling > Modelling codes, then build again.", { code: value })),
+  contacts: coverBases,
+  notes: (ctx) => (ctx.hasTerrain ? [] : [tr("No terrain in the project: the ground is taken from the collar heights.")]),
+  run: (api, value, ctx) => api.runImplicitModel(ctx.target(value)), // mcode:<code> when Modelling codes give it its role (live: RSO marked overburden)
+  prefill: (api, value, ctx) => api.setImplicitTarget(ctx.target(value)),
+};
+
+// in the Start here card's order: what lies on top first
+export const GUIDED_TOOLS = [COVER, ROCK_LAYERS, BODIES];
 export const toolById = (id) => GUIDED_TOOLS.find((t) => t.id === id) || null;
 export { unitsByHoles };

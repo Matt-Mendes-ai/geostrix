@@ -82,10 +82,11 @@ export function suggestCover(rows, describe = () => "") {
     : tr("{unit} starts {p} % of the holes: the top of the drilled column.", { unit: best.unit, p }) };
 }
 
-// a rock that forms bodies: one the layers' order leaves out (it lies inside another rock, or sits in no steady order), cut by the most holes
-export function suggestBody(rows) {
+// a rock that forms bodies: one the layers' order leaves out (it lies inside another rock, or sits in no steady order), cut by the most holes.
+// prefer(unit): the modelling engine reads it as cross-cutting (TASKS.csv #3908), so those come first
+export function suggestBody(rows, prefer = () => false) {
   const s = stackOrder(rows), byUnit = new Map(s.units.map((u) => [u.unit, u]));
-  const unit = s.bodies[0] ?? null;
+  const unit = s.bodies.find(prefer) ?? s.bodies[0] ?? null;
   if (!unit) return null;
   const u = byUnit.get(unit);
   return { unit, reason: u.inside / u.holes >= INSIDE_MAX

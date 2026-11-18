@@ -14098,5 +14098,14 @@
   "Which rock?": "¿Qué roca?",
   "No rock stands out as cutting the others: choose the one to build as a body.": "Ninguna roca destaca por cortar a las demás: elija la que quiere construir como cuerpo.",
   "Choose a rock first.": "Elija primero una roca.",
-  "Its volume is in its row under Generated surfaces; tonnes need a density.": "Su volumen aparece en su fila bajo Superficies generadas; las toneladas necesitan una densidad."
+  "Its volume is in its row under Generated surfaces; tonnes need a density.": "Su volumen aparece en su fila bajo Superficies generadas; las toneladas necesitan una densidad.",
+  "Cover and weathering": "Cobertura y meteorización",
+  "The loose or weathered blanket under the ground surface.": "El manto suelto o meteorizado bajo la superficie del terreno.",
+  "Builds the base of the cover or weathered zone: where it ends, down each hole, as one surface under the ground.": "Construye la base de la cobertura o zona meteorizada: donde termina, en cada sondaje, como una superficie bajo el terreno.",
+  "Which code is the cover?": "¿Qué código es la cobertura?",
+  "No code starts most of the holes: choose the one logged as cover.": "Ningún código inicia la mayoría de los sondajes: elija el registrado como cobertura.",
+  "Choose a code first.": "Elija primero un código.",
+  "GeoStrix reads {code} as a rock, so it would draw its top, not its base. Mark it as overburden in 3D Modelling > Modelling codes, then build again.": "GeoStrix lee {code} como una roca, así que dibujaría su techo, no su base. Márquelo como cobertura en Modelado 3D > Códigos de modelado y vuelva a construir.",
+  "No terrain in the project: the ground is taken from the collar heights.": "No hay terreno en el proyecto: el suelo se toma de las cotas de los collares.",
+  "GeoStrix reads {code} as a layered rock, so it would draw its top, not a body. Mark it as an intrusion in 3D Modelling > Modelling codes, then build again.": "GeoStrix lee {code} como una roca en capas, así que dibujaría su techo, no un cuerpo. Márquelo como intrusión en Modelado 3D > Códigos de modelado y vuelva a construir."
 }

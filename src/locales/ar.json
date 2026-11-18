@@ -14098,5 +14098,14 @@
   "Which rock?": "أي صخرة؟",
   "No rock stands out as cutting the others: choose the one to build as a body.": "لا تبرز صخرة بقطعها للصخور الأخرى: اختر الصخرة التي تريد بناءها كجسم.",
   "Choose a rock first.": "اختر صخرة أولًا.",
-  "Its volume is in its row under Generated surfaces; tonnes need a density.": "حجمه في صفّه تحت «الأسطح المولّدة»؛ وتحتاج الأطنان إلى كثافة."
+  "Its volume is in its row under Generated surfaces; tonnes need a density.": "حجمه في صفّه تحت «الأسطح المولّدة»؛ وتحتاج الأطنان إلى كثافة.",
+  "Cover and weathering": "الغطاء والتجوية",
+  "The loose or weathered blanket under the ground surface.": "الغطاء المفكك أو المتجوّى تحت سطح الأرض.",
+  "Builds the base of the cover or weathered zone: where it ends, down each hole, as one surface under the ground.": "يبني قاعدة الغطاء أو نطاق التجوية: حيث ينتهي في كل ثقب، كسطح واحد تحت الأرض.",
+  "Which code is the cover?": "أي رمز هو الغطاء؟",
+  "No code starts most of the holes: choose the one logged as cover.": "لا يبدأ أي رمز معظم الثقوب: اختر الرمز المسجّل كغطاء.",
+  "Choose a code first.": "اختر رمزًا أولًا.",
+  "GeoStrix reads {code} as a rock, so it would draw its top, not its base. Mark it as overburden in 3D Modelling > Modelling codes, then build again.": "يقرأ GeoStrix الرمز {code} كصخرة، فسيرسم سطحه العلوي لا قاعدته. علّمه كغطاء في النمذجة ثلاثية الأبعاد > رموز النمذجة، ثم أعد البناء.",
+  "No terrain in the project: the ground is taken from the collar heights.": "لا توجد تضاريس في المشروع: يؤخذ سطح الأرض من ارتفاعات الفوهات.",
+  "GeoStrix reads {code} as a layered rock, so it would draw its top, not a body. Mark it as an intrusion in 3D Modelling > Modelling codes, then build again.": "يقرأ GeoStrix الرمز {code} كصخرة طبقية، فسيرسم سطحها العلوي لا جسمًا. علّمه كمتداخل في النمذجة ثلاثية الأبعاد > رموز النمذجة، ثم أعد البناء."
 }

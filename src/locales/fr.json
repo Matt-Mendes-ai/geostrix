@@ -14098,5 +14098,14 @@
   "Which rock?": "Quelle roche ?",
   "No rock stands out as cutting the others: choose the one to build as a body.": "Aucune roche ne se distingue en recoupant les autres : choisissez celle à construire comme corps.",
   "Choose a rock first.": "Choisissez d'abord une roche.",
-  "Its volume is in its row under Generated surfaces; tonnes need a density.": "Son volume figure sur sa ligne sous Surfaces générées ; les tonnes nécessitent une densité."
+  "Its volume is in its row under Generated surfaces; tonnes need a density.": "Son volume figure sur sa ligne sous Surfaces générées ; les tonnes nécessitent une densité.",
+  "Cover and weathering": "Couverture et altération",
+  "The loose or weathered blanket under the ground surface.": "Le manteau meuble ou altéré sous la surface du sol.",
+  "Builds the base of the cover or weathered zone: where it ends, down each hole, as one surface under the ground.": "Construit la base de la couverture ou de la zone altérée : là où elle se termine, dans chaque sondage, comme une surface sous le sol.",
+  "Which code is the cover?": "Quel code est la couverture ?",
+  "No code starts most of the holes: choose the one logged as cover.": "Aucun code ne commence la plupart des sondages : choisissez celui décrit comme couverture.",
+  "Choose a code first.": "Choisissez d'abord un code.",
+  "GeoStrix reads {code} as a rock, so it would draw its top, not its base. Mark it as overburden in 3D Modelling > Modelling codes, then build again.": "GeoStrix lit {code} comme une roche : il dessinerait son toit, pas sa base. Marquez-le comme mort-terrain dans Modélisation 3D > Codes de modélisation, puis reconstruisez.",
+  "No terrain in the project: the ground is taken from the collar heights.": "Pas de terrain dans le projet : le sol est pris aux altitudes des collets.",
+  "GeoStrix reads {code} as a layered rock, so it would draw its top, not a body. Mark it as an intrusion in 3D Modelling > Modelling codes, then build again.": "GeoStrix lit {code} comme une roche litée : il dessinerait son toit, pas un corps. Marquez-le comme intrusion dans Modélisation 3D > Codes de modélisation, puis reconstruisez."
 }

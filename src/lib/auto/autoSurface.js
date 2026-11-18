@@ -53,7 +53,7 @@ export function autoSurface({ collars = [], contacts = [], hasLogs = false, maxR
   else reasons.push(because("resolution", "Cells about {x} m across; half the spacing between drill sites ({s} m) would be {t} m.", { x: metres(best.across), s: metres(spacing), t: metres(target) }));
   if (gap && cellsM[2] <= (gap / 3) * 1.05) reasons.push(because("resolution", "Cells {z} m high: the units are about {g} m thick between contacts down the holes, so each is at least three cells thick where the engine allows.", { z: metres(cellsM[2]), g: metres(gap) }));
   else if (gap) reasons.push(because("resolution", "Cells {z} m high; the units are about {g} m thick between contacts down the holes.", { z: metres(cellsM[2]), g: metres(gap) }));
-  const capped = top < RES_MAX && best.n === top && ((gap && cellsM[2] > gap / 3) || best.across > target * 1.5);
+  const capped = top < RES_MAX && best.n === top && ((gap && cellsM[2] > (gap / 3) * 1.05) || best.across > target * 1.05); // the same test as the reasons below
   if (capped) notes.push(say("For a quick first model the detail is kept to Resolution {n}: raise it under Change these for finer cells, in a longer run.", { n: top }));
   else if (gap && cellsM[2] > gap / 3) notes.push(say("The units are thin for the engine's finest grid: some are under three cells thick. Model a smaller area for more detail."));
   if (!capped && best.across > target * 1.5) notes.push(say("The area is large for the engine's finest grid: the cells are {x} m across, coarser than the drilling. Model a smaller area for more detail.", { x: metres(best.across) }));

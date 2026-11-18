@@ -13,6 +13,7 @@ import { useStore } from "../../../lib/store.jsx";
 import { openHelp } from "../../../lib/help.js";
 import { t as tr } from "../../../lib/i18n.js";
 import { autoSurface, QUICK_RESOLUTION } from "../../../lib/auto/autoSurface.js";
+import { roleForLithology } from "../../../lib/layers.js";
 import { GUIDED_TOOLS, toolById } from "./guidedTools.js";
 
 const card = { position: "absolute", top: 12, left: 12, width: 360, maxHeight: "calc(100% - 24px)", overflowY: "auto", zIndex: 30, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8, boxShadow: "0 6px 20px rgba(0,0,0,0.14)", padding: 14, color: "var(--color-text)", fontSize: "var(--font-size-base)", lineHeight: 1.45 };
@@ -28,8 +29,9 @@ export default function GuidedTool({ tool: toolId, setTool, api }) {
   const rows = store.layers?.litho || [];
   const ctx = useMemo(() => {
     let cache = null;
-    return { rows, collars: store.collars || [], hasTerrain: !!store.terrain, describe: () => "", intercepts: () => (cache ||= (api.computeIntercepts?.() || []).filter((c) => c.layerKey === "litho")) };
-  }, [rows, store.collars, store.terrain]); // api.computeIntercepts follows the same logs
+    const mcodes = store.modellingCodes?.codes || [];
+    return { rows, collars: store.collars || [], hasTerrain: !!store.terrain, describe: () => "", target: (v) => (mcodes.some((c) => c.name === v) ? `mcode:${v}` : v), roleOf: (v) => mcodes.find((c) => c.name === v)?.role || roleForLithology(v), isCover: (v) => (mcodes.find((c) => c.name === v)?.role || roleForLithology(v)) === "overburden", intercepts: () => (cache ||= (api.computeIntercepts?.() || []).filter((c) => c.layerKey === "litho")) };
+  }, [rows, store.collars, store.terrain, store.modellingCodes]); // api.computeIntercepts follows the same logs
   const close = () => setTool(null);
   const tool = toolById(toolId);
   if (!tool) return <StartHere ctx={ctx} setTool={setTool} close={close} />;
@@ -69,6 +71,8 @@ function Tool({ tool, ctx, api, close, back }) {
   const surfacesRef = useRef(api.surfaces); surfacesRef.current = api.surfaces;
   const value = tool.multi ? (tool.ordered ? tool.ordered(ctx, picked) : picked) : picked;
   const feedWhy = tool.feed(ctx);
+  // the suggestion's reason goes on the card only when the user kept it (not "choose one", not for a rock they picked)
+  const keptSuggestion = !!sug?.value?.length && JSON.stringify(sug.value) === JSON.stringify(value);
 
   const build = () => {
     const why = tool.check(ctx, value);
@@ -85,16 +89,16 @@ function Tool({ tool, ctx, api, close, back }) {
     if (phase !== "waiting" || !p || api.modelResolution !== p.n) return;
     pending.current = null;
     setPhase("running");
-    Promise.resolve(tool.run(api, value)).finally(() => setTimeout(() => {
+    Promise.resolve(tool.run(api, value, ctx)).finally(() => setTimeout(() => {
       const built = (surfacesRef.current || []).filter((s) => !p.before.has(s.id)).map((s) => s.name);
       setOut(built.length
-        ? { built, reasons: [sug?.reason, ...p.auto.reasons.map((r) => r.text)].filter(Boolean), notes: [...p.auto.notes, ...tool.notes(ctx, value)] }
+        ? { built, reasons: [keptSuggestion ? sug.reason : null, ...p.auto.reasons.map((r) => r.text)].filter(Boolean), notes: [...p.auto.notes, ...tool.notes(ctx, value)] }
         : { verdict: [tr("Nothing was built: the messages under the sidebar say why.")] });
       setPhase(built.length ? "done" : "cannot");
     }, 0));
   }, [phase, api.modelResolution]); // runs once per Build
 
-  const change = () => { tool.prefill(api, value); api.openPane(tool.expertPane); };
+  const change = () => { tool.prefill(api, value, ctx); api.openPane(tool.expertPane); };
   const toggle = (u) => setPicked((p) => (p.includes(u) ? p.filter((x) => x !== u) : [...p, u]));
   return (
     <div style={card} role="dialog" aria-label={tr(tool.title)}>

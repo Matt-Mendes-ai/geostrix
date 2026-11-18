@@ -14098,5 +14098,14 @@
   "Which rock?": "Qual rocha?",
   "No rock stands out as cutting the others: choose the one to build as a body.": "Nenhuma rocha se destaca por cortar as outras: escolha a que quer construir como corpo.",
   "Choose a rock first.": "Escolha primeiro uma rocha.",
-  "Its volume is in its row under Generated surfaces; tonnes need a density.": "O seu volume está na sua linha em Superfícies geradas; as toneladas precisam de uma densidade."
+  "Its volume is in its row under Generated surfaces; tonnes need a density.": "O seu volume está na sua linha em Superfícies geradas; as toneladas precisam de uma densidade.",
+  "Cover and weathering": "Cobertura e intemperismo",
+  "The loose or weathered blanket under the ground surface.": "O manto solto ou intemperizado sob a superfície do terreno.",
+  "Builds the base of the cover or weathered zone: where it ends, down each hole, as one surface under the ground.": "Constrói a base da cobertura ou zona intemperizada: onde ela termina, em cada furo, como uma superfície sob o terreno.",
+  "Which code is the cover?": "Qual código é a cobertura?",
+  "No code starts most of the holes: choose the one logged as cover.": "Nenhum código inicia a maioria dos furos: escolha o descrito como cobertura.",
+  "Choose a code first.": "Escolha primeiro um código.",
+  "GeoStrix reads {code} as a rock, so it would draw its top, not its base. Mark it as overburden in 3D Modelling > Modelling codes, then build again.": "O GeoStrix lê {code} como uma rocha, então desenharia o seu topo, não a sua base. Marque-o como cobertura em Modelagem 3D > Códigos de modelagem e construa de novo.",
+  "No terrain in the project: the ground is taken from the collar heights.": "Não há terreno no projeto: o solo é tomado das cotas das bocas de furo.",
+  "GeoStrix reads {code} as a layered rock, so it would draw its top, not a body. Mark it as an intrusion in 3D Modelling > Modelling codes, then build again.": "O GeoStrix lê {code} como uma rocha em camadas, então desenharia o seu topo, não um corpo. Marque-o como intrusão em Modelagem 3D > Códigos de modelagem e construa de novo."
 }

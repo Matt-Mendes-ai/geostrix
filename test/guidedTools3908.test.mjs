@@ -83,13 +83,38 @@ test("the order follows each pair's majority: a rock cut by more holes does not 
 test("#3908 Intrusions and bodies: one rock, suggested from the logs, built by the implicit run", async () => {
   const { BODIES, GUIDED_TOOLS } = await import("../src/modules/viewer/guided/guidedTools.js");
   assert.ok(GUIDED_TOOLS.includes(BODIES));
-  const ctx = { rows: logs(), intercepts: () => [{ unit: "DYK", hole_id: "L1" }, { unit: "SST", hole_id: "L1" }] };
+  const ctx = { rows: logs(), roleOf: (u) => (u === "DYK" ? "dyke" : "stratigraphic"), intercepts: () => [{ unit: "DYK", hole_id: "L1" }, { unit: "SST", hole_id: "L1" }] };
   assert.equal(BODIES.suggest(ctx).value, "DYK");
   assert.deepEqual(BODIES.contacts(ctx, "DYK"), [{ unit: "DYK", hole_id: "L1" }]);
   assert.match(BODIES.check(ctx, ""), /Choose a rock first/);
+  assert.equal(BODIES.check(ctx, "DYK"), null);
+  assert.match(BODIES.check(ctx, "SST"), /reads SST as a layered rock, so it would draw its top, not a body/); // the live finding on WA lode gold
+  assert.deepEqual(BODIES.notes(ctx), []);
   const calls = [];
-  BODIES.run({ runImplicitModel: (u) => calls.push(["run", u]) }, "DYK");
-  BODIES.prefill({ setImplicitTarget: (u) => calls.push(["fill", u]) }, "DYK");
-  assert.deepEqual(calls, [["run", "DYK"], ["fill", "DYK"]]);
+  const plain = { target: (v) => v }, coded = { target: (v) => `mcode:${v}` };
+  BODIES.run({ runImplicitModel: (u) => calls.push(["run", u]) }, "DYK", plain);
+  BODIES.prefill({ setImplicitTarget: (u) => calls.push(["fill", u]) }, "DYK", coded); // a code named in Modelling codes runs as mcode:<code>, with its role
+  assert.deepEqual(calls, [["run", "DYK"], ["fill", "mcode:DYK"]]);
   assert.equal(BODIES.expertPane, "implicit");
+});
+
+test("#3908 Cover and weathering: the code that starts the holes; its base, and only for a code read as cover", async () => {
+  const { COVER, GUIDED_TOOLS } = await import("../src/modules/viewer/guided/guidedTools.js");
+  assert.equal(GUIDED_TOOLS[0], COVER); // the Start here card lists what lies on top first
+  // L0: TILL 0-5, then SST from 5; the base contact is the top of what lies under the cover's last interval
+  const ctx = { rows: logs(), hasTerrain: false, describe: () => "", isCover: (v) => v === "TILL",
+    intercepts: () => [{ unit: "SST", hole_id: "L0", from: 5 }, { unit: "SLT", hole_id: "L0", from: 25 }, { unit: "SST", hole_id: "L1", from: 6 }] };
+  assert.equal(COVER.suggest(ctx).value, "TILL");
+  assert.deepEqual(COVER.contacts(ctx, "TILL").map((c) => c.hole_id), ["L0", "L1"]);
+  assert.equal(COVER.check(ctx, "TILL"), null);
+  assert.match(COVER.check(ctx, "SST"), /reads SST as a rock, so it would draw its top, not its base/);
+  assert.match(COVER.notes(ctx)[0], /ground is taken from the collar heights/);
+  assert.deepEqual(COVER.notes({ ...ctx, hasTerrain: true }), []);
+});
+
+test("#3908 the shell runs with the Modelling-codes key and gives the suggestion's reason only when it was kept", () => {
+  const shell = rd("src/modules/viewer/guided/GuidedTool.jsx");
+  assert.match(shell, /target: \(v\) => \(mcodes\.some\(\(c\) => c\.name === v\) \? `mcode:\$\{v\}` : v\)/);
+  assert.match(shell, /tool\.run\(api, value, ctx\)/);
+  assert.match(shell, /reasons: \[keptSuggestion \? sug\.reason : null,/);
 });
