@@ -93,6 +93,7 @@ import { worldHeightAtTargetM } from "../lib/figureScale.js"; // TASKS.csv #311 
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import BrowserDock from "./viewer/BrowserDock.jsx"; // TASKS.csv #3906 — the Browser panel, closed by default
+const GuidedTool = React.lazy(() => import("./viewer/guided/GuidedTool.jsx")); // TASKS.csv #3908 — the guided tools, on first use
 import { useUiMode } from "../lib/uiMode.js"; // TASKS.csv #3906
 const ImportMappingModal = lazyModal(() => import("../components/ImportMappingModal.jsx"));  // TASKS.csv #301
 const LayerPickerModal = lazyModal(() => import("../components/LayerPickerModal.jsx")); // TASKS.csv #476 // TASKS.csv #288
@@ -1378,6 +1379,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // TASKS.csv #565 — File > Import CSV (Ctrl+I) opens the collar import here; View > Cross-section (Ctrl+Shift+C)
   // starts drawing a section (it used to only switch to this tab)
   useModuleAction(["open-geoml"], () => setToolPane("geoml")); // TASKS.csv #750 — links / menus that named the Predictive tab
+  const [guided, setGuided] = useState(null); useModuleAction(["guided-open"], (a, p) => setGuided(p?.tool || "start")); // TASKS.csv #3908 — the Model menu
   useModuleAction(["import-collars", "draw-section"], (a) => {
     if (a === "import-collars") { fileInputs.current.collar?.click(); return; }
     setRectZoomMode(false); setMeasureMode(null); setMeasurePts([]); setSectionMode(true); sectionPts.current = []; setSectionPreview(null);
@@ -7410,6 +7412,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           />
         )}
         {identify.on && <Suspense fallback={null}><IdentifyPanel result={identify.result} onShow={identify.show} onClose={identify.stop} onZoom={(pt) => zoomToPoint(pt)} onStripLog={setStripLogHoleId} /></Suspense>}
+        {guided && mode === "view" && <Suspense fallback={null}><GuidedTool tool={guided} setTool={setGuided} api={{ runStackModel, runImplicitModel, computeIntercepts, modelResolution, setModelResolution, busy: implicitBusy, surfaces: implicitSurfaces, setStackUnits, setImplicitTarget, openPane: (p) => { setGuided(null); pendingPaneRef.current = p; goToModule("modelling"); } }} /></Suspense>}{/* TASKS.csv #3908 */}
         <div style={{ position: "absolute", top: 178, right: 12, display: "flex", flexDirection: "column", gap: 6 }}>{/* #1300 — 8 px below the compass card */}
           <button onClick={() => { camState.current.theta = 0; camState.current.phi = 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Top")}</button>{/* #1200 — north up, as a map */}
           <button onClick={() => { camState.current.phi = Math.PI - 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Bottom")}</button>
