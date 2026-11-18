@@ -171,8 +171,8 @@ test("#3909 Grade model: the cut-off from the grades, cells and search from the 
   const [sym, cutoff, cell, height, radius, minHoles] = r.values.list;
   assert.equal(sym, "Au");
   assert.ok(cutoff > 0.1 && cutoff < 1);
-  assert.deepEqual([cell, height, radius, minHoles], [10, 5, 60, 2]); // a quarter of 40 m; two 2 m samples; 1.5 spacings in whole cells
-  assert.ok(r.reasons.some((x) => x.field === "cutoff") && r.reasons.some((x) => x.field === "searchRadius"));
+  assert.deepEqual([cell, height, radius, minHoles], [50, "", 200, 2]); // GeoStrix's standard grade-shell settings (Matt, 2026-11-20), not the data's
+  assert.ok(r.reasons.some((x) => x.field === "cutoff") && r.reasons.some((x) => x.field === "cells" && /standard grade-shell settings, not values read from your data/.test(x.text)));
   assert.equal(r.notes.filter((n) => /no density/.test(n)).length, 1); // said once
   assert.ok(r.notes.some((n) => /No trend is set/.test(n)));
   assert.ok(GRADE.auto({ ...ctx, gradeTrend: true }, "Au").reasons.some((x) => x.field === "trend"));

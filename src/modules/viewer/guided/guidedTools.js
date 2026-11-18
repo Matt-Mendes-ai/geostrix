@@ -16,6 +16,7 @@ import { computeMeshVolume } from "../../../lib/volumetrics.js";
 import { faultPlan, minutesOf } from "../../../lib/auto/autoFault.js";
 import { gempyRate } from "../../../lib/gempyLimits.js";
 import { barrenDefault, unsampledReady } from "../../../lib/unsampledFill.js";
+import { NUMERIC_CELL_DEFAULT, GRADE_SHELL_SEARCH_DEFAULT } from "../../../lib/estimationMeta.js";
 import { getUnsampledChoice, setUnsampledChoice } from "../../../lib/unsampledChoices.js";
 import { gradeUnitLabel } from "../../../lib/geochemColumns.js";
 
@@ -260,8 +261,12 @@ export const GRADE = {
     if (!gs.ok) return gs;
     const bm = autoBlockModel({ collars: ctx.collars, samples, hasDensity: ctx.hasDensity });
     if (!bm.ok) return bm;
-    const { x, z } = bm.values.blockSize;
-    const reasons = [...gs.reasons.filter((r) => r.field === "cutoff"), ...bm.reasons.filter((r) => r.field !== "bounds" && r.field !== "maxSamples")];
+    // Matt, 2026-11-20: the shell runs on GeoStrix's standard grade-shell settings (50 m cells, a 200 m search, the Tight shell along the
+    // composites' plane), said as standard settings, not read from the data (#264); autoBlockModel still gives the verdicts and the density note
+    // (its enlarged blocks gave 500 m cells and a 500 m search on Macpass's 21 km spread)
+    const reasons = [...gs.reasons.filter((r) => r.field === "cutoff"),
+      { field: "cells", text: tr("Cells {c} x {c} m and a {r} m search: GeoStrix's standard grade-shell settings, not values read from your data. Change them in the grade shell pane.", { c: NUMERIC_CELL_DEFAULT, r: GRADE_SHELL_SEARCH_DEFAULT }) },
+      ...bm.reasons.filter((r) => r.field === "minHoles")];
     const notes = [...gs.notes, ...bm.notes];
     if (ctx.gradeTrend) reasons.push({ field: "trend", text: tr("It follows the trend set with the trend helper.") });
     else notes.push(tr("No trend is set, so the shell grows the same way in every direction. If the grade runs one way, set a trend first."));
@@ -271,7 +276,7 @@ export const GRADE = {
     else if (saved?.mode === "barren" && saved.value != null && saved.value !== "") reasons.push({ field: "unsampled", text: tr("Unsampled core inside the sampled holes is read as barren at {v} {unit} (your value in the grade shell pane).", { v: saved.value, unit }) });
     else if (saved?.mode !== "log") { const d = barrenDefault(ctx.assays, sym); reasons.push({ field: "unsampled", text: d.lowest != null ? tr("Unsampled core inside the sampled holes is read as barren at {v} {unit}: half the lowest {el} grade ({low} {unit}), the usual stand-in for below detection. Change it in the grade shell pane.", { v: d.value, unit, el: sym, low: d.lowest }) : tr("Unsampled core inside the sampled holes is read as barren at 0: no sample carries a positive grade.") }); }
     // the grade shell's own settings, in the order api.numeric lists them: metal, cut-off, cell across, cell height, search radius, holes
-    return { ok: true, values: { list: [sym, gs.values.cutoff, x, z, bm.values.searchRadius, bm.values.minHoles] }, reasons, notes, verdict: null };
+    return { ok: true, values: { list: [sym, gs.values.cutoff, NUMERIC_CELL_DEFAULT, "", GRADE_SHELL_SEARCH_DEFAULT, bm.values.minHoles] }, reasons, notes, verdict: null };
   },
   prepare(api, v) {
     v.list.forEach((x, i) => api.numeric.set[i](x));
@@ -287,6 +292,8 @@ export const GRADE = {
     const out = [];
     for (const s of made) {
       // the shell's enclosed volume, as the run's own message computes it (lib/volumetrics.js), from its mesh
+      // the cell the run used: a run over the block budget refits it (#1416), said here instead of the standard 50 m
+      if (Number(s.params?.cellSizeM) > NUMERIC_CELL_DEFAULT) out.push(tr("The run used {c} m cells, not {d} m: at {d} m this area needs more blocks than the block budget allows (the messages under the sidebar say how many).", { c: s.params.cellSizeM, d: NUMERIC_CELL_DEFAULT }));
       const geo = api?.meshOf?.(s.id)?.geometry, vol = geo ? computeMeshVolume(geo).volumeM3 : Number(s.params?.volumeM3);
       if (vol > 0) out.push(tr("{name}: {v} m³ above the cut-off.", { name: s.name, v: fmtNum(Number(vol.toPrecision(3))) }));
       if (s.closure === "artificial") out.push(tr("Part of this shell is closed at the search radius, so its volume depends on that radius as well as on the grades."));

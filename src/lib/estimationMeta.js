@@ -120,4 +120,8 @@ export function overlapBox(a, b) {
   return o.xmin < o.xmax && o.ymin < o.ymax && o.zmin < o.zmax ? o : null;
 }
 // TASKS.csv #1416 — the grade shell's starting cell size (m): left at it, an over-budget run takes the cell size that fits instead
-export const NUMERIC_CELL_DEFAULT = 10;
+// Matt, 2026-11-20 (#3920 follow-up, from his Grade shell settings): 'should have this as default even if it means increasing cell budget to
+// 1000000' — cell 50 m (was 10), search 200 m (was 50), pad 25 m, the Tight shell searched along the composites' plane, a 1,000,000-block budget
+// (was 200,000). GeoStrix's standard settings, said as such (#264); a budget, shell kind or plane setting the user saved stays theirs.
+export const NUMERIC_CELL_DEFAULT = 50;
+export const GRADE_SHELL_SEARCH_DEFAULT = 200, GRADE_SHELL_PAD_DEFAULT = 25, GRADE_SHELL_BLOCK_BUDGET = 1000000, GRADE_SHELL_MODE_DEFAULT = "tight";

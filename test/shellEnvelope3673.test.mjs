@@ -92,7 +92,7 @@ test("on the sheet: the envelope is one body that keeps the dilution; the grades
 
 test("the wiring: the default envelope, the tight shell a choice; the pane; the record", () => {
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
-  assert.match(r, /return m === "envelope" \|\| m === "tight" \? m : "auto";/);
+  assert.match(r, /return m === "envelope" \|\| m === "auto" \? m : "tight";/); // the default Tight: Matt, 2026-11-20 (a saved choice stays)
   assert.match(r, /envelopeMode = shellPref !== "tight" && !anisotropy\.enabled && !numSrc\?\.logScale/);
   assert.match(r, /const boxChoice = gridBoxes\.map\(\(b\) => \(envLib && workerPost \? envLib\.chooseShell\(b\.idx\.map\(\(k\) => gridPoints\[k\]\), numericCutoff, shellPref, \{ spacingM: gsSampleSpacing > 0 \? gsSampleSpacing : gsSpacing \}\)/);
   assert.match(r, /runEstimation\("dense", envBox\[bi\] \? indPoints : estPoints,/);
@@ -103,7 +103,7 @@ test("the wiring: the default envelope, the tight shell a choice; the pane; the 
   const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
   assert.match(p, /<option value="auto">\{tr\("Automatic \(by the drilling\)"\)\}<\/option>/);
   assert.match(p, /<option value="envelope">\{tr\("Envelope \(a domain\)"\)\}<\/option>/);
-  assert.match(p, /return m === "tight" \|\| m === "envelope" \? m : "auto";/);
+  assert.match(p, /return m === "auto" \|\| m === "tight" \|\| m === "envelope" \? m : "tight";/); // the default Tight: Matt, 2026-11-20
   assert.match(p, /shellMode !== "envelope" && <>\{\/\* TASKS\.csv #3655/);
   const s = readFileSync(new URL("../src/lib/viewer/shellPost.js", import.meta.url), "utf8");
   assert.match(s, /const cleaned = env\?\.clean \? cleanField\(cut\.values, grid, iso, env\.clean\) : null/);

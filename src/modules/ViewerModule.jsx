@@ -179,7 +179,7 @@ import { sceneVertsToWorldFlat } from "../lib/meshFlat.js"; // TASKS.csv #600 �
 import { useSculpt } from "../lib/useSculpt.js"; // TASKS.csv #145 — manual surface editing
 const SculptPanel = lazyModal(() => import("../components/SculptPanel.jsx")); // TASKS.csv #476 // TASKS.csv #145
 // TASKS.csv #142 — numeric (grade-shell) implicit model: composites/assays -> dense IDW grid -> marching cubes
-import { SUPPORT_COLORS, MAX_BLOCKS, clampCellBudget, NUMERIC_CELL_DEFAULT } from "../lib/estimationMeta.js"; // SUPPORT_*: TASKS.csv #91/#92; budget: #625
+import { SUPPORT_COLORS, clampCellBudget, NUMERIC_CELL_DEFAULT, GRADE_SHELL_SEARCH_DEFAULT, GRADE_SHELL_BLOCK_BUDGET } from "../lib/estimationMeta.js"; // SUPPORT_*: TASKS.csv #91/#92; budget: #625
 import { rectilinearGrid, buildExposedFaces, voxelBands } from "../lib/voxelFaces.js"; // TASKS.csv #793; voxelBands: #3354
 const SurfaceSolidsPanel = React.lazy(() => import("../components/SurfaceSolidsPanel.jsx")); // TASKS.csv #802 — loads when opened (startup budget)
 const ExplicitSurfacePanel = React.lazy(() => import("../components/ExplicitSurfacePanel.jsx")); // TASKS.csv #811 — loads when opened
@@ -1155,10 +1155,10 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const [numericCellHeight, setNumericCellHeight] = useState(""), [numericFlatReach, setNumericFlatReach] = useState(""); // #3062 — blank: cubic / a sphere
   // TASKS.csv #625 — the grade shell's block budget (a per-computer preference: what this machine can afford), and the
   // hint left by an over-budget run ({ needed, budget, cell, fit, fitMax })
-  const [numericMaxBlocks, setNumericMaxBlocksState] = useState(() => { try { return Number(localStorage.getItem("geostrix.gradeShellBlockBudget")) || MAX_BLOCKS; } catch { return MAX_BLOCKS; } });
+  const [numericMaxBlocks, setNumericMaxBlocksState] = useState(() => { try { return Number(localStorage.getItem("geostrix.gradeShellBlockBudget")) || GRADE_SHELL_BLOCK_BUDGET; } catch { return GRADE_SHELL_BLOCK_BUDGET; } });
   const setNumericMaxBlocks = (v) => { setNumericMaxBlocksState(v); try { localStorage.setItem("geostrix.gradeShellBlockBudget", String(v)); } catch { /* private window */ } };
   const [numericBudgetHint, setNumericBudgetHint] = useState(null);
-  const [numericSearchRadius, setNumericSearchRadius] = useState(50);
+  const [numericSearchRadius, setNumericSearchRadius] = useState(GRADE_SHELL_SEARCH_DEFAULT); // Matt, 2026-11-20 (was 50)
   const [numericMethod, setNumericMethod] = useState("idw2");
   // TASKS.csv #1015 — ordinary kriging's variogram for the grade shell: blank = fitted at run time (as the block model's modal)
   const [numericVariogram, setNumericVariogram] = useState({ model: "spherical", nugget: "", sill: "", range: "" });

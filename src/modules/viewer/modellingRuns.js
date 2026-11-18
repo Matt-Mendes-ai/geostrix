@@ -2540,7 +2540,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
   const shellPlaneSearchOn = () => { try { return localStorage.getItem("geostrix.shellPlaneSearch") !== "0"; } catch { return true; } };
   // TASKS.csv #3673 — the Grade shell pane's Shell choice: an envelope (the default) or the tight shell; the envelope's probability (0.3-0.7)
   // "auto" (the default: per drilled area by its share of composites at the cut-off, lib/viewer/shellEnvelope.js chooseShell), "envelope", "tight"
-  const shellModePref = () => { try { const m = localStorage.getItem("geostrix.shellMode"); return m === "envelope" || m === "tight" ? m : "auto"; } catch { return "auto"; } };
+  const shellModePref = () => { try { const m = localStorage.getItem("geostrix.shellMode"); return m === "envelope" || m === "auto" ? m : "tight"; } catch { return "tight"; } }; // default Tight: Matt, 2026-11-20
   const shellEnvelopeIso = () => { try { const v = Number(localStorage.getItem("geostrix.shellEnvelopeIso")); return v >= 0.3 && v <= 0.7 ? v : 0.5; } catch { return 0.5; } };
   const runNumericModel = () => {
     const shellTrend = trendWarp("gradeShell"); // TASKS.csv #650
