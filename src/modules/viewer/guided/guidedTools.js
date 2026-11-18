@@ -140,7 +140,53 @@ export const VEINS = {
   prefill: (api, value) => api.setVeinTarget(value),
 };
 
+// TASKS.csv #3909 — a fault from the measured picks: the Structural modelling run on one structure type of the structure log (picks with a
+// dip and a dip direction). Suggested: the type named like a fault, with the most picks. Stopping the model at the fault (two fault blocks) is
+// the full pane's choice, so the card says where it is.
+const FAULT_WORDS = /\b(fault|flt|fz|shear|sz|brittle|gouge|crush)\w*/i;
+function faultChoices(ctx) {
+  const by = new Map();
+  for (const s of ctx.structures) {
+    const has = (v) => v != null && v !== "" && Number.isFinite(Number(v)); // Number(null) is 0: a pick with no dip is not a measurement
+    if (s.value == null || s.value === "" || !has(s.dip) || !has(s.azimuth)) continue;
+    const k = String(s.value), e = by.get(k) || { key: k, picks: 0, holes: new Set() };
+    e.picks++; e.holes.add(s.hole_id); by.set(k, e);
+  }
+  return [...by.values()].sort((a, b) => FAULT_WORDS.test(b.key) - FAULT_WORDS.test(a.key) || b.picks - a.picks);
+}
+export const FAULTS = {
+  id: "faults",
+  title: "Faults",
+  line: "A break that cuts and shifts the rocks.",
+  sentence: "Builds a fault surface through your measured fault picks, from their positions, dips and directions.",
+  question: "Which measurements are the fault?",
+  multi: false,
+  help: "structural-modelling",
+  expertPane: "structural",
+  feed: (ctx) => (faultChoices(ctx).length ? null : tr("No oriented structure measurements: a fault surface is built from picks with a dip and a dip direction.")),
+  suggest(ctx) {
+    const c = faultChoices(ctx)[0];
+    return FAULT_WORDS.test(c.key)
+      ? { value: c.key, reason: tr("{v} reads like a fault and has {n} measured picks in {h} holes.", { v: c.key, n: c.picks, h: c.holes.size }) }
+      : { value: "", reason: tr("No structure type reads like a fault: choose the one that is.") };
+  },
+  choices: (ctx) => faultChoices(ctx).map((c) => c.key),
+  check: (ctx, value) => (value ? null : tr("Choose the fault measurements first.")),
+  auto(ctx, value) {
+    const c = faultChoices(ctx).find((x) => x.key === value);
+    return !c || c.picks < 3
+      ? { ok: false, values: null, reasons: [], notes: [], verdict: [tr("Only {n} {v} picks with a dip and a direction: a fault surface needs three or more.", { n: c?.picks || 0, v: value })] }
+      : { ok: true, values: {}, reasons: [{ field: "picks", text: tr("{n} {v} picks in {h} holes, with their dips and directions: the surface is fitted through them.", { n: c.picks, v: value, h: c.holes.size }) }], notes: [], verdict: null };
+  },
+  prepare: () => {},
+  ready: () => true,
+  contacts: () => [],
+  notes: () => [tr("To make the other models stop at this fault, open Change these: the Structural modelling pane sets which models it cuts.")],
+  run: (api, value) => api.runStructuralModel(value),
+  prefill: (api, value) => api.setStructuralTarget(value),
+};
+
 // in the Start here card's order: what lies on top first
-export const GUIDED_TOOLS = [COVER, ROCK_LAYERS, BODIES, VEINS];
+export const GUIDED_TOOLS = [COVER, ROCK_LAYERS, BODIES, VEINS, FAULTS];
 export const toolById = (id) => GUIDED_TOOLS.find((t) => t.id === id) || null;
 export { unitsByHoles };

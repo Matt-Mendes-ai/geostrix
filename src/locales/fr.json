@@ -14178,5 +14178,15 @@
   "{v} is cut in {n} holes, more than any other vein or dyke logged.": "{v} est recoupé dans {n} sondages, plus que toute autre veine ou dyke décrit.",
   "Choose a vein or dyke first.": "Choisissez d'abord une veine ou un dyke.",
   "Only {n} holes cut {v}: a sheet needs three or more.": "Seulement {n} sondages recoupent {v} : un feuillet en demande trois ou plus.",
-  "{v} is cut in {n} holes: the sheet is drawn through those intercepts, with the thickness logged there.": "{v} est recoupé dans {n} sondages : le feuillet passe par ces intersections, avec l'épaisseur décrite à cet endroit."
+  "{v} is cut in {n} holes: the sheet is drawn through those intercepts, with the thickness logged there.": "{v} est recoupé dans {n} sondages : le feuillet passe par ces intersections, avec l'épaisseur décrite à cet endroit.",
+  "A break that cuts and shifts the rocks.": "Une cassure qui recoupe et décale les roches.",
+  "Builds a fault surface through your measured fault picks, from their positions, dips and directions.": "Construit une surface de faille passant par vos mesures de faille, à partir de leurs positions, pendages et directions.",
+  "Which measurements are the fault?": "Quelles mesures sont la faille ?",
+  "No oriented structure measurements: a fault surface is built from picks with a dip and a dip direction.": "Aucune mesure structurale orientée : une surface de faille se construit à partir de mesures ayant un pendage et une direction de pendage.",
+  "{v} reads like a fault and has {n} measured picks in {h} holes.": "{v} ressemble à une faille et compte {n} mesures dans {h} sondages.",
+  "No structure type reads like a fault: choose the one that is.": "Aucun type de structure ne ressemble à une faille : choisissez celui qui en est une.",
+  "Choose the fault measurements first.": "Choisissez d'abord les mesures de la faille.",
+  "Only {n} {v} picks with a dip and a direction: a fault surface needs three or more.": "Seulement {n} mesures {v} avec un pendage et une direction : une surface de faille en demande trois ou plus.",
+  "{n} {v} picks in {h} holes, with their dips and directions: the surface is fitted through them.": "{n} mesures {v} dans {h} sondages, avec leurs pendages et directions : la surface est ajustée à travers elles.",
+  "To make the other models stop at this fault, open Change these: the Structural modelling pane sets which models it cuts.": "Pour que les autres modèles s'arrêtent à cette faille, ouvrez Modifier ces choix : le panneau Modélisation structurale définit quels modèles elle recoupe."
 }

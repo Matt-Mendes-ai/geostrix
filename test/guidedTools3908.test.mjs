@@ -41,7 +41,7 @@ test("the shell: lazy, behind one Basic Model button; ViewerModule has one-line 
   const vm = rd("src/modules/ViewerModule.jsx");
   assert.match(vm, /const GuidedTool = React\.lazy\(\(\) => import\("\.\/viewer\/guided\/GuidedTool\.jsx"\)\);/);
   assert.match(vm, /const \[guided, setGuided\] = useState\(null\); useModuleAction\(\["guided-open"\], \(a, p\) => setGuided\(p\?\.tool \|\| "start"\)\);/);
-  assert.match(vm, /\{guided && mode === "view" && <Suspense fallback=\{null\}><GuidedTool tool=\{guided\} setTool=\{setGuided\} api=\{\{ runStackModel, runImplicitModel, runVeinModel, computeIntercepts, modelResolution, setModelResolution, busy: implicitBusy \|\| veinBusy \|\| numericBusy,/);
+  assert.match(vm, /\{guided && mode === "view" && <Suspense fallback=\{null\}><GuidedTool tool=\{guided\} setTool=\{setGuided\} api=\{\{ runStackModel, runImplicitModel, runVeinModel, runStructuralModel, computeIntercepts, modelResolution, setModelResolution, busy: implicitBusy \|\| veinBusy \|\| numericBusy,/);
   assert.doesNotMatch(vm, /^import .*guided/m); // nothing of it in the startup chunk
   const vp = rd("src/modules/viewer/ViewerParts.jsx");
   assert.doesNotMatch(vp, /^import .*guided/m);
@@ -133,4 +133,20 @@ test("#3909 Veins and dykes: the vein cut by the most holes, a verdict under thr
   const calls = []; VEINS.run({ runVeinModel: (v) => calls.push(v) }, "litho:DYK");
   assert.deepEqual(calls, ["litho:DYK"]);
   assert.match(VEINS.feed({ rows: [], veins: [], roleOf: () => "stratigraphic" }), /No veins or dykes logged/);
+});
+
+test("#3909 Faults: the measured type that reads like a fault, a verdict under three picks, the Structural run on it", async () => {
+  const { FAULTS, GUIDED_TOOLS } = await import("../src/modules/viewer/guided/guidedTools.js");
+  assert.ok(GUIDED_TOOLS.includes(FAULTS));
+  const st = (value, h, dip = 60) => ({ hole_id: `L${h}`, value, dip, azimuth: 120 });
+  const structures = [st("BED", 0), st("BED", 1), st("BED", 2), st("BED", 3), st("FLT", 0), st("FLT", 1), st("FLT", 2), st("VN", 0), { hole_id: "L9", value: "FLT", dip: null, azimuth: 10 }];
+  const ctx = { structures };
+  assert.deepEqual(FAULTS.choices(ctx), ["FLT", "BED", "VN"]); // named like a fault first, then by picks
+  assert.equal(FAULTS.suggest(ctx).value, "FLT");
+  assert.match(FAULTS.suggest(ctx).reason, /FLT reads like a fault and has 3 measured picks in 3 holes/); // the pick with no dip is not counted
+  assert.match(FAULTS.auto(ctx, "VN").verdict[0], /^Only 1 VN picks/);
+  assert.equal(FAULTS.auto(ctx, "FLT").ok, true);
+  assert.equal(FAULTS.suggest({ structures: [st("BED", 0)] }).value, ""); // nothing reads like a fault: the user chooses
+  const calls = []; FAULTS.run({ runStructuralModel: (v) => calls.push(v) }, "FLT"); FAULTS.prefill({ setStructuralTarget: (v) => calls.push(v) }, "FLT");
+  assert.deepEqual(calls, ["FLT", "FLT"]);
 });

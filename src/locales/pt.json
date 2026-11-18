@@ -14178,5 +14178,15 @@
   "{v} is cut in {n} holes, more than any other vein or dyke logged.": "{v} é cortado em {n} furos, mais do que qualquer outro veio ou dique descrito.",
   "Choose a vein or dyke first.": "Escolha primeiro um veio ou dique.",
   "Only {n} holes cut {v}: a sheet needs three or more.": "Apenas {n} furos cortam {v}: uma lâmina precisa de três ou mais.",
-  "{v} is cut in {n} holes: the sheet is drawn through those intercepts, with the thickness logged there.": "{v} é cortado em {n} furos: a lâmina é desenhada através dessas interseções, com a espessura descrita ali."
+  "{v} is cut in {n} holes: the sheet is drawn through those intercepts, with the thickness logged there.": "{v} é cortado em {n} furos: a lâmina é desenhada através dessas interseções, com a espessura descrita ali.",
+  "A break that cuts and shifts the rocks.": "Uma ruptura que corta e desloca as rochas.",
+  "Builds a fault surface through your measured fault picks, from their positions, dips and directions.": "Constrói uma superfície de falha através das suas medições de falha, a partir das posições, mergulhos e direções.",
+  "Which measurements are the fault?": "Quais medições são a falha?",
+  "No oriented structure measurements: a fault surface is built from picks with a dip and a dip direction.": "Não há medições estruturais orientadas: uma superfície de falha é construída com medições que tenham mergulho e direção de mergulho.",
+  "{v} reads like a fault and has {n} measured picks in {h} holes.": "{v} parece uma falha e tem {n} medições em {h} furos.",
+  "No structure type reads like a fault: choose the one that is.": "Nenhum tipo estrutural parece uma falha: escolha o que for.",
+  "Choose the fault measurements first.": "Escolha primeiro as medições da falha.",
+  "Only {n} {v} picks with a dip and a direction: a fault surface needs three or more.": "Apenas {n} medições de {v} com mergulho e direção: uma superfície de falha precisa de três ou mais.",
+  "{n} {v} picks in {h} holes, with their dips and directions: the surface is fitted through them.": "{n} medições de {v} em {h} furos, com os seus mergulhos e direções: a superfície é ajustada através delas.",
+  "To make the other models stop at this fault, open Change these: the Structural modelling pane sets which models it cuts.": "Para que os outros modelos parem nesta falha, abra Alterar isto: o painel Modelagem estrutural define quais modelos ela corta."
 }
