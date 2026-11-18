@@ -26,7 +26,7 @@ import { setVerticalExaggeration, veOf } from "./viewer/verticalExaggeration.js"
 import ViewVeSelect from "./viewer/ViewVeSelect.jsx"; // TASKS.csv #2934
 import { useVeSuggestion } from "./viewer/useVeSuggestion.js"; // TASKS.csv #3063
 import { piercePoints as surfacePierces, piercePointRows } from "../lib/piercePoints.js"; // TASKS.csv #1009
-import { Info, Upload, Scissors, AlertTriangle, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, Maximize2, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, Beaker, Compass, Activity, GitCompare, Check } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // GitCompare/Check: TASKS.csv #93
+import { Info, Upload, Scissors, AlertTriangle, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, Maximize2, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Map as MapIcon, Mountain, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, Beaker, Compass, Activity, GitCompare, Check } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // GitCompare/Check: TASKS.csv #93
 const AssayStyleModal = lazyModal(() => import("../components/AssayStyleModal.jsx")); // TASKS.csv #476
 import { seedBreaks } from "../lib/colorRamp.js"; // TASKS.csv #476
 import { repairSeededHues } from "../lib/assayHueRepair.js"; // TASKS.csv #3879
@@ -192,7 +192,6 @@ const voxelGridOf = (model) => { let G = voxelGridCache.get(model.cells); if (G 
 import { PRECIOUS_METALS, gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 import ClosureNote from "./viewer/ClosureNote.jsx"; // TASKS.csv #1689
 const SurfaceTonnage = lazyModal(() => import("./viewer/SurfaceTonnage.jsx")); // TASKS.csv #1690; #3159: lazy (shown only for an expanded closed surface), it brought gradeTonnage.js into startup
-const RasterLegend = lazyPart(() => import("../components/RasterLegend.jsx")); // TASKS.csv #2011; startup size: only where a raster is listed
 // TASKS.csv #1136 — off the startup chunk: the Targeting tab's planned-hole parts, the measure readout and the numeric
 // symbology editor load the first time they are shown (PlannedHoleTargeting, #119, now loads from PlannedHoleParts)
 const plannedPart = (name) => lazyModal(() => import("../components/PlannedHoleParts.jsx").then((m) => ({ default: m[name] })));
@@ -231,8 +230,7 @@ import { findOnTraceWorld, findOnTrace, traceLookup, traceOfHole /* #2931 */, po
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
 import { syncDrawLods } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
 import { useLodTiles } from "./viewer/useLodTiles.js"; // TASKS.csv #3252
-import TerrainCard from "./viewer/TerrainCard.jsx";
-import DetailTilesToggle from "./viewer/DetailTilesToggle.jsx"; // #3252 // the terrain row of Rasters & terrain (moved out at the #1084 cap, #3252)
+import RastersTerrainSection from "./viewer/RastersTerrainSection.jsx"; // TASKS.csv #3891
 import { useSurfaceUndo, stashSurface } from "./viewer/surfaceUndo.js"; // TASKS.csv #3494 — Undo / Redo for the model surfaces
 import { useModelling } from "./viewer/useModelling.js";
 import { useUnitSource } from "./viewer/useUnitSource.js"; // TASKS.csv #2378
@@ -261,7 +259,6 @@ import { useBuildDefer } from "../lib/viewer/buildDefer.js"; // #1500
 import { lazyTip } from "../lib/viewer/lazyTip.js"; // #1500
 import { useSavedCamera, applySavedCamera } from "./viewer/savedCamera.js"; // #3624
 import { decideLight, registerRenderer, lightDrawingNotice } from "../lib/viewer/lightDrawing.js"; // #3620
-import MiddleName from "../components/MiddleName.jsx"; // #2852
 import { partChoices, boundaryPart } from "../lib/boundaryParts.js"; // TASKS.csv #3234
 import { dipPrinted } from "../lib/dipText.js"; // TASKS.csv #3878
 const IdentifyPanel = React.lazy(() => import("../components/IdentifyPanel.jsx"));
@@ -6302,7 +6299,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <FenceOptions {...{ voxelModels, tracesRef, tracesSeq, visibleHoles }} azimuth={sliceSeriesAzimuth} width={sliceSeriesWidth} cover={fenceCoverModels} setCover={setFenceCoverModels} labelStyle={miniField} />
         </>)}
         {toolPane && <div className="ge-pane-end" role="separator" />}{/* #458 */}
-        <div className="ge-section-label">{tr("Geometry")}</div>
+        <RastersTerrainSection {...{ rasters, terrain, updateTerrain, updateRaster, removeRaster, openRowMenu, zoomToObject, terrainMeshRef, rasterMeshesRef, goToModule, lodTiles }} />{/* #3891: first */}
+        <div className="ge-section-label" style={rasters.length || terrain ? { marginTop: 16 } : null}>{tr("Geometry")}</div>
         <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
           <button onClick={() => fileInputs.current.collar.click()} onContextMenu={(e) => { if (!collars.length) return; e.preventDefault(); setLayerContextMenu({ key: "__collars__", label: tr("Collars"), x: e.clientX, y: e.clientY }); }} style={{ ...pBtn, marginBottom: 0, flex: 1 }} title={tr("Import collars — CSV, shapefile (.zip/.shp), or GeoPackage (.gpkg) — right-click for export/inspect")}><Upload size={14} />{" "}{tr("Collars {v}", { v: collars.length ? `(${collars.length})` : "" })}</button>
           {collars.length > 0 && <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={clearCollars} style={iconBtn} title={tr("Remove all collars")}><Trash2 size={14} /></div>}
@@ -6432,48 +6430,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <input key={key} ref={setInputRef(key)} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz,.las" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, key); e.target.value = ""; }} />
         ))}
 
-        {/* User request: rasters/terrain show up as toggleable layer rows here too, not just inside
-            the Geophysics module's own import panel — and only once something's actually been
-            imported, not as a permanent empty section (same "don't clutter the sidebar with nothing
-            to show" request that applies to the layer rows above). */}
-        {(rasters.length > 0 || terrain) && (
-          <>
-            <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Rasters & terrain")}</div>
-            {terrain && <TerrainCard terrain={terrain} updateTerrain={updateTerrain} openRowMenu={openRowMenu} zoomTo={() => zoomToObject(terrainMeshRef.current)} goToModule={goToModule} lodTiles={lodTiles} />}{/* viewer/TerrainCard.jsx (moved out at the #1084 cap) */}
-            {rasters.map((r) => (<React.Fragment key={r.id}>{/* fragment: #2011 — the legend under the row */}
-              <div onContextMenu={(e) => openRowMenu(e, r.name, [
-                  { label: r.visible === false ? "Show" : "Hide", onClick: () => updateRaster(r.id, { visible: r.visible === false }) },
-                  { label: tr("Zoom to"), onClick: () => zoomToObject(rasterMeshesRef.current[r.id]) },
-                  "-", { label: tr("Drape and elevation — Maps tab"), onClick: () => goToModule("maps") },
-                  { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove raster \"{name}\"?", { name: r.name }))) removeRaster(r.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
-                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateRaster(r.id, { visible: r.visible === false })} style={{ cursor: "pointer", color: r.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
-                  {r.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
-                </div>
-                <Image size={14} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
-                <MiddleName name={r.name} style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)" }} />{/* #2852 */}
-                <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToObject(rasterMeshesRef.current[r.id]), tr("Zoom to \"{name}\"", { name: r.name }))} />{/* #2080 */}
-                <input
-                  type="range" min={0.1} max={1} step={0.05} value={r.opacity ?? 0.85}
-                  onChange={(e) => updateRaster(r.id, { opacity: Number(e.target.value) })}
-                  style={{ width: 46, flexShrink: 0 }} title={tr("Opacity")}
-                />
-                {/* User request ("I wanna be able to edit them from there"): jump to the full raster
-                    editor (drape mode terrain/flat, fixed elevation) — the sidebar row only has room
-                    for the two quick controls every layer type gets (visibility + opacity), same as
-                    the Geophysics section's own ArrowUpRight pattern right below this one. */}
-                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("maps"), tr("Edit drape mode / elevation for this raster in the Raster tab"))} />
-                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove raster \"{name}\"?", { name: r.name }))) removeRaster(r.id); }, tr("Remove raster \"{name}\"", { name: r.name }))} />{/* #1088 — confirmed like its menu's Remove… (rasters are not undoable) */}
-              </div>
-              <RasterLegend raster={r} updateRaster={updateRaster} compact />
-              {r.lod && r.drapeMode === "terrain" && <DetailTilesToggle kind="imagery" on={lodTiles.prefs.imagery} chosen onChange={(v) => lodTiles.setPref("imagery", v)} />}{/* #3252 */}
-            </React.Fragment>))}
-            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10 }}>{tr("Managed under Maps: colours, drape and elevation.")}</div>
-          </>
-        )}
-
         {/* User request (QGIS-style unified layers panel): "I want something similar to qgis. All
             layers have to be in there, including rasters, SRTM, dem, geophysics." Rasters/DEM/terrain
-            already showed up above (see the "Rasters & terrain" section right above this one) — this
+            already showed up above (the "Rasters & terrain" section, first in the sidebar: #3891) — this
             adds the remaining geophysics-derived layer types (boundary polylines, OMF point/line/
             surface objects, and UBC/OMF/CSV voxel block models) as the same kind of toggleable row,
             instead of them only being visible/editable from inside the separate Geophysics tab. Each

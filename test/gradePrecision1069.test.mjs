@@ -20,7 +20,8 @@ test("#1069 no grade is written with toFixed(3) in the composite / intercept exp
 
 test("#1088 the raster and boundary trash icons confirm", () => {
   const v = src("modules/ViewerModule.jsx");
-  assert.ok(!/iconAction\(\(\) => removeRaster\(r\.id\)/.test(v));
+  const rs = src("modules/viewer/RastersTerrainSection.jsx"); // the raster rows: #3891
+  assert.ok(!/iconAction\(\(\) => removeRaster\(r\.id\)/.test(v) && !/iconAction\(\(\) => removeRaster\(r\.id\)/.test(rs));
   assert.ok(!/iconAction\(\(\) => removeBoundary\(b\.id\)/.test(v));
-  assert.match(v, /iconAction\(\(\) => \{ if \(confirmDestructive\(tr\("Remove raster/);
+  assert.match(rs, /iconAction\(\(\) => \{ if \(confirmDestructive\(tr\("Remove raster/);
 });
