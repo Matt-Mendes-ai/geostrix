@@ -14305,5 +14305,21 @@
   "If it is geophysics, try the Geophysics tab; if it is a table, save it as CSV.": "إذا كانت جيوفيزياء فجرّب تبويب الجيوفيزياء؛ وإذا كانت جدولًا فاحفظها بصيغة CSV.",
   "{name}: GeoStrix can't tell what this is.": "{name}: لا يستطيع GeoStrix معرفة ما هذا.",
   "Check my data: {n} thing to look at. Data QC on the StrixViewer ribbon lists it.": "فحص بياناتي: {n} أمر يستحق النظر. يسرده «فحص البيانات» في شريط StrixViewer.",
-  "Check my data: {n} things to look at. Data QC on the StrixViewer ribbon lists them.": "فحص بياناتي: {n} أمور تستحق النظر. يسردها «فحص البيانات» في شريط StrixViewer."
+  "Check my data: {n} things to look at. Data QC on the StrixViewer ribbon lists them.": "فحص بياناتي: {n} أمور تستحق النظر. يسردها «فحص البيانات» في شريط StrixViewer.",
+  "Type it": "اكتبه",
+  "Click three points in the 3D view": "انقر ثلاث نقاط في العرض ثلاثي الأبعاد",
+  "Pick a surface": "اختر سطحًا",
+  "Click point {n} of 3 on the drilling, a surface or the ground.": "انقر النقطة {n} من 3 على الثقوب أو سطح أو الأرض.",
+  "Click three new points": "انقر ثلاث نقاط جديدة",
+  "Click three points": "انقر ثلاث نقاط",
+  "Choose one…": "اختر واحدًا…",
+  "No surfaces in the project yet": "لا توجد أسطح في المشروع بعد",
+  "Click three points: {n} so far.": "انقر ثلاث نقاط: {n} حتى الآن.",
+  "Two of the points are in the same place: click three different points.": "نقطتان في المكان نفسه: انقر ثلاث نقاط مختلفة.",
+  "The three points lie nearly in a line, so they don't fix a plane: click a point well off the line of the other two.": "النقاط الثلاث تكاد تقع على خط واحد، فلا تحدد مستوى: انقر نقطة بعيدة عن خط النقطتين الأخريين.",
+  "{name} has too few points to fit a plane.": "يحتوي {name} على نقاط أقل من أن تُطابق مستوى.",
+  "{name} lies along a line, so it doesn't fix a plane.": "يمتد {name} على طول خط، فلا يحدد مستوى.",
+  "It strays {pct} % of its extent from that plane on average.": "ينحرف في المتوسط بنسبة {pct} % من امتداده عن ذلك المستوى.",
+  "The best-fit plane of {name}.": "مستوى أفضل مطابقة لـ {name}.",
+  "It lies flat (a tilt under {d}°): it gives no direction along the ground, only a flat plane.": "يكاد يكون أفقيًا (ميل أقل من {d}°): لا يعطي اتجاهًا على الأرض، بل مستوى أفقيًا فقط."
 }

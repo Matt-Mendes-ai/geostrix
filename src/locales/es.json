@@ -14305,5 +14305,21 @@
   "If it is geophysics, try the Geophysics tab; if it is a table, save it as CSV.": "Si es geofísica, pruebe la pestaña Geofísica; si es una tabla, guárdela como CSV.",
   "{name}: GeoStrix can't tell what this is.": "{name}: GeoStrix no puede saber qué es esto.",
   "Check my data: {n} thing to look at. Data QC on the StrixViewer ribbon lists it.": "Revisar mis datos: {n} cosa por revisar. Control de datos en la cinta de StrixViewer la muestra.",
-  "Check my data: {n} things to look at. Data QC on the StrixViewer ribbon lists them.": "Revisar mis datos: {n} cosas por revisar. Control de datos en la cinta de StrixViewer las muestra."
+  "Check my data: {n} things to look at. Data QC on the StrixViewer ribbon lists them.": "Revisar mis datos: {n} cosas por revisar. Control de datos en la cinta de StrixViewer las muestra.",
+  "Type it": "Escribirla",
+  "Click three points in the 3D view": "Hacer clic en tres puntos de la vista 3D",
+  "Pick a surface": "Elegir una superficie",
+  "Click point {n} of 3 on the drilling, a surface or the ground.": "Haga clic en el punto {n} de 3 sobre los sondajes, una superficie o el terreno.",
+  "Click three new points": "Hacer clic en tres puntos nuevos",
+  "Click three points": "Hacer clic en tres puntos",
+  "Choose one…": "Elija una…",
+  "No surfaces in the project yet": "Aún no hay superficies en el proyecto",
+  "Click three points: {n} so far.": "Haga clic en tres puntos: {n} hasta ahora.",
+  "Two of the points are in the same place: click three different points.": "Dos de los puntos están en el mismo lugar: haga clic en tres puntos distintos.",
+  "The three points lie nearly in a line, so they don't fix a plane: click a point well off the line of the other two.": "Los tres puntos están casi en línea, así que no definen un plano: haga clic en un punto bien fuera de la línea de los otros dos.",
+  "{name} has too few points to fit a plane.": "{name} tiene muy pocos puntos para ajustar un plano.",
+  "{name} lies along a line, so it doesn't fix a plane.": "{name} está a lo largo de una línea, así que no define un plano.",
+  "It strays {pct} % of its extent from that plane on average.": "Se aparta en promedio un {pct} % de su extensión de ese plano.",
+  "The best-fit plane of {name}.": "El plano de mejor ajuste de {name}.",
+  "It lies flat (a tilt under {d}°): it gives no direction along the ground, only a flat plane.": "Está casi horizontal (inclinación menor de {d}°): no da una dirección sobre el terreno, solo un plano horizontal."
 }

@@ -227,3 +227,46 @@ export function withHelperTrend(state, trend, follow = "everything", id = "trend
   return { ...s, trends, use };
 }
 
+
+// ---------- TASKS.csv #3917: "I know my trend" from three points clicked in the 3D view, or from a modelled or imported surface ----------
+export const LINE_DEG = 5, FLAT_DIP = 2; // three points within 5° of a line fix no plane; a plane under 2° gives no direction along the ground
+// pts: three { x, y, z } (east, north, up) -> a candidate like the typed one ({ id: "typed", source: "points", dip, dipAzimuth, words, numbers,
+// note }) or { error } said plainly: too few, the same place, or nearly in a line
+export function planeFromThreePoints(pts) {
+  const P = (pts || []).filter((p) => [p?.x, p?.y, p?.z].every(Number.isFinite));
+  if (P.length < 3) return { error: tr("Click three points: {n} so far.", { n: P.length }) };
+  const [a, b, c] = P;
+  const u = { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z }, v = { x: c.x - a.x, y: c.y - a.y, z: c.z - a.z };
+  const n = { x: u.y * v.z - u.z * v.y, y: u.z * v.x - u.x * v.z, z: u.x * v.y - u.y * v.x };
+  const lu = Math.hypot(u.x, u.y, u.z), lv = Math.hypot(v.x, v.y, v.z), ln = Math.hypot(n.x, n.y, n.z);
+  if (!(lu > 0.01) || !(lv > 0.01) || Math.hypot(c.x - b.x, c.y - b.y, c.z - b.z) <= 0.01) return { error: tr("Two of the points are in the same place: click three different points.") };
+  // the smallest angle of the triangle: nearly 0 when the three points lie almost in a line
+  const angAt = (p, q, r) => { const s = { x: q.x - p.x, y: q.y - p.y, z: q.z - p.z }, t = { x: r.x - p.x, y: r.y - p.y, z: r.z - p.z }; return Math.acos(Math.max(-1, Math.min(1, (s.x * t.x + s.y * t.y + s.z * t.z) / (Math.hypot(s.x, s.y, s.z) * Math.hypot(t.x, t.y, t.z))))) * deg; };
+  const minAng = Math.min(angAt(a, b, c), angAt(b, a, c), angAt(c, a, b));
+  if (!(ln > 0) || minAng < LINE_DEG) return { error: tr("The three points lie nearly in a line, so they don't fix a plane: click a point well off the line of the other two.") };
+  const nz = n.z < 0 ? -1 : 1, nx = n.x * nz / ln, ny = n.y * nz / ln, nzz = n.z * nz / ln; // the upward normal leans towards the dip direction
+  const dip = Math.acos(Math.min(1, nzz)) * deg, dipAzimuth = dip < 1e-6 ? 0 : n360(Math.atan2(nx, ny) * deg);
+  return knownCandidate({ source: "points", dip, dipAzimuth });
+}
+// a surface's points -> its best-fit plane, with how far the surface strays from it (RMS off the plane over its extent) as the strength;
+// along a line: { error }
+export function surfaceTrend(name, pts) {
+  const P = (pts || []).filter(finite);
+  if (P.length < 3) return { error: tr("{name} has too few points to fit a plane.", { name: name || tr("the surface") }) };
+  const fit = fitPlane(P);
+  if (fit && fit.collinearity < 0.02) return { error: tr("{name} lies along a line, so it doesn't fix a plane.", { name: name || tr("the surface") }) };
+  const plane = planeFromPoints(P);
+  if (!plane) return { error: tr("{name} has too few points to fit a plane.", { name: name || tr("the surface") }) };
+  const rough = fit && Number.isFinite(fit.planarity) ? fit.planarity : null;
+  const c = knownCandidate({ source: "surface", dip: plane.dip, dipAzimuth: plane.dipAzimuth, strength: planarStrength(rough) });
+  c.spread = rough == null ? null : tr("It strays {pct} % of its extent from that plane on average.", { pct: Math.round(rough * 100) });
+  c.reason = tr("The best-fit plane of {name}.", { name: name || tr("the surface") });
+  return c;
+}
+function knownCandidate({ source, dip, dipAzimuth, strength = null }) {
+  const c = { id: "typed", source, dip, dipAzimuth, strength, agreesWith: [], warnings: [] };
+  c.words = describeCandidate(c);
+  c.numbers = candidateNumbers(c);
+  if (dip < FLAT_DIP) c.note = tr("It lies flat (a tilt under {d}°): it gives no direction along the ground, only a flat plane.", { d: FLAT_DIP });
+  return c;
+}
