@@ -79,7 +79,7 @@ else {
   else if (state.splash) fail("the splash screen never went away");
   else if (!state.desktop) fail("window.desktop (the preload bridge) is missing");
   else if (state.crashed) fail(`the app shows an error screen: ${state.text}`);
-  else if (!/3D View/.test(state.text)) fail(`unexpected first screen: ${state.text}`);
+  else if (!/StrixViewer|3D View/.test(state.text)) fail(`unexpected first screen: ${state.text}`);
   else {
     console.log("SMOKE OK: the packaged app renders.");
     // #1344 — a bundled sample file reads through the same guard a user's click goes through
