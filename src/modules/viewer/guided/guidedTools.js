@@ -8,7 +8,7 @@
 //         feed(ctx) -> null | why it cannot (a sentence), suggest(ctx) -> { value, reason }, choices(ctx) -> [unit],
 //         contacts(ctx, value) -> the contacts autoSurface sizes the model from, check(ctx, value) -> null | why it cannot,
 //         notes(ctx, value) -> [sentence], run(api, value), prefill(api, value) }
-import { stackOrder } from "../../../lib/auto/autoUnits.js";
+import { stackOrder, suggestBody } from "../../../lib/auto/autoUnits.js";
 import { t as tr } from "../../../lib/i18n.js";
 
 const noLogs = (ctx) => (ctx.rows.length ? null : tr("No lithology log yet: import one (Add data) and this tool reads it."));
@@ -40,6 +40,29 @@ export const ROCK_LAYERS = {
   prefill: (api, value) => api.setStackUnits(value),
 };
 
-export const GUIDED_TOOLS = [ROCK_LAYERS];
+// TASKS.csv #3908 step 3 — one rock as a closed shape: the implicit run on that unit (its role decides a body, a dyke or a breccia body)
+export const BODIES = {
+  id: "bodies",
+  title: "Intrusions and bodies",
+  line: "One rock as a solid shape that cuts through the others.",
+  sentence: "Builds one rock as a solid shape from where the holes cut it: an intrusion, a dyke, a breccia body.",
+  question: "Which rock?",
+  multi: false,
+  help: "implicit-surface",
+  expertPane: "implicit",
+  feed: noLogs,
+  suggest(ctx) {
+    const b = suggestBody(ctx.rows);
+    return b ? { value: b.unit, reason: b.reason } : { value: "", reason: tr("No rock stands out as cutting the others: choose the one to build as a body.") };
+  },
+  choices: unitsByHoles,
+  check: (ctx, value) => (value ? null : tr("Choose a rock first.")),
+  contacts: (ctx, value) => ctx.intercepts().filter((c) => String(c.unit) === value),
+  notes: () => [tr("Its volume is in its row under Generated surfaces; tonnes need a density.")],
+  run: (api, value) => api.runImplicitModel(value),
+  prefill: (api, value) => api.setImplicitTarget(value),
+};
+
+export const GUIDED_TOOLS = [ROCK_LAYERS, BODIES];
 export const toolById = (id) => GUIDED_TOOLS.find((t) => t.id === id) || null;
 export { unitsByHoles };

@@ -79,3 +79,17 @@ test("the order follows each pair's majority: a rock cut by more holes does not 
   const s = stackOrder(rows);
   assert.deepEqual(s.order.slice(0, 2), ["UPPER", "WIDE"]);
 });
+
+test("#3908 Intrusions and bodies: one rock, suggested from the logs, built by the implicit run", async () => {
+  const { BODIES, GUIDED_TOOLS } = await import("../src/modules/viewer/guided/guidedTools.js");
+  assert.ok(GUIDED_TOOLS.includes(BODIES));
+  const ctx = { rows: logs(), intercepts: () => [{ unit: "DYK", hole_id: "L1" }, { unit: "SST", hole_id: "L1" }] };
+  assert.equal(BODIES.suggest(ctx).value, "DYK");
+  assert.deepEqual(BODIES.contacts(ctx, "DYK"), [{ unit: "DYK", hole_id: "L1" }]);
+  assert.match(BODIES.check(ctx, ""), /Choose a rock first/);
+  const calls = [];
+  BODIES.run({ runImplicitModel: (u) => calls.push(["run", u]) }, "DYK");
+  BODIES.prefill({ setImplicitTarget: (u) => calls.push(["fill", u]) }, "DYK");
+  assert.deepEqual(calls, [["run", "DYK"], ["fill", "DYK"]]);
+  assert.equal(BODIES.expertPane, "implicit");
+});

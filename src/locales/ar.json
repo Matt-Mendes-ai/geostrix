@@ -14091,5 +14091,12 @@
   "{unit} sits in no steady order against the other rocks: it cuts them rather than lying between them.": "لا تتبع {unit} ترتيبًا ثابتًا مع الصخور الأخرى: فهي تقطعها بدلًا من أن تقع بينها.",
   "For a quick first model the detail is kept to Resolution {n}: raise it under Change these for finer cells, in a longer run.": "لنموذج أول سريع يُحصر التفصيل في الدقة {n}: ارفعها من «غيّر هذه» للحصول على خلايا أدق، في تشغيل أطول.",
   "Cells about {x} m across; half the spacing between drill sites ({s} m) would be {t} m.": "خلايا بعرض نحو {x} م؛ ونصف التباعد بين مواقع الحفر ({s} م) يساوي {t} م.",
-  "Cells {z} m high; the units are about {g} m thick between contacts down the holes.": "خلايا بارتفاع {z} م؛ وسماكة الوحدات نحو {g} م بين التماسات على امتداد الثقوب."
+  "Cells {z} m high; the units are about {g} m thick between contacts down the holes.": "خلايا بارتفاع {z} م؛ وسماكة الوحدات نحو {g} م بين التماسات على امتداد الثقوب.",
+  "Intrusions and bodies": "المتداخلات والأجسام",
+  "One rock as a solid shape that cuts through the others.": "صخرة واحدة كشكل مصمت يقطع الصخور الأخرى.",
+  "Builds one rock as a solid shape from where the holes cut it: an intrusion, a dyke, a breccia body.": "يبني صخرة واحدة كشكل مصمت من حيث تقطعها الثقوب: متداخل، أو قاطع (سد)، أو جسم بريشيا.",
+  "Which rock?": "أي صخرة؟",
+  "No rock stands out as cutting the others: choose the one to build as a body.": "لا تبرز صخرة بقطعها للصخور الأخرى: اختر الصخرة التي تريد بناءها كجسم.",
+  "Choose a rock first.": "اختر صخرة أولًا.",
+  "Its volume is in its row under Generated surfaces; tonnes need a density.": "حجمه في صفّه تحت «الأسطح المولّدة»؛ وتحتاج الأطنان إلى كثافة."
 }

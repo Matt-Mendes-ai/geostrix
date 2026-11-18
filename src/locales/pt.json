@@ -14091,5 +14091,12 @@
   "{unit} sits in no steady order against the other rocks: it cuts them rather than lying between them.": "{unit} não mantém uma ordem estável em relação às outras rochas: corta-as em vez de ficar entre elas.",
   "For a quick first model the detail is kept to Resolution {n}: raise it under Change these for finer cells, in a longer run.": "Para um primeiro modelo rápido, o detalhe fica limitado à Resolução {n}: aumente-a em Alterar isto para células mais finas, numa execução mais longa.",
   "Cells about {x} m across; half the spacing between drill sites ({s} m) would be {t} m.": "Células de cerca de {x} m em planta; metade do espaçamento entre locais de perfuração ({s} m) seria {t} m.",
-  "Cells {z} m high; the units are about {g} m thick between contacts down the holes.": "Células de {z} m de altura; as unidades têm cerca de {g} m de espessura entre contatos ao longo dos furos."
+  "Cells {z} m high; the units are about {g} m thick between contacts down the holes.": "Células de {z} m de altura; as unidades têm cerca de {g} m de espessura entre contatos ao longo dos furos.",
+  "Intrusions and bodies": "Intrusões e corpos",
+  "One rock as a solid shape that cuts through the others.": "Uma rocha como forma sólida que corta as outras.",
+  "Builds one rock as a solid shape from where the holes cut it: an intrusion, a dyke, a breccia body.": "Constrói uma rocha como forma sólida a partir de onde os furos a cortam: uma intrusão, um dique, um corpo de brecha.",
+  "Which rock?": "Qual rocha?",
+  "No rock stands out as cutting the others: choose the one to build as a body.": "Nenhuma rocha se destaca por cortar as outras: escolha a que quer construir como corpo.",
+  "Choose a rock first.": "Escolha primeiro uma rocha.",
+  "Its volume is in its row under Generated surfaces; tonnes need a density.": "O seu volume está na sua linha em Superfícies geradas; as toneladas precisam de uma densidade."
 }
