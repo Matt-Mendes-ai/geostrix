@@ -96,6 +96,9 @@
   --font-size-base: 12px;
   --font-size-lg: 14px;
   --font-size-xl: 17px;
+  /* TASKS.csv #3892 (Matt, 2026-11-17: "make all titles in the side panel bold") — the weight of a side-panel section heading
+     (.ge-section-label and the few headings written inline). Layer and hole names keep the normal weight. Mirrored in theme.js. */
+  --font-weight-title: 700;
 }
 
 * { box-sizing: border-box; }
@@ -327,7 +330,7 @@ button:disabled, select:disabled, input:disabled, textarea:disabled { opacity: 0
 
 /* generic panel */
 .ge-panel { width: 300px; flex-shrink: 0; background: var(--color-bg); border-inline-end: 1px solid var(--color-border); overflow-y: auto; } /* inline-end: #1118 */
-.ge-section-label { font-size: var(--font-size-sm); letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-muted); margin-bottom: 8px; }
+.ge-section-label { font-size: var(--font-size-sm); font-weight: var(--font-weight-title); /* #3892 */ letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-muted); margin-bottom: 8px; }
 
 /* Export PDF (electron printToPDF, or window.print() in the browser dev fallback) captures the
    whole window, not just the Layout page — without this, exported PDFs would include the toolbar,

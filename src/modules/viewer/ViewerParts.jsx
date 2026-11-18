@@ -7,6 +7,7 @@ import { modelListName } from "../../lib/modelListName.js"; // TASKS.csv #1839
 // CSV library into the startup chunk)
 const valueUnit = (m) => (m?.params?.unit && m.params.unit !== "index" ? m.params.unit : /\(([^)]*)\)\s*$/.exec(String(m?.property || ""))?.[1] || null);
 import React, { useState, useRef, useEffect, useMemo } from "react";
+import { windowRange } from "../../lib/listWindow.js"; // TASKS.csv #3893
 import { Bookmark, BookmarkPlus, Camera, ChevronDown, ChevronUp, Database, Download, RefreshCw, Eye, EyeOff, FileBarChart2, Grid3x3, Info, LayoutTemplate, ListFilter, Maximize2, Milestone, PenTool, Pencil, Ruler, Scissors, ShieldAlert, TerminalSquare, Trash2, Upload, X, SquareSplitVertical, Rows3, Layers3, Crosshair, Map as MapIcon, Compass, Target, Mountain, Shapes, Palette } from "../../components/icons.js";
 import { Ribbon, RibbonGroup, RibbonButton, RIBBON_TONES } from "../../components/Ribbon.jsx";
 import HoverToolInfo from "../../components/HoverToolInfo.jsx";
@@ -276,7 +277,7 @@ export function ViewToolbar({
   );
 }
 const popoverStyle = { position: "absolute", top: "calc(100% + 4px)", left: 0, width: 230, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8, boxShadow: "0 6px 20px rgba(0,0,0,0.12)", padding: 10, zIndex: 50 };
-const popoverHeader = { display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", fontWeight: 600, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em" };
+const popoverHeader = { display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", fontWeight: "var(--font-weight-title)" /* TASKS.csv #3892 */, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em" };
 
 // TASKS.csv #1439 (review #1352, Silvertip) — the Surface Geology ribbon (moved here from ViewerModule, at its size cap): the
 // field data's tools beside the map and the outcrop measurements - Identify, the rock chips' style, interpretation lines and
@@ -338,9 +339,12 @@ export function OrphanHoles({ layers, assays, collars, onOpenStripLog }) {
 }
 
 // TASKS.csv #2173 — the sidebar's hole list rendered a row (eye, zoom, section, strip-log icons) for EVERY hole: 10,544 holes made
-// 265,000 elements in the page, and every layout of the window took about 0.5 s (the legend fit, the ribbon, each frame). It shows the
-// first HOLE_ROWS_STEP of the holes the filter matches, and 'Show more' adds the next; a new filter starts again from the top.
-export const HOLE_ROWS_STEP = 300;
+// 265,000 elements in the page, and every layout of the window took about 0.5 s. #2173 showed 300 at a time with 'Show more'.
+// TASKS.csv #3893 (Matt, 2026-11-17: "give it a scroll bar within it"; the plan's window accepted, 'Show more' goes) — the list is its own scroll box,
+// at most HOLE_LIST_ROWS rows or 40 % of the window tall, so the sections below it stay in reach; it draws only the rows in view and
+// HOLE_LIST_OVERSCAN on each side (lib/listWindow.js), between two spacers, so a page holds about 35 rows however many holes there are.
+// A row is HOLE_ROW_H px tall, always (one line, a long id is cut with an ellipsis): the window depends on it.
+export const HOLE_ROW_H = 26, HOLE_LIST_ROWS = 12, HOLE_LIST_OVERSCAN = 10;
 // TASKS.csv #3280 (11) (Galore review) — the list kept the collar file's order (CC23 after PD23): by hole id, numbers as numbers. The caller
 // hands a new array each render; the sorted one is kept while the same holes come in the same order (an O(n) check, not a sort per render).
 const ID_ORDER = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" }), idSorted = { src: [], out: [] };
@@ -352,28 +356,38 @@ export function holesById(holes) {
 }
 export function HoleRowList({ holes: given, filterKey, visibleHoles, onToggle, onOpenStripLog, onSection, onZoom, onMenu }) {
   const holes = holesById(given);
-  const [limit, setLimit] = useState(HOLE_ROWS_STEP);
-  useEffect(() => { setLimit(HOLE_ROWS_STEP); }, [filterKey]);
-  const rest = holes.length - limit;
+  const boxRef = useRef(null);
+  const [view, setView] = useState({ top: 0, h: HOLE_LIST_ROWS * HOLE_ROW_H }); // h: the box's height, measured once it is drawn
+  useEffect(() => { if (boxRef.current) boxRef.current.scrollTop = 0; setView((v) => (v.top ? { ...v, top: 0 } : v)); }, [filterKey]); // a new filter starts again from the top
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(() => setView((v) => (el.clientHeight && el.clientHeight !== v.h ? { ...v, h: el.clientHeight } : v)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  // a re-render only when the first row in view changes, not on every scroll pixel
+  const onScroll = (e) => { const t = e.currentTarget.scrollTop; setView((v) => (Math.floor(v.top / HOLE_ROW_H) === Math.floor(t / HOLE_ROW_H) ? v : { ...v, top: t })); };
+  const { start, end, padTop, padBottom } = windowRange(view.top, HOLE_ROW_H, view.h, holes.length, HOLE_LIST_OVERSCAN);
   return (
-    <>
-      {holes.slice(0, limit).map((c) => (
-        <HoleRow key={c.hole_id} hole_id={c.hole_id} visible={visibleHoles[c.hole_id]} onToggle={onToggle} onOpenStripLog={onOpenStripLog} onSection={onSection} onZoom={onZoom} onMenu={onMenu} />
+    <div ref={boxRef} role="list" aria-label={tr("Holes list")} tabIndex={0} onScroll={onScroll}
+      style={{ maxHeight: `min(40vh, ${HOLE_LIST_ROWS * HOLE_ROW_H}px)`, overflowY: "auto", overscrollBehavior: "contain", scrollbarGutter: "stable" }}>
+      {padTop > 0 && <div aria-hidden="true" style={{ height: padTop }} />}
+      {holes.slice(start, end).map((c) => (
+        <div role="listitem" key={c.hole_id}>
+          <HoleRow hole_id={c.hole_id} visible={visibleHoles[c.hole_id]} onToggle={onToggle} onOpenStripLog={onOpenStripLog} onSection={onSection} onZoom={onZoom} onMenu={onMenu} />
+        </div>
       ))}
-      {rest > 0 && (
-        <button onClick={() => setLimit((n) => n + HOLE_ROWS_STEP)} style={{ ...pBtn, marginTop: 4 }} title={tr("The list shows {n} holes at a time; the filter above finds any hole by its ID", { n: HOLE_ROWS_STEP })}>
-          {tr("Show {n} more ({rest} not listed)", { n: Math.min(HOLE_ROWS_STEP, rest), rest: fmtNum(rest) })}
-        </button>
-      )}
-    </>
+      {padBottom > 0 && <div aria-hidden="true" style={{ height: padBottom }} />}
+    </div>
   );
 }
 
 export const HoleRow = React.memo(function HoleRow({ hole_id, visible, onToggle, onOpenStripLog, onSection, onZoom, onMenu }) {
   return (
-    <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onToggle(hole_id)} onContextMenu={onMenu ? (e) => onMenu(e, hole_id) : undefined} /* #3681 — the row's menu */ style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 5, cursor: "pointer", fontSize: "var(--font-size-base)", color: visible === false ? "var(--color-text-disabled)" : "var(--color-text)" }}>
+    <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onToggle(hole_id)} onContextMenu={onMenu ? (e) => onMenu(e, hole_id) : undefined} /* #3681 — the row's menu */ style={{ display: "flex", alignItems: "center", gap: 8, height: HOLE_ROW_H, boxSizing: "border-box" /* #3893: the window needs one row height */, padding: "0 8px", borderRadius: 5, cursor: "pointer", fontSize: "var(--font-size-base)", color: visible === false ? "var(--color-text-disabled)" : "var(--color-text)" }}>
       {visible === false ? <EyeOff size={12} /> : <Eye size={12} />}
-      <span style={{ flex: 1 }}>{hole_id}</span>
+      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={hole_id}>{hole_id}</span>
       {onZoom && ( /* TASKS.csv #393 — zoom the 3D view to this hole */
         <span role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Zoom to {hole_id}", { hole_id })}
           onClick={(e) => { e.stopPropagation(); onZoom(hole_id); }}

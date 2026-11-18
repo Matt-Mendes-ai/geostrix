@@ -183,6 +183,9 @@ export const printPx = (pt) => Math.round(((pt * 96) / 72) * 100) / 100;
 export const PLACED_W = 700;
 export const exportScale = (width, basePx = 11, pt = printPt.small) => Math.max(1, (printPx(pt) * (width / PLACED_W)) / basePx);
 
+// TASKS.csv #3892 — mirrors app.css :root --font-weight-title: the side-panel section headings are bold
+export const fontWeights = { title: 700 };
+
 export const fontSizes = {
   xs: 10, // captions, counts, units, badges
   sm: 11, // secondary labels, uppercase section captions
