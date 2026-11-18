@@ -1925,12 +1925,12 @@ export function createModellingRuns(ctx, mcRef) {
   // own dip/azimuth feeds the orientation at that point. Unlike the litho/alteration tools, this
   // doesn't need a separate structure-layer lookup, since the structure picks ARE the thing being
   // modelled here.
-  const runStructuralModel = async (structType) => {
+  const runStructuralModel = async (structType, opts = {}) => { // opts.rows: TASKS.csv #3919 — the guided Faults tool's declustered picks (a quick first model)
     if (!structType) return;
     const traces = tracesRef.current;
     if (!traces.length) { setNotices((p) => [...p, noCollarsNotice(tr("the structural model"), layers, assays)]); return; }
 
-    let rows = (layers.structure || []).filter((s) => String(s.value).toUpperCase() === String(structType).toUpperCase() && s.dip != null && s.azimuth != null && !isNaN(s.dip) && !isNaN(s.azimuth));
+    let rows = (opts.rows || layers.structure || []).filter((s) => String(s.value).toUpperCase() === String(structType).toUpperCase() && s.dip != null && s.azimuth != null && !isNaN(s.dip) && !isNaN(s.azimuth));
     if (!rows.length) { setNotices((p) => [...p, notice("No \"{structType}\" structure picks with dip/azimuth found — nothing to model.", { structType })]); return; }
     const domain = domains.find((d) => d.id === modelDomainId);
     rows = filterRowsByDomain(rows, traces, (s) => s.depth);

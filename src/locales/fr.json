@@ -14270,5 +14270,10 @@
   "This is a picture of where the grade is, not a resource estimate. Tonnes and grade-tonnage are in All tools.": "Ceci montre où se trouve la teneur, ce n'est pas une estimation de ressources. Les tonnes et la courbe teneur-tonnage sont dans Tous les outils.",
   "It was cancelled, or the run stopped with a message: the messages under the sidebar say why.": "Il a été annulé, ou le calcul s'est arrêté avec un message : les messages sous le panneau latéral disent pourquoi.",
   "Nothing was built": "Rien n'a été construit",
-  "{v} is logged about {k} times down each hole: a set of veins, not one sheet. Split it into single veins in Modelling codes, or show where the set is with an Alteration halo (All tools).": "{v} est décrit environ {k} fois le long de chaque sondage : un ensemble de veines, pas un seul feuillet. Séparez-le en veines individuelles dans Codes de modélisation, ou montrez où se trouve l'ensemble avec un Halo d'altération (Tous les outils)."
+  "{v} is logged about {k} times down each hole: a set of veins, not one sheet. Split it into single veins in Modelling codes, or show where the set is with an Alteration halo (All tools).": "{v} est décrit environ {k} fois le long de chaque sondage : un ensemble de veines, pas un seul feuillet. Séparez-le en veines individuelles dans Codes de modélisation, ou montrez où se trouve l'ensemble avec un Halo d'altération (Tous les outils).",
+  "How quickly?": "À quelle vitesse ?",
+  "A quick first model: {k} of the {n} picks, spread through the holes, about {m} min": "Un premier modèle rapide : {k} des {n} mesures, réparties dans les sondages, environ {m} min",
+  "Every pick: about {m} min": "Toutes les mesures : environ {m} min",
+  "{k} of the {n} {v} picks, one per {b} m down each hole and at least one in each of its {h} holes: about {m} min instead of {all}.": "{k} des {n} mesures {v}, une tous les {b} m le long de chaque sondage et au moins une dans chacun de ses {h} sondages : environ {m} min au lieu de {all}.",
+  "A quick first model. Refine it under Change these, with every pick and a finer resolution, in a longer run.": "Un premier modèle rapide. Affinez-le dans Modifier ces choix, avec toutes les mesures et une résolution plus fine, dans un calcul plus long."
 }

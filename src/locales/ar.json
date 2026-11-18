@@ -14270,5 +14270,10 @@
   "This is a picture of where the grade is, not a resource estimate. Tonnes and grade-tonnage are in All tools.": "هذه صورة لمكان المحتوى، وليست تقديرًا للموارد. الأطنان ومنحنى المحتوى-الحمولة في «كل الأدوات».",
   "It was cancelled, or the run stopped with a message: the messages under the sidebar say why.": "أُلغي، أو توقف التشغيل برسالة: الرسائل أسفل الشريط الجانبي توضح السبب.",
   "Nothing was built": "لم يُبنَ شيء",
-  "{v} is logged about {k} times down each hole: a set of veins, not one sheet. Split it into single veins in Modelling codes, or show where the set is with an Alteration halo (All tools).": "يُسجَّل {v} نحو {k} مرات على امتداد كل ثقب: مجموعة عروق لا صفيحة واحدة. قسّمه إلى عروق مفردة في رموز النمذجة، أو أظهر موضع المجموعة بهالة تحوّل (كل الأدوات)."
+  "{v} is logged about {k} times down each hole: a set of veins, not one sheet. Split it into single veins in Modelling codes, or show where the set is with an Alteration halo (All tools).": "يُسجَّل {v} نحو {k} مرات على امتداد كل ثقب: مجموعة عروق لا صفيحة واحدة. قسّمه إلى عروق مفردة في رموز النمذجة، أو أظهر موضع المجموعة بهالة تحوّل (كل الأدوات).",
+  "How quickly?": "بأي سرعة؟",
+  "A quick first model: {k} of the {n} picks, spread through the holes, about {m} min": "نموذج أول سريع: {k} من القياسات الـ{n}، موزعة على الثقوب، نحو {m} دقيقة",
+  "Every pick: about {m} min": "كل القياسات: نحو {m} دقيقة",
+  "{k} of the {n} {v} picks, one per {b} m down each hole and at least one in each of its {h} holes: about {m} min instead of {all}.": "{k} من قياسات {v} الـ{n}، واحد لكل {b} م على امتداد كل ثقب وواحد على الأقل في كل من ثقوبه الـ{h}: نحو {m} دقيقة بدلًا من {all}.",
+  "A quick first model. Refine it under Change these, with every pick and a finer resolution, in a longer run.": "نموذج أول سريع. حسّنه من «غيّر هذه» بكل القياسات ودقة أعلى، في تشغيل أطول."
 }

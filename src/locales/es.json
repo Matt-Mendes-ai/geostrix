@@ -14270,5 +14270,10 @@
   "This is a picture of where the grade is, not a resource estimate. Tonnes and grade-tonnage are in All tools.": "Esto es una imagen de dónde está la ley, no una estimación de recursos. Las toneladas y la curva ley-tonelaje están en Todas las herramientas.",
   "It was cancelled, or the run stopped with a message: the messages under the sidebar say why.": "Se canceló, o la corrida se detuvo con un mensaje: los mensajes bajo la barra lateral dicen por qué.",
   "Nothing was built": "No se construyó nada",
-  "{v} is logged about {k} times down each hole: a set of veins, not one sheet. Split it into single veins in Modelling codes, or show where the set is with an Alteration halo (All tools).": "{v} se registra unas {k} veces a lo largo de cada sondaje: un conjunto de vetas, no una lámina. Divídalo en vetas individuales en Códigos de modelado, o muestre dónde está el conjunto con un Halo de alteración (Todas las herramientas)."
+  "{v} is logged about {k} times down each hole: a set of veins, not one sheet. Split it into single veins in Modelling codes, or show where the set is with an Alteration halo (All tools).": "{v} se registra unas {k} veces a lo largo de cada sondaje: un conjunto de vetas, no una lámina. Divídalo en vetas individuales en Códigos de modelado, o muestre dónde está el conjunto con un Halo de alteración (Todas las herramientas).",
+  "How quickly?": "¿Qué tan rápido?",
+  "A quick first model: {k} of the {n} picks, spread through the holes, about {m} min": "Un primer modelo rápido: {k} de las {n} mediciones, repartidas en los sondajes, unos {m} min",
+  "Every pick: about {m} min": "Todas las mediciones: unos {m} min",
+  "{k} of the {n} {v} picks, one per {b} m down each hole and at least one in each of its {h} holes: about {m} min instead of {all}.": "{k} de las {n} mediciones de {v}, una cada {b} m a lo largo de cada sondaje y al menos una en cada uno de sus {h} sondajes: unos {m} min en vez de {all}.",
+  "A quick first model. Refine it under Change these, with every pick and a finer resolution, in a longer run.": "Un primer modelo rápido. Refínelo en Cambiar esto, con todas las mediciones y una resolución más fina, en una corrida más larga."
 }
