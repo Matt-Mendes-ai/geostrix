@@ -14008,5 +14008,9 @@
   "Advanced: targets and planned drillholes": "متقدم: الأهداف وثقوب الحفر المخططة",
   "Basic tools": "الأدوات الأساسية",
   "All tools": "كل الأدوات",
-  "Basic tools shows each tab's main tools; All tools shows every tool. Remembered on this computer.": "تعرض «الأدوات الأساسية» الأدوات الرئيسية لكل تبويب، وتعرض «كل الأدوات» جميع الأدوات. يُحفظ الاختيار على هذا الحاسوب."
+  "Basic tools shows each tab's main tools; All tools shows every tool. Remembered on this computer.": "تعرض «الأدوات الأساسية» الأدوات الرئيسية لكل تبويب، وتعرض «كل الأدوات» جميع الأدوات. يُحفظ الاختيار على هذا الحاسوب.",
+  "Surfaces": "الأسطح",
+  "Volumes": "الأحجام",
+  "Veins and dykes": "العروق والسدود القاطعة",
+  "Faults and structure": "الصدوع والبنية"
 }

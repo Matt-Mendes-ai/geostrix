@@ -14008,5 +14008,9 @@
   "Advanced: targets and planned drillholes": "Avancé : cibles et sondages planifiés",
   "Basic tools": "Outils de base",
   "All tools": "Tous les outils",
-  "Basic tools shows each tab's main tools; All tools shows every tool. Remembered on this computer.": "Outils de base affiche les outils principaux de chaque onglet ; Tous les outils les affiche tous. Mémorisé sur cet ordinateur."
+  "Basic tools shows each tab's main tools; All tools shows every tool. Remembered on this computer.": "Outils de base affiche les outils principaux de chaque onglet ; Tous les outils les affiche tous. Mémorisé sur cet ordinateur.",
+  "Surfaces": "Surfaces",
+  "Volumes": "Volumes",
+  "Veins and dykes": "Filons et dykes",
+  "Faults and structure": "Failles et structure"
 }

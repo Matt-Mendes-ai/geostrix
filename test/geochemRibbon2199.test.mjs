@@ -8,15 +8,17 @@ const g = readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.u
 const button = (label) => g.split(/\r?\n/).find((l) => l.includes(`label="${label}"`)) || "";
 
 test("Correlation is Advanced with fewer than two elements", () => {
-  assert.match(button("Correlation"), /advanced=\{assayElements\.length \+ surfaceElements\.length < 2\}/);
+  // #3907 (redesign P3): the Basic tools list is fixed now, not data-dependent; this tool is in All tools whatever the data
+  assert.match(button("Correlation"), /<RibbonButton advanced \/\* #3907/);
 });
 
 test("Plan survey and Public data are Advanced on a drill-only project (assays, no surface samples)", () => {
-  assert.match(g, /const drillOnly = assays\.length > 0 && !hasSurfaceData;/);
-  assert.match(button("Plan survey"), /advanced=\{drillOnly\}/);
-  assert.match(button("Public data"), /advanced=\{drillOnly\}/);
+  // #3907 (redesign P3): the Basic tools list is fixed now, not data-dependent; this tool is in All tools whatever the data
+  assert.match(button("Plan survey"), /<RibbonButton advanced \/\* #3907/);
+  assert.match(button("Public data"), /<RibbonButton advanced \/\* #3907/);
 });
 
 test("Catchments is Advanced without surface data or terrain", () => {
-  assert.match(button("Catchments"), /advanced=\{!hasSurfaceData \|\| !store\.terrain\}/);
+  // #3907 (redesign P3): the Basic tools list is fixed now, not data-dependent; this tool is in All tools whatever the data
+  assert.match(button("Catchments"), /<RibbonButton advanced \/\* #3907/);
 });

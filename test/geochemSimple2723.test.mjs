@@ -8,8 +8,9 @@ const g = readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.u
 const line = (re) => g.split(/\r?\n/).find((l) => re.test(l)) || "";
 
 test("Lab certificates and the Calculate group are Simple once there are assays", () => {
-  assert.match(line(/label="Lab certificates"/), /<RibbonButton advanced=\{!assays\.length\}/);
-  assert.match(line(/label="Calculate"/), /<RibbonGroup advanced=\{!assays\.length\}/);
+  // #3907 (redesign P3): the Basic tools list is fixed now, not data-dependent; this tool is in All tools whatever the data
+  assert.match(line(/label="Lab certificates"/), /<RibbonButton advanced \/\* #3907/);
+  assert.match(line(/label="Calculate"/), /<RibbonGroup advanced \/\* #3907/);
   assert.doesNotMatch(line(/label="Calc\. element"/), /advanced/, "shown whenever its group is");
 });
 
