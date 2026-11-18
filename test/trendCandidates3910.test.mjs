@@ -145,3 +145,12 @@ test("#3910 into Model settings: a candidate and a strength make a trend; the st
   assert.equal(s2.use.structural, "mine", "faults keep their own trend (#679)");
   assert.equal(before.trends.length, 1, "the old state is not changed");
 });
+
+test("#3910 two cards at most from one source while another has a candidate: four kinds of core picks do not hide the grade", () => {
+  const { all, slab } = gridHoles();
+  const kinds = ["Vein", "Bedding", "Foliation", "Contact"];
+  const out = trendCandidates({ structures: kinds.flatMap((k) => picks(40, 85, 90, 2, k)), grade: { element: "Cu", cutoff: 0.2, unit: "%", pts: slab }, drillingPts: all });
+  assert.equal(out.candidates.length, 4);
+  assert.equal(out.candidates.filter((c) => c.source === "structures").length, 3, "two first, the third only to fill the four");
+  assert.ok(out.candidates.some((c) => c.source === "grade"), JSON.stringify(out.candidates.map((c) => c.id)));
+});

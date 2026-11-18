@@ -15,7 +15,7 @@ import { planeVsDrilling } from "./drillingPlane.js";
 import { fitPlane } from "./vein.js";
 import { t as tr } from "./i18n.js";
 
-export const MAX_CANDIDATES = 4, AGREE_DEG = 20, MIN_PICKS = 3, MIN_TOPS = 3, FEW_READINGS = 10, FAR_M = 1000;
+export const MAX_CANDIDATES = 4, PER_SOURCE = 2, AGREE_DEG = 20, MIN_PICKS = 3, MIN_TOPS = 3, FEW_READINGS = 10, FAR_M = 1000;
 export const STRENGTH_RATIOS = { gentle: 2, medium: 3, strong: 5 }; // Step 3, 'How strongly?': medium is the start
 const RANK = { structures: 1, model: 2, contacts: 2, grade: 3, map: 4 };
 const LEVEL = { strong: 3, fair: 2, weak: 1 };
@@ -184,7 +184,11 @@ export function trendCandidates({ structures = [], surfaces = [], units = [], gr
   }
   const support = (c) => LEVEL[c.strength] + (c.agreesWith.length ? 0.5 : 0) - (c.drilling ? 2 : 0);
   all.sort((a, b) => support(b) - support(a) || RANK[a.source] - RANK[b.source] || b.score - a.score || b.n - a.n);
-  const candidates = all.slice(0, Math.max(1, max));
+  // at most PER_SOURCE from one source while another source has a candidate (four kinds of core picks would hide the grade and the contacts)
+  const cap = Math.max(1, max), candidates = [], left = [];
+  for (const c of all) (candidates.length < cap && candidates.filter((o) => o.source === c.source).length < PER_SOURCE ? candidates : left).push(c);
+  for (const c of left) if (candidates.length < cap) candidates.push(c);
+  candidates.sort((a, b) => all.indexOf(a) - all.indexOf(b));
   const best = candidates.find((c) => !c.drilling && LEVEL[c.strength] >= LEVEL.fair) || null;
   for (const c of candidates) {
     c.suggested = c === best;
