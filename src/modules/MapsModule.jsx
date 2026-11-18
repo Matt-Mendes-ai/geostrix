@@ -107,19 +107,21 @@ export default function MapsModule() {
 
   return (
     <div className="ge-body" style={{ width: "100%" }}>
+      {/* TASKS.csv #3907 (redesign P3) — Maps is a Basic (green) tab: Basic tools mode shows five (GeoTIFF / GXF, Satellite, Terrain, Boundaries,
+          Project CRS; nine at most, test/basicTools3907.test.mjs); Georeference, Spectral index and Macrostrat moved to All tools (#1861, #3287) */}
       <Ribbon label="Map tools">
         <RibbonGroup label="Imagery & terrain">
           <RibbonButton icon={Image} label="GeoTIFF / GXF" tone="data" title="Import a georeferenced GeoTIFF, Geosoft .gxf or Geosoft / Surfer .grd grid and manage the raster drapes" {...btn("raster", "import-raster")} active={pane === "raster"} />
           <RibbonButton icon={Satellite} label="Satellite" tone="data" title="Free Sentinel-2 imagery (no account): the latest clear scene over an area you draw" {...btn("raster", "raster-satellite")} active={false} />
           <RibbonButton icon={Mountain} label="Terrain" tone="data" title="Terrain: fetch SRTM elevation or import a DEM" {...btn("terrain")} />
-          {/* TASKS.csv #1861 (review #1646, Kodiak) — on the Simple ribbon: a report's plan maps with no GeoKeys are placed only here */}
-          <RibbonButton icon={MapPinned} label="Georeference" tone="data" title="Georeference a scanned map or sketch with no coordinates" {...btn("raster", "raster-georeference")} active={false} />
-          <RibbonButton icon={Rainbow} label="Spectral index" tone="data" title="Quartz / carbonate / mafic indices from ASTER thermal emissivity, iron-oxide and clay ratios from Sentinel-2 or Landsat, from a multiband GeoTIFF" {...btn("raster", "raster-spectral")} active={false} />
+          {/* TASKS.csv #1861 (review #1646, Kodiak) — a report's plan maps with no GeoKeys are placed only here (All tools since #3907) */}
+          <RibbonButton advanced icon={MapPinned} label="Georeference" tone="data" title="Georeference a scanned map or sketch with no coordinates" {...btn("raster", "raster-georeference")} active={false} />
+          <RibbonButton advanced icon={Rainbow} label="Spectral index" tone="data" title="Quartz / carbonate / mafic indices from ASTER thermal emissivity, iron-oxide and clay ratios from Sentinel-2 or Landsat, from a multiband GeoTIFF" {...btn("raster", "raster-spectral")} active={false} />
         </RibbonGroup>
         <RibbonGroup label="Map layers">
           <RibbonButton advanced icon={Globe} label="Web layers" tone="data" title="WMS / WFS layers from a government or company service" {...btn("web")} />
           {/* TASKS.csv #3287 (Matt: "macrostrat geology deserves its own icon on the ribbon") — the Web layers pane's 'Macrostrat geology…' dialog, opened here */}
-          <RibbonButton icon={Layers3} label="Geology (Macrostrat)" tone="data" title="Macrostrat's compilation of geologic maps (CC BY 4.0) for the project area, as a drape or map layer, and the map units at its centre" {...btn("web", "open-macrostrat")} active={false} />
+          <RibbonButton advanced icon={Layers3} label="Geology (Macrostrat)" tone="data" title="Macrostrat's compilation of geologic maps (CC BY 4.0) for the project area, as a drape or map layer, and the map units at its centre" {...btn("web", "open-macrostrat")} active={false} />
           <RibbonButton icon={Shapes} label="Boundaries" tone="data" title="Property / grid boundaries (.ply, DXF, shapefile, GeoPackage, KML)" {...btn("boundaries")} />
           <RibbonButton advanced icon={Flag} label="Claims" tone="data" title="Mineral claims / tenure" {...btn("claims")} />
         </RibbonGroup>
