@@ -6,9 +6,9 @@ import { readFileSync } from "node:fs";
 const m = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
 
 test("Collar table is not an Advanced-only button", () => {
-  const line = m.split(/\r?\n/).find((l) => l.includes('label="Collar table"'));
-  assert.ok(line);
-  assert.doesNotMatch(line, /<RibbonButton advanced /);
+  // #3912: the Insert tools sit in the Add menu, a Basic tool; the Collar table is in its list whatever the mode (Logo and Samples table only with All tools)
+  assert.match(m, /const addItems = \[\["text", "Text"\], \["north", "North arrow"\], \["scale", "Scale bar"\], \["legend", "Legend"\], \["titleblock", "Title block"\], \["table", "Collar table"\], \.\.\.\(basicToolsOn \? \[\] :/);
+  assert.match(m, /<RibbonButton icon=\{Plus\} label="Add" tone="output"/);
 });
 
 test("the Atlas button is drawn like the enabled selects beside it, not in the faint grey of a disabled control", () => {

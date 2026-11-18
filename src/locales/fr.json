@@ -14018,5 +14018,10 @@
   "Show or hide the figure overlay: title, legend and scale bar": "Afficher ou masquer la surcouche de figure : titre, légende et barre d'échelle",
   "Browser": "Navigateur",
   "Show the Browser panel": "Afficher le panneau Navigateur",
-  "Hide the Browser panel": "Masquer le panneau Navigateur"
+  "Hide the Browser panel": "Masquer le panneau Navigateur",
+  "Sheets": "Planches",
+  "Import collars or plan a hole first": "Importez les collets ou planifiez un sondage d'abord",
+  "A new page: every hole on a drill plan at a round scale, with its key, a north arrow, a scale bar, a title and the data credit": "Une nouvelle page : tous les sondages sur un plan de forage à une échelle ronde, avec sa légende, une flèche du nord, une barre d'échelle, un titre et le crédit des données",
+  "Add to this page: text, a north arrow, a scale bar, a legend, a title block or a collar table": "Ajouter à cette page : du texte, une flèche du nord, une barre d'échelle, une légende, un cartouche ou un tableau des collets",
+  "Nothing to lay out for this sheet yet.": "Rien à mettre en page pour cette planche pour l'instant."
 }

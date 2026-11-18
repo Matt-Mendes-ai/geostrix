@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import { customLegendGroups } from "../lib/customColour.js"; // TASKS.csv #2472
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
-import { MapPinned, Plus, X, Maximize2, Sheet, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid, Lock, LayoutTemplate, Download, Upload, HardDrive } from "../components/icons.js";
+import { MapPinned, Plus, X, Maximize2, Image as ImageIcon, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid, Lock, Download, Upload, HardDrive } from "../components/icons.js";
 import { projectTitleOf } from "../lib/projectTitle.js"; // TASKS.csv #3611 / #3612
 import { newTitleBlock, STOCK_TEMPLATES, stockTemplateElements, templateFile, parseTemplateFile, templateElements, furnitureOfOnePictureReset /* #3709 */, sharedTitleRows /* #3714 */, titleBlockHeight /* #3868 */, refitStockTemplate, documentTitle /* #3612 */, titleBlockSpot } from "../lib/layoutTitleBlock.js"; // refitStockTemplate: #2312; // TASKS.csv #1868; templateElements: #1487
 import ComputerTemplates from "../components/ComputerTemplates.jsx"; // TASKS.csv #1487
@@ -28,6 +28,8 @@ import { minMax, LAYER_META } from "../lib/layers.js";
 import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape, capLegendGroups, outcropLegendGroup } from "../lib/legendGroups.js"; // TASKS.csv #725; #948; #1633; outcropLegendGroup: #1437
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
 import { planKeyItems } from "../lib/planKeyLegend.js"; // TASKS.csv #3419
+import { planSheet } from "../lib/layoutSheets.js"; // TASKS.csv #3912 — one-click sheets
+import { useUiMode } from "../lib/uiMode.js"; // TASKS.csv #3912 — the Add menu's All-tools items
 import { tableTextFit, collarTableCells, splitHalvesFit } from "../lib/collarTable.js"; // TASKS.csv #3374; collarTableCells / splitHalvesFit: #3411
 import { collarTableSlice, continuationTables, collarsWithSurveyAttitude, continuationPageIndex, collarTableFieldChoices, defaultCollarTableFields, splitTableRows, suspectIdsOf, elevationCell, elevationNotes } from "../lib/collarTable.js"; // elevation*: #3023 // splitTableRows: #2770; // field columns: #2717; // continuationPageIndex: #2718 // TASKS.csv #1638; collarsWithSurveyAttitude: #2133
 import { fitDrillPlan, filterHoles, filterSuggestion, allHolesSteep, STEEP_DIP, turnedFrameFit, labelBackdrop, plannedAsCollars, holesToFit, showsPlanned, planTraces, colourByKind /* #3858 */ } from "../lib/drillPlan.js"; // planTraces: #3367; // planned: #2259; // labelBackdrop: #2738; // TASKS.csv #1639; allHolesSteep: #2473; turnedFrameFit: #2305
@@ -919,6 +921,30 @@ export default function LayoutModule() {
     if (base.type === "table" && dropIdleStarterMapFurniture([...elements, base]).dropped.length) setExportNote({ text: tr("This sheet holds no map, so the starter page's scale bar and north arrow were removed (Undo brings them back)."), error: false });
     setSelected(type !== "logo" ? id : null);
   };
+  // TASKS.csv #3912 (redesign P9) — a one-click sheet: a new page, on the open page's paper, laid out by lib/layoutSheets.js from what the
+  // project holds (the store's addLayoutPages adds the data credit and opens it). The plan's key is read from the plan it lays out, then the
+  // plan is laid out again beside a legend that wide.
+  const makeSheet = (kind) => {
+    const fmt = activePage?.format || null, stamp = Date.now();
+    let res = null, name = "";
+    if (kind === "plan") {
+      const vis = holeVisibilityNow(), onlyChecked = hiddenIn(collars, vis) > 0, traces = planTraces(collars, survey, project?.desurveyMethod);
+      const args = { format: fmt, credit: credits, collars: [...checkedOnly(collars, vis), ...plannedAsCollars(plannedHoles)], traces, presets: SCALE_PRESETS, stamp, onlyChecked };
+      const first = planSheet(args), plan = first?.elements.find((e) => e.type === "drillplan");
+      const key = plan ? planKeyItems(drillPlanDrawing(plan, tableCollars || [], assays, assayElements, plannedHoles, planTraces(tableCollars || [], survey, project?.desurveyMethod), project?.desurveyMethod, project?.displayUnits)) : [];
+      res = (key.length && planSheet({ ...args, legendItems: key })) || first;
+      name = tr("Plan map");
+    }
+    if (!res) { setExportNote({ text: tr("Nothing to lay out for this sheet yet."), error: true }); return; }
+    undoCheckpoint?.();
+    addPagesOnPaper(addLayoutPages, setLayoutPageFormat, [{ name, elements: res.elements }], fmt);
+  };
+  // TASKS.csv #3912 — Text, North arrow, Scale bar, Legend, Title block and Collar table under one Add button (the Basic ribbon's nine); Logo and
+  // Samples table in its menu with All tools
+  const basicToolsOn = useUiMode()?.mode === "simple";
+  const [addMenu, setAddMenu] = useState(null); // the Add button's box while its menu is open
+  useEffect(() => { if (!addMenu) return undefined; const off = (e) => { if (!e.target.closest?.("[data-add-menu]")) setAddMenu(null); }, esc = (e) => { if (e.key === "Escape") setAddMenu(null); }; window.addEventListener("mousedown", off); window.addEventListener("keydown", esc); return () => { window.removeEventListener("mousedown", off); window.removeEventListener("keydown", esc); }; }, [addMenu]);
+  const addItems = [["text", "Text"], ["north", "North arrow"], ["scale", "Scale bar"], ["legend", "Legend"], ["titleblock", "Title block"], ["table", "Collar table"], ...(basicToolsOn ? [] : [["logo", "Logo"], ...((surfaceSamples || []).length ? [["samplestable", "Samples table"]] : [])])];
 
   // TASKS.csv #19 — freehand pen. Toggled on from the palette; the next mousedown-drag on the page
   // captures points (in page-relative px, same coordinate space as every other element's x/y — the
@@ -1354,19 +1380,16 @@ export default function LayoutModule() {
       <div className="ge-panel" style={{ padding: "16px 14px", width: sidebarWidth }}>
         {/* TASKS.csv #458 — Layout ribbon (replaces the #65 icon palette and the Templates / Output buttons). */}
         <Ribbon label="Layout tools">
+          {/* TASKS.csv #3912 (redesign P9) — one-click sheets: each a new page laid out from what the project holds (lib/layoutSheets.js) */}
+          <RibbonGroup label="Sheets">
+            <RibbonButton icon={MapPinned} label="Plan map" tone="output" disabled={!collars.length && !(plannedHoles || []).length} disabledReason="Import collars or plan a hole first" title="A new page: every hole on a drill plan at a round scale, with its key, a north arrow, a scale bar, a title and the data credit" onClick={() => makeSheet("plan")} />
+          </RibbonGroup>
           <RibbonGroup label="Insert">
-            <RibbonButton icon={Type} label="Text" tone="output" title="Add text" onClick={() => addElement("text")} />
-            <RibbonButton advanced icon={ImageIcon} label="Logo" tone="output" title="Add company logo" onClick={() => addElement("logo")} />
-            <RibbonButton icon={Compass} label="North arrow" tone="output" title="Add north arrow" onClick={() => addElement("north")} />
-            <RibbonButton icon={Ruler} label="Scale bar" tone="output" title="Add scale bar" onClick={() => addElement("scale")} />
-            <RibbonButton icon={Plus} label="Legend" tone="output" title="Add legend" onClick={() => addElement("legend")} />
-            <RibbonButton icon={LayoutTemplate} label="Title block" tone="output" title="Add a title block: a ruled box of labelled fields (title, company, project, claims, map sheet, figure, author, date, scale, datum, page), the project, date, scale and datum filled in" onClick={() => addElement("titleblock")} />{/* TASKS.csv #1868 */}
-            <RibbonButton icon={Sheet} label="Collar table" /* #1776 — in Simple too: a report's figure set needs it */ tone="output" title="Add a table of the drillhole collars (hole, easting, northing, elevation, azimuth, dip, depth), kept up to date with the project. Best intercepts puts its results on the page from its own window." onClick={() => addElement("table")} />{/* TASKS.csv #911 */}
-            {(surfaceSamples || []).length > 0 && <RibbonButton icon={Sheet} label="Samples table" tone="output" title="Add a table of the surface samples (rock chips, soils…) with one element, highest first, kept up to date with the project" onClick={() => addElement("samplestable")} />}{/* TASKS.csv #1869 */}
+            <RibbonButton icon={Plus} label="Add" tone="output" expanded={!!addMenu} title="Add to this page: text, a north arrow, a scale bar, a legend, a title block or a collar table" onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setAddMenu((m) => (m ? null : { x: r.left, y: r.bottom + 2 })); }} />
           </RibbonGroup>
           <RibbonGroup label="Views">
             <RibbonButton icon={Camera} label="Current view" tone="view" title="Add a viewport snapshot of the current 3D view (no theme needed)" onClick={() => startViewportRender(null, "new")} />
-            <RibbonButton icon={MapPinned} label="Drill plan" tone="view" disabled={!collars.length && !(plannedHoles || []).length /* #3358 — planned holes alone make a plan */} title="A drill-hole location plan: collar symbols, traces and labels at a true scale, drawn from the collars and any planned holes (not a 3D capture)" onClick={() => addElement("drillplan")} />{/* TASKS.csv #1639 */}
+            <RibbonButton advanced /* #3912: Plan map is the Basic way to it */ icon={MapPinned} label="Drill plan" tone="view" disabled={!collars.length && !(plannedHoles || []).length /* #3358 — planned holes alone make a plan */} title="A drill-hole location plan: collar symbols, traces and labels at a true scale, drawn from the collars and any planned holes (not a 3D capture)" onClick={() => addElement("drillplan")} />{/* TASKS.csv #1639 */}
             <RibbonButton advanced icon={MonitorPlay} label="Theme view" tone="view" disabled={!themes.length} active={themePickerFor === "new"} title={themes.length ? "Add a live-bound viewport of a saved StrixViewer theme (pick it in the sidebar)" : "Save a theme in StrixViewer first (Themes on its ribbon)"} onClick={() => setThemePickerFor(themePickerFor === "new" ? null : "new")} />
           </RibbonGroup>
           <RibbonGroup advanced label="Draw">
@@ -1385,6 +1408,11 @@ export default function LayoutModule() {
             <RibbonButton icon={ImageIcon} label="Export PNG" tone="output" title="Export the current page as a PNG image, at the resolution chosen in the page bar" onClick={() => requestLayoutPrint({ kind: "png", dpi: pngDpi })} />{/* TASKS.csv #909 */}{/* #511 — the page's own size / orientation, as Ctrl+P does (#398) */}
           </RibbonGroup>
         </Ribbon>
+        {addMenu && ( /* TASKS.csv #3912 — the Add button's menu (outside the ribbon, so the ribbon's buttons stay one tag each) */
+          <div data-add-menu role="menu" aria-label={tr("Add")} style={{ position: "fixed", left: addMenu.x, top: addMenu.y, zIndex: 50, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, boxShadow: "0 4px 14px rgba(0,0,0,0.15)", padding: 4, display: "flex", flexDirection: "column", minWidth: 160 }}>
+            {addItems.map(([type, label]) => <button key={type} type="button" role="menuitem" className="ge-menu-item" style={{ textAlign: "start", padding: "6px 10px", background: "none", border: "none", cursor: "pointer", fontSize: "var(--font-size-base)", color: "var(--color-text)" }} onClick={() => { setAddMenu(null); addElement(type); }}>{tr(label)}</button>)}
+          </div>
+        )}
         {viewportBatchDone && ( /* TASKS.csv #1644 */
           <div role="status" style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 8, padding: "7px 10px", background: viewportBatchDone.failed ? "var(--color-warn-bg)" : "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", lineHeight: 1.45 }}>
             <span style={{ flex: 1 }}>{[

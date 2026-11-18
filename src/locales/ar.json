@@ -14018,5 +14018,10 @@
   "Show or hide the figure overlay: title, legend and scale bar": "إظهار أو إخفاء تراكب الشكل: العنوان ووسيلة الإيضاح ومقياس الرسم",
   "Browser": "المتصفح",
   "Show the Browser panel": "إظهار لوحة المتصفح",
-  "Hide the Browser panel": "إخفاء لوحة المتصفح"
+  "Hide the Browser panel": "إخفاء لوحة المتصفح",
+  "Sheets": "اللوحات",
+  "Import collars or plan a hole first": "استورد الفوهات أو خطّط ثقبًا أولًا",
+  "A new page: every hole on a drill plan at a round scale, with its key, a north arrow, a scale bar, a title and the data credit": "صفحة جديدة: كل الثقوب على مخطط حفر بمقياس مقرّب، مع مفتاحه وسهم الشمال وشريط المقياس والعنوان ونسبة البيانات",
+  "Add to this page: text, a north arrow, a scale bar, a legend, a title block or a collar table": "أضف إلى هذه الصفحة: نصًا أو سهم الشمال أو شريط المقياس أو مفتاحًا أو جدول عنوان أو جدول الفوهات",
+  "Nothing to lay out for this sheet yet.": "لا يوجد بعد ما يُخطط في هذه اللوحة."
 }

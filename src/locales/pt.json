@@ -14018,5 +14018,10 @@
   "Show or hide the figure overlay: title, legend and scale bar": "Mostrar ou ocultar a sobreposição da figura: título, legenda e barra de escala",
   "Browser": "Navegador",
   "Show the Browser panel": "Mostrar o painel Navegador",
-  "Hide the Browser panel": "Ocultar o painel Navegador"
+  "Hide the Browser panel": "Ocultar o painel Navegador",
+  "Sheets": "Folhas",
+  "Import collars or plan a hole first": "Importe os colares ou planeje um furo primeiro",
+  "A new page: every hole on a drill plan at a round scale, with its key, a north arrow, a scale bar, a title and the data credit": "Uma página nova: todos os furos em uma planta de sondagem numa escala redonda, com a legenda, uma seta de norte, uma barra de escala, um título e o crédito dos dados",
+  "Add to this page: text, a north arrow, a scale bar, a legend, a title block or a collar table": "Adicionar a esta página: texto, uma seta de norte, uma barra de escala, uma legenda, um carimbo ou uma tabela de colares",
+  "Nothing to lay out for this sheet yet.": "Ainda não há nada para compor nesta folha."
 }
