@@ -33,9 +33,14 @@ test("#3881 a removed item held by nothing is emptied in its own fields; one sti
   assert.equal(trackedItemCount(), 0);
 });
 
-test("#3881 an item whose id is still in the list (updated, reordered) is not noted; the shared array of a restyled copy is never emptied", () => {
-  const R = raster("r2"), R2 = { ...R, opacity: 0.5 };
-  assert.equal(noteRemovedItems("rasters", [R], [R2]), 0);
+test("#3881 an item reordered (the same object) is not noted; the shared array of a restyled copy is never emptied", () => {
+  // TASKS.csv #3885 changed the rule for an updated copy with the same id: the OLD object is noted and its own fields emptied, the copy keeps them
+  const R = raster("r2"), R2 = { ...R, opacity: 0.5 }, Q = raster("q2");
+  assert.equal(noteRemovedItems("rasters", [R, Q], [Q, R]), 0, "reordered: the same objects");
+  assert.equal(noteRemovedItems("rasters", [R], [R2]), 1, "#3885: replaced by a copy with the same id");
+  releaseUnheldItems("rasters", [[R2]]);
+  assert.equal(R.dataUrl, "", "the old object lets go of its picture");
+  assert.equal(R2.dataUrl.length, 2e6, "the copy shares the same string and keeps it whole");
   const B = block("b2"), B2 = { ...B, name: "restyled", id: "b2x" };
   noteRemovedItems("voxelModels", [B], [B2]); // B left (its id is not in the new list) but B2 shares its cells array
   releaseUnheldItems("voxelModels", [[B2]]);

@@ -1373,7 +1373,9 @@ export function StoreProvider({ children }) {
     const target = workspaceTabs.find((t) => t.id === tabId);
     if (!target || tabId === activeTabId) return;
     const current = snapshotCurrentPayload();
-    setWorkspaceTabs(workspaceTabs.map((t) => (t.id === activeTabId ? { ...t, name: project?.name || t.name, payload: current, dirty: activeTabDirty } : t)));
+    // TASKS.csv #3885 — the tab coming forward drops its stored payload (payload: null, as every active tab: its data is live now). It kept it, so the tab list
+    // itself held the snapshot it was loaded from, and anything removed or replaced in that tab afterwards stayed alive through it (and counted as 'held by a tab')
+    setWorkspaceTabs(workspaceTabs.map((t) => (t.id === activeTabId ? { ...t, name: project?.name || t.name, payload: current, dirty: activeTabDirty } : t.id === tabId ? { ...t, payload: null } : t)));
     loadProjectPayload(expanded && target.payload === stashed ? expanded : target.payload, target.name);
     // TASKS.csv #479 — loadProjectPayload marks a project clean (right for Open), but a tab you switch to keeps
     // ITS OWN unsaved state: switching used to clear it, so an unsaved tab could be closed with no prompt and

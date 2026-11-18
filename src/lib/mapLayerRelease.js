@@ -82,12 +82,16 @@ export function emptyBigFields(item, depth = 0) {
 
 const trackedItems = new Map(); // WeakRef(item) -> { key, name }
 
+// TASKS.csv #3885 — an item REPLACED by an updated copy with the same id (a recolour, a reproject that makes a new picture, new cells) is remembered
+// too: the old object left the list as surely as a removed one, and a stale context kept its old big field. Emptying it reassigns the OLD object's
+// own properties only, so a field the new copy shares (the same string or array) stays whole in the new copy.
 export function noteRemovedItems(key, prev, next, big = BIG_BYTES) {
   if (!prev?.length || prev === next) return 0;
-  const ids = new Set((next || []).map((x) => x?.id).filter((x) => x != null));
+  const byId = new Map((next || []).filter((x) => x?.id != null).map((x) => [x.id, x]));
+  const inNext = new Set(next || []);
   let n = 0;
   for (const x of prev) {
-    if (!x || typeof x !== "object" || (x.id != null && ids.has(x.id)) || itemBytes(x) < big) continue;
+    if (!x || typeof x !== "object" || inNext.has(x) || (x.id != null && byId.get(x.id) === x) || itemBytes(x) < big) continue;
     trackedItems.set(new WeakRef(x), { key, name: x.name || x.id || "" });
     n++;
   }
@@ -114,11 +118,18 @@ export const trackedItemCount = (key) => [...trackedItems.values()].filter((i) =
 // a closed workspace tab: its stored payload (the project it held) is let go the same way once the tab has left the list for good. A payload's fields are DETACHED, not
 // emptied (a payload's arrays can be the very arrays a project loaded from it is using).
 const trackedPayloads = new Map(); // WeakRef(payload) -> the tab's name
+// TASKS.csv #3885 — and a payload a tab still in the list no longer holds (switchToTab sets the tab coming forward to payload null: its data is live
+// now, and the old payload object, kept by a stale context, would hold that data after it is replaced); detached once no tab holds it
 export function noteClosedTabs(prev, next) {
   if (!prev?.length || prev === next) return 0;
-  const ids = new Set((next || []).map((t) => t?.id));
+  const byId = new Map((next || []).map((t) => [t?.id, t]));
   let n = 0;
-  for (const t of prev) if (t?.payload && typeof t.payload === "object" && !ids.has(t.id)) { trackedPayloads.set(new WeakRef(t.payload), t.name || t.id || ""); n++; }
+  for (const t of prev) {
+    if (!t?.payload || typeof t.payload !== "object") continue;
+    const now = byId.get(t.id);
+    if (now && now.payload === t.payload) continue; // the same tab, the same payload
+    trackedPayloads.set(new WeakRef(t.payload), t.name || t.id || ""); n++;
+  }
   return n;
 }
 export function releaseClosedTabs(currentTabs) {
