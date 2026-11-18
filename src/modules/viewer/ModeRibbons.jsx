@@ -17,29 +17,27 @@ export default function ModeRibbons({ mode, show, paneProps, simpleTools, projec
           <RibbonButton advanced={!simpleTools.strat} icon={Waypoints} label="Modelling codes" tone="model" title="Give intervals modelling codes (alternating flows), connect units between holes, set roles and pile order" {...paneProps("mcodes")} />
           <RibbonButton advanced icon={GitCompare} label="Correlation" tone="model" title="Section correlation" {...paneProps("correlation")} />
         </RibbonGroup>
-        {/* TASKS.csv #750 — Matt: "predictive could go into 3d modelling as a tool, geoML modelling group. the other one should
-            be named gempy modelling group" */}
-        <RibbonGroup label="GemPy modelling">
+        {/* TASKS.csv #3905 (redesign P3) — groups named for what is built: Setup · Surfaces · Volumes · Veins and dykes · Faults and structure · Grade
+            · Check; the engine (GemPy, geoML) is named inside each pane (it replaces the GemPy / explicit / geoML groups of #750 and #811). The
+            buttons, handlers and Simple / Advanced flags are as before: a split group's flag stays on the group that would be empty in Simple. */}
+        <RibbonGroup label="Surfaces">
           <RibbonButton icon={Mountain} label="Implicit surface" tone="model" title="Model one unit's top surface (GemPy)" {...paneProps("implicit")} />
           <RibbonButton advanced={!simpleTools.strat} icon={Layers} label="Strat. stack" tone="model" title="Model a stratigraphic stack of units together (GemPy)" {...paneProps("stack")} />
           <RibbonButton advanced={!simpleTools.mapModel} icon={MapIcon} label="Model from map" tone="model" title="A 3D model from the geological map and outcrop measurements alone, no drillholes needed (GemPy)" {...paneProps("mapmodel")} />{/* TASKS.csv #817 */}
-        </RibbonGroup>
-        {/* TASKS.csv #811 — Matt: "a tool specifically for explicit modelling ... the hard line of the modelled surface" */}
-        <RibbonGroup label="Explicit modelling">
           <RibbonButton icon={PenTool} label="Explicit surface" tone="model" title="A surface exactly through your own picks in 3D and lines drawn on sections" {...paneProps("explicit")} />
         </RibbonGroup>
-        <RibbonGroup advanced={!simpleTools.geoml} label="geoML modelling">
+        <RibbonGroup advanced={!simpleTools.geoml} label="Volumes">
+          <RibbonButton advanced icon={Droplets} label="Alteration" tone="model" title="Alteration modelling" {...paneProps("alteration")} />
           <RibbonButton icon={Sparkles} label="geoML models" tone="model" title="Rock-unit and grade models with uncertainty (geoML, Gaussian processes — optional add-on)" {...paneProps("geoml")} />
         </RibbonGroup>
-        <RibbonGroup advanced={!simpleTools.stereonet} label="Structure">
+        <RibbonGroup advanced label="Veins and dykes">
+          <RibbonButton icon={Waves} label="Veins / dykes" tone="model" title="Vein / dyke modelling" {...paneProps("vein")} />
+        </RibbonGroup>
+        <RibbonGroup advanced={!simpleTools.stereonet} label="Faults and structure">
           <RibbonButton advanced icon={Compass} label="Structures" tone="model" title="Structural modelling from structure picks" {...paneProps("structural")} />
           <RibbonButton icon={Target} label="Stereonet" tone="analyse" title="Stereonet of structure picks (and outcrop measurements)" disabled={!simpleTools.stereonet} disabledReason="No structure picks with an orientation, nor outcrop measurements, yet." onClick={() => setStereonetOpen(true)} />{/* #2773 */}
           <RibbonButton advanced icon={Activity} label="Downhole plot" tone="analyse" title="Downhole structure (tadpole) plot" onClick={() => setTadpoleOpen(true)} />
           <RibbonButton advanced icon={Crosshair} label="Core orient." tone="analyse" title="Core orientation (alpha-beta) calculator for non-oriented core" onClick={() => setCoreOrientOpen(true)} />
-        </RibbonGroup>
-        <RibbonGroup advanced label="Alteration & veins">
-          <RibbonButton icon={Droplets} label="Alteration" tone="model" title="Alteration modelling" {...paneProps("alteration")} />
-          <RibbonButton icon={Waves} label="Veins / dykes" tone="model" title="Vein / dyke modelling" {...paneProps("vein")} />
         </RibbonGroup>
         <RibbonGroup label="Grade">
           <RibbonButton icon={Gem} label="Grade shell" tone="model" title="Numeric implicit model (grade shell)" {...paneProps("shell")} />
