@@ -12772,7 +12772,7 @@
   "{m} m coded as not recorded (NR, not logged, unknown) were left out as unknown, not counted as outside \"{code}\".": "{m} m codificados como no registrados (NR, no registrado, desconocido) se dejaron fuera como desconocidos, sin contarlos como fuera de \"{code}\".",
   "{type} · {k} of {n} oriented in the model area ({k2} of {n2} in the project)": "{type} · {k} de {n} orientadas en el área del modelo ({k2} de {n2} en el proyecto)",
   "Unit volume (closed)": "Volumen de unidad (cerrado)",
-  "Not imported from this drop: {names}. Dropped here, StrixViewer reads .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml / .kmz, .las logs, GeoTIFF / .gxf / .grd grids and .dxf / .obj files; point surveys (.xyz) open on the Geophysics tab.": "No se importó de este arrastre: {names}. Soltados aquí, StrixViewer lee .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml / .kmz, registros .las, grillas GeoTIFF / .gxf / .grd y archivos .dxf / .obj; los levantamientos de puntos (.xyz) se abren en la pestaña Geofísica.",
+  "Not imported from this drop: {names}. Dropped here, StrixViewer reads .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml / .kmz, .las logs, GeoTIFF / .gxf / .grd grids and .dxf / .obj files and Open Mining Format (.omf); point surveys (.xyz) open on the Geophysics tab.": "No se importó de este arrastre: {names}. Soltados aquí, StrixViewer lee .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml / .kmz, registros .las, grillas GeoTIFF / .gxf / .grd, archivos .dxf / .obj y Open Mining Format (.omf); los levantamientos de puntos (.xyz) se abren en la pestaña Geofísica.",
   "Custom layer: {name}": "Capa personalizada: {name}",
   "To less than From (a reversed interval)": "Hasta menor que Desde (un intervalo invertido)",
   "{n} of the {total} interval(s) overlap another of the same hole, in {holes} hole(s): Data QC lists them.": "{n} de los {total} intervalo(s) se superponen con otro del mismo sondaje, en {holes} sondaje(s): Control de datos los lista.",
@@ -14305,5 +14305,10 @@
   "If it is geophysics, try the Geophysics tab; if it is a table, save it as CSV.": "Si es geofísica, pruebe la pestaña Geofísica; si es una tabla, guárdela como CSV.",
   "{name}: GeoStrix can't tell what this is.": "{name}: GeoStrix no puede saber qué es esto.",
   "Check my data: {n} thing to look at. Data QC on the StrixViewer ribbon lists it.": "Revisar mis datos: {n} cosa por revisar. Control de datos en la cinta de StrixViewer la muestra.",
-  "Check my data: {n} things to look at. Data QC on the StrixViewer ribbon lists them.": "Revisar mis datos: {n} cosas por revisar. Control de datos en la cinta de StrixViewer las muestra."
+  "Check my data: {n} things to look at. Data QC on the StrixViewer ribbon lists them.": "Revisar mis datos: {n} cosas por revisar. Control de datos en la cinta de StrixViewer las muestra.",
+  "{name} is {mb} MB, more than the {cap} MB an OMF can be read here in one go. Export a smaller area or fewer elements from the program that wrote it.": "{name} pesa {mb} MB, más que los {cap} MB que se pueden leer aquí de una vez en un OMF. Exporte un área más pequeña o menos elementos desde el programa que lo creó.",
+  "{name}: an OMF gives coordinates but not the coordinate system they are in. Choose it: it becomes the project's, and the next import uses it.": "{name}: un OMF da coordenadas pero no su sistema de coordenadas. Elíjalo: pasa a ser el del proyecto y la próxima importación lo usará.",
+  "Reading {name} ({mb} MB)…": "Leyendo {name} ({mb} MB)…",
+  "{name}: couldn't read the OMF ({message}).": "{name}: no se pudo leer el OMF ({message}).",
+  "A volume also holds other values: Geophysics > OMF adds another as a block model.": "Un volumen contiene además otros valores: Geofísica > OMF agrega otro como modelo de bloques."
 }

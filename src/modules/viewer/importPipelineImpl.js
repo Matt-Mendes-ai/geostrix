@@ -1278,6 +1278,9 @@ export function makeImportPipeline(ctx, h) {
     // TASKS.csv #2632 — GOCAD Voxets with their side files, read first; their side files are not 'unrecognized'
     const voFiles = grouped.files.filter((f) => /\.vo$/i.test(f.name)), voSide = new Set();
     for (const f of voFiles) (await importVoxet(f, grouped.files)).forEach((name) => voSide.add(name));
+    // TASKS.csv #3895 — Open Mining Format: the same reader as Geophysics > OMF (viewer/omfImport.js, loaded on the first .omf)
+    const omfFiles = grouped.files.filter((f) => /\.omf$/i.test(f.name));
+    if (omfFiles.length) { const { importOmfFile } = await import("./omfImport.js"); for (const f of omfFiles) await importOmfFile(f, { project, cellBudget: h.voxelCellBudget, addOmfObject: h.addOmfObject, addVoxelModel, setNotices }); }
     // TASKS.csv #600 (40958Z) — grids (.tif/.gxf), CAD lines / solids (.dxf) and .obj solids dropped here used to
     // be refused ("Only .csv … can be dropped") although the Browser panel and the Raster / 3D Modelling buttons
     // import them: they go to those same handlers (importBrowserFile / importSolidFile), outside the table queue.
@@ -1331,9 +1334,9 @@ export function makeImportPipeline(ctx, h) {
       advised.push(notice("{names}: XYZ point files are read on the Geophysics tab, which opens them now.", { names: xyzFiles.slice(0, 4).map((f) => f.name).join(", ") + (xyzFiles.length > 4 ? " …" : "") }));
     }
     if (advised.length) setNotices((p) => [...p, ...advised]);
-    const skipped = grouped.files.length - files.length - direct.length - advised.length - voFiles.length - voSide.size /* #2632 */ - (mshCount - mshAdvice.length) /* #1991: the Leapfrog meshes went to the solid import */ - Math.max(0, vsNames.length - 1) /* #1992 */ - Math.max(0, ediNames.length - 1) /* #1989: one notice for all of them */ - Math.max(0, lidarNames.length - 1) /* #1994 */ - Math.max(0, xyzFiles.length - 1) /* #3212 */ - sideInFiles /* #2901: read with their raster */ - ubcPairedN /* #3738 */ + grouped.unmatched.length;
+    const skipped = grouped.files.length - files.length - direct.length - advised.length - voFiles.length - omfFiles.length /* #3895 */ - voSide.size /* #2632 */ - (mshCount - mshAdvice.length) /* #1991: the Leapfrog meshes went to the solid import */ - Math.max(0, vsNames.length - 1) /* #1992 */ - Math.max(0, ediNames.length - 1) /* #1989: one notice for all of them */ - Math.max(0, lidarNames.length - 1) /* #1994 */ - Math.max(0, xyzFiles.length - 1) /* #3212 */ - sideInFiles /* #2901: read with their raster */ - ubcPairedN /* #3738 */ + grouped.unmatched.length;
     // TASKS.csv #3738 — the skipped files are NAMED ('1 unrecognized file(s) skipped' said nothing a person could act on)
-    const handledName = (f) => files.includes(f) || direct.includes(f) || voFiles.includes(f) || voSide.has(f.name) || /\.(msh|vs|edi|la[sz]|xyz)$/i.test(f.name) || sideUsed.has(f) || ubcPaired.has(f) || !!unreadableFormatAdvice(f.name);
+    const handledName = (f) => files.includes(f) || direct.includes(f) || voFiles.includes(f) || voSide.has(f.name) || /\.(msh|vs|edi|la[sz]|xyz|omf)$/i.test(f.name) || sideUsed.has(f) || ubcPaired.has(f) || !!unreadableFormatAdvice(f.name);
     const skippedNames = [...grouped.files.filter((f) => !handledName(f)), ...grouped.unmatched].map((f) => f.name);
     { // TASKS.csv #3737 — a skipped file that reads as a text table (.sur, .tx ...) is named as one, with the way in
       const tableLike = [];
@@ -1342,7 +1345,7 @@ export function makeImportPipeline(ctx, h) {
     }
     const skippedNotice = () => (skippedNames.length ? notice("{skipped} unrecognized file(s) skipped: {names}.", { skipped: skippedNames.length, names: skippedNames.slice(0, 4).join(", ") + (skippedNames.length > 4 ? " …" : "") }) : notice("{skipped} unrecognized file(s) skipped.", { skipped }));
     if (!files.length) {
-      if (!direct.length && !advised.length && !mshCount && !voFiles.length) setNotices((p) => [...p, notice("Not imported from this drop: {names}. Dropped here, StrixViewer reads .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml / .kmz, .las logs, GeoTIFF / .gxf / .grd grids and .dxf / .obj files; point surveys (.xyz) open on the Geophysics tab.", { names: grouped.files.slice(0, 4).map((f) => f.name).join(", ") + (grouped.files.length > 4 ? " …" : "") })]); // #3212 — the file named; an info, not a red notice left on screen
+      if (!direct.length && !advised.length && !mshCount && !voFiles.length && !omfFiles.length) setNotices((p) => [...p, notice("Not imported from this drop: {names}. Dropped here, StrixViewer reads .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml / .kmz, .las logs, GeoTIFF / .gxf / .grd grids and .dxf / .obj files and Open Mining Format (.omf); point surveys (.xyz) open on the Geophysics tab.", { names: grouped.files.slice(0, 4).map((f) => f.name).join(", ") + (grouped.files.length > 4 ? " …" : "") })]); // #3212 — the file named; an info, not a red notice left on screen
       else if (skipped) setNotices((p) => [...p, skippedNotice()]);
       return;
     }
