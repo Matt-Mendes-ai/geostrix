@@ -26,6 +26,7 @@ import { baselineNotice, oneHoleDipNotice } from "../../lib/modelCheckBaseline.j
 import { desurveyHole } from "../../lib/desurvey.js";
 import { missOverHalfCell, restrictRowsToHoles, checkedHoleCount } from "../../lib/modelArea.js"; // TASKS.csv #1546; restrictRowsToHoles, checkedHoleCount: #2059
 import { sanitizeMesh } from "../../lib/meshSanitize.js";
+import { niceNumber } from "../../lib/auto/autoCommon.js"; // TASKS.csv #3876
 import { checkAgainstLogs, unitVolumes, resampleWarpedBlock, capBlockAtGround, modelledAsTally /* #3262 */ } from "../../lib/modelCheck.js";
 import { pythonImplicitModel, problemReportInfo } from "../../lib/desktop.js"; // problemReportInfo: #3215 (the total memory)
 import { makeRng, perturbPoints, perturbOrientation, pointsToMeshDistance, spreadSummary, spreadColor, SPREAD_NOT_REPRODUCED } from "../../lib/surfaceSpread.js";
@@ -2947,7 +2948,9 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
             const oneShare = vol > 0 ? oneV / vol : 0, r0 = (v) => (v >= 10 ? Math.round(v) : +v.toPrecision(2));
             const one = oneK && oneShare >= 0.01 ? tr(big?.hole != null ? " {p}% of its volume ({v} m³) is {k} bodies whose composites at the cut-off come from one hole (or none); the largest, {lv} m³, from {hole}." : " {p}% of its volume ({v} m³) is {k} bodies whose composites at the cut-off come from one hole (or none); the largest, {lv} m³, holds none.", { p: Math.round(100 * oneShare), v: roundVolume(oneV).toLocaleString(), k: oneK, lv: roundVolume(big?.v || 0).toLocaleString(), hole: big?.hole ?? "" }) : "";
             const far = fi > 0 && gsSpacing > 0 ? tr(" {p}% of its volume lies more than one hole spacing ({s} m) from every composite at the cut-off.", { p: Math.round((100 * ff) / fi), s: Math.round(gsSpacing) }) : "";
-            const cell = atMed < cs ? tr(" The cells are {cs} m against runs of {at} m at the cut-off: the shell cannot be much thinner than a cell or two; smaller cells follow the runs more closely.", { cs, at: r0(atMed) }) : "";
+            // TASKS.csv #3876 (#3816 / #3785) — and the cell that would follow them: about the run, never under the composite length, with its cost
+            const propose = atMed < cs ? Math.max(numericUseComposites ? Number(numericCompositeLength) || 0 : 0, niceNumber(atMed) || 0) : 0;
+            const cell = atMed < cs ? tr(" The cells are {cs} m against runs of {at} m at the cut-off: the shell cannot be much thinner than a cell or two. A cell of about {p} m would follow the runs (Cell size in this pane), at about {k} times as many cells.", { cs, at: r0(atMed), p: propose, k: Math.max(1, Math.round((cs / propose) ** 3)) }) : "";
             const loud = inMed >= 3 * atMed || oneShare >= 0.25;
             setNotices((p) => [...p, { ...notice("\"{label}\" along the holes: it runs {inside} m at a time (the median of {ni} crossings) where the composites at or above {cutoff} {unit} run {at} m (the median of {na} runs): {mIn} m of core inside it for {mAt} m at the cut-off.{far}{one}{cell}", { label, inside: r0(inMed), ni: ni.toLocaleString(), cutoff: numericCutoff, unit: unitL, at: r0(atMed), na: na.toLocaleString(), mIn: Math.round(B.reduce((s, b) => s + b.runs.insideM, 0)).toLocaleString(), mAt: Math.round(B.reduce((s, b) => s + b.runs.atM, 0)).toLocaleString(), far, one, cell }), level: loud ? "warn" : "info" }]);
             alongHoles = { insideRunMedianM: r0(inMed), atCutoffRunMedianM: r0(atMed), insideM: Math.round(B.reduce((s, b) => s + b.runs.insideM, 0)), atCutoffM: Math.round(B.reduce((s, b) => s + b.runs.atM, 0)), farFromAtCutoffShare: fi > 0 ? +(ff / fi).toFixed(3) : null, oneHoleBodies: oneK, oneHoleVolumeShare: +oneShare.toFixed(3) }; // project data: English
