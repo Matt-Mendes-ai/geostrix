@@ -27,6 +27,8 @@ test("#3912 Plan map: title, the drill plan at a round scale, its key, a north a
     assert.ok(legend.x >= plan.x + plan.w, "the legend beside the plan, not over it");
   }
   assert.equal(planSheet({ collars: [], presets: PRESETS }), null, "no hole: no sheet");
+  const plain = planSheet({ collars, presets: PRESETS, stamp: 5 }).elements.find((e) => e.type === "legend"); // holes coloured by nothing: still a key
+  assert.deepEqual(plain.items, [["Drillhole: collar and trace", "#1a2028"]]);
 });
 
 test("#3912 Cross-section: the newest section picture at a round scale, its legend, its 'looking' label and a tied scale bar", () => {

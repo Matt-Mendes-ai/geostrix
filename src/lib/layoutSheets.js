@@ -12,6 +12,7 @@ import { roundScaleSize, isSectionImage, isDepthImage } from "./layoutGeometry.j
 import { tieStarterFurniture } from "./layoutLinks.js";
 
 export const SHEET_KINDS = ["plan", "section", "log", "intercepts"];
+export const PLAIN_PLAN_KEY = [["Drillhole: collar and trace", "#1a2028"]]; // printed page text, English as the other page items
 const M = 40, TOP = 90, GAP = 16; // the page margin, the frame's top (under the title), the gap before a legend
 
 // the newest picture or table of each kind on any page (the last page, then the last element): what Cross-section, Hole log and Intercepts table lay out
@@ -42,7 +43,8 @@ const furniture = (frame) => [{ id: "north", type: "north", x: frame.s.north.x, 
 
 // Plan map: every hole (collars, planned holes as collars) on a drill plan at the largest round scale that holds them, its key as the legend,
 // the north arrow and a scale bar tied to it. -> { elements } | null (no hole to show)
-export function planSheet({ format = null, credit = "", collars, traces = null, legendItems = [], presets, stamp = 0, onlyChecked = false }) {
+export function planSheet({ format = null, credit = "", collars, traces = null, legendItems: key = [], presets, stamp = 0, onlyChecked = false }) {
+  const legendItems = key.length ? key : PLAIN_PLAN_KEY; // a plan whose holes are not coloured by anything has no key of its own: the sheet still says what the symbols are
   const legendW = legendItems.length ? legendBoxSize(legendItems).w : 0, frame = frameOf(format, legendW, credit);
   const fit = fitDrillPlan(collars, frame.w, frame.h, presets, traces);
   if (!fit) return null;
