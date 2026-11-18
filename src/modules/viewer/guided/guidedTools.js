@@ -13,6 +13,8 @@ import { t as tr, fmtNum } from "../../../lib/i18n.js";
 import { autoGradeShell } from "../../../lib/auto/autoGradeShell.js";
 import { autoBlockModel } from "../../../lib/auto/autoBlockModel.js";
 import { computeMeshVolume } from "../../../lib/volumetrics.js";
+import { faultPlan, minutesOf } from "../../../lib/auto/autoFault.js";
+import { gempyRate } from "../../../lib/gempyLimits.js";
 import { gradeUnitLabel } from "../../../lib/geochemColumns.js";
 
 const noLogs = (ctx) => (ctx.rows.length ? null : tr("No lithology log yet: import one (Add data) and this tool reads it."));
@@ -183,17 +185,37 @@ export const FAULTS = {
   },
   choices: (ctx) => faultChoices(ctx).map((c) => c.key),
   check: (ctx, value) => (value ? null : tr("Choose the fault measurements first.")),
-  auto(ctx, value) {
-    const c = faultChoices(ctx).find((x) => x.key === value);
-    return !c || c.picks < 3
-      ? { ok: false, values: null, reasons: [], notes: [], verdict: [tr("Only {n} {v} picks with a dip and a direction: a fault surface needs three or more.", { n: c?.picks || 0, v: value })] }
-      : { ok: true, values: {}, reasons: [{ field: "picks", text: tr("{n} {v} picks in {h} holes, with their dips and directions: the surface is fitted through them.", { n: c.picks, v: value, h: c.holes.size }) }], notes: [], verdict: null };
+  // TASKS.csv #3919 — the engine's time for every pick, said before the run; when it is long, a quick first model (declustered picks) is offered
+  // first and is the default. The model's resolution is autoSurface's quick one either way (lib/auto/autoFault.js).
+  modeQuestion: "How quickly?",
+  plan(ctx, value) {
+    const key = `${value}|${ctx.structures.length}`;
+    if (ctx.faultPlanKey !== key) { ctx.faultPlanKey = key; ctx.faultPlan = faultPlan({ collars: ctx.collars, picks: ctx.structures.filter((s) => String(s.value).toUpperCase() === String(value).toUpperCase()), rate: gempyRate().rate }); }
+    return ctx.faultPlan;
   },
-  prepare: () => {},
-  ready: () => true,
+  modes(ctx, value) {
+    const p = this.plan(ctx, value);
+    if (!p.ok || !p.quick) return null;
+    return [
+      { key: "quick", label: tr("A quick first model: {k} of the {n} picks, spread through the holes, about {m} min", { k: p.quick.n, n: p.all.n, m: minutesOf(p.quick.seconds) }) },
+      { key: "all", label: tr("Every pick: about {m} min", { m: minutesOf(p.all.seconds) }) },
+    ];
+  },
+  auto(ctx, value, mode) {
+    const c = faultChoices(ctx).find((x) => x.key === value);
+    if (!c || c.picks < 3) return { ok: false, values: null, reasons: [], notes: [], verdict: [tr("Only {n} {v} picks with a dip and a direction: a fault surface needs three or more.", { n: c?.picks || 0, v: value })] };
+    const p = this.plan(ctx, value);
+    if (!p.ok) return { ok: false, values: null, reasons: [], notes: [], verdict: p.verdict };
+    const quick = p.quick && mode !== "all";
+    const reasons = [quick
+      ? { field: "picks", text: tr("{k} of the {n} {v} picks, one per {b} m down each hole and at least one in each of its {h} holes: about {m} min instead of {all}.", { k: p.quick.n, n: c.picks, v: value, b: p.quick.binM, h: c.holes.size, m: minutesOf(p.quick.seconds), all: minutesOf(p.all.seconds) }) }
+      : { field: "picks", text: tr("{n} {v} picks in {h} holes, with their dips and directions: the surface is fitted through them.", { n: c.picks, v: value, h: c.holes.size }) }];
+    const notes = quick ? [tr("A quick first model. Refine it under Change these, with every pick and a finer resolution, in a longer run.")] : [];
+    return { ok: true, values: { resolution: p.resolution, rows: quick ? p.quick.rows : null }, reasons, notes, verdict: null };
+  },
   contacts: () => [],
   notes: () => [tr("To make the other models stop at this fault, open Change these: the Structural modelling pane sets which models it cuts.")],
-  run: (api, value) => api.runStructuralModel(value),
+  run: (api, value, ctx, values) => api.runStructuralModel(value, values?.rows ? { rows: values.rows } : undefined),
   prefill: (api, value) => api.setStructuralTarget(value),
 };
 

@@ -75,13 +75,16 @@ function Tool({ tool, ctx, api, close, back }) {
   const busyRef = useRef(api.busy); busyRef.current = api.busy;
   const value = tool.multi ? (tool.ordered ? tool.ordered(ctx, picked) : picked) : picked;
   const feedWhy = tool.feed(ctx);
+  // TASKS.csv #3919 — a tool may ask a second question (Faults: the quick first model or every pick, each with the engine's time estimate)
+  const modes = useMemo(() => (!feedWhy && tool.modes && value ? tool.modes(ctx, value) : null), [tool, ctx, value, feedWhy]);
+  const [mode0, setMode] = useState(null), mode = modes?.some((m) => m.key === mode0) ? mode0 : modes?.[0]?.key;
   // the suggestion's reason goes on the card only when the user kept it (not "choose one", not for a rock they picked)
   const keptSuggestion = !!sug?.value?.length && JSON.stringify(sug.value) === JSON.stringify(value);
 
   const build = () => {
     const why = tool.check(ctx, value);
     if (why) { setOut({ verdict: [why] }); setPhase("cannot"); return; }
-    const auto = tool.auto ? tool.auto(ctx, value) : autoSurface({ collars: ctx.collars, contacts: tool.contacts(ctx, value), hasLogs: true, maxResolution: QUICK_RESOLUTION });
+    const auto = tool.auto ? tool.auto(ctx, value, mode) : autoSurface({ collars: ctx.collars, contacts: tool.contacts(ctx, value), hasLogs: true, maxResolution: QUICK_RESOLUTION });
     if (!auto.ok) { setOut({ verdict: auto.verdict }); setPhase("cannot"); return; }
     pending.current = { auto, before: new Set((surfacesRef.current || []).map((s) => s.id)) };
     setPhase("waiting");
@@ -107,7 +110,7 @@ function Tool({ tool, ctx, api, close, back }) {
     pending.current = null;
     setPhase("running");
     const r = running.current = { p, sawBusy: false };
-    Promise.resolve(tool.run(api, value, ctx)).finally(() => setTimeout(() => { if (running.current === r && !r.sawBusy && !busyRef.current) finish(); }, 1500));
+    Promise.resolve(tool.run(api, value, ctx, p.auto.values)).finally(() => setTimeout(() => { if (running.current === r && !r.sawBusy && !busyRef.current) finish(); }, 1500));
   });
   useEffect(() => { const r = running.current; if (!r) return; if (api.busy) r.sawBusy = true; else if (r.sawBusy) setTimeout(finish, 0); }, [api.busy]);
 
@@ -130,6 +133,11 @@ function Tool({ tool, ctx, api, close, back }) {
             {choices.map((u) => <option key={u} value={u}>{tool.label ? tool.label(u) : u}</option>)}
           </select>
         )}
+        {modes && (<>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>{tr(tool.modeQuestion)}</div>
+          {modes.map((m) => <label key={m.key} style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: 4 }}><input type="radio" name="guided-mode" checked={mode === m.key} onChange={() => setMode(m.key)} disabled={phase === "running" || phase === "waiting"} /><span>{m.label}</span></label>)}
+          <div style={{ marginBottom: 10 }} />
+        </>)}
         <button type="button" style={{ ...bigBtn, opacity: api.busy || phase === "running" || phase === "waiting" ? 0.6 : 1 }} disabled={api.busy || phase === "running" || phase === "waiting"} onClick={build}>
           {phase === "running" || phase === "waiting" ? tr("Building… (progress and Cancel in the status bar)") : tr("Build it for me")}
         </button>

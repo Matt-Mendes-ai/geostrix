@@ -14270,5 +14270,10 @@
   "This is a picture of where the grade is, not a resource estimate. Tonnes and grade-tonnage are in All tools.": "Isto é uma imagem de onde está o teor, não uma estimativa de recursos. As toneladas e a curva teor-tonelagem estão em Todas as ferramentas.",
   "It was cancelled, or the run stopped with a message: the messages under the sidebar say why.": "Foi cancelado, ou a execução parou com uma mensagem: as mensagens sob a barra lateral dizem por quê.",
   "Nothing was built": "Nada foi construído",
-  "{v} is logged about {k} times down each hole: a set of veins, not one sheet. Split it into single veins in Modelling codes, or show where the set is with an Alteration halo (All tools).": "{v} é descrito cerca de {k} vezes ao longo de cada furo: um conjunto de veios, não uma lâmina. Divida-o em veios individuais em Códigos de modelagem, ou mostre onde está o conjunto com um Halo de alteração (Todas as ferramentas)."
+  "{v} is logged about {k} times down each hole: a set of veins, not one sheet. Split it into single veins in Modelling codes, or show where the set is with an Alteration halo (All tools).": "{v} é descrito cerca de {k} vezes ao longo de cada furo: um conjunto de veios, não uma lâmina. Divida-o em veios individuais em Códigos de modelagem, ou mostre onde está o conjunto com um Halo de alteração (Todas as ferramentas).",
+  "How quickly?": "Com que rapidez?",
+  "A quick first model: {k} of the {n} picks, spread through the holes, about {m} min": "Um primeiro modelo rápido: {k} das {n} medições, distribuídas pelos furos, cerca de {m} min",
+  "Every pick: about {m} min": "Todas as medições: cerca de {m} min",
+  "{k} of the {n} {v} picks, one per {b} m down each hole and at least one in each of its {h} holes: about {m} min instead of {all}.": "{k} das {n} medições de {v}, uma a cada {b} m ao longo de cada furo e pelo menos uma em cada um dos seus {h} furos: cerca de {m} min em vez de {all}.",
+  "A quick first model. Refine it under Change these, with every pick and a finer resolution, in a longer run.": "Um primeiro modelo rápido. Refine-o em Alterar isto, com todas as medições e uma resolução mais fina, numa execução mais longa."
 }

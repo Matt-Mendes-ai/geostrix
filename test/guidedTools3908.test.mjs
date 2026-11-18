@@ -116,7 +116,7 @@ test("#3908 Cover and weathering: the code that starts the holes; its base, and 
 test("#3908 the shell runs with the Modelling-codes key and gives the suggestion's reason only when it was kept", () => {
   const shell = rd("src/modules/viewer/guided/GuidedTool.jsx");
   assert.match(shell, /target: \(v\) => \(mcodes\.some\(\(c\) => c\.name === v\) \? `mcode:\$\{v\}` : v\)/);
-  assert.match(shell, /tool\.run\(api, value, ctx\)/);
+  assert.match(shell, /tool\.run\(api, value, ctx, p\.auto\.values\)/); // values: #3919
   assert.match(shell, /reasons: \[keptSuggestion \? sug\.reason : null,/);
 });
 
@@ -139,16 +139,18 @@ test("#3909 Veins and dykes: the vein cut by the most holes, a verdict under thr
 test("#3909 Faults: the measured type that reads like a fault, a verdict under three picks, the Structural run on it", async () => {
   const { FAULTS, GUIDED_TOOLS } = await import("../src/modules/viewer/guided/guidedTools.js");
   assert.ok(GUIDED_TOOLS.includes(FAULTS));
-  const st = (value, h, dip = 60) => ({ hole_id: `L${h}`, value, dip, azimuth: 120 });
+  const st = (value, h, dip = 60) => ({ hole_id: `L${h}`, value, dip, azimuth: 120, depth: 30 });
   const structures = [st("BED", 0), st("BED", 1), st("BED", 2), st("BED", 3), st("FLT", 0), st("FLT", 1), st("FLT", 2), st("VN", 0), { hole_id: "L9", value: "FLT", dip: null, azimuth: 10 }];
-  const ctx = { structures };
+  const collars = [0, 1, 2, 3].map((h) => ({ hole_id: `L${h}`, x: 40 * h, y: 25 * (h % 2), z: 100 }));
+  const ctx = { structures, collars };
   assert.deepEqual(FAULTS.choices(ctx), ["FLT", "BED", "VN"]); // named like a fault first, then by picks
   assert.equal(FAULTS.suggest(ctx).value, "FLT");
   assert.match(FAULTS.suggest(ctx).reason, /FLT reads like a fault and has 3 measured picks in 3 holes/); // the pick with no dip is not counted
   assert.match(FAULTS.auto(ctx, "VN").verdict[0], /^Only 1 VN picks/);
   assert.equal(FAULTS.auto(ctx, "FLT").ok, true);
+  assert.equal(FAULTS.modes(ctx, "FLT"), null); // three picks: no quick model to offer (#3919)
   assert.equal(FAULTS.suggest({ structures: [st("BED", 0)] }).value, ""); // nothing reads like a fault: the user chooses
-  const calls = []; FAULTS.run({ runStructuralModel: (v) => calls.push(v) }, "FLT"); FAULTS.prefill({ setStructuralTarget: (v) => calls.push(v) }, "FLT");
+  const calls = []; FAULTS.run({ runStructuralModel: (v) => calls.push(v) }, "FLT", ctx, { rows: null }); FAULTS.prefill({ setStructuralTarget: (v) => calls.push(v) }, "FLT");
   assert.deepEqual(calls, ["FLT", "FLT"]);
 });
 
