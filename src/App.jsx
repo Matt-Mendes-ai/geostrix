@@ -8,7 +8,8 @@ import { onDataTableOpen } from "./lib/dataTableRequests.js"; // TASKS.csv #3563
 import { openHelp, onHelpOpen, onShortcutsOpen } from "./lib/help.js"; // TASKS.csv #1966; shortcuts from the Help panel: #3534
 import { t as tr, LANGUAGES, currentLanguage, setLanguage, fmtNum } from "./lib/i18n.js"; // TASKS.csv #786 — "tr": t is a common local name here
 import { oncePerWindow } from "./lib/oncePerWindow.js"; // TASKS.csv #1163
-import { requestModuleAction } from "./lib/menuRequests.js"; // TASKS.csv #565
+import { requestModuleAction, useModuleAction } from "./lib/menuRequests.js"; // TASKS.csv #565; useModuleAction: #3888
+import { shouldShowStart, startOptedOut, LAUNCH_SETTLE_MS } from "./lib/startFlow.js"; // TASKS.csv #3888 — whether the start dialogs show (the dialogs load on demand)
 import { onProjectCrsRequest, requestProjectCrs } from "./lib/projectCrsRequest.js"; // TASKS.csv #615
 import { onTableSubsetRequest } from "./lib/tableSubsetRequest.js"; // TASKS.csv #2177
 import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Layers3, Target, FileBarChart2, Map as MapIcon, Compass, Pickaxe, Globe } from "./components/icons.js"; // Compass: #820; Globe: #3068
@@ -51,6 +52,8 @@ const HelpPane = React.lazy(() => import("./components/HelpPane.jsx")); // TASKS
 const ReportProblemModal = React.lazy(() => import("./components/ReportProblemModal.jsx")); // TASKS.csv #598
 const LicensesModal = React.lazy(() => import("./components/LicensesModal.jsx")); // TASKS.csv #639
 const AiAccessModal = React.lazy(() => import("./components/AiAccessModal.jsx")); // TASKS.csv #3190
+const StartDialogs = React.lazy(() => import("./components/StartDialogs.jsx")); // TASKS.csv #3888 — "Let's begin a project!", loaded only when it shows
+let startLaunchChecked = false; // TASKS.csv #3888 — once per window: <App> re-mounts on a language change
 const SampleDownloadModal = React.lazy(() => import("./components/SampleDownloadModal.jsx")); // TASKS.csv #3100
 const ProjectCrsModal = React.lazy(() => import("./components/ProjectCrsModal.jsx")); // TASKS.csv #615
 const TableColumnsModal = React.lazy(() => import("./components/TableColumnsModal.jsx")); // TASKS.csv #2177
@@ -272,6 +275,27 @@ export default function App() {
     recoveryCheck().then((r) => { if (!cancelled && r) setRecovery(r); });
     return () => { cancelled = true; };
   }, [checkAutosave]);
+  // TASKS.csv #3888 — the start dialogs: at launch only with no project (nothing loaded, no recovery copy offered, no project file opened at
+  // launch, which arrives a moment after mount) and the personal box not ticked (lib/startFlow.js); New project and the empty view's button too
+  const [startDialog, setStartDialog] = useState(null); // { reason } while it shows
+  const startLive = useRef(null);
+  startLive.current = { empty: store.projectIsEmpty, tab: (workspaceTabs || []).find((t) => t.id === activeTabId) };
+  useEffect(() => {
+    if (startLaunchChecked) return undefined;
+    startLaunchChecked = true;
+    let off = false;
+    recoveryCheck().then((r) => new Promise((ok) => setTimeout(() => ok(r), LAUNCH_SETTLE_MS))).then((r) => {
+      const l = startLive.current;
+      if (!off && shouldShowStart({ reason: "launch", empty: l.empty, optedOut: startOptedOut(), recoveryOffered: !!r, openedFile: !!l.tab?.filePath })) setStartDialog({ reason: "launch" });
+    }, () => {});
+    return () => { off = true; };
+  }, []);
+  useModuleAction(["open-start-dialog"], () => setStartDialog({ reason: "button" }));
+  const startTab = useRef(null); // a project opened in another tab while it shows (a file double-clicked at launch) closes it
+  useEffect(() => {
+    if (!startDialog) { startTab.current = null; return; }
+    if (startTab.current == null) startTab.current = activeTabId; else if (startTab.current !== activeTabId) setStartDialog(null);
+  }, [startDialog, activeTabId]);
 
   // Python sidecar (python-sidecar/) is spawned by Electron's main process, which takes a moment
   // to boot — poll a few times close together right after launch, then settle into an occasional
@@ -365,6 +389,7 @@ export default function App() {
   // be lost" confirm isn't needed anymore (see newWorkspaceTab's own comment in store.jsx).
   const doNew = useCallback(() => {
     newWorkspaceTab();
+    setStartDialog({ reason: "new" }); // TASKS.csv #3888
   }, [newWorkspaceTab]);
 
   // The Layout page is the only thing meant to end up on paper (see the @media print rules in
@@ -700,6 +725,7 @@ export default function App() {
       {crsRequest && <Suspense fallback={null}><ProjectCrsModal reason={crsRequest.reason} points={crsRequest.points} suggested={crsRequest.suggested} noLocalGrid={!!crsRequest.noLocalGrid} family={crsRequest.family || null} onDone={finishCrsRequest} /></Suspense>}
       {licensesOpen && <Suspense fallback={null}><LicensesModal onClose={() => setLicensesOpen(false)} /></Suspense>}
       {aiAccessOpen && <Suspense fallback={null}><AiAccessModal onClose={() => setAiAccessOpen(false)} /></Suspense>}{/* TASKS.csv #3190 */}
+      {startDialog && <Suspense fallback={null}><StartDialogs reason={startDialog.reason} onClose={() => setStartDialog(null)} goTo={setActive} onOpenProject={doOpen} /></Suspense>}{/* TASKS.csv #3888 */}
       {sampleAsk && <Suspense fallback={null}><SampleDownloadModal id={sampleAsk} onClose={() => setSampleAsk(null)} onReady={(which) => { setSampleAsk(null); markSampleDownloaded(which); requestSampleProject(which); setActive(which === "perk" ? "surface" : "viewer"); }} /></Suspense>}{/* #3100 */}
       {reportProblem && <Suspense fallback={null}><ReportProblemModal screenshot={reportProblem.screenshot} crashed={reportProblem.crashed} onClose={() => setReportProblem(null)} /></Suspense>}
       {helpAt && <Suspense fallback={null}><HelpPane key={helpAt.n} initialId={helpAt.id} area={MODULES.find((m) => m.id === active)?.label || null} onClose={() => setHelpAt(null)} /></Suspense>}{/* #1966 */}
