@@ -14025,5 +14025,8 @@
   "Add to this page: text, a north arrow, a scale bar, a legend, a title block or a collar table": "Añadir a esta página: texto, una flecha de norte, una barra de escala, una leyenda, un cajetín o una tabla de collares",
   "Nothing to lay out for this sheet yet.": "Todavía no hay nada que componer en esta hoja.",
   "Send a section to Layout first (Snapshot in the section window)": "Envíe primero una sección a Layout (Instantánea en la ventana de la sección)",
-  "A new page: the newest section sent to Layout at a round scale, with its legend, the direction it looks, a scale bar, a title and the data credit": "Una página nueva: la sección más reciente enviada a Layout a una escala redonda, con su leyenda, la dirección en que mira, una barra de escala, un título y el crédito de los datos"
+  "A new page: the newest section sent to Layout at a round scale, with its legend, the direction it looks, a scale bar, a title and the data credit": "Una página nueva: la sección más reciente enviada a Layout a una escala redonda, con su leyenda, la dirección en que mira, una barra de escala, un título y el crédito de los datos",
+  "Hole log": "Registro del sondaje",
+  "Send a strip log to Layout first (Add to Layout in the strip log)": "Envíe primero un registro gráfico a Layout (Añadir a Layout en el registro gráfico)",
+  "A new portrait page: the newest strip log sent to Layout at the page's height, with its legend, a title and the data credit": "Una página vertical nueva: el registro gráfico más reciente enviado a Layout a la altura de la página, con su leyenda, un título y el crédito de los datos"
 }

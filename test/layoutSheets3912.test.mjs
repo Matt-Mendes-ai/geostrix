@@ -58,7 +58,7 @@ test("#3912 the sources: the newest of each kind across the pages", () => {
 
 test("#3912 wiring: a sheet is a new page through the store's addLayoutPages (which adds the data credit); the Sheets group leads the ribbon", () => {
   const m = read("../src/modules/LayoutModule.jsx");
-  assert.match(m, /addPagesOnPaper\(addLayoutPages, setLayoutPageFormat, \[\{ name, elements: res\.elements \}\], fmt\);/);
+  assert.match(m, /addPagesOnPaper\(addLayoutPages, setLayoutPageFormat, \[\{ name, elements: res\.elements \}\], (res\.format \|\| )?fmt\);/);
   assert.ok(m.indexOf('<RibbonGroup label="Sheets">') < m.indexOf('<RibbonGroup label="Insert">'));
   assert.match(m, /<RibbonButton icon=\{MapPinned\} label="Plan map" tone="output"[^\n]*onClick=\{\(\) => makeSheet\("plan"\)\}/);
   assert.match(read("../src/lib/store.jsx"), /const credited = creditedNow\(rawPages\), pages = credited \|\| rawPages;/);
@@ -69,4 +69,11 @@ test("#3912 wiring: Cross-section lays out the newest section sent to Layout, an
   assert.match(m, /const sheetSrc = useMemo\(\(\) => sheetSources\(layoutPages\), \[layoutPages\]\);/);
   assert.match(m, /if \(kind === "section"\) \{ res = sectionSheet\(\{ format: fmt, credit: credits, source: sheetSrc\.section, presets: SCALE_PRESETS, stamp \}\); name = tr\("Cross-section"\); \}/);
   assert.match(m, /label="Cross-section" tone="output" disabled=\{!sheetSrc\.section\} disabledReason="Send a section to Layout first \(Snapshot in the section window\)"[^\n]*onClick=\{\(\) => makeSheet\("section"\)\}/);
+});
+
+test("#3912 wiring: Hole log lays out the newest strip log on portrait paper", () => {
+  const m = read("../src/modules/LayoutModule.jsx");
+  assert.match(m, /if \(kind === "log"\) \{ res = logSheet\(\{ format: \{ \.\.\.pageFormatOf\(activePage\), orientation: "portrait" \}, credit: credits, source: sheetSrc\.log, stamp \}\); name = tr\("Hole log"\); if \(res\) res\.format = \{ \.\.\.pageFormatOf\(activePage\), orientation: "portrait" \}; \}/);
+  assert.match(m, /addPagesOnPaper\(addLayoutPages, setLayoutPageFormat, \[\{ name, elements: res\.elements \}\], res\.format \|\| fmt\);/);
+  assert.match(m, /label="Hole log" tone="output" disabled=\{!sheetSrc\.log\}[^\n]*onClick=\{\(\) => makeSheet\("log"\)\}/);
 });
