@@ -97,6 +97,13 @@ export async function fetchMacrostratLegend({ bboxLonLat, onProgress }) {
   return { ...macrostratLegend(macrostratLayersInArea(tiles, bboxLonLat)), inArea: true /* #2315 */, zoom: plan.z, tiles: count, failedTiles: failed.length, fetched: new Date().toISOString().slice(0, 10) };
 }
 
+// TASKS.csv #3911 — the unit polygons alone, in longitude / latitude, from the same vector tiles (the trend helper's regional direction,
+// lib/regionalGrain.js). -> { features, zoom, tiles, failedTiles }
+export async function fetchMacrostratUnitPolygons({ bboxLonLat, onProgress }) {
+  const { plan, count, tiles, failed } = await fetchMacrostratTiles(bboxLonLat, onProgress);
+  return { features: macrostratUnitFeatures(tiles, bboxLonLat).features, zoom: plan.z, tiles: count, failedTiles: failed.length };
+}
+
 // TASKS.csv #2012 — the units as a geology map layer (polygons with a unit field, Macrostrat's colours), reprojected into the project
 // CRS by buildLayer as an imported map is, so Surface Geology > Model it can carry them underground. -> { layer, polygons, units, ... }
 export async function fetchMacrostratMapLayer({ bboxLonLat, projectEpsg, onProgress }) {
