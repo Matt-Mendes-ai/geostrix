@@ -22,16 +22,19 @@ const bigBtn = { width: "100%", padding: "8px 10px", border: "1px solid var(--co
 const smallBtn = { padding: "4px 10px", border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)", borderRadius: 5, cursor: "pointer", fontSize: "var(--font-size-sm)" };
 const muted = { color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)" };
 
-// api (from ViewerModule.jsx, one line): { runStackModel, runImplicitModel, computeIntercepts, modelResolution, setModelResolution, busy,
-//   surfaces, setStackUnits, setImplicitTarget, openPane(pane) }
+// api (from ViewerModule.jsx, one line): { runStackModel, runImplicitModel, runVeinModel, computeIntercepts, modelResolution, setModelResolution,
+//   busy (any model run), surfaces, setStackUnits, setImplicitTarget, setVeinTarget, openPane(pane) }
+// A tool may bring its own automatic settings (#3909): auto(ctx, value) -> an autoResult, prepare(api, values) to put them in place, ready(api,
+// values) once they have rendered, result(builtSurfaces) for extra lines, actions [{ label, run(api) }]; without them the model's size and
+// detail come from autoSurface on the tool's contacts.
 export default function GuidedTool({ tool: toolId, setTool, api }) {
   const store = useStore() || {};
   const rows = store.layers?.litho || [];
   const ctx = useMemo(() => {
     let cache = null;
     const mcodes = store.modellingCodes?.codes || [];
-    return { rows, collars: store.collars || [], hasTerrain: !!store.terrain, describe: () => "", target: (v) => (mcodes.some((c) => c.name === v) ? `mcode:${v}` : v), roleOf: (v) => mcodes.find((c) => c.name === v)?.role || roleForLithology(v), isCover: (v) => (mcodes.find((c) => c.name === v)?.role || roleForLithology(v)) === "overburden", intercepts: () => (cache ||= (api.computeIntercepts?.() || []).filter((c) => c.layerKey === "litho")) };
-  }, [rows, store.collars, store.terrain, store.modellingCodes]); // api.computeIntercepts follows the same logs
+    return { rows, veins: store.layers?.vein || [], structures: store.layers?.structure || [], assays: store.assays || [], assayElements: store.assayElements || [], hasDensity: (store.layers?.sg || []).length > 0, gradeTrend: !!store.structuralTrends?.use?.gradeShell, collars: store.collars || [], hasTerrain: !!store.terrain, describe: () => "", target: (v) => (mcodes.some((c) => c.name === v) ? `mcode:${v}` : v), roleOf: (v) => mcodes.find((c) => c.name === v)?.role || roleForLithology(v), isCover: (v) => (mcodes.find((c) => c.name === v)?.role || roleForLithology(v)) === "overburden", intercepts: () => (cache ||= (api.computeIntercepts?.() || []).filter((c) => c.layerKey === "litho")) };
+  }, [rows, store.layers, store.collars, store.terrain, store.modellingCodes, store.assays, store.assayElements, store.structuralTrends]); // api.computeIntercepts follows the same logs
   const close = () => setTool(null);
   const tool = toolById(toolId);
   if (!tool) return <StartHere ctx={ctx} setTool={setTool} close={close} />;
@@ -67,8 +70,9 @@ function Tool({ tool, ctx, api, close, back }) {
   const [picked, setPicked] = useState(() => sug?.value ?? (tool.multi ? [] : ""));
   const [phase, setPhase] = useState("ask"); // ask | waiting | running | done | cannot
   const [out, setOut] = useState(null); // { built, reasons, notes } | { verdict }
-  const pending = useRef(null);
+  const pending = useRef(null), running = useRef(null);
   const surfacesRef = useRef(api.surfaces); surfacesRef.current = api.surfaces;
+  const busyRef = useRef(api.busy); busyRef.current = api.busy;
   const value = tool.multi ? (tool.ordered ? tool.ordered(ctx, picked) : picked) : picked;
   const feedWhy = tool.feed(ctx);
   // the suggestion's reason goes on the card only when the user kept it (not "choose one", not for a rock they picked)
@@ -77,26 +81,35 @@ function Tool({ tool, ctx, api, close, back }) {
   const build = () => {
     const why = tool.check(ctx, value);
     if (why) { setOut({ verdict: [why] }); setPhase("cannot"); return; }
-    const auto = autoSurface({ collars: ctx.collars, contacts: tool.contacts(ctx, value), hasLogs: true, maxResolution: QUICK_RESOLUTION });
+    const auto = tool.auto ? tool.auto(ctx, value) : autoSurface({ collars: ctx.collars, contacts: tool.contacts(ctx, value), hasLogs: true, maxResolution: QUICK_RESOLUTION });
     if (!auto.ok) { setOut({ verdict: auto.verdict }); setPhase("cannot"); return; }
-    pending.current = { n: auto.values.resolution, auto, before: new Set((surfacesRef.current || []).map((s) => s.id)) };
+    pending.current = { auto, before: new Set((surfacesRef.current || []).map((s) => s.id)) };
     setPhase("waiting");
-    api.setModelResolution(auto.values.resolution);
+    (tool.prepare || ((a, v) => a.setModelResolution(v.resolution)))(api, auto.values);
   };
-  // the run reads the model's settings from the render it is called in: it starts once the new resolution has rendered
+  const ready = tool.ready || ((a, v) => a.modelResolution === v.resolution);
+  // done: the run's surfaces, what was chosen and why. A run counts as finished when the busy flag it raised falls (the vein and grade runs
+  // return at once and work on), or, if it never raised one (it stopped with a message), a moment after it returned
+  const finish = () => {
+    const r = running.current;
+    if (!r) return;
+    running.current = null;
+    const p = r.p, made = (surfacesRef.current || []).filter((s) => !p.before.has(s.id));
+    setOut(made.length
+      ? { built: made.map((s) => s.name), reasons: [keptSuggestion ? sug.reason : null, ...p.auto.reasons.map((x) => x.text)].filter(Boolean), notes: [...(tool.result ? tool.result(made, ctx, api) : []), ...p.auto.notes, ...tool.notes(ctx, value)] }
+      : { stopped: true, verdict: [tr("It was cancelled, or the run stopped with a message: the messages under the sidebar say why.")] });
+    setPhase(made.length ? "done" : "cannot");
+  };
+  // the run reads its settings from the render it is called in: it starts once they have rendered
   useEffect(() => {
     const p = pending.current;
-    if (phase !== "waiting" || !p || api.modelResolution !== p.n) return;
+    if (phase !== "waiting" || !p || !ready(api, p.auto.values)) return;
     pending.current = null;
     setPhase("running");
-    Promise.resolve(tool.run(api, value, ctx)).finally(() => setTimeout(() => {
-      const built = (surfacesRef.current || []).filter((s) => !p.before.has(s.id)).map((s) => s.name);
-      setOut(built.length
-        ? { built, reasons: [keptSuggestion ? sug.reason : null, ...p.auto.reasons.map((r) => r.text)].filter(Boolean), notes: [...p.auto.notes, ...tool.notes(ctx, value)] }
-        : { verdict: [tr("Nothing was built: the messages under the sidebar say why.")] });
-      setPhase(built.length ? "done" : "cannot");
-    }, 0));
-  }, [phase, api.modelResolution]); // runs once per Build
+    const r = running.current = { p, sawBusy: false };
+    Promise.resolve(tool.run(api, value, ctx)).finally(() => setTimeout(() => { if (running.current === r && !r.sawBusy && !busyRef.current) finish(); }, 1500));
+  });
+  useEffect(() => { const r = running.current; if (!r) return; if (api.busy) r.sawBusy = true; else if (r.sawBusy) setTimeout(finish, 0); }, [api.busy]);
 
   const change = () => { tool.prefill(api, value, ctx); api.openPane(tool.expertPane); };
   const toggle = (u) => setPicked((p) => (p.includes(u) ? p.filter((x) => x !== u) : [...p, u]));
@@ -114,7 +127,7 @@ function Tool({ tool, ctx, api, close, back }) {
         ) : (
           <select value={picked} onChange={(e) => setPicked(e.target.value)} disabled={phase === "running" || phase === "waiting"} aria-label={tr(tool.question)} style={{ width: "100%", marginBottom: 10, padding: "4px 6px" }}>
             {!picked && <option value="">{tr("Choose…")}</option>}
-            {choices.map((u) => <option key={u} value={u}>{u}</option>)}
+            {choices.map((u) => <option key={u} value={u}>{tool.label ? tool.label(u) : u}</option>)}
           </select>
         )}
         <button type="button" style={{ ...bigBtn, opacity: api.busy || phase === "running" || phase === "waiting" ? 0.6 : 1 }} disabled={api.busy || phase === "running" || phase === "waiting"} onClick={build}>
@@ -133,12 +146,13 @@ function Tool({ tool, ctx, api, close, back }) {
       )}
       {phase === "cannot" && out?.verdict && (
         <div style={{ marginTop: 12, padding: 10, border: "1px solid var(--color-danger-fg)", borderRadius: 6 }} role="status">
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>{tr("Your data cannot support this yet")}</div>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>{out.stopped ? tr("Nothing was built") : tr("Your data cannot support this yet")}</div>
           {out.verdict.map((v, i) => <div key={i}>{v}</div>)}
         </div>
       )}
       <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
         {!feedWhy && <button type="button" style={smallBtn} onClick={change} title={tr("Open the full form, filled in with these choices")}>{tr("Change these")}</button>}
+        {(tool.actions || []).map((a) => <button key={a.label} type="button" style={smallBtn} onClick={() => a.run(api)}>{tr(a.label)}</button>)}
         <button type="button" style={smallBtn} onClick={() => openHelp(tool.help)}>{tr("Help")}</button>
         <button type="button" style={smallBtn} onClick={back}>{tr("Start here")}</button>
       </div>

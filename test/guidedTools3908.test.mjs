@@ -41,7 +41,8 @@ test("the shell: lazy, behind one Basic Model button; ViewerModule has one-line 
   const vm = rd("src/modules/ViewerModule.jsx");
   assert.match(vm, /const GuidedTool = React\.lazy\(\(\) => import\("\.\/viewer\/guided\/GuidedTool\.jsx"\)\);/);
   assert.match(vm, /const \[guided, setGuided\] = useState\(null\); useModuleAction\(\["guided-open"\], \(a, p\) => setGuided\(p\?\.tool \|\| "start"\)\);/);
-  assert.match(vm, /\{guided && mode === "view" && <Suspense fallback=\{null\}><GuidedTool tool=\{guided\} setTool=\{setGuided\} api=\{\{ runStackModel, runImplicitModel, computeIntercepts, modelResolution, setModelResolution, busy: implicitBusy,/);
+  assert.match(vm, /\{guided && mode === "view" && <Suspense fallback=\{null\}><GuidedTool tool=\{guided\} setTool=\{setGuided\} api=\{\{ runStackModel, runImplicitModel, runVeinModel, runStructuralModel, runNumericModel, meshOf: \(id\) => implicitMeshesRef\.current\[id\], numeric: \{ now: \[numericSymbol, numericCutoff, numericCellSize, numericCellHeight, numericSearchRadius, numericMinHoles\],/);
+  assert.match(vm, /computeIntercepts, modelResolution, setModelResolution, busy: implicitBusy \|\| veinBusy \|\| numericBusy,/);
   assert.doesNotMatch(vm, /^import .*guided/m); // nothing of it in the startup chunk
   const vp = rd("src/modules/viewer/ViewerParts.jsx");
   assert.doesNotMatch(vp, /^import .*guided/m);
@@ -52,7 +53,7 @@ test("the shell: lazy, behind one Basic Model button; ViewerModule has one-line 
   assert.equal(menu[0], "start");
   const shell = rd("src/modules/viewer/guided/GuidedTool.jsx");
   for (const s of ["Build it for me", "What I chose and why", "Change these", "Your data cannot support this yet", "Start here"]) assert.ok(shell.includes(`tr("${s}")`), s);
-  assert.match(shell, /api\.setModelResolution\(auto\.values\.resolution\)/); // the size and detail from lib/auto/autoSurface.js
+  assert.match(shell, /\(a, v\) => a\.setModelResolution\(v\.resolution\)/); // default: autoSurface's resolution (a tool may bring its own, #3909) // the size and detail from lib/auto/autoSurface.js
   assert.match(shell, /disabled=\{api\.busy \|\|/); // one heavy run at a time
 });
 
@@ -117,4 +118,86 @@ test("#3908 the shell runs with the Modelling-codes key and gives the suggestion
   assert.match(shell, /target: \(v\) => \(mcodes\.some\(\(c\) => c\.name === v\) \? `mcode:\$\{v\}` : v\)/);
   assert.match(shell, /tool\.run\(api, value, ctx\)/);
   assert.match(shell, /reasons: \[keptSuggestion \? sug\.reason : null,/);
+});
+
+test("#3909 Veins and dykes: the vein cut by the most holes, a verdict under three, the Vein run on its key", async () => {
+  const { VEINS, GUIDED_TOOLS } = await import("../src/modules/viewer/guided/guidedTools.js");
+  assert.ok(GUIDED_TOOLS.includes(VEINS));
+  const veins = []; for (let h = 0; h < 5; h++) veins.push({ hole_id: `L${h}`, value: "QV" }); veins.push({ hole_id: "L0", value: "CB" }, { hole_id: "L1", value: "CB" });
+  const ctx = { rows: logs(), veins, roleOf: (u) => (u === "DYK" ? "dyke" : "stratigraphic") };
+  assert.deepEqual(VEINS.choices(ctx), ["litho:DYK", "QV", "CB"]); // a lithology code read as a dyke is offered too (DYK: 7 holes)
+  assert.equal(VEINS.suggest(ctx).value, "litho:DYK");
+  assert.equal(VEINS.label("litho:DYK"), "DYK");
+  assert.equal(VEINS.auto(ctx, "QV").ok, true);
+  assert.match(VEINS.auto(ctx, "CB").verdict[0], /^Only 2 holes cut CB: a sheet needs three or more\.$/);
+  assert.equal(VEINS.auto(ctx, "litho:DYK").ok, true);
+  const calls = []; VEINS.run({ runVeinModel: (v) => calls.push(v) }, "litho:DYK");
+  assert.deepEqual(calls, ["litho:DYK"]);
+  assert.match(VEINS.feed({ rows: [], veins: [], roleOf: () => "stratigraphic" }), /No veins or dykes logged/);
+});
+
+test("#3909 Faults: the measured type that reads like a fault, a verdict under three picks, the Structural run on it", async () => {
+  const { FAULTS, GUIDED_TOOLS } = await import("../src/modules/viewer/guided/guidedTools.js");
+  assert.ok(GUIDED_TOOLS.includes(FAULTS));
+  const st = (value, h, dip = 60) => ({ hole_id: `L${h}`, value, dip, azimuth: 120 });
+  const structures = [st("BED", 0), st("BED", 1), st("BED", 2), st("BED", 3), st("FLT", 0), st("FLT", 1), st("FLT", 2), st("VN", 0), { hole_id: "L9", value: "FLT", dip: null, azimuth: 10 }];
+  const ctx = { structures };
+  assert.deepEqual(FAULTS.choices(ctx), ["FLT", "BED", "VN"]); // named like a fault first, then by picks
+  assert.equal(FAULTS.suggest(ctx).value, "FLT");
+  assert.match(FAULTS.suggest(ctx).reason, /FLT reads like a fault and has 3 measured picks in 3 holes/); // the pick with no dip is not counted
+  assert.match(FAULTS.auto(ctx, "VN").verdict[0], /^Only 1 VN picks/);
+  assert.equal(FAULTS.auto(ctx, "FLT").ok, true);
+  assert.equal(FAULTS.suggest({ structures: [st("BED", 0)] }).value, ""); // nothing reads like a fault: the user chooses
+  const calls = []; FAULTS.run({ runStructuralModel: (v) => calls.push(v) }, "FLT"); FAULTS.prefill({ setStructuralTarget: (v) => calls.push(v) }, "FLT");
+  assert.deepEqual(calls, ["FLT", "FLT"]);
+});
+
+test("#3909 Grade model: the cut-off from the grades, cells and search from the drilling, the trend helper's trend, volume and no estimate", async () => {
+  const { GRADE, GUIDED_TOOLS } = await import("../src/modules/viewer/guided/guidedTools.js");
+  assert.equal(GUIDED_TOOLS[GUIDED_TOOLS.length - 1], GRADE);
+  // 6 x 6 vertical holes 40 m apart; a high-grade slab in the middle holes, a low background elsewhere (seeded)
+  let k = 5; const rnd = () => (k = (k * 16807) % 2147483647) / 2147483647, g = () => Math.sqrt(-2 * Math.log(rnd())) * Math.cos(2 * Math.PI * rnd());
+  const collars = [], assays = [];
+  for (let i = 0; i < 6; i++) for (let j = 0; j < 6; j++) {
+    const hole_id = `G${i}-${j}`; collars.push({ hole_id, x: i * 40, y: j * 40, z: 0 });
+    for (let d = 0; d < 80; d += 2) assays.push({ hole_id, from: d, to: d + 2, values: { Au: 10 ** (d > 30 && d < 50 && i > 1 && i < 5 ? 0.3 + 0.25 * g() : -1.3 + 0.3 * g()), Cu: d < 4 ? 0.1 : 0 } });
+  }
+  const ctx = { collars, assays, assayElements: [{ symbol: "Au", unit: "g/t" }, { symbol: "Cu", unit: "%" }], hasDensity: false, gradeTrend: false };
+  assert.equal(GRADE.suggest(ctx).value, "Au");
+  const r = GRADE.auto(ctx, "Au");
+  assert.equal(r.ok, true);
+  const [sym, cutoff, cell, height, radius, minHoles] = r.values.list;
+  assert.equal(sym, "Au");
+  assert.ok(cutoff > 0.1 && cutoff < 1);
+  assert.deepEqual([cell, height, radius, minHoles], [10, 5, 60, 2]); // a quarter of 40 m; two 2 m samples; 1.5 spacings in whole cells
+  assert.ok(r.reasons.some((x) => x.field === "cutoff") && r.reasons.some((x) => x.field === "searchRadius"));
+  assert.equal(r.notes.filter((n) => /no density/.test(n)).length, 1); // said once
+  assert.ok(r.notes.some((n) => /No trend is set/.test(n)));
+  assert.ok(GRADE.auto({ ...ctx, gradeTrend: true }, "Au").reasons.some((x) => x.field === "trend"));
+  assert.match(GRADE.auto(ctx, "Cu").verdict.join(" "), /All the grades are the same/); // Cu: one value, nothing to split
+  const api = { numeric: { now: ["", 1, 10, "", 50, 2], set: [] } }; api.numeric.set = api.numeric.now.map((_, i) => (x) => { api.numeric.now[i] = x; });
+  assert.equal(GRADE.ready(api, r.values), false);
+  GRADE.prepare(api, r.values);
+  assert.equal(GRADE.ready(api, r.values), true);
+  const lines = GRADE.result([{ name: "Au shell", params: { volumeM3: 123000 }, closure: "artificial" }]); // no mesh: the params value, shown to three figures
+  assert.match(lines[0], /^Au shell: 123,000 m³ above the cut-off\.$/);
+  assert.match(lines.join(" "), /closed at the search radius/);
+  assert.match(lines[lines.length - 1], /not a resource estimate/);
+  assert.equal(GRADE.actions[0].label, "Set a trend");
+});
+
+test("#3909 live fixes: a vein set is stopped plainly and offered last; the shell's volume from its mesh; a cancelled run is not a data verdict", async () => {
+  const { VEINS, GRADE } = await import("../src/modules/viewer/guided/guidedTools.js");
+  const veins = [];
+  for (let h = 0; h < 6; h++) for (let k = 0; k < 8; k++) veins.push({ hole_id: `L${h}`, value: "QTZ" }); // 8 per hole: a set
+  for (let h = 0; h < 4; h++) veins.push({ hole_id: `L${h}`, value: "MAIN" });
+  const ctx = { rows: [], veins, roleOf: () => "stratigraphic" };
+  assert.deepEqual(VEINS.choices(ctx), ["MAIN", "QTZ"]);
+  assert.match(VEINS.auto(ctx, "QTZ").verdict[0], /^QTZ is logged about 8 times down each hole: a set of veins, not one sheet\./);
+  // a closed 1 m cube mesh: 1 m3
+  const p = [0,0,0, 1,0,0, 1,1,0, 0,1,0, 0,0,1, 1,0,1, 1,1,1, 0,1,1], idx = [0,2,1, 0,3,2, 4,5,6, 4,6,7, 0,1,5, 0,5,4, 1,2,6, 1,6,5, 2,3,7, 2,7,6, 3,0,4, 3,4,7];
+  const geometry = { attributes: { position: { count: 8, getX: (i) => p[3 * i], getY: (i) => p[3 * i + 1], getZ: (i) => p[3 * i + 2] } }, index: { count: idx.length, getX: (i) => idx[i] } };
+  assert.match(GRADE.result([{ id: "s1", name: "Au shell" }], {}, { meshOf: () => ({ geometry }) })[0], /^Au shell: 1 m³ above the cut-off\.$/);
+  const shell = rd("src/modules/viewer/guided/GuidedTool.jsx");
+  assert.match(shell, /out\.stopped \? tr\("Nothing was built"\) : tr\("Your data cannot support this yet"\)/);
 });

@@ -9,7 +9,11 @@
 //         contacts(ctx, value) -> the contacts autoSurface sizes the model from, check(ctx, value) -> null | why it cannot,
 //         notes(ctx, value) -> [sentence], run(api, value), prefill(api, value) }
 import { stackOrder, suggestBody, suggestCover } from "../../../lib/auto/autoUnits.js";
-import { t as tr } from "../../../lib/i18n.js";
+import { t as tr, fmtNum } from "../../../lib/i18n.js";
+import { autoGradeShell } from "../../../lib/auto/autoGradeShell.js";
+import { autoBlockModel } from "../../../lib/auto/autoBlockModel.js";
+import { computeMeshVolume } from "../../../lib/volumetrics.js";
+import { gradeUnitLabel } from "../../../lib/geochemColumns.js";
 
 const noLogs = (ctx) => (ctx.rows.length ? null : tr("No lithology log yet: import one (Add data) and this tool reads it."));
 const unitsByHoles = (ctx) => stackOrder(ctx.rows).units.map((u) => u.unit);
@@ -98,7 +102,169 @@ export const COVER = {
   prefill: (api, value, ctx) => api.setImplicitTarget(ctx.target(value)),
 };
 
+// TASKS.csv #3909 (batch P7b) — thin sheets with a thickness: the Vein / dyke run on a Veins log value, or on a lithology code the run reads as a
+// vein or dyke ("litho:<code>", #2226). It has its own reach and thickness rules, so the automatic part here is the plain check that enough holes
+// cut the sheet, and the reason says which.
+const holesWith = (rows, test) => new Set(rows.filter(test).map((r) => r.hole_id)).size;
+// per choice: the holes that cut it and its intervals per hole. Many per hole is a vein SET or stockwork, not one sheet (the Vein run refuses it,
+// found live on WA lode gold: QTZ, about 17 per hole), so those are offered last and stopped with a plain verdict
+export const SET_PER_HOLE = 3;
+function veinChoices(ctx) {
+  const out = new Map();
+  const add = (k, h) => { const e = out.get(k) || { holes: new Set(), rows: 0 }; e.holes.add(h); e.rows++; out.set(k, e); };
+  for (const r of ctx.veins) if (r.value != null && r.value !== "") add(String(r.value), r.hole_id);
+  for (const r of ctx.rows) { const v = String(r.value); if (BODY_ROLES.has(ctx.roleOf(v)) && ctx.roleOf(v) !== "breccia") add(`litho:${v}`, r.hole_id); }
+  return [...out].map(([k, e]) => ({ key: k, holes: e.holes.size, perHole: e.rows / e.holes.size }))
+    .sort((a, b) => (a.perHole > SET_PER_HOLE) - (b.perHole > SET_PER_HOLE) || b.holes - a.holes);
+}
+const veinLabel = (k) => (k.startsWith("litho:") ? k.slice(6) : k);
+export const VEINS = {
+  id: "veins",
+  title: "Veins and dykes",
+  line: "Thin sheets, from where the holes cut them.",
+  sentence: "Builds a thin sheet with a thickness through the places where the holes cut a vein or dyke.",
+  question: "Which vein or dyke?",
+  multi: false,
+  help: "vein-dyke",
+  expertPane: "vein",
+  feed: (ctx) => (veinChoices(ctx).length ? null : tr("No veins or dykes logged: a Veins log, or a lithology code read as a vein or dyke, is needed.")),
+  suggest(ctx) {
+    const c = veinChoices(ctx)[0];
+    return { value: c.key, reason: tr("{v} is cut in {n} holes, more than any other vein or dyke logged.", { v: veinLabel(c.key), n: c.holes }) };
+  },
+  choices: (ctx) => veinChoices(ctx).map((c) => c.key),
+  label: veinLabel,
+  check: (ctx, value) => (value ? null : tr("Choose a vein or dyke first.")),
+  auto(ctx, value) {
+    const v = veinLabel(value), n = value.startsWith("litho:") ? holesWith(ctx.rows, (r) => String(r.value) === v) : holesWith(ctx.veins, (r) => String(r.value) === v);
+    const c = veinChoices(ctx).find((x) => x.key === value);
+    if (c && c.perHole > SET_PER_HOLE) return { ok: false, values: null, reasons: [], notes: [], verdict: [tr("{v} is logged about {k} times down each hole: a set of veins, not one sheet. Split it into single veins in Modelling codes, or show where the set is with an Alteration halo (All tools).", { v, k: fmtNum(Math.round(c.perHole)) })] };
+    return n < 3
+      ? { ok: false, values: null, reasons: [], notes: [], verdict: [tr("Only {n} holes cut {v}: a sheet needs three or more.", { n, v })] }
+      : { ok: true, values: {}, reasons: [{ field: "holes", text: tr("{v} is cut in {n} holes: the sheet is drawn through those intercepts, with the thickness logged there.", { v, n }) }], notes: [], verdict: null };
+  },
+  prepare: () => {},
+  ready: () => true,
+  contacts: () => [],
+  notes: () => [],
+  run: (api, value) => api.runVeinModel(value),
+  prefill: (api, value) => api.setVeinTarget(value),
+};
+
+// TASKS.csv #3909 — a fault from the measured picks: the Structural modelling run on one structure type of the structure log (picks with a
+// dip and a dip direction). Suggested: the type named like a fault, with the most picks. Stopping the model at the fault (two fault blocks) is
+// the full pane's choice, so the card says where it is.
+const FAULT_WORDS = /\b(fault|flt|fz|shear|sz|brittle|gouge|crush)\w*/i;
+function faultChoices(ctx) {
+  const by = new Map();
+  for (const s of ctx.structures) {
+    const has = (v) => v != null && v !== "" && Number.isFinite(Number(v)); // Number(null) is 0: a pick with no dip is not a measurement
+    if (s.value == null || s.value === "" || !has(s.dip) || !has(s.azimuth)) continue;
+    const k = String(s.value), e = by.get(k) || { key: k, picks: 0, holes: new Set() };
+    e.picks++; e.holes.add(s.hole_id); by.set(k, e);
+  }
+  return [...by.values()].sort((a, b) => FAULT_WORDS.test(b.key) - FAULT_WORDS.test(a.key) || b.picks - a.picks);
+}
+export const FAULTS = {
+  id: "faults",
+  title: "Faults",
+  line: "A break that cuts and shifts the rocks.",
+  sentence: "Builds a fault surface through your measured fault picks, from their positions, dips and directions.",
+  question: "Which measurements are the fault?",
+  multi: false,
+  help: "structural-modelling",
+  expertPane: "structural",
+  feed: (ctx) => (faultChoices(ctx).length ? null : tr("No oriented structure measurements: a fault surface is built from picks with a dip and a dip direction.")),
+  suggest(ctx) {
+    const c = faultChoices(ctx)[0];
+    return FAULT_WORDS.test(c.key)
+      ? { value: c.key, reason: tr("{v} reads like a fault and has {n} measured picks in {h} holes.", { v: c.key, n: c.picks, h: c.holes.size }) }
+      : { value: "", reason: tr("No structure type reads like a fault: choose the one that is.") };
+  },
+  choices: (ctx) => faultChoices(ctx).map((c) => c.key),
+  check: (ctx, value) => (value ? null : tr("Choose the fault measurements first.")),
+  auto(ctx, value) {
+    const c = faultChoices(ctx).find((x) => x.key === value);
+    return !c || c.picks < 3
+      ? { ok: false, values: null, reasons: [], notes: [], verdict: [tr("Only {n} {v} picks with a dip and a direction: a fault surface needs three or more.", { n: c?.picks || 0, v: value })] }
+      : { ok: true, values: {}, reasons: [{ field: "picks", text: tr("{n} {v} picks in {h} holes, with their dips and directions: the surface is fitted through them.", { n: c.picks, v: value, h: c.holes.size }) }], notes: [], verdict: null };
+  },
+  prepare: () => {},
+  ready: () => true,
+  contacts: () => [],
+  notes: () => [tr("To make the other models stop at this fault, open Change these: the Structural modelling pane sets which models it cuts.")],
+  run: (api, value) => api.runStructuralModel(value),
+  prefill: (api, value) => api.setStructuralTarget(value),
+};
+
+// TASKS.csv #3909 — a grade model: the grade shell at a cut-off read from the grades (lib/auto/autoGradeShell.js), its cells, search and holes per
+// cell from the drilling (lib/auto/autoBlockModel.js), along the trend the trend helper set (#3910) when there is one. The card gives the volume
+// above the cut-off and says it is not a resource estimate; tonnes and grade-tonnage stay in All tools (Matt's decision 9).
+// Sample positions here are the collar's, down the hole as if vertical: they size nothing but the thinning; the run desurveys its own.
+function gradeSamples(ctx, sym) {
+  const at = new Map(ctx.collars.map((c) => [c.hole_id, c])), out = [];
+  for (const a of ctx.assays || []) {
+    const v = Number(a?.values?.[sym]), c = at.get(a?.hole_id);
+    if (!Number.isFinite(v) || !c) continue;
+    const mid = (Number(a.from) + Number(a.to)) / 2;
+    out.push({ hole_id: a.hole_id, from: Number(a.from), to: Number(a.to), value: v, x: Number(c.x), y: Number(c.y), z: Number(c.z) - (Number.isFinite(mid) ? mid : 0) });
+  }
+  return out;
+}
+// shown as the shell names it: a precious metal stored in ppm reads g/t (#2218)
+const elementUnit = (ctx, sym) => gradeUnitLabel(sym, ctx.assayElements.find((e) => e.symbol === sym)?.unit || "");
+export const GRADE = {
+  id: "grade",
+  title: "Grade model",
+  line: "Where the metal is, as a shell above a cut-off.",
+  sentence: "Builds a shell around the grades above a cut-off read from your assays, with cells and a search sized from your drilling.",
+  question: "Which metal?",
+  multi: false,
+  help: "grade-shell",
+  expertPane: "shell",
+  feed: (ctx) => (ctx.assayElements.length ? null : tr("No assays yet: import them (Add data) and this tool reads them.")),
+  suggest(ctx) {
+    let best = null;
+    for (const e of ctx.assayElements) { const n = gradeSamples(ctx, e.symbol).filter((s) => s.value > 0).length; if (!best || n > best.n) best = { sym: e.symbol, n }; }
+    return { value: best.sym, reason: tr("{el} has the most assays with a grade above zero ({n}).", { el: best.sym, n: best.n }) };
+  },
+  choices: (ctx) => ctx.assayElements.map((e) => e.symbol),
+  check: (ctx, value) => (value ? null : tr("Choose a metal first.")),
+  auto(ctx, sym) {
+    const samples = gradeSamples(ctx, sym), unit = elementUnit(ctx, sym);
+    const gs = autoGradeShell({ collars: ctx.collars, samples, unit });
+    if (!gs.ok) return gs;
+    const bm = autoBlockModel({ collars: ctx.collars, samples, hasDensity: ctx.hasDensity });
+    if (!bm.ok) return bm;
+    const { x, z } = bm.values.blockSize;
+    const reasons = [...gs.reasons.filter((r) => r.field === "cutoff"), ...bm.reasons.filter((r) => r.field !== "bounds" && r.field !== "maxSamples")];
+    const notes = [...gs.notes, ...bm.notes];
+    if (ctx.gradeTrend) reasons.push({ field: "trend", text: tr("It follows the trend set with the trend helper.") });
+    else notes.push(tr("No trend is set, so the shell grows the same way in every direction. If the grade runs one way, set a trend first."));
+    // the grade shell's own settings, in the order api.numeric lists them: metal, cut-off, cell across, cell height, search radius, holes
+    return { ok: true, values: { list: [sym, gs.values.cutoff, x, z, bm.values.searchRadius, bm.values.minHoles] }, reasons, notes, verdict: null };
+  },
+  prepare: (api, v) => v.list.forEach((x, i) => api.numeric.set[i](x)),
+  ready: (api, v) => v.list.every((x, i) => String(api.numeric.now[i]) === String(x)),
+  contacts: () => [],
+  notes: () => [],
+  result(made, ctx, api) {
+    const out = [];
+    for (const s of made) {
+      // the shell's enclosed volume, as the run's own message computes it (lib/volumetrics.js), from its mesh
+      const geo = api?.meshOf?.(s.id)?.geometry, vol = geo ? computeMeshVolume(geo).volumeM3 : Number(s.params?.volumeM3);
+      if (vol > 0) out.push(tr("{name}: {v} m³ above the cut-off.", { name: s.name, v: fmtNum(Number(vol.toPrecision(3))) }));
+      if (s.closure === "artificial") out.push(tr("Part of this shell is closed at the search radius, so its volume depends on that radius as well as on the grades."));
+    }
+    out.push(tr("This is a picture of where the grade is, not a resource estimate. Tonnes and grade-tonnage are in All tools."));
+    return out;
+  },
+  actions: [{ label: "Set a trend", run: (api) => api.openPane("settings") }],
+  run: (api) => api.runNumericModel(),
+  prefill: () => {}, // Build or not, the grade shell pane holds what was chosen (set before the run)
+};
+
 // in the Start here card's order: what lies on top first
-export const GUIDED_TOOLS = [COVER, ROCK_LAYERS, BODIES];
+export const GUIDED_TOOLS = [COVER, ROCK_LAYERS, BODIES, VEINS, FAULTS, GRADE];
 export const toolById = (id) => GUIDED_TOOLS.find((t) => t.id === id) || null;
 export { unitsByHoles };
