@@ -14018,5 +14018,18 @@
   "Show or hide the figure overlay: title, legend and scale bar": "إظهار أو إخفاء تراكب الشكل: العنوان ووسيلة الإيضاح ومقياس الرسم",
   "Browser": "المتصفح",
   "Show the Browser panel": "إظهار لوحة المتصفح",
-  "Hide the Browser panel": "إخفاء لوحة المتصفح"
+  "Hide the Browser panel": "إخفاء لوحة المتصفح",
+  "Sheets": "اللوحات",
+  "Import collars or plan a hole first": "استورد الفوهات أو خطّط ثقبًا أولًا",
+  "A new page: every hole on a drill plan at a round scale, with its key, a north arrow, a scale bar, a title and the data credit": "صفحة جديدة: كل الثقوب على مخطط حفر بمقياس مقرّب، مع مفتاحه وسهم الشمال وشريط المقياس والعنوان ونسبة البيانات",
+  "Add to this page: text, a north arrow, a scale bar, a legend, a title block or a collar table": "أضف إلى هذه الصفحة: نصًا أو سهم الشمال أو شريط المقياس أو مفتاحًا أو جدول عنوان أو جدول الفوهات",
+  "Nothing to lay out for this sheet yet.": "لا يوجد بعد ما يُخطط في هذه اللوحة.",
+  "Send a section to Layout first (Snapshot in the section window)": "أرسل مقطعًا إلى التخطيط أولًا (لقطة في نافذة المقطع)",
+  "A new page: the newest section sent to Layout at a round scale, with its legend, the direction it looks, a scale bar, a title and the data credit": "صفحة جديدة: أحدث مقطع أُرسل إلى التخطيط بمقياس مقرّب، مع مفتاحه واتجاه نظره وشريط المقياس والعنوان ونسبة البيانات",
+  "Hole log": "سجل الثقب",
+  "Send a strip log to Layout first (Add to Layout in the strip log)": "أرسل سجلًا شريطيًا إلى التخطيط أولًا (إضافة إلى التخطيط في السجل الشريطي)",
+  "A new portrait page: the newest strip log sent to Layout at the page's height, with its legend, a title and the data credit": "صفحة رأسية جديدة: أحدث سجل شريطي أُرسل إلى التخطيط بارتفاع الصفحة، مع مفتاحه والعنوان ونسبة البيانات",
+  "Intercepts table": "جدول التقاطعات",
+  "Put a Best intercepts table on a page first (Best intercepts in StrixViewer)": "ضع جدول أفضل التقاطعات على صفحة أولًا (أفضل التقاطعات في StrixViewer)",
+  "A new page: the newest Best intercepts table, with a title and the data credit": "صفحة جديدة: أحدث جدول لأفضل التقاطعات، مع عنوان ونسبة البيانات"
 }

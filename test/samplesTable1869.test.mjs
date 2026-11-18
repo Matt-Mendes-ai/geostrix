@@ -36,7 +36,7 @@ test("holes with assays or logs but no collar are counted", () => {
 test("wired: the table branch, the insert, the sidebar and the print copy", () => {
   const m = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
   assert.match(m, /if \(el\.source === "samples"\) \{/);
-  assert.match(m, /onClick=\{\(\) => addElement\("samplestable"\)\}/);
+  assert.match(m, /\["samplestable", "Samples table"\]/); // #3912: in the Add menu with All tools, when the project has surface samples
   assert.match(m, /if \(type === "samplestable"\) \{ type = "table"; base\.type = "table"; base\.source = "samples";/);
   assert.match(m, /surfaceSamples, surfaceElements, layers \/\* #1869 \*\/, /);
   assert.match(m, /const k = holesWithoutCollars\(ctx\?\.collars, ctx\?\.assays, ctx\?\.layers\);/);

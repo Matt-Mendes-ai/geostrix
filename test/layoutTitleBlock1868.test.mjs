@@ -57,7 +57,7 @@ test("not a template", () => {
 
 test("the Layout wires the title block, multi-line text and template files", () => {
   const s = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
-  assert.ok(s.includes('addElement("titleblock")'));
+  assert.ok(s.includes('["titleblock", "Title block"]') && s.includes("addElement(type)")); // #3912: from the Add menu
   assert.ok(s.includes('whiteSpace: "pre-wrap" /* #1868 */'));
   assert.ok(s.includes("askPrompt(tr(\"Template name?\")"));
   assert.ok(s.includes("addLayoutTemplate(name.trim(), t.elements, pageFormat)")) // #1487 — through templateElements;

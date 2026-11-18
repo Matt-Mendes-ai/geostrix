@@ -14018,5 +14018,18 @@
   "Show or hide the figure overlay: title, legend and scale bar": "Afficher ou masquer la surcouche de figure : titre, légende et barre d'échelle",
   "Browser": "Navigateur",
   "Show the Browser panel": "Afficher le panneau Navigateur",
-  "Hide the Browser panel": "Masquer le panneau Navigateur"
+  "Hide the Browser panel": "Masquer le panneau Navigateur",
+  "Sheets": "Planches",
+  "Import collars or plan a hole first": "Importez les collets ou planifiez un sondage d'abord",
+  "A new page: every hole on a drill plan at a round scale, with its key, a north arrow, a scale bar, a title and the data credit": "Une nouvelle page : tous les sondages sur un plan de forage à une échelle ronde, avec sa légende, une flèche du nord, une barre d'échelle, un titre et le crédit des données",
+  "Add to this page: text, a north arrow, a scale bar, a legend, a title block or a collar table": "Ajouter à cette page : du texte, une flèche du nord, une barre d'échelle, une légende, un cartouche ou un tableau des collets",
+  "Nothing to lay out for this sheet yet.": "Rien à mettre en page pour cette planche pour l'instant.",
+  "Send a section to Layout first (Snapshot in the section window)": "Envoyez d'abord une coupe vers la mise en page (Instantané dans la fenêtre de la coupe)",
+  "A new page: the newest section sent to Layout at a round scale, with its legend, the direction it looks, a scale bar, a title and the data credit": "Une nouvelle page : la coupe la plus récente envoyée à la mise en page à une échelle ronde, avec sa légende, la direction vers laquelle elle regarde, une barre d'échelle, un titre et le crédit des données",
+  "Hole log": "Log du sondage",
+  "Send a strip log to Layout first (Add to Layout in the strip log)": "Envoyez d'abord un log de sondage vers la mise en page (Ajouter à la mise en page dans le log)",
+  "A new portrait page: the newest strip log sent to Layout at the page's height, with its legend, a title and the data credit": "Une nouvelle page en portrait : le log le plus récent envoyé à la mise en page sur la hauteur de la page, avec sa légende, un titre et le crédit des données",
+  "Intercepts table": "Tableau des intersections",
+  "Put a Best intercepts table on a page first (Best intercepts in StrixViewer)": "Placez d'abord un tableau des Meilleures intersections sur une page (Meilleures intersections dans StrixViewer)",
+  "A new page: the newest Best intercepts table, with a title and the data credit": "Une nouvelle page : le tableau des Meilleures intersections le plus récent, avec un titre et le crédit des données"
 }

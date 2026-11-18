@@ -68,7 +68,7 @@ test("the Basic-tools budget: the StrixViewer ribbon shows nine tools or fewer (
   assert.ok(list.length <= 9);
 });
 
-test("the Basic-tools budget: the Layout ribbon shows nine tools or fewer", { todo: "P9 (one-click sheets) puts Text, Legend, Title block, North arrow, Scale bar and Collar table under one Add button; LayoutModule.jsx is not in P3's files" }, () => {
+test("the Basic-tools budget: the Layout ribbon shows nine tools or fewer (#3912: the sheets, one Add button)", () => {
   const list = basicTools(rd("src/modules/LayoutModule.jsx"), '<Ribbon label="Layout tools">');
   assert.ok(list.length <= 9, `${list.length}: ${list.join(", ")}`);
 });
