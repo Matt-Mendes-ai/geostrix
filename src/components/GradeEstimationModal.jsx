@@ -1,3 +1,4 @@
+import { makeEta } from "../lib/runEta.js"; // TASKS.csv #3876
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { trendRatioText } from "../lib/trend.js"; // TASKS.csv #2423
 import CompositeLengthNote from "./CompositeLengthNote.jsx"; // TASKS.csv #2549
@@ -502,11 +503,13 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   const [progress, setProgress] = useState(null); // 0..1 while running
   const runStartedAt = useRef(0); // TASKS.csv #3256 — the time left, from the run's own progress
   // after 5 % and 3 s, a straight-line estimate from the share done so far (an estimate, said as one)
-  const timeLeft = (p) => { const el = (performance.now() - runStartedAt.current) / 1000; if (!(p >= 0.05 && p < 1 && el >= 3)) return ""; const left = (el * (1 - p)) / p; return left < 60 ? tr(" (about {s} s left)", { s: Math.max(5, Math.round(left / 5) * 5) }) : tr(" (about {m} min left)", { m: Math.round(left / 60) }); };
+  // TASKS.csv #3876 (#3791) — from the run's recent speed (lib/runEta.js), not the whole run's average, which a fast start fooled (1 min grew to 3)
+  const etaRef = useRef(null);
+  const timeLeft = (p) => { const now = performance.now() / 1000; if (!etaRef.current) return ""; etaRef.current.push(p, now); const left = etaRef.current.left(now); if (left == null) return ""; return left < 60 ? tr(" (about {s} s left)", { s: Math.max(5, Math.round(left / 5) * 5) }) : tr(" (about {m} min left)", { m: Math.round(left / 60) }); };
   const abortRef = useRef(null);
   const cancelRun = () => abortRef.current?.abort();
   const run = () => {
-    setError(""); setResult(null); runSig.current = sigNow.current; setProgress(0); runStartedAt.current = performance.now(); // #3256
+    setError(""); setResult(null); runSig.current = sigNow.current; setProgress(0); runStartedAt.current = performance.now(); etaRef.current = makeEta(runStartedAt.current / 1000); // #3256; #3876
     setWeakFitAsk(null); // #3273
     if (!collars.length) { setError(tr("No collars loaded — nothing to estimate from.")); return; }
     // TASKS.csv #676 — with fewer samples than holes, no block can ever reach the hole rule (it just reported 0 blocks)

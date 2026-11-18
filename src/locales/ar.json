@@ -14327,5 +14327,15 @@
   "Reading {name} ({mb} MB)…": "جارٍ قراءة {name} ({mb} ميغابايت)…",
   "{name}: couldn't read the OMF ({message}).": "{name}: تعذّرت قراءة ملف OMF ({message}).",
   "A volume also holds other values: Geophysics > OMF adds another as a block model.": "يحتوي حجم أيضًا على قيم أخرى: الجيوفيزياء > OMF تضيف قيمة أخرى كنموذج كتل.",
-  "Opacity of {name}": "عتامة {name}"
+  "Opacity of {name}": "عتامة {name}",
+  " The cells are {cs} m against runs of {at} m at the cut-off: the shell cannot be much thinner than a cell or two. A cell of about {p} m would follow the runs (Cell size in this pane), at about {k} times as many cells.": " الخلايا {cs} م مقابل مقاطع {at} م عند حد القطع: لا يمكن أن يكون الغلاف أرق كثيراً من خلية أو اثنتين. خلية بنحو {p} م ستتبع المقاطع (حجم الخلية في هذه اللوحة)، مع نحو {k} أضعاف عدد الخلايا.",
+  "Not imported from this drop: {names}. Dropped here, StrixViewer reads .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml / .kmz, .las logs, GeoTIFF / .gxf / .grd grids and .dxf / .obj files; point surveys (.xyz) open on the Geophysics tab.": "لم يُستورد من هذا الإفلات: {names}. عند الإفلات هنا، يقرأ StrixViewer ملفات ‎.csv و‎.xlsx و‎.zip (shapefile) و‎.shp و‎.gpkg و‎.kml / .kmz وسجلات ‎.las والشبكات GeoTIFF / .gxf / .grd وملفات ‎.dxf / .obj؛ أما مسوح النقاط (‎.xyz) فتُفتح في تبويب الجيوفيزياء.",
+  "Unsampled metres read as barren by default: {m} m in {n} hole(s) filled at {v}, half the lowest grade.": "الأمتار غير المعاينة مقروءة كعقيمة افتراضيًا: {m} م في {n} ثقب/ثقوب مُلئت بالقيمة {v}، نصف أدنى محتوى.",
+  "Read as barren by default, at half the lowest {symbol} grade ({low} {unit}): {v} {unit}. Type another value, or choose not known.": "مقروءة كعقيمة افتراضيًا، بنصف أدنى محتوى من {symbol} ({low} {unit}): {v} {unit}. اكتب قيمة أخرى، أو اختر «غير معروف».",
+  "Read as barren by default, at 0: no sample carries a positive {symbol} grade. Type another value, or choose not known.": "مقروءة كعقيمة افتراضيًا، بالقيمة 0: لا تحمل أي عينة محتوى موجبًا من {symbol}. اكتب قيمة أخرى، أو اختر «غير معروف».",
+  "Type the value they take (a detection limit, a background or 0).": "اكتب القيمة التي تأخذها (حد كشف، أو خلفية، أو 0).",
+  "Unsampled core inside the sampled holes is read as not known (your choice in the grade shell pane).": "اللباب غير المعاين داخل الثقوب المعاينة يُقرأ كغير معروف (اختيارك في لوحة غلاف المحتوى).",
+  "Unsampled core inside the sampled holes is read as barren at {v} {unit} (your value in the grade shell pane).": "اللباب غير المعاين داخل الثقوب المعاينة يُقرأ كعقيم بالقيمة {v} {unit} (قيمتك في لوحة غلاف المحتوى).",
+  "Unsampled core inside the sampled holes is read as barren at {v} {unit}: half the lowest {el} grade ({low} {unit}), the usual stand-in for below detection. Change it in the grade shell pane.": "اللباب غير المعاين داخل الثقوب المعاينة يُقرأ كعقيم بالقيمة {v} {unit}: نصف أدنى محتوى من {el} ({low} {unit})، وهو البديل المعتاد لما دون حد الكشف. غيّره في لوحة غلاف المحتوى.",
+  "Unsampled core inside the sampled holes is read as barren at 0: no sample carries a positive grade.": "اللباب غير المعاين داخل الثقوب المعاينة يُقرأ كعقيم بالقيمة 0: لا تحمل أي عينة محتوى موجبًا."
 }

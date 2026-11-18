@@ -27,6 +27,6 @@ test("(6) the model's legend carries the layer's unit (t/m³ for the density)", 
 
 test("(7) 'not known: left out' follows the user to the tool's next element", () => {
   const u = read("components/UnsampledChoice.jsx");
-  assert.match(u, /if \(patch\.mode !== undefined\) \{ if \(patch\.mode === "unknown"\) lastUnknown\.set\(tool, true\); else lastUnknown\.delete\(tool\); \}/);
+  assert.match(read("lib/unsampledChoices.js") /* #3920: moved */, /if \(patch\.mode !== undefined\) \{ if \(patch\.mode === "unknown"\) lastUnknown\.set\(tool, true\); else lastUnknown\.delete\(tool\); \}/);
   assert.match(u, /saved\?\.mode \?\? \(lastUnknown\.get\(tool\) \? "unknown" : defaultUnsampledMode\(inf\.share\)\)/);
 });
