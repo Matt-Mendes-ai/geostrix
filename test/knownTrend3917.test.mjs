@@ -3,7 +3,9 @@
 // flat, said plainly. SYNTHETIC points only.
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { planeFromThreePoints, surfaceTrend } from "../src/lib/trendCandidates.js";
+const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const tan30 = Math.tan(Math.PI / 6);
 
 test("#3917 three points: the plane through them, in words and numbers", () => {
@@ -42,4 +44,18 @@ test("#3917 a surface: its best-fit plane, its spread as the strength; along a l
   assert.equal(surfaceTrend("Folded", rough).strength, "weak");
   assert.match(surfaceTrend("A line", [{ x: 0, y: 0, z: 0 }, { x: 10, y: 10, z: 1 }, { x: 20, y: 20, z: 2 }, { x: 30, y: 30, z: 3 }]).error, /lies along a line/);
   assert.match(surfaceTrend("Empty", []).error, /too few points/);
+});
+
+test("#3917 the helper: the 3D view's click route (the explicit surface's), three points, a surface list, and the picking stops when done or closed", () => {
+  const h = read("../src/modules/viewer/TrendHelper.jsx");
+  assert.match(h, /explicitClickRef\.current = \(hits, raycaster\) => \{/);
+  assert.match(h, /const w = worldPointFromHits\(raycaster, hits\);/);
+  assert.match(h, /setExplicitPickFor\?\.\("trend-helper"\)/);
+  assert.match(h, /const res = planeFromThreePoints\(next\);/);
+  assert.match(h, /surfaceTrend\(s\.name, sources\.surfacePoints\?\.\(s\.id\)/);
+  assert.match(h, /useEffect\(\(\) => \(\) => stopPicking\(\), \[\]\);/);
+  const m = read("../src/modules/viewer/ModellingPanes.jsx");
+  assert.equal(m.split("\n").filter((l) => l.includes("<TrendHelper ")).length, 1);
+  assert.match(m, /<TrendHelper [^\n]*explicitClickRef=\{explicitClickRef\} setExplicitPickFor=\{setExplicitPickFor\} worldPointFromHits=\{worldPointFromHits\}/);
+  assert.doesNotMatch(read("../src/modules/ViewerModule.jsx"), /TrendHelper|trend-helper/);
 });
