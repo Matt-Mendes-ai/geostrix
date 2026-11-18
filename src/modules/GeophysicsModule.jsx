@@ -46,7 +46,7 @@ import { blockModelCsvText, blockModelParamLines } from "../lib/blockModelExport
 import { stampLines, withStamp, stampBeside, stampPlacement, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #404/#411
 import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #529
 import InfoButton from "../components/InfoButton.jsx";
-import { fetchSRTMTerrain, collarGroundMisfit, findBetterUtmZone, planTerrainFetch } from "../lib/srtmFetch.js"; // planTerrainFetch: #3251
+import { fetchSRTMTerrain, collarGroundMisfit, findBetterUtmZone, planTerrainFetch, MISFIT_ZONE_M } from "../lib/srtmFetch.js"; // planTerrainFetch: #3251; MISFIT_ZONE_M: #3918 (shared with the start dialog)
 import { fetchCopernicusTerrain } from "../lib/copernicusDem.js"; // TASKS.csv #814
 import { savedTerrainSource, TERRAIN_SOURCE_KEY } from "../lib/terrainSource.js"; // TASKS.csv #3882 — Copernicus GLO-30 is the default online source
 import { toLonLat, reprojectXY, crsName, pointTransform, getProj4Def, isMetricProjectedEpsg, isGeographicCrs } from "../lib/reproject.js";
@@ -1134,7 +1134,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         const dz = collarTerrainOffset(cc, parsed);
         if (dz && Math.abs(dz.median) > 100) misfitNote = " " + tr("The {n} collars over it sit a median {d} m {dir} this terrain: check its units and vertical datum before relying on it.", { n: dz.n, d: Math.round(Math.abs(dz.median)).toLocaleString(), dir: dz.median > 0 ? tr("above") : tr("below") });
       }
-      if (misfit && misfit.medianDz > 100) {
+      if (misfit && misfit.medianDz > MISFIT_ZONE_M) {
         setSrtmProgress(null);
         setTerrainError({ info: true, text: tr("The collars sit a median {v} m off this terrain — checking whether the project's CRS is one UTM zone off…", { v: Math.round(misfit.medianDz) }) });
         const better = await findBetterUtmZone(collars, targetEpsg, misfit);

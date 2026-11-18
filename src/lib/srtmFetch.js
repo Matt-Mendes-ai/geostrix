@@ -269,6 +269,8 @@ export function resampleElevationMosaic(elev, mw, mh, tiles, bbox, gridW, gridH)
 // EPSG:3156, zone 9N) gets terrain from ~400 km away — Matt's Woodjam holes (zone 10N) floated ~950 m over coastal
 // sea level. Median |collar Z − ground| of a few metres to tens is normal (GPS, SRTM); hundreds means the
 // collars are not where the CRS puts them. Returns { n, medianDz } (null under 3 comparable collars).
+// TASKS.csv #3918 — the misfit above which a fetch looks for a better UTM zone (Maps > Terrain's fetch and the start dialog's 'make one for me')
+export const MISFIT_ZONE_M = 100;
 export function collarGroundMisfit(collars, terrain) {
   const d = [];
   const [x0, y0, x1, y1] = terrain?.bbox || [];
