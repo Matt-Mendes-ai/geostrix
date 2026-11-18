@@ -72,3 +72,7 @@ test("the Basic-tools budget: the Layout ribbon shows nine tools or fewer", { to
   const list = basicTools(rd("src/modules/LayoutModule.jsx"), '<Ribbon label="Layout tools">');
   assert.ok(list.length <= 9, `${list.length}: ${list.join(", ")}`);
 });
+
+test("#3907 the Geological Mapping ribbon's Basic-tools short list: Geology map, Outcrop structures, Identify, Rock chips", () => {
+  assert.deepEqual(basicTools(rd("src/modules/viewer/ViewerParts.jsx"), '<Ribbon show={show} label="Geological Mapping tools">'), ["Geology map", "Outcrop structures", "Identify", "Rock chips"]);
+});

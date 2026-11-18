@@ -291,13 +291,13 @@ const popoverHeader = { display: "flex", alignItems: "center", justifyContent: "
 // unit polygons drawn in the app, so a geology map can be made here and Model it can use it.
 export function SurfaceRibbon({ show, paneProps, onStereonet, onModelIt, mapPolygons = true, identifyOn, onToggleIdentify, interpretOpen, onInterpret, onPolygons, onStyleSamples, sampleCount = 0 }) {
   return (
-    <Ribbon show={show} label="Geological Mapping tools">
+    <Ribbon show={show} label="Geological Mapping tools">{/* TASKS.csv #3907 — Basic tools: the short list (load and read mapped data); drawing, the stereonet and Model it are Advanced */}
       <RibbonGroup label="Geological mapping">
         <RibbonButton icon={MapIcon} label="Geology map" tone="data" title="Geology map layers (GeoPackage / shapefile / MapInfo TAB): import, colour by unit, drape on the terrain" {...paneProps("sgMaps")} />
         <RibbonButton icon={Compass} label="Outcrop structures" tone="data" title="Outcrop structure measurements (CSV / MapInfo points): bedding, foliation, faults, veins" {...paneProps("sgStructs")} />
-        <RibbonButton icon={Target} label="Stereonet" tone="analyse" title="Stereonet of the outcrop measurements (and any downhole structure picks)" onClick={onStereonet} />
+        <RibbonButton advanced icon={Target} label="Stereonet" tone="analyse" title="Stereonet of the outcrop measurements (and any downhole structure picks)" onClick={onStereonet} />
       </RibbonGroup>
-      <RibbonGroup label="Draw">
+      <RibbonGroup advanced label="Draw">
         <RibbonButton icon={Shapes} label="Unit polygons" tone="data" active={interpretOpen === "polygon"} title="Draw the outline of a map unit by clicking in the 3D view: a geology map layer with a unit field, which Model it can use" onClick={onPolygons} />
         <RibbonButton icon={PenTool} label="Interpret" tone="analyse" active={interpretOpen === true} title="Draw faults, contacts and lineaments by clicking in the 3D view; each set of lines is a map layer" onClick={onInterpret} />
       </RibbonGroup>
@@ -305,7 +305,7 @@ export function SurfaceRibbon({ show, paneProps, onStereonet, onModelIt, mapPoly
         <RibbonButton icon={Info} label="Identify" tone="analyse" active={identifyOn} title="Click anything in the 3D view to see which layer it belongs to and its details. Esc stops." onClick={onToggleIdentify} />
         <RibbonButton icon={Palette} label="Rock chips" tone="view" disabled={!sampleCount} disabledReason="No surface samples yet: drop a rock-chip or soil file on the 3D view, or import it on the Geochem tab" /* #3381 — a dropped sample file is taken (#2268) */ title="Style the surface samples: colour, size, shape, labels; colour by element is in the sidebar" onClick={onStyleSamples} />
       </RibbonGroup>
-      <RibbonGroup label="Next step">
+      <RibbonGroup advanced label="Next step">
         <RibbonButton icon={Mountain} label="Model it" tone="model" title="Build a 3D model from this map and these measurements: opens 3D Modelling > Model from map" onClick={onModelIt}
           disabled={!mapPolygons} disabledReason="Import a geology map (Geology map) or draw its units (Unit polygons) first: Model it builds from map polygons with a unit field" />{/* #1447 */}
       </RibbonGroup>
