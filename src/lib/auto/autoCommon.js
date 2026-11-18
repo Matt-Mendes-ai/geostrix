@@ -6,6 +6,7 @@
 // first, so a choice takes well under a second. No screens here (the guided tools, batch P7, show the result and "Change these").
 import { drillSiteSpacing } from "../drillSpacing.js";
 import { t as tr, fmtNum } from "../i18n.js";
+import { median } from "../arrayStats.js";
 
 export const SAMPLE_MAX = 20000;
 
@@ -19,12 +20,7 @@ export function thin(list, max = SAMPLE_MAX) {
 
 export const fin = (v) => typeof v === "number" && Number.isFinite(v);
 
-export function quantile(sorted, q) {
-  if (!sorted.length) return null;
-  const i = (sorted.length - 1) * q, lo = Math.floor(i), hi = Math.ceil(i);
-  return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo);
-}
-export const median = (vals) => quantile(vals.filter(fin).sort((a, b) => a - b), 0.5);
+export { median }; // TASKS.csv #1114 — the one median of lib/arrayStats.js
 
 // a round number near v (1, 2, 2.5 or 5 times a power of ten), so a block or a radius reads as chosen, not computed to the centimetre
 export function niceNumber(v) {
