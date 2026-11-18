@@ -10,7 +10,7 @@ const panes = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", i
 const viewer = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
 
 test("the default cell size is the shared constant", () => {
-  assert.equal(NUMERIC_CELL_DEFAULT, 10);
+  assert.equal(NUMERIC_CELL_DEFAULT, 50); // Matt, 2026-11-20 (was 10)
   assert.match(viewer, /useState\(NUMERIC_CELL_DEFAULT\)/);
 });
 
@@ -27,10 +27,12 @@ test("only the untouched default is resized, and the over-budget failure is kept
 
 test("Silvertip-like extent: the fitted cell is within budget", () => {
   const bounds = { xmin: 0, xmax: 1510, ymin: 0, ymax: 1090, zmin: 0, zmax: 1390 }; // ~151 x 109 x 139 at 10 m
-  assert.ok(gridBlockCount(bounds, NUMERIC_CELL_DEFAULT) > 200000);
-  const fit = cellToFit(bounds, 200000, NUMERIC_CELL_DEFAULT);
+  const cell = 10; // the refit's arithmetic at the old 10 m default (the default is 50 m since Matt's 2026-11-20 settings)
+  assert.ok(gridBlockCount(bounds, cell) > 200000);
+  const fit = cellToFit(bounds, 200000, cell);
   assert.ok(gridBlockCount(bounds, fit) <= 200000);
-  assert.ok(fit > NUMERIC_CELL_DEFAULT && fit < 40);
+  assert.ok(fit > cell && fit < 40);
+  assert.ok(gridBlockCount(bounds, NUMERIC_CELL_DEFAULT) <= 1000000); // at 50 m the same extent fits the new 1,000,000-block budget
 });
 
 test("both budget menus give memory (the grade shell time too) in one form", () => {

@@ -381,7 +381,7 @@ export default function ModellingPanes(props) {
   const setShellSearchSet = (v) => { shellMem.search = v; setShellSearchSetState(v); }; // #3651
   // TASKS.csv #3655 — search along the plane of the composites at the cut-off (modellingRuns.js, lib/viewer/shellPlane.js); a per-user preference
   // TASKS.csv #3673 — the shell: an envelope (the default) or the tight shell, and the envelope's probability; per-user preferences, read by the run
-  const [shellMode, setShellModeState] = useState(() => { try { const m = localStorage.getItem("geostrix.shellMode"); return m === "tight" || m === "envelope" ? m : "auto"; } catch { return "auto"; } }); // "auto": #3673, Main's decision
+  const [shellMode, setShellModeState] = useState(() => { try { const m = localStorage.getItem("geostrix.shellMode"); return m === "auto" || m === "tight" || m === "envelope" ? m : "tight"; } catch { return "tight"; } }); // "auto": #3673; the default Tight: Matt, 2026-11-20 (a saved choice stays)
   const setShellMode = (m) => { setShellModeState(m); try { localStorage.setItem("geostrix.shellMode", m); } catch { /* storage off */ } };
   const [shellEnvIso, setShellEnvIsoState] = useState(() => { try { const v = Number(localStorage.getItem("geostrix.shellEnvelopeIso")); return v >= 0.3 && v <= 0.7 ? v : 0.5; } catch { return 0.5; } });
   const setShellEnvIso = (v) => { const x = Math.min(0.7, Math.max(0.3, Number(v) || 0.5)); setShellEnvIsoState(x); try { localStorage.setItem("geostrix.shellEnvelopeIso", String(x)); } catch { /* storage off */ } };
