@@ -42,3 +42,9 @@ test("#3885 a tab brought forward (payload set to null): its old payload is deta
   assert.deepEqual(q.assays, [4], "the other tab's payload untouched");
   assert.equal(noteClosedTabs(after, [...after]), 0);
 });
+
+test("#3885 the tab brought forward drops its stored payload (its data is live), so the tab list no longer holds the snapshot it was loaded from", async () => {
+  const { readFileSync } = await import("node:fs");
+  const s = readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  assert.match(s, /setWorkspaceTabs\(workspaceTabs\.map\(\(t\) => \(t\.id === activeTabId \? \{ \.\.\.t, name: project\?\.name \|\| t\.name, payload: current, dirty: activeTabDirty \} : t\.id === tabId \? \{ \.\.\.t, payload: null \} : t\)\)\);\n    loadProjectPayload\(expanded && target\.payload === stashed \? expanded : target\.payload, target\.name\);/);
+});
