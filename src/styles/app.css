@@ -154,8 +154,10 @@ input, select { font-family: inherit; }
 .ge-tier-group[data-tier="advanced"] { --tier-fg: var(--color-tier-advanced); --tier-bg: var(--color-tier-advanced-bg); }
 .ge-tier-cap { font-size: var(--font-size-xs); font-weight: 600; line-height: 1; padding: 3px 5px; border-radius: 4px; white-space: nowrap;
   color: var(--tier-fg); background: var(--tier-bg); }
-.ge-tool-btn[data-tier] { box-shadow: inset 0 3px 0 var(--tier-fg); }
-.ge-tool-btn[data-tier].active { box-shadow: inset 0 3px 0 var(--tier-fg), inset 0 -2px 0 var(--color-accent-dark); }
+/* TASKS.csv #3902 — the bar is one fifth of the tab's height (0.5em of a 2.5em = 30 px tab at 12 px text), written in em so it grows
+   with larger text; it replaced the 3 px stripe of #3890 */
+.ge-tool-btn[data-tier] { box-shadow: inset 0 0.5em 0 var(--tier-fg); }
+.ge-tool-btn[data-tier].active { box-shadow: inset 0 0.5em 0 var(--tier-fg), inset 0 -2px 0 var(--color-accent-dark); }
 /* TASKS.csv #449 — at 1024 px the toolbar measured 1,189 px wide: the page scrolled sideways and Export
    PDF sat off-screen (1024-1366 px is common on budget laptops). Below 1280 px: tighter buttons, and the
    project/export actions show icons only (their names stay in title + aria-label). */

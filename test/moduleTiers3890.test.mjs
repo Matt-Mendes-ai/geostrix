@@ -15,7 +15,7 @@ const app = rd("src/App.jsx");
 // the MODULES entries as App.jsx writes them, in order
 const MODULES = [...app.matchAll(/\{ id: "([a-z]+)", label: "([^"]+)", icon: \w+(?:, tip: "[^"]+")?(?:, tier: "([a-z]+)")? \}/g)].map((m) => ({ id: m[1], label: m[2], tier: m[3] }));
 
-test("every module has a tier; Basic is StrixViewer, Maps, Layout", () => {
+test("every module has a tier; Basic is StrixViewer, Maps, Layout (3D Modelling stays Advanced: Matt, #3902)", () => {
   assert.equal(MODULES.length, 9);
   assert.deepEqual(MODULES.filter((m) => !TIERS.includes(m.tier)).map((m) => m.id), []);
   assert.deepEqual(MODULES.filter((m) => m.tier === "basic").map((m) => m.id), ["viewer", "maps", "layout"]);
@@ -68,6 +68,21 @@ test("the tier tokens: in app.css and theme.js alike, 3:1 against the bar and th
     assert.ok(contrast(tok(`tier-${t}`), selected) >= 3, `${t} stripe on the selected tab`);
     assert.ok(contrast(tok(`tier-${t}`), tok(`tier-${t}-bg`)) >= 4.5, `${t} caption text`);
   }
-  assert.match(css, /\.ge-tool-btn\[data-tier\] \{ box-shadow: inset 0 3px 0 var\(--tier-fg\); \}/);
-  assert.match(css, /\.ge-tool-btn\[data-tier\]\.active \{ box-shadow: inset 0 3px 0 var\(--tier-fg\), inset 0 -2px 0 var\(--color-accent-dark\); \}/);
+  assert.match(css, /\.ge-tool-btn\[data-tier\] \{ box-shadow: inset 0 0\.5em 0 var\(--tier-fg\); \}/); // #3902: one fifth of the 2.5em (30 px) tab, in em
+  assert.match(css, /\.ge-tool-btn\[data-tier\]\.active \{ box-shadow: inset 0 0\.5em 0 var\(--tier-fg\), inset 0 -2px 0 var\(--color-accent-dark\); \}/);
+});
+
+test("#3902 / #3903: each tooltip starts with its tier; the switch reads Basic tools / All tools on the same stored values", () => {
+  const tips = [...app.matchAll(/\{ id: "([a-z]+)", label: "[^"]+", icon: \w+, tip: "([^"]+)", tier: "([a-z]+)" \}/g)].map((m) => ({ id: m[1], tip: m[2], tier: m[3] }));
+  assert.equal(tips.length, 8); // every shown tab (Mine Design, switched off, has none)
+  for (const t of tips) assert.ok(t.tip.startsWith(`${TIER_CAPTION[t.tier]}: `), t.id);
+  assert.match(app, /aria-pressed=\{uiMode === "simple"\} onClick=\{\(\) => setUiMode\("simple"\)\}>\{tr\("Basic tools"\)\}<\/button>/);
+  assert.match(app, /aria-pressed=\{uiMode === "advanced"\} onClick=\{\(\) => setUiMode\("advanced"\)\}>\{tr\("All tools"\)\}<\/button>/);
+  assert.match(rd("src/lib/uiMode.js"), /geostrix\.uiMode/);
+  for (const lang of ["es", "pt", "fr", "ar"]) {
+    const d = JSON.parse(rd(`src/locales/${lang}.json`));
+    for (const k of [...tips.map((t) => t.tip), "Basic tools", "All tools"]) assert.ok(d[k], `${lang}: ${k}`);
+    // the translated tooltip starts with the translated tier caption
+    for (const t of tips) assert.ok(d[t.tip].startsWith(d[TIER_CAPTION[t.tier]]), `${lang}: ${t.id}`);
+  }
 });
