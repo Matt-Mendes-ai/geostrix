@@ -56,5 +56,5 @@ test("#3869 (#3841) a gap inside the cover leaves the hole out as an unlogged st
 
 test("#3869 (#3842) the Geochem sample import's notice says where a Strike / Dip column goes", () => {
   assert.match(read("../src/modules/GeochemModule.jsx"), /const sampleStruct = structureRowsFromSamples\(rows\);/);
-  hasKeys(["{n} sample(s) carry a Strike and a Dip: Surface Geology > Outcrop structures > 'Add the samples with a strike and dip as structures' reads them as outcrop measurements."]);
+  hasKeys(["{n} sample(s) carry a Strike and a Dip: Geological Mapping > Outcrop structures > 'Add the samples with a strike and dip as structures' reads them as outcrop measurements."]);
 });

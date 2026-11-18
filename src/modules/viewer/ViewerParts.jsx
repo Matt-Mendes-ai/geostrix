@@ -284,7 +284,7 @@ const popoverHeader = { display: "flex", alignItems: "center", justifyContent: "
 // unit polygons drawn in the app, so a geology map can be made here and Model it can use it.
 export function SurfaceRibbon({ show, paneProps, onStereonet, onModelIt, mapPolygons = true, identifyOn, onToggleIdentify, interpretOpen, onInterpret, onPolygons, onStyleSamples, sampleCount = 0 }) {
   return (
-    <Ribbon show={show} label="Surface geology tools">
+    <Ribbon show={show} label="Geological Mapping tools">
       <RibbonGroup label="Geological mapping">
         <RibbonButton icon={MapIcon} label="Geology map" tone="data" title="Geology map layers (GeoPackage / shapefile / MapInfo TAB): import, colour by unit, drape on the terrain" {...paneProps("sgMaps")} />
         <RibbonButton icon={Compass} label="Outcrop structures" tone="data" title="Outcrop structure measurements (CSV / MapInfo points): bedding, foliation, faults, veins" {...paneProps("sgStructs")} />

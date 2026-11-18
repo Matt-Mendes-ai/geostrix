@@ -1239,7 +1239,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const tie = tieOf(project); // #2587
       if (tie) await getProj4Def(Number(tie.epsg)); // a registry code loads on demand (#834)
       const { polylines: read, closedFlags, failed, partNames, featureOf, attributes } = layersToBoundaryPolylines(layers, project?.epsg, reprojectXY, tie ? (x, y, from) => fileToLocal(tie, x, y, from) : null); // closedFlags: #1760; partNames: #1767
-      if (!read.length) throw new Error(failed ? tr("Coordinates could not be converted to EPSG:{v}.", { v: project?.epsg }) : tr("No lines or polygons found in this file (GPX waypoints and GeoJSON points are imported as a map layer in Surface Geology)."));
+      if (!read.length) throw new Error(failed ? tr("Coordinates could not be converted to EPSG:{v}.", { v: project?.epsg }) : tr("No lines or polygons found in this file (GPX waypoints and GeoJSON points are imported as a map layer in Geological Mapping)."));
       // TASKS.csv #3341 (Galore Creek review) — a GeoJSON in project metres with no 'crs' member was taken as the project CRS (#1757: its numbers
       // are not degrees) while the note said its longitude / latitude was reprojected. The note says what was done: not degrees -> taken as the
       // project CRS, or placed from the Source CRS chosen in the pane, as a .shp with no .prj; a 'crs' member naming a code -> read in it.
@@ -1264,7 +1264,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       // TASKS.csv #2122 (review #2013, Woodjam) — points are not a boundary or a claim: 8 collars became an empty '0 part(s)' boundary,
       // 691 an empty 'Active' claim of 0 ha
       if (!r.polylines.length) throw new Error(parsed.geomType === "point"
-        ? tr("it holds points, not lines or polygons: import collars in the 3D View, samples in Geochem, or any points as a map layer in Surface Geology.")
+        ? tr("it holds points, not lines or polygons: import collars in the 3D View, samples in Geochem, or any points as a map layer in Geological Mapping.")
         : tr("no lines or polygons were found in it."));
       if (name.endsWith(".shp") && !parts.prj && !parsed.prjWkt && !r.mineGrid /* #2586 */ && !boundarySource /* #2684 */) r.note = tr("no .prj was read with it (select the .zip, or the .prj with the .shp): the coordinates were taken as EPSG:{dst}, check where it lies", { dst: project?.epsg });
       return r;

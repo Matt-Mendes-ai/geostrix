@@ -609,7 +609,7 @@ export default [
       sample: "Perk-Rocky",
       steps: [
         "File > Open Sample Project > Perk-Rocky (surface mapping, terrain, no holes).",
-        "Open 3D Modelling > Model from map (or Surface Geology > Model it).",
+        "Open 3D Modelling > Model from map (or Geological Mapping > Model it).",
         "Choose PR-Litho_interpV3 as Map with Litho_code as Unit field, and tick the bedding measurements under Orientations from.",
         "Choose PR-Str_interp under Faults and check the dips of the two thrust faults.",
         "Open Why this order and check each contact; set the diorites to the intrusion role if that is your reading.",

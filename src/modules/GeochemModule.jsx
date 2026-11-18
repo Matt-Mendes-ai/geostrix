@@ -1192,7 +1192,7 @@ export default function GeochemModule() {
     // TASKS.csv #3869 (#3842) — a sample file that carries a Strike and a Dip says where those readings can go: Surface Geology reads them as outcrop structures
     const sampleStruct = structureRowsFromSamples(rows);
     const extra = [
-      sampleStruct ? tr("{n} sample(s) carry a Strike and a Dip: Surface Geology > Outcrop structures > 'Add the samples with a strike and dip as structures' reads them as outcrop measurements.", { n: sampleStruct.n.toLocaleString() }) : null,
+      sampleStruct ? tr("{n} sample(s) carry a Strike and a Dip: Geological Mapping > Outcrop structures > 'Add the samples with a strike and dip as structures' reads them as outcrop measurements.", { n: sampleStruct.n.toLocaleString() }) : null,
       fbTotal ? tr("{n} sample(s) took the fallback medium ({medium}) because their type is not one the app reads: {list}.", { n: fbTotal.toLocaleString(), medium: defaultMedium, list: [...fbCount].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([w, n]) => `${w} ${n.toLocaleString()}`).join(", ") }) : null, // #3731
       surfOx.length ? tr("Oxide columns stored as the element, in element %: {list}. Labels, colours and Identify show the element; the diagrams convert back to oxides.", { list: surfOx.join(", ") }) : null, // #2565
       surfKept.length ? tr("Oxide columns kept as the oxide, as the project stores them: {list}.", { list: surfKept.map(({ e, ox }) => `${e.header} → ${ox.symbol} (% ${ox.oxide})`).join(", ") }) : null, // #2957
@@ -1214,7 +1214,7 @@ export default function GeochemModule() {
     ].filter(Boolean).join(" ");
     if (sampleDates.ambiguous.length) setNotices((p) => [...p, tr("{fileName}: {cols} kept as written: every date there could be day/month or month/day.", { fileName: modal.fileName, cols: sampleDates.ambiguous.join(", ") })]); // #3200, as collars (#3075)
     const back = goBackAfterSurface(); // #3046 (1) — the notice says where the samples are seen
-    setNotices((p) => [...p, back ? notice(chosen.length === 1 ? "Loaded {rows} surface samples (1 element): back on the Surface Geology tab, where they are drawn.{v}" : "Loaded {rows} surface samples ({chosen} elements): back on the Surface Geology tab, where they are drawn.{v}", { rows: rows.length, chosen: chosen.length, v: extra ? " " + extra : "" })
+    setNotices((p) => [...p, back ? notice(chosen.length === 1 ? "Loaded {rows} surface samples (1 element): back on the Geological Mapping tab, where they are drawn.{v}" : "Loaded {rows} surface samples ({chosen} elements): back on the Geological Mapping tab, where they are drawn.{v}", { rows: rows.length, chosen: chosen.length, v: extra ? " " + extra : "" })
       : notice(chosen.length === 1 ? "Loaded {rows} surface samples (1 element). Switch to 3D View to see them.{v}" : "Loaded {rows} surface samples ({chosen} elements). Switch to 3D View to see them.{v}", /* #2201 */ { rows: rows.length, chosen: chosen.length, v: extra ? " " + extra : "" })]);
     setSurfaceModal(null);
   };

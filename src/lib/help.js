@@ -87,7 +87,7 @@ export const PANE_HELP = {
 };
 
 // The order the contents list shows the areas in
-export const HELP_AREAS = ["Getting started", "Geophysics", "Maps", "Mine Design", "3D Modelling", "3D View", "Geochem", "Layout", "Surface Geology", "Targeting"];
+export const HELP_AREAS = ["Getting started", "Geophysics", "Maps", "Mine Design", "3D Modelling", "3D View", "Geochem", "Layout", "Geological Mapping", "Targeting"];
 
 export const helpIdForPane = (title) => PANE_HELP[title] || null;
 

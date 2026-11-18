@@ -76,7 +76,7 @@ const MODULES = [
   { id: "viewer", label: "3D View", icon: Box },
   // TASKS.csv #820 — Matt: "a new tab named Surface Geology ... the mapping workflow in this new tab. I'm thinking of eventually
   // expanding to soils with anomaly detection". The 3D view in a "surface" mode: geology maps, outcrop structures.
-  { id: "surface", label: "Surface Geology", icon: Compass },
+  { id: "surface", label: "Geological Mapping", icon: Compass },
   { id: "modelling", label: "3D Modelling", icon: Layers3 },
   { id: "geochem", label: "Geochem", icon: FlaskConical },
   { id: "geophysics", label: "Geophysics", icon: Radio },

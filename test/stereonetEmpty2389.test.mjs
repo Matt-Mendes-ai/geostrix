@@ -11,7 +11,7 @@ test("no data from either source: the net says where it comes from", () => {
   assert.match(src, /const noData = !downholePicks\.length && !surfacePicks\.length;/);
   assert.match(src, /noData \? tr\("No structure picks or outcrop measurements yet"\)/);
   assert.match(src, /\{noData && <text x=\{CX\} y=\{CY \+ 12\}>\{tr\("Downhole: 3D View › Add layer › Structure planes\."\)\}/);
-  assert.match(src, /\{noData && <text x=\{CX\} y=\{CY \+ 28\}>\{tr\("Outcrop: Surface Geology › Surface structures\."\)\}/);
+  assert.match(src, /\{noData && <text x=\{CX\} y=\{CY \+ 28\}>\{tr\("Outcrop: Geological Mapping › Surface structures\."\)\}/);
 });
 
 test("no mean-orientation line when there is nothing at all, Export still disabled", () => {
@@ -22,7 +22,7 @@ test("no mean-orientation line when there is nothing at all, Export still disabl
 test("the names it points at are the app's own", () => {
   const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
   assert.match(app, /label: "3D View"/);
-  assert.match(app, /label: "Surface Geology"/);
+  assert.match(app, /label: "Geological Mapping"/);
   const surf = readFileSync(new URL("../src/components/SurfaceMappingPanel.jsx", import.meta.url), "utf8");
   assert.match(surf, /tr\("Surface structures"\)/);
 });

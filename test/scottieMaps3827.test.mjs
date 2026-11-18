@@ -86,7 +86,7 @@ test("#3830 samples far from the drilling do not set Fit; they are counted for t
 
 test("#3833 the drop answer says what the plan reads and where an X Y Z table goes", () => {
   assert.match(read("../src/modules/RasterModule.jsx"), /An X Y Z point table \(\.xyz, \.tx\) goes to Geophysics › Point survey, or save it as \.csv with a header line/);
-  hasKeys(["Dropped on the map: rasters (.tif, .gxf, .grd), CSV tables and shapefile / GeoJSON / KML layers are read here. {names}: not read here. An X Y Z point table (.xyz, .tx) goes to Geophysics › Point survey, or save it as .csv with a header line to add it here as points; Boundaries, Terrain, Web layers or Surface Geology take the other formats."]);
+  hasKeys(["Dropped on the map: rasters (.tif, .gxf, .grd), CSV tables and shapefile / GeoJSON / KML layers are read here. {names}: not read here. An X Y Z point table (.xyz, .tx) goes to Geophysics › Point survey, or save it as .csv with a header line to add it here as points; Boundaries, Terrain, Web layers or Geological Mapping take the other formats."]);
 });
 
 test("#3836 the KMZ writes angles to two decimals, the credit once, and a sample's own fields", () => {

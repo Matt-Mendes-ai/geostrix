@@ -116,7 +116,7 @@ export default [
   },
   {
     id: "unit-polygons",
-    area: "Surface Geology",
+    area: "Geological Mapping",
     title: "Unit polygons",
     related: ["interpretation-lines", "geology-map", "map-layers"],
     summary: "Draws the outline of a map unit by clicking its corners in the 3D view, usually in a top view over the terrain, an orthophoto or a geophysics image. The polygons are a geology map layer with a unit field, drawn in GeoStrix rather than imported, so Model it can build a 3D model from them.",
@@ -140,7 +140,7 @@ export default [
       sample: "Perk-Rocky",
       steps: [
         "File > Open Sample Project > Perk-Rocky (geological mapping, no drillholes).",
-        "On the Surface Geology tab, press Unit polygons (Draw) and turn the view to a top view.",
+        "On the Geological Mapping tab, press Unit polygons (Draw) and turn the view to a top view.",
         "Choose New layer…, type the unit's name, press Draw a polygon and click the corners of one unit; double-click to close it.",
         "Repeat for the next unit; Show, style or export the layer under Maps > Map layers.",
         "Press Model it to build a 3D model from the drawn map and the outcrop measurements.",

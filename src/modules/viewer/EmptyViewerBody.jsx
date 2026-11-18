@@ -8,7 +8,7 @@ import { tx } from "../../lib/i18nRich.js";
 export default function EmptyViewerBody({ mode }) {
   if (mode === "surface") return (
     <>
-      <div style={{ marginBottom: 8 }}>{tx("This is the Surface Geology tab: a geological map (polygons and lines from a shapefile, GeoPackage, KML or DXF) and outcrop structure measurements, drawn in 3D over the terrain and the drilling.", {})}</div>
+      <div style={{ marginBottom: 8 }}>{tx("This is the Geological Mapping tab: a geological map (polygons and lines from a shapefile, GeoPackage, KML or DXF) and outcrop structure measurements, drawn in 3D over the terrain and the drilling.", {})}</div>
       <div style={{ marginBottom: 12 }}>{tx("Use {map} and {structures} on the ribbon, or drag the files onto this view. Surface samples come in through {geochem}; a terrain from {maps} lets the map and the measurements sit on the ground.", { map: <b>{tr("Geology map")}</b>, structures: <b>{tr("Outcrop structures")}</b>, geochem: <b>{tr("Geochem")}</b>, maps: <b>{tr("Maps > Terrain")}</b> })}</div>
     </>
   );
