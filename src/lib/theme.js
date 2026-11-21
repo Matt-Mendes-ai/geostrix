@@ -167,6 +167,11 @@ export const colors = {
   // Misc surfaces
   hoverBg: "#eef1f5",
   tooltipBg: "#dde1e6",
+
+  // TASKS.csv #3947 — the terrain's default colour in the 3D View, the Maps hillshade's grey for flat ground (lib/terrainColour.js), and the
+  // ground line of a section (4.5:1 on white)
+  terrain: "#b4b4b4",
+  terrainLine: "#767676",
 };
 
 // TASKS.csv #305 — TYPE SCALE, the JS mirror of the `--font-size-*` custom properties declared on

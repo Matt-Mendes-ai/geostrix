@@ -80,7 +80,7 @@ test("the terrain: thinned, holes left open, every triangle facing up; a generat
     assert.ok((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]) > 0);
   }
   assert.equal(t.xyz[1], 6200300); // row 0 is the north edge
-  assert.equal(t.color, "#8a7f68"); // the 3D View's terrain colour
+  assert.equal(t.color, "#b4b4b4"); // the 3D View's terrain colour (#3947: the Maps hillshade's grey)
   const big = terrainMesh({ bbox: [0, 0, 1000, 1000], gridW: 1201, gridH: 1201, elevations: new Float64Array(1201 * 1201).fill(5) });
   assert.equal(big.thinnedBy, 4); assert.equal(big.xyz.length / 3, 301 * 301);
   const s = surfaceMesh({ vertices: [0, 0, 0, 1, 0, 0, 0, 1, 0], indices: [0, 1, 2], color: 0x336699, opacity: 0.5 });

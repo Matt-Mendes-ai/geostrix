@@ -69,6 +69,9 @@
   --color-warn-text-strong: #6b4e20;
   --color-hover-bg: #eef1f5;
   --color-tooltip-bg: #dde1e6;
+  /* TASKS.csv #3947 — the terrain's default colour in 3D: the Maps hillshade's grey for flat ground (lib/terrainColour.js); its line on a section */
+  --color-terrain: #b4b4b4;
+  --color-terrain-line: #767676;
 
   /* TASKS.csv #305 — TYPE SCALE. Second axis of the same design system the colors above established,
      and deliberately built on the same mechanism (custom properties on :root, mirrored in

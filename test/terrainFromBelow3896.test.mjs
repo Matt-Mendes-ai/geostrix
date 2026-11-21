@@ -73,11 +73,11 @@ test("wired: single-sided terrain and drape materials, the skirt hidden from bel
   const sb = readFileSync(new URL("../src/lib/viewer/sceneBuilders.js", import.meta.url), "utf8");
   const lt = readFileSync(new URL("../src/lib/viewer/lodTerrain.js", import.meta.url), "utf8");
   const ld = readFileSync(new URL("../src/lib/viewer/lodDrape.js", import.meta.url), "utf8");
-  assert.equal((sb.match(/color: terrain\.color \|\| "#8a7f68", side: THREE\.FrontSide/g) || []).length, 2, "both terrain meshes");
+  assert.equal((sb.match(/color: terrainColour\(terrain\), side: THREE\.FrontSide/g) || []).length, 2, "both terrain meshes"); // the colour: #3947
   assert.match(sb, /opacity: r\.opacity \?\? 0\.85, side: THREE\.FrontSide/); // raster drapes
   assert.match(sb, /opacity: l\.opacity \?\? 0\.6, side: THREE\.FrontSide/); // map-layer drapes
   assert.match(sb, /new THREE\.MeshBasicMaterial\(\{ map: texture, side: THREE\.DoubleSide, transparent: true, opacity: im\.opacity \?\? 1(, alphaTest: [\d.]+)? \}\)/, "the georeferenced section image keeps both sides");
-  assert.match(lt, /color: terrain\.color \|\| "#8a7f68", side: THREE\.FrontSide/);
+  assert.match(lt, /color: terrainColour\(terrain\), side: THREE\.FrontSide/);
   assert.match(lt, /opacity: ov\.opacity, side: THREE\.FrontSide/);
   assert.match(lt, /t\.ground\.geometry\.setDrawRange\(0, cameraBelow\(camera, t\.minY\) \? t\.gridTris : Infinity\);/);
   assert.match(ld, /opacity: raster\.opacity \?\? 0\.85, side: THREE\.FrontSide/);

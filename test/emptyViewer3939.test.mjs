@@ -32,7 +32,7 @@ test("#3939 the diagram: tokens only, text in the size tokens (no px font sizes)
   assert.doesNotMatch(d, /<text\b/, "no SVG text: every word is HTML at a token size, so never under the 10 px step");
   assert.match(d, /dir="ltr"/);
   // the labels each card hands it are translated
-  const users = ["../src/modules/viewer/EmptyViewerBody.jsx", "../src/modules/GeochemModule.jsx", "../src/modules/GeophysicsModule.jsx", "../src/modules/RasterModule.jsx"].map(read);
+  const users = ["../src/modules/viewer/EmptyViewerBody.jsx", "../src/modules/GeochemModule.jsx", "../src/modules/GeophysicsModule.jsx", "../src/modules/MapsModule.jsx"].map(read); // #3948: Maps' card, not RasterModule's (never shown, deleted)
   const keys = users.flatMap((u) => [...u.matchAll(/<DropDiagram[\s\S]*?\/>/g)].flatMap((m) => [...m[0].matchAll(/tr\("([^"]+)"\)/g)].map((k) => k[1])));
   assert.ok(keys.includes("Drag your collar file here to start.") && keys.includes("Drop your collar file here") && keys.includes("Your file needs these four columns"));
   assert.ok(users.every((u) => /<DropDiagram /.test(u)), "every empty card opens with its picture");
