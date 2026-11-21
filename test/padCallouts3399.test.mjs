@@ -50,7 +50,7 @@ test("the declutter sees a callout's whole box, up and to the right of its corne
   syncHoleLabels(g, anchors, "hole_id", make);
   const cam = new THREE.OrthographicCamera(-100, 100, 100, -100, 0.1, 1000);
   cam.up.set(0, 0, -1); cam.position.set(0, 500, 0); cam.lookAt(0, 0, 0); cam.updateMatrixWorld(); cam.updateProjectionMatrix();
-  const [box, plain] = labelBoxes(g, cam, 200, 200);
+  const [box, plain] = labelBoxes(g, cam, 200, 200, 16); // 16 px labels (a capture's size; on screen it follows the text size, #3900)
   assert.deepEqual([box.w, box.h], [16 * 3.5 * 2, 16 * 3.5]);
   const corner = g.children[0].position.clone().project(cam);
   assert.ok(Math.abs(box.x - (corner.x * 100 + box.w / 2)) < 1e-6 && Math.abs(box.y - (corner.y * 100 + box.h / 2)) < 1e-6, "centred half a box right of and above its corner");

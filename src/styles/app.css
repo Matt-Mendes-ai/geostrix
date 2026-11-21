@@ -99,11 +99,14 @@
      DownholeStructurePlot, GeochemModule, lib/striplogSvg.js) keep literal numbers. A var() does not
      survive leaving the document, and in those files a font size is drawing geometry tuned against
      plot dimensions, not UI text. */
-  --font-size-xs: 10px;
-  --font-size-sm: 11px;
-  --font-size-base: 12px;
-  --font-size-lg: 14px;
-  --font-size-xl: 17px;
+  /* TASKS.csv #3900 — the text size setting (lib/textSize.js, the status bar's "Aa"): one bump, 0 / 2 / 4 px (Normal / Large / Larger),
+     added to each of the five steps; Large is the default. At bump 0 they are theme.js fontSizes, which figures keep. */
+  --text-bump: 2px;
+  --font-size-xs: calc(10px + var(--text-bump));
+  --font-size-sm: calc(11px + var(--text-bump));
+  --font-size-base: calc(12px + var(--text-bump));
+  --font-size-lg: calc(14px + var(--text-bump));
+  --font-size-xl: calc(17px + var(--text-bump));
   /* TASKS.csv #3892 (Matt, 2026-11-17: "make all titles in the side panel bold") — the weight of a side-panel section heading
      (.ge-section-label and the few headings written inline). Layer and hole names keep the normal weight. Mirrored in theme.js. */
   --font-weight-title: 700;
@@ -129,17 +132,19 @@ table, input[type="number"], .ge-status { font-variant-numeric: tabular-nums; }
 input, select { font-family: inherit; }
 
 .ge-app { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
+/* TASKS.csv #3900 — the Layout sheet (on screen and printed) and what it exports never follow the text size: its tokens stay at Normal */
+.ge-layout-page, .ge-print-root { --font-size-xs: 10px; --font-size-sm: 11px; --font-size-base: 12px; --font-size-lg: 14px; --font-size-xl: 17px; }
 
 /* toolbar */
 .ge-toolbar {
   display: flex; align-items: center; gap: 4px;
-  height: 44px; flex-shrink: 0;
+  height: calc(44px + 2.5 * var(--text-bump)); flex-shrink: 0; /* #3900 — the tab + 14: 44 / 49 / 54 */
   background: var(--color-bg); border-bottom: 1px solid var(--color-border);
   padding: 0 10px;
 }
 .ge-tool-btn {
   display: flex; align-items: center; gap: 6px;
-  height: 30px; padding: 0 12px;
+  height: 2.5em; padding: 0 12px; /* #3900 — 2.5 em of its own text, as its bar is 0.5 em: 30 / 35 / 40 px */
   background: transparent; border: 1px solid transparent; border-radius: 6px;
   color: var(--color-text-secondary); font-size: var(--font-size-base); cursor: pointer;
 }
@@ -179,6 +184,14 @@ input, select { font-family: inherit; }
 .ge-toolbar-compact .ge-tier-group, .ge-toolbar-snug .ge-tier-group { gap: 2px; } /* #3890 */
 .ge-toolbar-compact .ge-tool-label-opt { display: none; }
 .ge-toolbar-snug .ge-tool-label-first { display: none; } /* #1293 — the first to go, then all of them */
+/* TASKS.csv #3900 — three more steps for larger text (App.jsx TOOLBAR_FIT_STEPS): the tab names one step smaller (the tab keeps its height),
+   then the tabs without their icons, then the Basic / Advanced captions as their first letter (the word in the tooltip). Names stay as text. */
+.ge-toolbar-smalltabs .ge-tool-btn[data-tier] { font-size: var(--font-size-sm); height: calc(2.5 * var(--font-size-base)); }
+.ge-toolbar-smalltabs .ge-tool-btn[data-tier] { box-shadow: inset 0 calc(0.5 * var(--font-size-base)) 0 var(--tier-fg); }
+.ge-toolbar-smalltabs .ge-tool-btn[data-tier].active { box-shadow: inset 0 calc(0.5 * var(--font-size-base)) 0 var(--tier-fg), inset 0 -2px 0 var(--color-accent-dark); }
+.ge-toolbar-noicons .ge-tool-btn[data-tier] > svg { display: none; }
+.ge-toolbar-noicons .ge-tool-btn[data-tier] { padding: 0 6px; }
+.ge-toolbar-initials .ge-tier-cap-rest { display: none; }
 /* TASKS.csv #1199 — a geophysics result takes the main area from the empty-state card */
 .ge-geo-results { display: contents; color: var(--color-text); }
 .ge-geo-empty { display: contents; }
@@ -215,6 +228,8 @@ input, select { font-family: inherit; }
 .ge-ribbon[data-levels="1"] + .ge-ui-mode { visibility: hidden; }
 /* TASKS.csv #786 — interface language picker, at the end of the status bar */
 .ge-lang { align-self: center; flex: 0 0 auto; margin: 0 0 0 4px; padding: 1px 3px; font: inherit; font-size: var(--font-size-sm); color: var(--color-text-secondary); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 6px; cursor: pointer; }
+.ge-textsize { display: flex; align-items: center; gap: 3px; flex: 0 0 auto; margin-inline-start: 4px; font-weight: 600; color: var(--color-text-secondary); } /* #3900 — "Aa" and its list */
+.ge-textsize .ge-lang { margin: 0; font-weight: 400; }
 .ge-ribbon-group { display: flex; flex-direction: column; padding: 0 6px; border-inline-end: 1px solid var(--color-border); } /* inline-end: #1118 (the divider follows the reading direction) */
 .ge-ribbon-group:last-child { border-inline-end: none; }
 .ge-ribbon-items { display: flex; align-items: flex-start; gap: 1px; flex: 1; }
@@ -222,7 +237,7 @@ input, select { font-family: inherit; }
 .ge-ribbon-cell { position: relative; display: flex; align-items: flex-start; gap: 4px; }
 .ge-ribbon-btn {
   display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 3px;
-  min-width: 50px; max-width: 78px; height: 54px; padding: 5px 5px 2px;
+  min-width: calc(50px + 6 * var(--text-bump)); max-width: calc(78px + 6 * var(--text-bump)); height: calc(54px + 3 * var(--text-bump)); padding: 5px 5px 2px; /* #3900 */
   background: transparent; border: 1px solid transparent; border-radius: 5px;
   color: var(--color-text); font-size: var(--font-size-xs); line-height: 1.12; cursor: pointer; text-align: center;
 }
@@ -240,7 +255,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 button:disabled, select:disabled, input:disabled, textarea:disabled { opacity: 0.55; cursor: default; }
 .ge-ribbon-label { display: block; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 /* Small inline setting next to a ribbon button (e.g. the section buffer while drawing). */
-.ge-ribbon-inline { display: flex; flex-direction: column; justify-content: center; gap: 2px; height: 54px; font-size: var(--font-size-xs); color: var(--color-text-secondary); }
+.ge-ribbon-inline { display: flex; flex-direction: column; justify-content: center; gap: 2px; height: calc(54px + 3 * var(--text-bump)); font-size: var(--font-size-xs); color: var(--color-text-secondary); }
 /* Narrow windows (budget laptops, #449): tighter buttons. Measured at 1024 px: the widest ribbons (3D
    Modelling, Geochem) are 1012 px, so nothing scrolls — and the band must NOT get overflow:auto, which would
    clip the Grid / Figure / Themes popovers that drop below it. */
@@ -249,7 +264,7 @@ button:disabled, select:disabled, input:disabled, textarea:disabled { opacity: 0
   .ge-ribbon-group { padding: 0 3px; }
 }
 /* TASKS.csv #1187, #1293 — the first step when the band does not fit (Ribbon.jsx fit): every label kept, in narrower buttons. */
-.ge-ribbon-inner[data-snug] .ge-ribbon-btn { min-width: 40px; max-width: 62px; padding: 5px 1px 2px; }
+.ge-ribbon-inner[data-snug] .ge-ribbon-btn { min-width: calc(40px + 6 * var(--text-bump)); max-width: calc(62px + 6 * var(--text-bump)); padding: 5px 1px 2px; } /* #3900 */
 .ge-ribbon-inner[data-snug] .ge-ribbon-group { padding: 0 2px; }
 /* TASKS.csv #787 — a group the band could not fit (Ribbon.jsx fit): icon-only buttons, same height (no layout jump),
    and a caption that no longer sets the group's width (ellipsis, full text in its tooltip). */
@@ -302,13 +317,13 @@ button:disabled, select:disabled, input:disabled, textarea:disabled { opacity: 0
    rather than needing its own entry. */
 .ge-tabbar {
   display: flex; align-items: center; gap: 3px;
-  height: 30px; flex-shrink: 0; overflow-x: auto;
+  height: calc(30px + var(--text-bump)); flex-shrink: 0; overflow-x: auto; /* #3900 */
   background: var(--color-bg); border-bottom: 1px solid var(--color-divider);
   padding: 0 6px;
 }
 .ge-tab {
   display: flex; align-items: center; gap: 6px;
-  height: 22px; padding: 0 8px 0 9px; margin-top: 4px;
+  height: calc(22px + var(--text-bump)); padding: 0 8px 0 9px; margin-top: 4px; /* #3900: 22 / 24 / 26 */
   max-width: 180px;
   background: #f7f8fa; border: 1px solid #f0f1f3; border-bottom: none;
   border-radius: 6px 6px 0 0;
@@ -326,7 +341,7 @@ button:disabled, select:disabled, input:disabled, textarea:disabled { opacity: 0
 .ge-tab-close:hover { color: var(--color-danger-fg); background: #fdeceb; } /* #384 */
 .ge-tab-add {
   display: flex; align-items: center; justify-content: center;
-  width: 22px; height: 22px; margin-top: 4px; flex-shrink: 0;
+  width: calc(22px + var(--text-bump)); height: calc(22px + var(--text-bump)); margin-top: 4px; flex-shrink: 0;
   background: transparent; border: 1px solid transparent; border-radius: 5px;
   color: var(--color-text-muted); cursor: pointer;
 }
@@ -339,7 +354,7 @@ button:disabled, select:disabled, input:disabled, textarea:disabled { opacity: 0
 /* status bar */
 .ge-status {
   display: flex; align-items: center; gap: 16px;
-  height: 26px; flex-shrink: 0;
+  height: calc(26px + var(--text-bump)); flex-shrink: 0; /* #3900: 26 / 28 / 30 */
   background: var(--color-bg); border-top: 1px solid var(--color-border);
   padding: 0 12px; font-size: var(--font-size-sm); color: var(--color-text-secondary);
 }

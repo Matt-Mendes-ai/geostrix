@@ -14466,5 +14466,10 @@
   "Sample ids": "IDs de muestras",
   "Sample legend": "Leyenda de muestras",
   "A grey ring: no value ({n}).": "Un anillo gris: sin valor ({n}).",
-  "Other: {n} values ({count} samples)": "Otros: {n} valores ({count} muestras)"
+  "Other: {n} values ({count} samples)": "Otros: {n} valores ({count} muestras)",
+  "Text size": "Tamaño del texto",
+  "Text size — remembered on this computer. Figures, the Layout page and exports keep their sizes.": "Tamaño del texto: se recuerda en este equipo. Las figuras, la página de Lámina y las exportaciones mantienen sus tamaños.",
+  "Normal": "Normal",
+  "Large": "Grande",
+  "Larger": "Más grande"
 }

@@ -14466,5 +14466,10 @@
   "Sample ids": "IDs das amostras",
   "Sample legend": "Legenda das amostras",
   "A grey ring: no value ({n}).": "Um anel cinza: sem valor ({n}).",
-  "Other: {n} values ({count} samples)": "Outros: {n} valores ({count} amostras)"
+  "Other: {n} values ({count} samples)": "Outros: {n} valores ({count} amostras)",
+  "Text size": "Tamanho do texto",
+  "Text size — remembered on this computer. Figures, the Layout page and exports keep their sizes.": "Tamanho do texto: lembrado neste computador. As figuras, a página da Prancha e as exportações mantêm seus tamanhos.",
+  "Normal": "Normal",
+  "Large": "Grande",
+  "Larger": "Maior"
 }

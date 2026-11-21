@@ -37,7 +37,8 @@ test("App.jsx draws the groups with captions and stripes, and never folds them",
   assert.match(app, /groupModules\(MODULES, HIDDEN_TABS\)\.map\(\(g, gi\) => \(/);
   assert.match(app, /\{gi > 0 && <div className="ge-tool-sep ge-tier-sep" \/>\}/);
   assert.match(app, /<div className="ge-tier-group" role="group" aria-label=\{tr\(TIER_GROUP_LABEL\[g\.tier\]\)\} data-tier=\{g\.tier\}>/);
-  assert.match(app, /<span className="ge-tier-cap" aria-hidden="true">\{tr\(TIER_CAPTION\[g\.tier\]\)\}<\/span>/);
+  assert.match(app, /const cap = \[\.\.\.tr\(TIER_CAPTION\[g\.tier\]\)\];/); // #3900 — first letter and the rest, so the last fit step can keep the letter
+  assert.match(app, /<span className="ge-tier-cap" aria-hidden="true" title=\{cap\.join\(""\)\}><span>\{cap\[0\]\}<\/span><span className="ge-tier-cap-rest">\{cap\.slice\(1\)\.join\(""\)\}<\/span><\/span>/);
   assert.doesNotMatch(app, /uiMode === "simple"[^\n]*tier/); // no Simple-mode fold
   for (const lang of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(rd(`src/locales/${lang}.json`));

@@ -16,6 +16,7 @@ import { X } from "./icons.js";
 import { t } from "../lib/i18n.js"; // TASKS.csv #786 — every tab's ribbon labels, captions and tooltips translated here
 import { helpIdForPane, openHelp } from "../lib/help.js"; // TASKS.csv #1966 — the "?" of a tool pane
 import { noticeText, noticeLevel } from "../lib/notices.js"; // TASKS.csv #1602
+import { useTextSize } from "../lib/useTextSize.js"; // TASKS.csv #3900 — a new text size re-fits the band
 
 export const RibbonSlotContext = createContext(null);
 
@@ -40,6 +41,7 @@ export function Ribbon({ children, show = true, label = "Tools" }) {
   // until it fits. The band itself never scrolls (overflow would clip the popovers that drop below it, #449).
   // Re-measured only when the band's width or the set of buttons / labels changes, never on an ordinary re-render.
   const fitKey = useRef("");
+  const [textSizeNow] = useTextSize();
   const fit = () => {
     const el = innerRef.current;
     if (!el) return;
@@ -62,7 +64,7 @@ export function Ribbon({ children, show = true, label = "Tools" }) {
     if (!el) return;
     // TASKS.csv #2173 — no clientWidth here: reading it on every render forced a layout of the whole page each time the module re-rendered
     // (1.1 s while a 10,544-hole project opened). A width change is the ResizeObserver's job below; textContent needs no layout.
-    const key = `${mode}|${[...el.querySelectorAll(".ge-ribbon-label")].map((x) => x.textContent).join("|")}`;
+    const key = `${mode}|${textSizeNow}|${[...el.querySelectorAll(".ge-ribbon-label")].map((x) => x.textContent).join("|")}`;
     if (key !== fitKey.current) { fitKey.current = key; fit(); }
   });
   useEffect(() => {

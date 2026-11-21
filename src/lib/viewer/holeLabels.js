@@ -2,6 +2,8 @@
 // rebuild effect with holeLabelMode in its dependencies, so the Hole labels dropdown rebuilt every drillhole (190-360 ms and
 // ~24 MB of garbage on 19 holes, even switching labels off). The rebuild now records one anchor per hole and draws the
 // labels from them; a mode change redraws only the labels. anchors: [{ id, x, y, z (scene), zWorld, depth }].
+import { screenLabelPx } from "../textSize.js"; // TASKS.csv #3900 — the on-screen label height follows the text size; a capture passes 16
+
 export function holeLabelText(a, mode) {
   if (mode === "hole_id_z") return `${a.id} (${a.zWorld.toFixed(0)}m)`;
   if (mode === "hole_id_depth") return `${a.id} (${+a.depth.toFixed(1)}m)`; // #1259 — a driller's EOH: 438.5, not 439
@@ -72,7 +74,7 @@ export function labelsToShow(labels, gap = 2) {
 
 // The labels' screen boxes (pixels, centred) through `camera` on a width x height viewport; null behind the camera.
 // TASKS.csv #1770 — shared by the live declutter and the Layout capture's overlap count.
-export function labelBoxes(group, camera, width, height, labelPx = 16) {
+export function labelBoxes(group, camera, width, height, labelPx = screenLabelPx()) {
   const e = camera.matrixWorldInverse.elements, p = camera.projectionMatrix.elements;
   return group.children.map((sp) => {
     const { x, y, z } = sp.position;
@@ -106,7 +108,7 @@ export function dropFarLabels(boxes, ratio = FAR_DEPTH_RATIO, view = null) {
   if (!Number.isFinite(near)) return boxes;
   return boxes.map((b) => (b && b.d > near * ratio ? null : b));
 }
-export function withEveryLabel(group, camera, width, height, draw, labelPx = 16) {
+export function withEveryLabel(group, camera, width, height, draw, labelPx = screenLabelPx()) {
   const was = group ? group.children.map((sp) => sp.visible) : null;
   if (group) group.children.forEach((sp) => { sp.visible = true; });
   if (group?.visible) fillers.get(group)?.(group.children); // #3098 — every label is drawn for the capture
@@ -122,7 +124,7 @@ const idle = new WeakMap();
 // TASKS.csv #3098 — the declutter runs again without a camera move (the Holes list hid or showed holes: a lazy label shown again is drawn)
 export const redeclutter = (group) => { if (group) idle.delete(group); };
 // Call every frame; does its work once, IDLE_MS after the camera or the viewport last changed.
-export function declutterHoleLabels(group, camera, width, height, labelPx = 16, now = Date.now()) {
+export function declutterHoleLabels(group, camera, width, height, labelPx = screenLabelPx(), now = Date.now()) {
   const m = camera.matrixWorldInverse.elements, key = `${m.join()},${camera.zoom},${width},${height},${group.children.length}`;
   let st = idle.get(group);
   if (!st) idle.set(group, (st = { key: null, at: 0, done: false }));

@@ -14466,5 +14466,10 @@
   "Sample ids": "Identifiants des échantillons",
   "Sample legend": "Légende des échantillons",
   "A grey ring: no value ({n}).": "Un anneau gris : sans valeur ({n}).",
-  "Other: {n} values ({count} samples)": "Autres : {n} valeurs ({count} échantillons)"
+  "Other: {n} values ({count} samples)": "Autres : {n} valeurs ({count} échantillons)",
+  "Text size": "Taille du texte",
+  "Text size — remembered on this computer. Figures, the Layout page and exports keep their sizes.": "Taille du texte : mémorisée sur cet ordinateur. Les figures, la page de mise en page et les exports gardent leurs tailles.",
+  "Normal": "Normal",
+  "Large": "Grand",
+  "Larger": "Plus grand"
 }

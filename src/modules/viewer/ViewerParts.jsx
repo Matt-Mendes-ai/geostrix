@@ -33,6 +33,8 @@ import { useStore } from "../../lib/store.jsx"; // TASKS.csv #2517 — the colla
 import AssayStaleBadge from "../../components/AssayStaleBadge.jsx"; // TASKS.csv #3686
 import { requestModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #3914 — Add data hands files to the drop import
 import NumberInput from "../../components/NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
+import { useTextSize } from "../../lib/useTextSize.js"; // TASKS.csv #3900 — the hole rows grow with the text size
+import { TEXT_BUMP } from "../../lib/textSize.js";
 // TASKS.csv #1702 (review #1645, Copley) — "Intercepts" opened lithology boundary picks; to a geologist an intercept is "24 m @ 0.44 % Cu".
 // The button is now "Contact picks", and "Grade intercepts" opens Best intercepts (Geochem's tool) on the loaded assays from here.
 const BestIntercepts = lazyModal(() => import("../../components/BestIntercepts.jsx"));
@@ -371,6 +373,8 @@ export function OrphanHoles({ layers, assays, collars, onOpenStripLog }) {
 // HOLE_LIST_OVERSCAN on each side (lib/listWindow.js), between two spacers, so a page holds about 35 rows however many holes there are.
 // A row is HOLE_ROW_H px tall, always (one line, a long id is cut with an ellipsis): the window depends on it.
 export const HOLE_ROW_H = 26, HOLE_LIST_ROWS = 12, HOLE_LIST_OVERSCAN = 10;
+// TASKS.csv #3900 — HOLE_ROW_H is the row at Normal text; the list draws HOLE_ROW_H plus the text size's bump (26 / 28 / 30) and gives that to the window
+export const holeRowH = (size) => HOLE_ROW_H + (TEXT_BUMP[size] ?? 0);
 // TASKS.csv #3280 (11) (Galore review) — the list kept the collar file's order (CC23 after PD23): by hole id, numbers as numbers. The caller
 // hands a new array each render; the sorted one is kept while the same holes come in the same order (an O(n) check, not a sort per render).
 const ID_ORDER = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" }), idSorted = { src: [], out: [] };
@@ -383,7 +387,8 @@ export function holesById(holes) {
 export function HoleRowList({ holes: given, filterKey, visibleHoles, onToggle, onOpenStripLog, onSection, onZoom, onMenu }) {
   const holes = holesById(given);
   const boxRef = useRef(null);
-  const [view, setView] = useState({ top: 0, h: HOLE_LIST_ROWS * HOLE_ROW_H }); // h: the box's height, measured once it is drawn
+  const [ts] = useTextSize(), rowH = holeRowH(ts);
+  const [view, setView] = useState({ top: 0, h: HOLE_LIST_ROWS * rowH }); // h: the box's height, measured once it is drawn
   useEffect(() => { if (boxRef.current) boxRef.current.scrollTop = 0; setView((v) => (v.top ? { ...v, top: 0 } : v)); }, [filterKey]); // a new filter starts again from the top
   useEffect(() => {
     const el = boxRef.current;
@@ -393,15 +398,15 @@ export function HoleRowList({ holes: given, filterKey, visibleHoles, onToggle, o
     return () => ro.disconnect();
   }, []);
   // a re-render only when the first row in view changes, not on every scroll pixel
-  const onScroll = (e) => { const t = e.currentTarget.scrollTop; setView((v) => (Math.floor(v.top / HOLE_ROW_H) === Math.floor(t / HOLE_ROW_H) ? v : { ...v, top: t })); };
-  const { start, end, padTop, padBottom } = windowRange(view.top, HOLE_ROW_H, view.h, holes.length, HOLE_LIST_OVERSCAN);
+  const onScroll = (e) => { const t = e.currentTarget.scrollTop; setView((v) => (Math.floor(v.top / rowH) === Math.floor(t / rowH) ? v : { ...v, top: t })); };
+  const { start, end, padTop, padBottom } = windowRange(view.top, rowH, view.h, holes.length, HOLE_LIST_OVERSCAN);
   return (
     <div ref={boxRef} role="list" aria-label={tr("Holes list")} tabIndex={0} onScroll={onScroll}
-      style={{ maxHeight: `min(40vh, ${HOLE_LIST_ROWS * HOLE_ROW_H}px)`, overflowY: "auto", overscrollBehavior: "contain", scrollbarGutter: "stable" }}>
+      style={{ maxHeight: `min(40vh, ${HOLE_LIST_ROWS * rowH}px)`, overflowY: "auto", overscrollBehavior: "contain", scrollbarGutter: "stable" }}>
       {padTop > 0 && <div aria-hidden="true" style={{ height: padTop }} />}
       {holes.slice(start, end).map((c) => (
         <div role="listitem" key={c.hole_id}>
-          <HoleRow hole_id={c.hole_id} visible={visibleHoles[c.hole_id]} onToggle={onToggle} onOpenStripLog={onOpenStripLog} onSection={onSection} onZoom={onZoom} onMenu={onMenu} />
+          <HoleRow rowH={rowH} hole_id={c.hole_id} visible={visibleHoles[c.hole_id]} onToggle={onToggle} onOpenStripLog={onOpenStripLog} onSection={onSection} onZoom={onZoom} onMenu={onMenu} />
         </div>
       ))}
       {padBottom > 0 && <div aria-hidden="true" style={{ height: padBottom }} />}
@@ -409,9 +414,9 @@ export function HoleRowList({ holes: given, filterKey, visibleHoles, onToggle, o
   );
 }
 
-export const HoleRow = React.memo(function HoleRow({ hole_id, visible, onToggle, onOpenStripLog, onSection, onZoom, onMenu }) {
+export const HoleRow = React.memo(function HoleRow({ rowH = HOLE_ROW_H, hole_id, visible, onToggle, onOpenStripLog, onSection, onZoom, onMenu }) {
   return (
-    <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onToggle(hole_id)} onContextMenu={onMenu ? (e) => onMenu(e, hole_id) : undefined} /* #3681 — the row's menu */ style={{ display: "flex", alignItems: "center", gap: 8, height: HOLE_ROW_H, boxSizing: "border-box" /* #3893: the window needs one row height */, padding: "0 8px", borderRadius: 5, cursor: "pointer", fontSize: "var(--font-size-base)", color: visible === false ? "var(--color-text-disabled)" : "var(--color-text)" }}>
+    <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onToggle(hole_id)} onContextMenu={onMenu ? (e) => onMenu(e, hole_id) : undefined} /* #3681 — the row's menu */ style={{ display: "flex", alignItems: "center", gap: 8, height: rowH, boxSizing: "border-box" /* #3893: the window needs one row height */, padding: "0 8px", borderRadius: 5, cursor: "pointer", fontSize: "var(--font-size-base)", color: visible === false ? "var(--color-text-disabled)" : "var(--color-text)" }}>
       {visible === false ? <EyeOff size={12} /> : <Eye size={12} />}
       <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={hole_id}>{hole_id}</span>
       {onZoom && ( /* TASKS.csv #393 — zoom the 3D view to this hole */
