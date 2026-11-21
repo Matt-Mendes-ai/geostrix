@@ -264,6 +264,7 @@ import { useSavedCamera, applySavedCamera } from "./viewer/savedCamera.js"; // #
 import { decideLight, registerRenderer, lightDrawingNotice } from "../lib/viewer/lightDrawing.js"; // #3620
 import { partChoices, boundaryPart } from "../lib/boundaryParts.js"; // TASKS.csv #3234
 import { dipPrinted } from "../lib/dipText.js"; // TASKS.csv #3878
+import NumberInput from "../components/NumberInput.jsx"; // #3926
 const IdentifyPanel = React.lazy(() => import("../components/IdentifyPanel.jsx"));
 const UnitPolygonPane = React.lazy(() => import("../components/UnitPolygonPane.jsx")); // TASKS.csv #1439
 const SurfaceElementBasis = React.lazy(() => import("./viewer/SurfaceElementBasis.jsx")); // TASKS.csv #2627 / #2641
@@ -6177,8 +6178,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)" }}>
           <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Centre E")}<input value={typedSection.e} placeholder={tr("view centre") /* #3574 */} onChange={(e) => setTypedSection((s) => ({ ...s, e: e.target.value.replace(/[^0-9.\-]/g, "") }))} style={typedSectionInput} aria-label={tr("Section centre easting")} /></label>
           <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Centre N")}<input value={typedSection.n} placeholder={tr("view centre") /* #3574 */} onChange={(e) => setTypedSection((s) => ({ ...s, n: e.target.value.replace(/[^0-9.\-]/g, "") }))} style={typedSectionInput} aria-label={tr("Section centre northing")} /></label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Azimuth (°)")}<input type="number" min="0" max="360" value={typedSection.azimuth} onChange={(e) => setTypedSection((s) => ({ ...s, azimuth: e.target.value }))} style={typedSectionInput} aria-label={tr("Section azimuth")} /></label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Length (m)")}<input type="number" min="10" step="50" value={typedSection.length} onChange={(e) => setTypedSection((s) => ({ ...s, length: e.target.value }))} style={typedSectionInput} aria-label={tr("Section length")} /></label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Azimuth (°)")}<NumberInput allowEmpty min={0} max={360} value={typedSection.azimuth === "" ? null : typedSection.azimuth} onChange={(v) => setTypedSection((s) => ({ ...s, azimuth: v == null ? "" : String(v) }))} style={typedSectionInput} aria-label={tr("Section azimuth")} /></label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Length (m)")}<NumberInput allowEmpty min={10} step={50} value={typedSection.length === "" ? null : typedSection.length} onChange={(v) => setTypedSection((s) => ({ ...s, length: v == null ? "" : String(v) }))} style={typedSectionInput} aria-label={tr("Section length")} /></label>
         </div>
         <button onClick={openTypedSection} style={{ ...pBtn, marginBottom: 4 }} title={tr("Opens a vertical section along the azimuth, centred on the point, with the section tool's Buffer ({sectionCorridor} m). The scissors on each hole in the Holes list cut one in the plane of that hole.", { sectionCorridor })}><Scissors size={14} />{" "}{tr("Open section")}</button>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 12 }}>{tr("Buffer {sectionCorridor} m (set on the section tool). Scissors in the Holes list: a section through that hole.", { sectionCorridor })}</div>
@@ -6200,12 +6201,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <option value="horizontal">{tr("Horizontal (level plan)")}</option>
               </select>
               {slice3d.mode === "vertical" && (
-                <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Az")}{" "}<input type="number" min="0" max="180" value={slice3d.azimuth} onChange={(e) => setSlice3d((s) => ({ ...s, azimuth: ((Number(e.target.value) % 180) + 180) % 180 }))} style={{ width: 56 }} aria-label={tr("Slice azimuth")} />°</label>
+                <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Az")}{" "}<NumberInput value={slice3d.azimuth} onChange={(v) => setSlice3d((s) => ({ ...s, azimuth: ((v % 180) + 180) % 180 }))} style={{ width: 56 }} aria-label={tr("Slice azimuth")} />°</label>
               )}
             </div>
             <input type="range" min="0" max="1" step="0.002" value={slice3d.pos} onChange={(e) => setSlice3d((s) => ({ ...s, pos: Number(e.target.value) }))} aria-label={tr("Slice position")} />
             <Suspense fallback={null}><SlicePlaceRow slice3d={slice3d} setSlice3d={setSlice3d} ext={sliceExtent} origin={originRef.current} collars={collars} /></Suspense>{/* #3431 — by a hole or a coordinate */}
-            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Thickness")}{" "}<input type="number" min="0" step="5" value={slice3d.thickness} onChange={(e) => setSlice3d((s) => ({ ...s, thickness: Math.max(0, Number(e.target.value) || 0) }))} style={{ width: 64 }} aria-label={tr("Slice thickness")} /> m
+            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Thickness")}{" "}<NumberInput min={0} step={5} value={slice3d.thickness} onChange={(v) => setSlice3d((s) => ({ ...s, thickness: v }))} style={{ width: 64 }} aria-label={tr("Slice thickness")} /> m
               <span style={{ color: "var(--color-text-muted)" }}>{slice3d.thickness > 0 ? tr("slab") : tr("0 = everything beyond the cut")}</span>
             </label>
             <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>{sliceReadout}</div>
@@ -6217,9 +6218,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {paneHeader("Slice series (fence sections)", Rows3, "section")}{lineNote && <div style={miniField}>{lineNote}</div>}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Cuts the drilling into equal-width parallel sections at a fixed azimuth (the visible voxel / block models too when \"Also cover the visible block models\" is ticked, or when there are no drillholes) — each one added to the list below, ready to open individually. Includes the geophysics voxel slice automatically, same as any other section.")}</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>{/* #1258 */}
-          <label style={{ ...miniField, flex: 1 }}>{tr("Azimuth (°)")}<input type="number" min="0" max="359" step="1" value={sliceSeriesAzimuth} onChange={(e) => setSliceSeriesAzimuth(((Number(e.target.value) || 0) % 360 + 360) % 360)} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
+          <label style={{ ...miniField, flex: 1 }}>{tr("Azimuth (°)")}<NumberInput step={1} value={sliceSeriesAzimuth} onChange={(v) => setSliceSeriesAzimuth((v % 360 + 360) % 360)} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
           </label>
-          <label style={{ ...miniField, flex: 1 }}>{tr("Width (m)")}<input type="number" min="1" step="10" value={sliceSeriesWidth} onChange={(e) => setSliceSeriesWidth(Math.max(1, Number(e.target.value) || 50))} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
+          <label style={{ ...miniField, flex: 1 }}>{tr("Width (m)")}<NumberInput min={1} step={10} value={sliceSeriesWidth} onChange={(v) => setSliceSeriesWidth(v)} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
           </label>
           <button onClick={generateSliceSeries} style={{ ...pBtn, width: "auto", flex: "1 0 auto", marginBottom: 0, alignSelf: "flex-end", padding: "6px 10px" }} title={tr("Generate the slice series")}><Scissors size={14} />{" "}{tr("Generate")}</button>
         </div>
@@ -7033,7 +7034,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   {s.closure !== "closed" && !["unit_volume", "vein_solid", "explicit_wireframe"].includes(s.type) && ( // TASKS.csv #895 — an offset copy (open surfaces; an imported sheet too)
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }} title={tr("A copy of this surface moved by a distance: along its normal (a true thickness, positive = its upper side) or vertically. For example a hangingwall from a footwall plus the vein's width.")}>
                       <span style={{ flexShrink: 0 }}>{tr("Offset copy")}</span>
-                      <input type="number" step={1} value={offsetIn[s.id]?.d ?? ""} placeholder="m" onChange={(e) => setOffsetIn((p) => ({ ...p, [s.id]: { ...p[s.id], d: e.target.value } }))} style={{ ...smallSel, width: 56 }} aria-label={tr("Offset distance (m)")} />
+                      <NumberInput allowEmpty step={1} value={offsetIn[s.id]?.d === "" ? null : offsetIn[s.id]?.d ?? null} placeholder="m" onChange={(v) => setOffsetIn((p) => ({ ...p, [s.id]: { ...p[s.id], d: v == null ? "" : String(v) } }))} style={{ ...smallSel, width: 56 }} aria-label={tr("Offset distance (m)")} />
                       <select value={offsetIn[s.id]?.mode || "normal"} onChange={(e) => setOffsetIn((p) => ({ ...p, [s.id]: { ...p[s.id], mode: e.target.value } }))} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Offset direction")}>
                         <option value="normal">{tr("along its normal")}</option><option value="vertical">{tr("vertically")}</option>
                       </select>

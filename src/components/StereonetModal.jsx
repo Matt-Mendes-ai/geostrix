@@ -17,6 +17,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 import { stereonetFurniture } from "../lib/figureFurniture.js"; // TASKS.csv #1068
 import { betaReferenceCounts } from "../lib/coreOrientation.js"; // TASKS.csv #2055
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 const deg1 = (v) => (Number.isFinite(Number(v)) ? +Number(v).toFixed(1) : v); // TASKS.csv #1238 — alpha/beta picks carry full double precision
 
 // TASKS.csv #141 — stereonet QC for structure picks (Leapfrog-specialist audit finding: dip/azimuth
@@ -364,7 +365,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
                 </label>
                 {/* TASKS.csv #1444 — near-flat planes have no meaningful strike: on Silvertip the 14° bedding filled the strike rose */}
                 <label style={rowLabel} title={tr("Count only planes dipping at least this much: a near-flat plane's strike is poorly defined and can swamp a strike rose. 0 counts every plane.")}>{tr("Dips of at least (°)")}
-                  <input type="number" min="0" max="89" step="5" value={roseMinDip} onChange={(e) => setRoseMinDip(Math.max(0, Math.min(89, Number(e.target.value) || 0)))} style={sel} aria-label={tr("Minimum dip for the rose")} />
+                  <NumberInput min={0} max={89} step={5} value={roseMinDip} onChange={(v) => setRoseMinDip(v)} style={sel} aria-label={tr("Minimum dip for the rose")} />
                 </label>
               </>
             )}

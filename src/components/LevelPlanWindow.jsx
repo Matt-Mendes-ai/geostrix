@@ -15,6 +15,7 @@ import { usePrompt } from "./usePrompt.jsx"; // TASKS.csv #1779
 import { mergedPath, pathsByColour, dotsPath, segmentFinder, f1, dotsByColour, pointFinder } from "../lib/levelPlanDraw.js"; // dots: #3191 // f1: #3137 // TASKS.csv #2982
 import { planBuild, runSliced, hiddenPlanLayers } from "../modules/viewer/levelPlanBuild.js"; // TASKS.csv #3137 — the build, a slice at a time (loads with this window)
 import { hoverTitle } from "../lib/svgLazyTitle.js"; // TASKS.csv #2982 — titles made on hover, as the section window (#2210)
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 
 // TASKS.csv #525 — the LEVEL PLAN window: a horizontal section at an RL, at true scale with E / N axes, a scale bar
 // and a north arrow. What the plane z = RL cuts — and what lies in the slab RL ± half-width — comes from
@@ -273,10 +274,10 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
       <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 14, boxShadow: "0 12px 32px rgba(0,0,0,0.3)", maxWidth: "96vw", maxHeight: "94vh", overflow: "auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
           <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", color: "var(--color-text)" }}>{tr("Level plan")}</div>
-          <label style={ctrl}>{tr("RL (m)")}{" "}<input type="number" value={rl} onChange={(e) => setRl(e.target.value)} style={inp} aria-label={tr("Plan elevation (RL)")} /></label>
+          <label style={ctrl}>{tr("RL (m)")}{" "}<NumberInput allowEmpty value={rl === "" ? null : rl} onChange={(v) => setRl(v == null ? "" : String(v))} style={inp} aria-label={tr("Plan elevation (RL)")} /></label>
           <input type="range" min={Math.floor(zRange[0])} max={Math.ceil(zRange[1])} step={1} value={rl} onChange={(e) => setRl(e.target.value)} style={{ width: 160 }} aria-label={tr("Plan elevation slider")} />
           {leftOut > 0 && <span style={{ ...ctrl, color: "var(--color-warn-text)" }}>{tr("{n} hole(s) with a suspect collar elevation are outside this range (Data QC lists them)", { n: leftOut })}</span>}{/* #3029 */}
-          <label style={ctrl} title={tr("Hole runs, logs, assays and structures within this distance above and below the RL are drawn")}>{tr("± slab (m)")}{" "}<input type="number" min={0.1} step="any" value={half} onChange={(e) => setHalf(e.target.value)} style={{ ...inp, width: 56 }} aria-label={tr("Slab half-width")} /></label>
+          <label style={ctrl} title={tr("Hole runs, logs, assays and structures within this distance above and below the RL are drawn")}>{tr("± slab (m)")}{" "}<NumberInput min={0.1} value={half === "" ? null : half} onChange={(v) => setHalf(String(v))} style={{ ...inp, width: 56 }} aria-label={tr("Slab half-width")} /></label>
           {layerKeys.length > 0 && (
             <label style={ctrl} title={tr("The logs and assay elements shown in StrixViewer are offered here: turn one on there (Recovery %, Mag. susc., or an element under Assays) to colour the plan by it. A log read at a depth colours a pierce point by its reading nearest the RL in the slab.")}>{tr("Colour holes by")}<select value={activeLayer} onChange={(e) => { const v = e.target.value; if (hiddenLayers.some((h) => h.key === v)) setAlso([v]); setColourBy(v); }} style={{ ...inp, width: "auto" }} aria-label={tr("Colour holes by")}>
                 {layerKeys.map((k) => <option key={k} value={k}>{((data.intervals.find((iv) => iv.layer === k) || pointLogs.find((r) => r.layer === k))?.label || k).split(":")[0]}</option>)}

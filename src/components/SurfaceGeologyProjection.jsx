@@ -18,6 +18,7 @@ import InfoButton from "./InfoButton.jsx";
 import { extractMapContacts, STRUCTURE_CLASS_LABELS } from "../lib/mapLayers.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 
 const DEFAULT_CLASSES = ["bedding", "foliation", "contact", "cleavage"];
 
@@ -81,7 +82,7 @@ export default function SurfaceGeologyProjection({ mapLayers, surfaceStructures,
               <option key={c.key} value={c.key}>{labelFor(c.units[0])} | {labelFor(c.units[1])} — {c.lengthM >= 1000 ? `${(c.lengthM / 1000).toFixed(1)} km` : `${Math.round(c.lengthM)} m`}</option>
             ))}
           </select>
-          <div style={row} title={tr("How close two units' boundaries must be to count as touching. Hand-digitized maps rarely share vertices exactly.")}>{tr("Snap tolerance")}{" "}<input type="number" min={0.1} step={0.5} value={tolerance} onChange={(e) => setTolerance(e.target.value)} style={num} /> m
+          <div style={row} title={tr("How close two units' boundaries must be to count as touching. Hand-digitized maps rarely share vertices exactly.")}>{tr("Snap tolerance")}{" "}<NumberInput min={0.1} step={0.5} value={tolerance} onChange={(v) => setTolerance(String(v))} style={num} /> m
           </div>
 
           <div style={{ ...small, marginBottom: 4 }}>{tr("Dip from outcrop measurements of type:")}</div>
@@ -97,11 +98,11 @@ export default function SurfaceGeologyProjection({ mapLayers, surfaceStructures,
             })}
             {!allRows.length && <span style={small}>{tr("No surface structures imported — the typed dip below is used everywhere.")}</span>}
           </div>
-          <div style={row}>{tr("Search radius")}{" "}<input type="number" min={10} step={50} value={radius} onChange={(e) => setRadius(e.target.value)} style={num} /> m
+          <div style={row}>{tr("Search radius")}{" "}<NumberInput min={10} step={50} value={radius} onChange={(v) => setRadius(String(v))} style={num} /> m
           </div>
-          <div style={row} title={tr("Used wherever no chosen measurement lies within the search radius")}>{tr("Otherwise dip")}{" "}<input type="number" min={10} max={90} value={manualDip} onChange={(e) => setManualDip(e.target.value)} style={{ ...num, width: 46 }} />{tr("° toward")}{" "}<input type="number" min={0} max={359} value={manualDipDir} onChange={(e) => setManualDipDir(e.target.value)} style={{ ...num, width: 52 }} />°
+          <div style={row} title={tr("Used wherever no chosen measurement lies within the search radius")}>{tr("Otherwise dip")}{" "}<NumberInput min={10} max={90} value={manualDip} onChange={(v) => setManualDip(String(v))} style={{ ...num, width: 46 }} />{tr("° toward")}{" "}<NumberInput min={0} max={359} value={manualDipDir} onChange={(v) => setManualDipDir(String(v))} style={{ ...num, width: 52 }} />°
           </div>
-          <div style={row}>{tr("Depth below surface")}{" "}<input type="number" min={10} step={50} value={depth} onChange={(e) => setDepth(e.target.value)} style={num} /> m
+          <div style={row}>{tr("Depth below surface")}{" "}<NumberInput min={10} step={50} value={depth} onChange={(v) => setDepth(String(v))} style={num} /> m
           </div>
           <button
             onClick={() => onProject(settings(), contact, layer, chosenRows)}

@@ -30,6 +30,9 @@ import TopCutNote from "./TopCutNote.jsx"; // TASKS.csv #3794
 import { topCutCells, topCutRecord } from "../lib/topCutCells.js";
 import { stopeEconomicsSetup, stopeValue, stopeValueCells, NOT_INCLUDED } from "../lib/stopeEconomics.js"; // TASKS.csv #3797 — the optional economics
 import { currencyOf, withCurrency, moneyText } from "../lib/currency.js"; // TASKS.csv #3797 (b)
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+// TASKS.csv #3926 — NumberInput hands back a number (null when emptied); the handlers here read e.target.value, so it goes back to them as text
+const asEvent = (fn) => (v) => fn({ target: { value: v == null ? "" : String(v) } });
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
@@ -157,7 +160,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
   const econIndex = (ri) => { let n = ri; for (let li = 0; li < res.levels.length; li++) { if (n < res.levels[li].stopes.length) return [li, n]; n -= res.levels[li].stopes.length; } return [0, 0]; }; // the CSV row -> its level and stope
   const exportCsv = () => saveFile({ suggestedName: "stope_outlines.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(stopeRows(res, gradeUnitText(res.unit, res.element) === "g/t" ? "gpt" : res.unit /* #3801 (1) — grade_gpt, not grade_ppm, for gold */, res.alsoLabels || [], resMetal ? (mu, pre) => metalCells(mu, resMetal, pre) : null).map((r, ri) => ({ ...r, ...(res.econ ? stopeValueCells(res.econ.value, ...econIndex(ri), res.econ.currency) : {}) /* #3797 */, block_model: res.model, element: res.element || "" /* #2594 */, cutoff: res.inputs.cutoff, ...settingsCells() /* #3799 */, ...(res.topCutCells || {}) /* #3794 */, crs: crsCell(project) }))) });
   const line = (label, val) => <div style={row}><span>{label}</span><b>{val}</b></div>;
-  const field = (k, label, extra = {}) => <label style={row}>{label}<input type="number" min={0} step="any" value={f[k]} onChange={set(k)} style={num} {...extra} /></label>;
+  const field = (k, label, extra = {}) => <label style={row}>{label}<NumberInput allowEmpty min={0} value={f[k]} onChange={asEvent(set(k))} style={num} {...extra} /></label>;
   const g = (x) => (x == null ? "—" : gradeWithElement(x, res.unit, res.element)); // #2594
   const flat = useMemo(() => (res ? flatBodyCheck(res.levels, Number(res.inputs?.levelH)) : null), [res]); // #2438
 
@@ -174,7 +177,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
             {alsoCandidates.map((m) => { const id = m.id ?? m.name; return <label key={id} style={{ display: "flex", gap: 5, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={alsoIds.includes(id)} onChange={(e) => setAlsoIds((p) => (e.target.checked ? [...p, id] : p.filter((x) => x !== id)))} />{m.name}{m.property ? ` (${m.property})` : ""}</label>; })}
           </div></details>}{/* #3084 */}
         {pctOk
-          ? <label style={row}>{tr("Cut-off ({unit})", { unit: element })}<span style={{ display: "flex", gap: 4 }}><input type="number" min={0} step="any" value={f.cutoff} onChange={set("cutoff")} style={num} aria-label={tr("Cut-off")} /><select value={cutUnit.key} onChange={set("cutIn")} style={{ ...smallSel, width: 92 }} aria-label={tr("Unit of the cut-off")}>{cutUnits.map((u) => <option key={u.key} value={u.key}>{u.label}</option>)}</select>{/* #2666 */}</span></label>
+          ? <label style={row}>{tr("Cut-off ({unit})", { unit: element })}<span style={{ display: "flex", gap: 4 }}><NumberInput allowEmpty min={0} value={f.cutoff} onChange={asEvent(set("cutoff"))} style={num} aria-label={tr("Cut-off")} /><select value={cutUnit.key} onChange={set("cutIn")} style={{ ...smallSel, width: 92 }} aria-label={tr("Unit of the cut-off")}>{cutUnits.map((u) => <option key={u.key} value={u.key}>{u.label}</option>)}</select>{/* #2666 */}</span></label>
           : field("cutoff", unit ? tr("Cut-off ({unit})", { unit: element ? `${gradeUnitText(unit, element)} ${element}` : unit }) : tr("Cut-off"))}{/* #2111 — % for a ppm Cu model; g/t for a ppm Au one */}
         {element && cutV > 0 && gradeWithElement(cutV, unit, element, (x) => String(Number(x.toPrecision(4)))).includes("(") && <div style={{ ...note, marginTop: 0 }}>{tr("Cut-off: {g}", { g: gradeWithElement(cutV, unit, element, (x) => String(Number(x.toPrecision(4)))) })}</div>}{/* #2594 — 0.4645 % Li (1 % Li2O) */}
         {field("levelH", tr("Level interval (m)"), { title: tr("The height of each stope: the distance between sublevels. A column counts as ore on a level only where its blocks fill at least half of it."), placeholder: blockH ? String(blockH) : "" })}
@@ -206,7 +209,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
         {/* TASKS.csv #3797 (Matt's decision, 2026-11-16) — the optional Economics: revenue, cost and margin of the outlines, and a cut-off that carries the mining cost */}
         {model && eMetal && <details open={econTyped} style={{ marginTop: 6 }}><summary style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>{tr("Economics (optional)")}</summary>
           <label style={row} title={tr("The currency the typed prices and costs are in, printed by Pit shell, Nested pits, Pit design and Stope outlines. A label only: nothing is converted. Blank: $.")}>{tr("Currency (blank: $)")}<input type="text" maxLength={8} value={project?.currency || ""} placeholder="$" onChange={(e) => setProjectCurrency?.(e.target.value)} style={{ ...num, width: 64 }} aria-label={tr("Currency")} /></label>
-          <label style={row}>{tr("Price")}<span style={{ display: "flex", gap: 4 }}><input type="number" min={0} step="any" value={f.price} onChange={set("price")} style={num} aria-label={tr("Price")} /><select value={ePriceUnit} onChange={set("priceUnit")} style={{ ...smallSel, width: (ePrices || []).some(([, l]) => l.length > 6) ? 96 : 62 }} aria-label={tr("Price unit")}>{(ePrices || []).map(([k, l]) => <option key={k} value={k}>{withCurrency(l, cur)}</option>)}</select></span></label>
+          <label style={row}>{tr("Price")}<span style={{ display: "flex", gap: 4 }}><NumberInput allowEmpty min={0} value={f.price} onChange={asEvent(set("price"))} style={num} aria-label={tr("Price")} /><select value={ePriceUnit} onChange={set("priceUnit")} style={{ ...smallSel, width: (ePrices || []).some(([, l]) => l.length > 6) ? 96 : 62 }} aria-label={tr("Price unit")}>{(ePrices || []).map(([k, l]) => <option key={k} value={k}>{withCurrency(l, cur)}</option>)}</select></span></label>
           {field("recovery", tr("Recovery (%)"))}
           {field("miningCost", tr("Mining cost ({cur}/t)", { cur }), { title: tr("Per tonne of the diluted outline (the whole stope, not only the material above the cut-off).") })}
           {field("processingCost", tr("Processing cost ({cur}/t)", { cur }), { title: tr("Per tonne of the diluted outline, as the mining cost.") })}

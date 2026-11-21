@@ -89,6 +89,6 @@ test("wiring: the pickers name a kept oxide; Calc. element lists the oxide total
   const rd = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
   for (const f of ["GradeStatistics", "QAQCPanel", "CorrelationMatrix", "IsoconTool"]) assert.match(rd(`../src/components/${f}.jsx`), /elementOptionLabel\(/, f);
   const g = rd("../src/modules/GeochemModule.jsx");
-  assert.match(g, /const presets = oxTotal \? \[\.\.\.CALC_PRESETS, oxTotal\] : CALC_PRESETS;/);
+  assert.match(g, /const presets = \[\.\.\.CALC_PRESETS, \.\.\.\(oxTotal \? \[oxTotal\] : \[\]\)/);
   assert.match(g, /\{presets\.map\(\(p\) => <option key=\{p\.name\}/);
 });

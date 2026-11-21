@@ -14444,5 +14444,12 @@
   "Move to another line…": "Mover a otra línea…",
   "{name}: moved to its new section line.": "{name}: movida a su nueva línea de sección.",
   "This figure has no position to move.": "Esta figura no tiene una posición que mover.",
-  "The section's start and end points are the same — give two different points.": "El inicio y el fin de la sección son el mismo punto: indique dos puntos distintos."
+  "The section's start and end points are the same — give two different points.": "El inicio y el fin de la sección son el mismo punto: indique dos puntos distintos.",
+  "Colour samples by": "Colorear muestras por",
+  "their medium": "su medio",
+  "Size by value": "Tamaño según el valor",
+  "Sample ids": "IDs de muestras",
+  "Sample legend": "Leyenda de muestras",
+  "A grey ring: no value ({n}).": "Un anillo gris: sin valor ({n}).",
+  "Other: {n} values ({count} samples)": "Otros: {n} valores ({count} muestras)"
 }

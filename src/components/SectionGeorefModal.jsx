@@ -8,6 +8,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 
 // TASKS.csv #630 — "can GeoStrix georeference vertical images, like a cross section?". The plan-view georeferencer
 // (#129, GeoreferencerModal) does maps; this does sections: say where the section line is (a saved cross-section,
@@ -180,11 +181,11 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose, r
                   <span />
                   <span style={{ color: "var(--color-text-muted)" }}>{tr("Easting")}</span><span style={{ color: "var(--color-text-muted)" }}>{tr("Northing")}</span>
                   <span>{tr("Start (left end of the figure)")}</span>
-                  <input type="number" aria-label={tr("Start easting")} value={manual.ax} onChange={(e) => setManual((m) => ({ ...m, ax: e.target.value }))} style={numInput} />
-                  <input type="number" aria-label={tr("Start northing")} value={manual.ay} onChange={(e) => setManual((m) => ({ ...m, ay: e.target.value }))} style={numInput} />
+                  <NumberInput allowEmpty aria-label={tr("Start easting")} value={manual.ax === "" ? null : manual.ax} onChange={(v) => setManual((m) => ({ ...m, ax: v == null ? "" : String(v) }))} style={numInput} />
+                  <NumberInput allowEmpty aria-label={tr("Start northing")} value={manual.ay === "" ? null : manual.ay} onChange={(v) => setManual((m) => ({ ...m, ay: v == null ? "" : String(v) }))} style={numInput} />
                   <span>{tr("End (right end of the figure)")}</span>
-                  <input type="number" aria-label={tr("End easting")} value={manual.bx} onChange={(e) => setManual((m) => ({ ...m, bx: e.target.value }))} style={numInput} />
-                  <input type="number" aria-label={tr("End northing")} value={manual.by} onChange={(e) => setManual((m) => ({ ...m, by: e.target.value }))} style={numInput} />
+                  <NumberInput allowEmpty aria-label={tr("End easting")} value={manual.bx === "" ? null : manual.bx} onChange={(v) => setManual((m) => ({ ...m, bx: v == null ? "" : String(v) }))} style={numInput} />
+                  <NumberInput allowEmpty aria-label={tr("End northing")} value={manual.by === "" ? null : manual.by} onChange={(v) => setManual((m) => ({ ...m, by: v == null ? "" : String(v) }))} style={numInput} />
                 </div>
               )}
               {lineOk && <div style={note}>{tr("Line {line} m long, azimuth {azimuth}° (project coordinates).", { line: line.length.toFixed(0), azimuth: line.azimuth.toFixed(1) })}</div>}
@@ -215,7 +216,7 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose, r
                   ))}
                 </div>
                 {pdf.numPages > pdf.thumbs.length && (
-                  <label style={{ ...note, display: "flex", gap: 6, alignItems: "center" }}>{tr("Page number")}{" "}<input type="number" min={1} max={pdf.numPages} value={pageNo} onChange={(e) => setPageNo(e.target.value)} style={{ ...numInput, width: 70 }} aria-label={tr("PDF page number")} />
+                  <label style={{ ...note, display: "flex", gap: 6, alignItems: "center" }}>{tr("Page number")}{" "}<NumberInput min={1} max={pdf.numPages} step={1} value={pageNo === "" ? null : pageNo} onChange={(v) => setPageNo(String(v))} style={{ ...numInput, width: 70 }} aria-label={tr("PDF page number")} />
                     <button type="button" style={{ ...btn(false), padding: "4px 10px" }} disabled={!!pdfBusy || !(Number(pageNo) >= 1 && Number(pageNo) <= pdf.numPages)} onClick={() => pickPdfPage(pdf.doc, Math.round(Number(pageNo)), pdf.name)}>{tr("Open page")}</button>
                     <span>{tr("(previews show the first {thumbs})", { thumbs: pdf.thumbs.length })}</span>
                   </label>
@@ -254,8 +255,8 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose, r
                     return (
                       <tr key={p.id}>
                         <td style={td}>{i + 1}</td>
-                        <td style={td}><input type="number" aria-label={tr("Point {v} horizontal", { v: i + 1 })} value={p.h} onChange={(e) => updatePoint(p.id, { h: e.target.value })} style={numInput} /></td>
-                        <td style={td}><input type="number" aria-label={tr("Point {v} elevation", { v: i + 1 })} value={p.z} onChange={(e) => updatePoint(p.id, { z: e.target.value })} style={numInput} /></td>
+                        <td style={td}><NumberInput allowEmpty aria-label={tr("Point {v} horizontal", { v: i + 1 })} value={p.h === "" ? null : p.h} onChange={(v) => updatePoint(p.id, { h: v == null ? "" : String(v) })} style={numInput} /></td>
+                        <td style={td}><NumberInput allowEmpty aria-label={tr("Point {v} elevation", { v: i + 1 })} value={p.z === "" ? null : p.z} onChange={(v) => updatePoint(p.id, { z: v == null ? "" : String(v) })} style={numInput} /></td>
                         <td style={{ ...td, color: r && rmse && r.error > rmse * 2 ? "var(--color-danger-alt)" : "var(--color-text)" }}>{r && usable.length > 2 ? r.error.toFixed(1) : "—"}</td>
                         <td style={td}><Trash2 aria-label={tr("Remove this control point")} title={tr("Remove this control point")} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={() => setPoints((q) => q.filter((x) => x.id !== p.id))} /></td>
                       </tr>

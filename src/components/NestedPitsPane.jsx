@@ -31,6 +31,9 @@ import NotOfferedGrades from "./NotOfferedGrades.jsx"; // TASKS.csv #2646
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 import { weatheredBasePoints } from "../lib/weatheredZone.js"; // TASKS.csv #2597
 import { holeTraces } from "../lib/evidenceSources.js";
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+// TASKS.csv #3926 — NumberInput hands back a number (null when emptied); the handlers here read e.target.value, so it goes back to them as text
+const asEvent = (fn) => (v) => fn({ target: { value: v == null ? "" : String(v) } });
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
@@ -154,8 +157,8 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
         {byMissing && <div style={warn}>{tr("The by-product model the shell was run with (\"{m}\") is not in the project any more.", { m: lastPit.params?.byProduct?.blockModel || "?" })}</div>}
         <label style={row}>{tr("Revenue factors")}<input value={f.factors} onChange={(e) => setF((p) => ({ ...p, factors: e.target.value }))} style={{ ...smallSel, width: 130 }} aria-label={tr("Revenue factors of the series")} title={tr("A range with a step, or a list: 0.3-1.2 step 0.1, or 0.5, 0.8, 1, 1.2")} /></label>
         <div style={note}>{factors.length ? tr("{n} factor(s): {list}", { n: factors.length, list: factors.join(", ") }) : tr("Enter a range with a step, or a list of factors.")}{droppedFactors(f.factors).length > 0 && <> {tr("Ignored: {list} (a factor must be above 0).", { list: droppedFactors(f.factors).join(", ") })}</>}</div>
-        <label style={row}>{tr("Mining rate (t rock / year)")}<input type="number" min={0} step="any" value={f.rate} onChange={(e) => setF((p) => ({ ...p, rate: e.target.value }))} style={num} aria-label={tr("Mining rate")} placeholder={tr("optional")} /></label>
-        <label style={row}>{tr("Discount rate (% / year)")}<input type="number" min={0} step="any" value={f.discount} onChange={(e) => setF((p) => ({ ...p, discount: e.target.value }))} style={num} aria-label={tr("Discount rate")} placeholder={tr("optional")} disabled={!rate} /></label>
+        <label style={row}>{tr("Mining rate (t rock / year)")}<NumberInput allowEmpty min={0} value={f.rate} onChange={asEvent((e) => setF((p) => ({ ...p, rate: e.target.value })))} style={num} aria-label={tr("Mining rate")} placeholder={tr("optional")} /></label>
+        <label style={row}>{tr("Discount rate (% / year)")}<NumberInput allowEmpty min={0} value={f.discount} onChange={asEvent((e) => setF((p) => ({ ...p, discount: e.target.value })))} style={num} aria-label={tr("Discount rate")} placeholder={tr("optional")} disabled={!rate} /></label>
         {busy == null
           ? <button onClick={run} disabled={!factors.length || byMissing} style={{ ...pBtn, marginTop: 8, opacity: factors.length && !byMissing ? 1 : 0.5 }}><Layers size={14} /> {tr("Run the series")}</button>
           : <button onClick={cancel} style={{ ...pBtn, marginTop: 8 }}>{tr("Solving shell {i} of {n}: cancel", { i: (busy.idx || 0) + 1, n: busy.of || factors.length })}</button>}

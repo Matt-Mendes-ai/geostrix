@@ -4,13 +4,14 @@
 import React, { useMemo, useState } from "react";
 import { t as tr } from "../lib/i18n.js";
 import { holesInRange, visibilityPatch } from "../lib/holeFilter.js";
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 export default function ModelAreaRange({ collars = [], visibleHoles = {}, setVisibleHoles, small, inp }) {
   const [r, setR] = useState({ e0: "", e1: "", n0: "", n1: "" });
   const box = useMemo(() => { let a = Infinity, b = -Infinity, c = Infinity, d = -Infinity; for (const k of collars) { if (Number.isFinite(k.x)) { a = Math.min(a, k.x); b = Math.max(b, k.x); } if (Number.isFinite(k.y)) { c = Math.min(c, k.y); d = Math.max(d, k.y); } } return Number.isFinite(a) ? { e0: Math.floor(a), e1: Math.ceil(b), n0: Math.floor(c), n1: Math.ceil(d) } : null; }, [collars]);
   const typed = ["e0", "e1", "n0", "n1"].every((k) => r[k] !== "" && Number.isFinite(Number(r[k])));
   const hit = useMemo(() => (typed ? holesInRange(collars, { e0: Number(r.e0), e1: Number(r.e1), n0: Number(r.n0), n1: Number(r.n1) }) : null), [collars, r, typed]);
-  const field = (k, label) => <label style={{ display: "flex", alignItems: "center", gap: 3 }}>{label}<input type="number" step="any" value={r[k]} placeholder={box ? String(box[k]) : ""} onChange={(e) => setR((p) => ({ ...p, [k]: e.target.value }))} aria-label={tr("Model area range: {v}", { v: label })} style={{ ...inp, width: 86 }} /></label>;
+  const field = (k, label) => <label style={{ display: "flex", alignItems: "center", gap: 3 }}>{label}<NumberInput allowEmpty value={r[k] === "" || r[k] == null ? null : r[k]} placeholder={box ? String(box[k]) : ""} onChange={(v) => setR((p) => ({ ...p, [k]: v == null ? "" : String(v) }))} /* #3926 */ aria-label={tr("Model area range: {v}", { v: label })} style={{ ...inp, width: 86 }} /></label>;
   if (!collars.length || !setVisibleHoles) return null;
   return (
     <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 4 }}>

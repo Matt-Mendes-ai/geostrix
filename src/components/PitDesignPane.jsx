@@ -30,6 +30,9 @@ import { holeTraces } from "../lib/evidenceSources.js"; // TASKS.csv #2671
 import { modelWithCodeDensity } from "../lib/densityByCode.js"; // TASKS.csv #2647 — the shell's per-code densities
 import { densityUsedText } from "./densityUsedText.js"; // TASKS.csv #2647
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+// TASKS.csv #3926 — NumberInput hands back a number (null when emptied); the handlers here read e.target.value, so it goes back to them as text
+const asEvent = (fn) => (v) => fn({ target: { value: v == null ? "" : String(v) } });
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
@@ -161,7 +164,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
   const cmp = res?.partsDropped > 0 && res.shell?.largestPit ? res.shell.largestPit : (res?.shell || {});
   const cmpLabel = (whole, part) => (res?.partsDropped > 0 && res.shell?.largestPit ? part : whole);
   const line = (label, val) => <div style={row}><span>{label}</span><b>{val}</b></div>;
-  const field = (k, label, extra = {}) => <label style={row}>{label}<input type="number" min={0} step="any" value={f[k]} onChange={set(k)} style={num} {...extra} /></label>;
+  const field = (k, label, extra = {}) => <label style={row}>{label}<NumberInput allowEmpty min={0} value={f[k]} onChange={asEvent(set(k))} style={num} {...extra} /></label>;
   const metalText = (r) => { // the shell's contained metal is in its own unit; the design's is scaled from the same grade basis
     const sh = r.shell, shOre = Number(sh.oreTonnes), shMetal = Number(sh.containedMetal), shGrade = Number(sh.meanGrade);
     if (!(shOre > 0 && shMetal > 0 && shGrade > 0) || r.totals.meanGrade == null) return null;
@@ -199,8 +202,8 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 3, marginTop: 4 }}>
               {SECTOR_GRID.flat().map((k, i) => (k
                 ? <div key={k} style={{ ...note, display: "flex", alignItems: "center", gap: 2, minWidth: 0 }}><span style={{ width: 20, textAlign: "right", flexShrink: 0 }}>{k}</span>
-                    <input type="number" min={1} max={89} step="any" value={f.sectors?.[k]?.batterDeg ?? ""} onChange={(e) => setSector(k, "batterDeg", e.target.value)} placeholder={f.batterDeg || "°"} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Face angle of the {k} wall", { k })} />
-                    <input type="number" min={0} step="any" value={f.sectors?.[k]?.berm ?? ""} onChange={(e) => setSector(k, "berm", e.target.value)} placeholder={f.berm || "m"} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Berm width of the {k} wall", { k })} /></div>
+                    <NumberInput allowEmpty min={1} max={89} value={f.sectors?.[k]?.batterDeg ?? ""} onChange={asEvent((e) => setSector(k, "batterDeg", e.target.value))} placeholder={f.batterDeg || "°"} style={{ ...smallSel, width: 36 }} /* #3926: a fixed width, as NumberInput wraps its box */ aria-label={tr("Face angle of the {k} wall", { k })} />
+                    <NumberInput allowEmpty min={0} value={f.sectors?.[k]?.berm ?? ""} onChange={asEvent((e) => setSector(k, "berm", e.target.value))} placeholder={f.berm || "m"} style={{ ...smallSel, width: 36 }} /* #3926: a fixed width, as NumberInput wraps its box */ aria-label={tr("Berm width of the {k} wall", { k })} /></div>
                 : <span key={`c${i}`} style={{ ...note, textAlign: "center", alignSelf: "center" }}>{tr("° / m")}</span>))}
             </div>
             {sectorBad && <div style={warn}>{tr("A sector's face angle must be between 0 and 90°, its berm 0 or more.")}</div>}

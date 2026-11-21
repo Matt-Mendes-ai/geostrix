@@ -33,6 +33,6 @@ test("the built grid uses the auto size and sits on the box's centre, snapped to
 
 test("the grid popover shows the auto size and a typed size turns auto off", () => {
   const p = readFileSync(new URL("../src/modules/viewer/ViewerParts.jsx", import.meta.url), "utf8");
-  assert.match(p, /value=\{gridOnAuto \? gridAuto\.size : gridConfig\.size\} onChange=\{\(e\) => setGridConfig\(\(g\) => \(\{ \.\.\.g, sizeAuto: false,/);
+  assert.match(p, /value=\{gridOnAuto \? gridAuto\.size : gridConfig\.size\} onChange=\{\((e|v)\) => setGridConfig\(\(g\) => \(\{ \.\.\.g, sizeAuto: false,/ /* #3926: a NumberInput (v) */);
   assert.match(p, /\{tr\("Size from the data \(\{cell\} m cells\)"/);
 });
