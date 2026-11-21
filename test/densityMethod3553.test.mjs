@@ -51,7 +51,7 @@ test("the row table shows the kept columns by their own names", () => {
 test("the wiring: the 3D build, the layer panel, the section legend", () => {
   const s = readFileSync(new URL("../src/modules/viewer/drillholeScene.js", import.meta.url), "utf8");
   assert.match(s, /fieldColourer\(numericSymbology\?\.\[k\], layers\[k\]\)/);
-  assert.equal((s.match(/\(bf \? bf\.colourOf\(row\) : meta\.numeric \?/g) || []).length, 3, "the intervals (straight and bent) and the points");
+  assert.equal((s.match(/ bf \? bf\.colourOf\(row\) : meta\.numeric \?/g) || []).length, 3, "the intervals (straight and bent) and the points"); // after #3941's rb (a number field) choice
   assert.equal((s.match(/&& \(!bf \|\| bf\.shown\(r\)\)/g) || []).length, 2);
   const p = readFileSync(new URL("../src/modules/viewer/ViewerParts.jsx", import.meta.url), "utf8");
   assert.match(p, /<FieldColourPanel rows=\{rows\} sym=\{numericSym\} onChange=\{onNumericSymChange\}>/);
