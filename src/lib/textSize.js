@@ -26,6 +26,7 @@ export const screenLabelPx = () => 16 + 1.5 * textBump();
 // sets --text-bump on the page (app.css reads it); called once at start and on every change
 export function applyTextSize(doc = globalThis.document) {
   try { doc?.documentElement?.style.setProperty("--text-bump", `${textBump()}px`); } catch { /* no document (tests) */ }
+  try { globalThis.window?.desktop?.setTextSize?.(current); } catch { /* the browser build has no native menu */ } // the View menu's radio items follow
 }
 export function setTextSize(v) {
   if (!known(v) || v === current) return;

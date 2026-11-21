@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld("desktop", {
   dbConnect: (config) => ipcRenderer.invoke("db-connect", config),
   refocusAfterDialog: () => ipcRenderer.send("refocus-after-dialog"), // TASKS.csv #622
   setLanguage: (code) => ipcRenderer.send("set-language", code), // TASKS.csv #786 — the native menu follows the interface language
+  setTextSize: (size) => ipcRenderer.send("set-text-size", size), // TASKS.csv #3900 — the View menu's Text size items show the setting
   // TASKS.csv #598 — Help > Report a problem
   problemReportInfo: () => ipcRenderer.invoke("problem-report-info"),
   recordCrash: (rec) => ipcRenderer.send("record-crash", rec), // TASKS.csv #829

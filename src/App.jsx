@@ -7,7 +7,7 @@ import { markSampleDownloaded } from "./lib/sampleCards.js"; // TASKS.csv #3100
 import { onDataTableOpen } from "./lib/dataTableRequests.js"; // TASKS.csv #3563
 import { openHelp, onHelpOpen, onShortcutsOpen } from "./lib/help.js"; // TASKS.csv #1966; shortcuts from the Help panel: #3534
 import { t as tr, LANGUAGES, currentLanguage, setLanguage, fmtNum } from "./lib/i18n.js"; // TASKS.csv #786 — "tr": t is a common local name here
-import { TEXT_SIZES, applyTextSize } from "./lib/textSize.js"; // TASKS.csv #3900 — the text size setting
+import { TEXT_SIZES, applyTextSize, setTextSize } from "./lib/textSize.js"; // TASKS.csv #3900 — the text size setting
 import { useTextSize } from "./lib/useTextSize.js";
 applyTextSize(); // before the first paint: --text-bump from this computer's setting (Large when none)
 import { oncePerWindow } from "./lib/oncePerWindow.js"; // TASKS.csv #1163
@@ -506,6 +506,7 @@ export default function App() {
       else if (action === "report-problem") openReportProblem(); // #598
       else if (action === "licenses") setLicensesOpen(true); // #639
       else if (action === "ai-access") setAiAccessOpen(true); // TASKS.csv #3190
+      else if (typeof action === "string" && action.startsWith("text-size:")) setTextSize(action.slice(10)); // TASKS.csv #3900 — View > Text size
       else if (typeof action === "string" && action.startsWith("sample:")) { const which = action.slice(7); openSample(which); } // #1120; a BC sample not on this computer asks to download it first: #3100
       else if (action === "undo") undoSay();
       else if (action === "redo") redoSay();

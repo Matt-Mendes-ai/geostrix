@@ -72,3 +72,17 @@ test("the top row fits in five steps, in this order; a new text size re-fits it 
     for (const k of ["Normal", "Large", "Larger", "Text size"]) assert.ok(d[k], `${lang}: ${k}`);
   }
 });
+
+test("View > Text size: three radio items in the native menu, translated, wired to the same setting both ways", () => {
+  const main = readFileSync(new URL("../electron/main.js", import.meta.url), "utf8").replace(/\r\n/g, "\n"), pre = readFileSync(new URL("../electron/preload.js", import.meta.url), "utf8");
+  assert.match(main, /\{ label: L\("Text size"\), submenu: \[\["Normal", "normal"\], \["Large", "large"\], \["Larger", "larger"\]\]\.map\(\(\[label, id\]\) => \(/);
+  assert.match(main, /\{ label: L\(label\), type: "radio", checked: menuTextSize === id, click: \(\) => mainWindow\?\.webContents\.send\("menu", `text-size:\$\{id\}`\) \}/);
+  assert.match(main, /ipcMain\.on\("set-text-size", \(_e, size\) => \{\n  if \(!\["normal", "large", "larger"\]\.includes\(size\) \|\| size === menuTextSize\) return;/);
+  for (const lang of ["es", "pt", "fr", "ar"]) {
+    const row = main.split("\n").find((l) => l.startsWith(`  ${lang}: { "GeoStrix Help"`));
+    assert.match(row, /"Text size": "[^"]+", "Normal": "[^"]+", "Large": "[^"]+", "Larger": "[^"]+" \/\* #3900 \*\/ \},$/, lang);
+  }
+  assert.match(pre, /setTextSize: \(size\) => ipcRenderer\.send\("set-text-size", size\),/);
+  assert.match(rd("lib/textSize.js"), /globalThis\.window\?\.desktop\?\.setTextSize\?\.\(current\);/); // at start and on every change
+  assert.match(rd("App.jsx"), /action\.startsWith\("text-size:"\)\) setTextSize\(action\.slice\(10\)\);/);
+});
