@@ -7701,7 +7701,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           modelledLayers={customLayers.filter((l) => l.rows?.[0]?.modelled)} // TASKS.csv #356
           initial={stripRedo?.spec || null} replaceElementId={stripRedo?.elementId || null} // #3873 (a)
           onAddToLayout={(img) => { addLayoutImage(img); goToModule("layout"); }} onAdvice={(t) => t && setNotices((p) => [...p, t])} // #1480; advice: #1641
-          assayColor={(sym, v) => assayColorFor(v, assayHueIndex(sym, assayElements), assayStyle[sym])} // #3879
+          assayColor={(sym, v) => assayColorFor(v, assayHueIndex(sym, assayElements), assayStyle[sym])} assayClasses={(sym) => assayStyle[sym]?.breaks} // #3879; #3713 — the class key
           onClose={() => { setStripLogHoleId(null); setStripRedo(null); }} onOpenFence={() => { setStripLogHoleId(null); setFenceOpen(true); }} legendOverride={legendOverride} // #3560 A0 / A1; #3873 (a)
         />
       )}

@@ -32,6 +32,7 @@ const headerSize = (label) => Math.max(7, Math.min(10.5, (TRACK_W - 8) / (String
 
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { fmtSig3 as fmtLegendValue } from "../lib/numberFormat.js"; // TASKS.csv #3713 - the 3D legend's number words
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 import { embedFigureFont } from "../lib/svgFontEmbed.js"; // TASKS.csv #2610 — the subset Exo 2 inside the figure
 import { localDate } from "../lib/localDate.js";
@@ -50,7 +51,7 @@ import { rowsRefOf } from "../lib/tableFields.js"; // TASKS.csv #3140 step 2
 const DEPTH_COL_W = 50;
 const PAD_TOP = 40;
 
-export default function StripLog({ holeId, collars, layers, assays, assayElements, colorFor, labelFor, assayColor, onClose, modelledLayers = [], onAddToLayout = null, onAdvice = null /* #1641 */, shownElements = [], patternOverride = null, onPatternChange = null, onOpenFence = null, legendOverride = null, initial = null, replaceElementId = null }) { // initial / replaceElementId: TASKS.csv #3873 (a) — the choices it was sent with, and the Layout element a new send replaces // onOpenFence: #3560 A0; legendOverride: A1
+export default function StripLog({ holeId, collars, layers, assays, assayElements, colorFor, labelFor, assayColor, onClose, modelledLayers = [], onAddToLayout = null, onAdvice = null /* #1641 */, shownElements = [], patternOverride = null, onPatternChange = null, onOpenFence = null, legendOverride = null, initial = null, replaceElementId = null, assayClasses = null }) { // assayClasses: #3713 — (sym) -> the 3D View's class breaks [{ max, color }] or null // initial / replaceElementId: TASKS.csv #3873 (a) — the choices it was sent with, and the Layout element a new send replaces // onOpenFence: #3560 A0; legendOverride: A1
   const [sideBySide, setSideBySide] = useState(false); // #3560 A1 // shownElements: TASKS.csv #1698; pattern*: #1995
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
@@ -224,7 +225,9 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
 
   // TASKS.csv #3713 — the sheet explains its own hatch: a density bar drawn from a regression (hatched) against a measured one (solid) has a two-line key under the tracks, in the figure itself (so Add to Layout and the exports carry it)
   const calcBars = tracks.filter((t) => t.kind === "bar" && t.methodOf), hasCalc = calcBars.some((t) => t.rows.some((r) => isCalculatedMethod(t.methodOf(r)))), hasMeasured = calcBars.some((t) => t.rows.some((r) => !isCalculatedMethod(t.methodOf(r))));
-  const keyH = hasCalc ? 34 : 0;
+  // TASKS.csv #3713 — each assay bar's colour classes, as the 3D View's legend words them: 'Au (ppm): ≤ 0.1 | 0.1–0.5 | > 0.5', one key row per element, in the figure
+  const classKeys = (assayClasses ? tracks.filter((t) => t.kind === "assaybar" && t.sym) : []).flatMap((t) => { const br = assayClasses(t.sym); if (!br?.length) return []; const u = elementUnits[t.sym] || "ppm"; return [{ sym: t.sym, label: `${t.sym} (${u})`, classes: br.map((b, i) => ({ color: b.color, text: i === 0 ? `≤ ${fmtLegendValue(b.max)}` : i === br.length - 1 ? `> ${fmtLegendValue(br[i - 1].max)}` : `${fmtLegendValue(br[i - 1].max)}–${fmtLegendValue(b.max)}` })) }]; });
+  const keyH = (hasCalc ? 34 : 0) + classKeys.length * 14;
   // a bar track's scale caption: its own range, or the log range
   const barCaption = (t) => (t.lo != null ? `${sigText(t.lo, 4)}–${sigText(t.max, 4)}` : t.logOk && logOn && t.minPos > 0 ? tr("log {minPos}–{max}", { minPos: sigText(t.minPos, 2), max: sigText(t.max, 3) }) : `0–${sigText(t.max, 3)}`);
 
@@ -474,6 +477,12 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                 </g>
               );
             })}
+            {classKeys.map((k, ki) => { const y0 = sy(d1) + 26 + (hasCalc ? 34 : 0) + ki * 14; let x = DEPTH_COL_W + 2 + 60; return ( /* TASKS.csv #3713 — the colour classes of an assay bar */
+              <g key={`ck${k.sym}`}>
+                <text x={DEPTH_COL_W + 2} y={y0 + 7} fontSize="8" fill="#55606e">{k.label}</text>
+                {k.classes.map((c, ci) => { const w = 14 + 4 + c.text.length * 4.6 + 8, x0 = x; x += w; return <g key={ci}><rect x={x0} y={y0} width={10} height={8} fill={c.color} opacity="0.85" stroke="#8a929c" strokeWidth="0.4" /><text x={x0 + 14} y={y0 + 7} fontSize="8" fill="#55606e">{c.text}</text></g>; })}
+              </g>
+            ); })}
             {hasCalc && (() => { const y0 = sy(d1) + 26, x0 = DEPTH_COL_W + 2; return ( /* TASKS.csv #3713 — the key of the hatch */
               <g>
                 <rect x={x0} y={y0} width={14} height={8} fill="#4a9be0" opacity="0.3" stroke="#4a9be0" strokeDasharray="2 1.5" strokeWidth="0.8" /><rect x={x0} y={y0} width={14} height={8} fill="url(#sl-calc-hatch)" />

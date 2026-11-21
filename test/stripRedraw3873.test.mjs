@@ -24,7 +24,7 @@ test("the replacement keeps the depth scale: the new picture is as tall on paper
 
 test("wiring: StripLog starts from the sent choices and sends them; the store, the 3D View and Layout carry the request and the replacement", () => {
   const sl = read("../src/components/StripLog.jsx");
-  assert.match(sl, /initial = null, replaceElementId = null \}\)/);
+  assert.match(sl, /initial = null, replaceElementId = null, assayClasses = null \}\)/);
   assert.match(sl, /useState\(initial\?\.pxPerMeter > 0 \? initial\.pxPerMeter : 6\)/);
   assert.match(sl, /if \(initial\) return; \/\/ #3873 \(a\)/);
   assert.match(sl, /stripSpec: \{ holeId, assaySymbol, extraSymbols, logScale, rangeFrom, rangeTo, pxPerMeter \}/);
