@@ -9,6 +9,7 @@ const src = (p) => fs.readFileSync(new URL(`../${p}`, import.meta.url), "utf8").
 const DONE = [
   "src/components/AssayStyleModal.jsx", "src/components/BestIntercepts.jsx", "src/components/CompositingModal.jsx",
   "src/components/DataQCModal.jsx", "src/components/DomainCaps.jsx", "src/components/DownholeLogsPane.jsx", "src/components/EndInOreList.jsx",
+  "src/components/EquivalentBuilder.jsx", "src/components/FlatPanels.jsx", "src/components/GradeStatistics.jsx", "src/components/GradeThicknessModal.jsx", "src/components/GradeTonnageModal.jsx",
 ];
 
 test("#3926 G1: converted files have no <input type=\"number\"> left and import NumberInput", () => {

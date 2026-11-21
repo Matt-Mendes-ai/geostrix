@@ -4,6 +4,7 @@ import React, { useMemo, useState } from "react";
 import { blockModelGrid, gridPanels } from "../lib/flatPanels.js";
 import { gradeUnitText } from "../lib/pitShell.js";
 import { t as tr } from "../lib/i18n.js";
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, marginTop: 4 };
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
@@ -19,8 +20,8 @@ export default function FlatPanels({ model, cutoff, density, unit, element, inpu
   return (
     <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid var(--color-border)" }}>
       <div style={{ ...note, marginTop: 0 }}>{tr("Panels for a flat body: each column's thickness at or above the cut-off, and its grade × thickness; a panel counts when its mean grade × thickness reaches the cut-off below.")}</div>
-      <label style={row}>{tr("Panel side (m)")}<input type="number" min={0} step="any" value={panelText} onChange={(e) => setPanelText(e.target.value)} style={inputStyle} aria-label={tr("Panel side (m)")} /></label>
-      <label style={row}>{tr("Grade × thickness cut-off ({u}·m)", { u })}<input type="number" min={0} step="any" value={gtText} onChange={(e) => setGtText(e.target.value)} style={inputStyle} aria-label={tr("Grade × thickness cut-off")} /></label>
+      <label style={row}>{tr("Panel side (m)")}<NumberInput allowEmpty min={0} value={panelText} onChange={(v) => setPanelText(v == null ? "" : String(v))} style={inputStyle} aria-label={tr("Panel side (m)")} /></label>
+      <label style={row}>{tr("Grade × thickness cut-off ({u}·m)", { u })}<NumberInput allowEmpty min={0} value={gtText} onChange={(v) => setGtText(v == null ? "" : String(v))} style={inputStyle} aria-label={tr("Grade × thickness cut-off")} /></label>
       {res && <div style={{ ...note, color: "var(--color-text-secondary)" }}>{res.totals.orePanels
         ? tr("{n} of {m} panels reach it: {a} ha, {t} t at {g} {u} over a mean {h} m.", { n: res.totals.orePanels, m: res.totals.panels, a: sig(res.totals.area / 10000), t: big(res.totals.tonnes), g: sig(res.totals.grade), u, h: sig(res.totals.thick) })
         : tr("None of the {m} panels reaches it.", { m: res.totals.panels })}</div>}

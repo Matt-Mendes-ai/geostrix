@@ -3,6 +3,7 @@
 import React from "react";
 import { PRECIOUS_METALS } from "../lib/geochem.js";
 import { t as tr } from "../lib/i18n.js";
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 const inp = { width: 78, fontSize: "var(--font-size-sm)" };
 
@@ -13,8 +14,8 @@ export default function EquivalentBuilder({ elements, eq, onChange, result }) {
   const priceUnit = (s) => (PRECIOUS_METALS.has(s) ? "$/oz" : "$/lb");
   const metalRow = (s, label) => (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
-      {tr("price")} <input type="number" min="0" step="any" value={eq.rows?.[s]?.price ?? ""} onChange={(e) => row(s, { price: e.target.value })} style={inp} aria-label={tr("{s} price", { s })} />
-      {priceUnit(s)} {tr("recovery")} <input type="number" min="1" max="100" step="any" value={eq.rows?.[s]?.recovery ?? ""} onChange={(e) => row(s, { recovery: e.target.value })} style={{ ...inp, width: 56 }} aria-label={tr("{s} recovery %", { s })} /> %
+      {tr("price")} <NumberInput allowEmpty min="0" value={eq.rows?.[s]?.price ?? ""} onChange={(v) => row(s, { price: v == null ? "" : String(v) })} style={inp} aria-label={tr("{s} price", { s })} />
+      {priceUnit(s)} {tr("recovery")} <NumberInput allowEmpty min="1" max="100" value={eq.rows?.[s]?.recovery ?? ""} onChange={(v) => row(s, { recovery: v == null ? "" : String(v) })} style={{ ...inp, width: 56 }} aria-label={tr("{s} recovery %", { s })} /> %
       {label}
     </span>
   );
