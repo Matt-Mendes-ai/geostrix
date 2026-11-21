@@ -34,8 +34,8 @@ test("wiring: the run's flat search, per-axis cell and budget; the pane's fields
   assert.ok(!/gridBlockCount\(bounds, cs\)|cellToFit\(bounds, /.test(r), "the budget counts per axis");
   assert.match(r, /cellM: \[cs, cs, cz \?\? cs\]/);
   const p = fs.readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
-  assert.match(p, /\{tr\("Cell height \(m\)"\)\}<input type="number" min="0\.25" step="any" value=\{gt \? "" : numericCellHeight\} disabled=\{!!gt\}/);
-  assert.match(p, /\{tr\("Vertical reach \(m\)"\)\}<input type="number" min="0" step="any" value=\{gt \? "" : numericFlatReach\} disabled=\{!!gt\}/);
+  assert.match(p, /\{tr\("Cell height \(m\)"\)\}<NumberInput min="0\.25" allowEmpty value=\{gt \|\| numericCellHeight === "" \|\| numericCellHeight == null \? null : numericCellHeight\} disabled=\{!!gt\}/); // #3926: '0,05' reads
+  assert.match(p, /\{tr\("Vertical reach \(m\)"\)\}<NumberInput min="0" allowEmpty value=\{gt \|\| numericFlatReach === "" \|\| numericFlatReach == null \? null : numericFlatReach\} disabled=\{!!gt\}/);
   assert.match(p, /numericCellHeight > 0 && !trendFor\("gradeShell"\) \? tr\("Cell E × N \(m\)"\) : tr\("Cell \(m\)"\)/);
   const v = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(v, /const \[numericCellHeight, setNumericCellHeight\] = useState\(""\), \[numericFlatReach, setNumericFlatReach\] = useState\(""\);/);

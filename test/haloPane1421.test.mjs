@@ -8,7 +8,7 @@ test("a labelled button; codes with no logged length are shown disabled, with th
   const s = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
   assert.match(s, /<><Layers3 size=\{14\} \/>\{tr\("Build halo"\)\}<\/>/);
   assert.match(s, /const len = Number\(r\.to\) - Number\(r\.from\); if \(k && len > 0\)|len = Number\(r\.to\) - Number\(r\.from\); if \(k && len > 0\)/);
-  assert.match(s, /altLoggedM\.get\(u\) > 0 \? <option key=\{u\} value=\{u\}>\{u\}<\/option> : <option key=\{u\} value=\{u\} disabled>\{tr\("\{code\} \(no logged length\)", \{ code: u \}\)\}<\/option>/);
+  assert.match(s, /altLoggedM\.get\(u\) > 0 \? <option key=\{u\} value=\{u\}>\{altGroupOf\.get\(u\) \? tr\("\{code\} \(in the group \{group\}\)", \{ code: u, group: altGroupOf\.get\(u\) \}\) : u\}<\/option> : <option key=\{u\} value=\{u\} disabled>\{tr\("\{code\} \(no logged length\)", \{ code: u \}\)\}<\/option>/); // #3876: a member code names its group
 });
 
 test("a code logged over less than one cell says so when no halo can be made (POT: one 0.5 m interval, 21.4 m cells)", () => {
