@@ -88,7 +88,7 @@ export default [
     warnings: [
       { says: "No element columns recognized — add one manually below.", do: "Add the columns by symbol (Cu), or name them Cu_ppm in the file." },
       { says: "Tick or add at least one element to import.", do: "Tick the elements you want." },
-      { says: "3 negative value(s) no bigger than their column's own values (-0.005; -100 in a column of 100 to 500). Assays can't be negative, so these are codes. What do they mean?", do: "Choose below detection or not assayed." },
+      { says: "What do these 3 negative value(s) mean? Assays can't be negative, so they are codes (-0.005; -100 in a column of 100 to 500).", do: "Choose below detection or not assayed." },
     ],
     howto: {
       sample: "Macpass",
