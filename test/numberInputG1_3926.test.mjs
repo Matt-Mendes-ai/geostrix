@@ -40,3 +40,19 @@ test("#3926 G1: no step=\"any\" is passed on (the arrow keys use a numeric step)
   assert.match(bi, /<NumberInput allowEmpty min="0" value=\{includeCutoff === "" \? null/);
   assert.match(bi, /<NumberInput allowEmpty min="0" value=\{topCutKept === "" \? null/);
 });
+
+test("#3926 G1 (Main's check): where Number(x) || d became v ?? d, a typed 0 cannot slip through: every such box also has min at the floor it clamps to", () => {
+  let checked = 0;
+  for (const f of DONE) {
+    const s = src(f);
+    for (const m of s.matchAll(/<NumberInput [^\n]*?Math\.max\((\d+(?:\.\d+)?),[^\n]*?v \?\? (\d+(?:\.\d+)?)\)/g)) {
+      const floor = Number(m[1]), fallback = Number(m[2]);
+      if (fallback === 0) continue; // `|| 0`: the same either way
+      const tag = m[0];
+      const min = /min=\{?"?(\d+(?:\.\d+)?)"?\}?/.exec(tag);
+      assert.ok(min && Number(min[1]) >= floor, `${f}: a fallback of ${fallback} behind a floor of ${floor} needs min >= ${floor}: ${tag.slice(0, 120)}`);
+      checked++;
+    }
+  }
+  assert.ok(checked >= 8, `checked ${checked} boxes: CompositingModal length, symbology classes, QAQC blank multiple (2), surface QAQC (2), anomaly controls (3)`);
+});
