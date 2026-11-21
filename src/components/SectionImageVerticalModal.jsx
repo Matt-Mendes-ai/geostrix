@@ -8,6 +8,7 @@ import { activateOnKey } from "../lib/a11y.js";
 import { adjustCorners, adjustedImage, terrainProfilePx, topoPicks, fitVertical, typedAdjustment, imageVE, imageFrame } from "../lib/sectionVertical.js";
 import { warpPlan, warpedCorners, sourceRow } from "../lib/sectionWarp.js"; // TASKS.csv #3929
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 
 // TASKS.csv #3880 (a GeoStrix user, via Matt, 2026-11-17) — "Match to terrain": a georeferenced section image stands at the heights its control points were typed with, and its own drawn topography
 // line could float above the draped terrain with nothing to correct it. Here the user clicks along that DRAWN line; each click is compared with the terrain under it (the terrain's profile along the
@@ -117,12 +118,12 @@ export default function SectionImageVerticalModal({ image, terrain, onApply, onC
               <button type="button" onClick={() => fit("scale")} disabled={rows.length < 3} style={btn(false)} title={tr("Move it and stretch its heights about the clicks' average height, by least squares. Needs 3 clicks that differ in height by 5 m or more.")}>{tr("Fit the height and scale")}</button>
               <button type="button" onClick={fitEach} disabled={rows.length < 2} style={btn(false)} title={tr("Bend the picture so its drawn ground passes through the terrain at every click, for a drawing that is not to scale everywhere. The terrain is not changed.")}>{tr("Fit at each point")}</button>
             </div>
-            <label style={note}>{tr("Fit at each point bends the picture down to (m below the drawn ground)")}{" "}<input type="number" min="1" step="any" value={depthM} onChange={(e) => { setDepthM(e.target.value); setWarp(null); }} style={num} aria-label={tr("Bend depth (m)")} /></label>
+            <label style={note}>{tr("Fit at each point bends the picture down to (m below the drawn ground)")}{" "}<NumberInput min={1} value={depthM === "" ? null : depthM} onChange={(v) => { setDepthM(String(v)); setWarp(null); }} style={num} aria-label={tr("Bend depth (m)")} /></label>
             {warp && <div role="status" style={note}>{tr("Fit at each point: the picture moves {mean} m as a whole and bends up to {bend} m more at the clicks, fading to nothing {depth} m below the drawn ground; below that it is not bent, so holes drawn there stay straight. The drawn ground passes through the terrain at all {n} clicks.", { mean: round2(warp.mean), bend: round2(warp.maxBendM), depth: round2(warp.depthM), n: warp.n })}{warp.depthM > Number(depthM) + 0.5 ? " " + tr("The depth was raised to {d} m: at least twice the largest bend, so no part of the picture folds back.", { d: round2(warp.depthM) }) : ""}</div>}
             {msg && <div role="alert" style={{ ...note, color: "var(--color-danger-fg)" }}>{msg}</div>}
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-              <label style={note}>{tr("Vertical offset (m)")}{" "}<input type="number" step="any" value={offset} onChange={(e) => { setOffset(e.target.value); setWarp(null); }} style={num} aria-label={tr("Vertical offset (m)")} /></label>
-              <label style={note}>{tr("Vertical scale (%)")}{" "}<input type="number" step="any" min="1" value={scalePct} onChange={(e) => { setScalePct(e.target.value); setWarp(null); }} style={num} aria-label={tr("Vertical scale (%)")} /></label>
+              <label style={note}>{tr("Vertical offset (m)")}{" "}<NumberInput allowEmpty value={offset === "" ? null : offset} onChange={(v) => { setOffset(v == null ? "" : String(v)); setWarp(null); }} style={num} aria-label={tr("Vertical offset (m)")} /></label>
+              <label style={note}>{tr("Vertical scale (%)")}{" "}<NumberInput min={1} value={scalePct === "" ? null : scalePct} onChange={(v) => { setScalePct(String(v)); setWarp(null); }} style={num} aria-label={tr("Vertical scale (%)")} /></label>
             </div>
             {rmsNow != null && <div style={note}>{tr("Over {n} click(s) the picture is {before} m (root mean square) from the terrain; with this adjustment {after} m.", { n: rows.length, before: rmsNow.toFixed(1), after: rmsAfter == null ? "—" : rmsAfter.toFixed(1) })}</div>}
             {image.verticalAdjust?.warp && <div style={note}>{tr("Already fitted at {n} points (bends up to {b} m); Back to as georeferenced puts the original picture back.", { n: image.verticalAdjust.warp.points, b: image.verticalAdjust.warp.maxBendM })}</div>}

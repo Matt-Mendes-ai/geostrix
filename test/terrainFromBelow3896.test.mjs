@@ -76,7 +76,7 @@ test("wired: single-sided terrain and drape materials, the skirt hidden from bel
   assert.equal((sb.match(/color: terrain\.color \|\| "#8a7f68", side: THREE\.FrontSide/g) || []).length, 2, "both terrain meshes");
   assert.match(sb, /opacity: r\.opacity \?\? 0\.85, side: THREE\.FrontSide/); // raster drapes
   assert.match(sb, /opacity: l\.opacity \?\? 0\.6, side: THREE\.FrontSide/); // map-layer drapes
-  assert.match(sb, /new THREE\.MeshBasicMaterial\(\{ map: texture, side: THREE\.DoubleSide, transparent: true, opacity: im\.opacity \?\? 1 \}\)/, "the georeferenced section image keeps both sides");
+  assert.match(sb, /new THREE\.MeshBasicMaterial\(\{ map: texture, side: THREE\.DoubleSide, transparent: true, opacity: im\.opacity \?\? 1(, alphaTest: [\d.]+)? \}\)/, "the georeferenced section image keeps both sides");
   assert.match(lt, /color: terrain\.color \|\| "#8a7f68", side: THREE\.FrontSide/);
   assert.match(lt, /opacity: ov\.opacity, side: THREE\.FrontSide/);
   assert.match(lt, /t\.ground\.geometry\.setDrawRange\(0, cameraBelow\(camera, t\.minY\) \? t\.gridTris : Infinity\);/);

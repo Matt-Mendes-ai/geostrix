@@ -16,6 +16,7 @@ import { activateOnKey } from "../lib/a11y.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { planElevation, planElevationText } from "../lib/drapeElevation.js"; // TASKS.csv #2269
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", fontSize: "var(--font-size-sm)" };
@@ -113,7 +114,7 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
         {plan && onCollars && <div role="note" style={note}>{tr("No terrain: the lines are draped on the ground between the collars (a surface through the collar elevations).")}</div>}{/* #2768 */}
         {plan && !terrain && layer && (collars || []).length >= 3 && <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={layer.drapeMode === "flat"} onChange={(e) => updateMapLayer(layer.id, (l) => ({ ...l, drapeMode: e.target.checked ? "flat" : "terrain" }))} />{tr("Flat at one RL instead")}</label>}
         {plan && !onCollars && <div role="note" style={{ ...note, color: "var(--color-warn-text)" }}>{planElevationText(plan)}</div>}{/* #2269 */}
-        {plan && !onCollars && <label style={{ ...row, justifyContent: "flex-start" }} title={tr("The RL the lines of this layer are drawn at while there is no terrain to drape them on")}>{tr("Elev. (m RL)")}<input type="number" step="any" value={elev !== "" ? elev : Number.isFinite(elevNow) ? Math.round(elevNow * 100) / 100 : ""} onChange={(e) => setLayerElev(e.target.value)} aria-label={tr("Elevation of the interpretation lines (m RL)")} style={{ ...smallSel, width: 90 }} /></label>}{/* #2522 */}
+        {plan && !onCollars && <label style={{ ...row, justifyContent: "flex-start" }} title={tr("The RL the lines of this layer are drawn at while there is no terrain to drape them on")}>{tr("Elev. (m RL)")}<NumberInput allowEmpty value={elev !== "" ? elev : Number.isFinite(elevNow) ? Math.round(elevNow * 100) / 100 : null} onChange={(v) => setLayerElev(v == null ? "" : String(v))} aria-label={tr("Elevation of the interpretation lines (m RL)")} style={{ ...smallSel, width: 90 }} /></label>}{/* #2522 */}
         {surveys.length > 0 && <label style={row}>{tr("Survey")}{/* TASKS.csv #2274 — no Survey row when the project has none */}
           <select value={survey} onChange={(e) => { setSurvey(e.target.value); setLayerPick(""); }} style={{ ...smallSel, maxWidth: 170 }} aria-label={tr("Survey the lines are drawn on")}>
             <option value="">{tr("(none named)")}</option>

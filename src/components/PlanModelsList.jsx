@@ -6,6 +6,7 @@ import { t as tr } from "../lib/i18n.js";
 import { f32ToB64 } from "../lib/inversion.js";
 import { ringArea } from "../lib/planSurveys.js";
 import { modelExtent, modelFootprintBoundary, modelLevelSlice, sliceColours, propertyUnit, surfaceOutlineBoundary, surfaceCutBoundary } from "../lib/planModels.js";
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 
 const btn = { fontSize: "var(--font-size-xs)", background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0 };
 const fmt = (v) => (Number.isFinite(v) ? v.toLocaleString(undefined, { maximumSignificantDigits: 4 }) : "—");
@@ -57,7 +58,7 @@ export default function PlanModelsList() {
   return (
     <div style={{ marginTop: 5, borderTop: "1px solid var(--color-border)", paddingTop: 3, display: "flex", flexDirection: "column", gap: 3 }}>
       <span style={{ fontWeight: 600 }}>{tr("Block models and surfaces")}</span>
-      <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Level (RL, m)")}<input type="number" value={rlText} placeholder={meanRl == null ? "" : String(meanRl)} onChange={(e) => setRlText(e.target.value)} aria-label={tr("Level of the slice or cut, as an RL in metres")} style={{ width: 70, fontSize: "var(--font-size-xs)" }} /></label>
+      <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Level (RL, m)")}<NumberInput allowEmpty value={rlText === "" ? null : rlText} placeholder={meanRl == null ? "" : String(meanRl)} onChange={(v) => setRlText(v == null ? "" : String(v))} aria-label={tr("Level of the slice or cut, as an RL in metres")} style={{ width: 70, fontSize: "var(--font-size-xs)" }} /></label>
       {voxelModels.map((m) => (
         <span key={m.id} style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
           <span style={{ flex: "1 1 100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={m.name}>{m.name}</span>

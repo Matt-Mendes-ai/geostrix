@@ -9,6 +9,7 @@ import { pointTransform, crsName } from "../lib/reproject.js";
 import { formatLonLat } from "../lib/projectCrs.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
 const row = { display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
@@ -58,8 +59,8 @@ export default function LocalGridPanel() {
       <div style={{ fontWeight: 600, color: "var(--color-text)", fontSize: "var(--font-size-sm)" }}>{tr("Local mine grid")}</div>
       <label style={row}>{tr("Name")}<input value={name} onChange={(e) => setName(e.target.value)} onBlur={() => setLocalGrid(name)} placeholder={tr("e.g. Wallaby mine grid")} aria-label={tr("Local grid name")} style={{ ...smallSel, flex: 1, minWidth: 0 }} /></label>
       {/* TASKS.csv #2691 / #2661 — the grid's RL datum and, with no tie, its north */}
-      <label style={row} title={tr("Grid RL = elevation + this offset (a mine datum of +1000: RL 1,250 is 250 m above sea level). Blank: the RLs are elevations.")}>{tr("RL datum: grid RL = elevation +")}<input type="number" step="any" value={rl} onChange={(e) => setRl(e.target.value)} onBlur={() => setLocalGridDatum({ rlOffset: rl })} placeholder={tr("blank")} aria-label={tr("RL datum offset (m)")} style={{ ...smallSel, width: 80 }} />{tr("m")}</label>
-      <label style={row} title={tr("For a grid not tied to a CRS: how far grid north is turned from true north, east positive (west negative). A true-north survey is converted with it on import. A tie, when there is one, knows its own rotation.")}>{tr("Grid north is")}<input type="number" step="any" value={north} disabled={!!saved} onChange={(e) => setNorth(e.target.value)} onBlur={() => setLocalGridDatum({ northDeg: north })} placeholder={saved ? tr("from the tie") : tr("blank")} aria-label={tr("Grid north from true north (degrees, east positive)")} style={{ ...smallSel, width: 80 }} />{tr("° east of true north")}</label>
+      <label style={row} title={tr("Grid RL = elevation + this offset (a mine datum of +1000: RL 1,250 is 250 m above sea level). Blank: the RLs are elevations.")}>{tr("RL datum: grid RL = elevation +")}<NumberInput allowEmpty value={rl === "" ? null : rl} onChange={(v) => { const s = v == null ? "" : String(v); setRl(s); setLocalGridDatum({ rlOffset: s }); }} placeholder={tr("blank")} aria-label={tr("RL datum offset (m)")} style={{ ...smallSel, width: 80 }} />{tr("m")}</label>
+      <label style={row} title={tr("For a grid not tied to a CRS: how far grid north is turned from true north, east positive (west negative). A true-north survey is converted with it on import. A tie, when there is one, knows its own rotation.")}>{tr("Grid north is")}<NumberInput allowEmpty value={north === "" ? null : north} disabled={!!saved} onChange={(v) => { const s = v == null ? "" : String(v); setNorth(s); setLocalGridDatum({ northDeg: s }); }} placeholder={saved ? tr("from the tie") : tr("blank")} aria-label={tr("Grid north from true north (degrees, east positive)")} style={{ ...smallSel, width: 80 }} />{tr("° east of true north")}</label>
       {north !== "" && !(Math.abs(Number(north)) <= 180) && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Between -180 and 180°.")}</div>}
       <div style={{ ...note, marginTop: 8 }}>{saved
         ? tr("Tied to {crs} (EPSG:{epsg}): rotation {rot}°, scale {scale}{rms}.", { crs: crsName(saved.epsg) || "", epsg: saved.epsg, rot: saved.rotationDeg.toFixed(4), scale: saved.scale.toFixed(6), rms: saved.rmsM != null ? tr(", {rms} m RMS over {n} control points", { rms: saved.rmsM.toFixed(3), n: saved.n }) : "" })
@@ -77,7 +78,7 @@ export default function LocalGridPanel() {
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginTop: 6 }}>
           {[["lx", tr("Local E")], ["ly", tr("Local N")], ["wx", tr("CRS E")], ["wy", tr("CRS N")], ["rot", tr("Rotation (°, anticlockwise)")], ["scale", tr("Scale")]].map(([k, l]) => (
-            <label key={k} style={{ ...note, display: "flex", flexDirection: "column" }}>{l}<input type="number" step="any" value={o[k]} onChange={(e) => setO((p) => ({ ...p, [k]: e.target.value }))} style={smallSel} aria-label={l} /></label>
+            <label key={k} style={{ ...note, display: "flex", flexDirection: "column" }}>{l}<NumberInput allowEmpty value={o[k] === "" || o[k] == null ? null : o[k]} onChange={(v) => setO((p) => ({ ...p, [k]: v == null ? "" : String(v) }))} style={smallSel} aria-label={l} /></label>
           ))}
         </div>
       )}
