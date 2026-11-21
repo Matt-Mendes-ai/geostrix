@@ -52,7 +52,7 @@ test("#3815 (4) one survey loaded: its key carries the survey's name", () => {
 
 test("#3815 (2) (5) (7) the count with separators, the budget note points at the Advanced ribbon, a block model's removal says Undo does not cover it", () => {
   assert.match(gm, /mapped: mapped\.length\.toLocaleString\(\) \/\* #3815 \(2\) \*\//);
-  assert.match(gm, /setting \(Advanced ribbon, Cell budget\) and re-import/);
+  assert.match(gm, /raise it \(Advanced ribbon, Cell budget\) and re-import/);
   assert.match(gm, /tr\("Undo does not bring a block model back\."\)/);
   hasKeys(["Undo does not bring a block model back."]);
 });

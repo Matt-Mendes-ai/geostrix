@@ -26,6 +26,6 @@ test("a 'crs' member naming a code and a plain lon / lat file are told apart", (
 test("the boundary import words its note from what was done", () => {
   const g = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(g, /if \(gj\?\.notDegrees\) \{\n        const placed = await plainSourceTransform\(\);/);
-  assert.match(g, /tr\("the file names no CRS and its coordinates are not degrees: they were taken as the project's \{dst\}, check where it lies \(or choose its Source CRS in the pane and import it again\)"/);
+  assert.match(g, /tr\("the file names no CRS and is not in degrees: taken as the project's \{dst\}\. Check where it lies, or set its Source CRS and re-import"/);
   assert.match(g, /tr\("its 'crs' member names EPSG:\{src\}: read in it and reprojected to the project's \{dst\}"/);
 });

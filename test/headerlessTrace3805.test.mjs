@@ -54,6 +54,6 @@ test("a '/' comment whose word count is not the data's is a comment (SCOTTIE_LOO
 test("wired: Import CSV keeps the first row and says so; the picker starts on X, Y, Z", () => {
   const m = read("../src/modules/GeophysicsModule.jsx");
   assert.match(m, /const hl = headerlessTable\(t0\.headers, t0\.rows\), t = hl \? \{ \.\.\.t0, headers: hl\.headers, rows: hl\.rows \} : t0;/);
-  assert.match(m, /if \(hl\) \{ openPicker\(tr\("\\"\{name\}\\" has no header line: its first row/);
-  for (const lang of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${lang}.json`))['"{name}" has no header line: its first row ({first}) is a reading, so all {n} rows are kept and the columns are named Column 1, 2, 3 …. Column 1, 2, 3 are taken as X, Y, Z.'], lang);
+  assert.match(m, /if \(hl\) \{ openPicker\(tr\("\\"\{name\}\\" has no header line \(its first row/);
+  for (const lang of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${lang}.json`))['"{name}" has no header line (its first row, {first}, is a reading): all {n} rows kept, columns named Column 1, 2, 3 …, taken as X, Y, Z.'], lang);
 });

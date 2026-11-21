@@ -413,7 +413,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     let out = incoming, note = "";
     const size = (e) => `${Math.round(e.xmax - e.xmin).toLocaleString()} × ${Math.round(e.ymax - e.ymin).toLocaleString()} m`;
     for (const c of clashes) {
-      if (window.confirm(tr("A survey named \"{key}\" is already loaded: {n} points over {size}. This file has {n2} points over {size2}, so it may be another grid of the same name.\n\nOK replaces the loaded survey. Cancel keeps both, naming this one \"{name}\".", { key: c.key, n: c.loaded.n.toLocaleString(), size: size(c.loaded), n2: c.incoming.n.toLocaleString(), size2: size(c.incoming), name: uniqueSurveyKey(c.key, keys) }))) continue;
+      if (window.confirm(tr("A survey \"{key}\" is already loaded ({n} points over {size}); this file has {n2} over {size2}, maybe another grid.\n\nOK replaces it. Cancel keeps both, naming this \"{name}\".", { key: c.key, n: c.loaded.n.toLocaleString(), size: size(c.loaded), n2: c.incoming.n.toLocaleString(), size2: size(c.incoming), name: uniqueSurveyKey(c.key, keys) }))) continue;
       const nk = uniqueSurveyKey(c.key, keys);
       keys.add(nk); renamed[c.key] = nk;
       out = out.map((r) => (surveyKey(r) === c.key ? { ...r, _src: nk } : r));
@@ -464,8 +464,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     setCustomLayers((p) => [...p, { id: `custom_${Date.now()}`, name, rows: res.rows, sourceSurvey: key, unit: geophysSurveys?.[key]?.units || null }]);
     const args = { name, holes: res.holes.toLocaleString(), rows: res.rows.length.toLocaleString(), d: maxDist, s: step };
     setError({ info: true, text: (mode === "idw"
-      ? tr("Added \"{name}\": the inverse-distance mean of the points within {d} m, every {s} m down {holes} hole(s) ({rows} intervals). Downhole logs can now plot a log against it (against a model), and the strip logs show it.", args)
-      : tr("Added \"{name}\": the nearest point's value within {d} m, every {s} m down {holes} hole(s) ({rows} intervals). Downhole logs can now plot a log against it (against a model), and the strip logs show it.", args))
+      ? tr("Added \"{name}\": inverse-distance mean of points within {d} m, every {s} m down {holes} hole(s) ({rows} intervals). Downhole logs and strip logs can show it.", args)
+      : tr("Added \"{name}\": the nearest point's value within {d} m, every {s} m down {holes} hole(s) ({rows} intervals). Downhole logs and strip logs can show it.", args))
       + (res.emptyM > 0 ? " " + tr("{m} m of those holes had no point within {d} m and were left empty.", { m: res.emptyM.toLocaleString(), d: maxDist }) : "") // TASKS.csv #3883 (#3815 (8))
       + " " + tr("({s} s)", { s: secs < 10 ? secs.toFixed(1) : Math.round(secs) }) + (APPARENT_METHODS.has(geophysSurveys?.[key]?.method) ? " " + tr("These are apparent values at plotting points (pseudo-depths): compare them with an inversion, not with the core.") : "") /* #3808 */ });
   };
@@ -563,7 +563,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const cols = firstLine.split(/[,;\t]/).map((c) => c.trim().replace(/^"|"$/g, ""));
     const blocky = (cols.includes("i") && cols.includes("j") && cols.includes("k")) || /centroid|xinc|yinc|zinc|\bdx\b|block/.test(firstLine);
     if (blocky) {
-      setError(tr("\"{name}\" looks like a BLOCK MODEL (cell indices / cell-centre columns{v}), not a point survey. Import it under Geophysics → Block models: the UBC mesh + model files (.msh + .mod) or OMF if you have them (streamed and reduced to fit the 3D view), or \"Block model CSV\" for smaller files.", { name: file.name, v: file.size > 50e6 ? tr(", {v} MB", { v: (file.size / 1e6).toFixed(0) }) : "" }));
+      setError(tr("\"{name}\" looks like a BLOCK MODEL (cell indices / centres{v}), not a point survey. Import it under Geophysics → Block models: UBC, OMF or \"Block model CSV\".", { name: file.name, v: file.size > 50e6 ? tr(", {v} MB", { v: (file.size / 1e6).toFixed(0) }) : "" }));
       return;
     }
     if (file.size > STREAM_FROM_BYTES) { await openStreamedCsv(file, head); return; } // #1351 — was refused above 150 MB
@@ -578,7 +578,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           setXyzPending({ headerEpsg: geosoftHeaderEpsg(head) /* #2832 */, ...extra, fileName: file.name, columns: res.meta.fields || [], rows: res.data, source: "csv", xCol: cols.x, yCol: cols.y, zCol: cols.z, valueCol: cols.value, lineCol: cols.line, fidCol: cols.fid, labelCol: cols.label, ...cleaningDefaults(res.meta.fields || []) /* #1583 */ });
           setError({ info: true, text: tr("{why} Pick the columns below, then Import.", { why }) });
         };
-        if (hl) { openPicker(tr("\"{name}\" has no header line: its first row ({first}) is a reading, so all {n} rows are kept and the columns are named Column 1, 2, 3 …. Column 1, 2, 3 are taken as X, Y, Z.", { name: file.name, first: Object.values(hl.rows[0]).slice(0, 3).join(", "), n: hl.rows.length.toLocaleString() })); return; } // TASKS.csv #3805
+        if (hl) { openPicker(tr("\"{name}\" has no header line (its first row, {first}, is a reading): all {n} rows kept, columns named Column 1, 2, 3 …, taken as X, Y, Z.", { name: file.name, first: Object.values(hl.rows[0]).slice(0, 3).join(", "), n: hl.rows.length.toLocaleString() })); return; } // TASKS.csv #3805
         if (!cols.ok) {
           const missing = [!cols.x && "X / easting", !cols.y && "Y / northing", !cols.value && "the measured value"].filter(Boolean).join(", ");
           openPicker(tr("\"{name}\": couldn't tell which column is {missing} from the headers ({fields}).", { name: file.name, missing, fields: (res.meta.fields || []).join(", ") || tr("none") }) + (cols.x && cols.y && !cols.value ? " " + tr("If the file only lists positions (electrodes, stations), choose \"(none: positions only)\" for Value.") : "")); // #3447
@@ -614,7 +614,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         const asDegrees = !mineSrc && !geophysSourceEpsg && !cols.geographic && !hdrEpsg && projected && xyLookLikeDegrees(res.data, cols.x, cols.y);
         const srcEpsg = mineSrc ? "" : geophysSourceEpsg || (cols.geographic ? "4326" : "") || (hdrEpsg ? String(hdrEpsg) : "") || (asDegrees ? "4326" : "");
         let reprojectNote = hdrEpsg ? " " + tr("Its header names {crs} (EPSG:{epsg}), so its X / Y were read in it.", { crs: crsName(hdrEpsg) || `EPSG:${hdrEpsg}`, epsg: hdrEpsg })
-          : asDegrees ? " " + tr("Every X is within ±180 and every Y within ±90, so they were read as WGS 84 longitude / latitude; set the Source CRS if they are in another datum.") : "";
+          : asDegrees ? " " + tr("Read as WGS 84 longitude / latitude (every X within ±180, every Y within ±90). Set the Source CRS if they use another datum.") : "";
         if (mineSrc) { const m = mineRowsToProject(good, project); good = m.rows; reprojectNote = m.note; }
         else if (srcEpsg && project?.epsg && Number(srcEpsg) !== Number(project.epsg)) {
           let failed = 0;
@@ -643,8 +643,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         // TASKS.csv #3808 (Scottie Gold) — an IP / DC file's points at depth are a pseudo-section's plotting points: apparent values, not readings down the holes.
         // Named so (and labelled apparent on the card) instead of 'downhole readings' with a label the card did not show
         const electrical = ["ip", "res", "ip_app", "res_app"].includes(gMethod);
-        const dhNote = dh?.isDownhole && electrical ? tr(" These points sit at depth ({pct}% more than 10 m below the {ground}, typically {med} m): for a DC / IP survey that is a pseudo-section's plotting points. They are apparent values, not rock properties at those elevations: compare them with an inversion, not with the core.", { pct: Math.round(100 * dh.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(dh.medianDropM) })
-          : dh?.isDownhole && !gMethod && !geophysSurveys[file.name]?.method ? tr(" These look like downhole readings, not survey stations: {pct}% of the points sit more than 10 m below the {ground} (typically {med} m, up to {max} m). A point survey is read as the ground surface: gridding flattens every depth into one cell, and the inversion would take them as stations. Import such a log with the drillholes instead, and use the inversion's drillhole-constraint option; the survey is labelled \"downhole readings\" so the tools can say so.", { pct: Math.round(100 * dh.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(dh.medianDropM), max: Math.round(dh.maxDropM) }) : dh?.isDownhole ? tr(" These look like downhole readings, not survey stations: {pct}% of the points sit more than 10 m below the {ground} (typically {med} m, up to {max} m). A point survey is read as the ground surface: gridding flattens every depth into one cell, and the inversion would take them as stations.", { pct: Math.round(100 * dh.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(dh.medianDropM), max: Math.round(dh.maxDropM) }) : "";
+        const dhNote = dh?.isDownhole && electrical ? tr(" Points at depth ({pct}% over 10 m below the {ground}, typically {med} m): a DC / IP pseudo-section's apparent values. Compare with an inversion, not the core.", { pct: Math.round(100 * dh.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(dh.medianDropM) })
+          : dh?.isDownhole && !gMethod && !geophysSurveys[file.name]?.method ? tr(" These look like downhole readings, not stations ({pct}% over 10 m below the {ground}, typically {med} m, up to {max} m): import them with the drillholes as a constraint.", { pct: Math.round(100 * dh.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(dh.medianDropM), max: Math.round(dh.maxDropM) }) : dh?.isDownhole ? tr(" These look like downhole readings, not stations ({pct}% over 10 m below the {ground}, typically {med} m, up to {max} m): gridding flattens them; inversions take them as stations.", { pct: Math.round(100 * dh.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(dh.medianDropM), max: Math.round(dh.maxDropM) }) : "";
         if (dh?.isDownhole && !electrical && !gMethod && !geophysSurveys[file.name]?.method) updateGeophysSurvey(file.name, { method: "magsus_downhole", units: SURVEY_METHODS.magsus_downhole.units });
         const others = cols.valueCandidates.filter((c) => c !== cols.value);
         const colNote = tr(" Columns: X = {x}, Y = {y}, Z = {v}, value = {value}{v2}.", { x: cols.x, y: cols.y, v: cols.z || "(none)", value: cols.value, v2: others.length ? tr(" (also looked like measurements: {others} — import again and pick one to use it instead)", { others: others.join(", ") }) : "" });
@@ -751,20 +751,20 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (reprojected) msg += " " + tr("The coordinates read as longitude / latitude and were reprojected from WGS 84 to the project's EPSG:{epsg}.", { epsg: project.epsg });
     // TASKS.csv #3036 — the node spacing follows the points' spacing, within the Terrain detail and the finest grid
     if (t.stats.gridFromSpacing) msg += " " + tr("The grid follows the points' spacing (median {s} m to the nearest neighbour): {n} nodes along the long side rather than the {d} of the Terrain detail.", { s: t.stats.spacingM.toFixed(0), n: t.stats.nodes.toLocaleString(), d: terrainDetail.toLocaleString() });
-    if (t.stats.spacingM > 0 && t.stats.cellM > 1.5 * t.stats.spacingM) msg += " " + tr("The points are closer together (median {s} m) than the finest grid over their whole extent can show (nodes ~{cell} m apart): a terrain over a smaller area, or a DEM, gives finer ground.", { s: t.stats.spacingM.toFixed(0), cell: t.stats.cellM.toFixed(0) });
+    if (t.stats.spacingM > 0 && t.stats.cellM > 1.5 * t.stats.spacingM) msg += " " + tr("The points are closer (median {s} m) than the finest grid over their extent shows (~{cell} m): for finer ground, use a smaller area or a DEM.", { s: t.stats.spacingM.toFixed(0), cell: t.stats.cellM.toFixed(0) });
     // TASKS.csv #3034 — the nodes beside points on the edge of their area
     if (t.stats.pointNodes) msg += " " + tr("{n} node(s) beside points at the edge of their area (outside every triangle) take the nearby points' elevations, so every point has ground.", { n: t.stats.pointNodes.toLocaleString() });
     if (leftOutNote) msg += " " + leftOutNote; // #2987
-    if (t.stats.densifyCapped) msg += " " + tr("The contour lines were given a vertex every {m} m rather than every half node spacing ({h} m), to keep the triangulation to about four points per grid node.", { m: t.stats.densifyStepM.toFixed(1), h: t.stats.halfCellM.toFixed(1) }); // #986
+    if (t.stats.densifyCapped) msg += " " + tr("Contour lines got a vertex every {m} m, not every half node spacing ({h} m), to keep about four points per grid node.", { m: t.stats.densifyStepM.toFixed(1), h: t.stats.halfCellM.toFixed(1) }); // #986
     // TASKS.csv #3338 — what the long-edge rule left out, and how far the ground reaches from the points (it said 'no ground is invented' over
     // 41.5 km² drawn up to 2.4 km from a collar)
     if (t.stats.longDropped) msg += " " + tr("{n} triangle(s) with an edge over {m} m were left out.", { n: t.stats.longDropped, m: Math.round(t.stats.maxEdgeM) });
     if (t.stats.reachM) msg += " " + tr("Ground is drawn only up to {r} m from a point (set under 'Ground reaches at most'): {n} more grid cells were left without ground.", { r: Math.round(t.stats.reachM).toLocaleString(), n: t.stats.beyondReach.toLocaleString() });
     if (t.stats.reachMaxM > 0) msg += " " + tr("The ground reaches up to {max} m from its nearest point (median {med} m): beyond the points it is the triangles' guess.", { max: Math.round(t.stats.reachMaxM).toLocaleString(), med: Math.round(t.stats.reachMedianM).toLocaleString() });
-    if (lines.length && t.stats.flatPct >= 5) msg += " " + tr("{pct}% of the triangles are flat (all three corners on one contour): terraces on hilltops and valley floors, where contours alone do not say how the ground continues.", { pct: t.stats.flatPct.toFixed(0) });
-    if (t.stats.filledCount) msg += " " + tr("{pct}% of the grid ({n} cells) lies outside the triangulated points and is left out of the 3D surface. The modelling tools, inversions and collar checks read no ground there (stations, collars or a flat ground stand in); only map layers draped on the terrain sit at the mean elevation {z} m.", { pct: t.stats.filledPct.toFixed(1), n: t.stats.filledCount.toLocaleString(), z: t.stats.fillValue.toFixed(0) });
+    if (lines.length && t.stats.flatPct >= 5) msg += " " + tr("{pct}% of the triangles are flat (all corners on one contour): terraces on hilltops and valley floors, where contours don't say how the ground continues.", { pct: t.stats.flatPct.toFixed(0) });
+    if (t.stats.filledCount) msg += " " + tr("{pct}% of the grid ({n} cells) is outside the points and left out of the surface: modelling, inversions and collar checks read no ground there.", { pct: t.stats.filledPct.toFixed(1), n: t.stats.filledCount.toLocaleString(), z: t.stats.fillValue.toFixed(0) });
     // TASKS.csv #3583 (Macpass: 98.1 % of a 670 x 439 grid at 40 m nodes lies outside the collars, spread over 26 km) — most of the grid empty: say what helps
-    if (t.stats.filledPct >= 50 && !projArea) msg += " " + tr("Most of the grid is empty because the points lie in a few clusters far apart: 'Limit to a drawn area…' over one cluster gives it finer nodes.");
+    if (t.stats.filledPct >= 50 && !projArea) msg += " " + tr("Most of the grid is empty because the points lie in far-apart clusters: 'Limit to a drawn area…' over one gives it finer nodes.");
     if (benchNote) msg += " " + benchNote; // #2589
     if (misfitAt?.length) { // #2589 — the surface against the collars it was built from
       const m = surfaceMisfit(misfitAt, built, BENCH_DZ_M);
@@ -828,13 +828,13 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const picked = pickBenchGround(collarPts, benches.n ? benchMode : "all"); // #2589
       const points = [...samplePts, ...picked.points], nc = picked.points.length;
       const benchNote = !benches.n ? ""
-        : benchMode === "lowest" ? tr("Where collars stack at one spot, the lowest was kept ({n} higher collar(s) left out): the surface is the latest pit floor there, not the original topography.", { n: picked.dropped.toLocaleString() })
-        : benchMode === "highest" ? tr("Where collars stack at one spot, the highest was kept ({n} lower collar(s) left out): the surface is the nearest to the original ground there, and the pit floor is not in it.", { n: picked.dropped.toLocaleString() })
-        : tr("{n} collars share a spot (within {r} m) with a collar {dz} m or more higher or lower, in {spots} place(s), up to {max} m apart: pit benches or mine levels? The surface through all of them is not the topography there; 'Where collars stack' can keep the lowest or the highest." /* #3551: no pit assumed */, { n: benches.n.toLocaleString(), r: BENCH_R_M, dz: BENCH_DZ_M, spots: benches.spots.toLocaleString(), max: benches.maxDz.toFixed(1) });
+        : benchMode === "lowest" ? tr("Where collars stack, the lowest was kept ({n} higher collar(s) left out): the surface is the latest pit floor there, not the original topography.", { n: picked.dropped.toLocaleString() })
+        : benchMode === "highest" ? tr("Where collars stack, the highest was kept ({n} lower collar(s) left out): the surface is nearest the original ground, without the pit floor.", { n: picked.dropped.toLocaleString() })
+        : tr("{n} collars sit {dz} m or more above or below another within {r} m ({spots} place(s)): benches or levels? The surface there is not the topography." /* #3551: no pit assumed */, { n: benches.n.toLocaleString(), r: BENCH_R_M, dz: BENCH_DZ_M, spots: benches.spots.toLocaleString(), max: benches.maxDz.toFixed(1) });
       // TASKS.csv #2263 (review #2174) — collars drilled from underground levels make a surface through the mine, not the ground (a TIN at
       // RL 102-351 under a surface near 400): ask, and name it for what it is
       const ug = collarsLookUnderground(collars, survey);
-      if (ug.underground && !window.confirm(tr("The collars look like underground collars ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): a surface through them runs through the mine levels, not the ground.", { upward: ug.upward, stacked: ug.stacked }) + "\n\n" + tr("OK — build it anyway, named 'Surface through the collars'.") + "\n" + tr("Cancel — don't build it (import a DEM or fetch SRTM for the real ground)."))) return;
+      if (ug.underground && !window.confirm(tr("The collars look like underground collars ({upward} hole(s) drilled up, {stacked} stacked pair(s)): a surface through them follows mine levels, not ground.", { upward: ug.upward, stacked: ug.stacked }) + "\n\n" + tr("OK — build it anyway, named 'Surface through the collars'.") + "\n" + tr("Cancel — don't build it (import a DEM or fetch SRTM for the real ground)."))) return;
       await finishPointsTerrain({ points, lines: [], what: tr("{s} surface sample(s) and {c} collar(s) of this project", { s: samples, c: nc }), name: ug.underground ? "Surface through the collars" : zUse === "collars" ? "Terrain from collars" : zUse === "samples" ? "Terrain from samples" : "Terrain from samples and collars" /* the source in the name: #3381 */, sourceFile: "project surface samples and collars", reprojected: false, misfitAt: picked.points, benchNote, leftOutNote: [collarsOutNote(projectZPoints.collarsOut), ugCollars.ids.size ? `${undergroundCollarsText(ugCollars)} ${ugMode === "out" ? tr("They were left out of the terrain; 'Underground collars' can keep them.") : tr("They were kept in the terrain, as chosen under 'Underground collars'.")}` : ""].filter(Boolean).join(" ") /* #3551 */, spacingFit: true, reach: Number(reachText) > 0 ? Number(reachText) : "auto" /* #3338 */ }); // name: #2263; misfitAt, benchNote: #2589; leftOutNote: #2987; spacingFit: #3036
     } catch (err) {
       setTerrainError({ info: false, text: err.message });
@@ -977,7 +977,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           addTerrain({ name, ...built, source: { kind: "lidar ground", file: file.name, from: sf.from, cellM: +sf.cellM.toFixed(2), points: res.seen } });
           msg.push(sf.from === "ground"
             ? tr("Terrain \"{name}\": the mean of the ground points in {w}×{h} cells of {c} m.", { name, w: sf.gridW, h: sf.gridH, c: sf.cellM.toFixed(1) })
-            : tr("Terrain \"{name}\": the file has no ground-classified points, so each of the {w}×{h} cells of {c} m takes its lowest point. Where no pulse reached the ground (dense trees, roofs) that is the top of the trees or the roof.", { name, w: sf.gridW, h: sf.gridH, c: sf.cellM.toFixed(1) }));
+            : tr("Terrain \"{name}\": no ground-classified points, so each {c} m cell of {w}×{h} takes its lowest point: under dense trees or roofs, that is their top.", { name, w: sf.gridW, h: sf.gridH, c: sf.cellM.toFixed(1) }));
           if (sf.filled) msg.push(tr("{n} cell(s) with no ground point (under buildings, water, gaps between flight lines) were filled from their neighbours, up to {m} m away.", { n: sf.filled.toLocaleString(), m: Math.round(sf.fillM) }));
           if (sf.empty) msg.push(tr("{n} cell(s) further than that are left out of the 3D surface.", { n: sf.empty.toLocaleString() }));
           if (out.terrain.kind === "points") msg.push(tr("The cells were reprojected and triangulated onto a {w}×{h} grid in the project's coordinates.", { w: built.gridW, h: built.gridH }));
@@ -1153,7 +1153,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     }
     // TASKS.csv #3251 — over a quarter of this computer's memory: refused with the figures, before anything is fetched
     const plan = planTerrainFetch(bboxLonLat, terrainDetail, src);
-    if (!fetchFits(plan.memoryMB, ramGB)) { said({ ok: false, error: "This terrain would take more memory than a fetch may use on this computer: choose a lower Terrain detail in GeoStrix (Maps › Terrain)." }); setTerrainError({ info: false, text: tr("This terrain would take about {mb} MB of memory, over the {max} MB a fetch may use on this computer (a quarter of its memory). Choose a lower Terrain detail or a smaller area.", { mb: plan.memoryMB.toLocaleString(), max: fetchBudgetMB(ramGB).toLocaleString() }) }); return; }
+    if (!fetchFits(plan.memoryMB, ramGB)) { said({ ok: false, error: "This terrain would take more memory than a fetch may use on this computer: choose a lower Terrain detail in GeoStrix (Maps › Terrain)." }); setTerrainError({ info: false, text: tr("Choose a lower Terrain detail or a smaller area: this terrain needs about {mb} MB, over the {max} MB a fetch may use here.", { mb: plan.memoryMB.toLocaleString(), max: fetchBudgetMB(ramGB).toLocaleString() }) }); return; }
     setSrtmPickerOpen(false);
     setTerrainBusy(true);
     setSrtmProgress({ done: 0, total: 1 });
@@ -1186,17 +1186,17 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         setTerrainError({ info: true, text: tr("The collars sit a median {v} m off this terrain — checking whether the project's CRS is one UTM zone off…", { v: Math.round(misfit.medianDz) }) });
         const better = await findBetterUtmZone(collars, targetEpsg, misfit);
         if (ai) ai.misfit = { collar_misfit_m: Math.round(misfit.medianDz), ...(better ? { a_better_fit: `${better.name} (EPSG:${better.code}), within ${Math.round(better.medianDz)} m` } : {}) }; // #3932 — said, not relabelled
-        if (better && !ai && window.confirm(tr("The {n} collars sit a median {v} m above or below the terrain fetched for {v2}, but read as {name} they sit within {v3} m of the ground.\n\nThe project CRS is probably the wrong UTM zone (new projects start as EPSG:3156, zone 9N; a collar CSV carries no CRS).\n\nOK — relabel the project as {name} (EPSG:{code}; no coordinates change) and fetch the terrain there.\nCancel — keep this terrain.", { n: misfit.n, v: Math.round(misfit.medianDz), v2: crsName(targetEpsg) || tr("EPSG:{targetEpsg}", { targetEpsg }), name: better.name, v3: Math.round(better.medianDz), code: better.code }))) {
+        if (better && !ai && window.confirm(tr("The {n} collars sit a median {v} m off the terrain for {v2}, but within {v3} m as {name}: probably the wrong UTM zone.\n\nOK — relabel the project {name} (EPSG:{code}; no coordinates change) and fetch there.\nCancel — keep this terrain.", { n: misfit.n, v: Math.round(misfit.medianDz), v2: crsName(targetEpsg) || tr("EPSG:{targetEpsg}", { targetEpsg }), name: better.name, v3: Math.round(better.medianDz), code: better.code }))) {
           setEpsg(better.code);
           const T = pointTransform(better.code, 4326);
           const [bx0, by0, bx1, by1] = parsed.bbox;
           const c = [[bx0, by0], [bx1, by0], [bx0, by1], [bx1, by1]].map(([x, y]) => T(x, y));
-          relabelNote.current = tr(" Project CRS relabelled from EPSG:{targetEpsg} to {name} (EPSG:{code}): the collars sit on the ground there. Re-fetch any satellite imagery, hillshade or other online layer — those were fetched for the old zone.", { targetEpsg, name: better.name, code: better.code });
+          relabelNote.current = tr(" Project CRS relabelled from EPSG:{targetEpsg} to {name} (EPSG:{code}): the collars sit on the ground. Re-fetch any satellite imagery, hillshade or online layer.", { targetEpsg, name: better.name, code: better.code });
           return await runSrtmFetch([Math.min(...c.map((p) => p[0])), Math.min(...c.map((p) => p[1])), Math.max(...c.map((p) => p[0])), Math.max(...c.map((p) => p[1]))], better.code);
         }
         misfitNote = better
           ? tr(" The collars sit a median {v} m off this terrain (in {name} they would sit within {v2} m) — kept as you chose.", { v: Math.round(misfit.medianDz), name: better.name, v2: Math.round(better.medianDz) })
-          : tr(" The collars sit a median {v} m off this terrain, and no neighbouring UTM zone fits better: check the project CRS and the collar elevations (feet? a local datum?).", { v: Math.round(misfit.medianDz) });
+          : tr(" The collars sit a median {v} m off this terrain, and no other UTM zone fits better: check the CRS and collar elevations (feet? local datum?).", { v: Math.round(misfit.medianDz) });
       }
       const terrainId = addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null, source: parsed.source || null }); // noDataMask: #421; source: #726
       const [txmin, tymin, txmax, tymax] = parsed.bbox;
@@ -1209,16 +1209,16 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           ? tr(" Source: {service}, resampled to nodes ~{v2} m apart. It is a bare-earth terrain model (forest removed).", { service: parsed.source.service, v2: Math.round(parsed.source.nodeM) }) // #815
           : tr(" Source: {service}, resampled to nodes ~{v2} m apart. It is a surface model: in forest it reads some metres above the ground.", { service: parsed.source.service, v2: Math.round(parsed.source.nodeM) }); // #814
       // TASKS.csv #3882 follow-up — GLO-30 is the default and shows the ground of 2011-2015: ground mined since reads lower, and older collars sit above it
-      if (/^Copernicus DEM/.test(String(parsed.source?.service || ""))) msg += " " + tr("Copernicus GLO-30 shows the ground as it was in 2011-2015: ground mined since then reads lower than in older terrain, and older collars can sit above it.");
+      if (/^Copernicus DEM/.test(String(parsed.source?.service || ""))) msg += " " + tr("Copernicus GLO-30 shows the ground of 2011-2015: ground mined since reads lower than older terrain, and older collars can sit above it.");
       if (parsed.source?.gapNodes > 0) msg += parsed.source.gapFilledNodes > 0 // TASKS.csv #3721 — the nodes GEM-15 masks (water, snow and ice, low texture) and what filled them
         ? tr(" {n} of {total} nodes have no GEM-15 value (water, snow and ice, low texture, or no cell): {filled} were filled from Copernicus GLO-30.", { n: parsed.source.gapNodes.toLocaleString(), total: parsed.source.totalNodes.toLocaleString(), filled: parsed.source.gapFilledNodes.toLocaleString() })
         : tr(" {n} of {total} nodes have no GEM-15 value (water, snow and ice, low texture, or no cell) and are left as no data.", { n: parsed.source.gapNodes.toLocaleString(), total: parsed.source.totalNodes.toLocaleString() });
       // TASKS.csv #3871 — the fill is GLO-30 plus the GEM-15 - GLO-30 difference interpolated in from the nodes GEM-15 has: said, with the jump across the seam it left
-      if (parsed.source?.gapSeam?.deltaFilled && parsed.source.gapSeam.after && parsed.source.gapSeam.before) msg += tr(" The fill is GLO-30 plus the difference between the two models interpolated in from the nodes GEM-15 has, so it meets GEM-15 at the edge: neighbouring nodes across that edge differ by {after} m at the median (GLO-30 alone: {before} m).", { after: +parsed.source.gapSeam.after.median.toFixed(1), before: +parsed.source.gapSeam.before.median.toFixed(1) });
+      if (parsed.source?.gapSeam?.deltaFilled && parsed.source.gapSeam.after && parsed.source.gapSeam.before) msg += tr(" The fill is GLO-30 adjusted to meet GEM-15 at the edge: nodes across that edge differ by {after} m at the median (GLO-30 alone: {before} m).", { after: +parsed.source.gapSeam.after.median.toFixed(1), before: +parsed.source.gapSeam.before.median.toFixed(1) });
       // TASKS.csv #814 — cones in the AWS tiles that Copernicus GLO-30 does not have: reported, not changed
       if (parsed.suspectCones?.length) {
         const fmt = (c) => (Number.isFinite(c.x) ? `${Math.round(c.x).toLocaleString()} E ${Math.round(c.y).toLocaleString()} N` : `${c.lon.toFixed(4)}, ${c.lat.toFixed(4)}`) + tr(" ({v} m high{v2})", { v: Math.round(c.riseM), v2: c.copRiseM == null ? "" : tr("; Copernicus {v} m", { v: Math.round(c.copRiseM) }) });
-        msg += tr(parsed.suspectCones.length === 1 ? " Warning: {n} isolated cone in the AWS tiles that Copernicus GLO-30 does not show — most likely a source artifact: {list}. The data were not changed; to avoid it, choose Copernicus GLO-30 as the online source and fetch again." : " Warning: {n} isolated cones in the AWS tiles that Copernicus GLO-30 does not show — most likely source artifacts: {list}. The data were not changed; to avoid them, choose Copernicus GLO-30 as the online source and fetch again.", { n: parsed.suspectCones.length, list: parsed.suspectCones.slice(0, 4).map(fmt).join("; ") });
+        msg += tr(parsed.suspectCones.length === 1 ? " Warning: {n} isolated cone in the AWS tiles, not in Copernicus GLO-30, likely a source artifact: {list}. To avoid it, fetch again from Copernicus GLO-30." : " Warning: {n} isolated cones in the AWS tiles, not in Copernicus GLO-30, likely source artifacts: {list}. To avoid them, fetch again from Copernicus GLO-30.", { n: parsed.suspectCones.length, list: parsed.suspectCones.slice(0, 4).map(fmt).join("; ") });
       }
       if (parsed.conesUnchecked) msg += tr(" {n} isolated cone(s) could not be checked against Copernicus GLO-30 (no connection to it).", { n: parsed.conesUnchecked });
       if (parsed.spikesRemoved) msg += tr(parsed.spikesRemoved === 1 ? " {n} isolated spike or pit in the source data (a pixel tens of metres off all its neighbours) was replaced by its neighbours' median." : " {n} isolated spikes or pits in the source data (pixels tens of metres off all their neighbours) were replaced by their neighbours' median.", { n: parsed.spikesRemoved }); // TASKS.csv #799
@@ -1296,7 +1296,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       if (gj?.notDegrees) {
         const placed = await plainSourceTransform(); // the pane's Source CRS, when one is chosen
         const polylines = placed ? placed.map(read) : read;
-        const note = placed ? placed.note : tr("the file names no CRS and its coordinates are not degrees: they were taken as the project's {dst}, check where it lies (or choose its Source CRS in the pane and import it again)", { dst: crsLabel(project?.epsg) });
+        const note = placed ? placed.note : tr("the file names no CRS and is not in degrees: taken as the project's {dst}. Check where it lies, or set its Source CRS and re-import", { dst: crsLabel(project?.epsg) });
         return { polylines, closedFlags, featureOf, attributes, ...(partNames ? { partNames } : {}), note };
       }
       const named = gj?.epsg && gj.epsg !== 4326 ? gj.epsg : null;
@@ -1481,7 +1481,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const res = /\.geoh5$/i.test(file.name) ? await (await import("../lib/geoh5Import.js")).geoh5ToProjectObjects(buf, effectiveMaxCells, { ...opts, baseName: file.name.replace(/\.geoh5$/i, "") }) : await omfToProjectObjectsAsync(buf, effectiveMaxCells, opts);
       // TASKS.csv #1202 — pillar 3: a budget the geologist raised once should not fill a modest laptop unasked (about 0.4 GB per million blocks, as the budget's own tooltip says)
       const blocks = res.voxelModels.reduce((n, m) => n + (m.cells?.length || 0), 0);
-      if (blocks > 500000 && !window.confirm(tr("\"{name}\" holds {n} blocks, about {gb} GB of memory while it is open. A modest laptop can slow down or run out. Import it? (Lowering the cell budget above coarsens it.)", { name: file.name, n: blocks.toLocaleString(), gb: (blocks * 0.4e-6).toFixed(1) }))) { setOmfError({ info: true, text: tr("\"{name}\" was not imported.", { name: file.name }) }); return; }
+      if (blocks > 500000 && !window.confirm(tr("\"{name}\" holds {n} blocks, about {gb} GB of memory while open, which can slow a laptop. Import it? (A lower cell budget coarsens it.)", { name: file.name, n: blocks.toLocaleString(), gb: (blocks * 0.4e-6).toFixed(1) }))) { setOmfError({ info: true, text: tr("\"{name}\" was not imported.", { name: file.name }) }); return; }
       const pointsCount = res.omfObjects.filter((o) => o.kind === "points").length, linesCount = res.omfObjects.filter((o) => o.kind === "lines").length;
       const surfacesCount = res.omfObjects.filter((o) => o.kind === "surface").length, volumesCount = res.voxelModels.length;
       res.omfObjects.forEach((o) => addOmfObject(o));
@@ -1506,7 +1506,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       // is sure of and opens the mapping dialog for the rest (assays to Geochem, logs to their layer); the dip sign is its own check's (#2886)
       if (res.drillholeTables?.length) {
         goToModule?.("viewer");
-        requestModuleAction("import-dropped-files", { files: res.drillholeTables.map((d) => new File([d.text], d.name, { type: "text/csv" })), origin: "geophysics", notes: [tr("{name}: {n} drillhole(s) with {s} survey station(s), read as {tables} and imported here as any table is. Dips are as geoh5 writes them, negative down, and are read that way.", { name: file.name, n: res.drillholes, s: res.surveyStations ?? 0, tables: res.drillholeTables.map((d) => d.name).join(", ") })] }); // counts and the dip convention said: Main's ask, so a user can check them against ANALYST
+        requestModuleAction("import-dropped-files", { files: res.drillholeTables.map((d) => new File([d.text], d.name, { type: "text/csv" })), origin: "geophysics", notes: [tr("{name}: {n} drillhole(s) with {s} survey station(s), read as {tables}. Dips are negative down, as geoh5 writes them.", { name: file.name, n: res.drillholes, s: res.surveyStations ?? 0, tables: res.drillholeTables.map((d) => d.name).join(", ") })] }); // counts and the dip convention said: Main's ask, so a user can check them against ANALYST
       }
     } catch (err) {
       setOmfError({ info: false, text: err.message });
@@ -1536,7 +1536,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const cols = guessGeophysColumns(sn.headers);
     setXyzPending({ fileName: file.name, columns: sn.headers, rows: sn.sample, source: "csv", xCol: cols.x, yCol: cols.y, zCol: cols.z, valueCol: cols.value, lineCol: cols.line, fidCol: cols.fid, labelCol: cols.label, ...cleaningDefaults(sn.headers),
       stream: { file, delimiter: sn.delimiter, headers: sn.headers, skipLines: sn.headerLine + 1, estimate, keepEvery } });
-    setError({ info: true, text: tr("\"{name}\" is {v} MB, about {rows} readings: too big to read whole on most computers. Check the columns and how many readings to keep below, then Import: the file is read in pieces and only the kept readings and columns are held.", { name: file.name, v: (file.size / 1e6).toFixed(0), rows: estimate.toLocaleString() }) });
+    setError({ info: true, text: tr("\"{name}\" is {v} MB, about {rows} readings: too big to read whole. Choose the columns and readings to keep below, then Import: it is read in pieces.", { name: file.name, v: (file.size / 1e6).toFixed(0), rows: estimate.toLocaleString() }) });
   };
   const confirmStreamed = async () => {
     const p = xyzPending, st = p.stream;
@@ -1577,7 +1577,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         const g = guessXyzChannels(columns, sample), estimate = Math.round((sample.length / Math.max(1, head.length)) * file.size);
         setXyzPending({ fileName: file.name, columns, rows: sample, xCol: guessColumn(columns, XY_NAME_HINTS.x), yCol: guessColumn(columns, XY_NAME_HINTS.y), zCol: g.z, valueCol: g.value, header: gemHeaderInfo(head), headerEpsg: gemHeaderEpsg(head) || geosoftHeaderEpsg(head) /* #2832 */, ...cleaningDefaults(columns),
           stream: { file, kind: "xyz", columns, estimate, keepEvery: suggestKeepEvery(estimate, undefined, (layers.geophys_pts || []).length) } });
-        setXyzError({ info: true, text: tr("\"{name}\" is {v} MB, about {rows} readings: too big to read whole on most computers. Check the columns and how many readings to keep below, then Import: the file is read in pieces and only the kept readings and columns are held.", { name: file.name, v: (file.size / 1e6).toFixed(0), rows: estimate.toLocaleString() }) });
+        setXyzError({ info: true, text: tr("\"{name}\" is {v} MB, about {rows} readings: too big to read whole. Choose the columns and readings to keep below, then Import: it is read in pieces.", { name: file.name, v: (file.size / 1e6).toFixed(0), rows: estimate.toLocaleString() }) });
         return;
       }
       const text = await file.text();
@@ -1621,7 +1621,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       setXyzPending({ fileName: dat.name, columns, rows, source: "csv", xCol: guessColumn(columns, XY_NAME_HINTS.x), yCol: guessColumn(columns, XY_NAME_HINTS.y), zCol: g.z, valueCol: g.value,
         lineCol: columns.find((c) => /^(line|line_?no|lineno|flight|flight_?line)$/i.test(c)) || "", ...cleaningDefaults(columns),
         ...(big ? { stream: { file: dat, kind: "gdf", layout, columns, estimate, keepEvery: suggestKeepEvery(estimate, undefined, (layers.geophys_pts || []).length) } } : {}) });
-      if (big) setXyzError({ info: true, text: tr("\"{name}\" is {v} MB, about {rows} readings: too big to read whole on most computers. Check the columns and how many readings to keep below, then Import: the file is read in pieces and only the kept readings and columns are held.", { name: dat.name, v: (dat.size / 1e6).toFixed(0), rows: estimate.toLocaleString() }) });
+      if (big) setXyzError({ info: true, text: tr("\"{name}\" is {v} MB, about {rows} readings: too big to read whole. Choose the columns and readings to keep below, then Import: it is read in pieces.", { name: dat.name, v: (dat.size / 1e6).toFixed(0), rows: estimate.toLocaleString() }) });
     } catch (err) {
       setXyzError({ info: false, text: tr("Could not parse {name}: {message}", { name: dat?.name || dfn?.name, message: err.message }) });
     }
@@ -1847,7 +1847,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (mineSrc) { const m = mineRowsToProject(mapped, project); mapped = m.rows; reprojectNote += m.note; }
     // TASKS.csv #2832 — nothing stated and X / Y that can only be degrees in a projected project: read as WGS 84 longitude / latitude, and said
     const pickerDegrees = !placed?.epsg && !mineSrc && !geophysSourceEpsg && !xyzPending.headerEpsg && project?.crsSet !== false && !!project?.epsg && !isGeographicCrs(project.epsg) && xyLookLikeDegrees(xyzPending.rows, xyzPending.xCol, xyzPending.yCol);
-    if (pickerDegrees) reprojectNote += " " + tr("Every X is within ±180 and every Y within ±90, so they were read as WGS 84 longitude / latitude; set the Source CRS if they are in another datum.");
+    if (pickerDegrees) reprojectNote += " " + tr("Read as WGS 84 longitude / latitude (every X within ±180, every Y within ±90). Set the Source CRS if they use another datum.");
     const statedEpsg = placed?.epsg || (mineSrc ? null : geophysSourceEpsg) || (mineSrc ? null : xyzPending.headerEpsg) || (pickerDegrees ? 4326 : null) || null; // headerEpsg: #1329 — a GEM file says, a Source CRS set by hand still wins; degrees: #2832
     // TASKS.csv #2833 — the stations' place for a CRS in degrees (the metric CRS there is offered, never the degrees themselves), and nothing asked
     // once the project's CRS was chosen (it was replaced by EPSG:4269 on OK)
@@ -1905,7 +1905,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // TASKS.csv #3807 — the collars inside the new terrain's footprint, signed: every collar sat below the model's top by a steady offset, which the notice did not say
   const collarsUnderNote = (t) => {
     const sd = collarTerrainSide(collarTerrainOffsets(collars, { bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask }));
-    return sd?.side ? " " + tr(sd.side === "below" ? "{k} of the {n} collars inside it are {lo} to {hi} m below this ground (median {m} m): the model's top and the collar elevations disagree, so holes start inside the model." : "{k} of the {n} collars inside it are {lo} to {hi} m above this ground (median {m} m): the model's top and the collar elevations disagree.", { k: sd.side === "below" ? sd.below : sd.above, n: sd.n, lo: sd.lo.toFixed(1), hi: sd.hi.toFixed(1), m: sd.med.toFixed(1) }) : "";
+    return sd?.side ? " " + tr(sd.side === "below" ? "{k} of the {n} collars inside it are {lo} to {hi} m below this ground (median {m} m): the holes start inside the model." : "{k} of the {n} collars inside it are {lo} to {hi} m above this ground (median {m} m): the model's top and the collar elevations disagree.", { k: sd.side === "below" ? sd.below : sd.above, n: sd.n, lo: sd.lo.toFixed(1), hi: sd.hi.toFixed(1), m: sd.med.toFixed(1) }) : "";
   };
   const terrainFromModelTop = (model) => {
     const t = terrainFromBlockModel(model.cells);
@@ -1914,7 +1914,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (!confirmReplaceTerrain(terrain, name)) return; // #2554 — it replaced the loaded terrain, said only after the fact
     const replaced = replacedTerrainNote(terrain);
     addTerrain({ name, bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask, source: { kind: "top of a block model", model: model.name, columns: t.stats.columns, nodeM: t.stats.nodeM.map((v) => Math.round(v * 10) / 10) } });
-    setVoxelError({ info: true, text: replaced + tr("Added the terrain \"{name}\": {w} × {h} nodes at {dx} × {dy} m from the top cell of {cols} column(s), {zmin} to {zmax} m{v}. It is the mesh's own ground, as fine as its columns and only where the mesh is{v2}. Samples with no elevation now sit on it; sections take its profile.", { name, w: t.gridW, h: t.gridH, dx: Math.round(t.stats.nodeM[0] * 10) / 10, dy: Math.round(t.stats.nodeM[1] * 10) / 10, cols: t.stats.columns.toLocaleString(), zmin: Math.round(t.stats.relief[0]), zmax: Math.round(t.stats.relief[1]), v: t.stats.empty ? tr(", {n} node(s) with no column marked as no ground", { n: t.stats.empty.toLocaleString() }) : "", v2: "" /* #2554: said by "Replaced the terrain" first */ }) + collarsUnderNote(t) });
+    setVoxelError({ info: true, text: replaced + tr("Added the terrain \"{name}\": {w} × {h} nodes at {dx} × {dy} m from the mesh's top cells, {zmin} to {zmax} m{v}, only where the mesh is{v2}.", { name, w: t.gridW, h: t.gridH, dx: Math.round(t.stats.nodeM[0] * 10) / 10, dy: Math.round(t.stats.nodeM[1] * 10) / 10, cols: t.stats.columns.toLocaleString(), zmin: Math.round(t.stats.relief[0]), zmax: Math.round(t.stats.relief[1]), v: t.stats.empty ? tr(", {n} node(s) with no column marked as no ground", { n: t.stats.empty.toLocaleString() }) : "", v2: "" /* #2554: said by "Replaced the terrain" first */ }) + collarsUnderNote(t) });
   };
   // TASKS.csv #2726 — a GOCAD SGrid (.sg) chosen with its side files (points, properties): one block model per property it can read, its
   // nodes or cell centres resampled onto an east / north / up lattice (lib/gocadSgrid.js), then the Voxet path (#2632: voxetToUbc, the cell
@@ -1950,7 +1950,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         } catch (err) { failed.push(err.message); }
       }
       const [nx, ny, nz] = L.header.n, [dx, dy, dz] = L.step.map((s) => +s.toFixed(1));
-      const parts = [made.length ? tr("Imported the GOCAD SGrid \"{name}\" as {n} block model(s): {list}. Its {nu} × {nv} × {nw} nodes ({on}) were resampled onto {nx} × {ny} × {nz} blocks of {dx} × {dy} × {dz} m along east, north and up, each taking the value of the nearest {what} within {reach} m (blocks farther from every one are left empty). Its coordinates are taken as the project's (GOCAD files carry no EPSG code).", { name: h.name || sg.name, n: made.length, list: made.join(", "), nu: h.n[0], nv: h.n[1], nw: h.n[2], on: h.align === "CELLS" ? tr("values on the cells") : tr("values on the nodes"), nx, ny, nz, dx, dy, dz, what: h.align === "CELLS" ? tr("cell centre") : tr("node"), reach: +L.reach.toFixed(1) }) : "",
+      const parts = [made.length ? tr("Imported the GOCAD SGrid \"{name}\" as {n} block model(s): {list}, {nx} × {ny} × {nz} blocks of {dx} × {dy} × {dz} m (from {nu} × {nv} × {nw} nodes, {on}; {what} within {reach} m).", { name: h.name || sg.name, n: made.length, list: made.join(", "), nu: h.n[0], nv: h.n[1], nw: h.n[2], on: h.align === "CELLS" ? tr("values on the cells") : tr("values on the nodes"), nx, ny, nz, dx, dy, dz, what: h.align === "CELLS" ? tr("cell centre") : tr("node"), reach: +L.reach.toFixed(1) }) : "",
         coarse ? tr("Averaged {fx} × {fy} × {fz} nodes into each block to stay within the block budget.", coarse) : "",
         missing.length ? tr("Not chosen with it, so not read: {list}. Choose the .sg together with the files its PROP_FILE lines name.", { list: missing.join(", ") }) : "",
         failed.length ? tr("Could not read: {list}.", { list: failed.join("; ") }) : ""].filter(Boolean).join(" ");
@@ -1992,7 +1992,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       if (!meshFile) throw new Error(tr("no mesh of the same name among {list}; choose it with its own mesh", { list: meshFiles.map((m) => m.name).join(", ") }));
       const meshText = meshTexts.get(meshFile);
       // TASKS.csv #1348 — a DCIP2D mesh (11 of ARIS 42641Z's lines) is not a 3D mesh: say where it goes
-      if (isDcip2dMeshText(meshText)) throw new Error(tr("This is a UBC DCIP2D (2D) mesh: import it with DC / IP > Import a UBC DCIP2D inversion (mesh + model), with its .con / .chg model and the line's topography and station files."));
+      if (isDcip2dMeshText(meshText)) throw new Error(tr("This is a UBC DCIP2D mesh: import it with DC / IP > Import a UBC DCIP2D inversion (mesh + model), with its model, topography and station files."));
       let mesh = parseUBCMesh(meshText);
       const modelName = modelFile.name.replace(/\.([a-z0-9]+)$/i, " ($1)"); // "MPD-2023_dcinv3d_r2i10 (res)" 
       // Read the model file as a stream rather than meshFile.text()-style whole-file-into-one-string —
@@ -2015,10 +2015,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         const log = wantsLogMean(values, guessVoxelProperty(modelFile.name)); // #1785 — resistivity / conductivity on their logs; .chg not (#1786)
         const coarsened = coarsenUBCModel(mesh, values, fx, fy, fz, { log });
         coarsenedFrom = coarsenRecord({ shape, factors: [fx, fy, fz], cellsTo: coarsened.mesh.nx * coarsened.mesh.ny * coarsened.mesh.nz, values: fine, valid: (v) => Number.isFinite(v) && v > -99999, rule: log ? MEAN_RULE.log : MEAN_RULE.arithmetic });
-        if (log) coarsenMeanNote = tr(" Merged on the logs (geometric means), as a resistivity or conductivity model should be, so a .res and a .con of the same inversion give the same model.");
+        if (log) coarsenMeanNote = tr(" Merged on the logs (geometric means), so a .res and a .con of one inversion give the same model.");
         mesh = coarsened.mesh; values = coarsened.values;
         const coarseTotal = mesh.nx * mesh.ny * mesh.nz;
-        coarsenNote = tr(" Original mesh had {rawTotal} cells — over GeoStrix's {effectiveMaxCells}-cell budget for staying responsive in the 3D view, so it was block-averaged down (merging {fx}×{fy}×{fz} fine cells into each coarse cell) to {coarseTotal} cells. Raise the \"3D view cell budget\" setting (Advanced ribbon, Cell budget) and re-import if you want finer detail.", { rawTotal: rawTotal.toLocaleString(), effectiveMaxCells: effectiveMaxCells.toLocaleString(), fx, fy, fz, coarseTotal: coarseTotal.toLocaleString() });
+        coarsenNote = tr(" Block-averaged from {rawTotal} to {coarseTotal} cells ({fx}×{fy}×{fz} into one) to fit the {effectiveMaxCells}-cell budget. For finer detail, raise it (Advanced ribbon, Cell budget) and re-import.", { rawTotal: rawTotal.toLocaleString(), effectiveMaxCells: effectiveMaxCells.toLocaleString(), fx, fy, fz, coarseTotal: coarseTotal.toLocaleString() });
         coarsenNote += coarsenMeanNote; // #1785
       }
       const cells = ubcMeshToCells(mesh, values);
@@ -2062,7 +2062,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     // TASKS.csv #482 — this reader holds the whole file (and every row as an object) in memory; a 320 MB
     // inversion-mesh CSV would freeze the app the way #481's point import did. Large models have streamed routes.
     if (file.size > 150e6) {
-      setVoxelError({ info: false, text: tr("\"{name}\" is {v} MB — too large for the block-model CSV reader. Import the same model as UBC (.msh + .mod) or OMF, which are streamed and reduced to fit the 3D view.", { name: file.name, v: (file.size / 1e6).toFixed(0) }) });
+      setVoxelError({ info: false, text: tr("\"{name}\" is {v} MB, too large for the block-model CSV reader. Import it as UBC (.msh + .mod) or OMF, which are streamed and reduced.", { name: file.name, v: (file.size / 1e6).toFixed(0) }) });
       return;
     }
     parseTableFile(file) // TASKS.csv #444 — comma decimals (Datamine/Micromine exports on a European locale) + encoding fallback
@@ -2110,7 +2110,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       if (factors) m += tr(" ({raw} merged {fx}×{fy}×{fz} to fit the {budget}-cell budget — volume-weighted means)", { raw: rawCount.toLocaleString(), fx: factors.fx, fy: factors.fy, fz: factors.fz, budget: effectiveMaxCells.toLocaleString() });
       if (factors && logMean) m += tr(", merged on the logs (geometric means: a log-normal property)"); // #1785
       // TASKS.csv #943 — merged blocks are full cells: where the model did not fill them, they are larger than it
-      if (factors && mergedM3 > sourceM3 * 1.005) m += tr(". The merged blocks are full cells and cover {pct}% more volume than the model's own blocks ({src} m³): each keeps the share it really holds (COVERAGE in the CSV, VTK and OMF exports; VOLUME_M3 in the CSV). Take volume and tonnage from those, or import the model without merging (raise the 3D view cell budget)", { pct: (((mergedM3 - sourceM3) / sourceM3) * 100).toFixed(0), src: Math.round(sourceM3).toLocaleString() });
+      if (factors && mergedM3 > sourceM3 * 1.005) m += tr(". The merged blocks cover {pct}% more volume than the model's own ({src} m³); each keeps its true share (COVERAGE, VOLUME_M3): take volume and tonnage from those", { pct: (((mergedM3 - sourceM3) / sourceM3) * 100).toFixed(0), src: Math.round(sourceM3).toLocaleString() });
       if (badRows) m += tr(", {n} row(s) without numbers skipped", { n: badRows.toLocaleString() });
       msgs.push(m + ".");
       if (inferred && msgs.length === 1) msgs.push(tr("Block size inferred from centroid spacing: {v} — check it matches the model.", { v: ["dx", "dy", "dz"].map((k) => (inferred[k] != null ? (inferred[k].variable ? `${k} ${+inferred[k].min.toFixed(3)}–${+inferred[k].max.toFixed(3)} (${tr("variable")})` : `${k} ${+inferred[k].min.toFixed(3)}`) : null)).filter(Boolean).join(", ") })); // variable widths: #1662
@@ -2160,7 +2160,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         if (lidarFiles.length) { if (geoPane === "terrain") openLidar(lidarFiles[0]); else { goToModule("maps"); requestModuleAction("maps-lidar", { file: lidarFiles[0] }); } if (lidarFiles.length > 1) advice.push(tr("Opened \"{name}\". Lidar files are imported one at a time: import it, then drop the next.", { name: lidarFiles[0].name })); }
         const sideUsed = new Set(rasterSides.images.flatMap((i) => [i.world, i.xml, i.prj].filter(Boolean))); // #2901 — read with their raster
         const other = files.filter((f) => !sideUsed.has(f) && !/\.(csv|tiff?|gxf|grd|ply|dxf|xyz|edi|las|laz|vs)$/i.test(f.name) && !(/\.(dfn|dat)$/i.test(f.name) && gdfPair(files)) /* #1990 / #1992: read above */ && !unreadableFormatAdvice(f.name)).map((f) => f.name);
-        if (other.length) advice.push(tr("Not imported from this drop: {names}. Dropped here, this tab reads CSV, GeoTIFF, GXF, .grd, XYZ, PLY / DXF, EDI (MT soundings) and LAS / LAZ lidar; a UBC mesh and model go through Block models.", { names: other.slice(0, 6).join(", ") + (other.length > 6 ? " …" : "") }));
+        if (other.length) advice.push(tr("Not imported from this drop: {names}. This tab reads CSV, GeoTIFF, GXF, .grd, XYZ, PLY / DXF, EDI and LAS / LAZ. UBC meshes go to Block models.", { names: other.slice(0, 6).join(", ") + (other.length > 6 ? " …" : "") }));
         // TASKS.csv #1989 — MT / AMT soundings go to their own pane, which reads them
         const edis = files.filter((f) => /\.edi$/i.test(f.name));
         if (edis.length) { setMtDrop(edis); setGeoPane("mt"); }
@@ -2255,13 +2255,13 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             : methodHint === "rad" ? <TaskPaneHeader title="Radiometric survey (CSV / XYZ)" icon={RRadiation} tone="data" />
               : <TaskPaneHeader title="Point survey (CSV / XYZ)" icon={RRadar} tone="data" />}
         {methodHint && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45, margin: "-4px 0 10px" }}>
-          {methodHint === "mag" ? tr("A survey imported here is labelled magnetics (total field), or the magnetic product its column names (reduced to pole, a derivative). Change it on the survey's card.")
+          {methodHint === "mag" ? tr("Labelled magnetics (total field), or the product its columns name (reduced to pole, a derivative). Change it on the survey's card.")
             : methodHint === "grav" ? tr("A survey imported here is labelled gravity (Bouguer anomaly), or the gravity product its column names (free air, Gzz). Change it on the survey's card.")
-              : methodHint === "rad" ? tr("A survey imported here is labelled radiometrics: each K, eTh, eU or total-count column the importer finds becomes its own survey. Change the method on the survey's card.")
-                : tr("A survey imported here is labelled a TEM channel (dB/dt), or B-field or decay constant when its column says so: one value a station. Change it on the survey's card.")}
+              : methodHint === "rad" ? tr("Labelled radiometrics: each K, eTh, eU or total-count column becomes its own survey. Change the method on the survey's card.")
+                : tr("Labelled a TEM channel (dB/dt), or B-field or decay constant when its column says so. Change it on the survey's card.")}
           {" "}<button type="button" onClick={() => setMethodHint(null)} style={{ border: "none", background: "none", padding: 0, color: "var(--color-info)", cursor: "pointer", fontSize: "inherit", textDecoration: "underline" }}>{tr("Import without a method")}</button>
         </div>}
-        <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Point cloud (CSV)")}<InfoButton title={tr("Point cloud (CSV)")} text={tr("Import a CSV point cloud (x, y, z, value) — mag, IP, gravity, radiometrics, or any other point-sampled survey. Points render in the same 3D scene as drillholes for co-visualization (see the \"Geophysics points\" layer on the Viewer’s Home tab).")} />
+        <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Point cloud (CSV)")}<InfoButton title={tr("Point cloud (CSV)")} text={tr("Import a CSV point cloud (x, y, z, value): mag, IP, gravity, radiometrics or any point-sampled survey. It shows with the drillholes in 3D (the \"Geophysics points\" layer).")} />
         </div>
 
         {/* TASKS.csv #120 — optional source EPSG, shared by the CSV and .xyz importers below. Left
@@ -2330,7 +2330,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   {/* TASKS.csv #1985 — gridded on one level with equivalent sources (Harmonica, in the Python engine) */}
                   {/* TASKS.csv #3321 — not for a survey that is not a potential field (IP, resistivity, EM, radiometrics ...): said in one line */}
                   {eqsApplies(meta.method) === "no" && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 5, lineHeight: 1.4 }}>{tr("Equivalent sources: for magnetic and gravity surveys only (a field measured on or above the ground); this survey is {label}.", { label: tr(SURVEY_METHODS[meta.method]?.label || meta.method) })}</div>}
-                  {(eqsApplies(meta.method) === "ok" || eqsApplies(meta.method) === "assume") /* derived points at depth (Euler, Niblett-Bostick, lidar, FDEM models): no button, as before */ && <button type="button" onClick={() => setEqsFor(eqsFor === sv.key ? null : sv.key)} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Grid the readings on one level with equivalent sources (Harmonica): readings at different heights come out on a level surface, and a higher level continues the survey upward")}>{tr("Grid with equivalent sources…")}</button>}
+                  {(eqsApplies(meta.method) === "ok" || eqsApplies(meta.method) === "assume") /* derived points at depth (Euler, Niblett-Bostick, lidar, FDEM models): no button, as before */ && <button type="button" onClick={() => setEqsFor(eqsFor === sv.key ? null : sv.key)} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Grid the readings on one level with equivalent sources (Harmonica): readings at different heights end on one surface; a higher level continues upward")}>{tr("Grid with equivalent sources…")}</button>}
                   {eqsFor === sv.key && <Suspense fallback={null}><EqsGridBox survey={sv.key} rows={rows} units={meta.units || ""} method={meta.method || null} /* #2639 */ addRaster={addRaster} defaultElevation={defaultElevation} numInput={numInput} pBtn={pBtn} /></Suspense>}
                   {/* TASKS.csv #1985 — free-air and Bouguer anomalies of a gravity survey (or of values that look like absolute gravity) */}
                   {(["grav", "grav_fa"].includes(meta.method) || (Number.isFinite(sv.min) && sv.min > 900000)) && <button type="button" onClick={() => setGravFor(gravFor === sv.key ? null : sv.key)} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Free-air anomaly (observed less normal gravity) and Bouguer anomaly (less the Bouguer plate or the terrain's gravity), in the Python engine")}><Scale size={14} />{tr("Gravity reductions…")}</button>}
@@ -2387,7 +2387,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               </div>
             )}
             {/* TASKS.csv #1583 — a signal-quality floor (a GEM sq column) and an along-line despike */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }} title={tr("A GEM magnetometer writes a signal quality (0-99) beside each reading; the base-station reader already drops readings under 50. Below the floor the reading is a dropout or a spike (2,105 or 167,300 nT in a 56,500 nT survey) and is left out.")}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }} title={tr("Leaves out GEM readings under this signal quality (0-99): dropouts or spikes. The base-station reader already drops those under 50.")}>
               <span style={{ color: "var(--color-text-faint)", width: 140, flexShrink: 0 }}>{tr("Signal quality")}</span>
               <select value={xyzPending.sqCol || ""} aria-label={tr("Signal quality column")} onChange={(e) => setXyzPending((p) => ({ ...p, sqCol: e.target.value, minQuality: e.target.value ? (p.minQuality || 50) : 0 }))} style={{ ...numInput, width: "auto", flex: 1, minWidth: 0 }}>
                 <option value="">{tr("(no quality column)")}</option>
@@ -2395,13 +2395,13 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               </select>
               {xyzPending.sqCol && <label style={{ display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>{tr("drop under")}<NumberInput min={0} max={99} step={1} value={xyzPending.minQuality ?? 50} aria-label={tr("Drop readings with signal quality under")} onChange={(v) => setXyzPending((p) => ({ ...p, minQuality: v }))} style={{ ...numInput, width: 56 }} /></label>}
             </div>
-            <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5, cursor: "pointer" }} title={tr("Each reading is compared with the median of the 11 readings around it on its line; one more than 6 MAD (and at least 20 nT) away is dropped as a spike. A real anomaly over tens of readings moves the running median with it and stays.")}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5, cursor: "pointer" }} title={tr("Drops a reading over 6 MAD, at least 20 nT, from the median of its 11 line neighbours; a real anomaly over many readings stays.")}>
               <span style={{ color: "var(--color-text-faint)", width: 140, flexShrink: 0 }}>{tr("Despike")}</span>
               <input type="checkbox" checked={!!xyzPending.despike} onChange={(e) => setXyzPending((p) => ({ ...p, despike: e.target.checked }))} />
               <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("drop readings more than 6 MAD from the running median along their line")}</span>
             </label>
             {xyzPending.thin && !xyzPending.stream && ( /* TASKS.csv #3208 — a big file read whole: how many readings to keep */
-              <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: "var(--font-size-sm)" }} title={tr("Every reading is one point in the 3D view, and hundreds of thousands make it slow and the project file large. Thinning keeps the map of the survey, but a short anomaly between kept readings can be lost.")}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: "var(--font-size-sm)" }} title={tr("Thins the readings: hundreds of thousands slow the 3D view and swell the project. The survey's map stays; a short anomaly can be lost.")}>
                 <span style={{ color: "var(--color-text-faint)", width: 140, flexShrink: 0 }}>{tr("Keep")}</span>
                 <select value={xyzPending.thin.keepEvery} aria-label={tr("How many readings to keep")} onChange={(e) => setXyzPending((p) => ({ ...p, thin: { ...p.thin, keepEvery: Number(e.target.value) } }))} style={{ flex: 1, minWidth: 0 }}>
                   {KEEP_CHOICES.map((n) => <option key={n} value={n}>{n === 1 ? tr("Every reading (about {rows} points)", { rows: xyzPending.thin.total.toLocaleString() }) : tr("1 in {n} (about {rows} points)", { n, rows: Math.round(xyzPending.thin.total / n).toLocaleString() })}</option>)}
@@ -2409,7 +2409,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               </label>
             )}
             {xyzPending.stream && ( /* TASKS.csv #1351 — how many readings of the big file to keep */
-              <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: "var(--font-size-sm)" }} title={tr("Every reading is one point in the 3D view, and hundreds of thousands make it slow and the project file large. Thinning keeps the map of the survey, but a short anomaly between kept readings is lost.")}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: "var(--font-size-sm)" }} title={tr("Thins the readings: hundreds of thousands slow the 3D view and swell the project. The survey's map stays; a short anomaly between them is lost.")}>
                 <span style={{ color: "var(--color-text-faint)", width: 140, flexShrink: 0 }}>{tr("Keep")}</span>
                 <select value={xyzPending.stream.keepEvery} aria-label={tr("How many readings to keep")} onChange={(e) => setXyzPending((p) => ({ ...p, stream: { ...p.stream, keepEvery: Number(e.target.value) } }))} style={{ flex: 1, minWidth: 0 }}>
                   {KEEP_CHOICES.map((n) => <option key={n} value={n}>{n === 1 ? tr("Every reading (about {rows} points)", { rows: xyzPending.stream.estimate.toLocaleString() }) : tr("1 in {n} (about {rows} points)", { n, rows: Math.round(xyzPending.stream.estimate / n).toLocaleString() })}</option>)}
@@ -2419,7 +2419,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             {xyzPending.batch && (
               <div style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                 <div>{tr("{n} files, about {rows} readings. These columns apply to all of them; the first file is shown.", { n: xyzPending.batch.files.length, rows: xyzPending.batch.estimate.toLocaleString() })}{xyzPending.batch.gpsFiles.length ? ` ${tr("{n} GPS file(s) are used for the surveys named like them.", { n: xyzPending.batch.gpsFiles.length })}` : ""}</div>
-                <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }} title={tr("Every reading is one point in the 3D view, and hundreds of thousands make it slow and the project file large. Thinning keeps the map of the survey, but a short anomaly between kept readings is lost.")}>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }} title={tr("Thins the readings: hundreds of thousands slow the 3D view and swell the project. The survey's map stays; a short anomaly between them is lost.")}>
                   <span style={{ color: "var(--color-text-faint)", width: 140, flexShrink: 0 }}>{tr("Keep")}</span>
                   <select value={xyzPending.batch.keepEvery} aria-label={tr("How many readings to keep")} onChange={(e) => setXyzPending((p) => ({ ...p, batch: { ...p.batch, keepEvery: Number(e.target.value) } }))} style={{ flex: 1, minWidth: 0 }}>
                     {KEEP_CHOICES.map((n) => <option key={n} value={n}>{n === 1 ? tr("Every reading (about {rows} points)", { rows: xyzPending.batch.estimate.toLocaleString() }) : tr("1 in {n} (about {rows} points)", { n, rows: Math.round(xyzPending.batch.estimate / n).toLocaleString() })}</option>)}
@@ -2430,7 +2430,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   return (
                     <div style={{ marginTop: 8, paddingTop: 6, borderTop: "1px solid var(--color-border)" }}>
                       <div style={{ color: "var(--color-text)", fontWeight: 600, marginBottom: 2 }}>{tr("Diurnal correction (base station)")}</div>
-                      <div style={{ color: "var(--color-text-faint)", lineHeight: 1.4 }}>{tr("Load the base-station files of every day (GEM .tbl / .b). Each survey file is corrected against the base of its own day, read from its header or its yyyymmdd name; the Value column is the raw reading and \"{time}\" the time.", { time: xyzPending.batch.timeCol })}</div>
+                      <div style={{ color: "var(--color-text-faint)", lineHeight: 1.4 }}>{tr("Load every day's base-station files (GEM .tbl / .b): each survey file is corrected against its own day's base. Value is the raw reading, \"{time}\" the time.", { time: xyzPending.batch.timeCol })}</div>
                       {xyzPending.batch.bases.length > 0 && <div style={{ marginTop: 4 }}>{tr("{n} base file(s) for {days} day(s): {v}", { n: xyzPending.batch.bases.length, days: plan.days.length, v: plan.days.join(", ") })}{plan.basesWithoutDay.length ? ` ${tr("No day could be read from {v}; they are not used.", { v: plan.basesWithoutDay.join(", ") })}` : ""}</div>}
                       {xyzPending.batch.bases.length > 0 && <div style={{ marginTop: 2, color: plan.withoutBase.length ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{plan.withoutBase.length ? tr("No base for {n} of {total} survey files: {v} — they will be imported raw.", { n: plan.withoutBase.length, total: plan.files.length, v: plan.withoutBase.map((f) => f.name).join(", ") }) : tr("Every survey file has a base for its day.")}</div>}
                       <button type="button" onClick={() => batchBaseInput.current?.click()} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}>{xyzPending.batch.bases.length ? tr("Add more base files…") : tr("Load base-station files…")}</button>

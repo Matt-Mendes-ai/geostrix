@@ -31,7 +31,7 @@ export async function importOmfFile(file, env) {
     res = await read(await file.arrayBuffer(), clampCellBudget(cellBudget) || MAX_CELLS, {});
   } catch (err) { say(errorNotice(tr("{name}: couldn't read the OMF ({message}).", { name: file.name, message: err?.message || String(err) }))); return { added: 0 }; }
   const blocks = res.voxelModels.reduce((n, m) => n + (m.cells?.length || 0), 0);
-  if (blocks > BIG_BLOCKS && !confirm(tr("\"{name}\" holds {n} blocks, about {gb} GB of memory while it is open. A modest laptop can slow down or run out. Import it? (Lowering the cell budget above coarsens it.)", { name: file.name, n: blocks.toLocaleString(), gb: (blocks * 0.4e-6).toFixed(1) }))) {
+  if (blocks > BIG_BLOCKS && !confirm(tr("\"{name}\" holds {n} blocks, about {gb} GB of memory while open, which can slow a laptop. Import it? (A lower cell budget coarsens it.)", { name: file.name, n: blocks.toLocaleString(), gb: (blocks * 0.4e-6).toFixed(1) }))) {
     say(notice(tr("\"{name}\" was not imported.", { name: file.name }))); return { added: 0 };
   }
   res.omfObjects.forEach((o) => addOmfObject(o));
