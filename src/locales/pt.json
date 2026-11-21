@@ -14381,5 +14381,20 @@
   "Recalculate": "Recalcular",
   "Recalculated {list} on the assays as they are now.": "{list} recalculado com as análises como estão agora.",
   "None is added for you: add the ones that are grades, such as AuEq or TREO, and leave out sample weight or recovery.": "Nenhuma é adicionada por conta própria: adicione as que são teores, como AuEq ou TREO, e deixe de fora o peso da amostra ou a recuperação.",
-  "Not imported (numeric, not an element): {cols}. To add one as an assay (an equivalent such as AuEq, a total such as TREO), import the file again and add it under \"Other numeric columns in this file\" in the import dialog.": "Não importadas (numéricas, não são elementos): {cols}. Para adicionar uma como análise (um equivalente como AuEq, um total como TREO), importe o arquivo de novo e adicione-a em \"Outras colunas numéricas neste arquivo\" na janela de importação."
+  "Not imported (numeric, not an element): {cols}. To add one as an assay (an equivalent such as AuEq, a total such as TREO), import the file again and add it under \"Other numeric columns in this file\" in the import dialog.": "Não importadas (numéricas, não são elementos): {cols}. Para adicionar uma como análise (um equivalente como AuEq, um total como TREO), importe o arquivo de novo e adicione-a em \"Outras colunas numéricas neste arquivo\" na janela de importação.",
+  "How far the click sits from the straight trend through all the clicks: the bend the fit makes there. A large one marks a click off the drawn line.": "O quanto o clique se afasta da tendência reta que passa por todos os cliques: a curvatura que o ajuste faz ali. Um valor grande indica um clique fora da linha desenhada.",
+  "Off the trend (m)": "Fora da tendência (m)",
+  "Bend the picture so its drawn ground passes through the terrain at every click, for a drawing that is not to scale everywhere. The terrain is not changed.": "Curva a imagem para que o terreno desenhado passe pelo terreno em cada clique, para um desenho que não está em escala em todo lugar. O terreno não é alterado.",
+  "Fit at each point": "Ajustar em cada ponto",
+  "Fit at each point bends the picture down to (m below the drawn ground)": "Ajustar em cada ponto curva a imagem até (m abaixo do terreno desenhado)",
+  "Bend depth (m)": "Profundidade da curvatura (m)",
+  "Fit at each point: the picture moves {mean} m as a whole and bends up to {bend} m more at the clicks, fading to nothing {depth} m below the drawn ground; below that it is not bent, so holes drawn there stay straight. The drawn ground passes through the terrain at all {n} clicks.": "Ajustar em cada ponto: a imagem se move {mean} m como um todo e curva até {bend} m a mais nos cliques, sumindo {depth} m abaixo do terreno desenhado; abaixo disso não curva, então os furos desenhados ali continuam retos. O terreno desenhado passa pelo terreno nos {n} cliques.",
+  "The depth was raised to {d} m: at least twice the largest bend, so no part of the picture folds back.": "A profundidade foi aumentada para {d} m: pelo menos o dobro da maior curvatura, para que nenhuma parte da imagem se dobre.",
+  "Already fitted at {n} points (bends up to {b} m); Back to as georeferenced puts the original picture back.": "Já ajustada em {n} pontos (curvaturas de até {b} m); Voltar ao georreferenciado repõe a imagem original.",
+  "Apply the fit at each point": "Aplicar o ajuste em cada ponto",
+  "The picture has no georeference.": "A imagem não tem georreferência.",
+  "Click at least 2 points along the drawn topography line to fit at each point.": "Clique em pelo menos 2 pontos ao longo da linha topográfica desenhada para ajustar em cada ponto.",
+  "Two clicks are in the same column of the picture: remove one of them.": "Dois cliques estão na mesma coluna da imagem: remova um deles.",
+  "The picture has no height in metres.": "A imagem não tem altura em metros.",
+  " (fitted at {n} points)": " (ajustada em {n} pontos)"
 }

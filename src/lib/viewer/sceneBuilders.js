@@ -406,7 +406,9 @@ export function syncSectionImages(group, cache, sectionImages, { origin, rendere
       const texture = new THREE.TextureLoader().load(im.dataUrl, () => { onTextureLoad?.(); });
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 1;
-      const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true, opacity: im.opacity ?? 1 });
+      // TASKS.csv #3929 — alphaTest drops a picture's fully transparent pixels (the margins a fit at each point adds) even at full opacity, where the
+      // material is drawn opaque below and would paint them black; it is under 1/255, so a faded picture (the opacity slider) still draws
+      const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true, opacity: im.opacity ?? 1, alphaTest: 0.003 });
       mesh = new THREE.Mesh(geometry, material);
       mesh.userData = { geoKey };
       group.add(mesh);

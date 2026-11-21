@@ -14381,5 +14381,20 @@
   "Recalculate": "إعادة الحساب",
   "Recalculated {list} on the assays as they are now.": "أُعيد حساب {list} على التحاليل بحالتها الحالية.",
   "None is added for you: add the ones that are grades, such as AuEq or TREO, and leave out sample weight or recovery.": "لا يُضاف أي منها تلقائيًا: أضف الأعمدة التي تمثّل عيارات، مثل AuEq أو TREO، واترك وزن العينة أو نسبة الاستخلاص.",
-  "Not imported (numeric, not an element): {cols}. To add one as an assay (an equivalent such as AuEq, a total such as TREO), import the file again and add it under \"Other numeric columns in this file\" in the import dialog.": "لم تُستورد (رقمية وليست عناصر): {cols}. لإضافة أحدها كتحليل (مكافئ مثل AuEq أو مجموع مثل TREO)، أعد استيراد الملف وأضفه ضمن «أعمدة رقمية أخرى في هذا الملف» في نافذة الاستيراد."
+  "Not imported (numeric, not an element): {cols}. To add one as an assay (an equivalent such as AuEq, a total such as TREO), import the file again and add it under \"Other numeric columns in this file\" in the import dialog.": "لم تُستورد (رقمية وليست عناصر): {cols}. لإضافة أحدها كتحليل (مكافئ مثل AuEq أو مجموع مثل TREO)، أعد استيراد الملف وأضفه ضمن «أعمدة رقمية أخرى في هذا الملف» في نافذة الاستيراد.",
+  "How far the click sits from the straight trend through all the clicks: the bend the fit makes there. A large one marks a click off the drawn line.": "مقدار ابتعاد النقرة عن الاتجاه المستقيم المار بكل النقرات: الانحناء الذي تحدثه الملاءمة هناك. القيمة الكبيرة تدل على نقرة خارج الخط المرسوم.",
+  "Off the trend (m)": "خارج الاتجاه (م)",
+  "Bend the picture so its drawn ground passes through the terrain at every click, for a drawing that is not to scale everywhere. The terrain is not changed.": "يحني الصورة ليمر سطحها المرسوم بالتضاريس عند كل نقرة، لرسم ليس بمقياس ثابت في كل مكان. لا تتغير التضاريس.",
+  "Fit at each point": "الملاءمة عند كل نقطة",
+  "Fit at each point bends the picture down to (m below the drawn ground)": "الملاءمة عند كل نقطة تحني الصورة حتى (م تحت السطح المرسوم)",
+  "Bend depth (m)": "عمق الانحناء (م)",
+  "Fit at each point: the picture moves {mean} m as a whole and bends up to {bend} m more at the clicks, fading to nothing {depth} m below the drawn ground; below that it is not bent, so holes drawn there stay straight. The drawn ground passes through the terrain at all {n} clicks.": "الملاءمة عند كل نقطة: تتحرك الصورة {mean} م ككل وتنحني حتى {bend} م إضافية عند النقرات، ويتلاشى الانحناء إلى لا شيء على عمق {depth} م تحت السطح المرسوم؛ وتحته لا تنحني، فتبقى الثقوب المرسومة هناك مستقيمة. يمر السطح المرسوم بالتضاريس عند النقرات الـ{n} كلها.",
+  "The depth was raised to {d} m: at least twice the largest bend, so no part of the picture folds back.": "رُفع العمق إلى {d} م: ضعف أكبر انحناء على الأقل، كي لا ينطوي أي جزء من الصورة.",
+  "Already fitted at {n} points (bends up to {b} m); Back to as georeferenced puts the original picture back.": "مُلاءمة بالفعل عند {n} نقاط (انحناءات حتى {b} م)؛ «العودة إلى ما تم إسناده جغرافيًا» يعيد الصورة الأصلية.",
+  "Apply the fit at each point": "طبّق الملاءمة عند كل نقطة",
+  "The picture has no georeference.": "الصورة بلا إسناد جغرافي.",
+  "Click at least 2 points along the drawn topography line to fit at each point.": "انقر نقطتين على الأقل على امتداد خط التضاريس المرسوم للملاءمة عند كل نقطة.",
+  "Two clicks are in the same column of the picture: remove one of them.": "نقرتان في عمود الصورة نفسه: احذف إحداهما.",
+  "The picture has no height in metres.": "لا ارتفاع للصورة بالأمتار.",
+  " (fitted at {n} points)": " (مُلاءمة عند {n} نقاط)"
 }
