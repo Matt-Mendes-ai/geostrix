@@ -4,6 +4,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { waAssays, waSurface, loadWaSampleExtras } from "../src/lib/sampleWa.js";
 import { read, table, folderBytes, fileOf, said, checkIntervals, fakeStore, checkOffered } from "./sampleChecks3107.mjs";
+import fs from "node:fs";
+import proj4 from "proj4";
+import { gda94To2020LonLat } from "../src/lib/reproject.js";
 
 const dir = "wa_zinc_copper";
 
@@ -61,4 +64,29 @@ test("the loader puts the assays in Geochem and the soils and stream sediments i
 test("the sample is offered, named, translated and licensed where a user reads it", () => {
   checkOffered(dir, { licence: "CC-BY-4.0", who: /WA zinc-copper sample .*surface geochemistry.*Western Australia/, name: "WA zinc-copper (sample)", inFootnote: "WA zinc-copper (WAMEX report A77713)" });
   assert.match(read(dir, "README.md").toString("utf8"), /Unless otherwise noted, \.\.\. all copyright content of the Data is licensed under a Creative Commons Attribution\s+4\.0 International licence/);
+});
+
+// TASKS.csv #3884 — the holes' x / y are the company's MGA coordinates, not its AMG ones (AGD84, about 210 m south-west), and the RL
+// offset to the public terrain is said where a user reads it. The lon / lat below are the State's own GDA2020 collar positions (the
+// WAMEX Collar table), one hole per prospect.
+test("the holes sit where the State puts them, not 210 m south-west on the old AMG grid", () => {
+  const MGA50 = "+proj=utm +zone=50 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs", LL = "+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs";
+  const state = { NBC001: [119.234528, -21.238214], KCC040: [119.239977, -21.202328], JMC006: [119.20228, -21.337879], BKC002: [119.232143, -21.272754] };
+  const collars = new Map(table(dir, "collars.csv").map((c) => [c.hole_id, c]));
+  for (const [h, ll] of Object.entries(state)) {
+    const c = collars.get(h), [lon, lat] = gda94To2020LonLat(...proj4(MGA50, LL, [Number(c.x), Number(c.y)]));
+    const [x0, y0] = proj4(LL, MGA50, [lon, lat]), [x1, y1] = proj4(LL, MGA50, ll), d = Math.hypot(x1 - x0, y1 - y0);
+    assert.ok(d < 3, `${h} is ${d.toFixed(1)} m from the State's position`);
+  }
+  // the soils at Jamesons were taken on the same grid: the holes there lie inside the soil grid, within 60 m of a soil sample
+  const soils = table(dir, "soils.csv").map((s) => [Number(s.x), Number(s.y)]);
+  for (const c of [...collars.values()].filter((c) => c.prospect === "Jamesons")) {
+    const d = Math.min(...soils.map(([x, y]) => Math.hypot(x - Number(c.x), y - Number(c.y))));
+    assert.ok(d < 60, `${c.hole_id}: ${d.toFixed(0)} m from the nearest soil`);
+  }
+  const src = (f) => fs.readFileSync(new URL(f, import.meta.url), "utf8");
+  assert.match(src("../scripts/samples/build-wa-zinc-copper.mjs"), /x: m\.e, y: m\.n, z: num\(r\.RL\)/); // MGAE / MGAN from the profile, the RL untouched
+  const note = "The company's collar RLs (stated as AHD) sit about 15-25 m below the public terrain; the source does not say why.";
+  assert.ok(src("../src/modules/viewer/importPipelineImpl.js").includes(`heightNote: "${note}"`) && src("../src/lib/sampleCards.js").includes(`(report A77713). ${note}")`));
+  assert.match(read(dir, "README.md").toString("utf8"), /sit about 15-25 m below the public terrain, and the source does not say why/);
 });
