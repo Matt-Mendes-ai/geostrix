@@ -23,8 +23,17 @@ test("#3813 the on-hole layer starts on its model's scale; the layer's Style sti
 test("#3813 the legend says 'log scale' when the ramp is log", () => {
   const [lin] = customLegendGroups([layer("linear")]), [lg] = customLegendGroups([layer("log")]);
   assert.equal(lin.label, "On holes: Synthetic model");
-  assert.equal(lg.label, "On holes: Synthetic model · log scale");
+  // a ramp: the legend's renderers add ' · log scale' from ramp.log themselves; in the label too it read '· log scale · log scale' (seen live)
+  assert.equal(lg.label, "On holes: Synthetic model");
   assert.equal(lg.ramp.log, true); assert.equal(lin.ramp.log, false);
+  const rd = (f) => readFileSync(new URL(`../src/${f}`, import.meta.url), "utf8");
+  assert.match(rd("components/ViewportFigureOverlay.jsx"), /g\.ramp\.log \? tr\(" · log scale"\) : ""/);
+  assert.match(rd("modules/LayoutModule.jsx"), /opt\.ramp\.log \? tr\(" · log scale"\) : ""/);
+  // classes: no ramp, so the label says it
+  const [cl] = customLegendGroups([layer("log")], {}, { "custom:l_log": { classes: 4 } });
+  assert.equal(cl.ramp, undefined); assert.equal(cl.label, "On holes: Synthetic model · log scale");
+  const [cn] = customLegendGroups([layer("linear")], {}, { "custom:l_linear": { classes: 4 } });
+  assert.equal(cn.label, "On holes: Synthetic model");
 });
 
 test("#3813 wiring: the evaluation stores the model's scale; the Style shows it as its default; the strip log's bar follows it", () => {

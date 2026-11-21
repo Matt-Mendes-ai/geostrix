@@ -129,7 +129,7 @@ export function customLegendGroups(customLayers, customVisible = {}, layerStyles
     }
     if (s.numeric) {
       const colors = Array.from({ length: 17 }, (_, i) => magColor(i / 16, 0, 1));
-      out.push({ key: `custom_${L.id}`, label: logLabel, items: [], ramp: { kind: "ramp", log: s.log, min: s.min, max: s.max, minLabel: `${s.clipLo ? "≤ " : ""}${fmt(s.min)}`, maxLabel: `${s.clipHi ? "≥ " : ""}${fmt(s.max)}`, colors, ticks: [] } }); // #1539
+      out.push({ key: `custom_${L.id}`, label /* #3813 — a ramp's legend says "· log scale" itself (ViewportFigureOverlay, Layout): only the classed legend carries it in its label */, items: [], ramp: { kind: "ramp", log: s.log, min: s.min, max: s.max, minLabel: `${s.clipLo ? "≤ " : ""}${fmt(s.min)}`, maxLabel: `${s.clipHi ? "≥ " : ""}${fmt(s.max)}`, colors, ticks: [] } }); // #1539
       continue;
     }
     const counts = new Map(); let none = 0;
