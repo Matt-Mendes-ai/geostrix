@@ -9,6 +9,7 @@
 //   2 points: scale + offset per axis (no rotation) — enough for a clean, square figure (two grid-line crossings).
 //   3+ points: full affine by least squares (georef.js fitAffine) — handles a slightly rotated or skewed scan.
 import { fitAffine, forwardMap } from "./georef.js";
+import { arrMin, arrMax } from "./arrayStats.js"; // no Math.min/max spread (#3031)
 
 export function sectionLine(a, b) {
   const dx = b.x - a.x, dy = b.y - a.y;
@@ -87,4 +88,54 @@ export function sectionImagesOnSection(images, section, maxOffset = 10, maxAngle
     out.push({ id: im.id, name: im.name, opacity: im.opacity ?? 1, tl: [along(tl), tl[2]], tr: [along(tr), tr[2]], bl: [along(bl), bl[2]], offset: Math.max(...im.corners.map(across)) });
   }
   return out;
+}
+
+// TASKS.csv #3924 — a user georeferenced three figures and all three stood on one line: the dialog had preselected the first saved section, and
+// the clicks on a figure only set where it sits ALONG its line and how high, never which line. The dialog now asks for the line first, on a plan,
+// with nothing preselected; these are its pure parts.
+
+// the line a placed figure stands on: the one saved with it, or (an older figure) the line through its top corners, starting at its left edge
+export function imageLine(im) {
+  const l = im?.line;
+  if (l?.a && l?.b && Number.isFinite(l.a.x) && Number.isFinite(l.b.y) && Math.hypot(l.b.x - l.a.x, l.b.y - l.a.y) > 0) return sectionLine(l.a, l.b);
+  const c = im?.corners;
+  if (!Array.isArray(c) || c.length !== 4) return null;
+  const [tl, tr] = c;
+  if (!(Math.hypot(tr[0] - tl[0], tr[1] - tl[1]) > 0)) return null;
+  return sectionLine({ x: tl[0], y: tl[1] }, { x: tr[0], y: tr[1] });
+}
+
+// the figures already standing on this line (within 3° and 10 m), but `exceptId`: said in one line before a second figure goes on it
+export function imagesOnLine(images, line, exceptId = null) {
+  if (!line || line.error) return [];
+  const on = sectionImagesOnSection((images || []).filter((im) => im.id !== exceptId).map((im) => ({ ...im, visible: true })), { ax: line.a.x, ay: line.a.y, bx: line.b.x, by: line.b.y }, 10, 3);
+  return on.map((m) => ({ id: m.id, name: m.name }));
+}
+
+// move a placed figure to another line without its control points: each corner keeps its distance from the line's start and its elevation.
+// A fit at each point (#3929) keeps its original corners too; they move alike, so "Back to as georeferenced" lands on the new line.
+export function moveSectionImage(im, to) {
+  const from = imageLine(im);
+  if (!from) throw new Error("This figure has no position to move.");
+  const move = (cs) => cs.map(([x, y, z]) => { const d = (x - from.a.x) * from.ux + (y - from.a.y) * from.uy; return [to.a.x + d * to.ux, to.a.y + d * to.uy, z]; });
+  const along = im.corners.map(([x, y]) => (x - from.a.x) * from.ux + (y - from.a.y) * from.uy);
+  return {
+    patch: { corners: move(im.corners), ...(Array.isArray(im.corners0) && im.corners0.length === 4 ? { corners0: move(im.corners0) } : {}), line: { a: { x: to.a.x, y: to.a.y }, b: { x: to.b.x, y: to.b.y } } },
+    fromDist: arrMin(along), toDist: arrMax(along),
+  };
+}
+
+// the plan's frame: the collars, the saved sections, the placed figures and the chosen line, with a margin; null when there is nothing to frame
+export function planFrame({ collars = [], sections = [], images = [], line = null } = {}, margin = 0.08) {
+  const xs = [], ys = [];
+  const add = (x, y) => { if (Number.isFinite(x) && Number.isFinite(y)) { xs.push(x); ys.push(y); } };
+  for (const c of collars) add(Number(c.x), Number(c.y));
+  for (const s of sections) { add(s.ax, s.ay); add(s.bx, s.by); }
+  for (const im of images) for (const c of im.corners || []) add(c[0], c[1]);
+  if (line && !line.error) { add(line.a.x, line.a.y); add(line.b.x, line.b.y); }
+  if (!xs.length) return null;
+  const x0 = arrMin(xs), x1 = arrMax(xs), y0 = arrMin(ys), y1 = arrMax(ys);
+  const span = Math.max(x1 - x0, y1 - y0, 100), m = span * margin;
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, h = span / 2 + m;
+  return { x0: cx - h, x1: cx + h, y0: cy - h, y1: cy + h };
 }
