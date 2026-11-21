@@ -24,6 +24,15 @@ export function creditIntoSteps(steps, ids, credit) {
   return n;
 }
 
+// TASKS.csv #3960 — the undo watcher's question for a change it sees: is it ONLY the app's own Layout refresh (the pages list the quiet setter
+// made, store setLayoutElementsQuietly: a starter's credit box refitted, a snapshot's long numbers rounded, a fit's flags cleared), with no
+// edit burst and no page step under way? Then it is no step: the baseline moves over it. current / prev: the watcher's snapshots; quietPages:
+// the pages list the quiet setter made last (or null).
+export function isQuietRefresh(current, prev, quietPages, { burst = false, ownStep = false } = {}) {
+  if (!quietPages || burst || ownStep || !current || !prev || current.layoutPages !== quietPages) return false;
+  return Object.keys(current).every((k) => k === "layoutPages" || current[k] === prev[k]);
+}
+
 export function pageAfterUndo(curPages, targetPages, activeId, stepPageId) {
   const target = Array.isArray(targetPages) ? targetPages : [];
   if (!target.length) return activeId;

@@ -22,7 +22,7 @@ import { changeElementBasis, rebaseRows, rebaseThresholds } from "./oxideBasisCh
 import { withImportLeftOut } from "./importLeftOut.js"; // TASKS.csv #2493
 import { cappedNotice, capRemovedMapLayers, vertexCount, BIG_VERTICES } from "./undoMapLayerCap.js"; // TASKS.csv #2806; vertexCount / BIG_VERTICES: #2814
 import { capUndoTables, tableCapNotice } from "./undoTableCap.js"; // TASKS.csv #2894
-import { pageAfterUndo, creditIntoSteps } from "./layoutPageUndo.js"; // TASKS.csv #3935
+import { pageAfterUndo, creditIntoSteps, isQuietRefresh } from "./layoutPageUndo.js"; // TASKS.csv #3935; isQuietRefresh: #3960
 import { createProjectJobs, newProjectKey, syncTabKeys } from "./projectJobs.js"; // TASKS.csv #3953 — a long job delivers only into its own project
 import { calcUndoToken, applyCalcUndo } from "./calcUndo.js"; // TASKS.csv #3110
 import { rowsOf, isTable } from "./rowTable.js"; import { publishedLayers, internalLayers, elementsWithValuesOf } from "./tableFields.js"; // TASKS.csv #3424 — the store adapter
@@ -794,6 +794,22 @@ export function StoreProvider({ children }) {
       ? { ...p, elements: typeof updater === "function" ? updater(p.elements) : updater }
       : p)));
   });
+  // TASKS.csv #3960 (Matt's first-time test) — 'Ctrl+Z won't undo deleted layout': deleting the page shown brought another forward, and
+  // LayoutModule refitted that page's starter credit box (#3657: the credit had grown while it was hidden) as its own undo step, on top of
+  // the delete, so Ctrl+Z undid the refit ('Undone: Layout pages.') and the page stayed deleted. A refresh the app makes by itself (the
+  // refit, a snapshot's long numbers rounded #2603, a fit's flags cleared #3018) goes through here: the pages list it makes is remembered,
+  // and the undo watcher moves its baseline over it instead of recording a step. One that changes nothing changes no state.
+  const sysLayoutPagesRef = useRef(null);
+  const setLayoutPagesQuietly = useLatestCallback((fn) => setLayoutPages((pages) => { const next = fn(pages); if (next === pages || next.every((p, i) => p === pages[i]) && next.length === pages.length) return pages; sysLayoutPagesRef.current = next; return next; }));
+  const setLayoutElementsQuietly = useLatestCallback((updater) => {
+    setLayoutPages((pages) => {
+      let changed = false;
+      const next = pages.map((p) => { if (p.id !== activeLayoutPageId) return p; const els = typeof updater === "function" ? updater(p.elements) : updater; if (els === p.elements) return p; changed = true; return { ...p, elements: els }; });
+      if (!changed) return pages;
+      sysLayoutPagesRef.current = next;
+      return next;
+    });
+  });
 
   // ---- Layout "Viewport" element (TASKS.csv #46) render round-trip. LayoutModule and ViewerModule
   // are never mounted at the same time (App.jsx only renders the active tab), so a Viewport element
@@ -912,7 +928,9 @@ export function StoreProvider({ children }) {
       return;
     }
     // #1644 — an atlas page's element is written on its own page, not the active one
-    const applyEls = targetPageId ? (fn) => setLayoutPages((pages) => pages.map((p) => (p.id === targetPageId ? { ...p, elements: fn(p.elements) } : p))) : setLayoutElements;
+    // TASKS.csv #3960 — a frame's new picture (or its error) arrives by itself, maybe seconds after the user's last step (a page deleted): it is no undo
+    // step of its own (it sat on top of the delete, so Ctrl+Z undid it and the page stayed deleted). A new frame (targetElementId 'new', below) stays a step.
+    const applyEls = targetPageId ? (fn) => setLayoutPagesQuietly((pages) => pages.map((p) => (p.id === targetPageId ? { ...p, elements: fn(p.elements) } : p))) : setLayoutElementsQuietly;
 
     if (res.error) {
       if (targetElementId !== "new") {
@@ -1862,6 +1880,10 @@ export function StoreProvider({ children }) {
     // now counts as a change (marks the tab dirty / records an identical undo step) — harmless, and rare.
     const prevSnap = undoPrevSnapshot.current;
     if (Object.keys(current).every((k) => current[k] === prevSnap[k])) return; // no real change
+    // TASKS.csv #3960 — the app's own Layout refresh (setLayoutElementsQuietly) and nothing else: no step (a page added / deleted, a burst under way: as before)
+    if (isQuietRefresh(current, prevSnap, sysLayoutPagesRef.current, { burst: !!undoBeforeBurst.current, ownStep: undoOwnStep.current })) {
+      sysLayoutPagesRef.current = null; setActiveTabDirty(true); undoPrevSnapshot.current = current; return;
+    }
     setActiveTabDirty(true); // TASKS.csv #34 — see activeTabDirty's own comment above for scope/limits
     if (!undoBeforeBurst.current) { undoBeforeBurst.current = undoPrevSnapshot.current; undoBurstAt.current = Date.now(); undoPageOf.current.set(undoBeforeBurst.current, activePageSeen.current); } // page: #3935
     undoPrevSnapshot.current = current;
@@ -2106,7 +2128,7 @@ export function StoreProvider({ children }) {
     plannedHoles, addPlannedHole, updatePlannedHole, removePlannedHole,
     generatedSurfaces, setGeneratedSurfaces, surfaceIds, setSurfaceIds /* #3494 */, modelDomains, setModelDomains, // TASKS.csv #52
     layerGroups, addLayerGroup, renameLayerGroup, deleteLayerGroup, toggleLayerGroupCollapsed, setLayerGroupFor,
-    layoutElements, setLayoutElements,
+    layoutElements, setLayoutElements, setLayoutElementsQuietly /* #3960 */,
     layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat, mapLayoutPagesElements /* #3331 */, setLastCompositing /* #2883 */, sendLayoutElement, // sendLayoutElement: #1484
     layoutTemplates, addLayoutTemplate, renameLayoutTemplate, deleteLayoutTemplate,
     viewportRenderRequest, viewportRenderRequestSeq, requestViewportRender, viewportPendingRequest,

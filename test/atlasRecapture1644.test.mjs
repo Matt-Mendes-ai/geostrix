@@ -25,7 +25,7 @@ test("one capture per marked top-down map: centred on the hole, at the template'
 
 test("wired: the store's batch writes each result to its page and stays on the 3D View; the 3D View applies the saved view and shows progress; the dialog offers it", () => {
   const s = readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8");
-  assert.match(s, /const applyEls = targetPageId \? \(fn\) => setLayoutPages\(\(pages\) => pages\.map\(\(p\) => \(p\.id === targetPageId \? \{ \.\.\.p, elements: fn\(p\.elements\) \} : p\)\)\) : setLayoutElements;/);
+  assert.match(s, /const applyEls = targetPageId \? \(fn\) => setLayoutPages(Quietly)?\(\(pages\) => pages\.map\(\(p\) => \(p\.id === targetPageId \? \{ \.\.\.p, elements: fn\(p\.elements\) \} : p\)\)\) : setLayoutElements(Quietly)?;/); // Quietly: #3960 (no undo step of its own)
   assert.match(s, /if \(continueViewportBatch\(false\)\) return; \/\/ #1644 — the next atlas page/);
   assert.match(s, /if \(continueViewportBatch\(true\)\) return; \/\/ #1644/);
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
