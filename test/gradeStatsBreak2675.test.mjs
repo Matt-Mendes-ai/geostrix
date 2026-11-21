@@ -28,6 +28,6 @@ test("no break is offered from too few values or one clean population", () => {
 
 test("Grade stats shows it as a button that fills the cap to test", () => {
   const g = readFileSync(new URL("../src/components/GradeStatistics.jsx", import.meta.url), "utf8");
-  assert.match(g, /brk: probabilityBreak\(vs, ws\)/);
+  assert.match(g, /const brk = probabilityBreak\(vs, ws\);/); // #3876: kept as brk, beside detStep
   assert.match(g, /onClick=\{\(\) => setCapTest\(String\(\+prob\.brk\.toPrecision\(4\)\)\)\}/);
 });

@@ -305,7 +305,8 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   const [kindPick, setKindPick] = useState(() => handed?.kind || "contact"); // #3054 — a step keeps 'What to draw'
   const lithoUnits = data?.lithoUnits || [];
   // TASKS.csv #810 — modelling codes and lithology groups as tags too (a stack unit "X (code)" or a group matches them)
-  const tagCodes = (data?.unitTags?.codes || []).filter((c) => !lithoUnits.includes(c)), tagGroups = data?.unitTags?.groups || [];
+  // TASKS.csv #3876 (#3767) — a group and its Modelling codes twin (the same name, its role set there) are one unit: listed once, under Modelling codes
+  const tagCodes = (data?.unitTags?.codes || []).filter((c) => !lithoUnits.includes(c)), tagGroups = (data?.unitTags?.groups || []).filter((g) => !tagCodes.includes(g) && !lithoUnits.includes(g));
   const tagExplicit = data?.unitTags?.explicit || []; // TASKS.csv #811 — a line drawn for an explicit surface is one of its hard lines
   // TASKS.csv #1193 — a surface and a logged unit can share a name: "VCL" was listed twice and both fed the explicit surface. A line now says which it is for.
   const pickName = unitPick.replace(/^e:/, ""), pickExplicit = unitPick.startsWith("e:") || (tagExplicit.includes(unitPick) && !lithoUnits.includes(unitPick));

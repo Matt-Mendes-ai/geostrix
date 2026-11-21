@@ -14,7 +14,7 @@ import { computeMeshVolume } from "../../lib/volumetrics.js";
 import { MAX_BLOCKS, gridBlockCount, cellToFit } from "../../lib/estimationMeta.js";
 import { indicatorPoints, ENVELOPE_TARGET_TRIANGLES } from "../../lib/viewer/shellEnvelope.js";
 import { meshOfPost } from "../../lib/viewer/shellPost.js";
-import { holeYear, newHoleIds } from "../../lib/viewer/domainUpdate.js";
+import { holeYear, newHoleIds, domainPlaneSearch } from "../../lib/viewer/domainUpdate.js"; // domainPlaneSearch: #3876 (#3674)
 
 // how many holes, and which, were drilled from `firstYear` on (for the pane's line)
 export function holesFromYear(collars, firstYear) {
@@ -61,11 +61,15 @@ export async function runDomainUpdate(ctx, { surfaceId, firstYear, select = null
   if (gridBlockCount(bounds, cell) > budget) cell = cellToFit(bounds, budget, cell);
   const xyz = (q) => ({ x: q.x, y: q.y, z: q.z }), full = (q) => ({ x: q.x, y: q.y, z: q.z, value: q.value, length: q.length, hole_id: q.hole_id });
   const atCut = [...newNear, ...oldNear].filter((q) => q.value >= cutoff).map((q) => ({ ...xyz(q), hole_id: q.hole_id }));
+  // TASKS.csv #3876 (#3674) — the new holes' indicator searched along the domain's own plane (an ellipsoid of the 2-spacing sphere's volume), or the
+  // sphere when the domain has no clear plane
+  const plane = domainPlaneSearch(P, 2 * S);
   const t0 = performance.now();
   let g;
   try {
     g = await runEstimation("dense", indicatorPoints(newNear, cutoff), {
-      bounds, cellSize: { dx: cell, dy: cell, dz: cell }, method: "idw2", searchRadius: 2 * S, minSamples: 1, maxSamples: 16, minHoles: 1, maxBlocks: budget,
+      bounds, cellSize: { dx: cell, dy: cell, dz: cell }, method: "idw2", searchRadius: plane ? plane.majorM : 2 * S, minSamples: 1, maxSamples: 16, minHoles: 1, maxBlocks: budget,
+      ...(plane ? { trend: { basis: plane.basis, scales: plane.scales } } : {}), // #3876 (#3674)
       post: {
         iso, closeOutside: true, ground: null, inShellPoints: [], farPoints: null,
         update: { positions: P, indices: I, widthM: priorWidthM > 0 ? priorWidthM : S / 2, influenceM: newReachM > 0 ? newReachM : S, newPoints: newNear.map(xyz), reportPoints: newNear.map(full), refPoints: oldNear.map(full), cutoff, nearM: S },
@@ -94,6 +98,7 @@ export async function runDomainUpdate(ctx, { surfaceId, firstYear, select = null
   const params = {
     tool: "domain update", from: surf.name, element: symbol, unit, cutoff, probability: iso, ...(sel.mode === "year" ? { holesFromYear: firstYear } : sel.mode === "date" ? { holesFromDate: sel.date, dateField: sel.field } : { holesFromList: newHoles }),
     newHoles: newHoles.length, newHolesNear: newHolesNear.size, newComposites: newNear.length, olderComposites: oldNear.length,
+    indicatorSearch: plane ? { along: "the domain's own plane", dip: plane.trend.dip, dipAzimuth: plane.trend.dipAzimuth, axesM: plane.axesM } : { sphereM: Math.round(2 * S) }, // #3876 (#3674)
     sampleSpacingM: Math.round(S * 10) / 10, priorWidthM: Math.round((priorWidthM > 0 ? priorWidthM : S / 2) * 10) / 10, newDataInfluenceM: Math.round((newReachM > 0 ? newReachM : S) * 10) / 10, cellSizeM: cell,
     reference: rep.reference, holes: holes.map((h) => ({ hole_id: h.hole_id, status: h.status, insideShare: h.insideShare, outsideShare: h.outsideShare, composites: h.n })),
     atCutOutside: rep.atCutOutside, belowInside: rep.belowInside,
@@ -108,6 +113,7 @@ export async function runDomainUpdate(ctx, { surfaceId, firstYear, select = null
     name: surf.name, n: newHoles.length, year: firstYear, near: newHolesNear.size, agree: count("agrees"), outside: count("grade outside"), weaker: count("weaker inside"), dis: count("disagrees"),
     a: rep.atCutOutside.n, am: Math.round(rep.atCutOutside.m), b: rep.belowInside.n, bm: Math.round(rep.belowInside.m), cutoff, unit: unitL,
     old: (rep.oldM3 / 1e6).toFixed(1), new: (rep.newM3 / 1e6).toFixed(1), add: (rep.addedM3 / 1e6).toFixed(2), rem: (rep.removedM3 / 1e6).toFixed(2), ri: pct(rep.reference.insideShare), ro: pct(rep.reference.outsideShare) }));
+  if (plane) say(notice("The new holes' grade was spread along \"{name}\"'s own plane (dip {dip}° towards {az}°): {a} x {b} x {c} m, the volume of a {r} m sphere.", { name: surf.name, dip: Math.round(plane.trend.dip), az: Math.round(plane.trend.dipAzimuth), a: Math.round(plane.axesM[0]), b: Math.round(plane.axesM[1]), c: Math.round(plane.axesM[2]), r: Math.round(2 * S) })); // #3876 (#3674)
   if (holes.length) say(notice("The holes against \"{name}\": {list}.", { name: surf.name, list: holes.slice(0, 12).map((h) => tr("{hole} {status} (inside {i} %, just outside {o} %)", { hole: h.hole_id, status: tr(h.status), i: pct(h.insideShare), o: pct(h.outsideShare) })).join("; ") + (holes.length > 12 ? "; …" : "") }));
   return id;
 }

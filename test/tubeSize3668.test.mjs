@@ -31,6 +31,5 @@ test("wiring: the popover offers it, the overlay sets the uniforms from the view
   const p = readFileSync(new URL("../src/modules/viewer/ViewerParts.jsx", import.meta.url), "utf8");
   assert.match(p, /<TubeSizeControl figureOverlay=\{figureOverlay\} setFigureOverlay=\{setFigureOverlay\} \/>/);
   const o = readFileSync(new URL("../src/components/ViewportFigureOverlay.jsx", import.meta.url), "utf8");
-  assert.match(o, /const u = tubeSizeUniforms\(\{ mode: tubeMode, px: tubePx \}\);/);
-  assert.match(o, /TUBE_UNIFORMS\.uTubeMinPx\.value = u\.min; TUBE_UNIFORMS\.uTubeMaxPx\.value = u\.max;/);
+  assert.match(o, /setTubeSizes\(JSON\.parse\(tubeKey\)\);/); // #3876: every layer's uniforms and the one for all (tubeShader.js setTubeSizes, tested in tubeLayers3876)
 });

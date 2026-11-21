@@ -120,5 +120,5 @@ test("a short family: real Meshes with the pixel-floor material, picked within 4
   cam.position.set(spheres[2].position.x, 0, 5000); cam.lookAt(spheres[2].position.x, 0, 0); cam.updateMatrixWorld(true);
   assert.equal(pick(cam, px(3), 0, spheres).hits.length, 0, "a short family of spheres is picked as before");
   const lb = readFileSync(new URL("../src/lib/viewer/layerBatches.js", import.meta.url), "utf8");
-  assert.match(lb, /promote\.set\(m, floorTube\(m\.toMesh\(\)\)\)/);
+  assert.match(lb, /promote\.set\(m, floorTube\(m\.toMesh\(\), group\.name \|\| null\)\)/);
 });

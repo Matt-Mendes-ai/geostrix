@@ -60,3 +60,28 @@ test("#3785 — the wiring: the shell asks the worker and says the runs, the far
   assert.match(s, /bodies whose composites at the cut-off come from one hole \(or none\)/);
   assert.match(s, /\.\.\.\(alongHoles \? \{ alongHoles \} : \{\}\), \/\/ #3785/);
 });
+
+test("#3876 (#3785) — a body only one hole holds is kept within the reach of its composites at the cut-off; a body two holes hold is untouched", async () => {
+  const { trimOneHoleBodies } = await import("../src/lib/viewer/shellBodies.js");
+  // the slab (two holes) and a rod at x 17-19, y 0-2, z 0-39 holding one hole's composite at its foot (z 2): 40 m long
+  const f = slab(5, 14, (i, j) => i >= 17 && j <= 2);
+  const at = [{ x: 9, y: 5, z: 10, hole_id: "A" }, { x: 9, y: 12, z: 20, hole_id: "B" }, { x: 18, y: 1, z: 2, hole_id: "C" }];
+  const r = trimOneHoleBodies(f, grid, 0.5, at, 6);
+  assert.equal(r.bodies, 1);
+  const inside = (v, i, j, k) => v[i + grid.nx * (j + grid.ny * k)] >= 0.5;
+  for (let k = 0; k < grid.nz; k++) assert.equal(inside(r.values, 18, 1, k), Math.abs(k - 2) <= 6, `rod node z ${k}`); // within 6 m of its composite
+  for (let k = 0; k < grid.nz; k++) for (let i = 5; i <= 14; i++) assert.ok(inside(r.values, i, 10, k)); // the slab: two holes, kept whole
+  assert.ok(r.nodes > 0 && r.values !== f && inside(f, 18, 1, 30)); // a copy; the field given is left as it was
+  assert.equal(trimOneHoleBodies(f, grid, 0.5, at, 0).values, f); // no reach: nothing done
+  // the worker's post trims when asked, and says it; the runs and bodies are counted on the trimmed field
+  const pts = [...hole("A", 5, 10), ...hole("B", 12, 20)], atP = pts.filter((p) => p.value >= 3).concat([{ ...at[2], value: 5, from: 0, to: 2 }]);
+  const post = shellPost({ ...grid, values: f }, { iso: 0.5, closeOutside: true, inShellPoints: atP, bodies: { runPoints: pts, atPoints: atP, cutoff: 3, farDist: 12, oneHoleReachM: 6 } });
+  assert.equal(post.bodies.trim.bodies, 1);
+  assert.ok(post.bodies.parts.oneHole.nodes < 3 * 3 * 40);
+  assert.equal(shellPost({ ...grid, values: f }, { iso: 0.5, closeOutside: true, inShellPoints: atP, bodies: { runPoints: pts, atPoints: atP, cutoff: 3, farDist: 12 } }).bodies.trim, null);
+  // the run asks for half the hole spacing (>= 1.5 cells, within the search) and says what it took off
+  const runs = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
+  assert.match(runs, /const oneHoleReach = workerPost && gsSpacing > 0 \? Math\.round\(Math\.min\(searchInGrid, Math\.max\(gsSpacing \/ 2, 1\.5 \*/);
+  assert.match(runs, /oneHoleReachM: oneHoleReach \}, \/\/ #3785; oneHoleReachM: #3876/);
+  assert.match(runs, /\{far\}\{one\}\{trimmed\}\{cell\}/);
+});

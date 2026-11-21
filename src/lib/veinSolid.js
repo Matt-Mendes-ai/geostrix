@@ -118,3 +118,36 @@ export function veinSolidFromSurfaces(hw, fw, { cells = 100 } = {}) {
     thickness: { min: tMin, max: tMax, mean: tN ? tSum / tN : 0 }, pinchedNodes: pinched, nodes: tN, cells: nCells, cellM: Math.min(du, dv), dip, dipDir,
   };
 }
+
+// TASKS.csv #3876 (#3771) — the true thickness AT THE HOLES where both walls are picked (the review: "shown beside the intercepts at the holes
+// where both walls are picked"): the pole of both walls' picks (their plane of least spread about each wall's own centre), and in
+// each hole the distance between its top pick and its base pick along that pole, beside the downhole length between them. A hole's shallowest
+// pick of each wall is its intercept. topPicks / basePicks: [{ x, y, z, hole_id, md }] (any one frame).
+// -> { holes: [{ hole_id, trueM, downholeM }] (by hole id), min, median, max } | null (fewer than four picks, or no hole with both)
+export function interceptThickness(topPicks, basePicks) {
+  const first = (ps) => { const m = new Map(); for (const p of ps || []) if (p?.hole_id != null && [p.x, p.y, p.z].every(Number.isFinite) && (!m.has(p.hole_id) || Number(p.md) < Number(m.get(p.hole_id).md))) m.set(p.hole_id, p); return m; };
+  const T = first(topPicks), B = first(basePicks), all = [...T.values(), ...B.values()];
+  if (all.length < 4) return null;
+  // each wall's spread about its own centre (pooled): the two walls sit apart along the holes, not along the pole, so one centre would tilt it
+  const C = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  for (const W of [[...T.values()], [...B.values()]]) {
+    if (!W.length) continue;
+    const c = [0, 0, 0];
+    for (const p of W) { c[0] += p.x; c[1] += p.y; c[2] += p.z; }
+    c[0] /= W.length; c[1] /= W.length; c[2] /= W.length;
+    for (const p of W) { const d = [p.x - c[0], p.y - c[1], p.z - c[2]]; for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) C[a][b] += d[a] * d[b]; }
+  }
+  const n = nrm(eigSym3(C).vectors[0]);
+  const holes = [];
+  for (const [h, a] of T) {
+    const b = B.get(h);
+    if (!b) continue;
+    const trueM = Math.abs((b.x - a.x) * n[0] + (b.y - a.y) * n[1] + (b.z - a.z) * n[2]);
+    const dh = Math.abs(Number(b.md) - Number(a.md));
+    holes.push({ hole_id: h, trueM, downholeM: Number.isFinite(dh) ? dh : null });
+  }
+  if (!holes.length) return null;
+  holes.sort((x, y) => String(x.hole_id).localeCompare(String(y.hole_id), undefined, { numeric: true }));
+  const t = holes.map((x) => x.trueM).sort((x, y) => x - y), k = t.length;
+  return { holes, min: t[0], max: t[k - 1], median: k % 2 ? t[(k - 1) / 2] : (t[k / 2 - 1] + t[k / 2]) / 2 };
+}
