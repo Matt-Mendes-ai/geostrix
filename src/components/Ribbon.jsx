@@ -9,7 +9,7 @@
 // same on every tab (no layout jump when switching, the #309 lesson), while each module owns its buttons
 // and their state. A module that is mounted but hidden (ViewerModule stays mounted, #225) must not render
 // its ribbon — pass show={false}.
-import React, { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useUiMode } from "../lib/uiMode.js"; // TASKS.csv #748 — Simple / Advanced
 import { createPortal } from "react-dom";
 import { X } from "./icons.js";
@@ -17,6 +17,7 @@ import { t } from "../lib/i18n.js"; // TASKS.csv #786 — every tab's ribbon lab
 import { helpIdForPane, openHelp } from "../lib/help.js"; // TASKS.csv #1966 — the "?" of a tool pane
 import { noticeText, noticeLevel } from "../lib/notices.js"; // TASKS.csv #1602
 import { useTextSize } from "../lib/useTextSize.js"; // TASKS.csv #3900 — a new text size re-fits the band
+import { useToolInfo } from "./HoverToolInfo.jsx"; // TASKS.csv #3940 — the styled info card on every tool
 
 export const RibbonSlotContext = createContext(null);
 
@@ -119,13 +120,22 @@ export const RIBBON_TONES = {
 // plain `disabled` button is skipped by the keyboard, so a screen-reader user never learned why it was off.
 // expanded (TASKS.csv #595): for a button that shows / hides a task pane or popover, aria-expanded instead of
 // aria-pressed, so a screen reader announces "expanded / collapsed" rather than a toggle.
+const SR_ONLY = { position: "absolute", width: 1, height: 1, padding: 0, margin: -1, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap", border: 0 };
+// TASKS.csv #3940 (Matt: "I want this nice pop up info box for every tool") — the title is no longer a plain native tooltip:
+// hovering or keyboard-focusing a button shows the same styled card as the 3D View's own buttons (heading = the label, body =
+// the title; a disabled button's body leads with its disabledReason). Not while the button's own menu is open (#3928, `expanded`).
+// The body is also the button's aria-describedby, so a screen reader hears it on focus; there is no native title beside the card.
 export function RibbonButton({ icon: Icon, label: label0, title: title0, onClick, active = false, expanded, disabled = false, disabledReason: reason0, tone = "neutral", ariaLabel: aria0, children, buttonRef, advanced = false }) {
   const label = t(label0), title = t(title0), disabledReason = t(reason0), ariaLabel = t(aria0); // #786
   const soft = disabled && !!disabledReason;
+  const anchorRef = useRef(null);
+  const setRef = useCallback((el) => { anchorRef.current = el; if (typeof buttonRef === "function") buttonRef(el); else if (buttonRef) buttonRef.current = el; }, [buttonRef]);
+  const body = soft ? (title ? `${disabledReason} — ${title}` : disabledReason) : title; // #566: the reason first
+  const info = useToolInfo({ anchorRef, title: label, text: body || undefined, suppress: expanded === true });
   return (
     <div className={`ge-ribbon-cell${advanced ? " ge-adv" : ""}`}>
       <button
-        ref={buttonRef}
+        ref={setRef}
         type="button"
         className={`ge-ribbon-btn${active ? " active" : ""}${soft ? " is-disabled" : ""}`}
         aria-pressed={expanded === undefined ? active || undefined : undefined}
@@ -133,13 +143,16 @@ export function RibbonButton({ icon: Icon, label: label0, title: title0, onClick
         aria-label={ariaLabel || label}
         aria-disabled={soft || undefined}
         aria-description={soft ? disabledReason : undefined}
-        title={soft ? `${disabledReason} — ${title || label}` : title || label /* #787: the only text left when its group is icon-only */}
+        aria-describedby={body ? info.descId : undefined}
         onClick={soft ? undefined : onClick}
         disabled={disabled && !soft}
+        {...info.handlers}
       >
         {Icon && <Icon size={22} strokeWidth={1.7} color={disabled ? undefined : RIBBON_TONES[tone] || tone} aria-hidden="true" />}
         <span className="ge-ribbon-label">{label}</span>
       </button>
+      {body && <span id={info.descId} style={SR_ONLY}>{body}</span>}
+      {info.card}
       {children /* popover, inline setting... rendered under / beside the button */}
     </div>
   );

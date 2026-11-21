@@ -1,4 +1,6 @@
-import React, { useState, useId } from "react";
+import React, { useState, useId, useRef, useEffect, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
+import { placeToolInfo } from "../lib/toolInfoPlace.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // a string prop is translated here (callers may pass English); an element is shown as given (TASKS.csv #786)
@@ -34,11 +36,84 @@ const srOnly = {
   overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap", border: 0,
 };
 
-export default function HoverToolInfo({ title, text, width = 240, align = "left", suppress, children }) {
+// TASKS.csv #3940 (Matt, 2026-11-21: "I want this nice pop up info box for every tool") — the card is now one shared piece:
+// useToolInfo() holds when it shows and ToolInfoCard draws it, so HoverToolInfo (the 3D View's own buttons) and every
+// RibbonButton (src/components/Ribbon.jsx) show the same heading + one-sentence body.
+//  - a short delay on hover (so it does not flash while the pointer crosses the ribbon), almost none on keyboard focus;
+//  - keyboard focus only (:focus-visible): a click that focuses the button does not also open a card over what it opened;
+//  - Escape, a click, a scroll or a resize hides it (until the pointer or focus leaves and returns);
+//  - `suppress` (#3928): never over the button's own menu;
+//  - drawn in a portal with fixed coordinates, flipped above the button near the bottom and clamped to the window, so a
+//    ribbon that scrolls or clips (overflow) never cuts it and it is never off-screen; the start edge follows rtl (Arabic).
+const HOVER_MS = 350, FOCUS_MS = 80;
+
+export function useToolInfo({ anchorRef, title, text, suppress = false, align = "left", width = 240 }) {
   const [hover, setHover] = useState(false);
-  const [focused, setFocused] = useState(false);
+  const [focus, setFocus] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  const [shown, setShown] = useState(false);
   const descId = useId();
-  const visible = (hover || focused) && !suppress;
+  const want = (hover || focus) && !suppress && !dismissed && !!(title || text);
+  useEffect(() => {
+    if (!want) { setShown(false); return undefined; }
+    const id = setTimeout(() => setShown(true), hover ? HOVER_MS : FOCUS_MS);
+    return () => clearTimeout(id);
+  }, [want, hover]);
+  useEffect(() => {
+    if (!shown) return undefined;
+    const hide = () => setDismissed(true);
+    const onKey = (e) => { if (e.key === "Escape") hide(); };
+    document.addEventListener("keydown", onKey, true);
+    window.addEventListener("scroll", hide, true);
+    window.addEventListener("resize", hide);
+    return () => { document.removeEventListener("keydown", onKey, true); window.removeEventListener("scroll", hide, true); window.removeEventListener("resize", hide); };
+  }, [shown]);
+  const handlers = {
+    onMouseEnter: () => setHover(true),
+    onMouseLeave: () => { setHover(false); if (!focus) setDismissed(false); },
+    onMouseDown: () => setDismissed(true),
+    onFocus: (e) => { if (e.target?.matches?.(":focus-visible")) setFocus(true); },
+    onBlur: () => { setFocus(false); if (!hover) setDismissed(false); },
+  };
+  const card = shown && want ? <ToolInfoCard anchorRef={anchorRef} title={title} text={text} width={width} align={align} /> : null;
+  return { handlers, descId, card };
+}
+
+export function ToolInfoCard({ anchorRef, title, text, width, align }) {
+  const ref = useRef(null);
+  const [pos, setPos] = useState(null);
+  useLayoutEffect(() => {
+    const a = anchorRef.current, c = ref.current;
+    if (!a || !c) return;
+    const rtl = getComputedStyle(a).direction === "rtl";
+    setPos(placeToolInfo(a.getBoundingClientRect(), { width: c.offsetWidth, height: c.offsetHeight }, { width: document.documentElement.clientWidth, height: document.documentElement.clientHeight }, { align, rtl }));
+  }, [anchorRef, title, text, width, align]);
+  return createPortal(
+    <div
+      ref={ref}
+      aria-hidden="true"
+      className="ge-tool-info"
+      style={{
+        position: "fixed", zIndex: 1200, left: pos ? pos.left : 0, top: pos ? pos.top : 0, visibility: pos ? "visible" : "hidden",
+        width, maxWidth: "calc(100vw - 16px)", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8,
+        boxShadow: "0 6px 20px rgba(0,0,0,0.16)", padding: "9px 11px", boxSizing: "border-box",
+        textTransform: "none", letterSpacing: "normal", fontWeight: 400, pointerEvents: "none", textAlign: "start",
+      }}
+    >
+      {title && (
+        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", fontWeight: 600, marginBottom: text ? 5 : 0, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+          {trText(title)}
+        </div>
+      )}
+      {text && <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)", lineHeight: 1.55, whiteSpace: "pre-line" }}>{trText(text)}</div>}
+    </div>,
+    document.body,
+  );
+}
+
+export default function HoverToolInfo({ title, text, width = 240, align = "left", suppress, children }) {
+  const anchorRef = useRef(null);
+  const { handlers, descId, card } = useToolInfo({ anchorRef, title, text, suppress, align, width });
 
   const child = React.isValidElement(children)
     ? React.cloneElement(children, {
@@ -48,33 +123,10 @@ export default function HoverToolInfo({ title, text, width = 240, align = "left"
     : children;
 
   return (
-    <span
-      style={{ position: "relative", display: "inline-flex", alignItems: "center" }}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-    >
+    <span ref={anchorRef} style={{ position: "relative", display: "inline-flex", alignItems: "center" }} {...handlers}>
       {child}
       {text && <span id={descId} style={srOnly}>{trText(text)}</span>}
-      {visible && (
-        <div
-          style={{
-            position: "absolute", zIndex: 90, top: "calc(100% + 6px)",
-            [align === "right" ? "right" : "left"]: 0,
-            width, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8,
-            boxShadow: "0 6px 20px rgba(0,0,0,0.16)", padding: "9px 11px",
-            textTransform: "none", letterSpacing: "normal", fontWeight: 400, pointerEvents: "none",
-          }}
-        >
-          {title && (
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", fontWeight: 600, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              {trText(title)}
-            </div>
-          )}
-          <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)", lineHeight: 1.55 }}>{trText(text)}</div>
-        </div>
-      )}
+      {card}
     </span>
   );
 }
