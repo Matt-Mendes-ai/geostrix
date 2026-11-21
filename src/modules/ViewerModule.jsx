@@ -240,6 +240,7 @@ import RastersTerrainSection from "./viewer/RastersTerrainSection.jsx"; // TASKS
 import { useSurfaceUndo, stashSurface } from "./viewer/surfaceUndo.js"; // TASKS.csv #3494 — Undo / Redo for the model surfaces
 import { useModelling } from "./viewer/useModelling.js";
 import { landed } from "../lib/projectJobs.js"; // TASKS.csv #3953
+import { useDismiss } from "../lib/useDismiss.js"; // TASKS.csv #3969
 import { useUnitSource } from "./viewer/useUnitSource.js"; // TASKS.csv #2378
 import { wheelZoom } from "./viewer/wheelZoom.js"; // #2368
 import { makeWheelAnchors, wheelBoxes, sceneFloor } from "./viewer/wheelAnchors.js"; // TASKS.csv #3247; #3669; sceneFloor: #3927
@@ -1139,6 +1140,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // buttons don't need this — they trigger the SAME existing modal-open booleans (dbModalOpen etc.)
   // that used to be triggered from sidebar buttons, just moved.
   const [openPopover, setOpenPopover] = useState(null); // null | "grid" | "themes"
+  useDismiss(!!openPopover, (n) => !!n?.closest?.("[data-ribbon-popover], [aria-haspopup][aria-expanded]"), () => setOpenPopover(null)); // TASKS.csv #3969 — a dialog opening, a press elsewhere, Escape
   // TASKS.csv #240 — which section groups (fence-series runs) are expanded to show their individual
   // sections in the sidebar. Defaults to collapsed for every group (a fence run can be thousands of
   // sections — see this row's own notes — so opting IN to rendering that many DOM rows, rather than
