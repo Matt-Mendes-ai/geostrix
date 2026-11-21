@@ -7,7 +7,8 @@ import { readFileSync } from "node:fs";
 
 const read = (f) => readFileSync(new URL(`../src/${f}`, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 // files whose number boxes are all G4 (none left as <input type="number">)
-const DONE = ["components/InversionPanel.jsx", "components/TemInvertPanel.jsx", "modules/GeophysicsModule.jsx"];
+const DONE = ["components/InversionPanel.jsx", "components/TemInvertPanel.jsx", "modules/GeophysicsModule.jsx",
+  "components/DcipPanel.jsx", "components/Dcip3dArrayPanel.jsx", "components/Dcip3dPanel.jsx", "components/DcipMergePanel.jsx"];
 const imp = (f) => (f.startsWith("modules/") ? /import NumberInput from "\.\.\/components\/NumberInput\.jsx";/ : /import NumberInput from "\.\/NumberInput\.jsx";/);
 
 test("#3926 G4 every number box in these files is a NumberInput", () => {

@@ -14,6 +14,7 @@ import { subscribeInversionJob, startInversionJob, cancelInversionJob } from "..
 import { terrainElevationAt } from "../lib/inversion.js";
 import { version as APP_VERSION } from "../../package.json";
 import { t as tr } from "../lib/i18n.js";
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
 
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 const minutes = (s) => (s < 90 ? tr("{s} s", { s: Math.round(s) }) : s < 5400 ? tr("{m} min", { m: Math.round(s / 60) }) : tr("{h} h", { h: (s / 3600).toFixed(1) }));
@@ -157,9 +158,9 @@ export default function Dcip3dArrayPanel({ pBtn, numInput }) {
               <option value={1}>{tr("All ({n})", { n: sel.currentPairs })}</option><option value={2}>{tr("Every 2nd (faster)")}</option><option value={3}>{tr("Every 3rd")}</option><option value={4}>{tr("Every 4th (quick look)")}</option>
             </select>
           </div>
-          <div style={row} title={tr("Smallest cell, at the electrodes (half as tall). Cost grows quickly as it shrinks.")}><span style={lbl}>{tr("Cell size (m)")}</span><input type="number" min={5} value={o.core} placeholder={String(sug.core)} onChange={(e) => set("core", e.target.value)} style={inp} aria-label={tr("Cell size (m)")} /><span style={small}>{tr("receiver dipole {d} m", { d: parsed.dipoleM })}</span></div>
-          <div style={row} title={tr("How deep the fine cells reach under the electrodes.")}><span style={lbl}>{tr("Depth (m)")}</span><input type="number" min={10} value={o.depth} placeholder={String(sug.depth)} onChange={(e) => set("depth", e.target.value)} style={inp} aria-label={tr("Depth (m)")} /></div>
-          <div style={row}><span style={lbl}>{tr("Uncertainty")}</span><input type="number" min={0} value={o.pct} placeholder="%" onChange={(e) => set("pct", e.target.value)} style={inp} aria-label={tr("Resistivity uncertainty (%)")} /><input type="number" min={0} value={o.floor} placeholder={tr("floor Ω·m")} onChange={(e) => set("floor", e.target.value)} style={inp} aria-label={tr("Resistivity uncertainty floor (ohm·m)")} /></div>
+          <div style={row} title={tr("Smallest cell, at the electrodes (half as tall). Cost grows quickly as it shrinks.")}><span style={lbl}>{tr("Cell size (m)")}</span><NumberInput allowEmpty min={5} value={o.core} placeholder={String(sug.core)} onChange={(v) => set("core", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Cell size (m)")} /><span style={small}>{tr("receiver dipole {d} m", { d: parsed.dipoleM })}</span></div>
+          <div style={row} title={tr("How deep the fine cells reach under the electrodes.")}><span style={lbl}>{tr("Depth (m)")}</span><NumberInput allowEmpty min={10} value={o.depth} placeholder={String(sug.depth)} onChange={(v) => set("depth", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Depth (m)")} /></div>
+          <div style={row}><span style={lbl}>{tr("Uncertainty")}</span><NumberInput allowEmpty min={0} value={o.pct} placeholder="%" onChange={(v) => set("pct", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Resistivity uncertainty (%)")} /><NumberInput allowEmpty min={0} value={o.floor} placeholder={tr("floor Ω·m")} onChange={(v) => set("floor", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Resistivity uncertainty floor (ohm·m)")} /></div>
           {parsed.rhoErr && <label style={{ ...row, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}><input type="checkbox" checked={o.fileErr} onChange={(e) => set("fileErr", e.target.checked)} />{tr("Each reading's uncertainty is at least its own error from the file (median {p} % of the value)", { p: relErr != null ? relErr.toFixed(1) : "?" })}</label>}
           {hasIp && (
             <>
@@ -172,12 +173,12 @@ export default function Dcip3dArrayPanel({ pBtn, numInput }) {
                       <option value="mVV" disabled={!parsed.mxWindowMs}>{parsed.mxWindowMs ? tr("mV/V (Mx × 1000 / {w} ms)", { w: parsed.mxWindowMs[1] - parsed.mxWindowMs[0] }) : tr("mV/V (needs the window in the file)")}</option>
                     </select>
                   </div>
-                  <div style={row}><span style={lbl}>{tr("IP uncertainty")}</span><input type="number" min={0} value={o.ipPct} placeholder="%" onChange={(e) => set("ipPct", e.target.value)} style={inp} aria-label={tr("Chargeability uncertainty (%)")} /><input type="number" min={0} value={o.ipFloor} placeholder={tr("floor {u}", { u: ipUnitLabel })} onChange={(e) => set("ipFloor", e.target.value)} style={inp} aria-label={tr("Chargeability uncertainty floor")} /></div>
+                  <div style={row}><span style={lbl}>{tr("IP uncertainty")}</span><NumberInput allowEmpty min={0} value={o.ipPct} placeholder="%" onChange={(v) => set("ipPct", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Chargeability uncertainty (%)")} /><NumberInput allowEmpty min={0} value={o.ipFloor} placeholder={tr("floor {u}", { u: ipUnitLabel })} onChange={(v) => set("ipFloor", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Chargeability uncertainty floor")} /></div>
                 </>
               )}
             </>
           )}
-          <div style={row} title={tr("In each column, cells below the deepest one whose support (how much the data see it, 0-1) reaches this are left out of the block models: below that the values are the regularization's extrapolation, not data.")}><span style={lbl}>{tr("Support cutoff")}</span><input type="number" min={0} max={1} step={0.005} value={o.cutoff} onChange={(e) => set("cutoff", e.target.value)} style={inp} aria-label={tr("Support cutoff")} /></div>
+          <div style={row} title={tr("In each column, cells below the deepest one whose support (how much the data see it, 0-1) reaches this are left out of the block models: below that the values are the regularization's extrapolation, not data.")}><span style={lbl}>{tr("Support cutoff")}</span><NumberInput allowEmpty min={0} max={1} step={0.005} value={o.cutoff} onChange={(v) => set("cutoff", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Support cutoff")} /></div>
           <VoxelChoice o={o} setO={setO} lbl={lbl} row={row} />{/* #1978 */}
           <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
             <button onClick={estimate} disabled={running} style={{ ...pBtn, flex: 1, opacity: running ? 0.5 : 1 }}><Box size={14} />{" "}{tr("Estimate")}</button>
