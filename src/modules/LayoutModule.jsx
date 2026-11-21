@@ -40,7 +40,7 @@ import DrillPlanColourControls from "../components/DrillPlanColourControls.jsx";
 import DrillPlanElement, { drillPlanDrawing } from "../components/DrillPlanElement.jsx"; // TASKS.csv #1639
 import { withLiveScaleBars, relinkCopies, tieStarterFurniture, dropIdleStarterMapFurniture /* #3863 */, northRotationOf, insertScaleBar, scaleBarTargets, bindScaleBar } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924 / #1632
 import { legibleGridStep, keepLabelsApart } from "../lib/layoutGeometry.js"; // TASKS.csv #1488
-import { worldToVp, capturedSize, metresPerPagePx, groundFrameSize, obliqueCapture, viewportScaleText, pageScaleText, utmGridReady, niceGridStep, overviewPolygon, holesInFrame, snapToGuides, sectionScaleDenom, sectionWidthForScale, sectionScaleText, sectionTextPt, sectionTextFactor, isDepthImage, depthScaleDenom, depthHeightForScale } from "../lib/layoutGeometry.js"; // TASKS.csv #961 / #946; sectionTextPt: #1485; section scale: #944
+import { frameResized, coverScale, resizeRecaptureOpts /* #3965 */, worldToVp, capturedSize, metresPerPagePx, groundFrameSize, obliqueCapture, viewportScaleText, pageScaleText, utmGridReady, niceGridStep, overviewPolygon, holesInFrame, snapToGuides, sectionScaleDenom, sectionWidthForScale, sectionScaleText, sectionTextPt, sectionTextFactor, isDepthImage, depthScaleDenom, depthHeightForScale } from "../lib/layoutGeometry.js"; // TASKS.csv #961 / #946; sectionTextPt: #1485; section scale: #944
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
@@ -182,6 +182,7 @@ export default function LayoutModule() {
     geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, // TASKS.csv #2878 — the survey points' ramps
     viewportBatchDone, setViewportBatchDone, // TASKS.csv #1644 — an atlas's maps centred on their holes
     requestViewportBatch, printSrcs, setPrintSrcs, // TASKS.csv #2303 — the export's 300 dpi print pass
+    viewportPendingRequest, // TASKS.csv #3965 — a resized frame is not captured again while another capture is out
     undoCheckpoint, // TASKS.csv #3184 — each insert / duplicate / paste its own undo step
     setProjectTitle, // TASKS.csv #3611 / #3612 — the title the sheets print
   } = useStore();
@@ -767,6 +768,22 @@ export default function LayoutModule() {
     const g = dragGuide(el); // #910 — the edges snap to the same lines (x / y of the box itself are the element's)
     dragState.current = { resize: handle, id: el.id, startX: px, startY: py, x0: el.x, y0: el.y, w0, h0, lockAspect: ASPECT_LOCKED.has(el.type) || e.shiftKey, widthOnly: WIDTH_ONLY.has(el.type) && !(el.type === "legend" && handle.includes("s")) /* #3395 — a legend's height */, arrow, guide: g };
   };
+  // TASKS.csv #3965 (Matt: "when I resize the view it creates a white frame around the previous view") — a 3D view frame resized with its
+  // handles (Shift too) or by typing W / H is captured again at its new size, at its scale and centre (resizeRecaptureOpts), once the size
+  // settles: when the handle is let go, or a moment after the typed size (the arrow keys step it). Undo puts back the size and the picture
+  // together, so nothing is asked then; a project saved with a resized frame is not captured on opening (its picture covers the frame).
+  const [recaptureAsk, setRecaptureAsk] = useState(null); // { id, delay, seq }
+  const askRecapture = (id, delay) => setRecaptureAsk({ id, delay, seq: Math.random() });
+  const now = useRef(null); now.current = { elements, pending: viewportPendingRequest }; // read when the timer fires, not when it was set
+  useEffect(() => {
+    if (!recaptureAsk) return undefined;
+    const t = setTimeout(() => {
+      const el = now.current.elements.find((e) => e.id === recaptureAsk.id);
+      if (dragState.current || now.current.pending || !frameResized(el) || el.refreshing) return;
+      startViewportRender(el.themeId || null, el.id, el.trueScale, resizeRecaptureOpts(el));
+    }, recaptureAsk.delay);
+    return () => clearTimeout(t);
+  }, [recaptureAsk]);
   // TASKS.csv #101 — derived (not stored) so it always reflects the bound viewport's LATEST scale.
   // Falls back to null (and the grid behaves exactly as before, mm-based) if nothing's bound, the
   // bound element was deleted, or that viewport hasn't been rendered yet (no worldHeightAtTarget/h
@@ -862,7 +879,7 @@ export default function LayoutModule() {
         setElements((els) => els.map((el) => el.id === id ? { ...el, x, y } : el));
       }
     };
-    const onUp = () => { dragState.current = null; setGuides([]); };
+    const onUp = () => { const d = dragState.current; dragState.current = null; setGuides([]); if (d?.resize) askRecapture(d.id, 120); }; // #3965
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     // TASKS.csv #207 — same "OS steals input mid-drag" safety net as SidebarResizeHandle.jsx (a
@@ -1513,7 +1530,7 @@ export default function LayoutModule() {
         {sel && (
           <>
             <div className="ge-section-label" style={{ marginTop: 18 }}>{tr("Selected: {type}", { type: sel.type })}</div>
-            <PlaceControls sel={sel} updateSelected={updateSelected} />{/* TASKS.csv #906 — position and size in mm */}
+            <PlaceControls sel={sel} updateSelected={(patch) => { updateSelected(patch); if (sel.type === "viewport" && ("w" in patch || "h" in patch)) askRecapture(sel.id, 700); }} />{/* TASKS.csv #906 — position and size in mm; #3965 */}
             {selPast.length > 0 && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr(selPast.includes("out") ? "This element lies wholly outside the sheet (past its {sides}): it is left out of the export. Move it back onto the sheet, or delete it." : "Part of this element reaches past the sheet's {sides}: that part is left out of the export, the rest prints. Move it, or make it smaller.", { sides: selPast.filter((sd) => sd !== "out").map((sd) => ({ left: tr("left edge"), top: tr("top edge"), right: tr("right edge"), bottom: tr("bottom edge") })[sd]).join(" / ") })}{/* #3703 — what is left out, plainly */}</div>}{/* #3612 (7) */}
             <div style={{ display: "flex", gap: 4, marginBottom: 8, flexWrap: "wrap" }}>{/* TASKS.csv #909 */}
               <button onClick={() => reorderSelected("front")} title={tr("Bring to front")} style={smallBtn}>{tr("To front")}</button>
@@ -2640,7 +2657,7 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
         </div>
       )}
       {frameChanged && (
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>{tr("The frame was resized since its capture: the image keeps its scale and size until you refresh, which fills the frame.")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>{tr("The frame was resized: its old picture is enlarged to fill it until it is captured again at this size.")}</div>
       )}
       <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Rotation (°)")}<NumberInput value={sel.rotation || 0} onChange={asEvent((e) => updateSelected({ rotation: Number(e.target.value) || 0 }))} style={inp} />
       </label>
@@ -2899,27 +2916,31 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     const frameW = el.frameStyle === "double" ? Math.max(3, (el.frameWidth || 1) * 3) : (el.frameWidth || 0);
     // TASKS.csv #906 — w x h is the IMAGE area and the frame is drawn outside it (the border used to sit inside the box,
     // so a 700 px frame showed its 926 m over 698 px: 1 : 5,014, not 1 : 5,000). The image is shown at the size it was
-    // captured for (capW x capH, centred), so resizing the frame never rescales it: the frame shows white where no
-    // ground was captured until the next refresh fills it. An older capture with no capW is fitted as before.
-    const W = el.w || 400, H = el.h || 260, imgW = el.capW || W, imgH = el.capH || H;
+    // captured for (capW x capH, centred). An older capture with no capW is fitted as before.
+    // TASKS.csv #3965 — a frame resized larger showed that picture in a white band: it is enlarged just enough to cover the frame (with its
+    // grid, overview box and hole mark) until the capture at the new size lands; a smaller frame crops it at its scale.
+    const W = el.w || 400, H = el.h || 260, imgW = el.capW || W, imgH = el.capH || H, cover = coverScale(W, H, imgW, imgH);
+    const capLayer = { position: "absolute", left: (W - imgW) / 2, top: (H - imgH) / 2, width: imgW, height: imgH, ...(cover > 1 ? { transform: `scale(${cover})`, transformOrigin: "center center" } : {}) };
     return (
       <div
         style={{ ...wrap, width: W, height: H, transform: `rotate(${el.rotation || 0}deg)`, transformOrigin: "center center", outlineOffset: 3 + frameW /* #998 — outside the frame, or a double frame hid it */ }}
         onMouseDown={onDown} data-el-id={el.id} {...kb}
       >
         <div style={{ width: "100%", height: "100%", background: "#fff", position: "relative", overflow: "hidden" }}>
-          {el.src && <img src={el.src} alt={tr("viewport")} style={{ position: "absolute", left: (W - imgW) / 2, top: (H - imgH) / 2, width: imgW, height: imgH, display: "block" }} draggable={false} />}
-          {el.utmGrid && utmGridReady(el) && <div style={{ position: "absolute", left: (W - imgW) / 2, top: (H - imgH) / 2, width: imgW, height: imgH }}><UtmGridOverlay el={{ ...el, w: imgW, h: imgH }} crs={ctx?.crs || ""} /></div>}
+          <div data-cap-layer="" style={{ ...capLayer, pointerEvents: "none" }}>
+          {el.src && <img src={el.src} alt={tr("viewport")} style={{ position: "absolute", left: 0, top: 0, width: imgW, height: imgH, display: "block" }} draggable={false} />}
+          {el.utmGrid && utmGridReady(el) && <div style={{ position: "absolute", inset: 0 }}><UtmGridOverlay el={{ ...el, w: imgW, h: imgH }} crs={ctx?.crs || ""} /></div>}
           {el.overviewOf && (() => { /* TASKS.csv #912 — another viewport's ground footprint, as a rectangle */
             const poly = overviewPolygon(el, (ctx?.els || []).find((v) => v.id === el.overviewOf));
             return poly ? (
-              <svg style={{ position: "absolute", left: (W - imgW) / 2, top: (H - imgH) / 2, overflow: "visible", pointerEvents: "none" }} width={imgW} height={imgH}>
+              <svg style={{ position: "absolute", left: 0, top: 0, overflow: "visible", pointerEvents: "none" }} width={imgW} height={imgH}>
                 <polygon points={poly.map((p) => p.join(",")).join(" ")} fill="rgba(224,64,64,0.12)" stroke="#d62f2f" strokeWidth="1.5" />
               </svg>
             ) : null;
           })()}
+          </div>
           {el.markHole && (() => { /* TASKS.csv #1644 — an atlas page's hole on the template's map */
-            const [u, v] = worldToVp(el, el.markHole.x, el.markHole.y), inFrame = Math.abs(u) <= W / 2 - 4 && Math.abs(v) <= H / 2 - 4;
+            const [u, v] = worldToVp(el, el.markHole.x, el.markHole.y).map((d) => d * cover) /* #3965 */, inFrame = Math.abs(u) <= W / 2 - 4 && Math.abs(v) <= H / 2 - 4;
             const font = { fontSize: printPx(printPt.small), fontFamily: FONT, fontWeight: 700 };
             return inFrame ? (
               <svg style={{ position: "absolute", left: 0, top: 0, overflow: "visible", pointerEvents: "none" }} width={W} height={H}>

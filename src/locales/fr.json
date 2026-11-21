@@ -6869,7 +6869,6 @@
   "Exported {n} page(s) to {path}.": "{n} page(s) exportée(s) vers {path}.",
   "Export every page as a PDF, each at its own paper size and orientation": "Exporter toutes les pages en PDF, chacune à son format de papier et son orientation",
   "Captured at 1 : {fixedScale}: the frame shows {w} × {h} m. Resize it and refresh to show more or less ground at this scale.": "Capturé au 1 : {fixedScale} : le cadre montre {w} × {h} m. Redimensionnez-le et actualisez pour montrer plus ou moins de terrain à cette échelle.",
-  "The frame was resized since its capture: the image keeps its scale and size until you refresh, which fills the frame.": "Le cadre a été redimensionné depuis sa capture : l'image garde son échelle et sa taille jusqu'à l'actualisation, qui remplit le cadre.",
   "Drag the tip to aim and lengthen the arrow": "Faites glisser la pointe pour orienter et allonger la flèche",
   "Position and size on the paper, in millimetres (the rulers' unit). Drag an element's handles to resize it; Shift keeps its shape.": "Position et taille sur le papier, en millimètres (l'unité des règles). Faites glisser les poignées d'un élément pour le redimensionner ; Maj conserve sa forme.",
   "X (mm)": "X (mm)",
@@ -14673,5 +14672,6 @@
   "Grade / intercept labels": "Étiquettes de teneur / intersection",
   "Surface and shell names": "Noms des surfaces et enveloppes",
   "Ground surface label": "Étiquette de la surface du sol",
-  "{n} holes: offsets and depth ticks off.": "{n} sondages : écarts et graduations de profondeur masqués."
+  "{n} holes: offsets and depth ticks off.": "{n} sondages : écarts et graduations de profondeur masqués.",
+  "The frame was resized: its old picture is enlarged to fill it until it is captured again at this size.": "Le cadre a été redimensionné : son image précédente est agrandie pour le remplir jusqu'à une nouvelle capture à cette taille."
 }

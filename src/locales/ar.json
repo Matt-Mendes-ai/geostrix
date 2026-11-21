@@ -6869,7 +6869,6 @@
   "Exported {n} page(s) to {path}.": "صُدّرت {n} صفحة إلى {path}.",
   "Export every page as a PDF, each at its own paper size and orientation": "صدّر كل الصفحات كملف PDF، كل صفحة بحجم ورقها واتجاهها",
   "Captured at 1 : {fixedScale}: the frame shows {w} × {h} m. Resize it and refresh to show more or less ground at this scale.": "التُقط بمقياس 1 : {fixedScale}: يعرض الإطار {w} × {h} م. غيّر حجمه ثم حدّث لعرض أرض أكثر أو أقل بهذا المقياس.",
-  "The frame was resized since its capture: the image keeps its scale and size until you refresh, which fills the frame.": "غُيّر حجم الإطار منذ التقاطه: تحتفظ الصورة بمقياسها وحجمها حتى تحدّث، فيمتلئ الإطار.",
   "Drag the tip to aim and lengthen the arrow": "اسحب الرأس لتوجيه السهم وإطالته",
   "Position and size on the paper, in millimetres (the rulers' unit). Drag an element's handles to resize it; Shift keeps its shape.": "الموضع والحجم على الورقة بالمليمتر (وحدة المساطر). اسحب مقابض العنصر لتغيير حجمه؛ Shift يحافظ على شكله.",
   "X (mm)": "X (مم)",
@@ -14673,5 +14672,6 @@
   "Grade / intercept labels": "تسميات المحتوى / التقاطع",
   "Surface and shell names": "أسماء الأسطح والأغلفة",
   "Ground surface label": "تسمية سطح الأرض",
-  "{n} holes: offsets and depth ticks off.": "{n} ثقبًا: البعد وعلامات العمق مخفية."
+  "{n} holes: offsets and depth ticks off.": "{n} ثقبًا: البعد وعلامات العمق مخفية.",
+  "The frame was resized: its old picture is enlarged to fill it until it is captured again at this size.": "غُيّر حجم الإطار: تُكبَّر صورته السابقة لتملأه إلى أن يُعاد التقاطها بهذا الحجم."
 }

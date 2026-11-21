@@ -91,7 +91,7 @@ import { legendLayout } from "../lib/legendLayout.js"; // TASKS.csv #2044; apart
 const ViewportFigureOverlay = lazyPart(() => import("../components/ViewportFigureOverlay.jsx")); // TASKS.csv #311 — loaded with the first figure, not at startup
 import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309 — the shared empty-state card, extracted from this file's own #294 card
 import { fixedScaleHalfHeight, captureLongPx, scaleForHalfHeight } from "../lib/captureScale.js"; // scaleForHalfHeight: #1486; captureScale: #3961
-import { worldHeightAtTargetM } from "../lib/figureScale.js"; // TASKS.csv #311 — the single shared metres-per-pixel derivation (Layout's scale bar uses it too)
+import { worldHeightAtTargetM, fovForWorldHeight } from "../lib/figureScale.js"; // #311: one metres-per-px derivation (Layout's scale bar too); #3965
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import OmfObjectRow from "./viewer/OmfObjectRow.jsx"; // TASKS.csv #3895
@@ -2711,12 +2711,13 @@ ${describeTrend(t)}` };
     let orthoCamera = null;
     let orthoHalfH = null; // #398
     let zoomScale = null; // #1486 — the 1:N the user's zoom framed, for a fixed-scale frame in 'Enter & adjust view'
-    if (!req.trueScale && frameAspect && (outW !== mountW || outH !== mountH)) {
+    if (!req.trueScale && frameAspect && (outW !== mountW || outH !== mountH || req.mPerPx > 0)) {
       // a perspective capture at the frame's aspect: a clone of the live camera (same place, look and vertical field of
       // view), only its aspect differs - the live camera is never touched
       const pc = camera.clone();
       if (camera.userData.ve > 1) setVerticalExaggeration(pc, camState, camera.userData.ve); // #2628 — the clone took no VE: a frame-aspect capture came out at 1x
       pc.aspect = outW / outH;
+      if (req.mPerPx > 0) pc.fov = fovForWorldHeight(req.mPerPx * outH, cs.radius) || pc.fov; // #3965 — a resized frame: its old metres per px
       pc.updateProjectionMatrix();
       renderCamera = pc;
     }
@@ -2726,7 +2727,7 @@ ${describeTrend(t)}` };
       // TASKS.csv #398 — fixed plot scale: the Layout frame (elementW page px at 96 dpi) must show
       // N x its printed width of world, centred where the camera looks. #906: drawn at the frame's own aspect, so
       // its height shows N x the printed height too - the frame's size on the paper IS the ground it shows.
-      if (req.fixedScale > 0 && req.elementW > 0) { if (req.interactive) zoomScale = scaleForHalfHeight(halfH, req.elementW, aspect); halfH = fixedScaleHalfHeight(req.fixedScale, req.elementW, aspect); } // #961; #1486 — the zoom it replaces, offered back
+      if (req.fixedScale > 0 && req.elementW > 0) { if (req.interactive) zoomScale = scaleForHalfHeight(halfH, req.elementW, aspect); halfH = fixedScaleHalfHeight(req.fixedScale, req.elementW, aspect); } else if (req.mPerPx > 0 && frameAspect) halfH = (req.mPerPx * outH) / 2; // #961; #1486: the zoom it replaces, offered back; #3965
       const halfW = halfH * aspect;
       orthoHalfH = halfH;
       orthoCamera = new THREE.OrthographicCamera(-halfW, halfW, halfH, -halfH, 0.1, camera.far); // #377 — ortho depth is linear; keep its own small near rather than the perspective one
@@ -2762,11 +2763,9 @@ ${describeTrend(t)}` };
       encoded = shot.encoded; shotW = shot.width; shotH = shot.height;
     } catch (err) { applyTheme(liveViewBeforeRender); resolveViewportRender({ requestId: req.requestId, error: err.message }); return; }
     if (labelsOverlapping) setNotices((p) => [...p, notice("Layout capture: every hole is labelled, and {n} label(s) overlap another at this scale. A larger scale, or a shorter label mode, separates them.", { n: labelsOverlapping })]); // #1770
-    // TASKS.csv #311 — this used to be the inline `2 * cs.radius * Math.tan(fovRad / 2)`. Same figure,
-    // now imported from src/lib/figureScale.js so the Layout scale bar (which this feeds) and the new
-    // in-viewport scale bar cannot possibly derive different metres-per-pixel from the same camera.
+    // TASKS.csv #311 — from src/lib/figureScale.js, so the Layout scale bar and the in-viewport one derive the same metres per px.
     // Still exact (not approximate) when req.trueScale is set — see the orthographic branch above.
-    const worldHeightAtTarget = orthoHalfH != null ? 2 * orthoHalfH : worldHeightAtTargetM(camera.fov, cs.radius); // #398: the ortho frustum's own height (identical unless a fixed scale set it)
+    const worldHeightAtTarget = orthoHalfH != null ? 2 * orthoHalfH : worldHeightAtTargetM(renderCamera.fov, cs.radius); // #398: the ortho frustum's own height (identical unless a fixed scale set it); #3965: the clone's fov
     // TASKS.csv #67 — north-arrow sync. Worked out from first principles and checked numerically
     // (not just by analogy) rather than trusting a guess: CompassRose.js rotates its 3D ring by
     // -cs.theta about Y and views it through a straight-down navCamera with up=(0,0,-1), so N (ring
@@ -2788,11 +2787,8 @@ ${describeTrend(t)}` };
     const o = originRef.current;
     const targetWorld = { x: cs.target.x + o.x, y: o.y - cs.target.z };
     const planView = cs.phi <= 0.0205; // within ~1.2 deg of straight down. #398: was "< 0.02", but the Top button sets exactly 0.02, so a Top view never counted as plan and the UTM grid stayed disabled
-    // Restore the user's own live view now that every value the capture needed (dataUrl,
-    // worldHeightAtTarget, cameraAzimuthDeg, targetWorld, planView) has already been read out of `cs`/the canvas
-    // above — this is what actually fixes #202 (see this effect's top comment): without it, the theme
-    // applied for this capture was left in place, silently showing up as "my toggled-off layers
-    // are back on" whenever the user next looked at the 3D View tab.
+    // The user's own live view back, every value the capture needed now read (#202: without it the capture's theme stayed in place,
+    // "my toggled-off layers are back on" in the 3D View).
     applyTheme(liveViewBeforeRender);
     encoded.then((dataUrl) => resolveViewportRender({
       requestId: req.requestId, src: dataUrl, naturalW: shotW, naturalH: shotH,
