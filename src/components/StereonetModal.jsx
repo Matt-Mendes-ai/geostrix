@@ -99,7 +99,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
     return domainFilter(picks.filter((p) => !p.outcrop), domainId);
   }, [picks, domainId, domainFilter]);
 
-  // TASKS.csv #3843 — only the readings the 3D View shows now, and/or those inside one of the project's boundaries (locate: from the 3D View)
+  // TASKS.csv #3843 — only the readings the 3D view shows now, and/or those inside one of the project's boundaries (locate: from the 3D view)
   const [viewOnly, setViewOnly] = useState(false), [boundaryId, setBoundaryId] = useState("");
   const boundary = useMemo(() => (locate?.boundaries || []).find((b) => b.id === boundaryId)?.polylines || null, [locate, boundaryId]);
   const placed = useMemo(() => keepWhere(domainScoped, locate && { inView: viewOnly ? locate.inView : null, boundary, collarXY: locate.collarXY }, pointInBoundary), [domainScoped, locate, viewOnly, boundary]);
@@ -391,7 +391,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
             )}
             {locate && ( /* TASKS.csv #3843 — only what is in the window / inside a boundary */
               <>
-                <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Only the readings whose collar or outcrop point is in the 3D View's window now (a ground point at the scene's level)")}>
+                <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Only the readings whose collar or outcrop point is in the 3D view's window now (a ground point at the scene's level)")}>
                   <input type="checkbox" checked={viewOnly} onChange={(e) => setViewOnly(e.target.checked)} />{tr("Only readings in the view")}</label>
                 {(locate.boundaries || []).length > 0 && (
                   <label style={rowLabel}>{tr("Inside a boundary")}<select value={boundaryId} onChange={(e) => setBoundaryId(e.target.value)} style={sel} aria-label={tr("Boundary the readings are inside")}>

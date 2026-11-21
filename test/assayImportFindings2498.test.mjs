@@ -34,5 +34,5 @@ test("nothing to say: empty lists", () => {
 test("wired into the commit notice", () => {
   const g = readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8");
   assert.match(g, /const f = assayImportFindings\(\{ rows, elements: chosen,/);
-  for (const k of ["Values over 100 % (a total or a unit to check in the file): {list}.", "Not imported (numeric, not an element): {cols}.", "Sample types that are not drill intervals, taken in as rows of their hole: {list}."]) assert.ok(g.includes(`tr(${JSON.stringify(k)}`), k);
+  for (const k of ["Values over 100 % (a total or a unit to check in the file): {list}.", "Not imported (numeric, not an element): {cols}. To add one as an assay (an equivalent such as AuEq, a total such as TREO), import the file again and add it under \"Other numeric columns in this file\" in the import dialog.", "Sample types that are not drill intervals, taken in as rows of their hole: {list}."]) assert.ok(g.includes(`tr(${JSON.stringify(k)}`), k);
 });

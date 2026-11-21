@@ -23,8 +23,8 @@ export default function NumberInput({ value, onChange, min = null, max = null, s
       <input id={id} type="text" inputMode="decimal" value={text} placeholder={placeholder} disabled={disabled} title={title} aria-label={ariaLabel} aria-invalid={error ? true : undefined}
         onChange={(e) => { editing.current = true; setText(e.target.value); if (error) setError(null); }} onBlur={(e) => commit(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(e.currentTarget.value); } else if (e.key === "ArrowUp") { e.preventDefault(); nudge(1); } else if (e.key === "ArrowDown") { e.preventDefault(); nudge(-1); } }}
-        style={{ ...style, ...(error ? { borderColor: "var(--color-error, #c0392b)" } : {}) }} />
-      {error && <span role="alert" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-error, #c0392b)", lineHeight: 1.3, maxWidth: 220 }}>{error}</span>}
+        style={{ ...style, ...(error ? { borderColor: "var(--color-danger-solid)" } : {}) }} />
+      {error && <span role="alert" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-solid)", lineHeight: 1.3, maxWidth: 220 }}>{error}</span>}
     </span>
   );
 }

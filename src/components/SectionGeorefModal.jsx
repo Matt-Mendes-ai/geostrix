@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X, Upload, Trash2 } from "./icons.js";
 import ImageTiePointCanvas from "./ImageTiePointCanvas.jsx";
-import { sectionLine, fitSectionTransform, sectionResiduals, sectionImageCorners, sectionFitSummary } from "../lib/sectionGeoref.js";
+import { sectionLine, fitSectionTransform, sectionResiduals, sectionImageCorners, sectionFitSummary, imagesOnLine, moveSectionImage } from "../lib/sectionGeoref.js";
+import SectionLinePlan from "./SectionLinePlan.jsx"; // TASKS.csv #3924
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
@@ -15,6 +16,11 @@ import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '
 // (distance from the start, or easting / northing) and the elevation. Two opposite grid corners are enough for a
 // clean figure; three or more fit a full affine for a slightly rotated scan, with a per-point error to catch typos.
 // The image then stands upright in the 3D view on that line (sectionGeoref.js does the maths).
+// TASKS.csv #3924 — a user placed three figures and all three stood on one line: step 1 had silently preselected the first saved section, and the
+// clicks on a figure never choose the line. Now two steps, one question each: "Where is this section on the map?" first, on a small plan (pick a
+// saved section, draw the line with two clicks, or type its ends), with NOTHING preselected and a one-line warning when another figure already
+// stands on that line; then the figure and its points, with the plan previewing where it will stand. With `moveImage` the dialog only asks
+// step 1 and moves that figure to the new line, keeping its control points' result (lib moveSectionImage).
 const DISPLAY_MAX = 680;
 const TEXTURE_MAX = 4096; // longest side kept — sharp enough to read, and every GPU takes a 4096 texture
 
@@ -24,13 +30,15 @@ const H_KINDS = [
   { id: "northing", label: "Northing" },
 ];
 
-export default function SectionGeorefModal({ sections = [], onImport, onClose, rlOffset = null }) { // rlOffset: TASKS.csv #3880 — the mine grid's RL datum (grid RL - elevation), when the project has one
+export default function SectionGeorefModal({ sections = [], onImport, onClose, rlOffset = null, collars = [], images = [], moveImage = null, onMove }) { // rlOffset: TASKS.csv #3880 — the mine grid's RL datum (grid RL - elevation), when the project has one
   useEscapeKey(onClose);
   useFocusTrap();
   const [img, setImg] = useState(null); // { bitmap, width, height, name }
   const [points, setPoints] = useState([]); // [{ id, px, py, h, z }]
   const [hKind, setHKind] = useState("distance");
-  const [lineSrc, setLineSrc] = useState(sections.length ? sections[0].id : "manual");
+  const [lineSrc, setLineSrc] = useState(""); // TASKS.csv #3924 — nothing preselected: "" until the user picks, draws or types the line
+  const [step, setStep] = useState(1);
+  const [drawing, setDrawing] = useState(false);
   const [manual, setManual] = useState({ ax: "", ay: "", bx: "", by: "" });
   const [name, setName] = useState("");
   const [error, setError] = useState(null);
@@ -87,6 +95,7 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose, r
 
   const line = useMemo(() => {
     try {
+      if (!lineSrc) return null;
       if (lineSrc !== "manual") {
         const s = sections.find((x) => x.id === lineSrc);
         return s ? { ...sectionLine({ x: s.ax, y: s.ay }, { x: s.bx, y: s.by }), name: s.name } : null;
@@ -106,6 +115,17 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose, r
   const res = fit ? sectionResiduals(fit) : null;
   const rmse = res && res.length > 2 ? Math.sqrt(res.reduce((s, r) => s + r.error ** 2, 0) / res.length) : null;
   const summary = fit && img ? sectionFitSummary(fit, img.width, img.height) : null;
+
+  const onLine = line && !line.error ? imagesOnLine(images, line, moveImage?.id) : []; // #3924 — the figures already standing on this line
+  const lineOk = !!line && !line.error;
+  const drawn = (a, b) => { // #3924 — the line drawn on the plan fills the typed ends, so it can be corrected by typing
+    const r = (v) => String(Math.round(v * 10) / 10);
+    setManual({ ax: r(a.x), ay: r(a.y), bx: r(b.x), by: r(b.y) }); setLineSrc("manual"); setDrawing(false);
+  };
+  const doMove = () => {
+    if (!moveImage || !lineOk) return;
+    try { const m = moveSectionImage(moveImage, line); onMove?.(m.patch, line.name || null); } catch (err) { setError(tr(err.message)); }
+  };
 
   const updatePoint = (id, patch) => setPoints((p) => p.map((pt) => (pt.id === id ? { ...pt, ...patch } : pt)));
 
@@ -136,12 +156,48 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose, r
       <div style={panel} role="dialog" aria-modal="true" aria-label={tr("Georeference a section image")} onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Georeference a section image")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Put a cross-section figure (a PDF page, PNG or JPG) upright in the 3D view: choose its section line, then click points on it and type their position and elevation.")}</div>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{moveImage ? tr("Move “{name}” to another line", { name: moveImage.name }) : tr("Georeference a section image")}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{moveImage ? tr("Choose the section line this figure belongs on.") : tr("Put a cross-section figure (a PDF page, PNG or JPG) upright in the 3D view, in two steps: where its section line is on the map, then points on the figure and what they read.")}</div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
+        {step === 1 && (
+          <div style={{ padding: 16, overflow: "auto", display: "flex", gap: 16, flex: 1, flexWrap: "wrap" }}>
+            <SectionLinePlan collars={collars} sections={sections} images={images} line={lineOk ? line : null} pickedId={lineSrc !== "manual" ? lineSrc : null}
+              drawing={drawing} onPick={(id) => { setLineSrc(id); setDrawing(false); }} onDrawn={drawn} size={360} />
+            <div style={{ flex: 1, minWidth: 300, display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={label}>{tr("1. Where is this section on the map?")}</div>
+              <div style={note}>{tr("Each figure stands on its own section line. The points you click on the figure in the next step only set where it sits along this line and how high: they never move it to another line.")}</div>
+              <select value={lineSrc} onChange={(e) => { setLineSrc(e.target.value); setDrawing(false); }} style={inputFull} aria-label={tr("Section line")}>
+                <option value="" disabled>{sections.length ? tr("Choose a saved section, or type its ends…") : tr("Choose…")}</option>
+                {sections.map((s) => <option key={s.id} value={s.id}>{tr("Saved section: {name}", { name: s.name })}</option>)}
+                <option value="manual">{tr("Type its two ends, or draw it on the plan")}</option>
+              </select>
+              <button type="button" onClick={() => setDrawing((d) => !d)} style={{ ...btn(false), alignSelf: "flex-start" }} aria-pressed={drawing}>{drawing ? tr("Stop drawing") : tr("Draw the line on the plan")}</button>
+              {drawing && <div style={note}>{tr("Click the left end of the figure's line on the plan, then its right end.")}</div>}
+              {lineSrc === "manual" && (
+                <div style={{ display: "grid", gridTemplateColumns: "auto 1fr 1fr", gap: 4, alignItems: "center", fontSize: "var(--font-size-sm)" }}>
+                  <span />
+                  <span style={{ color: "var(--color-text-muted)" }}>{tr("Easting")}</span><span style={{ color: "var(--color-text-muted)" }}>{tr("Northing")}</span>
+                  <span>{tr("Start (left end of the figure)")}</span>
+                  <NumberInput allowEmpty aria-label={tr("Start easting")} value={manual.ax === "" ? null : manual.ax} onChange={(v) => setManual((m) => ({ ...m, ax: v == null ? "" : String(v) }))} style={numInput} />
+                  <NumberInput allowEmpty aria-label={tr("Start northing")} value={manual.ay === "" ? null : manual.ay} onChange={(v) => setManual((m) => ({ ...m, ay: v == null ? "" : String(v) }))} style={numInput} />
+                  <span>{tr("End (right end of the figure)")}</span>
+                  <NumberInput allowEmpty aria-label={tr("End easting")} value={manual.bx === "" ? null : manual.bx} onChange={(v) => setManual((m) => ({ ...m, bx: v == null ? "" : String(v) }))} style={numInput} />
+                  <NumberInput allowEmpty aria-label={tr("End northing")} value={manual.by === "" ? null : manual.by} onChange={(v) => setManual((m) => ({ ...m, by: v == null ? "" : String(v) }))} style={numInput} />
+                </div>
+              )}
+              {lineOk && <div style={note}>{tr("Line {line} m long, azimuth {azimuth}° (project coordinates).", { line: line.length.toFixed(0), azimuth: line.azimuth.toFixed(1) })}</div>}
+              {line?.error && <div style={{ ...note, color: "var(--color-danger-alt)" }}>{tr(line.error)}</div>}
+              {!line && lineSrc === "manual" && <div style={note}>{tr("Type both end points of the section line.")}</div>}
+              {onLine.length > 0 && <div role="status" style={warnBox}>{tr("{names} already stands on this line. If this figure shows a different section, choose or draw that section's own line.", { names: onLine.map((m) => `“${m.name}”`).join(", ") })}</div>}
+              {moveImage && <div style={note}>{tr("“{name}” keeps its place along the line and its elevations; only the line changes.", { name: moveImage.name })}</div>}
+              {error && <div style={errBox}>{error}</div>}
+            </div>
+          </div>
+        )}
+        {step === 2 && (
         <div style={{ padding: 16, overflow: "auto", display: "flex", gap: 16, flex: 1, flexWrap: "wrap" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <button onClick={() => fileInput.current.click()} style={btn(false)}><Upload size={14} style={{ marginRight: 6 }} />{" "}{tr("Load section image (PDF / PNG / JPG)…")}</button>
@@ -177,26 +233,14 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose, r
           </div>
 
           <div style={{ flex: 1, minWidth: 300, display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={label}>{tr("1. Section line")}</div>
-            <select value={lineSrc} onChange={(e) => setLineSrc(e.target.value)} style={inputFull} aria-label={tr("Section line")}>
-              {sections.map((s) => <option key={s.id} value={s.id}>{tr("Saved section: {name}", { name: s.name })}</option>)}
-              <option value="manual">{tr("Type the start and end points…")}</option>
-            </select>
-            {lineSrc === "manual" && (
-              <div style={{ display: "grid", gridTemplateColumns: "auto 1fr 1fr", gap: 4, alignItems: "center", fontSize: "var(--font-size-sm)" }}>
-                <span />
-                <span style={{ color: "var(--color-text-muted)" }}>{tr("Easting")}</span><span style={{ color: "var(--color-text-muted)" }}>{tr("Northing")}</span>
-                <span>{tr("Start (left end of the figure)")}</span>
-                <NumberInput allowEmpty aria-label={tr("Start easting")} value={manual.ax === "" ? null : manual.ax} onChange={(v) => setManual((m) => ({ ...m, ax: v == null ? "" : String(v) }))} style={numInput} />
-                <NumberInput allowEmpty aria-label={tr("Start northing")} value={manual.ay === "" ? null : manual.ay} onChange={(v) => setManual((m) => ({ ...m, ay: v == null ? "" : String(v) }))} style={numInput} />
-                <span>{tr("End")}</span>
-                <NumberInput allowEmpty aria-label={tr("End easting")} value={manual.bx === "" ? null : manual.bx} onChange={(v) => setManual((m) => ({ ...m, bx: v == null ? "" : String(v) }))} style={numInput} />
-                <NumberInput allowEmpty aria-label={tr("End northing")} value={manual.by === "" ? null : manual.by} onChange={(v) => setManual((m) => ({ ...m, by: v == null ? "" : String(v) }))} style={numInput} />
-              </div>
-            )}
-            {line && !line.error && <div style={note}>{tr("Line {line} m long, azimuth {azimuth}° (project coordinates).", { line: line.length.toFixed(0), azimuth: line.azimuth.toFixed(1) })}</div>}
+            <div style={label}>{tr("Section line")}</div>
+            <div style={{ ...note, display: "flex", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
+              <span>{line?.name ? tr("Saved section: {name}", { name: line.name }) : tr("Typed or drawn line")}{lineOk ? " · " + tr("Line {line} m long, azimuth {azimuth}° (project coordinates).", { line: line.length.toFixed(0), azimuth: line.azimuth.toFixed(1) }) : ""}</span>
+              <button type="button" onClick={() => setStep(1)} style={{ ...btn(false), padding: "2px 8px" }}>{tr("Change the line")}</button>
+            </div>
+            {onLine.length > 0 && <div style={warnBox}>{tr("{names} already stands on this line. If this figure shows a different section, choose or draw that section's own line.", { names: onLine.map((m) => `“${m.name}”`).join(", ") })}</div>}
 
-            <div style={label}>{tr("2. Control points ({points})", { points: points.length })}</div>
+            <div style={label}>{tr("2. Points on the figure ({points})", { points: points.length })}</div>
             {rlOffset ? <div style={note}>{tr("This project's grid RL is the elevation plus {off} m: type the RLs the figure shows; they are placed at RL − {off} m, where the terrain and the holes are.", { off: rlOffset })}</div> : <div style={note}>{tr("Type the elevations as the figure's scale gives them, above the same datum as the terrain (usually sea level). A height that is off can be corrected afterwards: Section images > Match to terrain.")}</div>}{/* TASKS.csv #3880 */}
             <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", gap: 6, alignItems: "center" }}>{tr("Horizontal values are")}<select value={hKind} onChange={(e) => setHKind(e.target.value)} style={{ ...numInput, width: "auto" }}>{H_KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}</select>
             </label>
@@ -228,19 +272,26 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose, r
               </div>
             )}
             {fitError && <div style={{ ...note, color: "var(--color-danger-alt)" }}>{fitError}</div>}
-            {!line && lineSrc === "manual" && <div style={note}>{tr("Type both end points of the section line.")}</div>}
+            {summary && <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}><SectionLinePlan collars={collars} sections={sections} images={images} line={line} pickedId={lineSrc !== "manual" ? lineSrc : null} extent={{ from: summary.fromDist, to: summary.toDist }} size={160} /><div style={note}>{tr("The green stretch is where the figure will stand on its line.")}</div></div>}{/* #3924 — the preview */}
 
             <div style={label}>{tr("3. Name")}</div>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder={tr("e.g. Section 4500N (1994 report)")} style={inputFull} aria-label={tr("Name")} />
-            {error && <div style={{ padding: "8px 10px", background: "var(--color-danger-bg)", border: "1px solid var(--color-danger-border)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-danger-text)" }}>{error}</div>}
+            {error && <div style={errBox}>{error}</div>}
           </div>
         </div>
+        )}
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>{tr("Cancel")}</button>
+          {step === 2 ? <button onClick={() => setStep(1)} style={{ ...btn(false), flex: 1 }}>{tr("Back")}</button> : <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>{tr("Cancel")}</button>}
+          {step === 1 ? (
+            <button onClick={moveImage ? doMove : () => { setDrawing(false); setStep(2); }} disabled={!lineOk} style={{ ...btn(true), flex: 2, opacity: lineOk ? 1 : 0.5, cursor: lineOk ? "pointer" : "not-allowed" }}>
+              {moveImage ? tr("Move the figure to this line") : tr("Next: the figure")}
+            </button>
+          ) : (
           <button onClick={doImport} disabled={!fit || busy} style={{ ...btn(true), flex: 2, opacity: fit && !busy ? 1 : 0.5, cursor: fit && !busy ? "pointer" : "not-allowed" }}>
             {busy ? tr("Placing…") : tr("Place in 3D")}
           </button>
+          )}
         </div>
       </div>
     </div>
@@ -254,5 +305,7 @@ const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-seconda
 const btn = (primary) => ({ padding: "8px 12px", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)", display: "flex", alignItems: "center", justifyContent: "center" });
 const th = { padding: "4px 6px", color: "var(--color-text-secondary)", fontWeight: 500, textAlign: "start", borderBottom: "1px solid var(--color-border)" };
 const td = { padding: "4px 6px", color: "var(--color-text)" };
+const warnBox = { padding: "6px 10px", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" };
+const errBox = { padding: "8px 10px", background: "var(--color-danger-bg)", border: "1px solid var(--color-danger-border)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-danger-text)" };
 const numInput = { width: 96, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" };
 const inputFull = { ...numInput, width: "100%", boxSizing: "border-box", fontSize: "var(--font-size-base)" };
