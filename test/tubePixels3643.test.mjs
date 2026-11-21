@@ -37,7 +37,7 @@ test("the tube vertex shader replaces project_vertex and keeps the rest; only tu
   assert.equal(pixelTubeMaterial(m), m);
   assert.equal(TUBE_UNIFORMS.uViewportH, COLLAR_MARKER_UNIFORMS.uViewportH, "the viewport height is the collar markers' one uniform");
   const lb = readFileSync(new URL("../src/lib/viewer/layerBatches.js", import.meta.url), "utf8");
-  assert.match(lb, /if \(isTubeProto\(fam\.geometry\)\) pixelTubeMaterial\(material\)/);
+  assert.match(lb, /if \(isTubeProto\(fam\.geometry\)\) pixelTubeMaterial\(material, group\.name \|\| null\)/);
 });
 
 // a hole going down-east: stations every 10 m of md, along (1, 0, -1)/sqrt2 per 10 m? keep it simple: along +x then dipping

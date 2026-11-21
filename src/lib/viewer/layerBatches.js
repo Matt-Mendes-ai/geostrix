@@ -190,9 +190,9 @@ export function syncBatchedInstances(inst) {
 // drillhole trace Line, a hole-label Sprite) is simply not a candidate and keeps drawing as before.
 // TASKS.csv #3670 — a short family of tubes (under BATCH_MIN_MEMBERS: drawn as real Meshes) keeps what a batched tube has: the pixel floor of its drawing (#3643) and the pick
 // within a few pixels of its axis (#3667), so a hole's few intervals are not thinner and harder to hover than a long layer's
-function floorTube(mesh) {
+function floorTube(mesh, layer = null) {
   if (!isTubeProto(mesh.geometry)) return mesh;
-  pixelTubeMaterial(mesh.material);
+  pixelTubeMaterial(mesh.material, layer); // layer: #3876 (#3668), the layer's own tube size
   mesh.tubeFloor = true; // read by the pick index: a box widened by the pixels (pickIndex.js)
   mesh.raycast = tubeMeshRaycast;
   return mesh;
@@ -216,12 +216,12 @@ export function buildLayerBatches(group) {
   }
   const promote = new Map(); // #1500 — a stand-in in a family too small to batch becomes a real Mesh, drawn on its own
   for (const fam of families.values()) {
-    if (fam.members.length < BATCH_MIN_MEMBERS) { for (const m of fam.members) if (m.isPickStandIn) promote.set(m, floorTube(m.toMesh())); continue; }
+    if (fam.members.length < BATCH_MIN_MEMBERS) { for (const m of fam.members) if (m.isPickStandIn) promote.set(m, floorTube(m.toMesh(), group.name || null)); continue; }
     const material = fam.material.isPickOnlyMaterial
       ? new THREE.MeshLambertMaterial({ transparent: fam.material.transparent, opacity: fam.material.opacity, side: fam.material.side }) // a stand-in family (#1500)
       : fam.material.clone();
     if (fam.material.userData?.collarMarker) collarMarkerMaterial(material); // #2623 — a clone keeps the flag, not the shader hook
-    if (isTubeProto(fam.geometry)) pixelTubeMaterial(material); // #3643 — an interval tube is never thinner than a few pixels on screen (vertex shader; the matrices keep the metres)
+    if (isTubeProto(fam.geometry)) pixelTubeMaterial(material, group.name || null); // #3643; the layer (its group's name): #3876 (#3668) — an interval tube is never thinner than a few pixels on screen (vertex shader; the matrices keep the metres)
     // Per-instance colour comes from instanceColor, which the shader MULTIPLIES by the material's
     // own diffuse colour — so the batch material must be white or every interval would be tinted by
     // whichever member happened to be cloned. (Do NOT set vertexColors:true here either; see the

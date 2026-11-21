@@ -58,10 +58,32 @@ export function tubeSizeUniforms(setting) {
 const TUBE_KEYS = new Set(["cyl6", "cyl16", "prism4", "cross"]);
 export const isTubeProto = (geometry) => TUBE_KEYS.has(geometry?.userData?.protoKey);
 
-const onBeforeCompile = (sh) => { Object.assign(sh.uniforms, TUBE_UNIFORMS); sh.vertexShader = tubeVertex(sh.vertexShader); };
+// TASKS.csv #3876 (#3668's open point: the choice PER HOLE LAYER) — each layer's tube materials get that layer's own pair of uniforms (three.js compiles
+// one program for them all, the uniforms are each material's), set from the view's setting: figureOverlay.tubeSize { mode, px, byLayer: { [layer
+// key]: { mode, px } } }; a layer without its own choice follows the one for all. A material with no layer uses TUBE_UNIFORMS (the one for all).
+const LAYER_UNIFORMS = new Map();
+let lastSetting = null;
+const valuesFor = (layer) => tubeSizeUniforms(lastSetting?.byLayer?.[layer] || lastSetting);
+export function tubeUniformsFor(layer) {
+  if (!layer) return TUBE_UNIFORMS;
+  let u = LAYER_UNIFORMS.get(layer);
+  if (!u) { const v = valuesFor(layer); u = { uTubeMinPx: { value: v.min }, uTubeMaxPx: { value: v.max }, uViewportH: COLLAR_MARKER_UNIFORMS.uViewportH }; LAYER_UNIFORMS.set(layer, u); }
+  return u;
+}
+// the view's setting into every layer's uniforms (and the one for all)
+export function setTubeSizes(setting) {
+  lastSetting = setting || null;
+  const all = tubeSizeUniforms(setting);
+  TUBE_UNIFORMS.uTubeMinPx.value = all.min; TUBE_UNIFORMS.uTubeMaxPx.value = all.max;
+  for (const [k, u] of LAYER_UNIFORMS) { const v = valuesFor(k); u.uTubeMinPx.value = v.min; u.uTubeMaxPx.value = v.max; }
+}
+
+// `this`: the material being compiled (three.js calls material.onBeforeCompile(shader, renderer))
+function onBeforeCompile(sh) { Object.assign(sh.uniforms, tubeUniformsFor(this?.userData?.tubeLayer)); sh.vertexShader = tubeVertex(sh.vertexShader); }
 const cacheKey = () => "gs-tube-px";
-// gives a batch's material the shader; idempotent
-export function pixelTubeMaterial(material) {
+// gives a batch's material the shader; idempotent. layer (#3876): the hole layer whose uniforms it uses (its group's name)
+export function pixelTubeMaterial(material, layer = null) {
+  if (material && layer) material.userData.tubeLayer = layer;
   if (!material || material.onBeforeCompile === onBeforeCompile) return material;
   material.userData.pixelTube = true;
   material.onBeforeCompile = onBeforeCompile;
