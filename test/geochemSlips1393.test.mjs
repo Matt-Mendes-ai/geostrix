@@ -34,6 +34,6 @@ test("5: 'Sampling medium' listed once", () => {
 });
 
 test("6: no-terrain messages name the offline route", () => {
-  assert.ok(read("../src/components/CatchmentsPanel.jsx").includes("build one offline from points or contours (Maps > Terrain > Terrain from points or contours…)"));
+  assert.ok(read("../src/components/CatchmentsPanel.jsx").includes("build one offline (Maps > Terrain > Terrain from points or contours…)"));
   assert.ok(read("../src/components/SurveyPlannerPanel.jsx").includes("build one offline from points or contours (Maps > Terrain)"));
 });

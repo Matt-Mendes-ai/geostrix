@@ -110,7 +110,7 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
     <>
       <TaskPaneHeader title={tr("Interpretation lines")} helpId="interpretation-lines" icon={PenTool} tone="analyse" onClose={onClose} />
       <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-        <div style={note}>{tr("Draw faults, contacts and lineaments over the map or a survey in the 3D view (Top view works best). Each set of lines is a map layer: it drapes on the terrain, exports as Shapefile, GeoPackage, KML or DXF, and prints in the Layout legend.")}</div>
+        <div style={note}>{tr("Draw faults, contacts and lineaments over the map or a survey in the 3D view (Top view works best). Each set is a map layer: draped on the terrain, exported as Shapefile, GeoPackage, KML or DXF, and shown in the Layout legend.")}</div>
         {plan && onCollars && <div role="note" style={note}>{tr("No terrain: the lines are draped on the ground between the collars (a surface through the collar elevations).")}</div>}{/* #2768 */}
         {plan && !terrain && layer && (collars || []).length >= 3 && <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={layer.drapeMode === "flat"} onChange={(e) => updateMapLayer(layer.id, (l) => ({ ...l, drapeMode: e.target.checked ? "flat" : "terrain" }))} />{tr("Flat at one RL instead")}</label>}
         {plan && !onCollars && <div role="note" style={{ ...note, color: "var(--color-warn-text)" }}>{planElevationText(plan)}</div>}{/* #2269 */}
@@ -142,7 +142,7 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
         )}
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder={tr("Name (optional)")} aria-label={tr("Line name")} style={{ ...smallSel, width: "100%", boxSizing: "border-box" }} />
         <input value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder={tr("Note (optional)")} aria-label={tr("Line note")} style={{ ...smallSel, width: "100%", boxSizing: "border-box" }} />
-        {onSnap && <label style={{ ...row, justifyContent: "flex-start" }} title={tr("A click near a collar, a logged boundary of a shown layer or a hole's trace takes that point, and the line records which hole it is tied to. Looking straight down (Top view) only collars are taken: every contact of a vertical hole is under its collar there.")} /* plan: #2972 */>{/* #2630 */}
+        {onSnap && <label style={{ ...row, justifyContent: "flex-start" }} title={tr("A click near a collar, a logged boundary of a shown layer or a hole's trace snaps to it, and the line records the hole. In Top view only collars are taken: every contact of a vertical hole is under its collar.")} /* plan: #2972 */>{/* #2630 */}
           <input type="checkbox" checked={drawing.snap !== false} onChange={(e) => onSnap(e.target.checked)} />{tr("Snap to holes and logged contacts")}</label>}
         {!drawing.on ? (
           <button type="button" onClick={onStart} style={{ ...pBtn, justifyContent: "center", marginBottom: 0 }}>{tr("Draw a line")}</button>
@@ -159,7 +159,7 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
         )}
         {editIdx != null && layer?.features?.[editIdx] && (
           <div style={{ border: "1px solid var(--color-accent)", borderRadius: 6, padding: 8, display: "flex", flexDirection: "column", gap: 6 }}>{/* #2767 */}
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{tr("Editing \"{name}\": drag a vertex (the orange points) in the 3D view to move it, drag a midpoint (the small yellow points) to add one, Alt+click a vertex to remove it. Top view works best.", { name: layer.features[editIdx].attributes.name })}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{tr("Editing \"{name}\": in the 3D view, drag a vertex (orange) to move it, a midpoint (small yellow) to add one, Alt+click a vertex to remove it.", { name: layer.features[editIdx].attributes.name })}</div>
             <button type="button" onClick={() => setEditIdx(null)} style={{ ...pBtn, justifyContent: "center", marginBottom: 0 }}>{tr("Done")}</button>
           </div>
         )}

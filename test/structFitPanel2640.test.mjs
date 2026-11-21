@@ -84,7 +84,7 @@ test("#2640 the pane: a lazy section that reads the last run, vertical moves sai
   assert.match(sp, /const \{ lastImplicitRequest: record, setLayers, updateGeophysSurvey(, goToModule)? \} = useStore\(\);/);
   assert.match(sp, /runStructfitJob\(built\.request, \{ signal: ctl\.signal/);
   assert.match(sp, /Points move vertically only\. Points from drillhole contacts are observations and never move\./);
-  assert.match(sp, /never the answer\./);
+  assert.match(sp, /The result is one geometry that fits, not the answer\./); // #3899: the caveat kept, shorter
 });
 
 test("#3632 the tested points as a geophysics point survey: log10 sensitivity as the value, the verdict as a column, no-contact points left out", async () => {
@@ -178,5 +178,5 @@ test("#3633 the engine's names go back to the labels in the table, and the panel
   assert.deepEqual(rows.map((r) => r.surface), ["Top of B", "Top of C"]);
   assert.equal(resultRows({ points: [{ surface: "top_B", index: 1, x: 0, y: 0, z: 0 }] }, record())[0].surface, "top_B"); // an older record: the label was the name
   const p = readFileSync(new URL("../src/components/StructFitPanel.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.ok(p.includes('recordIsFull(record) ? tr("The model is rebuilt from the last model run in this project as it was sent: its relation (erode or onlap), conformable packages, fault offsets, potential-field range and precision.") : tr("The model is rebuilt from the last model run in this project with each unit eroding the ones below it; a model run with onlap, conformable packages or a custom range may differ.")'));
+  assert.ok(p.includes(`recordIsFull(record) ? tr("The model is rebuilt from this project's last model run as sent: relation (erode or onlap), conformable packages, fault offsets, potential-field range and precision.") : tr("The model is rebuilt from this project's last model run with each unit eroding those below; a run with onlap, conformable packages or a custom range may differ.")`)); // #3899: shorter
 });

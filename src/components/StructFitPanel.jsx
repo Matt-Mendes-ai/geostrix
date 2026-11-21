@@ -94,8 +94,8 @@ export default function StructFitPanel({ method, unit, keptScope, prepareForward
 
   return (
     <div style={{ paddingLeft: 4 }}>
-      <div style={small}>{tr("Which contacts of your geology model can this survey see? Each point you mark is moved up a little, the model re-solved, and the survey's response recomputed: the table says how much the data change per metre, in the survey's own uncertainty, and how far the contact would have to move for the data to notice. It says nothing about where the contact is: potential fields cannot fix a depth, so a fit would be one geometry that agrees with the survey, never the answer.")}</div>
-      <div style={small}>{tr("Points move vertically only. Points from drillhole contacts are observations and never move.")}{" "}{recordIsFull(record) ? tr("The model is rebuilt from the last model run in this project as it was sent: its relation (erode or onlap), conformable packages, fault offsets, potential-field range and precision.") : tr("The model is rebuilt from the last model run in this project with each unit eroding the ones below it; a model run with onlap, conformable packages or a custom range may differ.")}</div>
+      <div style={small}>{tr("Which contacts of your model can this survey see? Each marked point is nudged up and the response recomputed; the table gives the data change per metre (in survey uncertainty) and the move the data would notice. Potential fields cannot fix a depth, so it never says where a contact is.")}</div>
+      <div style={small}>{tr("Points move vertically only. Points from drillhole contacts are observations and never move.")}{" "}{recordIsFull(record) ? tr("The model is rebuilt from this project's last model run as sent: relation (erode or onlap), conformable packages, fault offsets, potential-field range and precision.") : tr("The model is rebuilt from this project's last model run with each unit eroding those below; a run with onlap, conformable packages or a custom range may differ.")}</div>
       {!method ? <div style={small}>{tr("Choose magnetics or gravity first.")}</div> : problem ? <div role="status" style={{ ...small, color: "var(--color-text)" }}>{tr(problem)}</div> : (<>
         <div style={{ ...small, marginTop: 4 }}>{tr("Model from the run \"{tool}\" ({n} surfaces).", { tool: record.tool || tr("last run"), n: record.surfaces.length })}</div>
         <div style={{ ...row, flexWrap: "wrap" }}><span style={lbl}>{tr("Data uncertainty")}</span>
@@ -115,7 +115,7 @@ export default function StructFitPanel({ method, unit, keptScope, prepareForward
           </div>
         ))}
         <label style={{ ...row, justifyContent: "flex-start", gap: 4 }}><input type="checkbox" checked={!!st.resolve} onChange={(e) => set({ resolve: e.target.checked })} />{tr("Also re-solve the unit values within bounds, from the survey, and show them beside the entered ones")}</label>
-        {st.resolve && <div style={small}>{tr("Free re-solving can hide a geometry misfit, and densities are often measured: keep the entered values unless you know better. Needs the survey's readings; the contacts are tested with the re-solved values. The background stays as entered: it is the reference.")}</div>}
+        {st.resolve && <div style={small}>{tr("Keep the entered values unless you know better: free re-solving can hide a geometry misfit, and densities are often measured. Needs the readings; contacts are tested with the re-solved values, against the background as entered.")}</div>}
         <div style={{ ...row, marginTop: 6 }}><span style={lbl}>{tr("Surface")}</span>
           <select value={surf?.name || ""} onChange={(e) => set({ surface: e.target.value })} style={{ ...inp, width: "auto", maxWidth: 200 }} aria-label={tr("Surface to test")}>
             {surfaces.filter((s) => s.points.length).map((s) => <option key={s.name} value={s.name}>{s.name} ({s.points.length})</option>)}
@@ -138,7 +138,7 @@ export default function StructFitPanel({ method, unit, keptScope, prepareForward
         </>)}
         <div style={{ ...small, marginTop: 4 }}>{tr("{n} of at most 20 points marked.", { n: (st.picked || []).length })}</div>
         <div style={row}><span style={lbl}>{tr("Each may move (m)")}</span><NumberInput min="0" allowEmpty value={st.maxM === "" || st.maxM == null ? null : st.maxM} onChange={(n) => set({ maxM: n == null ? "" : String(n) })} style={inp} aria-label={tr("Distance each point may move (m)")} /></div>
-        <div style={small}>{tr("The distance you would believe: a contact is called seen when the survey would notice a move within it. Each point costs one model solve; if one solve times the points would take over 10 minutes the run is refused before it starts.")}</div>
+        <div style={small}>{tr("A contact is seen when the survey would notice a move within this distance. Each point costs one model solve; a run estimated over 10 minutes is refused before it starts.")}</div>
         {busy ? (
           <div role="status" style={{ ...small, display: "flex", gap: 6, alignItems: "center", marginTop: 6 }}><span style={{ flex: 1 }}>{busy.text}</span>
             <button type="button" onClick={() => abort.current?.abort()} style={{ ...pBtn, width: "auto", margin: 0 }}>{tr("Cancel")}</button></div>
@@ -156,13 +156,13 @@ export default function StructFitPanel({ method, unit, keptScope, prepareForward
               </tr>))}</tbody>
           </table>
           <button type="button" onClick={show3d} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}>{tr("Show the tested points in StrixViewer")}</button>
-          <div style={{ ...small, marginTop: 4 }}>{tr("Seen: the survey would notice a move within the distance you gave. Not constrained: it would not, so a fit could move that contact without the data objecting. A move of a quarter of a model cell was tested; the response is linear in it.")}</div>
+          <div style={{ ...small, marginTop: 4 }}>{tr("Seen: the survey would notice a move within your distance. Not constrained: it would not, so a fit could move that contact freely. Tested with a quarter-cell move (the response is linear).")}</div>
           {/* TASKS.csv #2640 Stage 2 — the fit */}
           {seenPoints.length > 0 && !busy && (
             <div style={{ marginTop: 8, borderTop: "1px solid var(--color-border)", paddingTop: 6 }}>
-              <div style={small}>{tr("Fit moves the seen points (at most {n}), each within the distance you gave, until the model's response matches the readings to their stated uncertainty. Drillhole contacts never move, and a step that would change which units touch is refused. Potential fields cannot fix a contact's depth: the result is one geometry that fits the survey to the stated uncertainty, not the answer.", { n: MAX_FIT_POINTS })}</div>
+              <div style={small}>{tr("Fit moves the seen points (at most {n}) within your distance until the response matches the readings to their stated uncertainty. Drillhole contacts never move; steps that change which units touch are refused. The result is one geometry that fits, not the answer.", { n: MAX_FIT_POINTS })}</div>
               <button type="button" onClick={runFit} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}>{tr("Fit the {n} seen point(s)", { n: seenPoints.length })}</button>
-              <div style={small}>{tr("Each round re-solves the model once a point, plus once or twice to try the step, and recomputes the survey's response: measured on a synthetic model of 24 cells a side (13,824 cells, 225 stations), one solve took about 0.9 s and one response 0.2 s, so 8 points take about 9 s a round and at most 8 rounds. Your model's own solve is timed first, and the fit is refused before the rest if it would take over 10 minutes. Cancel stops it between solves.")}</div>
+              <div style={small}>{tr("Each round re-solves the model once per point, plus once or twice to try the step, for at most 8 rounds. Your model's solve is timed first; a fit that would take over 10 minutes is refused. Cancel stops it between solves.")}</div>
             </div>
           )}
           {fit && (
@@ -179,7 +179,7 @@ export default function StructFitPanel({ method, unit, keptScope, prepareForward
               {fit.result.history.some((h) => h.reasons?.length) && <div style={small}>{tr("Steps refused: {list}", { list: [...new Set(fit.result.history.flatMap((h) => h.reasons || []))].slice(0, 3).join("; ") })}</div>}
               {fit.rows.some((r) => r.constrained && Math.abs(r.movedM) > 1e-6) && <button type="button" onClick={runFittedVersion} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}>{tr("Run the fitted model as a new version")}</button>}
               <button type="button" onClick={saveFitCsv} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}>{tr("Save the moved points (CSV)")}</button>
-              <div style={{ ...small, marginTop: 4 }}>{tr("The fit runs on the model at up to 32 cells a side. A new version runs the fitted model at its full resolution in 3D Modelling, each surface named '(fitted)' beside the original; the original model is not changed.")}</div>
+              <div style={{ ...small, marginTop: 4 }}>{tr("The fit uses at most 32 cells a side. A new version runs the fitted model at full resolution in 3D Modelling, each surface named '(fitted)'; the original model is not changed.")}</div>
             </div>
           )}
           {out.result.resolved && (

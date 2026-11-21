@@ -490,7 +490,7 @@ export default function ModellingPanes(props) {
   // TASKS.csv #3268 (review #3195, Galore Creek) — the note was only in Model settings, which the Simple ribbon hides: a first Run in Simple spanned
   // 9 clusters over 29 km unwarned. The same note, with its buttons, heads the Implicit surface and Strat. stack panes too.
   const clusterNote = () => (areaClusters && areaClusters.clusters.length > 1 ? (<div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 6, lineHeight: 1.4 }}>{/* #2056 */}
-          {(layers.litho || []).length ? tr("The {n} logged holes in the model area lie in {k} clusters more than {g} m apart: one model spans the gaps between them, and its box, cells and unit volumes cover them. Model one cluster at a time:", { n: loggedInArea.length, k: areaClusters.clusters.length, g: Math.round(areaClusters.gapM).toLocaleString() }) : tr("The {n} holes in the model area lie in {k} clusters more than {g} m apart: one model spans the gaps between them, and its box, cells and unit volumes cover them. Model one cluster at a time:", { n: loggedInArea.length, k: areaClusters.clusters.length, g: Math.round(areaClusters.gapM).toLocaleString() }) /* #3606: no lithology logged, so not "logged holes" */}
+          {(layers.litho || []).length ? tr("The {n} logged holes in the model area lie in {k} clusters over {g} m apart: one model would span the gaps between them. Model one cluster at a time:", { n: loggedInArea.length, k: areaClusters.clusters.length, g: Math.round(areaClusters.gapM).toLocaleString() }) : tr("The {n} holes in the model area lie in {k} clusters over {g} m apart: one model would span the gaps between them. Model one cluster at a time:", { n: loggedInArea.length, k: areaClusters.clusters.length, g: Math.round(areaClusters.gapM).toLocaleString() }) /* #3606: no lithology logged, so not "logged holes" */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>{areaClusters.clusters.slice(0, 6).map((c) => (
             <button key={c.ids[0]} type="button" title={c.ids.join(", ")} onClick={() => { setVisibleHoles(onlyTheseHoles(collars, c.ids)); setModelArea("checked"); setHoleFilter?.(""); }} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr(c.n === 1 ? "Around E {e}, N {nn} ({first})" : "Around E {e}, N {nn}: {n} holes over {s} km", { first: c.ids[0], n: c.n, e: Math.round(c.cx / 100) * 100, nn: Math.round(c.cy / 100) * 100, s: Math.max(0.1, c.spanM / 1000).toFixed(1) }) /* #2928 (3): a place, not one hole id */}</button>))}</div>
         </div>) : null);
@@ -515,7 +515,7 @@ export default function ModellingPanes(props) {
             1x in RasterModule, and 0x here until now), which opens on hover OR click. */}
         <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span>{tr("Domain")}</span>
-          <InfoButton title={tr("Domain")} width={280} text={tr("Restricts every tool below to one side of one or more faults — build domains in \"Domains\" further down first, then pick one here. Applies to every modelling tool on this tab (implicit surface, stack, structural, model from map, alteration, vein / dyke, grade shell); \"Whole property\" is the original, undomained behaviour.")} />
+          <InfoButton title={tr("Domain")} width={280} text={tr("Restricts every modelling tool on this tab to one side of one or more faults. Build domains in \"Domains\" further down first, then pick one here. \"Whole property\" uses no domain.")} />
         </div>
         <select aria-label={tr("Model domain")} value={modelDomainId} onChange={(e) => setModelDomainId(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", marginBottom: 4 }}>
           <option value="">{tr("Whole property")}</option>
@@ -524,7 +524,7 @@ export default function ModellingPanes(props) {
         {/* TASKS.csv #1546 (review #1497, Lawyers) — one prospect, not the district: the tools read only the checked holes */}
         <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}>
           <span>{tr("Model area")}</span>
-          <InfoButton title={tr("Model area")} width={280} text={tr("Which holes feed every modelling tool on this tab. 'Holes checked in the Holes list' models one prospect of a district on its own: the box and the cell size follow those holes' contacts instead of spanning prospects kilometres apart. Tick the holes under Holes in StrixViewer sidebar ('Only these' on a prospect's holes).")} />
+          <InfoButton title={tr("Model area")} width={280} text={tr("Which holes feed every modelling tool on this tab. 'Holes checked in the Holes list' models one prospect on its own, its box and cells fitted to those holes. Tick them under Holes in the StrixViewer sidebar ('Only these' on a prospect's holes).")} />
         </div>
         <select aria-label={tr("Model area")} value={modelArea || "all"} onChange={(e) => setModelArea(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
           <option value="all">{tr("Whole property")}</option>
@@ -539,7 +539,7 @@ export default function ModellingPanes(props) {
           <>
             <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}>
               <span>{tr("Model the units from")}</span>
-              <InfoButton title={tr("Model the units from")} width={280} text={tr("What every modelling tool on this tab reads as the unit: the Lithology code, an extra field imported with it (a stratigraphic unit, a formation), or another coded layer (Weathering, a custom layer of codes). The Strat. stack, Implicit surface, Explicit surface, Litho groups, Modelling codes and the unit lists all follow it; the 3D view and the logs keep showing the Lithology code. Intervals with nothing in the chosen field are left out of the models.")} />
+              <InfoButton title={tr("Model the units from")} width={280} text={tr("What every modelling tool reads as the unit: the Lithology code, a field imported with it, or another coded layer. The 3D view and logs still show the Lithology code. Intervals with nothing in that field are left out of the models.")} />
             </div>
             <select aria-label={tr("Model the units from")} value={unitField || ""} onChange={(e) => setUnitField(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
               <option value="">{tr("Lithology code")}</option>
@@ -552,7 +552,7 @@ export default function ModellingPanes(props) {
             by hand. */}
         <div className="ge-section-label" style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 6 }}>
           <span>{tr("Intercept set")}</span>
-          <InfoButton title={tr("Intercept set")} width={280} text={tr("Restricts every tool below to a hand-picked set of intercepts — the way to model a unit that repeats in the pile as the separate surfaces it really is, instead of every pick of that code feeding one surface. Build sets in \"Boundary intercepts\" on the Home tab. \"All intercepts\" is the original behaviour. Structural orientation picks are not covered: the tools read those directly from the structure layer, not through this table.")} />
+          <InfoButton title={tr("Intercept set")} width={280} text={tr("Restricts every tool below to a hand-picked set of intercepts, so a unit that repeats in the pile is modelled as separate surfaces, not one. Build sets in \"Boundary intercepts\" on the Home tab. Structural orientation picks are not covered.")} />
         </div>
         <select aria-label={tr("Intercept set")} value={activeInterceptSetId} onChange={(e) => setActiveInterceptSetId(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", marginBottom: 4 }}>
           <option value="">{tr("All intercepts")}</option>
@@ -569,10 +569,10 @@ export default function ModellingPanes(props) {
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: modelDomainId ? "var(--color-text-secondary)" : "#4a5262", marginBottom: 4, cursor: modelDomainId ? "pointer" : "default" }}>
           <input type="checkbox" checked={clipToDomainBoundary} disabled={!modelDomainId} onChange={(e) => setClipToDomainBoundary(e.target.checked)} />{tr("Clip result to domain boundary")}</label>
         {/* TASKS.csv #358; #2470 — with no terrain, at the collar surface */}
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: terrain || (collars || []).length >= 3 ? "var(--color-text-secondary)" : "#4a5262", marginBottom: 4, cursor: terrain || (collars || []).length >= 3 ? "pointer" : "default" }} title={terrain ? tr("Removes the parts of modelled surfaces that lie above the terrain surface.") : tr("No terrain is loaded: cuts the surfaces and the block at the collar surface, the ground interpolated between the collars (not when the collars look drilled from underground). Load a terrain (Maps > Terrain) for the real ground.")}>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: terrain || (collars || []).length >= 3 ? "var(--color-text-secondary)" : "#4a5262", marginBottom: 4, cursor: terrain || (collars || []).length >= 3 ? "pointer" : "default" }} title={terrain ? tr("Removes the parts of modelled surfaces that lie above the terrain surface.") : tr("No terrain loaded: cuts the surfaces and block at the ground interpolated between the collars (not for underground collars). Load one in Maps > Terrain for the real ground.")}>
           <input type="checkbox" checked={clipToTopo && (!!terrain || (collars || []).length >= 3)} disabled={!terrain && (collars || []).length < 3} onChange={(e) => setClipToTopo(e.target.checked)} />{terrain ? tr("Cut surfaces at topography") : tr("Cut surfaces at the collar surface")}</label>
         {/* TASKS.csv #1335 */}
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title={tr("Sizes the model box to the contacts of the units being modelled and cuts each surface a short way past them, instead of filling a box around every hole in the project. Faults still run through the box.")}>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title={tr("Fits the model box to the contacts being modelled and ends each surface just past them, not a box round every hole. Faults still cross the box.")}>
           <input type="checkbox" checked={limitToContacts} onChange={(e) => setLimitToContacts(e.target.checked)} />{tr("Stop surfaces near their own contacts")}</label>
         {limitToContacts && (
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, marginLeft: 22 }}>
@@ -584,7 +584,7 @@ export default function ModellingPanes(props) {
         {structureTypes.length > 0 && (<>
           <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 6 }}>
             <span>{tr("Contact orientations")}</span>
-            <InfoButton title={tr("Contact orientations")} width={300} text={tr("Which structure-pick types are used as the dip/dip-direction of the contacts being modelled. Faults, veins, joints and foliation are not contacts and usually point the surface the wrong way. With none chosen, the orientation is estimated from the contact points' own shape (and the run says so).")} />
+            <InfoButton title={tr("Contact orientations")} width={300} text={tr("Which structure-pick types give the dip and dip direction of the contacts. Faults, veins, joints and foliation are not contacts and usually tilt the surface the wrong way. With none chosen, the orientation is estimated from the contact points (the run says so).")} />
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 4 }}>
             {structureTypes.map((t) => {
@@ -608,7 +608,7 @@ export default function ModellingPanes(props) {
             single biggest lever a user has over the 80s+ run times real properties hit. */}
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 6 }}>
           <span>{tr("Resolution")}</span>
-          <InfoButton title={tr("Resolution")} width={300} text={tr("The model's lithology block holds about this number cubed of cells, shared out between the axes by the shape of the model box (a flat, wide box gets more cells across than down): the grid the model check against the logs falls back to, the unit volumes, \"Add as block model\" and the block read on sections. It does not change how finely the surfaces are drawn — that is Surface detail below. Lower is faster; a real property-scale run at 36 (the default) commonly takes 60-90+ seconds — try 24 or lower for a quick first look.")} />
+          <InfoButton title={tr("Resolution")} width={300} text={tr("The lithology block holds about this number cubed of cells, used for the unit volumes, \"Add as block model\" and sections. Surface smoothness is Surface detail below. Lower is faster: 36 (the default) can take over a minute; try 24 for a first look.")} />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
           <input type="range" min={12} max={64} step={4} value={modelResolution} onChange={(e) => setModelResolution(Number(e.target.value))} style={{ flex: 1 }} />
@@ -620,7 +620,7 @@ export default function ModellingPanes(props) {
         {/* TASKS.csv #766 — GemPy's octree level for the surface mesh (dual contouring), fixed at 4 before */}
         <div className="ge-section-label" style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6 }}>
           <span>{tr("Surface detail")}</span>
-          <InfoButton title={tr("Surface detail")} width={300} text={tr("How finely the model surfaces are triangulated. Finer follows tight folds and fault steps more closely and gives smoother sections through the surfaces; it does not move the surface (measured: the same mean distance to the true surface at every level), and it does not change the block, the model check or the volumes. Measured on the Harry sample (two-unit stack): Standard 34 s; Fine 4x the triangles in 77 s (2.2x); Very fine 16x the triangles in 248 s (7x). Try Fine on the final run, not while iterating.")} />
+          <InfoButton title={tr("Surface detail")} width={300} text={tr("How finely the surfaces are triangulated. Finer follows tight folds and fault steps more closely but runs much slower; it does not move the surface or change the block or the volumes. Use Fine on the final run, not while iterating.")} />
         </div>
         <select value={surfaceDetail} onChange={(e) => setSurfaceDetail(Number(e.target.value))} style={{ ...smallSel, width: "100%", marginBottom: 10 }} aria-label={tr("Surface detail")}>
           <option value={4}>{tr("Standard (fastest)")}</option>
@@ -628,7 +628,7 @@ export default function ModellingPanes(props) {
           <option value={6}>{tr("Very fine — 16x the triangles, ~7x the time")}</option>
         </select>
         {/* TASKS.csv #1171 — the options in metres for the box the last run used: a large box means large cells */}
-        {(() => { const ext = implicitSurfaces[implicitSurfaces.length - 1]?.params?.extent; return ext?.length === 6 ? <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -6, marginBottom: 10, lineHeight: 1.4 }}>{tr("On the last model box the mesh cells are about {a} m (Standard), {b} m (Fine) and {c} m (Very fine). Each run reports how far the mesh misses its contact points.", { a: Math.round(octreeCellM(ext, 4)), b: Math.round(octreeCellM(ext, 5)), c: Math.round(octreeCellM(ext, 6)) })}</div> : null; })()}
+        {(() => { const ext = implicitSurfaces[implicitSurfaces.length - 1]?.params?.extent; return ext?.length === 6 ? <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -6, marginBottom: 10, lineHeight: 1.4 }}>{tr("Mesh cells on the last model box: about {a} m (Standard), {b} m (Fine), {c} m (Very fine). Each run reports how far the mesh misses its contacts.", { a: Math.round(octreeCellM(ext, 4)), b: Math.round(octreeCellM(ext, 5)), c: Math.round(octreeCellM(ext, 6)) })}</div> : null; })()}
 
         {/* TASKS.csv #274 — GemPy's potential-field range: the parameter that actually controls how
             tight or smooth a fitted surface is. It was never set and never reported, so the same job
@@ -637,7 +637,7 @@ export default function ModellingPanes(props) {
             reported in the run notice and stamped into the surface's export provenance either way. */}
         <div className="ge-section-label" style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6 }}>
           <span>{tr("Surface stiffness (advanced)")}</span>
-          <InfoButton title={tr("Surface stiffness")} width={280} text={tr("Scales GemPy's potential-field range — the interpolator's own smoothness lever. Lower follows your control points more tightly (more curvature, more risk of over-fitting sparse data); higher gives stiffer, smoother surfaces. Leave on Auto unless a surface is visibly too wobbly or too flat for the data.")} />
+          <InfoButton title={tr("Surface stiffness")} width={280} text={tr("Scales GemPy's smoothness. Lower follows your control points more tightly (more risk of over-fitting sparse data); higher gives stiffer, smoother surfaces. Leave on Auto unless a surface is visibly too wobbly or too flat.")} />
         </div>
         <select aria-label={tr("Surface stiffness")} value={rangeMultiplier} onChange={(e) => setRangeMultiplier(Number(e.target.value))} style={{ ...smallSel, width: "100%", marginBottom: 10 }}>
           <option value={0}>{tr("Auto — GemPy's own default")}</option>
@@ -650,7 +650,7 @@ export default function ModellingPanes(props) {
         {/* TASKS.csv #765 — structure picks averaged per hole: faster and less pick-scatter in the surface */}
         <div className="ge-section-label" style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6 }}>
           <span>{tr("Contact orientations from picks")}</span>
-          <InfoButton title={tr("Average picks per hole")} width={300} text={tr("GemPy honours every orientation it is given, one by one, and its run time grows with their number. Averaging the picks of each hole in depth windows sends a few representative orientations instead: much faster, and the scatter between neighbouring oriented-core picks no longer bends the surface. A window never mixes picks more than 30 degrees apart (a fold limb, an overturned pick, a different structure). Untick to send every pick as it is.")} />
+          <InfoButton title={tr("Average picks per hole")} width={300} text={tr("Averages each hole's picks in depth windows and sends GemPy a few representative orientations: much faster, and the scatter between neighbouring picks no longer bends the surface. A window never mixes picks more than 30 degrees apart. Untick to send every pick.")} />
         </div>
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4 }}>
           <input type="checkbox" checked={thinPicks} onChange={(e) => setThinPicks(e.target.checked)} />{tr("Average picks per hole, in windows of")}<NumberInput min={5} max={500} step={5} value={thinWindowM} disabled={!thinPicks} onChange={(v) => setThinWindowM(v)} style={{ ...smallSel, width: 56 }} aria-label={tr("Averaging window along the hole (m)")} /> m
@@ -664,13 +664,13 @@ export default function ModellingPanes(props) {
         {/* TASKS.csv #761 — automatic local smoothing of clustered contacts (off by default) */}
         <div className="ge-section-label" style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6 }}>
           <span>{tr("Clustered contacts")}</span>
-          <InfoButton title={tr("Smooth clustered contacts")} width={300} text={tr("GemPy passes exactly through every contact point. Where many noisy picks crowd one spot (holes from one pad, digitised map or section lines) it bends the surface to honour them all, and the kink spreads. With this on, each surface's contacts are scanned for clusters (a kernel density over the points, as in von Harten et al. 2021): points at least twice as crowded as an even spread would be, and near the densest, are fitted loosely instead of exactly. Isolated points stay exact. The run says how many were smoothed. Off by default: if the clustered picks are accurate, smoothing throws away real detail.")} />
+          <InfoButton title={tr("Smooth clustered contacts")} width={300} text={tr("GemPy passes exactly through every contact, so a crowd of noisy picks (holes from one pad, digitised lines) kinks the surface. On: dense clusters are fitted loosely, isolated points exactly. Off by default: if the clustered picks are accurate, smoothing loses real detail.")} />
         </div>
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4 }}>
           <input type="checkbox" checked={smoothClusters} onChange={(e) => setSmoothClusters(e.target.checked)} />{tr("Smooth clustered contacts")}</label>
 
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Search ellipsoid")}<InfoButton title={tr("Search ellipsoid")} width={300} text={tr("GemPy fits one global surface, not per-query local kriging, so this can't steer the interpolator's own search the way classic kriging software would. What it does instead: drops any control point with fewer than the minimum neighbour count within this ellipsoid, oriented by its own Azimuth and Dip here, so isolated points don't quietly feed a run alongside well-supported ones. The structural trends below are set separately and do not orient it.")} />
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Search ellipsoid")}<InfoButton title={tr("Search ellipsoid")} width={300} text={tr("Drops any control point with fewer than the minimum neighbour count within this ellipsoid, oriented by its own Azimuth and Dip here, so isolated points don't feed a run. It does not steer GemPy's interpolation, and the structural trends below do not orient it.")} />
           </span>
           <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>
             <input type="checkbox" checked={searchEllipsoid.enabled} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, enabled: e.target.checked }))} />{" "}{tr("On")}</label>
@@ -719,7 +719,7 @@ export default function ModellingPanes(props) {
         </>)}
         {toolPane === "gradeEst" && (<>
         {paneHeader("Grade estimation", Calculator, "model")}
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Populate a block model FROM composited assays — nearest neighbour, inverse distance, moving least squares or ordinary kriging, not a surface — a separate workflow from the implicit surface tools.")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Fills a block model from composited assays by nearest neighbour, inverse distance, moving least squares or ordinary kriging: a separate workflow from the implicit surface tools.")}</div>
         <button onClick={() => setGradeEstOpen(true)} disabled={!assayElements.length} style={{ ...pBtn, opacity: assayElements.length ? 1 : 0.5, marginBottom: 8 }}>
           <FileBarChart2 size={14} />{" "}{tr("Estimate grade into block model…")}</button>
         {/* TASKS.csv #2419 — grade × thickness per hole and its plan estimate: a thin flat body, lighter than a block model */}
@@ -769,7 +769,7 @@ export default function ModellingPanes(props) {
           <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => askPrompt("New lithology group name:", "", (name) => { if (name && name.trim()) setExpandedLithoGroupId(addLithoGroup({ name: name.trim() })); })}
             style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-xs)", textTransform: "none", letterSpacing: 0 }} title={tr("New lithology group")}>{tr("+ New group")}</span>
         </div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Lump codes that were logged differently for the same real unit (e.g. andesite + basalt) into one modelled unit. Groups appear alongside raw codes in the pickers below; raw intervals keep their own colours in 3D.")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Lump codes logged differently for the same real unit (e.g. andesite + basalt) into one modelled unit. Raw intervals keep their own colours in 3D.")}</div>
         {lithoGroups.length === 0 && (
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("No groups yet.")}</div>
         )}
@@ -859,7 +859,7 @@ export default function ModellingPanes(props) {
           onClick={() => setFenceOpen(true)}
           disabled={!collars.length}
           style={{ ...pBtn, marginBottom: 8, opacity: collars.length ? 1 : 0.5, cursor: collars.length ? "pointer" : "default" }}
-          title={collars.length ? tr("Fence / panel diagram — project the holes onto a common vertical panel along the drill line and correlate lithology hole-to-hole, with each hole's perpendicular offset from the section shown") : tr("No holes with collars yet: import collars first.") /* #1844 */}
+          title={collars.length ? tr("Fence / panel diagram — correlate lithology hole to hole on a vertical panel along the drill line, with each hole's offset from the section") : tr("No holes with collars yet: import collars first.") /* #1844 */}
         ><Layers3 size={14} />{" "}{tr("Fence / panel diagram…")}</button>
 
         <Suspense fallback={null}>{mcodesPane("correlate")}</Suspense>{/* #2054 — the correlation tools themselves, beside the fence */}
@@ -883,7 +883,7 @@ export default function ModellingPanes(props) {
         {toolPane === "implicit" && (<>
         {paneHeader("Implicit surface", Mountain, "model")}
         {clusterNote() /* #3268 */}
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Models the top contact of one unit from litho intervals, via GemPy in GeoStrix's Python engine. Uses structure dip/azimuth for orientation when available; if not, estimates one from the contact points themselves so it can still run.")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Models one unit's top contact from litho intervals with GemPy (Python engine), oriented by structure picks or, without them, by the contacts' own shape.")}</div>
         {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the StrixViewer tab (Add layer › Lithology), or load the sample project."))}
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }} title={tr("Also feed drawn cross-section contacts (Draw upper contact, in the section pop-out) tagged as this unit's upper contact into the run as extra interface points")}>
           <input type="checkbox" checked={includeSectionContacts} onChange={(e) => setIncludeSectionContacts(e.target.checked)} />{tr("Include drawn cross-section contacts{v}", { v: sections?.some((s) => s.contacts?.length) ? ` (${sections.reduce((n, s) => n + (s.contacts?.length || 0), 0)} drawn)` : "" })}
@@ -926,7 +926,7 @@ export default function ModellingPanes(props) {
         {/* TASKS.csv #52 (a) — sensitivity spread. Collapsed by default: it is N+1 GemPy runs, not a
             casual click. Copy says "spread", never "confidence" — see lib/surfaceSpread.js's header. */}
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSensOpen((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}>
-          {sensOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}{" "}{tr("Sensitivity: spread across realizations")}<InfoButton title={tr("Sensitivity spread")} width={380} text={tr("Re-runs the implicit model for the chosen unit several times with every contact point moved by a random amount (standard deviation = the position sigma you enter, in metres, per axis) and every orientation tipped by a random angle (the orientation sigma, in degrees), then colours the surface by how far the realizations land from it (RMS distance per vertex). Pale = the surface barely moves under that input uncertainty; dark = it moves a lot. Grey = at least one realization produced no surface there at all. It is a spread under the uncertainty YOU state — not a probability or a confidence, and only as meaningful as the sigmas entered. There is deliberately no default for them. A per-pick value in an 'uncertainty_m' number column (mapped as an extra field when importing lithology) overrides the position sigma for that pick. Cost: each realization is a full GemPy run. The base run is timed first and the number of realizations is cut to fit your time budget.")} />
+          {sensOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}{" "}{tr("Sensitivity: spread across realizations")}<InfoButton title={tr("Sensitivity spread")} width={380} text={tr("Re-runs the model with every contact moved at random (position sigma, m) and every orientation tipped (orientation sigma, degrees), then colours the surface by how far the runs land: pale = stable, dark = moves a lot, grey = no surface in some run. A spread under the sigmas you enter — not a probability or a confidence. A pick's 'uncertainty_m' column overrides the position sigma.")} />
         </div>
         {sensOpen && (
           <div style={{ padding: "8px 9px", marginBottom: 8, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
@@ -968,7 +968,7 @@ export default function ModellingPanes(props) {
         {toolPane === "stack" && (<>
         {paneHeader("Stratigraphic stack", Layers, "model")}
         {clusterNote() /* #3268 */}
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Models several units' top contacts together in one run so they can't cross each other — add units below in order, youngest (shallowest) first. Litho-only: veins/dykes cut across a stack by nature, so model those with the Vein / dyke tool instead, not here.")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Models several units' top contacts in one run so they cannot cross: add units below, youngest (shallowest) first. Model veins and dykes with the Vein / dyke tool.")}</div>
         {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the StrixViewer tab (Add layer › Lithology), or load the sample project."))}
         {/* TASKS.csv #810 — the stack reads the same option; it had no checkbox, so drawn contacts were dropped unseen */}
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }} title={tr("Also feed drawn cross-section contacts (Draw upper contact, in the section pop-out) tagged as this unit's upper contact into the run as extra interface points")}>
@@ -1034,7 +1034,7 @@ export default function ModellingPanes(props) {
           </div>
           {/* TASKS.csv #2381 — no unconformity above the last unit: its top would follow the units above it, and no package starts below */}
           {i === stackUnits.length - 2 && !hasBreak && (
-            <div style={{ textAlign: "center", fontSize: "var(--font-size-xs)", color: "var(--color-text-faint)", padding: "1px 0 3px", marginBottom: 4 }} title={tr("The top of the unit under an unconformity follows the units above it, so with nothing under the last unit no package would start there. Model the last unit's top on its own (Implicit surface, or an Explicit surface from its logged tops).")}>{tr("No unconformity above the last unit")}</div>
+            <div style={{ textAlign: "center", fontSize: "var(--font-size-xs)", color: "var(--color-text-faint)", padding: "1px 0 3px", marginBottom: 4 }} title={tr("Model the last unit's top on its own (Implicit surface, or an Explicit surface from its logged tops): with nothing under it, no package starts there.")}>{tr("No unconformity above the last unit")}</div>
           )}
           {i < stackUnits.length - 1 && (i < stackUnits.length - 2 || hasBreak) && (
             <button type="button" aria-pressed={hasBreak} onClick={() => setStackBreaks((p) => (p.includes(u) ? p.filter((x) => x !== u) : [...p, u]))}
@@ -1047,7 +1047,7 @@ export default function ModellingPanes(props) {
           );
         })}
         {/* TASKS.csv #360 — faults solved WITH the stack: contacts either side become offset blocks */}
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 6 }} title={tr("Each fault is its own GemPy group ahead of the stack (a FAULT relation): the contacts either side are fitted as offset blocks in one run, instead of one surface ramped across the fault. Faults come from the Structure planes layer (picks with dip and dip direction), one per structure type and name.")}>{tr("Faults that offset the stack")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 6 }} title={tr("Each fault is solved with the stack: contacts either side become offset blocks, not one surface ramped across it. Faults come from Structure planes, one per type and name.")}>{tr("Faults that offset the stack")}</div>
         <select value="" onChange={(e) => { const k = e.target.value; if (k && !stackFaults.includes(k) && stackFaults.length < 6) setStackFaults((p) => [...p, k]); }} style={{ ...smallSel, width: "100%", marginTop: 3 }} aria-label={tr("Add a fault that offsets the stack")}>
           <option value="">{faultCandidates.length ? tr("Add a fault…") : tr("No structure picks with dip / dip direction")}</option>
           {/* TASKS.csv #1225 — bedding and fractures are not faults: apart, for a geologist who knows a code the name does not show */}
@@ -1083,7 +1083,7 @@ export default function ModellingPanes(props) {
           </div>
           );
         })}
-        {stackFaults.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3, lineHeight: 1.4 }}>{tr("Each fault runs through the whole model box: GemPy here cannot end a fault where its picks stop. By default a fault offsets every unit and no other fault.")}</div>}
+        {stackFaults.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3, lineHeight: 1.4 }}>{tr("Each fault runs through the whole model box (GemPy cannot end a fault where its picks stop). By default a fault offsets every unit and no other fault.")}</div>}
         {/* TASKS.csv #2905 — the method: GemPy, or a layer-cake for a flat-lying pile (Matt's decision 2026-11-12) */}
         <label style={{ display: "block", fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 6 }}>{tr("Method")}
           <select value={stackMethod} onChange={(e) => setStackMethod(e.target.value)} aria-label={tr("Stack method")} style={{ display: "block", width: "100%", marginTop: 2, fontSize: "var(--font-size-sm)" }}>
@@ -1093,20 +1093,20 @@ export default function ModellingPanes(props) {
         </label>
         {stackMethod === "layercake" ? (
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "4px 0 6px", lineHeight: 1.45 }}>
-            {tr("Layer-cake: the first top is an elevation grid through its picks, and each lower top is the one above minus the unit's thickness in the holes (zero where the unit is absent), so tops never cross or fold back. For a flat-lying pile, in seconds. An unconformity starts a new layer-cake that cuts the units under it. A fault in the stack splits it into fault blocks, each a layer-cake of its own, so the tops step at the fault (each fault a plane through its picks, along its measured dip).")}
+            {tr("Layer-cake: the first top is an elevation grid through its picks, and each lower top is the one above minus the unit's thickness, so tops never cross. An unconformity starts a new layer-cake. A fault in the stack splits it into fault blocks, each a layer-cake of its own.")}
           </div>
         ) : stackBreaks.some((b) => stackUnits.slice(0, -1).includes(b)) ? (
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "6px 0", lineHeight: 1.45 }}>{tr("Packages: units between unconformities share one field and stay parallel, and each package truncates the ones below. Units missing inside a package cannot pinch out. A surface flattens beyond its own contacts, so compare the predicted map with your map.")}</div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "6px 0", lineHeight: 1.45 }}>{tr("Packages: units between unconformities stay parallel and each package truncates those below; a unit missing inside a package cannot pinch out. Surfaces flatten past their contacts: compare the predicted map with yours.")}</div>
         ) : (<>
-        <label style={{ display: "block", fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 6 }} title={tr("Erode: each younger unit truncates everything below it (an erosional unconformity), and a unit missing between its neighbours in a hole pinches out there. Conformable: every unit is a level of one shared field, so the surfaces stay parallel, never cross and never meet: a unit keeps a thickness everywhere and cannot pinch out.")}>{tr("Unit relationship")}<select value={stackRelation} onChange={(e) => setStackRelation(e.target.value)} style={{ ...smallSel, width: "100%", marginTop: 3 }}>
+        <label style={{ display: "block", fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 6 }} title={tr("Erode: each younger unit truncates everything below, and a unit missing in a hole pinches out there. Conformable: one shared field, so surfaces stay parallel and every unit keeps a thickness.")}>{tr("Unit relationship")}<select value={stackRelation} onChange={(e) => setStackRelation(e.target.value)} style={{ ...smallSel, width: "100%", marginTop: 3 }}>
             <option value="erode">{tr("Erode — younger units truncate older (unconformity)")}</option>
             <option value="onlap">{tr("Conformable — one shared field (units keep a thickness everywhere, cannot pinch out)")}</option>
           </select>
         </label>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "4px 0 6px", lineHeight: 1.45 }}>
           {stackRelation === "erode"
-            ? tr("Erosional: each unit is fitted in its own structural group and truncates the ones beneath it. Right for an unconformity; wrong for a conformable volcanic pile, where it will cut contacts that should simply drape.")
-            : tr("Conformable: every unit shares one interpolated field, so the surfaces stay parallel and can never cross. Right for a continuous layered sequence. A unit that is missing between its neighbours in some holes cannot pinch out in this mode (it keeps a thickness there): use Erode for discontinuous units.")}
+            ? tr("Erosional: each unit truncates the ones beneath it. Right for an unconformity; wrong for a conformable volcanic pile, where it cuts contacts that should drape.")
+            : tr("Conformable: one shared field, so surfaces stay parallel and never cross. A unit missing in some holes cannot pinch out: use Erode for discontinuous units.")}
         </div>
         </>)}
         <button
@@ -1170,7 +1170,7 @@ export default function ModellingPanes(props) {
         {/* TASKS.csv #272 — this tool no longer builds a draped contact through the alteration tops via
             GemPy; it interpolates a 0/1 "altered?" indicator and takes the 0.5 iso-surface, which is a
             closed envelope with no assumed up-direction. Runs in-app, no sidecar. */}
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Builds a closed halo envelope for one assemblage: every logged alteration interval becomes a 0/1 \"altered?\" sample down its hole, interpolated onto a grid, iso-surfaced at 0.5. Unlike the lithology/structural tools this makes no assumption about which way is \"up\" — a halo wraps its conduit rather than draping like a contact. Runs in-app, no Python engine needed.")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Builds a closed halo envelope for one assemblage from the logged alteration intervals; unlike a contact, a halo has no \"up\". Runs in-app, no Python engine.")}</div>
         {alt_units.some((u) => isNotLogged(u)) && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("Not offered: {v} (intervals with no assemblage logged).", { v: alt_units.filter((u) => isNotLogged(u)).map((u) => `"${u}"`).join(", ") })}</div>}
         {(altCustomLayers.length > 0 || altNumericFields.length > 0 || altVocabFields.length > 0 || (storeLayers.vein || []).length > 0) && ( // TASKS.csv #1574 — which log, and an intensity floor; vein: #2050
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
@@ -1186,7 +1186,7 @@ export default function ModellingPanes(props) {
                 </select>
               </label>
             )}
-              {altSource.layer === "alt" && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }} title={tr("For a log that records alteration only where it is seen: the rock logged in Lithology between its rows counts as unaltered, which closes the halo there. Off: that rock is unknown.")}><input type="checkbox" checked={!!altSource.unloggedZero} onChange={(e) => setAltSource((x) => ({ ...x, unloggedZero: e.target.checked }))} />{tr("Count logged rock with no alteration row as unaltered")}</label>}{/* #2380 */}
+              {altSource.layer === "alt" && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }} title={tr("For a log that records alteration only where seen: rock logged in Lithology between its rows counts as unaltered, closing the halo there. Off: that rock is unknown.")}><input type="checkbox" checked={!!altSource.unloggedZero} onChange={(e) => setAltSource((x) => ({ ...x, unloggedZero: e.target.checked }))} />{tr("Count logged rock with no alteration row as unaltered")}</label>}{/* #2380 */}
             {(altNumericFields.length > 0 || altVocabFields.length > 0) && (
               <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("Only the intervals whose field is at or above this value become altered samples; the rest count as unaltered, which is what closes the halo.")}>
                 <span style={{ flexShrink: 0 }}>{tr("Only where")}</span>
@@ -1224,10 +1224,10 @@ export default function ModellingPanes(props) {
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <label style={{ ...miniField }} title={tr("Grid cell size for the indicator interpolation. 0 = auto (about 1/8 of the search radius).")}>{tr("Cell size (m)")}<NumberInput min={0} value={alterationCellSize} onChange={(v) => setAlterationCellSize(v)} style={{ ...smallSel, width: "100%" }} />
           </label>
-          <label style={{ ...miniField }} title={tr("Search radius for the indicator interpolation, and the padding the envelope is given to close outside the outermost altered sample. 0 = auto (about 1.2x the median hole spacing).")}>{tr("Search (m)")}<NumberInput min={0} value={alterationSearchRadius} onChange={(v) => setAlterationSearchRadius(v)} style={{ ...smallSel, width: "100%" }} />
+          <label style={{ ...miniField }} title={tr("Search radius for the indicator interpolation, and how far past the outermost altered sample the envelope may close. 0 = auto (about 1.2x the median hole spacing).")}>{tr("Search (m)")}<NumberInput min={0} value={alterationSearchRadius} onChange={(v) => setAlterationSearchRadius(v)} style={{ ...smallSel, width: "100%" }} />
           </label>
         </div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("0 = auto (derived from your own hole spacing). The model domain and the structural trend chosen for alteration halos (Model settings → Structural trends) are honoured; the search ellipsoid's minimum-neighbour filter is not — it exists to drop under-supported contact picks, which a closed envelope has none of.")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("0 = auto (from your hole spacing). The model domain and the structural trend chosen for alteration halos (Model settings → Structural trends) apply; the search ellipsoid's neighbour filter does not.")}</div>
         {alterationBusy && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-success-fg)", marginTop: -4, marginBottom: 8 }}>{tr("Building the halo envelope…")}</div>}
 
         {/* TASKS.csv #144 — vein/dyke tool. The copy here deliberately states what the construction can
@@ -1236,9 +1236,9 @@ export default function ModellingPanes(props) {
         </>)}
         {toolPane === "vein" && (<>
         {paneHeader("Vein / dyke modelling", Waves, "model")}
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Models a vein or dyke as a PAIR of contacts: each logged interval's from-depth and to-depth are the two walls of one structure. A midplane is fitted through the intercept midpoints and a TRUE-thickness field (downhole length corrected for how obliquely each hole cuts the vein) is interpolated over it; the hangingwall and footwall are that midplane offset by half the thickness each way, so they stay a consistent thickness apart and cannot cross. Runs in-app, no Python engine needed.")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Models a vein or dyke from its logged intervals as a midplane with a true thickness, so the hangingwall and footwall never cross. Runs in-app, no Python engine.")}</div>
         {vein_units.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("The list holds the Veins log and every lithology code whose role is cross-cutting in Modelling codes. A unit that is missing: set its role there.")}</div> /* TASKS.csv #3779 (8) — how a unit gets into the list */}
-        {vein_units.length === 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Nothing to model yet: there is no Veins log, and no lithology code is cross-cutting. If your veins are logged as lithology codes, set their role to cross-cutting in Modelling codes.")}</div>}{/* #2226 */}
+        {vein_units.length === 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Set your vein codes' role to cross-cutting in Modelling codes: nothing to model yet, with no Veins log and no cross-cutting lithology code.")}</div>}{/* #2226 */}
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select aria-label={tr("Vein or dyke")} value={veinTarget} onChange={(e) => setVeinTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
             <option value="">{tr("Choose a vein / dyke…")}</option>
@@ -1255,16 +1255,16 @@ export default function ModellingPanes(props) {
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <label style={{ ...miniField }} title={tr("Grid spacing across the vein plane. 0 = auto (about 1/12 of the search radius).")}>{tr("Cell size (m)")}<NumberInput min={0} value={veinCellSize} onChange={(v) => setVeinCellSize(v)} style={{ ...smallSel, width: "100%" }} />
           </label>
-          <label style={{ ...miniField }} title={tr("In-plane search radius for the midplane and thickness interpolation, and how far the modelled vein is allowed to extend past the outermost intercept. 0 = auto (about 1.5x the median intercept spacing).")}>{tr("Search (m)")}<NumberInput min={0} value={veinSearchRadius} onChange={(v) => setVeinSearchRadius(v)} style={{ ...smallSel, width: "100%" }} />
+          <label style={{ ...miniField }} title={tr("In-plane search radius for the midplane and thickness, and how far the vein may extend past the outermost intercept. 0 = auto (about 1.5x the median intercept spacing).")}>{tr("Search (m)")}<NumberInput min={0} value={veinSearchRadius} onChange={(v) => setVeinSearchRadius(v)} style={{ ...smallSel, width: "100%" }} />
           </label>
         </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          <label style={{ ...miniField }} title={tr("Optional. Leave both blank to fit the vein's attitude from the intercept midpoints. Required when every intercept lies on one section line, because collinear midpoints cannot fix a plane.")}>{tr("Dip (°)")}<NumberInput min={0} max={90} allowEmpty value={veinDip === "" || veinDip == null ? null : veinDip} placeholder={tr("fit")} onChange={(v) => setVeinDip(v == null ? "" : String(v))} style={{ ...smallSel, width: "100%" }} />
+          <label style={{ ...miniField }} title={tr("Optional: blank fits the vein's attitude from the intercept midpoints. Required when all intercepts lie on one section line, which cannot fix a plane.")}>{tr("Dip (°)")}<NumberInput min={0} max={90} allowEmpty value={veinDip === "" || veinDip == null ? null : veinDip} placeholder={tr("fit")} onChange={(v) => setVeinDip(v == null ? "" : String(v))} style={{ ...smallSel, width: "100%" }} />
           </label>
           <label style={{ ...miniField }} title={tr("Optional. Dip DIRECTION (not strike), 0-360. Only used when a dip is also entered.")}>{tr("Dip dir (°)")}<NumberInput min={0} max={360} allowEmpty value={veinDipDir === "" || veinDipDir == null ? null : veinDipDir} placeholder={tr("fit")} onChange={(v) => setVeinDipDir(v == null ? "" : String(v))} style={{ ...smallSel, width: "100%" }} />
           </label>
         </div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("0 = auto (derived from your own intercept spacing). Dip / dip direction blank = fitted from the data, or taken from the oriented-core measurements at the intercepts when they contradict that fit. Adds a hangingwall and a footwall, and a closed solid for volume when the two do not cross. Between holes the shape and thickness are interpolated, so treat the result as an interpretation — a pinch-out or swell no hole intersected will not be in it.")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("0 = auto (from your intercept spacing). Blank dip / dip direction = fitted (or from oriented core when that disagrees). Adds a hangingwall and a footwall, and a closed solid for volume when the two do not cross. Between holes the shape is interpolated: a pinch-out or swell no hole cut will not show.")}</div>
         {veinBusy && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-success-fg)", marginTop: -4, marginBottom: 8 }}>{tr("Building the vein pair…")}</div>}
 
         {/* TASKS.csv #142 — numeric implicit model (grade shell). Runs entirely in the browser (no
@@ -1280,8 +1280,8 @@ export default function ModellingPanes(props) {
             tonnages with zero classification context. This is the fix — framing, not features.
             TASKS.csv #674 — it said "no anisotropy", untrue since #650 lets the shell follow a structural trend. */}
         <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", marginBottom: 8, lineHeight: 1.45 }}>
-          <strong>{tr("Not a resource estimate.")}</strong>{" "}{tr("This builds an interpolated envelope to help you visualize and target mineralization. It can follow a structural trend you choose; Ordinary kriging fits a variogram to the composites automatically (check it in the Variogram tool), and there is no classification, dilution or recovery. Nothing it produces is a Mineral Resource under NI 43-101 or JORC, and it must not be reported publicly as one.")}</div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Builds a wireframe envelope of everything at or above a cutoff grade directly from assay values — interpolation onto a grid (by the method chosen below), then an iso-surface at the cutoff. Runs in-app, no Python engine needed.")}{/* TASKS.csv #273 — this tool was a second, uncoupled interpolator that consumed none of the
+          <strong>{tr("Not a resource estimate.")}</strong>{" "}{tr("An interpolated envelope to visualize and target mineralization, with no classification, dilution or recovery. Nothing it produces is a Mineral Resource under NI 43-101 or JORC; do not report it publicly as one.")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Builds a wireframe of everything at or above a cutoff grade: interpolation onto a grid (by the method chosen below), then an iso-surface at the cutoff. Runs in-app, no Python engine.")}{/* TASKS.csv #273 — this tool was a second, uncoupled interpolator that consumed none of the
               shared search-ellipsoid/anisotropy/domain machinery. The domain and the anisotropy trend
               are now threaded through it (see runNumericModel); the search ellipsoid's minimum-neighbour
               filter deliberately still isn't, and the panel says so instead of leaving the difference
@@ -1315,7 +1315,7 @@ export default function ModellingPanes(props) {
                   <NumberInput allowEmpty value={Number.isFinite(numericCutoff) ? numericCutoff : null} onChange={(v) => setNumericCutoff(v == null ? NaN : v)} style={{ ...smallSel, width: "100%" }} />
                 </label>
               </div>
-              {shellCutoffAuto && shellCutoffAuto.symbol === sym && numericCutoff === shellCutoffAuto.value && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{shellCutoffAuto.floor ? tr("Cutoff {v}: the 90th percentile of the {symbol} values above its detection floor: {pct}% of the {n} values are exactly {floor}, the half-limit, so the 90th percentile of all of them would be the floor itself. Type your own.", { v: shellCutoffAuto.value, pct: Math.round(shellCutoffAuto.floor.share * 100), n: shellCutoffAuto.n.toLocaleString(), floor: shellCutoffAuto.floor.value, symbol: sym }) /* #3788 */ : shellCutoffAuto.onOpen ? tr("Cutoff {v}: the 90th percentile of the {n} {symbol} values in the holes the shell uses, proposed for the element it opened on. Type your own.", { v: shellCutoffAuto.value, n: shellCutoffAuto.n.toLocaleString(), symbol: sym }) : tr("Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.", { v: shellCutoffAuto.value, n: shellCutoffAuto.n.toLocaleString(), symbol: sym })}</div>}{/* #3025 (6); onOpen: #3272 */}
+              {shellCutoffAuto && shellCutoffAuto.symbol === sym && numericCutoff === shellCutoffAuto.value && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{shellCutoffAuto.floor ? tr("Cutoff {v}: the 90th percentile of the {symbol} values above the detection floor, since {pct}% of the {n} values are the half-limit {floor}. Type your own.", { v: shellCutoffAuto.value, pct: Math.round(shellCutoffAuto.floor.share * 100), n: shellCutoffAuto.n.toLocaleString(), floor: shellCutoffAuto.floor.value, symbol: sym }) /* #3788 */ : shellCutoffAuto.onOpen ? tr("Cutoff {v}: the 90th percentile of the {n} {symbol} values in the holes the shell uses, proposed for the element it opened on. Type your own.", { v: shellCutoffAuto.value, n: shellCutoffAuto.n.toLocaleString(), symbol: sym }) : tr("Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.", { v: shellCutoffAuto.value, n: shellCutoffAuto.n.toLocaleString(), symbol: sym })}</div>}{/* #3025 (6); onOpen: #3272 */}
               {!numSrc && cutoffPct(numericCutoff, sym, unit) != null && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("{v} ppm {symbol} is {p} %.", { v: numericCutoff.toLocaleString(), symbol: sym, p: +cutoffPct(numericCutoff, sym, unit).toPrecision(4) })}</div>}{/* #3272 */}
               {!numSrc && (() => { const offers = drillThresholdOffers(geochemThresholds, sym, unit).slice(0, 4); return offers.length ? ( /* TASKS.csv #2689 (#2675 part 2) — saved drill thresholds offered as shell levels, never applied */
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", alignItems: "center", marginBottom: 6 }}>
@@ -1331,7 +1331,7 @@ export default function ModellingPanes(props) {
                     blocked main thread at 62,500 cells x 5,000 points, 250 s at the block cap). 0 now
                     means "cap at the grid diagonal", which is a no-op mathematically and a real bound
                     computationally. */}
-                <label style={{ ...miniField }} title={tr("No sample within this distance of a grid cell leaves it un-estimated (no shell there) rather than extrapolating grade far from real data. 0 = no radius assumption, capped internally at the grid's own diagonal so the run can't hang — but a real radius is both faster and far more defensible.")}>{tr("Search (m)")}<NumberInput min="0" value={numericSearchRadius} onChange={(v) => { shellSearchTyped.current = true; /* #3607 (3) */ setNumericSearchRadius(v); }} style={{ ...smallSel, width: "100%" }} />
+                <label style={{ ...miniField }} title={tr("Cells with no sample within this distance get no shell, rather than extrapolated grade. 0 = no radius: slow and less defensible than a real one.")}>{tr("Search (m)")}<NumberInput min="0" value={numericSearchRadius} onChange={(v) => { shellSearchTyped.current = true; /* #3607 (3) */ setNumericSearchRadius(v); }} style={{ ...smallSel, width: "100%" }} />
                 </label>
                 <label style={{ ...miniField }} title={tr("Extends the grid past the outermost sample so the shell can close beyond the last hole")}>{tr("Pad (m)")}<NumberInput min="0" value={numericPadding} onChange={(v) => setNumericPadding(v)} style={{ ...smallSel, width: "100%" }} />
                 </label>
@@ -1340,24 +1340,24 @@ export default function ModellingPanes(props) {
               {shellSearchSet && numericSearchRadius === shellSearchSet.r && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{shellSearchSet.at === "samples" ? tr("Search radius {r} m: 2.5 times the {m} m typical distance from a sample to the nearest sample of another hole, so a block between two holes reaches both.", shellSearchSet) : tr("Search radius {r} m: 2.5 times the {m} m typical spacing, so a block between two holes reaches both.", shellSearchSet)}</div>}
               {!trendFor("gradeShell") && !(Number(numericFlatReach) > 0) && <>{/* TASKS.csv #3673 — the envelope (the default) or the tight shell */}
                 <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
-                  <label style={{ ...miniField, flex: 2 }} title={tr("Automatic: each drilled area gets the envelope where a third or more of its composites are at or above the cut-off, the tight shell otherwise; the result says which. Envelope: the composites at or above the cut-off count 1, the others 0, interpolated along their plane over a few hole spacings; the surface is where that reaches the probability, so one or a few smooth bodies keep the dilution between good intervals, as a consultant's domain does. Tight: the grade itself, kept close to the composites at the cut-off; it follows them and, at a low cut-off, breaks into many bodies.")}>{tr("Shell")}
+                  <label style={{ ...miniField, flex: 2 }} title={tr("Automatic: per drilled area, Envelope where a third or more of the composites reach the cut-off, Tight otherwise. Envelope: one or a few smooth bodies that keep the dilution between good intervals. Tight: follows the composites closely; at a low cut-off it breaks into many bodies.")}>{tr("Shell")}
                     <select value={shellMode} onChange={(e) => setShellMode(e.target.value)} style={{ ...smallSel, width: "100%" }} aria-label={tr("Grade shell kind")}>
                       <option value="auto">{tr("Automatic (by the drilling)")}</option>
                       <option value="envelope">{tr("Envelope (a domain)")}</option>
                       <option value="tight">{tr("Tight (follows the composites)")}</option>
                     </select>
                   </label>
-                  {shellMode !== "tight" && <label style={{ ...miniField, flex: 1 }} title={tr("The share of the neighbouring composites at or above the cut-off where the surface is drawn: 0.5 by default; lower takes in more dilution, higher keeps closer to the good intervals (0.3 to 0.7).")}>{tr("Probability")}
+                  {shellMode !== "tight" && <label style={{ ...miniField, flex: 1 }} title={tr("The share of neighbouring composites at or above the cut-off where the surface is drawn: lower takes in more dilution, higher keeps closer to the good intervals (0.3 to 0.7).")}>{tr("Probability")}
                     <NumberInput min="0.3" max="0.7" step="0.05" value={shellEnvIso} onChange={(v) => setShellEnvIso(v)} style={{ ...smallSel, width: "100%" }} aria-label={tr("Envelope probability")} />
                   </label>}
                 </div>
-                {shellMode !== "tight" && shellSampleSpacing?.medianM > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("The envelope's reach comes from the {s} m sample spacing: {a} m along the plane's long axis, {b} m across it and {c} m through it, with the plane fitted at each run. The Search box is the tight shell's.", { s: Math.round(shellSampleSpacing.medianM), a: Math.round(ENVELOPE_RANGES.major * shellSampleSpacing.medianM), b: Math.round(ENVELOPE_RANGES.semi * shellSampleSpacing.medianM), c: Math.round(ENVELOPE_RANGES.minor * shellSampleSpacing.medianM) })}</div>}
+                {shellMode !== "tight" && shellSampleSpacing?.medianM > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("The envelope reaches {a} m along the plane, {b} m across and {c} m through it, from the {s} m sample spacing. The Search box is the tight shell's.", { s: Math.round(shellSampleSpacing.medianM), a: Math.round(ENVELOPE_RANGES.major * shellSampleSpacing.medianM), b: Math.round(ENVELOPE_RANGES.semi * shellSampleSpacing.medianM), c: Math.round(ENVELOPE_RANGES.minor * shellSampleSpacing.medianM) })}</div>}
               </>}
               {!trendFor("gradeShell") && !(Number(numericFlatReach) > 0) && shellMode !== "envelope" && <>{/* TASKS.csv #3655 (the tight shell's, Automatic's tight areas too) — by default along the plane of the composites at the cut-off */}
-                <label style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title={tr("Each drilled area is searched along the plane its composites at or above the cut-off lie on (as the Trends panel fits them): an ellipsoid with the volume of this search's sphere. The shell is kept within 0.3 of that ellipsoid from those composites, so it follows them instead of swelling round single holes. An area with fewer than 30 such composites, or from fewer than 4 holes, keeps the sphere.")}>
+                <label style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title={tr("Searches each drilled area along the plane of its composites at or above the cut-off, so the shell follows them instead of swelling round single holes. Areas with under 30 such composites or 4 holes keep the sphere.")}>
                   <input type="checkbox" checked={shellPlaneSearch} onChange={(e) => setShellPlaneSearch(e.target.checked)} style={{ marginTop: 2 }} />{tr("Search along the composites' plane")}
                 </label>
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{shellPlaneSearch ? tr("The plane is fitted at each run to the composites at or above the cut-off; the result says its attitude and the ellipsoid. A structural trend chosen for grade shells (Model settings › Structural trends › Used by) replaces it.") : tr("Isotropic: the search is a sphere, no structural trend is chosen for grade shells (Model settings › Structural trends › Used by).")}</div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{shellPlaneSearch ? tr("The plane is fitted at each run to the composites at or above the cut-off; the result gives its attitude. A trend chosen for grade shells (Model settings › Structural trends › Used by) replaces it.") : tr("Isotropic: the search is a sphere, no structural trend is chosen for grade shells (Model settings › Structural trends › Used by).")}</div>
               </>}{/* TASKS.csv #3593 */}{/* #3272 — as Estimation's (#2420) */}
               {(() => { /* TASKS.csv #3062 — a flat, thin body (a seam, a palaeochannel, a laterite): the cell height on its own and a flat search, as Estimation's (#2418); a structural trend shapes both instead */
                 const gt = trendFor("gradeShell"), reach = Number(numericFlatReach), flat = !gt && reach > 0 && numericSearchRadius > 0 && reach < numericSearchRadius;
@@ -1377,7 +1377,7 @@ export default function ModellingPanes(props) {
                 const gt = trendFor("gradeShell"); if (!gt) return null;
                 const [, v, v2] = searchEllipsoidAxes(gt, numericSearchRadius > 0 ? numericSearchRadius : 100);
                 const tc = numericCellSize > 0 ? trendCellM(gt, numericCellSize) : null; // TASKS.csv #3010 — the real cell under the trend
-                return <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tc && <div>{tr("Under this trend the grid's cells are about {c} m (along its long, intermediate and short axes): Cell is their size in the trend's volume-keeping frame, so a thinner cell across the trend needs a smaller Cell.", { c: trendCellText(tc) })}</div>}{numericSearchRadius > 0
+                return <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tc && <div>{tr("Under this trend the cells are about {c} m (long, intermediate, short axes). For thinner cells across the trend, lower Cell.", { c: trendCellText(tc) })}</div>}{numericSearchRadius > 0
                   ? tr("Along trend \"{name}\": an ellipsoid of {searchRadius} × {v} × {v2} m ({v3})", { name: gt.name, searchRadius: numericSearchRadius, v: Math.round(v), v2: Math.round(v2), v3: describeTrend(gt) })
                   : tr("Along trend \"{name}\": with no radius the search reaches the grid diagonal along the trend and {v}% and {v2}% of it across ({v3}).", { name: gt.name, v: Math.round(v), v2: Math.round(v2), v3: describeTrend(gt) })}</div>;
               })()}
@@ -1391,7 +1391,7 @@ export default function ModellingPanes(props) {
                 </label>
               </div>
               {numericMethod === "ok" && ( /* TASKS.csv #1015 — the block model modal's variogram inputs, here too */
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 6 }} title={tr("The variogram ordinary kriging weights the composites with. Leave nugget, sill and range blank to fit one to the composites at run time (with a trend, the range is along its major axis). The Variogram tool shows the experimental points if you want to choose them yourself.")}>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 6 }} title={tr("Leave nugget, sill and range blank to fit a variogram to the composites at run time (with a trend, range is along its major axis). The Variogram tool shows the experimental points.")}>
                   <label style={{ ...miniField }}>{tr("Variogram model")}<select value={numericVariogram.model} onChange={(e) => setNumericVariogram((v) => ({ ...v, model: e.target.value }))} style={{ ...smallSel, width: "100%" }} aria-label={tr("Variogram model")}>
                       <option value="spherical">{tr("Spherical")}</option><option value="exponential">{tr("Exponential")}</option><option value="gaussian">{tr("Gaussian")}</option>
                     </select>
@@ -1415,7 +1415,7 @@ export default function ModellingPanes(props) {
                 onUse={(g) => { setNumericCompositeLength(g.length); setNumericMinCoverage(g.minCoverage); setNumericCapValue(g.cap ?? NaN); }} />}{/* TASKS.csv #2224 */}
               {/* TASKS.csv #262 — minCoverage was hardcoded at 0.5 here with no way to tighten it. */}
               {numericUseComposites && (
-                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4 }} title={tr("Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be used. At the 50% default, a half-missing-core composite still counts as a full sample.")}>{tr("Min coverage")}<NumberInput step="1" min="0" max="100" value={Math.round(numericMinCoverage * 100)} onChange={(v) => setNumericMinCoverage(v / 100)} style={{ ...smallSel, width: 50 }} />
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4 }} title={tr("Minimum share of a composite that must be covered by real assays (not missing core) for it to be used. At the 50% default, a half-missing composite still counts as a full sample.")}>{tr("Min coverage")}<NumberInput step="1" min="0" max="100" value={Math.round(numericMinCoverage * 100)} onChange={(v) => setNumericMinCoverage(v / 100)} style={{ ...smallSel, width: 50 }} />
                   <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>%</span>
                 </label>
               )}
@@ -1423,37 +1423,37 @@ export default function ModellingPanes(props) {
                 {/* TASKS.csv #259 — high-grade capping was implemented in compositeDownhole and wired
                     only into CompositingModal; the grade shell composited uncapped, so a single bonanza
                     assay drove IDW² across its whole search neighbourhood. */}
-                <label style={{ ...miniField }} title={tr("Cap every RAW assay at this grade before compositing (commonly the 97.5th-99th percentile of the element's distribution). Blank = no cap. For a nuggety, log-normal element like Au, estimating without a cap overstates grade.")}>{tr("High-grade cap ({unit})", { unit: PRECIOUS_METALS.has(sym) && unit === "ppm" ? "g/t" : unit })}
+                <label style={{ ...miniField }} title={tr("Cap every raw assay at this grade before compositing (often the 97.5th-99th percentile). Blank = no cap. Uncapped, a nuggety element like Au overstates grade.")}>{tr("High-grade cap ({unit})", { unit: PRECIOUS_METALS.has(sym) && unit === "ppm" ? "g/t" : unit })}
                   <NumberInput min="0" placeholder={tr("none")} allowEmpty value={Number.isFinite(numericCapValue) ? numericCapValue : null} onChange={(v) => setNumericCapValue(v == null ? NaN : v)} style={{ ...smallSel, width: "100%" }} />
                 </label>
                 {/* TASKS.csv #258 — minSamples counts sample POINTS: one hole composited at 2 m supplies
                     ~25 of them inside a 50 m radius, so it can never express "at least two holes must
                     see this cell". This can. */}
-                <label style={{ ...miniField }} title={tr("A grid cell is only estimated if samples from at least this many DISTINCT drillholes fall inside its search radius. 1 lets a single hole populate a whole 50m-radius sphere of 'mineralization' with continuity asserted rather than demonstrated; 2 (or 3) is the standard first sanity constraint.")}>{tr("Min holes")}<NumberInput min="1" step="1" value={numericMinHoles} onChange={(v) => setNumericMinHoles(Math.round(v))} style={{ ...smallSel, width: "100%" }} />
+                <label style={{ ...miniField }} title={tr("A cell is estimated only if samples from at least this many different holes fall within its search radius. 1 lets a single hole fill a whole sphere; 2 or 3 is usual.")}>{tr("Min holes")}<NumberInput min="1" step="1" value={numericMinHoles} onChange={(v) => setNumericMinHoles(Math.round(v))} style={{ ...smallSel, width: "100%" }} />
                 </label>
               </div>
               <ShellCapNote assays={shellAreaAssays /* #3272 — the holes the run uses */} symbol={sym} unit={unit} assayElements={assayElements} includeQAQC={numericIncludeQAQC} isAssay={!numSrc && symbols.includes(sym)} capValue={numericCapValue} setCapValue={setNumericCapValue} autoRef={shellCapAuto /* #3272 */} cutoff={numericCutoff /* #3781 */} />{/* #2222 */}
               {/* TASKS.csv #266 — QC inserts were excluded from Best Intercepts / Compositing / Grade
                   Statistics but reached the grade shell unfiltered. */}
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title={tr("QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default, the same as the Best Intercepts, Compositing and Grade Statistics panels. A field duplicate logged under its parent hole's id would otherwise be double-counted in the estimate.")}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title={tr("QC samples (standards, blanks, duplicates, found by hole_id naming) are left out by default, as in the other grade panels; otherwise a field duplicate counts twice.")}>
                 <input type="checkbox" checked={numericIncludeQAQC} onChange={(e) => setNumericIncludeQAQC(e.target.checked)} />{tr("Include QC samples (standards/blanks/duplicates)")}</label>
               {/* TASKS.csv #257 — relabelled and now defaulting OFF. With this on, every grid node with
                   no sample in range reads as below cutoff and the shell closes halfway to it: that wall
                   is the SEARCH RADIUS, not a grade boundary, and computeMeshVolume happily calls the
                   result watertight. Volume then scales as R³ while looking converged and stable. */}
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title={tr("Off (default): the shell stays open where the data runs out - honest, but there is no enclosed volume to report. On: the shell is sealed at the search-radius boundary so it becomes a watertight solid with a volume and tonnage - but that seal is your search radius, not a grade boundary, so the volume is an assumption you are making, not something measured. Doubling the search radius can multiply the volume by up to eight; less where the shell's top and base are real grade boundaries, as in a flat body.")}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title={tr("Off (default): the shell stays open where the data runs out, with no volume. On: it is sealed at the search radius, not a grade boundary, so its volume is assumed, not measured; doubling the radius can multiply the volume by up to eight.")}>
                 <input type="checkbox" checked={numericCloseShell} onChange={(e) => setNumericCloseShell(e.target.checked)} />{tr("Close shell artificially at the search-radius boundary (volume becomes an assumption)")}</label>
               {/* TASKS.csv #803 — the same "Cut at topography" setting as the GemPy pane: the shell closes on the ground */}
               {/* TASKS.csv #3580 — with no terrain the run cuts at the collar surface (#2634), and this box read unticked and disabled meanwhile: it says what the run does, as Model settings' does */}
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: terrain || (collars || []).length >= 3 ? "var(--color-text-secondary)" : "var(--color-text-faint)", marginBottom: 4, cursor: terrain || (collars || []).length >= 3 ? "pointer" : "default" }} title={terrain ? tr("The shell ends at the terrain surface and stays a closed solid there (the grid is cut below the ground before the shell is drawn). Same setting as \"Cut surfaces at topography\".") : tr("No terrain is loaded: the shell ends at the collar surface, the ground interpolated between the collars and raised over every sample, so no drilled rock is cut. Load a terrain (Maps > Terrain) for the real ground. Same setting as \"Cut surfaces at the collar surface\".")}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: terrain || (collars || []).length >= 3 ? "var(--color-text-secondary)" : "var(--color-text-faint)", marginBottom: 4, cursor: terrain || (collars || []).length >= 3 ? "pointer" : "default" }} title={terrain ? tr("The shell ends at the terrain surface as a closed solid. Same setting as \"Cut surfaces at topography\".") : tr("No terrain loaded: the shell ends at the ground interpolated between the collars, raised over every sample so no drilled rock is cut. Load one in Maps > Terrain. Same setting as \"Cut surfaces at the collar surface\".")}>
                 <input type="checkbox" checked={clipToTopo && (!!terrain || (collars || []).length >= 3)} disabled={!terrain && (collars || []).length < 3} onChange={(e) => setClipToTopo(e.target.checked)} />{terrain ? tr("End the shell at the terrain surface") : (collars || []).length >= 3 ? tr("End the shell at the collar surface (no terrain is loaded)") : tr("End the shell at the terrain surface (import or fetch a terrain first, under Maps › Terrain)")}</label>
               {numericCloseShell && (
-                <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 8, lineHeight: 1.45 }}>{tr("Part of this shell's boundary will not be a grade boundary — it is where the search radius ran out of samples. Its volume will depend on your search radius, not only on the data.")}</div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 8, lineHeight: 1.45 }}>{tr("Part of this shell's boundary will be where the search radius ran out of samples, not a grade boundary, so its volume depends on your search radius.")}</div>
               )}
               {/* TASKS.csv #625 — the block budget (grid cells the shell may use). Runs in a background worker with
                   progress and Cancel; measured ~18 s per million blocks on a mid-range laptop. */}
               <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}
-                title={tr("How many grid cells the grade shell may use. Bigger budgets allow smaller cells over a large area, at the cost of time and memory (the run stays cancellable from the status bar). The grade shell keeps one value per cell, so a million cells take far less memory here than a million blocks in a grade estimate, which keeps a full record for each. Remembered on this computer.")}>
+                title={tr("How many grid cells the grade shell may use: more allows smaller cells over a large area, at the cost of time and memory (cancel from the status bar). Remembered on this computer.")}>
                 <span style={{ flexShrink: 0 }}>{tr("Block budget")}</span>
                 <select value={numericMaxBlocks} onChange={(e) => { setNumericMaxBlocks(Number(e.target.value)); setNumericBudgetHint(null); }} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Grade shell block budget")}>
                   {/* TASKS.csv #3581 — up to 50 million; one this computer's memory cannot take is listed, disabled, with the reason */}
@@ -1478,7 +1478,7 @@ export default function ModellingPanes(props) {
               )}
               {/* TASKS.csv #292 — warn before the work, not after (pattern from #209). */}
               {!(numericSearchRadius > 0) && (
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginBottom: 8, lineHeight: 1.45 }}>{tr("With no search radius, every grid cell is estimated from the whole dataset — the run can take a minute or more (its progress and Cancel are in the status bar). Set a real search radius unless you specifically want an unbounded first pass.")}</div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginBottom: 8, lineHeight: 1.45 }}>{tr("Set a real search radius: without one, every cell is estimated from the whole dataset and the run can take a minute or more (its progress and Cancel are in the status bar).")}</div>
               )}
               <button
                 onClick={runNumericModel}
@@ -1504,5 +1504,5 @@ function AlphaOnlyHint({ layers, fallback }) {
   const c = useMemo(() => customAlphaPicks(customLayers), [customLayers]);
   if (!z && !c.length) return fallback;
   const where = [z ? tr("{n} from Structural zones", { n: z }) : null, ...[...new Set(c.map((p) => p.source))].map((s) => tr("{n} from {source}", { n: c.filter((p) => p.source === s).length, source: s }))].filter(Boolean).join("; ");
-  return <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45, marginBottom: 8 }}>{tr("No oriented structure picks. Angles to the core axis are used as alpha-only picks ({where}): the Stereonet counts them, the Downhole plot draws them and sections fan them. A plane, and so these tools, needs a dip direction: oriented core (alpha and beta) or a Structure planes import.", { where })}</div>;
+  return <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45, marginBottom: 8 }}>{tr("No oriented structure picks. These tools need a dip direction: oriented core (alpha and beta) or a Structure planes import. Angles to the core axis ({where}) are alpha-only: the Stereonet, Downhole plot and sections still show them.", { where })}</div>;
 }

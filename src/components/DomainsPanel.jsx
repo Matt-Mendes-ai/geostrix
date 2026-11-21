@@ -74,7 +74,7 @@ export default function DomainsPanel({ onClose }) {
               {surfaceElements.map((e) => <label key={e.symbol} style={{ display: "flex", alignItems: "center", gap: 3, color: usable.includes(e.symbol) ? "var(--color-text)" : "var(--color-text-secondary)" }} title={usable.includes(e.symbol) ? undefined : tr("Missing or below zero in more than 10 % of the samples; those samples would be left out")}><input type="checkbox" checked={symbols.includes(e.symbol)} onChange={() => toggle(e.symbol)} />{e.symbol}</label>)}
             </div>
           </div>
-          <div style={note}>{tr("Concentrations are parts of a closed whole, so the samples are compared on centred log-ratios (Aitchison 1986), which also tames the skew. The number of clusters is your choice; the within-cluster scatter for k = 2–8 is only a guide. Clusters mostly reproduce lithology or regolith: that is the useful result, populations to threshold within, not a mineral map (Templ, Filzmoser & Reimann 2008).")}</div>
+          <div style={note}>{tr("Samples are compared on centred log-ratios (Aitchison 1986), since concentrations are parts of a whole. Choose the number of clusters; the k = 2–8 scatter is only a guide. Clusters mostly reproduce lithology or regolith: populations to threshold within, not a mineral map.")}</div>
           {msg && <div style={{ ...note, color: "var(--color-text)" }}>{msg}</div>}
           {result && (
             <>

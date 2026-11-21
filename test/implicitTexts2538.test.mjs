@@ -19,7 +19,7 @@ test("#2539 — the run's own estimate is tagged and worded apart", () => {
   assert.match(r, /\.\.\.\(orientationEstimated \? \{ orientationEstimated: true \} : \{\}\) \/\* #2539 \*\//);
   assert.match(r, /return r && \{ \.\.\.r, estimated: !!sp\.orientationEstimated \};/);
   assert.match(r, /const onlyEstimate = pickIssues\.every\(\(r\) => r\.estimated && !r\.duplicates && !r\.close && !r\.conflicts\);/);
-  assert.match(r, /r\.orientations && r\.estimated \? tr\(" the dip estimated from the contacts themselves \(no structure pick was used\)/);
+  assert.match(r, /r\.orientations && r\.estimated \? tr\(" the dip estimated from the contacts \(no structure pick used\)/ /* #3899 */);
 });
 
 test("the new keys are in every locale", () => {

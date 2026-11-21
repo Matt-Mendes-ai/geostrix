@@ -51,7 +51,7 @@ export default function BlockModelMappingModal({ fileName, headers, numeric, row
             ))}
           </div>
           {rowCount > maxCells && (
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "7px 9px", marginBottom: 12, lineHeight: 1.45 }}>{tr("Over the 3D view's {maxCells}-cell budget: blocks will be merged into larger ones (volume-weighted mean). Right for grades and densities; meaningless for a coded attribute such as a numeric rock type.", { maxCells: maxCells.toLocaleString() })}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "7px 9px", marginBottom: 12, lineHeight: 1.45 }}>{tr("Over the 3D view's {maxCells}-cell budget, so blocks will be merged (volume-weighted mean): fine for grades and densities, meaningless for coded attributes such as a numeric rock type.", { maxCells: maxCells.toLocaleString() })}</div>
           )}
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 12 }}>{tr("Rotated block models are not supported: their centroids are in a local frame and would be drawn in the wrong place.")}</div>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>

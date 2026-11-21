@@ -42,7 +42,7 @@ export default function SolidToolsModal({ solid, surfaces = [], meshOf, groundAt
   const taken = new Set(surfaces.map((s) => s.name));
   const unique = (base) => { let name = base; for (let k = 2; taken.has(name); k++) name = `${base} (${k})`; return name; };
   const report = (r, name) => {
-    const closure = r.closed ? tr("closed") : tr("not closed: the seam of the cut is two edge loops on one curve ({n} open edges), so a closure check will say open; the volume is exact to the cut tolerance", { n: r.boundaryEdges });
+    const closure = r.closed ? tr("closed") : tr("not closed ({n} open edges: the cut's seam is two loops on one curve), so a closure check says open; the volume is exact to the cut tolerance", { n: r.boundaryEdges });
     return tr("Added \"{name}\": {v} m³, {c}{k}.", { name, v: big(r.volumeM3), c: closure, k: r.components > 1 ? tr("; {k} separate pieces", { k: r.components }) : "" });
   };
   const runClip = () => {
@@ -92,9 +92,9 @@ export default function SolidToolsModal({ solid, surfaces = [], meshOf, groundAt
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
         {!me && <div style={warn}>{tr("This surface's mesh is not in the view.")}</div>}
-        {meClosed && !meClosed.closed && <div style={warn}>{tr("\"{name}\" is not closed ({n} open edges): a clip can still cut it, but it has no inside, so it cannot be combined with another solid and its result has no volume to trust.", { name: solid.name, n: meClosed.boundaryEdges })}</div>}
+        {meClosed && !meClosed.closed && <div style={warn}>{tr("\"{name}\" is not closed ({n} open edges): it can be clipped, but not combined with another solid, and the clip has no volume to trust.", { name: solid.name, n: meClosed.boundaryEdges })}</div>}
         <div style={{ fontWeight: 600, marginTop: 8 }}>{tr("Clip by a surface")}</div>
-        <div style={note}>{tr("Keep the part of the solid on one side of a surface: a body cut at the ground, an ore solid trimmed at a fault or a contact. The cut is exact at the crossings; the surface inside the solid becomes the cap.")}</div>
+        <div style={note}>{tr("Keep the part of the solid on one side of a surface: a body cut at the ground, or ore trimmed at a fault. The surface inside the solid becomes the cap.")}</div>
         <div style={row}>
           <select value={cutterId} onChange={(e) => setCutterId(e.target.value)} style={inp} aria-label={tr("Surface to clip by")}>
             {hasTerrain && <option value="terrain">{tr("the terrain")}</option>}
@@ -106,7 +106,7 @@ export default function SolidToolsModal({ solid, surfaces = [], meshOf, groundAt
         </div>
         {cutterId === "terrain" && cutterMesh && <div style={note}>{tr("The terrain is sampled on a {n}-point grid over the solid's extent.", { n: cutterMesh.sampled.toLocaleString() })}</div>}
         <div style={{ fontWeight: 600, marginTop: 14 }}>{tr("Combine with another solid")}</div>
-        <div style={note}>{tr("The common volume (ore inside a stope shape), the union (two lenses as one domain) or the difference (a vein with a dyke taken out), each as a new solid with its volume. Both must be closed.")}</div>
+        <div style={note}>{tr("Intersection (ore inside a stope shape), union (two lenses as one domain) or difference (a vein minus a dyke), each as a new solid with its volume. Both must be closed.")}</div>
         <div style={row}>
           <select value={op} onChange={(e) => setOp(e.target.value)} style={{ ...smallSel, width: 170 }} aria-label={tr("Operation")}><option value="intersection">{tr("intersection (common volume)")}</option><option value="union">{tr("union")}</option><option value="difference">{tr("difference (this minus the other)")}</option></select>
           <select value={otherId} onChange={(e) => setOtherId(e.target.value)} style={inp} aria-label={tr("The other solid")}>

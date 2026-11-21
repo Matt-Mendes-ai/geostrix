@@ -105,7 +105,7 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
           {onJoinFile && (
             <div style={{ marginBottom: 10, marginInlineStart: 130 }}>
               <button type="button" onClick={() => joinRef.current?.click()} style={{ ...sel, cursor: "pointer", background: "var(--color-bg-subtle)" }}
-                title={tr("For samples whose data come in two files (a field sheet and the lab's assay sheet): the other file's columns are added to these rows where the sample IDs match.")}>{tr("Add columns from another file (by sample ID)…")}</button>
+                title={tr("For data in two files (a field sheet and the lab's assays): the other file's columns are added to these rows where sample IDs match.")}>{tr("Add columns from another file (by sample ID)…")}</button>
               <input ref={joinRef} type="file" accept=".csv,.txt,.xlsx,.xls" style={{ display: "none" }} aria-label={tr("File to join by sample ID")} onChange={(e) => { const f = e.target.files[0]; if (f) onJoinFile(f); e.target.value = ""; }} />
               {modal.joinNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", marginTop: 4, lineHeight: 1.4, color: modal.joinNote.warn ? "var(--color-warn-text)" : "var(--color-text-muted)" }}>{modal.joinNote.text}</div>}
             </div>
@@ -130,7 +130,7 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
             return <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "-4px 0 8px 130px", lineHeight: 1.4 }}>{tr("The file's \"{col}\" column holds {list}; with no medium column chosen, every row is imported as {medium}.", { col, list, medium: modal.defaultMedium })}</div>;
           })()}
           {/* TASKS.csv #1794 (review #1646, Kodiak) — the QC type apart from the medium: REG / DUP / STD / BLK / Control mark inserts, not media */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }} title={tr("The column that marks standards, blanks and duplicates (REG / DUP / STD / BLK / Control ...). Those rows are kept for Surface QAQC, not drawn as samples. Left on none, the medium column is read for these labels, as before.")}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }} title={tr("The column marking standards, blanks and duplicates (REG / DUP / STD / BLK / Control ...): those rows go to Surface QAQC and are not drawn as samples. On none, these labels are read from the medium column.")}>
             <div style={{ width: 120, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>{tr("QC type")}</div>
             <select value={modal.mapping.qcType || ""} onChange={(e) => setMapping("qcType", e.target.value)} style={{ ...sel, flex: 1 }} aria-label={tr("QC type column")}>
               <option value="">{tr("— none —")}</option>

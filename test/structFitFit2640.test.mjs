@@ -68,6 +68,6 @@ test("#2640 Stage 2 the panel: the fit offered after a pass with seen points, on
   assert.match(p, /const seenPoints = \(out\?\.rows \|\| \[\]\)\.filter\(\(r\) => r\.verdict === "seen"\)\.slice\(0, MAX_FIT_POINTS\);/);
   assert.match(p, /movable: seenPoints\.map\(\(r\) => \(\{ surface: r\.surface, index: r\.index, maxM: r\.maxM \}\)\)/);
   assert.match(p, /\{seenPoints\.length > 0 && !busy && \(/);
-  assert.match(p, /the result is one geometry that fits the survey to the stated uncertainty, not the answer/);
+  assert.match(p, /The result is one geometry that fits, not the answer/ /* #3899 */);
   assert.match(p, /content: fitPointsCsv\(fit\.rows\)/);
 });

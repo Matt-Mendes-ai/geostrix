@@ -37,5 +37,5 @@ test("an oblique look still takes the contact down the hole", () => {
 });
 
 test("the pane says so", () => {
-  assert.match(readFileSync(new URL("../src/components/InterpretPane.jsx", import.meta.url), "utf8"), /Looking straight down \(Top view\) only collars are taken/);
+  assert.match(readFileSync(new URL("../src/components/InterpretPane.jsx", import.meta.url), "utf8"), /In Top view only collars are taken/);
 });

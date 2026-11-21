@@ -394,13 +394,13 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     // TASKS.csv #2265 (review #2174) — on a project drilled from underground the 'top of each hole' is a drill position on a mine level,
     // not the surface: asked first, named for what it is. (Its NPRC / Unknown 'units' are cover since #2227: roleForLithology reads the notes.)
     const ug = collarsLookUnderground(collars, survey);
-    if (ug.underground && !window.confirm(tr("The collars look underground ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): these points would be the first logged unit at the drill positions on the mine levels, not a subcrop map. Make them anyway?", { upward: ug.upward, stacked: ug.stacked }))) return;
+    if (ug.underground && !window.confirm(tr("The collars look underground ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked). These points would sit on the mine levels, not form a subcrop map. Make them anyway?", { upward: ug.upward, stacked: ug.stacked }))) return;
     const rep = { lateStart: [], gap: [] }; // #3841: gap = an unlogged stretch between the cover and the first rock; TASKS.csv #2411 / #2570 — logs that start below the collar
     const depth = String(subDepth).trim() === "" ? null : Number(subDepth); // #2956
     if (depth != null && !(depth >= 0)) { setMapMsg({ ok: false, text: tr("The depth below the collar must be a number of metres, 0 or more.") }); return; }
     const pts = collarSubcrop({ collars, survey, litho: layers.litho, desurveyMethod, roleOf: roleWithCodes(modellingCodes), report: rep, atDepthM: depth }); // roleOf: #2407; atDepthM: #2956
     const skippedCodes = subcropSkippedCodes({ collars, litho: layers.litho, roleOf: roleWithCodes(modellingCodes) }); // #3366
-    const late = rep.lateStart.length ? tr("{n} hole(s) whose log starts below the collar ({a}–{b} m down: an unlogged precollar, or logging only where something was met) were left out: their first logged unit is a point down the hole, not a subcrop ({ids}).", { n: rep.lateStart.length, a: Math.round(Math.min(...rep.lateStart.map((h) => h.logStart)) * 10) / 10, b: Math.round(Math.max(...rep.lateStart.map((h) => h.logStart)) * 10) / 10, ids: rep.lateStart.slice(0, 5).map((h) => h.hole_id).join(", ") + (rep.lateStart.length > 5 ? ", …" : "") }) : "";
+    const late = rep.lateStart.length ? tr("{n} hole(s) whose log starts below the collar ({a}–{b} m down) were left out: their first logged unit is down the hole, not a subcrop ({ids}).", { n: rep.lateStart.length, a: Math.round(Math.min(...rep.lateStart.map((h) => h.logStart)) * 10) / 10, b: Math.round(Math.max(...rep.lateStart.map((h) => h.logStart)) * 10) / 10, ids: rep.lateStart.slice(0, 5).map((h) => h.hole_id).join(", ") + (rep.lateStart.length > 5 ? ", …" : "") }) : "";
     // TASKS.csv #3841 - holes whose log stops after the cover and starts again further down: missing log is not cover, so they are left out and named
     const gapText = rep.gap.length ? tr("{n} hole(s) with an unlogged stretch above the first rock ({a}–{b} m) were left out: missing log is not cover ({ids}).", { n: rep.gap.length, a: Math.round(arrMin(rep.gap.map((h) => h.rockStart - h.coverEnd)) * 10) / 10, b: Math.round(arrMax(rep.gap.map((h) => h.rockStart - h.coverEnd)) * 10) / 10, ids: rep.gap.slice(0, 5).map((h) => h.hole_id).join(", ") + (rep.gap.length > 5 ? ", …" : "") }) : "";
     if (!pts.length) { setMapMsg({ ok: false, text: [depth != null ? tr("No hole's log covers {d} m down.", { d: depth }) /* #2956 */ : tr("No hole has a logged unit under its overburden / casing to place."), late, gapText, skippedText(skippedCodes) /* #3366 */].filter(Boolean).join(" ") }); return; }
@@ -413,9 +413,9 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     setSubcropCard({ name, pts, reach: String(defaultReach(mergePads(pts).points)), depth }); // #2956
     // TASKS.csv #3840 - the first sentence: most holes start in a code that was mapped as rock (OVBN, 'overburden' in the file: 59 of 62 points)
     const dom = depth == null ? dominantStartUnit({ collars, litho: layers.litho, points: pts, roleOf: roleWithCodes(modellingCodes) }) : null;
-    const domText = dom ? tr("{n} of {total} hole(s) start in {code}, and it is mapped here as a unit, not as cover. If {code} is overburden or casing, tick it in the list below and press Make it again.", { n: dom.holes, total: dom.total, code: dom.code }) : "";
-    setMapMsg({ ok: true, text: [domText, depth != null ? tr("{name}: {n} point(s), {units} unit(s): the unit logged {d} m down each hole, at the hole's position at that depth.", { name, n: pts.length, units: layer.categories.length, d: depth }) /* #2956 */ : tr("{name}: {n} point(s), {units} unit(s): the first logged unit under the overburden / casing / no recovery at the top of each hole, at the hole's position at that depth. A start for the map, not a mapped outcrop.", { name, n: pts.length, units: layer.categories.length }),
-      rep.notAtDepth ? tr("{n} hole(s) whose log does not cover {d} m down were left out.", { n: rep.notAtDepth, d: depth }) : "" /* #2956 */, skipped > 0 ? (() => { const lo = subcropLeftOut({ collars, litho: layers.litho, roleOf: roleWithCodes(modellingCodes) }); if (depth != null) lo.coverOnly = 0; /* #3378 — at a depth a hole in cover gives a point */ return tr("{n} hole(s) were left out: {a} with no lithology log, {b} with only blank codes, {c} with only cover (overburden / casing / no recovery).", { n: skipped, a: lo.noLog, b: lo.blankOnly, c: lo.coverOnly }); })() /* #2566 — the reason, not one guess for all */ : "", late, gapText, skippedText(skippedCodes) /* #3366 */, depth == null ? tr("Each point keeps the vertical depth of the cover above it below its collar (cover_m; cover_along_hole_m is its length down the hole): 'Colour by depth of cover' below maps it.") /* #3378 */ : ""].filter(Boolean).join(" ") }); // cover_m: #2956
+    const domText = dom ? tr("{n} of {total} hole(s) start in {code}, mapped here as a unit, not as cover. If it is overburden or casing, tick it below and press Make it again.", { n: dom.holes, total: dom.total, code: dom.code }) : "";
+    setMapMsg({ ok: true, text: [domText, depth != null ? tr("{name}: {n} point(s), {units} unit(s): the unit logged {d} m down each hole, at the hole's position at that depth.", { name, n: pts.length, units: layer.categories.length, d: depth }) /* #2956 */ : tr("{name}: {n} point(s), {units} unit(s): each hole's first logged unit under its cover. A start for the map, not a mapped outcrop.", { name, n: pts.length, units: layer.categories.length }),
+      rep.notAtDepth ? tr("{n} hole(s) whose log does not cover {d} m down were left out.", { n: rep.notAtDepth, d: depth }) : "" /* #2956 */, skipped > 0 ? (() => { const lo = subcropLeftOut({ collars, litho: layers.litho, roleOf: roleWithCodes(modellingCodes) }); if (depth != null) lo.coverOnly = 0; /* #3378 — at a depth a hole in cover gives a point */ return tr("{n} hole(s) were left out: {a} with no lithology log, {b} with only blank codes, {c} with only cover (overburden / casing / no recovery).", { n: skipped, a: lo.noLog, b: lo.blankOnly, c: lo.coverOnly }); })() /* #2566 — the reason, not one guess for all */ : "", late, gapText, skippedText(skippedCodes) /* #3366 */, depth == null ? tr("Each point keeps the vertical depth of cover (cover_m) and its length down the hole (cover_along_hole_m). 'Colour by depth of cover' below maps it.") /* #3378 */ : ""].filter(Boolean).join(" ") }); // cover_m: #2956
   };
   // TASKS.csv #2956 — a code ticked as cover in the subcrop card: its role written as 3D Modelling > Modelling codes would (unticked: stratigraphic)
   const setCoverRole = (code, on) => setModellingCodes((p) => {
@@ -432,7 +432,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     const layer = outlineLayer(c.pts, name, (u) => categoryColor(viewerUiState?.legendOverride?.litho?.[u], LAYER_META.litho, u), { reachM });
     if (!layer.features.length) { setMapMsg({ ok: false, text: tr("No outline could be made from these points.") }); return; }
     addMapLayer(layer);
-    setMapMsg({ ok: true, text: tr("{name}: {n} polygon(s), {units} unit(s): each hole's nearest-hole area, cut back to {r} m from the hole (the median hole spacing is {s} m). A unit map from the drilling, not a mapped outline: its borders lie half-way between holes, so Model it takes no order from them.", { name, n: layer.features.length, units: layer.categories.length, r: reachM, s: Math.round(medianSpacing(mergePads(c.pts).points)) }) + (layer.padsMerged?.pads ? " " + tr("{n} pad(s) with holes within {m} m of each other count as one site each (the commoner unit); {d} of them met different units ({ex}).", { n: layer.padsMerged.pads, m: PAD_M, d: layer.padsMerged.disagree, ex: layer.padsMerged.examples.join("; ") || "-" }) : "") }); /* TASKS.csv #3848 */
+    setMapMsg({ ok: true, text: tr("{name}: {n} polygon(s), {units} unit(s): each hole's area, cut back to {r} m (median hole spacing {s} m). Borders lie half-way between holes, not on mapped contacts: Model it takes no order from them.", { name, n: layer.features.length, units: layer.categories.length, r: reachM, s: Math.round(medianSpacing(mergePads(c.pts).points)) }) + (layer.padsMerged?.pads ? " " + tr("{n} pad(s) with holes within {m} m of each other count as one site each (the commoner unit); {d} of them met different units ({ex}).", { n: layer.padsMerged.pads, m: PAD_M, d: layer.padsMerged.disagree, ex: layer.padsMerged.examples.join("; ") || "-" }) : "") }); /* TASKS.csv #3848 */
   };
   const changeStyleField = (layer, field) => {
     const grad = graduatedStyle(layer.features, field); // TASKS.csv #1600 - a numeric field in classes
@@ -503,7 +503,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     if (!cols.type) cols.type = structureCodeColumn(headers); // #1722 — Struc_Code
     const dh = downholeTableColumns(headers, cols);
     if (dh) {
-      setStructMsg({ ok: false, text: tr("{name} looks like a downhole table ({cols}: a hole id and down-hole depths, no easting or northing). Outcrop measurements need map coordinates: import this file in StrixViewer (drag it onto the view), where downhole structure logs go.", { name: file.name, cols: [dh.hole, dh.from, dh.to, dh.depth, ...dh.angles.slice(0, 2)].filter(Boolean).join(", ") }) });
+      setStructMsg({ ok: false, text: tr("{name} looks like a downhole table ({cols}: a hole id and depths, no easting or northing). Import it in StrixViewer (drag it onto the view) as a downhole structure log.", { name: file.name, cols: [dh.hole, dh.from, dh.to, dh.depth, ...dh.angles.slice(0, 2)].filter(Boolean).join(", ") }) });
       return;
     }
     // Header hints like "Easting UTM09" say the zone but not the datum, so the source CRS defaults to the
@@ -607,9 +607,9 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         + (out.derivedFromStrike ? (out.strikeRule === "lhr" ? tr(" {derivedFromStrike} dip direction(s) derived from strike by the left-hand rule (strike − 90°).", { derivedFromStrike: out.derivedFromStrike }) : tr(" {derivedFromStrike} dip direction(s) derived from strike by the right-hand rule.", { derivedFromStrike: out.derivedFromStrike })) : "")
         + (out.fromQuadrant ? tr(" {n} dip direction(s) taken from the strike and the dip quadrant.", { n: out.fromQuadrant }) : "") // #2083
         + (out.quadrantUnread ? tr(" {n} dip quadrant(s) could not be read (not N, NE, E…), so the strike convention was used there.", { n: out.quadrantUnread }) : "")
-        + (out.rhrMismatches ? (out.strikeRule === "lhr" ? tr(" {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart by the left-hand rule — the dip direction was used; check whether those strikes are right-hand-rule.", { rhrMismatches: out.rhrMismatches }) : tr(" {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart — the dip direction was used; check whether those strikes are left-hand-rule.", { rhrMismatches: out.rhrMismatches })) : "")
-        + (noZ ? (terrain ? structNoZText(noZ, structureGroundCounts(out.rows, terrain, terrainGroundAt)) : (() => { const ug = collars.length > 1 && collarsLookUnderground(collars, survey).underground; /* #3368 — the ground they are drawn on, said */ return noTerrainGround(collars, ug) ? tr(" {noZ} had no elevation: drawn on the surface through the collar elevations, as the map layers are, until a terrain is loaded (Maps > Terrain), then placed on it.", { noZ }) : tr(" {noZ} had no elevation: drawn flat at {z} m until a terrain is loaded (Maps > Terrain), then placed on it.", { noZ, z: Math.round(surfaceFlatElevation(collars, surfaceSamples, ug)) }); })()) : "") // #1448 — they were said to 'sit on the terrain' with none loaded
-        + (otherTypes.length ? tr(" Type code(s) {codes} are classed as Other: not a fault, breccia, vein, contact, joint, bedding, foliation or cleavage code GeoStrix knows. Pick a class for each on the import card (kept for this project), or rename them in the file.", { codes: otherTypes.slice(0, 8).join(", ") + (otherTypes.length > 8 ? "…" : "") }) : "") // #2082
+        + (out.rhrMismatches ? (out.strikeRule === "lhr" ? tr(" {rhrMismatches} row(s) have a strike and dip direction not 90° apart by the left-hand rule: the dip direction was used. Check those strikes for the right-hand rule.", { rhrMismatches: out.rhrMismatches }) : tr(" {rhrMismatches} row(s) have a strike and dip direction not 90° apart: the dip direction was used. Check those strikes for the left-hand rule.", { rhrMismatches: out.rhrMismatches })) : "")
+        + (noZ ? (terrain ? structNoZText(noZ, structureGroundCounts(out.rows, terrain, terrainGroundAt)) : (() => { const ug = collars.length > 1 && collarsLookUnderground(collars, survey).underground; /* #3368 — the ground they are drawn on, said */ return noTerrainGround(collars, ug) ? tr(" {noZ} had no elevation: drawn on the surface through the collar elevations until a terrain is loaded (Maps > Terrain), then placed on it.", { noZ }) : tr(" {noZ} had no elevation: drawn flat at {z} m until a terrain is loaded (Maps > Terrain), then placed on it.", { noZ, z: Math.round(surfaceFlatElevation(collars, surfaceSamples, ug)) }); })()) : "") // #1448 — they were said to 'sit on the terrain' with none loaded
+        + (otherTypes.length ? tr(" Type code(s) {codes} are classed as Other (GeoStrix does not know them). Pick a class for each on the import card (kept for this project), or rename them in the file.", { codes: otherTypes.slice(0, 8).join(", ") + (otherTypes.length > 8 ? "…" : "") }) : "") // #2082
         + crsNote + northNote,
     });
     setPendingStruct(null);
@@ -642,7 +642,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     <>
       {importReview && <MapImportReview rows={importReview.rows} onCancel={() => importReview.resolve(null)} onConfirm={(on) => importReview.resolve(on)} />}
       {part !== "structures" && (<>
-      <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Map layers")}<InfoButton title={tr("Map layers")} text={tr("Import surface mapping — a geology map, alteration or outcrop polygons, fault traces, sample points — from a GeoPackage (.gpkg), shapefile (.zip, or .shp with its .dbf/.prj), MapInfo TAB (with its .map/.id/.dat) or MIF (with its .mid), GPX, GeoJSON or KML / KMZ and drape it on the terrain in the 3D view, coloured by an attribute. Select a QGIS style (.qml) in the same dialog to reuse your map's colours; otherwise each unit gets its own colour, editable below. Every feature table in a GeoPackage becomes its own layer. Polygons keep their holes and multipart pieces. A layer with a known CRS is reprojected into the project's EPSG ({v}). Mapped contacts between units can be projected underground from the 3D Modelling tab.", { v: project?.epsg ?? "?" })} />
+      <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Map layers")}<InfoButton title={tr("Map layers")} text={tr("Import a geology map, alteration or outcrop polygons, fault traces or sample points and drape them on the terrain, coloured by an attribute. A QGIS style (.qml) reuses your map's colours. Layers are reprojected into the project's EPSG ({v}). Contacts can be projected underground in 3D Modelling.", { v: project?.epsg ?? "?" })} />
       </div>
       <SourceCrsField
         value={mapSourceEpsg} onChange={(c) => setMapSourceEpsg(c === "" ? "" : String(c))} mineGrid={mineSourceOf(project) /* #2684 */}
@@ -658,7 +658,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         onChange={(e) => { applyQmlToLayer(e.target.files[0]); e.target.value = ""; }} />
       {/* TASKS.csv #1719 (review #1645, Copley) — the collars' top-of-hole lithology as a starting map */}
       {collars.length > 0 && (layers.litho || []).length > 0 && (
-        <button onClick={() => makeSubcrop()} style={{ ...pBtn, marginTop: 6 }} title={tr("A point map layer at each hole: the first logged unit under its overburden, casing or no recovery, coloured like the logs. It lists the hole and the depth of cover in its attributes.")}>
+        <button onClick={() => makeSubcrop()} style={{ ...pBtn, marginTop: 6 }} title={tr("A point layer: each hole's first logged unit under its cover, coloured like the logs, with the hole and the depth of cover as attributes.")}>
           <MapIcon size={14} /> {tr("Subcrop from collars")}
         </button>
       )}
@@ -679,7 +679,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         const others = starts.filter((c) => !skipKeys.has(c.code.toUpperCase()));
         return (
           <div style={{ marginTop: 8, padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
-            <div style={{ marginBottom: 4 }}>{tr("The codes skipped as cover (ticked), then what the other holes start in (the first logged code at the collar). Untick a code that is rock, or tick one that is cover, and make it again. A tick sets the code's role to overburden and an untick to stratigraphic, as 3D Modelling > Modelling codes does.")}</div>
+            <div style={{ marginBottom: 4 }}>{tr("Ticked codes are skipped as cover. Untick rock, tick cover, then make it again: this sets the code's role (overburden or stratigraphic), as 3D Modelling > Modelling codes does.")}</div>
             {skipped.map((c) => (
               <label key={"s:" + c.code} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <input type="checkbox" checked={c.role === "overburden" || c.role === "no recovery"} onChange={(e) => setCoverRole(c.code, e.target.checked)} aria-label={tr("{code} is cover", { code: c.code })} />
@@ -702,7 +702,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               <span>{tr("Outline the units out to")}</span>
               <NumberInput min={1} value={subcropCard.reach === "" ? null : subcropCard.reach} onChange={(v) => setSubcropCard((c) => ({ ...c, reach: String(v) }))} aria-label={tr("Outline distance from the holes, m")} style={{ ...numInput, width: 70 }} />
               <span>{tr("m from a hole")}</span>
-              <button onClick={outlineSubcrop} title={tr("A polygon map: each hole's nearest-hole area, cut back to this distance from the hole, with the unit of its point. Its borders are not mapped contacts.")} style={{ ...pBtn, marginBottom: 0, width: "auto" }}>{tr("Outline")}</button>
+              <button onClick={outlineSubcrop} title={tr("A polygon map of each hole's nearest-hole area, cut back to this distance, with its point's unit. Borders are not mapped contacts.")} style={{ ...pBtn, marginBottom: 0, width: "auto" }}>{tr("Outline")}</button>
             </div>
           </div>
         );
@@ -724,7 +724,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
             <label style={{ ...row, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
               <input type="checkbox" checked={l.drapeMode === "terrain" && !!terrain} disabled={!terrain} title={!terrain && l.drapeMode === "terrain" ? tr("Flat for now: it drapes on the terrain once one is loaded.") : undefined} /* #1606 */
                 onChange={(e) => updateMapLayer(l.id, { drapeMode: e.target.checked ? "terrain" : "flat" })} />
-              <span style={{ color: "var(--color-text-caption)" }}>{tr("Drape on terrain{v}", { v: !terrain ? tr(" (make one in Maps > Terrain first: fetch one, import a DEM, or offline from points, from the project's samples and collars, or from a block model's top)") /* #1824; one direction, as the Surface structures text (#3381) */ : "" })}</span>
+              <span style={{ color: "var(--color-text-caption)" }}>{tr("Drape on terrain{v}", { v: !terrain ? tr(" (make one in Maps > Terrain first)") /* #1824; one direction, as the Surface structures text (#3381) */ : "" })}</span>
             </label>
             {l.hasZ && !(l.drapeMode === "terrain" && terrain) && ( /* TASKS.csv #1601 - a polygon: outlines only (a drape is a flat picture) */
               <label style={{ ...row, cursor: "pointer" }}>
@@ -793,7 +793,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
                 {legendOpen && (
                   <div style={{ marginTop: 5, display: "flex", flexDirection: "column", gap: 3 }}>
                     {/* TASKS.csv #2005 — units named by age ('Late Jurassic') in the international time scale's colours, from Macrostrat */}
-                    <button type="button" style={{ ...pBtn, padding: "2px 6px", width: "auto", fontSize: "var(--font-size-xs)", marginBottom: 4 }} title={tr("Colour the units whose name gives an age (Late Jurassic, Eocene ...) in the international time scale's colours (Macrostrat, CC BY 4.0, included with GeoStrix: no internet needed). The others keep their colours.")}
+                    <button type="button" style={{ ...pBtn, padding: "2px 6px", width: "auto", fontSize: "var(--font-size-xs)", marginBottom: 4 }} title={tr("Colour units named for an age (Late Jurassic, Eocene ...) in the international time scale's colours (Macrostrat, CC BY 4.0; works offline). Other units keep their colours.")}
                       onClick={async () => {
                         try {
                           const { bundledTimeScaleIntervals, timeScaleColours } = await import("../lib/macrostratColours.js"); // #2690 — bundled, offline
@@ -826,13 +826,13 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       {part === "maps" && <CoveringLayers />}{/* TASKS.csv #1823 — in the Geology map pane; the tab's home has 'On the map' (#1597) */}
       </>)}
       {part !== "maps" && (<>
-      <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Surface structures")}<InfoButton title={tr("Surface structures")} text={tr("Import outcrop structural measurements from a CSV or a MapInfo point table (TAB or MIF) — easting, northing, optional elevation, dip, and dip direction and/or strike (right-hand rule), plus a structure type and comments if present. Each measurement is drawn in the 3D view as a disc lying in the measured plane, coloured by type (fault, bedding, foliation, vein, joint, contact…). Rows without an elevation sit on the terrain. These measurements are what the 3D Modelling tab uses to set the dip when projecting mapped contacts underground.")} />
+      <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Surface structures")}<InfoButton title={tr("Surface structures")} text={tr("Import outcrop structural measurements from a CSV or MapInfo point table (easting, northing, dip, and dip direction or strike). Each is a disc in the measured plane, coloured by type; rows without elevation sit on the terrain. 3D Modelling uses them to set contact dips.")} />
       </div>
-      {!terrain && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, marginBottom: 8 }}>{tr("No terrain yet: make one in Maps > Terrain (fetch one, import a DEM, or offline from points, or from the project's samples and collars). Map layers and measurements then sit on the ground.")}</div>}{/* TASKS.csv #1719 */}
+      {!terrain && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, marginBottom: 8 }}>{tr("No terrain yet: make one in Maps > Terrain. Map layers and measurements then sit on the ground.")}</div>}{/* TASKS.csv #1719 */}
       <button onClick={() => structInput.current.click()} style={pBtn} title={tr("Formats: .csv, .xlsx, MapInfo .tab / .mif")}>
         <Compass size={14} />{" "}{tr("Import structure measurements…")}</button>
       {sampleStructs && !pendingStruct && ( /* TASKS.csv #3842 - samples already in the project that carry a strike and a dip */
-        <button onClick={() => { setStructMsg(null); setPendingStruct({ name: tr("Surface samples"), rows: sampleStructs.rows, headers: sampleStructs.headers, cols: sampleStructs.cols, sourceEpsg: project?.epsg ? String(project.epsg) : "" }); }} style={pBtn} title={tr("The samples already in the project that carry a Strike and a Dip: check the columns, then they are added as outcrop measurements at their sample positions.")}>
+        <button onClick={() => { setStructMsg(null); setPendingStruct({ name: tr("Surface samples"), rows: sampleStructs.rows, headers: sampleStructs.headers, cols: sampleStructs.cols, sourceEpsg: project?.epsg ? String(project.epsg) : "" }); }} style={pBtn} title={tr("Samples already in the project with a Strike and a Dip: check the columns, then add them as outcrop measurements at their positions.")}>
           <Compass size={14} />{" "}{tr("Add the {n} sample(s) with a strike and dip as structures", { n: sampleStructs.n })}</button>
       )}
       <div style={{ display: "flex", gap: 6, marginTop: -2, marginBottom: 8 }}>{/* TASKS.csv #1719 — start mapping without a file */}
@@ -885,7 +885,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
             </div>
           ))}
           {pendingStruct.cols.strike && ( /* TASKS.csv #2083 — how a strike becomes a dip direction where the file gives none */
-            <div style={row} title={tr("Used for rows with a strike and no dip direction (and no dip quadrant). Right-hand rule: the plane dips to the right of the strike, dip direction = strike + 90°. Left-hand rule: to the left, strike − 90°.")}>
+            <div style={row} title={tr("For rows with a strike and no dip direction or quadrant. Right-hand rule: the plane dips to the right of the strike (strike + 90°). Left-hand rule: to the left (strike − 90°).")}>
               <span style={lbl}>{tr("Strikes")}</span>
               <select value={pendingStruct.cols.strikeRule || "rhr"} onChange={(e) => setPendingStruct((p) => ({ ...p, cols: { ...p.cols, strikeRule: e.target.value } }))} style={select} aria-label={tr("Strike convention")}>
                 <option value="rhr">{tr("Right-hand rule (dip direction = strike + 90°)")}</option>
@@ -954,7 +954,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               <span style={{ color: "var(--color-text-muted)", width: 40, textAlign: "right" }}>{s.size ?? 25} m</span>
             </div>
             <div style={row}>{/* TASKS.csv #3091 — Matt: "the option to adjust the thickness of lines of symbols"; saved with the set like the size */}
-              <span style={lbl} title={tr("The width of the symbols' lines, as a multiple of the USGS standard's line weight; in the 3D view, the Google Earth icons, the legends and the Layout")}>{tr("Line thickness")}</span>
+              <span style={lbl} title={tr("The width of the symbols' lines, as a multiple of the USGS standard weight (3D view, Google Earth icons, legends and Layout)")}>{tr("Line thickness")}</span>
               <input type="range" min={0.25} max={6} step={0.25} value={lineScaleOf(s)} onChange={(e) => updateSurfaceStructureSet(s.id, { lineScale: Number(e.target.value) })} aria-label={tr("Line thickness")} style={{ flex: 1 }} />
               <span style={{ color: "var(--color-text-muted)", width: 40, textAlign: "right" }}>{`× ${lineScaleOf(s)}`}</span>
             </div>

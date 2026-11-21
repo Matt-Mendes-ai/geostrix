@@ -39,5 +39,5 @@ test("the viewer feeds the modelling tools the checked holes when Model area say
   assert.match(p, /aria-label=\{tr\("Model area"\)\}/);
   assert.match(p, /Holes checked in the Holes list \(\{n\} of \{m\}\)/);
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
-  assert.match(r, /v: missOverHalfCell\(fit\) \? tr\(" The typical miss is more than half a cell: model a smaller area \(Model settings › Model area, the holes of one prospect\) before a finer detail\."\) : ""/);
+  assert.match(r, /v: missOverHalfCell\(fit\) \? tr\(" The typical miss is over half a cell: model a smaller area first \(Model settings › Model area, one prospect's holes\)\."\) : ""/);
 });

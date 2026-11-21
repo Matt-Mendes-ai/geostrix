@@ -51,7 +51,7 @@ test("wiring: (3) the import says the upward holes; (5) the declination; (9) (10
   const u = readFileSync(new URL("../src/components/UndrilledZonesPane.jsx", import.meta.url), "utf8");
   assert.ok(u.includes("{choices.open.length > 0 && !unit && <div style={note}>{tr(OPEN_ROUTE"));
   const keys = ["{n} hole(s) with a positive dip among negative ones were added as upward holes: {list}. Check them.", " (declination {d}° {ew}, IGRF, {date})", "Dip / Length start from the {n} drilled holes (median), Az from the mean direction of the {m} inclined ones{spread}; each hole added is kept for the next.", " (they point many ways: check it)",
-    "All the evidence comes from the drillholes the cards read, so the score exists only within {reach} m of their traces: it ranks drilled ground, not untested targets. A surface evidence (a survey, a raster, soil or rock samples, a map layer) is what can score beyond the holes.",
-    "Only the {v} cells that have every evidence are scored. Fewest values: {list}. Combine with fuzzy OR or the algebraic sum (they skip a missing evidence) to score the others, or remove those."];
+    "The score exists only within {reach} m of the holes the cards read: it ranks drilled ground, not untested targets. Add a surface evidence to score beyond them.",
+    "Only the {v} cells with every evidence are scored (fewest values: {list}). Use fuzzy OR or the algebraic sum, which skip a missing evidence, or remove those."];
   for (const l of ["es", "pt", "fr", "ar"]) { const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8")); for (const k of keys) assert.ok(d[k], `${l}: ${k}`); }
 });

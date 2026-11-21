@@ -38,7 +38,7 @@ test("#3840 the first map is bedrock with the description known; with it unknown
   const p = read("../src/components/SurfaceMappingPanel.jsx");
   assert.match(p, /const dom = depth == null \? dominantStartUnit\(\{ collars, litho: layers\.litho, points: pts, roleOf: roleWithCodes\(modellingCodes\) \}\) : null;/);
   assert.match(p, /setMapMsg\(\{ ok: true, text: \[domText, /); // first in the notice
-  hasKeys(["{n} of {total} hole(s) start in {code}, and it is mapped here as a unit, not as cover. If {code} is overburden or casing, tick it in the list below and press Make it again."]);
+  hasKeys(["{n} of {total} hole(s) start in {code}, mapped here as a unit, not as cover. If it is overburden or casing, tick it below and press Make it again."]);
 });
 
 test("#3841 cover to 4.4 m and the next logged rock at 135.9 m: the hole is left out and named; a continuous log still maps", () => {

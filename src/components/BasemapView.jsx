@@ -366,7 +366,7 @@ export default function BasemapView({
         )}
         {online && tileState.failed >= 3 && !tileState.ok && (
           <div style={{ position: "absolute", left: 12, top: 12, right: 60, padding: "8px 10px", background: "rgba(255,255,255,0.92)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", pointerEvents: "none" }}>
-            {tr("The map tiles could not be loaded (offline, or the tile server is blocked). The area can still be drawn here or chosen from the list.")}
+            {tr("Map tiles could not be loaded (offline, or the tile server is blocked). You can still draw the area or choose it from the list.")}
           </div>
         )}
         {center && (collarLonLat.length > 0 || (areaOptions || []).length > 0) && ( /* #1629 — the project's own reference, offline or not */
@@ -400,7 +400,7 @@ export default function BasemapView({
               // can explain WHY. A greyed-out button with no reason is the thing that sends someone
               // hunting through settings for a problem that isn't theirs.
               title={bulkCacheBlocked
-                ? tr("Offline pre-download isn't available on the OpenStreetMap layer — their tile policy doesn't permit downloading areas in advance. Switch to Topo or Satellite to pre-cache.")
+                ? tr("Switch to Topo or Satellite to pre-cache: the OpenStreetMap layer's tile policy doesn't permit downloading areas in advance.")
                 : tr("Download this area's map tiles for offline use (this zoom level + 2 closer levels)")}
               style={{ ...iconBtnStyle, opacity: offlineDownloading ? 0.5 : bulkCacheBlocked ? 0.55 : 1, cursor: offlineDownloading ? "default" : "pointer" }}
             ><Download size={14} /></button>

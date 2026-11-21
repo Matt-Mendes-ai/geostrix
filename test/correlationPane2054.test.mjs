@@ -28,5 +28,5 @@ test("focus 'correlate' leaves out the codes list and closed bodies, and keeps p
     const opened = (before.match(/focus !== "correlate" && /g) || []).length, closedCodes = before.includes("Codes (youngest at the top)") ? 1 : 0, closedBody = before.includes("Closed body of a unit") ? 1 : 0;
     assert.equal(opened, closedCodes + closedBody, `${kept} is outside the hidden sections`);
   }
-  assert.ok(pane.includes('focus === "correlate" ? <div style={{ ...small, marginBottom: 8 }}>{tr("Hole-to-hole correlation: pick an interval and connect it to the same unit in the next hole'));
+  assert.ok(pane.includes('focus === "correlate" ? <div style={{ ...small, marginBottom: 8 }}>{tr("Hole-to-hole correlation: connect intervals of one unit'));
 });

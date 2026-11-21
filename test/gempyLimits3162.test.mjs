@@ -138,13 +138,13 @@ test("a drillhole stack over the work budget is asked about before the run (afte
   assert.ok(at > s.indexOf("Run the stack as a layer-cake?"), "after the layer-cake offer");
   assert.ok(at < s.indexOf("\"Running {label} ("), "before the run starts");
   const block = s.slice(at, at + 4200);
-  assert.match(block, /if \(!window\.confirm\(tr\("This GemPy run is about \{x\} times the work/);
+  assert.match(block, /if \(!window\.confirm\(tr\("This GemPy run is about \{x\} times a few-minute run/); // #3899: shorter
   assert.match(block, /setImplicitBusy\(false\);\s*setNotices\(\(p\) => \[\.\.\.p, notice\("Not run: about \{x\} times the work/);
   assert.match(block, /overWork = x;/);
   assert.doesNotMatch(block, /thinForWork/, "logged picks are not thinned");
   for (const l of ["es", "pt", "fr", "ar"]) {
     const j = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
-    for (const k of ["This GemPy run is about {x} times the work of a run sized for a few minutes ({p} contact points, {o} orientations, {s} surfaces, a block of {b} cells): about {m} minutes {how}, and about {g} GB of memory{warn}. The 15-minute stop is off for it: Cancel on the status bar stops it. Fewer units, a smaller Model area or a lower Resolution (Model settings) shorten it. Run it?", ", more than a 16 GB computer can give it: the run may fail or stall the computer", "by this computer's last {n} GemPy run(s)", "at the rate measured on a busy desktop (no GemPy run timed on this computer yet)",
+    for (const k of ["This GemPy run is about {x} times a few-minute run ({p} contact points, {o} orientations, {s} surfaces, {b} cells): about {m} minutes {how} and {g} GB of memory{warn}. The 15-minute stop is off: Cancel on the status bar stops it. Fewer units, a smaller Model area or a lower Resolution (Model settings) shorten it. Run it?", ", more than a 16 GB computer can give it: the run may fail or stall the computer", "by this computer's last {n} GemPy run(s)", "at the rate measured on a busy desktop (no GemPy run timed on this computer yet)",
       "Not run: about {x} times the work of a run sized for a few minutes ({p} contact points, {o} orientations, {s} surfaces, a block of {b} cells): about {m} minutes {how}, and about {g} GB of memory{warn}. Fewer units, a smaller Model area or a lower Resolution (Model settings) shorten it."]) assert.ok(j[k], `${l}: ${k}`);
   }
 });
@@ -182,7 +182,7 @@ test("#3215 the engine's peak memory: the largest field's rows squared (measured
   assert.match(s, /const gb = gempyPeakGB\(specs, workOpts\);/);
   // Main: over 70 % of this computer's memory (16 GB assumed where unread) it is refused, not asked about; before the question
   assert.match(s, /const info = await problemReportInfo\(\)\.catch\(\(\) => null\), ramGB = info\?\.memoryGB\?\.total > 0 \? info\.memoryGB\.total : null;/);
-  assert.match(s, /if \(gb > GEMPY_RAM_SHARE \* \(ramGB \|\| GEMPY_ASSUMED_RAM_GB\)\) \{\s*setImplicitBusy\(false\);\s*setNotices\(\(p\) => \[\.\.\.p, errorNotice\(tr\("Not run: the modelling engine would need about \{g\} GB/);
+  assert.match(s, /if \(gb > GEMPY_RAM_SHARE \* \(ramGB \|\| GEMPY_ASSUMED_RAM_GB\)\) \{\s*setImplicitBusy\(false\);\s*setNotices\(\(p\) => \[\.\.\.p, errorNotice\(tr\("Not run: needs about \{g\} GB of memory/ /* #3899 */);
   assert.ok(s.indexOf("if (gb > GEMPY_RAM_SHARE") < s.indexOf("if (!window.confirm(tr(\"This GemPy run is about"), "refused before it is asked");
   assert.equal(GEMPY_RAM_SHARE, 0.7); assert.equal(GEMPY_ASSUMED_RAM_GB, 16);
 });

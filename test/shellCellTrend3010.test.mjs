@@ -28,7 +28,7 @@ test("wired: the pane's note, the run's record and the tooltip", () => {
 
 test("the 'left outside' line says each cause for its own composites (not estimated / estimated below the cutoff)", () => {
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
-  assert.match(r, /inShell\.noData \? tr\("\\"\{label\}\\" leaves \{n\} of its \{above\} composite\(s\) at\/above \{cutoff\} \{unit\} outside the shell on blocks that were not estimated/);
+  assert.match(r, /inShell\.noData \? tr\("\\"\{label\}\\" leaves \{n\} of its \{above\} composite\(s\) at\/above \{cutoff\} \{unit\} outside the shell, on blocks the Min holes rule \(\{minHoles\}\) or the search radius left unestimated/ /* #3899 */);
   assert.match(r, /inShell\.outside \? tr\("\\"\{label\}\\": \{n\} of its \{above\} composite\(s\) at\/above \{cutoff\} \{unit\} sit on blocks estimated below it/);
   assert.ok(!r.includes("({noData} of them on blocks that were not estimated)"), "the old line that blamed Min holes / the search for both");
 });

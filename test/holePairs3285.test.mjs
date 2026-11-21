@@ -45,6 +45,6 @@ test("wiring: the point colour and tooltip, the note; keys", () => {
   for (const l of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
     for (const k of [" from {h} hole pair(s)", " (from under {m} pairs of holes — not a reliable measurement between holes)",
-      "Between holes, each lag rests on the pairs of holes it spans: some lags here come from under {m} pairs of holes (shown in red), each counted many times over in the pairs of composites. Read them as a few hole-to-hole comparisons, not as that many measurements."]) assert.ok(d[k], `${l}: ${k}`);
+      "Between holes, some lags (in red) rest on under {m} pairs of holes, each counted many times among the composite pairs: read them as a few hole-to-hole comparisons, not as that many measurements."]) assert.ok(d[k], `${l}: ${k}`);
   }
 });

@@ -9,5 +9,5 @@ test("the ground is the terrain, or the collars only when they are not undergrou
   assert.ok(s.includes("const ug = terrain ? null : collarsLookUnderground(collars, survey);"));
   assert.ok(s.includes("runUndrilledZonesAsync(args, terrain ? { terrain } : onCollars ? { collars: collarsForGround(collars, survey) } : null)")); // #2258: the worker builds the ground from these
   assert.ok(s.includes("underground: ug?.underground ? ug : null"));
-  assert.ok(s.includes('tr("No part of the solid was cut as air: the collars look like underground collars'));
+  assert.ok(s.includes('tr("No air was cut: the collars look underground'));
 });

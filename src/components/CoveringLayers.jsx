@@ -16,7 +16,7 @@ export default function CoveringLayers() {
   return (
     <div style={{ marginTop: 12 }}>
       <div className="ge-section-label" style={{ marginBottom: 4 }}>{tr("Also drawn over the map")}</div>
-      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, marginBottom: 4 }}>{tr("Block models and rasters can hide the map in the view. Untick one to see the map under it; StrixViewer's layer list shows the same setting.")}</div>
+      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, marginBottom: 4 }}>{tr("Untick a block model or raster that hides the map in the view; StrixViewer's layer list has the same setting.")}</div>
       {items.map((i) => (
         <label key={i.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text)", padding: "2px 0" }}>
           <input type="checkbox" checked={i.visible} onChange={(e) => i.set(e.target.checked)} aria-label={tr("Show {name}", { name: i.name })} />

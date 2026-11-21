@@ -82,7 +82,7 @@ export default function BlockCalculatorModal({ onClose }) {
           <span style={{ display: "flex", alignItems: "center", gap: 10 }}><button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("block-calculator")} aria-label={tr("Help: {name}", { name: tr("Block calculator") })} title={tr("Help for this tool (F1, works offline)")}>?</button><button type="button" onClick={onClose} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={18} /></button></span>
         </div>
         <div style={{ padding: 16, overflowY: "auto", fontSize: "var(--font-size-base)" }}>
-          <div style={{ ...small, marginBottom: 12, lineHeight: 1.45 }}>{tr("A new block model whose value is a formula over block models on the same blocks. A block gets a value only where every model the formula reads has one; elsewhere it is left out, never set to zero.")}</div>
+          <div style={{ ...small, marginBottom: 12, lineHeight: 1.45 }}>{tr("A new block model from a formula over block models on the same blocks. A block that lacks a value in any model the formula reads is left out, not set to zero.")}</div>
           <div style={{ ...small, marginBottom: 6 }}>{tr("Block models in the formula")}</div>
           {picked.length > 0 && (
             <table style={{ borderCollapse: "collapse", marginBottom: 8, width: "100%" }}>

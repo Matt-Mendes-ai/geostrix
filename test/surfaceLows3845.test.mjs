@@ -95,7 +95,7 @@ test("#3850 every other repeating unit is named with its counts, the larger firs
   const m = read("../src/components/MapModelPanel.jsx");
   assert.match(m, /\.slice\(1\)\.sort\(\(a, b\) => b\[1\]\.runs - a\[1\]\.runs\)\.slice\(0, 5\)/);
   assert.match(m, /Also met more than once down the holes: \{list\}\./);
-  hasKeys(["Also met more than once down the holes: {list}. A unit that repeats like this is the host between sheets, or an overprint (an alteration or deformation zone), not a bed: its contacts here are not stratigraphic tops.", "{unit} ({r} times in {h} hole(s), up to {max} in one)"]);
+  hasKeys(["Also met more than once down the holes: {list}. Such a unit is the host between sheets or an overprint (alteration, deformation), not a bed: its contacts here are not stratigraphic tops.", "{unit} ({r} times in {h} hole(s), up to {max} in one)"]);
 });
 
 test("#3851 slips: a repeated header row, the zero-elevation rule, the CRS sentence", () => {
@@ -105,10 +105,10 @@ test("#3851 slips: a repeated header row, the zero-elevation rule, the CRS sente
   assert.equal(surfaceFlatRule([], false, [{ x: 1, y: 1 }]), "zero");
   assert.equal(surfaceFlatRule([], false, [{ x: 1, y: 1, z: 30 }]), "samples");
   assert.equal(surfaceFlatRule([{ z: 100 }], false, [{ x: 1, y: 1 }]), "collars"); assert.equal(surfaceFlatRule([], false), "samples");
-  assert.match(read("../src/modules/viewer/SurfacePlacementNotices.jsx"), /counts\.flatRule === "zero" \? tr\("\{n\} surface sample\(s\) have no elevation, and no collar or sample gives one: drawn flat at 0 m\./);
+  assert.match(read("../src/modules/viewer/SurfacePlacementNotices.jsx"), /counts\.flatRule === "zero" \? tr\("Load a terrain \(Maps > Terrain\) to place \{n\} surface sample\(s\) on the ground: with no elevation from a collar or sample, they are drawn flat at 0 m\./ /* #3899: the action first */);
   assert.match(read("../src/components/ProjectCrsModal.jsx"), /Choose the CRS your coordinates \(collars, samples, maps\) are in\./);
   const p = read("../src/components/SurfaceMappingPanel.jsx");
   assert.match(p, /const usable = parseStructureRows\(pendingStruct\.rows, pendingStruct\.cols, project\?\.structureCodeClasses\)\.rows;/); // only the codes of the rows that are imported
-  hasKeys(["{n} repeated header row(s) inside the file", "{n} surface sample(s) have no elevation, and no collar or sample gives one: drawn flat at 0 m. Load a terrain (Maps > Terrain) to place them on the ground.",
+  hasKeys(["{n} repeated header row(s) inside the file", "Load a terrain (Maps > Terrain) to place {n} surface sample(s) on the ground: with no elevation from a collar or sample, they are drawn flat at 0 m.",
     "Not set yet. Choose the CRS your coordinates (collars, samples, maps) are in."]);
 });

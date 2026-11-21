@@ -35,7 +35,7 @@ export default function ShellCapNote({ assays, symbol, unit, assayElements, incl
   const cvText = Math.round(cv);
   if (Number.isFinite(capValue) && capValue > 0) {
     if (auto.current.symbol === symbol && auto.current.value === capValue && auto.current.lifted != null) // #3781
-      return <div style={note}>{tr("Capped at {cap} by default: the P99 of the samples at or above the {cutoff} cut-off. The whole column's P99 ({p99}) is not above the cut-off and would cap every sample under it. Clear the cap to run uncapped; the result says which.", { cap: capValue, cutoff, p99: auto.current.lifted })}</div>;
+      return <div style={note}>{tr("Capped at {cap} by default, the P99 of the samples at or above the {cutoff} cut-off: the whole column's P99 ({p99}) is not above the cut-off. Clear the cap to run uncapped.", { cap: capValue, cutoff, p99: auto.current.lifted })}</div>;
     return auto.current.symbol === symbol && auto.current.value === capValue
       ? <div style={note}>{tr("Capped at P99 = {cap} by default: this element's coefficient of variation is {cv}%. Clear the cap to run uncapped; the result says which.", { cap: capValue, cv: cvText })}</div>
       : Number.isFinite(cutoff) && cutoff > 0 && capValue <= cutoff ? <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("The cap ({cap}) is not above the {cutoff} cut-off: every sample is capped under it and the shell has nothing to enclose. Raise or clear the cap.", { cap: capValue, cutoff })}</div> : null; // #3781 — a typed cap under the cut-off, said before Run

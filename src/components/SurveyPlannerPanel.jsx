@@ -155,7 +155,7 @@ export default function SurveyPlannerPanel({ onClose }) {
               {[1, 2, 3, 4].map((o) => <label key={o} style={{ ...ctl, display: "flex", alignItems: "center", gap: 3 }}><input type="checkbox" checked={streams.orders.includes(o)} onChange={(e) => setStreams((s) => ({ ...s, orders: e.target.checked ? [...s.orders, o].sort() : s.orders.filter((x) => x !== o) }))} />{o}</label>)}
               <label style={ctl}>{tr("Catchment from (km²)")}<NumberInput min={0.01} step={0.1} value={streams.minAreaKm2} onChange={(v) => setStreams((s) => ({ ...s, minAreaKm2: v }))} style={inp} wrapStyle={{ display: "flex" }} /></label>
               <label style={ctl}>{tr("to (km²)")}<NumberInput min={0.1} step={1} value={streams.maxAreaKm2} onChange={(v) => setStreams((s) => ({ ...s, maxAreaKm2: v }))} style={inp} wrapStyle={{ display: "flex" }} /></label>
-              <div style={{ ...note, flexBasis: "100%" }}>{tr("A site is proposed on each tributary just above its confluence with an equal or larger stream, so it samples that catchment only. Regional programs often aim at one site per few square kilometres; check access in the field.")}</div>
+              <div style={{ ...note, flexBasis: "100%" }}>{tr("One site per tributary, just above its confluence with an equal or larger stream, so it samples that catchment only. Regional programs often use one site per few square kilometres; check access in the field.")}</div>
             </div>
           )}
           <div style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -194,7 +194,7 @@ export default function SurveyPlannerPanel({ onClose }) {
                 <button type="button" style={dl} onClick={() => save("html", (_ll, epsg, t) => planFieldSheet(rows, plan.sites, { title: t, crs: `${crsName(epsg) || ""} (EPSG:${epsg})` }), "HTML")} disabled={!rows.length}><Download size={14} />{tr("Field sheet (print)")}</button>
               </div>
               {msg && <div style={note}>{msg}</div>}
-              <div style={note}>{tr("GPX and KML are in WGS 84 for a handheld GPS or a phone. A soil grid's KML shows the lines (the numbered stations are in a folder that starts hidden); its GPX has the lines as tracks and the stations as waypoints. Stream sites are points. QC inserts are in the CSV and the field sheet, in the order they go into the sample stream. Duplicates are taken at the site of the sample they follow.")}</div>
+              <div style={note}>{tr("GPX and KML are WGS 84, for a handheld GPS or phone. A soil grid's KML shows the lines (stations in a folder that starts hidden); its GPX has the lines as tracks and the stations as waypoints. Stream sites are points. The CSV and field sheet list QC inserts in sample order; duplicates are taken at the site of the sample they follow.")}</div>
             </>
           )}
         </div>

@@ -14,5 +14,5 @@ test("no terrain, no holes: just above the highest block model; with nothing at 
 test("the pane passes the models and names the elevation", () => {
   const p = fs.readFileSync("src/components/EvidenceOverlayPane.jsx", "utf8");
   assert.match(p, /scoreRasterPlacement\(terrain, drilledCollars\(collars\)\.collars, survey, traces, voxelModels\)/);
-  assert.match(p, /place\.kind === "above" \? tr\("Added \\"\{name\}\\" to the map, flat at elevation \{z\} m, just above the block models/);
+  assert.match(p, /place\.kind === "above" \? tr\("Added \\"\{name\}\\" to the map, flat at elevation \{z\} m above the block models/);
 });

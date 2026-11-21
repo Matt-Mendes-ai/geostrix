@@ -189,7 +189,7 @@ export function intrusionBody(ring, groundAt, { depthM = 500, wallDip = 90, flar
   if (sheet) { // #2642
     const sc = sheet.dip >= 89.99 ? 0 : 1 / Math.tan((Math.max(1, sheet.dip) * Math.PI) / 180), az = (sheet.dipDir * Math.PI) / 180, ux = Math.sin(az), uy = Math.cos(az);
     const b = r.map((p, i) => [p[0] + ux * (topZ[i] - baseZ) * sc, p[1] + uy * (topZ[i] - baseZ) * sc]);
-    if (!(area2(b) > 0) || selfIntersects(b)) throw new Error(tr("A sheet dipping {dip}° toward {dir}° makes this outline cross itself at depth (the ground along it rises and falls too much for that dip). Use a steeper dip or a shallower depth.", { dip: sheet.dip, dir: sheet.dipDir }));
+    if (!(area2(b) > 0) || selfIntersects(b)) throw new Error(tr("Use a steeper dip or a shallower depth: at {dip}° toward {dir}° this outline crosses itself at depth (the ground along it is too uneven for that dip).", { dip: sheet.dip, dir: sheet.dipDir }));
     base = b;
   } else if (cot) {
     let ok = false;

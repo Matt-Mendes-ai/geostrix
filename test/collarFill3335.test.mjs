@@ -60,7 +60,7 @@ test("wiring: the typed E / N offer, the pick, the pattern and the import judge 
   assert.match(p, /groundLabel=\{groundAt \? "the terrain under the hole" : \(x, y\) => collarFillSource\(fillAt\(x, y\)\)\}/);
   const pat = readFileSync(new URL("../src/components/PlannedHolePattern.jsx", import.meta.url), "utf8");
   assert.match(pat, /zSource: typeof groundLabel === "function" \? groundLabel\(h\.x, h\.y\) : groundLabel/);
-  const keys = ["Elev is blank: {z} from the ground interpolated between the nearest collars (no terrain): the nearest collar is {d} away, the collars used stand at {a} to {b} m.", "No Elev offered: the nearest collar is {d} away, over three times the site spacing ({s} m), so the ground between the collars says nothing here. Type the Elev, or load a terrain."];
+  const keys = ["Elev is blank: {z} from the ground interpolated between the nearest collars (no terrain): the nearest collar is {d} away, the collars used stand at {a} to {b} m.", "No Elev offered: the nearest collar is {d} away, over 3 × the site spacing ({s} m). Type the Elev, or load a terrain."];
   for (const k of keys) assert.ok(p.includes(`tr("${k}"`), k);
   for (const l of ["es", "pt", "fr", "ar"]) { const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8")); for (const k of keys) assert.ok(d[k], `${l}: ${k}`); }
 });

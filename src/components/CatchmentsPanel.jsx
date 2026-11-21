@@ -59,7 +59,7 @@ export default function CatchmentsPanel({ onClose }) {
     const vg = makeValueGrid(band, g.nx, g.ny, g.x0, g.yTop, g.dx, g.dy, (v) => !Number.isFinite(v));
     let valid = 0; for (let i = 0; i < vg.values.length; i++) if (Number.isFinite(vg.values[i])) valid++;
     addRaster({ name: `Catchments: ${opts.symbol} in ${opts.medium} (${a.thresholdLabel})`, bbox: [x0 - hx, y0 - hy, x1 + hx, y1 + hy], dataUrl: c.toDataURL("image/png"), drapeMode: "terrain", opacity: 0.8, grid: { ...vg, values: f32ToB64(vg.values), valid } });
-    setMsg(tr("Added the catchments as a map layer draped on the terrain: red = anomalous, orange = above background, blue = background. The catchment {band} rides along as the raster's values, for the Targeting evidence overlay and GeoTIFF export.", { band: band === prod ? tr("productivity") : tr("class") }));
+    setMsg(tr("Added the catchments as a map layer on the terrain: red = anomalous, orange = above background, blue = background. Its values are the catchment {band}, used by the Targeting evidence overlay and GeoTIFF export.", { band: band === prod ? tr("productivity") : tr("class") }));
   };
   // class / site rank / productivity per terrain node: the GeoTIFF bands (#854) and the map raster's values (#851)
   const cellBands = () => {
@@ -95,7 +95,7 @@ export default function CatchmentsPanel({ onClose }) {
   const exportCsv = () => saveFile({ suggestedName: `catchments_${opts.symbol}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(catchmentRows(a, { symbol: opts.symbol, unit, crs: crsCell(project) })) }); // #1083 — rows in lib, tested
 
   if (!terrain) return (
-    <Shell onClose={onClose}><div style={note}>{tr("Catchments are computed from the project terrain: load a DEM or fetch SRTM / Copernicus terrain (Maps tab) over your sample area first, or build one offline from points or contours (Maps > Terrain > Terrain from points or contours…). A finer terrain (High or Very high detail) resolves small first-order catchments.")}</div></Shell>
+    <Shell onClose={onClose}><div style={note}>{tr("Catchments need terrain: load a DEM or fetch SRTM / Copernicus over your sample area (Maps tab), or build one offline (Maps > Terrain > Terrain from points or contours…). High or Very high detail resolves small first-order catchments.")}</div></Shell>
   );
   return (
     <Shell onClose={onClose} sub={status === "routing" ? tr("Routing the terrain…") : status?.failed ? tr("Routing failed: {m}", { m: status.failed }) : route ? tr("Terrain {w} × {h} cells of {dx} × {dy} m, routed in {ms} ms; {f} cells raised to fill depressions.", { w: route.w, h: route.h, dx: Math.round(route.dx), dy: Math.round(route.dy), ms: status?.ms ?? "—", f: route.filledCells.toLocaleString() }) : ""}>
@@ -115,7 +115,7 @@ export default function CatchmentsPanel({ onClose }) {
       {a && (
         <>
           <div style={note}>
-            {tr("{n} {medium} sites; background {bg} {unit} ({how}); anomalous from {thr} {unit} ({rule}). Productivity = (value − background) × catchment area (Hawkes 1976), in {unit}·km²: it assumes uniform erosion and clastic transport, over-corrects big catchments with lakes or flat valleys, and does nothing for metals carried in solution.", { n: a.results.length, medium: tr(opts.medium), bg: fmt(a.background), unit, how: opts.background === "value" ? tr("your value") : tr("median of the sites"), thr: fmt(a.threshold), rule: a.thresholdLabel })}
+            {tr("{n} {medium} sites; background {bg} {unit} ({how}); anomalous from {thr} {unit} ({rule}). Productivity = (value − background) × catchment area (Hawkes 1976), in {unit}·km²: it assumes uniform erosion, over-corrects big catchments with lakes or flat valleys, and misses metals carried in solution.", { n: a.results.length, medium: tr(opts.medium), bg: fmt(a.background), unit, how: opts.background === "value" ? tr("your value") : tr("median of the sites"), thr: fmt(a.threshold), rule: a.thresholdLabel })}
           </div>
           {a.notes.map((n) => <div key={n.text} style={{ ...note, color: "var(--color-warn-text)" }}>{tr(n.text, n.params)}</div>)}
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -145,7 +145,7 @@ export default function CatchmentsPanel({ onClose }) {
               ))}</tbody>
             </table>
           </div>
-          <div style={note}>{tr("Follow-up reach: an anomalous site with no anomalous site upstream; the channel above it, up to the next sites or the stream head, is the one to walk. 'Anomalous upstream': the anomaly comes from further up.")}</div>
+          <div style={note}>{tr("Follow-up reach: an anomalous site with none upstream; walk the channel above it, up to the next sites or the stream head. 'Anomalous upstream': the anomaly comes from further up.")}</div>
         </>
       )}
     </Shell>

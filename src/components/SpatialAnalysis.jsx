@@ -148,11 +148,11 @@ export default function SpatialAnalysis({ points, surveys = [], onClose }) {
           </div>
         )}
         {valid.length < 3 ? (
-          <div style={{ padding: 20, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Need at least 3 points with valid x, y, and value to build a tessellation — currently {valid}.", { valid: valid.length })}</div>
+          <div style={{ padding: 20, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Need at least 3 points with valid x, y and value: currently {valid}.", { valid: valid.length })}</div>
         ) : !shown ? (
           <div style={{ padding: 20, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.5, display: "flex", flexDirection: "column", gap: 10, maxWidth: 640 }}>
             {!shapeReady && <div>{tr("Reading the survey ({n} points)…", { n: valid.length.toLocaleString() })}</div>}
-            {shapeReady && shape?.is3D && <div style={{ color: "var(--color-warn-text)" }}>{tr("A 3D point cloud ({lo} to {hi} m elevation): a plan tessellation treats every point as if it lay on one surface. Give an elevation range to tessellate one level, or run it over the whole cloud.", { lo: Math.round(shape.zMin).toLocaleString(), hi: Math.round(shape.zMax).toLocaleString() })}</div>}
+            {shapeReady && shape?.is3D && <div style={{ color: "var(--color-warn-text)" }}>{tr("A 3D point cloud ({lo} to {hi} m elevation): a plan tessellation treats every point as lying on one surface. Give an elevation range for one level, or run the whole cloud.", { lo: Math.round(shape.zMin).toLocaleString(), hi: Math.round(shape.zMax).toLocaleString() })}</div>}
             {shapeReady && shape?.is3D && (
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", fontSize: "var(--font-size-sm)" }}>
                 <label style={{ display: "flex", gap: 5, alignItems: "center" }}>{tr("Elevation from (m)")}<NumberInput allowEmpty value={zFrom === "" || zFrom == null ? null : zFrom} onChange={(n) => setZFrom(n == null ? "" : String(n))} disabled={running} style={inp} /></label>
@@ -192,10 +192,10 @@ export default function SpatialAnalysis({ points, surveys = [], onClose }) {
             <div style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.6, display: "flex", gap: 6 }}>
                 <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-                <span>{tr("Each point's Voronoi cell area is used as a declustering weight (Isaaks & Srivastava polygonal method) — clustered points get small cells/low weight, isolated points get large cells/high weight, correcting a naive mean's bias toward over-sampled areas.")}</span>
+                <span>{tr("Each point's Voronoi cell area is its declustering weight (polygonal method): clustered points get low weight, isolated ones high, correcting a naive mean's bias toward over-sampled areas.")}</span>
               </div>
 
-              {shape?.is3D && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("A 3D point cloud ({lo} to {hi} m elevation): these cells and means are over its plan projection, as if every point lay on one surface. Points at the same plan position count once.", { lo: Math.round(shape.zMin).toLocaleString(), hi: Math.round(shape.zMax).toLocaleString() })}</div>}{/* #1783 */}
+              {shape?.is3D && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("A 3D point cloud ({lo} to {hi} m elevation): cells and means use its plan projection, as if on one surface. Points at the same plan position count once.", { lo: Math.round(shape.zMin).toLocaleString(), hi: Math.round(shape.zMax).toLocaleString() })}</div>}{/* #1783 */}
               {shown.of !== valid && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Elevation {lo} to {hi} m only.", { lo: lo === -Infinity ? "…" : lo.toLocaleString(), hi: hi === Infinity ? "…" : hi.toLocaleString() })}</div>}{/* #3310 */}
               <StatRow label={tr("Points")} value={fmtNum(stats.n) /* #3817 (#3815 (2)) — with its separators */} />
               {stats.n < shown.of.length && <StatRow label={tr("Left out (same plan position)")} value={fmtNum(shown.of.length - stats.n)} />}{/* #1783 — said, not silent */}
