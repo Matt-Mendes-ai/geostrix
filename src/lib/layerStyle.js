@@ -62,6 +62,9 @@ export function cleanLayerStyle(style, kind) {
   if (Number.isFinite(s.rampMax)) out.rampMax = s.rampMax;
   if (s.rampScale === "linear" || s.rampScale === "log") out.rampScale = s.rampScale;
   if (Number.isFinite(s.classes) && s.classes >= 2) out.classes = Math.min(12, Math.round(s.classes));
+  // TASKS.csv #3941 — a Mineralization layer's Total sulphides: the codes ticked as sulphides, and the lowest total shown (blank: every interval)
+  if (Array.isArray(s.sulphideCodes)) out.sulphideCodes = s.sulphideCodes.filter((c) => typeof c === "string" && c).slice(0, 200).map((c) => c.slice(0, 60));
+  if (Number.isFinite(s.sulphideMin) && s.sulphideMin > 0) out.sulphideMin = s.sulphideMin;
   return Object.keys(out).length ? out : null;
 }
 

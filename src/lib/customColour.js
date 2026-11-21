@@ -152,3 +152,17 @@ export function sectionCustomLegendItems(customLayers, ids, layerStyles = {}) {
     : g.items.filter(([, c]) => c).map(([n, c]) => [`${g.label}: ${n}`, c])));
 }
 
+
+// TASKS.csv #3941 — a built-in layer (Mineralization) coloured by one of its number fields (Total sulphides): the custom layers' ramp, on the
+// layer's rows. -> { scale, colourOf(row) } or null when the field is not a number field of these rows
+export function fieldRamp(rows, field, st = null) {
+  if (!field || !rows?.length) return null;
+  const s = customScale({ rows }, field, st);
+  if (!s.numeric) return null;
+  return { scale: s, colourOf: (row) => { const n = num(row?.[field]); return Number.isFinite(n) ? rampColour(s, n) : NO_VALUE_COLOUR; } };
+}
+// its legend group, as a custom layer's ramp
+export function fieldRampLegend(key, label, s) {
+  const fmt = (v) => String(+Number(v).toPrecision(4)), colors = Array.from({ length: 17 }, (_, i) => magColor(i / 16, 0, 1));
+  return { key, label, items: [], ramp: { kind: "ramp", log: s.log, min: s.min, max: s.max, minLabel: `${s.clipLo ? "≤ " : ""}${fmt(s.min)}`, maxLabel: `${s.clipHi ? "≥ " : ""}${fmt(s.max)}`, colors, ticks: [] } };
+}

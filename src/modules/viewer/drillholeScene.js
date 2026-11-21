@@ -2,6 +2,7 @@
 // every hole's trace, collar marker, interval tubes, point markers, structure discs and custom-layer rows, the camera anchor of a
 // project with no holes, the layer batches and the passes that follow a rebuild. ViewerModule's effect calls buildDrillholeScene with
 // the values and refs the body used to close over, on the same dependency list. The comments below are the effect's own.
+import { fieldStyler } from "../../lib/totalSulphides.js"; // TASKS.csv #3941
 import { unsurveyedSpans } from "../../lib/viewer/unsurveyedTail.js"; // TASKS.csv #3588 (5); #3761: every stretch with no survey station, not only the tail
 const sleeveToken = new WeakMap(); // TASKS.csv #3761 — the sleeves' code (lib/viewer/assumedSleeve.js) loads when a hole has an unsurveyed stretch: the latest build's token
 import * as THREE from "three";
@@ -474,6 +475,9 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
   // TASKS.csv #3553 — a numeric layer coloured by one of its kept text columns (the density's method): the colour and the shown values per row
   const byFieldCache = new Map();
   const byField = (k) => { if (!byFieldCache.has(k)) byFieldCache.set(k, LAYER_META[k]?.numeric ? fieldColourer(numericSymbology?.[k], layers[k]) : null); return byFieldCache.get(k); };
+  // TASKS.csv #3941 — a coded layer coloured by one of its number fields (Mineralization by Total sulphides) and / or shown from a lowest total
+  const rampByCache = new Map();
+  const rampBy = (k) => { if (!rampByCache.has(k)) rampByCache.set(k, LAYER_META[k]?.numeric ? null : fieldStyler(layers[k], layerStyles[k])); return rampByCache.get(k); };
   const buildErrors = [];
   const traceHoles = []; // #2176 step 3 — { holeId, pts, dashed } for addTraceChunks
   const sleeveHoles = []; // #3761 — { holeId, spans: [trace points] }: the pale sleeve over a hole's unsurveyed stretches
@@ -549,8 +553,8 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
     const buildIntervalTube = (groupKey, opt = {}) => { // opt (#684): { filter, meta } — a point layer drawing its real intervals
       const meta = { ...LAYER_META[groupKey], ...(opt.meta || {}) };
       const st = resolveLayerStyle(layerStyles[groupKey], "interval", { opacity: meta.opacity }); // TASKS.csv #635
-      const radius = meta.radius * st.size, bf = byField(groupKey);
-      (rowsByHole[groupKey]?.get(c.hole_id) || []).filter((r) => isRowVisibleForBuild(groupKey, r) && (!opt.filter || opt.filter(r)) && (!bf || bf.shown(r))).forEach((row) => { // bf: #3553
+      const radius = meta.radius * st.size, bf = byField(groupKey), rb = rampBy(groupKey); // rb: #3941
+      (rowsByHole[groupKey]?.get(c.hole_id) || []).filter((r) => isRowVisibleForBuild(groupKey, r) && (!opt.filter || opt.filter(r)) && (!bf || bf.shown(r)) && (!rb || rb.shown(r))).forEach((row) => { // bf: #3553
        try {
         if (!Number.isFinite(row.from) || !Number.isFinite(row.to)) return; // #613 — null (a blank "to" after a JSON round-trip) passed isNaN
         const p1 = look.at(row.from), p2 = look.at(row.to);
@@ -584,7 +588,7 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
           // and buildLayerBatches. Same vertices, same placement; three.js raycasts in local
           // space, so picking is unchanged.
           geo = intervalProto(st.shape, (layers?.[groupKey] || []).length); // #3620: a prism in light drawing, crossed ribbons for a big layer
-          const color = st.color || (bf ? bf.colourOf(row) : meta.numeric ? numericIntervalColor(groupKey, row.value) : baseColorForBuild(groupKey, row.value));
+          const color = st.color || (rb?.colourOf ? rb.colourOf(row) : bf ? bf.colourOf(row) : meta.numeric ? numericIntervalColor(groupKey, row.value) : baseColorForBuild(groupKey, row.value));
           mesh_ = new PickStandIn(geo, { color, transparent: st.opacity < 1, opacity: st.opacity, side: geo === PROTO_CROSS ? THREE.DoubleSide : THREE.FrontSide }); // #1500; the ribbons are seen from both sides (#3620) — never drawn itself (its batch is)
           mesh_.scale.set(radius, len, radius);
           mesh_.position.set(p1.x, p1.y, p1.z);
@@ -595,7 +599,7 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
           // straight pieces between its own trace points on the shared prototype, batched with the straight intervals; the inner joints
           // overlap by half a radius so a bend shows no wedge, the ends stay on the interval's own depths.
           const pts = [p1, ...mid, p2], last = pts.length - 2, ext = radius * 0.5;
-          const color = st.color || (bf ? bf.colourOf(row) : meta.numeric ? numericIntervalColor(groupKey, row.value) : baseColorForBuild(groupKey, row.value));
+          const color = st.color || (rb?.colourOf ? rb.colourOf(row) : bf ? bf.colourOf(row) : meta.numeric ? numericIntervalColor(groupKey, row.value) : baseColorForBuild(groupKey, row.value));
           pieces = [];
           for (let i = 0; i <= last; i++) {
             const a = pts[i], b = pts[i + 1], dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, len = Math.sqrt(dx * dx + dy * dy + dz * dz);
@@ -632,8 +636,8 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
     const buildPointMarkers = (groupKey, filter = null) => {
       const meta = LAYER_META[groupKey];
       const st = resolveLayerStyle(layerStyles[groupKey], "point"); // TASKS.csv #635
-      const bf = byField(groupKey); // #3553
-      const vals = (rowsByHole[groupKey]?.get(c.hole_id) || []).filter((r) => isRowVisibleForBuild(groupKey, r) && (!filter || filter(r)) && (!bf || bf.shown(r)));
+      const bf = byField(groupKey), rb = rampBy(groupKey); // #3553; rb: #3941
+      const vals = (rowsByHole[groupKey]?.get(c.hole_id) || []).filter((r) => isRowVisibleForBuild(groupKey, r) && (!filter || filter(r)) && (!bf || bf.shown(r)) && (!rb || rb.shown(r)));
       const { min, max } = globalPointRanges[groupKey] || { min: 0, max: 0 };
       vals.forEach((row) => {
        try {
@@ -641,7 +645,7 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
         const p = look.at(mid);
         if (!p) return;
         const size = meta.numeric ? 1.6 + 3.5 * (max > min ? (row.value - min) / (max - min) : 0.3) : 2 + Math.min(3, (row.extra || 1) * 0.4);
-        const color = st.color || (bf ? bf.colourOf(row) : meta.numeric ? numericLayerColor(groupKey, row.value, { min, max }) : baseColorForBuild(groupKey, row.value));
+        const color = st.color || (rb?.colourOf ? rb.colourOf(row) : bf ? bf.colourOf(row) : meta.numeric ? numericLayerColor(groupKey, row.value, { min, max }) : baseColorForBuild(groupKey, row.value));
         const mesh = new PickStandIn(POINT_PROTO[st.shape], { color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // TASKS.csv #312 — shared prototype + scale; #635 style; #1500 a stand-in
         mesh.scale.setScalar(size * st.size);
         mesh.position.set(p.x, p.y, p.z);
