@@ -14345,5 +14345,20 @@
   "of the {n} mineralised samples (≥ {cut})": "من العينات المتمعدنة الـ{n} (≥ {cut})",
   "of all samples": "من كل العينات",
   "{m} m of those holes had no point within {d} m and were left empty.": "{m} م من تلك الثقوب لم تكن فيها أي نقطة ضمن {d} م فتُركت فارغة.",
-  "Import as a block model": "استيراد كنموذج كتل"
+  "Import as a block model": "استيراد كنموذج كتل",
+  "Other numeric column in this file: {n}": "عمود رقمي آخر في هذا الملف: {n}",
+  "Other numeric columns in this file: {n}": "أعمدة رقمية أخرى في هذا الملف: {n}",
+  "hide this list": "إخفاء هذه القائمة",
+  "show this list": "إظهار هذه القائمة",
+  "These are not chemical elements. Add one to import it as an assay of its own, with the name and unit the file gives it. Equivalents (AuEq, AgEq), totals (TREO) and any other measured number are kept as supplied: GeoStrix does not recalculate them.": "هذه ليست عناصر كيميائية. أضف أحدها لاستيراده كتحليل مستقل بالاسم والوحدة اللذين يعطيهما الملف. تُحفظ المكافئات (AuEq وAgEq) والمجاميع (TREO) وأي قيمة مقيسة أخرى كما وردت: لا يعيد GeoStrix حسابها.",
+  "Add the equivalents and totals ({n})": "إضافة المكافئات والمجاميع ({n})",
+  "equivalent": "مكافئ",
+  "total": "مجموع",
+  "The column name does not say its unit: ppm is assumed. Set it after adding.": "اسم العمود لا يذكر وحدته: يُفترض ppm. اضبطها بعد الإضافة.",
+  "Add the column {header} as an assay": "إضافة العمود {header} كتحليل",
+  "as supplied": "كما ورد",
+  "Kept as the file gives it: the lab's or the company's number, never recalculated here.": "يُحفظ كما يعطيه الملف: رقم المختبر أو الشركة، ولا يُعاد حسابه هنا أبدًا.",
+  "g/t": "g/t",
+  "Kept as supplied, not recalculated: {list}.": "حُفظت كما وردت دون إعادة حساب: {list}.",
+  "This project's assays are in different units: {list}. Each is kept and shown in its own unit; a sum or a ratio of two of them needs the same unit.": "تحاليل هذا المشروع بوحدات مختلفة: {list}. تُحفظ كل منها وتُعرض بوحدتها؛ ويتطلب جمع أو نسبة أي اثنين منها وحدة واحدة."
 }

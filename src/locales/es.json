@@ -14345,5 +14345,20 @@
   "of the {n} mineralised samples (≥ {cut})": "de las {n} muestras mineralizadas (≥ {cut})",
   "of all samples": "de todas las muestras",
   "{m} m of those holes had no point within {d} m and were left empty.": "{m} m de esos sondajes no tenían ningún punto a menos de {d} m y quedaron vacíos.",
-  "Import as a block model": "Importar como modelo de bloques"
+  "Import as a block model": "Importar como modelo de bloques",
+  "Other numeric column in this file: {n}": "Otra columna numérica en este archivo: {n}",
+  "Other numeric columns in this file: {n}": "Otras columnas numéricas en este archivo: {n}",
+  "hide this list": "ocultar esta lista",
+  "show this list": "mostrar esta lista",
+  "These are not chemical elements. Add one to import it as an assay of its own, with the name and unit the file gives it. Equivalents (AuEq, AgEq), totals (TREO) and any other measured number are kept as supplied: GeoStrix does not recalculate them.": "Estas no son elementos químicos. Agregue una para importarla como un ensaye propio, con el nombre y la unidad que da el archivo. Los equivalentes (AuEq, AgEq), los totales (TREO) y cualquier otro valor medido se conservan tal como se entregaron: GeoStrix no los recalcula.",
+  "Add the equivalents and totals ({n})": "Agregar los equivalentes y totales ({n})",
+  "equivalent": "equivalente",
+  "total": "total",
+  "The column name does not say its unit: ppm is assumed. Set it after adding.": "El nombre de la columna no indica su unidad: se asume ppm. Ajústela después de agregarla.",
+  "Add the column {header} as an assay": "Agregar la columna {header} como ensaye",
+  "as supplied": "tal como se entregó",
+  "Kept as the file gives it: the lab's or the company's number, never recalculated here.": "Se conserva tal como lo da el archivo: el número del laboratorio o de la empresa, nunca recalculado aquí.",
+  "g/t": "g/t",
+  "Kept as supplied, not recalculated: {list}.": "Conservados tal como se entregaron, sin recalcular: {list}.",
+  "This project's assays are in different units: {list}. Each is kept and shown in its own unit; a sum or a ratio of two of them needs the same unit.": "Los ensayes de este proyecto están en unidades distintas: {list}. Cada uno se conserva y se muestra en su propia unidad; una suma o una razón entre dos de ellos exige la misma unidad."
 }

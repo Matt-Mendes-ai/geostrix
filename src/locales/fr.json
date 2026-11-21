@@ -14345,5 +14345,20 @@
   "of the {n} mineralised samples (≥ {cut})": "des {n} échantillons minéralisés (≥ {cut})",
   "of all samples": "de tous les échantillons",
   "{m} m of those holes had no point within {d} m and were left empty.": "{m} m de ces sondages n'avaient aucun point à moins de {d} m et sont restés vides.",
-  "Import as a block model": "Importer comme modèle de blocs"
+  "Import as a block model": "Importer comme modèle de blocs",
+  "Other numeric column in this file: {n}": "Autre colonne numérique dans ce fichier : {n}",
+  "Other numeric columns in this file: {n}": "Autres colonnes numériques dans ce fichier : {n}",
+  "hide this list": "masquer cette liste",
+  "show this list": "afficher cette liste",
+  "These are not chemical elements. Add one to import it as an assay of its own, with the name and unit the file gives it. Equivalents (AuEq, AgEq), totals (TREO) and any other measured number are kept as supplied: GeoStrix does not recalculate them.": "Ce ne sont pas des éléments chimiques. Ajoutez-en une pour l'importer comme un dosage à part entière, avec le nom et l'unité que donne le fichier. Les équivalents (AuEq, AgEq), les totaux (TREO) et toute autre valeur mesurée sont conservés tels que fournis : GeoStrix ne les recalcule pas.",
+  "Add the equivalents and totals ({n})": "Ajouter les équivalents et les totaux ({n})",
+  "equivalent": "équivalent",
+  "total": "total",
+  "The column name does not say its unit: ppm is assumed. Set it after adding.": "Le nom de la colonne n'indique pas son unité : ppm est supposé. Réglez-la après l'ajout.",
+  "Add the column {header} as an assay": "Ajouter la colonne {header} comme dosage",
+  "as supplied": "tel que fourni",
+  "Kept as the file gives it: the lab's or the company's number, never recalculated here.": "Conservé tel que le fichier le donne : le chiffre du laboratoire ou de l'entreprise, jamais recalculé ici.",
+  "g/t": "g/t",
+  "Kept as supplied, not recalculated: {list}.": "Conservés tels que fournis, sans recalcul : {list}.",
+  "This project's assays are in different units: {list}. Each is kept and shown in its own unit; a sum or a ratio of two of them needs the same unit.": "Les dosages de ce projet sont en unités différentes : {list}. Chacun est conservé et affiché dans sa propre unité ; une somme ou un rapport de deux d'entre eux demande la même unité."
 }

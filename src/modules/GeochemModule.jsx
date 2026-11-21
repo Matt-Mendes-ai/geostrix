@@ -31,6 +31,7 @@ const ELEMENT_SCAN_CHUNKED_ROWS = 50000; // #2164 — below this the element col
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
 import { assayImportFindings } from "../lib/assayImportFindings.js"; // TASKS.csv #2498
 import { assayTextColumns, assayUsedColumns, chosenExtraColumns, assayAttrs } from "../lib/assayExtraFields.js"; // TASKS.csv #3728
+import { mixedUnitsList } from "../lib/assayOtherColumns.js"; // TASKS.csv #3923
 import { repeatColumns, columnDetectionLimit, isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, columnPositiveMax, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, oxideUnit, importStoreUnit, oxideBasisUnit, oxideColumnUnit, surfaceAttrColumns, surfaceAttrs, surfaceDateReaders, surfaceAttrsDated /* #3200 */, mergeSurfaceSamples, otherMediumTwins } from "../lib/geochem.js"; // otherMediumTwins: #2085
 import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile, loggedCodeAt, isSedimentaryCode, noVolcanicCodes /* #2911 */, mergeClassRuns, FITTED_PROTOLITH, fitLeastAlteredBox, nameAiUpTrend , censoredOperand, censoredLeftOut, guessProtolith } from "../lib/geochemDiagrams.js"; // fitted: #2028; nameAiUpTrend: #2145
 import { qcRecordFromFileRow, emptySurfaceQc, looksLikeQcTypeColumn, mergeQcRecords } from "../lib/surfaceQaqc.js"; // TASKS.csv #842; looksLikeQcTypeColumn, mergeQcRecords: #1794
@@ -883,6 +884,8 @@ export default function GeochemModule() {
     if (!colorElement && chosen.length) setColorElement((chosen.find((e) => e.symbol === "Au") || chosen[0]).symbol);
     const more = (list, k) => list.slice(0, k).map((h) => h.hole_id).join(", ") + (list.length > k ? ", …" : "");
     const extra = [
+      chosen.some((e) => e.asSupplied) ? tr("Kept as supplied, not recalculated: {list}.", { list: chosen.filter((e) => e.asSupplied).map((e) => `${e.symbol} (${e.unitLabel || e.unit})`).join(", ") }) : null, // #3923
+      mixedUnitsList(assayElements, chosen) ? tr("This project's assays are in different units: {list}. Each is kept and shown in its own unit; a sum or a ratio of two of them needs the same unit.", { list: mixedUnitsList(assayElements, chosen) }) : null, // #3923
       converted.length ? tr("Converted {list} to match the unit already used in this project.", { list: converted.map((e) => `${e.symbol} ${importStoreUnit(e)} → ${existingUnit[e.symbol]}`).join(", ") }) : null, // #2490: the unit actually read
       negBdl ? tr("{n} negative value(s) read as below detection (e.g. -0.005 → \"<0.005\", stored at half).", { n: negBdl }) : null,
       negMissing ? tr("{n} negative value(s) treated as not assayed.", { n: negMissing }) : null,
