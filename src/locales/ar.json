@@ -14611,5 +14611,6 @@
   "Imagery, grids and map layers": "الصور والشبكات وطبقات الخريطة",
   "A GeoTIFF, a grid or a map layer dropped here is drawn on this plan and under your drill holes in 3D.": "يُرسم ملف GeoTIFF أو الشبكة أو طبقة الخريطة المُفلتة هنا على هذا المسقط وتحت ثقوب الحفر في العرض ثلاثي الأبعاد.",
   "Drag a GeoTIFF, grid or map layer here to start.": "اسحب ملف GeoTIFF أو شبكة أو طبقة خريطة هنا للبدء.",
-  "They lie under your drill holes in {sv}, placed in the project CRS{v}.": "تقع تحت ثقوب الحفر في {sv}، موضوعة في نظام إحداثيات المشروع{v}."
+  "They lie under your drill holes in {sv}, placed in the project CRS{v}.": "تقع تحت ثقوب الحفر في {sv}، موضوعة في نظام إحداثيات المشروع{v}.",
+  "Keep the {col} codes, not the components": "إبقاء رموز {col} لا المكوّنات"
 }

@@ -14611,5 +14611,6 @@
   "Imagery, grids and map layers": "Imagens, grades e camadas de mapa",
   "A GeoTIFF, a grid or a map layer dropped here is drawn on this plan and under your drill holes in 3D.": "Um GeoTIFF, uma grade ou uma camada de mapa solto aqui é desenhado nesta planta e sob seus furos em 3D.",
   "Drag a GeoTIFF, grid or map layer here to start.": "Arraste aqui um GeoTIFF, uma grade ou uma camada de mapa para começar.",
-  "They lie under your drill holes in {sv}, placed in the project CRS{v}.": "Ficam sob seus furos no {sv}, posicionados no SRC do projeto{v}."
+  "They lie under your drill holes in {sv}, placed in the project CRS{v}.": "Ficam sob seus furos no {sv}, posicionados no SRC do projeto{v}.",
+  "Keep the {col} codes, not the components": "Manter os códigos de {col}, não os componentes"
 }

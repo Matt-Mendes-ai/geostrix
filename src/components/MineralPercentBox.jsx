@@ -21,7 +21,7 @@ export default function MineralPercentBox({ modal, onChange, sel = {} }) {
     : tr("Left out as lab element results, not minerals: {cols}.", { cols: labList }));
   if (!cols) return labNote ? <div role="note" style={{ ...note, marginBottom: 12 }}>{labNote}</div> : null;
   const { cols: ticked, sum, mode, colourBy, composition: comp, mixedBelow } = perMineralChoice(modal, cols); // composition: #3052
-  const single = mode === "single";
+  const single = mode === "single", off = mode === "off"; // off: #3944 — the code column the user chose stands, the components are not imported
   const withValues = cols.filter((c) => c.n > 0), blank = cols.filter((c) => !c.n);
   const toggle = (col) => onChange({ ...modal, mineralCols: ticked.includes(col) ? ticked.filter((c) => c !== col) : withValues.map((c) => c.col).filter((c) => c === col || ticked.includes(c)) });
   const toggleSum = (col) => onChange({ ...modal, mineralSum: sum.includes(col) ? sum.filter((c) => c !== col) : withValues.map((c) => c.col).filter((c) => c === col || sum.includes(c)) });
@@ -33,12 +33,16 @@ export default function MineralPercentBox({ modal, onChange, sel = {} }) {
       <div style={note}>{comp ? tr("A composition of {n} components: each row's shares sum to 100 (median {median}). Tick the components to import.", { n: comp.n, median: comp.median }) : tr("These columns are an amount of one mineral per interval. Tick the minerals to import.")}</div>
       {comp?.off > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{n} interval(s) sum to more than 5 away from 100 ({holes}): check them in the file.", { n: comp.off.toLocaleString(), holes: comp.offHoles.join(", ") + (comp.offHoles.length >= 8 ? ", …" : "") })}</div>}
       <div role="radiogroup" style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 6, fontSize: "var(--font-size-sm)" }}>
+        {comp && modal.mapping?.value && ( /* #3944 — a code column is chosen: it stays the default */
+          <label style={{ display: "flex", gap: 6, alignItems: "flex-start" }}><input type="radio" name="mineralMode" checked={off} onChange={() => onChange({ ...modal, mineralMode: "off" })} style={{ marginTop: 2 }} />
+            <span>{tr("Keep the {col} codes, not the components", { col: modal.mapping.value })}</span></label>
+        )}
         <label style={{ display: "flex", gap: 6, alignItems: "flex-start" }}><input type="radio" name="mineralMode" checked={single} onChange={() => onChange({ ...modal, mineralMode: "single" })} style={{ marginTop: 2 }} />
           <span>{comp ? tr("One {layer} layer: each interval coded by its dominant component (MIXED where none reaches the threshold below), its share kept as Dominant share (%), every component kept as a field", { layer: tr(LAYER_META[modal.target]?.label || "Custom layer") }) : tr("One Mineralization layer: each interval coloured by mineral, its value Total min (the sum of the ticked minerals), every mineral kept as a field")}</span></label>
-        <label style={{ display: "flex", gap: 6, alignItems: "flex-start" }}><input type="radio" name="mineralMode" checked={!single} onChange={() => onChange({ ...modal, mineralMode: "layers" })} style={{ marginTop: 2 }} />
+        <label style={{ display: "flex", gap: 6, alignItems: "flex-start" }}><input type="radio" name="mineralMode" checked={mode === "layers"} onChange={() => onChange({ ...modal, mineralMode: "layers" })} style={{ marginTop: 2 }} />
           <span>{comp ? (modal.mapping?.value ? tr("One numeric layer per ticked component, in %, beside the {layer} layer of {col}", { layer: tr(LAYER_META[modal.target]?.label || "Custom layer"), col: modal.mapping.value }) : tr("One numeric layer per ticked component, in %")) : tr("One numeric layer per mineral, in % visual")}</span></label>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 6 }}>
+      {!off && <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 6 }}>
         {withValues.map((c) => (
           <label key={c.col} style={{ fontSize: "var(--font-size-sm)", display: "flex", gap: 5, alignItems: "center" }}>
             <input type="checkbox" checked={ticked.includes(c.col)} onChange={() => toggle(c.col)} aria-label={tr("Import {col}", { col: c.col })} />
@@ -47,7 +51,7 @@ export default function MineralPercentBox({ modal, onChange, sel = {} }) {
             <span style={{ color: "var(--color-text-muted)" }}>{tr("{n} interval(s), up to {max}", { n: c.n.toLocaleString(), max: c.max.toLocaleString() })}{c.companions?.length ? " · " + tr("with {style}", { style: c.companions.join(", ") }) : ""}</span>
           </label>
         ))}
-      </div>
+      </div>}
       {labNote && <div role="note" style={{ ...note, marginTop: 4 }}>{labNote}</div>}
       {blank.length > 0 && <div style={{ ...note, marginTop: 4 }}>{tr("Left out, with no value in any row: {cols}.", { cols: blank.map((c) => c.col).join(", ") })}</div>}
       {comp ? (single && ( /* #3052 — the purity threshold: under it an interval is MIXED */

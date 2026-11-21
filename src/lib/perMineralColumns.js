@@ -149,10 +149,19 @@ export function labColumnsLeftOut(target, headers, mapping = {}) {
 // (opt-in: none by default) -> { cols: [...], sum: [...] }
 // TASKS.csv #3307 — mode: "single" (Matt's default for Mineralization: one layer, coloured by mineral, Value = Total min) or "layers" (#3205: one
 // numeric layer per mineral; the default for a Custom layer); colourBy: "dominant" or one of the ticked columns
+// TASKS.csv #3944 (Matt's first-time test, 2026-11-21: "lithology is being categorized with the wrong field ... I have it mapped to unit but still chooses a
+// different field") — a composition's components (lith1_pct, lith2_pct, lith3_pct: 100 / 0 / 0 on a log of one lithology per interval) became the codes of
+// every interval, over the Value column the user had chosen (all rows "LITH1"). A code column the user chose always wins: the composition is then
+// offered, not applied, until the user picks "single" or "layers" in the box (mode "off" is the default). A guessed column (valueGuess, #2889) or a
+// component column itself is not a choice.
+export function codeColumnChosen(modal, cols) {
+  const v = modal?.mapping?.value;
+  return !!v && !(modal?.valueGuess && modal.valueGuess.col === v) && !(cols || []).some((c) => c.col === v);
+}
 export function perMineralChoice(modal, cols) {
   const withValues = (cols || []).filter((c) => c.n > 0).map((c) => c.col);
   const comp = cols?.composition || null; // #3052
-  const mode = modal?.mineralMode || (comp || modal?.target !== "custom" ? "single" : "layers");
+  const mode = modal?.mineralMode || (comp ? (codeColumnChosen(modal, cols) ? "off" : "single") : modal?.target !== "custom" ? "single" : "layers"); // off: #3944
   // #3052 — a composition's per-component layers start with none ticked (43 layers otherwise); its one layer takes every component
   const ticked = (modal?.mineralCols ?? (comp && mode === "layers" ? [] : withValues)).filter((c) => withValues.includes(c));
   const sum = comp ? [] : (modal?.mineralSum || []).filter((c) => withValues.includes(c));
@@ -258,6 +267,7 @@ export function mineralPlan(target, headers, allRows, mapping, data) {
   const offer = perMineralOffer(target, headers, allRows, mapping);
   if (!offer) return null;
   const { cols, sum, mode, colourBy, composition, mixedBelow } = perMineralChoice({ ...data, target }, offer); // composition, mixedBelow: #3052
+  if (mode === "off") return null; // #3944 — the code column the user chose stands
   if (mode === "single" ? !cols.length : !cols.length && sum.length < 2) return null;
   const pick = (col) => { const o = offer.find((c) => c.col === col); return { col, style: o?.style || null, companions: o?.companions || [] }; };
   return { mode, colourBy, cols: cols.map(pick), sum: mode === "layers" && sum.length >= 2 ? sum : [], blank: offer.filter((c) => !c.n).map((c) => c.col), composition, mixedBelow, target };
