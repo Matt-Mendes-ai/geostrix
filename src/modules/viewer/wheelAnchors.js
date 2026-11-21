@@ -4,7 +4,13 @@
 // notches builds it once.
 import * as THREE from "three";
 import { ownBox } from "../../lib/viewer/fitAll.js"; // TASKS.csv #3669
+import { sceneMinRadius, sceneSizeOf } from "./wheelZoom.js"; // TASKS.csv #3927
 export const WHEEL_ANCHOR_CAP = 30000;
+// TASKS.csv #3927 follow-up — the + / - keys' closest orbit: the wheel's own rule (wheelZoom.js sceneMinRadius over the shown holes' points and the
+// shown models' boxes), so the keys cannot fold the orbit to 5 cm against the ground as the wheel once could. groups: the wheel's own groups.
+export function sceneFloor(traces, visible, groups) {
+  return sceneMinRadius(sceneSizeOf(wheelAnchors(traces, visible), wheelBoxes(groups)));
+}
 export function wheelAnchors(traces, visible, cap = WHEEL_ANCHOR_CAP) {
   const shown = (traces || []).filter((t) => t?.pts?.length && visible?.[t.hole_id] !== false);
   let total = 0;

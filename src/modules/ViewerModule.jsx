@@ -238,7 +238,7 @@ import { useSurfaceUndo, stashSurface } from "./viewer/surfaceUndo.js"; // TASKS
 import { useModelling } from "./viewer/useModelling.js";
 import { useUnitSource } from "./viewer/useUnitSource.js"; // TASKS.csv #2378
 import { wheelZoom } from "./viewer/wheelZoom.js"; // #2368
-import { makeWheelAnchors, wheelBoxes } from "./viewer/wheelAnchors.js"; // TASKS.csv #3247; #3669
+import { makeWheelAnchors, wheelBoxes, sceneFloor } from "./viewer/wheelAnchors.js"; // TASKS.csv #3247; #3669; sceneFloor: #3927
 import { useDrillLineDefaults } from "./viewer/drillLines.js"; // #2366
 import { useSliceModelFace } from "./viewer/useSliceModelFace.js"; // #3765
 const ImportedSurfaceRows = React.lazy(() => import("./viewer/ImportedSurfaceRows.jsx")); // TASKS.csv #3762 — loads when a surface has been imported
@@ -1008,7 +1008,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const contextMenuByKeyRef = useRef(false);
   const onViewKeyDown = (e) => {
     if (e.target !== e.currentTarget) return; // a control inside the view (Fit, Top…) keeps its own keys
-    if (viewKeyZoom(e, { zoom: (f) => { camState.current.radius = Math.min(4e6, Math.max(0.05, camState.current.radius * f)); cameraRef.current?.__update?.(); }, fit: () => fitButton() })) return; // #2788 — + / - / Home
+    if (viewKeyZoom(e, { zoom: (f) => { camState.current.radius = Math.min(4e6, Math.max(sceneFloor(tracesRef.current, visibleHolesRef.current, [voxelGroupRef.current, omfGroupRef.current, layerGroupsRef.current.geophys_pts, layerGroupsRef.current.surface_samples]) /* #3927: the wheel's floor */, camState.current.radius * f)); cameraRef.current?.__update?.(); }, fit: () => fitButton() })) return; // #2788 — + / - / Home
     if (e.key !== "ContextMenu" && !(e.key === "F10" && e.shiftKey)) return;
     e.preventDefault(); // no second, browser-dispatched contextmenu event
     const r = e.currentTarget.getBoundingClientRect();
@@ -6578,6 +6578,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             { label: im.visible === false ? "Show" : "Hide", onClick: () => updateSectionImage(im.id, { visible: im.visible === false }) },
             { label: tr("Zoom to"), onClick: () => zoomToObject(sectionImageMeshesRef.current[im.id]) },
             { label: tr("Match to terrain…"), onClick: () => setSectionVerticalId(im.id) }, // TASKS.csv #3880
+            { label: tr("Move to another line…"), onClick: () => setSectionGeorefOpen({ moveId: im.id }) }, // TASKS.csv #3924
             { label: tr("Opaque"), onClick: () => updateSectionImage(im.id, { opacity: 1 }) },
             { label: tr("Half transparent"), onClick: () => updateSectionImage(im.id, { opacity: 0.5 }) },
             "-", { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove the section image \"{name}\" from the project?", { name: im.name }))) removeSectionImage(im.id); } }])} style={{ padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
@@ -7673,7 +7674,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {qcModalOpen && <DataQCModal onCancel={() => setQcModalOpen(false)} onZoomHole={(id) => { zoomToHole(id); setQcModalOpen(false); } /* TASKS.csv #3569 */} />}
       {sectionGeorefOpen && (
         <Suspense fallback={null}>
-          <SectionGeorefModal sections={sections} rlOffset={rlOffsetOf(project)} onClose={() => setSectionGeorefOpen(false)}
+          <SectionGeorefModal sections={sections} rlOffset={rlOffsetOf(project)} onClose={() => setSectionGeorefOpen(false)} collars={collars} images={sectionImages} /* #3924 */
+            moveImage={sectionImages.find((i) => i.id === sectionGeorefOpen?.moveId) || null} onMove={(patch) => { const im = sectionImages.find((i) => i.id === sectionGeorefOpen.moveId); updateSectionImage(sectionGeorefOpen.moveId, patch); setSectionGeorefOpen(false); setNotices((p) => [...p, notice("{name}: moved to its new section line.", { name: im?.name || "" })]); }}
             onImport={(img) => { addSectionImage(img); setSectionGeorefOpen(false); setNotices((p) => [...p, notice("{name}: placed in 3D on its section line{v} — listed under Section images.", { name: img.name, v: img.rmse != null ? tr(" (fit error {rmse} m)", { rmse: img.rmse.toFixed(1) }) : "" })]); }} />
         </Suspense>
       )}
