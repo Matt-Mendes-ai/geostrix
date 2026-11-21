@@ -3391,6 +3391,7 @@
   "CV": "معامل التباين",
   "Top cut": "القطع الأعلى",
   "Top cut for {el}": "القطع الأعلى لـ{el}",
+  "The pane the files were chosen in closed while the project loaded: choose them again.": "أُغلقت اللوحة التي اختيرت فيها الملفات أثناء تحميل المشروع: اخترها مرة أخرى.",
   "The project is still loading: the files are read when it has loaded.": "لا يزال المشروع قيد التحميل: تُقرأ الملفات بعد اكتمال تحميله.",
   "The project is still loading: the EDI files are read when it has loaded.": "لا يزال المشروع قيد التحميل: تُقرأ ملفات EDI بعد اكتمال تحميله.",
   "Cut down for GemPy: {m} merged, {o} left out (listed under the order). Their roles can be changed there.": "خُفِّض لـGemPy: {m} مدموجة، {o} مستبعدة (مدرجة تحت الترتيب). يمكن تغيير أدوارها هناك.",

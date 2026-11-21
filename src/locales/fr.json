@@ -3391,6 +3391,7 @@
   "CV": "CV",
   "Top cut": "Écrêtage",
   "Top cut for {el}": "Écrêtage de {el}",
+  "The pane the files were chosen in closed while the project loaded: choose them again.": "Le panneau où les fichiers ont été choisis s'est fermé pendant le chargement du projet : choisissez-les de nouveau.",
   "The project is still loading: the files are read when it has loaded.": "Le projet est encore en cours de chargement : les fichiers seront lus une fois qu'il sera chargé.",
   "The project is still loading: the EDI files are read when it has loaded.": "Le projet est encore en cours de chargement : les fichiers EDI seront lus une fois qu'il sera chargé.",
   "Cut down for GemPy: {m} merged, {o} left out (listed under the order). Their roles can be changed there.": "Réduit pour GemPy : {m} fusionnées, {o} laissées de côté (listées sous l'ordre). Leurs rôles peuvent y être changés.",

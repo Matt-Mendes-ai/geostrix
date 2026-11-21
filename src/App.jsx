@@ -36,6 +36,7 @@ import { timeAgo } from "./lib/timeAgo.js"; // TASKS.csv #1274
 import { recoveryTabNames } from "./lib/recoveryNames.js"; // TASKS.csv #3047
 import { HIDDEN_TABS } from "./lib/features.js"; // TASKS.csv #3897 — Mine Design switched off
 import { groupModules, TIER_CAPTION, TIER_GROUP_LABEL } from "./lib/moduleTiers.js"; // TASKS.csv #3890
+import { useImportGate } from "./lib/useImportGate.js"; // TASKS.csv #3931 — every file input waits while a project is coming forward
 // TASKS.csv #224 (software-design-specialist audit finding: "grep for import()/React.lazy across src/
 // returns one hit -- a comment. A fresh launch eagerly fetches ~100 modules including three, geotiff,
 // proj4, d3-delaunay, sql.js") — ViewerModule stays a static import (it's the default landing tab and
@@ -117,6 +118,7 @@ const uncleanExitCheck = oncePerWindow(() => problemReportInfo());
 const LAT_LON_FMT = { minimumFractionDigits: 5, maximumFractionDigits: 5, useGrouping: false }; // TASKS.csv #3875
 export default function App() {
   const store = useStore();
+  const importGate = useImportGate(); // TASKS.csv #3931
   // TASKS.csv #3659 — a project rebuilt from GeoStrix's own exported tables: collars.csv carries the data owner's credit as a data_credit column (one value on every hole); the importer keeps it as a collar field,
   // and here it becomes the project's data credit again (when the project has none) and leaves the collar fields, so the credit prints on the next figure
   useEffect(() => {
@@ -735,6 +737,11 @@ export default function App() {
       {crsRequest && <Suspense fallback={null}><ProjectCrsModal reason={crsRequest.reason} points={crsRequest.points} suggested={crsRequest.suggested} noLocalGrid={!!crsRequest.noLocalGrid} family={crsRequest.family || null} onDone={finishCrsRequest} /></Suspense>}
       {licensesOpen && <Suspense fallback={null}><LicensesModal onClose={() => setLicensesOpen(false)} /></Suspense>}
       {aiAccessOpen && <Suspense fallback={null}><AiAccessModal onClose={() => setAiAccessOpen(false)} /></Suspense>}{/* TASKS.csv #3190 */}
+      {(importGate.held > 0 || importGate.lost > 0) && ( /* TASKS.csv #3931 — the files a pane was given while a project was coming forward */
+        <div role="status" style={{ position: "fixed", left: "50%", bottom: 36, transform: "translateX(-50%)", zIndex: 4000, maxWidth: 460, padding: "8px 12px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, boxShadow: "0 2px 10px rgba(0,0,0,0.18)", fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>
+          {importGate.held > 0 ? tr("The project is still loading: the files are read when it has loaded.") : <>{tr("The pane the files were chosen in closed while the project loaded: choose them again.")}{" "}<button type="button" onClick={importGate.clearLost} style={{ marginLeft: 6, fontSize: "var(--font-size-sm)" }}>{tr("OK")}</button></>}
+        </div>
+      )}
       {startDialog && <Suspense fallback={null}><StartDialogs reason={startDialog.reason} onClose={() => setStartDialog(null)} goTo={setActive} onOpenProject={doOpen} /></Suspense>}{/* TASKS.csv #3888 */}
       {sampleAsk && <Suspense fallback={null}><SampleDownloadModal id={sampleAsk} onClose={() => setSampleAsk(null)} onReady={(which) => { setSampleAsk(null); markSampleDownloaded(which); requestSampleProject(which); setActive(which === "perk" ? "surface" : "viewer"); }} /></Suspense>}{/* #3100 */}
       {reportProblem && <Suspense fallback={null}><ReportProblemModal screenshot={reportProblem.screenshot} crashed={reportProblem.crashed} onClose={() => setReportProblem(null)} /></Suspense>}
