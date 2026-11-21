@@ -16,6 +16,7 @@ import { suggestPileOrder, mapRoleFromLog } from "../lib/pileOrder.js"; // mapRo
 import { roleWithCodes } from "../lib/collarSubcrop.js"; // TASKS.csv #3369 — the logs' role of a code (Modelling codes first)
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { loggedCodes, suggestCodeUnits, holeContacts, MAX_GAP_M, contactsAgainstOrder } from "../lib/holeMapContacts.js"; // TASKS.csv #1718; contactsAgainstOrder: #2408
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 
 const ROLES = ["stratigraphic", "intrusion", "cross-cutting", "other"];
 const roleLabel = (r) => ({ stratigraphic: tr("stratigraphic"), intrusion: tr("intrusion"), "cross-cutting": tr("cross-cutting"), other: tr("other (left out)") }[r] || r);
@@ -206,7 +207,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
         <div key={f.i} style={{ ...row, fontSize: "var(--font-size-xs)" }}>
           <input type="checkbox" checked={f.on} onChange={(e) => setFault(f.i, { on: e.target.checked })} aria-label={f.name} />
           <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.measured ? tr("dip and side from the nearest measured fault") : tr("no measured fault nearby: set the dip")}>{f.name}</span>
-          <input type="number" min={1} max={90} value={f.dip} onChange={(e) => setFault(f.i, { dip: Number(e.target.value) })} style={{ ...smallSel, width: 46 }} aria-label={tr("Dip")} />°
+          <NumberInput min={1} max={90} value={f.dip} onChange={(v) => setFault(f.i, { dip: v })} style={{ ...smallSel, width: 46 }} aria-label={tr("Dip")} />°
           <select value={Math.round(f.dipDir)} onChange={(e) => setFault(f.i, { dipDir: Number(e.target.value) })} style={{ ...smallSel, width: 62 }} aria-label={tr("Dips towards")}>
             {f.perp.map((a) => <option key={a} value={Math.round(a)}>{tr("to {a}°", { a: Math.round(a) })}</option>)}
           </select>
@@ -314,7 +315,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
             ))}
           </div>
           <div style={row}><span style={{ width: 120, flexShrink: 0 }}>{tr("Depth below outcrop")}</span>
-            <input type="number" min={10} step={50} value={bodyDepth} placeholder={tr("required")} onChange={(e) => setBodyDepth(e.target.value === "" ? "" : Math.max(10, Number(e.target.value) || 10))} style={{ ...sel, width: 70, flex: "none" }} aria-label={tr("Depth below outcrop")} /><span>m</span>
+            <NumberInput allowEmpty min={10} step={50} value={bodyDepth === "" ? null : bodyDepth} placeholder={tr("required")} onChange={(v) => setBodyDepth(v == null ? "" : v)} style={{ ...sel, width: 70, flex: "none" }} aria-label={tr("Depth below outcrop")} /><span>m</span>
             {deepestLogged && bodyDepth === "" && <button type="button" onClick={() => setBodyDepth(Math.max(10, Math.ceil(deepestLogged.depth / 10) * 10))} style={{ ...sel, width: "auto", flex: "none", cursor: "pointer" }} title={tr("The deepest logged {unit} ends {d} m down hole {hole}: a body to that depth reaches every logged intercept.", { unit: deepestLogged.unit, d: Math.round(deepestLogged.depth), hole: deepestLogged.hole })}>{tr("Use {d} m (deepest logged)", { d: Math.max(10, Math.ceil(deepestLogged.depth / 10) * 10) })}</button>}{/* #2568 */}</div>
           <div style={row}><span style={{ width: 120, flexShrink: 0 }}>{tr("Shape")}</span>{/* TASKS.csv #2642 */}
             <select value={bodyShape} onChange={(e) => setBodyShape(e.target.value)} style={sel} aria-label={tr("Body shape")}>
@@ -322,9 +323,9 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
             </select></div>
           {bodyShape === "sheet" ? (<>
             <div style={row}><span style={{ width: 120, flexShrink: 0 }}>{tr("Sheet dip")}</span>
-              <input type="number" min={10} max={90} step={1} value={sheetDip} placeholder={tr("required")} onChange={(e) => setSheetDip(e.target.value)} style={{ ...sel, width: 60, flex: "none" }} aria-label={tr("Sheet dip")} /><span>°</span>
+              <NumberInput allowEmpty min={10} max={90} step={1} value={sheetDip === "" ? null : sheetDip} placeholder={tr("required")} onChange={(v) => setSheetDip(v == null ? "" : String(v))} style={{ ...sel, width: 60, flex: "none" }} aria-label={tr("Sheet dip")} /><span>°</span>
               <span style={{ flexShrink: 0 }}>{tr("toward")}</span>
-              <input type="number" min={0} max={359} step={1} value={sheetDipDir} placeholder={tr("required")} onChange={(e) => setSheetDipDir(e.target.value)} style={{ ...sel, width: 60, flex: "none" }} aria-label={tr("Sheet dip direction")} /><span>°</span></div>
+              <NumberInput allowEmpty min={0} max={359} step={1} value={sheetDipDir === "" ? null : sheetDipDir} placeholder={tr("required")} onChange={(v) => setSheetDipDir(v == null ? "" : String(v))} style={{ ...sel, width: 60, flex: "none" }} aria-label={tr("Sheet dip direction")} /><span>°</span></div>
             {contactOffer && (sheetDip === "" || sheetDipDir === "") && <button type="button" onClick={() => { setSheetDip(String(contactOffer.dip)); setSheetDipDir(String(contactOffer.dipDir)); }} style={{ ...sel, width: "auto", cursor: "pointer", marginBottom: 6 }} title={tr("The mean of the {n} contact readings within {m} m of the ticked units' polygons.", { n: contactOffer.n, m: contactOffer.maxM })}>{tr("Use {dip}° toward {dir}° ({n} contact readings)", { dip: contactOffer.dip, dir: contactOffer.dipDir, n: contactOffer.n })}</button>}
             {fitUnit && lithoRows?.length > 0 && Object.values(codeUnit).includes(fitUnit) /* codeUnit is declared below the hooks above */ && <button type="button" onClick={fitToLogs} disabled={!groundAt} style={{ ...sel, width: "auto", cursor: "pointer", marginBottom: 6 }} /* TASKS.csv #2724 */
               title={tr("Strike from the unit's map outline, dip from where its logged intercepts lie below the ground beside that trace (least squares); fills the two boxes.")}>{tr("Fit to the logged intercepts")}</button>}
@@ -332,7 +333,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
             <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, marginBottom: 6 }}>{tr("Each outline point goes down the sheet's plane: the base is the mapped outline moved down-dip, so both walls dip the same way. Its thickness comes from the map width across the dip, said when it is built.")}</div>
           </>) : (
           <div style={row}><span style={{ width: 120, flexShrink: 0 }}>{tr("Wall dip")}</span>
-            <input type="number" min={30} max={90} step={5} value={bodyDip} onChange={(e) => setBodyDip(Math.min(90, Math.max(30, Number(e.target.value) || 90)))} style={{ ...sel, width: 70, flex: "none" }} aria-label={tr("Wall dip")} /><span>°</span>
+            <NumberInput min={30} max={90} step={5} value={bodyDip} onChange={(v) => setBodyDip(v)} style={{ ...sel, width: 70, flex: "none" }} aria-label={tr("Wall dip")} /><span>°</span>
             <select value={bodyFlare} onChange={(e) => setBodyFlare(e.target.value)} disabled={bodyDip >= 90} style={{ ...sel, opacity: bodyDip >= 90 ? 0.5 : 1 }} aria-label={tr("Wall direction")}>
               <option value="out">{tr("widens with depth")}</option><option value="in">{tr("narrows with depth")}</option>
             </select></div>

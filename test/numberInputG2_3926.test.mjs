@@ -12,6 +12,7 @@ const DONE = [
   "components/InterpretPane.jsx", "components/ImportMappingModal.jsx", "components/AlterationBoxModal.jsx",
   "components/PlanModelsList.jsx", "components/PlannedHoleParts.jsx", "components/PlannedHoleTargeting.jsx", "components/SectionEditModal.jsx",
   "components/StereonetModal.jsx", "components/StripLog.jsx", "components/SurfaceGeologyProjection.jsx",
+  "components/MapModelPanel.jsx", "components/SectionWindow.jsx",
 ];
 
 test("every G2 box in these files is a NumberInput", () => {
@@ -39,6 +40,12 @@ test("the planned hole's fields: the azimuth wrapped and the dip held when the b
   assert.match(h, /<NumberInput allowEmpty value=\{value === "" \? null : value\} placeholder=\{placeholder\} onChange=\{\(v\) => onChange\(v == null \? "" : limit && limit\(v\) !== v \? Math\.round\(limit\(v\) \* 1000\) \/ 1000 : v\)\}/);
   assert.match(read("components/PlannedHoleTargeting.jsx"), /allowEmpty value=\{value \?\? null\} placeholder="—"/);
   assert.match(read("components/StereonetModal.jsx"), /<NumberInput min=\{0\} max=\{89\} step=\{5\} value=\{roseMinDip\}/);
+});
+
+test("the section window's buffer sends the corridor when the box commits, as its Enter / blur did", () => {
+  const w = read("components/SectionWindow.jsx");
+  assert.match(w, /<NumberInput min=\{1\} step=\{5\} value=\{data\.section\?\.corridor \?\? null\}\s+onChange=\{\(v\) => \{ if \(v > 0 && v !== data\.section\?\.corridor\) sendSectionContacts\(\{ id: data\.id, corridor: v \}\); \}\}/);
+  assert.doesNotMatch(w, /bufferDraft/);
 });
 
 test("NumberInput takes a wrapper style (a box that fills a row), and nothing else changes", () => {
