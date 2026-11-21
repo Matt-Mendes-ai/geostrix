@@ -22,3 +22,12 @@ export function plainLith(text) {
     return parts.join("; ") + tail;
   }).replace(/\(\s+/g, "(").replace(/\s+\)/g, ")");
 }
+
+// TASKS.csv #3936 — the MAJOR lithology only, for a rule that reads a unit's rock: a shale with 'Minor: {granite dyke}' is not an intrusion.
+// Each block becomes its major part ('' when it has none); any other text is unchanged.
+export function majorLith(text) {
+  if (text == null) return text;
+  const s = String(text);
+  if (!/\{/.test(s)) return s;
+  return s.replace(BLOCK, (block) => { for (const m of block.matchAll(PART)) if (m[1].toLowerCase() === "major") return m[2].trim() + (/\s$/.test(block) ? " " : ""); return ""; });
+}

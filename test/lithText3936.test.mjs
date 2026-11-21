@@ -23,3 +23,16 @@ test("wired: Macrostrat's unit names, the Identify card, the map legend and the 
   assert.match(m, /<span style=\{\{ fontWeight: 600 \}\}>\{plainLith\(u\)\}<\/span>/);
   assert.match(m, /<option key=\{u\} value=\{u\}>\{plainLith\(u\)\}<\/option>/); // shown in words, the value kept
 });
+
+test("the intrusion roles a map sets: plutonic suites and batholiths are intrusions; a minor lithology does not make one", async () => {
+  const { classifyUnitRole } = await import("../src/lib/pileOrder.js");
+  const { majorLith } = await import("../src/lib/lithText.js");
+  assert.equal(majorLith("Major: {shale},Minor: {granite dyke}"), "shale");
+  assert.equal(majorLith("Kappa Gp (Major: {sandstone},Minor: {chert})"), "Kappa Gp (sandstone)");
+  assert.equal(classifyUnitRole("Kappa Gp", "Major: {shale},Minor: {granite dyke}"), "stratigraphic"); // was 'intrusion' (the minor dyke)
+  assert.equal(classifyUnitRole("Unit B (Major: {siltstone},Minor: {diorite sill})", ""), "stratigraphic");
+  assert.equal(classifyUnitRole("Coyote Plutonic Suite", ""), "intrusion");
+  assert.equal(classifyUnitRole("Unit C", "Major: {granodiorite}"), "intrusion");
+  assert.equal(classifyUnitRole("Ridge batholith", ""), "intrusion");
+  assert.equal(classifyUnitRole("Kappa Gp", ""), "stratigraphic"); // 'Gp' is a group, not an intrusion
+});
