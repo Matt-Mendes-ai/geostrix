@@ -14,8 +14,8 @@ export default function ExportToast() {
     let n = 0;
     const on = (e) => {
       const d = e.detail || {}, id = ++n;
-      setItems((L) => [...L.slice(-2), { id, ...d }]);
-      if (d.ok) setTimeout(() => setItems((L) => L.filter((x) => x.id !== id)), d.undo ? 12000 : d.message ? 3500 : 6000); // #3932 — a change an AI app made stays longer, with its Undo
+      setItems((L) => [...L.slice(d.sticky ? -4 : -2), { id, ...d }]); // #3932 — a few AI changes stay side by side (each is also in AI App Access)
+      if (d.ok && !d.sticky) setTimeout(() => setItems((L) => L.filter((x) => x.id !== id)), d.message ? 3500 : 6000); // #3932 (Main) — a change an AI app made stays until dismissed (sticky), with its Undo
     };
     window.addEventListener(EXPORT_RESULT_EVENT, on);
     return () => window.removeEventListener(EXPORT_RESULT_EVENT, on);

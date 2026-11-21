@@ -14498,5 +14498,9 @@
   "zoomed to {hole}": "aproximou a vista de {hole}",
   "fitted the view to the data": "ajustou a vista aos dados",
   "turned the view to the top": "virou a vista para o topo (planta)",
-  "turned the view to the bottom": "virou a vista para baixo"
+  "turned the view to the bottom": "virou a vista para baixo",
+  "It can list holes, assays, logs and sections and compute grade statistics and best intercepts. It changes nothing unless you also tick 'Allow AI apps to make changes' below, and it cannot open files or use any password. It works over a private connection on this computer only (no network port), and each AI app is asked about once.": "Pode listar furos, análises, registros e seções e calcular estatísticas de teor e melhores interseções. Não altera nada a menos que você também marque 'Permitir que aplicativos de IA façam alterações' abaixo, e não pode abrir arquivos nem usar nenhuma senha. Funciona por uma conexão privada somente neste computador (sem porta de rede), e cada aplicativo de IA é perguntado uma vez.",
+  "Changes made by AI apps": "Alterações feitas por aplicativos de IA",
+  "Undone": "Desfeito",
+  "Undo this change": "Desfazer esta alteração"
 }

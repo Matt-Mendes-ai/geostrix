@@ -14498,5 +14498,9 @@
   "zoomed to {hole}": "a zoomé sur {hole}",
   "fitted the view to the data": "a ajusté la vue aux données",
   "turned the view to the top": "a tourné la vue vers le dessus (plan)",
-  "turned the view to the bottom": "a tourné la vue vers le dessous"
+  "turned the view to the bottom": "a tourné la vue vers le dessous",
+  "It can list holes, assays, logs and sections and compute grade statistics and best intercepts. It changes nothing unless you also tick 'Allow AI apps to make changes' below, and it cannot open files or use any password. It works over a private connection on this computer only (no network port), and each AI app is asked about once.": "Elle peut lister les sondages, les analyses, les logs et les coupes, et calculer des statistiques de teneur et les meilleures intersections. Elle ne modifie rien sauf si vous cochez aussi « Autoriser les applications d'IA à apporter des modifications » ci-dessous, et elle ne peut ni ouvrir des fichiers ni utiliser un mot de passe. Elle passe par une connexion privée sur cet ordinateur uniquement (aucun port réseau), et chaque application d'IA est demandée une fois.",
+  "Changes made by AI apps": "Modifications faites par des applications d'IA",
+  "Undone": "Annulé",
+  "Undo this change": "Annuler cette modification"
 }

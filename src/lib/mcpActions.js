@@ -6,13 +6,15 @@
 //  - One action, one step: undoCheckpoint() before (the user's own last edit is its own step) and after (labelled with what the AI app did, for the Undo
 //    button's tooltip). What is in the undo history (sections, intercept sets, Layout pages) is taken back by Ctrl+Z; what never was (the view: hole colours,
 //    layers shown, the camera; rasters and the terrain) by the toast's Undo, which reverts exactly that change and nothing else.
-//  - Every change shows: a toast says what was done, with Undo; the AI App Access window lists the call; the answer to the app is short ({ ok, changed, name, id }).
+//  - Every change shows: a toast says what was done, with Undo, and stays until dismissed; the AI App Access window lists the change with the same Undo
+//    (lib/mcpChangeLog.js), so it is not lost with the toast; the answer to the app is short ({ ok, changed, name, id }).
 import { t as tr } from "./i18n.js";
 import { requestModuleAction } from "./menuRequests.js";
 import { holeTraces } from "./evidenceSources.js";
 import { sectionThroughHole } from "./sectionDefs.js";
 import { interceptTablePlan, columnFormat } from "./interceptTable.js";
 import { pagePx, pageFormatOf, addPagesOnPaper } from "./pageFormats.js";
+import { recordChange } from "./mcpChangeLog.js";
 
 const SETTLE_MS = 60; // the store's undo bookkeeping runs after React has rendered the change
 export const settleRender = () => new Promise((r) => setTimeout(r, SETTLE_MS));
@@ -157,7 +159,9 @@ export async function runChange(name, args, { getStore, client = "An AI app", to
   try { getStore?.()?.undoCheckpoint?.(r.tracked && said ? said : undefined); } catch { /* no history */ }
   if (said) {
     const revert = typeof r.revert === "function" ? r.revert : null;
-    try { toast({ ok: true, message: said, ...(revert ? { undo: () => { const st = getStore?.(); try { st?.undoCheckpoint?.(); revert(st); } catch { /* already gone */ } } } : {}) }); } catch { /* no window */ }
+    // #3932 (Main) — the change is also listed in AI App Access with its own Undo; the toast's and the list's Undo are one (it runs once)
+    const entry = recordChange({ client, tool: name, message: said, revert: revert ? () => { const st = getStore?.(); try { st?.undoCheckpoint?.(); revert(st); } catch { /* already gone */ } } : null });
+    try { toast({ ok: true, message: said, sticky: true, ...(revert ? { undo: () => entry.undo(), entry } : {}) }); } catch { /* no window */ }
   }
   return { ok: true, data: { ok: true, ...(r.data || {}) } };
 }

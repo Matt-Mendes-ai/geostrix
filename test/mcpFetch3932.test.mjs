@@ -100,7 +100,8 @@ test("#3932 fetch_terrain: refused when a terrain is loaded (no overwrite, nothi
   s.terrain = { id: "t9", name: "One the user loaded after" };
   toasts[0].undo();
   assert.equal(s.terrain.id, "t9", "Undo leaves a terrain it did not add");
-  s.terrain = { id: "t1" }; toasts[0].undo(); assert.equal(s.terrain, null);
+  s.terrain = null; await run("fetch_terrain", {}, s, toasts); // a second fetch (its own change, its own Undo)
+  assert.equal(s.terrain.id, "t1"); toasts[1].undo(); assert.equal(s.terrain, null);
 });
 
 test("#3932 wiring: the native download box (safe default, the hosts named), the host's longer wait, Maps forwarding to its panes, the panes' own fetches with the AI's overrides", () => {

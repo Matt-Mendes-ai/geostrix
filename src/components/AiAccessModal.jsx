@@ -6,6 +6,7 @@ import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { mcpStatus, mcpSetEnabled, mcpSetChanges, mcpStop, mcpForgetClients, mcpConfig, onMcpStatus, copyText, isDesktop } from "../lib/desktop.js";
 import { t as tr } from "../lib/i18n.js";
+import { changeLog, onChangeLog } from "../lib/mcpChangeLog.js"; // TASKS.csv #3932 — the changes AI apps made this session, each with its Undo
 
 // TASKS.csv #3190 (Matt's decisions, 2026-11-17) — Tools > AI App Access: the switch for the optional, local, read-only Model Context Protocol server (electron/mcpHost.js). Off by default; it
 // turns itself off when GeoStrix closes unless 'keep it on' is ticked. The notice says plainly where what an AI app reads goes.
@@ -17,6 +18,8 @@ export default function AiAccessModal({ onClose }) {
   const [cfg, setCfg] = useState(null);
   const [msg, setMsg] = useState("");
   const [copied, setCopied] = useState(false);
+  const [changes, setChanges] = useState(() => changeLog()); // #3932
+  useEffect(() => onChangeLog((L) => setChanges(L)), []);
   useEffect(() => { let live = true; mcpStatus().then((s) => { if (live && s) { setSt(s); setRemember(!!s.remember); } }); const off = onMcpStatus((s) => live && setSt(s)); return () => { live = false; off(); }; }, []);
   const on = !!st?.enabled;
   useEffect(() => { if (on) mcpConfig().then(setCfg); else setCfg(null); }, [on]);
@@ -57,7 +60,20 @@ export default function AiAccessModal({ onClose }) {
           </label>
           <div style={{ ...small, marginLeft: 24 }}>{tr("Off by default. With it on, the AI app can also colour the holes, show or hide layers, point the view, and add sections, best-intercept sets and Layout pages. Each change shows here and is one step of Undo; nothing is deleted, overwritten or saved, and each download is asked for, every time. It turns off with AI App Access.")}</div>
           {msg && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)", marginTop: 6 }}>{msg}</div>}
-          <div style={{ ...small, marginTop: 8 }}>{tr("Read-only: it can list holes, assays, logs and sections and compute grade statistics and best intercepts. It cannot change the project, open files or use any password. It works over a private connection on this computer only (no network port), and each AI app is asked about once.")}</div>
+          <div style={{ ...small, marginTop: 8 }}>{tr("It can list holes, assays, logs and sections and compute grade statistics and best intercepts. It changes nothing unless you also tick 'Allow AI apps to make changes' below, and it cannot open files or use any password. It works over a private connection on this computer only (no network port), and each AI app is asked about once.")}{/* #3932 — was 'Read-only … It cannot change the project', above the changes switch */}</div>
+          {/* TASKS.csv #3932 (Main) — each change an AI app made this session, with its own Undo (the same as its toast's): it is not lost when the toast is dismissed, nor when access is switched off */}
+          {changes.length > 0 && (
+            <>
+              <div style={heading}>{tr("Changes made by AI apps")}</div>
+              {changes.slice().reverse().map((c) => (
+                <div key={c.id} style={{ ...small, display: "flex", gap: 8, alignItems: "center", color: c.undone ? "var(--color-text-muted)" : "var(--color-text-secondary)" }}>
+                  <span style={{ minWidth: 70 }}>{when(c.at)}</span>
+                  <span style={{ flex: 1, textDecoration: c.undone ? "line-through" : "none" }}>{c.message}</span>
+                  {c.undone ? <span>{tr("Undone")}</span> : c.canUndo ? <button type="button" onClick={() => c.undo()} title={tr("Undo this change")} style={{ ...btn, padding: "1px 8px", fontSize: "var(--font-size-sm)" }}>{tr("Undo")}</button> : null}
+                </div>
+              ))}
+            </>
+          )}
           {on && (
             <>
               <div style={heading}>{tr("Connect an AI app")}</div>
