@@ -18,7 +18,7 @@ import * as THREE from "three";
 import { reprojectXY, pointTransform, turnGridBearing, bearingTurn, crsName } from "../../lib/reproject.js";
 import { guessEpsgFromPrjWkt } from "../../lib/reprojectMore.js"; // TASKS.csv #3590
 import { surveyAzimuthDipAt, holeAttitudeAssumed } from "../../lib/desurvey.js"; // holeAttitudeAssumed: #2014
-import { fillMissingCollarZ, settleAssumedZ } from "../../lib/collarElevation.js"; // TASKS.csv #2169
+import { fillMissingCollarZ, settleAssumedZ, zOptional } from "../../lib/collarElevation.js"; // TASKS.csv #2169; zOptional: #3955
 import { markSuspectElevations } from "../../lib/collarElevationTrust.js"; // TASKS.csv #3004 / #2896
 import { terrainGroundAt } from "../../lib/viewer/geomath.js"; // #2169 — a collar with no elevation on the terrain
 import { azimuthToGridOffset, wrap360, loadIgrf, detectAzimuthRef } from "../../lib/azimuthRef.js"; // loadIgrf: #552; detectAzimuthRef: #1647
@@ -513,7 +513,7 @@ export function makeImportPipeline(ctx, h) {
         + (minPlan.blank.length ? " " + tr("Left out, with no value in any row: {cols}.", { cols: minPlan.blank.join(", ") }) : "")
         + (outside ? " " + tr("{n} value(s) below 0 or over 100 % were left out.", { n: outside.toLocaleString() }) : "")]);
     };
-    const missing = schema.fields.filter((f) => f.required && !mapping[f.key] && !(logChans && f.key === "value") && !(recCalc && f.key === "value") && !(minPlan && f.key === "value"));
+    const missing = schema.fields.filter((f) => f.required && !mapping[f.key] && !(zOptional(target) && f.key === "z" /* #3955 — placed on the terrain, or flagged */) && !(logChans && f.key === "value") && !(recCalc && f.key === "value") && !(minPlan && f.key === "value"));
     if (missing.length) { setNotices((p) => [...p, notice("{fileName}: map required field(s) — {v}", { fileName, v: missing.map((f) => f.label).join(", ") })]); return false; }
     // TASKS.csv #3052 — a composition imported as per-component layers keeps the code column it was mapped with (the strand code) as its own layer
     const compLayersMade = minPlan?.mode === "layers" && !!minPlan.composition && !!mapping.value && target !== "custom" && minPlan.cols.length > 0;
@@ -674,7 +674,7 @@ export function makeImportPipeline(ctx, h) {
       rows = rows.map(({ _rowEpsg, ...rest }) => rest);
       // TASKS.csv #2169 — collars with no elevation: the terrain at the collar, else the median collar elevation, else 0 m, flagged
       const terrainNow = importStateRef.current.terrain;
-      const zFill = fillMissingCollarZ(rows, { existing: importStateRef.current.collars || [], groundAt: terrainNow ? (x, y) => terrainGroundAt(terrainNow, x, y) : null });
+      const zFill = fillMissingCollarZ(rows, { existing: importStateRef.current.collars || [], groundAt: terrainNow && data.zFromTerrain !== false ? (x, y) => terrainGroundAt(terrainNow, x, y) : null }); // zFromTerrain: the dialog's "Elevation" choice, #3955
       rows = zFill.rows;
 
       // TASKS.csv #283 — this used to be a bare last-write-wins merge
