@@ -2779,9 +2779,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             <option value="mrdem" disabled={outsideCanada && terrainSource !== "mrdem"}>{tr("NRCan MRDEM-30 (Canada, bare earth)")}</option>{/* TASKS.csv #815; disabled outside Canada: #2465 */}
             <option value="hrdem" disabled={outsideCanada && terrainSource !== "hrdem"}>{tr("NRCan HRDEM lidar (Canada, where flown)")}</option>
             <option value="gem15">{tr("Google GEM-15 (15 m, bare earth)")}</option>{/* TASKS.csv #3721 — experimental; gaps filled from GLO-30 and said */}
-            <option value="gem15dsm">{tr("Google GEM-15 surface (15 m)")}</option>
+            <option value="gem15dsm">{tr("Google GEM-15 surface (15 m, trees and buildings)")}</option>
           </select>
         </div>
+        {terrainSource === "gem15dsm" && <div data-gem-surface-note="" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "-2px 0 6px", lineHeight: 1.4 }}>{tr("Trees, buildings, cut blocks and flat snow or ice show as steps. GEM-15 bare earth has the same 15 m.")}</div>}{/* TASKS.csv #3946 */}
         {/* TASKS.csv #796 — terrain detail */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
           <span style={{ flexShrink: 0 }}>{tr("Terrain detail")}</span>

@@ -39,3 +39,9 @@ test("#3946 the pull-push start is gone; GEM-15's own steps are said in Help", (
   assert.match(g, /a BILINEAR sample of\s*\n?\/\/ the level above/);
   assert.match(fs.readFileSync(new URL("../src/help/pages/geophysics.js", import.meta.url), "utf8"), /its own model has straight steps on flat snow, ice and other low-texture ground, most in the surface band/);
 });
+
+test("#3946 the surface option says it holds trees and buildings, and, while chosen, what shows as steps and that bare earth has the same 15 m", () => {
+  const m = fs.readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
+  assert.match(m, /<option value="gem15dsm">\{tr\("Google GEM-15 surface \(15 m, trees and buildings\)"\)\}<\/option>/);
+  assert.match(m, /\{terrainSource === "gem15dsm" && <div data-gem-surface-note=""[^\n]*tr\("Trees, buildings, cut blocks and flat snow or ice show as steps\. GEM-15 bare earth has the same 15 m\."\)/);
+});

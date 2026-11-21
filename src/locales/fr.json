@@ -12658,7 +12658,6 @@
   "nothing to undo. Undo covers this session only: a project opened from its file starts with no history.": "rien à annuler. Annuler ne couvre que cette session : un projet ouvert depuis son fichier démarre sans historique.",
   "Nothing to undo. (Undo covers this session only: a project opened from its file starts with no history.)": "Rien à annuler. (Annuler ne couvre que cette session : un projet ouvert depuis son fichier démarre sans historique.)",
   "Google GEM-15 (15 m, bare earth)": "Google GEM-15 (15 m, sol nu)",
-  "Google GEM-15 surface (15 m)": "Surface Google GEM-15 (15 m)",
   "Couldn't read Google's GEM-15 elevation model ({v}). Check your internet connection.": "Impossible de lire le modèle d'élévation GEM-15 de Google ({v}). Vérifiez votre connexion Internet.",
   " {n} of {total} nodes have no GEM-15 value (water, snow and ice, low texture, or no cell): {filled} were filled from Copernicus GLO-30.": " {n} nœuds sur {total} n'ont pas de valeur GEM-15 (eau, neige et glace, peu de texture ou pas de cellule) : {filled} ont été comblés avec Copernicus GLO-30.",
   " {n} of {total} nodes have no GEM-15 value (water, snow and ice, low texture, or no cell) and are left as no data.": " {n} nœuds sur {total} n'ont pas de valeur GEM-15 (eau, neige et glace, peu de texture ou pas de cellule) et restent sans données.",
@@ -14614,5 +14613,7 @@
   "Drag handles to resize (Shift keeps the shape, Alt ignores guides); arrows nudge 1 mm, Shift+arrow 10 mm.": "Glissez les poignées pour redimensionner (Maj garde la forme, Alt ignore les repères) ; les flèches décalent de 1 mm, Maj+flèche 10 mm.",
   "A sheet in one click": "Une planche en un clic",
   "Or start from the 3D view:": "Ou partez de la vue 3D :",
-  "The sheet is empty: pick a sheet on the page.": "La planche est vide : choisissez une planche sur la page."
+  "The sheet is empty: pick a sheet on the page.": "La planche est vide : choisissez une planche sur la page.",
+  "Google GEM-15 surface (15 m, trees and buildings)": "Surface Google GEM-15 (15 m, arbres et bâtiments)",
+  "Trees, buildings, cut blocks and flat snow or ice show as steps. GEM-15 bare earth has the same 15 m.": "Les arbres, les bâtiments, les coupes forestières et la neige ou la glace planes apparaissent en marches. GEM-15 sol nu a les mêmes 15 m."
 }
