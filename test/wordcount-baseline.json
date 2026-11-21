@@ -3,11 +3,11 @@
   "surfaces": {
     "help.seenFirst": 30821,
     "help.seenFirstWithoutMineDesign": 22287,
-    "tooltips": 17883,
+    "tooltips": 17907,
     "infoPopups": 1100,
     "notices": 16079,
     "interface.other": 92186,
-    "interface.all": 127248,
+    "interface.all": 127272,
     "help.page.data": 1244,
     "help.page.everyday": 1508,
     "help.page.geophysics": 4377,
