@@ -41,6 +41,6 @@ test("the import stores and says it; Data QC flags it", () => {
   assert.match(q, /const sus = suspectElevationIds\(collars\);/);
   for (const l of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
-    for (const k of ["Elevation {z} m in the collar file, far from the other collars ({lo}–{hi} m): probably a missing value. Everything on the hole sits at that height; check the collar RL and re-import the collars.", "Check {n} collar elevation(s) that look like a missing value, far from the others ({lo}–{hi} m): {list}. Placed as given, marked suspect in Data QC"] /* #3899 */) assert.ok(d[k], `${l}: ${k}`);
+    for (const k of ["Check the collar RL and re-import the collars: elevation {z} m is far from the other collars ({lo}–{hi} m), probably a missing value.", "Check {n} collar elevation(s) that look like a missing value, far from the others ({lo}–{hi} m): {list}. Placed as given, marked suspect in Data QC"] /* #3899 */) assert.ok(d[k], `${l}: ${k}`);
   }
 });

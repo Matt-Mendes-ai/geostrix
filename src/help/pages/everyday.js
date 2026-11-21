@@ -112,7 +112,7 @@ export default [
     warnings: [
       { says: "42 intercepts, in 12 holes", do: "Nothing; with Hole contains it shows how many are in view." },
       { says: "≥: contains an over-range result counted at its ceiling; the true grade is at least this.", do: "Have it re-assayed before reporting a grade." },
-      { says: "+: the intercept starts at the hole's first sample or ends at its last sample or the end of the hole", means: "It may continue past the sampling.", do: "Quote it as at least that length." },
+      { says: "+: the intercept reaches the hole's first or last sample", means: "It may continue past the sampling.", do: "Quote it as at least that length." },
       { says: "Below-detection results are taken at half the detection limit.", do: "Check how many results sit at the limit (QAQC, Grade statistics)." },
     ],
     howto: {

@@ -9,7 +9,7 @@ import { runDataQC, wedgeFamily } from "../src/lib/dataQC.js";
 
 const read = (p) => fs.readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const rd = (f) => Papa.parse(read(`../sample_data/yk_macpass/${f}`), { header: true, skipEmptyLines: true, dynamicTyping: true }).data;
-const shared = (r) => r.issues.filter((i) => /share the same collar|start at the same collar/.test(i.message));
+const shared = (r) => r.issues.filter((i) => /share a collar and direction|with the same collar \(within/.test(i.message));
 
 test("the real Macpass collars: 20 wedge / daughter groups are infos, the 4 pairs with consecutive numbers stay warnings", () => {
   const r = runDataQC({ project: {}, collars: rd("collars.csv"), survey: rd("survey.csv"), layers: {}, boundaries: [], assays: [] });
@@ -19,8 +19,8 @@ test("the real Macpass collars: 20 wedge / daughter groups are infos, the 4 pair
   assert.deepEqual(g.filter((i) => i.severity === "warning").map((i) => i.message.match(/\(([^)]*)\)/)[1]).sort(), ["JS81-073, JS81-074", "NB22-003, NB22-004", "TS044, TS045", "TS051, TS052"]);
   const six = g.find((i) => /JS81-068W5/.test(i.message));
   assert.equal(six.severity, "info");
-  assert.match(six.message, /^6 holes \(JS81-068, JS81-068W1, JS81-068W2, JS81-068W3, JS81-068W4, JS81-068W5\) start at the same collar and point the same way: JS81-068 and its wedge \/ daughter hole\(s\) JS81-068W1, JS81-068W2, JS81-068W3, JS81-068W4, JS81-068W5, which part from it down the hole — normal for wedged holes\.$/);
-  assert.match(g.find((i) => i.severity === "warning").message, /— a wedge or daughter hole, a twin or re-drill, a duplicate import, or a coordinate entry error\.$/);
+  assert.match(six.message, /^6 holes \(JS81-068, JS81-068W1, JS81-068W2, JS81-068W3, JS81-068W4, JS81-068W5\) share a collar and direction: JS81-068 and its wedge \/ daughter hole\(s\) JS81-068W1, JS81-068W2, JS81-068W3, JS81-068W4, JS81-068W5, normal for wedged holes\.$/);
+  assert.match(g.find((i) => i.severity === "warning").message, /: a wedge, twin or re-drill, a duplicate import, or a coordinate error\.$/);
 });
 
 const C = (id, length) => ({ hole_id: id, x: 1000, y: 2000, z: 100, length, azimuth: 90, dip: -60 });
@@ -45,7 +45,7 @@ test("the rule: the suffix, the parent, and parting down the hole", () => {
 test("both messages are in every language", () => {
   for (const lang of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(fs.readFileSync(new URL(`../src/locales/${lang}.json`, import.meta.url), "utf8"));
-    for (const k of ["{n} holes ({ids}) start at the same collar and point the same way: {parent} and its wedge / daughter hole(s) {kids}, which part from it down the hole — normal for wedged holes.",
-      "{n} holes ({ids}) share the same collar (within 1m) AND point the same way (within 3°) — a wedge or daughter hole, a twin or re-drill, a duplicate import, or a coordinate entry error."]) assert.ok(d[k], `${lang}: ${k.slice(0, 30)}`);
+    for (const k of ["{n} holes ({ids}) share a collar and direction: {parent} and its wedge / daughter hole(s) {kids}, normal for wedged holes.",
+      "Check {n} holes ({ids}) with the same collar (within 1 m) and direction (within 3°): a wedge, twin or re-drill, a duplicate import, or a coordinate error."]) assert.ok(d[k], `${lang}: ${k.slice(0, 30)}`);
   }
 });
