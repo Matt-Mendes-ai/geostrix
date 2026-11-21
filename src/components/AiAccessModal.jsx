@@ -4,7 +4,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
-import { mcpStatus, mcpSetEnabled, mcpStop, mcpForgetClients, mcpConfig, onMcpStatus, copyText, isDesktop } from "../lib/desktop.js";
+import { mcpStatus, mcpSetEnabled, mcpSetChanges, mcpStop, mcpForgetClients, mcpConfig, onMcpStatus, copyText, isDesktop } from "../lib/desktop.js";
 import { t as tr } from "../lib/i18n.js";
 
 // TASKS.csv #3190 (Matt's decisions, 2026-11-17) — Tools > AI App Access: the switch for the optional, local, read-only Model Context Protocol server (electron/mcpHost.js). Off by default; it
@@ -50,6 +50,12 @@ export default function AiAccessModal({ onClose }) {
             <input type="checkbox" checked={remember} disabled={!isDesktop} onChange={(e) => { setRemember(e.target.checked); if (on) mcpSetEnabled(true, e.target.checked); }} aria-label={tr("Keep it on when GeoStrix restarts")} />
             {tr("Keep it on when GeoStrix restarts")}
           </label>
+          {/* TASKS.csv #3932 (Matt's decision, 2026-11-21) — the second switch: off by default, only while access is on, off with it (electron/mcpHost.js setChanges) */}
+          <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, fontSize: "var(--font-size-base)", color: on ? "var(--color-text)" : "var(--color-text-muted)", cursor: on ? "pointer" : "default" }}>
+            <input type="checkbox" checked={!!st?.changes} disabled={!isDesktop || !on} onChange={async (e) => { setMsg(""); const r = await mcpSetChanges(e.target.checked); if (!r?.ok) setMsg(r?.error || tr("It could not be switched on.")); }} aria-label={tr("Allow AI apps to make changes")} />
+            {tr("Allow AI apps to make changes")}
+          </label>
+          <div style={{ ...small, marginLeft: 24 }}>{tr("Off by default. With it on, the AI app can also colour the holes, show or hide layers, point the view, and add sections, best-intercept sets and Layout pages. Each change shows here and is one step of Undo; nothing is deleted, overwritten or saved, and each download is asked for, every time. It turns off with AI App Access.")}</div>
           {msg && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)", marginTop: 6 }}>{msg}</div>}
           <div style={{ ...small, marginTop: 8 }}>{tr("Read-only: it can list holes, assays, logs and sections and compute grade statistics and best intercepts. It cannot change the project, open files or use any password. It works over a private connection on this computer only (no network port), and each AI app is asked about once.")}</div>
           {on && (
@@ -69,7 +75,7 @@ export default function AiAccessModal({ onClose }) {
               {act.slice().reverse().slice(0, 30).map((a, i) => (
                 <div key={`${a.at}-${i}`} style={{ ...small, display: "flex", gap: 8, color: a.ok ? "var(--color-text-secondary)" : "var(--color-warn-text)" }}>
                   <span style={{ minWidth: 70 }}>{when(a.at)}</span><span style={{ minWidth: 110, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.client}</span>
-                  <span style={{ flex: 1 }}>{a.tool || tr("not allowed")}{a.rows != null ? tr(" — {n} row(s)", { n: a.rows }) : ""}{a.refused ? tr(" — refused ({why})", { why: a.refused }) : ""}</span>
+                  <span style={{ flex: 1 }}>{a.tool || tr("not allowed")}{a.change ? tr(" (change)") : ""}{a.rows != null ? tr(" — {n} row(s)", { n: a.rows }) : ""}{a.refused ? tr(" — refused ({why})", { why: a.refused }) : ""}</span>
                 </div>
               ))}
             </>

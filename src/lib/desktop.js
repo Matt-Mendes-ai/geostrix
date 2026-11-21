@@ -494,6 +494,7 @@ const NO_MCP = { ok: false, error: "AI App Access needs the desktop app." };
 export const mcpStatus = async () => (d?.mcpStatus ? d.mcpStatus() : null);
 export const mcpSetEnabled = async (on, remember) => (d?.mcpSetEnabled ? d.mcpSetEnabled(on, remember) : NO_MCP);
 export const mcpStop = async () => (d?.mcpStop ? d.mcpStop() : NO_MCP);
+export const mcpSetChanges = async (on) => (d?.mcpSetChanges ? d.mcpSetChanges(on) : NO_MCP); // TASKS.csv #3932 — 'Allow AI apps to make changes'
 export const mcpForgetClients = async () => (d?.mcpForgetClients ? d.mcpForgetClients() : NO_MCP);
 export const mcpConfig = async () => (d?.mcpConfig ? d.mcpConfig() : null);
 export const onMcpStatus = (cb) => (d?.onMcpStatus ? d.onMcpStatus(cb) : () => {});

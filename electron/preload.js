@@ -89,6 +89,7 @@ contextBridge.exposeInMainWorld("desktop", {
   mcpStatus: () => ipcRenderer.invoke("mcp-status"),
   mcpSetEnabled: (on, remember) => ipcRenderer.invoke("mcp-set-enabled", { on, remember }),
   mcpStop: () => ipcRenderer.invoke("mcp-stop"),
+  mcpSetChanges: (on) => ipcRenderer.invoke("mcp-set-changes", { on }), // TASKS.csv #3932
   mcpForgetClients: () => ipcRenderer.invoke("mcp-forget-clients"),
   mcpConfig: () => ipcRenderer.invoke("mcp-config"),
   mcpRespond: (id, payload) => ipcRenderer.send("mcp-respond", { id, payload }),

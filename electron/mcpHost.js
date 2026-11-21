@@ -9,24 +9,27 @@ const net = require("net");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-const { createSession } = require("./mcpProtocol.js");
+const { createSession, createChangeLock } = require("./mcpProtocol.js");
 
 const DEBUG = !!process.env.GEOSTRIX_MCP_DEBUG; // a breadcrumb file for the live checks: events only, never what a tool returned
 const HANDSHAKE_MS = 5000, CALL_TIMEOUT_MS = 30000, MAX_LINE = 64 * 1024, ACTIVITY_KEPT = 60;
 
-function createHost({ userDataDir, getWindow, askAllow, readPrefs, writePrefs, onStatus = () => {}, platform = process.platform, limits }) {
+function createHost({ userDataDir, getWindow, askAllow, readPrefs, writePrefs, onStatus = () => {}, platform = process.platform, limits, tools }) { // tools: a test may give its own list (#3932)
   const dir = path.join(userDataDir, "mcp"), endpointFile = path.join(dir, "endpoint.json");
   const dbg = (...a) => { if (DEBUG) try { fs.appendFileSync(path.join(dir, "debug.log"), `${new Date().toISOString()} ${a.join(" ")}
 `); } catch { /* no folder */ } };
   let server = null, token = null, pipe = null, seq = 0;
   const conns = new Set(), pending = new Map(), activity = [], clients = new Map(); // clients: name -> { since, calls }
   let calls = 0;
+  // TASKS.csv #3932 — 'Allow AI apps to make changes': off by default, only while the server runs, off with it; kept for the next launch (prefs allowChanges) only with 'remember'
+  let changesOn = false;
+  const changeLock = createChangeLock(); // one change at a time, whichever app asks
 
-  const status = () => ({ enabled: !!server, remember: !!readPrefs().mcp?.remember, clients: [...clients].map(([name, c]) => ({ name, since: c.since, calls: c.calls })), calls, activity: activity.slice(-ACTIVITY_KEPT), allowed: readPrefs().mcp?.allowed || [] });
+  const status = () => ({ enabled: !!server, changes: !!server && changesOn, remember: !!readPrefs().mcp?.remember, clients: [...clients].map(([name, c]) => ({ name, since: c.since, calls: c.calls })), calls, activity: activity.slice(-ACTIVITY_KEPT), allowed: readPrefs().mcp?.allowed || [] });
   const push = () => { try { onStatus(status()); } catch { /* the window is gone */ } };
   const note = (e) => {
     if (e.event === "connected") clients.set(e.client, { since: e.at, calls: 0 });
-    else if (e.tool) { calls++; const c = clients.get(e.client); if (c) c.calls++; activity.push({ at: e.at, client: e.client, tool: e.tool, ok: e.ok, rows: e.rows ?? null, bytes: e.bytes || 0, refused: e.refused || null }); if (activity.length > ACTIVITY_KEPT * 2) activity.splice(0, activity.length - ACTIVITY_KEPT); }
+    else if (e.tool) { calls++; const c = clients.get(e.client); if (c) c.calls++; activity.push({ at: e.at, client: e.client, tool: e.tool, ok: e.ok, rows: e.rows ?? null, bytes: e.bytes || 0, refused: e.refused || null, ...(e.change ? { change: true } : {}) }); if (activity.length > ACTIVITY_KEPT * 2) activity.splice(0, activity.length - ACTIVITY_KEPT); }
     else if (e.event === "refused") activity.push({ at: e.at, client: e.client, tool: null, ok: false, refused: "not allowed" });
     push();
   };
@@ -44,12 +47,18 @@ function createHost({ userDataDir, getWindow, askAllow, readPrefs, writePrefs, o
   }
   function respond(id, payload) { const f = pending.get(id); if (!f) return false; pending.delete(id); f(payload && typeof payload === "object" ? { ok: !!payload.ok, data: payload.data, rows: payload.rows, error: payload.error } : { ok: false, error: "No answer." }); return true; }
 
-  async function ask(client) {
-    const allowed = readPrefs().mcp?.allowed || [];
-    if (allowed.includes(client)) return "always";
-    const a = await askAllow(client);
-    if (a === "always") { const p = readPrefs().mcp || {}; writePrefs({ mcp: { ...p, allowed: [...new Set([...(p.allowed || []), client])].slice(-20) } }); }
-    return a;
+  // #3932 — 'Always allow' is remembered per kind: reading (allowed) and changes (allowedChanges). A remembered reader connecting while changes are on is not asked at
+  // connect; it is asked about changes the first time it calls a change tool (opts.again).
+  async function ask(client, opts = {}) {
+    const p0 = readPrefs().mcp || {}, allowed = p0.allowed || [], allowedChanges = p0.allowedChanges || [];
+    if (opts.changes && allowedChanges.includes(client)) return { answer: "always", changes: true };
+    if (allowed.includes(client) && !opts.again) return { answer: "always", changes: false };
+    const a = await askAllow(client, opts);
+    if (a === "always") {
+      const p = readPrefs().mcp || {}, add = (list) => [...new Set([...(list || []), client])].slice(-20);
+      writePrefs({ mcp: { ...p, allowed: add(p.allowed), ...(opts.changes ? { allowedChanges: add(p.allowedChanges) } : {}) } });
+    }
+    return { answer: a, changes: !!opts.changes && (a === "once" || a === "always") };
   }
 
   function onConnection(sock) {
@@ -72,7 +81,7 @@ function createHost({ userDataDir, getWindow, askAllow, readPrefs, writePrefs, o
           if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) { dbg("bad token", a.length, b.length); return kill(); }
           dbg("authenticated");
           authed = true; clearTimeout(timer);
-          session = createSession({ callTool, askAllow: async (c) => { sock._mcpClient = c; return ask(c); }, onActivity: note, ...(limits ? { limits } : {}) });
+          session = createSession({ callTool, askAllow: async (c, opts) => { sock._mcpClient = c; return ask(c, opts); }, changesAllowed: () => !!server && changesOn, changeLock, onActivity: note, ...(limits ? { limits } : {}), ...(tools ? { tools } : {}) });
           continue;
         }
         if (!line.trim()) continue;
@@ -105,7 +114,7 @@ function createHost({ userDataDir, getWindow, askAllow, readPrefs, writePrefs, o
     for (const s of [...conns]) { try { s.destroy(); } catch { /* gone */ } }
     conns.clear(); clients.clear();
     for (const [, f] of pending) f({ ok: false, error: "Stopped." }); pending.clear();
-    const s = server; server = null; token = null;
+    const s = server; server = null; token = null; changesOn = false;
     try { s?.close(); } catch { /* closed */ }
     try { fs.rmSync(endpointFile, { force: true }); if (pipe && platform !== "win32") fs.rmSync(pipe, { force: true }); } catch { /* gone */ }
     pipe = null; push();
@@ -114,13 +123,29 @@ function createHost({ userDataDir, getWindow, askAllow, readPrefs, writePrefs, o
   // the switch: remembered across launches only when 'remember' is ticked
   async function setEnabled(on, remember) {
     const p = readPrefs().mcp || {};
-    writePrefs({ mcp: { ...p, remember: !!remember, enabled: !!on && !!remember } });
+    if (!on) changesOn = false; // #3932 — the changes switch goes off with access
+    writePrefs({ mcp: { ...p, remember: !!remember, enabled: !!on && !!remember, allowChanges: !!on && !!remember && changesOn } });
     return on ? start() : stop();
   }
-  // at launch: on again only if it was left on with 'remember'
-  const resumeIfRemembered = () => { const p = readPrefs().mcp; return p?.remember && p?.enabled ? start() : Promise.resolve({ ok: true, off: true }); };
-  const forgetClients = () => { const p = readPrefs().mcp || {}; writePrefs({ mcp: { ...p, allowed: [] } }); push(); return { ok: true }; };
-  return { start, stop, setEnabled, resumeIfRemembered, forgetClients, status, respond, callTool, _endpointFile: endpointFile };
+  // #3932 — the changes switch; only while AI App Access is on
+  function setChanges(on) {
+    if (!server) { changesOn = false; return { ok: false, error: "AI App Access is off." }; }
+    changesOn = !!on;
+    const p = readPrefs().mcp || {};
+    writePrefs({ mcp: { ...p, allowChanges: changesOn && !!p.remember } });
+    push();
+    return { ok: true, changes: changesOn };
+  }
+  // at launch: on again only if it was left on with 'remember' (and the changes switch with it)
+  const resumeIfRemembered = async () => {
+    const p = readPrefs().mcp;
+    if (!(p?.remember && p?.enabled)) return { ok: true, off: true };
+    const r = await start();
+    if (r.ok && p.allowChanges) { changesOn = true; push(); }
+    return r;
+  };
+  const forgetClients = () => { const p = readPrefs().mcp || {}; writePrefs({ mcp: { ...p, allowed: [], allowedChanges: [] } }); push(); return { ok: true }; };
+  return { start, stop, setEnabled, setChanges, resumeIfRemembered, forgetClients, status, respond, callTool, _endpointFile: endpointFile };
 }
 
 module.exports = { createHost, HANDSHAKE_MS, CALL_TIMEOUT_MS };
