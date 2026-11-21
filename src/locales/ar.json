@@ -720,9 +720,6 @@
   "— pick a column —": "— اختر عمودًا —",
   "— the same place on both grids (surveyed pins, a re-located hole), with project coordinates in EPSG:": "— المكان نفسه على الشبكتين (علامات مساحية، ثقب أعيد تحديد موقعه)، بإحداثيات المشروع في EPSG:",
   "{n} surface sample(s) have no elevation and no terrain to sit on — load a DEM or SRTM terrain (Geophysics tab) and they are placed on it.": "{n} عينة سطحية بلا ارتفاع ولا تضاريس تستقر عليها — حمّل نموذج ارتفاع رقميًا أو تضاريس SRTM (تبويب الجيوفيزياء) فتوضع عليها.",
-  "This is the 3D view — drillhole traces in real world coordinates, with lithology, alteration, veining, geotech and assay data hung off them downhole. Everything starts from a {collar} file.": "هذا هو العرض ثلاثي الأبعاد — مسارات ثقوب الحفر بإحداثيات حقيقية، مع الليثولوجيا والتحوّل والعروق والبيانات الجيوتقنية والتحاليل على طول كل ثقب. يبدأ كل شيء بملف {collar}.",
-  "Use the {collars} button under {geometry} in the panel on the left (or File ▸ Import CSV, Ctrl+I), or drag a file straight onto this view. Collars: a CSV (or zipped shapefile / GeoPackage) with a hole ID and x/y/z — {cols}, plus optional {az}, {dip} and {len}. Column names are guessed for you (easting/northing/elevation and friends all work) and anything ambiguous opens a mapping dialog rather than importing wrong.": "استخدم زر {collars} تحت {geometry} في اللوحة الجانبية (أو ملف ▸ استيراد CSV، Ctrl+I)، أو اسحب ملفًا مباشرة إلى هذا العرض. الفوهات: ملف CSV (أو shapefile مضغوط / GeoPackage) بمعرّف الثقب وx/y/z — {cols}، مع {az} و{dip} و{len} اختياريًا. تُخمَّن أسماء الأعمدة تلقائيًا (easting/northing/elevation وما شابهها) وأي غموض يفتح نافذة مطابقة بدلًا من استيراد خاطئ.",
-  "Then add downhole survey stations, and any interval layers you have (lithology, alteration, veins, mineralization, geotech, mag susceptibility, structure). Assays live in the {geochem} tab; survey lines and geophysical grids in {geophysics}; GeoTIFFs, satellite imagery, terrain and map layers in {maps}. Coordinates are reprojected to the project CRS on import if the source CRS differs.": "ثم أضف محطات مسح الانحراف وأي طبقات فترات لديك (الليثولوجيا والتحوّل والعروق والتمعدن والبيانات الجيوتقنية والقابلية المغناطيسية والبنية). التحاليل في تبويب {geochem}؛ وخطوط المسح والشبكات الجيوفيزيائية في {geophysics}؛ وملفات GeoTIFF وصور الأقمار الصناعية والتضاريس وطبقات الخريطة في {maps}. يُعاد إسقاط الإحداثيات إلى نظام إحداثيات المشروع عند الاستيراد إذا اختلف النظام المصدر.",
   "{n} sample": "{n} عينة",
   "{n} samples": "{n} عينات",
   "Error": "خطأ",
@@ -5454,7 +5451,6 @@
   "— side {v}": "— الجانب {v}",
   "Drag to resize the Browser panel": "اسحب لتغيير حجم لوحة المتصفح",
   "Load drillholes first — targeting plans holes against your drilling and models": "حمّل الثقوب أولًا — يخطط الاستهداف الثقوب مقابل حفرك ونماذجك",
-  "Nothing loaded yet": "لا شيء محمّل بعد",
   "Loading sample project…": "جارٍ تحميل مشروع العينة…",
   "Sample: Harry property (37 holes)": "عينة: ملكية Harry (37 ثقبًا)",
   "Start point set — click the end point": "ضُبطت نقطة البداية — انقر نقطة النهاية",
@@ -14577,5 +14573,14 @@
   "Title block and tokens": "جدول العنوان والحقول التلقائية",
   "Plan view of the drillholes": "عرض مسقط لثقوب الحفر",
   "Export: what goes where (Leapfrog, Micromine, GIS, Google Earth)": "التصدير: أي ملف لأي برنامج (Leapfrog وMicromine ونظم المعلومات الجغرافية وGoogle Earth)",
-  "Save, autosave and recovery; Undo": "الحفظ والحفظ التلقائي والاسترداد؛ التراجع"
+  "Save, autosave and recovery; Undo": "الحفظ والحفظ التلقائي والاسترداد؛ التراجع",
+  "Drill holes in 3D": "ثقوب الحفر ثلاثية الأبعاد",
+  "Drag a collar file onto this view, or click {collars} in the left panel.": "اسحب ملف الفوهات إلى هذا العرض، أو انقر {collars} في اللوحة اليسرى.",
+  "A collar file needs a hole ID and x, y, z. Columns are matched for you, and you're asked if anything is unclear.": "يحتاج ملف الفوهات إلى معرّف الثقب وx وy وz. تُطابَق الأعمدة تلقائيًا، ويُطلب رأيك إن كان شيء غير واضح.",
+  "Then add surveys, lithology and other logs. Assays go in the {geochem} tab.": "ثم أضف مسوح الانحراف والليثولوجيا والتسجيلات الأخرى. التحاليل تذهب إلى تبويب {geochem}.",
+  "A collar file can also be a zipped shapefile or GeoPackage, with optional {az}, {dip} and {len} columns; File ▸ Import CSV (Ctrl+I) opens the same import. Survey lines and grids go in {geophysics}; GeoTIFFs, imagery and terrain in {maps}. Coordinates are reprojected to the project CRS on import.": "يمكن أن يكون ملف الفوهات أيضًا shapefile مضغوطًا أو GeoPackage، مع أعمدة {az} و{dip} و{len} اختيارية؛ ويفتح ملف ▸ استيراد CSV ‏(Ctrl+I) الاستيراد نفسه. خطوط المسح والشبكات تذهب إلى {geophysics}؛ وملفات GeoTIFF والصور والتضاريس إلى {maps}. يُعاد إسقاط الإحداثيات إلى نظام إحداثيات المشروع عند الاستيراد.",
+  "A collar file dropped on the 3D view becomes drill hole traces. The file needs four columns: hole ID, x, y and z.": "ملف الفوهات المُسقَط على العرض ثلاثي الأبعاد يصبح مسارات ثقوب حفر. يحتاج الملف إلى أربعة أعمدة: معرّف الثقب وx وy وz.",
+  "Drag your collar file here to start.": "اسحب ملف الفوهات هنا للبدء.",
+  "Drop your collar file here": "أفلت ملف الفوهات هنا",
+  "Your file needs these four columns": "يحتاج ملفك إلى هذه الأعمدة الأربعة"
 }

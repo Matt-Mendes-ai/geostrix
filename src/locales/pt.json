@@ -720,9 +720,6 @@
   "— pick a column —": "— escolha uma coluna —",
   "— the same place on both grids (surveyed pins, a re-located hole), with project coordinates in EPSG:": "— o mesmo lugar nas duas grades (marcos topográficos, um furo relocado), com coordenadas do projeto em EPSG:",
   "{n} surface sample(s) have no elevation and no terrain to sit on — load a DEM or SRTM terrain (Geophysics tab) and they are placed on it.": "{n} amostra(s) de superfície não têm elevação nem terreno onde se apoiar — carregue um MDE ou terreno SRTM (aba Geofísica) e elas são colocadas sobre ele.",
-  "This is the 3D view — drillhole traces in real world coordinates, with lithology, alteration, veining, geotech and assay data hung off them downhole. Everything starts from a {collar} file.": "Esta é a visualização 3D — os traços dos furos em coordenadas reais, com litologia, alteração, veios, geotecnia e análises ao longo de cada furo. Tudo começa com um arquivo de {collar}.",
-  "Use the {collars} button under {geometry} in the panel on the left (or File ▸ Import CSV, Ctrl+I), or drag a file straight onto this view. Collars: a CSV (or zipped shapefile / GeoPackage) with a hole ID and x/y/z — {cols}, plus optional {az}, {dip} and {len}. Column names are guessed for you (easting/northing/elevation and friends all work) and anything ambiguous opens a mapping dialog rather than importing wrong.": "Use o botão {collars} em {geometry} no painel à esquerda (ou Arquivo ▸ Importar CSV, Ctrl+I), ou arraste um arquivo direto para esta vista. Bocas dos furos: um CSV (ou shapefile compactado / GeoPackage) com ID do furo e x/y/z — {cols}, e opcionalmente {az}, {dip} e {len}. Os nomes de coluna são reconhecidos sozinhos (easting/northing/elevation e similares funcionam) e, se algo for ambíguo, abre-se um diálogo de mapeamento em vez de importar errado.",
-  "Then add downhole survey stations, and any interval layers you have (lithology, alteration, veins, mineralization, geotech, mag susceptibility, structure). Assays live in the {geochem} tab; survey lines and geophysical grids in {geophysics}; GeoTIFFs, satellite imagery, terrain and map layers in {maps}. Coordinates are reprojected to the project CRS on import if the source CRS differs.": "Depois adicione as estações de survey e as camadas de intervalos que tiver (litologia, alteração, veios, mineralização, geotecnia, susceptibilidade magnética, estrutura). As análises ficam na aba {geochem}; linhas de levantamento e grades geofísicas em {geophysics}; GeoTIFFs, imagens de satélite, terreno e camadas de mapa em {maps}. As coordenadas são reprojetadas para o SRC do projeto na importação se o SRC de origem for outro.",
   "{n} sample": "{n} amostra",
   "{n} samples": "{n} amostras",
   "Error": "Erro",
@@ -5454,7 +5451,6 @@
   "— side {v}": "— lado {v}",
   "Drag to resize the Browser panel": "Arraste para redimensionar o painel Navegador",
   "Load drillholes first — targeting plans holes against your drilling and models": "Carregue antes furos — os alvos planejam furos contra sua sondagem e seus modelos",
-  "Nothing loaded yet": "Ainda não há nada carregado",
   "Loading sample project…": "Carregando o projeto de exemplo…",
   "Sample: Harry property (37 holes)": "Exemplo: propriedade Harry (37 furos)",
   "Start point set — click the end point": "Ponto inicial definido — clique no ponto final",
@@ -14577,5 +14573,14 @@
   "Title block and tokens": "Carimbo e campos automáticos",
   "Plan view of the drillholes": "Vista em planta dos furos",
   "Export: what goes where (Leapfrog, Micromine, GIS, Google Earth)": "Exportar: qual arquivo para qual programa (Leapfrog, Micromine, SIG, Google Earth)",
-  "Save, autosave and recovery; Undo": "Salvar, salvamento automático e recuperação; Desfazer"
+  "Save, autosave and recovery; Undo": "Salvar, salvamento automático e recuperação; Desfazer",
+  "Drill holes in 3D": "Furos em 3D",
+  "Drag a collar file onto this view, or click {collars} in the left panel.": "Arraste um arquivo de bocas dos furos para esta vista, ou clique em {collars} no painel à esquerda.",
+  "A collar file needs a hole ID and x, y, z. Columns are matched for you, and you're asked if anything is unclear.": "Um arquivo de bocas dos furos precisa de um ID do furo e x, y, z. As colunas são reconhecidas sozinhas, e você é consultado se algo não estiver claro.",
+  "Then add surveys, lithology and other logs. Assays go in the {geochem} tab.": "Depois adicione surveys, litologia e outros perfis. As análises vão na aba {geochem}.",
+  "A collar file can also be a zipped shapefile or GeoPackage, with optional {az}, {dip} and {len} columns; File ▸ Import CSV (Ctrl+I) opens the same import. Survey lines and grids go in {geophysics}; GeoTIFFs, imagery and terrain in {maps}. Coordinates are reprojected to the project CRS on import.": "Um arquivo de bocas dos furos também pode ser um shapefile compactado ou um GeoPackage, com colunas opcionais {az}, {dip} e {len}; Arquivo ▸ Importar CSV (Ctrl+I) abre a mesma importação. Linhas de levantamento e grades vão em {geophysics}; GeoTIFFs, imagens e terreno em {maps}. As coordenadas são reprojetadas para o SRC do projeto na importação.",
+  "A collar file dropped on the 3D view becomes drill hole traces. The file needs four columns: hole ID, x, y and z.": "Um arquivo de bocas dos furos solto na vista 3D vira traços de furos. O arquivo precisa de quatro colunas: ID do furo, x, y e z.",
+  "Drag your collar file here to start.": "Arraste aqui seu arquivo de bocas dos furos para começar.",
+  "Drop your collar file here": "Solte aqui seu arquivo de bocas dos furos",
+  "Your file needs these four columns": "Seu arquivo precisa destas quatro colunas"
 }

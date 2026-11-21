@@ -6,6 +6,7 @@ import { t as tr } from "../../lib/i18n.js";
 import { tx } from "../../lib/i18nRich.js";
 import { requestModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #3888 — the start dialogs (App.jsx mounts them)
 import { openHelp } from "../../lib/help.js"; // TASKS.csv #3887 — the First steps guide
+import CollarDropDiagram from "./CollarDropDiagram.jsx"; // TASKS.csv #3939
 
 export default function EmptyViewerBody({ mode }) {
   if (mode === "surface") return (
@@ -19,9 +20,15 @@ export default function EmptyViewerBody({ mode }) {
       {/* TASKS.csv #3888 (redesign P5) — the two start dialogs, from here too (as Matt agreed) */}
       <button type="button" className="ge-tool-btn" data-start-open="" onClick={() => requestModuleAction("open-start-dialog")} style={{ marginBottom: 10, fontWeight: 600 }}>{tr("Let's begin a project!")}</button>
       {" "}<button type="button" className="ge-tool-btn" data-first-steps-open="" onClick={() => openHelp("first-steps")} style={{ marginBottom: 10 }}>{tr("First steps")}</button>{/* TASKS.csv #3887 — the guide, in Help */}
-      <div style={{ marginBottom: 8 }}>{tx("This is the 3D view — drillhole traces in real world coordinates, with lithology, alteration, veining, geotech and assay data hung off them downhole. Everything starts from a {collar} file.", { collar: <b>{tr("collar")}</b> })}</div>
-      <div style={{ marginBottom: 8 }}>{tx("Use the {collars} button under {geometry} in the panel on the left (or File ▸ Import CSV, Ctrl+I), or drag a file straight onto this view. Collars: a CSV (or zipped shapefile / GeoPackage) with a hole ID and x/y/z — {cols}, plus optional {az}, {dip} and {len}. Column names are guessed for you (easting/northing/elevation and friends all work) and anything ambiguous opens a mapping dialog rather than importing wrong.", { collars: <b>{tr("Collars")}</b>, geometry: <b>{tr("Geometry")}</b>, cols: <code>hole_id, x, y, z</code>, az: <code>azimuth</code>, dip: <code>dip</code>, len: <code>length</code> })}</div>
-      <div style={{ marginBottom: 12 }}>{tx("Then add downhole survey stations, and any interval layers you have (lithology, alteration, veins, mineralization, geotech, mag susceptibility, structure). Assays live in the {geochem} tab; survey lines and geophysical grids in {geophysics}; GeoTIFFs, satellite imagery, terrain and map layers in {maps}. Coordinates are reprojected to the project CRS on import if the source CRS differs.", { geochem: <b>{tr("Geochem")}</b>, geophysics: <b>{tr("Geophysics")}</b>, maps: <b>{tr("Maps")}</b> })}</div>
+      {/* TASKS.csv #3939 — pictures first (Matt's worked example): the diagram, three short lines, the rest behind a closed More */}
+      <CollarDropDiagram />
+      <div style={{ marginBottom: 6 }}>{tx("Drag a collar file onto this view, or click {collars} in the left panel.", { collars: <b>{tr("Collars")}</b> })}</div>
+      <div style={{ marginBottom: 6 }}>{tr("A collar file needs a hole ID and x, y, z. Columns are matched for you, and you're asked if anything is unclear.")}</div>
+      <div style={{ marginBottom: 6 }}>{tx("Then add surveys, lithology and other logs. Assays go in the {geochem} tab.", { geochem: <b>{tr("Geochem")}</b> })}</div>
+      <details data-empty-more="" style={{ marginBottom: 10 }}>
+        <summary style={{ cursor: "pointer", color: "var(--color-info)", fontSize: "var(--font-size-sm)" }}>{tr("More")}</summary>
+        <div style={{ marginTop: 4 }}>{tx("A collar file can also be a zipped shapefile or GeoPackage, with optional {az}, {dip} and {len} columns; File ▸ Import CSV (Ctrl+I) opens the same import. Survey lines and grids go in {geophysics}; GeoTIFFs, imagery and terrain in {maps}. Coordinates are reprojected to the project CRS on import.", { az: <code>azimuth</code>, dip: <code>dip</code>, len: <code>length</code>, geophysics: <b>{tr("Geophysics")}</b>, maps: <b>{tr("Maps")}</b> })}</div>
+      </details>
     </>
   );
 }

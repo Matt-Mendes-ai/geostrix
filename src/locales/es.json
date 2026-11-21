@@ -720,9 +720,6 @@
   "— pick a column —": "— elija una columna —",
   "— the same place on both grids (surveyed pins, a re-located hole), with project coordinates in EPSG:": "— el mismo lugar en ambas grillas (hitos topografiados, un sondaje relocalizado), con coordenadas del proyecto en EPSG:",
   "{n} surface sample(s) have no elevation and no terrain to sit on — load a DEM or SRTM terrain (Geophysics tab) and they are placed on it.": "{n} muestra(s) superficial(es) no tienen elevación ni terreno donde apoyarse — cargue un MDE o terreno SRTM (pestaña Geofísica) y se colocan sobre él.",
-  "This is the 3D view — drillhole traces in real world coordinates, with lithology, alteration, veining, geotech and assay data hung off them downhole. Everything starts from a {collar} file.": "Esta es la vista 3D — las trazas de los sondajes en coordenadas reales, con la litología, alteración, vetas, geotecnia y ensayes a lo largo de cada sondaje. Todo empieza con un archivo de {collar}.",
-  "Use the {collars} button under {geometry} in the panel on the left (or File ▸ Import CSV, Ctrl+I), or drag a file straight onto this view. Collars: a CSV (or zipped shapefile / GeoPackage) with a hole ID and x/y/z — {cols}, plus optional {az}, {dip} and {len}. Column names are guessed for you (easting/northing/elevation and friends all work) and anything ambiguous opens a mapping dialog rather than importing wrong.": "Use el botón {collars} en {geometry} del panel izquierdo (o Archivo ▸ Importar CSV, Ctrl+I), o arrastre un archivo directamente a esta vista. Collares: un CSV (o shapefile comprimido / GeoPackage) con ID de sondaje y x/y/z — {cols}, y opcionalmente {az}, {dip} y {len}. Los nombres de columna se reconocen solos (easting/northing/elevation y similares funcionan) y si algo es ambiguo se abre un diálogo de asignación en vez de importar mal.",
-  "Then add downhole survey stations, and any interval layers you have (lithology, alteration, veins, mineralization, geotech, mag susceptibility, structure). Assays live in the {geochem} tab; survey lines and geophysical grids in {geophysics}; GeoTIFFs, satellite imagery, terrain and map layers in {maps}. Coordinates are reprojected to the project CRS on import if the source CRS differs.": "Luego agregue las estaciones de survey y las capas de intervalos que tenga (litología, alteración, vetas, mineralización, geotecnia, susceptibilidad magnética, estructura). Los ensayes están en la pestaña {geochem}; las líneas de levantamiento y las grillas geofísicas en {geophysics}; los GeoTIFF, las imágenes satelitales, el terreno y las capas de mapa en {maps}. Las coordenadas se reproyectan al SRC del proyecto al importar si el SRC de origen es otro.",
   "{n} sample": "{n} muestra",
   "{n} samples": "{n} muestras",
   "Error": "Error",
@@ -5454,7 +5451,6 @@
   "— side {v}": "— lado {v}",
   "Drag to resize the Browser panel": "Arrastre para cambiar el tamaño del panel Explorador",
   "Load drillholes first — targeting plans holes against your drilling and models": "Cargue primero sondajes — los objetivos planifican sondajes contra su perforación y modelos",
-  "Nothing loaded yet": "Aún no hay nada cargado",
   "Loading sample project…": "Cargando el proyecto de ejemplo…",
   "Sample: Harry property (37 holes)": "Ejemplo: propiedad Harry (37 sondajes)",
   "Start point set — click the end point": "Punto de inicio definido — haga clic en el punto final",
@@ -14577,5 +14573,14 @@
   "Title block and tokens": "Cuadro de rótulo y campos automáticos",
   "Plan view of the drillholes": "Vista en planta de los sondajes",
   "Export: what goes where (Leapfrog, Micromine, GIS, Google Earth)": "Exportar: qué archivo para qué programa (Leapfrog, Micromine, SIG, Google Earth)",
-  "Save, autosave and recovery; Undo": "Guardar, autoguardado y recuperación; Deshacer"
+  "Save, autosave and recovery; Undo": "Guardar, autoguardado y recuperación; Deshacer",
+  "Drill holes in 3D": "Sondajes en 3D",
+  "Drag a collar file onto this view, or click {collars} in the left panel.": "Arrastre un archivo de collares a esta vista, o haga clic en {collars} en el panel izquierdo.",
+  "A collar file needs a hole ID and x, y, z. Columns are matched for you, and you're asked if anything is unclear.": "Un archivo de collares necesita un ID de sondaje y x, y, z. Las columnas se reconocen solas, y se le pregunta si algo no está claro.",
+  "Then add surveys, lithology and other logs. Assays go in the {geochem} tab.": "Luego agregue surveys, litología y otros registros. Los ensayes van en la pestaña {geochem}.",
+  "A collar file can also be a zipped shapefile or GeoPackage, with optional {az}, {dip} and {len} columns; File ▸ Import CSV (Ctrl+I) opens the same import. Survey lines and grids go in {geophysics}; GeoTIFFs, imagery and terrain in {maps}. Coordinates are reprojected to the project CRS on import.": "Un archivo de collares también puede ser un shapefile comprimido o un GeoPackage, con columnas opcionales {az}, {dip} y {len}; Archivo ▸ Importar CSV (Ctrl+I) abre la misma importación. Las líneas de levantamiento y las grillas van en {geophysics}; los GeoTIFF, las imágenes y el terreno en {maps}. Las coordenadas se reproyectan al SRC del proyecto al importar.",
+  "A collar file dropped on the 3D view becomes drill hole traces. The file needs four columns: hole ID, x, y and z.": "Un archivo de collares soltado en la vista 3D se convierte en trazas de sondajes. El archivo necesita cuatro columnas: ID de sondaje, x, y y z.",
+  "Drag your collar file here to start.": "Arrastre aquí su archivo de collares para empezar.",
+  "Drop your collar file here": "Suelte aquí su archivo de collares",
+  "Your file needs these four columns": "Su archivo necesita estas cuatro columnas"
 }

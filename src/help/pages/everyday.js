@@ -25,7 +25,7 @@ export default [
       { name: "Data table and Data QC", what: "The table lists every row to sort and filter; Data QC lists what is wrong or missing.", more: "How to choose: Find a doubtful value in Data QC, open it in the table, fix the file." },
     ],
     warnings: [
-      { says: "Nothing loaded yet", do: "Drop a collar file on the view, or open a sample from the buttons below." },
+      { says: "Drill holes in 3D", do: "Drop a collar file on the view, or open a sample from the buttons below." },
     ],
     howto: {
       sample: "Macpass",
