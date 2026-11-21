@@ -24,6 +24,20 @@ export function metresPerPagePx(el) {
   return el.worldHeightAtTarget && h ? el.worldHeightAtTarget / h : null;
 }
 
+// TASKS.csv #3965 (Matt: "when I resize the view it creates a white frame around the previous view") — a captured 3D view frame whose
+// size on the page is no longer the size it was captured at
+export const frameResized = (el) => !!(el && el.type === "viewport" && el.src && el.capW > 0 && el.capH > 0 && (Math.round(el.w) !== Math.round(el.capW) || Math.round(el.h) !== Math.round(el.capH)));
+// the old picture scaled up just enough to cover the frame (never down: a smaller frame crops it at its scale), until the new capture lands
+export const coverScale = (W, H, imgW, imgH) => (imgW > 0 && imgH > 0 ? Math.max(1, W / imgW, H / imgH) : 1);
+// the capture a resized frame asks for: its new size, at the scale it had (a fixed 1 : N, else the metres per page px it showed) and centred
+// where it was, with the view it was captured with (a frame from the current view: not whatever the 3D View shows now), so a bigger frame
+// shows more ground, as in a GIS layout
+export function resizeRecaptureOpts(el) {
+  const fixed = el.trueScale && el.fixedScale > 0 ? el.fixedScale : null, mPerPx = fixed ? null : metresPerPagePx(el);
+  const tw = el.targetWorld && Number.isFinite(el.targetWorld.x) && Number.isFinite(el.targetWorld.y) ? { x: el.targetWorld.x, y: el.targetWorld.y } : null;
+  return { fixedScale: fixed || 0, ...(mPerPx ? { mPerPx } : {}), elementW: el.w, elementH: el.h, ...(tw ? { centreWorld: tw } : {}), ...(!el.themeId && el.viewState ? { viewState: el.viewState } : {}) };
+}
+
 // the ground a fixed-scale frame shows, w x h metres
 export const groundFrameSize = (fixedScale, el) => {
   const { w, h } = capturedSize(el);

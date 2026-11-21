@@ -40,7 +40,7 @@ test("the store keeps print images apart from the elements; the export waits for
   const s = fs.readFileSync("src/lib/store.jsx", "utf8");
   assert.match(s, /const \[printSrcs, setPrintSrcs\] = useState\(\{\}\);/);
   assert.match(s, /if \(printPass\) \{\s*if \(!res\.error && res\.src\) setPrintSrcs\(\(m\) => \(\{ \.\.\.m, \[targetElementId\]: res\.src \}\)\);/);
-  assert.match(s, /setViewportRenderRequest\(\{ requestId, themeId, trueScale, interactive, fixedScale, elementW, elementH, centreWorld, viewState, batch, dpi \}\);/);
+  assert.match(s, /setViewportRenderRequest\(\{ requestId, themeId, trueScale, interactive, fixedScale, elementW, elementH, centreWorld, viewState, batch, dpi, mPerPx \}\);/); // mPerPx: #3965
   assert.match(s, /it\.trueScale \?\? true/);
   assert.ok(!/printSrcs/.test(s.slice(s.indexOf("function serializeProject"), s.indexOf("function serializeProject") + 4000)) || !s.includes("function serializeProject"));
   const l = fs.readFileSync("src/modules/LayoutModule.jsx", "utf8");

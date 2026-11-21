@@ -857,8 +857,10 @@ export function StoreProvider({ children }) {
     const targetPageId = opts.pageId || null, viewState = opts.viewState || null, batch = opts.batch || null;
     // TASKS.csv #2303 — dpi (200 on the page, 300 for an export's print pass) and printPass (the image goes to printSrcs, not the element)
     const dpi = Number(opts.dpi) > 0 ? Number(opts.dpi) : null, printPass = !!opts.printPass;
+    // TASKS.csv #3965 — a resized frame (or its print pass) keeps the metres per page px it showed: the capture's extent follows the frame's size
+    const mPerPx = Number(opts.mPerPx) > 0 ? Number(opts.mPerPx) : null;
     setViewportPendingRequest({ requestId, targetElementId, themeId, trueScale, interactive, fixedScale, elementW, elementH, targetPageId, printPass });
-    setViewportRenderRequest({ requestId, themeId, trueScale, interactive, fixedScale, elementW, elementH, centreWorld, viewState, batch, dpi });
+    setViewportRenderRequest({ requestId, themeId, trueScale, interactive, fixedScale, elementW, elementH, centreWorld, viewState, batch, dpi, mPerPx });
     setViewportRenderRequestSeq((s) => s + 1);
     return requestId;
   }, []);
@@ -887,7 +889,7 @@ export function StoreProvider({ children }) {
   // own page and the next request goes out from the 3D View (no hop back to Layout in between); Layout is shown once at the end
   const viewportBatchRef = useRef(null);
   const [viewportBatchDone, setViewportBatchDone] = useState(null);
-  const issueBatchItem = (it, b) => requestViewportRender(it.themeId || null, it.elementId, it.trueScale ?? true /* #2303: a print pass keeps the element's own */, false, { fixedScale: it.fixedScale, elementW: it.elementW, elementH: it.elementH, centreWorld: it.centreWorld, pageId: it.pageId, viewState: it.viewState || null, dpi: it.dpi, printPass: it.printPass, batch: { index: b.done + 1, total: b.total, ...(b.label ? { label: b.label } : {}) } });
+  const issueBatchItem = (it, b) => requestViewportRender(it.themeId || null, it.elementId, it.trueScale ?? true /* #2303: a print pass keeps the element's own */, false, { fixedScale: it.fixedScale, elementW: it.elementW, elementH: it.elementH, centreWorld: it.centreWorld, mPerPx: it.mPerPx, pageId: it.pageId, viewState: it.viewState || null, dpi: it.dpi, printPass: it.printPass, batch: { index: b.done + 1, total: b.total, ...(b.label ? { label: b.label } : {}) } });
   // TASKS.csv #2303 — an export's print pass: each viewport's 300 dpi image, session only (never in the project file or Undo), by element id
   const [printSrcs, setPrintSrcs] = useState({});
   const requestViewportBatch = useCallback((items) => {

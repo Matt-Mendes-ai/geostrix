@@ -6869,7 +6869,6 @@
   "Exported {n} page(s) to {path}.": "{n} página(s) exportada(s) para {path}.",
   "Export every page as a PDF, each at its own paper size and orientation": "Exportar todas as páginas como PDF, cada uma com seu tamanho de papel e orientação",
   "Captured at 1 : {fixedScale}: the frame shows {w} × {h} m. Resize it and refresh to show more or less ground at this scale.": "Capturado em 1 : {fixedScale}: o quadro mostra {w} × {h} m. Redimensione-o e atualize para mostrar mais ou menos terreno nesta escala.",
-  "The frame was resized since its capture: the image keeps its scale and size until you refresh, which fills the frame.": "O quadro foi redimensionado desde a captura: a imagem mantém sua escala e tamanho até você atualizar, o que preenche o quadro.",
   "Drag the tip to aim and lengthen the arrow": "Arraste a ponta para apontar e alongar a seta",
   "Position and size on the paper, in millimetres (the rulers' unit). Drag an element's handles to resize it; Shift keeps its shape.": "Posição e tamanho no papel, em milímetros (a unidade das réguas). Arraste as alças de um elemento para redimensioná-lo; Shift mantém sua forma.",
   "X (mm)": "X (mm)",
@@ -14673,5 +14672,6 @@
   "Grade / intercept labels": "Rótulos de teor / interseção",
   "Surface and shell names": "Nomes de superfícies e envoltórias",
   "Ground surface label": "Rótulo da superfície do terreno",
-  "{n} holes: offsets and depth ticks off.": "{n} furos: distâncias e marcas de profundidade ocultas."
+  "{n} holes: offsets and depth ticks off.": "{n} furos: distâncias e marcas de profundidade ocultas.",
+  "The frame was resized: its old picture is enlarged to fill it until it is captured again at this size.": "O quadro foi redimensionado: a imagem anterior é ampliada para preenchê-lo até ser capturada de novo neste tamanho."
 }

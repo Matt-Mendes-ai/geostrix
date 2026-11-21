@@ -28,6 +28,13 @@ export function worldHeightAtTargetM(fovDeg, radius) {
   return 2 * radius * Math.tan((fovDeg * Math.PI) / 360); // fovDeg/2 in radians = fovDeg*PI/360
 }
 
+// TASKS.csv #3965 — the other way: the vertical field of view (degrees) that frames worldHeightM at the target distance (a resized Layout
+// frame captured again in perspective at the metres per px it had); capped at 160 degrees
+export function fovForWorldHeight(worldHeightM, radius) {
+  if (!(worldHeightM > 0) || !(radius > 0)) return null;
+  return Math.min(160, (360 / Math.PI) * Math.atan(worldHeightM / (2 * radius)));
+}
+
 // Metres of real world per on-screen pixel, at the orbit target (see the caveat above).
 export function metresPerPixelAtTarget(fovDeg, radius, pixelHeight) {
   const h = worldHeightAtTargetM(fovDeg, radius);

@@ -2,6 +2,7 @@
 // 300 dpi for an export: one batch item per viewport of the pages printed, each with what its capture was made from (its theme, or for a
 // theme-less capture the view it was captured with; true scale or not, its scale, the frame size it was captured at and its centre).
 // -> [{ pageId, elementId, themeId, viewState, trueScale, fixedScale, elementW, elementH, centreWorld, dpi: 300, printPass: true }]
+import { metresPerPagePx } from "./layoutGeometry.js";
 export const PRINT_DPI = 300, PAGE_DPI = 200;
 export function printPassItems(pages) {
   const items = [];
@@ -9,7 +10,9 @@ export function printPassItems(pages) {
     if (el?.type !== "viewport" || !el.src) continue;
     const trueScale = !!el.trueScale, scale = el.capturedFixedScale > 0 ? el.capturedFixedScale : el.fixedScale > 0 ? el.fixedScale : null;
     const tw = el.targetWorld && Number.isFinite(el.targetWorld.x) && Number.isFinite(el.targetWorld.y) ? { x: el.targetWorld.x, y: el.targetWorld.y } : null;
-    items.push({ pageId: pg.id, elementId: el.id, themeId: el.themeId || null, viewState: el.themeId ? null : el.viewState || null, trueScale, fixedScale: trueScale ? scale : null, elementW: el.capW > 0 ? el.capW : el.w, elementH: el.capH > 0 ? el.capH : el.h, centreWorld: trueScale ? tw : null, dpi: PRINT_DPI, printPass: true });
+    // TASKS.csv #3965 — without a fixed scale, at the metres per page px the page shows (a frame captured again after a resize framed more ground than its camera does)
+    const mPerPx = trueScale && scale ? null : metresPerPagePx(el);
+    items.push({ pageId: pg.id, elementId: el.id, themeId: el.themeId || null, viewState: el.themeId ? null : el.viewState || null, trueScale, fixedScale: trueScale ? scale : null, ...(mPerPx ? { mPerPx } : {}), elementW: el.capW > 0 ? el.capW : el.w, elementH: el.capH > 0 ? el.capH : el.h, centreWorld: trueScale ? tw : null, dpi: PRINT_DPI, printPass: true });
   }
   return items;
 }
