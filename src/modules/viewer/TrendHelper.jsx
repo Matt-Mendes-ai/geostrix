@@ -211,7 +211,7 @@ export default function TrendHelper({ structuralTrends, setStructuralTrends, sce
         <div style={{ marginTop: 8 }}>{tr("How strongly?")}</div>
         <div role="radiogroup" style={{ display: "flex", gap: 6 }}>
           {STRENGTHS.map(([k, label]) => (
-            <label key={k} style={{ ...small, flex: 1, textAlign: "center", cursor: "pointer", padding: 2, border: `1px solid ${strength === k ? "var(--color-info)" : "var(--color-border)"}`, borderRadius: 4 }}>
+            <label key={k} style={{ ...small, position: "relative" /* #3933 — the hidden radio's box: without it the radio sat at the page's foot, and focusing it scrolled the whole app out of the window */, flex: 1, textAlign: "center", cursor: "pointer", padding: 2, border: `1px solid ${strength === k ? "var(--color-info)" : "var(--color-border)"}`, borderRadius: 4 }}>
               <input type="radio" name="trendStrength" checked={strength === k} onChange={() => setStrength(k)} style={{ position: "absolute", opacity: 0, pointerEvents: "none" }} />
               <Ball k={STRENGTH_RATIOS[k]} on={strength === k} />
               {tr(label)} ({tr("{k} to 1", { k: STRENGTH_RATIOS[k] })})
