@@ -65,6 +65,9 @@ export function cleanLayerStyle(style, kind) {
   // TASKS.csv #3941 — a Mineralization layer's Total sulphides: the codes ticked as sulphides, and the lowest total shown (blank: every interval)
   if (Array.isArray(s.sulphideCodes)) out.sulphideCodes = s.sulphideCodes.filter((c) => typeof c === "string" && c).slice(0, 200).map((c) => c.slice(0, 60));
   if (Number.isFinite(s.sulphideMin) && s.sulphideMin > 0) out.sulphideMin = s.sulphideMin;
+  // TASKS.csv #3942 — a Mineralization layer's Width by (a number field or 'code:<mineral>') and the value drawn at full width (blank: auto)
+  if (typeof s.widthBy === "string" && s.widthBy) out.widthBy = s.widthBy.slice(0, 120);
+  if (Number.isFinite(s.widthFull) && s.widthFull > 0) out.widthFull = s.widthFull;
   return Object.keys(out).length ? out : null;
 }
 

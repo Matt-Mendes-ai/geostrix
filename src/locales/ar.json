@@ -3263,6 +3263,8 @@
   "CV": "معامل التباين",
   "Top cut": "القطع الأعلى",
   "Top cut for {el}": "القطع الأعلى لـ{el}",
+  "Width by": "العرض حسب",
+  "Full width at": "العرض الكامل عند",
   "Total sulphides": "مجموع الكبريتيدات",
   "No percentage column: there is no total to add.": "لا يوجد عمود للنسبة المئوية: لا مجموع لإضافته.",
   "Add Total sulphides": "إضافة مجموع الكبريتيدات",
