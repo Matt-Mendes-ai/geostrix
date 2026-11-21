@@ -12658,7 +12658,6 @@
   "nothing to undo. Undo covers this session only: a project opened from its file starts with no history.": "لا شيء للتراجع عنه. التراجع يشمل هذه الجلسة فقط: المشروع المفتوح من ملفه يبدأ بلا سجل.",
   "Nothing to undo. (Undo covers this session only: a project opened from its file starts with no history.)": "لا شيء للتراجع عنه. (التراجع يشمل هذه الجلسة فقط: المشروع المفتوح من ملفه يبدأ بلا سجل.)",
   "Google GEM-15 (15 m, bare earth)": "Google GEM-15 (15 م، أرض عارية)",
-  "Google GEM-15 surface (15 m)": "سطح Google GEM-15 (15 م)",
   "Couldn't read Google's GEM-15 elevation model ({v}). Check your internet connection.": "تعذّرت قراءة نموذج الارتفاع GEM-15 من Google ({v}). تحقق من اتصالك بالإنترنت.",
   " {n} of {total} nodes have no GEM-15 value (water, snow and ice, low texture, or no cell): {filled} were filled from Copernicus GLO-30.": " لا تحتوي {n} من أصل {total} عقدة على قيمة GEM-15 (ماء أو ثلج وجليد أو نسيج ضعيف أو بلا خلية): مُلئت {filled} منها من Copernicus GLO-30.",
   " {n} of {total} nodes have no GEM-15 value (water, snow and ice, low texture, or no cell) and are left as no data.": " لا تحتوي {n} من أصل {total} عقدة على قيمة GEM-15 (ماء أو ثلج وجليد أو نسيج ضعيف أو بلا خلية) وتبقى بلا بيانات.",
@@ -14616,5 +14615,7 @@
   "Or start from the 3D view:": "أو ابدأ من العرض ثلاثي الأبعاد:",
   "The sheet is empty: pick a sheet on the page.": "اللوحة فارغة: اختر لوحة على الصفحة.",
   "Rock name (optional)": "اسم الصخر (اختياري)",
-  "Keep the {col} codes, not the components": "إبقاء رموز {col} لا المكوّنات"
+  "Keep the {col} codes, not the components": "إبقاء رموز {col} لا المكوّنات",
+  "Google GEM-15 surface (15 m, trees and buildings)": "سطح Google GEM-15 (15 م، أشجار ومبانٍ)",
+  "Trees, buildings, cut blocks and flat snow or ice show as steps. GEM-15 bare earth has the same 15 m.": "تظهر الأشجار والمباني ومناطق القطع الحرجي والثلج أو الجليد المستوي كدرجات. ولـ GEM-15 الأرض العارية الدقة نفسها 15 م."
 }

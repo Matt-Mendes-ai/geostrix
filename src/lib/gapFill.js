@@ -6,57 +6,71 @@
 // and relaxes to a smooth offset inside a large gap. Pure: grids are row-major Float32Array / Float64Array, NaN = no value.
 
 // The gap nodes' offset field. gem: the primary model (NaN in its gaps), cop: the fill model; -> { delta (Float32Array, NaN where there is no offset to give), nValid, iterations }
+// TASKS.csv #3946 (Matt's first-time test: "still have steps in the GEM-15", a 1064 x 2049 grid with 32 % of its nodes filled) — the fill started from a pull-push guess in which a gap node
+// took its coarser parent's value as it was (constant 2^k x 2^k blocks), then relaxed it for at most 80 sweeps. On a 2 M-node grid with gaps hundreds of nodes wide that is far from
+// settled: on a synthetic grid of that size the result sat up to 20 m (3 m on average) from the settled one, and the blocks' straight edges stayed in the terrain. Now a coarse-to-fine
+// solve: the known differences are averaged up a pyramid of 2 x 2 levels; the coarsest level is relaxed until it settles; each finer level starts its gap nodes from a BILINEAR sample of
+// the level above (no blocks) and is relaxed in turn. `sweeps` caps the finest level's sweeps; `iterations` is the sweeps done there.
 export function deltaField(gem, cop, w, h, { sweeps = 80, omega = 1.85 } = {}) {
   const n = w * h, d = new Float32Array(n).fill(NaN);
   let nValid = 0, sum = 0;
   const known = new Uint8Array(n); // 1: a difference measured here
   for (let i = 0; i < n; i++) if (Number.isFinite(gem[i]) && Number.isFinite(cop[i])) { d[i] = gem[i] - cop[i]; known[i] = 1; nValid++; sum += d[i]; }
   if (!nValid) return { delta: d, nValid: 0, iterations: 0 };
-  // the starting guess: the mean offset everywhere, then a pull-push fill (coarse levels' means pushed down) so the sweeps below start near the answer
   const mean = sum / nValid;
-  pullPush(d, known, w, h, mean);
-  // gap nodes the relaxation moves: a node with no GEM-15 value (it may still have no GLO-30 value either: then it is left NaN by the caller)
-  const free = [];
-  for (let i = 0; i < n; i++) if (!known[i]) free.push(i);
-  let it = 0;
-  for (; it < sweeps && free.length; it++) {
-    let moved = 0;
-    for (const i of free) {
-      const x = i % w, y = (i - x) / w;
-      let s = 0, c = 0;
-      if (x > 0) { s += d[i - 1]; c++; } if (x < w - 1) { s += d[i + 1]; c++; }
-      if (y > 0) { s += d[i - w]; c++; } if (y < h - 1) { s += d[i + w]; c++; }
-      const t = s / c, v = d[i] + omega * (t - d[i]);
-      moved = Math.max(moved, Math.abs(v - d[i])); d[i] = v;
-    }
-    if (moved < 0.002) { it++; break; } // 2 mm
-  }
-  return { delta: d, nValid, iterations: it };
-}
-
-// push-pull: fill d where known = 0 from the mean of coarser levels (2 x 2 blocks of known values, weighted by how many are known); `fallback` where nothing is known at all
-function pullPush(d, known, w, h, fallback) {
+  // the pyramid: level 0 is the grid; a coarser node is the mean of its known children, known when any child is
   const levels = [{ v: d, k: known, w, h }];
-  for (;;) {
-    const a = levels[levels.length - 1];
-    if (a.w <= 2 && a.h <= 2) break;
-    const cw = Math.ceil(a.w / 2), ch = Math.ceil(a.h / 2), v = new Float32Array(cw * ch), k = new Float32Array(cw * ch);
-    for (let y = 0; y < a.h; y++) for (let x = 0; x < a.w; x++) {
-      const i = y * a.w + x, wt = a.k[i];
-      if (wt > 0) { const j = (y >> 1) * cw + (x >> 1); v[j] += a.v[i] * wt; k[j] += wt; }
-    }
-    for (let j = 0; j < v.length; j++) if (k[j] > 0) v[j] /= k[j];
+  while (levels[levels.length - 1].w > 24 || levels[levels.length - 1].h > 24) {
+    const a = levels[levels.length - 1], cw = Math.ceil(a.w / 2), ch = Math.ceil(a.h / 2), v = new Float32Array(cw * ch), c = new Float32Array(cw * ch), k = new Uint8Array(cw * ch);
+    for (let y = 0; y < a.h; y++) for (let x = 0; x < a.w; x++) { const i = y * a.w + x; if (a.k[i]) { const j = (y >> 1) * cw + (x >> 1); v[j] += a.v[i]; c[j]++; } }
+    for (let j = 0; j < v.length; j++) { if (c[j]) { v[j] /= c[j]; k[j] = 1; } else v[j] = NaN; }
     levels.push({ v, k, w: cw, h: ch });
   }
-  // from the coarsest level down: a node without a value takes its parent's
+  // the coarsest level: the mean where nothing is known, then relaxed until it settles
+  const top = levels[levels.length - 1];
+  for (let j = 0; j < top.v.length; j++) if (!top.k[j]) top.v[j] = mean;
+  relax(top, 4000, omega);
+  // down the pyramid: a gap node starts from the level above, sampled bilinearly (a fine node (x, y) sits at (x - 0.5) / 2 in the coarse level's node coordinates), then relaxed
+  let iterations = 0;
   for (let l = levels.length - 2; l >= 0; l--) {
     const a = levels[l], p = levels[l + 1];
-    for (let y = 0; y < a.h; y++) for (let x = 0; x < a.w; x++) {
-      const i = y * a.w + x;
-      if (!(a.k[i] > 0)) { const j = (y >> 1) * p.w + (x >> 1); a.v[i] = p.k[j] > 0 ? p.v[j] : fallback; a.k[i] = p.k[j] > 0 ? 1e-6 : 0; }
+    for (let y = 0; y < a.h; y++) {
+      const fy = Math.min(p.h - 1, Math.max(0, (y - 0.5) / 2)), y0 = Math.min(p.h - 2 < 0 ? 0 : p.h - 2, Math.floor(fy)), ty = p.h > 1 ? fy - y0 : 0, y1 = Math.min(p.h - 1, y0 + 1);
+      for (let x = 0; x < a.w; x++) {
+        const i = y * a.w + x; if (a.k[i]) continue;
+        const fx = Math.min(p.w - 1, Math.max(0, (x - 0.5) / 2)), x0 = Math.min(p.w - 2 < 0 ? 0 : p.w - 2, Math.floor(fx)), tx = p.w > 1 ? fx - x0 : 0, x1 = Math.min(p.w - 1, x0 + 1);
+        const t0 = p.v[y0 * p.w + x0] + (p.v[y0 * p.w + x1] - p.v[y0 * p.w + x0]) * tx, t1 = p.v[y1 * p.w + x0] + (p.v[y1 * p.w + x1] - p.v[y1 * p.w + x0]) * tx;
+        a.v[i] = t0 + (t1 - t0) * ty;
+      }
     }
+    const it = relax(a, l === 0 ? sweeps : 60, omega);
+    if (l === 0) iterations = it;
   }
-  for (let i = 0; i < d.length; i++) if (!Number.isFinite(d[i])) d[i] = fallback;
+  return { delta: d, nValid, iterations };
+}
+
+// over-relaxed Gauss-Seidel on a level's gap nodes (each settles to the mean of its 4 neighbours; known nodes held), at most `max` sweeps, stopping when no node moves 2 mm. -> sweeps done
+function relax(a, max, omega) {
+  const { v, k, w, h } = a, free = [];
+  for (let i = 0; i < v.length; i++) if (!k[i]) free.push(i);
+  if (!free.length) return 0;
+  const f = Int32Array.from(free);
+  let it = 0;
+  for (; it < max; it++) {
+    let moved = 0;
+    for (let q = 0; q < f.length; q++) {
+      const i = f[q], x = i % w, y = (i - x) / w;
+      let s = 0, c = 0;
+      if (x > 0) { s += v[i - 1]; c++; } if (x < w - 1) { s += v[i + 1]; c++; }
+      if (y > 0) { s += v[i - w]; c++; } if (y < h - 1) { s += v[i + w]; c++; }
+      if (!c) continue;
+      const t = v[i] + omega * (s / c - v[i]), m = Math.abs(t - v[i]);
+      if (m > moved) moved = m;
+      v[i] = t;
+    }
+    if (moved < 0.002) return it + 1; // 2 mm
+  }
+  return it;
 }
 
 // The gaps of `gem` filled from `cop` plus the interpolated difference. -> { out (new array), filled (nodes filled), plainFilled, delta: { median, min, max } }; a node with no `cop` value stays NaN

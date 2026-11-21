@@ -12658,7 +12658,6 @@
   "nothing to undo. Undo covers this session only: a project opened from its file starts with no history.": "nada a desfazer. Desfazer cobre só esta sessão: um projeto aberto de seu arquivo começa sem histórico.",
   "Nothing to undo. (Undo covers this session only: a project opened from its file starts with no history.)": "Nada a desfazer. (Desfazer cobre só esta sessão: um projeto aberto de seu arquivo começa sem histórico.)",
   "Google GEM-15 (15 m, bare earth)": "Google GEM-15 (15 m, terreno nu)",
-  "Google GEM-15 surface (15 m)": "Superfície Google GEM-15 (15 m)",
   "Couldn't read Google's GEM-15 elevation model ({v}). Check your internet connection.": "Não foi possível ler o modelo de elevação GEM-15 do Google ({v}). Verifique sua conexão com a internet.",
   " {n} of {total} nodes have no GEM-15 value (water, snow and ice, low texture, or no cell): {filled} were filled from Copernicus GLO-30.": " {n} de {total} nós não têm valor GEM-15 (água, neve e gelo, pouca textura ou sem célula): {filled} foram preenchidos com o Copernicus GLO-30.",
   " {n} of {total} nodes have no GEM-15 value (water, snow and ice, low texture, or no cell) and are left as no data.": " {n} de {total} nós não têm valor GEM-15 (água, neve e gelo, pouca textura ou sem célula) e ficam sem dados.",
@@ -14616,5 +14615,7 @@
   "Or start from the 3D view:": "Ou comece pela vista 3D:",
   "The sheet is empty: pick a sheet on the page.": "A prancha está vazia: escolha uma folha na página.",
   "Rock name (optional)": "Nome da rocha (opcional)",
-  "Keep the {col} codes, not the components": "Manter os códigos de {col}, não os componentes"
+  "Keep the {col} codes, not the components": "Manter os códigos de {col}, não os componentes",
+  "Google GEM-15 surface (15 m, trees and buildings)": "Superfície Google GEM-15 (15 m, árvores e edificações)",
+  "Trees, buildings, cut blocks and flat snow or ice show as steps. GEM-15 bare earth has the same 15 m.": "Árvores, edificações, áreas de corte raso e neve ou gelo planos aparecem como degraus. GEM-15 terreno nu tem os mesmos 15 m."
 }
